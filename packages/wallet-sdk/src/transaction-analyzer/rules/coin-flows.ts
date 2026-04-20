@@ -16,13 +16,63 @@ export interface CoinFlow {
 	amount: bigint;
 }
 
+export type Party = 'sender' | 'sponsor';
+
+/**
+ * Per-party coin outflows. A party's outflow list captures value that originated
+ * with that party and left it during the transaction — either to another party or
+ * to an unknown destination (e.g. consumed by a non-framework MoveCall). Value
+ * that originates outside both parties (e.g. `coin::zero`) is not attributed to
+ * any party and does not appear in the result.
+ */
+export type CoinFlowsByParty = Record<Party, CoinFlow[]>;
+
 const SUI_FRAMEWORK = normalizeSuiAddress('0x2');
+
+type Origin = 'Sender' | 'Sponsor' | 'Foreign';
 
 export const coinFlows = createAnalyzer({
 	dependencies: { data, commands, inputs, coins, gasCoins },
 	analyze:
 		() =>
 		async ({ data, commands, inputs, coins, gasCoins }) => {
+			const issues: TransactionAnalysisIssue[] = [];
+			const trackedCoins = new Map<string, TrackedCoin>();
+			const outflowsByOrigin = new Map<Exclude<Origin, 'Foreign'>, Map<string, bigint>>();
+
+			const gasOwner = data.gasData.owner ?? data.sender;
+			const sponsorAddress = gasOwner && data.sender && gasOwner !== data.sender ? gasOwner : null;
+
+			const partyForAddress = (address: string | null): Origin | 'Other' => {
+				if (address == null) return 'Other';
+				if (data.sender && address === data.sender) return 'Sender';
+				if (sponsorAddress && address === sponsorAddress) return 'Sponsor';
+				return 'Other';
+			};
+
+			const addOutflow = (origin: Origin, coinType: string, amount: bigint) => {
+				if (origin === 'Foreign' || amount <= 0n) return;
+				let forOrigin = outflowsByOrigin.get(origin);
+				if (!forOrigin) {
+					forOrigin = new Map();
+					outflowsByOrigin.set(origin, forOrigin);
+				}
+				forOrigin.set(coinType, (forOrigin.get(coinType) ?? 0n) + amount);
+			};
+
+			// Flush a tracked coin's remaining balance to the appropriate outflow bucket
+			// based on where it's going. `destAddress = null` means an unknown destination
+			// (e.g. consumed by a non-framework MoveCall) and counts as outflow.
+			const flushToDestination = (tracked: TrackedCoin, destAddress: string | null) => {
+				if (tracked.origin !== 'Foreign') {
+					const destParty = partyForAddress(destAddress);
+					if (destParty !== tracked.origin) {
+						addOutflow(tracked.origin, tracked.coinType, tracked.remainingBalance);
+					}
+				}
+				tracked.consume();
+			};
+
 			const getTrackedCoin = (ref: AnalyzedCommandArgument): TrackedCoin | null => {
 				switch (ref.$kind) {
 					case 'GasCoin':
@@ -40,20 +90,16 @@ export const coinFlows = createAnalyzer({
 
 			const splitCoin = (command: Extract<AnalyzedCommand, { $kind: 'SplitCoins' }>) => {
 				const coin = getTrackedCoin(command.coin);
+				if (!coin) return;
 
-				if (!coin) {
-					return;
-				}
-				// If any amounts are dynamic we need to assume the coin is fully consumed
+				// If any amounts are dynamic we have to assume the coin is fully consumed.
 				if (!command.amounts.every((a) => a.$kind === 'Pure')) {
-					coin.consume();
+					flushToDestination(coin, null);
 					return;
 				}
 
 				const amounts = command.amounts.map((a) => {
-					if (a.$kind !== 'Pure') {
-						throw new Error('Expected pure value');
-					}
+					if (a.$kind !== 'Pure') throw new Error('Expected pure value');
 					return BigInt(bcs.u64().fromBase64(a.bytes));
 				});
 
@@ -62,48 +108,41 @@ export const coinFlows = createAnalyzer({
 				amounts.forEach((amount, i) => {
 					trackedCoins.set(
 						`result:${command.index},${i}`,
-						new TrackedCoin(coin.coinType, amount, false, coin.fromOwnedSender),
+						new TrackedCoin(coin.coinType, amount, coin.origin),
 					);
 				});
 			};
 
 			const mergeCoins = (command: Extract<AnalyzedCommand, { $kind: 'MergeCoins' }>) => {
+				const dest = getTrackedCoin(command.destination);
 				const sources = command.sources.map(getTrackedCoin);
-				const amount = sources.reduce((a, c) => a + (c?.remainingBalance ?? 0n), 0n);
 
 				for (const src of sources) {
-					src?.consume();
+					if (!src) continue;
+					if (dest && src.origin === dest.origin) {
+						// Same origin: fold balance into dest; source is no longer a
+						// separate tracked entity.
+						dest.remainingBalance += src.remainingBalance;
+						src.consume();
+					} else {
+						// Mixed-origin or missing dest: treat the source as flushed to an
+						// unknown destination so its origin is charged for the value.
+						flushToDestination(src, null);
+					}
 				}
-
-				const dest = getTrackedCoin(command.destination);
-
-				if (!dest) {
-					return;
-				}
-
-				dest.remainingBalance += amount;
 			};
 
 			const transferObjects = (command: Extract<AnalyzedCommand, { $kind: 'TransferObjects' }>) => {
-				const address =
+				const destAddress =
 					command.address.$kind === 'Pure' ? bcs.Address.fromBase64(command.address.bytes) : null;
 
 				for (const obj of command.objects) {
 					const tracked = getTrackedCoin(obj);
-
-					if (tracked?.fromOwnedSender && address && data.sender === address) {
-						addReturned(tracked.coinType, tracked.remainingBalance);
-					}
-
-					tracked?.consume();
+					if (!tracked) continue;
+					flushToDestination(tracked, destAddress);
 				}
 			};
 
-			const addReturned = (coinType: string, amount: bigint) => {
-				returnedByType.set(coinType, (returnedByType.get(coinType) ?? 0n) + amount);
-			};
-
-			/** Get the coin type from a MoveCall's first type argument, normalized. */
 			const getCoinTypeFromTypeArgs = (
 				command: Extract<AnalyzedCommand, { $kind: 'MoveCall' }>,
 			): string | null => {
@@ -113,7 +152,8 @@ export const coinFlows = createAnalyzer({
 
 			/**
 			 * Handle framework MoveCall commands from 0x2::coin and 0x2::balance.
-			 * Returns true if the command was handled, false to fall through to generic consume.
+			 * Returns true if the command was handled, false to fall through to the
+			 * generic MoveCall consumer.
 			 */
 			const handleFrameworkMoveCall = (
 				command: Extract<AnalyzedCommand, { $kind: 'MoveCall' }>,
@@ -132,10 +172,10 @@ export const coinFlows = createAnalyzer({
 					// coin::redeem_funds(Withdrawal, &mut TxContext) -> Coin<T>
 					const arg = command.arguments[0];
 					if (arg?.$kind !== 'Withdrawal') return false;
-					const fromSender = arg.withdrawFrom === 'Sender';
+					const origin: Origin = arg.withdrawFrom === 'Sender' ? 'Sender' : 'Sponsor';
 					trackedCoins.set(
 						`result:${command.index},0`,
-						new TrackedCoin(arg.coinType, arg.amount, fromSender, fromSender),
+						new TrackedCoin(arg.coinType, arg.amount, origin),
 					);
 					return true;
 				}
@@ -146,12 +186,9 @@ export const coinFlows = createAnalyzer({
 					if (command.arguments.length < 2) return false;
 					const tracked = getTrackedCoin(command.arguments[0]);
 					const addrArg = command.arguments[1];
-					const address = addrArg.$kind === 'Pure' ? bcs.Address.fromBase64(addrArg.bytes) : null;
-
-					if (tracked?.fromOwnedSender && address && data.sender === address) {
-						addReturned(tracked.coinType, tracked.remainingBalance);
-					}
-					tracked?.consume();
+					const destAddress =
+						addrArg.$kind === 'Pure' ? bcs.Address.fromBase64(addrArg.bytes) : null;
+					if (tracked) flushToDestination(tracked, destAddress);
 					return true;
 				}
 
@@ -168,12 +205,7 @@ export const coinFlows = createAnalyzer({
 					if (tracked) {
 						trackedCoins.set(
 							`result:${command.index},0`,
-							new TrackedCoin(
-								tracked.coinType,
-								tracked.remainingBalance,
-								false,
-								tracked.fromOwnedSender,
-							),
+							new TrackedCoin(tracked.coinType, tracked.remainingBalance, tracked.origin),
 						);
 						tracked.consume();
 					}
@@ -195,7 +227,7 @@ export const coinFlows = createAnalyzer({
 
 					const amountArg = command.arguments[1];
 					if (amountArg.$kind !== 'Pure') {
-						source.consume();
+						flushToDestination(source, null);
 						return true;
 					}
 
@@ -203,7 +235,7 @@ export const coinFlows = createAnalyzer({
 					source.remainingBalance -= amount;
 					trackedCoins.set(
 						`result:${command.index},0`,
-						new TrackedCoin(source.coinType, amount, false, source.fromOwnedSender),
+						new TrackedCoin(source.coinType, amount, source.origin),
 					);
 					return true;
 				}
@@ -215,12 +247,7 @@ export const coinFlows = createAnalyzer({
 					if (source) {
 						trackedCoins.set(
 							`result:${command.index},0`,
-							new TrackedCoin(
-								source.coinType,
-								source.remainingBalance,
-								false,
-								source.fromOwnedSender,
-							),
+							new TrackedCoin(source.coinType, source.remainingBalance, source.origin),
 						);
 						source.remainingBalance = 0n;
 					}
@@ -239,10 +266,14 @@ export const coinFlows = createAnalyzer({
 					if (command.arguments.length < 2) return false;
 					const dest = getTrackedCoin(command.arguments[0]);
 					const source = getTrackedCoin(command.arguments[1]);
-					if (dest && source) {
-						dest.remainingBalance += source.remainingBalance;
+					if (source) {
+						if (dest && source.origin === dest.origin) {
+							dest.remainingBalance += source.remainingBalance;
+							source.consume();
+						} else {
+							flushToDestination(source, null);
+						}
 					}
-					source?.consume();
 					return true;
 				}
 
@@ -252,7 +283,7 @@ export const coinFlows = createAnalyzer({
 					// coin::zero(&mut TxContext) -> Coin<T>
 					// balance::zero() -> Balance<T>
 					if (coinType) {
-						trackedCoins.set(`result:${command.index},0`, new TrackedCoin(coinType, 0n, false));
+						trackedCoins.set(`result:${command.index},0`, new TrackedCoin(coinType, 0n, 'Foreign'));
 					}
 					return true;
 				}
@@ -261,27 +292,28 @@ export const coinFlows = createAnalyzer({
 				//   - coin::mint / coin::mint_and_transfer (TreasuryCap<T>): untracked inflow
 				//   - 0x2::pay module (split, split_and_transfer, join_vec)
 				// All other 0x2::coin / 0x2::balance functions (destroy_zero, divide_into_n,
-				// value, etc.) fall through to the generic MoveCall handler which consumes
-				// all by-value arguments.
+				// value, etc.) fall through to the generic MoveCall handler which flushes
+				// all by-value arguments as outflow from their origin party.
 				return false;
 			};
 
-			const issues: TransactionAnalysisIssue[] = [];
+			// --- Setup: gas coin + object inputs ---
 
-			const trackedCoins = new Map<string, TrackedCoin>();
-			const returnedByType = new Map<string, bigint>();
-
+			const gasOrigin: Origin = sponsorAddress ? 'Sponsor' : 'Sender';
 			trackedCoins.set(
 				'gas',
 				new TrackedCoin(
 					normalizeStructTag('0x2::sui::SUI'),
 					gasCoins.reduce((a, c) => a + c.balance, 0n),
-					true,
+					gasOrigin,
 				),
 			);
 
 			if (data.gasData.budget) {
-				trackedCoins.get('gas')!.remainingBalance -= BigInt(data.gasData.budget);
+				// Gas budget is paid by the gas owner to the network — always an outflow.
+				addOutflow(gasOrigin, normalizeStructTag('0x2::sui::SUI'), BigInt(data.gasData.budget));
+				const gas = trackedCoins.get('gas')!;
+				gas.remainingBalance -= BigInt(data.gasData.budget);
 			} else {
 				issues.push({ message: 'Gas budget not set in Transaction' });
 			}
@@ -291,10 +323,12 @@ export const coinFlows = createAnalyzer({
 					const coin = coins[input.object.objectId];
 					trackedCoins.set(
 						`input:${input.index}`,
-						new TrackedCoin(coin.coinType, coin.balance, true),
+						new TrackedCoin(coin.coinType, coin.balance, 'Sender'),
 					);
 				}
 			}
+
+			// --- Process commands ---
 
 			for (const command of commands) {
 				switch (command.$kind) {
@@ -310,17 +344,18 @@ export const coinFlows = createAnalyzer({
 					case 'MakeMoveVec':
 						command.elements.forEach((el) => {
 							const tracked = getTrackedCoin(el);
-							tracked?.consume();
+							if (tracked) flushToDestination(tracked, null);
 						});
 						break;
 					case 'MoveCall':
 						if (!handleFrameworkMoveCall(command)) {
-							// Generic MoveCall: consume tracked coin/balance arguments passed
-							// by value or &mut. Immutable references (&) can't move value.
+							// Generic MoveCall: flush tracked coin/balance arguments passed
+							// by value or &mut as outflow from their origin. Immutable
+							// references (&) can't move value.
 							command.arguments.forEach((arg) => {
 								if (arg.accessLevel === 'read') return;
 								const tracked = getTrackedCoin(arg);
-								tracked?.consume();
+								if (tracked) flushToDestination(tracked, null);
 							});
 						}
 						break;
@@ -332,33 +367,21 @@ export const coinFlows = createAnalyzer({
 				}
 			}
 
-			const outflows: Record<string, CoinFlow> = {};
+			if (issues.length) return { issues };
 
-			for (const coin of trackedCoins.values()) {
-				if (!coin.owned) {
-					continue;
-				}
-				if (!outflows[coin.coinType]) {
-					outflows[coin.coinType] = { coinType: coin.coinType, amount: 0n };
-				}
-
-				outflows[coin.coinType].amount += coin.initialBalance - coin.remainingBalance;
-			}
-
-			// Subtract value returned to sender (send_funds to self, transferObjects to self)
-			for (const [coinType, amount] of returnedByType) {
-				if (outflows[coinType]) {
-					outflows[coinType].amount -= amount;
-				}
-			}
-
-			if (issues.length) {
-				return { issues };
-			}
+			const toFlowList = (m: Map<string, bigint> | undefined): CoinFlow[] =>
+				m
+					? Array.from(m, ([coinType, amount]) => ({ coinType, amount })).filter(
+							(f) => f.amount > 0n,
+						)
+					: [];
 
 			return {
 				result: {
-					outflows: Object.values(outflows),
+					outflows: {
+						sender: toFlowList(outflowsByOrigin.get('Sender')),
+						sponsor: toFlowList(outflowsByOrigin.get('Sponsor')),
+					} satisfies CoinFlowsByParty,
 				},
 			};
 		},
@@ -366,25 +389,16 @@ export const coinFlows = createAnalyzer({
 
 class TrackedCoin {
 	coinType: string;
-	initialBalance: bigint;
 	remainingBalance: bigint;
-	// True for initial sender-owned inputs whose (initialBalance - remainingBalance)
-	// contributes to outflow totals. Derived results (splits, conversions) are not owned
-	// because their source's remaining balance already accounts for value that left.
-	owned: boolean;
-	// True when this tracked value ultimately originates from sender-owned funds.
-	// Used to decide whether returning the value to the sender should credit back
-	// the sender's outflow. Propagated through splits, joins, and conversions;
-	// sponsor-sourced withdrawals are false.
-	fromOwnedSender: boolean;
+	// Party whose balance this tracked value comes out of. Splits / joins /
+	// conversions preserve the origin; `coin::zero` produces 'Foreign'.
+	origin: Origin;
 	consumed = false;
 
-	constructor(coinType: string, balance: bigint, owned: boolean, fromOwnedSender = owned) {
+	constructor(coinType: string, balance: bigint, origin: Origin) {
 		this.coinType = coinType;
-		this.initialBalance = balance;
 		this.remainingBalance = balance;
-		this.owned = owned;
-		this.fromOwnedSender = fromOwnedSender;
+		this.origin = origin;
 	}
 
 	consume() {

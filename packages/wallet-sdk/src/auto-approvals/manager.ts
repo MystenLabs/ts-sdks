@@ -114,7 +114,7 @@ export class AutoApprovalManager {
 		}
 
 		if (!operation.permissions.anyBalance) {
-			for (const flow of analysis.result.coinFlows.outflows) {
+			for (const flow of analysis.result.coinFlows.outflows.sender) {
 				if (!operation.permissions.balances?.find((b) => b.coinType === flow.coinType)) {
 					issues.push({
 						message: `Operation does not have permission to use coin type ${flow.coinType}`,
@@ -194,7 +194,7 @@ export class AutoApprovalManager {
 			issues.push({ message: 'Operation type not approved for auto-approval' });
 		}
 
-		for (const outflow of analysis.result.coinFlows.outflows) {
+		for (const outflow of analysis.result.coinFlows.outflows.sender) {
 			if (outflow.amount <= 0n) {
 				continue;
 			}
@@ -246,7 +246,7 @@ export class AutoApprovalManager {
 			);
 		}
 
-		for (const outflow of analysis.result.coinFlows.outflows) {
+		for (const outflow of analysis.result.coinFlows.outflows.sender) {
 			if (this.#state.settings.coinBudgets[outflow.coinType] !== undefined) {
 				const currentBudget = BigInt(this.#state.settings?.coinBudgets[outflow.coinType] ?? '0');
 				const newBalance = currentBudget - outflow.amount;
@@ -292,7 +292,7 @@ export class AutoApprovalManager {
 			throw new Error('Transaction analysis failed');
 		}
 
-		for (const outflow of analysis.result.coinFlows.outflows) {
+		for (const outflow of analysis.result.coinFlows.outflows.sender) {
 			if (this.#state.settings?.coinBudgets[outflow.coinType] !== undefined) {
 				const currentBudget = BigInt(this.#state.settings?.coinBudgets[outflow.coinType] ?? '0');
 				const newBalance = currentBudget + outflow.amount;

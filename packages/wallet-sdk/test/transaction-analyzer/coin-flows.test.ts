@@ -32,7 +32,7 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 		);
 
 		// Gas coin is tracked with gas budget usage in empty transaction
-		expect(results.coinFlows.result?.outflows).toEqual([
+		expect(results.coinFlows.result?.outflows.sender).toEqual([
 			{
 				coinType: '0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI',
 				amount: 10000000n, // Gas budget
@@ -58,8 +58,8 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 		);
 
 		// Should have SUI outflow of 0.1 SUI
-		expect(results.coinFlows.result?.outflows).toHaveLength(1);
-		const suiFlow = results.coinFlows.result?.outflows[0];
+		expect(results.coinFlows.result?.outflows.sender).toHaveLength(1);
+		const suiFlow = results.coinFlows.result?.outflows.sender[0];
 		expect(suiFlow?.coinType).toBe(
 			'0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI',
 		);
@@ -83,8 +83,8 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 		);
 
 		// Should have SUI outflow of full gas amount
-		expect(results.coinFlows.result?.outflows).toHaveLength(1);
-		const suiFlow = results.coinFlows.result?.outflows[0];
+		expect(results.coinFlows.result?.outflows.sender).toHaveLength(1);
+		const suiFlow = results.coinFlows.result?.outflows.sender[0];
 		expect(suiFlow?.coinType).toBe(
 			'0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI',
 		);
@@ -109,12 +109,12 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 			250000000n,
 		]); // 1 SUI + 0.5 SUI + 0.25 SUI
 
-		const [toTransfer] = tx.mergeCoins(splitCoin1, [splitCoin2]); // 1.5 SUI
+		tx.mergeCoins(splitCoin1, [splitCoin2]); // splitCoin1 now has 1.5 SUI
 
 		tx.mergeCoins(coin1, [splitCoin3]); // Merge back remaining .25
 
-		// Transfer the split
-		tx.transferObjects([toTransfer], tx.pure.address('0x456'));
+		// Transfer the split (mergeCoins mutates dest in place, so transfer splitCoin1)
+		tx.transferObjects([splitCoin1], tx.pure.address('0x456'));
 
 		const results = await analyze(
 			{ coinFlows },
@@ -125,8 +125,8 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 		);
 
 		// Should only count the transferred amount, not double count the merged coins
-		expect(results.coinFlows.result?.outflows).toHaveLength(1);
-		const suiFlow = results.coinFlows.result?.outflows[0];
+		expect(results.coinFlows.result?.outflows.sender).toHaveLength(1);
+		const suiFlow = results.coinFlows.result?.outflows.sender[0];
 		expect(suiFlow?.amount).toBe(1510000000n); // 1 SUI + 2.5 SUI + 0.01 gas budget
 	});
 
@@ -153,8 +153,8 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 		);
 
 		// Should track both the split coin and gas coin as consumed
-		expect(results.coinFlows.result?.outflows).toHaveLength(1);
-		const suiFlow = results.coinFlows.result?.outflows[0];
+		expect(results.coinFlows.result?.outflows.sender).toHaveLength(1);
+		const suiFlow = results.coinFlows.result?.outflows.sender[0];
 		expect(suiFlow?.amount).toBe(5500000000n); // 0.5 SUI (split) + 5 SUI (gas)
 	});
 
@@ -180,8 +180,8 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 		);
 
 		// Should track both coins as consumed
-		expect(results.coinFlows.result?.outflows).toHaveLength(1);
-		const suiFlow = results.coinFlows.result?.outflows[0];
+		expect(results.coinFlows.result?.outflows.sender).toHaveLength(1);
+		const suiFlow = results.coinFlows.result?.outflows.sender[0];
 		expect(suiFlow?.amount).toBe(5300000000n); // 0.3 SUI (split) + 5 SUI (gas)
 	});
 
@@ -205,7 +205,7 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 
 		// Should have no outflows since coin was transferred back to sender
 		// But gas budget is still consumed
-		expect(results.coinFlows.result?.outflows).toEqual([
+		expect(results.coinFlows.result?.outflows.sender).toEqual([
 			{
 				coinType: '0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI',
 				amount: 10000000n, // Gas budget
@@ -233,7 +233,7 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 		);
 
 		// Should track the full coin balance as outflow due to dynamic amount
-		const suiFlow = results.coinFlows.result?.outflows.find(
+		const suiFlow = results.coinFlows.result?.outflows.sender.find(
 			(flow) =>
 				flow.coinType ===
 				'0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI',
@@ -265,16 +265,16 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 		);
 
 		// Should have outflows for all three coin types
-		expect(results.coinFlows.result?.outflows).toHaveLength(3);
+		expect(results.coinFlows.result?.outflows.sender).toHaveLength(3);
 
-		const coinTypes = results.coinFlows.result?.outflows.map((flow) => flow.coinType).sort();
+		const coinTypes = results.coinFlows.result?.outflows.sender.map((flow) => flow.coinType).sort();
 		expect(coinTypes).toEqual([
 			'0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI',
 			'0x0000000000000000000000000000000000000000000000000000000000000a0b::usdc::USDC',
 			'0x0000000000000000000000000000000000000000000000000000000000000b0c::weth::WETH',
 		]);
 
-		expect(results.coinFlows.result?.outflows).toMatchInlineSnapshot(`
+		expect(results.coinFlows.result?.outflows.sender).toMatchInlineSnapshot(`
 			[
 			  {
 			    "amount": 5010000000n,
@@ -321,8 +321,8 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 			},
 		);
 
-		expect(results.coinFlows.result?.outflows).toHaveLength(1);
-		const suiFlow = results.coinFlows.result?.outflows[0];
+		expect(results.coinFlows.result?.outflows.sender).toHaveLength(1);
+		const suiFlow = results.coinFlows.result?.outflows.sender[0];
 		expect(suiFlow?.amount).toBe(1510000000n); // 1.5 SUI (split2 + split3) + 0.01 gas budget
 	});
 
@@ -399,7 +399,7 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 		);
 
 		// Verify coin flows are tracked correctly
-		expect(results.coinFlows.result?.outflows).toMatchInlineSnapshot(`
+		expect(results.coinFlows.result?.outflows.sender).toMatchInlineSnapshot(`
 			[
 			  {
 			    "amount": 1610000000n,
@@ -417,7 +417,7 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 		`);
 
 		// Verify SUI outflow: 1 SUI (split1) + 0.1 SUI (gas) + 0.5 SUI (consumed in move call) = 1.6 SUI
-		const suiFlow = results.coinFlows.result?.outflows.find(
+		const suiFlow = results.coinFlows.result?.outflows.sender.find(
 			(flow) =>
 				flow.coinType ===
 				'0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI',
@@ -425,7 +425,7 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 		expect(suiFlow?.amount).toBe(1610000000n); // 1.6 SUI + 0.01 SUI gas budget
 
 		// Verify USDC outflow: 500 USDC transferred
-		const usdcFlow = results.coinFlows.result?.outflows.find(
+		const usdcFlow = results.coinFlows.result?.outflows.sender.find(
 			(flow) =>
 				flow.coinType ===
 				'0x0000000000000000000000000000000000000000000000000000000000000a0b::usdc::USDC',
@@ -433,7 +433,7 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 		expect(usdcFlow?.amount).toBe(500000000n); // Positive means outflow
 
 		// Verify WETH outflow: entire coin consumed in MakeMoveVec
-		const wethFlow = results.coinFlows.result?.outflows.find(
+		const wethFlow = results.coinFlows.result?.outflows.sender.find(
 			(flow) =>
 				flow.coinType ===
 				'0x0000000000000000000000000000000000000000000000000000000000000b0c::weth::WETH',
