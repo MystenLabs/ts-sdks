@@ -32,7 +32,7 @@ describe('Coin Flows - tx.coin() / tx.balance() Integration', () => {
 
 		const results = await analyzeWithIntents(tx, client);
 
-		const suiFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === SUI);
+		const suiFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === SUI);
 		// 1 SUI transferred + gas budget
 		expect(suiFlow).toBeDefined();
 		expect(suiFlow!.amount).toBeGreaterThanOrEqual(1_000_000_000n);
@@ -48,7 +48,7 @@ describe('Coin Flows - tx.coin() / tx.balance() Integration', () => {
 
 		const results = await analyzeWithIntents(tx, client);
 
-		const suiFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === SUI);
+		const suiFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === SUI);
 		expect(suiFlow).toBeDefined();
 		// Only gas budget should be the outflow (split returned to self)
 		expect(suiFlow!.amount).toBeLessThan(500_000_000n);
@@ -67,7 +67,7 @@ describe('Coin Flows - tx.coin() / tx.balance() Integration', () => {
 
 		const results = await analyzeWithIntents(tx, client);
 
-		const usdcFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === USDC);
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(usdcFlow).toBeDefined();
 		expect(usdcFlow!.amount).toBe(200_000_000n);
 	});
@@ -110,9 +110,7 @@ describe('Coin Flows - tx.coin() / tx.balance() Integration', () => {
 		const results = await analyzeWithIntents(tx, freshClient);
 
 		const tokenType = normalizeStructTag('0xfff::token::TOKEN');
-		const tokenFlow = results.coinFlows.result?.outflows.sender.find(
-			(f) => f.coinType === tokenType,
-		);
+		const tokenFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === tokenType);
 		expect(tokenFlow).toBeDefined();
 		expect(tokenFlow!.amount).toBe(200_000_000n);
 	});
@@ -131,7 +129,7 @@ describe('Coin Flows - tx.coin() / tx.balance() Integration', () => {
 
 		const results = await analyzeWithIntents(tx, client);
 
-		const usdcFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === USDC);
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(usdcFlow).toBeDefined();
 		expect(usdcFlow!.amount).toBe(1_200_000_000n);
 	});
@@ -155,7 +153,7 @@ describe('Coin Flows - tx.coin() / tx.balance() Integration', () => {
 
 		const results = await analyzeWithIntents(tx, client);
 
-		const suiFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === SUI);
+		const suiFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === SUI);
 		expect(suiFlow).toBeDefined();
 		expect(suiFlow!.amount).toBeGreaterThanOrEqual(500_000_000n);
 	});
@@ -179,7 +177,7 @@ describe('Coin Flows - tx.coin() / tx.balance() Integration', () => {
 
 		const results = await analyzeWithIntents(tx, client);
 
-		const usdcFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === USDC);
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(usdcFlow).toBeDefined();
 		expect(usdcFlow!.amount).toBe(300_000_000n);
 	});
@@ -200,7 +198,7 @@ describe('Coin Flows - tx.coin() / tx.balance() Integration', () => {
 
 		const results = await analyzeWithIntents(tx, client);
 
-		const usdcFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === USDC);
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(usdcFlow).toBeDefined();
 		expect(usdcFlow!.amount).toBe(300_000_000n);
 	});
@@ -222,7 +220,7 @@ describe('Coin Flows - tx.coin() / tx.balance() Integration', () => {
 
 		const results = await analyzeWithIntents(tx, client);
 
-		const usdcFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === USDC);
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(usdcFlow).toBeDefined();
 		expect(usdcFlow!.amount).toBe(1_200_000_000n);
 	});
@@ -248,7 +246,7 @@ describe('Coin Flows - tx.coin() / tx.balance() Integration', () => {
 
 		const results = await analyzeWithIntents(tx, client);
 
-		const usdcFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === USDC);
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(usdcFlow).toBeDefined();
 		expect(usdcFlow!.amount).toBe(300_000_000n); // 100 + 200
 	});
@@ -272,11 +270,11 @@ describe('Coin Flows - tx.coin() / tx.balance() Integration', () => {
 
 		const results = await analyzeWithIntents(tx, client);
 
-		const suiFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === SUI);
+		const suiFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === SUI);
 		expect(suiFlow).toBeDefined();
 		expect(suiFlow!.amount).toBeGreaterThanOrEqual(1_000_000_000n);
 
-		const usdcFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === USDC);
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(usdcFlow).toBeDefined();
 		expect(usdcFlow!.amount).toBe(200_000_000n);
 	});
@@ -296,7 +294,7 @@ describe('Coin Flows - tx.coin() / tx.balance() Integration', () => {
 
 		const results = await analyzeWithIntents(tx, client);
 
-		const usdcFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === USDC);
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(usdcFlow).toBeDefined();
 		expect(usdcFlow!.amount).toBe(300_000_000n);
 	});
@@ -319,7 +317,7 @@ describe('Coin Flows - tx.coin() / tx.balance() Integration', () => {
 
 		const results = await analyzeWithIntents(tx, client);
 
-		const usdcFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === USDC);
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(usdcFlow).toBeDefined();
 		expect(usdcFlow!.amount).toBe(250_000_000n);
 	});
@@ -337,7 +335,7 @@ describe('Coin Flows - tx.coin() / tx.balance() Integration', () => {
 		const results = await analyzeWithIntents(tx, client);
 
 		// No USDC outflow for zero balance
-		const usdcFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === USDC);
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(usdcFlow).toBeUndefined();
 	});
 
@@ -355,7 +353,7 @@ describe('Coin Flows - tx.coin() / tx.balance() Integration', () => {
 
 		const results = await analyzeWithIntents(tx, client);
 
-		const usdcFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === USDC);
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(usdcFlow).toBeUndefined();
 	});
 });
@@ -388,7 +386,7 @@ describe('Coin Flows - Gas Payment and Synthetic Coins', () => {
 
 		const results = await analyze({ coinFlows }, { client, transaction: JSON.stringify(json) });
 
-		const suiFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === SUI);
+		const suiFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === SUI);
 		expect(suiFlow).toBeDefined();
 		expect(suiFlow!.amount).toBe(10_000_000n); // Gas budget is the outflow
 	});
@@ -417,7 +415,7 @@ describe('Coin Flows - Gas Payment and Synthetic Coins', () => {
 
 		const results = await analyze({ coinFlows }, { client, transaction: JSON.stringify(json) });
 
-		const suiFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === SUI);
+		const suiFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === SUI);
 		expect(suiFlow).toBeDefined();
 		// Gas initial = 5 SUI (synthetic), split 2 SUI, gas budget ~10M
 		// Outflow = 2 SUI + gas budget
@@ -452,7 +450,7 @@ describe('Coin Flows - Gas Payment and Synthetic Coins', () => {
 
 		const results = await analyze({ coinFlows }, { client, transaction: JSON.stringify(json) });
 
-		const suiFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === SUI);
+		const suiFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === SUI);
 		expect(suiFlow).toBeDefined();
 		// Gas initial = 2 SUI (synthetic) + 5 SUI (real coin) = 7 SUI
 		// Split 3 SUI + gas budget 10M
@@ -482,7 +480,7 @@ describe('Coin Flows - Gas Payment and Synthetic Coins', () => {
 
 		const results = await analyze({ coinFlows }, { client, transaction: JSON.stringify(json) });
 
-		const suiFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === SUI);
+		const suiFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === SUI);
 		expect(suiFlow).toBeDefined();
 		// Split returned to self, so only gas budget
 		expect(suiFlow!.amount).toBe(10_000_000n);

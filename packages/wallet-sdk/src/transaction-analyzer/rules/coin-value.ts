@@ -31,8 +31,7 @@ export const coinValues = createAnalyzer({
 	analyze:
 		({ getCoinPrices }: CoinValueAnalyzerOptions) =>
 		async ({ coinFlows }) => {
-			const senderOutflows = coinFlows.outflows.sender;
-			const prices = await getCoinPrices(senderOutflows.map((cf) => cf.coinType));
+			const prices = await getCoinPrices(coinFlows.outflows.map((cf) => cf.coinType));
 
 			let total = 0;
 			const coinTypesWithoutPrice: string[] = [];
@@ -45,7 +44,7 @@ export const coinValues = createAnalyzer({
 				convertedAmount: number;
 			}[] = [];
 
-			for (const flow of senderOutflows) {
+			for (const flow of coinFlows.outflows) {
 				if (flow.amount > 0n) {
 					const result = prices.find((p) => p.coinType === flow.coinType);
 

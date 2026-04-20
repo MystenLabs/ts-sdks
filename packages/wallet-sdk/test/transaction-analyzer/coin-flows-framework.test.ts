@@ -5,7 +5,7 @@ import { describe, it, expect } from 'vitest';
 import { Transaction } from '@mysten/sui/transactions';
 import { normalizeStructTag } from '@mysten/sui/utils';
 import { analyze } from '../../src/transaction-analyzer/analyzer.js';
-import { coinFlows } from '../../src/transaction-analyzer/rules/coin-flows.js';
+import { coinFlows, sponsorFlows } from '../../src/transaction-analyzer/rules/coin-flows.js';
 import { MockSuiClient } from '../mocks/MockSuiClient.js';
 import {
 	DEFAULT_SENDER,
@@ -16,6 +16,35 @@ import {
 
 const SUI = '0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI';
 const USDC = '0x0000000000000000000000000000000000000000000000000000000000000a0b::usdc::USDC';
+
+// A distinct sponsor address used by sponsored tests.
+const SPONSOR = '0x00000000000000000000000000000000000000000000000000000000000005b0';
+
+/**
+ * Flip FundsWithdrawal inputs to sponsor-funded and patch gas data so the
+ * analyzer sees a real sponsored transaction. Add a sponsor-owned SUI coin
+ * to the client for gas payment. Returns the patched JSON string.
+ */
+function sponsorize(client: MockSuiClient, txJson: string, sponsor: string = SPONSOR): string {
+	const json = JSON.parse(txJson);
+	for (const input of json.inputs) {
+		if (input.FundsWithdrawal) {
+			input.FundsWithdrawal.withdrawFrom = { Sponsor: true };
+		}
+	}
+	const sponsorGasId = `0xabcdef${sponsor.slice(-4)}`;
+	client.addCoin({
+		objectId: sponsorGasId,
+		coinType: '0x2::sui::SUI',
+		balance: 5000000000n,
+		owner: { $kind: 'AddressOwner', AddressOwner: sponsor },
+	});
+	json.gasData.owner = sponsor;
+	json.gasData.payment = [
+		{ objectId: sponsorGasId, version: '1', digest: '11111111111111111111111111111111' },
+	];
+	return JSON.stringify(json);
+}
 
 // Helper: build a transaction with a FundsWithdrawal input and a redeem MoveCall.
 function buildWithdrawalTx(opts: {
@@ -56,7 +85,7 @@ describe('Coin Flows - Framework MoveCall Tests', () => {
 
 		const results = await analyze({ coinFlows }, { client, transaction: await tx.toJSON() });
 
-		const usdcFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === USDC);
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(usdcFlow?.amount).toBe(500000000n);
 	});
 
@@ -77,7 +106,7 @@ describe('Coin Flows - Framework MoveCall Tests', () => {
 
 		const results = await analyze({ coinFlows }, { client, transaction: await tx.toJSON() });
 
-		const usdcFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === USDC);
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(usdcFlow?.amount).toBe(300000000n);
 	});
 
@@ -102,18 +131,13 @@ describe('Coin Flows - Framework MoveCall Tests', () => {
 			tx.pure.address('0x456'),
 		);
 
-		// Get JSON and patch withdrawFrom to Sponsor
-		const json = JSON.parse(await tx.toJSON());
-		for (const input of json.inputs) {
-			if (input.FundsWithdrawal) {
-				input.FundsWithdrawal.withdrawFrom = { Sponsor: true };
-			}
-		}
-
-		const results = await analyze({ coinFlows }, { client, transaction: JSON.stringify(json) });
+		const results = await analyze(
+			{ coinFlows },
+			{ client, transaction: sponsorize(client, await tx.toJSON()) },
+		);
 
 		// Sponsored withdrawal should not count as sender outflow
-		const usdcFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === USDC);
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(usdcFlow).toBeUndefined();
 	});
 
@@ -133,7 +157,7 @@ describe('Coin Flows - Framework MoveCall Tests', () => {
 
 		const results = await analyze({ coinFlows }, { client, transaction: await tx.toJSON() });
 
-		const suiFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === SUI);
+		const suiFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === SUI);
 		expect(suiFlow?.amount).toBe(10000000n); // gas budget only
 	});
 
@@ -153,7 +177,7 @@ describe('Coin Flows - Framework MoveCall Tests', () => {
 
 		const results = await analyze({ coinFlows }, { client, transaction: await tx.toJSON() });
 
-		const suiFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === SUI);
+		const suiFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === SUI);
 		expect(suiFlow?.amount).toBe(210000000n); // 200M + gas budget
 	});
 
@@ -173,7 +197,7 @@ describe('Coin Flows - Framework MoveCall Tests', () => {
 
 		const results = await analyze({ coinFlows }, { client, transaction: await tx.toJSON() });
 
-		const usdcFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === USDC);
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(usdcFlow).toBeUndefined();
 	});
 
@@ -193,7 +217,7 @@ describe('Coin Flows - Framework MoveCall Tests', () => {
 
 		const results = await analyze({ coinFlows }, { client, transaction: await tx.toJSON() });
 
-		const usdcFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === USDC);
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(usdcFlow?.amount).toBe(100000000n);
 	});
 
@@ -222,7 +246,7 @@ describe('Coin Flows - Framework MoveCall Tests', () => {
 
 		const results = await analyze({ coinFlows }, { client, transaction: await tx.toJSON() });
 
-		const suiFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === SUI);
+		const suiFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === SUI);
 		// 300M split (consumed via into_balance -> generic consume) + gas budget
 		expect(suiFlow?.amount).toBe(310000000n);
 	});
@@ -245,7 +269,7 @@ describe('Coin Flows - Framework MoveCall Tests', () => {
 
 		const results = await analyze({ coinFlows }, { client, transaction: await tx.toJSON() });
 
-		const usdcFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === USDC);
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(usdcFlow?.amount).toBe(200000000n);
 	});
 
@@ -267,7 +291,7 @@ describe('Coin Flows - Framework MoveCall Tests', () => {
 
 		const results = await analyze({ coinFlows }, { client, transaction: await tx.toJSON() });
 
-		const usdcFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === USDC);
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(usdcFlow).toBeUndefined();
 	});
 
@@ -290,7 +314,7 @@ describe('Coin Flows - Framework MoveCall Tests', () => {
 
 		const results = await analyze({ coinFlows }, { client, transaction: await tx.toJSON() });
 
-		const suiFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === SUI);
+		const suiFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === SUI);
 		expect(suiFlow?.amount).toBe(210000000n); // 200M + gas budget
 	});
 
@@ -324,7 +348,7 @@ describe('Coin Flows - Framework MoveCall Tests', () => {
 
 		const results = await analyze({ coinFlows }, { client, transaction: await tx.toJSON() });
 
-		const usdcFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === USDC);
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(usdcFlow?.amount).toBe(200000000n); // Only split amount, remainder returned
 	});
 
@@ -353,7 +377,7 @@ describe('Coin Flows - Framework MoveCall Tests', () => {
 
 		const results = await analyze({ coinFlows }, { client, transaction: await tx.toJSON() });
 
-		const usdcFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === USDC);
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(usdcFlow?.amount).toBe(150000000n);
 	});
 
@@ -379,7 +403,7 @@ describe('Coin Flows - Framework MoveCall Tests', () => {
 
 		const results = await analyze({ coinFlows }, { client, transaction: await tx.toJSON() });
 
-		const usdcFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === USDC);
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(usdcFlow?.amount).toBe(500000000n);
 	});
 
@@ -398,7 +422,7 @@ describe('Coin Flows - Framework MoveCall Tests', () => {
 
 		const results = await analyze({ coinFlows }, { client, transaction: await tx.toJSON() });
 
-		const suiFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === SUI);
+		const suiFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === SUI);
 		expect(suiFlow?.amount).toBe(5010000000n); // full coin + gas budget
 	});
 
@@ -422,7 +446,7 @@ describe('Coin Flows - Framework MoveCall Tests', () => {
 
 		const results = await analyze({ coinFlows }, { client, transaction: await tx.toJSON() });
 
-		const suiFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === SUI);
+		const suiFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === SUI);
 		expect(suiFlow?.amount).toBe(7510000000n); // 5 + 2.5 SUI + gas
 	});
 
@@ -459,7 +483,7 @@ describe('Coin Flows - Framework MoveCall Tests', () => {
 
 		const results = await analyze({ coinFlows }, { client, transaction: await tx.toJSON() });
 
-		const usdcFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === USDC);
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(usdcFlow?.amount).toBe(500000000n); // 300M + 200M
 	});
 
@@ -494,7 +518,7 @@ describe('Coin Flows - Framework MoveCall Tests', () => {
 
 		const results = await analyze({ coinFlows }, { client, transaction: await tx.toJSON() });
 
-		const usdcFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === USDC);
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(usdcFlow).toBeUndefined(); // Everything returned
 	});
 
@@ -519,11 +543,11 @@ describe('Coin Flows - Framework MoveCall Tests', () => {
 
 		const results = await analyze({ coinFlows }, { client, transaction: await tx.toJSON() });
 
-		const suiFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === SUI);
+		const suiFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === SUI);
 		expect(suiFlow?.amount).toBe(10000000n); // gas budget only
 
 		// No USDC outflow
-		const usdcFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === USDC);
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(usdcFlow).toBeUndefined();
 	});
 
@@ -558,7 +582,7 @@ describe('Coin Flows - Framework MoveCall Tests', () => {
 
 		const results = await analyze({ coinFlows }, { client, transaction: await tx.toJSON() });
 
-		const suiFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === SUI);
+		const suiFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === SUI);
 		expect(suiFlow?.amount).toBe(10000000n); // gas budget only
 	});
 });
@@ -598,7 +622,7 @@ describe('Coin Flows - Combination Chain Tests', () => {
 
 		const results = await analyze({ coinFlows }, { client, transaction: await tx.toJSON() });
 
-		const usdcFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === USDC);
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(usdcFlow?.amount).toBe(150000000n);
 	});
 
@@ -632,7 +656,7 @@ describe('Coin Flows - Combination Chain Tests', () => {
 
 		const results = await analyze({ coinFlows }, { client, transaction: await tx.toJSON() });
 
-		const usdcFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === USDC);
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(usdcFlow?.amount).toBe(200000000n);
 	});
 
@@ -685,7 +709,7 @@ describe('Coin Flows - Combination Chain Tests', () => {
 
 		const results = await analyze({ coinFlows }, { client, transaction: await tx.toJSON() });
 
-		const usdcFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === USDC);
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
 		// 500M owned + 100M redeemed = 600M. Split 250M. Remainder 350M returned.
 		// Outflow: 600M (raw) - 350M (returned) = 250M
 		expect(usdcFlow?.amount).toBe(250000000n);
@@ -728,7 +752,7 @@ describe('Coin Flows - Combination Chain Tests', () => {
 
 		const results = await analyze({ coinFlows }, { client, transaction: await tx.toJSON() });
 
-		const suiFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === SUI);
+		const suiFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === SUI);
 		expect(suiFlow?.amount).toBe(10000000n); // gas budget only
 	});
 
@@ -754,10 +778,10 @@ describe('Coin Flows - Combination Chain Tests', () => {
 
 		const results = await analyze({ coinFlows }, { client, transaction: await tx.toJSON() });
 
-		const usdcFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === USDC);
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(usdcFlow?.amount).toBe(100000000n);
 
-		const suiFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === SUI);
+		const suiFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === SUI);
 		expect(suiFlow?.amount).toBe(10000000n); // gas budget only, SUI returned to self
 	});
 });
@@ -781,17 +805,12 @@ describe('Coin Flows - Sponsor withdrawal returned to sender', () => {
 		});
 		tx.transferObjects([sponsorRedeem], tx.pure.address(DEFAULT_SENDER));
 
-		// Patch the sponsor withdrawal to be from Sponsor rather than Sender.
-		const json = JSON.parse(await tx.toJSON());
-		for (const input of json.inputs) {
-			if (input.FundsWithdrawal) {
-				input.FundsWithdrawal.withdrawFrom = { Sponsor: true };
-			}
-		}
+		const results = await analyze(
+			{ coinFlows },
+			{ client, transaction: sponsorize(client, await tx.toJSON()) },
+		);
 
-		const results = await analyze({ coinFlows }, { client, transaction: JSON.stringify(json) });
-
-		const usdcFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === USDC);
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(usdcFlow?.amount).toBe(200000000n);
 	});
 
@@ -815,23 +834,17 @@ describe('Coin Flows - Sponsor withdrawal returned to sender', () => {
 			arguments: [sponsorRedeem, tx.pure.address(DEFAULT_SENDER)],
 		});
 
-		const json = JSON.parse(await tx.toJSON());
-		for (const input of json.inputs) {
-			if (input.FundsWithdrawal) {
-				input.FundsWithdrawal.withdrawFrom = { Sponsor: true };
-			}
-		}
+		const results = await analyze(
+			{ coinFlows },
+			{ client, transaction: sponsorize(client, await tx.toJSON()) },
+		);
 
-		const results = await analyze({ coinFlows }, { client, transaction: JSON.stringify(json) });
-
-		const usdcFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === USDC);
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(usdcFlow?.amount).toBe(200000000n);
 	});
 });
 
 describe('Coin Flows - Per-party tracking', () => {
-	const SPONSOR = '0x00000000000000000000000000000000000000000000000000000000000005b0';
-
 	it('tracks sponsor outflow when sponsor-redeemed value goes to a third party', async () => {
 		const client = new MockSuiClient();
 		const tx = new Transaction();
@@ -844,19 +857,13 @@ describe('Coin Flows - Per-party tracking', () => {
 		});
 		tx.transferObjects([sponsorRedeem], tx.pure.address('0x456'));
 
-		const json = JSON.parse(await tx.toJSON());
-		for (const input of json.inputs) {
-			if (input.FundsWithdrawal) {
-				input.FundsWithdrawal.withdrawFrom = { Sponsor: true };
-			}
-		}
+		const results = await analyze(
+			{ coinFlows, sponsorFlows },
+			{ client, transaction: sponsorize(client, await tx.toJSON()) },
+		);
 
-		const results = await analyze({ coinFlows }, { client, transaction: JSON.stringify(json) });
-
-		expect(
-			results.coinFlows.result?.outflows.sender.find((f) => f.coinType === USDC),
-		).toBeUndefined();
-		const sponsorUsdc = results.coinFlows.result?.outflows.sponsor.find((f) => f.coinType === USDC);
+		expect(results.coinFlows.result?.outflows.find((f) => f.coinType === USDC)).toBeUndefined();
+		const sponsorUsdc = results.sponsorFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(sponsorUsdc?.amount).toBe(150000000n);
 	});
 
@@ -870,33 +877,16 @@ describe('Coin Flows - Per-party tracking', () => {
 		const [chunk] = tx.splitCoins(owned, [75000000n]);
 		tx.transferObjects([chunk], tx.pure.address('0x456'));
 
-		// Swap the gas owner to a sponsor and point the gas payment at a
-		// coin owned by that sponsor.
-		const sponsorCoinId = '0xabcdef0001';
-		client.addCoin({
-			objectId: sponsorCoinId,
-			coinType: '0x2::sui::SUI',
-			balance: 5000000000n,
-			owner: { $kind: 'AddressOwner', AddressOwner: SPONSOR },
-		});
+		const results = await analyze(
+			{ coinFlows, sponsorFlows },
+			{ client, transaction: sponsorize(client, await tx.toJSON()) },
+		);
 
-		const json = JSON.parse(await tx.toJSON());
-		json.gasData.owner = SPONSOR;
-		// Version / digest don't matter for the analyzer; objectId is what's
-		// dereferenced via the object cache.
-		json.gasData.payment = [
-			{ objectId: sponsorCoinId, version: '1', digest: '11111111111111111111111111111111' },
-		];
-
-		const results = await analyze({ coinFlows }, { client, transaction: JSON.stringify(json) });
-
-		const senderUsdc = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === USDC);
+		const senderUsdc = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(senderUsdc?.amount).toBe(75000000n);
-		expect(
-			results.coinFlows.result?.outflows.sender.find((f) => f.coinType === SUI),
-		).toBeUndefined();
+		expect(results.coinFlows.result?.outflows.find((f) => f.coinType === SUI)).toBeUndefined();
 
-		const sponsorSui = results.coinFlows.result?.outflows.sponsor.find((f) => f.coinType === SUI);
+		const sponsorSui = results.sponsorFlows.result?.outflows.find((f) => f.coinType === SUI);
 		expect(sponsorSui?.amount).toBe(10000000n); // gas budget only
 	});
 
@@ -946,20 +936,16 @@ describe('Coin Flows - Per-party tracking', () => {
 		});
 		tx.transferObjects([mergedCoin], tx.pure.address('0x456'));
 
-		const json = JSON.parse(await tx.toJSON());
-		for (const input of json.inputs) {
-			if (input.FundsWithdrawal) {
-				input.FundsWithdrawal.withdrawFrom = { Sponsor: true };
-			}
-		}
-
-		const results = await analyze({ coinFlows }, { client, transaction: JSON.stringify(json) });
+		const results = await analyze(
+			{ coinFlows, sponsorFlows },
+			{ client, transaction: sponsorize(client, await tx.toJSON()) },
+		);
 
 		// Sender only pays for their own 500M; sponsor pays for the 100M they put in.
-		const senderFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === USDC);
+		const senderFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(senderFlow?.amount).toBe(500000000n);
 
-		const sponsorFlow = results.coinFlows.result?.outflows.sponsor.find((f) => f.coinType === USDC);
+		const sponsorFlow = results.sponsorFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(sponsorFlow?.amount).toBe(100000000n);
 	});
 
@@ -988,23 +974,19 @@ describe('Coin Flows - Per-party tracking', () => {
 		});
 		tx.transferObjects([sponsorCoin], tx.pure.address(DEFAULT_SENDER));
 
-		const json = JSON.parse(await tx.toJSON());
-		for (const input of json.inputs) {
-			if (input.FundsWithdrawal) {
-				input.FundsWithdrawal.withdrawFrom = { Sponsor: true };
-			}
-		}
-
-		const results = await analyze({ coinFlows }, { client, transaction: JSON.stringify(json) });
+		const results = await analyze(
+			{ coinFlows, sponsorFlows },
+			{ client, transaction: sponsorize(client, await tx.toJSON()) },
+		);
 
 		// Sender paid 200M (the slice that left their ownership at join time).
-		const senderFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === USDC);
+		const senderFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(senderFlow?.amount).toBe(200000000n);
 
 		// Sponsor paid 300M (their coin moved from sponsor to sender). The sender
 		// slice that was joined in was already charged to sender above and is
 		// intentionally NOT re-counted against sponsor.
-		const sponsorFlow = results.coinFlows.result?.outflows.sponsor.find((f) => f.coinType === USDC);
+		const sponsorFlow = results.sponsorFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(sponsorFlow?.amount).toBe(300000000n);
 	});
 });
@@ -1024,11 +1006,11 @@ describe('Coin Flows - Transfer to Self Bug Fix', () => {
 		const results = await analyze({ coinFlows }, { client, transaction: await tx.toJSON() });
 
 		// USDC should have zero outflow (transferred to self)
-		const usdcFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === USDC);
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(usdcFlow).toBeUndefined();
 
 		// SUI should have gas budget outflow only
-		const suiFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === SUI);
+		const suiFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === SUI);
 		expect(suiFlow?.amount).toBe(10000000n);
 	});
 });

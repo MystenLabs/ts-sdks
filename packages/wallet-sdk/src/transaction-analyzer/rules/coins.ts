@@ -59,30 +59,13 @@ export const gasCoins = createAnalyzer({
 	dependencies: { objectsById, data },
 	analyze:
 		() =>
-		async ({ objectsById, data }) => {
-			const SUI_TYPE = normalizeStructTag('0x2::sui::SUI');
+		({ objectsById, data }) => {
 			const result: AnalyzedCoin[] = [];
 
 			for (const ref of data.gasData.payment ?? []) {
-				// Synthetic coin reservation refs encode their balance in the digest
-				if (isCoinReservationDigest(ref.digest)) {
-					result.push({
-						objectId: ref.objectId,
-						version: String(ref.version),
-						digest: ref.digest,
-						type: normalizeStructTag('0x2::coin::Coin<0x2::sui::SUI>'),
-						owner: { $kind: 'AddressOwner', AddressOwner: data.sender ?? '' },
-						content: new Uint8Array(),
-						previousTransaction: undefined,
-						objectBcs: undefined,
-						json: undefined,
-						display: undefined,
-						ownerAddress: data.sender ?? null,
-						coinType: SUI_TYPE,
-						balance: parseCoinReservationBalance(ref.digest),
-					});
-					continue;
-				}
+				// Synthetic coin reservation refs don't represent real on-chain coins;
+				// they're exposed separately via the `coinReservations` rule.
+				if (isCoinReservationDigest(ref.digest)) continue;
 
 				const obj = objectsById.get(ref.objectId)!;
 				const content = Coin.parse(obj.content);
@@ -90,6 +73,49 @@ export const gasCoins = createAnalyzer({
 					...obj,
 					coinType: normalizeStructTag(parseStructTag(obj.type).typeParams[0]),
 					balance: BigInt(content.balance),
+				});
+			}
+
+			return { result };
+		},
+});
+
+export interface CoinReservation {
+	/** Address that owns the address-balance reservation (the gas payer). */
+	owner: string;
+	coinType: string;
+	balance: bigint;
+	ref: { objectId: string; version: string; digest: string };
+}
+
+/**
+ * Synthetic coin reservation refs that may appear in `gasData.payment`. Each
+ * represents a pre-authorized withdrawal from the owner's address balance
+ * accumulator. The balance is encoded in the ref's digest, and the object
+ * does not exist on-chain — hence why these are kept separate from `gasCoins`.
+ */
+export const coinReservations = createAnalyzer({
+	dependencies: { data },
+	analyze:
+		() =>
+		({ data }) => {
+			const result: CoinReservation[] = [];
+			const gasOwner = data.gasData.owner ?? data.sender;
+			if (!gasOwner) return { result };
+
+			const suiType = normalizeStructTag('0x2::sui::SUI');
+
+			for (const ref of data.gasData.payment ?? []) {
+				if (!isCoinReservationDigest(ref.digest)) continue;
+				result.push({
+					owner: gasOwner,
+					coinType: suiType,
+					balance: parseCoinReservationBalance(ref.digest),
+					ref: {
+						objectId: ref.objectId,
+						version: String(ref.version),
+						digest: ref.digest,
+					},
 				});
 			}
 

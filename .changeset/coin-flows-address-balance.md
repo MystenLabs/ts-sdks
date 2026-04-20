@@ -2,8 +2,14 @@
 '@mysten/wallet-sdk': minor
 ---
 
-**BREAKING:** Transaction analyzer `coinFlows` result shape changed from a flat `CoinFlow[]` to `{ sender: CoinFlow[]; sponsor: CoinFlow[] }`. Consumers that previously iterated `coinFlows.outflows` should read `coinFlows.outflows.sender` (the auto-approvals budget manager has been updated). Empty outflows (amount = 0) are now filtered out of the result; previously some scenarios produced explicit zero entries.
+Transaction analyzer `coinFlows` rule now tracks flows per address under the hood. The existing `coinFlows` rule remains sender-scoped and its shape is a superset of the prior result: `{ outflows: CoinFlow[]; inflows: CoinFlow[] }` — consumers reading `coinFlows.outflows` keep working, and `coinFlows.inflows` is newly available.
 
-Each tracked value is now tagged with its `origin` (`Sender`, `Sponsor`, or `Foreign`), which propagates through splits / joins / conversions. Outflow events fire only when value actually leaves its originating party. Sponsor-paid gas (`gasData.owner` differs from sender) is now attributed to sponsor SUI outflow instead of silently folded into sender's outflow, and sponsor-withdrawn value returned to the sender no longer offsets the sender's outflow.
+New companion rules:
 
-The rule also handles `FundsWithdrawal` inputs and the `0x2::coin` / `0x2::balance` framework functions (`redeem_funds`, `send_funds`, `into_balance`, `from_balance`, `split`, `take`, `withdraw_all`, `join`, `put`, `zero`). Object inputs are tagged `Sender` only when the input's `ownerAddress` matches `data.sender`; non-sender coin inputs (unusual) no longer contribute to sender outflow.
+- `addressCoinFlows` — full per-address view: `{ byAddress: Record<string, { outflows, inflows }> }`. Use this when you care about a specific recipient or multiple parties.
+- `sponsorFlows` — convenience alias for the sponsor (gas payer) when `gasData.owner` differs from `data.sender`.
+- `coinReservations` — synthetic coin reservation refs (previously synthesized into `gasCoins`) are now exposed here: `{ owner, coinType, balance, ref }[]`. `gasCoins` returns only real on-chain coins.
+
+The analyzer handles `FundsWithdrawal` inputs and the `0x2::coin` / `0x2::balance` framework functions (`redeem_funds`, `send_funds`, `into_balance`, `from_balance`, `split`, `take`, `withdraw_all`, `join`, `put`, `zero`). Each tracked value is tagged with the address that owns it and movement events are charged / credited per address, so sponsor-paid gas and sponsor-redeemed value flowing to/from sender end up in the correct buckets rather than offsetting each other.
+
+Object coin inputs are tagged with the coin's real `ownerAddress`; non-sender-owned inputs (unusual) no longer contribute to sender outflow. Empty entries (amount = 0) are filtered out of the result.
