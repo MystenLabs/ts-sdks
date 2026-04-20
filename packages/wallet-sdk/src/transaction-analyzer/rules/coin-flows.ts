@@ -132,19 +132,24 @@ export const addressCoinFlows = createAnalyzer({
 				tracked.consume();
 			};
 
-			const getTrackedCoin = (ref: AnalyzedCommandArgument): TrackedCoin | null => {
+			const trackedCoinKey = (ref: AnalyzedCommandArgument): string | null => {
 				switch (ref.$kind) {
 					case 'GasCoin':
-						return trackedCoins.get('gas') ?? null;
+						return 'gas';
 					case 'Object':
-						return trackedCoins.get(`input:${ref.index}`) ?? null;
+						return `input:${ref.index}`;
 					case 'Result':
-						return trackedCoins.get(`result:${ref.index[0]},${ref.index[1]}`) ?? null;
+						return `result:${ref.index[0]},${ref.index[1]}`;
 					case 'Unknown':
 					case 'Pure':
 					case 'Withdrawal':
 						return null;
 				}
+			};
+
+			const getTrackedCoin = (ref: AnalyzedCommandArgument): TrackedCoin | null => {
+				const key = trackedCoinKey(ref);
+				return key ? (trackedCoins.get(key) ?? null) : null;
 			};
 
 			const splitCoin = (command: Extract<AnalyzedCommand, { $kind: 'SplitCoins' }>) => {
@@ -264,13 +269,14 @@ export const addressCoinFlows = createAnalyzer({
 				) {
 					// coin::into_balance(Coin<T>) -> Balance<T>
 					// coin::from_balance(Balance<T>, &mut TxContext) -> Coin<T>
+					// Value-preserving 1:1 conversion — just re-key the existing
+					// TrackedCoin instead of cloning its segments.
 					if (command.arguments.length < 1) return false;
-					const tracked = getTrackedCoin(command.arguments[0]);
+					const oldKey = trackedCoinKey(command.arguments[0]);
+					const tracked = oldKey ? trackedCoins.get(oldKey) : undefined;
 					if (tracked) {
-						trackedCoins.set(
-							`result:${command.index},0`,
-							TrackedCoin.fromSegments(tracked.coinType, tracked.drainSegments()),
-						);
+						trackedCoins.delete(oldKey!);
+						trackedCoins.set(`result:${command.index},0`, tracked);
 					}
 					return true;
 				}
@@ -305,6 +311,10 @@ export const addressCoinFlows = createAnalyzer({
 
 				if (fn === 'withdraw_all' && mod === 'balance') {
 					// balance::withdraw_all(&mut Balance<T>) -> Balance<T>
+					// Moves the entire balance out of the source into a new Balance.
+					// The source balance reference still exists on-chain (it's `&mut`),
+					// but its value is now 0 — keep the old tracked coin around with
+					// drained segments so stale references see an empty coin.
 					if (command.arguments.length < 1) return false;
 					const source = getTrackedCoin(command.arguments[0]);
 					if (source) {
@@ -325,16 +335,20 @@ export const addressCoinFlows = createAnalyzer({
 					// coin::join(&mut Coin<T>, Coin<T>)
 					// balance::join(&mut Balance<T>, Balance<T>) -> u64
 					// coin::put(&mut Balance<T>, Coin<T>)
+					//
+					// Asymmetry note: if `source` is untracked we silently no-op
+					// (nothing to fold into dest). If `dest` is untracked we flush
+					// `source` to an unknown destination so its origins are still
+					// charged. Either way the source's value is accounted for.
 					if (command.arguments.length < 2) return false;
 					const dest = getTrackedCoin(command.arguments[0]);
 					const source = getTrackedCoin(command.arguments[1]);
-					if (source) {
-						if (dest) {
-							dest.absorbSegments(source.segments);
-							source.consume();
-						} else {
-							flushToDestination(source, null);
-						}
+					if (!source) return true;
+					if (dest) {
+						dest.absorbSegments(source.segments);
+						source.consume();
+					} else {
+						flushToDestination(source, null);
 					}
 					return true;
 				}
@@ -507,8 +521,13 @@ export const sponsorFlows = createAnalyzer({
 
 class TrackedCoin {
 	coinType: string;
+	/**
+	 * Origin segments composing this coin's current balance, coalesced by owner:
+	 * each owner appears at most once. Invariant maintained by the constructors
+	 * and by {@link absorbSegments}; {@link takeSegments} preserves it because it
+	 * only reduces per-segment amounts and filters zeros.
+	 */
 	segments: OriginSegment[];
-	consumed = false;
 
 	private constructor(coinType: string, segments: OriginSegment[]) {
 		this.coinType = coinType;
@@ -520,14 +539,23 @@ class TrackedCoin {
 		return new TrackedCoin(coinType, balance > 0n ? [{ ownerAddress, amount: balance }] : []);
 	}
 
-	/** Create a coin from an existing list of segments (takes ownership). */
+	/**
+	 * Create a coin from an existing list of segments (deep-copied). Zero /
+	 * negative amounts are dropped and same-owner segments are coalesced so the
+	 * instance starts with the coalesced-by-owner invariant satisfied.
+	 */
 	static fromSegments(coinType: string, segments: OriginSegment[]): TrackedCoin {
-		// Filter zero/negative amounts up front so downstream logic doesn't
-		// have to guard.
-		return new TrackedCoin(
-			coinType,
-			segments.filter((s) => s.amount > 0n).map((s) => ({ ...s })),
-		);
+		const coalesced: OriginSegment[] = [];
+		for (const seg of segments) {
+			if (seg.amount <= 0n) continue;
+			const existing = coalesced.find((s) => s.ownerAddress === seg.ownerAddress);
+			if (existing) {
+				existing.amount += seg.amount;
+			} else {
+				coalesced.push({ ownerAddress: seg.ownerAddress, amount: seg.amount });
+			}
+		}
+		return new TrackedCoin(coinType, coalesced);
 	}
 
 	get remainingBalance(): bigint {
@@ -536,12 +564,16 @@ class TrackedCoin {
 		return total;
 	}
 
+	/** Empty this coin's segments (e.g. fully consumed by a PTB command). */
 	consume() {
 		this.segments = [];
-		this.consumed = true;
 	}
 
-	/** Remove and return all segments (used by conversions that preserve value). */
+	/**
+	 * Remove and return all segments. Used by conversions (into_balance /
+	 * from_balance / withdraw_all) that preserve value 1:1 into a new tracked
+	 * coin at a different result key.
+	 */
 	drainSegments(): OriginSegment[] {
 		const drained = this.segments;
 		this.segments = [];
@@ -549,12 +581,19 @@ class TrackedCoin {
 	}
 
 	/**
-	 * Take `amount` off the top of this coin, returning the removed segments
-	 * and shrinking `this.segments` in place. Proportionally distributes
-	 * across origins so each owner loses a share of their segment matching
-	 * the fraction of the total being taken; the last segment absorbs any
-	 * rounding remainder. If `amount` exceeds the remaining balance, drains
-	 * everything.
+	 * Take `amount` off this coin, returning the removed segments and shrinking
+	 * `this.segments` in place. Each origin loses a share proportional to its
+	 * fraction of the total.
+	 *
+	 * Ordering invariant: the algorithm walks segments in array order and uses
+	 * floor(seg.amount * amount / total); the last segment absorbs any rounding
+	 * remainder. Exact fractions are deterministic, but under inexact divisions
+	 * the per-origin split of a take can shift by up to 1 unit depending on
+	 * which origin happens to be last in the list (i.e., which merge order
+	 * produced the current segments). Total conservation is unaffected. Callers
+	 * should not rely on exact per-origin numbers after inexact splits.
+	 *
+	 * If `amount` >= the remaining balance, drains everything.
 	 */
 	takeSegments(amount: bigint): OriginSegment[] {
 		if (amount <= 0n || this.segments.length === 0) return [];
