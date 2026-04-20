@@ -62,7 +62,7 @@ export const coinFlows = createAnalyzer({
 				amounts.forEach((amount, i) => {
 					trackedCoins.set(
 						`result:${command.index},${i}`,
-						new TrackedCoin(coin.coinType, amount, false),
+						new TrackedCoin(coin.coinType, amount, false, coin.fromOwnedSender),
 					);
 				});
 			};
@@ -91,7 +91,7 @@ export const coinFlows = createAnalyzer({
 				for (const obj of command.objects) {
 					const tracked = getTrackedCoin(obj);
 
-					if (tracked && address && data.sender === address) {
+					if (tracked?.fromOwnedSender && address && data.sender === address) {
 						addReturned(tracked.coinType, tracked.remainingBalance);
 					}
 
@@ -127,28 +127,28 @@ export const coinFlows = createAnalyzer({
 
 				// --- Address balance operations ---
 
-				if (fn === 'redeem_funds' && (mod === 'balance' || mod === 'coin')) {
+				if (fn === 'redeem_funds' && (mod === 'coin' || mod === 'balance')) {
 					// balance::redeem_funds(Withdrawal) -> Balance<T>
 					// coin::redeem_funds(Withdrawal, &mut TxContext) -> Coin<T>
 					const arg = command.arguments[0];
-					if (arg.$kind === 'Withdrawal') {
-						const owned = arg.withdrawFrom === 'Sender';
-						trackedCoins.set(
-							`result:${command.index},0`,
-							new TrackedCoin(arg.coinType, arg.amount, owned),
-						);
-					}
+					if (arg?.$kind !== 'Withdrawal') return false;
+					const fromSender = arg.withdrawFrom === 'Sender';
+					trackedCoins.set(
+						`result:${command.index},0`,
+						new TrackedCoin(arg.coinType, arg.amount, fromSender, fromSender),
+					);
 					return true;
 				}
 
 				if (fn === 'send_funds' && (mod === 'coin' || mod === 'balance')) {
 					// coin::send_funds(Coin<T>, address)
 					// balance::send_funds(Balance<T>, address)
+					if (command.arguments.length < 2) return false;
 					const tracked = getTrackedCoin(command.arguments[0]);
 					const addrArg = command.arguments[1];
-					const address = addrArg?.$kind === 'Pure' ? bcs.Address.fromBase64(addrArg.bytes) : null;
+					const address = addrArg.$kind === 'Pure' ? bcs.Address.fromBase64(addrArg.bytes) : null;
 
-					if (tracked && address && data.sender === address) {
+					if (tracked?.fromOwnedSender && address && data.sender === address) {
 						addReturned(tracked.coinType, tracked.remainingBalance);
 					}
 					tracked?.consume();
@@ -163,11 +163,17 @@ export const coinFlows = createAnalyzer({
 				) {
 					// coin::into_balance(Coin<T>) -> Balance<T>
 					// coin::from_balance(Balance<T>, &mut TxContext) -> Coin<T>
+					if (command.arguments.length < 1) return false;
 					const tracked = getTrackedCoin(command.arguments[0]);
 					if (tracked) {
 						trackedCoins.set(
 							`result:${command.index},0`,
-							new TrackedCoin(tracked.coinType, tracked.remainingBalance, false),
+							new TrackedCoin(
+								tracked.coinType,
+								tracked.remainingBalance,
+								false,
+								tracked.fromOwnedSender,
+							),
 						);
 						tracked.consume();
 					}
@@ -183,11 +189,12 @@ export const coinFlows = createAnalyzer({
 					// coin::split(&mut Coin<T>, u64, &mut TxContext) -> Coin<T>
 					// balance::split(&mut Balance<T>, u64) -> Balance<T>
 					// coin::take(&mut Balance<T>, u64, &mut TxContext) -> Coin<T>
+					if (command.arguments.length < 2) return false;
 					const source = getTrackedCoin(command.arguments[0]);
 					if (!source) return true;
 
 					const amountArg = command.arguments[1];
-					if (amountArg?.$kind !== 'Pure') {
+					if (amountArg.$kind !== 'Pure') {
 						source.consume();
 						return true;
 					}
@@ -196,18 +203,24 @@ export const coinFlows = createAnalyzer({
 					source.remainingBalance -= amount;
 					trackedCoins.set(
 						`result:${command.index},0`,
-						new TrackedCoin(source.coinType, amount, false),
+						new TrackedCoin(source.coinType, amount, false, source.fromOwnedSender),
 					);
 					return true;
 				}
 
 				if (fn === 'withdraw_all' && mod === 'balance') {
 					// balance::withdraw_all(&mut Balance<T>) -> Balance<T>
+					if (command.arguments.length < 1) return false;
 					const source = getTrackedCoin(command.arguments[0]);
 					if (source) {
 						trackedCoins.set(
 							`result:${command.index},0`,
-							new TrackedCoin(source.coinType, source.remainingBalance, false),
+							new TrackedCoin(
+								source.coinType,
+								source.remainingBalance,
+								false,
+								source.fromOwnedSender,
+							),
 						);
 						source.remainingBalance = 0n;
 					}
@@ -223,6 +236,7 @@ export const coinFlows = createAnalyzer({
 					// coin::join(&mut Coin<T>, Coin<T>)
 					// balance::join(&mut Balance<T>, Balance<T>) -> u64
 					// coin::put(&mut Balance<T>, Coin<T>)
+					if (command.arguments.length < 2) return false;
 					const dest = getTrackedCoin(command.arguments[0]);
 					const source = getTrackedCoin(command.arguments[1]);
 					if (dest && source) {
@@ -243,6 +257,9 @@ export const coinFlows = createAnalyzer({
 					return true;
 				}
 
+				// Known gaps worth covering in a follow-up:
+				//   - coin::mint / coin::mint_and_transfer (TreasuryCap<T>): untracked inflow
+				//   - 0x2::pay module (split, split_and_transfer, join_vec)
 				// All other 0x2::coin / 0x2::balance functions (destroy_zero, divide_into_n,
 				// value, etc.) fall through to the generic MoveCall handler which consumes
 				// all by-value arguments.
@@ -351,14 +368,23 @@ class TrackedCoin {
 	coinType: string;
 	initialBalance: bigint;
 	remainingBalance: bigint;
+	// True for initial sender-owned inputs whose (initialBalance - remainingBalance)
+	// contributes to outflow totals. Derived results (splits, conversions) are not owned
+	// because their source's remaining balance already accounts for value that left.
 	owned: boolean;
+	// True when this tracked value ultimately originates from sender-owned funds.
+	// Used to decide whether returning the value to the sender should credit back
+	// the sender's outflow. Propagated through splits, joins, and conversions;
+	// sponsor-sourced withdrawals are false.
+	fromOwnedSender: boolean;
 	consumed = false;
 
-	constructor(coinType: string, balance: bigint, owned: boolean) {
+	constructor(coinType: string, balance: bigint, owned: boolean, fromOwnedSender = owned) {
 		this.coinType = coinType;
 		this.initialBalance = balance;
 		this.remainingBalance = balance;
 		this.owned = owned;
+		this.fromOwnedSender = fromOwnedSender;
 	}
 
 	consume() {

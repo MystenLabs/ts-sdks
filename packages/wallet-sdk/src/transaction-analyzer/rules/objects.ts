@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
-import { isCoinReservationDigest } from './coin-reservation.js';
+import { isCoinReservationDigest } from '@mysten/sui/utils';
 import { createAnalyzer } from '../analyzer.js';
 import type { TransactionAnalysisIssue } from '../analyzer.js';
 

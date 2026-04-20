@@ -762,6 +762,73 @@ describe('Coin Flows - Combination Chain Tests', () => {
 	});
 });
 
+describe('Coin Flows - Sponsor withdrawal returned to sender', () => {
+	it('sponsor-redeemed coin transferred to sender does not offset sender outflow', async () => {
+		const client = new MockSuiClient();
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+
+		// Sender owns 500M USDC; split 200M and send to another address (real 200M outflow).
+		const ownedUsdc = tx.object(TEST_USDC_COIN_ID);
+		const [sendOut] = tx.splitCoins(ownedUsdc, [200000000n]);
+		tx.transferObjects([sendOut], tx.pure.address('0x456'));
+
+		// Sponsor redeems 100M USDC and the result is transferred to the sender.
+		const sponsorRedeem = tx.moveCall({
+			target: '0x2::coin::redeem_funds',
+			typeArguments: ['0xa0b::usdc::USDC'],
+			arguments: [tx.withdrawal({ amount: 100000000n, type: '0xa0b::usdc::USDC' })],
+		});
+		tx.transferObjects([sponsorRedeem], tx.pure.address(DEFAULT_SENDER));
+
+		// Patch the sponsor withdrawal to be from Sponsor rather than Sender.
+		const json = JSON.parse(await tx.toJSON());
+		for (const input of json.inputs) {
+			if (input.FundsWithdrawal) {
+				input.FundsWithdrawal.withdrawFrom = { Sponsor: true };
+			}
+		}
+
+		const results = await analyze({ coinFlows }, { client, transaction: JSON.stringify(json) });
+
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
+		expect(usdcFlow?.amount).toBe(200000000n);
+	});
+
+	it('sponsor-redeemed coin sent to sender via send_funds does not offset sender outflow', async () => {
+		const client = new MockSuiClient();
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+
+		const ownedUsdc = tx.object(TEST_USDC_COIN_ID);
+		const [sendOut] = tx.splitCoins(ownedUsdc, [200000000n]);
+		tx.transferObjects([sendOut], tx.pure.address('0x456'));
+
+		const sponsorRedeem = tx.moveCall({
+			target: '0x2::coin::redeem_funds',
+			typeArguments: ['0xa0b::usdc::USDC'],
+			arguments: [tx.withdrawal({ amount: 100000000n, type: '0xa0b::usdc::USDC' })],
+		});
+		tx.moveCall({
+			target: '0x2::coin::send_funds',
+			typeArguments: ['0xa0b::usdc::USDC'],
+			arguments: [sponsorRedeem, tx.pure.address(DEFAULT_SENDER)],
+		});
+
+		const json = JSON.parse(await tx.toJSON());
+		for (const input of json.inputs) {
+			if (input.FundsWithdrawal) {
+				input.FundsWithdrawal.withdrawFrom = { Sponsor: true };
+			}
+		}
+
+		const results = await analyze({ coinFlows }, { client, transaction: JSON.stringify(json) });
+
+		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
+		expect(usdcFlow?.amount).toBe(200000000n);
+	});
+});
+
 describe('Coin Flows - Transfer to Self Bug Fix', () => {
 	it('should not create outflow for non-SUI transfer to self', async () => {
 		const client = new MockSuiClient();

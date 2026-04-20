@@ -428,7 +428,7 @@ export const DEFAULT_MOVE_FUNCTIONS: SuiClientTypes.FunctionResponse[] = [
 		],
 	}),
 	createMockMoveFunction({
-		packageId: '0999',
+		packageId: '0x999',
 		moduleName: 'test',
 		name: 'create_coin',
 		visibility: 'public',

@@ -5,8 +5,12 @@ import { bcs } from '@mysten/sui/bcs';
 import { objects, objectsById } from './objects.js';
 import type { AnalyzedObject } from './objects.js';
 import { createAnalyzer } from '../analyzer.js';
-import { normalizeStructTag, parseStructTag } from '@mysten/sui/utils';
-import { isCoinReservationDigest, parseCoinReservationBalance } from './coin-reservation.js';
+import {
+	isCoinReservationDigest,
+	normalizeStructTag,
+	parseCoinReservationBalance,
+	parseStructTag,
+} from '@mysten/sui/utils';
 import { data } from './core.js';
 
 export type AnalyzedCoin = AnalyzedObject & { balance: bigint; coinType: string };

@@ -54,16 +54,37 @@ export const inputs = createAnalyzer({
 							return { $kind: 'Object', index, object, accessLevel: 'read' };
 						}
 						case 'FundsWithdrawal': {
-							const reservation = input.FundsWithdrawal.reservation;
+							const { reservation, typeArg, withdrawFrom } = input.FundsWithdrawal;
 							if (reservation.$kind !== 'MaxAmountU64') {
 								throw new Error(`Unsupported reservation type: ${reservation.$kind}`);
+							}
+							let coinType: string;
+							switch (typeArg.$kind) {
+								case 'Balance':
+									coinType = normalizeStructTag(typeArg.Balance);
+									break;
+								default:
+									throw new Error(
+										`Unsupported FundsWithdrawal typeArg: ${(typeArg as { $kind: string }).$kind}`,
+									);
+							}
+							let withdrawFromKind: 'Sender' | 'Sponsor';
+							switch (withdrawFrom.$kind) {
+								case 'Sender':
+								case 'Sponsor':
+									withdrawFromKind = withdrawFrom.$kind;
+									break;
+								default:
+									throw new Error(
+										`Unsupported FundsWithdrawal source: ${(withdrawFrom as { $kind: string }).$kind}`,
+									);
 							}
 							return {
 								$kind: 'Withdrawal',
 								index,
 								amount: BigInt(reservation.MaxAmountU64),
-								coinType: normalizeStructTag(input.FundsWithdrawal.typeArg.Balance),
-								withdrawFrom: input.FundsWithdrawal.withdrawFrom.$kind,
+								coinType,
+								withdrawFrom: withdrawFromKind,
 								accessLevel: 'transfer',
 							};
 						}
