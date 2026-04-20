@@ -125,14 +125,23 @@ export const coinFlows = createAnalyzer({
 						dest.remainingBalance += src.remainingBalance;
 						src.consume();
 					} else {
-						// Mixed-origin or missing dest: treat the source as flushed to an
-						// unknown destination so its origin is charged for the value.
+						// Mixed origins: charge the source's balance as outflow from its
+						// origin party now. We deliberately do NOT add the balance to
+						// dest.remainingBalance — it's already been accounted for. That
+						// makes dest.remainingBalance smaller than its real on-chain
+						// balance, but keeps per-party outflow totals correct: if dest is
+						// later transferred away, only dest's own origin is charged.
 						flushToDestination(src, null);
 					}
 				}
 			};
 
 			const transferObjects = (command: Extract<AnalyzedCommand, { $kind: 'TransferObjects' }>) => {
+				// A dynamic (non-Pure) address — e.g. a MoveCall result — is treated as
+				// an unknown destination and charged as outflow from the origin party.
+				// This is conservative: if the runtime would route the transfer back to
+				// sender, we'll over-count. Downstream consumers that need exact
+				// accounting should reconcile with the transaction's balance changes.
 				const destAddress =
 					command.address.$kind === 'Pure' ? bcs.Address.fromBase64(command.address.bytes) : null;
 
@@ -271,6 +280,7 @@ export const coinFlows = createAnalyzer({
 							dest.remainingBalance += source.remainingBalance;
 							source.consume();
 						} else {
+							// Mixed-origin join: see mergeCoins above for the reasoning.
 							flushToDestination(source, null);
 						}
 					}
@@ -321,9 +331,14 @@ export const coinFlows = createAnalyzer({
 			for (const input of inputs) {
 				if (input.$kind === 'Object' && coins[input.object.objectId]) {
 					const coin = coins[input.object.objectId];
+					// Only sender-owned coins contribute to sender's outflow. A non-sender
+					// coin passed as an input (unusual, but possible for a shared coin
+					// through a programmable transaction) is tagged Foreign so its
+					// movement doesn't get charged against either party.
+					const inputOrigin: Origin = coin.ownerAddress === data.sender ? 'Sender' : 'Foreign';
 					trackedCoins.set(
 						`input:${input.index}`,
-						new TrackedCoin(coin.coinType, coin.balance, 'Sender'),
+						new TrackedCoin(coin.coinType, coin.balance, inputOrigin),
 					);
 				}
 			}

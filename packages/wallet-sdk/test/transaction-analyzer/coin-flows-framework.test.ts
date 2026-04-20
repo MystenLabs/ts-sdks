@@ -899,6 +899,114 @@ describe('Coin Flows - Per-party tracking', () => {
 		const sponsorSui = results.coinFlows.result?.outflows.sponsor.find((f) => f.coinType === SUI);
 		expect(sponsorSui?.amount).toBe(10000000n); // gas budget only
 	});
+
+	it('coin::put of sponsor balance into sender coin charges sponsor only', async () => {
+		const client = new MockSuiClient();
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+
+		// Sender-owned USDC coin
+		const senderUsdc = tx.object(TEST_USDC_COIN_ID); // 500M USDC
+		const senderBal = tx.moveCall({
+			target: '0x2::coin::into_balance',
+			typeArguments: ['0xa0b::usdc::USDC'],
+			arguments: [senderUsdc],
+		});
+		const senderCoin = tx.moveCall({
+			target: '0x2::coin::from_balance',
+			typeArguments: ['0xa0b::usdc::USDC'],
+			arguments: [senderBal],
+		});
+
+		// Sponsor withdraws 100M USDC as Balance
+		const sponsorBal = tx.moveCall({
+			target: '0x2::balance::redeem_funds',
+			typeArguments: ['0xa0b::usdc::USDC'],
+			arguments: [tx.withdrawal({ amount: 100000000n, type: '0xa0b::usdc::USDC' })],
+		});
+
+		// Put sponsor balance into sender coin's underlying balance via coin::put.
+		// We first need the sender coin's balance to be mutable, so convert it back.
+		const senderBal2 = tx.moveCall({
+			target: '0x2::coin::into_balance',
+			typeArguments: ['0xa0b::usdc::USDC'],
+			arguments: [senderCoin],
+		});
+		tx.moveCall({
+			target: '0x2::balance::join',
+			typeArguments: ['0xa0b::usdc::USDC'],
+			arguments: [senderBal2, sponsorBal],
+		});
+
+		// Transfer the merged sender balance to a third party.
+		const mergedCoin = tx.moveCall({
+			target: '0x2::coin::from_balance',
+			typeArguments: ['0xa0b::usdc::USDC'],
+			arguments: [senderBal2],
+		});
+		tx.transferObjects([mergedCoin], tx.pure.address('0x456'));
+
+		const json = JSON.parse(await tx.toJSON());
+		for (const input of json.inputs) {
+			if (input.FundsWithdrawal) {
+				input.FundsWithdrawal.withdrawFrom = { Sponsor: true };
+			}
+		}
+
+		const results = await analyze({ coinFlows }, { client, transaction: JSON.stringify(json) });
+
+		// Sender only pays for their own 500M; sponsor pays for the 100M they put in.
+		const senderFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === USDC);
+		expect(senderFlow?.amount).toBe(500000000n);
+
+		const sponsorFlow = results.coinFlows.result?.outflows.sponsor.find((f) => f.coinType === USDC);
+		expect(sponsorFlow?.amount).toBe(100000000n);
+	});
+
+	it('coin::join of sender balance into sponsor-redeemed coin charges sender at join time', async () => {
+		const client = new MockSuiClient();
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+
+		// Sender splits 200M USDC off an owned coin.
+		const senderUsdc = tx.object(TEST_USDC_COIN_ID);
+		const [senderSlice] = tx.splitCoins(senderUsdc, [200000000n]);
+
+		// Sponsor redeems 300M USDC.
+		const sponsorCoin = tx.moveCall({
+			target: '0x2::coin::redeem_funds',
+			typeArguments: ['0xa0b::usdc::USDC'],
+			arguments: [tx.withdrawal({ amount: 300000000n, type: '0xa0b::usdc::USDC' })],
+		});
+
+		// Join the sender slice into the sponsor coin; then transfer sponsor coin to
+		// sender (a round-trip on the sponsor side, a cost on the sender side).
+		tx.moveCall({
+			target: '0x2::coin::join',
+			typeArguments: ['0xa0b::usdc::USDC'],
+			arguments: [sponsorCoin, senderSlice],
+		});
+		tx.transferObjects([sponsorCoin], tx.pure.address(DEFAULT_SENDER));
+
+		const json = JSON.parse(await tx.toJSON());
+		for (const input of json.inputs) {
+			if (input.FundsWithdrawal) {
+				input.FundsWithdrawal.withdrawFrom = { Sponsor: true };
+			}
+		}
+
+		const results = await analyze({ coinFlows }, { client, transaction: JSON.stringify(json) });
+
+		// Sender paid 200M (the slice that left their ownership at join time).
+		const senderFlow = results.coinFlows.result?.outflows.sender.find((f) => f.coinType === USDC);
+		expect(senderFlow?.amount).toBe(200000000n);
+
+		// Sponsor paid 300M (their coin moved from sponsor to sender). The sender
+		// slice that was joined in was already charged to sender above and is
+		// intentionally NOT re-counted against sponsor.
+		const sponsorFlow = results.coinFlows.result?.outflows.sponsor.find((f) => f.coinType === USDC);
+		expect(sponsorFlow?.amount).toBe(300000000n);
+	});
 });
 
 describe('Coin Flows - Transfer to Self Bug Fix', () => {
