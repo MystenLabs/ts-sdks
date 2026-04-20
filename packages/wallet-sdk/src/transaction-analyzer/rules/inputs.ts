@@ -65,7 +65,7 @@ export const inputs = createAnalyzer({
 									break;
 								default:
 									throw new Error(
-										`Unsupported FundsWithdrawal typeArg: ${(typeArg as { $kind: string }).$kind}`,
+										`Unsupported FundsWithdrawal typeArg: ${JSON.stringify(typeArg)}`,
 									);
 							}
 							let withdrawFromKind: 'Sender' | 'Sponsor';
@@ -76,7 +76,7 @@ export const inputs = createAnalyzer({
 									break;
 								default:
 									throw new Error(
-										`Unsupported FundsWithdrawal source: ${(withdrawFrom as { $kind: string }).$kind}`,
+										`Unsupported FundsWithdrawal source: ${JSON.stringify(withdrawFrom)}`,
 									);
 							}
 							return {

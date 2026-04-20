@@ -5,7 +5,11 @@ import { describe, it, expect } from 'vitest';
 import { Transaction } from '@mysten/sui/transactions';
 import { normalizeStructTag } from '@mysten/sui/utils';
 import { analyze } from '../../src/transaction-analyzer/analyzer.js';
-import { coinFlows, sponsorFlows } from '../../src/transaction-analyzer/rules/coin-flows.js';
+import {
+	addressCoinFlows,
+	coinFlows,
+	sponsorFlows,
+} from '../../src/transaction-analyzer/rules/coin-flows.js';
 import { MockSuiClient } from '../mocks/MockSuiClient.js';
 import {
 	DEFAULT_SENDER,
@@ -949,7 +953,7 @@ describe('Coin Flows - Per-party tracking', () => {
 		expect(sponsorFlow?.amount).toBe(100000000n);
 	});
 
-	it('coin::join of sender balance into sponsor-redeemed coin charges sender at join time', async () => {
+	it('coin::join of sender balance into sponsor-redeemed coin preserves origin segments', async () => {
 		const client = new MockSuiClient();
 		const tx = new Transaction();
 		tx.setSender(DEFAULT_SENDER);
@@ -979,15 +983,127 @@ describe('Coin Flows - Per-party tracking', () => {
 			{ client, transaction: sponsorize(client, await tx.toJSON()) },
 		);
 
-		// Sender paid 200M (the slice that left their ownership at join time).
-		const senderFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
-		expect(senderFlow?.amount).toBe(200000000n);
+		// Sender's 200M slice stayed tagged as sender origin through the join,
+		// so transferring the merged coin back to sender doesn't move it off the
+		// sender. No sender outflow.
+		expect(results.coinFlows.result?.outflows.find((f) => f.coinType === USDC)).toBeUndefined();
+		// Sender receives the sponsor's 300M portion as inflow (the sender
+		// portion came from sender, so it's not an inflow).
+		const senderInflow = results.coinFlows.result?.inflows.find((f) => f.coinType === USDC);
+		expect(senderInflow?.amount).toBe(300000000n);
 
-		// Sponsor paid 300M (their coin moved from sponsor to sender). The sender
-		// slice that was joined in was already charged to sender above and is
-		// intentionally NOT re-counted against sponsor.
+		// Sponsor paid 300M (their origin segment crossed from sponsor to sender).
 		const sponsorFlow = results.sponsorFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(sponsorFlow?.amount).toBe(300000000n);
+	});
+});
+
+describe('Coin Flows - Mixed-owner merge recipient inflow', () => {
+	const RECIPIENT = '0x0000000000000000000000000000000000000000000000000000000000000456';
+
+	it('PTB mergeCoins: recipient sees full merged balance across origins', async () => {
+		const client = new MockSuiClient();
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+
+		// Sender's 500M USDC coin.
+		const senderUsdc = tx.object(TEST_USDC_COIN_ID);
+		// Sponsor redeems 100M USDC as a Coin.
+		const sponsorCoin = tx.moveCall({
+			target: '0x2::coin::redeem_funds',
+			typeArguments: ['0xa0b::usdc::USDC'],
+			arguments: [tx.withdrawal({ amount: 100000000n, type: '0xa0b::usdc::USDC' })],
+		});
+		// Mixed-owner merge: sponsor 100M folded into sender 500M coin.
+		tx.mergeCoins(senderUsdc, [sponsorCoin]);
+		// Transfer the merged 600M to a third party.
+		tx.transferObjects([senderUsdc], tx.pure.address(RECIPIENT));
+
+		const results = await analyze(
+			{ addressCoinFlows },
+			{ client, transaction: sponsorize(client, await tx.toJSON()) },
+		);
+
+		const byAddress = results.addressCoinFlows.result?.byAddress ?? {};
+
+		// Sender outflow = 500M (their slice of the merged coin left to RECIPIENT).
+		expect(byAddress[DEFAULT_SENDER]?.outflows.find((f) => f.coinType === USDC)?.amount).toBe(
+			500000000n,
+		);
+		// Sponsor outflow = 100M (their slice also went to RECIPIENT via the same coin).
+		expect(byAddress[SPONSOR]?.outflows.find((f) => f.coinType === USDC)?.amount).toBe(100000000n);
+		// RECIPIENT inflow = 600M total (sum across origins matches sum of outflows).
+		expect(byAddress[RECIPIENT]?.inflows.find((f) => f.coinType === USDC)?.amount).toBe(600000000n);
+	});
+
+	it('coin::join: recipient sees full merged balance across origins', async () => {
+		const client = new MockSuiClient();
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+
+		const senderUsdc = tx.object(TEST_USDC_COIN_ID);
+		const sponsorCoin = tx.moveCall({
+			target: '0x2::coin::redeem_funds',
+			typeArguments: ['0xa0b::usdc::USDC'],
+			arguments: [tx.withdrawal({ amount: 100000000n, type: '0xa0b::usdc::USDC' })],
+		});
+		tx.moveCall({
+			target: '0x2::coin::join',
+			typeArguments: ['0xa0b::usdc::USDC'],
+			arguments: [senderUsdc, sponsorCoin],
+		});
+		tx.transferObjects([senderUsdc], tx.pure.address(RECIPIENT));
+
+		const results = await analyze(
+			{ addressCoinFlows },
+			{ client, transaction: sponsorize(client, await tx.toJSON()) },
+		);
+
+		const byAddress = results.addressCoinFlows.result?.byAddress ?? {};
+
+		expect(byAddress[DEFAULT_SENDER]?.outflows.find((f) => f.coinType === USDC)?.amount).toBe(
+			500000000n,
+		);
+		expect(byAddress[SPONSOR]?.outflows.find((f) => f.coinType === USDC)?.amount).toBe(100000000n);
+		expect(byAddress[RECIPIENT]?.inflows.find((f) => f.coinType === USDC)?.amount).toBe(600000000n);
+	});
+
+	it('sum(outflows) == sum(inflows) per coinType after a mixed merge + transfer', async () => {
+		const client = new MockSuiClient();
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+
+		const senderUsdc = tx.object(TEST_USDC_COIN_ID);
+		const sponsorCoin = tx.moveCall({
+			target: '0x2::coin::redeem_funds',
+			typeArguments: ['0xa0b::usdc::USDC'],
+			arguments: [tx.withdrawal({ amount: 100000000n, type: '0xa0b::usdc::USDC' })],
+		});
+		tx.mergeCoins(senderUsdc, [sponsorCoin]);
+		tx.transferObjects([senderUsdc], tx.pure.address(RECIPIENT));
+
+		const results = await analyze(
+			{ addressCoinFlows },
+			{ client, transaction: sponsorize(client, await tx.toJSON()) },
+		);
+
+		const byAddress = results.addressCoinFlows.result?.byAddress ?? {};
+		const perType = new Map<string, { out: bigint; in: bigint }>();
+		for (const flows of Object.values(byAddress)) {
+			for (const o of flows.outflows) {
+				const e = perType.get(o.coinType) ?? { out: 0n, in: 0n };
+				e.out += o.amount;
+				perType.set(o.coinType, e);
+			}
+			for (const i of flows.inflows) {
+				const e = perType.get(i.coinType) ?? { out: 0n, in: 0n };
+				e.in += i.amount;
+				perType.set(i.coinType, e);
+			}
+		}
+		const usdc = perType.get(USDC);
+		expect(usdc?.out).toBe(600000000n);
+		expect(usdc?.in).toBe(600000000n);
 	});
 });
 

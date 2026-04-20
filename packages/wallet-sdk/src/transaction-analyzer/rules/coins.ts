@@ -100,6 +100,8 @@ export const coinReservations = createAnalyzer({
 		() =>
 		({ data }) => {
 			const result: CoinReservation[] = [];
+			// Non-sponsored transactions don't need `gasData.owner` set explicitly —
+			// the owner is implicitly the sender. Fall back accordingly.
 			const gasOwner = data.gasData.owner ?? data.sender;
 			if (!gasOwner) return { result };
 
