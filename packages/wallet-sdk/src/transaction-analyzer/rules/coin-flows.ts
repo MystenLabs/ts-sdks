@@ -334,7 +334,12 @@ export const addressCoinFlows = createAnalyzer({
 			const gasBalance =
 				gasCoins.reduce((a, c) => a + c.balance, 0n) +
 				coinReservations.reduce((a, r) => a + r.balance, 0n);
-			trackedCoins.set('gas', new TrackedCoin(suiType, gasBalance, normalizedGasOwner, true));
+			// If the gas payment is empty (no coins, no reservations) the
+			// transaction hasn't been resolved yet; we can't tell who'll end up
+			// funding it, so attribute the budget to the sender by default
+			// rather than to `gasData.owner` (which may or may not be set).
+			const gasAttributionOwner = gasBalance > 0n ? normalizedGasOwner : sender;
+			trackedCoins.set('gas', new TrackedCoin(suiType, gasBalance, gasAttributionOwner, true));
 
 			if (data.gasData.budget) {
 				// Budget is paid to the network; reducing `remainingBalance` (not

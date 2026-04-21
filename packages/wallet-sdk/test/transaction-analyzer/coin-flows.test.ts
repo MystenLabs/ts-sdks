@@ -440,4 +440,27 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 		);
 		expect(wethFlow?.amount).toBe(2500000000000000000n); // WETH balance consumed
 	});
+
+	it('attributes budget to sender when gas payment is empty', async () => {
+		const client = new MockSuiClient();
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+		// No commands — just gas budget.
+
+		// Clear out both payment AND owner; this simulates an unresolved tx where
+		// the caller hasn't picked a gas coin yet but wants to know the spend.
+		const json = JSON.parse(await tx.toJSON());
+		json.gasData.payment = [];
+		json.gasData.owner = null;
+
+		const results = await analyze({ coinFlows }, { client, transaction: JSON.stringify(json) });
+
+		const suiFlow = results.coinFlows.result?.outflows.find(
+			(f) =>
+				f.coinType ===
+				'0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI',
+		);
+		// Budget is charged to the sender in the empty-payment case.
+		expect(suiFlow?.amount).toBe(10000000n);
+	});
 });
