@@ -198,8 +198,9 @@ describe('Coin Flows - Framework MoveCall Tests', () => {
 
 		const results = await analyze({ coinFlows }, { client, transaction: await tx.toJSON() });
 
+		// Sender withdrew and sent back to themselves — touched USDC, net 0.
 		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
-		expect(usdcFlow).toBeUndefined();
+		expect(usdcFlow?.amount).toBe(0n);
 	});
 
 	it('handles balance::send_funds to other address (outflow)', async () => {
@@ -293,7 +294,7 @@ describe('Coin Flows - Framework MoveCall Tests', () => {
 		const results = await analyze({ coinFlows }, { client, transaction: await tx.toJSON() });
 
 		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
-		expect(usdcFlow).toBeUndefined();
+		expect(usdcFlow?.amount).toBe(0n);
 	});
 
 	// --- Split operations via MoveCall ---
@@ -520,7 +521,7 @@ describe('Coin Flows - Framework MoveCall Tests', () => {
 		const results = await analyze({ coinFlows }, { client, transaction: await tx.toJSON() });
 
 		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
-		expect(usdcFlow).toBeUndefined(); // Everything returned
+		expect(usdcFlow?.amount).toBe(0n); // Everything returned
 	});
 
 	// --- Zero operations ---
@@ -1109,7 +1110,7 @@ describe('Coin Flows - Transfer to Self Bug Fix', () => {
 
 		// USDC should have zero outflow (transferred to self)
 		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
-		expect(usdcFlow).toBeUndefined();
+		expect(usdcFlow?.amount).toBe(0n);
 
 		// SUI should have gas budget outflow only
 		const suiFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === SUI);

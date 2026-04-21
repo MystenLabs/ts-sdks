@@ -55,18 +55,7 @@ export const balanceFlows = createAnalyzer({
 				byCoin.set(coinType, (byCoin.get(coinType) ?? 0n) + amount);
 			};
 
-			// Primary: a coin entering the PTB from outside (input Object, gas
-			// coin, reservation, redeem_funds result). Debits the owner up
-			// front; the credit comes back via transfer-to-self or implicit
-			// return at end-of-PTB.
-			const trackPrimary = (key: string, coin: TrackedCoin) => {
-				trackedCoins.set(key, coin);
-				adjustDelta(coin.ownerAddress, coin.coinType, -coin.balance);
-			};
-
-			// Derived: a coin produced by redistributing existing tracked value
-			// (split, conversion, withdraw_all, coin::zero). No delta change.
-			const trackDerived = (key: string, coin: TrackedCoin) => {
+			const track = (key: string, coin: TrackedCoin) => {
 				trackedCoins.set(key, coin);
 			};
 
@@ -107,7 +96,7 @@ export const balanceFlows = createAnalyzer({
 				coin.balance -= amounts.reduce((a, b) => a + b, 0n);
 
 				amounts.forEach((amount, i) => {
-					trackDerived(
+					track(
 						`result:${command.index},${i}`,
 						new TrackedCoin(coin.coinType, amount, coin.ownerAddress),
 					);
@@ -156,14 +145,11 @@ export const balanceFlows = createAnalyzer({
 				if (fn === 'redeem_funds' && (mod === 'coin' || mod === 'balance')) {
 					const arg = command.arguments[0];
 					if (arg?.$kind !== 'Withdrawal') return false;
-					const owner =
-						arg.withdrawFrom === 'Sender'
-							? (sender ?? null)
-							: (normalizeAddress(gasOwner) ?? sender);
-					trackPrimary(
-						`result:${command.index},0`,
-						new TrackedCoin(arg.coinType, arg.amount, normalizeAddress(owner)),
+					const owner = normalizeAddress(
+						arg.withdrawFrom === 'Sender' ? (sender ?? null) : (gasOwner ?? sender),
 					);
+					track(`result:${command.index},0`, new TrackedCoin(arg.coinType, arg.amount, owner));
+					adjustDelta(owner, arg.coinType, -arg.amount);
 					return true;
 				}
 
@@ -190,7 +176,7 @@ export const balanceFlows = createAnalyzer({
 					const tracked = oldKey ? trackedCoins.get(oldKey) : undefined;
 					if (tracked) {
 						trackedCoins.delete(oldKey!);
-						trackedCoins.set(`result:${command.index},0`, tracked);
+						track(`result:${command.index},0`, tracked);
 					}
 					return true;
 				}
@@ -211,7 +197,7 @@ export const balanceFlows = createAnalyzer({
 
 					const amount = BigInt(bcs.u64().fromBase64(amountArg.bytes));
 					source.balance -= amount;
-					trackDerived(
+					track(
 						`result:${command.index},0`,
 						new TrackedCoin(source.coinType, amount, source.ownerAddress),
 					);
@@ -222,7 +208,7 @@ export const balanceFlows = createAnalyzer({
 					if (command.arguments.length < 1) return false;
 					const source = getTrackedCoin(command.arguments[0]);
 					if (source) {
-						trackDerived(
+						track(
 							`result:${command.index},0`,
 							new TrackedCoin(source.coinType, source.balance, source.ownerAddress),
 						);
@@ -246,7 +232,7 @@ export const balanceFlows = createAnalyzer({
 
 				if (fn === 'zero' && (mod === 'coin' || mod === 'balance')) {
 					if (coinType) {
-						trackDerived(`result:${command.index},0`, new TrackedCoin(coinType, 0n, null));
+						track(`result:${command.index},0`, new TrackedCoin(coinType, 0n, null));
 					}
 					return true;
 				}
@@ -266,7 +252,7 @@ export const balanceFlows = createAnalyzer({
 			// hasn't been resolved to a payer yet.
 			const gasAttributionOwner = gasBalance > 0n ? normalizedGasOwner : sender;
 
-			trackedCoins.set('gas', new TrackedCoin(suiType, gasBalance, gasAttributionOwner));
+			track('gas', new TrackedCoin(suiType, gasBalance, gasAttributionOwner));
 
 			if (gasCoinsBalance > 0n) {
 				adjustDelta(normalizedGasOwner, suiType, -gasCoinsBalance);
@@ -284,10 +270,13 @@ export const balanceFlows = createAnalyzer({
 			for (const input of inputs) {
 				if (input.$kind === 'Object' && coins[input.object.objectId]) {
 					const coin = coins[input.object.objectId];
-					trackPrimary(
-						`input:${input.index}`,
-						new TrackedCoin(coin.coinType, coin.balance, normalizeAddress(coin.ownerAddress)),
+					const tc = new TrackedCoin(
+						coin.coinType,
+						coin.balance,
+						normalizeAddress(coin.ownerAddress),
 					);
+					track(`input:${input.index}`, tc);
+					adjustDelta(tc.ownerAddress, tc.coinType, -tc.balance);
 				}
 			}
 
@@ -356,11 +345,7 @@ export const balanceFlows = createAnalyzer({
 
 			const byAddress: Record<string, CoinFlow[]> = {};
 			for (const [address, byCoin] of deltas) {
-				const flows: CoinFlow[] = [];
-				for (const [coinType, delta] of byCoin) {
-					if (delta !== 0n) flows.push({ coinType, amount: delta });
-				}
-				if (flows.length > 0) byAddress[address] = flows;
+				byAddress[address] = Array.from(byCoin, ([coinType, amount]) => ({ coinType, amount }));
 			}
 
 			return {
