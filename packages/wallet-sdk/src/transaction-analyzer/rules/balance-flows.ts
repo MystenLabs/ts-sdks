@@ -18,12 +18,18 @@ export interface CoinFlow {
 
 /**
  * Per-address signed balance deltas. Negative = value left the address on
- * net; positive = value arrived on net. Zero deltas are filtered out. For
- * each coin type the sum across all addresses is zero, modulo coins consumed
- * to an unknown destination.
+ * net; positive = value arrived on net. For each coin type the sum across all
+ * addresses is zero, modulo coins consumed to an unknown destination.
+ *
+ * `sender` is the transaction sender's signed flows (empty if the sender
+ * didn't move any tracked value). `sponsor` is the gas payer's signed flows
+ * when `gasData.owner` differs from `data.sender`, or `null` when the tx
+ * isn't sponsored.
  */
 export interface BalanceFlowsResult {
 	byAddress: Record<string, CoinFlow[]>;
+	sender: CoinFlow[];
+	sponsor: CoinFlow[] | null;
 }
 
 const SUI_FRAMEWORK = normalizeSuiAddress('0x2');
@@ -348,8 +354,17 @@ export const balanceFlows = createAnalyzer({
 				byAddress[address] = Array.from(byCoin, ([coinType, amount]) => ({ coinType, amount }));
 			}
 
+			const senderFlows = (sender && byAddress[sender]) || [];
+			const sponsorAddr =
+				normalizedGasOwner && normalizedGasOwner !== sender ? normalizedGasOwner : null;
+			const sponsorFlows = sponsorAddr ? (byAddress[sponsorAddr] ?? []) : null;
+
 			return {
-				result: { byAddress } satisfies BalanceFlowsResult,
+				result: {
+					byAddress,
+					sender: senderFlows,
+					sponsor: sponsorFlows,
+				} satisfies BalanceFlowsResult,
 			};
 		},
 });

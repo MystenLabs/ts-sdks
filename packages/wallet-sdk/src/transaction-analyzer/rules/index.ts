@@ -3,7 +3,7 @@
 
 import { accessLevel } from './accessLevel.js';
 import { balanceFlows } from './balance-flows.js';
-import { coinFlows, sponsorFlows } from './coin-flows.js';
+import { coinFlows } from './coin-flows.js';
 import { coinValues } from './coin-value.js';
 import { coinReservations, coins, gasCoins } from './coins.js';
 import { commands } from './commands.js';
@@ -32,5 +32,4 @@ export const analyzers = {
 	objects,
 	objectsById,
 	ownedObjects,
-	sponsorFlows,
 };

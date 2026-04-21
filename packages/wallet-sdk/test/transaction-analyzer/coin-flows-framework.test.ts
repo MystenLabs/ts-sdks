@@ -6,7 +6,7 @@ import { Transaction } from '@mysten/sui/transactions';
 import { normalizeStructTag } from '@mysten/sui/utils';
 import { analyze } from '../../src/transaction-analyzer/analyzer.js';
 import { balanceFlows } from '../../src/transaction-analyzer/rules/balance-flows.js';
-import { coinFlows, sponsorFlows } from '../../src/transaction-analyzer/rules/coin-flows.js';
+import { coinFlows } from '../../src/transaction-analyzer/rules/coin-flows.js';
 import { MockSuiClient } from '../mocks/MockSuiClient.js';
 import {
 	DEFAULT_SENDER,
@@ -808,7 +808,7 @@ describe('Coin Flows - Sponsor withdrawal in the same transaction', () => {
 		tx.transferObjects([sponsorRedeem], tx.pure.address(DEFAULT_SENDER));
 
 		const results = await analyze(
-			{ coinFlows, sponsorFlows },
+			{ coinFlows, balanceFlows },
 			{ client, transaction: sponsorize(client, await tx.toJSON()) },
 		);
 
@@ -816,8 +816,8 @@ describe('Coin Flows - Sponsor withdrawal in the same transaction', () => {
 		const usdcOut = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(usdcOut?.amount).toBe(100000000n);
 		// Sponsor net: -100M.
-		const sponsorOut = results.sponsorFlows.result?.outflows.find((f) => f.coinType === USDC);
-		expect(sponsorOut?.amount).toBe(100000000n);
+		const sponsorOut = results.balanceFlows.result?.sponsor?.find((f) => f.coinType === USDC);
+		expect(sponsorOut?.amount).toBe(-100000000n);
 	});
 
 	it('sponsor-redeemed coin sent to sender via send_funds produces the same deltas', async () => {
@@ -841,14 +841,14 @@ describe('Coin Flows - Sponsor withdrawal in the same transaction', () => {
 		});
 
 		const results = await analyze(
-			{ coinFlows, sponsorFlows },
+			{ coinFlows, balanceFlows },
 			{ client, transaction: sponsorize(client, await tx.toJSON()) },
 		);
 
 		const usdcOut = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(usdcOut?.amount).toBe(100000000n);
-		const sponsorOut = results.sponsorFlows.result?.outflows.find((f) => f.coinType === USDC);
-		expect(sponsorOut?.amount).toBe(100000000n);
+		const sponsorOut = results.balanceFlows.result?.sponsor?.find((f) => f.coinType === USDC);
+		expect(sponsorOut?.amount).toBe(-100000000n);
 	});
 });
 
@@ -866,13 +866,13 @@ describe('Coin Flows - Per-party tracking', () => {
 		tx.transferObjects([sponsorRedeem], tx.pure.address('0x456'));
 
 		const results = await analyze(
-			{ coinFlows, sponsorFlows },
+			{ coinFlows, balanceFlows },
 			{ client, transaction: sponsorize(client, await tx.toJSON()) },
 		);
 
 		expect(results.coinFlows.result?.outflows.find((f) => f.coinType === USDC)).toBeUndefined();
-		const sponsorUsdc = results.sponsorFlows.result?.outflows.find((f) => f.coinType === USDC);
-		expect(sponsorUsdc?.amount).toBe(150000000n);
+		const sponsorUsdc = results.balanceFlows.result?.sponsor?.find((f) => f.coinType === USDC);
+		expect(sponsorUsdc?.amount).toBe(-150000000n);
 	});
 
 	it('sponsored gas is attributed to sponsor, not sender', async () => {
@@ -886,7 +886,7 @@ describe('Coin Flows - Per-party tracking', () => {
 		tx.transferObjects([chunk], tx.pure.address('0x456'));
 
 		const results = await analyze(
-			{ coinFlows, sponsorFlows },
+			{ coinFlows, balanceFlows },
 			{ client, transaction: sponsorize(client, await tx.toJSON()) },
 		);
 
@@ -894,8 +894,8 @@ describe('Coin Flows - Per-party tracking', () => {
 		expect(senderUsdc?.amount).toBe(75000000n);
 		expect(results.coinFlows.result?.outflows.find((f) => f.coinType === SUI)).toBeUndefined();
 
-		const sponsorSui = results.sponsorFlows.result?.outflows.find((f) => f.coinType === SUI);
-		expect(sponsorSui?.amount).toBe(10000000n); // gas budget only
+		const sponsorSui = results.balanceFlows.result?.sponsor?.find((f) => f.coinType === SUI);
+		expect(sponsorSui?.amount).toBe(-10000000n); // gas budget only
 	});
 
 	it('coin::put of sponsor balance into sender coin charges sponsor only', async () => {
@@ -945,7 +945,7 @@ describe('Coin Flows - Per-party tracking', () => {
 		tx.transferObjects([mergedCoin], tx.pure.address('0x456'));
 
 		const results = await analyze(
-			{ coinFlows, sponsorFlows },
+			{ coinFlows, balanceFlows },
 			{ client, transaction: sponsorize(client, await tx.toJSON()) },
 		);
 
@@ -953,8 +953,8 @@ describe('Coin Flows - Per-party tracking', () => {
 		const senderFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(senderFlow?.amount).toBe(500000000n);
 
-		const sponsorFlow = results.sponsorFlows.result?.outflows.find((f) => f.coinType === USDC);
-		expect(sponsorFlow?.amount).toBe(100000000n);
+		const sponsorFlow = results.balanceFlows.result?.sponsor?.find((f) => f.coinType === USDC);
+		expect(sponsorFlow?.amount).toBe(-100000000n);
 	});
 
 	it('coin::join of sender balance into sponsor-redeemed coin preserves origin segments', async () => {
@@ -983,7 +983,7 @@ describe('Coin Flows - Per-party tracking', () => {
 		tx.transferObjects([sponsorCoin], tx.pure.address(DEFAULT_SENDER));
 
 		const results = await analyze(
-			{ coinFlows, sponsorFlows },
+			{ coinFlows, balanceFlows },
 			{ client, transaction: sponsorize(client, await tx.toJSON()) },
 		);
 
@@ -993,8 +993,8 @@ describe('Coin Flows - Per-party tracking', () => {
 		expect(senderFlow?.amount).toBe(-300000000n);
 
 		// Sponsor paid 300M: positive sponsor outflow.
-		const sponsorFlow = results.sponsorFlows.result?.outflows.find((f) => f.coinType === USDC);
-		expect(sponsorFlow?.amount).toBe(300000000n);
+		const sponsorFlow = results.balanceFlows.result?.sponsor?.find((f) => f.coinType === USDC);
+		expect(sponsorFlow?.amount).toBe(-300000000n);
 	});
 });
 
