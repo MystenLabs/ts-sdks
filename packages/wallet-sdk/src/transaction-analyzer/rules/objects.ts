@@ -3,14 +3,13 @@
 
 import { bcs } from '@mysten/sui/bcs';
 import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
+import { normalizeStructTag, normalizeSuiAddress } from '@mysten/sui/utils';
 import {
 	isCoinReservationDigest,
-	normalizeStructTag,
-	normalizeSuiAddress,
 	parseAccumulatorFieldCoinType,
 	parseCoinReservationBalance,
 	xorCoinReservationObjectId,
-} from '@mysten/sui/utils';
+} from '../coin-reservation.js';
 import { createAnalyzer } from '../analyzer.js';
 import type { TransactionAnalysisIssue } from '../analyzer.js';
 
@@ -151,10 +150,8 @@ export const objects = createAnalyzer({
 			const result: AnalyzedObject[] = [];
 			const senderAddress = data.sender ? normalizeSuiAddress(data.sender) : null;
 
-			// Build a single request list covering regular inputs and input
-			// reservation refs (which need an accumulator-field lookup to resolve
-			// their coin type). A reservation's `unmaskedId` is the object id
-			// we actually fetch from the chain.
+			// Input reservation refs need an accumulator-field lookup to resolve
+			// their coin type; batch it into the same getObjects call.
 			const requests: FetchRequest[] = objectIds.map((id) => ({ kind: 'regular', id }));
 			let chainIdentifier: string | null = null;
 			for (const input of data.inputs) {
@@ -223,8 +220,7 @@ export const objects = createAnalyzer({
 				);
 			}
 
-			// Gas-payment reservations are always Coin<SUI> (gas is SUI-only) and
-			// owned by the gas payer; synthesized locally, no lookup required.
+			// Gas-payment reservations: always Coin<SUI>, owned by the gas payer.
 			const gasReservationOwner = data.gasData.owner
 				? normalizeSuiAddress(data.gasData.owner)
 				: senderAddress;

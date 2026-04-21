@@ -117,21 +117,11 @@ export const balanceFlows = createAnalyzer({
 				});
 			};
 
-			// Deduct `amount` from a tracked coin's balance. If the coin is
-			// backed by an address balance (`payFromAddressBalance = true`, which
-			// only applies to tx.gas under empty-payment gas), any overflow is
-			// charged directly to the owner's delta instead of being an issue —
-			// on-chain the AB covers it. Otherwise over-draw is reported.
 			const withdrawFromCoin = (coin: TrackedCoin, amount: bigint, context: string) => {
 				if (amount > coin.balance) {
-					if (coin.payFromAddressBalance) {
-						const overflow = amount - coin.balance;
-						adjustDelta(coin.ownerAddress, coin.coinType, -overflow);
-					} else {
-						issues.push({
-							message: `${context} takes ${amount} from a ${coin.coinType} coin with only ${coin.balance} available`,
-						});
-					}
+					issues.push({
+						message: `${context} takes ${amount} from a ${coin.coinType} coin with only ${coin.balance} available`,
+					});
 				}
 				coin.balance -= amount;
 			};
@@ -217,12 +207,9 @@ export const balanceFlows = createAnalyzer({
 					(fn === 'into_balance' && mod === 'coin') ||
 					(fn === 'from_balance' && mod === 'coin')
 				) {
-					// Value-preserving re-key; no new deduction.
 					if (command.arguments.length < 1) return false;
 					const oldKey = trackedCoinKey(command.arguments[0]);
 					if (oldKey === 'gas') {
-						// `tx.gas` is a `Coin<SUI>` by-value; `into_balance` on it would
-						// consume the gas coin, which is malformed on-chain.
 						issues.push({
 							message: `${mod}::${fn} at command ${command.index} cannot be called on tx.gas`,
 						});
@@ -301,15 +288,9 @@ export const balanceFlows = createAnalyzer({
 			const normalizedGasOwner = normalizeAddress(gasOwner);
 			const paymentIsEmpty = (data.gasData.payment?.length ?? 0) === 0;
 
-			// Gas payment coins are smashed into a single tx.gas coin owned by
-			// the gas payer. When `payment: []`, tx.gas has zero coin backing
-			// and any draws (the budget itself, plus any splitCoins(tx.gas, …))
-			// come from the gas payer's address balance — flag the tracked coin
-			// so `withdrawFromCoin` charges the owner on overflow instead of
-			// flagging an over-split issue.
+			// Gas payment coins are smashed into a single tx.gas coin.
 			const gasBalance = gasCoins.reduce((a, c) => a + c.balance, 0n);
 			const gasCoin = new TrackedCoin(suiType, gasBalance, normalizedGasOwner);
-			gasCoin.payFromAddressBalance = paymentIsEmpty;
 			track('gas', gasCoin);
 			adjustDelta(normalizedGasOwner, suiType, -gasBalance);
 
@@ -379,10 +360,6 @@ export const balanceFlows = createAnalyzer({
 			if (issues.length) return { issues };
 
 			// Implicit return: still-alive tracked coins credit their owner.
-			// `adjustDelta` is a no-op on null owners, so a merge-into-zero()
-			// whose result is never transferred is dropped silently — this
-			// matches how we handle other tracking losses (values consumed
-			// into non-framework MoveCalls, MakeMoveVec, etc.).
 			for (const [, coin] of trackedCoins) {
 				if (coin.balance <= 0n) continue;
 				adjustDelta(coin.ownerAddress, coin.coinType, coin.balance);
@@ -412,7 +389,6 @@ class TrackedCoin {
 	coinType: string;
 	balance: bigint;
 	ownerAddress: string | null;
-	payFromAddressBalance = false;
 
 	constructor(coinType: string, balance: bigint, ownerAddress: string | null) {
 		this.coinType = coinType;
@@ -420,7 +396,10 @@ class TrackedCoin {
 		this.ownerAddress = ownerAddress;
 	}
 
+	// Clearing owner too means a later write (e.g. merging into an already-
+	// transferred coin) doesn't credit back to the original holder at end-of-PTB.
 	consume() {
 		this.balance = 0n;
+		this.ownerAddress = null;
 	}
 }
