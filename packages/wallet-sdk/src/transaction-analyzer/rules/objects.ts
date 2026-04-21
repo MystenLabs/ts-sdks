@@ -153,7 +153,8 @@ export const objects = createAnalyzer({
 
 			// Build a single request list covering regular inputs and input
 			// reservation refs (which need an accumulator-field lookup to resolve
-			// their coin type). Parallel to `getObjects`' response list.
+			// their coin type). A reservation's `unmaskedId` is the object id
+			// we actually fetch from the chain.
 			const requests: FetchRequest[] = objectIds.map((id) => ({ kind: 'regular', id }));
 			let chainIdentifier: string | null = null;
 			for (const input of data.inputs) {
@@ -172,40 +173,46 @@ export const objects = createAnalyzer({
 				});
 			}
 
+			const fetchIds = Array.from(
+				new Set(requests.map((r) => (r.kind === 'regular' ? r.id : r.unmaskedId))),
+			);
 			const { objects: fetched } = await client.core.getObjects({
-				objectIds: requests.map((r) => (r.kind === 'regular' ? r.id : r.unmaskedId)),
+				objectIds: fetchIds,
 				include: { content: true },
 			});
+			const fetchedById = new Map(fetchIds.map((id, i) => [id, fetched[i]]));
 
-			requests.forEach((req, i) => {
-				const obj = fetched[i];
+			for (const req of requests) {
 				if (req.kind === 'regular') {
+					const obj = fetchedById.get(req.id);
 					if (obj instanceof Error) {
 						issues.push({ message: `Failed to fetch object: ${obj.message}`, error: obj });
-						return;
+						continue;
 					}
+					if (!obj) continue;
 					result.push({ ...obj, ownerAddress: ownerAddressOf(obj.owner, issues) });
-					return;
+					continue;
 				}
 
-				if (obj instanceof Error) {
+				const obj = fetchedById.get(req.unmaskedId);
+				if (!obj || obj instanceof Error) {
 					issues.push({
 						message: `Coin reservation object ${req.maskedId} could not be resolved`,
 					});
-					return;
+					continue;
 				}
 				const coinType = parseAccumulatorFieldCoinType(obj.type);
 				if (!coinType) {
 					issues.push({
-						message: `Object at unmasked reservation id ${req.unmaskedId} is not a balance accumulator field (type ${obj.type})`,
+						message: `Coin reservation object ${req.maskedId} (accumulator id ${req.unmaskedId}) is not a balance accumulator field (type ${obj.type})`,
 					});
-					return;
+					continue;
 				}
 				if (!senderAddress) {
 					issues.push({
 						message: `Coin reservation input ${req.maskedId} present but transaction has no sender`,
 					});
-					return;
+					continue;
 				}
 				result.push(
 					makeReservationObject(
@@ -214,7 +221,7 @@ export const objects = createAnalyzer({
 						senderAddress,
 					),
 				);
-			});
+			}
 
 			// Gas-payment reservations are always Coin<SUI> (gas is SUI-only) and
 			// owned by the gas payer; synthesized locally, no lookup required.

@@ -79,7 +79,10 @@ export const balanceFlows = createAnalyzer({
 						return null;
 					default: {
 						const _exhaustive: never = ref;
-						throw new Error(`Unknown command argument kind: ${JSON.stringify(_exhaustive)}`);
+						issues.push({
+							message: `Unknown command argument kind: ${JSON.stringify(_exhaustive)}`,
+						});
+						return null;
 					}
 				}
 			};
@@ -174,7 +177,12 @@ export const balanceFlows = createAnalyzer({
 
 				if (fn === 'redeem_funds' && (mod === 'coin' || mod === 'balance')) {
 					const arg = command.arguments[0];
-					if (arg?.$kind !== 'Withdrawal') return false;
+					if (arg?.$kind !== 'Withdrawal') {
+						issues.push({
+							message: `${mod}::${fn} at command ${command.index} expects a FundsWithdrawal input but got ${arg?.$kind ?? 'none'}`,
+						});
+						return true;
+					}
 					let ownerRaw: string | null;
 					if (arg.withdrawFrom === 'Sender') {
 						ownerRaw = sender ?? null;
@@ -212,6 +220,14 @@ export const balanceFlows = createAnalyzer({
 					// Value-preserving re-key; no new deduction.
 					if (command.arguments.length < 1) return false;
 					const oldKey = trackedCoinKey(command.arguments[0]);
+					if (oldKey === 'gas') {
+						// `tx.gas` is a `Coin<SUI>` by-value; `into_balance` on it would
+						// consume the gas coin, which is malformed on-chain.
+						issues.push({
+							message: `${mod}::${fn} at command ${command.index} cannot be called on tx.gas`,
+						});
+						return true;
+					}
 					const tracked = oldKey ? trackedCoins.get(oldKey) : undefined;
 					if (tracked) {
 						trackedCoins.delete(oldKey!);
@@ -354,13 +370,19 @@ export const balanceFlows = createAnalyzer({
 					case 'Publish':
 						break;
 					default:
-						throw new Error(`Unsupported command type: ${command.$kind}`);
+						issues.push({
+							message: `Unsupported command type: ${(command as { $kind: string }).$kind}`,
+						});
 				}
 			}
 
 			if (issues.length) return { issues };
 
 			// Implicit return: still-alive tracked coins credit their owner.
+			// `adjustDelta` is a no-op on null owners, so a merge-into-zero()
+			// whose result is never transferred is dropped silently — this
+			// matches how we handle other tracking losses (values consumed
+			// into non-framework MoveCalls, MakeMoveVec, etc.).
 			for (const [, coin] of trackedCoins) {
 				if (coin.balance <= 0n) continue;
 				adjustDelta(coin.ownerAddress, coin.coinType, coin.balance);

@@ -1235,4 +1235,54 @@ describe('balanceFlows - issues', () => {
 
 		expect(results.balanceFlows.issues?.some((i) => i.message.includes('coin::split'))).toBe(true);
 	});
+
+	it('flags SplitCoins taking more than a non-AB coin holds', async () => {
+		const client = new MockSuiClient();
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+
+		const coin = tx.object(TEST_COIN_1_ID); // 5 SUI, owned coin (not AB-backed)
+		const [split] = tx.splitCoins(coin, [10_000_000_000n]); // 10 SUI > 5 SUI
+		tx.transferObjects([split], tx.pure.address('0x456'));
+
+		const results = await analyze({ balanceFlows }, { client, transaction: await tx.toJSON() });
+
+		expect(results.balanceFlows.issues?.some((i) => i.message.includes('SplitCoins'))).toBe(true);
+	});
+
+	it('flags into_balance on tx.gas', async () => {
+		const client = new MockSuiClient();
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+		tx.moveCall({
+			target: '0x2::coin::into_balance',
+			typeArguments: ['0x2::sui::SUI'],
+			arguments: [tx.gas],
+		});
+
+		const results = await analyze({ balanceFlows }, { client, transaction: await tx.toJSON() });
+
+		expect(
+			results.balanceFlows.issues?.some((i) => /cannot be called on tx.gas/.test(i.message)),
+		).toBe(true);
+	});
+
+	it('flags redeem_funds whose first argument is not a Withdrawal', async () => {
+		const client = new MockSuiClient();
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+		// Pass a regular coin object in the slot where a FundsWithdrawal should go.
+		const coin = tx.object(TEST_COIN_1_ID);
+		tx.moveCall({
+			target: '0x2::coin::redeem_funds',
+			typeArguments: ['0x2::sui::SUI'],
+			arguments: [coin],
+		});
+
+		const results = await analyze({ balanceFlows }, { client, transaction: await tx.toJSON() });
+
+		expect(
+			results.balanceFlows.issues?.some((i) => /expects a FundsWithdrawal input/.test(i.message)),
+		).toBe(true);
+	});
 });

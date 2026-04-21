@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { fromBase58, fromHex, toBase58 } from '@mysten/bcs';
+import { fromHex, toBase58 } from '@mysten/bcs';
 import { describe, expect, test } from 'vitest';
 
 import {
@@ -118,8 +118,9 @@ describe('parseAccumulatorFieldCoinType', () => {
 		expect(parseAccumulatorFieldCoinType('not a struct tag')).toBeNull();
 	});
 
-	test('is consistent with digest unmask round-trip', () => {
-		// Sanity: for an arbitrary accumulator-field type tag, parsing is deterministic.
+	test('normalizes addresses in the struct tag', () => {
+		// The same accumulator-field type tag in short (0x2) and padded
+		// address forms should yield the same coin type.
 		const a = parseAccumulatorFieldCoinType(
 			'0x2::dynamic_field::Field<0x2::accumulator::Key<0x2::balance::Balance<0x2::sui::SUI>>, 0x2::accumulator::U128>',
 		);
@@ -127,6 +128,5 @@ describe('parseAccumulatorFieldCoinType', () => {
 			'0x0000000000000000000000000000000000000000000000000000000000000002::dynamic_field::Field<0x0000000000000000000000000000000000000000000000000000000000000002::accumulator::Key<0x0000000000000000000000000000000000000000000000000000000000000002::balance::Balance<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI>>, 0x0000000000000000000000000000000000000000000000000000000000000002::accumulator::U128>',
 		);
 		expect(a).toBe(b);
-		expect(fromBase58(toBase58(fromHex('00')))).toEqual(new Uint8Array([0]));
 	});
 });
