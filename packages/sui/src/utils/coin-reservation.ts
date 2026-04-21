@@ -33,8 +33,7 @@ export function parseCoinReservationBalance(digestBase58: string): bigint {
 }
 
 function xorObjectIdWithChainIdentifier(objectId: string, chainIdentifier: string): string {
-	const idHex = objectId.startsWith('0x') ? objectId.slice(2) : objectId;
-	const idBytes = fromHex(idHex);
+	const idBytes = fromHex(objectId);
 	if (idBytes.length !== 32) {
 		throw new Error(`Invalid object id length: expected 32 bytes, got ${idBytes.length}`);
 	}

@@ -591,6 +591,24 @@ describe('Coin Flows - input reservation refs', () => {
 		expect(results.coins.issues!.some((i) => /could not be resolved/.test(i.message))).toBe(true);
 	});
 
+	it('splitCoins(tx.gas, ...) with empty payment charges AB without flagging over-split', async () => {
+		const client = new MockSuiClient();
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+		const [split] = tx.splitCoins(tx.gas, [2_000_000_000n]);
+		tx.transferObjects([split], tx.pure.address('0x456'));
+
+		const json = JSON.parse(await tx.toJSON());
+		json.gasData.payment = [];
+		json.gasData.budget = '10000000';
+
+		const results = await analyze({ balanceFlows }, { client, transaction: JSON.stringify(json) });
+		expect(results.balanceFlows.issues).toBeUndefined();
+		const senderSui = results.balanceFlows.result?.sender.find((f) => f.coinType === SUI);
+		// 2_000_000_000 split out + 10_000_000 gas budget, both charged to AB
+		expect(senderSui?.amount).toBe(-2_010_000_000n);
+	});
+
 	it('emits an issue when the unmasked object is not a balance accumulator field', async () => {
 		const client = new MockSuiClient();
 		const chainBytes = new Uint8Array(32).fill(0x44);

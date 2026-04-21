@@ -89,7 +89,7 @@ export const objectIds = createAnalyzer({
 function makeReservationObject(
 	ref: { objectId: string; digest: string; version?: string | number | null },
 	coinType: string,
-	owner: string | null,
+	owner: string,
 ): AnalyzedObject {
 	const balance = parseCoinReservationBalance(ref.digest);
 	const content = Coin.serialize({ id: ref.objectId, balance }).toBytes();
@@ -98,7 +98,7 @@ function makeReservationObject(
 		version: String(ref.version ?? '0'),
 		digest: ref.digest,
 		type: normalizeStructTag(`0x2::coin::Coin<${coinType}>`),
-		owner: { $kind: 'AddressOwner', AddressOwner: owner ?? '' },
+		owner: { $kind: 'AddressOwner', AddressOwner: owner },
 		content,
 		previousTransaction: undefined,
 		objectBcs: undefined,
@@ -111,11 +111,34 @@ function makeReservationObject(
 
 const SUI_TYPE = normalizeStructTag('0x2::sui::SUI');
 
-interface InputReservation {
-	maskedId: string;
-	digest: string;
-	version?: string | number | null;
-	unmaskedId: string;
+type FetchRequest =
+	| { kind: 'regular'; id: string }
+	| {
+			kind: 'reservation';
+			maskedId: string;
+			unmaskedId: string;
+			digest: string;
+			version?: string | number | null;
+	  };
+
+function ownerAddressOf(
+	owner: SuiClientTypes.ObjectOwner,
+	issues: TransactionAnalysisIssue[],
+): string | null {
+	switch (owner.$kind) {
+		case 'AddressOwner':
+			return owner.AddressOwner;
+		case 'ObjectOwner':
+			return owner.ObjectOwner;
+		case 'ConsensusAddressOwner':
+			return owner.ConsensusAddressOwner.owner;
+		case 'Shared':
+		case 'Immutable':
+			return null;
+		default:
+			issues.push({ message: `Unknown owner type: ${JSON.stringify(owner)}` });
+			return null;
+	}
 }
 
 export const objects = createAnalyzer({
@@ -125,117 +148,87 @@ export const objects = createAnalyzer({
 		({ client }: { client: ClientWithCoreApi }) =>
 		async ({ objectIds, data }) => {
 			const issues: TransactionAnalysisIssue[] = [];
+			const result: AnalyzedObject[] = [];
+			const senderAddress = data.sender ? normalizeSuiAddress(data.sender) : null;
 
-			// Gather input reservation refs; their coin type has to be resolved by
-			// fetching the underlying accumulator field (unmasked id). We batch
-			// those lookups into the same `getObjects` request as the regular inputs.
-			const inputReservations: InputReservation[] = [];
+			// Build a single request list covering regular inputs and input
+			// reservation refs (which need an accumulator-field lookup to resolve
+			// their coin type). Parallel to `getObjects`' response list.
+			const requests: FetchRequest[] = objectIds.map((id) => ({ kind: 'regular', id }));
 			let chainIdentifier: string | null = null;
 			for (const input of data.inputs) {
-				if (input.$kind !== 'Object') continue;
-				if (input.Object.$kind !== 'ImmOrOwnedObject') continue;
+				if (input.$kind !== 'Object' || input.Object.$kind !== 'ImmOrOwnedObject') continue;
 				const { objectId, digest, version } = input.Object.ImmOrOwnedObject;
 				if (!digest || !isCoinReservationDigest(digest)) continue;
 				if (chainIdentifier == null) {
 					chainIdentifier = (await client.core.getChainIdentifier()).chainIdentifier;
 				}
-				inputReservations.push({
+				requests.push({
+					kind: 'reservation',
 					maskedId: objectId,
+					unmaskedId: unmaskCoinReservationObjectId(objectId, chainIdentifier),
 					digest,
 					version,
-					unmaskedId: unmaskCoinReservationObjectId(objectId, chainIdentifier),
 				});
 			}
 
-			const unmaskedIds = inputReservations.map((r) => r.unmaskedId);
-			const combinedIds = Array.from(new Set([...objectIds, ...unmaskedIds]));
-
 			const { objects: fetched } = await client.core.getObjects({
-				objectIds: combinedIds,
+				objectIds: requests.map((r) => (r.kind === 'regular' ? r.id : r.unmaskedId)),
 				include: { content: true },
 			});
 
-			const fetchedById = new Map<string, SuiClientTypes.Object<{ content: true }>>();
-			combinedIds.forEach((id, i) => {
+			requests.forEach((req, i) => {
 				const obj = fetched[i];
-				if (obj instanceof Error) {
-					// Skip missing accumulator objects silently — they just mean the
-					// reservation can't be resolved and will be reported below.
-					if (!unmaskedIds.includes(id)) {
+				if (req.kind === 'regular') {
+					if (obj instanceof Error) {
 						issues.push({ message: `Failed to fetch object: ${obj.message}`, error: obj });
+						return;
 					}
+					result.push({ ...obj, ownerAddress: ownerAddressOf(obj.owner, issues) });
 					return;
 				}
-				fetchedById.set(id, obj);
-			});
 
-			const result: AnalyzedObject[] = [];
-			const seen = new Set<string>();
-
-			for (const id of objectIds) {
-				const obj = fetchedById.get(id);
-				if (!obj) continue;
-				let ownerAddress: string | null = null;
-				switch (obj.owner.$kind) {
-					case 'AddressOwner':
-						ownerAddress = obj.owner.AddressOwner;
-						break;
-					case 'ObjectOwner':
-						ownerAddress = obj.owner.ObjectOwner;
-						break;
-					case 'ConsensusAddressOwner':
-						ownerAddress = obj.owner.ConsensusAddressOwner.owner;
-						break;
-					case 'Shared':
-					case 'Immutable':
-						ownerAddress = null;
-						break;
-					default:
-						issues.push({ message: `Unknown owner type: ${JSON.stringify(obj.owner)}` });
-				}
-				result.push({ ...obj, ownerAddress });
-				seen.add(id);
-			}
-
-			// Input reservation refs are owned by the sender at execution
-			// (`CoinReservationResolver::resolve_funds_withdrawal` rejects otherwise).
-			const senderAddress = data.sender ? normalizeSuiAddress(data.sender) : null;
-			for (const reservation of inputReservations) {
-				if (seen.has(reservation.maskedId)) continue;
-				const accumulator = fetchedById.get(reservation.unmaskedId);
-				if (!accumulator) {
+				if (obj instanceof Error) {
 					issues.push({
-						message: `Coin reservation object ${reservation.maskedId} could not be resolved`,
+						message: `Coin reservation object ${req.maskedId} could not be resolved`,
 					});
-					continue;
+					return;
 				}
-				const coinType = parseAccumulatorFieldCoinType(accumulator.type);
+				const coinType = parseAccumulatorFieldCoinType(obj.type);
 				if (!coinType) {
 					issues.push({
-						message: `Object at unmasked reservation id ${reservation.unmaskedId} is not a balance accumulator field (type ${accumulator.type})`,
+						message: `Object at unmasked reservation id ${req.unmaskedId} is not a balance accumulator field (type ${obj.type})`,
 					});
-					continue;
+					return;
+				}
+				if (!senderAddress) {
+					issues.push({
+						message: `Coin reservation input ${req.maskedId} present but transaction has no sender`,
+					});
+					return;
 				}
 				result.push(
 					makeReservationObject(
-						{
-							objectId: reservation.maskedId,
-							digest: reservation.digest,
-							version: reservation.version,
-						},
+						{ objectId: req.maskedId, digest: req.digest, version: req.version },
 						coinType,
 						senderAddress,
 					),
 				);
-				seen.add(reservation.maskedId);
-			}
+			});
 
 			// Gas-payment reservations are always Coin<SUI> (gas is SUI-only) and
-			// owned by the gas payer; synthesized locally without a lookup.
-			const gasReservationOwner = data.gasData.owner ?? data.sender ?? null;
+			// owned by the gas payer; synthesized locally, no lookup required.
+			const gasReservationOwner = data.gasData.owner
+				? normalizeSuiAddress(data.gasData.owner)
+				: senderAddress;
 			for (const ref of data.gasData.payment ?? []) {
 				if (!ref.digest || !isCoinReservationDigest(ref.digest)) continue;
-				if (seen.has(ref.objectId)) continue;
+				if (!gasReservationOwner) {
+					issues.push({
+						message: `Gas payment includes a coin reservation but the transaction has no gas owner or sender`,
+					});
+					continue;
+				}
 				result.push(
 					makeReservationObject(
 						{ objectId: ref.objectId, digest: ref.digest, version: ref.version },
@@ -243,13 +236,9 @@ export const objects = createAnalyzer({
 						gasReservationOwner,
 					),
 				);
-				seen.add(ref.objectId);
 			}
 
-			if (issues.length) {
-				return { issues };
-			}
-
+			if (issues.length) return { issues };
 			return { result };
 		},
 });

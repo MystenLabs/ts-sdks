@@ -142,6 +142,48 @@ describe('Coin Flows - Framework MoveCall Tests', () => {
 		expect(usdcFlow).toBeUndefined();
 	});
 
+	it('emits an issue when a Sponsor withdrawal lacks a gas owner', async () => {
+		const client = new MockSuiClient();
+
+		const { tx } = buildWithdrawalTx({
+			withdrawalAmount: 100_000_000n,
+			coinType: '0xa0b::usdc::USDC',
+			redeemTarget: '0x2::coin::redeem_funds',
+		});
+		tx.transferObjects(
+			[
+				tx.moveCall({
+					target: '0x2::coin::redeem_funds',
+					typeArguments: ['0xa0b::usdc::USDC'],
+					arguments: [tx.withdrawal({ amount: 100_000_000n, type: '0xa0b::usdc::USDC' })],
+				}),
+			],
+			tx.pure.address('0x456'),
+		);
+
+		// Force Sponsor withdrawal with no gasData.owner. We provide a non-empty
+		// gas payment so the mock plugin leaves the (null) owner untouched.
+		const json = JSON.parse(await tx.toJSON());
+		for (const input of json.inputs) {
+			if (input.FundsWithdrawal) input.FundsWithdrawal.withdrawFrom = { Sponsor: true };
+		}
+		json.gasData.owner = null;
+		json.gasData.payment = [
+			{ objectId: TEST_COIN_1_ID, version: '1', digest: '11111111111111111111111111111111' },
+		];
+		json.gasData.price = '1000';
+		json.gasData.budget = '10000000';
+
+		const results = await analyze({ balanceFlows }, { client, transaction: JSON.stringify(json) });
+
+		expect(results.balanceFlows.issues).toBeDefined();
+		expect(
+			results.balanceFlows.issues!.some((i) =>
+				/withdraws from Sponsor but the transaction has no gas owner/.test(i.message),
+			),
+		).toBe(true);
+	});
+
 	it('handles coin::send_funds to sender (no outflow)', async () => {
 		const client = new MockSuiClient();
 		const tx = new Transaction();

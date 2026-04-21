@@ -104,12 +104,7 @@ export const balanceFlows = createAnalyzer({
 				});
 
 				const total = amounts.reduce((a, b) => a + b, 0n);
-				if (total > coin.balance) {
-					issues.push({
-						message: `SplitCoins at command ${command.index} takes ${total} from a ${coin.coinType} coin with only ${coin.balance} available`,
-					});
-				}
-				coin.balance -= total;
+				withdrawFromCoin(coin, total, `SplitCoins at command ${command.index}`);
 
 				amounts.forEach((amount, i) => {
 					track(
@@ -117,6 +112,25 @@ export const balanceFlows = createAnalyzer({
 						new TrackedCoin(coin.coinType, amount, coin.ownerAddress),
 					);
 				});
+			};
+
+			// Deduct `amount` from a tracked coin's balance. If the coin is
+			// backed by an address balance (`payFromAddressBalance = true`, which
+			// only applies to tx.gas under empty-payment gas), any overflow is
+			// charged directly to the owner's delta instead of being an issue —
+			// on-chain the AB covers it. Otherwise over-draw is reported.
+			const withdrawFromCoin = (coin: TrackedCoin, amount: bigint, context: string) => {
+				if (amount > coin.balance) {
+					if (coin.payFromAddressBalance) {
+						const overflow = amount - coin.balance;
+						adjustDelta(coin.ownerAddress, coin.coinType, -overflow);
+					} else {
+						issues.push({
+							message: `${context} takes ${amount} from a ${coin.coinType} coin with only ${coin.balance} available`,
+						});
+					}
+				}
+				coin.balance -= amount;
 			};
 
 			const mergeCoins = (command: Extract<AnalyzedCommand, { $kind: 'MergeCoins' }>) => {
@@ -161,9 +175,18 @@ export const balanceFlows = createAnalyzer({
 				if (fn === 'redeem_funds' && (mod === 'coin' || mod === 'balance')) {
 					const arg = command.arguments[0];
 					if (arg?.$kind !== 'Withdrawal') return false;
-					const owner = normalizeAddress(
-						arg.withdrawFrom === 'Sender' ? (sender ?? null) : (gasOwner ?? sender),
-					);
+					let ownerRaw: string | null;
+					if (arg.withdrawFrom === 'Sender') {
+						ownerRaw = sender ?? null;
+					} else if (data.gasData.owner) {
+						ownerRaw = gasOwner;
+					} else {
+						issues.push({
+							message: `${mod}::${fn} at command ${command.index} withdraws from Sponsor but the transaction has no gas owner`,
+						});
+						return true;
+					}
+					const owner = normalizeAddress(ownerRaw);
 					track(`result:${command.index},0`, new TrackedCoin(arg.coinType, arg.amount, owner));
 					adjustDelta(owner, arg.coinType, -arg.amount);
 					return true;
@@ -212,12 +235,7 @@ export const balanceFlows = createAnalyzer({
 					}
 
 					const amount = BigInt(bcs.u64().fromBase64(amountArg.bytes));
-					if (amount > source.balance) {
-						issues.push({
-							message: `${mod}::${fn} at command ${command.index} takes ${amount} from a ${source.coinType} coin with only ${source.balance} available`,
-						});
-					}
-					source.balance -= amount;
+					withdrawFromCoin(source, amount, `${mod}::${fn} at command ${command.index}`);
 					track(
 						`result:${command.index},0`,
 						new TrackedCoin(source.coinType, amount, source.ownerAddress),
@@ -265,18 +283,23 @@ export const balanceFlows = createAnalyzer({
 
 			const suiType = normalizeStructTag('0x2::sui::SUI');
 			const normalizedGasOwner = normalizeAddress(gasOwner);
+			const paymentIsEmpty = (data.gasData.payment?.length ?? 0) === 0;
 
 			// Gas payment coins are smashed into a single tx.gas coin owned by
-			// the gas payer.
+			// the gas payer. When `payment: []`, tx.gas has zero coin backing
+			// and any draws (the budget itself, plus any splitCoins(tx.gas, …))
+			// come from the gas payer's address balance — flag the tracked coin
+			// so `withdrawFromCoin` charges the owner on overflow instead of
+			// flagging an over-split issue.
 			const gasBalance = gasCoins.reduce((a, c) => a + c.balance, 0n);
-			track('gas', new TrackedCoin(suiType, gasBalance, normalizedGasOwner));
+			const gasCoin = new TrackedCoin(suiType, gasBalance, normalizedGasOwner);
+			gasCoin.payFromAddressBalance = paymentIsEmpty;
+			track('gas', gasCoin);
 			adjustDelta(normalizedGasOwner, suiType, -gasBalance);
 
 			if (data.gasData.budget) {
 				const budget = BigInt(data.gasData.budget);
-				const paymentIsEmpty = (data.gasData.payment?.length ?? 0) === 0;
 				if (paymentIsEmpty) {
-					// `payment: []` means gas is paid from the gas owner's address balance.
 					adjustDelta(normalizedGasOwner, suiType, -budget);
 				} else {
 					if (budget > gasBalance) {
@@ -284,7 +307,7 @@ export const balanceFlows = createAnalyzer({
 							message: `Gas budget ${budget} exceeds the gas payment balance ${gasBalance}`,
 						});
 					}
-					trackedCoins.get('gas')!.balance -= budget;
+					gasCoin.balance -= budget;
 				}
 			} else {
 				issues.push({ message: 'Gas budget not set in Transaction' });
@@ -367,6 +390,7 @@ class TrackedCoin {
 	coinType: string;
 	balance: bigint;
 	ownerAddress: string | null;
+	payFromAddressBalance = false;
 
 	constructor(coinType: string, balance: bigint, ownerAddress: string | null) {
 		this.coinType = coinType;
