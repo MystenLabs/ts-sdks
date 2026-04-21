@@ -38,7 +38,7 @@ export const coinFlows = createAnalyzer({
 		},
 });
 
-/** The sponsor's coin outflows; empty when the tx isn't sponsored. */
+/** The sponsor's coin outflows, or `null` when the tx isn't sponsored. */
 export const sponsorFlows = createAnalyzer({
 	dependencies: { balanceFlows, data },
 	analyze:
@@ -47,6 +47,6 @@ export const sponsorFlows = createAnalyzer({
 			const gasOwner = data.gasData.owner ? normalizeSuiAddress(data.gasData.owner) : null;
 			const sender = data.sender ? normalizeSuiAddress(data.sender) : null;
 			const sponsor = gasOwner && gasOwner !== sender ? gasOwner : null;
-			return { result: outflowsFor(balanceFlows, sponsor) satisfies CoinFlowsResult };
+			return { result: sponsor ? outflowsFor(balanceFlows, sponsor) : null };
 		},
 });
