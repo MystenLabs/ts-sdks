@@ -790,13 +790,13 @@ describe('Coin Flows - Combination Chain Tests', () => {
 	});
 });
 
-describe('Coin Flows - Sponsor withdrawal returned to sender', () => {
-	it('sponsor-redeemed coin transferred to sender does not offset sender outflow', async () => {
+describe('Coin Flows - Sponsor withdrawal in the same transaction', () => {
+	it('sponsor-redeemed coin transferred to sender counts as sender inflow, sponsor outflow', async () => {
 		const client = new MockSuiClient();
 		const tx = new Transaction();
 		tx.setSender(DEFAULT_SENDER);
 
-		// Sender owns 500M USDC; split 200M and send to another address (real 200M outflow).
+		// Sender owns 500M USDC; split 200M and send to another address.
 		const ownedUsdc = tx.object(TEST_USDC_COIN_ID);
 		const [sendOut] = tx.splitCoins(ownedUsdc, [200000000n]);
 		tx.transferObjects([sendOut], tx.pure.address('0x456'));
@@ -810,15 +810,19 @@ describe('Coin Flows - Sponsor withdrawal returned to sender', () => {
 		tx.transferObjects([sponsorRedeem], tx.pure.address(DEFAULT_SENDER));
 
 		const results = await analyze(
-			{ coinFlows },
+			{ coinFlows, sponsorFlows },
 			{ client, transaction: sponsorize(client, await tx.toJSON()) },
 		);
 
-		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
-		expect(usdcFlow?.amount).toBe(200000000n);
+		// Sender net: -200M (sent to 0x456) + 100M (sponsor transfer) = -100M.
+		const usdcOut = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
+		expect(usdcOut?.amount).toBe(100000000n);
+		// Sponsor net: -100M.
+		const sponsorOut = results.sponsorFlows.result?.outflows.find((f) => f.coinType === USDC);
+		expect(sponsorOut?.amount).toBe(100000000n);
 	});
 
-	it('sponsor-redeemed coin sent to sender via send_funds does not offset sender outflow', async () => {
+	it('sponsor-redeemed coin sent to sender via send_funds produces the same deltas', async () => {
 		const client = new MockSuiClient();
 		const tx = new Transaction();
 		tx.setSender(DEFAULT_SENDER);
@@ -839,12 +843,14 @@ describe('Coin Flows - Sponsor withdrawal returned to sender', () => {
 		});
 
 		const results = await analyze(
-			{ coinFlows },
+			{ coinFlows, sponsorFlows },
 			{ client, transaction: sponsorize(client, await tx.toJSON()) },
 		);
 
-		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
-		expect(usdcFlow?.amount).toBe(200000000n);
+		const usdcOut = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
+		expect(usdcOut?.amount).toBe(100000000n);
+		const sponsorOut = results.sponsorFlows.result?.outflows.find((f) => f.coinType === USDC);
+		expect(sponsorOut?.amount).toBe(100000000n);
 	});
 });
 

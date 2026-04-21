@@ -17,35 +17,34 @@ export interface CoinFlow {
 }
 
 export interface AddressFlows {
-	/**
-	 * Value that left this address (transferred away or consumed by a MoveCall).
-	 * For a mixed-owner coin (e.g. a sender coin into which sponsor-redeemed
-	 * value was merged), each origin contributes to its own address's outflow.
-	 */
+	/** Value that left this address net of what it received back. */
 	outflows: CoinFlow[];
-	/**
-	 * Value that arrived at this address from another address. A recipient of a
-	 * mixed-owner coin sees the full merged balance here, attributed across the
-	 * original origins (so the sum across all recipients' inflows matches the
-	 * sum across all origins' outflows per coin type).
-	 *
-	 * Note: `inflows[coinType] - outflows[coinType]` is NOT the same as "net
-	 * position change for this address" — the analyzer can only observe
-	 * movements visible in the PTB, so transfer-to-self on a mixed-owner coin
-	 * reports each non-self-origin segment as an inflow without a matching
-	 * self-outflow. For exact per-address delta, consume transaction effects'
-	 * balance changes instead.
-	 */
+	/** Value that arrived at this address net of what it started by giving up. */
 	inflows: CoinFlow[];
 }
 
 /**
- * Per-address coin flows. Keys are addresses that owned or received tracked
- * value at some point in the transaction. Value that enters the tracked world
- * from an unknown origin (e.g. `coin::zero`) doesn't contribute to any
- * address's outflow; value whose destination we can't determine (e.g. a
- * generic MoveCall consume) contributes to the origin's outflow but to no
- * address's inflow.
+ * Per-address coin flows, derived from a single signed delta per
+ * `(address, coinType)` pair:
+ *
+ *   - When a coin enters tracking (an input Object, a gas coin, a
+ *     `redeem_funds` result), its balance is deducted from its owner.
+ *   - When a coin is transferred or `send_funds`-ed to a destination, its
+ *     balance is credited to that destination.
+ *   - When a tracked coin is still alive at the end of the PTB (it wasn't
+ *     transferred or consumed by a MoveCall), its remaining balance is
+ *     implicitly credited back to its current owner. This models the Move
+ *     semantics where an input Object stays at its owner's address with
+ *     whatever balance changes the PTB applied.
+ *   - The gas budget is taken off the gas coin's tracked balance (reducing
+ *     what's returned at end), so the gas owner's net delta for SUI is
+ *     exactly `-budget` in the simple case.
+ *
+ * A negative delta means value left the address on net; positive means it
+ * arrived on net. Zero deltas are filtered out. Conservation holds: for each
+ * coinType, the sum of all addresses' deltas is zero (every outflow has a
+ * matching inflow somewhere, modulo coins consumed to an unknown destination
+ * which leave a net negative at the origin with no matching credit).
  *
  * Most consumers want {@link coinFlows} (sender-focused) or
  * {@link sponsorFlows} rather than this broader view.
@@ -56,22 +55,6 @@ export interface AddressCoinFlowsResult {
 
 const SUI_FRAMEWORK = normalizeSuiAddress('0x2');
 
-/**
- * Each tracked coin carries origin segments — a list of `{ owner, amount }`
- * entries that preserve where the value came from through splits, joins, and
- * conversions. On any movement event (transfer, send_funds, generic consume,
- * gas budget, MakeMoveVec), each segment is charged to its own owner and
- * credited to the destination, so mixed-origin coins produce correct per-
- * address accounting even when their parts took different paths.
- */
-interface OriginSegment {
-	ownerAddress: string | null;
-	amount: bigint;
-}
-
-/**
- * Per-address flow tracking. See {@link AddressCoinFlowsResult}.
- */
 export const addressCoinFlows = createAnalyzer({
 	dependencies: { data, commands, inputs, coins, gasCoins, coinReservations },
 	analyze:
@@ -79,57 +62,47 @@ export const addressCoinFlows = createAnalyzer({
 		async ({ data, commands, inputs, coins, gasCoins, coinReservations }) => {
 			const issues: TransactionAnalysisIssue[] = [];
 			const trackedCoins = new Map<string, TrackedCoin>();
-			const flowsByAddress = new Map<
-				string,
-				{ outflows: Map<string, bigint>; inflows: Map<string, bigint> }
-			>();
+			// Signed per-(address, coinType) delta. Negative = net outflow from
+			// the address; positive = net inflow.
+			const deltas = new Map<string, Map<string, bigint>>();
 
-			const gasOwner = data.gasData.owner ?? data.sender;
-			const sender = data.sender ?? null;
+			const sender = data.sender ? normalizeSuiAddress(data.sender) : null;
+			const gasOwner = data.gasData.owner
+				? normalizeSuiAddress(data.gasData.owner)
+				: (sender ?? null);
 
 			const normalizeAddress = (address: string | null): string | null =>
 				address == null ? null : normalizeSuiAddress(address);
 
-			const getBucket = (address: string) => {
-				let bucket = flowsByAddress.get(address);
-				if (!bucket) {
-					bucket = { outflows: new Map(), inflows: new Map() };
-					flowsByAddress.set(address, bucket);
+			const adjustDelta = (address: string | null, coinType: string, amount: bigint) => {
+				if (!address || amount === 0n) return;
+				let byCoin = deltas.get(address);
+				if (!byCoin) {
+					byCoin = new Map();
+					deltas.set(address, byCoin);
 				}
-				return bucket;
-			};
-
-			const addOutflow = (owner: string, coinType: string, amount: bigint) => {
-				if (amount <= 0n) return;
-				const bucket = getBucket(owner);
-				bucket.outflows.set(coinType, (bucket.outflows.get(coinType) ?? 0n) + amount);
-			};
-
-			const addInflow = (recipient: string, coinType: string, amount: bigint) => {
-				if (amount <= 0n) return;
-				const bucket = getBucket(recipient);
-				bucket.inflows.set(coinType, (bucket.inflows.get(coinType) ?? 0n) + amount);
+				byCoin.set(coinType, (byCoin.get(coinType) ?? 0n) + amount);
 			};
 
 			/**
-			 * Move a tracked coin's full remaining balance to `destAddress`,
-			 * producing outflow/inflow events for each origin segment. `destAddress
-			 * = null` means the destination is unknown (generic MoveCall consume,
-			 * dynamic transfer address) — each origin is still charged an outflow,
-			 * but no inflow is recorded.
+			 * Register a coin as entering the tracked world from outside the PTB
+			 * (an input Object, a gas coin, a reservation, or a `redeem_funds`
+			 * result). Deducts the coin's balance from its owner — the owner
+			 * gets credit back at end-of-PTB (implicit return) or on an explicit
+			 * transfer-to-self.
 			 */
-			const flushToDestination = (tracked: TrackedCoin, destAddress: string | null) => {
-				const dest = normalizeAddress(destAddress);
-				for (const segment of tracked.segments) {
-					if (segment.amount <= 0n) continue;
-					if (segment.ownerAddress && segment.ownerAddress !== dest) {
-						addOutflow(segment.ownerAddress, tracked.coinType, segment.amount);
-					}
-					if (dest && dest !== segment.ownerAddress) {
-						addInflow(dest, tracked.coinType, segment.amount);
-					}
-				}
-				tracked.consume();
+			const trackExternal = (key: string, coin: TrackedCoin) => {
+				trackedCoins.set(key, coin);
+				adjustDelta(coin.ownerAddress, coin.coinType, -coin.balance);
+			};
+
+			/**
+			 * Register a coin derived from intra-PTB redistribution (split,
+			 * conversion, withdraw_all). No delta change — the value came from a
+			 * previously-tracked coin whose owner was already charged.
+			 */
+			const trackDerived = (key: string, coin: TrackedCoin) => {
+				trackedCoins.set(key, coin);
 			};
 
 			const trackedCoinKey = (ref: AnalyzedCommandArgument): string | null => {
@@ -152,54 +125,69 @@ export const addressCoinFlows = createAnalyzer({
 				return key ? (trackedCoins.get(key) ?? null) : null;
 			};
 
+			/**
+			 * Credit `tracked.balance` to `destAddress` and mark the coin
+			 * consumed. `destAddress = null` means the destination is unknown
+			 * (generic MoveCall consume, MakeMoveVec, dynamic transfer address) —
+			 * no one is credited, so the coin's initial-tracking deduction stays
+			 * as a net outflow on its owner.
+			 */
+			const flushToDestination = (tracked: TrackedCoin, destAddress: string | null) => {
+				const dest = normalizeAddress(destAddress);
+				adjustDelta(dest, tracked.coinType, tracked.balance);
+				tracked.consume();
+			};
+
 			const splitCoin = (command: Extract<AnalyzedCommand, { $kind: 'SplitCoins' }>) => {
 				const coin = getTrackedCoin(command.coin);
 				if (!coin) return;
 
-				// Dynamic amounts force us to assume the coin is fully consumed.
+				// Dynamic amounts: can't predict the split, treat as fully consumed
+				// to an unknown destination.
 				if (!command.amounts.every((a) => a.$kind === 'Pure')) {
 					flushToDestination(coin, null);
 					return;
 				}
 
-				const amounts = command.amounts.map((a) => {
+				for (let i = 0; i < command.amounts.length; i++) {
+					const a = command.amounts[i];
 					if (a.$kind !== 'Pure') throw new Error('Expected pure value');
-					return BigInt(bcs.u64().fromBase64(a.bytes));
-				});
-
-				amounts.forEach((amount, i) => {
-					const taken = coin.takeSegments(amount);
-					trackedCoins.set(
+					const amount = BigInt(bcs.u64().fromBase64(a.bytes));
+					const take = amount > coin.balance ? coin.balance : amount;
+					coin.balance -= take;
+					trackDerived(
 						`result:${command.index},${i}`,
-						TrackedCoin.fromSegments(coin.coinType, taken),
+						new TrackedCoin(coin.coinType, take, coin.ownerAddress),
 					);
-				});
+				}
 			};
 
 			const mergeCoins = (command: Extract<AnalyzedCommand, { $kind: 'MergeCoins' }>) => {
 				const dest = getTrackedCoin(command.destination);
-				const sources = command.sources.map(getTrackedCoin);
-				for (const src of sources) {
+				for (const srcRef of command.sources) {
+					const src = getTrackedCoin(srcRef);
 					if (!src) continue;
 					if (dest) {
-						// Preserve each source's origin segments in dest. If dest is later
-						// moved, per-segment flush correctly attributes each origin's
-						// contribution — no up-front charging and no lost balance.
-						dest.absorbSegments(src.segments);
+						// Fold the source's balance into dest. The source's owner
+						// already took the tracking-start deduction; any subsequent
+						// transfer of dest credits the recipient by the full merged
+						// balance, so conservation is preserved automatically.
+						dest.balance += src.balance;
 						src.consume();
 					} else {
-						// Missing dest: charge every source segment to an unknown
-						// destination so nothing is lost.
+						// No tracked dest: treat source as flushed to an unknown
+						// destination so its owner is charged for the value.
 						flushToDestination(src, null);
 					}
 				}
 			};
 
 			const transferObjects = (command: Extract<AnalyzedCommand, { $kind: 'TransferObjects' }>) => {
-				// A dynamic (non-Pure) address — e.g. a MoveCall result — is treated
-				// as an unknown destination: each origin segment is charged an outflow,
-				// no inflow recorded. Conservative; consumers needing exact accounting
-				// should reconcile with the transaction's real balance changes.
+				// A dynamic (non-Pure) address — e.g. a MoveCall result — is
+				// treated as unknown: the object's owner's tracking-start deduction
+				// stays as net outflow and no recipient is credited. Consumers
+				// needing exact accounting should reconcile with the transaction's
+				// real balance changes.
 				const destAddress =
 					command.address.$kind === 'Pure' ? bcs.Address.fromBase64(command.address.bytes) : null;
 				for (const obj of command.objects) {
@@ -218,8 +206,8 @@ export const addressCoinFlows = createAnalyzer({
 
 			/**
 			 * Handle framework MoveCall commands from 0x2::coin and 0x2::balance.
-			 * Returns true if the command was handled, false to fall through to the
-			 * generic MoveCall consumer.
+			 * Returns true if the command was handled, false to fall through to
+			 * the generic MoveCall consumer.
 			 */
 			const handleFrameworkMoveCall = (
 				command: Extract<AnalyzedCommand, { $kind: 'MoveCall' }>,
@@ -241,10 +229,10 @@ export const addressCoinFlows = createAnalyzer({
 					const owner =
 						arg.withdrawFrom === 'Sender'
 							? (sender ?? null)
-							: (normalizeAddress(gasOwner ?? null) ?? sender);
-					trackedCoins.set(
+							: (normalizeAddress(gasOwner) ?? sender);
+					trackExternal(
 						`result:${command.index},0`,
-						TrackedCoin.single(arg.coinType, arg.amount, normalizeAddress(owner)),
+						new TrackedCoin(arg.coinType, arg.amount, normalizeAddress(owner)),
 					);
 					return true;
 				}
@@ -269,8 +257,8 @@ export const addressCoinFlows = createAnalyzer({
 				) {
 					// coin::into_balance(Coin<T>) -> Balance<T>
 					// coin::from_balance(Balance<T>, &mut TxContext) -> Coin<T>
-					// Value-preserving 1:1 conversion — just re-key the existing
-					// TrackedCoin instead of cloning its segments.
+					// Value-preserving 1:1 conversion — re-key the existing
+					// TrackedCoin instead of allocating a new one.
 					if (command.arguments.length < 1) return false;
 					const oldKey = trackedCoinKey(command.arguments[0]);
 					const tracked = oldKey ? trackedCoins.get(oldKey) : undefined;
@@ -301,27 +289,28 @@ export const addressCoinFlows = createAnalyzer({
 					}
 
 					const amount = BigInt(bcs.u64().fromBase64(amountArg.bytes));
-					const taken = source.takeSegments(amount);
-					trackedCoins.set(
+					const take = amount > source.balance ? source.balance : amount;
+					source.balance -= take;
+					trackDerived(
 						`result:${command.index},0`,
-						TrackedCoin.fromSegments(source.coinType, taken),
+						new TrackedCoin(source.coinType, take, source.ownerAddress),
 					);
 					return true;
 				}
 
 				if (fn === 'withdraw_all' && mod === 'balance') {
 					// balance::withdraw_all(&mut Balance<T>) -> Balance<T>
-					// Moves the entire balance out of the source into a new Balance.
-					// The source balance reference still exists on-chain (it's `&mut`),
-					// but its value is now 0 — keep the old tracked coin around with
-					// drained segments so stale references see an empty coin.
+					// Moves the entire balance into a new Balance. Source stays
+					// tracked (it's `&mut`) with 0 balance so stale refs see an
+					// empty coin rather than a moved one.
 					if (command.arguments.length < 1) return false;
 					const source = getTrackedCoin(command.arguments[0]);
 					if (source) {
-						trackedCoins.set(
+						trackDerived(
 							`result:${command.index},0`,
-							TrackedCoin.fromSegments(source.coinType, source.drainSegments()),
+							new TrackedCoin(source.coinType, source.balance, source.ownerAddress),
 						);
+						source.balance = 0n;
 					}
 					return true;
 				}
@@ -336,16 +325,15 @@ export const addressCoinFlows = createAnalyzer({
 					// balance::join(&mut Balance<T>, Balance<T>) -> u64
 					// coin::put(&mut Balance<T>, Coin<T>)
 					//
-					// Asymmetry note: if `source` is untracked we silently no-op
-					// (nothing to fold into dest). If `dest` is untracked we flush
-					// `source` to an unknown destination so its origins are still
-					// charged. Either way the source's value is accounted for.
+					// Asymmetry: if `source` is untracked we no-op (nothing to
+					// fold); if `dest` is untracked we flush source to an unknown
+					// destination so its owner's deduction stays as an outflow.
 					if (command.arguments.length < 2) return false;
 					const dest = getTrackedCoin(command.arguments[0]);
 					const source = getTrackedCoin(command.arguments[1]);
 					if (!source) return true;
 					if (dest) {
-						dest.absorbSegments(source.segments);
+						dest.balance += source.balance;
 						source.consume();
 					} else {
 						flushToDestination(source, null);
@@ -358,58 +346,56 @@ export const addressCoinFlows = createAnalyzer({
 				if (fn === 'zero' && (mod === 'coin' || mod === 'balance')) {
 					// coin::zero(&mut TxContext) -> Coin<T>
 					// balance::zero() -> Balance<T>
+					// Null owner + zero balance — no deduction, no implicit return.
 					if (coinType) {
-						trackedCoins.set(`result:${command.index},0`, TrackedCoin.single(coinType, 0n, null));
+						trackDerived(`result:${command.index},0`, new TrackedCoin(coinType, 0n, null));
 					}
 					return true;
 				}
 
 				// Known gaps worth covering in a follow-up:
-				//   - coin::mint / coin::mint_and_transfer (TreasuryCap<T>): untracked inflow
+				//   - coin::mint / coin::mint_and_transfer (TreasuryCap<T>): new
+				//     value appears from nowhere, so a conservation mismatch shows
+				//     up as an uncredited inflow at the recipient.
 				//   - 0x2::pay module (split, split_and_transfer, join_vec)
-				// All other 0x2::coin / 0x2::balance functions (destroy_zero, divide_into_n,
-				// value, etc.) fall through to the generic MoveCall handler which flushes
-				// all by-value arguments as outflow from their owner.
+				// All other 0x2::coin / 0x2::balance functions (destroy_zero,
+				// divide_into_n, value, etc.) fall through to the generic handler
+				// which flushes all by-value arguments as outflow from their owner.
 				return false;
 			};
 
 			// --- Setup: gas coin + reservations + object inputs ---
 
 			const suiType = normalizeStructTag('0x2::sui::SUI');
-			const normalizedGasOwner = normalizeAddress(gasOwner ?? null);
+			const normalizedGasOwner = normalizeAddress(gasOwner);
 
-			// Gas coin segments: one per real gas coin (owned by gas owner) plus one
-			// per reservation. Reservations live on a dedicated rule but behave the
-			// same as coins owned by the gas owner for outflow tracking.
-			const gasSegments: OriginSegment[] = [];
-			for (const c of gasCoins) {
-				if (c.balance > 0n) {
-					gasSegments.push({ ownerAddress: normalizedGasOwner, amount: c.balance });
-				}
-			}
+			// Sum real gas coins (they're all owned by the gas owner) plus
+			// reservations (each with its own owner, typically but not always the
+			// gas owner).
+			const gasBalance =
+				gasCoins.reduce((a, c) => a + c.balance, 0n) +
+				coinReservations.reduce((a, r) => a + r.balance, 0n);
+			trackExternal('gas', new TrackedCoin(suiType, gasBalance, normalizedGasOwner));
+
+			// Reservations owned by a different party than the gas owner contribute
+			// balance but deducted from the wrong party above. Re-attribute the
+			// difference so each reservation's balance is charged to its real
+			// owner, not the gas owner.
 			for (const r of coinReservations) {
-				if (r.balance > 0n) {
-					gasSegments.push({
-						ownerAddress: normalizeAddress(r.owner),
-						amount: r.balance,
-					});
+				const owner = normalizeAddress(r.owner);
+				if (owner && owner !== normalizedGasOwner && r.balance > 0n) {
+					adjustDelta(normalizedGasOwner, suiType, r.balance);
+					adjustDelta(owner, suiType, -r.balance);
 				}
 			}
-			trackedCoins.set('gas', TrackedCoin.fromSegments(suiType, gasSegments));
 
 			if (data.gasData.budget) {
+				// Gas budget is paid to the network. Subtract it from the gas
+				// coin's tracked balance (so less is returned to owner at end)
+				// without crediting anyone — the owner ends up net `-budget`.
 				const budget = BigInt(data.gasData.budget);
-				// Gas budget is paid to the network — outflow from whoever holds the
-				// gas coin's balance (the gas owner in the normal case, or a mix when
-				// reservations owned by a different address are included). Take the
-				// budget off the gas coin's segments and charge each segment's owner.
 				const gas = trackedCoins.get('gas')!;
-				const paid = gas.takeSegments(budget);
-				for (const seg of paid) {
-					if (seg.ownerAddress) {
-						addOutflow(seg.ownerAddress, suiType, seg.amount);
-					}
-				}
+				gas.balance = gas.balance >= budget ? gas.balance - budget : 0n;
 			} else {
 				issues.push({ message: 'Gas budget not set in Transaction' });
 			}
@@ -417,9 +403,9 @@ export const addressCoinFlows = createAnalyzer({
 			for (const input of inputs) {
 				if (input.$kind === 'Object' && coins[input.object.objectId]) {
 					const coin = coins[input.object.objectId];
-					trackedCoins.set(
+					trackExternal(
 						`input:${input.index}`,
-						TrackedCoin.single(coin.coinType, coin.balance, normalizeAddress(coin.ownerAddress)),
+						new TrackedCoin(coin.coinType, coin.balance, normalizeAddress(coin.ownerAddress)),
 					);
 				}
 			}
@@ -445,9 +431,9 @@ export const addressCoinFlows = createAnalyzer({
 						break;
 					case 'MoveCall':
 						if (!handleFrameworkMoveCall(command)) {
-							// Generic MoveCall: flush tracked coin/balance arguments passed
-							// by value or &mut as outflow from their origin(s). Immutable
-							// references (&) can't move value.
+							// Generic MoveCall: flush by-value / &mut tracked arguments
+							// as outflow from their owner. Immutable refs (&) can't
+							// move value.
 							command.arguments.forEach((arg) => {
 								if (arg.accessLevel === 'read') return;
 								const tracked = getTrackedCoin(arg);
@@ -463,17 +449,27 @@ export const addressCoinFlows = createAnalyzer({
 				}
 			}
 
+			// --- Implicit return: any tracked coin still alive at end credits
+			//     its current owner with its remaining balance.
+			for (const coin of trackedCoins.values()) {
+				if (coin.balance > 0n && coin.ownerAddress) {
+					adjustDelta(coin.ownerAddress, coin.coinType, coin.balance);
+				}
+			}
+
 			if (issues.length) return { issues };
 
-			const toFlowList = (m: Map<string, bigint>): CoinFlow[] =>
-				Array.from(m, ([coinType, amount]) => ({ coinType, amount })).filter((f) => f.amount > 0n);
-
 			const byAddress: Record<string, AddressFlows> = {};
-			for (const [address, bucket] of flowsByAddress) {
-				const outflows = toFlowList(bucket.outflows);
-				const inflows = toFlowList(bucket.inflows);
-				if (outflows.length === 0 && inflows.length === 0) continue;
-				byAddress[address] = { outflows, inflows };
+			for (const [address, byCoin] of deltas) {
+				const outflows: CoinFlow[] = [];
+				const inflows: CoinFlow[] = [];
+				for (const [coinType, delta] of byCoin) {
+					if (delta < 0n) outflows.push({ coinType, amount: -delta });
+					else if (delta > 0n) inflows.push({ coinType, amount: delta });
+				}
+				if (outflows.length > 0 || inflows.length > 0) {
+					byAddress[address] = { outflows, inflows };
+				}
 			}
 
 			return {
@@ -486,9 +482,10 @@ const EMPTY_FLOWS: AddressFlows = { outflows: [], inflows: [] };
 
 /**
  * The transaction sender's coin flows. Default rule for "what is the user
- * spending/receiving?" — `outflows` lists value that left the sender,
- * `inflows` lists value that arrived at the sender. For the sponsor view see
- * {@link sponsorFlows}; for arbitrary addresses see {@link addressCoinFlows}.
+ * spending/receiving?" — `outflows` lists value that left the sender on net,
+ * `inflows` lists value that arrived at the sender on net. For the sponsor
+ * view see {@link sponsorFlows}; for arbitrary addresses see
+ * {@link addressCoinFlows}.
  */
 export const coinFlows = createAnalyzer({
 	dependencies: { addressCoinFlows, data },
@@ -521,114 +518,24 @@ export const sponsorFlows = createAnalyzer({
 
 class TrackedCoin {
 	coinType: string;
+	balance: bigint;
 	/**
-	 * Origin segments composing this coin's current balance, coalesced by owner:
-	 * each owner appears at most once. Invariant maintained by the constructors
-	 * and by {@link absorbSegments}; {@link takeSegments} preserves it because it
-	 * only reduces per-segment amounts and filters zeros.
+	 * Address that currently owns this coin. Used for implicit return at the
+	 * end of the PTB: any still-alive tracked coin credits its owner with
+	 * whatever balance it has, which models the Move semantics where an input
+	 * Object stays at its owner's address after the transaction. `null` means
+	 * the coin has no known owner (e.g. `coin::zero`) — it was never deducted
+	 * from anyone and isn't credited back to anyone.
 	 */
-	segments: OriginSegment[];
+	ownerAddress: string | null;
 
-	private constructor(coinType: string, segments: OriginSegment[]) {
+	constructor(coinType: string, balance: bigint, ownerAddress: string | null) {
 		this.coinType = coinType;
-		this.segments = segments;
+		this.balance = balance;
+		this.ownerAddress = ownerAddress;
 	}
 
-	/** Create a coin with a single origin owning the full balance. */
-	static single(coinType: string, balance: bigint, ownerAddress: string | null): TrackedCoin {
-		return new TrackedCoin(coinType, balance > 0n ? [{ ownerAddress, amount: balance }] : []);
-	}
-
-	/**
-	 * Create a coin from an existing list of segments (deep-copied). Zero /
-	 * negative amounts are dropped and same-owner segments are coalesced so the
-	 * instance starts with the coalesced-by-owner invariant satisfied.
-	 */
-	static fromSegments(coinType: string, segments: OriginSegment[]): TrackedCoin {
-		const coalesced: OriginSegment[] = [];
-		for (const seg of segments) {
-			if (seg.amount <= 0n) continue;
-			const existing = coalesced.find((s) => s.ownerAddress === seg.ownerAddress);
-			if (existing) {
-				existing.amount += seg.amount;
-			} else {
-				coalesced.push({ ownerAddress: seg.ownerAddress, amount: seg.amount });
-			}
-		}
-		return new TrackedCoin(coinType, coalesced);
-	}
-
-	get remainingBalance(): bigint {
-		let total = 0n;
-		for (const s of this.segments) total += s.amount;
-		return total;
-	}
-
-	/** Empty this coin's segments (e.g. fully consumed by a PTB command). */
 	consume() {
-		this.segments = [];
-	}
-
-	/**
-	 * Remove and return all segments. Used by conversions (into_balance /
-	 * from_balance / withdraw_all) that preserve value 1:1 into a new tracked
-	 * coin at a different result key.
-	 */
-	drainSegments(): OriginSegment[] {
-		const drained = this.segments;
-		this.segments = [];
-		return drained;
-	}
-
-	/**
-	 * Take `amount` off this coin, returning the removed segments and shrinking
-	 * `this.segments` in place. Each origin loses a share proportional to its
-	 * fraction of the total.
-	 *
-	 * Ordering invariant: the algorithm walks segments in array order and uses
-	 * floor(seg.amount * amount / total); the last segment absorbs any rounding
-	 * remainder. Exact fractions are deterministic, but under inexact divisions
-	 * the per-origin split of a take can shift by up to 1 unit depending on
-	 * which origin happens to be last in the list (i.e., which merge order
-	 * produced the current segments). Total conservation is unaffected. Callers
-	 * should not rely on exact per-origin numbers after inexact splits.
-	 *
-	 * If `amount` >= the remaining balance, drains everything.
-	 */
-	takeSegments(amount: bigint): OriginSegment[] {
-		if (amount <= 0n || this.segments.length === 0) return [];
-		const total = this.remainingBalance;
-		if (amount >= total) return this.drainSegments();
-
-		const taken: OriginSegment[] = [];
-		let remaining = amount;
-		for (let i = 0; i < this.segments.length; i++) {
-			const seg = this.segments[i];
-			const take = i === this.segments.length - 1 ? remaining : (seg.amount * amount) / total;
-			if (take > 0n) {
-				taken.push({ ownerAddress: seg.ownerAddress, amount: take });
-				seg.amount -= take;
-				remaining -= take;
-			}
-		}
-		this.segments = this.segments.filter((s) => s.amount > 0n);
-		return taken;
-	}
-
-	/**
-	 * Absorb segments from another coin (destination side of a merge/join).
-	 * Segments with the same owner are coalesced so the list stays compact
-	 * even under repeated merges.
-	 */
-	absorbSegments(incoming: OriginSegment[]) {
-		for (const seg of incoming) {
-			if (seg.amount <= 0n) continue;
-			const existing = this.segments.find((s) => s.ownerAddress === seg.ownerAddress);
-			if (existing) {
-				existing.amount += seg.amount;
-			} else {
-				this.segments.push({ ...seg });
-			}
-		}
+		this.balance = 0n;
 	}
 }

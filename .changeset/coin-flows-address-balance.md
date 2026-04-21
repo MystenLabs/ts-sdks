@@ -2,16 +2,21 @@
 '@mysten/wallet-sdk': minor
 ---
 
-**BREAKING:** The transaction analyzer's `coinFlows` result shape changed from `{ outflows: CoinFlow[] }` to `{ outflows: CoinFlow[]; inflows: CoinFlow[] }`. `outflows` still lists what left the sender; `inflows` is newly available and lists what arrived at the sender. Deep-equality checks against the old shape will break; `.outflows` reads keep working.
+**BREAKING:** The transaction analyzer's `coinFlows` result shape changed from `{ outflows: CoinFlow[] }` to `{ outflows: CoinFlow[]; inflows: CoinFlow[] }`, and reported amounts are now **net** balance deltas rather than gross outflows. `outflows` lists value that left the address net of what it received back; `inflows` lists value that arrived net of what it started by giving up. An address has either an outflow or an inflow per coin type, never both. Deep-equality checks against the old shape will break; `.outflows` reads still work but the amounts may differ when an address both sent and received the same coin type in the same transaction.
 
-Flow accounting now happens per address under the hood. Each tracked coin carries origin *segments* — a list of `{ owner, amount }` pairs that are preserved through splits, joins, and conversions. On any movement event (transfer, `send_funds`, generic MoveCall consume, gas budget, MakeMoveVec) each segment is charged to its own owner and credited to the destination, so mixed-origin coins (e.g. a sender coin that a sponsor balance was merged into, later transferred to a third party) produce correct per-address outflows and inflows — including conservation of value across the transaction.
+The analyzer tracks a single signed delta per `(address, coinType)`:
+
+- A coin entering tracking (input Object, gas coin, reservation, `redeem_funds`) deducts its balance from its owner.
+- A transfer or `send_funds` to a destination credits the destination's delta.
+- Tracked coins still alive at the end of the PTB implicitly credit their owner — modeling the Move semantics where an input Object stays at its owner's address with the PTB's balance changes applied.
+- The gas budget is taken off the gas coin's tracked balance without crediting anyone, so the gas owner's SUI delta is `-budget` in the simple case.
+
+Conservation holds: for each coin type, the sum of all addresses' deltas is zero (every transfer has an origin deduction and destination credit), modulo coins consumed to an unknown destination which leave a net negative on the origin with no matching credit.
 
 New companion rules:
 
-- `addressCoinFlows` — full per-address view: `{ byAddress: Record<string, { outflows, inflows }> }`. Use this when you care about a specific recipient or multiple parties.
+- `addressCoinFlows` — full per-address view: `{ byAddress: Record<string, { outflows, inflows }> }`. Use this when you care about specific recipients or multiple parties.
 - `sponsorFlows` — convenience alias for the sponsor (gas payer) when `gasData.owner` differs from `data.sender`.
-- `coinReservations` — synthetic coin reservation refs (previously synthesized into `gasCoins`) are now exposed here: `{ owner, coinType, balance, ref }[]`. `gasCoins` returns only real on-chain coins; `coinFlows` consumes both so reservation balances still back the gas coin's outflow accounting.
+- `coinReservations` — synthetic coin reservation refs (previously synthesized into `gasCoins`) now live here: `{ owner, coinType, balance, ref }[]`. `gasCoins` returns only real on-chain coins.
 
 The analyzer handles `FundsWithdrawal` inputs and the `0x2::coin` / `0x2::balance` framework functions (`redeem_funds`, `send_funds`, `into_balance`, `from_balance`, `split`, `take`, `withdraw_all`, `join`, `put`, `zero`).
-
-Note: `inflows[coinType] - outflows[coinType]` is NOT a faithful "net position change" for an address — the analyzer only sees movements visible in the PTB, and a transfer-to-self on a mixed-origin coin reports each non-self origin segment as an inflow without a matching self-outflow. For exact per-address delta, reconcile with the transaction effects' balance changes.
