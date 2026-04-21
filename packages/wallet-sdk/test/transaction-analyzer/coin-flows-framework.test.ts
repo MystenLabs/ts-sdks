@@ -74,7 +74,7 @@ function buildWithdrawalTx(opts: {
 describe('Coin Flows - Framework MoveCall Tests', () => {
 	// --- Address balance operations ---
 
-	it('tracks coin::redeem_funds as an owned coin outflow', async () => {
+	it('tracks coin::redeem_funds as a sender outflow', async () => {
 		const client = new MockSuiClient();
 		const { tx, result } = buildWithdrawalTx({
 			withdrawalAmount: 500000000n,
@@ -90,7 +90,7 @@ describe('Coin Flows - Framework MoveCall Tests', () => {
 		expect(usdcFlow?.amount).toBe(500000000n);
 	});
 
-	it('tracks balance::redeem_funds as an owned balance outflow', async () => {
+	it('tracks balance::redeem_funds as a sender outflow', async () => {
 		const client = new MockSuiClient();
 		const { tx, result } = buildWithdrawalTx({
 			withdrawalAmount: 300000000n,
@@ -957,7 +957,7 @@ describe('Coin Flows - Per-party tracking', () => {
 		expect(sponsorFlow?.amount).toBe(-100000000n);
 	});
 
-	it('coin::join of sender balance into sponsor-redeemed coin preserves origin segments', async () => {
+	it('coin::join of sender balance into sponsor-redeemed coin attributes correctly', async () => {
 		const client = new MockSuiClient();
 		const tx = new Transaction();
 		tx.setSender(DEFAULT_SENDER);
@@ -1115,5 +1115,82 @@ describe('Coin Flows - Transfer to Self Bug Fix', () => {
 		// SUI should have gas budget outflow only
 		const suiFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === SUI);
 		expect(suiFlow?.amount).toBe(10000000n);
+	});
+});
+
+describe('balanceFlows - sponsor shape', () => {
+	it('returns null sponsor flows for non-sponsored transactions', async () => {
+		const client = new MockSuiClient();
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+
+		const coin = tx.object(TEST_COIN_1_ID);
+		const [split] = tx.splitCoins(coin, [100000000n]);
+		tx.transferObjects([split], tx.pure.address('0x456'));
+
+		const results = await analyze({ balanceFlows }, { client, transaction: await tx.toJSON() });
+
+		expect(results.balanceFlows.result?.sponsor).toBeNull();
+		// Sender flows are still populated.
+		const senderSui = results.balanceFlows.result?.sender.find((f) => f.coinType === SUI);
+		expect(senderSui?.amount).toBeLessThan(0n);
+	});
+
+	it('returns a non-null sponsor flow list for sponsored transactions (empty if sponsor had no movement)', async () => {
+		const client = new MockSuiClient();
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+
+		const results = await analyze(
+			{ balanceFlows },
+			{ client, transaction: sponsorize(client, await tx.toJSON()) },
+		);
+
+		expect(results.balanceFlows.result?.sponsor).not.toBeNull();
+		// Sponsor paid the gas budget → sponsor SUI delta is negative.
+		const sponsorSui = results.balanceFlows.result?.sponsor?.find((f) => f.coinType === SUI);
+		expect(sponsorSui?.amount).toBe(-10000000n);
+	});
+});
+
+describe('balanceFlows - issues', () => {
+	it('flags gas budget exceeding the total gas payment balance', async () => {
+		const client = new MockSuiClient();
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+
+		// Force a very small gas coin as the only payment, then an oversized budget.
+		const json = JSON.parse(await tx.toJSON());
+		client.addCoin({
+			objectId: '0xabc000000001',
+			coinType: '0x2::sui::SUI',
+			balance: 1n, // 1 mist
+			owner: { $kind: 'AddressOwner', AddressOwner: DEFAULT_SENDER },
+		});
+		json.gasData.payment = [
+			{ objectId: '0xabc000000001', version: '1', digest: '11111111111111111111111111111111' },
+		];
+		json.gasData.budget = '10000000'; // 0.01 SUI > 1 mist balance
+
+		const results = await analyze({ balanceFlows }, { client, transaction: JSON.stringify(json) });
+
+		expect(results.balanceFlows.issues?.some((i) => i.message.includes('Gas budget'))).toBe(true);
+	});
+
+	it('flags coin::split taking more than the source coin holds', async () => {
+		const client = new MockSuiClient();
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+
+		const coin = tx.object(TEST_COIN_1_ID); // 5 SUI
+		tx.moveCall({
+			target: '0x2::coin::split',
+			typeArguments: ['0x2::sui::SUI'],
+			arguments: [coin, tx.pure.u64(10_000_000_000n)], // 10 SUI > 5 SUI
+		});
+
+		const results = await analyze({ balanceFlows }, { client, transaction: await tx.toJSON() });
+
+		expect(results.balanceFlows.issues?.some((i) => i.message.includes('coin::split'))).toBe(true);
 	});
 });

@@ -6,8 +6,9 @@ import { Transaction } from '@mysten/sui/transactions';
 import { normalizeStructTag, toBase58 } from '@mysten/sui/utils';
 import { analyze } from '../../src/transaction-analyzer/analyzer.js';
 import { coinFlows } from '../../src/transaction-analyzer/rules/coin-flows.js';
+import { coins } from '../../src/transaction-analyzer/rules/coins.js';
 import { MockSuiClient } from '../mocks/MockSuiClient.js';
-import { DEFAULT_SENDER, TEST_COIN_1_ID } from '../mocks/mockData.js';
+import { createAddressOwner, DEFAULT_SENDER, TEST_COIN_1_ID } from '../mocks/mockData.js';
 
 const SUI = '0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI';
 const USDC = '0x0000000000000000000000000000000000000000000000000000000000000a0b::usdc::USDC';
@@ -484,5 +485,48 @@ describe('Coin Flows - Gas Payment and Synthetic Coins', () => {
 		expect(suiFlow).toBeDefined();
 		// Split returned to self, so only gas budget
 		expect(suiFlow!.amount).toBe(10_000_000n);
+	});
+
+	it('handles a reservation ref that appears as a regular Object input', async () => {
+		const client = new MockSuiClient();
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+		// Add a real gas coin so the actual gas payment isn't a reservation.
+		client.addCoin({
+			objectId: '0xabcdef012001',
+			coinType: '0x2::sui::SUI',
+			balance: 5_000_000_000n,
+			owner: createAddressOwner(DEFAULT_SENDER),
+		});
+
+		const json = JSON.parse(await tx.toJSON());
+		json.gasData.payment = [
+			{ objectId: '0xabcdef012001', version: '1', digest: '11111111111111111111111111111111' },
+		];
+		// Inject a synthetic reservation ref as a regular Object input. The
+		// analyzer shouldn't try to fetch it on-chain; it should synthesize a
+		// coin entry from the digest and expose it via the coins rule.
+		const syntheticDigest = createSyntheticDigest(2_000_000_000n);
+		const reservationObjectId =
+			'0x0000000000000000000000000000000000000000000000000000feedfacefeed';
+		json.inputs.push({
+			$kind: 'Object',
+			Object: {
+				$kind: 'ImmOrOwnedObject',
+				ImmOrOwnedObject: {
+					objectId: reservationObjectId,
+					version: '0',
+					digest: syntheticDigest,
+				},
+			},
+		});
+
+		const results = await analyze({ coins }, { client, transaction: JSON.stringify(json) });
+
+		const coin = results.coins.result?.[reservationObjectId];
+		expect(coin).toBeDefined();
+		expect(coin?.balance).toBe(2_000_000_000n);
+		expect(coin?.reservation).toBeDefined();
+		expect(coin?.reservation?.owner).toBe(DEFAULT_SENDER);
 	});
 });
