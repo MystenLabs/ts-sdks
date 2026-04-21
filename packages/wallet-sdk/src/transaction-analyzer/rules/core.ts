@@ -4,14 +4,14 @@
 import type { Transaction } from '@mysten/sui/transactions';
 import { TransactionDataBuilder } from '@mysten/sui/transactions';
 import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
-import type { AnalyzerResult } from '../analyzer.js';
+import type { AnalyzerOutput } from '../analyzer.js';
 import { createAnalyzer } from '../analyzer.js';
 
 export const bytes = createAnalyzer({
 	cacheKey: 'bytes@1.0.0',
 	analyze:
 		(options: { client: ClientWithCoreApi }, transaction: Transaction) =>
-		async (): Promise<AnalyzerResult<Uint8Array>> => {
+		async (): Promise<AnalyzerOutput<Uint8Array>> => {
 			try {
 				return {
 					result: await transaction.build({ client: options.client }),
@@ -43,7 +43,7 @@ export const transactionResponse = createAnalyzer({
 	dependencies: { bytes },
 	analyze:
 		(options: { client: ClientWithCoreApi; transactionResponse?: SuiClientTypes.Transaction }) =>
-		async ({ bytes }): Promise<AnalyzerResult<SuiClientTypes.Transaction>> => {
+		async ({ bytes }): Promise<AnalyzerOutput<SuiClientTypes.Transaction>> => {
 			try {
 				const result = await options.client.core.simulateTransaction({ transaction: bytes });
 				return {

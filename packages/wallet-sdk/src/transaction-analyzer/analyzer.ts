@@ -20,7 +20,7 @@ export function createAnalyzer<
 		transaction: Transaction,
 	) => (analysis: {
 		[k in keyof Deps]: Deps[k] extends Analyzer<infer R, any, any> ? R : never;
-	}) => Promise<AnalyzerResult<T>> | AnalyzerResult<T>;
+	}) => Promise<AnalyzerOutput<T>> | AnalyzerOutput<T>;
 }) {
 	return {
 		cacheKey,
@@ -57,7 +57,7 @@ export async function analyze<T extends Record<string, Analyzer<Defined, any, an
 	const tx = Transaction.from(transaction);
 	const analyzerMap = new Map<
 		unknown,
-		(analysis: object) => AnalyzerResult | Promise<AnalyzerResult>
+		(analysis: object) => AnalyzerOutput | Promise<AnalyzerOutput>
 	>();
 
 	function initializeAnalyzer(analyzer: Analyzer<Defined>) {
@@ -86,30 +86,32 @@ export async function analyze<T extends Record<string, Analyzer<Defined, any, an
 			),
 		);
 
-		const issues = new Set<TransactionAnalysisIssue>();
+		const inherited = new Set<TransactionAnalysisIssue>();
 
 		for (const dep of Object.values(deps)) {
 			if (dep.issues) {
-				dep.issues.forEach((issue) => issues.add(issue));
+				dep.issues.forEach((issue) => inherited.add(issue));
 			}
 		}
 
-		if (issues.size) {
-			return { issues: [...issues] };
+		if (inherited.size) {
+			return { issues: [...inherited], ownIssues: [] };
 		}
 
 		try {
-			const result = await analyzerMap.get(analyzer.cacheKey ?? analyzer)!(
+			const output = await analyzerMap.get(analyzer.cacheKey ?? analyzer)!(
 				Object.fromEntries(Object.entries(deps).map(([key, dep]) => [key, dep.result])),
 			);
 
-			return result;
+			if (output.issues) {
+				return { issues: output.issues, ownIssues: output.issues };
+			}
+			return { result: output.result };
 		} catch (error) {
-			return {
-				issues: [
-					{ message: `Unexpected error while analyzing transaction: ${(error as Error).message}` },
-				],
+			const issue = {
+				message: `Unexpected error while analyzing transaction: ${(error as Error).message}`,
 			};
+			return { issues: [issue], ownIssues: [issue] };
 		}
 	}
 
@@ -123,13 +125,21 @@ export async function analyze<T extends Record<string, Analyzer<Defined, any, an
 		return analysisMap.get(cacheKey)!;
 	}
 
-	return Object.fromEntries(
+	const perAnalyzer = Object.fromEntries(
 		await Promise.all(
 			Object.entries(analyzers).map(async ([key, analyzer]) => [key, await getAnalysis(analyzer)]),
 		),
 	) as {
 		[k in keyof T]: T[k] extends Analyzer<infer R, any, any> ? AnalyzerResult<R> : never;
 	};
+
+	const issues: TransactionAnalysisIssue[] = [];
+	for (const pending of analysisMap.values()) {
+		const result = await pending;
+		if (result.ownIssues) issues.push(...result.ownIssues);
+	}
+
+	return { ...perAnalyzer, issues };
 }
 
 export type Analyzer<
@@ -144,10 +154,10 @@ export type Analyzer<
 	analyze: (
 		options: Options,
 		transaction: Transaction,
-	) => (analysis: Analysis) => AnalyzerResult<T> | Promise<AnalyzerResult<T>>;
+	) => (analysis: Analysis) => AnalyzerOutput<T> | Promise<AnalyzerOutput<T>>;
 };
 
-export type AnalyzerResult<T extends Defined = Defined> =
+export type AnalyzerOutput<T extends Defined = Defined> =
 	| {
 			result: T;
 			issues?: never;
@@ -155,6 +165,18 @@ export type AnalyzerResult<T extends Defined = Defined> =
 	| {
 			issues: TransactionAnalysisIssue[];
 			result?: never;
+	  };
+
+export type AnalyzerResult<T extends Defined = Defined> =
+	| {
+			result: T;
+			issues?: never;
+			ownIssues?: never;
+	  }
+	| {
+			result?: never;
+			issues: TransactionAnalysisIssue[];
+			ownIssues: TransactionAnalysisIssue[];
 	  };
 
 export interface TransactionAnalysisIssue {

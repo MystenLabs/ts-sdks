@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 export { analyze, createAnalyzer } from './analyzer.js';
-export type { AnalyzerResult, TransactionAnalysisIssue } from './analyzer.js';
+export type { AnalyzerResult, AnalyzerOutput, TransactionAnalysisIssue } from './analyzer.js';
 
 export type { AnalyzedCoin } from './rules/coins.js';
 export type { AnalyzedCommandArgument, AnalyzedCommand } from './rules/commands.js';
