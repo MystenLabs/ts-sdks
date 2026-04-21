@@ -31,13 +31,25 @@ export interface BalanceFlowsResult {
 	sponsor: CoinFlow[] | null;
 }
 
+export interface BalanceFlowsAnalyzerOptions {
+	/**
+	 * When true, the gas budget is not charged against the gas payer's
+	 * deltas. Useful for UI surfaces that display value flows and gas
+	 * fees separately. The gas coin itself is still tracked, so splits
+	 * / merges on `tx.gas` continue to account correctly; only the
+	 * budget deduction is suppressed. Defaults to false.
+	 */
+	excludeGasBudget?: boolean;
+}
+
 const SUI_FRAMEWORK = normalizeSuiAddress('0x2');
 
 export const balanceFlows = createAnalyzer({
 	dependencies: { data, commands, inputs, coins, gasCoins },
 	analyze:
-		() =>
+		({ balanceFlows: opts = {} }: { balanceFlows?: BalanceFlowsAnalyzerOptions } = {}) =>
 		async ({ data, commands, inputs, coins, gasCoins }) => {
+			const { excludeGasBudget = false } = opts;
 			const issues: TransactionAnalysisIssue[] = [];
 			const trackedBalances = new Map<string, TrackedBalance>();
 			const deltas = new Map<string, Map<string, bigint>>();
@@ -295,18 +307,20 @@ export const balanceFlows = createAnalyzer({
 			adjustDelta(normalizedGasOwner, suiType, -gasBalance);
 
 			if (data.gasData.budget) {
-				const budget = BigInt(data.gasData.budget);
-				if (paymentIsEmpty) {
-					adjustDelta(normalizedGasOwner, suiType, -budget);
-				} else {
-					if (budget > gasBalance) {
-						issues.push({
-							message: `Gas budget ${budget} exceeds the gas payment balance ${gasBalance}`,
-						});
+				if (!excludeGasBudget) {
+					const budget = BigInt(data.gasData.budget);
+					if (paymentIsEmpty) {
+						adjustDelta(normalizedGasOwner, suiType, -budget);
+					} else {
+						if (budget > gasBalance) {
+							issues.push({
+								message: `Gas budget ${budget} exceeds the gas payment balance ${gasBalance}`,
+							});
+						}
+						gasCoin.balance -= budget;
 					}
-					gasCoin.balance -= budget;
 				}
-			} else {
+			} else if (!excludeGasBudget) {
 				issues.push({ message: 'Gas budget not set in Transaction' });
 			}
 

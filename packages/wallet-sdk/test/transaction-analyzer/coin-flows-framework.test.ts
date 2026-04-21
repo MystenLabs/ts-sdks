@@ -1269,3 +1269,73 @@ describe('balanceFlows - issues', () => {
 		).toBe(true);
 	});
 });
+
+describe('balanceFlows - excludeGasBudget', () => {
+	it('omits the gas budget from sender deltas when payment uses a coin', async () => {
+		const client = new MockSuiClient();
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+
+		const results = await analyze(
+			{ balanceFlows },
+			{ client, transaction: await tx.toJSON(), balanceFlows: { excludeGasBudget: true } },
+		);
+
+		expect(results.balanceFlows.issues).toBeUndefined();
+		// No commands touch the gas coin, so with the budget excluded the
+		// net sender SUI delta is zero.
+		const sui = results.balanceFlows.result?.sender.find((f) => f.coinType === SUI);
+		expect(sui?.amount ?? 0n).toBe(0n);
+	});
+
+	it('omits the gas budget from sender deltas when gas is paid from AB', async () => {
+		const client = new MockSuiClient();
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+		tx.setGasPayment([]);
+		tx.setGasBudget(10_000_000n);
+
+		const json = JSON.parse(await tx.toJSON());
+		json.gasData.payment = [];
+
+		const results = await analyze(
+			{ balanceFlows },
+			{ client, transaction: JSON.stringify(json), balanceFlows: { excludeGasBudget: true } },
+		);
+
+		expect(results.balanceFlows.issues).toBeUndefined();
+		const sui = results.balanceFlows.result?.sender.find((f) => f.coinType === SUI);
+		expect(sui?.amount ?? 0n).toBe(0n);
+	});
+
+	it('still tracks non-gas outflows when excludeGasBudget is true', async () => {
+		const client = new MockSuiClient();
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+		// Transfer 200M SUI from a real coin (not from gas): this outflow
+		// is orthogonal to the gas budget and should still appear.
+		const coin = tx.object(TEST_COIN_1_ID);
+		const [split] = tx.splitCoins(coin, [200_000_000n]);
+		tx.transferObjects([split], tx.pure.address('0x456'));
+
+		const results = await analyze(
+			{ balanceFlows },
+			{ client, transaction: await tx.toJSON(), balanceFlows: { excludeGasBudget: true } },
+		);
+
+		const sui = results.balanceFlows.result?.sender.find((f) => f.coinType === SUI);
+		expect(sui?.amount).toBe(-200_000_000n);
+	});
+
+	it('defaults to including the gas budget', async () => {
+		const client = new MockSuiClient();
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+		tx.setGasBudget(10_000_000n);
+
+		const results = await analyze({ balanceFlows }, { client, transaction: await tx.toJSON() });
+
+		const sui = results.balanceFlows.result?.sender.find((f) => f.coinType === SUI);
+		expect(sui?.amount).toBe(-10_000_000n);
+	});
+});
