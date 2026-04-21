@@ -262,13 +262,12 @@ export const balanceFlows = createAnalyzer({
 			const suiType = normalizeStructTag('0x2::sui::SUI');
 			const normalizedGasOwner = normalizeAddress(gasOwner);
 
+			// All gas-payment coins are consumed into a single tx.gas coin owned by
+			// the gas payer. We track only that combined coin, and charge the gas
+			// payer the full combined balance up front.
 			const gasBalance = gasCoins.reduce((a, c) => a + c.balance, 0n);
-
 			track('gas', new TrackedCoin(suiType, gasBalance, normalizedGasOwner));
-
-			for (const c of gasCoins) {
-				adjustDelta(normalizeAddress(c.ownerAddress), c.coinType, -c.balance);
-			}
+			adjustDelta(normalizedGasOwner, suiType, -gasBalance);
 
 			if (data.gasData.budget) {
 				const budget = BigInt(data.gasData.budget);
@@ -338,24 +337,10 @@ export const balanceFlows = createAnalyzer({
 			if (issues.length) return { issues };
 
 			// Implicit return: every still-alive tracked coin credits its owner
-			// with its remaining balance. For the gas coin — which may have been
-			// funded by multiple parties — split the leftover proportionally.
-			for (const [key, coin] of trackedCoins) {
+			// with its remaining balance.
+			for (const [, coin] of trackedCoins) {
 				if (coin.balance <= 0n) continue;
-				if (key === 'gas' && gasBalance > 0n) {
-					let distributed = 0n;
-					gasCoins.forEach((c, i) => {
-						if (c.balance <= 0n) return;
-						const share =
-							i === gasCoins.length - 1
-								? coin.balance - distributed
-								: (c.balance * coin.balance) / gasBalance;
-						adjustDelta(normalizeAddress(c.ownerAddress), suiType, share);
-						distributed += share;
-					});
-				} else {
-					adjustDelta(coin.ownerAddress, coin.coinType, coin.balance);
-				}
+				adjustDelta(coin.ownerAddress, coin.coinType, coin.balance);
 			}
 
 			const byAddress: Record<string, CoinFlow[]> = {};

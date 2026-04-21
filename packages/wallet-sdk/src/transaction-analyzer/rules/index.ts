@@ -5,7 +5,7 @@ import { accessLevel } from './accessLevel.js';
 import { balanceFlows } from './balance-flows.js';
 import { coinFlows } from './coin-flows.js';
 import { coinValues } from './coin-value.js';
-import { coinReservations, coins, gasCoins } from './coins.js';
+import { coins, gasCoins } from './coins.js';
 import { commands } from './commands.js';
 import { balanceChanges, bytes, data, digest, transactionResponse } from './core.js';
 import { moveFunctions } from './functions.js';
@@ -18,7 +18,6 @@ export const analyzers = {
 	balanceFlows,
 	bytes,
 	coinFlows,
-	coinReservations,
 	coins,
 	coinValues,
 	commands,
