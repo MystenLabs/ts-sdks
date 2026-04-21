@@ -55,17 +55,64 @@ export const coins = createAnalyzer({
 		},
 });
 
+export interface CoinReservation {
+	/** Address that owns the address-balance reservation (the gas payer). */
+	owner: string;
+	coinType: string;
+	balance: bigint;
+	ref: { objectId: string; version: string; digest: string };
+}
+
+/**
+ * A coin appearing in `gasData.payment`. Real gas coins are regular
+ * `AnalyzedCoin`s; synthetic coin reservations come back with an additional
+ * `reservation` field that carries the reservation details — absent on
+ * real coins, present on reservations.
+ */
+export type GasCoin = AnalyzedCoin & { reservation?: CoinReservation };
+
 export const gasCoins = createAnalyzer({
 	dependencies: { objectsById, data },
 	analyze:
 		() =>
 		({ objectsById, data }) => {
-			const result: AnalyzedCoin[] = [];
+			const result: GasCoin[] = [];
+			// Non-sponsored transactions don't need `gasData.owner` set
+			// explicitly — the owner is implicitly the sender.
+			const gasOwner = data.gasData.owner ?? data.sender ?? null;
+			const suiType = normalizeStructTag('0x2::sui::SUI');
 
 			for (const ref of data.gasData.payment ?? []) {
-				// Synthetic coin reservation refs don't represent real on-chain coins;
-				// they're exposed separately via the `coinReservations` rule.
-				if (isCoinReservationDigest(ref.digest)) continue;
+				if (isCoinReservationDigest(ref.digest)) {
+					const balance = parseCoinReservationBalance(ref.digest);
+					const reservation: CoinReservation = {
+						owner: gasOwner ?? '',
+						coinType: suiType,
+						balance,
+						ref: {
+							objectId: ref.objectId,
+							version: String(ref.version),
+							digest: ref.digest,
+						},
+					};
+					result.push({
+						objectId: ref.objectId,
+						version: String(ref.version),
+						digest: ref.digest,
+						type: normalizeStructTag('0x2::coin::Coin<0x2::sui::SUI>'),
+						owner: { $kind: 'AddressOwner', AddressOwner: gasOwner ?? '' },
+						content: new Uint8Array(),
+						previousTransaction: undefined,
+						objectBcs: undefined,
+						json: undefined,
+						display: undefined,
+						ownerAddress: gasOwner,
+						coinType: suiType,
+						balance,
+						reservation,
+					});
+					continue;
+				}
 
 				const obj = objectsById.get(ref.objectId)!;
 				const content = Coin.parse(obj.content);
@@ -80,47 +127,20 @@ export const gasCoins = createAnalyzer({
 		},
 });
 
-export interface CoinReservation {
-	/** Address that owns the address-balance reservation (the gas payer). */
-	owner: string;
-	coinType: string;
-	balance: bigint;
-	ref: { objectId: string; version: string; digest: string };
-}
-
 /**
- * Synthetic coin reservation refs that may appear in `gasData.payment`. Each
- * represents a pre-authorized withdrawal from the owner's address balance
- * accumulator. The balance is encoded in the ref's digest, and the object
- * does not exist on-chain — hence why these are kept separate from `gasCoins`.
+ * Just the synthetic coin reservations from `gasData.payment`. A convenience
+ * view over `gasCoins` for consumers that only care about reservation
+ * metadata (e.g. display / debugging) and don't want to filter the full list.
  */
 export const coinReservations = createAnalyzer({
-	dependencies: { data },
+	dependencies: { gasCoins },
 	analyze:
 		() =>
-		({ data }) => {
+		({ gasCoins }) => {
 			const result: CoinReservation[] = [];
-			// Non-sponsored transactions don't need `gasData.owner` set explicitly —
-			// the owner is implicitly the sender. Fall back accordingly.
-			const gasOwner = data.gasData.owner ?? data.sender;
-			if (!gasOwner) return { result };
-
-			const suiType = normalizeStructTag('0x2::sui::SUI');
-
-			for (const ref of data.gasData.payment ?? []) {
-				if (!isCoinReservationDigest(ref.digest)) continue;
-				result.push({
-					owner: gasOwner,
-					coinType: suiType,
-					balance: parseCoinReservationBalance(ref.digest),
-					ref: {
-						objectId: ref.objectId,
-						version: String(ref.version),
-						digest: ref.digest,
-					},
-				});
+			for (const coin of gasCoins) {
+				if (coin.reservation) result.push(coin.reservation);
 			}
-
 			return { result };
 		},
 });

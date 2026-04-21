@@ -9,7 +9,7 @@ import { commands } from './commands.js';
 import type { AnalyzedCommand, AnalyzedCommandArgument } from './commands.js';
 import { data } from './core.js';
 import { inputs } from './inputs.js';
-import { coinReservations, coins, gasCoins } from './coins.js';
+import { coins, gasCoins } from './coins.js';
 
 export interface CoinFlow {
 	coinType: string;
@@ -35,10 +35,10 @@ export interface BalanceFlowsResult {
 const SUI_FRAMEWORK = normalizeSuiAddress('0x2');
 
 export const balanceFlows = createAnalyzer({
-	dependencies: { data, commands, inputs, coins, gasCoins, coinReservations },
+	dependencies: { data, commands, inputs, coins, gasCoins },
 	analyze:
 		() =>
-		async ({ data, commands, inputs, coins, gasCoins, coinReservations }) => {
+		async ({ data, commands, inputs, coins, gasCoins }) => {
 			const issues: TransactionAnalysisIssue[] = [];
 			const trackedCoins = new Map<string, TrackedCoin>();
 			const deltas = new Map<string, Map<string, bigint>>();
@@ -251,8 +251,7 @@ export const balanceFlows = createAnalyzer({
 			const suiType = normalizeStructTag('0x2::sui::SUI');
 			const normalizedGasOwner = normalizeAddress(gasOwner);
 
-			const gasCoinsBalance = gasCoins.reduce((a, c) => a + c.balance, 0n);
-			const gasBalance = gasCoinsBalance + coinReservations.reduce((a, r) => a + r.balance, 0n);
+			const gasBalance = gasCoins.reduce((a, c) => a + c.balance, 0n);
 
 			// Empty gas payment: attribute the budget to the sender since the tx
 			// hasn't been resolved to a payer yet.
@@ -260,11 +259,8 @@ export const balanceFlows = createAnalyzer({
 
 			track('gas', new TrackedCoin(suiType, gasBalance, gasAttributionOwner));
 
-			if (gasCoinsBalance > 0n) {
-				adjustDelta(normalizedGasOwner, suiType, -gasCoinsBalance);
-			}
-			for (const r of coinReservations) {
-				adjustDelta(normalizeAddress(r.owner), suiType, -r.balance);
+			for (const c of gasCoins) {
+				adjustDelta(normalizeAddress(c.ownerAddress), c.coinType, -c.balance);
 			}
 
 			if (data.gasData.budget) {
@@ -326,22 +322,14 @@ export const balanceFlows = createAnalyzer({
 			for (const [key, coin] of trackedCoins) {
 				if (coin.balance <= 0n) continue;
 				if (key === 'gas' && gasBalance > 0n) {
-					const contributors: { owner: string | null; amount: bigint }[] = [];
-					if (gasCoinsBalance > 0n) {
-						contributors.push({ owner: normalizedGasOwner, amount: gasCoinsBalance });
-					}
-					for (const r of coinReservations) {
-						if (r.balance > 0n) {
-							contributors.push({ owner: normalizeAddress(r.owner), amount: r.balance });
-						}
-					}
 					let distributed = 0n;
-					contributors.forEach((c, i) => {
+					gasCoins.forEach((c, i) => {
+						if (c.balance <= 0n) return;
 						const share =
-							i === contributors.length - 1
+							i === gasCoins.length - 1
 								? coin.balance - distributed
-								: (c.amount * coin.balance) / gasBalance;
-						adjustDelta(c.owner, suiType, share);
+								: (c.balance * coin.balance) / gasBalance;
+						adjustDelta(normalizeAddress(c.ownerAddress), suiType, share);
 						distributed += share;
 					});
 				} else {
