@@ -6,7 +6,11 @@ import type { TransactionAnalysisIssue } from '../analyzer.js';
 import { createAnalyzer } from '../analyzer.js';
 import { bcs } from '@mysten/sui/bcs';
 import { commands } from './commands.js';
-import type { AnalyzedCommand, AnalyzedCommandArgument } from './commands.js';
+import type {
+	AnalyzedCommand,
+	AnalyzedCommandArgument,
+	AnalyzedMoveCallCommand,
+} from './commands.js';
 import { data } from './core.js';
 import { inputs } from './inputs.js';
 import { coins, gasCoins } from './coins.js';
@@ -31,15 +35,51 @@ export interface BalanceFlowsResult {
 	sponsor: CoinFlow[] | null;
 }
 
-export interface BalanceFlowsAnalyzerOptions {
+export interface BalanceFlowsMoveCallHandlerContext {
+	getTrackedBalance: (ref: AnalyzedCommandArgument) => TrackedBalance | null;
 	/**
-	 * When true, the gas budget is not charged against the gas payer's
-	 * deltas. Useful for UI surfaces that display value flows and gas
-	 * fees separately. The gas coin itself is still tracked, so splits
-	 * / merges on `tx.gas` continue to account correctly; only the
-	 * budget deduction is suppressed. Defaults to false.
+	 * Stable string key for a trackable argument — safe to use as a Map
+	 * key to correlate state across commands. Returns `null` for Pure /
+	 * Unknown / Withdrawal args.
 	 */
+	keyFor: (arg: AnalyzedCommandArgument) => string | null;
+	/**
+	 * Stable key for this command's own output at `outputIndex`. Same
+	 * encoding as `keyFor` applied to a Result arg pointing at this slot.
+	 */
+	outputKey: (outputIndex: number) => string;
+	/** Register a tracked `Coin<T>` at this command's `outputIndex` result slot. */
+	trackCoinResult: (outputIndex: number, coinType: string, balance: bigint) => void;
+	/** Register a tracked `Balance<T>` at this command's `outputIndex` result slot. */
+	trackBalanceResult: (outputIndex: number, coinType: string, balance: bigint) => void;
+	recordFlow: (address: string | null, coinType: string, amount: bigint) => void;
+	addIssue: (issue: TransactionAnalysisIssue) => void;
+}
+
+/** Return `true` to mark the MoveCall handled; `false` to pass through to subsequent handlers and the generic consume loop. */
+export type BalanceFlowsMoveCallHandler = (
+	command: AnalyzedMoveCallCommand,
+	ctx: BalanceFlowsMoveCallHandlerContext,
+) => boolean;
+
+/**
+ * Factory a handler instance. Called once per `analyze()` run so the
+ * returned handler can hold per-PTB state (e.g. tracking intermediate
+ * results by command index) without leaking across runs.
+ */
+export type BalanceFlowsMoveCallHandlerFactory = () => BalanceFlowsMoveCallHandler;
+
+export interface BalanceFlowsAnalyzerOptions {
+	/** When true, the gas budget isn't charged against the gas payer's deltas. */
 	excludeGasBudget?: boolean;
+	/**
+	 * Handler factories for MoveCalls outside the built-in 0x2::coin /
+	 * 0x2::balance framework. Each factory is invoked per `analyze()` run,
+	 * and the resulting handlers are called in order for each MoveCall;
+	 * the first handler that returns `true` wins (suppresses later
+	 * handlers and the generic consume loop for that command).
+	 */
+	moveCallHandlers?: BalanceFlowsMoveCallHandlerFactory[];
 }
 
 const SUI_FRAMEWORK = normalizeSuiAddress('0x2');
@@ -49,7 +89,7 @@ export const balanceFlows = createAnalyzer({
 	analyze:
 		({ balanceFlows: opts = {} }: { balanceFlows?: BalanceFlowsAnalyzerOptions } = {}) =>
 		async ({ data, commands, inputs, coins, gasCoins }) => {
-			const { excludeGasBudget = false } = opts;
+			const { excludeGasBudget = false, moveCallHandlers = [] } = opts;
 			const issues: TransactionAnalysisIssue[] = [];
 			const trackedBalances = new Map<string, TrackedBalance>();
 			const deltas = new Map<string, Map<string, bigint>>();
@@ -62,7 +102,7 @@ export const balanceFlows = createAnalyzer({
 			const normalizeAddress = (address: string | null): string | null =>
 				address == null ? null : normalizeSuiAddress(address);
 
-			const adjustDelta = (address: string | null, coinType: string, amount: bigint) => {
+			const recordFlow = (address: string | null, coinType: string, amount: bigint) => {
 				if (!address || amount === 0n) return;
 				let byCoin = deltas.get(address);
 				if (!byCoin) {
@@ -119,7 +159,7 @@ export const balanceFlows = createAnalyzer({
 				});
 
 				const total = amounts.reduce((a, b) => a + b, 0n);
-				withdrawFromBalance(coin, total, `SplitCoins at command ${command.index}`);
+				withdrawOrFlag(coin, total, `SplitCoins at command ${command.index}`);
 
 				amounts.forEach((amount, i) => {
 					track(
@@ -129,13 +169,13 @@ export const balanceFlows = createAnalyzer({
 				});
 			};
 
-			const withdrawFromBalance = (coin: TrackedBalance, amount: bigint, context: string) => {
+			const withdrawOrFlag = (coin: TrackedBalance, amount: bigint, context: string) => {
 				if (amount > coin.balance) {
 					issues.push({
 						message: `${context} takes ${amount} from a ${coin.coinType} coin with only ${coin.balance} available`,
 					});
 				}
-				coin.balance -= amount;
+				coin.withdraw(amount);
 			};
 
 			const mergeCoins = (command: Extract<AnalyzedCommand, { $kind: 'MergeCoins' }>) => {
@@ -154,22 +194,18 @@ export const balanceFlows = createAnalyzer({
 				for (const obj of command.objects) {
 					const tracked = getTrackedBalance(obj);
 					if (tracked) {
-						adjustDelta(dest, tracked.coinType, tracked.balance);
+						recordFlow(dest, tracked.coinType, tracked.balance);
 						tracked.consume();
 					}
 				}
 			};
 
-			const getCoinTypeFromTypeArgs = (
-				command: Extract<AnalyzedCommand, { $kind: 'MoveCall' }>,
-			): string | null => {
+			const getCoinTypeFromTypeArgs = (command: AnalyzedMoveCallCommand): string | null => {
 				const typeArg = command.command.typeArguments?.[0];
 				return typeArg ? normalizeStructTag(typeArg) : null;
 			};
 
-			const handleFrameworkMoveCall = (
-				command: Extract<AnalyzedCommand, { $kind: 'MoveCall' }>,
-			): boolean => {
+			const handleFrameworkMoveCall = (command: AnalyzedMoveCallCommand): boolean => {
 				const pkg = normalizeSuiAddress(command.command.package);
 				if (pkg !== SUI_FRAMEWORK) return false;
 
@@ -201,7 +237,7 @@ export const balanceFlows = createAnalyzer({
 						`result:${command.index},0`,
 						new TrackedBalance(mod, arg.coinType, arg.amount, owner),
 					);
-					adjustDelta(owner, arg.coinType, -arg.amount);
+					recordFlow(owner, arg.coinType, -arg.amount);
 					return true;
 				}
 
@@ -212,7 +248,7 @@ export const balanceFlows = createAnalyzer({
 					const destAddress =
 						addrArg.$kind === 'Pure' ? bcs.Address.fromBase64(addrArg.bytes) : null;
 					if (tracked) {
-						adjustDelta(normalizeAddress(destAddress), tracked.coinType, tracked.balance);
+						recordFlow(normalizeAddress(destAddress), tracked.coinType, tracked.balance);
 						tracked.consume();
 					}
 					return true;
@@ -250,7 +286,7 @@ export const balanceFlows = createAnalyzer({
 					}
 
 					const amount = BigInt(bcs.u64().fromBase64(amountArg.bytes));
-					withdrawFromBalance(source, amount, `${mod}::${fn} at command ${command.index}`);
+					withdrawOrFlag(source, amount, `${mod}::${fn} at command ${command.index}`);
 					// `coin::take` returns Coin<T>; `split` matches the invoked module.
 					const resultKind = fn === 'take' ? 'coin' : mod;
 					track(
@@ -304,13 +340,13 @@ export const balanceFlows = createAnalyzer({
 			const gasBalance = gasCoins.reduce((a, c) => a + c.balance, 0n);
 			const gasCoin = new TrackedBalance('coin', suiType, gasBalance, normalizedGasOwner);
 			track('gas', gasCoin);
-			adjustDelta(normalizedGasOwner, suiType, -gasBalance);
+			recordFlow(normalizedGasOwner, suiType, -gasBalance);
 
 			if (data.gasData.budget) {
 				if (!excludeGasBudget) {
 					const budget = BigInt(data.gasData.budget);
 					if (paymentIsEmpty) {
-						adjustDelta(normalizedGasOwner, suiType, -budget);
+						recordFlow(normalizedGasOwner, suiType, -budget);
 					} else {
 						if (budget > gasBalance) {
 							issues.push({
@@ -334,9 +370,30 @@ export const balanceFlows = createAnalyzer({
 						normalizeAddress(coin.ownerAddress),
 					);
 					track(`input:${input.index}`, tc);
-					adjustDelta(tc.ownerAddress, tc.coinType, -tc.balance);
+					recordFlow(tc.ownerAddress, tc.coinType, -tc.balance);
 				}
 			}
+
+			const handlers = moveCallHandlers.map((factory) => factory());
+			const buildHandlerContext = (
+				command: AnalyzedMoveCallCommand,
+			): BalanceFlowsMoveCallHandlerContext => ({
+				getTrackedBalance,
+				keyFor: trackedBalanceKey,
+				outputKey: (outputIndex) => `result:${command.index},${outputIndex}`,
+				trackCoinResult: (outputIndex, coinType, balance) =>
+					track(
+						`result:${command.index},${outputIndex}`,
+						new TrackedBalance('coin', coinType, balance, null),
+					),
+				trackBalanceResult: (outputIndex, coinType, balance) =>
+					track(
+						`result:${command.index},${outputIndex}`,
+						new TrackedBalance('balance', coinType, balance, null),
+					),
+				recordFlow,
+				addIssue: (issue) => issues.push(issue),
+			});
 
 			for (const command of commands) {
 				switch (command.$kind) {
@@ -354,14 +411,16 @@ export const balanceFlows = createAnalyzer({
 							getTrackedBalance(el)?.consume();
 						});
 						break;
-					case 'MoveCall':
-						if (!handleFrameworkMoveCall(command)) {
-							command.arguments.forEach((arg) => {
-								if (arg.accessLevel === 'read') return;
-								getTrackedBalance(arg)?.consume();
-							});
-						}
+					case 'MoveCall': {
+						if (handleFrameworkMoveCall(command)) break;
+						const ctx = buildHandlerContext(command);
+						if (handlers.some((handler) => handler(command, ctx))) break;
+						command.arguments.forEach((arg) => {
+							if (arg.accessLevel === 'read') return;
+							getTrackedBalance(arg)?.consume();
+						});
 						break;
+					}
 					case 'Upgrade':
 					case 'Publish':
 						break;
@@ -377,7 +436,7 @@ export const balanceFlows = createAnalyzer({
 			// Implicit return: still-alive tracked coins credit their owner.
 			for (const [, coin] of trackedBalances) {
 				if (coin.balance <= 0n) continue;
-				adjustDelta(coin.ownerAddress, coin.coinType, coin.balance);
+				recordFlow(coin.ownerAddress, coin.coinType, coin.balance);
 			}
 
 			const byAddress: Record<string, CoinFlow[]> = {};
@@ -400,7 +459,7 @@ export const balanceFlows = createAnalyzer({
 		},
 });
 
-class TrackedBalance {
+export class TrackedBalance {
 	kind: 'coin' | 'balance';
 	coinType: string;
 	balance: bigint;
@@ -423,5 +482,9 @@ class TrackedBalance {
 		this.balance = 0n;
 		this.ownerAddress = null;
 		this.consumed = true;
+	}
+
+	withdraw(amount: bigint): void {
+		this.balance -= amount;
 	}
 }

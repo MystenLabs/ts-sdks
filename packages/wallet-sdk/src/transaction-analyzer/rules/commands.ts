@@ -26,14 +26,16 @@ export type AnalyzedCommandArgument =
 			accessLevel: 'read' | 'mutate' | 'transfer';
 	  };
 
+export interface AnalyzedMoveCallCommand {
+	$kind: 'MoveCall';
+	index: number;
+	arguments: AnalyzedCommandArgument[];
+	function: SuiClientTypes.FunctionResponse;
+	command: Extract<Command, { $kind: 'MoveCall' }>['MoveCall'];
+}
+
 export type AnalyzedCommand =
-	| {
-			$kind: 'MoveCall';
-			index: number;
-			arguments: AnalyzedCommandArgument[];
-			function: SuiClientTypes.FunctionResponse;
-			command: Extract<Command, { $kind: 'MoveCall' }>['MoveCall'];
-	  }
+	| AnalyzedMoveCallCommand
 	| {
 			$kind: 'TransferObjects';
 			index: number;
