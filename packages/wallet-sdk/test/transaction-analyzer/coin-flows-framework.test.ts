@@ -1250,23 +1250,6 @@ describe('balanceFlows - issues', () => {
 		expect(results.balanceFlows.issues?.some((i) => i.message.includes('SplitCoins'))).toBe(true);
 	});
 
-	it('flags into_balance on tx.gas', async () => {
-		const client = new MockSuiClient();
-		const tx = new Transaction();
-		tx.setSender(DEFAULT_SENDER);
-		tx.moveCall({
-			target: '0x2::coin::into_balance',
-			typeArguments: ['0x2::sui::SUI'],
-			arguments: [tx.gas],
-		});
-
-		const results = await analyze({ balanceFlows }, { client, transaction: await tx.toJSON() });
-
-		expect(
-			results.balanceFlows.issues?.some((i) => /cannot be called on tx.gas/.test(i.message)),
-		).toBe(true);
-	});
-
 	it('flags redeem_funds whose first argument is not a Withdrawal', async () => {
 		const client = new MockSuiClient();
 		const tx = new Transaction();

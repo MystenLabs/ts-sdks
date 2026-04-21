@@ -210,12 +210,6 @@ export const balanceFlows = createAnalyzer({
 				) {
 					if (command.arguments.length < 1) return false;
 					const oldKey = trackedCoinKey(command.arguments[0]);
-					if (oldKey === 'gas') {
-						issues.push({
-							message: `${mod}::${fn} at command ${command.index} cannot be called on tx.gas`,
-						});
-						return true;
-					}
 					const tracked = getTrackedCoin(command.arguments[0]);
 					if (tracked && oldKey) {
 						trackedCoins.delete(oldKey);
