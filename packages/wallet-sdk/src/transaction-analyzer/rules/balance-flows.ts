@@ -89,7 +89,8 @@ export const balanceFlows = createAnalyzer({
 
 			const getTrackedCoin = (ref: AnalyzedCommandArgument): TrackedCoin | null => {
 				const key = trackedCoinKey(ref);
-				return key ? (trackedCoins.get(key) ?? null) : null;
+				const coin = key ? trackedCoins.get(key) : null;
+				return coin && !coin.consumed ? coin : null;
 			};
 
 			const splitCoin = (command: Extract<AnalyzedCommand, { $kind: 'SplitCoins' }>) => {
@@ -215,9 +216,9 @@ export const balanceFlows = createAnalyzer({
 						});
 						return true;
 					}
-					const tracked = oldKey ? trackedCoins.get(oldKey) : undefined;
-					if (tracked) {
-						trackedCoins.delete(oldKey!);
+					const tracked = getTrackedCoin(command.arguments[0]);
+					if (tracked && oldKey) {
+						trackedCoins.delete(oldKey);
 						track(`result:${command.index},0`, tracked);
 					}
 					return true;
@@ -389,6 +390,7 @@ class TrackedCoin {
 	coinType: string;
 	balance: bigint;
 	ownerAddress: string | null;
+	consumed = false;
 
 	constructor(coinType: string, balance: bigint, ownerAddress: string | null) {
 		this.coinType = coinType;
@@ -396,10 +398,9 @@ class TrackedCoin {
 		this.ownerAddress = ownerAddress;
 	}
 
-	// Clearing owner too means a later write (e.g. merging into an already-
-	// transferred coin) doesn't credit back to the original holder at end-of-PTB.
 	consume() {
 		this.balance = 0n;
 		this.ownerAddress = null;
+		this.consumed = true;
 	}
 }
