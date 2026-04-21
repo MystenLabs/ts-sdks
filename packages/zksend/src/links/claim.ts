@@ -4,7 +4,6 @@
 import { bcs } from '@mysten/sui/bcs';
 import type { Keypair } from '@mysten/sui/cryptography';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
-import type { TransactionObjectArgument } from '@mysten/sui/transactions';
 import { Transaction } from '@mysten/sui/transactions';
 import {
 	fromBase64,
@@ -16,7 +15,7 @@ import {
 
 import type { ZkSendLinkBuilderOptions } from './builder.js';
 import { ZkSendLinkBuilder } from './builder.js';
-import type { LinkAssets } from './utils.js';
+import type { ClaimedAsset, LinkAssets } from './utils.js';
 import type { ZkBagContractOptions } from './zk-bag.js';
 import { getContractIds, ZkBag, ZkBagStruct } from './zk-bag.js';
 import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
@@ -216,49 +215,84 @@ export class ZkSendLink {
 			reclaim?: boolean;
 		} = {},
 	) {
+		const tx = new Transaction();
+		tx.setSender(reclaim ? address : this.keypair!.toSuiAddress());
+
+		const { init, assets, finalize } = this.claimFlow({ reclaim });
+		tx.add(init);
+
+		if (assets.length > 0) {
+			tx.transferObjects(
+				assets.map((a) => a.argument),
+				address,
+			);
+		}
+
+		tx.add(finalize);
+
+		return tx;
+	}
+
+	claimFlow({
+		reclaim,
+	}: {
+		reclaim?: boolean;
+	} = {}) {
 		if (!this.keypair && !reclaim) {
 			throw new Error('Cannot claim assets without the links keypair');
 		}
 
-		const tx = new Transaction();
-		const sender = reclaim ? address : this.keypair!.toSuiAddress();
-		tx.setSender(sender);
+		if (this.claimed) {
+			throw new Error('Assets have already been claimed');
+		}
 
-		const store = tx.object(this.#contract.ids.bagStoreId);
-		const command = reclaim
-			? this.#contract.reclaim({ arguments: [store, this.address] })
-			: this.#contract.init_claim({ arguments: [store] });
-
-		const [bag, proof] = tx.add(command);
-
-		const objectsToTransfer: TransactionObjectArgument[] = [];
-
-		const objects = [...(this.assets?.coins ?? []), ...(this.assets?.nfts ?? [])];
-
-		for (const object of objects) {
-			objectsToTransfer.push(
-				this.#contract.claim({
-					arguments: [
-						bag,
-						proof,
-						tx.receivingRef({
-							objectId: object.objectId,
-							version: object.version,
-							digest: object.digest,
-						}),
-					],
-					typeArguments: [object.type],
-				}),
+		if (!this.assets) {
+			throw new Error(
+				'Link assets have not been loaded. Call `loadAssets()` or use `ZkSendLink.fromUrl()` / `ZkSendLink.fromAddress()` before calling `claimFlow()`.',
 			);
 		}
 
-		if (objectsToTransfer.length > 0) {
-			tx.transferObjects(objectsToTransfer, address);
-		}
+		const storeId = this.#contract.ids.bagStoreId;
+		const initCommand = reclaim
+			? this.#contract.reclaim({ arguments: [storeId, this.address] })
+			: this.#contract.init_claim({ arguments: [storeId] });
 
-		tx.add(this.#contract.finalize({ arguments: [bag, proof] }));
+		let bag: ReturnType<typeof initCommand>[0] | undefined;
+		let proof: ReturnType<typeof initCommand>[1] | undefined;
 
-		return tx;
+		const init = (tx: Transaction) => {
+			const result = tx.add(initCommand);
+			[bag, proof] = result;
+			return result;
+		};
+
+		const objects = [...this.assets.coins, ...this.assets.nfts];
+
+		const assets: ClaimedAsset[] = objects.map((object) => ({
+			type: object.type,
+			objectId: object.objectId,
+			argument: (tx: Transaction) =>
+				tx.add(
+					this.#contract.claim({
+						arguments: [
+							bag!,
+							proof!,
+							tx.receivingRef({
+								objectId: object.objectId,
+								version: object.version,
+								digest: object.digest,
+							}),
+						],
+						typeArguments: [object.type],
+					}),
+				),
+		}));
+
+		const finalize = (tx: Transaction) => {
+			tx.add(this.#contract.finalize({ arguments: [bag!, proof!] }));
+		};
+
+		return { init, assets, finalize };
 	}
 
 	async createRegenerateTransaction(

@@ -1,12 +1,16 @@
 ---
 title: '@mysten/kiosk'
-description: Migrate @mysten/kiosk to 2.0
+description: Migrate @mysten/kiosk to 2.0 with client extension pattern and KioskTransaction.
+keywords:
+  [migration, mysten/kiosk, Kiosk, 2.0, client extension, KioskTransaction, NFT, breaking changes]
 ---
 
 This package now exports a client extension that integrates with Sui clients.
 
-> **Note:** The Kiosk SDK requires `SuiJsonRpcClient` or `SuiGraphQLClient`. It does not work with
-> `SuiGrpcClient` because it uses event queries that are not available in gRPC.
+<Callout type="info">
+	The Kiosk SDK requires `SuiJsonRpcClient` or `SuiGraphQLClient`. It does not work with
+	`SuiGrpcClient` because it uses event queries that are not available in gRPC.
+</Callout>
 
 ```diff
 - import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
@@ -28,7 +32,7 @@ This package now exports a client extension that integrates with Sui clients.
 + const ownedKiosks = await client.kiosk.getOwnedKiosks({ address: myAddress });
 ```
 
-## Removed: transactionBlock Parameter
+## Removed: `transactionBlock` parameter
 
 The deprecated `transactionBlock` parameter has been removed from `KioskTransaction`,
 `TransferPolicyTransaction`, and rule resolving functions. Use `transaction` instead:
@@ -49,12 +53,12 @@ const tpTx = new TransferPolicyTransaction({
 });
 ```
 
-## Removed: Low-Level Helper Functions
+## Removed: low-level helper functions
 
 The low-level helper functions have been removed in favor of the `KioskTransaction` and
 `TransferPolicyTransaction` builder classes.
 
-### Kiosk Functions
+### Kiosk functions
 
 | Removed Function    | Use Instead              |
 | ------------------- | ------------------------ |
@@ -71,7 +75,7 @@ The low-level helper functions have been removed in favor of the `KioskTransacti
 | `borrowValue`       | `kioskTx.borrow()`       |
 | `returnValue`       | `kioskTx.return()`       |
 
-### Transfer Policy Functions
+### Transfer policy functions
 
 | Removed Function                     | Use Instead                                             |
 | ------------------------------------ | ------------------------------------------------------- |
@@ -80,14 +84,14 @@ The low-level helper functions have been removed in favor of the `KioskTransacti
 | `confirmRequest`                     | Handled automatically by `kioskTx.purchaseAndResolve()` |
 | `removeTransferPolicyRule`           | `tpTx.removeRule()`                                     |
 
-### Personal Kiosk Functions
+### Personal Kiosk functions
 
 | Removed Function        | Use Instead                                   |
 | ----------------------- | --------------------------------------------- |
 | `convertToPersonalTx`   | `kioskTx.convertToPersonal()`                 |
 | `transferPersonalCapTx` | Handled automatically by `kioskTx.finalize()` |
 
-### Rule Attachment Functions
+### Rule attachment functions
 
 | Removed Function            | Use Instead                   |
 | --------------------------- | ----------------------------- |
@@ -96,7 +100,7 @@ The low-level helper functions have been removed in favor of the `KioskTransacti
 | `attachPersonalKioskRuleTx` | `tpTx.addPersonalKioskRule()` |
 | `attachFloorPriceRuleTx`    | `tpTx.addFloorPriceRule()`    |
 
-## Migration Example
+## Migration example
 
 ```diff
 - import { createKiosk, shareKiosk, placeAndList } from '@mysten/kiosk';

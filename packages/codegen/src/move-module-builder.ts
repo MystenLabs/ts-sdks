@@ -3,8 +3,10 @@
 
 import { FileBuilder } from './file-builder.js';
 import { readFile } from 'node:fs/promises';
+import { ModuleRegistry } from './module-registry.js';
 import {
 	getSafeName,
+	isSupportedRawTransactionInput,
 	renderTypeSignature,
 	SUI_FRAMEWORK_ADDRESS,
 	SUI_SYSTEM_ADDRESS,
@@ -24,6 +26,7 @@ import { join } from 'node:path';
 
 const IMPORT_MAP = {
 	Transaction: { module: '@mysten/sui/transactions', isType: true },
+	TransactionArgument: { module: '@mysten/sui/transactions', isType: true },
 	BcsType: { module: '@mysten/sui/bcs', isType: true },
 	bcs: { module: '@mysten/sui/bcs', isType: false },
 	MoveStruct: { module: '~root/../utils/index', isType: false },
@@ -37,8 +40,8 @@ type ImportName = keyof typeof IMPORT_MAP;
 
 export class MoveModuleBuilder extends FileBuilder {
 	summary: ModuleSummary;
+	readonly registry: ModuleRegistry;
 	#depsDir = './deps';
-	#addressMappings: Record<string, string>;
 	#includedTypes: Set<string> = new Set();
 	#includedFunctions: Set<string> = new Set();
 	#orderedTypes: string[] = [];
@@ -50,19 +53,20 @@ export class MoveModuleBuilder extends FileBuilder {
 	constructor({
 		mvrNameOrAddress,
 		summary,
-		addressMappings = {},
+		registry,
 		importExtension = '.js',
 		includePhantomTypeParameters = false,
 	}: {
 		summary: ModuleSummary;
-		addressMappings?: Record<string, string>;
+		registry: ModuleRegistry;
 		mvrNameOrAddress?: string;
 		importExtension?: ImportExtension;
 		includePhantomTypeParameters?: boolean;
 	}) {
 		super();
 		this.summary = summary;
-		this.#addressMappings = addressMappings;
+		this.registry = registry;
+		this.registry.register(this);
 		this.#mvrNameOrAddress = mvrNameOrAddress;
 		this.#importExtension = importExtension;
 		this.#includePhantomTypeParameters = includePhantomTypeParameters;
@@ -70,16 +74,15 @@ export class MoveModuleBuilder extends FileBuilder {
 
 	static async fromSummaryFile(
 		file: string,
-		addressMappings: Record<string, string>,
+		registry: ModuleRegistry,
 		mvrNameOrAddress?: string,
 		importExtension?: ImportExtension,
 		includePhantomTypeParameters?: boolean,
 	) {
 		const summary = JSON.parse(await readFile(file, 'utf-8'));
-
 		return new MoveModuleBuilder({
 			summary,
-			addressMappings,
+			registry,
 			mvrNameOrAddress,
 			importExtension,
 			includePhantomTypeParameters,
@@ -87,7 +90,7 @@ export class MoveModuleBuilder extends FileBuilder {
 	}
 
 	#resolveAddress(address: string) {
-		return this.#addressMappings[address] ?? address;
+		return this.registry.resolveAddress(address);
 	}
 
 	#getModuleTypeName() {
@@ -154,7 +157,7 @@ export class MoveModuleBuilder extends FileBuilder {
 		}
 	}
 
-	includeType(name: string, moduleBuilders: Record<string, MoveModuleBuilder>) {
+	includeType(name: string) {
 		if (this.#includedTypes.has(name)) {
 			return;
 		}
@@ -171,59 +174,43 @@ export class MoveModuleBuilder extends FileBuilder {
 			);
 		}
 
-		if (struct) {
-			Object.values(struct.fields.fields).forEach((field) => {
-				renderTypeSignature(field.type_, {
-					format: 'bcs',
-					summary: this.summary,
-					typeParameters: struct.type_parameters,
-					includePhantomTypeParameters: false,
-					resolveAddress: (address) => this.#resolveAddress(address),
-					onDependency: (address, mod, name) => {
-						const builder = moduleBuilders[`${address}::${mod}`];
-
-						if (!builder) {
-							throw new Error(`Module builder not found for ${address}::${mod}`);
-						}
-
-						builder.includeType(name, moduleBuilders);
-
-						return undefined;
-					},
-				});
+		const includeFromField = (field: { type_: Type }, typeParameters: TypeParameter[]) => {
+			renderTypeSignature(field.type_, {
+				format: 'bcs',
+				summary: this.summary,
+				typeParameters,
+				includePhantomTypeParameters: false,
+				registry: this.registry,
+				onDependency: (address, mod, depName) => {
+					const builder = this.registry.getBuilder(address, mod);
+					if (!builder) {
+						throw new Error(`Module builder not found for ${address}::${mod}`);
+					}
+					builder.includeType(depName);
+					return undefined;
+				},
 			});
+		};
+
+		if (struct) {
+			Object.values(struct.fields.fields).forEach((field) =>
+				includeFromField(field, struct.type_parameters),
+			);
 		}
 
 		if (enum_) {
-			Object.values(enum_.variants).forEach((variant) => {
-				Object.values(variant.fields.fields).forEach((field) => {
-					renderTypeSignature(field.type_, {
-						format: 'bcs',
-						summary: this.summary,
-						typeParameters: enum_.type_parameters,
-						includePhantomTypeParameters: false,
-						resolveAddress: (address) => this.#resolveAddress(address),
-						onDependency: (address, mod, name) => {
-							const builder = moduleBuilders[`${address}::${mod}`];
-
-							if (!builder) {
-								throw new Error(`Module builder not found for ${address}::${mod}`);
-							}
-
-							builder.includeType(name, moduleBuilders);
-
-							return undefined;
-						},
-					});
-				});
-			});
+			Object.values(enum_.variants).forEach((variant) =>
+				Object.values(variant.fields.fields).forEach((field) =>
+					includeFromField(field, enum_.type_parameters),
+				),
+			);
 		}
 
 		// Add after all dependencies are included to avoid declaration order issues
 		this.#orderedTypes.push(name);
 	}
 
-	includeTypes(moduleBuilders: Record<string, MoveModuleBuilder>, option?: TypesOption) {
+	includeTypes(option?: TypesOption) {
 		if (option === false) return;
 
 		const names = Array.isArray(option)
@@ -231,7 +218,7 @@ export class MoveModuleBuilder extends FileBuilder {
 			: [...Object.keys(this.summary.structs), ...Object.keys(this.summary.enums)];
 
 		for (const name of names) {
-			this.includeType(name, moduleBuilders);
+			this.includeType(name);
 		}
 	}
 
@@ -264,6 +251,18 @@ export class MoveModuleBuilder extends FileBuilder {
 		return this.hasBcsTypes() || this.hasFunctions();
 	}
 
+	#importDependency = (address: string, mod: string): string | undefined => {
+		if (address !== this.summary.id.address || mod !== this.summary.id.name) {
+			return this.addStarImport(
+				address === this.summary.id.address
+					? `./${mod}${this.#importExtension}`
+					: join(`~root`, this.#depsDir, `${address}/${mod}${this.#importExtension}`),
+				mod,
+			);
+		}
+		return undefined;
+	};
+
 	async #renderFieldsAsStruct(
 		name: string,
 		{ fields }: Fields,
@@ -282,19 +281,8 @@ export class MoveModuleBuilder extends FileBuilder {
 					summary: this.summary,
 					typeParameters,
 					includePhantomTypeParameters,
-					resolveAddress: (address) => this.#resolveAddress(address),
-					onDependency: (address, mod) => {
-						if (address !== this.summary.id.address || mod !== this.summary.id.name) {
-							return this.addStarImport(
-								address === this.summary.id.address
-									? `./${mod}${this.#importExtension}`
-									: join(`~root`, this.#depsDir, `${address}/${mod}${this.#importExtension}`),
-								mod,
-							);
-						}
-
-						return undefined;
-					},
+					registry: this.registry,
+					onDependency: this.#importDependency,
 				}),
 			],
 		});
@@ -316,19 +304,8 @@ export class MoveModuleBuilder extends FileBuilder {
 				typeParameters,
 				includePhantomTypeParameters,
 				bcsImport: () => this.#getImportName('bcs'),
-				resolveAddress: (address) => this.#resolveAddress(address),
-				onDependency: (address, mod) => {
-					if (address !== this.summary.id.address || mod !== this.summary.id.name) {
-						return this.addStarImport(
-							address === this.summary.id.address
-								? `./${mod}${this.#importExtension}`
-								: join(`~root`, this.#depsDir, `${address}/${mod}${this.#importExtension}`),
-							mod,
-						);
-					}
-
-					return undefined;
-				},
+				registry: this.registry,
+				onDependency: this.#importDependency,
 			}),
 		);
 
@@ -455,19 +432,8 @@ export class MoveModuleBuilder extends FileBuilder {
 									typeParameters: enumDef.type_parameters,
 									includePhantomTypeParameters: includePhantom,
 									bcsImport: () => this.#getImportName('bcs'),
-									resolveAddress: (address) => this.#resolveAddress(address),
-									onDependency: (address, mod) => {
-										if (address !== this.summary.id.address || mod !== this.summary.id.name) {
-											return this.addStarImport(
-												address === this.summary.id.address
-													? `./${mod}${this.#importExtension}`
-													: `~root/deps/${address}/${mod}${this.#importExtension}`,
-												mod,
-											);
-										}
-
-										return undefined;
-									},
+									registry: this.registry,
+									onDependency: this.#importDependency,
 								})
 							: await this.#renderFieldsAsTuple(
 									`${name}.${variantName}`,
@@ -562,24 +528,38 @@ export class MoveModuleBuilder extends FileBuilder {
 
 			const usedTypeParameters = new Set<number | string>();
 
-			const rawTxArgName =
-				requiredParameters.length > 0 ? this.#getImportName('RawTransactionArgument') : null;
+			const renderedArgTypes = requiredParameters.map((param) => {
+				const renderOptions = {
+					format: 'typescriptArg' as const,
+					summary: this.summary,
+					typeParameters: func.type_parameters,
+					includePhantomTypeParameters: false,
+					registry: this.registry,
+					onTypeParameter: (typeParameter: number | string) =>
+						usedTypeParameters.add(typeParameter),
+				};
 
-			const argumentsTypes = requiredParameters
-				.map((param) =>
-					renderTypeSignature(param.type_, {
-						format: 'typescriptArg',
-						summary: this.summary,
-						typeParameters: func.type_parameters,
-						includePhantomTypeParameters: false,
-						resolveAddress: (address) => this.#resolveAddress(address),
-						onTypeParameter: (typeParameter) => usedTypeParameters.add(typeParameter),
-					}),
-				)
+				return isSupportedRawTransactionInput(param.type_, renderOptions)
+					? renderTypeSignature(param.type_, renderOptions)
+					: null;
+			});
+
+			const anyRawInput = renderedArgTypes.some((t) => t !== null);
+			const anyTransactionOnly = renderedArgTypes.some((t) => t === null);
+
+			const rawTxArgName = anyRawInput ? this.#getImportName('RawTransactionArgument') : null;
+			const transactionArgName = anyTransactionOnly
+				? this.#getImportName('TransactionArgument')
+				: null;
+
+			const wrap = (type: string | null): string =>
+				type === null ? transactionArgName! : `${rawTxArgName}<${type}>`;
+
+			const argumentsTypes = renderedArgTypes
 				.map((type, i) =>
 					requiredParameters[i].name
-						? `${camelCase(requiredParameters[i].name)}: ${rawTxArgName}<${type}>`
-						: `${rawTxArgName}<${type}>`,
+						? `${camelCase(requiredParameters[i].name)}: ${wrap(type)}`
+						: wrap(type),
 				)
 				.join(',\n');
 
@@ -647,7 +627,7 @@ export class MoveModuleBuilder extends FileBuilder {
 									summary: this.summary,
 									typeParameters: func.type_parameters,
 									includePhantomTypeParameters: false,
-									resolveAddress: (address) => this.#resolveAddress(address),
+									registry: this.registry,
 								}),
 							)
 							.map((tag) =>

@@ -323,4 +323,21 @@ describe('normalizeMoveArguments', () => {
   ]
 }"`);
 	});
+
+	it('accepts raw object-id strings for `key` object types', async () => {
+		const tx = new Transaction();
+		tx.moveCall({
+			target: '0x0::test::test',
+			arguments: normalizeMoveArguments({ counter: '0x123' }, [null], ['counter']),
+		});
+
+		const json = JSON.parse(await tx.toJSON());
+		expect(json.inputs).toEqual([
+			{
+				UnresolvedObject: {
+					objectId: '0x0000000000000000000000000000000000000000000000000000000000000123',
+				},
+			},
+		]);
+	});
 });

@@ -1,6 +1,7 @@
 ---
 title: useConnectWallet
-description: Connect a wallet to the dApp
+description: Legacy React mutation hook to establish a connection with a specific wallet.
+keywords: [useConnectWallet, React hook, connect wallet, mutation, legacy, dApp Kit, Sui]
 ---
 
 import { UseConnectWalletExample } from '../../../../examples/wallet-hooks-client';
@@ -46,9 +47,9 @@ function MyComponent() {
 
 ## Connect arguments
 
-- `args` - Arguments passed to the `connect` function of the wallet.
-  - `wallet` - The wallet to connect to.
-  - `accountAddress` - (optional) The address in the wallet to connect to.
+- `args`: Arguments passed to the `connect` function of the wallet.
+  - `wallet`: The wallet to connect to.
+  - `accountAddress`: (optional) The address in the wallet to connect to.
 
-- `options` - Options passed the `useMutation` hook from
+- `options`: Options passed the `useMutation` hook from
   [@tanstack/react-query](https://tanstack.com/query/latest/docs/react/guides/mutations).

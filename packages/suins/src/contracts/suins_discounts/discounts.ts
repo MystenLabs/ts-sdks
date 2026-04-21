@@ -13,7 +13,7 @@
 
 import { MoveTuple, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs, type BcsType } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 const $moduleName = '@suins/discounts::discounts';
 export const RegularDiscountsApp = new MoveTuple({
 	name: `${$moduleName}::RegularDiscountsApp`,
@@ -25,7 +25,7 @@ export const DiscountKey = new MoveTuple({
 });
 export interface ApplyPercentageDiscountArguments<T extends BcsType<any>> {
 	self: RawTransactionArgument<string>;
-	intent: RawTransactionArgument<string>;
+	intent: TransactionArgument;
 	suins: RawTransactionArgument<string>;
 	_: RawTransactionArgument<T>;
 }
@@ -35,7 +35,7 @@ export interface ApplyPercentageDiscountOptions<T extends BcsType<any>> {
 		| ApplyPercentageDiscountArguments<T>
 		| [
 				self: RawTransactionArgument<string>,
-				intent: RawTransactionArgument<string>,
+				intent: TransactionArgument,
 				suins: RawTransactionArgument<string>,
 				_: RawTransactionArgument<T>,
 		  ];
@@ -62,7 +62,7 @@ export function applyPercentageDiscount<T extends BcsType<any>>(
 }
 export interface ApplyDayOneDiscountArguments {
 	self: RawTransactionArgument<string>;
-	intent: RawTransactionArgument<string>;
+	intent: TransactionArgument;
 	suins: RawTransactionArgument<string>;
 	dayOne: RawTransactionArgument<string>;
 }
@@ -72,7 +72,7 @@ export interface ApplyDayOneDiscountOptions {
 		| ApplyDayOneDiscountArguments
 		| [
 				self: RawTransactionArgument<string>,
-				intent: RawTransactionArgument<string>,
+				intent: TransactionArgument,
 				suins: RawTransactionArgument<string>,
 				dayOne: RawTransactionArgument<string>,
 		  ];
@@ -96,7 +96,7 @@ export function applyDayOneDiscount(options: ApplyDayOneDiscountOptions) {
 export interface AuthorizeTypeArguments {
 	self: RawTransactionArgument<string>;
 	_: RawTransactionArgument<string>;
-	pricingConfig: RawTransactionArgument<string>;
+	pricingConfig: TransactionArgument;
 }
 export interface AuthorizeTypeOptions {
 	package?: string;
@@ -105,7 +105,7 @@ export interface AuthorizeTypeOptions {
 		| [
 				self: RawTransactionArgument<string>,
 				_: RawTransactionArgument<string>,
-				pricingConfig: RawTransactionArgument<string>,
+				pricingConfig: TransactionArgument,
 		  ];
 	typeArguments: [string];
 }

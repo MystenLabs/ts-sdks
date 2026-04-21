@@ -1,10 +1,12 @@
 ---
 title: Web Crypto Signer
-description: Sign transactions using the Web Crypto API
+description: Sign transactions using the Web Crypto API for secure browser-based key management.
+keywords:
+  [Web Crypto API, signer, Secp256r1, browser, keypairs, zkLogin, '@mysten/signers', session keys]
 ---
 
-For cases where you need to create keypairs directly within client dapps, we recommend using the Web
-Crypto Signer. This signer leverages the
+For cases where you need to create keypairs directly within client apps, you can use the Web Crypto
+Signer. This signer leverages the
 [Web Crypto API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Crypto_API) to provide a
 secure and efficient way to generate and manage cryptographic keys in the browser. The generated
 keys are `Secp256r1` keys which can be persisted between sessions, and are not extractable by
@@ -71,7 +73,7 @@ const keypair = await WebCryptoSigner.import(exported);
 ## Usage
 
 The usage for a Web Crypto signer is the same as any other keypair. You can derive the public key,
-derive the address, sign personal messages, sign transactions and verify signatures. See the
+derive the address, sign personal messages, sign transactions, and verify signatures. See the
 [Key pairs](./keypairs) documentation for more details.
 
 ```typescript

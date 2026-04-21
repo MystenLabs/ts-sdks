@@ -1,6 +1,7 @@
 ---
 title: Connect Wallet
-description: Programmatically connect to a Sui wallet
+description: Programmatically connect to a Sui wallet using the dApp Kit connectWallet action.
+keywords: [connect wallet, dApp Kit, wallet connection, auto-connect, Sui, action, TypeScript]
 ---
 
 The dApp Kit SDK provides an action for wallet connection, allowing users to connect, disconnect,
@@ -39,15 +40,15 @@ console.log('Connected accounts:', result.accounts);
 
 ## Parameters
 
-- **`wallet`** - The `UiWallet` instance to connect to
+- **`wallet`:** The `UiWallet` instance to connect to
 - **`account`** (optional) - A specific `UiWalletAccount` to set as the selected account. Defaults
   to the first authorized account
 
-## Return Value
+## Return value
 
 Returns a `Promise` that resolves to an object containing:
 
-- **`accounts`** - Array of authorized `UiWalletAccount` instances
+- **`accounts`:** Array of authorized `UiWalletAccount` instances
 
 ## Example
 

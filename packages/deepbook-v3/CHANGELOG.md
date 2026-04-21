@@ -1,5 +1,37 @@
 # @mysten/deepbook-v3
 
+## 1.3.1
+
+### Patch Changes
+
+- e149b58: Set the transaction sender on all read-only query methods so they work under
+  `SuiJsonRpcClient`. Previously these queries built a `Transaction` without calling
+  `tx.setSender(...)`, which was tolerated by the gRPC core client (it substitutes `0x0` for a
+  missing sender during resolution) but failed under JSON-RPC with `Missing transaction sender`.
+  JSON-RPC is scheduled to be sunset on July 31, 2026 — migrate to `SuiGrpcClient` when possible.
+- e9570a1: Regenerated Move call bindings. Parameters that can't accept a plain value (non-`key`
+  struct or enum, `vector<KeyStruct>`, etc.) are now typed as `TransactionArgument`, forcing callers
+  to pass a prior move-call result or `tx.makeMoveVec(...)`. Passing a bare string or array for
+  these parameters was always broken at runtime.
+- Updated dependencies [6adc085]
+- Updated dependencies [b1bf49a]
+  - @mysten/sui@2.16.0
+
+## 1.3.0
+
+### Minor Changes
+
+- 993aa1f: Add `cancelLiveOrder` and `cancelLiveOrders` transaction builders that skip order ids not
+  currently in the balance manager's open orders (already filled, cancelled, expired-and-swept, or
+  not owned by this BM) instead of aborting. Also updates mainnet `DEEPBOOK_PACKAGE_ID` to
+  `0xf48222c4e057fa468baf136bff8e12504209d43850c5778f76159292a96f621e`.
+
+## 1.2.2
+
+### Patch Changes
+
+- 6fd995d: Use type imports in generated code for verbatimModuleSyntax compatibility
+
 ## 1.2.1
 
 ### Patch Changes

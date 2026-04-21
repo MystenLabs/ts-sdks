@@ -13,6 +13,7 @@ export const iconButtonStyles = css`
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
+		cursor: var(--dapp-kit-cursor-button);
 		transition:
 			background-color 200ms,
 			transform 100ms;

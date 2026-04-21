@@ -1,7 +1,6 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import path from 'path';
 import type { ContainerRuntimeClient } from 'testcontainers';
 import { getContainerRuntimeClient } from 'testcontainers';
 import { retry } from 'ts-retry-promise';
@@ -379,9 +378,7 @@ export async function setup(options: { graphQLURL?: string; rpcURL?: string } = 
 	const keypair = Ed25519Keypair.generate();
 	const address = keypair.getPublicKey().toSuiAddress();
 
-	const configDir = path.join('/test-data', `${Math.random().toString(36).substring(2, 15)}`);
-	await execSuiTools(['mkdir', '-p', configDir]);
-	const configPath = path.join(configDir, 'client.yaml');
+	const configPath = '/test-data/localnet-client.yaml';
 	return setupWithFundedAddress(keypair, address, configPath, options);
 }
 
@@ -403,8 +400,6 @@ export async function setupWithFundedAddress(
 		},
 	);
 
-	// Create toolbox early so we can wait on all clients
-	await execSuiTools(['sui', 'client', '--yes', '--client.config', configPath]);
 	const toolbox = new TestToolbox(keypair, rpcURL, configPath);
 
 	// Wait for the faucet transaction on all clients to ensure indexers have caught up
@@ -431,6 +426,8 @@ export async function publishPackage(packageName: string, toolbox?: TestToolbox)
 				toolbox.configPath,
 				'build',
 				'--dump-bytecode-as-base64',
+				'--build-env',
+				'testnet',
 				'--path',
 				`/test-data/${packageName}`,
 			]);
@@ -509,6 +506,8 @@ export async function upgradePackage(
 		toolbox.configPath,
 		'build',
 		'--dump-bytecode-as-base64',
+		'--build-env',
+		'testnet',
 		'--path',
 		`/test-data/${packageName}`,
 	]);

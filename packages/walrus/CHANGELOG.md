@@ -1,5 +1,25 @@
 # @mysten/walrus
 
+## 1.1.2
+
+### Patch Changes
+
+- 6661fe2: Fix quilt blob sorting in `encodeQuilt` by avoiding in-place mutation of the input
+  `blobs` array while preserving existing sorting behavior.
+- e9570a1: Regenerated Move call bindings. Parameters that can't accept a plain value (non-`key`
+  struct or enum, `vector<KeyStruct>`, etc.) are now typed as `TransactionArgument`, forcing callers
+  to pass a prior move-call result or `tx.makeMoveVec(...)`. Passing a bare string or array for
+  these parameters was always broken at runtime.
+- Updated dependencies [6adc085]
+- Updated dependencies [b1bf49a]
+  - @mysten/sui@2.16.0
+
+## 1.1.1
+
+### Patch Changes
+
+- 6fd995d: Use type imports in generated code for verbatimModuleSyntax compatibility
+
 ## 1.1.0
 
 ### Minor Changes

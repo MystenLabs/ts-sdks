@@ -3,7 +3,9 @@
 
 import { normalizeSuiAddress } from '@mysten/sui/utils';
 
+import type { ModuleRegistry } from './module-registry.js';
 import type {
+	Ability,
 	Datatype,
 	DatatypeParameter,
 	ModuleSummary,
@@ -23,8 +25,15 @@ interface RenderTypeSignatureOptions {
 	onDependency?: (address: string, module: string, type: string) => string | undefined;
 	bcsImport?: () => string;
 	onTypeParameter?: (typeParameter: number | string) => void;
-	resolveAddress: (address: string) => string;
+	registry?: ModuleRegistry;
 	includePhantomTypeParameters: boolean;
+}
+
+function resolveAddress(
+	options: Pick<RenderTypeSignatureOptions, 'registry'>,
+	address: string,
+): string {
+	return options.registry?.resolveAddress(address) ?? address;
 }
 
 function getFilteredTypeParameterIndex(
@@ -45,10 +54,10 @@ function getFilteredTypeParameterIndex(
 }
 
 export function renderTypeSignature(type: Type, options: RenderTypeSignatureOptions): string {
-	let bcs = 'bcs';
-	if (options.bcsImport && usesBcs(type, options)) {
-		bcs = options.bcsImport();
-	}
+	const bcs =
+		options.format === 'bcs' && options.bcsImport && rendersBcsExpression(type, options)
+			? options.bcsImport()
+			: 'bcs';
 
 	switch (type) {
 		case 'address':
@@ -116,7 +125,7 @@ export function renderTypeSignature(type: Type, options: RenderTypeSignatureOpti
 	if ('vector' in type) {
 		switch (options.format) {
 			case 'typescriptArg':
-				return `${renderTypeSignature(type.vector, options)}[]`;
+				return `Array<${renderTypeSignature(type.vector, options)}>`;
 			case 'typeTag':
 				return `vector<${renderTypeSignature(type.vector, options)}>`;
 			case 'bcs':
@@ -176,80 +185,76 @@ export function renderTypeSignature(type: Type, options: RenderTypeSignatureOpti
 	throw new Error(`Unknown type signature: ${JSON.stringify(type, null, 2)}`);
 }
 
-export function usesBcs(type: Type, options: RenderTypeSignatureOptions): boolean {
-	if (typeof type === 'string') {
-		return true;
+function getDatatypeAbilities(
+	type: Datatype,
+	options: Pick<RenderTypeSignatureOptions, 'summary' | 'registry'>,
+): Ability[] | undefined {
+	const { summary } = options;
+	if (type.module.address === summary.id.address && type.module.name === summary.id.name) {
+		return summary.structs[type.name]?.abilities ?? summary.enums[type.name]?.abilities;
 	}
-
-	if ('Reference' in type) {
-		return usesBcs(type.Reference[1], options);
-	}
-
-	if ('Datatype' in type) {
-		return isPureDataType(type.Datatype, options);
-	}
-
-	if ('vector' in type) {
-		return true;
-	}
-
-	return false;
+	return options.registry?.getAbilities(type.module.address, type.module.name, type.name);
 }
 
-export function isPureSignature(type: Type, options: RenderTypeSignatureOptions): boolean {
-	if (typeof type === 'string') {
-		return true;
-	}
+type TypeCheckOptions = Pick<RenderTypeSignatureOptions, 'summary' | 'registry'>;
 
-	if ('Reference' in type) {
-		return isPureSignature(type.Reference[1], options);
-	}
-
-	if ('Datatype' in type) {
-		return isPureDataType(type.Datatype, options);
-	}
-
-	if ('vector' in type) {
-		return isPureSignature(type.vector, options);
-	}
-
-	if ('TypeParameter' in type) {
-		return false;
-	}
-
-	if ('NamedTypeParameter' in type) {
-		return false;
-	}
-
-	throw new Error(`Unknown type signature: ${JSON.stringify(type, null, 2)}`);
-}
-
-function isPureDataType(type: Datatype, options: RenderTypeSignatureOptions) {
-	const address = options.resolveAddress(type.module.address);
-
+/**
+ * Well-known datatypes that BCS can serialize as pure bytes: `String`,
+ * `Option<pure>`, `ID`, `UID`. For `Option` the inner is checked recursively.
+ */
+function isPureDatatype(type: Datatype, options: TypeCheckOptions): boolean {
+	const address = resolveAddress(options, type.module.address);
 	if (address === MOVE_STDLIB_ADDRESS) {
 		if ((type.module.name === 'ascii' || type.module.name === 'string') && type.name === 'String') {
 			return true;
 		}
-
 		if (type.module.name === 'option' && type.name === 'Option') {
-			return true;
+			return isPureType(type.type_arguments[0].argument, options);
 		}
 	}
-
 	if (address === SUI_FRAMEWORK_ADDRESS) {
 		if (type.module.name === 'object' && (type.name === 'ID' || type.name === 'UID')) {
 			return true;
 		}
 	}
+	return false;
+}
 
+/** Can this type be BCS-serialized from a plain TS value (no object resolution)? */
+function isPureType(type: Type, options: TypeCheckOptions): boolean {
+	if (typeof type === 'string') return true;
+	if ('Reference' in type) return isPureType(type.Reference[1], options);
+	if ('vector' in type) return isPureType(type.vector, options);
+	if ('Datatype' in type) return isPureDatatype(type.Datatype, options);
+	return false;
+}
+
+/** Does rendering this type as BCS emit a `bcs.xxx` expression? */
+function rendersBcsExpression(type: Type, options: TypeCheckOptions): boolean {
+	if (typeof type === 'string') return true;
+	if ('Reference' in type) return rendersBcsExpression(type.Reference[1], options);
+	if ('vector' in type) return true;
+	if ('Datatype' in type) return isPureDatatype(type.Datatype, options);
+	return false;
+}
+
+export function isSupportedRawTransactionInput(type: Type, options: TypeCheckOptions): boolean {
+	if (isPureType(type, options)) return true;
+	if (typeof type === 'string') return false;
+	if ('Reference' in type) return isSupportedRawTransactionInput(type.Reference[1], options);
+	if ('TypeParameter' in type || 'NamedTypeParameter' in type) return true;
+	if ('Datatype' in type) {
+		// A `key` struct is passable as an object-id string; nothing else is.
+		return getDatatypeAbilities(type.Datatype, options)?.includes('Key') ?? false;
+	}
 	return false;
 }
 
 function renderDataType(type: Datatype, options: RenderTypeSignatureOptions): string {
-	const address = options.resolveAddress(type.module.address);
+	const address = resolveAddress(options, type.module.address);
 
 	if (options.format === 'typeTag') {
+		// Well-known object types that the normalizer auto-injects.
 		if (address === SUI_FRAMEWORK_ADDRESS) {
 			if (type.module.name === 'clock' && type.name === 'Clock') return '0x2::clock::Clock';
 			if (type.module.name === 'random' && type.name === 'Random') return '0x2::random::Random';
@@ -263,6 +268,7 @@ function renderDataType(type: Datatype, options: RenderTypeSignatureOptions): st
 				return '0x3::sui_system::SuiSystemState';
 		}
 
+		// Pure types emit the canonical tag so `getPureBcsSchema` can serialize.
 		if (address === MOVE_STDLIB_ADDRESS) {
 			if (
 				(type.module.name === 'ascii' || type.module.name === 'string') &&
@@ -270,12 +276,19 @@ function renderDataType(type: Datatype, options: RenderTypeSignatureOptions): st
 			) {
 				return '0x1::string::String';
 			}
-			if (type.module.name === 'option' && type.name === 'Option') {
+			if (
+				type.module.name === 'option' &&
+				type.name === 'Option' &&
+				isPureDatatype(type, options)
+			) {
 				const innerType = renderTypeSignature(type.type_arguments[0].argument, options);
 				return `0x1::option::Option<${innerType}>`;
 			}
 		}
 
+		// Non-pure datatypes (including `key` structs) are null; the TS type
+		// system already restricts which parameters accept plain values, and
+		// the runtime doesn't need the tag for those.
 		return 'null';
 	}
 
@@ -294,7 +307,7 @@ function renderDataType(type: Datatype, options: RenderTypeSignatureOptions): st
 		if (type.module.name === 'option' && type.name === 'Option') {
 			switch (options.format) {
 				case 'typescriptArg':
-					if (isPureDataType(type, options)) {
+					if (isPureDatatype(type, options)) {
 						return `${renderTypeSignature(type.type_arguments[0].argument, options)} | null`;
 					}
 					break;
@@ -320,7 +333,7 @@ function renderDataType(type: Datatype, options: RenderTypeSignatureOptions): st
 	}
 
 	const isCurrentModule =
-		address === options.resolveAddress(options.summary.id.address) &&
+		address === resolveAddress(options, options.summary.id.address) &&
 		type.module.name === options.summary.id.name;
 
 	const importName = options.onDependency?.(type.module.address, type.module.name, type.name);
@@ -332,8 +345,13 @@ function renderDataType(type: Datatype, options: RenderTypeSignatureOptions): st
 	const filteredTypeArguments = type.type_arguments.filter((arg) => !arg.phantom);
 
 	switch (options.format) {
-		case 'typescriptArg':
-			return 'string';
+		case 'typescriptArg': {
+			const abilities = getDatatypeAbilities(type, options);
+			if (abilities?.includes('Key')) {
+				return 'string';
+			}
+			return 'never';
+		}
 		case 'bcs':
 			if (filteredTypeArguments.length === 0) {
 				return typeNameRef;

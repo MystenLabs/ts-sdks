@@ -67,6 +67,10 @@ export type DAppKitConnectModalOptions = {
  * @cssprop --font-sans - Font family used for text content.
  * @cssprop --font-weight-medium - Medium font weight for text (typically used for buttons and interactive elements).
  * @cssprop --font-weight-semibold - Semibold font weight for text (typically used for headings or emphasized text).
+ * @cssprop --cursor-button - Cursor for button elements (default: `default`). Set to `pointer` for a hand cursor.
+ * @cssprop --cursor-menu-item - Cursor for menu items such as wallet list entries (default: `default`).
+ * @cssprop --cursor-radio - Cursor for radio inputs such as account selection (default: `default`).
+ * @cssprop --cursor-disabled - Cursor for disabled interactive elements (default: `not-allowed`).
  */
 @customElement('mysten-dapp-kit-connect-modal')
 export class DAppKitConnectModal

@@ -3,7 +3,7 @@
  **************************************************************/
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as range from './range.js';
 const $moduleName = '@suins/coupons::rules';
 export const CouponRules = new MoveStruct({
@@ -17,22 +17,22 @@ export const CouponRules = new MoveStruct({
 	},
 });
 export interface NewCouponRulesArguments {
-	length: RawTransactionArgument<string | null>;
+	length: TransactionArgument;
 	availableClaims: RawTransactionArgument<number | bigint | null>;
 	user: RawTransactionArgument<string | null>;
 	expiration: RawTransactionArgument<number | bigint | null>;
-	years: RawTransactionArgument<string | null>;
+	years: TransactionArgument;
 }
 export interface NewCouponRulesOptions {
 	package?: string;
 	arguments:
 		| NewCouponRulesArguments
 		| [
-				length: RawTransactionArgument<string | null>,
+				length: TransactionArgument,
 				availableClaims: RawTransactionArgument<number | bigint | null>,
 				user: RawTransactionArgument<string | null>,
 				expiration: RawTransactionArgument<number | bigint | null>,
-				years: RawTransactionArgument<string | null>,
+				years: TransactionArgument,
 		  ];
 }
 /**
@@ -49,11 +49,11 @@ export interface NewCouponRulesOptions {
 export function newCouponRules(options: NewCouponRulesOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
 	const argumentsTypes = [
-		'0x1::option::Option<null>',
+		null,
 		'0x1::option::Option<u64>',
 		'0x1::option::Option<address>',
 		'0x1::option::Option<u64>',
-		'0x1::option::Option<null>',
+		null,
 	] satisfies (string | null)[];
 	const parameterNames = ['length', 'availableClaims', 'user', 'expiration', 'years'];
 	return (tx: Transaction) =>
@@ -78,11 +78,11 @@ export function newEmptyRules(options: NewEmptyRulesOptions = {}) {
 		});
 }
 export interface DecreaseAvailableClaimsArguments {
-	rules: RawTransactionArgument<string>;
+	rules: TransactionArgument;
 }
 export interface DecreaseAvailableClaimsOptions {
 	package?: string;
-	arguments: DecreaseAvailableClaimsArguments | [rules: RawTransactionArgument<string>];
+	arguments: DecreaseAvailableClaimsArguments | [rules: TransactionArgument];
 }
 /**
  * If the rules count `available_claims`, we decrease it. Aborts if there are no
@@ -103,11 +103,11 @@ export function decreaseAvailableClaims(options: DecreaseAvailableClaimsOptions)
 		});
 }
 export interface HasAvailableClaimsArguments {
-	rules: RawTransactionArgument<string>;
+	rules: TransactionArgument;
 }
 export interface HasAvailableClaimsOptions {
 	package?: string;
-	arguments: HasAvailableClaimsArguments | [rules: RawTransactionArgument<string>];
+	arguments: HasAvailableClaimsArguments | [rules: TransactionArgument];
 }
 export function hasAvailableClaims(options: HasAvailableClaimsOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
@@ -122,14 +122,14 @@ export function hasAvailableClaims(options: HasAvailableClaimsOptions) {
 		});
 }
 export interface AssertCouponValidForDomainYearsArguments {
-	rules: RawTransactionArgument<string>;
+	rules: TransactionArgument;
 	target: RawTransactionArgument<number>;
 }
 export interface AssertCouponValidForDomainYearsOptions {
 	package?: string;
 	arguments:
 		| AssertCouponValidForDomainYearsArguments
-		| [rules: RawTransactionArgument<string>, target: RawTransactionArgument<number>];
+		| [rules: TransactionArgument, target: RawTransactionArgument<number>];
 }
 export function assertCouponValidForDomainYears(options: AssertCouponValidForDomainYearsOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
@@ -144,14 +144,14 @@ export function assertCouponValidForDomainYears(options: AssertCouponValidForDom
 		});
 }
 export interface IsCouponValidForDomainYearsArguments {
-	rules: RawTransactionArgument<string>;
+	rules: TransactionArgument;
 	target: RawTransactionArgument<number>;
 }
 export interface IsCouponValidForDomainYearsOptions {
 	package?: string;
 	arguments:
 		| IsCouponValidForDomainYearsArguments
-		| [rules: RawTransactionArgument<string>, target: RawTransactionArgument<number>];
+		| [rules: TransactionArgument, target: RawTransactionArgument<number>];
 }
 export function isCouponValidForDomainYears(options: IsCouponValidForDomainYearsOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
@@ -207,14 +207,14 @@ export function assertIsValidAmount(options: AssertIsValidAmountOptions) {
 		});
 }
 export interface AssertCouponValidForDomainSizeArguments {
-	rules: RawTransactionArgument<string>;
+	rules: TransactionArgument;
 	length: RawTransactionArgument<number>;
 }
 export interface AssertCouponValidForDomainSizeOptions {
 	package?: string;
 	arguments:
 		| AssertCouponValidForDomainSizeArguments
-		| [rules: RawTransactionArgument<string>, length: RawTransactionArgument<number>];
+		| [rules: TransactionArgument, length: RawTransactionArgument<number>];
 }
 export function assertCouponValidForDomainSize(options: AssertCouponValidForDomainSizeOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
@@ -229,14 +229,14 @@ export function assertCouponValidForDomainSize(options: AssertCouponValidForDoma
 		});
 }
 export interface IsCouponValidForDomainSizeArguments {
-	rules: RawTransactionArgument<string>;
+	rules: TransactionArgument;
 	length: RawTransactionArgument<number>;
 }
 export interface IsCouponValidForDomainSizeOptions {
 	package?: string;
 	arguments:
 		| IsCouponValidForDomainSizeArguments
-		| [rules: RawTransactionArgument<string>, length: RawTransactionArgument<number>];
+		| [rules: TransactionArgument, length: RawTransactionArgument<number>];
 }
 /** We check the length of the name based on the domain length rule */
 export function isCouponValidForDomainSize(options: IsCouponValidForDomainSizeOptions) {
@@ -252,14 +252,14 @@ export function isCouponValidForDomainSize(options: IsCouponValidForDomainSizeOp
 		});
 }
 export interface AssertCouponValidForAddressArguments {
-	rules: RawTransactionArgument<string>;
+	rules: TransactionArgument;
 	user: RawTransactionArgument<string>;
 }
 export interface AssertCouponValidForAddressOptions {
 	package?: string;
 	arguments:
 		| AssertCouponValidForAddressArguments
-		| [rules: RawTransactionArgument<string>, user: RawTransactionArgument<string>];
+		| [rules: TransactionArgument, user: RawTransactionArgument<string>];
 }
 /** Throws `EInvalidUser` error if it has expired. */
 export function assertCouponValidForAddress(options: AssertCouponValidForAddressOptions) {
@@ -275,14 +275,14 @@ export function assertCouponValidForAddress(options: AssertCouponValidForAddress
 		});
 }
 export interface IsCouponValidForAddressArguments {
-	rules: RawTransactionArgument<string>;
+	rules: TransactionArgument;
 	user: RawTransactionArgument<string>;
 }
 export interface IsCouponValidForAddressOptions {
 	package?: string;
 	arguments:
 		| IsCouponValidForAddressArguments
-		| [rules: RawTransactionArgument<string>, user: RawTransactionArgument<string>];
+		| [rules: TransactionArgument, user: RawTransactionArgument<string>];
 }
 /** Check that the domain is valid for the specified address */
 export function isCouponValidForAddress(options: IsCouponValidForAddressOptions) {
@@ -298,11 +298,11 @@ export function isCouponValidForAddress(options: IsCouponValidForAddressOptions)
 		});
 }
 export interface AssertCouponIsNotExpiredArguments {
-	rules: RawTransactionArgument<string>;
+	rules: TransactionArgument;
 }
 export interface AssertCouponIsNotExpiredOptions {
 	package?: string;
-	arguments: AssertCouponIsNotExpiredArguments | [rules: RawTransactionArgument<string>];
+	arguments: AssertCouponIsNotExpiredArguments | [rules: TransactionArgument];
 }
 /**
  * Simple assertion for the coupon expiration. Throws `ECouponExpired` error if it
@@ -321,11 +321,11 @@ export function assertCouponIsNotExpired(options: AssertCouponIsNotExpiredOption
 		});
 }
 export interface IsCouponExpiredArguments {
-	rules: RawTransactionArgument<string>;
+	rules: TransactionArgument;
 }
 export interface IsCouponExpiredOptions {
 	package?: string;
-	arguments: IsCouponExpiredArguments | [rules: RawTransactionArgument<string>];
+	arguments: IsCouponExpiredArguments | [rules: TransactionArgument];
 }
 /** Check whether a coupon has expired */
 export function isCouponExpired(options: IsCouponExpiredOptions) {

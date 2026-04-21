@@ -3,13 +3,13 @@ title: DApp Kit Instance
 description: Create and configure a DAppKit instance for wallet and client management
 ---
 
-The `createDAppKit` function is the foundation of your Sui dApp. It creates an instance that manages
+The `createDAppKit` function is the foundation of your Sui app. It creates an instance that manages
 wallet connections, network configuration, and provides access to the Sui client.
 
-## Creating a dApp Kit Instance
+## Creating a dApp Kit instance
 
 The core of the dApp Kit SDK is the `createDAppKit` function, which creates an instance that manages
-all dApp functionality:
+all app functionality:
 
 ```typescript
 import { createDAppKit } from '@mysten/dapp-kit-core';
@@ -42,22 +42,23 @@ This instance provides:
 
 ## Parameters
 
-- **autoConnect** (optional) - Enables automatically connecting to the most recently used wallet
+- **autoConnect** (optional): Enables automatically connecting to the most recently used wallet
   account (default: `true`)
-- **networks** - A list of networks supported by the application (e.g. `['mainnet', 'testnet']`)
-- **defaultNetwork** (optional) - Initial network to use (default: first network in the array)
-- **createClient** - Creates a new client instance for the given network
-- **enableBurnerWallet** (optional) - Enable development-only burner wallet (default: `false`)
-- **storage** (optional) - Configures how the most recently connected to wallet account is stored
+- **networks:** A list of networks supported by the application (for example,
+  `['mainnet', 'testnet']`)
+- **defaultNetwork** (optional): Initial network to use (default: first network in the array)
+- **createClient:** Creates a new client instance for the given network
+- **enableBurnerWallet** (optional): Enable development-only burner wallet (default: `false`)
+- **storage** (optional): Configures how the most recently connected to wallet account is stored
   (default: `localStorage`, set to `null` to disable)
-- **storageKey** (optional) - The key to use to store the most recently connected wallet account
+- **storageKey** (optional): The key to use to store the most recently connected wallet account
   (default: `'mysten-dapp-kit:selected-wallet-and-address'`)
-- **walletInitializers** (optional) - A list of wallet initializers used for registering additional
+- **walletInitializers** (optional): A list of wallet initializers used for registering additional
   wallet standard wallets.
-- **slushWalletConfig** (optional) - Configuration for Slush wallet (set to `null` to disable the
+- **slushWalletConfig** (optional): Configuration for Slush wallet (set to `null` to disable the
   wallet)
 
-## Return Value
+## Return value
 
 ```ts
 {
@@ -84,7 +85,7 @@ This instance provides:
 
 Read more about [actions](./actions/connect-wallet) and [stores](./state).
 
-## Basic Usage
+## Basic usage
 
 ```ts
 // dapp-kit.ts
@@ -126,7 +127,7 @@ export async function connectWalletAndLog({
 	[DAppKitProvider](./react/dapp-kit-provider).
 </Callout>
 
-## Development Configuration
+## Development configuration
 
 For development environments, enable the burner wallet:
 
@@ -142,11 +143,11 @@ export const dAppKit = createDAppKit({
 });
 ```
 
-## Auto-Connect Behavior
+## Auto-connect behavior
 
 By default, dApp Kit automatically reconnects to the previously connected wallet.
 
-### Disabling Auto-Connect
+### Disabling auto-connect
 
 ```typescript
 import { createDAppKit } from '@mysten/dapp-kit-core';
@@ -160,7 +161,7 @@ export const dAppKit = createDAppKit({
 });
 ```
 
-## Custom Wallet Integration
+## Custom wallet integration
 
 Add support for custom wallets using wallet initializers:
 

@@ -1,5 +1,62 @@
 # @mysten/docs
 
+## 0.1.18
+
+### Patch Changes
+
+- Updated dependencies [6adc085]
+- Updated dependencies [e149b58]
+- Updated dependencies [b1bf49a]
+- Updated dependencies [6661fe2]
+- Updated dependencies [e9570a1]
+- Updated dependencies [069a7de]
+  - @mysten/sui@2.16.0
+  - @mysten/deepbook-v3@1.3.1
+  - @mysten/walrus@1.1.2
+  - @mysten/suins@1.0.5
+  - @mysten/payment-kit@0.1.7
+  - @mysten/kiosk@1.2.2
+  - @mysten/zksend@1.1.0
+  - @mysten/wallet-standard@0.20.1
+
+## 0.1.17
+
+### Patch Changes
+
+- Updated dependencies [993aa1f]
+- Updated dependencies [993aa1f]
+  - @mysten/deepbook-v3@1.3.0
+  - @mysten/suins@1.0.4
+
+## 0.1.16
+
+### Patch Changes
+
+- Updated dependencies [6fd995d]
+  - @mysten/deepbook-v3@1.2.2
+  - @mysten/kiosk@1.2.1
+  - @mysten/payment-kit@0.1.6
+  - @mysten/suins@1.0.3
+  - @mysten/walrus@1.1.1
+
+## 0.1.15
+
+### Patch Changes
+
+- Updated dependencies [875b1b7]
+- Updated dependencies [43b2670]
+- Updated dependencies [ef0b8a7]
+  - @mysten/dapp-kit-core@1.3.0
+  - @mysten/sui@2.15.0
+  - @mysten/wallet-standard@0.20.1
+
+## 0.1.14
+
+### Patch Changes
+
+- Updated dependencies [1b2f786]
+  - @mysten/payment-kit@0.1.5
+
 ## 0.1.13
 
 ### Patch Changes

@@ -1,31 +1,33 @@
 ---
 title: Sui Clients
-description: 'Choose and configure gRPC, GraphQL, or JSON-RPC clients'
+description: 'Choose and configure gRPC, GraphQL, or JSON-RPC clients for the Sui network.'
+keywords:
+  [Sui client, gRPC, GraphQL, JSON-RPC, SuiGrpcClient, SuiGraphQLClient, SuiJsonRpcClient, Core API]
 ---
 
 The Sui TypeScript SDK provides multiple client implementations for interacting with the Sui
 network. Each client connects to a different API but provides two levels of access:
 
-- **Native API** - Full access to everything the underlying API offers
-- **[Core API](/sui/clients/core)** - A consistent interface across all clients for common
-  operations
+- Native API: Full access to everything the underlying API offers
+- [Core API](/sui/clients/core): A consistent interface across all clients for common operations
 
-## Available Clients
+## Available clients
 
-| Client                                                 | API                                                                |
-| ------------------------------------------------------ | ------------------------------------------------------------------ |
-| [SuiGrpcClient](/sui/clients/grpc) (recommended)       | [Full Node gRPC](https://docs.sui.io/references/fullnode-protocol) |
-| [SuiGraphQLClient](/sui/clients/graphql)               | [GraphQL](https://docs.sui.io/references/sui-graphql)              |
-| [SuiJsonRpcClient](/sui/clients/json-rpc) (deprecated) | [JSON-RPC (deprecated)](https://docs.sui.io/sui-api-ref)           |
+| Client                                                   | API                                                                |
+| -------------------------------------------------------- | ------------------------------------------------------------------ |
+| [`SuiGrpcClient`](/sui/clients/grpc) (recommended)       | [Full Node gRPC](https://docs.sui.io/references/fullnode-protocol) |
+| [`SuiGraphQLClient`](/sui/clients/graphql)               | [GraphQL](https://docs.sui.io/references/sui-graphql)              |
+| [`SuiJsonRpcClient`](/sui/clients/json-rpc) (deprecated) | [JSON-RPC (deprecated)](https://docs.sui.io/sui-api-ref)           |
 
 All clients are compatible with Mysten SDKs like `@mysten/walrus`, `@mysten/seal` and
 `@mysten/suins`.
 
 For most application gRPC is a good default. The JSON RPC API has been deprecated and will be
 decommissioned soon. The GraphQL can be used for more advanced query patterns that can not be
-supported directly on full nodes (eg, querying for transactions or events with various filters).
+supported directly on full nodes (for example, querying for transactions or events with various
+filters).
 
-## Quick Start
+## Quick start
 
 ```typescript
 import { SuiGrpcClient } from '@mysten/sui/grpc';
@@ -42,7 +44,7 @@ const { response } = await client.ledgerService.getTransaction({ digest: '0x...'
 const { object } = await client.core.getObject({ objectId: '0x...' });
 ```
 
-## Native vs Core API
+## Native vs core API
 
 ### Native API
 
@@ -86,7 +88,7 @@ await client.core.executeTransaction({ transaction, signatures });
 The Core API is essential for [building SDKs](/sui/sdk-building) that work with any client the user
 chooses.
 
-## Client Extensions
+## Client extensions
 
 All clients support extensions through the `$extend` method, enabling SDKs like
 [@mysten/walrus](https://www.npmjs.com/package/@mysten/walrus) to add functionality:

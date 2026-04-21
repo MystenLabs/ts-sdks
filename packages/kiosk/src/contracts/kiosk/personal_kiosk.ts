@@ -9,7 +9,7 @@
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as kiosk from './deps/sui/kiosk.js';
 const $moduleName = '@local-pkg/kiosk::personal_kiosk';
 export const PersonalKioskCap = new MoveStruct({
@@ -185,7 +185,7 @@ export function borrowVal(options: BorrowValOptions) {
 export interface ReturnValArguments {
 	self: RawTransactionArgument<string>;
 	cap: RawTransactionArgument<string>;
-	borrow: RawTransactionArgument<string>;
+	borrow: TransactionArgument;
 }
 export interface ReturnValOptions {
 	package?: string;
@@ -194,7 +194,7 @@ export interface ReturnValOptions {
 		| [
 				self: RawTransactionArgument<string>,
 				cap: RawTransactionArgument<string>,
-				borrow: RawTransactionArgument<string>,
+				borrow: TransactionArgument,
 		  ];
 }
 /** Return the Cap to the PersonalKioskCap object. */

@@ -1,5 +1,30 @@
 # @mysten/suins
 
+## 1.0.5
+
+### Patch Changes
+
+- e9570a1: Regenerated Move call bindings. Parameters that can't accept a plain value (non-`key`
+  struct or enum, `vector<KeyStruct>`, etc.) are now typed as `TransactionArgument`, forcing callers
+  to pass a prior move-call result or `tx.makeMoveVec(...)`. Passing a bare string or array for
+  these parameters was always broken at runtime.
+- Updated dependencies [6adc085]
+- Updated dependencies [b1bf49a]
+  - @mysten/sui@2.16.0
+
+## 1.0.4
+
+### Patch Changes
+
+- 993aa1f: Bump `axios` to `^1.15.0` to patch GHSA-3p68-rc4w-qgx5 (NO_PROXY hostname normalization
+  SSRF).
+
+## 1.0.3
+
+### Patch Changes
+
+- 6fd995d: Use type imports in generated code for verbatimModuleSyntax compatibility
+
 ## 1.0.2
 
 ### Patch Changes

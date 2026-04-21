@@ -1,6 +1,7 @@
 ---
 title: Vue
-description: Set up dApp Kit in a Vue application
+description: Set up dApp Kit in a Vue application.
+keywords: [Vue, dApp Kit, web components, nanostores, Sui, TypeScript, wallet connection]
 ---
 
 This guide walks you through integrating dApp Kit into a Vue application using Web Components and
@@ -14,7 +15,7 @@ npm i @mysten/dapp-kit-core @mysten/sui @nanostores/vue
 
 ## Setup
 
-### 1. Create a dApp Kit Instance
+### Step 1: Create a dApp Kit instance
 
 ```ts
 // src/dapp-kit.ts
@@ -31,7 +32,7 @@ export const dAppKit = createDAppKit({
 });
 ```
 
-### 2. Register Web Components
+### Step 2: Register web components
 
 Import the web components in your app entry point:
 
@@ -44,7 +45,7 @@ import App from './App.vue';
 createApp(App).mount('#app');
 ```
 
-### 3. Use the Connect Button
+### Step 3: Use the connect button
 
 ```vue
 <script setup lang="ts">
@@ -59,7 +60,7 @@ import { dAppKit } from './dapp-kit';
 </template>
 ```
 
-### 4. Access Connection State
+### Step 4: Access connection state
 
 Use `@nanostores/vue` for reactive state:
 
@@ -86,7 +87,7 @@ const network = useStore(dAppKit.stores.$currentNetwork);
 </template>
 ```
 
-### 5. Execute Transactions
+### Step 5: Execute transactions
 
 ```vue
 <script setup lang="ts">
@@ -123,7 +124,7 @@ async function handleTransfer() {
 </template>
 ```
 
-## Complete Example
+## Complete example
 
 ```vue
 <script setup lang="ts">
@@ -170,7 +171,7 @@ async function handleTransfer() {
 </template>
 ```
 
-## Web Components
+## Web components
 
 Vue works with dApp Kit's Web Components through property binding:
 
@@ -181,9 +182,9 @@ Vue works with dApp Kit's Web Components through property binding:
 
 See [Web Components](/dapp-kit/web-components/connect-button) for full documentation.
 
-## Available Stores
+## Available stores
 
-Access these stores via `dAppKit.stores`:
+Access these stores through `dAppKit.stores`:
 
 | Store             | Description                                       |
 | ----------------- | ------------------------------------------------- |
@@ -194,13 +195,13 @@ Access these stores via `dAppKit.stores`:
 
 See [State Management](/dapp-kit/state) for full documentation.
 
-## Example Application
+## Example application
 
 See the complete
 [Vue example](https://github.com/MystenLabs/ts-sdks/tree/main/packages/dapp-kit-next/examples/vue/simple)
 on GitHub.
 
-## Next Steps
+## Next steps
 
 - [Web Components](/dapp-kit/web-components/connect-button) - Component documentation
 - [State Management](/dapp-kit/state) - Store details

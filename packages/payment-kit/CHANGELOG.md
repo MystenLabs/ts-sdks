@@ -1,5 +1,29 @@
 # @mysten/payment-kit
 
+## 0.1.7
+
+### Patch Changes
+
+- e9570a1: Regenerated Move call bindings. Parameters that can't accept a plain value (non-`key`
+  struct or enum, `vector<KeyStruct>`, etc.) are now typed as `TransactionArgument`, forcing callers
+  to pass a prior move-call result or `tx.makeMoveVec(...)`. Passing a bare string or array for
+  these parameters was always broken at runtime.
+- Updated dependencies [6adc085]
+- Updated dependencies [b1bf49a]
+  - @mysten/sui@2.16.0
+
+## 0.1.6
+
+### Patch Changes
+
+- 6fd995d: Use type imports in generated code for verbatimModuleSyntax compatibility
+
+## 0.1.5
+
+### Patch Changes
+
+- 1b2f786: Move @mysten/sui from dependencies to peerDependencies to match SDK conventions
+
 ## 0.1.4
 
 ### Patch Changes

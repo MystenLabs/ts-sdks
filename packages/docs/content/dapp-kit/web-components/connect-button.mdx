@@ -1,6 +1,17 @@
 ---
 title: Connect Button
-description: Framework-agnostic web component for wallet connection
+description:
+  Framework-agnostic web component providing a complete wallet connection UI for Sui dApps.
+keywords:
+  [
+    connect button,
+    web component,
+    wallet connection,
+    framework-agnostic,
+    dApp Kit,
+    Sui,
+    custom element,
+  ]
 ---
 
 The `<mysten-dapp-kit-connect-button>` Web Component provides a complete wallet connection UI. It
@@ -13,7 +24,7 @@ a menu when a wallet is active.
 	[disabled](../dapp-kit-instance#disabling-auto-connect) if needed.
 </Callout>
 
-## Basic Usage
+## Basic usage
 
 ### Vanilla
 
@@ -54,12 +65,12 @@ The connect button component automatically handles:
 
 ## Properties
 
-- **instance** - The dApp Kit instance
+- **instance:** The dApp Kit instance
 - **modalOptions** (optional) - Configuration options for the connect modal
-  - `filterFn` - Function to filter available wallets
-  - `sortFn` - Function to sort available wallets
+  - `filterFn`: Function to filter available wallets
+  - `sortFn`: Function to sort available wallets
 
-## Custom Button Text
+## Custom button text
 
 Use the default slot to customize the button text when not connected:
 
@@ -69,12 +80,12 @@ Use the default slot to customize the button text when not connected:
 </mysten-dapp-kit-connect-button>
 ```
 
-## Modal Integration
+## Modal integration
 
 The connect button automatically manages its own modal. You don't need to add a separate
 `<mysten-dapp-kit-connect-modal>` component when using the connect button.
 
-## Connected State
+## Connected state
 
 When a wallet is connected, the button transforms into an account menu that displays:
 
@@ -86,7 +97,7 @@ When a wallet is connected, the button transforms into an account menu that disp
   - Managing connection
   - Disconnecting
 
-## Server-Side Rendering (SSR)
+## Server-side rendering (SSR)
 
 The `<mysten-dapp-kit-connect-button>` Web Component can be only client-side rendered, as wallets
 are detected in the browser. For Next.js guide see [here](../getting-started/next-js).

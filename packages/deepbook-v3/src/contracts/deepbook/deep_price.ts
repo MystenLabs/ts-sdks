@@ -7,9 +7,9 @@
  * the base and quote assets.
  */
 
-import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
+import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 const $moduleName = '@deepbook/core::deep_price';
 export const Price = new MoveStruct({
 	name: `${$moduleName}::Price`,
@@ -45,11 +45,11 @@ export const OrderDeepPrice = new MoveStruct({
 	},
 });
 export interface AssetIsBaseArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface AssetIsBaseOptions {
 	package?: string;
-	arguments: AssetIsBaseArguments | [self: RawTransactionArgument<string>];
+	arguments: AssetIsBaseArguments | [self: TransactionArgument];
 }
 export function assetIsBase(options: AssetIsBaseOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
@@ -64,11 +64,11 @@ export function assetIsBase(options: AssetIsBaseOptions) {
 		});
 }
 export interface DeepPerAssetArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface DeepPerAssetOptions {
 	package?: string;
-	arguments: DeepPerAssetArguments | [self: RawTransactionArgument<string>];
+	arguments: DeepPerAssetArguments | [self: TransactionArgument];
 }
 export function deepPerAsset(options: DeepPerAssetOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';

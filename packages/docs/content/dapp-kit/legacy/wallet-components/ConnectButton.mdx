@@ -1,6 +1,7 @@
 ---
 title: ConnectButton
-description: React connect button component
+description: Legacy React button component for connecting and disconnecting a Sui wallet.
+keywords: [ConnectButton, React component, wallet connection, button, legacy, dApp Kit, Sui]
 ---
 
 import { ConnectButtonExample } from '../../../../examples/wallet-components-client';
@@ -22,8 +23,8 @@ export function YourApp() {
 
 All props are optional.
 
-- `connectText = "Connect Wallet"` - The text that displays in the button when the user is not
+- `connectText = "Connect Wallet"`: The text that displays in the button when the user is not
   currently connected to a wallet.
-- `walletFilter` - A filter function that receives a wallet instance, and returns a boolean
+- `walletFilter`: A filter function that receives a wallet instance, and returns a boolean
   indicating whether the wallet should be displayed in the wallet list. By default, all wallets are
   displayed.

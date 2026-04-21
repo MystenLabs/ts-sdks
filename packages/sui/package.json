@@ -3,7 +3,7 @@
 	"author": "Mysten Labs <build@mystenlabs.com>",
 	"description": "Sui TypeScript API",
 	"homepage": "https://sdk.mystenlabs.com",
-	"version": "2.14.1",
+	"version": "2.16.0",
 	"license": "Apache-2.0",
 	"sideEffects": false,
 	"files": [
@@ -165,8 +165,10 @@
 		"@graphql-codegen/typescript": "5.0.7",
 		"@graphql-codegen/typescript-document-nodes": "5.0.7",
 		"@graphql-codegen/typescript-operations": "^5.0.7",
+		"@grpc/grpc-js": "^1.13.3",
 		"@iarna/toml": "^2.2.5",
 		"@parcel/watcher": "^2.5.4",
+		"@protobuf-ts/grpc-transport": "^2.11.1",
 		"@types/node": "^25.0.8",
 		"@types/tmp": "^0.2.6",
 		"cross-env": "^10.1.0",
@@ -175,7 +177,7 @@
 		"tmp": "^0.2.5",
 		"ts-retry-promise": "^0.8.1",
 		"typescript": "^5.9.3",
-		"vite": "^7.3.1",
+		"vite": "^8.0.5",
 		"vite-tsconfig-paths": "^6.0.4",
 		"vitest": "^4.0.17",
 		"wait-on": "^9.0.3"

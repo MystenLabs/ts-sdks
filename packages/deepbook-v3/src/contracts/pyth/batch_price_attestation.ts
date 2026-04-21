@@ -3,7 +3,7 @@
  **************************************************************/
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as price_info from './price_info.js';
 const $moduleName =
 	'0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837::batch_price_attestation';
@@ -28,7 +28,7 @@ export const BatchPriceAttestation = new MoveStruct({
 });
 export interface DestroyOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>];
+	arguments: [TransactionArgument];
 }
 export function destroy(options: DestroyOptions) {
 	const packageAddress =
@@ -44,7 +44,7 @@ export function destroy(options: DestroyOptions) {
 }
 export interface GetAttestationCountOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>];
+	arguments: [TransactionArgument];
 }
 export function getAttestationCount(options: GetAttestationCountOptions) {
 	const packageAddress =
@@ -60,7 +60,7 @@ export function getAttestationCount(options: GetAttestationCountOptions) {
 }
 export interface GetPriceInfoOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>, RawTransactionArgument<number | bigint>];
+	arguments: [TransactionArgument, RawTransactionArgument<number | bigint>];
 }
 export function getPriceInfo(options: GetPriceInfoOptions) {
 	const packageAddress =
@@ -76,7 +76,7 @@ export function getPriceInfo(options: GetPriceInfoOptions) {
 }
 export interface DeserializeOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<number[]>];
+	arguments: [RawTransactionArgument<Array<number>>];
 }
 export function deserialize(options: DeserializeOptions) {
 	const packageAddress =

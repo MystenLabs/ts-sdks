@@ -24,6 +24,11 @@ export const styles = [
 			padding-top: 8px;
 			padding-bottom: 8px;
 			height: 40px;
+			cursor: var(--dapp-kit-cursor-button);
+		}
+
+		.button:disabled {
+			cursor: var(--dapp-kit-cursor-disabled);
 		}
 
 		.button:focus-visible {

@@ -67,25 +67,15 @@ export default async function setup(project: TestProject) {
 	const graphqlPort = localnet.getMappedPort(9125);
 	const containerId = localnet.getId();
 
-	// Create default sui config so `sui keytool` commands work in the container.
-	// This must happen once before any tests run to avoid race conditions.
+	// Set up the default sui config so `sui keytool` and `sui move build` commands work.
+	// The config file is checked in at data/localnet-client.yaml and copied into the container.
 	const runtimeClient = await getContainerRuntimeClient();
 	const container = runtimeClient.container.getById(containerId);
 	await runtimeClient.container.exec(container, ['mkdir', '-p', '/root/.sui/sui_config']);
 	await runtimeClient.container.exec(container, [
 		'bash',
 		'-c',
-		`echo '[]' > /root/.sui/sui_config/sui.keystore && cat > /root/.sui/sui_config/client.yaml << 'EOF'
----
-keystore:
-  File: /root/.sui/sui_config/sui.keystore
-envs:
-  - alias: localnet
-    rpc: "http://127.0.0.1:9000"
-    ws: ~
-active_env: localnet
-active_address: "0x0000000000000000000000000000000000000000000000000000000000000000"
-EOF`,
+		"echo '[]' > /root/.sui/sui_config/sui.keystore && cp /test-data/localnet-client.yaml /root/.sui/sui_config/client.yaml",
 	]);
 
 	project.provide('faucetPort', faucetPort);

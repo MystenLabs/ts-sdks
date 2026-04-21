@@ -1,5 +1,34 @@
 # @mysten/sui.js
 
+## 2.16.0
+
+### Minor Changes
+
+- 6adc085: Add `parseToUnits` and `parseToMist` balance parsing utilities using pure bigint
+  arithmetic.
+
+### Patch Changes
+
+- b1bf49a: Fix `extractMvrTypes` and `replaceMvrNames` to handle vector and primitive type
+  parameters. Previously, these functions passed all string type parameters directly to
+  `parseStructTag`, which produced corrupted results for vector types (e.g.,
+  `vector<@mvr/demo::baz::Qux>`) and threw on primitives (e.g., `u8`). Vector types are now
+  unwrapped and recursed into, and primitive types are passed through unchanged.
+
+## 2.15.0
+
+### Minor Changes
+
+- 43b2670: Re-export `GrpcWebFetchTransport`, `GrpcWebOptions`, and `RpcTransport` from
+  `@mysten/sui/grpc` so users can configure custom transports without adding `@protobuf-ts/*` as
+  direct dependencies.
+
+### Patch Changes
+
+- ef0b8a7: Error when mixing SUI CoinWithBalance intents that use the gas coin with ones that set
+  useGasCoin: false in the same transaction, preventing potential double-counting of address
+  balance.
+
 ## 2.14.1
 
 ### Patch Changes

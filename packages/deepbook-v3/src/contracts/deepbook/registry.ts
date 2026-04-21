@@ -6,7 +6,7 @@
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as versioned from './deps/sui/versioned.js';
 import * as vec_set from './deps/sui/vec_set.js';
 import * as bag from './deps/sui/bag.js';
@@ -330,13 +330,13 @@ export function getBalanceManagerIds(options: GetBalanceManagerIdsOptions) {
 }
 export interface IsStablecoinArguments {
 	self: RawTransactionArgument<string>;
-	stableType: RawTransactionArgument<string>;
+	stableType: TransactionArgument;
 }
 export interface IsStablecoinOptions {
 	package?: string;
 	arguments:
 		| IsStablecoinArguments
-		| [self: RawTransactionArgument<string>, stableType: RawTransactionArgument<string>];
+		| [self: RawTransactionArgument<string>, stableType: TransactionArgument];
 }
 /** Returns whether the given coin is whitelisted */
 export function isStablecoin(options: IsStablecoinOptions) {

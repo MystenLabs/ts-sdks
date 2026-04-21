@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/walrus",
-	"version": "1.1.0",
+	"version": "1.1.2",
 	"private": false,
 	"description": "Walrus SDK",
 	"license": "Apache-2.0",
@@ -46,7 +46,7 @@
 	},
 	"homepage": "https://sdk.mystenlabs.com/walrus",
 	"devDependencies": {
-		"@hono/node-server": "^1.19.11",
+		"@hono/node-server": "^1.19.13",
 		"@mysten/codegen": "workspace:^",
 		"@mysten/dapp-kit-core": "workspace:^",
 		"@mysten/dapp-kit-react": "workspace:^",
@@ -56,12 +56,12 @@
 		"@types/react": "^19.2.8",
 		"@types/react-dom": "^19.2.3",
 		"@vitejs/plugin-react": "^5.1.2",
-		"hono": "^4.12.8",
+		"hono": "^4.12.12",
 		"react": "^19.2.3",
 		"react-dom": "^19.2.3",
 		"typescript": "^5.9.3",
 		"undici": "^7.24.4",
-		"vite": "^7.3.1",
+		"vite": "^8.0.5",
 		"vitest": "^4.0.17"
 	},
 	"dependencies": {

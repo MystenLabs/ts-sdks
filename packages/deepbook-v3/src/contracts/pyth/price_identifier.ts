@@ -3,7 +3,7 @@
  **************************************************************/
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 const $moduleName =
 	'0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837::price_identifier';
 export const PriceIdentifier = new MoveStruct({
@@ -14,7 +14,7 @@ export const PriceIdentifier = new MoveStruct({
 });
 export interface FromByteVecOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<number[]>];
+	arguments: [RawTransactionArgument<Array<number>>];
 }
 export function fromByteVec(options: FromByteVecOptions) {
 	const packageAddress =
@@ -30,7 +30,7 @@ export function fromByteVec(options: FromByteVecOptions) {
 }
 export interface GetBytesOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>];
+	arguments: [TransactionArgument];
 }
 export function getBytes(options: GetBytesOptions) {
 	const packageAddress =

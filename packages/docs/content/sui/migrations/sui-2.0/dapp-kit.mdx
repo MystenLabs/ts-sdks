@@ -1,6 +1,17 @@
 ---
 title: '@mysten/dapp-kit'
-description: Migrate @mysten/dapp-kit to 2.0
+description: Migrate @mysten/dapp-kit to the new dapp-kit-react package in 2.0.
+keywords:
+  [
+    migration,
+    '@mysten/dapp-kit',
+    dapp-kit-react,
+    2.0,
+    React,
+    framework-agnostic,
+    hooks,
+    breaking changes,
+  ]
 ---
 
 This guide helps you migrate from the original `@mysten/dapp-kit` (legacy) to the new
@@ -14,20 +25,20 @@ This guide helps you migrate from the original `@mysten/dapp-kit` (legacy) to th
 
 ## Overview
 
-The new dApp Kit SDK represents a complete rewrite with these key changes:
+The new dApp kit SDK represents a complete rewrite with these key changes:
 
-- **Framework agnostic**: Split into `@mysten/dapp-kit-core` (framework-agnostic) and
+- Framework agnostic: Split into `@mysten/dapp-kit-core` (framework-agnostic) and
   `@mysten/dapp-kit-react` (React bindings)
-- **No React Query dependency**: Direct promise-based API instead of mutation hooks
-- **Web Components**: UI components built with Lit Elements for cross-framework compatibility
-- **Smaller bundle size**: No React Query dependency, lighter state management with nanostores
-- **Better SSR support**: Compatible with SSR frameworks like Next.js
-- **Cross-framework compatibility**: Core functionality can be used in vanilla JS, Vue, React, and
-  other frameworks
+- No React Query dependency: Direct promise-based API instead of mutation hooks
+- Web Components: UI components built with Lit Elements for cross-framework compatibility
+- Smaller bundle size: No React Query dependency, lighter state management with nanostores
+- Better SSR support: Compatible with SSR frameworks like Next.js
+- Cross-framework compatibility: Core functionality can be used in vanilla JS, Vue, React, and other
+  frameworks
 
-## Step-by-Step Migration
+## Step-by-step migration
 
-### 1. Update Dependencies
+### Step 1: Update dependencies
 
 Remove the old package and install the new ones:
 
@@ -36,9 +47,9 @@ npm uninstall @mysten/dapp-kit
 npm i @mysten/dapp-kit-react @mysten/dapp-kit-core @mysten/sui
 ```
 
-### 2. Create dApp Kit Instance
+### Step 2: Create dApp Kit instance
 
-Create a new instance of the dApp Kit using the `createDAppKit` function and register the global
+Create a new instance of the dApp kit using the `createDAppKit` function and register the global
 type.
 
 ```tsx
@@ -65,12 +76,12 @@ declare module '@mysten/dapp-kit-react' {
 }
 ```
 
-### 3. Register Types
+### Step 3: Register types
 
-The `declare module` block in the previous step registers your dApp Kit instance's type globally.
+The `declare module` block in the previous step registers your dApp kit instance's type globally.
 This enables all hooks like `useDAppKit()`, `useCurrentNetwork()`, and `useCurrentClient()` to
-automatically infer the correct types based on your configuration (e.g., your specific networks and
-client type).
+automatically infer the correct types based on your configuration (for example, your specific
+networks and client type).
 
 ```tsx
 declare module '@mysten/dapp-kit-react' {
@@ -89,9 +100,9 @@ const connection = useWalletConnection({ dAppKit });
 const network = useCurrentNetwork({ dAppKit });
 ```
 
-### 4. Replace Provider Setup
+### Step 4: Replace provider setup
 
-Replace the nested dApp Kit providers with a single unified provider. You can keep your existing
+Replace the nested dApp kit providers with a single unified provider. You can keep your existing
 `QueryClientProvider` for data fetching.
 
 ```diff
@@ -123,7 +134,7 @@ Replace the nested dApp Kit providers with a single unified provider. You can ke
   }
 ```
 
-### 5. Configuration Option Changes
+### Step 5: Configuration option changes
 
 The `createDAppKit` function has different configuration options than the old `WalletProvider`:
 
@@ -142,24 +153,24 @@ The `createDAppKit` function has different configuration options than the old `W
 | `theme`                | -                     | Removed (UI components are now web components with built-in styling) |
 | -                      | `walletInitializers`  | New option for registering custom wallets                            |
 
-### 6. Update Hook Usage
+### Step 6: Update hook usage
 
-The new dApp Kit has a dramatically simplified hook API. Most hooks from the original version have
+The new dApp kit has a dramatically simplified hook API. Most hooks from the original version have
 been replaced with direct action calls through `useDAppKit()`.
 
 **Available hooks in the new version:**
 
-- `useDAppKit()` - Access the dAppKit instance for calling actions
-- `useCurrentClient()` - Get the blockchain client (renamed from `useSuiClient`)
-- `useCurrentAccount()` - Get the current connected account
-- `useCurrentWallet()` - Get the current connected wallet
-- `useWallets()` - Get the list of available wallets
-- `useWalletConnection()` - Get the current wallet connection status
-- `useCurrentNetwork()` - Get the current network
+- `useDAppKit()`: Access the dAppKit instance for calling actions
+- `useCurrentClient()`: Get the blockchain client (renamed from `useSuiClient`)
+- `useCurrentAccount()`: Get the current connected account
+- `useCurrentWallet()`: Get the current connected wallet
+- `useWallets()`: Get the list of available wallets
+- `useWalletConnection()`: Get the current wallet connection status
+- `useCurrentNetwork()`: Get the current network
 
 **Removed hooks:**
 
-All wallet action hooks have been replaced with direct action calls via `useDAppKit()`:
+All wallet action hooks have been replaced with direct action calls through `useDAppKit()`:
 
 - `useConnectWallet` -> Use `dAppKit.connectWallet()`
 - `useDisconnectWallet` -> Use `dAppKit.disconnectWallet()`
@@ -182,16 +193,16 @@ Other removed hooks:
 - `useAccounts` -> Use `useWalletConnection()` to access `connection.wallet.accounts`
 - `useWalletStore` -> Use specific hooks like `useWalletConnection()` instead
 
-### 7. Replace Mutation Patterns
+### Step 7: Replace mutation patterns
 
 The built-in mutation hooks have been removed. Use TanStack Query's `useMutation` with
 `useDAppKit()` to get similar functionality.
 
 **Chain parameter replaced with network:**
 
-In the old dapp-kit, you could optionally pass a `chain` parameter (e.g., `sui:mainnet`) to methods
-like `signTransaction` and `signAndExecuteTransaction`. In the new dapp-kit, use the `network`
-parameter instead - the chain is automatically derived from the network.
+In the old dApp kit, you could optionally pass a `chain` parameter (for example, `sui:mainnet`) to
+methods like `signTransaction` and `signAndExecuteTransaction`. In the new dApp kit, use the
+`network` parameter instead - the chain is automatically derived from the network.
 
 ```diff
 - const { mutateAsync: signAndExecute } = useSignAndExecuteTransaction();
@@ -258,7 +269,7 @@ export function ExampleComponent({ transaction }: { transaction: Transaction }) 
 }
 ```
 
-### 8. Replace Data Fetching Patterns
+### Step 8: Replace data fetching patterns
 
 The built-in data fetching hooks have been removed. Use TanStack Query's `useQuery` with
 `useCurrentClient()` to get similar functionality:
@@ -307,9 +318,9 @@ export function ExampleComponent({ objectId }: { objectId: string }) {
 }
 ```
 
-### 9. Update The Remaining Code
+### Step 9: Update the remaining code
 
-The following hooks from the original dApp Kit are not available anymore:
+The following hooks from the original dApp kit are not available anymore:
 
 - `useSuiClientQuery` → Use `useQuery` from `@tanstack/react-query`
 - `useSuiClientMutation` → Use `useMutation` from `@tanstack/react-query`
@@ -318,7 +329,7 @@ The following hooks from the original dApp Kit are not available anymore:
 
 <Callout type="warning">
 	The `reportTransactionEffects` feature is planned for deprecation in the [Wallet
-	Standard](https://docs.sui.io/standards/wallet-standard) and so the dApp Kit provides no
+	Standard](https://docs.sui.io/standards/wallet-standard) and so the dApp kit provides no
 	replacement.
 </Callout>
 
@@ -328,18 +339,18 @@ The following have been removed:
 - `reportTransactionEffects` callback from `useSignTransaction`
 - Automatic transaction effects reporting from `useSignAndExecuteTransaction`
 
-## CSS and Theming Changes
+## CSS and theming changes
 
-The new dApp Kit no longer bundles a CSS file. If you were importing the old CSS file, remove the
+The new dApp kit no longer bundles a CSS file. If you were importing the old CSS file, remove the
 import:
 
 ```diff
 - import '@mysten/dapp-kit/dist/full/index.css';
 ```
 
-The new dApp Kit uses web components with built-in styling that can be customized using CSS custom
+The new dApp kit uses web components with built-in styling that can be customized using CSS custom
 properties. See the [Theming documentation](/dapp-kit/theming) for details on customizing the
-appearance of dApp Kit components.
+appearance of dApp kit components.
 
 **Quick theme setup:**
 
@@ -356,7 +367,7 @@ appearance of dApp Kit components.
 
 ## Removing TanStack Query
 
-If you were only using `@tanstack/react-query` for dApp Kit and don't need it for other parts of
+If you were only using `@tanstack/react-query` for dApp kit and don't need it for other parts of
 your application, you can now remove it:
 
 ```bash

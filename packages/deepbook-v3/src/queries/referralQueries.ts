@@ -18,6 +18,7 @@ export class ReferralQueries {
 
 	async balanceManagerReferralOwner(referral: string): Promise<string> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.balanceManager.balanceManagerReferralOwner(referral));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -31,6 +32,7 @@ export class ReferralQueries {
 
 	async getPoolReferralBalances(poolKey: string, referral: string): Promise<ReferralBalances> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		const pool = this.#ctx.config.getPool(poolKey);
 		const baseScalar = this.#ctx.config.getCoin(pool.baseCoin).scalar;
 		const quoteScalar = this.#ctx.config.getCoin(pool.quoteCoin).scalar;
@@ -59,6 +61,7 @@ export class ReferralQueries {
 
 	async balanceManagerReferralPoolId(referral: string): Promise<string> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 
 		tx.add(this.#ctx.balanceManager.balanceManagerReferralPoolId(referral));
 
@@ -75,6 +78,7 @@ export class ReferralQueries {
 
 	async poolReferralMultiplier(poolKey: string, referral: string): Promise<number> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 
 		tx.add(this.#ctx.deepBook.poolReferralMultiplier(poolKey, referral));
 
@@ -91,6 +95,7 @@ export class ReferralQueries {
 
 	async getBalanceManagerReferralId(managerKey: string, poolKey: string): Promise<string | null> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.balanceManager.getBalanceManagerReferralId(managerKey, poolKey));
 
 		const res = await this.#ctx.client.core.simulateTransaction({

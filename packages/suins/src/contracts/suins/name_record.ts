@@ -10,7 +10,7 @@
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as vec_map from './deps/sui/vec_map.js';
 const $moduleName = '@suins/core::name_record';
 export const NameRecord = new MoveStruct({
@@ -90,14 +90,12 @@ export function newLeaf(options: NewLeafOptions) {
 		});
 }
 export interface SetDataArguments {
-	self: RawTransactionArgument<string>;
-	data: RawTransactionArgument<string>;
+	self: TransactionArgument;
+	data: TransactionArgument;
 }
 export interface SetDataOptions {
 	package?: string;
-	arguments:
-		| SetDataArguments
-		| [self: RawTransactionArgument<string>, data: RawTransactionArgument<string>];
+	arguments: SetDataArguments | [self: TransactionArgument, data: TransactionArgument];
 }
 /**
  * Set data as a vec_map directly overriding the data set in the registration self.
@@ -126,14 +124,14 @@ export function setData(options: SetDataOptions) {
 		});
 }
 export interface SetTargetAddressArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 	newAddress: RawTransactionArgument<string | null>;
 }
 export interface SetTargetAddressOptions {
 	package?: string;
 	arguments:
 		| SetTargetAddressArguments
-		| [self: RawTransactionArgument<string>, newAddress: RawTransactionArgument<string | null>];
+		| [self: TransactionArgument, newAddress: RawTransactionArgument<string | null>];
 }
 /** Set the `target_address` field of the `NameRecord`. */
 export function setTargetAddress(options: SetTargetAddressOptions) {
@@ -149,17 +147,14 @@ export function setTargetAddress(options: SetTargetAddressOptions) {
 		});
 }
 export interface SetExpirationTimestampMsArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 	expirationTimestampMs: RawTransactionArgument<number | bigint>;
 }
 export interface SetExpirationTimestampMsOptions {
 	package?: string;
 	arguments:
 		| SetExpirationTimestampMsArguments
-		| [
-				self: RawTransactionArgument<string>,
-				expirationTimestampMs: RawTransactionArgument<number | bigint>,
-		  ];
+		| [self: TransactionArgument, expirationTimestampMs: RawTransactionArgument<number | bigint>];
 }
 export function setExpirationTimestampMs(options: SetExpirationTimestampMsOptions) {
 	const packageAddress = options.package ?? '@suins/core';
@@ -174,11 +169,11 @@ export function setExpirationTimestampMs(options: SetExpirationTimestampMsOption
 		});
 }
 export interface HasExpiredArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface HasExpiredOptions {
 	package?: string;
-	arguments: HasExpiredArguments | [self: RawTransactionArgument<string>];
+	arguments: HasExpiredArguments | [self: TransactionArgument];
 }
 /** Check if the record has expired. */
 export function hasExpired(options: HasExpiredOptions) {
@@ -194,11 +189,11 @@ export function hasExpired(options: HasExpiredOptions) {
 		});
 }
 export interface HasExpiredPastGracePeriodArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface HasExpiredPastGracePeriodOptions {
 	package?: string;
-	arguments: HasExpiredPastGracePeriodArguments | [self: RawTransactionArgument<string>];
+	arguments: HasExpiredPastGracePeriodArguments | [self: TransactionArgument];
 }
 /** Check if the record has expired, taking into account the grace period. */
 export function hasExpiredPastGracePeriod(options: HasExpiredPastGracePeriodOptions) {
@@ -214,11 +209,11 @@ export function hasExpiredPastGracePeriod(options: HasExpiredPastGracePeriodOpti
 		});
 }
 export interface IsLeafRecordArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface IsLeafRecordOptions {
 	package?: string;
-	arguments: IsLeafRecordArguments | [self: RawTransactionArgument<string>];
+	arguments: IsLeafRecordArguments | [self: TransactionArgument];
 }
 /** Checks whether a name_record is a `leaf` record. */
 export function isLeafRecord(options: IsLeafRecordOptions) {
@@ -234,11 +229,11 @@ export function isLeafRecord(options: IsLeafRecordOptions) {
 		});
 }
 export interface DataArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface DataOptions {
 	package?: string;
-	arguments: DataArguments | [self: RawTransactionArgument<string>];
+	arguments: DataArguments | [self: TransactionArgument];
 }
 /** Read the `data` field from the `NameRecord`. */
 export function data(options: DataOptions) {
@@ -254,11 +249,11 @@ export function data(options: DataOptions) {
 		});
 }
 export interface TargetAddressArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface TargetAddressOptions {
 	package?: string;
-	arguments: TargetAddressArguments | [self: RawTransactionArgument<string>];
+	arguments: TargetAddressArguments | [self: TransactionArgument];
 }
 /** Read the `target_address` field from the `NameRecord`. */
 export function targetAddress(options: TargetAddressOptions) {
@@ -274,11 +269,11 @@ export function targetAddress(options: TargetAddressOptions) {
 		});
 }
 export interface NftIdArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface NftIdOptions {
 	package?: string;
-	arguments: NftIdArguments | [self: RawTransactionArgument<string>];
+	arguments: NftIdArguments | [self: TransactionArgument];
 }
 /** Read the `nft_id` field from the `NameRecord`. */
 export function nftId(options: NftIdOptions) {
@@ -294,11 +289,11 @@ export function nftId(options: NftIdOptions) {
 		});
 }
 export interface ExpirationTimestampMsArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface ExpirationTimestampMsOptions {
 	package?: string;
-	arguments: ExpirationTimestampMsArguments | [self: RawTransactionArgument<string>];
+	arguments: ExpirationTimestampMsArguments | [self: TransactionArgument];
 }
 /** Read the `expiration_timestamp_ms` field from the `NameRecord`. */
 export function expirationTimestampMs(options: ExpirationTimestampMsOptions) {
