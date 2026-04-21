@@ -12,7 +12,7 @@ New `balanceFlows` rule exposes per-address signed balance deltas — negative =
 
 Coin reservation refs are surfaced as synthetic entries in the `objects` / `coins` / `gasCoins` analyzers with `isCoinReservation: true` on the resulting `AnalyzedObject` and balance decoded from the digest. Gas-payment reservations (always `Coin<SUI>`) are synthesized locally. Reservation refs that appear as regular `Object` inputs — the backwards-compatible shape produced by old SDKs via `listCoins` — are resolved by unmasking the object ID (XOR with chain identifier) and batching the accumulator-field lookup into the same `getObjects` request; the coin type is parsed from the accumulator field's struct tag.
 
-New `@mysten/sui/utils` exports to support this: `unmaskCoinReservationObjectId` and `parseAccumulatorFieldCoinType`.
+New `@mysten/sui/utils` exports to support this: `xorCoinReservationObjectId` and `parseAccumulatorFieldCoinType`.
 
 The existing `coinFlows` rule is now deprecated — it returns sender-only outflows with the pre-PR sign convention (positive = spent). Migrate to `balanceFlows.sender` for signed flows, or iterate `balanceFlows.byAddress[senderAddress]`.
 

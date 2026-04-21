@@ -9,7 +9,7 @@ import {
 	isCoinReservationDigest,
 	parseAccumulatorFieldCoinType,
 	parseCoinReservationBalance,
-	unmaskCoinReservationObjectId,
+	xorCoinReservationObjectId,
 } from '../../../src/utils/coin-reservation.js';
 
 function makeReservationDigest(balance: bigint, epoch: number): string {
@@ -36,35 +36,35 @@ describe('coin reservation digest helpers', () => {
 	});
 });
 
-describe('unmaskCoinReservationObjectId', () => {
+describe('xorCoinReservationObjectId', () => {
 	test('XOR is self-inverse with the chain identifier', () => {
 		const accumulatorId = '0x1111111111111111111111111111111111111111111111111111111111111111';
 		// 32-byte chain identifier, base58 encoded
 		const chainBytes = new Uint8Array(32).fill(0x22);
 		const chainIdentifier = toBase58(chainBytes);
 
-		const masked = unmaskCoinReservationObjectId(accumulatorId, chainIdentifier);
+		const masked = xorCoinReservationObjectId(accumulatorId, chainIdentifier);
 		const maskedBytes = fromHex(masked.slice(2));
 		// XOR: 0x11 ^ 0x22 = 0x33
 		expect(maskedBytes.every((b) => b === 0x33)).toBe(true);
 
-		const unmasked = unmaskCoinReservationObjectId(masked, chainIdentifier);
+		const unmasked = xorCoinReservationObjectId(masked, chainIdentifier);
 		expect(unmasked).toBe(accumulatorId);
 	});
 
 	test('throws on a malformed chain identifier', () => {
 		const accumulatorId = '0x1111111111111111111111111111111111111111111111111111111111111111';
-		expect(() =>
-			unmaskCoinReservationObjectId(accumulatorId, toBase58(new Uint8Array(16))),
-		).toThrow(/chain identifier/);
+		expect(() => xorCoinReservationObjectId(accumulatorId, toBase58(new Uint8Array(16)))).toThrow(
+			/chain identifier/,
+		);
 	});
 
 	test('accepts object ids with and without 0x prefix', () => {
 		const accumulatorId = '0x1111111111111111111111111111111111111111111111111111111111111111';
 		const chainBytes = new Uint8Array(32).fill(0x22);
 		const chainIdentifier = toBase58(chainBytes);
-		expect(unmaskCoinReservationObjectId(accumulatorId, chainIdentifier)).toBe(
-			unmaskCoinReservationObjectId(accumulatorId.slice(2), chainIdentifier),
+		expect(xorCoinReservationObjectId(accumulatorId, chainIdentifier)).toBe(
+			xorCoinReservationObjectId(accumulatorId.slice(2), chainIdentifier),
 		);
 	});
 });

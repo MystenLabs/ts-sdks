@@ -9,7 +9,7 @@ import {
 	normalizeSuiAddress,
 	parseAccumulatorFieldCoinType,
 	parseCoinReservationBalance,
-	unmaskCoinReservationObjectId,
+	xorCoinReservationObjectId,
 } from '@mysten/sui/utils';
 import { createAnalyzer } from '../analyzer.js';
 import type { TransactionAnalysisIssue } from '../analyzer.js';
@@ -166,7 +166,7 @@ export const objects = createAnalyzer({
 				requests.push({
 					kind: 'reservation',
 					maskedId: objectId,
-					unmaskedId: unmaskCoinReservationObjectId(objectId, chainIdentifier),
+					unmaskedId: xorCoinReservationObjectId(objectId, chainIdentifier),
 					digest,
 					version,
 				});

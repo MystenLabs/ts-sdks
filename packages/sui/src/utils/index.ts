@@ -43,5 +43,5 @@ export {
 	isCoinReservationDigest,
 	parseAccumulatorFieldCoinType,
 	parseCoinReservationBalance,
-	unmaskCoinReservationObjectId,
+	xorCoinReservationObjectId,
 } from './coin-reservation.js';

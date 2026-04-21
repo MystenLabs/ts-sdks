@@ -32,7 +32,15 @@ export function parseCoinReservationBalance(digestBase58: string): bigint {
 	return view.getBigUint64(0, true);
 }
 
-function xorObjectIdWithChainIdentifier(objectId: string, chainIdentifier: string): string {
+/**
+ * Coin reservation object ids are the underlying accumulator-field object
+ * id XOR'd with the chain identifier. The operation is self-inverse, so
+ * the same function masks and unmasks: pass a reservation ref's object
+ * id to recover the accumulator-field id (fetch it via `getObjects` to
+ * discover the coin type), or pass an accumulator-field id to construct
+ * the reservation ref's object id.
+ */
+export function xorCoinReservationObjectId(objectId: string, chainIdentifier: string): string {
 	const idBytes = fromHex(objectId);
 	if (idBytes.length !== 32) {
 		throw new Error(`Invalid object id length: expected 32 bytes, got ${idBytes.length}`);
@@ -46,18 +54,6 @@ function xorObjectIdWithChainIdentifier(objectId: string, chainIdentifier: strin
 		xored[i] = idBytes[i] ^ chainBytes[i];
 	}
 	return `0x${toHex(xored)}`;
-}
-
-/**
- * Unmasks a coin reservation object id by XORing with the chain identifier.
- * Returns the underlying accumulator-field object id, which can be fetched
- * via `getObjects` to discover the coin type.
- */
-export function unmaskCoinReservationObjectId(
-	maskedObjectId: string,
-	chainIdentifier: string,
-): string {
-	return xorObjectIdWithChainIdentifier(maskedObjectId, chainIdentifier);
 }
 
 /**
@@ -130,7 +126,7 @@ function deriveReservationObjectId(owner: string, chainIdentifier: string): stri
 		ACCUMULATOR_KEY_TYPE_TAG,
 		keyBcs,
 	);
-	return xorObjectIdWithChainIdentifier(accumulatorId, chainIdentifier);
+	return xorCoinReservationObjectId(accumulatorId, chainIdentifier);
 }
 
 export function createCoinReservationRef(
