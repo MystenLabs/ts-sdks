@@ -272,15 +272,19 @@ export const balanceFlows = createAnalyzer({
 
 			if (data.gasData.budget) {
 				const budget = BigInt(data.gasData.budget);
-				if (gasBalance > 0n) {
-					// Non-empty payment: take the budget off the gas coin's balance
-					// so it shows up as a net outflow across the coin's contributors
-					// via the implicit-return proportional split.
-					trackedCoins.get('gas')!.balance -= budget;
-				} else {
-					// Empty payment: there's no gas coin to draw from, so charge the
-					// gas payer directly.
+				const paymentIsEmpty = (data.gasData.payment?.length ?? 0) === 0;
+				if (paymentIsEmpty) {
+					// `payment: []` means gas is being paid from the gas owner's
+					// address balance (no coin objects were provided). Charge the
+					// gas payer directly — there's no gas coin to deduct from.
 					adjustDelta(normalizedGasOwner, suiType, -budget);
+				} else {
+					if (budget > gasBalance) {
+						issues.push({
+							message: `Gas budget ${budget} exceeds the gas payment balance ${gasBalance}`,
+						});
+					}
+					trackedCoins.get('gas')!.balance -= budget;
 				}
 			} else {
 				issues.push({ message: 'Gas budget not set in Transaction' });
