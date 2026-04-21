@@ -5,11 +5,8 @@ import { describe, it, expect } from 'vitest';
 import { Transaction } from '@mysten/sui/transactions';
 import { normalizeStructTag } from '@mysten/sui/utils';
 import { analyze } from '../../src/transaction-analyzer/analyzer.js';
-import {
-	addressCoinFlows,
-	coinFlows,
-	sponsorFlows,
-} from '../../src/transaction-analyzer/rules/coin-flows.js';
+import { balanceFlows } from '../../src/transaction-analyzer/rules/balance-flows.js';
+import { coinFlows, sponsorFlows } from '../../src/transaction-analyzer/rules/coin-flows.js';
 import { MockSuiClient } from '../mocks/MockSuiClient.js';
 import {
 	DEFAULT_SENDER,
@@ -989,20 +986,13 @@ describe('Coin Flows - Per-party tracking', () => {
 			{ client, transaction: sponsorize(client, await tx.toJSON()) },
 		);
 
-		// Sender's own slice that was joined in came back to sender; under the
-		// net-delta model the sender ends up with +100M USDC (received sponsor's
-		// portion back on top of the round-tripped 200M).
-		expect(results.coinFlows.result?.outflows.find((f) => f.coinType === USDC)).toBeUndefined();
+		// Sender's own slice was round-tripped and sponsor's 300M ended up with
+		// sender: net +300M USDC for sender → shows as a negative outflow.
+		const senderFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
+		expect(senderFlow?.amount).toBe(-300000000n);
 
-		// Check the full per-address picture via addressCoinFlows (signed).
-		const results2 = await analyze(
-			{ addressCoinFlows, sponsorFlows },
-			{ client, transaction: sponsorize(client, await tx.toJSON()) },
-		);
-		const byAddress = results2.addressCoinFlows.result?.byAddress ?? {};
-		const senderEntry = byAddress[DEFAULT_SENDER]?.find((f) => f.coinType === USDC);
-		expect(senderEntry?.amount).toBe(300000000n); // net +300 USDC
-		const sponsorFlow = results2.sponsorFlows.result?.outflows.find((f) => f.coinType === USDC);
+		// Sponsor paid 300M: positive sponsor outflow.
+		const sponsorFlow = results.sponsorFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(sponsorFlow?.amount).toBe(300000000n);
 	});
 });
@@ -1029,11 +1019,11 @@ describe('Coin Flows - Mixed-owner merge recipient inflow', () => {
 		tx.transferObjects([senderUsdc], tx.pure.address(RECIPIENT));
 
 		const results = await analyze(
-			{ addressCoinFlows },
+			{ balanceFlows },
 			{ client, transaction: sponsorize(client, await tx.toJSON()) },
 		);
 
-		const byAddress = results.addressCoinFlows.result?.byAddress ?? {};
+		const byAddress = results.balanceFlows.result?.byAddress ?? {};
 
 		// Signed per-address deltas: sender -500M, sponsor -100M, recipient +600M.
 		expect(byAddress[DEFAULT_SENDER]?.find((f) => f.coinType === USDC)?.amount).toBe(-500000000n);
@@ -1060,11 +1050,11 @@ describe('Coin Flows - Mixed-owner merge recipient inflow', () => {
 		tx.transferObjects([senderUsdc], tx.pure.address(RECIPIENT));
 
 		const results = await analyze(
-			{ addressCoinFlows },
+			{ balanceFlows },
 			{ client, transaction: sponsorize(client, await tx.toJSON()) },
 		);
 
-		const byAddress = results.addressCoinFlows.result?.byAddress ?? {};
+		const byAddress = results.balanceFlows.result?.byAddress ?? {};
 
 		expect(byAddress[DEFAULT_SENDER]?.find((f) => f.coinType === USDC)?.amount).toBe(-500000000n);
 		expect(byAddress[SPONSOR]?.find((f) => f.coinType === USDC)?.amount).toBe(-100000000n);
@@ -1086,13 +1076,13 @@ describe('Coin Flows - Mixed-owner merge recipient inflow', () => {
 		tx.transferObjects([senderUsdc], tx.pure.address(RECIPIENT));
 
 		const results = await analyze(
-			{ addressCoinFlows },
+			{ balanceFlows },
 			{ client, transaction: sponsorize(client, await tx.toJSON()) },
 		);
 
 		// Signed deltas must sum to zero per coin type (value is conserved:
 		// every outflow has a matching inflow somewhere).
-		const byAddress = results.addressCoinFlows.result?.byAddress ?? {};
+		const byAddress = results.balanceFlows.result?.byAddress ?? {};
 		const perType = new Map<string, bigint>();
 		for (const flows of Object.values(byAddress)) {
 			for (const f of flows) {
