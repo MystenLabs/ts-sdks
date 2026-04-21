@@ -1,8 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { bcs } from '@mysten/sui/bcs';
-import { objects, objectsById } from './objects.js';
+import { Coin, objects, objectsById } from './objects.js';
 import type { AnalyzedObject } from './objects.js';
 import { createAnalyzer } from '../analyzer.js';
 import { normalizeStructTag, parseStructTag } from '@mysten/sui/utils';
@@ -10,10 +9,6 @@ import { data } from './core.js';
 
 export type AnalyzedCoin = AnalyzedObject & { balance: bigint; coinType: string };
 
-export const Coin = bcs.struct('Coin', {
-	id: bcs.Address,
-	balance: bcs.U64,
-});
 const parsedCoinStruct = parseStructTag('0x2::coin::Coin<0x2::sui::SUI>');
 
 function isCoinObject(obj: AnalyzedObject): boolean {

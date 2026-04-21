@@ -77,6 +77,10 @@ export const balanceFlows = createAnalyzer({
 					case 'Pure':
 					case 'Withdrawal':
 						return null;
+					default: {
+						const _exhaustive: never = ref;
+						throw new Error(`Unknown command argument kind: ${JSON.stringify(_exhaustive)}`);
+					}
 				}
 			};
 
@@ -262,9 +266,8 @@ export const balanceFlows = createAnalyzer({
 			const suiType = normalizeStructTag('0x2::sui::SUI');
 			const normalizedGasOwner = normalizeAddress(gasOwner);
 
-			// All gas-payment coins are consumed into a single tx.gas coin owned by
-			// the gas payer. We track only that combined coin, and charge the gas
-			// payer the full combined balance up front.
+			// Gas payment coins are smashed into a single tx.gas coin owned by
+			// the gas payer.
 			const gasBalance = gasCoins.reduce((a, c) => a + c.balance, 0n);
 			track('gas', new TrackedCoin(suiType, gasBalance, normalizedGasOwner));
 			adjustDelta(normalizedGasOwner, suiType, -gasBalance);
@@ -273,9 +276,7 @@ export const balanceFlows = createAnalyzer({
 				const budget = BigInt(data.gasData.budget);
 				const paymentIsEmpty = (data.gasData.payment?.length ?? 0) === 0;
 				if (paymentIsEmpty) {
-					// `payment: []` means gas is being paid from the gas owner's
-					// address balance (no coin objects were provided). Charge the
-					// gas payer directly — there's no gas coin to deduct from.
+					// `payment: []` means gas is paid from the gas owner's address balance.
 					adjustDelta(normalizedGasOwner, suiType, -budget);
 				} else {
 					if (budget > gasBalance) {
@@ -336,8 +337,7 @@ export const balanceFlows = createAnalyzer({
 
 			if (issues.length) return { issues };
 
-			// Implicit return: every still-alive tracked coin credits its owner
-			// with its remaining balance.
+			// Implicit return: still-alive tracked coins credit their owner.
 			for (const [, coin] of trackedCoins) {
 				if (coin.balance <= 0n) continue;
 				adjustDelta(coin.ownerAddress, coin.coinType, coin.balance);

@@ -13,11 +13,6 @@ import type { TransactionAnalysisIssue } from '../analyzer.js';
 
 import { data } from './core.js';
 
-/**
- * BCS layout of `Coin<T> { id: UID, balance: Balance<T> }` — 32-byte id
- * followed by an 8-byte u64 balance. Exported so the `coins` rule can share
- * the same struct definition.
- */
 export const Coin = bcs.struct('Coin', {
 	id: bcs.Address,
 	balance: bcs.U64,
@@ -29,9 +24,8 @@ export type AnalyzedObject = SuiClientTypes.Object<{
 	ownerAddress: string | null;
 	/**
 	 * True for synthetic entries that stand in for a coin reservation ref.
-	 * Reservation "objects" don't exist on-chain — their balance is encoded
-	 * in the digest — so consumers should avoid treating `content` / `objectBcs`
-	 * as meaningful for these entries.
+	 * Reservations don't exist on-chain — their balance is encoded in the
+	 * digest — so `objectBcs` is undefined and `content` is synthesized.
 	 */
 	isCoinReservation?: boolean;
 };
@@ -43,49 +37,53 @@ export const objectIds = createAnalyzer({
 		({ data }) => {
 			const issues: TransactionAnalysisIssue[] = [];
 
-			const inputs = data.inputs
-				.filter((input): input is Extract<typeof input, { $kind: 'Object' }> => {
-					switch (input.$kind) {
-						case 'UnresolvedObject':
-						case 'UnresolvedPure':
-							issues.push({ message: `Unexpected unresolved input: ${JSON.stringify(input)}` });
-							return false;
-						case 'Pure':
-						case 'FundsWithdrawal':
-							return false;
-						case 'Object':
-							return true;
-						default:
-							issues.push({ message: `Unknown input type: ${JSON.stringify(input)}` });
-							return false;
+			const inputObjectIds: string[] = [];
+			for (const input of data.inputs) {
+				switch (input.$kind) {
+					case 'UnresolvedObject':
+					case 'UnresolvedPure':
+						issues.push({ message: `Unexpected unresolved input: ${JSON.stringify(input)}` });
+						continue;
+					case 'Pure':
+					case 'FundsWithdrawal':
+						continue;
+					case 'Object': {
+						let objectId: string;
+						let digest: string | null | undefined;
+						switch (input.Object.$kind) {
+							case 'ImmOrOwnedObject':
+								objectId = input.Object.ImmOrOwnedObject.objectId;
+								digest = input.Object.ImmOrOwnedObject.digest;
+								break;
+							case 'SharedObject':
+								objectId = input.Object.SharedObject.objectId;
+								digest = null;
+								break;
+							case 'Receiving':
+								objectId = input.Object.Receiving.objectId;
+								digest = input.Object.Receiving.digest;
+								break;
+							default:
+								throw new Error(`Unknown object type: ${JSON.stringify(input)}`);
+						}
+						if (digest && isCoinReservationDigest(digest)) continue;
+						inputObjectIds.push(objectId);
+						continue;
 					}
-				})
-				.map((input) => {
-					switch (input.Object.$kind) {
-						case 'ImmOrOwnedObject':
-							return input.Object.ImmOrOwnedObject.objectId;
-						case 'SharedObject':
-							return input.Object.SharedObject.objectId;
-						case 'Receiving':
-							return input.Object.Receiving.objectId;
-						default:
-							throw new Error(`Unknown object type: ${JSON.stringify(input)}`);
-					}
-				});
-
-			if (issues.length) {
-				return { issues };
+					default:
+						issues.push({ message: `Unknown input type: ${JSON.stringify(input)}` });
+				}
 			}
 
-			// Exclude synthetic coin-reservation refs from the on-chain fetch —
-			// they don't exist as objects and are synthesized in `objects`.
-			const gasObjects =
+			if (issues.length) return { issues };
+
+			const gasObjectIds =
 				data.gasData.payment
 					?.filter((obj) => !isCoinReservationDigest(obj.digest))
-					.map((obj) => obj.objectId) || [];
+					.map((obj) => obj.objectId) ?? [];
 
 			return {
-				result: Array.from(new Set([...inputs, ...gasObjects])),
+				result: Array.from(new Set([...inputObjectIds, ...gasObjectIds])),
 			};
 		},
 });
@@ -94,9 +92,6 @@ function makeReservationObject(
 	ref: { objectId: string; digest: string; version?: string | number | null },
 	owner: string | null,
 ): AnalyzedObject {
-	// A reservation's balance is encoded in the digest; we can synthesize
-	// valid Coin BCS content for it so downstream `Coin.parse(content)` works
-	// uniformly with real coins.
 	const balance = parseCoinReservationBalance(ref.digest);
 	const content = Coin.serialize({ id: ref.objectId, balance }).toBytes();
 	return {
@@ -168,10 +163,11 @@ export const objects = createAnalyzer({
 				return { ...obj, ownerAddress };
 			});
 
-			// Synthesize AnalyzedObject entries for coin reservation refs so
-			// downstream consumers can iterate `objects` / look up `objectsById`
-			// uniformly without special-casing reservations.
-			const gasOwner = data.gasData.owner ?? data.sender ?? null;
+			// Gas payment is always SUI, so reservation refs in gas payment are
+			// always Coin<SUI>. Reservation refs as regular Object inputs are a
+			// legacy form that would require an on-chain accumulator lookup to
+			// resolve their type — modern PTBs use typed `FundsWithdrawal` inputs.
+			const gasReservationOwner = data.gasData.owner ?? data.sender ?? null;
 			const seen = new Set(result.map((o) => o.objectId));
 			for (const ref of data.gasData.payment ?? []) {
 				if (!ref.digest || !isCoinReservationDigest(ref.digest)) continue;
@@ -179,7 +175,7 @@ export const objects = createAnalyzer({
 				result.push(
 					makeReservationObject(
 						{ objectId: ref.objectId, digest: ref.digest, version: ref.version },
-						gasOwner,
+						gasReservationOwner,
 					),
 				);
 				seen.add(ref.objectId);

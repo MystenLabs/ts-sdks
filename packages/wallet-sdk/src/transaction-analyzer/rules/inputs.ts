@@ -41,12 +41,22 @@ export const inputs = createAnalyzer({
 						case 'Pure':
 							return { $kind: 'Pure', index, bytes: input.Pure.bytes!, accessLevel: 'transfer' };
 						case 'Object': {
-							const objectId =
-								input.Object.ImmOrOwnedObject?.objectId ??
-								input.Object.Receiving?.objectId ??
-								input.Object.SharedObject?.objectId!;
+							let objectId: string;
+							switch (input.Object.$kind) {
+								case 'ImmOrOwnedObject':
+									objectId = input.Object.ImmOrOwnedObject.objectId;
+									break;
+								case 'SharedObject':
+									objectId = input.Object.SharedObject.objectId;
+									break;
+								case 'Receiving':
+									objectId = input.Object.Receiving.objectId;
+									break;
+								default:
+									throw new Error(`Unknown object input kind: ${JSON.stringify(input)}`);
+							}
 
-							const object = objectsById.get(objectId)!;
+							const object = objectsById.get(objectId);
 							if (!object) {
 								throw new Error(`Missing object for id ${objectId}`);
 							}
