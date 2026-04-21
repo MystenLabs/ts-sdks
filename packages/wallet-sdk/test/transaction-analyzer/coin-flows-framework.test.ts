@@ -989,17 +989,20 @@ describe('Coin Flows - Per-party tracking', () => {
 			{ client, transaction: sponsorize(client, await tx.toJSON()) },
 		);
 
-		// Sender's 200M slice stayed tagged as sender origin through the join,
-		// so transferring the merged coin back to sender doesn't move it off the
-		// sender. No sender outflow.
+		// Sender's own slice that was joined in came back to sender; under the
+		// net-delta model the sender ends up with +100M USDC (received sponsor's
+		// portion back on top of the round-tripped 200M).
 		expect(results.coinFlows.result?.outflows.find((f) => f.coinType === USDC)).toBeUndefined();
-		// Sender receives the sponsor's 300M portion as inflow (the sender
-		// portion came from sender, so it's not an inflow).
-		const senderInflow = results.coinFlows.result?.inflows.find((f) => f.coinType === USDC);
-		expect(senderInflow?.amount).toBe(300000000n);
 
-		// Sponsor paid 300M (their origin segment crossed from sponsor to sender).
-		const sponsorFlow = results.sponsorFlows.result?.outflows.find((f) => f.coinType === USDC);
+		// Check the full per-address picture via addressCoinFlows (signed).
+		const results2 = await analyze(
+			{ addressCoinFlows, sponsorFlows },
+			{ client, transaction: sponsorize(client, await tx.toJSON()) },
+		);
+		const byAddress = results2.addressCoinFlows.result?.byAddress ?? {};
+		const senderEntry = byAddress[DEFAULT_SENDER]?.find((f) => f.coinType === USDC);
+		expect(senderEntry?.amount).toBe(300000000n); // net +300 USDC
+		const sponsorFlow = results2.sponsorFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(sponsorFlow?.amount).toBe(300000000n);
 	});
 });
@@ -1032,14 +1035,10 @@ describe('Coin Flows - Mixed-owner merge recipient inflow', () => {
 
 		const byAddress = results.addressCoinFlows.result?.byAddress ?? {};
 
-		// Sender outflow = 500M (their slice of the merged coin left to RECIPIENT).
-		expect(byAddress[DEFAULT_SENDER]?.outflows.find((f) => f.coinType === USDC)?.amount).toBe(
-			500000000n,
-		);
-		// Sponsor outflow = 100M (their slice also went to RECIPIENT via the same coin).
-		expect(byAddress[SPONSOR]?.outflows.find((f) => f.coinType === USDC)?.amount).toBe(100000000n);
-		// RECIPIENT inflow = 600M total (sum across origins matches sum of outflows).
-		expect(byAddress[RECIPIENT]?.inflows.find((f) => f.coinType === USDC)?.amount).toBe(600000000n);
+		// Signed per-address deltas: sender -500M, sponsor -100M, recipient +600M.
+		expect(byAddress[DEFAULT_SENDER]?.find((f) => f.coinType === USDC)?.amount).toBe(-500000000n);
+		expect(byAddress[SPONSOR]?.find((f) => f.coinType === USDC)?.amount).toBe(-100000000n);
+		expect(byAddress[RECIPIENT]?.find((f) => f.coinType === USDC)?.amount).toBe(600000000n);
 	});
 
 	it('coin::join: recipient sees full merged balance across origins', async () => {
@@ -1067,14 +1066,12 @@ describe('Coin Flows - Mixed-owner merge recipient inflow', () => {
 
 		const byAddress = results.addressCoinFlows.result?.byAddress ?? {};
 
-		expect(byAddress[DEFAULT_SENDER]?.outflows.find((f) => f.coinType === USDC)?.amount).toBe(
-			500000000n,
-		);
-		expect(byAddress[SPONSOR]?.outflows.find((f) => f.coinType === USDC)?.amount).toBe(100000000n);
-		expect(byAddress[RECIPIENT]?.inflows.find((f) => f.coinType === USDC)?.amount).toBe(600000000n);
+		expect(byAddress[DEFAULT_SENDER]?.find((f) => f.coinType === USDC)?.amount).toBe(-500000000n);
+		expect(byAddress[SPONSOR]?.find((f) => f.coinType === USDC)?.amount).toBe(-100000000n);
+		expect(byAddress[RECIPIENT]?.find((f) => f.coinType === USDC)?.amount).toBe(600000000n);
 	});
 
-	it('sum(outflows) == sum(inflows) per coinType after a mixed merge + transfer', async () => {
+	it('per-coinType deltas sum to zero across all addresses', async () => {
 		const client = new MockSuiClient();
 		const tx = new Transaction();
 		tx.setSender(DEFAULT_SENDER);
@@ -1093,23 +1090,16 @@ describe('Coin Flows - Mixed-owner merge recipient inflow', () => {
 			{ client, transaction: sponsorize(client, await tx.toJSON()) },
 		);
 
+		// Signed deltas must sum to zero per coin type (value is conserved:
+		// every outflow has a matching inflow somewhere).
 		const byAddress = results.addressCoinFlows.result?.byAddress ?? {};
-		const perType = new Map<string, { out: bigint; in: bigint }>();
+		const perType = new Map<string, bigint>();
 		for (const flows of Object.values(byAddress)) {
-			for (const o of flows.outflows) {
-				const e = perType.get(o.coinType) ?? { out: 0n, in: 0n };
-				e.out += o.amount;
-				perType.set(o.coinType, e);
-			}
-			for (const i of flows.inflows) {
-				const e = perType.get(i.coinType) ?? { out: 0n, in: 0n };
-				e.in += i.amount;
-				perType.set(i.coinType, e);
+			for (const f of flows) {
+				perType.set(f.coinType, (perType.get(f.coinType) ?? 0n) + f.amount);
 			}
 		}
-		const usdc = perType.get(USDC);
-		expect(usdc?.out).toBe(600000000n);
-		expect(usdc?.in).toBe(600000000n);
+		expect(perType.get(USDC)).toBe(0n);
 	});
 });
 
