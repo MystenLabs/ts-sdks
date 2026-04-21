@@ -7,12 +7,13 @@ import { parse } from 'valibot';
 import { bcs, TypeTagSerializer } from '../bcs/index.js';
 import { ObjectRefSchema } from '../transactions/data/internal.js';
 import { deriveDynamicFieldID } from './dynamic-fields.js';
-import { normalizeSuiAddress } from './index.js';
+import { normalizeStructTag, normalizeSuiAddress, parseStructTag } from './index.js';
 
 const SUI_ACCUMULATOR_ROOT_OBJECT_ID = normalizeSuiAddress('0xacc');
 const ACCUMULATOR_KEY_TYPE_TAG = TypeTagSerializer.parseFromStr(
 	'0x2::accumulator::Key<0x2::balance::Balance<0x2::sui::SUI>>',
 );
+const SUI_FRAMEWORK = normalizeSuiAddress('0x2');
 
 export const COIN_RESERVATION_MAGIC = new Uint8Array([
 	0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac,
@@ -31,6 +32,93 @@ export function parseCoinReservationBalance(digestBase58: string): bigint {
 	return view.getBigUint64(0, true);
 }
 
+function xorObjectIdWithChainIdentifier(objectId: string, chainIdentifier: string): string {
+	const idHex = objectId.startsWith('0x') ? objectId.slice(2) : objectId;
+	const idBytes = fromHex(idHex);
+	if (idBytes.length !== 32) {
+		throw new Error(`Invalid object id length: expected 32 bytes, got ${idBytes.length}`);
+	}
+	const chainBytes = fromBase58(chainIdentifier);
+	if (chainBytes.length !== 32) {
+		throw new Error(`Invalid chain identifier length: expected 32 bytes, got ${chainBytes.length}`);
+	}
+	const xored = new Uint8Array(32);
+	for (let i = 0; i < 32; i++) {
+		xored[i] = idBytes[i] ^ chainBytes[i];
+	}
+	return `0x${toHex(xored)}`;
+}
+
+/**
+ * Unmasks a coin reservation object id by XORing with the chain identifier.
+ * Returns the underlying accumulator-field object id, which can be fetched
+ * via `getObjects` to discover the coin type.
+ */
+export function unmaskCoinReservationObjectId(
+	maskedObjectId: string,
+	chainIdentifier: string,
+): string {
+	return xorObjectIdWithChainIdentifier(maskedObjectId, chainIdentifier);
+}
+
+/**
+ * Given an accumulator-field object's struct tag
+ * (`0x2::dynamic_field::Field<0x2::accumulator::Key<0x2::balance::Balance<T>>, 0x2::accumulator::U128>`),
+ * returns the normalized coin type `T`. Returns `null` if the type tag
+ * doesn't match the expected shape.
+ */
+export function parseAccumulatorFieldCoinType(objectType: string): string | null {
+	let field;
+	try {
+		field = parseStructTag(objectType);
+	} catch {
+		return null;
+	}
+	if (
+		field.address !== SUI_FRAMEWORK ||
+		field.module !== 'dynamic_field' ||
+		field.name !== 'Field' ||
+		field.typeParams.length !== 2
+	) {
+		return null;
+	}
+
+	const [keyParam, valueParam] = field.typeParams;
+	if (typeof keyParam === 'string' || typeof valueParam === 'string') {
+		return null;
+	}
+	if (
+		valueParam.address !== SUI_FRAMEWORK ||
+		valueParam.module !== 'accumulator' ||
+		valueParam.name !== 'U128'
+	) {
+		return null;
+	}
+	if (
+		keyParam.address !== SUI_FRAMEWORK ||
+		keyParam.module !== 'accumulator' ||
+		keyParam.name !== 'Key' ||
+		keyParam.typeParams.length !== 1
+	) {
+		return null;
+	}
+
+	const balanceParam = keyParam.typeParams[0];
+	if (typeof balanceParam === 'string') return null;
+	if (
+		balanceParam.address !== SUI_FRAMEWORK ||
+		balanceParam.module !== 'balance' ||
+		balanceParam.name !== 'Balance' ||
+		balanceParam.typeParams.length !== 1
+	) {
+		return null;
+	}
+
+	const innerType = balanceParam.typeParams[0];
+	if (typeof innerType === 'string') return null;
+	return normalizeStructTag(innerType);
+}
+
 /**
  * Derives the accumulator dynamic field object ID for the given owner,
  * then XORs it with the chain identifier bytes to produce the objectId
@@ -43,18 +131,7 @@ function deriveReservationObjectId(owner: string, chainIdentifier: string): stri
 		ACCUMULATOR_KEY_TYPE_TAG,
 		keyBcs,
 	);
-
-	// XOR the accumulator object ID bytes with the chain identifier bytes
-	const accBytes = fromHex(accumulatorId.slice(2));
-	const chainBytes = fromBase58(chainIdentifier);
-	if (chainBytes.length !== 32) {
-		throw new Error(`Invalid chain identifier length: expected 32 bytes, got ${chainBytes.length}`);
-	}
-	const xored = new Uint8Array(32);
-	for (let i = 0; i < 32; i++) {
-		xored[i] = accBytes[i] ^ chainBytes[i];
-	}
-	return `0x${toHex(xored)}`;
+	return xorObjectIdWithChainIdentifier(accumulatorId, chainIdentifier);
 }
 
 export function createCoinReservationRef(

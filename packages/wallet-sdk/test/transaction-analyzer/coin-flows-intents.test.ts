@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, it, expect } from 'vitest';
-import { Transaction } from '@mysten/sui/transactions';
-import { normalizeStructTag, toBase58 } from '@mysten/sui/utils';
+import { fromHex, toBase58, toHex } from '@mysten/bcs';
+import { Inputs, Transaction } from '@mysten/sui/transactions';
+import { normalizeStructTag, normalizeSuiAddress } from '@mysten/sui/utils';
 import { analyze } from '../../src/transaction-analyzer/analyzer.js';
+import { balanceFlows } from '../../src/transaction-analyzer/rules/balance-flows.js';
 import { coinFlows } from '../../src/transaction-analyzer/rules/coin-flows.js';
 import { coins } from '../../src/transaction-analyzer/rules/coins.js';
 import { MockSuiClient } from '../mocks/MockSuiClient.js';
@@ -509,5 +511,117 @@ describe('Coin Flows - Gas Payment and Synthetic Coins', () => {
 		expect(coin?.isCoinReservation).toBe(true);
 		expect(coin?.balance).toBe(3_000_000_000n);
 		expect(coin?.coinType).toBe(SUI);
+	});
+});
+
+// XOR two 32-byte hex strings; returns a 0x-prefixed hex string.
+function xorIds(aHex: string, bHex: string): string {
+	const a = fromHex(aHex.startsWith('0x') ? aHex.slice(2) : aHex);
+	const b = fromHex(bHex.startsWith('0x') ? bHex.slice(2) : bHex);
+	const out = new Uint8Array(32);
+	for (let i = 0; i < 32; i++) out[i] = a[i] ^ b[i];
+	return `0x${toHex(out)}`;
+}
+
+function accumulatorFieldType(coinType: string): string {
+	return normalizeStructTag(
+		`0x2::dynamic_field::Field<0x2::accumulator::Key<0x2::balance::Balance<${coinType}>>, 0x2::accumulator::U128>`,
+	);
+}
+
+describe('Coin Flows - input reservation refs', () => {
+	it('resolves input reservation ref via accumulator lookup and tracks sender outflow', async () => {
+		const client = new MockSuiClient();
+		// 32-byte chain identifier; using a fixed non-zero pattern exercises real unmask
+		const chainBytes = new Uint8Array(32).fill(0x44);
+		client.setChainIdentifier(toBase58(chainBytes));
+		const chainHex = toHex(chainBytes);
+
+		// Pick an accumulator field ID, then compute the ref's masked ID.
+		const accumulatorId = normalizeSuiAddress('0xa11ca');
+		const maskedId = xorIds(accumulatorId, chainHex);
+
+		// Register an accumulator field object at the unmasked ID with USDC type.
+		client.addObject({
+			objectId: accumulatorId,
+			objectType: accumulatorFieldType('0xa0b::usdc::USDC'),
+			owner: { $kind: 'AddressOwner', AddressOwner: DEFAULT_SENDER },
+		});
+
+		const reservationDigest = createSyntheticDigest(1_500_000_000n);
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+		const coin = tx.object(
+			Inputs.ObjectRef({ objectId: maskedId, version: '0', digest: reservationDigest }),
+		);
+		tx.transferObjects([coin], tx.pure.address('0x456'));
+
+		const results = await analyze({ balanceFlows }, { client, transaction: await tx.toJSON() });
+
+		const usdcFlow = results.balanceFlows.result?.sender.find(
+			(f) => f.coinType === normalizeStructTag('0xa0b::usdc::USDC'),
+		);
+		expect(usdcFlow).toBeDefined();
+		expect(usdcFlow!.amount).toBe(-1_500_000_000n);
+	});
+
+	it('emits an issue when the accumulator field cannot be resolved', async () => {
+		const client = new MockSuiClient();
+		const chainBytes = new Uint8Array(32).fill(0x44);
+		client.setChainIdentifier(toBase58(chainBytes));
+		const chainHex = toHex(chainBytes);
+
+		// Point at an accumulator ID that was never registered with the mock.
+		const accumulatorId = normalizeSuiAddress('0xdead1');
+		const maskedId = xorIds(accumulatorId, chainHex);
+
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+		const coin = tx.object(
+			Inputs.ObjectRef({
+				objectId: maskedId,
+				version: '0',
+				digest: createSyntheticDigest(1n),
+			}),
+		);
+		tx.transferObjects([coin], tx.pure.address('0x456'));
+
+		const results = await analyze({ coins }, { client, transaction: await tx.toJSON() });
+		expect(results.coins.issues).toBeDefined();
+		expect(results.coins.issues!.some((i) => /could not be resolved/.test(i.message))).toBe(true);
+	});
+
+	it('emits an issue when the unmasked object is not a balance accumulator field', async () => {
+		const client = new MockSuiClient();
+		const chainBytes = new Uint8Array(32).fill(0x44);
+		client.setChainIdentifier(toBase58(chainBytes));
+		const chainHex = toHex(chainBytes);
+
+		const accumulatorId = normalizeSuiAddress('0xabc123');
+		const maskedId = xorIds(accumulatorId, chainHex);
+
+		// Register a regular (non-accumulator) object at the unmasked ID.
+		client.addObject({
+			objectId: accumulatorId,
+			objectType: normalizeStructTag('0x2::coin::Coin<0x2::sui::SUI>'),
+			owner: { $kind: 'AddressOwner', AddressOwner: DEFAULT_SENDER },
+		});
+
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+		const coin = tx.object(
+			Inputs.ObjectRef({
+				objectId: maskedId,
+				version: '0',
+				digest: createSyntheticDigest(1n),
+			}),
+		);
+		tx.transferObjects([coin], tx.pure.address('0x456'));
+
+		const results = await analyze({ coins }, { client, transaction: await tx.toJSON() });
+		expect(results.coins.issues).toBeDefined();
+		expect(
+			results.coins.issues!.some((i) => /not a balance accumulator field/.test(i.message)),
+		).toBe(true);
 	});
 });

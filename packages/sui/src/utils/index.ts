@@ -39,4 +39,9 @@ export { deriveDynamicFieldID } from './dynamic-fields.js';
 export { deriveObjectID } from './derived-objects.js';
 export { normalizeTypeTag } from '../bcs/type-tag-serializer.js';
 
-export { isCoinReservationDigest, parseCoinReservationBalance } from './coin-reservation.js';
+export {
+	isCoinReservationDigest,
+	parseAccumulatorFieldCoinType,
+	parseCoinReservationBalance,
+	unmaskCoinReservationObjectId,
+} from './coin-reservation.js';

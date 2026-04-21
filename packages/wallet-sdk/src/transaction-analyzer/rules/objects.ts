@@ -6,7 +6,10 @@ import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
 import {
 	isCoinReservationDigest,
 	normalizeStructTag,
+	normalizeSuiAddress,
+	parseAccumulatorFieldCoinType,
 	parseCoinReservationBalance,
+	unmaskCoinReservationObjectId,
 } from '@mysten/sui/utils';
 import { createAnalyzer } from '../analyzer.js';
 import type { TransactionAnalysisIssue } from '../analyzer.js';
@@ -22,11 +25,6 @@ export type AnalyzedObject = SuiClientTypes.Object<{
 	content: true;
 }> & {
 	ownerAddress: string | null;
-	/**
-	 * True for synthetic entries that stand in for a coin reservation ref.
-	 * Reservations don't exist on-chain — their balance is encoded in the
-	 * digest — so `objectBcs` is undefined and `content` is synthesized.
-	 */
 	isCoinReservation?: boolean;
 };
 
@@ -90,6 +88,7 @@ export const objectIds = createAnalyzer({
 
 function makeReservationObject(
 	ref: { objectId: string; digest: string; version?: string | number | null },
+	coinType: string,
 	owner: string | null,
 ): AnalyzedObject {
 	const balance = parseCoinReservationBalance(ref.digest);
@@ -98,7 +97,7 @@ function makeReservationObject(
 		objectId: ref.objectId,
 		version: String(ref.version ?? '0'),
 		digest: ref.digest,
-		type: normalizeStructTag('0x2::coin::Coin<0x2::sui::SUI>'),
+		type: normalizeStructTag(`0x2::coin::Coin<${coinType}>`),
 		owner: { $kind: 'AddressOwner', AddressOwner: owner ?? '' },
 		content,
 		previousTransaction: undefined,
@@ -110,37 +109,72 @@ function makeReservationObject(
 	};
 }
 
+const SUI_TYPE = normalizeStructTag('0x2::sui::SUI');
+
+interface InputReservation {
+	maskedId: string;
+	digest: string;
+	version?: string | number | null;
+	unmaskedId: string;
+}
+
 export const objects = createAnalyzer({
 	cacheKey: 'objects@1.0.0',
 	dependencies: { objectIds, data },
 	analyze:
 		({ client }: { client: ClientWithCoreApi }) =>
 		async ({ objectIds, data }) => {
-			const { objects } = await client.core.getObjects({
-				objectIds,
-				include: {
-					content: true,
-				},
-			});
-
 			const issues: TransactionAnalysisIssue[] = [];
 
-			const foundObjects = objects.filter(
-				(
-					obj,
-				): obj is SuiClientTypes.Object<{
-					content: true;
-				}> => {
-					if (obj instanceof Error) {
+			// Gather input reservation refs; their coin type has to be resolved by
+			// fetching the underlying accumulator field (unmasked id). We batch
+			// those lookups into the same `getObjects` request as the regular inputs.
+			const inputReservations: InputReservation[] = [];
+			let chainIdentifier: string | null = null;
+			for (const input of data.inputs) {
+				if (input.$kind !== 'Object') continue;
+				if (input.Object.$kind !== 'ImmOrOwnedObject') continue;
+				const { objectId, digest, version } = input.Object.ImmOrOwnedObject;
+				if (!digest || !isCoinReservationDigest(digest)) continue;
+				if (chainIdentifier == null) {
+					chainIdentifier = (await client.core.getChainIdentifier()).chainIdentifier;
+				}
+				inputReservations.push({
+					maskedId: objectId,
+					digest,
+					version,
+					unmaskedId: unmaskCoinReservationObjectId(objectId, chainIdentifier),
+				});
+			}
+
+			const unmaskedIds = inputReservations.map((r) => r.unmaskedId);
+			const combinedIds = Array.from(new Set([...objectIds, ...unmaskedIds]));
+
+			const { objects: fetched } = await client.core.getObjects({
+				objectIds: combinedIds,
+				include: { content: true },
+			});
+
+			const fetchedById = new Map<string, SuiClientTypes.Object<{ content: true }>>();
+			combinedIds.forEach((id, i) => {
+				const obj = fetched[i];
+				if (obj instanceof Error) {
+					// Skip missing accumulator objects silently — they just mean the
+					// reservation can't be resolved and will be reported below.
+					if (!unmaskedIds.includes(id)) {
 						issues.push({ message: `Failed to fetch object: ${obj.message}`, error: obj });
-						return false;
 					}
+					return;
+				}
+				fetchedById.set(id, obj);
+			});
 
-					return true;
-				},
-			);
+			const result: AnalyzedObject[] = [];
+			const seen = new Set<string>();
 
-			const result: AnalyzedObject[] = foundObjects.map((obj) => {
+			for (const id of objectIds) {
+				const obj = fetchedById.get(id);
+				if (!obj) continue;
 				let ownerAddress: string | null = null;
 				switch (obj.owner.$kind) {
 					case 'AddressOwner':
@@ -159,22 +193,53 @@ export const objects = createAnalyzer({
 					default:
 						issues.push({ message: `Unknown owner type: ${JSON.stringify(obj.owner)}` });
 				}
+				result.push({ ...obj, ownerAddress });
+				seen.add(id);
+			}
 
-				return { ...obj, ownerAddress };
-			});
+			// Input reservation refs are owned by the sender at execution
+			// (`CoinReservationResolver::resolve_funds_withdrawal` rejects otherwise).
+			const senderAddress = data.sender ? normalizeSuiAddress(data.sender) : null;
+			for (const reservation of inputReservations) {
+				if (seen.has(reservation.maskedId)) continue;
+				const accumulator = fetchedById.get(reservation.unmaskedId);
+				if (!accumulator) {
+					issues.push({
+						message: `Coin reservation object ${reservation.maskedId} could not be resolved`,
+					});
+					continue;
+				}
+				const coinType = parseAccumulatorFieldCoinType(accumulator.type);
+				if (!coinType) {
+					issues.push({
+						message: `Object at unmasked reservation id ${reservation.unmaskedId} is not a balance accumulator field (type ${accumulator.type})`,
+					});
+					continue;
+				}
+				result.push(
+					makeReservationObject(
+						{
+							objectId: reservation.maskedId,
+							digest: reservation.digest,
+							version: reservation.version,
+						},
+						coinType,
+						senderAddress,
+					),
+				);
+				seen.add(reservation.maskedId);
+			}
 
-			// Gas payment is always SUI, so reservation refs in gas payment are
-			// always Coin<SUI>. Reservation refs as regular Object inputs are a
-			// legacy form that would require an on-chain accumulator lookup to
-			// resolve their type — modern PTBs use typed `FundsWithdrawal` inputs.
+			// Gas-payment reservations are always Coin<SUI> (gas is SUI-only) and
+			// owned by the gas payer; synthesized locally without a lookup.
 			const gasReservationOwner = data.gasData.owner ?? data.sender ?? null;
-			const seen = new Set(result.map((o) => o.objectId));
 			for (const ref of data.gasData.payment ?? []) {
 				if (!ref.digest || !isCoinReservationDigest(ref.digest)) continue;
 				if (seen.has(ref.objectId)) continue;
 				result.push(
 					makeReservationObject(
 						{ objectId: ref.objectId, digest: ref.digest, version: ref.version },
+						SUI_TYPE,
 						gasReservationOwner,
 					),
 				);

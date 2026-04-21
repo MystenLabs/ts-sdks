@@ -29,6 +29,7 @@ export class MockSuiClient extends CoreClient {
 	#addressBalances = new Map<string, Map<string, bigint>>();
 	#gasPrice = DEFAULT_GAS_PRICE;
 	#nextDryRunResult: SuiClientTypes.TransactionResult<any> | null = null;
+	#chainIdentifier = 'mock-chain-identifier';
 
 	constructor(network: SuiClientTypes.Network = 'testnet') {
 		super({
@@ -121,6 +122,10 @@ export class MockSuiClient extends CoreClient {
 
 	setGasPrice(price: string): void {
 		this.#gasPrice = price;
+	}
+
+	setChainIdentifier(chainIdentifier: string): void {
+		this.#chainIdentifier = chainIdentifier;
 	}
 
 	// Helper function to check if an object is owned by the given address
@@ -412,7 +417,7 @@ export class MockSuiClient extends CoreClient {
 		_options?: SuiClientTypes.GetChainIdentifierOptions,
 	): Promise<SuiClientTypes.GetChainIdentifierResponse> {
 		return {
-			chainIdentifier: 'mock-chain-identifier',
+			chainIdentifier: this.#chainIdentifier,
 		};
 	}
 
