@@ -104,7 +104,7 @@ export async function analyze<T extends Record<string, Analyzer<Defined, any, an
 			);
 
 			if (output.issues) {
-				return { issues: output.issues, ownIssues: output.issues };
+				return { issues: [...output.issues], ownIssues: [...output.issues] };
 			}
 			return { result: output.result };
 		} catch (error) {
