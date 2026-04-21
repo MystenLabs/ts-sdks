@@ -38,17 +38,28 @@ export const objectIds = createAnalyzer({
 							return false;
 					}
 				})
-				.map((input) => {
+				.flatMap((input): string[] => {
+					let objectId: string;
+					let digest: string | null | undefined;
 					switch (input.Object.$kind) {
 						case 'ImmOrOwnedObject':
-							return input.Object.ImmOrOwnedObject.objectId;
+							objectId = input.Object.ImmOrOwnedObject.objectId;
+							digest = input.Object.ImmOrOwnedObject.digest;
+							break;
 						case 'SharedObject':
-							return input.Object.SharedObject.objectId;
+							objectId = input.Object.SharedObject.objectId;
+							digest = null;
+							break;
 						case 'Receiving':
-							return input.Object.Receiving.objectId;
+							objectId = input.Object.Receiving.objectId;
+							digest = input.Object.Receiving.digest;
+							break;
 						default:
 							throw new Error(`Unknown object type: ${JSON.stringify(input)}`);
 					}
+					// Synthetic reservation refs don't exist on-chain — skip them.
+					if (digest && isCoinReservationDigest(digest)) return [];
+					return [objectId];
 				});
 
 			if (issues.length) {

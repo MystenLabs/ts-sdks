@@ -99,7 +99,13 @@ export const balanceFlows = createAnalyzer({
 					return BigInt(bcs.u64().fromBase64(a.bytes));
 				});
 
-				coin.balance -= amounts.reduce((a, b) => a + b, 0n);
+				const total = amounts.reduce((a, b) => a + b, 0n);
+				if (total > coin.balance) {
+					issues.push({
+						message: `SplitCoins at command ${command.index} takes ${total} from a ${coin.coinType} coin with only ${coin.balance} available`,
+					});
+				}
+				coin.balance -= total;
 
 				amounts.forEach((amount, i) => {
 					track(
@@ -202,6 +208,11 @@ export const balanceFlows = createAnalyzer({
 					}
 
 					const amount = BigInt(bcs.u64().fromBase64(amountArg.bytes));
+					if (amount > source.balance) {
+						issues.push({
+							message: `${mod}::${fn} at command ${command.index} takes ${amount} from a ${source.coinType} coin with only ${source.balance} available`,
+						});
+					}
 					source.balance -= amount;
 					track(
 						`result:${command.index},0`,
@@ -253,18 +264,24 @@ export const balanceFlows = createAnalyzer({
 
 			const gasBalance = gasCoins.reduce((a, c) => a + c.balance, 0n);
 
-			// Empty gas payment: attribute the budget to the sender since the tx
-			// hasn't been resolved to a payer yet.
-			const gasAttributionOwner = gasBalance > 0n ? normalizedGasOwner : sender;
-
-			track('gas', new TrackedCoin(suiType, gasBalance, gasAttributionOwner));
+			track('gas', new TrackedCoin(suiType, gasBalance, normalizedGasOwner));
 
 			for (const c of gasCoins) {
 				adjustDelta(normalizeAddress(c.ownerAddress), c.coinType, -c.balance);
 			}
 
 			if (data.gasData.budget) {
-				trackedCoins.get('gas')!.balance -= BigInt(data.gasData.budget);
+				const budget = BigInt(data.gasData.budget);
+				if (gasBalance > 0n) {
+					// Non-empty payment: take the budget off the gas coin's balance
+					// so it shows up as a net outflow across the coin's contributors
+					// via the implicit-return proportional split.
+					trackedCoins.get('gas')!.balance -= budget;
+				} else {
+					// Empty payment: there's no gas coin to draw from, so charge the
+					// gas payer directly.
+					adjustDelta(normalizedGasOwner, suiType, -budget);
+				}
 			} else {
 				issues.push({ message: 'Gas budget not set in Transaction' });
 			}
