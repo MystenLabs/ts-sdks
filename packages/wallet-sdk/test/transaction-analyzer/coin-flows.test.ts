@@ -460,6 +460,26 @@ describe('TransactionAnalyzer - Coin Flows Rule', () => {
 		expect(suiFlow?.amount).toBe(10000000n);
 	});
 
+	it('attributes budget to the explicit gas payer when payment is empty but owner is set', async () => {
+		const SPONSOR = '0x00000000000000000000000000000000000000000000000000000000000005b0';
+		const client = new MockSuiClient();
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+
+		const json = JSON.parse(await tx.toJSON());
+		json.gasData.payment = [];
+		json.gasData.owner = SPONSOR;
+
+		const results = await analyze({ coinFlows }, { client, transaction: JSON.stringify(json) });
+
+		const senderSui = results.coinFlows.result?.outflows.find(
+			(f) =>
+				f.coinType ===
+				'0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI',
+		);
+		expect(senderSui).toBeUndefined();
+	});
+
 	it('flags a split that takes more than the coin holds', async () => {
 		const client = new MockSuiClient();
 		const tx = new Transaction();

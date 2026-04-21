@@ -452,13 +452,15 @@ export class MockSuiClient extends CoreClient {
 				transactionData.gasData.price = this.#gasPrice;
 			}
 			if (!transactionData.gasData.payment || transactionData.gasData.payment.length === 0) {
-				// Use the first SUI coin from default objects
+				// Pick a SUI coin owned by whoever the gas owner is (defaulting to
+				// the sender if unset). Preserves an explicit sponsor assignment.
+				const gasOwner = transactionData.gasData.owner ?? transactionData.sender;
 				const suiCoinType = normalizeStructTag('0x2::coin::Coin<0x2::sui::SUI>');
 				const firstSuiCoin = Array.from(this.#objects.values()).find(
 					(obj) =>
 						obj.type === suiCoinType &&
 						obj.owner.$kind === 'AddressOwner' &&
-						obj.owner.AddressOwner === transactionData.sender,
+						obj.owner.AddressOwner === gasOwner,
 				);
 
 				if (firstSuiCoin) {
@@ -469,7 +471,9 @@ export class MockSuiClient extends CoreClient {
 							digest: firstSuiCoin.digest,
 						},
 					];
-					transactionData.gasData.owner = transactionData.sender;
+					if (!transactionData.gasData.owner) {
+						transactionData.gasData.owner = transactionData.sender;
+					}
 				}
 			}
 
