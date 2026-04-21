@@ -18,8 +18,7 @@ export interface CoinFlow {
 
 /**
  * Per-address signed balance deltas. Negative = value left the address on
- * net; positive = value arrived on net. For each coin type the sum across all
- * addresses is zero, modulo coins consumed to an unknown destination.
+ * net; positive = value arrived on net.
  *
  * `sender` is the transaction sender's signed flows (empty if the sender
  * didn't move any tracked value). `sponsor` is the gas payer's signed flows
@@ -40,7 +39,7 @@ export const balanceFlows = createAnalyzer({
 		() =>
 		async ({ data, commands, inputs, coins, gasCoins }) => {
 			const issues: TransactionAnalysisIssue[] = [];
-			const trackedCoins = new Map<string, TrackedCoin>();
+			const trackedBalances = new Map<string, TrackedBalance>();
 			const deltas = new Map<string, Map<string, bigint>>();
 
 			const sender = data.sender ? normalizeSuiAddress(data.sender) : null;
@@ -61,11 +60,11 @@ export const balanceFlows = createAnalyzer({
 				byCoin.set(coinType, (byCoin.get(coinType) ?? 0n) + amount);
 			};
 
-			const track = (key: string, coin: TrackedCoin) => {
-				trackedCoins.set(key, coin);
+			const track = (key: string, coin: TrackedBalance) => {
+				trackedBalances.set(key, coin);
 			};
 
-			const trackedCoinKey = (ref: AnalyzedCommandArgument): string | null => {
+			const trackedBalanceKey = (ref: AnalyzedCommandArgument): string | null => {
 				switch (ref.$kind) {
 					case 'GasCoin':
 						return 'gas';
@@ -87,14 +86,14 @@ export const balanceFlows = createAnalyzer({
 				}
 			};
 
-			const getTrackedCoin = (ref: AnalyzedCommandArgument): TrackedCoin | null => {
-				const key = trackedCoinKey(ref);
-				const coin = key ? trackedCoins.get(key) : null;
+			const getTrackedBalance = (ref: AnalyzedCommandArgument): TrackedBalance | null => {
+				const key = trackedBalanceKey(ref);
+				const coin = key ? trackedBalances.get(key) : null;
 				return coin && !coin.consumed ? coin : null;
 			};
 
 			const splitCoin = (command: Extract<AnalyzedCommand, { $kind: 'SplitCoins' }>) => {
-				const coin = getTrackedCoin(command.coin);
+				const coin = getTrackedBalance(command.coin);
 				if (!coin) return;
 
 				if (!command.amounts.every((a) => a.$kind === 'Pure')) {
@@ -108,17 +107,17 @@ export const balanceFlows = createAnalyzer({
 				});
 
 				const total = amounts.reduce((a, b) => a + b, 0n);
-				withdrawFromCoin(coin, total, `SplitCoins at command ${command.index}`);
+				withdrawFromBalance(coin, total, `SplitCoins at command ${command.index}`);
 
 				amounts.forEach((amount, i) => {
 					track(
 						`result:${command.index},${i}`,
-						new TrackedCoin(coin.coinType, amount, coin.ownerAddress),
+						new TrackedBalance('coin', coin.coinType, amount, coin.ownerAddress),
 					);
 				});
 			};
 
-			const withdrawFromCoin = (coin: TrackedCoin, amount: bigint, context: string) => {
+			const withdrawFromBalance = (coin: TrackedBalance, amount: bigint, context: string) => {
 				if (amount > coin.balance) {
 					issues.push({
 						message: `${context} takes ${amount} from a ${coin.coinType} coin with only ${coin.balance} available`,
@@ -128,10 +127,10 @@ export const balanceFlows = createAnalyzer({
 			};
 
 			const mergeCoins = (command: Extract<AnalyzedCommand, { $kind: 'MergeCoins' }>) => {
-				const sources = command.sources.map(getTrackedCoin);
+				const sources = command.sources.map(getTrackedBalance);
 				const amount = sources.reduce((a, c) => a + (c?.balance ?? 0n), 0n);
 				for (const src of sources) src?.consume();
-				const dest = getTrackedCoin(command.destination);
+				const dest = getTrackedBalance(command.destination);
 				if (!dest) return;
 				dest.balance += amount;
 			};
@@ -141,7 +140,7 @@ export const balanceFlows = createAnalyzer({
 					command.address.$kind === 'Pure' ? bcs.Address.fromBase64(command.address.bytes) : null;
 				const dest = normalizeAddress(address);
 				for (const obj of command.objects) {
-					const tracked = getTrackedCoin(obj);
+					const tracked = getTrackedBalance(obj);
 					if (tracked) {
 						adjustDelta(dest, tracked.coinType, tracked.balance);
 						tracked.consume();
@@ -186,14 +185,17 @@ export const balanceFlows = createAnalyzer({
 						return true;
 					}
 					const owner = normalizeAddress(ownerRaw);
-					track(`result:${command.index},0`, new TrackedCoin(arg.coinType, arg.amount, owner));
+					track(
+						`result:${command.index},0`,
+						new TrackedBalance(mod, arg.coinType, arg.amount, owner),
+					);
 					adjustDelta(owner, arg.coinType, -arg.amount);
 					return true;
 				}
 
 				if (fn === 'send_funds' && (mod === 'coin' || mod === 'balance')) {
 					if (command.arguments.length < 2) return false;
-					const tracked = getTrackedCoin(command.arguments[0]);
+					const tracked = getTrackedBalance(command.arguments[0]);
 					const addrArg = command.arguments[1];
 					const destAddress =
 						addrArg.$kind === 'Pure' ? bcs.Address.fromBase64(addrArg.bytes) : null;
@@ -209,11 +211,14 @@ export const balanceFlows = createAnalyzer({
 					(fn === 'from_balance' && mod === 'coin')
 				) {
 					if (command.arguments.length < 1) return false;
-					const oldKey = trackedCoinKey(command.arguments[0]);
-					const tracked = getTrackedCoin(command.arguments[0]);
-					if (tracked && oldKey) {
-						trackedCoins.delete(oldKey);
-						track(`result:${command.index},0`, tracked);
+					const source = getTrackedBalance(command.arguments[0]);
+					if (source) {
+						const resultKind = fn === 'into_balance' ? 'balance' : 'coin';
+						track(
+							`result:${command.index},0`,
+							new TrackedBalance(resultKind, source.coinType, source.balance, source.ownerAddress),
+						);
+						source.consume();
 					}
 					return true;
 				}
@@ -223,7 +228,7 @@ export const balanceFlows = createAnalyzer({
 					(fn === 'take' && mod === 'coin')
 				) {
 					if (command.arguments.length < 2) return false;
-					const source = getTrackedCoin(command.arguments[0]);
+					const source = getTrackedBalance(command.arguments[0]);
 					if (!source) return true;
 
 					const amountArg = command.arguments[1];
@@ -233,21 +238,23 @@ export const balanceFlows = createAnalyzer({
 					}
 
 					const amount = BigInt(bcs.u64().fromBase64(amountArg.bytes));
-					withdrawFromCoin(source, amount, `${mod}::${fn} at command ${command.index}`);
+					withdrawFromBalance(source, amount, `${mod}::${fn} at command ${command.index}`);
+					// `coin::take` returns Coin<T>; `split` matches the invoked module.
+					const resultKind = fn === 'take' ? 'coin' : mod;
 					track(
 						`result:${command.index},0`,
-						new TrackedCoin(source.coinType, amount, source.ownerAddress),
+						new TrackedBalance(resultKind, source.coinType, amount, source.ownerAddress),
 					);
 					return true;
 				}
 
 				if (fn === 'withdraw_all' && mod === 'balance') {
 					if (command.arguments.length < 1) return false;
-					const source = getTrackedCoin(command.arguments[0]);
+					const source = getTrackedBalance(command.arguments[0]);
 					if (source) {
 						track(
 							`result:${command.index},0`,
-							new TrackedCoin(source.coinType, source.balance, source.ownerAddress),
+							new TrackedBalance('balance', source.coinType, source.balance, source.ownerAddress),
 						);
 						source.balance = 0n;
 					}
@@ -259,8 +266,8 @@ export const balanceFlows = createAnalyzer({
 					(fn === 'put' && mod === 'coin')
 				) {
 					if (command.arguments.length < 2) return false;
-					const dest = getTrackedCoin(command.arguments[0]);
-					const source = getTrackedCoin(command.arguments[1]);
+					const dest = getTrackedBalance(command.arguments[0]);
+					const source = getTrackedBalance(command.arguments[1]);
 					if (!source) return true;
 					if (dest) dest.balance += source.balance;
 					source.consume();
@@ -269,13 +276,11 @@ export const balanceFlows = createAnalyzer({
 
 				if (fn === 'zero' && (mod === 'coin' || mod === 'balance')) {
 					if (coinType) {
-						track(`result:${command.index},0`, new TrackedCoin(coinType, 0n, null));
+						track(`result:${command.index},0`, new TrackedBalance(mod, coinType, 0n, null));
 					}
 					return true;
 				}
 
-				// TODO: coin::mint / coin::mint_and_transfer (violates conservation),
-				// 0x2::pay module (split, split_and_transfer, join_vec).
 				return false;
 			};
 
@@ -285,7 +290,7 @@ export const balanceFlows = createAnalyzer({
 
 			// Gas payment coins are smashed into a single tx.gas coin.
 			const gasBalance = gasCoins.reduce((a, c) => a + c.balance, 0n);
-			const gasCoin = new TrackedCoin(suiType, gasBalance, normalizedGasOwner);
+			const gasCoin = new TrackedBalance('coin', suiType, gasBalance, normalizedGasOwner);
 			track('gas', gasCoin);
 			adjustDelta(normalizedGasOwner, suiType, -gasBalance);
 
@@ -308,7 +313,8 @@ export const balanceFlows = createAnalyzer({
 			for (const input of inputs) {
 				if (input.$kind === 'Object' && coins[input.object.objectId]) {
 					const coin = coins[input.object.objectId];
-					const tc = new TrackedCoin(
+					const tc = new TrackedBalance(
+						'coin',
 						coin.coinType,
 						coin.balance,
 						normalizeAddress(coin.ownerAddress),
@@ -331,14 +337,14 @@ export const balanceFlows = createAnalyzer({
 						break;
 					case 'MakeMoveVec':
 						command.elements.forEach((el) => {
-							getTrackedCoin(el)?.consume();
+							getTrackedBalance(el)?.consume();
 						});
 						break;
 					case 'MoveCall':
 						if (!handleFrameworkMoveCall(command)) {
 							command.arguments.forEach((arg) => {
 								if (arg.accessLevel === 'read') return;
-								getTrackedCoin(arg)?.consume();
+								getTrackedBalance(arg)?.consume();
 							});
 						}
 						break;
@@ -355,7 +361,7 @@ export const balanceFlows = createAnalyzer({
 			if (issues.length) return { issues };
 
 			// Implicit return: still-alive tracked coins credit their owner.
-			for (const [, coin] of trackedCoins) {
+			for (const [, coin] of trackedBalances) {
 				if (coin.balance <= 0n) continue;
 				adjustDelta(coin.ownerAddress, coin.coinType, coin.balance);
 			}
@@ -365,7 +371,7 @@ export const balanceFlows = createAnalyzer({
 				byAddress[address] = Array.from(byCoin, ([coinType, amount]) => ({ coinType, amount }));
 			}
 
-			const senderFlows = (sender && byAddress[sender]) || [];
+			const senderFlows = sender ? (byAddress[sender] ?? []) : [];
 			const sponsorAddr =
 				normalizedGasOwner && normalizedGasOwner !== sender ? normalizedGasOwner : null;
 			const sponsorFlows = sponsorAddr ? (byAddress[sponsorAddr] ?? []) : null;
@@ -380,13 +386,20 @@ export const balanceFlows = createAnalyzer({
 		},
 });
 
-class TrackedCoin {
+class TrackedBalance {
+	kind: 'coin' | 'balance';
 	coinType: string;
 	balance: bigint;
 	ownerAddress: string | null;
 	consumed = false;
 
-	constructor(coinType: string, balance: bigint, ownerAddress: string | null) {
+	constructor(
+		kind: 'coin' | 'balance',
+		coinType: string,
+		balance: bigint,
+		ownerAddress: string | null,
+	) {
+		this.kind = kind;
 		this.coinType = coinType;
 		this.balance = balance;
 		this.ownerAddress = ownerAddress;
