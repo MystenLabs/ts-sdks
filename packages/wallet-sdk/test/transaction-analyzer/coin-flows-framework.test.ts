@@ -1278,7 +1278,7 @@ describe('balanceFlows - excludeGasBudget', () => {
 
 		const results = await analyze(
 			{ balanceFlows },
-			{ client, transaction: await tx.toJSON(), excludeGasBudget: true },
+			{ client, transaction: await tx.toJSON(), balanceFlows: { excludeGasBudget: true } },
 		);
 
 		expect(results.balanceFlows.issues).toBeUndefined();
@@ -1300,7 +1300,7 @@ describe('balanceFlows - excludeGasBudget', () => {
 
 		const results = await analyze(
 			{ balanceFlows },
-			{ client, transaction: JSON.stringify(json), excludeGasBudget: true },
+			{ client, transaction: JSON.stringify(json), balanceFlows: { excludeGasBudget: true } },
 		);
 
 		expect(results.balanceFlows.issues).toBeUndefined();
@@ -1320,7 +1320,7 @@ describe('balanceFlows - excludeGasBudget', () => {
 
 		const results = await analyze(
 			{ balanceFlows },
-			{ client, transaction: await tx.toJSON(), excludeGasBudget: true },
+			{ client, transaction: await tx.toJSON(), balanceFlows: { excludeGasBudget: true } },
 		);
 
 		const sui = results.balanceFlows.result?.sender.find((f) => f.coinType === SUI);

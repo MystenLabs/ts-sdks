@@ -47,8 +47,9 @@ const SUI_FRAMEWORK = normalizeSuiAddress('0x2');
 export const balanceFlows = createAnalyzer({
 	dependencies: { data, commands, inputs, coins, gasCoins },
 	analyze:
-		({ excludeGasBudget = false }: BalanceFlowsAnalyzerOptions = {}) =>
+		({ balanceFlows: opts = {} }: { balanceFlows?: BalanceFlowsAnalyzerOptions } = {}) =>
 		async ({ data, commands, inputs, coins, gasCoins }) => {
+			const { excludeGasBudget = false } = opts;
 			const issues: TransactionAnalysisIssue[] = [];
 			const trackedBalances = new Map<string, TrackedBalance>();
 			const deltas = new Map<string, Map<string, bigint>>();
