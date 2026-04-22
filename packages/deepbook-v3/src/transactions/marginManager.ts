@@ -383,10 +383,10 @@ export class MarginManagerContract {
 				tx.object(manager.address),
 				tx.object(this.#config.MARGIN_REGISTRY_ID),
 				tx.object(baseMarginPool.address),
-				tx.object.option({
-					type: 'u64',
-					value: amount ? tx.pure.u64(convertQuantity(amount, baseCoin.scalar)) : null,
-				}),
+				tx.pure.option(
+					'u64',
+					amount !== undefined ? convertQuantity(amount, baseCoin.scalar) : null,
+				),
 				tx.object.clock(),
 			],
 			typeArguments: [baseCoin.type, quoteCoin.type],
@@ -411,10 +411,10 @@ export class MarginManagerContract {
 				tx.object(manager.address),
 				tx.object(this.#config.MARGIN_REGISTRY_ID),
 				tx.object(quoteMarginPool.address),
-				tx.object.option({
-					type: 'u64',
-					value: amount ? tx.pure.u64(convertQuantity(amount, quoteCoin.scalar)) : null,
-				}),
+				tx.pure.option(
+					'u64',
+					amount !== undefined ? convertQuantity(amount, quoteCoin.scalar) : null,
+				),
 				tx.object.clock(),
 			],
 			typeArguments: [baseCoin.type, quoteCoin.type],
