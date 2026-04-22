@@ -1,8 +1,14 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { CoreClientOptions, SuiClientTypes } from '../client/index.js';
-import { CoreClient, formatMoveAbortMessage, SimulationError } from '../client/index.js';
+import type { CoreClientOptions, ObjectErrorCode, SuiClientTypes } from '../client/index.js';
+import {
+	CoreClient,
+	formatMoveAbortMessage,
+	ObjectError,
+	SimulationError,
+	SuiClientError,
+} from '../client/index.js';
 import type { SuiGrpcClient } from './client.js';
 import type { Owner } from './proto/sui/rpc/v2/owner.js';
 import { Owner_OwnerKind } from './proto/sui/rpc/v2/owner.js';
@@ -46,6 +52,10 @@ import {
 import { Value } from './proto/google/protobuf/struct.js';
 import { SimulateTransactionRequest_TransactionChecks } from './proto/sui/rpc/v2/transaction_execution_service.js';
 
+// google.rpc.Code.NOT_FOUND — the only status we map to ObjectError('notFound');
+// any other code collapses to 'unknown'. gRPC cannot distinguish 'deleted' from never-existed.
+const GRPC_CODE_NOT_FOUND = 5;
+
 export interface GrpcCoreClientOptions extends CoreClientOptions {
 	client: SuiGrpcClient;
 }
@@ -88,51 +98,59 @@ export class GrpcCoreClient extends CoreClient {
 			});
 
 			results.push(
-				...response.response.objects.map((object): SuiClientTypes.Object<Include> | Error => {
-					if (object.result.oneofKind === 'error') {
-						// TODO: improve error handling
-						return new Error(object.result.error.message);
-					}
+				...response.response.objects.map(
+					(object, idx): SuiClientTypes.Object<Include> | ObjectError => {
+						if (object.result.oneofKind === 'error') {
+							const status = object.result.error;
+							const code: ObjectErrorCode =
+								status.code === GRPC_CODE_NOT_FOUND ? 'notFound' : 'unknown';
+							return new ObjectError(code, batch[idx], {
+								transportDetails: { $kind: 'grpc', status },
+							});
+						}
 
-					if (object.result.oneofKind !== 'object') {
-						return new Error('Unexpected result type');
-					}
+						if (object.result.oneofKind !== 'object') {
+							throw new SuiClientError(
+								`Unexpected gRPC result kind: "${object.result.oneofKind}" — expected "object" or "error"`,
+							);
+						}
 
-					const bcsContent = object.result.object.contents?.value ?? undefined;
-					const objectBcs = object.result.object.bcs?.value ?? undefined;
+						const bcsContent = object.result.object.contents?.value ?? undefined;
+						const objectBcs = object.result.object.bcs?.value ?? undefined;
 
-					// Package objects have type "package" which is not a struct tag, so don't normalize it
-					const objectType = object.result.object.objectType;
-					const type =
-						objectType && objectType.includes('::')
-							? normalizeStructTag(objectType)
-							: (objectType ?? '');
+						// Package objects have type "package" which is not a struct tag, so don't normalize it
+						const objectType = object.result.object.objectType;
+						const type =
+							objectType && objectType.includes('::')
+								? normalizeStructTag(objectType)
+								: (objectType ?? '');
 
-					const jsonContent = options.include?.json
-						? object.result.object.json
-							? (Value.toJson(object.result.object.json) as Record<string, unknown>)
-							: null
-						: undefined;
+						const jsonContent = options.include?.json
+							? object.result.object.json
+								? (Value.toJson(object.result.object.json) as Record<string, unknown>)
+								: null
+							: undefined;
 
-					const displayData = mapDisplayProto(
-						options.include?.display,
-						object.result.object.display,
-					);
+						const displayData = mapDisplayProto(
+							options.include?.display,
+							object.result.object.display,
+						);
 
-					return {
-						objectId: object.result.object.objectId!,
-						version: object.result.object.version?.toString()!,
-						digest: object.result.object.digest!,
-						content: bcsContent as SuiClientTypes.Object<Include>['content'],
-						owner: mapOwner(object.result.object.owner)!,
-						type,
-						previousTransaction: (object.result.object.previousTransaction ??
-							undefined) as SuiClientTypes.Object<Include>['previousTransaction'],
-						objectBcs: objectBcs as SuiClientTypes.Object<Include>['objectBcs'],
-						json: jsonContent as SuiClientTypes.Object<Include>['json'],
-						display: displayData as SuiClientTypes.Object<Include>['display'],
-					};
-				}),
+						return {
+							objectId: object.result.object.objectId!,
+							version: object.result.object.version?.toString()!,
+							digest: object.result.object.digest!,
+							content: bcsContent as SuiClientTypes.Object<Include>['content'],
+							owner: mapOwner(object.result.object.owner)!,
+							type,
+							previousTransaction: (object.result.object.previousTransaction ??
+								undefined) as SuiClientTypes.Object<Include>['previousTransaction'],
+							objectBcs: objectBcs as SuiClientTypes.Object<Include>['objectBcs'],
+							json: jsonContent as SuiClientTypes.Object<Include>['json'],
+							display: displayData as SuiClientTypes.Object<Include>['display'],
+						};
+					},
+				),
 			);
 		}
 
