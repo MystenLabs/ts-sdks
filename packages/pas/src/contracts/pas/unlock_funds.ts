@@ -3,7 +3,7 @@
  **************************************************************/
 import { type BcsType, bcs } from '@mysten/sui/bcs';
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 const $moduleName = '@mysten/pas::unlock_funds';
 /**
  * An unlock funds request that is generated once a Permissioned Funds Transfer is
@@ -31,11 +31,11 @@ export function UnlockFunds<T extends BcsType<any>>(...typeParameters: [T]) {
 	});
 }
 export interface OwnerArguments {
-	request: RawTransactionArgument<string>;
+	request: TransactionArgument;
 }
 export interface OwnerOptions {
 	package?: string;
-	arguments: OwnerArguments | [request: RawTransactionArgument<string>];
+	arguments: OwnerArguments | [request: TransactionArgument];
 	typeArguments: [string];
 }
 export function owner(options: OwnerOptions) {
@@ -52,11 +52,11 @@ export function owner(options: OwnerOptions) {
 		});
 }
 export interface AccountIdArguments {
-	request: RawTransactionArgument<string>;
+	request: TransactionArgument;
 }
 export interface AccountIdOptions {
 	package?: string;
-	arguments: AccountIdArguments | [request: RawTransactionArgument<string>];
+	arguments: AccountIdArguments | [request: TransactionArgument];
 	typeArguments: [string];
 }
 export function accountId(options: AccountIdOptions) {
@@ -73,11 +73,11 @@ export function accountId(options: AccountIdOptions) {
 		});
 }
 export interface FundsArguments {
-	request: RawTransactionArgument<string>;
+	request: TransactionArgument;
 }
 export interface FundsOptions {
 	package?: string;
-	arguments: FundsArguments | [request: RawTransactionArgument<string>];
+	arguments: FundsArguments | [request: TransactionArgument];
 	typeArguments: [string];
 }
 export function funds(options: FundsOptions) {
@@ -94,14 +94,14 @@ export function funds(options: FundsOptions) {
 		});
 }
 export interface ResolveUnrestrictedBalanceArguments {
-	request: RawTransactionArgument<string>;
+	request: TransactionArgument;
 	namespace: RawTransactionArgument<string>;
 }
 export interface ResolveUnrestrictedBalanceOptions {
 	package?: string;
 	arguments:
 		| ResolveUnrestrictedBalanceArguments
-		| [request: RawTransactionArgument<string>, namespace: RawTransactionArgument<string>];
+		| [request: TransactionArgument, namespace: RawTransactionArgument<string>];
 	typeArguments: [string];
 }
 /**
@@ -126,14 +126,14 @@ export function resolveUnrestrictedBalance(options: ResolveUnrestrictedBalanceOp
 		});
 }
 export interface ResolveArguments {
-	request: RawTransactionArgument<string>;
+	request: TransactionArgument;
 	policy: RawTransactionArgument<string>;
 }
 export interface ResolveOptions {
 	package?: string;
 	arguments:
 		| ResolveArguments
-		| [request: RawTransactionArgument<string>, policy: RawTransactionArgument<string>];
+		| [request: TransactionArgument, policy: RawTransactionArgument<string>];
 	typeArguments: [string];
 }
 /**

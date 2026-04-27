@@ -23,6 +23,7 @@ import {
 import type { Fields, ModuleSummary, Type, TypeParameter } from './types/summary.js';
 import type { FunctionsOption, ImportExtension, TypesOption } from './config.js';
 import { join } from 'node:path';
+import { isValidSuiObjectId } from '@mysten/sui/utils';
 
 const IMPORT_MAP = {
 	Transaction: { module: '@mysten/sui/transactions', isType: true },
@@ -46,12 +47,16 @@ export class MoveModuleBuilder extends FileBuilder {
 	#includedFunctions: Set<string> = new Set();
 	#orderedTypes: string[] = [];
 	#mvrNameOrAddress?: string;
+	#typeOrigins?: Record<string, string>;
+	#rootPackageId?: string;
 	#importNames: Partial<Record<ImportName, string>> = {};
 	#importExtension: ImportExtension;
 	#includePhantomTypeParameters: boolean;
 
 	constructor({
 		mvrNameOrAddress,
+		typeOrigins,
+		rootPackageId,
 		summary,
 		registry,
 		importExtension = '.js',
@@ -60,6 +65,8 @@ export class MoveModuleBuilder extends FileBuilder {
 		summary: ModuleSummary;
 		registry: ModuleRegistry;
 		mvrNameOrAddress?: string;
+		typeOrigins?: Record<string, string>;
+		rootPackageId?: string;
 		importExtension?: ImportExtension;
 		includePhantomTypeParameters?: boolean;
 	}) {
@@ -68,6 +75,8 @@ export class MoveModuleBuilder extends FileBuilder {
 		this.registry = registry;
 		this.registry.register(this);
 		this.#mvrNameOrAddress = mvrNameOrAddress;
+		this.#typeOrigins = typeOrigins;
+		this.#rootPackageId = rootPackageId;
 		this.#importExtension = importExtension;
 		this.#includePhantomTypeParameters = includePhantomTypeParameters;
 	}
@@ -78,12 +87,16 @@ export class MoveModuleBuilder extends FileBuilder {
 		mvrNameOrAddress?: string,
 		importExtension?: ImportExtension,
 		includePhantomTypeParameters?: boolean,
+		typeOrigins?: Record<string, string>,
+		rootPackageId?: string,
 	) {
 		const summary = JSON.parse(await readFile(file, 'utf-8'));
 		return new MoveModuleBuilder({
 			summary,
 			registry,
 			mvrNameOrAddress,
+			typeOrigins,
+			rootPackageId,
 			importExtension,
 			includePhantomTypeParameters,
 		});
@@ -99,9 +112,22 @@ export class MoveModuleBuilder extends FileBuilder {
 			return '0x2';
 		} else if (resolvedAddress === SUI_SYSTEM_ADDRESS) {
 			return '0x3';
+		} else if (this.#rootPackageId) {
+			return this.#rootPackageId;
+		} else if (this.#mvrNameOrAddress && !isValidSuiObjectId(this.#mvrNameOrAddress)) {
+			return this.#mvrNameOrAddress;
 		} else {
-			return this.#mvrNameOrAddress ?? this.summary.id.address;
+			return this.summary.id.address;
 		}
+	}
+
+	#getTypePrefix(datatypeName: string): string | null {
+		const originPackageId = this.#typeOrigins?.[datatypeName];
+		if (originPackageId === undefined) return null;
+		if (this.#resolveAddress(originPackageId) === this.#resolveAddress(this.summary.id.address)) {
+			return null;
+		}
+		return `${originPackageId}::${this.summary.id.name}`;
 	}
 
 	#getImportName(name: ImportName): string {
@@ -223,7 +249,10 @@ export class MoveModuleBuilder extends FileBuilder {
 	}
 
 	async renderBCSTypes() {
-		if (this.hasBcsTypes()) {
+		const needsModuleName =
+			this.hasBcsTypes() && this.#orderedTypes.some((name) => this.#getTypePrefix(name) === null);
+
+		if (needsModuleName) {
 			this.statements.push(
 				...parseTS /* ts */ `
 				const $moduleName = '${this.#getModuleTypeName()}::${this.summary.id.name}';
@@ -331,7 +360,9 @@ export class MoveModuleBuilder extends FileBuilder {
 		const params = struct.type_parameters
 			.map((param, i) => ({ param, originalIndex: i }))
 			.filter(({ param }) => includePhantom || !param.phantom);
-		const structName = `\${$moduleName}::${name}`;
+
+		const prefix = this.#getTypePrefix(name);
+		const structName = prefix !== null ? `${prefix}::${name}` : `\${$moduleName}::${name}`;
 
 		if (params.length === 0) {
 			const hasPhantoms = struct.type_parameters.some((p) => p.phantom);
@@ -415,7 +446,8 @@ export class MoveModuleBuilder extends FileBuilder {
 		const moveEnumName = this.#getImportName('MoveEnum');
 		this.exports.push(name);
 
-		const enumName = `\${$moduleName}::${name}`;
+		const prefix = this.#getTypePrefix(name);
+		const enumName = prefix !== null ? `${prefix}::${name}` : `\${$moduleName}::${name}`;
 
 		const variantsObject = await mapToObject({
 			items: Object.entries(enumDef.variants),

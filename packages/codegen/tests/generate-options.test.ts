@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { afterEach, describe, expect, it } from 'vitest';
-import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { generateFromPackageSummary } from '../src/index.js';
@@ -65,6 +65,62 @@ async function generate(options: {
 
 	return outputDir;
 }
+
+/**
+ * Build a synthetic on-chain summary by copying the local `testpkg` fixture into the layout
+ * `sui move summary --package-id` actually produces. Real-world observation (mainnet SuiNS
+ * upgraded from `0xd22b...` to `0x71af...`): the on-disk root package dir is named after
+ * `root_package_original_id`, not the queried/latest id. The main-package detection therefore
+ * needs to find that dir by elimination, not by matching the user's input.
+ */
+async function buildOnChainFixture(opts: {
+	rootPackageId: string;
+	rootPackageOriginalId?: string;
+	dependencies?: Record<string, string>;
+	typeOrigins?: Record<
+		string,
+		Array<{ module_name: string; datatype_name: string; package: string }>
+	>;
+}): Promise<string> {
+	const path = await mkdtemp(join(tmpdir(), 'codegen-onchain-'));
+	const localSummaries = join(FIXTURE_PATH, 'package_summaries');
+	const onDiskMainDir = opts.rootPackageOriginalId ?? opts.rootPackageId;
+
+	await writeFile(
+		join(path, 'root_package_metadata.json'),
+		JSON.stringify({
+			root_package_id: opts.rootPackageId,
+			root_package_original_id: opts.rootPackageOriginalId ?? opts.rootPackageId,
+			dependencies: opts.dependencies ?? {},
+			...(opts.typeOrigins ? { type_origins: opts.typeOrigins } : {}),
+		}),
+	);
+	await writeFile(
+		join(path, 'address_mapping.json'),
+		JSON.stringify({
+			std: '0x0000000000000000000000000000000000000000000000000000000000000001',
+			sui: '0x0000000000000000000000000000000000000000000000000000000000000002',
+			testpkg: onDiskMainDir,
+		}),
+	);
+	await mkdir(join(path, onDiskMainDir), { recursive: true });
+	await cp(join(localSummaries, 'testpkg'), join(path, onDiskMainDir), { recursive: true });
+	for (const depId of Object.keys(opts.dependencies ?? {})) {
+		const depDir = join(path, depId);
+		await mkdir(depDir, { recursive: true });
+		const local =
+			depId === '0x0000000000000000000000000000000000000000000000000000000000000001'
+				? join(localSummaries, 'std')
+				: join(localSummaries, 'sui');
+		await cp(local, depDir, { recursive: true });
+	}
+	return path;
+}
+
+const LATEST_ID = '0x' + 'a'.repeat(64);
+const V1_ID = '0x' + 'b'.repeat(64);
+const STD_ID = '0x0000000000000000000000000000000000000000000000000000000000000001';
+const SUI_ID = '0x0000000000000000000000000000000000000000000000000000000000000002';
 
 async function getGeneratedFiles(outputDir: string): Promise<string[]> {
 	const files: string[] = [];
@@ -640,6 +696,139 @@ describe('generate options', () => {
 			expect(files).toContain('testpkg/registry.ts');
 			// Dependencies should be generated in deps/
 			expect(files.some((f) => f.startsWith('testpkg/deps/'))).toBe(true);
+		});
+	});
+
+	describe('on-chain (upgraded) packages', () => {
+		let onChainPath: string;
+
+		afterEach(async () => {
+			if (onChainPath) await rm(onChainPath, { recursive: true, force: true });
+		});
+
+		it('emits modules and uses original id for type names when queried by raw upgraded id', async () => {
+			onChainPath = await buildOnChainFixture({
+				rootPackageId: LATEST_ID,
+				rootPackageOriginalId: V1_ID,
+				dependencies: { [STD_ID]: STD_ID, [SUI_ID]: SUI_ID },
+			});
+			outputDir = await mkdtemp(join(tmpdir(), 'codegen-test-'));
+
+			await generateFromPackageSummary({
+				package: { package: LATEST_ID, packageName: 'testpkg', path: onChainPath },
+				prune: true,
+				outputDir,
+			});
+
+			const files = await getGeneratedFiles(outputDir);
+			expect(files).toContain('testpkg/counter.ts');
+			expect(files).toContain('testpkg/registry.ts');
+
+			const counter = await getFileContent(outputDir, 'testpkg/counter.ts');
+			// BCS type tags must use the *introducing* version, which here means original v1
+			// (no per-type origins, so every type goes through the $moduleName fallback).
+			expect(counter).toContain(`const $moduleName = '${V1_ID}::counter';`);
+			// Function helpers should target the latest queried id so calls hit the upgrade.
+			expect(counter).toContain(`options.package ?? '${LATEST_ID}'`);
+		});
+
+		it('uses original id for type names even when queried by MVR name', async () => {
+			onChainPath = await buildOnChainFixture({
+				rootPackageId: LATEST_ID,
+				rootPackageOriginalId: V1_ID,
+				dependencies: { [STD_ID]: STD_ID, [SUI_ID]: SUI_ID },
+			});
+			outputDir = await mkdtemp(join(tmpdir(), 'codegen-test-'));
+
+			await generateFromPackageSummary({
+				package: { package: '@test/testpkg', packageName: 'testpkg', path: onChainPath },
+				prune: true,
+				outputDir,
+			});
+
+			const counter = await getFileContent(outputDir, 'testpkg/counter.ts');
+			// MVR names resolve to the latest version at runtime — that wouldn't match on-chain
+			// type tags for upgraded packages. Type names must always use the original id.
+			expect(counter).toContain(`const $moduleName = '${V1_ID}::counter';`);
+			// Function helpers can use the MVR name (it resolves to latest at call time).
+			expect(counter).toContain(`options.package ?? '@test/testpkg'`);
+		});
+
+		it('inlines per-type origin addresses from type_origins (across multiple versions)', async () => {
+			// Real metadata keys all of a package's entries under its `original_id`; the
+			// introducing version of each individual type lives in the entry's `package` field.
+			onChainPath = await buildOnChainFixture({
+				rootPackageId: LATEST_ID,
+				rootPackageOriginalId: V1_ID,
+				dependencies: { [STD_ID]: STD_ID, [SUI_ID]: SUI_ID },
+				typeOrigins: {
+					[V1_ID]: [
+						{ module_name: 'counter', datatype_name: 'Counter', package: V1_ID },
+						{ module_name: 'counter', datatype_name: 'AdminCap', package: LATEST_ID },
+					],
+				},
+			});
+			outputDir = await mkdtemp(join(tmpdir(), 'codegen-test-'));
+
+			await generateFromPackageSummary({
+				package: { package: LATEST_ID, packageName: 'testpkg', path: onChainPath },
+				prune: true,
+				outputDir,
+				globalGenerate: { types: true, functions: false },
+			});
+
+			const counter = await getFileContent(outputDir, 'testpkg/counter.ts');
+			// Counter's origin equals the module's own address — falls through to $moduleName
+			// (which is `${V1_ID}::counter`) instead of emitting a redundant inline prefix.
+			expect(counter).toContain('name: `${$moduleName}::Counter`');
+			expect(counter).toContain(`const $moduleName = '${V1_ID}::counter';`);
+			// AdminCap's origin is the upgrade version — must be inlined since it differs.
+			expect(counter).toContain(`name: \`${LATEST_ID}::counter::AdminCap\``);
+		});
+
+		it('passes per-dep type_origins through to dep modules (e.g. upgraded deps)', async () => {
+			// std `option::Option` is at 0x1 in reality — pretend it was introduced at a
+			// different address (some hypothetical earlier version) to verify the dep builder
+			// honours the per-type origin from the metadata rather than always using its own
+			// `summary.id.address`.
+			const FAKE_STD_V0 = '0x' + 'c'.repeat(64);
+			onChainPath = await buildOnChainFixture({
+				rootPackageId: LATEST_ID,
+				dependencies: { [STD_ID]: STD_ID, [SUI_ID]: SUI_ID },
+				typeOrigins: {
+					[STD_ID]: [{ module_name: 'option', datatype_name: 'Option', package: FAKE_STD_V0 }],
+				},
+			});
+			outputDir = await mkdtemp(join(tmpdir(), 'codegen-test-'));
+
+			await generateFromPackageSummary({
+				package: { package: LATEST_ID, packageName: 'testpkg', path: onChainPath },
+				prune: false,
+				outputDir,
+				globalGenerate: { types: true, functions: false },
+			});
+
+			const files = await getGeneratedFiles(outputDir);
+			const optionFile = files.find((f) => f.endsWith('/option.ts'));
+			if (optionFile) {
+				const content = await getFileContent(outputDir, optionFile);
+				expect(content).toContain(`name: \`${FAKE_STD_V0}::option::Option`);
+			}
+		});
+
+		it("throws when root_package_metadata.json is missing 'root_package_id'", async () => {
+			onChainPath = await mkdtemp(join(tmpdir(), 'codegen-onchain-'));
+			await writeFile(join(onChainPath, 'root_package_metadata.json'), '{}');
+			await writeFile(join(onChainPath, 'address_mapping.json'), '{}');
+			outputDir = await mkdtemp(join(tmpdir(), 'codegen-test-'));
+
+			await expect(
+				generateFromPackageSummary({
+					package: { package: LATEST_ID, packageName: 'testpkg', path: onChainPath },
+					prune: true,
+					outputDir,
+				}),
+			).rejects.toThrow(/root_package_id/);
 		});
 	});
 });

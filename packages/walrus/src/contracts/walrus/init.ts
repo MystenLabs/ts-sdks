@@ -112,7 +112,8 @@ export interface MigrateV2Options {
  * Migrate to version 3:
  *
  * - Create the slashing manager shared object.
- * - Do not use migration epoch.
+ * - Do not use migration epoch. Migrate to version 4:
+ * - No additional steps beyond version bump.
  */
 export function migrateV2(options: MigrateV2Options) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';

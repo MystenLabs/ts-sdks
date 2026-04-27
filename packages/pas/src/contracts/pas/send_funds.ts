@@ -3,7 +3,7 @@
  **************************************************************/
 import { type BcsType, bcs } from '@mysten/sui/bcs';
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 const $moduleName = '@mysten/pas::send_funds';
 /**
  * A transfer request that is generated once a send funds request is initialized.
@@ -40,11 +40,11 @@ export function SendFunds<T extends BcsType<any>>(...typeParameters: [T]) {
 	});
 }
 export interface SenderArguments {
-	request: RawTransactionArgument<string>;
+	request: TransactionArgument;
 }
 export interface SenderOptions {
 	package?: string;
-	arguments: SenderArguments | [request: RawTransactionArgument<string>];
+	arguments: SenderArguments | [request: TransactionArgument];
 	typeArguments: [string];
 }
 export function sender(options: SenderOptions) {
@@ -61,11 +61,11 @@ export function sender(options: SenderOptions) {
 		});
 }
 export interface RecipientArguments {
-	request: RawTransactionArgument<string>;
+	request: TransactionArgument;
 }
 export interface RecipientOptions {
 	package?: string;
-	arguments: RecipientArguments | [request: RawTransactionArgument<string>];
+	arguments: RecipientArguments | [request: TransactionArgument];
 	typeArguments: [string];
 }
 export function recipient(options: RecipientOptions) {
@@ -82,11 +82,11 @@ export function recipient(options: RecipientOptions) {
 		});
 }
 export interface SenderAccountIdArguments {
-	request: RawTransactionArgument<string>;
+	request: TransactionArgument;
 }
 export interface SenderAccountIdOptions {
 	package?: string;
-	arguments: SenderAccountIdArguments | [request: RawTransactionArgument<string>];
+	arguments: SenderAccountIdArguments | [request: TransactionArgument];
 	typeArguments: [string];
 }
 export function senderAccountId(options: SenderAccountIdOptions) {
@@ -103,11 +103,11 @@ export function senderAccountId(options: SenderAccountIdOptions) {
 		});
 }
 export interface RecipientAccountIdArguments {
-	request: RawTransactionArgument<string>;
+	request: TransactionArgument;
 }
 export interface RecipientAccountIdOptions {
 	package?: string;
-	arguments: RecipientAccountIdArguments | [request: RawTransactionArgument<string>];
+	arguments: RecipientAccountIdArguments | [request: TransactionArgument];
 	typeArguments: [string];
 }
 export function recipientAccountId(options: RecipientAccountIdOptions) {
@@ -124,11 +124,11 @@ export function recipientAccountId(options: RecipientAccountIdOptions) {
 		});
 }
 export interface FundsArguments {
-	request: RawTransactionArgument<string>;
+	request: TransactionArgument;
 }
 export interface FundsOptions {
 	package?: string;
-	arguments: FundsArguments | [request: RawTransactionArgument<string>];
+	arguments: FundsArguments | [request: TransactionArgument];
 	typeArguments: [string];
 }
 export function funds(options: FundsOptions) {
@@ -145,14 +145,14 @@ export function funds(options: FundsOptions) {
 		});
 }
 export interface ResolveBalanceArguments {
-	request: RawTransactionArgument<string>;
+	request: TransactionArgument;
 	policy: RawTransactionArgument<string>;
 }
 export interface ResolveBalanceOptions {
 	package?: string;
 	arguments:
 		| ResolveBalanceArguments
-		| [request: RawTransactionArgument<string>, policy: RawTransactionArgument<string>];
+		| [request: TransactionArgument, policy: RawTransactionArgument<string>];
 	typeArguments: [string];
 }
 /**

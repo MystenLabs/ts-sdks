@@ -149,6 +149,7 @@ export default async function generate(
 			globalGenerate,
 			importExtension,
 			includePhantomTypeParameters: config.includePhantomTypeParameters,
+			errorClass: config.errorClass,
 		});
 	}
 }

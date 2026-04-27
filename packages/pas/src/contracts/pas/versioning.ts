@@ -13,7 +13,7 @@
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as vec_set from './deps/sui/vec_set.js';
 const $moduleName = '@mysten/pas::versioning';
 export const Versioning = new MoveStruct({
@@ -23,17 +23,14 @@ export const Versioning = new MoveStruct({
 	},
 });
 export interface IsValidVersionArguments {
-	versioning: RawTransactionArgument<string>;
+	versioning: TransactionArgument;
 	version: RawTransactionArgument<number | bigint>;
 }
 export interface IsValidVersionOptions {
 	package?: string;
 	arguments:
 		| IsValidVersionArguments
-		| [
-				versioning: RawTransactionArgument<string>,
-				version: RawTransactionArgument<number | bigint>,
-		  ];
+		| [versioning: TransactionArgument, version: RawTransactionArgument<number | bigint>];
 }
 /** Verify that a version is not part of the blocked version list. */
 export function isValidVersion(options: IsValidVersionOptions) {
@@ -49,11 +46,11 @@ export function isValidVersion(options: IsValidVersionOptions) {
 		});
 }
 export interface AssertIsValidVersionArguments {
-	versioning: RawTransactionArgument<string>;
+	versioning: TransactionArgument;
 }
 export interface AssertIsValidVersionOptions {
 	package?: string;
-	arguments: AssertIsValidVersionArguments | [versioning: RawTransactionArgument<string>];
+	arguments: AssertIsValidVersionArguments | [versioning: TransactionArgument];
 }
 export function assertIsValidVersion(options: AssertIsValidVersionOptions) {
 	const packageAddress = options.package ?? '@mysten/pas';

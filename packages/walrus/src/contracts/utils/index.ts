@@ -16,17 +16,11 @@ const SUI_FRAMEWORK_ADDRESS = normalizeSuiAddress('0x2');
 
 export type RawTransactionArgument<T> = T | TransactionArgument;
 
-export interface GetOptions<
-	Include extends Omit<SuiClientTypes.ObjectInclude, 'content'> = {},
-> extends SuiClientTypes.GetObjectOptions<Include> {
-	client: ClientWithCoreApi;
-}
+export type GetOptions<Include extends Omit<SuiClientTypes.ObjectInclude, 'content'> = {}> =
+	SuiClientTypes.GetObjectOptions<Include> & { client: ClientWithCoreApi };
 
-export interface GetManyOptions<
-	Include extends Omit<SuiClientTypes.ObjectInclude, 'content'> = {},
-> extends SuiClientTypes.GetObjectsOptions<Include> {
-	client: ClientWithCoreApi;
-}
+export type GetManyOptions<Include extends Omit<SuiClientTypes.ObjectInclude, 'content'> = {}> =
+	SuiClientTypes.GetObjectsOptions<Include> & { client: ClientWithCoreApi };
 
 export function getPureBcsSchema(typeTag: string | TypeTag): BcsType<any> | null {
 	const parsedTag = typeof typeTag === 'string' ? TypeTagSerializer.parseFromStr(typeTag) : typeTag;
