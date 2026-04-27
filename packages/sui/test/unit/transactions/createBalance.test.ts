@@ -2178,6 +2178,214 @@ describe('tx.balance', () => {
 		]);
 	});
 
+	describe('BuildTransactionOptions overrides', () => {
+		it('options.coins bypasses listCoins call', async () => {
+			const tx = new Transaction();
+			tx.setSenderIfNotSet(SENDER);
+			tx.transferObjects([tx.coin({ type: TEST_TYPE, balance: 50n })], RECEIVER);
+
+			// listCoins throws — verifies it is not called when coins override is provided
+			const client = {
+				core: {
+					getBalance: async () => ({
+						balance: {
+							coinType: TEST_TYPE,
+							balance: '100',
+							coinBalance: '100',
+							addressBalance: '0',
+						},
+					}),
+					listCoins: async () => {
+						throw new Error('listCoins should not be called when coins option is provided');
+					},
+				},
+			} as any;
+
+			const resolved = JSON.parse(
+				await tx.toJSON({
+					supportedIntents: [],
+					client,
+					coins: { [TEST_TYPE]: [makeCoin('0xc01', '100')] },
+				}),
+			);
+
+			expect(resolved.commands[0]).toHaveProperty('SplitCoins');
+			expect(
+				resolved.inputs.some(
+					(i: any) => i.Object?.ImmOrOwnedObject?.objectId === normalizeSuiAddress('0xc01'),
+				),
+			).toBe(true);
+		});
+
+		it('options.balances bypasses getBalance call', async () => {
+			const tx = new Transaction();
+			tx.setSenderIfNotSet(SENDER);
+			tx.transferObjects([tx.coin({ type: TEST_TYPE, balance: 50n })], RECEIVER);
+
+			// getBalance throws — verifies it is not called when balances override is provided
+			const client = {
+				core: {
+					getBalance: async () => {
+						throw new Error('getBalance should not be called when balances option is provided');
+					},
+					listCoins: async () => ({
+						objects: [makeCoin('0xc01', '100')],
+						hasNextPage: false,
+						cursor: null,
+					}),
+				},
+			} as any;
+
+			const resolved = JSON.parse(
+				await tx.toJSON({
+					supportedIntents: [],
+					client,
+					balances: {
+						[TEST_TYPE]: {
+							coinType: TEST_TYPE,
+							balance: '100',
+							coinBalance: '100',
+							addressBalance: '0',
+						},
+					},
+				}),
+			);
+
+			expect(resolved.commands[0]).toHaveProperty('SplitCoins');
+		});
+
+		it('options.coins and options.balances together bypass all RPC calls', async () => {
+			const tx = new Transaction();
+			tx.setSenderIfNotSet(SENDER);
+			tx.transferObjects([tx.coin({ type: TEST_TYPE, balance: 50n })], RECEIVER);
+
+			const offlineClient = {
+				core: {
+					getBalance: async () => {
+						throw new Error('unexpected getBalance call');
+					},
+					listCoins: async () => {
+						throw new Error('unexpected listCoins call');
+					},
+				},
+			} as any;
+
+			const resolved = JSON.parse(
+				await tx.toJSON({
+					supportedIntents: [],
+					client: offlineClient,
+					coins: { [TEST_TYPE]: [makeCoin('0xc01', '100')] },
+					balances: {
+						[TEST_TYPE]: {
+							coinType: TEST_TYPE,
+							balance: '100',
+							coinBalance: '100',
+							addressBalance: '0',
+						},
+					},
+				}),
+			);
+
+			expect(resolved.commands[0]).toHaveProperty('SplitCoins');
+		});
+
+		it('options.coins applies per type — other types still query the client', async () => {
+			const tx = new Transaction();
+			tx.setSenderIfNotSet(SENDER);
+			tx.transferObjects([tx.coin({ type: TEST_TYPE, balance: 10n })], RECEIVER);
+			tx.transferObjects([tx.coin({ type: TEST_TYPE_2, balance: 5n })], RECEIVER);
+
+			const listCoinsCallTypes: string[] = [];
+			const client = {
+				core: {
+					getBalance: async ({ coinType }: { coinType?: string } = {}) => ({
+						balance: {
+							coinType: normalizeStructTag(coinType ?? TEST_TYPE_2),
+							balance: '100',
+							coinBalance: '100',
+							addressBalance: '0',
+						},
+					}),
+					listCoins: async ({ coinType }: { coinType?: string } = {}) => {
+						listCoinsCallTypes.push(coinType ?? '');
+						return {
+							objects: [makeCoin('0xc02', '100', TEST_TYPE_2)],
+							hasNextPage: false,
+							cursor: null,
+						};
+					},
+				},
+			} as any;
+
+			await tx.toJSON({
+				supportedIntents: [],
+				client,
+				coins: { [TEST_TYPE]: [makeCoin('0xc01', '100')] },
+				balances: {
+					[TEST_TYPE]: {
+						coinType: TEST_TYPE,
+						balance: '100',
+						coinBalance: '100',
+						addressBalance: '0',
+					},
+				},
+			});
+
+			expect(listCoinsCallTypes).not.toContain(TEST_TYPE);
+			expect(listCoinsCallTypes).toContain(TEST_TYPE_2);
+		});
+
+		it('options.balances with sufficient AB triggers Path 1 for balance intents', async () => {
+			const tx = new Transaction();
+			tx.setSenderIfNotSet(SENDER);
+			const bal = tx.balance({ type: TEST_TYPE, balance: 20n });
+			tx.moveCall({
+				target: '0x2::balance::destroy_zero',
+				typeArguments: [TEST_TYPE],
+				arguments: [bal],
+			});
+
+			const offlineClient = {
+				core: {
+					getBalance: async () => {
+						throw new Error('unexpected getBalance call');
+					},
+					listCoins: async () => {
+						throw new Error('unexpected listCoins call');
+					},
+				},
+			} as any;
+
+			const resolved = JSON.parse(
+				await tx.toJSON({
+					supportedIntents: [],
+					client: offlineClient,
+					coins: { [TEST_TYPE]: [] },
+					balances: {
+						[TEST_TYPE]: {
+							coinType: TEST_TYPE,
+							balance: '100',
+							coinBalance: '0',
+							addressBalance: '100',
+						},
+					},
+				}),
+			);
+
+			// Path 1: direct balance::redeem_funds, no SplitCoins
+			expect(resolved.commands[0]).toEqual({
+				MoveCall: {
+					package: normalizeSuiAddress('0x2'),
+					module: 'balance',
+					function: 'redeem_funds',
+					typeArguments: [TEST_TYPE],
+					arguments: [{ Input: expect.any(Number) }],
+				},
+			});
+			expect(resolved.commands.find((c: any) => c.SplitCoins)).toBeUndefined();
+		});
+	});
+
 	it('errors when mixing gas and useGasCoin:false SUI intents', async () => {
 		const SUI_TYPE = normalizeStructTag('0x2::sui::SUI');
 		const tx = new Transaction();

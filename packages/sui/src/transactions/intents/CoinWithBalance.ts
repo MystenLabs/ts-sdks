@@ -175,6 +175,7 @@ export async function resolveCoinBalance(
 				client,
 				owner: transactionData.sender!,
 				usedIds,
+				options: buildOptions,
 			});
 
 			coinsByType.set(coinType, coins);
@@ -440,12 +441,14 @@ async function getCoinsAndBalanceOfType({
 	client,
 	owner,
 	usedIds,
+	options,
 }: {
 	coinType: string;
 	balance: bigint;
 	client: ClientWithCoreApi;
 	owner: string;
 	usedIds: Set<string>;
+	options: BuildTransactionOptions;
 }): Promise<{
 	coins: SuiClientTypes.Coin[];
 	balance: bigint;
@@ -454,11 +457,13 @@ async function getCoinsAndBalanceOfType({
 }> {
 	let remainingBalance = balance;
 	const coins: SuiClientTypes.Coin[] = [];
-	const balanceRequest = client.core.getBalance({ owner, coinType }).then(({ balance }) => {
-		remainingBalance -= BigInt(balance.addressBalance);
+	const balanceRequest =
+		options.balances?.[coinType] ??
+		client.core.getBalance({ owner, coinType }).then(({ balance }) => {
+			remainingBalance -= BigInt(balance.addressBalance);
 
-		return balance;
-	});
+			return balance;
+		});
 
 	const [allCoins, balanceResponse] = await Promise.all([loadMoreCoins(), balanceRequest]);
 
@@ -478,6 +483,12 @@ async function getCoinsAndBalanceOfType({
 	};
 
 	async function loadMoreCoins(cursor: string | null = null): Promise<SuiClientTypes.Coin[]> {
+		if (options.coins?.[coinType]) {
+			// If coins were provided in options, use those instead of paginating.
+			// This allows callers to control pagination and potentially avoid it if they know they have sufficient coins.
+			return options.coins[coinType]?.filter((coin) => !usedIds.has(coin.objectId)) ?? [];
+		}
+
 		const {
 			objects,
 			hasNextPage,

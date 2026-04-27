@@ -3,7 +3,7 @@
 
 import type { Argument } from './data/internal.js';
 
-import type { ClientWithCoreApi } from '../client/index.js';
+import type { ClientWithCoreApi, SuiClientTypes } from '../client/index.js';
 import type { TransactionDataBuilder } from './TransactionData.js';
 import type { BcsType } from '@mysten/bcs';
 import { Inputs } from './Inputs.js';
@@ -13,6 +13,10 @@ import { coreClientResolveTransactionPlugin } from '../client/core-resolver.js';
 export interface BuildTransactionOptions {
 	client?: ClientWithCoreApi;
 	onlyTransactionKind?: boolean;
+	// Overwrite the coins available to coin and balance intents
+	coins?: Record<string, SuiClientTypes.Coin[]>;
+	// Overwrite the balances available to coin and balance intents
+	balances?: Record<string, SuiClientTypes.Balance>;
 }
 
 export interface SerializeTransactionOptions extends BuildTransactionOptions {
