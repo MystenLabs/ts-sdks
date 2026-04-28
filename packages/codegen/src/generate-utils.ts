@@ -1,7 +1,23 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-export const utilsContent = /* ts */ `
+import type { ErrorClassConfig } from './config.js';
+
+const ERROR_CLASS_SENTINEL = '__ERROR_CLASS__';
+const ERROR_IMPORT_SENTINEL = '__ERROR_IMPORT__';
+
+export function getUtilsContent(errorClass?: ErrorClassConfig): string {
+	const useDefault = !errorClass || errorClass.name === 'Error';
+	const errorImport = useDefault
+		? ''
+		: `import { ${errorClass.name} } from ${JSON.stringify(errorClass.source)};\n`;
+	const errorName = useDefault ? 'Error' : errorClass.name;
+	return content
+		.replaceAll(ERROR_CLASS_SENTINEL, errorName)
+		.replace(ERROR_IMPORT_SENTINEL, errorImport);
+}
+
+const content = /* ts */ `__ERROR_IMPORT__
 import {
 	bcs,
 	type BcsType,
@@ -20,17 +36,11 @@ const SUI_FRAMEWORK_ADDRESS = normalizeSuiAddress('0x2');
 
 export type RawTransactionArgument<T> = T | TransactionArgument;
 
-export interface GetOptions<
-	Include extends Omit<SuiClientTypes.ObjectInclude, 'content'> = {},
-> extends SuiClientTypes.GetObjectOptions<Include> {
-	client: ClientWithCoreApi;
-}
+export type GetOptions<Include extends Omit<SuiClientTypes.ObjectInclude, 'content'> = {}> =
+	SuiClientTypes.GetObjectOptions<Include> & { client: ClientWithCoreApi };
 
-export interface GetManyOptions<
-	Include extends Omit<SuiClientTypes.ObjectInclude, 'content'> = {},
-> extends SuiClientTypes.GetObjectsOptions<Include> {
-	client: ClientWithCoreApi;
-}
+export type GetManyOptions<Include extends Omit<SuiClientTypes.ObjectInclude, 'content'> = {}> =
+	SuiClientTypes.GetObjectsOptions<Include> & { client: ClientWithCoreApi };
 
 export function getPureBcsSchema(typeTag: string | TypeTag): BcsType<any> | null {
 	const parsedTag = typeof typeTag === 'string' ? TypeTagSerializer.parseFromStr(typeTag) : typeTag;
@@ -91,7 +101,7 @@ export function normalizeMoveArguments(
 ) {
 	const argLen = Array.isArray(args) ? args.length : Object.keys(args).length;
 	if (parameterNames && argLen !== parameterNames.length) {
-		throw new Error(
+		throw new __ERROR_CLASS__(
 			\`Invalid number of arguments, expected \${parameterNames.length}, got \${argLen}\`,
 		);
 	}
@@ -123,20 +133,20 @@ export function normalizeMoveArguments(
 		let arg;
 		if (Array.isArray(args)) {
 			if (index >= args.length) {
-				throw new Error(
+				throw new __ERROR_CLASS__(
 					\`Invalid number of arguments, expected at least \${index + 1}, got \${args.length}\`,
 				);
 			}
 			arg = args[index];
 		} else {
 			if (!parameterNames) {
-				throw new Error(\`Expected arguments to be passed as an array\`);
+				throw new __ERROR_CLASS__(\`Expected arguments to be passed as an array\`);
 			}
 			const name = parameterNames[index];
 			arg = args[name as keyof typeof args];
 
 			if (arg === undefined) {
-				throw new Error(\`Parameter \${name} is required\`);
+				throw new __ERROR_CLASS__(\`Parameter \${name} is required\`);
 			}
 		}
 
@@ -161,7 +171,7 @@ export function normalizeMoveArguments(
 			continue;
 		}
 
-		throw new Error(\`Invalid argument \${stringify(arg)} for type \${type}\`);
+		throw new __ERROR_CLASS__(\`Invalid argument \${stringify(arg)} for type \${type}\`);
 	}
 
 	return normalizedArgs;

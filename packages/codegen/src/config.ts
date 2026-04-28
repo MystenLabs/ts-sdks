@@ -68,6 +68,16 @@ export type PackageGenerate = z.infer<typeof packageGenerateSchema>;
 export type FunctionsOption = z.infer<typeof functionsOptionSchema>;
 export type TypesOption = z.infer<typeof typesOptionSchema>;
 
+const IDENTIFIER = /^[A-Za-z_$][\w$]*$/;
+
+export const errorClassSchema = z.object({
+	name: z.string().regex(IDENTIFIER, {
+		message: 'errorClass.name must start with a letter, $ or _ and contain only [A-Za-z0-9_$]',
+	}),
+	/** Import specifier resolved relative to the generated `<output>/utils/index.ts`. */
+	source: z.string(),
+});
+
 export const configSchema = z.object({
 	output: z.string(),
 	prune: z.boolean().optional().default(true),
@@ -78,7 +88,14 @@ export const configSchema = z.object({
 	privateMethods: z.union([z.literal('none'), z.literal('entry'), z.literal('all')]).optional(),
 	importExtension: importExtensionSchema.optional().default('.js'),
 	includePhantomTypeParameters: z.boolean().optional().default(false),
+	/**
+	 * Custom error class for `normalizeMoveArguments` in the generated `utils/index.ts`.
+	 * Defaults to the built-in `Error`.
+	 */
+	errorClass: errorClassSchema.optional(),
 });
+
+export type ErrorClassConfig = z.infer<typeof errorClassSchema>;
 
 export type PackageConfig = z.infer<typeof packageConfigSchema>;
 export type SuiCodegenConfig = z.input<typeof configSchema>;

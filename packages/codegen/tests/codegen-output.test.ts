@@ -1072,3 +1072,105 @@ describe('includePhantomTypeParameters option', () => {
 		`);
 	});
 });
+
+describe('typeOrigins (upgraded packages)', () => {
+	const ORIGIN_V1 = '0x000000000000000000000000000000000000000000000000000000000000aaaa';
+	const ORIGIN_V2 = '0x000000000000000000000000000000000000000000000000000000000000bbbb';
+
+	it('inlines per-struct origin addresses and skips $moduleName when all types have origins', async () => {
+		const builder = await MoveModuleBuilder.fromSummaryFile(
+			join(SUMMARIES_DIR, 'testpkg', 'counter.json'),
+			new ModuleRegistry(ADDRESS_MAPPINGS),
+			'@test/testpkg',
+			'.js',
+			false,
+			{ Counter: ORIGIN_V1, AdminCap: ORIGIN_V1 },
+		);
+		builder.includeTypes(['Counter', 'AdminCap']);
+		const output = await render(builder, { types: true, functions: false });
+		const body = extractBody(output);
+
+		// No $moduleName declaration when every type has a known origin.
+		expect(body).not.toContain('$moduleName');
+		expect(body).toContain(`name: \`${ORIGIN_V1}::counter::Counter\``);
+		expect(body).toContain(`name: \`${ORIGIN_V1}::counter::AdminCap\``);
+	});
+
+	it('keeps $moduleName when some types lack origins (mixed introducing versions)', async () => {
+		// AdminCap was introduced in v1, Counter in v2. Only AdminCap has an origin entry —
+		// Counter falls back to $moduleName.
+		const builder = await MoveModuleBuilder.fromSummaryFile(
+			join(SUMMARIES_DIR, 'testpkg', 'counter.json'),
+			new ModuleRegistry(ADDRESS_MAPPINGS),
+			'@test/testpkg',
+			'.js',
+			false,
+			{ AdminCap: ORIGIN_V1 },
+		);
+		builder.includeTypes(['Counter', 'AdminCap']);
+		const output = await render(builder, { types: true, functions: false });
+		const body = extractBody(output);
+
+		expect(body).toContain(`const $moduleName = '@test/testpkg::counter';`);
+		expect(body).toContain(`name: \`${ORIGIN_V1}::counter::AdminCap\``);
+		expect(body).toContain('name: `${$moduleName}::Counter`');
+	});
+
+	it('uses origin address for generic struct (Wrapper<T>) introduced in upgrade', async () => {
+		const builder = await MoveModuleBuilder.fromSummaryFile(
+			join(SUMMARIES_DIR, 'testpkg', 'counter.json'),
+			new ModuleRegistry(ADDRESS_MAPPINGS),
+			'@test/testpkg',
+			'.js',
+			false,
+			{ Wrapper: ORIGIN_V2 },
+		);
+		builder.includeTypes(['Wrapper']);
+		const output = await render(builder, { types: true, functions: false });
+		const body = extractBody(output);
+
+		expect(body).not.toContain('$moduleName');
+		expect(body).toContain(
+			`name: \`${ORIGIN_V2}::counter::Wrapper<\${typeParameters[0].name as T['name']}>\``,
+		);
+	});
+
+	it('declares $moduleName when an additional type without an origin is added before render', async () => {
+		// Regression guard: `needsModuleName` must reflect the final included set, not a
+		// snapshot taken before the render. Add AdminCap (with origin) first, then Counter
+		// (no origin) — the second include must still trigger the $moduleName declaration.
+		const builder = await MoveModuleBuilder.fromSummaryFile(
+			join(SUMMARIES_DIR, 'testpkg', 'counter.json'),
+			new ModuleRegistry(ADDRESS_MAPPINGS),
+			'@test/testpkg',
+			'.js',
+			false,
+			{ AdminCap: ORIGIN_V1 },
+		);
+		builder.includeTypes(['AdminCap']);
+		builder.includeTypes(['Counter']);
+		const output = await render(builder, { types: true, functions: false });
+		const body = extractBody(output);
+
+		expect(body).toContain(`const $moduleName = '@test/testpkg::counter';`);
+		expect(body).toContain('name: `${$moduleName}::Counter`');
+	});
+
+	it('falls back to rootPackageId for type names (introducing version, not MVR name) when no per-type origin', async () => {
+		const ROOT_V1 = '0x' + 'b'.repeat(64);
+		const builder = await MoveModuleBuilder.fromSummaryFile(
+			join(SUMMARIES_DIR, 'testpkg', 'counter.json'),
+			new ModuleRegistry(ADDRESS_MAPPINGS),
+			'@upgraded/pkg',
+			'.js',
+			false,
+			undefined,
+			ROOT_V1,
+		);
+		builder.includeTypes(['Counter']);
+		const output = await render(builder, { types: true, functions: false });
+		const body = extractBody(output);
+
+		expect(body).toContain(`const $moduleName = '${ROOT_V1}::counter';`);
+	});
+});

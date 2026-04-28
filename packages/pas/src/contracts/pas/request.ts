@@ -3,7 +3,7 @@
  **************************************************************/
 import { type BcsType } from '@mysten/sui/bcs';
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as vec_set from './deps/sui/vec_set.js';
 import * as type_name from './deps/std/type_name.js';
 const $moduleName = '@mysten/pas::request';
@@ -19,14 +19,14 @@ export function Request<K extends BcsType<any>>(...typeParameters: [K]) {
 	});
 }
 export interface ApproveArguments<U extends BcsType<any>> {
-	request: RawTransactionArgument<string>;
+	request: TransactionArgument;
 	Approval: RawTransactionArgument<U>;
 }
 export interface ApproveOptions<U extends BcsType<any>> {
 	package?: string;
 	arguments:
 		| ApproveArguments<U>
-		| [request: RawTransactionArgument<string>, Approval: RawTransactionArgument<U>];
+		| [request: TransactionArgument, Approval: RawTransactionArgument<U>];
 	typeArguments: [string, string];
 }
 /** Adds an approval to a request. Can be called to resolve rules */
@@ -44,11 +44,11 @@ export function approve<U extends BcsType<any>>(options: ApproveOptions<U>) {
 		});
 }
 export interface DataArguments {
-	request: RawTransactionArgument<string>;
+	request: TransactionArgument;
 }
 export interface DataOptions {
 	package?: string;
-	arguments: DataArguments | [request: RawTransactionArgument<string>];
+	arguments: DataArguments | [request: TransactionArgument];
 	typeArguments: [string];
 }
 export function data(options: DataOptions) {
@@ -65,11 +65,11 @@ export function data(options: DataOptions) {
 		});
 }
 export interface ApprovalsArguments {
-	request: RawTransactionArgument<string>;
+	request: TransactionArgument;
 }
 export interface ApprovalsOptions {
 	package?: string;
-	arguments: ApprovalsArguments | [request: RawTransactionArgument<string>];
+	arguments: ApprovalsArguments | [request: TransactionArgument];
 	typeArguments: [string];
 }
 export function approvals(options: ApprovalsOptions) {
