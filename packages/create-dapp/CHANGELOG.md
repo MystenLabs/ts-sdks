@@ -1,5 +1,12 @@
 # @mysten/create-dapp
 
+## 0.6.6
+
+### Patch Changes
+
+- Updated dependencies [c96956e]
+  - @mysten/codegen@0.10.0
+
 ## 0.6.5
 
 ### Patch Changes

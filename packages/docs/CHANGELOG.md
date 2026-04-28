@@ -1,5 +1,16 @@
 # @mysten/docs
 
+## 0.1.19
+
+### Patch Changes
+
+- Updated dependencies [c96956e]
+  - @mysten/suins@1.1.0
+  - @mysten/walrus@1.1.3
+  - @mysten/kiosk@1.2.3
+  - @mysten/payment-kit@0.1.8
+  - @mysten/deepbook-v3@1.3.2
+
 ## 0.1.18
 
 ### Patch Changes
