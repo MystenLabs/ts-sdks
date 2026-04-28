@@ -810,10 +810,31 @@ describe('generate options', () => {
 
 			const files = await getGeneratedFiles(outputDir);
 			const optionFile = files.find((f) => f.endsWith('/option.ts'));
-			if (optionFile) {
-				const content = await getFileContent(outputDir, optionFile);
-				expect(content).toContain(`name: \`${FAKE_STD_V0}::option::Option`);
-			}
+			expect(optionFile).toBeDefined();
+			const content = await getFileContent(outputDir, optionFile!);
+			expect(content).toContain(`name: \`${FAKE_STD_V0}::option::Option`);
+		});
+
+		it('throws when the on-disk listing is missing the root package dir', async () => {
+			onChainPath = await mkdtemp(join(tmpdir(), 'codegen-onchain-'));
+			await writeFile(
+				join(onChainPath, 'root_package_metadata.json'),
+				JSON.stringify({
+					root_package_id: LATEST_ID,
+					root_package_original_id: V1_ID,
+				}),
+			);
+			await writeFile(join(onChainPath, 'address_mapping.json'), '{}');
+			// No directories on disk — main dir match must fail.
+			outputDir = await mkdtemp(join(tmpdir(), 'codegen-test-'));
+
+			await expect(
+				generateFromPackageSummary({
+					package: { package: LATEST_ID, packageName: 'testpkg', path: onChainPath },
+					prune: true,
+					outputDir,
+				}),
+			).rejects.toThrow(/Root package dir .* not found/);
 		});
 
 		it("throws when root_package_metadata.json is missing 'root_package_id'", async () => {

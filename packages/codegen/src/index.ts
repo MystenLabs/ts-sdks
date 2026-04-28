@@ -55,7 +55,6 @@ export async function generateFromPackageSummary({
 	const mvrNameOrAddress = pkg.package;
 
 	const typeOriginsByPkgAndModule = new Map<string, Map<string, Record<string, string>>>();
-	let dependencyIds = new Set<string>();
 
 	if (isOnChainPackage) {
 		const metadata: RootPackageMetadata = JSON.parse(
@@ -68,7 +67,6 @@ export async function generateFromPackageSummary({
 		if (!packageName) {
 			packageName = rootPackageId;
 		}
-		dependencyIds = new Set(Object.keys(metadata.dependencies ?? {}));
 
 		if (metadata.type_origins) {
 			for (const [originKey, origins] of Object.entries(metadata.type_origins)) {
@@ -109,9 +107,10 @@ export async function generateFromPackageSummary({
 		statSync(join(summaryDir, file)).isDirectory(),
 	);
 
-	const mainPackageDir = isOnChainPackage
-		? packages.find((dir) => !dependencyIds.has(dir))
-		: undefined;
+	const mainPackageDir = isOnChainPackage ? rootPackageId : undefined;
+	if (isOnChainPackage && !packages.includes(mainPackageDir!)) {
+		throw new Error(`Root package dir ${mainPackageDir} not found in summary at ${pkg.path}`);
+	}
 	const isMainPackage = (pkgDir: string) => {
 		if (isOnChainPackage) {
 			return pkgDir === mainPackageDir;
@@ -177,8 +176,7 @@ export async function generateFromPackageSummary({
 		mod.builder.includeFunctions(functions);
 	}
 
-	// Clean the package output directory to remove stale files from previous runs.
-	// Done before writing utils so a pathological `packageName === 'utils'` doesn't wipe them.
+	// Wipe stale files before writing fresh ones.
 	const packageOutputDir = join(outputDir, packageName);
 	await rm(packageOutputDir, { recursive: true, force: true });
 

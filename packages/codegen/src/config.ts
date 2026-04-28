@@ -68,12 +68,13 @@ export type PackageGenerate = z.infer<typeof packageGenerateSchema>;
 export type FunctionsOption = z.infer<typeof functionsOptionSchema>;
 export type TypesOption = z.infer<typeof typesOptionSchema>;
 
-const TS_IDENTIFIER = /^[A-Za-z_$][\w$]*$/;
+const IDENTIFIER = /^[A-Za-z_$][\w$]*$/;
 
 export const errorClassSchema = z.object({
-	name: z.string().regex(TS_IDENTIFIER, {
-		message: 'errorClass.name must be a valid TypeScript identifier',
+	name: z.string().regex(IDENTIFIER, {
+		message: 'errorClass.name must start with a letter, $ or _ and contain only [A-Za-z0-9_$]',
 	}),
+	/** Import specifier resolved relative to the generated `<output>/utils/index.ts`. */
 	source: z.string(),
 });
 
