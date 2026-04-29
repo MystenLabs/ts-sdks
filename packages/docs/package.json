@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/docs",
-	"version": "0.1.19",
+	"version": "0.1.20",
 	"description": "LLM-friendly documentation for the Sui TypeScript SDK ecosystem",
 	"license": "Apache-2.0",
 	"repository": {

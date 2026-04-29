@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/pas",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"private": false,
 	"description": "Permissioned Assets Standard SDK",
 	"license": "Apache-2.0",
