@@ -57,7 +57,8 @@ export function getPureBcsSchema(typeTag: string | TypeTag): BcsType<any> | null
 			}
 
 			if (structTag.module === 'option' && structTag.name === 'Option') {
-				const type = getPureBcsSchema(structTag.typeParams[0]);
+				const inner = structTag.typeParams[0];
+				const type = inner ? getPureBcsSchema(inner) : null;
 				return type ? bcs.option(type) : null;
 			}
 		}
@@ -137,8 +138,7 @@ export function normalizeMoveArguments(
 			continue;
 		}
 
-		const type = argTypes[i];
-		const bcsType = type === null ? null : getPureBcsSchema(type);
+		const bcsType = argType === null ? null : getPureBcsSchema(argType);
 
 		if (bcsType) {
 			const bytes = bcsType.serialize(arg as never);
@@ -151,7 +151,7 @@ export function normalizeMoveArguments(
 			continue;
 		}
 
-		throw new Error(`Invalid argument ${stringify(arg)} for type ${type}`);
+		throw new Error(`Invalid argument ${stringify(arg)} for type ${argType}`);
 	}
 
 	return normalizedArgs;
@@ -173,6 +173,10 @@ export class MoveStruct<
 			...options,
 			objectIds: [objectId],
 		});
+
+		if (!res) {
+			throw new Error(`No object found for id ${objectId}`);
+		}
 
 		return res;
 	}
