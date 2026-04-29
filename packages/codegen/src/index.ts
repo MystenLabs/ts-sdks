@@ -236,9 +236,7 @@ function resolveLocalMainPackageDir(
 	packageName: string,
 	pkgPath: string,
 ): string {
-	const fromLocalAddresses = localAddressLabels.filter((label) =>
-		summaryPackages.includes(label),
-	);
+	const fromLocalAddresses = localAddressLabels.filter((label) => summaryPackages.includes(label));
 	if (fromLocalAddresses.length === 1) {
 		return fromLocalAddresses[0];
 	}
