@@ -87,19 +87,24 @@ export async function generateFromPackageSummary({
 			}
 		}
 	} else {
+		let parsedToml: { package?: { name?: unknown }; addresses?: Record<string, string> };
 		try {
-			const parsedToml = parse(await readFile(join(pkg.path, 'Move.toml'), 'utf-8'));
-			localAddressLabels = Object.keys(parsedToml.addresses ?? {});
-			if (!pkg.packageName) {
-				packageName = parsedToml.package?.name?.toLowerCase();
-			}
+			parsedToml = parse(await readFile(join(pkg.path, 'Move.toml'), 'utf-8'));
 		} catch {
 			const message = `Failed to read Move.toml for ${pkg.path}`;
-			if (packageName) {
-				console.warn(message);
-			} else {
+			if (!packageName) {
 				throw new Error(message);
 			}
+			console.warn(message);
+			parsedToml = {};
+		}
+		localAddressLabels = Object.keys(parsedToml.addresses ?? {});
+		if (!pkg.packageName) {
+			const tomlName = parsedToml.package?.name;
+			if (typeof tomlName !== 'string') {
+				throw new Error(`Package name not found in Move.toml for ${pkg.path}`);
+			}
+			packageName = tomlName.toLowerCase();
 		}
 	}
 
