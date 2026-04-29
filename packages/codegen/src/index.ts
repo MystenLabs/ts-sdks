@@ -208,14 +208,14 @@ export async function generateFromPackageSummary({
 				{ recursive: true },
 			);
 
+			const packageDir = join(outputDir, packageName);
+			const fileRelToPackage = mod.isMainPackage
+				? `${mod.module}.ts`
+				: join('deps', mod.package, `${mod.module}.ts`);
+
 			await writeFile(
-				mod.isMainPackage
-					? join(outputDir, packageName, `${mod.module}.ts`)
-					: join(outputDir, packageName, 'deps', mod.package, `${mod.module}.ts`),
-				await mod.builder.toString(
-					'./',
-					mod.isMainPackage ? `./${mod.module}.ts` : `./deps/${mod.package}/${mod.module}.ts`,
-				),
+				join(packageDir, fileRelToPackage),
+				await mod.builder.toString(packageDir, fileRelToPackage, outputDir),
 			);
 		}),
 	);

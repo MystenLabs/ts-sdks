@@ -65,7 +65,7 @@ export class FileBuilder {
 		].join('\n');
 	}
 
-	async toString(modDir: string, filePath: string) {
+	async toString(packageDir: string, filePath: string, outputDir: string = packageDir) {
 		const importStatements = [...this.imports.entries()].flatMap(
 			([module, names]) =>
 				parseTS`import { ${[...names].join(', ')} } from '${modulePath(module)}'`,
@@ -77,12 +77,20 @@ export class FileBuilder {
 		return `${await this.getHeader()}${printNodes(...importStatements, ...starImportStatements, ...this.statements)}`;
 
 		function modulePath(mod: string) {
-			if (!mod.startsWith('~root/')) {
-				return mod;
-			}
+			// `~root/` is anchored at the package's own output directory (where deps/ lives).
+			// `~outputRoot/` is anchored at the codegen output directory (where utils/ lives).
+			// Splitting these matters when packageName contains a slash — `~root/../utils` would
+			// only escape one segment and land in a sibling subdirectory rather than at outputDir.
+			const anchor = mod.startsWith('~outputRoot/')
+				? outputDir
+				: mod.startsWith('~root/')
+					? packageDir
+					: null;
+			if (anchor === null) return mod;
 
-			const sourcePath = resolve(modDir, filePath);
-			const destPath = resolve(modDir, mod.replace('~root/', './'));
+			const placeholder = mod.startsWith('~outputRoot/') ? '~outputRoot/' : '~root/';
+			const sourcePath = resolve(packageDir, filePath);
+			const destPath = resolve(anchor, mod.replace(placeholder, './'));
 			const sourceDirectory = sourcePath.split('/').slice(0, -1).join('/');
 			const relativePath = relative(sourceDirectory, destPath);
 			return relativePath.startsWith('.') ? relativePath : `./${relativePath}`;
