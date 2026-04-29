@@ -30,11 +30,11 @@ const IMPORT_MAP = {
 	TransactionArgument: { module: '@mysten/sui/transactions', isType: true },
 	BcsType: { module: '@mysten/sui/bcs', isType: true },
 	bcs: { module: '@mysten/sui/bcs', isType: false },
-	MoveStruct: { module: '~root/../utils/index', isType: false },
-	MoveTuple: { module: '~root/../utils/index', isType: false },
-	MoveEnum: { module: '~root/../utils/index', isType: false },
-	normalizeMoveArguments: { module: '~root/../utils/index', isType: false },
-	RawTransactionArgument: { module: '~root/../utils/index', isType: true },
+	MoveStruct: { module: '~outputRoot/utils/index', isType: false },
+	MoveTuple: { module: '~outputRoot/utils/index', isType: false },
+	MoveEnum: { module: '~outputRoot/utils/index', isType: false },
+	normalizeMoveArguments: { module: '~outputRoot/utils/index', isType: false },
+	RawTransactionArgument: { module: '~outputRoot/utils/index', isType: true },
 } as const;
 
 type ImportName = keyof typeof IMPORT_MAP;
@@ -135,9 +135,10 @@ export class MoveModuleBuilder extends FileBuilder {
 			const config = IMPORT_MAP[name];
 			const importSpec = config.isType ? `type ${name}` : name;
 			// Add extension for relative imports (utils)
-			const module = config.module.startsWith('~root')
-				? `${config.module}${this.#importExtension}`
-				: config.module;
+			const module =
+				config.module.startsWith('~root') || config.module.startsWith('~outputRoot')
+					? `${config.module}${this.#importExtension}`
+					: config.module;
 			this.#importNames[name] = this.addImport(module, importSpec);
 		}
 		return this.#importNames[name]!;

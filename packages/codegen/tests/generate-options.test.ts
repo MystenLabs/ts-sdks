@@ -761,6 +761,60 @@ describe('generate options', () => {
 		});
 	});
 
+	describe('utils import paths', () => {
+		// Set up a fixture once for all import-path tests.
+		let fixturePath: string;
+		let testFixtureOutput: string;
+
+		afterEach(async () => {
+			if (fixturePath) await rm(fixturePath, { recursive: true, force: true });
+			if (testFixtureOutput) await rm(testFixtureOutput, { recursive: true, force: true });
+		});
+
+		async function generateWithPackageName(packageName: string, prune: boolean): Promise<string> {
+			fixturePath = await mkdtemp(join(tmpdir(), 'codegen-pkgname-'));
+			const summaryDir = join(fixturePath, 'package_summaries');
+			await mkdir(summaryDir, { recursive: true });
+			await writeFile(
+				join(fixturePath, 'Move.toml'),
+				'[package]\nname = "testpkg"\nedition = "2024.beta"\n\n[addresses]\ntestpkg = "0x0"\n',
+			);
+			await cp(join(FIXTURE_PATH, 'package_summaries'), summaryDir, { recursive: true });
+			testFixtureOutput = await mkdtemp(join(tmpdir(), 'codegen-test-'));
+			await generateFromPackageSummary({
+				package: { package: '@test/testpkg', path: fixturePath, packageName },
+				prune,
+				outputDir: testFixtureOutput,
+			});
+			return testFixtureOutput;
+		}
+
+		it('emits correct utils import for single-segment packageName', async () => {
+			outputDir = await generateWithPackageName('testpkg', true);
+			const counter = await getFileContent(outputDir, 'testpkg/counter.ts');
+			// File at outputDir/testpkg/counter.ts — utils at outputDir/utils/index.ts → ../utils/index.js
+			expect(counter).toContain("from '../utils/index.js'");
+		});
+
+		it('emits correct utils import for multi-segment packageName (regression)', async () => {
+			// Regression: when packageName has slashes (e.g. when callers nest output under a
+			// `move/` parent dir to mirror Move source layout), the import path must escape every
+			// segment to reach the outputDir-level utils/. Previously it always used a single `..`
+			// and resolved into a sibling subdirectory of outputDir.
+			outputDir = await generateWithPackageName('move/mock_usdc', false);
+			const counter = await getFileContent(outputDir, 'move/mock_usdc/counter.ts');
+			// File at outputDir/move/mock_usdc/counter.ts → ../../utils/index.js
+			expect(counter).toContain("from '../../utils/index.js'");
+			expect(counter).not.toContain("from '../utils/index.js'");
+
+			// Dep modules nest one further under deps/<addr>/ — must add another level too.
+			const ascii = await getFileContent(outputDir, 'move/mock_usdc/deps/std/ascii.ts');
+			// File at outputDir/move/mock_usdc/deps/std/ascii.ts → ../../../../utils/index.js
+			expect(ascii).toContain("from '../../../../utils/index.js'");
+			expect(ascii).not.toContain("from '../../../utils/index.js'");
+		});
+	});
+
 	describe('on-chain (upgraded) packages', () => {
 		let onChainPath: string;
 
