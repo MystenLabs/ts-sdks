@@ -90,7 +90,7 @@ export function normalizeMoveArguments(
 	const normalizedArgs: TransactionArgument[] = [];
 
 	let index = 0;
-	for (const [i, argType] of argTypes.entries()) {
+	for (const argType of argTypes) {
 		if (argType === '0x2::clock::Clock') {
 			normalizedArgs.push((tx) => tx.object.clock());
 			continue;
