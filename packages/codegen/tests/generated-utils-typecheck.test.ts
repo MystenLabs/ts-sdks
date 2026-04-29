@@ -27,7 +27,14 @@ describe('generated utils/index.ts typechecks', () => {
 					target: ts.ScriptTarget.ES2020,
 					module: ts.ModuleKind.NodeNext,
 					moduleResolution: ts.ModuleResolutionKind.NodeNext,
+					// Mirror tsconfig.shared.json's strictness so consumer-build failures (e.g.
+					// TS6133 unused locals) are caught here, plus `noUncheckedIndexedAccess` for
+					// the strictest reasonable consumer.
 					strict: true,
+					noUnusedLocals: true,
+					noUnusedParameters: true,
+					noImplicitReturns: true,
+					noFallthroughCasesInSwitch: true,
 					noUncheckedIndexedAccess: true,
 					noEmit: true,
 					skipLibCheck: true,
