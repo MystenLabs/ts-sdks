@@ -232,9 +232,6 @@ async function generateUtils({
 	await writeFile(join(outputDir, 'utils', 'index.ts'), getUtilsContent(errorClass));
 }
 
-// The summary subdirectory for a local package is keyed by the package's own
-// [addresses] label (declared in Move.toml). Dependencies' labels never appear
-// in the local Move.toml's [addresses] table — they come through the dep chain.
 function resolveLocalMainPackageDir(
 	localAddressLabels: string[],
 	summaryPackages: string[],
@@ -248,10 +245,12 @@ function resolveLocalMainPackageDir(
 	if (summaryPackages.includes(packageName)) {
 		return packageName;
 	}
+
 	throw new Error(
-		`Could not identify main package directory for ${pkgPath}: ` +
-			`expected exactly one [addresses] label in Move.toml to match a summary subdirectory. ` +
-			`Summary subdirectories: ${summaryPackages.join(', ')}; ` +
-			`local [addresses] labels: ${localAddressLabels.join(', ') || '(none)'}.`,
+		`Could not identify main package directory for ${pkgPath}.\n` +
+			`Summary subdirectories: ${summaryPackages.join(', ')}\n` +
+			`Move.toml [package].name: ${packageName}\n` +
+			`Move.toml [addresses] labels: ${localAddressLabels.join(', ') || '(none)'}\n` +
+			`\nPass 'packageName: "<dir>"' in your codegen config to pick one of the summary subdirectories above.`,
 	);
 }

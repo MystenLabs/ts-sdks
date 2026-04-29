@@ -8,7 +8,7 @@ import { isValidNamedPackage, isValidSuiObjectId } from '@mysten/sui/utils';
 import { execSync } from 'node:child_process';
 import { existsSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 
 export interface SubdirCommandFlags {
 	outputDir?: string;
@@ -42,8 +42,7 @@ export default async function generate(
 						};
 					} else {
 						return {
-							package: '@local-pkg/' + trimmed,
-							packageName: trimmed,
+							package: '@local-pkg/' + basename(trimmed),
 							path: trimmed,
 						};
 					}
