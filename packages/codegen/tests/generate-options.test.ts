@@ -796,23 +796,31 @@ describe('generate options', () => {
 			expect(counter).toContain("from '../utils/index.js'");
 		});
 
-		it('emits correct utils import for multi-segment packageName (regression)', async () => {
-			// Regression: when packageName has slashes (e.g. when callers nest output under a
-			// `move/` parent dir to mirror Move source layout), the import path must escape every
-			// segment to reach the outputDir-level utils/. Previously it always used a single `..`
-			// and resolved into a sibling subdirectory of outputDir.
-			outputDir = await generateWithPackageName('move/mock_usdc', false);
-			const counter = await getFileContent(outputDir, 'move/mock_usdc/counter.ts');
-			// File at outputDir/move/mock_usdc/counter.ts → ../../utils/index.js
-			expect(counter).toContain("from '../../utils/index.js'");
-			expect(counter).not.toContain("from '../utils/index.js'");
+		it(
+			'emits correct utils import for multi-segment packageName (regression)',
+			{ timeout: 30_000 },
+			async () => {
+				// Regression: when packageName has slashes (e.g. when callers nest output under a
+				// `move/` parent dir to mirror Move source layout), the import path must escape every
+				// segment to reach the outputDir-level utils/. Previously it always used a single `..`
+				// and resolved into a sibling subdirectory of outputDir.
+				//
+				// `prune: false` here so we can exercise both the main-module and the deeper
+				// `deps/<addr>/<mod>.ts` paths, which adds enough I/O that the default 5s timeout
+				// can be tight under CI load — match the existing `prune: false` test's budget.
+				outputDir = await generateWithPackageName('move/mock_usdc', false);
+				const counter = await getFileContent(outputDir, 'move/mock_usdc/counter.ts');
+				// File at outputDir/move/mock_usdc/counter.ts → ../../utils/index.js
+				expect(counter).toContain("from '../../utils/index.js'");
+				expect(counter).not.toContain("from '../utils/index.js'");
 
-			// Dep modules nest one further under deps/<addr>/ — must add another level too.
-			const ascii = await getFileContent(outputDir, 'move/mock_usdc/deps/std/ascii.ts');
-			// File at outputDir/move/mock_usdc/deps/std/ascii.ts → ../../../../utils/index.js
-			expect(ascii).toContain("from '../../../../utils/index.js'");
-			expect(ascii).not.toContain("from '../../../utils/index.js'");
-		});
+				// Dep modules nest one further under deps/<addr>/ — must add another level too.
+				const ascii = await getFileContent(outputDir, 'move/mock_usdc/deps/std/ascii.ts');
+				// File at outputDir/move/mock_usdc/deps/std/ascii.ts → ../../../../utils/index.js
+				expect(ascii).toContain("from '../../../../utils/index.js'");
+				expect(ascii).not.toContain("from '../../../utils/index.js'");
+			},
+		);
 	});
 
 	describe('on-chain (upgraded) packages', () => {
