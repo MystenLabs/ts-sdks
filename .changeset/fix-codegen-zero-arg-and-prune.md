@@ -11,5 +11,5 @@ Fix two codegen bugs:
 - For local packages whose `[package].name` in `Move.toml` differs from the address label in
   `[addresses]` (e.g. `name = "managed_coin"` with `[addresses].token_studio = "0x0"`), the
   prune logic identified the main package dir by `[package].name` and silently dropped the
-  package's own modules. The main package dir is now resolved by matching the package's own
-  address (`[package].published-at` if set, else `0x0`) against `address_mapping.json`.
+  package's own modules. The main package dir is now resolved by intersecting the labels in
+  the local Move.toml's `[addresses]` table with the summary subdirectories.

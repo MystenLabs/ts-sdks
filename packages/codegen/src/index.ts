@@ -8,7 +8,6 @@ import { MoveModuleBuilder } from './move-module-builder.js';
 import { existsSync, statSync } from 'node:fs';
 import { getUtilsContent } from './generate-utils.js';
 import { parse } from 'toml';
-import { normalizeSuiAddress } from '@mysten/sui/utils';
 import type { RootPackageMetadata } from './types/summary.js';
 import type {
 	ErrorClassConfig,
@@ -53,7 +52,7 @@ export async function generateFromPackageSummary({
 
 	let packageName = pkg.packageName!;
 	let rootPackageId: string | undefined;
-	let publishedAt: string | undefined;
+	let localAddressLabels: string[] = [];
 	const mvrNameOrAddress = pkg.package;
 
 	const typeOriginsByPkgAndModule = new Map<string, Map<string, Record<string, string>>>();
@@ -89,14 +88,13 @@ export async function generateFromPackageSummary({
 		}
 	} else {
 		try {
-			const packageToml = await readFile(join(pkg.path, 'Move.toml'), 'utf-8');
-			const parsedToml = parse(packageToml);
-			publishedAt = parsedToml.package?.['published-at'];
+			const parsedToml = parse(await readFile(join(pkg.path, 'Move.toml'), 'utf-8'));
+			localAddressLabels = Object.keys(parsedToml.addresses ?? {});
 			if (!pkg.packageName) {
 				packageName = parsedToml.package?.name?.toLowerCase();
 			}
 		} catch {
-			const message = `Package name not found in package.toml for ${pkg.path}`;
+			const message = `Failed to read Move.toml for ${pkg.path}`;
 			if (packageName) {
 				console.warn(message);
 			} else {
@@ -113,27 +111,11 @@ export async function generateFromPackageSummary({
 		statSync(join(summaryDir, file)).isDirectory(),
 	);
 
-	let mainPackageDir: string | undefined;
-	if (isOnChainPackage) {
-		mainPackageDir = rootPackageId;
-		if (!packages.includes(mainPackageDir!)) {
-			throw new Error(`Root package dir ${mainPackageDir} not found in summary at ${pkg.path}`);
-		}
-	} else {
-		// The package's own address is `[package].published-at` if set, else `0x0` (development).
-		// The summary dir is keyed by the `[addresses]` label, which can differ from `[package].name`
-		// (e.g. `[package].name = "managed_coin"` with `[addresses].token_studio = "0x0"`).
-		// Match by address so the right summary dir is identified regardless.
-		const ownAddress = normalizeSuiAddress(publishedAt ?? '0x0');
-		const matches = Object.entries(addressMappings).filter(
-			([dir, addr]) => normalizeSuiAddress(addr) === ownAddress && packages.includes(dir),
-		);
-		if (matches.length === 1) {
-			mainPackageDir = matches[0][0];
-		} else {
-			// Ambiguous (multiple 0x0 entries) or no match — fall back to packageName.
-			mainPackageDir = packageName;
-		}
+	const mainPackageDir = isOnChainPackage
+		? rootPackageId!
+		: resolveLocalMainPackageDir(localAddressLabels, packages, packageName, pkg.path);
+	if (!packages.includes(mainPackageDir)) {
+		throw new Error(`Main package dir ${mainPackageDir} not found in summary at ${pkg.path}`);
 	}
 	const isMainPackage = (pkgDir: string) => pkgDir === mainPackageDir;
 
@@ -243,4 +225,30 @@ async function generateUtils({
 }) {
 	await mkdir(join(outputDir, 'utils'), { recursive: true });
 	await writeFile(join(outputDir, 'utils', 'index.ts'), getUtilsContent(errorClass));
+}
+
+// The summary subdirectory for a local package is keyed by the package's own
+// [addresses] label (declared in Move.toml). Dependencies' labels never appear
+// in the local Move.toml's [addresses] table — they come through the dep chain.
+function resolveLocalMainPackageDir(
+	localAddressLabels: string[],
+	summaryPackages: string[],
+	packageName: string,
+	pkgPath: string,
+): string {
+	const fromLocalAddresses = localAddressLabels.filter((label) =>
+		summaryPackages.includes(label),
+	);
+	if (fromLocalAddresses.length === 1) {
+		return fromLocalAddresses[0];
+	}
+	if (summaryPackages.includes(packageName)) {
+		return packageName;
+	}
+	throw new Error(
+		`Could not identify main package directory for ${pkgPath}: ` +
+			`expected exactly one [addresses] label in Move.toml to match a summary subdirectory. ` +
+			`Summary subdirectories: ${summaryPackages.join(', ')}; ` +
+			`local [addresses] labels: ${localAddressLabels.join(', ') || '(none)'}.`,
+	);
 }

@@ -698,11 +698,11 @@ describe('generate options', () => {
 			expect(files.some((f) => f.startsWith('testpkg/deps/'))).toBe(true);
 		});
 
-		it('identifies main package by address when [package].name differs from [addresses] label', async () => {
+		it('identifies main package by [addresses] label when it differs from [package].name', async () => {
 			// Regression: a Move.toml with `[package].name = "managed_coin"` and
-			// `[addresses].token_studio = "0x0"` would key its summary dir as `token_studio`,
-			// but the prune logic compared `pkgDir === packageName` ("managed_coin"), pruning
-			// the main package's own modules. Match by address instead.
+			// `[addresses].token_studio = "0x0"` keys its summary dir as `token_studio`.
+			// The previous prune logic compared `pkgDir === packageName` ("managed_coin"),
+			// pruning the main package's own modules.
 			const fixturePath = await mkdtemp(join(tmpdir(), 'codegen-mismatched-'));
 			const summaryDir = join(fixturePath, 'package_summaries');
 			await mkdir(summaryDir, { recursive: true });
@@ -896,7 +896,7 @@ describe('generate options', () => {
 					prune: true,
 					outputDir,
 				}),
-			).rejects.toThrow(/Root package dir .* not found/);
+			).rejects.toThrow(/Main package dir .* not found/);
 		});
 
 		it("throws when root_package_metadata.json is missing 'root_package_id'", async () => {
