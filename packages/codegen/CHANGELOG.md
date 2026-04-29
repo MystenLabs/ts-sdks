@@ -1,5 +1,14 @@
 # @mysten/codegen
 
+## 0.10.4
+
+### Patch Changes
+
+- a08916e: Fix `sui-ts-codegen generate <path>` against fresh `sui move new` packages: the CLI now
+  propagates non-zero exit codes (was always exiting 0 on failure), the path-arg branch parses
+  `packageName` from `Move.toml` instead of using the raw path string, and the "Could not identify
+  main package directory" error now includes actionable remediation.
+
 ## 0.10.3
 
 ### Patch Changes
