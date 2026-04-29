@@ -16,7 +16,9 @@ import { getUtilsContent } from '../src/generate-utils.js';
 // The temp file is written under `tests/` so module resolution finds `@mysten/sui` via the
 // codegen package's own `node_modules` (workspace symlinks).
 describe('generated utils/index.ts typechecks', () => {
-	it('passes strict + noUncheckedIndexedAccess', async () => {
+	// `ts.createProgram` plus `getPreEmitDiagnostics` over the @mysten/sui type tree
+	// runs ~700ms locally but pushes past vitest's 5s default on CI. Give it room.
+	it('passes strict + noUncheckedIndexedAccess', { timeout: 30_000 }, async () => {
 		const tempPath = join(__dirname, '__generated_utils_typecheck.ts');
 		await writeFile(tempPath, getUtilsContent());
 
