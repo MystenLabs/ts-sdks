@@ -8,6 +8,7 @@ import { MoveModuleBuilder } from './move-module-builder.js';
 import { existsSync, statSync } from 'node:fs';
 import { getUtilsContent } from './generate-utils.js';
 import { parse } from 'toml';
+import { normalizeSuiAddress } from '@mysten/sui/utils';
 import type { RootPackageMetadata } from './types/summary.js';
 import type {
 	ErrorClassConfig,
@@ -52,6 +53,7 @@ export async function generateFromPackageSummary({
 
 	let packageName = pkg.packageName!;
 	let rootPackageId: string | undefined;
+	let publishedAt: string | undefined;
 	const mvrNameOrAddress = pkg.package;
 
 	const typeOriginsByPkgAndModule = new Map<string, Map<string, Record<string, string>>>();
@@ -85,10 +87,14 @@ export async function generateFromPackageSummary({
 				}
 			}
 		}
-	} else if (!pkg.packageName) {
+	} else {
 		try {
 			const packageToml = await readFile(join(pkg.path, 'Move.toml'), 'utf-8');
-			packageName = parse(packageToml).package.name.toLowerCase();
+			const parsedToml = parse(packageToml);
+			publishedAt = parsedToml.package?.['published-at'];
+			if (!pkg.packageName) {
+				packageName = parsedToml.package?.name?.toLowerCase();
+			}
 		} catch {
 			const message = `Package name not found in package.toml for ${pkg.path}`;
 			if (packageName) {
@@ -107,16 +113,29 @@ export async function generateFromPackageSummary({
 		statSync(join(summaryDir, file)).isDirectory(),
 	);
 
-	const mainPackageDir = isOnChainPackage ? rootPackageId : undefined;
-	if (isOnChainPackage && !packages.includes(mainPackageDir!)) {
-		throw new Error(`Root package dir ${mainPackageDir} not found in summary at ${pkg.path}`);
-	}
-	const isMainPackage = (pkgDir: string) => {
-		if (isOnChainPackage) {
-			return pkgDir === mainPackageDir;
+	let mainPackageDir: string | undefined;
+	if (isOnChainPackage) {
+		mainPackageDir = rootPackageId;
+		if (!packages.includes(mainPackageDir!)) {
+			throw new Error(`Root package dir ${mainPackageDir} not found in summary at ${pkg.path}`);
 		}
-		return pkgDir === packageName;
-	};
+	} else {
+		// The package's own address is `[package].published-at` if set, else `0x0` (development).
+		// The summary dir is keyed by the `[addresses]` label, which can differ from `[package].name`
+		// (e.g. `[package].name = "managed_coin"` with `[addresses].token_studio = "0x0"`).
+		// Match by address so the right summary dir is identified regardless.
+		const ownAddress = normalizeSuiAddress(publishedAt ?? '0x0');
+		const matches = Object.entries(addressMappings).filter(
+			([dir, addr]) => normalizeSuiAddress(addr) === ownAddress && packages.includes(dir),
+		);
+		if (matches.length === 1) {
+			mainPackageDir = matches[0][0];
+		} else {
+			// Ambiguous (multiple 0x0 entries) or no match — fall back to packageName.
+			mainPackageDir = packageName;
+		}
+	}
+	const isMainPackage = (pkgDir: string) => pkgDir === mainPackageDir;
 
 	const registry = new ModuleRegistry(addressMappings);
 	const modules = (

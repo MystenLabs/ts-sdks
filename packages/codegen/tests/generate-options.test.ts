@@ -697,6 +697,68 @@ describe('generate options', () => {
 			// Dependencies should be generated in deps/
 			expect(files.some((f) => f.startsWith('testpkg/deps/'))).toBe(true);
 		});
+
+		it('identifies main package by address when [package].name differs from [addresses] label', async () => {
+			// Regression: a Move.toml with `[package].name = "managed_coin"` and
+			// `[addresses].token_studio = "0x0"` would key its summary dir as `token_studio`,
+			// but the prune logic compared `pkgDir === packageName` ("managed_coin"), pruning
+			// the main package's own modules. Match by address instead.
+			const fixturePath = await mkdtemp(join(tmpdir(), 'codegen-mismatched-'));
+			const summaryDir = join(fixturePath, 'package_summaries');
+			await mkdir(summaryDir, { recursive: true });
+
+			await writeFile(
+				join(fixturePath, 'Move.toml'),
+				[
+					'[package]',
+					'name = "managed_coin"',
+					'edition = "2024.beta"',
+					'',
+					'[addresses]',
+					'token_studio = "0x0"',
+					'',
+				].join('\n'),
+			);
+
+			// Summary dir is keyed by the address label, not the package name.
+			await cp(
+				join(FIXTURE_PATH, 'package_summaries', 'testpkg'),
+				join(summaryDir, 'token_studio'),
+				{
+					recursive: true,
+				},
+			);
+			await cp(join(FIXTURE_PATH, 'package_summaries', 'std'), join(summaryDir, 'std'), {
+				recursive: true,
+			});
+			await cp(join(FIXTURE_PATH, 'package_summaries', 'sui'), join(summaryDir, 'sui'), {
+				recursive: true,
+			});
+			await writeFile(
+				join(summaryDir, 'address_mapping.json'),
+				JSON.stringify({
+					std: '0x0000000000000000000000000000000000000000000000000000000000000001',
+					sui: '0x0000000000000000000000000000000000000000000000000000000000000002',
+					token_studio: '0x0000000000000000000000000000000000000000000000000000000000000000',
+				}),
+			);
+
+			outputDir = await mkdtemp(join(tmpdir(), 'codegen-test-'));
+			try {
+				await generateFromPackageSummary({
+					package: { package: '@test/managed_coin', path: fixturePath },
+					prune: true,
+					outputDir,
+				});
+
+				const files = await getGeneratedFiles(outputDir);
+				// Output dir uses [package].name; main modules must be present (not pruned).
+				expect(files).toContain('managed_coin/counter.ts');
+				expect(files).toContain('managed_coin/registry.ts');
+			} finally {
+				await rm(fixturePath, { recursive: true, force: true });
+			}
+		});
 	});
 
 	describe('on-chain (upgraded) packages', () => {

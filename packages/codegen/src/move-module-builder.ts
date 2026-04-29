@@ -626,7 +626,8 @@ export class MoveModuleBuilder extends FileBuilder {
 			}
 
 			const optionsInterface = this.getUnusedName(`${capitalize(fnName.replace(/^_/, ''))}Options`);
-			const requiresOptions = argumentsTypes.length > 0 || func.type_parameters.length > 0;
+			const requiresOptions =
+				argumentsTypes.length > 0 || func.type_parameters.length > 0 || !this.#mvrNameOrAddress;
 
 			this.statements.push(
 				...parseTS /* ts */ `export interface ${optionsInterface}${genericTypes} {
