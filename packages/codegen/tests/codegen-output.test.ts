@@ -367,6 +367,43 @@ describe('function codegen output', () => {
 		`);
 	});
 
+	it('zero-arg function without MVR name omits = {} default (package is required)', async () => {
+		// When no MVR name/address is set, `package` is required on the options interface.
+		// The function signature must not have `= {}` as a default — it would be a type error.
+		const registry = new ModuleRegistry(ADDRESS_MAPPINGS);
+		const counter = await MoveModuleBuilder.fromSummaryFile(
+			join(SUMMARIES_DIR, 'testpkg', `counter.json`),
+			registry,
+			undefined,
+			'.js',
+		);
+		counter.includeTypes();
+		counter.includeFunctions(['create']);
+		const output = await render(counter);
+
+		const fnMatch = output.match(/export interface CreateOptions[\s\S]*?^}/m);
+		expect(fnMatch?.[0]).toMatchInlineSnapshot(`
+			"export interface CreateOptions {
+			    package: string;
+			    arguments?: [
+			    ];
+			}"
+		`);
+
+		// No `= {}` default — calling create() without options would be invalid since `package` is required.
+		const fnBody = output.match(/export function create[\s\S]*?^}/m);
+		expect(fnBody?.[0]).toMatchInlineSnapshot(`
+			"export function create(options: CreateOptions) {
+			    const packageAddress = options.package;
+			    return (tx: Transaction) => tx.moveCall({
+			        package: packageAddress,
+			        module: 'counter',
+			        function: 'create',
+			    });
+			}"
+		`);
+	});
+
 	it('public function with &mut ref and return (increment)', async () => {
 		const { counter } = await createBuilders();
 		counter.includeTypes();

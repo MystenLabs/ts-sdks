@@ -626,11 +626,13 @@ export class MoveModuleBuilder extends FileBuilder {
 			}
 
 			const optionsInterface = this.getUnusedName(`${capitalize(fnName.replace(/^_/, ''))}Options`);
-			const requiresOptions = argumentsTypes.length > 0 || func.type_parameters.length > 0;
+			const packageIsRequired = !this.#mvrNameOrAddress;
+			const requiresOptions =
+				packageIsRequired || argumentsTypes.length > 0 || func.type_parameters.length > 0;
 
 			this.statements.push(
 				...parseTS /* ts */ `export interface ${optionsInterface}${genericTypes} {
-					package${this.#mvrNameOrAddress ? '?: string' : ': string'}
+					package${packageIsRequired ? ': string' : '?: string'}
 					${argumentsTypes.length > 0 ? 'arguments: ' : 'arguments?: '}${
 						hasAllParameterNames
 							? `${argumentsInterface}${genericTypeArgs} | [${argumentsTypes}]`
@@ -648,7 +650,7 @@ export class MoveModuleBuilder extends FileBuilder {
 				...(await withComment(
 					func,
 					parseTS /* ts */ `export function ${fnName}${genericTypes}(options: ${optionsInterface}${genericTypeArgs}${requiresOptions ? '' : ' = {}'}) {
-					const packageAddress = options.package${this.#mvrNameOrAddress ? ` ?? '${this.#mvrNameOrAddress}'` : ''};
+					const packageAddress = options.package${packageIsRequired ? '' : ` ?? '${this.#mvrNameOrAddress}'`};
 					${
 						parameters.length > 0
 							? `const argumentsTypes = [
