@@ -1,5 +1,11 @@
 # @mysten/ledgerjs-hw-app-sui
 
+## 0.8.1
+
+### Patch Changes
+
+- fade696: Bump device app min version
+
 ## 0.8.0
 
 ### Minor Changes
