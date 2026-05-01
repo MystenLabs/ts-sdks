@@ -7,6 +7,7 @@ import { Transaction } from '../../../../src/transactions/index.js';
 import { setup, TestToolbox, createTestWithAllClients } from '../../utils/setup.js';
 import { normalizeSuiAddress, SUI_TYPE_ARG } from '../../../../src/utils/index.js';
 import { bcs } from '../../../../src/bcs/index.js';
+import { ObjectError } from '../../../../src/client/errors.js';
 
 const SimpleObject = bcs.struct('SimpleObject', {
 	id: bcs.Address,
@@ -104,9 +105,32 @@ describe('Core API - Objects', () => {
 			expect(BigInt(parsed.value)).toBe(42n);
 		});
 
-		testWithAllClients('should throw error for non-existent object', async (client) => {
+		testWithAllClients(
+			'getObjects returns unified ObjectError shape for non-existent object',
+			async (client, kind) => {
+				const fakeObjectId = normalizeSuiAddress('0x9999');
+				const { objects } = await client.core.getObjects({ objectIds: [fakeObjectId] });
+				expect(objects).toHaveLength(1);
+				const result = objects[0];
+				expect(result).toBeInstanceOf(ObjectError);
+				if (result instanceof ObjectError) {
+					expect(result.code).toBe('notFound');
+					expect(result.objectId).toBe(fakeObjectId);
+					const kindToDetails = {
+						jsonrpc: 'jsonRpc',
+						grpc: 'grpc',
+						graphql: 'graphql',
+					} as const;
+					expect(result.transportDetails?.$kind).toBe(kindToDetails[kind]);
+				}
+			},
+		);
+
+		testWithAllClients('getObject throws ObjectError for non-existent object', async (client) => {
 			const fakeObjectId = normalizeSuiAddress('0x9999');
-			await expect(client.core.getObject({ objectId: fakeObjectId })).rejects.toThrow();
+			await expect(client.core.getObject({ objectId: fakeObjectId })).rejects.toBeInstanceOf(
+				ObjectError,
+			);
 		});
 
 		testWithAllClients('should verify owner is correct', async (client) => {

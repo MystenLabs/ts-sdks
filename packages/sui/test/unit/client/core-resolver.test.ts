@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { Transaction } from '../../../src/transactions/index.js';
 import { Inputs } from '../../../src/transactions/Inputs.js';
 import { coreClientResolveTransactionPlugin } from '../../../src/client/core-resolver.js';
+import { AggregateObjectError, ObjectError } from '../../../src/client/errors.js';
 import {
 	isCoinReservationDigest,
 	parseCoinReservationBalance,
@@ -411,5 +412,105 @@ describe('Chain identifier fetch gating', () => {
 		await tx.build({ client: client as any });
 
 		expect(client.core.getChainIdentifier).not.toHaveBeenCalled();
+	});
+});
+
+describe('coreClientResolveTransactionPlugin object error propagation', () => {
+	it('rethrows the original ObjectError instance when an unresolved input is missing', async () => {
+		// Regression test for the case where `resolveObjectReferences` previously flattened
+		// `ObjectError` results from `client.core.getObjects` into a plain `new Error(...)`.
+		// The contract the PR unifies — `instanceof ObjectError` works consistently across
+		// the call sites — must hold through the transaction resolver path as well, not
+		// only through `CoreClient.getObject` direct calls.
+		const missingId = '0x' + '9'.repeat(64);
+		const wireError = { code: 'notExists' as const, object_id: missingId };
+		const objErr = new ObjectError('notFound', missingId, {
+			transportDetails: { $kind: 'jsonRpc', response: wireError },
+		});
+
+		const client = createMockClient();
+		client.core.getObjects = vi.fn().mockResolvedValue({ objects: [objErr] });
+
+		const tx = new Transaction();
+		tx.setSender('0x' + '2'.repeat(64));
+		tx.setGasBudget(10000000);
+		tx.setGasPayment([]); // skip gas payment resolution
+		tx.object(missingId);
+
+		let thrown: unknown;
+		try {
+			await tx.build({ client: client as any });
+		} catch (e) {
+			thrown = e;
+		}
+
+		// Reference identity — the resolver must rethrow the exact instance the
+		// core client produced, preserving `code`, `objectId`, and `transportDetails`.
+		expect(thrown).toBe(objErr);
+		expect(thrown).toBeInstanceOf(ObjectError);
+		expect((thrown as ObjectError).code).toBe('notFound');
+		expect((thrown as ObjectError).objectId).toBe(missingId);
+		expect((thrown as ObjectError).transportDetails?.$kind).toBe('jsonRpc');
+	});
+
+	it('aggregates multiple ObjectErrors into AggregateObjectError', async () => {
+		const id1 = '0x' + '8'.repeat(64);
+		const id2 = '0x' + '9'.repeat(64);
+		const err1 = new ObjectError('notFound', id1, {
+			transportDetails: { $kind: 'jsonRpc', response: { code: 'notExists', object_id: id1 } },
+		});
+		const err2 = new ObjectError('deleted', id2, {
+			transportDetails: { $kind: 'jsonRpc', response: { code: 'deleted', object_id: id2 } },
+		});
+
+		const client = createMockClient();
+		client.core.getObjects = vi.fn().mockResolvedValue({ objects: [err1, err2] });
+
+		const tx = new Transaction();
+		tx.setSender('0x' + '2'.repeat(64));
+		tx.setGasBudget(10000000);
+		tx.setGasPayment([]);
+		tx.object(id1);
+		tx.object(id2);
+
+		let thrown: unknown;
+		try {
+			await tx.build({ client: client as any });
+		} catch (e) {
+			thrown = e;
+		}
+
+		expect(thrown).toBeInstanceOf(AggregateObjectError);
+		expect((thrown as AggregateObjectError).errors).toEqual([err1, err2]);
+		expect((thrown as AggregateObjectError).errors[0]).toBe(err1);
+		expect((thrown as AggregateObjectError).errors[1]).toBe(err2);
+	});
+});
+
+describe('GraphQLResponseError catch contract', () => {
+	it('extends SuiClientError so it is catchable via the universal catch', async () => {
+		const { GraphQLCoreClient } = await import('../../../src/graphql/core.js');
+		const { SuiClientError } = await import('../../../src/client/errors.js');
+		const mockGraphQLClient = {
+			network: 'testnet' as const,
+			query: vi.fn().mockResolvedValue({
+				data: null,
+				errors: [{ message: 'Field x not found', locations: [{ line: 1, column: 5 }] }],
+			}),
+		};
+		const core = new GraphQLCoreClient({
+			graphqlClient: mockGraphQLClient as any,
+		});
+
+		let thrown: unknown;
+		try {
+			await core.getObjects({ objectIds: ['0x1'] });
+		} catch (e) {
+			thrown = e;
+		}
+
+		expect(thrown).toBeInstanceOf(SuiClientError);
+		expect((thrown as InstanceType<typeof SuiClientError>).message).toContain('Field x not found');
+		expect((thrown as InstanceType<typeof SuiClientError>).transportDetails?.$kind).toBe('graphql');
 	});
 });
