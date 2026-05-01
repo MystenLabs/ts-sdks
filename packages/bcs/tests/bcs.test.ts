@@ -39,7 +39,7 @@ describe('BCS: Primitives', () => {
 			is_locked: false,
 		};
 
-		expect(() => Coin.serialize(expected, { initialSize: 1, maxSize: 1 })).toThrowError();
+		expect(() => Coin.serialize(expected, { maxSize: 1 })).toThrowError();
 	});
 
 	it('should work when underlying buffer offset is not 0', () => {

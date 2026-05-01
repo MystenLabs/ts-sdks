@@ -2,15 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { Encoding } from './types.js';
-import { ulebEncode } from './uleb.js';
 import { encodeStr } from './utils.js';
+import { createEncoder } from './bcs-encode.js';
+import type { Encoder } from './bcs-encode.js';
 
 export interface BcsWriterOptions {
-	/** The initial size (in bytes) of the buffer tht will be allocated */
+	/** The initial size (in bytes) of the buffer that will be allocated */
 	initialSize?: number;
 	/** The maximum size (in bytes) that the buffer is allowed to grow to */
 	maxSize?: number;
-	/** The amount of bytes that will be allocated whenever additional memory is required */
+	/** @deprecated No longer used — buffer grows automatically. */
 	allocateSize?: number;
 }
 
@@ -27,47 +28,16 @@ export interface BcsWriterOptions {
  *   .write64(10000001000000)
  *   .hex();
  */
-
-/**
- * Set of methods that allows data encoding/decoding as standalone
- * BCS value or a part of a composed structure/vector.
- */
 export class BcsWriter {
-	private dataView: DataView<ArrayBuffer>;
-	private bytePosition: number = 0;
-	private size: number;
-	private maxSize: number;
-	private allocateSize: number;
+	#enc: Encoder;
 
-	constructor({
-		initialSize = 1024,
-		maxSize = Infinity,
-		allocateSize = 1024,
-	}: BcsWriterOptions = {}) {
-		this.size = initialSize;
-		this.maxSize = maxSize;
-		this.allocateSize = allocateSize;
-		this.dataView = new DataView(new ArrayBuffer(initialSize));
+	constructor(_options?: BcsWriterOptions, enc?: Encoder) {
+		this.#enc = enc ?? createEncoder();
+		this.#enc.initEncode();
 	}
 
-	private ensureSizeOrGrow(bytes: number) {
-		const requiredSize = this.bytePosition + bytes;
-		if (requiredSize > this.size) {
-			const nextSize = Math.min(
-				this.maxSize,
-				Math.max(this.size + requiredSize, this.size + this.allocateSize),
-			);
-			if (requiredSize > nextSize) {
-				throw new Error(
-					`Attempting to serialize to BCS, but buffer does not have enough size. Allocated size: ${this.size}, Max size: ${this.maxSize}, Required size: ${requiredSize}`,
-				);
-			}
-
-			this.size = nextSize;
-			const nextBuffer = new ArrayBuffer(this.size);
-			new Uint8Array(nextBuffer).set(new Uint8Array(this.dataView.buffer));
-			this.dataView = new DataView(nextBuffer);
-		}
+	get bytePosition(): number {
+		return this.#enc.offset;
 	}
 
 	/**
@@ -77,7 +47,16 @@ export class BcsWriter {
 	 * @returns {this} Self for possible chaining.
 	 */
 	shift(bytes: number): this {
-		this.bytePosition += bytes;
+		this.#enc.offset += bytes;
+		return this;
+	}
+	/**
+	 * Ensure the buffer has at least `bytes` bytes of capacity remaining.
+	 * @param bytes Number of bytes to reserve.
+	 * @returns {this}
+	 */
+	reserve(bytes: number): this {
+		this.#enc.ensure(bytes);
 		return this;
 	}
 	/**
@@ -86,24 +65,8 @@ export class BcsWriter {
 	 * @returns {this}
 	 */
 	write8(value: number | bigint): this {
-		this.ensureSizeOrGrow(1);
-		this.dataView.setUint8(this.bytePosition, Number(value));
-		return this.shift(1);
-	}
-
-	/**
-	 * Write a U8 value into a buffer and shift cursor position by 1.
-	 * @param {Number} value Value to write.
-	 * @returns {this}
-	 */
-	writeBytes(bytes: Uint8Array): this {
-		this.ensureSizeOrGrow(bytes.length);
-
-		for (let i = 0; i < bytes.length; i++) {
-			this.dataView.setUint8(this.bytePosition + i, bytes[i]);
-		}
-
-		return this.shift(bytes.length);
+		this.#enc.encodeU8(Number(value));
+		return this;
 	}
 	/**
 	 * Write a U16 value into a buffer and shift cursor position by 2.
@@ -111,9 +74,8 @@ export class BcsWriter {
 	 * @returns {this}
 	 */
 	write16(value: number | bigint): this {
-		this.ensureSizeOrGrow(2);
-		this.dataView.setUint16(this.bytePosition, Number(value), true);
-		return this.shift(2);
+		this.#enc.encodeU16(Number(value));
+		return this;
 	}
 	/**
 	 * Write a U32 value into a buffer and shift cursor position by 4.
@@ -121,9 +83,8 @@ export class BcsWriter {
 	 * @returns {this}
 	 */
 	write32(value: number | bigint): this {
-		this.ensureSizeOrGrow(4);
-		this.dataView.setUint32(this.bytePosition, Number(value), true);
-		return this.shift(4);
+		this.#enc.encodeU32(Number(value));
+		return this;
 	}
 	/**
 	 * Write a U64 value into a buffer and shift cursor position by 8.
@@ -131,8 +92,7 @@ export class BcsWriter {
 	 * @returns {this}
 	 */
 	write64(value: number | bigint): this {
-		toLittleEndian(BigInt(value), 8).forEach((el) => this.write8(el));
-
+		this.#enc.encodeU64(value);
 		return this;
 	}
 	/**
@@ -142,19 +102,26 @@ export class BcsWriter {
 	 * @returns {this}
 	 */
 	write128(value: number | bigint): this {
-		toLittleEndian(BigInt(value), 16).forEach((el) => this.write8(el));
-
+		this.#enc.encodeU128(value);
 		return this;
 	}
 	/**
-	 * Write a U256 value into a buffer and shift cursor position by 16.
+	 * Write a U256 value into a buffer and shift cursor position by 32.
 	 *
 	 * @param {bigint} value Value to write.
 	 * @returns {this}
 	 */
 	write256(value: number | bigint): this {
-		toLittleEndian(BigInt(value), 32).forEach((el) => this.write8(el));
-
+		this.#enc.encodeU256(value);
+		return this;
+	}
+	/**
+	 * Write raw bytes into the buffer and shift cursor by the length of the bytes.
+	 * @param {Uint8Array} bytes Bytes to write.
+	 * @returns {this}
+	 */
+	writeBytes(bytes: Uint8Array): this {
+		this.#enc.writeRawBytes(bytes);
 		return this;
 	}
 	/**
@@ -164,7 +131,8 @@ export class BcsWriter {
 	 * @returns {this}
 	 */
 	writeULEB(value: number): this {
-		ulebEncode(value).forEach((el) => this.write8(el));
+		this.#enc.ensure(10);
+		this.#enc.writeUleb(value);
 		return this;
 	}
 	/**
@@ -177,7 +145,7 @@ export class BcsWriter {
 	 */
 	writeVec(vector: any[], cb: (writer: BcsWriter, el: any, i: number, len: number) => void): this {
 		this.writeULEB(vector.length);
-		Array.from(vector).forEach((el, i) => cb(this, el, i, vector.length));
+		for (let i = 0; i < vector.length; i++) cb(this, vector[i], i, vector.length);
 		return this;
 	}
 
@@ -187,10 +155,9 @@ export class BcsWriter {
 	 */
 	// oxlint-disable-next-line require-yields
 	*[Symbol.iterator](): Iterator<number, Iterable<number>> {
-		for (let i = 0; i < this.bytePosition; i++) {
-			yield this.dataView.getUint8(i);
-		}
-		return this.toBytes();
+		const bytes = this.toBytes();
+		for (let i = 0; i < bytes.length; i++) yield bytes[i]!;
+		return bytes;
 	}
 
 	/**
@@ -198,7 +165,7 @@ export class BcsWriter {
 	 * @returns {Uint8Array} Resulting bcs.
 	 */
 	toBytes(): Uint8Array<ArrayBuffer> {
-		return new Uint8Array(this.dataView.buffer.slice(0, this.bytePosition));
+		return this.#enc.getEncodeResult();
 	}
 
 	/**
@@ -208,15 +175,4 @@ export class BcsWriter {
 	toString(encoding: Encoding): string {
 		return encodeStr(this.toBytes(), encoding);
 	}
-}
-
-function toLittleEndian(bigint: bigint, size: number) {
-	const result = new Uint8Array(size);
-	let i = 0;
-	while (bigint > 0) {
-		result[i] = Number(bigint % BigInt(256));
-		bigint = bigint / BigInt(256);
-		i += 1;
-	}
-	return result;
 }
