@@ -3,9 +3,16 @@
  **************************************************************/
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
+import {
+	type Transaction,
+	type TransactionResult,
+	type TransactionArgument,
+} from '@mysten/sui/transactions';
 const $moduleName = '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837::i64';
-export const I64 = new MoveStruct({
+export const I64: MoveStruct<{
+	negative: ReturnType<typeof bcs.bool>;
+	magnitude: ReturnType<typeof bcs.u64>;
+}> = new MoveStruct({
 	name: `${$moduleName}::I64`,
 	fields: {
 		negative: bcs.bool(),
@@ -16,7 +23,7 @@ export interface NewOptions {
 	package?: string;
 	arguments: [RawTransactionArgument<number | bigint>, RawTransactionArgument<boolean>];
 }
-export function _new(options: NewOptions) {
+export function _new(options: NewOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = ['u64', 'bool'] satisfies (string | null)[];
@@ -32,7 +39,9 @@ export interface GetIsNegativeOptions {
 	package?: string;
 	arguments: [TransactionArgument];
 }
-export function getIsNegative(options: GetIsNegativeOptions) {
+export function getIsNegative(
+	options: GetIsNegativeOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -48,7 +57,9 @@ export interface GetMagnitudeIfPositiveOptions {
 	package?: string;
 	arguments: [TransactionArgument];
 }
-export function getMagnitudeIfPositive(options: GetMagnitudeIfPositiveOptions) {
+export function getMagnitudeIfPositive(
+	options: GetMagnitudeIfPositiveOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -64,7 +75,9 @@ export interface GetMagnitudeIfNegativeOptions {
 	package?: string;
 	arguments: [TransactionArgument];
 }
-export function getMagnitudeIfNegative(options: GetMagnitudeIfNegativeOptions) {
+export function getMagnitudeIfNegative(
+	options: GetMagnitudeIfNegativeOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -80,7 +93,7 @@ export interface FromU64Options {
 	package?: string;
 	arguments: [RawTransactionArgument<number | bigint>];
 }
-export function fromU64(options: FromU64Options) {
+export function fromU64(options: FromU64Options): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = ['u64'] satisfies (string | null)[];

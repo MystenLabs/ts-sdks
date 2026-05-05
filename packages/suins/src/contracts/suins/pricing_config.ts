@@ -1,35 +1,47 @@
 /**************************************************************
  * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
  **************************************************************/
-import { MoveTuple, MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
+import {
+	MoveTuple,
+	MoveStruct,
+	normalizeMoveArguments,
+	type RawTransactionArgument,
+} from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction, type TransactionResult, type TransactionArgument } from '@mysten/sui/transactions';
+import {
+	type Transaction,
+	type TransactionResult,
+	type TransactionArgument,
+} from '@mysten/sui/transactions';
 import * as vec_map from './deps/sui/vec_map.js';
 const $moduleName = '@suins/core::pricing_config';
-export const Range: MoveTuple<[
-    ReturnType<typeof bcs.u64>,
-    ReturnType<typeof bcs.u64>
-]> = new MoveTuple({ name: `${$moduleName}::Range`, fields: [bcs.u64(), bcs.u64()] });
+export const Range: MoveTuple<[ReturnType<typeof bcs.u64>, ReturnType<typeof bcs.u64>]> =
+	new MoveTuple({ name: `${$moduleName}::Range`, fields: [bcs.u64(), bcs.u64()] });
 export const PricingConfig: MoveStruct<{
-    "pricing": ReturnType<typeof vec_map.VecMap<typeof Range, ReturnType<typeof bcs.u64>>>;
-}> = new MoveStruct({ name: `${$moduleName}::PricingConfig`, fields: {
-        pricing: vec_map.VecMap(Range, bcs.u64())
-    } });
+	pricing: ReturnType<typeof vec_map.VecMap<typeof Range, ReturnType<typeof bcs.u64>>>;
+}> = new MoveStruct({
+	name: `${$moduleName}::PricingConfig`,
+	fields: {
+		pricing: vec_map.VecMap(Range, bcs.u64()),
+	},
+});
 export const RenewalConfig: MoveStruct<{
-    "config": typeof PricingConfig;
-}> = new MoveStruct({ name: `${$moduleName}::RenewalConfig`, fields: {
-        config: PricingConfig
-    } });
+	config: typeof PricingConfig;
+}> = new MoveStruct({
+	name: `${$moduleName}::RenewalConfig`,
+	fields: {
+		config: PricingConfig,
+	},
+});
 export interface CalculateBasePriceArguments {
-    config: TransactionArgument;
-    length: RawTransactionArgument<number | bigint>;
+	config: TransactionArgument;
+	length: RawTransactionArgument<number | bigint>;
 }
 export interface CalculateBasePriceOptions {
-    package?: string;
-    arguments: CalculateBasePriceArguments | [
-        config: TransactionArgument,
-        length: RawTransactionArgument<number | bigint>
-    ];
+	package?: string;
+	arguments:
+		| CalculateBasePriceArguments
+		| [config: TransactionArgument, length: RawTransactionArgument<number | bigint>];
 }
 /**
  * Calculates the base price for a given length.
@@ -39,30 +51,29 @@ export interface CalculateBasePriceOptions {
  * - The price is calculated based on the length of the domain name and the
  *   available ranges.
  */
-export function calculateBasePrice(options: CalculateBasePriceOptions): (tx: Transaction) => TransactionResult {
-    const packageAddress = options.package ?? '@suins/core';
-    const argumentsTypes = [
-        null,
-        'u64'
-    ] satisfies (string | null)[];
-    const parameterNames = ["config", "length"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'pricing_config',
-        function: 'calculate_base_price',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
+export function calculateBasePrice(
+	options: CalculateBasePriceOptions,
+): (tx: Transaction) => TransactionResult {
+	const packageAddress = options.package ?? '@suins/core';
+	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
+	const parameterNames = ['config', 'length'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pricing_config',
+			function: 'calculate_base_price',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
 }
 export interface NewArguments {
-    ranges: TransactionArgument;
-    prices: RawTransactionArgument<Array<number | bigint>>;
+	ranges: TransactionArgument;
+	prices: RawTransactionArgument<Array<number | bigint>>;
 }
 export interface NewOptions {
-    package?: string;
-    arguments: NewArguments | [
-        ranges: TransactionArgument,
-        prices: RawTransactionArgument<Array<number | bigint>>
-    ];
+	package?: string;
+	arguments:
+		| NewArguments
+		| [ranges: TransactionArgument, prices: RawTransactionArgument<Array<number | bigint>>];
 }
 /**
  * Creates a new PricingConfig with the given ranges and prices.
@@ -73,132 +84,119 @@ export interface NewOptions {
  * All the ranges are inclusive (e.g. [3,5]: includes 3, 4, and 5).
  */
 export function _new(options: NewOptions): (tx: Transaction) => TransactionResult {
-    const packageAddress = options.package ?? '@suins/core';
-    const argumentsTypes = [
-        'vector<null>',
-        'vector<u64>'
-    ] satisfies (string | null)[];
-    const parameterNames = ["ranges", "prices"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'pricing_config',
-        function: 'new',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
+	const packageAddress = options.package ?? '@suins/core';
+	const argumentsTypes = ['vector<null>', 'vector<u64>'] satisfies (string | null)[];
+	const parameterNames = ['ranges', 'prices'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pricing_config',
+			function: 'new',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
 }
 export interface IsBetweenInclusiveArguments {
-    range: TransactionArgument;
-    length: RawTransactionArgument<number | bigint>;
+	range: TransactionArgument;
+	length: RawTransactionArgument<number | bigint>;
 }
 export interface IsBetweenInclusiveOptions {
-    package?: string;
-    arguments: IsBetweenInclusiveArguments | [
-        range: TransactionArgument,
-        length: RawTransactionArgument<number | bigint>
-    ];
+	package?: string;
+	arguments:
+		| IsBetweenInclusiveArguments
+		| [range: TransactionArgument, length: RawTransactionArgument<number | bigint>];
 }
 /** Checks if the value is between the range (inclusive). */
-export function isBetweenInclusive(options: IsBetweenInclusiveOptions): (tx: Transaction) => TransactionResult {
-    const packageAddress = options.package ?? '@suins/core';
-    const argumentsTypes = [
-        null,
-        'u64'
-    ] satisfies (string | null)[];
-    const parameterNames = ["range", "length"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'pricing_config',
-        function: 'is_between_inclusive',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
+export function isBetweenInclusive(
+	options: IsBetweenInclusiveOptions,
+): (tx: Transaction) => TransactionResult {
+	const packageAddress = options.package ?? '@suins/core';
+	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
+	const parameterNames = ['range', 'length'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pricing_config',
+			function: 'is_between_inclusive',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
 }
 export interface PricingArguments {
-    config: TransactionArgument;
+	config: TransactionArgument;
 }
 export interface PricingOptions {
-    package?: string;
-    arguments: PricingArguments | [
-        config: TransactionArgument
-    ];
+	package?: string;
+	arguments: PricingArguments | [config: TransactionArgument];
 }
 /** Returns the pricing config for usage in external apps. */
 export function pricing(options: PricingOptions): (tx: Transaction) => TransactionResult {
-    const packageAddress = options.package ?? '@suins/core';
-    const argumentsTypes = [
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["config"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'pricing_config',
-        function: 'pricing',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
+	const packageAddress = options.package ?? '@suins/core';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['config'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pricing_config',
+			function: 'pricing',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
 }
 export interface NewRenewalConfigArguments {
-    config: TransactionArgument;
+	config: TransactionArgument;
 }
 export interface NewRenewalConfigOptions {
-    package?: string;
-    arguments: NewRenewalConfigArguments | [
-        config: TransactionArgument
-    ];
+	package?: string;
+	arguments: NewRenewalConfigArguments | [config: TransactionArgument];
 }
 /** Constructor for Renewal<T> that initializes it with a PricingConfig. */
-export function newRenewalConfig(options: NewRenewalConfigOptions): (tx: Transaction) => TransactionResult {
-    const packageAddress = options.package ?? '@suins/core';
-    const argumentsTypes = [
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["config"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'pricing_config',
-        function: 'new_renewal_config',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
+export function newRenewalConfig(
+	options: NewRenewalConfigOptions,
+): (tx: Transaction) => TransactionResult {
+	const packageAddress = options.package ?? '@suins/core';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['config'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pricing_config',
+			function: 'new_renewal_config',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
 }
 export interface NewRangeArguments {
-    range: RawTransactionArgument<Array<number | bigint>>;
+	range: RawTransactionArgument<Array<number | bigint>>;
 }
 export interface NewRangeOptions {
-    package?: string;
-    arguments: NewRangeArguments | [
-        range: RawTransactionArgument<Array<number | bigint>>
-    ];
+	package?: string;
+	arguments: NewRangeArguments | [range: RawTransactionArgument<Array<number | bigint>>];
 }
 export function newRange(options: NewRangeOptions): (tx: Transaction) => TransactionResult {
-    const packageAddress = options.package ?? '@suins/core';
-    const argumentsTypes = [
-        'vector<u64>'
-    ] satisfies (string | null)[];
-    const parameterNames = ["range"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'pricing_config',
-        function: 'new_range',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
+	const packageAddress = options.package ?? '@suins/core';
+	const argumentsTypes = ['vector<u64>'] satisfies (string | null)[];
+	const parameterNames = ['range'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pricing_config',
+			function: 'new_range',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
 }
 export interface ConfigArguments {
-    renewal: TransactionArgument;
+	renewal: TransactionArgument;
 }
 export interface ConfigOptions {
-    package?: string;
-    arguments: ConfigArguments | [
-        renewal: TransactionArgument
-    ];
+	package?: string;
+	arguments: ConfigArguments | [renewal: TransactionArgument];
 }
 export function config(options: ConfigOptions): (tx: Transaction) => TransactionResult {
-    const packageAddress = options.package ?? '@suins/core';
-    const argumentsTypes = [
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["renewal"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'pricing_config',
-        function: 'config',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
+	const packageAddress = options.package ?? '@suins/core';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['renewal'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pricing_config',
+			function: 'config',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
 }

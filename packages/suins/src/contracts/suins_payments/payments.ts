@@ -1,100 +1,114 @@
 /**************************************************************
  * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
  **************************************************************/
-import { MoveTuple, MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
+import {
+	MoveTuple,
+	MoveStruct,
+	normalizeMoveArguments,
+	type RawTransactionArgument,
+} from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction, type TransactionResult, type TransactionArgument } from '@mysten/sui/transactions';
+import {
+	type Transaction,
+	type TransactionResult,
+	type TransactionArgument,
+} from '@mysten/sui/transactions';
 import * as type_name from './deps/std/type_name.js';
 import * as vec_map from './deps/sui/vec_map.js';
 const $moduleName = '@suins/payments::payments';
-export const PaymentsApp: MoveTuple<[
-    ReturnType<typeof bcs.bool>
-]> = new MoveTuple({ name: `${$moduleName}::PaymentsApp`, fields: [bcs.bool()] });
+export const PaymentsApp: MoveTuple<[ReturnType<typeof bcs.bool>]> = new MoveTuple({
+	name: `${$moduleName}::PaymentsApp`,
+	fields: [bcs.bool()],
+});
 export const CoinTypeData: MoveStruct<{
-    "decimals": ReturnType<typeof bcs.u8>;
-    "discount_percentage": ReturnType<typeof bcs.u8>;
-    "price_feed_id": ReturnType<typeof bcs.vector<ReturnType<typeof bcs.u8>>>;
-    "type_name": typeof type_name.TypeName;
-}> = new MoveStruct({ name: `${$moduleName}::CoinTypeData`, fields: {
-        /** The coin's decimals. */
-        decimals: bcs.u8(),
-        discount_percentage: bcs.u8(),
-        price_feed_id: bcs.vector(bcs.u8()),
-        type_name: type_name.TypeName
-    } });
+	decimals: ReturnType<typeof bcs.u8>;
+	discount_percentage: ReturnType<typeof bcs.u8>;
+	price_feed_id: ReturnType<typeof bcs.vector<ReturnType<typeof bcs.u8>>>;
+	type_name: typeof type_name.TypeName;
+}> = new MoveStruct({
+	name: `${$moduleName}::CoinTypeData`,
+	fields: {
+		/** The coin's decimals. */
+		decimals: bcs.u8(),
+		discount_percentage: bcs.u8(),
+		price_feed_id: bcs.vector(bcs.u8()),
+		type_name: type_name.TypeName,
+	},
+});
 export const PaymentsConfig: MoveStruct<{
-    "currencies": ReturnType<typeof vec_map.VecMap<typeof type_name.TypeName, typeof CoinTypeData>>;
-    "base_currency": typeof type_name.TypeName;
-    "max_age": ReturnType<typeof bcs.u64>;
-    "burn_bps": ReturnType<typeof bcs.u64>;
-}> = new MoveStruct({ name: `${$moduleName}::PaymentsConfig`, fields: {
-        currencies: vec_map.VecMap(type_name.TypeName, CoinTypeData),
-        base_currency: type_name.TypeName,
-        max_age: bcs.u64(),
-        /** The percentage of the payment that gets burned, in basis points. */
-        burn_bps: bcs.u64()
-    } });
+	currencies: ReturnType<typeof vec_map.VecMap<typeof type_name.TypeName, typeof CoinTypeData>>;
+	base_currency: typeof type_name.TypeName;
+	max_age: ReturnType<typeof bcs.u64>;
+	burn_bps: ReturnType<typeof bcs.u64>;
+}> = new MoveStruct({
+	name: `${$moduleName}::PaymentsConfig`,
+	fields: {
+		currencies: vec_map.VecMap(type_name.TypeName, CoinTypeData),
+		base_currency: type_name.TypeName,
+		max_age: bcs.u64(),
+		/** The percentage of the payment that gets burned, in basis points. */
+		burn_bps: bcs.u64(),
+	},
+});
 export interface HandleBasePaymentArguments {
-    suins: RawTransactionArgument<string>;
-    bbbVault: RawTransactionArgument<string>;
-    intent: TransactionArgument;
-    payment: RawTransactionArgument<string>;
+	suins: RawTransactionArgument<string>;
+	bbbVault: RawTransactionArgument<string>;
+	intent: TransactionArgument;
+	payment: RawTransactionArgument<string>;
 }
 export interface HandleBasePaymentOptions {
-    package?: string;
-    arguments: HandleBasePaymentArguments | [
-        suins: RawTransactionArgument<string>,
-        bbbVault: RawTransactionArgument<string>,
-        intent: TransactionArgument,
-        payment: RawTransactionArgument<string>
-    ];
-    typeArguments: [
-        string
-    ];
+	package?: string;
+	arguments:
+		| HandleBasePaymentArguments
+		| [
+				suins: RawTransactionArgument<string>,
+				bbbVault: RawTransactionArgument<string>,
+				intent: TransactionArgument,
+				payment: RawTransactionArgument<string>,
+		  ];
+	typeArguments: [string];
 }
 /**
  * This has to be called with our base payment currency. The payment has to be
  * equal to the base price of the domain. We do not need to check the price feed
  * for the base currency.
  */
-export function handleBasePayment(options: HandleBasePaymentOptions): (tx: Transaction) => TransactionResult {
-    const packageAddress = options.package ?? '@suins/payments';
-    const argumentsTypes = [
-        null,
-        null,
-        null,
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["suins", "bbbVault", "intent", "payment"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'payments',
-        function: 'handle_base_payment',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-        typeArguments: options.typeArguments
-    });
+export function handleBasePayment(
+	options: HandleBasePaymentOptions,
+): (tx: Transaction) => TransactionResult {
+	const packageAddress = options.package ?? '@suins/payments';
+	const argumentsTypes = [null, null, null, null] satisfies (string | null)[];
+	const parameterNames = ['suins', 'bbbVault', 'intent', 'payment'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'payments',
+			function: 'handle_base_payment',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
 }
 export interface HandlePaymentArguments {
-    suins: RawTransactionArgument<string>;
-    bbbVault: RawTransactionArgument<string>;
-    intent: TransactionArgument;
-    payment: RawTransactionArgument<string>;
-    priceInfoObject: RawTransactionArgument<string>;
-    userPriceGuard: RawTransactionArgument<number | bigint>;
+	suins: RawTransactionArgument<string>;
+	bbbVault: RawTransactionArgument<string>;
+	intent: TransactionArgument;
+	payment: RawTransactionArgument<string>;
+	priceInfoObject: RawTransactionArgument<string>;
+	userPriceGuard: RawTransactionArgument<number | bigint>;
 }
 export interface HandlePaymentOptions {
-    package?: string;
-    arguments: HandlePaymentArguments | [
-        suins: RawTransactionArgument<string>,
-        bbbVault: RawTransactionArgument<string>,
-        intent: TransactionArgument,
-        payment: RawTransactionArgument<string>,
-        priceInfoObject: RawTransactionArgument<string>,
-        userPriceGuard: RawTransactionArgument<number | bigint>
-    ];
-    typeArguments: [
-        string
-    ];
+	package?: string;
+	arguments:
+		| HandlePaymentArguments
+		| [
+				suins: RawTransactionArgument<string>,
+				bbbVault: RawTransactionArgument<string>,
+				intent: TransactionArgument,
+				payment: RawTransactionArgument<string>,
+				priceInfoObject: RawTransactionArgument<string>,
+				userPriceGuard: RawTransactionArgument<number | bigint>,
+		  ];
+	typeArguments: [string];
 }
 /**
  * Handles a payment done for a non-base currency payment. E.g. SUI, NS.
@@ -108,41 +122,46 @@ export interface HandlePaymentOptions {
  * number should be calculated on the FE based on the price that is being displayed
  * to the user (with a buffer determined by the FE).
  */
-export function handlePayment(options: HandlePaymentOptions): (tx: Transaction) => TransactionResult {
-    const packageAddress = options.package ?? '@suins/payments';
-    const argumentsTypes = [
-        null,
-        null,
-        null,
-        null,
-        '0x2::clock::Clock',
-        null,
-        'u64'
-    ] satisfies (string | null)[];
-    const parameterNames = ["suins", "bbbVault", "intent", "payment", "priceInfoObject", "userPriceGuard"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'payments',
-        function: 'handle_payment',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-        typeArguments: options.typeArguments
-    });
+export function handlePayment(
+	options: HandlePaymentOptions,
+): (tx: Transaction) => TransactionResult {
+	const packageAddress = options.package ?? '@suins/payments';
+	const argumentsTypes = [null, null, null, null, '0x2::clock::Clock', null, 'u64'] satisfies (
+		| string
+		| null
+	)[];
+	const parameterNames = [
+		'suins',
+		'bbbVault',
+		'intent',
+		'payment',
+		'priceInfoObject',
+		'userPriceGuard',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'payments',
+			function: 'handle_payment',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
 }
 export interface CalculatePriceArguments {
-    suins: RawTransactionArgument<string>;
-    baseAmount: RawTransactionArgument<number | bigint>;
-    priceInfoObject: RawTransactionArgument<string>;
+	suins: RawTransactionArgument<string>;
+	baseAmount: RawTransactionArgument<number | bigint>;
+	priceInfoObject: RawTransactionArgument<string>;
 }
 export interface CalculatePriceOptions {
-    package?: string;
-    arguments: CalculatePriceArguments | [
-        suins: RawTransactionArgument<string>,
-        baseAmount: RawTransactionArgument<number | bigint>,
-        priceInfoObject: RawTransactionArgument<string>
-    ];
-    typeArguments: [
-        string
-    ];
+	package?: string;
+	arguments:
+		| CalculatePriceArguments
+		| [
+				suins: RawTransactionArgument<string>,
+				baseAmount: RawTransactionArgument<number | bigint>,
+				priceInfoObject: RawTransactionArgument<string>,
+		  ];
+	typeArguments: [string];
 }
 /**
  * Calculates the amount that has to be paid in the target currency.
@@ -154,117 +173,111 @@ export interface CalculatePriceOptions {
  * 3.  const coin = txb.splitCoins(baseCoin, [price])
  * 4.  handle_payment<SUI>(suins, intent, coin, ...);
  */
-export function calculatePrice(options: CalculatePriceOptions): (tx: Transaction) => TransactionResult {
-    const packageAddress = options.package ?? '@suins/payments';
-    const argumentsTypes = [
-        null,
-        'u64',
-        '0x2::clock::Clock',
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["suins", "baseAmount", "priceInfoObject"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'payments',
-        function: 'calculate_price',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-        typeArguments: options.typeArguments
-    });
+export function calculatePrice(
+	options: CalculatePriceOptions,
+): (tx: Transaction) => TransactionResult {
+	const packageAddress = options.package ?? '@suins/payments';
+	const argumentsTypes = [null, 'u64', '0x2::clock::Clock', null] satisfies (string | null)[];
+	const parameterNames = ['suins', 'baseAmount', 'priceInfoObject'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'payments',
+			function: 'calculate_price',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
 }
 export interface CalculatePriceAfterDiscountArguments {
-    suins: RawTransactionArgument<string>;
-    intent: TransactionArgument;
+	suins: RawTransactionArgument<string>;
+	intent: TransactionArgument;
 }
 export interface CalculatePriceAfterDiscountOptions {
-    package?: string;
-    arguments: CalculatePriceAfterDiscountArguments | [
-        suins: RawTransactionArgument<string>,
-        intent: TransactionArgument
-    ];
-    typeArguments: [
-        string
-    ];
+	package?: string;
+	arguments:
+		| CalculatePriceAfterDiscountArguments
+		| [suins: RawTransactionArgument<string>, intent: TransactionArgument];
+	typeArguments: [string];
 }
-export function calculatePriceAfterDiscount(options: CalculatePriceAfterDiscountOptions): (tx: Transaction) => TransactionResult {
-    const packageAddress = options.package ?? '@suins/payments';
-    const argumentsTypes = [
-        null,
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["suins", "intent"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'payments',
-        function: 'calculate_price_after_discount',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-        typeArguments: options.typeArguments
-    });
+export function calculatePriceAfterDiscount(
+	options: CalculatePriceAfterDiscountOptions,
+): (tx: Transaction) => TransactionResult {
+	const packageAddress = options.package ?? '@suins/payments';
+	const argumentsTypes = [null, null] satisfies (string | null)[];
+	const parameterNames = ['suins', 'intent'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'payments',
+			function: 'calculate_price_after_discount',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
 }
 export interface NewCoinTypeDataArguments {
-    coinMetadata: RawTransactionArgument<string>;
-    discountPercentage: RawTransactionArgument<number>;
-    priceFeedId: RawTransactionArgument<Array<number>>;
+	coinMetadata: RawTransactionArgument<string>;
+	discountPercentage: RawTransactionArgument<number>;
+	priceFeedId: RawTransactionArgument<Array<number>>;
 }
 export interface NewCoinTypeDataOptions {
-    package?: string;
-    arguments: NewCoinTypeDataArguments | [
-        coinMetadata: RawTransactionArgument<string>,
-        discountPercentage: RawTransactionArgument<number>,
-        priceFeedId: RawTransactionArgument<Array<number>>
-    ];
-    typeArguments: [
-        string
-    ];
+	package?: string;
+	arguments:
+		| NewCoinTypeDataArguments
+		| [
+				coinMetadata: RawTransactionArgument<string>,
+				discountPercentage: RawTransactionArgument<number>,
+				priceFeedId: RawTransactionArgument<Array<number>>,
+		  ];
+	typeArguments: [string];
 }
 /** Creates a new CoinTypeData struct. Leave price_feed_id empty for base currency. */
-export function newCoinTypeData(options: NewCoinTypeDataOptions): (tx: Transaction) => TransactionResult {
-    const packageAddress = options.package ?? '@suins/payments';
-    const argumentsTypes = [
-        null,
-        'u8',
-        'vector<u8>'
-    ] satisfies (string | null)[];
-    const parameterNames = ["coinMetadata", "discountPercentage", "priceFeedId"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'payments',
-        function: 'new_coin_type_data',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-        typeArguments: options.typeArguments
-    });
+export function newCoinTypeData(
+	options: NewCoinTypeDataOptions,
+): (tx: Transaction) => TransactionResult {
+	const packageAddress = options.package ?? '@suins/payments';
+	const argumentsTypes = [null, 'u8', 'vector<u8>'] satisfies (string | null)[];
+	const parameterNames = ['coinMetadata', 'discountPercentage', 'priceFeedId'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'payments',
+			function: 'new_coin_type_data',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
 }
 export interface NewPaymentsConfigArguments {
-    setups: TransactionArgument;
-    baseCurrency: TransactionArgument;
-    maxAge: RawTransactionArgument<number | bigint>;
-    burnBps: RawTransactionArgument<number | bigint>;
+	setups: TransactionArgument;
+	baseCurrency: TransactionArgument;
+	maxAge: RawTransactionArgument<number | bigint>;
+	burnBps: RawTransactionArgument<number | bigint>;
 }
 export interface NewPaymentsConfigOptions {
-    package?: string;
-    arguments: NewPaymentsConfigArguments | [
-        setups: TransactionArgument,
-        baseCurrency: TransactionArgument,
-        maxAge: RawTransactionArgument<number | bigint>,
-        burnBps: RawTransactionArgument<number | bigint>
-    ];
+	package?: string;
+	arguments:
+		| NewPaymentsConfigArguments
+		| [
+				setups: TransactionArgument,
+				baseCurrency: TransactionArgument,
+				maxAge: RawTransactionArgument<number | bigint>,
+				burnBps: RawTransactionArgument<number | bigint>,
+		  ];
 }
 /**
  * Creates a new PaymentsConfig struct. Can be attached by the Admin to SuiNS to
  * allow the payments module to work.
  */
-export function newPaymentsConfig(options: NewPaymentsConfigOptions): (tx: Transaction) => TransactionResult {
-    const packageAddress = options.package ?? '@suins/payments';
-    const argumentsTypes = [
-        'vector<null>',
-        null,
-        'u64',
-        'u64'
-    ] satisfies (string | null)[];
-    const parameterNames = ["setups", "baseCurrency", "maxAge", "burnBps"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'payments',
-        function: 'new_payments_config',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
+export function newPaymentsConfig(
+	options: NewPaymentsConfigOptions,
+): (tx: Transaction) => TransactionResult {
+	const packageAddress = options.package ?? '@suins/payments';
+	const argumentsTypes = ['vector<null>', null, 'u64', 'u64'] satisfies (string | null)[];
+	const parameterNames = ['setups', 'baseCurrency', 'maxAge', 'burnBps'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'payments',
+			function: 'new_payments_config',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
 }

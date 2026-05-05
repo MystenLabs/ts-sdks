@@ -3,10 +3,16 @@
  **************************************************************/
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
+import {
+	type Transaction,
+	type TransactionResult,
+	type TransactionArgument,
+} from '@mysten/sui/transactions';
 const $moduleName =
 	'0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837::governance_action';
-export const GovernanceAction = new MoveStruct({
+export const GovernanceAction: MoveStruct<{
+	value: ReturnType<typeof bcs.u8>;
+}> = new MoveStruct({
 	name: `${$moduleName}::GovernanceAction`,
 	fields: {
 		value: bcs.u8(),
@@ -16,7 +22,7 @@ export interface FromU8Options {
 	package?: string;
 	arguments: [RawTransactionArgument<number>];
 }
-export function fromU8(options: FromU8Options) {
+export function fromU8(options: FromU8Options): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = ['u8'] satisfies (string | null)[];
@@ -32,7 +38,7 @@ export interface GetValueOptions {
 	package?: string;
 	arguments: [TransactionArgument];
 }
-export function getValue(options: GetValueOptions) {
+export function getValue(options: GetValueOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -48,7 +54,9 @@ export interface NewContractUpgradeOptions {
 	package?: string;
 	arguments?: [];
 }
-export function newContractUpgrade(options: NewContractUpgradeOptions = {}) {
+export function newContractUpgrade(
+	options: NewContractUpgradeOptions = {},
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	return (tx: Transaction) =>
@@ -62,7 +70,9 @@ export interface NewSetGovernanceDataSourceOptions {
 	package?: string;
 	arguments?: [];
 }
-export function newSetGovernanceDataSource(options: NewSetGovernanceDataSourceOptions = {}) {
+export function newSetGovernanceDataSource(
+	options: NewSetGovernanceDataSourceOptions = {},
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	return (tx: Transaction) =>
@@ -76,7 +86,9 @@ export interface NewSetDataSourcesOptions {
 	package?: string;
 	arguments?: [];
 }
-export function newSetDataSources(options: NewSetDataSourcesOptions = {}) {
+export function newSetDataSources(
+	options: NewSetDataSourcesOptions = {},
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	return (tx: Transaction) =>
@@ -90,7 +102,9 @@ export interface NewSetUpdateFeeOptions {
 	package?: string;
 	arguments?: [];
 }
-export function newSetUpdateFee(options: NewSetUpdateFeeOptions = {}) {
+export function newSetUpdateFee(
+	options: NewSetUpdateFeeOptions = {},
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	return (tx: Transaction) =>
@@ -104,7 +118,9 @@ export interface NewSetStalePriceThresholdOptions {
 	package?: string;
 	arguments?: [];
 }
-export function newSetStalePriceThreshold(options: NewSetStalePriceThresholdOptions = {}) {
+export function newSetStalePriceThreshold(
+	options: NewSetStalePriceThresholdOptions = {},
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	return (tx: Transaction) =>
@@ -118,7 +134,9 @@ export interface NewSetFeeRecipientOptions {
 	package?: string;
 	arguments?: [];
 }
-export function newSetFeeRecipient(options: NewSetFeeRecipientOptions = {}) {
+export function newSetFeeRecipient(
+	options: NewSetFeeRecipientOptions = {},
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	return (tx: Transaction) =>

@@ -8,13 +8,23 @@ import {
 	type RawTransactionArgument,
 } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionResult } from '@mysten/sui/transactions';
 import * as vec_map from './deps/sui/vec_map.js';
 import * as vec_set from './deps/sui/vec_set.js';
 import * as type_name from './deps/std/type_name.js';
 import * as versioning from './versioning.js';
 const $moduleName = '@mysten/pas::policy';
-export const Policy = new MoveStruct({
+export const Policy: MoveStruct<{
+	id: typeof bcs.Address;
+	required_approvals: ReturnType<
+		typeof vec_map.VecMap<
+			ReturnType<typeof bcs.string>,
+			ReturnType<typeof vec_set.VecSet<typeof type_name.TypeName>>
+		>
+	>;
+	versioning: typeof versioning.Versioning;
+	clawback_allowed: ReturnType<typeof bcs.bool>;
+}> = new MoveStruct({
 	name: `${$moduleName}::Policy<phantom T>`,
 	fields: {
 		id: bcs.Address,
@@ -35,13 +45,15 @@ export const Policy = new MoveStruct({
 		clawback_allowed: bcs.bool(),
 	},
 });
-export const PolicyCap = new MoveStruct({
+export const PolicyCap: MoveStruct<{
+	id: typeof bcs.Address;
+}> = new MoveStruct({
 	name: `${$moduleName}::PolicyCap<phantom T>`,
 	fields: {
 		id: bcs.Address,
 	},
 });
-export const PolicyCapKey = new MoveTuple({
+export const PolicyCapKey: MoveTuple<[ReturnType<typeof bcs.bool>]> = new MoveTuple({
 	name: `${$moduleName}::PolicyCapKey`,
 	fields: [bcs.bool()],
 });
@@ -61,7 +73,9 @@ export interface NewForCurrencyOptions {
 		  ];
 	typeArguments: [string];
 }
-export function newForCurrency(options: NewForCurrencyOptions) {
+export function newForCurrency(
+	options: NewForCurrencyOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/pas';
 	const argumentsTypes = [null, null, 'bool'] satisfies (string | null)[];
 	const parameterNames = ['namespace', 'Cap', 'clawbackAllowed'];
@@ -82,7 +96,7 @@ export interface ShareOptions {
 	arguments: ShareArguments | [policy: RawTransactionArgument<string>];
 	typeArguments: [string];
 }
-export function share(options: ShareOptions) {
+export function share(options: ShareOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/pas';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['policy'];
@@ -107,7 +121,9 @@ export interface RequiredApprovalsOptions {
 	typeArguments: [string];
 }
 /** Get the set of required approvals for a given action. */
-export function requiredApprovals(options: RequiredApprovalsOptions) {
+export function requiredApprovals(
+	options: RequiredApprovalsOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/pas';
 	const argumentsTypes = [null, '0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['policy', 'actionType'];
@@ -136,7 +152,9 @@ export interface SetRequiredApprovalOptions {
 		  ];
 	typeArguments: [string, string];
 }
-export function setRequiredApproval(options: SetRequiredApprovalOptions) {
+export function setRequiredApproval(
+	options: SetRequiredApprovalOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/pas';
 	const argumentsTypes = [null, null, '0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['policy', 'cap', 'action'];
@@ -169,7 +187,9 @@ export interface RemoveActionApprovalOptions {
  * Remove the action approval for a given action (this will make all requests not
  * resolve).
  */
-export function removeActionApproval(options: RemoveActionApprovalOptions) {
+export function removeActionApproval(
+	options: RemoveActionApprovalOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/pas';
 	const argumentsTypes = [null, null, '0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['policy', '_', 'action'];
@@ -197,7 +217,9 @@ export interface SyncVersioningOptions {
  * Allows syncing the versioning of a policy to the namespace's versioning. This is
  * permission-less and can be done by anyone.
  */
-export function syncVersioning(options: SyncVersioningOptions) {
+export function syncVersioning(
+	options: SyncVersioningOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/pas';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['policy', 'namespace'];

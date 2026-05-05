@@ -3,7 +3,11 @@
  **************************************************************/
 import { type BcsType, bcs } from '@mysten/sui/bcs';
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
-import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
+import {
+	type Transaction,
+	type TransactionResult,
+	type TransactionArgument,
+} from '@mysten/sui/transactions';
 const $moduleName = '@mysten/pas::unlock_funds';
 /**
  * An unlock funds request that is generated once a Permissioned Funds Transfer is
@@ -38,7 +42,7 @@ export interface OwnerOptions {
 	arguments: OwnerArguments | [request: TransactionArgument];
 	typeArguments: [string];
 }
-export function owner(options: OwnerOptions) {
+export function owner(options: OwnerOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/pas';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['request'];
@@ -59,7 +63,7 @@ export interface AccountIdOptions {
 	arguments: AccountIdArguments | [request: TransactionArgument];
 	typeArguments: [string];
 }
-export function accountId(options: AccountIdOptions) {
+export function accountId(options: AccountIdOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/pas';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['request'];
@@ -80,7 +84,7 @@ export interface FundsOptions {
 	arguments: FundsArguments | [request: TransactionArgument];
 	typeArguments: [string];
 }
-export function funds(options: FundsOptions) {
+export function funds(options: FundsOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/pas';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['request'];
@@ -112,7 +116,9 @@ export interface ResolveUnrestrictedBalanceOptions {
  * For example, `SUI` will never be a managed asset, so the owner needs to be able
  * to withdraw if anyone transfers some to their account.
  */
-export function resolveUnrestrictedBalance(options: ResolveUnrestrictedBalanceOptions) {
+export function resolveUnrestrictedBalance(
+	options: ResolveUnrestrictedBalanceOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/pas';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['request', 'namespace'];
@@ -140,7 +146,7 @@ export interface ResolveOptions {
  * Resolve an unlock funds request as long as funds management is enabled and there
  * are enough valid approvals.
  */
-export function resolve(options: ResolveOptions) {
+export function resolve(options: ResolveOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/pas';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['request', 'policy'];

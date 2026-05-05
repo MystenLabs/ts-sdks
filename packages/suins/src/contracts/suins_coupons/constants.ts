@@ -3,43 +3,49 @@
  **************************************************************/
 import { type Transaction, type TransactionResult } from '@mysten/sui/transactions';
 export interface PercentageDiscountTypeOptions {
-    package?: string;
-    arguments?: [
-    ];
+	package?: string;
+	arguments?: [];
 }
 /** A getter for the percentage discount type. */
-export function percentageDiscountType(options: PercentageDiscountTypeOptions = {}): (tx: Transaction) => TransactionResult {
-    const packageAddress = options.package ?? '@suins/coupons';
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'constants',
-        function: 'percentage_discount_type',
-    });
+export function percentageDiscountType(
+	options: PercentageDiscountTypeOptions = {},
+): (tx: Transaction) => TransactionResult {
+	const packageAddress = options.package ?? '@suins/coupons';
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'constants',
+			function: 'percentage_discount_type',
+		});
 }
 export interface DiscountRuleTypesOptions {
-    package?: string;
-    arguments?: [
-    ];
+	package?: string;
+	arguments?: [];
 }
 /** A vector with all the discount rule types. */
-export function discountRuleTypes(options: DiscountRuleTypesOptions = {}): (tx: Transaction) => TransactionResult {
-    const packageAddress = options.package ?? '@suins/coupons';
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'constants',
-        function: 'discount_rule_types',
-    });
+export function discountRuleTypes(
+	options: DiscountRuleTypesOptions = {},
+): (tx: Transaction) => TransactionResult {
+	const packageAddress = options.package ?? '@suins/coupons';
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'constants',
+			function: 'discount_rule_types',
+		});
 }
 export interface FixedPriceDiscountTypeOptions {
-    package?: string;
-    arguments?: [
-    ];
+	package?: string;
+	arguments?: [];
 }
-export function fixedPriceDiscountType(options: FixedPriceDiscountTypeOptions = {}): (tx: Transaction) => TransactionResult {
-    const packageAddress = options.package ?? '@suins/coupons';
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'constants',
-        function: 'fixed_price_discount_type',
-    });
+export function fixedPriceDiscountType(
+	options: FixedPriceDiscountTypeOptions = {},
+): (tx: Transaction) => TransactionResult {
+	const packageAddress = options.package ?? '@suins/coupons';
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'constants',
+			function: 'fixed_price_discount_type',
+		});
 }

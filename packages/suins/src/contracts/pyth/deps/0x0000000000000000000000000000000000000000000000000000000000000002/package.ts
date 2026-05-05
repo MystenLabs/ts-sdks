@@ -4,7 +4,12 @@
 import { MoveStruct } from '../../../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 const $moduleName = '0x2::package';
-export const UpgradeCap = new MoveStruct({
+export const UpgradeCap: MoveStruct<{
+	id: typeof bcs.Address;
+	package: typeof bcs.Address;
+	version: ReturnType<typeof bcs.u64>;
+	policy: ReturnType<typeof bcs.u8>;
+}> = new MoveStruct({
 	name: `${$moduleName}::UpgradeCap`,
 	fields: {
 		id: bcs.Address,

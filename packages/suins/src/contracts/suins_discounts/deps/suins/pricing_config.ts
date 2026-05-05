@@ -4,7 +4,5 @@
 import { MoveTuple } from '../../../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 const $moduleName = 'suins::pricing_config';
-export const Range: MoveTuple<[
-    ReturnType<typeof bcs.u64>,
-    ReturnType<typeof bcs.u64>
-]> = new MoveTuple({ name: `${$moduleName}::Range`, fields: [bcs.u64(), bcs.u64()] });
+export const Range: MoveTuple<[ReturnType<typeof bcs.u64>, ReturnType<typeof bcs.u64>]> =
+	new MoveTuple({ name: `${$moduleName}::Range`, fields: [bcs.u64(), bcs.u64()] });

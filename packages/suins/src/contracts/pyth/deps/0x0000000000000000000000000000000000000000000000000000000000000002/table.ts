@@ -4,7 +4,10 @@
 import { MoveStruct } from '../../../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 const $moduleName = '0x2::table';
-export const Table = new MoveStruct({
+export const Table: MoveStruct<{
+	id: typeof bcs.Address;
+	size: ReturnType<typeof bcs.u64>;
+}> = new MoveStruct({
 	name: `${$moduleName}::Table<phantom T0, phantom T1>`,
 	fields: {
 		id: bcs.Address,

@@ -3,11 +3,21 @@
  **************************************************************/
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
+import {
+	type Transaction,
+	type TransactionResult,
+	type TransactionArgument,
+} from '@mysten/sui/transactions';
 import * as price_info from './price_info.js';
 const $moduleName =
 	'0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837::batch_price_attestation';
-export const Header = new MoveStruct({
+export const Header: MoveStruct<{
+	magic: ReturnType<typeof bcs.u64>;
+	version_major: ReturnType<typeof bcs.u64>;
+	version_minor: ReturnType<typeof bcs.u64>;
+	header_size: ReturnType<typeof bcs.u64>;
+	payload_id: ReturnType<typeof bcs.u8>;
+}> = new MoveStruct({
 	name: `${$moduleName}::Header`,
 	fields: {
 		magic: bcs.u64(),
@@ -17,7 +27,12 @@ export const Header = new MoveStruct({
 		payload_id: bcs.u8(),
 	},
 });
-export const BatchPriceAttestation = new MoveStruct({
+export const BatchPriceAttestation: MoveStruct<{
+	header: typeof Header;
+	attestation_size: ReturnType<typeof bcs.u64>;
+	attestation_count: ReturnType<typeof bcs.u64>;
+	price_infos: ReturnType<typeof bcs.vector<typeof price_info.PriceInfo>>;
+}> = new MoveStruct({
 	name: `${$moduleName}::BatchPriceAttestation`,
 	fields: {
 		header: Header,
@@ -30,7 +45,7 @@ export interface DestroyOptions {
 	package?: string;
 	arguments: [TransactionArgument];
 }
-export function destroy(options: DestroyOptions) {
+export function destroy(options: DestroyOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -46,7 +61,9 @@ export interface GetAttestationCountOptions {
 	package?: string;
 	arguments: [TransactionArgument];
 }
-export function getAttestationCount(options: GetAttestationCountOptions) {
+export function getAttestationCount(
+	options: GetAttestationCountOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -62,7 +79,7 @@ export interface GetPriceInfoOptions {
 	package?: string;
 	arguments: [TransactionArgument, RawTransactionArgument<number | bigint>];
 }
-export function getPriceInfo(options: GetPriceInfoOptions) {
+export function getPriceInfo(options: GetPriceInfoOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
@@ -78,7 +95,7 @@ export interface DeserializeOptions {
 	package?: string;
 	arguments: [RawTransactionArgument<Array<number>>];
 }
-export function deserialize(options: DeserializeOptions) {
+export function deserialize(options: DeserializeOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = ['vector<u8>', '0x2::clock::Clock'] satisfies (string | null)[];

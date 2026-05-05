@@ -1,13 +1,19 @@
 /**************************************************************
  * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
  **************************************************************/
-import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
+import {
+	type Transaction,
+	type TransactionResult,
+	type TransactionArgument,
+} from '@mysten/sui/transactions';
 import { normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 export interface DeserializeVectorOptions {
 	package?: string;
 	arguments: [TransactionArgument, RawTransactionArgument<number | bigint>];
 }
-export function deserializeVector(options: DeserializeVectorOptions) {
+export function deserializeVector(
+	options: DeserializeVectorOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
@@ -23,7 +29,9 @@ export interface DeserializeU8Options {
 	package?: string;
 	arguments: [TransactionArgument];
 }
-export function deserializeU8(options: DeserializeU8Options) {
+export function deserializeU8(
+	options: DeserializeU8Options,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -39,7 +47,9 @@ export interface DeserializeU16Options {
 	package?: string;
 	arguments: [TransactionArgument];
 }
-export function deserializeU16(options: DeserializeU16Options) {
+export function deserializeU16(
+	options: DeserializeU16Options,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -55,7 +65,9 @@ export interface DeserializeU32Options {
 	package?: string;
 	arguments: [TransactionArgument];
 }
-export function deserializeU32(options: DeserializeU32Options) {
+export function deserializeU32(
+	options: DeserializeU32Options,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -71,7 +83,9 @@ export interface DeserializeI32Options {
 	package?: string;
 	arguments: [TransactionArgument];
 }
-export function deserializeI32(options: DeserializeI32Options) {
+export function deserializeI32(
+	options: DeserializeI32Options,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -87,7 +101,9 @@ export interface DeserializeU64Options {
 	package?: string;
 	arguments: [TransactionArgument];
 }
-export function deserializeU64(options: DeserializeU64Options) {
+export function deserializeU64(
+	options: DeserializeU64Options,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -103,7 +119,9 @@ export interface DeserializeI64Options {
 	package?: string;
 	arguments: [TransactionArgument];
 }
-export function deserializeI64(options: DeserializeI64Options) {
+export function deserializeI64(
+	options: DeserializeI64Options,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null] satisfies (string | null)[];

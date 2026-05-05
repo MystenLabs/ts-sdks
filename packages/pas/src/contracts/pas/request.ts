@@ -3,7 +3,11 @@
  **************************************************************/
 import { type BcsType } from '@mysten/sui/bcs';
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
-import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
+import {
+	type Transaction,
+	type TransactionResult,
+	type TransactionArgument,
+} from '@mysten/sui/transactions';
 import * as vec_set from './deps/sui/vec_set.js';
 import * as type_name from './deps/std/type_name.js';
 const $moduleName = '@mysten/pas::request';
@@ -30,7 +34,9 @@ export interface ApproveOptions<U extends BcsType<any>> {
 	typeArguments: [string, string];
 }
 /** Adds an approval to a request. Can be called to resolve rules */
-export function approve<U extends BcsType<any>>(options: ApproveOptions<U>) {
+export function approve<U extends BcsType<any>>(
+	options: ApproveOptions<U>,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/pas';
 	const argumentsTypes = [null, `${options.typeArguments[1]}`] satisfies (string | null)[];
 	const parameterNames = ['request', 'Approval'];
@@ -51,7 +57,7 @@ export interface DataOptions {
 	arguments: DataArguments | [request: TransactionArgument];
 	typeArguments: [string];
 }
-export function data(options: DataOptions) {
+export function data(options: DataOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/pas';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['request'];
@@ -72,7 +78,7 @@ export interface ApprovalsOptions {
 	arguments: ApprovalsArguments | [request: TransactionArgument];
 	typeArguments: [string];
 }
-export function approvals(options: ApprovalsOptions) {
+export function approvals(options: ApprovalsOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/pas';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['request'];

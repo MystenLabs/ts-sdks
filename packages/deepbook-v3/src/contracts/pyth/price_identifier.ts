@@ -3,10 +3,16 @@
  **************************************************************/
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
+import {
+	type Transaction,
+	type TransactionResult,
+	type TransactionArgument,
+} from '@mysten/sui/transactions';
 const $moduleName =
 	'0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837::price_identifier';
-export const PriceIdentifier = new MoveStruct({
+export const PriceIdentifier: MoveStruct<{
+	bytes: ReturnType<typeof bcs.vector<ReturnType<typeof bcs.u8>>>;
+}> = new MoveStruct({
 	name: `${$moduleName}::PriceIdentifier`,
 	fields: {
 		bytes: bcs.vector(bcs.u8()),
@@ -16,7 +22,7 @@ export interface FromByteVecOptions {
 	package?: string;
 	arguments: [RawTransactionArgument<Array<number>>];
 }
-export function fromByteVec(options: FromByteVecOptions) {
+export function fromByteVec(options: FromByteVecOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = ['vector<u8>'] satisfies (string | null)[];
@@ -32,7 +38,7 @@ export interface GetBytesOptions {
 	package?: string;
 	arguments: [TransactionArgument];
 }
-export function getBytes(options: GetBytesOptions) {
+export function getBytes(options: GetBytesOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null] satisfies (string | null)[];

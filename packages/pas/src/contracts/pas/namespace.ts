@@ -13,10 +13,14 @@
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionResult } from '@mysten/sui/transactions';
 import * as versioning from './versioning.js';
 const $moduleName = '@mysten/pas::namespace';
-export const Namespace = new MoveStruct({
+export const Namespace: MoveStruct<{
+	id: typeof bcs.Address;
+	upgrade_cap_id: ReturnType<typeof bcs.option<typeof bcs.Address>>;
+	versioning: typeof versioning.Versioning;
+}> = new MoveStruct({
 	name: `${$moduleName}::Namespace`,
 	fields: {
 		id: bcs.Address,
@@ -44,7 +48,7 @@ export interface SetupOptions {
  * the UpgradeCap the "admin" capability (which can set the blocked versions of a
  * package).
  */
-export function setup(options: SetupOptions) {
+export function setup(options: SetupOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/pas';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['namespace', 'cap'];
@@ -77,7 +81,7 @@ export interface BlockVersionOptions {
  * This is only used in case of emergency (e.g. security consideration), or if
  * there is a breaking change
  */
-export function blockVersion(options: BlockVersionOptions) {
+export function blockVersion(options: BlockVersionOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/pas';
 	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
 	const parameterNames = ['namespace', 'cap', 'version'];
@@ -105,7 +109,9 @@ export interface UnblockVersionOptions {
 		  ];
 }
 /** Allows the package admin to unblock a version of the package. */
-export function unblockVersion(options: UnblockVersionOptions) {
+export function unblockVersion(
+	options: UnblockVersionOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/pas';
 	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
 	const parameterNames = ['namespace', 'cap', 'version'];
@@ -126,7 +132,7 @@ export interface PolicyExistsOptions {
 	typeArguments: [string];
 }
 /** Check if `Policy<T>` exists in the namespace */
-export function policyExists(options: PolicyExistsOptions) {
+export function policyExists(options: PolicyExistsOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/pas';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['namespace'];
@@ -148,7 +154,9 @@ export interface PolicyAddressOptions {
 	typeArguments: [string];
 }
 /** The derived address for `Policy<T>` */
-export function policyAddress(options: PolicyAddressOptions) {
+export function policyAddress(
+	options: PolicyAddressOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/pas';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['namespace'];
@@ -171,7 +179,9 @@ export interface AccountExistsOptions {
 		| AccountExistsArguments
 		| [namespace: RawTransactionArgument<string>, owner: RawTransactionArgument<string>];
 }
-export function accountExists(options: AccountExistsOptions) {
+export function accountExists(
+	options: AccountExistsOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/pas';
 	const argumentsTypes = [null, 'address'] satisfies (string | null)[];
 	const parameterNames = ['namespace', 'owner'];
@@ -193,7 +203,9 @@ export interface AccountAddressOptions {
 		| AccountAddressArguments
 		| [namespace: RawTransactionArgument<string>, owner: RawTransactionArgument<string>];
 }
-export function accountAddress(options: AccountAddressOptions) {
+export function accountAddress(
+	options: AccountAddressOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/pas';
 	const argumentsTypes = [null, 'address'] satisfies (string | null)[];
 	const parameterNames = ['namespace', 'owner'];

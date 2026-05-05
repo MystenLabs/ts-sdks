@@ -3,11 +3,19 @@
  **************************************************************/
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
+import {
+	type Transaction,
+	type TransactionResult,
+	type TransactionArgument,
+} from '@mysten/sui/transactions';
 import * as bytes32 from './deps/0xf47329f4344f3bf0f8e436e2f7b485466cff300f12a166563995d3888c296a94/bytes32.js';
 const $moduleName =
 	'0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837::governance';
-export const WormholeVAAVerificationReceipt = new MoveStruct({
+export const WormholeVAAVerificationReceipt: MoveStruct<{
+	payload: ReturnType<typeof bcs.vector<ReturnType<typeof bcs.u8>>>;
+	digest: typeof bytes32.Bytes32;
+	sequence: ReturnType<typeof bcs.u64>;
+}> = new MoveStruct({
 	name: `${$moduleName}::WormholeVAAVerificationReceipt`,
 	fields: {
 		payload: bcs.vector(bcs.u8()),
@@ -19,7 +27,7 @@ export interface TakePayloadOptions {
 	package?: string;
 	arguments: [TransactionArgument];
 }
-export function takePayload(options: TakePayloadOptions) {
+export function takePayload(options: TakePayloadOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -35,7 +43,7 @@ export interface TakeDigestOptions {
 	package?: string;
 	arguments: [TransactionArgument];
 }
-export function takeDigest(options: TakeDigestOptions) {
+export function takeDigest(options: TakeDigestOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -51,7 +59,7 @@ export interface TakeSequenceOptions {
 	package?: string;
 	arguments: [TransactionArgument];
 }
-export function takeSequence(options: TakeSequenceOptions) {
+export function takeSequence(options: TakeSequenceOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -67,7 +75,7 @@ export interface DestroyOptions {
 	package?: string;
 	arguments: [TransactionArgument];
 }
-export function destroy(options: DestroyOptions) {
+export function destroy(options: DestroyOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -83,7 +91,7 @@ export interface VerifyVaaOptions {
 	package?: string;
 	arguments: [RawTransactionArgument<string>, TransactionArgument];
 }
-export function verifyVaa(options: VerifyVaaOptions) {
+export function verifyVaa(options: VerifyVaaOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
@@ -99,7 +107,9 @@ export interface ExecuteGovernanceInstructionOptions {
 	package?: string;
 	arguments: [RawTransactionArgument<string>, TransactionArgument];
 }
-export function executeGovernanceInstruction(options: ExecuteGovernanceInstructionOptions) {
+export function executeGovernanceInstruction(
+	options: ExecuteGovernanceInstructionOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null, null] satisfies (string | null)[];

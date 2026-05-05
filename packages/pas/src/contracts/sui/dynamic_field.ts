@@ -3,7 +3,7 @@
  **************************************************************/
 import { type BcsType, bcs } from '@mysten/sui/bcs';
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionResult } from '@mysten/sui/transactions';
 const $moduleName = '0x2::dynamic_field';
 export function Field<T0 extends BcsType<any>, T1 extends BcsType<any>>(
 	...typeParameters: [T0, T1]
@@ -26,7 +26,9 @@ export interface AddOptions<T0 extends BcsType<any>, T1 extends BcsType<any>> {
 	];
 	typeArguments: [string, string];
 }
-export function add<T0 extends BcsType<any>, T1 extends BcsType<any>>(options: AddOptions<T0, T1>) {
+export function add<T0 extends BcsType<any>, T1 extends BcsType<any>>(
+	options: AddOptions<T0, T1>,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [
@@ -48,7 +50,9 @@ export interface BorrowOptions<T0 extends BcsType<any>> {
 	arguments: [RawTransactionArgument<string>, RawTransactionArgument<T0>];
 	typeArguments: [string, string];
 }
-export function borrow<T0 extends BcsType<any>>(options: BorrowOptions<T0>) {
+export function borrow<T0 extends BcsType<any>>(
+	options: BorrowOptions<T0>,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = ['0x2::object::ID', `${options.typeArguments[0]}`] satisfies (
@@ -69,7 +73,9 @@ export interface BorrowMutOptions<T0 extends BcsType<any>> {
 	arguments: [RawTransactionArgument<string>, RawTransactionArgument<T0>];
 	typeArguments: [string, string];
 }
-export function borrowMut<T0 extends BcsType<any>>(options: BorrowMutOptions<T0>) {
+export function borrowMut<T0 extends BcsType<any>>(
+	options: BorrowMutOptions<T0>,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = ['0x2::object::ID', `${options.typeArguments[0]}`] satisfies (
@@ -90,7 +96,9 @@ export interface RemoveOptions<T0 extends BcsType<any>> {
 	arguments: [RawTransactionArgument<string>, RawTransactionArgument<T0>];
 	typeArguments: [string, string];
 }
-export function remove<T0 extends BcsType<any>>(options: RemoveOptions<T0>) {
+export function remove<T0 extends BcsType<any>>(
+	options: RemoveOptions<T0>,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = ['0x2::object::ID', `${options.typeArguments[0]}`] satisfies (
@@ -106,12 +114,111 @@ export function remove<T0 extends BcsType<any>>(options: RemoveOptions<T0>) {
 			typeArguments: options.typeArguments,
 		});
 }
+export interface ExistsOptions<T0 extends BcsType<any>> {
+	package?: string;
+	arguments: [RawTransactionArgument<string>, RawTransactionArgument<T0>];
+	typeArguments: [string];
+}
+export function exists<T0 extends BcsType<any>>(
+	options: ExistsOptions<T0>,
+): (tx: Transaction) => TransactionResult {
+	const packageAddress =
+		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
+	const argumentsTypes = ['0x2::object::ID', `${options.typeArguments[0]}`] satisfies (
+		| string
+		| null
+	)[];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'dynamic_field',
+			function: 'exists',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface RemoveOptOptions<T0 extends BcsType<any>> {
+	package?: string;
+	arguments: [RawTransactionArgument<string>, RawTransactionArgument<T0>];
+	typeArguments: [string, string];
+}
+export function removeOpt<T0 extends BcsType<any>>(
+	options: RemoveOptOptions<T0>,
+): (tx: Transaction) => TransactionResult {
+	const packageAddress =
+		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
+	const argumentsTypes = ['0x2::object::ID', `${options.typeArguments[0]}`] satisfies (
+		| string
+		| null
+	)[];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'dynamic_field',
+			function: 'remove_opt',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface ReplaceOptions<T0 extends BcsType<any>, T1 extends BcsType<any>> {
+	package?: string;
+	arguments: [
+		RawTransactionArgument<string>,
+		RawTransactionArgument<T0>,
+		RawTransactionArgument<T1>,
+	];
+	typeArguments: [string, string, string];
+}
+export function replace<T0 extends BcsType<any>, T1 extends BcsType<any>>(
+	options: ReplaceOptions<T0, T1>,
+): (tx: Transaction) => TransactionResult {
+	const packageAddress =
+		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
+	const argumentsTypes = [
+		'0x2::object::ID',
+		`${options.typeArguments[0]}`,
+		`${options.typeArguments[1]}`,
+	] satisfies (string | null)[];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'dynamic_field',
+			function: 'replace',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface ExistsWithTypeOptions<T0 extends BcsType<any>> {
+	package?: string;
+	arguments: [RawTransactionArgument<string>, RawTransactionArgument<T0>];
+	typeArguments: [string, string];
+}
+export function existsWithType<T0 extends BcsType<any>>(
+	options: ExistsWithTypeOptions<T0>,
+): (tx: Transaction) => TransactionResult {
+	const packageAddress =
+		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
+	const argumentsTypes = ['0x2::object::ID', `${options.typeArguments[0]}`] satisfies (
+		| string
+		| null
+	)[];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'dynamic_field',
+			function: 'exists_with_type',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
+			typeArguments: options.typeArguments,
+		});
+}
 export interface Exists_Options<T0 extends BcsType<any>> {
 	package?: string;
 	arguments: [RawTransactionArgument<string>, RawTransactionArgument<T0>];
 	typeArguments: [string];
 }
-export function exists_<T0 extends BcsType<any>>(options: Exists_Options<T0>) {
+export function exists_<T0 extends BcsType<any>>(
+	options: Exists_Options<T0>,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = ['0x2::object::ID', `${options.typeArguments[0]}`] satisfies (
@@ -132,7 +239,9 @@ export interface RemoveIfExistsOptions<T0 extends BcsType<any>> {
 	arguments: [RawTransactionArgument<string>, RawTransactionArgument<T0>];
 	typeArguments: [string, string];
 }
-export function removeIfExists<T0 extends BcsType<any>>(options: RemoveIfExistsOptions<T0>) {
+export function removeIfExists<T0 extends BcsType<any>>(
+	options: RemoveIfExistsOptions<T0>,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = ['0x2::object::ID', `${options.typeArguments[0]}`] satisfies (
@@ -144,27 +253,6 @@ export function removeIfExists<T0 extends BcsType<any>>(options: RemoveIfExistsO
 			package: packageAddress,
 			module: 'dynamic_field',
 			function: 'remove_if_exists',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
-			typeArguments: options.typeArguments,
-		});
-}
-export interface ExistsWithTypeOptions<T0 extends BcsType<any>> {
-	package?: string;
-	arguments: [RawTransactionArgument<string>, RawTransactionArgument<T0>];
-	typeArguments: [string, string];
-}
-export function existsWithType<T0 extends BcsType<any>>(options: ExistsWithTypeOptions<T0>) {
-	const packageAddress =
-		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
-	const argumentsTypes = ['0x2::object::ID', `${options.typeArguments[0]}`] satisfies (
-		| string
-		| null
-	)[];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'dynamic_field',
-			function: 'exists_with_type',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes),
 			typeArguments: options.typeArguments,
 		});

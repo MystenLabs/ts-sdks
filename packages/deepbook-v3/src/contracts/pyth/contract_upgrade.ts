@@ -3,18 +3,27 @@
  **************************************************************/
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
+import {
+	type Transaction,
+	type TransactionResult,
+	type TransactionArgument,
+} from '@mysten/sui/transactions';
 import * as bytes32 from './deps/0xf47329f4344f3bf0f8e436e2f7b485466cff300f12a166563995d3888c296a94/bytes32.js';
 const $moduleName =
 	'0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837::contract_upgrade';
-export const ContractUpgraded = new MoveStruct({
+export const ContractUpgraded: MoveStruct<{
+	old_contract: typeof bcs.Address;
+	new_contract: typeof bcs.Address;
+}> = new MoveStruct({
 	name: `${$moduleName}::ContractUpgraded`,
 	fields: {
 		old_contract: bcs.Address,
 		new_contract: bcs.Address,
 	},
 });
-export const UpgradeContract = new MoveStruct({
+export const UpgradeContract: MoveStruct<{
+	digest: typeof bytes32.Bytes32;
+}> = new MoveStruct({
 	name: `${$moduleName}::UpgradeContract`,
 	fields: {
 		digest: bytes32.Bytes32,
@@ -24,7 +33,9 @@ export interface AuthorizeUpgradeOptions {
 	package?: string;
 	arguments: [RawTransactionArgument<string>, TransactionArgument];
 }
-export function authorizeUpgrade(options: AuthorizeUpgradeOptions) {
+export function authorizeUpgrade(
+	options: AuthorizeUpgradeOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
@@ -40,7 +51,9 @@ export interface CommitUpgradeOptions {
 	package?: string;
 	arguments: [RawTransactionArgument<string>, TransactionArgument];
 }
-export function commitUpgrade(options: CommitUpgradeOptions) {
+export function commitUpgrade(
+	options: CommitUpgradeOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null, null] satisfies (string | null)[];

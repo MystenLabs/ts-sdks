@@ -3,10 +3,16 @@
  **************************************************************/
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs, type BcsType } from '@mysten/sui/bcs';
-import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
+import {
+	type Transaction,
+	type TransactionResult,
+	type TransactionArgument,
+} from '@mysten/sui/transactions';
 import * as table from './deps/0x0000000000000000000000000000000000000000000000000000000000000002/table.js';
 const $moduleName = '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837::set';
-export const Unit = new MoveStruct({
+export const Unit: MoveStruct<{
+	dummy_field: ReturnType<typeof bcs.bool>;
+}> = new MoveStruct({
 	name: `${$moduleName}::Unit`,
 	fields: {
 		dummy_field: bcs.bool(),
@@ -26,7 +32,7 @@ export interface NewOptions {
 	arguments?: [];
 	typeArguments: [string];
 }
-export function _new(options: NewOptions) {
+export function _new(options: NewOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	return (tx: Transaction) =>
@@ -42,7 +48,9 @@ export interface AddOptions<T0 extends BcsType<any>> {
 	arguments: [TransactionArgument, RawTransactionArgument<T0>];
 	typeArguments: [string];
 }
-export function add<T0 extends BcsType<any>>(options: AddOptions<T0>) {
+export function add<T0 extends BcsType<any>>(
+	options: AddOptions<T0>,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null, `${options.typeArguments[0]}`] satisfies (string | null)[];
@@ -60,7 +68,9 @@ export interface ContainsOptions<T0 extends BcsType<any>> {
 	arguments: [TransactionArgument, RawTransactionArgument<T0>];
 	typeArguments: [string];
 }
-export function contains<T0 extends BcsType<any>>(options: ContainsOptions<T0>) {
+export function contains<T0 extends BcsType<any>>(
+	options: ContainsOptions<T0>,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null, `${options.typeArguments[0]}`] satisfies (string | null)[];
@@ -78,7 +88,7 @@ export interface EmptyOptions {
 	arguments: [TransactionArgument];
 	typeArguments: [string];
 }
-export function empty(options: EmptyOptions) {
+export function empty(options: EmptyOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null] satisfies (string | null)[];

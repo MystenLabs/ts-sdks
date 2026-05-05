@@ -5,7 +5,10 @@ import { MoveStruct } from '../utils/index.js';
 import * as bag from './deps/sui/bag.js';
 const $moduleName = '@suins/coupons::data';
 export const Data: MoveStruct<{
-    "coupons": typeof bag.Bag;
-}> = new MoveStruct({ name: `${$moduleName}::Data`, fields: {
-        coupons: bag.Bag
-    } });
+	coupons: typeof bag.Bag;
+}> = new MoveStruct({
+	name: `${$moduleName}::Data`,
+	fields: {
+		coupons: bag.Bag,
+	},
+});

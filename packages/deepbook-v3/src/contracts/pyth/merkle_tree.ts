@@ -1,13 +1,17 @@
 /**************************************************************
  * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
  **************************************************************/
-import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
+import {
+	type Transaction,
+	type TransactionResult,
+	type TransactionArgument,
+} from '@mysten/sui/transactions';
 import { normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 export interface IsProofValidOptions {
 	package?: string;
 	arguments: [TransactionArgument, TransactionArgument, RawTransactionArgument<Array<number>>];
 }
-export function isProofValid(options: IsProofValidOptions) {
+export function isProofValid(options: IsProofValidOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null, null, 'vector<u8>'] satisfies (string | null)[];
@@ -23,7 +27,9 @@ export interface ConstructProofsOptions {
 	package?: string;
 	arguments: [RawTransactionArgument<Array<Array<number>>>, RawTransactionArgument<number>];
 }
-export function constructProofs(options: ConstructProofsOptions) {
+export function constructProofs(
+	options: ConstructProofsOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = ['vector<vector<u8>>', 'u8'] satisfies (string | null)[];

@@ -2,7 +2,6 @@
  * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
  **************************************************************/
 
-
 /** Implementation of auction module. More information in: ../../../docs */
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
@@ -15,121 +14,146 @@ import * as coin from './deps/sui/coin.js';
 import * as suins_registration from './suins_registration.js';
 const $moduleName = '@suins/core::auction';
 export const App: MoveStruct<{
-    "dummy_field": ReturnType<typeof bcs.bool>;
-}> = new MoveStruct({ name: `${$moduleName}::App`, fields: {
-        dummy_field: bcs.bool()
-    } });
+	dummy_field: ReturnType<typeof bcs.bool>;
+}> = new MoveStruct({
+	name: `${$moduleName}::App`,
+	fields: {
+		dummy_field: bcs.bool(),
+	},
+});
 export const AuctionHouse: MoveStruct<{
-    "id": typeof bcs.Address;
-    "balance": typeof balance.Balance;
-    "auctions": ReturnType<typeof linked_table.LinkedTable<typeof domain.Domain>>;
-}> = new MoveStruct({ name: `${$moduleName}::AuctionHouse`, fields: {
-        id: bcs.Address,
-        balance: balance.Balance,
-        auctions: linked_table.LinkedTable(domain.Domain)
-    } });
+	id: typeof bcs.Address;
+	balance: typeof balance.Balance;
+	auctions: ReturnType<typeof linked_table.LinkedTable<typeof domain.Domain>>;
+}> = new MoveStruct({
+	name: `${$moduleName}::AuctionHouse`,
+	fields: {
+		id: bcs.Address,
+		balance: balance.Balance,
+		auctions: linked_table.LinkedTable(domain.Domain),
+	},
+});
 export const Auction: MoveStruct<{
-    "domain": typeof domain.Domain;
-    "start_timestamp_ms": ReturnType<typeof bcs.u64>;
-    "end_timestamp_ms": ReturnType<typeof bcs.u64>;
-    "winner": typeof bcs.Address;
-    "current_bid": typeof coin.Coin;
-    "nft": typeof suins_registration.SuinsRegistration;
-}> = new MoveStruct({ name: `${$moduleName}::Auction`, fields: {
-        domain: domain.Domain,
-        start_timestamp_ms: bcs.u64(),
-        end_timestamp_ms: bcs.u64(),
-        winner: bcs.Address,
-        current_bid: coin.Coin,
-        nft: suins_registration.SuinsRegistration
-    } });
+	domain: typeof domain.Domain;
+	start_timestamp_ms: ReturnType<typeof bcs.u64>;
+	end_timestamp_ms: ReturnType<typeof bcs.u64>;
+	winner: typeof bcs.Address;
+	current_bid: typeof coin.Coin;
+	nft: typeof suins_registration.SuinsRegistration;
+}> = new MoveStruct({
+	name: `${$moduleName}::Auction`,
+	fields: {
+		domain: domain.Domain,
+		start_timestamp_ms: bcs.u64(),
+		end_timestamp_ms: bcs.u64(),
+		winner: bcs.Address,
+		current_bid: coin.Coin,
+		nft: suins_registration.SuinsRegistration,
+	},
+});
 export const AuctionStartedEvent: MoveStruct<{
-    "domain": typeof domain.Domain;
-    "start_timestamp_ms": ReturnType<typeof bcs.u64>;
-    "end_timestamp_ms": ReturnType<typeof bcs.u64>;
-    "starting_bid": ReturnType<typeof bcs.u64>;
-    "bidder": typeof bcs.Address;
-}> = new MoveStruct({ name: `${$moduleName}::AuctionStartedEvent`, fields: {
-        domain: domain.Domain,
-        start_timestamp_ms: bcs.u64(),
-        end_timestamp_ms: bcs.u64(),
-        starting_bid: bcs.u64(),
-        bidder: bcs.Address
-    } });
+	domain: typeof domain.Domain;
+	start_timestamp_ms: ReturnType<typeof bcs.u64>;
+	end_timestamp_ms: ReturnType<typeof bcs.u64>;
+	starting_bid: ReturnType<typeof bcs.u64>;
+	bidder: typeof bcs.Address;
+}> = new MoveStruct({
+	name: `${$moduleName}::AuctionStartedEvent`,
+	fields: {
+		domain: domain.Domain,
+		start_timestamp_ms: bcs.u64(),
+		end_timestamp_ms: bcs.u64(),
+		starting_bid: bcs.u64(),
+		bidder: bcs.Address,
+	},
+});
 export const AuctionFinalizedEvent: MoveStruct<{
-    "domain": typeof domain.Domain;
-    "start_timestamp_ms": ReturnType<typeof bcs.u64>;
-    "end_timestamp_ms": ReturnType<typeof bcs.u64>;
-    "winning_bid": ReturnType<typeof bcs.u64>;
-    "winner": typeof bcs.Address;
-}> = new MoveStruct({ name: `${$moduleName}::AuctionFinalizedEvent`, fields: {
-        domain: domain.Domain,
-        start_timestamp_ms: bcs.u64(),
-        end_timestamp_ms: bcs.u64(),
-        winning_bid: bcs.u64(),
-        winner: bcs.Address
-    } });
+	domain: typeof domain.Domain;
+	start_timestamp_ms: ReturnType<typeof bcs.u64>;
+	end_timestamp_ms: ReturnType<typeof bcs.u64>;
+	winning_bid: ReturnType<typeof bcs.u64>;
+	winner: typeof bcs.Address;
+}> = new MoveStruct({
+	name: `${$moduleName}::AuctionFinalizedEvent`,
+	fields: {
+		domain: domain.Domain,
+		start_timestamp_ms: bcs.u64(),
+		end_timestamp_ms: bcs.u64(),
+		winning_bid: bcs.u64(),
+		winner: bcs.Address,
+	},
+});
 export const BidEvent: MoveStruct<{
-    "domain": typeof domain.Domain;
-    "bid": ReturnType<typeof bcs.u64>;
-    "bidder": typeof bcs.Address;
-}> = new MoveStruct({ name: `${$moduleName}::BidEvent`, fields: {
-        domain: domain.Domain,
-        bid: bcs.u64(),
-        bidder: bcs.Address
-    } });
+	domain: typeof domain.Domain;
+	bid: ReturnType<typeof bcs.u64>;
+	bidder: typeof bcs.Address;
+}> = new MoveStruct({
+	name: `${$moduleName}::BidEvent`,
+	fields: {
+		domain: domain.Domain,
+		bid: bcs.u64(),
+		bidder: bcs.Address,
+	},
+});
 export const AuctionExtendedEvent: MoveStruct<{
-    "domain": typeof domain.Domain;
-    "end_timestamp_ms": ReturnType<typeof bcs.u64>;
-}> = new MoveStruct({ name: `${$moduleName}::AuctionExtendedEvent`, fields: {
-        domain: domain.Domain,
-        end_timestamp_ms: bcs.u64()
-    } });
+	domain: typeof domain.Domain;
+	end_timestamp_ms: ReturnType<typeof bcs.u64>;
+}> = new MoveStruct({
+	name: `${$moduleName}::AuctionExtendedEvent`,
+	fields: {
+		domain: domain.Domain,
+		end_timestamp_ms: bcs.u64(),
+	},
+});
 export interface StartAuctionAndPlaceBidArguments {
-    self: RawTransactionArgument<string>;
-    suins: RawTransactionArgument<string>;
-    domainName: RawTransactionArgument<string>;
-    bid: RawTransactionArgument<string>;
+	self: RawTransactionArgument<string>;
+	suins: RawTransactionArgument<string>;
+	domainName: RawTransactionArgument<string>;
+	bid: RawTransactionArgument<string>;
 }
 export interface StartAuctionAndPlaceBidOptions {
-    package?: string;
-    arguments: StartAuctionAndPlaceBidArguments | [
-        self: RawTransactionArgument<string>,
-        suins: RawTransactionArgument<string>,
-        domainName: RawTransactionArgument<string>,
-        bid: RawTransactionArgument<string>
-    ];
+	package?: string;
+	arguments:
+		| StartAuctionAndPlaceBidArguments
+		| [
+				self: RawTransactionArgument<string>,
+				suins: RawTransactionArgument<string>,
+				domainName: RawTransactionArgument<string>,
+				bid: RawTransactionArgument<string>,
+		  ];
 }
 /** Start an auction if it's not started yet; and make the first bid. */
-export function startAuctionAndPlaceBid(options: StartAuctionAndPlaceBidOptions): (tx: Transaction) => TransactionResult {
-    const packageAddress = options.package ?? '@suins/core';
-    const argumentsTypes = [
-        null,
-        null,
-        '0x1::string::String',
-        null,
-        '0x2::clock::Clock'
-    ] satisfies (string | null)[];
-    const parameterNames = ["self", "suins", "domainName", "bid"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'auction',
-        function: 'start_auction_and_place_bid',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
+export function startAuctionAndPlaceBid(
+	options: StartAuctionAndPlaceBidOptions,
+): (tx: Transaction) => TransactionResult {
+	const packageAddress = options.package ?? '@suins/core';
+	const argumentsTypes = [null, null, '0x1::string::String', null, '0x2::clock::Clock'] satisfies (
+		| string
+		| null
+	)[];
+	const parameterNames = ['self', 'suins', 'domainName', 'bid'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'auction',
+			function: 'start_auction_and_place_bid',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
 }
 export interface PlaceBidArguments {
-    self: RawTransactionArgument<string>;
-    domainName: RawTransactionArgument<string>;
-    bid: RawTransactionArgument<string>;
+	self: RawTransactionArgument<string>;
+	domainName: RawTransactionArgument<string>;
+	bid: RawTransactionArgument<string>;
 }
 export interface PlaceBidOptions {
-    package?: string;
-    arguments: PlaceBidArguments | [
-        self: RawTransactionArgument<string>,
-        domainName: RawTransactionArgument<string>,
-        bid: RawTransactionArgument<string>
-    ];
+	package?: string;
+	arguments:
+		| PlaceBidArguments
+		| [
+				self: RawTransactionArgument<string>,
+				domainName: RawTransactionArgument<string>,
+				bid: RawTransactionArgument<string>,
+		  ];
 }
 /**
  * #### Notice
@@ -140,31 +164,29 @@ export interface PlaceBidOptions {
  * `bid` is too low,
  */
 export function placeBid(options: PlaceBidOptions): (tx: Transaction) => TransactionResult {
-    const packageAddress = options.package ?? '@suins/core';
-    const argumentsTypes = [
-        null,
-        '0x1::string::String',
-        null,
-        '0x2::clock::Clock'
-    ] satisfies (string | null)[];
-    const parameterNames = ["self", "domainName", "bid"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'auction',
-        function: 'place_bid',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
+	const packageAddress = options.package ?? '@suins/core';
+	const argumentsTypes = [null, '0x1::string::String', null, '0x2::clock::Clock'] satisfies (
+		| string
+		| null
+	)[];
+	const parameterNames = ['self', 'domainName', 'bid'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'auction',
+			function: 'place_bid',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
 }
 export interface ClaimArguments {
-    self: RawTransactionArgument<string>;
-    domainName: RawTransactionArgument<string>;
+	self: RawTransactionArgument<string>;
+	domainName: RawTransactionArgument<string>;
 }
 export interface ClaimOptions {
-    package?: string;
-    arguments: ClaimArguments | [
-        self: RawTransactionArgument<string>,
-        domainName: RawTransactionArgument<string>
-    ];
+	package?: string;
+	arguments:
+		| ClaimArguments
+		| [self: RawTransactionArgument<string>, domainName: RawTransactionArgument<string>];
 }
 /**
  * #### Notice
@@ -174,30 +196,29 @@ export interface ClaimOptions {
  * Panics sender is not the winner
  */
 export function claim(options: ClaimOptions): (tx: Transaction) => TransactionResult {
-    const packageAddress = options.package ?? '@suins/core';
-    const argumentsTypes = [
-        null,
-        '0x1::string::String',
-        '0x2::clock::Clock'
-    ] satisfies (string | null)[];
-    const parameterNames = ["self", "domainName"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'auction',
-        function: 'claim',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
+	const packageAddress = options.package ?? '@suins/core';
+	const argumentsTypes = [null, '0x1::string::String', '0x2::clock::Clock'] satisfies (
+		| string
+		| null
+	)[];
+	const parameterNames = ['self', 'domainName'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'auction',
+			function: 'claim',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
 }
 export interface GetAuctionMetadataArguments {
-    self: RawTransactionArgument<string>;
-    domainName: RawTransactionArgument<string>;
+	self: RawTransactionArgument<string>;
+	domainName: RawTransactionArgument<string>;
 }
 export interface GetAuctionMetadataOptions {
-    package?: string;
-    arguments: GetAuctionMetadataArguments | [
-        self: RawTransactionArgument<string>,
-        domainName: RawTransactionArgument<string>
-    ];
+	package?: string;
+	arguments:
+		| GetAuctionMetadataArguments
+		| [self: RawTransactionArgument<string>, domainName: RawTransactionArgument<string>];
 }
 /**
  * #### Notice
@@ -212,83 +233,85 @@ export interface GetAuctionMetadataOptions {
  *
  * (`start_timestamp_ms`, `end_timestamp_ms`, `winner`, `highest_amount`)
  */
-export function getAuctionMetadata(options: GetAuctionMetadataOptions): (tx: Transaction) => TransactionResult {
-    const packageAddress = options.package ?? '@suins/core';
-    const argumentsTypes = [
-        null,
-        '0x1::string::String'
-    ] satisfies (string | null)[];
-    const parameterNames = ["self", "domainName"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'auction',
-        function: 'get_auction_metadata',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
+export function getAuctionMetadata(
+	options: GetAuctionMetadataOptions,
+): (tx: Transaction) => TransactionResult {
+	const packageAddress = options.package ?? '@suins/core';
+	const argumentsTypes = [null, '0x1::string::String'] satisfies (string | null)[];
+	const parameterNames = ['self', 'domainName'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'auction',
+			function: 'get_auction_metadata',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
 }
 export interface CollectWinningAuctionFundArguments {
-    self: RawTransactionArgument<string>;
-    domainName: RawTransactionArgument<string>;
+	self: RawTransactionArgument<string>;
+	domainName: RawTransactionArgument<string>;
 }
 export interface CollectWinningAuctionFundOptions {
-    package?: string;
-    arguments: CollectWinningAuctionFundArguments | [
-        self: RawTransactionArgument<string>,
-        domainName: RawTransactionArgument<string>
-    ];
+	package?: string;
+	arguments:
+		| CollectWinningAuctionFundArguments
+		| [self: RawTransactionArgument<string>, domainName: RawTransactionArgument<string>];
 }
-export function collectWinningAuctionFund(options: CollectWinningAuctionFundOptions): (tx: Transaction) => TransactionResult {
-    const packageAddress = options.package ?? '@suins/core';
-    const argumentsTypes = [
-        null,
-        '0x1::string::String',
-        '0x2::clock::Clock'
-    ] satisfies (string | null)[];
-    const parameterNames = ["self", "domainName"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'auction',
-        function: 'collect_winning_auction_fund',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
+export function collectWinningAuctionFund(
+	options: CollectWinningAuctionFundOptions,
+): (tx: Transaction) => TransactionResult {
+	const packageAddress = options.package ?? '@suins/core';
+	const argumentsTypes = [null, '0x1::string::String', '0x2::clock::Clock'] satisfies (
+		| string
+		| null
+	)[];
+	const parameterNames = ['self', 'domainName'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'auction',
+			function: 'collect_winning_auction_fund',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
 }
 export interface AdminWithdrawFundsArguments {
-    _: RawTransactionArgument<string>;
-    self: RawTransactionArgument<string>;
+	_: RawTransactionArgument<string>;
+	self: RawTransactionArgument<string>;
 }
 export interface AdminWithdrawFundsOptions {
-    package?: string;
-    arguments: AdminWithdrawFundsArguments | [
-        _: RawTransactionArgument<string>,
-        self: RawTransactionArgument<string>
-    ];
+	package?: string;
+	arguments:
+		| AdminWithdrawFundsArguments
+		| [_: RawTransactionArgument<string>, self: RawTransactionArgument<string>];
 }
-export function adminWithdrawFunds(options: AdminWithdrawFundsOptions): (tx: Transaction) => TransactionResult {
-    const packageAddress = options.package ?? '@suins/core';
-    const argumentsTypes = [
-        null,
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["_", "self"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'auction',
-        function: 'admin_withdraw_funds',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
+export function adminWithdrawFunds(
+	options: AdminWithdrawFundsOptions,
+): (tx: Transaction) => TransactionResult {
+	const packageAddress = options.package ?? '@suins/core';
+	const argumentsTypes = [null, null] satisfies (string | null)[];
+	const parameterNames = ['_', 'self'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'auction',
+			function: 'admin_withdraw_funds',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
 }
 export interface AdminFinalizeAuctionArguments {
-    admin: RawTransactionArgument<string>;
-    self: RawTransactionArgument<string>;
-    domain: RawTransactionArgument<string>;
+	admin: RawTransactionArgument<string>;
+	self: RawTransactionArgument<string>;
+	domain: RawTransactionArgument<string>;
 }
 export interface AdminFinalizeAuctionOptions {
-    package?: string;
-    arguments: AdminFinalizeAuctionArguments | [
-        admin: RawTransactionArgument<string>,
-        self: RawTransactionArgument<string>,
-        domain: RawTransactionArgument<string>
-    ];
+	package?: string;
+	arguments:
+		| AdminFinalizeAuctionArguments
+		| [
+				admin: RawTransactionArgument<string>,
+				self: RawTransactionArgument<string>,
+				domain: RawTransactionArgument<string>,
+		  ];
 }
 /**
  * Admin functionality used to finalize a single auction.
@@ -307,34 +330,37 @@ export interface AdminFinalizeAuctionOptions {
  * Once all of the above has been done the auction is destroyed, freeing on-chain
  * storage.
  */
-export function adminFinalizeAuction(options: AdminFinalizeAuctionOptions): (tx: Transaction) => TransactionResult {
-    const packageAddress = options.package ?? '@suins/core';
-    const argumentsTypes = [
-        null,
-        null,
-        '0x1::string::String',
-        '0x2::clock::Clock'
-    ] satisfies (string | null)[];
-    const parameterNames = ["admin", "self", "domain"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'auction',
-        function: 'admin_finalize_auction',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
+export function adminFinalizeAuction(
+	options: AdminFinalizeAuctionOptions,
+): (tx: Transaction) => TransactionResult {
+	const packageAddress = options.package ?? '@suins/core';
+	const argumentsTypes = [null, null, '0x1::string::String', '0x2::clock::Clock'] satisfies (
+		| string
+		| null
+	)[];
+	const parameterNames = ['admin', 'self', 'domain'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'auction',
+			function: 'admin_finalize_auction',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
 }
 export interface AdminTryFinalizeAuctionsArguments {
-    admin: RawTransactionArgument<string>;
-    self: RawTransactionArgument<string>;
-    operationLimit: RawTransactionArgument<number | bigint>;
+	admin: RawTransactionArgument<string>;
+	self: RawTransactionArgument<string>;
+	operationLimit: RawTransactionArgument<number | bigint>;
 }
 export interface AdminTryFinalizeAuctionsOptions {
-    package?: string;
-    arguments: AdminTryFinalizeAuctionsArguments | [
-        admin: RawTransactionArgument<string>,
-        self: RawTransactionArgument<string>,
-        operationLimit: RawTransactionArgument<number | bigint>
-    ];
+	package?: string;
+	arguments:
+		| AdminTryFinalizeAuctionsArguments
+		| [
+				admin: RawTransactionArgument<string>,
+				self: RawTransactionArgument<string>,
+				operationLimit: RawTransactionArgument<number | bigint>,
+		  ];
 }
 /**
  * Admin functionality used to finalize an arbitrary number of auctions.
@@ -343,19 +369,17 @@ export interface AdminTryFinalizeAuctionsOptions {
  * operations to perform. This allows the admin to be able to make forward progress
  * in finalizing auctions even in the presence of thousands of auctions/bids.
  */
-export function adminTryFinalizeAuctions(options: AdminTryFinalizeAuctionsOptions): (tx: Transaction) => TransactionResult {
-    const packageAddress = options.package ?? '@suins/core';
-    const argumentsTypes = [
-        null,
-        null,
-        'u64',
-        '0x2::clock::Clock'
-    ] satisfies (string | null)[];
-    const parameterNames = ["admin", "self", "operationLimit"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'auction',
-        function: 'admin_try_finalize_auctions',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
+export function adminTryFinalizeAuctions(
+	options: AdminTryFinalizeAuctionsOptions,
+): (tx: Transaction) => TransactionResult {
+	const packageAddress = options.package ?? '@suins/core';
+	const argumentsTypes = [null, null, 'u64', '0x2::clock::Clock'] satisfies (string | null)[];
+	const parameterNames = ['admin', 'self', 'operationLimit'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'auction',
+			function: 'admin_try_finalize_auctions',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
 }

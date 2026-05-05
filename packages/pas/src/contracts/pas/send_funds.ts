@@ -3,7 +3,11 @@
  **************************************************************/
 import { type BcsType, bcs } from '@mysten/sui/bcs';
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
-import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
+import {
+	type Transaction,
+	type TransactionResult,
+	type TransactionArgument,
+} from '@mysten/sui/transactions';
 const $moduleName = '@mysten/pas::send_funds';
 /**
  * A transfer request that is generated once a send funds request is initialized.
@@ -47,7 +51,7 @@ export interface SenderOptions {
 	arguments: SenderArguments | [request: TransactionArgument];
 	typeArguments: [string];
 }
-export function sender(options: SenderOptions) {
+export function sender(options: SenderOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/pas';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['request'];
@@ -68,7 +72,7 @@ export interface RecipientOptions {
 	arguments: RecipientArguments | [request: TransactionArgument];
 	typeArguments: [string];
 }
-export function recipient(options: RecipientOptions) {
+export function recipient(options: RecipientOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/pas';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['request'];
@@ -89,7 +93,9 @@ export interface SenderAccountIdOptions {
 	arguments: SenderAccountIdArguments | [request: TransactionArgument];
 	typeArguments: [string];
 }
-export function senderAccountId(options: SenderAccountIdOptions) {
+export function senderAccountId(
+	options: SenderAccountIdOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/pas';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['request'];
@@ -110,7 +116,9 @@ export interface RecipientAccountIdOptions {
 	arguments: RecipientAccountIdArguments | [request: TransactionArgument];
 	typeArguments: [string];
 }
-export function recipientAccountId(options: RecipientAccountIdOptions) {
+export function recipientAccountId(
+	options: RecipientAccountIdOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/pas';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['request'];
@@ -131,7 +139,7 @@ export interface FundsOptions {
 	arguments: FundsArguments | [request: TransactionArgument];
 	typeArguments: [string];
 }
-export function funds(options: FundsOptions) {
+export function funds(options: FundsOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/pas';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['request'];
@@ -159,7 +167,9 @@ export interface ResolveBalanceOptions {
  * resolve a transfer request, if funds management is enabled & there are enough
  * approvals.
  */
-export function resolveBalance(options: ResolveBalanceOptions) {
+export function resolveBalance(
+	options: ResolveBalanceOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/pas';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['request', 'policy'];

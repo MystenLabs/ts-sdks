@@ -3,11 +3,18 @@
  **************************************************************/
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
+import {
+	type Transaction,
+	type TransactionResult,
+	type TransactionArgument,
+} from '@mysten/sui/transactions';
 import * as external_address from './deps/0xf47329f4344f3bf0f8e436e2f7b485466cff300f12a166563995d3888c296a94/external_address.js';
 const $moduleName =
 	'0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837::data_source';
-export const DataSource = new MoveStruct({
+export const DataSource: MoveStruct<{
+	emitter_chain: ReturnType<typeof bcs.u64>;
+	emitter_address: typeof external_address.ExternalAddress;
+}> = new MoveStruct({
 	name: `${$moduleName}::DataSource`,
 	fields: {
 		emitter_chain: bcs.u64(),
@@ -18,7 +25,7 @@ export interface ContainsOptions {
 	package?: string;
 	arguments: [RawTransactionArgument<string>, TransactionArgument];
 }
-export function contains(options: ContainsOptions) {
+export function contains(options: ContainsOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = ['0x2::object::ID', null] satisfies (string | null)[];
@@ -34,7 +41,7 @@ export interface EmitterChainOptions {
 	package?: string;
 	arguments: [TransactionArgument];
 }
-export function emitterChain(options: EmitterChainOptions) {
+export function emitterChain(options: EmitterChainOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -50,7 +57,9 @@ export interface EmitterAddressOptions {
 	package?: string;
 	arguments: [TransactionArgument];
 }
-export function emitterAddress(options: EmitterAddressOptions) {
+export function emitterAddress(
+	options: EmitterAddressOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null] satisfies (string | null)[];

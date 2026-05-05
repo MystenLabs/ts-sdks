@@ -3,11 +3,19 @@
  **************************************************************/
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
+import {
+	type Transaction,
+	type TransactionResult,
+	type TransactionArgument,
+} from '@mysten/sui/transactions';
 import * as price_feed from './price_feed.js';
 const $moduleName =
 	'0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837::price_info';
-export const PriceInfo = new MoveStruct({
+export const PriceInfo: MoveStruct<{
+	attestation_time: ReturnType<typeof bcs.u64>;
+	arrival_time: ReturnType<typeof bcs.u64>;
+	price_feed: typeof price_feed.PriceFeed;
+}> = new MoveStruct({
 	name: `${$moduleName}::PriceInfo`,
 	fields: {
 		attestation_time: bcs.u64(),
@@ -15,7 +23,10 @@ export const PriceInfo = new MoveStruct({
 		price_feed: price_feed.PriceFeed,
 	},
 });
-export const PriceInfoObject = new MoveStruct({
+export const PriceInfoObject: MoveStruct<{
+	id: typeof bcs.Address;
+	price_info: typeof PriceInfo;
+}> = new MoveStruct({
 	name: `${$moduleName}::PriceInfoObject`,
 	fields: {
 		id: bcs.Address,
@@ -26,7 +37,7 @@ export interface GetIdBytesOptions {
 	package?: string;
 	arguments: [RawTransactionArgument<string>, TransactionArgument];
 }
-export function getIdBytes(options: GetIdBytesOptions) {
+export function getIdBytes(options: GetIdBytesOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = ['0x2::object::ID', null] satisfies (string | null)[];
@@ -42,7 +53,7 @@ export interface GetIdOptions {
 	package?: string;
 	arguments: [RawTransactionArgument<string>, TransactionArgument];
 }
-export function getId(options: GetIdOptions) {
+export function getId(options: GetIdOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = ['0x2::object::ID', null] satisfies (string | null)[];
@@ -58,7 +69,7 @@ export interface ContainsOptions {
 	package?: string;
 	arguments: [RawTransactionArgument<string>, TransactionArgument];
 }
-export function contains(options: ContainsOptions) {
+export function contains(options: ContainsOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = ['0x2::object::ID', null] satisfies (string | null)[];
@@ -74,7 +85,7 @@ export interface GetBalanceOptions {
 	package?: string;
 	arguments: [RawTransactionArgument<string>];
 }
-export function getBalance(options: GetBalanceOptions) {
+export function getBalance(options: GetBalanceOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -90,7 +101,9 @@ export interface DepositFeeCoinsOptions {
 	package?: string;
 	arguments: [RawTransactionArgument<string>, RawTransactionArgument<string>];
 }
-export function depositFeeCoins(options: DepositFeeCoinsOptions) {
+export function depositFeeCoins(
+	options: DepositFeeCoinsOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
@@ -110,7 +123,7 @@ export interface NewPriceInfoOptions {
 		TransactionArgument,
 	];
 }
-export function newPriceInfo(options: NewPriceInfoOptions) {
+export function newPriceInfo(options: NewPriceInfoOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = ['u64', 'u64', null] satisfies (string | null)[];
@@ -126,7 +139,7 @@ export interface UidToInnerOptions {
 	package?: string;
 	arguments: [RawTransactionArgument<string>];
 }
-export function uidToInner(options: UidToInnerOptions) {
+export function uidToInner(options: UidToInnerOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -142,7 +155,9 @@ export interface GetPriceInfoFromPriceInfoObjectOptions {
 	package?: string;
 	arguments: [RawTransactionArgument<string>];
 }
-export function getPriceInfoFromPriceInfoObject(options: GetPriceInfoFromPriceInfoObjectOptions) {
+export function getPriceInfoFromPriceInfoObject(
+	options: GetPriceInfoFromPriceInfoObjectOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -158,7 +173,9 @@ export interface GetPriceIdentifierOptions {
 	package?: string;
 	arguments: [TransactionArgument];
 }
-export function getPriceIdentifier(options: GetPriceIdentifierOptions) {
+export function getPriceIdentifier(
+	options: GetPriceIdentifierOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -174,7 +191,7 @@ export interface GetPriceFeedOptions {
 	package?: string;
 	arguments: [TransactionArgument];
 }
-export function getPriceFeed(options: GetPriceFeedOptions) {
+export function getPriceFeed(options: GetPriceFeedOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -190,7 +207,9 @@ export interface GetAttestationTimeOptions {
 	package?: string;
 	arguments: [TransactionArgument];
 }
-export function getAttestationTime(options: GetAttestationTimeOptions) {
+export function getAttestationTime(
+	options: GetAttestationTimeOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -206,7 +225,9 @@ export interface GetArrivalTimeOptions {
 	package?: string;
 	arguments: [TransactionArgument];
 }
-export function getArrivalTime(options: GetArrivalTimeOptions) {
+export function getArrivalTime(
+	options: GetArrivalTimeOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null] satisfies (string | null)[];

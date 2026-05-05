@@ -2,7 +2,6 @@
  * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
  **************************************************************/
 
-
 /**
  * Order module defines the order struct and its methods. All order matching
  * happens in this module.
@@ -10,319 +9,309 @@
 
 import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction, type TransactionResult, type TransactionArgument } from '@mysten/sui/transactions';
+import {
+	type Transaction,
+	type TransactionResult,
+	type TransactionArgument,
+} from '@mysten/sui/transactions';
 import * as deep_price from './deep_price.js';
 const $moduleName = '@deepbook/core::order';
 export const Order: MoveStruct<{
-    "balance_manager_id": typeof bcs.Address;
-    "order_id": ReturnType<typeof bcs.u128>;
-    "client_order_id": ReturnType<typeof bcs.u64>;
-    "quantity": ReturnType<typeof bcs.u64>;
-    "filled_quantity": ReturnType<typeof bcs.u64>;
-    "fee_is_deep": ReturnType<typeof bcs.bool>;
-    "order_deep_price": typeof deep_price.OrderDeepPrice;
-    "epoch": ReturnType<typeof bcs.u64>;
-    "status": ReturnType<typeof bcs.u8>;
-    "expire_timestamp": ReturnType<typeof bcs.u64>;
-}> = new MoveStruct({ name: `${$moduleName}::Order`, fields: {
-        balance_manager_id: bcs.Address,
-        order_id: bcs.u128(),
-        client_order_id: bcs.u64(),
-        quantity: bcs.u64(),
-        filled_quantity: bcs.u64(),
-        fee_is_deep: bcs.bool(),
-        order_deep_price: deep_price.OrderDeepPrice,
-        epoch: bcs.u64(),
-        status: bcs.u8(),
-        expire_timestamp: bcs.u64()
-    } });
+	balance_manager_id: typeof bcs.Address;
+	order_id: ReturnType<typeof bcs.u128>;
+	client_order_id: ReturnType<typeof bcs.u64>;
+	quantity: ReturnType<typeof bcs.u64>;
+	filled_quantity: ReturnType<typeof bcs.u64>;
+	fee_is_deep: ReturnType<typeof bcs.bool>;
+	order_deep_price: typeof deep_price.OrderDeepPrice;
+	epoch: ReturnType<typeof bcs.u64>;
+	status: ReturnType<typeof bcs.u8>;
+	expire_timestamp: ReturnType<typeof bcs.u64>;
+}> = new MoveStruct({
+	name: `${$moduleName}::Order`,
+	fields: {
+		balance_manager_id: bcs.Address,
+		order_id: bcs.u128(),
+		client_order_id: bcs.u64(),
+		quantity: bcs.u64(),
+		filled_quantity: bcs.u64(),
+		fee_is_deep: bcs.bool(),
+		order_deep_price: deep_price.OrderDeepPrice,
+		epoch: bcs.u64(),
+		status: bcs.u8(),
+		expire_timestamp: bcs.u64(),
+	},
+});
 export const OrderCanceled: MoveStruct<{
-    "balance_manager_id": typeof bcs.Address;
-    "pool_id": typeof bcs.Address;
-    "order_id": ReturnType<typeof bcs.u128>;
-    "client_order_id": ReturnType<typeof bcs.u64>;
-    "trader": typeof bcs.Address;
-    "price": ReturnType<typeof bcs.u64>;
-    "is_bid": ReturnType<typeof bcs.bool>;
-    "original_quantity": ReturnType<typeof bcs.u64>;
-    "base_asset_quantity_canceled": ReturnType<typeof bcs.u64>;
-    "timestamp": ReturnType<typeof bcs.u64>;
-}> = new MoveStruct({ name: `${$moduleName}::OrderCanceled`, fields: {
-        balance_manager_id: bcs.Address,
-        pool_id: bcs.Address,
-        order_id: bcs.u128(),
-        client_order_id: bcs.u64(),
-        trader: bcs.Address,
-        price: bcs.u64(),
-        is_bid: bcs.bool(),
-        original_quantity: bcs.u64(),
-        base_asset_quantity_canceled: bcs.u64(),
-        timestamp: bcs.u64()
-    } });
+	balance_manager_id: typeof bcs.Address;
+	pool_id: typeof bcs.Address;
+	order_id: ReturnType<typeof bcs.u128>;
+	client_order_id: ReturnType<typeof bcs.u64>;
+	trader: typeof bcs.Address;
+	price: ReturnType<typeof bcs.u64>;
+	is_bid: ReturnType<typeof bcs.bool>;
+	original_quantity: ReturnType<typeof bcs.u64>;
+	base_asset_quantity_canceled: ReturnType<typeof bcs.u64>;
+	timestamp: ReturnType<typeof bcs.u64>;
+}> = new MoveStruct({
+	name: `${$moduleName}::OrderCanceled`,
+	fields: {
+		balance_manager_id: bcs.Address,
+		pool_id: bcs.Address,
+		order_id: bcs.u128(),
+		client_order_id: bcs.u64(),
+		trader: bcs.Address,
+		price: bcs.u64(),
+		is_bid: bcs.bool(),
+		original_quantity: bcs.u64(),
+		base_asset_quantity_canceled: bcs.u64(),
+		timestamp: bcs.u64(),
+	},
+});
 export const OrderModified: MoveStruct<{
-    "balance_manager_id": typeof bcs.Address;
-    "pool_id": typeof bcs.Address;
-    "order_id": ReturnType<typeof bcs.u128>;
-    "client_order_id": ReturnType<typeof bcs.u64>;
-    "trader": typeof bcs.Address;
-    "price": ReturnType<typeof bcs.u64>;
-    "is_bid": ReturnType<typeof bcs.bool>;
-    "previous_quantity": ReturnType<typeof bcs.u64>;
-    "filled_quantity": ReturnType<typeof bcs.u64>;
-    "new_quantity": ReturnType<typeof bcs.u64>;
-    "timestamp": ReturnType<typeof bcs.u64>;
-}> = new MoveStruct({ name: `${$moduleName}::OrderModified`, fields: {
-        balance_manager_id: bcs.Address,
-        pool_id: bcs.Address,
-        order_id: bcs.u128(),
-        client_order_id: bcs.u64(),
-        trader: bcs.Address,
-        price: bcs.u64(),
-        is_bid: bcs.bool(),
-        previous_quantity: bcs.u64(),
-        filled_quantity: bcs.u64(),
-        new_quantity: bcs.u64(),
-        timestamp: bcs.u64()
-    } });
+	balance_manager_id: typeof bcs.Address;
+	pool_id: typeof bcs.Address;
+	order_id: ReturnType<typeof bcs.u128>;
+	client_order_id: ReturnType<typeof bcs.u64>;
+	trader: typeof bcs.Address;
+	price: ReturnType<typeof bcs.u64>;
+	is_bid: ReturnType<typeof bcs.bool>;
+	previous_quantity: ReturnType<typeof bcs.u64>;
+	filled_quantity: ReturnType<typeof bcs.u64>;
+	new_quantity: ReturnType<typeof bcs.u64>;
+	timestamp: ReturnType<typeof bcs.u64>;
+}> = new MoveStruct({
+	name: `${$moduleName}::OrderModified`,
+	fields: {
+		balance_manager_id: bcs.Address,
+		pool_id: bcs.Address,
+		order_id: bcs.u128(),
+		client_order_id: bcs.u64(),
+		trader: bcs.Address,
+		price: bcs.u64(),
+		is_bid: bcs.bool(),
+		previous_quantity: bcs.u64(),
+		filled_quantity: bcs.u64(),
+		new_quantity: bcs.u64(),
+		timestamp: bcs.u64(),
+	},
+});
 export interface BalanceManagerIdArguments {
-    self: TransactionArgument;
+	self: TransactionArgument;
 }
 export interface BalanceManagerIdOptions {
-    package?: string;
-    arguments: BalanceManagerIdArguments | [
-        self: TransactionArgument
-    ];
+	package?: string;
+	arguments: BalanceManagerIdArguments | [self: TransactionArgument];
 }
-export function balanceManagerId(options: BalanceManagerIdOptions): (tx: Transaction) => TransactionResult {
-    const packageAddress = options.package ?? '@deepbook/core';
-    const argumentsTypes = [
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["self"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'order',
-        function: 'balance_manager_id',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
+export function balanceManagerId(
+	options: BalanceManagerIdOptions,
+): (tx: Transaction) => TransactionResult {
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['self'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'order',
+			function: 'balance_manager_id',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
 }
 export interface OrderIdArguments {
-    self: TransactionArgument;
+	self: TransactionArgument;
 }
 export interface OrderIdOptions {
-    package?: string;
-    arguments: OrderIdArguments | [
-        self: TransactionArgument
-    ];
+	package?: string;
+	arguments: OrderIdArguments | [self: TransactionArgument];
 }
 export function orderId(options: OrderIdOptions): (tx: Transaction) => TransactionResult {
-    const packageAddress = options.package ?? '@deepbook/core';
-    const argumentsTypes = [
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["self"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'order',
-        function: 'order_id',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['self'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'order',
+			function: 'order_id',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
 }
 export interface ClientOrderIdArguments {
-    self: TransactionArgument;
+	self: TransactionArgument;
 }
 export interface ClientOrderIdOptions {
-    package?: string;
-    arguments: ClientOrderIdArguments | [
-        self: TransactionArgument
-    ];
+	package?: string;
+	arguments: ClientOrderIdArguments | [self: TransactionArgument];
 }
-export function clientOrderId(options: ClientOrderIdOptions): (tx: Transaction) => TransactionResult {
-    const packageAddress = options.package ?? '@deepbook/core';
-    const argumentsTypes = [
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["self"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'order',
-        function: 'client_order_id',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
+export function clientOrderId(
+	options: ClientOrderIdOptions,
+): (tx: Transaction) => TransactionResult {
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['self'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'order',
+			function: 'client_order_id',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
 }
 export interface QuantityArguments {
-    self: TransactionArgument;
+	self: TransactionArgument;
 }
 export interface QuantityOptions {
-    package?: string;
-    arguments: QuantityArguments | [
-        self: TransactionArgument
-    ];
+	package?: string;
+	arguments: QuantityArguments | [self: TransactionArgument];
 }
 export function quantity(options: QuantityOptions): (tx: Transaction) => TransactionResult {
-    const packageAddress = options.package ?? '@deepbook/core';
-    const argumentsTypes = [
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["self"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'order',
-        function: 'quantity',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['self'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'order',
+			function: 'quantity',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
 }
 export interface FilledQuantityArguments {
-    self: TransactionArgument;
+	self: TransactionArgument;
 }
 export interface FilledQuantityOptions {
-    package?: string;
-    arguments: FilledQuantityArguments | [
-        self: TransactionArgument
-    ];
+	package?: string;
+	arguments: FilledQuantityArguments | [self: TransactionArgument];
 }
-export function filledQuantity(options: FilledQuantityOptions): (tx: Transaction) => TransactionResult {
-    const packageAddress = options.package ?? '@deepbook/core';
-    const argumentsTypes = [
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["self"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'order',
-        function: 'filled_quantity',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
+export function filledQuantity(
+	options: FilledQuantityOptions,
+): (tx: Transaction) => TransactionResult {
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['self'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'order',
+			function: 'filled_quantity',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
 }
 export interface FeeIsDeepArguments {
-    self: TransactionArgument;
+	self: TransactionArgument;
 }
 export interface FeeIsDeepOptions {
-    package?: string;
-    arguments: FeeIsDeepArguments | [
-        self: TransactionArgument
-    ];
+	package?: string;
+	arguments: FeeIsDeepArguments | [self: TransactionArgument];
 }
 export function feeIsDeep(options: FeeIsDeepOptions): (tx: Transaction) => TransactionResult {
-    const packageAddress = options.package ?? '@deepbook/core';
-    const argumentsTypes = [
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["self"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'order',
-        function: 'fee_is_deep',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['self'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'order',
+			function: 'fee_is_deep',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
 }
 export interface OrderDeepPriceArguments {
-    self: TransactionArgument;
+	self: TransactionArgument;
 }
 export interface OrderDeepPriceOptions {
-    package?: string;
-    arguments: OrderDeepPriceArguments | [
-        self: TransactionArgument
-    ];
+	package?: string;
+	arguments: OrderDeepPriceArguments | [self: TransactionArgument];
 }
-export function orderDeepPrice(options: OrderDeepPriceOptions): (tx: Transaction) => TransactionResult {
-    const packageAddress = options.package ?? '@deepbook/core';
-    const argumentsTypes = [
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["self"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'order',
-        function: 'order_deep_price',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
+export function orderDeepPrice(
+	options: OrderDeepPriceOptions,
+): (tx: Transaction) => TransactionResult {
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['self'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'order',
+			function: 'order_deep_price',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
 }
 export interface EpochArguments {
-    self: TransactionArgument;
+	self: TransactionArgument;
 }
 export interface EpochOptions {
-    package?: string;
-    arguments: EpochArguments | [
-        self: TransactionArgument
-    ];
+	package?: string;
+	arguments: EpochArguments | [self: TransactionArgument];
 }
 export function epoch(options: EpochOptions): (tx: Transaction) => TransactionResult {
-    const packageAddress = options.package ?? '@deepbook/core';
-    const argumentsTypes = [
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["self"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'order',
-        function: 'epoch',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['self'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'order',
+			function: 'epoch',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
 }
 export interface StatusArguments {
-    self: TransactionArgument;
+	self: TransactionArgument;
 }
 export interface StatusOptions {
-    package?: string;
-    arguments: StatusArguments | [
-        self: TransactionArgument
-    ];
+	package?: string;
+	arguments: StatusArguments | [self: TransactionArgument];
 }
 export function status(options: StatusOptions): (tx: Transaction) => TransactionResult {
-    const packageAddress = options.package ?? '@deepbook/core';
-    const argumentsTypes = [
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["self"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'order',
-        function: 'status',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['self'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'order',
+			function: 'status',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
 }
 export interface ExpireTimestampArguments {
-    self: TransactionArgument;
+	self: TransactionArgument;
 }
 export interface ExpireTimestampOptions {
-    package?: string;
-    arguments: ExpireTimestampArguments | [
-        self: TransactionArgument
-    ];
+	package?: string;
+	arguments: ExpireTimestampArguments | [self: TransactionArgument];
 }
-export function expireTimestamp(options: ExpireTimestampOptions): (tx: Transaction) => TransactionResult {
-    const packageAddress = options.package ?? '@deepbook/core';
-    const argumentsTypes = [
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["self"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'order',
-        function: 'expire_timestamp',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
+export function expireTimestamp(
+	options: ExpireTimestampOptions,
+): (tx: Transaction) => TransactionResult {
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['self'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'order',
+			function: 'expire_timestamp',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
 }
 export interface PriceArguments {
-    self: TransactionArgument;
+	self: TransactionArgument;
 }
 export interface PriceOptions {
-    package?: string;
-    arguments: PriceArguments | [
-        self: TransactionArgument
-    ];
+	package?: string;
+	arguments: PriceArguments | [self: TransactionArgument];
 }
 export function price(options: PriceOptions): (tx: Transaction) => TransactionResult {
-    const packageAddress = options.package ?? '@deepbook/core';
-    const argumentsTypes = [
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["self"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'order',
-        function: 'price',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['self'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'order',
+			function: 'price',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
 }

@@ -2,165 +2,175 @@
  * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
  **************************************************************/
 
-
 /**
  * A module that allows claiming names of a set length for free by presenting an
  * object T. Each `T` can have a separate configuration for a discount percentage.
  * If a `T` doesn't exist, registration will fail.
- * 
+ *
  * Can be called only when promotions are active for a specific type T. Activation
  * / deactivation happens through PTBs.
  */
 
-import { MoveTuple, MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
+import {
+	MoveTuple,
+	MoveStruct,
+	normalizeMoveArguments,
+	type RawTransactionArgument,
+} from '../utils/index.js';
 import { bcs, type BcsType } from '@mysten/sui/bcs';
-import { type Transaction, type TransactionResult, type TransactionArgument } from '@mysten/sui/transactions';
+import {
+	type Transaction,
+	type TransactionResult,
+	type TransactionArgument,
+} from '@mysten/sui/transactions';
 import * as pricing_config from './deps/suins/pricing_config.js';
 import * as linked_table from './deps/sui/linked_table.js';
 const $moduleName = '@suins/discounts::free_claims';
-export const FreeClaimsApp: MoveTuple<[
-    ReturnType<typeof bcs.bool>
-]> = new MoveTuple({ name: `${$moduleName}::FreeClaimsApp`, fields: [bcs.bool()] });
-export const FreeClaimsKey: MoveTuple<[
-    ReturnType<typeof bcs.bool>
-]> = new MoveTuple({ name: `${$moduleName}::FreeClaimsKey<phantom T>`, fields: [bcs.bool()] });
+export const FreeClaimsApp: MoveTuple<[ReturnType<typeof bcs.bool>]> = new MoveTuple({
+	name: `${$moduleName}::FreeClaimsApp`,
+	fields: [bcs.bool()],
+});
+export const FreeClaimsKey: MoveTuple<[ReturnType<typeof bcs.bool>]> = new MoveTuple({
+	name: `${$moduleName}::FreeClaimsKey<phantom T>`,
+	fields: [bcs.bool()],
+});
 export const FreeClaimsConfig: MoveStruct<{
-    "domain_length_range": typeof pricing_config.Range;
-    "used_objects": ReturnType<typeof linked_table.LinkedTable<typeof bcs.Address>>;
-}> = new MoveStruct({ name: `${$moduleName}::FreeClaimsConfig`, fields: {
-        domain_length_range: pricing_config.Range,
-        used_objects: linked_table.LinkedTable(bcs.Address)
-    } });
+	domain_length_range: typeof pricing_config.Range;
+	used_objects: ReturnType<typeof linked_table.LinkedTable<typeof bcs.Address>>;
+}> = new MoveStruct({
+	name: `${$moduleName}::FreeClaimsConfig`,
+	fields: {
+		domain_length_range: pricing_config.Range,
+		used_objects: linked_table.LinkedTable(bcs.Address),
+	},
+});
 export interface FreeClaimArguments<T extends BcsType<any>> {
-    self: RawTransactionArgument<string>;
-    suins: RawTransactionArgument<string>;
-    intent: TransactionArgument;
-    object: RawTransactionArgument<T>;
+	self: RawTransactionArgument<string>;
+	suins: RawTransactionArgument<string>;
+	intent: TransactionArgument;
+	object: RawTransactionArgument<T>;
 }
 export interface FreeClaimOptions<T extends BcsType<any>> {
-    package?: string;
-    arguments: FreeClaimArguments<T> | [
-        self: RawTransactionArgument<string>,
-        suins: RawTransactionArgument<string>,
-        intent: TransactionArgument,
-        object: RawTransactionArgument<T>
-    ];
-    typeArguments: [
-        string
-    ];
+	package?: string;
+	arguments:
+		| FreeClaimArguments<T>
+		| [
+				self: RawTransactionArgument<string>,
+				suins: RawTransactionArgument<string>,
+				intent: TransactionArgument,
+				object: RawTransactionArgument<T>,
+		  ];
+	typeArguments: [string];
 }
 /** A function to register a name with a discount using type `T`. */
-export function freeClaim<T extends BcsType<any>>(options: FreeClaimOptions<T>): (tx: Transaction) => TransactionResult {
-    const packageAddress = options.package ?? '@suins/discounts';
-    const argumentsTypes = [
-        null,
-        null,
-        null,
-        `${options.typeArguments[0]}`
-    ] satisfies (string | null)[];
-    const parameterNames = ["self", "suins", "intent", "object"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'free_claims',
-        function: 'free_claim',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-        typeArguments: options.typeArguments
-    });
+export function freeClaim<T extends BcsType<any>>(
+	options: FreeClaimOptions<T>,
+): (tx: Transaction) => TransactionResult {
+	const packageAddress = options.package ?? '@suins/discounts';
+	const argumentsTypes = [null, null, null, `${options.typeArguments[0]}`] satisfies (
+		| string
+		| null
+	)[];
+	const parameterNames = ['self', 'suins', 'intent', 'object'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'free_claims',
+			function: 'free_claim',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
 }
 export interface FreeClaimWithDayOneArguments {
-    self: RawTransactionArgument<string>;
-    suins: RawTransactionArgument<string>;
-    intent: TransactionArgument;
-    dayOne: RawTransactionArgument<string>;
+	self: RawTransactionArgument<string>;
+	suins: RawTransactionArgument<string>;
+	intent: TransactionArgument;
+	dayOne: RawTransactionArgument<string>;
 }
 export interface FreeClaimWithDayOneOptions {
-    package?: string;
-    arguments: FreeClaimWithDayOneArguments | [
-        self: RawTransactionArgument<string>,
-        suins: RawTransactionArgument<string>,
-        intent: TransactionArgument,
-        dayOne: RawTransactionArgument<string>
-    ];
+	package?: string;
+	arguments:
+		| FreeClaimWithDayOneArguments
+		| [
+				self: RawTransactionArgument<string>,
+				suins: RawTransactionArgument<string>,
+				intent: TransactionArgument,
+				dayOne: RawTransactionArgument<string>,
+		  ];
 }
-export function freeClaimWithDayOne(options: FreeClaimWithDayOneOptions): (tx: Transaction) => TransactionResult {
-    const packageAddress = options.package ?? '@suins/discounts';
-    const argumentsTypes = [
-        null,
-        null,
-        null,
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["self", "suins", "intent", "dayOne"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'free_claims',
-        function: 'free_claim_with_day_one',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-    });
+export function freeClaimWithDayOne(
+	options: FreeClaimWithDayOneOptions,
+): (tx: Transaction) => TransactionResult {
+	const packageAddress = options.package ?? '@suins/discounts';
+	const argumentsTypes = [null, null, null, null] satisfies (string | null)[];
+	const parameterNames = ['self', 'suins', 'intent', 'dayOne'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'free_claims',
+			function: 'free_claim_with_day_one',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
 }
 export interface AuthorizeTypeArguments {
-    self: RawTransactionArgument<string>;
-    _: RawTransactionArgument<string>;
-    domainLengthRange: TransactionArgument;
+	self: RawTransactionArgument<string>;
+	_: RawTransactionArgument<string>;
+	domainLengthRange: TransactionArgument;
 }
 export interface AuthorizeTypeOptions {
-    package?: string;
-    arguments: AuthorizeTypeArguments | [
-        self: RawTransactionArgument<string>,
-        _: RawTransactionArgument<string>,
-        domainLengthRange: TransactionArgument
-    ];
-    typeArguments: [
-        string
-    ];
+	package?: string;
+	arguments:
+		| AuthorizeTypeArguments
+		| [
+				self: RawTransactionArgument<string>,
+				_: RawTransactionArgument<string>,
+				domainLengthRange: TransactionArgument,
+		  ];
+	typeArguments: [string];
 }
 /**
  * An admin action to authorize a type T for free claiming of names by presenting
  * an object of type `T`.
  */
-export function authorizeType(options: AuthorizeTypeOptions): (tx: Transaction) => TransactionResult {
-    const packageAddress = options.package ?? '@suins/discounts';
-    const argumentsTypes = [
-        null,
-        null,
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["self", "_", "domainLengthRange"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'free_claims',
-        function: 'authorize_type',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-        typeArguments: options.typeArguments
-    });
+export function authorizeType(
+	options: AuthorizeTypeOptions,
+): (tx: Transaction) => TransactionResult {
+	const packageAddress = options.package ?? '@suins/discounts';
+	const argumentsTypes = [null, null, null] satisfies (string | null)[];
+	const parameterNames = ['self', '_', 'domainLengthRange'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'free_claims',
+			function: 'authorize_type',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
 }
 export interface DeauthorizeTypeArguments {
-    self: RawTransactionArgument<string>;
-    _: RawTransactionArgument<string>;
+	self: RawTransactionArgument<string>;
+	_: RawTransactionArgument<string>;
 }
 export interface DeauthorizeTypeOptions {
-    package?: string;
-    arguments: DeauthorizeTypeArguments | [
-        self: RawTransactionArgument<string>,
-        _: RawTransactionArgument<string>
-    ];
-    typeArguments: [
-        string
-    ];
+	package?: string;
+	arguments:
+		| DeauthorizeTypeArguments
+		| [self: RawTransactionArgument<string>, _: RawTransactionArgument<string>];
+	typeArguments: [string];
 }
 /** Force-deauthorize type T from free claims. Drops the linked_table. */
-export function deauthorizeType(options: DeauthorizeTypeOptions): (tx: Transaction) => TransactionResult {
-    const packageAddress = options.package ?? '@suins/discounts';
-    const argumentsTypes = [
-        null,
-        null
-    ] satisfies (string | null)[];
-    const parameterNames = ["self", "_"];
-    return (tx: Transaction) => tx.moveCall({
-        package: packageAddress,
-        module: 'free_claims',
-        function: 'deauthorize_type',
-        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-        typeArguments: options.typeArguments
-    });
+export function deauthorizeType(
+	options: DeauthorizeTypeOptions,
+): (tx: Transaction) => TransactionResult {
+	const packageAddress = options.package ?? '@suins/discounts';
+	const argumentsTypes = [null, null] satisfies (string | null)[];
+	const parameterNames = ['self', '_'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'free_claims',
+			function: 'deauthorize_type',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
 }

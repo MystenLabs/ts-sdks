@@ -14,14 +14,16 @@ import {
 import { bcs, type BcsType } from '@mysten/sui/bcs';
 import {
 	type Transaction as Transaction_1,
+	type TransactionResult,
 	type TransactionArgument,
 } from '@mysten/sui/transactions';
 const $moduleName = '@mysten/ptb::ptb';
-export const Command = new MoveTuple({
-	name: `${$moduleName}::Command`,
-	fields: [bcs.u8(), bcs.vector(bcs.u8())],
-});
-export const Transaction = new MoveStruct({
+export const Command: MoveTuple<
+	[ReturnType<typeof bcs.u8>, ReturnType<typeof bcs.vector<ReturnType<typeof bcs.u8>>>]
+> = new MoveTuple({ name: `${$moduleName}::Command`, fields: [bcs.u8(), bcs.vector(bcs.u8())] });
+export const Transaction: MoveStruct<{
+	commands: ReturnType<typeof bcs.vector<typeof Command>>;
+}> = new MoveStruct({
 	name: `${$moduleName}::Transaction`,
 	fields: {
 		commands: bcs.vector(Command),
@@ -35,7 +37,24 @@ export const Transaction = new MoveStruct({
  * - Uses `address` type as a fixed-length sequence of bytes without length prefix.
  * - Extends the number of variants to support off-chain resolution.
  */
-export const ObjectArg = new MoveEnum({
+export const ObjectArg: MoveEnum<{
+	ImmOrOwnedObject: MoveStruct<{
+		object_id: typeof bcs.Address;
+		sequence_number: ReturnType<typeof bcs.u64>;
+		digest: typeof bcs.Address;
+	}>;
+	SharedObject: MoveStruct<{
+		object_id: typeof bcs.Address;
+		initial_shared_version: ReturnType<typeof bcs.u64>;
+		is_mutable: ReturnType<typeof bcs.bool>;
+	}>;
+	Receiving: MoveStruct<{
+		object_id: typeof bcs.Address;
+		sequence_number: ReturnType<typeof bcs.u64>;
+		digest: typeof bcs.Address;
+	}>;
+	Ext: ReturnType<typeof bcs.string>;
+}> = new MoveEnum({
 	name: `${$moduleName}::ObjectArg`,
 	fields: {
 		ImmOrOwnedObject: new MoveStruct({
@@ -65,7 +84,10 @@ export const ObjectArg = new MoveEnum({
 		Ext: bcs.string(),
 	},
 });
-export const WithdrawFrom = new MoveEnum({
+export const WithdrawFrom: MoveEnum<{
+	Sender: null;
+	Sponsor: null;
+}> = new MoveEnum({
 	name: `${$moduleName}::WithdrawFrom`,
 	fields: {
 		Sender: null,
@@ -81,7 +103,16 @@ export const WithdrawFrom = new MoveEnum({
  * - Ext(...) is a custom extension for the `CallArg` which allows off-chain
  *   resolvers to convert them into the appropriate values for context.
  */
-export const CallArg = new MoveEnum({
+export const CallArg: MoveEnum<{
+	Pure: ReturnType<typeof bcs.vector<ReturnType<typeof bcs.u8>>>;
+	Object: typeof ObjectArg;
+	FundsWithdrawal: MoveStruct<{
+		amount: ReturnType<typeof bcs.u64>;
+		type_name: ReturnType<typeof bcs.string>;
+		withdraw_from: typeof WithdrawFrom;
+	}>;
+	Ext: MoveTuple<[ReturnType<typeof bcs.string>, ReturnType<typeof bcs.string>]>;
+}> = new MoveEnum({
 	name: `${$moduleName}::CallArg`,
 	fields: {
 		Pure: bcs.vector(bcs.u8()),
@@ -106,7 +137,13 @@ export const CallArg = new MoveEnum({
 	},
 });
 /** Defines a simplified `Argument` type for the `Transaction`. */
-export const Argument = new MoveEnum({
+export const Argument: MoveEnum<{
+	GasCoin: null;
+	Input: typeof CallArg;
+	Result: ReturnType<typeof bcs.u16>;
+	NestedResult: MoveTuple<[ReturnType<typeof bcs.u16>, ReturnType<typeof bcs.u16>]>;
+	Ext: ReturnType<typeof bcs.vector<ReturnType<typeof bcs.u8>>>;
+}> = new MoveEnum({
 	name: `${$moduleName}::Argument`,
 	fields: {
 		GasCoin: null,
@@ -120,7 +157,13 @@ export const Argument = new MoveEnum({
 		Ext: bcs.vector(bcs.u8()),
 	},
 });
-export const MoveCall = new MoveStruct({
+export const MoveCall: MoveStruct<{
+	package_id: ReturnType<typeof bcs.string>;
+	module_name: ReturnType<typeof bcs.string>;
+	function: ReturnType<typeof bcs.string>;
+	arguments: ReturnType<typeof bcs.vector<typeof Argument>>;
+	type_arguments: ReturnType<typeof bcs.vector<ReturnType<typeof bcs.string>>>;
+}> = new MoveStruct({
 	name: `${$moduleName}::MoveCall`,
 	fields: {
 		package_id: bcs.string(),
@@ -130,42 +173,66 @@ export const MoveCall = new MoveStruct({
 		type_arguments: bcs.vector(bcs.string()),
 	},
 });
-export const TransferObjects = new MoveStruct({
+export const TransferObjects: MoveStruct<{
+	objects: ReturnType<typeof bcs.vector<typeof Argument>>;
+	to: typeof Argument;
+}> = new MoveStruct({
 	name: `${$moduleName}::TransferObjects`,
 	fields: {
 		objects: bcs.vector(Argument),
 		to: Argument,
 	},
 });
-export const SplitCoins = new MoveStruct({
+export const SplitCoins: MoveStruct<{
+	coin: typeof Argument;
+	amounts: ReturnType<typeof bcs.vector<typeof Argument>>;
+}> = new MoveStruct({
 	name: `${$moduleName}::SplitCoins`,
 	fields: {
 		coin: Argument,
 		amounts: bcs.vector(Argument),
 	},
 });
-export const MergeCoins = new MoveStruct({
+export const MergeCoins: MoveStruct<{
+	coin: typeof Argument;
+	coins: ReturnType<typeof bcs.vector<typeof Argument>>;
+}> = new MoveStruct({
 	name: `${$moduleName}::MergeCoins`,
 	fields: {
 		coin: Argument,
 		coins: bcs.vector(Argument),
 	},
 });
-export const Publish = new MoveStruct({
+export const Publish: MoveStruct<{
+	modules_bytes: ReturnType<
+		typeof bcs.vector<ReturnType<typeof bcs.vector<ReturnType<typeof bcs.u8>>>>
+	>;
+	dependencies: ReturnType<typeof bcs.vector<typeof bcs.Address>>;
+}> = new MoveStruct({
 	name: `${$moduleName}::Publish`,
 	fields: {
 		modules_bytes: bcs.vector(bcs.vector(bcs.u8())),
 		dependencies: bcs.vector(bcs.Address),
 	},
 });
-export const MakeMoveVec = new MoveStruct({
+export const MakeMoveVec: MoveStruct<{
+	element_type: ReturnType<typeof bcs.option<ReturnType<typeof bcs.string>>>;
+	elements: ReturnType<typeof bcs.vector<typeof Argument>>;
+}> = new MoveStruct({
 	name: `${$moduleName}::MakeMoveVec`,
 	fields: {
 		element_type: bcs.option(bcs.string()),
 		elements: bcs.vector(Argument),
 	},
 });
-export const Upgrade = new MoveStruct({
+export const Upgrade: MoveStruct<{
+	modules_bytes: ReturnType<
+		typeof bcs.vector<ReturnType<typeof bcs.vector<ReturnType<typeof bcs.u8>>>>
+	>;
+	dependencies: ReturnType<typeof bcs.vector<typeof bcs.Address>>;
+	object_id: typeof bcs.Address;
+	upgrade_ticket: typeof Argument;
+}> = new MoveStruct({
 	name: `${$moduleName}::Upgrade`,
 	fields: {
 		modules_bytes: bcs.vector(bcs.vector(bcs.u8())),
@@ -179,7 +246,7 @@ export interface NewOptions {
 	arguments?: [];
 }
 /** Create a new Transaction builder. */
-export function _new(options: NewOptions = {}) {
+export function _new(options: NewOptions = {}): (tx: Transaction_1) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/ptb';
 	return (tx: Transaction_1) =>
 		tx.moveCall({
@@ -193,7 +260,7 @@ export interface ClockOptions {
 	arguments?: [];
 }
 /** Shorthand for `object_by_id` with `0x6` (Clock). */
-export function clock(options: ClockOptions = {}) {
+export function clock(options: ClockOptions = {}): (tx: Transaction_1) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/ptb';
 	return (tx: Transaction_1) =>
 		tx.moveCall({
@@ -207,7 +274,7 @@ export interface RandomOptions {
 	arguments?: [];
 }
 /** Shorthand for `object_by_id` with `0x8` (Random). */
-export function random(options: RandomOptions = {}) {
+export function random(options: RandomOptions = {}): (tx: Transaction_1) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/ptb';
 	return (tx: Transaction_1) =>
 		tx.moveCall({
@@ -221,7 +288,7 @@ export interface DisplayOptions {
 	arguments?: [];
 }
 /** Shorthand for `object_by_id` with `0xD` (DisplayRegistry). */
-export function display(options: DisplayOptions = {}) {
+export function display(options: DisplayOptions = {}): (tx: Transaction_1) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/ptb';
 	return (tx: Transaction_1) =>
 		tx.moveCall({
@@ -235,7 +302,7 @@ export interface DenyListOptions {
 	arguments?: [];
 }
 /** Shorthand for `object_by_id` with `0x403` (DenyList). */
-export function denyList(options: DenyListOptions = {}) {
+export function denyList(options: DenyListOptions = {}): (tx: Transaction_1) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/ptb';
 	return (tx: Transaction_1) =>
 		tx.moveCall({
@@ -249,7 +316,9 @@ export interface CoinRegistryOptions {
 	arguments?: [];
 }
 /** Shorthand for `object_by_id` with `0xC` (CoinRegistry). */
-export function coinRegistry(options: CoinRegistryOptions = {}) {
+export function coinRegistry(
+	options: CoinRegistryOptions = {},
+): (tx: Transaction_1) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/ptb';
 	return (tx: Transaction_1) =>
 		tx.moveCall({
@@ -263,7 +332,9 @@ export interface AccumulatorRootOptions {
 	arguments?: [];
 }
 /** Shorthand for `object_by_id` with `0xACC` (AccumulatorRoot). */
-export function accumulatorRoot(options: AccumulatorRootOptions = {}) {
+export function accumulatorRoot(
+	options: AccumulatorRootOptions = {},
+): (tx: Transaction_1) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/ptb';
 	return (tx: Transaction_1) =>
 		tx.moveCall({
@@ -277,7 +348,7 @@ export interface GasOptions {
 	arguments?: [];
 }
 /** Create a gas coin input. */
-export function gas(options: GasOptions = {}) {
+export function gas(options: GasOptions = {}): (tx: Transaction_1) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/ptb';
 	return (tx: Transaction_1) =>
 		tx.moveCall({
@@ -295,7 +366,9 @@ export interface PureOptions<T extends BcsType<any>> {
 	typeArguments: [string];
 }
 /** Create a pure input. */
-export function pure<T extends BcsType<any>>(options: PureOptions<T>) {
+export function pure<T extends BcsType<any>>(
+	options: PureOptions<T>,
+): (tx: Transaction_1) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/ptb';
 	const argumentsTypes = [`${options.typeArguments[0]}`] satisfies (string | null)[];
 	const parameterNames = ['value'];
@@ -328,7 +401,7 @@ export interface ObjectRefOptions {
  * caution, yet for immutable or owned objects refs can be stored. For automatic
  * version resolution, use `object_by_id`.
  */
-export function objectRef(options: ObjectRefOptions) {
+export function objectRef(options: ObjectRefOptions): (tx: Transaction_1) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/ptb';
 	const argumentsTypes = ['0x2::object::ID', 'u64', 'address'] satisfies (string | null)[];
 	const parameterNames = ['objectId', 'sequenceNumber', 'digest'];
@@ -363,7 +436,9 @@ export interface SharedObjectRefOptions {
  * TODO: should it be named `consensus_managed_object_ref`? NOTE: the naming is
  * changing elsewhere
  */
-export function sharedObjectRef(options: SharedObjectRefOptions) {
+export function sharedObjectRef(
+	options: SharedObjectRefOptions,
+): (tx: Transaction_1) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/ptb';
 	const argumentsTypes = ['0x2::object::ID', 'u64', 'bool'] satisfies (string | null)[];
 	const parameterNames = ['objectId', 'initialSharedVersion', 'isMutable'];
@@ -395,7 +470,9 @@ export interface ReceivingObjectRefOptions {
  * since the version of the object is dynamic. For automatic version resolution,
  * use `object_by_id`.
  */
-export function receivingObjectRef(options: ReceivingObjectRefOptions) {
+export function receivingObjectRef(
+	options: ReceivingObjectRefOptions,
+): (tx: Transaction_1) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/ptb';
 	const argumentsTypes = ['0x2::object::ID', 'u64', 'address'] satisfies (string | null)[];
 	const parameterNames = ['objectId', 'sequenceNumber', 'digest'];
@@ -413,7 +490,9 @@ export interface ObjectByTypeOptions {
 	typeArguments: [string];
 }
 /** Create an off-chain input handler for a given type T. */
-export function objectByType(options: ObjectByTypeOptions) {
+export function objectByType(
+	options: ObjectByTypeOptions,
+): (tx: Transaction_1) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/ptb';
 	return (tx: Transaction_1) =>
 		tx.moveCall({
@@ -431,7 +510,9 @@ export interface ObjectByTypeStringOptions {
 	arguments: ObjectByTypeStringArguments | [typeName: RawTransactionArgument<string>];
 }
 /** Create an off-chain input handler for a given type as a String. */
-export function objectByTypeString(options: ObjectByTypeStringOptions) {
+export function objectByTypeString(
+	options: ObjectByTypeStringOptions,
+): (tx: Transaction_1) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/ptb';
 	const argumentsTypes = ['0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['typeName'];
@@ -451,7 +532,7 @@ export interface ObjectByIdOptions {
 	arguments: ObjectByIdArguments | [id: RawTransactionArgument<string>];
 }
 /** Create an off-chain input handler for an object with a specific ID. */
-export function objectById(options: ObjectByIdOptions) {
+export function objectById(options: ObjectByIdOptions): (tx: Transaction_1) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/ptb';
 	const argumentsTypes = ['0x2::object::ID'] satisfies (string | null)[];
 	const parameterNames = ['id'];
@@ -471,7 +552,9 @@ export interface ReceivingObjectByIdOptions {
 	arguments: ReceivingObjectByIdArguments | [id: RawTransactionArgument<string>];
 }
 /** Create an off-chain input handler for a receiving object with a specific ID. */
-export function receivingObjectById(options: ReceivingObjectByIdOptions) {
+export function receivingObjectById(
+	options: ReceivingObjectByIdOptions,
+): (tx: Transaction_1) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/ptb';
 	const argumentsTypes = ['0x2::object::ID'] satisfies (string | null)[];
 	const parameterNames = ['id'];
@@ -495,7 +578,7 @@ export interface ExtInputOptions {
  * Create an external input handler. Expected to be understood by the off-chain
  * tooling.
  */
-export function extInput(options: ExtInputOptions) {
+export function extInput(options: ExtInputOptions): (tx: Transaction_1) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/ptb';
 	const argumentsTypes = ['0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['name'];
@@ -522,7 +605,7 @@ export interface ExtInputRawOptions {
  * Create an external input handler for a given type T. This can be used to
  * hardcode the namespace value without having access to `T`.
  */
-export function extInputRaw(options: ExtInputRawOptions) {
+export function extInputRaw(options: ExtInputRawOptions): (tx: Transaction_1) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/ptb';
 	const argumentsTypes = ['0x1::string::String', '0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['namespace', 'name'];
@@ -547,7 +630,7 @@ export interface CommandOptions {
  * treated as the `Result(idx)` of the command, and can be turned into a nested
  * result `NestedResult(idx, idx)`.
  */
-export function command(options: CommandOptions) {
+export function command(options: CommandOptions): (tx: Transaction_1) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/ptb';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'command'];
@@ -571,7 +654,7 @@ export interface NestedOptions {
  * Spawn a nested result out of a (just) `Result`. Simple result is a command
  * output.
  */
-export function nested(options: NestedOptions) {
+export function nested(options: NestedOptions): (tx: Transaction_1) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/ptb';
 	const argumentsTypes = [null, 'u16'] satisfies (string | null)[];
 	const parameterNames = ['self', 'subIdx'];
@@ -603,7 +686,7 @@ export interface MoveCallOptions {
 		  ];
 }
 /** Create a `MoveCall` command. */
-export function moveCall(options: MoveCallOptions) {
+export function moveCall(options: MoveCallOptions): (tx: Transaction_1) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/ptb';
 	const argumentsTypes = [
 		'0x1::string::String',
@@ -633,7 +716,9 @@ export interface TransferObjectsOptions {
  * Create a `TransferObjects` command Expects a vector of arguments to transfer and
  * an address value for destination.
  */
-export function transferObjects(options: TransferObjectsOptions) {
+export function transferObjects(
+	options: TransferObjectsOptions,
+): (tx: Transaction_1) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/ptb';
 	const argumentsTypes = ['vector<null>', null] satisfies (string | null)[];
 	const parameterNames = ['objects', 'to'];
@@ -654,7 +739,7 @@ export interface SplitCoinsOptions {
 	arguments: SplitCoinsArguments | [coin: TransactionArgument, amounts: TransactionArgument];
 }
 /** Create a `SplitCoins` command. */
-export function splitCoins(options: SplitCoinsOptions) {
+export function splitCoins(options: SplitCoinsOptions): (tx: Transaction_1) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/ptb';
 	const argumentsTypes = [null, 'vector<null>'] satisfies (string | null)[];
 	const parameterNames = ['coin', 'amounts'];
@@ -678,7 +763,7 @@ export interface MergeCoinsOptions {
  * Create a `MergeCoins` command. Takes a Coin Argument and a vector of other coin
  * arguments to merge into it.
  */
-export function mergeCoins(options: MergeCoinsOptions) {
+export function mergeCoins(options: MergeCoinsOptions): (tx: Transaction_1) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/ptb';
 	const argumentsTypes = [null, 'vector<null>'] satisfies (string | null)[];
 	const parameterNames = ['coin', 'coins'];
@@ -707,7 +792,7 @@ export interface PublishOptions {
  * Create a `Publish` command. Takes a vector of modules' bytes and a vector of
  * dependencies.
  */
-export function publish(options: PublishOptions) {
+export function publish(options: PublishOptions): (tx: Transaction_1) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/ptb';
 	const argumentsTypes = ['vector<vector<u8>>', 'vector<0x2::object::ID>'] satisfies (
 		| string
@@ -736,7 +821,7 @@ export interface MakeMoveVecOptions {
  * Create a `MakeMoveVec` command. Takes an optional element type and a vector of
  * elements to make into a vector.
  */
-export function makeMoveVec(options: MakeMoveVecOptions) {
+export function makeMoveVec(options: MakeMoveVecOptions): (tx: Transaction_1) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/ptb';
 	const argumentsTypes = ['0x1::option::Option<0x1::string::String>', 'vector<null>'] satisfies (
 		| string
@@ -772,7 +857,7 @@ export interface UpgradeOptions {
  * Create a `Upgrade` command. Takes a vector of modules' bytes, a vector of
  * dependencies, an updated package ID, and an upgrade ticket.
  */
-export function upgrade(options: UpgradeOptions) {
+export function upgrade(options: UpgradeOptions): (tx: Transaction_1) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/ptb';
 	const argumentsTypes = [
 		'vector<vector<u8>>',
@@ -797,7 +882,7 @@ export interface ExtOptions {
 	arguments: ExtArguments | [data: RawTransactionArgument<Array<number>>];
 }
 /** Create an `Ext` command. */
-export function ext(options: ExtOptions) {
+export function ext(options: ExtOptions): (tx: Transaction_1) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/ptb';
 	const argumentsTypes = ['vector<u8>'] satisfies (string | null)[];
 	const parameterNames = ['data'];

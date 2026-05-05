@@ -3,11 +3,20 @@
  **************************************************************/
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
+import {
+	type Transaction,
+	type TransactionResult,
+	type TransactionArgument,
+} from '@mysten/sui/transactions';
 import * as governance_action from './governance_action.js';
 const $moduleName =
 	'0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837::governance_instruction';
-export const GovernanceInstruction = new MoveStruct({
+export const GovernanceInstruction: MoveStruct<{
+	module_: ReturnType<typeof bcs.u8>;
+	action: typeof governance_action.GovernanceAction;
+	target_chain_id: ReturnType<typeof bcs.u64>;
+	payload: ReturnType<typeof bcs.vector<ReturnType<typeof bcs.u8>>>;
+}> = new MoveStruct({
 	name: `${$moduleName}::GovernanceInstruction`,
 	fields: {
 		module_: bcs.u8(),
@@ -20,7 +29,7 @@ export interface FromByteVecOptions {
 	package?: string;
 	arguments: [RawTransactionArgument<Array<number>>];
 }
-export function fromByteVec(options: FromByteVecOptions) {
+export function fromByteVec(options: FromByteVecOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = ['vector<u8>'] satisfies (string | null)[];
@@ -36,7 +45,7 @@ export interface GetModuleOptions {
 	package?: string;
 	arguments: [TransactionArgument];
 }
-export function getModule(options: GetModuleOptions) {
+export function getModule(options: GetModuleOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -52,7 +61,7 @@ export interface GetActionOptions {
 	package?: string;
 	arguments: [TransactionArgument];
 }
-export function getAction(options: GetActionOptions) {
+export function getAction(options: GetActionOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -68,7 +77,9 @@ export interface GetTargetChainIdOptions {
 	package?: string;
 	arguments: [TransactionArgument];
 }
-export function getTargetChainId(options: GetTargetChainIdOptions) {
+export function getTargetChainId(
+	options: GetTargetChainIdOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -84,7 +95,7 @@ export interface DestroyOptions {
 	package?: string;
 	arguments: [TransactionArgument];
 }
-export function destroy(options: DestroyOptions) {
+export function destroy(options: DestroyOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null] satisfies (string | null)[];

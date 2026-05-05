@@ -720,7 +720,7 @@ export class GraphQLCoreClient extends CoreClient {
 			transactionData: TransactionDataBuilder,
 			options: BuildTransactionOptions,
 			next: () => Promise<void>,
-		) {
+		): Promise<void> {
 			const snapshot = transactionData.snapshot();
 			// If sender is not set, use a dummy address for resolution purposes
 			if (!snapshot.sender) {

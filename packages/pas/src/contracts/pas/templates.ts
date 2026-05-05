@@ -11,15 +11,23 @@
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
+import {
+	type Transaction,
+	type TransactionResult,
+	type TransactionArgument,
+} from '@mysten/sui/transactions';
 const $moduleName = '@mysten/pas::templates';
-export const PAS = new MoveStruct({
+export const PAS: MoveStruct<{
+	dummy_field: ReturnType<typeof bcs.bool>;
+}> = new MoveStruct({
 	name: `${$moduleName}::PAS`,
 	fields: {
 		dummy_field: bcs.bool(),
 	},
 });
-export const Templates = new MoveStruct({
+export const Templates: MoveStruct<{
+	id: typeof bcs.Address;
+}> = new MoveStruct({
 	name: `${$moduleName}::Templates`,
 	fields: {
 		id: bcs.Address,
@@ -33,7 +41,7 @@ export interface SetupOptions {
 	arguments: SetupArguments | [namespace: RawTransactionArgument<string>];
 }
 /** Create the templates registry */
-export function setup(options: SetupOptions) {
+export function setup(options: SetupOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/pas';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['namespace'];
@@ -62,7 +70,9 @@ export interface SetTemplateCommandOptions {
 	typeArguments: [string];
 }
 /** Sets the PTB template for a given Action. */
-export function setTemplateCommand(options: SetTemplateCommandOptions) {
+export function setTemplateCommand(
+	options: SetTemplateCommandOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/pas';
 	const argumentsTypes = [null, null, null] satisfies (string | null)[];
 	const parameterNames = ['templates', '_', 'command'];
@@ -86,7 +96,9 @@ export interface UnsetTemplateCommandOptions {
 		| [templates: RawTransactionArgument<string>, _: TransactionArgument];
 	typeArguments: [string];
 }
-export function unsetTemplateCommand(options: UnsetTemplateCommandOptions) {
+export function unsetTemplateCommand(
+	options: UnsetTemplateCommandOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/pas';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['templates', '_'];

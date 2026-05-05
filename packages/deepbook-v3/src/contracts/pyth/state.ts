@@ -3,18 +3,33 @@
  **************************************************************/
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
+import {
+	type Transaction,
+	type TransactionResult,
+	type TransactionArgument,
+} from '@mysten/sui/transactions';
 import * as data_source from './data_source.js';
 import * as consumed_vaas from './deps/0xf47329f4344f3bf0f8e436e2f7b485466cff300f12a166563995d3888c296a94/consumed_vaas.js';
 import * as _package from './deps/0x0000000000000000000000000000000000000000000000000000000000000002/package.js';
 const $moduleName = '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837::state';
-export const LatestOnly = new MoveStruct({
+export const LatestOnly: MoveStruct<{
+	dummy_field: ReturnType<typeof bcs.bool>;
+}> = new MoveStruct({
 	name: `${$moduleName}::LatestOnly`,
 	fields: {
 		dummy_field: bcs.bool(),
 	},
 });
-export const State = new MoveStruct({
+export const State: MoveStruct<{
+	id: typeof bcs.Address;
+	governance_data_source: typeof data_source.DataSource;
+	stale_price_threshold: ReturnType<typeof bcs.u64>;
+	base_update_fee: ReturnType<typeof bcs.u64>;
+	fee_recipient_address: typeof bcs.Address;
+	last_executed_governance_sequence: ReturnType<typeof bcs.u64>;
+	consumed_vaas: typeof consumed_vaas.ConsumedVAAs;
+	upgrade_cap: typeof _package.UpgradeCap;
+}> = new MoveStruct({
 	name: `${$moduleName}::State`,
 	fields: {
 		id: bcs.Address,
@@ -27,7 +42,9 @@ export const State = new MoveStruct({
 		upgrade_cap: _package.UpgradeCap,
 	},
 });
-export const CurrentDigest = new MoveStruct({
+export const CurrentDigest: MoveStruct<{
+	dummy_field: ReturnType<typeof bcs.bool>;
+}> = new MoveStruct({
 	name: `${$moduleName}::CurrentDigest`,
 	fields: {
 		dummy_field: bcs.bool(),
@@ -37,7 +54,9 @@ export interface GetStalePriceThresholdSecsOptions {
 	package?: string;
 	arguments: [RawTransactionArgument<string>];
 }
-export function getStalePriceThresholdSecs(options: GetStalePriceThresholdSecsOptions) {
+export function getStalePriceThresholdSecs(
+	options: GetStalePriceThresholdSecsOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -53,7 +72,9 @@ export interface GetBaseUpdateFeeOptions {
 	package?: string;
 	arguments: [RawTransactionArgument<string>];
 }
-export function getBaseUpdateFee(options: GetBaseUpdateFeeOptions) {
+export function getBaseUpdateFee(
+	options: GetBaseUpdateFeeOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -69,7 +90,9 @@ export interface GetFeeRecipientOptions {
 	package?: string;
 	arguments: [RawTransactionArgument<string>];
 }
-export function getFeeRecipient(options: GetFeeRecipientOptions) {
+export function getFeeRecipient(
+	options: GetFeeRecipientOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -85,7 +108,9 @@ export interface IsValidDataSourceOptions {
 	package?: string;
 	arguments: [RawTransactionArgument<string>, TransactionArgument];
 }
-export function isValidDataSource(options: IsValidDataSourceOptions) {
+export function isValidDataSource(
+	options: IsValidDataSourceOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
@@ -101,7 +126,9 @@ export interface IsValidGovernanceDataSourceOptions {
 	package?: string;
 	arguments: [RawTransactionArgument<string>, TransactionArgument];
 }
-export function isValidGovernanceDataSource(options: IsValidGovernanceDataSourceOptions) {
+export function isValidGovernanceDataSource(
+	options: IsValidGovernanceDataSourceOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
@@ -117,7 +144,9 @@ export interface PriceFeedObjectExistsOptions {
 	package?: string;
 	arguments: [RawTransactionArgument<string>, TransactionArgument];
 }
-export function priceFeedObjectExists(options: PriceFeedObjectExistsOptions) {
+export function priceFeedObjectExists(
+	options: PriceFeedObjectExistsOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
@@ -133,7 +162,9 @@ export interface GovernanceDataSourceOptions {
 	package?: string;
 	arguments: [RawTransactionArgument<string>];
 }
-export function governanceDataSource(options: GovernanceDataSourceOptions) {
+export function governanceDataSource(
+	options: GovernanceDataSourceOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -151,7 +182,7 @@ export interface GetLastExecutedGovernanceSequenceOptions {
 }
 export function getLastExecutedGovernanceSequence(
 	options: GetLastExecutedGovernanceSequenceOptions,
-) {
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -167,7 +198,9 @@ export interface GovernanceModuleOptions {
 	package?: string;
 	arguments?: [];
 }
-export function governanceModule(options: GovernanceModuleOptions = {}) {
+export function governanceModule(
+	options: GovernanceModuleOptions = {},
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	return (tx: Transaction) =>
@@ -181,7 +214,9 @@ export interface GovernanceChainOptions {
 	package?: string;
 	arguments: [RawTransactionArgument<string>];
 }
-export function governanceChain(options: GovernanceChainOptions) {
+export function governanceChain(
+	options: GovernanceChainOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -197,7 +232,9 @@ export interface GovernanceContractOptions {
 	package?: string;
 	arguments: [RawTransactionArgument<string>];
 }
-export function governanceContract(options: GovernanceContractOptions) {
+export function governanceContract(
+	options: GovernanceContractOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -213,7 +250,9 @@ export interface GetPriceInfoObjectIdOptions {
 	package?: string;
 	arguments: [RawTransactionArgument<string>, RawTransactionArgument<Array<number>>];
 }
-export function getPriceInfoObjectId(options: GetPriceInfoObjectIdOptions) {
+export function getPriceInfoObjectId(
+	options: GetPriceInfoObjectIdOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null, 'vector<u8>'] satisfies (string | null)[];

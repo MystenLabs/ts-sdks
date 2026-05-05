@@ -11,10 +11,19 @@ import {
 	type RawTransactionArgument,
 } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
+import {
+	type Transaction,
+	type TransactionResult,
+	type TransactionArgument,
+} from '@mysten/sui/transactions';
 import * as versioning from './versioning.js';
 const $moduleName = '@mysten/pas::account';
-export const Account = new MoveStruct({
+export const Account: MoveStruct<{
+	id: typeof bcs.Address;
+	owner: typeof bcs.Address;
+	namespace_id: typeof bcs.Address;
+	versioning: typeof versioning.Versioning;
+}> = new MoveStruct({
 	name: `${$moduleName}::Account`,
 	fields: {
 		id: bcs.Address,
@@ -33,7 +42,10 @@ export const Account = new MoveStruct({
 		versioning: versioning.Versioning,
 	},
 });
-export const Auth = new MoveTuple({ name: `${$moduleName}::Auth`, fields: [bcs.Address] });
+export const Auth: MoveTuple<[typeof bcs.Address]> = new MoveTuple({
+	name: `${$moduleName}::Auth`,
+	fields: [bcs.Address],
+});
 export interface CreateArguments {
 	namespace: RawTransactionArgument<string>;
 	owner: RawTransactionArgument<string>;
@@ -45,7 +57,7 @@ export interface CreateOptions {
 		| [namespace: RawTransactionArgument<string>, owner: RawTransactionArgument<string>];
 }
 /** Create a new account for `owner`. This is a permission-less action. */
-export function create(options: CreateOptions) {
+export function create(options: CreateOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/pas';
 	const argumentsTypes = [null, 'address'] satisfies (string | null)[];
 	const parameterNames = ['namespace', 'owner'];
@@ -68,7 +80,7 @@ export interface ShareOptions {
  * The only way to finalize the TX is by sharing the account. All accounts are
  * shared by default.
  */
-export function share(options: ShareOptions) {
+export function share(options: ShareOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/pas';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['account'];
@@ -91,7 +103,9 @@ export interface CreateAndShareOptions {
 		| [namespace: RawTransactionArgument<string>, owner: RawTransactionArgument<string>];
 }
 /** Create and share a account in a single step. */
-export function createAndShare(options: CreateAndShareOptions) {
+export function createAndShare(
+	options: CreateAndShareOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/pas';
 	const argumentsTypes = [null, 'address'] satisfies (string | null)[];
 	const parameterNames = ['namespace', 'owner'];
@@ -124,7 +138,9 @@ export interface UnlockBalanceOptions {
  * Policy within the system, or if there's a special case where an issuer allows
  * balances to flow out of the system.
  */
-export function unlockBalance(options: UnlockBalanceOptions) {
+export function unlockBalance(
+	options: UnlockBalanceOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/pas';
 	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
 	const parameterNames = ['account', 'auth', 'amount'];
@@ -156,7 +172,7 @@ export interface SendBalanceOptions {
 	typeArguments: [string];
 }
 /** Initiate a transfer from account A to account B. */
-export function sendBalance(options: SendBalanceOptions) {
+export function sendBalance(options: SendBalanceOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/pas';
 	const argumentsTypes = [null, null, null, 'u64'] satisfies (string | null)[];
 	const parameterNames = ['from', 'auth', 'to', 'amount'];
@@ -186,7 +202,9 @@ export interface ClawbackBalanceOptions {
  *
  * This can only ever finalize if clawback is enabled in the policy.
  */
-export function clawbackBalance(options: ClawbackBalanceOptions) {
+export function clawbackBalance(
+	options: ClawbackBalanceOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/pas';
 	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
 	const parameterNames = ['from', 'amount'];
@@ -224,7 +242,9 @@ export interface UnsafeSendBalanceOptions {
  * It's marked as `unsafe_` as it's easy to accidentally pick the wrong recipient
  * address.
  */
-export function unsafeSendBalance(options: UnsafeSendBalanceOptions) {
+export function unsafeSendBalance(
+	options: UnsafeSendBalanceOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/pas';
 	const argumentsTypes = [null, null, 'address', 'u64'] satisfies (string | null)[];
 	const parameterNames = ['from', 'auth', 'recipientAddress', 'amount'];
@@ -242,7 +262,7 @@ export interface NewAuthOptions {
 	arguments?: [];
 }
 /** Generate an ownership proof from the sender of the transaction. */
-export function newAuth(options: NewAuthOptions = {}) {
+export function newAuth(options: NewAuthOptions = {}): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/pas';
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -263,7 +283,9 @@ export interface NewAuthAsObjectOptions {
  * accounts. `&mut UID` is intentional — it serves as proof of ownership over the
  * object.
  */
-export function newAuthAsObject(options: NewAuthAsObjectOptions) {
+export function newAuthAsObject(
+	options: NewAuthAsObjectOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/pas';
 	const argumentsTypes = ['0x2::object::ID'] satisfies (string | null)[];
 	const parameterNames = ['uid'];
@@ -282,7 +304,7 @@ export interface OwnerOptions {
 	package?: string;
 	arguments: OwnerArguments | [account: RawTransactionArgument<string>];
 }
-export function owner(options: OwnerOptions) {
+export function owner(options: OwnerOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/pas';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['account'];
@@ -305,7 +327,9 @@ export interface DepositBalanceOptions {
 		| [account: RawTransactionArgument<string>, balance: TransactionArgument];
 	typeArguments: [string];
 }
-export function depositBalance(options: DepositBalanceOptions) {
+export function depositBalance(
+	options: DepositBalanceOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/pas';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['account', 'balance'];
@@ -329,7 +353,9 @@ export interface SyncVersioningOptions {
 		| [account: RawTransactionArgument<string>, namespace: RawTransactionArgument<string>];
 }
 /** Permission-less operation to bring versioning up-to-date with the namespace. */
-export function syncVersioning(options: SyncVersioningOptions) {
+export function syncVersioning(
+	options: SyncVersioningOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/pas';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['account', 'namespace'];

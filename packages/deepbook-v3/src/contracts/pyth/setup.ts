@@ -4,7 +4,9 @@
 import { MoveStruct } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 const $moduleName = '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837::setup';
-export const DeployerCap = new MoveStruct({
+export const DeployerCap: MoveStruct<{
+	id: typeof bcs.Address;
+}> = new MoveStruct({
 	name: `${$moduleName}::DeployerCap`,
 	fields: {
 		id: bcs.Address,
