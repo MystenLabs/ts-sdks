@@ -9,31 +9,39 @@ import { bcs } from '@mysten/sui/bcs';
 import { type Transaction, type TransactionResult } from '@mysten/sui/transactions';
 import * as balance from './deps/sui/balance.js';
 const $moduleName = '@local-pkg/wal_exchange::wal_exchange';
-const _ExchangeRateFields = {
-	wal: bcs.u64(),
-	sui: bcs.u64(),
-};
-export const ExchangeRate: MoveStruct<typeof _ExchangeRateFields> = new MoveStruct({
+export const ExchangeRate: MoveStruct<{
+	wal: ReturnType<typeof bcs.u64>;
+	sui: ReturnType<typeof bcs.u64>;
+}> = new MoveStruct({
 	name: `${$moduleName}::ExchangeRate`,
-	fields: _ExchangeRateFields,
+	fields: {
+		wal: bcs.u64(),
+		sui: bcs.u64(),
+	},
 });
-const _ExchangeFields = {
-	id: bcs.Address,
-	wal: balance.Balance,
-	sui: balance.Balance,
-	rate: ExchangeRate,
-	admin: bcs.Address,
-};
-export const Exchange: MoveStruct<typeof _ExchangeFields> = new MoveStruct({
+export const Exchange: MoveStruct<{
+	id: typeof bcs.Address;
+	wal: typeof balance.Balance;
+	sui: typeof balance.Balance;
+	rate: typeof ExchangeRate;
+	admin: typeof bcs.Address;
+}> = new MoveStruct({
 	name: `${$moduleName}::Exchange`,
-	fields: _ExchangeFields,
+	fields: {
+		id: bcs.Address,
+		wal: balance.Balance,
+		sui: balance.Balance,
+		rate: ExchangeRate,
+		admin: bcs.Address,
+	},
 });
-const _AdminCapFields = {
-	id: bcs.Address,
-};
-export const AdminCap: MoveStruct<typeof _AdminCapFields> = new MoveStruct({
+export const AdminCap: MoveStruct<{
+	id: typeof bcs.Address;
+}> = new MoveStruct({
 	name: `${$moduleName}::AdminCap`,
-	fields: _AdminCapFields,
+	fields: {
+		id: bcs.Address,
+	},
 });
 export interface NewExchangeRateArguments {
 	wal: RawTransactionArgument<number | bigint>;

@@ -12,15 +12,19 @@ import {
 	type TransactionArgument,
 } from '@mysten/sui/transactions';
 const $moduleName = '@local-pkg/walrus::system';
-const _SystemFields = {
-	id: bcs.Address,
-	version: bcs.u64(),
-	package_id: bcs.Address,
-	new_package_id: bcs.option(bcs.Address),
-};
-export const System: MoveStruct<typeof _SystemFields> = new MoveStruct({
+export const System: MoveStruct<{
+	id: typeof bcs.Address;
+	version: ReturnType<typeof bcs.u64>;
+	package_id: typeof bcs.Address;
+	new_package_id: ReturnType<typeof bcs.option<typeof bcs.Address>>;
+}> = new MoveStruct({
 	name: `${$moduleName}::System`,
-	fields: _SystemFields,
+	fields: {
+		id: bcs.Address,
+		version: bcs.u64(),
+		package_id: bcs.Address,
+		new_package_id: bcs.option(bcs.Address),
+	},
 });
 export interface InvalidateBlobIdArguments {
 	system: RawTransactionArgument<string>;

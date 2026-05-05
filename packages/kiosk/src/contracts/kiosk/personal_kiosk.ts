@@ -9,30 +9,44 @@
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
+import {
+	type Transaction,
+	type TransactionResult,
+	type TransactionArgument,
+} from '@mysten/sui/transactions';
 import * as kiosk from './deps/sui/kiosk.js';
 const $moduleName = '@local-pkg/kiosk::personal_kiosk';
-export const PersonalKioskCap = new MoveStruct({
+export const PersonalKioskCap: MoveStruct<{
+	id: typeof bcs.Address;
+	cap: ReturnType<typeof bcs.option<typeof kiosk.KioskOwnerCap>>;
+}> = new MoveStruct({
 	name: `${$moduleName}::PersonalKioskCap`,
 	fields: {
 		id: bcs.Address,
 		cap: bcs.option(kiosk.KioskOwnerCap),
 	},
 });
-export const Borrow = new MoveStruct({
+export const Borrow: MoveStruct<{
+	cap_id: typeof bcs.Address;
+	owned_id: typeof bcs.Address;
+}> = new MoveStruct({
 	name: `${$moduleName}::Borrow`,
 	fields: {
 		cap_id: bcs.Address,
 		owned_id: bcs.Address,
 	},
 });
-export const OwnerMarker = new MoveStruct({
+export const OwnerMarker: MoveStruct<{
+	dummy_field: ReturnType<typeof bcs.bool>;
+}> = new MoveStruct({
 	name: `${$moduleName}::OwnerMarker`,
 	fields: {
 		dummy_field: bcs.bool(),
 	},
 });
-export const NewPersonalKiosk = new MoveStruct({
+export const NewPersonalKiosk: MoveStruct<{
+	kiosk_id: typeof bcs.Address;
+}> = new MoveStruct({
 	name: `${$moduleName}::NewPersonalKiosk`,
 	fields: {
 		kiosk_id: bcs.Address,
@@ -49,7 +63,7 @@ export interface DefaultOptions {
 		| [kiosk: RawTransactionArgument<string>, cap: RawTransactionArgument<string>];
 }
 /** The default setup for the PersonalKioskCap. */
-export function _default(options: DefaultOptions) {
+export function _default(options: DefaultOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/kiosk';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['kiosk', 'cap'];
@@ -76,7 +90,7 @@ export interface NewOptions {
  * `PersonalKioskCap` is returned to allow chaining within a PTB, but the value
  * must be consumed by the `transfer_to_sender` call in any case.
  */
-export function _new(options: NewOptions) {
+export function _new(options: NewOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/kiosk';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['kiosk', 'cap'];
@@ -107,7 +121,7 @@ export interface CreateForOptions {
  * Create a `PersonalKiosk` for `recipient`. This is useful when (e.g.) an admin
  * account wants to mint an asset with royalty enforcement on behalf of a user.
  */
-export function createFor(options: CreateForOptions) {
+export function createFor(options: CreateForOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/kiosk';
 	const argumentsTypes = [null, null, 'address'] satisfies (string | null)[];
 	const parameterNames = ['kiosk', 'cap', 'recipient'];
@@ -127,7 +141,7 @@ export interface BorrowOptions {
 	arguments: BorrowArguments | [self: RawTransactionArgument<string>];
 }
 /** Borrow the `KioskOwnerCap` from the `PersonalKioskCap` object. */
-export function borrow(options: BorrowOptions) {
+export function borrow(options: BorrowOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/kiosk';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
@@ -147,7 +161,7 @@ export interface BorrowMutOptions {
 	arguments: BorrowMutArguments | [self: RawTransactionArgument<string>];
 }
 /** Mutably borrow the `KioskOwnerCap` from the `PersonalKioskCap` object. */
-export function borrowMut(options: BorrowMutOptions) {
+export function borrowMut(options: BorrowMutOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/kiosk';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
@@ -170,7 +184,7 @@ export interface BorrowValOptions {
  * Borrow the `KioskOwnerCap` from the `PersonalKioskCap` object; `Borrow`
  * hot-potato makes sure that the Cap is returned via `return_val` call.
  */
-export function borrowVal(options: BorrowValOptions) {
+export function borrowVal(options: BorrowValOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/kiosk';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
@@ -198,7 +212,7 @@ export interface ReturnValOptions {
 		  ];
 }
 /** Return the Cap to the PersonalKioskCap object. */
-export function returnVal(options: ReturnValOptions) {
+export function returnVal(options: ReturnValOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/kiosk';
 	const argumentsTypes = [null, null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'cap', 'borrow'];
@@ -218,7 +232,7 @@ export interface IsPersonalOptions {
 	arguments: IsPersonalArguments | [kiosk: RawTransactionArgument<string>];
 }
 /** Check if the Kiosk is "personal". */
-export function isPersonal(options: IsPersonalOptions) {
+export function isPersonal(options: IsPersonalOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/kiosk';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['kiosk'];
@@ -238,7 +252,7 @@ export interface OwnerOptions {
 	arguments: OwnerArguments | [kiosk: RawTransactionArgument<string>];
 }
 /** Get the owner of the Kiosk if the Kiosk is "personal". Aborts otherwise. */
-export function owner(options: OwnerOptions) {
+export function owner(options: OwnerOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/kiosk';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['kiosk'];
@@ -261,7 +275,7 @@ export interface TryOwnerOptions {
  * Try to get the owner of the Kiosk if the Kiosk is "personal". Returns None
  * otherwise.
  */
-export function tryOwner(options: TryOwnerOptions) {
+export function tryOwner(options: TryOwnerOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/kiosk';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['kiosk'];
@@ -281,7 +295,9 @@ export interface TransferToSenderOptions {
 	arguments: TransferToSenderArguments | [self: RawTransactionArgument<string>];
 }
 /** Transfer the `PersonalKioskCap` to the transaction sender. */
-export function transferToSender(options: TransferToSenderOptions) {
+export function transferToSender(
+	options: TransferToSenderOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/kiosk';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];

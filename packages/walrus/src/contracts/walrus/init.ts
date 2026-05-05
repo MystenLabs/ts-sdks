@@ -6,20 +6,23 @@ import { bcs } from '@mysten/sui/bcs';
 import { type Transaction, type TransactionResult } from '@mysten/sui/transactions';
 import * as _package from './deps/sui/package.js';
 const $moduleName = '@local-pkg/walrus::init';
-const _INITFields = {
-	dummy_field: bcs.bool(),
-};
-export const INIT: MoveStruct<typeof _INITFields> = new MoveStruct({
+export const INIT: MoveStruct<{
+	dummy_field: ReturnType<typeof bcs.bool>;
+}> = new MoveStruct({
 	name: `${$moduleName}::INIT`,
-	fields: _INITFields,
+	fields: {
+		dummy_field: bcs.bool(),
+	},
 });
-const _InitCapFields = {
-	id: bcs.Address,
-	publisher: _package.Publisher,
-};
-export const InitCap: MoveStruct<typeof _InitCapFields> = new MoveStruct({
+export const InitCap: MoveStruct<{
+	id: typeof bcs.Address;
+	publisher: typeof _package.Publisher;
+}> = new MoveStruct({
 	name: `${$moduleName}::InitCap`,
-	fields: _InitCapFields,
+	fields: {
+		id: bcs.Address,
+		publisher: _package.Publisher,
+	},
 });
 export interface InitializeWalrusArguments {
 	initCap: RawTransactionArgument<string>;

@@ -7,14 +7,17 @@ import { type Transaction, type TransactionResult } from '@mysten/sui/transactio
 import * as blob_1 from './blob.js';
 import * as balance from './deps/sui/balance.js';
 const $moduleName = '@local-pkg/walrus::shared_blob';
-const _SharedBlobFields = {
-	id: bcs.Address,
-	blob: blob_1.Blob,
-	funds: balance.Balance,
-};
-export const SharedBlob: MoveStruct<typeof _SharedBlobFields> = new MoveStruct({
+export const SharedBlob: MoveStruct<{
+	id: typeof bcs.Address;
+	blob: typeof blob_1.Blob;
+	funds: typeof balance.Balance;
+}> = new MoveStruct({
 	name: `${$moduleName}::SharedBlob`,
-	fields: _SharedBlobFields,
+	fields: {
+		id: bcs.Address,
+		blob: blob_1.Blob,
+		funds: balance.Balance,
+	},
 });
 export interface NewArguments {
 	blob: RawTransactionArgument<string>;

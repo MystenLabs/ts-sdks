@@ -18,15 +18,23 @@
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
+import {
+	type Transaction,
+	type TransactionResult,
+	type TransactionArgument,
+} from '@mysten/sui/transactions';
 const $moduleName = '@local-pkg/kiosk::floor_price_rule';
-export const Rule = new MoveStruct({
+export const Rule: MoveStruct<{
+	dummy_field: ReturnType<typeof bcs.bool>;
+}> = new MoveStruct({
 	name: `${$moduleName}::Rule`,
 	fields: {
 		dummy_field: bcs.bool(),
 	},
 });
-export const Config = new MoveStruct({
+export const Config: MoveStruct<{
+	floor_price: ReturnType<typeof bcs.u64>;
+}> = new MoveStruct({
 	name: `${$moduleName}::Config`,
 	fields: {
 		floor_price: bcs.u64(),
@@ -52,7 +60,7 @@ export interface AddOptions {
  * Creator action: Add the Floor Price Rule for the `T`. Pass in the
  * `TransferPolicy`, `TransferPolicyCap` and `floor_price`.
  */
-export function add(options: AddOptions) {
+export function add(options: AddOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/kiosk';
 	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
 	const parameterNames = ['policy', 'cap', 'floorPrice'];
@@ -77,7 +85,7 @@ export interface ProveOptions {
 	typeArguments: [string];
 }
 /** Buyer action: Prove that the amount is higher or equal to the floor_price. */
-export function prove(options: ProveOptions) {
+export function prove(options: ProveOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/kiosk';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['policy', 'request'];

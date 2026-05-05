@@ -10,28 +10,39 @@ import {
 } from '@mysten/sui/transactions';
 import * as storage_resource from './storage_resource.js';
 const $moduleName = '@local-pkg/walrus::blob';
-const _BlobFields = {
-	id: bcs.Address,
-	registered_epoch: bcs.u32(),
-	blob_id: bcs.u256(),
-	size: bcs.u64(),
-	encoding_type: bcs.u8(),
-	certified_epoch: bcs.option(bcs.u32()),
-	storage: storage_resource.Storage,
-	deletable: bcs.bool(),
-};
-export const Blob: MoveStruct<typeof _BlobFields> = new MoveStruct({
+export const Blob: MoveStruct<{
+	id: typeof bcs.Address;
+	registered_epoch: ReturnType<typeof bcs.u32>;
+	blob_id: ReturnType<typeof bcs.u256>;
+	size: ReturnType<typeof bcs.u64>;
+	encoding_type: ReturnType<typeof bcs.u8>;
+	certified_epoch: ReturnType<typeof bcs.option<ReturnType<typeof bcs.u32>>>;
+	storage: typeof storage_resource.Storage;
+	deletable: ReturnType<typeof bcs.bool>;
+}> = new MoveStruct({
 	name: `${$moduleName}::Blob`,
-	fields: _BlobFields,
+	fields: {
+		id: bcs.Address,
+		registered_epoch: bcs.u32(),
+		blob_id: bcs.u256(),
+		size: bcs.u64(),
+		encoding_type: bcs.u8(),
+		certified_epoch: bcs.option(bcs.u32()),
+		storage: storage_resource.Storage,
+		deletable: bcs.bool(),
+	},
 });
-const _BlobIdDerivationFields = {
-	encoding_type: bcs.u8(),
-	size: bcs.u64(),
-	root_hash: bcs.u256(),
-};
-export const BlobIdDerivation: MoveStruct<typeof _BlobIdDerivationFields> = new MoveStruct({
+export const BlobIdDerivation: MoveStruct<{
+	encoding_type: ReturnType<typeof bcs.u8>;
+	size: ReturnType<typeof bcs.u64>;
+	root_hash: ReturnType<typeof bcs.u256>;
+}> = new MoveStruct({
 	name: `${$moduleName}::BlobIdDerivation`,
-	fields: _BlobIdDerivationFields,
+	fields: {
+		encoding_type: bcs.u8(),
+		size: bcs.u64(),
+		root_hash: bcs.u256(),
+	},
 });
 export interface ObjectIdArguments {
 	self: RawTransactionArgument<string>;

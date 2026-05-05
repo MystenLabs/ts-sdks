@@ -10,29 +10,34 @@ import {
 } from '@mysten/sui/transactions';
 import * as balance from './deps/sui/balance.js';
 const $moduleName = '@local-pkg/walrus::storage_accounting';
-const _FutureAccountingFields = {
-	epoch: bcs.u32(),
-	/**
-	 * This field stores `used_capacity` for the epoch. Currently, impossible to rename
-	 * due to package upgrade limitations.
-	 */
-	used_capacity: bcs.u64(),
-	rewards_to_distribute: balance.Balance,
-};
-export const FutureAccounting: MoveStruct<typeof _FutureAccountingFields> = new MoveStruct({
+export const FutureAccounting: MoveStruct<{
+	epoch: ReturnType<typeof bcs.u32>;
+	used_capacity: ReturnType<typeof bcs.u64>;
+	rewards_to_distribute: typeof balance.Balance;
+}> = new MoveStruct({
 	name: `${$moduleName}::FutureAccounting`,
-	fields: _FutureAccountingFields,
+	fields: {
+		epoch: bcs.u32(),
+		/**
+		 * This field stores `used_capacity` for the epoch. Currently, impossible to rename
+		 * due to package upgrade limitations.
+		 */
+		used_capacity: bcs.u64(),
+		rewards_to_distribute: balance.Balance,
+	},
 });
-const _FutureAccountingRingBufferFields = {
-	current_index: bcs.u32(),
-	length: bcs.u32(),
-	ring_buffer: bcs.vector(FutureAccounting),
-};
-export const FutureAccountingRingBuffer: MoveStruct<typeof _FutureAccountingRingBufferFields> =
-	new MoveStruct({
-		name: `${$moduleName}::FutureAccountingRingBuffer`,
-		fields: _FutureAccountingRingBufferFields,
-	});
+export const FutureAccountingRingBuffer: MoveStruct<{
+	current_index: ReturnType<typeof bcs.u32>;
+	length: ReturnType<typeof bcs.u32>;
+	ring_buffer: ReturnType<typeof bcs.vector<typeof FutureAccounting>>;
+}> = new MoveStruct({
+	name: `${$moduleName}::FutureAccountingRingBuffer`,
+	fields: {
+		current_index: bcs.u32(),
+		length: bcs.u32(),
+		ring_buffer: bcs.vector(FutureAccounting),
+	},
+});
 export interface MaxEpochsAheadArguments {
 	self: TransactionArgument;
 }

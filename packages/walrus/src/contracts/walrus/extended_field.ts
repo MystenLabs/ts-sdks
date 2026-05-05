@@ -13,17 +13,17 @@ import {
 import { bcs, type BcsType } from '@mysten/sui/bcs';
 import { type Transaction, type TransactionResult } from '@mysten/sui/transactions';
 const $moduleName = '@local-pkg/walrus::extended_field';
-const _ExtendedFieldFields = {
-	id: bcs.Address,
-};
-export const ExtendedField: MoveStruct<typeof _ExtendedFieldFields> = new MoveStruct({
+export const ExtendedField: MoveStruct<{
+	id: typeof bcs.Address;
+}> = new MoveStruct({
 	name: `${$moduleName}::ExtendedField<phantom T>`,
-	fields: _ExtendedFieldFields,
+	fields: {
+		id: bcs.Address,
+	},
 });
-const _KeyFields = [bcs.bool()] as const;
-export const Key: MoveTuple<typeof _KeyFields> = new MoveTuple({
+export const Key: MoveTuple<[ReturnType<typeof bcs.bool>]> = new MoveTuple({
 	name: `${$moduleName}::Key`,
-	fields: _KeyFields,
+	fields: [bcs.bool()],
 });
 export interface NewArguments<T extends BcsType<any>> {
 	value: RawTransactionArgument<T>;

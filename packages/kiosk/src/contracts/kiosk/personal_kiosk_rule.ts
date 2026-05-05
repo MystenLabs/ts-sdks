@@ -26,9 +26,15 @@
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
+import {
+	type Transaction,
+	type TransactionResult,
+	type TransactionArgument,
+} from '@mysten/sui/transactions';
 const $moduleName = '@local-pkg/kiosk::personal_kiosk_rule';
-export const Rule = new MoveStruct({
+export const Rule: MoveStruct<{
+	dummy_field: ReturnType<typeof bcs.bool>;
+}> = new MoveStruct({
 	name: `${$moduleName}::Rule`,
 	fields: {
 		dummy_field: bcs.bool(),
@@ -46,7 +52,7 @@ export interface AddOptions {
 	typeArguments: [string];
 }
 /** Add the "owned" rule to the KioskOwnerCap. */
-export function add(options: AddOptions) {
+export function add(options: AddOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/kiosk';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['policy', 'cap'];
@@ -72,7 +78,7 @@ export interface ProveOptions {
  * Make sure that the destination Kiosk has the Owner key. Item is already placed
  * by the time this check is performed - otherwise fails.
  */
-export function prove(options: ProveOptions) {
+export function prove(options: ProveOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/kiosk';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['kiosk', 'request'];

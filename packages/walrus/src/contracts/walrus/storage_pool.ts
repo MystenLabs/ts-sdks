@@ -18,41 +18,55 @@ import {
 import * as storage_resource from './storage_resource.js';
 import * as object_table from './deps/sui/object_table.js';
 const $moduleName = '@local-pkg/walrus::storage_pool';
-const _StoragePoolFields = {
-	id: bcs.Address,
-	version: bcs.u64(),
-};
-export const StoragePool: MoveStruct<typeof _StoragePoolFields> = new MoveStruct({
+export const StoragePool: MoveStruct<{
+	id: typeof bcs.Address;
+	version: ReturnType<typeof bcs.u64>;
+}> = new MoveStruct({
 	name: `${$moduleName}::StoragePool`,
-	fields: _StoragePoolFields,
+	fields: {
+		id: bcs.Address,
+		version: bcs.u64(),
+	},
 });
-const _StoragePoolInnerV1Fields = {
-	/** The storage reservation backing this pool. */
-	storage: storage_resource.Storage,
-	/** Sum of all active blobs' encoded sizes. */
-	used_encoded_bytes: bcs.u64(),
-	/** Number of blobs in the table. */
-	blob_count: bcs.u64(),
-	blobs: object_table.ObjectTable,
-};
-export const StoragePoolInnerV1: MoveStruct<typeof _StoragePoolInnerV1Fields> = new MoveStruct({
+export const StoragePoolInnerV1: MoveStruct<{
+	storage: typeof storage_resource.Storage;
+	used_encoded_bytes: ReturnType<typeof bcs.u64>;
+	blob_count: ReturnType<typeof bcs.u64>;
+	blobs: typeof object_table.ObjectTable;
+}> = new MoveStruct({
 	name: `${$moduleName}::StoragePoolInnerV1`,
-	fields: _StoragePoolInnerV1Fields,
+	fields: {
+		/** The storage reservation backing this pool. */
+		storage: storage_resource.Storage,
+		/** Sum of all active blobs' encoded sizes. */
+		used_encoded_bytes: bcs.u64(),
+		/** Number of blobs in the table. */
+		blob_count: bcs.u64(),
+		blobs: object_table.ObjectTable,
+	},
 });
-const _PooledBlobFields = {
-	id: bcs.Address,
-	registered_epoch: bcs.u32(),
-	blob_id: bcs.u256(),
-	unencoded_size: bcs.u64(),
-	encoding_type: bcs.u8(),
-	certified_epoch: bcs.option(bcs.u32()),
-	/** Reference back to the owning pool. */
-	storage_pool_id: bcs.Address,
-	deletable: bcs.bool(),
-};
-export const PooledBlob: MoveStruct<typeof _PooledBlobFields> = new MoveStruct({
+export const PooledBlob: MoveStruct<{
+	id: typeof bcs.Address;
+	registered_epoch: ReturnType<typeof bcs.u32>;
+	blob_id: ReturnType<typeof bcs.u256>;
+	unencoded_size: ReturnType<typeof bcs.u64>;
+	encoding_type: ReturnType<typeof bcs.u8>;
+	certified_epoch: ReturnType<typeof bcs.option<ReturnType<typeof bcs.u32>>>;
+	storage_pool_id: typeof bcs.Address;
+	deletable: ReturnType<typeof bcs.bool>;
+}> = new MoveStruct({
 	name: `${$moduleName}::PooledBlob`,
-	fields: _PooledBlobFields,
+	fields: {
+		id: bcs.Address,
+		registered_epoch: bcs.u32(),
+		blob_id: bcs.u256(),
+		unencoded_size: bcs.u64(),
+		encoding_type: bcs.u8(),
+		certified_epoch: bcs.option(bcs.u32()),
+		/** Reference back to the owning pool. */
+		storage_pool_id: bcs.Address,
+		deletable: bcs.bool(),
+	},
 });
 export interface StartEpochArguments {
 	self: RawTransactionArgument<string>;

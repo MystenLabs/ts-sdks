@@ -3,10 +3,14 @@
  **************************************************************/
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs, type BcsType } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionResult } from '@mysten/sui/transactions';
 import * as bag from './bag.js';
 const $moduleName = '0x2::kiosk_extension';
-export const Extension = new MoveStruct({
+export const Extension: MoveStruct<{
+	storage: typeof bag.Bag;
+	permissions: ReturnType<typeof bcs.u128>;
+	is_enabled: ReturnType<typeof bcs.bool>;
+}> = new MoveStruct({
 	name: `${$moduleName}::Extension`,
 	fields: {
 		storage: bag.Bag,
@@ -14,7 +18,9 @@ export const Extension = new MoveStruct({
 		is_enabled: bcs.bool(),
 	},
 });
-export const ExtensionKey = new MoveStruct({
+export const ExtensionKey: MoveStruct<{
+	dummy_field: ReturnType<typeof bcs.bool>;
+}> = new MoveStruct({
 	name: `${$moduleName}::ExtensionKey<phantom T0>`,
 	fields: {
 		dummy_field: bcs.bool(),
@@ -30,7 +36,9 @@ export interface AddOptions<T0 extends BcsType<any>> {
 	];
 	typeArguments: [string];
 }
-export function add<T0 extends BcsType<any>>(options: AddOptions<T0>) {
+export function add<T0 extends BcsType<any>>(
+	options: AddOptions<T0>,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [`${options.typeArguments[0]}`, null, null, 'u128'] satisfies (
@@ -51,7 +59,7 @@ export interface DisableOptions {
 	arguments: [RawTransactionArgument<string>, RawTransactionArgument<string>];
 	typeArguments: [string];
 }
-export function disable(options: DisableOptions) {
+export function disable(options: DisableOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
@@ -69,7 +77,7 @@ export interface EnableOptions {
 	arguments: [RawTransactionArgument<string>, RawTransactionArgument<string>];
 	typeArguments: [string];
 }
-export function enable(options: EnableOptions) {
+export function enable(options: EnableOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
@@ -87,7 +95,7 @@ export interface RemoveOptions {
 	arguments: [RawTransactionArgument<string>, RawTransactionArgument<string>];
 	typeArguments: [string];
 }
-export function remove(options: RemoveOptions) {
+export function remove(options: RemoveOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
@@ -105,7 +113,9 @@ export interface StorageOptions<T0 extends BcsType<any>> {
 	arguments: [RawTransactionArgument<T0>, RawTransactionArgument<string>];
 	typeArguments: [string];
 }
-export function storage<T0 extends BcsType<any>>(options: StorageOptions<T0>) {
+export function storage<T0 extends BcsType<any>>(
+	options: StorageOptions<T0>,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [`${options.typeArguments[0]}`, null] satisfies (string | null)[];
@@ -123,7 +133,9 @@ export interface StorageMutOptions<T0 extends BcsType<any>> {
 	arguments: [RawTransactionArgument<T0>, RawTransactionArgument<string>];
 	typeArguments: [string];
 }
-export function storageMut<T0 extends BcsType<any>>(options: StorageMutOptions<T0>) {
+export function storageMut<T0 extends BcsType<any>>(
+	options: StorageMutOptions<T0>,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [`${options.typeArguments[0]}`, null] satisfies (string | null)[];
@@ -148,7 +160,7 @@ export interface PlaceOptions<T0 extends BcsType<any>, T1 extends BcsType<any>> 
 }
 export function place<T0 extends BcsType<any>, T1 extends BcsType<any>>(
 	options: PlaceOptions<T0, T1>,
-) {
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [
@@ -178,7 +190,7 @@ export interface LockOptions<T0 extends BcsType<any>, T1 extends BcsType<any>> {
 }
 export function lock<T0 extends BcsType<any>, T1 extends BcsType<any>>(
 	options: LockOptions<T0, T1>,
-) {
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [
@@ -201,7 +213,7 @@ export interface IsInstalledOptions {
 	arguments: [RawTransactionArgument<string>];
 	typeArguments: [string];
 }
-export function isInstalled(options: IsInstalledOptions) {
+export function isInstalled(options: IsInstalledOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -219,7 +231,7 @@ export interface IsEnabledOptions {
 	arguments: [RawTransactionArgument<string>];
 	typeArguments: [string];
 }
-export function isEnabled(options: IsEnabledOptions) {
+export function isEnabled(options: IsEnabledOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -237,7 +249,7 @@ export interface CanPlaceOptions {
 	arguments: [RawTransactionArgument<string>];
 	typeArguments: [string];
 }
-export function canPlace(options: CanPlaceOptions) {
+export function canPlace(options: CanPlaceOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -255,7 +267,7 @@ export interface CanLockOptions {
 	arguments: [RawTransactionArgument<string>];
 	typeArguments: [string];
 }
-export function canLock(options: CanLockOptions) {
+export function canLock(options: CanLockOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [null] satisfies (string | null)[];

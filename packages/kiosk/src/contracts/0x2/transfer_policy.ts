@@ -3,12 +3,21 @@
  **************************************************************/
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs, type BcsType } from '@mysten/sui/bcs';
-import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
+import {
+	type Transaction,
+	type TransactionResult,
+	type TransactionArgument,
+} from '@mysten/sui/transactions';
 import * as vec_set from './vec_set.js';
 import * as type_name from './deps/0x0000000000000000000000000000000000000000000000000000000000000001/type_name.js';
 import * as balance from './balance.js';
 const $moduleName = '0x2::transfer_policy';
-export const TransferRequest = new MoveStruct({
+export const TransferRequest: MoveStruct<{
+	item: typeof bcs.Address;
+	paid: ReturnType<typeof bcs.u64>;
+	from: typeof bcs.Address;
+	receipts: ReturnType<typeof vec_set.VecSet<typeof type_name.TypeName>>;
+}> = new MoveStruct({
 	name: `${$moduleName}::TransferRequest<phantom T0>`,
 	fields: {
 		item: bcs.Address,
@@ -17,7 +26,11 @@ export const TransferRequest = new MoveStruct({
 		receipts: vec_set.VecSet(type_name.TypeName),
 	},
 });
-export const TransferPolicy = new MoveStruct({
+export const TransferPolicy: MoveStruct<{
+	id: typeof bcs.Address;
+	balance: typeof balance.Balance;
+	rules: ReturnType<typeof vec_set.VecSet<typeof type_name.TypeName>>;
+}> = new MoveStruct({
 	name: `${$moduleName}::TransferPolicy<phantom T0>`,
 	fields: {
 		id: bcs.Address,
@@ -25,26 +38,35 @@ export const TransferPolicy = new MoveStruct({
 		rules: vec_set.VecSet(type_name.TypeName),
 	},
 });
-export const TransferPolicyCap = new MoveStruct({
+export const TransferPolicyCap: MoveStruct<{
+	id: typeof bcs.Address;
+	policy_id: typeof bcs.Address;
+}> = new MoveStruct({
 	name: `${$moduleName}::TransferPolicyCap<phantom T0>`,
 	fields: {
 		id: bcs.Address,
 		policy_id: bcs.Address,
 	},
 });
-export const TransferPolicyCreated = new MoveStruct({
+export const TransferPolicyCreated: MoveStruct<{
+	id: typeof bcs.Address;
+}> = new MoveStruct({
 	name: `${$moduleName}::TransferPolicyCreated<phantom T0>`,
 	fields: {
 		id: bcs.Address,
 	},
 });
-export const TransferPolicyDestroyed = new MoveStruct({
+export const TransferPolicyDestroyed: MoveStruct<{
+	id: typeof bcs.Address;
+}> = new MoveStruct({
 	name: `${$moduleName}::TransferPolicyDestroyed<phantom T0>`,
 	fields: {
 		id: bcs.Address,
 	},
 });
-export const RuleKey = new MoveStruct({
+export const RuleKey: MoveStruct<{
+	dummy_field: ReturnType<typeof bcs.bool>;
+}> = new MoveStruct({
 	name: `${$moduleName}::RuleKey<phantom T0>`,
 	fields: {
 		dummy_field: bcs.bool(),
@@ -59,7 +81,7 @@ export interface NewRequestOptions {
 	];
 	typeArguments: [string];
 }
-export function newRequest(options: NewRequestOptions) {
+export function newRequest(options: NewRequestOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = ['0x2::object::ID', 'u64', '0x2::object::ID'] satisfies (string | null)[];
@@ -77,7 +99,7 @@ export interface NewOptions {
 	arguments: [RawTransactionArgument<string>];
 	typeArguments: [string];
 }
-export function _new(options: NewOptions) {
+export function _new(options: NewOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -95,7 +117,7 @@ export interface DefaultOptions {
 	arguments: [RawTransactionArgument<string>];
 	typeArguments: [string];
 }
-export function _default(options: DefaultOptions) {
+export function _default(options: DefaultOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -117,7 +139,7 @@ export interface WithdrawOptions {
 	];
 	typeArguments: [string];
 }
-export function withdraw(options: WithdrawOptions) {
+export function withdraw(options: WithdrawOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [null, null, '0x1::option::Option<u64>'] satisfies (string | null)[];
@@ -135,7 +157,9 @@ export interface DestroyAndWithdrawOptions {
 	arguments: [RawTransactionArgument<string>, RawTransactionArgument<string>];
 	typeArguments: [string];
 }
-export function destroyAndWithdraw(options: DestroyAndWithdrawOptions) {
+export function destroyAndWithdraw(
+	options: DestroyAndWithdrawOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
@@ -153,7 +177,9 @@ export interface ConfirmRequestOptions {
 	arguments: [RawTransactionArgument<string>, TransactionArgument];
 	typeArguments: [string];
 }
-export function confirmRequest(options: ConfirmRequestOptions) {
+export function confirmRequest(
+	options: ConfirmRequestOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
@@ -178,7 +204,7 @@ export interface AddRuleOptions<T1 extends BcsType<any>, T2 extends BcsType<any>
 }
 export function addRule<T1 extends BcsType<any>, T2 extends BcsType<any>>(
 	options: AddRuleOptions<T1, T2>,
-) {
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [
@@ -201,7 +227,9 @@ export interface GetRuleOptions<T1 extends BcsType<any>> {
 	arguments: [RawTransactionArgument<T1>, RawTransactionArgument<string>];
 	typeArguments: [string, string, string];
 }
-export function getRule<T1 extends BcsType<any>>(options: GetRuleOptions<T1>) {
+export function getRule<T1 extends BcsType<any>>(
+	options: GetRuleOptions<T1>,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [`${options.typeArguments[1]}`, null] satisfies (string | null)[];
@@ -223,7 +251,9 @@ export interface AddToBalanceOptions<T1 extends BcsType<any>> {
 	];
 	typeArguments: [string, string];
 }
-export function addToBalance<T1 extends BcsType<any>>(options: AddToBalanceOptions<T1>) {
+export function addToBalance<T1 extends BcsType<any>>(
+	options: AddToBalanceOptions<T1>,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [`${options.typeArguments[1]}`, null, null] satisfies (string | null)[];
@@ -241,7 +271,9 @@ export interface AddReceiptOptions<T1 extends BcsType<any>> {
 	arguments: [RawTransactionArgument<T1>, TransactionArgument];
 	typeArguments: [string, string];
 }
-export function addReceipt<T1 extends BcsType<any>>(options: AddReceiptOptions<T1>) {
+export function addReceipt<T1 extends BcsType<any>>(
+	options: AddReceiptOptions<T1>,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [`${options.typeArguments[1]}`, null] satisfies (string | null)[];
@@ -259,7 +291,7 @@ export interface HasRuleOptions {
 	arguments: [RawTransactionArgument<string>];
 	typeArguments: [string, string];
 }
-export function hasRule(options: HasRuleOptions) {
+export function hasRule(options: HasRuleOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -277,7 +309,7 @@ export interface RemoveRuleOptions {
 	arguments: [RawTransactionArgument<string>, RawTransactionArgument<string>];
 	typeArguments: [string, string, string];
 }
-export function removeRule(options: RemoveRuleOptions) {
+export function removeRule(options: RemoveRuleOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
@@ -295,7 +327,7 @@ export interface UidOptions {
 	arguments: [RawTransactionArgument<string>];
 	typeArguments: [string];
 }
-export function uid(options: UidOptions) {
+export function uid(options: UidOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -313,7 +345,9 @@ export interface UidMutAsOwnerOptions {
 	arguments: [RawTransactionArgument<string>, RawTransactionArgument<string>];
 	typeArguments: [string];
 }
-export function uidMutAsOwner(options: UidMutAsOwnerOptions) {
+export function uidMutAsOwner(
+	options: UidMutAsOwnerOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
@@ -331,7 +365,7 @@ export interface RulesOptions {
 	arguments: [RawTransactionArgument<string>];
 	typeArguments: [string];
 }
-export function rules(options: RulesOptions) {
+export function rules(options: RulesOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -349,7 +383,7 @@ export interface ItemOptions {
 	arguments: [TransactionArgument];
 	typeArguments: [string];
 }
-export function item(options: ItemOptions) {
+export function item(options: ItemOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -367,7 +401,7 @@ export interface PaidOptions {
 	arguments: [TransactionArgument];
 	typeArguments: [string];
 }
-export function paid(options: PaidOptions) {
+export function paid(options: PaidOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -385,7 +419,7 @@ export interface FromOptions {
 	arguments: [TransactionArgument];
 	typeArguments: [string];
 }
-export function _from(options: FromOptions) {
+export function _from(options: FromOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [null] satisfies (string | null)[];

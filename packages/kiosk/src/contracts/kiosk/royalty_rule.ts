@@ -33,15 +33,24 @@
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
+import {
+	type Transaction,
+	type TransactionResult,
+	type TransactionArgument,
+} from '@mysten/sui/transactions';
 const $moduleName = '@local-pkg/kiosk::royalty_rule';
-export const Rule = new MoveStruct({
+export const Rule: MoveStruct<{
+	dummy_field: ReturnType<typeof bcs.bool>;
+}> = new MoveStruct({
 	name: `${$moduleName}::Rule`,
 	fields: {
 		dummy_field: bcs.bool(),
 	},
 });
-export const Config = new MoveStruct({
+export const Config: MoveStruct<{
+	amount_bp: ReturnType<typeof bcs.u16>;
+	min_amount: ReturnType<typeof bcs.u64>;
+}> = new MoveStruct({
 	name: `${$moduleName}::Config`,
 	fields: {
 		amount_bp: bcs.u16(),
@@ -71,7 +80,7 @@ export interface AddOptions {
  * `TransferPolicyCap` and the configuration for the policy: `amount_bp` and
  * `min_amount`.
  */
-export function add(options: AddOptions) {
+export function add(options: AddOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/kiosk';
 	const argumentsTypes = [null, null, 'u16', 'u64'] satisfies (string | null)[];
 	const parameterNames = ['policy', 'cap', 'amountBp', 'minAmount'];
@@ -101,7 +110,7 @@ export interface PayOptions {
 	typeArguments: [string];
 }
 /** Buyer action: Pay the royalty fee for the transfer. */
-export function pay(options: PayOptions) {
+export function pay(options: PayOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/kiosk';
 	const argumentsTypes = [null, null, null] satisfies (string | null)[];
 	const parameterNames = ['policy', 'request', 'payment'];
@@ -129,7 +138,7 @@ export interface FeeAmountOptions {
  * Helper function to calculate the amount to be paid for the transfer. Can be used
  * dry-runned to estimate the fee amount based on the Kiosk listing price.
  */
-export function feeAmount(options: FeeAmountOptions) {
+export function feeAmount(options: FeeAmountOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/kiosk';
 	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
 	const parameterNames = ['policy', 'paid'];

@@ -2,6 +2,7 @@
  * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
  **************************************************************/
 
+
 /**
  * This module defines the OrderPage struct and its methods to iterate over orders
  * in a pool.
@@ -9,37 +10,38 @@
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionResult, type TransactionArgument } from '@mysten/sui/transactions';
 import * as order from './order.js';
 const $moduleName = '@deepbook/core::order_query';
-export const OrderPage = new MoveStruct({
-	name: `${$moduleName}::OrderPage`,
-	fields: {
-		orders: bcs.vector(order.Order),
-		has_next_page: bcs.bool(),
-	},
-});
+export const OrderPage: MoveStruct<{
+    "orders": ReturnType<typeof bcs.vector<typeof order.Order>>;
+    "has_next_page": ReturnType<typeof bcs.bool>;
+}> = new MoveStruct({ name: `${$moduleName}::OrderPage`, fields: {
+        orders: bcs.vector(order.Order),
+        has_next_page: bcs.bool()
+    } });
 export interface IterOrdersArguments {
-	self: RawTransactionArgument<string>;
-	startOrderId: RawTransactionArgument<number | bigint | null>;
-	endOrderId: RawTransactionArgument<number | bigint | null>;
-	minExpireTimestamp: RawTransactionArgument<number | bigint | null>;
-	limit: RawTransactionArgument<number | bigint>;
-	bids: RawTransactionArgument<boolean>;
+    self: RawTransactionArgument<string>;
+    startOrderId: RawTransactionArgument<number | bigint | null>;
+    endOrderId: RawTransactionArgument<number | bigint | null>;
+    minExpireTimestamp: RawTransactionArgument<number | bigint | null>;
+    limit: RawTransactionArgument<number | bigint>;
+    bids: RawTransactionArgument<boolean>;
 }
 export interface IterOrdersOptions {
-	package?: string;
-	arguments:
-		| IterOrdersArguments
-		| [
-				self: RawTransactionArgument<string>,
-				startOrderId: RawTransactionArgument<number | bigint | null>,
-				endOrderId: RawTransactionArgument<number | bigint | null>,
-				minExpireTimestamp: RawTransactionArgument<number | bigint | null>,
-				limit: RawTransactionArgument<number | bigint>,
-				bids: RawTransactionArgument<boolean>,
-		  ];
-	typeArguments: [string, string];
+    package?: string;
+    arguments: IterOrdersArguments | [
+        self: RawTransactionArgument<string>,
+        startOrderId: RawTransactionArgument<number | bigint | null>,
+        endOrderId: RawTransactionArgument<number | bigint | null>,
+        minExpireTimestamp: RawTransactionArgument<number | bigint | null>,
+        limit: RawTransactionArgument<number | bigint>,
+        bids: RawTransactionArgument<boolean>
+    ];
+    typeArguments: [
+        string,
+        string
+    ];
 }
 /**
  * Bid minimum order id has 0 for its first bit, 0 for next 63 bits for price, and
@@ -48,68 +50,66 @@ export interface IterOrdersOptions {
  * iterated from high to low order id, and asks are iterated from low to high order
  * id.
  */
-export function iterOrders(options: IterOrdersOptions) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [
-		null,
-		'0x1::option::Option<u128>',
-		'0x1::option::Option<u128>',
-		'0x1::option::Option<u64>',
-		'u64',
-		'bool',
-	] satisfies (string | null)[];
-	const parameterNames = [
-		'self',
-		'startOrderId',
-		'endOrderId',
-		'minExpireTimestamp',
-		'limit',
-		'bids',
-	];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'order_query',
-			function: 'iter_orders',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-			typeArguments: options.typeArguments,
-		});
+export function iterOrders(options: IterOrdersOptions): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    const argumentsTypes = [
+        null,
+        '0x1::option::Option<u128>',
+        '0x1::option::Option<u128>',
+        '0x1::option::Option<u64>',
+        'u64',
+        'bool'
+    ] satisfies (string | null)[];
+    const parameterNames = ["self", "startOrderId", "endOrderId", "minExpireTimestamp", "limit", "bids"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'order_query',
+        function: 'iter_orders',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+        typeArguments: options.typeArguments
+    });
 }
 export interface OrdersArguments {
-	self: TransactionArgument;
+    self: TransactionArgument;
 }
 export interface OrdersOptions {
-	package?: string;
-	arguments: OrdersArguments | [self: TransactionArgument];
+    package?: string;
+    arguments: OrdersArguments | [
+        self: TransactionArgument
+    ];
 }
-export function orders(options: OrdersOptions) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [null] satisfies (string | null)[];
-	const parameterNames = ['self'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'order_query',
-			function: 'orders',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
+export function orders(options: OrdersOptions): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    const argumentsTypes = [
+        null
+    ] satisfies (string | null)[];
+    const parameterNames = ["self"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'order_query',
+        function: 'orders',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+    });
 }
 export interface HasNextPageArguments {
-	self: TransactionArgument;
+    self: TransactionArgument;
 }
 export interface HasNextPageOptions {
-	package?: string;
-	arguments: HasNextPageArguments | [self: TransactionArgument];
+    package?: string;
+    arguments: HasNextPageArguments | [
+        self: TransactionArgument
+    ];
 }
-export function hasNextPage(options: HasNextPageOptions) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [null] satisfies (string | null)[];
-	const parameterNames = ['self'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'order_query',
-			function: 'has_next_page',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
+export function hasNextPage(options: HasNextPageOptions): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    const argumentsTypes = [
+        null
+    ] satisfies (string | null)[];
+    const parameterNames = ["self"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'order_query',
+        function: 'has_next_page',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+    });
 }

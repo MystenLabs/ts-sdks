@@ -13,15 +13,21 @@ import {
 } from '@mysten/sui/transactions';
 import * as vec_map from './deps/sui/vec_map.js';
 const $moduleName = '@local-pkg/walrus::node_metadata';
-const _NodeMetadataFields = {
-	image_url: bcs.string(),
-	project_url: bcs.string(),
-	description: bcs.string(),
-	extra_fields: vec_map.VecMap(bcs.string(), bcs.string()),
-};
-export const NodeMetadata: MoveStruct<typeof _NodeMetadataFields> = new MoveStruct({
+export const NodeMetadata: MoveStruct<{
+	image_url: ReturnType<typeof bcs.string>;
+	project_url: ReturnType<typeof bcs.string>;
+	description: ReturnType<typeof bcs.string>;
+	extra_fields: ReturnType<
+		typeof vec_map.VecMap<ReturnType<typeof bcs.string>, ReturnType<typeof bcs.string>>
+	>;
+}> = new MoveStruct({
 	name: `${$moduleName}::NodeMetadata`,
-	fields: _NodeMetadataFields,
+	fields: {
+		image_url: bcs.string(),
+		project_url: bcs.string(),
+		description: bcs.string(),
+		extra_fields: vec_map.VecMap(bcs.string(), bcs.string()),
+	},
 });
 export interface NewArguments {
 	imageUrl: RawTransactionArgument<string>;

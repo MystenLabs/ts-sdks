@@ -10,215 +10,285 @@
 import { MoveStruct } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 const $moduleName = '@local-pkg/walrus::events';
-const _BlobRegisteredFields = {
-	epoch: bcs.u32(),
-	blob_id: bcs.u256(),
-	size: bcs.u64(),
-	encoding_type: bcs.u8(),
-	end_epoch: bcs.u32(),
-	deletable: bcs.bool(),
-	object_id: bcs.Address,
-};
-export const BlobRegistered: MoveStruct<typeof _BlobRegisteredFields> = new MoveStruct({
+export const BlobRegistered: MoveStruct<{
+	epoch: ReturnType<typeof bcs.u32>;
+	blob_id: ReturnType<typeof bcs.u256>;
+	size: ReturnType<typeof bcs.u64>;
+	encoding_type: ReturnType<typeof bcs.u8>;
+	end_epoch: ReturnType<typeof bcs.u32>;
+	deletable: ReturnType<typeof bcs.bool>;
+	object_id: typeof bcs.Address;
+}> = new MoveStruct({
 	name: `${$moduleName}::BlobRegistered`,
-	fields: _BlobRegisteredFields,
+	fields: {
+		epoch: bcs.u32(),
+		blob_id: bcs.u256(),
+		size: bcs.u64(),
+		encoding_type: bcs.u8(),
+		end_epoch: bcs.u32(),
+		deletable: bcs.bool(),
+		object_id: bcs.Address,
+	},
 });
-const _BlobCertifiedFields = {
-	epoch: bcs.u32(),
-	blob_id: bcs.u256(),
-	end_epoch: bcs.u32(),
-	deletable: bcs.bool(),
-	object_id: bcs.Address,
-	is_extension: bcs.bool(),
-};
-export const BlobCertified: MoveStruct<typeof _BlobCertifiedFields> = new MoveStruct({
+export const BlobCertified: MoveStruct<{
+	epoch: ReturnType<typeof bcs.u32>;
+	blob_id: ReturnType<typeof bcs.u256>;
+	end_epoch: ReturnType<typeof bcs.u32>;
+	deletable: ReturnType<typeof bcs.bool>;
+	object_id: typeof bcs.Address;
+	is_extension: ReturnType<typeof bcs.bool>;
+}> = new MoveStruct({
 	name: `${$moduleName}::BlobCertified`,
-	fields: _BlobCertifiedFields,
+	fields: {
+		epoch: bcs.u32(),
+		blob_id: bcs.u256(),
+		end_epoch: bcs.u32(),
+		deletable: bcs.bool(),
+		object_id: bcs.Address,
+		is_extension: bcs.bool(),
+	},
 });
-const _BlobDeletedFields = {
-	epoch: bcs.u32(),
-	blob_id: bcs.u256(),
-	end_epoch: bcs.u32(),
-	object_id: bcs.Address,
-	was_certified: bcs.bool(),
-};
-export const BlobDeleted: MoveStruct<typeof _BlobDeletedFields> = new MoveStruct({
+export const BlobDeleted: MoveStruct<{
+	epoch: ReturnType<typeof bcs.u32>;
+	blob_id: ReturnType<typeof bcs.u256>;
+	end_epoch: ReturnType<typeof bcs.u32>;
+	object_id: typeof bcs.Address;
+	was_certified: ReturnType<typeof bcs.bool>;
+}> = new MoveStruct({
 	name: `${$moduleName}::BlobDeleted`,
-	fields: _BlobDeletedFields,
+	fields: {
+		epoch: bcs.u32(),
+		blob_id: bcs.u256(),
+		end_epoch: bcs.u32(),
+		object_id: bcs.Address,
+		was_certified: bcs.bool(),
+	},
 });
-const _InvalidBlobIDFields = {
-	epoch: bcs.u32(),
-	blob_id: bcs.u256(),
-};
-export const InvalidBlobID: MoveStruct<typeof _InvalidBlobIDFields> = new MoveStruct({
+export const InvalidBlobID: MoveStruct<{
+	epoch: ReturnType<typeof bcs.u32>;
+	blob_id: ReturnType<typeof bcs.u256>;
+}> = new MoveStruct({
 	name: `${$moduleName}::InvalidBlobID`,
-	fields: _InvalidBlobIDFields,
+	fields: {
+		epoch: bcs.u32(),
+		blob_id: bcs.u256(),
+	},
 });
-const _EpochChangeStartFields = {
-	epoch: bcs.u32(),
-};
-export const EpochChangeStart: MoveStruct<typeof _EpochChangeStartFields> = new MoveStruct({
+export const EpochChangeStart: MoveStruct<{
+	epoch: ReturnType<typeof bcs.u32>;
+}> = new MoveStruct({
 	name: `${$moduleName}::EpochChangeStart`,
-	fields: _EpochChangeStartFields,
+	fields: {
+		epoch: bcs.u32(),
+	},
 });
-const _EpochChangeDoneFields = {
-	epoch: bcs.u32(),
-};
-export const EpochChangeDone: MoveStruct<typeof _EpochChangeDoneFields> = new MoveStruct({
+export const EpochChangeDone: MoveStruct<{
+	epoch: ReturnType<typeof bcs.u32>;
+}> = new MoveStruct({
 	name: `${$moduleName}::EpochChangeDone`,
-	fields: _EpochChangeDoneFields,
+	fields: {
+		epoch: bcs.u32(),
+	},
 });
-const _ShardsReceivedFields = {
-	epoch: bcs.u32(),
-	shards: bcs.vector(bcs.u16()),
-};
-export const ShardsReceived: MoveStruct<typeof _ShardsReceivedFields> = new MoveStruct({
+export const ShardsReceived: MoveStruct<{
+	epoch: ReturnType<typeof bcs.u32>;
+	shards: ReturnType<typeof bcs.vector<ReturnType<typeof bcs.u16>>>;
+}> = new MoveStruct({
 	name: `${$moduleName}::ShardsReceived`,
-	fields: _ShardsReceivedFields,
+	fields: {
+		epoch: bcs.u32(),
+		shards: bcs.vector(bcs.u16()),
+	},
 });
-const _EpochParametersSelectedFields = {
-	next_epoch: bcs.u32(),
-};
-export const EpochParametersSelected: MoveStruct<typeof _EpochParametersSelectedFields> =
-	new MoveStruct({
-		name: `${$moduleName}::EpochParametersSelected`,
-		fields: _EpochParametersSelectedFields,
-	});
-const _ShardRecoveryStartFields = {
-	epoch: bcs.u32(),
-	shards: bcs.vector(bcs.u16()),
-};
-export const ShardRecoveryStart: MoveStruct<typeof _ShardRecoveryStartFields> = new MoveStruct({
+export const EpochParametersSelected: MoveStruct<{
+	next_epoch: ReturnType<typeof bcs.u32>;
+}> = new MoveStruct({
+	name: `${$moduleName}::EpochParametersSelected`,
+	fields: {
+		next_epoch: bcs.u32(),
+	},
+});
+export const ShardRecoveryStart: MoveStruct<{
+	epoch: ReturnType<typeof bcs.u32>;
+	shards: ReturnType<typeof bcs.vector<ReturnType<typeof bcs.u16>>>;
+}> = new MoveStruct({
 	name: `${$moduleName}::ShardRecoveryStart`,
-	fields: _ShardRecoveryStartFields,
+	fields: {
+		epoch: bcs.u32(),
+		shards: bcs.vector(bcs.u16()),
+	},
 });
-const _ContractUpgradedFields = {
-	epoch: bcs.u32(),
-	package_id: bcs.Address,
-	version: bcs.u64(),
-};
-export const ContractUpgraded: MoveStruct<typeof _ContractUpgradedFields> = new MoveStruct({
+export const ContractUpgraded: MoveStruct<{
+	epoch: ReturnType<typeof bcs.u32>;
+	package_id: typeof bcs.Address;
+	version: ReturnType<typeof bcs.u64>;
+}> = new MoveStruct({
 	name: `${$moduleName}::ContractUpgraded`,
-	fields: _ContractUpgradedFields,
+	fields: {
+		epoch: bcs.u32(),
+		package_id: bcs.Address,
+		version: bcs.u64(),
+	},
 });
-const _RegisterDenyListUpdateFields = {
-	epoch: bcs.u32(),
-	root: bcs.u256(),
-	sequence_number: bcs.u64(),
-	node_id: bcs.Address,
-};
-export const RegisterDenyListUpdate: MoveStruct<typeof _RegisterDenyListUpdateFields> =
-	new MoveStruct({
-		name: `${$moduleName}::RegisterDenyListUpdate`,
-		fields: _RegisterDenyListUpdateFields,
-	});
-const _DenyListUpdateFields = {
-	epoch: bcs.u32(),
-	root: bcs.u256(),
-	sequence_number: bcs.u64(),
-	node_id: bcs.Address,
-};
-export const DenyListUpdate: MoveStruct<typeof _DenyListUpdateFields> = new MoveStruct({
+export const RegisterDenyListUpdate: MoveStruct<{
+	epoch: ReturnType<typeof bcs.u32>;
+	root: ReturnType<typeof bcs.u256>;
+	sequence_number: ReturnType<typeof bcs.u64>;
+	node_id: typeof bcs.Address;
+}> = new MoveStruct({
+	name: `${$moduleName}::RegisterDenyListUpdate`,
+	fields: {
+		epoch: bcs.u32(),
+		root: bcs.u256(),
+		sequence_number: bcs.u64(),
+		node_id: bcs.Address,
+	},
+});
+export const DenyListUpdate: MoveStruct<{
+	epoch: ReturnType<typeof bcs.u32>;
+	root: ReturnType<typeof bcs.u256>;
+	sequence_number: ReturnType<typeof bcs.u64>;
+	node_id: typeof bcs.Address;
+}> = new MoveStruct({
 	name: `${$moduleName}::DenyListUpdate`,
-	fields: _DenyListUpdateFields,
+	fields: {
+		epoch: bcs.u32(),
+		root: bcs.u256(),
+		sequence_number: bcs.u64(),
+		node_id: bcs.Address,
+	},
 });
-const _DenyListBlobDeletedFields = {
-	epoch: bcs.u32(),
-	blob_id: bcs.u256(),
-};
-export const DenyListBlobDeleted: MoveStruct<typeof _DenyListBlobDeletedFields> = new MoveStruct({
+export const DenyListBlobDeleted: MoveStruct<{
+	epoch: ReturnType<typeof bcs.u32>;
+	blob_id: ReturnType<typeof bcs.u256>;
+}> = new MoveStruct({
 	name: `${$moduleName}::DenyListBlobDeleted`,
-	fields: _DenyListBlobDeletedFields,
+	fields: {
+		epoch: bcs.u32(),
+		blob_id: bcs.u256(),
+	},
 });
-const _ContractUpgradeProposedFields = {
-	epoch: bcs.u32(),
-	package_digest: bcs.vector(bcs.u8()),
-};
-export const ContractUpgradeProposed: MoveStruct<typeof _ContractUpgradeProposedFields> =
-	new MoveStruct({
-		name: `${$moduleName}::ContractUpgradeProposed`,
-		fields: _ContractUpgradeProposedFields,
-	});
-const _ContractUpgradeQuorumReachedFields = {
-	epoch: bcs.u32(),
-	package_digest: bcs.vector(bcs.u8()),
-};
-export const ContractUpgradeQuorumReached: MoveStruct<typeof _ContractUpgradeQuorumReachedFields> =
-	new MoveStruct({
-		name: `${$moduleName}::ContractUpgradeQuorumReached`,
-		fields: _ContractUpgradeQuorumReachedFields,
-	});
-const _ProtocolVersionUpdatedFields = {
-	epoch: bcs.u32(),
-	start_epoch: bcs.u32(),
-	protocol_version: bcs.u64(),
-};
-export const ProtocolVersionUpdated: MoveStruct<typeof _ProtocolVersionUpdatedFields> =
-	new MoveStruct({
-		name: `${$moduleName}::ProtocolVersionUpdated`,
-		fields: _ProtocolVersionUpdatedFields,
-	});
-const _PricesUpdatedFields = {
-	epoch: bcs.u32(),
-	storage_price: bcs.u64(),
-	write_price: bcs.u64(),
-};
-export const PricesUpdated: MoveStruct<typeof _PricesUpdatedFields> = new MoveStruct({
+export const ContractUpgradeProposed: MoveStruct<{
+	epoch: ReturnType<typeof bcs.u32>;
+	package_digest: ReturnType<typeof bcs.vector<ReturnType<typeof bcs.u8>>>;
+}> = new MoveStruct({
+	name: `${$moduleName}::ContractUpgradeProposed`,
+	fields: {
+		epoch: bcs.u32(),
+		package_digest: bcs.vector(bcs.u8()),
+	},
+});
+export const ContractUpgradeQuorumReached: MoveStruct<{
+	epoch: ReturnType<typeof bcs.u32>;
+	package_digest: ReturnType<typeof bcs.vector<ReturnType<typeof bcs.u8>>>;
+}> = new MoveStruct({
+	name: `${$moduleName}::ContractUpgradeQuorumReached`,
+	fields: {
+		epoch: bcs.u32(),
+		package_digest: bcs.vector(bcs.u8()),
+	},
+});
+export const ProtocolVersionUpdated: MoveStruct<{
+	epoch: ReturnType<typeof bcs.u32>;
+	start_epoch: ReturnType<typeof bcs.u32>;
+	protocol_version: ReturnType<typeof bcs.u64>;
+}> = new MoveStruct({
+	name: `${$moduleName}::ProtocolVersionUpdated`,
+	fields: {
+		epoch: bcs.u32(),
+		start_epoch: bcs.u32(),
+		protocol_version: bcs.u64(),
+	},
+});
+export const PricesUpdated: MoveStruct<{
+	epoch: ReturnType<typeof bcs.u32>;
+	storage_price: ReturnType<typeof bcs.u64>;
+	write_price: ReturnType<typeof bcs.u64>;
+}> = new MoveStruct({
 	name: `${$moduleName}::PricesUpdated`,
-	fields: _PricesUpdatedFields,
+	fields: {
+		epoch: bcs.u32(),
+		storage_price: bcs.u64(),
+		write_price: bcs.u64(),
+	},
 });
-const _StoragePoolCreatedFields = {
-	epoch: bcs.u32(),
-	storage_pool_id: bcs.Address,
-	reserved_encoded_capacity_bytes: bcs.u64(),
-	start_epoch: bcs.u32(),
-	end_epoch: bcs.u32(),
-};
-export const StoragePoolCreated: MoveStruct<typeof _StoragePoolCreatedFields> = new MoveStruct({
+export const StoragePoolCreated: MoveStruct<{
+	epoch: ReturnType<typeof bcs.u32>;
+	storage_pool_id: typeof bcs.Address;
+	reserved_encoded_capacity_bytes: ReturnType<typeof bcs.u64>;
+	start_epoch: ReturnType<typeof bcs.u32>;
+	end_epoch: ReturnType<typeof bcs.u32>;
+}> = new MoveStruct({
 	name: `${$moduleName}::StoragePoolCreated`,
-	fields: _StoragePoolCreatedFields,
+	fields: {
+		epoch: bcs.u32(),
+		storage_pool_id: bcs.Address,
+		reserved_encoded_capacity_bytes: bcs.u64(),
+		start_epoch: bcs.u32(),
+		end_epoch: bcs.u32(),
+	},
 });
-const _PooledBlobRegisteredFields = {
-	epoch: bcs.u32(),
-	blob_id: bcs.u256(),
-	unencoded_size: bcs.u64(),
-	encoding_type: bcs.u8(),
-	deletable: bcs.bool(),
-	object_id: bcs.Address,
-	storage_pool_id: bcs.Address,
-};
-export const PooledBlobRegistered: MoveStruct<typeof _PooledBlobRegisteredFields> = new MoveStruct({
+export const PooledBlobRegistered: MoveStruct<{
+	epoch: ReturnType<typeof bcs.u32>;
+	blob_id: ReturnType<typeof bcs.u256>;
+	unencoded_size: ReturnType<typeof bcs.u64>;
+	encoding_type: ReturnType<typeof bcs.u8>;
+	deletable: ReturnType<typeof bcs.bool>;
+	object_id: typeof bcs.Address;
+	storage_pool_id: typeof bcs.Address;
+}> = new MoveStruct({
 	name: `${$moduleName}::PooledBlobRegistered`,
-	fields: _PooledBlobRegisteredFields,
+	fields: {
+		epoch: bcs.u32(),
+		blob_id: bcs.u256(),
+		unencoded_size: bcs.u64(),
+		encoding_type: bcs.u8(),
+		deletable: bcs.bool(),
+		object_id: bcs.Address,
+		storage_pool_id: bcs.Address,
+	},
 });
-const _PooledBlobCertifiedFields = {
-	epoch: bcs.u32(),
-	blob_id: bcs.u256(),
-	deletable: bcs.bool(),
-	object_id: bcs.Address,
-	storage_pool_id: bcs.Address,
-};
-export const PooledBlobCertified: MoveStruct<typeof _PooledBlobCertifiedFields> = new MoveStruct({
+export const PooledBlobCertified: MoveStruct<{
+	epoch: ReturnType<typeof bcs.u32>;
+	blob_id: ReturnType<typeof bcs.u256>;
+	deletable: ReturnType<typeof bcs.bool>;
+	object_id: typeof bcs.Address;
+	storage_pool_id: typeof bcs.Address;
+}> = new MoveStruct({
 	name: `${$moduleName}::PooledBlobCertified`,
-	fields: _PooledBlobCertifiedFields,
+	fields: {
+		epoch: bcs.u32(),
+		blob_id: bcs.u256(),
+		deletable: bcs.bool(),
+		object_id: bcs.Address,
+		storage_pool_id: bcs.Address,
+	},
 });
-const _PooledBlobDeletedFields = {
-	epoch: bcs.u32(),
-	blob_id: bcs.u256(),
-	object_id: bcs.Address,
-	was_certified: bcs.bool(),
-	storage_pool_id: bcs.Address,
-};
-export const PooledBlobDeleted: MoveStruct<typeof _PooledBlobDeletedFields> = new MoveStruct({
+export const PooledBlobDeleted: MoveStruct<{
+	epoch: ReturnType<typeof bcs.u32>;
+	blob_id: ReturnType<typeof bcs.u256>;
+	object_id: typeof bcs.Address;
+	was_certified: ReturnType<typeof bcs.bool>;
+	storage_pool_id: typeof bcs.Address;
+}> = new MoveStruct({
 	name: `${$moduleName}::PooledBlobDeleted`,
-	fields: _PooledBlobDeletedFields,
+	fields: {
+		epoch: bcs.u32(),
+		blob_id: bcs.u256(),
+		object_id: bcs.Address,
+		was_certified: bcs.bool(),
+		storage_pool_id: bcs.Address,
+	},
 });
-const _StoragePoolExtendedFields = {
-	epoch: bcs.u32(),
-	storage_pool_id: bcs.Address,
-	new_end_epoch: bcs.u32(),
-};
-export const StoragePoolExtended: MoveStruct<typeof _StoragePoolExtendedFields> = new MoveStruct({
+export const StoragePoolExtended: MoveStruct<{
+	epoch: ReturnType<typeof bcs.u32>;
+	storage_pool_id: typeof bcs.Address;
+	new_end_epoch: ReturnType<typeof bcs.u32>;
+}> = new MoveStruct({
 	name: `${$moduleName}::StoragePoolExtended`,
-	fields: _StoragePoolExtendedFields,
+	fields: {
+		epoch: bcs.u32(),
+		storage_pool_id: bcs.Address,
+		new_end_epoch: bcs.u32(),
+	},
 });

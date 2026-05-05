@@ -2,6 +2,7 @@
  * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
  **************************************************************/
 
+
 /**
  * State module represents the current state of the pool. It maintains all the
  * accounts, history, and governance information. It also processes all the
@@ -15,71 +16,90 @@ import * as history from './history.js';
 import * as governance from './governance.js';
 import * as balances from './balances.js';
 const $moduleName = '@deepbook/core::state';
-export const State = new MoveStruct({
-	name: `${$moduleName}::State`,
-	fields: {
-		accounts: table.Table,
-		history: history.History,
-		governance: governance.Governance,
-	},
-});
-export const StakeEvent = new MoveStruct({
-	name: `${$moduleName}::StakeEvent`,
-	fields: {
-		pool_id: bcs.Address,
-		balance_manager_id: bcs.Address,
-		epoch: bcs.u64(),
-		amount: bcs.u64(),
-		stake: bcs.bool(),
-	},
-});
-export const ProposalEvent = new MoveStruct({
-	name: `${$moduleName}::ProposalEvent`,
-	fields: {
-		pool_id: bcs.Address,
-		balance_manager_id: bcs.Address,
-		epoch: bcs.u64(),
-		taker_fee: bcs.u64(),
-		maker_fee: bcs.u64(),
-		stake_required: bcs.u64(),
-	},
-});
-export const VoteEvent = new MoveStruct({
-	name: `${$moduleName}::VoteEvent`,
-	fields: {
-		pool_id: bcs.Address,
-		balance_manager_id: bcs.Address,
-		epoch: bcs.u64(),
-		from_proposal_id: bcs.option(bcs.Address),
-		to_proposal_id: bcs.Address,
-		stake: bcs.u64(),
-	},
-});
-export const RebateEventV2 = new MoveStruct({
-	name: `${$moduleName}::RebateEventV2`,
-	fields: {
-		pool_id: bcs.Address,
-		balance_manager_id: bcs.Address,
-		epoch: bcs.u64(),
-		claim_amount: balances.Balances,
-	},
-});
-export const RebateEvent = new MoveStruct({
-	name: `${$moduleName}::RebateEvent`,
-	fields: {
-		pool_id: bcs.Address,
-		balance_manager_id: bcs.Address,
-		epoch: bcs.u64(),
-		claim_amount: bcs.u64(),
-	},
-});
-export const TakerFeePenaltyApplied = new MoveStruct({
-	name: `${$moduleName}::TakerFeePenaltyApplied`,
-	fields: {
-		pool_id: bcs.Address,
-		balance_manager_id: bcs.Address,
-		order_id: bcs.u128(),
-		taker_fee_without_penalty: bcs.u64(),
-		taker_fee: bcs.u64(),
-	},
-});
+export const State: MoveStruct<{
+    "accounts": typeof table.Table;
+    "history": typeof history.History;
+    "governance": typeof governance.Governance;
+}> = new MoveStruct({ name: `${$moduleName}::State`, fields: {
+        accounts: table.Table,
+        history: history.History,
+        governance: governance.Governance
+    } });
+export const StakeEvent: MoveStruct<{
+    "pool_id": typeof bcs.Address;
+    "balance_manager_id": typeof bcs.Address;
+    "epoch": ReturnType<typeof bcs.u64>;
+    "amount": ReturnType<typeof bcs.u64>;
+    "stake": ReturnType<typeof bcs.bool>;
+}> = new MoveStruct({ name: `${$moduleName}::StakeEvent`, fields: {
+        pool_id: bcs.Address,
+        balance_manager_id: bcs.Address,
+        epoch: bcs.u64(),
+        amount: bcs.u64(),
+        stake: bcs.bool()
+    } });
+export const ProposalEvent: MoveStruct<{
+    "pool_id": typeof bcs.Address;
+    "balance_manager_id": typeof bcs.Address;
+    "epoch": ReturnType<typeof bcs.u64>;
+    "taker_fee": ReturnType<typeof bcs.u64>;
+    "maker_fee": ReturnType<typeof bcs.u64>;
+    "stake_required": ReturnType<typeof bcs.u64>;
+}> = new MoveStruct({ name: `${$moduleName}::ProposalEvent`, fields: {
+        pool_id: bcs.Address,
+        balance_manager_id: bcs.Address,
+        epoch: bcs.u64(),
+        taker_fee: bcs.u64(),
+        maker_fee: bcs.u64(),
+        stake_required: bcs.u64()
+    } });
+export const VoteEvent: MoveStruct<{
+    "pool_id": typeof bcs.Address;
+    "balance_manager_id": typeof bcs.Address;
+    "epoch": ReturnType<typeof bcs.u64>;
+    "from_proposal_id": ReturnType<typeof bcs.option<typeof bcs.Address>>;
+    "to_proposal_id": typeof bcs.Address;
+    "stake": ReturnType<typeof bcs.u64>;
+}> = new MoveStruct({ name: `${$moduleName}::VoteEvent`, fields: {
+        pool_id: bcs.Address,
+        balance_manager_id: bcs.Address,
+        epoch: bcs.u64(),
+        from_proposal_id: bcs.option(bcs.Address),
+        to_proposal_id: bcs.Address,
+        stake: bcs.u64()
+    } });
+export const RebateEventV2: MoveStruct<{
+    "pool_id": typeof bcs.Address;
+    "balance_manager_id": typeof bcs.Address;
+    "epoch": ReturnType<typeof bcs.u64>;
+    "claim_amount": typeof balances.Balances;
+}> = new MoveStruct({ name: `${$moduleName}::RebateEventV2`, fields: {
+        pool_id: bcs.Address,
+        balance_manager_id: bcs.Address,
+        epoch: bcs.u64(),
+        claim_amount: balances.Balances
+    } });
+export const RebateEvent: MoveStruct<{
+    "pool_id": typeof bcs.Address;
+    "balance_manager_id": typeof bcs.Address;
+    "epoch": ReturnType<typeof bcs.u64>;
+    "claim_amount": ReturnType<typeof bcs.u64>;
+}> = new MoveStruct({ name: `${$moduleName}::RebateEvent`, fields: {
+        pool_id: bcs.Address,
+        balance_manager_id: bcs.Address,
+        epoch: bcs.u64(),
+        claim_amount: bcs.u64()
+    } });
+export const TakerFeePenaltyApplied: MoveStruct<{
+    "pool_id": typeof bcs.Address;
+    "balance_manager_id": typeof bcs.Address;
+    "order_id": ReturnType<typeof bcs.u128>;
+    "taker_fee_without_penalty": ReturnType<typeof bcs.u64>;
+    "taker_fee": ReturnType<typeof bcs.u64>;
+}> = new MoveStruct({ name: `${$moduleName}::TakerFeePenaltyApplied`, fields: {
+        pool_id: bcs.Address,
+        balance_manager_id: bcs.Address,
+        order_id: bcs.u128(),
+        taker_fee_without_penalty: bcs.u64(),
+        taker_fee: bcs.u64()
+    } });

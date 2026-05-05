@@ -12,15 +12,19 @@ import {
 	type TransactionArgument,
 } from '@mysten/sui/transactions';
 const $moduleName = '@local-pkg/walrus::staking';
-const _StakingFields = {
-	id: bcs.Address,
-	version: bcs.u64(),
-	package_id: bcs.Address,
-	new_package_id: bcs.option(bcs.Address),
-};
-export const Staking: MoveStruct<typeof _StakingFields> = new MoveStruct({
+export const Staking: MoveStruct<{
+	id: typeof bcs.Address;
+	version: ReturnType<typeof bcs.u64>;
+	package_id: typeof bcs.Address;
+	new_package_id: ReturnType<typeof bcs.option<typeof bcs.Address>>;
+}> = new MoveStruct({
 	name: `${$moduleName}::Staking`,
-	fields: _StakingFields,
+	fields: {
+		id: bcs.Address,
+		version: bcs.u64(),
+		package_id: bcs.Address,
+		new_package_id: bcs.option(bcs.Address),
+	},
 });
 export interface RegisterCandidateArguments {
 	staking: RawTransactionArgument<string>;

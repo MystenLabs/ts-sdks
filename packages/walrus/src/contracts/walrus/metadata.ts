@@ -13,12 +13,15 @@ import {
 } from '@mysten/sui/transactions';
 import * as vec_map from './deps/sui/vec_map.js';
 const $moduleName = '@local-pkg/walrus::metadata';
-const _MetadataFields = {
-	metadata: vec_map.VecMap(bcs.string(), bcs.string()),
-};
-export const Metadata: MoveStruct<typeof _MetadataFields> = new MoveStruct({
+export const Metadata: MoveStruct<{
+	metadata: ReturnType<
+		typeof vec_map.VecMap<ReturnType<typeof bcs.string>, ReturnType<typeof bcs.string>>
+	>;
+}> = new MoveStruct({
 	name: `${$moduleName}::Metadata`,
-	fields: _MetadataFields,
+	fields: {
+		metadata: vec_map.VecMap(bcs.string(), bcs.string()),
+	},
 });
 export interface NewOptions {
 	package?: string;

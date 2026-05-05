@@ -13,13 +13,15 @@
 import { MoveStruct } from '../../../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 const $moduleName = '0x2::object_bag';
-const _ObjectBagFields = {
-	/** the ID of this bag */
-	id: bcs.Address,
-	/** the number of key-value pairs in the bag */
-	size: bcs.u64(),
-};
-export const ObjectBag: MoveStruct<typeof _ObjectBagFields> = new MoveStruct({
+export const ObjectBag: MoveStruct<{
+	id: typeof bcs.Address;
+	size: ReturnType<typeof bcs.u64>;
+}> = new MoveStruct({
 	name: `${$moduleName}::ObjectBag`,
-	fields: _ObjectBagFields,
+	fields: {
+		/** the ID of this bag */
+		id: bcs.Address,
+		/** the number of key-value pairs in the bag */
+		size: bcs.u64(),
+	},
 });

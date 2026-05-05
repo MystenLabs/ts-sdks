@@ -23,33 +23,39 @@ import {
 import * as vec_set from './deps/sui/vec_set.js';
 import * as table from './deps/sui/table.js';
 const $moduleName = '@local-pkg/walrus::slashing';
-const _SlashingProposalFields = {
-	/**
-	 * The epoch in which the proposal was created or last refreshed. The slashing must
-	 * be executed in the same epoch.
-	 */
-	epoch: bcs.u32(),
-	/** The node ID of the slashing candidate. */
-	node_id: bcs.Address,
-	/** The accumulated voting weight of the proposal. */
-	voting_weight: bcs.u16(),
-	/**
-	 * The node IDs that have voted for this proposal. Note: the number of nodes in the
-	 * committee is capped, so we can use a VecSet.
-	 */
-	voters: vec_set.VecSet(bcs.Address),
-};
-export const SlashingProposal: MoveStruct<typeof _SlashingProposalFields> = new MoveStruct({
+export const SlashingProposal: MoveStruct<{
+	epoch: ReturnType<typeof bcs.u32>;
+	node_id: typeof bcs.Address;
+	voting_weight: ReturnType<typeof bcs.u16>;
+	voters: ReturnType<typeof vec_set.VecSet<typeof bcs.Address>>;
+}> = new MoveStruct({
 	name: `${$moduleName}::SlashingProposal`,
-	fields: _SlashingProposalFields,
+	fields: {
+		/**
+		 * The epoch in which the proposal was created or last refreshed. The slashing must
+		 * be executed in the same epoch.
+		 */
+		epoch: bcs.u32(),
+		/** The node ID of the slashing candidate. */
+		node_id: bcs.Address,
+		/** The accumulated voting weight of the proposal. */
+		voting_weight: bcs.u16(),
+		/**
+		 * The node IDs that have voted for this proposal. Note: the number of nodes in the
+		 * committee is capped, so we can use a VecSet.
+		 */
+		voters: vec_set.VecSet(bcs.Address),
+	},
 });
-const _SlashingManagerFields = {
-	id: bcs.Address,
-	slashing_candidates: table.Table,
-};
-export const SlashingManager: MoveStruct<typeof _SlashingManagerFields> = new MoveStruct({
+export const SlashingManager: MoveStruct<{
+	id: typeof bcs.Address;
+	slashing_candidates: typeof table.Table;
+}> = new MoveStruct({
 	name: `${$moduleName}::SlashingManager`,
-	fields: _SlashingManagerFields,
+	fields: {
+		id: bcs.Address,
+		slashing_candidates: table.Table,
+	},
 });
 export interface VoteForSlashingArguments {
 	self: RawTransactionArgument<string>;

@@ -1,550 +1,550 @@
 /**************************************************************
  * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
  **************************************************************/
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionResult } from '@mysten/sui/transactions';
 export interface CurrentVersionOptions {
-	package?: string;
-	arguments?: [];
+    package?: string;
+    arguments?: [
+    ];
 }
-export function currentVersion(options: CurrentVersionOptions = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'current_version',
-		});
+export function currentVersion(options: CurrentVersionOptions = {}): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'constants',
+        function: 'current_version',
+    });
 }
 export interface PoolCreationFeeOptions {
-	package?: string;
-	arguments?: [];
+    package?: string;
+    arguments?: [
+    ];
 }
-export function poolCreationFee(options: PoolCreationFeeOptions = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'pool_creation_fee',
-		});
+export function poolCreationFee(options: PoolCreationFeeOptions = {}): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'constants',
+        function: 'pool_creation_fee',
+    });
 }
 export interface FloatScalingOptions {
-	package?: string;
-	arguments?: [];
+    package?: string;
+    arguments?: [
+    ];
 }
-export function floatScaling(options: FloatScalingOptions = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'float_scaling',
-		});
+export function floatScaling(options: FloatScalingOptions = {}): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'constants',
+        function: 'float_scaling',
+    });
 }
 export interface FloatScalingU128Options {
-	package?: string;
-	arguments?: [];
+    package?: string;
+    arguments?: [
+    ];
 }
-export function floatScalingU128(options: FloatScalingU128Options = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'float_scaling_u128',
-		});
+export function floatScalingU128(options: FloatScalingU128Options = {}): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'constants',
+        function: 'float_scaling_u128',
+    });
 }
 export interface MaxU64Options {
-	package?: string;
-	arguments?: [];
+    package?: string;
+    arguments?: [
+    ];
 }
-export function maxU64(options: MaxU64Options = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'max_u64',
-		});
+export function maxU64(options: MaxU64Options = {}): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'constants',
+        function: 'max_u64',
+    });
 }
 export interface MaxU128Options {
-	package?: string;
-	arguments?: [];
+    package?: string;
+    arguments?: [
+    ];
 }
-export function maxU128(options: MaxU128Options = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'max_u128',
-		});
+export function maxU128(options: MaxU128Options = {}): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'constants',
+        function: 'max_u128',
+    });
 }
 export interface NoRestrictionOptions {
-	package?: string;
-	arguments?: [];
+    package?: string;
+    arguments?: [
+    ];
 }
-export function noRestriction(options: NoRestrictionOptions = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'no_restriction',
-		});
+export function noRestriction(options: NoRestrictionOptions = {}): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'constants',
+        function: 'no_restriction',
+    });
 }
 export interface ImmediateOrCancelOptions {
-	package?: string;
-	arguments?: [];
+    package?: string;
+    arguments?: [
+    ];
 }
-export function immediateOrCancel(options: ImmediateOrCancelOptions = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'immediate_or_cancel',
-		});
+export function immediateOrCancel(options: ImmediateOrCancelOptions = {}): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'constants',
+        function: 'immediate_or_cancel',
+    });
 }
 export interface FillOrKillOptions {
-	package?: string;
-	arguments?: [];
+    package?: string;
+    arguments?: [
+    ];
 }
-export function fillOrKill(options: FillOrKillOptions = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'fill_or_kill',
-		});
+export function fillOrKill(options: FillOrKillOptions = {}): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'constants',
+        function: 'fill_or_kill',
+    });
 }
 export interface PostOnlyOptions {
-	package?: string;
-	arguments?: [];
+    package?: string;
+    arguments?: [
+    ];
 }
-export function postOnly(options: PostOnlyOptions = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'post_only',
-		});
+export function postOnly(options: PostOnlyOptions = {}): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'constants',
+        function: 'post_only',
+    });
 }
 export interface MaxRestrictionOptions {
-	package?: string;
-	arguments?: [];
+    package?: string;
+    arguments?: [
+    ];
 }
-export function maxRestriction(options: MaxRestrictionOptions = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'max_restriction',
-		});
+export function maxRestriction(options: MaxRestrictionOptions = {}): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'constants',
+        function: 'max_restriction',
+    });
 }
 export interface LiveOptions {
-	package?: string;
-	arguments?: [];
+    package?: string;
+    arguments?: [
+    ];
 }
-export function live(options: LiveOptions = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'live',
-		});
+export function live(options: LiveOptions = {}): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'constants',
+        function: 'live',
+    });
 }
 export interface PartiallyFilledOptions {
-	package?: string;
-	arguments?: [];
+    package?: string;
+    arguments?: [
+    ];
 }
-export function partiallyFilled(options: PartiallyFilledOptions = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'partially_filled',
-		});
+export function partiallyFilled(options: PartiallyFilledOptions = {}): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'constants',
+        function: 'partially_filled',
+    });
 }
 export interface FilledOptions {
-	package?: string;
-	arguments?: [];
+    package?: string;
+    arguments?: [
+    ];
 }
-export function filled(options: FilledOptions = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'filled',
-		});
+export function filled(options: FilledOptions = {}): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'constants',
+        function: 'filled',
+    });
 }
 export interface CanceledOptions {
-	package?: string;
-	arguments?: [];
+    package?: string;
+    arguments?: [
+    ];
 }
-export function canceled(options: CanceledOptions = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'canceled',
-		});
+export function canceled(options: CanceledOptions = {}): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'constants',
+        function: 'canceled',
+    });
 }
 export interface ExpiredOptions {
-	package?: string;
-	arguments?: [];
+    package?: string;
+    arguments?: [
+    ];
 }
-export function expired(options: ExpiredOptions = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'expired',
-		});
+export function expired(options: ExpiredOptions = {}): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'constants',
+        function: 'expired',
+    });
 }
 export interface SelfMatchingAllowedOptions {
-	package?: string;
-	arguments?: [];
+    package?: string;
+    arguments?: [
+    ];
 }
-export function selfMatchingAllowed(options: SelfMatchingAllowedOptions = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'self_matching_allowed',
-		});
+export function selfMatchingAllowed(options: SelfMatchingAllowedOptions = {}): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'constants',
+        function: 'self_matching_allowed',
+    });
 }
 export interface CancelTakerOptions {
-	package?: string;
-	arguments?: [];
+    package?: string;
+    arguments?: [
+    ];
 }
-export function cancelTaker(options: CancelTakerOptions = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'cancel_taker',
-		});
+export function cancelTaker(options: CancelTakerOptions = {}): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'constants',
+        function: 'cancel_taker',
+    });
 }
 export interface CancelMakerOptions {
-	package?: string;
-	arguments?: [];
+    package?: string;
+    arguments?: [
+    ];
 }
-export function cancelMaker(options: CancelMakerOptions = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'cancel_maker',
-		});
+export function cancelMaker(options: CancelMakerOptions = {}): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'constants',
+        function: 'cancel_maker',
+    });
 }
 export interface MinPriceOptions {
-	package?: string;
-	arguments?: [];
+    package?: string;
+    arguments?: [
+    ];
 }
-export function minPrice(options: MinPriceOptions = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'min_price',
-		});
+export function minPrice(options: MinPriceOptions = {}): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'constants',
+        function: 'min_price',
+    });
 }
 export interface MaxPriceOptions {
-	package?: string;
-	arguments?: [];
+    package?: string;
+    arguments?: [
+    ];
 }
-export function maxPrice(options: MaxPriceOptions = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'max_price',
-		});
+export function maxPrice(options: MaxPriceOptions = {}): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'constants',
+        function: 'max_price',
+    });
 }
 export interface PhaseOutEpochsOptions {
-	package?: string;
-	arguments?: [];
+    package?: string;
+    arguments?: [
+    ];
 }
-export function phaseOutEpochs(options: PhaseOutEpochsOptions = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'phase_out_epochs',
-		});
+export function phaseOutEpochs(options: PhaseOutEpochsOptions = {}): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'constants',
+        function: 'phase_out_epochs',
+    });
 }
 export interface DefaultStakeRequiredOptions {
-	package?: string;
-	arguments?: [];
+    package?: string;
+    arguments?: [
+    ];
 }
-export function defaultStakeRequired(options: DefaultStakeRequiredOptions = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'default_stake_required',
-		});
+export function defaultStakeRequired(options: DefaultStakeRequiredOptions = {}): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'constants',
+        function: 'default_stake_required',
+    });
 }
 export interface HalfOptions {
-	package?: string;
-	arguments?: [];
+    package?: string;
+    arguments?: [
+    ];
 }
-export function half(options: HalfOptions = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'half',
-		});
+export function half(options: HalfOptions = {}): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'constants',
+        function: 'half',
+    });
 }
 export interface FeeIsDeepOptions {
-	package?: string;
-	arguments?: [];
+    package?: string;
+    arguments?: [
+    ];
 }
-export function feeIsDeep(options: FeeIsDeepOptions = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'fee_is_deep',
-		});
+export function feeIsDeep(options: FeeIsDeepOptions = {}): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'constants',
+        function: 'fee_is_deep',
+    });
 }
 export interface DeepUnitOptions {
-	package?: string;
-	arguments?: [];
+    package?: string;
+    arguments?: [
+    ];
 }
-export function deepUnit(options: DeepUnitOptions = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'deep_unit',
-		});
+export function deepUnit(options: DeepUnitOptions = {}): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'constants',
+        function: 'deep_unit',
+    });
 }
 export interface MaxFillsOptions {
-	package?: string;
-	arguments?: [];
+    package?: string;
+    arguments?: [
+    ];
 }
-export function maxFills(options: MaxFillsOptions = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'max_fills',
-		});
+export function maxFills(options: MaxFillsOptions = {}): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'constants',
+        function: 'max_fills',
+    });
 }
 export interface MaxOpenOrdersOptions {
-	package?: string;
-	arguments?: [];
+    package?: string;
+    arguments?: [
+    ];
 }
-export function maxOpenOrders(options: MaxOpenOrdersOptions = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'max_open_orders',
-		});
+export function maxOpenOrders(options: MaxOpenOrdersOptions = {}): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'constants',
+        function: 'max_open_orders',
+    });
 }
 export interface MaxSliceSizeOptions {
-	package?: string;
-	arguments?: [];
+    package?: string;
+    arguments?: [
+    ];
 }
-export function maxSliceSize(options: MaxSliceSizeOptions = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'max_slice_size',
-		});
+export function maxSliceSize(options: MaxSliceSizeOptions = {}): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'constants',
+        function: 'max_slice_size',
+    });
 }
 export interface MaxFanOutOptions {
-	package?: string;
-	arguments?: [];
+    package?: string;
+    arguments?: [
+    ];
 }
-export function maxFanOut(options: MaxFanOutOptions = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'max_fan_out',
-		});
+export function maxFanOut(options: MaxFanOutOptions = {}): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'constants',
+        function: 'max_fan_out',
+    });
 }
 export interface FeePenaltyMultiplierOptions {
-	package?: string;
-	arguments?: [];
+    package?: string;
+    arguments?: [
+    ];
 }
-export function feePenaltyMultiplier(options: FeePenaltyMultiplierOptions = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'fee_penalty_multiplier',
-		});
+export function feePenaltyMultiplier(options: FeePenaltyMultiplierOptions = {}): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'constants',
+        function: 'fee_penalty_multiplier',
+    });
 }
 export interface DefaultEwmaAlphaOptions {
-	package?: string;
-	arguments?: [];
+    package?: string;
+    arguments?: [
+    ];
 }
-export function defaultEwmaAlpha(options: DefaultEwmaAlphaOptions = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'default_ewma_alpha',
-		});
+export function defaultEwmaAlpha(options: DefaultEwmaAlphaOptions = {}): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'constants',
+        function: 'default_ewma_alpha',
+    });
 }
 export interface DefaultZScoreThresholdOptions {
-	package?: string;
-	arguments?: [];
+    package?: string;
+    arguments?: [
+    ];
 }
-export function defaultZScoreThreshold(options: DefaultZScoreThresholdOptions = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'default_z_score_threshold',
-		});
+export function defaultZScoreThreshold(options: DefaultZScoreThresholdOptions = {}): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'constants',
+        function: 'default_z_score_threshold',
+    });
 }
 export interface DefaultAdditionalTakerFeeOptions {
-	package?: string;
-	arguments?: [];
+    package?: string;
+    arguments?: [
+    ];
 }
-export function defaultAdditionalTakerFee(options: DefaultAdditionalTakerFeeOptions = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'default_additional_taker_fee',
-		});
+export function defaultAdditionalTakerFee(options: DefaultAdditionalTakerFeeOptions = {}): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'constants',
+        function: 'default_additional_taker_fee',
+    });
 }
 export interface MaxEwmaAlphaOptions {
-	package?: string;
-	arguments?: [];
+    package?: string;
+    arguments?: [
+    ];
 }
-export function maxEwmaAlpha(options: MaxEwmaAlphaOptions = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'max_ewma_alpha',
-		});
+export function maxEwmaAlpha(options: MaxEwmaAlphaOptions = {}): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'constants',
+        function: 'max_ewma_alpha',
+    });
 }
 export interface MaxZScoreThresholdOptions {
-	package?: string;
-	arguments?: [];
+    package?: string;
+    arguments?: [
+    ];
 }
-export function maxZScoreThreshold(options: MaxZScoreThresholdOptions = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'max_z_score_threshold',
-		});
+export function maxZScoreThreshold(options: MaxZScoreThresholdOptions = {}): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'constants',
+        function: 'max_z_score_threshold',
+    });
 }
 export interface MaxAdditionalTakerFeeOptions {
-	package?: string;
-	arguments?: [];
+    package?: string;
+    arguments?: [
+    ];
 }
-export function maxAdditionalTakerFee(options: MaxAdditionalTakerFeeOptions = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'max_additional_taker_fee',
-		});
+export function maxAdditionalTakerFee(options: MaxAdditionalTakerFeeOptions = {}): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'constants',
+        function: 'max_additional_taker_fee',
+    });
 }
 export interface EwmaDfKeyOptions {
-	package?: string;
-	arguments?: [];
+    package?: string;
+    arguments?: [
+    ];
 }
-export function ewmaDfKey(options: EwmaDfKeyOptions = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'ewma_df_key',
-		});
+export function ewmaDfKey(options: EwmaDfKeyOptions = {}): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'constants',
+        function: 'ewma_df_key',
+    });
 }
 export interface ReferralMaxMultiplierOptions {
-	package?: string;
-	arguments?: [];
+    package?: string;
+    arguments?: [
+    ];
 }
-export function referralMaxMultiplier(options: ReferralMaxMultiplierOptions = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'referral_max_multiplier',
-		});
+export function referralMaxMultiplier(options: ReferralMaxMultiplierOptions = {}): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'constants',
+        function: 'referral_max_multiplier',
+    });
 }
 export interface ReferralMultiplierOptions {
-	package?: string;
-	arguments?: [];
+    package?: string;
+    arguments?: [
+    ];
 }
-export function referralMultiplier(options: ReferralMultiplierOptions = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'referral_multiplier',
-		});
+export function referralMultiplier(options: ReferralMultiplierOptions = {}): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'constants',
+        function: 'referral_multiplier',
+    });
 }
 export interface MaxBalanceManagersOptions {
-	package?: string;
-	arguments?: [];
+    package?: string;
+    arguments?: [
+    ];
 }
-export function maxBalanceManagers(options: MaxBalanceManagersOptions = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'max_balance_managers',
-		});
+export function maxBalanceManagers(options: MaxBalanceManagersOptions = {}): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'constants',
+        function: 'max_balance_managers',
+    });
 }
 export interface ReferralDfKeyOptions {
-	package?: string;
-	arguments?: [];
+    package?: string;
+    arguments?: [
+    ];
 }
-export function referralDfKey(options: ReferralDfKeyOptions = {}) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'constants',
-			function: 'referral_df_key',
-		});
+export function referralDfKey(options: ReferralDfKeyOptions = {}): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@deepbook/core';
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'constants',
+        function: 'referral_df_key',
+    });
 }

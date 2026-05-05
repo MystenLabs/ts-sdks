@@ -12,34 +12,50 @@ import * as group_ops from './deps/sui/group_ops.js';
 import * as extended_field from './extended_field.js';
 import * as event_blob from './event_blob.js';
 const $moduleName = '@local-pkg/walrus::storage_node';
-const _StorageNodeInfoFields = {
-	name: bcs.string(),
-	node_id: bcs.Address,
-	network_address: bcs.string(),
-	public_key: group_ops.Element,
-	next_epoch_public_key: bcs.option(group_ops.Element),
-	network_public_key: bcs.vector(bcs.u8()),
-	metadata: extended_field.ExtendedField,
-};
-export const StorageNodeInfo: MoveStruct<typeof _StorageNodeInfoFields> = new MoveStruct({
+export const StorageNodeInfo: MoveStruct<{
+	name: ReturnType<typeof bcs.string>;
+	node_id: typeof bcs.Address;
+	network_address: ReturnType<typeof bcs.string>;
+	public_key: typeof group_ops.Element;
+	next_epoch_public_key: ReturnType<typeof bcs.option<typeof group_ops.Element>>;
+	network_public_key: ReturnType<typeof bcs.vector<ReturnType<typeof bcs.u8>>>;
+	metadata: typeof extended_field.ExtendedField;
+}> = new MoveStruct({
 	name: `${$moduleName}::StorageNodeInfo`,
-	fields: _StorageNodeInfoFields,
+	fields: {
+		name: bcs.string(),
+		node_id: bcs.Address,
+		network_address: bcs.string(),
+		public_key: group_ops.Element,
+		next_epoch_public_key: bcs.option(group_ops.Element),
+		network_public_key: bcs.vector(bcs.u8()),
+		metadata: extended_field.ExtendedField,
+	},
 });
-const _StorageNodeCapFields = {
-	id: bcs.Address,
-	node_id: bcs.Address,
-	last_epoch_sync_done: bcs.u32(),
-	last_event_blob_attestation: bcs.option(event_blob.EventBlobAttestation),
-	/** Stores the Merkle root of the deny list for the storage node. */
-	deny_list_root: bcs.u256(),
-	/** Stores the sequence number of the deny list for the storage node. */
-	deny_list_sequence: bcs.u64(),
-	/** Stores the size of the deny list for the storage node. */
-	deny_list_size: bcs.u64(),
-};
-export const StorageNodeCap: MoveStruct<typeof _StorageNodeCapFields> = new MoveStruct({
+export const StorageNodeCap: MoveStruct<{
+	id: typeof bcs.Address;
+	node_id: typeof bcs.Address;
+	last_epoch_sync_done: ReturnType<typeof bcs.u32>;
+	last_event_blob_attestation: ReturnType<
+		typeof bcs.option<typeof event_blob.EventBlobAttestation>
+	>;
+	deny_list_root: ReturnType<typeof bcs.u256>;
+	deny_list_sequence: ReturnType<typeof bcs.u64>;
+	deny_list_size: ReturnType<typeof bcs.u64>;
+}> = new MoveStruct({
 	name: `${$moduleName}::StorageNodeCap`,
-	fields: _StorageNodeCapFields,
+	fields: {
+		id: bcs.Address,
+		node_id: bcs.Address,
+		last_epoch_sync_done: bcs.u32(),
+		last_event_blob_attestation: bcs.option(event_blob.EventBlobAttestation),
+		/** Stores the Merkle root of the deny list for the storage node. */
+		deny_list_root: bcs.u256(),
+		/** Stores the sequence number of the deny list for the storage node. */
+		deny_list_sequence: bcs.u64(),
+		/** Stores the size of the deny list for the storage node. */
+		deny_list_size: bcs.u64(),
+	},
 });
 export interface IdArguments {
 	cap: TransactionArgument;

@@ -5,15 +5,19 @@ import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from 
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction, type TransactionResult } from '@mysten/sui/transactions';
 const $moduleName = '@local-pkg/walrus::storage_resource';
-const _StorageFields = {
-	id: bcs.Address,
-	start_epoch: bcs.u32(),
-	end_epoch: bcs.u32(),
-	storage_size: bcs.u64(),
-};
-export const Storage: MoveStruct<typeof _StorageFields> = new MoveStruct({
+export const Storage: MoveStruct<{
+	id: typeof bcs.Address;
+	start_epoch: ReturnType<typeof bcs.u32>;
+	end_epoch: ReturnType<typeof bcs.u32>;
+	storage_size: ReturnType<typeof bcs.u64>;
+}> = new MoveStruct({
 	name: `${$moduleName}::Storage`,
-	fields: _StorageFields,
+	fields: {
+		id: bcs.Address,
+		start_epoch: bcs.u32(),
+		end_epoch: bcs.u32(),
+		storage_size: bcs.u64(),
+	},
 });
 export interface StartEpochArguments {
 	self: RawTransactionArgument<string>;

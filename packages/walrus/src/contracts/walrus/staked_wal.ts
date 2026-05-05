@@ -14,6 +14,7 @@
 import {
 	MoveEnum,
 	MoveStruct,
+	MoveTuple,
 	normalizeMoveArguments,
 	type RawTransactionArgument,
 } from '../utils/index.js';
@@ -21,37 +22,46 @@ import { bcs } from '@mysten/sui/bcs';
 import { type Transaction, type TransactionResult } from '@mysten/sui/transactions';
 import * as balance from './deps/sui/balance.js';
 const $moduleName = '@local-pkg/walrus::staked_wal';
-const _StakedWalStateFields = {
-	Staked: null,
-	Withdrawing: new MoveStruct({
-		name: `StakedWalState.Withdrawing`,
-		fields: {
-			withdraw_epoch: bcs.u32(),
-		},
-	}),
-};
 /**
  * The state of the staked WAL. It can be either `Staked` or `Withdrawing`. The
  * `Withdrawing` state contains the epoch when the staked WAL can be withdrawn.
  */
-export const StakedWalState: MoveEnum<typeof _StakedWalStateFields> = new MoveEnum({
+export const StakedWalState: MoveEnum<{
+	Staked: null;
+	Withdrawing: MoveStruct<{
+		withdraw_epoch: ReturnType<typeof bcs.u32>;
+	}>;
+}> = new MoveEnum({
 	name: `${$moduleName}::StakedWalState`,
-	fields: _StakedWalStateFields,
+	fields: {
+		Staked: null,
+		Withdrawing: new MoveStruct({
+			name: `StakedWalState.Withdrawing`,
+			fields: {
+				withdraw_epoch: bcs.u32(),
+			},
+		}),
+	},
 });
-const _StakedWalFields = {
-	id: bcs.Address,
-	/** Whether the staked WAL is active or withdrawing. */
-	state: StakedWalState,
-	/** ID of the staking pool. */
-	node_id: bcs.Address,
-	/** The staked amount. */
-	principal: balance.Balance,
-	/** The Walrus epoch when the staked WAL was activated. */
-	activation_epoch: bcs.u32(),
-};
-export const StakedWal: MoveStruct<typeof _StakedWalFields> = new MoveStruct({
+export const StakedWal: MoveStruct<{
+	id: typeof bcs.Address;
+	state: typeof StakedWalState;
+	node_id: typeof bcs.Address;
+	principal: typeof balance.Balance;
+	activation_epoch: ReturnType<typeof bcs.u32>;
+}> = new MoveStruct({
 	name: `${$moduleName}::StakedWal`,
-	fields: _StakedWalFields,
+	fields: {
+		id: bcs.Address,
+		/** Whether the staked WAL is active or withdrawing. */
+		state: StakedWalState,
+		/** ID of the staking pool. */
+		node_id: bcs.Address,
+		/** The staked amount. */
+		principal: balance.Balance,
+		/** The Walrus epoch when the staked WAL was activated. */
+		activation_epoch: bcs.u32(),
+	},
 });
 export interface NodeIdArguments {
 	sw: RawTransactionArgument<string>;

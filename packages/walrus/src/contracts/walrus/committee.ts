@@ -17,10 +17,18 @@ import {
 } from '@mysten/sui/transactions';
 import * as vec_map from './deps/sui/vec_map.js';
 const $moduleName = '@local-pkg/walrus::committee';
-const _CommitteeFields = [vec_map.VecMap(bcs.Address, bcs.vector(bcs.u16()))] as const;
-export const Committee: MoveTuple<typeof _CommitteeFields> = new MoveTuple({
+export const Committee: MoveTuple<
+	[
+		ReturnType<
+			typeof vec_map.VecMap<
+				typeof bcs.Address,
+				ReturnType<typeof bcs.vector<ReturnType<typeof bcs.u16>>>
+			>
+		>,
+	]
+> = new MoveTuple({
 	name: `${$moduleName}::Committee`,
-	fields: _CommitteeFields,
+	fields: [vec_map.VecMap(bcs.Address, bcs.vector(bcs.u16()))],
 });
 export interface ShardsArguments {
 	cmt: TransactionArgument;

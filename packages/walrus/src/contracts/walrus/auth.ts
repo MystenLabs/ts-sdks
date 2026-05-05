@@ -1,33 +1,43 @@
 /**************************************************************
  * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
  **************************************************************/
-import { MoveEnum, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
+import {
+	MoveEnum,
+	MoveStruct,
+	MoveTuple,
+	normalizeMoveArguments,
+	type RawTransactionArgument,
+} from '../utils/index.js';
 import { bcs, type BcsType } from '@mysten/sui/bcs';
 import { type Transaction, type TransactionResult } from '@mysten/sui/transactions';
 const $moduleName = '@local-pkg/walrus::auth';
-const _AuthenticatedFields = {
-	Sender: bcs.Address,
-	Object: bcs.Address,
-};
 /**
  * Authentication for either a sender or an object. Unlike the `Authorized` type,
  * it cannot be stored and must be used or ignored in the same transaction.
  */
-export const Authenticated: MoveEnum<typeof _AuthenticatedFields> = new MoveEnum({
+export const Authenticated: MoveEnum<{
+	Sender: typeof bcs.Address;
+	Object: typeof bcs.Address;
+}> = new MoveEnum({
 	name: `${$moduleName}::Authenticated`,
-	fields: _AuthenticatedFields,
+	fields: {
+		Sender: bcs.Address,
+		Object: bcs.Address,
+	},
 });
-const _AuthorizedFields = {
-	Address: bcs.Address,
-	ObjectID: bcs.Address,
-};
 /**
  * Defines the ways to authorize an action. It can be either an address - checked
  * with `ctx.sender()`, - or an object - checked with `object::id(..)`.
  */
-export const Authorized: MoveEnum<typeof _AuthorizedFields> = new MoveEnum({
+export const Authorized: MoveEnum<{
+	Address: typeof bcs.Address;
+	ObjectID: typeof bcs.Address;
+}> = new MoveEnum({
 	name: `${$moduleName}::Authorized`,
-	fields: _AuthorizedFields,
+	fields: {
+		Address: bcs.Address,
+		ObjectID: bcs.Address,
+	},
 });
 export interface AuthenticateSenderOptions {
 	package?: string;

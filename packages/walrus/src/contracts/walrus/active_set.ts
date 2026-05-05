@@ -12,31 +12,37 @@
 import { MoveStruct } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 const $moduleName = '@local-pkg/walrus::active_set';
-const _ActiveSetEntryFields = {
-	node_id: bcs.Address,
-	staked_amount: bcs.u64(),
-};
-export const ActiveSetEntry: MoveStruct<typeof _ActiveSetEntryFields> = new MoveStruct({
+export const ActiveSetEntry: MoveStruct<{
+	node_id: typeof bcs.Address;
+	staked_amount: ReturnType<typeof bcs.u64>;
+}> = new MoveStruct({
 	name: `${$moduleName}::ActiveSetEntry`,
-	fields: _ActiveSetEntryFields,
+	fields: {
+		node_id: bcs.Address,
+		staked_amount: bcs.u64(),
+	},
 });
-const _ActiveSetFields = {
-	/**
-	 * The maximum number of storage nodes in the active set. Potentially remove this
-	 * field.
-	 */
-	max_size: bcs.u16(),
-	/**
-	 * The minimum amount of staked WAL needed to enter the active set. This is used to
-	 * determine if a storage node can be added to the active set.
-	 */
-	threshold_stake: bcs.u64(),
-	/** The list of storage nodes in the active set and their stake. */
-	nodes: bcs.vector(ActiveSetEntry),
-	/** The total amount of staked WAL in the active set. */
-	total_stake: bcs.u64(),
-};
-export const ActiveSet: MoveStruct<typeof _ActiveSetFields> = new MoveStruct({
+export const ActiveSet: MoveStruct<{
+	max_size: ReturnType<typeof bcs.u16>;
+	threshold_stake: ReturnType<typeof bcs.u64>;
+	nodes: ReturnType<typeof bcs.vector<typeof ActiveSetEntry>>;
+	total_stake: ReturnType<typeof bcs.u64>;
+}> = new MoveStruct({
 	name: `${$moduleName}::ActiveSet`,
-	fields: _ActiveSetFields,
+	fields: {
+		/**
+		 * The maximum number of storage nodes in the active set. Potentially remove this
+		 * field.
+		 */
+		max_size: bcs.u16(),
+		/**
+		 * The minimum amount of staked WAL needed to enter the active set. This is used to
+		 * determine if a storage node can be added to the active set.
+		 */
+		threshold_stake: bcs.u64(),
+		/** The list of storage nodes in the active set and their stake. */
+		nodes: bcs.vector(ActiveSetEntry),
+		/** The total amount of staked WAL in the active set. */
+		total_stake: bcs.u64(),
+	},
 });

@@ -29,52 +29,59 @@ import * as vec_set from './deps/sui/vec_set.js';
 import * as _package from './deps/sui/package.js';
 import * as table from './deps/sui/table.js';
 const $moduleName = '@local-pkg/walrus::upgrade';
-const _PackageDigestFields = [bcs.vector(bcs.u8())] as const;
-export const PackageDigest: MoveTuple<typeof _PackageDigestFields> = new MoveTuple({
-	name: `${$moduleName}::PackageDigest`,
-	fields: _PackageDigestFields,
-});
-const _UpgradeProposalFields = {
-	/**
-	 * The epoch in which the proposal was created. The upgrade must be performed in
-	 * the same epoch.
-	 */
-	epoch: bcs.u32(),
-	/** The digest of the package to upgrade to. */
-	digest: PackageDigest,
-	/**
-	 * The version of the package to upgrade to. This allows to easily clean up old
-	 * proposals.
-	 */
-	version: bcs.u64(),
-	/** The voting weight of the proposal. */
-	voting_weight: bcs.u16(),
-	/**
-	 * The node IDs that have voted for this proposal. Note: the number of nodes in the
-	 * committee is capped, so we can use a VecSet.
-	 */
-	voters: vec_set.VecSet(bcs.Address),
-};
-export const UpgradeProposal: MoveStruct<typeof _UpgradeProposalFields> = new MoveStruct({
+export const PackageDigest: MoveTuple<[ReturnType<typeof bcs.vector<ReturnType<typeof bcs.u8>>>]> =
+	new MoveTuple({ name: `${$moduleName}::PackageDigest`, fields: [bcs.vector(bcs.u8())] });
+export const UpgradeProposal: MoveStruct<{
+	epoch: ReturnType<typeof bcs.u32>;
+	digest: typeof PackageDigest;
+	version: ReturnType<typeof bcs.u64>;
+	voting_weight: ReturnType<typeof bcs.u16>;
+	voters: ReturnType<typeof vec_set.VecSet<typeof bcs.Address>>;
+}> = new MoveStruct({
 	name: `${$moduleName}::UpgradeProposal`,
-	fields: _UpgradeProposalFields,
+	fields: {
+		/**
+		 * The epoch in which the proposal was created. The upgrade must be performed in
+		 * the same epoch.
+		 */
+		epoch: bcs.u32(),
+		/** The digest of the package to upgrade to. */
+		digest: PackageDigest,
+		/**
+		 * The version of the package to upgrade to. This allows to easily clean up old
+		 * proposals.
+		 */
+		version: bcs.u64(),
+		/** The voting weight of the proposal. */
+		voting_weight: bcs.u16(),
+		/**
+		 * The node IDs that have voted for this proposal. Note: the number of nodes in the
+		 * committee is capped, so we can use a VecSet.
+		 */
+		voters: vec_set.VecSet(bcs.Address),
+	},
 });
-const _UpgradeManagerFields = {
-	id: bcs.Address,
-	cap: _package.UpgradeCap,
-	upgrade_proposals: table.Table,
-};
-export const UpgradeManager: MoveStruct<typeof _UpgradeManagerFields> = new MoveStruct({
+export const UpgradeManager: MoveStruct<{
+	id: typeof bcs.Address;
+	cap: typeof _package.UpgradeCap;
+	upgrade_proposals: typeof table.Table;
+}> = new MoveStruct({
 	name: `${$moduleName}::UpgradeManager`,
-	fields: _UpgradeManagerFields,
+	fields: {
+		id: bcs.Address,
+		cap: _package.UpgradeCap,
+		upgrade_proposals: table.Table,
+	},
 });
-const _EmergencyUpgradeCapFields = {
-	id: bcs.Address,
-	upgrade_manager_id: bcs.Address,
-};
-export const EmergencyUpgradeCap: MoveStruct<typeof _EmergencyUpgradeCapFields> = new MoveStruct({
+export const EmergencyUpgradeCap: MoveStruct<{
+	id: typeof bcs.Address;
+	upgrade_manager_id: typeof bcs.Address;
+}> = new MoveStruct({
 	name: `${$moduleName}::EmergencyUpgradeCap`,
-	fields: _EmergencyUpgradeCapFields,
+	fields: {
+		id: bcs.Address,
+		upgrade_manager_id: bcs.Address,
+	},
 });
 export interface VoteForUpgradeArguments {
 	self: RawTransactionArgument<string>;

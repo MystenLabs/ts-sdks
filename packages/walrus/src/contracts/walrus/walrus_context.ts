@@ -16,15 +16,23 @@ import { MoveStruct } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import * as vec_map from './deps/sui/vec_map.js';
 const $moduleName = '@local-pkg/walrus::walrus_context';
-const _WalrusContextFields = {
-	/** Current Walrus epoch */
-	epoch: bcs.u32(),
-	/** Whether the committee has been selected for the next epoch. */
-	committee_selected: bcs.bool(),
-	/** The current committee in the system. */
-	committee: vec_map.VecMap(bcs.Address, bcs.vector(bcs.u16())),
-};
-export const WalrusContext: MoveStruct<typeof _WalrusContextFields> = new MoveStruct({
+export const WalrusContext: MoveStruct<{
+	epoch: ReturnType<typeof bcs.u32>;
+	committee_selected: ReturnType<typeof bcs.bool>;
+	committee: ReturnType<
+		typeof vec_map.VecMap<
+			typeof bcs.Address,
+			ReturnType<typeof bcs.vector<ReturnType<typeof bcs.u16>>>
+		>
+	>;
+}> = new MoveStruct({
 	name: `${$moduleName}::WalrusContext`,
-	fields: _WalrusContextFields,
+	fields: {
+		/** Current Walrus epoch */
+		epoch: bcs.u32(),
+		/** Whether the committee has been selected for the next epoch. */
+		committee_selected: bcs.bool(),
+		/** The current committee in the system. */
+		committee: vec_map.VecMap(bcs.Address, bcs.vector(bcs.u16())),
+	},
 });

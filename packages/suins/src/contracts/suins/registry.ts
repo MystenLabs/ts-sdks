@@ -2,194 +2,213 @@
  * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
  **************************************************************/
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
-import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionResult, type TransactionArgument } from '@mysten/sui/transactions';
 import * as table from './deps/sui/table.js';
 const $moduleName = '@suins/core::registry';
-export const Registry = new MoveStruct({
-	name: `${$moduleName}::Registry`,
-	fields: {
-		/**
-		 * The `registry` table maps `Domain` to `NameRecord`. Added / replaced in the
-		 * `add_record` function.
-		 */
-		registry: table.Table,
-		/**
-		 * The `reverse_registry` table maps `address` to `domain_name`. Updated in the
-		 * `set_reverse_lookup` function.
-		 */
-		reverse_registry: table.Table,
-	},
-});
+export const Registry: MoveStruct<{
+    "registry": typeof table.Table;
+    "reverse_registry": typeof table.Table;
+}> = new MoveStruct({ name: `${$moduleName}::Registry`, fields: {
+        /**
+          * The `registry` table maps `Domain` to `NameRecord`. Added / replaced in the
+          * `add_record` function.
+          */
+        registry: table.Table,
+        /**
+         * The `reverse_registry` table maps `address` to `domain_name`. Updated in the
+         * `set_reverse_lookup` function.
+         */
+        reverse_registry: table.Table
+    } });
 export interface NewArguments {
-	_: RawTransactionArgument<string>;
+    _: RawTransactionArgument<string>;
 }
 export interface NewOptions {
-	package?: string;
-	arguments: NewArguments | [_: RawTransactionArgument<string>];
+    package?: string;
+    arguments: NewArguments | [
+        _: RawTransactionArgument<string>
+    ];
 }
-export function _new(options: NewOptions) {
-	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [null] satisfies (string | null)[];
-	const parameterNames = ['_'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'registry',
-			function: 'new',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
+export function _new(options: NewOptions): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@suins/core';
+    const argumentsTypes = [
+        null
+    ] satisfies (string | null)[];
+    const parameterNames = ["_"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'registry',
+        function: 'new',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+    });
 }
 export interface AddRecordIgnoringGracePeriodArguments {
-	self: TransactionArgument;
-	domain: TransactionArgument;
-	noYears: RawTransactionArgument<number>;
+    self: TransactionArgument;
+    domain: TransactionArgument;
+    noYears: RawTransactionArgument<number>;
 }
 export interface AddRecordIgnoringGracePeriodOptions {
-	package?: string;
-	arguments:
-		| AddRecordIgnoringGracePeriodArguments
-		| [
-				self: TransactionArgument,
-				domain: TransactionArgument,
-				noYears: RawTransactionArgument<number>,
-		  ];
+    package?: string;
+    arguments: AddRecordIgnoringGracePeriodArguments | [
+        self: TransactionArgument,
+        domain: TransactionArgument,
+        noYears: RawTransactionArgument<number>
+    ];
 }
 /**
  * Attempts to add a new record to the registry without looking at the grace
  * period. Currently used for subdomains where there's no grace period to respect.
  * Returns a `SuinsRegistration` upon success.
  */
-export function addRecordIgnoringGracePeriod(options: AddRecordIgnoringGracePeriodOptions) {
-	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [null, null, 'u8', '0x2::clock::Clock'] satisfies (string | null)[];
-	const parameterNames = ['self', 'domain', 'noYears'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'registry',
-			function: 'add_record_ignoring_grace_period',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
+export function addRecordIgnoringGracePeriod(options: AddRecordIgnoringGracePeriodOptions): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@suins/core';
+    const argumentsTypes = [
+        null,
+        null,
+        'u8',
+        '0x2::clock::Clock'
+    ] satisfies (string | null)[];
+    const parameterNames = ["self", "domain", "noYears"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'registry',
+        function: 'add_record_ignoring_grace_period',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+    });
 }
 export interface AddRecordArguments {
-	self: TransactionArgument;
-	domain: TransactionArgument;
-	noYears: RawTransactionArgument<number>;
+    self: TransactionArgument;
+    domain: TransactionArgument;
+    noYears: RawTransactionArgument<number>;
 }
 export interface AddRecordOptions {
-	package?: string;
-	arguments:
-		| AddRecordArguments
-		| [
-				self: TransactionArgument,
-				domain: TransactionArgument,
-				noYears: RawTransactionArgument<number>,
-		  ];
+    package?: string;
+    arguments: AddRecordArguments | [
+        self: TransactionArgument,
+        domain: TransactionArgument,
+        noYears: RawTransactionArgument<number>
+    ];
 }
 /**
  * Attempts to add a new record to the registry and returns a `SuinsRegistration`
  * upon success. Only use with second-level names. Enforces a `grace_period` by
  * default. Not suitable for subdomains (unless a grace period is needed).
  */
-export function addRecord(options: AddRecordOptions) {
-	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [null, null, 'u8', '0x2::clock::Clock'] satisfies (string | null)[];
-	const parameterNames = ['self', 'domain', 'noYears'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'registry',
-			function: 'add_record',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
+export function addRecord(options: AddRecordOptions): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@suins/core';
+    const argumentsTypes = [
+        null,
+        null,
+        'u8',
+        '0x2::clock::Clock'
+    ] satisfies (string | null)[];
+    const parameterNames = ["self", "domain", "noYears"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'registry',
+        function: 'add_record',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+    });
 }
 export interface BurnRegistrationObjectArguments {
-	self: TransactionArgument;
-	nft: RawTransactionArgument<string>;
+    self: TransactionArgument;
+    nft: RawTransactionArgument<string>;
 }
 export interface BurnRegistrationObjectOptions {
-	package?: string;
-	arguments:
-		| BurnRegistrationObjectArguments
-		| [self: TransactionArgument, nft: RawTransactionArgument<string>];
+    package?: string;
+    arguments: BurnRegistrationObjectArguments | [
+        self: TransactionArgument,
+        nft: RawTransactionArgument<string>
+    ];
 }
 /**
  * Attempts to burn an NFT and get storage rebates. Only works if the NFT has
  * expired.
  */
-export function burnRegistrationObject(options: BurnRegistrationObjectOptions) {
-	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [null, null, '0x2::clock::Clock'] satisfies (string | null)[];
-	const parameterNames = ['self', 'nft'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'registry',
-			function: 'burn_registration_object',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
+export function burnRegistrationObject(options: BurnRegistrationObjectOptions): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@suins/core';
+    const argumentsTypes = [
+        null,
+        null,
+        '0x2::clock::Clock'
+    ] satisfies (string | null)[];
+    const parameterNames = ["self", "nft"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'registry',
+        function: 'burn_registration_object',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+    });
 }
 export interface WrapSubdomainArguments {
-	_: TransactionArgument;
-	nft: RawTransactionArgument<string>;
+    _: TransactionArgument;
+    nft: RawTransactionArgument<string>;
 }
 export interface WrapSubdomainOptions {
-	package?: string;
-	arguments: WrapSubdomainArguments | [_: TransactionArgument, nft: RawTransactionArgument<string>];
+    package?: string;
+    arguments: WrapSubdomainArguments | [
+        _: TransactionArgument,
+        nft: RawTransactionArgument<string>
+    ];
 }
 /** Allow creation of subdomain wrappers only to authorized modules. */
-export function wrapSubdomain(options: WrapSubdomainOptions) {
-	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [null, null, '0x2::clock::Clock'] satisfies (string | null)[];
-	const parameterNames = ['_', 'nft'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'registry',
-			function: 'wrap_subdomain',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
+export function wrapSubdomain(options: WrapSubdomainOptions): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@suins/core';
+    const argumentsTypes = [
+        null,
+        null,
+        '0x2::clock::Clock'
+    ] satisfies (string | null)[];
+    const parameterNames = ["_", "nft"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'registry',
+        function: 'wrap_subdomain',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+    });
 }
 export interface BurnSubdomainObjectArguments {
-	self: TransactionArgument;
-	nft: RawTransactionArgument<string>;
+    self: TransactionArgument;
+    nft: RawTransactionArgument<string>;
 }
 export interface BurnSubdomainObjectOptions {
-	package?: string;
-	arguments:
-		| BurnSubdomainObjectArguments
-		| [self: TransactionArgument, nft: RawTransactionArgument<string>];
+    package?: string;
+    arguments: BurnSubdomainObjectArguments | [
+        self: TransactionArgument,
+        nft: RawTransactionArgument<string>
+    ];
 }
 /**
  * Attempts to burn a subdomain registration object, and also invalidates any
  * records in the registry / reverse registry.
  */
-export function burnSubdomainObject(options: BurnSubdomainObjectOptions) {
-	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [null, null, '0x2::clock::Clock'] satisfies (string | null)[];
-	const parameterNames = ['self', 'nft'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'registry',
-			function: 'burn_subdomain_object',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
+export function burnSubdomainObject(options: BurnSubdomainObjectOptions): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@suins/core';
+    const argumentsTypes = [
+        null,
+        null,
+        '0x2::clock::Clock'
+    ] satisfies (string | null)[];
+    const parameterNames = ["self", "nft"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'registry',
+        function: 'burn_subdomain_object',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+    });
 }
 export interface AddLeafRecordArguments {
-	self: TransactionArgument;
-	domain: TransactionArgument;
-	target: RawTransactionArgument<string>;
+    self: TransactionArgument;
+    domain: TransactionArgument;
+    target: RawTransactionArgument<string>;
 }
 export interface AddLeafRecordOptions {
-	package?: string;
-	arguments:
-		| AddLeafRecordArguments
-		| [
-				self: TransactionArgument,
-				domain: TransactionArgument,
-				target: RawTransactionArgument<string>,
-		  ];
+    package?: string;
+    arguments: AddLeafRecordArguments | [
+        self: TransactionArgument,
+        domain: TransactionArgument,
+        target: RawTransactionArgument<string>
+    ];
 }
 /**
  * Adds a `leaf` record to the registry. A `leaf` record is a record that is a
@@ -207,164 +226,182 @@ export interface AddLeafRecordOptions {
  * can only be a `node`, we need to check that the parent's NFT_ID is valid &
  * hasn't expired.
  */
-export function addLeafRecord(options: AddLeafRecordOptions) {
-	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [null, null, '0x2::clock::Clock', 'address'] satisfies (string | null)[];
-	const parameterNames = ['self', 'domain', 'target'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'registry',
-			function: 'add_leaf_record',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
+export function addLeafRecord(options: AddLeafRecordOptions): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@suins/core';
+    const argumentsTypes = [
+        null,
+        null,
+        '0x2::clock::Clock',
+        'address'
+    ] satisfies (string | null)[];
+    const parameterNames = ["self", "domain", "target"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'registry',
+        function: 'add_leaf_record',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+    });
 }
 export interface RemoveLeafRecordArguments {
-	self: TransactionArgument;
-	domain: TransactionArgument;
+    self: TransactionArgument;
+    domain: TransactionArgument;
 }
 export interface RemoveLeafRecordOptions {
-	package?: string;
-	arguments: RemoveLeafRecordArguments | [self: TransactionArgument, domain: TransactionArgument];
+    package?: string;
+    arguments: RemoveLeafRecordArguments | [
+        self: TransactionArgument,
+        domain: TransactionArgument
+    ];
 }
 /**
  * Can be used to remove a leaf record. Leaf records do not have any symmetrical
  * `SuinsRegistration` object. Authorization of who calls this is delegated to the
  * authorized module that calls this.
  */
-export function removeLeafRecord(options: RemoveLeafRecordOptions) {
-	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [null, null] satisfies (string | null)[];
-	const parameterNames = ['self', 'domain'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'registry',
-			function: 'remove_leaf_record',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
+export function removeLeafRecord(options: RemoveLeafRecordOptions): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@suins/core';
+    const argumentsTypes = [
+        null,
+        null
+    ] satisfies (string | null)[];
+    const parameterNames = ["self", "domain"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'registry',
+        function: 'remove_leaf_record',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+    });
 }
 export interface SetTargetAddressArguments {
-	self: TransactionArgument;
-	domain: TransactionArgument;
-	newTarget: RawTransactionArgument<string | null>;
+    self: TransactionArgument;
+    domain: TransactionArgument;
+    newTarget: RawTransactionArgument<string | null>;
 }
 export interface SetTargetAddressOptions {
-	package?: string;
-	arguments:
-		| SetTargetAddressArguments
-		| [
-				self: TransactionArgument,
-				domain: TransactionArgument,
-				newTarget: RawTransactionArgument<string | null>,
-		  ];
+    package?: string;
+    arguments: SetTargetAddressArguments | [
+        self: TransactionArgument,
+        domain: TransactionArgument,
+        newTarget: RawTransactionArgument<string | null>
+    ];
 }
-export function setTargetAddress(options: SetTargetAddressOptions) {
-	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [null, null, '0x1::option::Option<address>'] satisfies (string | null)[];
-	const parameterNames = ['self', 'domain', 'newTarget'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'registry',
-			function: 'set_target_address',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
+export function setTargetAddress(options: SetTargetAddressOptions): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@suins/core';
+    const argumentsTypes = [
+        null,
+        null,
+        '0x1::option::Option<address>'
+    ] satisfies (string | null)[];
+    const parameterNames = ["self", "domain", "newTarget"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'registry',
+        function: 'set_target_address',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+    });
 }
 export interface UnsetReverseLookupArguments {
-	self: TransactionArgument;
-	address: RawTransactionArgument<string>;
+    self: TransactionArgument;
+    address: RawTransactionArgument<string>;
 }
 export interface UnsetReverseLookupOptions {
-	package?: string;
-	arguments:
-		| UnsetReverseLookupArguments
-		| [self: TransactionArgument, address: RawTransactionArgument<string>];
+    package?: string;
+    arguments: UnsetReverseLookupArguments | [
+        self: TransactionArgument,
+        address: RawTransactionArgument<string>
+    ];
 }
-export function unsetReverseLookup(options: UnsetReverseLookupOptions) {
-	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [null, 'address'] satisfies (string | null)[];
-	const parameterNames = ['self', 'address'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'registry',
-			function: 'unset_reverse_lookup',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
+export function unsetReverseLookup(options: UnsetReverseLookupOptions): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@suins/core';
+    const argumentsTypes = [
+        null,
+        'address'
+    ] satisfies (string | null)[];
+    const parameterNames = ["self", "address"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'registry',
+        function: 'unset_reverse_lookup',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+    });
 }
 export interface SetReverseLookupArguments {
-	self: TransactionArgument;
-	address: RawTransactionArgument<string>;
-	domain: TransactionArgument;
+    self: TransactionArgument;
+    address: RawTransactionArgument<string>;
+    domain: TransactionArgument;
 }
 export interface SetReverseLookupOptions {
-	package?: string;
-	arguments:
-		| SetReverseLookupArguments
-		| [
-				self: TransactionArgument,
-				address: RawTransactionArgument<string>,
-				domain: TransactionArgument,
-		  ];
+    package?: string;
+    arguments: SetReverseLookupArguments | [
+        self: TransactionArgument,
+        address: RawTransactionArgument<string>,
+        domain: TransactionArgument
+    ];
 }
 /** Reverse lookup can only be set for the record that has the target address. */
-export function setReverseLookup(options: SetReverseLookupOptions) {
-	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [null, 'address', null] satisfies (string | null)[];
-	const parameterNames = ['self', 'address', 'domain'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'registry',
-			function: 'set_reverse_lookup',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
+export function setReverseLookup(options: SetReverseLookupOptions): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@suins/core';
+    const argumentsTypes = [
+        null,
+        'address',
+        null
+    ] satisfies (string | null)[];
+    const parameterNames = ["self", "address", "domain"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'registry',
+        function: 'set_reverse_lookup',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+    });
 }
 export interface SetExpirationTimestampMsArguments {
-	self: TransactionArgument;
-	nft: RawTransactionArgument<string>;
-	domain: TransactionArgument;
-	expirationTimestampMs: RawTransactionArgument<number | bigint>;
+    self: TransactionArgument;
+    nft: RawTransactionArgument<string>;
+    domain: TransactionArgument;
+    expirationTimestampMs: RawTransactionArgument<number | bigint>;
 }
 export interface SetExpirationTimestampMsOptions {
-	package?: string;
-	arguments:
-		| SetExpirationTimestampMsArguments
-		| [
-				self: TransactionArgument,
-				nft: RawTransactionArgument<string>,
-				domain: TransactionArgument,
-				expirationTimestampMs: RawTransactionArgument<number | bigint>,
-		  ];
+    package?: string;
+    arguments: SetExpirationTimestampMsArguments | [
+        self: TransactionArgument,
+        nft: RawTransactionArgument<string>,
+        domain: TransactionArgument,
+        expirationTimestampMs: RawTransactionArgument<number | bigint>
+    ];
 }
 /**
  * Update the `expiration_timestamp_ms` of the given `SuinsRegistration` and
  * `NameRecord`. Requires the `SuinsRegistration` to make sure that both timestamps
  * are in sync.
  */
-export function setExpirationTimestampMs(options: SetExpirationTimestampMsOptions) {
-	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [null, null, null, 'u64'] satisfies (string | null)[];
-	const parameterNames = ['self', 'nft', 'domain', 'expirationTimestampMs'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'registry',
-			function: 'set_expiration_timestamp_ms',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
+export function setExpirationTimestampMs(options: SetExpirationTimestampMsOptions): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@suins/core';
+    const argumentsTypes = [
+        null,
+        null,
+        null,
+        'u64'
+    ] satisfies (string | null)[];
+    const parameterNames = ["self", "nft", "domain", "expirationTimestampMs"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'registry',
+        function: 'set_expiration_timestamp_ms',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+    });
 }
 export interface SetDataArguments {
-	self: TransactionArgument;
-	domain: TransactionArgument;
-	data: TransactionArgument;
+    self: TransactionArgument;
+    domain: TransactionArgument;
+    data: TransactionArgument;
 }
 export interface SetDataOptions {
-	package?: string;
-	arguments:
-		| SetDataArguments
-		| [self: TransactionArgument, domain: TransactionArgument, data: TransactionArgument];
+    package?: string;
+    arguments: SetDataArguments | [
+        self: TransactionArgument,
+        domain: TransactionArgument,
+        data: TransactionArgument
+    ];
 }
 /**
  * Update the `data` of the given `NameRecord` using a `SuinsRegistration`. Use
@@ -372,92 +409,109 @@ export interface SetDataOptions {
  * (accidentally), when building authorized packages that can write the metadata
  * field.
  */
-export function setData(options: SetDataOptions) {
-	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [null, null, null] satisfies (string | null)[];
-	const parameterNames = ['self', 'domain', 'data'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'registry',
-			function: 'set_data',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
+export function setData(options: SetDataOptions): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@suins/core';
+    const argumentsTypes = [
+        null,
+        null,
+        null
+    ] satisfies (string | null)[];
+    const parameterNames = ["self", "domain", "data"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'registry',
+        function: 'set_data',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+    });
 }
 export interface HasRecordArguments {
-	self: TransactionArgument;
-	domain: TransactionArgument;
+    self: TransactionArgument;
+    domain: TransactionArgument;
 }
 export interface HasRecordOptions {
-	package?: string;
-	arguments: HasRecordArguments | [self: TransactionArgument, domain: TransactionArgument];
+    package?: string;
+    arguments: HasRecordArguments | [
+        self: TransactionArgument,
+        domain: TransactionArgument
+    ];
 }
 /** Check whether the given `domain` is registered in the `Registry`. */
-export function hasRecord(options: HasRecordOptions) {
-	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [null, null] satisfies (string | null)[];
-	const parameterNames = ['self', 'domain'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'registry',
-			function: 'has_record',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
+export function hasRecord(options: HasRecordOptions): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@suins/core';
+    const argumentsTypes = [
+        null,
+        null
+    ] satisfies (string | null)[];
+    const parameterNames = ["self", "domain"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'registry',
+        function: 'has_record',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+    });
 }
 export interface LookupArguments {
-	self: TransactionArgument;
-	domain: TransactionArgument;
+    self: TransactionArgument;
+    domain: TransactionArgument;
 }
 export interface LookupOptions {
-	package?: string;
-	arguments: LookupArguments | [self: TransactionArgument, domain: TransactionArgument];
+    package?: string;
+    arguments: LookupArguments | [
+        self: TransactionArgument,
+        domain: TransactionArgument
+    ];
 }
 /** Returns the `NameRecord` associated with the given domain or None. */
-export function lookup(options: LookupOptions) {
-	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [null, null] satisfies (string | null)[];
-	const parameterNames = ['self', 'domain'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'registry',
-			function: 'lookup',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
+export function lookup(options: LookupOptions): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@suins/core';
+    const argumentsTypes = [
+        null,
+        null
+    ] satisfies (string | null)[];
+    const parameterNames = ["self", "domain"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'registry',
+        function: 'lookup',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+    });
 }
 export interface ReverseLookupArguments {
-	self: TransactionArgument;
-	address: RawTransactionArgument<string>;
+    self: TransactionArgument;
+    address: RawTransactionArgument<string>;
 }
 export interface ReverseLookupOptions {
-	package?: string;
-	arguments:
-		| ReverseLookupArguments
-		| [self: TransactionArgument, address: RawTransactionArgument<string>];
+    package?: string;
+    arguments: ReverseLookupArguments | [
+        self: TransactionArgument,
+        address: RawTransactionArgument<string>
+    ];
 }
 /** Returns the `domain_name` associated with the given address or None. */
-export function reverseLookup(options: ReverseLookupOptions) {
-	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [null, 'address'] satisfies (string | null)[];
-	const parameterNames = ['self', 'address'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'registry',
-			function: 'reverse_lookup',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
+export function reverseLookup(options: ReverseLookupOptions): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@suins/core';
+    const argumentsTypes = [
+        null,
+        'address'
+    ] satisfies (string | null)[];
+    const parameterNames = ["self", "address"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'registry',
+        function: 'reverse_lookup',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+    });
 }
 export interface AssertNftIsAuthorizedArguments {
-	self: TransactionArgument;
-	nft: RawTransactionArgument<string>;
+    self: TransactionArgument;
+    nft: RawTransactionArgument<string>;
 }
 export interface AssertNftIsAuthorizedOptions {
-	package?: string;
-	arguments:
-		| AssertNftIsAuthorizedArguments
-		| [self: TransactionArgument, nft: RawTransactionArgument<string>];
+    package?: string;
+    arguments: AssertNftIsAuthorizedArguments | [
+        self: TransactionArgument,
+        nft: RawTransactionArgument<string>
+    ];
 }
 /**
  * Asserts that the provided NFT:
@@ -465,36 +519,44 @@ export interface AssertNftIsAuthorizedOptions {
  * 1.  Matches the ID in the corresponding `Record`
  * 2.  Has not expired (does not take into account the grace period)
  */
-export function assertNftIsAuthorized(options: AssertNftIsAuthorizedOptions) {
-	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [null, null, '0x2::clock::Clock'] satisfies (string | null)[];
-	const parameterNames = ['self', 'nft'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'registry',
-			function: 'assert_nft_is_authorized',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
+export function assertNftIsAuthorized(options: AssertNftIsAuthorizedOptions): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@suins/core';
+    const argumentsTypes = [
+        null,
+        null,
+        '0x2::clock::Clock'
+    ] satisfies (string | null)[];
+    const parameterNames = ["self", "nft"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'registry',
+        function: 'assert_nft_is_authorized',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+    });
 }
 export interface GetDataArguments {
-	self: TransactionArgument;
-	domain: TransactionArgument;
+    self: TransactionArgument;
+    domain: TransactionArgument;
 }
 export interface GetDataOptions {
-	package?: string;
-	arguments: GetDataArguments | [self: TransactionArgument, domain: TransactionArgument];
+    package?: string;
+    arguments: GetDataArguments | [
+        self: TransactionArgument,
+        domain: TransactionArgument
+    ];
 }
 /** Returns the `data` associated with the given `Domain`. */
-export function getData(options: GetDataOptions) {
-	const packageAddress = options.package ?? '@suins/core';
-	const argumentsTypes = [null, null] satisfies (string | null)[];
-	const parameterNames = ['self', 'domain'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'registry',
-			function: 'get_data',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
+export function getData(options: GetDataOptions): (tx: Transaction) => TransactionResult {
+    const packageAddress = options.package ?? '@suins/core';
+    const argumentsTypes = [
+        null,
+        null
+    ] satisfies (string | null)[];
+    const parameterNames = ["self", "domain"];
+    return (tx: Transaction) => tx.moveCall({
+        package: packageAddress,
+        module: 'registry',
+        function: 'get_data',
+        arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+    });
 }

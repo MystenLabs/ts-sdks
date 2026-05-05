@@ -11,10 +11,11 @@
 import { MoveStruct } from '../../../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 const $moduleName = '0x2::balance';
-const _BalanceFields = {
-	value: bcs.u64(),
-};
-export const Balance: MoveStruct<typeof _BalanceFields> = new MoveStruct({
+export const Balance: MoveStruct<{
+	value: ReturnType<typeof bcs.u64>;
+}> = new MoveStruct({
 	name: `${$moduleName}::Balance<phantom T>`,
-	fields: _BalanceFields,
+	fields: {
+		value: bcs.u64(),
+	},
 });

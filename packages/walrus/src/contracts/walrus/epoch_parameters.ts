@@ -4,15 +4,18 @@
 import { MoveStruct } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 const $moduleName = '@local-pkg/walrus::epoch_parameters';
-const _EpochParamsFields = {
-	/** The storage capacity of the system. */
-	total_capacity_size: bcs.u64(),
-	/** The price per unit size of storage. */
-	storage_price_per_unit_size: bcs.u64(),
-	/** The write price per unit size. */
-	write_price_per_unit_size: bcs.u64(),
-};
-export const EpochParams: MoveStruct<typeof _EpochParamsFields> = new MoveStruct({
+export const EpochParams: MoveStruct<{
+	total_capacity_size: ReturnType<typeof bcs.u64>;
+	storage_price_per_unit_size: ReturnType<typeof bcs.u64>;
+	write_price_per_unit_size: ReturnType<typeof bcs.u64>;
+}> = new MoveStruct({
 	name: `${$moduleName}::EpochParams`,
-	fields: _EpochParamsFields,
+	fields: {
+		/** The storage capacity of the system. */
+		total_capacity_size: bcs.u64(),
+		/** The price per unit size of storage. */
+		storage_price_per_unit_size: bcs.u64(),
+		/** The write price per unit size. */
+		write_price_per_unit_size: bcs.u64(),
+	},
 });

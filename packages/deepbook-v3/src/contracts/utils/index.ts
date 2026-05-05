@@ -1,3 +1,4 @@
+
 import {
 	bcs,
 	type BcsType,
@@ -165,9 +166,7 @@ export class MoveStruct<
 		objectId,
 		...options
 	}: GetOptions<Include>): Promise<
-		SuiClientTypes.Object<Include & { content: true; json: true }> & {
-			json: BcsStruct<T>['$inferType'];
-		}
+		SuiClientTypes.Object<Include & { content: true, json: true }> & { json: BcsStruct<T>['$inferType'] }
 	> {
 		const [res] = await this.getMany<Include>({
 			...options,
@@ -185,11 +184,7 @@ export class MoveStruct<
 		client,
 		...options
 	}: GetManyOptions<Include>): Promise<
-		Array<
-			SuiClientTypes.Object<Include & { content: true; json: true }> & {
-				json: BcsStruct<T>['$inferType'];
-			}
-		>
+		Array<SuiClientTypes.Object<Include & { content: true, json: true }> & { json: BcsStruct<T>['$inferType'] }>
 	> {
 		const response = (await client.core.getObjects({
 			...options,
@@ -214,12 +209,12 @@ export class MoveStruct<
 
 export class MoveEnum<
 	T extends Record<string, BcsType<any> | null>,
-	const Name extends string,
+	const Name extends string = string,
 > extends BcsEnum<T, Name> {}
 
 export class MoveTuple<
 	const T extends readonly BcsType<any>[],
-	const Name extends string,
+	const Name extends string = string,
 > extends BcsTuple<T, Name> {}
 
 function stringify(val: unknown) {

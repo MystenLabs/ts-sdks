@@ -12,28 +12,35 @@
 import { MoveStruct } from '../../../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 const $moduleName = '0x2::package';
-const _PublisherFields = {
-	id: bcs.Address,
-	package: bcs.string(),
-	module_name: bcs.string(),
-};
-export const Publisher: MoveStruct<typeof _PublisherFields> = new MoveStruct({
+export const Publisher: MoveStruct<{
+	id: typeof bcs.Address;
+	package: ReturnType<typeof bcs.string>;
+	module_name: ReturnType<typeof bcs.string>;
+}> = new MoveStruct({
 	name: `${$moduleName}::Publisher`,
-	fields: _PublisherFields,
+	fields: {
+		id: bcs.Address,
+		package: bcs.string(),
+		module_name: bcs.string(),
+	},
 });
-const _UpgradeCapFields = {
-	id: bcs.Address,
-	/** (Mutable) ID of the package that can be upgraded. */
-	package: bcs.Address,
-	/**
-	 * (Mutable) The number of upgrades that have been applied successively to the
-	 * original package. Initially 0.
-	 */
-	version: bcs.u64(),
-	/** What kind of upgrades are allowed. */
-	policy: bcs.u8(),
-};
-export const UpgradeCap: MoveStruct<typeof _UpgradeCapFields> = new MoveStruct({
+export const UpgradeCap: MoveStruct<{
+	id: typeof bcs.Address;
+	package: typeof bcs.Address;
+	version: ReturnType<typeof bcs.u64>;
+	policy: ReturnType<typeof bcs.u8>;
+}> = new MoveStruct({
 	name: `${$moduleName}::UpgradeCap`,
-	fields: _UpgradeCapFields,
+	fields: {
+		id: bcs.Address,
+		/** (Mutable) ID of the package that can be upgraded. */
+		package: bcs.Address,
+		/**
+		 * (Mutable) The number of upgrades that have been applied successively to the
+		 * original package. Initially 0.
+		 */
+		version: bcs.u64(),
+		/** What kind of upgrades are allowed. */
+		policy: bcs.u8(),
+	},
 });

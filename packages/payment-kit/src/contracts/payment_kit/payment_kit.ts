@@ -9,17 +9,28 @@ import {
 	type RawTransactionArgument,
 } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
+import {
+	type Transaction,
+	type TransactionResult,
+	type TransactionArgument,
+} from '@mysten/sui/transactions';
 import * as vec_map from './deps/sui/vec_map.js';
 import * as config from './config.js';
 const $moduleName = '@mysten/payment-kit::payment_kit';
-export const Namespace = new MoveStruct({
+export const Namespace: MoveStruct<{
+	id: typeof bcs.Address;
+}> = new MoveStruct({
 	name: `${$moduleName}::Namespace`,
 	fields: {
 		id: bcs.Address,
 	},
 });
-export const PaymentRegistry = new MoveStruct({
+export const PaymentRegistry: MoveStruct<{
+	id: typeof bcs.Address;
+	cap_id: typeof bcs.Address;
+	config: ReturnType<typeof vec_map.VecMap<ReturnType<typeof bcs.string>, typeof config.Value>>;
+	version: ReturnType<typeof bcs.u16>;
+}> = new MoveStruct({
 	name: `${$moduleName}::PaymentRegistry`,
 	fields: {
 		id: bcs.Address,
@@ -28,7 +39,10 @@ export const PaymentRegistry = new MoveStruct({
 		version: bcs.u16(),
 	},
 });
-export const RegistryAdminCap = new MoveStruct({
+export const RegistryAdminCap: MoveStruct<{
+	id: typeof bcs.Address;
+	registry_id: typeof bcs.Address;
+}> = new MoveStruct({
 	name: `${$moduleName}::RegistryAdminCap`,
 	fields: {
 		id: bcs.Address,
@@ -39,14 +53,24 @@ export const RegistryAdminCap = new MoveStruct({
  * Enum representing the type of payment: Ephemeral (one-time) or Registry (tracked
  * in a registry).
  */
-export const PaymentType = new MoveEnum({
+export const PaymentType: MoveEnum<{
+	Ephemeral: null;
+	Registry: typeof bcs.Address;
+}> = new MoveEnum({
 	name: `${$moduleName}::PaymentType`,
 	fields: {
 		Ephemeral: null,
 		Registry: bcs.Address,
 	},
 });
-export const PaymentReceipt = new MoveStruct({
+export const PaymentReceipt: MoveStruct<{
+	payment_type: typeof PaymentType;
+	nonce: ReturnType<typeof bcs.string>;
+	payment_amount: ReturnType<typeof bcs.u64>;
+	receiver: typeof bcs.Address;
+	coin_type: ReturnType<typeof bcs.string>;
+	timestamp_ms: ReturnType<typeof bcs.u64>;
+}> = new MoveStruct({
 	name: `${$moduleName}::PaymentReceipt`,
 	fields: {
 		payment_type: PaymentType,
@@ -57,7 +81,11 @@ export const PaymentReceipt = new MoveStruct({
 		timestamp_ms: bcs.u64(),
 	},
 });
-export const PaymentKey = new MoveStruct({
+export const PaymentKey: MoveStruct<{
+	nonce: ReturnType<typeof bcs.string>;
+	payment_amount: ReturnType<typeof bcs.u64>;
+	receiver: typeof bcs.Address;
+}> = new MoveStruct({
 	name: `${$moduleName}::PaymentKey<phantom T>`,
 	fields: {
 		nonce: bcs.string(),
@@ -65,13 +93,15 @@ export const PaymentKey = new MoveStruct({
 		receiver: bcs.Address,
 	},
 });
-export const PaymentRecord = new MoveStruct({
+export const PaymentRecord: MoveStruct<{
+	epoch_at_time_of_record: ReturnType<typeof bcs.u64>;
+}> = new MoveStruct({
 	name: `${$moduleName}::PaymentRecord`,
 	fields: {
 		epoch_at_time_of_record: bcs.u64(),
 	},
 });
-export const BalanceKey = new MoveTuple({
+export const BalanceKey: MoveTuple<[ReturnType<typeof bcs.bool>]> = new MoveTuple({
 	name: `${$moduleName}::BalanceKey<phantom T>`,
 	fields: [bcs.bool()],
 });
@@ -89,7 +119,9 @@ export interface CreateRegistryOptions {
  * Creates a new payment registry with a supplied label. Label is used to derive
  * the registry's ID.
  */
-export function createRegistry(options: CreateRegistryOptions) {
+export function createRegistry(
+	options: CreateRegistryOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/payment-kit';
 	const argumentsTypes = [null, '0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['namespace', 'name'];
@@ -123,7 +155,9 @@ export interface ProcessEphemeralPaymentOptions {
  * Processes a payment (without the use of a Registry), emitting a payment receipt
  * event.
  */
-export function processEphemeralPayment(options: ProcessEphemeralPaymentOptions) {
+export function processEphemeralPayment(
+	options: ProcessEphemeralPaymentOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/payment-kit';
 	const argumentsTypes = [
 		'0x1::string::String',
@@ -166,7 +200,9 @@ export interface ProcessRegistryPaymentOptions {
  * Processes a payment via a payment registry, writing a receipt to the registry
  * and protecting from double spending for the same key.
  */
-export function processRegistryPayment(options: ProcessRegistryPaymentOptions) {
+export function processRegistryPayment(
+	options: ProcessRegistryPaymentOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/payment-kit';
 	const argumentsTypes = [
 		null,
@@ -201,7 +237,9 @@ export interface WithdrawFromRegistryOptions {
  * If the registry is configured to manage funds, withdraw all funds of the
  * specified coin from the registry.
  */
-export function withdrawFromRegistry(options: WithdrawFromRegistryOptions) {
+export function withdrawFromRegistry(
+	options: WithdrawFromRegistryOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/payment-kit';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['registry', 'cap'];
@@ -226,7 +264,9 @@ export interface DeletePaymentRecordOptions {
 	typeArguments: [string];
 }
 /** Removes an expired Payment Record from the Registry. */
-export function deletePaymentRecord(options: DeletePaymentRecordOptions) {
+export function deletePaymentRecord(
+	options: DeletePaymentRecordOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/payment-kit';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['registry', 'paymentKey'];
@@ -256,7 +296,9 @@ export interface CreatePaymentKeyOptions {
 	typeArguments: [string];
 }
 /** Creates a PaymentKey from payment parameters. */
-export function createPaymentKey(options: CreatePaymentKeyOptions) {
+export function createPaymentKey(
+	options: CreatePaymentKeyOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/payment-kit';
 	const argumentsTypes = ['0x1::string::String', 'u64', 'address'] satisfies (string | null)[];
 	const parameterNames = ['nonce', 'paymentAmount', 'receiver'];
@@ -289,7 +331,9 @@ export interface SetConfigEpochExpirationDurationOptions {
  * payment records will expire after the specified number of epochs. If not set,
  * payment records will expire 30 epochs after their creation.
  */
-export function setConfigEpochExpirationDuration(options: SetConfigEpochExpirationDurationOptions) {
+export function setConfigEpochExpirationDuration(
+	options: SetConfigEpochExpirationDurationOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/payment-kit';
 	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
 	const parameterNames = ['registry', 'cap', 'epochExpirationDuration'];
@@ -321,7 +365,9 @@ export interface SetConfigRegistryManagedFundsOptions {
  * processed via the registry will be collected into the registry's balance. If
  * false, payments will be transferred directly to the specified receiver.
  */
-export function setConfigRegistryManagedFunds(options: SetConfigRegistryManagedFundsOptions) {
+export function setConfigRegistryManagedFunds(
+	options: SetConfigRegistryManagedFundsOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/payment-kit';
 	const argumentsTypes = [null, null, 'bool'] satisfies (string | null)[];
 	const parameterNames = ['registry', 'cap', 'registryManagedFunds'];
@@ -347,7 +393,7 @@ export interface ShareOptions {
  *
  * - `registry` - The PaymentRegistry to share
  */
-export function share(options: ShareOptions) {
+export function share(options: ShareOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@mysten/payment-kit';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['registry'];

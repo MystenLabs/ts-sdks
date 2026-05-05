@@ -317,6 +317,26 @@ export class MoveModuleBuilder extends FileBuilder {
 		});
 	}
 
+	#renderStructFieldsTypeLiteral(
+		{ fields }: Fields,
+		typeParameters: TypeParameter[] = [],
+		includePhantomTypeParameters = false,
+	): string {
+		const entries = Object.entries(fields).map(([name, field]) => {
+			const tsType = renderTypeSignature(field.type_, {
+				format: 'tsType',
+				bcsImport: () => this.#getImportName('bcs'),
+				summary: this.summary,
+				typeParameters,
+				includePhantomTypeParameters,
+				registry: this.registry,
+				onDependency: this.#importDependency,
+			});
+			return `${JSON.stringify(name)}: ${tsType}`;
+		});
+		return `{ ${entries.join('; ')} }`;
+	}
+
 	async #renderTupleFieldsLiteral(
 		{ fields }: Fields,
 		typeParameters: TypeParameter[] = [],
@@ -333,6 +353,69 @@ export class MoveModuleBuilder extends FileBuilder {
 				onDependency: this.#importDependency,
 			}),
 		);
+	}
+
+	#renderTupleFieldsTypeLiteral(
+		{ fields }: Fields,
+		typeParameters: TypeParameter[] = [],
+		includePhantomTypeParameters = false,
+	): string {
+		const types = Object.values(fields).map((field) =>
+			renderTypeSignature(field.type_, {
+				format: 'tsType',
+				summary: this.summary,
+				typeParameters,
+				includePhantomTypeParameters,
+				bcsImport: () => this.#getImportName('bcs'),
+				registry: this.registry,
+				onDependency: this.#importDependency,
+			}),
+		);
+		return `[${types.join(', ')}]`;
+	}
+
+	#renderEnumVariantsTypeLiteral(
+		variants: Record<string, { fields: Fields }>,
+		typeParameters: TypeParameter[] = [],
+		includePhantomTypeParameters = false,
+	): string {
+		const moveStructName = this.#getImportName('MoveStruct');
+		const moveTupleName = this.#getImportName('MoveTuple');
+		const entries = Object.entries(variants).map(([variantName, variant]) => {
+			const fieldKeys = Object.keys(variant.fields.fields);
+			let variantType: string;
+			if (fieldKeys.length === 0) {
+				variantType = 'null';
+			} else if (isPositional(variant.fields)) {
+				if (fieldKeys.length === 1) {
+					variantType = renderTypeSignature(Object.values(variant.fields.fields)[0].type_, {
+						format: 'tsType',
+						summary: this.summary,
+						typeParameters,
+						includePhantomTypeParameters,
+						bcsImport: () => this.#getImportName('bcs'),
+						registry: this.registry,
+						onDependency: this.#importDependency,
+					});
+				} else {
+					const tupleTypes = this.#renderTupleFieldsTypeLiteral(
+						variant.fields,
+						typeParameters,
+						includePhantomTypeParameters,
+					);
+					variantType = `${moveTupleName}<${tupleTypes}>`;
+				}
+			} else {
+				const structType = this.#renderStructFieldsTypeLiteral(
+					variant.fields,
+					typeParameters,
+					includePhantomTypeParameters,
+				);
+				variantType = `${moveStructName}<${structType}>`;
+			}
+			return `${JSON.stringify(variantName)}: ${variantType}`;
+		});
+		return `{ ${entries.join('; ')} }`;
 	}
 
 	async #renderFieldsAsStruct(
@@ -395,28 +478,35 @@ export class MoveModuleBuilder extends FileBuilder {
 			const phantomPlaceholders = hasPhantoms
 				? `<${struct.type_parameters.map((p, i) => `phantom ${p.name ?? `T${i}`}`).join(', ')}>`
 				: '';
-			const fieldsConst = `_${name}Fields`;
 			if (struct.fields.positional_fields) {
 				const moveTupleName = this.#getImportName('MoveTuple');
+				const fieldTypeLiteral = this.#renderTupleFieldsTypeLiteral(
+					struct.fields,
+					struct.type_parameters,
+					includePhantom,
+				);
 				const values = await this.#renderTupleFieldsLiteral(
 					struct.fields,
 					struct.type_parameters,
 					includePhantom,
 				);
 				this.statements.push(
-					...parseTS /* ts */ `const ${fieldsConst} = [${values.join(', ')}] as const`,
-					...parseTS /* ts */ `export const ${name}: ${moveTupleName}<typeof ${fieldsConst}> = new ${moveTupleName}({ name: \`${structName}${phantomPlaceholders}\`, fields: ${fieldsConst} })`,
+					...parseTS /* ts */ `export const ${name}: ${moveTupleName}<${fieldTypeLiteral}> = new ${moveTupleName}({ name: \`${structName}${phantomPlaceholders}\`, fields: [${values.join(', ')}] })`,
 				);
 			} else {
 				const moveStructName = this.#getImportName('MoveStruct');
+				const fieldTypeLiteral = this.#renderStructFieldsTypeLiteral(
+					struct.fields,
+					struct.type_parameters,
+					includePhantom,
+				);
 				const fieldObject = await this.#renderStructFieldsLiteral(
 					struct.fields,
 					struct.type_parameters,
 					includePhantom,
 				);
 				this.statements.push(
-					...parseTS /* ts */ `const ${fieldsConst} = ${fieldObject}`,
-					...parseTS /* ts */ `export const ${name}: ${moveStructName}<typeof ${fieldsConst}> = new ${moveStructName}({ name: \`${structName}${phantomPlaceholders}\`, fields: ${fieldsConst} })`,
+					...parseTS /* ts */ `export const ${name}: ${moveStructName}<${fieldTypeLiteral}> = new ${moveStructName}({ name: \`${structName}${phantomPlaceholders}\`, fields: ${fieldObject} })`,
 				);
 			}
 		} else {
@@ -524,12 +614,15 @@ export class MoveModuleBuilder extends FileBuilder {
 			const phantomPlaceholders = hasPhantoms
 				? `<${enumDef.type_parameters.map((p, i) => `phantom ${p.name ?? `T${i}`}`).join(', ')}>`
 				: '';
-			const fieldsConst = `_${name}Fields`;
+			const variantsTypeLiteral = this.#renderEnumVariantsTypeLiteral(
+				enumDef.variants,
+				enumDef.type_parameters,
+				includePhantom,
+			);
 			this.statements.push(
-				...parseTS /* ts */ `const ${fieldsConst} = ${variantsObject}`,
 				...(await withComment(
 					enumDef,
-					parseTS /* ts */ `export const ${name}: ${moveEnumName}<typeof ${fieldsConst}> = new ${moveEnumName}({ name: \`${enumName}${phantomPlaceholders}\`, fields: ${fieldsConst} })`,
+					parseTS /* ts */ `export const ${name}: ${moveEnumName}<${variantsTypeLiteral}> = new ${moveEnumName}({ name: \`${enumName}${phantomPlaceholders}\`, fields: ${variantsObject} })`,
 				)),
 			);
 		} else {

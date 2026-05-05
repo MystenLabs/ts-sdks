@@ -23,16 +23,17 @@ import { MoveStruct, MoveTuple } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import * as object_bag from './deps/sui/object_bag.js';
 const $moduleName = '@local-pkg/walrus::display';
-const _ObjectDisplayFields = {
-	id: bcs.Address,
-	inner: object_bag.ObjectBag,
-};
-export const ObjectDisplay: MoveStruct<typeof _ObjectDisplayFields> = new MoveStruct({
+export const ObjectDisplay: MoveStruct<{
+	id: typeof bcs.Address;
+	inner: typeof object_bag.ObjectBag;
+}> = new MoveStruct({
 	name: `${$moduleName}::ObjectDisplay`,
-	fields: _ObjectDisplayFields,
+	fields: {
+		id: bcs.Address,
+		inner: object_bag.ObjectBag,
+	},
 });
-const _PublisherKeyFields = [bcs.bool()] as const;
-export const PublisherKey: MoveTuple<typeof _PublisherKeyFields> = new MoveTuple({
+export const PublisherKey: MoveTuple<[ReturnType<typeof bcs.bool>]> = new MoveTuple({
 	name: `${$moduleName}::PublisherKey`,
-	fields: _PublisherKeyFields,
+	fields: [bcs.bool()],
 });

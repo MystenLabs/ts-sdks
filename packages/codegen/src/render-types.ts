@@ -17,7 +17,7 @@ export const MOVE_STDLIB_ADDRESS: string = normalizeSuiAddress('0x1');
 export const SUI_FRAMEWORK_ADDRESS: string = normalizeSuiAddress('0x2');
 export const SUI_SYSTEM_ADDRESS: string = normalizeSuiAddress('0x3');
 
-type TypeSignatureFormat = 'typescriptArg' | 'bcs' | 'typeTag';
+type TypeSignatureFormat = 'typescriptArg' | 'bcs' | 'typeTag' | 'tsType';
 interface RenderTypeSignatureOptions {
 	format: TypeSignatureFormat;
 	summary: ModuleSummary;
@@ -68,6 +68,8 @@ export function renderTypeSignature(type: Type, options: RenderTypeSignatureOpti
 					return `address`;
 				case 'bcs':
 					return `${bcs}.Address`;
+				case 'tsType':
+					return `typeof ${bcs}.Address`;
 				default:
 					throw new Error(`Unknown format: ${options.format}`);
 			}
@@ -79,6 +81,8 @@ export function renderTypeSignature(type: Type, options: RenderTypeSignatureOpti
 					return `bool`;
 				case 'bcs':
 					return `${bcs}.bool()`;
+				case 'tsType':
+					return `ReturnType<typeof ${bcs}.bool>`;
 				default:
 					throw new Error(`Unknown format: ${options.format}`);
 			}
@@ -92,6 +96,8 @@ export function renderTypeSignature(type: Type, options: RenderTypeSignatureOpti
 					return type.toLowerCase();
 				case 'bcs':
 					return `${bcs}.${type.toLowerCase()}()`;
+				case 'tsType':
+					return `ReturnType<typeof ${bcs}.${type.toLowerCase()}>`;
 				default:
 					throw new Error(`Unknown format: ${options.format}`);
 			}
@@ -105,6 +111,8 @@ export function renderTypeSignature(type: Type, options: RenderTypeSignatureOpti
 					return type.toLowerCase();
 				case 'bcs':
 					return `${bcs}.${type.toLowerCase()}()`;
+				case 'tsType':
+					return `ReturnType<typeof ${bcs}.${type.toLowerCase()}>`;
 				default:
 					throw new Error(`Unknown format: ${options.format}`);
 			}
@@ -130,6 +138,8 @@ export function renderTypeSignature(type: Type, options: RenderTypeSignatureOpti
 				return `vector<${renderTypeSignature(type.vector, options)}>`;
 			case 'bcs':
 				return `${bcs}.vector(${renderTypeSignature(type.vector, options)})`;
+			case 'tsType':
+				return `ReturnType<typeof ${bcs}.vector<${renderTypeSignature(type.vector, options)}>>`;
 			default:
 				throw new Error(`Unknown format: ${options.format}`);
 		}
@@ -150,6 +160,8 @@ export function renderTypeSignature(type: Type, options: RenderTypeSignatureOpti
 				return `\${options.typeArguments[${originalIndex}]}`;
 			case 'bcs':
 				return `typeParameters[${filteredIndex}]`;
+			case 'tsType':
+				return options.typeParameters?.[originalIndex]?.name ?? `T${originalIndex}`;
 			default:
 				throw new Error(`Unknown format: ${options.format}`);
 		}
@@ -177,6 +189,8 @@ export function renderTypeSignature(type: Type, options: RenderTypeSignatureOpti
 				return `\${options.typeArguments[${originalIndex}]}`;
 			case 'bcs':
 				return `typeParameters[${filteredIndex}]`;
+			case 'tsType':
+				return type.NamedTypeParameter;
 			default:
 				throw new Error(`Unknown format: ${options.format}`);
 		}
@@ -299,6 +313,8 @@ function renderDataType(type: Datatype, options: RenderTypeSignatureOptions): st
 					return 'string';
 				case 'bcs':
 					return `${options.bcsImport?.() ?? 'bcs'}.string()`;
+				case 'tsType':
+					return `ReturnType<typeof ${options.bcsImport?.() ?? 'bcs'}.string>`;
 				default:
 					throw new Error(`Unknown format: ${options.format}`);
 			}
@@ -313,6 +329,8 @@ function renderDataType(type: Datatype, options: RenderTypeSignatureOptions): st
 					break;
 				case 'bcs':
 					return `${options.bcsImport?.() ?? 'bcs'}.option(${renderTypeSignature(type.type_arguments[0].argument, options)})`;
+				case 'tsType':
+					return `ReturnType<typeof ${options.bcsImport?.() ?? 'bcs'}.option<${renderTypeSignature(type.type_arguments[0].argument, options)}>>`;
 				default:
 					throw new Error(`Unknown format: ${options.format}`);
 			}
@@ -326,6 +344,8 @@ function renderDataType(type: Datatype, options: RenderTypeSignatureOptions): st
 					return 'string';
 				case 'bcs':
 					return `${options.bcsImport?.() ?? 'bcs'}.Address`;
+				case 'tsType':
+					return `typeof ${options.bcsImport?.() ?? 'bcs'}.Address`;
 				default:
 					throw new Error(`Unknown format: ${options.format}`);
 			}
@@ -359,6 +379,13 @@ function renderDataType(type: Datatype, options: RenderTypeSignatureOptions): st
 
 			return `${typeNameRef}(
                 ${filteredTypeArguments.map((type) => renderTypeSignature(type.argument, options)).join(', ')})`;
+		case 'tsType':
+			if (filteredTypeArguments.length === 0) {
+				return `typeof ${typeNameRef}`;
+			}
+			// Generic struct/enum factories are functions; their return type is
+			// the instantiated MoveStruct/MoveEnum/MoveTuple.
+			return `ReturnType<typeof ${typeNameRef}<${filteredTypeArguments.map((type) => renderTypeSignature(type.argument, options)).join(', ')}>>`;
 		default:
 			throw new Error(`Unknown format: ${options.format}`);
 	}

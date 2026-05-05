@@ -25,13 +25,15 @@
 import { MoveStruct } from '../../../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 const $moduleName = '0x2::table';
-const _TableFields = {
-	/** the ID of this table */
-	id: bcs.Address,
-	/** the number of key-value pairs in the table */
-	size: bcs.u64(),
-};
-export const Table: MoveStruct<typeof _TableFields> = new MoveStruct({
+export const Table: MoveStruct<{
+	id: typeof bcs.Address;
+	size: ReturnType<typeof bcs.u64>;
+}> = new MoveStruct({
 	name: `${$moduleName}::Table<phantom K, phantom V>`,
-	fields: _TableFields,
+	fields: {
+		/** the ID of this table */
+		id: bcs.Address,
+		/** the number of key-value pairs in the table */
+		size: bcs.u64(),
+	},
 });

@@ -21,9 +21,15 @@
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs, type BcsType } from '@mysten/sui/bcs';
-import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
+import {
+	type Transaction,
+	type TransactionResult,
+	type TransactionArgument,
+} from '@mysten/sui/transactions';
 const $moduleName = '@local-pkg/kiosk::witness_rule';
-export const Rule = new MoveStruct({
+export const Rule: MoveStruct<{
+	dummy_field: ReturnType<typeof bcs.bool>;
+}> = new MoveStruct({
 	name: `${$moduleName}::Rule<phantom Proof>`,
 	fields: {
 		dummy_field: bcs.bool(),
@@ -44,7 +50,7 @@ export interface AddOptions {
  * Creator action: adds the Rule. Requires a "Proof" witness confirmation on every
  * transfer.
  */
-export function add(options: AddOptions) {
+export function add(options: AddOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/kiosk';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['policy', 'cap'];
@@ -77,7 +83,9 @@ export interface ProveOptions<Proof extends BcsType<any>> {
  * Buyer action: follow the policy. Present the required "Proof" instance to get a
  * receipt.
  */
-export function prove<Proof extends BcsType<any>>(options: ProveOptions<Proof>) {
+export function prove<Proof extends BcsType<any>>(
+	options: ProveOptions<Proof>,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/kiosk';
 	const argumentsTypes = [`${options.typeArguments[1]}`, null, null] satisfies (string | null)[];
 	const parameterNames = ['Proof', 'policy', 'request'];

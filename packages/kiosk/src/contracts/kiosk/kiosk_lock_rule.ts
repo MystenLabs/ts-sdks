@@ -25,15 +25,23 @@
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
+import {
+	type Transaction,
+	type TransactionResult,
+	type TransactionArgument,
+} from '@mysten/sui/transactions';
 const $moduleName = '@local-pkg/kiosk::kiosk_lock_rule';
-export const Rule = new MoveStruct({
+export const Rule: MoveStruct<{
+	dummy_field: ReturnType<typeof bcs.bool>;
+}> = new MoveStruct({
 	name: `${$moduleName}::Rule`,
 	fields: {
 		dummy_field: bcs.bool(),
 	},
 });
-export const Config = new MoveStruct({
+export const Config: MoveStruct<{
+	dummy_field: ReturnType<typeof bcs.bool>;
+}> = new MoveStruct({
 	name: `${$moduleName}::Config`,
 	fields: {
 		dummy_field: bcs.bool(),
@@ -54,7 +62,7 @@ export interface AddOptions {
  * Creator: Adds a `kiosk_lock_rule` Rule to the `TransferPolicy` forcing buyers to
  * lock the item in a Kiosk on purchase.
  */
-export function add(options: AddOptions) {
+export function add(options: AddOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/kiosk';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['policy', 'cap'];
@@ -80,7 +88,7 @@ export interface ProveOptions {
  * Buyer: Prove the item was locked in the Kiosk to get the receipt and unblock the
  * transfer request confirmation.
  */
-export function prove(options: ProveOptions) {
+export function prove(options: ProveOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/kiosk';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['request', 'kiosk'];
