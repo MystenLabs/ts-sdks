@@ -7,9 +7,10 @@
 import { MoveStruct } from '../../../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 const $moduleName = '0x2::group_ops';
-export const Element = new MoveStruct({
+const _ElementFields = {
+	bytes: bcs.vector(bcs.u8()),
+};
+export const Element: MoveStruct<typeof _ElementFields> = new MoveStruct({
 	name: `${$moduleName}::Element<phantom T>`,
-	fields: {
-		bytes: bcs.vector(bcs.u8()),
-	},
+	fields: _ElementFields,
 });

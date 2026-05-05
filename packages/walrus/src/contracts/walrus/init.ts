@@ -3,21 +3,23 @@
  **************************************************************/
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionResult } from '@mysten/sui/transactions';
 import * as _package from './deps/sui/package.js';
 const $moduleName = '@local-pkg/walrus::init';
-export const INIT = new MoveStruct({
+const _INITFields = {
+	dummy_field: bcs.bool(),
+};
+export const INIT: MoveStruct<typeof _INITFields> = new MoveStruct({
 	name: `${$moduleName}::INIT`,
-	fields: {
-		dummy_field: bcs.bool(),
-	},
+	fields: _INITFields,
 });
-export const InitCap = new MoveStruct({
+const _InitCapFields = {
+	id: bcs.Address,
+	publisher: _package.Publisher,
+};
+export const InitCap: MoveStruct<typeof _InitCapFields> = new MoveStruct({
 	name: `${$moduleName}::InitCap`,
-	fields: {
-		id: bcs.Address,
-		publisher: _package.Publisher,
-	},
+	fields: _InitCapFields,
 });
 export interface InitializeWalrusArguments {
 	initCap: RawTransactionArgument<string>;
@@ -45,7 +47,9 @@ export interface InitializeWalrusOptions {
  *
  * This can only be called once, after which the `InitCap` is destroyed.
  */
-export function initializeWalrus(options: InitializeWalrusOptions) {
+export function initializeWalrus(
+	options: InitializeWalrusOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, 'u64', 'u64', 'u16', 'u32', '0x2::clock::Clock'] satisfies (
 		| string
@@ -78,7 +82,7 @@ export interface MigrateOptions {
 		| [Staking: RawTransactionArgument<string>, System: RawTransactionArgument<string>];
 }
 /** Deprecated old migration function. */
-export function migrate(options: MigrateOptions) {
+export function migrate(options: MigrateOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['Staking', 'System'];
@@ -115,7 +119,7 @@ export interface MigrateV2Options {
  * - Do not use migration epoch. Migrate to version 4:
  * - No additional steps beyond version bump.
  */
-export function migrateV2(options: MigrateV2Options) {
+export function migrateV2(options: MigrateV2Options): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['staking', 'system'];

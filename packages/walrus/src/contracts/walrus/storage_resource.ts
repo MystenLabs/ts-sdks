@@ -3,16 +3,17 @@
  **************************************************************/
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionResult } from '@mysten/sui/transactions';
 const $moduleName = '@local-pkg/walrus::storage_resource';
-export const Storage = new MoveStruct({
+const _StorageFields = {
+	id: bcs.Address,
+	start_epoch: bcs.u32(),
+	end_epoch: bcs.u32(),
+	storage_size: bcs.u64(),
+};
+export const Storage: MoveStruct<typeof _StorageFields> = new MoveStruct({
 	name: `${$moduleName}::Storage`,
-	fields: {
-		id: bcs.Address,
-		start_epoch: bcs.u32(),
-		end_epoch: bcs.u32(),
-		storage_size: bcs.u64(),
-	},
+	fields: _StorageFields,
 });
 export interface StartEpochArguments {
 	self: RawTransactionArgument<string>;
@@ -21,7 +22,7 @@ export interface StartEpochOptions {
 	package?: string;
 	arguments: StartEpochArguments | [self: RawTransactionArgument<string>];
 }
-export function startEpoch(options: StartEpochOptions) {
+export function startEpoch(options: StartEpochOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
@@ -40,7 +41,7 @@ export interface EndEpochOptions {
 	package?: string;
 	arguments: EndEpochArguments | [self: RawTransactionArgument<string>];
 }
-export function endEpoch(options: EndEpochOptions) {
+export function endEpoch(options: EndEpochOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
@@ -59,7 +60,7 @@ export interface SizeOptions {
 	package?: string;
 	arguments: SizeArguments | [self: RawTransactionArgument<string>];
 }
-export function size(options: SizeOptions) {
+export function size(options: SizeOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
@@ -87,7 +88,7 @@ export interface SplitByEpochOptions {
  * `storage` is modified to cover the period from `start_epoch` to `split_epoch`
  * and a new storage object covering `split_epoch` to `end_epoch` is returned.
  */
-export function splitByEpoch(options: SplitByEpochOptions) {
+export function splitByEpoch(options: SplitByEpochOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, 'u32'] satisfies (string | null)[];
 	const parameterNames = ['storage', 'splitEpoch'];
@@ -115,7 +116,7 @@ export interface SplitBySizeOptions {
  * `storage` is modified to cover `split_size` and a new object covering
  * `storage.storage_size - split_size` is created.
  */
-export function splitBySize(options: SplitBySizeOptions) {
+export function splitBySize(options: SplitBySizeOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
 	const parameterNames = ['storage', 'splitSize'];
@@ -138,7 +139,7 @@ export interface FusePeriodsOptions {
 		| [first: RawTransactionArgument<string>, second: RawTransactionArgument<string>];
 }
 /** Fuse two storage objects that cover adjacent periods with the same storage size. */
-export function fusePeriods(options: FusePeriodsOptions) {
+export function fusePeriods(options: FusePeriodsOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['first', 'second'];
@@ -161,7 +162,7 @@ export interface FuseAmountOptions {
 		| [first: RawTransactionArgument<string>, second: RawTransactionArgument<string>];
 }
 /** Fuse two storage objects that cover the same period. */
-export function fuseAmount(options: FuseAmountOptions) {
+export function fuseAmount(options: FuseAmountOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['first', 'second'];
@@ -187,7 +188,7 @@ export interface FuseOptions {
  * Fuse two storage objects that either cover the same period or adjacent periods
  * with the same storage size.
  */
-export function fuse(options: FuseOptions) {
+export function fuse(options: FuseOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['first', 'second'];
@@ -207,7 +208,7 @@ export interface DestroyOptions {
 	arguments: DestroyArguments | [storage: RawTransactionArgument<string>];
 }
 /** Destructor for [Storage] objects. */
-export function destroy(options: DestroyOptions) {
+export function destroy(options: DestroyOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['storage'];

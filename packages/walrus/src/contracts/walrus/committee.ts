@@ -10,12 +10,17 @@
 
 import { MoveTuple, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
+import {
+	type Transaction,
+	type TransactionResult,
+	type TransactionArgument,
+} from '@mysten/sui/transactions';
 import * as vec_map from './deps/sui/vec_map.js';
 const $moduleName = '@local-pkg/walrus::committee';
-export const Committee = new MoveTuple({
+const _CommitteeFields = [vec_map.VecMap(bcs.Address, bcs.vector(bcs.u16()))] as const;
+export const Committee: MoveTuple<typeof _CommitteeFields> = new MoveTuple({
 	name: `${$moduleName}::Committee`,
-	fields: [vec_map.VecMap(bcs.Address, bcs.vector(bcs.u16()))],
+	fields: _CommitteeFields,
 });
 export interface ShardsArguments {
 	cmt: TransactionArgument;
@@ -26,7 +31,7 @@ export interface ShardsOptions {
 	arguments: ShardsArguments | [cmt: TransactionArgument, nodeId: RawTransactionArgument<string>];
 }
 /** Get the shards assigned to the given `node_id`. */
-export function shards(options: ShardsOptions) {
+export function shards(options: ShardsOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, '0x2::object::ID'] satisfies (string | null)[];
 	const parameterNames = ['cmt', 'nodeId'];
@@ -46,7 +51,7 @@ export interface SizeOptions {
 	arguments: SizeArguments | [cmt: TransactionArgument];
 }
 /** Get the number of nodes in the committee. */
-export function size(options: SizeOptions) {
+export function size(options: SizeOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['cmt'];
@@ -66,7 +71,7 @@ export interface InnerOptions {
 	arguments: InnerArguments | [cmt: TransactionArgument];
 }
 /** Get the inner representation of the committee. */
-export function inner(options: InnerOptions) {
+export function inner(options: InnerOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['cmt'];
@@ -86,7 +91,7 @@ export interface ToInnerOptions {
 	arguments: ToInnerArguments | [cmt: TransactionArgument];
 }
 /** Copy the inner representation of the committee. */
-export function toInner(options: ToInnerOptions) {
+export function toInner(options: ToInnerOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['cmt'];

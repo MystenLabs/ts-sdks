@@ -6,16 +6,21 @@
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
+import {
+	type Transaction,
+	type TransactionResult,
+	type TransactionArgument,
+} from '@mysten/sui/transactions';
 const $moduleName = '@local-pkg/walrus::system';
-export const System = new MoveStruct({
+const _SystemFields = {
+	id: bcs.Address,
+	version: bcs.u64(),
+	package_id: bcs.Address,
+	new_package_id: bcs.option(bcs.Address),
+};
+export const System: MoveStruct<typeof _SystemFields> = new MoveStruct({
 	name: `${$moduleName}::System`,
-	fields: {
-		id: bcs.Address,
-		version: bcs.u64(),
-		package_id: bcs.Address,
-		new_package_id: bcs.option(bcs.Address),
-	},
+	fields: _SystemFields,
 });
 export interface InvalidateBlobIdArguments {
 	system: RawTransactionArgument<string>;
@@ -38,7 +43,9 @@ export interface InvalidateBlobIdOptions {
  * === Public Functions === Marks blob as invalid given an invalid blob
  * certificate.
  */
-export function invalidateBlobId(options: InvalidateBlobIdOptions) {
+export function invalidateBlobId(
+	options: InvalidateBlobIdOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, 'vector<u8>', 'vector<u8>', 'vector<u8>'] satisfies (
 		| string
@@ -79,7 +86,9 @@ export interface CertifyEventBlobOptions {
 		  ];
 }
 /** Certifies a blob containing Walrus events. */
-export function certifyEventBlob(options: CertifyEventBlobOptions) {
+export function certifyEventBlob(
+	options: CertifyEventBlobOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, 'u256', 'u256', 'u64', 'u8', 'u64', 'u32'] satisfies (
 		| string
@@ -121,7 +130,7 @@ export interface ReserveSpaceOptions {
 		  ];
 }
 /** Allows buying a storage reservation for a given period of epochs. */
-export function reserveSpace(options: ReserveSpaceOptions) {
+export function reserveSpace(options: ReserveSpaceOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, 'u64', 'u32', null] satisfies (string | null)[];
 	const parameterNames = ['self', 'storageAmount', 'epochsAhead', 'payment'];
@@ -159,7 +168,9 @@ export interface ReserveSpaceForEpochsOptions {
  * `end_epoch` (exclusive). If `start_epoch` has already passed, reserves space
  * starting from the current epoch.
  */
-export function reserveSpaceForEpochs(options: ReserveSpaceForEpochsOptions) {
+export function reserveSpaceForEpochs(
+	options: ReserveSpaceForEpochsOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, 'u64', 'u32', 'u32', null] satisfies (string | null)[];
 	const parameterNames = ['self', 'storageAmount', 'startEpoch', 'endEpoch', 'payment'];
@@ -200,7 +211,7 @@ export interface RegisterBlobOptions {
  * Registers a new blob in the system. `size` is the size of the unencoded blob.
  * The reserved space in `storage` must be at least the size of the encoded blob.
  */
-export function registerBlob(options: RegisterBlobOptions) {
+export function registerBlob(options: RegisterBlobOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, 'u256', 'u256', 'u64', 'u8', 'bool', null] satisfies (
 		| string
@@ -247,7 +258,7 @@ export interface CertifyBlobOptions {
  * Certify that a blob will be available in the storage system until the end epoch
  * of the storage associated with it.
  */
-export function certifyBlob(options: CertifyBlobOptions) {
+export function certifyBlob(options: CertifyBlobOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, 'vector<u8>', 'vector<u8>', 'vector<u8>'] satisfies (
 		| string
@@ -273,7 +284,7 @@ export interface DeleteBlobOptions {
 		| [self: RawTransactionArgument<string>, blob: RawTransactionArgument<string>];
 }
 /** Deletes a deletable blob and returns the contained storage resource. */
-export function deleteBlob(options: DeleteBlobOptions) {
+export function deleteBlob(options: DeleteBlobOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'blob'];
@@ -305,7 +316,9 @@ export interface ExtendBlobWithResourceOptions {
  * storage resource must be the same size as the storage resource used in the blob,
  * and have a longer period of validity.
  */
-export function extendBlobWithResource(options: ExtendBlobWithResourceOptions) {
+export function extendBlobWithResource(
+	options: ExtendBlobWithResourceOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'blob', 'extension'];
@@ -338,7 +351,7 @@ export interface ExtendBlobOptions {
  * Extend the period of validity of a blob by extending its contained storage
  * resource by `extended_epochs` epochs.
  */
-export function extendBlob(options: ExtendBlobOptions) {
+export function extendBlob(options: ExtendBlobOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, 'u32', null] satisfies (string | null)[];
 	const parameterNames = ['self', 'blob', 'extendedEpochs', 'payment'];
@@ -368,7 +381,9 @@ export interface CreateStoragePoolOptions {
 		  ];
 }
 /** Creates a new storage pool with the given capacity and epoch range. */
-export function createStoragePool(options: CreateStoragePoolOptions) {
+export function createStoragePool(
+	options: CreateStoragePoolOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, 'u64', 'u32', null] satisfies (string | null)[];
 	const parameterNames = ['self', 'reservedEncodedCapacityBytes', 'epochsAhead', 'payment'];
@@ -391,7 +406,9 @@ export interface CreateStoragePoolWithStorageOptions {
 		| [self: RawTransactionArgument<string>, storage: RawTransactionArgument<string>];
 }
 /** Creates a new storage pool backed by an existing `Storage` reservation. */
-export function createStoragePoolWithStorage(options: CreateStoragePoolWithStorageOptions) {
+export function createStoragePoolWithStorage(
+	options: CreateStoragePoolWithStorageOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'storage'];
@@ -429,7 +446,9 @@ export interface RegisterPooledBlobOptions {
 		  ];
 }
 /** Registers a new blob against a storage pool. */
-export function registerPooledBlob(options: RegisterPooledBlobOptions) {
+export function registerPooledBlob(
+	options: RegisterPooledBlobOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, 'u256', 'u256', 'u64', 'u8', 'bool', null] satisfies (
 		| string
@@ -469,7 +488,9 @@ export interface DeletePooledBlobOptions {
 		  ];
 }
 /** Deletes a blob from a storage pool and frees its capacity. */
-export function deletePooledBlob(options: DeletePooledBlobOptions) {
+export function deletePooledBlob(
+	options: DeletePooledBlobOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, 'u256'] satisfies (string | null)[];
 	const parameterNames = ['self', 'storagePool', 'blobId'];
@@ -500,7 +521,9 @@ export interface BurnExpiredPooledBlobOptions {
  * Burns a blob from an expired storage pool, regardless of the `deletable` flag.
  * The pool must have expired (`end_epoch <= current_epoch`).
  */
-export function burnExpiredPooledBlob(options: BurnExpiredPooledBlobOptions) {
+export function burnExpiredPooledBlob(
+	options: BurnExpiredPooledBlobOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, 'u256'] satisfies (string | null)[];
 	const parameterNames = ['self', 'storagePool', 'blobId'];
@@ -530,7 +553,9 @@ export interface ExtendStoragePoolOptions {
 		  ];
 }
 /** Extends the lifetime of a storage pool by `extended_epochs`. */
-export function extendStoragePool(options: ExtendStoragePoolOptions) {
+export function extendStoragePool(
+	options: ExtendStoragePoolOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, 'u32', null] satisfies (string | null)[];
 	const parameterNames = ['self', 'storagePool', 'extendedEpochs', 'payment'];
@@ -563,7 +588,9 @@ export interface IncreaseStoragePoolCapacityOptions {
  * Increases the reserved capacity of a storage pool for the remainder of its
  * lifetime.
  */
-export function increaseStoragePoolCapacity(options: IncreaseStoragePoolCapacityOptions) {
+export function increaseStoragePoolCapacity(
+	options: IncreaseStoragePoolCapacityOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, 'u64', null] satisfies (string | null)[];
 	const parameterNames = ['self', 'storagePool', 'additionalEncodedCapacityBytes', 'payment'];
@@ -593,7 +620,7 @@ export interface IncreaseStoragePoolCapacityWithStorageOptions {
 /** Increases the pool's capacity by absorbing an existing `Storage` object. */
 export function increaseStoragePoolCapacityWithStorage(
 	options: IncreaseStoragePoolCapacityWithStorageOptions,
-) {
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'storagePool', 'storage'];
@@ -626,7 +653,7 @@ export interface DecreaseStoragePoolCapacityBySizeOptions {
  */
 export function decreaseStoragePoolCapacityBySize(
 	options: DecreaseStoragePoolCapacityBySizeOptions,
-) {
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
 	const parameterNames = ['self', 'storagePool', 'size'];
@@ -660,7 +687,7 @@ export interface DecreaseStoragePoolUnusedCapacityByPercentOptions {
  */
 export function decreaseStoragePoolUnusedCapacityByPercent(
 	options: DecreaseStoragePoolUnusedCapacityByPercentOptions,
-) {
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, 'u8'] satisfies (string | null)[];
 	const parameterNames = ['self', 'storagePool', 'percent'];
@@ -694,7 +721,9 @@ export interface CertifyPooledBlobOptions {
 		  ];
 }
 /** Certifies a blob within a storage pool. */
-export function certifyPooledBlob(options: CertifyPooledBlobOptions) {
+export function certifyPooledBlob(
+	options: CertifyPooledBlobOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, 'u256', 'vector<u8>', 'vector<u8>', 'vector<u8>'] satisfies (
 		| string
@@ -729,7 +758,7 @@ export interface AddSubsidyOptions {
  * are split equally across the future accounting ring buffer up to the specified
  * epoch.
  */
-export function addSubsidy(options: AddSubsidyOptions) {
+export function addSubsidy(options: AddSubsidyOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, 'u32'] satisfies (string | null)[];
 	const parameterNames = ['system', 'subsidy', 'epochsAhead'];
@@ -755,7 +784,9 @@ export interface AddPerEpochSubsidiesOptions {
  * Adds rewards to the system for future epochs, where `subsidies[i]` is added to
  * the rewards of epoch `system.epoch() + i`.
  */
-export function addPerEpochSubsidies(options: AddPerEpochSubsidiesOptions) {
+export function addPerEpochSubsidies(
+	options: AddPerEpochSubsidiesOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, 'vector<null>'] satisfies (string | null)[];
 	const parameterNames = ['system', 'subsidies'];
@@ -787,7 +818,9 @@ export interface UpdateProtocolVersionOptions {
 		  ];
 }
 /** Node collects signatures on the protocol version event and emits it. */
-export function updateProtocolVersion(options: UpdateProtocolVersionOptions) {
+export function updateProtocolVersion(
+	options: UpdateProtocolVersionOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, 'vector<u8>', 'vector<u8>', 'vector<u8>'] satisfies (
 		| string
@@ -820,7 +853,9 @@ export interface RegisterDenyListUpdateOptions {
 		  ];
 }
 /** Register a deny list update. */
-export function registerDenyListUpdate(options: RegisterDenyListUpdateOptions) {
+export function registerDenyListUpdate(
+	options: RegisterDenyListUpdateOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, 'u256', 'u64'] satisfies (string | null)[];
 	const parameterNames = ['self', 'cap', 'denyListRoot', 'denyListSequence'];
@@ -852,7 +887,9 @@ export interface UpdateDenyListOptions {
 		  ];
 }
 /** Perform the update of the deny list. */
-export function updateDenyList(options: UpdateDenyListOptions) {
+export function updateDenyList(
+	options: UpdateDenyListOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, 'vector<u8>', 'vector<u8>', 'vector<u8>'] satisfies (
 		| string
@@ -885,7 +922,9 @@ export interface DeleteDenyListedBlobOptions {
 		  ];
 }
 /** Delete a blob that is deny listed by f+1 members. */
-export function deleteDenyListedBlob(options: DeleteDenyListedBlobOptions) {
+export function deleteDenyListedBlob(
+	options: DeleteDenyListedBlobOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, 'vector<u8>', 'vector<u8>', 'vector<u8>'] satisfies (
 		| string
@@ -908,7 +947,7 @@ export interface EpochOptions {
 	arguments: EpochArguments | [self: RawTransactionArgument<string>];
 }
 /** Get epoch. Uses the committee to get the epoch. */
-export function epoch(options: EpochOptions) {
+export function epoch(options: EpochOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
@@ -928,7 +967,9 @@ export interface TotalCapacitySizeOptions {
 	arguments: TotalCapacitySizeArguments | [self: RawTransactionArgument<string>];
 }
 /** Accessor for total capacity size. */
-export function totalCapacitySize(options: TotalCapacitySizeOptions) {
+export function totalCapacitySize(
+	options: TotalCapacitySizeOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
@@ -948,7 +989,9 @@ export interface UsedCapacitySizeOptions {
 	arguments: UsedCapacitySizeArguments | [self: RawTransactionArgument<string>];
 }
 /** Accessor for used capacity size. */
-export function usedCapacitySize(options: UsedCapacitySizeOptions) {
+export function usedCapacitySize(
+	options: UsedCapacitySizeOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
@@ -968,7 +1011,7 @@ export interface NShardsOptions {
 	arguments: NShardsArguments | [self: RawTransactionArgument<string>];
 }
 /** Accessor for the number of shards. */
-export function nShards(options: NShardsOptions) {
+export function nShards(options: NShardsOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
@@ -988,7 +1031,9 @@ export interface FutureAccountingOptions {
 	arguments: FutureAccountingArguments | [self: RawTransactionArgument<string>];
 }
 /** Read-only access to the accounting ring buffer. */
-export function futureAccounting(options: FutureAccountingOptions) {
+export function futureAccounting(
+	options: FutureAccountingOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
@@ -1007,7 +1052,7 @@ export interface VersionOptions {
 	package?: string;
 	arguments: VersionArguments | [system: RawTransactionArgument<string>];
 }
-export function version(options: VersionOptions) {
+export function version(options: VersionOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['system'];

@@ -214,12 +214,12 @@ export class MoveStruct<
 
 export class MoveEnum<
 	T extends Record<string, BcsType<any> | null>,
-	const Name extends string,
+	const Name extends string = string,
 > extends BcsEnum<T, Name> {}
 
 export class MoveTuple<
 	const T extends readonly BcsType<any>[],
-	const Name extends string,
+	const Name extends string = string,
 > extends BcsTuple<T, Name> {}
 
 function stringify(val: unknown) {

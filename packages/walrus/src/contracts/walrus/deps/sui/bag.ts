@@ -30,12 +30,13 @@
 import { MoveStruct } from '../../../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 const $moduleName = '0x2::bag';
-export const Bag = new MoveStruct({
+const _BagFields = {
+	/** the ID of this bag */
+	id: bcs.Address,
+	/** the number of key-value pairs in the bag */
+	size: bcs.u64(),
+};
+export const Bag: MoveStruct<typeof _BagFields> = new MoveStruct({
 	name: `${$moduleName}::Bag`,
-	fields: {
-		/** the ID of this bag */
-		id: bcs.Address,
-		/** the number of key-value pairs in the bag */
-		size: bcs.u64(),
-	},
+	fields: _BagFields,
 });

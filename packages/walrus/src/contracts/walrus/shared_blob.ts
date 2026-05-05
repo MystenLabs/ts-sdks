@@ -3,17 +3,18 @@
  **************************************************************/
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionResult } from '@mysten/sui/transactions';
 import * as blob_1 from './blob.js';
 import * as balance from './deps/sui/balance.js';
 const $moduleName = '@local-pkg/walrus::shared_blob';
-export const SharedBlob = new MoveStruct({
+const _SharedBlobFields = {
+	id: bcs.Address,
+	blob: blob_1.Blob,
+	funds: balance.Balance,
+};
+export const SharedBlob: MoveStruct<typeof _SharedBlobFields> = new MoveStruct({
 	name: `${$moduleName}::SharedBlob`,
-	fields: {
-		id: bcs.Address,
-		blob: blob_1.Blob,
-		funds: balance.Balance,
-	},
+	fields: _SharedBlobFields,
 });
 export interface NewArguments {
 	blob: RawTransactionArgument<string>;
@@ -23,7 +24,7 @@ export interface NewOptions {
 	arguments: NewArguments | [blob: RawTransactionArgument<string>];
 }
 /** Shares the provided `blob` as a `SharedBlob` with zero funds. */
-export function _new(options: NewOptions) {
+export function _new(options: NewOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['blob'];
@@ -46,7 +47,7 @@ export interface NewFundedOptions {
 		| [blob: RawTransactionArgument<string>, funds: RawTransactionArgument<string>];
 }
 /** Shares the provided `blob` as a `SharedBlob` with funds. */
-export function newFunded(options: NewFundedOptions) {
+export function newFunded(options: NewFundedOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['blob', 'funds'];
@@ -69,7 +70,7 @@ export interface FundOptions {
 		| [self: RawTransactionArgument<string>, addedFunds: RawTransactionArgument<string>];
 }
 /** Adds the provided `Coin` to the stored funds. */
-export function fund(options: FundOptions) {
+export function fund(options: FundOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'addedFunds'];
@@ -101,7 +102,7 @@ export interface ExtendOptions {
  * stored funds are sufficient and the new lifetime does not exceed the maximum
  * lifetime.
  */
-export function extend(options: ExtendOptions) {
+export function extend(options: ExtendOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, 'u32'] satisfies (string | null)[];
 	const parameterNames = ['self', 'system', 'extendedEpochs'];
@@ -121,7 +122,7 @@ export interface BlobOptions {
 	arguments: BlobArguments | [self: RawTransactionArgument<string>];
 }
 /** Returns a reference to the wrapped `Blob`. */
-export function blob(options: BlobOptions) {
+export function blob(options: BlobOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
@@ -141,7 +142,7 @@ export interface FundsOptions {
 	arguments: FundsArguments | [self: RawTransactionArgument<string>];
 }
 /** Returns the balance of funds stored in the `SharedBlob`. */
-export function funds(options: FundsOptions) {
+export function funds(options: FundsOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];

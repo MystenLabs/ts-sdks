@@ -18,38 +18,40 @@ import {
 	type RawTransactionArgument,
 } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionResult } from '@mysten/sui/transactions';
 import * as balance from './deps/sui/balance.js';
 const $moduleName = '@local-pkg/walrus::staked_wal';
+const _StakedWalStateFields = {
+	Staked: null,
+	Withdrawing: new MoveStruct({
+		name: `StakedWalState.Withdrawing`,
+		fields: {
+			withdraw_epoch: bcs.u32(),
+		},
+	}),
+};
 /**
  * The state of the staked WAL. It can be either `Staked` or `Withdrawing`. The
  * `Withdrawing` state contains the epoch when the staked WAL can be withdrawn.
  */
-export const StakedWalState = new MoveEnum({
+export const StakedWalState: MoveEnum<typeof _StakedWalStateFields> = new MoveEnum({
 	name: `${$moduleName}::StakedWalState`,
-	fields: {
-		Staked: null,
-		Withdrawing: new MoveStruct({
-			name: `StakedWalState.Withdrawing`,
-			fields: {
-				withdraw_epoch: bcs.u32(),
-			},
-		}),
-	},
+	fields: _StakedWalStateFields,
 });
-export const StakedWal = new MoveStruct({
+const _StakedWalFields = {
+	id: bcs.Address,
+	/** Whether the staked WAL is active or withdrawing. */
+	state: StakedWalState,
+	/** ID of the staking pool. */
+	node_id: bcs.Address,
+	/** The staked amount. */
+	principal: balance.Balance,
+	/** The Walrus epoch when the staked WAL was activated. */
+	activation_epoch: bcs.u32(),
+};
+export const StakedWal: MoveStruct<typeof _StakedWalFields> = new MoveStruct({
 	name: `${$moduleName}::StakedWal`,
-	fields: {
-		id: bcs.Address,
-		/** Whether the staked WAL is active or withdrawing. */
-		state: StakedWalState,
-		/** ID of the staking pool. */
-		node_id: bcs.Address,
-		/** The staked amount. */
-		principal: balance.Balance,
-		/** The Walrus epoch when the staked WAL was activated. */
-		activation_epoch: bcs.u32(),
-	},
+	fields: _StakedWalFields,
 });
 export interface NodeIdArguments {
 	sw: RawTransactionArgument<string>;
@@ -59,7 +61,7 @@ export interface NodeIdOptions {
 	arguments: NodeIdArguments | [sw: RawTransactionArgument<string>];
 }
 /** Returns the `node_id` of the staked WAL. */
-export function nodeId(options: NodeIdOptions) {
+export function nodeId(options: NodeIdOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['sw'];
@@ -82,7 +84,7 @@ export interface ValueOptions {
  * Returns the `principal` of the staked WAL. Called `value` to be consistent with
  * `Coin`.
  */
-export function value(options: ValueOptions) {
+export function value(options: ValueOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['sw'];
@@ -102,7 +104,9 @@ export interface ActivationEpochOptions {
 	arguments: ActivationEpochArguments | [sw: RawTransactionArgument<string>];
 }
 /** Returns the `activation_epoch` of the staked WAL. */
-export function activationEpoch(options: ActivationEpochOptions) {
+export function activationEpoch(
+	options: ActivationEpochOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['sw'];
@@ -122,7 +126,7 @@ export interface IsStakedOptions {
 	arguments: IsStakedArguments | [sw: RawTransactionArgument<string>];
 }
 /** Returns true if the staked WAL is in the `Staked` state. */
-export function isStaked(options: IsStakedOptions) {
+export function isStaked(options: IsStakedOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['sw'];
@@ -142,7 +146,9 @@ export interface IsWithdrawingOptions {
 	arguments: IsWithdrawingArguments | [sw: RawTransactionArgument<string>];
 }
 /** Checks whether the staked WAL is in the `Withdrawing` state. */
-export function isWithdrawing(options: IsWithdrawingOptions) {
+export function isWithdrawing(
+	options: IsWithdrawingOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['sw'];
@@ -165,7 +171,9 @@ export interface WithdrawEpochOptions {
  * Returns the `withdraw_epoch` of the staked WAL if it is in the `Withdrawing`.
  * Aborts otherwise.
  */
-export function withdrawEpoch(options: WithdrawEpochOptions) {
+export function withdrawEpoch(
+	options: WithdrawEpochOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['sw'];
@@ -193,7 +201,7 @@ export interface JoinOptions {
  *
  * Aborts if the `node_id` or `activation_epoch` of the staked WALs do not match.
  */
-export function join(options: JoinOptions) {
+export function join(options: JoinOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['sw', 'other'];
@@ -223,7 +231,7 @@ export interface SplitOptions {
  * Aborts if the `amount` is greater than the `principal` of the staked WAL. Aborts
  * if the `amount` is zero.
  */
-export function split(options: SplitOptions) {
+export function split(options: SplitOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
 	const parameterNames = ['sw', 'amount'];

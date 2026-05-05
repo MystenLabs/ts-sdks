@@ -6,21 +6,26 @@
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
+import {
+	type Transaction,
+	type TransactionResult,
+	type TransactionArgument,
+} from '@mysten/sui/transactions';
 import * as vec_map from './deps/sui/vec_map.js';
 const $moduleName = '@local-pkg/walrus::metadata';
-export const Metadata = new MoveStruct({
+const _MetadataFields = {
+	metadata: vec_map.VecMap(bcs.string(), bcs.string()),
+};
+export const Metadata: MoveStruct<typeof _MetadataFields> = new MoveStruct({
 	name: `${$moduleName}::Metadata`,
-	fields: {
-		metadata: vec_map.VecMap(bcs.string(), bcs.string()),
-	},
+	fields: _MetadataFields,
 });
 export interface NewOptions {
 	package?: string;
 	arguments?: [];
 }
 /** Creates a new instance of Metadata. */
-export function _new(options: NewOptions = {}) {
+export function _new(options: NewOptions = {}): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -49,7 +54,9 @@ export interface InsertOrUpdateOptions {
  *
  * If the key is already present, the value is updated.
  */
-export function insertOrUpdate(options: InsertOrUpdateOptions) {
+export function insertOrUpdate(
+	options: InsertOrUpdateOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, '0x1::string::String', '0x1::string::String'] satisfies (
 		| string
@@ -73,7 +80,7 @@ export interface RemoveOptions {
 	arguments: RemoveArguments | [self: TransactionArgument, key: RawTransactionArgument<string>];
 }
 /** Removes the metadata associated with the given key. */
-export function remove(options: RemoveOptions) {
+export function remove(options: RemoveOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, '0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['self', 'key'];
@@ -100,7 +107,9 @@ export interface RemoveIfExistsOptions {
  *
  * Optionally returns the previous value associated with the key.
  */
-export function removeIfExists(options: RemoveIfExistsOptions) {
+export function removeIfExists(
+	options: RemoveIfExistsOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, '0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['self', 'key'];

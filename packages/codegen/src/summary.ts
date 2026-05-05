@@ -25,7 +25,7 @@ function abilitiesFromBits(bits: number): Ability[] {
 	return ABILITY_FLAGS.filter(([flag]) => (bits & flag) !== 0).map(([, ability]) => ability);
 }
 
-export function summaryFromDeserializedModule(mod: DeserializedModule) {
+export function summaryFromDeserializedModule(mod: DeserializedModule): ModuleSummary {
 	const moduleHandle = mod.module_handles[mod.self_module_handle_idx];
 	const summary: ModuleSummary = {
 		id: {

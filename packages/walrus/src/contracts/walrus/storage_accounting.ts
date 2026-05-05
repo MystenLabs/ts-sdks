@@ -3,29 +3,36 @@
  **************************************************************/
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
+import {
+	type Transaction,
+	type TransactionResult,
+	type TransactionArgument,
+} from '@mysten/sui/transactions';
 import * as balance from './deps/sui/balance.js';
 const $moduleName = '@local-pkg/walrus::storage_accounting';
-export const FutureAccounting = new MoveStruct({
+const _FutureAccountingFields = {
+	epoch: bcs.u32(),
+	/**
+	 * This field stores `used_capacity` for the epoch. Currently, impossible to rename
+	 * due to package upgrade limitations.
+	 */
+	used_capacity: bcs.u64(),
+	rewards_to_distribute: balance.Balance,
+};
+export const FutureAccounting: MoveStruct<typeof _FutureAccountingFields> = new MoveStruct({
 	name: `${$moduleName}::FutureAccounting`,
-	fields: {
-		epoch: bcs.u32(),
-		/**
-		 * This field stores `used_capacity` for the epoch. Currently, impossible to rename
-		 * due to package upgrade limitations.
-		 */
-		used_capacity: bcs.u64(),
-		rewards_to_distribute: balance.Balance,
-	},
+	fields: _FutureAccountingFields,
 });
-export const FutureAccountingRingBuffer = new MoveStruct({
-	name: `${$moduleName}::FutureAccountingRingBuffer`,
-	fields: {
-		current_index: bcs.u32(),
-		length: bcs.u32(),
-		ring_buffer: bcs.vector(FutureAccounting),
-	},
-});
+const _FutureAccountingRingBufferFields = {
+	current_index: bcs.u32(),
+	length: bcs.u32(),
+	ring_buffer: bcs.vector(FutureAccounting),
+};
+export const FutureAccountingRingBuffer: MoveStruct<typeof _FutureAccountingRingBufferFields> =
+	new MoveStruct({
+		name: `${$moduleName}::FutureAccountingRingBuffer`,
+		fields: _FutureAccountingRingBufferFields,
+	});
 export interface MaxEpochsAheadArguments {
 	self: TransactionArgument;
 }
@@ -34,7 +41,9 @@ export interface MaxEpochsAheadOptions {
 	arguments: MaxEpochsAheadArguments | [self: TransactionArgument];
 }
 /** The maximum number of epochs for which we can use `self`. */
-export function maxEpochsAhead(options: MaxEpochsAheadOptions) {
+export function maxEpochsAhead(
+	options: MaxEpochsAheadOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
@@ -57,7 +66,7 @@ export interface RingLookupOptions {
 		| [self: TransactionArgument, epochsInFuture: RawTransactionArgument<number>];
 }
 /** Read-only lookup for an element in the `FutureAccountingRingBuffer` */
-export function ringLookup(options: RingLookupOptions) {
+export function ringLookup(options: RingLookupOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, 'u32'] satisfies (string | null)[];
 	const parameterNames = ['self', 'epochsInFuture'];
@@ -77,7 +86,7 @@ export interface EpochOptions {
 	arguments: EpochArguments | [accounting: TransactionArgument];
 }
 /** Accessor for epoch, read-only. */
-export function epoch(options: EpochOptions) {
+export function epoch(options: EpochOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['accounting'];
@@ -97,7 +106,7 @@ export interface UsedCapacityOptions {
 	arguments: UsedCapacityArguments | [accounting: TransactionArgument];
 }
 /** Accessor for used_capacity, read-only. */
-export function usedCapacity(options: UsedCapacityOptions) {
+export function usedCapacity(options: UsedCapacityOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['accounting'];
@@ -117,7 +126,7 @@ export interface RewardsOptions {
 	arguments: RewardsArguments | [accounting: TransactionArgument];
 }
 /** Accessor for rewards, read-only. */
-export function rewards(options: RewardsOptions) {
+export function rewards(options: RewardsOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['accounting'];

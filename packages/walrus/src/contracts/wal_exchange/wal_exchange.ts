@@ -6,31 +6,34 @@
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionResult } from '@mysten/sui/transactions';
 import * as balance from './deps/sui/balance.js';
 const $moduleName = '@local-pkg/wal_exchange::wal_exchange';
-export const ExchangeRate = new MoveStruct({
+const _ExchangeRateFields = {
+	wal: bcs.u64(),
+	sui: bcs.u64(),
+};
+export const ExchangeRate: MoveStruct<typeof _ExchangeRateFields> = new MoveStruct({
 	name: `${$moduleName}::ExchangeRate`,
-	fields: {
-		wal: bcs.u64(),
-		sui: bcs.u64(),
-	},
+	fields: _ExchangeRateFields,
 });
-export const Exchange = new MoveStruct({
+const _ExchangeFields = {
+	id: bcs.Address,
+	wal: balance.Balance,
+	sui: balance.Balance,
+	rate: ExchangeRate,
+	admin: bcs.Address,
+};
+export const Exchange: MoveStruct<typeof _ExchangeFields> = new MoveStruct({
 	name: `${$moduleName}::Exchange`,
-	fields: {
-		id: bcs.Address,
-		wal: balance.Balance,
-		sui: balance.Balance,
-		rate: ExchangeRate,
-		admin: bcs.Address,
-	},
+	fields: _ExchangeFields,
 });
-export const AdminCap = new MoveStruct({
+const _AdminCapFields = {
+	id: bcs.Address,
+};
+export const AdminCap: MoveStruct<typeof _AdminCapFields> = new MoveStruct({
 	name: `${$moduleName}::AdminCap`,
-	fields: {
-		id: bcs.Address,
-	},
+	fields: _AdminCapFields,
 });
 export interface NewExchangeRateArguments {
 	wal: RawTransactionArgument<number | bigint>;
@@ -43,7 +46,9 @@ export interface NewExchangeRateOptions {
 		| [wal: RawTransactionArgument<number | bigint>, sui: RawTransactionArgument<number | bigint>];
 }
 /** Creates a new exchange rate, making sure it is valid. */
-export function newExchangeRate(options: NewExchangeRateOptions) {
+export function newExchangeRate(
+	options: NewExchangeRateOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/wal_exchange';
 	const argumentsTypes = ['u64', 'u64'] satisfies (string | null)[];
 	const parameterNames = ['wal', 'sui'];
@@ -63,7 +68,7 @@ export interface NewOptions {
  * Creates a new shared exchange with a 1:1 exchange rate and returns the
  * associated `AdminCap`.
  */
-export function _new(options: NewOptions = {}) {
+export function _new(options: NewOptions = {}): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/wal_exchange';
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -86,7 +91,7 @@ export interface NewFundedOptions {
  * Creates a new shared exchange with a 1:1 exchange rate, funds it with WAL, and
  * returns the associated `AdminCap`.
  */
-export function newFunded(options: NewFundedOptions) {
+export function newFunded(options: NewFundedOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/wal_exchange';
 	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
 	const parameterNames = ['wal', 'amount'];
@@ -114,7 +119,7 @@ export interface AddWalOptions {
 		  ];
 }
 /** Adds WAL to the balance stored in the exchange. */
-export function addWal(options: AddWalOptions) {
+export function addWal(options: AddWalOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/wal_exchange';
 	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
 	const parameterNames = ['self', 'wal', 'amount'];
@@ -142,7 +147,7 @@ export interface AddSuiOptions {
 		  ];
 }
 /** Adds SUI to the balance stored in the exchange. */
-export function addSui(options: AddSuiOptions) {
+export function addSui(options: AddSuiOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/wal_exchange';
 	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
 	const parameterNames = ['self', 'sui', 'amount'];
@@ -165,7 +170,7 @@ export interface AddAllWalOptions {
 		| [self: RawTransactionArgument<string>, wal: RawTransactionArgument<string>];
 }
 /** Adds WAL to the balance stored in the exchange. */
-export function addAllWal(options: AddAllWalOptions) {
+export function addAllWal(options: AddAllWalOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/wal_exchange';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'wal'];
@@ -188,7 +193,7 @@ export interface AddAllSuiOptions {
 		| [self: RawTransactionArgument<string>, sui: RawTransactionArgument<string>];
 }
 /** Adds SUI to the balance stored in the exchange. */
-export function addAllSui(options: AddAllSuiOptions) {
+export function addAllSui(options: AddAllSuiOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/wal_exchange';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'sui'];
@@ -216,7 +221,7 @@ export interface WithdrawWalOptions {
 		  ];
 }
 /** Withdraws WAL from the balance stored in the exchange. */
-export function withdrawWal(options: WithdrawWalOptions) {
+export function withdrawWal(options: WithdrawWalOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/wal_exchange';
 	const argumentsTypes = [null, 'u64', null] satisfies (string | null)[];
 	const parameterNames = ['self', 'amount', 'adminCap'];
@@ -244,7 +249,7 @@ export interface WithdrawSuiOptions {
 		  ];
 }
 /** Withdraws SUI from the balance stored in the exchange. */
-export function withdrawSui(options: WithdrawSuiOptions) {
+export function withdrawSui(options: WithdrawSuiOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/wal_exchange';
 	const argumentsTypes = [null, 'u64', null] satisfies (string | null)[];
 	const parameterNames = ['self', 'amount', 'adminCap'];
@@ -274,7 +279,9 @@ export interface SetExchangeRateOptions {
 		  ];
 }
 /** Sets the exchange rate of the exchange to `wal` WAL = `sui` SUI. */
-export function setExchangeRate(options: SetExchangeRateOptions) {
+export function setExchangeRate(
+	options: SetExchangeRateOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/wal_exchange';
 	const argumentsTypes = [null, 'u64', 'u64', null] satisfies (string | null)[];
 	const parameterNames = ['self', 'wal', 'sui', 'adminCap'];
@@ -297,7 +304,9 @@ export interface ExchangeAllForWalOptions {
 		| [self: RawTransactionArgument<string>, sui: RawTransactionArgument<string>];
 }
 /** Exchanges the provided SUI coin for WAL at the exchange's rate. */
-export function exchangeAllForWal(options: ExchangeAllForWalOptions) {
+export function exchangeAllForWal(
+	options: ExchangeAllForWalOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/wal_exchange';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'sui'];
@@ -328,7 +337,9 @@ export interface ExchangeForWalOptions {
  * Exchanges `amount_sui` out of the provided SUI coin for WAL at the exchange's
  * rate.
  */
-export function exchangeForWal(options: ExchangeForWalOptions) {
+export function exchangeForWal(
+	options: ExchangeForWalOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/wal_exchange';
 	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
 	const parameterNames = ['self', 'sui', 'amountSui'];
@@ -351,7 +362,9 @@ export interface ExchangeAllForSuiOptions {
 		| [self: RawTransactionArgument<string>, wal: RawTransactionArgument<string>];
 }
 /** Exchanges the provided WAL coin for SUI at the exchange's rate. */
-export function exchangeAllForSui(options: ExchangeAllForSuiOptions) {
+export function exchangeAllForSui(
+	options: ExchangeAllForSuiOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/wal_exchange';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'wal'];
@@ -382,7 +395,9 @@ export interface ExchangeForSuiOptions {
  * Exchanges `amount_wal` out of the provided WAL coin for SUI at the exchange's
  * rate.
  */
-export function exchangeForSui(options: ExchangeForSuiOptions) {
+export function exchangeForSui(
+	options: ExchangeForSuiOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/wal_exchange';
 	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
 	const parameterNames = ['self', 'wal', 'amountWal'];

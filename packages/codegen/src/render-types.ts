@@ -13,9 +13,9 @@ import type {
 	TypeParameter,
 } from './types/summary.js';
 
-export const MOVE_STDLIB_ADDRESS = normalizeSuiAddress('0x1');
-export const SUI_FRAMEWORK_ADDRESS = normalizeSuiAddress('0x2');
-export const SUI_SYSTEM_ADDRESS = normalizeSuiAddress('0x3');
+export const MOVE_STDLIB_ADDRESS: string = normalizeSuiAddress('0x1');
+export const SUI_FRAMEWORK_ADDRESS: string = normalizeSuiAddress('0x2');
+export const SUI_SYSTEM_ADDRESS: string = normalizeSuiAddress('0x3');
 
 type TypeSignatureFormat = 'typescriptArg' | 'bcs' | 'typeTag';
 interface RenderTypeSignatureOptions {
@@ -415,6 +415,6 @@ const JS_RESERVED_NAMES = [
 	'package',
 ];
 
-export function getSafeName(name: string) {
+export function getSafeName(name: string): string {
 	return JS_RESERVED_NAMES.includes(name) ? `_${name}` : name;
 }

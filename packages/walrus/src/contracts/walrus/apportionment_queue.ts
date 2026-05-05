@@ -10,7 +10,11 @@
 
 import { type BcsType, bcs } from '@mysten/sui/bcs';
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
-import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
+import {
+	type Transaction,
+	type TransactionResult,
+	type TransactionArgument,
+} from '@mysten/sui/transactions';
 import * as uq64_64 from './deps/std/uq64_64.js';
 const $moduleName = '@local-pkg/walrus::apportionment_queue';
 export function Entry<T extends BcsType<any>>(...typeParameters: [T]) {
@@ -43,7 +47,7 @@ export interface NewOptions {
 	typeArguments: [string];
 }
 /** Create a new priority queue. */
-export function _new(options: NewOptions) {
+export function _new(options: NewOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -62,7 +66,7 @@ export interface PopMaxOptions {
 	typeArguments: [string];
 }
 /** Pop the entry with the highest priority value. */
-export function popMax(options: PopMaxOptions) {
+export function popMax(options: PopMaxOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['pq'];
@@ -94,7 +98,9 @@ export interface InsertOptions<T extends BcsType<any>> {
 	typeArguments: [string];
 }
 /** Insert a new entry into the queue. */
-export function insert<T extends BcsType<any>>(options: InsertOptions<T>) {
+export function insert<T extends BcsType<any>>(
+	options: InsertOptions<T>,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, 'u64', `${options.typeArguments[0]}`] satisfies (
 		| string

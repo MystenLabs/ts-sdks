@@ -3,6 +3,14 @@
 	"include": ["src"],
 	"compilerOptions": {
 		"noEmit": true,
-		"types": ["node"]
+		"types": ["node"],
+		// Disabled for this package only: codegen uses zod schemas and
+		// `@stricli/core`'s generic factory functions (whose return types are
+		// not exported), neither of which can be expressed as the explicit
+		// type annotations isolatedDeclarations requires without substantial
+		// duplication or @ts-ignore escapes that don't apply to iso-decls.
+		// Codegen's release path will need a different approach than the rest
+		// of the monorepo.
+		"isolatedDeclarations": false
 	}
 }

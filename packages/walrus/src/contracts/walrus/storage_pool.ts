@@ -10,42 +10,49 @@
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
+import {
+	type Transaction,
+	type TransactionResult,
+	type TransactionArgument,
+} from '@mysten/sui/transactions';
 import * as storage_resource from './storage_resource.js';
 import * as object_table from './deps/sui/object_table.js';
 const $moduleName = '@local-pkg/walrus::storage_pool';
-export const StoragePool = new MoveStruct({
+const _StoragePoolFields = {
+	id: bcs.Address,
+	version: bcs.u64(),
+};
+export const StoragePool: MoveStruct<typeof _StoragePoolFields> = new MoveStruct({
 	name: `${$moduleName}::StoragePool`,
-	fields: {
-		id: bcs.Address,
-		version: bcs.u64(),
-	},
+	fields: _StoragePoolFields,
 });
-export const StoragePoolInnerV1 = new MoveStruct({
+const _StoragePoolInnerV1Fields = {
+	/** The storage reservation backing this pool. */
+	storage: storage_resource.Storage,
+	/** Sum of all active blobs' encoded sizes. */
+	used_encoded_bytes: bcs.u64(),
+	/** Number of blobs in the table. */
+	blob_count: bcs.u64(),
+	blobs: object_table.ObjectTable,
+};
+export const StoragePoolInnerV1: MoveStruct<typeof _StoragePoolInnerV1Fields> = new MoveStruct({
 	name: `${$moduleName}::StoragePoolInnerV1`,
-	fields: {
-		/** The storage reservation backing this pool. */
-		storage: storage_resource.Storage,
-		/** Sum of all active blobs' encoded sizes. */
-		used_encoded_bytes: bcs.u64(),
-		/** Number of blobs in the table. */
-		blob_count: bcs.u64(),
-		blobs: object_table.ObjectTable,
-	},
+	fields: _StoragePoolInnerV1Fields,
 });
-export const PooledBlob = new MoveStruct({
+const _PooledBlobFields = {
+	id: bcs.Address,
+	registered_epoch: bcs.u32(),
+	blob_id: bcs.u256(),
+	unencoded_size: bcs.u64(),
+	encoding_type: bcs.u8(),
+	certified_epoch: bcs.option(bcs.u32()),
+	/** Reference back to the owning pool. */
+	storage_pool_id: bcs.Address,
+	deletable: bcs.bool(),
+};
+export const PooledBlob: MoveStruct<typeof _PooledBlobFields> = new MoveStruct({
 	name: `${$moduleName}::PooledBlob`,
-	fields: {
-		id: bcs.Address,
-		registered_epoch: bcs.u32(),
-		blob_id: bcs.u256(),
-		unencoded_size: bcs.u64(),
-		encoding_type: bcs.u8(),
-		certified_epoch: bcs.option(bcs.u32()),
-		/** Reference back to the owning pool. */
-		storage_pool_id: bcs.Address,
-		deletable: bcs.bool(),
-	},
+	fields: _PooledBlobFields,
 });
 export interface StartEpochArguments {
 	self: RawTransactionArgument<string>;
@@ -54,7 +61,7 @@ export interface StartEpochOptions {
 	package?: string;
 	arguments: StartEpochArguments | [self: RawTransactionArgument<string>];
 }
-export function startEpoch(options: StartEpochOptions) {
+export function startEpoch(options: StartEpochOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
@@ -73,7 +80,7 @@ export interface EndEpochOptions {
 	package?: string;
 	arguments: EndEpochArguments | [self: RawTransactionArgument<string>];
 }
-export function endEpoch(options: EndEpochOptions) {
+export function endEpoch(options: EndEpochOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
@@ -92,7 +99,9 @@ export interface ReservedEncodedCapacityBytesOptions {
 	package?: string;
 	arguments: ReservedEncodedCapacityBytesArguments | [self: RawTransactionArgument<string>];
 }
-export function reservedEncodedCapacityBytes(options: ReservedEncodedCapacityBytesOptions) {
+export function reservedEncodedCapacityBytes(
+	options: ReservedEncodedCapacityBytesOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
@@ -111,7 +120,9 @@ export interface UsedEncodedBytesOptions {
 	package?: string;
 	arguments: UsedEncodedBytesArguments | [self: RawTransactionArgument<string>];
 }
-export function usedEncodedBytes(options: UsedEncodedBytesOptions) {
+export function usedEncodedBytes(
+	options: UsedEncodedBytesOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
@@ -130,7 +141,9 @@ export interface AvailableEncodedBytesOptions {
 	package?: string;
 	arguments: AvailableEncodedBytesArguments | [self: RawTransactionArgument<string>];
 }
-export function availableEncodedBytes(options: AvailableEncodedBytesOptions) {
+export function availableEncodedBytes(
+	options: AvailableEncodedBytesOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
@@ -150,7 +163,7 @@ export interface StorageOptions {
 	arguments: StorageArguments | [self: RawTransactionArgument<string>];
 }
 /** Returns a reference to the embedded storage reservation. */
-export function storage(options: StorageOptions) {
+export function storage(options: StorageOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
@@ -169,7 +182,7 @@ export interface BlobCountOptions {
 	package?: string;
 	arguments: BlobCountArguments | [self: RawTransactionArgument<string>];
 }
-export function blobCount(options: BlobCountOptions) {
+export function blobCount(options: BlobCountOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
@@ -191,7 +204,7 @@ export interface ContainsBlobOptions {
 		| ContainsBlobArguments
 		| [self: RawTransactionArgument<string>, blobId: RawTransactionArgument<number | bigint>];
 }
-export function containsBlob(options: ContainsBlobOptions) {
+export function containsBlob(options: ContainsBlobOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, 'u256'] satisfies (string | null)[];
 	const parameterNames = ['self', 'blobId'];
@@ -214,7 +227,7 @@ export interface BlobObjectIdOptions {
 		| [self: RawTransactionArgument<string>, blobId: RawTransactionArgument<number | bigint>];
 }
 /** External wrappers use this to build certification messages for deletable blobs. */
-export function blobObjectId(options: BlobObjectIdOptions) {
+export function blobObjectId(options: BlobObjectIdOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, 'u256'] satisfies (string | null)[];
 	const parameterNames = ['self', 'blobId'];
@@ -234,7 +247,7 @@ export interface ObjectIdOptions {
 	arguments: ObjectIdArguments | [self: RawTransactionArgument<string>];
 }
 /** Returns the object ID of this storage pool. */
-export function objectId(options: ObjectIdOptions) {
+export function objectId(options: ObjectIdOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
@@ -257,7 +270,7 @@ export interface DestroyOptions {
  * Destroys the pool and returns the embedded `Storage` reservation. Asserts the
  * blobs table is empty and `blob_count == 0`.
  */
-export function destroy(options: DestroyOptions) {
+export function destroy(options: DestroyOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
@@ -289,7 +302,9 @@ export interface AddBlobMetadataOptions {
  *
  * Aborts if the metadata is already present.
  */
-export function addBlobMetadata(options: AddBlobMetadataOptions) {
+export function addBlobMetadata(
+	options: AddBlobMetadataOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, 'u256', null] satisfies (string | null)[];
 	const parameterNames = ['self', 'blobId', 'metadata'];
@@ -322,7 +337,9 @@ export interface AddOrReplaceBlobMetadataOptions {
  *
  * Returns the replaced metadata if present.
  */
-export function addOrReplaceBlobMetadata(options: AddOrReplaceBlobMetadataOptions) {
+export function addOrReplaceBlobMetadata(
+	options: AddOrReplaceBlobMetadataOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, 'u256', null] satisfies (string | null)[];
 	const parameterNames = ['self', 'blobId', 'metadata'];
@@ -349,7 +366,9 @@ export interface TakeBlobMetadataOptions {
  *
  * Aborts if the metadata does not exist.
  */
-export function takeBlobMetadata(options: TakeBlobMetadataOptions) {
+export function takeBlobMetadata(
+	options: TakeBlobMetadataOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, 'u256'] satisfies (string | null)[];
 	const parameterNames = ['self', 'blobId'];
@@ -383,7 +402,9 @@ export interface InsertOrUpdateBlobMetadataPairOptions {
  *
  * Creates new metadata on the blob if it does not exist already.
  */
-export function insertOrUpdateBlobMetadataPair(options: InsertOrUpdateBlobMetadataPairOptions) {
+export function insertOrUpdateBlobMetadataPair(
+	options: InsertOrUpdateBlobMetadataPairOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, 'u256', '0x1::string::String', '0x1::string::String'] satisfies (
 		| string
@@ -418,7 +439,9 @@ export interface RemoveBlobMetadataPairOptions {
  *
  * Aborts if the metadata does not exist.
  */
-export function removeBlobMetadataPair(options: RemoveBlobMetadataPairOptions) {
+export function removeBlobMetadataPair(
+	options: RemoveBlobMetadataPairOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, 'u256', '0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['self', 'blobId', 'key'];
@@ -449,7 +472,9 @@ export interface RemoveBlobMetadataPairIfExistsOptions {
  * Removes and returns the value for the given key from a pooled blob's metadata,
  * if it exists.
  */
-export function removeBlobMetadataPairIfExists(options: RemoveBlobMetadataPairIfExistsOptions) {
+export function removeBlobMetadataPairIfExists(
+	options: RemoveBlobMetadataPairIfExistsOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, 'u256', '0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['self', 'blobId', 'key'];

@@ -5,7 +5,8 @@ import { MoveTuple } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import * as vec_map from './deps/sui/vec_map.js';
 const $moduleName = '@local-pkg/walrus::pending_values';
-export const PendingValues = new MoveTuple({
+const _PendingValuesFields = [vec_map.VecMap(bcs.u32(), bcs.u64())] as const;
+export const PendingValues: MoveTuple<typeof _PendingValuesFields> = new MoveTuple({
 	name: `${$moduleName}::PendingValues`,
-	fields: [vec_map.VecMap(bcs.u32(), bcs.u64())],
+	fields: _PendingValuesFields,
 });

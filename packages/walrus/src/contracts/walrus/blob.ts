@@ -3,29 +3,35 @@
  **************************************************************/
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
+import {
+	type Transaction,
+	type TransactionResult,
+	type TransactionArgument,
+} from '@mysten/sui/transactions';
 import * as storage_resource from './storage_resource.js';
 const $moduleName = '@local-pkg/walrus::blob';
-export const Blob = new MoveStruct({
+const _BlobFields = {
+	id: bcs.Address,
+	registered_epoch: bcs.u32(),
+	blob_id: bcs.u256(),
+	size: bcs.u64(),
+	encoding_type: bcs.u8(),
+	certified_epoch: bcs.option(bcs.u32()),
+	storage: storage_resource.Storage,
+	deletable: bcs.bool(),
+};
+export const Blob: MoveStruct<typeof _BlobFields> = new MoveStruct({
 	name: `${$moduleName}::Blob`,
-	fields: {
-		id: bcs.Address,
-		registered_epoch: bcs.u32(),
-		blob_id: bcs.u256(),
-		size: bcs.u64(),
-		encoding_type: bcs.u8(),
-		certified_epoch: bcs.option(bcs.u32()),
-		storage: storage_resource.Storage,
-		deletable: bcs.bool(),
-	},
+	fields: _BlobFields,
 });
-export const BlobIdDerivation = new MoveStruct({
+const _BlobIdDerivationFields = {
+	encoding_type: bcs.u8(),
+	size: bcs.u64(),
+	root_hash: bcs.u256(),
+};
+export const BlobIdDerivation: MoveStruct<typeof _BlobIdDerivationFields> = new MoveStruct({
 	name: `${$moduleName}::BlobIdDerivation`,
-	fields: {
-		encoding_type: bcs.u8(),
-		size: bcs.u64(),
-		root_hash: bcs.u256(),
-	},
+	fields: _BlobIdDerivationFields,
 });
 export interface ObjectIdArguments {
 	self: RawTransactionArgument<string>;
@@ -34,7 +40,7 @@ export interface ObjectIdOptions {
 	package?: string;
 	arguments: ObjectIdArguments | [self: RawTransactionArgument<string>];
 }
-export function objectId(options: ObjectIdOptions) {
+export function objectId(options: ObjectIdOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
@@ -53,7 +59,9 @@ export interface RegisteredEpochOptions {
 	package?: string;
 	arguments: RegisteredEpochArguments | [self: RawTransactionArgument<string>];
 }
-export function registeredEpoch(options: RegisteredEpochOptions) {
+export function registeredEpoch(
+	options: RegisteredEpochOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
@@ -72,7 +80,7 @@ export interface BlobIdOptions {
 	package?: string;
 	arguments: BlobIdArguments | [self: RawTransactionArgument<string>];
 }
-export function blobId(options: BlobIdOptions) {
+export function blobId(options: BlobIdOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
@@ -91,7 +99,7 @@ export interface SizeOptions {
 	package?: string;
 	arguments: SizeArguments | [self: RawTransactionArgument<string>];
 }
-export function size(options: SizeOptions) {
+export function size(options: SizeOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
@@ -110,7 +118,7 @@ export interface EncodingTypeOptions {
 	package?: string;
 	arguments: EncodingTypeArguments | [self: RawTransactionArgument<string>];
 }
-export function encodingType(options: EncodingTypeOptions) {
+export function encodingType(options: EncodingTypeOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
@@ -129,7 +137,9 @@ export interface CertifiedEpochOptions {
 	package?: string;
 	arguments: CertifiedEpochArguments | [self: RawTransactionArgument<string>];
 }
-export function certifiedEpoch(options: CertifiedEpochOptions) {
+export function certifiedEpoch(
+	options: CertifiedEpochOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
@@ -148,7 +158,7 @@ export interface StorageOptions {
 	package?: string;
 	arguments: StorageArguments | [self: RawTransactionArgument<string>];
 }
-export function storage(options: StorageOptions) {
+export function storage(options: StorageOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
@@ -167,7 +177,7 @@ export interface IsDeletableOptions {
 	package?: string;
 	arguments: IsDeletableArguments | [self: RawTransactionArgument<string>];
 }
-export function isDeletable(options: IsDeletableOptions) {
+export function isDeletable(options: IsDeletableOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
@@ -189,7 +199,7 @@ export interface EncodedSizeOptions {
 		| EncodedSizeArguments
 		| [self: RawTransactionArgument<string>, nShards: RawTransactionArgument<number>];
 }
-export function encodedSize(options: EncodedSizeOptions) {
+export function encodedSize(options: EncodedSizeOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, 'u16'] satisfies (string | null)[];
 	const parameterNames = ['self', 'nShards'];
@@ -208,7 +218,7 @@ export interface EndEpochOptions {
 	package?: string;
 	arguments: EndEpochArguments | [self: RawTransactionArgument<string>];
 }
-export function endEpoch(options: EndEpochOptions) {
+export function endEpoch(options: EndEpochOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
@@ -236,7 +246,7 @@ export interface DeriveBlobIdOptions {
 		  ];
 }
 /** Derives the blob_id for a blob given the root_hash, encoding_type and size. */
-export function deriveBlobId(options: DeriveBlobIdOptions) {
+export function deriveBlobId(options: DeriveBlobIdOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = ['u256', 'u8', 'u64'] satisfies (string | null)[];
 	const parameterNames = ['rootHash', 'encodingType', 'size'];
@@ -260,7 +270,7 @@ export interface BurnOptions {
  *
  * This function also burns any [`Metadata`] associated with the blob, if present.
  */
-export function burn(options: BurnOptions) {
+export function burn(options: BurnOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
@@ -287,7 +297,7 @@ export interface AddMetadataOptions {
  *
  * Aborts if the metadata is already present.
  */
-export function addMetadata(options: AddMetadataOptions) {
+export function addMetadata(options: AddMetadataOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'metadata'];
@@ -315,7 +325,9 @@ export interface AddOrReplaceMetadataOptions {
  *
  * Returns the replaced metadata if present.
  */
-export function addOrReplaceMetadata(options: AddOrReplaceMetadataOptions) {
+export function addOrReplaceMetadata(
+	options: AddOrReplaceMetadataOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'metadata'];
@@ -340,7 +352,7 @@ export interface TakeMetadataOptions {
  *
  * Aborts if the metadata does not exist.
  */
-export function takeMetadata(options: TakeMetadataOptions) {
+export function takeMetadata(options: TakeMetadataOptions): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
@@ -373,7 +385,9 @@ export interface InsertOrUpdateMetadataPairOptions {
  * If the key is already present, the value is updated. Creates new metadata on the
  * Blob object if it does not exist already.
  */
-export function insertOrUpdateMetadataPair(options: InsertOrUpdateMetadataPairOptions) {
+export function insertOrUpdateMetadataPair(
+	options: InsertOrUpdateMetadataPairOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, '0x1::string::String', '0x1::string::String'] satisfies (
 		| string
@@ -403,7 +417,9 @@ export interface RemoveMetadataPairOptions {
  *
  * Aborts if the metadata does not exist.
  */
-export function removeMetadataPair(options: RemoveMetadataPairOptions) {
+export function removeMetadataPair(
+	options: RemoveMetadataPairOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, '0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['self', 'key'];
@@ -426,7 +442,9 @@ export interface RemoveMetadataPairIfExistsOptions {
 		| [self: RawTransactionArgument<string>, key: RawTransactionArgument<string>];
 }
 /** Removes and returns the metadata associated with the given key, if it exists. */
-export function removeMetadataPairIfExists(options: RemoveMetadataPairIfExistsOptions) {
+export function removeMetadataPairIfExists(
+	options: RemoveMetadataPairIfExistsOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, '0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['self', 'key'];

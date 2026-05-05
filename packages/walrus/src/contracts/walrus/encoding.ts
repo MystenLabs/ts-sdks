@@ -1,7 +1,7 @@
 /**************************************************************
  * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
  **************************************************************/
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionResult } from '@mysten/sui/transactions';
 import { normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 export interface EncodedBlobLengthArguments {
 	unencodedLength: RawTransactionArgument<number | bigint>;
@@ -22,7 +22,9 @@ export interface EncodedBlobLengthOptions {
  * Computes the encoded length of a blob given its unencoded length, encoding type
  * and number of shards `n_shards`.
  */
-export function encodedBlobLength(options: EncodedBlobLengthOptions) {
+export function encodedBlobLength(
+	options: EncodedBlobLengthOptions,
+): (tx: Transaction) => TransactionResult {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = ['u64', 'u8', 'u16'] satisfies (string | null)[];
 	const parameterNames = ['unencodedLength', 'encodingType', 'nShards'];

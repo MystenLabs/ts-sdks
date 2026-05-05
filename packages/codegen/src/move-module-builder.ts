@@ -90,7 +90,7 @@ export class MoveModuleBuilder extends FileBuilder {
 		includePhantomTypeParameters?: boolean,
 		typeOrigins?: Record<string, string>,
 		rootPackageId?: string,
-	) {
+	): Promise<MoveModuleBuilder> {
 		const summary = JSON.parse(await readFile(file, 'utf-8'));
 		return new MoveModuleBuilder({
 			summary,
@@ -145,7 +145,7 @@ export class MoveModuleBuilder extends FileBuilder {
 		return this.#importNames[name]!;
 	}
 
-	override async getHeader() {
+	override async getHeader(): Promise<string> {
 		if (!this.summary.doc) {
 			return super.getHeader();
 		}
@@ -153,7 +153,7 @@ export class MoveModuleBuilder extends FileBuilder {
 		return `${await super.getHeader()}\n\n/*${await formatComment(this.summary.doc)}*/\n\n`;
 	}
 
-	includeFunctions(option?: FunctionsOption) {
+	includeFunctions(option?: FunctionsOption): void {
 		if (option === false) return;
 
 		const filterByVisibility = !Array.isArray(option);
@@ -185,7 +185,7 @@ export class MoveModuleBuilder extends FileBuilder {
 		}
 	}
 
-	includeType(name: string) {
+	includeType(name: string): void {
 		if (this.#includedTypes.has(name)) {
 			return;
 		}
@@ -238,7 +238,7 @@ export class MoveModuleBuilder extends FileBuilder {
 		this.#orderedTypes.push(name);
 	}
 
-	includeTypes(option?: TypesOption) {
+	includeTypes(option?: TypesOption): void {
 		if (option === false) return;
 
 		const names = Array.isArray(option)
@@ -250,7 +250,7 @@ export class MoveModuleBuilder extends FileBuilder {
 		}
 	}
 
-	async renderBCSTypes() {
+	async renderBCSTypes(): Promise<void> {
 		const needsModuleName =
 			this.hasBcsTypes() && this.#orderedTypes.some((name) => this.#getTypePrefix(name) === null);
 
@@ -270,15 +270,15 @@ export class MoveModuleBuilder extends FileBuilder {
 		}
 	}
 
-	hasBcsTypes() {
+	hasBcsTypes(): boolean {
 		return this.#includedTypes.size > 0;
 	}
 
-	hasFunctions() {
+	hasFunctions(): boolean {
 		return this.#includedFunctions.size > 0;
 	}
 
-	hasTypesOrFunctions() {
+	hasTypesOrFunctions(): boolean {
 		return this.hasBcsTypes() || this.hasFunctions();
 	}
 
@@ -367,7 +367,7 @@ export class MoveModuleBuilder extends FileBuilder {
 		return parseTS /* ts */ `new ${moveTupleName}({ name: \`${name}\`, fields: [${values.join(', ')}] })`;
 	}
 
-	async renderStruct(name: string) {
+	async renderStruct(name: string): Promise<void> {
 		if (!this.#includedTypes.has(name)) {
 			return;
 		}
@@ -462,7 +462,7 @@ export class MoveModuleBuilder extends FileBuilder {
 		}
 	}
 
-	async renderEnum(name: string) {
+	async renderEnum(name: string): Promise<void> {
 		if (!this.#includedTypes.has(name)) {
 			return;
 		}
@@ -562,7 +562,7 @@ export class MoveModuleBuilder extends FileBuilder {
 		}
 	}
 
-	async renderFunctions() {
+	async renderFunctions(): Promise<void> {
 		const names = [];
 
 		if (!this.hasFunctions()) {
