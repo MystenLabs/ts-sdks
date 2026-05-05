@@ -34,7 +34,7 @@ export class FileBuilder {
 		return baseName;
 	}
 
-	addStarImport(module: string, name: string) {
+	addStarImport(module: string, name: string): string {
 		for (const [existingName, existingModule] of this.starImports) {
 			if (existingModule === module) return existingName;
 		}
@@ -43,7 +43,7 @@ export class FileBuilder {
 		return importName;
 	}
 
-	getUnusedName(name: string) {
+	getUnusedName(name: string): string {
 		let deConflictedName = getSafeName(name);
 
 		let i = 1;
@@ -56,7 +56,7 @@ export class FileBuilder {
 		return deConflictedName;
 	}
 
-	async getHeader() {
+	async getHeader(): Promise<string> {
 		return [
 			'/**************************************************************',
 			' * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *',
@@ -65,7 +65,11 @@ export class FileBuilder {
 		].join('\n');
 	}
 
-	async toString(packageDir: string, filePath: string, outputDir: string = packageDir) {
+	async toString(
+		packageDir: string,
+		filePath: string,
+		outputDir: string = packageDir,
+	): Promise<string> {
 		const importStatements = [...this.imports.entries()].flatMap(
 			([module, names]) =>
 				parseTS`import { ${[...names].join(', ')} } from '${modulePath(module)}'`,

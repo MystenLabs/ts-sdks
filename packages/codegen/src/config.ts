@@ -5,14 +5,14 @@ import { isValidNamedPackage, isValidSuiObjectId } from '@mysten/sui/utils';
 import { cosmiconfig } from 'cosmiconfig';
 import * as z from 'zod/v4';
 
-export const globalFunctionsOptionSchema = z.union([
+const globalFunctionsOptionSchema = z.union([
 	z.boolean(),
 	z.object({
 		private: z.union([z.boolean(), z.literal('entry')]).optional(),
 	}),
 ]);
 
-export const functionsOptionSchema = z.union([
+const functionsOptionSchema = z.union([
 	z.boolean(),
 	z.array(z.string()),
 	z.object({
@@ -20,19 +20,19 @@ export const functionsOptionSchema = z.union([
 	}),
 ]);
 
-export const typesOptionSchema = z.union([z.boolean(), z.array(z.string())]);
+const typesOptionSchema = z.union([z.boolean(), z.array(z.string())]);
 
-export const globalGenerateSchema = z.object({
+const globalGenerateSchema = z.object({
 	functions: globalFunctionsOptionSchema.optional(),
 	types: z.boolean().optional(),
 });
 
-export const moduleGenerateSchema = z.object({
+const moduleGenerateSchema = z.object({
 	functions: functionsOptionSchema.optional(),
 	types: typesOptionSchema.optional(),
 });
 
-export const packageGenerateSchema = globalGenerateSchema.extend({
+const packageGenerateSchema = globalGenerateSchema.extend({
 	modules: z
 		.union([
 			z.array(z.string()),
@@ -41,7 +41,7 @@ export const packageGenerateSchema = globalGenerateSchema.extend({
 		.optional(),
 });
 
-export const onChainPackageSchema = z.object({
+const onChainPackageSchema = z.object({
 	package: z.string().refine((name) => isValidNamedPackage(name) || isValidSuiObjectId(name), {
 		message: 'Invalid package name or package ID',
 	}),
@@ -51,16 +51,16 @@ export const onChainPackageSchema = z.object({
 	generate: packageGenerateSchema.optional(),
 });
 
-export const localPackageSchema = z.object({
+const localPackageSchema = z.object({
 	path: z.string(),
 	package: z.string(),
 	packageName: z.string().optional(),
 	generate: packageGenerateSchema.optional(),
 });
 
-export const packageConfigSchema = z.union([onChainPackageSchema, localPackageSchema]);
+const packageConfigSchema = z.union([onChainPackageSchema, localPackageSchema]);
 
-export const importExtensionSchema = z.union([z.literal('.js'), z.literal('.ts'), z.literal('')]);
+const importExtensionSchema = z.union([z.literal('.js'), z.literal('.ts'), z.literal('')]);
 export type ImportExtension = z.infer<typeof importExtensionSchema>;
 
 export type GenerateBase = z.infer<typeof globalGenerateSchema>;
@@ -70,7 +70,7 @@ export type TypesOption = z.infer<typeof typesOptionSchema>;
 
 const IDENTIFIER = /^[A-Za-z_$][\w$]*$/;
 
-export const errorClassSchema = z.object({
+const errorClassSchema = z.object({
 	name: z.string().regex(IDENTIFIER, {
 		message: 'errorClass.name must start with a letter, $ or _ and contain only [A-Za-z0-9_$]',
 	}),
@@ -78,7 +78,7 @@ export const errorClassSchema = z.object({
 	source: z.string(),
 });
 
-export const configSchema = z.object({
+const configSchema = z.object({
 	output: z.string(),
 	prune: z.boolean().optional().default(true),
 	generateSummaries: z.boolean().optional().default(true),

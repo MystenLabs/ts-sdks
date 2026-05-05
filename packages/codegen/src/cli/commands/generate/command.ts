@@ -3,7 +3,7 @@
 
 import { buildCommand } from '@stricli/core';
 
-export const generateCommand = buildCommand({
+const _generateCommand = buildCommand({
 	loader: async () => (await import('./impl.js')).default,
 	parameters: {
 		positional: {
@@ -80,3 +80,5 @@ export const generateCommand = buildCommand({
 		brief: 'Generate BCS and moveCall helpers from you Move code',
 	},
 });
+
+export const generateCommand: typeof _generateCommand = _generateCommand;

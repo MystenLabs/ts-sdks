@@ -5,7 +5,7 @@ import ts from 'typescript';
 import type { Type } from './types/summary.js';
 import { SUI_FRAMEWORK_ADDRESS, SUI_SYSTEM_ADDRESS } from './render-types.js';
 
-export function printNodes(...nodes: ts.Node[]) {
+export function printNodes(...nodes: ts.Node[]): string {
 	const printer = ts.createPrinter({
 		removeComments: false,
 	});
@@ -17,8 +17,11 @@ export function printNodes(...nodes: ts.Node[]) {
 
 type TSTemplateValue = string | number | boolean | ts.Statement[] | ts.Expression;
 
-export function parseTS(strings: TemplateStringsArray, ...values: TSTemplateValue[]) {
-	const source = strings.reduce((acc, str, i) => {
+export function parseTS(
+	strings: TemplateStringsArray,
+	...values: TSTemplateValue[]
+): ts.Statement[] {
+	const source = strings.reduce((acc: string, str, i) => {
 		if (typeof values[i] === 'object') {
 			if (Array.isArray(values[i])) {
 				return `${acc}${str}${printNodes(...values[i])}`;
@@ -47,7 +50,7 @@ export async function mapToObject<T>({
 	items: Iterable<T>;
 	mapper: (item: T) => Promise<null | [string, TSTemplateValue]> | null | [string, TSTemplateValue];
 	getComment?: (item: T) => string | null | undefined;
-}) {
+}): Promise<ts.ObjectLiteralExpression> {
 	const fieldProps = await Promise.all(
 		(
 			await Promise.all(
@@ -107,7 +110,7 @@ export async function withComment<T extends ts.Node | ts.Node[]>(
 	return nodes;
 }
 
-export async function formatComment(text: string) {
+export async function formatComment(text: string): Promise<string> {
 	const lines = (
 		await format(text, {
 			printWidth: 80,
@@ -129,18 +132,18 @@ export async function formatComment(text: string) {
 	return `*\n${lines.map((line) => ` * ${line}`).join('\n')}\n `;
 }
 
-export function camelCase(str: string) {
+export function camelCase(str: string): string {
 	return str.replaceAll(/(?:_)([a-z])/g, (_, letter) => letter.toUpperCase());
 }
 
-export function capitalize(str: string) {
+export function capitalize(str: string): string {
 	return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
 export function isWellKnownObjectParameter(
 	type: Type,
 	resolveAddress: (address: string) => string,
-) {
+): boolean {
 	if (typeof type === 'string') {
 		return false;
 	}

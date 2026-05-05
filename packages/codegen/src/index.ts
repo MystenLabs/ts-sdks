@@ -36,7 +36,7 @@ export async function generateFromPackageSummary({
 	importExtension?: ImportExtension;
 	includePhantomTypeParameters?: boolean;
 	errorClass?: ErrorClassConfig;
-}) {
+}): Promise<void> {
 	if (!pkg.path) {
 		throw new Error(`Package path is required (got ${pkg.package})`);
 	}

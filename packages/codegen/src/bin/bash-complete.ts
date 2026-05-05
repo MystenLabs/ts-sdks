@@ -19,7 +19,7 @@ async function getVersion() {
 	return packageJson.version;
 }
 
-export async function main() {
+export async function main(): Promise<void> {
 	const version = await getVersion();
 	const cli = buildCli(version);
 
