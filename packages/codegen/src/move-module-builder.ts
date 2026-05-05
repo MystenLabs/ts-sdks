@@ -28,6 +28,7 @@ import { isValidSuiObjectId } from '@mysten/sui/utils';
 const IMPORT_MAP = {
 	Transaction: { module: '@mysten/sui/transactions', isType: true },
 	TransactionArgument: { module: '@mysten/sui/transactions', isType: true },
+	TransactionResult: { module: '@mysten/sui/transactions', isType: true },
 	BcsType: { module: '@mysten/sui/bcs', isType: true },
 	bcs: { module: '@mysten/sui/bcs', isType: false },
 	MoveStruct: { module: '~outputRoot/utils/index', isType: false },
@@ -293,14 +294,12 @@ export class MoveModuleBuilder extends FileBuilder {
 		return undefined;
 	};
 
-	async #renderFieldsAsStruct(
-		name: string,
+	async #renderStructFieldsLiteral(
 		{ fields }: Fields,
 		typeParameters: TypeParameter[] = [],
 		includePhantomTypeParameters = false,
 	) {
-		const moveStructName = this.#getImportName('MoveStruct');
-		const fieldObject = await mapToObject({
+		return mapToObject({
 			items: Object.entries(fields),
 			getComment: ([_name, field]) => field.doc,
 			mapper: ([name, field]) => [
@@ -316,18 +315,14 @@ export class MoveModuleBuilder extends FileBuilder {
 				}),
 			],
 		});
-
-		return parseTS /* ts */ `new ${moveStructName}({ name: \`${name}\`, fields: ${fieldObject} })`;
 	}
 
-	async #renderFieldsAsTuple(
-		name: string,
+	async #renderTupleFieldsLiteral(
 		{ fields }: Fields,
 		typeParameters: TypeParameter[] = [],
 		includePhantomTypeParameters = false,
 	) {
-		const moveTupleName = this.#getImportName('MoveTuple');
-		const values = Object.values(fields).map((field) =>
+		return Object.values(fields).map((field) =>
 			renderTypeSignature(field.type_, {
 				format: 'bcs',
 				summary: this.summary,
@@ -337,6 +332,36 @@ export class MoveModuleBuilder extends FileBuilder {
 				registry: this.registry,
 				onDependency: this.#importDependency,
 			}),
+		);
+	}
+
+	async #renderFieldsAsStruct(
+		name: string,
+		fieldsDef: Fields,
+		typeParameters: TypeParameter[] = [],
+		includePhantomTypeParameters = false,
+	) {
+		const moveStructName = this.#getImportName('MoveStruct');
+		const fieldObject = await this.#renderStructFieldsLiteral(
+			fieldsDef,
+			typeParameters,
+			includePhantomTypeParameters,
+		);
+
+		return parseTS /* ts */ `new ${moveStructName}({ name: \`${name}\`, fields: ${fieldObject} })`;
+	}
+
+	async #renderFieldsAsTuple(
+		name: string,
+		fieldsDef: Fields,
+		typeParameters: TypeParameter[] = [],
+		includePhantomTypeParameters = false,
+	) {
+		const moveTupleName = this.#getImportName('MoveTuple');
+		const values = await this.#renderTupleFieldsLiteral(
+			fieldsDef,
+			typeParameters,
+			includePhantomTypeParameters,
 		);
 
 		return parseTS /* ts */ `new ${moveTupleName}({ name: \`${name}\`, fields: [${values.join(', ')}] })`;
@@ -370,23 +395,30 @@ export class MoveModuleBuilder extends FileBuilder {
 			const phantomPlaceholders = hasPhantoms
 				? `<${struct.type_parameters.map((p, i) => `phantom ${p.name ?? `T${i}`}`).join(', ')}>`
 				: '';
-			this.statements.push(
-				...parseTS /* ts */ `export const ${name} = ${
-					struct.fields.positional_fields
-						? await this.#renderFieldsAsTuple(
-								`${structName}${phantomPlaceholders}`,
-								struct.fields,
-								struct.type_parameters,
-								includePhantom,
-							)
-						: await this.#renderFieldsAsStruct(
-								`${structName}${phantomPlaceholders}`,
-								struct.fields,
-								struct.type_parameters,
-								includePhantom,
-							)
-				}`,
-			);
+			const fieldsConst = `_${name}Fields`;
+			if (struct.fields.positional_fields) {
+				const moveTupleName = this.#getImportName('MoveTuple');
+				const values = await this.#renderTupleFieldsLiteral(
+					struct.fields,
+					struct.type_parameters,
+					includePhantom,
+				);
+				this.statements.push(
+					...parseTS /* ts */ `const ${fieldsConst} = [${values.join(', ')}] as const`,
+					...parseTS /* ts */ `export const ${name}: ${moveTupleName}<typeof ${fieldsConst}> = new ${moveTupleName}({ name: \`${structName}${phantomPlaceholders}\`, fields: ${fieldsConst} })`,
+				);
+			} else {
+				const moveStructName = this.#getImportName('MoveStruct');
+				const fieldObject = await this.#renderStructFieldsLiteral(
+					struct.fields,
+					struct.type_parameters,
+					includePhantom,
+				);
+				this.statements.push(
+					...parseTS /* ts */ `const ${fieldsConst} = ${fieldObject}`,
+					...parseTS /* ts */ `export const ${name}: ${moveStructName}<typeof ${fieldsConst}> = new ${moveStructName}({ name: \`${structName}${phantomPlaceholders}\`, fields: ${fieldsConst} })`,
+				);
+			}
 		} else {
 			const bcsTypeName = this.#getImportName('BcsType');
 
@@ -492,10 +524,12 @@ export class MoveModuleBuilder extends FileBuilder {
 			const phantomPlaceholders = hasPhantoms
 				? `<${enumDef.type_parameters.map((p, i) => `phantom ${p.name ?? `T${i}`}`).join(', ')}>`
 				: '';
+			const fieldsConst = `_${name}Fields`;
 			this.statements.push(
+				...parseTS /* ts */ `const ${fieldsConst} = ${variantsObject}`,
 				...(await withComment(
 					enumDef,
-					parseTS /* ts */ `export const ${name} = new ${moveEnumName}({ name: \`${enumName}${phantomPlaceholders}\`, fields: ${variantsObject} })`,
+					parseTS /* ts */ `export const ${name}: ${moveEnumName}<typeof ${fieldsConst}> = new ${moveEnumName}({ name: \`${enumName}${phantomPlaceholders}\`, fields: ${fieldsConst} })`,
 				)),
 			);
 		} else {
@@ -536,6 +570,7 @@ export class MoveModuleBuilder extends FileBuilder {
 		}
 
 		const transactionTypeName = this.#getImportName('Transaction');
+		const transactionResultTypeName = this.#getImportName('TransactionResult');
 
 		for (const [name, func] of Object.entries(this.summary.functions)) {
 			if (func.macro_ || !this.#includedFunctions.has(name)) {
@@ -650,7 +685,7 @@ export class MoveModuleBuilder extends FileBuilder {
 			this.statements.push(
 				...(await withComment(
 					func,
-					parseTS /* ts */ `export function ${fnName}${genericTypes}(options: ${optionsInterface}${genericTypeArgs}${requiresOptions ? '' : ' = {}'}) {
+					parseTS /* ts */ `export function ${fnName}${genericTypes}(options: ${optionsInterface}${genericTypeArgs}${requiresOptions ? '' : ' = {}'}): (tx: ${transactionTypeName}) => ${transactionResultTypeName} {
 					const packageAddress = options.package${packageIsRequired ? '' : ` ?? '${this.#mvrNameOrAddress}'`};
 					${
 						parameters.length > 0

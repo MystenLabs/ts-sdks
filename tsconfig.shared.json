@@ -13,6 +13,10 @@
 		"sourceMap": true,
 		// stricter type-checking for stronger correctness. Recommended by TS
 		"strict": true,
+		// Required by the hardened release flow: every exported declaration must
+		// carry explicit type annotations so .d.mts can be emitted purely from
+		// the local source file with no cross-package type lookups.
+		"isolatedDeclarations": true,
 		// linter checks for common issues
 		"noImplicitReturns": true,
 		"noFallthroughCasesInSwitch": true,
