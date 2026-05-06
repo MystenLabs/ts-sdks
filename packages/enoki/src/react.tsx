@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useStore } from '@nanostores/react';
-import type { ReactNode } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import { createContext, useContext, useEffect, useState } from 'react';
 
-import type { EnokiFlowConfig } from './EnokiFlow.js';
+import type { EnokiFlowConfig, ZkLoginSession, ZkLoginState } from './EnokiFlow.js';
 import { EnokiFlow } from './EnokiFlow.js';
 
 const EnokiFlowContext = createContext<EnokiFlow | null>(null);
@@ -16,13 +16,16 @@ export type EnokiFlowProviderProps = EnokiFlowConfig & {
 };
 
 /** @deprecated use `registerEnokiWallets` instead */
-export function EnokiFlowProvider({ children, ...config }: EnokiFlowProviderProps) {
+export function EnokiFlowProvider({
+	children,
+	...config
+}: EnokiFlowProviderProps): ReactElement {
 	const [enokiFlow] = useState(() => new EnokiFlow(config));
 	return <EnokiFlowContext.Provider value={enokiFlow}>{children}</EnokiFlowContext.Provider>;
 }
 
 /** @deprecated use `registerEnokiWallets` and dapp-kit wallet hooks instead */
-export function useEnokiFlow() {
+export function useEnokiFlow(): EnokiFlow {
 	const context = useContext(EnokiFlowContext);
 	if (!context) {
 		throw new Error('Missing `EnokiFlowContext` provider');
@@ -31,19 +34,19 @@ export function useEnokiFlow() {
 }
 
 /** @deprecated use `registerEnokiWallets` and dapp-kit wallet hooks instead */
-export function useZkLogin() {
+export function useZkLogin(): ZkLoginState {
 	const flow = useEnokiFlow();
 	return useStore(flow.$zkLoginState);
 }
 
 /** @deprecated use `registerEnokiWallets` and dapp-kit wallet hooks instead */
-export function useZkLoginSession() {
+export function useZkLoginSession(): ZkLoginSession | null {
 	const flow = useEnokiFlow();
 	return useStore(flow.$zkLoginSession).value;
 }
 
 /** @deprecated use `registerEnokiWallets` and dapp-kit wallet hooks instead */
-export function useAuthCallback() {
+export function useAuthCallback(): { handled: boolean; state: string | null } {
 	const flow = useEnokiFlow();
 	const [state, setState] = useState<string | null>(null);
 	const [handled, setHandled] = useState(false);
@@ -71,5 +74,6 @@ export function useAuthCallback() {
 		})();
 	}, [hash, flow]);
 
-	return { handled, state };
+	const result: { handled: boolean; state: string | null } = { handled, state };
+	return result;
 }

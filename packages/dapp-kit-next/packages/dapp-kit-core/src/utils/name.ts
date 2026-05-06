@@ -6,7 +6,10 @@ import type { DAppKitCompatibleClient } from '../core/types.js';
 
 const cache = new Map<string, string | null>();
 
-export async function resolveNameServiceName(client: DAppKitCompatibleClient, address: string) {
+export async function resolveNameServiceName(
+	client: DAppKitCompatibleClient,
+	address: string,
+): Promise<string | null | undefined> {
 	if (cache.has(address)) {
 		return cache.get(address)!;
 	}

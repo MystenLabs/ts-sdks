@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { css } from 'lit';
+import type { CSSResult } from 'lit';
 
-export const iconButtonStyles = css`
+export const iconButtonStyles: CSSResult = css`
 	.icon-button {
 		width: 32px;
 		height: 32px;

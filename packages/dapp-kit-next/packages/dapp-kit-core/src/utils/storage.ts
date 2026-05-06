@@ -12,7 +12,7 @@ export type StateStorage = {
 
 export const DEFAULT_STORAGE_KEY = 'mysten-dapp-kit:selected-wallet-and-address';
 
-export function getDefaultStorage() {
+export function getDefaultStorage(): StateStorage {
 	return isLocalStorageAvailable() ? localStorage : createInMemoryStorage();
 }
 
@@ -36,7 +36,7 @@ export function saveAccountToStorage(
 	storageKey: string,
 	account: UiWalletAccount,
 	supportedIntents: string[],
-) {
+): void {
 	const walletId = getWalletUniqueIdentifier(account).replace(':', '_');
 	const intents = supportedIntents.join(',');
 	const value = [walletId, account.address, intents].join(':');

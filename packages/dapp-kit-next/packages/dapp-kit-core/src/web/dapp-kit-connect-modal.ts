@@ -1,12 +1,16 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import type { ElementDefinitionsMap } from '@lit-labs/scoped-registry-mixin';
 import { ScopedRegistryHost } from '@lit-labs/scoped-registry-mixin';
 import { html, nothing } from 'lit';
+import type { CSSResultGroup, TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { storeProperty } from '../utils/lit.js';
 import { WalletList } from './internal/wallet-list.js';
 import { BaseModal } from './internal/base-modal.js';
+
+const ScopedBaseModal: typeof BaseModal = ScopedRegistryHost(BaseModal);
 import type { UiWallet } from '@wallet-standard/ui';
 import { closeIcon } from './internal/icons/close-icon.js';
 import { backIcon } from './internal/icons/back-icon.js';
@@ -73,13 +77,10 @@ export type DAppKitConnectModalOptions = {
  * @cssprop --cursor-disabled - Cursor for disabled interactive elements (default: `not-allowed`).
  */
 @customElement('mysten-dapp-kit-connect-modal')
-export class DAppKitConnectModal
-	extends ScopedRegistryHost(BaseModal)
-	implements DAppKitConnectModalOptions
-{
-	static override styles = [styles, iconButtonStyles];
+export class DAppKitConnectModal extends ScopedBaseModal implements DAppKitConnectModalOptions {
+	static override styles: CSSResultGroup = [styles, iconButtonStyles];
 
-	static elementDefinitions = {
+	static elementDefinitions: ElementDefinitionsMap = {
 		'wallet-list': WalletList,
 		'internal-button': Button,
 		'connection-status': ConnectionStatus,
@@ -108,7 +109,7 @@ export class DAppKitConnectModal
 
 	#abortController?: AbortController;
 
-	override render() {
+	override render(): TemplateResult {
 		const showBackButton = this._state.view === 'connecting' || this._state.view === 'error';
 		const wallets = this.#getWallets();
 

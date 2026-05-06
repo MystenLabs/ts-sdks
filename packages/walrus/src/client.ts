@@ -103,6 +103,7 @@ import {
 	blobIdToInt,
 	IntentType,
 	parseCertificateFromBase64,
+	QuiltPatchV1,
 	StorageConfirmation,
 } from './utils/bcs.js';
 import {
@@ -136,9 +137,9 @@ export function walrus<const Name = 'walrus'>({
 	packageConfig,
 	name = 'walrus' as Name,
 	...options
-}: WalrusOptions<Name> = {}) {
+}: WalrusOptions<Name> = {}): { name: Name; register: (client: ClientWithCoreApi) => WalrusClient } {
 	return {
-		name,
+		name: name,
 		register: (client: ClientWithCoreApi) => {
 			const walrusNetwork = client.network;
 
@@ -210,7 +211,7 @@ export class WalrusClient {
 	}
 
 	/** The Move type for a WAL coin */
-	#walType() {
+	#walType(): Promise<string> {
 		return this.#cache.read(['walType'], async () => {
 			const stakeWithPool = await this.#suiClient.core.getMoveFunction({
 				packageId: await this.#getPackageId(),
@@ -228,48 +229,48 @@ export class WalrusClient {
 			}
 
 			return normalizeStructTag(toStakeCoinType.datatype.typeName);
-		});
+		}) as Promise<string>;
 	}
 
-	#getPackageId() {
+	#getPackageId(): Promise<string> {
 		return this.#cache.read(['getPackageId'], async () => {
 			const system = await this.#objectLoader.load(this.#packageConfig.systemObjectId);
 			return parseStructTag(system.type!).address;
-		});
+		}) as Promise<string>;
 	}
 
 	/** The Move type for a Blob object */
-	getBlobType() {
+	getBlobType(): Promise<string> {
 		return this.#cache.read(['getBlobType'], async () => {
 			return `${await this.#getPackageId()}::blob::Blob`;
-		});
+		}) as Promise<string>;
 	}
 
-	#getWalrusPackageId() {
+	#getWalrusPackageId(): Promise<string> {
 		return this.#cache.read(['getSystemPackageId'], async () => {
 			const { package_id } = await this.systemObject();
 			return package_id;
-		});
+		}) as Promise<string>;
 	}
 
-	#wasmBindings() {
+	#wasmBindings(): Promise<Awaited<ReturnType<typeof getWasmBindings>>> {
 		return this.#cache.read(['wasmBindings'], async () => {
 			return getWasmBindings(this.#wasmUrl);
-		});
+		}) as Promise<Awaited<ReturnType<typeof getWasmBindings>>>;
 	}
 
 	/** The cached system object for the walrus package */
-	systemObject() {
+	systemObject(): Promise<typeof System.$inferType> {
 		return this.#objectLoader.load(this.#packageConfig.systemObjectId, System);
 	}
 
 	/** The cached staking pool object for the walrus package */
-	stakingObject() {
+	stakingObject(): Promise<typeof Staking.$inferType> {
 		return this.#objectLoader.load(this.#packageConfig.stakingPoolId, Staking);
 	}
 
 	/** The system state for the current version of walrus contract  */
-	async systemState() {
+	async systemState(): Promise<typeof SystemStateInnerV1.$inferType> {
 		const systemState = await this.#objectLoader.loadFieldObject(
 			this.#packageConfig.systemObjectId,
 			{ type: 'u64', value: (await this.systemObject()).version },
@@ -280,7 +281,7 @@ export class WalrusClient {
 	}
 
 	/** The staking state for the current version of walrus contract */
-	async stakingState() {
+	async stakingState(): Promise<typeof StakingInnerV1.$inferType> {
 		return this.#objectLoader.loadFieldObject(
 			this.#packageConfig.stakingPoolId,
 			{
@@ -292,9 +293,11 @@ export class WalrusClient {
 	}
 
 	/** Read a blob from the storage nodes */
-	readBlob = this.#retryOnPossibleEpochChange(this.#internalReadBlob);
+	readBlob: (options: ReadBlobOptions) => Promise<Uint8Array> = this.#retryOnPossibleEpochChange(
+		this.#internalReadBlob,
+	);
 
-	async #internalReadBlob({ blobId, signal }: ReadBlobOptions) {
+	async #internalReadBlob({ blobId, signal }: ReadBlobOptions): Promise<Uint8Array> {
 		const systemState = await this.systemState();
 		const numShards = systemState.committee.n_shards;
 
@@ -327,7 +330,13 @@ export class WalrusClient {
 		bytes,
 		numShards,
 		nonce: providedNonce,
-	}: ComputeBlobMetadataOptions) {
+	}: ComputeBlobMetadataOptions): Promise<{
+		rootHash: Uint8Array;
+		blobId: string;
+		metadata: { encodingType: import('./types.js').EncodingType; unencodedLength: bigint };
+		nonce: Uint8Array;
+		blobDigest: () => Promise<Uint8Array>;
+	}> {
 		let shardCount: number | undefined;
 		if (typeof numShards === 'number') {
 			shardCount = numShards;
@@ -364,7 +373,10 @@ export class WalrusClient {
 		};
 	}
 
-	async getBlobMetadata({ blobId, signal }: GetBlobMetadataOptions) {
+	async getBlobMetadata({
+		blobId,
+		signal,
+	}: GetBlobMetadataOptions): Promise<BlobMetadataWithId> {
 		const committee = await this.#getReadCommittee({ blobId, signal });
 		const randomizedNodes = shuffle(committee.nodes);
 
@@ -440,9 +452,14 @@ export class WalrusClient {
 		}
 	}
 
-	getSecondarySliver = this.#retryOnPossibleEpochChange(this.internalGetSecondarySliver);
+	getSecondarySliver: (options: GetSecondarySliverOptions) => Promise<GetSliverResponse> =
+		this.#retryOnPossibleEpochChange(this.internalGetSecondarySliver);
 
-	async internalGetSecondarySliver({ blobId, index, signal }: GetSecondarySliverOptions) {
+	async internalGetSecondarySliver({
+		blobId,
+		index,
+		signal,
+	}: GetSecondarySliverOptions): Promise<GetSliverResponse> {
 		const committee = await this.#getActiveCommittee();
 		const stakingState = await this.stakingState();
 		const numShards = stakingState.n_shards;
@@ -465,7 +482,7 @@ export class WalrusClient {
 		return sliver;
 	}
 
-	async getSlivers({ blobId, signal }: GetSliversOptions) {
+	async getSlivers({ blobId, signal }: GetSliversOptions): Promise<GetSliverResponse[]> {
 		const committee = await this.#getReadCommittee({ blobId, signal });
 		const randomizedNodes = weightedShuffle(
 			committee.nodes.map((node) => ({
@@ -564,7 +581,10 @@ export class WalrusClient {
 	/**
 	 * Gets the blob status from multiple storage nodes and returns the latest status that can be verified.
 	 */
-	async getVerifiedBlobStatus({ blobId, signal }: GetVerifiedBlobStatusOptions) {
+	async getVerifiedBlobStatus({
+		blobId,
+		signal,
+	}: GetVerifiedBlobStatusOptions): Promise<BlobStatus> {
 		// Read from the latest committee because, during epoch change, it is the committee
 		// that will have the most up-to-date information on old and newly certified blobs:
 		const committee = await this.#getActiveCommittee();
@@ -710,13 +730,19 @@ export class WalrusClient {
 	/**
 	 * Calculate the cost of storing a blob for a given a size and number of epochs.
 	 */
-	async storageCost(size: number, epochs: number) {
+	async storageCost(
+		size: number,
+		epochs: number,
+	): Promise<{ storageCost: bigint; writeCost: bigint; totalCost: bigint }> {
 		const systemState = await this.systemState();
 		const encodedSize = encodedBlobLength(size, systemState.committee.n_shards);
 		return this.#storageCostFromEncodedSize(encodedSize, epochs);
 	}
 
-	async #storageCostFromEncodedSize(encodedSize: number, epochs: number) {
+	async #storageCostFromEncodedSize(
+		encodedSize: number,
+		epochs: number,
+	): Promise<{ storageCost: bigint; writeCost: bigint; totalCost: bigint }> {
 		const systemState = await this.systemState();
 		const storageUnits = storageUnitsFromSize(encodedSize);
 		const storageCost =
@@ -735,7 +761,11 @@ export class WalrusClient {
 	 * tx.transferObjects([client.createStorage({ size: 1000, epochs: 3 })], owner);
 	 * ```
 	 */
-	createStorage({ size, epochs, walCoin }: StorageWithSizeOptions) {
+	createStorage({
+		size,
+		epochs,
+		walCoin,
+	}: StorageWithSizeOptions): (tx: Transaction) => Promise<TransactionResult> {
 		return async (tx: Transaction) => {
 			const systemObject = await this.systemObject();
 			const systemState = await this.systemState();
@@ -767,7 +797,7 @@ export class WalrusClient {
 		amount: bigint,
 		source: TransactionObjectArgument | null,
 		fn: (coin: TransactionObjectArgument, tx: Transaction) => T | Promise<T>,
-	) {
+	): (tx: Transaction) => Promise<T> {
 		return async (tx: Transaction): Promise<T> => {
 			const walType = await this.#walType();
 			const coin = source
@@ -808,7 +838,7 @@ export class WalrusClient {
 		transaction?: Transaction;
 		/** Address the storage resource should be transferred to */
 		owner: string;
-	}) {
+	}): Transaction {
 		transaction.transferObjects([this.createStorage({ size, epochs })], owner);
 
 		return transaction;
@@ -825,7 +855,10 @@ export class WalrusClient {
 	async executeCreateStorageTransaction({
 		signer,
 		...options
-	}: StorageWithSizeOptions & { transaction?: Transaction; signer: Signer }) {
+	}: StorageWithSizeOptions & {
+		transaction?: Transaction;
+		signer: Signer;
+	}): Promise<{ digest: string; storage: typeof Storage.$inferType }> {
 		const transaction = this.createStorageTransaction({
 			...options,
 			owner: options.transaction?.getData().sender ?? signer.toSuiAddress(),
@@ -879,7 +912,7 @@ export class WalrusClient {
 		deletable,
 		walCoin,
 		attributes,
-	}: RegisterBlobOptions) {
+	}: RegisterBlobOptions): (tx: Transaction) => Promise<TransactionResult> {
 		return async (tx: Transaction) => {
 			const { writeCost } = await this.storageCost(size, epochs);
 			const walrusPackageId = await this.#getWalrusPackageId();
@@ -926,7 +959,7 @@ export class WalrusClient {
 		size: number;
 		blobDigest: Uint8Array | (() => Promise<Uint8Array>);
 		nonce: Uint8Array;
-	}) {
+	}): (transaction: Transaction) => Promise<void> {
 		return async (transaction: Transaction) => {
 			const nonceDigest = await crypto.subtle.digest('SHA-256', nonce as BufferSource);
 			const lengthBytes = bcs.u64().serialize(size).toBytes();
@@ -965,7 +998,7 @@ export class WalrusClient {
 		});
 	}
 
-	async calculateUploadRelayTip(options: { size: number }) {
+	async calculateUploadRelayTip(options: { size: number }): Promise<bigint | number> {
 		const systemState = await this.systemState();
 		const encodedSize = encodedBlobLength(options.size, systemState.committee.n_shards);
 		const tipConfig = await this.#loadTipConfig();
@@ -999,7 +1032,7 @@ export class WalrusClient {
 		size: number;
 		blobDigest: Uint8Array | (() => Promise<Uint8Array>);
 		nonce: Uint8Array;
-	}) {
+	}): (transaction: Transaction) => Promise<void> {
 		return async (transaction: Transaction) => {
 			const tipConfig = await this.#loadTipConfig();
 
@@ -1034,7 +1067,7 @@ export class WalrusClient {
 		transaction?: Transaction;
 		/** Address the blob should be transferred to */
 		owner: string;
-	}) {
+	}): Transaction {
 		const registration = transaction.add(this.registerBlob(options));
 
 		transaction.transferObjects([registration], options.owner);
@@ -1098,7 +1131,7 @@ export class WalrusClient {
 		};
 	}
 
-	async #getCreatedBlob(digest: string) {
+	async #getCreatedBlob(digest: string): Promise<typeof Blob.$inferType> {
 		const blobType = await this.getBlobType();
 		const result = await this.#suiClient.core.waitForTransaction({
 			digest,
@@ -1204,7 +1237,13 @@ export class WalrusClient {
 	 * tx.add(client.certifyBlob({ blobId, blobObjectId, confirmations }));
 	 * ```
 	 */
-	certifyBlob({ blobId, blobObjectId, confirmations, certificate, deletable }: CertifyBlobOptions) {
+	certifyBlob({
+		blobId,
+		blobObjectId,
+		confirmations,
+		certificate,
+		deletable,
+	}: CertifyBlobOptions): (tx: Transaction) => Promise<void> {
 		return async (tx: Transaction) => {
 			const systemState = await this.systemState();
 			const combinedSignature =
@@ -1249,7 +1288,7 @@ export class WalrusClient {
 		...options
 	}: CertifyBlobOptions & {
 		transaction?: Transaction;
-	}) {
+	}): Transaction {
 		transaction.add(this.certifyBlob(options));
 
 		return transaction;
@@ -1269,7 +1308,7 @@ export class WalrusClient {
 	}: CertifyBlobOptions & {
 		transaction?: Transaction;
 		signer: Signer;
-	}) {
+	}): Promise<{ digest: string }> {
 		const transaction = this.certifyBlobTransaction(options);
 
 		const { digest } = await this.#executeTransaction(transaction, signer, 'certify blob');
@@ -1286,7 +1325,9 @@ export class WalrusClient {
 	 * tx.transferObjects([storage], owner);
 	 * ```
 	 */
-	deleteBlob({ blobObjectId }: DeleteBlobOptions) {
+	deleteBlob({
+		blobObjectId,
+	}: DeleteBlobOptions): (tx: Transaction) => Promise<TransactionResult> {
 		return async (tx: Transaction) => {
 			const walrusPackageId = await this.#getWalrusPackageId();
 			const storage = tx.add(
@@ -1319,7 +1360,7 @@ export class WalrusClient {
 		transaction?: Transaction;
 		/** Address the storage resource should be returned to */
 		owner: string;
-	}) {
+	}): Transaction {
 		const storage = transaction.add(this.deleteBlob({ blobObjectId }));
 		transaction.transferObjects([storage], owner);
 
@@ -1338,7 +1379,10 @@ export class WalrusClient {
 		signer,
 		transaction = new Transaction(),
 		blobObjectId,
-	}: DeleteBlobOptions & { signer: Signer; transaction?: Transaction }) {
+	}: DeleteBlobOptions & {
+		signer: Signer;
+		transaction?: Transaction;
+	}): Promise<{ digest: string }> {
 		const { digest } = await this.#executeTransaction(
 			this.deleteBlobTransaction({
 				blobObjectId,
@@ -1360,7 +1404,12 @@ export class WalrusClient {
 	 * const tx = client.extendBlobTransaction({ blobObjectId, epochs });
 	 * ```
 	 */
-	extendBlob({ blobObjectId, epochs, endEpoch, walCoin }: ExtendBlobOptions) {
+	extendBlob({
+		blobObjectId,
+		epochs,
+		endEpoch,
+		walCoin,
+	}: ExtendBlobOptions): (tx: Transaction) => Promise<void> {
 		return async (tx: Transaction) => {
 			const blob = await this.#objectLoader.load(blobObjectId, Blob);
 			const numEpochs = typeof epochs === 'number' ? epochs : endEpoch - blob.storage.end_epoch;
@@ -1404,7 +1453,7 @@ export class WalrusClient {
 	async extendBlobTransaction({
 		transaction = new Transaction(),
 		...options
-	}: ExtendBlobOptions & { transaction?: Transaction }) {
+	}: ExtendBlobOptions & { transaction?: Transaction }): Promise<Transaction> {
 		transaction.add(this.extendBlob(options));
 
 		return transaction;
@@ -1421,7 +1470,10 @@ export class WalrusClient {
 	async executeExtendBlobTransaction({
 		signer,
 		...options
-	}: ExtendBlobOptions & { signer: Signer; transaction?: Transaction }) {
+	}: ExtendBlobOptions & {
+		signer: Signer;
+		transaction?: Transaction;
+	}): Promise<{ digest: string }> {
 		const { digest } = await this.#executeTransaction(
 			await this.extendBlobTransaction(options),
 			signer,
@@ -1459,7 +1511,7 @@ export class WalrusClient {
 		attributes: Record<string, string | null>;
 		existingAttributes: Record<string, string> | null;
 		blob: TransactionObjectArgument;
-	}) {
+	}): (tx: Transaction) => Promise<void> {
 		return async (tx: Transaction) => {
 			const walrusPackageId = await this.#getWalrusPackageId();
 
@@ -1519,7 +1571,11 @@ export class WalrusClient {
 	 * tx.add(client.writeBlobAttributes({ blobObjectId, attributes: { key: 'value', keyToRemove: null } }));
 	 * ```
 	 */
-	writeBlobAttributes({ blobObject, blobObjectId, attributes }: WriteBlobAttributesOptions) {
+	writeBlobAttributes({
+		blobObject,
+		blobObjectId,
+		attributes,
+	}: WriteBlobAttributesOptions): (tx: Transaction) => Promise<void> {
 		return async (tx: Transaction) => {
 			const existingAttributes = blobObjectId
 				? await this.readBlobAttributes({ blobObjectId })
@@ -1550,7 +1606,7 @@ export class WalrusClient {
 	async writeBlobAttributesTransaction({
 		transaction = new Transaction(),
 		...options
-	}: WriteBlobAttributesOptions & { transaction?: Transaction }) {
+	}: WriteBlobAttributesOptions & { transaction?: Transaction }): Promise<Transaction> {
 		transaction.add(await this.writeBlobAttributes(options));
 		return transaction;
 	}
@@ -1569,7 +1625,10 @@ export class WalrusClient {
 	async executeWriteBlobAttributesTransaction({
 		signer,
 		...options
-	}: WriteBlobAttributesOptions & { signer: Signer; transaction?: Transaction }) {
+	}: WriteBlobAttributesOptions & {
+		signer: Signer;
+		transaction?: Transaction;
+	}): Promise<{ digest: string }> {
 		const { digest } = await this.#executeTransaction(
 			await this.writeBlobAttributesTransaction(options),
 			signer,
@@ -1586,7 +1645,15 @@ export class WalrusClient {
 	 * const res = await client.writeSliver({ blobId, sliverPairIndex, sliverType, sliver });
 	 * ```
 	 */
-	async writeSliver({ blobId, sliverPairIndex, sliverType, sliver, signal }: WriteSliverOptions) {
+	async writeSliver({
+		blobId,
+		sliverPairIndex,
+		sliverType,
+		sliver,
+		signal,
+	}: WriteSliverOptions): Promise<
+		Awaited<ReturnType<StorageNodeClient['storeSliver']>>
+	> {
 		const systemState = await this.systemState();
 		const committee = await this.#getActiveCommittee();
 
@@ -1607,7 +1674,12 @@ export class WalrusClient {
 	 * const res = await client.writeMetadataToNode({ nodeIndex, blobId, metadata });
 	 * ```
 	 */
-	async writeMetadataToNode({ nodeIndex, blobId, metadata, signal }: WriteMetadataOptions) {
+	async writeMetadataToNode({
+		nodeIndex,
+		blobId,
+		metadata,
+		signal,
+	}: WriteMetadataOptions): Promise<Awaited<ReturnType<StorageNodeClient['storeBlobMetadata']>>> {
 		const committee = await this.#getActiveCommittee();
 		const node = committee.nodes[nodeIndex];
 
@@ -1639,7 +1711,7 @@ export class WalrusClient {
 		deletable,
 		objectId,
 		signal,
-	}: GetStorageConfirmationOptions) {
+	}: GetStorageConfirmationOptions): Promise<StorageConfirmationType | null> {
 		const committee = await this.#getActiveCommittee();
 		const node = committee.nodes[nodeIndex];
 
@@ -1704,7 +1776,7 @@ export class WalrusClient {
 	 * console.log(blobObject.id, blobObject.blob_id);
 	 * ```
 	 */
-	async getBlobObject(blobObjectId: string) {
+	async getBlobObject(blobObjectId: string): Promise<typeof Blob.$inferType> {
 		return this.#objectLoader.load(blobObjectId, Blob);
 	}
 
@@ -1716,7 +1788,12 @@ export class WalrusClient {
 	 * const { blobId, metadata, sliversByNode, rootHash } = await client.encodeBlob(blob);
 	 * ```
 	 */
-	async encodeBlob(blob: Uint8Array) {
+	async encodeBlob(blob: Uint8Array): Promise<{
+		blobId: string;
+		metadata: typeof import('./utils/bcs.js').BlobMetadata.$inferInput;
+		rootHash: Uint8Array;
+		sliversByNode: SliversForNode[];
+	}> {
 		const systemState = await this.systemState();
 		const committee = await this.#getActiveCommittee();
 
@@ -1773,7 +1850,11 @@ export class WalrusClient {
 	 * await client.writeSliversToNode({ blobId, slivers, signal });
 	 * ```
 	 */
-	async writeSliversToNode({ blobId, slivers, signal }: WriteSliversToNodeOptions) {
+	async writeSliversToNode({
+		blobId,
+		slivers,
+		signal,
+	}: WriteSliversToNodeOptions): Promise<void> {
 		const controller = new AbortController();
 		const combinedSignal = signal
 			? AbortSignal.any([controller.signal, signal])
@@ -1819,7 +1900,7 @@ export class WalrusClient {
 		sliversByNode,
 		signal,
 		...options
-	}: WriteEncodedBlobToNodesOptions) {
+	}: WriteEncodedBlobToNodesOptions): Promise<(StorageConfirmationType | null)[]> {
 		const systemState = await this.systemState();
 		const committee = await this.#getActiveCommittee();
 
@@ -1891,7 +1972,7 @@ export class WalrusClient {
 		slivers,
 		signal,
 		...options
-	}: WriteEncodedBlobOptions) {
+	}: WriteEncodedBlobOptions): Promise<StorageConfirmationType | null> {
 		const committee = await this.#getActiveCommittee();
 		const node = committee.nodes[nodeIndex];
 
@@ -1935,7 +2016,7 @@ export class WalrusClient {
 		slivers,
 		signal,
 		nodeIndex,
-	}: WriteSliversToNodeOptions) {
+	}: WriteSliversToNodeOptions): Promise<void> {
 		const committee = await this.#getActiveCommittee();
 		const node = committee.nodes[nodeIndex];
 		const controller = new AbortController();
@@ -1994,7 +2075,7 @@ export class WalrusClient {
 		onStep,
 		resume,
 		signal,
-	}: WriteBlobOptions) {
+	}: WriteBlobOptions): Promise<{ blobId: string; blobObject: typeof Blob.$inferType }> {
 		const flow = this.writeBlobFlow({ blob, resume });
 		for await (const step of flow.run({
 			signer,
@@ -2014,7 +2095,13 @@ export class WalrusClient {
 		};
 	}
 
-	async writeQuilt({ blobs, ...options }: WriteQuiltOptions) {
+	async writeQuilt({ blobs, ...options }: WriteQuiltOptions): Promise<{
+		blobId: string;
+		blobObject: typeof Blob.$inferType;
+		index: {
+			patches: (typeof QuiltPatchV1.$inferInput & { startIndex: number; patchId: string })[];
+		};
+	}> {
 		const encoded = await this.encodeQuilt({ blobs });
 		const result = await this.writeBlob({
 			...options,
@@ -2052,7 +2139,7 @@ export class WalrusClient {
 			identifier: string;
 			tags?: Record<string, string>;
 		}[];
-	}) {
+	}): Promise<ReturnType<typeof encodeQuilt>> {
 		const systemState = await this.systemState();
 		const encoded = encodeQuilt({
 			blobs,
@@ -2062,7 +2149,16 @@ export class WalrusClient {
 		return encoded;
 	}
 
-	async #executeTransaction(transaction: Transaction, signer: Signer, action: string) {
+	async #executeTransaction(
+		transaction: Transaction,
+		signer: Signer,
+		action: string,
+	): Promise<{
+		digest: string;
+		effects: NonNullable<
+			Awaited<ReturnType<Signer['signAndExecuteTransaction']>>['Transaction']
+		>['effects'];
+	}> {
 		transaction.setSenderIfNotSet(signer.toSuiAddress());
 
 		const result = await signer.signAndExecuteTransaction({
@@ -2085,7 +2181,7 @@ export class WalrusClient {
 		return { digest, effects };
 	}
 
-	async #getCommittee(committee: InferBcsType<typeof Committee>) {
+	async #getCommittee(committee: InferBcsType<typeof Committee>): Promise<CommitteeInfo> {
 		const stakingPool = await this.#stakingPool(committee);
 		const shardIndicesByNodeId = getShardIndicesByNodeId(committee);
 
@@ -2113,19 +2209,21 @@ export class WalrusClient {
 		};
 	}
 
-	#getActiveCommittee() {
+	#getActiveCommittee(): Promise<CommitteeInfo> {
 		return this.#cache.read(['getActiveCommittee'], async () => {
 			const stakingState = await this.stakingState();
 			return this.#getCommittee(stakingState.committee);
-		});
+		}) as Promise<CommitteeInfo>;
 	}
 
-	async #stakingPool(committee: InferBcsType<typeof Committee>) {
+	async #stakingPool(
+		committee: InferBcsType<typeof Committee>,
+	): Promise<(typeof StakingPool.$inferType)[]> {
 		const nodeIds = committee[0].contents.map((node) => node.key);
 		return this.#objectLoader.loadManyOrThrow(nodeIds, StakingPool);
 	}
 
-	async #getNodeByShardIndex(committeeInfo: CommitteeInfo, index: number) {
+	async #getNodeByShardIndex(committeeInfo: CommitteeInfo, index: number): Promise<StorageNode> {
 		const node = committeeInfo.byShardIndex.get(index);
 		if (!node) {
 			throw new WalrusClientError(`Node for shard index ${index} not found`);
@@ -2141,7 +2239,7 @@ export class WalrusClient {
 	 * client.reset();
 	 * ```
 	 */
-	reset() {
+	reset(): void {
 		this.#objectLoader.clearAll();
 		this.#cache.clear();
 	}
@@ -2160,7 +2258,7 @@ export class WalrusClient {
 		}) as T;
 	}
 
-	async getBlob({ blobId }: { blobId: string }) {
+	async getBlob({ blobId }: { blobId: string }): Promise<WalrusBlob> {
 		return new WalrusBlob({
 			reader: new BlobReader({
 				client: this,
@@ -2171,7 +2269,7 @@ export class WalrusClient {
 		});
 	}
 
-	async getFiles({ ids }: { ids: string[] }) {
+	async getFiles({ ids }: { ids: string[] }): Promise<WalrusFile[]> {
 		const readersByBlobId = new Map<string, BlobReader>();
 		const quiltReadersByBlobId = new Map<string, QuiltReader>();
 		const parsedIds = ids.map((id) => parseWalrusId(id));
@@ -2218,7 +2316,12 @@ export class WalrusClient {
 		});
 	}
 
-	async writeFiles({ files, onStep, resume, ...options }: WriteFilesOptions) {
+	async writeFiles({
+		files,
+		onStep,
+		resume,
+		...options
+	}: WriteFilesOptions): Promise<Awaited<ReturnType<WriteFilesFlow['listFiles']>>> {
 		const flow = this.writeFilesFlow({ files, resume });
 		for await (const step of flow.run({
 			signer: options.signer,

@@ -3,21 +3,22 @@
 
 import type { UiWallet } from '@wallet-standard/ui';
 import { html, LitElement } from 'lit';
+import type { CSSResultGroup, TemplateResult } from 'lit';
 import { property } from 'lit/decorators.js';
 import { styles } from './wallet-list-item.styles.js';
 
 export type WalletSelectedEvent = CustomEvent<{ wallet: UiWallet }>;
 
 export class WalletListItem extends LitElement {
-	static override styles = styles;
+	static override styles: CSSResultGroup = styles;
 
 	@property()
 	wallet!: UiWallet;
 
 	@property({ type: Boolean, reflect: true })
-	override autofocus = false;
+	override autofocus: boolean = false;
 
-	override render() {
+	override render(): TemplateResult {
 		return html`
 			<li>
 				<button

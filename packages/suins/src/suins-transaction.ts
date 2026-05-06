@@ -320,7 +320,7 @@ export class SuinsTransaction {
 		expirationTimestampMs: number;
 		allowChildCreation: boolean;
 		allowTimeExtension: boolean;
-	}) {
+	}): ReturnType<Transaction['moveCall']> {
 		if (!isValidSuiNSName(name)) throw new Error('Invalid SuiNS name');
 		const isParentSubdomain = isNestedSubName(name);
 		if (!this.suinsClient.config.suins) throw new Error('SuiNS Object ID not found');
@@ -360,7 +360,7 @@ export class SuinsTransaction {
 		parentNft: TransactionObjectInput;
 		name: string;
 		targetAddress: string;
-	}) {
+	}): void {
 		if (!isValidSuiNSName(name)) throw new Error('Invalid SuiNS name');
 		const isParentSubdomain = isNestedSubName(name);
 		if (!this.suinsClient.config.suins) throw new Error('SuiNS Object ID not found');
@@ -386,7 +386,13 @@ export class SuinsTransaction {
 	/**
 	 * Removes a leaf subname.
 	 */
-	removeLeafSubName({ parentNft, name }: { parentNft: TransactionObjectInput; name: string }) {
+	removeLeafSubName({
+		parentNft,
+		name,
+	}: {
+		parentNft: TransactionObjectInput;
+		name: string;
+	}): void {
 		if (!isValidSuiNSName(name)) throw new Error('Invalid SuiNS name');
 		const isParentSubdomain = isNestedSubName(name);
 		if (!isSubName(name)) throw new Error('This can only be invoked for subnames');
@@ -420,7 +426,7 @@ export class SuinsTransaction {
 		nft: TransactionObjectInput;
 		address?: string;
 		isSubname?: boolean;
-	}) {
+	}): void {
 		if (isSubname && !this.suinsClient.config.tempSubdomainsProxyPackageId)
 			throw new Error('Subnames proxy package ID not found');
 
@@ -440,7 +446,7 @@ export class SuinsTransaction {
 	/**
 	 * Sets a default name for the user.
 	 */
-	setDefault(name: string) {
+	setDefault(name: string): void {
 		if (!isValidSuiNSName(name)) throw new Error('Invalid SuiNS name');
 		if (!this.suinsClient.config.suins) throw new Error('SuiNS Object ID not found');
 
@@ -468,7 +474,7 @@ export class SuinsTransaction {
 		name: string;
 		allowChildCreation: boolean;
 		allowTimeExtension: boolean;
-	}) {
+	}): void {
 		if (!isValidSuiNSName(name)) throw new Error('Invalid SuiNS name');
 		const isParentSubdomain = isNestedSubName(name);
 		if (!this.suinsClient.config.suins) throw new Error('SuiNS Object ID not found');
@@ -501,7 +507,7 @@ export class SuinsTransaction {
 	}: {
 		nft: TransactionObjectInput;
 		expirationTimestampMs: number;
-	}) {
+	}): void {
 		if (!this.suinsClient.config.suins) throw new Error('SuiNS Object ID not found');
 		if (!this.suinsClient.config.subNamesPackageId)
 			throw new Error('Subnames package ID not found');
@@ -529,7 +535,7 @@ export class SuinsTransaction {
 		value: string;
 		key: string;
 		isSubname?: boolean;
-	}) {
+	}): void {
 		if (!this.suinsClient.config.suins) throw new Error('SuiNS Object ID not found');
 		if (isSubname && !this.suinsClient.config.tempSubdomainsProxyPackageId)
 			throw new Error('Subnames proxy package ID not found');
@@ -553,7 +559,13 @@ export class SuinsTransaction {
 	/**
 	 * Burns an expired NFT to collect storage rebates.
 	 */
-	burnExpired({ nft, isSubname }: { nft: TransactionObjectInput; isSubname?: boolean }) {
+	burnExpired({
+		nft,
+		isSubname,
+	}: {
+		nft: TransactionObjectInput;
+		isSubname?: boolean;
+	}): void {
 		if (!this.suinsClient.config.suins) throw new Error('SuiNS Object ID not found');
 
 		if (isSubname) {

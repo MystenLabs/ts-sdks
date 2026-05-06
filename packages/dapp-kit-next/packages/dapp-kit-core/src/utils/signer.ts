@@ -8,6 +8,7 @@ import type { Transaction } from '@mysten/sui/transactions';
 import { toBase64 } from '@mysten/sui/utils';
 import { publicKeyFromSuiBytes } from '@mysten/sui/verify';
 import type { TransactionResultWithEffects } from './transaction-result.js';
+import type { SignedPersonalMessage, SignedTransaction } from '@mysten/wallet-standard';
 
 export class CurrentAccountSigner extends Signer {
 	#publicKeyCache = new Map<string, PublicKey>();
@@ -51,13 +52,13 @@ export class CurrentAccountSigner extends Signer {
 		);
 	}
 
-	override async signTransaction(bytes: Uint8Array) {
+	override async signTransaction(bytes: Uint8Array): Promise<SignedTransaction> {
 		return this.#dAppKit.signTransaction({
 			transaction: toBase64(bytes),
 		});
 	}
 
-	override async signPersonalMessage(bytes: Uint8Array) {
+	override async signPersonalMessage(bytes: Uint8Array): Promise<SignedPersonalMessage> {
 		return this.#dAppKit.signPersonalMessage({
 			message: bytes,
 		});

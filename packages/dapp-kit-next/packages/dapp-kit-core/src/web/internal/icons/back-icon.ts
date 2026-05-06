@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { html } from 'lit';
+import type { TemplateResult } from 'lit';
 
-export const backIcon = html`<svg
+export const backIcon: TemplateResult = html`<svg
 	width="15"
 	height="16"
 	viewBox="0 0 15 16"

@@ -57,19 +57,19 @@ export class EnokiWalletState {
 		}, new Map());
 	}
 
-	get zkLoginState() {
+	get zkLoginState(): WritableAtom<ZkLoginState | null> {
 		return this.#zkLoginState;
 	}
 
-	ensureHydrated() {
+	ensureHydrated(): Promise<void> {
 		return this.#hydrateFromStorage();
 	}
 
-	get sessionContextByNetwork() {
+	get sessionContextByNetwork(): Map<SuiClientTypes.Network, EnokiSessionContext> {
 		return this.#sessionContextByNetwork;
 	}
 
-	getSessionContext(network: SuiClientTypes.Network) {
+	getSessionContext(network: SuiClientTypes.Network): EnokiSessionContext {
 		const context = this.#sessionContextByNetwork.get(network);
 		if (!context) {
 			throw new Error(`The network ${network} isn't supported.`);
@@ -78,7 +78,7 @@ export class EnokiWalletState {
 		return context;
 	}
 
-	async logout() {
+	async logout(): Promise<void> {
 		this.#zkLoginState.set(null);
 		await clear(this.#stateStore);
 
@@ -88,7 +88,7 @@ export class EnokiWalletState {
 		}
 	}
 
-	async setSession(context: EnokiSessionContext, newValue: ZkLoginSession | null) {
+	async setSession(context: EnokiSessionContext, newValue: ZkLoginSession | null): Promise<void> {
 		if (newValue) {
 			const storedValue = await this.#encryption.encrypt(
 				this.#encryptionKey,
@@ -103,7 +103,10 @@ export class EnokiWalletState {
 		context.$zkLoginSession.set({ initialized: true, value: newValue });
 	}
 
-	async getSession({ $zkLoginSession, idbStore }: EnokiSessionContext) {
+	async getSession({
+		$zkLoginSession,
+		idbStore,
+	}: EnokiSessionContext): Promise<ZkLoginSession | null> {
 		if ($zkLoginSession.get().initialized) {
 			return $zkLoginSession.get().value;
 		}

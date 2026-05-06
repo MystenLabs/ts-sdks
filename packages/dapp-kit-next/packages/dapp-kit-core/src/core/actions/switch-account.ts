@@ -16,11 +16,11 @@ export type SwitchAccountArgs = {
 export function switchAccountCreator(
 	{ $baseConnection, $connection }: DAppKitStores,
 	{ storage, storageKey }: { storage: StateStorage; storageKey: string },
-) {
+): (args: SwitchAccountArgs) => void {
 	/**
 	 * Switches the currently selected account to the specified account.
 	 */
-	return function switchAccount({ account }: SwitchAccountArgs) {
+	return function switchAccount({ account }: SwitchAccountArgs): void {
 		const connection = $connection.get();
 		if (!connection.wallet) {
 			throw new WalletNotConnectedError('No wallet is connected.');

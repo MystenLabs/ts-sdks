@@ -3,7 +3,7 @@
 
 import type { Config } from './types.js';
 
-export const MAX_U64 = BigInt('18446744073709551615');
+export const MAX_U64: bigint = BigInt('18446744073709551615');
 
 /**
  * Allowed keys for metadata.

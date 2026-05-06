@@ -15,8 +15,8 @@ type StoreValues = ValueOf<DAppKit['stores']>[];
  *
  * Inspired by https://github.com/nanostores/lit/issues/10#issuecomment-2781516844 :)
  */
-export function storeProperty() {
-	return function (target: any, propertyKey: PropertyKey) {
+export function storeProperty(): (target: object, propertyKey: PropertyKey) => void {
+	return function (target: object, propertyKey: PropertyKey): void {
 		// Create unique symbols for storing the controller and value:
 		const controllerKey = Symbol();
 		const valueKey = Symbol();

@@ -2,16 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { html, LitElement } from 'lit';
+import type { CSSResultGroup, TemplateResult } from 'lit';
 import { customElement, property, query } from 'lit/decorators.js';
 import { storeProperty } from '../utils/lit.js';
 import type { DAppKitConnectModalOptions } from './dapp-kit-connect-modal.js';
 import { DAppKitConnectModal } from './dapp-kit-connect-modal.js';
+import type { ElementDefinitionsMap } from '@lit-labs/scoped-registry-mixin';
 import { ScopedRegistryHost } from '@lit-labs/scoped-registry-mixin';
 import { Button } from './internal/button.js';
 import { sharedStyles } from './styles/index.js';
 import type { DefaultExpectedDppKit } from '../types.js';
 import { ConnectedAccountMenu } from './internal/connected-account-menu.js';
 import type { AccountSelectedEvent } from './internal/connected-account-menu-item.js';
+
+const ScopedLitElement: typeof LitElement = ScopedRegistryHost(LitElement);
 
 /**
  * A button component for connecting to a Sui wallet.
@@ -51,19 +55,19 @@ import type { AccountSelectedEvent } from './internal/connected-account-menu-ite
  * @csspart trigger - The underlying button element. Use `::part(trigger)` to customize sizing, padding, border-radius, etc.
  */
 @customElement('mysten-dapp-kit-connect-button')
-export class DAppKitConnectButton extends ScopedRegistryHost(LitElement) {
-	static elementDefinitions = {
+export class DAppKitConnectButton extends ScopedLitElement {
+	static elementDefinitions: ElementDefinitionsMap = {
 		'internal-button': Button,
 		'mysten-dapp-kit-connect-modal': DAppKitConnectModal,
 		'connected-account-menu': ConnectedAccountMenu,
 	};
 
-	static override shadowRootOptions = {
+	static override shadowRootOptions: ShadowRootInit = {
 		...LitElement.shadowRootOptions,
 		delegatesFocus: true,
 	};
 
-	static override styles = sharedStyles;
+	static override styles: CSSResultGroup = sharedStyles;
 
 	/**
 	 * Options to configure the connect modal.
@@ -80,7 +84,7 @@ export class DAppKitConnectButton extends ScopedRegistryHost(LitElement) {
 	@query('mysten-dapp-kit-connect-modal')
 	private readonly _modal!: DAppKitConnectModal;
 
-	override render() {
+	override render(): TemplateResult {
 		const connection = this.instance.stores.$connection.get();
 		const client = this.instance.stores.$currentClient.get();
 

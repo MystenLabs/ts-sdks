@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { SignatureWithBytes } from '@mysten/sui/cryptography';
+import type { SignatureScheme, SignatureWithBytes } from '@mysten/sui/cryptography';
 import { Signer } from '@mysten/sui/cryptography';
 import type { ZkLoginSignatureInputs } from '@mysten/sui/zklogin';
 import { getZkLoginSignature, ZkLoginPublicIdentifier } from '@mysten/sui/zklogin';
@@ -27,7 +27,7 @@ export class EnokiKeypair extends Signer {
 		this.#publicKey = EnokiPublicKey.fromProof(input.address, input.proof);
 	}
 
-	async sign(data: Uint8Array) {
+	async sign(data: Uint8Array): Promise<Uint8Array<ArrayBuffer>> {
 		return this.#ephemeralKeypair.sign(data);
 	}
 
@@ -63,11 +63,11 @@ export class EnokiKeypair extends Signer {
 		};
 	}
 
-	getKeyScheme() {
+	getKeyScheme(): SignatureScheme {
 		return this.#ephemeralKeypair.getKeyScheme();
 	}
 
-	getPublicKey() {
+	getPublicKey(): EnokiPublicKey {
 		return this.#publicKey;
 	}
 }

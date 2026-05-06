@@ -4,6 +4,7 @@
 import type { DAppKitStores } from '../store.js';
 import { SuiSignTransaction, SuiSignTransactionBlock } from '@mysten/wallet-standard';
 import type {
+	SignedTransaction,
 	SuiSignTransactionBlockFeature,
 	SuiSignTransactionFeature,
 	SuiSignTransactionInput,
@@ -18,11 +19,17 @@ export type SignTransactionArgs = {
 	transaction: Transaction | string;
 } & Omit<SuiSignTransactionInput, 'account' | 'chain' | 'transaction'>;
 
-export function signTransactionCreator({ $connection, $currentClient }: DAppKitStores) {
+export function signTransactionCreator({
+	$connection,
+	$currentClient,
+}: DAppKitStores): (args: SignTransactionArgs) => Promise<SignedTransaction> {
 	/**
 	 * Prompts the specified wallet account to sign a transaction.
 	 */
-	return async function signTransaction({ transaction, ...standardArgs }: SignTransactionArgs) {
+	return async function signTransaction({
+		transaction,
+		...standardArgs
+	}: SignTransactionArgs): Promise<SignedTransaction> {
 		const { account, supportedIntents } = $connection.get();
 		if (!account) {
 			throw new WalletNotConnectedError('No wallet is connected.');

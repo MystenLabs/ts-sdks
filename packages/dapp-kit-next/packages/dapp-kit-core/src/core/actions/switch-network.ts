@@ -6,11 +6,13 @@ import type { Networks } from '../../utils/networks.js';
 
 export function switchNetworkCreator<TNetworks extends Networks>({
 	$currentNetwork,
-}: DAppKitStores<TNetworks>) {
+}: DAppKitStores<TNetworks>): <T extends TNetworks[number]>(
+	network: T | TNetworks[number],
+) => void {
 	/**
 	 * Switches the currently selected network to the specified network.
 	 */
-	return function switchNetwork<T extends TNetworks[number]>(network: T | TNetworks[number]) {
+	return function switchNetwork<T extends TNetworks[number]>(network: T | TNetworks[number]): void {
 		$currentNetwork.set(network);
 	};
 }

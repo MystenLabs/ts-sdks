@@ -7,7 +7,13 @@ import type { RegisterEnokiWalletsOptions } from './types.js';
 
 export function enokiWalletsInitializer(
 	options: Omit<RegisterEnokiWalletsOptions, 'clients' | 'getCurrentNetwork'>,
-) {
+): {
+	id: string;
+	initialize(input: {
+		networks: readonly SuiClientTypes.Network[];
+		getClient: (network?: SuiClientTypes.Network) => ClientWithCoreApi;
+	}): Promise<{ unregister: () => void }>;
+} {
 	return {
 		id: 'enoki-wallets-initializer',
 		async initialize({
@@ -16,7 +22,7 @@ export function enokiWalletsInitializer(
 		}: {
 			networks: readonly SuiClientTypes.Network[];
 			getClient: (network?: SuiClientTypes.Network) => ClientWithCoreApi;
-		}) {
+		}): Promise<{ unregister: () => void }> {
 			const { unregister } = registerEnokiWallets({
 				...options,
 				getCurrentNetwork: () => getClient().network,

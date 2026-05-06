@@ -27,7 +27,12 @@ export class QuiltReader {
 		this.#blob = blob;
 	}
 
-	async #readBytesFromSlivers(sliver: number, length: number, offset = 0, columnSize?: number) {
+	async #readBytesFromSlivers(
+		sliver: number,
+		length: number,
+		offset = 0,
+		columnSize?: number,
+	): Promise<Uint8Array> {
 		if (!length) {
 			return new Uint8Array(0);
 		}
@@ -69,7 +74,11 @@ export class QuiltReader {
 		return bytes;
 	}
 
-	async #readBytesFromBlob(startColumn: number, length: number, offset = 0) {
+	async #readBytesFromBlob(
+		startColumn: number,
+		length: number,
+		offset = 0,
+	): Promise<Uint8Array> {
 		const result = new Uint8Array(length);
 
 		if (!length) {
@@ -122,7 +131,12 @@ export class QuiltReader {
 		return result;
 	}
 
-	async #readBytes(sliver: number, length: number, offset = 0, columnSize?: number) {
+	async #readBytes(
+		sliver: number,
+		length: number,
+		offset = 0,
+		columnSize?: number,
+	): Promise<Uint8Array> {
 		if (this.#blob.hasStartedLoadingFullBlob) {
 			return this.#readBytesFromBlob(sliver, length, offset);
 		}
@@ -137,7 +151,12 @@ export class QuiltReader {
 		}
 	}
 
-	async getBlobHeader(sliverIndex: number) {
+	async getBlobHeader(sliverIndex: number): Promise<{
+		identifier: string;
+		tags: Record<string, string> | null;
+		blobSize: number;
+		contentOffset: number;
+	}> {
 		return this.#cache.read(['getBlobHeader', sliverIndex.toString()], async () => {
 			const blobHeader = QuiltPatchBlobHeader.parse(
 				await this.#readBytes(sliverIndex, QUILT_PATCH_BLOB_HEADER_SIZE),
@@ -179,7 +198,11 @@ export class QuiltReader {
 		});
 	}
 
-	async readBlob(sliverIndex: number) {
+	async readBlob(sliverIndex: number): Promise<{
+		identifier: string;
+		tags: Record<string, string> | null;
+		blobContents: Uint8Array;
+	}> {
 		const { identifier, tags, blobSize, contentOffset } = await this.getBlobHeader(sliverIndex);
 
 		const blobContents = await this.#readBytes(sliverIndex, blobSize, contentOffset);
@@ -191,7 +214,7 @@ export class QuiltReader {
 		};
 	}
 
-	readerForPatchId(id: string) {
+	readerForPatchId(id: string): QuiltFileReader {
 		const { quiltId, patchId } = parseQuiltPatchId(id);
 
 		if (quiltId !== this.#blob.blobId) {
@@ -203,7 +226,14 @@ export class QuiltReader {
 		return new QuiltFileReader({ quilt: this, sliverIndex: patchId.startIndex });
 	}
 
-	async readIndex() {
+	async readIndex(): Promise<
+		{
+			identifier: string;
+			patchId: string;
+			tags: Record<string, string>;
+			reader: QuiltFileReader;
+		}[]
+	> {
 		const header = new DataView((await this.#readBytes(0, 5)).buffer);
 
 		const version = header.getUint8(0);

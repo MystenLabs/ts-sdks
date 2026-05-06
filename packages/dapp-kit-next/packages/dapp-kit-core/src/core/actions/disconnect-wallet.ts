@@ -14,13 +14,15 @@ export type DisconnectWalletArgs = Parameters<StandardDisconnectMethod>;
 export function disconnectWalletCreator(
 	{ $baseConnection, $connection }: DAppKitStores,
 	{ storage, storageKey }: { storage: StateStorage; storageKey: string },
-) {
+): (...args: DisconnectWalletArgs) => Promise<void> {
 	/**
 	 * Disconnects the current wallet from the application and prompts the current wallet
 	 * to deauthorize accounts from the current domain depending on the wallet's implemetation
 	 * of `standard:disconnect`.
 	 */
-	return async function disconnectWallet(...standardDisconnectArgs: DisconnectWalletArgs) {
+	return async function disconnectWallet(
+		...standardDisconnectArgs: DisconnectWalletArgs
+	): Promise<void> {
 		return await task(async () => {
 			const { wallet } = $connection.get();
 			if (!wallet) {

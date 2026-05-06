@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { css } from 'lit';
+import type { CSSResultGroup } from 'lit';
 import { sharedStyles } from '../styles/index.js';
 import { iconButtonStyles } from '../styles/icon-button.js';
 
-export const styles = [
+export const styles: CSSResultGroup[] = [
 	sharedStyles,
 	iconButtonStyles,
 	css`

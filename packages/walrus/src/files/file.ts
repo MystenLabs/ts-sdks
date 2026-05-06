@@ -16,7 +16,7 @@ export class WalrusFile {
 		contents: Uint8Array | Blob;
 		identifier: string;
 		tags?: Record<string, string>;
-	}) {
+	}): WalrusFile {
 		return new WalrusFile({
 			reader: new LocalReader(options),
 		});
@@ -26,24 +26,26 @@ export class WalrusFile {
 		this.#reader = reader;
 	}
 
-	getIdentifier() {
+	getIdentifier(): Promise<string | null> {
 		return this.#reader.getIdentifier();
 	}
-	getTags() {
+	getTags(): Promise<Record<string, string>> {
 		return this.#reader.getTags();
 	}
 
-	bytes() {
+	bytes(): Promise<Uint8Array> {
 		return this.#reader.getBytes();
 	}
 
-	async text() {
+	async text(): Promise<string> {
 		const bytes = await this.bytes();
 
 		return new TextDecoder().decode(bytes);
 	}
 
-	async json() {
-		return JSON.parse(await this.text());
+	async json<T = JsonValue>(): Promise<T> {
+		return JSON.parse(await this.text()) as T;
 	}
 }
+
+type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };

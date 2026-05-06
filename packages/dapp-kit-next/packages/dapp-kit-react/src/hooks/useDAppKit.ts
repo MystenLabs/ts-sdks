@@ -5,7 +5,9 @@ import { useContext } from 'react';
 import { DAppKitContext } from '../components/DAppKitProvider.js';
 import type { DAppKit, RegisteredDAppKit } from '@mysten/dapp-kit-core';
 
-export function useDAppKit<TDAppKit extends DAppKit<any> = RegisteredDAppKit>(dAppKit?: TDAppKit) {
+export function useDAppKit<TDAppKit extends DAppKit<any> = RegisteredDAppKit>(
+	dAppKit?: TDAppKit,
+): TDAppKit {
 	const contextValue = useContext(DAppKitContext);
 
 	if (dAppKit) {

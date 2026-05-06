@@ -131,7 +131,7 @@ export class EnokiFlow {
 		});
 	}
 
-	get enokiClient() {
+	get enokiClient(): EnokiClient {
 		return this.#enokiClient;
 	}
 
@@ -141,7 +141,7 @@ export class EnokiFlow {
 		redirectUrl: string;
 		network?: 'mainnet' | 'testnet' | 'devnet';
 		extraParams?: Record<string, unknown>;
-	}) {
+	}): Promise<string> {
 		const ephemeralKeyPair = this.#useNativeCryptoSigner
 			? await WebCryptoSigner.generate()
 			: new Ed25519Keypair();
@@ -212,7 +212,7 @@ export class EnokiFlow {
 	}
 
 	// TODO: Should our SDK manage this automatically in addition to exposing a method?
-	async handleAuthCallback(hash: string = window.location.hash) {
+	async handleAuthCallback(hash: string = window.location.hash): Promise<string | null> {
 		const params = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash);
 
 		// Before we handle the auth redirect and get the state, we need to restore it:
@@ -262,7 +262,7 @@ export class EnokiFlow {
 		this.$zkLoginSession.set({ initialized: true, value: newValue });
 	}
 
-	async getSession() {
+	async getSession(): Promise<ZkLoginSession | null> {
 		if (this.$zkLoginSession.get().initialized) {
 			return this.$zkLoginSession.get().value;
 		}
@@ -289,7 +289,7 @@ export class EnokiFlow {
 		return this.$zkLoginSession.get().value;
 	}
 
-	async logout() {
+	async logout(): Promise<void> {
 		this.$zkLoginState.set({});
 		this.#store.delete(this.#storageKeys.STATE);
 
@@ -300,7 +300,7 @@ export class EnokiFlow {
 	}
 
 	// TODO: Should this return the proof if it already exists?
-	async getProof({ network }: { network?: EnokiNetwork } = {}) {
+	async getProof({ network }: { network?: EnokiNetwork } = {}): Promise<ZkLoginSignatureInputs> {
 		const zkp = await this.getSession();
 		const { salt } = this.$zkLoginState.get();
 
@@ -345,7 +345,7 @@ export class EnokiFlow {
 		return proof;
 	}
 
-	async getKeypair({ network }: { network?: EnokiNetwork } = {}) {
+	async getKeypair({ network }: { network?: EnokiNetwork } = {}): Promise<EnokiKeypair> {
 		// Get the proof, so that we ensure it exists in state:
 		await this.getProof({ network });
 

@@ -34,7 +34,7 @@ const initializerMap = new Map<string, UnregisterCallback>();
 export async function registerAdditionalWallets(
 	initializers: WalletInitializer[],
 	args: InitializeArgs,
-) {
+): Promise<void> {
 	initializerMap.forEach((unregister) => unregister());
 	initializerMap.clear();
 

@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { html } from 'lit';
+import type { TemplateResult } from 'lit';
 
-export const chevronDownIcon = html`<svg
+export const chevronDownIcon: TemplateResult = html`<svg
 	width="12"
 	height="12"
 	viewBox="0 0 12 12"

@@ -32,7 +32,7 @@ export class PaymentKitTransactions {
 	 * const tx = client.paymentKit.tx.processRegistryPayment({ nonce, coinType, sender, amount, receiver, registryName });
 	 * ```
 	 */
-	processRegistryPayment(options: ProcessRegistryPaymentOptions) {
+	processRegistryPayment(options: ProcessRegistryPaymentOptions): Transaction {
 		const tx = new Transaction();
 		tx.add(this.#calls.processRegistryPayment(options));
 
@@ -47,7 +47,7 @@ export class PaymentKitTransactions {
 	 * const tx = client.paymentKit.tx.processEphemeralPayment({ nonce, coinType, sender, amount, receiver });
 	 * ```
 	 */
-	processEphemeralPayment(options: ProcessEphemeralPaymentOptions) {
+	processEphemeralPayment(options: ProcessEphemeralPaymentOptions): Transaction {
 		const tx = new Transaction();
 		tx.add(this.#calls.processEphemeralPayment(options));
 
@@ -62,7 +62,7 @@ export class PaymentKitTransactions {
 	 * const tx = client.paymentKit.tx.createRegistry({ registryName });
 	 * ```
 	 */
-	createRegistry(options: CreateRegistryOptions) {
+	createRegistry(options: CreateRegistryOptions): Transaction {
 		const tx = new Transaction();
 		tx.add(this.#calls.createRegistry(options));
 
@@ -77,7 +77,7 @@ export class PaymentKitTransactions {
 	 * const tx = client.paymentKit.tx.setConfigEpochExpirationDuration({ registryName, epochExpirationDuration, adminCapId });
 	 * ```
 	 */
-	setConfigEpochExpirationDuration(options: SetEpochExpirationDurationOptions) {
+	setConfigEpochExpirationDuration(options: SetEpochExpirationDurationOptions): Transaction {
 		const tx = new Transaction();
 		tx.add(this.#calls.setConfigEpochExpirationDuration(options));
 
@@ -92,7 +92,7 @@ export class PaymentKitTransactions {
 	 * const tx = client.paymentKit.tx.setConfigRegistryManagedFunds({ registryName, registryManagedFunds, adminCapId });
 	 * ```
 	 */
-	setConfigRegistryManagedFunds(options: SetRegistryManagedFundsOptions) {
+	setConfigRegistryManagedFunds(options: SetRegistryManagedFundsOptions): Transaction {
 		const tx = new Transaction();
 		tx.add(this.#calls.setConfigRegistryManagedFunds(options));
 
@@ -107,7 +107,7 @@ export class PaymentKitTransactions {
 	 * const tx = client.paymentKit.tx.withdrawFromRegistry({ coinType, registryName, adminCapId });
 	 * ```
 	 */
-	withdrawFromRegistry(options: WithdrawFromRegistryOptions) {
+	withdrawFromRegistry(options: WithdrawFromRegistryOptions): Transaction {
 		const tx = new Transaction();
 		tx.add(this.#calls.withdrawFromRegistry(options));
 
@@ -122,7 +122,7 @@ export class PaymentKitTransactions {
 	 * const tx = client.paymentKit.tx.deletePaymentRecord({ coinType, nonce, amount, receiver, registryName });
 	 * ```
 	 */
-	deletePaymentRecord(options: DeletePaymentRecordOptions) {
+	deletePaymentRecord(options: DeletePaymentRecordOptions): Transaction {
 		const tx = new Transaction();
 		tx.add(this.#calls.deletePaymentRecord(options));
 

@@ -1,9 +1,13 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import type { ElementDefinitionsMap } from '@lit-labs/scoped-registry-mixin';
 import { ScopedRegistryHost } from '@lit-labs/scoped-registry-mixin';
 
 import { html, LitElement } from 'lit';
+import type { CSSResultGroup, TemplateResult } from 'lit';
+
+const ScopedLitElement: typeof LitElement = ScopedRegistryHost(LitElement);
 import { Button } from './button.js';
 import { formatAddress } from '@mysten/sui/utils';
 import { property, query, state } from 'lit/decorators.js';
@@ -20,13 +24,13 @@ import { when } from 'lit/directives/when.js';
 import { Task } from '@lit/task';
 import { resolveNameServiceName } from '../../utils/name.js';
 
-export class ConnectedAccountMenu extends ScopedRegistryHost(LitElement) {
-	static elementDefinitions = {
+export class ConnectedAccountMenu extends ScopedLitElement {
+	static elementDefinitions: ElementDefinitionsMap = {
 		'internal-button': Button,
 		'account-menu-item': AccountMenuItem,
 	};
 
-	static override styles = styles;
+	static override styles: CSSResultGroup = styles;
 
 	@property({ type: Object })
 	connection!: Extract<WalletConnection, { status: 'connected' }>;
@@ -50,18 +54,18 @@ export class ConnectedAccountMenu extends ScopedRegistryHost(LitElement) {
 		task: async ([client, address]) => resolveNameServiceName(client, address),
 	});
 
-	override connectedCallback() {
+	override connectedCallback(): void {
 		super.connectedCallback();
 		document.addEventListener('click', this.#onDocumentClick);
 	}
 
-	override disconnectedCallback() {
+	override disconnectedCallback(): void {
 		super.disconnectedCallback();
 		this.#stopPositioning();
 		document.removeEventListener('click', this.#onDocumentClick);
 	}
 
-	override render() {
+	override render(): TemplateResult {
 		return html`<internal-button
 				exportparts="trigger"
 				id="menu-button"

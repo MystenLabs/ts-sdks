@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { html } from 'lit';
+import type { TemplateResult } from 'lit';
 
-export const arrowRightUpIcon = html`<svg
+export const arrowRightUpIcon: TemplateResult = html`<svg
 	width="17"
 	height="16"
 	viewBox="0 0 17 16"

@@ -26,7 +26,7 @@ export function autoConnectWallet({
 	stores: DAppKitStores;
 	storage: StateStorage;
 	storageKey: string;
-}) {
+}): void {
 	onMount($compatibleWallets, () => {
 		return $compatibleWallets.subscribe(
 			async (wallets, oldWallets: readonly UiWallet[] | undefined) => {
@@ -69,7 +69,7 @@ async function getSavedWalletAccount({
 	storage: StateStorage;
 	storageKey: string;
 	wallets: readonly UiWallet[];
-}) {
+}): Promise<{ account: UiWallet['accounts'][number]; supportedIntents: string[] } | null> {
 	const savedWalletIdAndAddress = await storage.getItem(storageKey);
 	if (!savedWalletIdAndAddress) {
 		return null;

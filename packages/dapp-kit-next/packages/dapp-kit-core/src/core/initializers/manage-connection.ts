@@ -10,7 +10,10 @@ import { uiWalletAccountBelongsToUiWallet, uiWalletAccountsAreSame } from '@wall
 /**
  * Handles updating the connection state in response to wallets and their properties changing.
  */
-export function manageWalletConnection({ $compatibleWallets, $baseConnection }: DAppKitStores) {
+export function manageWalletConnection({
+	$compatibleWallets,
+	$baseConnection,
+}: DAppKitStores): void {
 	onMount($compatibleWallets, () => {
 		return $compatibleWallets.listen(async (wallets) => {
 			const connection = $baseConnection.get();
@@ -33,7 +36,10 @@ export function manageWalletConnection({ $compatibleWallets, $baseConnection }: 
 	});
 }
 
-function resolveWalletAccount(currentAccount: UiWalletAccount, wallets: readonly UiWallet[]) {
+function resolveWalletAccount(
+	currentAccount: UiWalletAccount,
+	wallets: readonly UiWallet[],
+): UiWalletAccount | null {
 	for (const wallet of wallets) {
 		for (const walletAccount of wallet.accounts) {
 			if (uiWalletAccountsAreSame(currentAccount, walletAccount)) {

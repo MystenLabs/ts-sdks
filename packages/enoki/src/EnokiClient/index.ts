@@ -80,13 +80,13 @@ export class EnokiClient {
 		this.#additionalEpochs = config.additionalEpochs;
 	}
 
-	getApp(_input?: GetAppApiInput) {
+	getApp(_input?: GetAppApiInput): Promise<GetAppApiResponse> {
 		return this.#fetch<GetAppApiResponse>('app', {
 			method: 'GET',
 		});
 	}
 
-	getZkLogin(input: GetZkLoginApiInput) {
+	getZkLogin(input: GetZkLoginApiInput): Promise<GetZkLoginApiResponse> {
 		return this.#fetch<GetZkLoginApiResponse>('zklogin', {
 			method: 'GET',
 			headers: {
@@ -95,7 +95,7 @@ export class EnokiClient {
 		});
 	}
 
-	getZkLoginAddresses(input: GetZkLoginAddressesApiInput) {
+	getZkLoginAddresses(input: GetZkLoginAddressesApiInput): Promise<GetZkLoginAddressesApiResponse> {
 		return this.#fetch<GetZkLoginAddressesApiResponse>('zklogin/addresses', {
 			method: 'GET',
 			headers: {
@@ -104,7 +104,7 @@ export class EnokiClient {
 		});
 	}
 
-	createZkLoginNonce(input: CreateZkLoginNonceApiInput) {
+	createZkLoginNonce(input: CreateZkLoginNonceApiInput): Promise<CreateZkLoginNonceApiResponse> {
 		return this.#fetch<CreateZkLoginNonceApiResponse>('zklogin/nonce', {
 			method: 'POST',
 			body: JSON.stringify({
@@ -115,7 +115,7 @@ export class EnokiClient {
 		});
 	}
 
-	createZkLoginZkp(input: CreateZkLoginZkpApiInput) {
+	createZkLoginZkp(input: CreateZkLoginZkpApiInput): Promise<CreateZkLoginZkpApiResponse> {
 		return this.#fetch<CreateZkLoginZkpApiResponse>('zklogin/zkp', {
 			method: 'POST',
 			headers: {
@@ -130,7 +130,9 @@ export class EnokiClient {
 		});
 	}
 
-	createSponsoredTransaction(input: CreateSponsoredTransactionApiInput) {
+	createSponsoredTransaction(
+		input: CreateSponsoredTransactionApiInput,
+	): Promise<CreateSponsoredTransactionApiResponse> {
 		return this.#fetch<CreateSponsoredTransactionApiResponse>('transaction-blocks/sponsor', {
 			method: 'POST',
 			headers: input.jwt
@@ -148,7 +150,9 @@ export class EnokiClient {
 		});
 	}
 
-	executeSponsoredTransaction(input: ExecuteSponsoredTransactionApiInput) {
+	executeSponsoredTransaction(
+		input: ExecuteSponsoredTransactionApiInput,
+	): Promise<ExecuteSponsoredTransactionApiResponse> {
 		return this.#fetch<ExecuteSponsoredTransactionApiResponse>(
 			`transaction-blocks/sponsor/${input.digest}`,
 			{
@@ -160,7 +164,7 @@ export class EnokiClient {
 		);
 	}
 
-	getSubnames(input: GetSubnamesApiInput) {
+	getSubnames(input: GetSubnamesApiInput): Promise<GetSubnamesApiResponse> {
 		const query = new URLSearchParams();
 		if (input.address) {
 			query.set('address', input.address);
@@ -179,7 +183,7 @@ export class EnokiClient {
 		);
 	}
 
-	createSubname(input: CreateSubnameApiInput) {
+	createSubname(input: CreateSubnameApiInput): Promise<CreateSubnameApiResponse> {
 		return this.#fetch<CreateSubnameApiResponse>('subnames', {
 			method: 'POST',
 			headers: input.jwt
@@ -196,7 +200,7 @@ export class EnokiClient {
 		});
 	}
 
-	deleteSubname(input: DeleteSubnameApiInput) {
+	deleteSubname(input: DeleteSubnameApiInput): void {
 		this.#fetch<DeleteSubnameApiResponse>('subnames', {
 			method: 'DELETE',
 			body: JSON.stringify({

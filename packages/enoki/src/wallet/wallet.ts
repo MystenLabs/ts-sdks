@@ -73,29 +73,29 @@ export class EnokiWallet implements Wallet {
 	#getCurrentNetwork: () => SuiClientTypes.Network;
 	#windowFeatures?: string | (() => string);
 
-	get name() {
+	get name(): string {
 		return this.#name;
 	}
 
-	get provider() {
+	get provider(): AuthProvider {
 		return this.#provider;
 	}
 
-	get icon() {
+	get icon(): Wallet['icon'] {
 		return this.#icon;
 	}
 
-	get version() {
+	get version(): '1.0.0' {
 		return '1.0.0' as const;
 	}
 
-	get chains() {
+	get chains(): `sui:${SuiClientTypes.Network}`[] {
 		return [...this.#state.sessionContextByNetwork.keys()].map(
 			(network) => `sui:${network}` as const,
 		);
 	}
 
-	get accounts() {
+	get accounts(): ReadonlyWalletAccount[] {
 		return this.#accounts;
 	}
 

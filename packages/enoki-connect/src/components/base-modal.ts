@@ -13,7 +13,7 @@ export class BaseModal extends LitElement {
 	#isConnected = promiseWithResolvers<void>();
 	#nextClickIsFromContent = false;
 
-	static override shadowRootOptions = {
+	static override shadowRootOptions: ShadowRootInit = {
 		...LitElement.shadowRootOptions,
 		delegatesFocus: true,
 	};
@@ -22,7 +22,7 @@ export class BaseModal extends LitElement {
 	 * Opens the dialog when set to `true` and closes it when set to `false`.
 	 */
 	@property({ type: Boolean })
-	get open() {
+	get open(): boolean {
 		return this.#isOpen;
 	}
 
@@ -55,11 +55,11 @@ export class BaseModal extends LitElement {
 		}
 	};
 
-	protected get _isClosing() {
+	protected get _isClosing(): boolean {
 		return !!this._closingResolvers;
 	}
 
-	override firstUpdated(changedProperties: PropertyValues) {
+	override firstUpdated(changedProperties: PropertyValues): void {
 		super.firstUpdated(changedProperties);
 		// NOTE: there is a bug in Chrome where even after canceling the dialog cancel event still closes the dialog. (The second time the user clicks escape)
 		// Using this handler to mitigate this issue.
@@ -72,7 +72,7 @@ export class BaseModal extends LitElement {
 	 *
 	 * @returns A `Promise` that resolves after the `opened` event was fired.
 	 */
-	async show() {
+	async show(): Promise<void> {
 		this._closingResolvers?.resolve();
 		this._closingResolvers = undefined;
 		this.#isOpening = true;
@@ -107,7 +107,7 @@ export class BaseModal extends LitElement {
 	 * animation, a `closed` event is fired.
 	 *
 	 */
-	async close() {
+	async close(): Promise<void> {
 		if (this._closingResolvers) {
 			return;
 		}
@@ -139,7 +139,7 @@ export class BaseModal extends LitElement {
 		return this._closingResolvers.promise;
 	}
 
-	protected handleAnimationEnd(e: AnimationEvent) {
+	protected handleAnimationEnd(e: AnimationEvent): void {
 		if (
 			e.animationName === 'fadeOut' &&
 			!this.open &&
@@ -153,22 +153,22 @@ export class BaseModal extends LitElement {
 		}
 	}
 
-	override connectedCallback() {
+	override connectedCallback(): void {
 		super.connectedCallback();
 		this.#isConnected.resolve();
 	}
 
-	override disconnectedCallback() {
+	override disconnectedCallback(): void {
 		super.disconnectedCallback();
 		this.#isConnected = Promise.withResolvers<void>();
 		this._dialog.removeEventListener('keydown', this.#keyDownHandler, { capture: true });
 	}
 
-	protected handleContentClick() {
+	protected handleContentClick(): void {
 		this.#nextClickIsFromContent = true;
 	}
 
-	protected handleDialogClick() {
+	protected handleDialogClick(): void {
 		if (this.#nextClickIsFromContent) {
 			// This trick uses event bubbling to determine whether or not the click originated
 			// from the dialog content or dialog backdrop psuedo-element. If you click the dialog
@@ -180,7 +180,7 @@ export class BaseModal extends LitElement {
 		this.handleCancel();
 	}
 
-	protected handleCancel(e?: Event) {
+	protected handleCancel(e?: Event): void {
 		if (this.disabled || this._closingResolvers) {
 			e?.preventDefault();
 			e?.stopPropagation();

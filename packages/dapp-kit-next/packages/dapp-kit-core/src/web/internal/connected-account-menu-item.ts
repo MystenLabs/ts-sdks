@@ -3,6 +3,7 @@
 
 import { when } from 'lit/directives/when.js';
 import { html, LitElement } from 'lit';
+import type { TemplateResult } from 'lit';
 import { formatAddress } from '@mysten/sui/utils';
 import { property, state } from 'lit/decorators.js';
 import type { UiWalletAccount } from '@wallet-standard/ui';
@@ -15,7 +16,7 @@ import { circleCheckIcon } from './icons/circle-check-icon.js';
 export type AccountSelectedEvent = CustomEvent<{ account: UiWalletAccount }>;
 
 export class AccountMenuItem extends LitElement {
-	override createRenderRoot() {
+	override createRenderRoot(): HTMLElement | DocumentFragment {
 		return this;
 	}
 
@@ -36,17 +37,17 @@ export class AccountMenuItem extends LitElement {
 		task: async ([client, address]) => resolveNameServiceName(client, address),
 	});
 
-	override connectedCallback() {
+	override connectedCallback(): void {
 		super.connectedCallback();
 		this.addEventListener('click', this.#accountSelected);
 	}
 
-	override disconnectedCallback() {
+	override disconnectedCallback(): void {
 		super.disconnectedCallback();
 		this.removeEventListener('click', this.#accountSelected);
 	}
 
-	override render() {
+	override render(): TemplateResult {
 		return html`
 			<div class="container" data-checked=${this.selected}>
 				<input

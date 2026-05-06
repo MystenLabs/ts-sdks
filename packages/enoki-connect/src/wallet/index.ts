@@ -40,7 +40,11 @@ type WalletEventsMap = {
 	[E in keyof StandardEventsListeners]: Parameters<StandardEventsListeners[E]>[0];
 };
 
-const SUPPORTED_CHAINS = [SUI_MAINNET_CHAIN, SUI_TESTNET_CHAIN, SUI_DEVNET_CHAIN] as const;
+const SUPPORTED_CHAINS: readonly ['sui:mainnet', 'sui:testnet', 'sui:devnet'] = [
+	SUI_MAINNET_CHAIN,
+	SUI_TESTNET_CHAIN,
+	SUI_DEVNET_CHAIN,
+] as const;
 const ACCOUNT_FEATURES = [
 	'sui:signTransaction',
 	'sui:signAndExecuteTransaction',
@@ -60,23 +64,23 @@ export class EnokiConnectWallet implements Wallet {
 	#defaultChain: IdentifierString;
 	#publicAppSlug: string;
 
-	get name() {
+	get name(): string {
 		return this.#walletName;
 	}
 
-	get icon() {
+	get icon(): WalletIcon {
 		return this.#icon;
 	}
 
-	get version() {
+	get version(): '1.0.0' {
 		return '1.0.0' as const;
 	}
 
-	get chains() {
+	get chains(): typeof SUPPORTED_CHAINS {
 		return SUPPORTED_CHAINS;
 	}
 
-	get accounts() {
+	get accounts(): ReadonlyWalletAccount[] {
 		return this.#accounts;
 	}
 
@@ -424,7 +428,7 @@ export async function registerEnokiConnectWallets({
 	dappName: string;
 	network?: SupportedNetwork;
 	enokiApiUrl?: string;
-}) {
+}): Promise<{ wallets: EnokiConnectWallet[]; unregister: () => void }> {
 	const wallets = getWallets();
 	const data = await getEnokiConnectMetadata(publicAppSlugs, enokiApiUrl);
 	const unregisterCallbacks: (() => void)[] = [];

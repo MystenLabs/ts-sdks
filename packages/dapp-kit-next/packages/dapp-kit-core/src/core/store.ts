@@ -3,12 +3,54 @@
 
 import type { UiWallet, UiWalletAccount } from '@wallet-standard/ui';
 import { uiWalletAccountBelongsToUiWallet } from '@wallet-standard/ui';
-import type { StoreValue } from 'nanostores';
+import type { MapStore, PreinitializedWritableAtom, ReadableAtom, StoreValue } from 'nanostores';
 import { atom, computed, map } from 'nanostores';
 import { getChain } from '../utils/networks.js';
 import type { Networks } from '../utils/networks.js';
 import { requiredWalletFeatures, signingFeatures } from '../utils/wallets.js';
 import type { DAppKitCompatibleClient } from './types.js';
+
+type ConnectionState =
+	| {
+			readonly wallet: null;
+			readonly account: null;
+			readonly status: 'disconnected';
+			readonly supportedIntents: readonly [];
+			readonly isConnected: false;
+			readonly isConnecting: false;
+			readonly isReconnecting: false;
+			readonly isDisconnected: true;
+	  }
+	| {
+			readonly wallet: UiWallet;
+			readonly account: UiWalletAccount;
+			readonly status: 'connected';
+			readonly supportedIntents: string[];
+			readonly isConnected: true;
+			readonly isConnecting: false;
+			readonly isReconnecting: false;
+			readonly isDisconnected: false;
+	  }
+	| {
+			readonly wallet: null;
+			readonly account: null;
+			readonly status: 'connecting';
+			readonly supportedIntents: readonly [];
+			readonly isConnected: false;
+			readonly isConnecting: true;
+			readonly isReconnecting: false;
+			readonly isDisconnected: false;
+	  }
+	| {
+			readonly wallet: UiWallet;
+			readonly account: UiWalletAccount;
+			readonly status: 'reconnecting';
+			readonly supportedIntents: string[];
+			readonly isConnected: false;
+			readonly isConnecting: false;
+			readonly isReconnecting: true;
+			readonly isDisconnected: false;
+	  };
 
 type InternalWalletConnection =
 	| {
@@ -24,7 +66,14 @@ type InternalWalletConnection =
 export type DAppKitStores<
 	TNetworks extends Networks = Networks,
 	Client extends DAppKitCompatibleClient = DAppKitCompatibleClient,
-> = ReturnType<typeof createStores<TNetworks, Client>>;
+> = {
+	$currentNetwork: PreinitializedWritableAtom<TNetworks[number]> & object;
+	$registeredWallets: PreinitializedWritableAtom<UiWallet[]> & object;
+	$compatibleWallets: ReadableAtom<UiWallet[]>;
+	$baseConnection: MapStore<InternalWalletConnection>;
+	$currentClient: ReadableAtom<Client>;
+	$connection: ReadableAtom<ConnectionState>;
+};
 
 export type WalletConnection = StoreValue<DAppKitStores['$connection']>;
 
@@ -37,7 +86,7 @@ export function createStores<
 }: {
 	defaultNetwork: TNetworks[number];
 	getClient: (network: TNetworks[number]) => Client;
-}) {
+}): DAppKitStores<TNetworks, Client> {
 	const $baseConnection = map<InternalWalletConnection>({
 		status: 'disconnected',
 		currentAccount: null,

@@ -24,7 +24,7 @@ import type {
 } from '@mysten/wallet-standard';
 import { getWallets, ReadonlyWalletAccount, SUI_CHAINS } from '@mysten/wallet-standard';
 import { mitt, type Emitter } from '@mysten/utils';
-import type { InferOutput } from 'valibot';
+import type { GenericSchema } from 'valibot';
 import { boolean, object, parse, string } from 'valibot';
 import { DappPostMessageChannel, decodeJwtSession } from '@mysten/window-wallet-core';
 
@@ -52,12 +52,19 @@ const FALLBACK_METADATA = {
 	enabled: true,
 };
 
-const WalletMetadataSchema = object({
+type WalletMetadata = {
+	id: string;
+	walletName: string;
+	icon: string;
+	enabled: boolean;
+};
+
+const WalletMetadataSchema: GenericSchema<WalletMetadata, WalletMetadata> = object({
 	id: string('Wallet ID is required'),
 	walletName: string('Wallet name is required'),
 	icon: string('Icon must be a valid wallet icon format'),
 	enabled: boolean('Enabled is required'),
-});
+}) as GenericSchema<WalletMetadata, WalletMetadata>;
 
 function setSessionToStorage(session: string) {
 	localStorage.setItem(SLUSH_SESSION_KEY, session);
@@ -93,7 +100,6 @@ function getAccountsFromSession(session: string) {
 	});
 }
 
-type WalletMetadata = InferOutput<typeof WalletMetadataSchema>;
 export class SlushWallet implements Wallet {
 	#id: string;
 	#events: Emitter<WalletEventsMap>;
@@ -103,27 +109,27 @@ export class SlushWallet implements Wallet {
 	#icon: WalletIcon;
 	#name: string;
 
-	get name() {
+	get name(): string {
 		return this.#walletName;
 	}
 
-	get id() {
+	get id(): string {
 		return this.#id;
 	}
 
-	get icon() {
+	get icon(): WalletIcon {
 		return this.#icon;
 	}
 
-	get version() {
+	get version(): '1.0.0' {
 		return '1.0.0' as const;
 	}
 
-	get chains() {
+	get chains(): readonly SuiChain[] {
 		return SUI_CHAINS;
 	}
 
-	get accounts() {
+	get accounts(): ReadonlyWalletAccount[] {
 		return this.#accounts;
 	}
 
@@ -314,7 +320,7 @@ export class SlushWallet implements Wallet {
 		});
 	}
 
-	updateMetadata(metadata: WalletMetadata) {
+	updateMetadata(metadata: WalletMetadata): void {
 		this.#id = metadata.id;
 		this.#walletName = metadata.walletName;
 		this.#icon = metadata.icon as WalletIcon;
@@ -339,7 +345,7 @@ export function registerSlushWallet(
 		origin?: string;
 		metadataApiUrl?: string;
 	} = {},
-) {
+): { wallet: SlushWallet; unregister: () => void } | undefined {
 	const wallets = getWallets();
 
 	let unregister: (() => void) | null = null;
@@ -361,7 +367,8 @@ export function registerSlushWallet(
 		origin,
 		metadata: FALLBACK_METADATA,
 	});
-	unregister = wallets.register(slushWalletInstance);
+	const registeredUnregister: () => void = wallets.register(slushWalletInstance);
+	unregister = registeredUnregister;
 
 	fetchMetadata(metadataApiUrl)
 		.then((metadata) => {
@@ -378,6 +385,6 @@ export function registerSlushWallet(
 
 	return {
 		wallet: slushWalletInstance,
-		unregister,
+		unregister: registeredUnregister,
 	};
 }

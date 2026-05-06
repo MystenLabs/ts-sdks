@@ -4,6 +4,7 @@
 import type { DAppKitStores } from '../store.js';
 import { SuiSignPersonalMessage } from '@mysten/wallet-standard';
 import type {
+	SignedPersonalMessage,
 	SuiSignPersonalMessageFeature,
 	SuiSignPersonalMessageInput,
 } from '@mysten/wallet-standard';
@@ -14,11 +15,16 @@ import { getAccountFeature } from '../../utils/wallets.js';
 
 export type SignPersonalMessageArgs = Omit<SuiSignPersonalMessageInput, 'account' | 'chain'>;
 
-export function signPersonalMessageCreator({ $connection, $currentNetwork }: DAppKitStores) {
+export function signPersonalMessageCreator({
+	$connection,
+	$currentNetwork,
+}: DAppKitStores): (args: SignPersonalMessageArgs) => Promise<SignedPersonalMessage> {
 	/**
 	 * Prompts the specified wallet account to sign a personal message.
 	 */
-	return async function signPersonalMessage({ ...standardArgs }: SignPersonalMessageArgs) {
+	return async function signPersonalMessage({
+		...standardArgs
+	}: SignPersonalMessageArgs): Promise<SignedPersonalMessage> {
 		const { account } = $connection.get();
 		if (!account) {
 			throw new WalletNotConnectedError('No wallet is connected.');

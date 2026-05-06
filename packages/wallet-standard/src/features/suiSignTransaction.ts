@@ -42,3 +42,5 @@ export interface SignedTransaction {
 	/** Base64 encoded signature */
 	signature: string;
 }
+
+export interface SuiSignTransactionOutput extends SignedTransaction {}

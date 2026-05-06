@@ -1,5 +1,6 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
+import type { CSSResult, TemplateResult } from 'lit';
 import { css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { BaseModal } from './base-modal.js';
@@ -17,7 +18,7 @@ import { BaseModal } from './base-modal.js';
  */
 @customElement('enoki-connect-modal')
 export class EnokiConnectModal extends BaseModal {
-	static styles = css`
+	static styles: CSSResult = css`
 		:host {
 			--modal-font-family: var(
 				--font-family,
@@ -181,7 +182,7 @@ export class EnokiConnectModal extends BaseModal {
 		this.dispatchEvent(new CustomEvent('approved'));
 	}
 
-	override render() {
+	override render(): TemplateResult {
 		return html`<dialog
 			@click=${this.handleDialogClick}
 			@cancel=${this.handleCancel}

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { DAppKit, RegisteredDAppKit } from '@mysten/dapp-kit-core';
+import type { StoreValue } from 'nanostores';
 import { useStore } from '@nanostores/react';
 import { useDAppKit } from './useDAppKit.js';
 
@@ -11,7 +12,7 @@ export type UseWalletsOptions<TDAppKit extends DAppKit> = {
 
 export function useWallets<TDAppKit extends DAppKit<any> = RegisteredDAppKit>({
 	dAppKit,
-}: UseWalletsOptions<TDAppKit> = {}) {
+}: UseWalletsOptions<TDAppKit> = {}): StoreValue<TDAppKit['stores']['$wallets']> {
 	const instance = useDAppKit(dAppKit);
-	return useStore(instance.stores.$wallets);
+	return useStore(instance.stores.$wallets) as StoreValue<TDAppKit['stores']['$wallets']>;
 }

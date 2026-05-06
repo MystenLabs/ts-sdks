@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { css } from 'lit';
+import type { CSSResult } from 'lit';
 
-export const themeStyles = css`
+export const themeStyles: CSSResult = css`
 	:host {
 		/** Colors */
 		--dapp-kit-background: var(--background, oklch(1 0 0));

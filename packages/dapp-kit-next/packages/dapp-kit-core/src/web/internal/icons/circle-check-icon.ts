@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { html } from 'lit';
+import type { TemplateResult } from 'lit';
 
-export const circleCheckIcon = html`<svg
+export const circleCheckIcon: TemplateResult = html`<svg
 	xmlns="http://www.w3.org/2000/svg"
 	width="24"
 	height="24"

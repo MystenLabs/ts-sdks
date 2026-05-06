@@ -3,22 +3,23 @@
 
 import type { UiWallet } from '@wallet-standard/ui';
 import { html, LitElement } from 'lit';
+import type { CSSResultGroup, TemplateResult } from 'lit';
 import { property } from 'lit/decorators.js';
 import { styles } from './connection-status.styles.js';
 
 export class ConnectionStatus extends LitElement {
-	static override styles = styles;
+	static override styles: CSSResultGroup = styles;
 
 	@property({ type: Object })
 	wallet!: UiWallet;
 
 	@property({ type: String })
-	title = '';
+	title: string = '';
 
 	@property({ type: String })
-	copy = '';
+	copy: string = '';
 
-	override render() {
+	override render(): TemplateResult {
 		return html`
 			<img class="logo" src=${this.wallet.icon} alt=${`${this.wallet.name} logo`} />
 			<div class="container">

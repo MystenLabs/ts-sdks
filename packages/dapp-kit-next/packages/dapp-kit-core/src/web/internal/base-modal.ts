@@ -13,7 +13,7 @@ export class BaseModal extends LitElement {
 	#returnValue: string | undefined;
 	#nextClickIsFromContent = false;
 
-	static override shadowRootOptions = {
+	static override shadowRootOptions: ShadowRootInit = {
 		...LitElement.shadowRootOptions,
 		delegatesFocus: true,
 	};
@@ -22,7 +22,7 @@ export class BaseModal extends LitElement {
 	 * Opens the dialog when set to `true` and closes it when set to `false`.
 	 */
 	@property({ type: Boolean })
-	get open() {
+	get open(): boolean {
 		return this.#isOpen;
 	}
 
@@ -50,7 +50,7 @@ export class BaseModal extends LitElement {
 	 *
 	 * @returns A `Promise` that resolves after the `opened` event was fired.
 	 */
-	async show() {
+	async show(): Promise<void> {
 		this.#isOpening = true;
 
 		// Dialogs can be opened before being attached to the DOM, so we need to
@@ -87,7 +87,7 @@ export class BaseModal extends LitElement {
 	 *     pressing Escape, it will not change the return value after closing.
 	 * @returns A Promise that resolves after the `closed` event was fired.
 	 */
-	async close(returnValue = this.#returnValue) {
+	async close(returnValue: string | undefined = this.#returnValue): Promise<void> {
 		this.#isOpening = false;
 
 		if (!this.isConnected) {
@@ -118,21 +118,21 @@ export class BaseModal extends LitElement {
 		this.dispatchEvent(new Event('closed'));
 	}
 
-	override connectedCallback() {
+	override connectedCallback(): void {
 		super.connectedCallback();
 		this.#isConnected.resolve();
 	}
 
-	override disconnectedCallback() {
+	override disconnectedCallback(): void {
 		super.disconnectedCallback();
 		this.#isConnected = Promise.withResolvers<void>();
 	}
 
-	protected handleContentClick() {
+	protected handleContentClick(): void {
 		this.#nextClickIsFromContent = true;
 	}
 
-	protected handleDialogClick() {
+	protected handleDialogClick(): void {
 		if (this.#nextClickIsFromContent) {
 			// This trick uses event bubbling to determine whether or not the click originated
 			// from the dialog content or dialog backdrop psuedo-element. If you click the dialog

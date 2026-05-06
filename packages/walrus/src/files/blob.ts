@@ -17,7 +17,7 @@ export class WalrusBlob {
 	}
 
 	// Get the blob as a file (i.e. do not use Quilt encoding)
-	asFile() {
+	asFile(): WalrusFile {
 		return new WalrusFile({ reader: this.#reader });
 	}
 
@@ -32,7 +32,7 @@ export class WalrusBlob {
 			tags?: { [tagName: string]: string }[];
 			identifiers?: string[];
 		} = {},
-	) {
+	): Promise<WalrusFile[]> {
 		const quiltReader = await this.#reader.getQuiltReader();
 		const index = await quiltReader.readIndex();
 
@@ -68,12 +68,12 @@ export class WalrusBlob {
 		);
 	}
 
-	async exists() {
+	async exists(): Promise<boolean> {
 		const status = await this.#blobStatus();
 		return status.type === 'permanent' || status.type === 'deletable';
 	}
 
-	async storedUntil() {
+	async storedUntil(): Promise<number | null> {
 		const status = await this.#blobStatus();
 
 		if (status.type === 'permanent') {

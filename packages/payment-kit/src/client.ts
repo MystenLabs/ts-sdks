@@ -20,9 +20,14 @@ import { PaymentKitTransactions } from './transactions.js';
 import { PaymentKitCalls } from './calls.js';
 import { getRegistryIdFromName } from './utils.js';
 
-export function paymentKit<const Name = 'paymentKit'>({ name = 'paymentKit' as Name } = {}) {
+export function paymentKit<const Name = 'paymentKit'>({
+	name = 'paymentKit' as Name,
+}: { name?: Name } = {}): {
+	name: Name;
+	register: (client: ClientWithCoreApi) => PaymentKitClient;
+} {
 	return {
-		name,
+		name: name,
 		register: (client: ClientWithCoreApi) => {
 			return new PaymentKitClient({ client });
 		},

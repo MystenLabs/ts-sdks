@@ -3,7 +3,8 @@
 
 import type { Meta, StoryObj } from '@storybook/web-components';
 import { html } from 'lit';
-import type { DAppKitConnectModal } from './dapp-kit-connect-modal.js';
+import type { TemplateResult } from 'lit';
+import type { DAppKitConnectModal, DAppKitConnectModalOptions } from './dapp-kit-connect-modal.js';
 import { createDAppKit } from '../core/index.js';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
 
@@ -18,19 +19,25 @@ const dAppKit = createDAppKit({
 	},
 });
 
-const meta = {
+type ConnectModalStoryArgs = {
+	open?: boolean;
+	sortFn?: DAppKitConnectModalOptions['sortFn'];
+	filterFn?: DAppKitConnectModalOptions['filterFn'];
+};
+
+const meta: Meta<ConnectModalStoryArgs> = {
 	title: 'Connect Modal',
 	component: 'mysten-dapp-kit-connect-modal',
-	render: (args) => html`
+	render: (args: ConnectModalStoryArgs): TemplateResult => html`
 		<mysten-dapp-kit-connect-modal
-			?open="${args['open']}"
-			.sortFn=${args['sortFn']}
-			.filterFn=${args['filterFn']}
+			?open="${args.open}"
+			.sortFn=${args.sortFn}
+			.filterFn=${args.filterFn}
 			.instance=${dAppKit}
 		></mysten-dapp-kit-connect-modal>
 	`,
 	tags: ['autodocs'],
-} satisfies Meta;
+} satisfies Meta<ConnectModalStoryArgs>;
 
 export default meta;
 

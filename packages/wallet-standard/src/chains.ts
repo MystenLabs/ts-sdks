@@ -4,25 +4,25 @@
 import type { IdentifierString } from '@wallet-standard/core';
 
 /** Sui Devnet */
-export const SUI_DEVNET_CHAIN = 'sui:devnet';
+export const SUI_DEVNET_CHAIN: 'sui:devnet' = 'sui:devnet';
 
 /** Sui Testnet */
-export const SUI_TESTNET_CHAIN = 'sui:testnet';
+export const SUI_TESTNET_CHAIN: 'sui:testnet' = 'sui:testnet';
 
 /** Sui Localnet */
-export const SUI_LOCALNET_CHAIN = 'sui:localnet';
+export const SUI_LOCALNET_CHAIN: 'sui:localnet' = 'sui:localnet';
 
 /** Sui Mainnet */
-export const SUI_MAINNET_CHAIN = 'sui:mainnet';
+export const SUI_MAINNET_CHAIN: 'sui:mainnet' = 'sui:mainnet';
 
-export const SUI_CHAINS = [
+export type SuiChain = 'sui:devnet' | 'sui:testnet' | 'sui:localnet' | 'sui:mainnet';
+
+export const SUI_CHAINS: readonly SuiChain[] = [
 	SUI_DEVNET_CHAIN,
 	SUI_TESTNET_CHAIN,
 	SUI_LOCALNET_CHAIN,
 	SUI_MAINNET_CHAIN,
 ] as const;
-
-export type SuiChain = (typeof SUI_CHAINS)[number];
 
 /**
  * Utility that returns whether or not a chain identifier is a valid Sui chain.

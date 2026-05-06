@@ -7,21 +7,23 @@ import { getWalletFeature } from '@wallet-standard/ui';
 import type { EnokiWallet } from './wallet.js';
 import type {
 	EnokiGetMetadataFeature,
+	EnokiGetMetadataOutput,
 	EnokiGetSessionFeature,
 	EnokiGetSessionInput,
+	EnokiGetSessionOutput,
 } from './features.js';
 import { EnokiGetMetadata, EnokiGetSession } from './features.js';
 
 export function isEnokiWallet(wallet: UiWallet): boolean;
 export function isEnokiWallet(wallet: Wallet): wallet is EnokiWallet;
-export function isEnokiWallet(wallet: Wallet | UiWallet) {
+export function isEnokiWallet(wallet: Wallet | UiWallet): boolean {
 	if (isWalletHandle(wallet)) {
 		return wallet.features.includes(EnokiGetMetadata);
 	}
 	return EnokiGetMetadata in wallet.features;
 }
 
-export function getWalletMetadata(wallet: Wallet | UiWallet) {
+export function getWalletMetadata(wallet: Wallet | UiWallet): EnokiGetMetadataOutput | null {
 	if (isWalletHandle(wallet)) {
 		try {
 			const { getMetadata } = getWalletFeature(
@@ -40,7 +42,10 @@ export function getWalletMetadata(wallet: Wallet | UiWallet) {
 	return null;
 }
 
-export async function getSession(wallet: Wallet | UiWallet, input?: EnokiGetSessionInput) {
+export async function getSession(
+	wallet: Wallet | UiWallet,
+	input?: EnokiGetSessionInput,
+): Promise<EnokiGetSessionOutput | null> {
 	if (isWalletHandle(wallet)) {
 		try {
 			const { getSession } = getWalletFeature(
@@ -59,15 +64,15 @@ export async function getSession(wallet: Wallet | UiWallet, input?: EnokiGetSess
 	return null;
 }
 
-export function isGoogleWallet(wallet: Wallet | UiWallet) {
+export function isGoogleWallet(wallet: Wallet | UiWallet): boolean {
 	return getWalletMetadata(wallet)?.provider === 'google';
 }
 
-export function isTwitchWallet(wallet: Wallet | UiWallet) {
+export function isTwitchWallet(wallet: Wallet | UiWallet): boolean {
 	return getWalletMetadata(wallet)?.provider === 'twitch';
 }
 
-export function isFacebookWallet(wallet: Wallet | UiWallet) {
+export function isFacebookWallet(wallet: Wallet | UiWallet): boolean {
 	return getWalletMetadata(wallet)?.provider === 'facebook';
 }
 

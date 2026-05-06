@@ -3,7 +3,9 @@
 
 import type { Meta, StoryObj } from '@storybook/web-components';
 import { html } from 'lit';
+import type { TemplateResult } from 'lit';
 import type { DAppKitConnectButton } from './dapp-kit-connect-button.js';
+import type { DAppKitConnectModalOptions } from './dapp-kit-connect-modal.js';
 import { createDAppKit } from '../core/index.js';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
 
@@ -18,16 +20,18 @@ const dAppKit = createDAppKit({
 	},
 });
 
-const meta = {
+type ConnectButtonStoryArgs = { modalOptions?: DAppKitConnectModalOptions };
+
+const meta: Meta<ConnectButtonStoryArgs> = {
 	title: 'Connect Button',
 	component: 'mysten-dapp-kit-connect-button',
-	render: (args) =>
+	render: (args: ConnectButtonStoryArgs): TemplateResult =>
 		html`<mysten-dapp-kit-connect-button
-			.modalOptions=${args['modalOptions']}
+			.modalOptions=${args.modalOptions}
 			.instance=${dAppKit}
 		></mysten-dapp-kit-connect-button>`,
 	tags: ['autodocs'],
-} satisfies Meta;
+} satisfies Meta<ConnectButtonStoryArgs>;
 
 export default meta;
 

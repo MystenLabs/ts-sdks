@@ -45,9 +45,12 @@ export type SuinsExtensionOptions<Name extends string = 'suins'> = {
 export function suins<const Name extends string = 'suins'>({
 	name = 'suins' as Name,
 	packageInfo,
-}: SuinsExtensionOptions<Name> = {}) {
+}: SuinsExtensionOptions<Name> = {}): {
+	name: Name;
+	register: (client: ClientWithCoreApi) => SuinsClient;
+} {
 	return {
-		name,
+		name: name,
 		register: (client: ClientWithCoreApi) => {
 			return new SuinsClient({
 				client,
@@ -248,7 +251,7 @@ export class SuinsClient {
 		name: string;
 		years: number;
 		isRegistration?: boolean;
-	}) {
+	}): Promise<number> {
 		if (!isValidSuiNSName(name)) {
 			throw new Error('Invalid SuiNS name');
 		}
@@ -284,7 +287,11 @@ export class SuinsClient {
 		return price;
 	}
 
-	async getPriceInfoObject(tx: Transaction, feed: string, feeCoin?: TransactionObjectArgument) {
+	async getPriceInfoObject(
+		tx: Transaction,
+		feed: string,
+		feeCoin?: TransactionObjectArgument,
+	): Promise<string[]> {
 		const endpoint =
 			this.network === 'testnet'
 				? 'https://hermes-beta.pyth.network'
@@ -311,7 +318,7 @@ export class SuinsClient {
 		return client.getBaseUpdateFee();
 	}
 
-	async getObjectType(objectId: string) {
+	async getObjectType(objectId: string): Promise<string> {
 		const result = await this.client.core.getObject({ objectId });
 
 		if (result.object?.type) {

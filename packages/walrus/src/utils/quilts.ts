@@ -15,15 +15,17 @@ import {
 
 export const QUILT_INDEX_SIZE_BYTES_LENGTH = 4;
 export const QUILT_VERSION_BYTES_LENGTH = 1;
-export const QUILT_INDEX_PREFIX_SIZE = QUILT_VERSION_BYTES_LENGTH + QUILT_INDEX_SIZE_BYTES_LENGTH;
-export const QUILT_PATCH_BLOB_HEADER_SIZE = 1 + 4 + 1; // bcs length of QuiltPatchBlobHeader
+export const QUILT_INDEX_PREFIX_SIZE: number =
+	QUILT_VERSION_BYTES_LENGTH + QUILT_INDEX_SIZE_BYTES_LENGTH;
+export const QUILT_PATCH_BLOB_HEADER_SIZE: number = 1 + 4 + 1; // bcs length of QuiltPatchBlobHeader
 
 export const BLOB_IDENTIFIER_SIZE_BYTES_LENGTH = 2;
 export const TAGS_SIZE_BYTES_LENGTH = 2;
-export const MAX_BLOB_IDENTIFIER_BYTES_LENGTH = (1 << (8 * BLOB_IDENTIFIER_SIZE_BYTES_LENGTH)) - 1;
+export const MAX_BLOB_IDENTIFIER_BYTES_LENGTH: number =
+	(1 << (8 * BLOB_IDENTIFIER_SIZE_BYTES_LENGTH)) - 1;
 export const MAX_NUM_SLIVERS_FOR_QUILT_INDEX = 10;
 
-export const HAS_TAGS_FLAG = 1 << 0;
+export const HAS_TAGS_FLAG: number = 1 << 0;
 
 /**
  * Finds the minimum symbol size needed to store blobs in a fixed number of columns.
@@ -100,15 +102,19 @@ function canBlobsFitIntoMatrix(
 	return blobsSizes.reduce((acc, size) => acc + Math.ceil(size / columnSize), 0) <= nColumns;
 }
 
-export function parseQuiltPatchId(id: string) {
+export function parseQuiltPatchId(id: string): typeof QuiltPatchId.$inferType {
 	return QuiltPatchId.parse(fromUrlSafeBase64(id));
 }
 
-export function encodeQuiltPatchId(id: typeof QuiltPatchId.$inferInput) {
+export function encodeQuiltPatchId(id: typeof QuiltPatchId.$inferInput): string {
 	return urlSafeBase64(QuiltPatchId.serialize(id).toBytes());
 }
 
-export function parseWalrusId(id: string) {
+export function parseWalrusId(
+	id: string,
+):
+	| { kind: 'blob'; id: string }
+	| { kind: 'quiltPatch'; id: typeof QuiltPatchId.$inferType } {
 	const bytes = fromUrlSafeBase64(id);
 
 	if (bytes.length === 32) {
@@ -134,7 +140,10 @@ export interface EncodeQuiltOptions {
 	encodingType?: EncodingType;
 }
 
-export function encodeQuilt({ blobs, numShards, encodingType }: EncodeQuiltOptions) {
+export function encodeQuilt({ blobs, numShards, encodingType }: EncodeQuiltOptions): {
+	quilt: Uint8Array;
+	index: { patches: (typeof QuiltPatchV1.$inferInput & { startIndex: number })[] };
+} {
 	const { primarySymbols: nRows, secondarySymbols: nCols } = getSourceSymbols(
 		numShards,
 		encodingType,

@@ -19,6 +19,7 @@ import type {
 	SuiSignTransactionMethod,
 	Wallet,
 	WalletIcon,
+	WalletVersion,
 } from '@mysten/wallet-standard';
 import {
 	getWallets,
@@ -32,7 +33,7 @@ import {
 	SuiSignTransaction,
 } from '@mysten/wallet-standard';
 import { mitt, type Emitter } from '@mysten/utils';
-import type { InferOutput } from 'valibot';
+import * as v from 'valibot';
 import { boolean, object, string } from 'valibot';
 import type { CustomCaipNetwork } from '@reown/appkit-universal-connector';
 import { UniversalConnector } from '@reown/appkit-universal-connector';
@@ -47,7 +48,12 @@ type WalletEventsMap = {
 type SupportedNetwork = 'mainnet' | 'testnet' | 'devnet' | 'localnet';
 
 export type GetClient = (network: SupportedNetwork) => ClientWithCoreApi;
-type WalletMetadata = InferOutput<typeof WalletMetadataSchema>;
+type WalletMetadata = {
+	id: string;
+	walletName: string;
+	icon: string;
+	enabled: boolean;
+};
 
 // -- Constants --
 const icon =
@@ -71,12 +77,12 @@ const SUICaipNetworks: CustomCaipNetwork<'sui'>[] = SUI_CHAINS.map((chain) => {
 	};
 });
 
-const WalletMetadataSchema = object({
+export const WalletMetadataSchema = object({
 	id: string('Wallet ID is required'),
 	walletName: string('Wallet name is required'),
 	icon: string('Icon must be a valid wallet icon format'),
 	enabled: boolean('Enabled is required'),
-});
+}) as v.GenericSchema<WalletMetadata, WalletMetadata>;
 
 const toStandardAccounts = (
 	accounts: { address: string; pubkey: string }[],
@@ -103,27 +109,27 @@ export class WalletConnectWallet implements Wallet {
 	#projectId: string;
 	#getClient: GetClient;
 
-	get name() {
+	get name(): string {
 		return this.#walletName;
 	}
 
-	get id() {
+	get id(): string {
 		return this.#id;
 	}
 
-	get icon() {
+	get icon(): WalletIcon {
 		return this.#icon;
 	}
 
-	get version() {
+	get version(): WalletVersion {
 		return '1.0.0' as const;
 	}
 
-	get chains() {
+	get chains(): IdentifierArray {
 		return SUI_CHAINS;
 	}
 
-	get accounts() {
+	get accounts(): readonly ReadonlyWalletAccount[] {
 		return this.#accounts;
 	}
 
@@ -180,7 +186,7 @@ export class WalletConnectWallet implements Wallet {
 		this.init();
 	}
 
-	async init() {
+	async init(): Promise<void> {
 		this.#connector = await UniversalConnector.init({
 			projectId: this.#projectId,
 
@@ -351,7 +357,7 @@ export class WalletConnectWallet implements Wallet {
 		this.#setAccounts([]);
 	};
 
-	updateMetadata(metadata: WalletMetadata) {
+	updateMetadata(metadata: WalletMetadata): void {
 		this.#id = metadata.id;
 		this.#walletName = metadata.walletName;
 	}
@@ -366,7 +372,9 @@ export function registerWalletConnectWallet({
 	projectId,
 	getClient,
 	metadata,
-}: RegisterWalletConnectWallet) {
+}: RegisterWalletConnectWallet):
+	| { wallet: WalletConnectWallet; unregister: () => void }
+	| undefined {
 	const wallets = getWallets();
 
 	let unregister: (() => void) | null = null;

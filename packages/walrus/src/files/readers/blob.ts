@@ -29,19 +29,19 @@ export class BlobReader implements FileReader {
 		this.#numShards = numShards;
 	}
 
-	async getIdentifier() {
+	async getIdentifier(): Promise<string | null> {
 		return null;
 	}
 
-	async getTags() {
+	async getTags(): Promise<Record<string, string>> {
 		return {};
 	}
 
-	getQuiltReader() {
+	getQuiltReader(): QuiltReader {
 		return new QuiltReader({ blob: this });
 	}
 
-	async getBytes() {
+	async getBytes(): Promise<Uint8Array> {
 		return this.#cache.read(['getBytes'], async () => {
 			this.hasStartedLoadingFullBlob = true;
 			try {
@@ -54,13 +54,13 @@ export class BlobReader implements FileReader {
 		});
 	}
 
-	getMetadata() {
+	getMetadata(): Promise<Awaited<ReturnType<WalrusClient['getBlobMetadata']>>> {
 		return this.#cache.read(['getMetadata'], () =>
 			this.#client.getBlobMetadata({ blobId: this.blobId }),
-		);
+		) as Promise<Awaited<ReturnType<WalrusClient['getBlobMetadata']>>>;
 	}
 
-	async getColumnSize() {
+	async getColumnSize(): Promise<number> {
 		return this.#cache.read(['getColumnSize'], async () => {
 			const loadingSlivers = [...this.#secondarySlivers.values()];
 
@@ -88,7 +88,7 @@ export class BlobReader implements FileReader {
 		});
 	}
 
-	async getSymbolSize() {
+	async getSymbolSize(): Promise<number> {
 		const columnSize = await this.getColumnSize();
 		const { primarySymbols } = getSourceSymbols(this.#numShards);
 
@@ -99,13 +99,19 @@ export class BlobReader implements FileReader {
 		return columnSize / primarySymbols;
 	}
 
-	async getRowSize() {
+	async getRowSize(): Promise<number> {
 		const symbolSize = await this.getSymbolSize();
 		const { secondarySymbols } = getSourceSymbols(this.#numShards);
 		return symbolSize * secondarySymbols;
 	}
 
-	async getSecondarySliver({ sliverIndex, signal }: { sliverIndex: number; signal?: AbortSignal }) {
+	async getSecondarySliver({
+		sliverIndex,
+		signal,
+	}: {
+		sliverIndex: number;
+		signal?: AbortSignal;
+	}): Promise<Uint8Array> {
 		if (this.#secondarySlivers.has(sliverIndex)) {
 			return this.#secondarySlivers.get(sliverIndex)!;
 		}

@@ -13,7 +13,10 @@ export function registerEnokiWallets({
 	providers,
 	windowFeatures = defaultWindowFeatures,
 	...config
-}: RegisterEnokiWalletsOptions) {
+}: RegisterEnokiWalletsOptions): {
+	wallets: Partial<Record<AuthProvider, EnokiWallet>>;
+	unregister: () => void;
+} {
 	const clients: ClientWithCoreApi[] =
 		'clients' in config
 			? config.clients

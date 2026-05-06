@@ -1,6 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import type { Transaction, TransactionResult } from '@mysten/sui/transactions';
 import { coinWithBalance } from '@mysten/sui/transactions';
 import type {
 	CreateRegistryOptions,
@@ -43,7 +44,9 @@ export class PaymentKitCalls {
 	 * tx.add(lient.paymentKit.call.processRegistryPayment({ nonce, coinType, sender, amount, receiver, registryName }));
 	 * ```
 	 */
-	processRegistryPayment = (options: ProcessRegistryPaymentOptions) => {
+	processRegistryPayment = (
+		options: ProcessRegistryPaymentOptions,
+	): ((tx: Transaction) => TransactionResult) => {
 		const { nonce, coinType, amount, receiver, sourceCoin, registryName, registryId } = options;
 		const registryIdToUse =
 			registryId ?? getRegistryIdFromName(registryName, this.#packageConfig.namespaceId);
@@ -73,7 +76,9 @@ export class PaymentKitCalls {
 	 * tx.add(client.paymentKit.call.processEphemeralPayment({ nonce, coinType, sender, amount, receiver }));
 	 * ```
 	 */
-	processEphemeralPayment = (options: ProcessEphemeralPaymentOptions) => {
+	processEphemeralPayment = (
+		options: ProcessEphemeralPaymentOptions,
+	): ((tx: Transaction) => TransactionResult) => {
 		const { nonce, coinType, amount, receiver, sourceCoin } = options;
 
 		return processEphemeralPayment({
@@ -100,7 +105,9 @@ export class PaymentKitCalls {
 	 * tx.add(client.paymentKit.call.createRegistry(registryName));
 	 * ```
 	 */
-	createRegistry = ({ registryName }: CreateRegistryOptions) => {
+	createRegistry = ({
+		registryName,
+	}: CreateRegistryOptions): ((tx: Transaction) => TransactionResult) => {
 		return createRegistry({
 			arguments: {
 				namespace: this.#packageConfig.namespaceId,
@@ -122,7 +129,7 @@ export class PaymentKitCalls {
 		registryId,
 		epochExpirationDuration,
 		adminCapId,
-	}: SetEpochExpirationDurationOptions) => {
+	}: SetEpochExpirationDurationOptions): ((tx: Transaction) => TransactionResult) => {
 		const registryIdToUse =
 			registryId ?? getRegistryIdFromName(registryName, this.#packageConfig.namespaceId);
 
@@ -148,7 +155,7 @@ export class PaymentKitCalls {
 		registryId,
 		registryManagedFunds,
 		adminCapId,
-	}: SetRegistryManagedFundsOptions) => {
+	}: SetRegistryManagedFundsOptions): ((tx: Transaction) => TransactionResult) => {
 		const registryIdToUse =
 			registryId ?? getRegistryIdFromName(registryName, this.#packageConfig.namespaceId);
 
@@ -174,7 +181,7 @@ export class PaymentKitCalls {
 		registryName,
 		registryId,
 		adminCapId,
-	}: WithdrawFromRegistryOptions) => {
+	}: WithdrawFromRegistryOptions): ((tx: Transaction) => TransactionResult) => {
 		const registryIdToUse =
 			registryId ?? getRegistryIdFromName(registryName, this.#packageConfig.namespaceId);
 
@@ -202,7 +209,7 @@ export class PaymentKitCalls {
 		receiver,
 		registryName,
 		registryId,
-	}: DeletePaymentRecordOptions) => {
+	}: DeletePaymentRecordOptions): ((tx: Transaction) => TransactionResult) => {
 		const registryIdToUse =
 			registryId ?? getRegistryIdFromName(registryName, this.#packageConfig.namespaceId);
 

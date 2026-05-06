@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { css } from 'lit';
+import type { CSSResult } from 'lit';
 
-export const resetStyles = css`
+export const resetStyles: CSSResult = css`
 	* {
 		box-sizing: border-box;
 		-webkit-font-smoothing: antialiased;

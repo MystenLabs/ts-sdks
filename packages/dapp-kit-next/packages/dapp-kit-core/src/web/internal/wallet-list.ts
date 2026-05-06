@@ -1,9 +1,11 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import type { ElementDefinitionsMap } from '@lit-labs/scoped-registry-mixin';
 import { ScopedRegistryHost } from '@lit-labs/scoped-registry-mixin';
 import type { UiWallet } from '@wallet-standard/ui';
 import { html, LitElement } from 'lit';
+import type { CSSResultGroup, TemplateResult } from 'lit';
 import { property } from 'lit/decorators.js';
 import { WalletListItem } from './wallet-list-item.js';
 import { styles } from './wallet-list.styles.js';
@@ -11,18 +13,20 @@ import { Button } from './button.js';
 import { downloadIcon } from './icons/download-icon.js';
 import { arrowRightUpIcon } from './icons/arrow-right-up-icon.js';
 
-export class WalletList extends ScopedRegistryHost(LitElement) {
-	static elementDefinitions = {
+const ScopedLitElement: typeof LitElement = ScopedRegistryHost(LitElement);
+
+export class WalletList extends ScopedLitElement {
+	static elementDefinitions: ElementDefinitionsMap = {
 		'wallet-list-item': WalletListItem,
 		'internal-button': Button,
 	};
 
-	static override styles = styles;
+	static override styles: CSSResultGroup = styles;
 
 	@property({ type: Object })
 	wallets: UiWallet[] = [];
 
-	override render() {
+	override render(): TemplateResult {
 		return this.wallets.length === 0
 			? html`<div class="no-wallets-container">
 					<div class="no-wallets-content">

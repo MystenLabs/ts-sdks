@@ -15,13 +15,19 @@ export function getChain(network: SuiClientTypes.Network): IdentifierString {
 export function createNetworkConfig<
 	TNetworks extends Networks,
 	Client extends DAppKitCompatibleClient,
->(networks: TNetworks, createClient: (network: TNetworks[number]) => Client) {
+>(
+	networks: TNetworks,
+	createClient: (network: TNetworks[number]) => Client,
+): {
+	networkConfig: Readonly<Map<TNetworks[number], Client>>;
+	getClient: <T extends TNetworks[number]>(network: T | TNetworks[number]) => Client;
+} {
 	if (networks.length === 0) {
 		throw new DAppKitError('You must specify at least one Sui network for your application.');
 	}
 
 	const networkConfig = new Map<TNetworks[number], Client>();
-	function getClient<T extends TNetworks[number]>(network: T | TNetworks[number]) {
+	function getClient<T extends TNetworks[number]>(network: T | TNetworks[number]): Client {
 		if (networkConfig.has(network)) {
 			return networkConfig.get(network)!;
 		}

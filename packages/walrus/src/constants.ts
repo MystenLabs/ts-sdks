@@ -4,7 +4,7 @@
 import type { BlobStatus } from './storage-node/types.js';
 import type { WalrusPackageConfig } from './types.js';
 
-export const TESTNET_WALRUS_PACKAGE_CONFIG = {
+export const TESTNET_WALRUS_PACKAGE_CONFIG: WalrusPackageConfig = {
 	systemObjectId: '0x6c2547cbbc38025cf3adac45f63cb0a8d12ecf777cdc75a4971612bf97fdf6af',
 	stakingPoolId: '0xbe46180321c30aab2f8b3501e24048377287fa708018a5b7c2792b35fe339ee3',
 	exchangeIds: [
@@ -13,12 +13,12 @@ export const TESTNET_WALRUS_PACKAGE_CONFIG = {
 		'0x83b454e524c71f30803f4d6c302a86fb6a39e96cdfb873c2d1e93bc1c26a3bc5',
 		'0x8d63209cf8589ce7aef8f262437163c67577ed09f3e636a9d8e0813843fb8bf1',
 	],
-} satisfies WalrusPackageConfig;
+};
 
-export const MAINNET_WALRUS_PACKAGE_CONFIG = {
+export const MAINNET_WALRUS_PACKAGE_CONFIG: WalrusPackageConfig = {
 	systemObjectId: '0x2134d52768ea07e8c43570ef975eb3e4c27a39fa6396bef985b5abc58d03ddd2',
 	stakingPoolId: '0x10b9d30c28448939ce6c4d6c6e0ffce4a7f8a4ada8248bdad09ef8b70e4a3904',
-} satisfies WalrusPackageConfig;
+};
 
 // Below this size (bytes), skip the sliver status check and upload directly since the
 // upload fits in a single RTT (similar cost to the status check itself).

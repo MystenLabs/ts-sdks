@@ -42,7 +42,7 @@ export class QuiltFileReader implements FileReader {
 		return blobContents;
 	}
 
-	async getIdentifier() {
+	async getIdentifier(): Promise<string> {
 		if (this.#identifier !== null) {
 			return this.#identifier;
 		}
@@ -53,7 +53,7 @@ export class QuiltFileReader implements FileReader {
 		return this.#identifier;
 	}
 
-	async getTags() {
+	async getTags(): Promise<Record<string, string>> {
 		if (this.#tags !== undefined) {
 			return this.#tags;
 		}

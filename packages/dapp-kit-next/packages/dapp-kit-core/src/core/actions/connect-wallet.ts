@@ -33,7 +33,7 @@ export function connectWalletCreator(
 	{ $baseConnection }: DAppKitStores,
 	supportedNetworks: Networks,
 	{ storage, storageKey }: { storage: StateStorage; storageKey: string },
-) {
+): (args: ConnectWalletArgs) => Promise<{ accounts: UiWalletAccount[] }> {
 	/**
 	 * Prompts the specified wallet to connect and authorize new accounts for the current domain.
 	 */
@@ -41,7 +41,7 @@ export function connectWalletCreator(
 		wallet,
 		account,
 		...standardConnectArgs
-	}: ConnectWalletArgs) {
+	}: ConnectWalletArgs): Promise<{ accounts: UiWalletAccount[] }> {
 		return await task(async () => {
 			const connection = $baseConnection.get();
 			const isAlreadyConnected = connection.status === 'connected';
@@ -89,7 +89,7 @@ export async function internalConnectWallet(
 	wallet: UiWallet,
 	supportedNetworks: Networks,
 	args: StandardConnectInput,
-) {
+): Promise<{ accounts: UiWalletAccount[]; supportedIntents: string[] }> {
 	const { connect } = getWalletFeature(
 		wallet,
 		StandardConnect,
@@ -111,7 +111,7 @@ export async function internalConnectWallet(
 	};
 }
 
-export async function getSupportedIntentsFromFeature(wallet: UiWallet) {
+export async function getSupportedIntentsFromFeature(wallet: UiWallet): Promise<string[]> {
 	if (!wallet.features.includes('sui:getCapabilities')) {
 		return [];
 	}
