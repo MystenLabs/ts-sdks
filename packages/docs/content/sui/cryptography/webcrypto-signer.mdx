@@ -2,7 +2,16 @@
 title: Web Crypto Signer
 description: Sign transactions using the Web Crypto API for secure browser-based key management.
 keywords:
-  [Web Crypto API, signer, Secp256r1, browser, keypairs, zkLogin, '@mysten/signers', session keys]
+  [
+    Web Crypto API,
+    signer,
+    Secp256r1,
+    browser,
+    keypairs,
+    zkLogin,
+    '@mysten/webcrypto-signer',
+    session keys,
+  ]
 ---
 
 For cases where you need to create keypairs directly within client apps, you can use the Web Crypto
@@ -19,16 +28,16 @@ Common use cases for the Web Crypto Signer include:
 
 ## Installation
 
-To use the Web Crypto Signer, you need to install the `@mysten/signers` package.
+To use the Web Crypto Signer, you need to install the `@mysten/webcrypto-signer` package.
 
 ```sh npm2yarn
-npm i @mysten/signers
+npm i @mysten/webcrypto-signer
 ```
 
 You can then import the `WebCryptoSigner` class from the package:
 
 ```typescript
-import { WebCryptoSigner } from '@mysten/signers/webcrypto';
+import { WebCryptoSigner } from '@mysten/webcrypto-signer';
 ```
 
 ## Create a new signer

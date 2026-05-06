@@ -32,13 +32,8 @@
 		"CHANGELOG.md",
 		"LICENSE",
 		"README.md",
-		"aws",
 		"dist",
-		"gcp",
-		"ledger",
-		"src",
-		"src",
-		"webcrypto"
+		"src"
 	],
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
@@ -62,16 +57,13 @@
 	"devDependencies": {
 		"@mysten/sui": "workspace:^",
 		"@types/node": "^25.0.8",
-		"dotenv": "^17.2.3",
-		"typescript": "^5.9.3",
-		"vitest": "^4.0.17"
+		"typescript": "^5.9.3"
 	},
 	"dependencies": {
-		"@google-cloud/kms": "^5.2.1",
-		"@mysten/ledgerjs-hw-app-sui": "workspace:^",
-		"@noble/curves": "^2.0.1",
-		"@noble/hashes": "^2.0.1",
-		"asn1-ts": "^11.0.5"
+		"@mysten/aws-kms-signer": "workspace:^",
+		"@mysten/gcp-kms-signer": "workspace:^",
+		"@mysten/ledger-signer": "workspace:^",
+		"@mysten/webcrypto-signer": "workspace:^"
 	},
 	"engines": {
 		"node": ">=22"

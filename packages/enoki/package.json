@@ -56,9 +56,9 @@
 		"vite": "^8.0.5"
 	},
 	"dependencies": {
-		"@mysten/signers": "workspace:^",
 		"@mysten/utils": "workspace:^",
 		"@mysten/wallet-standard": "workspace:^",
+		"@mysten/webcrypto-signer": "workspace:^",
 		"@nanostores/react": "^1.0.0",
 		"@wallet-standard/ui": "^1.0.1",
 		"idb-keyval": "^6.2.2",

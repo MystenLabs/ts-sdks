@@ -630,6 +630,9 @@ importers:
 
   packages/docs:
     dependencies:
+      '@mysten/aws-kms-signer':
+        specifier: workspace:*
+        version: link:../signers/aws
       '@mysten/bcs':
         specifier: workspace:*
         version: link:../bcs
@@ -651,9 +654,15 @@ importers:
       '@mysten/enoki-connect':
         specifier: workspace:*
         version: link:../enoki-connect
+      '@mysten/gcp-kms-signer':
+        specifier: workspace:*
+        version: link:../signers/gcp
       '@mysten/kiosk':
         specifier: workspace:*
         version: link:../kiosk
+      '@mysten/ledger-signer':
+        specifier: workspace:*
+        version: link:../signers/ledger
       '@mysten/payment-kit':
         specifier: workspace:*
         version: link:../payment-kit
@@ -681,6 +690,9 @@ importers:
       '@mysten/walrus':
         specifier: workspace:*
         version: link:../walrus
+      '@mysten/webcrypto-signer':
+        specifier: workspace:*
+        version: link:../signers/webcrypto
       '@mysten/zksend':
         specifier: workspace:*
         version: link:../zksend
@@ -751,15 +763,15 @@ importers:
 
   packages/enoki:
     dependencies:
-      '@mysten/signers':
-        specifier: workspace:^
-        version: link:../signers
       '@mysten/utils':
         specifier: workspace:^
         version: link:../utils
       '@mysten/wallet-standard':
         specifier: workspace:^
         version: link:../wallet-standard
+      '@mysten/webcrypto-signer':
+        specifier: workspace:^
+        version: link:../signers/webcrypto
       '@nanostores/react':
         specifier: ^1.0.0
         version: 1.1.0(nanostores@1.2.0)(react@19.2.4)
@@ -1071,16 +1083,32 @@ importers:
 
   packages/signers:
     dependencies:
-      '@google-cloud/kms':
-        specifier: ^5.2.1
-        version: 5.4.0
-      '@mysten/ledgerjs-hw-app-sui':
+      '@mysten/aws-kms-signer':
         specifier: workspace:^
-        version: link:../ledgerjs-hw-app-sui
+        version: link:aws
+      '@mysten/gcp-kms-signer':
+        specifier: workspace:^
+        version: link:gcp
+      '@mysten/ledger-signer':
+        specifier: workspace:^
+        version: link:ledger
+      '@mysten/webcrypto-signer':
+        specifier: workspace:^
+        version: link:webcrypto
+    devDependencies:
+      '@mysten/sui':
+        specifier: workspace:^
+        version: link:../sui
+      '@types/node':
+        specifier: ^25.0.8
+        version: 25.5.0
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  packages/signers/aws:
+    dependencies:
       '@noble/curves':
-        specifier: ^2.0.1
-        version: 2.0.1
-      '@noble/hashes':
         specifier: ^2.0.1
         version: 2.0.1
       asn1-ts:
@@ -1089,13 +1117,79 @@ importers:
     devDependencies:
       '@mysten/sui':
         specifier: workspace:^
-        version: link:../sui
+        version: link:../../sui
       '@types/node':
         specifier: ^25.0.8
         version: 25.5.0
       dotenv:
         specifier: ^17.2.3
         version: 17.3.1
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.0.17
+        version: 4.1.1(@types/node@25.5.0)(esbuild@0.27.4)(happy-dom@20.8.9(bufferutil@4.1.0)(utf-8-validate@6.0.6))(jiti@2.6.1)(jsdom@27.4.0(@noble/hashes@2.0.1)(bufferutil@4.1.0)(utf-8-validate@6.0.6))(msw@2.12.14(@types/node@25.5.0)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/signers/gcp:
+    dependencies:
+      '@google-cloud/kms':
+        specifier: ^5.2.1
+        version: 5.4.0
+      '@noble/curves':
+        specifier: ^2.0.1
+        version: 2.0.1
+      asn1-ts:
+        specifier: ^11.0.5
+        version: 11.0.6
+    devDependencies:
+      '@mysten/sui':
+        specifier: workspace:^
+        version: link:../../sui
+      '@types/node':
+        specifier: ^25.0.8
+        version: 25.5.0
+      dotenv:
+        specifier: ^17.2.3
+        version: 17.3.1
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.0.17
+        version: 4.1.1(@types/node@25.5.0)(esbuild@0.27.4)(happy-dom@20.8.9(bufferutil@4.1.0)(utf-8-validate@6.0.6))(jiti@2.6.1)(jsdom@27.4.0(@noble/hashes@2.0.1)(bufferutil@4.1.0)(utf-8-validate@6.0.6))(msw@2.12.14(@types/node@25.5.0)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/signers/ledger:
+    dependencies:
+      '@mysten/ledgerjs-hw-app-sui':
+        specifier: workspace:^
+        version: link:../../ledgerjs-hw-app-sui
+    devDependencies:
+      '@mysten/sui':
+        specifier: workspace:^
+        version: link:../../sui
+      '@types/node':
+        specifier: ^25.0.8
+        version: 25.5.0
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.0.17
+        version: 4.1.1(@types/node@25.5.0)(esbuild@0.27.4)(happy-dom@20.8.9(bufferutil@4.1.0)(utf-8-validate@6.0.6))(jiti@2.6.1)(jsdom@27.4.0(@noble/hashes@2.0.1)(bufferutil@4.1.0)(utf-8-validate@6.0.6))(msw@2.12.14(@types/node@25.5.0)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/signers/webcrypto:
+    dependencies:
+      '@noble/curves':
+        specifier: ^2.0.1
+        version: 2.0.1
+    devDependencies:
+      '@mysten/sui':
+        specifier: workspace:^
+        version: link:../../sui
+      '@types/node':
+        specifier: ^25.0.8
+        version: 25.5.0
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -13162,7 +13256,7 @@ snapshots:
 
   '@scure/bip32@1.7.0':
     dependencies:
-      '@noble/curves': 1.9.1
+      '@noble/curves': 1.9.7
       '@noble/hashes': 1.8.0
       '@scure/base': 1.2.6
 
@@ -13749,7 +13843,7 @@ snapshots:
     dependencies:
       '@babel/runtime': 7.29.2
       '@noble/curves': 1.9.7
-      '@noble/hashes': 1.4.0
+      '@noble/hashes': 1.8.0
       '@solana/buffer-layout': 4.0.1
       '@solana/codecs-numbers': 2.3.0(typescript@5.9.3)
       agentkeepalive: 4.6.0
