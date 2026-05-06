@@ -465,7 +465,7 @@ class ErrorInfo$Type extends MessageType<ErrorInfo> {
 /**
  * @generated MessageType for protobuf message google.rpc.ErrorInfo
  */
-export const ErrorInfo = new ErrorInfo$Type();
+export const ErrorInfo: ErrorInfo$Type = new ErrorInfo$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class RetryInfo$Type extends MessageType<RetryInfo> {
 	constructor() {
@@ -477,7 +477,7 @@ class RetryInfo$Type extends MessageType<RetryInfo> {
 /**
  * @generated MessageType for protobuf message google.rpc.RetryInfo
  */
-export const RetryInfo = new RetryInfo$Type();
+export const RetryInfo: RetryInfo$Type = new RetryInfo$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class DebugInfo$Type extends MessageType<DebugInfo> {
 	constructor() {
@@ -496,7 +496,7 @@ class DebugInfo$Type extends MessageType<DebugInfo> {
 /**
  * @generated MessageType for protobuf message google.rpc.DebugInfo
  */
-export const DebugInfo = new DebugInfo$Type();
+export const DebugInfo: DebugInfo$Type = new DebugInfo$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class QuotaFailure$Type extends MessageType<QuotaFailure> {
 	constructor() {
@@ -514,7 +514,7 @@ class QuotaFailure$Type extends MessageType<QuotaFailure> {
 /**
  * @generated MessageType for protobuf message google.rpc.QuotaFailure
  */
-export const QuotaFailure = new QuotaFailure$Type();
+export const QuotaFailure: QuotaFailure$Type = new QuotaFailure$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class QuotaFailure_Violation$Type extends MessageType<QuotaFailure_Violation> {
 	constructor() {
@@ -527,7 +527,7 @@ class QuotaFailure_Violation$Type extends MessageType<QuotaFailure_Violation> {
 /**
  * @generated MessageType for protobuf message google.rpc.QuotaFailure.Violation
  */
-export const QuotaFailure_Violation = new QuotaFailure_Violation$Type();
+export const QuotaFailure_Violation: QuotaFailure_Violation$Type = new QuotaFailure_Violation$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class PreconditionFailure$Type extends MessageType<PreconditionFailure> {
 	constructor() {
@@ -545,7 +545,7 @@ class PreconditionFailure$Type extends MessageType<PreconditionFailure> {
 /**
  * @generated MessageType for protobuf message google.rpc.PreconditionFailure
  */
-export const PreconditionFailure = new PreconditionFailure$Type();
+export const PreconditionFailure: PreconditionFailure$Type = new PreconditionFailure$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class PreconditionFailure_Violation$Type extends MessageType<PreconditionFailure_Violation> {
 	constructor() {
@@ -559,7 +559,7 @@ class PreconditionFailure_Violation$Type extends MessageType<PreconditionFailure
 /**
  * @generated MessageType for protobuf message google.rpc.PreconditionFailure.Violation
  */
-export const PreconditionFailure_Violation = new PreconditionFailure_Violation$Type();
+export const PreconditionFailure_Violation: PreconditionFailure_Violation$Type = new PreconditionFailure_Violation$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class BadRequest$Type extends MessageType<BadRequest> {
 	constructor() {
@@ -577,7 +577,7 @@ class BadRequest$Type extends MessageType<BadRequest> {
 /**
  * @generated MessageType for protobuf message google.rpc.BadRequest
  */
-export const BadRequest = new BadRequest$Type();
+export const BadRequest: BadRequest$Type = new BadRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class BadRequest_FieldViolation$Type extends MessageType<BadRequest_FieldViolation> {
 	constructor() {
@@ -592,7 +592,7 @@ class BadRequest_FieldViolation$Type extends MessageType<BadRequest_FieldViolati
 /**
  * @generated MessageType for protobuf message google.rpc.BadRequest.FieldViolation
  */
-export const BadRequest_FieldViolation = new BadRequest_FieldViolation$Type();
+export const BadRequest_FieldViolation: BadRequest_FieldViolation$Type = new BadRequest_FieldViolation$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class RequestInfo$Type extends MessageType<RequestInfo> {
 	constructor() {
@@ -605,7 +605,7 @@ class RequestInfo$Type extends MessageType<RequestInfo> {
 /**
  * @generated MessageType for protobuf message google.rpc.RequestInfo
  */
-export const RequestInfo = new RequestInfo$Type();
+export const RequestInfo: RequestInfo$Type = new RequestInfo$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ResourceInfo$Type extends MessageType<ResourceInfo> {
 	constructor() {
@@ -620,7 +620,7 @@ class ResourceInfo$Type extends MessageType<ResourceInfo> {
 /**
  * @generated MessageType for protobuf message google.rpc.ResourceInfo
  */
-export const ResourceInfo = new ResourceInfo$Type();
+export const ResourceInfo: ResourceInfo$Type = new ResourceInfo$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class Help$Type extends MessageType<Help> {
 	constructor() {
@@ -638,7 +638,7 @@ class Help$Type extends MessageType<Help> {
 /**
  * @generated MessageType for protobuf message google.rpc.Help
  */
-export const Help = new Help$Type();
+export const Help: Help$Type = new Help$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class Help_Link$Type extends MessageType<Help_Link> {
 	constructor() {
@@ -651,7 +651,7 @@ class Help_Link$Type extends MessageType<Help_Link> {
 /**
  * @generated MessageType for protobuf message google.rpc.Help.Link
  */
-export const Help_Link = new Help_Link$Type();
+export const Help_Link: Help_Link$Type = new Help_Link$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class LocalizedMessage$Type extends MessageType<LocalizedMessage> {
 	constructor() {
@@ -664,4 +664,4 @@ class LocalizedMessage$Type extends MessageType<LocalizedMessage> {
 /**
  * @generated MessageType for protobuf message google.rpc.LocalizedMessage
  */
-export const LocalizedMessage = new LocalizedMessage$Type();
+export const LocalizedMessage: LocalizedMessage$Type = new LocalizedMessage$Type();

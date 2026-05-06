@@ -184,4 +184,4 @@ class Duration$Type extends MessageType<Duration> {
 /**
  * @generated MessageType for protobuf message google.protobuf.Duration
  */
-export const Duration = new Duration$Type();
+export const Duration: Duration = new Duration$Type();

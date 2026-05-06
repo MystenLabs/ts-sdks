@@ -614,7 +614,7 @@ class GetCoinInfoRequest$Type extends MessageType<GetCoinInfoRequest> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.GetCoinInfoRequest
  */
-export const GetCoinInfoRequest = new GetCoinInfoRequest$Type();
+export const GetCoinInfoRequest: GetCoinInfoRequest$Type = new GetCoinInfoRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class GetCoinInfoResponse$Type extends MessageType<GetCoinInfoResponse> {
 	constructor() {
@@ -629,7 +629,7 @@ class GetCoinInfoResponse$Type extends MessageType<GetCoinInfoResponse> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.GetCoinInfoResponse
  */
-export const GetCoinInfoResponse = new GetCoinInfoResponse$Type();
+export const GetCoinInfoResponse: GetCoinInfoResponse$Type = new GetCoinInfoResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class CoinMetadata$Type extends MessageType<CoinMetadata> {
 	constructor() {
@@ -654,7 +654,7 @@ class CoinMetadata$Type extends MessageType<CoinMetadata> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.CoinMetadata
  */
-export const CoinMetadata = new CoinMetadata$Type();
+export const CoinMetadata: CoinMetadata$Type = new CoinMetadata$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class CoinTreasury$Type extends MessageType<CoinTreasury> {
 	constructor() {
@@ -681,7 +681,7 @@ class CoinTreasury$Type extends MessageType<CoinTreasury> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.CoinTreasury
  */
-export const CoinTreasury = new CoinTreasury$Type();
+export const CoinTreasury: CoinTreasury$Type = new CoinTreasury$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class RegulatedCoinMetadata$Type extends MessageType<RegulatedCoinMetadata> {
 	constructor() {
@@ -713,7 +713,7 @@ class RegulatedCoinMetadata$Type extends MessageType<RegulatedCoinMetadata> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.RegulatedCoinMetadata
  */
-export const RegulatedCoinMetadata = new RegulatedCoinMetadata$Type();
+export const RegulatedCoinMetadata: RegulatedCoinMetadata$Type = new RegulatedCoinMetadata$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class GetBalanceRequest$Type extends MessageType<GetBalanceRequest> {
 	constructor() {
@@ -726,7 +726,7 @@ class GetBalanceRequest$Type extends MessageType<GetBalanceRequest> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.GetBalanceRequest
  */
-export const GetBalanceRequest = new GetBalanceRequest$Type();
+export const GetBalanceRequest: GetBalanceRequest$Type = new GetBalanceRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class GetBalanceResponse$Type extends MessageType<GetBalanceResponse> {
 	constructor() {
@@ -738,7 +738,7 @@ class GetBalanceResponse$Type extends MessageType<GetBalanceResponse> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.GetBalanceResponse
  */
-export const GetBalanceResponse = new GetBalanceResponse$Type();
+export const GetBalanceResponse: GetBalanceResponse$Type = new GetBalanceResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ListBalancesRequest$Type extends MessageType<ListBalancesRequest> {
 	constructor() {
@@ -752,7 +752,7 @@ class ListBalancesRequest$Type extends MessageType<ListBalancesRequest> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ListBalancesRequest
  */
-export const ListBalancesRequest = new ListBalancesRequest$Type();
+export const ListBalancesRequest: ListBalancesRequest$Type = new ListBalancesRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ListBalancesResponse$Type extends MessageType<ListBalancesResponse> {
 	constructor() {
@@ -771,7 +771,7 @@ class ListBalancesResponse$Type extends MessageType<ListBalancesResponse> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ListBalancesResponse
  */
-export const ListBalancesResponse = new ListBalancesResponse$Type();
+export const ListBalancesResponse: ListBalancesResponse$Type = new ListBalancesResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class Balance$Type extends MessageType<Balance> {
 	constructor() {
@@ -807,7 +807,7 @@ class Balance$Type extends MessageType<Balance> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.Balance
  */
-export const Balance = new Balance$Type();
+export const Balance: Balance$Type = new Balance$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ListDynamicFieldsRequest$Type extends MessageType<ListDynamicFieldsRequest> {
 	constructor() {
@@ -822,7 +822,7 @@ class ListDynamicFieldsRequest$Type extends MessageType<ListDynamicFieldsRequest
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ListDynamicFieldsRequest
  */
-export const ListDynamicFieldsRequest = new ListDynamicFieldsRequest$Type();
+export const ListDynamicFieldsRequest: ListDynamicFieldsRequest$Type = new ListDynamicFieldsRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ListDynamicFieldsResponse$Type extends MessageType<ListDynamicFieldsResponse> {
 	constructor() {
@@ -841,7 +841,7 @@ class ListDynamicFieldsResponse$Type extends MessageType<ListDynamicFieldsRespon
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ListDynamicFieldsResponse
  */
-export const ListDynamicFieldsResponse = new ListDynamicFieldsResponse$Type();
+export const ListDynamicFieldsResponse: ListDynamicFieldsResponse$Type = new ListDynamicFieldsResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class DynamicField$Type extends MessageType<DynamicField> {
 	constructor() {
@@ -867,7 +867,7 @@ class DynamicField$Type extends MessageType<DynamicField> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.DynamicField
  */
-export const DynamicField = new DynamicField$Type();
+export const DynamicField: DynamicField$Type = new DynamicField$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ListOwnedObjectsRequest$Type extends MessageType<ListOwnedObjectsRequest> {
 	constructor() {
@@ -883,7 +883,7 @@ class ListOwnedObjectsRequest$Type extends MessageType<ListOwnedObjectsRequest> 
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ListOwnedObjectsRequest
  */
-export const ListOwnedObjectsRequest = new ListOwnedObjectsRequest$Type();
+export const ListOwnedObjectsRequest: ListOwnedObjectsRequest$Type = new ListOwnedObjectsRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ListOwnedObjectsResponse$Type extends MessageType<ListOwnedObjectsResponse> {
 	constructor() {
@@ -896,7 +896,7 @@ class ListOwnedObjectsResponse$Type extends MessageType<ListOwnedObjectsResponse
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ListOwnedObjectsResponse
  */
-export const ListOwnedObjectsResponse = new ListOwnedObjectsResponse$Type();
+export const ListOwnedObjectsResponse: ListOwnedObjectsResponse$Type = new ListOwnedObjectsResponse$Type();
 /**
  * @generated ServiceType for protobuf service sui.rpc.v2.StateService
  */

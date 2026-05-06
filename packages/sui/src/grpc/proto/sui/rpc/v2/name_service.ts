@@ -124,7 +124,7 @@ class LookupNameRequest$Type extends MessageType<LookupNameRequest> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.LookupNameRequest
  */
-export const LookupNameRequest = new LookupNameRequest$Type();
+export const LookupNameRequest: LookupNameRequest$Type = new LookupNameRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class LookupNameResponse$Type extends MessageType<LookupNameResponse> {
 	constructor() {
@@ -136,7 +136,7 @@ class LookupNameResponse$Type extends MessageType<LookupNameResponse> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.LookupNameResponse
  */
-export const LookupNameResponse = new LookupNameResponse$Type();
+export const LookupNameResponse: LookupNameResponse$Type = new LookupNameResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ReverseLookupNameRequest$Type extends MessageType<ReverseLookupNameRequest> {
 	constructor() {
@@ -148,7 +148,7 @@ class ReverseLookupNameRequest$Type extends MessageType<ReverseLookupNameRequest
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ReverseLookupNameRequest
  */
-export const ReverseLookupNameRequest = new ReverseLookupNameRequest$Type();
+export const ReverseLookupNameRequest: ReverseLookupNameRequest$Type = new ReverseLookupNameRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ReverseLookupNameResponse$Type extends MessageType<ReverseLookupNameResponse> {
 	constructor() {
@@ -160,7 +160,7 @@ class ReverseLookupNameResponse$Type extends MessageType<ReverseLookupNameRespon
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ReverseLookupNameResponse
  */
-export const ReverseLookupNameResponse = new ReverseLookupNameResponse$Type();
+export const ReverseLookupNameResponse: ReverseLookupNameResponse$Type = new ReverseLookupNameResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class NameRecord$Type extends MessageType<NameRecord> {
 	constructor() {
@@ -183,7 +183,7 @@ class NameRecord$Type extends MessageType<NameRecord> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.NameRecord
  */
-export const NameRecord = new NameRecord$Type();
+export const NameRecord: NameRecord$Type = new NameRecord$Type();
 /**
  * @generated ServiceType for protobuf service sui.rpc.v2.NameService
  */

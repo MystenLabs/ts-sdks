@@ -48,4 +48,4 @@ class BalanceChange$Type extends MessageType<BalanceChange> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.BalanceChange
  */
-export const BalanceChange = new BalanceChange$Type();
+export const BalanceChange: BalanceChange$Type = new BalanceChange$Type();

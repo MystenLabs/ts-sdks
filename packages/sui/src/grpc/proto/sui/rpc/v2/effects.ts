@@ -442,7 +442,7 @@ class TransactionEffects$Type extends MessageType<TransactionEffects> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.TransactionEffects
  */
-export const TransactionEffects = new TransactionEffects$Type();
+export const TransactionEffects: TransactionEffects$Type = new TransactionEffects$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ChangedObject$Type extends MessageType<ChangedObject> {
 	constructor() {
@@ -505,7 +505,7 @@ class ChangedObject$Type extends MessageType<ChangedObject> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ChangedObject
  */
-export const ChangedObject = new ChangedObject$Type();
+export const ChangedObject: ChangedObject$Type = new ChangedObject$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class AccumulatorWrite$Type extends MessageType<AccumulatorWrite> {
 	constructor() {
@@ -536,7 +536,7 @@ class AccumulatorWrite$Type extends MessageType<AccumulatorWrite> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.AccumulatorWrite
  */
-export const AccumulatorWrite = new AccumulatorWrite$Type();
+export const AccumulatorWrite: AccumulatorWrite$Type = new AccumulatorWrite$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class UnchangedConsensusObject$Type extends MessageType<UnchangedConsensusObject> {
 	constructor() {
@@ -568,4 +568,4 @@ class UnchangedConsensusObject$Type extends MessageType<UnchangedConsensusObject
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.UnchangedConsensusObject
  */
-export const UnchangedConsensusObject = new UnchangedConsensusObject$Type();
+export const UnchangedConsensusObject: UnchangedConsensusObject$Type = new UnchangedConsensusObject$Type();

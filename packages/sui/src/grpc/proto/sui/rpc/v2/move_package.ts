@@ -545,7 +545,7 @@ class Package$Type extends MessageType<Package> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.Package
  */
-export const Package = new Package$Type();
+export const Package: Package$Type = new Package$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class Module$Type extends MessageType<Module> {
 	constructor() {
@@ -572,7 +572,7 @@ class Module$Type extends MessageType<Module> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.Module
  */
-export const Module = new Module$Type();
+export const Module: Module$Type = new Module$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class DatatypeDescriptor$Type extends MessageType<DatatypeDescriptor> {
 	constructor() {
@@ -622,7 +622,7 @@ class DatatypeDescriptor$Type extends MessageType<DatatypeDescriptor> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.DatatypeDescriptor
  */
-export const DatatypeDescriptor = new DatatypeDescriptor$Type();
+export const DatatypeDescriptor: DatatypeDescriptor$Type = new DatatypeDescriptor$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class TypeParameter$Type extends MessageType<TypeParameter> {
 	constructor() {
@@ -641,7 +641,7 @@ class TypeParameter$Type extends MessageType<TypeParameter> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.TypeParameter
  */
-export const TypeParameter = new TypeParameter$Type();
+export const TypeParameter: TypeParameter$Type = new TypeParameter$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class FieldDescriptor$Type extends MessageType<FieldDescriptor> {
 	constructor() {
@@ -655,7 +655,7 @@ class FieldDescriptor$Type extends MessageType<FieldDescriptor> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.FieldDescriptor
  */
-export const FieldDescriptor = new FieldDescriptor$Type();
+export const FieldDescriptor: FieldDescriptor$Type = new FieldDescriptor$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class VariantDescriptor$Type extends MessageType<VariantDescriptor> {
 	constructor() {
@@ -675,7 +675,7 @@ class VariantDescriptor$Type extends MessageType<VariantDescriptor> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.VariantDescriptor
  */
-export const VariantDescriptor = new VariantDescriptor$Type();
+export const VariantDescriptor: VariantDescriptor$Type = new VariantDescriptor$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class OpenSignatureBody$Type extends MessageType<OpenSignatureBody> {
 	constructor() {
@@ -702,7 +702,7 @@ class OpenSignatureBody$Type extends MessageType<OpenSignatureBody> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.OpenSignatureBody
  */
-export const OpenSignatureBody = new OpenSignatureBody$Type();
+export const OpenSignatureBody: OpenSignatureBody$Type = new OpenSignatureBody$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class FunctionDescriptor$Type extends MessageType<FunctionDescriptor> {
 	constructor() {
@@ -743,7 +743,7 @@ class FunctionDescriptor$Type extends MessageType<FunctionDescriptor> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.FunctionDescriptor
  */
-export const FunctionDescriptor = new FunctionDescriptor$Type();
+export const FunctionDescriptor: FunctionDescriptor$Type = new FunctionDescriptor$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class OpenSignature$Type extends MessageType<OpenSignature> {
 	constructor() {
@@ -762,7 +762,7 @@ class OpenSignature$Type extends MessageType<OpenSignature> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.OpenSignature
  */
-export const OpenSignature = new OpenSignature$Type();
+export const OpenSignature: OpenSignature$Type = new OpenSignature$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class TypeOrigin$Type extends MessageType<TypeOrigin> {
 	constructor() {
@@ -776,7 +776,7 @@ class TypeOrigin$Type extends MessageType<TypeOrigin> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.TypeOrigin
  */
-export const TypeOrigin = new TypeOrigin$Type();
+export const TypeOrigin: TypeOrigin$Type = new TypeOrigin$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class Linkage$Type extends MessageType<Linkage> {
 	constructor() {
@@ -797,4 +797,4 @@ class Linkage$Type extends MessageType<Linkage> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.Linkage
  */
-export const Linkage = new Linkage$Type();
+export const Linkage: Linkage$Type = new Linkage$Type();

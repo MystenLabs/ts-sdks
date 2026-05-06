@@ -99,4 +99,4 @@ class Checkpoint$Type extends MessageType<Checkpoint> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.Checkpoint
  */
-export const Checkpoint = new Checkpoint$Type();
+export const Checkpoint: Checkpoint$Type = new Checkpoint$Type();

@@ -293,4 +293,4 @@ class Any$Type extends MessageType<Any> {
 /**
  * @generated MessageType for protobuf message google.protobuf.Any
  */
-export const Any = new Any$Type();
+export const Any: Any$Type = new Any$Type();

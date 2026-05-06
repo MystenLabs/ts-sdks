@@ -329,7 +329,7 @@ class GetServiceInfoRequest$Type extends MessageType<GetServiceInfoRequest> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.GetServiceInfoRequest
  */
-export const GetServiceInfoRequest = new GetServiceInfoRequest$Type();
+export const GetServiceInfoRequest: GetServiceInfoRequest$Type = new GetServiceInfoRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class GetServiceInfoResponse$Type extends MessageType<GetServiceInfoResponse> {
 	constructor() {
@@ -376,7 +376,7 @@ class GetServiceInfoResponse$Type extends MessageType<GetServiceInfoResponse> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.GetServiceInfoResponse
  */
-export const GetServiceInfoResponse = new GetServiceInfoResponse$Type();
+export const GetServiceInfoResponse: GetServiceInfoResponse$Type = new GetServiceInfoResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class GetObjectRequest$Type extends MessageType<GetObjectRequest> {
 	constructor() {
@@ -397,7 +397,7 @@ class GetObjectRequest$Type extends MessageType<GetObjectRequest> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.GetObjectRequest
  */
-export const GetObjectRequest = new GetObjectRequest$Type();
+export const GetObjectRequest: GetObjectRequest$Type = new GetObjectRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class GetObjectResponse$Type extends MessageType<GetObjectResponse> {
 	constructor() {
@@ -409,7 +409,7 @@ class GetObjectResponse$Type extends MessageType<GetObjectResponse> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.GetObjectResponse
  */
-export const GetObjectResponse = new GetObjectResponse$Type();
+export const GetObjectResponse: GetObjectResponse$Type = new GetObjectResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class BatchGetObjectsRequest$Type extends MessageType<BatchGetObjectsRequest> {
 	constructor() {
@@ -428,7 +428,7 @@ class BatchGetObjectsRequest$Type extends MessageType<BatchGetObjectsRequest> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.BatchGetObjectsRequest
  */
-export const BatchGetObjectsRequest = new BatchGetObjectsRequest$Type();
+export const BatchGetObjectsRequest: BatchGetObjectsRequest$Type = new BatchGetObjectsRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class BatchGetObjectsResponse$Type extends MessageType<BatchGetObjectsResponse> {
 	constructor() {
@@ -446,7 +446,7 @@ class BatchGetObjectsResponse$Type extends MessageType<BatchGetObjectsResponse> 
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.BatchGetObjectsResponse
  */
-export const BatchGetObjectsResponse = new BatchGetObjectsResponse$Type();
+export const BatchGetObjectsResponse: BatchGetObjectsResponse$Type = new BatchGetObjectsResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class GetObjectResult$Type extends MessageType<GetObjectResult> {
 	constructor() {
@@ -459,7 +459,7 @@ class GetObjectResult$Type extends MessageType<GetObjectResult> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.GetObjectResult
  */
-export const GetObjectResult = new GetObjectResult$Type();
+export const GetObjectResult: GetObjectResult$Type = new GetObjectResult$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class GetTransactionRequest$Type extends MessageType<GetTransactionRequest> {
 	constructor() {
@@ -472,7 +472,7 @@ class GetTransactionRequest$Type extends MessageType<GetTransactionRequest> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.GetTransactionRequest
  */
-export const GetTransactionRequest = new GetTransactionRequest$Type();
+export const GetTransactionRequest: GetTransactionRequest$Type = new GetTransactionRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class GetTransactionResponse$Type extends MessageType<GetTransactionResponse> {
 	constructor() {
@@ -484,7 +484,7 @@ class GetTransactionResponse$Type extends MessageType<GetTransactionResponse> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.GetTransactionResponse
  */
-export const GetTransactionResponse = new GetTransactionResponse$Type();
+export const GetTransactionResponse: GetTransactionResponse$Type = new GetTransactionResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class BatchGetTransactionsRequest$Type extends MessageType<BatchGetTransactionsRequest> {
 	constructor() {
@@ -503,7 +503,7 @@ class BatchGetTransactionsRequest$Type extends MessageType<BatchGetTransactionsR
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.BatchGetTransactionsRequest
  */
-export const BatchGetTransactionsRequest = new BatchGetTransactionsRequest$Type();
+export const BatchGetTransactionsRequest: BatchGetTransactionsRequest$Type = new BatchGetTransactionsRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class BatchGetTransactionsResponse$Type extends MessageType<BatchGetTransactionsResponse> {
 	constructor() {
@@ -521,7 +521,7 @@ class BatchGetTransactionsResponse$Type extends MessageType<BatchGetTransactions
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.BatchGetTransactionsResponse
  */
-export const BatchGetTransactionsResponse = new BatchGetTransactionsResponse$Type();
+export const BatchGetTransactionsResponse: BatchGetTransactionsResponse$Type = new BatchGetTransactionsResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class GetTransactionResult$Type extends MessageType<GetTransactionResult> {
 	constructor() {
@@ -540,7 +540,7 @@ class GetTransactionResult$Type extends MessageType<GetTransactionResult> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.GetTransactionResult
  */
-export const GetTransactionResult = new GetTransactionResult$Type();
+export const GetTransactionResult: GetTransactionResult$Type = new GetTransactionResult$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class GetCheckpointRequest$Type extends MessageType<GetCheckpointRequest> {
 	constructor() {
@@ -561,7 +561,7 @@ class GetCheckpointRequest$Type extends MessageType<GetCheckpointRequest> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.GetCheckpointRequest
  */
-export const GetCheckpointRequest = new GetCheckpointRequest$Type();
+export const GetCheckpointRequest: GetCheckpointRequest$Type = new GetCheckpointRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class GetCheckpointResponse$Type extends MessageType<GetCheckpointResponse> {
 	constructor() {
@@ -573,7 +573,7 @@ class GetCheckpointResponse$Type extends MessageType<GetCheckpointResponse> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.GetCheckpointResponse
  */
-export const GetCheckpointResponse = new GetCheckpointResponse$Type();
+export const GetCheckpointResponse: GetCheckpointResponse$Type = new GetCheckpointResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class GetEpochRequest$Type extends MessageType<GetEpochRequest> {
 	constructor() {
@@ -593,7 +593,7 @@ class GetEpochRequest$Type extends MessageType<GetEpochRequest> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.GetEpochRequest
  */
-export const GetEpochRequest = new GetEpochRequest$Type();
+export const GetEpochRequest: GetEpochRequest$Type = new GetEpochRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class GetEpochResponse$Type extends MessageType<GetEpochResponse> {
 	constructor() {
@@ -605,7 +605,7 @@ class GetEpochResponse$Type extends MessageType<GetEpochResponse> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.GetEpochResponse
  */
-export const GetEpochResponse = new GetEpochResponse$Type();
+export const GetEpochResponse: GetEpochResponse$Type = new GetEpochResponse$Type();
 /**
  * @generated ServiceType for protobuf service sui.rpc.v2.LedgerService
  */

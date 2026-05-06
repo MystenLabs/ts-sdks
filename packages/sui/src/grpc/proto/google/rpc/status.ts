@@ -71,4 +71,4 @@ class Status$Type extends MessageType<Status> {
 /**
  * @generated MessageType for protobuf message google.rpc.Status
  */
-export const Status = new Status$Type();
+export const Status: Status$Type = new Status$Type();

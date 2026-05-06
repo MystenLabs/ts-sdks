@@ -76,7 +76,7 @@ class JwkId$Type extends MessageType<JwkId> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.JwkId
  */
-export const JwkId = new JwkId$Type();
+export const JwkId: JwkId$Type = new JwkId$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class Jwk$Type extends MessageType<Jwk> {
 	constructor() {
@@ -91,4 +91,4 @@ class Jwk$Type extends MessageType<Jwk> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.Jwk
  */
-export const Jwk = new Jwk$Type();
+export const Jwk: Jwk$Type = new Jwk$Type();

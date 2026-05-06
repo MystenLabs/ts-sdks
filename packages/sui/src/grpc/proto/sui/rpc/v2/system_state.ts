@@ -724,7 +724,7 @@ class SystemState$Type extends MessageType<SystemState> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.SystemState
  */
-export const SystemState = new SystemState$Type();
+export const SystemState: SystemState$Type = new SystemState$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ValidatorReportRecord$Type extends MessageType<ValidatorReportRecord> {
 	constructor() {
@@ -743,7 +743,7 @@ class ValidatorReportRecord$Type extends MessageType<ValidatorReportRecord> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ValidatorReportRecord
  */
-export const ValidatorReportRecord = new ValidatorReportRecord$Type();
+export const ValidatorReportRecord: ValidatorReportRecord$Type = new ValidatorReportRecord$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class SystemParameters$Type extends MessageType<SystemParameters> {
 	constructor() {
@@ -819,7 +819,7 @@ class SystemParameters$Type extends MessageType<SystemParameters> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.SystemParameters
  */
-export const SystemParameters = new SystemParameters$Type();
+export const SystemParameters: SystemParameters$Type = new SystemParameters$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class MoveTable$Type extends MessageType<MoveTable> {
 	constructor() {
@@ -839,7 +839,7 @@ class MoveTable$Type extends MessageType<MoveTable> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.MoveTable
  */
-export const MoveTable = new MoveTable$Type();
+export const MoveTable: MoveTable$Type = new MoveTable$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class StakeSubsidy$Type extends MessageType<StakeSubsidy> {
 	constructor() {
@@ -890,7 +890,7 @@ class StakeSubsidy$Type extends MessageType<StakeSubsidy> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.StakeSubsidy
  */
-export const StakeSubsidy = new StakeSubsidy$Type();
+export const StakeSubsidy: StakeSubsidy$Type = new StakeSubsidy$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class StorageFund$Type extends MessageType<StorageFund> {
 	constructor() {
@@ -917,7 +917,7 @@ class StorageFund$Type extends MessageType<StorageFund> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.StorageFund
  */
-export const StorageFund = new StorageFund$Type();
+export const StorageFund: StorageFund$Type = new StorageFund$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ValidatorSet$Type extends MessageType<ValidatorSet> {
 	constructor() {
@@ -963,7 +963,7 @@ class ValidatorSet$Type extends MessageType<ValidatorSet> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ValidatorSet
  */
-export const ValidatorSet = new ValidatorSet$Type();
+export const ValidatorSet: ValidatorSet$Type = new ValidatorSet$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class Validator$Type extends MessageType<Validator> {
 	constructor() {
@@ -1103,7 +1103,7 @@ class Validator$Type extends MessageType<Validator> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.Validator
  */
-export const Validator = new Validator$Type();
+export const Validator: Validator$Type = new Validator$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class StakingPool$Type extends MessageType<StakingPool> {
 	constructor() {
@@ -1181,4 +1181,4 @@ class StakingPool$Type extends MessageType<StakingPool> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.StakingPool
  */
-export const StakingPool = new StakingPool$Type();
+export const StakingPool: StakingPool$Type = new StakingPool$Type();

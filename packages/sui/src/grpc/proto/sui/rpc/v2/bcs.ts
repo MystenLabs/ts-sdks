@@ -43,4 +43,4 @@ class Bcs$Type extends MessageType<Bcs> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.Bcs
  */
-export const Bcs = new Bcs$Type();
+export const Bcs: Bcs$Type = new Bcs$Type();

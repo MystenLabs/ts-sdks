@@ -87,4 +87,4 @@ class Argument$Type extends MessageType<Argument> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.Argument
  */
-export const Argument = new Argument$Type();
+export const Argument: Argument$Type = new Argument$Type();

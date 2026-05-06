@@ -858,7 +858,7 @@ class ExecutionStatus$Type extends MessageType<ExecutionStatus> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ExecutionStatus
  */
-export const ExecutionStatus = new ExecutionStatus$Type();
+export const ExecutionStatus: ExecutionStatus$Type = new ExecutionStatus$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ExecutionError$Type extends MessageType<ExecutionError> {
 	constructor() {
@@ -933,7 +933,7 @@ class ExecutionError$Type extends MessageType<ExecutionError> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ExecutionError
  */
-export const ExecutionError = new ExecutionError$Type();
+export const ExecutionError: ExecutionError$Type = new ExecutionError$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class MoveAbort$Type extends MessageType<MoveAbort> {
 	constructor() {
@@ -954,7 +954,7 @@ class MoveAbort$Type extends MessageType<MoveAbort> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.MoveAbort
  */
-export const MoveAbort = new MoveAbort$Type();
+export const MoveAbort: MoveAbort$Type = new MoveAbort$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class MoveLocation$Type extends MessageType<MoveLocation> {
 	constructor() {
@@ -970,7 +970,7 @@ class MoveLocation$Type extends MessageType<MoveLocation> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.MoveLocation
  */
-export const MoveLocation = new MoveLocation$Type();
+export const MoveLocation: MoveLocation$Type = new MoveLocation$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class CleverError$Type extends MessageType<CleverError> {
 	constructor() {
@@ -1001,7 +1001,7 @@ class CleverError$Type extends MessageType<CleverError> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.CleverError
  */
-export const CleverError = new CleverError$Type();
+export const CleverError: CleverError$Type = new CleverError$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class SizeError$Type extends MessageType<SizeError> {
 	constructor() {
@@ -1028,7 +1028,7 @@ class SizeError$Type extends MessageType<SizeError> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.SizeError
  */
-export const SizeError = new SizeError$Type();
+export const SizeError: SizeError$Type = new SizeError$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class IndexError$Type extends MessageType<IndexError> {
 	constructor() {
@@ -1041,7 +1041,7 @@ class IndexError$Type extends MessageType<IndexError> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.IndexError
  */
-export const IndexError = new IndexError$Type();
+export const IndexError: IndexError$Type = new IndexError$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class CoinDenyListError$Type extends MessageType<CoinDenyListError> {
 	constructor() {
@@ -1054,7 +1054,7 @@ class CoinDenyListError$Type extends MessageType<CoinDenyListError> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.CoinDenyListError
  */
-export const CoinDenyListError = new CoinDenyListError$Type();
+export const CoinDenyListError: CoinDenyListError$Type = new CoinDenyListError$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class CongestedObjects$Type extends MessageType<CongestedObjects> {
 	constructor() {
@@ -1072,7 +1072,7 @@ class CongestedObjects$Type extends MessageType<CongestedObjects> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.CongestedObjects
  */
-export const CongestedObjects = new CongestedObjects$Type();
+export const CongestedObjects: CongestedObjects$Type = new CongestedObjects$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class CommandArgumentError$Type extends MessageType<CommandArgumentError> {
 	constructor() {
@@ -1095,7 +1095,7 @@ class CommandArgumentError$Type extends MessageType<CommandArgumentError> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.CommandArgumentError
  */
-export const CommandArgumentError = new CommandArgumentError$Type();
+export const CommandArgumentError: CommandArgumentError$Type = new CommandArgumentError$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class PackageUpgradeError$Type extends MessageType<PackageUpgradeError> {
 	constructor() {
@@ -1120,7 +1120,7 @@ class PackageUpgradeError$Type extends MessageType<PackageUpgradeError> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.PackageUpgradeError
  */
-export const PackageUpgradeError = new PackageUpgradeError$Type();
+export const PackageUpgradeError: PackageUpgradeError$Type = new PackageUpgradeError$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class TypeArgumentError$Type extends MessageType<TypeArgumentError> {
 	constructor() {
@@ -1142,4 +1142,4 @@ class TypeArgumentError$Type extends MessageType<TypeArgumentError> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.TypeArgumentError
  */
-export const TypeArgumentError = new TypeArgumentError$Type();
+export const TypeArgumentError: TypeArgumentError$Type = new TypeArgumentError$Type();

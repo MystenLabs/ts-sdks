@@ -88,4 +88,4 @@ class Owner$Type extends MessageType<Owner> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.Owner
  */
-export const Owner = new Owner$Type();
+export const Owner: Owner$Type = new Owner$Type();

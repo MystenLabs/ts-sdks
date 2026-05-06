@@ -1244,7 +1244,7 @@ class Transaction$Type extends MessageType<Transaction> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.Transaction
  */
-export const Transaction = new Transaction$Type();
+export const Transaction: Transaction$Type = new Transaction$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class GasPayment$Type extends MessageType<GasPayment> {
 	constructor() {
@@ -1279,7 +1279,7 @@ class GasPayment$Type extends MessageType<GasPayment> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.GasPayment
  */
-export const GasPayment = new GasPayment$Type();
+export const GasPayment: GasPayment$Type = new GasPayment$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class TransactionExpiration$Type extends MessageType<TransactionExpiration> {
 	constructor() {
@@ -1320,7 +1320,7 @@ class TransactionExpiration$Type extends MessageType<TransactionExpiration> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.TransactionExpiration
  */
-export const TransactionExpiration = new TransactionExpiration$Type();
+export const TransactionExpiration: TransactionExpiration$Type = new TransactionExpiration$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class TransactionKind$Type extends MessageType<TransactionKind> {
 	constructor() {
@@ -1375,7 +1375,7 @@ class TransactionKind$Type extends MessageType<TransactionKind> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.TransactionKind
  */
-export const TransactionKind = new TransactionKind$Type();
+export const TransactionKind: TransactionKind$Type = new TransactionKind$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ProgrammableTransaction$Type extends MessageType<ProgrammableTransaction> {
 	constructor() {
@@ -1394,7 +1394,7 @@ class ProgrammableTransaction$Type extends MessageType<ProgrammableTransaction> 
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ProgrammableTransaction
  */
-export const ProgrammableTransaction = new ProgrammableTransaction$Type();
+export const ProgrammableTransaction: ProgrammableTransaction$Type = new ProgrammableTransaction$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class Command$Type extends MessageType<Command> {
 	constructor() {
@@ -1424,7 +1424,7 @@ class Command$Type extends MessageType<Command> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.Command
  */
-export const Command = new Command$Type();
+export const Command: Command$Type = new Command$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class MoveCall$Type extends MessageType<MoveCall> {
 	constructor() {
@@ -1452,7 +1452,7 @@ class MoveCall$Type extends MessageType<MoveCall> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.MoveCall
  */
-export const MoveCall = new MoveCall$Type();
+export const MoveCall: MoveCall$Type = new MoveCall$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class TransferObjects$Type extends MessageType<TransferObjects> {
 	constructor() {
@@ -1471,7 +1471,7 @@ class TransferObjects$Type extends MessageType<TransferObjects> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.TransferObjects
  */
-export const TransferObjects = new TransferObjects$Type();
+export const TransferObjects: TransferObjects$Type = new TransferObjects$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class SplitCoins$Type extends MessageType<SplitCoins> {
 	constructor() {
@@ -1490,7 +1490,7 @@ class SplitCoins$Type extends MessageType<SplitCoins> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.SplitCoins
  */
-export const SplitCoins = new SplitCoins$Type();
+export const SplitCoins: SplitCoins$Type = new SplitCoins$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class MergeCoins$Type extends MessageType<MergeCoins> {
 	constructor() {
@@ -1509,7 +1509,7 @@ class MergeCoins$Type extends MessageType<MergeCoins> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.MergeCoins
  */
-export const MergeCoins = new MergeCoins$Type();
+export const MergeCoins: MergeCoins$Type = new MergeCoins$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class Publish$Type extends MessageType<Publish> {
 	constructor() {
@@ -1534,7 +1534,7 @@ class Publish$Type extends MessageType<Publish> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.Publish
  */
-export const Publish = new Publish$Type();
+export const Publish: Publish$Type = new Publish$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class MakeMoveVector$Type extends MessageType<MakeMoveVector> {
 	constructor() {
@@ -1553,7 +1553,7 @@ class MakeMoveVector$Type extends MessageType<MakeMoveVector> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.MakeMoveVector
  */
-export const MakeMoveVector = new MakeMoveVector$Type();
+export const MakeMoveVector: MakeMoveVector$Type = new MakeMoveVector$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class Upgrade$Type extends MessageType<Upgrade> {
 	constructor() {
@@ -1580,7 +1580,7 @@ class Upgrade$Type extends MessageType<Upgrade> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.Upgrade
  */
-export const Upgrade = new Upgrade$Type();
+export const Upgrade: Upgrade$Type = new Upgrade$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class RandomnessStateUpdate$Type extends MessageType<RandomnessStateUpdate> {
 	constructor() {
@@ -1616,7 +1616,7 @@ class RandomnessStateUpdate$Type extends MessageType<RandomnessStateUpdate> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.RandomnessStateUpdate
  */
-export const RandomnessStateUpdate = new RandomnessStateUpdate$Type();
+export const RandomnessStateUpdate: RandomnessStateUpdate$Type = new RandomnessStateUpdate$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ChangeEpoch$Type extends MessageType<ChangeEpoch> {
 	constructor() {
@@ -1683,7 +1683,7 @@ class ChangeEpoch$Type extends MessageType<ChangeEpoch> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ChangeEpoch
  */
-export const ChangeEpoch = new ChangeEpoch$Type();
+export const ChangeEpoch: ChangeEpoch$Type = new ChangeEpoch$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class SystemPackage$Type extends MessageType<SystemPackage> {
 	constructor() {
@@ -1716,7 +1716,7 @@ class SystemPackage$Type extends MessageType<SystemPackage> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.SystemPackage
  */
-export const SystemPackage = new SystemPackage$Type();
+export const SystemPackage: SystemPackage$Type = new SystemPackage$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class GenesisTransaction$Type extends MessageType<GenesisTransaction> {
 	constructor() {
@@ -1728,7 +1728,7 @@ class GenesisTransaction$Type extends MessageType<GenesisTransaction> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.GenesisTransaction
  */
-export const GenesisTransaction = new GenesisTransaction$Type();
+export const GenesisTransaction: GenesisTransaction$Type = new GenesisTransaction$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ConsensusCommitPrologue$Type extends MessageType<ConsensusCommitPrologue> {
 	constructor() {
@@ -1784,7 +1784,7 @@ class ConsensusCommitPrologue$Type extends MessageType<ConsensusCommitPrologue> 
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ConsensusCommitPrologue
  */
-export const ConsensusCommitPrologue = new ConsensusCommitPrologue$Type();
+export const ConsensusCommitPrologue: ConsensusCommitPrologue$Type = new ConsensusCommitPrologue$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class VersionAssignment$Type extends MessageType<VersionAssignment> {
 	constructor() {
@@ -1812,7 +1812,7 @@ class VersionAssignment$Type extends MessageType<VersionAssignment> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.VersionAssignment
  */
-export const VersionAssignment = new VersionAssignment$Type();
+export const VersionAssignment: VersionAssignment$Type = new VersionAssignment$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class CanceledTransaction$Type extends MessageType<CanceledTransaction> {
 	constructor() {
@@ -1831,7 +1831,7 @@ class CanceledTransaction$Type extends MessageType<CanceledTransaction> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.CanceledTransaction
  */
-export const CanceledTransaction = new CanceledTransaction$Type();
+export const CanceledTransaction: CanceledTransaction$Type = new CanceledTransaction$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ConsensusDeterminedVersionAssignments$Type extends MessageType<ConsensusDeterminedVersionAssignments> {
 	constructor() {
@@ -1893,7 +1893,7 @@ class AuthenticatorStateUpdate$Type extends MessageType<AuthenticatorStateUpdate
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.AuthenticatorStateUpdate
  */
-export const AuthenticatorStateUpdate = new AuthenticatorStateUpdate$Type();
+export const AuthenticatorStateUpdate: AuthenticatorStateUpdate$Type = new AuthenticatorStateUpdate$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ActiveJwk$Type extends MessageType<ActiveJwk> {
 	constructor() {
@@ -1914,7 +1914,7 @@ class ActiveJwk$Type extends MessageType<ActiveJwk> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ActiveJwk
  */
-export const ActiveJwk = new ActiveJwk$Type();
+export const ActiveJwk: ActiveJwk$Type = new ActiveJwk$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class EndOfEpochTransaction$Type extends MessageType<EndOfEpochTransaction> {
 	constructor() {
@@ -1932,7 +1932,7 @@ class EndOfEpochTransaction$Type extends MessageType<EndOfEpochTransaction> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.EndOfEpochTransaction
  */
-export const EndOfEpochTransaction = new EndOfEpochTransaction$Type();
+export const EndOfEpochTransaction: EndOfEpochTransaction$Type = new EndOfEpochTransaction$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class EndOfEpochTransactionKind$Type extends MessageType<EndOfEpochTransactionKind> {
 	constructor() {
@@ -1982,7 +1982,7 @@ class EndOfEpochTransactionKind$Type extends MessageType<EndOfEpochTransactionKi
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.EndOfEpochTransactionKind
  */
-export const EndOfEpochTransactionKind = new EndOfEpochTransactionKind$Type();
+export const EndOfEpochTransactionKind: EndOfEpochTransactionKind$Type = new EndOfEpochTransactionKind$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class AuthenticatorStateExpire$Type extends MessageType<AuthenticatorStateExpire> {
 	constructor() {
@@ -2009,7 +2009,7 @@ class AuthenticatorStateExpire$Type extends MessageType<AuthenticatorStateExpire
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.AuthenticatorStateExpire
  */
-export const AuthenticatorStateExpire = new AuthenticatorStateExpire$Type();
+export const AuthenticatorStateExpire: AuthenticatorStateExpire$Type = new AuthenticatorStateExpire$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ExecutionTimeObservations$Type extends MessageType<ExecutionTimeObservations> {
 	constructor() {
@@ -2028,7 +2028,7 @@ class ExecutionTimeObservations$Type extends MessageType<ExecutionTimeObservatio
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ExecutionTimeObservations
  */
-export const ExecutionTimeObservations = new ExecutionTimeObservations$Type();
+export const ExecutionTimeObservations: ExecutionTimeObservations$Type = new ExecutionTimeObservations$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ExecutionTimeObservation$Type extends MessageType<ExecutionTimeObservation> {
 	constructor() {
@@ -2057,7 +2057,7 @@ class ExecutionTimeObservation$Type extends MessageType<ExecutionTimeObservation
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ExecutionTimeObservation
  */
-export const ExecutionTimeObservation = new ExecutionTimeObservation$Type();
+export const ExecutionTimeObservation: ExecutionTimeObservation$Type = new ExecutionTimeObservation$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ValidatorExecutionTimeObservation$Type extends MessageType<ValidatorExecutionTimeObservation> {
 	constructor() {
@@ -2070,4 +2070,4 @@ class ValidatorExecutionTimeObservation$Type extends MessageType<ValidatorExecut
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ValidatorExecutionTimeObservation
  */
-export const ValidatorExecutionTimeObservation = new ValidatorExecutionTimeObservation$Type();
+export const ValidatorExecutionTimeObservation: ValidatorExecutionTimeObservation$Type = new ValidatorExecutionTimeObservation$Type();

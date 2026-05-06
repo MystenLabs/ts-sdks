@@ -110,4 +110,4 @@ class Epoch$Type extends MessageType<Epoch> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.Epoch
  */
-export const Epoch = new Epoch$Type();
+export const Epoch: Epoch$Type = new Epoch$Type();

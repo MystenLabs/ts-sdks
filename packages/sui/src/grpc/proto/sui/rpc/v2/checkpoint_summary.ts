@@ -237,7 +237,7 @@ class CheckpointSummary$Type extends MessageType<CheckpointSummary> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.CheckpointSummary
  */
-export const CheckpointSummary = new CheckpointSummary$Type();
+export const CheckpointSummary: CheckpointSummary$Type = new CheckpointSummary$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class EndOfEpochData$Type extends MessageType<EndOfEpochData> {
 	constructor() {
@@ -270,7 +270,7 @@ class EndOfEpochData$Type extends MessageType<EndOfEpochData> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.EndOfEpochData
  */
-export const EndOfEpochData = new EndOfEpochData$Type();
+export const EndOfEpochData: EndOfEpochData$Type = new EndOfEpochData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class CheckpointCommitment$Type extends MessageType<CheckpointCommitment> {
 	constructor() {
@@ -292,4 +292,4 @@ class CheckpointCommitment$Type extends MessageType<CheckpointCommitment> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.CheckpointCommitment
  */
-export const CheckpointCommitment = new CheckpointCommitment$Type();
+export const CheckpointCommitment: CheckpointCommitment$Type = new CheckpointCommitment$Type();

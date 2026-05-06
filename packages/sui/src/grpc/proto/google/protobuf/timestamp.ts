@@ -257,4 +257,4 @@ class Timestamp$Type extends MessageType<Timestamp> {
 /**
  * @generated MessageType for protobuf message google.protobuf.Timestamp
  */
-export const Timestamp = new Timestamp$Type();
+export const Timestamp: Timestamp$Type = new Timestamp$Type();

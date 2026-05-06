@@ -557,7 +557,7 @@ class UserSignature$Type extends MessageType<UserSignature> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.UserSignature
  */
-export const UserSignature = new UserSignature$Type();
+export const UserSignature: UserSignature$Type = new UserSignature$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class SimpleSignature$Type extends MessageType<SimpleSignature> {
 	constructor() {
@@ -577,7 +577,7 @@ class SimpleSignature$Type extends MessageType<SimpleSignature> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.SimpleSignature
  */
-export const SimpleSignature = new SimpleSignature$Type();
+export const SimpleSignature: SimpleSignature$Type = new SimpleSignature$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ZkLoginPublicIdentifier$Type extends MessageType<ZkLoginPublicIdentifier> {
 	constructor() {
@@ -590,7 +590,7 @@ class ZkLoginPublicIdentifier$Type extends MessageType<ZkLoginPublicIdentifier> 
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ZkLoginPublicIdentifier
  */
-export const ZkLoginPublicIdentifier = new ZkLoginPublicIdentifier$Type();
+export const ZkLoginPublicIdentifier: ZkLoginPublicIdentifier$Type = new ZkLoginPublicIdentifier$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class MultisigMemberPublicKey$Type extends MessageType<MultisigMemberPublicKey> {
 	constructor() {
@@ -610,7 +610,7 @@ class MultisigMemberPublicKey$Type extends MessageType<MultisigMemberPublicKey> 
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.MultisigMemberPublicKey
  */
-export const MultisigMemberPublicKey = new MultisigMemberPublicKey$Type();
+export const MultisigMemberPublicKey: MultisigMemberPublicKey$Type = new MultisigMemberPublicKey$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class MultisigMember$Type extends MessageType<MultisigMember> {
 	constructor() {
@@ -623,7 +623,7 @@ class MultisigMember$Type extends MessageType<MultisigMember> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.MultisigMember
  */
-export const MultisigMember = new MultisigMember$Type();
+export const MultisigMember: MultisigMember$Type = new MultisigMember$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class MultisigCommittee$Type extends MessageType<MultisigCommittee> {
 	constructor() {
@@ -642,7 +642,7 @@ class MultisigCommittee$Type extends MessageType<MultisigCommittee> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.MultisigCommittee
  */
-export const MultisigCommittee = new MultisigCommittee$Type();
+export const MultisigCommittee: MultisigCommittee$Type = new MultisigCommittee$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class MultisigAggregatedSignature$Type extends MessageType<MultisigAggregatedSignature> {
 	constructor() {
@@ -663,7 +663,7 @@ class MultisigAggregatedSignature$Type extends MessageType<MultisigAggregatedSig
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.MultisigAggregatedSignature
  */
-export const MultisigAggregatedSignature = new MultisigAggregatedSignature$Type();
+export const MultisigAggregatedSignature: MultisigAggregatedSignature$Type = new MultisigAggregatedSignature$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class MultisigMemberSignature$Type extends MessageType<MultisigMemberSignature> {
 	constructor() {
@@ -684,7 +684,7 @@ class MultisigMemberSignature$Type extends MessageType<MultisigMemberSignature> 
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.MultisigMemberSignature
  */
-export const MultisigMemberSignature = new MultisigMemberSignature$Type();
+export const MultisigMemberSignature: MultisigMemberSignature$Type = new MultisigMemberSignature$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ZkLoginAuthenticator$Type extends MessageType<ZkLoginAuthenticator> {
 	constructor() {
@@ -707,7 +707,7 @@ class ZkLoginAuthenticator$Type extends MessageType<ZkLoginAuthenticator> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ZkLoginAuthenticator
  */
-export const ZkLoginAuthenticator = new ZkLoginAuthenticator$Type();
+export const ZkLoginAuthenticator: ZkLoginAuthenticator$Type = new ZkLoginAuthenticator$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ZkLoginInputs$Type extends MessageType<ZkLoginInputs> {
 	constructor() {
@@ -722,7 +722,7 @@ class ZkLoginInputs$Type extends MessageType<ZkLoginInputs> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ZkLoginInputs
  */
-export const ZkLoginInputs = new ZkLoginInputs$Type();
+export const ZkLoginInputs: ZkLoginInputs$Type = new ZkLoginInputs$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ZkLoginProof$Type extends MessageType<ZkLoginProof> {
 	constructor() {
@@ -736,7 +736,7 @@ class ZkLoginProof$Type extends MessageType<ZkLoginProof> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ZkLoginProof
  */
-export const ZkLoginProof = new ZkLoginProof$Type();
+export const ZkLoginProof: ZkLoginProof$Type = new ZkLoginProof$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ZkLoginClaim$Type extends MessageType<ZkLoginClaim> {
 	constructor() {
@@ -749,7 +749,7 @@ class ZkLoginClaim$Type extends MessageType<ZkLoginClaim> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ZkLoginClaim
  */
-export const ZkLoginClaim = new ZkLoginClaim$Type();
+export const ZkLoginClaim: ZkLoginClaim$Type = new ZkLoginClaim$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class CircomG1$Type extends MessageType<CircomG1> {
 	constructor() {
@@ -763,7 +763,7 @@ class CircomG1$Type extends MessageType<CircomG1> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.CircomG1
  */
-export const CircomG1 = new CircomG1$Type();
+export const CircomG1: CircomG1$Type = new CircomG1$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class CircomG2$Type extends MessageType<CircomG2> {
 	constructor() {
@@ -780,7 +780,7 @@ class CircomG2$Type extends MessageType<CircomG2> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.CircomG2
  */
-export const CircomG2 = new CircomG2$Type();
+export const CircomG2: CircomG2$Type = new CircomG2$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class PasskeyAuthenticator$Type extends MessageType<PasskeyAuthenticator> {
 	constructor() {
@@ -794,7 +794,7 @@ class PasskeyAuthenticator$Type extends MessageType<PasskeyAuthenticator> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.PasskeyAuthenticator
  */
-export const PasskeyAuthenticator = new PasskeyAuthenticator$Type();
+export const PasskeyAuthenticator: PasskeyAuthenticator$Type = new PasskeyAuthenticator$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ValidatorCommittee$Type extends MessageType<ValidatorCommittee> {
 	constructor() {
@@ -820,7 +820,7 @@ class ValidatorCommittee$Type extends MessageType<ValidatorCommittee> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ValidatorCommittee
  */
-export const ValidatorCommittee = new ValidatorCommittee$Type();
+export const ValidatorCommittee: ValidatorCommittee$Type = new ValidatorCommittee$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ValidatorCommitteeMember$Type extends MessageType<ValidatorCommitteeMember> {
 	constructor() {
@@ -840,7 +840,7 @@ class ValidatorCommitteeMember$Type extends MessageType<ValidatorCommitteeMember
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ValidatorCommitteeMember
  */
-export const ValidatorCommitteeMember = new ValidatorCommitteeMember$Type();
+export const ValidatorCommitteeMember: ValidatorCommitteeMember$Type = new ValidatorCommitteeMember$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ValidatorAggregatedSignature$Type extends MessageType<ValidatorAggregatedSignature> {
 	constructor() {
@@ -861,4 +861,4 @@ class ValidatorAggregatedSignature$Type extends MessageType<ValidatorAggregatedS
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ValidatorAggregatedSignature
  */
-export const ValidatorAggregatedSignature = new ValidatorAggregatedSignature$Type();
+export const ValidatorAggregatedSignature: ValidatorAggregatedSignature$Type = new ValidatorAggregatedSignature$Type();

@@ -202,7 +202,7 @@ class Object$Type extends MessageType<Object> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.Object
  */
-export const Object = new Object$Type();
+export const Object: Object$Type = new Object$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ObjectSet$Type extends MessageType<ObjectSet> {
 	constructor() {
@@ -214,7 +214,7 @@ class ObjectSet$Type extends MessageType<ObjectSet> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ObjectSet
  */
-export const ObjectSet = new ObjectSet$Type();
+export const ObjectSet: ObjectSet$Type = new ObjectSet$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class Display$Type extends MessageType<Display> {
 	constructor() {
@@ -227,4 +227,4 @@ class Display$Type extends MessageType<Display> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.Display
  */
-export const Display = new Display$Type();
+export const Display: Display$Type = new Display$Type();

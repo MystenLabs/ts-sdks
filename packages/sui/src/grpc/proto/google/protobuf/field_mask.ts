@@ -306,4 +306,4 @@ class FieldMask$Type extends MessageType<FieldMask> {
 /**
  * @generated MessageType for protobuf message google.protobuf.FieldMask
  */
-export const FieldMask = new FieldMask$Type();
+export const FieldMask: FieldMask$Type = new FieldMask$Type();

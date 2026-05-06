@@ -95,7 +95,7 @@ class TransactionEvents$Type extends MessageType<TransactionEvents> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.TransactionEvents
  */
-export const TransactionEvents = new TransactionEvents$Type();
+export const TransactionEvents: TransactionEvents$Type = new TransactionEvents$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class Event$Type extends MessageType<Event> {
 	constructor() {
@@ -112,4 +112,4 @@ class Event$Type extends MessageType<Event> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.Event
  */
-export const Event = new Event$Type();
+export const Event: Event$Type = new Event$Type();

@@ -173,7 +173,7 @@ class ExecuteTransactionRequest$Type extends MessageType<ExecuteTransactionReque
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ExecuteTransactionRequest
  */
-export const ExecuteTransactionRequest = new ExecuteTransactionRequest$Type();
+export const ExecuteTransactionRequest: ExecuteTransactionRequest$Type = new ExecuteTransactionRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ExecuteTransactionResponse$Type extends MessageType<ExecuteTransactionResponse> {
 	constructor() {
@@ -185,7 +185,7 @@ class ExecuteTransactionResponse$Type extends MessageType<ExecuteTransactionResp
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ExecuteTransactionResponse
  */
-export const ExecuteTransactionResponse = new ExecuteTransactionResponse$Type();
+export const ExecuteTransactionResponse: ExecuteTransactionResponse$Type = new ExecuteTransactionResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class SimulateTransactionRequest$Type extends MessageType<SimulateTransactionRequest> {
 	constructor() {
@@ -209,7 +209,7 @@ class SimulateTransactionRequest$Type extends MessageType<SimulateTransactionReq
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.SimulateTransactionRequest
  */
-export const SimulateTransactionRequest = new SimulateTransactionRequest$Type();
+export const SimulateTransactionRequest: SimulateTransactionRequest$Type = new SimulateTransactionRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class SimulateTransactionResponse$Type extends MessageType<SimulateTransactionResponse> {
 	constructor() {
@@ -236,7 +236,7 @@ class SimulateTransactionResponse$Type extends MessageType<SimulateTransactionRe
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.SimulateTransactionResponse
  */
-export const SimulateTransactionResponse = new SimulateTransactionResponse$Type();
+export const SimulateTransactionResponse: SimulateTransactionResponse$Type = new SimulateTransactionResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class CommandResult$Type extends MessageType<CommandResult> {
 	constructor() {
@@ -261,7 +261,7 @@ class CommandResult$Type extends MessageType<CommandResult> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.CommandResult
  */
-export const CommandResult = new CommandResult$Type();
+export const CommandResult: CommandResult$Type = new CommandResult$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class CommandOutput$Type extends MessageType<CommandOutput> {
 	constructor() {
@@ -275,7 +275,7 @@ class CommandOutput$Type extends MessageType<CommandOutput> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.CommandOutput
  */
-export const CommandOutput = new CommandOutput$Type();
+export const CommandOutput: CommandOutput$Type = new CommandOutput$Type();
 /**
  * @generated ServiceType for protobuf service sui.rpc.v2.TransactionExecutionService
  */

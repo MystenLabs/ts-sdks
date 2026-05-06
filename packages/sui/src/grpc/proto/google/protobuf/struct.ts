@@ -210,7 +210,7 @@ class Struct$Type extends MessageType<Struct> {
 /**
  * @generated MessageType for protobuf message google.protobuf.Struct
  */
-export const Struct = new Struct$Type();
+export const Struct: Struct$Type = new Struct$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class Value$Type extends MessageType<Value> {
 	constructor() {
@@ -293,7 +293,7 @@ class Value$Type extends MessageType<Value> {
 /**
  * @generated MessageType for protobuf message google.protobuf.Value
  */
-export const Value = new Value$Type();
+export const Value: Value$Type = new Value$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ListValue$Type extends MessageType<ListValue> {
 	constructor() {
@@ -324,4 +324,4 @@ class ListValue$Type extends MessageType<ListValue> {
 /**
  * @generated MessageType for protobuf message google.protobuf.ListValue
  */
-export const ListValue = new ListValue$Type();
+export const ListValue: ListValue$Type = new ListValue$Type();

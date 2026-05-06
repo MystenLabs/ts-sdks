@@ -106,7 +106,7 @@ class CheckpointContents$Type extends MessageType<CheckpointContents> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.CheckpointContents
  */
-export const CheckpointContents = new CheckpointContents$Type();
+export const CheckpointContents: CheckpointContents$Type = new CheckpointContents$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class CheckpointedTransactionInfo$Type extends MessageType<CheckpointedTransactionInfo> {
 	constructor() {
@@ -133,7 +133,7 @@ class CheckpointedTransactionInfo$Type extends MessageType<CheckpointedTransacti
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.CheckpointedTransactionInfo
  */
-export const CheckpointedTransactionInfo = new CheckpointedTransactionInfo$Type();
+export const CheckpointedTransactionInfo: CheckpointedTransactionInfo$Type = new CheckpointedTransactionInfo$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class AddressAliasesVersion$Type extends MessageType<AddressAliasesVersion> {
 	constructor() {
@@ -152,4 +152,4 @@ class AddressAliasesVersion$Type extends MessageType<AddressAliasesVersion> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.AddressAliasesVersion
  */
-export const AddressAliasesVersion = new AddressAliasesVersion$Type();
+export const AddressAliasesVersion: AddressAliasesVersion$Type = new AddressAliasesVersion$Type();

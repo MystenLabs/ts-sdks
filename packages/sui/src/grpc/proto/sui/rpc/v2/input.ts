@@ -217,7 +217,7 @@ class Input$Type extends MessageType<Input> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.Input
  */
-export const Input = new Input$Type();
+export const Input: Input$Type = new Input$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class FundsWithdrawal$Type extends MessageType<FundsWithdrawal> {
 	constructor() {
@@ -244,4 +244,4 @@ class FundsWithdrawal$Type extends MessageType<FundsWithdrawal> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.FundsWithdrawal
  */
-export const FundsWithdrawal = new FundsWithdrawal$Type();
+export const FundsWithdrawal: FundsWithdrawal$Type = new FundsWithdrawal$Type();

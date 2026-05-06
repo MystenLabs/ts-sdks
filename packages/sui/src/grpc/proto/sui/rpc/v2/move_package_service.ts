@@ -181,7 +181,7 @@ class GetPackageRequest$Type extends MessageType<GetPackageRequest> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.GetPackageRequest
  */
-export const GetPackageRequest = new GetPackageRequest$Type();
+export const GetPackageRequest: GetPackageRequest$Type = new GetPackageRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class GetPackageResponse$Type extends MessageType<GetPackageResponse> {
 	constructor() {
@@ -193,7 +193,7 @@ class GetPackageResponse$Type extends MessageType<GetPackageResponse> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.GetPackageResponse
  */
-export const GetPackageResponse = new GetPackageResponse$Type();
+export const GetPackageResponse: GetPackageResponse$Type = new GetPackageResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class GetDatatypeRequest$Type extends MessageType<GetDatatypeRequest> {
 	constructor() {
@@ -207,7 +207,7 @@ class GetDatatypeRequest$Type extends MessageType<GetDatatypeRequest> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.GetDatatypeRequest
  */
-export const GetDatatypeRequest = new GetDatatypeRequest$Type();
+export const GetDatatypeRequest: GetDatatypeRequest$Type = new GetDatatypeRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class GetDatatypeResponse$Type extends MessageType<GetDatatypeResponse> {
 	constructor() {
@@ -219,7 +219,7 @@ class GetDatatypeResponse$Type extends MessageType<GetDatatypeResponse> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.GetDatatypeResponse
  */
-export const GetDatatypeResponse = new GetDatatypeResponse$Type();
+export const GetDatatypeResponse: GetDatatypeResponse$Type = new GetDatatypeResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class GetFunctionRequest$Type extends MessageType<GetFunctionRequest> {
 	constructor() {
@@ -233,7 +233,7 @@ class GetFunctionRequest$Type extends MessageType<GetFunctionRequest> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.GetFunctionRequest
  */
-export const GetFunctionRequest = new GetFunctionRequest$Type();
+export const GetFunctionRequest: GetFunctionRequest$Type = new GetFunctionRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class GetFunctionResponse$Type extends MessageType<GetFunctionResponse> {
 	constructor() {
@@ -245,7 +245,7 @@ class GetFunctionResponse$Type extends MessageType<GetFunctionResponse> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.GetFunctionResponse
  */
-export const GetFunctionResponse = new GetFunctionResponse$Type();
+export const GetFunctionResponse: GetFunctionResponse$Type = new GetFunctionResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ListPackageVersionsRequest$Type extends MessageType<ListPackageVersionsRequest> {
 	constructor() {
@@ -259,7 +259,7 @@ class ListPackageVersionsRequest$Type extends MessageType<ListPackageVersionsReq
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ListPackageVersionsRequest
  */
-export const ListPackageVersionsRequest = new ListPackageVersionsRequest$Type();
+export const ListPackageVersionsRequest: ListPackageVersionsRequest$Type = new ListPackageVersionsRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ListPackageVersionsResponse$Type extends MessageType<ListPackageVersionsResponse> {
 	constructor() {
@@ -278,7 +278,7 @@ class ListPackageVersionsResponse$Type extends MessageType<ListPackageVersionsRe
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ListPackageVersionsResponse
  */
-export const ListPackageVersionsResponse = new ListPackageVersionsResponse$Type();
+export const ListPackageVersionsResponse: ListPackageVersionsResponse$Type = new ListPackageVersionsResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class PackageVersion$Type extends MessageType<PackageVersion> {
 	constructor() {
@@ -298,7 +298,7 @@ class PackageVersion$Type extends MessageType<PackageVersion> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.PackageVersion
  */
-export const PackageVersion = new PackageVersion$Type();
+export const PackageVersion: PackageVersion$Type = new PackageVersion$Type();
 /**
  * @generated ServiceType for protobuf service sui.rpc.v2.MovePackageService
  */

@@ -61,4 +61,4 @@ class Empty$Type extends MessageType<Empty> {
 /**
  * @generated MessageType for protobuf message google.protobuf.Empty
  */
-export const Empty = new Empty$Type();
+export const Empty: Empty$Type = new Empty$Type();

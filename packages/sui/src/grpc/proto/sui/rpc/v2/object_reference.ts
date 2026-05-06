@@ -55,4 +55,4 @@ class ObjectReference$Type extends MessageType<ObjectReference> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ObjectReference
  */
-export const ObjectReference = new ObjectReference$Type();
+export const ObjectReference: ObjectReference$Type = new ObjectReference$Type();

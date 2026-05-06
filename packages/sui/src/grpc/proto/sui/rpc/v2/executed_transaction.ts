@@ -119,4 +119,4 @@ class ExecutedTransaction$Type extends MessageType<ExecutedTransaction> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ExecutedTransaction
  */
-export const ExecutedTransaction = new ExecutedTransaction$Type();
+export const ExecutedTransaction: ExecutedTransaction$Type = new ExecutedTransaction$Type();

@@ -63,4 +63,4 @@ class ProtocolConfig$Type extends MessageType<ProtocolConfig> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ProtocolConfig
  */
-export const ProtocolConfig = new ProtocolConfig$Type();
+export const ProtocolConfig: ProtocolConfig$Type = new ProtocolConfig$Type();

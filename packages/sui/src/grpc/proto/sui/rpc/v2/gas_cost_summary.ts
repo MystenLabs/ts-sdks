@@ -84,4 +84,4 @@ class GasCostSummary$Type extends MessageType<GasCostSummary> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.GasCostSummary
  */
-export const GasCostSummary = new GasCostSummary$Type();
+export const GasCostSummary: GasCostSummary$Type = new GasCostSummary$Type();
