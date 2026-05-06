@@ -904,7 +904,7 @@ export const ListOwnedObjectsResponse: ListOwnedObjectsResponse$Type =
 /**
  * @generated ServiceType for protobuf service sui.rpc.v2.StateService
  */
-export const StateService = new ServiceType('sui.rpc.v2.StateService', [
+export const StateService: ServiceType = new ServiceType('sui.rpc.v2.StateService', [
 	{
 		name: 'ListDynamicFields',
 		options: {},

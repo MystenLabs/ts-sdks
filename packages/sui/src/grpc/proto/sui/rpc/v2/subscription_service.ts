@@ -84,7 +84,7 @@ export const SubscribeCheckpointsResponse: SubscribeCheckpointsResponse$Type =
 /**
  * @generated ServiceType for protobuf service sui.rpc.v2.SubscriptionService
  */
-export const SubscriptionService = new ServiceType('sui.rpc.v2.SubscriptionService', [
+export const SubscriptionService: ServiceType = new ServiceType('sui.rpc.v2.SubscriptionService', [
 	{
 		name: 'SubscribeCheckpoints',
 		serverStreaming: true,

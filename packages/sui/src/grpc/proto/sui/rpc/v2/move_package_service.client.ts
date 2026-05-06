@@ -60,9 +60,9 @@ export interface IMovePackageServiceClient {
  * @generated from protobuf service sui.rpc.v2.MovePackageService
  */
 export class MovePackageServiceClient implements IMovePackageServiceClient, ServiceInfo {
-	typeName = MovePackageService.typeName;
-	methods = MovePackageService.methods;
-	options = MovePackageService.options;
+	typeName: typeof MovePackageService.typeName = MovePackageService.typeName;
+	methods: typeof MovePackageService.methods = MovePackageService.methods;
+	options: typeof MovePackageService.options = MovePackageService.options;
 	constructor(private readonly _transport: RpcTransport) {}
 	/**
 	 * @generated from protobuf rpc: GetPackage(sui.rpc.v2.GetPackageRequest) returns (sui.rpc.v2.GetPackageResponse);

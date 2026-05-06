@@ -37,9 +37,9 @@ export interface ISignatureVerificationServiceClient {
 export class SignatureVerificationServiceClient
 	implements ISignatureVerificationServiceClient, ServiceInfo
 {
-	typeName = SignatureVerificationService.typeName;
-	methods = SignatureVerificationService.methods;
-	options = SignatureVerificationService.options;
+	typeName: typeof SignatureVerificationService.typeName = SignatureVerificationService.typeName;
+	methods: typeof SignatureVerificationService.methods = SignatureVerificationService.methods;
+	options: typeof SignatureVerificationService.options = SignatureVerificationService.options;
 	constructor(private readonly _transport: RpcTransport) {}
 	/**
 	 * Perform signature verification of a UserSignature against the provided message.

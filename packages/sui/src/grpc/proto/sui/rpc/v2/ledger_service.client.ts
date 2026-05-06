@@ -89,9 +89,9 @@ export interface ILedgerServiceClient {
  * @generated from protobuf service sui.rpc.v2.LedgerService
  */
 export class LedgerServiceClient implements ILedgerServiceClient, ServiceInfo {
-	typeName = LedgerService.typeName;
-	methods = LedgerService.methods;
-	options = LedgerService.options;
+	typeName: typeof LedgerService.typeName = LedgerService.typeName;
+	methods: typeof LedgerService.methods = LedgerService.methods;
+	options: typeof LedgerService.options = LedgerService.options;
 	constructor(private readonly _transport: RpcTransport) {}
 	/**
 	 * Query the service for general information about its current state.

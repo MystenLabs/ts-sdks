@@ -49,7 +49,7 @@ export class BcsReader {
 	 * @param {Number} bytes Number of bytes to
 	 * @returns {this} Self for possible chaining.
 	 */
-	shift(bytes: number) {
+	shift(bytes: number): this {
 		this.bytePosition += bytes;
 		return this;
 	}

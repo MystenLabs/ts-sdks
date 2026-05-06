@@ -1852,7 +1852,7 @@ class ConsensusDeterminedVersionAssignments$Type extends MessageType<ConsensusDe
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ConsensusDeterminedVersionAssignments
  */
-export const ConsensusDeterminedVersionAssignments =
+export const ConsensusDeterminedVersionAssignments: ConsensusDeterminedVersionAssignments$Type =
 	new ConsensusDeterminedVersionAssignments$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class AuthenticatorStateUpdate$Type extends MessageType<AuthenticatorStateUpdate> {

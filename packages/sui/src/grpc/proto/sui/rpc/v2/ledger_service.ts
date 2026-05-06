@@ -615,7 +615,7 @@ export const GetEpochResponse: GetEpochResponse$Type = new GetEpochResponse$Type
 /**
  * @generated ServiceType for protobuf service sui.rpc.v2.LedgerService
  */
-export const LedgerService = new ServiceType('sui.rpc.v2.LedgerService', [
+export const LedgerService: ServiceType = new ServiceType('sui.rpc.v2.LedgerService', [
 	{ name: 'GetServiceInfo', options: {}, I: GetServiceInfoRequest, O: GetServiceInfoResponse },
 	{ name: 'GetObject', options: {}, I: GetObjectRequest, O: GetObjectResponse },
 	{ name: 'BatchGetObjects', options: {}, I: BatchGetObjectsRequest, O: BatchGetObjectsResponse },

@@ -47,7 +47,7 @@ export function decodeStr(data: string, encoding: Encoding): Uint8Array {
 export function splitGenericParameters(
 	str: string,
 	genericSeparators: [string, string] = ['<', '>'],
-) {
+): string[] {
 	const [left, right] = genericSeparators;
 	const tok = [];
 	let word = '';

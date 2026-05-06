@@ -3,5 +3,6 @@
 
 import { base58 } from '@scure/base';
 
-export const toBase58 = (buffer: Uint8Array) => base58.encode(buffer);
-export const fromBase58 = (str: string) => base58.decode(str) as Uint8Array<ArrayBuffer>;
+export const toBase58 = (buffer: Uint8Array): string => base58.encode(buffer);
+export const fromBase58 = (str: string): Uint8Array<ArrayBuffer> =>
+	base58.decode(str) as Uint8Array<ArrayBuffer>;

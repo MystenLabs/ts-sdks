@@ -69,9 +69,9 @@ export interface IStateServiceClient {
  * @generated from protobuf service sui.rpc.v2.StateService
  */
 export class StateServiceClient implements IStateServiceClient, ServiceInfo {
-	typeName = StateService.typeName;
-	methods = StateService.methods;
-	options = StateService.options;
+	typeName: typeof StateService.typeName = StateService.typeName;
+	methods: typeof StateService.methods = StateService.methods;
+	options: typeof StateService.options = StateService.options;
 	constructor(private readonly _transport: RpcTransport) {}
 	/**
 	 * @generated from protobuf rpc: ListDynamicFields(sui.rpc.v2.ListDynamicFieldsRequest) returns (sui.rpc.v2.ListDynamicFieldsResponse);

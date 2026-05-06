@@ -51,12 +51,12 @@ export class BcsType<T, Input = T, const Name extends string = string> {
 		this.validate = options.validate ?? (() => {});
 	}
 
-	write(value: Input, writer: BcsWriter) {
+	write(value: Input, writer: BcsWriter): void {
 		this.validate(value);
 		this.#write(value, writer);
 	}
 
-	serialize(value: Input, options?: BcsWriterOptions) {
+	serialize(value: Input, options?: BcsWriterOptions): SerializedBcs<T, Input> {
 		this.validate(value);
 		return new SerializedBcs(this, this.#serialize(value, options));
 	}
@@ -66,15 +66,15 @@ export class BcsType<T, Input = T, const Name extends string = string> {
 		return this.read(reader);
 	}
 
-	fromHex(hex: string) {
+	fromHex(hex: string): T {
 		return this.parse(fromHex(hex));
 	}
 
-	fromBase58(b64: string) {
+	fromBase58(b64: string): T {
 		return this.parse(fromBase58(b64));
 	}
 
-	fromBase64(b64: string) {
+	fromBase64(b64: string): T {
 		return this.parse(fromBase64(b64));
 	}
 
@@ -86,7 +86,7 @@ export class BcsType<T, Input = T, const Name extends string = string> {
 	}: {
 		input?: (val: Input2) => Input;
 		output?: (value: T) => T2;
-	} & BcsTypeOptions<T2, Input2, NewName>) {
+	} & BcsTypeOptions<T2, Input2, NewName>): BcsType<T2, Input2, NewName> {
 		return new BcsType<T2, Input2, NewName>({
 			name: (name ?? this.name) as NewName,
 			read: (reader) => (output ? output(this.read(reader)) : (this.read(reader) as never)),
@@ -102,7 +102,7 @@ export class BcsType<T, Input = T, const Name extends string = string> {
 	}
 }
 
-const SERIALIZED_BCS_BRAND = Symbol.for('@mysten/serialized-bcs') as never;
+const SERIALIZED_BCS_BRAND = Symbol.for('@mysten/serialized-bcs');
 export function isSerializedBcs(obj: unknown): obj is SerializedBcs<unknown> {
 	return !!obj && typeof obj === 'object' && (obj as any)[SERIALIZED_BCS_BRAND] === true;
 }
@@ -111,34 +111,34 @@ export class SerializedBcs<T, Input = T> {
 	#schema: BcsType<T, Input>;
 	#bytes: Uint8Array<ArrayBuffer>;
 
-	// Used to brand SerializedBcs so that they can be identified, even between multiple copies
-	// of the @mysten/bcs package are installed
-	get [SERIALIZED_BCS_BRAND]() {
-		return true;
-	}
-
 	constructor(schema: BcsType<T, Input>, bytes: Uint8Array<ArrayBuffer>) {
 		this.#schema = schema;
 		this.#bytes = bytes;
+		// Used to brand SerializedBcs so that they can be identified, even between multiple copies
+		// of the @mysten/bcs package are installed
+		Object.defineProperty(this, SERIALIZED_BCS_BRAND, {
+			value: true,
+			enumerable: false,
+		});
 	}
 
-	toBytes() {
+	toBytes(): Uint8Array<ArrayBuffer> {
 		return this.#bytes;
 	}
 
-	toHex() {
+	toHex(): string {
 		return toHex(this.#bytes);
 	}
 
-	toBase64() {
+	toBase64(): string {
 		return toBase64(this.#bytes);
 	}
 
-	toBase58() {
+	toBase58(): string {
 		return toBase58(this.#bytes);
 	}
 
-	parse() {
+	parse(): T {
 		return this.#schema.parse(this.#bytes);
 	}
 }
@@ -151,7 +151,7 @@ export function fixedSizeBcsType<T, Input = T, const Name extends string = strin
 	size: number;
 	read: (reader: BcsReader) => T;
 	write: (value: Input, writer: BcsWriter) => void;
-} & BcsTypeOptions<T, Input, Name>) {
+} & BcsTypeOptions<T, Input, Name>): BcsType<T, Input, Name> {
 	return new BcsType<T, Input, Name>({
 		...options,
 		serializedSize: () => size,
@@ -168,7 +168,7 @@ export function uIntBcsType<const Name extends string = string>({
 	readMethod: `read${8 | 16 | 32}`;
 	writeMethod: `write${8 | 16 | 32}`;
 	maxValue: number;
-} & BcsTypeOptions<number, number, Name>) {
+} & BcsTypeOptions<number, number, Name>): BcsType<number, number, Name> {
 	return fixedSizeBcsType<number, number, Name>({
 		...options,
 		read: (reader) => reader[readMethod](),
@@ -194,7 +194,7 @@ export function bigUIntBcsType<const Name extends string = string>({
 	readMethod: `read${64 | 128 | 256}`;
 	writeMethod: `write${64 | 128 | 256}`;
 	maxValue: bigint;
-} & BcsTypeOptions<string, string | number | bigint>) {
+} & BcsTypeOptions<string, string | number | bigint>): BcsType<string, string | number | bigint, Name> {
 	return fixedSizeBcsType<string, string | number | bigint, Name>({
 		...options,
 		read: (reader) => reader[readMethod](),
@@ -218,7 +218,7 @@ export function dynamicSizeBcsType<T, Input = T, const Name extends string = str
 	name: Name;
 	read: (reader: BcsReader) => T;
 	serialize: (value: Input, options?: BcsWriterOptions) => Uint8Array<ArrayBuffer>;
-} & BcsTypeOptions<T, Input>) {
+} & BcsTypeOptions<T, Input>): BcsType<T, Input> {
 	const type = new BcsType<T, Input>({
 		...options,
 		serialize,
@@ -241,7 +241,7 @@ export function stringLikeBcsType<const Name extends string = string>({
 	toBytes: (value: string) => Uint8Array;
 	fromBytes: (bytes: Uint8Array) => string;
 	serializedSize?: (value: string) => number | null;
-} & BcsTypeOptions<string, string, Name>) {
+} & BcsTypeOptions<string, string, Name>): BcsType<string, string, Name> {
 	return new BcsType<string, string, Name>({
 		...options,
 		read: (reader) => {
@@ -275,9 +275,9 @@ export function stringLikeBcsType<const Name extends string = string>({
 	});
 }
 
-export function lazyBcsType<T, Input>(cb: () => BcsType<T, Input>) {
+export function lazyBcsType<T, Input>(cb: () => BcsType<T, Input>): BcsType<T, Input> {
 	let lazyType: BcsType<T, Input> | null = null;
-	function getType() {
+	function getType(): BcsType<T, Input> {
 		if (!lazyType) {
 			lazyType = cb();
 		}

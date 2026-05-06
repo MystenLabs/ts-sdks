@@ -44,9 +44,9 @@ export interface ITransactionExecutionServiceClient {
 export class TransactionExecutionServiceClient
 	implements ITransactionExecutionServiceClient, ServiceInfo
 {
-	typeName = TransactionExecutionService.typeName;
-	methods = TransactionExecutionService.methods;
-	options = TransactionExecutionService.options;
+	typeName: typeof TransactionExecutionService.typeName = TransactionExecutionService.typeName;
+	methods: typeof TransactionExecutionService.methods = TransactionExecutionService.methods;
+	options: typeof TransactionExecutionService.options = TransactionExecutionService.options;
 	constructor(private readonly _transport: RpcTransport) {}
 	/**
 	 * @generated from protobuf rpc: ExecuteTransaction(sui.rpc.v2.ExecuteTransactionRequest) returns (sui.rpc.v2.ExecuteTransactionResponse);

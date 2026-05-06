@@ -102,7 +102,7 @@ export const VerifySignatureResponse: VerifySignatureResponse$Type =
 /**
  * @generated ServiceType for protobuf service sui.rpc.v2.SignatureVerificationService
  */
-export const SignatureVerificationService = new ServiceType(
+export const SignatureVerificationService: ServiceType = new ServiceType(
 	'sui.rpc.v2.SignatureVerificationService',
 	[{ name: 'VerifySignature', options: {}, I: VerifySignatureRequest, O: VerifySignatureResponse }],
 );

@@ -304,7 +304,7 @@ export const PackageVersion: PackageVersion$Type = new PackageVersion$Type();
 /**
  * @generated ServiceType for protobuf service sui.rpc.v2.MovePackageService
  */
-export const MovePackageService = new ServiceType('sui.rpc.v2.MovePackageService', [
+export const MovePackageService: ServiceType = new ServiceType('sui.rpc.v2.MovePackageService', [
 	{ name: 'GetPackage', options: {}, I: GetPackageRequest, O: GetPackageResponse },
 	{ name: 'GetDatatype', options: {}, I: GetDatatypeRequest, O: GetDatatypeResponse },
 	{ name: 'GetFunction', options: {}, I: GetFunctionRequest, O: GetFunctionResponse },

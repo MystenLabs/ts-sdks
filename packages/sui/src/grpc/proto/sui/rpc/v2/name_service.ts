@@ -189,7 +189,7 @@ export const NameRecord: NameRecord$Type = new NameRecord$Type();
 /**
  * @generated ServiceType for protobuf service sui.rpc.v2.NameService
  */
-export const NameService = new ServiceType('sui.rpc.v2.NameService', [
+export const NameService: ServiceType = new ServiceType('sui.rpc.v2.NameService', [
 	{ name: 'LookupName', options: {}, I: LookupNameRequest, O: LookupNameResponse },
 	{
 		name: 'ReverseLookupName',

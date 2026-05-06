@@ -348,7 +348,7 @@ export const bcs = {
 			},
 			...options,
 			name: (options?.name ?? 'uleb128') as 'uleb128',
-		});
+		}) as BcsType<number, number, 'uleb128'>;
 	},
 
 	/**
@@ -357,7 +357,10 @@ export const bcs = {
 	 * @example
 	 * bcs.bytes(3).serialize(new Uint8Array([1, 2, 3])).toBytes() // Uint8Array [1, 2, 3]
 	 */
-	bytes<T extends number>(size: T, options?: BcsTypeOptions<Uint8Array, Iterable<number>>) {
+	bytes<T extends number>(
+		size: T,
+		options?: BcsTypeOptions<Uint8Array, Iterable<number>>,
+	): BcsType<Uint8Array, Iterable<number>, `bytes[${T}]`> {
 		return fixedSizeBcsType<Uint8Array, Iterable<number>, `bytes[${T}]`>({
 			size,
 			read: (reader) => reader.readBytes(size),
@@ -384,7 +387,9 @@ export const bcs = {
 	 * @example
 	 * bcs.byteVector().serialize([1, 2, 3]).toBytes() // Uint8Array [3, 1, 2, 3]
 	 */
-	byteVector(options?: BcsTypeOptions<Uint8Array, Iterable<number>>) {
+	byteVector(
+		options?: BcsTypeOptions<Uint8Array, Iterable<number>>,
+	): BcsType<Uint8Array, Iterable<number>, 'vector<u8>'> {
 		return new BcsType<Uint8Array, Iterable<number>, 'vector<u8>'>({
 			read: (reader) => {
 				const length = reader.readULEB();
@@ -416,7 +421,7 @@ export const bcs = {
 	 * @example
 	 * bcs.string().serialize('a').toBytes() // Uint8Array [ 1, 97 ]
 	 */
-	string(options?: BcsTypeOptions<string>) {
+	string(options?: BcsTypeOptions<string>): BcsType<string, string, 'string'> {
 		return stringLikeBcsType({
 			toBytes: (value) => new TextEncoder().encode(value),
 			fromBytes: (bytes) => new TextDecoder().decode(bytes),
@@ -431,7 +436,7 @@ export const bcs = {
 	 * @example
 	 * bcs.fixedArray(3, bcs.u8()).serialize([1, 2, 3]).toBytes() // Uint8Array [ 1, 2, 3 ]
 	 */
-	fixedArray: fixedArray,
+	fixedArray: fixedArray as typeof fixedArray,
 
 	/**
 	 * Creates a BcsType representing an optional value
@@ -440,7 +445,7 @@ export const bcs = {
 	 * bcs.option(bcs.u8()).serialize(null).toBytes() // Uint8Array [ 0 ]
 	 * bcs.option(bcs.u8()).serialize(1).toBytes() // Uint8Array [ 1, 1 ]
 	 */
-	option: option,
+	option: option as typeof option,
 
 	/**
 	 * Creates a BcsType representing a variable length vector of a given type
@@ -449,7 +454,7 @@ export const bcs = {
 	 * @example
 	 * bcs.vector(bcs.u8()).toBytes([1, 2, 3]) // Uint8Array [ 3, 1, 2, 3 ]
 	 */
-	vector: vector,
+	vector: vector as typeof vector,
 
 	/**
 	 * Creates a BcsType representing a tuple of a given set of types
@@ -474,7 +479,7 @@ export const bcs = {
 			},
 			Name
 		>,
-	) {
+	): BcsTuple<T, Name> {
 		return new BcsTuple<T, Name>({
 			fields,
 			...options,
@@ -507,8 +512,8 @@ export const bcs = {
 			>,
 			'name'
 		>,
-	) {
-		return new BcsStruct<T>({
+	): BcsStruct<T, Name> {
+		return new BcsStruct<T, Name>({
 			name,
 			fields,
 			...options,
@@ -562,7 +567,7 @@ export const bcs = {
 	 * const map = bcs.map(bcs.u8(), bcs.string())
 	 * map.serialize(new Map([[2, 'a']])).toBytes() // Uint8Array [ 1, 2, 1, 97 ]
 	 */
-	map: map,
+	map: map as typeof map,
 
 	/**
 	 * Creates a BcsType that wraps another BcsType which is lazily evaluated. This is useful for creating recursive types.

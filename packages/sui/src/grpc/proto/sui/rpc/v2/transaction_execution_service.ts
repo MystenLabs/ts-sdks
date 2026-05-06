@@ -283,7 +283,7 @@ export const CommandOutput: CommandOutput$Type = new CommandOutput$Type();
 /**
  * @generated ServiceType for protobuf service sui.rpc.v2.TransactionExecutionService
  */
-export const TransactionExecutionService = new ServiceType(
+export const TransactionExecutionService: ServiceType = new ServiceType(
 	'sui.rpc.v2.TransactionExecutionService',
 	[
 		{

@@ -42,9 +42,9 @@ export interface INameServiceClient {
  * @generated from protobuf service sui.rpc.v2.NameService
  */
 export class NameServiceClient implements INameServiceClient, ServiceInfo {
-	typeName = NameService.typeName;
-	methods = NameService.methods;
-	options = NameService.options;
+	typeName: typeof NameService.typeName = NameService.typeName;
+	methods: typeof NameService.methods = NameService.methods;
+	options: typeof NameService.options = NameService.options;
 	constructor(private readonly _transport: RpcTransport) {}
 	/**
 	 * @generated from protobuf rpc: LookupName(sui.rpc.v2.LookupNameRequest) returns (sui.rpc.v2.LookupNameResponse);

@@ -45,9 +45,9 @@ export interface ISubscriptionServiceClient {
  * @generated from protobuf service sui.rpc.v2.SubscriptionService
  */
 export class SubscriptionServiceClient implements ISubscriptionServiceClient, ServiceInfo {
-	typeName = SubscriptionService.typeName;
-	methods = SubscriptionService.methods;
-	options = SubscriptionService.options;
+	typeName: typeof SubscriptionService.typeName = SubscriptionService.typeName;
+	methods: typeof SubscriptionService.methods = SubscriptionService.methods;
+	options: typeof SubscriptionService.options = SubscriptionService.options;
 	constructor(private readonly _transport: RpcTransport) {}
 	/**
 	 * Subscribe to the stream of checkpoints.
