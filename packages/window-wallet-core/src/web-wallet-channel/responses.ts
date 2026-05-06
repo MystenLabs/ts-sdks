@@ -3,6 +3,18 @@
 
 import * as v from 'valibot';
 
+export type ResponseDataType =
+	| { type: 'connect'; session: string }
+	| { type: 'sign-transaction'; bytes: string; signature: string }
+	| {
+			type: 'sign-and-execute-transaction';
+			bytes: string;
+			signature: string;
+			digest: string;
+			effects: string;
+	  }
+	| { type: 'sign-personal-message'; bytes: string; signature: string };
+
 export const ResponseData = v.variant('type', [
 	v.object({
 		type: v.literal('connect'),
@@ -25,8 +37,11 @@ export const ResponseData = v.variant('type', [
 		bytes: v.string(),
 		signature: v.string(),
 	}),
-]);
-export type ResponseDataType = v.InferOutput<typeof ResponseData>;
+]) as v.GenericSchema<ResponseDataType, ResponseDataType>;
+
+export type ResponsePayloadType =
+	| { type: 'reject'; reason?: string | undefined }
+	| { type: 'resolve'; data: ResponseDataType };
 
 export const ResponsePayload = v.variant('type', [
 	v.object({
@@ -37,16 +52,21 @@ export const ResponsePayload = v.variant('type', [
 		type: v.literal('resolve'),
 		data: ResponseData,
 	}),
-]);
-export type ResponsePayloadType = v.InferOutput<typeof ResponsePayload>;
+]) as v.GenericSchema<ResponsePayloadType, ResponsePayloadType>;
+
+export type ResponseType = {
+	id: string;
+	source: 'web-wallet-channel';
+	payload: ResponsePayloadType;
+	version: '1';
+};
 
 export const Response = v.object({
 	id: v.pipe(v.string(), v.uuid()),
 	source: v.literal('web-wallet-channel'),
 	payload: ResponsePayload,
 	version: v.literal('1'),
-});
-export type ResponseType = v.InferOutput<typeof Response>;
+}) as v.GenericSchema<ResponseType, ResponseType>;
 
 export type ResponseTypes = {
 	[P in ResponseDataType as P['type']]: P;

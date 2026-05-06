@@ -10,7 +10,11 @@ import {
 } from '@mysten/sui/transactions';
 const $moduleName =
 	'0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837::hot_potato_vector';
-export function HotPotatoVector<T0 extends BcsType<any>>(...typeParameters: [T0]) {
+export function HotPotatoVector<T0 extends BcsType<any>>(
+	...typeParameters: [T0]
+): MoveStruct<{
+	contents: ReturnType<typeof bcs.vector<T0>>;
+}> {
 	return new MoveStruct({
 		name: `${$moduleName}::HotPotatoVector<${typeParameters[0].name as T0['name']}>`,
 		fields: {

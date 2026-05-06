@@ -60,7 +60,14 @@ export const BigVector: MoveStruct<{
  * the IDs of its children and `keys` represent the partitions between children.
  * There will be one fewer key than value in this configuration.
  */
-export function Slice<E extends BcsType<any>>(...typeParameters: [E]) {
+export function Slice<E extends BcsType<any>>(
+	...typeParameters: [E]
+): MoveStruct<{
+	prev: ReturnType<typeof bcs.u64>;
+	next: ReturnType<typeof bcs.u64>;
+	keys: ReturnType<typeof bcs.vector<ReturnType<typeof bcs.u128>>>;
+	vals: ReturnType<typeof bcs.vector<E>>;
+}> {
 	return new MoveStruct({
 		name: `${$moduleName}::Slice<${typeParameters[0].name as E['name']}>`,
 		fields: {

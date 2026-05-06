@@ -16,6 +16,30 @@ const JsonSchema: v.GenericSchema<JsonData> = v.lazy(() =>
 	]),
 );
 
+export type RequestDataType =
+	| { type: 'connect' }
+	| {
+			type: 'sign-transaction';
+			transaction: string;
+			address: string;
+			chain: string;
+			session: string;
+	  }
+	| {
+			type: 'sign-and-execute-transaction';
+			transaction: string;
+			address: string;
+			chain: string;
+			session: string;
+	  }
+	| {
+			type: 'sign-personal-message';
+			chain: string;
+			message: string;
+			address: string;
+			session: string;
+	  };
+
 export const RequestData = v.variant('type', [
 	v.object({
 		type: v.literal('connect'),
@@ -41,8 +65,17 @@ export const RequestData = v.variant('type', [
 		address: v.string('`address` is required'),
 		session: v.string('`session` is required'),
 	}),
-]);
-export type RequestDataType = v.InferOutput<typeof RequestData>;
+]) as v.GenericSchema<RequestDataType, RequestDataType>;
+
+export type RequestType = {
+	version: '1';
+	requestId: string;
+	appUrl: string;
+	appName: string;
+	payload: RequestDataType;
+	metadata?: Record<string, JsonData> | undefined;
+	extraRequestOptions?: Record<string, JsonData> | undefined;
+};
 
 export const Request = v.object({
 	version: v.literal('1'),
@@ -52,5 +85,4 @@ export const Request = v.object({
 	payload: RequestData,
 	metadata: v.optional(v.record(v.string(), JsonSchema)),
 	extraRequestOptions: v.optional(v.record(v.string(), JsonSchema)),
-});
-export type RequestType = v.InferOutput<typeof Request>;
+}) as v.GenericSchema<RequestType, RequestType>;

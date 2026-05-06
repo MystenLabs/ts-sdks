@@ -79,7 +79,7 @@ export function normalizeMoveArguments(
 	args: unknown[] | object,
 	argTypes: readonly (string | null)[],
 	parameterNames?: string[],
-) {
+): TransactionArgument[] {
 	const argLen = Array.isArray(args) ? args.length : Object.keys(args).length;
 	if (parameterNames && argLen !== parameterNames.length) {
 		throw new Error(

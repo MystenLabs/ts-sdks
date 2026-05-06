@@ -18,7 +18,12 @@ export const Unit: MoveStruct<{
 		dummy_field: bcs.bool(),
 	},
 });
-export function Set<T0 extends BcsType<any>>(...typeParameters: [T0]) {
+export function Set<T0 extends BcsType<any>>(
+	...typeParameters: [T0]
+): MoveStruct<{
+	keys: ReturnType<typeof bcs.vector<T0>>;
+	elems: typeof table.Table;
+}> {
 	return new MoveStruct({
 		name: `${$moduleName}::Set<${typeParameters[0].name as T0['name']}>`,
 		fields: {

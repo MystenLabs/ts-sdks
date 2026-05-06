@@ -9,7 +9,17 @@ import * as consumed_vaas from './consumed_vaas.js';
 import * as fee_collector from './fee_collector.js';
 import * as _package from './deps/0x0000000000000000000000000000000000000000000000000000000000000002/package.js';
 const $moduleName = '0xf47329f4344f3bf0f8e436e2f7b485466cff300f12a166563995d3888c296a94::state';
-export const State = new MoveStruct({
+export const State: MoveStruct<{
+	id: typeof bcs.Address;
+	governance_chain: ReturnType<typeof bcs.u16>;
+	governance_contract: typeof external_address.ExternalAddress;
+	guardian_set_index: ReturnType<typeof bcs.u32>;
+	guardian_sets: typeof table.Table;
+	guardian_set_seconds_to_live: ReturnType<typeof bcs.u32>;
+	consumed_vaas: typeof consumed_vaas.ConsumedVAAs;
+	fee_collector: typeof fee_collector.FeeCollector;
+	upgrade_cap: typeof _package.UpgradeCap;
+}> = new MoveStruct({
 	name: `${$moduleName}::State`,
 	fields: {
 		id: bcs.Address,

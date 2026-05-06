@@ -21,24 +21,26 @@ export class WalletPostMessageChannel {
 		this.#request = request;
 	}
 
-	static fromPayload(payload: RequestType) {
+	static fromPayload(payload: RequestType): WalletPostMessageChannel {
 		const request = parse(Request, payload);
 
 		return new WalletPostMessageChannel(request);
 	}
 
-	static fromUrlHash(hash: string = window.location.hash.slice(1)) {
+	static fromUrlHash(hash: string = window.location.hash.slice(1)): WalletPostMessageChannel {
 		const decoded = atob(decodeURIComponent(hash));
 		const request = parse(Request, JSON.parse(decoded));
 
 		return new WalletPostMessageChannel(request);
 	}
 
-	getRequestData() {
+	getRequestData(): RequestType {
 		return this.#request;
 	}
 
-	async verifyJwtSession(secretKey: Parameters<typeof verifyJwtSession>[1]) {
+	async verifyJwtSession(
+		secretKey: Parameters<typeof verifyJwtSession>[1],
+	): Promise<Awaited<ReturnType<typeof verifyJwtSession>> | null> {
 		if (!('session' in this.#request.payload)) {
 			return null;
 		}
@@ -61,7 +63,7 @@ export class WalletPostMessageChannel {
 		return session;
 	}
 
-	sendMessage(payload: ResponsePayloadType) {
+	sendMessage(payload: ResponsePayloadType): void {
 		if (this.#isSendCalled) {
 			throw new Error('sendMessage() can only be called once');
 		}
@@ -79,7 +81,7 @@ export class WalletPostMessageChannel {
 		);
 	}
 
-	close(payload?: ResponsePayloadType) {
+	close(payload?: ResponsePayloadType): void {
 		if (payload) {
 			this.sendMessage(payload);
 		}

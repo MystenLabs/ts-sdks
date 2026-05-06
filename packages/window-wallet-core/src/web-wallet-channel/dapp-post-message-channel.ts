@@ -104,7 +104,7 @@ export class DappPostMessageChannel {
 		return this.#promise as Promise<ResponseTypes[T]>;
 	}
 
-	close() {
+	close(): void {
 		this.#cleanup();
 		this.#popup.close();
 	}

@@ -1,19 +1,33 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-// TODO(iso-decls): The `ExecutionStatus` and `TransactionEffects` exports below
-// trip TS9010 for the same reason as `bcs.ts`: `@mysten/bcs`'s `struct`/`enum`
-// factories don't have explicit return types in source. Their inferred shapes
-// are too deep to hand-write reliably and any cast collapses the `$inferType`
-// access used by callers. Resolving this requires annotating the factory return
-// types upstream in `@mysten/bcs`.
-
-import { bcs } from '@mysten/bcs';
+import type { BcsType } from '@mysten/bcs';
+import { BcsEnum, BcsStruct, bcs } from '@mysten/bcs';
 
 import { Address, ObjectDigest, Owner, SuiObjectRef, TypeTag } from './bcs.js';
 
+type U64Type = BcsType<string, string | number | bigint, 'u64'>;
+type U16Type = BcsType<number, number, 'u16'>;
+type U8Type = BcsType<number, number, 'u8'>;
+type StringType = BcsType<string, string, 'string'>;
+type ByteVectorType = BcsType<Uint8Array, Iterable<number>, 'vector<u8>'>;
+type AddressType = typeof Address;
+
 // Rust: crates/sui-types/src/execution_status.rs (PackageUpgradeError enum)
-const PackageUpgradeError = bcs.enum('PackageUpgradeError', {
+const PackageUpgradeError: BcsEnum<
+	{
+		UnableToFetchPackage: BcsStruct<{ packageId: AddressType }, 'UnableToFetchPackage'>;
+		NotAPackage: BcsStruct<{ objectId: AddressType }, 'NotAPackage'>;
+		IncompatibleUpgrade: null;
+		DigestDoesNotMatch: BcsStruct<{ digest: ByteVectorType }, 'DigestDoesNotMatch'>;
+		UnknownUpgradePolicy: BcsStruct<{ policy: U8Type }, 'UnknownUpgradePolicy'>;
+		PackageIDDoesNotMatch: BcsStruct<
+			{ packageId: AddressType; ticketId: AddressType },
+			'PackageIDDoesNotMatch'
+		>;
+	},
+	'PackageUpgradeError'
+> = bcs.enum('PackageUpgradeError', {
 	UnableToFetchPackage: bcs.struct('UnableToFetchPackage', { packageId: Address }),
 	NotAPackage: bcs.struct('NotAPackage', { objectId: Address }),
 	IncompatibleUpgrade: null,
@@ -23,23 +37,76 @@ const PackageUpgradeError = bcs.enum('PackageUpgradeError', {
 		packageId: Address,
 		ticketId: Address,
 	}),
-});
+}) as BcsEnum<
+	{
+		UnableToFetchPackage: BcsStruct<{ packageId: AddressType }, 'UnableToFetchPackage'>;
+		NotAPackage: BcsStruct<{ objectId: AddressType }, 'NotAPackage'>;
+		IncompatibleUpgrade: null;
+		DigestDoesNotMatch: BcsStruct<{ digest: ByteVectorType }, 'DigestDoesNotMatch'>;
+		UnknownUpgradePolicy: BcsStruct<{ policy: U8Type }, 'UnknownUpgradePolicy'>;
+		PackageIDDoesNotMatch: BcsStruct<
+			{ packageId: AddressType; ticketId: AddressType },
+			'PackageIDDoesNotMatch'
+		>;
+	},
+	'PackageUpgradeError'
+>;
 
 // Rust: move-core-types/src/language_storage.rs
-const ModuleId = bcs.struct('ModuleId', {
-	address: Address,
-	name: bcs.string(),
-});
+const ModuleId: BcsStruct<{ address: AddressType; name: StringType }, 'ModuleId'> = bcs.struct(
+	'ModuleId',
+	{
+		address: Address,
+		name: bcs.string(),
+	},
+) as BcsStruct<{ address: AddressType; name: StringType }, 'ModuleId'>;
+
+type MoveLocationType = BcsStruct<
+	{
+		module: typeof ModuleId;
+		function: U16Type;
+		instruction: U16Type;
+		functionName: BcsType<string | null, string | null | undefined, 'Option<string>'>;
+	},
+	'MoveLocation'
+>;
 // Rust: crates/sui-types/src/execution_status.rs
-const MoveLocation = bcs.struct('MoveLocation', {
+const MoveLocation: MoveLocationType = bcs.struct('MoveLocation', {
 	module: ModuleId,
 	function: bcs.u16(),
 	instruction: bcs.u16(),
 	functionName: bcs.option(bcs.string()),
-});
+}) as MoveLocationType;
 
+type CommandArgumentErrorType = BcsEnum<
+	{
+		TypeMismatch: null;
+		InvalidBCSBytes: null;
+		InvalidUsageOfPureArg: null;
+		InvalidArgumentToPrivateEntryFunction: null;
+		IndexOutOfBounds: BcsStruct<{ idx: U16Type }, 'IndexOutOfBounds'>;
+		SecondaryIndexOutOfBounds: BcsStruct<
+			{ resultIdx: U16Type; secondaryIdx: U16Type },
+			'SecondaryIndexOutOfBounds'
+		>;
+		InvalidResultArity: BcsStruct<{ resultIdx: U16Type }, 'InvalidResultArity'>;
+		InvalidGasCoinUsage: null;
+		InvalidValueUsage: null;
+		InvalidObjectByValue: null;
+		InvalidObjectByMutRef: null;
+		SharedObjectOperationNotAllowed: null;
+		InvalidArgumentArity: null;
+		InvalidTransferObject: null;
+		InvalidMakeMoveVecNonObjectArgument: null;
+		ArgumentWithoutValue: null;
+		CannotMoveBorrowedValue: null;
+		CannotWriteToExtendedReference: null;
+		InvalidReferenceArgument: null;
+	},
+	'CommandArgumentError'
+>;
 // Rust: crates/sui-types/src/execution_status.rs
-const CommandArgumentError = bcs.enum('CommandArgumentError', {
+const CommandArgumentError: CommandArgumentErrorType = bcs.enum('CommandArgumentError', {
 	TypeMismatch: null,
 	InvalidBCSBytes: null,
 	InvalidUsageOfPureArg: null,
@@ -62,16 +129,117 @@ const CommandArgumentError = bcs.enum('CommandArgumentError', {
 	CannotMoveBorrowedValue: null,
 	CannotWriteToExtendedReference: null,
 	InvalidReferenceArgument: null,
-});
+}) as CommandArgumentErrorType;
 
+type TypeArgumentErrorType = BcsEnum<
+	{ TypeNotFound: null; ConstraintNotSatisfied: null },
+	'TypeArgumentError'
+>;
 // Rust: crates/sui-types/src/execution_status.rs
-const TypeArgumentError = bcs.enum('TypeArgumentError', {
+const TypeArgumentError: TypeArgumentErrorType = bcs.enum('TypeArgumentError', {
 	TypeNotFound: null,
 	ConstraintNotSatisfied: null,
-});
+}) as TypeArgumentErrorType;
 
+type ExecutionFailureStatusType = BcsEnum<
+	{
+		InsufficientGas: null;
+		InvalidGasObject: null;
+		InvariantViolation: null;
+		FeatureNotYetSupported: null;
+		MoveObjectTooBig: BcsStruct<
+			{ objectSize: U64Type; maxObjectSize: U64Type },
+			'MoveObjectTooBig'
+		>;
+		MovePackageTooBig: BcsStruct<
+			{ objectSize: U64Type; maxObjectSize: U64Type },
+			'MovePackageTooBig'
+		>;
+		CircularObjectOwnership: BcsStruct<{ object: AddressType }, 'CircularObjectOwnership'>;
+		InsufficientCoinBalance: null;
+		CoinBalanceOverflow: null;
+		PublishErrorNonZeroAddress: null;
+		SuiMoveVerificationError: null;
+		MovePrimitiveRuntimeError: BcsType<
+			(typeof MoveLocation.$inferType) | null,
+			(typeof MoveLocation.$inferInput) | null | undefined,
+			'Option<MoveLocation>'
+		>;
+		MoveAbort: BcsType<
+			[typeof MoveLocation.$inferType, string],
+			readonly [typeof MoveLocation.$inferInput, string | number | bigint],
+			'(MoveLocation, u64)'
+		>;
+		VMVerificationOrDeserializationError: null;
+		VMInvariantViolation: null;
+		FunctionNotFound: null;
+		ArityMismatch: null;
+		TypeArityMismatch: null;
+		NonEntryFunctionInvoked: null;
+		CommandArgumentError: BcsStruct<
+			{ argIdx: U16Type; kind: CommandArgumentErrorType },
+			'CommandArgumentError'
+		>;
+		TypeArgumentError: BcsStruct<
+			{ argumentIdx: U16Type; kind: TypeArgumentErrorType },
+			'TypeArgumentError'
+		>;
+		UnusedValueWithoutDrop: BcsStruct<
+			{ resultIdx: U16Type; secondaryIdx: U16Type },
+			'UnusedValueWithoutDrop'
+		>;
+		InvalidPublicFunctionReturnType: BcsStruct<{ idx: U16Type }, 'InvalidPublicFunctionReturnType'>;
+		InvalidTransferObject: null;
+		EffectsTooLarge: BcsStruct<{ currentSize: U64Type; maxSize: U64Type }, 'EffectsTooLarge'>;
+		PublishUpgradeMissingDependency: null;
+		PublishUpgradeDependencyDowngrade: null;
+		PackageUpgradeError: BcsStruct<
+			{ upgradeError: typeof PackageUpgradeError },
+			'PackageUpgradeError'
+		>;
+		WrittenObjectsTooLarge: BcsStruct<
+			{ currentSize: U64Type; maxSize: U64Type },
+			'WrittenObjectsTooLarge'
+		>;
+		CertificateDenied: null;
+		SuiMoveVerificationTimedout: null;
+		SharedObjectOperationNotAllowed: null;
+		InputObjectDeleted: null;
+		ExecutionCancelledDueToSharedObjectCongestion: BcsStruct<
+			{
+				congested_objects: BcsType<
+					string[],
+					Iterable<string | Uint8Array> & { length: number },
+					`vector<bytes[32]>`
+				>;
+			},
+			'ExecutionCancelledDueToSharedObjectCongestion'
+		>;
+		AddressDeniedForCoin: BcsStruct<
+			{ address: AddressType; coinType: StringType },
+			'AddressDeniedForCoin'
+		>;
+		CoinTypeGlobalPause: BcsStruct<{ coinType: StringType }, 'CoinTypeGlobalPause'>;
+		ExecutionCancelledDueToRandomnessUnavailable: null;
+		MoveVectorElemTooBig: BcsStruct<
+			{ valueSize: U64Type; maxScaledSize: U64Type },
+			'MoveVectorElemTooBig'
+		>;
+		MoveRawValueTooBig: BcsStruct<
+			{ valueSize: U64Type; maxScaledSize: U64Type },
+			'MoveRawValueTooBig'
+		>;
+		InvalidLinkage: null;
+		InsufficientBalanceForWithdraw: null;
+		NonExclusiveWriteInputObjectModified: BcsStruct<
+			{ id: AddressType },
+			'NonExclusiveWriteInputObjectModified'
+		>;
+	},
+	'ExecutionFailureStatus'
+>;
 // Rust: crates/sui-types/src/execution_status.rs
-const ExecutionFailureStatus = bcs.enum('ExecutionFailureStatus', {
+const ExecutionFailureStatus: ExecutionFailureStatusType = bcs.enum('ExecutionFailureStatus', {
 	InsufficientGas: null,
 	InvalidGasObject: null,
 	InvariantViolation: null,
@@ -150,7 +318,7 @@ const ExecutionFailureStatus = bcs.enum('ExecutionFailureStatus', {
 	NonExclusiveWriteInputObjectModified: bcs.struct('NonExclusiveWriteInputObjectModified', {
 		id: Address,
 	}),
-});
+}) as ExecutionFailureStatusType;
 
 // Rust: crates/sui-types/src/execution_status.rs
 export const ExecutionStatus = bcs.enum('ExecutionStatus', {
@@ -159,7 +327,23 @@ export const ExecutionStatus = bcs.enum('ExecutionStatus', {
 		error: ExecutionFailureStatus,
 		command: bcs.option(bcs.u64()),
 	}),
-});
+}) as BcsEnum<
+	{
+		Success: null;
+		Failure: BcsStruct<
+			{
+				error: typeof ExecutionFailureStatus;
+				command: BcsType<
+					string | null,
+					string | number | bigint | null | undefined,
+					`Option<u64>`
+				>;
+			},
+			'Failure'
+		>;
+	},
+	'ExecutionStatus'
+>;
 
 // Rust: crates/sui-types/src/gas.rs
 const GasCostSummary = bcs.struct('GasCostSummary', {
@@ -169,8 +353,57 @@ const GasCostSummary = bcs.struct('GasCostSummary', {
 	nonRefundableStorageFee: bcs.u64(),
 });
 
+type GasCostSummaryType = BcsStruct<
+	{
+		computationCost: U64Type;
+		storageCost: U64Type;
+		storageRebate: U64Type;
+		nonRefundableStorageFee: U64Type;
+	},
+	'GasCostSummary'
+>;
+type VectorOf<T extends BcsType<any>> = BcsType<
+	(T['$inferType'])[],
+	Iterable<T['$inferInput']> & { length: number },
+	`vector<${T['name']}>`
+>;
+type SuiObjectRefOwnerTuple = BcsType<
+	[typeof SuiObjectRef.$inferType, typeof Owner.$inferType],
+	readonly [typeof SuiObjectRef.$inferInput, typeof Owner.$inferInput],
+	`(SuiObjectRef, Owner)`
+>;
+type AddressU64Tuple = BcsType<
+	[string, string],
+	readonly [string | Uint8Array, string | number | bigint],
+	`(bytes[32], u64)`
+>;
+type OptionObjectDigestType = BcsType<
+	string | null,
+	string | null | undefined,
+	`Option<ObjectDigest>`
+>;
+type TransactionEffectsV1Type = BcsStruct<
+	{
+		status: typeof ExecutionStatus;
+		executedEpoch: U64Type;
+		gasUsed: GasCostSummaryType;
+		modifiedAtVersions: VectorOf<AddressU64Tuple>;
+		sharedObjects: VectorOf<typeof SuiObjectRef>;
+		transactionDigest: typeof ObjectDigest;
+		created: VectorOf<SuiObjectRefOwnerTuple>;
+		mutated: VectorOf<SuiObjectRefOwnerTuple>;
+		unwrapped: VectorOf<SuiObjectRefOwnerTuple>;
+		deleted: VectorOf<typeof SuiObjectRef>;
+		unwrappedThenDeleted: VectorOf<typeof SuiObjectRef>;
+		wrapped: VectorOf<typeof SuiObjectRef>;
+		gasObject: SuiObjectRefOwnerTuple;
+		eventsDigest: OptionObjectDigestType;
+		dependencies: VectorOf<typeof ObjectDigest>;
+	},
+	'TransactionEffectsV1'
+>;
 // Rust: crates/sui-types/src/effects/effects_v1.rs
-const TransactionEffectsV1 = bcs.struct('TransactionEffectsV1', {
+const TransactionEffectsV1: TransactionEffectsV1Type = bcs.struct('TransactionEffectsV1', {
 	status: ExecutionStatus,
 	executedEpoch: bcs.u64(),
 	gasUsed: GasCostSummary,
@@ -186,7 +419,7 @@ const TransactionEffectsV1 = bcs.struct('TransactionEffectsV1', {
 	gasObject: bcs.tuple([SuiObjectRef, Owner]),
 	eventsDigest: bcs.option(ObjectDigest),
 	dependencies: bcs.vector(ObjectDigest),
-});
+}) as TransactionEffectsV1Type;
 
 // Rust: crates/sui-types/src/base_types.rs
 const VersionDigest = bcs.tuple([bcs.u64(), ObjectDigest]);
@@ -256,8 +489,116 @@ const UnchangedConsensusKind = bcs.enum('UnchangedConsensusKind', {
 	PerEpochConfig: null,
 });
 
+type VersionDigestType = BcsType<
+	[string, string],
+	readonly [string | number | bigint, string],
+	`(u64, ObjectDigest)`
+>;
+type ObjectInType = BcsEnum<
+	{
+		NotExist: null;
+		Exist: BcsType<
+			[[string, string], typeof Owner.$inferType],
+			readonly [readonly [string | number | bigint, string], typeof Owner.$inferInput],
+			`((u64, ObjectDigest), Owner)`
+		>;
+	},
+	'ObjectIn'
+>;
+type AccumulatorAddressType = BcsStruct<
+	{ address: AddressType; ty: typeof TypeTag },
+	'AccumulatorAddress'
+>;
+type AccumulatorOperationType = BcsEnum<{ Merge: null; Split: null }, 'AccumulatorOperation'>;
+type AccumulatorValueType = BcsEnum<
+	{
+		Integer: U64Type;
+		IntegerTuple: BcsType<
+			[string, string],
+			readonly [string | number | bigint, string | number | bigint],
+			`(u64, u64)`
+		>;
+		EventDigest: VectorOf<
+			BcsType<
+				[string, string],
+				readonly [string | number | bigint, string],
+				`(u64, ObjectDigest)`
+			>
+		>;
+	},
+	'AccumulatorValue'
+>;
+type AccumulatorWriteV1Type = BcsStruct<
+	{
+		address: AccumulatorAddressType;
+		operation: AccumulatorOperationType;
+		value: AccumulatorValueType;
+	},
+	'AccumulatorWriteV1'
+>;
+type ObjectOutType = BcsEnum<
+	{
+		NotExist: null;
+		ObjectWrite: BcsType<
+			[string, typeof Owner.$inferType],
+			readonly [string, typeof Owner.$inferInput],
+			`(ObjectDigest, Owner)`
+		>;
+		PackageWrite: VersionDigestType;
+		AccumulatorWriteV1: AccumulatorWriteV1Type;
+	},
+	'ObjectOut'
+>;
+type IDOperationType = BcsEnum<
+	{ None: null; Created: null; Deleted: null },
+	'IDOperation'
+>;
+type EffectsObjectChangeType = BcsStruct<
+	{
+		inputState: ObjectInType;
+		outputState: ObjectOutType;
+		idOperation: IDOperationType;
+	},
+	'EffectsObjectChange'
+>;
+type UnchangedConsensusKindType = BcsEnum<
+	{
+		ReadOnlyRoot: VersionDigestType;
+		MutateConsensusStreamEnded: U64Type;
+		ReadConsensusStreamEnded: U64Type;
+		Cancelled: U64Type;
+		PerEpochConfig: null;
+	},
+	'UnchangedConsensusKind'
+>;
+type AddressEffectsObjectChangeTuple = BcsType<
+	[string, EffectsObjectChangeType['$inferType']],
+	readonly [string | Uint8Array, EffectsObjectChangeType['$inferInput']],
+	`(bytes[32], EffectsObjectChange)`
+>;
+type AddressUnchangedConsensusKindTuple = BcsType<
+	[string, UnchangedConsensusKindType['$inferType']],
+	readonly [string | Uint8Array, UnchangedConsensusKindType['$inferInput']],
+	`(bytes[32], UnchangedConsensusKind)`
+>;
+type TransactionEffectsV2Type = BcsStruct<
+	{
+		status: typeof ExecutionStatus;
+		executedEpoch: U64Type;
+		gasUsed: GasCostSummaryType;
+		transactionDigest: typeof ObjectDigest;
+		gasObjectIndex: BcsType<number | null, number | null | undefined, `Option<u32>`>;
+		eventsDigest: OptionObjectDigestType;
+		dependencies: VectorOf<typeof ObjectDigest>;
+		lamportVersion: U64Type;
+		changedObjects: VectorOf<AddressEffectsObjectChangeTuple>;
+		unchangedConsensusObjects: VectorOf<AddressUnchangedConsensusKindTuple>;
+		auxDataDigest: OptionObjectDigestType;
+	},
+	'TransactionEffectsV2'
+>;
 // Rust: crates/sui-types/src/effects/effects_v2.rs
-const TransactionEffectsV2 = bcs.struct('TransactionEffectsV2', {
+const TransactionEffectsV2: TransactionEffectsV2Type = bcs.struct('TransactionEffectsV2', {
 	status: ExecutionStatus,
 	executedEpoch: bcs.u64(),
 	gasUsed: GasCostSummary,
@@ -269,10 +610,13 @@ const TransactionEffectsV2 = bcs.struct('TransactionEffectsV2', {
 	changedObjects: bcs.vector(bcs.tuple([Address, EffectsObjectChange])),
 	unchangedConsensusObjects: bcs.vector(bcs.tuple([Address, UnchangedConsensusKind])),
 	auxDataDigest: bcs.option(ObjectDigest),
-});
+}) as TransactionEffectsV2Type;
 
 // Rust: crates/sui-types/src/effects/mod.rs
 export const TransactionEffects = bcs.enum('TransactionEffects', {
 	V1: TransactionEffectsV1,
 	V2: TransactionEffectsV2,
-});
+}) as BcsEnum<
+	{ V1: typeof TransactionEffectsV1; V2: typeof TransactionEffectsV2 },
+	'TransactionEffects'
+>;

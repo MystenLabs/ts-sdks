@@ -4,6 +4,16 @@
 import * as v from 'valibot';
 import { SignJWT, decodeJwt, jwtVerify } from 'jose';
 
+type JwtSessionPayload = {
+	exp: number;
+	iat: number;
+	iss: string;
+	aud: string;
+	payload: {
+		accounts: { address: string; publicKey: string; label?: string | undefined }[];
+	};
+};
+
 const AccountSchema = v.object({
 	address: v.string(),
 	publicKey: v.string(),
@@ -18,9 +28,7 @@ const JwtSessionSchema = v.object({
 	payload: v.object({
 		accounts: v.array(AccountSchema),
 	}),
-});
-
-type JwtSessionPayload = v.InferOutput<typeof JwtSessionSchema>;
+}) as v.GenericSchema<JwtSessionPayload, JwtSessionPayload>;
 
 export async function createJwtSession(
 	payload: JwtSessionPayload['payload'],
@@ -30,7 +38,7 @@ export async function createJwtSession(
 		issuer: Parameters<SignJWT['setIssuer']>[0];
 		audience: Parameters<SignJWT['setAudience']>[0];
 	},
-) {
+): Promise<string> {
 	const token = await new SignJWT({ payload })
 		.setProtectedHeader({ alg: 'HS256' })
 		.setExpirationTime(options.expirationTime)
@@ -42,13 +50,16 @@ export async function createJwtSession(
 	return token;
 }
 
-export function decodeJwtSession(jwt: string) {
+export function decodeJwtSession(jwt: string): JwtSessionPayload {
 	const decodedJwt = decodeJwt(jwt);
 
 	return v.parse(JwtSessionSchema, decodedJwt);
 }
 
-export async function verifyJwtSession(jwt: string, secretKey: CryptoKey | Uint8Array) {
+export async function verifyJwtSession(
+	jwt: string,
+	secretKey: CryptoKey | Uint8Array,
+): Promise<JwtSessionPayload> {
 	const verified = await jwtVerify(jwt, secretKey, { algorithms: ['HS256'] });
 
 	return v.parse(JwtSessionSchema, verified.payload);

@@ -5,7 +5,12 @@ import { type BcsType, bcs } from '@mysten/sui/bcs';
 import { MoveStruct } from '../../../utils/index.js';
 const $moduleName = '0x2::vec_map';
 /** An entry in the map */
-export function Entry<K extends BcsType<any>, V extends BcsType<any>>(...typeParameters: [K, V]) {
+export function Entry<K extends BcsType<any>, V extends BcsType<any>>(
+	...typeParameters: [K, V]
+): MoveStruct<{
+	key: K;
+	value: V;
+}> {
 	return new MoveStruct({
 		name: `${$moduleName}::Entry<${typeParameters[0].name as K['name']}, ${typeParameters[1].name as V['name']}>`,
 		fields: {
@@ -23,7 +28,11 @@ export function Entry<K extends BcsType<any>, V extends BcsType<any>>(...typePar
  * Maps that need sorted iteration rather than insertion order iteration should
  * also be handwritten.
  */
-export function VecMap<K extends BcsType<any>, V extends BcsType<any>>(...typeParameters: [K, V]) {
+export function VecMap<K extends BcsType<any>, V extends BcsType<any>>(
+	...typeParameters: [K, V]
+): MoveStruct<{
+	contents: ReturnType<typeof bcs.vector<ReturnType<typeof Entry<K, V>>>>;
+}> {
 	return new MoveStruct({
 		name: `${$moduleName}::VecMap<${typeParameters[0].name as K['name']}, ${typeParameters[1].name as V['name']}>`,
 		fields: {
