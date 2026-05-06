@@ -1,12 +1,14 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import type { ReactElement } from 'react';
+
 import { Button } from '../../ui/Button.js';
 import { Heading } from '../../ui/Heading.js';
 import { InfoSection } from '../InfoSection.js';
 import * as styles from './GettingStarted.css.js';
 
-export function GettingStarted() {
+export function GettingStarted(): ReactElement {
 	return (
 		<div className={styles.container}>
 			<Heading as="h2">Get Started with Sui</Heading>

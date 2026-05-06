@@ -1,11 +1,13 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import type { ReactElement } from 'react';
+
 import { Heading } from '../../ui/Heading.js';
 import { InfoSection } from '../InfoSection.js';
 import * as styles from './WhatIsAWallet.css.js';
 
-export function WhatIsAWallet() {
+export function WhatIsAWallet(): ReactElement {
 	return (
 		<div className={styles.container}>
 			<Heading as="h2">What is a Wallet</Heading>

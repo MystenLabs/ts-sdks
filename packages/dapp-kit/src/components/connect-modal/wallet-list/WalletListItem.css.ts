@@ -5,11 +5,11 @@ import { style } from '@vanilla-extract/css';
 
 import { themeVars } from '../../../themes/themeContract.js';
 
-export const container = style({
+export const container: string = style({
 	display: 'flex',
 });
 
-export const walletItem = style({
+export const walletItem: string = style({
 	display: 'flex',
 	alignItems: 'center',
 	flexGrow: 1,
@@ -21,12 +21,12 @@ export const walletItem = style({
 	},
 });
 
-export const selectedWalletItem = style({
+export const selectedWalletItem: string = style({
 	backgroundColor: themeVars.backgroundColors.walletItemSelected,
 	boxShadow: '0px 2px 6px rgba(0, 0, 0, 0.05)',
 });
 
-export const walletIcon = style({
+export const walletIcon: string = style({
 	width: 28,
 	height: 28,
 	flexShrink: 0,

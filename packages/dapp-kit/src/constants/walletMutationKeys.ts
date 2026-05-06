@@ -3,7 +3,18 @@
 
 import type { MutationKey } from '@tanstack/react-query';
 
-export const walletMutationKeys = {
+type MutationKeyFn = (additionalKeys?: MutationKey) => MutationKey;
+
+export const walletMutationKeys: {
+	all: { baseScope: string };
+	connectWallet: MutationKeyFn;
+	autoconnectWallet: MutationKeyFn;
+	disconnectWallet: MutationKeyFn;
+	signPersonalMessage: MutationKeyFn;
+	signTransaction: MutationKeyFn;
+	signAndExecuteTransaction: MutationKeyFn;
+	switchAccount: MutationKeyFn;
+} = {
 	all: { baseScope: 'wallet' },
 	connectWallet: formMutationKeyFn('connect-wallet'),
 	autoconnectWallet: formMutationKeyFn('autoconnect-wallet'),
@@ -14,8 +25,8 @@ export const walletMutationKeys = {
 	switchAccount: formMutationKeyFn('switch-account'),
 };
 
-function formMutationKeyFn(baseEntity: string) {
-	return function mutationKeyFn(additionalKeys: MutationKey = []) {
+function formMutationKeyFn(baseEntity: string): MutationKeyFn {
+	return function mutationKeyFn(additionalKeys: MutationKey = []): MutationKey {
 		return [{ ...walletMutationKeys.all, baseEntity }, ...additionalKeys];
 	};
 }

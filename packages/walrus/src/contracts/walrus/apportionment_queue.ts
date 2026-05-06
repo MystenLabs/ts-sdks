@@ -17,7 +17,13 @@ import {
 } from '@mysten/sui/transactions';
 import * as uq64_64 from './deps/std/uq64_64.js';
 const $moduleName = '@local-pkg/walrus::apportionment_queue';
-export function Entry<T extends BcsType<any>>(...typeParameters: [T]) {
+export function Entry<T extends BcsType<any>>(
+	...typeParameters: [T]
+): MoveStruct<{
+	priority: typeof uq64_64.UQ64_64;
+	tie_breaker: ReturnType<typeof bcs.u64>;
+	value: T;
+}> {
 	return new MoveStruct({
 		name: `${$moduleName}::Entry<${typeParameters[0].name as T['name']}>`,
 		fields: {
@@ -28,7 +34,11 @@ export function Entry<T extends BcsType<any>>(...typeParameters: [T]) {
 	});
 }
 /** Struct representing a priority queue. */
-export function ApportionmentQueue<T extends BcsType<any>>(...typeParameters: [T]) {
+export function ApportionmentQueue<T extends BcsType<any>>(
+	...typeParameters: [T]
+): MoveStruct<{
+	entries: ReturnType<typeof bcs.vector<ReturnType<typeof Entry<T>>>>;
+}> {
 	return new MoveStruct({
 		name: `${$moduleName}::ApportionmentQueue<${typeParameters[0].name as T['name']}>`,
 		fields: {

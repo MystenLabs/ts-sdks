@@ -4,7 +4,6 @@
 import {
 	MoveStruct,
 	MoveEnum,
-	MoveTuple,
 	normalizeMoveArguments,
 	type RawTransactionArgument,
 } from '../utils/index.js';

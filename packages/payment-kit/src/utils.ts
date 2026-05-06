@@ -8,7 +8,7 @@ import { DEFAULT_REGISTRY_NAME } from './constants.js';
 export const getRegistryIdFromName = (
 	registryName: string = DEFAULT_REGISTRY_NAME,
 	namespaceId: string,
-) => {
+): string => {
 	return deriveObjectID(
 		namespaceId,
 		'0x1::ascii::String',

@@ -22,7 +22,36 @@ export interface EncodedBlob {
 	rootHash: Uint8Array;
 }
 
-export async function getWasmBindings(url?: string) {
+export interface WasmBindings {
+	encodeBlob: (nShards: number, bytes: Uint8Array, encodingType?: EncodingType) => EncodedBlob;
+	combineSignatures: (
+		confirmations: StorageConfirmation[],
+		signerIndices: number[],
+	) => ProtocolMessageCertificate;
+	decodePrimarySlivers: (
+		blobId: string,
+		nShards: number,
+		size: number | bigint | string,
+		slivers: Uint8Array[],
+		encodingType?: EncodingType,
+	) => Uint8Array;
+	getVerifySignature: () => (
+		confirmation: StorageConfirmation,
+		publicKey: Uint8Array,
+	) => boolean;
+	computeMetadata: (
+		nShards: number,
+		bytes: Uint8Array,
+		encodingType?: EncodingType,
+	) => {
+		blobId: string;
+		rootHash: Uint8Array;
+		unencodedLength: bigint;
+		encodingType: EncodingType;
+	};
+}
+
+export async function getWasmBindings(url?: string): Promise<WasmBindings> {
 	await init({ module_or_path: url });
 
 	function encodeBlob(

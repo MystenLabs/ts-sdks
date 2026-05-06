@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { WalletWithRequiredFeatures } from '@mysten/wallet-standard';
+import type { ReactElement } from 'react';
 
 import { Button } from '../../ui/Button.js';
 import { Heading } from '../../ui/Heading.js';
@@ -18,7 +19,7 @@ export function ConnectionStatus({
 	selectedWallet,
 	hadConnectionError,
 	onRetryConnection,
-}: ConnectionStatusProps) {
+}: ConnectionStatusProps): ReactElement {
 	return (
 		<div className={styles.container}>
 			{selectedWallet.icon && (

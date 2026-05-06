@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { clsx } from 'clsx';
-import type { ReactNode } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 
 import { Heading } from '../../ui/Heading.js';
 import * as styles from './WalletListItem.css.js';
@@ -14,7 +14,12 @@ type WalletListItemProps = {
 	onClick: () => void;
 };
 
-export function WalletListItem({ name, icon, onClick, isSelected = false }: WalletListItemProps) {
+export function WalletListItem({
+	name,
+	icon,
+	onClick,
+	isSelected = false,
+}: WalletListItemProps): ReactElement {
 	return (
 		<li className={styles.container}>
 			<button

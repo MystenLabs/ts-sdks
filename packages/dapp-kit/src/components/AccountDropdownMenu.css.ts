@@ -5,15 +5,15 @@ import { style } from '@vanilla-extract/css';
 
 import { themeVars } from '../themes/themeContract.js';
 
-export const connectedAccount = style({
+export const connectedAccount: string = style({
 	gap: 8,
 });
 
-export const menuContainer = style({
+export const menuContainer: string = style({
 	zIndex: 999999999,
 });
 
-export const menuContent = style({
+export const menuContent: string = style({
 	display: 'flex',
 	flexDirection: 'column',
 	width: 180,
@@ -25,7 +25,7 @@ export const menuContent = style({
 	backgroundColor: themeVars.backgroundColors.dropdownMenu,
 });
 
-export const menuItem = style({
+export const menuItem: string = style({
 	padding: 8,
 	userSelect: 'none',
 	outline: 'none',
@@ -39,13 +39,13 @@ export const menuItem = style({
 	},
 });
 
-export const switchAccountMenuItem = style({
+export const switchAccountMenuItem: string = style({
 	display: 'flex',
 	justifyContent: 'space-between',
 	alignItems: 'center',
 });
 
-export const separator = style({
+export const separator: string = style({
 	height: 1,
 	flexShrink: 0,
 	backgroundColor: themeVars.backgroundColors.dropdownMenuSeparator,

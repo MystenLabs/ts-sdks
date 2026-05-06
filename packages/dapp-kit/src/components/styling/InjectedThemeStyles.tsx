@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { assignInlineVars } from '@vanilla-extract/dynamic';
+import type { ReactElement } from 'react';
 
 import { styleDataAttributeSelector } from '../../constants/styleDataAttribute.js';
 import { themeVars } from '../../themes/themeContract.js';
@@ -11,7 +12,7 @@ type InjectedThemeStylesProps = {
 	theme: Theme;
 };
 
-export function InjectedThemeStyles({ theme }: InjectedThemeStylesProps) {
+export function InjectedThemeStyles({ theme }: InjectedThemeStylesProps): ReactElement {
 	const themeStyles = Array.isArray(theme)
 		? getDynamicThemeStyles(theme)
 		: getStaticThemeStyles(theme);

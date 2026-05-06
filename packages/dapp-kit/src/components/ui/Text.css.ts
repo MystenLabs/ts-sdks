@@ -1,12 +1,17 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { RecipeVariants } from '@vanilla-extract/recipes';
+import type { RecipeVariants, RuntimeFn } from '@vanilla-extract/recipes';
 import { recipe } from '@vanilla-extract/recipes';
 
 import { themeVars } from '../../themes/themeContract.js';
 
-export const textVariants = recipe({
+export const textVariants: RuntimeFn<{
+	size: { sm: object };
+	weight: { normal: object; medium: object; bold: object };
+	color: { muted: object; danger: object };
+	mono: { true: object };
+}> = recipe({
 	variants: {
 		size: {
 			sm: {

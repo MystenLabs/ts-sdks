@@ -3,6 +3,7 @@
 
 import { Slot } from '@radix-ui/react-slot';
 import clsx from 'clsx';
+import type { ForwardRefExoticComponent, PropsWithoutRef, RefAttributes } from 'react';
 import { forwardRef } from 'react';
 
 import { headingVariants } from './Heading.css.js';
@@ -22,7 +23,9 @@ type HeadingProps = (HeadingAsChildProps | HeadingAsProps) &
 	React.HTMLAttributes<HTMLHeadingElement> &
 	HeadingVariants;
 
-const Heading = forwardRef<HTMLHeadingElement, HeadingProps>(
+const Heading: ForwardRefExoticComponent<
+	PropsWithoutRef<HeadingProps> & RefAttributes<HTMLHeadingElement>
+> = forwardRef<HTMLHeadingElement, HeadingProps>(
 	(
 		{
 			children,

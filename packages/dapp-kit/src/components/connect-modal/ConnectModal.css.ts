@@ -5,7 +5,7 @@ import { style } from '@vanilla-extract/css';
 
 import { themeVars } from '../../themes/themeContract.js';
 
-export const overlay = style({
+export const overlay: string = style({
 	backgroundColor: themeVars.backgroundColors.modalOverlay,
 	backdropFilter: themeVars.blurs.modalOverlay,
 	position: 'fixed',
@@ -13,11 +13,11 @@ export const overlay = style({
 	zIndex: 999999999,
 });
 
-export const title = style({
+export const title: string = style({
 	paddingLeft: 8,
 });
 
-export const content = style({
+export const content: string = style({
 	backgroundColor: themeVars.backgroundColors.modalPrimary,
 	borderRadius: themeVars.radii.xlarge,
 	color: themeVars.colors.body,
@@ -43,7 +43,7 @@ export const content = style({
 	},
 });
 
-export const whatIsAWalletButton = style({
+export const whatIsAWalletButton: string = style({
 	backgroundColor: themeVars.backgroundColors.modalSecondary,
 	padding: 16,
 	'@media': {
@@ -53,7 +53,7 @@ export const whatIsAWalletButton = style({
 	},
 });
 
-export const viewContainer = style({
+export const viewContainer: string = style({
 	display: 'none',
 	padding: 20,
 	flexGrow: 1,
@@ -64,11 +64,11 @@ export const viewContainer = style({
 	},
 });
 
-export const selectedViewContainer = style({
+export const selectedViewContainer: string = style({
 	display: 'flex',
 });
 
-export const backButtonContainer = style({
+export const backButtonContainer: string = style({
 	position: 'absolute',
 	top: 20,
 	left: 20,
@@ -79,13 +79,13 @@ export const backButtonContainer = style({
 	},
 });
 
-export const closeButtonContainer = style({
+export const closeButtonContainer: string = style({
 	position: 'absolute',
 	top: 16,
 	right: 16,
 });
 
-export const walletListContent = style({
+export const walletListContent: string = style({
 	display: 'flex',
 	flexDirection: 'column',
 	flexGrow: 1,
@@ -99,7 +99,7 @@ export const walletListContent = style({
 	},
 });
 
-export const walletListContainer = style({
+export const walletListContainer: string = style({
 	display: 'flex',
 	justifyContent: 'space-between',
 	flexDirection: 'column',
@@ -114,7 +114,7 @@ export const walletListContainer = style({
 	},
 });
 
-export const walletListContainerWithViewSelected = style({
+export const walletListContainerWithViewSelected: string = style({
 	display: 'none',
 	'@media': {
 		'screen and (min-width: 768px)': {

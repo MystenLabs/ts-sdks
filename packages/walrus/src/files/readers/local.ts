@@ -22,7 +22,7 @@ export class LocalReader implements FileReader {
 		this.#tags = tags ?? {};
 	}
 
-	async getBytes() {
+	async getBytes(): Promise<Uint8Array> {
 		if ('arrayBuffer' in this.#contents) {
 			return new Uint8Array(await this.#contents.arrayBuffer());
 		}
@@ -30,11 +30,11 @@ export class LocalReader implements FileReader {
 		return this.#contents;
 	}
 
-	async getIdentifier() {
+	async getIdentifier(): Promise<string | null> {
 		return this.#identifier;
 	}
 
-	async getTags() {
+	async getTags(): Promise<Record<string, string>> {
 		return this.#tags;
 	}
 }

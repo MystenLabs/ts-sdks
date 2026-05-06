@@ -5,7 +5,7 @@ import type { WalletWithRequiredFeatures } from '@mysten/wallet-standard';
 import * as Dialog from '@radix-ui/react-dialog';
 import clsx from 'clsx';
 import { useState } from 'react';
-import type { ReactNode } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 
 import { DEFAULT_WALLET_FILTER } from '../../constants/walletDefaults.js';
 import { useConnectWallet } from '../../hooks/wallet/useConnectWallet.js';
@@ -57,7 +57,7 @@ export function ConnectModal({
 	defaultOpen,
 	onOpenChange,
 	walletFilter = DEFAULT_WALLET_FILTER,
-}: ConnectModalProps) {
+}: ConnectModalProps): ReactElement {
 	const [isModalOpen, setModalOpen] = useState(open ?? defaultOpen);
 	const [currentView, setCurrentView] = useState<ConnectModalView>();
 	const [selectedWallet, setSelectedWallet] = useState<WalletWithRequiredFeatures>();

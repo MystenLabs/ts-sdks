@@ -3,13 +3,13 @@
 
 import { style } from '@vanilla-extract/css';
 
-export const container = style({
+export const container: string = style({
 	display: 'flex',
 	flexDirection: 'column',
 	alignItems: 'center',
 });
 
-export const content = style({
+export const content: string = style({
 	display: 'flex',
 	flexDirection: 'column',
 	justifyContent: 'center',

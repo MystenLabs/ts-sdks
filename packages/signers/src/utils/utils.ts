@@ -9,7 +9,7 @@ import { ASN1Construction, ASN1TagClass, DERElement } from 'asn1-ts';
 export const DER_BIT_STRING_LENGTH = 520;
 
 /** The total number of bytes corresponding to the DER bit string length. */
-export const DER_BYTES_LENGTH = DER_BIT_STRING_LENGTH / 8;
+export const DER_BYTES_LENGTH: number = DER_BIT_STRING_LENGTH / 8;
 
 // Reference Specifications:
 // https://datatracker.ietf.org/doc/html/rfc5480#section-2.2
@@ -33,7 +33,7 @@ function bitsToBytes(bitsArray: Uint8ClampedArray): Uint8Array {
 	return bytes;
 }
 
-export function publicKeyFromDER(derBytes: Uint8Array) {
+export function publicKeyFromDER(derBytes: Uint8Array): Uint8Array {
 	const encodedData: Uint8Array = derBytes;
 	const derElement = new DERElement();
 	derElement.fromBytes(encodedData);
@@ -58,7 +58,10 @@ export function publicKeyFromDER(derBytes: Uint8Array) {
 	return compressPublicKeyClamped(publicKeyElement.bitString);
 }
 
-export function getConcatenatedSignature(signature: Uint8Array, keyScheme: string) {
+export function getConcatenatedSignature(
+	signature: Uint8Array,
+	keyScheme: string,
+): Uint8Array<ArrayBuffer> {
 	if (!signature || signature.length === 0) {
 		throw new Error('Invalid signature');
 	}

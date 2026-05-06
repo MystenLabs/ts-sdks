@@ -69,12 +69,12 @@ export class SuiObjectDataLoader extends DataLoader<
 		return data as T[];
 	}
 
-	override clearAll() {
+	override clearAll(): this {
 		this.#dynamicFieldCache.clear();
 		return super.clearAll();
 	}
 
-	override clear(key: string) {
+	override clear(key: string): this {
 		this.#dynamicFieldCache.delete(key);
 		return super.clear(key);
 	}

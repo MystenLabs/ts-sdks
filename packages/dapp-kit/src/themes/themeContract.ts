@@ -3,6 +3,12 @@
 
 import { createGlobalThemeContract } from '@vanilla-extract/css';
 
+type CSSVarFunction = `var(--${string})`;
+
+type MapLeafNodesToVar<T> = {
+	[K in keyof T]: T[K] extends string ? CSSVarFunction : MapLeafNodesToVar<T[K]>;
+};
+
 const themeContractValues = {
 	blurs: {
 		modalOverlay: '',
@@ -91,7 +97,7 @@ export type DynamicTheme = {
 
 export type Theme = ThemeVars | DynamicTheme[];
 
-export const themeVars = createGlobalThemeContract(
+export const themeVars: MapLeafNodesToVar<typeof themeContractValues> = createGlobalThemeContract(
 	themeContractValues,
 	(_, path) => `dapp-kit-${path.join('-')}`,
 );

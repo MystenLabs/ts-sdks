@@ -3,9 +3,12 @@
 
 import type { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import type {
+	DataTag,
 	UndefinedInitialDataOptions,
 	UseQueryOptions,
 	UseQueryResult,
+	UseSuspenseQueryOptions,
+	UseSuspenseQueryResult,
 } from '@tanstack/react-query';
 import { queryOptions, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
@@ -60,14 +63,18 @@ export function getSuiClientQuery<T extends keyof SuiRpcMethods>({
 	method,
 	params,
 	options,
-}: GetSuiClientQueryOptions<T>) {
+}: GetSuiClientQueryOptions<T>): UndefinedInitialDataOptions<SuiRpcMethods[T]['result']> & {
+	queryKey: DataTag<readonly unknown[], SuiRpcMethods[T]['result'], Error>;
+} {
 	return queryOptions<SuiRpcMethods[T]['result']>({
 		...options,
 		queryKey: [network, method, params],
 		queryFn: async () => {
 			return await client[method](params as never);
 		},
-	});
+	}) as UndefinedInitialDataOptions<SuiRpcMethods[T]['result']> & {
+		queryKey: DataTag<readonly unknown[], SuiRpcMethods[T]['result'], Error>;
+	};
 }
 
 export function useSuiClientQuery<
@@ -102,7 +109,7 @@ export function useSuiClientSuspenseQuery<
 	...args: undefined extends SuiRpcMethods[T]['params']
 		? [method: T, params?: SuiRpcMethods[T]['params'], options?: UndefinedInitialDataOptions<TData>]
 		: [method: T, params: SuiRpcMethods[T]['params'], options?: UndefinedInitialDataOptions<TData>]
-) {
+): UseSuspenseQueryResult<SuiRpcMethods[T]['result'], Error> {
 	const [method, params, options = {}] = args as [
 		method: T,
 		params?: SuiRpcMethods[T]['params'],
@@ -121,5 +128,5 @@ export function useSuiClientSuspenseQuery<
 		});
 	}, [suiContext.client, suiContext.network, method, params, options]);
 
-	return useSuspenseQuery(query);
+	return useSuspenseQuery(query as UseSuspenseQueryOptions<SuiRpcMethods[T]['result']>);
 }

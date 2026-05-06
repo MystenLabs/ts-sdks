@@ -5,7 +5,7 @@ import { style } from '@vanilla-extract/css';
 
 import { themeVars } from '../../themes/themeContract.js';
 
-export const container = style({
+export const container: string = style({
 	borderRadius: 9999,
 	padding: 8,
 	color: themeVars.colors.iconButton,

@@ -3,6 +3,7 @@
 
 import { getJsonRpcFullnodeUrl, isSuiJsonRpcClient, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import type { SuiJsonRpcClientOptions } from '@mysten/sui/jsonRpc';
+import type { Context, ReactElement } from 'react';
 import { createContext, useMemo, useState } from 'react';
 
 import type { NetworkConfig } from '../hooks/networkConfig.js';
@@ -18,7 +19,8 @@ export interface SuiClientProviderContext {
 	selectNetwork: (network: string) => void;
 }
 
-export const SuiClientContext = createContext<SuiClientProviderContext | null>(null);
+export const SuiClientContext: Context<SuiClientProviderContext | null> =
+	createContext<SuiClientProviderContext | null>(null);
 
 export type SuiClientProviderProps<T extends NetworkConfigs> = {
 	createClient?: (name: keyof T, config: T[keyof T]) => SuiJsonRpcClient;
@@ -51,7 +53,9 @@ const DEFAULT_CREATE_CLIENT = function createClient(
 	return new SuiJsonRpcClient(config);
 };
 
-export function SuiClientProvider<T extends NetworkConfigs>(props: SuiClientProviderProps<T>) {
+export function SuiClientProvider<T extends NetworkConfigs>(
+	props: SuiClientProviderProps<T>,
+): ReactElement {
 	const { onNetworkChange, network, children } = props;
 	const networks = (props.networks ?? DEFAULT_NETWORKS) as T;
 	const createClient =

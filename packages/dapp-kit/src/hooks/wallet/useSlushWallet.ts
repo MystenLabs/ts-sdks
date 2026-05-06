@@ -9,7 +9,7 @@ export interface SlushWalletConfig {
 	origin?: string;
 }
 
-export function useSlushWallet(config?: SlushWalletConfig) {
+export function useSlushWallet(config?: SlushWalletConfig): void {
 	const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 
 	useIsomorphicLayoutEffect(() => {

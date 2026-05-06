@@ -12,7 +12,9 @@ const $moduleName = '0x2::vec_set';
  *   programming against a set API. Sets that need sorted iteration rather than
  *   insertion order iteration should be handwritten.
  */
-export function VecSet<K extends BcsType<any>>(...typeParameters: [K]) {
+export function VecSet<K extends BcsType<any>>(
+	...typeParameters: [K]
+): MoveStruct<{ contents: ReturnType<typeof bcs.vector<K>> }> {
 	return new MoveStruct({
 		name: `${$moduleName}::VecSet<${typeParameters[0].name as K['name']}>`,
 		fields: {

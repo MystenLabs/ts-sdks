@@ -10,7 +10,14 @@
 import { type BcsType, bcs } from '@mysten/sui/bcs';
 import { MoveStruct } from '../../../utils/index.js';
 const $moduleName = '0x2::linked_table';
-export function LinkedTable<K extends BcsType<any>>(...typeParameters: [K]) {
+export function LinkedTable<K extends BcsType<any>>(
+	...typeParameters: [K]
+): MoveStruct<{
+	id: typeof bcs.Address;
+	size: ReturnType<typeof bcs.u64>;
+	head: ReturnType<typeof bcs.option<K>>;
+	tail: ReturnType<typeof bcs.option<K>>;
+}> {
 	return new MoveStruct({
 		name: `${$moduleName}::LinkedTable<${typeParameters[0].name as K['name']}, phantom V>`,
 		fields: {

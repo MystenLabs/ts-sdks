@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { WalletWithRequiredFeatures } from '@mysten/wallet-standard';
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import type { ButtonHTMLAttributes, ReactElement, ReactNode } from 'react';
 
 import { useCurrentAccount } from '../hooks/wallet/useCurrentAccount.js';
 import { AccountDropdownMenu } from './AccountDropdownMenu.js';
@@ -20,7 +20,7 @@ export function ConnectButton({
 	connectText = 'Connect Wallet',
 	walletFilter,
 	...buttonProps
-}: ConnectButtonProps) {
+}: ConnectButtonProps): ReactElement {
 	const currentAccount = useCurrentAccount();
 	return currentAccount ? (
 		<AccountDropdownMenu currentAccount={currentAccount} />

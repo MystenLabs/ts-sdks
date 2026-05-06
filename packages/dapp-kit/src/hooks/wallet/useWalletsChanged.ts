@@ -14,7 +14,7 @@ import { useWalletStore } from './useWalletStore.js';
 export function useWalletsChanged(
 	preferredWallets: string[],
 	walletFilter?: (wallet: WalletWithRequiredFeatures) => boolean,
-) {
+): void {
 	const setWalletRegistered = useWalletStore((state) => state.setWalletRegistered);
 	const setWalletUnregistered = useWalletStore((state) => state.setWalletUnregistered);
 

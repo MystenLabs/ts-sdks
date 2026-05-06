@@ -5,6 +5,7 @@ import { formatAddress } from '@mysten/sui/utils';
 import type { WalletAccount } from '@mysten/wallet-standard';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import clsx from 'clsx';
+import type { ReactElement } from 'react';
 
 import { useResolveSuiNSName } from '../hooks/useResolveSuiNSNames.js';
 import { useAccounts } from '../hooks/wallet/useAccounts.js';
@@ -21,7 +22,7 @@ type AccountDropdownMenuProps = {
 	currentAccount: WalletAccount;
 };
 
-export function AccountDropdownMenu({ currentAccount }: AccountDropdownMenuProps) {
+export function AccountDropdownMenu({ currentAccount }: AccountDropdownMenuProps): ReactElement {
 	const { mutate: disconnectWallet } = useDisconnectWallet();
 
 	const { data: domain } = useResolveSuiNSName(
@@ -71,7 +72,7 @@ export function AccountDropdownMenuItem({
 }: {
 	account: WalletAccount;
 	active?: boolean;
-}) {
+}): ReactElement {
 	const { mutate: switchAccount } = useSwitchAccount();
 	const { data: domain } = useResolveSuiNSName(account.label ? null : account.address);
 

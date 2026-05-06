@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { WalletWithFeatures, WalletWithRequiredFeatures } from '@mysten/wallet-standard';
-import type { ReactNode } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import { useRef } from 'react';
 import type { StateStorage } from 'zustand/middleware';
 
@@ -66,7 +66,7 @@ export function WalletProvider({
 	slushWallet,
 	theme = lightTheme,
 	children,
-}: WalletProviderProps) {
+}: WalletProviderProps): ReactElement {
 	const storeRef = useRef(
 		createWalletStore({
 			autoConnectEnabled: autoConnect,

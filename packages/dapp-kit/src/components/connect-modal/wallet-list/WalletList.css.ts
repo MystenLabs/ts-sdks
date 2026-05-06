@@ -3,7 +3,7 @@
 
 import { style } from '@vanilla-extract/css';
 
-export const container = style({
+export const container: string = style({
 	display: 'flex',
 	flexDirection: 'column',
 	gap: 4,

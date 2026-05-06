@@ -4,9 +4,10 @@
 import type { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import { useContext } from 'react';
 
+import type { SuiClientProviderContext } from '../components/SuiClientProvider.js';
 import { SuiClientContext } from '../components/SuiClientProvider.js';
 
-export function useSuiClientContext() {
+export function useSuiClientContext(): SuiClientProviderContext {
 	const suiClient = useContext(SuiClientContext);
 
 	if (!suiClient) {

@@ -3,6 +3,6 @@
 
 export const styleDataAttributeName = 'data-dapp-kit';
 
-export const styleDataAttributeSelector = `[${styleDataAttributeName}]`;
+export const styleDataAttributeSelector: string = `[${styleDataAttributeName}]`;
 
-export const styleDataAttribute = { [styleDataAttributeName]: '' };
+export const styleDataAttribute: Record<string, string> = { [styleDataAttributeName]: '' };

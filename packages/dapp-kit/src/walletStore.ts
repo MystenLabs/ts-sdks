@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { Wallet, WalletAccount, WalletWithRequiredFeatures } from '@mysten/wallet-standard';
+import type { StoreApi } from 'zustand';
 import { createStore } from 'zustand';
 import type { StateStorage } from 'zustand/middleware';
 import { createJSONStorage, persist } from 'zustand/middleware';
@@ -28,7 +29,7 @@ export type WalletActions = {
 	) => void;
 };
 
-export type WalletStore = ReturnType<typeof createWalletStore>;
+export type WalletStore = StoreApi<StoreState>;
 
 export type StoreState = {
 	autoConnectEnabled: boolean;
@@ -54,7 +55,7 @@ export function createWalletStore({
 	storage,
 	storageKey,
 	autoConnectEnabled,
-}: WalletConfiguration) {
+}: WalletConfiguration): WalletStore {
 	return createStore<StoreState>()(
 		persist(
 			(set, get) => ({

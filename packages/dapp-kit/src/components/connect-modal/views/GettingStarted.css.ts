@@ -3,13 +3,13 @@
 
 import { style } from '@vanilla-extract/css';
 
-export const container = style({
+export const container: string = style({
 	display: 'flex',
 	flexDirection: 'column',
 	alignItems: 'center',
 });
 
-export const content = style({
+export const content: string = style({
 	display: 'flex',
 	flexDirection: 'column',
 	justifyContent: 'center',
@@ -18,7 +18,7 @@ export const content = style({
 	padding: 40,
 });
 
-export const installButtonContainer = style({
+export const installButtonContainer: string = style({
 	position: 'absolute',
 	bottom: 20,
 	right: 20,

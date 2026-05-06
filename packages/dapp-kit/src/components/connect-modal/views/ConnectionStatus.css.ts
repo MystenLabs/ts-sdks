@@ -5,7 +5,7 @@ import { style } from '@vanilla-extract/css';
 
 import { themeVars } from '../../../themes/themeContract.js';
 
-export const container = style({
+export const container: string = style({
 	display: 'flex',
 	flexDirection: 'column',
 	justifyContent: 'center',
@@ -13,22 +13,22 @@ export const container = style({
 	width: '100%',
 });
 
-export const walletIcon = style({
+export const walletIcon: string = style({
 	objectFit: 'cover',
 	width: 72,
 	height: 72,
 	borderRadius: themeVars.radii.large,
 });
 
-export const title = style({
+export const title: string = style({
 	marginTop: 12,
 });
 
-export const connectionStatus = style({
+export const connectionStatus: string = style({
 	marginTop: 4,
 });
 
-export const retryButtonContainer = style({
+export const retryButtonContainer: string = style({
 	position: 'absolute',
 	bottom: 20,
 	right: 20,

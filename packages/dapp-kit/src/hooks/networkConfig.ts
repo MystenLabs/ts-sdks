@@ -13,7 +13,14 @@ export function createNetworkConfig<
 	const T extends Record<string, Config>,
 	Config extends NetworkConfig<Variables> = T[keyof T],
 	Variables extends object = NonNullable<Config['variables']>,
->(networkConfig: T) {
+>(
+	networkConfig: T,
+): {
+	networkConfig: T;
+	useNetworkConfig: () => Config;
+	useNetworkVariables: () => Variables;
+	useNetworkVariable: <K extends keyof Variables>(name: K) => Variables[K];
+} {
 	function useNetworkConfig(): Config {
 		const { config } = useSuiClientContext();
 

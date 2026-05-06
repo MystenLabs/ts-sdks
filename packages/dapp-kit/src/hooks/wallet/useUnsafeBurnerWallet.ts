@@ -25,7 +25,7 @@ import { useSuiClient } from '../useSuiClient.js';
 
 const WALLET_NAME = 'Unsafe Burner Wallet';
 
-export function useUnsafeBurnerWallet(enabled: boolean) {
+export function useUnsafeBurnerWallet(enabled: boolean): void {
 	const suiClient = useSuiClient();
 
 	useEffect(() => {

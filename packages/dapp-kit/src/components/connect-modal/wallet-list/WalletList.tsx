@@ -3,6 +3,7 @@
 
 import type { WalletWithRequiredFeatures } from '@mysten/wallet-standard';
 import { SLUSH_WALLET_NAME, SLUSH_WALLET_ICON } from '@mysten/slush-wallet';
+import type { ReactElement } from 'react';
 
 import { getWalletUniqueIdentifier } from '../../../utils/walletUtils.js';
 import * as styles from './WalletList.css.js';
@@ -20,7 +21,7 @@ export function WalletList({
 	onPlaceholderClick,
 	onSelect,
 	wallets,
-}: WalletListProps) {
+}: WalletListProps): ReactElement {
 	return (
 		<ul className={styles.container}>
 			{wallets.length > 0 ? (

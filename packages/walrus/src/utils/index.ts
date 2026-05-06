@@ -17,7 +17,7 @@ export const REQUIRED_ALIGNMENT_BY_ENCODING_TYPE = {
 	RedStuff: 2,
 };
 
-export const MAX_SYMBOL_SIZE_BY_ENCODING_TYPE = {
+export const MAX_SYMBOL_SIZE_BY_ENCODING_TYPE: { RS2: number; RedStuff: number } = {
 	RS2: 2 ** 16 - 1,
 	RedStuff: 2 ** 16 - 1,
 };
@@ -51,7 +51,10 @@ export function encodedSliverSize(
 	return singleShardSize * nShards;
 }
 
-export function getSourceSymbols(nShards: number, encodingType: EncodingType = 'RS2') {
+export function getSourceSymbols(
+	nShards: number,
+	encodingType: EncodingType = 'RS2',
+): { primarySymbols: number; secondarySymbols: number } {
 	const safetyLimit = decodingSafetyLimit(nShards, encodingType);
 	const maxFaulty = getMaxFaultyNodes(nShards);
 	const minCorrect = nShards - maxFaulty;
@@ -136,7 +139,9 @@ export function signersToBitmap(signers: number[], committeeSize: number): Uint8
 	return bitmap;
 }
 
-export function getShardIndicesByNodeId(committee: InferBcsType<typeof Committee>) {
+export function getShardIndicesByNodeId(
+	committee: InferBcsType<typeof Committee>,
+): Map<string, number[]> {
 	const shardIndicesByNodeId = new Map<string, number[]>();
 
 	for (const node of committee[0].contents) {
@@ -149,7 +154,9 @@ export function getShardIndicesByNodeId(committee: InferBcsType<typeof Committee
 	return shardIndicesByNodeId;
 }
 
-export function nodesByShardIndex(committee: InferBcsType<typeof Committee>) {
+export function nodesByShardIndex(
+	committee: InferBcsType<typeof Committee>,
+): Map<number, string> {
 	const nodesByShardIndex = new Map<number, string>();
 
 	for (const node of committee[0].contents) {
@@ -220,7 +227,10 @@ export function fromUrlSafeBase64(base64: string): Uint8Array {
 	return fromBase64(base64.replaceAll('-', '+').replaceAll('_', '/'));
 }
 
-export function getSizes(blobSize: number, numShards: number) {
+export function getSizes(
+	blobSize: number,
+	numShards: number,
+): { symbolSize: number; rowSize: number; columnSize: number; blobSize: number } {
 	const encodedBlobSize = encodedSliverSize(blobSize, numShards);
 	const { primarySymbols, secondarySymbols } = getSourceSymbols(numShards);
 	const totalSymbols = (primarySymbols + secondarySymbols) * numShards;

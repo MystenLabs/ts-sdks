@@ -51,17 +51,18 @@ export const ErrorMessages = {
 	MARGIN_MAINTAINER_CAP_NOT_SET: 'Margin maintainer capability not configured',
 
 	// Resource errors
-	COIN_NOT_FOUND: (key: string) => `Coin not found for key: ${key}`,
-	POOL_NOT_FOUND: (key: string) => `Pool not found for key: ${key}`,
-	MARGIN_POOL_NOT_FOUND: (key: string) => `Margin pool not found for key: ${key}`,
-	BALANCE_MANAGER_NOT_FOUND: (key: string) => `Balance manager with key ${key} not found`,
-	MARGIN_MANAGER_NOT_FOUND: (key: string) => `Margin manager with key ${key} not found`,
-	PRICE_INFO_NOT_FOUND: (coinKey: string) => `Price info object not found for ${coinKey}`,
+	COIN_NOT_FOUND: (key: string): string => `Coin not found for key: ${key}`,
+	POOL_NOT_FOUND: (key: string): string => `Pool not found for key: ${key}`,
+	MARGIN_POOL_NOT_FOUND: (key: string): string => `Margin pool not found for key: ${key}`,
+	BALANCE_MANAGER_NOT_FOUND: (key: string): string => `Balance manager with key ${key} not found`,
+	MARGIN_MANAGER_NOT_FOUND: (key: string): string => `Margin manager with key ${key} not found`,
+	PRICE_INFO_NOT_FOUND: (coinKey: string): string => `Price info object not found for ${coinKey}`,
 
 	// Validation errors
-	INVALID_ARGUMENT_COUNT: (expected: number, got: number) =>
+	INVALID_ARGUMENT_COUNT: (expected: number, got: number): string =>
 		`Invalid number of arguments, expected ${expected}, got ${got}`,
-	PARAMETER_REQUIRED: (name: string) => `Parameter ${name} is required`,
-	INVALID_ARGUMENT: (arg: string, type: string) => `Invalid argument ${arg} for type ${type}`,
+	PARAMETER_REQUIRED: (name: string): string => `Parameter ${name} is required`,
+	INVALID_ARGUMENT: (arg: string, type: string): string =>
+		`Invalid argument ${arg} for type ${type}`,
 	INVALID_ADDRESS: 'Address must be a valid Sui address',
 } as const;

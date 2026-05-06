@@ -12,7 +12,7 @@ import { getWallets, isWalletWithRequiredFeatureSet } from '@mysten/wallet-stand
 export function getRegisteredWallets<AdditionalFeatures extends Wallet['features']>(
 	preferredWallets: string[],
 	walletFilter?: (wallet: WalletWithRequiredFeatures) => boolean,
-) {
+): WalletWithFeatures<MinimallyRequiredFeatures & AdditionalFeatures>[] {
 	const walletsApi = getWallets();
 	const wallets = walletsApi.get();
 
@@ -32,6 +32,6 @@ export function getRegisteredWallets<AdditionalFeatures extends Wallet['features
 	];
 }
 
-export function getWalletUniqueIdentifier(wallet?: Wallet) {
+export function getWalletUniqueIdentifier(wallet?: Wallet): string | undefined {
 	return wallet?.id ?? wallet?.name;
 }
