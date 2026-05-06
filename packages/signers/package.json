@@ -43,8 +43,7 @@
 		"oxlint:check": "oxlint  .",
 		"oxlint:fix": "oxlint --fix",
 		"lint": "pnpm run oxlint:check && pnpm run prettier:check",
-		"lint:fix": "pnpm run oxlint:fix && pnpm run prettier:fix",
-		"test": "vitest run"
+		"lint:fix": "pnpm run oxlint:fix && pnpm run prettier:fix"
 	},
 	"repository": {
 		"type": "git",
