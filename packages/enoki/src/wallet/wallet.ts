@@ -41,8 +41,8 @@ import type {
 import { EnokiGetMetadata, EnokiGetSession } from './features.js';
 import type { SuiClientTypes } from '@mysten/sui/client';
 import { decodeJwt } from '@mysten/sui/zklogin';
-import type { ExportedWebCryptoKeypair } from '@mysten/signers/webcrypto';
-import { WebCryptoSigner } from '@mysten/signers/webcrypto';
+import type { ExportedWebCryptoKeypair } from '@mysten/webcrypto-signer';
+import { WebCryptoSigner } from '@mysten/webcrypto-signer';
 import { get, set } from 'idb-keyval';
 
 import { EnokiClient } from '../EnokiClient/index.js';

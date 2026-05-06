@@ -4,9 +4,9 @@ import type { PublicKey, SignatureFlag } from '@mysten/sui/cryptography';
 import { SIGNATURE_FLAG_TO_SCHEME, Signer } from '@mysten/sui/cryptography';
 import { fromBase64, toBase64 } from '@mysten/sui/utils';
 
-import { getConcatenatedSignature } from '../utils/utils.js';
 import type { AwsClientOptions } from './aws-client.js';
 import { AwsKmsClient } from './aws-client.js';
+import { getConcatenatedSignature } from './utils.js';
 
 /**
  * Configuration options for initializing the AwsKmsSigner.

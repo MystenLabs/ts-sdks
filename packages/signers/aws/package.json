@@ -1,18 +1,12 @@
 {
-	"name": "@mysten/suins",
+	"name": "@mysten/aws-kms-signer",
 	"author": "Mysten Labs <build@mystenlabs.com>",
-	"description": "SuiNS SDK",
-	"version": "1.1.1",
+	"description": "Sui signer using AWS KMS",
+	"homepage": "https://sdk.mystenlabs.com",
+	"version": "0.0.0",
 	"license": "Apache-2.0",
-	"private": false,
 	"type": "module",
-	"main": "./dist/index.mjs",
-	"types": "./dist/index.d.mts",
-	"keywords": [
-		"Sui",
-		"suins",
-		"mysten"
-	],
+	"sideEffects": false,
 	"exports": {
 		".": {
 			"types": "./dist/index.d.mts",
@@ -20,14 +14,14 @@
 			"default": "./dist/index.mjs"
 		}
 	},
-	"sideEffects": false,
 	"files": [
 		"CHANGELOG.md",
+		"LICENSE",
+		"README.md",
 		"dist",
 		"src"
 	],
 	"scripts": {
-		"codegen": "sui-ts-codegen generate && pnpm lint:fix",
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
 		"build": "rm -rf dist && tsc --noEmit && tsdown",
 		"prettier:check": "prettier -c --ignore-unknown .",
@@ -36,32 +30,33 @@
 		"oxlint:fix": "oxlint --fix",
 		"lint": "pnpm run oxlint:check && pnpm run prettier:check",
 		"lint:fix": "pnpm run oxlint:fix && pnpm run prettier:fix",
-		"test:e2e": "vitest run"
-	},
-	"engines": {
-		"node": ">=16"
-	},
-	"dependencies": {
-		"axios": "^1.16.0",
-		"axios-retry": "^4.5.0"
-	},
-	"devDependencies": {
-		"@mysten/codegen": "workspace:^",
-		"@mysten/sui": "workspace:^",
-		"@types/tmp": "^0.2.6",
-		"ts-retry-promise": "^0.8.1",
-		"typescript": "^5.9.3",
-		"vite": "^8.0.5",
-		"vitest": "^4.0.17"
-	},
-	"peerDependencies": {
-		"@mysten/sui": "workspace:^"
+		"test": "vitest run"
 	},
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/MystenLabs/ts-sdks.git"
 	},
 	"bugs": {
-		"url": "https://github.com/mystenlabs/suins-contracts/issues"
+		"url": "https://github.com/mystenlabs/ts-sdks/issues"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"engines": {
+		"node": ">=22"
+	},
+	"dependencies": {
+		"@noble/curves": "^2.0.1",
+		"asn1-ts": "^11.0.5"
+	},
+	"peerDependencies": {
+		"@mysten/sui": "workspace:^"
+	},
+	"devDependencies": {
+		"@mysten/sui": "workspace:^",
+		"@types/node": "^25.0.8",
+		"dotenv": "^17.2.3",
+		"typescript": "^5.9.3",
+		"vitest": "^4.0.17"
 	}
 }
