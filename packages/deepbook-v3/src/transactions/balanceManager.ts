@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 import { coinWithBalance } from '@mysten/sui/transactions';
-import type { Transaction, TransactionArgument } from '@mysten/sui/transactions';
+import type { Transaction, TransactionArgument, TransactionResult } from '@mysten/sui/transactions';
 
 import type { DeepBookConfig } from '../utils/config.js';
 import { convertQuantity } from '../utils/conversion.js';
@@ -23,41 +23,47 @@ export class BalanceManagerContract {
 	 * @description Create and share a new BalanceManager
 	 * @returns A function that takes a Transaction object
 	 */
-	createAndShareBalanceManager = () => (tx: Transaction) => {
-		const manager = tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::new`,
-		});
+	createAndShareBalanceManager =
+		() =>
+		(tx: Transaction): void => {
+			const manager = tx.moveCall({
+				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::new`,
+			});
 
-		tx.moveCall({
-			target: '0x2::transfer::public_share_object',
-			arguments: [manager],
-			typeArguments: [`${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::BalanceManager`],
-		});
-	};
+			tx.moveCall({
+				target: '0x2::transfer::public_share_object',
+				arguments: [manager],
+				typeArguments: [`${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::BalanceManager`],
+			});
+		};
 
 	/**
 	 * @description Create a new BalanceManager, manually set the owner. Returns the manager.
 	 * @returns A function that takes a Transaction object
 	 */
-	createBalanceManagerWithOwner = (ownerAddress: string) => (tx: Transaction) => {
-		return tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::new_with_custom_owner`,
-			arguments: [tx.pure.address(ownerAddress)],
-		});
-	};
+	createBalanceManagerWithOwner =
+		(ownerAddress: string) =>
+		(tx: Transaction): TransactionResult => {
+			return tx.moveCall({
+				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::new_with_custom_owner`,
+				arguments: [tx.pure.address(ownerAddress)],
+			});
+		};
 
 	/**
 	 * @description Share the BalanceManager
 	 * @param {TransactionArgument} manager The BalanceManager to share
 	 * @returns A function that takes a Transaction object
 	 */
-	shareBalanceManager = (manager: TransactionArgument) => (tx: Transaction) => {
-		tx.moveCall({
-			target: '0x2::transfer::public_share_object',
-			arguments: [manager],
-			typeArguments: [`${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::BalanceManager`],
-		});
-	};
+	shareBalanceManager =
+		(manager: TransactionArgument) =>
+		(tx: Transaction): void => {
+			tx.moveCall({
+				target: '0x2::transfer::public_share_object',
+				arguments: [manager],
+				typeArguments: [`${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::BalanceManager`],
+			});
+		};
 
 	/**
 	 * @description Deposit funds into the BalanceManager
@@ -67,7 +73,8 @@ export class BalanceManagerContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	depositIntoManager =
-		(managerKey: string, coinKey: string, amountToDeposit: number) => (tx: Transaction) => {
+		(managerKey: string, coinKey: string, amountToDeposit: number) =>
+		(tx: Transaction): void => {
 			tx.setSenderIfNotSet(this.#config.address);
 			const managerId = this.#config.getBalanceManager(managerKey).address;
 			const coin = this.#config.getCoin(coinKey);
@@ -94,7 +101,7 @@ export class BalanceManagerContract {
 	 */
 	withdrawFromManager =
 		(managerKey: string, coinKey: string, amountToWithdraw: number, recipient: string) =>
-		(tx: Transaction) => {
+		(tx: Transaction): void => {
 			const managerId = this.#config.getBalanceManager(managerKey).address;
 			const coin = this.#config.getCoin(coinKey);
 			const withdrawInput = convertQuantity(amountToWithdraw, coin.scalar);
@@ -115,7 +122,8 @@ export class BalanceManagerContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	withdrawAllFromManager =
-		(managerKey: string, coinKey: string, recipient: string) => (tx: Transaction) => {
+		(managerKey: string, coinKey: string, recipient: string) =>
+		(tx: Transaction): void => {
 			const managerId = this.#config.getBalanceManager(managerKey).address;
 			const coin = this.#config.getCoin(coinKey);
 			const withdrawalCoin = tx.moveCall({
@@ -133,41 +141,47 @@ export class BalanceManagerContract {
 	 * @param {string} coinKey The key of the coin to check the balance of
 	 * @returns A function that takes a Transaction object
 	 */
-	checkManagerBalance = (managerKey: string, coinKey: string) => (tx: Transaction) => {
-		const managerId = this.#config.getBalanceManager(managerKey).address;
-		const coin = this.#config.getCoin(coinKey);
-		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::balance`,
-			arguments: [tx.object(managerId)],
-			typeArguments: [coin.type],
-		});
-	};
+	checkManagerBalance =
+		(managerKey: string, coinKey: string) =>
+		(tx: Transaction): void => {
+			const managerId = this.#config.getBalanceManager(managerKey).address;
+			const coin = this.#config.getCoin(coinKey);
+			tx.moveCall({
+				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::balance`,
+				arguments: [tx.object(managerId)],
+				typeArguments: [coin.type],
+			});
+		};
 
 	/**
 	 * @description Generate a trade proof for the BalanceManager. Calls the appropriate function based on whether tradeCap is set.
 	 * @param {string} managerKey The key of the BalanceManager
 	 * @returns A function that takes a Transaction object
 	 */
-	generateProof = (managerKey: string) => (tx: Transaction) => {
-		const balanceManager = this.#config.getBalanceManager(managerKey);
-		return tx.add(
-			balanceManager.tradeCap
-				? this.generateProofAsTrader(balanceManager.address, balanceManager.tradeCap)
-				: this.generateProofAsOwner(balanceManager.address),
-		);
-	};
+	generateProof =
+		(managerKey: string) =>
+		(tx: Transaction): TransactionResult => {
+			const balanceManager = this.#config.getBalanceManager(managerKey);
+			return tx.add(
+				balanceManager.tradeCap
+					? this.generateProofAsTrader(balanceManager.address, balanceManager.tradeCap)
+					: this.generateProofAsOwner(balanceManager.address),
+			);
+		};
 
 	/**
 	 * @description Generate a trade proof as the owner
 	 * @param {string} managerId The ID of the BalanceManager
 	 * @returns A function that takes a Transaction object
 	 */
-	generateProofAsOwner = (managerId: string) => (tx: Transaction) => {
-		return tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::generate_proof_as_owner`,
-			arguments: [tx.object(managerId)],
-		});
-	};
+	generateProofAsOwner =
+		(managerId: string) =>
+		(tx: Transaction): TransactionResult => {
+			return tx.moveCall({
+				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::generate_proof_as_owner`,
+				arguments: [tx.object(managerId)],
+			});
+		};
 
 	/**
 	 * @description Generate a trade proof as a trader
@@ -175,54 +189,62 @@ export class BalanceManagerContract {
 	 * @param {string} tradeCapId The ID of the tradeCap
 	 * @returns A function that takes a Transaction object
 	 */
-	generateProofAsTrader = (managerId: string, tradeCapId: string) => (tx: Transaction) => {
-		return tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::generate_proof_as_trader`,
-			arguments: [tx.object(managerId), tx.object(tradeCapId)],
-		});
-	};
+	generateProofAsTrader =
+		(managerId: string, tradeCapId: string) =>
+		(tx: Transaction): TransactionResult => {
+			return tx.moveCall({
+				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::generate_proof_as_trader`,
+				arguments: [tx.object(managerId), tx.object(tradeCapId)],
+			});
+		};
 
 	/**
 	 * @description Mint a TradeCap
 	 * @param {string} managerKey The name of the BalanceManager
 	 * @returns A function that takes a Transaction object
 	 */
-	mintTradeCap = (managerKey: string) => (tx: Transaction) => {
-		const manager = this.#config.getBalanceManager(managerKey);
-		const managerId = manager.address;
-		return tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::mint_trade_cap`,
-			arguments: [tx.object(managerId)],
-		});
-	};
+	mintTradeCap =
+		(managerKey: string) =>
+		(tx: Transaction): TransactionResult => {
+			const manager = this.#config.getBalanceManager(managerKey);
+			const managerId = manager.address;
+			return tx.moveCall({
+				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::mint_trade_cap`,
+				arguments: [tx.object(managerId)],
+			});
+		};
 
 	/**
 	 * @description Mint a DepositCap
 	 * @param {string} managerKey The name of the BalanceManager
 	 * @returns A function that takes a Transaction object
 	 */
-	mintDepositCap = (managerKey: string) => (tx: Transaction) => {
-		const manager = this.#config.getBalanceManager(managerKey);
-		const managerId = manager.address;
-		return tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::mint_deposit_cap`,
-			arguments: [tx.object(managerId)],
-		});
-	};
+	mintDepositCap =
+		(managerKey: string) =>
+		(tx: Transaction): TransactionResult => {
+			const manager = this.#config.getBalanceManager(managerKey);
+			const managerId = manager.address;
+			return tx.moveCall({
+				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::mint_deposit_cap`,
+				arguments: [tx.object(managerId)],
+			});
+		};
 
 	/**
 	 * @description Mint a WithdrawalCap
 	 * @param {string} managerKey The name of the BalanceManager
 	 * @returns A function that takes a Transaction object
 	 */
-	mintWithdrawalCap = (managerKey: string) => (tx: Transaction) => {
-		const manager = this.#config.getBalanceManager(managerKey);
-		const managerId = manager.address;
-		return tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::mint_withdraw_cap`,
-			arguments: [tx.object(managerId)],
-		});
-	};
+	mintWithdrawalCap =
+		(managerKey: string) =>
+		(tx: Transaction): TransactionResult => {
+			const manager = this.#config.getBalanceManager(managerKey);
+			const managerId = manager.address;
+			return tx.moveCall({
+				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::mint_withdraw_cap`,
+				arguments: [tx.object(managerId)],
+			});
+		};
 
 	/**
 	 * @description Deposit using the DepositCap
@@ -232,7 +254,8 @@ export class BalanceManagerContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	depositWithCap =
-		(managerKey: string, coinKey: string, amountToDeposit: number) => (tx: Transaction) => {
+		(managerKey: string, coinKey: string, amountToDeposit: number) =>
+		(tx: Transaction): void => {
 			tx.setSenderIfNotSet(this.#config.address);
 			const manager = this.#config.getBalanceManager(managerKey);
 			const managerId = manager.address;
@@ -261,7 +284,8 @@ export class BalanceManagerContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	withdrawWithCap =
-		(managerKey: string, coinKey: string, amountToWithdraw: number) => (tx: Transaction) => {
+		(managerKey: string, coinKey: string, amountToWithdraw: number) =>
+		(tx: Transaction): TransactionResult => {
 			tx.setSenderIfNotSet(this.#config.address);
 			const manager = this.#config.getBalanceManager(managerKey);
 			const managerId = manager.address;
@@ -286,7 +310,8 @@ export class BalanceManagerContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	setBalanceManagerReferral =
-		(managerKey: string, referral: string, tradeCap: TransactionArgument) => (tx: Transaction) => {
+		(managerKey: string, referral: string, tradeCap: TransactionArgument) =>
+		(tx: Transaction): void => {
 			const managerId = this.#config.getBalanceManager(managerKey).address;
 			tx.moveCall({
 				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::set_balance_manager_referral`,
@@ -302,7 +327,8 @@ export class BalanceManagerContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	unsetBalanceManagerReferral =
-		(managerKey: string, poolKey: string, tradeCap: TransactionArgument) => (tx: Transaction) => {
+		(managerKey: string, poolKey: string, tradeCap: TransactionArgument) =>
+		(tx: Transaction): void => {
 			const managerId = this.#config.getBalanceManager(managerKey).address;
 			const poolId = this.#config.getPool(poolKey).address;
 			tx.moveCall({
@@ -311,63 +337,73 @@ export class BalanceManagerContract {
 			});
 		};
 
-	registerBalanceManager = (managerKey: string) => (tx: Transaction) => {
-		const managerId = this.#config.getBalanceManager(managerKey).address;
-		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::register_balance_manager`,
-			arguments: [tx.object(managerId), tx.object(this.#config.REGISTRY_ID)],
-		});
-	};
+	registerBalanceManager =
+		(managerKey: string) =>
+		(tx: Transaction): void => {
+			const managerId = this.#config.getBalanceManager(managerKey).address;
+			tx.moveCall({
+				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::register_balance_manager`,
+				arguments: [tx.object(managerId), tx.object(this.#config.REGISTRY_ID)],
+			});
+		};
 
 	/**
 	 * @description Get the owner of the BalanceManager
 	 * @param {string} managerKey The key of the BalanceManager
 	 * @returns A function that takes a Transaction object
 	 */
-	owner = (managerKey: string) => (tx: Transaction) => {
-		const managerId = this.#config.getBalanceManager(managerKey).address;
-		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::owner`,
-			arguments: [tx.object(managerId)],
-		});
-	};
+	owner =
+		(managerKey: string) =>
+		(tx: Transaction): void => {
+			const managerId = this.#config.getBalanceManager(managerKey).address;
+			tx.moveCall({
+				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::owner`,
+				arguments: [tx.object(managerId)],
+			});
+		};
 
 	/**
 	 * @description Get the ID of the BalanceManager
 	 * @param {string} managerKey The key of the BalanceManager
 	 * @returns A function that takes a Transaction object
 	 */
-	id = (managerKey: string) => (tx: Transaction) => {
-		const managerId = this.#config.getBalanceManager(managerKey).address;
-		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::id`,
-			arguments: [tx.object(managerId)],
-		});
-	};
+	id =
+		(managerKey: string) =>
+		(tx: Transaction): void => {
+			const managerId = this.#config.getBalanceManager(managerKey).address;
+			tx.moveCall({
+				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::id`,
+				arguments: [tx.object(managerId)],
+			});
+		};
 
 	/**
 	 * @description Get the owner of the referral (DeepBookPoolReferral)
 	 * @param {string} referralId The ID of the referral to get the owner of
 	 * @returns A function that takes a Transaction object
 	 */
-	balanceManagerReferralOwner = (referralId: string) => (tx: Transaction) => {
-		return tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::balance_manager_referral_owner`,
-			arguments: [tx.object(referralId)],
-		});
-	};
+	balanceManagerReferralOwner =
+		(referralId: string) =>
+		(tx: Transaction): TransactionResult => {
+			return tx.moveCall({
+				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::balance_manager_referral_owner`,
+				arguments: [tx.object(referralId)],
+			});
+		};
 
 	/**
 	 * @description Get the pool ID associated with a referral (DeepBookPoolReferral)
 	 * @param {string} referralId The ID of the referral to get the pool ID of
 	 * @returns A function that takes a Transaction object
 	 */
-	balanceManagerReferralPoolId = (referralId: string) => (tx: Transaction) => {
-		return tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::balance_manager_referral_pool_id`,
-			arguments: [tx.object(referralId)],
-		});
-	};
+	balanceManagerReferralPoolId =
+		(referralId: string) =>
+		(tx: Transaction): TransactionResult => {
+			return tx.moveCall({
+				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::balance_manager_referral_pool_id`,
+				arguments: [tx.object(referralId)],
+			});
+		};
 
 	/**
 	 * @description Get the referral ID from the balance manager for a specific pool
@@ -375,14 +411,16 @@ export class BalanceManagerContract {
 	 * @param {string} poolKey Key of the pool to get the referral for
 	 * @returns A function that takes a Transaction object
 	 */
-	getBalanceManagerReferralId = (managerKey: string, poolKey: string) => (tx: Transaction) => {
-		const managerId = this.#config.getBalanceManager(managerKey).address;
-		const poolId = this.#config.getPool(poolKey).address;
-		return tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::get_balance_manager_referral_id`,
-			arguments: [tx.object(managerId), tx.pure.id(poolId)],
-		});
-	};
+	getBalanceManagerReferralId =
+		(managerKey: string, poolKey: string) =>
+		(tx: Transaction): TransactionResult => {
+			const managerId = this.#config.getBalanceManager(managerKey).address;
+			const poolId = this.#config.getPool(poolKey).address;
+			return tx.moveCall({
+				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::get_balance_manager_referral_id`,
+				arguments: [tx.object(managerId), tx.pure.id(poolId)],
+			});
+		};
 
 	/**
 	 * @description Revoke a TradeCap. This also revokes the associated DepositCap and WithdrawCap.
@@ -390,11 +428,13 @@ export class BalanceManagerContract {
 	 * @param {string} tradeCapId The ID of the TradeCap to revoke
 	 * @returns A function that takes a Transaction object
 	 */
-	revokeTradeCap = (managerKey: string, tradeCapId: string) => (tx: Transaction) => {
-		const managerId = this.#config.getBalanceManager(managerKey).address;
-		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::revoke_trade_cap`,
-			arguments: [tx.object(managerId), tx.pure.id(tradeCapId)],
-		});
-	};
+	revokeTradeCap =
+		(managerKey: string, tradeCapId: string) =>
+		(tx: Transaction): void => {
+			const managerId = this.#config.getBalanceManager(managerKey).address;
+			tx.moveCall({
+				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::balance_manager::revoke_trade_cap`,
+				arguments: [tx.object(managerId), tx.pure.id(tradeCapId)],
+			});
+		};
 }

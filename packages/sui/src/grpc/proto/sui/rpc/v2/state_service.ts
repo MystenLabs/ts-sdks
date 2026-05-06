@@ -822,7 +822,8 @@ class ListDynamicFieldsRequest$Type extends MessageType<ListDynamicFieldsRequest
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ListDynamicFieldsRequest
  */
-export const ListDynamicFieldsRequest: ListDynamicFieldsRequest$Type = new ListDynamicFieldsRequest$Type();
+export const ListDynamicFieldsRequest: ListDynamicFieldsRequest$Type =
+	new ListDynamicFieldsRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ListDynamicFieldsResponse$Type extends MessageType<ListDynamicFieldsResponse> {
 	constructor() {
@@ -841,7 +842,8 @@ class ListDynamicFieldsResponse$Type extends MessageType<ListDynamicFieldsRespon
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ListDynamicFieldsResponse
  */
-export const ListDynamicFieldsResponse: ListDynamicFieldsResponse$Type = new ListDynamicFieldsResponse$Type();
+export const ListDynamicFieldsResponse: ListDynamicFieldsResponse$Type =
+	new ListDynamicFieldsResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class DynamicField$Type extends MessageType<DynamicField> {
 	constructor() {
@@ -883,7 +885,8 @@ class ListOwnedObjectsRequest$Type extends MessageType<ListOwnedObjectsRequest> 
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ListOwnedObjectsRequest
  */
-export const ListOwnedObjectsRequest: ListOwnedObjectsRequest$Type = new ListOwnedObjectsRequest$Type();
+export const ListOwnedObjectsRequest: ListOwnedObjectsRequest$Type =
+	new ListOwnedObjectsRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ListOwnedObjectsResponse$Type extends MessageType<ListOwnedObjectsResponse> {
 	constructor() {
@@ -896,7 +899,8 @@ class ListOwnedObjectsResponse$Type extends MessageType<ListOwnedObjectsResponse
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ListOwnedObjectsResponse
  */
-export const ListOwnedObjectsResponse: ListOwnedObjectsResponse$Type = new ListOwnedObjectsResponse$Type();
+export const ListOwnedObjectsResponse: ListOwnedObjectsResponse$Type =
+	new ListOwnedObjectsResponse$Type();
 /**
  * @generated ServiceType for protobuf service sui.rpc.v2.StateService
  */

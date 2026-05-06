@@ -1,6 +1,13 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+// TODO(iso-decls): The `ExecutionStatus` and `TransactionEffects` exports below
+// trip TS9010 for the same reason as `bcs.ts`: `@mysten/bcs`'s `struct`/`enum`
+// factories don't have explicit return types in source. Their inferred shapes
+// are too deep to hand-write reliably and any cast collapses the `$inferType`
+// access used by callers. Resolving this requires annotating the factory return
+// types upstream in `@mysten/bcs`.
+
 import { bcs } from '@mysten/bcs';
 
 import { Address, ObjectDigest, Owner, SuiObjectRef, TypeTag } from './bcs.js';

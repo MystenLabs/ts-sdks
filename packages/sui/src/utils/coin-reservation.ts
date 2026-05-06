@@ -5,6 +5,7 @@ import { fromBase58, fromHex, toBase58, toHex } from '@mysten/bcs';
 import { parse } from 'valibot';
 
 import { bcs, TypeTagSerializer } from '../bcs/index.js';
+import type { ObjectRef } from '../transactions/data/internal.js';
 import { ObjectRefSchema } from '../transactions/data/internal.js';
 import { deriveDynamicFieldID } from './dynamic-fields.js';
 import { normalizeSuiAddress } from './index.js';
@@ -14,7 +15,7 @@ const ACCUMULATOR_KEY_TYPE_TAG = TypeTagSerializer.parseFromStr(
 	'0x2::accumulator::Key<0x2::balance::Balance<0x2::sui::SUI>>',
 );
 
-export const COIN_RESERVATION_MAGIC = new Uint8Array([
+export const COIN_RESERVATION_MAGIC: Uint8Array = new Uint8Array([
 	0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac, 0xac,
 	0xac, 0xac, 0xac, 0xac,
 ]);
@@ -62,7 +63,7 @@ export function createCoinReservationRef(
 	owner: string,
 	chainIdentifier: string,
 	epoch: string,
-) {
+): ObjectRef {
 	const digestBytes = new Uint8Array(32);
 	const view = new DataView(digestBytes.buffer);
 	// Bytes 0-7: reserved balance as LE u64

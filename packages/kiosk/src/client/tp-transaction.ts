@@ -56,7 +56,7 @@ export class TransferPolicyTransaction {
 		skipCheck,
 	}: TransferPolicyBaseParams & {
 		address: string;
-	}) {
+	}): Promise<void> {
 		if (!skipCheck) {
 			const policies = await this.kioskClient.getTransferPolicies({ type });
 			if (policies.length > 0) throw new Error("There's already transfer policy for this Type.");
@@ -101,7 +101,7 @@ export class TransferPolicyTransaction {
 	 *
 	 * @param address The address to transfer the `TransferPolicyCap`
 	 */
-	shareAndTransferCap(address: string) {
+	shareAndTransferCap(address: string): void {
 		if (!this.type || !this.policyCap || !this.policy)
 			throw new Error('This function can only be called after `transferPolicyManager.create`');
 
@@ -127,7 +127,7 @@ export class TransferPolicyTransaction {
 	 * `kioskClient.getOwnedTransferPoliciesByType`.
 	 * @param policyCapId The `TransferPolicyCap`
 	 */
-	setCap({ policyId, policyCapId, type }: TransferPolicyCap) {
+	setCap({ policyId, policyCapId, type }: TransferPolicyCap): this {
 		return this.#setup(policyId, policyCapId, type);
 	}
 
@@ -136,7 +136,7 @@ export class TransferPolicyTransaction {
 	 * @param address Address to transfer the profits to.
 	 * @param amount (Optional) amount parameter. Will withdraw all profits if the amount is not specified.
 	 */
-	withdraw(address: string, amount?: string | bigint) {
+	withdraw(address: string, amount?: string | bigint): this {
 		this.#validateInputs();
 		// Withdraw coin for specified amount (or none)
 		const coin = withdrawFromPolicy(
@@ -165,7 +165,7 @@ export class TransferPolicyTransaction {
 	addRoyaltyRule(
 		percentageBps: number | string, // this is in basis points.
 		minAmount: number | string,
-	) {
+	): this {
 		this.#validateInputs();
 
 		const policyArg =
@@ -198,7 +198,7 @@ export class TransferPolicyTransaction {
 	 * Adds the Kiosk Lock Rule to the Transfer Policy.
 	 * This Rule forces buyer to lock the item in the kiosk, preserving strong royalties.
 	 */
-	addLockRule() {
+	addLockRule(): this {
 		this.#validateInputs();
 
 		const policyArg =
@@ -228,7 +228,7 @@ export class TransferPolicyTransaction {
 	/**
 	 * Attaches the Personal Kiosk Rule, making a purchase valid only for `SoulBound` kiosks.
 	 */
-	addPersonalKioskRule() {
+	addPersonalKioskRule(): this {
 		this.#validateInputs();
 
 		const policyArg =
@@ -259,7 +259,7 @@ export class TransferPolicyTransaction {
 	 * A function to add the floor price rule to a transfer policy.
 	 * @param minPrice The minimum price in MIST.
 	 */
-	addFloorPriceRule(minPrice: string | bigint) {
+	addFloorPriceRule(minPrice: string | bigint): this {
 		this.#validateInputs();
 
 		const policyArg =
@@ -292,7 +292,7 @@ export class TransferPolicyTransaction {
 	 * @param ruleType The Rule Type
 	 * @param configType The Config Type
 	 */
-	removeRule({ ruleType, configType }: { ruleType: string; configType: string }) {
+	removeRule({ ruleType, configType }: { ruleType: string; configType: string }): void {
 		this.#validateInputs();
 
 		this.transaction.add(
@@ -306,7 +306,7 @@ export class TransferPolicyTransaction {
 	/**
 	 * Removes the lock rule.
 	 */
-	removeLockRule() {
+	removeLockRule(): this {
 		this.#validateInputs();
 
 		const packageId = this.kioskClient.getRulePackageId('kioskLockRulePackageId');
@@ -327,7 +327,7 @@ export class TransferPolicyTransaction {
 	/**
 	 * Removes the Royalty rule
 	 */
-	removeRoyaltyRule() {
+	removeRoyaltyRule(): this {
 		this.#validateInputs();
 
 		const packageId = this.kioskClient.getRulePackageId('royaltyRulePackageId');
@@ -345,7 +345,7 @@ export class TransferPolicyTransaction {
 		return this;
 	}
 
-	removePersonalKioskRule() {
+	removePersonalKioskRule(): this {
 		this.#validateInputs();
 
 		const packageId = this.kioskClient.getRulePackageId('personalKioskRulePackageId');
@@ -359,7 +359,7 @@ export class TransferPolicyTransaction {
 		return this;
 	}
 
-	removeFloorPriceRule() {
+	removeFloorPriceRule(): this {
 		this.#validateInputs();
 
 		const packageId = this.kioskClient.getRulePackageId('floorPriceRulePackageId');
@@ -377,12 +377,12 @@ export class TransferPolicyTransaction {
 		return this;
 	}
 
-	getPolicy() {
+	getPolicy(): ObjectArgument {
 		if (!this.policy) throw new Error('Policy not set.');
 		return this.policy;
 	}
 
-	getPolicyCap() {
+	getPolicyCap(): ObjectArgument {
 		if (!this.policyCap) throw new Error('Transfer Policy Cap not set.');
 		return this.policyCap;
 	}

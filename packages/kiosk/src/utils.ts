@@ -105,7 +105,7 @@ export function attachListingsAndPrices(
 	kioskData: KioskData,
 	listings: KioskListing[],
 	listingObjects: ObjectWithDisplay[],
-) {
+): void {
 	const itemListings = listings.reduce<Record<string, KioskListing>>(
 		(acc: Record<string, KioskListing>, item, idx) => {
 			acc[item.objectId] = { ...item };
@@ -135,7 +135,7 @@ export function attachListingsAndPrices(
  * A helper that attaches object data to kiosk items.
  * Works with core API objects that contain BCS content.
  */
-export function attachObjects(kioskData: KioskData, objects: ObjectWithDisplay[]) {
+export function attachObjects(kioskData: KioskData, objects: ObjectWithDisplay[]): void {
 	const mapping = objects.reduce<Record<string, ObjectWithDisplay>>(
 		(acc: Record<string, ObjectWithDisplay>, obj) => {
 			acc[obj.objectId] = obj;
@@ -152,7 +152,7 @@ export function attachObjects(kioskData: KioskData, objects: ObjectWithDisplay[]
 /**
  * A Helper to attach locked state to items in Kiosk Data.
  */
-export function attachLockedItems(kioskData: KioskData, lockedItemIds: string[]) {
+export function attachLockedItems(kioskData: KioskData, lockedItemIds: string[]): void {
 	// map lock status in an array of type { item_id: true }
 	const lockedStatuses = lockedItemIds.reduce<Record<string, boolean>>(
 		(acc: Record<string, boolean>, item: string) => {
@@ -204,14 +204,14 @@ export async function getAllDynamicFields(
  * E.g 9.95 -> 995
  * @param percentage A percentage amount in the range [0, 100] including decimals.
  */
-export function percentageToBasisPoints(percentage: number) {
+export function percentageToBasisPoints(percentage: number): number {
 	if (percentage < 0 || percentage > 100)
 		throw new Error('Percentage needs to be in the [0,100] range.');
 	return Math.ceil(percentage * 100);
 }
 
 // Normalizes the packageId part of a rule's type.
-export function getNormalizedRuleType(rule: string) {
+export function getNormalizedRuleType(rule: string): string {
 	const normalizedRuleAddress = rule.split('::');
 	normalizedRuleAddress[0] = normalizeSuiAddress(normalizedRuleAddress[0]);
 	return normalizedRuleAddress.join('::');

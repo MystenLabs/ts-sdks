@@ -361,15 +361,18 @@ export class DeepBookClient {
 		return this.#orderQueries.accountOpenOrders(poolKey, managerKey);
 	}
 
-	getOrder(poolKey: string, orderId: string) {
+	getOrder(poolKey: string, orderId: string): ReturnType<OrderQueries['getOrder']> {
 		return this.#orderQueries.getOrder(poolKey, orderId);
 	}
 
-	getOrderNormalized(poolKey: string, orderId: string) {
+	getOrderNormalized(
+		poolKey: string,
+		orderId: string,
+	): ReturnType<OrderQueries['getOrderNormalized']> {
 		return this.#orderQueries.getOrderNormalized(poolKey, orderId);
 	}
 
-	getOrders(poolKey: string, orderIds: string[]) {
+	getOrders(poolKey: string, orderIds: string[]): ReturnType<OrderQueries['getOrders']> {
 		return this.#orderQueries.getOrders(poolKey, orderIds);
 	}
 
@@ -386,7 +389,10 @@ export class DeepBookClient {
 		return this.#orderQueries.getLevel2TicksFromMid(poolKey, ticks);
 	}
 
-	getAccountOrderDetails(poolKey: string, managerKey: string) {
+	getAccountOrderDetails(
+		poolKey: string,
+		managerKey: string,
+	): ReturnType<OrderQueries['getAccountOrderDetails']> {
 		return this.#orderQueries.getAccountOrderDetails(poolKey, managerKey);
 	}
 

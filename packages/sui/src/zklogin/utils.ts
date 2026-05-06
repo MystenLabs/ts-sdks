@@ -40,7 +40,7 @@ export function toBigEndianBytes(num: bigint, width: number): Uint8Array {
 	return bytes.slice(firstNonZeroIndex);
 }
 
-export function getExtendedEphemeralPublicKey(publicKey: PublicKey) {
+export function getExtendedEphemeralPublicKey(publicKey: PublicKey): string {
 	return publicKey.toSuiPublicKey();
 }
 
@@ -70,7 +70,7 @@ function bytesBEToBigInt(bytes: number[]): bigint {
 }
 
 // hashes an ASCII string to a field element
-export function hashASCIIStrToField(str: string, maxSize: number) {
+export function hashASCIIStrToField(str: string, maxSize: number): bigint {
 	if (str.length > maxSize) {
 		throw new Error(`String ${str} is longer than ${maxSize} chars`);
 	}
@@ -92,9 +92,9 @@ export function genAddressSeed(
 	name: string,
 	value: string,
 	aud: string,
-	max_name_length = MAX_KEY_CLAIM_NAME_LENGTH,
-	max_value_length = MAX_KEY_CLAIM_VALUE_LENGTH,
-	max_aud_length = MAX_AUD_VALUE_LENGTH,
+	max_name_length: number = MAX_KEY_CLAIM_NAME_LENGTH,
+	max_value_length: number = MAX_KEY_CLAIM_VALUE_LENGTH,
+	max_aud_length: number = MAX_AUD_VALUE_LENGTH,
 ): bigint {
 	return poseidonHash([
 		hashASCIIStrToField(name, max_name_length),
@@ -104,7 +104,7 @@ export function genAddressSeed(
 	]);
 }
 
-export function normalizeZkLoginIssuer(iss: string) {
+export function normalizeZkLoginIssuer(iss: string): string {
 	if (iss === 'accounts.google.com') {
 		return 'https://accounts.google.com';
 	}

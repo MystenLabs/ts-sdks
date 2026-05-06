@@ -55,7 +55,7 @@ export class ClientCache {
 		return result as T;
 	}
 
-	clear(prefix?: string[]) {
+	clear(prefix?: string[]): void {
 		const prefixKey = [...this.#prefix, ...(prefix ?? [])].join(':');
 		if (!prefixKey) {
 			this.#cache.clear();
@@ -69,7 +69,7 @@ export class ClientCache {
 		}
 	}
 
-	scope(prefix: string | string[]) {
+	scope(prefix: string | string[]): ClientCache {
 		return new ClientCache({
 			prefix: [...this.#prefix, ...(Array.isArray(prefix) ? prefix : [prefix])],
 			cache: this.#cache,

@@ -127,7 +127,7 @@ export class Secp256r1Keypair extends Keypair {
 	/**
 	 * Return the signature for the provided data.
 	 */
-	async sign(data: Uint8Array) {
+	async sign(data: Uint8Array): Promise<Uint8Array<ArrayBuffer>> {
 		return secp256r1.sign(data, this.keypair.secretKey, {
 			lowS: true,
 		}) as Uint8Array<ArrayBuffer>;

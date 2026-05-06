@@ -29,11 +29,12 @@ import type { StructTag as StructTagType, TypeTag as TypeTagType } from '../../b
 import { JsonU64, ObjectID, safeEnum, TransactionDataSchema } from './internal.js';
 import type { Argument, ArgumentSchema, TransactionData } from './internal.js';
 
-export const ObjectRef = object({
+export type ObjectRefV1 = { digest: string; objectId: string; version: number | string | bigint };
+export const ObjectRef: GenericSchema<ObjectRefV1, ObjectRefV1> = object({
 	digest: string(),
 	objectId: string(),
 	version: union([pipe(number(), integer()), string(), bigint()]),
-});
+}) as GenericSchema<ObjectRefV1, ObjectRefV1>;
 
 const ObjectArg = safeEnum({
 	ImmOrOwned: ObjectRef,
@@ -45,12 +46,35 @@ const ObjectArg = safeEnum({
 	Receiving: ObjectRef,
 });
 
-export const NormalizedCallArg = safeEnum({
-	Object: ObjectArg,
-	Pure: array(pipe(number(), integer())),
-});
+type NormalizedCallArgInputV1 =
+	| {
+			Object:
+				| { ImmOrOwned: ObjectRefV1 }
+				| { Shared: { objectId: string; initialSharedVersion: string | number; mutable: boolean } }
+				| { Receiving: ObjectRefV1 };
+	  }
+	| { Pure: number[] };
+type NormalizedCallArgObjectV1 = {
+	$kind: 'ImmOrOwned' | 'Shared' | 'Receiving';
+	ImmOrOwned?: ObjectRefV1;
+	Shared?: { objectId: string; initialSharedVersion: string; mutable: boolean };
+	Receiving?: ObjectRefV1;
+};
+type NormalizedCallArgV1 = {
+	$kind: 'Object' | 'Pure';
+	Object?: NormalizedCallArgObjectV1;
+	Pure?: number[];
+};
+export const NormalizedCallArg: GenericSchema<NormalizedCallArgInputV1, NormalizedCallArgV1> =
+	safeEnum({
+		Object: ObjectArg,
+		Pure: array(pipe(number(), integer())),
+	}) as GenericSchema<NormalizedCallArgInputV1, NormalizedCallArgV1>;
 
-const TransactionInput = union([
+type TransactionInputV1 =
+	| { kind: 'Input'; index: number; value: unknown; type?: 'object' }
+	| { kind: 'Input'; index: number; value: unknown; type: 'pure' };
+const TransactionInput: GenericSchema<TransactionInputV1, TransactionInputV1> = union([
 	object({
 		kind: literal('Input'),
 		index: pipe(number(), integer()),
@@ -63,7 +87,7 @@ const TransactionInput = union([
 		value: unknown(),
 		type: literal('pure'),
 	}),
-]);
+]) as GenericSchema<TransactionInputV1, TransactionInputV1>;
 
 const TransactionExpiration = union([
 	object({ Epoch: pipe(number(), integer()) }),
@@ -106,12 +130,19 @@ export const StructTag: GenericSchema<StructTagType> = object({
 	typeParams: array(TypeTag),
 });
 
-const GasConfig = object({
+type GasConfigInput = {
+	budget?: number | string | bigint;
+	price?: number | string | bigint;
+	payment?: ObjectRefV1[];
+	owner?: string;
+};
+type GasConfigOutput = GasConfigInput;
+const GasConfig: GenericSchema<GasConfigInput, GasConfigOutput> = object({
 	budget: optional(StringEncodedBigint),
 	price: optional(StringEncodedBigint),
 	payment: optional(array(ObjectRef)),
 	owner: optional(string()),
-});
+}) as GenericSchema<GasConfigInput, GasConfigOutput>;
 
 const TransactionArgumentTypes = [
 	TransactionInput,
@@ -125,55 +156,149 @@ const TransactionArgumentTypes = [
 ] as const;
 
 // Generic transaction argument
-export const TransactionArgument = union([...TransactionArgumentTypes]);
+export type TransactionArgumentV1 =
+	| InferOutput<typeof TransactionInput>
+	| { kind: 'GasCoin' }
+	| { kind: 'Result'; index: number }
+	| { kind: 'NestedResult'; index: number; resultIndex: number };
+type TransactionArgumentV1Input =
+	| InferInput<typeof TransactionInput>
+	| { kind: 'GasCoin' }
+	| { kind: 'Result'; index: number }
+	| { kind: 'NestedResult'; index: number; resultIndex: number };
+export const TransactionArgument: GenericSchema<TransactionArgumentV1Input, TransactionArgumentV1> =
+	union([...TransactionArgumentTypes]) as GenericSchema<
+		TransactionArgumentV1Input,
+		TransactionArgumentV1
+	>;
 
-const MoveCallTransaction = object({
-	kind: literal('MoveCall'),
-	target: pipe(
-		string(),
-		check((target) => target.split('::').length === 3),
-	) as GenericSchema<`${string}::${string}::${string}`>,
-	typeArguments: array(string()),
-	arguments: array(TransactionArgument),
-});
+type MoveCallTransactionV1 = {
+	kind: 'MoveCall';
+	target: `${string}::${string}::${string}`;
+	typeArguments: string[];
+	arguments: TransactionArgumentV1[];
+};
+type MoveCallTransactionV1Input = {
+	kind: 'MoveCall';
+	target: `${string}::${string}::${string}`;
+	typeArguments: string[];
+	arguments: TransactionArgumentV1Input[];
+};
+const MoveCallTransaction: GenericSchema<MoveCallTransactionV1Input, MoveCallTransactionV1> =
+	object({
+		kind: literal('MoveCall'),
+		target: pipe(
+			string(),
+			check((target) => target.split('::').length === 3),
+		) as GenericSchema<`${string}::${string}::${string}`>,
+		typeArguments: array(string()),
+		arguments: array(TransactionArgument),
+	}) as GenericSchema<MoveCallTransactionV1Input, MoveCallTransactionV1>;
 
-const TransferObjectsTransaction = object({
+type TransferObjectsTransactionV1 = {
+	kind: 'TransferObjects';
+	objects: TransactionArgumentV1[];
+	address: TransactionArgumentV1;
+};
+type TransferObjectsTransactionV1Input = {
+	kind: 'TransferObjects';
+	objects: TransactionArgumentV1Input[];
+	address: TransactionArgumentV1Input;
+};
+const TransferObjectsTransaction: GenericSchema<
+	TransferObjectsTransactionV1Input,
+	TransferObjectsTransactionV1
+> = object({
 	kind: literal('TransferObjects'),
 	objects: array(TransactionArgument),
 	address: TransactionArgument,
-});
+}) as GenericSchema<TransferObjectsTransactionV1Input, TransferObjectsTransactionV1>;
 
-const SplitCoinsTransaction = object({
-	kind: literal('SplitCoins'),
-	coin: TransactionArgument,
-	amounts: array(TransactionArgument),
-});
+type SplitCoinsTransactionV1 = {
+	kind: 'SplitCoins';
+	coin: TransactionArgumentV1;
+	amounts: TransactionArgumentV1[];
+};
+type SplitCoinsTransactionV1Input = {
+	kind: 'SplitCoins';
+	coin: TransactionArgumentV1Input;
+	amounts: TransactionArgumentV1Input[];
+};
+const SplitCoinsTransaction: GenericSchema<SplitCoinsTransactionV1Input, SplitCoinsTransactionV1> =
+	object({
+		kind: literal('SplitCoins'),
+		coin: TransactionArgument,
+		amounts: array(TransactionArgument),
+	}) as GenericSchema<SplitCoinsTransactionV1Input, SplitCoinsTransactionV1>;
 
-const MergeCoinsTransaction = object({
-	kind: literal('MergeCoins'),
-	destination: TransactionArgument,
-	sources: array(TransactionArgument),
-});
+type MergeCoinsTransactionV1 = {
+	kind: 'MergeCoins';
+	destination: TransactionArgumentV1;
+	sources: TransactionArgumentV1[];
+};
+type MergeCoinsTransactionV1Input = {
+	kind: 'MergeCoins';
+	destination: TransactionArgumentV1Input;
+	sources: TransactionArgumentV1Input[];
+};
+const MergeCoinsTransaction: GenericSchema<MergeCoinsTransactionV1Input, MergeCoinsTransactionV1> =
+	object({
+		kind: literal('MergeCoins'),
+		destination: TransactionArgument,
+		sources: array(TransactionArgument),
+	}) as GenericSchema<MergeCoinsTransactionV1Input, MergeCoinsTransactionV1>;
 
-const MakeMoveVecTransaction = object({
+type MakeMoveVecTransactionV1 = {
+	kind: 'MakeMoveVec';
+	type: { Some: TypeTagType } | { None: true | null };
+	objects: TransactionArgumentV1[];
+};
+type MakeMoveVecTransactionV1Input = {
+	kind: 'MakeMoveVec';
+	type: { Some: TypeTagType } | { None: true | null };
+	objects: TransactionArgumentV1Input[];
+};
+const MakeMoveVecTransaction: GenericSchema<
+	MakeMoveVecTransactionV1Input,
+	MakeMoveVecTransactionV1
+> = object({
 	kind: literal('MakeMoveVec'),
 	type: union([object({ Some: TypeTag }), object({ None: nullable(literal(true)) })]),
 	objects: array(TransactionArgument),
-});
+}) as GenericSchema<MakeMoveVecTransactionV1Input, MakeMoveVecTransactionV1>;
 
-const PublishTransaction = object({
+type PublishTransactionV1 = {
+	kind: 'Publish';
+	modules: number[][];
+	dependencies: string[];
+};
+const PublishTransaction: GenericSchema<PublishTransactionV1, PublishTransactionV1> = object({
 	kind: literal('Publish'),
 	modules: array(array(pipe(number(), integer()))),
 	dependencies: array(string()),
-});
+}) as GenericSchema<PublishTransactionV1, PublishTransactionV1>;
 
-const UpgradeTransaction = object({
+type UpgradeTransactionV1 = {
+	kind: 'Upgrade';
+	modules: number[][];
+	dependencies: string[];
+	packageId: string;
+	ticket: TransactionArgumentV1;
+};
+type UpgradeTransactionV1Input = {
+	kind: 'Upgrade';
+	modules: number[][];
+	dependencies: string[];
+	packageId: string;
+	ticket: TransactionArgumentV1Input;
+};
+const UpgradeTransaction: GenericSchema<UpgradeTransactionV1Input, UpgradeTransactionV1> = object({
 	kind: literal('Upgrade'),
 	modules: array(array(pipe(number(), integer()))),
 	dependencies: array(string()),
 	packageId: string(),
 	ticket: TransactionArgument,
-});
+}) as GenericSchema<UpgradeTransactionV1Input, UpgradeTransactionV1>;
 
 const TransactionTypes = [
 	MoveCallTransaction,
@@ -185,18 +310,53 @@ const TransactionTypes = [
 	MakeMoveVecTransaction,
 ] as const;
 
-const TransactionType = union([...TransactionTypes]);
+type TransactionTypeV1 =
+	| InferOutput<typeof MoveCallTransaction>
+	| InferOutput<typeof TransferObjectsTransaction>
+	| InferOutput<typeof SplitCoinsTransaction>
+	| InferOutput<typeof MergeCoinsTransaction>
+	| InferOutput<typeof PublishTransaction>
+	| InferOutput<typeof UpgradeTransaction>
+	| InferOutput<typeof MakeMoveVecTransaction>;
+type TransactionTypeV1Input =
+	| InferInput<typeof MoveCallTransaction>
+	| InferInput<typeof TransferObjectsTransaction>
+	| InferInput<typeof SplitCoinsTransaction>
+	| InferInput<typeof MergeCoinsTransaction>
+	| InferInput<typeof PublishTransaction>
+	| InferInput<typeof UpgradeTransaction>
+	| InferInput<typeof MakeMoveVecTransaction>;
+const TransactionType: GenericSchema<TransactionTypeV1Input, TransactionTypeV1> = union([
+	...TransactionTypes,
+]) as GenericSchema<TransactionTypeV1Input, TransactionTypeV1>;
 
-export const SerializedTransactionDataV1 = object({
+export type SerializedTransactionDataV1 = {
+	version: 1;
+	sender?: string;
+	expiration?: { Epoch: number } | { None: true | null } | null;
+	gasConfig: InferOutput<typeof GasConfig>;
+	inputs: TransactionInputV1[];
+	transactions: InferOutput<typeof TransactionType>[];
+};
+type SerializedTransactionDataV1Input = {
+	version: 1;
+	sender?: string;
+	expiration?: { Epoch: number } | { None: true | null } | null;
+	gasConfig: InferInput<typeof GasConfig>;
+	inputs: TransactionInputV1[];
+	transactions: InferInput<typeof TransactionType>[];
+};
+export const SerializedTransactionDataV1: GenericSchema<
+	SerializedTransactionDataV1Input,
+	SerializedTransactionDataV1
+> = object({
 	version: literal(1),
 	sender: optional(string()),
 	expiration: nullish(TransactionExpiration),
 	gasConfig: GasConfig,
 	inputs: array(TransactionInput),
 	transactions: array(TransactionType),
-});
-
-export type SerializedTransactionDataV1 = InferOutput<typeof SerializedTransactionDataV1>;
+}) as GenericSchema<SerializedTransactionDataV1Input, SerializedTransactionDataV1>;
 
 export function serializeV1TransactionData(
 	transactionData: TransactionData,
@@ -434,7 +594,7 @@ export function transactionDataFromV1(data: SerializedTransactionDataV1): Transa
 
 					return {
 						Pure: {
-							bytes: toBase64(new Uint8Array(value.Pure)),
+							bytes: toBase64(new Uint8Array(value.Pure!)),
 						},
 					};
 				}

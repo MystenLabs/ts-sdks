@@ -1,6 +1,6 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-import type { Transaction } from '@mysten/sui/transactions';
+import type { Transaction, TransactionResult } from '@mysten/sui/transactions';
 import { coinWithBalance } from '@mysten/sui/transactions';
 
 import type { DeepBookConfig } from '../utils/config.js';
@@ -24,12 +24,14 @@ export class MarginLiquidationsContract {
 	 * @param {string} liquidationAdminCap The liquidation admin cap object ID
 	 * @returns A function that takes a Transaction object
 	 */
-	createLiquidationVault = (liquidationAdminCap: string) => (tx: Transaction) => {
-		tx.moveCall({
-			target: `${this.#config.LIQUIDATION_PACKAGE_ID}::liquidation_vault::create_liquidation_vault`,
-			arguments: [tx.object(liquidationAdminCap)],
-		});
-	};
+	createLiquidationVault =
+		(liquidationAdminCap: string) =>
+		(tx: Transaction): void => {
+			tx.moveCall({
+				target: `${this.#config.LIQUIDATION_PACKAGE_ID}::liquidation_vault::create_liquidation_vault`,
+				arguments: [tx.object(liquidationAdminCap)],
+			});
+		};
 
 	/**
 	 * @description Deposit coins into a liquidation vault
@@ -41,7 +43,7 @@ export class MarginLiquidationsContract {
 	 */
 	deposit =
 		(vaultId: string, liquidationAdminCap: string, coinKey: string, amount: number) =>
-		(tx: Transaction) => {
+		(tx: Transaction): void => {
 			const coin = this.#config.getCoin(coinKey);
 			const depositCoin = coinWithBalance({
 				type: coin.type,
@@ -64,7 +66,7 @@ export class MarginLiquidationsContract {
 	 */
 	withdraw =
 		(vaultId: string, liquidationAdminCap: string, coinKey: string, amount: number) =>
-		(tx: Transaction) => {
+		(tx: Transaction): TransactionResult => {
 			const coin = this.#config.getCoin(coinKey);
 			return tx.moveCall({
 				target: `${this.#config.LIQUIDATION_PACKAGE_ID}::liquidation_vault::withdraw`,
@@ -87,7 +89,7 @@ export class MarginLiquidationsContract {
 	 */
 	liquidateBase =
 		(vaultId: string, managerAddress: string, poolKey: string, repayAmount?: number) =>
-		(tx: Transaction) => {
+		(tx: Transaction): void => {
 			const pool = this.#config.getPool(poolKey);
 			const baseCoin = this.#config.getCoin(pool.baseCoin);
 			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
@@ -127,7 +129,7 @@ export class MarginLiquidationsContract {
 	 */
 	liquidateQuote =
 		(vaultId: string, managerAddress: string, poolKey: string, repayAmount?: number) =>
-		(tx: Transaction) => {
+		(tx: Transaction): void => {
 			const pool = this.#config.getPool(poolKey);
 			const baseCoin = this.#config.getCoin(pool.baseCoin);
 			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
@@ -165,12 +167,14 @@ export class MarginLiquidationsContract {
 	 * @param {string} coinKey The key to identify the coin type
 	 * @returns A function that takes a Transaction object
 	 */
-	balance = (vaultId: string, coinKey: string) => (tx: Transaction) => {
-		const coin = this.#config.getCoin(coinKey);
-		return tx.moveCall({
-			target: `${this.#config.LIQUIDATION_PACKAGE_ID}::liquidation_vault::balance`,
-			arguments: [tx.object(vaultId)],
-			typeArguments: [coin.type],
-		});
-	};
+	balance =
+		(vaultId: string, coinKey: string) =>
+		(tx: Transaction): TransactionResult => {
+			const coin = this.#config.getCoin(coinKey);
+			return tx.moveCall({
+				target: `${this.#config.LIQUIDATION_PACKAGE_ID}::liquidation_vault::balance`,
+				arguments: [tx.object(vaultId)],
+				typeArguments: [coin.type],
+			});
+		};
 }

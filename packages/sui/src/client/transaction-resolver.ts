@@ -316,7 +316,7 @@ export function grpcObjectReferencesToBcs(refs: ObjectReference[]): {
 	}));
 }
 
-export function transactionToGrpcTransaction(transaction: Transaction) {
+export function transactionToGrpcTransaction(transaction: Transaction): GrpcTransaction {
 	const snapshot = transaction.getData();
 
 	if (!snapshot.sender) {

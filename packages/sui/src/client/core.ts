@@ -25,7 +25,7 @@ const DEFAULT_MVR_URLS: Record<string, string> = {
 };
 
 export abstract class CoreClient extends BaseClient implements SuiClientTypes.TransportMethods {
-	core = this;
+	core: this = this;
 	mvr: SuiClientTypes.MvrMethods;
 
 	constructor(options: CoreClientOptions) {

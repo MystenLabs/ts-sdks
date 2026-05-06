@@ -133,7 +133,8 @@ class CheckpointedTransactionInfo$Type extends MessageType<CheckpointedTransacti
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.CheckpointedTransactionInfo
  */
-export const CheckpointedTransactionInfo: CheckpointedTransactionInfo$Type = new CheckpointedTransactionInfo$Type();
+export const CheckpointedTransactionInfo: CheckpointedTransactionInfo$Type =
+	new CheckpointedTransactionInfo$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class AddressAliasesVersion$Type extends MessageType<AddressAliasesVersion> {
 	constructor() {

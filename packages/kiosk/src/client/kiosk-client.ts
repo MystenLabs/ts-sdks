@@ -24,7 +24,10 @@ import type {
 	KioskClientOptions,
 	KioskCompatibleClient,
 	KioskData,
+	KioskExtension,
 	OwnedKiosks,
+	TransferPolicy,
+	TransferPolicyCap,
 } from '../types/index.js';
 
 export type KioskExtensionOptions<Name extends string = 'kiosk'> = {
@@ -51,10 +54,13 @@ export type KioskExtensionOptions<Name extends string = 'kiosk'> = {
 export function kiosk<const Name extends string = 'kiosk'>({
 	name = 'kiosk' as Name,
 	packageIds,
-}: KioskExtensionOptions<Name> = {}) {
+}: KioskExtensionOptions<Name> = {}): {
+	name: Name;
+	register: (client: KioskCompatibleClient) => KioskClient;
+} {
 	return {
-		name,
-		register: (client: KioskCompatibleClient) => {
+		name: name,
+		register: (client: KioskCompatibleClient): KioskClient => {
 			return new KioskClient({
 				client,
 				network: client.network,
@@ -128,7 +134,13 @@ export class KioskClient {
 	 * @param kioskId The ID of the kiosk to lookup
 	 * @param extensionType The Type of the extension (can be used from by using the type returned by `getKiosk()`)
 	 */
-	async getKioskExtension({ kioskId, type }: { kioskId: string; type: string }) {
+	async getKioskExtension({
+		kioskId,
+		type,
+	}: {
+		kioskId: string;
+		type: string;
+	}): Promise<KioskExtension | null> {
 		return fetchKioskExtension(this.client, kioskId, type);
 	}
 
@@ -136,7 +148,7 @@ export class KioskClient {
 	 * Query the Transfer Policy(ies) for type `T`.
 	 * @param type The Type we're querying for (E.g `0xMyAddress::hero::Hero`)
 	 */
-	async getTransferPolicies({ type }: { type: string }) {
+	async getTransferPolicies({ type }: { type: string }): Promise<TransferPolicy[]> {
 		return queryTransferPolicy(this.client, type);
 	}
 
@@ -145,7 +157,11 @@ export class KioskClient {
 	 * Returns `TransferPolicyCap` which uncludes `policyId, policyCapId, type`.
 	 * @param address The address we're searching the owned transfer policies for.
 	 */
-	async getOwnedTransferPolicies({ address }: { address: string }) {
+	async getOwnedTransferPolicies({
+		address,
+	}: {
+		address: string;
+	}): Promise<TransferPolicyCap[] | undefined> {
 		return queryOwnedTransferPolicies(this.client, address);
 	}
 
@@ -154,14 +170,20 @@ export class KioskClient {
 	 * @param type The Type `T` for the object
 	 * @param address The address that owns the cap.
 	 */
-	async getOwnedTransferPoliciesByType({ type, address }: { type: string; address: string }) {
+	async getOwnedTransferPoliciesByType({
+		type,
+		address,
+	}: {
+		type: string;
+		address: string;
+	}): Promise<TransferPolicyCap[]> {
 		return queryTransferPolicyCapsByType(this.client, address, type);
 	}
 
 	// Someone would just have to create a `kiosk-client.ts` file in their project, initialize a KioskClient
 	// and call the `addRuleResolver` function. Each rule has a `resolve` function.
 	// The resolve function is automatically called on `purchaseAndResolve` function call.
-	addRuleResolver(rule: TransferPolicyRule) {
+	addRuleResolver(rule: TransferPolicyRule): void {
 		if (this.rules.find((x) => x.rule === rule.rule))
 			throw new Error(`Rule ${rule.rule} resolver already exists.`);
 		this.rules.push(rule);
@@ -177,7 +199,7 @@ export class KioskClient {
 			| 'royaltyRulePackageId'
 			| 'personalKioskRulePackageId'
 			| 'floorPriceRulePackageId',
-	) {
+	): string | undefined {
 		const rules = this.packageIds || {};
 		const network = this.network;
 

@@ -9,25 +9,25 @@ import { SUI_FRAMEWORK_ADDRESS } from '@mysten/sui/utils';
 import { SuiClientTypes } from '@mysten/sui/client';
 
 /** The Kiosk module. */
-export const KIOSK_MODULE = `${SUI_FRAMEWORK_ADDRESS}::kiosk`;
+export const KIOSK_MODULE: string = `${SUI_FRAMEWORK_ADDRESS}::kiosk`;
 
 /** The Kiosk type. */
-export const KIOSK_TYPE = `${KIOSK_MODULE}::Kiosk`;
+export const KIOSK_TYPE: string = `${KIOSK_MODULE}::Kiosk`;
 
 /** The Kiosk Owner Cap Type */
-export const KIOSK_OWNER_CAP = `${KIOSK_MODULE}::KioskOwnerCap`;
+export const KIOSK_OWNER_CAP: string = `${KIOSK_MODULE}::KioskOwnerCap`;
 
 /** The Kiosk Item Type */
-export const KIOSK_ITEM = `${KIOSK_MODULE}::Item`;
+export const KIOSK_ITEM: string = `${KIOSK_MODULE}::Item`;
 
 /** The Kiosk Listing Type */
-export const KIOSK_LISTING = `${KIOSK_MODULE}::Listing`;
+export const KIOSK_LISTING: string = `${KIOSK_MODULE}::Listing`;
 
 /** The Kiosk Lock Type */
-export const KIOSK_LOCK = `${KIOSK_MODULE}::Lock`;
+export const KIOSK_LOCK: string = `${KIOSK_MODULE}::Lock`;
 
 /** The Kiosk PurchaseCap type */
-export const KIOSK_PURCHASE_CAP = `${KIOSK_MODULE}::PurchaseCap`;
+export const KIOSK_PURCHASE_CAP: string = `${KIOSK_MODULE}::PurchaseCap`;
 
 /**
  * The Kiosk object fields (for BCS queries).

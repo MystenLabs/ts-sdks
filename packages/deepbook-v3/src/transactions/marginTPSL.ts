@@ -1,6 +1,6 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-import type { Transaction } from '@mysten/sui/transactions';
+import type { Transaction, TransactionResult } from '@mysten/sui/transactions';
 
 import type { DeepBookConfig } from '../utils/config.js';
 import type {
@@ -36,7 +36,7 @@ export class MarginTPSLContract {
 	 */
 	newCondition =
 		(poolKey: string, triggerBelowPrice: boolean, triggerPrice: number | bigint) =>
-		(tx: Transaction) => {
+		(tx: Transaction): TransactionResult => {
 			const pool = this.#config.getPool(poolKey);
 			const baseCoin = this.#config.getCoin(pool.baseCoin);
 			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
@@ -59,7 +59,8 @@ export class MarginTPSLContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	newPendingLimitOrder =
-		(poolKey: string, params: PendingLimitOrderParams) => (tx: Transaction) => {
+		(poolKey: string, params: PendingLimitOrderParams) =>
+		(tx: Transaction): TransactionResult => {
 			const {
 				clientOrderId,
 				orderType = OrderType.NO_RESTRICTION,
@@ -97,7 +98,8 @@ export class MarginTPSLContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	newPendingMarketOrder =
-		(poolKey: string, params: PendingMarketOrderParams) => (tx: Transaction) => {
+		(poolKey: string, params: PendingMarketOrderParams) =>
+		(tx: Transaction): TransactionResult => {
 			const {
 				clientOrderId,
 				selfMatchingOption = SelfMatchingOptions.SELF_MATCHING_ALLOWED,
@@ -127,56 +129,65 @@ export class MarginTPSLContract {
 	 * @param {AddConditionalOrderParams} params Parameters for adding the conditional order
 	 * @returns A function that takes a Transaction object
 	 */
-	addConditionalOrder = (params: AddConditionalOrderParams) => (tx: Transaction) => {
-		const { marginManagerKey, conditionalOrderId, triggerBelowPrice, triggerPrice, pendingOrder } =
-			params;
-		const manager = this.#config.getMarginManager(marginManagerKey);
-		const pool = this.#config.getPool(manager.poolKey);
-		const baseCoin = this.#config.getCoin(pool.baseCoin);
-		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+	addConditionalOrder =
+		(params: AddConditionalOrderParams) =>
+		(tx: Transaction): void => {
+			const {
+				marginManagerKey,
+				conditionalOrderId,
+				triggerBelowPrice,
+				triggerPrice,
+				pendingOrder,
+			} = params;
+			const manager = this.#config.getMarginManager(marginManagerKey);
+			const pool = this.#config.getPool(manager.poolKey);
+			const baseCoin = this.#config.getCoin(pool.baseCoin);
+			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 
-		// Create condition
-		const condition = this.newCondition(manager.poolKey, triggerBelowPrice, triggerPrice)(tx);
+			// Create condition
+			const condition = this.newCondition(manager.poolKey, triggerBelowPrice, triggerPrice)(tx);
 
-		// Create pending order based on type
-		const isLimitOrder = 'price' in pendingOrder;
-		const pending = isLimitOrder
-			? this.newPendingLimitOrder(manager.poolKey, pendingOrder as PendingLimitOrderParams)(tx)
-			: this.newPendingMarketOrder(manager.poolKey, pendingOrder as PendingMarketOrderParams)(tx);
+			// Create pending order based on type
+			const isLimitOrder = 'price' in pendingOrder;
+			const pending = isLimitOrder
+				? this.newPendingLimitOrder(manager.poolKey, pendingOrder as PendingLimitOrderParams)(tx)
+				: this.newPendingMarketOrder(manager.poolKey, pendingOrder as PendingMarketOrderParams)(tx);
 
-		tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::add_conditional_order`,
-			arguments: [
-				tx.object(manager.address),
-				tx.object(pool.address),
-				tx.object(baseCoin.priceInfoObjectId!),
-				tx.object(quoteCoin.priceInfoObjectId!),
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.pure.u64(conditionalOrderId),
-				condition,
-				pending,
-				tx.object.clock(),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
-	};
+			tx.moveCall({
+				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::add_conditional_order`,
+				arguments: [
+					tx.object(manager.address),
+					tx.object(pool.address),
+					tx.object(baseCoin.priceInfoObjectId!),
+					tx.object(quoteCoin.priceInfoObjectId!),
+					tx.object(this.#config.MARGIN_REGISTRY_ID),
+					tx.pure.u64(conditionalOrderId),
+					condition,
+					pending,
+					tx.object.clock(),
+				],
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			});
+		};
 
 	/**
 	 * @description Cancel all conditional orders for a margin manager
 	 * @param {string} marginManagerKey The key to identify the margin manager
 	 * @returns A function that takes a Transaction object
 	 */
-	cancelAllConditionalOrders = (marginManagerKey: string) => (tx: Transaction) => {
-		const manager = this.#config.getMarginManager(marginManagerKey);
-		const pool = this.#config.getPool(manager.poolKey);
-		const baseCoin = this.#config.getCoin(pool.baseCoin);
-		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::cancel_all_conditional_orders`,
-			arguments: [tx.object(manager.address), tx.object.clock()],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
-	};
+	cancelAllConditionalOrders =
+		(marginManagerKey: string) =>
+		(tx: Transaction): void => {
+			const manager = this.#config.getMarginManager(marginManagerKey);
+			const pool = this.#config.getPool(manager.poolKey);
+			const baseCoin = this.#config.getCoin(pool.baseCoin);
+			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+			tx.moveCall({
+				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::cancel_all_conditional_orders`,
+				arguments: [tx.object(manager.address), tx.object.clock()],
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			});
+		};
 
 	/**
 	 * @description Cancel a specific conditional order
@@ -185,7 +196,8 @@ export class MarginTPSLContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	cancelConditionalOrder =
-		(marginManagerKey: string, conditionalOrderId: string) => (tx: Transaction) => {
+		(marginManagerKey: string, conditionalOrderId: string) =>
+		(tx: Transaction): void => {
 			const manager = this.#config.getMarginManager(marginManagerKey);
 			const pool = this.#config.getPool(manager.poolKey);
 			const baseCoin = this.#config.getCoin(pool.baseCoin);
@@ -206,7 +218,8 @@ export class MarginTPSLContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	executeConditionalOrders =
-		(managerAddress: string, poolKey: string, maxOrdersToExecute: number) => (tx: Transaction) => {
+		(managerAddress: string, poolKey: string, maxOrdersToExecute: number) =>
+		(tx: Transaction): TransactionResult => {
 			const pool = this.#config.getPool(poolKey);
 			const baseCoin = this.#config.getCoin(pool.baseCoin);
 			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
@@ -233,16 +246,18 @@ export class MarginTPSLContract {
 	 * @param {string} marginManagerId The ID of the margin manager
 	 * @returns A function that takes a Transaction object
 	 */
-	conditionalOrderIds = (poolKey: string, marginManagerId: string) => (tx: Transaction) => {
-		const pool = this.#config.getPool(poolKey);
-		const baseCoin = this.#config.getCoin(pool.baseCoin);
-		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::conditional_order_ids`,
-			arguments: [tx.object(marginManagerId)],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
-	};
+	conditionalOrderIds =
+		(poolKey: string, marginManagerId: string) =>
+		(tx: Transaction): TransactionResult => {
+			const pool = this.#config.getPool(poolKey);
+			const baseCoin = this.#config.getCoin(pool.baseCoin);
+			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+			return tx.moveCall({
+				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::conditional_order_ids`,
+				arguments: [tx.object(marginManagerId)],
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			});
+		};
 
 	/**
 	 * @description Get a specific conditional order by ID
@@ -252,7 +267,8 @@ export class MarginTPSLContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	conditionalOrder =
-		(poolKey: string, marginManagerId: string, conditionalOrderId: string) => (tx: Transaction) => {
+		(poolKey: string, marginManagerId: string, conditionalOrderId: string) =>
+		(tx: Transaction): TransactionResult => {
 			const pool = this.#config.getPool(poolKey);
 			const baseCoin = this.#config.getCoin(pool.baseCoin);
 			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
@@ -270,16 +286,18 @@ export class MarginTPSLContract {
 	 * @param {string} marginManagerId The ID of the margin manager
 	 * @returns A function that takes a Transaction object
 	 */
-	lowestTriggerAbovePrice = (poolKey: string, marginManagerId: string) => (tx: Transaction) => {
-		const pool = this.#config.getPool(poolKey);
-		const baseCoin = this.#config.getCoin(pool.baseCoin);
-		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::lowest_trigger_above_price`,
-			arguments: [tx.object(marginManagerId)],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
-	};
+	lowestTriggerAbovePrice =
+		(poolKey: string, marginManagerId: string) =>
+		(tx: Transaction): TransactionResult => {
+			const pool = this.#config.getPool(poolKey);
+			const baseCoin = this.#config.getCoin(pool.baseCoin);
+			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+			return tx.moveCall({
+				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::lowest_trigger_above_price`,
+				arguments: [tx.object(marginManagerId)],
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			});
+		};
 
 	/**
 	 * @description Get the highest trigger price for trigger_below orders
@@ -288,14 +306,16 @@ export class MarginTPSLContract {
 	 * @param {string} marginManagerId The ID of the margin manager
 	 * @returns A function that takes a Transaction object
 	 */
-	highestTriggerBelowPrice = (poolKey: string, marginManagerId: string) => (tx: Transaction) => {
-		const pool = this.#config.getPool(poolKey);
-		const baseCoin = this.#config.getCoin(pool.baseCoin);
-		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::highest_trigger_below_price`,
-			arguments: [tx.object(marginManagerId)],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
-	};
+	highestTriggerBelowPrice =
+		(poolKey: string, marginManagerId: string) =>
+		(tx: Transaction): TransactionResult => {
+			const pool = this.#config.getPool(poolKey);
+			const baseCoin = this.#config.getCoin(pool.baseCoin);
+			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+			return tx.moveCall({
+				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::highest_trigger_below_price`,
+				arguments: [tx.object(marginManagerId)],
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			});
+		};
 }

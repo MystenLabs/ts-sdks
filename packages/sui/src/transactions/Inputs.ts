@@ -23,7 +23,7 @@ function Pure(data: Uint8Array | SerializedBcs<any>): Extract<CallArg, { Pure: u
 }
 
 export const Inputs = {
-	Pure,
+	Pure: Pure as typeof Pure,
 	ObjectRef({ objectId, digest, version }: ObjectRef): Extract<CallArg, { Object: unknown }> {
 		return {
 			$kind: 'Object',

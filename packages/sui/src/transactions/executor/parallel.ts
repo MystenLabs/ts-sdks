@@ -117,12 +117,12 @@ export class ParallelTransactionExecutor {
 		this.#executeQueue = new ParallelQueue(this.#maxPoolSize);
 	}
 
-	resetCache() {
+	resetCache(): Promise<void> {
 		this.#epochInfo = null;
 		return this.#updateCache(() => this.#cache.reset());
 	}
 
-	async waitForLastTransaction() {
+	async waitForLastTransaction(): Promise<void> {
 		await this.#updateCache(() => this.#waitForLastDigest());
 	}
 

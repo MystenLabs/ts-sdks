@@ -9,7 +9,7 @@ type FaucetCoinInfo = {
 	transferTxDigest: string;
 };
 
-type FaucetResponseV2 = {
+export type FaucetResponseV2 = {
 	status: 'Success' | FaucetFailure;
 	coins_sent: FaucetCoinInfo[] | null;
 };
@@ -59,7 +59,7 @@ export async function requestSuiFromFaucetV2(input: {
 	host: string;
 	recipient: string;
 	headers?: HeadersInit;
-}) {
+}): Promise<FaucetResponseV2> {
 	const response = await faucetRequest<FaucetResponseV2>({
 		host: input.host,
 		path: '/v2/gas',
@@ -79,7 +79,7 @@ export async function requestSuiFromFaucetV2(input: {
 	return response;
 }
 
-export function getFaucetHost(network: 'testnet' | 'devnet' | 'localnet') {
+export function getFaucetHost(network: 'testnet' | 'devnet' | 'localnet'): string {
 	switch (network) {
 		case 'testnet':
 			return 'https://faucet.testnet.sui.io';

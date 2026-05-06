@@ -27,7 +27,7 @@ function prepareSuiAddress(address: string) {
 }
 
 export class TransactionDataBuilder implements TransactionData {
-	static fromKindBytes(bytes: Uint8Array) {
+	static fromKindBytes(bytes: Uint8Array): TransactionDataBuilder {
 		const kind = bcs.TransactionKind.parse(bytes);
 
 		const programmableTx = kind.ProgrammableTransaction;
@@ -50,7 +50,7 @@ export class TransactionDataBuilder implements TransactionData {
 		});
 	}
 
-	static fromBytes(bytes: Uint8Array) {
+	static fromBytes(bytes: Uint8Array): TransactionDataBuilder {
 		const rawData = bcs.TransactionData.parse(bytes);
 		const data = rawData?.V1;
 		const programmableTx = data.kind.ProgrammableTransaction;
@@ -73,7 +73,7 @@ export class TransactionDataBuilder implements TransactionData {
 		data:
 			| InferInput<typeof SerializedTransactionDataV2Schema>
 			| InferInput<typeof SerializedTransactionDataV1>,
-	) {
+	): TransactionDataBuilder {
 		if (data.version === 2) {
 			return new TransactionDataBuilder(parse(TransactionDataSchema, data));
 		} else {
@@ -87,7 +87,7 @@ export class TransactionDataBuilder implements TransactionData {
 	 * @param bytes BCS serialized transaction data
 	 * @returns transaction digest.
 	 */
-	static getDigestFromBytes(bytes: Uint8Array) {
+	static getDigestFromBytes(bytes: Uint8Array): string {
 		const hash = hashTypedData('TransactionData', bytes);
 		return toBase58(hash);
 	}
@@ -124,7 +124,7 @@ export class TransactionDataBuilder implements TransactionData {
 			gasData?: Partial<GasData>;
 		};
 		onlyTransactionKind?: boolean;
-	} = {}) {
+	} = {}): Uint8Array<ArrayBuffer> {
 		// TODO validate that inputs and intents are actually resolved
 		const inputs = this.inputs as (typeof bcs.CallArg.$inferInput)[];
 		const commands = this.commands as Extract<
@@ -186,13 +186,16 @@ export class TransactionDataBuilder implements TransactionData {
 		).toBytes();
 	}
 
-	addInput<T extends 'object' | 'pure' | 'withdrawal'>(type: T, arg: CallArg) {
+	addInput<T extends 'object' | 'pure' | 'withdrawal'>(
+		type: T,
+		arg: CallArg,
+	): { Input: number; type: T; $kind: 'Input' } {
 		const index = this.inputs.length;
 		this.inputs.push(arg);
-		return { Input: index, type, $kind: 'Input' as const };
+		return { Input: index, type: type, $kind: 'Input' as const };
 	}
 
-	getInputUses(index: number, fn: (arg: Argument, command: Command) => void) {
+	getInputUses(index: number, fn: (arg: Argument, command: Command) => void): void {
 		this.mapArguments((arg, command) => {
 			if (arg.$kind === 'Input' && arg.Input === index) {
 				fn(arg, command);
@@ -205,7 +208,7 @@ export class TransactionDataBuilder implements TransactionData {
 	mapCommandArguments(
 		index: number,
 		fn: (arg: Argument, command: Command, commandIndex: number) => Argument,
-	) {
+	): void {
 		const command = this.commands[index];
 
 		switch (command.$kind) {
@@ -258,7 +261,7 @@ export class TransactionDataBuilder implements TransactionData {
 		}
 	}
 
-	mapArguments(fn: (arg: Argument, command: Command, commandIndex: number) => Argument) {
+	mapArguments(fn: (arg: Argument, command: Command, commandIndex: number) => Argument): void {
 		for (const commandIndex of this.commands.keys()) {
 			this.mapCommandArguments(commandIndex, fn);
 		}
@@ -268,7 +271,7 @@ export class TransactionDataBuilder implements TransactionData {
 		index: number,
 		replacement: Command | Command[],
 		resultIndex: number | { Result: number } | { NestedResult: [number, number] } = index,
-	) {
+	): void {
 		if (!Array.isArray(replacement)) {
 			this.commands[index] = replacement;
 			return;
@@ -329,7 +332,7 @@ export class TransactionDataBuilder implements TransactionData {
 		index: number,
 		otherTransaction: TransactionData,
 		result: TransactionResult,
-	) {
+	): void {
 		if (result.$kind !== 'Result' && result.$kind !== 'NestedResult') {
 			throw new Error('Result must be of kind Result or NestedResult');
 		}
@@ -350,7 +353,7 @@ export class TransactionDataBuilder implements TransactionData {
 		);
 	}
 
-	insertTransaction(atCommandIndex: number, otherTransaction: TransactionData) {
+	insertTransaction(atCommandIndex: number, otherTransaction: TransactionData): void {
 		const inputMapping = new Map<number, number>();
 		const commandMapping = new Map<number, number>();
 
@@ -425,7 +428,7 @@ export class TransactionDataBuilder implements TransactionData {
 		}
 	}
 
-	getDigest() {
+	getDigest(): string {
 		const bytes = this.build({ onlyTransactionKind: false });
 		return TransactionDataBuilder.getDigestFromBytes(bytes);
 	}
@@ -434,7 +437,7 @@ export class TransactionDataBuilder implements TransactionData {
 		return parse(TransactionDataSchema, this);
 	}
 
-	shallowClone() {
+	shallowClone(): TransactionDataBuilder {
 		return new TransactionDataBuilder({
 			version: this.version,
 			sender: this.sender,
@@ -447,7 +450,7 @@ export class TransactionDataBuilder implements TransactionData {
 		});
 	}
 
-	applyResolvedData(resolved: TransactionData) {
+	applyResolvedData(resolved: TransactionData): void {
 		if (!this.sender) {
 			this.sender = resolved.sender ?? null;
 		}

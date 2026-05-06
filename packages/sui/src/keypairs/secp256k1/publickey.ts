@@ -18,7 +18,7 @@ const SECP256K1_PUBLIC_KEY_SIZE = 33;
  * A Secp256k1 public key
  */
 export class Secp256k1PublicKey extends PublicKey {
-	static SIZE = SECP256K1_PUBLIC_KEY_SIZE;
+	static SIZE: number = SECP256K1_PUBLIC_KEY_SIZE;
 	private data: Uint8Array<ArrayBuffer>;
 
 	/**

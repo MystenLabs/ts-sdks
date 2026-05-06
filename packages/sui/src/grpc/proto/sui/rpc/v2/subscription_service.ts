@@ -58,7 +58,8 @@ class SubscribeCheckpointsRequest$Type extends MessageType<SubscribeCheckpointsR
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.SubscribeCheckpointsRequest
  */
-export const SubscribeCheckpointsRequest: SubscribeCheckpointsRequest$Type = new SubscribeCheckpointsRequest$Type();
+export const SubscribeCheckpointsRequest: SubscribeCheckpointsRequest$Type =
+	new SubscribeCheckpointsRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class SubscribeCheckpointsResponse$Type extends MessageType<SubscribeCheckpointsResponse> {
 	constructor() {
@@ -78,7 +79,8 @@ class SubscribeCheckpointsResponse$Type extends MessageType<SubscribeCheckpoints
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.SubscribeCheckpointsResponse
  */
-export const SubscribeCheckpointsResponse: SubscribeCheckpointsResponse$Type = new SubscribeCheckpointsResponse$Type();
+export const SubscribeCheckpointsResponse: SubscribeCheckpointsResponse$Type =
+	new SubscribeCheckpointsResponse$Type();
 /**
  * @generated ServiceType for protobuf service sui.rpc.v2.SubscriptionService
  */

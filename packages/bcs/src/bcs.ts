@@ -217,7 +217,7 @@ export const bcs = {
 	 * @example
 	 * bcs.u8().serialize(255).toBytes() // Uint8Array [ 255 ]
 	 */
-	u8(options?: BcsTypeOptions<number>) {
+	u8(options?: BcsTypeOptions<number>): BcsType<number, number, 'u8'> {
 		return uIntBcsType({
 			readMethod: 'read8',
 			writeMethod: 'write8',
@@ -233,7 +233,7 @@ export const bcs = {
 	 * @example
 	 * bcs.u16().serialize(65535).toBytes() // Uint8Array [ 255, 255 ]
 	 */
-	u16(options?: BcsTypeOptions<number>) {
+	u16(options?: BcsTypeOptions<number>): BcsType<number, number, 'u16'> {
 		return uIntBcsType({
 			readMethod: 'read16',
 			writeMethod: 'write16',
@@ -249,7 +249,7 @@ export const bcs = {
 	 * @example
 	 * bcs.u32().serialize(4294967295).toBytes() // Uint8Array [ 255, 255, 255, 255 ]
 	 */
-	u32(options?: BcsTypeOptions<number>) {
+	u32(options?: BcsTypeOptions<number>): BcsType<number, number, 'u32'> {
 		return uIntBcsType({
 			readMethod: 'read32',
 			writeMethod: 'write32',
@@ -265,7 +265,9 @@ export const bcs = {
 	 * @example
 	 * bcs.u64().serialize(1).toBytes() // Uint8Array [ 1, 0, 0, 0, 0, 0, 0, 0 ]
 	 */
-	u64(options?: BcsTypeOptions<string, number | bigint | string>) {
+	u64(
+		options?: BcsTypeOptions<string, number | bigint | string>,
+	): BcsType<string, number | bigint | string, 'u64'> {
 		return bigUIntBcsType({
 			readMethod: 'read64',
 			writeMethod: 'write64',
@@ -281,7 +283,9 @@ export const bcs = {
 	 * @example
 	 * bcs.u128().serialize(1).toBytes() // Uint8Array [ 1, ..., 0 ]
 	 */
-	u128(options?: BcsTypeOptions<string, number | bigint | string>) {
+	u128(
+		options?: BcsTypeOptions<string, number | bigint | string>,
+	): BcsType<string, number | bigint | string, 'u128'> {
 		return bigUIntBcsType({
 			readMethod: 'read128',
 			writeMethod: 'write128',
@@ -297,7 +301,9 @@ export const bcs = {
 	 * @example
 	 * bcs.u256().serialize(1).toBytes() // Uint8Array [ 1, ..., 0 ]
 	 */
-	u256(options?: BcsTypeOptions<string, number | bigint | string>) {
+	u256(
+		options?: BcsTypeOptions<string, number | bigint | string>,
+	): BcsType<string, number | bigint | string, 'u256'> {
 		return bigUIntBcsType({
 			readMethod: 'read256',
 			writeMethod: 'write256',
@@ -313,7 +319,7 @@ export const bcs = {
 	 * @example
 	 * bcs.bool().serialize(true).toBytes() // Uint8Array [ 1 ]
 	 */
-	bool(options?: BcsTypeOptions<boolean>) {
+	bool(options?: BcsTypeOptions<boolean>): BcsType<boolean, boolean, 'bool'> {
 		return fixedSizeBcsType({
 			size: 1,
 			read: (reader) => reader.read8() === 1,
@@ -334,8 +340,8 @@ export const bcs = {
 	 * @example
 	 *
 	 */
-	uleb128(options?: BcsTypeOptions<number>) {
-		return dynamicSizeBcsType({
+	uleb128(options?: BcsTypeOptions<number>): BcsType<number, number, 'uleb128'> {
+		return dynamicSizeBcsType<number, number, 'uleb128'>({
 			read: (reader) => reader.readULEB(),
 			serialize: (value) => {
 				return Uint8Array.from(ulebEncode(value));
@@ -425,7 +431,7 @@ export const bcs = {
 	 * @example
 	 * bcs.fixedArray(3, bcs.u8()).serialize([1, 2, 3]).toBytes() // Uint8Array [ 1, 2, 3 ]
 	 */
-	fixedArray,
+	fixedArray: fixedArray,
 
 	/**
 	 * Creates a BcsType representing an optional value
@@ -434,7 +440,7 @@ export const bcs = {
 	 * bcs.option(bcs.u8()).serialize(null).toBytes() // Uint8Array [ 0 ]
 	 * bcs.option(bcs.u8()).serialize(1).toBytes() // Uint8Array [ 1, 1 ]
 	 */
-	option,
+	option: option,
 
 	/**
 	 * Creates a BcsType representing a variable length vector of a given type
@@ -443,7 +449,7 @@ export const bcs = {
 	 * @example
 	 * bcs.vector(bcs.u8()).toBytes([1, 2, 3]) // Uint8Array [ 3, 1, 2, 3 ]
 	 */
-	vector,
+	vector: vector,
 
 	/**
 	 * Creates a BcsType representing a tuple of a given set of types
@@ -540,7 +546,7 @@ export const bcs = {
 			>,
 			'name'
 		>,
-	) {
+	): BcsEnum<T, Name> {
 		return new BcsEnum<T, Name>({
 			name,
 			fields,
@@ -556,7 +562,7 @@ export const bcs = {
 	 * const map = bcs.map(bcs.u8(), bcs.string())
 	 * map.serialize(new Map([[2, 'a']])).toBytes() // Uint8Array [ 1, 2, 1, 97 ]
 	 */
-	map,
+	map: map,
 
 	/**
 	 * Creates a BcsType that wraps another BcsType which is lazily evaluated. This is useful for creating recursive types.

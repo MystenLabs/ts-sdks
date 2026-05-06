@@ -1394,7 +1394,8 @@ class ProgrammableTransaction$Type extends MessageType<ProgrammableTransaction> 
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ProgrammableTransaction
  */
-export const ProgrammableTransaction: ProgrammableTransaction$Type = new ProgrammableTransaction$Type();
+export const ProgrammableTransaction: ProgrammableTransaction$Type =
+	new ProgrammableTransaction$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class Command$Type extends MessageType<Command> {
 	constructor() {
@@ -1784,7 +1785,8 @@ class ConsensusCommitPrologue$Type extends MessageType<ConsensusCommitPrologue> 
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ConsensusCommitPrologue
  */
-export const ConsensusCommitPrologue: ConsensusCommitPrologue$Type = new ConsensusCommitPrologue$Type();
+export const ConsensusCommitPrologue: ConsensusCommitPrologue$Type =
+	new ConsensusCommitPrologue$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class VersionAssignment$Type extends MessageType<VersionAssignment> {
 	constructor() {
@@ -1893,7 +1895,8 @@ class AuthenticatorStateUpdate$Type extends MessageType<AuthenticatorStateUpdate
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.AuthenticatorStateUpdate
  */
-export const AuthenticatorStateUpdate: AuthenticatorStateUpdate$Type = new AuthenticatorStateUpdate$Type();
+export const AuthenticatorStateUpdate: AuthenticatorStateUpdate$Type =
+	new AuthenticatorStateUpdate$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ActiveJwk$Type extends MessageType<ActiveJwk> {
 	constructor() {
@@ -1982,7 +1985,8 @@ class EndOfEpochTransactionKind$Type extends MessageType<EndOfEpochTransactionKi
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.EndOfEpochTransactionKind
  */
-export const EndOfEpochTransactionKind: EndOfEpochTransactionKind$Type = new EndOfEpochTransactionKind$Type();
+export const EndOfEpochTransactionKind: EndOfEpochTransactionKind$Type =
+	new EndOfEpochTransactionKind$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class AuthenticatorStateExpire$Type extends MessageType<AuthenticatorStateExpire> {
 	constructor() {
@@ -2009,7 +2013,8 @@ class AuthenticatorStateExpire$Type extends MessageType<AuthenticatorStateExpire
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.AuthenticatorStateExpire
  */
-export const AuthenticatorStateExpire: AuthenticatorStateExpire$Type = new AuthenticatorStateExpire$Type();
+export const AuthenticatorStateExpire: AuthenticatorStateExpire$Type =
+	new AuthenticatorStateExpire$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ExecutionTimeObservations$Type extends MessageType<ExecutionTimeObservations> {
 	constructor() {
@@ -2028,7 +2033,8 @@ class ExecutionTimeObservations$Type extends MessageType<ExecutionTimeObservatio
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ExecutionTimeObservations
  */
-export const ExecutionTimeObservations: ExecutionTimeObservations$Type = new ExecutionTimeObservations$Type();
+export const ExecutionTimeObservations: ExecutionTimeObservations$Type =
+	new ExecutionTimeObservations$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ExecutionTimeObservation$Type extends MessageType<ExecutionTimeObservation> {
 	constructor() {
@@ -2057,7 +2063,8 @@ class ExecutionTimeObservation$Type extends MessageType<ExecutionTimeObservation
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ExecutionTimeObservation
  */
-export const ExecutionTimeObservation: ExecutionTimeObservation$Type = new ExecutionTimeObservation$Type();
+export const ExecutionTimeObservation: ExecutionTimeObservation$Type =
+	new ExecutionTimeObservation$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ValidatorExecutionTimeObservation$Type extends MessageType<ValidatorExecutionTimeObservation> {
 	constructor() {
@@ -2070,4 +2077,5 @@ class ValidatorExecutionTimeObservation$Type extends MessageType<ValidatorExecut
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ValidatorExecutionTimeObservation
  */
-export const ValidatorExecutionTimeObservation: ValidatorExecutionTimeObservation$Type = new ValidatorExecutionTimeObservation$Type();
+export const ValidatorExecutionTimeObservation: ValidatorExecutionTimeObservation$Type =
+	new ValidatorExecutionTimeObservation$Type();

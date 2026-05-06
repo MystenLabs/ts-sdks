@@ -58,7 +58,7 @@ export class MultiSigSigner extends Signer {
 		);
 	}
 
-	async signTransaction(bytes: Uint8Array) {
+	async signTransaction(bytes: Uint8Array): Promise<{ signature: string; bytes: string }> {
 		const signature = this.#pubkey.combinePartialSignatures(
 			await Promise.all(
 				this.#signers.map(async (signer) => (await signer.signTransaction(bytes)).signature),
@@ -71,7 +71,7 @@ export class MultiSigSigner extends Signer {
 		};
 	}
 
-	async signPersonalMessage(bytes: Uint8Array) {
+	async signPersonalMessage(bytes: Uint8Array): Promise<{ signature: string; bytes: string }> {
 		const signature = this.#pubkey.combinePartialSignatures(
 			await Promise.all(
 				this.#signers.map(async (signer) => (await signer.signPersonalMessage(bytes)).signature),

@@ -57,7 +57,7 @@ export class SerialTransactionExecutor {
 		});
 	}
 
-	async applyEffects(effects: typeof bcs.TransactionEffects.$inferType) {
+	async applyEffects(effects: typeof bcs.TransactionEffects.$inferType): Promise<void> {
 		return this.#cache.applyEffects(effects);
 	}
 
@@ -74,7 +74,7 @@ export class SerialTransactionExecutor {
 		}
 	};
 
-	async buildTransaction(transaction: Transaction) {
+	async buildTransaction(transaction: Transaction): Promise<Uint8Array> {
 		return this.#queue.runTask(() => this.#buildTransaction(transaction));
 	}
 
@@ -107,7 +107,16 @@ export class SerialTransactionExecutor {
 		return this.#cache.buildTransaction({ transaction: copy });
 	};
 
-	async #getValidDuringExpiration() {
+	async #getValidDuringExpiration(): Promise<{
+		ValidDuring: {
+			minEpoch: string;
+			maxEpoch: string;
+			minTimestamp: null;
+			maxTimestamp: null;
+			chain: string;
+			nonce: number;
+		};
+	}> {
 		await this.#ensureEpochInfo();
 		const currentEpoch = BigInt(this.#epochInfo!.epoch);
 		return {
@@ -154,11 +163,11 @@ export class SerialTransactionExecutor {
 		};
 	}
 
-	resetCache() {
+	resetCache(): Promise<void> {
 		return this.#cache.reset();
 	}
 
-	waitForLastTransaction() {
+	waitForLastTransaction(): Promise<void> {
 		return this.#cache.waitForLastTransaction();
 	}
 
@@ -187,7 +196,10 @@ export class SerialTransactionExecutor {
 	}
 }
 
-export function getGasCoinFromEffects(effects: typeof bcs.TransactionEffects.$inferType) {
+export function getGasCoinFromEffects(effects: typeof bcs.TransactionEffects.$inferType): {
+	ref: { objectId: string; digest: string; version: string };
+	owner: string;
+} {
 	if (!effects.V2) {
 		throw new Error('Unexpected effects version');
 	}

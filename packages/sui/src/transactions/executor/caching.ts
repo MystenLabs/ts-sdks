@@ -37,7 +37,7 @@ export class CachingTransactionExecutor {
 	 * Clears all Owned objects
 	 * Immutable objects, Shared objects, and Move function definitions will be preserved
 	 */
-	async reset() {
+	async reset(): Promise<void> {
 		await Promise.all([
 			this.cache.clearOwnedObjects(),
 			this.cache.clearCustom(),
@@ -48,7 +48,7 @@ export class CachingTransactionExecutor {
 	async buildTransaction({
 		transaction,
 		...options
-	}: { transaction: Transaction } & BuildTransactionOptions) {
+	}: { transaction: Transaction } & BuildTransactionOptions): Promise<Uint8Array> {
 		transaction.addBuildPlugin(this.cache.asPlugin());
 		transaction.addBuildPlugin(coreClientResolveTransactionPlugin);
 		return transaction.build({
@@ -105,12 +105,12 @@ export class CachingTransactionExecutor {
 		});
 	}
 
-	async applyEffects(effects: typeof bcs.TransactionEffects.$inferType) {
+	async applyEffects(effects: typeof bcs.TransactionEffects.$inferType): Promise<void> {
 		this.#lastDigest = effects.V2?.transactionDigest ?? null;
 		await this.cache.applyEffects(effects);
 	}
 
-	async waitForLastTransaction() {
+	async waitForLastTransaction(): Promise<void> {
 		if (this.#lastDigest) {
 			await this.#client.core.waitForTransaction({ digest: this.#lastDigest });
 			this.#lastDigest = null;

@@ -21,6 +21,11 @@ import {
 	unknown,
 } from 'valibot';
 
+import type {
+	CallArg as InternalCallArg,
+	Command as InternalCommand,
+	GasData as InternalGasData,
+} from './internal.js';
 import {
 	BCSBytes,
 	FundsWithdrawalArgSchema,
@@ -53,12 +58,12 @@ const Argument = enumUnion({
 });
 
 // https://github.com/MystenLabs/sui/blob/df41d5fa8127634ff4285671a01ead00e519f806/crates/sui-types/src/transaction.rs#L1387-L1392
-const GasData = object({
+const GasData: GenericSchema<InternalGasData, InternalGasData> = object({
 	budget: nullable(JsonU64),
 	price: nullable(JsonU64),
 	owner: nullable(SuiAddress),
 	payment: nullable(array(ObjectRefSchema)),
-});
+}) as GenericSchema<InternalGasData, InternalGasData>;
 
 // https://github.com/MystenLabs/sui/blob/df41d5fa8127634ff4285671a01ead00e519f806/crates/sui-types/src/transaction.rs#L707-L718
 const ProgrammableMoveCall = object({
@@ -77,7 +82,7 @@ const $Intent = object({
 });
 
 // https://github.com/MystenLabs/sui/blob/df41d5fa8127634ff4285671a01ead00e519f806/crates/sui-types/src/transaction.rs#L657-L685
-const Command = enumUnion({
+const Command: GenericSchema<InternalCommand, InternalCommand> = enumUnion({
 	MoveCall: ProgrammableMoveCall,
 	TransferObjects: object({
 		objects: array(Argument),
@@ -106,7 +111,7 @@ const Command = enumUnion({
 		ticket: Argument,
 	}),
 	$Intent,
-});
+}) as GenericSchema<InternalCommand, InternalCommand>;
 
 // https://github.com/MystenLabs/sui/blob/df41d5fa8127634ff4285671a01ead00e519f806/crates/sui-types/src/transaction.rs#L102-L114
 const ObjectArg = enumUnion({
@@ -121,7 +126,7 @@ const ObjectArg = enumUnion({
 });
 
 // https://github.com/MystenLabs/sui/blob/df41d5fa8127634ff4285671a01ead00e519f806/crates/sui-types/src/transaction.rs#L75-L80
-const CallArg = enumUnion({
+const CallArg: GenericSchema<InternalCallArg, InternalCallArg> = enumUnion({
 	Object: ObjectArg,
 	Pure: object({
 		bytes: BCSBytes,
@@ -137,15 +142,63 @@ const CallArg = enumUnion({
 		mutable: optional(nullable(boolean())),
 	}),
 	FundsWithdrawal: FundsWithdrawalArgSchema,
-});
+}) as GenericSchema<InternalCallArg, InternalCallArg>;
 
-const TransactionExpiration = enumUnion({
+const TransactionExpiration: GenericSchema<
+	| { None: true }
+	| { Epoch: string | number }
+	| { ValidDuring: InferInput<typeof ValidDuringSchema> },
+	{
+		$kind: 'None' | 'Epoch' | 'ValidDuring';
+		None?: true;
+		Epoch?: string | number;
+		ValidDuring?: InferOutput<typeof ValidDuringSchema>;
+	}
+> = enumUnion({
 	None: literal(true),
 	Epoch: JsonU64,
 	ValidDuring: ValidDuringSchema,
-});
+}) as GenericSchema<
+	| { None: true }
+	| { Epoch: string | number }
+	| { ValidDuring: InferInput<typeof ValidDuringSchema> },
+	{
+		$kind: 'None' | 'Epoch' | 'ValidDuring';
+		None?: true;
+		Epoch?: string | number;
+		ValidDuring?: InferOutput<typeof ValidDuringSchema>;
+	}
+>;
 
-export const SerializedTransactionDataV2Schema = object({
+export const SerializedTransactionDataV2Schema: GenericSchema<
+	{
+		version: 2;
+		sender?: string | null;
+		expiration?:
+			| { None: true }
+			| { Epoch: string | number }
+			| { ValidDuring: InferInput<typeof ValidDuringSchema> }
+			| null;
+		gasData: InferInput<typeof GasData>;
+		inputs: InferInput<typeof CallArg>[];
+		commands: InferInput<typeof Command>[];
+		digest?: string | null;
+	},
+	{
+		version: 2;
+		sender?: string | null;
+		expiration?: {
+			$kind: 'None' | 'Epoch' | 'ValidDuring';
+			None?: true;
+			Epoch?: string | number;
+			ValidDuring?: InferOutput<typeof ValidDuringSchema>;
+		} | null;
+		gasData: InferOutput<typeof GasData>;
+		inputs: InferOutput<typeof CallArg>[];
+		commands: InferOutput<typeof Command>[];
+		digest?: string | null;
+	}
+> = object({
 	version: literal(2),
 	sender: nullish(SuiAddress),
 	expiration: nullish(TransactionExpiration),
@@ -153,6 +206,34 @@ export const SerializedTransactionDataV2Schema = object({
 	inputs: array(CallArg),
 	commands: array(Command),
 	digest: optional(nullable(string())),
-});
+}) as GenericSchema<
+	{
+		version: 2;
+		sender?: string | null;
+		expiration?:
+			| { None: true }
+			| { Epoch: string | number }
+			| { ValidDuring: InferInput<typeof ValidDuringSchema> }
+			| null;
+		gasData: InferInput<typeof GasData>;
+		inputs: InferInput<typeof CallArg>[];
+		commands: InferInput<typeof Command>[];
+		digest?: string | null;
+	},
+	{
+		version: 2;
+		sender?: string | null;
+		expiration?: {
+			$kind: 'None' | 'Epoch' | 'ValidDuring';
+			None?: true;
+			Epoch?: string | number;
+			ValidDuring?: InferOutput<typeof ValidDuringSchema>;
+		} | null;
+		gasData: InferOutput<typeof GasData>;
+		inputs: InferOutput<typeof CallArg>[];
+		commands: InferOutput<typeof Command>[];
+		digest?: string | null;
+	}
+>;
 
 export type SerializedTransactionDataV2 = InferOutput<typeof SerializedTransactionDataV2Schema>;

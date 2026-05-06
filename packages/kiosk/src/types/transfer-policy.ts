@@ -10,16 +10,16 @@ import type { ObjectArgument } from './index.js';
 import { SUI_FRAMEWORK_ADDRESS } from '@mysten/sui/utils';
 
 /** The Transfer Policy module. */
-export const TRANSFER_POLICY_MODULE = `${SUI_FRAMEWORK_ADDRESS}::transfer_policy`;
+export const TRANSFER_POLICY_MODULE: string = `${SUI_FRAMEWORK_ADDRESS}::transfer_policy`;
 
 /** Name of the event emitted when a TransferPolicy for T is created. */
-export const TRANSFER_POLICY_CREATED_EVENT = `${TRANSFER_POLICY_MODULE}::TransferPolicyCreated`;
+export const TRANSFER_POLICY_CREATED_EVENT: string = `${TRANSFER_POLICY_MODULE}::TransferPolicyCreated`;
 
 /** The Transfer Policy Type */
-export const TRANSFER_POLICY_TYPE = `${TRANSFER_POLICY_MODULE}::TransferPolicy`;
+export const TRANSFER_POLICY_TYPE: string = `${TRANSFER_POLICY_MODULE}::TransferPolicy`;
 
 /** The Transfer Policy Cap Type */
-export const TRANSFER_POLICY_CAP_TYPE = `${TRANSFER_POLICY_MODULE}::TransferPolicyCap`;
+export const TRANSFER_POLICY_CAP_TYPE: string = `${TRANSFER_POLICY_MODULE}::TransferPolicyCap`;
 
 /** The Kiosk Lock Rule */
 export const KIOSK_LOCK_RULE = 'kiosk_lock_rule::Rule';

@@ -144,7 +144,7 @@ export class MultiSigPublicKey extends PublicKey {
 	}: {
 		threshold: number;
 		publicKeys: { publicKey: PublicKey; weight: number }[];
-	}) {
+	}): MultiSigPublicKey {
 		return new MultiSigPublicKey({
 			pk_map: publicKeys.map(({ publicKey, weight }) => {
 				const scheme = SIGNATURE_FLAG_TO_SCHEME[publicKey.flag() as SignatureFlag];
@@ -172,15 +172,15 @@ export class MultiSigPublicKey extends PublicKey {
 		return this.rawBytes;
 	}
 
-	getPublicKeys() {
+	getPublicKeys(): { publicKey: PublicKey; weight: number }[] {
 		return this.publicKeys;
 	}
 
-	getThreshold() {
+	getThreshold(): number {
 		return this.multisigPublicKey.threshold;
 	}
 
-	getSigner(...signers: [signer: Signer]) {
+	getSigner(...signers: [signer: Signer]): MultiSigSigner {
 		return new MultiSigSigner(this, signers);
 	}
 

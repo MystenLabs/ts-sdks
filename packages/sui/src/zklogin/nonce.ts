@@ -19,12 +19,16 @@ function toBigIntBE(bytes: Uint8Array) {
 	return BigInt(`0x${hex}`);
 }
 
-export function generateRandomness() {
+export function generateRandomness(): string {
 	// Once Node 20 enters LTS, we can just use crypto.getRandomValues(new Uint8Array(16)), but until then we use `randomBytes` to improve compatibility:
 	return String(toBigIntBE(randomBytes(16)));
 }
 
-export function generateNonce(publicKey: PublicKey, maxEpoch: number, randomness: bigint | string) {
+export function generateNonce(
+	publicKey: PublicKey,
+	maxEpoch: number,
+	randomness: bigint | string,
+): string {
 	const publicKeyBytes = toBigIntBE(publicKey.toSuiBytes());
 	const eph_public_key_0 = publicKeyBytes / 2n ** 128n;
 	const eph_public_key_1 = publicKeyBytes % 2n ** 128n;

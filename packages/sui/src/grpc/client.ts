@@ -33,7 +33,7 @@ export type SuiGrpcClientOptions = {
 	| SuiGrpcTransportOptions
 );
 
-const SUI_CLIENT_BRAND = Symbol.for('@mysten/SuiGrpcClient') as never;
+const SUI_CLIENT_BRAND: symbol = Symbol.for('@mysten/SuiGrpcClient');
 
 export function isSuiGrpcClient(client: unknown): client is SuiGrpcClient {
 	return (
@@ -69,12 +69,9 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 	signatureVerificationService: SignatureVerificationServiceClient;
 	nameService: NameServiceClient;
 
-	get [SUI_CLIENT_BRAND]() {
-		return true;
-	}
-
 	constructor(options: SuiGrpcClientOptions) {
 		super({ network: options.network });
+		(this as never as { [key: symbol]: boolean })[SUI_CLIENT_BRAND] = true;
 		const transport =
 			options.transport ??
 			new GrpcWebFetchTransport({ baseUrl: options.baseUrl, fetchInit: options.fetchInit });

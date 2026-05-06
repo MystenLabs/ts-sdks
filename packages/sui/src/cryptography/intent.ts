@@ -7,7 +7,7 @@ export type IntentScope = Exclude<keyof typeof bcs.IntentScope.$inferType, '$kin
 /**
  * Inserts a domain separator for a message that is being signed
  */
-export function messageWithIntent(scope: IntentScope, message: Uint8Array) {
+export function messageWithIntent(scope: IntentScope, message: Uint8Array): Uint8Array {
 	return bcs
 		.IntentMessage(bcs.bytes(message.length))
 		.serialize({

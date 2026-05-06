@@ -3,7 +3,7 @@
 
 import { bcs } from '@mysten/sui/bcs';
 import type { ClientWithCoreApi } from '@mysten/sui/client';
-import type { Transaction } from '@mysten/sui/transactions';
+import type { Transaction, TransactionArgument } from '@mysten/sui/transactions';
 import { coinWithBalance } from '@mysten/sui/transactions';
 import { fromBase64, fromHex, parseStructTag } from '@mysten/sui/utils';
 
@@ -49,7 +49,7 @@ export class SuiPythClient {
 	 * @param tx Transaction block to add commands to.
 	 * @returns Array of verified VAAs.
 	 */
-	async verifyVaas(vaas: Uint8Array[], tx: Transaction) {
+	async verifyVaas(vaas: Uint8Array[], tx: Transaction): Promise<TransactionArgument[]> {
 		const wormholePackageId = await this.getWormholePackageId();
 		const verifiedVaas = [];
 		for (const vaa of vaas) {

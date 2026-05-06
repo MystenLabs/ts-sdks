@@ -590,7 +590,8 @@ class ZkLoginPublicIdentifier$Type extends MessageType<ZkLoginPublicIdentifier> 
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ZkLoginPublicIdentifier
  */
-export const ZkLoginPublicIdentifier: ZkLoginPublicIdentifier$Type = new ZkLoginPublicIdentifier$Type();
+export const ZkLoginPublicIdentifier: ZkLoginPublicIdentifier$Type =
+	new ZkLoginPublicIdentifier$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class MultisigMemberPublicKey$Type extends MessageType<MultisigMemberPublicKey> {
 	constructor() {
@@ -610,7 +611,8 @@ class MultisigMemberPublicKey$Type extends MessageType<MultisigMemberPublicKey> 
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.MultisigMemberPublicKey
  */
-export const MultisigMemberPublicKey: MultisigMemberPublicKey$Type = new MultisigMemberPublicKey$Type();
+export const MultisigMemberPublicKey: MultisigMemberPublicKey$Type =
+	new MultisigMemberPublicKey$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class MultisigMember$Type extends MessageType<MultisigMember> {
 	constructor() {
@@ -663,7 +665,8 @@ class MultisigAggregatedSignature$Type extends MessageType<MultisigAggregatedSig
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.MultisigAggregatedSignature
  */
-export const MultisigAggregatedSignature: MultisigAggregatedSignature$Type = new MultisigAggregatedSignature$Type();
+export const MultisigAggregatedSignature: MultisigAggregatedSignature$Type =
+	new MultisigAggregatedSignature$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class MultisigMemberSignature$Type extends MessageType<MultisigMemberSignature> {
 	constructor() {
@@ -684,7 +687,8 @@ class MultisigMemberSignature$Type extends MessageType<MultisigMemberSignature> 
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.MultisigMemberSignature
  */
-export const MultisigMemberSignature: MultisigMemberSignature$Type = new MultisigMemberSignature$Type();
+export const MultisigMemberSignature: MultisigMemberSignature$Type =
+	new MultisigMemberSignature$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ZkLoginAuthenticator$Type extends MessageType<ZkLoginAuthenticator> {
 	constructor() {
@@ -840,7 +844,8 @@ class ValidatorCommitteeMember$Type extends MessageType<ValidatorCommitteeMember
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ValidatorCommitteeMember
  */
-export const ValidatorCommitteeMember: ValidatorCommitteeMember$Type = new ValidatorCommitteeMember$Type();
+export const ValidatorCommitteeMember: ValidatorCommitteeMember$Type =
+	new ValidatorCommitteeMember$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ValidatorAggregatedSignature$Type extends MessageType<ValidatorAggregatedSignature> {
 	constructor() {
@@ -861,4 +866,5 @@ class ValidatorAggregatedSignature$Type extends MessageType<ValidatorAggregatedS
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ValidatorAggregatedSignature
  */
-export const ValidatorAggregatedSignature: ValidatorAggregatedSignature$Type = new ValidatorAggregatedSignature$Type();
+export const ValidatorAggregatedSignature: ValidatorAggregatedSignature$Type =
+	new ValidatorAggregatedSignature$Type();

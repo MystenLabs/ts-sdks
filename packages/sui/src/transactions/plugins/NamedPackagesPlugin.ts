@@ -10,12 +10,16 @@ import type { TransactionDataBuilder } from '../TransactionData.js';
  * This plugin is automatically added to all transactions and uses the client's
  * MVR resolver to convert .move names to on-chain addresses.
  */
-export function namedPackagesPlugin() {
+export function namedPackagesPlugin(): (
+	transactionData: TransactionDataBuilder,
+	buildOptions: BuildTransactionOptions,
+	next: () => Promise<void>,
+) => Promise<void> {
 	return async (
 		transactionData: TransactionDataBuilder,
 		buildOptions: BuildTransactionOptions,
 		next: () => Promise<void>,
-	) => {
+	): Promise<void> => {
 		const names = findNamesInTransaction(transactionData);
 
 		if (names.types.length === 0 && names.packages.length === 0) {

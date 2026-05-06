@@ -64,7 +64,7 @@ const isValidPath = (path: string): boolean => {
 		.some(isNaN as any /* ts T_T*/);
 };
 
-export const derivePath = (path: Path, seed: Hex, offset = HARDENED_OFFSET): Keys => {
+export const derivePath = (path: Path, seed: Hex, offset: number = HARDENED_OFFSET): Keys => {
 	if (!isValidPath(path)) {
 		throw new Error('Invalid derivation path');
 	}

@@ -259,7 +259,8 @@ class ListPackageVersionsRequest$Type extends MessageType<ListPackageVersionsReq
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ListPackageVersionsRequest
  */
-export const ListPackageVersionsRequest: ListPackageVersionsRequest$Type = new ListPackageVersionsRequest$Type();
+export const ListPackageVersionsRequest: ListPackageVersionsRequest$Type =
+	new ListPackageVersionsRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ListPackageVersionsResponse$Type extends MessageType<ListPackageVersionsResponse> {
 	constructor() {
@@ -278,7 +279,8 @@ class ListPackageVersionsResponse$Type extends MessageType<ListPackageVersionsRe
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ListPackageVersionsResponse
  */
-export const ListPackageVersionsResponse: ListPackageVersionsResponse$Type = new ListPackageVersionsResponse$Type();
+export const ListPackageVersionsResponse: ListPackageVersionsResponse$Type =
+	new ListPackageVersionsResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class PackageVersion$Type extends MessageType<PackageVersion> {
 	constructor() {

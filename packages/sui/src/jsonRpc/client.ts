@@ -127,7 +127,7 @@ type NetworkOrTransport =
 			url?: never;
 	  };
 
-const SUI_CLIENT_BRAND = Symbol.for('@mysten/SuiJsonRpcClient') as never;
+const SUI_CLIENT_BRAND: symbol = Symbol.for('@mysten/SuiJsonRpcClient');
 
 export function isSuiJsonRpcClient(client: unknown): client is SuiJsonRpcClient {
 	return (
@@ -137,12 +137,8 @@ export function isSuiJsonRpcClient(client: unknown): client is SuiJsonRpcClient 
 
 export class SuiJsonRpcClient extends BaseClient {
 	core: JSONRpcCoreClient;
-	jsonRpc = this;
+	jsonRpc: this = this;
 	protected transport: JsonRpcTransport;
-
-	get [SUI_CLIENT_BRAND]() {
-		return true;
-	}
 
 	/**
 	 * Establish a connection to a Sui RPC endpoint
@@ -156,6 +152,7 @@ export class SuiJsonRpcClient extends BaseClient {
 			jsonRpcClient: this,
 			mvr: options.mvr,
 		});
+		(this as never as { [key: symbol]: boolean })[SUI_CLIENT_BRAND] = true;
 	}
 
 	async getRpcApiVersion({ signal }: { signal?: AbortSignal } = {}): Promise<string | undefined> {

@@ -50,7 +50,20 @@ export class OrderQueries {
 		}
 	}
 
-	async getOrderNormalized(poolKey: string, orderId: string) {
+	async getOrderNormalized(
+		poolKey: string,
+		orderId: string,
+	): Promise<
+		| (Omit<NonNullable<ReturnType<typeof Order.parse>>, 'order_deep_price'> & {
+				order_deep_price: Omit<
+					NonNullable<ReturnType<typeof Order.parse>>['order_deep_price'],
+					'deep_per_asset'
+				> & { deep_per_asset: string };
+				isBid: boolean;
+				normalized_price: string;
+		  })
+		| null
+	> {
 		const tx = new Transaction();
 		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.deepBook.getOrder(poolKey, orderId));

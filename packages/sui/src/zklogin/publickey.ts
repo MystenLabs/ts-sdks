@@ -53,7 +53,7 @@ export class ZkLoginPublicIdentifier extends PublicKey {
 			address,
 			legacyAddress,
 		}: { client?: ClientWithCoreApi; address?: string; legacyAddress?: boolean } = {},
-	) {
+	): ZkLoginPublicIdentifier {
 		let publicKey: ZkLoginPublicIdentifier;
 
 		if (legacyAddress === true) {
@@ -87,7 +87,7 @@ export class ZkLoginPublicIdentifier extends PublicKey {
 		return publicKey;
 	}
 
-	static fromProof(address: string, proof: ZkLoginSignatureInputs) {
+	static fromProof(address: string, proof: ZkLoginSignatureInputs): ZkLoginPublicIdentifier {
 		const { issBase64Details, addressSeed } = proof;
 		const iss = extractClaimValue<string>(issBase64Details, 'iss');
 
@@ -257,7 +257,19 @@ async function graphqlVerifyZkLoginSignature({
 	return resp.success === true && resp.errors.length === 0;
 }
 
-export function parseSerializedZkLoginSignature(signature: Uint8Array | string) {
+export function parseSerializedZkLoginSignature(signature: Uint8Array | string): {
+	serializedSignature: string;
+	signatureScheme: 'ZkLogin';
+	zkLogin: {
+		inputs: ZkLoginSignatureInputs;
+		maxEpoch: number | bigint | string;
+		userSignature: Iterable<number>;
+		iss: string;
+		addressSeed: bigint;
+	};
+	signature: Uint8Array;
+	publicKey: Uint8Array;
+} {
 	const bytes = typeof signature === 'string' ? fromBase64(signature) : signature;
 
 	if (bytes[0] !== SIGNATURE_SCHEME_TO_FLAG.ZkLogin) {

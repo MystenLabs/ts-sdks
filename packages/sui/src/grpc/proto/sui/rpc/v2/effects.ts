@@ -568,4 +568,5 @@ class UnchangedConsensusObject$Type extends MessageType<UnchangedConsensusObject
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.UnchangedConsensusObject
  */
-export const UnchangedConsensusObject: UnchangedConsensusObject$Type = new UnchangedConsensusObject$Type();
+export const UnchangedConsensusObject: UnchangedConsensusObject$Type =
+	new UnchangedConsensusObject$Type();

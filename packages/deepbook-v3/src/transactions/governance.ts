@@ -28,7 +28,8 @@ export class GovernanceContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	stake =
-		(poolKey: string, balanceManagerKey: string, stakeAmount: number) => (tx: Transaction) => {
+		(poolKey: string, balanceManagerKey: string, stakeAmount: number) =>
+		(tx: Transaction): void => {
 			const pool = this.#config.getPool(poolKey);
 			const balanceManager = this.#config.getBalanceManager(balanceManagerKey);
 			const tradeProof = tx.add(this.#config.balanceManager.generateProof(balanceManagerKey));
@@ -54,47 +55,51 @@ export class GovernanceContract {
 	 * @param {string} balanceManagerKey The key to identify the BalanceManager
 	 * @returns A function that takes a Transaction object
 	 */
-	unstake = (poolKey: string, balanceManagerKey: string) => (tx: Transaction) => {
-		const pool = this.#config.getPool(poolKey);
-		const balanceManager = this.#config.getBalanceManager(balanceManagerKey);
-		const tradeProof = tx.add(this.#config.balanceManager.generateProof(balanceManagerKey));
-		const baseCoin = this.#config.getCoin(pool.baseCoin);
-		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+	unstake =
+		(poolKey: string, balanceManagerKey: string) =>
+		(tx: Transaction): void => {
+			const pool = this.#config.getPool(poolKey);
+			const balanceManager = this.#config.getBalanceManager(balanceManagerKey);
+			const tradeProof = tx.add(this.#config.balanceManager.generateProof(balanceManagerKey));
+			const baseCoin = this.#config.getCoin(pool.baseCoin);
+			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 
-		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::unstake`,
-			arguments: [tx.object(pool.address), tx.object(balanceManager.address), tradeProof],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
-	};
+			tx.moveCall({
+				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::unstake`,
+				arguments: [tx.object(pool.address), tx.object(balanceManager.address), tradeProof],
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			});
+		};
 
 	/**
 	 * @description Submit a governance proposal
 	 * @param {ProposalParams} params Parameters for the proposal
 	 * @returns A function that takes a Transaction object
 	 */
-	submitProposal = (params: ProposalParams) => (tx: Transaction) => {
-		const { poolKey, balanceManagerKey, takerFee, makerFee, stakeRequired } = params;
+	submitProposal =
+		(params: ProposalParams) =>
+		(tx: Transaction): void => {
+			const { poolKey, balanceManagerKey, takerFee, makerFee, stakeRequired } = params;
 
-		const pool = this.#config.getPool(poolKey);
-		const balanceManager = this.#config.getBalanceManager(balanceManagerKey);
-		const tradeProof = tx.add(this.#config.balanceManager.generateProof(balanceManagerKey));
-		const baseCoin = this.#config.getCoin(pool.baseCoin);
-		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+			const pool = this.#config.getPool(poolKey);
+			const balanceManager = this.#config.getBalanceManager(balanceManagerKey);
+			const tradeProof = tx.add(this.#config.balanceManager.generateProof(balanceManagerKey));
+			const baseCoin = this.#config.getCoin(pool.baseCoin);
+			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 
-		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::submit_proposal`,
-			arguments: [
-				tx.object(pool.address),
-				tx.object(balanceManager.address),
-				tradeProof,
-				tx.pure.u64(convertRate(takerFee, FLOAT_SCALAR)),
-				tx.pure.u64(convertRate(makerFee, FLOAT_SCALAR)),
-				tx.pure.u64(convertQuantity(stakeRequired, DEEP_SCALAR)),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
-	};
+			tx.moveCall({
+				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::submit_proposal`,
+				arguments: [
+					tx.object(pool.address),
+					tx.object(balanceManager.address),
+					tradeProof,
+					tx.pure.u64(convertRate(takerFee, FLOAT_SCALAR)),
+					tx.pure.u64(convertRate(makerFee, FLOAT_SCALAR)),
+					tx.pure.u64(convertQuantity(stakeRequired, DEEP_SCALAR)),
+				],
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			});
+		};
 
 	/**
 	 * @description Vote on a proposal
@@ -103,22 +108,24 @@ export class GovernanceContract {
 	 * @param {string} proposal_id The ID of the proposal to vote on
 	 * @returns A function that takes a Transaction object
 	 */
-	vote = (poolKey: string, balanceManagerKey: string, proposal_id: string) => (tx: Transaction) => {
-		const pool = this.#config.getPool(poolKey);
-		const balanceManager = this.#config.getBalanceManager(balanceManagerKey);
-		const tradeProof = tx.add(this.#config.balanceManager.generateProof(balanceManagerKey));
-		const baseCoin = this.#config.getCoin(pool.baseCoin);
-		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+	vote =
+		(poolKey: string, balanceManagerKey: string, proposal_id: string) =>
+		(tx: Transaction): void => {
+			const pool = this.#config.getPool(poolKey);
+			const balanceManager = this.#config.getBalanceManager(balanceManagerKey);
+			const tradeProof = tx.add(this.#config.balanceManager.generateProof(balanceManagerKey));
+			const baseCoin = this.#config.getCoin(pool.baseCoin);
+			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 
-		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::vote`,
-			arguments: [
-				tx.object(pool.address),
-				tx.object(balanceManager.address),
-				tradeProof,
-				tx.pure.id(proposal_id),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
-	};
+			tx.moveCall({
+				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::vote`,
+				arguments: [
+					tx.object(pool.address),
+					tx.object(balanceManager.address),
+					tradeProof,
+					tx.pure.id(proposal_id),
+				],
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			});
+		};
 }

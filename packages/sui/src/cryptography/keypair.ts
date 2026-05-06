@@ -60,13 +60,13 @@ export abstract class Signer {
 	/**
 	 * Signs provided transaction by calling `signWithIntent()` with a `TransactionData` provided as intent scope
 	 */
-	async signTransaction(bytes: Uint8Array) {
+	async signTransaction(bytes: Uint8Array): Promise<SignatureWithBytes> {
 		return this.signWithIntent(bytes, 'TransactionData');
 	}
 	/**
 	 * Signs provided personal message by calling `signWithIntent()` with a `PersonalMessage` provided as intent scope
 	 */
-	async signPersonalMessage(bytes: Uint8Array) {
+	async signPersonalMessage(bytes: Uint8Array): Promise<{ bytes: string; signature: string }> {
 		const { signature } = await this.signWithIntent(
 			bcs.byteVector().serialize(bytes).toBytes(),
 			'PersonalMessage',

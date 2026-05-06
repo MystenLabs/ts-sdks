@@ -59,30 +59,32 @@ export function safeEnum<T extends Record<string, GenericSchema<any>>>(options: 
 	) as EnumSchema<T>;
 }
 
+type WithKindResult<K extends string, TEntries extends ObjectEntries> = GenericSchema<
+	Simplify<InferInput<ObjectSchema<TEntries, undefined>> & { $kind?: K }>,
+	Simplify<InferOutput<ObjectSchema<TEntries, undefined>> & { $kind: K }>
+>;
+
 function withKind<K extends string, TEntries extends ObjectEntries>(
 	key: K,
 	schema: ObjectSchema<TEntries, undefined>,
-) {
+): WithKindResult<K, TEntries> {
 	return pipe(
 		object({
 			...schema.entries,
 			$kind: optional(literal(key)),
 		}),
 		transform((value) => ({ ...value, $kind: key })),
-	) as GenericSchema<
-		Simplify<InferInput<ObjectSchema<TEntries, undefined>> & { $kind?: K }>,
-		Simplify<InferOutput<ObjectSchema<TEntries, undefined>> & { $kind: K }>
-	>;
+	) as WithKindResult<K, TEntries>;
 }
 
-export const SuiAddress = pipe(
+export const SuiAddress: GenericSchema<string, string> = pipe(
 	string(),
 	transform((value) => normalizeSuiAddress(value)),
 	check(isValidSuiAddress),
-);
-export const ObjectID = SuiAddress;
-export const BCSBytes = string();
-export const JsonU64 = pipe(
+) as GenericSchema<string, string>;
+export const ObjectID: GenericSchema<string, string> = SuiAddress;
+export const BCSBytes: GenericSchema<string, string> = string();
+export const JsonU64: GenericSchema<string | number, string | number> = pipe(
 	union([string(), pipe(number(), integer())]),
 
 	check((val) => {
@@ -93,25 +95,41 @@ export const JsonU64 = pipe(
 			return false;
 		}
 	}, 'Invalid u64'),
-);
+) as GenericSchema<string | number, string | number>;
 
-export const U32 = pipe(
+export const U32: GenericSchema<number, number> = pipe(
 	number(),
 	integer(),
 	check((val) => val >= 0 && val < 2 ** 32, 'Invalid u32'),
-);
+) as GenericSchema<number, number>;
 
 // https://github.com/MystenLabs/sui/blob/df41d5fa8127634ff4285671a01ead00e519f806/crates/sui-types/src/base_types.rs#L138
 // Implemented as a tuple in rust
-export const ObjectRefSchema = object({
+export type ObjectRef = {
+	objectId: string;
+	version: string | number;
+	digest: string;
+};
+export const ObjectRefSchema: GenericSchema<ObjectRef, ObjectRef> = object({
 	objectId: SuiAddress,
 	version: JsonU64,
 	digest: string(),
-});
-export type ObjectRef = InferOutput<typeof ObjectRefSchema>;
+}) as GenericSchema<ObjectRef, ObjectRef>;
 
 // https://github.com/MystenLabs/sui/blob/df41d5fa8127634ff4285671a01ead00e519f806/crates/sui-types/src/transaction.rs#L690-L702
-export const ArgumentSchema = union([
+export type Argument =
+	| { $kind: 'GasCoin'; GasCoin: true }
+	| { $kind: 'Input'; Input: number; type?: 'pure' | 'object' | 'withdrawal' }
+	| { $kind: 'Result'; Result: number }
+	| { $kind: 'NestedResult'; NestedResult: [number, number] };
+
+export type ArgumentInput =
+	| { $kind?: 'GasCoin'; GasCoin: true }
+	| { $kind?: 'Input'; Input: number; type?: 'pure' | 'object' | 'withdrawal' }
+	| { $kind?: 'Result'; Result: number }
+	| { $kind?: 'NestedResult'; NestedResult: [number, number] };
+
+export const ArgumentSchema: GenericSchema<ArgumentInput, Argument> = union([
 	withKind('GasCoin', object({ GasCoin: literal(true) })),
 	withKind(
 		'Input',
@@ -125,28 +143,36 @@ export const ArgumentSchema = union([
 		'NestedResult',
 		object({ NestedResult: tuple([pipe(number(), integer()), pipe(number(), integer())]) }),
 	),
-]);
-
-export type Argument = InferOutput<typeof ArgumentSchema>;
+]) as GenericSchema<ArgumentInput, Argument>;
 
 // https://github.com/MystenLabs/sui/blob/df41d5fa8127634ff4285671a01ead00e519f806/crates/sui-types/src/transaction.rs#L1387-L1392
-export const GasDataSchema = object({
+export type GasData = {
+	budget: string | number | null;
+	price: string | number | null;
+	owner: string | null;
+	payment: ObjectRef[] | null;
+};
+export const GasDataSchema: GenericSchema<GasData, GasData> = object({
 	budget: nullable(JsonU64),
 	price: nullable(JsonU64),
 	owner: nullable(SuiAddress),
 	payment: nullable(array(ObjectRefSchema)),
-});
-export type GasData = InferOutput<typeof GasDataSchema>;
+}) as GenericSchema<GasData, GasData>;
 
 // https://github.com/MystenLabs/sui/blob/df41d5fa8127634ff4285671a01ead00e519f806/external-crates/move/crates/move-core-types/src/language_storage.rs#L140-L147
-export const StructTagSchema = object({
+export type StructTag = {
+	address: string;
+	module: string;
+	name: string;
+	typeParams: string[];
+};
+export const StructTagSchema: GenericSchema<StructTag, StructTag> = object({
 	address: string(),
 	module: string(),
 	name: string(),
 	// type_params in rust, should be updated to use camelCase
 	typeParams: array(string()),
-});
-export type StructTag = InferOutput<typeof StructTagSchema>;
+}) as GenericSchema<StructTag, StructTag>;
 
 export const OpenSignatureBodySchema: GenericSchema<SuiClientTypes.OpenSignatureBody> = union([
 	object({ $kind: literal('address') }),
@@ -169,31 +195,78 @@ export const OpenSignatureBodySchema: GenericSchema<SuiClientTypes.OpenSignature
 	object({ $kind: literal('typeParameter'), index: pipe(number(), integer()) }),
 ]);
 
-export const OpenSignatureSchema = object({
+export const OpenSignatureSchema: GenericSchema<
+	SuiClientTypes.OpenSignature,
+	SuiClientTypes.OpenSignature
+> = object({
 	reference: nullable(union([literal('mutable'), literal('immutable'), literal('unknown')])),
 	body: OpenSignatureBodySchema,
-});
+}) as GenericSchema<SuiClientTypes.OpenSignature, SuiClientTypes.OpenSignature>;
 
 // https://github.com/MystenLabs/sui/blob/df41d5fa8127634ff4285671a01ead00e519f806/crates/sui-types/src/transaction.rs#L707-L718
-const ProgrammableMoveCallSchema = object({
-	package: ObjectID,
-	module: string(),
-	function: string(),
-	// snake case in rust
-	typeArguments: array(string()),
-	arguments: array(ArgumentSchema),
-	_argumentTypes: optional(nullable(array(OpenSignatureSchema))),
-});
-export type ProgrammableMoveCall = InferOutput<typeof ProgrammableMoveCallSchema>;
+export type ProgrammableMoveCall = {
+	package: string;
+	module: string;
+	function: string;
+	typeArguments: string[];
+	arguments: Argument[];
+	_argumentTypes?: SuiClientTypes.OpenSignature[] | null;
+};
+type ProgrammableMoveCallInput = {
+	package: string;
+	module: string;
+	function: string;
+	typeArguments: string[];
+	arguments: ArgumentInput[];
+	_argumentTypes?: SuiClientTypes.OpenSignature[] | null;
+};
+const ProgrammableMoveCallSchema: GenericSchema<ProgrammableMoveCallInput, ProgrammableMoveCall> =
+	object({
+		package: ObjectID,
+		module: string(),
+		function: string(),
+		// snake case in rust
+		typeArguments: array(string()),
+		arguments: array(ArgumentSchema),
+		_argumentTypes: optional(nullable(array(OpenSignatureSchema))),
+	}) as GenericSchema<ProgrammableMoveCallInput, ProgrammableMoveCall>;
 
-export const $Intent = object({
+export const $Intent: GenericSchema<
+	{ name: string; inputs: Record<string, Argument | Argument[]>; data: Record<string, unknown> },
+	{ name: string; inputs: Record<string, Argument | Argument[]>; data: Record<string, unknown> }
+> = object({
 	name: string(),
 	inputs: record(string(), union([ArgumentSchema, array(ArgumentSchema)])),
 	data: record(string(), unknown()),
-});
+}) as GenericSchema<
+	{ name: string; inputs: Record<string, Argument | Argument[]>; data: Record<string, unknown> },
+	{ name: string; inputs: Record<string, Argument | Argument[]>; data: Record<string, unknown> }
+>;
 
 // https://github.com/MystenLabs/sui/blob/df41d5fa8127634ff4285671a01ead00e519f806/crates/sui-types/src/transaction.rs#L657-L685
-export const CommandSchema = safeEnum({
+export type CommandInput =
+	| { MoveCall: ProgrammableMoveCallInput }
+	| { TransferObjects: { objects: ArgumentInput[]; address: ArgumentInput } }
+	| { SplitCoins: { coin: ArgumentInput; amounts: ArgumentInput[] } }
+	| { MergeCoins: { destination: ArgumentInput; sources: ArgumentInput[] } }
+	| { Publish: { modules: string[]; dependencies: string[] } }
+	| { MakeMoveVec: { type: string | null; elements: ArgumentInput[] } }
+	| {
+			Upgrade: {
+				modules: string[];
+				dependencies: string[];
+				package: string;
+				ticket: ArgumentInput;
+			};
+	  }
+	| {
+			$Intent: {
+				name: string;
+				inputs: Record<string, ArgumentInput | ArgumentInput[]>;
+				data: Record<string, unknown>;
+			};
+	  };
+export const CommandSchema: GenericSchema<CommandInput, Command> = safeEnum({
 	MoveCall: ProgrammableMoveCallSchema,
 	TransferObjects: object({
 		objects: array(ArgumentSchema),
@@ -222,7 +295,7 @@ export const CommandSchema = safeEnum({
 		ticket: ArgumentSchema,
 	}),
 	$Intent,
-});
+}) as GenericSchema<CommandInput, Command>;
 
 export type Command<Arg = Argument> = EnumOutputShape<{
 	MoveCall: {
@@ -267,7 +340,35 @@ export type Command<Arg = Argument> = EnumOutputShape<{
 }>;
 
 // https://github.com/MystenLabs/sui/blob/df41d5fa8127634ff4285671a01ead00e519f806/crates/sui-types/src/transaction.rs#L102-L114
-export const ObjectArgSchema = safeEnum({
+type SharedObjectInner = {
+	objectId: string;
+	initialSharedVersion: string | number;
+	mutable: boolean;
+};
+export type ObjectArg =
+	| {
+			$kind: 'ImmOrOwnedObject';
+			ImmOrOwnedObject: ObjectRef;
+			SharedObject?: never;
+			Receiving?: never;
+	  }
+	| {
+			$kind: 'SharedObject';
+			ImmOrOwnedObject?: never;
+			SharedObject: SharedObjectInner;
+			Receiving?: never;
+	  }
+	| {
+			$kind: 'Receiving';
+			ImmOrOwnedObject?: never;
+			SharedObject?: never;
+			Receiving: ObjectRef;
+	  };
+export type ObjectArgInput =
+	| { ImmOrOwnedObject: ObjectRef }
+	| { SharedObject: SharedObjectInner }
+	| { Receiving: ObjectRef };
+export const ObjectArgSchema: GenericSchema<ObjectArgInput, ObjectArg> = safeEnum({
 	ImmOrOwnedObject: ObjectRefSchema,
 	SharedObject: object({
 		objectId: ObjectID,
@@ -276,37 +377,96 @@ export const ObjectArgSchema = safeEnum({
 		mutable: boolean(),
 	}),
 	Receiving: ObjectRefSchema,
-});
+}) as GenericSchema<ObjectArgInput, ObjectArg>;
 
 // Rust: crates/sui-types/src/transaction.rs
-export const ReservationSchema = safeEnum({
+export type Reservation = { $kind: 'MaxAmountU64'; MaxAmountU64: string | number };
+export const ReservationSchema: GenericSchema<Reservation, Reservation> = safeEnum({
 	MaxAmountU64: JsonU64,
-});
-export type Reservation = InferOutput<typeof ReservationSchema>;
+}) as GenericSchema<Reservation, Reservation>;
 
 // Rust: crates/sui-types/src/transaction.rs
-export const WithdrawalTypeArgSchema = safeEnum({
-	Balance: string(),
-});
-export type WithdrawalTypeArg = InferOutput<typeof WithdrawalTypeArgSchema>;
+export type WithdrawalTypeArg = { $kind: 'Balance'; Balance: string };
+export const WithdrawalTypeArgSchema: GenericSchema<WithdrawalTypeArg, WithdrawalTypeArg> =
+	safeEnum({
+		Balance: string(),
+	}) as GenericSchema<WithdrawalTypeArg, WithdrawalTypeArg>;
 
 // Rust: crates/sui-types/src/transaction.rs
-export const WithdrawFromSchema = safeEnum({
+export type WithdrawFrom =
+	| { $kind: 'Sender'; Sender: true; Sponsor?: never }
+	| { $kind: 'Sponsor'; Sender?: never; Sponsor: true };
+export const WithdrawFromSchema: GenericSchema<WithdrawFrom, WithdrawFrom> = safeEnum({
 	Sender: literal(true),
 	Sponsor: literal(true),
-});
-export type WithdrawFrom = InferOutput<typeof WithdrawFromSchema>;
+}) as GenericSchema<WithdrawFrom, WithdrawFrom>;
 
 // Rust: crates/sui-types/src/transaction.rs
-export const FundsWithdrawalArgSchema = object({
-	reservation: ReservationSchema,
-	typeArg: WithdrawalTypeArgSchema,
-	withdrawFrom: WithdrawFromSchema,
-});
-export type FundsWithdrawalArg = InferOutput<typeof FundsWithdrawalArgSchema>;
+export type FundsWithdrawalArg = {
+	reservation: Reservation;
+	typeArg: WithdrawalTypeArg;
+	withdrawFrom: WithdrawFrom;
+};
+export const FundsWithdrawalArgSchema: GenericSchema<FundsWithdrawalArg, FundsWithdrawalArg> =
+	object({
+		reservation: ReservationSchema,
+		typeArg: WithdrawalTypeArgSchema,
+		withdrawFrom: WithdrawFromSchema,
+	}) as GenericSchema<FundsWithdrawalArg, FundsWithdrawalArg>;
 
 // https://github.com/MystenLabs/sui/blob/df41d5fa8127634ff4285671a01ead00e519f806/crates/sui-types/src/transaction.rs#L75-L80
-const CallArgSchema = safeEnum({
+export type CallArg =
+	| ({ $kind: 'Object'; Object: ObjectArg } & {
+			Pure?: never;
+			UnresolvedPure?: never;
+			UnresolvedObject?: never;
+			FundsWithdrawal?: never;
+	  })
+	| ({ $kind: 'Pure'; Pure: { bytes: string } } & {
+			Object?: never;
+			UnresolvedPure?: never;
+			UnresolvedObject?: never;
+			FundsWithdrawal?: never;
+	  })
+	| ({ $kind: 'UnresolvedPure'; UnresolvedPure: { value: unknown } } & {
+			Object?: never;
+			Pure?: never;
+			UnresolvedObject?: never;
+			FundsWithdrawal?: never;
+	  })
+	| ({
+			$kind: 'UnresolvedObject';
+			UnresolvedObject: {
+				objectId: string;
+				version?: string | number | null;
+				digest?: string | null;
+				initialSharedVersion?: string | number | null;
+				mutable?: boolean | null;
+			};
+	  } & { Object?: never; Pure?: never; UnresolvedPure?: never; FundsWithdrawal?: never })
+	| ({ $kind: 'FundsWithdrawal'; FundsWithdrawal: FundsWithdrawalArg } & {
+			Object?: never;
+			Pure?: never;
+			UnresolvedPure?: never;
+			UnresolvedObject?: never;
+	  });
+
+type CallArgInput =
+	| { Object: ObjectArgInput }
+	| { Pure: { bytes: string } }
+	| { UnresolvedPure: { value: unknown } }
+	| {
+			UnresolvedObject: {
+				objectId: string;
+				version?: string | number | null;
+				digest?: string | null;
+				initialSharedVersion?: string | number | null;
+				mutable?: boolean | null;
+			};
+	  }
+	| { FundsWithdrawal: FundsWithdrawalArg };
+
+const CallArgSchema: GenericSchema<CallArgInput, CallArg> = safeEnum({
 	Object: ObjectArgSchema,
 	Pure: object({
 		bytes: BCSBytes,
@@ -322,42 +482,76 @@ const CallArgSchema = safeEnum({
 		mutable: optional(nullable(boolean())),
 	}),
 	FundsWithdrawal: FundsWithdrawalArgSchema,
-});
-export type CallArg = InferOutput<typeof CallArgSchema>;
+}) as GenericSchema<CallArgInput, CallArg>;
 
-export const NormalizedCallArg = safeEnum({
-	Object: ObjectArgSchema,
-	Pure: object({
-		bytes: BCSBytes,
-	}),
-});
+type NormalizedCallArgValue =
+	| ({ $kind: 'Object'; Object: ObjectArg } & { Pure?: never })
+	| ({ $kind: 'Pure'; Pure: { bytes: string } } & { Object?: never });
+type NormalizedCallArgInput = { Object: ObjectArgInput } | { Pure: { bytes: string } };
+export const NormalizedCallArg: GenericSchema<NormalizedCallArgInput, NormalizedCallArgValue> =
+	safeEnum({
+		Object: ObjectArgSchema,
+		Pure: object({
+			bytes: BCSBytes,
+		}),
+	}) as GenericSchema<NormalizedCallArgInput, NormalizedCallArgValue>;
 
 // Rust: crates/sui-types/src/transaction.rs
-export const ValidDuringSchema = object({
+export type ValidDuring = {
+	minEpoch: string | number | null;
+	maxEpoch: string | number | null;
+	minTimestamp: string | number | null;
+	maxTimestamp: string | number | null;
+	chain: string;
+	nonce: number;
+};
+export const ValidDuringSchema: GenericSchema<ValidDuring, ValidDuring> = object({
 	minEpoch: nullable(JsonU64),
 	maxEpoch: nullable(JsonU64),
 	minTimestamp: nullable(JsonU64),
 	maxTimestamp: nullable(JsonU64),
 	chain: string(),
 	nonce: U32,
-});
-export type ValidDuring = InferOutput<typeof ValidDuringSchema>;
+}) as GenericSchema<ValidDuring, ValidDuring>;
 
-export const TransactionExpiration = safeEnum({
+export type TransactionExpiration =
+	| ({ $kind: 'None'; None: true } & { Epoch?: never; ValidDuring?: never })
+	| ({ $kind: 'Epoch'; Epoch: string | number } & { None?: never; ValidDuring?: never })
+	| ({ $kind: 'ValidDuring'; ValidDuring: ValidDuring } & { None?: never; Epoch?: never });
+type TransactionExpirationInput =
+	| { None: true }
+	| { Epoch: string | number }
+	| { ValidDuring: ValidDuring };
+export const TransactionExpiration: GenericSchema<
+	TransactionExpirationInput,
+	TransactionExpiration
+> = safeEnum({
 	None: literal(true),
 	Epoch: JsonU64,
 	ValidDuring: ValidDuringSchema,
-});
+}) as GenericSchema<TransactionExpirationInput, TransactionExpiration>;
 
-export type TransactionExpiration = InferOutput<typeof TransactionExpiration>;
-
-export const TransactionDataSchema = object({
+export type TransactionData = {
+	version: 2;
+	sender?: string | null;
+	expiration?: TransactionExpiration | null;
+	gasData: GasData;
+	inputs: CallArg[];
+	commands: Command[];
+};
+type TransactionDataInput = {
+	version: 2;
+	sender?: string | null;
+	expiration?: TransactionExpirationInput | null;
+	gasData: GasData;
+	inputs: CallArgInput[];
+	commands: CommandInput[];
+};
+export const TransactionDataSchema: GenericSchema<TransactionDataInput, TransactionData> = object({
 	version: literal(2),
 	sender: nullish(SuiAddress),
 	expiration: nullish(TransactionExpiration),
 	gasData: GasDataSchema,
 	inputs: array(CallArgSchema),
 	commands: array(CommandSchema),
-});
-
-export type TransactionData = InferOutput<typeof TransactionDataSchema>;
+}) as GenericSchema<TransactionDataInput, TransactionData>;

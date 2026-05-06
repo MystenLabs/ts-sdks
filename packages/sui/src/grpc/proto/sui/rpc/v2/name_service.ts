@@ -148,7 +148,8 @@ class ReverseLookupNameRequest$Type extends MessageType<ReverseLookupNameRequest
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ReverseLookupNameRequest
  */
-export const ReverseLookupNameRequest: ReverseLookupNameRequest$Type = new ReverseLookupNameRequest$Type();
+export const ReverseLookupNameRequest: ReverseLookupNameRequest$Type =
+	new ReverseLookupNameRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ReverseLookupNameResponse$Type extends MessageType<ReverseLookupNameResponse> {
 	constructor() {
@@ -160,7 +161,8 @@ class ReverseLookupNameResponse$Type extends MessageType<ReverseLookupNameRespon
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.ReverseLookupNameResponse
  */
-export const ReverseLookupNameResponse: ReverseLookupNameResponse$Type = new ReverseLookupNameResponse$Type();
+export const ReverseLookupNameResponse: ReverseLookupNameResponse$Type =
+	new ReverseLookupNameResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class NameRecord$Type extends MessageType<NameRecord> {
 	constructor() {

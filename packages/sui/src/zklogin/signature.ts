@@ -25,7 +25,11 @@ function getZkLoginSignatureBytes({ inputs, maxEpoch, userSignature }: ZkLoginSi
 		.toBytes();
 }
 
-export function getZkLoginSignature({ inputs, maxEpoch, userSignature }: ZkLoginSignatureExtended) {
+export function getZkLoginSignature({
+	inputs,
+	maxEpoch,
+	userSignature,
+}: ZkLoginSignatureExtended): string {
 	const bytes = getZkLoginSignatureBytes({ inputs, maxEpoch, userSignature });
 	const signatureBytes = new Uint8Array(bytes.length + 1);
 	signatureBytes.set([SIGNATURE_SCHEME_TO_FLAG.ZkLogin]);
@@ -33,6 +37,6 @@ export function getZkLoginSignature({ inputs, maxEpoch, userSignature }: ZkLogin
 	return toBase64(signatureBytes);
 }
 
-export function parseZkLoginSignature(signature: string | Uint8Array) {
+export function parseZkLoginSignature(signature: string | Uint8Array): ZkLoginSignature {
 	return zkLoginSignature.parse(typeof signature === 'string' ? fromBase64(signature) : signature);
 }

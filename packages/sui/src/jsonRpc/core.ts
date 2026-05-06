@@ -119,7 +119,7 @@ export class JSONRpcCoreClient extends CoreClient {
 
 	async getObjects<Include extends SuiClientTypes.ObjectInclude = {}>(
 		options: SuiClientTypes.GetObjectsOptions<Include>,
-	) {
+	): Promise<SuiClientTypes.GetObjectsResponse<Include>> {
 		const batches = chunk(options.objectIds, 50);
 		const results: SuiClientTypes.GetObjectsResponse<Include>['objects'] = [];
 		for (const batch of batches) {
@@ -153,7 +153,7 @@ export class JSONRpcCoreClient extends CoreClient {
 	}
 	async listOwnedObjects<Include extends SuiClientTypes.ObjectInclude = {}>(
 		options: SuiClientTypes.ListOwnedObjectsOptions<Include>,
-	) {
+	): Promise<SuiClientTypes.ListOwnedObjectsResponse<Include>> {
 		let filter: SuiObjectDataFilter | null = null;
 		if (options.type) {
 			const parts = options.type.split('::');
@@ -197,7 +197,9 @@ export class JSONRpcCoreClient extends CoreClient {
 		};
 	}
 
-	async listCoins(options: SuiClientTypes.ListCoinsOptions) {
+	async listCoins(
+		options: SuiClientTypes.ListCoinsOptions,
+	): Promise<SuiClientTypes.ListCoinsResponse> {
 		const coins = await this.#jsonRpcClient.getCoins({
 			owner: options.owner,
 			coinType: options.coinType,
@@ -225,7 +227,9 @@ export class JSONRpcCoreClient extends CoreClient {
 		};
 	}
 
-	async getBalance(options: SuiClientTypes.GetBalanceOptions) {
+	async getBalance(
+		options: SuiClientTypes.GetBalanceOptions,
+	): Promise<SuiClientTypes.GetBalanceResponse> {
 		const balance = await this.#jsonRpcClient.getBalance({
 			owner: options.owner,
 			coinType: options.coinType,
@@ -270,7 +274,9 @@ export class JSONRpcCoreClient extends CoreClient {
 		};
 	}
 
-	async listBalances(options: SuiClientTypes.ListBalancesOptions) {
+	async listBalances(
+		options: SuiClientTypes.ListBalancesOptions,
+	): Promise<SuiClientTypes.ListBalancesResponse> {
 		const balances = await this.#jsonRpcClient.getAllBalances({
 			owner: options.owner,
 			signal: options.signal,
@@ -469,7 +475,9 @@ export class JSONRpcCoreClient extends CoreClient {
 						commandResults as SuiClientTypes.SimulateTransactionResult<Include>['commandResults'],
 				};
 	}
-	async getReferenceGasPrice(options?: SuiClientTypes.GetReferenceGasPriceOptions) {
+	async getReferenceGasPrice(
+		options?: SuiClientTypes.GetReferenceGasPriceOptions,
+	): Promise<SuiClientTypes.GetReferenceGasPriceResponse> {
 		const referenceGasPrice = await this.#jsonRpcClient.getReferenceGasPrice({
 			signal: options?.signal,
 		});
@@ -555,7 +563,9 @@ export class JSONRpcCoreClient extends CoreClient {
 		};
 	}
 
-	async listDynamicFields(options: SuiClientTypes.ListDynamicFieldsOptions) {
+	async listDynamicFields(
+		options: SuiClientTypes.ListDynamicFieldsOptions,
+	): Promise<SuiClientTypes.ListDynamicFieldsResponse> {
 		const dynamicFields = await this.#jsonRpcClient.getDynamicFields({
 			parentId: options.parentId,
 			limit: options.limit,
@@ -590,7 +600,9 @@ export class JSONRpcCoreClient extends CoreClient {
 		};
 	}
 
-	async verifyZkLoginSignature(options: SuiClientTypes.VerifyZkLoginSignatureOptions) {
+	async verifyZkLoginSignature(
+		options: SuiClientTypes.VerifyZkLoginSignatureOptions,
+	): Promise<SuiClientTypes.ZkLoginVerifyResponse> {
 		const result = await this.#jsonRpcClient.verifyZkLoginSignature({
 			bytes: options.bytes,
 			signature: options.signature,
@@ -615,7 +627,7 @@ export class JSONRpcCoreClient extends CoreClient {
 		};
 	}
 
-	resolveTransactionPlugin() {
+	resolveTransactionPlugin(): typeof coreClientResolveTransactionPlugin {
 		return coreClientResolveTransactionPlugin;
 	}
 

@@ -5,7 +5,7 @@ import { SUI_DECIMALS } from './constants.js';
 
 const ELLIPSIS = '\u{2026}';
 
-export function formatAddress(address: string) {
+export function formatAddress(address: string): string {
 	if (address.length <= 6) {
 		return address;
 	}

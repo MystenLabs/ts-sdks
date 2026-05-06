@@ -54,7 +54,7 @@ export async function resolveTransactionPlugin(
 	transactionData: TransactionDataBuilder,
 	options: BuildTransactionOptions,
 	next: () => Promise<void>,
-) {
+): Promise<void> {
 	normalizeRawArguments(transactionData);
 	if (!needsTransactionResolution(transactionData, options)) {
 		await validate(transactionData);
@@ -82,7 +82,7 @@ function validate(transactionData: TransactionDataBuilder) {
 	});
 }
 
-export function getClient(options: BuildTransactionOptions) {
+export function getClient(options: BuildTransactionOptions): ClientWithCoreApi {
 	if (!options.client) {
 		throw new Error(
 			`No sui client passed to Transaction#build, but transaction data was not sufficient to build offline.`,

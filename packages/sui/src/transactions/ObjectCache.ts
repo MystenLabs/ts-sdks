@@ -40,7 +40,7 @@ export abstract class AsyncCache {
 	protected abstract delete<T extends keyof CacheEntryTypes>(type: T, key: string): Promise<void>;
 	abstract clear<T extends keyof CacheEntryTypes>(type?: T): Promise<void>;
 
-	async getObject(id: string) {
+	async getObject(id: string): Promise<ObjectCacheEntry | null> {
 		const [owned, shared] = await Promise.all([
 			this.get('OwnedObject', id),
 			this.get('SharedOrImmutableObject', id),
@@ -49,11 +49,11 @@ export abstract class AsyncCache {
 		return owned ?? shared ?? null;
 	}
 
-	async getObjects(ids: string[]) {
+	async getObjects(ids: string[]): Promise<(ObjectCacheEntry | null)[]> {
 		return Promise.all(ids.map((id) => this.getObject(id)));
 	}
 
-	async addObject(object: ObjectCacheEntry) {
+	async addObject(object: ObjectCacheEntry): Promise<ObjectCacheEntry> {
 		if (object.owner) {
 			await this.set('OwnedObject', object.objectId, object);
 		} else {
@@ -63,24 +63,30 @@ export abstract class AsyncCache {
 		return object;
 	}
 
-	async addObjects(objects: ObjectCacheEntry[]) {
+	async addObjects(objects: ObjectCacheEntry[]): Promise<void> {
 		await Promise.all(objects.map(async (object) => this.addObject(object)));
 	}
 
-	async deleteObject(id: string) {
+	async deleteObject(id: string): Promise<void> {
 		await Promise.all([this.delete('OwnedObject', id), this.delete('SharedOrImmutableObject', id)]);
 	}
 
-	async deleteObjects(ids: string[]) {
+	async deleteObjects(ids: string[]): Promise<void> {
 		await Promise.all(ids.map((id) => this.deleteObject(id)));
 	}
 
-	async getMoveFunctionDefinition(ref: { package: string; module: string; function: string }) {
+	async getMoveFunctionDefinition(ref: {
+		package: string;
+		module: string;
+		function: string;
+	}): Promise<MoveFunctionCacheEntry | null> {
 		const functionName = `${normalizeSuiAddress(ref.package)}::${ref.module}::${ref.function}`;
 		return this.get('MoveFunction', functionName);
 	}
 
-	async addMoveFunctionDefinition(functionEntry: MoveFunctionCacheEntry) {
+	async addMoveFunctionDefinition(
+		functionEntry: MoveFunctionCacheEntry,
+	): Promise<MoveFunctionCacheEntry> {
 		const pkg = normalizeSuiAddress(functionEntry.package);
 		const functionName = `${pkg}::${functionEntry.module}::${functionEntry.function}`;
 		const entry = {
@@ -93,20 +99,24 @@ export abstract class AsyncCache {
 		return entry;
 	}
 
-	async deleteMoveFunctionDefinition(ref: { package: string; module: string; function: string }) {
+	async deleteMoveFunctionDefinition(ref: {
+		package: string;
+		module: string;
+		function: string;
+	}): Promise<void> {
 		const functionName = `${normalizeSuiAddress(ref.package)}::${ref.module}::${ref.function}`;
 		await this.delete('MoveFunction', functionName);
 	}
 
-	async getCustom<T>(key: string) {
+	async getCustom<T>(key: string): Promise<T | null> {
 		return this.get('Custom', key) as Promise<T | null>;
 	}
 
-	async setCustom<T>(key: string, value: T) {
+	async setCustom<T>(key: string, value: T): Promise<void> {
 		return this.set('Custom', key, value);
 	}
 
-	async deleteCustom(key: string) {
+	async deleteCustom(key: string): Promise<void> {
 		return this.delete('Custom', key);
 	}
 }
@@ -119,7 +129,10 @@ export class InMemoryCache extends AsyncCache {
 		Custom: new Map<string, unknown>(),
 	};
 
-	protected async get<T extends keyof CacheEntryTypes>(type: T, key: string) {
+	protected async get<T extends keyof CacheEntryTypes>(
+		type: T,
+		key: string,
+	): Promise<CacheEntryTypes[T] | null> {
 		return (this.#caches[type].get(key) as CacheEntryTypes[T]) ?? null;
 	}
 
@@ -127,15 +140,15 @@ export class InMemoryCache extends AsyncCache {
 		type: T,
 		key: string,
 		value: CacheEntryTypes[T],
-	) {
+	): Promise<void> {
 		(this.#caches[type] as Map<string, typeof value>).set(key, value as never);
 	}
 
-	protected async delete<T extends keyof CacheEntryTypes>(type: T, key: string) {
+	protected async delete<T extends keyof CacheEntryTypes>(type: T, key: string): Promise<void> {
 		this.#caches[type].delete(key);
 	}
 
-	async clear<T extends keyof CacheEntryTypes>(type?: T) {
+	async clear<T extends keyof CacheEntryTypes>(type?: T): Promise<void> {
 		if (type) {
 			this.#caches[type].clear();
 		} else {
@@ -229,43 +242,47 @@ export class ObjectCache {
 		};
 	}
 
-	async clear() {
+	async clear(): Promise<void> {
 		await this.#cache.clear();
 	}
 
-	async getMoveFunctionDefinition(ref: { package: string; module: string; function: string }) {
+	async getMoveFunctionDefinition(ref: {
+		package: string;
+		module: string;
+		function: string;
+	}): Promise<MoveFunctionCacheEntry | null> {
 		return this.#cache.getMoveFunctionDefinition(ref);
 	}
 
-	async getObjects(ids: string[]) {
+	async getObjects(ids: string[]): Promise<(ObjectCacheEntry | null)[]> {
 		return this.#cache.getObjects(ids);
 	}
 
-	async deleteObjects(ids: string[]) {
+	async deleteObjects(ids: string[]): Promise<void> {
 		return this.#cache.deleteObjects(ids);
 	}
 
-	async clearOwnedObjects() {
+	async clearOwnedObjects(): Promise<void> {
 		await this.#cache.clear('OwnedObject');
 	}
 
-	async clearCustom() {
+	async clearCustom(): Promise<void> {
 		await this.#cache.clear('Custom');
 	}
 
-	async getCustom<T>(key: string) {
+	async getCustom<T>(key: string): Promise<T | null> {
 		return this.#cache.getCustom<T>(key);
 	}
 
-	async setCustom<T>(key: string, value: T) {
+	async setCustom<T>(key: string, value: T): Promise<void> {
 		return this.#cache.setCustom(key, value);
 	}
 
-	async deleteCustom(key: string) {
+	async deleteCustom(key: string): Promise<void> {
 		return this.#cache.deleteCustom(key);
 	}
 
-	async applyEffects(effects: typeof bcs.TransactionEffects.$inferType) {
+	async applyEffects(effects: typeof bcs.TransactionEffects.$inferType): Promise<void> {
 		if (!effects.V2) {
 			throw new Error(`Unsupported transaction effects version ${effects.$kind}`);
 		}

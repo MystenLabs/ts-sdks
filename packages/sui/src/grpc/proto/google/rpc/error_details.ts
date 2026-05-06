@@ -527,7 +527,8 @@ class QuotaFailure_Violation$Type extends MessageType<QuotaFailure_Violation> {
 /**
  * @generated MessageType for protobuf message google.rpc.QuotaFailure.Violation
  */
-export const QuotaFailure_Violation: QuotaFailure_Violation$Type = new QuotaFailure_Violation$Type();
+export const QuotaFailure_Violation: QuotaFailure_Violation$Type =
+	new QuotaFailure_Violation$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class PreconditionFailure$Type extends MessageType<PreconditionFailure> {
 	constructor() {
@@ -559,7 +560,8 @@ class PreconditionFailure_Violation$Type extends MessageType<PreconditionFailure
 /**
  * @generated MessageType for protobuf message google.rpc.PreconditionFailure.Violation
  */
-export const PreconditionFailure_Violation: PreconditionFailure_Violation$Type = new PreconditionFailure_Violation$Type();
+export const PreconditionFailure_Violation: PreconditionFailure_Violation$Type =
+	new PreconditionFailure_Violation$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class BadRequest$Type extends MessageType<BadRequest> {
 	constructor() {
@@ -592,7 +594,8 @@ class BadRequest_FieldViolation$Type extends MessageType<BadRequest_FieldViolati
 /**
  * @generated MessageType for protobuf message google.rpc.BadRequest.FieldViolation
  */
-export const BadRequest_FieldViolation: BadRequest_FieldViolation$Type = new BadRequest_FieldViolation$Type();
+export const BadRequest_FieldViolation: BadRequest_FieldViolation$Type =
+	new BadRequest_FieldViolation$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class RequestInfo$Type extends MessageType<RequestInfo> {
 	constructor() {

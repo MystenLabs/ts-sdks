@@ -16,7 +16,7 @@ import { SIGNATURE_FLAG_TO_SCHEME, SIGNATURE_SCHEME_TO_SIZE } from './signature-
  */
 export type PublicKeyInitData = string | Uint8Array | Iterable<number>;
 
-export function bytesEqual(a: Uint8Array, b: Uint8Array) {
+export function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
 	if (a === b) return true;
 
 	if (a.length !== b.length) {
@@ -38,14 +38,14 @@ export abstract class PublicKey {
 	/**
 	 * Checks if two public keys are equal
 	 */
-	equals(publicKey: PublicKey) {
+	equals(publicKey: PublicKey): boolean {
 		return bytesEqual(this.toRawBytes(), publicKey.toRawBytes());
 	}
 
 	/**
 	 * Return the base-64 representation of the public key
 	 */
-	toBase64() {
+	toBase64(): string {
 		return toBase64(this.toRawBytes());
 	}
 
@@ -140,7 +140,13 @@ export abstract class PublicKey {
 	abstract verify(data: Uint8Array, signature: Uint8Array | string): Promise<boolean>;
 }
 
-export function parseSerializedKeypairSignature(serializedSignature: string) {
+export function parseSerializedKeypairSignature(serializedSignature: string): {
+	serializedSignature: string;
+	signatureScheme: 'ED25519' | 'Secp256k1' | 'Secp256r1';
+	signature: Uint8Array;
+	publicKey: Uint8Array;
+	bytes: Uint8Array;
+} {
 	const bytes = fromBase64(serializedSignature);
 
 	const signatureScheme =

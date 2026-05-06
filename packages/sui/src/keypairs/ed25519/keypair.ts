@@ -139,7 +139,7 @@ export class Ed25519Keypair extends Keypair {
 	/**
 	 * Return the signature for the provided data using Ed25519.
 	 */
-	async sign(data: Uint8Array) {
+	async sign(data: Uint8Array): Promise<Uint8Array<ArrayBuffer>> {
 		return ed25519.sign(data, this.keypair.secretKey) as Uint8Array<ArrayBuffer>;
 	}
 

@@ -12,7 +12,7 @@ export function deriveObjectID(
 	parentId: string,
 	typeTag: typeof TypeTag.$inferInput,
 	key: Uint8Array,
-) {
+): string {
 	const typeTagStr = typeof typeTag === 'string' ? typeTag : TypeTagSerializer.tagToString(typeTag);
 	return deriveDynamicFieldID(
 		parentId,

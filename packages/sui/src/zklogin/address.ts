@@ -18,7 +18,7 @@ export function computeZkLoginAddressFromSeed(
 	addressSeed: bigint,
 	iss: string,
 	legacyAddress: boolean,
-) {
+): string {
 	// Explicitly check for people not using typescript and ignoring the major version migration guide
 	if (legacyAddress === undefined) {
 		throw new Error('legacyAddress parameter must be specified');
@@ -41,9 +41,9 @@ export function computeZkLoginAddressFromSeed(
 }
 
 export const MAX_HEADER_LEN_B64 = 248;
-export const MAX_PADDED_UNSIGNED_JWT_LEN = 64 * 25;
+export const MAX_PADDED_UNSIGNED_JWT_LEN: number = 64 * 25;
 
-export function lengthChecks(jwt: string) {
+export function lengthChecks(jwt: string): void {
 	const [header, payload] = jwt.split('.');
 	/// Is the header small enough
 	if (header.length > MAX_HEADER_LEN_B64) {
@@ -64,7 +64,11 @@ export function lengthChecks(jwt: string) {
 	}
 }
 
-export function jwtToAddress(jwt: string, userSalt: string | bigint, legacyAddress: boolean) {
+export function jwtToAddress(
+	jwt: string,
+	userSalt: string | bigint,
+	legacyAddress: boolean,
+): string {
 	// Explicitly check for people not using typescript and ignoring the major version migration guide
 	if (legacyAddress === undefined) {
 		throw new Error('legacyAddress parameter must be specified');
@@ -99,7 +103,7 @@ export function computeZkLoginAddress({
 	aud,
 	userSalt,
 	legacyAddress,
-}: ComputeZkLoginAddressOptions) {
+}: ComputeZkLoginAddressOptions): string {
 	// Explicitly check for people not using typescript and ignoring the major version migration guide
 	if (legacyAddress === undefined) {
 		throw new Error('legacyAddress parameter must be specified');

@@ -139,7 +139,7 @@ export function publicKeyFromRawBytes(
 export function publicKeyFromSuiBytes(
 	publicKey: string | Uint8Array,
 	options: { client?: ClientWithCoreApi; address?: string } = {},
-) {
+): PublicKey {
 	const bytes = typeof publicKey === 'string' ? fromBase64(publicKey) : publicKey;
 
 	const signatureScheme = SIGNATURE_FLAG_TO_SCHEME[bytes[0] as SignatureFlag];

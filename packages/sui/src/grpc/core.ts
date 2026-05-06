@@ -740,7 +740,7 @@ export class GrpcCoreClient extends CoreClient {
 			transactionData: TransactionDataBuilder,
 			options: BuildTransactionOptions,
 			next: () => Promise<void>,
-		) {
+		): Promise<void> {
 			const snapshot = transactionData.snapshot();
 			// If sender is not set, use a dummy address for resolution purposes
 			// The resolved transaction will not include the sender if it wasn't set originally

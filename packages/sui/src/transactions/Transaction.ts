@@ -120,7 +120,7 @@ function createTransactionResult(
 	}) as TransactionResult;
 }
 
-const TRANSACTION_BRAND = Symbol.for('@mysten/transaction') as never;
+const TRANSACTION_BRAND: symbol = Symbol.for('@mysten/transaction');
 
 interface SignOptions extends BuildTransactionOptions {
 	signer: Signer;
@@ -156,7 +156,7 @@ export class Transaction {
 	 * Converts from a serialize transaction kind (built with `build({ onlyTransactionKind: true })`) to a `Transaction` class.
 	 * Supports either a byte array, or base64-encoded bytes.
 	 */
-	static fromKind(serialized: string | Uint8Array) {
+	static fromKind(serialized: string | Uint8Array): Transaction {
 		const tx = new Transaction();
 
 		tx.#data = TransactionDataBuilder.fromKindBytes(
@@ -176,7 +176,7 @@ export class Transaction {
 	 * - A string returned from `Transaction#serialize`. The serialized format must be compatible, or it will throw an error.
 	 * - A byte array (or base64-encoded bytes) containing BCS transaction data.
 	 */
-	static from(transaction: string | Uint8Array | TransactionLike) {
+	static from(transaction: string | Uint8Array | TransactionLike): Transaction {
 		const newTransaction = new Transaction();
 
 		if (isTransaction(transaction)) {
@@ -208,15 +208,15 @@ export class Transaction {
 		return newTransaction;
 	}
 
-	addSerializationPlugin(step: TransactionPlugin) {
+	addSerializationPlugin(step: TransactionPlugin): void {
 		this.#serializationPlugins.push(step);
 	}
 
-	addBuildPlugin(step: TransactionPlugin) {
+	addBuildPlugin(step: TransactionPlugin): void {
 		this.#buildPlugins.push(step);
 	}
 
-	addIntentResolver(intent: string, resolver: TransactionPlugin) {
+	addIntentResolver(intent: string, resolver: TransactionPlugin): void {
 		if (this.#intentResolvers.has(intent) && this.#intentResolvers.get(intent) !== resolver) {
 			throw new Error(`Intent resolver for ${intent} already exists`);
 		}
@@ -224,53 +224,50 @@ export class Transaction {
 		this.#intentResolvers.set(intent, resolver);
 	}
 
-	setSender(sender: string) {
+	setSender(sender: string): void {
 		this.#data.sender = sender;
 	}
 	/**
 	 * Sets the sender only if it has not already been set.
 	 * This is useful for sponsored transaction flows where the sender may not be the same as the signer address.
 	 */
-	setSenderIfNotSet(sender: string) {
+	setSenderIfNotSet(sender: string): void {
 		if (!this.#data.sender) {
 			this.#data.sender = sender;
 		}
 	}
-	setExpiration(expiration?: InferInput<typeof TransactionExpiration> | null) {
+	setExpiration(expiration?: InferInput<typeof TransactionExpiration> | null): void {
 		this.#data.expiration = expiration ? parse(TransactionExpiration, expiration) : null;
 	}
-	setGasPrice(price: number | bigint | string) {
+	setGasPrice(price: number | bigint | string): void {
 		this.#data.gasData.price = String(price);
 	}
-	setGasBudget(budget: number | bigint | string) {
+	setGasBudget(budget: number | bigint | string): void {
 		this.#data.gasData.budget = String(budget);
 	}
 
-	setGasBudgetIfNotSet(budget: number | bigint | string) {
+	setGasBudgetIfNotSet(budget: number | bigint | string): void {
 		if (this.#data.gasData.budget == null) {
 			this.#data.gasData.budget = String(budget);
 		}
 	}
 
-	setGasOwner(owner: string) {
+	setGasOwner(owner: string): void {
 		this.#data.gasData.owner = owner;
 	}
-	setGasPayment(payments: ObjectRef[]) {
+	setGasPayment(payments: ObjectRef[]): void {
 		this.#data.gasData.payment = payments.map((payment) => parse(ObjectRefSchema, payment));
 	}
 
 	#data: TransactionDataBuilder;
 
 	/** Get a snapshot of the transaction data, in JSON form: */
-	getData() {
+	getData(): ReturnType<TransactionDataBuilder['snapshot']> {
 		return this.#data.snapshot();
 	}
 
 	// Used to brand transaction classes so that they can be identified, even between multiple copies
 	// of the builder.
-	get [TRANSACTION_BRAND]() {
-		return true;
-	}
 
 	// Temporary workaround for the wallet interface accidentally serializing transactions via postMessage
 	get pure(): ReturnType<typeof createPure<Argument>> {
@@ -305,10 +302,11 @@ export class Transaction {
 		this.#data = new TransactionDataBuilder();
 		this.#buildPlugins = [];
 		this.#serializationPlugins = [];
+		(this as never as { [key: symbol]: boolean })[TRANSACTION_BRAND] = true;
 	}
 
 	/** Returns an argument for the gas coin, to be used in a transaction. */
-	get gas() {
+	get gas(): { $kind: 'GasCoin'; GasCoin: true } {
 		return { $kind: 'GasCoin' as const, GasCoin: true as const };
 	}
 
@@ -391,7 +389,11 @@ export class Transaction {
 	 * Add a new object input to the transaction using the fully-resolved object reference.
 	 * If you only have an object ID, use `builder.object(id)` instead.
 	 */
-	objectRef(...args: Parameters<(typeof Inputs)['ObjectRef']>) {
+	objectRef(...args: Parameters<(typeof Inputs)['ObjectRef']>): {
+		$kind: 'Input';
+		Input: number;
+		type?: 'object';
+	} {
 		return this.object(Inputs.ObjectRef(...args));
 	}
 
@@ -399,7 +401,11 @@ export class Transaction {
 	 * Add a new receiving input to the transaction using the fully-resolved object reference.
 	 * If you only have an object ID, use `builder.object(id)` instead.
 	 */
-	receivingRef(...args: Parameters<(typeof Inputs)['ReceivingRef']>) {
+	receivingRef(...args: Parameters<(typeof Inputs)['ReceivingRef']>): {
+		$kind: 'Input';
+		Input: number;
+		type?: 'object';
+	} {
 		return this.object(Inputs.ReceivingRef(...args));
 	}
 
@@ -407,7 +413,11 @@ export class Transaction {
 	 * Add a new shared object input to the transaction using the fully-resolved shared object reference.
 	 * If you only have an object ID, use `builder.object(id)` instead.
 	 */
-	sharedObjectRef(...args: Parameters<(typeof Inputs)['SharedObjectRef']>) {
+	sharedObjectRef(...args: Parameters<(typeof Inputs)['SharedObjectRef']>): {
+		$kind: 'Input';
+		Input: number;
+		type?: 'object';
+	} {
 		return this.object(Inputs.SharedObjectRef(...args));
 	}
 
@@ -560,7 +570,7 @@ export class Transaction {
 	mergeCoins(
 		destination: TransactionObjectArgument | string,
 		sources: (TransactionObjectArgument | string)[],
-	) {
+	): TransactionResult {
 		return this.add(
 			TransactionCommands.MergeCoins(
 				this.object(destination),
@@ -568,7 +578,13 @@ export class Transaction {
 			),
 		);
 	}
-	publish({ modules, dependencies }: { modules: number[][] | string[]; dependencies: string[] }) {
+	publish({
+		modules,
+		dependencies,
+	}: {
+		modules: number[][] | string[];
+		dependencies: string[];
+	}): TransactionResult {
 		return this.add(
 			TransactionCommands.Publish({
 				modules,
@@ -586,7 +602,7 @@ export class Transaction {
 		dependencies: string[];
 		package: string;
 		ticket: TransactionObjectArgument | string;
-	}) {
+	}): TransactionResult {
 		return this.add(
 			TransactionCommands.Upgrade({
 				modules,
@@ -611,7 +627,7 @@ export class Transaction {
 				target: string;
 				arguments?: (TransactionArgument | SerializedBcs<any>)[];
 				typeArguments?: string[];
-		  }) {
+		  }): TransactionResult {
 		return this.add(
 			TransactionCommands.MoveCall({
 				...input,
@@ -622,7 +638,7 @@ export class Transaction {
 	transferObjects(
 		objects: (TransactionObjectArgument | string)[],
 		address: TransactionArgument | SerializedBcs<any> | string,
-	) {
+	): TransactionResult {
 		return this.add(
 			TransactionCommands.TransferObjects(
 				objects.map((obj) => this.object(obj)),
@@ -638,7 +654,7 @@ export class Transaction {
 	}: {
 		elements: (TransactionObjectArgument | string)[];
 		type?: string;
-	}) {
+	}): TransactionResult {
 		return this.add(
 			TransactionCommands.MakeMoveVec({
 				type,
@@ -680,7 +696,7 @@ export class Transaction {
 	 * @deprecated Use toJSON instead.
 	 * For synchronous serialization, you can use `getData()`
 	 * */
-	serialize() {
+	serialize(): string {
 		return JSON.stringify(serializeV1TransactionData(this.#data.snapshot()));
 	}
 
@@ -718,7 +734,7 @@ export class Transaction {
 	 * Unlike `isFullyResolved()`, this does not require the sender, gas payment,
 	 * budget, or object versions to be set.
 	 */
-	isPreparedForSerialization(options: { supportedIntents?: string[] } = {}) {
+	isPreparedForSerialization(options: { supportedIntents?: string[] } = {}): boolean {
 		if (this.#pendingPromises.size > 0) {
 			return false;
 		}
@@ -745,7 +761,7 @@ export class Transaction {
 	 *
 	 *  When true, the transaction will always be built to the same bytes and digest (unless the transaction is mutated)
 	 */
-	isFullyResolved() {
+	isFullyResolved(): boolean {
 		if (!this.isPreparedForSerialization()) {
 			return false;
 		}
@@ -925,7 +941,7 @@ export class Transaction {
 		}
 	}
 
-	async prepareForSerialization(options: SerializeTransactionOptions) {
+	async prepareForSerialization(options: SerializeTransactionOptions): Promise<void> {
 		await this.#waitForPendingTasks();
 		this.#sortCommandsAndInputs();
 		const intents = new Set<string>();

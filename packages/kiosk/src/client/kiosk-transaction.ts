@@ -70,7 +70,7 @@ export class KioskTransaction {
 	 * Helpful if we want to chain some actions before sharing + transferring the cap to the specified address.
 	 * @param borrow If true, the `kioskOwnerCap` is borrowed from the `PersonalKioskCap` to be used in next transactions.
 	 */
-	create() {
+	create(): this {
 		this.#validateFinalizedStatus();
 		this.#setPendingStatuses({
 			share: true,
@@ -87,7 +87,7 @@ export class KioskTransaction {
 	 * The `PersonalKioskCap` is transferred to the signer.
 	 * @param borrow If true, the `kioskOwnerCap` is borrowed from the `PersonalKioskCap` to be used in next transactions.
 	 */
-	createPersonal(borrow?: boolean) {
+	createPersonal(borrow?: boolean): this {
 		this.#pendingShare = true;
 		return this.create().convertToPersonal(borrow);
 	}
@@ -96,7 +96,7 @@ export class KioskTransaction {
 	 * Converts a kiosk to a Personal (Soulbound) Kiosk.
 	 * Requires initialization by either calling `ktxb.create()` or `ktxb.setCap()`.
 	 */
-	convertToPersonal(borrow?: boolean) {
+	convertToPersonal(borrow?: boolean): this {
 		this.#validateKioskIsSet();
 
 		const packageId = this.kioskClient.getRulePackageId('personalKioskRulePackageId');
@@ -122,7 +122,7 @@ export class KioskTransaction {
 	/**
 	 * Single function way to create a kiosk, share it and transfer the cap to the specified address.
 	 */
-	createAndShare(address: string) {
+	createAndShare(address: string): this {
 		this.#validateFinalizedStatus();
 		const cap = createKioskAndShare(this.transaction);
 		this.transaction.transferObjects([cap], address);
@@ -132,7 +132,7 @@ export class KioskTransaction {
 	/**
 	 * Shares the kiosk.
 	 */
-	share() {
+	share(): this {
 		this.#validateKioskIsSet();
 		this.#setPendingStatuses({ share: false });
 		this.transaction.moveCall({
@@ -147,7 +147,7 @@ export class KioskTransaction {
 	 * Should be called only after `create` is called.
 	 * It shares the kiosk & transfers the cap to the specified address.
 	 */
-	shareAndTransferCap(address: string) {
+	shareAndTransferCap(address: string): this {
 		if (this.#personalCap)
 			throw new Error('You can only call `shareAndTransferCap` on a non-personal kiosk.');
 		this.#setPendingStatuses({ transfer: false });
@@ -160,7 +160,7 @@ export class KioskTransaction {
 	 * A function to borrow an item from a kiosk & execute any function with it.
 	 * Example: You could borrow a Fren out of a kiosk, attach an accessory (or mix), and return it.
 	 */
-	borrowTx({ itemType, itemId }: ItemId, callback: (item: TransactionArgument) => void) {
+	borrowTx({ itemType, itemId }: ItemId, callback: (item: TransactionArgument) => void): this {
 		this.#validateKioskIsSet();
 		const [itemObj, promise] = this.transaction.add(
 			kioskContract.borrowVal({
@@ -196,7 +196,7 @@ export class KioskTransaction {
 	 * Returns the item back to the kiosk.
 	 * Accepts the parameters returned from the `borrow` function.
 	 */
-	return({ itemType, item, promise }: ItemValue & { promise: TransactionArgument }) {
+	return({ itemType, item, promise }: ItemValue & { promise: TransactionArgument }): this {
 		this.#validateKioskIsSet();
 		this.transaction.add(
 			kioskContract.returnVal({
@@ -212,7 +212,7 @@ export class KioskTransaction {
 	 * @param address Where to transfer the coin.
 	 * @param amount The amount we aim to withdraw.
 	 */
-	withdraw(address: string, amount?: string | bigint | number) {
+	withdraw(address: string, amount?: string | bigint | number): this {
 		this.#validateKioskIsSet();
 
 		const [coin] = this.transaction.add(
@@ -229,7 +229,7 @@ export class KioskTransaction {
 	 * @param itemType The type `T` of the item
 	 * @param item The ID or Transaction Argument of the item
 	 */
-	place({ itemType, item }: ItemReference) {
+	place({ itemType, item }: ItemReference): this {
 		this.#validateKioskIsSet();
 		const itemArg = typeof item === 'string' ? this.transaction.object(item) : item;
 		this.transaction.add(
@@ -247,7 +247,7 @@ export class KioskTransaction {
 	 * @param item The ID or Transaction Argument of the item
 	 * @param price The price in MIST
 	 */
-	placeAndList({ itemType, item, price }: ItemReference & Price) {
+	placeAndList({ itemType, item, price }: ItemReference & Price): this {
 		this.#validateKioskIsSet();
 		const itemArg = typeof item === 'string' ? this.transaction.object(item) : item;
 		const priceArg = typeof price === 'string' ? BigInt(price) : price;
@@ -266,7 +266,7 @@ export class KioskTransaction {
 	 * @param itemId The ID of the item
 	 * @param price The price in MIST
 	 */
-	list({ itemType, itemId, price }: ItemId & { price: string | bigint }) {
+	list({ itemType, itemId, price }: ItemId & { price: string | bigint }): this {
 		this.#validateKioskIsSet();
 		const priceArg = typeof price === 'string' ? BigInt(price) : price;
 		this.transaction.add(
@@ -283,7 +283,7 @@ export class KioskTransaction {
 	 * @param itemType The type `T` of the item
 	 * @param itemId The ID of the item
 	 */
-	delist({ itemType, itemId }: ItemId) {
+	delist({ itemType, itemId }: ItemId): this {
 		this.#validateKioskIsSet();
 		this.transaction.add(
 			kioskContract.delist({
@@ -318,7 +318,7 @@ export class KioskTransaction {
 	 * @param itemId The ID of the item
 	 * @param address The destination address
 	 */
-	transfer({ itemType, itemId, address }: ItemId & { address: string }) {
+	transfer({ itemType, itemId, address }: ItemId & { address: string }): this {
 		this.#validateKioskIsSet();
 		const item = this.take({ itemType, itemId });
 		this.transaction.transferObjects([item], address);
@@ -338,7 +338,7 @@ export class KioskTransaction {
 		item,
 		itemId,
 		policy,
-	}: ItemReference & { policy: ObjectArgument; itemId?: string }) {
+	}: ItemReference & { policy: ObjectArgument; itemId?: string }): this {
 		this.#validateKioskIsSet();
 		const itemArg = itemId
 			? this.transaction.object(itemId)
@@ -402,7 +402,7 @@ export class KioskTransaction {
 		price,
 		sellerKiosk,
 		extraArgs,
-	}: ItemId & Price & { sellerKiosk: ObjectArgument } & PurchaseOptions) {
+	}: ItemId & Price & { sellerKiosk: ObjectArgument } & PurchaseOptions): Promise<this> {
 		this.#validateKioskIsSet();
 		// Get a list of the transfer policies.
 		const policies = await this.kioskClient.getTransferPolicies({ type: itemType });
@@ -467,7 +467,7 @@ export class KioskTransaction {
 	 * as return from the `kioskClient.getOwnedKiosks` function.
 	 * @param cap `KioskOwnerCap` object as returned from `getOwnedKiosks` SDK call.
 	 */
-	setCap(cap: KioskOwnerCap) {
+	setCap(cap: KioskOwnerCap): this | undefined {
 		this.#validateFinalizedStatus();
 		this.kiosk = this.transaction.object(cap.kioskId);
 		if (!cap.isPersonal) {
@@ -483,7 +483,7 @@ export class KioskTransaction {
 	 *  `PersonalKioskCap`, in case we are operating on a personal kiosk.
 	 * 	It will also share the `kiosk` if it's not shared, and finalize the transfer of the personal cap if it's pending.
 	 */
-	finalize() {
+	finalize(): void {
 		this.#validateKioskIsSet();
 		// If we're pending the sharing of the new kiosk, share it.
 		if (this.#pendingShare) this.share();
@@ -531,13 +531,13 @@ export class KioskTransaction {
 	}
 
 	// Some setters in case we want custom behavior.
-	setKioskCap(cap: TransactionObjectArgument) {
+	setKioskCap(cap: TransactionObjectArgument): this {
 		this.#validateFinalizedStatus();
 		this.kioskCap = cap;
 		return this;
 	}
 
-	setKiosk(kiosk: TransactionObjectArgument) {
+	setKiosk(kiosk: TransactionObjectArgument): this {
 		this.#validateFinalizedStatus();
 		this.kiosk = kiosk;
 		return this;
@@ -547,7 +547,7 @@ export class KioskTransaction {
 	/*
 	 * Returns the active transaction's kiosk, or undefined if `setCap` or `create()` hasn't been called yet.
 	 */
-	getKiosk() {
+	getKiosk(): TransactionObjectArgument {
 		this.#validateFinalizedStatus();
 		if (!this.kiosk) throw new Error('Kiosk is not set.');
 		return this.kiosk;
@@ -556,7 +556,7 @@ export class KioskTransaction {
 	/*
 	 * Returns the active transaction's kioskOwnerCap, or undefined if `setCap` or `create()` hasn't been called yet.
 	 */
-	getKioskCap() {
+	getKioskCap(): TransactionObjectArgument {
 		this.#validateFinalizedStatus();
 		if (!this.kioskCap) throw new Error('Kiosk cap is not set');
 		return this.kioskCap;

@@ -174,7 +174,7 @@ export class PasskeyKeypair extends Signer {
 	 * Return the signature for the provided data (i.e. blake2b(intent_message)).
 	 * This is sent to passkey as the challenge field.
 	 */
-	async sign(data: Uint8Array) {
+	async sign(data: Uint8Array): Promise<Uint8Array<ArrayBuffer>> {
 		// asks the passkey to sign over challenge as the data.
 		const credential = await this.provider.get(data, this.credentialId);
 

@@ -31,7 +31,7 @@ DER structure for P-256 SPKI:
 	===== above bytes are considered header =====
     04 || x || y -- uncompressed point (65 bytes: 0x04 || 32-byte x || 32-byte y)
 */
-export const SECP256R1_SPKI_HEADER = new Uint8Array([
+export const SECP256R1_SPKI_HEADER: Uint8Array = new Uint8Array([
 	0x30,
 	0x59, // SEQUENCE, length 89
 	0x30,
@@ -64,7 +64,7 @@ export const SECP256R1_SPKI_HEADER = new Uint8Array([
  * A passkey public key
  */
 export class PasskeyPublicKey extends PublicKey {
-	static SIZE = PASSKEY_PUBLIC_KEY_SIZE;
+	static SIZE: number = PASSKEY_PUBLIC_KEY_SIZE;
 	private data: Uint8Array<ArrayBuffer>;
 
 	/**
@@ -172,7 +172,15 @@ export function parseDerSPKI(derBytes: Uint8Array): Uint8Array {
 /**
  * Parse signature from bytes or base64 string into the following fields.
  */
-export function parseSerializedPasskeySignature(signature: Uint8Array | string) {
+export function parseSerializedPasskeySignature(signature: Uint8Array | string): {
+	signatureScheme: 'Passkey';
+	serializedSignature: string;
+	signature: Uint8Array;
+	authenticatorData: Uint8Array;
+	clientDataJson: string;
+	userSignature: Uint8Array;
+	publicKey: Uint8Array;
+} {
 	const bytes = typeof signature === 'string' ? fromBase64(signature) : signature;
 
 	if (bytes[0] !== SIGNATURE_SCHEME_TO_FLAG.Passkey) {

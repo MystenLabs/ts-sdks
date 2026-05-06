@@ -83,7 +83,8 @@ class VerifySignatureRequest$Type extends MessageType<VerifySignatureRequest> {
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.VerifySignatureRequest
  */
-export const VerifySignatureRequest: VerifySignatureRequest$Type = new VerifySignatureRequest$Type();
+export const VerifySignatureRequest: VerifySignatureRequest$Type =
+	new VerifySignatureRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class VerifySignatureResponse$Type extends MessageType<VerifySignatureResponse> {
 	constructor() {
@@ -96,7 +97,8 @@ class VerifySignatureResponse$Type extends MessageType<VerifySignatureResponse> 
 /**
  * @generated MessageType for protobuf message sui.rpc.v2.VerifySignatureResponse
  */
-export const VerifySignatureResponse: VerifySignatureResponse$Type = new VerifySignatureResponse$Type();
+export const VerifySignatureResponse: VerifySignatureResponse$Type =
+	new VerifySignatureResponse$Type();
 /**
  * @generated ServiceType for protobuf service sui.rpc.v2.SignatureVerificationService
  */

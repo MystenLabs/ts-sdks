@@ -15,7 +15,7 @@ import * as floorPriceRule from '../../contracts/kiosk/floor_price_rule.js';
 /**
  * A helper to resolve the royalty rule.
  */
-export async function resolveRoyaltyRule(params: RuleResolvingParams) {
+export async function resolveRoyaltyRule(params: RuleResolvingParams): Promise<void> {
 	const {
 		transaction: tx,
 		itemType,
@@ -97,7 +97,7 @@ export async function resolveRoyaltyRule(params: RuleResolvingParams) {
 	);
 }
 
-export function resolveKioskLockRule(params: RuleResolvingParams) {
+export function resolveKioskLockRule(params: RuleResolvingParams): void {
 	const {
 		transaction: tx,
 		packageId,
@@ -135,7 +135,7 @@ export function resolveKioskLockRule(params: RuleResolvingParams) {
  * A helper to resolve the personalKioskRule.
  * @param params
  */
-export function resolvePersonalKioskRule(params: RuleResolvingParams) {
+export function resolvePersonalKioskRule(params: RuleResolvingParams): void {
 	const { transaction: tx, packageId, itemType, kiosk, transferRequest } = params;
 
 	if (!kiosk) throw new Error('Missing owned Kiosk.');
@@ -158,7 +158,7 @@ export function resolvePersonalKioskRule(params: RuleResolvingParams) {
  * The floor price rule verifies that the paid amount meets the minimum price.
  * @param params
  */
-export function resolveFloorPriceRule(params: RuleResolvingParams) {
+export function resolveFloorPriceRule(params: RuleResolvingParams): void {
 	const { transaction: tx, packageId, itemType, policyId, transferRequest } = params;
 
 	// proves that the paid amount meets the floor price requirement

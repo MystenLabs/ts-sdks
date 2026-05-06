@@ -1,6 +1,12 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+// TODO(iso-decls): The exports below trip TS9010 because `@mysten/bcs`'s `struct`
+// and `enum` factories don't expose explicit return types in source form. Adding
+// hand-rolled `as BcsType<O, I>` casts here cascades into Owner/TransactionKind/
+// TransactionExpiration consumer breakage. The clean fix is to annotate the
+// factory return types in `@mysten/bcs/src/bcs.ts`.
+
 import type { BcsType, BcsTypeOptions } from '@mysten/bcs';
 import { bcs, fromBase58, fromBase64, fromHex, toBase58, toBase64, toHex } from '@mysten/bcs';
 

@@ -52,7 +52,7 @@ export async function coreClientResolveTransactionPlugin(
 	transactionData: TransactionDataBuilder,
 	options: BuildTransactionOptions,
 	next: () => Promise<void>,
-) {
+): Promise<void> {
 	const client = getClient(options);
 
 	const needsGasPrice = !options.onlyTransactionKind && !transactionData.gasData.price;

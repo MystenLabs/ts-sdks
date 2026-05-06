@@ -46,7 +46,17 @@ export function toSerializedSignature({
 /**
  * Decodes a serialized signature into its constituent components: the signature scheme, the actual signature, and the public key
  */
-export function parseSerializedSignature(serializedSignature: string) {
+export function parseSerializedSignature(serializedSignature: string):
+	| ReturnType<typeof parseSerializedPasskeySignature>
+	| ReturnType<typeof parseSerializedKeypairSignature>
+	| ReturnType<typeof parseSerializedZkLoginSignature>
+	| {
+			serializedSignature: string;
+			signatureScheme: 'MultiSig';
+			multisig: MultiSigStruct;
+			bytes: Uint8Array;
+			signature: undefined;
+	  } {
 	const bytes = fromBase64(serializedSignature);
 
 	const signatureScheme =

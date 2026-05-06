@@ -1,8 +1,41 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { InferBcsInput } from '@mysten/bcs';
+import type { BcsType } from '@mysten/bcs';
 import { bcs } from '@mysten/bcs';
+
+type Vec<T> = Iterable<T> & { length: number };
+
+export type ZkLoginSignatureInputs = {
+	proofPoints: {
+		a: Vec<string>;
+		b: Vec<Vec<string>>;
+		c: Vec<string>;
+	};
+	issBase64Details: {
+		value: string;
+		indexMod4: number;
+	};
+	headerBase64: string;
+	addressSeed: string;
+};
+
+export type ZkLoginSignature = {
+	inputs: ZkLoginSignatureInputs;
+	maxEpoch: number | bigint | string;
+	userSignature: Iterable<number>;
+};
+
+type ZkLoginSignatureOutput = {
+	inputs: {
+		proofPoints: { a: string[]; b: string[][]; c: string[] };
+		issBase64Details: { value: string; indexMod4: number };
+		headerBase64: string;
+		addressSeed: string;
+	};
+	maxEpoch: string;
+	userSignature: Uint8Array;
+};
 
 export const zkLoginSignature = bcs.struct('ZkLoginSignature', {
 	inputs: bcs.struct('ZkLoginSignatureInputs', {
@@ -20,7 +53,4 @@ export const zkLoginSignature = bcs.struct('ZkLoginSignature', {
 	}),
 	maxEpoch: bcs.u64(),
 	userSignature: bcs.byteVector(),
-});
-
-export type ZkLoginSignature = InferBcsInput<typeof zkLoginSignature>;
-export type ZkLoginSignatureInputs = ZkLoginSignature['inputs'];
+}) as BcsType<ZkLoginSignatureOutput, ZkLoginSignature>;

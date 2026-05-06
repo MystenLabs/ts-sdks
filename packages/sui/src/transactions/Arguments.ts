@@ -7,7 +7,19 @@ import { createObjectMethods } from './object.js';
 import { createPure } from './pure.js';
 import type { Transaction, TransactionObjectArgument } from './Transaction.js';
 
-export const Arguments = {
+export const Arguments: {
+	pure: ReturnType<typeof createPure<(tx: Transaction) => Argument>>;
+	object: ReturnType<typeof createObjectMethods<TransactionObjectArgument>>;
+	sharedObjectRef: (
+		...args: Parameters<(typeof Inputs)['SharedObjectRef']>
+	) => (tx: Transaction) => TransactionObjectArgument;
+	objectRef: (
+		...args: Parameters<(typeof Inputs)['ObjectRef']>
+	) => (tx: Transaction) => TransactionObjectArgument;
+	receivingRef: (
+		...args: Parameters<(typeof Inputs)['ReceivingRef']>
+	) => (tx: Transaction) => TransactionObjectArgument;
+} = {
 	pure: createPure<(tx: Transaction) => Argument>((value) => (tx) => tx.pure(value)) as ReturnType<
 		typeof createPure<(tx: Transaction) => Argument>
 	>,

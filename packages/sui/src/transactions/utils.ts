@@ -44,7 +44,7 @@ export function extractStructTag(
 	return undefined;
 }
 
-export function getIdFromCallArg(arg: string | CallArg) {
+export function getIdFromCallArg(arg: string | CallArg): string | undefined {
 	if (typeof arg === 'string') {
 		return normalizeSuiAddress(arg);
 	}
@@ -76,7 +76,7 @@ export function remapCommandArguments(
 	command: Command,
 	inputMapping: Map<number, number>,
 	commandMapping: Map<number, number>,
-) {
+): void {
 	const remapArg = (arg: Argument): Argument => {
 		switch (arg.$kind) {
 			case 'Input': {

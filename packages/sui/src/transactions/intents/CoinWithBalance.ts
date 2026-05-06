@@ -97,7 +97,7 @@ export async function resolveCoinBalance(
 	transactionData: TransactionDataBuilder,
 	buildOptions: BuildTransactionOptions,
 	next: () => Promise<void>,
-) {
+): Promise<void> {
 	type IntentInfo = { balance: bigint; outputKind: 'coin' | 'balance' };
 
 	const coinTypes = new Set<string>();

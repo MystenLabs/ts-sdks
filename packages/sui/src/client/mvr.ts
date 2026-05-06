@@ -329,7 +329,10 @@ function validateOverrides(overrides?: {
 /**
  * Extracts all named types from a given type.
  */
-export function extractMvrTypes(type: string | StructTag, types = new Set<string>()) {
+export function extractMvrTypes(
+	type: string | StructTag,
+	types: Set<string> = new Set<string>(),
+): Set<string> {
 	if (typeof type === 'string' && !hasMvrName(type)) return types;
 
 	if (typeof type === 'string' && type.startsWith('vector<') && type.endsWith('>')) {
@@ -372,7 +375,7 @@ function replaceMvrNames(tag: string | StructTag, typeCache: Record<string, stri
 	});
 }
 
-export function hasMvrName(nameOrType: string) {
+export function hasMvrName(nameOrType: string): boolean {
 	return (
 		nameOrType.includes(NAME_SEPARATOR) || nameOrType.includes('@') || nameOrType.includes('.sui')
 	);
@@ -445,7 +448,7 @@ export function findNamesInTransaction(builder: TransactionDataBuilder): {
 export function replaceNames(
 	builder: TransactionDataBuilder,
 	resolved: SuiClientTypes.MvrResolveResponse,
-) {
+): void {
 	for (const command of builder.commands) {
 		// Replacements for `MakeMoveVec` commands (that can include types)
 		if (command.MakeMoveVec?.type) {

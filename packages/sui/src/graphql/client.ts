@@ -62,7 +62,7 @@ export interface SuiGraphQLClientOptions<Queries extends Record<string, GraphQLD
 
 export class SuiGraphQLRequestError extends Error {}
 
-const SUI_CLIENT_BRAND = Symbol.for('@mysten/SuiGraphQLClient') as never;
+const SUI_CLIENT_BRAND: symbol = Symbol.for('@mysten/SuiGraphQLClient');
 
 export function isSuiGraphQLClient(client: unknown): client is SuiGraphQLClient {
 	return (
@@ -98,10 +98,6 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 		return this.core.mvr;
 	}
 
-	get [SUI_CLIENT_BRAND]() {
-		return true;
-	}
-
 	constructor({
 		url,
 		fetch: fetchFn = fetch,
@@ -121,6 +117,7 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 			graphqlClient: this,
 			mvr,
 		});
+		(this as never as { [key: symbol]: boolean })[SUI_CLIENT_BRAND] = true;
 	}
 
 	async query<Result = Record<string, unknown>, Variables = Record<string, unknown>>(

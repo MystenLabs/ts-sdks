@@ -134,7 +134,7 @@ export class DeepBookConfig {
 		this.balanceManager = new BalanceManagerContract(this);
 	}
 
-	requirePyth() {
+	requirePyth(): void {
 		if (!this.pyth.pythStateId || !this.pyth.wormholeStateId) {
 			throw new ConfigurationError(
 				"Pyth configuration is required for price feed operations. Provide 'pyth' when using custom packageIds.",

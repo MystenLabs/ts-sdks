@@ -5,6 +5,7 @@ import type {
 	Transaction,
 	TransactionArgument,
 	TransactionObjectArgument,
+	TransactionResult,
 } from '@mysten/sui/transactions';
 
 import type { DeepBookConfig } from '../utils/config.js';
@@ -43,19 +44,21 @@ export class MarginMaintainerContract {
 	 * @param {TransactionArgument} poolConfig The configuration for the pool
 	 * @returns A function that takes a Transaction object
 	 */
-	createMarginPool = (coinKey: string, poolConfig: TransactionArgument) => (tx: Transaction) => {
-		const coin = this.#config.getCoin(coinKey);
-		tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::create_margin_pool`,
-			arguments: [
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				poolConfig,
-				tx.object(this.#marginMaintainerCap()),
-				tx.object.clock(),
-			],
-			typeArguments: [coin.type],
-		});
-	};
+	createMarginPool =
+		(coinKey: string, poolConfig: TransactionArgument) =>
+		(tx: Transaction): void => {
+			const coin = this.#config.getCoin(coinKey);
+			tx.moveCall({
+				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::create_margin_pool`,
+				arguments: [
+					tx.object(this.#config.MARGIN_REGISTRY_ID),
+					poolConfig,
+					tx.object(this.#marginMaintainerCap()),
+					tx.object.clock(),
+				],
+				typeArguments: [coin.type],
+			});
+		};
 
 	/**
 	 * @description Create a new protocol config
@@ -70,7 +73,7 @@ export class MarginMaintainerContract {
 			marginPoolConfig: MarginPoolConfigParams,
 			interestConfig: InterestConfigParams,
 		) =>
-		(tx: Transaction) => {
+		(tx: Transaction): TransactionResult => {
 			const hasRateLimit =
 				marginPoolConfig.rateLimitCapacity !== undefined &&
 				marginPoolConfig.rateLimitRefillRatePerMs !== undefined &&
@@ -97,7 +100,8 @@ export class MarginMaintainerContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	newMarginPoolConfig =
-		(coinKey: string, marginPoolConfig: MarginPoolConfigParams) => (tx: Transaction) => {
+		(coinKey: string, marginPoolConfig: MarginPoolConfigParams) =>
+		(tx: Transaction): TransactionResult => {
 			const coin = this.#config.getCoin(coinKey);
 			const { supplyCap, maxUtilizationRate, referralSpread, minBorrow } = marginPoolConfig;
 			return tx.moveCall({
@@ -128,7 +132,7 @@ export class MarginMaintainerContract {
 			> &
 				MarginPoolConfigParams,
 		) =>
-		(tx: Transaction) => {
+		(tx: Transaction): TransactionResult => {
 			const coin = this.#config.getCoin(coinKey);
 			const {
 				supplyCap,
@@ -158,18 +162,20 @@ export class MarginMaintainerContract {
 	 * @param {InterestConfigParams} interestConfig The configuration for the interest
 	 * @returns A function that takes a Transaction object
 	 */
-	newInterestConfig = (interestConfig: InterestConfigParams) => (tx: Transaction) => {
-		const { baseRate, baseSlope, optimalUtilization, excessSlope } = interestConfig;
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::protocol_config::new_interest_config`,
-			arguments: [
-				tx.pure.u64(convertRate(baseRate, FLOAT_SCALAR)),
-				tx.pure.u64(convertRate(baseSlope, FLOAT_SCALAR)),
-				tx.pure.u64(convertRate(optimalUtilization, FLOAT_SCALAR)),
-				tx.pure.u64(convertRate(excessSlope, FLOAT_SCALAR)),
-			],
-		});
-	};
+	newInterestConfig =
+		(interestConfig: InterestConfigParams) =>
+		(tx: Transaction): TransactionResult => {
+			const { baseRate, baseSlope, optimalUtilization, excessSlope } = interestConfig;
+			return tx.moveCall({
+				target: `${this.#config.MARGIN_PACKAGE_ID}::protocol_config::new_interest_config`,
+				arguments: [
+					tx.pure.u64(convertRate(baseRate, FLOAT_SCALAR)),
+					tx.pure.u64(convertRate(baseSlope, FLOAT_SCALAR)),
+					tx.pure.u64(convertRate(optimalUtilization, FLOAT_SCALAR)),
+					tx.pure.u64(convertRate(excessSlope, FLOAT_SCALAR)),
+				],
+			});
+		};
 
 	/**
 	 * @description Enable a deepbook pool for loan
@@ -180,7 +186,7 @@ export class MarginMaintainerContract {
 	 */
 	enableDeepbookPoolForLoan =
 		(deepbookPoolKey: string, coinKey: string, marginPoolCap: TransactionObjectArgument) =>
-		(tx: Transaction) => {
+		(tx: Transaction): void => {
 			const deepbookPool = this.#config.getPool(deepbookPoolKey);
 			const marginPool = this.#config.getMarginPool(coinKey);
 			tx.moveCall({
@@ -205,7 +211,7 @@ export class MarginMaintainerContract {
 	 */
 	disableDeepbookPoolForLoan =
 		(deepbookPoolKey: string, coinKey: string, marginPoolCap: TransactionObjectArgument) =>
-		(tx: Transaction) => {
+		(tx: Transaction): void => {
 			const deepbookPool = this.#config.getPool(deepbookPoolKey);
 			const marginPool = this.#config.getMarginPool(coinKey);
 			tx.moveCall({
@@ -234,7 +240,7 @@ export class MarginMaintainerContract {
 			marginPoolCap: TransactionObjectArgument,
 			interestConfig: InterestConfigParams,
 		) =>
-		(tx: Transaction) => {
+		(tx: Transaction): void => {
 			const marginPool = this.#config.getMarginPool(coinKey);
 			const interestConfigObject = this.newInterestConfig(interestConfig)(tx);
 			tx.moveCall({
@@ -263,7 +269,7 @@ export class MarginMaintainerContract {
 			marginPoolCap: TransactionObjectArgument,
 			marginPoolConfig: MarginPoolConfigParams,
 		) =>
-		(tx: Transaction) => {
+		(tx: Transaction): void => {
 			const marginPool = this.#config.getMarginPool(coinKey);
 			const hasRateLimit =
 				marginPoolConfig.rateLimitCapacity !== undefined &&

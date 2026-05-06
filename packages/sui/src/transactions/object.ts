@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { Transaction, TransactionObjectInput } from './Transaction.js';
+import type { Transaction, TransactionObjectInput, TransactionResult } from './Transaction.js';
 import { Inputs } from './Inputs.js';
 import {
 	MOVE_STDLIB_ADDRESS,
@@ -11,8 +11,18 @@ import {
 	SUI_SYSTEM_STATE_OBJECT_ID,
 } from '../utils/index.js';
 
-export function createObjectMethods<T>(makeObject: (value: TransactionObjectInput) => T) {
-	function object(value: TransactionObjectInput) {
+export function createObjectMethods<T>(makeObject: (value: TransactionObjectInput) => T): {
+	(value: TransactionObjectInput): T;
+	system: (options?: { mutable?: boolean }) => T;
+	clock: () => T;
+	random: () => T;
+	denyList: (options?: { mutable?: boolean }) => T;
+	option: (options: {
+		type: string;
+		value: TransactionObjectInput | null;
+	}) => (tx: Transaction) => TransactionResult;
+} {
+	function object(value: TransactionObjectInput): T {
 		return makeObject(value);
 	}
 
