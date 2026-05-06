@@ -35,10 +35,7 @@ export interface WasmBindings {
 		slivers: Uint8Array[],
 		encodingType?: EncodingType,
 	) => Uint8Array;
-	getVerifySignature: () => (
-		confirmation: StorageConfirmation,
-		publicKey: Uint8Array,
-	) => boolean;
+	getVerifySignature: () => (confirmation: StorageConfirmation, publicKey: Uint8Array) => boolean;
 	computeMetadata: (
 		nShards: number,
 		bytes: Uint8Array,

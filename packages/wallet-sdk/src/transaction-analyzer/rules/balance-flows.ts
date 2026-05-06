@@ -101,11 +101,11 @@ export const balanceFlows: Analyzer<
 > = createAnalyzer({
 	dependencies: { data, commands, inputs, coins, gasCoins },
 	analyze:
-		({
-			balanceFlows: opts = {},
-		}: { balanceFlows?: BalanceFlowsAnalyzerOptions } = {} as {
-			balanceFlows?: BalanceFlowsAnalyzerOptions;
-		}) =>
+		(
+			{ balanceFlows: opts = {} }: { balanceFlows?: BalanceFlowsAnalyzerOptions } = {} as {
+				balanceFlows?: BalanceFlowsAnalyzerOptions;
+			},
+		) =>
 		async ({ data, commands, inputs, coins, gasCoins }) => {
 			const { excludeGasBudget = false, moveCallHandlers = [] } = opts;
 			const issues: TransactionAnalysisIssue[] = [];

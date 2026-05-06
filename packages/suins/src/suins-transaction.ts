@@ -559,13 +559,7 @@ export class SuinsTransaction {
 	/**
 	 * Burns an expired NFT to collect storage rebates.
 	 */
-	burnExpired({
-		nft,
-		isSubname,
-	}: {
-		nft: TransactionObjectInput;
-		isSubname?: boolean;
-	}): void {
+	burnExpired({ nft, isSubname }: { nft: TransactionObjectInput; isSubname?: boolean }): void {
 		if (!this.suinsClient.config.suins) throw new Error('SuiNS Object ID not found');
 
 		if (isSubname) {

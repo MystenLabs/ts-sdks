@@ -31,7 +31,10 @@ export interface CoinValueAnalysis {
 
 export const coinValues: Analyzer<
 	CoinValueAnalysis,
-	{ client: ClientWithCoreApi; balanceFlows?: BalanceFlowsAnalyzerOptions } & CoinValueAnalyzerOptions,
+	{
+		client: ClientWithCoreApi;
+		balanceFlows?: BalanceFlowsAnalyzerOptions;
+	} & CoinValueAnalyzerOptions,
 	{ balanceFlows: BalanceFlowsResult }
 > = createAnalyzer({
 	dependencies: { balanceFlows },

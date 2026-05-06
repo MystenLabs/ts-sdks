@@ -24,10 +24,7 @@ export function validateYears(years: number): void {
 	if (!(years > 0 && years < 6)) throw new Error('Years must be between 1 and 5');
 }
 
-export function zeroCoin(
-	tx: Transaction,
-	type: string,
-): ReturnType<Transaction['moveCall']> {
+export function zeroCoin(tx: Transaction, type: string): ReturnType<Transaction['moveCall']> {
 	return tx.moveCall({
 		target: '0x2::coin::zero',
 		typeArguments: [type],

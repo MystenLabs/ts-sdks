@@ -161,8 +161,8 @@ type ExecutionFailureStatusType = BcsEnum<
 		PublishErrorNonZeroAddress: null;
 		SuiMoveVerificationError: null;
 		MovePrimitiveRuntimeError: BcsType<
-			(typeof MoveLocation.$inferType) | null,
-			(typeof MoveLocation.$inferInput) | null | undefined,
+			typeof MoveLocation.$inferType | null,
+			typeof MoveLocation.$inferInput | null | undefined,
 			'Option<MoveLocation>'
 		>;
 		MoveAbort: BcsType<
@@ -333,11 +333,7 @@ export const ExecutionStatus = bcs.enum('ExecutionStatus', {
 		Failure: BcsStruct<
 			{
 				error: typeof ExecutionFailureStatus;
-				command: BcsType<
-					string | null,
-					string | number | bigint | null | undefined,
-					`Option<u64>`
-				>;
+				command: BcsType<string | null, string | number | bigint | null | undefined, `Option<u64>`>;
 			},
 			'Failure'
 		>;
@@ -363,7 +359,7 @@ type GasCostSummaryType = BcsStruct<
 	'GasCostSummary'
 >;
 type VectorOf<T extends BcsType<any>> = BcsType<
-	(T['$inferType'])[],
+	T['$inferType'][],
 	Iterable<T['$inferInput']> & { length: number },
 	`vector<${T['name']}>`
 >;
@@ -519,11 +515,7 @@ type AccumulatorValueType = BcsEnum<
 			`(u64, u64)`
 		>;
 		EventDigest: VectorOf<
-			BcsType<
-				[string, string],
-				readonly [string | number | bigint, string],
-				`(u64, ObjectDigest)`
-			>
+			BcsType<[string, string], readonly [string | number | bigint, string], `(u64, ObjectDigest)`>
 		>;
 	},
 	'AccumulatorValue'
@@ -549,10 +541,7 @@ type ObjectOutType = BcsEnum<
 	},
 	'ObjectOut'
 >;
-type IDOperationType = BcsEnum<
-	{ None: null; Created: null; Deleted: null },
-	'IDOperation'
->;
+type IDOperationType = BcsEnum<{ None: null; Created: null; Deleted: null }, 'IDOperation'>;
 type EffectsObjectChangeType = BcsStruct<
 	{
 		inputState: ObjectInType;

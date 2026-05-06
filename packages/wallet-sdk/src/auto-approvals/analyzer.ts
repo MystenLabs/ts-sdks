@@ -47,7 +47,10 @@ export interface AutoApprovalAnalysis {
 
 export const autoApprovalAnalyzer: Analyzer<
 	AutoApprovalAnalysis,
-	{ client: ClientWithCoreApi; balanceFlows?: BalanceFlowsAnalyzerOptions } & CoinValueAnalyzerOptions,
+	{
+		client: ClientWithCoreApi;
+		balanceFlows?: BalanceFlowsAnalyzerOptions;
+	} & CoinValueAnalyzerOptions,
 	{
 		operationType: string | null;
 		bytes: Uint8Array;

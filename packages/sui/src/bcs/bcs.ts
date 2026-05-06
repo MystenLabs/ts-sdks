@@ -57,7 +57,11 @@ export const SuiObjectRef = bcs.struct('SuiObjectRef', {
 	version: bcs.u64(),
 	digest: ObjectDigest,
 }) as BcsStruct<
-	{ objectId: typeof Address; version: BcsType<string, string | number | bigint, 'u64'>; digest: typeof ObjectDigest },
+	{
+		objectId: typeof Address;
+		version: BcsType<string, string | number | bigint, 'u64'>;
+		digest: typeof ObjectDigest;
+	},
 	'SuiObjectRef'
 >;
 
@@ -122,10 +126,7 @@ export const Owner = bcs.enum('Owner', {
 // Rust: crates/sui-types/src/transaction.rs
 export const Reservation = bcs.enum('Reservation', {
 	MaxAmountU64: bcs.u64(),
-}) as BcsEnum<
-	{ MaxAmountU64: BcsType<string, string | number | bigint, 'u64'> },
-	'Reservation'
->;
+}) as BcsEnum<{ MaxAmountU64: BcsType<string, string | number | bigint, 'u64'> }, 'Reservation'>;
 
 // Rust: crates/sui-types/src/transaction.rs
 export const WithdrawalType = bcs.enum('WithdrawalType', {
@@ -163,10 +164,7 @@ export const CallArg = bcs.enum('CallArg', {
 	FundsWithdrawal: FundsWithdrawal,
 }) as BcsEnum<
 	{
-		Pure: BcsStruct<
-			{ bytes: BcsType<string, string | Uint8Array, 'vector<u8>'> },
-			'Pure'
-		>;
+		Pure: BcsStruct<{ bytes: BcsType<string, string | Uint8Array, 'vector<u8>'> }, 'Pure'>;
 		Object: typeof ObjectArg;
 		FundsWithdrawal: typeof FundsWithdrawal;
 	},

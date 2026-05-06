@@ -90,7 +90,11 @@ export class ZkBag<IDs> {
 			});
 	}
 
-	init_claim({ arguments: [store] }: { arguments: [store: TransactionObjectArgument | string] }): (
+	init_claim({
+		arguments: [store],
+	}: {
+		arguments: [store: TransactionObjectArgument | string];
+	}): (
 		tx: Transaction,
 	) => readonly [
 		Extract<Argument, { $kind: 'NestedResult' }>,

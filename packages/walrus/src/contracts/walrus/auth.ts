@@ -1,11 +1,7 @@
 /**************************************************************
  * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
  **************************************************************/
-import {
-	MoveEnum,
-	normalizeMoveArguments,
-	type RawTransactionArgument,
-} from '../utils/index.js';
+import { MoveEnum, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs, type BcsType } from '@mysten/sui/bcs';
 import { type Transaction, type TransactionResult } from '@mysten/sui/transactions';
 const $moduleName = '@local-pkg/walrus::auth';

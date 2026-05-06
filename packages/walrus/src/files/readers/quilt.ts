@@ -74,11 +74,7 @@ export class QuiltReader {
 		return bytes;
 	}
 
-	async #readBytesFromBlob(
-		startColumn: number,
-		length: number,
-		offset = 0,
-	): Promise<Uint8Array> {
+	async #readBytesFromBlob(startColumn: number, length: number, offset = 0): Promise<Uint8Array> {
 		const result = new Uint8Array(length);
 
 		if (!length) {

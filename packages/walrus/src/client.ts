@@ -137,7 +137,10 @@ export function walrus<const Name = 'walrus'>({
 	packageConfig,
 	name = 'walrus' as Name,
 	...options
-}: WalrusOptions<Name> = {}): { name: Name; register: (client: ClientWithCoreApi) => WalrusClient } {
+}: WalrusOptions<Name> = {}): {
+	name: Name;
+	register: (client: ClientWithCoreApi) => WalrusClient;
+} {
 	return {
 		name: name,
 		register: (client: ClientWithCoreApi) => {
@@ -373,10 +376,7 @@ export class WalrusClient {
 		};
 	}
 
-	async getBlobMetadata({
-		blobId,
-		signal,
-	}: GetBlobMetadataOptions): Promise<BlobMetadataWithId> {
+	async getBlobMetadata({ blobId, signal }: GetBlobMetadataOptions): Promise<BlobMetadataWithId> {
 		const committee = await this.#getReadCommittee({ blobId, signal });
 		const randomizedNodes = shuffle(committee.nodes);
 
@@ -1325,9 +1325,7 @@ export class WalrusClient {
 	 * tx.transferObjects([storage], owner);
 	 * ```
 	 */
-	deleteBlob({
-		blobObjectId,
-	}: DeleteBlobOptions): (tx: Transaction) => Promise<TransactionResult> {
+	deleteBlob({ blobObjectId }: DeleteBlobOptions): (tx: Transaction) => Promise<TransactionResult> {
 		return async (tx: Transaction) => {
 			const walrusPackageId = await this.#getWalrusPackageId();
 			const storage = tx.add(
@@ -1651,9 +1649,7 @@ export class WalrusClient {
 		sliverType,
 		sliver,
 		signal,
-	}: WriteSliverOptions): Promise<
-		Awaited<ReturnType<StorageNodeClient['storeSliver']>>
-	> {
+	}: WriteSliverOptions): Promise<Awaited<ReturnType<StorageNodeClient['storeSliver']>>> {
 		const systemState = await this.systemState();
 		const committee = await this.#getActiveCommittee();
 
@@ -1850,11 +1846,7 @@ export class WalrusClient {
 	 * await client.writeSliversToNode({ blobId, slivers, signal });
 	 * ```
 	 */
-	async writeSliversToNode({
-		blobId,
-		slivers,
-		signal,
-	}: WriteSliversToNodeOptions): Promise<void> {
+	async writeSliversToNode({ blobId, slivers, signal }: WriteSliversToNodeOptions): Promise<void> {
 		const controller = new AbortController();
 		const combinedSignal = signal
 			? AbortSignal.any([controller.signal, signal])

@@ -1,7 +1,7 @@
 /**************************************************************
  * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
  **************************************************************/
-import {  MoveStruct, MoveEnum  } from '../utils/index.js';
+import { MoveStruct, MoveEnum } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 const $moduleName = '@local-pkg/walrus::messages';
 export const ProofOfPossessionMessage: MoveStruct<{

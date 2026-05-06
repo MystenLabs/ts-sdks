@@ -112,9 +112,7 @@ export function encodeQuiltPatchId(id: typeof QuiltPatchId.$inferInput): string 
 
 export function parseWalrusId(
 	id: string,
-):
-	| { kind: 'blob'; id: string }
-	| { kind: 'quiltPatch'; id: typeof QuiltPatchId.$inferType } {
+): { kind: 'blob'; id: string } | { kind: 'quiltPatch'; id: typeof QuiltPatchId.$inferType } {
 	const bytes = fromUrlSafeBase64(id);
 
 	if (bytes.length === 32) {

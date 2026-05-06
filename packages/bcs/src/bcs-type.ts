@@ -194,7 +194,11 @@ export function bigUIntBcsType<const Name extends string = string>({
 	readMethod: `read${64 | 128 | 256}`;
 	writeMethod: `write${64 | 128 | 256}`;
 	maxValue: bigint;
-} & BcsTypeOptions<string, string | number | bigint>): BcsType<string, string | number | bigint, Name> {
+} & BcsTypeOptions<string, string | number | bigint>): BcsType<
+	string,
+	string | number | bigint,
+	Name
+> {
 	return fixedSizeBcsType<string, string | number | bigint, Name>({
 		...options,
 		read: (reader) => reader[readMethod](),

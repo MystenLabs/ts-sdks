@@ -154,9 +154,7 @@ export function getShardIndicesByNodeId(
 	return shardIndicesByNodeId;
 }
 
-export function nodesByShardIndex(
-	committee: InferBcsType<typeof Committee>,
-): Map<number, string> {
+export function nodesByShardIndex(committee: InferBcsType<typeof Committee>): Map<number, string> {
 	const nodesByShardIndex = new Map<number, string>();
 
 	for (const node of committee[0].contents) {

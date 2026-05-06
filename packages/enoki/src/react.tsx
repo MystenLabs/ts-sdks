@@ -16,10 +16,7 @@ export type EnokiFlowProviderProps = EnokiFlowConfig & {
 };
 
 /** @deprecated use `registerEnokiWallets` instead */
-export function EnokiFlowProvider({
-	children,
-	...config
-}: EnokiFlowProviderProps): ReactElement {
+export function EnokiFlowProvider({ children, ...config }: EnokiFlowProviderProps): ReactElement {
 	const [enokiFlow] = useState(() => new EnokiFlow(config));
 	return <EnokiFlowContext.Provider value={enokiFlow}>{children}</EnokiFlowContext.Provider>;
 }
