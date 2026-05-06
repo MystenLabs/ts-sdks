@@ -7,7 +7,11 @@ import { type Transaction, type TransactionResult } from '@mysten/sui/transactio
 const $moduleName = '0x2::dynamic_field';
 export function Field<T0 extends BcsType<any>, T1 extends BcsType<any>>(
 	...typeParameters: [T0, T1]
-) {
+): MoveStruct<{
+	id: typeof bcs.Address;
+	name: T0;
+	value: T1;
+}> {
 	return new MoveStruct({
 		name: `${$moduleName}::Field<${typeParameters[0].name as T0['name']}, ${typeParameters[1].name as T1['name']}>`,
 		fields: {

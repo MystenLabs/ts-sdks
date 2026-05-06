@@ -1,9 +1,10 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { bcs } from '@mysten/sui/bcs';
+import { bcs, BcsStruct } from '@mysten/sui/bcs';
 import type { Keypair } from '@mysten/sui/cryptography';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
+import type { Argument } from '@mysten/sui/transactions';
 import { Transaction } from '@mysten/sui/transactions';
 import {
 	fromBase64,
@@ -20,7 +21,10 @@ import type { ZkBagContractOptions } from './zk-bag.js';
 import { getContractIds, ZkBag, ZkBagStruct } from './zk-bag.js';
 import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
 
-export const CoinStruct = bcs.struct('Coin', {
+export const CoinStruct: BcsStruct<{
+	id: typeof bcs.Address;
+	balance: ReturnType<typeof bcs.u64>;
+}> = bcs.struct('Coin', {
 	id: bcs.Address,
 	balance: bcs.u64(),
 });
@@ -96,7 +100,7 @@ export class ZkSendLink {
 	static async fromUrl(
 		url: string,
 		options: Omit<ZkSendLinkOptions, 'keypair' | 'address' | 'isContractLink'>,
-	) {
+	): Promise<ZkSendLink> {
 		const parsed = new URL(url);
 		if (!parsed.hash.startsWith('#$')) {
 			throw new Error('Invalid link URL');
@@ -121,7 +125,7 @@ export class ZkSendLink {
 	static async fromAddress(
 		address: string,
 		options: Omit<ZkSendLinkOptions, 'keypair' | 'address' | 'isContractLink'>,
-	) {
+	): Promise<ZkSendLink> {
 		const link = new ZkSendLink({
 			...options,
 			address,
@@ -132,7 +136,7 @@ export class ZkSendLink {
 		return link;
 	}
 
-	async loadClaimedStatus() {
+	async loadClaimedStatus(): Promise<void> {
 		await this.#loadBag({ loadAssets: false });
 	}
 
@@ -142,7 +146,7 @@ export class ZkSendLink {
 			loadAssets?: boolean;
 			loadClaimedAssets?: boolean;
 		} = {},
-	) {
+	): Promise<void> {
 		await this.#loadBag(options);
 	}
 
@@ -157,7 +161,7 @@ export class ZkSendLink {
 					reclaim: true;
 					sign: (transaction: Uint8Array) => Promise<string>;
 			  } = {},
-	) {
+	): Promise<SuiClientTypes.TransactionResult<{ effects: true }>> {
 		if (!this.keypair && !sign) {
 			throw new Error('Cannot claim assets without links keypair');
 		}
@@ -214,7 +218,7 @@ export class ZkSendLink {
 		}: {
 			reclaim?: boolean;
 		} = {},
-	) {
+	): Transaction {
 		const tx = new Transaction();
 		tx.setSender(reclaim ? address : this.keypair!.toSuiAddress());
 
@@ -237,7 +241,16 @@ export class ZkSendLink {
 		reclaim,
 	}: {
 		reclaim?: boolean;
-	} = {}) {
+	} = {}): {
+		init: (
+			tx: Transaction,
+		) => readonly [
+			Extract<Argument, { $kind: 'NestedResult' }>,
+			Extract<Argument, { $kind: 'NestedResult' }>,
+		];
+		assets: ClaimedAsset[];
+		finalize: (tx: Transaction) => void;
+	} {
 		if (!this.keypair && !reclaim) {
 			throw new Error('Cannot claim assets without the links keypair');
 		}
@@ -260,7 +273,12 @@ export class ZkSendLink {
 		let bag: ReturnType<typeof initCommand>[0] | undefined;
 		let proof: ReturnType<typeof initCommand>[1] | undefined;
 
-		const init = (tx: Transaction) => {
+		const init = (
+			tx: Transaction,
+		): readonly [
+			Extract<Argument, { $kind: 'NestedResult' }>,
+			Extract<Argument, { $kind: 'NestedResult' }>,
+		] => {
 			const result = tx.add(initCommand);
 			[bag, proof] = result;
 			return result;
@@ -288,7 +306,7 @@ export class ZkSendLink {
 				),
 		}));
 
-		const finalize = (tx: Transaction) => {
+		const finalize = (tx: Transaction): void => {
 			tx.add(this.#contract.finalize({ arguments: [bag!, proof!] }));
 		};
 
@@ -298,7 +316,7 @@ export class ZkSendLink {
 	async createRegenerateTransaction(
 		sender: string,
 		options: Omit<ZkSendLinkBuilderOptions, 'sender'>,
-	) {
+	): Promise<{ url: string; transaction: Transaction }> {
 		if (!this.assets) {
 			await this.#loadBag();
 		}

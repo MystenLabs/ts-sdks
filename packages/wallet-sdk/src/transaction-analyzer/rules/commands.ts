@@ -1,11 +1,11 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { Argument, Command } from '@mysten/sui/transactions';
-import type { SuiClientTypes } from '@mysten/sui/client';
+import type { Argument, Command, TransactionData } from '@mysten/sui/transactions';
+import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
 import { inputs } from './inputs.js';
 import type { AnalyzedCommandInput } from './inputs.js';
-import type { TransactionAnalysisIssue } from '../analyzer.js';
+import type { Analyzer, TransactionAnalysisIssue } from '../analyzer.js';
 import { createAnalyzer } from '../analyzer.js';
 import { data } from './core.js';
 import { moveFunctions } from './functions.js';
@@ -80,7 +80,15 @@ export type AnalyzedCommand =
 			command: Extract<Command, { $kind: 'Unknown' }>['Unknown'];
 	  };
 
-export const commands = createAnalyzer({
+export const commands: Analyzer<
+	AnalyzedCommand[],
+	{ client: ClientWithCoreApi },
+	{
+		data: TransactionData;
+		moveFunctions: SuiClientTypes.FunctionResponse[];
+		inputs: AnalyzedCommandInput[];
+	}
+> = createAnalyzer({
 	dependencies: {
 		data,
 		moveFunctions,

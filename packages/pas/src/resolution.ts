@@ -105,7 +105,9 @@ export function getCommandFromTemplate(
 	return parseCommand(df.value);
 }
 
-function parseCommand([key, cmd]: ReturnType<typeof Command.parse>) {
+function parseCommand([key, cmd]: ReturnType<typeof Command.parse>): ReturnType<
+	typeof MoveCall.parse
+> {
 	// Support only `Command` for now.
 	if (key !== 0) throw new PASClientError(`Unknown command type: ${key}`);
 

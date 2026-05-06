@@ -21,7 +21,13 @@ const $moduleName = '@mysten/pas::unlock_funds';
  * 2.  If the asset is not permissioned, it can be resolved by any address by
  *     calling `unlock_funds::resolve_unrestricted_balance`
  */
-export function UnlockFunds<T extends BcsType<any>>(...typeParameters: [T]) {
+export function UnlockFunds<T extends BcsType<any>>(
+	...typeParameters: [T]
+): MoveStruct<{
+	owner: typeof bcs.Address;
+	account_id: typeof bcs.Address;
+	funds: T;
+}> {
 	return new MoveStruct({
 		name: `${$moduleName}::UnlockFunds<${typeParameters[0].name as T['name']}>`,
 		fields: {

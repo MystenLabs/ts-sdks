@@ -53,7 +53,11 @@ type OptionsFromAnalyzers<T extends Record<string, Analyzer<Defined, any, any>>>
 export async function analyze<T extends Record<string, Analyzer<Defined, any, any>>>(
 	analyzers: T,
 	{ transaction, ...options }: OptionsFromAnalyzers<T>,
-) {
+): Promise<
+	{
+		[k in keyof T]: T[k] extends Analyzer<infer R, any, any> ? AnalyzerResult<R> : never;
+	} & { issues: TransactionAnalysisIssue[] }
+> {
 	const tx = Transaction.from(transaction);
 	const analyzerMap = new Map<
 		unknown,

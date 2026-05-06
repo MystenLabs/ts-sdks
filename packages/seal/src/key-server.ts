@@ -35,7 +35,7 @@ export enum KeyType {
 	BonehFranklinBLS12381 = 0,
 }
 
-export const SERVER_VERSION_REQUIREMENT = new Version('0.4.1');
+export const SERVER_VERSION_REQUIREMENT: Version = new Version('0.4.1');
 
 /**
  * Given a list of key server object IDs, returns a list of SealKeyServer
@@ -213,7 +213,7 @@ export async function verifyKeyServer(
  *
  * @param response - The response from the key server.
  */
-export function verifyKeyServerVersion(response: Response) {
+export function verifyKeyServerVersion(response: Response): void {
 	const keyServerVersion = response.headers.get('X-KeyServer-Version');
 	if (keyServerVersion == null) {
 		throw new InvalidKeyServerVersionError('Key server version not found');

@@ -50,7 +50,7 @@ export class SealAPIError extends SealError {
 		}
 	}
 
-	static async assertResponse(response: Response, requestId: string) {
+	static async assertResponse(response: Response, requestId: string): Promise<void> {
 		if (response.ok) {
 			return;
 		}

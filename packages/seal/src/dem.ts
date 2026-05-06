@@ -11,7 +11,7 @@ import { DecryptionError, InvalidCiphertextError } from './error.js';
 import { flatten, xorUnchecked } from './utils.js';
 
 // Use a fixed IV for AES. This is okay because the key is unique for each message.
-export const iv = Uint8Array.from([
+export const iv: Uint8Array<ArrayBuffer> = Uint8Array.from([
 	138, 55, 153, 253, 198, 46, 121, 219, 160, 128, 89, 7, 214, 156, 148, 220,
 ]);
 

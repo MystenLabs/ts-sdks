@@ -37,10 +37,16 @@ import type {
 } from './types.js';
 import { createFullId, count } from './utils.js';
 
-export function seal<Name = 'seal'>({ name = 'seal' as Name, ...options }: SealOptions<Name>) {
+export function seal<Name = 'seal'>({
+	name = 'seal' as Name,
+	...options
+}: SealOptions<Name>): {
+	name: Name;
+	register: (client: SealCompatibleClient) => SealClient;
+} {
 	return {
-		name,
-		register: (client: SealCompatibleClient) => {
+		name: name,
+		register: (client: SealCompatibleClient): SealClient => {
 			return new SealClient({
 				suiClient: client,
 				...options,
@@ -107,7 +113,10 @@ export class SealClient {
 		id,
 		data,
 		aad = new Uint8Array(),
-	}: EncryptOptions) {
+	}: EncryptOptions): Promise<{
+		encryptedObject: Uint8Array<ArrayBuffer>;
+		key: Uint8Array<ArrayBuffer>;
+	}> {
 		const packageObj = await this.#suiClient.core.getObject({ objectId: packageId });
 		if (String(packageObj.object.version) !== '1') {
 			throw new InvalidPackageError(`Package ${packageId} is not the first version`);
@@ -164,7 +173,7 @@ export class SealClient {
 		txBytes,
 		checkShareConsistency,
 		checkLEEncoding,
-	}: DecryptOptions) {
+	}: DecryptOptions): Promise<Uint8Array> {
 		const encryptedObject = EncryptedObject.parse(data);
 
 		this.#validateEncryptionServices(
@@ -320,7 +329,7 @@ export class SealClient {
 	 * @param sessionKey - The session key to use.
 	 * @param threshold - The threshold for the TSS encryptions. The function returns when a threshold of key servers had returned keys for all ids.
 	 */
-	async fetchKeys({ ids, txBytes, sessionKey, threshold }: FetchKeysOptions) {
+	async fetchKeys({ ids, txBytes, sessionKey, threshold }: FetchKeysOptions): Promise<void> {
 		if (threshold > this.#totalWeight || threshold < 1) {
 			throw new InvalidThresholdError(
 				`Invalid threshold ${threshold} servers with weights ${JSON.stringify(this.#configs)}`,

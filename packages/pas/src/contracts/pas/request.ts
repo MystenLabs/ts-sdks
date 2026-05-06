@@ -12,7 +12,12 @@ import * as vec_set from './deps/sui/vec_set.js';
 import * as type_name from './deps/std/type_name.js';
 const $moduleName = '@mysten/pas::request';
 /** A base request type. Examples: `Request<SendFunds<T>>` `Request<UnlockFunds<T>>` */
-export function Request<K extends BcsType<any>>(...typeParameters: [K]) {
+export function Request<K extends BcsType<any>>(
+	...typeParameters: [K]
+): MoveStruct<{
+	approvals: ReturnType<typeof vec_set.VecSet<typeof type_name.TypeName>>;
+	data: K;
+}> {
 	return new MoveStruct({
 		name: `${$moduleName}::Request<${typeParameters[0].name as K['name']}>`,
 		fields: {

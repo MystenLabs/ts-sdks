@@ -1,7 +1,10 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import type { ClientWithCoreApi } from '@mysten/sui/client';
+import type { Analyzer } from '../analyzer.js';
 import { createAnalyzer } from '../analyzer.js';
+import type { BalanceFlowsAnalyzerOptions, BalanceFlowsResult } from './balance-flows.js';
 import { balanceFlows } from './balance-flows.js';
 
 export interface CoinValueAnalyzerOptions {
@@ -26,7 +29,11 @@ export interface CoinValueAnalysis {
 	}[];
 }
 
-export const coinValues = createAnalyzer({
+export const coinValues: Analyzer<
+	CoinValueAnalysis,
+	{ client: ClientWithCoreApi; balanceFlows?: BalanceFlowsAnalyzerOptions } & CoinValueAnalyzerOptions,
+	{ balanceFlows: BalanceFlowsResult }
+> = createAnalyzer({
 	dependencies: { balanceFlows },
 	analyze:
 		({ getCoinPrices }: CoinValueAnalyzerOptions) =>

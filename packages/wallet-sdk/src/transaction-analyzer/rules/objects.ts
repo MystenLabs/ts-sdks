@@ -3,6 +3,7 @@
 
 import { bcs } from '@mysten/sui/bcs';
 import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
+import type { TransactionData } from '@mysten/sui/transactions';
 import { normalizeStructTag, normalizeSuiAddress } from '@mysten/sui/utils';
 import {
 	isCoinReservationDigest,
@@ -11,11 +12,13 @@ import {
 	xorCoinReservationObjectId,
 } from '../coin-reservation.js';
 import { createAnalyzer } from '../analyzer.js';
-import type { TransactionAnalysisIssue } from '../analyzer.js';
+import type { Analyzer, TransactionAnalysisIssue } from '../analyzer.js';
 
 import { data } from './core.js';
 
-export const Coin = bcs.struct('Coin', {
+export const Coin: ReturnType<
+	typeof bcs.struct<{ id: typeof bcs.Address; balance: typeof bcs.U64 }, 'Coin'>
+> = bcs.struct('Coin', {
 	id: bcs.Address,
 	balance: bcs.U64,
 });
@@ -83,7 +86,7 @@ export const objectIds = createAnalyzer({
 				result: Array.from(new Set([...inputObjectIds, ...gasObjectIds])),
 			};
 		},
-});
+}) as Analyzer<string[], { client: ClientWithCoreApi }, { data: TransactionData }>;
 
 function makeReservationObject(
 	ref: { objectId: string; digest: string; version?: string | number | null },
@@ -140,7 +143,11 @@ function ownerAddressOf(
 	}
 }
 
-export const objects = createAnalyzer({
+export const objects: Analyzer<
+	AnalyzedObject[],
+	{ client: ClientWithCoreApi },
+	{ objectIds: string[]; data: TransactionData }
+> = createAnalyzer({
 	cacheKey: 'objects@1.0.0',
 	dependencies: { objectIds, data },
 	analyze:
@@ -253,7 +260,7 @@ export const ownedObjects = createAnalyzer({
 		({ objects }) => {
 			return { result: objects.filter((obj) => obj.ownerAddress !== null) };
 		},
-});
+}) as Analyzer<AnalyzedObject[], { client: ClientWithCoreApi }, { objects: AnalyzedObject[] }>;
 
 export const objectsById = createAnalyzer({
 	dependencies: { objects },
@@ -262,4 +269,8 @@ export const objectsById = createAnalyzer({
 		({ objects }) => ({
 			result: new Map(objects.map((obj) => [obj.objectId, obj])),
 		}),
-});
+}) as Analyzer<
+	Map<string, AnalyzedObject>,
+	{ client: ClientWithCoreApi },
+	{ objects: AnalyzedObject[] }
+>;

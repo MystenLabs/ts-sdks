@@ -58,7 +58,7 @@ export class AwsKmsClient extends AwsClient {
 		});
 	}
 
-	async getPublicKey(keyId: string) {
+	async getPublicKey(keyId: string): Promise<Secp256r1PublicKey | Secp256k1PublicKey> {
 		const publicKeyResponse = await this.runCommand('GetPublicKey', { KeyId: keyId });
 
 		if (!publicKeyResponse.PublicKey) {

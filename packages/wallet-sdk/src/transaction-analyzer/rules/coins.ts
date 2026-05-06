@@ -1,8 +1,11 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import type { ClientWithCoreApi } from '@mysten/sui/client';
+import type { TransactionData } from '@mysten/sui/transactions';
 import { Coin, objects, objectsById } from './objects.js';
 import type { AnalyzedObject } from './objects.js';
+import type { Analyzer } from '../analyzer.js';
 import { createAnalyzer } from '../analyzer.js';
 import { normalizeStructTag, parseStructTag } from '@mysten/sui/utils';
 import { data } from './core.js';
@@ -41,7 +44,11 @@ export const coins = createAnalyzer({
 			}
 			return { result };
 		},
-});
+}) as Analyzer<
+	Record<string, AnalyzedCoin>,
+	{ client: ClientWithCoreApi },
+	{ objects: AnalyzedObject[] }
+>;
 
 export const gasCoins = createAnalyzer({
 	dependencies: { objectsById, data },
@@ -56,4 +63,8 @@ export const gasCoins = createAnalyzer({
 			}
 			return { result };
 		},
-});
+}) as Analyzer<
+	AnalyzedCoin[],
+	{ client: ClientWithCoreApi },
+	{ objectsById: Map<string, AnalyzedObject>; data: TransactionData }
+>;

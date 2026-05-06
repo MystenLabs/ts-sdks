@@ -1,7 +1,10 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import type { ClientWithCoreApi } from '@mysten/sui/client';
+import type { Analyzer } from '../analyzer.js';
 import { createAnalyzer } from '../analyzer.js';
+import type { BalanceFlowsAnalyzerOptions, BalanceFlowsResult } from './balance-flows.js';
 import { balanceFlows } from './balance-flows.js';
 import type { CoinFlow } from './balance-flows.js';
 
@@ -28,4 +31,8 @@ export const coinFlows = createAnalyzer({
 			);
 			return { result: { outflows } satisfies CoinFlowsResult };
 		},
-});
+}) as Analyzer<
+	CoinFlowsResult,
+	{ client: ClientWithCoreApi; balanceFlows?: BalanceFlowsAnalyzerOptions },
+	{ balanceFlows: BalanceFlowsResult }
+>;

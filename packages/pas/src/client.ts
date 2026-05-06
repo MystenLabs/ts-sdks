@@ -69,7 +69,7 @@ export class PASClient {
 	/**
 	 * Get the package configuration
 	 */
-	getPackageConfig() {
+	getPackageConfig(): PASPackageConfig {
 		return this.#packageConfig;
 	}
 
@@ -118,7 +118,12 @@ export class PASClient {
 	 * that registers a `$Intent` placeholder in the transaction. The actual PTB commands
 	 * are resolved lazily at `tx.build()` time via the shared PAS resolver plugin.
 	 */
-	get call() {
+	get call(): {
+		sendBalance: ReturnType<typeof sendBalanceIntent>;
+		unlockBalance: ReturnType<typeof unlockBalanceIntent>;
+		unlockUnrestrictedBalance: ReturnType<typeof unlockUnrestrictedBalanceIntent>;
+		accountForAddress: ReturnType<typeof accountForAddressIntent>;
+	} {
 		return {
 			/**
 			 * Creates a transfer funds intent. At build time, it auto-resolves the issuer's

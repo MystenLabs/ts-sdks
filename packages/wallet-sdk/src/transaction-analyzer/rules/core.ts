@@ -1,10 +1,10 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { Transaction } from '@mysten/sui/transactions';
+import type { Transaction, TransactionData } from '@mysten/sui/transactions';
 import { TransactionDataBuilder } from '@mysten/sui/transactions';
 import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
-import type { AnalyzerOutput } from '../analyzer.js';
+import type { Analyzer, AnalyzerOutput } from '../analyzer.js';
 import { createAnalyzer } from '../analyzer.js';
 
 export const bytes = createAnalyzer({
@@ -20,14 +20,14 @@ export const bytes = createAnalyzer({
 				return { issues: [{ message: 'Failed to build transaction' }] };
 			}
 		},
-});
+}) as Analyzer<Uint8Array, { client: ClientWithCoreApi }>;
 
 export const data = createAnalyzer({
 	dependencies: { bytes },
-	analyze: (_, tx) => () => {
+	analyze: (_, tx) => (): { result: TransactionData } => {
 		return { result: tx.getData() };
 	},
-});
+}) as Analyzer<TransactionData, { client: ClientWithCoreApi }, { bytes: Uint8Array }>;
 
 export const digest = createAnalyzer({
 	dependencies: { bytes },
@@ -36,7 +36,7 @@ export const digest = createAnalyzer({
 		({ bytes }) => {
 			return { result: TransactionDataBuilder.getDigestFromBytes(bytes) };
 		},
-});
+}) as Analyzer<string, { client: ClientWithCoreApi }, { bytes: Uint8Array }>;
 
 export const transactionResponse = createAnalyzer({
 	cacheKey: 'transactionResponse@1.0.0',
@@ -53,7 +53,11 @@ export const transactionResponse = createAnalyzer({
 				return { issues: [{ message: 'Failed to dry run transaction' }] };
 			}
 		},
-});
+}) as Analyzer<
+	SuiClientTypes.Transaction,
+	{ client: ClientWithCoreApi; transactionResponse?: SuiClientTypes.Transaction },
+	{ bytes: Uint8Array }
+>;
 
 export const balanceChanges = createAnalyzer({
 	dependencies: { transactionResponse },
@@ -62,4 +66,8 @@ export const balanceChanges = createAnalyzer({
 		({ transactionResponse }) => {
 			return { result: transactionResponse.balanceChanges || [] };
 		},
-});
+}) as Analyzer<
+	SuiClientTypes.BalanceChange[],
+	{ client: ClientWithCoreApi; transactionResponse?: SuiClientTypes.Transaction },
+	{ transactionResponse: SuiClientTypes.Transaction }
+>;

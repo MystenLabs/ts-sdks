@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
-import type { TransactionAnalysisIssue } from '../analyzer.js';
+import type { TransactionData } from '@mysten/sui/transactions';
+import type { Analyzer, TransactionAnalysisIssue } from '../analyzer.js';
 import { createAnalyzer } from '../analyzer.js';
 import { data } from './core.js';
 
@@ -43,4 +44,8 @@ export const moveFunctions = createAnalyzer({
 				result: results.filter((fn): fn is SuiClientTypes.FunctionResponse => fn !== null),
 			};
 		},
-});
+}) as Analyzer<
+	SuiClientTypes.FunctionResponse[],
+	{ client: ClientWithCoreApi },
+	{ data: TransactionData }
+>;

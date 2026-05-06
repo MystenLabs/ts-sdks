@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 import { KeyManagementServiceClient } from '@google-cloud/kms';
-import type { PublicKey, SignatureFlag } from '@mysten/sui/cryptography';
+import type { PublicKey, SignatureFlag, SignatureScheme } from '@mysten/sui/cryptography';
 import { SIGNATURE_FLAG_TO_SCHEME, Signer } from '@mysten/sui/cryptography';
 import { Secp256k1PublicKey } from '@mysten/sui/keypairs/secp256k1';
 import { Secp256r1PublicKey } from '@mysten/sui/keypairs/secp256r1';
@@ -54,7 +54,7 @@ export class GcpKmsSigner extends Signer {
 	 * Retrieves the key scheme used by this signer.
 	 * @returns GCP supports only `Secp256k1` and `Secp256r1` schemes.
 	 */
-	getKeyScheme() {
+	getKeyScheme(): SignatureScheme {
 		return SIGNATURE_FLAG_TO_SCHEME[this.#publicKey.flag() as SignatureFlag];
 	}
 
@@ -63,7 +63,7 @@ export class GcpKmsSigner extends Signer {
 	 * @returns The Secp256k1PublicKey instance.
 	 * @throws Will throw an error if the public key has not been initialized.
 	 */
-	getPublicKey() {
+	getPublicKey(): PublicKey {
 		return this.#publicKey;
 	}
 
@@ -97,7 +97,7 @@ export class GcpKmsSigner extends Signer {
 		keyRing: string;
 		cryptoKey: string;
 		cryptoKeyVersion: string;
-	}) {
+	}): Promise<GcpKmsSigner> {
 		const client = new KeyManagementServiceClient();
 
 		const versionName = client.cryptoKeyVersionPath(
@@ -115,7 +115,7 @@ export class GcpKmsSigner extends Signer {
 		});
 	}
 
-	static async fromVersionName(versionName: string) {
+	static async fromVersionName(versionName: string): Promise<GcpKmsSigner> {
 		const client = new KeyManagementServiceClient();
 		return new GcpKmsSigner({
 			versionName,

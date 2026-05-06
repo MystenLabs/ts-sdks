@@ -2,9 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { bcs } from '@mysten/sui/bcs';
+import { BcsStruct } from '@mysten/sui/bcs';
 import type { Argument, Transaction, TransactionObjectArgument } from '@mysten/sui/transactions';
 
-export const ZkBagStruct = bcs.struct('ZkBag', {
+export const ZkBagStruct: BcsStruct<{
+	id: typeof bcs.Address;
+	owner: typeof bcs.Address;
+	item_ids: ReturnType<typeof bcs.vector<typeof bcs.Address>>;
+}> = bcs.struct('ZkBag', {
 	id: bcs.Address,
 	owner: bcs.Address,
 	item_ids: bcs.vector(bcs.Address),
@@ -28,7 +33,7 @@ export const MAINNET_CONTRACT_IDS: ZkBagContractOptions = {
 	bagStoreTableId: '0x616db54ca564660cd58e36a4548be68b289371ef2611485c62c374a60960084e',
 };
 
-export function getContractIds(network?: 'mainnet' | 'testnet') {
+export function getContractIds(network?: 'mainnet' | 'testnet'): ZkBagContractOptions {
 	if (!network) {
 		return MAINNET_CONTRACT_IDS;
 	}
@@ -50,7 +55,7 @@ export class ZkBag<IDs> {
 		arguments: [store, receiver],
 	}: {
 		arguments: [store: TransactionObjectArgument | string, receiver: Argument | string];
-	}) {
+	}): (tx: Transaction) => void {
 		return (tx: Transaction) => {
 			tx.moveCall({
 				target: `${this.#package}::${this.#module}::new`,
@@ -85,7 +90,12 @@ export class ZkBag<IDs> {
 			});
 	}
 
-	init_claim({ arguments: [store] }: { arguments: [store: TransactionObjectArgument | string] }) {
+	init_claim({ arguments: [store] }: { arguments: [store: TransactionObjectArgument | string] }): (
+		tx: Transaction,
+	) => readonly [
+		Extract<Argument, { $kind: 'NestedResult' }>,
+		Extract<Argument, { $kind: 'NestedResult' }>,
+	] {
 		return (tx: Transaction) => {
 			const [bag, claimProof] = tx.moveCall({
 				target: `${this.#package}::${this.#module}::init_claim`,
@@ -100,7 +110,12 @@ export class ZkBag<IDs> {
 		arguments: [store, receiver],
 	}: {
 		arguments: [store: TransactionObjectArgument | string, receiver: Argument | string];
-	}) {
+	}): (
+		tx: Transaction,
+	) => readonly [
+		Extract<Argument, { $kind: 'NestedResult' }>,
+		Extract<Argument, { $kind: 'NestedResult' }>,
+	] {
 		return (tx: Transaction) => {
 			const [bag, claimProof] = tx.moveCall({
 				target: `${this.#package}::${this.#module}::reclaim`,
@@ -140,7 +155,7 @@ export class ZkBag<IDs> {
 			bag: TransactionObjectArgument | string,
 			claim: Extract<Argument, { $kind: 'NestedResult' }>,
 		];
-	}) {
+	}): (tx: Transaction) => void {
 		return (tx: Transaction) => {
 			tx.moveCall({
 				target: `${this.#package}::${this.#module}::finalize`,
@@ -157,7 +172,7 @@ export class ZkBag<IDs> {
 			from: Argument | string,
 			to: Argument | string,
 		];
-	}) {
+	}): (tx: Transaction) => void {
 		return (tx: Transaction) => {
 			tx.moveCall({
 				target: `${this.#package}::${this.#module}::update_receiver`,

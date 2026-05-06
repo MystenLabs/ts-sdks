@@ -12,7 +12,26 @@ import { moveFunctions } from './functions.js';
 import { inputs } from './inputs.js';
 import { objectIds, objects, objectsById, ownedObjects } from './objects.js';
 
-export const analyzers = {
+export const analyzers: {
+	accessLevel: typeof accessLevel;
+	balanceChanges: typeof balanceChanges;
+	balanceFlows: typeof balanceFlows;
+	bytes: typeof bytes;
+	coinFlows: typeof coinFlows;
+	coins: typeof coins;
+	coinValues: typeof coinValues;
+	commands: typeof commands;
+	data: typeof data;
+	digest: typeof digest;
+	transactionResponse: typeof transactionResponse;
+	gasCoins: typeof gasCoins;
+	inputs: typeof inputs;
+	moveFunctions: typeof moveFunctions;
+	objectIds: typeof objectIds;
+	objects: typeof objects;
+	objectsById: typeof objectsById;
+	ownedObjects: typeof ownedObjects;
+} = {
 	accessLevel,
 	balanceChanges,
 	balanceFlows,

@@ -4,7 +4,10 @@
 import type { Transaction } from '@mysten/sui/transactions';
 import type { ClientWithCoreApi } from '@mysten/sui/client';
 
-export const getInputObjects = async (transaction: Transaction, client: ClientWithCoreApi) => {
+export const getInputObjects = async (
+	transaction: Transaction,
+	client: ClientWithCoreApi,
+): Promise<{ bcsObjects: Uint8Array<ArrayBuffer>[] }> => {
 	const data = transaction.getData();
 
 	const gasObjectIds = data.gasData.payment?.map((object) => object.objectId) ?? [];

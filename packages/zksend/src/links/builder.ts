@@ -35,12 +35,12 @@ export interface CreateZkSendLinkOptions {
 }
 
 export class ZkSendLinkBuilder {
-	objectIds = new Set<string>();
+	objectIds: Set<string> = new Set<string>();
 	objectRefs: {
 		ref: TransactionObjectArgument;
 		type: string;
 	}[] = [];
-	balances = new Map<string, bigint>();
+	balances: Map<string, bigint> = new Map<string, bigint>();
 	sender: string;
 	network: string;
 	#host: string;
@@ -71,20 +71,20 @@ export class ZkSendLinkBuilder {
 		this.#contract = new ZkBag(resolvedContract.packageId, resolvedContract);
 	}
 
-	addClaimableMist(amount: bigint) {
+	addClaimableMist(amount: bigint): void {
 		this.addClaimableBalance(SUI_COIN_TYPE, amount);
 	}
 
-	addClaimableBalance(coinType: string, amount: bigint) {
+	addClaimableBalance(coinType: string, amount: bigint): void {
 		const normalizedType = normalizeStructTag(coinType);
 		this.balances.set(normalizedType, (this.balances.get(normalizedType) ?? 0n) + amount);
 	}
 
-	addClaimableObject(id: string) {
+	addClaimableObject(id: string): void {
 		this.objectIds.add(id);
 	}
 
-	addClaimableObjectRef(ref: TransactionObjectArgument, type: string) {
+	addClaimableObjectRef(ref: TransactionObjectArgument, type: string): void {
 		this.objectRefs.push({ ref, type });
 	}
 
@@ -107,7 +107,7 @@ export class ZkSendLinkBuilder {
 	}: CreateZkSendLinkOptions & {
 		signer: Signer;
 		waitForTransaction?: boolean;
-	}) {
+	}): Promise<SuiClientTypes.TransactionResult<{ transaction: true; effects: true }>> {
 		const tx = await this.createSendTransaction(options);
 
 		const result = await signer.signAndExecuteTransaction({
@@ -127,7 +127,9 @@ export class ZkSendLinkBuilder {
 
 		return result;
 	}
-	async createSendTransaction({ transaction = new Transaction() }: CreateZkSendLinkOptions = {}) {
+	async createSendTransaction({
+		transaction = new Transaction(),
+	}: CreateZkSendLinkOptions = {}): Promise<Transaction> {
 		transaction.setSenderIfNotSet(this.sender);
 
 		return ZkSendLinkBuilder.createLinks({
@@ -144,7 +146,7 @@ export class ZkSendLinkBuilder {
 		address,
 	}: CreateZkSendLinkOptions & {
 		address: string;
-	}) {
+	}): Promise<Transaction> {
 		const objectsToTransfer = (await this.#objectsToTransfer(transaction)).map((obj) => obj.ref);
 
 		transaction.setSenderIfNotSet(this.sender);
@@ -228,7 +230,7 @@ export class ZkSendLinkBuilder {
 		network?: string;
 		links: ZkSendLinkBuilder[];
 		contract?: ZkBagContractOptions;
-	}) {
+	}): Promise<Transaction> {
 		const resolvedContractIds = contractIds ?? getContractIds(network as 'mainnet' | 'testnet');
 		const contract = new ZkBag(resolvedContractIds.packageId, resolvedContractIds);
 		const store = transaction.object(contract.ids.bagStoreId);

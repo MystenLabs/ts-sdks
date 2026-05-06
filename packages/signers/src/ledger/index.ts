@@ -60,7 +60,7 @@ export class LedgerSigner extends Signer {
 	 * Retrieves the public key associated with this signer.
 	 * @returns The Ed25519PublicKey instance.
 	 */
-	override getPublicKey() {
+	override getPublicKey(): Ed25519PublicKey {
 		return this.#publicKey;
 	}
 
@@ -131,7 +131,7 @@ export class LedgerSigner extends Signer {
 		derivationPath: string,
 		ledgerClient: SuiLedgerClient,
 		suiClient: ClientWithCoreApi,
-	) {
+	): Promise<LedgerSigner> {
 		const { publicKey } = await ledgerClient.getPublicKey(derivationPath);
 		if (!publicKey) {
 			throw new Error('Failed to get public key from Ledger.');

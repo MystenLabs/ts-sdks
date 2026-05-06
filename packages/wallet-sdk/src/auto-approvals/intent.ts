@@ -1,8 +1,12 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { Transaction, TransactionResult } from '@mysten/sui/transactions';
-import type { TransactionDataBuilder } from '@mysten/sui/transactions';
+import type {
+	Transaction,
+	TransactionDataBuilder,
+	TransactionPlugin,
+	TransactionResult,
+} from '@mysten/sui/transactions';
 import { TransactionCommands } from '@mysten/sui/transactions';
 
 export const OPERATION_INTENT = '@mysten/wallet-kit/AutoApprovalOperation';
@@ -26,12 +30,8 @@ export function operationType(operationType: string) {
 	};
 }
 
-export function extractOperationType(cb: (operationType: string) => void) {
-	return (
-		transactionData: TransactionDataBuilder,
-		_options: unknown,
-		next: () => Promise<void>,
-	) => {
+export function extractOperationType(cb: (operationType: string) => void): TransactionPlugin {
+	return (transactionData, _options, next) => {
 		replaceOperationTypeIntent(transactionData, cb);
 		return next();
 	};

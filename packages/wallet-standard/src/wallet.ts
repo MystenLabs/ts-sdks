@@ -8,7 +8,9 @@ import type { WalletWithFeatures } from '@wallet-standard/core';
 
 import type {
 	SuiSignAndExecuteTransactionInput,
+	SuiSignAndExecuteTransactionOutput,
 	SuiSignTransactionInput,
+	SuiSignTransactionOutput,
 	SuiWalletFeatures,
 } from './features/index.js';
 
@@ -32,7 +34,7 @@ export type { Wallet } from '@wallet-standard/core';
 export async function signAndExecuteTransaction(
 	wallet: WalletWithFeatures<Partial<SuiWalletFeatures>>,
 	input: SuiSignAndExecuteTransactionInput,
-) {
+): Promise<SuiSignAndExecuteTransactionOutput> {
 	if (wallet.features['sui:signAndExecuteTransaction']) {
 		return wallet.features['sui:signAndExecuteTransaction'].signAndExecuteTransaction(input);
 	}
@@ -76,7 +78,7 @@ export async function signAndExecuteTransaction(
 export async function signTransaction(
 	wallet: WalletWithFeatures<Partial<SuiWalletFeatures>>,
 	input: SuiSignTransactionInput,
-) {
+): Promise<SuiSignTransactionOutput> {
 	if (wallet.features['sui:signTransaction']) {
 		return wallet.features['sui:signTransaction'].signTransaction(input);
 	}

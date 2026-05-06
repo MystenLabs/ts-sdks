@@ -129,7 +129,10 @@ export class AwsClient {
 	 * @param {?AwsRequestInit} [init]
 	 * @returns {Promise<Response>}
 	 */
-	async fetch(input: Request | { toString: () => string }, init: AwsRequestInit) {
+	async fetch(
+		input: Request | { toString: () => string },
+		init: AwsRequestInit,
+	): Promise<Response> {
 		for (let i = 0; i <= this.retries; i++) {
 			const fetched = fetch(await this.sign(input, init));
 			if (i === this.retries) {
@@ -317,7 +320,12 @@ export class AwsV4Signer {
 	 *   body?: BodyInit | null
 	 * }>}
 	 */
-	async sign() {
+	async sign(): Promise<{
+		method: string;
+		url: URL;
+		headers: Headers;
+		body?: BodyInit | null;
+	}> {
 		if (this.signQuery) {
 			this.url.searchParams.set('X-Amz-Signature', await this.signature());
 			if (this.sessionToken && this.appendSessionToken) {
@@ -338,7 +346,7 @@ export class AwsV4Signer {
 	/**
 	 * @returns {Promise<string>}
 	 */
-	async authHeader() {
+	async authHeader(): Promise<string> {
 		return [
 			'AWS4-HMAC-SHA256 Credential=' + this.accessKeyId + '/' + this.credentialString,
 			'SignedHeaders=' + this.signedHeaders,
@@ -349,7 +357,7 @@ export class AwsV4Signer {
 	/**
 	 * @returns {Promise<string>}
 	 */
-	async signature() {
+	async signature(): Promise<string> {
 		const date = this.datetime.slice(0, 8);
 		const cacheKey = [this.secretAccessKey, date, this.region, this.service].join();
 		let kCredentials = this.cache.get(cacheKey);
@@ -366,7 +374,7 @@ export class AwsV4Signer {
 	/**
 	 * @returns {Promise<string>}
 	 */
-	async stringToSign() {
+	async stringToSign(): Promise<string> {
 		return [
 			'AWS4-HMAC-SHA256',
 			this.datetime,
@@ -378,7 +386,7 @@ export class AwsV4Signer {
 	/**
 	 * @returns {Promise<string>}
 	 */
-	async canonicalString() {
+	async canonicalString(): Promise<string> {
 		return [
 			this.method.toUpperCase(),
 			this.encodedPath,
@@ -392,7 +400,7 @@ export class AwsV4Signer {
 	/**
 	 * @returns {Promise<string>}
 	 */
-	async hexBodyHash() {
+	async hexBodyHash(): Promise<string> {
 		let hashHeader =
 			this.headers.get('X-Amz-Content-Sha256') ||
 			(this.service === 's3' && this.signQuery ? 'UNSIGNED-PAYLOAD' : null);

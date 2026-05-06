@@ -39,7 +39,7 @@ export function isClaimTransaction(
 	options: {
 		packageId: string;
 	},
-) {
+): boolean {
 	let transfers = 0;
 
 	for (const command of tx.getData().commands) {

@@ -1,10 +1,13 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { SuiClientTypes } from '@mysten/sui/client';
+import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
+import type { TransactionData } from '@mysten/sui/transactions';
 import { normalizeStructTag } from '@mysten/sui/utils';
+import type { Analyzer } from '../analyzer.js';
 import { createAnalyzer } from '../analyzer.js';
 import { data } from './core.js';
+import type { AnalyzedObject } from './objects.js';
 import { objectsById } from './objects.js';
 
 export type AnalyzedCommandInput =
@@ -30,7 +33,11 @@ export type AnalyzedCommandInput =
 			accessLevel: 'read' | 'mutate' | 'transfer';
 	  };
 
-export const inputs = createAnalyzer({
+export const inputs: Analyzer<
+	AnalyzedCommandInput[],
+	{ client: ClientWithCoreApi },
+	{ data: TransactionData; objectsById: Map<string, AnalyzedObject> }
+> = createAnalyzer({
 	dependencies: { data, objectsById },
 	analyze:
 		() =>

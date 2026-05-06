@@ -78,7 +78,7 @@ const { values: args } = parseArgs({
 	},
 });
 
-export async function parser() {
+export async function parser(): Promise<void> {
 	const path = isAbsolute(args.output) ? args.output : join(process.cwd(), args.output);
 	const dir = dirname(path);
 
@@ -126,7 +126,10 @@ export function getMvrCache(network: 'mainnet' | 'testnet') {
 	writeFileSync(outDir, await format(outputFile, { parser: 'typescript' }), 'utf8');
 }
 
-export async function crossNetworkResolution(detectedNames: Set<string>) {
+export async function crossNetworkResolution(detectedNames: Set<string>): Promise<{
+	mainnet: { packages: Record<string, string>; types: Record<string, string> };
+	testnet: { packages: Record<string, string>; types: Record<string, string> };
+}> {
 	const packages = Array.from(detectedNames).filter((x) => !x.includes('::'));
 	const types = Array.from(detectedNames).filter((x) => x.includes('::'));
 
@@ -243,7 +246,7 @@ export async function findNames({
 	exclude?: string[];
 	depth?: number;
 	output?: string;
-}) {
+}): Promise<Set<string>> {
 	const detectedNames = new Set<string>();
 	const excluded = [...exclude, output];
 

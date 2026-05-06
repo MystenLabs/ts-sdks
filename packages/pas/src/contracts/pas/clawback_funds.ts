@@ -9,7 +9,13 @@ import {
 	type TransactionArgument,
 } from '@mysten/sui/transactions';
 const $moduleName = '@mysten/pas::clawback_funds';
-export function ClawbackFunds<T extends BcsType<any>>(...typeParameters: [T]) {
+export function ClawbackFunds<T extends BcsType<any>>(
+	...typeParameters: [T]
+): MoveStruct<{
+	owner: typeof bcs.Address;
+	account_id: typeof bcs.Address;
+	funds: T;
+}> {
 	return new MoveStruct({
 		name: `${$moduleName}::ClawbackFunds<${typeParameters[0].name as T['name']}>`,
 		fields: {

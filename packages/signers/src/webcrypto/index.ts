@@ -31,7 +31,9 @@ export class WebCryptoSigner extends Signer {
 
 	#publicKey: Secp256r1PublicKey;
 
-	static async generate({ extractable = false }: { extractable?: boolean } = {}) {
+	static async generate({
+		extractable = false,
+	}: { extractable?: boolean } = {}): Promise<WebCryptoSigner> {
 		const keypair = await globalThis.crypto.subtle.generateKey(
 			{
 				name: 'ECDSA',
@@ -52,7 +54,7 @@ export class WebCryptoSigner extends Signer {
 	/**
 	 * Imports a keypair using the value returned by `export()`.
 	 */
-	static import(data: ExportedWebCryptoKeypair) {
+	static import(data: ExportedWebCryptoKeypair): WebCryptoSigner {
 		return new WebCryptoSigner(data.privateKey, data.publicKey);
 	}
 
@@ -87,7 +89,7 @@ export class WebCryptoSigner extends Signer {
 		return exportedKeypair;
 	}
 
-	getPublicKey() {
+	getPublicKey(): Secp256r1PublicKey {
 		return this.#publicKey;
 	}
 

@@ -369,7 +369,7 @@ export class AutoApprovalManager {
 		}
 	}
 
-	reset() {
+	reset(): void {
 		this.#state = {
 			schemaVersion: '1.0.0',
 			policy: this.#state.policy,

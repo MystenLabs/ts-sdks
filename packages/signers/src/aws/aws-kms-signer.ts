@@ -1,6 +1,6 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-import type { PublicKey, SignatureFlag } from '@mysten/sui/cryptography';
+import type { PublicKey, SignatureFlag, SignatureScheme } from '@mysten/sui/cryptography';
 import { SIGNATURE_FLAG_TO_SCHEME, Signer } from '@mysten/sui/cryptography';
 import { fromBase64, toBase64 } from '@mysten/sui/utils';
 
@@ -52,7 +52,7 @@ export class AwsKmsSigner extends Signer {
 	 * Retrieves the key scheme used by this signer.
 	 * @returns AWS supports only Secp256k1 and Secp256r1 schemes.
 	 */
-	getKeyScheme() {
+	getKeyScheme(): SignatureScheme {
 		return SIGNATURE_FLAG_TO_SCHEME[this.#publicKey.flag() as SignatureFlag];
 	}
 
@@ -61,7 +61,7 @@ export class AwsKmsSigner extends Signer {
 	 * @returns The Secp256k1PublicKey instance.
 	 * @throws Will throw an error if the public key has not been initialized.
 	 */
-	getPublicKey() {
+	getPublicKey(): PublicKey {
 		return this.#publicKey;
 	}
 
@@ -88,7 +88,7 @@ export class AwsKmsSigner extends Signer {
 	 * It is recommended to initialize an `AwsKmsSigner` instance using this function.
 	 * @returns A promise that resolves once a `AwsKmsSigner` instance is prepared (public key is set).
 	 */
-	static async fromKeyId(keyId: string, options: AwsClientOptions) {
+	static async fromKeyId(keyId: string, options: AwsClientOptions): Promise<AwsKmsSigner> {
 		const client = new AwsKmsClient(options);
 
 		const pubKey = await client.getPublicKey(keyId);

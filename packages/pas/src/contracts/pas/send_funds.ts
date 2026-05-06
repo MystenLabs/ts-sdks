@@ -26,7 +26,15 @@ const $moduleName = '@mysten/pas::send_funds';
  * - Handle dividends/distributions
  * - Implement any jurisdiction-specific rules
  */
-export function SendFunds<T extends BcsType<any>>(...typeParameters: [T]) {
+export function SendFunds<T extends BcsType<any>>(
+	...typeParameters: [T]
+): MoveStruct<{
+	sender: typeof bcs.Address;
+	recipient: typeof bcs.Address;
+	sender_account_id: typeof bcs.Address;
+	recipient_account_id: typeof bcs.Address;
+	funds: T;
+}> {
 	return new MoveStruct({
 		name: `${$moduleName}::SendFunds<${typeParameters[0].name as T['name']}>`,
 		fields: {

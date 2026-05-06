@@ -1,8 +1,10 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import type { ClientWithCoreApi } from '@mysten/sui/client';
+import type { TransactionData } from '@mysten/sui/transactions';
 import { normalizeSuiAddress, normalizeStructTag } from '@mysten/sui/utils';
-import type { TransactionAnalysisIssue } from '../analyzer.js';
+import type { Analyzer, TransactionAnalysisIssue } from '../analyzer.js';
 import { createAnalyzer } from '../analyzer.js';
 import { bcs } from '@mysten/sui/bcs';
 import { commands } from './commands.js';
@@ -12,7 +14,9 @@ import type {
 	AnalyzedMoveCallCommand,
 } from './commands.js';
 import { data } from './core.js';
+import type { AnalyzedCommandInput } from './inputs.js';
 import { inputs } from './inputs.js';
+import type { AnalyzedCoin } from './coins.js';
 import { coins, gasCoins } from './coins.js';
 
 export interface CoinFlow {
@@ -84,10 +88,24 @@ export interface BalanceFlowsAnalyzerOptions {
 
 const SUI_FRAMEWORK = normalizeSuiAddress('0x2');
 
-export const balanceFlows = createAnalyzer({
+export const balanceFlows: Analyzer<
+	BalanceFlowsResult,
+	{ client: ClientWithCoreApi; balanceFlows?: BalanceFlowsAnalyzerOptions },
+	{
+		data: TransactionData;
+		commands: AnalyzedCommand[];
+		inputs: AnalyzedCommandInput[];
+		coins: Record<string, AnalyzedCoin>;
+		gasCoins: AnalyzedCoin[];
+	}
+> = createAnalyzer({
 	dependencies: { data, commands, inputs, coins, gasCoins },
 	analyze:
-		({ balanceFlows: opts = {} }: { balanceFlows?: BalanceFlowsAnalyzerOptions } = {}) =>
+		({
+			balanceFlows: opts = {},
+		}: { balanceFlows?: BalanceFlowsAnalyzerOptions } = {} as {
+			balanceFlows?: BalanceFlowsAnalyzerOptions;
+		}) =>
 		async ({ data, commands, inputs, coins, gasCoins }) => {
 			const { excludeGasBudget = false, moveCallHandlers = [] } = opts;
 			const issues: TransactionAnalysisIssue[] = [];
@@ -478,7 +496,7 @@ export class TrackedBalance {
 		this.ownerAddress = ownerAddress;
 	}
 
-	consume() {
+	consume(): void {
 		this.balance = 0n;
 		this.ownerAddress = null;
 		this.consumed = true;

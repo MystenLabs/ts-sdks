@@ -1,14 +1,21 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { TransactionAnalysisIssue } from '../analyzer.js';
+import type { ClientWithCoreApi } from '@mysten/sui/client';
+import type { Analyzer, TransactionAnalysisIssue } from '../analyzer.js';
 import { createAnalyzer } from '../analyzer.js';
+import type { AnalyzedCoin } from './coins.js';
 import { gasCoins } from './coins.js';
-import type { AnalyzedCommandArgument } from './commands.js';
+import type { AnalyzedCommand, AnalyzedCommandArgument } from './commands.js';
 import { commands } from './commands.js';
+import type { AnalyzedObject } from './objects.js';
 import { objects } from './objects.js';
 
-export const accessLevel = createAnalyzer({
+export const accessLevel: Analyzer<
+	Record<string, 'read' | 'mutate' | 'transfer'>,
+	{ client: ClientWithCoreApi },
+	{ commands: AnalyzedCommand[]; objects: AnalyzedObject[]; gasCoins: AnalyzedCoin[] }
+> = createAnalyzer({
 	dependencies: { commands, objects, gasCoins },
 	analyze:
 		() =>

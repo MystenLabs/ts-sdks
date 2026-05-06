@@ -1,6 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import type { BcsStruct } from '@mysten/bcs';
 import { toBase64 } from '@mysten/bcs';
 import { bcs } from '@mysten/sui/bcs';
 import type { Signer } from '@mysten/sui/cryptography';
@@ -16,7 +17,11 @@ import {
 } from './error.js';
 import type { SealCompatibleClient } from './types.js';
 
-export const RequestFormat = bcs.struct('RequestFormat', {
+export const RequestFormat: BcsStruct<{
+	ptb: ReturnType<typeof bcs.byteVector>;
+	encKey: ReturnType<typeof bcs.byteVector>;
+	encVerificationKey: ReturnType<typeof bcs.byteVector>;
+}> = bcs.struct('RequestFormat', {
 	ptb: bcs.byteVector(),
 	encKey: bcs.byteVector(),
 	encVerificationKey: bcs.byteVector(),
@@ -156,7 +161,7 @@ export class SessionKey {
 		return new TextEncoder().encode(message);
 	}
 
-	async setPersonalMessageSignature(personalMessageSignature: string) {
+	async setPersonalMessageSignature(personalMessageSignature: string): Promise<void> {
 		if (!this.#personalMessageSignature) {
 			try {
 				await verifyPersonalMessageSignature(this.getPersonalMessage(), personalMessageSignature, {
