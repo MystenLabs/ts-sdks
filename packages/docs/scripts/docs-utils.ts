@@ -150,8 +150,21 @@ export interface PageInfo {
 
 export function readMetaJson(dir: string): MetaJson | null {
 	const metaPath = path.join(dir, 'meta.json');
-	if (!fs.existsSync(metaPath)) return null;
-	return JSON.parse(fs.readFileSync(metaPath, 'utf-8')) as MetaJson;
+	if (fs.existsSync(metaPath)) {
+		return JSON.parse(fs.readFileSync(metaPath, 'utf-8')) as MetaJson;
+	}
+
+	// Fumadocs also supports _meta.json with a { "pageName": "Title" } format
+	const altMetaPath = path.join(dir, '_meta.json');
+	if (fs.existsSync(altMetaPath)) {
+		const raw = JSON.parse(fs.readFileSync(altMetaPath, 'utf-8')) as Record<string, unknown>;
+		if (!raw.pages) {
+			return { pages: Object.keys(raw) };
+		}
+		return raw as MetaJson;
+	}
+
+	return null;
 }
 
 export function readMdxFrontmatter(filePath: string): { title?: string; description?: string } {
@@ -177,8 +190,40 @@ export function getPageEntries(
 
 	if (meta?.pages) {
 		for (const pageName of meta.pages) {
-			// Skip "..." (rest pages marker used by fumadocs)
-			if (pageName === '...') continue;
+			// "..." is fumadocs' rest marker — include all entries not explicitly listed
+			if (pageName === '...') {
+				const explicitPages = new Set(meta.pages!.filter((p) => p !== '...'));
+				const dirEntries = fs.readdirSync(dir, { withFileTypes: true });
+				for (const dirEntry of dirEntries.sort((a, b) => a.name.localeCompare(b.name))) {
+					const entryName = dirEntry.name.replace(/\.mdx$/, '');
+					if (explicitPages.has(entryName) || entryName === 'index') continue;
+					if (dirEntry.name === 'meta.json' || dirEntry.name === '_meta.json') continue;
+
+					if (dirEntry.isDirectory()) {
+						const subDir = path.join(dir, dirEntry.name);
+						const indexFile = path.join(subDir, 'index.mdx');
+						if (fs.existsSync(indexFile)) {
+							const fm = readMdxFrontmatter(indexFile);
+							const subMeta = readMetaJson(subDir);
+							addEntry({
+								title: fm.title || subMeta?.title || dirEntry.name,
+								description: fm.description || subMeta?.description || '',
+								relativePath: `${basePath}/${dirEntry.name}.md`,
+							});
+						}
+						const subEntries = getPageEntries(subDir, `${basePath}/${dirEntry.name}`, seen);
+						entries.push(...subEntries);
+					} else if (dirEntry.name.endsWith('.mdx')) {
+						const fm = readMdxFrontmatter(path.join(dir, dirEntry.name));
+						addEntry({
+							title: fm.title || entryName,
+							description: fm.description || '',
+							relativePath: `${basePath}/${entryName}.md`,
+						});
+					}
+				}
+				continue;
+			}
 
 			const pageDir = path.join(dir, pageName);
 			const mdxFile = path.join(dir, `${pageName}.mdx`);
