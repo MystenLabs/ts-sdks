@@ -49,8 +49,11 @@ function buildIndex(baseUrl: string) {
 	const distIndex = path.resolve(process.cwd(), 'dist', 'llms-index.md');
 	if (fs.existsSync(distIndex)) {
 		let content = fs.readFileSync(distIndex, 'utf-8');
-		// Rewrite relative links (./section/page.md) to absolute URLs
-		content = content.replace(/\(\.\/([^)]+\.md)\)/g, `(${baseUrl}/$1)`);
+		// Rewrite relative links (./section/page.md) to absolute URLs (strip .md to match sitemap)
+		content = content.replace(
+			/\(\.\/([^)]+)\.md\)/g,
+			(_match, p) => `(${baseUrl}/${p})`,
+		);
 		return new Response(content, {
 			headers: {
 				'Content-Type': 'text/plain; charset=utf-8',
@@ -94,7 +97,7 @@ function buildIndex(baseUrl: string) {
 
 		const indent = parts.length > 2 ? '  ' : '';
 		const desc = page.data.description ? `: ${page.data.description}` : '';
-		lines.push(`${indent}- [${page.data.title}](${baseUrl}${page.url}.md)${desc}`);
+		lines.push(`${indent}- [${page.data.title}](${baseUrl}${page.url})${desc}`);
 	}
 
 	lines.push('');
