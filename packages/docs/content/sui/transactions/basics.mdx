@@ -4,8 +4,12 @@ description: Construct programmable transaction blocks with the Transaction API
 keywords: [transactions, ptb, move call, splitCoins, transferObjects, codegen]
 ---
 
-Every interaction with the Sui network goes through a transaction. Sui transactions are a sequence of commands called [programmable transaction blocks (PTBs)](https://docs.sui.io/guides/developer/transactions/prog-txn-blocks) that execute on inputs to produce a result. Commands within a transaction can call Move functions, transfer objects, split and merge coins, and more. You can chain the result
-of one command into a subsequent command, composing complex operations in a single transaction.
+Every interaction with the Sui network goes through a transaction. Sui transactions are a sequence
+of commands called
+[programmable transaction blocks (PTBs)](https://docs.sui.io/guides/developer/transactions/prog-txn-blocks)
+that execute on inputs to produce a result. Commands within a transaction can call Move functions,
+transfer objects, split and merge coins, and more. You can chain the result of one command into a
+subsequent command, composing complex operations in a single transaction.
 
 All commands in a transaction execute atomically. If any command fails, the entire transaction is
 rolled back and none of its effects are applied.
@@ -26,8 +30,8 @@ const tx = new Transaction();
 
 ## Sending SUI
 
-Use `tx.balance()` and `balance::send_funds` to send SUI; this deposits
-directly into the recipient's address balance:
+Use `tx.balance()` and `balance::send_funds` to send SUI; this deposits directly into the
+recipient's address balance:
 
 ```typescript
 import { Transaction } from '@mysten/sui/transactions';
@@ -54,7 +58,7 @@ for full details.
 
 ## Sending other tokens
 
-For non-SUI tokens, use the same patterns for passing the coin type: 
+For non-SUI tokens, use the same patterns for passing the coin type:
 
 ```typescript
 const tx = new Transaction();
@@ -167,9 +171,8 @@ const secondNft = result[1];
 ```
 
 <Callout type="warn">
-	Always access elements by index or destructuring. Do not
-	use the spread operator (`...result`) or pass results to `Array.from()`, which causes an
-	infinite loop.
+	Always access elements by index or destructuring. Do not use the spread operator (`...result`) or
+	pass results to `Array.from()`, which causes an infinite loop.
 </Callout>
 
 ### Type arguments
@@ -240,8 +243,8 @@ for (const transfer of transfers) {
 
 ## Composable transaction building with thunks
 
-The `tx.add()` method accepts thunks, which are functions that receive the transaction and add commands to
-it. This enables building reusable, composable transaction pieces:
+The `tx.add()` method accepts thunks, which are functions that receive the transaction and add
+commands to it. This enables building reusable, composable transaction pieces:
 
 ```typescript
 function mintNft(name: string) {
@@ -258,7 +261,8 @@ const [nft] = tx.add(mintNft('My NFT'));
 tx.transferObjects([nft], '0xRecipientAddress');
 ```
 
-See [SDK Building](/sui/sdk-building) for more information on building composable transaction libraries.
+See [SDK Building](/sui/sdk-building) for more information on building composable transaction
+libraries.
 
 ## Serializing transactions
 

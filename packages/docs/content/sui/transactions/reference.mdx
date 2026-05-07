@@ -121,9 +121,9 @@ const [coin] = tx.splitCoins(tx.gas, [1_000_000_000]);
 ## Object inputs
 
 Objects on Sui have different
-[ownership types](https://docs.sui.io/guides/developer/objects/object-ownership), including address-owned,
-shared, immutable, and object-owned (receiving). Each type requires different metadata when used as
-a transaction input, but the SDK handles most of this automatically.
+[ownership types](https://docs.sui.io/guides/developer/objects/object-ownership), including
+address-owned, shared, immutable, and object-owned (receiving). Each type requires different
+metadata when used as a transaction input, but the SDK handles most of this automatically.
 
 ### tx.object(id)
 
@@ -199,8 +199,8 @@ tx.sharedObjectRef({
 
 ### Party objects
 
-Party objects are address-owned but consensus-versioned, with per-address permissions
-(read, write, delete, or transfer). They are referenced the same way as shared objects:
+Party objects are address-owned but consensus-versioned, with per-address permissions (read, write,
+delete, or transfer). They are referenced the same way as shared objects:
 
 ```typescript
 tx.sharedObjectRef({
@@ -347,10 +347,10 @@ Publishes a new Move package. Returns the upgrade capability object.
 const [upgradeCap] = tx.publish({ modules, dependencies });
 ```
 
-| Parameter      | Type                     | Description                                                                                                                                             |
-| -------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Parameter      | Type                     | Description                                                                                                                                            |
+| -------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `modules`      | `number[][] \| string[]` | Compiled module bytecodes. Each module as a `number[]` (byte array) or base64-encoded `string`. To convert from `Uint8Array`, use `Array.from(bytes)`. |
-| `dependencies` | `string[]`               | Package IDs of dependencies                                                                                                                             |
+| `dependencies` | `string[]`               | Package IDs of dependencies                                                                                                                            |
 
 ### `upgrade`
 
@@ -360,12 +360,12 @@ Upgrades an existing Move package.
 const [upgradeReceipt] = tx.upgrade({ modules, dependencies, package: packageId, ticket });
 ```
 
-| Parameter      | Type                                   | Description                                                                                                                                             |
-| -------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Parameter      | Type                                   | Description                                                                                                                                            |
+| -------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `modules`      | `number[][] \| string[]`               | Compiled module bytecodes. Each module as a `number[]` (byte array) or base64-encoded `string`. To convert from `Uint8Array`, use `Array.from(bytes)`. |
-| `dependencies` | `string[]`                             | Package IDs of dependencies                                                                                                                             |
-| `package`      | `string`                               | ID of the package being upgraded                                                                                                                        |
-| `ticket`       | [object reference](#object-references) | The upgrade ticket                                                                                                                                      |
+| `dependencies` | `string[]`                             | Package IDs of dependencies                                                                                                                            |
+| `package`      | `string`                               | ID of the package being upgraded                                                                                                                       |
+| `ticket`       | [object reference](#object-references) | The upgrade ticket                                                                                                                                     |
 
 ## Transaction results
 

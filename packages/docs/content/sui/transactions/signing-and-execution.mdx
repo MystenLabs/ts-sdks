@@ -46,7 +46,7 @@ and default to `false`:
 
 | Field            | Description                                                                            |
 | ---------------- | -------------------------------------------------------------------------------------- |
-| `effects`        | Execution effects: created, mutated, and deleted objects, gas usage                   |
+| `effects`        | Execution effects: created, mutated, and deleted objects, gas usage                    |
 | `events`         | Move events emitted during execution                                                   |
 | `balanceChanges` | Token balance changes for each affected address and coin type                          |
 | `objectTypes`    | Map of object ID to type string for all changed objects                                |
@@ -188,14 +188,14 @@ const result = await grpcClient.executeTransaction({
 
 The `include` parameter controls what data is returned with the result:
 
-| Field            | Description                                         |
-| ---------------- | --------------------------------------------------- |
-| `transaction`    | The full transaction data (sender, commands, gas)   |
+| Field            | Description                                              |
+| ---------------- | -------------------------------------------------------- |
+| `transaction`    | The full transaction data (sender, commands, gas)        |
 | `effects`        | Execution effects (created, mutated, or deleted objects) |
-| `events`         | Move events emitted during execution                |
-| `balanceChanges` | Token balance changes for each affected address     |
-| `objectTypes`    | Map of object ID to type for changed objects        |
-| `bcs`            | Raw BCS bytes of the transaction                    |
+| `events`         | Move events emitted during execution                     |
+| `balanceChanges` | Token balance changes for each affected address          |
+| `objectTypes`    | Map of object ID to type for changed objects             |
+| `bcs`            | Raw BCS bytes of the transaction                         |
 
 ## Observing results
 
@@ -301,8 +301,8 @@ tx.setGasPayment([]);
 ```
 
 This is particularly useful for [offline building](./offline) and
-[sponsored transactions](#sponsored-transactions), because there are no coin object versions to
-look up or coordinate.
+[sponsored transactions](#sponsored-transactions), because there are no coin object versions to look
+up or coordinate.
 
 ### The gas coin (`tx.gas`)
 

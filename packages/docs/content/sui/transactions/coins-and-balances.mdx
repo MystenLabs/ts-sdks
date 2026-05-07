@@ -6,11 +6,11 @@ keywords: [coins, balances, address balance, gasless, stablecoin, send_funds]
 
 Sui has two systems for holding fungible token balances: coin objects and address balances.
 
-**Coin objects** are individual onchain objects, each with its own ID, version, and balance. You
-own specific coin objects and need to split, merge, and track them.
+**Coin objects** are individual onchain objects, each with its own ID, version, and balance. You own
+specific coin objects and need to split, merge, and track them.
 
-**Address balances** are an accumulator per address per coin type. There are no objects to manage because
-deposits automatically merge into a single balance, and you withdraw from it as needed.
+**Address balances** are an accumulator per address per coin type. There are no objects to manage
+because deposits automatically merge into a single balance, and you withdraw from it as needed.
 
 Both systems coexist. An address's total balance for a given coin type is the sum of its coin object
 balances and its address balance.
@@ -45,8 +45,8 @@ tx.transferObjects(
 
 ### Getting a `Balance`
 
-`tx.balance()` produces a `Balance<T>`. Use it for Move functions that expect a balance directly,
-or for gasless transactions:
+`tx.balance()` produces a `Balance<T>`. Use it for Move functions that expect a balance directly, or
+for gasless transactions:
 
 ```tsx
 const tx = new Transaction();
@@ -112,9 +112,9 @@ At build time, the resolver replaces it with concrete commands based on the send
   `balance::redeem_funds`. No coin objects are used, so the transaction has no versioned object
   inputs from this intent, keeping it eligible for parallel execution.
 
-- **Otherwise, coins are needed:** Fetches the sender's coin objects and address balance in parallel.
-  Merges available coins (topping up from address balance if needed), then splits the exact amounts.
-  For `tx.balance()` intents, the split results are converted to `Balance<T>` through
+- **Otherwise, coins are needed:** Fetches the sender's coin objects and address balance in
+  parallel. Merges available coins (topping up from address balance if needed), then splits the
+  exact amounts. For `tx.balance()` intents, the split results are converted to `Balance<T>` through
   `coin::into_balance`, and any remainder is returned to the sender's address balance through
   `coin::send_funds`.
 
@@ -285,8 +285,8 @@ const result = await client.signAndExecuteTransaction({
 ```
 
 The JSON-RPC transport does not automatically detect gasless eligibility. You can opt in by setting
-the gas price to zero with `tx.setGasPrice(0)`, but this causes the transaction to fail if it is
-not actually gasless-eligible.
+the gas price to zero with `tx.setGasPrice(0)`, but this causes the transaction to fail if it is not
+actually gasless-eligible.
 
 <Callout type="warning">
 	When executing through a wallet (using dapp-kit), you might need to build the transaction first if

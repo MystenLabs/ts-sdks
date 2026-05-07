@@ -5,17 +5,16 @@ keywords: [offline, air-gapped, build, expiration, gas payment, party objects]
 ---
 
 Normally the SDK resolves object versions, estimates gas, and fills in other details by querying the
-network. For offline building of backend services, air-gapped signing, or pre-built transactions, you
-must provide this information yourself. See also the Sui documentation on
+network. For offline building of backend services, air-gapped signing, or pre-built transactions,
+you must provide this information yourself. See also the Sui documentation on
 [offline signing](https://docs.sui.io/guides/developer/transactions/transaction-auth/offline-signing)
 for the protocol-level details.
 
 ## Transactions without owned object inputs
 
-When your transaction only uses shared objects, party objects, and/or
-address balance withdrawals, there are no owned object versions to look up. Use `tx.withdrawal()`
-directly instead of `tx.coin()` or `coinWithBalance` because they require a client to resolve coin
-objects at build time.
+When your transaction only uses shared objects, party objects, and/or address balance withdrawals,
+there are no owned object versions to look up. Use `tx.withdrawal()` directly instead of `tx.coin()`
+or `coinWithBalance` because they require a client to resolve coin objects at build time.
 
 ```typescript
 import { Transaction } from '@mysten/sui/transactions';
@@ -85,8 +84,8 @@ Key properties for offline building:
 
 - **No version lookup needed**: `initialSharedVersion` is stable and set once when the object
   becomes a party object
-- **Enable pipelining**: Submit multiple transactions on the same party object without
-  waiting for each one to finalize
+- **Enable pipelining**: Submit multiple transactions on the same party object without waiting for
+  each one to finalize
 - **Cannot be used for gas**: Use address balance for gas payment (`setGasPayment([])`)
 
 ## Transactions with owned object inputs
