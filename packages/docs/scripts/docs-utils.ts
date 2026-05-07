@@ -279,7 +279,7 @@ export function getPageEntries(
 }
 
 /** Directories excluded from all generated docs and indices. */
-export const EXCLUDED_SUBDIRS: string[] = [];
+export const EXCLUDED_SUBDIRS = ['dapp-kit/legacy'];
 
 /**
  * Generate a markdown index for a single content section (e.g. "sui", "dapp-kit").
