@@ -30,21 +30,21 @@ such as `"NodeNext"`, `"Node16"`, or `"Bundler"`.
 The SDK contains a set of modular packages that you can use independently or together. Import just
 what you need to keep your code light and compact.
 
-- [`@mysten/sui/client`](/sui/clients) - A client for interacting with Sui RPC nodes.
-- [`@mysten/sui/bcs`](/sui/bcs) - A BCS builder with pre-defined types for Sui.
-- [`@mysten/sui/transactions`](/sui/transactions/basics) - Utilities for building and interacting
+- [`@mysten/sui/client`](/sui/clients): A client for interacting with Sui RPC nodes.
+- [`@mysten/sui/bcs`](/sui/bcs): A BCS builder with pre-defined types for Sui.
+- [`@mysten/sui/transactions`](/sui/transactions/basics): Utilities for building and interacting
   with transactions.
-- [`@mysten/sui/keypairs/*`](/sui/cryptography/keypairs) - Modular exports for specific KeyPair
+- [`@mysten/sui/keypairs/*`](/sui/cryptography/keypairs): Modular exports for specific KeyPair
   implementations.
-- [`@mysten/sui/verify`](/sui/cryptography/keypairs#verifying-signatures-without-a-key-pair) -
+- [`@mysten/sui/verify`](/sui/cryptography/keypairs#verifying-signatures-without-a-key-pair):
   Methods for verifying transactions and messages.
-- [`@mysten/sui/cryptography`](/sui/cryptography/keypairs) - Shared types and classes for
+- [`@mysten/sui/cryptography`](/sui/cryptography/keypairs): Shared types and classes for
   cryptography.
-- [`@mysten/sui/multisig`](/sui/cryptography/multisig) - Utilities for working with multisig
+- [`@mysten/sui/multisig`](/sui/cryptography/multisig): Utilities for working with multisig
   signatures.
-- [`@mysten/sui/utils`](/sui/utils) - Utilities for formatting and parsing various Sui types.
-- [`@mysten/sui/faucet`](#faucet) - Methods for requesting SUI from a faucet.
-- [`@mysten/sui/zklogin`](/sui/zklogin) - Utilities for working with zkLogin.
+- [`@mysten/sui/utils`](/sui/utils): Utilities for formatting and parsing various Sui types.
+- [`@mysten/sui/faucet`](#faucet): Methods for requesting SUI from a faucet.
+- [`@mysten/sui/zklogin`](/sui/zklogin): Utilities for working with zkLogin.
 
 ## Network locations
 
@@ -115,7 +115,7 @@ Run it:
 node setup.ts
 ```
 
-Save the secret key that gets printed — you'll use it in the next step.
+Save the secret key that gets printed; you'll use it in the next step.
 
 <Callout type="warn">
 	Logging secret keys to the console is only appropriate for quick demos like this. In real
@@ -215,13 +215,13 @@ await requestSuiFromFaucetV2({
 
 <Callout type="info">
 	Faucets on Devnet and Testnet are rate limited. If you hit the limit, wait before trying again.
-	For testnet, you can also get SUI through the web UI at `faucet.sui.io` or via the [Sui
+	For Testnet, you can also get SUI through the web UI at `faucet.sui.io` or through the [Sui
 	Discord](https://discord.gg/sui) faucet channels.
 </Callout>
 
 ## Next steps
 
-- [Building Transactions](/sui/transactions/basics) — create and compose transactions
-- [Signing and Execution](/sui/transactions/signing-and-execution) — sign and submit transactions
-- [Coins and Balances](/sui/transactions/coins-and-balances) — work with tokens
-- [Client Setup](/sui/clients) — configure clients for different networks
+- [Building Transactions](/sui/transactions/basics): create and compose transactions
+- [Signing and Execution](/sui/transactions/signing-and-execution): sign and submit transactions
+- [Coins and Balances](/sui/transactions/coins-and-balances): work with tokens
+- [Client Setup](/sui/clients): configure clients for different networks

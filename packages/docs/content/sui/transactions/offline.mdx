@@ -1,6 +1,7 @@
 ---
 title: Building Offline
 description: Build transactions without a network connection
+keywords: [offline, air-gapped, build, expiration, gas payment, party objects]
 ---
 
 Normally the SDK resolves object versions, estimates gas, and fills in other details by querying the
@@ -82,8 +83,8 @@ tx.sharedObjectRef({
 
 Key properties for offline building:
 
-- **No version lookup needed**:`initialSharedVersion` is stable amd set once when the object becomes
-  a party object
+- **No version lookup needed**: `initialSharedVersion` is stable and set once when the object
+  becomes a party object
 - **Enable pipelining**: Submit multiple transactions on the same party object without
   waiting for each one to finalize
 - **Cannot be used for gas**: Use address balance for gas payment (`setGasPayment([])`)
@@ -150,9 +151,8 @@ Every offline-built transaction must have the following:
 
 ### Expiration
 
-When a transaction has no owned objects used for gas or inputs, you must set an expiration. This
-applies when using address balances for gas (`setGasPayment([])`) with only shared and party object
-inputs:
+Set an expiration when your transaction uses no owned objects for gas or inputs. This applies when
+you use address balances for gas (`setGasPayment([])`) with only shared and party object inputs:
 
 ```typescript
 tx.setExpiration({
@@ -174,8 +174,8 @@ tx.setExpiration({ Epoch: 100 });
 ```
 
 <Callout type="info">
-	When building with a client, the SDK sets expiration automatically. The manual configuration above
-	is only needed for fully offline builds.
+	When building with a client, the SDK sets expiration automatically. You only need the manual
+	configuration above for fully offline builds.
 </Callout>
 
 ## Serialization

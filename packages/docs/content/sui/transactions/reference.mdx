@@ -1,6 +1,7 @@
 ---
 title: Commands and Inputs Reference
 description: Complete reference for transaction commands and input types
+keywords: [reference, commands, inputs, splitCoins, moveCall, publish, upgrade]
 ---
 
 A
@@ -24,7 +25,7 @@ accept any of the following as an object reference:
 - **`tx.objectRef({...})`**: Fully-resolved owned or immutable object (no lookup needed)
 - **`tx.sharedObjectRef({...})`**: Fully-resolved shared object (no lookup needed)
 - **`tx.receivingRef({...})`**: Fully-resolved receiving object (no lookup needed)
-- **Transaction result**: The return value of a previous command (e.g., from `splitCoins`)
+- **Transaction result**: The return value of a previous command (for example, from `splitCoins`)
 - **`tx.coin({...})`** or **`coinWithBalance({...})`**: A coin intent resolved at build time
 - **`tx.gas`**: The gas coin (when gas is paid from coin objects)
 
@@ -148,7 +149,7 @@ reference to a receiving input:
 ```typescript
 tx.moveCall({
 	target: '0xPackage::module::receive',
-	// SDK detects the function signature expects Receiving<T> and adjusts accordingly
+	// The SDK detects the function signature expects Receiving<T> and adjusts accordingly
 	arguments: [tx.object('0xParentId'), tx.object('0xReceivingObjectId')],
 });
 ```

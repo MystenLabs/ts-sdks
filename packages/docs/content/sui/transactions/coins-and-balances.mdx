@@ -1,6 +1,7 @@
 ---
 title: Coins and Balances
 description: Work with coin objects and address balances in transactions
+keywords: [coins, balances, address balance, gasless, stablecoin, send_funds]
 ---
 
 Sui has two systems for holding fungible token balances: coin objects and address balances.
@@ -73,16 +74,16 @@ tx.moveCall({
 
 <Callout type="info">
 	Transactions built entirely from `tx.balance()` and gasless-eligible Move calls like `send_funds`
-	and `redeem_funds` may qualify as [gasless transactions](#gasless-transactions).
+	and `redeem_funds` might qualify as [gasless transactions](#gasless-transactions).
 </Callout>
 
 ### Options
 
-| Option       | Type               | Default | Description                                                              |
-| ------------ | ------------------ | ------- | ------------------------------------------------------------------------ |
-| `balance`    | `bigint \| number` | —       | Amount in base units (MIST for SUI)                                      |
-| `type`       | `string`           | SUI     | Coin type. Defaults to `0x2::sui::SUI`                                   |
-| `useGasCoin` | `boolean`          | `true`  | For SUI, split from the gas coin. Set `false` for sponsored transactions |
+| Option       | Type               | Default    | Description                                                              |
+| ------------ | ------------------ | ---------- | ------------------------------------------------------------------------ |
+| `balance`    | `bigint \| number` | _required_ | Amount in base units (MIST for SUI)                                      |
+| `type`       | `string`           | SUI        | Coin type. Defaults to `0x2::sui::SUI`                                   |
+| `useGasCoin` | `boolean`          | `true`     | For SUI, split from the gas coin. Set `false` for sponsored transactions |
 
 For SUI, `tx.coin()` splits from the gas coin by default. For sponsored transactions where the gas
 coin belongs to the sponsor, set `useGasCoin: false`:
@@ -107,14 +108,14 @@ tx.transferObjects([coinWithBalance({ balance: 1_000_000_000 })], recipient);
 When you call `tx.coin()` or `tx.balance()`, the SDK adds a placeholder intent to the transaction.
 At build time, the resolver replaces it with concrete commands based on the sender's funds:
 
-- **`tx.balance()` with sufficient address balance:** Uses a direct `FundsWithdrawal` via
+- **`tx.balance()` with sufficient address balance:** Uses a direct `FundsWithdrawal` through
   `balance::redeem_funds`. No coin objects are used, so the transaction has no versioned object
   inputs from this intent, keeping it eligible for parallel execution.
 
 - **Otherwise, coins are needed:** Fetches the sender's coin objects and address balance in parallel.
   Merges available coins (topping up from address balance if needed), then splits the exact amounts.
-  For `tx.balance()` intents, the split results are converted to `Balance<T>` via
-  `coin::into_balance`, and any remainder is returned to the sender's address balance via
+  For `tx.balance()` intents, the split results are converted to `Balance<T>` through
+  `coin::into_balance`, and any remainder is returned to the sender's address balance through
   `coin::send_funds`.
 
 The resolver prefers address balances when possible to avoid introducing versioned object
@@ -257,7 +258,7 @@ gasless transactions with the Typescript SDK.
 ### SDK support (gRPC and GraphQL)
 
 When using the gRPC or GraphQL transports, transactions that qualify are automatically detected, and
-the gas price will be set when the transaction is built.
+the gas price is set when the transaction is built.
 
 ```tsx
 import { SuiGrpcClient } from '@mysten/sui/grpc';
@@ -284,14 +285,14 @@ const result = await client.signAndExecuteTransaction({
 ```
 
 The JSON-RPC transport does not automatically detect gasless eligibility. You can opt in by setting
-the gas price to zero with `tx.setGasPrice(0)`, but this will cause the transaction to fail if it is
+the gas price to zero with `tx.setGasPrice(0)`, but this causes the transaction to fail if it is
 not actually gasless-eligible.
 
 <Callout type="warning">
-	When executing through a wallet (using dapp-kit), you may need to build the transaction first if
+	When executing through a wallet (using dapp-kit), you might need to build the transaction first if
 	the wallet itself is still using JSON-RPC to execute transactions.
 
-    You can call `tx.build({ client: grpcClient })` which will use your grpc client to set the gas price
+    Call `tx.build({ client: grpcClient })` to use your grpc client to set the gas price
     correctly for your transaction.
 
 </Callout>

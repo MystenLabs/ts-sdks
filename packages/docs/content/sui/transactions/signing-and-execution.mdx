@@ -1,6 +1,7 @@
 ---
 title: Signing and Execution
 description: Sign transactions and execute them on the Sui network
+keywords: [signing, execution, simulate, sponsored, gas, dapp-kit, keypair]
 ---
 
 Once you've built a transaction, you need to sign it and submit it to the network. For background on
@@ -91,7 +92,7 @@ Available keypair types:
 - `Secp256r1Keypair` from `@mysten/sui/keypairs/secp256r1`
 - `PasskeyKeypair` from `@mysten/sui/keypairs/passkey`
 
-## With dApp Kit (React frontend)
+## With dapp-kit (React frontend)
 
 In a React app, use the `useSignAndExecuteTransaction` hook. The user's connected wallet signs and
 submits the transaction:
@@ -124,7 +125,7 @@ function SendButton() {
 }
 ```
 
-See the [dApp Kit documentation](/dapp-kit) for full setup instructions.
+See the [dapp-kit documentation](/dapp-kit) for full setup instructions.
 
 ## Sign without executing
 
@@ -142,7 +143,7 @@ const bytes = await tx.build({ client: grpcClient });
 const { signature } = await keypair.signTransaction(bytes);
 ```
 
-### With dApp Kit
+### With dapp-kit
 
 ```tsx
 import { useSignTransaction } from '@mysten/dapp-kit';
@@ -227,10 +228,9 @@ if (!tx.status.success) {
 
 ### Waiting for indexing
 
-After a transaction executes, the effects may not be immediately visible to read APIs (like
-`getBalance` or `getObject`). Waiting is also required before executing a subsequent transaction
-that depends on objects created or modified by the first one. Use `waitForTransaction` to ensure
-consistency:
+After a transaction executes, read APIs (like `getBalance` or `getObject`) might not immediately
+show the effects. You must also wait before executing a subsequent transaction that depends on
+objects created or modified by the first one. Use `waitForTransaction` to ensure consistency:
 
 ```typescript
 const result = await keypair.signAndExecuteTransaction({
@@ -280,8 +280,8 @@ tx.setGasBudget(50_000_000);
 
 ### Gas payment with coin objects
 
-Specify exactly which coins to use for gas. These coins are merged into a single gas coin before
-execution:
+Specify exactly which coins to use for gas. The system merges these coins into a single gas coin
+before execution:
 
 ```typescript
 tx.setGasPayment([
@@ -301,8 +301,8 @@ tx.setGasPayment([]);
 ```
 
 This is particularly useful for [offline building](./offline) and
-[sponsored transactions](#sponsored-transactions), since there are no coin object versions to look
-up or coordinate.
+[sponsored transactions](#sponsored-transactions), because there are no coin object versions to
+look up or coordinate.
 
 ### The gas coin (`tx.gas`)
 
@@ -315,9 +315,9 @@ tx.transferObjects([coin], '0xRecipientAddress');
 ```
 
 <Callout type="warn">
-	`tx.gas` only works when gas is paid from coin objects. If gas is paid from address balances (via
-	`setGasPayment([])`), `tx.gas` is not available. Use [`tx.coin()`](./coins-and-balances) instead,
-	which works in both cases.
+	`tx.gas` only works when gas is paid from coin objects. If gas is paid from address balances
+	(through `setGasPayment([])`), `tx.gas` is not available. Use [`tx.coin()`](./coins-and-balances)
+	instead, which works in both cases.
 </Callout>
 
 ## Sponsored transactions

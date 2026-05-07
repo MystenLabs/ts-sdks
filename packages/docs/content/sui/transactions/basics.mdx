@@ -1,6 +1,7 @@
 ---
 title: Building Transactions
 description: Construct programmable transaction blocks with the Transaction API
+keywords: [transactions, ptb, move call, splitCoins, transferObjects, codegen]
 ---
 
 Every interaction with the Sui network goes through a transaction. Sui transactions are a sequence of commands called [programmable transaction blocks (PTBs)](https://docs.sui.io/guides/developer/transactions/prog-txn-blocks) that execute on inputs to produce a result. Commands within a transaction can call Move functions, transfer objects, split and merge coins, and more. You can chain the result
@@ -25,7 +26,7 @@ const tx = new Transaction();
 
 ## Sending SUI
 
-It is recommended to send SUI is with `tx.balance()` and `balance::send_funds`, which deposits
+Use `tx.balance()` and `balance::send_funds` to send SUI; this deposits
 directly into the recipient's address balance:
 
 ```typescript
@@ -167,7 +168,7 @@ const secondNft = result[1];
 
 <Callout type="warn">
 	Always access elements by index or destructuring. Do not
-	use the spread operator (`...result`) or pass results to `Array.from()`, as this will cause an
+	use the spread operator (`...result`) or pass results to `Array.from()`, which causes an
 	infinite loop.
 </Callout>
 
@@ -280,4 +281,5 @@ transactions.
 ## Executing transactions
 
 Once you've built a transaction, see [Signing and Execution](./signing-and-execution) for all the
-ways to sign and submit it, such as keypairs, dApp Kit hooks, sponsored transactions, and more.
+ways to sign and submit it, such as keypairs, [`dapp-kit`](/dapp-kit) hooks, sponsored transactions,
+and more.
