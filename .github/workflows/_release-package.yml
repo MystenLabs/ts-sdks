@@ -1,0 +1,184 @@
+name: Release Package (template)
+
+# Reusable workflow for publishing a single workspace package to npm.
+# Each `release-<pkg>.yml` calls this with its own `package` input and
+# (optionally) overrides for the install / build path.
+#
+# The orchestrator (release.yml) already filters out packages whose version
+# is on npm and bails on pending changesets, so this template just installs,
+# builds, and publishes. npm itself rejects re-publishing an existing version,
+# so the manual-dispatch path is naturally idempotent.
+#
+# Two install modes:
+#   - Minimal (default, full_install=false): only the package's prod
+#     dependency subgraph + a sandboxed allowlist of build tools (the
+#     `tools` input) symlinked into the workspace. Workspace devDeps
+#     NEVER land on disk.
+#   - Full (full_install=true): standard `pnpm install --frozen-lockfile
+#     --ignore-scripts`. Used by legacy @mysten/dapp-kit which needs
+#     devDeps for vanilla-extract / esbuild.
+
+on:
+  workflow_call:
+    inputs:
+      package:
+        description: 'npm package name, e.g. @mysten/sui'
+        type: string
+        required: true
+      dir:
+        description: 'Package directory relative to repo root, e.g. packages/sui'
+        type: string
+        required: true
+      dry_run:
+        description: 'Run pnpm publish with --dry-run'
+        type: string
+        default: 'true'
+      full_install:
+        description: 'Use full pnpm install instead of minimal --prod + sandboxed tools'
+        type: string
+        default: 'false'
+      tools:
+        description: |
+          Space-separated npm specs to install into the sandboxed tools dir
+          (minimal install path only). Each package declares its own toolset.
+          Empty string = skip the tools step entirely (e.g. wasm packages
+          with checked-in artifacts, or docs which only runs `node`).
+        type: string
+        default: 'tsdown@0.20.0-beta.1 typescript@5.9.3 @types/node@25.0.8'
+      build_command:
+        description: 'Shell command to build the package (defaults to `pnpm --filter <package> run build`)'
+        type: string
+        default: ''
+      ref:
+        description: |
+          Git ref or SHA to check out and publish. The orchestrator passes the
+          SHA Turborepo CI verified so a newer untested main commit can't
+          publish. Empty string = check out the default ref (main HEAD when
+          dispatched manually).
+        type: string
+        default: ''
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # OIDC trusted publishing
+    env:
+      DRY_RUN: ${{ inputs.dry_run }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@a3252b78c470c02df07e9d59298aecedc3ccdd6d # v3.0.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # v4.0.2
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'pnpm'
+
+      - name: Install
+        env:
+          PACKAGE: ${{ inputs.package }}
+          FULL_INSTALL: ${{ inputs.full_install }}
+        run: |
+          set -euo pipefail
+          if [ "$FULL_INSTALL" = "true" ]; then
+            pnpm install --frozen-lockfile --ignore-scripts
+          else
+            pnpm install --filter "${PACKAGE}..." --prod --frozen-lockfile --ignore-scripts
+          fi
+
+      - name: Install tools (sandboxed, minimal install only)
+        if: inputs.full_install != 'true' && inputs.tools != ''
+        env:
+          TOOLS: ${{ inputs.tools }}
+        run: |
+          set -euo pipefail
+          tools_dir="$RUNNER_TEMP/release-tools"
+          rm -rf "$tools_dir"
+          mkdir -p "$tools_dir"
+          # shellcheck disable=SC2086 — TOOLS is a space-separated arg list.
+          npm install --prefix "$tools_dir" --no-save --no-package-lock --ignore-scripts $TOOLS
+          # Symlink only the explicitly requested tools into the workspace's
+          # node_modules so per-package configs (tsdown.config.ts etc.) resolve
+          # them via the standard parent-traversal lookup. We do NOT iterate
+          # over $tools_dir/node_modules/* — npm's flat layout puts every
+          # transitive there too, and clobbering prod-subgraph entries with
+          # `ln -sfn` would silently shadow workspace-installed deps.
+          mkdir -p node_modules
+          for spec in $TOOLS; do
+            # Strip version range / tag: handles `pkg@1.2.3`, `@scope/pkg@1.2.3`,
+            # `pkg@beta`, and bare `pkg` / `@scope/pkg`.
+            name="${spec%@*}"
+            [ -z "$name" ] && name="$spec"
+            src="$tools_dir/node_modules/$name"
+            dest="node_modules/$name"
+            if [ ! -e "$src" ]; then
+              echo "::error::tool '$name' not found at $src after npm install"
+              exit 1
+            fi
+            if [ -e "$dest" ] && [ ! -L "$dest" ]; then
+              echo "::error::refusing to overwrite existing $dest (not a symlink) with sandboxed tool"
+              exit 1
+            fi
+            mkdir -p "$(dirname "$dest")"
+            ln -sfn "$src" "$dest"
+          done
+          echo "$tools_dir/node_modules/.bin" >> "$GITHUB_PATH"
+
+      - name: Build
+        env:
+          PACKAGE: ${{ inputs.package }}
+          BUILD_COMMAND: ${{ inputs.build_command }}
+        run: |
+          set -euo pipefail
+          if [ -n "$BUILD_COMMAND" ]; then
+            bash -c "$BUILD_COMMAND"
+          else
+            # `...` walks the workspace dep graph in topological order so each
+            # transitive workspace dep's dist/ is populated before the matrix
+            # package's tsdown emit tries to resolve into it. `--if-present`
+            # goes BEFORE `run` so pnpm interprets it (skipping packages without
+            # a `build` script, e.g. walrus-wasm has `build:wasm`); after `run`
+            # pnpm forwards it to the script and breaks `tsc --build` etc.
+            pnpm --filter "${PACKAGE}..." --if-present run build
+          fi
+
+      - name: Compute artifact-safe package slug
+        id: slug
+        env:
+          PACKAGE: ${{ inputs.package }}
+        run: |
+          set -euo pipefail
+          # actions/upload-artifact rejects '/' (and quietly mangles '@'),
+          # so '@mysten/sui' → 'mysten-sui'.
+          slug="${PACKAGE#@}"
+          slug="${slug//\//-}"
+          echo "slug=$slug" >> "$GITHUB_OUTPUT"
+
+      - name: Publish to npm
+        working-directory: ${{ inputs.dir }}
+        env:
+          NPM_CONFIG_PROVENANCE: true
+        run: |
+          set -euo pipefail
+          if [ "$DRY_RUN" = "true" ]; then
+            pnpm publish --dry-run --access public --no-git-checks
+          else
+            pnpm publish --access public --no-git-checks
+          fi
+
+      - name: Upload tarball artifact
+        if: always()
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: tarball-${{ steps.slug.outputs.slug }}
+          path: ${{ inputs.dir }}/*.tgz
+          if-no-files-found: ignore
+          retention-days: 7

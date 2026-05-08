@@ -9,9 +9,7 @@ on:
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
 permissions:
-  id-token: write
   contents: write
-  packages: write
   pull-requests: write
   issues: read
 
@@ -31,16 +29,14 @@ jobs:
           cache: 'pnpm'
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      - name: Create Release Pull Request or Publish Latest Version
+      - name: Create Release Pull Request
         uses: changesets/action@v1.5.3
         with:
           # Generates src/version.ts file using genVersion
           # https://github.com/changesets/action#with-version-script
           version: pnpm changeset-version
-          # Builds and publishes releases
-          # https://github.com/changesets/action?tab=readme-ov-file#with-publishing
-          publish: pnpm release
-
+          # Publishing happens via .github/workflows/release.yml (orchestrator),
+          # which gates on Turborepo CI success and dispatches per-package
+          # release-<pkg>.yml workflows. Do NOT add a `publish:` field here.
         env:
-          NPM_TOKEN: '' # https://github.com/changesets/changesets/issues/1152#issuecomment-3190884868
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

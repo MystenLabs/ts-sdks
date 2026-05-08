@@ -1,0 +1,37 @@
+name: Release @mysten/enoki
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry-run mode'
+        required: false
+        default: 'true'
+      ref:
+        description: 'Git ref or SHA to publish (defaults to main HEAD)'
+        required: false
+        default: ''
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    # Hard-restrict to main. workflow_dispatch lets users pick any branch and
+    # run that branch's workflow file; this gate refuses anything other than
+    # main. The orchestrator (release.yml) is the only thing that auto-dispatches
+    # this workflow; manual UI dispatches still go through this gate.
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      id-token: write # OIDC trusted publishing
+    uses: ./.github/workflows/_release-package.yml
+    with:
+      package: '@mysten/enoki'
+      dir: 'packages/enoki'
+      dry_run: ${{ inputs.dry_run || 'true' }}
+      ref: ${{ inputs.ref }}
+      # enoki imports React types — needs @types/react for dts emit
+      tools: 'tsdown@0.20.0-beta.1 typescript@5.9.3 @types/node@25.0.8 @types/react@19.2.8'

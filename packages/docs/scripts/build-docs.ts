@@ -18,7 +18,7 @@ import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-import { EXCLUDED_SUBDIRS, findMdxFiles, generateSectionIndex, processFile } from './docs-utils.js';
+import { EXCLUDED_SUBDIRS, findMdxFiles, generateSectionIndex, processFile } from './docs-utils.ts';
 
 const npxCmd = process.platform === 'win32' ? 'npx.cmd' : 'npx';
 const SCRIPTS_DIR = new URL('.', import.meta.url).pathname;
@@ -39,8 +39,8 @@ interface ContentMapping {
 }
 
 const PACKAGE_CONTENT_MAP: Record<string, ContentMapping> = {
-	// Legacy dapp-kit gets only the legacy subdirectory
-	'dapp-kit': {
+	// Legacy dapp-kit (packages/dapp-kit/packages/legacy) gets only the legacy subdirectory
+	legacy: {
 		contentSection: 'dapp-kit',
 		subdirectory: 'legacy',
 	},

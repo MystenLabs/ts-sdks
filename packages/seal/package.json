@@ -23,7 +23,7 @@
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
 		"build": "node genversion.mjs && rm -rf dist && tsc --noEmit && tsdown",
-		"build:docs": "tsx ../docs/scripts/build-docs.ts",
+		"build:docs": "node ../docs/scripts/build-docs.ts",
 		"codegen:version": "node genversion.mjs",
 		"vitest": "vitest",
 		"test": "pnpm test:typecheck && pnpm test:unit",

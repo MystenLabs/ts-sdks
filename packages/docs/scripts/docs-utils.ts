@@ -12,7 +12,59 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-import matter from 'gray-matter';
+// ---------------------------------------------------------------------------
+// Frontmatter parser
+// ---------------------------------------------------------------------------
+//
+// Regex-based YAML frontmatter parser for the narrow subset used in
+// content/**/*.mdx. Replaces the gray-matter dep — keeps the install
+// minimal and avoids a state machine for patterns no MDX file uses.
+//
+// Supported shapes:
+//   - top-level `key: scalar` (optionally single/double-quoted)
+//   - `key: [a, b, c]` (single-line flow array)
+//   - multi-line flow arrays via the `\n[ \t]+` continuation collapse:
+//       keywords:
+//         [a,
+//          b,
+//          c]
+// Unsupported (not used anywhere in current content; will silently miss
+// or produce a string value):
+//   - block arrays (`- item` on subsequent lines)
+//   - escaped quotes inside strings
+//   - `]` inside string values
+//
+// validate-llm-docs.ts enforces the field set, so drift would surface there.
+
+type FrontmatterData = Record<string, string | string[]>;
+
+const FRONTMATTER_RE = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/;
+const KEY_LINE_RE = /^([A-Za-z_][\w-]*)\s*:[ \t]*(\S.*)?$/gm;
+const FLOW_ARRAY_RE = /^\[([\s\S]*?)\]$/;
+
+function unquote(s: string): string {
+	return s.trim().replace(/^(['"])(.*)\1$/, '$2');
+}
+
+export function matter(raw: string): { data: FrontmatterData; content: string } {
+	const m = FRONTMATTER_RE.exec(raw);
+	if (!m) return { data: {}, content: raw };
+	const [, body, content] = m;
+	// Collapse continuation lines (lines starting with whitespace) into the
+	// previous key's value. Turns multi-line flow arrays into single-line ones.
+	const flat = body.replace(/\n[ \t]+/g, ' ');
+	const data: FrontmatterData = {};
+	for (const [, key, val = ''] of flat.matchAll(KEY_LINE_RE)) {
+		const arr = FLOW_ARRAY_RE.exec(val.trim());
+		data[key] = arr
+			? arr[1]
+					.split(',')
+					.map(unquote)
+					.filter((s) => s !== '')
+			: unquote(val);
+	}
+	return { data, content };
+}
 
 // ---------------------------------------------------------------------------
 // MDX → Markdown processing
@@ -84,22 +136,22 @@ function mdxToMarkdown(mdx: string): string {
 export async function processFile(mdxPath: string, outputPath: string): Promise<void> {
 	const raw = fs.readFileSync(mdxPath, 'utf-8');
 	const { content, data } = matter(raw);
+	const title = typeof data.title === 'string' ? data.title : undefined;
+	const description = typeof data.description === 'string' ? data.description : undefined;
 
 	let markdown = mdxToMarkdown(content);
 
 	// Add title as H1 if present in frontmatter
-	if (data.title) {
-		markdown = `# ${data.title}\n\n${markdown}`;
+	if (title) {
+		markdown = `# ${title}\n\n${markdown}`;
 	}
 
 	// Add description as blockquote if present
-	if (data.description) {
+	if (description) {
 		const titleLine = markdown.indexOf('\n');
-		if (titleLine !== -1 && data.title) {
+		if (titleLine !== -1 && title) {
 			markdown =
-				markdown.slice(0, titleLine + 1) +
-				`\n> ${data.description}\n` +
-				markdown.slice(titleLine + 1);
+				markdown.slice(0, titleLine + 1) + `\n> ${description}\n` + markdown.slice(titleLine + 1);
 		}
 	}
 
@@ -171,7 +223,9 @@ export function readMdxFrontmatter(filePath: string): { title?: string; descript
 	if (!fs.existsSync(filePath)) return {};
 	const content = fs.readFileSync(filePath, 'utf-8');
 	const { data } = matter(content);
-	return { title: data.title, description: data.description };
+	const title = typeof data.title === 'string' ? data.title : undefined;
+	const description = typeof data.description === 'string' ? data.description : undefined;
+	return { title, description };
 }
 
 export function getPageEntries(

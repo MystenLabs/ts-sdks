@@ -129,7 +129,7 @@ importers:
         version: link:../codegen
       '@mysten/dapp-kit-react':
         specifier: workspace:^
-        version: link:../dapp-kit-next/packages/dapp-kit-react
+        version: link:../dapp-kit/packages/dapp-kit-react
       '@mysten/sui':
         specifier: workspace:^
         version: link:../sui
@@ -148,7 +148,7 @@ importers:
     dependencies:
       '@mysten/dapp-kit-react':
         specifier: workspace:^
-        version: link:../../../dapp-kit-next/packages/dapp-kit-react
+        version: link:../../../dapp-kit/packages/dapp-kit-react
       '@mysten/sui':
         specifier: workspace:^
         version: link:../../../sui
@@ -203,7 +203,7 @@ importers:
     dependencies:
       '@mysten/dapp-kit-react':
         specifier: workspace:^
-        version: link:../../../dapp-kit-next/packages/dapp-kit-react
+        version: link:../../../dapp-kit/packages/dapp-kit-react
       '@mysten/sui':
         specifier: workspace:^
         version: link:../../../sui
@@ -257,17 +257,230 @@ importers:
         specifier: ^8.0.5
         version: 8.0.5(@types/node@25.5.0)(esbuild@0.27.4)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3)
 
-  packages/dapp-kit:
+  packages/dapp-kit/examples/next-js/simple:
+    dependencies:
+      '@mysten/dapp-kit-react':
+        specifier: workspace:^
+        version: link:../../../packages/dapp-kit-react
+      '@mysten/sui':
+        specifier: workspace:^
+        version: link:../../../../sui
+      next:
+        specifier: ^16.2.4
+        version: 16.2.4(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      react:
+        specifier: ^19.2.3
+        version: 19.2.4
+      react-dom:
+        specifier: ^19.2.3
+        version: 19.2.4(react@19.2.4)
+    devDependencies:
+      '@types/node':
+        specifier: ^25.0.8
+        version: 25.5.0
+      '@types/react':
+        specifier: ^19.2.8
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.14)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  packages/dapp-kit/examples/react/simple:
+    dependencies:
+      '@mysten/dapp-kit-react':
+        specifier: workspace:^
+        version: link:../../../packages/dapp-kit-react
+      '@mysten/sui':
+        specifier: workspace:^
+        version: link:../../../../sui
+      '@nanostores/react':
+        specifier: ^1.0.0
+        version: 1.1.0(nanostores@1.2.0)(react@19.2.4)
+      react:
+        specifier: ^19.2.3
+        version: 19.2.4
+      react-dom:
+        specifier: ^19.2.3
+        version: 19.2.4(react@19.2.4)
+    devDependencies:
+      '@types/react':
+        specifier: ^19.2.8
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.14)
+      '@vitejs/plugin-react':
+        specifier: ^5.1.2
+        version: 5.2.0(vite@8.0.5(@types/node@25.5.0)(esbuild@0.27.4)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3))
+      globals:
+        specifier: ^17.0.0
+        version: 17.4.0
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vite:
+        specifier: ^8.0.5
+        version: 8.0.5(@types/node@25.5.0)(esbuild@0.27.4)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/dapp-kit/examples/vanilla/simple:
+    dependencies:
+      '@mysten/dapp-kit-core':
+        specifier: workspace:^
+        version: link:../../../packages/dapp-kit-core
+      '@mysten/sui':
+        specifier: workspace:^
+        version: link:../../../../sui
+    devDependencies:
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vite:
+        specifier: ^8.0.5
+        version: 8.0.5(@types/node@25.5.0)(esbuild@0.27.4)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/dapp-kit/examples/vue/simple:
+    dependencies:
+      '@mysten/dapp-kit-core':
+        specifier: workspace:^
+        version: link:../../../packages/dapp-kit-core
+      '@mysten/sui':
+        specifier: workspace:^
+        version: link:../../../../sui
+      '@nanostores/vue':
+        specifier: ^1.0.1
+        version: 1.1.0(nanostores@1.2.0)(vue@3.5.31(typescript@5.9.3))
+      vue:
+        specifier: ^3.5.26
+        version: 3.5.31(typescript@5.9.3)
+    devDependencies:
+      '@tsconfig/node22':
+        specifier: ^22.0.5
+        version: 22.0.5
+      '@types/node':
+        specifier: ^25.0.8
+        version: 25.5.0
+      '@vitejs/plugin-vue':
+        specifier: ^6.0.3
+        version: 6.0.5(vite@8.0.5(@types/node@25.5.0)(esbuild@0.27.4)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3))(vue@3.5.31(typescript@5.9.3))
+      '@vitejs/plugin-vue-jsx':
+        specifier: ^5.1.3
+        version: 5.1.5(vite@8.0.5(@types/node@25.5.0)(esbuild@0.27.4)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3))(vue@3.5.31(typescript@5.9.3))
+      '@vue/tsconfig':
+        specifier: ^0.8.1
+        version: 0.8.1(typescript@5.9.3)(vue@3.5.31(typescript@5.9.3))
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vite:
+        specifier: ^8.0.5
+        version: 8.0.5(@types/node@25.5.0)(esbuild@0.27.4)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3)
+      vue-tsc:
+        specifier: ^3.2.2
+        version: 3.2.6(typescript@5.9.3)
+
+  packages/dapp-kit/packages/dapp-kit-core:
+    dependencies:
+      '@floating-ui/dom':
+        specifier: ^1.7.4
+        version: 1.7.6
+      '@lit-labs/scoped-registry-mixin':
+        specifier: ^1.0.4
+        version: 1.0.4
+      '@lit/task':
+        specifier: ^1.0.3
+        version: 1.0.3
+      '@mysten/slush-wallet':
+        specifier: workspace:^
+        version: link:../../../slush-wallet
+      '@mysten/utils':
+        specifier: workspace:^
+        version: link:../../../utils
+      '@mysten/wallet-standard':
+        specifier: workspace:^
+        version: link:../../../wallet-standard
+      '@nanostores/lit':
+        specifier: ^0.2.3
+        version: 0.2.3(lit@3.3.2)(nanostores@1.2.0)
+      '@wallet-standard/ui':
+        specifier: ^1.0.1
+        version: 1.0.1
+      '@wallet-standard/ui-registry':
+        specifier: ^1.0.1
+        version: 1.0.1
+      '@webcomponents/scoped-custom-element-registry':
+        specifier: ^0.0.10
+        version: 0.0.10
+      lit:
+        specifier: ^3.3.2
+        version: 3.3.2
+      nanostores:
+        specifier: ^1.1.0
+        version: 1.2.0
+    devDependencies:
+      '@mysten/sui':
+        specifier: workspace:^
+        version: link:../../../sui
+      '@storybook/web-components':
+        specifier: ^10.1.11
+        version: 10.3.3(lit@3.3.2)(storybook@10.3.3(@testing-library/dom@10.4.1)(bufferutil@4.1.0)(prettier@3.8.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(utf-8-validate@6.0.6))
+      '@storybook/web-components-vite':
+        specifier: ^10.1.11
+        version: 10.3.3(esbuild@0.27.4)(lit@3.3.2)(storybook@10.3.3(@testing-library/dom@10.4.1)(bufferutil@4.1.0)(prettier@3.8.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(utf-8-validate@6.0.6))(vite@8.0.5(@types/node@25.5.0)(esbuild@0.27.4)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3))
+      storybook:
+        specifier: ^10.2.12
+        version: 10.3.3(@testing-library/dom@10.4.1)(bufferutil@4.1.0)(prettier@3.8.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(utf-8-validate@6.0.6)
+      tsdown:
+        specifier: 0.20.0-beta.1
+        version: 0.20.0-beta.1(@arethetypeswrong/core@0.18.2)(typescript@5.9.3)(vue-tsc@3.2.6(typescript@5.9.3))
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.0.17
+        version: 4.1.1(@types/node@25.5.0)(esbuild@0.27.4)(happy-dom@20.8.9(bufferutil@4.1.0)(utf-8-validate@6.0.6))(jiti@2.6.1)(jsdom@27.4.0(@noble/hashes@2.0.1)(bufferutil@4.1.0)(utf-8-validate@6.0.6))(msw@2.12.14(@types/node@25.5.0)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.3)
+
+  packages/dapp-kit/packages/dapp-kit-react:
+    dependencies:
+      '@lit/react':
+        specifier: ^1.0.8
+        version: 1.0.8(@types/react@19.2.14)
+      '@mysten/dapp-kit-core':
+        specifier: workspace:^
+        version: link:../dapp-kit-core
+      '@nanostores/react':
+        specifier: ^1.0.0
+        version: 1.1.0(nanostores@1.2.0)(react@19.2.4)
+      nanostores:
+        specifier: ^1.1.0
+        version: 1.2.0
+    devDependencies:
+      '@types/react':
+        specifier: ^19.2.8
+        version: 19.2.14
+      react:
+        specifier: ^19.2.3
+        version: 19.2.4
+      tsdown:
+        specifier: 0.20.0-beta.1
+        version: 0.20.0-beta.1(@arethetypeswrong/core@0.18.2)(typescript@5.9.3)(vue-tsc@3.2.6(typescript@5.9.3))
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  packages/dapp-kit/packages/legacy:
     dependencies:
       '@mysten/slush-wallet':
         specifier: workspace:^
-        version: link:../slush-wallet
+        version: link:../../../slush-wallet
       '@mysten/utils':
         specifier: workspace:^
-        version: link:../utils
+        version: link:../../../utils
       '@mysten/wallet-standard':
         specifier: workspace:^
-        version: link:../wallet-standard
+        version: link:../../../wallet-standard
       '@radix-ui/react-dialog':
         specifier: ^1.1.15
         version: 1.1.15(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -295,7 +508,7 @@ importers:
     devDependencies:
       '@mysten/sui':
         specifier: workspace:^
-        version: link:../sui
+        version: link:../../../sui
       '@tanstack/react-query':
         specifier: ^5.90.16
         version: 5.95.2(react@19.2.4)
@@ -363,219 +576,6 @@ importers:
         specifier: ^4.0.17
         version: 4.1.1(@types/node@25.5.0)(esbuild@0.27.4)(happy-dom@20.8.9(bufferutil@4.1.0)(utf-8-validate@6.0.6))(jiti@2.6.1)(jsdom@27.4.0(@noble/hashes@2.0.1)(bufferutil@4.1.0)(utf-8-validate@6.0.6))(msw@2.12.14(@types/node@25.5.0)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.3)
 
-  packages/dapp-kit-next/examples/next-js/simple:
-    dependencies:
-      '@mysten/dapp-kit-react':
-        specifier: workspace:^
-        version: link:../../../packages/dapp-kit-react
-      '@mysten/sui':
-        specifier: workspace:^
-        version: link:../../../../sui
-      next:
-        specifier: ^16.2.4
-        version: 16.2.4(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      react:
-        specifier: ^19.2.3
-        version: 19.2.4
-      react-dom:
-        specifier: ^19.2.3
-        version: 19.2.4(react@19.2.4)
-    devDependencies:
-      '@types/node':
-        specifier: ^25.0.8
-        version: 25.5.0
-      '@types/react':
-        specifier: ^19.2.8
-        version: 19.2.14
-      '@types/react-dom':
-        specifier: ^19.2.3
-        version: 19.2.3(@types/react@19.2.14)
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
-  packages/dapp-kit-next/examples/react/simple:
-    dependencies:
-      '@mysten/dapp-kit-react':
-        specifier: workspace:^
-        version: link:../../../packages/dapp-kit-react
-      '@mysten/sui':
-        specifier: workspace:^
-        version: link:../../../../sui
-      '@nanostores/react':
-        specifier: ^1.0.0
-        version: 1.1.0(nanostores@1.2.0)(react@19.2.4)
-      react:
-        specifier: ^19.2.3
-        version: 19.2.4
-      react-dom:
-        specifier: ^19.2.3
-        version: 19.2.4(react@19.2.4)
-    devDependencies:
-      '@types/react':
-        specifier: ^19.2.8
-        version: 19.2.14
-      '@types/react-dom':
-        specifier: ^19.2.3
-        version: 19.2.3(@types/react@19.2.14)
-      '@vitejs/plugin-react':
-        specifier: ^5.1.2
-        version: 5.2.0(vite@8.0.5(@types/node@25.5.0)(esbuild@0.27.4)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3))
-      globals:
-        specifier: ^17.0.0
-        version: 17.4.0
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-      vite:
-        specifier: ^8.0.5
-        version: 8.0.5(@types/node@25.5.0)(esbuild@0.27.4)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3)
-
-  packages/dapp-kit-next/examples/vanilla/simple:
-    dependencies:
-      '@mysten/dapp-kit-core':
-        specifier: workspace:^
-        version: link:../../../packages/dapp-kit-core
-      '@mysten/sui':
-        specifier: workspace:^
-        version: link:../../../../sui
-    devDependencies:
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-      vite:
-        specifier: ^8.0.5
-        version: 8.0.5(@types/node@25.5.0)(esbuild@0.27.4)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3)
-
-  packages/dapp-kit-next/examples/vue/simple:
-    dependencies:
-      '@mysten/dapp-kit-core':
-        specifier: workspace:^
-        version: link:../../../packages/dapp-kit-core
-      '@mysten/sui':
-        specifier: workspace:^
-        version: link:../../../../sui
-      '@nanostores/vue':
-        specifier: ^1.0.1
-        version: 1.1.0(nanostores@1.2.0)(vue@3.5.31(typescript@5.9.3))
-      vue:
-        specifier: ^3.5.26
-        version: 3.5.31(typescript@5.9.3)
-    devDependencies:
-      '@tsconfig/node22':
-        specifier: ^22.0.5
-        version: 22.0.5
-      '@types/node':
-        specifier: ^25.0.8
-        version: 25.5.0
-      '@vitejs/plugin-vue':
-        specifier: ^6.0.3
-        version: 6.0.5(vite@8.0.5(@types/node@25.5.0)(esbuild@0.27.4)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3))(vue@3.5.31(typescript@5.9.3))
-      '@vitejs/plugin-vue-jsx':
-        specifier: ^5.1.3
-        version: 5.1.5(vite@8.0.5(@types/node@25.5.0)(esbuild@0.27.4)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3))(vue@3.5.31(typescript@5.9.3))
-      '@vue/tsconfig':
-        specifier: ^0.8.1
-        version: 0.8.1(typescript@5.9.3)(vue@3.5.31(typescript@5.9.3))
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-      vite:
-        specifier: ^8.0.5
-        version: 8.0.5(@types/node@25.5.0)(esbuild@0.27.4)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3)
-      vue-tsc:
-        specifier: ^3.2.2
-        version: 3.2.6(typescript@5.9.3)
-
-  packages/dapp-kit-next/packages/dapp-kit-core:
-    dependencies:
-      '@floating-ui/dom':
-        specifier: ^1.7.4
-        version: 1.7.6
-      '@lit-labs/scoped-registry-mixin':
-        specifier: ^1.0.4
-        version: 1.0.4
-      '@lit/task':
-        specifier: ^1.0.3
-        version: 1.0.3
-      '@mysten/slush-wallet':
-        specifier: workspace:^
-        version: link:../../../slush-wallet
-      '@mysten/utils':
-        specifier: workspace:^
-        version: link:../../../utils
-      '@mysten/wallet-standard':
-        specifier: workspace:^
-        version: link:../../../wallet-standard
-      '@nanostores/lit':
-        specifier: ^0.2.3
-        version: 0.2.3(lit@3.3.2)(nanostores@1.2.0)
-      '@wallet-standard/ui':
-        specifier: ^1.0.1
-        version: 1.0.1
-      '@wallet-standard/ui-registry':
-        specifier: ^1.0.1
-        version: 1.0.1
-      '@webcomponents/scoped-custom-element-registry':
-        specifier: ^0.0.10
-        version: 0.0.10
-      lit:
-        specifier: ^3.3.2
-        version: 3.3.2
-      nanostores:
-        specifier: ^1.1.0
-        version: 1.2.0
-    devDependencies:
-      '@mysten/sui':
-        specifier: workspace:^
-        version: link:../../../sui
-      '@storybook/web-components':
-        specifier: ^10.1.11
-        version: 10.3.3(lit@3.3.2)(storybook@10.3.3(@testing-library/dom@10.4.1)(bufferutil@4.1.0)(prettier@3.8.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(utf-8-validate@6.0.6))
-      '@storybook/web-components-vite':
-        specifier: ^10.1.11
-        version: 10.3.3(esbuild@0.27.4)(lit@3.3.2)(storybook@10.3.3(@testing-library/dom@10.4.1)(bufferutil@4.1.0)(prettier@3.8.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(utf-8-validate@6.0.6))(vite@8.0.5(@types/node@25.5.0)(esbuild@0.27.4)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3))
-      storybook:
-        specifier: ^10.2.12
-        version: 10.3.3(@testing-library/dom@10.4.1)(bufferutil@4.1.0)(prettier@3.8.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(utf-8-validate@6.0.6)
-      tsdown:
-        specifier: 0.20.0-beta.1
-        version: 0.20.0-beta.1(@arethetypeswrong/core@0.18.2)(typescript@5.9.3)(vue-tsc@3.2.6(typescript@5.9.3))
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-      vitest:
-        specifier: ^4.0.17
-        version: 4.1.1(@types/node@25.5.0)(esbuild@0.27.4)(happy-dom@20.8.9(bufferutil@4.1.0)(utf-8-validate@6.0.6))(jiti@2.6.1)(jsdom@27.4.0(@noble/hashes@2.0.1)(bufferutil@4.1.0)(utf-8-validate@6.0.6))(msw@2.12.14(@types/node@25.5.0)(typescript@5.9.3))(tsx@4.21.0)(yaml@2.8.3)
-
-  packages/dapp-kit-next/packages/dapp-kit-react:
-    dependencies:
-      '@lit/react':
-        specifier: ^1.0.8
-        version: 1.0.8(@types/react@19.2.14)
-      '@mysten/dapp-kit-core':
-        specifier: workspace:^
-        version: link:../dapp-kit-core
-      '@nanostores/react':
-        specifier: ^1.0.0
-        version: 1.1.0(nanostores@1.2.0)(react@19.2.4)
-      nanostores:
-        specifier: ^1.1.0
-        version: 1.2.0
-    devDependencies:
-      '@types/react':
-        specifier: ^19.2.8
-        version: 19.2.14
-      react:
-        specifier: ^19.2.3
-        version: 19.2.4
-      tsdown:
-        specifier: 0.20.0-beta.1
-        version: 0.20.0-beta.1(@arethetypeswrong/core@0.18.2)(typescript@5.9.3)(vue-tsc@3.2.6(typescript@5.9.3))
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-
   packages/deepbook-v3:
     dependencies:
       '@mysten/bcs':
@@ -638,13 +638,13 @@ importers:
         version: link:../bcs
       '@mysten/dapp-kit':
         specifier: workspace:*
-        version: link:../dapp-kit
+        version: link:../dapp-kit/packages/legacy
       '@mysten/dapp-kit-core':
         specifier: workspace:*
-        version: link:../dapp-kit-next/packages/dapp-kit-core
+        version: link:../dapp-kit/packages/dapp-kit-core
       '@mysten/dapp-kit-react':
         specifier: workspace:*
-        version: link:../dapp-kit-next/packages/dapp-kit-react
+        version: link:../dapp-kit/packages/dapp-kit-react
       '@mysten/deepbook-v3':
         specifier: workspace:*
         version: link:../deepbook-v3
@@ -717,9 +717,6 @@ importers:
       fumadocs-ui:
         specifier: 16.4.7
         version: 16.4.7(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(fumadocs-core@16.4.7(@types/react@19.2.14)(lucide-react@0.562.0(react@19.2.4))(next@16.2.4(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(zod@4.3.6))(next@16.2.4(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(tailwindcss@4.2.2)
-      gray-matter:
-        specifier: ^4.0.3
-        version: 4.0.3
       next:
         specifier: ^16.2.4
         version: 16.2.4(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -787,7 +784,7 @@ importers:
     devDependencies:
       '@mysten/dapp-kit-react':
         specifier: workspace:^
-        version: link:../dapp-kit-next/packages/dapp-kit-react
+        version: link:../dapp-kit/packages/dapp-kit-react
       '@mysten/sui':
         specifier: workspace:^
         version: link:../sui
@@ -848,7 +845,7 @@ importers:
     dependencies:
       '@mysten/dapp-kit':
         specifier: workspace:^
-        version: link:../../dapp-kit
+        version: link:../../dapp-kit/packages/legacy
       '@mysten/enoki-connect':
         specifier: workspace:^
         version: link:..
@@ -1297,9 +1294,6 @@ importers:
       '@grpc/grpc-js':
         specifier: ^1.13.3
         version: 1.14.3
-      '@iarna/toml':
-        specifier: ^2.2.5
-        version: 2.2.5
       '@parcel/watcher':
         specifier: ^2.5.4
         version: 2.5.6
@@ -1401,7 +1395,7 @@ importers:
     devDependencies:
       '@mysten/dapp-kit-react':
         specifier: workspace:^
-        version: link:../dapp-kit-next/packages/dapp-kit-react
+        version: link:../dapp-kit/packages/dapp-kit-react
       '@mysten/sui':
         specifier: workspace:^
         version: link:../sui
@@ -1466,7 +1460,7 @@ importers:
     dependencies:
       '@mysten/dapp-kit':
         specifier: workspace:^
-        version: link:../../dapp-kit
+        version: link:../../dapp-kit/packages/legacy
       '@mysten/sui':
         specifier: workspace:^
         version: link:../../sui
@@ -1537,10 +1531,10 @@ importers:
         version: link:../codegen
       '@mysten/dapp-kit-core':
         specifier: workspace:^
-        version: link:../dapp-kit-next/packages/dapp-kit-core
+        version: link:../dapp-kit/packages/dapp-kit-core
       '@mysten/dapp-kit-react':
         specifier: workspace:^
-        version: link:../dapp-kit-next/packages/dapp-kit-react
+        version: link:../dapp-kit/packages/dapp-kit-react
       '@mysten/sui':
         specifier: workspace:^
         version: link:../sui
@@ -6829,10 +6823,6 @@ packages:
   exsolve@1.0.8:
     resolution: {integrity: sha512-LmDxfWXwcTArk8fUEnOfSZpHOJ6zOMUJKOtFLFqJLoKJetuQG874Uc7/Kki7zFLzYybmZhp1M7+98pfMqeX8yA==}
 
-  extend-shallow@2.0.1:
-    resolution: {integrity: sha512-zCnTtlxNoAiDc3gqY2aYAWFx7XWWiasuF2K8Me5WbN8otHKTUKBwjPtNpRs/rbUZm7KxWAaNj7P1a/p52GbVug==}
-    engines: {node: '>=0.10.0'}
-
   extend@3.0.2:
     resolution: {integrity: sha512-fjquC59cD7CyW6urNXK0FBufkZcoiGG80wTuPujX590cB5Ttln20E2UB4S/WARVqhXffZl2LNgS+gQdPIIim/g==}
 
@@ -7198,10 +7188,6 @@ packages:
     resolution: {integrity: sha512-5bJ+nf/UCpAjHM8i06fl7eLyVC9iuNAjm9qzkiu2ZGhM0VscSvS6WDPfAwkdkBuoXGM9FJSbKl6wylMwP9Ktig==}
     engines: {node: ^12.22.0 || ^14.16.0 || ^16.0.0 || >=17.0.0}
 
-  gray-matter@4.0.3:
-    resolution: {integrity: sha512-5v6yZd4JK3eMI3FqqCouswVqwugaA9r4dNZB1wwcmrD02QkV5H0y7XBQW8QwQqEaZY1pM9aqORSORhJRdNK44Q==}
-    engines: {node: '>=6.0'}
-
   h3@1.15.10:
     resolution: {integrity: sha512-YzJeWSkDZxAhvmp8dexjRK5hxziRO7I9m0N53WhvYL5NiWfkUkzssVzY9jvGu0HBoLFW6+duYmNSn6MaZBCCtg==}
 
@@ -7364,10 +7350,6 @@ packages:
     resolution: {integrity: sha512-eljcgEDlEns/7AXFosB5K/2nCM4P7FQPkGc/DWLy5rmFEWvZayGrik1d9/QIY5nJ4f9YsVvBkA6kJpHn9rISdQ==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
     hasBin: true
-
-  is-extendable@0.1.1:
-    resolution: {integrity: sha512-5BMULNob1vgFX6EjQw5izWDxrecWK9AM72rugNr0TFldMOi0fj6Jk+zeKIt0xGj4cEfQIJth4w3OKWOJ4f+AFw==}
-    engines: {node: '>=0.10.0'}
 
   is-extglob@2.1.1:
     resolution: {integrity: sha512-SbKbANkN603Vi4jEZv49LeVJMn4yGwsbzZworEoyEiutsN3nJYdbO36zfhGJ6QEDpOZIFkDtnq5JRxmvl3jsoQ==}
@@ -7549,10 +7531,6 @@ packages:
 
   keyvaluestorage-interface@1.0.0:
     resolution: {integrity: sha512-8t6Q3TclQ4uZynJY9IGr2+SsIGwK9JHcO6ootkHCGA0CrQCRy+VkouYNO2xicET6b9al7QKzpebNow+gkpCL8g==}
-
-  kind-of@6.0.3:
-    resolution: {integrity: sha512-dcS1ul+9tmeD95T+x28/ehLgd9mENa3LsvDTtzm3vyBEO7RPptvAD+t44WVXaUjTBRcrpFeFlC8WCruUR456hw==}
-    engines: {node: '>=0.10.0'}
 
   ky@1.14.3:
     resolution: {integrity: sha512-9zy9lkjac+TR1c2tG+mkNSVlyOpInnWdSMiue4F+kq8TwJSgv6o8jhLRg8Ho6SnZ9wOYUq/yozts9qQCfk7bIw==}
@@ -8870,10 +8848,6 @@ packages:
   scroll-into-view-if-needed@3.1.0:
     resolution: {integrity: sha512-49oNpRjWRvnU8NyGVmUaYG4jtTkNonFZI86MmGRDqBphEK2EXT9gdEUoQPZhuBM8yWHxCWbobltqYO5M4XrUvQ==}
 
-  section-matter@1.0.0:
-    resolution: {integrity: sha512-vfD3pmTzGpufjScBh50YHKzEu2lxBWhVEHsNGoEXmCmn2hKGfeNLYMzCJpe8cD7gqX7TJluOVpBkAequ6dgMmA==}
-    engines: {node: '>=4'}
-
   sembear@0.7.0:
     resolution: {integrity: sha512-XyLTEich2D02FODCkfdto3mB9DetWPLuTzr4tvoofe9SvyM27h4nQSbV3+iVcYQz94AFyKtqBv5pcZbj3k2hdA==}
 
@@ -9076,10 +9050,6 @@ packages:
   strip-ansi@7.2.0:
     resolution: {integrity: sha512-yDPMNjp4WyfYBkHnjIRLfca1i6KMyGCtsVgoKe/z1+6vukgaENdgGBZt+ZmKPc4gavvEZ5OgHfHdrazhgNyG7w==}
     engines: {node: '>=12'}
-
-  strip-bom-string@1.0.0:
-    resolution: {integrity: sha512-uCC2VHvQRYu+lMh4My/sFNmF2klFymLX1wHJeXnbEJERpV/ZsVuonzerjfrGpIGF7LBVa1O7i9kjiWvJiFck8g==}
-    engines: {node: '>=0.10.0'}
 
   strip-bom@3.0.0:
     resolution: {integrity: sha512-vavAMRXOgBVNF6nyEEmL3DBK19iRpDcoIwW+swQ+CbGiu7lju6t+JklA1MHweoWtadgt4ISVUsXLyDq34ddcwA==}
@@ -15961,10 +15931,6 @@ snapshots:
 
   exsolve@1.0.8: {}
 
-  extend-shallow@2.0.1:
-    dependencies:
-      is-extendable: 0.1.1
-
   extend@3.0.2: {}
 
   extendable-error@0.1.7: {}
@@ -16367,13 +16333,6 @@ snapshots:
 
   graphql@16.13.2: {}
 
-  gray-matter@4.0.3:
-    dependencies:
-      js-yaml: 3.14.2
-      kind-of: 6.0.3
-      section-matter: 1.0.0
-      strip-bom-string: 1.0.0
-
   h3@1.15.10:
     dependencies:
       cookie-es: 1.2.2
@@ -16583,8 +16542,6 @@ snapshots:
 
   is-docker@3.0.0: {}
 
-  is-extendable@0.1.1: {}
-
   is-extglob@2.1.1: {}
 
   is-fullwidth-code-point@3.0.0: {}
@@ -16782,8 +16739,6 @@ snapshots:
       safe-buffer: 5.2.1
 
   keyvaluestorage-interface@1.0.0: {}
-
-  kind-of@6.0.3: {}
 
   ky@1.14.3: {}
 
@@ -18535,11 +18490,6 @@ snapshots:
     dependencies:
       compute-scroll-into-view: 3.1.1
 
-  section-matter@1.0.0:
-    dependencies:
-      extend-shallow: 2.0.1
-      kind-of: 6.0.3
-
   sembear@0.7.0:
     dependencies:
       semver: 7.7.4
@@ -18789,8 +18739,6 @@ snapshots:
   strip-ansi@7.2.0:
     dependencies:
       ansi-regex: 6.2.2
-
-  strip-bom-string@1.0.0: {}
 
   strip-bom@3.0.0: {}
 

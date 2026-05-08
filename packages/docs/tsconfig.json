@@ -12,6 +12,7 @@
 		"module": "esnext",
 		"moduleResolution": "bundler",
 		"resolveJsonModule": true,
+		"allowImportingTsExtensions": true,
 		"isolatedModules": true,
 		"jsx": "react-jsx",
 		"incremental": true,

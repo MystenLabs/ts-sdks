@@ -1,0 +1,35 @@
+name: Release @mysten/window-wallet-core
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry-run mode'
+        required: false
+        default: 'true'
+      ref:
+        description: 'Git ref or SHA to publish (defaults to main HEAD)'
+        required: false
+        default: ''
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    # Hard-restrict to main. workflow_dispatch lets users pick any branch and
+    # run that branch's workflow file; this gate refuses anything other than
+    # main. The orchestrator (release.yml) is the only thing that auto-dispatches
+    # this workflow; manual UI dispatches still go through this gate.
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      id-token: write # OIDC trusted publishing
+    uses: ./.github/workflows/_release-package.yml
+    with:
+      package: '@mysten/window-wallet-core'
+      dir: 'packages/window-wallet-core'
+      dry_run: ${{ inputs.dry_run || 'true' }}
+      ref: ${{ inputs.ref }}
