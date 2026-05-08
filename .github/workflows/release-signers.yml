@@ -6,7 +6,7 @@ on:
       dry_run:
         description: 'Dry-run mode'
         required: false
-        default: 'true'
+        default: 'false'
       ref:
         description: 'Git ref or SHA to publish (defaults to main HEAD)'
         required: false
@@ -31,7 +31,7 @@ jobs:
     with:
       package: '@mysten/signers'
       dir: 'packages/signers'
-      dry_run: ${{ inputs.dry_run || 'true' }}
+      dry_run: ${{ inputs.dry_run || 'false' }}
       ref: ${{ inputs.ref }}
       # @types/semver — needed transitively via ledgerjs-hw-app-sui for tsc
       # --noEmit; semver itself is a runtime dep already, only types are

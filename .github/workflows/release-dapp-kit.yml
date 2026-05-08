@@ -6,7 +6,7 @@ on:
       dry_run:
         description: 'Dry-run mode'
         required: false
-        default: 'true'
+        default: 'false'
       ref:
         description: 'Git ref or SHA to publish (defaults to main HEAD)'
         required: false
@@ -32,6 +32,6 @@ jobs:
     with:
       package: '@mysten/dapp-kit'
       dir: 'packages/dapp-kit/packages/legacy'
-      dry_run: ${{ inputs.dry_run || 'true' }}
+      dry_run: ${{ inputs.dry_run || 'false' }}
       ref: ${{ inputs.ref }}
       full_install: 'true'
