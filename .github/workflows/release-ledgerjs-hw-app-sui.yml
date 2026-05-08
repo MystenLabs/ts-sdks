@@ -33,3 +33,6 @@ jobs:
       dir: 'packages/ledgerjs-hw-app-sui'
       dry_run: ${{ inputs.dry_run || 'true' }}
       ref: ${{ inputs.ref }}
+      # @types/semver — semver itself is a runtime dep, but its types are
+      # devDep-only and tsc --noEmit needs them at build time.
+      tools: 'tsdown@0.20.0-beta.1 typescript@5.9.3 @types/node@25.0.8 @types/semver@7.7.1'

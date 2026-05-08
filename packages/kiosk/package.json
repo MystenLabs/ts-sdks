@@ -51,7 +51,6 @@
 	},
 	"devDependencies": {
 		"@mysten/codegen": "workspace:^",
-		"@mysten/sui": "workspace:^",
 		"cross-env": "^10.1.0",
 		"tmp": "^0.2.5",
 		"ts-retry-promise": "^0.8.1",

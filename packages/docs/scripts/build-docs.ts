@@ -14,13 +14,11 @@
  *   "build:docs": "tsx scripts/build-docs.ts --all"
  */
 
-import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 import { EXCLUDED_SUBDIRS, findMdxFiles, generateSectionIndex, processFile } from './docs-utils.ts';
 
-const npxCmd = process.platform === 'win32' ? 'npx.cmd' : 'npx';
 const SCRIPTS_DIR = new URL('.', import.meta.url).pathname;
 const DOCS_PKG_DIR = path.resolve(SCRIPTS_DIR, '..');
 const CONTENT_DIR = path.join(DOCS_PKG_DIR, 'content');
@@ -112,9 +110,6 @@ async function buildSectionDocs(
 	// Generate per-section index
 	const sectionIndex = generateSectionIndex(contentRoot, '.', '#', excludedSubdirs);
 	fs.writeFileSync(path.join(outputDir, 'llms-index.md'), sectionIndex);
-
-	// Format generated files with prettier
-	execFileSync(npxCmd, ['prettier', '--write', `${outputDir}/**/*.md`], { stdio: 'ignore' });
 
 	return processed;
 }

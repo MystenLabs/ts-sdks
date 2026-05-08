@@ -72,6 +72,20 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
 
+      - name: Compute artifact-safe package slug
+        id: slug
+        env:
+          PACKAGE: ${{ inputs.package }}
+        run: |
+          set -euo pipefail
+          # actions/upload-artifact rejects '/' (and quietly mangles '@'),
+          # so '@mysten/sui' → 'mysten-sui'. Computed up front (not after Build)
+          # so the always() artifact upload still gets a valid name when Build
+          # fails — otherwise `name: tarball-` is produced and rejected.
+          slug="${PACKAGE#@}"
+          slug="${slug//\//-}"
+          echo "slug=$slug" >> "$GITHUB_OUTPUT"
+
       - name: Set up pnpm
         uses: pnpm/action-setup@a3252b78c470c02df07e9d59298aecedc3ccdd6d # v3.0.0
 
@@ -149,18 +163,6 @@ jobs:
             # pnpm forwards it to the script and breaks `tsc --build` etc.
             pnpm --filter "${PACKAGE}..." --if-present run build
           fi
-
-      - name: Compute artifact-safe package slug
-        id: slug
-        env:
-          PACKAGE: ${{ inputs.package }}
-        run: |
-          set -euo pipefail
-          # actions/upload-artifact rejects '/' (and quietly mangles '@'),
-          # so '@mysten/sui' → 'mysten-sui'.
-          slug="${PACKAGE#@}"
-          slug="${slug//\//-}"
-          echo "slug=$slug" >> "$GITHUB_OUTPUT"
 
       - name: Publish to npm
         working-directory: ${{ inputs.dir }}

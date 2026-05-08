@@ -9,7 +9,7 @@ import { Transaction } from '@mysten/sui/transactions';
 import { MIST_PER_SUI } from '@mysten/sui/utils';
 import { beforeAll, describe, expect, test } from 'vitest';
 
-import { zksend } from './index.js';
+import { zksend } from '../src/index.js';
 
 export const DEMO_BEAR_CONFIG = {
 	packageId: '0xab8ed19f16874f9b8b66b0b6e325ee064848b1a7fdcb1c2f0478b17ad8574e65',

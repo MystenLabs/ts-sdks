@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { PACKAGE_VERSION, TARGETED_RPC_VERSION } from '../version.js';
+import { PACKAGE_VERSION } from '../version.js';
 import { JsonRpcError, SuiHTTPStatusError } from './errors.js';
 
 /**
@@ -58,7 +58,6 @@ export class JsonRpcHTTPTransport implements JsonRpcTransport {
 				'Content-Type': 'application/json',
 				'Client-Sdk-Type': 'typescript',
 				'Client-Sdk-Version': PACKAGE_VERSION,
-				'Client-Target-Api-Version': TARGETED_RPC_VERSION,
 				'Client-Request-Method': input.method,
 				...this.#options.rpc?.headers,
 			},
