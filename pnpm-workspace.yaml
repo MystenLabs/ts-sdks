@@ -33,6 +33,6 @@ packages:
   - '!packages/sui/graphql/schema'
   - '!packages/zksend/experimental/unified-adapter'
   - '!packages/sui/experimental'
-  - '!packages/dapp-kit-next/packages/dapp-kit-core/web'
+  - '!packages/dapp-kit/packages/dapp-kit-core/web'
   - '!packages/sui/grpc'
   - '!packages/sui/jsonRpc'

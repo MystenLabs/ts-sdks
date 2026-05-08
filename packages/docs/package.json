@@ -14,13 +14,16 @@
 	"files": [
 		"dist/"
 	],
+	"engines": {
+		"node": ">=24"
+	},
 	"scripts": {
 		"build": "typedoc && next build && pnpm run build:docs",
-		"build:docs": "tsx scripts/build-docs.ts --all",
+		"build:docs": "node scripts/build-docs.ts --all",
 		"dev": "next dev",
 		"start": "next start",
 		"postinstall": "fumadocs-mdx",
-		"validate-docs": "tsx scripts/validate-llm-docs.ts",
+		"validate-docs": "node scripts/validate-llm-docs.ts",
 		"prettier:check": "prettier -c --ignore-unknown .",
 		"prettier:fix": "prettier -w --ignore-unknown .",
 		"oxlint:check": "oxlint  .",
@@ -58,7 +61,6 @@
 		"fumadocs-mdx": "14.2.5",
 		"fumadocs-typescript": "^5.2.0",
 		"fumadocs-ui": "16.4.7",
-		"gray-matter": "^4.0.3",
 		"next": "^16.2.4",
 		"react": "^19.2.3",
 		"react-dom": "^19.2.3"
