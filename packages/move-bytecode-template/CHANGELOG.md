@@ -1,5 +1,11 @@
 # @mysten/move-bytecode-template
 
+## 0.3.2
+
+### Patch Changes
+
+- f7de3e5: Restore docs in published tarballs.
+
 ## 0.3.1
 
 ### Patch Changes

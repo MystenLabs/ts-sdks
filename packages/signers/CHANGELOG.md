@@ -1,5 +1,17 @@
 # @mysten/signers
 
+## 1.0.5
+
+### Patch Changes
+
+- f7de3e5: Restore docs in published tarballs.
+- Updated dependencies [f7de3e5]
+  - @mysten/aws-kms-signer@0.1.2
+  - @mysten/gcp-kms-signer@0.1.2
+  - @mysten/ledger-signer@0.1.2
+  - @mysten/sui@2.16.2
+  - @mysten/webcrypto-signer@0.1.2
+
 ## 1.0.4
 
 ### Patch Changes

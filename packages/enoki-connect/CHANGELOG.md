@@ -1,5 +1,16 @@
 # @mysten/enoki-connect
 
+## 1.0.4
+
+### Patch Changes
+
+- f7de3e5: Restore docs in published tarballs.
+- Updated dependencies [f7de3e5]
+  - @mysten/sui@2.16.2
+  - @mysten/utils@0.3.3
+  - @mysten/wallet-standard@0.20.3
+  - @mysten/window-wallet-core@0.1.6
+
 ## 1.0.3
 
 ### Patch Changes

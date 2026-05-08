@@ -1,5 +1,14 @@
 # @mysten/seal
 
+## 1.1.3
+
+### Patch Changes
+
+- f7de3e5: Restore docs in published tarballs.
+- Updated dependencies [f7de3e5]
+  - @mysten/bcs@2.0.5
+  - @mysten/sui@2.16.2
+
 ## 1.1.2
 
 ### Patch Changes

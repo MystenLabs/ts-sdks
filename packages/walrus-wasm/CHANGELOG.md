@@ -1,5 +1,11 @@
 # @mysten/walrus-wasm
 
+## 0.2.2
+
+### Patch Changes
+
+- f7de3e5: Restore docs in published tarballs.
+
 ## 0.2.1
 
 ### Patch Changes

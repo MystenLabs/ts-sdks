@@ -3,7 +3,7 @@
 	"author": "Mysten Labs <build@mystenlabs.com>",
 	"description": "Sui signer using Google Cloud KMS",
 	"homepage": "https://sdk.mystenlabs.com",
-	"version": "0.1.1",
+	"version": "0.1.2",
 	"license": "Apache-2.0",
 	"type": "module",
 	"sideEffects": false,
