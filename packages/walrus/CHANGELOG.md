@@ -1,5 +1,13 @@
 # @mysten/walrus
 
+## 1.1.7
+
+### Patch Changes
+
+- 4cdeeb2: Add `storageNodeUrlScheme` option to `WalrusClient` for configuring the URL scheme used
+  when contacting storage nodes (defaults to `'https'`). Set to `'http'` for local development
+  environments where storage nodes do not terminate TLS.
+
 ## 1.1.6
 
 ### Patch Changes

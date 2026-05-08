@@ -1,5 +1,12 @@
 # @mysten/docs
 
+## 0.1.24
+
+### Patch Changes
+
+- Updated dependencies [4cdeeb2]
+  - @mysten/walrus@1.1.7
+
 ## 0.1.23
 
 ### Patch Changes
