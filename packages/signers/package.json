@@ -54,7 +54,6 @@
 	},
 	"homepage": "https://github.com/MystenLabs/ts-sdks/tree/main/packages/signers#readme",
 	"devDependencies": {
-		"@mysten/sui": "workspace:^",
 		"@types/node": "^25.0.8",
 		"typescript": "^5.9.3"
 	},

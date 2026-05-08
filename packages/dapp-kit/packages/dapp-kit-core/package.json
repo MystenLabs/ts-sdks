@@ -42,7 +42,7 @@
 		"lint": "pnpm run oxlint:check && pnpm run prettier:check",
 		"lint:fix": "pnpm run oxlint:fix && pnpm run prettier:fix",
 		"test": "pnpm test:typecheck && pnpm vitest run",
-		"test:typecheck": "tsc -b ./test",
+		"test:typecheck": "tsc -b ./test ./stories",
 		"storybook": "storybook dev -p 6006",
 		"build-storybook": "storybook build"
 	},
@@ -57,7 +57,6 @@
 		"access": "public"
 	},
 	"devDependencies": {
-		"@mysten/sui": "workspace:^",
 		"@storybook/web-components": "^10.1.11",
 		"@storybook/web-components-vite": "^10.1.11",
 		"storybook": "^10.2.12",

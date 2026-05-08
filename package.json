@@ -31,7 +31,8 @@
 	"manypkg": {
 		"ignoredRules": [
 			"INTERNAL_MISMATCH",
-			"ROOT_HAS_DEV_DEPENDENCIES"
+			"ROOT_HAS_DEV_DEPENDENCIES",
+			"INVALID_DEV_AND_PEER_DEPENDENCY_RELATIONSHIP"
 		]
 	},
 	"devDependencies": {

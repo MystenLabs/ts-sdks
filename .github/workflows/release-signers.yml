@@ -33,3 +33,7 @@ jobs:
       dir: 'packages/signers'
       dry_run: ${{ inputs.dry_run || 'true' }}
       ref: ${{ inputs.ref }}
+      # @types/semver — needed transitively via ledgerjs-hw-app-sui for tsc
+      # --noEmit; semver itself is a runtime dep already, only types are
+      # build-time-only.
+      tools: 'tsdown@0.20.0-beta.1 typescript@5.9.3 @types/node@25.0.8 @types/semver@7.7.1'

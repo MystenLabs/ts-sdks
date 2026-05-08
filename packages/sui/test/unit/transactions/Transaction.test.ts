@@ -4,9 +4,9 @@
 import { toBase58 } from '@mysten/bcs';
 import { describe, expect, it } from 'vitest';
 
-import { bcs } from '../../bcs/index.js';
-import { TransactionCommands, Transaction } from '../index.js';
-import { Inputs } from '../Inputs.js';
+import { bcs } from '../../../src/bcs/index.js';
+import { TransactionCommands, Transaction } from '../../../src/transactions/index.js';
+import { Inputs } from '../../../src/transactions/Inputs.js';
 
 it('can construct and serialize an empty tranaction', () => {
 	const tx = new Transaction();

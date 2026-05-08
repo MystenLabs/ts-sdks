@@ -3,8 +3,8 @@
 
 import type { Meta, StoryObj } from '@storybook/web-components';
 import { html } from 'lit';
-import type { DAppKitConnectModal } from './dapp-kit-connect-modal.js';
-import { createDAppKit } from '../core/index.js';
+import type { DAppKitConnectModal } from '../src/web/dapp-kit-connect-modal.js';
+import { createDAppKit } from '../src/core/index.js';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
 
 const GRPC_URLS = {

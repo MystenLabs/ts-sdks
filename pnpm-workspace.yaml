@@ -1,4 +1,11 @@
-autoInstallPeers: false
+autoInstallPeers: true
+# Without this, peerDeps using `*` (wallet-sdk / wallet-standard for
+# @mysten/sui) auto-install the npm-published copy alongside the
+# workspace one — two distinct `Transaction` types -> TS2322 in the
+# dapp-kit / walrus build chain. With link-workspace-packages on, any
+# range that the workspace version satisfies (including `*`) links to
+# the workspace sibling instead of the registry copy.
+linkWorkspacePackages: true
 publicHoistPattern:
   - '*storybook*'
 # Enforce that packages must be at least 2 days old before they're installed

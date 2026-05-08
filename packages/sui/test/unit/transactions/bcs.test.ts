@@ -4,8 +4,8 @@
 import { toBase58 } from '@mysten/bcs';
 import { expect, it } from 'vitest';
 
-import { bcs } from '../../bcs/index.js';
-import { normalizeStructTag, normalizeSuiAddress } from '../../utils/sui-types.js';
+import { bcs } from '../../../src/bcs/index.js';
+import { normalizeStructTag, normalizeSuiAddress } from '../../../src/utils/sui-types.js';
 
 // Oooh-weeee we nailed it!
 it('can serialize simplified programmable call struct', () => {

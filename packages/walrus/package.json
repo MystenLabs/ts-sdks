@@ -50,7 +50,6 @@
 		"@mysten/codegen": "workspace:^",
 		"@mysten/dapp-kit-core": "workspace:^",
 		"@mysten/dapp-kit-react": "workspace:^",
-		"@mysten/sui": "workspace:^",
 		"@tanstack/react-query": "^5.90.16",
 		"@types/node": "^25.0.8",
 		"@types/react": "^19.2.8",
