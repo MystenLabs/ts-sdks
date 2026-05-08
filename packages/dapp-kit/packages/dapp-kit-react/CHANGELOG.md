@@ -1,5 +1,16 @@
 # @mysten/dapp-kit-react
 
+## 2.0.2
+
+### Patch Changes
+
+- 9e067cf: Validate the new per-package release flow end-to-end across every public @mysten package.
+  No functional changes — empty patch bump to force the orchestrator to dispatch every
+  release-<pkg>.yml workflow with `dry_run=false` so each package publishes via OIDC trusted
+  publishing.
+- Updated dependencies [9e067cf]
+  - @mysten/dapp-kit-core@1.3.1
+
 ## 2.0.1
 
 ### Patch Changes
