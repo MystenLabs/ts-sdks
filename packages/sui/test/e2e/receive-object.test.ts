@@ -23,6 +23,15 @@ describe('Transfer to Object', () => {
 	let receiveObjectId: SuiClientTypes.ChangedObject;
 	let sharedObjectId: string;
 
+	// Pass the version+digest from beforeEach's tx effects directly instead of
+	// relying on the SDK to look them up at build time — `client.core.getObject`
+	// can briefly return the pre-tx version even after `waitForTransaction`.
+	const ownedRef = (o: SuiClientTypes.ChangedObject) => ({
+		objectId: o.objectId,
+		version: o.outputVersion!,
+		digest: o.outputDigest!,
+	});
+
 	beforeAll(async () => {
 		toolbox = await setup();
 		packageId = await toolbox.getPackage('test_data');
@@ -58,7 +67,7 @@ describe('Transfer to Object', () => {
 		tx.moveCall({
 			target: `${packageId}::tto::receiver`,
 			typeArguments: [],
-			arguments: [tx.object(parentObjectId.objectId), tx.object(receiveObjectId.objectId)],
+			arguments: [tx.objectRef(ownedRef(parentObjectId)), tx.receivingRef(ownedRef(receiveObjectId))],
 		});
 		await validateTransaction(toolbox.jsonRpcClient, toolbox.keypair, tx);
 	});
@@ -68,7 +77,7 @@ describe('Transfer to Object', () => {
 		tx.moveCall({
 			target: `${packageId}::tto::deleter`,
 			typeArguments: [],
-			arguments: [tx.object(parentObjectId.objectId), tx.object(receiveObjectId.objectId)],
+			arguments: [tx.objectRef(ownedRef(parentObjectId)), tx.receivingRef(ownedRef(receiveObjectId))],
 		});
 		await validateTransaction(toolbox.jsonRpcClient, toolbox.keypair, tx);
 	});
@@ -78,7 +87,7 @@ describe('Transfer to Object', () => {
 		const b = tx.moveCall({
 			target: `${packageId}::tto::return_`,
 			typeArguments: [],
-			arguments: [tx.object(parentObjectId.objectId), tx.object(receiveObjectId.objectId)],
+			arguments: [tx.objectRef(ownedRef(parentObjectId)), tx.receivingRef(ownedRef(receiveObjectId))],
 		});
 		tx.moveCall({
 			target: `${packageId}::tto::delete_`,
@@ -93,7 +102,7 @@ describe('Transfer to Object', () => {
 		tx.moveCall({
 			target: `${packageId}::tto::invalid_call_immut_ref`,
 			typeArguments: [],
-			arguments: [tx.object(parentObjectId.objectId), tx.object(receiveObjectId.objectId)],
+			arguments: [tx.objectRef(ownedRef(parentObjectId)), tx.receivingRef(ownedRef(receiveObjectId))],
 		});
 
 		await validateTransaction(toolbox.jsonRpcClient, toolbox.keypair, tx);
@@ -104,7 +113,7 @@ describe('Transfer to Object', () => {
 		tx.moveCall({
 			target: `${packageId}::tto::invalid_call_mut_ref`,
 			typeArguments: [],
-			arguments: [tx.object(parentObjectId.objectId), tx.object(receiveObjectId.objectId)],
+			arguments: [tx.objectRef(ownedRef(parentObjectId)), tx.receivingRef(ownedRef(receiveObjectId))],
 		});
 		await validateTransaction(toolbox.jsonRpcClient, toolbox.keypair, tx);
 	});
@@ -114,7 +123,7 @@ describe('Transfer to Object', () => {
 		tx.moveCall({
 			target: `${packageId}::tto::receiver`,
 			typeArguments: [],
-			arguments: [tx.object(parentObjectId.objectId), tx.object(sharedObjectId)],
+			arguments: [tx.objectRef(ownedRef(parentObjectId)), tx.object(sharedObjectId)],
 		});
 		await validateTransaction(toolbox.jsonRpcClient, toolbox.keypair, tx);
 	});
