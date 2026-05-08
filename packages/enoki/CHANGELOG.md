@@ -1,5 +1,15 @@
 # @mysten/enoki
 
+## 1.0.5
+
+### Patch Changes
+
+- 75a32c1: Switched the WebCrypto signer import to `@mysten/webcrypto-signer` (instead of
+  `@mysten/signers/webcrypto`). No public API change. Enoki no longer depends on the larger
+  `@mysten/signers` package, dropping the GCP KMS and Ledger HW transitive dependencies.
+- Updated dependencies [75a32c1]
+  - @mysten/webcrypto-signer@0.1.0
+
 ## 1.0.4
 
 ### Patch Changes

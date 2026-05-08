@@ -1,5 +1,12 @@
 # @mysten/suins
 
+## 1.1.2
+
+### Patch Changes
+
+- 75a32c1: Bump `axios` to `^1.16.0` to address security advisories (CVE-2025-62718 and related
+  prototype pollution issues).
+
 ## 1.1.1
 
 ### Patch Changes

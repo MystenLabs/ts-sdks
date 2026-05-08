@@ -1,5 +1,25 @@
 # @mysten/docs
 
+## 0.1.21
+
+### Patch Changes
+
+- Updated dependencies [75a32c1]
+- Updated dependencies [75a32c1]
+- Updated dependencies [75a32c1]
+- Updated dependencies [75a32c1]
+- Updated dependencies [75a32c1]
+- Updated dependencies [75a32c1]
+- Updated dependencies [75a32c1]
+  - @mysten/deepbook-v3@1.3.4
+  - @mysten/suins@1.1.2
+  - @mysten/enoki@1.0.5
+  - @mysten/signers@1.0.3
+  - @mysten/aws-kms-signer@0.1.0
+  - @mysten/gcp-kms-signer@0.1.0
+  - @mysten/ledger-signer@0.1.0
+  - @mysten/webcrypto-signer@0.1.0
+
 ## 0.1.20
 
 ### Patch Changes
