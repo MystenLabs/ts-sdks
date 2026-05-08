@@ -19,10 +19,6 @@ permissions:
 
 jobs:
   release:
-    # Hard-restrict to main. workflow_dispatch lets users pick any branch and
-    # run that branch's workflow file; this gate refuses anything other than
-    # main. The orchestrator (release.yml) is the only thing that auto-dispatches
-    # this workflow; manual UI dispatches still go through this gate.
     if: github.ref == 'refs/heads/main'
     # Legacy dapp-kit needs full devDeps for esbuild + vanilla-extract pipeline.
     permissions:

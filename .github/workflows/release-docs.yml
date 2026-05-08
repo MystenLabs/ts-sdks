@@ -19,10 +19,6 @@ permissions:
 
 jobs:
   release:
-    # Hard-restrict to main. workflow_dispatch lets users pick any branch and
-    # run that branch's workflow file; this gate refuses anything other than
-    # main. The orchestrator (release.yml) is the only thing that auto-dispatches
-    # this workflow; manual UI dispatches still go through this gate.
     if: github.ref == 'refs/heads/main'
     # Docs publishes only LLM markdown; skips next.js + typedoc website build.
     permissions:
@@ -35,5 +31,4 @@ jobs:
       dry_run: ${{ inputs.dry_run || 'false' }}
       ref: ${{ inputs.ref }}
       build_command: 'pnpm --filter @mysten/docs run build:docs'
-      # build:docs is just `node scripts/build-docs.ts --all` — no extra tooling needed.
       tools: ''

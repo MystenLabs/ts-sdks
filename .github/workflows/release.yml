@@ -1,19 +1,7 @@
 name: Release Orchestrator
 
-# Decides which @mysten packages need publishing and dispatches their
-# per-package `release-<pkg>.yml` workflows.
-#
-# Replaces the previous "every per-package workflow fires on every push to
-# main" pattern, which spent ~16min of cumulative compute per push to do
-# nothing 33 times. Now: 1 orchestrator run per push (~30s) + dispatches
-# only for packages that actually need publishing.
-#
-# Skip gates (both must clear before any dispatch):
-#   - `.changeset/*.md` non-empty → versions not yet bumped → skip all
-#   - For each public package, `npm view <pkg>@<version>` succeeds → skip that one
-#
-# Per-package workflows remain the npm trusted-publishing boundary —
-# `release-sui.yml` is still the only authorized publisher for @mysten/sui.
+# Dispatches `release-<pkg>.yml` for each public @mysten package whose
+# current version isn't on npm yet. Skips while `.changeset/*.md` is non-empty.
 
 on:
   workflow_dispatch:
@@ -35,9 +23,7 @@ permissions:
 
 jobs:
   orchestrate:
-    # Hard-restrict to main. workflow_run is filtered to main by the trigger;
-    # workflow_dispatch lets a user pick any branch and run that branch's
-    # workflow file, so this gate refuses anything other than main.
+    # workflow_dispatch lets a user pick any branch; refuse anything but main.
     if: |
       github.ref == 'refs/heads/main' &&
       (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
@@ -46,7 +32,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
-          # Pin to the SHA Turborepo CI tested when triggered via workflow_run.
           ref: ${{ github.event.workflow_run.head_sha || github.ref }}
 
       - name: Set up Node.js
@@ -75,7 +60,6 @@ jobs:
           unpublished=$(node - <<'NODE'
           const fs = require('node:fs');
           const cp = require('node:child_process');
-          // Enumerate every checked-in package.json (workspace + nested workspaces).
           const paths = cp
             .execSync('git ls-files "packages/**/package.json"', { encoding: 'utf8' })
             .split('\n')
@@ -110,10 +94,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'false' }}
-          # Pin per-package publishes to the SHA we just verified. `--ref main`
-          # keeps the workflow *file* on main (security boundary), but the
-          # template checks out HEAD_SHA so a newer untested commit on main
-          # can't slip into the published artifact.
+          # `--ref main` keeps the workflow file on main (trust boundary);
+          # HEAD_SHA pins the checkout so a newer main commit can't slip in.
           HEAD_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
           PACKAGES: ${{ steps.find.outputs.list }}
         run: |

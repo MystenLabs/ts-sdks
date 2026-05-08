@@ -1,22 +1,6 @@
 name: Release Package (template)
 
-# Reusable workflow for publishing a single workspace package to npm.
-# Each `release-<pkg>.yml` calls this with its own `package` input and
-# (optionally) overrides for the install / build path.
-#
-# The orchestrator (release.yml) already filters out packages whose version
-# is on npm and bails on pending changesets, so this template just installs,
-# builds, and publishes. npm itself rejects re-publishing an existing version,
-# so the manual-dispatch path is naturally idempotent.
-#
-# Two install modes:
-#   - Minimal (default, full_install=false): only the package's prod
-#     dependency subgraph + a sandboxed allowlist of build tools (the
-#     `tools` input) symlinked into the workspace. Workspace devDeps
-#     NEVER land on disk.
-#   - Full (full_install=true): standard `pnpm install --frozen-lockfile
-#     --ignore-scripts`. Used by legacy @mysten/dapp-kit which needs
-#     devDeps for vanilla-extract / esbuild.
+# Reusable workflow that installs, builds, and publishes one workspace package.
 
 on:
   workflow_call:
@@ -38,23 +22,15 @@ on:
         type: string
         default: 'false'
       tools:
-        description: |
-          Space-separated npm specs to install into the sandboxed tools dir
-          (minimal install path only). Each package declares its own toolset.
-          Empty string = skip the tools step entirely (e.g. wasm packages
-          with checked-in artifacts, or docs which only runs `node`).
+        description: 'Space-separated npm specs for the sandboxed build tools dir (minimal install only). Empty = skip.'
         type: string
         default: 'tsdown@0.20.0-beta.1 typescript@5.9.3 @types/node@25.0.8'
       build_command:
-        description: 'Shell command to build the package (defaults to `pnpm --filter <package> run build`)'
+        description: 'Override the default `pnpm --filter <package> run build`'
         type: string
         default: ''
       ref:
-        description: |
-          Git ref or SHA to check out and publish. The orchestrator passes the
-          SHA Turborepo CI verified so a newer untested main commit can't
-          publish. Empty string = check out the default ref (main HEAD when
-          dispatched manually).
+        description: 'Git ref or SHA to check out (defaults to main HEAD)'
         type: string
         default: ''
 
@@ -78,10 +54,7 @@ jobs:
           PACKAGE: ${{ inputs.package }}
         run: |
           set -euo pipefail
-          # actions/upload-artifact rejects '/' (and quietly mangles '@'),
-          # so '@mysten/sui' → 'mysten-sui'. Computed up front (not after Build)
-          # so the always() artifact upload still gets a valid name when Build
-          # fails — otherwise `name: tarball-` is produced and rejected.
+          # `@mysten/sui` -> `mysten-sui`; upload-artifact rejects `/` in names.
           slug="${PACKAGE#@}"
           slug="${slug//\//-}"
           echo "slug=$slug" >> "$GITHUB_OUTPUT"
@@ -119,16 +92,11 @@ jobs:
           mkdir -p "$tools_dir"
           # shellcheck disable=SC2086 — TOOLS is a space-separated arg list.
           npm install --prefix "$tools_dir" --no-save --no-package-lock --ignore-scripts $TOOLS
-          # Symlink only the explicitly requested tools into the workspace's
-          # node_modules so per-package configs (tsdown.config.ts etc.) resolve
-          # them via the standard parent-traversal lookup. We do NOT iterate
-          # over $tools_dir/node_modules/* — npm's flat layout puts every
-          # transitive there too, and clobbering prod-subgraph entries with
-          # `ln -sfn` would silently shadow workspace-installed deps.
+          # Symlink only the explicitly named tools — iterating over the
+          # whole tools_dir/node_modules/* would clobber prod-subgraph entries
+          # (npm's flat layout puts every transitive there too).
           mkdir -p node_modules
           for spec in $TOOLS; do
-            # Strip version range / tag: handles `pkg@1.2.3`, `@scope/pkg@1.2.3`,
-            # `pkg@beta`, and bare `pkg` / `@scope/pkg`.
             name="${spec%@*}"
             [ -z "$name" ] && name="$spec"
             src="$tools_dir/node_modules/$name"
@@ -155,28 +123,27 @@ jobs:
           if [ -n "$BUILD_COMMAND" ]; then
             bash -c "$BUILD_COMMAND"
           else
-            # `...` walks the workspace dep graph in topological order so each
-            # transitive workspace dep's dist/ is populated before the matrix
-            # package's tsdown emit tries to resolve into it. `--if-present`
-            # goes BEFORE `run` so pnpm interprets it (skipping packages without
-            # a `build` script, e.g. walrus-wasm has `build:wasm`); after `run`
-            # pnpm forwards it to the script and breaks `tsc --build` etc.
+            # `--if-present` must precede `run` so pnpm consumes it instead of
+            # forwarding to the script (which breaks `tsc --build` etc.).
             pnpm --filter "${PACKAGE}..." --if-present run build
           fi
+
+      - name: Build docs
+        if: inputs.build_command == ''
+        env:
+          PACKAGE: ${{ inputs.package }}
+        run: |
+          set -euo pipefail
+          pnpm --filter "${PACKAGE}" --if-present run build:docs
 
       - name: Drop workspace devDeps from manifest before publish
         working-directory: ${{ inputs.dir }}
         run: |
           set -euo pipefail
-          # `pnpm publish` rewrites every `workspace:` ref in the published
-          # manifest, including in devDependencies. Under our `--prod` install,
-          # workspace devDeps aren't symlinked into node_modules, so pnpm can't
-          # read their version and bails with
-          # ERR_PNPM_CANNOT_RESOLVE_WORKSPACE_PROTOCOL. Drop just those entries
-          # — npm doesn't install devDependencies for consumers, so removing
-          # them from the published manifest is functionally invisible.
-          # Third-party devDeps (vitest, @types/*, etc.) have real ranges and
-          # are left intact for any tooling that reads them.
+          # `pnpm publish` would otherwise try to resolve `workspace:` refs in
+          # devDependencies, which fails under --prod since workspace devDeps
+          # aren't installed. npm doesn't install devDeps for consumers, so
+          # dropping these entries is invisible to anyone downstream.
           node -e "
             const fs = require('node:fs');
             const pj = JSON.parse(fs.readFileSync('package.json', 'utf8'));
