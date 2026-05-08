@@ -19,7 +19,7 @@ import type {
 const packageRoot = path.resolve(import.meta.url.slice(5), '../..');
 
 const res = await fetch(
-	'https://raw.githubusercontent.com/MystenLabs/sui/refs/heads/main/crates/sui-open-rpc/spec/openrpc.json',
+	'https://raw.githubusercontent.com/MystenLabs/sui/7c931dc24d04895b865c073f7b6a52e8a81a8e79/crates/sui-open-rpc/spec/openrpc.json',
 );
 
 if (!res.ok) {

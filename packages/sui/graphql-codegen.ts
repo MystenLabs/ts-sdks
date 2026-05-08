@@ -12,7 +12,7 @@ const header = `
 const config: CodegenConfig = {
 	overwrite: true,
 	schema:
-		'https://raw.githubusercontent.com/MystenLabs/sui/refs/heads/main/crates/sui-indexer-alt-graphql/schema.graphql',
+		'https://raw.githubusercontent.com/MystenLabs/sui/7c931dc24d04895b865c073f7b6a52e8a81a8e79/crates/sui-indexer-alt-graphql/schema.graphql',
 	documents: ['src/graphql/queries/*.graphql'],
 	ignoreNoDocuments: true,
 	generates: {
