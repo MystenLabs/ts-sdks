@@ -1,5 +1,12 @@
 # @mysten/deepbook-v3
 
+## 1.3.4
+
+### Patch Changes
+
+- 75a32c1: Bump `axios` to `^1.16.0` to address security advisories (CVE-2025-62718 and related
+  prototype pollution issues).
+
 ## 1.3.3
 
 ### Patch Changes
