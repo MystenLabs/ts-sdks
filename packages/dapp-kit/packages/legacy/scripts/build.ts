@@ -2,17 +2,14 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import * as child_process from 'child_process';
+import { spawnSync } from 'child_process';
 import { existsSync, promises as fs, readdirSync, statSync } from 'fs';
-import util from 'node:util';
 import * as path from 'path';
 import { vanillaExtractPlugin } from '@vanilla-extract/esbuild-plugin';
 import autoprefixer from 'autoprefixer';
 import { build, type BuildOptions } from 'esbuild';
 import postcss from 'postcss';
 import prefixSelector from 'postcss-prefix-selector';
-
-const exec = util.promisify(child_process.exec);
 
 const ignorePatterns = [/\.test.ts$/, /\.graphql$/];
 
@@ -87,10 +84,27 @@ async function buildDappKit() {
 		...buildOptions,
 	});
 
-	// Generate type declarations (emitDeclarationOnly since JS is built by esbuild)
-	await exec('pnpm tsc --project tsconfig.json --emitDeclarationOnly');
+	// Generate type declarations (emitDeclarationOnly since JS is built by esbuild).
+	// Use spawnSync(stdio:'inherit') instead of exec so any tsc errors surface in
+	// the build log — `await exec(...)` previously masked failures here, which
+	// led to @mysten/dapp-kit@1.0.5 publishing with 0 type defs in dist/.
+	const tscResult = spawnSync(
+		'pnpm',
+		['exec', 'tsc', '--project', 'tsconfig.json', '--emitDeclarationOnly'],
+		{ stdio: 'inherit' },
+	);
+	if (tscResult.status !== 0) {
+		throw new Error(`tsc exited with status ${tscResult.status}`);
+	}
 
-	console.log('Build complete!');
+	// Belt-and-suspenders: tsc has been known to exit 0 without emitting under
+	// some workspace configurations. Hard-fail if no .d.ts files made it to dist.
+	const distFiles = readdirSync(path.join(process.cwd(), 'dist'), { recursive: true });
+	const dtsCount = distFiles.filter((f) => String(f).endsWith('.d.ts')).length;
+	if (dtsCount === 0) {
+		throw new Error('tsc completed without errors but emitted 0 .d.ts files');
+	}
+	console.log(`Build complete! (${dtsCount} .d.ts files emitted)`);
 }
 
 buildDappKit().catch((error) => {
