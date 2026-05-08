@@ -31,10 +31,13 @@ packages:
   - '!packages/sui/grpc'
   - '!packages/sui/jsonRpc'
 
-# Explicit empty allowlist — paired with ignoreScripts above, this makes the
-# intent unambiguous: no package is permitted to run install/build scripts.
+# Explicit empty allowlist — no package is permitted to run install/build scripts.
+# Review a dependency before approving it with `pnpm approve-builds`.
 allowBuilds: {}
 autoInstallPeers: true
+
+# Prevent transitive dependencies from resolving untrusted git or tarball URLs.
+blockExoticSubdeps: true
 
 # Disable dependency install/build lifecycle scripts by default.
 ignoreScripts: true

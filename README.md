@@ -19,7 +19,7 @@ pnpm install
 pnpm turbo build
 ```
 
-Dependency install scripts are disabled by default in `pnpm-workspace.yaml`. If a new dependency needs an install/build script, explicitly review it before adding it to `allowBuilds`.
+Dependency install scripts are disabled by default in `pnpm-workspace.yaml`. If a new dependency needs an install/build script, explicitly review it before approving it with `pnpm approve-builds`. Transitive dependencies are also blocked from resolving untrusted git or tarball URLs.
 
 ### Building
 
