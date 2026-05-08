@@ -1,5 +1,20 @@
 # @mysten/signers
 
+## 1.0.4
+
+### Patch Changes
+
+- 9e067cf: Validate the new per-package release flow end-to-end across every public @mysten package.
+  No functional changes — empty patch bump to force the orchestrator to dispatch every
+  release-<pkg>.yml workflow with `dry_run=false` so each package publishes via OIDC trusted
+  publishing.
+- Updated dependencies [9e067cf]
+  - @mysten/aws-kms-signer@0.1.1
+  - @mysten/gcp-kms-signer@0.1.1
+  - @mysten/ledger-signer@0.1.1
+  - @mysten/sui@2.16.1
+  - @mysten/webcrypto-signer@0.1.1
+
 ## 1.0.3
 
 ### Patch Changes
