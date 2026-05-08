@@ -165,6 +165,7 @@ export function walrus<const Name = 'walrus'>({
 
 export class WalrusClient {
 	#storageNodeClient: StorageNodeClient;
+	#storageNodeUrlScheme: 'http' | 'https';
 	#wasmUrl: string | undefined;
 
 	#packageConfig: WalrusPackageConfig;
@@ -197,6 +198,7 @@ export class WalrusClient {
 		}
 
 		this.#wasmUrl = config.wasmUrl;
+		this.#storageNodeUrlScheme = config.storageNodeUrlScheme ?? 'https';
 		this.#uploadRelayConfig = config.uploadRelay ?? null;
 		if (this.#uploadRelayConfig) {
 			this.#uploadRelayClient = new UploadRelayClient(this.#uploadRelayConfig);
@@ -2095,7 +2097,7 @@ export class WalrusClient {
 			const node: StorageNode = {
 				id: node_info.node_id,
 				info: node_info,
-				networkUrl: `https://${node_info.network_address}`,
+				networkUrl: `${this.#storageNodeUrlScheme}://${node_info.network_address}`,
 				shardIndices,
 				nodeIndex,
 			};
