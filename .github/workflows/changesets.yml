@@ -30,7 +30,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Create Release Pull Request
-        uses: changesets/action@v1.5.3
+        uses: changesets/action@8eb63fb4cfc7f9643537c7d39d0b68c835012a19 # pin@v1.5.3
         with:
           # Generates src/version.ts file using genVersion
           # https://github.com/changesets/action#with-version-script
