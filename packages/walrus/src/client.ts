@@ -2116,12 +2116,8 @@ export class WalrusClient {
 	}
 
 	#getActiveCommittee() {
-		// Scheme is part of the cache key because `#getCommittee` bakes
-		// it into each `networkUrl`. Without this, two `WalrusClient`s
-		// sharing one `SuiClient` (and therefore the same `#cache`
-		// scope) but configured with different `storageNodeUrlScheme`
-		// values would race for the cache: the first to load the
-		// committee wins, the second silently inherits the wrong scheme.
+		// Scoped by scheme — `#cache` is shared across clients on the same
+		// `SuiClient`, so a mixed-scheme caller mustn't see another's URLs.
 		return this.#cache.read(['getActiveCommittee', this.#storageNodeUrlScheme], async () => {
 			const stakingState = await this.stakingState();
 			return this.#getCommittee(stakingState.committee);
