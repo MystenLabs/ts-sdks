@@ -1,5 +1,14 @@
 # @mysten/codegen
 
+## 0.10.6
+
+### Patch Changes
+
+- f7de3e5: Restore docs in published tarballs.
+- Updated dependencies [f7de3e5]
+  - @mysten/bcs@2.0.5
+  - @mysten/sui@2.16.2
+
 ## 0.10.5
 
 ### Patch Changes

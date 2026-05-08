@@ -1,5 +1,16 @@
 # @mysten/enoki
 
+## 1.0.7
+
+### Patch Changes
+
+- f7de3e5: Restore docs in published tarballs.
+- Updated dependencies [f7de3e5]
+  - @mysten/sui@2.16.2
+  - @mysten/utils@0.3.3
+  - @mysten/wallet-standard@0.20.3
+  - @mysten/webcrypto-signer@0.1.2
+
 ## 1.0.6
 
 ### Patch Changes

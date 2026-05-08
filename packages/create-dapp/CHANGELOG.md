@@ -1,5 +1,15 @@
 # @mysten/create-dapp
 
+## 0.6.8
+
+### Patch Changes
+
+- f7de3e5: Restore docs in published tarballs.
+- Updated dependencies [f7de3e5]
+  - @mysten/codegen@0.10.6
+  - @mysten/dapp-kit-react@2.0.3
+  - @mysten/sui@2.16.2
+
 ## 0.6.7
 
 ### Patch Changes

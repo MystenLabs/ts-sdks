@@ -1,5 +1,11 @@
 # @mysten/ledgerjs-hw-app-sui
 
+## 0.8.3
+
+### Patch Changes
+
+- f7de3e5: Restore docs in published tarballs.
+
 ## 0.8.2
 
 ### Patch Changes

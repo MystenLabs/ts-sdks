@@ -1,5 +1,13 @@
 # @mysten/suins
 
+## 1.1.4
+
+### Patch Changes
+
+- f7de3e5: Restore docs in published tarballs.
+- Updated dependencies [f7de3e5]
+  - @mysten/sui@2.16.2
+
 ## 1.1.3
 
 ### Patch Changes

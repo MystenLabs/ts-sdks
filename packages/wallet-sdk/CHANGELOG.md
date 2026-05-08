@@ -1,5 +1,14 @@
 # @mysten/wallet-sdk
 
+## 0.3.2
+
+### Patch Changes
+
+- f7de3e5: Restore docs in published tarballs.
+- Updated dependencies [f7de3e5]
+  - @mysten/bcs@2.0.5
+  - @mysten/wallet-standard@0.20.3
+
 ## 0.3.1
 
 ### Patch Changes

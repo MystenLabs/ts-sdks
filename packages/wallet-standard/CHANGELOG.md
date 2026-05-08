@@ -1,5 +1,11 @@
 # @mysten/wallet-standard
 
+## 0.20.3
+
+### Patch Changes
+
+- f7de3e5: Restore docs in published tarballs.
+
 ## 0.20.2
 
 ### Patch Changes

@@ -1,5 +1,35 @@
 # @mysten/docs
 
+## 0.1.23
+
+### Patch Changes
+
+- f7de3e5: Restore docs in published tarballs.
+- Updated dependencies [f7de3e5]
+- Updated dependencies [f7de3e5]
+  - @mysten/dapp-kit@1.0.6
+  - @mysten/aws-kms-signer@0.1.2
+  - @mysten/bcs@2.0.5
+  - @mysten/dapp-kit-core@1.3.2
+  - @mysten/dapp-kit-react@2.0.3
+  - @mysten/deepbook-v3@1.3.6
+  - @mysten/enoki@1.0.7
+  - @mysten/enoki-connect@1.0.4
+  - @mysten/gcp-kms-signer@0.1.2
+  - @mysten/kiosk@1.2.6
+  - @mysten/ledger-signer@0.1.2
+  - @mysten/payment-kit@0.1.11
+  - @mysten/seal@1.1.3
+  - @mysten/signers@1.0.5
+  - @mysten/slush-wallet@1.0.5
+  - @mysten/sui@2.16.2
+  - @mysten/suins@1.1.4
+  - @mysten/utils@0.3.3
+  - @mysten/wallet-standard@0.20.3
+  - @mysten/walrus@1.1.6
+  - @mysten/webcrypto-signer@0.1.2
+  - @mysten/zksend@1.1.2
+
 ## 0.1.22
 
 ### Patch Changes
