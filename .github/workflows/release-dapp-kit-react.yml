@@ -6,7 +6,7 @@ on:
       dry_run:
         description: 'Dry-run mode'
         required: false
-        default: 'true'
+        default: 'false'
       ref:
         description: 'Git ref or SHA to publish (defaults to main HEAD)'
         required: false
@@ -31,6 +31,6 @@ jobs:
     with:
       package: '@mysten/dapp-kit-react'
       dir: 'packages/dapp-kit/packages/dapp-kit-react'
-      dry_run: ${{ inputs.dry_run || 'true' }}
+      dry_run: ${{ inputs.dry_run || 'false' }}
       ref: ${{ inputs.ref }}
       tools: 'tsdown@0.20.0-beta.1 typescript@5.9.3 @types/node@25.0.8 @types/react@19.2.8'

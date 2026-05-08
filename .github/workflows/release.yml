@@ -21,7 +21,7 @@ on:
       dry_run:
         description: 'Dry-run publishes (passed through to dispatched workflows)'
         required: false
-        default: 'true'
+        default: 'false'
   workflow_run:
     workflows: ['Turborepo CI']
     types: [completed]
@@ -109,7 +109,7 @@ jobs:
         if: steps.changesets.outputs.skip != 'true' && steps.find.outputs.list != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'true' }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'false' }}
           # Pin per-package publishes to the SHA we just verified. `--ref main`
           # keeps the workflow *file* on main (security boundary), but the
           # template checks out HEAD_SHA so a newer untested commit on main

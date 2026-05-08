@@ -6,7 +6,7 @@ on:
       dry_run:
         description: 'Dry-run mode'
         required: false
-        default: 'true'
+        default: 'false'
       ref:
         description: 'Git ref or SHA to publish (defaults to main HEAD)'
         required: false
@@ -31,7 +31,7 @@ jobs:
     with:
       package: '@mysten/ledgerjs-hw-app-sui'
       dir: 'packages/ledgerjs-hw-app-sui'
-      dry_run: ${{ inputs.dry_run || 'true' }}
+      dry_run: ${{ inputs.dry_run || 'false' }}
       ref: ${{ inputs.ref }}
       # @types/semver — semver itself is a runtime dep, but its types are
       # devDep-only and tsc --noEmit needs them at build time.

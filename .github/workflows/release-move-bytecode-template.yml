@@ -6,7 +6,7 @@ on:
       dry_run:
         description: 'Dry-run mode'
         required: false
-        default: 'true'
+        default: 'false'
       ref:
         description: 'Git ref or SHA to publish (defaults to main HEAD)'
         required: false
@@ -32,7 +32,7 @@ jobs:
     with:
       package: '@mysten/move-bytecode-template'
       dir: 'packages/move-bytecode-template'
-      dry_run: ${{ inputs.dry_run || 'true' }}
+      dry_run: ${{ inputs.dry_run || 'false' }}
       ref: ${{ inputs.ref }}
       build_command: 'echo "wasm artifacts checked in"'
       tools: ''

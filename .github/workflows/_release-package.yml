@@ -32,7 +32,7 @@ on:
       dry_run:
         description: 'Run pnpm publish with --dry-run'
         type: string
-        default: 'true'
+        default: 'false'
       full_install:
         description: 'Use full pnpm install instead of minimal --prod + sandboxed tools'
         type: string
@@ -163,6 +163,34 @@ jobs:
             # pnpm forwards it to the script and breaks `tsc --build` etc.
             pnpm --filter "${PACKAGE}..." --if-present run build
           fi
+
+      - name: Drop workspace devDeps from manifest before publish
+        working-directory: ${{ inputs.dir }}
+        run: |
+          set -euo pipefail
+          # `pnpm publish` rewrites every `workspace:` ref in the published
+          # manifest, including in devDependencies. Under our `--prod` install,
+          # workspace devDeps aren't symlinked into node_modules, so pnpm can't
+          # read their version and bails with
+          # ERR_PNPM_CANNOT_RESOLVE_WORKSPACE_PROTOCOL. Drop just those entries
+          # — npm doesn't install devDependencies for consumers, so removing
+          # them from the published manifest is functionally invisible.
+          # Third-party devDeps (vitest, @types/*, etc.) have real ranges and
+          # are left intact for any tooling that reads them.
+          node -e "
+            const fs = require('node:fs');
+            const pj = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            const dropped = [];
+            for (const [k, v] of Object.entries(pj.devDependencies ?? {})) {
+              if (typeof v === 'string' && v.startsWith('workspace:')) {
+                delete pj.devDependencies[k];
+                dropped.push(k);
+              }
+            }
+            if (Object.keys(pj.devDependencies ?? {}).length === 0) delete pj.devDependencies;
+            if (dropped.length) console.log('dropped: ' + dropped.join(', '));
+            fs.writeFileSync('package.json', JSON.stringify(pj, null, '\t') + '\n');
+          "
 
       - name: Publish to npm
         working-directory: ${{ inputs.dir }}
