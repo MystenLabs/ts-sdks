@@ -203,8 +203,6 @@ export class EnokiWallet implements Wallet {
 
 		const { client, keypair } = await this.#getSignerContext(chain);
 		const parsedTransaction = Transaction.from(await transaction.toJSON());
-		const bytes = await parsedTransaction.build({ client });
-
 		const suiAddress = keypair.toSuiAddress();
 
 		if (suiAddress !== account.address) {
@@ -214,6 +212,7 @@ export class EnokiWallet implements Wallet {
 		}
 
 		parsedTransaction.setSenderIfNotSet(suiAddress);
+		const bytes = await parsedTransaction.build({ client });
 
 		const result = await keypair.signAndExecuteTransaction({
 			transaction: parsedTransaction,
