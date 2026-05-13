@@ -151,15 +151,12 @@ export class PoolProxyContract {
 		const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
 		const inputPrice = convertPrice(price, FLOAT_SCALAR, quoteCoin.scalar, baseCoin.scalar);
 		const inputQuantity = convertQuantity(quantity, baseCoin.scalar);
-		const debtMarginPool = isBid ? baseMarginPool : quoteMarginPool;
-		const debtType = isBid ? baseCoin.type : quoteCoin.type;
 		return tx.moveCall({
 			target: `${this.#config.MARGIN_PACKAGE_ID}::pool_proxy::place_reduce_only_limit_order_v2`,
 			arguments: [
 				tx.object(this.#config.MARGIN_REGISTRY_ID),
 				tx.object(manager.address),
 				tx.object(pool.address),
-				tx.object(debtMarginPool.address),
 				tx.object(baseMarginPool.address),
 				tx.object(quoteMarginPool.address),
 				tx.object(baseCoin.priceInfoObjectId!),
@@ -174,7 +171,7 @@ export class PoolProxyContract {
 				tx.pure.u64(expiration),
 				tx.object.clock(),
 			],
-			typeArguments: [baseCoin.type, quoteCoin.type, debtType],
+			typeArguments: [baseCoin.type, quoteCoin.type],
 		});
 	};
 
@@ -203,15 +200,12 @@ export class PoolProxyContract {
 		const baseMarginPool = this.#config.getMarginPool(pool.baseCoin);
 		const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
 		const inputQuantity = convertQuantity(quantity, baseCoin.scalar);
-		const debtMarginPool = isBid ? baseMarginPool : quoteMarginPool;
-		const debtType = isBid ? baseCoin.type : quoteCoin.type;
 		return tx.moveCall({
 			target: `${this.#config.MARGIN_PACKAGE_ID}::pool_proxy::place_reduce_only_market_order_v2`,
 			arguments: [
 				tx.object(this.#config.MARGIN_REGISTRY_ID),
 				tx.object(manager.address),
 				tx.object(pool.address),
-				tx.object(debtMarginPool.address),
 				tx.object(baseMarginPool.address),
 				tx.object(quoteMarginPool.address),
 				tx.object(baseCoin.priceInfoObjectId!),
@@ -223,7 +217,7 @@ export class PoolProxyContract {
 				tx.pure.bool(payWithDeep),
 				tx.object.clock(),
 			],
-			typeArguments: [baseCoin.type, quoteCoin.type, debtType],
+			typeArguments: [baseCoin.type, quoteCoin.type],
 		});
 	};
 
