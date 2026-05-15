@@ -34,16 +34,16 @@ jobs:
         with:
           # Generates src/version.ts file using genVersion
           # https://github.com/changesets/action#with-version-script
-          version: pnpm changeset-version
+          #
+          # `--verify-deps-before-run=false` is scoped to this single pnpm invocation.
+          # changesets/action does `git checkout changeset-release/main && git reset --hard <main>`
+          # before invoking the version script, and the transient working-tree churn invalidates
+          # pnpm's verify-deps tracking even though the final state matches main exactly. With
+          # `verifyDepsBeforeRun: 'prompt'` in pnpm-workspace.yaml that hangs CI on stdin.
+          # The script only reads package.json and writes generated files — no node_modules needed.
+          version: pnpm --verify-deps-before-run=false changeset-version
           # Publishing happens via .github/workflows/release.yml (orchestrator),
           # which gates on Turborepo CI success and dispatches per-package
           # release-<pkg>.yml workflows. Do NOT add a `publish:` field here.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # changesets/action does `git checkout changeset-release/main && git reset --hard <main>`
-          # before invoking the version script. The transient working-tree churn invalidates pnpm's
-          # `verifyDepsBeforeRun` tracking even though the final state matches main exactly, and the
-          # 'prompt' setting from pnpm-workspace.yaml then hangs CI waiting for stdin. Disable the
-          # check for just this step; everything the version script does (read package.json, write
-          # version.ts) is independent of node_modules.
-          NPM_CONFIG_VERIFY_DEPS_BEFORE_RUN: 'false'
