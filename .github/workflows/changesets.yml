@@ -40,3 +40,10 @@ jobs:
           # release-<pkg>.yml workflows. Do NOT add a `publish:` field here.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # changesets/action does `git checkout changeset-release/main && git reset --hard <main>`
+          # before invoking the version script. The transient working-tree churn invalidates pnpm's
+          # `verifyDepsBeforeRun` tracking even though the final state matches main exactly, and the
+          # 'prompt' setting from pnpm-workspace.yaml then hangs CI waiting for stdin. Disable the
+          # check for just this step; everything the version script does (read package.json, write
+          # version.ts) is independent of node_modules.
+          NPM_CONFIG_VERIFY_DEPS_BEFORE_RUN: 'false'
