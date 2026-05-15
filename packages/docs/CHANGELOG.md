@@ -1,5 +1,14 @@
 # @mysten/docs
 
+## 0.1.25
+
+### Patch Changes
+
+- Updated dependencies [5900ad5]
+- Updated dependencies [225f928]
+  - @mysten/sui@2.16.3
+  - @mysten/enoki@1.0.8
+
 ## 0.1.24
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # @mysten/enoki
 
+## 1.0.8
+
+### Patch Changes
+
+- 225f928: Set the Enoki wallet sender before building sign-and-execute transactions.
+- Updated dependencies [5900ad5]
+  - @mysten/sui@2.16.3
+
 ## 1.0.7
 
 ### Patch Changes
