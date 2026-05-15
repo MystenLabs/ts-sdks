@@ -84,16 +84,6 @@ export async function coreClientResolveTransactionPlugin(
 		}
 	}
 
-	// The simulate inside `setGasBudget` always runs with `payment: []`. JSON-RPC's
-	// dryRun rejects this unless the tx has address-owned inputs or a `ValidDuring`
-	// expiration — which is the case for free-tier / gasless PTBs whose only inputs
-	// are a `FundsWithdrawal` and pure args. When the caller has opted into the
-	// gasless flow (gasPrice=0) and hasn't set an expiration of their own, provide
-	// one as a simulate-only override so the budget computation can proceed. The
-	// final tx's expiration is left to the post-resolve check below (which only
-	// sets it when payment ends up empty), so wire bytes are unchanged for any tx
-	// that doesn't actually need an expiration. (See sui#26576 — the equivalent
-	// fix on the gRPC server's simulate path.)
 	const needsSimulateExpiration =
 		!options.onlyTransactionKind &&
 		!transactionData.expiration &&
