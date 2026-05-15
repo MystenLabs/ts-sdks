@@ -92,9 +92,7 @@ export async function coreClientResolveTransactionPlugin(
 	// don't track. Provide a simulate-only `ValidDuring` whenever we'll actually
 	// simulate and one isn't user-set.
 	const needsSimulateExpiration =
-		!options.onlyTransactionKind &&
-		!transactionData.expiration &&
-		!transactionData.gasData.budget;
+		!options.onlyTransactionKind && !transactionData.expiration && !transactionData.gasData.budget;
 	const needsSystemState =
 		needsGasPrice || (needsPayment && usesGasCoin) || needsSimulateExpiration;
 	const needsChainId = (needsPayment && usesGasCoin) || needsSimulateExpiration;
