@@ -84,13 +84,20 @@ export async function coreClientResolveTransactionPlugin(
 		}
 	}
 
-	const hasUserSetZeroPrice =
+	// `setGasBudget` simulates with `payment: []` whenever it has to compute a
+	// budget (i.e. one wasn't preset). The validator's replay-protection check
+	// then requires either a `ValidDuring` expiration or at least one
+	// "address-owned" input — an `ImmOrOwnedMoveObject` whose owner is
+	// `AddressOwner`, which we can't tell from `Immutable` without owner info we
+	// don't track. Provide a simulate-only `ValidDuring` whenever we'll actually
+	// simulate and one isn't user-set.
+	const needsSimulateExpiration =
 		!options.onlyTransactionKind &&
 		!transactionData.expiration &&
-		transactionData.gasData.price != null &&
-		BigInt(transactionData.gasData.price) === 0n;
-	const needsSystemState = needsGasPrice || (needsPayment && usesGasCoin) || hasUserSetZeroPrice;
-	const needsChainId = (needsPayment && usesGasCoin) || hasUserSetZeroPrice;
+		!transactionData.gasData.budget;
+	const needsSystemState =
+		needsGasPrice || (needsPayment && usesGasCoin) || needsSimulateExpiration;
+	const needsChainId = (needsPayment && usesGasCoin) || needsSimulateExpiration;
 	const [, systemStateResult, balanceResult, coinsResult, chainIdResult] = await Promise.all([
 		normalizeInputs(transactionData, client),
 		needsSystemState ? client.core.getCurrentSystemState() : null,
@@ -105,19 +112,10 @@ export async function coreClientResolveTransactionPlugin(
 
 	if (!options.onlyTransactionKind) {
 		const systemState = systemStateResult?.systemState ?? null;
+		const chainIdentifier = chainIdResult?.chainIdentifier ?? null;
 
 		if (systemState && !transactionData.gasData.price) {
 			transactionData.gasData.price = systemState.referenceGasPrice;
-		}
-
-		const needsSimulateExpiration =
-			!transactionData.expiration &&
-			transactionData.gasData.price != null &&
-			BigInt(transactionData.gasData.price) === 0n;
-
-		let chainIdentifier = chainIdResult?.chainIdentifier ?? null;
-		if (needsSimulateExpiration && chainIdentifier == null) {
-			chainIdentifier = (await client.core.getChainIdentifier()).chainIdentifier;
 		}
 
 		const simulateExpiration =
