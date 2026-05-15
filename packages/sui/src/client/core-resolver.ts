@@ -84,7 +84,17 @@ export async function coreClientResolveTransactionPlugin(
 		}
 	}
 
-	const needsSystemState = needsGasPrice || (needsPayment && usesGasCoin);
+	// When the user has explicitly set gasPrice to 0 (free-tier / gasless transaction),
+	// the simulate inside `setGasBudget` will run with an empty gas payment. JSON-RPC's
+	// dryRun rejects that unless the tx has either address-owned inputs or a ValidDuring
+	// expiration. We pre-fill the expiration before simulating so the resolver works on
+	// both transports. (See sui#26576 — the equivalent fix on the gRPC server.)
+	const isGasless =
+		!options.onlyTransactionKind &&
+		transactionData.gasData.price != null &&
+		BigInt(transactionData.gasData.price) === 0n;
+	const needsSystemState = needsGasPrice || (needsPayment && usesGasCoin) || isGasless;
+	const needsChainId = (needsPayment && usesGasCoin) || isGasless;
 	const [, systemStateResult, balanceResult, coinsResult, chainIdResult] = await Promise.all([
 		normalizeInputs(transactionData, client),
 		needsSystemState ? client.core.getCurrentSystemState() : null,
@@ -92,7 +102,7 @@ export async function coreClientResolveTransactionPlugin(
 		needsPayment && gasPayer
 			? client.core.listCoins({ owner: gasPayer, coinType: SUI_TYPE_ARG })
 			: null,
-		needsPayment && usesGasCoin ? client.core.getChainIdentifier() : null,
+		needsChainId ? client.core.getChainIdentifier() : null,
 	]);
 
 	await resolveObjectReferences(transactionData, client);
@@ -102,6 +112,15 @@ export async function coreClientResolveTransactionPlugin(
 
 		if (systemState && !transactionData.gasData.price) {
 			transactionData.gasData.price = systemState.referenceGasPrice;
+		}
+
+		if (isGasless && !transactionData.expiration) {
+			await setExpiration(
+				transactionData,
+				client,
+				systemState,
+				chainIdResult?.chainIdentifier ?? null,
+			);
 		}
 
 		await setGasBudget(transactionData, client);
