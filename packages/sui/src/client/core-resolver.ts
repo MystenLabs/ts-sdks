@@ -84,14 +84,13 @@ export async function coreClientResolveTransactionPlugin(
 		}
 	}
 
-	const needsSimulateExpiration =
+	const hasUserSetZeroPrice =
 		!options.onlyTransactionKind &&
 		!transactionData.expiration &&
 		transactionData.gasData.price != null &&
 		BigInt(transactionData.gasData.price) === 0n;
-	const needsSystemState =
-		needsGasPrice || (needsPayment && usesGasCoin) || needsSimulateExpiration;
-	const needsChainId = (needsPayment && usesGasCoin) || needsSimulateExpiration;
+	const needsSystemState = needsGasPrice || (needsPayment && usesGasCoin) || hasUserSetZeroPrice;
+	const needsChainId = (needsPayment && usesGasCoin) || hasUserSetZeroPrice;
 	const [, systemStateResult, balanceResult, coinsResult, chainIdResult] = await Promise.all([
 		normalizeInputs(transactionData, client),
 		needsSystemState ? client.core.getCurrentSystemState() : null,
@@ -111,9 +110,19 @@ export async function coreClientResolveTransactionPlugin(
 			transactionData.gasData.price = systemState.referenceGasPrice;
 		}
 
+		const needsSimulateExpiration =
+			!transactionData.expiration &&
+			transactionData.gasData.price != null &&
+			BigInt(transactionData.gasData.price) === 0n;
+
+		let chainIdentifier = chainIdResult?.chainIdentifier ?? null;
+		if (needsSimulateExpiration && chainIdentifier == null) {
+			chainIdentifier = (await client.core.getChainIdentifier()).chainIdentifier;
+		}
+
 		const simulateExpiration =
-			needsSimulateExpiration && systemState && chainIdResult?.chainIdentifier
-				? buildValidDuringExpiration(systemState, chainIdResult.chainIdentifier)
+			needsSimulateExpiration && systemState && chainIdentifier
+				? buildValidDuringExpiration(systemState, chainIdentifier)
 				: undefined;
 
 		await setGasBudget(transactionData, client, simulateExpiration);
@@ -131,18 +140,13 @@ export async function coreClientResolveTransactionPlugin(
 				usesGasCoin,
 				withdrawals,
 				gasPayer: gasPayer!,
-				chainIdentifier: chainIdResult?.chainIdentifier ?? null,
+				chainIdentifier,
 				epoch: systemState?.epoch ?? null,
 			});
 		}
 
 		if (!transactionData.expiration && transactionData.gasData.payment?.length === 0) {
-			await setExpiration(
-				transactionData,
-				client,
-				systemState,
-				chainIdResult?.chainIdentifier ?? null,
-			);
+			await setExpiration(transactionData, client, systemState, chainIdentifier);
 		}
 	}
 
