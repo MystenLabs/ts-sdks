@@ -5,7 +5,7 @@
 	"scripts": {
 		"test": "turbo run test",
 		"test:e2e": "turbo run test:e2e --concurrency=1",
-		"changeset-version": "pnpm changeset version && pnpm --filter @mysten/* codegen:version",
+		"changeset-version": "pnpm changeset version && pnpm install --frozen-lockfile && pnpm --filter @mysten/* codegen:version",
 		"prettier:check": "prettier -c --ignore-unknown .",
 		"prettier:fix": "prettier -w --ignore-unknown .",
 		"prettier:fix:watch": "onchange '**' -i -f add -f change -j 5 -- prettier -w --ignore-unknown {{file}}",
