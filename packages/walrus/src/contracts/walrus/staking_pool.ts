@@ -13,6 +13,12 @@ import * as balance from './deps/sui/balance.js';
 import * as auth from './auth.js';
 import * as bag from './deps/sui/bag.js';
 const $moduleName = '@local-pkg/walrus::staking_pool';
+export const NewEpochCommissionBlockedForCollection = new MoveStruct({
+	name: `${$moduleName}::NewEpochCommissionBlockedForCollection`,
+	fields: {
+		dummy_field: bcs.bool(),
+	},
+});
 export const VotingParams = new MoveStruct({
 	name: `${$moduleName}::VotingParams`,
 	fields: {

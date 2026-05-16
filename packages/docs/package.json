@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/docs",
-	"version": "0.1.16",
+	"version": "0.1.25",
 	"description": "LLM-friendly documentation for the Sui TypeScript SDK ecosystem",
 	"license": "Apache-2.0",
 	"repository": {
@@ -14,13 +14,16 @@
 	"files": [
 		"dist/"
 	],
+	"engines": {
+		"node": ">=24"
+	},
 	"scripts": {
 		"build": "typedoc && next build && pnpm run build:docs",
-		"build:docs": "tsx scripts/build-docs.ts --all",
+		"build:docs": "node scripts/build-docs.ts --all",
 		"dev": "next dev",
 		"start": "next start",
 		"postinstall": "fumadocs-mdx",
-		"validate-docs": "tsx scripts/validate-llm-docs.ts",
+		"validate-docs": "node scripts/validate-llm-docs.ts",
 		"prettier:check": "prettier -c --ignore-unknown .",
 		"prettier:fix": "prettier -w --ignore-unknown .",
 		"oxlint:check": "oxlint  .",
@@ -29,6 +32,7 @@
 		"lint:fix": "pnpm run oxlint:fix && pnpm run prettier:fix"
 	},
 	"dependencies": {
+		"@mysten/aws-kms-signer": "workspace:*",
 		"@mysten/bcs": "workspace:*",
 		"@mysten/dapp-kit": "workspace:*",
 		"@mysten/dapp-kit-core": "workspace:*",
@@ -36,7 +40,9 @@
 		"@mysten/deepbook-v3": "workspace:*",
 		"@mysten/enoki": "workspace:*",
 		"@mysten/enoki-connect": "workspace:*",
+		"@mysten/gcp-kms-signer": "workspace:*",
 		"@mysten/kiosk": "workspace:*",
+		"@mysten/ledger-signer": "workspace:*",
 		"@mysten/payment-kit": "workspace:*",
 		"@mysten/seal": "workspace:*",
 		"@mysten/signers": "workspace:*",
@@ -46,6 +52,7 @@
 		"@mysten/utils": "workspace:*",
 		"@mysten/wallet-standard": "workspace:*",
 		"@mysten/walrus": "workspace:*",
+		"@mysten/webcrypto-signer": "workspace:*",
 		"@mysten/zksend": "workspace:*",
 		"@tanstack/react-query": "^5.90.16",
 		"fast-glob": "^3.3.3",
@@ -54,8 +61,7 @@
 		"fumadocs-mdx": "14.2.5",
 		"fumadocs-typescript": "^5.2.0",
 		"fumadocs-ui": "16.4.7",
-		"gray-matter": "^4.0.3",
-		"next": "^16.1.7",
+		"next": "^16.2.6",
 		"react": "^19.2.3",
 		"react-dom": "^19.2.3"
 	},
@@ -65,7 +71,7 @@
 		"@types/node": "^25.0.8",
 		"@types/react": "^19.2.8",
 		"@types/react-dom": "^19.2.3",
-		"postcss": "^8.5.6",
+		"postcss": "^8.5.14",
 		"tailwindcss": "^4.1.18",
 		"typedoc": "^0.28.16",
 		"typedoc-plugin-mermaid": "^1.12.0",

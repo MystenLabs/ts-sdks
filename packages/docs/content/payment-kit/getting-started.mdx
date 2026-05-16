@@ -1,6 +1,7 @@
 ---
 title: Getting Started
-description: Install and set up Payment Kit for your Sui dApp
+description: Install and set up Payment Kit for your Sui application.
+keywords: [Payment Kit, getting started, installation, setup, Sui, TypeScript, payment integration]
 ---
 
 <Callout type="info">
@@ -15,7 +16,7 @@ This guide will help you set up and start using the Payment Kit SDK in your Sui 
 
 Before you begin, ensure you have:
 
-- A Sui wallet with testnet/mainnet SUI tokens
+- A Sui wallet with Testnet or Mainnet SUI tokens
 - Basic understanding of TypeScript and the Sui blockchain
 
 ## Installation
@@ -26,7 +27,7 @@ Install the Payment Kit SDK and the Sui TypeScript SDK:
 npm install --save @mysten/payment-kit @mysten/sui
 ```
 
-## Setting Up the Client
+## Setting up the client
 
 The Payment Kit SDK extends the standard `SuiGrpcClient` to provide payment functionality. Here's
 how to set it up:
@@ -43,11 +44,11 @@ const client = new SuiGrpcClient({
 ```
 
 The client will automatically configure the correct package IDs for the network you're using
-(testnet or mainnet).
+(Testnet or Mainnet).
 
-## Your First Payment
+## Your first payment
 
-Let's process a simple registry-based payment using the default payment registry:
+Let's process a basic registry-based payment using the default payment registry:
 
 ```ts
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
@@ -83,7 +84,7 @@ if (result.$kind === 'FailedTransaction') {
 console.log('Payment processed:', result.Transaction.digest);
 ```
 
-## Understanding the Payment
+## Understanding the payment
 
 In this example:
 
@@ -94,7 +95,7 @@ In this example:
 5. **Sender**: The address sending the payment (must match the transaction signer)
 6. **Registry Name**: The payment registry to use (defaults to `DEFAULT_REGISTRY_NAME`)
 
-## Verifying the Payment
+## Verifying the payment
 
 After processing a payment, you can query the payment record to verify it exists:
 
@@ -116,7 +117,7 @@ if (paymentRecord) {
 }
 ```
 
-## Processing an Ephemeral Payment
+## Processing an ephemeral payment
 
 If you don't need duplicate prevention or persistent storage, use ephemeral payments:
 
@@ -149,7 +150,7 @@ Ephemeral payments:
 - Still emit a `PaymentReceipt` event
 - Have lower gas costs
 
-## Working with Different Coin Types
+## Working with different coin types
 
 Payment Kit supports any Sui coin type. Here's how to process payments with custom coins:
 
@@ -172,7 +173,7 @@ const result = await client.signAndExecuteTransaction({
 });
 ```
 
-## Error Handling
+## Error handling
 
 Always wrap payment operations in try-catch blocks:
 
@@ -200,7 +201,7 @@ try {
 }
 ```
 
-## Creating Payment URIs
+## Creating payment URIs
 
 Payment Kit provides helper functions to create and parse Payment Kit transaction URIs. These URIs
 are useful for generating payment links, QR codes, or deep links in your application:
@@ -255,7 +256,7 @@ const tx = client.paymentKit.tx.processRegistryPayment({
 });
 ```
 
-## Next Steps
+## Next steps
 
 Now that you understand the basics, explore more advanced features:
 

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { createAnalyzer } from '../analyzer.js';
-import { coinFlows } from './coin-flows.js';
+import { balanceFlows } from './balance-flows.js';
 
 export interface CoinValueAnalyzerOptions {
 	getCoinPrices: (coinTypes: string[]) => Promise<
@@ -27,49 +27,37 @@ export interface CoinValueAnalysis {
 }
 
 export const coinValues = createAnalyzer({
-	dependencies: { coinFlows },
+	dependencies: { balanceFlows },
 	analyze:
 		({ getCoinPrices }: CoinValueAnalyzerOptions) =>
-		async ({ coinFlows }) => {
-			const prices = await getCoinPrices(coinFlows.outflows.map((cf) => cf.coinType));
+		async ({ balanceFlows }) => {
+			const outflows = balanceFlows.sender
+				.filter((f) => f.amount < 0n)
+				.map((f) => ({ coinType: f.coinType, amount: -f.amount }));
+
+			const prices = await getCoinPrices(outflows.map((cf) => cf.coinType));
 
 			let total = 0;
 			const coinTypesWithoutPrice: string[] = [];
+			const coinTypes: CoinValueAnalysis['coinTypes'] = [];
 
-			const coinTypes: {
-				coinType: string;
-				decimals: number;
-				price: number;
-				amount: bigint;
-				convertedAmount: number;
-			}[] = [];
-
-			for (const flow of coinFlows.outflows) {
-				if (flow.amount > 0n) {
-					const result = prices.find((p) => p.coinType === flow.coinType);
-
-					if (result?.price != null) {
-						const amount = (Number(flow.amount) / 10 ** result.decimals) * result.price;
-						total += amount;
-						coinTypes.push({
-							coinType: flow.coinType,
-							decimals: result.decimals,
-							price: result.price,
-							amount: flow.amount,
-							convertedAmount: amount,
-						});
-					} else {
-						coinTypesWithoutPrice.push(flow.coinType);
-					}
+			for (const flow of outflows) {
+				const price = prices.find((p) => p.coinType === flow.coinType);
+				if (price?.price != null) {
+					const convertedAmount = (Number(flow.amount) / 10 ** price.decimals) * price.price;
+					total += convertedAmount;
+					coinTypes.push({
+						coinType: flow.coinType,
+						decimals: price.decimals,
+						price: price.price,
+						amount: flow.amount,
+						convertedAmount,
+					});
+				} else {
+					coinTypesWithoutPrice.push(flow.coinType);
 				}
 			}
 
-			return {
-				result: {
-					total: total,
-					coinTypesWithoutPrice,
-					coinTypes: coinTypes,
-				},
-			};
+			return { result: { total, coinTypesWithoutPrice, coinTypes } };
 		},
 });

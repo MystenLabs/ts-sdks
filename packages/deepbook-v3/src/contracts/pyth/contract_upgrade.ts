@@ -3,7 +3,7 @@
  **************************************************************/
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as bytes32 from './deps/0xf47329f4344f3bf0f8e436e2f7b485466cff300f12a166563995d3888c296a94/bytes32.js';
 const $moduleName =
 	'0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837::contract_upgrade';
@@ -22,7 +22,7 @@ export const UpgradeContract = new MoveStruct({
 });
 export interface AuthorizeUpgradeOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>, RawTransactionArgument<string>];
+	arguments: [RawTransactionArgument<string>, TransactionArgument];
 }
 export function authorizeUpgrade(options: AuthorizeUpgradeOptions) {
 	const packageAddress =
@@ -38,7 +38,7 @@ export function authorizeUpgrade(options: AuthorizeUpgradeOptions) {
 }
 export interface CommitUpgradeOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>, RawTransactionArgument<string>];
+	arguments: [RawTransactionArgument<string>, TransactionArgument];
 }
 export function commitUpgrade(options: CommitUpgradeOptions) {
 	const packageAddress =

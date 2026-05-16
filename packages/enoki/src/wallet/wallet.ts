@@ -41,8 +41,8 @@ import type {
 import { EnokiGetMetadata, EnokiGetSession } from './features.js';
 import type { SuiClientTypes } from '@mysten/sui/client';
 import { decodeJwt } from '@mysten/sui/zklogin';
-import type { ExportedWebCryptoKeypair } from '@mysten/signers/webcrypto';
-import { WebCryptoSigner } from '@mysten/signers/webcrypto';
+import type { ExportedWebCryptoKeypair } from '@mysten/webcrypto-signer';
+import { WebCryptoSigner } from '@mysten/webcrypto-signer';
 import { get, set } from 'idb-keyval';
 
 import { EnokiClient } from '../EnokiClient/index.js';
@@ -203,8 +203,6 @@ export class EnokiWallet implements Wallet {
 
 		const { client, keypair } = await this.#getSignerContext(chain);
 		const parsedTransaction = Transaction.from(await transaction.toJSON());
-		const bytes = await parsedTransaction.build({ client });
-
 		const suiAddress = keypair.toSuiAddress();
 
 		if (suiAddress !== account.address) {
@@ -214,6 +212,7 @@ export class EnokiWallet implements Wallet {
 		}
 
 		parsedTransaction.setSenderIfNotSet(suiAddress);
+		const bytes = await parsedTransaction.build({ client });
 
 		const result = await keypair.signAndExecuteTransaction({
 			transaction: parsedTransaction,

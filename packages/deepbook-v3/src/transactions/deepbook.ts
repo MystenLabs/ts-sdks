@@ -217,6 +217,70 @@ export class DeepBookContract {
 		};
 
 	/**
+	 * @description Cancel an existing order, no-op if the order is not currently in the
+	 * balance manager's open orders (e.g. already filled, cancelled, expired-and-swept,
+	 * or not owned by this balance manager). Unlike `cancelOrder`, this will not abort
+	 * on unknown order ids.
+	 * @param {string} poolKey The key to identify the pool
+	 * @param {string} balanceManagerKey The key to identify the BalanceManager
+	 * @param {string} orderId Order ID to cancel
+	 * @returns A function that takes a Transaction object
+	 */
+	cancelLiveOrder =
+		(poolKey: string, balanceManagerKey: string, orderId: string) => (tx: Transaction) => {
+			tx.setGasBudgetIfNotSet(GAS_BUDGET);
+			const pool = this.#config.getPool(poolKey);
+			const balanceManager = this.#config.getBalanceManager(balanceManagerKey);
+			const baseCoin = this.#config.getCoin(pool.baseCoin);
+			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+			const tradeProof = tx.add(this.#config.balanceManager.generateProof(balanceManagerKey));
+
+			tx.moveCall({
+				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::cancel_live_order`,
+				arguments: [
+					tx.object(pool.address),
+					tx.object(balanceManager.address),
+					tradeProof,
+					tx.pure.u128(orderId),
+					tx.object.clock(),
+				],
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			});
+		};
+
+	/**
+	 * @description Cancel multiple orders, skipping any order_id that is not currently in
+	 * the balance manager's open orders (e.g. already filled, cancelled, expired-and-swept,
+	 * or not owned by this balance manager). Duplicate ids in the input vector are handled
+	 * gracefully. Unlike `cancelOrders`, this will not abort on unknown order ids.
+	 * @param {string} poolKey The key to identify the pool
+	 * @param {string} balanceManagerKey The key to identify the BalanceManager
+	 * @param {string[]} orderIds Array of order IDs to cancel
+	 * @returns A function that takes a Transaction object
+	 */
+	cancelLiveOrders =
+		(poolKey: string, balanceManagerKey: string, orderIds: string[]) => (tx: Transaction) => {
+			tx.setGasBudgetIfNotSet(GAS_BUDGET);
+			const pool = this.#config.getPool(poolKey);
+			const balanceManager = this.#config.getBalanceManager(balanceManagerKey);
+			const baseCoin = this.#config.getCoin(pool.baseCoin);
+			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+			const tradeProof = tx.add(this.#config.balanceManager.generateProof(balanceManagerKey));
+
+			tx.moveCall({
+				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::cancel_live_orders`,
+				arguments: [
+					tx.object(pool.address),
+					tx.object(balanceManager.address),
+					tradeProof,
+					tx.pure.vector('u128', orderIds),
+					tx.object.clock(),
+				],
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			});
+		};
+
+	/**
 	 * @description Cancel all open orders for a balance manager
 	 * @param {string} poolKey The key to identify the pool
 	 * @param {string} balanceManagerKey The key to identify the BalanceManager

@@ -1,5 +1,54 @@
 # @mysten/sui.js
 
+## 2.16.3
+
+### Patch Changes
+
+- 5900ad5: Always pass a `ValidDuring` expiration as a simulate-only override when the resolver has
+  to compute a gas budget and the caller hasn't set an expiration. The simulate inside
+  `setGasBudget` runs with `payment: []`, and the validator's replay-protection check rejects
+  payment-less transactions that lack both a `ValidDuring` expiration and an address-owned input.
+  Previously this affected gasless / free-tier PTBs over JSON-RPC ("Transactions must either have
+  address-owned inputs, or a ValidDuring expiration with at most two epochs of validity"); it also
+  affects any PTB whose only inputs are shared objects, pure args, or balance withdrawals. The
+  override is scoped to the simulate request — the final transaction's expiration is unchanged.
+
+## 2.16.2
+
+### Patch Changes
+
+- f7de3e5: Restore docs in published tarballs.
+- Updated dependencies [f7de3e5]
+  - @mysten/bcs@2.0.5
+  - @mysten/utils@0.3.3
+
+## 2.16.1
+
+### Patch Changes
+
+- 9e067cf: Validate the new per-package release flow end-to-end across every public @mysten package.
+  No functional changes — empty patch bump to force the orchestrator to dispatch every
+  release-<pkg>.yml workflow with `dry_run=false` so each package publishes via OIDC trusted
+  publishing.
+- Updated dependencies [9e067cf]
+  - @mysten/bcs@2.0.4
+  - @mysten/utils@0.3.2
+
+## 2.16.0
+
+### Minor Changes
+
+- 6adc085: Add `parseToUnits` and `parseToMist` balance parsing utilities using pure bigint
+  arithmetic.
+
+### Patch Changes
+
+- b1bf49a: Fix `extractMvrTypes` and `replaceMvrNames` to handle vector and primitive type
+  parameters. Previously, these functions passed all string type parameters directly to
+  `parseStructTag`, which produced corrupted results for vector types (e.g.,
+  `vector<@mvr/demo::baz::Qux>`) and threw on primitives (e.g., `u8`). Vector types are now
+  unwrapped and recursed into, and primitive types are passed through unchanged.
+
 ## 2.15.0
 
 ### Minor Changes

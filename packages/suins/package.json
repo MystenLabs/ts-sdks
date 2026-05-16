@@ -2,7 +2,7 @@
 	"name": "@mysten/suins",
 	"author": "Mysten Labs <build@mystenlabs.com>",
 	"description": "SuiNS SDK",
-	"version": "1.0.3",
+	"version": "1.1.4",
 	"license": "Apache-2.0",
 	"private": false,
 	"type": "module",
@@ -42,12 +42,11 @@
 		"node": ">=16"
 	},
 	"dependencies": {
-		"axios": "^1.13.5",
+		"axios": "^1.16.0",
 		"axios-retry": "^4.5.0"
 	},
 	"devDependencies": {
 		"@mysten/codegen": "workspace:^",
-		"@mysten/sui": "workspace:^",
 		"@types/tmp": "^0.2.6",
 		"ts-retry-promise": "^0.8.1",
 		"typescript": "^5.9.3",

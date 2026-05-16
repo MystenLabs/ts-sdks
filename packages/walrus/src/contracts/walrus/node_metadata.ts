@@ -6,7 +6,7 @@
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as vec_map from './deps/sui/vec_map.js';
 const $moduleName = '@local-pkg/walrus::node_metadata';
 export const NodeMetadata = new MoveStruct({
@@ -51,14 +51,14 @@ export function _new(options: NewOptions) {
 		});
 }
 export interface SetImageUrlArguments {
-	metadata: RawTransactionArgument<string>;
+	metadata: TransactionArgument;
 	imageUrl: RawTransactionArgument<string>;
 }
 export interface SetImageUrlOptions {
 	package?: string;
 	arguments:
 		| SetImageUrlArguments
-		| [metadata: RawTransactionArgument<string>, imageUrl: RawTransactionArgument<string>];
+		| [metadata: TransactionArgument, imageUrl: RawTransactionArgument<string>];
 }
 /** Set the image URL of the Validator. */
 export function setImageUrl(options: SetImageUrlOptions) {
@@ -74,14 +74,14 @@ export function setImageUrl(options: SetImageUrlOptions) {
 		});
 }
 export interface SetProjectUrlArguments {
-	metadata: RawTransactionArgument<string>;
+	metadata: TransactionArgument;
 	projectUrl: RawTransactionArgument<string>;
 }
 export interface SetProjectUrlOptions {
 	package?: string;
 	arguments:
 		| SetProjectUrlArguments
-		| [metadata: RawTransactionArgument<string>, projectUrl: RawTransactionArgument<string>];
+		| [metadata: TransactionArgument, projectUrl: RawTransactionArgument<string>];
 }
 /** Set the project URL of the Validator. */
 export function setProjectUrl(options: SetProjectUrlOptions) {
@@ -97,14 +97,14 @@ export function setProjectUrl(options: SetProjectUrlOptions) {
 		});
 }
 export interface SetDescriptionArguments {
-	metadata: RawTransactionArgument<string>;
+	metadata: TransactionArgument;
 	description: RawTransactionArgument<string>;
 }
 export interface SetDescriptionOptions {
 	package?: string;
 	arguments:
 		| SetDescriptionArguments
-		| [metadata: RawTransactionArgument<string>, description: RawTransactionArgument<string>];
+		| [metadata: TransactionArgument, description: RawTransactionArgument<string>];
 }
 /** Set the description of the Validator. */
 export function setDescription(options: SetDescriptionOptions) {
@@ -120,14 +120,14 @@ export function setDescription(options: SetDescriptionOptions) {
 		});
 }
 export interface SetExtraFieldsArguments {
-	metadata: RawTransactionArgument<string>;
-	extraFields: RawTransactionArgument<string>;
+	metadata: TransactionArgument;
+	extraFields: TransactionArgument;
 }
 export interface SetExtraFieldsOptions {
 	package?: string;
 	arguments:
 		| SetExtraFieldsArguments
-		| [metadata: RawTransactionArgument<string>, extraFields: RawTransactionArgument<string>];
+		| [metadata: TransactionArgument, extraFields: TransactionArgument];
 }
 /** Set an extra field of the Validator. */
 export function setExtraFields(options: SetExtraFieldsOptions) {
@@ -143,11 +143,11 @@ export function setExtraFields(options: SetExtraFieldsOptions) {
 		});
 }
 export interface ImageUrlArguments {
-	metadata: RawTransactionArgument<string>;
+	metadata: TransactionArgument;
 }
 export interface ImageUrlOptions {
 	package?: string;
-	arguments: ImageUrlArguments | [metadata: RawTransactionArgument<string>];
+	arguments: ImageUrlArguments | [metadata: TransactionArgument];
 }
 /** Returns the image URL of the Validator. */
 export function imageUrl(options: ImageUrlOptions) {
@@ -163,11 +163,11 @@ export function imageUrl(options: ImageUrlOptions) {
 		});
 }
 export interface ProjectUrlArguments {
-	metadata: RawTransactionArgument<string>;
+	metadata: TransactionArgument;
 }
 export interface ProjectUrlOptions {
 	package?: string;
-	arguments: ProjectUrlArguments | [metadata: RawTransactionArgument<string>];
+	arguments: ProjectUrlArguments | [metadata: TransactionArgument];
 }
 /** Returns the project URL of the Validator. */
 export function projectUrl(options: ProjectUrlOptions) {
@@ -183,11 +183,11 @@ export function projectUrl(options: ProjectUrlOptions) {
 		});
 }
 export interface DescriptionArguments {
-	metadata: RawTransactionArgument<string>;
+	metadata: TransactionArgument;
 }
 export interface DescriptionOptions {
 	package?: string;
-	arguments: DescriptionArguments | [metadata: RawTransactionArgument<string>];
+	arguments: DescriptionArguments | [metadata: TransactionArgument];
 }
 /** Returns the description of the Validator. */
 export function description(options: DescriptionOptions) {
@@ -203,11 +203,11 @@ export function description(options: DescriptionOptions) {
 		});
 }
 export interface ExtraFieldsArguments {
-	metadata: RawTransactionArgument<string>;
+	metadata: TransactionArgument;
 }
 export interface ExtraFieldsOptions {
 	package?: string;
-	arguments: ExtraFieldsArguments | [metadata: RawTransactionArgument<string>];
+	arguments: ExtraFieldsArguments | [metadata: TransactionArgument];
 }
 /** Returns the extra fields of the Validator. */
 export function extraFields(options: ExtraFieldsOptions) {

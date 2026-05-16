@@ -1,0 +1,35 @@
+name: Release @mysten/signers
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry-run mode'
+        required: false
+        default: 'false'
+      ref:
+        description: 'Git ref or SHA to publish (defaults to main HEAD)'
+        required: false
+        default: ''
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      id-token: write # OIDC trusted publishing
+    uses: ./.github/workflows/_release-package.yml
+    with:
+      package: '@mysten/signers'
+      dir: 'packages/signers'
+      dry_run: ${{ inputs.dry_run || 'false' }}
+      ref: ${{ inputs.ref }}
+      # @types/semver — needed transitively via ledgerjs-hw-app-sui for tsc
+      # --noEmit; semver itself is a runtime dep already, only types are
+      # build-time-only.
+      tools: 'tsdown@0.20.0-beta.1 typescript@5.9.3 @types/node@25.0.8 @types/semver@7.7.1'

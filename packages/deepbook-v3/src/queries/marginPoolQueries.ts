@@ -17,6 +17,7 @@ export class MarginPoolQueries {
 
 	async getMarginPoolId(coinKey: string): Promise<string> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.marginPool.getId(coinKey));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -30,6 +31,7 @@ export class MarginPoolQueries {
 
 	async isDeepbookPoolAllowed(coinKey: string, deepbookPoolId: string): Promise<boolean> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.marginPool.deepbookPoolAllowed(coinKey, deepbookPoolId));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -43,6 +45,7 @@ export class MarginPoolQueries {
 
 	async getMarginPoolTotalSupply(coinKey: string, decimals: number = 6): Promise<string> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.marginPool.totalSupply(coinKey));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -58,6 +61,7 @@ export class MarginPoolQueries {
 
 	async getMarginPoolSupplyShares(coinKey: string, decimals: number = 6): Promise<string> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.marginPool.supplyShares(coinKey));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -73,6 +77,7 @@ export class MarginPoolQueries {
 
 	async getMarginPoolTotalBorrow(coinKey: string, decimals: number = 6): Promise<string> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.marginPool.totalBorrow(coinKey));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -88,6 +93,7 @@ export class MarginPoolQueries {
 
 	async getMarginPoolBorrowShares(coinKey: string, decimals: number = 6): Promise<string> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.marginPool.borrowShares(coinKey));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -103,6 +109,7 @@ export class MarginPoolQueries {
 
 	async getMarginPoolLastUpdateTimestamp(coinKey: string): Promise<number> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.marginPool.lastUpdateTimestamp(coinKey));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -116,6 +123,7 @@ export class MarginPoolQueries {
 
 	async getMarginPoolSupplyCap(coinKey: string, decimals: number = 6): Promise<string> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.marginPool.supplyCap(coinKey));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -131,6 +139,7 @@ export class MarginPoolQueries {
 
 	async getMarginPoolMaxUtilizationRate(coinKey: string): Promise<number> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.marginPool.maxUtilizationRate(coinKey));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -145,6 +154,7 @@ export class MarginPoolQueries {
 
 	async getMarginPoolProtocolSpread(coinKey: string): Promise<number> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.marginPool.protocolSpread(coinKey));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -159,6 +169,7 @@ export class MarginPoolQueries {
 
 	async getMarginPoolMinBorrow(coinKey: string, decimals: number = 6): Promise<string> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.marginPool.minBorrow(coinKey));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -174,6 +185,7 @@ export class MarginPoolQueries {
 
 	async getMarginPoolInterestRate(coinKey: string): Promise<number> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.marginPool.interestRate(coinKey));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -192,6 +204,7 @@ export class MarginPoolQueries {
 		decimals: number = 6,
 	): Promise<string> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.marginPool.userSupplyShares(coinKey, supplierCapId));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -211,6 +224,7 @@ export class MarginPoolQueries {
 		decimals: number = 6,
 	): Promise<string> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.marginPool.userSupplyAmount(coinKey, supplierCapId));
 
 		const res = await this.#ctx.client.core.simulateTransaction({

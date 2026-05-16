@@ -1,6 +1,7 @@
 ---
 title: Connect Button
-description: React button component for wallet connection
+description: React button component for connecting and disconnecting Sui wallets.
+keywords: [ConnectButton, React, wallet connection, auto-connect, dApp Kit, Sui, UI component]
 ---
 
 ## Usage
@@ -29,7 +30,7 @@ description: React button component for wallet connection
   - **sortFn** (optional) - Function to sort available wallets
     - Type: `(a: UiWallet, b: UiWallet) => number`
 
-## Custom Button Text
+## Custom button text
 
 Use the slot to customize the button content when disconnected:
 
@@ -39,7 +40,7 @@ Use the slot to customize the button content when disconnected:
 </ConnectButton>
 ```
 
-## Server-Side Rendering (SSR)
+## Server-side rendering (SSR)
 
 The `<ConnectButton />` component can be only client-side rendered, as wallets are detected in the
 browser. For Next.js guide see [here](/dapp-kit/getting-started/next-js).

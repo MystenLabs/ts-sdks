@@ -16,6 +16,7 @@ export class TPSLQueries {
 	async getConditionalOrderIds(marginManagerKey: string): Promise<string[]> {
 		const manager = this.#ctx.config.getMarginManager(marginManagerKey);
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.marginTPSL.conditionalOrderIds(manager.poolKey, manager.address));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -41,6 +42,7 @@ export class TPSLQueries {
 	async getLowestTriggerAbovePrice(marginManagerKey: string): Promise<bigint> {
 		const manager = this.#ctx.config.getMarginManager(marginManagerKey);
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.marginTPSL.lowestTriggerAbovePrice(manager.poolKey, manager.address));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -65,6 +67,7 @@ export class TPSLQueries {
 	async getHighestTriggerBelowPrice(marginManagerKey: string): Promise<bigint> {
 		const manager = this.#ctx.config.getMarginManager(marginManagerKey);
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.marginTPSL.highestTriggerBelowPrice(manager.poolKey, manager.address));
 
 		const res = await this.#ctx.client.core.simulateTransaction({

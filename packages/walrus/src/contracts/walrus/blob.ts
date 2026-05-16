@@ -3,7 +3,7 @@
  **************************************************************/
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as storage_resource from './storage_resource.js';
 const $moduleName = '@local-pkg/walrus::blob';
 export const Blob = new MoveStruct({
@@ -274,13 +274,13 @@ export function burn(options: BurnOptions) {
 }
 export interface AddMetadataArguments {
 	self: RawTransactionArgument<string>;
-	metadata: RawTransactionArgument<string>;
+	metadata: TransactionArgument;
 }
 export interface AddMetadataOptions {
 	package?: string;
 	arguments:
 		| AddMetadataArguments
-		| [self: RawTransactionArgument<string>, metadata: RawTransactionArgument<string>];
+		| [self: RawTransactionArgument<string>, metadata: TransactionArgument];
 }
 /**
  * Adds the metadata dynamic field to the Blob.
@@ -301,13 +301,13 @@ export function addMetadata(options: AddMetadataOptions) {
 }
 export interface AddOrReplaceMetadataArguments {
 	self: RawTransactionArgument<string>;
-	metadata: RawTransactionArgument<string>;
+	metadata: TransactionArgument;
 }
 export interface AddOrReplaceMetadataOptions {
 	package?: string;
 	arguments:
 		| AddOrReplaceMetadataArguments
-		| [self: RawTransactionArgument<string>, metadata: RawTransactionArgument<string>];
+		| [self: RawTransactionArgument<string>, metadata: TransactionArgument];
 }
 /**
  * Adds the metadata dynamic field to the Blob, replacing the existing metadata if

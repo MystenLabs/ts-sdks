@@ -392,10 +392,10 @@ describe('Coin reservation', () => {
 });
 
 describe('Chain identifier fetch gating', () => {
-	it('does not fetch getChainIdentifier when !usesGasCoin', async () => {
+	it('does not fetch getChainIdentifier when budget is preset and !usesGasCoin', async () => {
 		const tx = new Transaction();
 		tx.setSender('0x' + '2'.repeat(64));
-		tx.setGasBudget(1000000);
+		tx.setGasBudget(1000000); // preset → no simulate → no override needed
 		// No tx.gas reference, so usesGasCoin = false
 
 		const client = createMockClient({
@@ -409,6 +409,33 @@ describe('Chain identifier fetch gating', () => {
 				},
 			],
 		});
+		await tx.build({ client: client as any });
+
+		expect(client.core.getChainIdentifier).not.toHaveBeenCalled();
+	});
+
+	it('fetches getChainIdentifier for simulate override when no budget and no expiration', async () => {
+		const tx = new Transaction();
+		tx.setSender('0x' + '2'.repeat(64));
+		// No setGasBudget → setGasBudget will simulate
+		// No setExpiration → simulate override needed
+		// No tx.gas → usesGasCoin = false (so chainId would NOT be fetched for the
+		// gas-coin reservation path)
+
+		const client = createMockClient();
+		await tx.build({ client: client as any });
+
+		expect(client.core.getChainIdentifier).toHaveBeenCalled();
+		expect(client.core.simulateTransaction).toHaveBeenCalledOnce();
+	});
+
+	it('does not fetch getChainIdentifier when expiration is user-set', async () => {
+		const tx = new Transaction();
+		tx.setSender('0x' + '2'.repeat(64));
+		tx.setExpiration({ Epoch: 200 });
+		// No budget, no usesGasCoin
+
+		const client = createMockClient();
 		await tx.build({ client: client as any });
 
 		expect(client.core.getChainIdentifier).not.toHaveBeenCalled();

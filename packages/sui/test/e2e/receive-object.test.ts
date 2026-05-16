@@ -35,7 +35,7 @@ describe('Transfer to Object', () => {
 			typeArguments: [],
 			arguments: [],
 		});
-		const x = await validateTransaction(toolbox.jsonRpcClient, toolbox.keypair, tx);
+		const x = await validateTransaction(toolbox.grpcClient, toolbox.keypair, tx);
 		const y = x.Transaction?.effects?.changedObjects
 			.filter((o: SuiClientTypes.ChangedObject) => o.idOperation === 'Created')
 			.map((o: SuiClientTypes.ChangedObject) => getOwnerAddress(o))!;
@@ -60,7 +60,7 @@ describe('Transfer to Object', () => {
 			typeArguments: [],
 			arguments: [tx.object(parentObjectId.objectId), tx.object(receiveObjectId.objectId)],
 		});
-		await validateTransaction(toolbox.jsonRpcClient, toolbox.keypair, tx);
+		await validateTransaction(toolbox.grpcClient, toolbox.keypair, tx);
 	});
 
 	it('Basic Receive: receive and then delete', async () => {
@@ -70,7 +70,7 @@ describe('Transfer to Object', () => {
 			typeArguments: [],
 			arguments: [tx.object(parentObjectId.objectId), tx.object(receiveObjectId.objectId)],
 		});
-		await validateTransaction(toolbox.jsonRpcClient, toolbox.keypair, tx);
+		await validateTransaction(toolbox.grpcClient, toolbox.keypair, tx);
 	});
 
 	it('receive + return, then delete', async () => {
@@ -85,7 +85,7 @@ describe('Transfer to Object', () => {
 			typeArguments: [],
 			arguments: [b],
 		});
-		await validateTransaction(toolbox.jsonRpcClient, toolbox.keypair, tx);
+		await validateTransaction(toolbox.grpcClient, toolbox.keypair, tx);
 	});
 
 	it('Basic Receive: &Receiving arg type', async () => {
@@ -96,7 +96,7 @@ describe('Transfer to Object', () => {
 			arguments: [tx.object(parentObjectId.objectId), tx.object(receiveObjectId.objectId)],
 		});
 
-		await validateTransaction(toolbox.jsonRpcClient, toolbox.keypair, tx);
+		await validateTransaction(toolbox.grpcClient, toolbox.keypair, tx);
 	});
 
 	it('Basic Receive: &mut Receiving arg type', async () => {
@@ -106,7 +106,7 @@ describe('Transfer to Object', () => {
 			typeArguments: [],
 			arguments: [tx.object(parentObjectId.objectId), tx.object(receiveObjectId.objectId)],
 		});
-		await validateTransaction(toolbox.jsonRpcClient, toolbox.keypair, tx);
+		await validateTransaction(toolbox.grpcClient, toolbox.keypair, tx);
 	});
 
 	it.fails('Trying to pass shared object as receiving argument', async () => {
@@ -116,7 +116,7 @@ describe('Transfer to Object', () => {
 			typeArguments: [],
 			arguments: [tx.object(parentObjectId.objectId), tx.object(sharedObjectId)],
 		});
-		await validateTransaction(toolbox.jsonRpcClient, toolbox.keypair, tx);
+		await validateTransaction(toolbox.grpcClient, toolbox.keypair, tx);
 	});
 });
 

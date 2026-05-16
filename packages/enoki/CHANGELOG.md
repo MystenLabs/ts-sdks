@@ -1,5 +1,48 @@
 # @mysten/enoki
 
+## 1.0.8
+
+### Patch Changes
+
+- 225f928: Set the Enoki wallet sender before building sign-and-execute transactions.
+- Updated dependencies [5900ad5]
+  - @mysten/sui@2.16.3
+
+## 1.0.7
+
+### Patch Changes
+
+- f7de3e5: Restore docs in published tarballs.
+- Updated dependencies [f7de3e5]
+  - @mysten/sui@2.16.2
+  - @mysten/utils@0.3.3
+  - @mysten/wallet-standard@0.20.3
+  - @mysten/webcrypto-signer@0.1.2
+
+## 1.0.6
+
+### Patch Changes
+
+- 9e067cf: Validate the new per-package release flow end-to-end across every public @mysten package.
+  No functional changes — empty patch bump to force the orchestrator to dispatch every
+  release-<pkg>.yml workflow with `dry_run=false` so each package publishes via OIDC trusted
+  publishing.
+- Updated dependencies [9e067cf]
+  - @mysten/sui@2.16.1
+  - @mysten/utils@0.3.2
+  - @mysten/wallet-standard@0.20.2
+  - @mysten/webcrypto-signer@0.1.1
+
+## 1.0.5
+
+### Patch Changes
+
+- 75a32c1: Switched the WebCrypto signer import to `@mysten/webcrypto-signer` (instead of
+  `@mysten/signers/webcrypto`). No public API change. Enoki no longer depends on the larger
+  `@mysten/signers` package, dropping the GCP KMS and Ledger HW transitive dependencies.
+- Updated dependencies [75a32c1]
+  - @mysten/webcrypto-signer@0.1.0
+
 ## 1.0.4
 
 ### Patch Changes

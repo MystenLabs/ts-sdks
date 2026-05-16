@@ -1,10 +1,21 @@
 ---
 title: Transaction Plugins
-description: Extend transaction building with reusable plugins
+description: Extend transaction building with reusable plugins.
+keywords:
+  [
+    transaction plugins,
+    plugin API,
+    Transaction builder,
+    Sui,
+    intents,
+    serialization,
+    middleware,
+    extensibility,
+  ]
 ---
 
 <Callout type="warn">
-	The `Transaction` plugin API is experimental and may change rapidly as it is being developed.
+	The `Transaction` plugin API is experimental and might change rapidly as it is being developed.
 </Callout>
 
 This document describes the plugin API for the `Transaction` builder. It covers internal details
@@ -22,10 +33,10 @@ modify the data and commands added to a transaction before it is serialized to J
 BCS bytes. Transaction Intents are custom representations of user intents for a transaction,
 eventually resolved to one or more commands in the transaction.
 
-## Contents of a Transaction
+## Contents of a transaction
 
-When a `Transaction` is created (e.g., `new Transaction()`), it is initialized with an empty
-[TransactionDataBuilder](/typedoc/classes/_mysten_sui.transactions.TransactionDataBuilder.html)
+When a `Transaction` is created (for example, `new Transaction()`), it is initialized with an empty
+[`TransactionDataBuilder`](/typedoc/classes/_mysten_sui.transactions.TransactionDataBuilder.html)
 instance which stores the state of the partially built transaction. The full API of the
 `TransactionDataBuilder` won't be covered here, but you can find the available methods and
 properties in the
@@ -38,13 +49,13 @@ takes depend on the command, but they will be one of a few different types:
 - `GasCoin`: A reference to the coin used to pay for gas.
 - `Input`: An input to the transaction (described below).
 - `Result`: The result of a previous command.
-- `NestedResult`: If a previous command returns a tuple (e.g., `SplitCoin`), a `NestedResult` is
-  used to refer to a specific value in that tuple.
+- `NestedResult`: If a previous command returns a tuple (for example, `SplitCoin`), a `NestedResult`
+  is used to refer to a specific value in that tuple.
 
 Transactions also store a list of Inputs, which refer to user-provided values. Inputs can either be
 objects or Pure values and can be represented in several different ways:
 
-- `Pure`: An input value serialized to BCS. Pure values are generally scalar values or simple
+- `Pure`: An input value serialized to BCS. Pure values are generally scalar values or basic
   wrappers like options or vectors and cannot represent object types.
 - `Object`: A fully resolved object reference, which will be one of the following types:
   - `ImmOrOwnedObject`: A reference to an object, including the object's `id`, `version`, and
@@ -55,13 +66,13 @@ objects or Pure values and can be represented in several different ways:
     `digest`.
 - `UnresolvedPure`: A placeholder for a pure value that has not been serialized to BCS.
 - `UnresolvedObject`: A partial reference to an object, often containing just the object's `id`, but
-  may also include a version, digest, or initialSharedVersion.
+  might also include a version, digest, or initialSharedVersion.
 
-## Lifecycle of a Transaction
+## Lifecycle of a transaction
 
 Because transactions can contain `UnresolvedPure` and `UnresolvedObject` inputs, these values need
 to be resolved before the transaction can be serialized to BCS. However, these unresolved inputs can
-be represented in JSON. What may not be able to be represented in JSON are Transaction Intents.
+be represented in JSON. What might not be able to be represented in JSON are Transaction Intents.
 Transaction Intents represent custom concepts added by plugins or third-party SDKs. To account for
 this, the build process of a transaction is split into two phases: serialization and building.
 Serialization prepares the transaction to be serialized to JSON by running serialization plugins,
@@ -69,7 +80,7 @@ and resolving any unsupported intents. The Build phase then runs, which runs bui
 resolves any UnresolvedPure and UnresolvedObject inputs, before the transaction is serialized to
 BCS.
 
-## Serialization Plugins
+## Serialization plugins
 
 Serialization plugins can be added to a `Transaction` by calling the `addSerializationPlugin` method
 on a `Transaction` instance. Serialization plugins are called in the order they are added and are
@@ -85,7 +96,7 @@ transaction.addSerializationPlugin(async (transactionData, buildOptions, next) =
 });
 ```
 
-## Build Plugins
+## Build plugins
 
 The build phase is responsible for taking unresolved objects and unresolved pure values and
 converting them to their resolved versions by querying the RPC API to fetch the missing data. Build
@@ -139,7 +150,7 @@ const transaction = new Transaction();
 transaction.addBuildPlugin(simpleObjectCachePlugin);
 ```
 
-## Transaction Intents
+## Transaction intents
 
 Transaction Intents consist of two parts: adding the intent to the transaction and resolving the
 intent to standard commands.

@@ -1,0 +1,59 @@
+{
+	"name": "@mysten/webcrypto-signer",
+	"author": "Mysten Labs <build@mystenlabs.com>",
+	"description": "Sui signer using the WebCrypto API (P-256 / Secp256r1)",
+	"homepage": "https://sdk.mystenlabs.com",
+	"version": "0.1.2",
+	"license": "Apache-2.0",
+	"type": "module",
+	"sideEffects": false,
+	"exports": {
+		".": {
+			"types": "./dist/index.d.mts",
+			"import": "./dist/index.mjs",
+			"default": "./dist/index.mjs"
+		}
+	},
+	"files": [
+		"CHANGELOG.md",
+		"LICENSE",
+		"README.md",
+		"dist",
+		"src"
+	],
+	"scripts": {
+		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
+		"build": "rm -rf dist && tsc --noEmit && tsdown",
+		"prettier:check": "prettier -c --ignore-unknown .",
+		"prettier:fix": "prettier -w --ignore-unknown .",
+		"oxlint:check": "oxlint  .",
+		"oxlint:fix": "oxlint --fix",
+		"lint": "pnpm run oxlint:check && pnpm run prettier:check",
+		"lint:fix": "pnpm run oxlint:fix && pnpm run prettier:fix",
+		"test": "vitest run --passWithNoTests"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/MystenLabs/ts-sdks.git"
+	},
+	"bugs": {
+		"url": "https://github.com/mystenlabs/ts-sdks/issues"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"engines": {
+		"node": ">=22"
+	},
+	"dependencies": {
+		"@noble/curves": "^2.0.1"
+	},
+	"peerDependencies": {
+		"@mysten/sui": "workspace:^"
+	},
+	"devDependencies": {
+		"@types/node": "^25.0.8",
+		"typescript": "^5.9.3",
+		"vitest": "^4.0.17"
+	}
+}

@@ -1,0 +1,117 @@
+name: Release Orchestrator
+
+# Dispatches `release-<pkg>.yml` for each public @mysten package whose
+# current version isn't on npm yet. Skips while `.changeset/*.md` is non-empty.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry-run publishes (passed through to dispatched workflows)'
+        required: false
+        default: 'false'
+  workflow_run:
+    workflows: ['Turborepo CI']
+    types: [completed]
+    branches: [main]
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+permissions:
+  contents: read
+  actions: write # required to dispatch per-package workflows via the API
+
+jobs:
+  orchestrate:
+    # workflow_dispatch lets a user pick any branch; refuse anything but main.
+    if: |
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.ref }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # v4.0.2
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Skip if pending changesets
+        id: changesets
+        run: |
+          set -euo pipefail
+          pending=$(find .changeset -maxdepth 1 -type f -name '*.md' ! -name 'README.md' 2>/dev/null | wc -l | tr -d ' ')
+          if [ "$pending" -gt 0 ]; then
+            echo "$pending pending changeset(s) — versions not yet bumped, skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Find unpublished packages
+        if: steps.changesets.outputs.skip != 'true'
+        id: find
+        run: |
+          set -euo pipefail
+          unpublished=$(node - <<'NODE'
+          const fs = require('node:fs');
+          const cp = require('node:child_process');
+          const paths = cp
+            .execSync('git ls-files "packages/**/package.json"', { encoding: 'utf8' })
+            .split('\n')
+            .filter(Boolean);
+          const out = [];
+          for (const p of paths) {
+            const pkg = JSON.parse(fs.readFileSync(p, 'utf8'));
+            if (pkg.private || !pkg.name || !pkg.name.startsWith('@mysten/')) continue;
+            try {
+              cp.execFileSync('npm', ['view', `${pkg.name}@${pkg.version}`, 'version'], { stdio: 'ignore' });
+            } catch {
+              out.push(pkg.name);
+            }
+          }
+          console.log(out.join('\n'));
+          NODE
+          )
+          if [ -z "$unpublished" ]; then
+            echo "All package versions already on npm — nothing to publish."
+          else
+            echo "Unpublished:"
+            echo "$unpublished"
+          fi
+          {
+            echo "list<<EOF"
+            echo "$unpublished"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Dispatch per-package release workflows
+        if: steps.changesets.outputs.skip != 'true' && steps.find.outputs.list != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'false' }}
+          # `--ref main` keeps the workflow file on main (trust boundary);
+          # HEAD_SHA pins the checkout so a newer main commit can't slip in.
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          PACKAGES: ${{ steps.find.outputs.list }}
+        run: |
+          set -uo pipefail
+          failed=()
+          while IFS= read -r pkg; do
+            [ -z "$pkg" ] && continue
+            file="release-${pkg#@mysten/}.yml"
+            echo "Dispatching $file (dry_run=$DRY_RUN, ref=$HEAD_SHA)"
+            if ! gh workflow run "$file" --ref main \
+                -f "dry_run=$DRY_RUN" \
+                -f "ref=$HEAD_SHA"; then
+              failed+=("$pkg")
+            fi
+          done <<<"$PACKAGES"
+          if [ ${#failed[@]} -gt 0 ]; then
+            echo "::error::Failed to dispatch ${#failed[@]} workflow(s): ${failed[*]}"
+            exit 1
+          fi

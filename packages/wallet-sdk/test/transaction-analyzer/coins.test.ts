@@ -85,7 +85,7 @@ describe('TransactionAnalyzer - Coins Rule', () => {
 		);
 
 		// Should detect all coin objects but not the NFT
-		expect(Object.keys(results.coins.result)).toHaveLength(4);
+		expect(Object.keys(results.coins.result!)).toHaveLength(4);
 		expect(results.coins.result).toMatchInlineSnapshot(`
 			{
 			  "0x0000000000000000000000000000000000000000000000000000000000a5c000": {

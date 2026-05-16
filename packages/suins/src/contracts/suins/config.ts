@@ -3,7 +3,7 @@
  **************************************************************/
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 const $moduleName = '@suins/core::config';
 export const Config = new MoveStruct({
 	name: `${$moduleName}::Config`,
@@ -15,7 +15,7 @@ export const Config = new MoveStruct({
 	},
 });
 export interface NewArguments {
-	PublicKey: RawTransactionArgument<number[]>;
+	PublicKey: RawTransactionArgument<Array<number>>;
 	ThreeCharPrice: RawTransactionArgument<number | bigint>;
 	FourCharPrice: RawTransactionArgument<number | bigint>;
 	FivePlusCharPrice: RawTransactionArgument<number | bigint>;
@@ -25,7 +25,7 @@ export interface NewOptions {
 	arguments:
 		| NewArguments
 		| [
-				PublicKey: RawTransactionArgument<number[]>,
+				PublicKey: RawTransactionArgument<Array<number>>,
 				ThreeCharPrice: RawTransactionArgument<number | bigint>,
 				FourCharPrice: RawTransactionArgument<number | bigint>,
 				FivePlusCharPrice: RawTransactionArgument<number | bigint>,
@@ -49,7 +49,7 @@ export function _new(options: NewOptions) {
 }
 export interface SetPublicKeyOptions {
 	package?: string;
-	arguments: [_: RawTransactionArgument<string>, _: RawTransactionArgument<number[]>];
+	arguments: [_: TransactionArgument, _: RawTransactionArgument<Array<number>>];
 }
 export function setPublicKey(options: SetPublicKeyOptions) {
 	const packageAddress = options.package ?? '@suins/core';
@@ -64,7 +64,7 @@ export function setPublicKey(options: SetPublicKeyOptions) {
 }
 export interface SetThreeCharPriceOptions {
 	package?: string;
-	arguments: [_: RawTransactionArgument<string>, _: RawTransactionArgument<number | bigint>];
+	arguments: [_: TransactionArgument, _: RawTransactionArgument<number | bigint>];
 }
 export function setThreeCharPrice(options: SetThreeCharPriceOptions) {
 	const packageAddress = options.package ?? '@suins/core';
@@ -79,7 +79,7 @@ export function setThreeCharPrice(options: SetThreeCharPriceOptions) {
 }
 export interface SetFourCharPriceOptions {
 	package?: string;
-	arguments: [_: RawTransactionArgument<string>, _: RawTransactionArgument<number | bigint>];
+	arguments: [_: TransactionArgument, _: RawTransactionArgument<number | bigint>];
 }
 export function setFourCharPrice(options: SetFourCharPriceOptions) {
 	const packageAddress = options.package ?? '@suins/core';
@@ -94,7 +94,7 @@ export function setFourCharPrice(options: SetFourCharPriceOptions) {
 }
 export interface SetFivePlusCharPriceOptions {
 	package?: string;
-	arguments: [_: RawTransactionArgument<string>, _: RawTransactionArgument<number | bigint>];
+	arguments: [_: TransactionArgument, _: RawTransactionArgument<number | bigint>];
 }
 export function setFivePlusCharPrice(options: SetFivePlusCharPriceOptions) {
 	const packageAddress = options.package ?? '@suins/core';
@@ -110,7 +110,7 @@ export function setFivePlusCharPrice(options: SetFivePlusCharPriceOptions) {
 export interface CalculatePriceOptions {
 	package?: string;
 	arguments: [
-		_: RawTransactionArgument<string>,
+		_: TransactionArgument,
 		_: RawTransactionArgument<number>,
 		_: RawTransactionArgument<number>,
 	];
@@ -127,11 +127,11 @@ export function calculatePrice(options: CalculatePriceOptions) {
 		});
 }
 export interface PublicKeyArguments {
-	_: RawTransactionArgument<string>;
+	_: TransactionArgument;
 }
 export interface PublicKeyOptions {
 	package?: string;
-	arguments: PublicKeyArguments | [_: RawTransactionArgument<string>];
+	arguments: PublicKeyArguments | [_: TransactionArgument];
 }
 export function publicKey(options: PublicKeyOptions) {
 	const packageAddress = options.package ?? '@suins/core';
@@ -146,11 +146,11 @@ export function publicKey(options: PublicKeyOptions) {
 		});
 }
 export interface ThreeCharPriceArguments {
-	_: RawTransactionArgument<string>;
+	_: TransactionArgument;
 }
 export interface ThreeCharPriceOptions {
 	package?: string;
-	arguments: ThreeCharPriceArguments | [_: RawTransactionArgument<string>];
+	arguments: ThreeCharPriceArguments | [_: TransactionArgument];
 }
 export function threeCharPrice(options: ThreeCharPriceOptions) {
 	const packageAddress = options.package ?? '@suins/core';
@@ -165,11 +165,11 @@ export function threeCharPrice(options: ThreeCharPriceOptions) {
 		});
 }
 export interface FourCharPriceArguments {
-	_: RawTransactionArgument<string>;
+	_: TransactionArgument;
 }
 export interface FourCharPriceOptions {
 	package?: string;
-	arguments: FourCharPriceArguments | [_: RawTransactionArgument<string>];
+	arguments: FourCharPriceArguments | [_: TransactionArgument];
 }
 export function fourCharPrice(options: FourCharPriceOptions) {
 	const packageAddress = options.package ?? '@suins/core';
@@ -184,11 +184,11 @@ export function fourCharPrice(options: FourCharPriceOptions) {
 		});
 }
 export interface FivePlusCharPriceArguments {
-	_: RawTransactionArgument<string>;
+	_: TransactionArgument;
 }
 export interface FivePlusCharPriceOptions {
 	package?: string;
-	arguments: FivePlusCharPriceArguments | [_: RawTransactionArgument<string>];
+	arguments: FivePlusCharPriceArguments | [_: TransactionArgument];
 }
 export function fivePlusCharPrice(options: FivePlusCharPriceOptions) {
 	const packageAddress = options.package ?? '@suins/core';
@@ -203,11 +203,11 @@ export function fivePlusCharPrice(options: FivePlusCharPriceOptions) {
 		});
 }
 export interface AssertValidUserRegisterableDomainArguments {
-	_: RawTransactionArgument<string>;
+	_: TransactionArgument;
 }
 export interface AssertValidUserRegisterableDomainOptions {
 	package?: string;
-	arguments: AssertValidUserRegisterableDomainArguments | [_: RawTransactionArgument<string>];
+	arguments: AssertValidUserRegisterableDomainArguments | [_: TransactionArgument];
 }
 export function assertValidUserRegisterableDomain(
 	options: AssertValidUserRegisterableDomainOptions,

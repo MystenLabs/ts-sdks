@@ -1,27 +1,37 @@
 ---
 title: Wallet Builders
-description: Migration guide for wallet extension developers
+description: Migration guide for wallet extension developers upgrading to 2.0.
+keywords:
+  [
+    migration,
+    wallet builders,
+    wallet-standard,
+    2.0,
+    signAndExecuteTransaction,
+    wallet extension,
+    breaking changes,
+  ]
 ---
 
 This guide covers the breaking changes for wallet builders implementing the
 `@mysten/wallet-standard` interface.
 
-## Key Changes
+## Key changes
 
 ### Removal of `sui:reportTransactionEffects`
 
 The `sui:reportTransactionEffects` feature has been removed entirely. If your wallet implements this
 feature, remove it.
 
-### New Core API Response Format
+### New core API response format
 
 The most significant change is how you obtain BCS-encoded effects for the
 `signAndExecuteTransaction` response. The new core API returns effects in a different structure.
 
 ## Migrating `signAndExecuteTransaction`
 
-The wallet standard output format hasn't changed - what's different is how you obtain the BCS
-effects when using the new Sui client APIs.
+The wallet standard output format hasn't changed. What's different is how you obtain the BCS effects
+when using the new Sui client APIs.
 
 ```diff
 #signAndExecuteTransaction: SuiSignAndExecuteTransactionMethod = async ({

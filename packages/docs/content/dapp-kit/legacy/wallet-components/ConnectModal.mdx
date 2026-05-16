@@ -1,6 +1,7 @@
 ---
 title: ConnectModal
-description: React connect modal component
+description: Legacy React modal component that guides users through connecting their wallet.
+keywords: [ConnectModal, React component, wallet connection, modal, legacy, dApp Kit, Sui]
 ---
 
 import {
@@ -9,7 +10,7 @@ import {
 } from '../../../../examples/wallet-components-client';
 
 The `ConnectModal` component opens a modal that guides the user through connecting their wallet to
-the dApp.
+the app.
 
 ## Controlled example
 
@@ -61,18 +62,18 @@ Click **Connect** to connect your wallet and see the previous code in action:
 
 ## Controlled props
 
-- `open` - The controlled open state of the dialog.
-- `onOpenChange` - Event handler called when the open state of the dialog changes.
-- `trigger` - The trigger button that opens the dialog.
-- `walletFilter` - A filter function that receives a wallet instance, and returns a boolean
+- `open`: The controlled open state of the dialog.
+- `onOpenChange`: Event handler called when the open state of the dialog changes.
+- `trigger`: The trigger button that opens the dialog.
+- `walletFilter`: A filter function that receives a wallet instance, and returns a boolean
   indicating whether the wallet should be displayed in the wallet list. By default, all wallets are
   displayed.
 
 ## Uncontrolled props
 
-- `defaultOpen` - The open state of the dialog when it is initially rendered. Use when you do not
+- `defaultOpen`: The open state of the dialog when it is initially rendered. Use when you do not
   need to control its open state.
-- `trigger` - The trigger button that opens the dialog.
-- `walletFilter` - A filter function that receives a wallet instance, and returns a boolean
+- `trigger`: The trigger button that opens the dialog.
+- `walletFilter`: A filter function that receives a wallet instance, and returns a boolean
   indicating whether the wallet should be displayed in the wallet list. By default, all wallets are
   displayed.

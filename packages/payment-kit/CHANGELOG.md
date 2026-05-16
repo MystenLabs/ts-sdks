@@ -1,5 +1,68 @@
 # @mysten/payment-kit
 
+## 0.1.11
+
+### Patch Changes
+
+- f7de3e5: Restore docs in published tarballs.
+- Updated dependencies [f7de3e5]
+  - @mysten/bcs@2.0.5
+  - @mysten/sui@2.16.2
+
+## 0.1.10
+
+### Patch Changes
+
+- 9e067cf: Validate the new per-package release flow end-to-end across every public @mysten package.
+  No functional changes — empty patch bump to force the orchestrator to dispatch every
+  release-<pkg>.yml workflow with `dry_run=false` so each package publishes via OIDC trusted
+  publishing.
+- Updated dependencies [9e067cf]
+  - @mysten/bcs@2.0.4
+  - @mysten/sui@2.16.1
+
+## 0.1.9
+
+### Patch Changes
+
+- bb8d26a: Fix three latent type errors in the generated `utils/index.ts` that surfaced for
+  consumers with `noUncheckedIndexedAccess: true`:
+  - `getPureBcsSchema(structTag.typeParams[0])` passed `TypeTag | undefined` to a parameter typed
+    `string | TypeTag`. Now null-checks the inner tag before passing it.
+  - `argTypes[i]` was redundantly re-indexed inside a `for…of entries()` loop, returning
+    `string | null | undefined` and being passed back to `getPureBcsSchema`. Switched to the loop
+    variable, which is `string | null`.
+  - `MoveStruct.get()` returned the destructured `[res]` from `getMany([objectId])` without
+    asserting it was defined. Now throws if no object was returned.
+
+  The codegen test suite gained a `tsc`-based check that compiles the generated `utils/index.ts`
+  under strict + `noUncheckedIndexedAccess`, so embedded-template type bugs are caught before
+  release rather than by downstream consumers.
+
+  All consumer packages (`payment-kit`, `pas`, `walrus`, `suins`, `deepbook-v3`, `kiosk`) have been
+  regenerated with the fix.
+
+## 0.1.8
+
+### Patch Changes
+
+- c96956e: Regenerate generated Move types against the latest contract sources. The generated
+  `utils/index.ts` `GetOptions` / `GetManyOptions` are now exported as type aliases (intersection)
+  instead of interfaces. SuiNS gains `SubnamePrunedEvent`, `pruneExpiredSubname`, and
+  `pruneExpiredSubnames`.
+
+## 0.1.7
+
+### Patch Changes
+
+- e9570a1: Regenerated Move call bindings. Parameters that can't accept a plain value (non-`key`
+  struct or enum, `vector<KeyStruct>`, etc.) are now typed as `TransactionArgument`, forcing callers
+  to pass a prior move-call result or `tx.makeMoveVec(...)`. Passing a bare string or array for
+  these parameters was always broken at runtime.
+- Updated dependencies [6adc085]
+- Updated dependencies [b1bf49a]
+  - @mysten/sui@2.16.0
+
 ## 0.1.6
 
 ### Patch Changes

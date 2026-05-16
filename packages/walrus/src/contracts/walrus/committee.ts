@@ -10,7 +10,7 @@
 
 import { MoveTuple, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as vec_map from './deps/sui/vec_map.js';
 const $moduleName = '@local-pkg/walrus::committee';
 export const Committee = new MoveTuple({
@@ -18,14 +18,12 @@ export const Committee = new MoveTuple({
 	fields: [vec_map.VecMap(bcs.Address, bcs.vector(bcs.u16()))],
 });
 export interface ShardsArguments {
-	cmt: RawTransactionArgument<string>;
+	cmt: TransactionArgument;
 	nodeId: RawTransactionArgument<string>;
 }
 export interface ShardsOptions {
 	package?: string;
-	arguments:
-		| ShardsArguments
-		| [cmt: RawTransactionArgument<string>, nodeId: RawTransactionArgument<string>];
+	arguments: ShardsArguments | [cmt: TransactionArgument, nodeId: RawTransactionArgument<string>];
 }
 /** Get the shards assigned to the given `node_id`. */
 export function shards(options: ShardsOptions) {
@@ -41,11 +39,11 @@ export function shards(options: ShardsOptions) {
 		});
 }
 export interface SizeArguments {
-	cmt: RawTransactionArgument<string>;
+	cmt: TransactionArgument;
 }
 export interface SizeOptions {
 	package?: string;
-	arguments: SizeArguments | [cmt: RawTransactionArgument<string>];
+	arguments: SizeArguments | [cmt: TransactionArgument];
 }
 /** Get the number of nodes in the committee. */
 export function size(options: SizeOptions) {
@@ -61,11 +59,11 @@ export function size(options: SizeOptions) {
 		});
 }
 export interface InnerArguments {
-	cmt: RawTransactionArgument<string>;
+	cmt: TransactionArgument;
 }
 export interface InnerOptions {
 	package?: string;
-	arguments: InnerArguments | [cmt: RawTransactionArgument<string>];
+	arguments: InnerArguments | [cmt: TransactionArgument];
 }
 /** Get the inner representation of the committee. */
 export function inner(options: InnerOptions) {
@@ -81,11 +79,11 @@ export function inner(options: InnerOptions) {
 		});
 }
 export interface ToInnerArguments {
-	cmt: RawTransactionArgument<string>;
+	cmt: TransactionArgument;
 }
 export interface ToInnerOptions {
 	package?: string;
-	arguments: ToInnerArguments | [cmt: RawTransactionArgument<string>];
+	arguments: ToInnerArguments | [cmt: TransactionArgument];
 }
 /** Copy the inner representation of the committee. */
 export function toInner(options: ToInnerOptions) {

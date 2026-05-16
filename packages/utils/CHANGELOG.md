@@ -1,5 +1,20 @@
 # @mysten/utils
 
+## 0.3.3
+
+### Patch Changes
+
+- f7de3e5: Restore docs in published tarballs.
+
+## 0.3.2
+
+### Patch Changes
+
+- 9e067cf: Validate the new per-package release flow end-to-end across every public @mysten package.
+  No functional changes — empty patch bump to force the orchestrator to dispatch every
+  release-<pkg>.yml workflow with `dry_run=false` so each package publishes via OIDC trusted
+  publishing.
+
 ## 0.3.1
 
 ### Patch Changes

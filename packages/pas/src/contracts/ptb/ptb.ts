@@ -12,7 +12,10 @@ import {
 	type RawTransactionArgument,
 } from '../utils/index.js';
 import { bcs, type BcsType } from '@mysten/sui/bcs';
-import { type Transaction as Transaction_1 } from '@mysten/sui/transactions';
+import {
+	type Transaction as Transaction_1,
+	type TransactionArgument,
+} from '@mysten/sui/transactions';
 const $moduleName = '@mysten/ptb::ptb';
 export const Command = new MoveTuple({
 	name: `${$moduleName}::Command`,
@@ -532,14 +535,12 @@ export function extInputRaw(options: ExtInputRawOptions) {
 		});
 }
 export interface CommandArguments {
-	self: RawTransactionArgument<string>;
-	command: RawTransactionArgument<string>;
+	self: TransactionArgument;
+	command: TransactionArgument;
 }
 export interface CommandOptions {
 	package?: string;
-	arguments:
-		| CommandArguments
-		| [self: RawTransactionArgument<string>, command: RawTransactionArgument<string>];
+	arguments: CommandArguments | [self: TransactionArgument, command: TransactionArgument];
 }
 /**
  * Register a command in the Transaction builder. Returns the Argument, which is
@@ -559,14 +560,12 @@ export function command(options: CommandOptions) {
 		});
 }
 export interface NestedArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 	subIdx: RawTransactionArgument<number>;
 }
 export interface NestedOptions {
 	package?: string;
-	arguments:
-		| NestedArguments
-		| [self: RawTransactionArgument<string>, subIdx: RawTransactionArgument<number>];
+	arguments: NestedArguments | [self: TransactionArgument, subIdx: RawTransactionArgument<number>];
 }
 /**
  * Spawn a nested result out of a (just) `Result`. Simple result is a command
@@ -588,8 +587,8 @@ export interface MoveCallArguments {
 	packageId: RawTransactionArgument<string>;
 	moduleName: RawTransactionArgument<string>;
 	function: RawTransactionArgument<string>;
-	arguments: RawTransactionArgument<string[]>;
-	typeArguments: RawTransactionArgument<string[]>;
+	arguments: TransactionArgument;
+	typeArguments: RawTransactionArgument<Array<string>>;
 }
 export interface MoveCallOptions {
 	package?: string;
@@ -599,8 +598,8 @@ export interface MoveCallOptions {
 				packageId: RawTransactionArgument<string>,
 				moduleName: RawTransactionArgument<string>,
 				function: RawTransactionArgument<string>,
-				arguments: RawTransactionArgument<string[]>,
-				typeArguments: RawTransactionArgument<string[]>,
+				arguments: TransactionArgument,
+				typeArguments: RawTransactionArgument<Array<string>>,
 		  ];
 }
 /** Create a `MoveCall` command. */
@@ -623,14 +622,12 @@ export function moveCall(options: MoveCallOptions) {
 		});
 }
 export interface TransferObjectsArguments {
-	objects: RawTransactionArgument<string[]>;
-	to: RawTransactionArgument<string>;
+	objects: TransactionArgument;
+	to: TransactionArgument;
 }
 export interface TransferObjectsOptions {
 	package?: string;
-	arguments:
-		| TransferObjectsArguments
-		| [objects: RawTransactionArgument<string[]>, to: RawTransactionArgument<string>];
+	arguments: TransferObjectsArguments | [objects: TransactionArgument, to: TransactionArgument];
 }
 /**
  * Create a `TransferObjects` command Expects a vector of arguments to transfer and
@@ -649,14 +646,12 @@ export function transferObjects(options: TransferObjectsOptions) {
 		});
 }
 export interface SplitCoinsArguments {
-	coin: RawTransactionArgument<string>;
-	amounts: RawTransactionArgument<string[]>;
+	coin: TransactionArgument;
+	amounts: TransactionArgument;
 }
 export interface SplitCoinsOptions {
 	package?: string;
-	arguments:
-		| SplitCoinsArguments
-		| [coin: RawTransactionArgument<string>, amounts: RawTransactionArgument<string[]>];
+	arguments: SplitCoinsArguments | [coin: TransactionArgument, amounts: TransactionArgument];
 }
 /** Create a `SplitCoins` command. */
 export function splitCoins(options: SplitCoinsOptions) {
@@ -672,14 +667,12 @@ export function splitCoins(options: SplitCoinsOptions) {
 		});
 }
 export interface MergeCoinsArguments {
-	coin: RawTransactionArgument<string>;
-	coins: RawTransactionArgument<string[]>;
+	coin: TransactionArgument;
+	coins: TransactionArgument;
 }
 export interface MergeCoinsOptions {
 	package?: string;
-	arguments:
-		| MergeCoinsArguments
-		| [coin: RawTransactionArgument<string>, coins: RawTransactionArgument<string[]>];
+	arguments: MergeCoinsArguments | [coin: TransactionArgument, coins: TransactionArgument];
 }
 /**
  * Create a `MergeCoins` command. Takes a Coin Argument and a vector of other coin
@@ -698,16 +691,16 @@ export function mergeCoins(options: MergeCoinsOptions) {
 		});
 }
 export interface PublishArguments {
-	modulesBytes: RawTransactionArgument<number[][]>;
-	dependencies: RawTransactionArgument<string[]>;
+	modulesBytes: RawTransactionArgument<Array<Array<number>>>;
+	dependencies: RawTransactionArgument<Array<string>>;
 }
 export interface PublishOptions {
 	package?: string;
 	arguments:
 		| PublishArguments
 		| [
-				modulesBytes: RawTransactionArgument<number[][]>,
-				dependencies: RawTransactionArgument<string[]>,
+				modulesBytes: RawTransactionArgument<Array<Array<number>>>,
+				dependencies: RawTransactionArgument<Array<string>>,
 		  ];
 }
 /**
@@ -731,16 +724,13 @@ export function publish(options: PublishOptions) {
 }
 export interface MakeMoveVecArguments {
 	elementType: RawTransactionArgument<string | null>;
-	elements: RawTransactionArgument<string[]>;
+	elements: TransactionArgument;
 }
 export interface MakeMoveVecOptions {
 	package?: string;
 	arguments:
 		| MakeMoveVecArguments
-		| [
-				elementType: RawTransactionArgument<string | null>,
-				elements: RawTransactionArgument<string[]>,
-		  ];
+		| [elementType: RawTransactionArgument<string | null>, elements: TransactionArgument];
 }
 /**
  * Create a `MakeMoveVec` command. Takes an optional element type and a vector of
@@ -762,20 +752,20 @@ export function makeMoveVec(options: MakeMoveVecOptions) {
 		});
 }
 export interface UpgradeArguments {
-	modulesBytes: RawTransactionArgument<number[][]>;
-	dependencies: RawTransactionArgument<string[]>;
+	modulesBytes: RawTransactionArgument<Array<Array<number>>>;
+	dependencies: RawTransactionArgument<Array<string>>;
 	objectId: RawTransactionArgument<string>;
-	upgradeTicket: RawTransactionArgument<string>;
+	upgradeTicket: TransactionArgument;
 }
 export interface UpgradeOptions {
 	package?: string;
 	arguments:
 		| UpgradeArguments
 		| [
-				modulesBytes: RawTransactionArgument<number[][]>,
-				dependencies: RawTransactionArgument<string[]>,
+				modulesBytes: RawTransactionArgument<Array<Array<number>>>,
+				dependencies: RawTransactionArgument<Array<string>>,
 				objectId: RawTransactionArgument<string>,
-				upgradeTicket: RawTransactionArgument<string>,
+				upgradeTicket: TransactionArgument,
 		  ];
 }
 /**
@@ -800,11 +790,11 @@ export function upgrade(options: UpgradeOptions) {
 		});
 }
 export interface ExtArguments {
-	data: RawTransactionArgument<number[]>;
+	data: RawTransactionArgument<Array<number>>;
 }
 export interface ExtOptions {
 	package?: string;
-	arguments: ExtArguments | [data: RawTransactionArgument<number[]>];
+	arguments: ExtArguments | [data: RawTransactionArgument<Array<number>>];
 }
 /** Create an `Ext` command. */
 export function ext(options: ExtOptions) {

@@ -1,7 +1,17 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { Transaction } from '@mysten/sui/transactions';
+import type { Transaction, TransactionObjectArgument } from '@mysten/sui/transactions';
+
+/** A claimed asset paired with its on-chain type, available for composition within a claim transaction. */
+export interface ClaimedAsset {
+	/** Transaction argument representing the claimed object — pass to moveCall or transferObjects. */
+	argument: TransactionObjectArgument;
+	/** Full Move type of the object (e.g. "0x...::record::Record"). */
+	type: string;
+	/** Object ID of the asset in the link's bag. */
+	objectId: string;
+}
 
 export interface LinkAssets {
 	balances: {

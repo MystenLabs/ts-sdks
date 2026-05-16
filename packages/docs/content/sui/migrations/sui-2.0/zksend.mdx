@@ -1,12 +1,14 @@
 ---
 title: '@mysten/zksend'
-description: Migrate @mysten/zksend to 2.0
+description: Migrate @mysten/zksend to 2.0 with client extension pattern and simplified API.
+keywords:
+  [migration, '@mysten/zksend', zkSend, 2.0, client extension, contract links, breaking changes]
 ---
 
 This package now exports a client extension that integrates with Sui clients, enabling compatibility
 with gRPC, GraphQL, and JSON RPC transports.
 
-## Breaking Changes
+## Breaking changes
 
 - **Client extension**: The zkSend SDK is now a client extension (`client.$extend(zksend())`)
 - **Non-contract links removed**: Only contract-based links are now supported. The `contract` option
@@ -32,7 +34,7 @@ Update your code to use the client extension:
 + }).$extend(zksend());
 ```
 
-### Creating a Link Builder
+### Creating a link builder
 
 ```diff
 - const builder = new ZkSendLinkBuilder({
@@ -45,7 +47,7 @@ Update your code to use the client extension:
 + });
 ```
 
-### Loading a Link
+### Loading a link
 
 ```diff
 - const link = new ZkSendLink({
@@ -69,7 +71,7 @@ Update your code to use the client extension:
 + const link = await client.zksend.loadLinkFromUrl(url);
 ```
 
-## Complete Example
+## Complete example
 
 ```ts
 import { zksend } from '@mysten/zksend';

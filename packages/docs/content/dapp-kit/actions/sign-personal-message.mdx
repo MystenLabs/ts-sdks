@@ -1,6 +1,9 @@
 ---
 title: Sign Personal Message
-description: Sign an arbitrary message with the connected wallet
+description:
+  Sign an arbitrary message with the connected wallet for authentication or proof of ownership.
+keywords:
+  [sign message, personal message, dApp Kit, authentication, wallet, Sui, cryptographic signature]
 ---
 
 The `signPersonalMessage` action prompts the connected wallet to sign a personal message. This is
@@ -27,16 +30,16 @@ console.log('Signature:', result.signature);
 
 ## Parameters
 
-- **`message`** - `Uint8Array` - The message to sign as a byte array
+- **`message`:** `Uint8Array` - The message to sign as a byte array
 
-## Return Value
+## Return value
 
 Returns a `Promise` that resolves to an object containing:
 
-- **`bytes`** - `string` - Base64 encoded message bytes
-- **`signature`** - `string` - Base64 encoded signature
+- **`bytes`:** `string` - Base64 encoded message bytes
+- **`signature`:** `string` - Base64 encoded signature
 
-## Message Format
+## Message format
 
 The message parameter must be a `Uint8Array`. Common patterns for creating byte arrays:
 
@@ -50,9 +53,9 @@ const jsonMessage = new TextEncoder().encode(
 await dAppKit.signPersonalMessage({ message: jsonMessage });
 ```
 
-## Security Considerations
+## Security considerations
 
-### Message Content
+### Message content
 
 - Always display the message content clearly to users before signing
 - Avoid signing opaque or encoded data that users cannot understand

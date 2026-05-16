@@ -24,6 +24,7 @@ export class PoolQueries {
 
 	async whitelisted(poolKey: string): Promise<boolean> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 
 		tx.add(this.#ctx.deepBook.whitelisted(poolKey));
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -37,6 +38,7 @@ export class PoolQueries {
 
 	async vaultBalances(poolKey: string): Promise<VaultBalances> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		const pool = this.#ctx.config.getPool(poolKey);
 		const baseScalar = this.#ctx.config.getCoin(pool.baseCoin).scalar;
 		const quoteScalar = this.#ctx.config.getCoin(pool.quoteCoin).scalar;
@@ -60,6 +62,7 @@ export class PoolQueries {
 
 	async getPoolIdByAssets(baseType: string, quoteType: string): Promise<string> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.deepBook.getPoolIdByAssets(baseType, quoteType));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -72,6 +75,7 @@ export class PoolQueries {
 
 	async midPrice(poolKey: string): Promise<number> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		const pool = this.#ctx.config.getPool(poolKey);
 		tx.add(this.#ctx.deepBook.midPrice(poolKey));
 
@@ -93,6 +97,7 @@ export class PoolQueries {
 
 	async poolTradeParams(poolKey: string): Promise<PoolTradeParams> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 
 		tx.add(this.#ctx.deepBook.poolTradeParams(poolKey));
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -113,6 +118,7 @@ export class PoolQueries {
 
 	async poolBookParams(poolKey: string): Promise<PoolBookParams> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		const pool = this.#ctx.config.getPool(poolKey);
 		const baseScalar = this.#ctx.config.getCoin(pool.baseCoin).scalar;
 		const quoteScalar = this.#ctx.config.getCoin(pool.quoteCoin).scalar;
@@ -136,6 +142,7 @@ export class PoolQueries {
 
 	async stablePool(poolKey: string): Promise<boolean> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.deepBook.stablePool(poolKey));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -149,6 +156,7 @@ export class PoolQueries {
 
 	async registeredPool(poolKey: string): Promise<boolean> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.deepBook.registeredPool(poolKey));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -162,6 +170,7 @@ export class PoolQueries {
 
 	async poolTradeParamsNext(poolKey: string): Promise<PoolTradeParams> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.deepBook.poolTradeParamsNext(poolKey));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -182,6 +191,7 @@ export class PoolQueries {
 
 	async quorum(poolKey: string): Promise<number> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.deepBook.quorum(poolKey));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -196,6 +206,7 @@ export class PoolQueries {
 
 	async poolId(poolKey: string): Promise<string> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.deepBook.poolId(poolKey));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -209,6 +220,7 @@ export class PoolQueries {
 
 	async canPlaceLimitOrder(params: CanPlaceLimitOrderParams): Promise<boolean> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.deepBook.canPlaceLimitOrder(params));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -222,6 +234,7 @@ export class PoolQueries {
 
 	async canPlaceMarketOrder(params: CanPlaceMarketOrderParams): Promise<boolean> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.deepBook.canPlaceMarketOrder(params));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -235,6 +248,7 @@ export class PoolQueries {
 
 	async checkMarketOrderParams(poolKey: string, quantity: number | bigint): Promise<boolean> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.deepBook.checkMarketOrderParams(poolKey, quantity));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -253,6 +267,7 @@ export class PoolQueries {
 		expireTimestamp: number,
 	): Promise<boolean> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.deepBook.checkLimitOrderParams(poolKey, price, quantity, expireTimestamp));
 
 		const res = await this.#ctx.client.core.simulateTransaction({

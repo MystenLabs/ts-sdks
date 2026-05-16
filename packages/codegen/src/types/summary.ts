@@ -1,6 +1,19 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+export interface TypeOrigin {
+	module_name: string;
+	datatype_name: string;
+	package: string;
+}
+
+export interface RootPackageMetadata {
+	root_package_id?: string;
+	root_package_original_id?: string;
+	dependencies?: Record<string, string>;
+	type_origins?: Record<string, TypeOrigin[]>;
+}
+
 export interface ModuleSummary {
 	id: {
 		address: string;

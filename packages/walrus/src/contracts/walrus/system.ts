@@ -6,7 +6,7 @@
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 const $moduleName = '@local-pkg/walrus::system';
 export const System = new MoveStruct({
 	name: `${$moduleName}::System`,
@@ -19,9 +19,9 @@ export const System = new MoveStruct({
 });
 export interface InvalidateBlobIdArguments {
 	system: RawTransactionArgument<string>;
-	signature: RawTransactionArgument<number[]>;
-	membersBitmap: RawTransactionArgument<number[]>;
-	message: RawTransactionArgument<number[]>;
+	signature: RawTransactionArgument<Array<number>>;
+	membersBitmap: RawTransactionArgument<Array<number>>;
+	message: RawTransactionArgument<Array<number>>;
 }
 export interface InvalidateBlobIdOptions {
 	package?: string;
@@ -29,9 +29,9 @@ export interface InvalidateBlobIdOptions {
 		| InvalidateBlobIdArguments
 		| [
 				system: RawTransactionArgument<string>,
-				signature: RawTransactionArgument<number[]>,
-				membersBitmap: RawTransactionArgument<number[]>,
-				message: RawTransactionArgument<number[]>,
+				signature: RawTransactionArgument<Array<number>>,
+				membersBitmap: RawTransactionArgument<Array<number>>,
+				message: RawTransactionArgument<Array<number>>,
 		  ];
 }
 /**
@@ -227,9 +227,9 @@ export function registerBlob(options: RegisterBlobOptions) {
 export interface CertifyBlobArguments {
 	self: RawTransactionArgument<string>;
 	blob: RawTransactionArgument<string>;
-	signature: RawTransactionArgument<number[]>;
-	signersBitmap: RawTransactionArgument<number[]>;
-	message: RawTransactionArgument<number[]>;
+	signature: RawTransactionArgument<Array<number>>;
+	signersBitmap: RawTransactionArgument<Array<number>>;
+	message: RawTransactionArgument<Array<number>>;
 }
 export interface CertifyBlobOptions {
 	package?: string;
@@ -238,9 +238,9 @@ export interface CertifyBlobOptions {
 		| [
 				self: RawTransactionArgument<string>,
 				blob: RawTransactionArgument<string>,
-				signature: RawTransactionArgument<number[]>,
-				signersBitmap: RawTransactionArgument<number[]>,
-				message: RawTransactionArgument<number[]>,
+				signature: RawTransactionArgument<Array<number>>,
+				signersBitmap: RawTransactionArgument<Array<number>>,
+				message: RawTransactionArgument<Array<number>>,
 		  ];
 }
 /**
@@ -350,6 +350,365 @@ export function extendBlob(options: ExtendBlobOptions) {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface CreateStoragePoolArguments {
+	self: RawTransactionArgument<string>;
+	reservedEncodedCapacityBytes: RawTransactionArgument<number | bigint>;
+	epochsAhead: RawTransactionArgument<number>;
+	payment: RawTransactionArgument<string>;
+}
+export interface CreateStoragePoolOptions {
+	package?: string;
+	arguments:
+		| CreateStoragePoolArguments
+		| [
+				self: RawTransactionArgument<string>,
+				reservedEncodedCapacityBytes: RawTransactionArgument<number | bigint>,
+				epochsAhead: RawTransactionArgument<number>,
+				payment: RawTransactionArgument<string>,
+		  ];
+}
+/** Creates a new storage pool with the given capacity and epoch range. */
+export function createStoragePool(options: CreateStoragePoolOptions) {
+	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const argumentsTypes = [null, 'u64', 'u32', null] satisfies (string | null)[];
+	const parameterNames = ['self', 'reservedEncodedCapacityBytes', 'epochsAhead', 'payment'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'system',
+			function: 'create_storage_pool',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface CreateStoragePoolWithStorageArguments {
+	self: RawTransactionArgument<string>;
+	storage: RawTransactionArgument<string>;
+}
+export interface CreateStoragePoolWithStorageOptions {
+	package?: string;
+	arguments:
+		| CreateStoragePoolWithStorageArguments
+		| [self: RawTransactionArgument<string>, storage: RawTransactionArgument<string>];
+}
+/** Creates a new storage pool backed by an existing `Storage` reservation. */
+export function createStoragePoolWithStorage(options: CreateStoragePoolWithStorageOptions) {
+	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const argumentsTypes = [null, null] satisfies (string | null)[];
+	const parameterNames = ['self', 'storage'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'system',
+			function: 'create_storage_pool_with_storage',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface RegisterPooledBlobArguments {
+	self: RawTransactionArgument<string>;
+	storagePool: RawTransactionArgument<string>;
+	blobId: RawTransactionArgument<number | bigint>;
+	rootHash: RawTransactionArgument<number | bigint>;
+	unencodedSize: RawTransactionArgument<number | bigint>;
+	encodingType: RawTransactionArgument<number>;
+	deletable: RawTransactionArgument<boolean>;
+	writePayment: RawTransactionArgument<string>;
+}
+export interface RegisterPooledBlobOptions {
+	package?: string;
+	arguments:
+		| RegisterPooledBlobArguments
+		| [
+				self: RawTransactionArgument<string>,
+				storagePool: RawTransactionArgument<string>,
+				blobId: RawTransactionArgument<number | bigint>,
+				rootHash: RawTransactionArgument<number | bigint>,
+				unencodedSize: RawTransactionArgument<number | bigint>,
+				encodingType: RawTransactionArgument<number>,
+				deletable: RawTransactionArgument<boolean>,
+				writePayment: RawTransactionArgument<string>,
+		  ];
+}
+/** Registers a new blob against a storage pool. */
+export function registerPooledBlob(options: RegisterPooledBlobOptions) {
+	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const argumentsTypes = [null, null, 'u256', 'u256', 'u64', 'u8', 'bool', null] satisfies (
+		| string
+		| null
+	)[];
+	const parameterNames = [
+		'self',
+		'storagePool',
+		'blobId',
+		'rootHash',
+		'unencodedSize',
+		'encodingType',
+		'deletable',
+		'writePayment',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'system',
+			function: 'register_pooled_blob',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface DeletePooledBlobArguments {
+	self: RawTransactionArgument<string>;
+	storagePool: RawTransactionArgument<string>;
+	blobId: RawTransactionArgument<number | bigint>;
+}
+export interface DeletePooledBlobOptions {
+	package?: string;
+	arguments:
+		| DeletePooledBlobArguments
+		| [
+				self: RawTransactionArgument<string>,
+				storagePool: RawTransactionArgument<string>,
+				blobId: RawTransactionArgument<number | bigint>,
+		  ];
+}
+/** Deletes a blob from a storage pool and frees its capacity. */
+export function deletePooledBlob(options: DeletePooledBlobOptions) {
+	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const argumentsTypes = [null, null, 'u256'] satisfies (string | null)[];
+	const parameterNames = ['self', 'storagePool', 'blobId'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'system',
+			function: 'delete_pooled_blob',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface BurnExpiredPooledBlobArguments {
+	self: RawTransactionArgument<string>;
+	storagePool: RawTransactionArgument<string>;
+	blobId: RawTransactionArgument<number | bigint>;
+}
+export interface BurnExpiredPooledBlobOptions {
+	package?: string;
+	arguments:
+		| BurnExpiredPooledBlobArguments
+		| [
+				self: RawTransactionArgument<string>,
+				storagePool: RawTransactionArgument<string>,
+				blobId: RawTransactionArgument<number | bigint>,
+		  ];
+}
+/**
+ * Burns a blob from an expired storage pool, regardless of the `deletable` flag.
+ * The pool must have expired (`end_epoch <= current_epoch`).
+ */
+export function burnExpiredPooledBlob(options: BurnExpiredPooledBlobOptions) {
+	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const argumentsTypes = [null, null, 'u256'] satisfies (string | null)[];
+	const parameterNames = ['self', 'storagePool', 'blobId'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'system',
+			function: 'burn_expired_pooled_blob',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface ExtendStoragePoolArguments {
+	self: RawTransactionArgument<string>;
+	storagePool: RawTransactionArgument<string>;
+	extendedEpochs: RawTransactionArgument<number>;
+	payment: RawTransactionArgument<string>;
+}
+export interface ExtendStoragePoolOptions {
+	package?: string;
+	arguments:
+		| ExtendStoragePoolArguments
+		| [
+				self: RawTransactionArgument<string>,
+				storagePool: RawTransactionArgument<string>,
+				extendedEpochs: RawTransactionArgument<number>,
+				payment: RawTransactionArgument<string>,
+		  ];
+}
+/** Extends the lifetime of a storage pool by `extended_epochs`. */
+export function extendStoragePool(options: ExtendStoragePoolOptions) {
+	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const argumentsTypes = [null, null, 'u32', null] satisfies (string | null)[];
+	const parameterNames = ['self', 'storagePool', 'extendedEpochs', 'payment'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'system',
+			function: 'extend_storage_pool',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface IncreaseStoragePoolCapacityArguments {
+	self: RawTransactionArgument<string>;
+	storagePool: RawTransactionArgument<string>;
+	additionalEncodedCapacityBytes: RawTransactionArgument<number | bigint>;
+	payment: RawTransactionArgument<string>;
+}
+export interface IncreaseStoragePoolCapacityOptions {
+	package?: string;
+	arguments:
+		| IncreaseStoragePoolCapacityArguments
+		| [
+				self: RawTransactionArgument<string>,
+				storagePool: RawTransactionArgument<string>,
+				additionalEncodedCapacityBytes: RawTransactionArgument<number | bigint>,
+				payment: RawTransactionArgument<string>,
+		  ];
+}
+/**
+ * Increases the reserved capacity of a storage pool for the remainder of its
+ * lifetime.
+ */
+export function increaseStoragePoolCapacity(options: IncreaseStoragePoolCapacityOptions) {
+	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const argumentsTypes = [null, null, 'u64', null] satisfies (string | null)[];
+	const parameterNames = ['self', 'storagePool', 'additionalEncodedCapacityBytes', 'payment'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'system',
+			function: 'increase_storage_pool_capacity',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface IncreaseStoragePoolCapacityWithStorageArguments {
+	self: RawTransactionArgument<string>;
+	storagePool: RawTransactionArgument<string>;
+	storage: RawTransactionArgument<string>;
+}
+export interface IncreaseStoragePoolCapacityWithStorageOptions {
+	package?: string;
+	arguments:
+		| IncreaseStoragePoolCapacityWithStorageArguments
+		| [
+				self: RawTransactionArgument<string>,
+				storagePool: RawTransactionArgument<string>,
+				storage: RawTransactionArgument<string>,
+		  ];
+}
+/** Increases the pool's capacity by absorbing an existing `Storage` object. */
+export function increaseStoragePoolCapacityWithStorage(
+	options: IncreaseStoragePoolCapacityWithStorageOptions,
+) {
+	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const argumentsTypes = [null, null, null] satisfies (string | null)[];
+	const parameterNames = ['self', 'storagePool', 'storage'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'system',
+			function: 'increase_storage_pool_capacity_with_storage',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface DecreaseStoragePoolCapacityBySizeArguments {
+	self: RawTransactionArgument<string>;
+	storagePool: RawTransactionArgument<string>;
+	size: RawTransactionArgument<number | bigint>;
+}
+export interface DecreaseStoragePoolCapacityBySizeOptions {
+	package?: string;
+	arguments:
+		| DecreaseStoragePoolCapacityBySizeArguments
+		| [
+				self: RawTransactionArgument<string>,
+				storagePool: RawTransactionArgument<string>,
+				size: RawTransactionArgument<number | bigint>,
+		  ];
+}
+/**
+ * Reduces the pool's capacity by extracting a `Storage` object of the given size.
+ * Aborts with `EZeroExtractSize` if `size` is zero.
+ */
+export function decreaseStoragePoolCapacityBySize(
+	options: DecreaseStoragePoolCapacityBySizeOptions,
+) {
+	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
+	const parameterNames = ['self', 'storagePool', 'size'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'system',
+			function: 'decrease_storage_pool_capacity_by_size',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface DecreaseStoragePoolUnusedCapacityByPercentArguments {
+	self: RawTransactionArgument<string>;
+	storagePool: RawTransactionArgument<string>;
+	percent: RawTransactionArgument<number>;
+}
+export interface DecreaseStoragePoolUnusedCapacityByPercentOptions {
+	package?: string;
+	arguments:
+		| DecreaseStoragePoolUnusedCapacityByPercentArguments
+		| [
+				self: RawTransactionArgument<string>,
+				storagePool: RawTransactionArgument<string>,
+				percent: RawTransactionArgument<number>,
+		  ];
+}
+/**
+ * Reduces the pool's capacity by extracting `percent` of the unused capacity as a
+ * `Storage` object. Aborts with `EZeroExtractSize` if the computed extract size is
+ * zero (for example from rounding or zero unused capacity).
+ */
+export function decreaseStoragePoolUnusedCapacityByPercent(
+	options: DecreaseStoragePoolUnusedCapacityByPercentOptions,
+) {
+	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const argumentsTypes = [null, null, 'u8'] satisfies (string | null)[];
+	const parameterNames = ['self', 'storagePool', 'percent'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'system',
+			function: 'decrease_storage_pool_unused_capacity_by_percent',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface CertifyPooledBlobArguments {
+	self: RawTransactionArgument<string>;
+	storagePool: RawTransactionArgument<string>;
+	blobId: RawTransactionArgument<number | bigint>;
+	signature: RawTransactionArgument<Array<number>>;
+	signersBitmap: RawTransactionArgument<Array<number>>;
+	message: RawTransactionArgument<Array<number>>;
+}
+export interface CertifyPooledBlobOptions {
+	package?: string;
+	arguments:
+		| CertifyPooledBlobArguments
+		| [
+				self: RawTransactionArgument<string>,
+				storagePool: RawTransactionArgument<string>,
+				blobId: RawTransactionArgument<number | bigint>,
+				signature: RawTransactionArgument<Array<number>>,
+				signersBitmap: RawTransactionArgument<Array<number>>,
+				message: RawTransactionArgument<Array<number>>,
+		  ];
+}
+/** Certifies a blob within a storage pool. */
+export function certifyPooledBlob(options: CertifyPooledBlobOptions) {
+	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const argumentsTypes = [null, null, 'u256', 'vector<u8>', 'vector<u8>', 'vector<u8>'] satisfies (
+		| string
+		| null
+	)[];
+	const parameterNames = ['self', 'storagePool', 'blobId', 'signature', 'signersBitmap', 'message'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'system',
+			function: 'certify_pooled_blob',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
 export interface AddSubsidyArguments {
 	system: RawTransactionArgument<string>;
 	subsidy: RawTransactionArgument<string>;
@@ -384,13 +743,13 @@ export function addSubsidy(options: AddSubsidyOptions) {
 }
 export interface AddPerEpochSubsidiesArguments {
 	system: RawTransactionArgument<string>;
-	subsidies: RawTransactionArgument<string[]>;
+	subsidies: TransactionArgument;
 }
 export interface AddPerEpochSubsidiesOptions {
 	package?: string;
 	arguments:
 		| AddPerEpochSubsidiesArguments
-		| [system: RawTransactionArgument<string>, subsidies: RawTransactionArgument<string[]>];
+		| [system: RawTransactionArgument<string>, subsidies: TransactionArgument];
 }
 /**
  * Adds rewards to the system for future epochs, where `subsidies[i]` is added to
@@ -411,9 +770,9 @@ export function addPerEpochSubsidies(options: AddPerEpochSubsidiesOptions) {
 export interface UpdateProtocolVersionArguments {
 	self: RawTransactionArgument<string>;
 	cap: RawTransactionArgument<string>;
-	signature: RawTransactionArgument<number[]>;
-	membersBitmap: RawTransactionArgument<number[]>;
-	message: RawTransactionArgument<number[]>;
+	signature: RawTransactionArgument<Array<number>>;
+	membersBitmap: RawTransactionArgument<Array<number>>;
+	message: RawTransactionArgument<Array<number>>;
 }
 export interface UpdateProtocolVersionOptions {
 	package?: string;
@@ -422,9 +781,9 @@ export interface UpdateProtocolVersionOptions {
 		| [
 				self: RawTransactionArgument<string>,
 				cap: RawTransactionArgument<string>,
-				signature: RawTransactionArgument<number[]>,
-				membersBitmap: RawTransactionArgument<number[]>,
-				message: RawTransactionArgument<number[]>,
+				signature: RawTransactionArgument<Array<number>>,
+				membersBitmap: RawTransactionArgument<Array<number>>,
+				message: RawTransactionArgument<Array<number>>,
 		  ];
 }
 /** Node collects signatures on the protocol version event and emits it. */
@@ -476,9 +835,9 @@ export function registerDenyListUpdate(options: RegisterDenyListUpdateOptions) {
 export interface UpdateDenyListArguments {
 	self: RawTransactionArgument<string>;
 	cap: RawTransactionArgument<string>;
-	signature: RawTransactionArgument<number[]>;
-	membersBitmap: RawTransactionArgument<number[]>;
-	message: RawTransactionArgument<number[]>;
+	signature: RawTransactionArgument<Array<number>>;
+	membersBitmap: RawTransactionArgument<Array<number>>;
+	message: RawTransactionArgument<Array<number>>;
 }
 export interface UpdateDenyListOptions {
 	package?: string;
@@ -487,9 +846,9 @@ export interface UpdateDenyListOptions {
 		| [
 				self: RawTransactionArgument<string>,
 				cap: RawTransactionArgument<string>,
-				signature: RawTransactionArgument<number[]>,
-				membersBitmap: RawTransactionArgument<number[]>,
-				message: RawTransactionArgument<number[]>,
+				signature: RawTransactionArgument<Array<number>>,
+				membersBitmap: RawTransactionArgument<Array<number>>,
+				message: RawTransactionArgument<Array<number>>,
 		  ];
 }
 /** Perform the update of the deny list. */
@@ -510,9 +869,9 @@ export function updateDenyList(options: UpdateDenyListOptions) {
 }
 export interface DeleteDenyListedBlobArguments {
 	self: RawTransactionArgument<string>;
-	signature: RawTransactionArgument<number[]>;
-	membersBitmap: RawTransactionArgument<number[]>;
-	message: RawTransactionArgument<number[]>;
+	signature: RawTransactionArgument<Array<number>>;
+	membersBitmap: RawTransactionArgument<Array<number>>;
+	message: RawTransactionArgument<Array<number>>;
 }
 export interface DeleteDenyListedBlobOptions {
 	package?: string;
@@ -520,9 +879,9 @@ export interface DeleteDenyListedBlobOptions {
 		| DeleteDenyListedBlobArguments
 		| [
 				self: RawTransactionArgument<string>,
-				signature: RawTransactionArgument<number[]>,
-				membersBitmap: RawTransactionArgument<number[]>,
-				message: RawTransactionArgument<number[]>,
+				signature: RawTransactionArgument<Array<number>>,
+				membersBitmap: RawTransactionArgument<Array<number>>,
+				message: RawTransactionArgument<Array<number>>,
 		  ];
 }
 /** Delete a blob that is deny listed by f+1 members. */

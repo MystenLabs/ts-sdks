@@ -1,15 +1,11 @@
 /**************************************************************
  * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
  **************************************************************/
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import { normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 export interface IsProofValidOptions {
 	package?: string;
-	arguments: [
-		RawTransactionArgument<string>,
-		RawTransactionArgument<string>,
-		RawTransactionArgument<number[]>,
-	];
+	arguments: [TransactionArgument, TransactionArgument, RawTransactionArgument<Array<number>>];
 }
 export function isProofValid(options: IsProofValidOptions) {
 	const packageAddress =
@@ -25,7 +21,7 @@ export function isProofValid(options: IsProofValidOptions) {
 }
 export interface ConstructProofsOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<number[][]>, RawTransactionArgument<number>];
+	arguments: [RawTransactionArgument<Array<Array<number>>>, RawTransactionArgument<number>];
 }
 export function constructProofs(options: ConstructProofsOptions) {
 	const packageAddress =

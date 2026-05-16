@@ -1,9 +1,20 @@
 ---
 title: '@mysten/sui'
-description: Migrate @mysten/sui from 1.x to 2.0
+description: Migrate @mysten/sui from 1.x to 2.0 with new client APIs and BCS changes.
+keywords:
+  [
+    migration,
+    '@mysten/sui',
+    2.0,
+    SuiClient removal,
+    BCS,
+    transaction executors,
+    gRPC,
+    breaking changes,
+  ]
 ---
 
-## Removal of SuiClient Exports
+## Removal of `SuiClient` exports
 
 The `@mysten/sui/client` export path has been removed. All JSON-RPC client functionality is now
 exported from `@mysten/sui/jsonRpc`.
@@ -35,7 +46,7 @@ exported from `@mysten/sui/jsonRpc`.
   });
 ```
 
-## Network Parameter Required
+## Network parameter required
 
 When creating a new `SuiGraphQLClient` or `SuiJsonRpcClient`, you must now provide a `network`
 parameter:
@@ -52,13 +63,13 @@ const client = new SuiJsonRpcClient({
 });
 ```
 
-## BCS Schema Changes
+## BCS schema changes
 
 Several BCS schemas in `@mysten/sui/bcs` have been updated to align exactly with the Rust
 implementation. These changes affect serialization and deserialization of transaction effects and
 objects.
 
-### ExecutionStatus Changes
+### `ExecutionStatus` changes
 
 **BCS Schema** (when parsing raw effects): The variant was renamed from `Failed` to `Failure`:
 
@@ -67,7 +78,7 @@ objects.
 + effects.status.Failure.error
 ```
 
-**Core API** (gRPC/GraphQL responses): Uses a simplified structure with a `success` boolean:
+**Core API** (gRPC and GraphQL responses): Uses a simplified structure with a `success` boolean:
 
 ```typescript
 // Core API returns this structure
@@ -81,7 +92,7 @@ if (tx.effects.status.success) {
 }
 ```
 
-### Object BCS Schema Changes
+### Object BCS schema changes
 
 Several changes to object BCS schemas:
 
@@ -108,7 +119,7 @@ const data = {
 **This affects serialization.** Any existing serialized data with `ConsensusV2` will need to be
 re-serialized with the new `ConsensusAddressOwner` variant.
 
-### UnchangedSharedKind to UnchangedConsensusKind
+### `UnchangedSharedKind` to `UnchangedConsensusKind`
 
 Transaction effects field renamed:
 
@@ -123,7 +134,7 @@ Transaction effects field renamed:
 **New variants:** `MutateConsensusStreamEnded`, `ReadConsensusStreamEnded`, `Cancelled`,
 `PerEpochConfig`
 
-## Experimental Client API Stabilization
+## Experimental client API stabilization
 
 The experimental client API has been stabilized and moved from `@mysten/sui/experimental` to
 `@mysten/sui/client`. All `Experimental_` prefixes have been removed.
@@ -172,7 +183,7 @@ The experimental client API has been stabilized and moved from `@mysten/sui/expe
 | `Experimental_SuiClientTypes`    | `SuiClientTypes`    |
 | `Experimental_CoreClientOptions` | `CoreClientOptions` |
 
-## Commands Renamed to TransactionCommands
+## Commands renamed to `TransactionCommands`
 
 The `Commands` type exported from `@mysten/sui/transactions` has been renamed to
 `TransactionCommands` because `Commands` is a reserved keyword in React Native.
@@ -188,7 +199,7 @@ The `Commands` type exported from `@mysten/sui/transactions` has been renamed to
 + tx.add(TransactionCommands.TransferObjects([coin], recipient));
 ```
 
-## GraphQL Schema Consolidation
+## GraphQL schema consolidation
 
 The SDK now exports a single unified GraphQL schema instead of multiple versioned schemas.
 
@@ -207,7 +218,7 @@ The SDK now exports a single unified GraphQL schema instead of multiple versione
 + import { graphql } from '@mysten/sui/graphql/schema';
 ```
 
-## Named Packages Plugin Removed
+## Named packages plugin removed
 
 The `namedPackagesPlugin` and global plugin registry APIs have been removed. MVR (Move Registry)
 resolution is now built directly into the core client.
@@ -251,7 +262,7 @@ MVR name resolution happens automatically during transaction building. The SDK d
 + });
 ```
 
-## Transaction Executors Now Accept Any Client
+## Transaction executors now accept any client
 
 The transaction executor classes now accept any client implementing `ClientWithCoreApi` instead of
 requiring `SuiJsonRpcClient` specifically.
@@ -302,9 +313,9 @@ Include options have also changed:
 + });
 ```
 
-## ZkLogin Changes
+## zkLogin changes
 
-### legacyAddress Parameter Required
+### `legacyAddress` parameter required
 
 The `legacyAddress` parameter is now **required** for all zkLogin address computation functions.
 
@@ -328,7 +339,7 @@ The `legacyAddress` parameter is now **required** for all zkLogin address comput
 + toZkLoginPublicIdentifier(addressSeed, iss, { legacyAddress: false })
 ```
 
-## Default Transaction Expiration
+## Default transaction expiration
 
 Transactions now default the expiration to the current epoch + 1 using `ValidDuring` when built with
 a client. This provides replay protection for all transactions without requiring explicit

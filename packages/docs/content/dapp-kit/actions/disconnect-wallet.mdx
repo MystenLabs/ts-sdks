@@ -1,6 +1,8 @@
 ---
 title: Disconnect Wallet
-description: Programmatically disconnect from a Sui wallet
+description:
+  Programmatically disconnect from a Sui wallet using the dApp Kit disconnectWallet action.
+keywords: [disconnect wallet, dApp Kit, wallet disconnection, Sui, action, TypeScript]
 ---
 
 The `disconnectWallet` action terminates the connection with the currently connected wallet.
@@ -17,9 +19,9 @@ The `disconnectWallet` action terminates the connection with the currently conne
 	if the wallet notification fails, the local state is always cleared to ensure a clean
 	disconnection.
 
-    Note that wallets may or may not implement the `disconnect` feature. Calling `disconnectWallet`
-    doesn't necessarily mean that the wallet accounts will be disconnected from the dApp within the
-    wallet itself - this is determined by each wallet's implementation.
+    Wallets might or might not implement the `disconnect` feature. Calling `disconnectWallet`
+    does not necessarily mean that the wallet accounts are disconnected from the app within the
+    wallet itself. This is determined by each wallet's implementation.
 
 </Callout>
 
@@ -37,11 +39,12 @@ await dAppKit.disconnectWallet();
 
 None.
 
-## Return Value
+## Return value
 
 Returns a `Promise` that resolves to `void` when the disconnection is complete.
 
 <Callout>
-	The action may throw `WalletNotConnectedError` if no wallet is connected. However, wallet-specific
-	disconnect failures are logged but don't prevent the local connection state from being cleared.
+	The action might throw `WalletNotConnectedError` if no wallet is connected. However,
+	wallet-specific disconnect failures are logged but don't prevent the local connection state from
+	being cleared.
 </Callout>

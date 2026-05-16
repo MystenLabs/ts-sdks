@@ -18,6 +18,7 @@ export class AccountQueries {
 
 	async account(poolKey: string, managerKey: string): Promise<AccountInfo> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		const pool = this.#ctx.config.getPool(poolKey);
 		const baseScalar = this.#ctx.config.getCoin(pool.baseCoin).scalar;
 		const quoteScalar = this.#ctx.config.getCoin(pool.quoteCoin).scalar;
@@ -60,6 +61,7 @@ export class AccountQueries {
 
 	async lockedBalance(poolKey: string, balanceManagerKey: string): Promise<LockedBalances> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		const pool = this.#ctx.config.getPool(poolKey);
 		const baseScalar = this.#ctx.config.getCoin(pool.baseCoin).scalar;
 		const quoteScalar = this.#ctx.config.getCoin(pool.quoteCoin).scalar;
@@ -83,6 +85,7 @@ export class AccountQueries {
 
 	async getPoolDeepPrice(poolKey: string): Promise<PoolDeepPrice> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		const pool = this.#ctx.config.getPool(poolKey);
 		tx.add(this.#ctx.deepBook.getPoolDeepPrice(poolKey));
 

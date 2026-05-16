@@ -1,15 +1,16 @@
 ---
-title: Rpc Hooks
-description: React hooks for Sui RPC queries
+title: RPC Hooks
+description: React hooks for querying the Sui blockchain using JSON RPC methods.
+keywords: [RPC hooks, useSuiClientQuery, React, JSON RPC, tanstack query, Sui, data fetching]
 ---
 
 Sui dApp Kit ships with hooks for each of the RPC methods defined in the
 [JSON RPC specification](https://docs.sui.io/sui-api-ref).
 
-## useSuiClientQuery
+## `useSuiClientQuery`
 
 Load data from the Sui RPC using the `useSuiClientQuery` hook. This hook is a wrapper around the
-[useQuery](https://tanstack.com/query/latest/docs/react/guides/queries) hook from
+[`useQuery`](https://tanstack.com/query/latest/docs/react/guides/queries) hook from
 @tanstack/react-query.
 
 The hook takes the RPC method name as the first argument and any parameters as the second argument.
@@ -41,11 +42,11 @@ function MyComponent() {
 }
 ```
 
-## useSuiClientQueries
+## `useSuiClientQueries`
 
 You can fetch a variable number of Sui RPC queries using the `useSuiClientQueries` hook. This hook
 is a wrapper around the
-[useQueries](https://tanstack.com/query/latest/docs/react/reference/useQueries) hook from
+[`useQueries`](https://tanstack.com/query/latest/docs/react/reference/useQueries) hook from
 @tanstack/react-query.
 
 The `queries` value is an array of query option objects identical to the `useSuiClientQuery` hook.
@@ -96,7 +97,7 @@ function MyComponent() {
 }
 ```
 
-## useSuiClientInfiniteQuery
+## `useSuiClientInfiniteQuery`
 
 For RPC methods that support pagination, dApp Kit also implements a `useSuiClientInfiniteQuery`
 hook. For more details check out the
@@ -123,7 +124,7 @@ function MyComponent() {
 }
 ```
 
-## useSuiClientMutation
+## `useSuiClientMutation`
 
 For RPC methods that mutate state, dApp Kit implements a `useSuiClientMutation` hook. Use this hook
 with any RPC method to imperatively call the RPC method. For more details, check out the
@@ -149,7 +150,7 @@ function MyComponent() {
 }
 ```
 
-## useResolveSuiNSName
+## `useResolveSuiNSName`
 
 To get the SuiNS name for a given address, use the `useResolveSuiNSName` hook.
 

@@ -5,6 +5,10 @@ import type { SuiCodegenConfig } from '@mysten/codegen';
 
 const config: SuiCodegenConfig = {
 	output: './src/contracts',
+	errorClass: {
+		name: 'PASClientError',
+		source: '../../error.js',
+	},
 	packages: [
 		{
 			package: '@mysten/pas',

@@ -3,7 +3,7 @@
  **************************************************************/
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as bytes32 from './deps/0xf47329f4344f3bf0f8e436e2f7b485466cff300f12a166563995d3888c296a94/bytes32.js';
 const $moduleName =
 	'0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837::governance';
@@ -17,7 +17,7 @@ export const WormholeVAAVerificationReceipt = new MoveStruct({
 });
 export interface TakePayloadOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>];
+	arguments: [TransactionArgument];
 }
 export function takePayload(options: TakePayloadOptions) {
 	const packageAddress =
@@ -33,7 +33,7 @@ export function takePayload(options: TakePayloadOptions) {
 }
 export interface TakeDigestOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>];
+	arguments: [TransactionArgument];
 }
 export function takeDigest(options: TakeDigestOptions) {
 	const packageAddress =
@@ -49,7 +49,7 @@ export function takeDigest(options: TakeDigestOptions) {
 }
 export interface TakeSequenceOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>];
+	arguments: [TransactionArgument];
 }
 export function takeSequence(options: TakeSequenceOptions) {
 	const packageAddress =
@@ -65,7 +65,7 @@ export function takeSequence(options: TakeSequenceOptions) {
 }
 export interface DestroyOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>];
+	arguments: [TransactionArgument];
 }
 export function destroy(options: DestroyOptions) {
 	const packageAddress =
@@ -81,7 +81,7 @@ export function destroy(options: DestroyOptions) {
 }
 export interface VerifyVaaOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>, RawTransactionArgument<string>];
+	arguments: [RawTransactionArgument<string>, TransactionArgument];
 }
 export function verifyVaa(options: VerifyVaaOptions) {
 	const packageAddress =
@@ -97,7 +97,7 @@ export function verifyVaa(options: VerifyVaaOptions) {
 }
 export interface ExecuteGovernanceInstructionOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>, RawTransactionArgument<string>];
+	arguments: [RawTransactionArgument<string>, TransactionArgument];
 }
 export function executeGovernanceInstruction(options: ExecuteGovernanceInstructionOptions) {
 	const packageAddress =

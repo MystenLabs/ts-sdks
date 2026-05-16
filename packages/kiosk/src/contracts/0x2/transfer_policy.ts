@@ -3,7 +3,7 @@
  **************************************************************/
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs, type BcsType } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as vec_set from './vec_set.js';
 import * as type_name from './deps/0x0000000000000000000000000000000000000000000000000000000000000001/type_name.js';
 import * as balance from './balance.js';
@@ -150,7 +150,7 @@ export function destroyAndWithdraw(options: DestroyAndWithdrawOptions) {
 }
 export interface ConfirmRequestOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>, RawTransactionArgument<string>];
+	arguments: [RawTransactionArgument<string>, TransactionArgument];
 	typeArguments: [string];
 }
 export function confirmRequest(options: ConfirmRequestOptions) {
@@ -238,7 +238,7 @@ export function addToBalance<T1 extends BcsType<any>>(options: AddToBalanceOptio
 }
 export interface AddReceiptOptions<T1 extends BcsType<any>> {
 	package?: string;
-	arguments: [RawTransactionArgument<T1>, RawTransactionArgument<string>];
+	arguments: [RawTransactionArgument<T1>, TransactionArgument];
 	typeArguments: [string, string];
 }
 export function addReceipt<T1 extends BcsType<any>>(options: AddReceiptOptions<T1>) {
@@ -346,7 +346,7 @@ export function rules(options: RulesOptions) {
 }
 export interface ItemOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>];
+	arguments: [TransactionArgument];
 	typeArguments: [string];
 }
 export function item(options: ItemOptions) {
@@ -364,7 +364,7 @@ export function item(options: ItemOptions) {
 }
 export interface PaidOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>];
+	arguments: [TransactionArgument];
 	typeArguments: [string];
 }
 export function paid(options: PaidOptions) {
@@ -382,7 +382,7 @@ export function paid(options: PaidOptions) {
 }
 export interface FromOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>];
+	arguments: [TransactionArgument];
 	typeArguments: [string];
 }
 export function _from(options: FromOptions) {

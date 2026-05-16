@@ -1,12 +1,13 @@
 ---
 title: DAppKitProvider
-description: React context provider for dApp Kit configuration
+description: React context provider that makes dApp Kit available throughout your application.
+keywords: [DAppKitProvider, React provider, context, dApp Kit, configuration, Sui, React hooks]
 ---
 
 The `DAppKitProvider` is a React context provider that makes your dApp Kit instance available
 throughout your React application. It must wrap any components that use dApp Kit hooks.
 
-## Basic Usage
+## Basic usage
 
 ```tsx
 import { dAppKit } from './dapp-kit.ts';
@@ -24,9 +25,9 @@ export default function App() {
 
 - **dAppKit**: The dApp Kit instance created with `createDAppKit`
 
-## Provider Setup Patterns
+## Provider setup patterns
 
-### With Custom Configuration
+### With custom configuration
 
 ```tsx
 import { createDAppKit, DAppKitProvider } from '@mysten/dapp-kit-react';
@@ -60,7 +61,7 @@ export function App() {
 }
 ```
 
-## Using Hooks Inside the Provider
+## Using hooks inside the provider
 
 Once your app is wrapped with `DAppKitProvider`, you can use any dApp Kit hooks in child components:
 
@@ -90,7 +91,7 @@ export function MyComponent({ wallet }: { wallet: UiWallet }) {
 	them outside will result in an error.
 </Callout>
 
-## Server-Side Rendering (SSR)
+## Server-side rendering (SSR)
 
 While `DAppKitProvider` itself is SSR-safe, components that interact with wallets should be
 client-side rendered, as wallets are detected in the browser. For Next.js guide see

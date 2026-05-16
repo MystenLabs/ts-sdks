@@ -8,7 +8,7 @@ import {
 	type RawTransactionArgument,
 } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as vec_map from './deps/sui/vec_map.js';
 const $moduleName = '@suins/core::pricing_config';
 export const Range = new MoveTuple({
@@ -28,14 +28,14 @@ export const RenewalConfig = new MoveStruct({
 	},
 });
 export interface CalculateBasePriceArguments {
-	config: RawTransactionArgument<string>;
+	config: TransactionArgument;
 	length: RawTransactionArgument<number | bigint>;
 }
 export interface CalculateBasePriceOptions {
 	package?: string;
 	arguments:
 		| CalculateBasePriceArguments
-		| [config: RawTransactionArgument<string>, length: RawTransactionArgument<number | bigint>];
+		| [config: TransactionArgument, length: RawTransactionArgument<number | bigint>];
 }
 /**
  * Calculates the base price for a given length.
@@ -58,14 +58,14 @@ export function calculateBasePrice(options: CalculateBasePriceOptions) {
 		});
 }
 export interface NewArguments {
-	ranges: RawTransactionArgument<string[]>;
-	prices: RawTransactionArgument<number | bigint[]>;
+	ranges: TransactionArgument;
+	prices: RawTransactionArgument<Array<number | bigint>>;
 }
 export interface NewOptions {
 	package?: string;
 	arguments:
 		| NewArguments
-		| [ranges: RawTransactionArgument<string[]>, prices: RawTransactionArgument<number | bigint[]>];
+		| [ranges: TransactionArgument, prices: RawTransactionArgument<Array<number | bigint>>];
 }
 /**
  * Creates a new PricingConfig with the given ranges and prices.
@@ -88,14 +88,14 @@ export function _new(options: NewOptions) {
 		});
 }
 export interface IsBetweenInclusiveArguments {
-	range: RawTransactionArgument<string>;
+	range: TransactionArgument;
 	length: RawTransactionArgument<number | bigint>;
 }
 export interface IsBetweenInclusiveOptions {
 	package?: string;
 	arguments:
 		| IsBetweenInclusiveArguments
-		| [range: RawTransactionArgument<string>, length: RawTransactionArgument<number | bigint>];
+		| [range: TransactionArgument, length: RawTransactionArgument<number | bigint>];
 }
 /** Checks if the value is between the range (inclusive). */
 export function isBetweenInclusive(options: IsBetweenInclusiveOptions) {
@@ -111,11 +111,11 @@ export function isBetweenInclusive(options: IsBetweenInclusiveOptions) {
 		});
 }
 export interface PricingArguments {
-	config: RawTransactionArgument<string>;
+	config: TransactionArgument;
 }
 export interface PricingOptions {
 	package?: string;
-	arguments: PricingArguments | [config: RawTransactionArgument<string>];
+	arguments: PricingArguments | [config: TransactionArgument];
 }
 /** Returns the pricing config for usage in external apps. */
 export function pricing(options: PricingOptions) {
@@ -131,11 +131,11 @@ export function pricing(options: PricingOptions) {
 		});
 }
 export interface NewRenewalConfigArguments {
-	config: RawTransactionArgument<string>;
+	config: TransactionArgument;
 }
 export interface NewRenewalConfigOptions {
 	package?: string;
-	arguments: NewRenewalConfigArguments | [config: RawTransactionArgument<string>];
+	arguments: NewRenewalConfigArguments | [config: TransactionArgument];
 }
 /** Constructor for Renewal<T> that initializes it with a PricingConfig. */
 export function newRenewalConfig(options: NewRenewalConfigOptions) {
@@ -151,11 +151,11 @@ export function newRenewalConfig(options: NewRenewalConfigOptions) {
 		});
 }
 export interface NewRangeArguments {
-	range: RawTransactionArgument<number | bigint[]>;
+	range: RawTransactionArgument<Array<number | bigint>>;
 }
 export interface NewRangeOptions {
 	package?: string;
-	arguments: NewRangeArguments | [range: RawTransactionArgument<number | bigint[]>];
+	arguments: NewRangeArguments | [range: RawTransactionArgument<Array<number | bigint>>];
 }
 export function newRange(options: NewRangeOptions) {
 	const packageAddress = options.package ?? '@suins/core';
@@ -170,11 +170,11 @@ export function newRange(options: NewRangeOptions) {
 		});
 }
 export interface ConfigArguments {
-	renewal: RawTransactionArgument<string>;
+	renewal: TransactionArgument;
 }
 export interface ConfigOptions {
 	package?: string;
-	arguments: ConfigArguments | [renewal: RawTransactionArgument<string>];
+	arguments: ConfigArguments | [renewal: TransactionArgument];
 }
 export function config(options: ConfigOptions) {
 	const packageAddress = options.package ?? '@suins/core';

@@ -7,9 +7,9 @@
  * happens in this module.
  */
 
-import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
+import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as deep_price from './deep_price.js';
 import * as fill from './fill.js';
 const $moduleName = '@deepbook/core::order_info';
@@ -106,11 +106,11 @@ export const OrderFullyFilled = new MoveStruct({
 	},
 });
 export interface PoolIdArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface PoolIdOptions {
 	package?: string;
-	arguments: PoolIdArguments | [self: RawTransactionArgument<string>];
+	arguments: PoolIdArguments | [self: TransactionArgument];
 }
 export function poolId(options: PoolIdOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
@@ -125,11 +125,11 @@ export function poolId(options: PoolIdOptions) {
 		});
 }
 export interface OrderIdArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface OrderIdOptions {
 	package?: string;
-	arguments: OrderIdArguments | [self: RawTransactionArgument<string>];
+	arguments: OrderIdArguments | [self: TransactionArgument];
 }
 export function orderId(options: OrderIdOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
@@ -144,11 +144,11 @@ export function orderId(options: OrderIdOptions) {
 		});
 }
 export interface BalanceManagerIdArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface BalanceManagerIdOptions {
 	package?: string;
-	arguments: BalanceManagerIdArguments | [self: RawTransactionArgument<string>];
+	arguments: BalanceManagerIdArguments | [self: TransactionArgument];
 }
 export function balanceManagerId(options: BalanceManagerIdOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
@@ -163,11 +163,11 @@ export function balanceManagerId(options: BalanceManagerIdOptions) {
 		});
 }
 export interface ClientOrderIdArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface ClientOrderIdOptions {
 	package?: string;
-	arguments: ClientOrderIdArguments | [self: RawTransactionArgument<string>];
+	arguments: ClientOrderIdArguments | [self: TransactionArgument];
 }
 export function clientOrderId(options: ClientOrderIdOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
@@ -182,11 +182,11 @@ export function clientOrderId(options: ClientOrderIdOptions) {
 		});
 }
 export interface TraderArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface TraderOptions {
 	package?: string;
-	arguments: TraderArguments | [self: RawTransactionArgument<string>];
+	arguments: TraderArguments | [self: TransactionArgument];
 }
 export function trader(options: TraderOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
@@ -201,11 +201,11 @@ export function trader(options: TraderOptions) {
 		});
 }
 export interface OrderTypeArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface OrderTypeOptions {
 	package?: string;
-	arguments: OrderTypeArguments | [self: RawTransactionArgument<string>];
+	arguments: OrderTypeArguments | [self: TransactionArgument];
 }
 export function orderType(options: OrderTypeOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
@@ -220,11 +220,11 @@ export function orderType(options: OrderTypeOptions) {
 		});
 }
 export interface SelfMatchingOptionArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface SelfMatchingOptionOptions {
 	package?: string;
-	arguments: SelfMatchingOptionArguments | [self: RawTransactionArgument<string>];
+	arguments: SelfMatchingOptionArguments | [self: TransactionArgument];
 }
 export function selfMatchingOption(options: SelfMatchingOptionOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
@@ -239,11 +239,11 @@ export function selfMatchingOption(options: SelfMatchingOptionOptions) {
 		});
 }
 export interface PriceArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface PriceOptions {
 	package?: string;
-	arguments: PriceArguments | [self: RawTransactionArgument<string>];
+	arguments: PriceArguments | [self: TransactionArgument];
 }
 export function price(options: PriceOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
@@ -258,11 +258,11 @@ export function price(options: PriceOptions) {
 		});
 }
 export interface IsBidArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface IsBidOptions {
 	package?: string;
-	arguments: IsBidArguments | [self: RawTransactionArgument<string>];
+	arguments: IsBidArguments | [self: TransactionArgument];
 }
 export function isBid(options: IsBidOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
@@ -277,11 +277,11 @@ export function isBid(options: IsBidOptions) {
 		});
 }
 export interface OriginalQuantityArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface OriginalQuantityOptions {
 	package?: string;
-	arguments: OriginalQuantityArguments | [self: RawTransactionArgument<string>];
+	arguments: OriginalQuantityArguments | [self: TransactionArgument];
 }
 export function originalQuantity(options: OriginalQuantityOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
@@ -296,11 +296,11 @@ export function originalQuantity(options: OriginalQuantityOptions) {
 		});
 }
 export interface OrderDeepPriceArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface OrderDeepPriceOptions {
 	package?: string;
-	arguments: OrderDeepPriceArguments | [self: RawTransactionArgument<string>];
+	arguments: OrderDeepPriceArguments | [self: TransactionArgument];
 }
 export function orderDeepPrice(options: OrderDeepPriceOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
@@ -315,11 +315,11 @@ export function orderDeepPrice(options: OrderDeepPriceOptions) {
 		});
 }
 export interface ExpireTimestampArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface ExpireTimestampOptions {
 	package?: string;
-	arguments: ExpireTimestampArguments | [self: RawTransactionArgument<string>];
+	arguments: ExpireTimestampArguments | [self: TransactionArgument];
 }
 export function expireTimestamp(options: ExpireTimestampOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
@@ -334,11 +334,11 @@ export function expireTimestamp(options: ExpireTimestampOptions) {
 		});
 }
 export interface ExecutedQuantityArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface ExecutedQuantityOptions {
 	package?: string;
-	arguments: ExecutedQuantityArguments | [self: RawTransactionArgument<string>];
+	arguments: ExecutedQuantityArguments | [self: TransactionArgument];
 }
 export function executedQuantity(options: ExecutedQuantityOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
@@ -353,11 +353,11 @@ export function executedQuantity(options: ExecutedQuantityOptions) {
 		});
 }
 export interface CumulativeQuoteQuantityArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface CumulativeQuoteQuantityOptions {
 	package?: string;
-	arguments: CumulativeQuoteQuantityArguments | [self: RawTransactionArgument<string>];
+	arguments: CumulativeQuoteQuantityArguments | [self: TransactionArgument];
 }
 export function cumulativeQuoteQuantity(options: CumulativeQuoteQuantityOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
@@ -372,11 +372,11 @@ export function cumulativeQuoteQuantity(options: CumulativeQuoteQuantityOptions)
 		});
 }
 export interface FillsArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface FillsOptions {
 	package?: string;
-	arguments: FillsArguments | [self: RawTransactionArgument<string>];
+	arguments: FillsArguments | [self: TransactionArgument];
 }
 export function fills(options: FillsOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
@@ -391,11 +391,11 @@ export function fills(options: FillsOptions) {
 		});
 }
 export interface FeeIsDeepArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface FeeIsDeepOptions {
 	package?: string;
-	arguments: FeeIsDeepArguments | [self: RawTransactionArgument<string>];
+	arguments: FeeIsDeepArguments | [self: TransactionArgument];
 }
 export function feeIsDeep(options: FeeIsDeepOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
@@ -410,11 +410,11 @@ export function feeIsDeep(options: FeeIsDeepOptions) {
 		});
 }
 export interface PaidFeesArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface PaidFeesOptions {
 	package?: string;
-	arguments: PaidFeesArguments | [self: RawTransactionArgument<string>];
+	arguments: PaidFeesArguments | [self: TransactionArgument];
 }
 export function paidFees(options: PaidFeesOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
@@ -429,11 +429,11 @@ export function paidFees(options: PaidFeesOptions) {
 		});
 }
 export interface MakerFeesArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface MakerFeesOptions {
 	package?: string;
-	arguments: MakerFeesArguments | [self: RawTransactionArgument<string>];
+	arguments: MakerFeesArguments | [self: TransactionArgument];
 }
 export function makerFees(options: MakerFeesOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
@@ -448,11 +448,11 @@ export function makerFees(options: MakerFeesOptions) {
 		});
 }
 export interface EpochArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface EpochOptions {
 	package?: string;
-	arguments: EpochArguments | [self: RawTransactionArgument<string>];
+	arguments: EpochArguments | [self: TransactionArgument];
 }
 export function epoch(options: EpochOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
@@ -467,11 +467,11 @@ export function epoch(options: EpochOptions) {
 		});
 }
 export interface StatusArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface StatusOptions {
 	package?: string;
-	arguments: StatusArguments | [self: RawTransactionArgument<string>];
+	arguments: StatusArguments | [self: TransactionArgument];
 }
 export function status(options: StatusOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
@@ -486,11 +486,11 @@ export function status(options: StatusOptions) {
 		});
 }
 export interface FillLimitReachedArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface FillLimitReachedOptions {
 	package?: string;
-	arguments: FillLimitReachedArguments | [self: RawTransactionArgument<string>];
+	arguments: FillLimitReachedArguments | [self: TransactionArgument];
 }
 export function fillLimitReached(options: FillLimitReachedOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
@@ -505,11 +505,11 @@ export function fillLimitReached(options: FillLimitReachedOptions) {
 		});
 }
 export interface OrderInsertedArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface OrderInsertedOptions {
 	package?: string;
-	arguments: OrderInsertedArguments | [self: RawTransactionArgument<string>];
+	arguments: OrderInsertedArguments | [self: TransactionArgument];
 }
 export function orderInserted(options: OrderInsertedOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';

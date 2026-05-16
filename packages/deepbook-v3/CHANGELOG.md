@@ -1,5 +1,89 @@
 # @mysten/deepbook-v3
 
+## 1.3.6
+
+### Patch Changes
+
+- f7de3e5: Restore docs in published tarballs.
+- Updated dependencies [f7de3e5]
+  - @mysten/bcs@2.0.5
+  - @mysten/sui@2.16.2
+
+## 1.3.5
+
+### Patch Changes
+
+- 9e067cf: Validate the new per-package release flow end-to-end across every public @mysten package.
+  No functional changes — empty patch bump to force the orchestrator to dispatch every
+  release-<pkg>.yml workflow with `dry_run=false` so each package publishes via OIDC trusted
+  publishing.
+- Updated dependencies [9e067cf]
+  - @mysten/bcs@2.0.4
+  - @mysten/sui@2.16.1
+
+## 1.3.4
+
+### Patch Changes
+
+- 75a32c1: Bump `axios` to `^1.16.0` to address security advisories (CVE-2025-62718 and related
+  prototype pollution issues).
+
+## 1.3.3
+
+### Patch Changes
+
+- bb8d26a: Fix three latent type errors in the generated `utils/index.ts` that surfaced for
+  consumers with `noUncheckedIndexedAccess: true`:
+  - `getPureBcsSchema(structTag.typeParams[0])` passed `TypeTag | undefined` to a parameter typed
+    `string | TypeTag`. Now null-checks the inner tag before passing it.
+  - `argTypes[i]` was redundantly re-indexed inside a `for…of entries()` loop, returning
+    `string | null | undefined` and being passed back to `getPureBcsSchema`. Switched to the loop
+    variable, which is `string | null`.
+  - `MoveStruct.get()` returned the destructured `[res]` from `getMany([objectId])` without
+    asserting it was defined. Now throws if no object was returned.
+
+  The codegen test suite gained a `tsc`-based check that compiles the generated `utils/index.ts`
+  under strict + `noUncheckedIndexedAccess`, so embedded-template type bugs are caught before
+  release rather than by downstream consumers.
+
+  All consumer packages (`payment-kit`, `pas`, `walrus`, `suins`, `deepbook-v3`, `kiosk`) have been
+  regenerated with the fix.
+
+## 1.3.2
+
+### Patch Changes
+
+- c96956e: Regenerate generated Move types against the latest contract sources. The generated
+  `utils/index.ts` `GetOptions` / `GetManyOptions` are now exported as type aliases (intersection)
+  instead of interfaces. SuiNS gains `SubnamePrunedEvent`, `pruneExpiredSubname`, and
+  `pruneExpiredSubnames`.
+
+## 1.3.1
+
+### Patch Changes
+
+- e149b58: Set the transaction sender on all read-only query methods so they work under
+  `SuiJsonRpcClient`. Previously these queries built a `Transaction` without calling
+  `tx.setSender(...)`, which was tolerated by the gRPC core client (it substitutes `0x0` for a
+  missing sender during resolution) but failed under JSON-RPC with `Missing transaction sender`.
+  JSON-RPC is scheduled to be sunset on July 31, 2026 — migrate to `SuiGrpcClient` when possible.
+- e9570a1: Regenerated Move call bindings. Parameters that can't accept a plain value (non-`key`
+  struct or enum, `vector<KeyStruct>`, etc.) are now typed as `TransactionArgument`, forcing callers
+  to pass a prior move-call result or `tx.makeMoveVec(...)`. Passing a bare string or array for
+  these parameters was always broken at runtime.
+- Updated dependencies [6adc085]
+- Updated dependencies [b1bf49a]
+  - @mysten/sui@2.16.0
+
+## 1.3.0
+
+### Minor Changes
+
+- 993aa1f: Add `cancelLiveOrder` and `cancelLiveOrders` transaction builders that skip order ids not
+  currently in the balance manager's open orders (already filled, cancelled, expired-and-swept, or
+  not owned by this BM) instead of aborting. Also updates mainnet `DEEPBOOK_PACKAGE_ID` to
+  `0xf48222c4e057fa468baf136bff8e12504209d43850c5778f76159292a96f621e`.
+
 ## 1.2.2
 
 ### Patch Changes

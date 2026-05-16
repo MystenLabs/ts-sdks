@@ -18,6 +18,7 @@ export class RegistryQueries {
 
 	async isPoolEnabledForMargin(poolKey: string): Promise<boolean> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.marginRegistry.poolEnabled(poolKey));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -31,6 +32,7 @@ export class RegistryQueries {
 
 	async getMarginManagerIdsForOwner(owner: string): Promise<string[]> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.marginRegistry.getMarginManagerIds(owner));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -45,6 +47,7 @@ export class RegistryQueries {
 
 	async getBaseMarginPoolId(poolKey: string): Promise<string> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.marginRegistry.baseMarginPoolId(poolKey));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -59,6 +62,7 @@ export class RegistryQueries {
 
 	async getQuoteMarginPoolId(poolKey: string): Promise<string> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.marginRegistry.quoteMarginPoolId(poolKey));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -73,6 +77,7 @@ export class RegistryQueries {
 
 	async getMinWithdrawRiskRatio(poolKey: string): Promise<number> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.marginRegistry.minWithdrawRiskRatio(poolKey));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -87,6 +92,7 @@ export class RegistryQueries {
 
 	async getMinBorrowRiskRatio(poolKey: string): Promise<number> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.marginRegistry.minBorrowRiskRatio(poolKey));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -101,6 +107,7 @@ export class RegistryQueries {
 
 	async getLiquidationRiskRatio(poolKey: string): Promise<number> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.marginRegistry.liquidationRiskRatio(poolKey));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -115,6 +122,7 @@ export class RegistryQueries {
 
 	async getTargetLiquidationRiskRatio(poolKey: string): Promise<number> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.marginRegistry.targetLiquidationRiskRatio(poolKey));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -129,6 +137,7 @@ export class RegistryQueries {
 
 	async getUserLiquidationReward(poolKey: string): Promise<number> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.marginRegistry.userLiquidationReward(poolKey));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -143,6 +152,7 @@ export class RegistryQueries {
 
 	async getPoolLiquidationReward(poolKey: string): Promise<number> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.marginRegistry.poolLiquidationReward(poolKey));
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -157,6 +167,7 @@ export class RegistryQueries {
 
 	async getAllowedMaintainers(): Promise<string[]> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.marginRegistry.allowedMaintainers());
 
 		const res = await this.#ctx.client.core.simulateTransaction({
@@ -171,6 +182,7 @@ export class RegistryQueries {
 
 	async getAllowedPauseCaps(): Promise<string[]> {
 		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
 		tx.add(this.#ctx.marginRegistry.allowedPauseCaps());
 
 		const res = await this.#ctx.client.core.simulateTransaction({

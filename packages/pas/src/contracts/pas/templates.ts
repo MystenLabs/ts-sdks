@@ -11,7 +11,7 @@
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 const $moduleName = '@mysten/pas::templates';
 export const PAS = new MoveStruct({
 	name: `${$moduleName}::PAS`,
@@ -47,8 +47,8 @@ export function setup(options: SetupOptions) {
 }
 export interface SetTemplateCommandArguments {
 	templates: RawTransactionArgument<string>;
-	_: RawTransactionArgument<string>;
-	command: RawTransactionArgument<string>;
+	_: TransactionArgument;
+	command: TransactionArgument;
 }
 export interface SetTemplateCommandOptions {
 	package?: string;
@@ -56,8 +56,8 @@ export interface SetTemplateCommandOptions {
 		| SetTemplateCommandArguments
 		| [
 				templates: RawTransactionArgument<string>,
-				_: RawTransactionArgument<string>,
-				command: RawTransactionArgument<string>,
+				_: TransactionArgument,
+				command: TransactionArgument,
 		  ];
 	typeArguments: [string];
 }
@@ -77,13 +77,13 @@ export function setTemplateCommand(options: SetTemplateCommandOptions) {
 }
 export interface UnsetTemplateCommandArguments {
 	templates: RawTransactionArgument<string>;
-	_: RawTransactionArgument<string>;
+	_: TransactionArgument;
 }
 export interface UnsetTemplateCommandOptions {
 	package?: string;
 	arguments:
 		| UnsetTemplateCommandArguments
-		| [templates: RawTransactionArgument<string>, _: RawTransactionArgument<string>];
+		| [templates: RawTransactionArgument<string>, _: TransactionArgument];
 	typeArguments: [string];
 }
 export function unsetTemplateCommand(options: UnsetTemplateCommandOptions) {

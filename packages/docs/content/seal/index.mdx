@@ -1,6 +1,17 @@
 ---
 title: Seal SDK
-description: Decentralized secrets management with threshold encryption on Sui
+description: Decentralized secrets management with threshold encryption on Sui.
+keywords:
+  [
+    Seal,
+    encryption,
+    threshold encryption,
+    secrets management,
+    Sui,
+    '@mysten/seal',
+    key server,
+    decentralized,
+  ]
 ---
 
 <Callout type="info">
@@ -37,7 +48,7 @@ const client = new SuiGrpcClient({
 );
 ```
 
-## Configuration Options
+## Configuration options
 
 The `seal()` function accepts the following options:
 
@@ -45,9 +56,9 @@ The `seal()` function accepts the following options:
 - **`verifyKeyServers`** (optional) - Whether to verify key server authenticity (default: `true`)
 - **`timeout`** (optional) - Timeout in milliseconds for network requests (default: `10000`)
 
-## Basic Usage
+## Basic usage
 
-### Encrypting Data
+### Encrypting data
 
 ```ts
 const data = new Uint8Array([1, 2, 3]);
@@ -60,7 +71,7 @@ const { encryptedObject } = await client.seal.encrypt({
 });
 ```
 
-### Decrypting Data
+### Decrypting data
 
 ```ts
 import { SessionKey } from '@mysten/seal';

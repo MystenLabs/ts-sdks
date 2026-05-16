@@ -9,7 +9,7 @@
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as order from './order.js';
 const $moduleName = '@deepbook/core::order_query';
 export const OrderPage = new MoveStruct({
@@ -76,11 +76,11 @@ export function iterOrders(options: IterOrdersOptions) {
 		});
 }
 export interface OrdersArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface OrdersOptions {
 	package?: string;
-	arguments: OrdersArguments | [self: RawTransactionArgument<string>];
+	arguments: OrdersArguments | [self: TransactionArgument];
 }
 export function orders(options: OrdersOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
@@ -95,11 +95,11 @@ export function orders(options: OrdersOptions) {
 		});
 }
 export interface HasNextPageArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface HasNextPageOptions {
 	package?: string;
-	arguments: HasNextPageArguments | [self: RawTransactionArgument<string>];
+	arguments: HasNextPageArguments | [self: TransactionArgument];
 }
 export function hasNextPage(options: HasNextPageOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';

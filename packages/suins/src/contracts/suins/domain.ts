@@ -12,7 +12,7 @@
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 const $moduleName = '@suins/core::domain';
 export const Domain = new MoveStruct({
 	name: `${$moduleName}::Domain`,
@@ -47,11 +47,11 @@ export function _new(options: NewOptions) {
 		});
 }
 export interface ToStringArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface ToStringOptions {
 	package?: string;
-	arguments: ToStringArguments | [self: RawTransactionArgument<string>];
+	arguments: ToStringArguments | [self: TransactionArgument];
 }
 /** Converts a domain into a fully-qualified string representation. */
 export function toString(options: ToStringOptions) {
@@ -67,14 +67,14 @@ export function toString(options: ToStringOptions) {
 		});
 }
 export interface LabelArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 	level: RawTransactionArgument<number | bigint>;
 }
 export interface LabelOptions {
 	package?: string;
 	arguments:
 		| LabelArguments
-		| [self: RawTransactionArgument<string>, level: RawTransactionArgument<number | bigint>];
+		| [self: TransactionArgument, level: RawTransactionArgument<number | bigint>];
 }
 /**
  * Returns the `label` in a domain specified by `level`.
@@ -100,11 +100,11 @@ export function label(options: LabelOptions) {
 		});
 }
 export interface TldArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface TldOptions {
 	package?: string;
-	arguments: TldArguments | [self: RawTransactionArgument<string>];
+	arguments: TldArguments | [self: TransactionArgument];
 }
 /**
  * Returns the TLD (Top-Level Domain) of a `Domain`.
@@ -124,11 +124,11 @@ export function tld(options: TldOptions) {
 		});
 }
 export interface SldArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface SldOptions {
 	package?: string;
-	arguments: SldArguments | [self: RawTransactionArgument<string>];
+	arguments: SldArguments | [self: TransactionArgument];
 }
 /**
  * Returns the SLD (Second-Level Domain) of a `Domain`.
@@ -148,11 +148,11 @@ export function sld(options: SldOptions) {
 		});
 }
 export interface NumberOfLevelsArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface NumberOfLevelsOptions {
 	package?: string;
-	arguments: NumberOfLevelsArguments | [self: RawTransactionArgument<string>];
+	arguments: NumberOfLevelsArguments | [self: TransactionArgument];
 }
 export function numberOfLevels(options: NumberOfLevelsOptions) {
 	const packageAddress = options.package ?? '@suins/core';
@@ -167,11 +167,11 @@ export function numberOfLevels(options: NumberOfLevelsOptions) {
 		});
 }
 export interface IsSubdomainArguments {
-	domain: RawTransactionArgument<string>;
+	domain: TransactionArgument;
 }
 export interface IsSubdomainOptions {
 	package?: string;
-	arguments: IsSubdomainArguments | [domain: RawTransactionArgument<string>];
+	arguments: IsSubdomainArguments | [domain: TransactionArgument];
 }
 export function isSubdomain(options: IsSubdomainOptions) {
 	const packageAddress = options.package ?? '@suins/core';
@@ -186,11 +186,11 @@ export function isSubdomain(options: IsSubdomainOptions) {
 		});
 }
 export interface ParentArguments {
-	domain: RawTransactionArgument<string>;
+	domain: TransactionArgument;
 }
 export interface ParentOptions {
 	package?: string;
-	arguments: ParentArguments | [domain: RawTransactionArgument<string>];
+	arguments: ParentArguments | [domain: TransactionArgument];
 }
 /** Derive the parent of a subdomain. e.g. `subdomain.example.sui` -> `example.sui` */
 export function parent(options: ParentOptions) {
@@ -206,14 +206,12 @@ export function parent(options: ParentOptions) {
 		});
 }
 export interface IsParentOfArguments {
-	parent: RawTransactionArgument<string>;
-	child: RawTransactionArgument<string>;
+	parent: TransactionArgument;
+	child: TransactionArgument;
 }
 export interface IsParentOfOptions {
 	package?: string;
-	arguments:
-		| IsParentOfArguments
-		| [parent: RawTransactionArgument<string>, child: RawTransactionArgument<string>];
+	arguments: IsParentOfArguments | [parent: TransactionArgument, child: TransactionArgument];
 }
 /** Checks if `parent` domain is a valid parent for `child`. */
 export function isParentOf(options: IsParentOfOptions) {

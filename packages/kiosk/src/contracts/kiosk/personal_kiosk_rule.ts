@@ -26,7 +26,7 @@
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 const $moduleName = '@local-pkg/kiosk::personal_kiosk_rule';
 export const Rule = new MoveStruct({
 	name: `${$moduleName}::Rule`,
@@ -61,13 +61,11 @@ export function add(options: AddOptions) {
 }
 export interface ProveArguments {
 	kiosk: RawTransactionArgument<string>;
-	request: RawTransactionArgument<string>;
+	request: TransactionArgument;
 }
 export interface ProveOptions {
 	package?: string;
-	arguments:
-		| ProveArguments
-		| [kiosk: RawTransactionArgument<string>, request: RawTransactionArgument<string>];
+	arguments: ProveArguments | [kiosk: RawTransactionArgument<string>, request: TransactionArgument];
 	typeArguments: [string];
 }
 /**

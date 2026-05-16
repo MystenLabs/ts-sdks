@@ -1,0 +1,66 @@
+{
+	"name": "@mysten/dapp-kit-react",
+	"author": "Mysten Labs <build@mystenlabs.com>",
+	"description": "React bindings for @mysten/dapp-kit-core",
+	"version": "2.0.3",
+	"license": "Apache-2.0",
+	"files": [
+		"LICENSE",
+		"README.md",
+		"dist",
+		"docs",
+		"src"
+	],
+	"type": "module",
+	"module": "./dist/index.mjs",
+	"types": "./dist/index.d.mts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.mts",
+			"import": "./dist/index.mjs",
+			"default": "./dist/index.mjs"
+		},
+		"./ui": {
+			"types": "./dist/ui.d.mts",
+			"import": "./dist/ui.mjs",
+			"default": "./dist/ui.mjs"
+		}
+	},
+	"scripts": {
+		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
+		"build": "pnpm typecheck && tsdown",
+		"build:docs": "node ../../../docs/scripts/build-docs.ts",
+		"typecheck": "tsc --noEmit",
+		"dev": "tsdown --watch",
+		"prettier:check": "prettier -c --ignore-unknown .",
+		"prettier:fix": "prettier -w --ignore-unknown .",
+		"oxlint:check": "oxlint  .",
+		"oxlint:fix": "oxlint --fix",
+		"lint": "pnpm run oxlint:check && pnpm run prettier:check",
+		"lint:fix": "pnpm run oxlint:fix && pnpm run prettier:fix"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/MystenLabs/ts-sdks.git"
+	},
+	"bugs": {
+		"url": "https://github.com/MystenLabs/ts-sdks/issues/new"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"devDependencies": {
+		"tsdown": "0.20.0-beta.1",
+		"typescript": "^5.9.3"
+	},
+	"dependencies": {
+		"@lit/react": "^1.0.8",
+		"@mysten/dapp-kit-core": "workspace:^",
+		"@nanostores/react": "^1.0.0",
+		"nanostores": "^1.1.0"
+	},
+	"peerDependencies": {
+		"@types/react": ">=17.0.0",
+		"react": ">=17.0.0"
+	}
+}

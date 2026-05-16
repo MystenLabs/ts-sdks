@@ -1,7 +1,7 @@
 /**************************************************************
  * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
  **************************************************************/
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import { normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 export interface InitPythOptions {
 	package?: string;
@@ -10,9 +10,9 @@ export interface InitPythOptions {
 		RawTransactionArgument<string>,
 		RawTransactionArgument<number | bigint>,
 		RawTransactionArgument<number | bigint>,
-		RawTransactionArgument<number[]>,
-		RawTransactionArgument<number | bigint[]>,
-		RawTransactionArgument<number[][]>,
+		RawTransactionArgument<Array<number>>,
+		RawTransactionArgument<Array<number | bigint>>,
+		RawTransactionArgument<Array<Array<number>>>,
 		RawTransactionArgument<number | bigint>,
 	];
 }
@@ -41,8 +41,8 @@ export interface CreatePriceFeedsUsingAccumulatorOptions {
 	package?: string;
 	arguments: [
 		RawTransactionArgument<string>,
-		RawTransactionArgument<number[]>,
-		RawTransactionArgument<string>,
+		RawTransactionArgument<Array<number>>,
+		TransactionArgument,
 	];
 }
 export function createPriceFeedsUsingAccumulator(options: CreatePriceFeedsUsingAccumulatorOptions) {
@@ -62,7 +62,7 @@ export function createPriceFeedsUsingAccumulator(options: CreatePriceFeedsUsingA
 }
 export interface CreatePriceFeedsOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>, RawTransactionArgument<string[]>];
+	arguments: [RawTransactionArgument<string>, TransactionArgument];
 }
 export function createPriceFeeds(options: CreatePriceFeedsOptions) {
 	const packageAddress =
@@ -80,8 +80,8 @@ export interface CreateAuthenticatedPriceInfosUsingAccumulatorOptions {
 	package?: string;
 	arguments: [
 		RawTransactionArgument<string>,
-		RawTransactionArgument<number[]>,
-		RawTransactionArgument<string>,
+		RawTransactionArgument<Array<number>>,
+		TransactionArgument,
 	];
 }
 export function createAuthenticatedPriceInfosUsingAccumulator(
@@ -103,7 +103,7 @@ export function createAuthenticatedPriceInfosUsingAccumulator(
 }
 export interface CreatePriceInfosHotPotatoOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>, RawTransactionArgument<string[]>];
+	arguments: [RawTransactionArgument<string>, TransactionArgument];
 }
 export function createPriceInfosHotPotato(options: CreatePriceInfosHotPotatoOptions) {
 	const packageAddress =
@@ -121,7 +121,7 @@ export interface UpdateSinglePriceFeedOptions {
 	package?: string;
 	arguments: [
 		RawTransactionArgument<string>,
-		RawTransactionArgument<string>,
+		TransactionArgument,
 		RawTransactionArgument<string>,
 		RawTransactionArgument<string>,
 	];
@@ -140,7 +140,7 @@ export function updateSinglePriceFeed(options: UpdateSinglePriceFeedOptions) {
 }
 export interface PriceFeedExistsOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>, RawTransactionArgument<string>];
+	arguments: [RawTransactionArgument<string>, TransactionArgument];
 }
 export function priceFeedExists(options: PriceFeedExistsOptions) {
 	const packageAddress =

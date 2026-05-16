@@ -2,5 +2,5 @@
 	"keypairs": "Key pairs",
 	"multisig": "Multi-Signature Transactions",
 	"passkey": "Passkey",
-	"webcrypto": "Web Crypto Signer"
+	"webcrypto-signer": "Web Crypto Signer"
 }

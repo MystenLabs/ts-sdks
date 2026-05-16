@@ -1,6 +1,7 @@
 ---
 title: Managing Owned Kiosk
-description: 'Manage kiosk items: place, list, delist, and withdraw'
+description: Manage kiosk items by placing, listing, delisting, and withdrawing using the Kiosk SDK.
+keywords: [kiosk management, place, list, delist, withdraw, take, KioskTransaction, Sui]
 ---
 
 The kiosk extension (`client.kiosk`) helps in managing a kiosk.
@@ -10,7 +11,7 @@ create a `KioskTransaction`.
 
 ## Available functions
 
-### take
+### `take`
 
 Removes an item from the Kiosk and returns a `TransactionArgument` to use it in a different
 Programmable Transaction Block (PTB) call.
@@ -38,7 +39,7 @@ kioskTx.finalize();
 await signAndExecuteTransaction({ tx: tx });
 ```
 
-### transfer
+### `transfer`
 
 Similar to `take`, but transfers the item to an address internally.
 
@@ -62,7 +63,7 @@ kioskTx
 await signAndExecuteTransaction({ tx: tx });
 ```
 
-### place
+### `place`
 
 Places an item in the kiosk.
 
@@ -84,7 +85,7 @@ kioskTx
 await signAndExecuteTransaction({ tx: tx });
 ```
 
-### list
+### `list`
 
 Lists an item for sale (the item must be in the kiosk).
 
@@ -107,7 +108,7 @@ kioskTx
 await signAndExecuteTransaction({ tx: tx });
 ```
 
-### placeAndList
+### `placeAndList`
 
 List an item for sale by first placing it in the kiosk (places the item and lists it for sale). It's
 a short hand for `place()` and `list()`.
@@ -131,7 +132,7 @@ kioskTx
 await signAndExecuteTransaction({ tx: tx });
 ```
 
-### delist
+### `delist`
 
 Removes the listing, keeping the item placed in the kiosk.
 
@@ -153,7 +154,7 @@ kioskTx
 await signAndExecuteTransaction({ tx: tx });
 ```
 
-### withdraw
+### `withdraw`
 
 Withdraw (all or specific amount) from a kiosk.
 
@@ -169,7 +170,7 @@ kioskTx.withdraw('address_to_transfer_funds', 100000n).finalize();
 await signAndExecuteTransaction({ tx: tx });
 ```
 
-### borrowTx (callback)
+### `borrowTx` (callback)
 
 Borrows an item from a kiosk. This function follows the `callback` approach, similar to the
 ownerCap. The return of the item happens automatically after the execution of the callback.
@@ -200,10 +201,10 @@ kioskTx
 await signAndExecuteTransaction({ tx: tx });
 ```
 
-### borrow / return
+### `borrow` / `return`
 
 Similar to `borrowTx`, borrows an item from the kiosk, but returns two transaction arguments: `item`
-& `promise`. You can use the `item` in your PTBs, but you must always call the `return()` function
+and `promise`. You can use the `item` in your PTBs, but you must always call the `return()` function
 with the `item` and the `Promise`.
 
 ```typescript

@@ -3,7 +3,7 @@
  **************************************************************/
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as price_feed from './price_feed.js';
 const $moduleName =
 	'0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837::price_info';
@@ -24,7 +24,7 @@ export const PriceInfoObject = new MoveStruct({
 });
 export interface GetIdBytesOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>, RawTransactionArgument<string>];
+	arguments: [RawTransactionArgument<string>, TransactionArgument];
 }
 export function getIdBytes(options: GetIdBytesOptions) {
 	const packageAddress =
@@ -40,7 +40,7 @@ export function getIdBytes(options: GetIdBytesOptions) {
 }
 export interface GetIdOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>, RawTransactionArgument<string>];
+	arguments: [RawTransactionArgument<string>, TransactionArgument];
 }
 export function getId(options: GetIdOptions) {
 	const packageAddress =
@@ -56,7 +56,7 @@ export function getId(options: GetIdOptions) {
 }
 export interface ContainsOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>, RawTransactionArgument<string>];
+	arguments: [RawTransactionArgument<string>, TransactionArgument];
 }
 export function contains(options: ContainsOptions) {
 	const packageAddress =
@@ -107,7 +107,7 @@ export interface NewPriceInfoOptions {
 	arguments: [
 		RawTransactionArgument<number | bigint>,
 		RawTransactionArgument<number | bigint>,
-		RawTransactionArgument<string>,
+		TransactionArgument,
 	];
 }
 export function newPriceInfo(options: NewPriceInfoOptions) {
@@ -156,7 +156,7 @@ export function getPriceInfoFromPriceInfoObject(options: GetPriceInfoFromPriceIn
 }
 export interface GetPriceIdentifierOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>];
+	arguments: [TransactionArgument];
 }
 export function getPriceIdentifier(options: GetPriceIdentifierOptions) {
 	const packageAddress =
@@ -172,7 +172,7 @@ export function getPriceIdentifier(options: GetPriceIdentifierOptions) {
 }
 export interface GetPriceFeedOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>];
+	arguments: [TransactionArgument];
 }
 export function getPriceFeed(options: GetPriceFeedOptions) {
 	const packageAddress =
@@ -188,7 +188,7 @@ export function getPriceFeed(options: GetPriceFeedOptions) {
 }
 export interface GetAttestationTimeOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>];
+	arguments: [TransactionArgument];
 }
 export function getAttestationTime(options: GetAttestationTimeOptions) {
 	const packageAddress =
@@ -204,7 +204,7 @@ export function getAttestationTime(options: GetAttestationTimeOptions) {
 }
 export interface GetArrivalTimeOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>];
+	arguments: [TransactionArgument];
 }
 export function getArrivalTime(options: GetArrivalTimeOptions) {
 	const packageAddress =

@@ -2,14 +2,22 @@
  * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
  **************************************************************/
 import {
-	MoveTuple,
 	MoveStruct,
+	MoveTuple,
 	normalizeMoveArguments,
 	type RawTransactionArgument,
 } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
+import * as domain from './domain.js';
 const $moduleName = '@suins/core::controller';
+export const SubnamePrunedEvent = new MoveStruct({
+	name: `${$moduleName}::SubnamePrunedEvent`,
+	fields: {
+		subdomain: domain.Domain,
+		parent_domain: domain.Domain,
+	},
+});
 export const ControllerV2 = new MoveTuple({
 	name: `${$moduleName}::ControllerV2`,
 	fields: [bcs.bool()],
@@ -264,6 +272,92 @@ export function burnExpiredSubname(options: BurnExpiredSubnameOptions) {
 			package: packageAddress,
 			module: 'controller',
 			function: 'burn_expired_subname',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface PruneExpiredSubnameArguments {
+	suins: RawTransactionArgument<string>;
+	parent: RawTransactionArgument<string>;
+	subdomainName: RawTransactionArgument<string>;
+}
+export interface PruneExpiredSubnameOptions {
+	package?: string;
+	arguments:
+		| PruneExpiredSubnameArguments
+		| [
+				suins: RawTransactionArgument<string>,
+				parent: RawTransactionArgument<string>,
+				subdomainName: RawTransactionArgument<string>,
+		  ];
+}
+/**
+ * Prunes an expired subdomain record from the registry by name, gated by ownership
+ * of the parent. This allows the parent holder to clean up expired subdomain
+ * records even when they don't possess the SubDomainRegistration object. After
+ * pruning, the subdomain name becomes available for re-registration. The orphaned
+ * SubDomainRegistration object (if it still exists) becomes useless.
+ *
+ * Use this when you control the parent domain but someone else holds the expired
+ * subdomain NFT.
+ */
+export function pruneExpiredSubname(options: PruneExpiredSubnameOptions) {
+	const packageAddress = options.package ?? '@suins/core';
+	const argumentsTypes = [null, null, '0x1::string::String', '0x2::clock::Clock'] satisfies (
+		| string
+		| null
+	)[];
+	const parameterNames = ['suins', 'parent', 'subdomainName'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'controller',
+			function: 'prune_expired_subname',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface PruneExpiredSubnamesArguments {
+	suins: RawTransactionArgument<string>;
+	parent: RawTransactionArgument<string>;
+	subdomainNames: RawTransactionArgument<Array<string>>;
+}
+export interface PruneExpiredSubnamesOptions {
+	package?: string;
+	arguments:
+		| PruneExpiredSubnamesArguments
+		| [
+				suins: RawTransactionArgument<string>,
+				parent: RawTransactionArgument<string>,
+				subdomainNames: RawTransactionArgument<Array<string>>,
+		  ];
+}
+/**
+ * Best-effort pruning of multiple expired subdomain records for a given parent.
+ *
+ * This function does **not** abort if individual entries are:
+ *
+ * - not subdomains,
+ * - not direct children of the parent,
+ * - missing from the registry,
+ * - not expired,
+ * - leaf records.
+ *
+ * It prunes what it can, emitting `SubnamePrunedEvent` for each successfully
+ * pruned record, and returns the total count of pruned entries.
+ */
+export function pruneExpiredSubnames(options: PruneExpiredSubnamesOptions) {
+	const packageAddress = options.package ?? '@suins/core';
+	const argumentsTypes = [
+		null,
+		null,
+		'vector<0x1::string::String>',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = ['suins', 'parent', 'subdomainNames'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'controller',
+			function: 'prune_expired_subnames',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }

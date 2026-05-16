@@ -3,11 +3,14 @@
 
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
+import { ModuleRegistry } from './module-registry.js';
 import { MoveModuleBuilder } from './move-module-builder.js';
 import { existsSync, statSync } from 'node:fs';
-import { utilsContent } from './generate-utils.js';
+import { getUtilsContent } from './generate-utils.js';
 import { parse } from 'toml';
+import type { RootPackageMetadata } from './types/summary.js';
 import type {
+	ErrorClassConfig,
 	FunctionsOption,
 	GenerateBase,
 	ImportExtension,
@@ -24,6 +27,7 @@ export async function generateFromPackageSummary({
 	globalGenerate,
 	importExtension = '.js',
 	includePhantomTypeParameters = false,
+	errorClass,
 }: {
 	package: PackageConfig;
 	prune: boolean;
@@ -31,6 +35,7 @@ export async function generateFromPackageSummary({
 	globalGenerate?: GenerateBase;
 	importExtension?: ImportExtension;
 	includePhantomTypeParameters?: boolean;
+	errorClass?: ErrorClassConfig;
 }) {
 	if (!pkg.path) {
 		throw new Error(`Package path is required (got ${pkg.package})`);
@@ -46,30 +51,60 @@ export async function generateFromPackageSummary({
 	}
 
 	let packageName = pkg.packageName!;
-	let mainPackageAddress: string | undefined;
+	let rootPackageId: string | undefined;
+	let localAddressLabels: string[] = [];
 	const mvrNameOrAddress = pkg.package;
 
+	const typeOriginsByPkgAndModule = new Map<string, Map<string, Record<string, string>>>();
+
 	if (isOnChainPackage) {
-		// For on-chain packages, get the main package address from root_package_metadata.json
-		const metadata = JSON.parse(
+		const metadata: RootPackageMetadata = JSON.parse(
 			await readFile(join(pkg.path, 'root_package_metadata.json'), 'utf-8'),
 		);
-		mainPackageAddress = metadata.root_package_id;
-		// Use the package name provided or fall back to the full address
-		if (!packageName) {
-			packageName = mainPackageAddress!;
+		rootPackageId = metadata.root_package_original_id ?? metadata.root_package_id;
+		if (!rootPackageId) {
+			throw new Error(`root_package_metadata.json at ${pkg.path} is missing 'root_package_id'`);
 		}
-	} else if (!pkg.packageName) {
+		if (!packageName) {
+			packageName = rootPackageId;
+		}
+
+		if (metadata.type_origins) {
+			for (const [originKey, origins] of Object.entries(metadata.type_origins)) {
+				let modules = typeOriginsByPkgAndModule.get(originKey);
+				if (!modules) {
+					modules = new Map();
+					typeOriginsByPkgAndModule.set(originKey, modules);
+				}
+				for (const { module_name, datatype_name, package: introducingId } of origins) {
+					let modOrigins = modules.get(module_name);
+					if (!modOrigins) {
+						modOrigins = {};
+						modules.set(module_name, modOrigins);
+					}
+					modOrigins[datatype_name] = introducingId;
+				}
+			}
+		}
+	} else {
+		let parsedToml: { package?: { name?: unknown }; addresses?: Record<string, string> };
 		try {
-			const packageToml = await readFile(join(pkg.path, 'Move.toml'), 'utf-8');
-			packageName = parse(packageToml).package.name.toLowerCase();
+			parsedToml = parse(await readFile(join(pkg.path, 'Move.toml'), 'utf-8'));
 		} catch {
-			const message = `Package name not found in package.toml for ${pkg.path}`;
-			if (packageName) {
-				console.warn(message);
-			} else {
+			const message = `Failed to read Move.toml for ${pkg.path}`;
+			if (!packageName) {
 				throw new Error(message);
 			}
+			console.warn(message);
+			parsedToml = {};
+		}
+		localAddressLabels = Object.keys(parsedToml.addresses ?? {});
+		if (!pkg.packageName) {
+			const tomlName = parsedToml.package?.name;
+			if (typeof tomlName !== 'string') {
+				throw new Error(`Package name not found in Move.toml for ${pkg.path}`);
+			}
+			packageName = tomlName.toLowerCase();
 		}
 	}
 
@@ -81,15 +116,15 @@ export async function generateFromPackageSummary({
 		statSync(join(summaryDir, file)).isDirectory(),
 	);
 
-	// For on-chain packages, the main package is identified by the root_package_id
-	// For local packages, it's identified by the packageName
-	const isMainPackage = (pkgDir: string) => {
-		if (isOnChainPackage) {
-			return pkgDir === mainPackageAddress;
-		}
-		return pkgDir === packageName;
-	};
+	const mainPackageDir = isOnChainPackage
+		? rootPackageId!
+		: resolveLocalMainPackageDir(localAddressLabels, packages, packageName, pkg.path);
+	if (!packages.includes(mainPackageDir)) {
+		throw new Error(`Main package dir ${mainPackageDir} not found in summary at ${pkg.path}`);
+	}
+	const isMainPackage = (pkgDir: string) => pkgDir === mainPackageDir;
 
+	const registry = new ModuleRegistry(addressMappings);
 	const modules = (
 		await Promise.all(
 			packages.map(async (pkgDir) => {
@@ -97,26 +132,27 @@ export async function generateFromPackageSummary({
 				return Promise.all(
 					moduleFiles
 						.filter((f) => f.endsWith('.json'))
-						.map(async (mod) => ({
-							package: pkgDir,
-							isMainPackage: isMainPackage(pkgDir),
-							module: basename(mod, '.json'),
-							builder: await MoveModuleBuilder.fromSummaryFile(
-								join(summaryDir, pkgDir, mod),
-								addressMappings,
-								isMainPackage(pkgDir) ? mvrNameOrAddress : undefined,
-								importExtension,
-								includePhantomTypeParameters,
-							),
-						})),
+						.map(async (mod) => {
+							const moduleName = basename(mod, '.json');
+							return {
+								package: pkgDir,
+								isMainPackage: isMainPackage(pkgDir),
+								module: moduleName,
+								builder: await MoveModuleBuilder.fromSummaryFile(
+									join(summaryDir, pkgDir, mod),
+									registry,
+									isMainPackage(pkgDir) ? mvrNameOrAddress : undefined,
+									importExtension,
+									includePhantomTypeParameters,
+									typeOriginsByPkgAndModule.get(pkgDir)?.get(moduleName),
+									isMainPackage(pkgDir) ? rootPackageId : undefined,
+								),
+							};
+						}),
 				);
 			}),
 		)
 	).flat();
-
-	const moduleBuilders = Object.fromEntries(
-		modules.map((mod) => [`${mod.package}::${mod.module}`, mod.builder]),
-	);
 
 	const packageGenerate: PackageGenerate | undefined = 'generate' in pkg ? pkg.generate : undefined;
 	const pkgModules = packageGenerate?.modules;
@@ -142,15 +178,15 @@ export async function generateFromPackageSummary({
 		const types = moduleGenerate === true ? pkgTypes : (moduleGenerate.types ?? false);
 		const functions = moduleGenerate === true ? pkgFunctions : (moduleGenerate.functions ?? false);
 
-		mod.builder.includeTypes(moduleBuilders, types);
+		mod.builder.includeTypes(types);
 		mod.builder.includeFunctions(functions);
 	}
 
-	await generateUtils({ outputDir });
-
-	// Clean the package output directory to remove stale files from previous runs
+	// Wipe stale files before writing fresh ones.
 	const packageOutputDir = join(outputDir, packageName);
 	await rm(packageOutputDir, { recursive: true, force: true });
+
+	await generateUtils({ outputDir, errorClass });
 
 	await Promise.all(
 		modules.map(async (mod) => {
@@ -172,20 +208,49 @@ export async function generateFromPackageSummary({
 				{ recursive: true },
 			);
 
+			const packageDir = join(outputDir, packageName);
+			const fileRelToPackage = mod.isMainPackage
+				? `${mod.module}.ts`
+				: join('deps', mod.package, `${mod.module}.ts`);
+
 			await writeFile(
-				mod.isMainPackage
-					? join(outputDir, packageName, `${mod.module}.ts`)
-					: join(outputDir, packageName, 'deps', mod.package, `${mod.module}.ts`),
-				await mod.builder.toString(
-					'./',
-					mod.isMainPackage ? `./${mod.module}.ts` : `./deps/${mod.package}/${mod.module}.ts`,
-				),
+				join(packageDir, fileRelToPackage),
+				await mod.builder.toString(packageDir, fileRelToPackage, outputDir),
 			);
 		}),
 	);
 }
 
-async function generateUtils({ outputDir }: { outputDir: string }) {
+async function generateUtils({
+	outputDir,
+	errorClass,
+}: {
+	outputDir: string;
+	errorClass?: ErrorClassConfig;
+}) {
 	await mkdir(join(outputDir, 'utils'), { recursive: true });
-	await writeFile(join(outputDir, 'utils', 'index.ts'), utilsContent);
+	await writeFile(join(outputDir, 'utils', 'index.ts'), getUtilsContent(errorClass));
+}
+
+function resolveLocalMainPackageDir(
+	localAddressLabels: string[],
+	summaryPackages: string[],
+	packageName: string,
+	pkgPath: string,
+): string {
+	const fromLocalAddresses = localAddressLabels.filter((label) => summaryPackages.includes(label));
+	if (fromLocalAddresses.length === 1) {
+		return fromLocalAddresses[0];
+	}
+	if (summaryPackages.includes(packageName)) {
+		return packageName;
+	}
+
+	throw new Error(
+		`Could not identify main package directory for ${pkgPath}.\n` +
+			`Summary subdirectories: ${summaryPackages.join(', ')}\n` +
+			`Move.toml [package].name: ${packageName}\n` +
+			`Move.toml [addresses] labels: ${localAddressLabels.join(', ') || '(none)'}\n` +
+			`\nPass 'packageName: "<dir>"' in your codegen config to pick one of the summary subdirectories above.`,
+	);
 }

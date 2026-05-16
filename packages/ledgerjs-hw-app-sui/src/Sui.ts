@@ -54,7 +54,7 @@ enum HostToLedger {
 	RESULT_ACCUMULATING_RESPONSE = 4,
 }
 
-const MIN_VERSION = '1.2.2';
+const MIN_VERSION = '1.5.4';
 const MANAGER_APP_NAME = 'Sui';
 
 function isPKIUnsupportedError(err: unknown): err is TransportStatusError {

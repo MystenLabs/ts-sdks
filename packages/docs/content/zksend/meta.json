@@ -2,5 +2,5 @@
 	"root": true,
 	"title": "ZkSend",
 	"description": "Send Sui with a link",
-	"pages": ["index", "link-builder"]
+	"pages": ["index", "link-builder", "composable-claim"]
 }

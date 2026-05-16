@@ -18,7 +18,7 @@
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 const $moduleName = '@local-pkg/kiosk::floor_price_rule';
 export const Rule = new MoveStruct({
 	name: `${$moduleName}::Rule`,
@@ -67,13 +67,13 @@ export function add(options: AddOptions) {
 }
 export interface ProveArguments {
 	policy: RawTransactionArgument<string>;
-	request: RawTransactionArgument<string>;
+	request: TransactionArgument;
 }
 export interface ProveOptions {
 	package?: string;
 	arguments:
 		| ProveArguments
-		| [policy: RawTransactionArgument<string>, request: RawTransactionArgument<string>];
+		| [policy: RawTransactionArgument<string>, request: TransactionArgument];
 	typeArguments: [string];
 }
 /** Buyer action: Prove that the amount is higher or equal to the floor_price. */

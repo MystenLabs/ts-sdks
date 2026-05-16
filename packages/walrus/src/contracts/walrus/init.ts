@@ -68,13 +68,36 @@ export function initializeWalrus(options: InitializeWalrusOptions) {
 		});
 }
 export interface MigrateArguments {
-	staking: RawTransactionArgument<string>;
-	system: RawTransactionArgument<string>;
+	Staking: RawTransactionArgument<string>;
+	System: RawTransactionArgument<string>;
 }
 export interface MigrateOptions {
 	package?: string;
 	arguments:
 		| MigrateArguments
+		| [Staking: RawTransactionArgument<string>, System: RawTransactionArgument<string>];
+}
+/** Deprecated old migration function. */
+export function migrate(options: MigrateOptions) {
+	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const argumentsTypes = [null, null] satisfies (string | null)[];
+	const parameterNames = ['Staking', 'System'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'init',
+			function: 'migrate',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface MigrateV2Arguments {
+	staking: RawTransactionArgument<string>;
+	system: RawTransactionArgument<string>;
+}
+export interface MigrateV2Options {
+	package?: string;
+	arguments:
+		| MigrateV2Arguments
 		| [staking: RawTransactionArgument<string>, system: RawTransactionArgument<string>];
 }
 /**
@@ -84,10 +107,15 @@ export interface MigrateOptions {
  * event that informs all storage nodes and prevent previous package versions from
  * being used.
  *
- * Requires the migration epoch to be set first on the staking object, which then
- * enables the migration at the start of the next epoch.
+ * Migrate to version 2: Requires the migration epoch to be set first on the
+ * staking object, which then enables the migration at the start of the next epoch.
+ * Migrate to version 3:
+ *
+ * - Create the slashing manager shared object.
+ * - Do not use migration epoch. Migrate to version 4:
+ * - No additional steps beyond version bump.
  */
-export function migrate(options: MigrateOptions) {
+export function migrateV2(options: MigrateV2Options) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['staking', 'system'];
@@ -95,7 +123,7 @@ export function migrate(options: MigrateOptions) {
 		tx.moveCall({
 			package: packageAddress,
 			module: 'init',
-			function: 'migrate',
+			function: 'migrate_v2',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }

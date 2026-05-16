@@ -1,6 +1,16 @@
 ---
 title: Payment Processing
-description: Process payments and handle transaction results
+description: Process registry-based and ephemeral payments and handle transaction results on Sui.
+keywords:
+  [
+    payment processing,
+    registry payments,
+    ephemeral payments,
+    PaymentReceipt,
+    duplicate prevention,
+    Sui,
+    TypeScript,
+  ]
 ---
 
 <Callout type="info">
@@ -12,15 +22,15 @@ description: Process payments and handle transaction results
 Payment Kit provides two distinct payment processing models, each designed for different use cases.
 This guide explains how each model works and when to use them.
 
-## Payment Models Overview
+## Payment models overview
 
-### Registry-Based Payments
+### Registry-based payments
 
-Registry-based payments create a persistent `PaymentRecord` stored on-chain in a `PaymentRegistry`.
+Registry-based payments create a persistent `PaymentRecord` stored onchain in a `PaymentRegistry`.
 This model provides:
 
 - **Duplicate Prevention**: A payment with the same parameters can only be processed once
-- **Verifiable Proof**: On-chain proof that a payment was made
+- **Verifiable Proof**: Onchain proof that a payment was made
 - **Expiration Management**: Records can be deleted after a configurable period
 - **Centralized Tracking**: All payments are indexed under a specific registry
 
@@ -31,12 +41,12 @@ This model provides:
 - Invoice payments
 - Any scenario requiring duplicate prevention
 
-### Ephemeral Payments
+### Ephemeral payments
 
-Ephemeral payments process transfers without creating persistent on-chain records. This model
+Ephemeral payments process transfers without creating persistent onchain records. This model
 provides:
 
-- **Lower Gas Costs**: No on-chain storage means cheaper transactions
+- **Lower Gas Costs**: No onchain storage means cheaper transactions
 - **Flexibility**: No registry configuration required
 
 **When to Use:**
@@ -44,14 +54,14 @@ provides:
 - Tipping/donations
 - Recurring payments with external tracking
 - High-frequency microtransactions
-- Scenarios where duplicate prevention is handled off-chain
+- Scenarios where duplicate prevention is handled offchain
 
-## How Payment Keys Work
+## How payment keys work
 
 Payment Kit uses a composite key system to uniquely identify payments. Understanding this is crucial
 for using the SDK effectively.
 
-### Payment Key Components
+### Payment key components
 
 A payment key is derived from four parameters:
 
@@ -64,7 +74,7 @@ type PaymentKeyArgs = {
 };
 ```
 
-### Key Generation
+### Key generation
 
 When you process a registry payment, Payment Kit hashes these parameters to create a unique key:
 
@@ -92,7 +102,7 @@ const tx2 = client.paymentKit.tx.processRegistryPayment({
 });
 ```
 
-### Changing Any Component Creates a New Key
+### Changing any component creates a new key
 
 Each component affects the payment key. Changing any parameter creates a different payment. This
 means, as an example, that a `nonce` can be reused for a different payment, if the `coinType` or
@@ -128,11 +138,11 @@ const payment3 = {
 // All three are unique payments that can be processed separately
 ```
 
-## Processing Registry-Based Payments
+## Processing registry-based payments
 
 Let's walk through a complete registry payment workflow:
 
-### Step 1: Create the Transaction
+### Step 1: Create the transaction
 
 ```ts
 // Define your payment parameters
@@ -148,7 +158,7 @@ const paymentParams = {
 const tx = client.paymentKit.tx.processRegistryPayment(paymentParams);
 ```
 
-### What Happens On-Chain
+### What happens onchain
 
 When this transaction executes, Payment Kit:
 
@@ -158,7 +168,7 @@ When this transaction executes, Payment Kit:
 4. **Creates** a `PaymentRecord` dynamic field on the registry
 5. **Emits** a `PaymentReceipt` event
 
-### Step 2: Execute the Transaction
+### Step 2: Execute the transaction
 
 ```ts
 const result = await client.signAndExecuteTransaction({
@@ -179,7 +189,7 @@ if (result.$kind === 'FailedTransaction') {
 console.log('Transaction digest:', result.Transaction.digest);
 ```
 
-### Step 3: Extract the Receipt
+### Step 3: Extract the receipt
 
 ```ts
 // Find the PaymentReceipt event
@@ -200,7 +210,7 @@ if (receiptEvent) {
 }
 ```
 
-### Step 4: Verify the Payment Record
+### Step 4: Verify the payment record
 
 ```ts
 // Query the payment record to confirm it exists
@@ -219,11 +229,11 @@ if (record) {
 }
 ```
 
-## Processing Ephemeral Payments
+## Processing ephemeral payments
 
 Ephemeral payments follow a simpler flow without creating persistent records:
 
-### Creating an Ephemeral Payment
+### Creating an ephemeral payment
 
 ```ts
 // No registry needed for ephemeral payments
@@ -249,7 +259,7 @@ if (result.$kind === 'FailedTransaction') {
 }
 ```
 
-### What Happens On-Chain
+### What happens onchain
 
 For ephemeral payments, Payment Kit:
 
@@ -257,9 +267,9 @@ For ephemeral payments, Payment Kit:
 2. **Transfers** the coins from sender to receiver
 3. **Emits** a `PaymentReceipt` event
 
-**Note:** No `PaymentRecord` is created, so duplicate payments are not prevented.
+No `PaymentRecord` is created, so duplicate payments are not prevented.
 
-### Extracting the Receipt
+### Extracting the receipt
 
 ```ts
 const receiptEvent = result.Transaction.events?.find((event) =>
@@ -272,9 +282,9 @@ if (receiptEvent) {
 }
 ```
 
-## Advanced Payment Scenarios
+## Advanced payment scenarios
 
-### Processing Multiple Payments in One Transaction
+### Processing multiple payments in one transaction
 
 You can combine multiple payment operations in a single transaction:
 
@@ -311,7 +321,7 @@ const result = await client.signAndExecuteTransaction({
 });
 ```
 
-### Working with Custom Coin Types
+### Working with custom coin types
 
 Payment Kit works with any Sui coin type:
 
@@ -334,9 +344,9 @@ const result = await client.signAndExecuteTransaction({
 });
 ```
 
-## Gas Considerations
+## Gas considerations
 
-### Registry Payments
+### Registry payments
 
 Registry payments have higher gas costs because they:
 
@@ -344,7 +354,7 @@ Registry payments have higher gas costs because they:
 - Write data to the registry object
 - Perform duplicate checking
 
-### Ephemeral Payments
+### Ephemeral payments
 
 Ephemeral payments have lower gas costs because they:
 
@@ -352,9 +362,9 @@ Ephemeral payments have lower gas costs because they:
 - Don't create persistent storage
 - Skip duplicate checking
 
-## Best Practices
+## Best practices
 
-1. **Use Meaningful Nonces**: Choose nonces that help you track payments (e.g., `order-123`,
+1. **Use Meaningful Nonces**: Choose nonces that help you track payments (for example, `order-123`,
    `invoice-456`)
 
 2. **Store Receipts Off-Chain**: Save `PaymentReceipt` events in your database for quick lookup
@@ -362,7 +372,7 @@ Ephemeral payments have lower gas costs because they:
 3. **Handle Duplicate Attempts**: Gracefully handle duplicate payment attempts with proper error
    messages
 
-4. **Verify Before Delivery**: Always verify payment records before delivering goods/services
+4. **Verify Before Delivery**: Always verify payment records before delivering goods or services
 
 5. **Choose the Right Model**:
    - Use registry payments for critical transactions requiring duplicate prevention
@@ -371,6 +381,6 @@ Ephemeral payments have lower gas costs because they:
 6. **Monitor Expiration**: If using registry payments, be aware of the expiration policy and query
    records before they expire
 
-## Next Steps
+## Next steps
 
 - [Registry Management](./registry-management) - Learn how to create and configure custom registries

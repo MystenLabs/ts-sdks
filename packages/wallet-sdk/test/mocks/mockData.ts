@@ -428,7 +428,7 @@ export const DEFAULT_MOVE_FUNCTIONS: SuiClientTypes.FunctionResponse[] = [
 		],
 	}),
 	createMockMoveFunction({
-		packageId: '0999',
+		packageId: '0x999',
 		moduleName: 'test',
 		name: 'create_coin',
 		visibility: 'public',
@@ -463,6 +463,286 @@ export const DEFAULT_MOVE_FUNCTIONS: SuiClientTypes.FunctionResponse[] = [
 		isEntry: false,
 		parameters: [],
 		returns: [{ reference: null, body: { $kind: 'u64' } }],
+	}),
+];
+
+// Framework function definitions for 0x2::coin and 0x2::balance
+const coinTypeParam = { $kind: 'typeParameter' as const, index: 0 };
+const coinDatatype = {
+	$kind: 'datatype' as const,
+	datatype: { typeName: '0x2::coin::Coin', typeParameters: [coinTypeParam] },
+};
+const balanceDatatype = {
+	$kind: 'datatype' as const,
+	datatype: { typeName: '0x2::balance::Balance', typeParameters: [coinTypeParam] },
+};
+
+export const FRAMEWORK_MOVE_FUNCTIONS: SuiClientTypes.FunctionResponse[] = [
+	// balance::redeem_funds<T>(Withdrawal<Balance<T>>) -> Balance<T>
+	createMockMoveFunction({
+		packageId: '0x2',
+		moduleName: 'balance',
+		name: 'redeem_funds',
+		visibility: 'public',
+		isEntry: false,
+		typeParameters: [{ constraints: [], isPhantom: false }],
+		parameters: [{ reference: null, body: balanceDatatype }],
+		returns: [{ reference: null, body: balanceDatatype }],
+	}),
+	// coin::redeem_funds<T>(Withdrawal<Balance<T>>, &mut TxContext) -> Coin<T>
+	createMockMoveFunction({
+		packageId: '0x2',
+		moduleName: 'coin',
+		name: 'redeem_funds',
+		visibility: 'public',
+		isEntry: false,
+		typeParameters: [{ constraints: [], isPhantom: false }],
+		parameters: [
+			{ reference: null, body: balanceDatatype },
+			{
+				reference: 'mutable',
+				body: {
+					$kind: 'datatype',
+					datatype: { typeName: '0x2::tx_context::TxContext', typeParameters: [] },
+				},
+			},
+		],
+		returns: [{ reference: null, body: coinDatatype }],
+	}),
+	// coin::send_funds<T>(Coin<T>, address)
+	createMockMoveFunction({
+		packageId: '0x2',
+		moduleName: 'coin',
+		name: 'send_funds',
+		visibility: 'public',
+		isEntry: false,
+		typeParameters: [{ constraints: [], isPhantom: false }],
+		parameters: [
+			{ reference: null, body: coinDatatype },
+			{ reference: null, body: { $kind: 'address' } },
+		],
+	}),
+	// balance::send_funds<T>(Balance<T>, address)
+	createMockMoveFunction({
+		packageId: '0x2',
+		moduleName: 'balance',
+		name: 'send_funds',
+		visibility: 'public',
+		isEntry: false,
+		typeParameters: [{ constraints: [], isPhantom: false }],
+		parameters: [
+			{ reference: null, body: balanceDatatype },
+			{ reference: null, body: { $kind: 'address' } },
+		],
+	}),
+	// coin::into_balance<T>(Coin<T>) -> Balance<T>
+	createMockMoveFunction({
+		packageId: '0x2',
+		moduleName: 'coin',
+		name: 'into_balance',
+		visibility: 'public',
+		isEntry: false,
+		typeParameters: [{ constraints: [], isPhantom: false }],
+		parameters: [{ reference: null, body: coinDatatype }],
+		returns: [{ reference: null, body: balanceDatatype }],
+	}),
+	// coin::from_balance<T>(Balance<T>, &mut TxContext) -> Coin<T>
+	createMockMoveFunction({
+		packageId: '0x2',
+		moduleName: 'coin',
+		name: 'from_balance',
+		visibility: 'public',
+		isEntry: false,
+		typeParameters: [{ constraints: [], isPhantom: false }],
+		parameters: [
+			{ reference: null, body: balanceDatatype },
+			{
+				reference: 'mutable',
+				body: {
+					$kind: 'datatype',
+					datatype: { typeName: '0x2::tx_context::TxContext', typeParameters: [] },
+				},
+			},
+		],
+		returns: [{ reference: null, body: coinDatatype }],
+	}),
+	// coin::split<T>(&mut Coin<T>, u64, &mut TxContext) -> Coin<T>
+	createMockMoveFunction({
+		packageId: '0x2',
+		moduleName: 'coin',
+		name: 'split',
+		visibility: 'public',
+		isEntry: false,
+		typeParameters: [{ constraints: [], isPhantom: false }],
+		parameters: [
+			{ reference: 'mutable', body: coinDatatype },
+			{ reference: null, body: { $kind: 'u64' } },
+			{
+				reference: 'mutable',
+				body: {
+					$kind: 'datatype',
+					datatype: { typeName: '0x2::tx_context::TxContext', typeParameters: [] },
+				},
+			},
+		],
+		returns: [{ reference: null, body: coinDatatype }],
+	}),
+	// balance::split<T>(&mut Balance<T>, u64) -> Balance<T>
+	createMockMoveFunction({
+		packageId: '0x2',
+		moduleName: 'balance',
+		name: 'split',
+		visibility: 'public',
+		isEntry: false,
+		typeParameters: [{ constraints: [], isPhantom: false }],
+		parameters: [
+			{ reference: 'mutable', body: balanceDatatype },
+			{ reference: null, body: { $kind: 'u64' } },
+		],
+		returns: [{ reference: null, body: balanceDatatype }],
+	}),
+	// coin::take<T>(&mut Balance<T>, u64, &mut TxContext) -> Coin<T>
+	createMockMoveFunction({
+		packageId: '0x2',
+		moduleName: 'coin',
+		name: 'take',
+		visibility: 'public',
+		isEntry: false,
+		typeParameters: [{ constraints: [], isPhantom: false }],
+		parameters: [
+			{ reference: 'mutable', body: balanceDatatype },
+			{ reference: null, body: { $kind: 'u64' } },
+			{
+				reference: 'mutable',
+				body: {
+					$kind: 'datatype',
+					datatype: { typeName: '0x2::tx_context::TxContext', typeParameters: [] },
+				},
+			},
+		],
+		returns: [{ reference: null, body: coinDatatype }],
+	}),
+	// balance::withdraw_all<T>(&mut Balance<T>) -> Balance<T>
+	createMockMoveFunction({
+		packageId: '0x2',
+		moduleName: 'balance',
+		name: 'withdraw_all',
+		visibility: 'public',
+		isEntry: false,
+		typeParameters: [{ constraints: [], isPhantom: false }],
+		parameters: [{ reference: 'mutable', body: balanceDatatype }],
+		returns: [{ reference: null, body: balanceDatatype }],
+	}),
+	// coin::divide_into_n<T>(&mut Coin<T>, u64, &mut TxContext) -> vector<Coin<T>>
+	createMockMoveFunction({
+		packageId: '0x2',
+		moduleName: 'coin',
+		name: 'divide_into_n',
+		visibility: 'public',
+		isEntry: false,
+		typeParameters: [{ constraints: [], isPhantom: false }],
+		parameters: [
+			{ reference: 'mutable', body: coinDatatype },
+			{ reference: null, body: { $kind: 'u64' } },
+			{
+				reference: 'mutable',
+				body: {
+					$kind: 'datatype',
+					datatype: { typeName: '0x2::tx_context::TxContext', typeParameters: [] },
+				},
+			},
+		],
+		returns: [{ reference: null, body: { $kind: 'vector', vector: coinDatatype } }],
+	}),
+	// coin::join<T>(&mut Coin<T>, Coin<T>)
+	createMockMoveFunction({
+		packageId: '0x2',
+		moduleName: 'coin',
+		name: 'join',
+		visibility: 'public',
+		isEntry: true,
+		typeParameters: [{ constraints: [], isPhantom: false }],
+		parameters: [
+			{ reference: 'mutable', body: coinDatatype },
+			{ reference: null, body: coinDatatype },
+		],
+	}),
+	// balance::join<T>(&mut Balance<T>, Balance<T>) -> u64
+	createMockMoveFunction({
+		packageId: '0x2',
+		moduleName: 'balance',
+		name: 'join',
+		visibility: 'public',
+		isEntry: false,
+		typeParameters: [{ constraints: [], isPhantom: false }],
+		parameters: [
+			{ reference: 'mutable', body: balanceDatatype },
+			{ reference: null, body: balanceDatatype },
+		],
+		returns: [{ reference: null, body: { $kind: 'u64' } }],
+	}),
+	// coin::put<T>(&mut Balance<T>, Coin<T>)
+	createMockMoveFunction({
+		packageId: '0x2',
+		moduleName: 'coin',
+		name: 'put',
+		visibility: 'public',
+		isEntry: false,
+		typeParameters: [{ constraints: [], isPhantom: false }],
+		parameters: [
+			{ reference: 'mutable', body: balanceDatatype },
+			{ reference: null, body: coinDatatype },
+		],
+	}),
+	// coin::zero<T>(&mut TxContext) -> Coin<T>
+	createMockMoveFunction({
+		packageId: '0x2',
+		moduleName: 'coin',
+		name: 'zero',
+		visibility: 'public',
+		isEntry: false,
+		typeParameters: [{ constraints: [], isPhantom: false }],
+		parameters: [
+			{
+				reference: 'mutable',
+				body: {
+					$kind: 'datatype',
+					datatype: { typeName: '0x2::tx_context::TxContext', typeParameters: [] },
+				},
+			},
+		],
+		returns: [{ reference: null, body: coinDatatype }],
+	}),
+	// balance::zero<T>() -> Balance<T>
+	createMockMoveFunction({
+		packageId: '0x2',
+		moduleName: 'balance',
+		name: 'zero',
+		visibility: 'public',
+		isEntry: false,
+		typeParameters: [{ constraints: [], isPhantom: false }],
+		parameters: [],
+		returns: [{ reference: null, body: balanceDatatype }],
+	}),
+	// coin::destroy_zero<T>(Coin<T>)
+	createMockMoveFunction({
+		packageId: '0x2',
+		moduleName: 'coin',
+		name: 'destroy_zero',
+		visibility: 'public',
+		isEntry: false,
+		typeParameters: [{ constraints: [], isPhantom: false }],
+		parameters: [{ reference: null, body: coinDatatype }],
+	}),
+	// balance::destroy_zero<T>(Balance<T>)
+	createMockMoveFunction({
+		packageId: '0x2',
+		moduleName: 'balance',
+		name: 'destroy_zero',
+		visibility: 'public',
+		isEntry: false,
+		typeParameters: [{ constraints: [], isPhantom: false }],
+		parameters: [{ reference: null, body: balanceDatatype }],
 	}),
 ];
 

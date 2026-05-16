@@ -11,7 +11,7 @@ import {
 	type RawTransactionArgument,
 } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as versioning from './versioning.js';
 const $moduleName = '@mysten/pas::account';
 export const Account = new MoveStruct({
@@ -105,7 +105,7 @@ export function createAndShare(options: CreateAndShareOptions) {
 }
 export interface UnlockBalanceArguments {
 	account: RawTransactionArgument<string>;
-	auth: RawTransactionArgument<string>;
+	auth: TransactionArgument;
 	amount: RawTransactionArgument<number | bigint>;
 }
 export interface UnlockBalanceOptions {
@@ -114,7 +114,7 @@ export interface UnlockBalanceOptions {
 		| UnlockBalanceArguments
 		| [
 				account: RawTransactionArgument<string>,
-				auth: RawTransactionArgument<string>,
+				auth: TransactionArgument,
 				amount: RawTransactionArgument<number | bigint>,
 		  ];
 	typeArguments: [string];
@@ -139,7 +139,7 @@ export function unlockBalance(options: UnlockBalanceOptions) {
 }
 export interface SendBalanceArguments {
 	from: RawTransactionArgument<string>;
-	auth: RawTransactionArgument<string>;
+	auth: TransactionArgument;
 	to: RawTransactionArgument<string>;
 	amount: RawTransactionArgument<number | bigint>;
 }
@@ -149,7 +149,7 @@ export interface SendBalanceOptions {
 		| SendBalanceArguments
 		| [
 				from: RawTransactionArgument<string>,
-				auth: RawTransactionArgument<string>,
+				auth: TransactionArgument,
 				to: RawTransactionArgument<string>,
 				amount: RawTransactionArgument<number | bigint>,
 		  ];
@@ -201,7 +201,7 @@ export function clawbackBalance(options: ClawbackBalanceOptions) {
 }
 export interface UnsafeSendBalanceArguments {
 	from: RawTransactionArgument<string>;
-	auth: RawTransactionArgument<string>;
+	auth: TransactionArgument;
 	recipientAddress: RawTransactionArgument<string>;
 	amount: RawTransactionArgument<number | bigint>;
 }
@@ -211,7 +211,7 @@ export interface UnsafeSendBalanceOptions {
 		| UnsafeSendBalanceArguments
 		| [
 				from: RawTransactionArgument<string>,
-				auth: RawTransactionArgument<string>,
+				auth: TransactionArgument,
 				recipientAddress: RawTransactionArgument<string>,
 				amount: RawTransactionArgument<number | bigint>,
 		  ];
@@ -296,13 +296,13 @@ export function owner(options: OwnerOptions) {
 }
 export interface DepositBalanceArguments {
 	account: RawTransactionArgument<string>;
-	balance: RawTransactionArgument<string>;
+	balance: TransactionArgument;
 }
 export interface DepositBalanceOptions {
 	package?: string;
 	arguments:
 		| DepositBalanceArguments
-		| [account: RawTransactionArgument<string>, balance: RawTransactionArgument<string>];
+		| [account: RawTransactionArgument<string>, balance: TransactionArgument];
 	typeArguments: [string];
 }
 export function depositBalance(options: DepositBalanceOptions) {

@@ -1,6 +1,7 @@
 ---
 title: Connect Modal
-description: React modal component for wallet selection
+description: React modal component for selecting and connecting to a Sui wallet.
+keywords: [ConnectModal, React, wallet selection, modal dialog, dApp Kit, Sui, UI component]
 ---
 
 ## Usage
@@ -40,7 +41,7 @@ export function App() {
 />
 ```
 
-## Modal States
+## Modal states
 
 The modal displays different views based on connection status:
 
@@ -49,7 +50,7 @@ The modal displays different views based on connection status:
 - **Error**: Shows error message with retry option when connection fails
 - **Request Cancelled**: Appears when user cancels the wallet connection request
 
-## Server-Side Rendering (SSR)
+## Server-side rendering (SSR)
 
 The `<ConnectModal />` component can be only client-side rendered, as wallets are detected in the
 browser. For Next.js guide see [here](/dapp-kit/getting-started/next-js).

@@ -2,7 +2,7 @@
 	"name": "@mysten/kiosk",
 	"author": "Mysten Labs <build@mystenlabs.com>",
 	"description": "Sui Kiosk library",
-	"version": "1.2.1",
+	"version": "1.2.6",
 	"license": "Apache-2.0",
 	"type": "module",
 	"main": "./dist/index.mjs",
@@ -33,7 +33,7 @@
 	},
 	"scripts": {
 		"build": "rm -rf dist && tsc --noEmit && tsdown",
-		"build:docs": "tsx ../docs/scripts/build-docs.ts",
+		"build:docs": "node ../docs/scripts/build-docs.ts",
 		"codegen": "sui-ts-codegen generate && pnpm lint:fix",
 		"test": "echo 'No unit tests for kiosk SDK'",
 		"pre-commit": "pnpm prettier:fix && pnpm lint && pnpm build",
@@ -51,7 +51,6 @@
 	},
 	"devDependencies": {
 		"@mysten/codegen": "workspace:^",
-		"@mysten/sui": "workspace:^",
 		"cross-env": "^10.1.0",
 		"tmp": "^0.2.5",
 		"ts-retry-promise": "^0.8.1",

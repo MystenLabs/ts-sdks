@@ -6,7 +6,7 @@
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as versioned from './deps/sui/versioned.js';
 import * as vec_set from './deps/sui/vec_set.js';
 import * as book from './book.js';
@@ -145,7 +145,7 @@ export function createPermissionlessPool(options: CreatePermissionlessPoolOption
 export interface PlaceLimitOrderArguments {
 	self: RawTransactionArgument<string>;
 	balanceManager: RawTransactionArgument<string>;
-	tradeProof: RawTransactionArgument<string>;
+	tradeProof: TransactionArgument;
 	clientOrderId: RawTransactionArgument<number | bigint>;
 	orderType: RawTransactionArgument<number>;
 	selfMatchingOption: RawTransactionArgument<number>;
@@ -162,7 +162,7 @@ export interface PlaceLimitOrderOptions {
 		| [
 				self: RawTransactionArgument<string>,
 				balanceManager: RawTransactionArgument<string>,
-				tradeProof: RawTransactionArgument<string>,
+				tradeProof: TransactionArgument,
 				clientOrderId: RawTransactionArgument<number | bigint>,
 				orderType: RawTransactionArgument<number>,
 				selfMatchingOption: RawTransactionArgument<number>,
@@ -219,7 +219,7 @@ export function placeLimitOrder(options: PlaceLimitOrderOptions) {
 export interface PlaceMarketOrderArguments {
 	self: RawTransactionArgument<string>;
 	balanceManager: RawTransactionArgument<string>;
-	tradeProof: RawTransactionArgument<string>;
+	tradeProof: TransactionArgument;
 	clientOrderId: RawTransactionArgument<number | bigint>;
 	selfMatchingOption: RawTransactionArgument<number>;
 	quantity: RawTransactionArgument<number | bigint>;
@@ -233,7 +233,7 @@ export interface PlaceMarketOrderOptions {
 		| [
 				self: RawTransactionArgument<string>,
 				balanceManager: RawTransactionArgument<string>,
-				tradeProof: RawTransactionArgument<string>,
+				tradeProof: TransactionArgument,
 				clientOrderId: RawTransactionArgument<number | bigint>,
 				selfMatchingOption: RawTransactionArgument<number>,
 				quantity: RawTransactionArgument<number | bigint>,
@@ -570,7 +570,7 @@ export function swapExactQuantityWithManager(options: SwapExactQuantityWithManag
 export interface ModifyOrderArguments {
 	self: RawTransactionArgument<string>;
 	balanceManager: RawTransactionArgument<string>;
-	tradeProof: RawTransactionArgument<string>;
+	tradeProof: TransactionArgument;
 	orderId: RawTransactionArgument<number | bigint>;
 	newQuantity: RawTransactionArgument<number | bigint>;
 }
@@ -581,7 +581,7 @@ export interface ModifyOrderOptions {
 		| [
 				self: RawTransactionArgument<string>,
 				balanceManager: RawTransactionArgument<string>,
-				tradeProof: RawTransactionArgument<string>,
+				tradeProof: TransactionArgument,
 				orderId: RawTransactionArgument<number | bigint>,
 				newQuantity: RawTransactionArgument<number | bigint>,
 		  ];
@@ -611,7 +611,7 @@ export function modifyOrder(options: ModifyOrderOptions) {
 export interface CancelOrderArguments {
 	self: RawTransactionArgument<string>;
 	balanceManager: RawTransactionArgument<string>;
-	tradeProof: RawTransactionArgument<string>;
+	tradeProof: TransactionArgument;
 	orderId: RawTransactionArgument<number | bigint>;
 }
 export interface CancelOrderOptions {
@@ -621,7 +621,7 @@ export interface CancelOrderOptions {
 		| [
 				self: RawTransactionArgument<string>,
 				balanceManager: RawTransactionArgument<string>,
-				tradeProof: RawTransactionArgument<string>,
+				tradeProof: TransactionArgument,
 				orderId: RawTransactionArgument<number | bigint>,
 		  ];
 	typeArguments: [string, string];
@@ -651,8 +651,8 @@ export function cancelOrder(options: CancelOrderOptions) {
 export interface CancelOrdersArguments {
 	self: RawTransactionArgument<string>;
 	balanceManager: RawTransactionArgument<string>;
-	tradeProof: RawTransactionArgument<string>;
-	orderIds: RawTransactionArgument<number | bigint[]>;
+	tradeProof: TransactionArgument;
+	orderIds: RawTransactionArgument<Array<number | bigint>>;
 }
 export interface CancelOrdersOptions {
 	package?: string;
@@ -661,8 +661,8 @@ export interface CancelOrdersOptions {
 		| [
 				self: RawTransactionArgument<string>,
 				balanceManager: RawTransactionArgument<string>,
-				tradeProof: RawTransactionArgument<string>,
-				orderIds: RawTransactionArgument<number | bigint[]>,
+				tradeProof: TransactionArgument,
+				orderIds: RawTransactionArgument<Array<number | bigint>>,
 		  ];
 	typeArguments: [string, string];
 }
@@ -688,10 +688,93 @@ export function cancelOrders(options: CancelOrdersOptions) {
 			typeArguments: options.typeArguments,
 		});
 }
+export interface CancelLiveOrderArguments {
+	self: RawTransactionArgument<string>;
+	balanceManager: RawTransactionArgument<string>;
+	tradeProof: TransactionArgument;
+	orderId: RawTransactionArgument<number | bigint>;
+}
+export interface CancelLiveOrderOptions {
+	package?: string;
+	arguments:
+		| CancelLiveOrderArguments
+		| [
+				self: RawTransactionArgument<string>,
+				balanceManager: RawTransactionArgument<string>,
+				tradeProof: TransactionArgument,
+				orderId: RawTransactionArgument<number | bigint>,
+		  ];
+	typeArguments: [string, string];
+}
+/**
+ * Cancel a single order, no-op if the order_id is not currently in the
+ * balance_manager's open orders (e.g. already filled, cancelled, or not owned by
+ * this balance_manager). If the order is present, it must be owned by the
+ * balance_manager. On a successful cancel the order is removed from the book and
+ * the balance_manager's open orders, and an order canceled event is emitted.
+ */
+export function cancelLiveOrder(options: CancelLiveOrderOptions) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [null, null, null, 'u128', '0x2::clock::Clock'] satisfies (
+		| string
+		| null
+	)[];
+	const parameterNames = ['self', 'balanceManager', 'tradeProof', 'orderId'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pool',
+			function: 'cancel_live_order',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface CancelLiveOrdersArguments {
+	self: RawTransactionArgument<string>;
+	balanceManager: RawTransactionArgument<string>;
+	tradeProof: TransactionArgument;
+	orderIds: RawTransactionArgument<Array<number | bigint>>;
+}
+export interface CancelLiveOrdersOptions {
+	package?: string;
+	arguments:
+		| CancelLiveOrdersArguments
+		| [
+				self: RawTransactionArgument<string>,
+				balanceManager: RawTransactionArgument<string>,
+				tradeProof: TransactionArgument,
+				orderIds: RawTransactionArgument<Array<number | bigint>>,
+		  ];
+	typeArguments: [string, string];
+}
+/**
+ * Cancel multiple orders within a vector, skipping any order_id that is not
+ * currently in the balance_manager's open orders (e.g. already filled, cancelled,
+ * or not owned by this balance_manager). Orders that are present must be owned by
+ * the balance_manager. The live orders are removed from the book and the
+ * balance_manager's open orders. Order canceled events are emitted for each
+ * cancelled order.
+ */
+export function cancelLiveOrders(options: CancelLiveOrdersOptions) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [null, null, null, 'vector<u128>', '0x2::clock::Clock'] satisfies (
+		| string
+		| null
+	)[];
+	const parameterNames = ['self', 'balanceManager', 'tradeProof', 'orderIds'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pool',
+			function: 'cancel_live_orders',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
 export interface CancelAllOrdersArguments {
 	self: RawTransactionArgument<string>;
 	balanceManager: RawTransactionArgument<string>;
-	tradeProof: RawTransactionArgument<string>;
+	tradeProof: TransactionArgument;
 }
 export interface CancelAllOrdersOptions {
 	package?: string;
@@ -700,7 +783,7 @@ export interface CancelAllOrdersOptions {
 		| [
 				self: RawTransactionArgument<string>,
 				balanceManager: RawTransactionArgument<string>,
-				tradeProof: RawTransactionArgument<string>,
+				tradeProof: TransactionArgument,
 		  ];
 	typeArguments: [string, string];
 }
@@ -721,7 +804,7 @@ export function cancelAllOrders(options: CancelAllOrdersOptions) {
 export interface WithdrawSettledAmountsArguments {
 	self: RawTransactionArgument<string>;
 	balanceManager: RawTransactionArgument<string>;
-	tradeProof: RawTransactionArgument<string>;
+	tradeProof: TransactionArgument;
 }
 export interface WithdrawSettledAmountsOptions {
 	package?: string;
@@ -730,7 +813,7 @@ export interface WithdrawSettledAmountsOptions {
 		| [
 				self: RawTransactionArgument<string>,
 				balanceManager: RawTransactionArgument<string>,
-				tradeProof: RawTransactionArgument<string>,
+				tradeProof: TransactionArgument,
 		  ];
 	typeArguments: [string, string];
 }
@@ -778,7 +861,7 @@ export function withdrawSettledAmountsPermissionless(
 export interface StakeArguments {
 	self: RawTransactionArgument<string>;
 	balanceManager: RawTransactionArgument<string>;
-	tradeProof: RawTransactionArgument<string>;
+	tradeProof: TransactionArgument;
 	amount: RawTransactionArgument<number | bigint>;
 }
 export interface StakeOptions {
@@ -788,7 +871,7 @@ export interface StakeOptions {
 		| [
 				self: RawTransactionArgument<string>,
 				balanceManager: RawTransactionArgument<string>,
-				tradeProof: RawTransactionArgument<string>,
+				tradeProof: TransactionArgument,
 				amount: RawTransactionArgument<number | bigint>,
 		  ];
 	typeArguments: [string, string];
@@ -813,7 +896,7 @@ export function stake(options: StakeOptions) {
 export interface UnstakeArguments {
 	self: RawTransactionArgument<string>;
 	balanceManager: RawTransactionArgument<string>;
-	tradeProof: RawTransactionArgument<string>;
+	tradeProof: TransactionArgument;
 }
 export interface UnstakeOptions {
 	package?: string;
@@ -822,7 +905,7 @@ export interface UnstakeOptions {
 		| [
 				self: RawTransactionArgument<string>,
 				balanceManager: RawTransactionArgument<string>,
-				tradeProof: RawTransactionArgument<string>,
+				tradeProof: TransactionArgument,
 		  ];
 	typeArguments: [string, string];
 }
@@ -847,7 +930,7 @@ export function unstake(options: UnstakeOptions) {
 export interface SubmitProposalArguments {
 	self: RawTransactionArgument<string>;
 	balanceManager: RawTransactionArgument<string>;
-	tradeProof: RawTransactionArgument<string>;
+	tradeProof: TransactionArgument;
 	takerFee: RawTransactionArgument<number | bigint>;
 	makerFee: RawTransactionArgument<number | bigint>;
 	stakeRequired: RawTransactionArgument<number | bigint>;
@@ -859,7 +942,7 @@ export interface SubmitProposalOptions {
 		| [
 				self: RawTransactionArgument<string>,
 				balanceManager: RawTransactionArgument<string>,
-				tradeProof: RawTransactionArgument<string>,
+				tradeProof: TransactionArgument,
 				takerFee: RawTransactionArgument<number | bigint>,
 				makerFee: RawTransactionArgument<number | bigint>,
 				stakeRequired: RawTransactionArgument<number | bigint>,
@@ -896,7 +979,7 @@ export function submitProposal(options: SubmitProposalOptions) {
 export interface VoteArguments {
 	self: RawTransactionArgument<string>;
 	balanceManager: RawTransactionArgument<string>;
-	tradeProof: RawTransactionArgument<string>;
+	tradeProof: TransactionArgument;
 	proposalId: RawTransactionArgument<string>;
 }
 export interface VoteOptions {
@@ -906,7 +989,7 @@ export interface VoteOptions {
 		| [
 				self: RawTransactionArgument<string>,
 				balanceManager: RawTransactionArgument<string>,
-				tradeProof: RawTransactionArgument<string>,
+				tradeProof: TransactionArgument,
 				proposalId: RawTransactionArgument<string>,
 		  ];
 	typeArguments: [string, string];
@@ -932,7 +1015,7 @@ export function vote(options: VoteOptions) {
 export interface ClaimRebatesArguments {
 	self: RawTransactionArgument<string>;
 	balanceManager: RawTransactionArgument<string>;
-	tradeProof: RawTransactionArgument<string>;
+	tradeProof: TransactionArgument;
 }
 export interface ClaimRebatesOptions {
 	package?: string;
@@ -941,7 +1024,7 @@ export interface ClaimRebatesOptions {
 		| [
 				self: RawTransactionArgument<string>,
 				balanceManager: RawTransactionArgument<string>,
-				tradeProof: RawTransactionArgument<string>,
+				tradeProof: TransactionArgument,
 		  ];
 	typeArguments: [string, string];
 }
@@ -1021,7 +1104,7 @@ export function borrowFlashloanQuote(options: BorrowFlashloanQuoteOptions) {
 export interface ReturnFlashloanBaseArguments {
 	self: RawTransactionArgument<string>;
 	coin: RawTransactionArgument<string>;
-	flashLoan: RawTransactionArgument<string>;
+	flashLoan: TransactionArgument;
 }
 export interface ReturnFlashloanBaseOptions {
 	package?: string;
@@ -1030,7 +1113,7 @@ export interface ReturnFlashloanBaseOptions {
 		| [
 				self: RawTransactionArgument<string>,
 				coin: RawTransactionArgument<string>,
-				flashLoan: RawTransactionArgument<string>,
+				flashLoan: TransactionArgument,
 		  ];
 	typeArguments: [string, string];
 }
@@ -1054,7 +1137,7 @@ export function returnFlashloanBase(options: ReturnFlashloanBaseOptions) {
 export interface ReturnFlashloanQuoteArguments {
 	self: RawTransactionArgument<string>;
 	coin: RawTransactionArgument<string>;
-	flashLoan: RawTransactionArgument<string>;
+	flashLoan: TransactionArgument;
 }
 export interface ReturnFlashloanQuoteOptions {
 	package?: string;
@@ -1063,7 +1146,7 @@ export interface ReturnFlashloanQuoteOptions {
 		| [
 				self: RawTransactionArgument<string>,
 				coin: RawTransactionArgument<string>,
-				flashLoan: RawTransactionArgument<string>,
+				flashLoan: TransactionArgument,
 		  ];
 	typeArguments: [string, string];
 }
@@ -2093,13 +2176,16 @@ export function getOrder(options: GetOrderOptions) {
 }
 export interface GetOrdersArguments {
 	self: RawTransactionArgument<string>;
-	orderIds: RawTransactionArgument<number | bigint[]>;
+	orderIds: RawTransactionArgument<Array<number | bigint>>;
 }
 export interface GetOrdersOptions {
 	package?: string;
 	arguments:
 		| GetOrdersArguments
-		| [self: RawTransactionArgument<string>, orderIds: RawTransactionArgument<number | bigint[]>];
+		| [
+				self: RawTransactionArgument<string>,
+				orderIds: RawTransactionArgument<Array<number | bigint>>,
+		  ];
 	typeArguments: [string, string];
 }
 /** Get multiple orders given a vector of order_ids. */

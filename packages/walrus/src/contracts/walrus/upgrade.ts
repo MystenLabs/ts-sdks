@@ -20,7 +20,7 @@ import {
 	type RawTransactionArgument,
 } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as vec_set from './deps/sui/vec_set.js';
 import * as _package from './deps/sui/package.js';
 import * as table from './deps/sui/table.js';
@@ -71,9 +71,9 @@ export const EmergencyUpgradeCap = new MoveStruct({
 export interface VoteForUpgradeArguments {
 	self: RawTransactionArgument<string>;
 	staking: RawTransactionArgument<string>;
-	auth: RawTransactionArgument<string>;
+	auth: TransactionArgument;
 	nodeId: RawTransactionArgument<string>;
-	digest: RawTransactionArgument<number[]>;
+	digest: RawTransactionArgument<Array<number>>;
 }
 export interface VoteForUpgradeOptions {
 	package?: string;
@@ -82,9 +82,9 @@ export interface VoteForUpgradeOptions {
 		| [
 				self: RawTransactionArgument<string>,
 				staking: RawTransactionArgument<string>,
-				auth: RawTransactionArgument<string>,
+				auth: TransactionArgument,
 				nodeId: RawTransactionArgument<string>,
-				digest: RawTransactionArgument<number[]>,
+				digest: RawTransactionArgument<Array<number>>,
 		  ];
 }
 /**
@@ -110,7 +110,7 @@ export function voteForUpgrade(options: VoteForUpgradeOptions) {
 export interface AuthorizeUpgradeArguments {
 	self: RawTransactionArgument<string>;
 	staking: RawTransactionArgument<string>;
-	digest: RawTransactionArgument<number[]>;
+	digest: RawTransactionArgument<Array<number>>;
 }
 export interface AuthorizeUpgradeOptions {
 	package?: string;
@@ -119,7 +119,7 @@ export interface AuthorizeUpgradeOptions {
 		| [
 				self: RawTransactionArgument<string>,
 				staking: RawTransactionArgument<string>,
-				digest: RawTransactionArgument<number[]>,
+				digest: RawTransactionArgument<Array<number>>,
 		  ];
 }
 /** Authorizes an upgrade that has reached quorum. */
@@ -138,7 +138,7 @@ export function authorizeUpgrade(options: AuthorizeUpgradeOptions) {
 export interface AuthorizeEmergencyUpgradeArguments {
 	upgradeManager: RawTransactionArgument<string>;
 	emergencyUpgradeCap: RawTransactionArgument<string>;
-	digest: RawTransactionArgument<number[]>;
+	digest: RawTransactionArgument<Array<number>>;
 }
 export interface AuthorizeEmergencyUpgradeOptions {
 	package?: string;
@@ -147,7 +147,7 @@ export interface AuthorizeEmergencyUpgradeOptions {
 		| [
 				upgradeManager: RawTransactionArgument<string>,
 				emergencyUpgradeCap: RawTransactionArgument<string>,
-				digest: RawTransactionArgument<number[]>,
+				digest: RawTransactionArgument<Array<number>>,
 		  ];
 }
 /**
@@ -172,7 +172,7 @@ export interface CommitUpgradeArguments {
 	upgradeManager: RawTransactionArgument<string>;
 	staking: RawTransactionArgument<string>;
 	system: RawTransactionArgument<string>;
-	receipt: RawTransactionArgument<string>;
+	receipt: TransactionArgument;
 }
 export interface CommitUpgradeOptions {
 	package?: string;
@@ -182,7 +182,7 @@ export interface CommitUpgradeOptions {
 				upgradeManager: RawTransactionArgument<string>,
 				staking: RawTransactionArgument<string>,
 				system: RawTransactionArgument<string>,
-				receipt: RawTransactionArgument<string>,
+				receipt: TransactionArgument,
 		  ];
 }
 /**
@@ -208,7 +208,7 @@ export function commitUpgrade(options: CommitUpgradeOptions) {
 export interface CleanupUpgradeProposalsArguments {
 	self: RawTransactionArgument<string>;
 	staking: RawTransactionArgument<string>;
-	proposals: RawTransactionArgument<number[][]>;
+	proposals: RawTransactionArgument<Array<Array<number>>>;
 }
 export interface CleanupUpgradeProposalsOptions {
 	package?: string;
@@ -217,7 +217,7 @@ export interface CleanupUpgradeProposalsOptions {
 		| [
 				self: RawTransactionArgument<string>,
 				staking: RawTransactionArgument<string>,
-				proposals: RawTransactionArgument<number[][]>,
+				proposals: RawTransactionArgument<Array<Array<number>>>,
 		  ];
 }
 /**

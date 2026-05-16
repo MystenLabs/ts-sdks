@@ -2,7 +2,7 @@
  * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
  **************************************************************/
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as table from './deps/sui/table.js';
 const $moduleName = '@suins/core::registry';
 export const Registry = new MoveStruct({
@@ -40,8 +40,8 @@ export function _new(options: NewOptions) {
 		});
 }
 export interface AddRecordIgnoringGracePeriodArguments {
-	self: RawTransactionArgument<string>;
-	domain: RawTransactionArgument<string>;
+	self: TransactionArgument;
+	domain: TransactionArgument;
 	noYears: RawTransactionArgument<number>;
 }
 export interface AddRecordIgnoringGracePeriodOptions {
@@ -49,8 +49,8 @@ export interface AddRecordIgnoringGracePeriodOptions {
 	arguments:
 		| AddRecordIgnoringGracePeriodArguments
 		| [
-				self: RawTransactionArgument<string>,
-				domain: RawTransactionArgument<string>,
+				self: TransactionArgument,
+				domain: TransactionArgument,
 				noYears: RawTransactionArgument<number>,
 		  ];
 }
@@ -72,8 +72,8 @@ export function addRecordIgnoringGracePeriod(options: AddRecordIgnoringGracePeri
 		});
 }
 export interface AddRecordArguments {
-	self: RawTransactionArgument<string>;
-	domain: RawTransactionArgument<string>;
+	self: TransactionArgument;
+	domain: TransactionArgument;
 	noYears: RawTransactionArgument<number>;
 }
 export interface AddRecordOptions {
@@ -81,8 +81,8 @@ export interface AddRecordOptions {
 	arguments:
 		| AddRecordArguments
 		| [
-				self: RawTransactionArgument<string>,
-				domain: RawTransactionArgument<string>,
+				self: TransactionArgument,
+				domain: TransactionArgument,
 				noYears: RawTransactionArgument<number>,
 		  ];
 }
@@ -104,14 +104,14 @@ export function addRecord(options: AddRecordOptions) {
 		});
 }
 export interface BurnRegistrationObjectArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 	nft: RawTransactionArgument<string>;
 }
 export interface BurnRegistrationObjectOptions {
 	package?: string;
 	arguments:
 		| BurnRegistrationObjectArguments
-		| [self: RawTransactionArgument<string>, nft: RawTransactionArgument<string>];
+		| [self: TransactionArgument, nft: RawTransactionArgument<string>];
 }
 /**
  * Attempts to burn an NFT and get storage rebates. Only works if the NFT has
@@ -130,14 +130,12 @@ export function burnRegistrationObject(options: BurnRegistrationObjectOptions) {
 		});
 }
 export interface WrapSubdomainArguments {
-	_: RawTransactionArgument<string>;
+	_: TransactionArgument;
 	nft: RawTransactionArgument<string>;
 }
 export interface WrapSubdomainOptions {
 	package?: string;
-	arguments:
-		| WrapSubdomainArguments
-		| [_: RawTransactionArgument<string>, nft: RawTransactionArgument<string>];
+	arguments: WrapSubdomainArguments | [_: TransactionArgument, nft: RawTransactionArgument<string>];
 }
 /** Allow creation of subdomain wrappers only to authorized modules. */
 export function wrapSubdomain(options: WrapSubdomainOptions) {
@@ -153,14 +151,14 @@ export function wrapSubdomain(options: WrapSubdomainOptions) {
 		});
 }
 export interface BurnSubdomainObjectArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 	nft: RawTransactionArgument<string>;
 }
 export interface BurnSubdomainObjectOptions {
 	package?: string;
 	arguments:
 		| BurnSubdomainObjectArguments
-		| [self: RawTransactionArgument<string>, nft: RawTransactionArgument<string>];
+		| [self: TransactionArgument, nft: RawTransactionArgument<string>];
 }
 /**
  * Attempts to burn a subdomain registration object, and also invalidates any
@@ -179,8 +177,8 @@ export function burnSubdomainObject(options: BurnSubdomainObjectOptions) {
 		});
 }
 export interface AddLeafRecordArguments {
-	self: RawTransactionArgument<string>;
-	domain: RawTransactionArgument<string>;
+	self: TransactionArgument;
+	domain: TransactionArgument;
 	target: RawTransactionArgument<string>;
 }
 export interface AddLeafRecordOptions {
@@ -188,8 +186,8 @@ export interface AddLeafRecordOptions {
 	arguments:
 		| AddLeafRecordArguments
 		| [
-				self: RawTransactionArgument<string>,
-				domain: RawTransactionArgument<string>,
+				self: TransactionArgument,
+				domain: TransactionArgument,
 				target: RawTransactionArgument<string>,
 		  ];
 }
@@ -222,14 +220,12 @@ export function addLeafRecord(options: AddLeafRecordOptions) {
 		});
 }
 export interface RemoveLeafRecordArguments {
-	self: RawTransactionArgument<string>;
-	domain: RawTransactionArgument<string>;
+	self: TransactionArgument;
+	domain: TransactionArgument;
 }
 export interface RemoveLeafRecordOptions {
 	package?: string;
-	arguments:
-		| RemoveLeafRecordArguments
-		| [self: RawTransactionArgument<string>, domain: RawTransactionArgument<string>];
+	arguments: RemoveLeafRecordArguments | [self: TransactionArgument, domain: TransactionArgument];
 }
 /**
  * Can be used to remove a leaf record. Leaf records do not have any symmetrical
@@ -249,8 +245,8 @@ export function removeLeafRecord(options: RemoveLeafRecordOptions) {
 		});
 }
 export interface SetTargetAddressArguments {
-	self: RawTransactionArgument<string>;
-	domain: RawTransactionArgument<string>;
+	self: TransactionArgument;
+	domain: TransactionArgument;
 	newTarget: RawTransactionArgument<string | null>;
 }
 export interface SetTargetAddressOptions {
@@ -258,8 +254,8 @@ export interface SetTargetAddressOptions {
 	arguments:
 		| SetTargetAddressArguments
 		| [
-				self: RawTransactionArgument<string>,
-				domain: RawTransactionArgument<string>,
+				self: TransactionArgument,
+				domain: TransactionArgument,
 				newTarget: RawTransactionArgument<string | null>,
 		  ];
 }
@@ -276,14 +272,14 @@ export function setTargetAddress(options: SetTargetAddressOptions) {
 		});
 }
 export interface UnsetReverseLookupArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 	address: RawTransactionArgument<string>;
 }
 export interface UnsetReverseLookupOptions {
 	package?: string;
 	arguments:
 		| UnsetReverseLookupArguments
-		| [self: RawTransactionArgument<string>, address: RawTransactionArgument<string>];
+		| [self: TransactionArgument, address: RawTransactionArgument<string>];
 }
 export function unsetReverseLookup(options: UnsetReverseLookupOptions) {
 	const packageAddress = options.package ?? '@suins/core';
@@ -298,18 +294,18 @@ export function unsetReverseLookup(options: UnsetReverseLookupOptions) {
 		});
 }
 export interface SetReverseLookupArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 	address: RawTransactionArgument<string>;
-	domain: RawTransactionArgument<string>;
+	domain: TransactionArgument;
 }
 export interface SetReverseLookupOptions {
 	package?: string;
 	arguments:
 		| SetReverseLookupArguments
 		| [
-				self: RawTransactionArgument<string>,
+				self: TransactionArgument,
 				address: RawTransactionArgument<string>,
-				domain: RawTransactionArgument<string>,
+				domain: TransactionArgument,
 		  ];
 }
 /** Reverse lookup can only be set for the record that has the target address. */
@@ -326,9 +322,9 @@ export function setReverseLookup(options: SetReverseLookupOptions) {
 		});
 }
 export interface SetExpirationTimestampMsArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 	nft: RawTransactionArgument<string>;
-	domain: RawTransactionArgument<string>;
+	domain: TransactionArgument;
 	expirationTimestampMs: RawTransactionArgument<number | bigint>;
 }
 export interface SetExpirationTimestampMsOptions {
@@ -336,9 +332,9 @@ export interface SetExpirationTimestampMsOptions {
 	arguments:
 		| SetExpirationTimestampMsArguments
 		| [
-				self: RawTransactionArgument<string>,
+				self: TransactionArgument,
 				nft: RawTransactionArgument<string>,
-				domain: RawTransactionArgument<string>,
+				domain: TransactionArgument,
 				expirationTimestampMs: RawTransactionArgument<number | bigint>,
 		  ];
 }
@@ -360,19 +356,15 @@ export function setExpirationTimestampMs(options: SetExpirationTimestampMsOption
 		});
 }
 export interface SetDataArguments {
-	self: RawTransactionArgument<string>;
-	domain: RawTransactionArgument<string>;
-	data: RawTransactionArgument<string>;
+	self: TransactionArgument;
+	domain: TransactionArgument;
+	data: TransactionArgument;
 }
 export interface SetDataOptions {
 	package?: string;
 	arguments:
 		| SetDataArguments
-		| [
-				self: RawTransactionArgument<string>,
-				domain: RawTransactionArgument<string>,
-				data: RawTransactionArgument<string>,
-		  ];
+		| [self: TransactionArgument, domain: TransactionArgument, data: TransactionArgument];
 }
 /**
  * Update the `data` of the given `NameRecord` using a `SuinsRegistration`. Use
@@ -393,14 +385,12 @@ export function setData(options: SetDataOptions) {
 		});
 }
 export interface HasRecordArguments {
-	self: RawTransactionArgument<string>;
-	domain: RawTransactionArgument<string>;
+	self: TransactionArgument;
+	domain: TransactionArgument;
 }
 export interface HasRecordOptions {
 	package?: string;
-	arguments:
-		| HasRecordArguments
-		| [self: RawTransactionArgument<string>, domain: RawTransactionArgument<string>];
+	arguments: HasRecordArguments | [self: TransactionArgument, domain: TransactionArgument];
 }
 /** Check whether the given `domain` is registered in the `Registry`. */
 export function hasRecord(options: HasRecordOptions) {
@@ -416,14 +406,12 @@ export function hasRecord(options: HasRecordOptions) {
 		});
 }
 export interface LookupArguments {
-	self: RawTransactionArgument<string>;
-	domain: RawTransactionArgument<string>;
+	self: TransactionArgument;
+	domain: TransactionArgument;
 }
 export interface LookupOptions {
 	package?: string;
-	arguments:
-		| LookupArguments
-		| [self: RawTransactionArgument<string>, domain: RawTransactionArgument<string>];
+	arguments: LookupArguments | [self: TransactionArgument, domain: TransactionArgument];
 }
 /** Returns the `NameRecord` associated with the given domain or None. */
 export function lookup(options: LookupOptions) {
@@ -439,14 +427,14 @@ export function lookup(options: LookupOptions) {
 		});
 }
 export interface ReverseLookupArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 	address: RawTransactionArgument<string>;
 }
 export interface ReverseLookupOptions {
 	package?: string;
 	arguments:
 		| ReverseLookupArguments
-		| [self: RawTransactionArgument<string>, address: RawTransactionArgument<string>];
+		| [self: TransactionArgument, address: RawTransactionArgument<string>];
 }
 /** Returns the `domain_name` associated with the given address or None. */
 export function reverseLookup(options: ReverseLookupOptions) {
@@ -462,14 +450,14 @@ export function reverseLookup(options: ReverseLookupOptions) {
 		});
 }
 export interface AssertNftIsAuthorizedArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 	nft: RawTransactionArgument<string>;
 }
 export interface AssertNftIsAuthorizedOptions {
 	package?: string;
 	arguments:
 		| AssertNftIsAuthorizedArguments
-		| [self: RawTransactionArgument<string>, nft: RawTransactionArgument<string>];
+		| [self: TransactionArgument, nft: RawTransactionArgument<string>];
 }
 /**
  * Asserts that the provided NFT:
@@ -490,14 +478,12 @@ export function assertNftIsAuthorized(options: AssertNftIsAuthorizedOptions) {
 		});
 }
 export interface GetDataArguments {
-	self: RawTransactionArgument<string>;
-	domain: RawTransactionArgument<string>;
+	self: TransactionArgument;
+	domain: TransactionArgument;
 }
 export interface GetDataOptions {
 	package?: string;
-	arguments:
-		| GetDataArguments
-		| [self: RawTransactionArgument<string>, domain: RawTransactionArgument<string>];
+	arguments: GetDataArguments | [self: TransactionArgument, domain: TransactionArgument];
 }
 /** Returns the `data` associated with the given `Domain`. */
 export function getData(options: GetDataOptions) {

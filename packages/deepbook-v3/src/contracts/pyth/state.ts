@@ -3,7 +3,7 @@
  **************************************************************/
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as data_source from './data_source.js';
 import * as consumed_vaas from './deps/0xf47329f4344f3bf0f8e436e2f7b485466cff300f12a166563995d3888c296a94/consumed_vaas.js';
 import * as _package from './deps/0x0000000000000000000000000000000000000000000000000000000000000002/package.js';
@@ -83,7 +83,7 @@ export function getFeeRecipient(options: GetFeeRecipientOptions) {
 }
 export interface IsValidDataSourceOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>, RawTransactionArgument<string>];
+	arguments: [RawTransactionArgument<string>, TransactionArgument];
 }
 export function isValidDataSource(options: IsValidDataSourceOptions) {
 	const packageAddress =
@@ -99,7 +99,7 @@ export function isValidDataSource(options: IsValidDataSourceOptions) {
 }
 export interface IsValidGovernanceDataSourceOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>, RawTransactionArgument<string>];
+	arguments: [RawTransactionArgument<string>, TransactionArgument];
 }
 export function isValidGovernanceDataSource(options: IsValidGovernanceDataSourceOptions) {
 	const packageAddress =
@@ -115,7 +115,7 @@ export function isValidGovernanceDataSource(options: IsValidGovernanceDataSource
 }
 export interface PriceFeedObjectExistsOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>, RawTransactionArgument<string>];
+	arguments: [RawTransactionArgument<string>, TransactionArgument];
 }
 export function priceFeedObjectExists(options: PriceFeedObjectExistsOptions) {
 	const packageAddress =
@@ -211,7 +211,7 @@ export function governanceContract(options: GovernanceContractOptions) {
 }
 export interface GetPriceInfoObjectIdOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>, RawTransactionArgument<number[]>];
+	arguments: [RawTransactionArgument<string>, RawTransactionArgument<Array<number>>];
 }
 export function getPriceInfoObjectId(options: GetPriceInfoObjectIdOptions) {
 	const packageAddress =

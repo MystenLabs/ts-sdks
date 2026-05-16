@@ -1,11 +1,11 @@
 /**************************************************************
  * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
  **************************************************************/
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import { normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 export interface DeserializeVectorOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>, RawTransactionArgument<number | bigint>];
+	arguments: [TransactionArgument, RawTransactionArgument<number | bigint>];
 }
 export function deserializeVector(options: DeserializeVectorOptions) {
 	const packageAddress =
@@ -21,7 +21,7 @@ export function deserializeVector(options: DeserializeVectorOptions) {
 }
 export interface DeserializeU8Options {
 	package?: string;
-	arguments: [RawTransactionArgument<string>];
+	arguments: [TransactionArgument];
 }
 export function deserializeU8(options: DeserializeU8Options) {
 	const packageAddress =
@@ -37,7 +37,7 @@ export function deserializeU8(options: DeserializeU8Options) {
 }
 export interface DeserializeU16Options {
 	package?: string;
-	arguments: [RawTransactionArgument<string>];
+	arguments: [TransactionArgument];
 }
 export function deserializeU16(options: DeserializeU16Options) {
 	const packageAddress =
@@ -53,7 +53,7 @@ export function deserializeU16(options: DeserializeU16Options) {
 }
 export interface DeserializeU32Options {
 	package?: string;
-	arguments: [RawTransactionArgument<string>];
+	arguments: [TransactionArgument];
 }
 export function deserializeU32(options: DeserializeU32Options) {
 	const packageAddress =
@@ -69,7 +69,7 @@ export function deserializeU32(options: DeserializeU32Options) {
 }
 export interface DeserializeI32Options {
 	package?: string;
-	arguments: [RawTransactionArgument<string>];
+	arguments: [TransactionArgument];
 }
 export function deserializeI32(options: DeserializeI32Options) {
 	const packageAddress =
@@ -85,7 +85,7 @@ export function deserializeI32(options: DeserializeI32Options) {
 }
 export interface DeserializeU64Options {
 	package?: string;
-	arguments: [RawTransactionArgument<string>];
+	arguments: [TransactionArgument];
 }
 export function deserializeU64(options: DeserializeU64Options) {
 	const packageAddress =
@@ -101,7 +101,7 @@ export function deserializeU64(options: DeserializeU64Options) {
 }
 export interface DeserializeI64Options {
 	package?: string;
-	arguments: [RawTransactionArgument<string>];
+	arguments: [TransactionArgument];
 }
 export function deserializeI64(options: DeserializeI64Options) {
 	const packageAddress =

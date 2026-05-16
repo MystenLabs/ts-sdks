@@ -15,7 +15,7 @@
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs, type BcsType } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as data from './data.js';
 const $moduleName = '@suins/coupons::coupon_house';
 export const CouponsApp = new MoveStruct({
@@ -63,7 +63,7 @@ export function setup(options: SetupOptions) {
 }
 export interface ApplyCouponArguments {
 	suins: RawTransactionArgument<string>;
-	intent: RawTransactionArgument<string>;
+	intent: TransactionArgument;
 	couponCode: RawTransactionArgument<string>;
 }
 export interface ApplyCouponOptions {
@@ -72,7 +72,7 @@ export interface ApplyCouponOptions {
 		| ApplyCouponArguments
 		| [
 				suins: RawTransactionArgument<string>,
-				intent: RawTransactionArgument<string>,
+				intent: TransactionArgument,
 				couponCode: RawTransactionArgument<string>,
 		  ];
 }
@@ -265,11 +265,11 @@ export function setVersion(options: SetVersionOptions) {
 		});
 }
 export interface AssertVersionIsValidArguments {
-	self: RawTransactionArgument<string>;
+	self: TransactionArgument;
 }
 export interface AssertVersionIsValidOptions {
 	package?: string;
-	arguments: AssertVersionIsValidArguments | [self: RawTransactionArgument<string>];
+	arguments: AssertVersionIsValidArguments | [self: TransactionArgument];
 }
 /** Validate that the version of the app is the latest. */
 export function assertVersionIsValid(options: AssertVersionIsValidOptions) {
@@ -290,7 +290,7 @@ export interface AdminAddCouponArguments {
 	code: RawTransactionArgument<string>;
 	kind: RawTransactionArgument<number>;
 	amount: RawTransactionArgument<number | bigint>;
-	rules: RawTransactionArgument<string>;
+	rules: TransactionArgument;
 }
 export interface AdminAddCouponOptions {
 	package?: string;
@@ -302,7 +302,7 @@ export interface AdminAddCouponOptions {
 				code: RawTransactionArgument<string>,
 				kind: RawTransactionArgument<number>,
 				amount: RawTransactionArgument<number | bigint>,
-				rules: RawTransactionArgument<string>,
+				rules: TransactionArgument,
 		  ];
 }
 /**
@@ -355,22 +355,22 @@ export function adminRemoveCoupon(options: AdminRemoveCouponOptions) {
 		});
 }
 export interface AppAddCouponArguments {
-	data: RawTransactionArgument<string>;
+	data: TransactionArgument;
 	code: RawTransactionArgument<string>;
 	kind: RawTransactionArgument<number>;
 	amount: RawTransactionArgument<number | bigint>;
-	rules: RawTransactionArgument<string>;
+	rules: TransactionArgument;
 }
 export interface AppAddCouponOptions {
 	package?: string;
 	arguments:
 		| AppAddCouponArguments
 		| [
-				data: RawTransactionArgument<string>,
+				data: TransactionArgument,
 				code: RawTransactionArgument<string>,
 				kind: RawTransactionArgument<number>,
 				amount: RawTransactionArgument<number | bigint>,
-				rules: RawTransactionArgument<string>,
+				rules: TransactionArgument,
 		  ];
 }
 export function appAddCoupon(options: AppAddCouponOptions) {
@@ -389,14 +389,14 @@ export function appAddCoupon(options: AppAddCouponOptions) {
 		});
 }
 export interface AppRemoveCouponArguments {
-	data: RawTransactionArgument<string>;
+	data: TransactionArgument;
 	code: RawTransactionArgument<string>;
 }
 export interface AppRemoveCouponOptions {
 	package?: string;
 	arguments:
 		| AppRemoveCouponArguments
-		| [data: RawTransactionArgument<string>, code: RawTransactionArgument<string>];
+		| [data: TransactionArgument, code: RawTransactionArgument<string>];
 }
 export function appRemoveCoupon(options: AppRemoveCouponOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';

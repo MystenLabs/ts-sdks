@@ -3,7 +3,7 @@
  **************************************************************/
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as i64 from './i64.js';
 const $moduleName = '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837::price';
 export const Price = new MoveStruct({
@@ -18,9 +18,9 @@ export const Price = new MoveStruct({
 export interface NewOptions {
 	package?: string;
 	arguments: [
-		RawTransactionArgument<string>,
+		TransactionArgument,
 		RawTransactionArgument<number | bigint>,
-		RawTransactionArgument<string>,
+		TransactionArgument,
 		RawTransactionArgument<number | bigint>,
 	];
 }
@@ -38,7 +38,7 @@ export function _new(options: NewOptions) {
 }
 export interface GetPriceOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>];
+	arguments: [TransactionArgument];
 }
 export function getPrice(options: GetPriceOptions) {
 	const packageAddress =
@@ -54,7 +54,7 @@ export function getPrice(options: GetPriceOptions) {
 }
 export interface GetConfOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>];
+	arguments: [TransactionArgument];
 }
 export function getConf(options: GetConfOptions) {
 	const packageAddress =
@@ -70,7 +70,7 @@ export function getConf(options: GetConfOptions) {
 }
 export interface GetTimestampOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>];
+	arguments: [TransactionArgument];
 }
 export function getTimestamp(options: GetTimestampOptions) {
 	const packageAddress =
@@ -86,7 +86,7 @@ export function getTimestamp(options: GetTimestampOptions) {
 }
 export interface GetExpoOptions {
 	package?: string;
-	arguments: [RawTransactionArgument<string>];
+	arguments: [TransactionArgument];
 }
 export function getExpo(options: GetExpoOptions) {
 	const packageAddress =

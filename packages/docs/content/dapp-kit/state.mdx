@@ -1,22 +1,24 @@
 ---
 title: State
-description: Access and subscribe to wallet connection state in dApp Kit
+description: Access and subscribe to wallet connection state in dApp Kit.
+keywords:
+  [state management, nanostores, wallet state, dApp Kit, reactive stores, Sui, framework-agnostic]
 ---
 
 The Sui dApp Kit SDK uses [nanostores](https://github.com/nanostores/nanostores) for state
 management, providing a lightweight, framework-agnostic solution that works across React, Vue,
 Vanilla JavaScript, and other frameworks.
 
-## Available Stores
+## Available stores
 
 The dApp Kit exposes four reactive stores that you can subscribe to:
 
-- **`$connection`** - Current wallet connection state
-- **`$currentNetwork`** - Currently selected network
-- **`$currentClient`** - Client instance for the current network
-- **`$wallets`** - List of available wallets
+- **`$connection`:** Current wallet connection state
+- **`$currentNetwork`:** Currently selected network
+- **`$currentClient`:** Client instance for the current network
+- **`$wallets`:** List of available wallets
 
-## Accessing Stores
+## Accessing stores
 
 All stores are available through the `dAppKit.stores` property:
 
@@ -34,7 +36,7 @@ const client = dAppKit.stores.$currentClient.get();
 const wallets = dAppKit.stores.$wallets.get();
 ```
 
-## Subscribing to State Changes
+## Subscribing to state changes
 
 Subscribe to any store to react to state changes:
 
@@ -53,9 +55,9 @@ const unsubscribe = dAppKit.stores.$connection.subscribe((connection) => {
 unsubscribe();
 ```
 
-## Store Details
+## Store details
 
-### Connection Store (`$connection`)
+### Connection store (`$connection`)
 
 Contains the current wallet connection state with status flags:
 
@@ -85,7 +87,7 @@ if (connection.isConnected && connection.wallet && connection.account) {
 }
 ```
 
-### Current Network Store (`$currentNetwork`)
+### Current network store (`$currentNetwork`)
 
 Contains the currently selected network as a string:
 
@@ -98,9 +100,9 @@ dAppKit.stores.$currentNetwork.subscribe((network) => {
 });
 ```
 
-Note: This store is read-only. Use `dAppKit.switchNetwork()` to change networks.
+This store is read-only. Use `dAppKit.switchNetwork()` to change networks.
 
-### Current Client Store (`$currentClient`)
+### Current client store (`$currentClient`)
 
 Contains the SuiClient instance for the current network:
 
@@ -113,9 +115,9 @@ const balance = await client.getBalance({
 });
 ```
 
-Note: This store automatically updates when the network changes.
+This store automatically updates when the network changes.
 
-### Wallets Store (`$wallets`)
+### Wallets store (`$wallets`)
 
 Contains the list of available wallets:
 
@@ -128,7 +130,7 @@ wallets.forEach((wallet) => {
 });
 ```
 
-## Subscribing to State Changes
+## Subscribing to state changes
 
 You can subscribe directly to stores:
 

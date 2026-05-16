@@ -71,6 +71,12 @@ interface BaseWalrusClientConfig {
 	storageNodeClientOptions?: StorageNodeClientOptions;
 	wasmUrl?: string;
 	uploadRelay?: UploadRelayConfig;
+	/**
+	 * URL scheme used when contacting storage nodes. Defaults to `'https'`.
+	 * Set to `'http'` for local development where storage nodes do not
+	 * terminate TLS.
+	 */
+	storageNodeUrlScheme?: 'http' | 'https';
 }
 
 /**
