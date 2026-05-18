@@ -1,5 +1,12 @@
 # @mysten/docs
 
+## 0.1.26
+
+### Patch Changes
+
+- Updated dependencies [521ec28]
+  - @mysten/sui@2.17.0
+
 ## 0.1.25
 
 ### Patch Changes
