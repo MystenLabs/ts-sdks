@@ -135,8 +135,8 @@ export interface GetObjectParams {
 	signal?: AbortSignal;
 }
 /**
- * Return the protocol config table for the given version number. If the version number is not
- * specified, If none is specified, the node uses the version of the latest epoch it has processed.
+ * Return the protocol config table for the given version number. If none is specified, the node uses
+ * the version of the latest epoch it has processed.
  */
 export interface GetProtocolConfigParams {
 	/**
@@ -520,7 +520,7 @@ export interface UnsafePayAllSuiParams {
  * input_coin to create new coin following the order of amounts and assign it to the corresponding
  * recipient. 2. accumulate all residual SUI from input coins left and deposit all SUI to the first
  * input coin, then use the first input coin as the gas coin object. 3. the balance of the first input
- * coin after tx is sum(input_coins) - sum(amounts) - actual_gas_cost 4. all other input coints other
+ * coin after tx is sum(input_coins) - sum(amounts) - actual_gas_cost 4. all other input coins other
  * than the first one are deleted.
  */
 export interface UnsafePaySuiParams {
@@ -591,7 +591,7 @@ export interface UnsafeRequestWithdrawStakeParams {
 export interface UnsafeSplitCoinParams {
 	/** the transaction signer's Sui address */
 	signer: string;
-	/** the coin object to be spilt */
+	/** the coin object to be split */
 	coinObjectId: string;
 	/** the amounts to split out from the coin */
 	splitAmounts: string[];
@@ -608,7 +608,7 @@ export interface UnsafeSplitCoinParams {
 export interface UnsafeSplitCoinEqualParams {
 	/** the transaction signer's Sui address */
 	signer: string;
-	/** the coin object to be spilt */
+	/** the coin object to be split */
 	coinObjectId: string;
 	/** the number of coins to split into */
 	splitCount: string;

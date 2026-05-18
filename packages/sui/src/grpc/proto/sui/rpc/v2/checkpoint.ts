@@ -89,7 +89,7 @@ class Checkpoint$Type extends MessageType<Checkpoint> {
 				no: 6,
 				name: 'transactions',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => ExecutedTransaction,
 			},
 			{ no: 7, name: 'objects', kind: 'message', T: () => ObjectSet },
