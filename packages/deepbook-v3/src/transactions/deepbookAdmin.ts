@@ -330,4 +330,66 @@ export class DeepBookAdminContract {
 			typeArguments: [`${this.#config.MARGIN_PACKAGE_ID}::margin_manager::MarginApp`],
 		});
 	};
+
+	/**
+	 * @description Mint a `DeepbookCorePauseCap`. The new cap's ID is recorded
+	 * in the core registry so it can later disable any allowed package version
+	 * via `disableVersionWithCorePauseCap`. Companion to the margin-side
+	 * `MarginAdminContract.mintPauseCap`.
+	 * @returns A function that takes a Transaction object and returns the new pause cap
+	 */
+	mintCorePauseCap = () => (tx: Transaction) => {
+		return tx.moveCall({
+			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::registry::mint_pause_cap`,
+			arguments: [tx.object(this.#config.REGISTRY_ID), tx.object(this.#adminCap())],
+		});
+	};
+
+	/**
+	 * @description Revoke a previously minted `DeepbookCorePauseCap` by ID.
+	 * @param {string} pauseCapId The ID of the core pause cap to revoke
+	 * @returns A function that takes a Transaction object
+	 */
+	revokeCorePauseCap = (pauseCapId: string) => (tx: Transaction) => {
+		tx.moveCall({
+			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::registry::revoke_pause_cap`,
+			arguments: [
+				tx.object(this.#config.REGISTRY_ID),
+				tx.object(this.#adminCap()),
+				tx.pure.id(pauseCapId),
+			],
+		});
+	};
+
+	/**
+	 * @description Emergency kill switch — disable any allowed core package
+	 * version (including the current one) using a held `DeepbookCorePauseCap`.
+	 * Re-enable later via `enableVersion`.
+	 * @param {number | bigint} version The version to disable
+	 * @param {string} pauseCapId The ID of the core pause cap to authorize the disable
+	 * @returns A function that takes a Transaction object
+	 */
+	disableVersionWithCorePauseCap =
+		(version: number | bigint, pauseCapId: string) => (tx: Transaction) => {
+			tx.moveCall({
+				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::registry::disable_version_pause_cap`,
+				arguments: [
+					tx.object(this.#config.REGISTRY_ID),
+					tx.pure.u64(version),
+					tx.object(pauseCapId),
+				],
+			});
+		};
+
+	/**
+	 * @description Get the set of allowed `DeepbookCorePauseCap` IDs from the
+	 * core registry.
+	 * @returns A function that takes a Transaction object and returns a `VecSet<ID>`
+	 */
+	corePauseCaps = () => (tx: Transaction) => {
+		return tx.moveCall({
+			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::registry::allowed_pause_caps`,
+			arguments: [tx.object(this.#config.REGISTRY_ID)],
+		});
+	};
 }

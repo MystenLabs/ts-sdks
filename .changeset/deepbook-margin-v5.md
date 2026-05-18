@@ -26,5 +26,13 @@ Align margin SDK with `deepbook_margin` v5 on-chain source:
 - Add read-only margin_manager builders exposed in newer source: `balanceManagerId`,
   `getBalanceManagerReferralId`, `accountExists`, `account`, `accountOpenOrders`,
   `getAccountOrderDetails`, `lockedBalance`, `canPlaceLimitOrder`, `canPlaceMarketOrder`.
+- Add `MarginAdminContract.setPriceTolerance`, `setMaxPriceAge`, and `setMaxOrderTtl` builders for
+  the per-pool oracle and order-TTL admin entries on `margin_registry`. The `setMaxOrderTtl` entry
+  configures the per-pool `max_order_ttl_ms` cap that `pool_proxy::place_limit_order_v2` and
+  `place_reduce_only_limit_order_v2` use to clamp `expire_timestamp`.
+- Add `DeepBookAdminContract.mintCorePauseCap`, `revokeCorePauseCap`,
+  `disableVersionWithCorePauseCap`, and `corePauseCaps` builders for the new `DeepbookCorePauseCap`
+  emergency-pause flow in the core spot `registry`. These mirror the existing margin-side pause-cap
+  builders.
 - Bump mainnet `MARGIN_PACKAGE_ID` to `0x7767428727629a08dfd196bd4fc00d8a060e30da33aa63f4087fb3271e615a98`
   (the current mainnet published-at, v4), updated from the stale v3 ID.
