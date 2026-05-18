@@ -17,6 +17,7 @@ import { DynamicField_DynamicFieldKind } from './proto/sui/rpc/v2/state_service.
 import { normalizeStructTag } from '../utils/sui-types.js';
 import { fromBase64, toBase64 } from '@mysten/utils';
 import { NameServiceClient } from './proto/sui/rpc/v2/name_service.client.js';
+import { ForkingServiceClient } from './proto/sui/forking/v1alpha/forking_service.client.js';
 import type { TransactionPlugin } from '../transactions/index.js';
 
 interface SuiGrpcTransportOptions extends GrpcWebOptions {
@@ -68,6 +69,7 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 	movePackageService: MovePackageServiceClient;
 	signatureVerificationService: SignatureVerificationServiceClient;
 	nameService: NameServiceClient;
+	forkingService: ForkingServiceClient;
 
 	get [SUI_CLIENT_BRAND]() {
 		return true;
@@ -85,6 +87,7 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 		this.movePackageService = new MovePackageServiceClient(transport);
 		this.signatureVerificationService = new SignatureVerificationServiceClient(transport);
 		this.nameService = new NameServiceClient(transport);
+		this.forkingService = new ForkingServiceClient(transport);
 
 		this.core = new GrpcCoreClient({
 			client: this,

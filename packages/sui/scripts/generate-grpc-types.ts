@@ -5,14 +5,25 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 const packageRoot = path.resolve(import.meta.url.slice(5), '../..');
-const protoDir = path.join(packageRoot, 'src/grpc/proto/sui/rpc/v2');
 const outputFile = path.join(packageRoot, 'src/grpc/proto/types.ts');
 
-// Get all .ts files in the proto directory, excluding .client.ts files
-const files = fs
-	.readdirSync(protoDir)
-	.filter((file) => file.endsWith('.ts') && !file.endsWith('.client.ts'))
-	.sort();
+// Directories whose generated types should be re-exported from `GrpcTypes`.
+const protoDirs = ['sui/rpc/v2', 'sui/forking/v1alpha'];
+
+const exports: string[] = [];
+let total = 0;
+for (const relDir of protoDirs) {
+	const absDir = path.join(packageRoot, 'src/grpc/proto', relDir);
+	const files = fs
+		.readdirSync(absDir)
+		.filter((file) => file.endsWith('.ts') && !file.endsWith('.client.ts'))
+		.sort();
+	for (const file of files) {
+		const moduleName = file.replace('.ts', '.js');
+		exports.push(`export * from './${relDir}/${moduleName}';`);
+	}
+	total += files.length;
+}
 
 const header = `// Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
@@ -29,13 +40,8 @@ const header = `// Copyright (c) Mysten Labs, Inc.
 // Re-export all gRPC proto types for easy consumption
 `;
 
-const exports = files.map((file) => {
-	const moduleName = file.replace('.ts', '.js');
-	return `export * from './sui/rpc/v2/${moduleName}';`;
-});
-
 const content = header + exports.join('\n') + '\n';
 
 fs.writeFileSync(outputFile, content);
 
-console.log(`Generated ${outputFile} with ${files.length} exports`);
+console.log(`Generated ${outputFile} with ${total} exports`);
