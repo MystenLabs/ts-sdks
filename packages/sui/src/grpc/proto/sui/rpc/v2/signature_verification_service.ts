@@ -76,7 +76,13 @@ class VerifySignatureRequest$Type extends MessageType<VerifySignatureRequest> {
 			{ no: 1, name: 'message', kind: 'message', T: () => Bcs },
 			{ no: 2, name: 'signature', kind: 'message', T: () => UserSignature },
 			{ no: 3, name: 'address', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
-			{ no: 4, name: 'jwks', kind: 'message', repeat: 1 /*RepeatType.PACKED*/, T: () => ActiveJwk },
+			{
+				no: 4,
+				name: 'jwks',
+				kind: 'message',
+				repeat: 2 /*RepeatType.UNPACKED*/,
+				T: () => ActiveJwk,
+			},
 		]);
 	}
 }

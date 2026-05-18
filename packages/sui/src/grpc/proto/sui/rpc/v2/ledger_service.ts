@@ -418,7 +418,7 @@ class BatchGetObjectsRequest$Type extends MessageType<BatchGetObjectsRequest> {
 				no: 1,
 				name: 'requests',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => GetObjectRequest,
 			},
 			{ no: 2, name: 'read_mask', kind: 'message', T: () => FieldMask },
@@ -437,7 +437,7 @@ class BatchGetObjectsResponse$Type extends MessageType<BatchGetObjectsResponse> 
 				no: 1,
 				name: 'objects',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => GetObjectResult,
 			},
 		]);
@@ -512,7 +512,7 @@ class BatchGetTransactionsResponse$Type extends MessageType<BatchGetTransactions
 				no: 1,
 				name: 'transactions',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => GetTransactionResult,
 			},
 		]);

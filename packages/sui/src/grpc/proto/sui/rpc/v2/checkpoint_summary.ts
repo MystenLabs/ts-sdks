@@ -220,7 +220,7 @@ class CheckpointSummary$Type extends MessageType<CheckpointSummary> {
 				no: 10,
 				name: 'commitments',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => CheckpointCommitment,
 			},
 			{ no: 11, name: 'end_of_epoch_data', kind: 'message', T: () => EndOfEpochData },
@@ -246,7 +246,7 @@ class EndOfEpochData$Type extends MessageType<EndOfEpochData> {
 				no: 1,
 				name: 'next_epoch_committee',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => ValidatorCommitteeMember,
 			},
 			{
@@ -261,7 +261,7 @@ class EndOfEpochData$Type extends MessageType<EndOfEpochData> {
 				no: 3,
 				name: 'epoch_commitments',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => CheckpointCommitment,
 			},
 		]);

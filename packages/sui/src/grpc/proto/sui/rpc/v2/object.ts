@@ -207,7 +207,13 @@ export const Object = new Object$Type();
 class ObjectSet$Type extends MessageType<ObjectSet> {
 	constructor() {
 		super('sui.rpc.v2.ObjectSet', [
-			{ no: 1, name: 'objects', kind: 'message', repeat: 1 /*RepeatType.PACKED*/, T: () => Object },
+			{
+				no: 1,
+				name: 'objects',
+				kind: 'message',
+				repeat: 2 /*RepeatType.UNPACKED*/,
+				T: () => Object,
+			},
 		]);
 	}
 }

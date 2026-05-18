@@ -761,7 +761,7 @@ class ListBalancesResponse$Type extends MessageType<ListBalancesResponse> {
 				no: 1,
 				name: 'balances',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => Balance,
 			},
 			{ no: 2, name: 'next_page_token', kind: 'scalar', opt: true, T: 12 /*ScalarType.BYTES*/ },
@@ -831,7 +831,7 @@ class ListDynamicFieldsResponse$Type extends MessageType<ListDynamicFieldsRespon
 				no: 1,
 				name: 'dynamic_fields',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => DynamicField,
 			},
 			{ no: 2, name: 'next_page_token', kind: 'scalar', opt: true, T: 12 /*ScalarType.BYTES*/ },
@@ -888,7 +888,13 @@ export const ListOwnedObjectsRequest = new ListOwnedObjectsRequest$Type();
 class ListOwnedObjectsResponse$Type extends MessageType<ListOwnedObjectsResponse> {
 	constructor() {
 		super('sui.rpc.v2.ListOwnedObjectsResponse', [
-			{ no: 1, name: 'objects', kind: 'message', repeat: 1 /*RepeatType.PACKED*/, T: () => Object },
+			{
+				no: 1,
+				name: 'objects',
+				kind: 'message',
+				repeat: 2 /*RepeatType.UNPACKED*/,
+				T: () => Object,
+			},
 			{ no: 2, name: 'next_page_token', kind: 'scalar', opt: true, T: 12 /*ScalarType.BYTES*/ },
 		]);
 	}

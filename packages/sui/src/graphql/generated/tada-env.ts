@@ -5481,6 +5481,20 @@ const introspection = {
         "name": "Int"
       },
       {
+        "kind": "ENUM",
+        "name": "IntentScope",
+        "enumValues": [
+          {
+            "name": "TRANSACTION_DATA",
+            "isDeprecated": false
+          },
+          {
+            "name": "PERSONAL_MESSAGE",
+            "isDeprecated": false
+          }
+        ]
+      },
+      {
         "kind": "SCALAR",
         "name": "JSON"
       },
@@ -10556,6 +10570,13 @@ const introspection = {
             },
             "args": [
               {
+                "name": "digest",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String"
+                }
+              },
+              {
                 "name": "sequenceNumber",
                 "type": {
                   "kind": "SCALAR",
@@ -11476,6 +11497,56 @@ const introspection = {
             "isDeprecated": false
           },
           {
+            "name": "verifySignature",
+            "type": {
+              "kind": "OBJECT",
+              "name": "SignatureVerifyResult"
+            },
+            "args": [
+              {
+                "name": "author",
+                "type": {
+                  "kind": "NON_NULL",
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "SuiAddress"
+                  }
+                }
+              },
+              {
+                "name": "intentScope",
+                "type": {
+                  "kind": "NON_NULL",
+                  "ofType": {
+                    "kind": "ENUM",
+                    "name": "IntentScope"
+                  }
+                }
+              },
+              {
+                "name": "message",
+                "type": {
+                  "kind": "NON_NULL",
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "Base64"
+                  }
+                }
+              },
+              {
+                "name": "signature",
+                "type": {
+                  "kind": "NON_NULL",
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "Base64"
+                  }
+                }
+              }
+            ],
+            "isDeprecated": false
+          },
+          {
             "name": "verifyZkLoginSignature",
             "type": {
               "kind": "OBJECT",
@@ -11523,7 +11594,7 @@ const introspection = {
                 }
               }
             ],
-            "isDeprecated": false
+            "isDeprecated": true
           }
         ],
         "interfaces": []
@@ -12084,6 +12155,22 @@ const introspection = {
             "name": "ZkLoginSignature"
           }
         ]
+      },
+      {
+        "kind": "OBJECT",
+        "name": "SignatureVerifyResult",
+        "fields": [
+          {
+            "name": "success",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean"
+            },
+            "args": [],
+            "isDeprecated": false
+          }
+        ],
+        "interfaces": []
       },
       {
         "kind": "OBJECT",
@@ -12721,6 +12808,15 @@ const introspection = {
                 }
               }
             ],
+            "isDeprecated": false
+          },
+          {
+            "name": "version",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Int"
+            },
+            "args": [],
             "isDeprecated": false
           }
         ],

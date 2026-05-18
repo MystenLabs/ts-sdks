@@ -1253,7 +1253,7 @@ class GasPayment$Type extends MessageType<GasPayment> {
 				no: 1,
 				name: 'objects',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => ObjectReference,
 			},
 			{ no: 2, name: 'owner', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -1380,12 +1380,12 @@ export const TransactionKind = new TransactionKind$Type();
 class ProgrammableTransaction$Type extends MessageType<ProgrammableTransaction> {
 	constructor() {
 		super('sui.rpc.v2.ProgrammableTransaction', [
-			{ no: 1, name: 'inputs', kind: 'message', repeat: 1 /*RepeatType.PACKED*/, T: () => Input },
+			{ no: 1, name: 'inputs', kind: 'message', repeat: 2 /*RepeatType.UNPACKED*/, T: () => Input },
 			{
 				no: 2,
 				name: 'commands',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => Command,
 			},
 		]);
@@ -1443,7 +1443,7 @@ class MoveCall$Type extends MessageType<MoveCall> {
 				no: 5,
 				name: 'arguments',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => Argument,
 			},
 		]);
@@ -1461,7 +1461,7 @@ class TransferObjects$Type extends MessageType<TransferObjects> {
 				no: 1,
 				name: 'objects',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => Argument,
 			},
 			{ no: 2, name: 'address', kind: 'message', T: () => Argument },
@@ -1481,7 +1481,7 @@ class SplitCoins$Type extends MessageType<SplitCoins> {
 				no: 2,
 				name: 'amounts',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => Argument,
 			},
 		]);
@@ -1500,7 +1500,7 @@ class MergeCoins$Type extends MessageType<MergeCoins> {
 				no: 2,
 				name: 'coins_to_merge',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => Argument,
 			},
 		]);
@@ -1544,7 +1544,7 @@ class MakeMoveVector$Type extends MessageType<MakeMoveVector> {
 				no: 2,
 				name: 'elements',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => Argument,
 			},
 		]);
@@ -1674,7 +1674,7 @@ class ChangeEpoch$Type extends MessageType<ChangeEpoch> {
 				no: 8,
 				name: 'system_packages',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => SystemPackage,
 			},
 		]);
@@ -1721,7 +1721,13 @@ export const SystemPackage = new SystemPackage$Type();
 class GenesisTransaction$Type extends MessageType<GenesisTransaction> {
 	constructor() {
 		super('sui.rpc.v2.GenesisTransaction', [
-			{ no: 1, name: 'objects', kind: 'message', repeat: 1 /*RepeatType.PACKED*/, T: () => Object },
+			{
+				no: 1,
+				name: 'objects',
+				kind: 'message',
+				repeat: 2 /*RepeatType.UNPACKED*/,
+				T: () => Object,
+			},
 		]);
 	}
 }
@@ -1822,7 +1828,7 @@ class CanceledTransaction$Type extends MessageType<CanceledTransaction> {
 				no: 2,
 				name: 'version_assignments',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => VersionAssignment,
 			},
 		]);
@@ -1841,7 +1847,7 @@ class ConsensusDeterminedVersionAssignments$Type extends MessageType<ConsensusDe
 				no: 3,
 				name: 'canceled_transactions',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => CanceledTransaction,
 			},
 		]);
@@ -1876,7 +1882,7 @@ class AuthenticatorStateUpdate$Type extends MessageType<AuthenticatorStateUpdate
 				no: 3,
 				name: 'new_active_jwks',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => ActiveJwk,
 			},
 			{
@@ -1923,7 +1929,7 @@ class EndOfEpochTransaction$Type extends MessageType<EndOfEpochTransaction> {
 				no: 1,
 				name: 'transactions',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => EndOfEpochTransactionKind,
 			},
 		]);
@@ -2019,7 +2025,7 @@ class ExecutionTimeObservations$Type extends MessageType<ExecutionTimeObservatio
 				no: 2,
 				name: 'observations',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => ExecutionTimeObservation,
 			},
 		]);
@@ -2048,7 +2054,7 @@ class ExecutionTimeObservation$Type extends MessageType<ExecutionTimeObservation
 				no: 3,
 				name: 'validator_observations',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => ValidatorExecutionTimeObservation,
 			},
 		]);

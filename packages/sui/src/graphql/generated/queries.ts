@@ -1991,6 +1991,14 @@ export type Input = {
   ix?: Maybe<Scalars['Int']['output']>;
 };
 
+/** An enum that specifies the intent scope for signature verification. */
+export enum IntentScope {
+  /** Indicates that the bytes are to be parsed as a personal message. */
+  PersonalMessage = 'PERSONAL_MESSAGE',
+  /** Indicates that the bytes are to be parsed as transaction data bytes. */
+  TransactionData = 'TRANSACTION_DATA'
+}
+
 /** Information used by a package to link to a specific version of its dependency. */
 export type Linkage = {
   __typename?: 'Linkage';
@@ -3706,7 +3714,9 @@ export type Query = {
   /** The network's genesis checkpoint digest (uniquely identifies the network), Base58-encoded. */
   chainIdentifier: Scalars['String']['output'];
   /**
-   * Fetch a checkpoint by its sequence number, or the latest checkpoint if no sequence number is provided.
+   * Fetch a checkpoint by its sequence number or digest, or the latest checkpoint if neither is provided.
+   *
+   * It is an error to specify both `sequenceNumber` and `digest`.
    *
    * Returns `null` if the checkpoint does not exist in the store, either because it never existed or because it was pruned.
    */
@@ -3883,6 +3893,22 @@ export type Query = {
    */
   type?: Maybe<MoveType>;
   /**
+   * Verify a signature is from the given `author`.
+   *
+   * Supports all signature types: Ed25519, Secp256k1, Secp256r1, MultiSig, ZkLogin, and
+   * Passkey.
+   *
+   * Returns successfully if the signature is valid. If the signature is invalid, returns an
+   * error with the reason for the failure.
+   *
+   * - `message` is either a serialized personal message or `TransactionData`, Base64-encoded.
+   * - `signature` is a serialized signature, also Base64-encoded.
+   * - `intentScope` indicates whether `message` is to be parsed as a personal message or
+   * `TransactionData`.
+   * - `author` is the signer's address.
+   */
+  verifySignature?: Maybe<SignatureVerifyResult>;
+  /**
    * Verify a zkLogin signature is from the given `author`.
    *
    * Returns successfully if the signature is valid. If the signature is invalid, returns an error with the reason for the failure.
@@ -3891,6 +3917,7 @@ export type Query = {
    * - `signature` is a serialized zkLogin signature, also Base64-encoded.
    * - `intentScope` indicates whether `bytes` are to be parsed as a personal message or `TransactionData`.
    * - `author` is the signer's address.
+   * @deprecated Use `verifySignature` instead, which supports all signature types.
    */
   verifyZkLoginSignature?: Maybe<ZkLoginVerifyResult>;
 };
@@ -3905,6 +3932,7 @@ export type QueryAddressArgs = {
 
 
 export type QueryCheckpointArgs = {
+  digest?: InputMaybe<Scalars['String']['input']>;
   sequenceNumber?: InputMaybe<Scalars['UInt53']['input']>;
 };
 
@@ -4081,6 +4109,14 @@ export type QueryTransactionsArgs = {
 
 export type QueryTypeArgs = {
   type: Scalars['String']['input'];
+};
+
+
+export type QueryVerifySignatureArgs = {
+  author: Scalars['SuiAddress']['input'];
+  intentScope: IntentScope;
+  message: Scalars['Base64']['input'];
+  signature: Scalars['Base64']['input'];
 };
 
 
@@ -4308,6 +4344,13 @@ export type SharedInput = {
 /** The structured details of a signature, varying by scheme. */
 export type SignatureScheme = Ed25519Signature | MultisigSignature | PasskeySignature | Secp256K1Signature | Secp256R1Signature | ZkLoginSignature;
 
+/** The result of signature verification. */
+export type SignatureVerifyResult = {
+  __typename?: 'SignatureVerifyResult';
+  /** Whether the signature was verified successfully. */
+  success?: Maybe<Scalars['Boolean']['output']>;
+};
+
 /** The result of simulating a transaction, including the predicted effects. */
 export type SimulationResult = {
   __typename?: 'SimulationResult';
@@ -4435,6 +4478,8 @@ export type TransactionEffects = {
   transaction?: Maybe<Transaction>;
   /** The unchanged consensus-managed objects that were referenced by this transaction. */
   unchangedConsensusObjects?: Maybe<UnchangedConsensusObjectConnection>;
+  /** The schema version of the effects struct. */
+  version?: Maybe<Scalars['Int']['output']>;
 };
 
 
