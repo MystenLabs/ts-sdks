@@ -25,7 +25,7 @@ export const testnetPackageIds = {
 } satisfies DeepbookPackageIds;
 
 export const mainnetPackageIds = {
-	DEEPBOOK_PACKAGE_ID: '0xf48222c4e057fa468baf136bff8e12504209d43850c5778f76159292a96f621e',
+	DEEPBOOK_PACKAGE_ID: '0x0e735f8c93a95722efd73521aca7a7652c0bb71ed1daf41b26dfd7d1ff71f748',
 	REGISTRY_ID: '0xaf16199a2dff736e9f07a845f23c5da6df6f756eddb631aed9d24a93efc4549d',
 	DEEP_TREASURY_ID: '0x032abf8948dda67a271bcc18e776dbbcfb0d58c8d288a700ff0d5521e57a1ffe',
 	MARGIN_PACKAGE_ID: '0x7767428727629a08dfd196bd4fc00d8a060e30da33aa63f4087fb3271e615a98',

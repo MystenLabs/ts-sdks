@@ -36,3 +36,5 @@ Align margin SDK with `deepbook_margin` v5 on-chain source:
   builders.
 - Bump mainnet `MARGIN_PACKAGE_ID` to `0x7767428727629a08dfd196bd4fc00d8a060e30da33aa63f4087fb3271e615a98`
   (the current mainnet published-at, v4), updated from the stale v3 ID.
+- Bump mainnet `DEEPBOOK_PACKAGE_ID` to `0x0e735f8c93a95722efd73521aca7a7652c0bb71ed1daf41b26dfd7d1ff71f748`
+  to track the latest core deepbook package upgrade on mainnet.
