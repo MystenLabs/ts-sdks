@@ -1,5 +1,12 @@
 # @mysten/docs
 
+## 0.1.27
+
+### Patch Changes
+
+- Updated dependencies [e68bd36]
+  - @mysten/deepbook-v3@1.4.0
+
 ## 0.1.26
 
 ### Patch Changes
