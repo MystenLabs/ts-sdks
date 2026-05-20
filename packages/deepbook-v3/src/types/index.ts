@@ -232,7 +232,7 @@ export interface PoolConfigParams {
 export interface MarginPoolConfigParams {
 	supplyCap: number | bigint;
 	maxUtilizationRate: number | bigint;
-	referralSpread: number | bigint;
+	protocolSpread: number | bigint;
 	minBorrow: number | bigint;
 	rateLimitCapacity?: number | bigint;
 	rateLimitRefillRatePerMs?: number | bigint;

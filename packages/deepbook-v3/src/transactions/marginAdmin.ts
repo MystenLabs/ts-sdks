@@ -156,6 +156,85 @@ export class MarginAdminContract {
 	};
 
 	/**
+	 * @description Set the price deviation tolerance for a pool. `tolerance` is
+	 * in 9-decimal float scaling (1.0 = `FLOAT_SCALAR`); the SDK applies the
+	 * scaling, so callers pass a human-readable fraction (e.g. `0.1` for 10%).
+	 * Requires the pool's current price to have been initialized via
+	 * `PoolProxyContract.updateCurrentPrice` first.
+	 * @param {string} poolKey The key of the pool to update
+	 * @param {number | bigint} tolerance Tolerance as a fraction (e.g. 0.1 for 10%)
+	 * @returns A function that takes a Transaction object
+	 */
+	setPriceTolerance = (poolKey: string, tolerance: number | bigint) => (tx: Transaction) => {
+		const pool = this.#config.getPool(poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::set_price_tolerance`,
+			arguments: [
+				tx.object(this.#config.MARGIN_REGISTRY_ID),
+				tx.object(this.#marginAdminCap()),
+				tx.object(pool.address),
+				tx.pure.u64(convertRate(tolerance, FLOAT_SCALAR)),
+				tx.object.clock(),
+			],
+			typeArguments: [baseCoin.type, quoteCoin.type],
+		});
+	};
+
+	/**
+	 * @description Set the maximum acceptable Pyth price age (in milliseconds)
+	 * for a pool. Requires the pool's current price to have been initialized
+	 * via `PoolProxyContract.updateCurrentPrice` first.
+	 * @param {string} poolKey The key of the pool to update
+	 * @param {number | bigint} maxAgeMs Max age in milliseconds (raw u64)
+	 * @returns A function that takes a Transaction object
+	 */
+	setMaxPriceAge = (poolKey: string, maxAgeMs: number | bigint) => (tx: Transaction) => {
+		const pool = this.#config.getPool(poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::set_max_price_age`,
+			arguments: [
+				tx.object(this.#config.MARGIN_REGISTRY_ID),
+				tx.object(this.#marginAdminCap()),
+				tx.object(pool.address),
+				tx.pure.u64(maxAgeMs),
+				tx.object.clock(),
+			],
+			typeArguments: [baseCoin.type, quoteCoin.type],
+		});
+	};
+
+	/**
+	 * @description Set the maximum lifetime (in milliseconds) of margin limit
+	 * orders for a pool. `pool_proxy::place_limit_order_v2` and
+	 * `place_reduce_only_limit_order_v2` clamp the user-supplied
+	 * `expire_timestamp` to at most `now + max_order_ttl_ms`, bounding margin
+	 * orders' exposure to stale-price exploitation.
+	 * @param {string} poolKey The key of the pool to update
+	 * @param {number | bigint} maxOrderTtlMs Max order TTL in milliseconds (raw u64)
+	 * @returns A function that takes a Transaction object
+	 */
+	setMaxOrderTtl = (poolKey: string, maxOrderTtlMs: number | bigint) => (tx: Transaction) => {
+		const pool = this.#config.getPool(poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::set_max_order_ttl`,
+			arguments: [
+				tx.object(this.#config.MARGIN_REGISTRY_ID),
+				tx.object(this.#marginAdminCap()),
+				tx.object(pool.address),
+				tx.pure.u64(maxOrderTtlMs),
+				tx.object.clock(),
+			],
+			typeArguments: [baseCoin.type, quoteCoin.type],
+		});
+	};
+
+	/**
 	 * @description Add the PythConfig to the margin registry
 	 * @param {Transaction} tx The transaction object
 	 * @param {TransactionArgument} config The config to be added

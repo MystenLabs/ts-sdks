@@ -99,13 +99,13 @@ export class MarginMaintainerContract {
 	newMarginPoolConfig =
 		(coinKey: string, marginPoolConfig: MarginPoolConfigParams) => (tx: Transaction) => {
 			const coin = this.#config.getCoin(coinKey);
-			const { supplyCap, maxUtilizationRate, referralSpread, minBorrow } = marginPoolConfig;
+			const { supplyCap, maxUtilizationRate, protocolSpread, minBorrow } = marginPoolConfig;
 			return tx.moveCall({
 				target: `${this.#config.MARGIN_PACKAGE_ID}::protocol_config::new_margin_pool_config`,
 				arguments: [
 					tx.pure.u64(convertQuantity(supplyCap, coin.scalar)),
 					tx.pure.u64(convertRate(maxUtilizationRate, FLOAT_SCALAR)),
-					tx.pure.u64(convertRate(referralSpread, FLOAT_SCALAR)),
+					tx.pure.u64(convertRate(protocolSpread, FLOAT_SCALAR)),
 					tx.pure.u64(convertQuantity(minBorrow, coin.scalar)),
 				],
 			});
@@ -133,7 +133,7 @@ export class MarginMaintainerContract {
 			const {
 				supplyCap,
 				maxUtilizationRate,
-				referralSpread,
+				protocolSpread,
 				minBorrow,
 				rateLimitCapacity,
 				rateLimitRefillRatePerMs,
@@ -144,7 +144,7 @@ export class MarginMaintainerContract {
 				arguments: [
 					tx.pure.u64(convertQuantity(supplyCap, coin.scalar)),
 					tx.pure.u64(convertRate(maxUtilizationRate, FLOAT_SCALAR)),
-					tx.pure.u64(convertRate(referralSpread, FLOAT_SCALAR)),
+					tx.pure.u64(convertRate(protocolSpread, FLOAT_SCALAR)),
 					tx.pure.u64(convertQuantity(minBorrow, coin.scalar)),
 					tx.pure.u64(convertQuantity(rateLimitCapacity, coin.scalar)),
 					tx.pure.u64(convertQuantity(rateLimitRefillRatePerMs, coin.scalar)),

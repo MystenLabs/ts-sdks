@@ -198,8 +198,11 @@ export class MarginTPSLContract {
 		};
 
 	/**
-	 * @description Execute conditional orders that have been triggered
-	 * This is a permissionless function that can be called by anyone
+	 * @description Execute conditional orders that have been triggered.
+	 * Permissionless — anyone can call this. After the inner fill loop, the
+	 * manager's post-trade `risk_ratio` is checked against
+	 * `min_borrow_risk_ratio`; if any triggered fill breaches that floor, the
+	 * whole txn aborts (no partial-state landing).
 	 * @param {string} managerAddress The address of the margin manager
 	 * @param {string} poolKey The key to identify the pool (e.g., 'SUI_USDC')
 	 * @param {number} maxOrdersToExecute Maximum number of orders to execute in this call
@@ -210,11 +213,15 @@ export class MarginTPSLContract {
 			const pool = this.#config.getPool(poolKey);
 			const baseCoin = this.#config.getCoin(pool.baseCoin);
 			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+			const baseMarginPool = this.#config.getMarginPool(pool.baseCoin);
+			const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
 			return tx.moveCall({
-				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::execute_conditional_orders`,
+				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::execute_conditional_orders_v2`,
 				arguments: [
 					tx.object(managerAddress),
 					tx.object(pool.address),
+					tx.object(baseMarginPool.address),
+					tx.object(quoteMarginPool.address),
 					tx.object(baseCoin.priceInfoObjectId!),
 					tx.object(quoteCoin.priceInfoObjectId!),
 					tx.object(this.#config.MARGIN_REGISTRY_ID),
