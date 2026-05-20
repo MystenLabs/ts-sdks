@@ -315,7 +315,7 @@ export class DeepBookAdminContract {
 		tx.moveCall({
 			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::registry::authorize_app`,
 			arguments: [tx.object(this.#config.REGISTRY_ID), tx.object(this.#adminCap())],
-			typeArguments: [`${this.#config.MARGIN_PACKAGE_ID}::margin_manager::MarginApp`],
+			typeArguments: [`${this.#config.MARGIN_V1}::margin_manager::MarginApp`],
 		});
 	};
 
@@ -327,7 +327,7 @@ export class DeepBookAdminContract {
 		return tx.moveCall({
 			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::registry::deauthorize_app`,
 			arguments: [tx.object(this.#config.REGISTRY_ID), tx.object(this.#adminCap())],
-			typeArguments: [`${this.#config.MARGIN_PACKAGE_ID}::margin_manager::MarginApp`],
+			typeArguments: [`${this.#config.MARGIN_V1}::margin_manager::MarginApp`],
 		});
 	};
 
