@@ -2,12 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { beforeAll, describe, expect, it } from 'vitest';
-import { GrpcTransport } from '@protobuf-ts/grpc-transport';
-import { ChannelCredentials } from '@grpc/grpc-js';
 
 import { SuiGrpcClient, GrpcWebFetchTransport } from '../../../../src/grpc/index.js';
 import { getJsonRpcFullnodeUrl } from '../../../../src/jsonRpc/index.js';
 import { setup, TestToolbox } from '../../utils/setup.js';
+
+// @protobuf-ts/grpc-transport and @grpc/grpc-js are optional native gRPC dependencies.
+// Dynamic import so the test file loads even when they are not installed.
+let GrpcTransport: typeof import('@protobuf-ts/grpc-transport').GrpcTransport | undefined;
+let ChannelCredentials: typeof import('@grpc/grpc-js').ChannelCredentials | undefined;
+
+try {
+	({ GrpcTransport } = await import('@protobuf-ts/grpc-transport'));
+	({ ChannelCredentials } = await import('@grpc/grpc-js'));
+} catch {
+	// not installed — tests that need these will be skipped
+}
 
 /**
  * E2E tests verifying that SuiGrpcClient works correctly with both the default
@@ -19,26 +29,26 @@ import { setup, TestToolbox } from '../../utils/setup.js';
 
 describe('gRPC transport variants', () => {
 	let toolbox: TestToolbox;
-	let nativeGrpcClient: SuiGrpcClient;
+	let nativeGrpcClient: SuiGrpcClient | undefined;
 	let grpcWebCustomClient: SuiGrpcClient;
 
 	beforeAll(async () => {
 		toolbox = await setup();
 
-		// The toolbox.grpcClient uses the default GrpcWebFetchTransport.
-		// Create a second client using the native gRPC transport pointing at the same localnet.
 		const fullnodeUrl = new URL(import.meta.env.FULLNODE_URL ?? getJsonRpcFullnodeUrl('localnet'));
 		const host = `${fullnodeUrl.hostname}:${fullnodeUrl.port}`;
 
-		const nativeTransport = new GrpcTransport({
-			host,
-			channelCredentials: ChannelCredentials.createInsecure(),
-		});
+		if (GrpcTransport && ChannelCredentials) {
+			const nativeTransport = new GrpcTransport({
+				host,
+				channelCredentials: ChannelCredentials.createInsecure(),
+			});
 
-		nativeGrpcClient = new SuiGrpcClient({
-			network: 'localnet',
-			transport: nativeTransport,
-		});
+			nativeGrpcClient = new SuiGrpcClient({
+				network: 'localnet',
+				transport: nativeTransport,
+			});
+		}
 
 		// Also create one using the re-exported GrpcWebFetchTransport as a custom transport
 		const grpcWebTransport = new GrpcWebFetchTransport({
@@ -52,8 +62,8 @@ describe('gRPC transport variants', () => {
 	});
 
 	describe('getObject', () => {
-		it('native gRPC transport returns object data', async () => {
-			const { object } = await nativeGrpcClient.getObject({
+		it.skipIf(!GrpcTransport)('native gRPC transport returns object data', async () => {
+			const { object } = await nativeGrpcClient!.getObject({
 				objectId: '0x0000000000000000000000000000000000000000000000000000000000000002',
 			});
 
@@ -67,29 +77,32 @@ describe('gRPC transport variants', () => {
 			}
 		});
 
-		it('native gRPC and default gRPC-web return the same object data', async () => {
-			const objectId = '0x0000000000000000000000000000000000000000000000000000000000000002';
+		it.skipIf(!GrpcTransport)(
+			'native gRPC and default gRPC-web return the same object data',
+			async () => {
+				const objectId = '0x0000000000000000000000000000000000000000000000000000000000000002';
 
-			const [webResult, nativeResult] = await Promise.all([
-				toolbox.grpcClient.getObject({ objectId }),
-				nativeGrpcClient.getObject({ objectId }),
-			]);
+				const [webResult, nativeResult] = await Promise.all([
+					toolbox.grpcClient.getObject({ objectId }),
+					nativeGrpcClient!.getObject({ objectId }),
+				]);
 
-			expect(webResult.object).not.toBeInstanceOf(Error);
-			expect(nativeResult.object).not.toBeInstanceOf(Error);
+				expect(webResult.object).not.toBeInstanceOf(Error);
+				expect(nativeResult.object).not.toBeInstanceOf(Error);
 
-			if (!(webResult.object instanceof Error) && !(nativeResult.object instanceof Error)) {
-				expect(nativeResult.object.objectId).toBe(webResult.object.objectId);
-				expect(nativeResult.object.version).toBe(webResult.object.version);
-				expect(nativeResult.object.digest).toBe(webResult.object.digest);
-				expect(nativeResult.object.type).toBe(webResult.object.type);
-			}
-		});
+				if (!(webResult.object instanceof Error) && !(nativeResult.object instanceof Error)) {
+					expect(nativeResult.object.objectId).toBe(webResult.object.objectId);
+					expect(nativeResult.object.version).toBe(webResult.object.version);
+					expect(nativeResult.object.digest).toBe(webResult.object.digest);
+					expect(nativeResult.object.type).toBe(webResult.object.type);
+				}
+			},
+		);
 	});
 
 	describe('getBalance', () => {
-		it('native gRPC transport returns balance', async () => {
-			const { balance } = await nativeGrpcClient.getBalance({
+		it.skipIf(!GrpcTransport)('native gRPC transport returns balance', async () => {
+			const { balance } = await nativeGrpcClient!.getBalance({
 				owner: toolbox.address(),
 			});
 
@@ -98,41 +111,47 @@ describe('gRPC transport variants', () => {
 			expect(typeof balance.balance).toBe('string');
 		});
 
-		it('native gRPC and default gRPC-web return the same balance', async () => {
-			const owner = toolbox.address();
+		it.skipIf(!GrpcTransport)(
+			'native gRPC and default gRPC-web return the same balance',
+			async () => {
+				const owner = toolbox.address();
 
-			const [webResult, nativeResult] = await Promise.all([
-				toolbox.grpcClient.getBalance({ owner }),
-				nativeGrpcClient.getBalance({ owner }),
-			]);
+				const [webResult, nativeResult] = await Promise.all([
+					toolbox.grpcClient.getBalance({ owner }),
+					nativeGrpcClient!.getBalance({ owner }),
+				]);
 
-			expect(nativeResult.balance.balance).toBe(webResult.balance.balance);
-			expect(nativeResult.balance.coinType).toBe(webResult.balance.coinType);
-		});
+				expect(nativeResult.balance.balance).toBe(webResult.balance.balance);
+				expect(nativeResult.balance.coinType).toBe(webResult.balance.coinType);
+			},
+		);
 	});
 
 	describe('getReferenceGasPrice', () => {
-		it('native gRPC transport returns gas price', async () => {
-			const result = await nativeGrpcClient.getReferenceGasPrice();
+		it.skipIf(!GrpcTransport)('native gRPC transport returns gas price', async () => {
+			const result = await nativeGrpcClient!.getReferenceGasPrice();
 
 			expect(result).toBeDefined();
 			expect(typeof result.referenceGasPrice).toBe('string');
 			expect(BigInt(result.referenceGasPrice)).toBeGreaterThan(0n);
 		});
 
-		it('native gRPC and default gRPC-web return the same gas price', async () => {
-			const [webResult, nativeResult] = await Promise.all([
-				toolbox.grpcClient.getReferenceGasPrice(),
-				nativeGrpcClient.getReferenceGasPrice(),
-			]);
+		it.skipIf(!GrpcTransport)(
+			'native gRPC and default gRPC-web return the same gas price',
+			async () => {
+				const [webResult, nativeResult] = await Promise.all([
+					toolbox.grpcClient.getReferenceGasPrice(),
+					nativeGrpcClient!.getReferenceGasPrice(),
+				]);
 
-			expect(nativeResult.referenceGasPrice).toBe(webResult.referenceGasPrice);
-		});
+				expect(nativeResult.referenceGasPrice).toBe(webResult.referenceGasPrice);
+			},
+		);
 	});
 
 	describe('getObjects (batch)', () => {
-		it('native gRPC transport returns multiple objects', async () => {
-			const { objects } = await nativeGrpcClient.getObjects({
+		it.skipIf(!GrpcTransport)('native gRPC transport returns multiple objects', async () => {
+			const { objects } = await nativeGrpcClient!.getObjects({
 				objectIds: [
 					'0x0000000000000000000000000000000000000000000000000000000000000002',
 					'0x0000000000000000000000000000000000000000000000000000000000000001',
@@ -145,30 +164,33 @@ describe('gRPC transport variants', () => {
 			}
 		});
 
-		it('native gRPC and default gRPC-web return the same objects', async () => {
-			const objectIds = [
-				'0x0000000000000000000000000000000000000000000000000000000000000002',
-				'0x0000000000000000000000000000000000000000000000000000000000000001',
-			];
+		it.skipIf(!GrpcTransport)(
+			'native gRPC and default gRPC-web return the same objects',
+			async () => {
+				const objectIds = [
+					'0x0000000000000000000000000000000000000000000000000000000000000002',
+					'0x0000000000000000000000000000000000000000000000000000000000000001',
+				];
 
-			const [webResult, nativeResult] = await Promise.all([
-				toolbox.grpcClient.getObjects({ objectIds }),
-				nativeGrpcClient.getObjects({ objectIds }),
-			]);
+				const [webResult, nativeResult] = await Promise.all([
+					toolbox.grpcClient.getObjects({ objectIds }),
+					nativeGrpcClient!.getObjects({ objectIds }),
+				]);
 
-			expect(nativeResult.objects).toHaveLength(webResult.objects.length);
-			for (let i = 0; i < webResult.objects.length; i++) {
-				const web = webResult.objects[i];
-				const native = nativeResult.objects[i];
-				expect(web).not.toBeInstanceOf(Error);
-				expect(native).not.toBeInstanceOf(Error);
-				if (!(web instanceof Error) && !(native instanceof Error)) {
-					expect(native.objectId).toBe(web.objectId);
-					expect(native.version).toBe(web.version);
-					expect(native.digest).toBe(web.digest);
+				expect(nativeResult.objects).toHaveLength(webResult.objects.length);
+				for (let i = 0; i < webResult.objects.length; i++) {
+					const web = webResult.objects[i];
+					const native = nativeResult.objects[i];
+					expect(web).not.toBeInstanceOf(Error);
+					expect(native).not.toBeInstanceOf(Error);
+					if (!(web instanceof Error) && !(native instanceof Error)) {
+						expect(native.objectId).toBe(web.objectId);
+						expect(native.version).toBe(web.version);
+						expect(native.digest).toBe(web.digest);
+					}
 				}
-			}
-		});
+			},
+		);
 	});
 
 	describe('re-exported GrpcWebFetchTransport', () => {

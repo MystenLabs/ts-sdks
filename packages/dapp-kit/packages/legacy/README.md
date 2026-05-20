@@ -23,7 +23,7 @@ See https://sdk.mystenlabs.com/sui for full documentation
 
 To use the Sui dApp Kit in your project, run the following command in your project root:
 
-```sh npm2yarn
+```npm
 npm i --save @mysten/dapp-kit @mysten/sui @tanstack/react-query
 ```
 
