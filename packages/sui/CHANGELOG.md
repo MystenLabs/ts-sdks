@@ -1,5 +1,57 @@
 # @mysten/sui.js
 
+## 2.17.0
+
+### Minor Changes
+
+- 521ec28: Regenerate gRPC, GraphQL, and JSON-RPC types from upstream sources, and add a
+  `ForkingService` gRPC client for use against `sui-fork` instances.
+  - gRPC: `AccumulatorWrite` splits the old `value` field into `integerValue` / `integerTuple` /
+    `eventDigestValue` (authenticated events), with a new `EventDigestEntry` message and
+    `AccumulatorValue` enum.
+  - GraphQL: new `verifySignature` query (deprecates `verifyZkLoginSignature`), `IntentScope` enum,
+    `SignatureVerifyResult` type, `digest` arg on `Query.checkpoint`, and `version` field on
+    `TransactionEffects`.
+  - JSON-RPC: regenerated; `DisplayFieldsResponse.data` override from #993 is preserved.
+  - `SuiGrpcClient` now exposes a `forkingService` member built from
+    `sui/forking/v1alpha/forking_service.proto` (pulled from the `sui` repo, since it is not
+    mirrored in `sui-apis`). The service is admin-only and works only against `sui-fork` instances;
+    it serves on the same host/port as the regular Sui gRPC services on a fork.
+
+## 2.16.3
+
+### Patch Changes
+
+- 5900ad5: Always pass a `ValidDuring` expiration as a simulate-only override when the resolver has
+  to compute a gas budget and the caller hasn't set an expiration. The simulate inside
+  `setGasBudget` runs with `payment: []`, and the validator's replay-protection check rejects
+  payment-less transactions that lack both a `ValidDuring` expiration and an address-owned input.
+  Previously this affected gasless / free-tier PTBs over JSON-RPC ("Transactions must either have
+  address-owned inputs, or a ValidDuring expiration with at most two epochs of validity"); it also
+  affects any PTB whose only inputs are shared objects, pure args, or balance withdrawals. The
+  override is scoped to the simulate request — the final transaction's expiration is unchanged.
+
+## 2.16.2
+
+### Patch Changes
+
+- f7de3e5: Restore docs in published tarballs.
+- Updated dependencies [f7de3e5]
+  - @mysten/bcs@2.0.5
+  - @mysten/utils@0.3.3
+
+## 2.16.1
+
+### Patch Changes
+
+- 9e067cf: Validate the new per-package release flow end-to-end across every public @mysten package.
+  No functional changes — empty patch bump to force the orchestrator to dispatch every
+  release-<pkg>.yml workflow with `dry_run=false` so each package publishes via OIDC trusted
+  publishing.
+- Updated dependencies [9e067cf]
+  - @mysten/bcs@2.0.4
+  - @mysten/utils@0.3.2
+
 ## 2.16.0
 
 ### Minor Changes

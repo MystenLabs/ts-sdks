@@ -1,5 +1,31 @@
 # @mysten/suins
 
+## 1.1.4
+
+### Patch Changes
+
+- f7de3e5: Restore docs in published tarballs.
+- Updated dependencies [f7de3e5]
+  - @mysten/sui@2.16.2
+
+## 1.1.3
+
+### Patch Changes
+
+- 9e067cf: Validate the new per-package release flow end-to-end across every public @mysten package.
+  No functional changes — empty patch bump to force the orchestrator to dispatch every
+  release-<pkg>.yml workflow with `dry_run=false` so each package publishes via OIDC trusted
+  publishing.
+- Updated dependencies [9e067cf]
+  - @mysten/sui@2.16.1
+
+## 1.1.2
+
+### Patch Changes
+
+- 75a32c1: Bump `axios` to `^1.16.0` to address security advisories (CVE-2025-62718 and related
+  prototype pollution issues).
+
 ## 1.1.1
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/seal",
-	"version": "1.1.1",
+	"version": "1.1.3",
 	"description": "Seal SDK",
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",
@@ -23,7 +23,7 @@
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
 		"build": "node genversion.mjs && rm -rf dist && tsc --noEmit && tsdown",
-		"build:docs": "tsx ../docs/scripts/build-docs.ts",
+		"build:docs": "node ../docs/scripts/build-docs.ts",
 		"codegen:version": "node genversion.mjs",
 		"vitest": "vitest",
 		"test": "pnpm test:typecheck && pnpm test:unit",
@@ -46,7 +46,6 @@
 	"homepage": "https://github.com/MystenLabs/seal#readme",
 	"devDependencies": {
 		"@hey-api/openapi-ts": "^0.90.3",
-		"@mysten/sui": "workspace:^",
 		"@types/node": "^25.0.8",
 		"typescript": "^5.9.3",
 		"vitest": "^4.0.17"

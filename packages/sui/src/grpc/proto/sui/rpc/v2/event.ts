@@ -88,7 +88,7 @@ class TransactionEvents$Type extends MessageType<TransactionEvents> {
 		super('sui.rpc.v2.TransactionEvents', [
 			{ no: 1, name: 'bcs', kind: 'message', T: () => Bcs },
 			{ no: 2, name: 'digest', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
-			{ no: 3, name: 'events', kind: 'message', repeat: 1 /*RepeatType.PACKED*/, T: () => Event },
+			{ no: 3, name: 'events', kind: 'message', repeat: 2 /*RepeatType.UNPACKED*/, T: () => Event },
 		]);
 	}
 }

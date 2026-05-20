@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/bcs",
-	"version": "2.0.3",
+	"version": "2.0.5",
 	"description": "BCS - Canonical Binary Serialization implementation for JavaScript",
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",
@@ -24,7 +24,7 @@
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
 		"build": "rm -rf dist && tsc --noEmit && tsdown",
-		"build:docs": "tsx ../docs/scripts/build-docs.ts",
+		"build:docs": "node ../docs/scripts/build-docs.ts",
 		"test": "vitest run --typecheck",
 		"test:watch": "vitest --typecheck",
 		"prettier:check": "prettier -c --ignore-unknown .",

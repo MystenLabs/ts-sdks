@@ -1,5 +1,38 @@
 # @mysten/walrus
 
+## 1.1.7
+
+### Patch Changes
+
+- 4cdeeb2: Add `storageNodeUrlScheme` option to `WalrusClient` for configuring the URL scheme used
+  when contacting storage nodes (defaults to `'https'`). Set to `'http'` for local development
+  environments where storage nodes do not terminate TLS.
+
+## 1.1.6
+
+### Patch Changes
+
+- f7de3e5: Restore docs in published tarballs.
+- Updated dependencies [f7de3e5]
+  - @mysten/bcs@2.0.5
+  - @mysten/sui@2.16.2
+  - @mysten/utils@0.3.3
+  - @mysten/walrus-wasm@0.2.2
+
+## 1.1.5
+
+### Patch Changes
+
+- 9e067cf: Validate the new per-package release flow end-to-end across every public @mysten package.
+  No functional changes — empty patch bump to force the orchestrator to dispatch every
+  release-<pkg>.yml workflow with `dry_run=false` so each package publishes via OIDC trusted
+  publishing.
+- Updated dependencies [9e067cf]
+  - @mysten/bcs@2.0.4
+  - @mysten/sui@2.16.1
+  - @mysten/utils@0.3.2
+  - @mysten/walrus-wasm@0.2.1
+
 ## 1.1.4
 
 ### Patch Changes

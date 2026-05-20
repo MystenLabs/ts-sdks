@@ -505,7 +505,7 @@ class QuotaFailure$Type extends MessageType<QuotaFailure> {
 				no: 1,
 				name: 'violations',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => QuotaFailure_Violation,
 			},
 		]);
@@ -536,7 +536,7 @@ class PreconditionFailure$Type extends MessageType<PreconditionFailure> {
 				no: 1,
 				name: 'violations',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => PreconditionFailure_Violation,
 			},
 		]);
@@ -568,7 +568,7 @@ class BadRequest$Type extends MessageType<BadRequest> {
 				no: 1,
 				name: 'field_violations',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => BadRequest_FieldViolation,
 			},
 		]);
@@ -629,7 +629,7 @@ class Help$Type extends MessageType<Help> {
 				no: 1,
 				name: 'links',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => Help_Link,
 			},
 		]);

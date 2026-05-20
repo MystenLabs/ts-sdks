@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/zksend",
-	"version": "1.1.0",
+	"version": "1.1.2",
 	"description": "Create claimable links for transferring coins and NFTs",
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",
@@ -23,7 +23,9 @@
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
 		"build": "rm -rf dist && tsc --noEmit && tsdown",
-		"build:docs": "tsx ../docs/scripts/build-docs.ts",
+		"build:docs": "node ../docs/scripts/build-docs.ts",
+		"test": "pnpm test:typecheck",
+		"test:typecheck": "tsc -b ./test",
 		"prettier:check": "prettier -c --ignore-unknown .",
 		"prettier:fix": "prettier -w --ignore-unknown .",
 		"oxlint:check": "oxlint  .",
@@ -40,7 +42,6 @@
 	},
 	"homepage": "https://sdk.mystenlabs.com/zksend",
 	"devDependencies": {
-		"@mysten/sui": "workspace:^",
 		"@types/node": "^25.0.8",
 		"typescript": "^5.9.3",
 		"vitest": "^4.0.17"

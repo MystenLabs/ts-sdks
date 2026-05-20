@@ -3,7 +3,7 @@
 	"author": "Mysten Labs <build@mystenlabs.com>",
 	"description": "Sui signer for Ledger hardware wallets",
 	"homepage": "https://sdk.mystenlabs.com",
-	"version": "0.0.0",
+	"version": "0.1.2",
 	"license": "Apache-2.0",
 	"type": "module",
 	"sideEffects": false,
@@ -52,7 +52,6 @@
 		"@mysten/sui": "workspace:^"
 	},
 	"devDependencies": {
-		"@mysten/sui": "workspace:^",
 		"@types/node": "^25.0.8",
 		"typescript": "^5.9.3",
 		"vitest": "^4.0.17"

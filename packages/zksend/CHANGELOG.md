@@ -1,5 +1,30 @@
 # @mysten/zksend
 
+## 1.1.2
+
+### Patch Changes
+
+- f7de3e5: Restore docs in published tarballs.
+- Updated dependencies [f7de3e5]
+  - @mysten/sui@2.16.2
+  - @mysten/utils@0.3.3
+  - @mysten/wallet-standard@0.20.3
+  - @mysten/window-wallet-core@0.1.6
+
+## 1.1.1
+
+### Patch Changes
+
+- 9e067cf: Validate the new per-package release flow end-to-end across every public @mysten package.
+  No functional changes — empty patch bump to force the orchestrator to dispatch every
+  release-<pkg>.yml workflow with `dry_run=false` so each package publishes via OIDC trusted
+  publishing.
+- Updated dependencies [9e067cf]
+  - @mysten/sui@2.16.1
+  - @mysten/utils@0.3.2
+  - @mysten/wallet-standard@0.20.2
+  - @mysten/window-wallet-core@0.1.5
+
 ## 1.1.0
 
 ### Minor Changes

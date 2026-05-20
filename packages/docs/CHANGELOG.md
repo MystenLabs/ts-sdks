@@ -1,5 +1,110 @@
 # @mysten/docs
 
+## 0.1.26
+
+### Patch Changes
+
+- Updated dependencies [521ec28]
+  - @mysten/sui@2.17.0
+
+## 0.1.25
+
+### Patch Changes
+
+- Updated dependencies [5900ad5]
+- Updated dependencies [225f928]
+  - @mysten/sui@2.16.3
+  - @mysten/enoki@1.0.8
+
+## 0.1.24
+
+### Patch Changes
+
+- Updated dependencies [4cdeeb2]
+  - @mysten/walrus@1.1.7
+
+## 0.1.23
+
+### Patch Changes
+
+- f7de3e5: Restore docs in published tarballs.
+- Updated dependencies [f7de3e5]
+- Updated dependencies [f7de3e5]
+  - @mysten/dapp-kit@1.0.6
+  - @mysten/aws-kms-signer@0.1.2
+  - @mysten/bcs@2.0.5
+  - @mysten/dapp-kit-core@1.3.2
+  - @mysten/dapp-kit-react@2.0.3
+  - @mysten/deepbook-v3@1.3.6
+  - @mysten/enoki@1.0.7
+  - @mysten/enoki-connect@1.0.4
+  - @mysten/gcp-kms-signer@0.1.2
+  - @mysten/kiosk@1.2.6
+  - @mysten/ledger-signer@0.1.2
+  - @mysten/payment-kit@0.1.11
+  - @mysten/seal@1.1.3
+  - @mysten/signers@1.0.5
+  - @mysten/slush-wallet@1.0.5
+  - @mysten/sui@2.16.2
+  - @mysten/suins@1.1.4
+  - @mysten/utils@0.3.3
+  - @mysten/wallet-standard@0.20.3
+  - @mysten/walrus@1.1.6
+  - @mysten/webcrypto-signer@0.1.2
+  - @mysten/zksend@1.1.2
+
+## 0.1.22
+
+### Patch Changes
+
+- 9e067cf: Validate the new per-package release flow end-to-end across every public @mysten package.
+  No functional changes — empty patch bump to force the orchestrator to dispatch every
+  release-<pkg>.yml workflow with `dry_run=false` so each package publishes via OIDC trusted
+  publishing.
+- Updated dependencies [9e067cf]
+  - @mysten/aws-kms-signer@0.1.1
+  - @mysten/bcs@2.0.4
+  - @mysten/dapp-kit@1.0.5
+  - @mysten/dapp-kit-core@1.3.1
+  - @mysten/dapp-kit-react@2.0.2
+  - @mysten/deepbook-v3@1.3.5
+  - @mysten/enoki@1.0.6
+  - @mysten/enoki-connect@1.0.3
+  - @mysten/gcp-kms-signer@0.1.1
+  - @mysten/kiosk@1.2.5
+  - @mysten/ledger-signer@0.1.1
+  - @mysten/payment-kit@0.1.10
+  - @mysten/seal@1.1.2
+  - @mysten/signers@1.0.4
+  - @mysten/slush-wallet@1.0.4
+  - @mysten/sui@2.16.1
+  - @mysten/suins@1.1.3
+  - @mysten/utils@0.3.2
+  - @mysten/wallet-standard@0.20.2
+  - @mysten/walrus@1.1.5
+  - @mysten/webcrypto-signer@0.1.1
+  - @mysten/zksend@1.1.1
+
+## 0.1.21
+
+### Patch Changes
+
+- Updated dependencies [75a32c1]
+- Updated dependencies [75a32c1]
+- Updated dependencies [75a32c1]
+- Updated dependencies [75a32c1]
+- Updated dependencies [75a32c1]
+- Updated dependencies [75a32c1]
+- Updated dependencies [75a32c1]
+  - @mysten/deepbook-v3@1.3.4
+  - @mysten/suins@1.1.2
+  - @mysten/enoki@1.0.5
+  - @mysten/signers@1.0.3
+  - @mysten/aws-kms-signer@0.1.0
+  - @mysten/gcp-kms-signer@0.1.0
+  - @mysten/ledger-signer@0.1.0
+  - @mysten/webcrypto-signer@0.1.0
+
 ## 0.1.20
 
 ### Patch Changes

@@ -17,7 +17,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import matter from 'gray-matter';
+import { matter } from './docs-utils.ts';
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const CONTENT_DIR = path.resolve(SCRIPT_DIR, '..', 'content');
@@ -57,12 +57,15 @@ for (const file of mdxFiles) {
 	const { data } = matter(content);
 	const relPath = path.relative(CONTENT_DIR, file);
 
-	if (!data.title) {
+	const title = typeof data.title === 'string' ? data.title : undefined;
+	const description = typeof data.description === 'string' ? data.description : undefined;
+
+	if (!title) {
 		error(`${relPath}: missing 'title' in frontmatter`);
 	}
-	if (!data.description) {
+	if (description === undefined) {
 		error(`${relPath}: missing 'description' in frontmatter`);
-	} else if (data.description.trim().length === 0) {
+	} else if (description.trim().length === 0) {
 		warn(`${relPath}: empty 'description' in frontmatter — reduces LLM routing effectiveness`);
 	}
 }

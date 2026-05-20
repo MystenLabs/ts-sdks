@@ -97,7 +97,7 @@ class CheckpointContents$Type extends MessageType<CheckpointContents> {
 				no: 4,
 				name: 'transactions',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => CheckpointedTransactionInfo,
 			},
 		]);
@@ -117,14 +117,14 @@ class CheckpointedTransactionInfo$Type extends MessageType<CheckpointedTransacti
 				no: 3,
 				name: 'signatures',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => UserSignature,
 			},
 			{
 				no: 4,
 				name: 'address_aliases_versions',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => AddressAliasesVersion,
 			},
 		]);

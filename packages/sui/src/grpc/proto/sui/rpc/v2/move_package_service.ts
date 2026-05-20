@@ -268,7 +268,7 @@ class ListPackageVersionsResponse$Type extends MessageType<ListPackageVersionsRe
 				no: 1,
 				name: 'versions',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => PackageVersion,
 			},
 			{ no: 2, name: 'next_page_token', kind: 'scalar', opt: true, T: 12 /*ScalarType.BYTES*/ },
