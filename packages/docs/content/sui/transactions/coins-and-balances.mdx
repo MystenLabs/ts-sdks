@@ -293,7 +293,7 @@ const result = await client.signAndExecuteTransaction({
 The JSON-RPC transport does not automatically detect gasless eligibility. You can opt in by setting
 the gas price to zero with `tx.setGasPrice(0)`, but only after confirming the coin type is on the
 [allowlist](https://docs.sui.io/develop/transaction-payment/gasless-stablecoin-transfers#eligible-stablecoins)
-and the PTB shape is eligible — otherwise the transaction fails at validation.
+and the PTB shape is eligible. Otherwise the transaction fails at validation.
 
 <Callout type="warning">
 	If your wallet builds transactions with gRPC but executes through a different transport (for
