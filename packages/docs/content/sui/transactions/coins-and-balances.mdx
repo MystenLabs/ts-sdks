@@ -278,10 +278,7 @@ tx.setSender(keypair.toSuiAddress());
 tx.moveCall({
 	target: '0x2::balance::send_funds',
 	typeArguments: [USDC],
-	arguments: [
-		tx.balance({ type: USDC, balance: 1_000_000 }),
-		tx.pure.address(recipient),
-	],
+	arguments: [tx.balance({ type: USDC, balance: 1_000_000 }), tx.pure.address(recipient)],
 });
 
 const result = await client.signAndExecuteTransaction({
