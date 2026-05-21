@@ -279,7 +279,7 @@ tx.moveCall({
 	target: '0x2::balance::send_funds',
 	typeArguments: [USDC],
 	arguments: [
-		tx.balance({ type: USDC, balance: 1_000_000n }), // 1 USDC
+		tx.balance({ type: USDC, balance: 1_000_000 }),
 		tx.pure.address(recipient),
 	],
 });
