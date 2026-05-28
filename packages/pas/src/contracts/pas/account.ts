@@ -13,7 +13,7 @@ import {
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as versioning from './versioning.js';
-const $moduleName = '@mysten/pas::account';
+const $moduleName = '@pas/pas::account';
 export const Account = new MoveStruct({
 	name: `${$moduleName}::Account`,
 	fields: {

@@ -6,7 +6,7 @@ import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from 
 import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as vec_set from './deps/sui/vec_set.js';
 import * as type_name from './deps/std/type_name.js';
-const $moduleName = '@mysten/pas::request';
+const $moduleName = '@pas/pas::request';
 /** A base request type. Examples: `Request<SendFunds<T>>` `Request<UnlockFunds<T>>` */
 export function Request<K extends BcsType<any>>(...typeParameters: [K]) {
 	return new MoveStruct({

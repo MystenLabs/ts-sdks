@@ -4,7 +4,7 @@
 import { MoveTuple, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
-const $moduleName = '@mysten/pas::keys';
+const $moduleName = '@pas/pas::keys';
 export const PolicyKey = new MoveTuple({
 	name: `${$moduleName}::PolicyKey<phantom T>`,
 	fields: [bcs.bool()],

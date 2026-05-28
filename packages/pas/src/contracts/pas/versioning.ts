@@ -15,7 +15,7 @@ import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from 
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as vec_set from './deps/sui/vec_set.js';
-const $moduleName = '@mysten/pas::versioning';
+const $moduleName = '@pas/pas::versioning';
 export const Versioning = new MoveStruct({
 	name: `${$moduleName}::Versioning`,
 	fields: {

@@ -4,7 +4,7 @@
 import { type BcsType, bcs } from '@mysten/sui/bcs';
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
-const $moduleName = '@mysten/pas::unlock_funds';
+const $moduleName = '@pas/pas::unlock_funds';
 /**
  * An unlock funds request that is generated once a Permissioned Funds Transfer is
  * initiated.

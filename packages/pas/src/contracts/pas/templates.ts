@@ -12,7 +12,7 @@
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
-const $moduleName = '@mysten/pas::templates';
+const $moduleName = '@pas/pas::templates';
 export const PAS = new MoveStruct({
 	name: `${$moduleName}::PAS`,
 	fields: {

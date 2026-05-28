@@ -15,7 +15,7 @@ import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from 
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
 import * as versioning from './versioning.js';
-const $moduleName = '@mysten/pas::namespace';
+const $moduleName = '@pas/pas::namespace';
 export const Namespace = new MoveStruct({
 	name: `${$moduleName}::Namespace`,
 	fields: {
