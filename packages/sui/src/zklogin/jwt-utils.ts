@@ -116,6 +116,9 @@ export function extractClaimValue<R>(claim: Claim, claimName: string): R {
 	return value;
 }
 
+// TODO: root cause of the claim-escaping bug — jwtDecode resolves JSON escapes, but the
+// circuit derives the address seed from raw JWT bytes, so escaped claim values decode
+// differently here than the circuit hashes. Real fix: parse claims over raw bytes.
 export function decodeJwt(jwt: string): Omit<JwtPayload, 'iss' | 'aud' | 'sub'> & {
 	iss: string;
 	aud: string;
