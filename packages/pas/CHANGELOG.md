@@ -1,5 +1,11 @@
 # @mysten/pas
 
+## 0.1.4
+
+### Patch Changes
+
+- ca17d58: Add mainnet constants
+
 ## 0.1.3
 
 ### Patch Changes
