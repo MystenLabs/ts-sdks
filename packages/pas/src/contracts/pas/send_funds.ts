@@ -4,7 +4,7 @@
 import { type BcsType, bcs } from '@mysten/sui/bcs';
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
-const $moduleName = '@mysten/pas::send_funds';
+const $moduleName = '@pas/pas::send_funds';
 /**
  * A transfer request that is generated once a send funds request is initialized.
  *

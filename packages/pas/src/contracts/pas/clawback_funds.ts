@@ -4,7 +4,7 @@
 import { type BcsType, bcs } from '@mysten/sui/bcs';
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
-const $moduleName = '@mysten/pas::clawback_funds';
+const $moduleName = '@pas/pas::clawback_funds';
 export function ClawbackFunds<T extends BcsType<any>>(...typeParameters: [T]) {
 	return new MoveStruct({
 		name: `${$moduleName}::ClawbackFunds<${typeParameters[0].name as T['name']}>`,

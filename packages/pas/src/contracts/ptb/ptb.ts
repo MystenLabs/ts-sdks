@@ -16,7 +16,7 @@ import {
 	type Transaction as Transaction_1,
 	type TransactionArgument,
 } from '@mysten/sui/transactions';
-const $moduleName = '@mysten/ptb::ptb';
+const $moduleName = '@pas/ptb::ptb';
 export const Command = new MoveTuple({
 	name: `${$moduleName}::Command`,
 	fields: [bcs.u8(), bcs.vector(bcs.u8())],
