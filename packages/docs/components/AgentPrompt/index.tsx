@@ -86,11 +86,7 @@ export default function AgentPrompt({ prompt }: { prompt: string }) {
 					{copied ? '✓ Copied' : 'Copy prompt'}
 				</button>
 				<div className={styles.agentWrap} ref={menuRef}>
-					<button
-						type="button"
-						className={styles.agentBtn}
-						onClick={() => setOpen(!open)}
-					>
+					<button type="button" className={styles.agentBtn} onClick={() => setOpen(!open)}>
 						Open in agent <span className={styles.caret}>▾</span>
 					</button>
 					{open && (
