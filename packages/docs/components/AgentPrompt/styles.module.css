@@ -1,0 +1,105 @@
+/* Copyright (c) Mysten Labs, Inc. */
+/* SPDX-License-Identifier: Apache-2.0 */
+
+.root {
+	margin: 1.5rem 0;
+	padding: 1rem 1.25rem;
+	border: 1px solid var(--fd-border, hsl(var(--border)));
+	border-radius: 0.75rem;
+	background: var(--fd-card, hsl(var(--card)));
+}
+
+.label {
+	font-size: 0.7rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: var(--fd-muted-foreground, hsl(var(--muted-foreground)));
+	margin-bottom: 0.4rem;
+}
+
+.text {
+	font-size: 0.9rem;
+	line-height: 1.55;
+	color: var(--fd-foreground, hsl(var(--foreground)));
+	margin: 0 0 0.85rem;
+}
+
+.actions {
+	display: flex;
+	gap: 0.5rem;
+	align-items: center;
+	flex-wrap: wrap;
+}
+
+.copyBtn,
+.agentBtn {
+	font-size: 0.8rem;
+	font-family: inherit;
+	padding: 0.4rem 0.85rem;
+	border-radius: 6px;
+	cursor: pointer;
+	transition: background-color 0.15s ease, border-color 0.15s ease,
+		color 0.15s ease;
+}
+
+.copyBtn {
+	border: 1px solid var(--fd-border, hsl(var(--border)));
+	background: transparent;
+	color: var(--fd-foreground, hsl(var(--foreground)));
+}
+
+.copyBtn:hover {
+	border-color: var(--fd-muted-foreground, hsl(var(--muted-foreground)));
+}
+
+.agentBtn {
+	border: 1px solid var(--fd-primary, hsl(var(--primary)));
+	background: var(--fd-primary, hsl(var(--primary)));
+	color: var(--fd-primary-foreground, hsl(var(--primary-foreground)));
+}
+
+.agentBtn:hover {
+	opacity: 0.9;
+}
+
+.caret {
+	font-size: 0.7rem;
+	line-height: 1;
+}
+
+.agentWrap {
+	position: relative;
+}
+
+.dropdown {
+	position: absolute;
+	top: calc(100% + 0.35rem);
+	left: 0;
+	z-index: 20;
+	min-width: 9rem;
+	padding: 0.3rem;
+	border: 1px solid var(--fd-border, hsl(var(--border)));
+	border-radius: 8px;
+	background-color: var(--fd-popover, hsl(var(--popover)));
+	box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+}
+
+.item {
+	display: block;
+	width: 100%;
+	text-align: left;
+	font-size: 0.85rem;
+	font-family: inherit;
+	padding: 0.45rem 0.6rem;
+	border: none;
+	border-radius: 5px;
+	background: transparent;
+	color: var(--fd-foreground, hsl(var(--foreground)));
+	cursor: pointer;
+	text-decoration: none;
+}
+
+.item:hover {
+	background-color: var(--fd-accent, hsl(var(--accent)));
+}
