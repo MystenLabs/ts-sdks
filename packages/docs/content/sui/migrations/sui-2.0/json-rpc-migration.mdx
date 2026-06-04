@@ -106,21 +106,21 @@ These JSON-RPC methods have direct replacements in the core API:
 
 These JSON-RPC methods can be replaced by calling gRPC service clients directly:
 
-| JSON-RPC Method                     | gRPC Service Replacement                                           |
-| ----------------------------------- | ------------------------------------------------------------------ |
-| `getCheckpoint`                     | `ledgerService.getCheckpoint`                                      |
-| `getLatestCheckpointSequenceNumber` | `ledgerService.getCheckpoint` (omit `checkpointId` for the latest) |
-| `getCurrentEpoch`                   | `ledgerService.getEpoch` (omit `epoch` for the current)            |
-| `getLatestSuiSystemState`           | `ledgerService.getEpoch` with `system_state` in the read mask      |
-| `getCommitteeInfo`                  | `ledgerService.getEpoch` with `committee` in the read mask         |
-| `getProtocolConfig`                 | `ledgerService.getEpoch` with `protocol_config` in the read mask   |
-| `getCoinMetadata`                   | `stateService.getCoinInfo` (response includes `metadata`)          |
-| `getTotalSupply`                    | `stateService.getCoinInfo` (response includes `treasury`)          |
-| `getNormalizedMoveModule`           | `movePackageService.getPackage` (response includes all modules)    |
-| `getNormalizedMoveModulesByPackage` | `movePackageService.getPackage`                                    |
-| `getNormalizedMoveStruct`           | `movePackageService.getDatatype`                                   |
-| `resolveNameServiceAddress`         | `nameService.lookupName`                                           |
-| `resolveNameServiceNames`           | `nameService.reverseLookupName`                                    |
+| JSON-RPC Method                     | gRPC Service Replacement                                         |
+| ----------------------------------- | ---------------------------------------------------------------- |
+| `getCheckpoint`                     | `ledgerService.getCheckpoint`                                    |
+| `getLatestCheckpointSequenceNumber` | `ledgerService.getServiceInfo` (read `checkpointHeight`)         |
+| `getCurrentEpoch`                   | `ledgerService.getEpoch` (omit `epoch` for the current)          |
+| `getLatestSuiSystemState`           | `ledgerService.getEpoch` with `system_state` in the read mask    |
+| `getCommitteeInfo`                  | `ledgerService.getEpoch` with `committee` in the read mask       |
+| `getProtocolConfig`                 | `ledgerService.getEpoch` with `protocol_config` in the read mask |
+| `getCoinMetadata`                   | `stateService.getCoinInfo` (response includes `metadata`)        |
+| `getTotalSupply`                    | `stateService.getCoinInfo` (response includes `treasury`)        |
+| `getNormalizedMoveModule`           | `movePackageService.getPackage` (response includes all modules)  |
+| `getNormalizedMoveModulesByPackage` | `movePackageService.getPackage`                                  |
+| `getNormalizedMoveStruct`           | `movePackageService.getDatatype`                                 |
+| `resolveNameServiceAddress`         | `nameService.lookupName`                                         |
+| `resolveNameServiceNames`           | `nameService.reverseLookupName`                                  |
 
 <Callout type="warn">
 	`getCheckpoints` and `getEpochs` (paginated listings) have no gRPC equivalent — use the
@@ -139,10 +139,14 @@ const client = new SuiGrpcClient({
 	network: 'mainnet',
 });
 
-// Get a specific checkpoint (omit checkpointId for the latest checkpoint).
-// The read mask defaults to `sequence_number,digest`; request more fields as needed.
+// Get the latest checkpoint sequence number (replaces getLatestCheckpointSequenceNumber)
+const { response: info } = await client.ledgerService.getServiceInfo({});
+const latestCheckpoint = info.checkpointHeight;
+
+// Get a specific checkpoint by sequence number. `checkpointId` is required (a oneof);
+// the read mask defaults to `sequence_number,digest`, so request more fields as needed.
 const { response } = await client.ledgerService.getCheckpoint({
-	checkpointId: { oneofKind: 'sequenceNumber', sequenceNumber: 12345n },
+	checkpointId: { oneofKind: 'sequenceNumber', sequenceNumber: latestCheckpoint },
 });
 
 // Get the current epoch (omit `epoch` for the current one). The system state,
