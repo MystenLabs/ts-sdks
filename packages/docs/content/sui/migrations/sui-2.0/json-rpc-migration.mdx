@@ -111,9 +111,9 @@ These JSON-RPC methods can be replaced by calling gRPC service clients directly:
 | `getCheckpoint`                     | `ledgerService.getCheckpoint`                                      |
 | `getLatestCheckpointSequenceNumber` | `ledgerService.getCheckpoint` (omit `checkpointId` for the latest) |
 | `getCurrentEpoch`                   | `ledgerService.getEpoch` (omit `epoch` for the current)            |
-| `getLatestSuiSystemState`           | `ledgerService.getEpoch` (response includes `systemState`)         |
-| `getCommitteeInfo`                  | `ledgerService.getEpoch` (response includes `committee`)           |
-| `getProtocolConfig`                 | `ledgerService.getEpoch` (response includes `protocolConfig`)      |
+| `getLatestSuiSystemState`           | `ledgerService.getEpoch` with `system_state` in the read mask      |
+| `getCommitteeInfo`                  | `ledgerService.getEpoch` with `committee` in the read mask         |
+| `getProtocolConfig`                 | `ledgerService.getEpoch` with `protocol_config` in the read mask   |
 | `getCoinMetadata`                   | `stateService.getCoinInfo` (response includes `metadata`)          |
 | `getTotalSupply`                    | `stateService.getCoinInfo` (response includes `treasury`)          |
 | `getNormalizedMoveModule`           | `movePackageService.getPackage` (response includes all modules)    |
@@ -139,14 +139,18 @@ const client = new SuiGrpcClient({
 	network: 'mainnet',
 });
 
-// Get a specific checkpoint (omit checkpointId for the latest checkpoint)
+// Get a specific checkpoint (omit checkpointId for the latest checkpoint).
+// The read mask defaults to `sequence_number,digest`; request more fields as needed.
 const { response } = await client.ledgerService.getCheckpoint({
 	checkpointId: { oneofKind: 'sequenceNumber', sequenceNumber: 12345n },
 });
 
-// Get the current epoch (omit `epoch` for the current one). The response also
-// carries the system state, committee, and protocol config for that epoch.
-const { response: epoch } = await client.ledgerService.getEpoch({});
+// Get the current epoch (omit `epoch` for the current one). The system state,
+// committee, and protocol config are NOT returned by default — you must request
+// them via the read mask (the default mask is just `epoch`).
+const { response: epoch } = await client.ledgerService.getEpoch({
+	readMask: { paths: ['epoch', 'system_state', 'committee', 'protocol_config'] },
+});
 const systemState = epoch.epoch?.systemState;
 const committee = epoch.epoch?.committee;
 const protocolConfig = epoch.epoch?.protocolConfig;
