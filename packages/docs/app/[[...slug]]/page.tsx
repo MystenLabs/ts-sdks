@@ -6,7 +6,7 @@ import defaultMdxComponents from 'fumadocs-ui/mdx';
 import { DocsBody, DocsDescription, DocsPage, DocsTitle } from 'fumadocs-ui/page';
 import { notFound } from 'next/navigation';
 
-import AgentPrompt from '@/components/AgentPrompt';
+import CodeBlock from '@/components/CodeBlock';
 import { source } from '@/lib/source';
 
 export default async function Page(props: { params: Promise<{ slug?: string[] }> }) {
@@ -34,7 +34,7 @@ export default async function Page(props: { params: Promise<{ slug?: string[] }>
 					components={{
 						...defaultMdxComponents,
 						TypeTable,
-						AgentPrompt,
+						pre: CodeBlock,
 					}}
 				/>
 			</DocsBody>
