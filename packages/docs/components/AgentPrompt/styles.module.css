@@ -4,9 +4,9 @@
 .root {
 	margin: 1.5rem 0;
 	padding: 1rem 1.25rem;
-	border: 1px solid var(--fd-border, hsl(var(--border)));
+	border: 1px solid var(--color-fd-border);
 	border-radius: 0.75rem;
-	background: var(--fd-card, hsl(var(--card)));
+	background: var(--color-fd-card);
 }
 
 .label {
@@ -14,14 +14,14 @@
 	font-weight: 600;
 	text-transform: uppercase;
 	letter-spacing: 0.08em;
-	color: var(--fd-muted-foreground, hsl(var(--muted-foreground)));
+	color: var(--color-fd-muted-foreground);
 	margin-bottom: 0.4rem;
 }
 
 .text {
 	font-size: 0.9rem;
 	line-height: 1.55;
-	color: var(--fd-foreground, hsl(var(--foreground)));
+	color: var(--color-fd-foreground);
 	margin: 0 0 0.85rem;
 }
 
@@ -46,19 +46,19 @@
 }
 
 .copyBtn {
-	border: 1px solid var(--fd-border, hsl(var(--border)));
+	border: 1px solid var(--color-fd-border);
 	background: transparent;
-	color: var(--fd-foreground, hsl(var(--foreground)));
+	color: var(--color-fd-foreground);
 }
 
 .copyBtn:hover {
-	border-color: var(--fd-muted-foreground, hsl(var(--muted-foreground)));
+	border-color: var(--color-fd-muted-foreground);
 }
 
 .agentBtn {
-	border: 1px solid var(--fd-primary, hsl(var(--primary)));
-	background: var(--fd-primary, hsl(var(--primary)));
-	color: var(--fd-primary-foreground, hsl(var(--primary-foreground)));
+	border: 1px solid var(--color-fd-primary);
+	background: var(--color-fd-primary);
+	color: var(--color-fd-primary-foreground);
 }
 
 .agentBtn:hover {
@@ -81,9 +81,9 @@
 	z-index: 20;
 	min-width: 9rem;
 	padding: 0.3rem;
-	border: 1px solid var(--fd-border, hsl(var(--border)));
+	border: 1px solid var(--color-fd-border);
 	border-radius: 8px;
-	background-color: var(--fd-popover, hsl(var(--popover)));
+	background-color: var(--color-fd-popover);
 	box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
 }
 
@@ -97,11 +97,11 @@
 	border: none;
 	border-radius: 5px;
 	background: transparent;
-	color: var(--fd-foreground, hsl(var(--foreground)));
+	color: var(--color-fd-foreground);
 	cursor: pointer;
 	text-decoration: none;
 }
 
 .item:hover {
-	background-color: var(--fd-accent, hsl(var(--accent)));
+	background-color: var(--color-fd-accent);
 }

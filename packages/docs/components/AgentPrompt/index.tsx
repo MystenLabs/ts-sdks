@@ -34,22 +34,15 @@ const AGENTS: Agent[] = [
 		label: 'ChatGPT',
 		url: (p) => `https://chatgpt.com/?q=${encodeURIComponent(p)}`,
 	},
-	{
-		id: 'gemini',
-		label: 'Gemini',
-		url: (p) => `https://gemini.google.com/app?q=${encodeURIComponent(p)}`,
-	},
+	// Note: Gemini's web app (gemini.google.com/app) does not support prefilling a
+	// prompt via query string — the param is silently ignored and it opens empty.
+	// Only agents with working prompt prefill are listed here; use Copy prompt for others.
 ];
 
 export default function AgentPrompt({ prompt }: { prompt: string }) {
 	const [open, setOpen] = useState(false);
 	const [copied, setCopied] = useState(false);
 	const menuRef = useRef<HTMLDivElement | null>(null);
-	const [pageName, setPageName] = useState('');
-
-	useEffect(() => {
-		setPageName(window.location.pathname.replace(/\//g, '+').replace(/^\+/, ''));
-	}, []);
 
 	useEffect(() => {
 		if (!open) return;
@@ -69,12 +62,15 @@ export default function AgentPrompt({ prompt }: { prompt: string }) {
 		};
 	}, [open]);
 
-	const copyPrompt = () => {
-		if (typeof navigator !== 'undefined' && navigator.clipboard) {
-			navigator.clipboard.writeText(prompt);
+	const copyPrompt = async () => {
+		if (typeof navigator === 'undefined' || !navigator.clipboard) return;
+		try {
+			await navigator.clipboard.writeText(prompt);
+			setCopied(true);
+			setTimeout(() => setCopied(false), 2000);
+		} catch {
+			// Clipboard write was blocked (e.g. denied permission); leave the button state unchanged.
 		}
-		setCopied(true);
-		setTimeout(() => setCopied(false), 2000);
 	};
 
 	return (
