@@ -22,7 +22,7 @@ export { SponsorValidationError } from './validation.js';
 export type {
 	Validator,
 	SponsorRejection,
-	SponsorValidationKind,
+	SponsorRejectionReason,
 	ValidationIssue,
 	TransactionData,
 } from './validation.js';
@@ -31,16 +31,15 @@ export {
 	defaults,
 	senderIsNotSponsor,
 	gasCoinNotUsed,
-	sponsorFundsNotWithdrawn,
+	onlySenderWithdrawals,
 	gasBudget,
 	allowedPackages,
 	allowedFunctions,
 	simulationSucceeds,
 	boundedExpiration,
+	currentEpoch,
 } from './validators.js';
-
-export { currentEpoch } from './analysis.js';
-export type { AnalyzerMap, AnalysisResults } from './analysis.js';
+export type { AnalyzerMap, AnalysisResults } from './validators.js';
 
 // Re-export the analyzer toolkit so authoring/composing validators is a single import.
 export { analyze, analyzers, createAnalyzer } from '@mysten/wallet-sdk';

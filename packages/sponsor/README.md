@@ -62,7 +62,7 @@ Because gas is the sponsor's, **a sponsored transaction must never use the gas c
 ## Defaults
 
 If you pass no `validate`, the sponsor runs `defaults()` — `senderIsNotSponsor()`,
-`gasCoinNotUsed()`, `sponsorFundsNotWithdrawn()`, `simulationSucceeds()`, and `boundedExpiration()`.
+`gasCoinNotUsed()`, `onlySenderWithdrawals()`, `simulationSucceeds()`, and `boundedExpiration()`.
 Once you add your own validators they no longer run automatically; drop them back in as one entry
 (the `validate` array flattens nested arrays):
 
@@ -72,11 +72,11 @@ createSponsor({ signer, client, validate: [defaults(), allowedPackages(['0xabc']
 ```
 
 Each default guards something real: `senderIsNotSponsor()` and `gasCoinNotUsed()` stop a caller from
-spending the sponsor's gas coin; `sponsorFundsNotWithdrawn()` rejects inputs that withdraw from the
-sponsor's **address balance** (the same balance that pays gas — a direct drain the gas-coin check
-can't see, since the withdrawal is an _input_, not a command argument); `simulationSucceeds()`
-avoids paying for a transaction that aborts; and `boundedExpiration()` caps how long the signed
-transaction stays valid.
+spending the sponsor's gas coin; `onlySenderWithdrawals()` rejects any `FundsWithdrawal` input that
+isn't the sender's — including one from the sponsor's **address balance** (the same balance that
+pays gas — a direct drain the gas-coin check can't see, since the withdrawal is an _input_, not a
+command argument); `simulationSucceeds()` avoids paying for a transaction that aborts; and
+`boundedExpiration()` caps how long the signed transaction stays valid.
 
 Two things the defaults **don't** do, by design — handle them at your service boundary:
 
@@ -116,7 +116,7 @@ A `Sponsor` has three members:
 - **`sponsor.signTransaction({ transaction, sender?, userSignature?, validationOptions? })`** — set
   the gas data (sponsor as gas owner, address-balance gas), build, validate, and add the sponsor's
   signature. Returns `{ $kind: 'Signed', bytes, sponsorSignature, digest, signatures? }`, or
-  `{ $kind: 'Rejected', issues, kind }` if a validator declined. `validationOptions` carries any
+  `{ $kind: 'Rejected', issues, reason }` if a validator declined. `validationOptions` carries any
   request-scoped options your validators read (see
   [Request-scoped options](#request-scoped-options)) — required only when a validator declares a
   required one.
@@ -371,9 +371,9 @@ for free:
   validator with a broken value.
 
 When validation fails, the sponsor never signs and the method **returns**
-`{ $kind: 'Rejected', issues, kind }` — `issues` lists every reason, and `kind` is
+`{ $kind: 'Rejected', issues, reason }` — `issues` lists every reason, and `reason` is
 `'POLICY_REJECTED'` or `'ANALYSIS_FAILED'`. To turn a rejection into a thrown error, the exported
-`SponsorValidationError` class takes `(issues, kind)`.
+`SponsorValidationError` class takes `(issues, reason)`.
 
 **`sponsor.analyzer`** is also the composable handle: drop it into any other `analyze()` graph and
 it contributes `SponsorRejection | null`, deduping its analyzers with that graph.

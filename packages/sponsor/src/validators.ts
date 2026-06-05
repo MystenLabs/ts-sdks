@@ -1,11 +1,42 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import type { ClientWithCoreApi } from '@mysten/sui/client';
 import { normalizeSuiAddress } from '@mysten/sui/utils';
-import { analyzers, createAnalyzer } from '@mysten/wallet-sdk';
+import { analyze, analyzers, createAnalyzer, type Analyzer } from '@mysten/wallet-sdk';
 
-import { currentEpoch } from './analysis.js';
 import type { TransactionData, ValidationIssue, Validator } from './validation.js';
+
+/**
+ * The analyzer-map shape accepted by the `@mysten/wallet-sdk` `analyze` function.
+ *
+ * Anchored to the public `analyze` value's first parameter: it's the only bound
+ * that is satisfiable by any user `createAnalyzer(...)` map AND preserves each
+ * analyzer's result-type generic so it can be projected into validators.
+ */
+export type AnalyzerMap = Parameters<typeof analyze>[0];
+
+/**
+ * The current on-chain epoch — a small analyzer so `boundedExpiration` doesn't
+ * fetch it inline (and it dedupes if several validators depend on it).
+ */
+export const currentEpoch = createAnalyzer({
+	cacheKey: 'sponsor:currentEpoch@1',
+	analyze: (options: { client: ClientWithCoreApi }) => async () => {
+		const { systemState } = await options.client.core.getCurrentSystemState();
+		return { result: BigInt(systemState.epoch) };
+	},
+});
+
+/**
+ * The *unwrapped* analysis a validator's `run` receives: each declared analyzer's
+ * result value, keyed by name. A failed dependency never reaches `run` (it
+ * short-circuits to `ANALYSIS_FAILED`), so these are always resolved values.
+ */
+export type AnalysisResults<TMap extends AnalyzerMap> = {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	[K in keyof TMap]: TMap[K] extends Analyzer<infer R, any, any> ? R : never;
+};
 
 /** A passing result — no issues. */
 const pass = { result: null };
@@ -22,14 +53,14 @@ function reject(...issues: ValidationIssue[]): { result: ValidationIssue[] } {
  * add your own validators they no longer run automatically — include them with
  * `validate: [...defaults(), myValidator()]` (or `[defaults(), ...]`) to keep the
  * baseline: {@link senderIsNotSponsor}, {@link gasCoinNotUsed},
- * {@link sponsorFundsNotWithdrawn}, {@link simulationSucceeds}, and
+ * {@link onlySenderWithdrawals}, {@link simulationSucceeds}, and
  * {@link boundedExpiration}.
  */
 export function defaults(): Validator[] {
 	return [
 		senderIsNotSponsor(),
 		gasCoinNotUsed(),
-		sponsorFundsNotWithdrawn(),
+		onlySenderWithdrawals(),
 		simulationSucceeds(),
 		boundedExpiration(),
 	];
@@ -206,13 +237,14 @@ export function gasCoinNotUsed(): Validator {
 }
 
 /**
- * Reject any input that withdraws from the **sponsor's** address balance
- * (`FundsWithdrawal { withdrawFrom: Sponsor }`). The sponsor pays gas from that
- * balance, so such an input drains it directly — and because the withdrawal is
- * an *input*, not a command argument, {@link gasCoinNotUsed} doesn't catch it.
- * Part of {@link defaults}. Reads only `data`.
+ * Allow **only the sender** to withdraw from an address balance — reject any
+ * `FundsWithdrawal` input whose `withdrawFrom` isn't `Sender` (today that's the
+ * sponsor; an allowlist also fails closed on any future withdrawal source). The
+ * sponsor pays gas from its address balance, so a sponsor withdrawal drains it
+ * directly — and because the withdrawal is an *input*, not a command argument,
+ * {@link gasCoinNotUsed} doesn't catch it. Part of {@link defaults}. Reads only `data`.
  */
-export function sponsorFundsNotWithdrawn(): Validator {
+export function onlySenderWithdrawals(): Validator {
 	return createAnalyzer({
 		dependencies: { data: analyzers.data },
 		analyze:
@@ -221,11 +253,11 @@ export function sponsorFundsNotWithdrawn(): Validator {
 				for (const input of data.inputs) {
 					if (
 						input.$kind === 'FundsWithdrawal' &&
-						input.FundsWithdrawal.withdrawFrom.$kind === 'Sponsor'
+						input.FundsWithdrawal.withdrawFrom.$kind !== 'Sender'
 					) {
 						return reject({
-							code: 'SPONSOR_FUNDS_WITHDRAWN',
-							message: "Transaction withdraws from the sponsor's address balance.",
+							code: 'NON_SENDER_WITHDRAWAL',
+							message: 'Only the sender may withdraw from an address balance.',
 						});
 					}
 				}

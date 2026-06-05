@@ -34,28 +34,34 @@ export interface ValidationIssue {
  * every validator a dependency of `sponsor.analyzer` (so the framework resolves
  * only what's depended on, dedupes, and propagates failures) and infers the
  * `options` each requires onto `signTransaction`.
+ *
+ * The options and dependencies are `any` because validators are heterogeneous —
+ * a validator always carries `client` in its options (its dependencies fetch data
+ * through it) and may require more (an auth token), with different dependency
+ * sets — and the framework's analysis type is invariant, so no non-`any` type is
+ * a supertype of them all. `@mysten/wallet-sdk`'s own `AnalyzerMap` is
+ * `Analyzer<Defined, any, any>` for the same reason. The precise options a sponsor
+ * requires are still recovered, exactly, by {@link Sponsor.signTransaction}'s
+ * inference (which reads the concrete validator types, not this one).
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type Validator<TOptions extends object = any> = Analyzer<
-	ValidationIssue[] | null,
-	TOptions,
-	any
->;
+export type Validator = Analyzer<ValidationIssue[] | null, any, any>;
 
-/** Whether validation failed because a policy rejected, or because an analyzer couldn't run. */
-export type SponsorValidationKind = 'POLICY_REJECTED' | 'ANALYSIS_FAILED';
+/** Why validation failed: a policy rejected, or an analyzer couldn't run. */
+export type SponsorRejectionReason = 'POLICY_REJECTED' | 'ANALYSIS_FAILED';
 
 /**
  * A validator-rejected outcome. The sponsor methods *return* this (rather than
- * throwing) so callers handle it alongside the execution result's `$kind`.
+ * throwing) so callers handle it alongside the execution result's `$kind`. The
+ * `$kind` discriminates the union; `reason` says *why* it was rejected.
  */
 export interface SponsorRejection {
 	$kind: 'Rejected';
 	issues: ValidationIssue[];
-	kind: SponsorValidationKind;
+	reason: SponsorRejectionReason;
 }
 
-export function kindOf(issues: ValidationIssue[]): SponsorValidationKind {
+export function reasonOf(issues: ValidationIssue[]): SponsorRejectionReason {
 	return issues.some((issue) => issue.code === 'ANALYSIS_FAILED')
 		? 'ANALYSIS_FAILED'
 		: 'POLICY_REJECTED';
@@ -63,18 +69,18 @@ export function kindOf(issues: ValidationIssue[]): SponsorValidationKind {
 
 /**
  * A rejection as an `Error`, for callers who prefer to throw — e.g.
- * `if (result.$kind === 'Rejected') throw new SponsorValidationError(result.issues, result.kind)`.
+ * `if (result.$kind === 'Rejected') throw new SponsorValidationError(result.issues, result.reason)`.
  * The sponsor never throws this itself.
  */
 export class SponsorValidationError extends Error {
 	readonly issues: ValidationIssue[];
-	readonly kind: SponsorValidationKind;
+	readonly reason: SponsorRejectionReason;
 
-	constructor(issues: ValidationIssue[], kind: SponsorValidationKind = 'POLICY_REJECTED') {
+	constructor(issues: ValidationIssue[], reason: SponsorRejectionReason = 'POLICY_REJECTED') {
 		const summary = issues.map((issue) => issue.message).join('; ');
 		super(`Transaction rejected for sponsorship: ${summary}`);
 		this.name = 'SponsorValidationError';
 		this.issues = issues;
-		this.kind = kind;
+		this.reason = reason;
 	}
 }

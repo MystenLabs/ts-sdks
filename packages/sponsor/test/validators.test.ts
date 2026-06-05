@@ -16,7 +16,7 @@ import {
 	gasCoinNotUsed,
 	senderIsNotSponsor,
 	simulationSucceeds,
-	sponsorFundsNotWithdrawn,
+	onlySenderWithdrawals,
 } from '../src/validators.js';
 
 function dataFor(buildTx: (tx: Transaction) => void) {
@@ -46,15 +46,15 @@ describe('defaults', () => {
 	});
 });
 
-describe('sponsorFundsNotWithdrawn', () => {
+describe('onlySenderWithdrawals', () => {
 	it('rejects an input that withdraws from the sponsor balance', async () => {
 		const data = {
 			inputs: [
 				{ $kind: 'FundsWithdrawal', FundsWithdrawal: { withdrawFrom: { $kind: 'Sponsor' } } },
 			],
 		};
-		expect((await run(sponsorFundsNotWithdrawn(), { data })).map((i) => i.code)).toEqual([
-			'SPONSOR_FUNDS_WITHDRAWN',
+		expect((await run(onlySenderWithdrawals(), { data })).map((i) => i.code)).toEqual([
+			'NON_SENDER_WITHDRAWAL',
 		]);
 	});
 
@@ -64,14 +64,14 @@ describe('sponsorFundsNotWithdrawn', () => {
 				{ $kind: 'FundsWithdrawal', FundsWithdrawal: { withdrawFrom: { $kind: 'Sender' } } },
 			],
 		};
-		expect(await run(sponsorFundsNotWithdrawn(), { data })).toEqual([]);
+		expect(await run(onlySenderWithdrawals(), { data })).toEqual([]);
 	});
 
 	it('allows a transaction with no withdrawal inputs', async () => {
 		const data = dataFor((tx) =>
 			tx.moveCall({ target: '0x2::foo::bar', arguments: [tx.pure.u64(1n)] }),
 		);
-		expect(await run(sponsorFundsNotWithdrawn(), { data })).toEqual([]);
+		expect(await run(onlySenderWithdrawals(), { data })).toEqual([]);
 	});
 });
 

@@ -13,7 +13,7 @@ import type {
 	ValidationIssue,
 	Validator,
 } from './validation.js';
-import { kindOf } from './validation.js';
+import { reasonOf } from './validation.js';
 import { defaults } from './validators.js';
 
 /** A delay, in milliseconds — a fixed number, or `{ min, max }` for a uniform random delay. */
@@ -365,7 +365,9 @@ export class Sponsor<TOptions extends object = object> {
 						// Each validator's result is its issues, or `null`/empty for a pass.
 						const issues = Object.values(results).flatMap((result) => result ?? []);
 						return {
-							result: issues.length ? { $kind: 'Rejected', issues, kind: kindOf(issues) } : null,
+							result: issues.length
+								? { $kind: 'Rejected', issues, reason: reasonOf(issues) }
+								: null,
 						};
 					},
 			}) as Analyzer<SponsorRejection | null, TOptions & { client: ClientWithCoreApi }>;
@@ -400,7 +402,7 @@ export class Sponsor<TOptions extends object = object> {
 			return {
 				$kind: 'Rejected',
 				issues: check.issues.map((issue) => ({ code: 'ANALYSIS_FAILED', message: issue.message })),
-				kind: 'ANALYSIS_FAILED',
+				reason: 'ANALYSIS_FAILED',
 			};
 		}
 		return check.result ?? null;

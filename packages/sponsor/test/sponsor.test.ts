@@ -179,7 +179,7 @@ describe('Sponsor.signTransaction — analyzer behavior', () => {
 
 		const result = await sponsor.signTransaction({ transaction: txFor(sponsorKey) });
 		expect(result.$kind).toBe('Rejected');
-		if (result.$kind === 'Rejected') expect(result.kind).toBe('ANALYSIS_FAILED');
+		if (result.$kind === 'Rejected') expect(result.reason).toBe('ANALYSIS_FAILED');
 	});
 
 	it('maps a validator that returns { issues } to ANALYSIS_FAILED', async () => {
@@ -198,7 +198,7 @@ describe('Sponsor.signTransaction — analyzer behavior', () => {
 		const result = await sponsor.signTransaction({ transaction: txFor(sponsorKey) });
 		expect(result.$kind).toBe('Rejected');
 		if (result.$kind === 'Rejected') {
-			expect(result.kind).toBe('ANALYSIS_FAILED');
+			expect(result.reason).toBe('ANALYSIS_FAILED');
 			expect(result.issues.map((issue) => issue.message)).toContain('service down');
 		}
 	});
@@ -222,7 +222,7 @@ describe('Sponsor.signTransaction — analyzer behavior', () => {
 			const codes = result.issues.map((issue) => issue.code);
 			expect(codes).toContain('SENDER_IS_SPONSOR');
 			expect(codes).toContain('GAS_BUDGET_TOO_HIGH');
-			expect(result.kind).toBe('POLICY_REJECTED');
+			expect(result.reason).toBe('POLICY_REJECTED');
 		}
 	});
 
@@ -343,7 +343,7 @@ describe('Sponsor — untrusted validationOptions', () => {
 		// Stripped → the real simulation runs (and fails with an empty client) →
 		// ANALYSIS_FAILED, not a forged Signed.
 		expect(result.$kind).toBe('Rejected');
-		if (result.$kind === 'Rejected') expect(result.kind).toBe('ANALYSIS_FAILED');
+		if (result.$kind === 'Rejected') expect(result.reason).toBe('ANALYSIS_FAILED');
 	});
 });
 
