@@ -1,58 +1,22 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { FaucetRateLimitError, getFaucetHost, requestSuiFromFaucetV2 } from '@mysten/sui/faucet';
-import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { Transaction } from '@mysten/sui/transactions';
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { createSponsor, gasBudget } from '../../src/index.js';
-
-const NETWORK = 'devnet';
-
-const client = new SuiGrpcClient({
-	network: NETWORK,
-	baseUrl: process.env.FULLNODE_URL ?? 'https://fullnode.devnet.sui.io:443',
-});
+import { analyzers, createAnalyzer, createSponsor, gasBudget } from '../../src/index.js';
+import { client, NETWORK, seedSponsor } from './setup.js';
 
 const sponsorKey = new Ed25519Keypair();
 const senderKey = new Ed25519Keypair();
 
-/** Set false if the faucet is unavailable / rate-limited, so we soft-skip rather than hard-fail. */
+/** True once the faucet seeded the sponsor's address balance; else suites soft-skip. */
 let funded = false;
 
-async function fund(address: string) {
-	const host = process.env.FAUCET_URL ?? getFaucetHost(NETWORK);
-	const res = await requestSuiFromFaucetV2({ host, recipient: address });
-	const digest = res.coins_sent?.[0]?.transferTxDigest;
-	if (digest) {
-		await client.core.waitForTransaction({ digest });
-	}
-}
-
-/**
- * Move SUI from the sponsor's coins into its on-chain address balance, which is
- * what pays gas (the faucet only hands out coin objects, not address balance).
- */
-async function depositToAddressBalance(amount: bigint) {
-	const tx = new Transaction();
-	const [coin] = tx.splitCoins(tx.gas, [amount]);
-	tx.moveCall({
-		target: '0x2::coin::send_funds',
-		typeArguments: ['0x2::sui::SUI'],
-		arguments: [coin, tx.pure.address(sponsorKey.toSuiAddress())],
-	});
-	tx.setSender(sponsorKey.toSuiAddress());
-	const bytes = await tx.build({ client });
-	const { signature } = await sponsorKey.signTransaction(bytes);
-	const result = await client.core.executeTransaction({
-		transaction: bytes,
-		signatures: [signature],
-		include: { effects: true },
-	});
-	await client.core.waitForTransaction({ digest: result.Transaction!.digest });
-}
+beforeAll(async () => {
+	funded = await seedSponsor({ sponsor: sponsorKey, senders: [senderKey] });
+});
 
 function effects(result: { $kind: string; Transaction?: any; FailedTransaction?: any }) {
 	const tx = result.$kind === 'Transaction' ? result.Transaction : result.FailedTransaction;
@@ -61,7 +25,7 @@ function effects(result: { $kind: string; Transaction?: any; FailedTransaction?:
 
 /**
  * A realistic sponsored transaction: the sender spends 1 MIST of its *own* SUI
- * (`useGasCoin: false`, so it never touches the sponsor's gas coin).
+ * (`useGasCoin: false`, so it never touches the sponsor's gas coin) to the sponsor.
  */
 function userCommands() {
 	const tx = new Transaction();
@@ -71,27 +35,12 @@ function userCommands() {
 	return tx;
 }
 
-beforeAll(async () => {
-	try {
-		await fund(sponsorKey.toSuiAddress());
-		await fund(senderKey.toSuiAddress());
-		// The sponsor pays gas from its address balance.
-		await depositToAddressBalance(2_000_000_000n);
-		funded = true;
-	} catch (error) {
-		if (error instanceof FaucetRateLimitError) {
-			console.warn('Faucet rate-limited; skipping sponsor e2e tests.');
-		} else {
-			console.warn(`Faucet unavailable (${(error as Error).message}); skipping sponsor e2e tests.`);
-		}
-	}
-});
-
 describe(`Sponsor e2e (${NETWORK})`, () => {
 	it('sign: sponsor provides gas + signs, user signs, executes on-chain', async (ctx) => {
 		if (!funded) return ctx.skip();
 
-		// No `validate` — exercises the full default set (incl. the server-set expiration).
+		// No `validate` — exercises the full default set (incl. the dry-run and the
+		// server-set expiration), and the pass direction of analyzer-backed validators.
 		const sponsor = createSponsor({ signer: sponsorKey, client });
 
 		const signedResult = await sponsor.signTransaction({ transaction: userCommands() });
@@ -139,7 +88,7 @@ describe(`Sponsor e2e (${NETWORK})`, () => {
 		}
 	});
 
-	it('returns a Rejected result for an over-budget transaction', async (ctx) => {
+	it('returns Rejected for an over-budget transaction', async (ctx) => {
 		if (!funded) return ctx.skip();
 
 		const sponsor = createSponsor({
@@ -150,5 +99,64 @@ describe(`Sponsor e2e (${NETWORK})`, () => {
 
 		const result = await sponsor.signTransaction({ transaction: userCommands() });
 		expect(result.$kind).toBe('Rejected');
+		if (result.$kind === 'Rejected') {
+			expect(result.issues.map((issue) => issue.code)).toContain('GAS_BUDGET_TOO_HIGH');
+		}
+	});
+
+	it('threads validationOptions to a custom validator (reject, then sign)', async (ctx) => {
+		if (!funded) return ctx.skip();
+
+		// A validator that reads a request-scoped token off `options` — inferred onto
+		// `signTransaction` as a required `validationOptions.token`.
+		const requiresToken = createAnalyzer({
+			analyze: (options: { token: string }) => () =>
+				options.token === 'ok'
+					? { result: null }
+					: { result: [{ code: 'BAD_TOKEN', message: 'invalid token' }] },
+		});
+		const sponsor = createSponsor({ signer: sponsorKey, client, validate: [requiresToken] });
+
+		const rejected = await sponsor.signTransaction({
+			transaction: userCommands(),
+			validationOptions: { token: 'no' },
+		});
+		expect(rejected.$kind).toBe('Rejected');
+		if (rejected.$kind === 'Rejected') {
+			expect(rejected.issues.map((issue) => issue.code)).toContain('BAD_TOKEN');
+		}
+
+		const signedResult = await sponsor.signTransaction({
+			transaction: userCommands(),
+			validationOptions: { token: 'ok' },
+		});
+		expect(signedResult.$kind).toBe('Signed');
+	});
+
+	it('runs a custom balanceFlows validator (rejects when underpaid)', async (ctx) => {
+		if (!funded) return ctx.skip();
+
+		// Require the sponsor net at least 1 SUI; the realistic tx pays 1 MIST → reject.
+		const requirePayment = createAnalyzer({
+			dependencies: { balanceFlows: analyzers.balanceFlows },
+			analyze:
+				() =>
+				({ balanceFlows }) => {
+					const received = (balanceFlows.sponsor ?? []).reduce(
+						(sum, flow) => sum + (flow.amount > 0n ? flow.amount : 0n),
+						0n,
+					);
+					return received >= 1_000_000_000n
+						? { result: null }
+						: { result: [{ code: 'UNDERPAID', message: `sponsor received only ${received}` }] };
+				},
+		});
+		const sponsor = createSponsor({ signer: sponsorKey, client, validate: [requirePayment] });
+
+		const result = await sponsor.signTransaction({ transaction: userCommands() });
+		expect(result.$kind).toBe('Rejected');
+		if (result.$kind === 'Rejected') {
+			expect(result.issues.map((issue) => issue.code)).toContain('UNDERPAID');
+		}
 	});
 });

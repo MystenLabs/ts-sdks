@@ -180,8 +180,8 @@ function userPayment(amount: bigint) {
 When the sponsor builds the transaction, what you pass to `signTransaction` can be **unresolved** —
 unresolved object inputs and no gas budget are fine. The sponsor sets itself as gas owner with
 address-balance gas and calls `build({ client })`, which in one pass resolves object inputs, sets
-the gas price and expiration, and — unless you pinned one via `gas: { budget }` — **estimates the
-gas budget by dry-running**. Validation then runs on the _built_ transaction, so
+the gas price and expiration, and — unless the transaction already pins one (`tx.setGasBudget(…)`) —
+**estimates the gas budget by dry-running**. Validation then runs on the _built_ transaction, so
 `gasBudget({ max })` checks the resolved budget and analyzers see the exact bytes that get signed.
 
 (When the client builds, it's the opposite: the user already built and signed final bytes, so they
@@ -270,9 +270,10 @@ const requireSponsorPayment = createAnalyzer({
 The most useful built-in analyzer is **`data`** — the parsed transaction (sender, gas data,
 commands, expiration), which most validators read. Alongside it: `balanceFlows` (signed value
 deltas), `transactionResponse` (the dry-run, incl. effects), `commands`, `moveFunctions`, `objects`,
-`coins`, `inputs`, and `bytes`, plus the sponsor's `currentEpoch`. All are re-exported as
-`analyzers` (with `currentEpoch` and `createAnalyzer` alongside). A failed analyzer never reaches
-your `analyze`: it short-circuits to an `ANALYSIS_FAILED` rejection.
+`coins`, `inputs`, and `bytes` — plus the sponsor's `currentEpoch`, and any others the analyzer
+package adds (see [`@mysten/wallet-sdk`](https://www.npmjs.com/package/@mysten/wallet-sdk) for the
+full set). All are re-exported as `analyzers` (with `currentEpoch` and `createAnalyzer` alongside).
+A failed analyzer never reaches your `analyze`: it short-circuits to an `ANALYSIS_FAILED` rejection.
 
 ## Loading data, and sharing it across validators
 

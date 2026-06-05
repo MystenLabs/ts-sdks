@@ -41,9 +41,10 @@ export type ValidateItem = Validator | readonly Validator[];
 /**
  * The analyzer options the sponsor supplies itself on every run — callers never
  * pass these via `validationOptions`. `balanceFlows` is fixed to exclude gas so
- * balance-flow validators see pure value, not gas noise.
+ * balance-flow validators (the only validators it affects) see pure value, not
+ * gas noise. Exported so the inferred `Sponsor` type stays nameable.
  */
-interface SponsorProvidedOptions {
+export interface SponsorProvidedOptions {
 	transaction: Uint8Array;
 	client: ClientWithCoreApi;
 	balanceFlows: { excludeGasBudget: boolean };
@@ -51,12 +52,11 @@ interface SponsorProvidedOptions {
 
 /**
  * The request-scoped options one validator requires (recursing its analyzer
- * deps), minus the options the sponsor provides itself. The omitted keys are
- * exactly `keyof SponsorProvidedOptions` — inlined as literals so the inferred
- * public `Sponsor` type stays nameable. Each remaining option keeps its optionality.
+ * deps), minus the options the sponsor provides itself ({@link SponsorProvidedOptions}).
+ * Each remaining option keeps its optionality.
  */
 type OptionsOf<V> = V extends Validator
-	? Omit<Parameters<typeof analyze<{ v: V }>>[1], 'transaction' | 'client' | 'balanceFlows'>
+	? Omit<Parameters<typeof analyze<{ v: V }>>[1], keyof SponsorProvidedOptions>
 	: object;
 
 type ItemOptions<I> = I extends readonly (infer Inner)[] ? OptionsOf<Inner> : OptionsOf<I>;
@@ -214,6 +214,7 @@ export class Sponsor<TOptions extends object = object> {
 	#client: ClientWithCoreApi;
 	#validators: Validator[];
 	#delay: SponsorDelayConfig;
+	#analyzer?: Analyzer<SponsorRejection | null, TOptions & { client: ClientWithCoreApi }>;
 
 	/** Prefer {@link createSponsor}; the constructor takes pre-merged config. */
 	constructor(config: SponsorConfig) {
@@ -335,19 +336,26 @@ export class Sponsor<TOptions extends object = object> {
 	 * this analyzer's `issues`.
 	 */
 	get analyzer(): Analyzer<SponsorRejection | null, TOptions & { client: ClientWithCoreApi }> {
-		const dependencies = Object.fromEntries(
-			this.#validators.map((validator, index) => [`v${index}`, validator]),
-		);
-		return createAnalyzer({
-			dependencies,
-			analyze: () => (results: Record<string, ValidationIssue[] | null>) => {
-				// Each validator's result is its issues, or `null`/empty for a pass.
-				const issues = Object.values(results).flatMap((result) => result ?? []);
-				return {
-					result: issues.length ? { $kind: 'Rejected', issues, kind: kindOf(issues) } : null,
-				};
-			},
-		}) as Analyzer<SponsorRejection | null, TOptions & { client: ClientWithCoreApi }>;
+		// Memoized: a stable instance gives the framework a stable identity to dedupe
+		// on, so dropping `sponsor.analyzer` into a host `analyze()` graph (even more
+		// than once) shares its analyzers rather than re-resolving them.
+		if (!this.#analyzer) {
+			const dependencies = Object.fromEntries(
+				this.#validators.map((validator, index) => [`v${index}`, validator]),
+			);
+			this.#analyzer = createAnalyzer({
+				dependencies,
+				analyze:
+					(_options, _transaction) => (results: Record<string, ValidationIssue[] | null>) => {
+						// Each validator's result is its issues, or `null`/empty for a pass.
+						const issues = Object.values(results).flatMap((result) => result ?? []);
+						return {
+							result: issues.length ? { $kind: 'Rejected', issues, kind: kindOf(issues) } : null,
+						};
+					},
+			}) as Analyzer<SponsorRejection | null, TOptions & { client: ClientWithCoreApi }>;
+		}
+		return this.#analyzer;
 	}
 
 	/** Resolve `sponsor.analyzer` against the bytes, reducing it to a rejection (or `null`). */

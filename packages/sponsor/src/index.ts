@@ -5,6 +5,7 @@ export { createSponsor, Sponsor } from './sponsor.js';
 export type {
 	CreateSponsorOptions,
 	SponsorOptions,
+	SponsorProvidedOptions,
 	ValidationOptionsArg,
 	ValidateItem,
 	SponsorDelayConfig,

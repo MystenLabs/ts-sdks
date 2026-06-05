@@ -8,6 +8,8 @@ import { normalizeSuiAddress, toBase58, toBase64 } from '@mysten/sui/utils';
 import { verifyTransactionSignature } from '@mysten/sui/verify';
 import { describe, expect, it } from 'vitest';
 
+import { analyze, createAnalyzer } from '../src/index.js';
+import type { Validator } from '../src/index.js';
 import { createSponsor } from '../src/sponsor.js';
 import type { SignTransactionResult, SponsoredTransaction } from '../src/sponsor.js';
 import { gasBudget, senderIsNotSponsor } from '../src/validators.js';
@@ -149,5 +151,174 @@ describe('Sponsor.signTransaction', () => {
 		if (result.$kind === 'Rejected') {
 			expect(result.issues.map((issue) => issue.code)).toContain('GAS_BUDGET_TOO_HIGH');
 		}
+	});
+});
+
+describe('Sponsor.signTransaction — analyzer behavior', () => {
+	function txFor(sponsorKey: Ed25519Keypair) {
+		return resolvedTransaction({
+			sender: new Ed25519Keypair().toSuiAddress(),
+			sponsor: sponsorKey.toSuiAddress(),
+		});
+	}
+
+	it('maps a thrown validator error to ANALYSIS_FAILED', async () => {
+		const sponsorKey = new Ed25519Keypair();
+		// A degenerate stub: it only ever throws, so it has no `result` branch for `T`
+		// to infer from — a real validator always has one. Cast to mark it a stub.
+		const boom = createAnalyzer({
+			analyze: () => () => {
+				throw new Error('lookup failed');
+			},
+		}) as Validator;
+		const sponsor = createSponsor({
+			signer: sponsorKey,
+			client: {} as ClientWithCoreApi,
+			validate: [boom],
+		});
+
+		const result = await sponsor.signTransaction({ transaction: txFor(sponsorKey) });
+		expect(result.$kind).toBe('Rejected');
+		if (result.$kind === 'Rejected') expect(result.kind).toBe('ANALYSIS_FAILED');
+	});
+
+	it('maps a validator that returns { issues } to ANALYSIS_FAILED', async () => {
+		const sponsorKey = new Ed25519Keypair();
+		// Reports via the framework's `issues` channel only (no `result` branch) — the
+		// "couldn't analyze" signal. Cast to mark it a stub (a real validator has both).
+		const cantCheck = createAnalyzer({
+			analyze: () => () => ({ issues: [{ message: 'service down' }] }),
+		}) as Validator;
+		const sponsor = createSponsor({
+			signer: sponsorKey,
+			client: {} as ClientWithCoreApi,
+			validate: [cantCheck],
+		});
+
+		const result = await sponsor.signTransaction({ transaction: txFor(sponsorKey) });
+		expect(result.$kind).toBe('Rejected');
+		if (result.$kind === 'Rejected') {
+			expect(result.kind).toBe('ANALYSIS_FAILED');
+			expect(result.issues.map((issue) => issue.message)).toContain('service down');
+		}
+	});
+
+	it('aggregates issues from every rejecting validator (POLICY_REJECTED)', async () => {
+		const sponsorKey = new Ed25519Keypair();
+		// sender == sponsor AND budget over the max → both validators reject.
+		const tx = resolvedTransaction({
+			sender: sponsorKey.toSuiAddress(),
+			sponsor: sponsorKey.toSuiAddress(),
+		});
+		const sponsor = createSponsor({
+			signer: sponsorKey,
+			client: {} as ClientWithCoreApi,
+			validate: [senderIsNotSponsor(), gasBudget({ max: 1n })],
+		});
+
+		const result = await sponsor.signTransaction({ transaction: tx });
+		expect(result.$kind).toBe('Rejected');
+		if (result.$kind === 'Rejected') {
+			const codes = result.issues.map((issue) => issue.code);
+			expect(codes).toContain('SENDER_IS_SPONSOR');
+			expect(codes).toContain('GAS_BUDGET_TOO_HIGH');
+			expect(result.kind).toBe('POLICY_REJECTED');
+		}
+	});
+
+	it('threads request-scoped `validationOptions` to validators', async () => {
+		const sponsorKey = new Ed25519Keypair();
+		const requiresToken = createAnalyzer({
+			analyze: (options: { token: string }) => () =>
+				options.token === 'ok'
+					? { result: null }
+					: { result: [{ code: 'BAD_TOKEN', message: 'bad token' }] },
+		});
+		const sponsor = createSponsor({
+			signer: sponsorKey,
+			client: {} as ClientWithCoreApi,
+			validate: [requiresToken],
+		});
+
+		const rejected = await sponsor.signTransaction({
+			transaction: txFor(sponsorKey),
+			validationOptions: { token: 'no' },
+		});
+		expect(rejected.$kind).toBe('Rejected');
+		if (rejected.$kind === 'Rejected') {
+			expect(rejected.issues.map((issue) => issue.code)).toContain('BAD_TOKEN');
+		}
+
+		const ok = await sponsor.signTransaction({
+			transaction: txFor(sponsorKey),
+			validationOptions: { token: 'ok' },
+		});
+		expect(ok.$kind).toBe('Signed');
+	});
+});
+
+describe('Sponsor.analyzer', () => {
+	it('is a stable instance and dedupes a shared dependency in a host graph', async () => {
+		const sponsorKey = new Ed25519Keypair();
+		let probeRuns = 0;
+		const probe = createAnalyzer({
+			cacheKey: 'test:probe',
+			analyze: () => () => {
+				probeRuns += 1;
+				return { result: 1 };
+			},
+		});
+		const usesProbe = createAnalyzer({
+			dependencies: { probe },
+			analyze:
+				() =>
+				({ probe }) =>
+					probe > 0 ? { result: null } : { result: [{ message: 'no' }] },
+		});
+		const sponsor = createSponsor({
+			signer: sponsorKey,
+			client: {} as ClientWithCoreApi,
+			validate: [usesProbe],
+		});
+
+		// Memoized — a stable identity is what lets the framework dedupe it.
+		expect(sponsor.analyzer).toBe(sponsor.analyzer);
+
+		// Compose into a host graph that also depends on `probe` → it resolves once.
+		const analysis = await analyze({ check: sponsor.analyzer, probe }, {
+			transaction: await resolvedTransaction({
+				sender: new Ed25519Keypair().toSuiAddress(),
+				sponsor: sponsorKey.toSuiAddress(),
+			}).build(),
+			client: {} as ClientWithCoreApi,
+		} as never);
+
+		expect(probeRuns).toBe(1);
+		expect(analysis.check.result).toBeNull();
+	});
+});
+
+describe('Sponsor multi-signer', () => {
+	it('assembles every user signature plus the sponsor signature, in order', async () => {
+		const sponsorKey = new Ed25519Keypair();
+		const senderKey = new Ed25519Keypair();
+		const tx = resolvedTransaction({
+			sender: senderKey.toSuiAddress(),
+			sponsor: sponsorKey.toSuiAddress(),
+		});
+		const bytes = await tx.build();
+		const { signature: userSignature } = await senderKey.signTransaction(bytes);
+		const second = `${userSignature}`; // a second required signer's signature
+
+		const sponsor = createSponsor({
+			signer: sponsorKey,
+			client: {} as ClientWithCoreApi,
+			...offline,
+		});
+		const result = signed(
+			await sponsor.signTransaction({ transaction: bytes, userSignature: [userSignature, second] }),
+		);
+
+		expect(result.signatures).toEqual([userSignature, second, result.sponsorSignature]);
 	});
 });
