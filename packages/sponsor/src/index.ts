@@ -31,6 +31,7 @@ export {
 	defaults,
 	senderIsNotSponsor,
 	gasCoinNotUsed,
+	sponsorFundsNotWithdrawn,
 	gasBudget,
 	allowedPackages,
 	allowedFunctions,

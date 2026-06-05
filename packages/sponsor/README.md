@@ -62,19 +62,30 @@ Because gas is the sponsor's, **a sponsored transaction must never use the gas c
 ## Defaults
 
 If you pass no `validate`, the sponsor runs `defaults()` — `senderIsNotSponsor()`,
-`gasCoinNotUsed()`, `simulationSucceeds()`, and `boundedExpiration()`. Once you add your own
-validators they no longer run automatically; drop them back in as one entry (the `validate` array
-flattens nested arrays):
+`gasCoinNotUsed()`, `sponsorFundsNotWithdrawn()`, `simulationSucceeds()`, and `boundedExpiration()`.
+Once you add your own validators they no longer run automatically; drop them back in as one entry
+(the `validate` array flattens nested arrays):
 
 ```ts
 createSponsor({ signer, client }); // runs defaults()
 createSponsor({ signer, client, validate: [defaults(), allowedPackages(['0xabc'])] });
 ```
 
-Skipping the baseline is allowed, but each default guards something real: `senderIsNotSponsor()` and
-`gasCoinNotUsed()` stop a caller from draining the sponsor's gas, `simulationSucceeds()` avoids
-paying for a transaction that aborts, and `boundedExpiration()` caps how long the signed transaction
-stays valid. Keep `defaults()` unless you're deliberately replacing those checks.
+Each default guards something real: `senderIsNotSponsor()` and `gasCoinNotUsed()` stop a caller from
+spending the sponsor's gas coin; `sponsorFundsNotWithdrawn()` rejects inputs that withdraw from the
+sponsor's **address balance** (the same balance that pays gas — a direct drain the gas-coin check
+can't see, since the withdrawal is an _input_, not a command argument); `simulationSucceeds()`
+avoids paying for a transaction that aborts; and `boundedExpiration()` caps how long the signed
+transaction stays valid.
+
+Two things the defaults **don't** do, by design — handle them at your service boundary:
+
+- **No gas ceiling.** A legitimate but expensive transaction can cost up to the protocol max. Add
+  `gasBudget({ max })` for a cap, and rate-limit / authenticate callers.
+- **No execution guarantee.** `simulationSucceeds()` is a dry-run; on-chain state can shift before
+  execution, so a later-aborting sponsored transaction can still charge the sponsor gas.
+
+Keep `defaults()` unless you're deliberately replacing those checks.
 
 For **offline-only signing** — no dry-run — use validators that read only `data` (no
 `transactionResponse`). Nothing depends on simulation, so the sponsor never simulates:

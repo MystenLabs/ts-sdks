@@ -16,6 +16,7 @@ import {
 	gasCoinNotUsed,
 	senderIsNotSponsor,
 	simulationSucceeds,
+	sponsorFundsNotWithdrawn,
 } from '../src/validators.js';
 
 function dataFor(buildTx: (tx: Transaction) => void) {
@@ -40,8 +41,37 @@ async function run(
 }
 
 describe('defaults', () => {
-	it('bundles four baseline validators', () => {
-		expect(defaults()).toHaveLength(4);
+	it('bundles the baseline validators', () => {
+		expect(defaults()).toHaveLength(5);
+	});
+});
+
+describe('sponsorFundsNotWithdrawn', () => {
+	it('rejects an input that withdraws from the sponsor balance', async () => {
+		const data = {
+			inputs: [
+				{ $kind: 'FundsWithdrawal', FundsWithdrawal: { withdrawFrom: { $kind: 'Sponsor' } } },
+			],
+		};
+		expect((await run(sponsorFundsNotWithdrawn(), { data })).map((i) => i.code)).toEqual([
+			'SPONSOR_FUNDS_WITHDRAWN',
+		]);
+	});
+
+	it('allows a withdrawal from the sender', async () => {
+		const data = {
+			inputs: [
+				{ $kind: 'FundsWithdrawal', FundsWithdrawal: { withdrawFrom: { $kind: 'Sender' } } },
+			],
+		};
+		expect(await run(sponsorFundsNotWithdrawn(), { data })).toEqual([]);
+	});
+
+	it('allows a transaction with no withdrawal inputs', async () => {
+		const data = dataFor((tx) =>
+			tx.moveCall({ target: '0x2::foo::bar', arguments: [tx.pure.u64(1n)] }),
+		);
+		expect(await run(sponsorFundsNotWithdrawn(), { data })).toEqual([]);
 	});
 });
 
@@ -146,6 +176,13 @@ describe('simulationSucceeds', () => {
 		const transactionResponse = {
 			effects: { status: { success: false, error: { code: 'MoveAbort' } } },
 		};
+		expect((await run(simulationSucceeds(), { transactionResponse })).map((i) => i.code)).toEqual([
+			'SIMULATION_FAILED',
+		]);
+	});
+
+	it('fails closed when the status is missing', async () => {
+		const transactionResponse = { effects: {} };
 		expect((await run(simulationSucceeds(), { transactionResponse })).map((i) => i.code)).toEqual([
 			'SIMULATION_FAILED',
 		]);

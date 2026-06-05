@@ -22,8 +22,12 @@ Add `@mysten-incubation/sponsor`: primitives for sponsoring Sui transactions fro
 - Request-scoped options (an auth token, a tenant id) a validator reads off `options` are inferred
   onto `signTransaction` under `validationOptions` — typed and required as appropriate — replacing an
   opaque metadata bag.
-- Built-in validators: `senderIsNotSponsor`, `gasCoinNotUsed`, `gasBudget`, `allowedPackages`,
-  `allowedFunctions`, `simulationSucceeds`, and `boundedExpiration`. `defaults()` bundles the
-  baseline (`senderIsNotSponsor`, `gasCoinNotUsed`, `simulationSucceeds`, `boundedExpiration`).
-  Value-flow policy is left to custom validators over the `balanceFlows` analyzer.
+- Built-in validators: `senderIsNotSponsor`, `gasCoinNotUsed`, `sponsorFundsNotWithdrawn`,
+  `gasBudget`, `allowedPackages`, `allowedFunctions`, `simulationSucceeds`, and `boundedExpiration`.
+  `defaults()` bundles the baseline (`senderIsNotSponsor`, `gasCoinNotUsed`,
+  `sponsorFundsNotWithdrawn`, `simulationSucceeds`, `boundedExpiration`) — including a guard that
+  rejects inputs withdrawing from the sponsor's address balance. Value-flow policy is left to custom
+  validators over the `balanceFlows` analyzer. Reserved analyzer-option keys (`transaction`,
+  `client`, `balanceFlows`, `transactionResponse`) a caller might inject via `validationOptions` are
+  stripped at runtime so an untrusted caller can't subvert what gets analyzed.
 - Optional timing-attack mitigation delays before simulate / execute.

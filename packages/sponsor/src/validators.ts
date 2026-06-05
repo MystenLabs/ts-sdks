@@ -22,10 +22,17 @@ function reject(...issues: ValidationIssue[]): { result: ValidationIssue[] } {
  * add your own validators they no longer run automatically — include them with
  * `validate: [...defaults(), myValidator()]` (or `[defaults(), ...]`) to keep the
  * baseline: {@link senderIsNotSponsor}, {@link gasCoinNotUsed},
- * {@link simulationSucceeds}, and {@link boundedExpiration}.
+ * {@link sponsorFundsNotWithdrawn}, {@link simulationSucceeds}, and
+ * {@link boundedExpiration}.
  */
 export function defaults(): Validator[] {
-	return [senderIsNotSponsor(), gasCoinNotUsed(), simulationSucceeds(), boundedExpiration()];
+	return [
+		senderIsNotSponsor(),
+		gasCoinNotUsed(),
+		sponsorFundsNotWithdrawn(),
+		simulationSucceeds(),
+		boundedExpiration(),
+	];
 }
 
 /**
@@ -199,10 +206,44 @@ export function gasCoinNotUsed(): Validator {
 }
 
 /**
+ * Reject any input that withdraws from the **sponsor's** address balance
+ * (`FundsWithdrawal { withdrawFrom: Sponsor }`). The sponsor pays gas from that
+ * balance, so such an input drains it directly — and because the withdrawal is
+ * an *input*, not a command argument, {@link gasCoinNotUsed} doesn't catch it.
+ * Part of {@link defaults}. Reads only `data`.
+ */
+export function sponsorFundsNotWithdrawn(): Validator {
+	return createAnalyzer({
+		dependencies: { data: analyzers.data },
+		analyze:
+			() =>
+			({ data }) => {
+				for (const input of data.inputs) {
+					if (
+						input.$kind === 'FundsWithdrawal' &&
+						input.FundsWithdrawal.withdrawFrom.$kind === 'Sponsor'
+					) {
+						return reject({
+							code: 'SPONSOR_FUNDS_WITHDRAWN',
+							message: "Transaction withdraws from the sponsor's address balance.",
+						});
+					}
+				}
+				return pass;
+			},
+	});
+}
+
+/**
  * Reject transactions that don't succeed in a dry-run simulation, so the sponsor
  * doesn't pay gas for a transaction that would abort on-chain. Depends on
  * `transactionResponse` (the dry-run) — so a sponsor that omits this validator
  * never simulates. A failed dry-run propagates as `ANALYSIS_FAILED`.
+ *
+ * Fails **closed**: a missing or unsuccessful status rejects, so a transaction
+ * that couldn't be evaluated is never signed. Simulation success does **not**
+ * guarantee execution success — on-chain state can shift before execution, and a
+ * later-aborting sponsored transaction still charges the sponsor gas.
  */
 export function simulationSucceeds(): Validator {
 	return createAnalyzer({
@@ -211,10 +252,10 @@ export function simulationSucceeds(): Validator {
 			() =>
 			({ transactionResponse }) => {
 				const status = transactionResponse.effects?.status;
-				if (status && !status.success) {
+				if (!status || !status.success) {
 					return reject({
 						code: 'SIMULATION_FAILED',
-						message: `Transaction would fail on-chain: ${JSON.stringify(status.error)}`,
+						message: `Transaction would fail on-chain: ${JSON.stringify(status?.error ?? 'no status')}`,
 					});
 				}
 				return pass;

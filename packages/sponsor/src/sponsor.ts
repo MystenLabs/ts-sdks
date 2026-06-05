@@ -51,6 +51,21 @@ export interface SponsorProvidedOptions {
 }
 
 /**
+ * Analyzer-option keys a caller must never supply via `validationOptions` — they'd
+ * subvert the analysis: swap the `transaction`/`client` (validate one tx, sign
+ * another), or inject a fake `transactionResponse` (a forged successful dry-run).
+ * `SponsorOptions` omits these at the type level; this is the runtime guard for an
+ * untrusted / `as any` caller. Must cover `keyof SponsorProvidedOptions` plus the
+ * dry-run injection key.
+ */
+const RESERVED_OPTION_KEYS = new Set<string>([
+	'transaction',
+	'client',
+	'balanceFlows',
+	'transactionResponse',
+]);
+
+/**
  * The request-scoped options one validator requires (recursing its analyzer
  * deps), minus the options the sponsor provides itself ({@link SponsorProvidedOptions}).
  * Each remaining option keeps its optionality.
@@ -362,16 +377,22 @@ export class Sponsor<TOptions extends object = object> {
 	async #validate(bytes: Uint8Array, validationOptions: object): Promise<SponsorRejection | null> {
 		// Delay before the analysis resolves (which is where simulation, if any, happens).
 		await this.#runDelay(this.#delay.beforeSimulate);
-		// Sponsor-provided options are fixed; `validationOptions` (the caller's) can't
-		// override them — `SponsorOptions` omits their keys, so there's no overlap.
+		// Strip any sponsor-reserved keys an untrusted caller may have injected, then
+		// spread the sponsor's own options LAST so they always win — never let a caller
+		// swap the transaction/client or forge a dry-run.
+		const safeOptions = Object.fromEntries(
+			Object.entries(validationOptions as Record<string, unknown>).filter(
+				([key]) => !RESERVED_OPTION_KEYS.has(key),
+			),
+		);
 		const provided: SponsorProvidedOptions = {
 			transaction: bytes,
 			client: this.#client,
 			balanceFlows: { excludeGasBudget: true },
 		};
 		const analysis = await analyze({ check: this.analyzer }, {
+			...safeOptions,
 			...provided,
-			...validationOptions,
 		} as never);
 
 		const check = analysis.check;

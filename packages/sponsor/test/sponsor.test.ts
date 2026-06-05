@@ -12,7 +12,7 @@ import { analyze, createAnalyzer } from '../src/index.js';
 import type { Validator } from '../src/index.js';
 import { createSponsor } from '../src/sponsor.js';
 import type { SignTransactionResult, SponsoredTransaction } from '../src/sponsor.js';
-import { gasBudget, senderIsNotSponsor } from '../src/validators.js';
+import { gasBudget, senderIsNotSponsor, simulationSucceeds } from '../src/validators.js';
 
 /** Narrow a sign result to the `Signed` variant, failing the test otherwise. */
 function signed(result: SignTransactionResult): SponsoredTransaction {
@@ -295,6 +295,55 @@ describe('Sponsor.analyzer', () => {
 
 		expect(probeRuns).toBe(1);
 		expect(analysis.check.result).toBeNull();
+	});
+});
+
+describe('Sponsor — untrusted validationOptions', () => {
+	it('ignores an injected `transaction` (validates the real, signed tx)', async () => {
+		const sponsorKey = new Ed25519Keypair();
+		const realTx = resolvedTransaction({
+			sender: new Ed25519Keypair().toSuiAddress(),
+			sponsor: sponsorKey.toSuiAddress(),
+		});
+		// A tx that WOULD be rejected (sender == sponsor), supplied by a malicious caller.
+		const evilBytes = await resolvedTransaction({
+			sender: sponsorKey.toSuiAddress(),
+			sponsor: sponsorKey.toSuiAddress(),
+		}).build();
+		const sponsor = createSponsor({
+			signer: sponsorKey,
+			client: {} as ClientWithCoreApi,
+			...offline,
+		});
+
+		// `as never` simulates an untrusted / `as any` caller passing a reserved key.
+		const result = await sponsor.signTransaction({
+			transaction: realTx,
+			validationOptions: { transaction: evilBytes },
+		} as never);
+		expect(result.$kind).toBe('Signed'); // analyzed realTx (sender != sponsor), not evilBytes
+	});
+
+	it('strips an injected `transactionResponse` (no forged dry-run)', async () => {
+		const sponsorKey = new Ed25519Keypair();
+		const tx = resolvedTransaction({
+			sender: new Ed25519Keypair().toSuiAddress(),
+			sponsor: sponsorKey.toSuiAddress(),
+		});
+		const sponsor = createSponsor({
+			signer: sponsorKey,
+			client: {} as ClientWithCoreApi,
+			validate: [simulationSucceeds()],
+		});
+
+		const result = await sponsor.signTransaction({
+			transaction: tx,
+			validationOptions: { transactionResponse: { effects: { status: { success: true } } } },
+		} as never);
+		// Stripped → the real simulation runs (and fails with an empty client) →
+		// ANALYSIS_FAILED, not a forged Signed.
+		expect(result.$kind).toBe('Rejected');
+		if (result.$kind === 'Rejected') expect(result.kind).toBe('ANALYSIS_FAILED');
 	});
 });
 
