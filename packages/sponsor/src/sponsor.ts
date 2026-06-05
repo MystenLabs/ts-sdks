@@ -7,12 +7,7 @@ import { Transaction, TransactionDataBuilder } from '@mysten/sui/transactions';
 import { fromBase64, normalizeSuiAddress } from '@mysten/sui/utils';
 import { analyze, createAnalyzer, type Analyzer } from '@mysten/wallet-sdk';
 
-import type {
-	SponsorRejection,
-	TransactionData,
-	ValidationIssue,
-	Validator,
-} from './validation.js';
+import type { SponsorRejection, ValidationIssue, Validator } from './validation.js';
 import { reasonOf } from './validation.js';
 import { defaults } from './validators.js';
 
@@ -214,27 +209,23 @@ function toSignatureArray(userSignature: string | string[] | undefined): string[
  * flow. A user-signed transaction is taken as-is (never rebuilt), and serialized
  * bytes can still carry unresolved inputs or incomplete gas — which would make
  * the validators inspect partial data and the sponsor co-sign something that
- * can't execute. Throws (a malformed request, not a policy rejection) on:
- * unresolved inputs, no sender, a gas owner that isn't the sponsor, or unset
- * gas budget/price.
+ * can't execute. Throws (a malformed request, not a policy rejection) when:
+ *
+ * - The transaction isn't fully resolved — `Transaction.isFullyResolved()` covers
+ *   unresolved inputs, an unset sender, and missing gas budget/price/payment, so
+ *   the bytes the validators inspect are exactly what would execute.
+ * - The gas owner isn't the sponsor (the sponsor-specific constraint that
+ *   `isFullyResolved` doesn't know about).
  */
-export function assertSponsorable(data: TransactionData, sponsor: string): void {
-	for (const input of data.inputs) {
-		if (input.$kind === 'UnresolvedObject' || input.$kind === 'UnresolvedPure') {
-			throw new Error(
-				'Transaction has unresolved inputs; it must be fully built before sponsoring.',
-			);
-		}
+export function assertSponsorable(transaction: Transaction, sponsor: string): void {
+	if (!transaction.isFullyResolved()) {
+		throw new Error(
+			'Transaction is not fully resolved; it must be fully built (sender, gas, and all inputs set) before sponsoring.',
+		);
 	}
-	if (!data.sender) {
-		throw new Error('Transaction must have a sender set before it can be sponsored.');
-	}
-	const { owner, budget, price } = data.gasData;
+	const { owner } = transaction.getData().gasData;
 	if (!owner || normalizeSuiAddress(owner) !== sponsor) {
 		throw new Error('Transaction gas owner must be the sponsor address.');
-	}
-	if (budget == null || price == null) {
-		throw new Error('Transaction gas budget and price must be set before sponsoring.');
 	}
 }
 
@@ -291,7 +282,7 @@ export class Sponsor<TOptions extends object = object> {
 		const userSignatures = toSignatureArray(options.userSignature);
 
 		let bytes: Uint8Array;
-		let data: TransactionData;
+		let tx: Transaction;
 
 		if (userSignatures.length > 0) {
 			// Signed: the bytes are final (Uint8Array or base64). Use them exactly —
@@ -303,10 +294,10 @@ export class Sponsor<TOptions extends object = object> {
 				);
 			}
 			bytes = input instanceof Uint8Array ? input : fromBase64(input);
-			data = Transaction.from(bytes).getData();
+			tx = Transaction.from(bytes);
 		} else {
 			const sender = 'sender' in options ? options.sender : undefined;
-			const tx =
+			tx =
 				options.transaction instanceof Transaction
 					? options.transaction
 					: Transaction.from(options.transaction);
@@ -318,13 +309,12 @@ export class Sponsor<TOptions extends object = object> {
 			tx.setGasPayment([]);
 
 			bytes = await tx.build({ client: this.#client });
-			data = tx.getData();
 		}
 
 		// A user-supplied (signed) transaction is taken as-is — we never rebuild it,
 		// so verify it's a final, sponsor-owned transaction here rather than assume
 		// it (the sponsor-builds flow already guarantees this via `build()`).
-		assertSponsorable(data, sponsor);
+		assertSponsorable(tx, sponsor);
 
 		// The user's signature isn't verified here: execution already enforces it
 		// (a bad signature never executes, so the sponsor risks nothing), and the
