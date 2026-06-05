@@ -209,6 +209,35 @@ function toSignatureArray(userSignature: string | string[] | undefined): string[
 	return Array.isArray(userSignature) ? userSignature : [userSignature];
 }
 
+/**
+ * Structural preconditions a transaction must meet to be sponsored, in either
+ * flow. A user-signed transaction is taken as-is (never rebuilt), and serialized
+ * bytes can still carry unresolved inputs or incomplete gas — which would make
+ * the validators inspect partial data and the sponsor co-sign something that
+ * can't execute. Throws (a malformed request, not a policy rejection) on:
+ * unresolved inputs, no sender, a gas owner that isn't the sponsor, or unset
+ * gas budget/price.
+ */
+export function assertSponsorable(data: TransactionData, sponsor: string): void {
+	for (const input of data.inputs) {
+		if (input.$kind === 'UnresolvedObject' || input.$kind === 'UnresolvedPure') {
+			throw new Error(
+				'Transaction has unresolved inputs; it must be fully built before sponsoring.',
+			);
+		}
+	}
+	if (!data.sender) {
+		throw new Error('Transaction must have a sender set before it can be sponsored.');
+	}
+	const { owner, budget, price } = data.gasData;
+	if (!owner || normalizeSuiAddress(owner) !== sponsor) {
+		throw new Error('Transaction gas owner must be the sponsor address.');
+	}
+	if (budget == null || price == null) {
+		throw new Error('Transaction gas budget and price must be set before sponsoring.');
+	}
+}
+
 interface SponsorConfig {
 	signer: Signer;
 	client: ClientWithCoreApi;
@@ -292,15 +321,10 @@ export class Sponsor<TOptions extends object = object> {
 			data = tx.getData();
 		}
 
-		const txSender = data.sender;
-		if (!txSender) {
-			throw new Error('Transaction must have a sender set before it can be sponsored.');
-		}
-
-		const gasOwner = data.gasData.owner;
-		if (!gasOwner || normalizeSuiAddress(gasOwner) !== sponsor) {
-			throw new Error('Transaction gas owner must be the sponsor address.');
-		}
+		// A user-supplied (signed) transaction is taken as-is — we never rebuild it,
+		// so verify it's a final, sponsor-owned transaction here rather than assume
+		// it (the sponsor-builds flow already guarantees this via `build()`).
+		assertSponsorable(data, sponsor);
 
 		// The user's signature isn't verified here: execution already enforces it
 		// (a bad signature never executes, so the sponsor risks nothing), and the

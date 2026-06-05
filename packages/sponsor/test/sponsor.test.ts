@@ -9,8 +9,8 @@ import { verifyTransactionSignature } from '@mysten/sui/verify';
 import { describe, expect, it } from 'vitest';
 
 import { analyze, createAnalyzer } from '../src/index.js';
-import type { Validator } from '../src/index.js';
-import { createSponsor } from '../src/sponsor.js';
+import type { TransactionData, Validator } from '../src/index.js';
+import { assertSponsorable, createSponsor } from '../src/sponsor.js';
 import type { SignTransactionResult, SponsoredTransaction } from '../src/sponsor.js';
 import { gasBudget, senderIsNotSponsor, simulationSucceeds } from '../src/validators.js';
 
@@ -369,5 +369,40 @@ describe('Sponsor multi-signer', () => {
 		);
 
 		expect(result.signatures).toEqual([userSignature, second, result.sponsorSignature]);
+	});
+});
+
+describe('assertSponsorable', () => {
+	const sponsor = normalizeSuiAddress('0x5');
+	const final = {
+		sender: normalizeSuiAddress('0xa'),
+		inputs: [{ $kind: 'Pure' }],
+		gasData: { owner: sponsor, budget: '1000', price: '1000', payment: [] },
+	} as unknown as TransactionData;
+
+	const withData = (over: Record<string, unknown>) =>
+		({ ...final, ...over }) as unknown as TransactionData;
+
+	it('accepts a final, sponsor-owned transaction', () => {
+		expect(() => assertSponsorable(final, sponsor)).not.toThrow();
+	});
+
+	it('rejects unresolved inputs (signed bytes are taken as-is)', () => {
+		const data = withData({ inputs: [{ $kind: 'UnresolvedObject' }] });
+		expect(() => assertSponsorable(data, sponsor)).toThrow(/unresolved/i);
+	});
+
+	it('rejects a missing sender', () => {
+		expect(() => assertSponsorable(withData({ sender: null }), sponsor)).toThrow(/sender/i);
+	});
+
+	it('rejects a gas owner that is not the sponsor', () => {
+		const data = withData({ gasData: { ...final.gasData, owner: normalizeSuiAddress('0x9') } });
+		expect(() => assertSponsorable(data, sponsor)).toThrow(/gas owner/i);
+	});
+
+	it('rejects unset gas budget/price', () => {
+		const data = withData({ gasData: { ...final.gasData, budget: null } });
+		expect(() => assertSponsorable(data, sponsor)).toThrow(/budget/i);
 	});
 });
