@@ -12,7 +12,12 @@ import { analyze, createAnalyzer } from '../src/index.js';
 import type { Validator } from '../src/index.js';
 import { assertSponsorable, createSponsor } from '../src/sponsor.js';
 import type { SignTransactionResult, SponsoredTransaction } from '../src/sponsor.js';
-import { gasBudget, senderIsNotSponsor, simulationSucceeds } from '../src/validators.js';
+import {
+	gasBudget,
+	onlySenderWithdrawals,
+	senderIsNotSponsor,
+	simulationSucceeds,
+} from '../src/validators.js';
 
 /** Narrow a sign result to the `Signed` variant, failing the test otherwise. */
 function signed(result: SignTransactionResult): SponsoredTransaction {
@@ -369,6 +374,65 @@ describe('Sponsor multi-signer', () => {
 		);
 
 		expect(result.signatures).toEqual([userSignature, second, result.sponsorSignature]);
+	});
+});
+
+describe('offline-only validation (no client calls)', () => {
+	const sponsorKey = new Ed25519Keypair();
+	const sponsorAddr = normalizeSuiAddress(sponsorKey.toSuiAddress());
+	const sender = new Ed25519Keypair().toSuiAddress();
+
+	// A fully-resolved transaction carrying one `FundsWithdrawal` input, built
+	// entirely offline (`client: {}` would throw on any RPC). The public builder
+	// only emits `withdrawFrom: Sender`; for the `Sponsor` case we rewrite the
+	// serialized bytes directly — modelling hand-crafted bytes from an untrusted
+	// client, the only way a sponsor withdrawal can actually reach the validator.
+	async function withdrawalBytes(from: 'Sender' | 'Sponsor'): Promise<Uint8Array> {
+		const tx = new Transaction();
+		tx.setSender(sender);
+		tx.setGasOwner(sponsorAddr);
+		tx.setGasBudget(2_000_000n);
+		tx.setGasPrice(1000n);
+		tx.setGasPayment(fakeGasPayment);
+		tx.setExpiration({ Epoch: 100 });
+		const w = tx.withdrawal({ amount: 1000n });
+		tx.moveCall({ target: '0x2::foo::bar', arguments: [w] });
+
+		const bytes = await tx.build({ client: {} as ClientWithCoreApi });
+		if (from === 'Sender') return bytes;
+
+		const data = TransactionDataBuilder.fromBytes(bytes);
+		const withdrawal = data.inputs.find((input) => input.$kind === 'FundsWithdrawal');
+		withdrawal!.FundsWithdrawal.withdrawFrom = { $kind: 'Sponsor', Sponsor: true };
+		return data.build();
+	}
+
+	function offlineSponsor() {
+		return createSponsor({
+			signer: sponsorKey,
+			client: {} as ClientWithCoreApi,
+			validate: [onlySenderWithdrawals()],
+		});
+	}
+
+	it('signs a sender withdrawal with no RPC (real analyze pipeline)', async () => {
+		// Exercises the full analyze() chain offline: the FundsWithdrawal survives a
+		// BCS build→parse round-trip and onlySenderWithdrawals inspects it — no dry-run.
+		const result = signed(
+			await offlineSponsor().signTransaction({ transaction: await withdrawalBytes('Sender') }),
+		);
+		expect(result.sponsorSignature).toBeTruthy();
+	});
+
+	it('rejects a sponsor withdrawal with no RPC (real analyze pipeline)', async () => {
+		const result = await offlineSponsor().signTransaction({
+			transaction: await withdrawalBytes('Sponsor'),
+		});
+		expect(result.$kind).toBe('Rejected');
+		if (result.$kind === 'Rejected') {
+			expect(result.issues.map((issue) => issue.code)).toEqual(['NON_SENDER_WITHDRAWAL']);
+			expect(result.reason).toBe('POLICY_REJECTED');
+		}
 	});
 });
 

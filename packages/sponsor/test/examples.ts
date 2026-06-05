@@ -72,7 +72,17 @@ async function clientBuilds(transaction: Transaction) {
 	const bytes = await transaction.build({ client });
 
 	const { signature: userSignature } = await userSigner.signTransaction(bytes);
-	return sponsor.signAndExecuteTransaction({ transaction: bytes, userSignature });
+	const result = await sponsor.signAndExecuteTransaction({ transaction: bytes, userSignature });
+
+	// Three outcomes, not two — switch on `$kind`:
+	switch (result.$kind) {
+		case 'Rejected': // a validator declined; the sponsor never signed or executed
+			throw new Error(result.issues.map((issue) => issue.message).join('; '));
+		case 'FailedTransaction': // executed on-chain but aborted — the sponsor still paid gas
+			throw new Error(`Transaction failed on-chain: ${result.FailedTransaction.digest}`);
+		case 'Transaction': // executed successfully
+			return result.Transaction.digest;
+	}
 }
 
 // ── The sponsor builds the transaction ───────────────────────────────────────
