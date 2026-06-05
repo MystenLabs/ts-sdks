@@ -42,10 +42,16 @@ export const transactionResponse = createAnalyzer({
 	cacheKey: 'transactionResponse@1.0.0',
 	dependencies: { bytes },
 	analyze:
-		(options: { client: ClientWithCoreApi; transactionResponse?: SuiClientTypes.Transaction }) =>
-		async ({ bytes }): Promise<AnalyzerOutput<SuiClientTypes.Transaction>> => {
+		(options: {
+			client: ClientWithCoreApi;
+			transactionResponse?: SuiClientTypes.Transaction<{ effects: true }>;
+		}) =>
+		async ({ bytes }): Promise<AnalyzerOutput<SuiClientTypes.Transaction<{ effects: true }>>> => {
 			try {
-				const result = await options.client.core.simulateTransaction({ transaction: bytes });
+				const result = await options.client.core.simulateTransaction({
+					transaction: bytes,
+					include: { effects: true },
+				});
 				return {
 					result: options.transactionResponse ?? result.Transaction ?? result.FailedTransaction,
 				};
