@@ -267,15 +267,26 @@ export function onlySenderWithdrawals(): Validator {
 }
 
 /**
- * Reject transactions that don't succeed in a dry-run simulation, so the sponsor
- * doesn't pay gas for a transaction that would abort on-chain. Depends on
- * `transactionResponse` (the dry-run) — so a sponsor that omits this validator
- * never simulates. A failed dry-run propagates as `ANALYSIS_FAILED`.
+ * Reject a transaction the dry-run says would abort, so the sponsor doesn't pay
+ * gas for a doomed transaction. Depends on `transactionResponse` (the dry-run) —
+ * a sponsor that omits this validator never simulates.
  *
- * Fails **closed**: a missing or unsuccessful status rejects, so a transaction
- * that couldn't be evaluated is never signed. Simulation success does **not**
- * guarantee execution success — on-chain state can shift before execution, and a
- * later-aborting sponsored transaction still charges the sponsor gas.
+ * Three distinct outcomes, kept distinct on purpose:
+ *
+ * - **Couldn't simulate** — the dry-run itself threw (object/version resolution,
+ *   an unreachable node). That surfaces upstream as `ANALYSIS_FAILED` (with the
+ *   underlying error detail), never reaching this validator.
+ * - **Simulated a failing transaction** — the dry-run *succeeded* and reported a
+ *   transaction that aborts. This is **not** a simulation failure: the bytes are a
+ *   valid, executable transaction that, if submitted, would still cost the sponsor
+ *   gas and land a failed transaction (with a digest) on-chain. Rejected here as a
+ *   policy decline (`TRANSACTION_WOULD_FAIL`).
+ * - **No status** — the result carried no execution status to judge; fails closed
+ *   (`SIMULATION_STATUS_MISSING`).
+ *
+ * A passing dry-run does **not** guarantee execution success — on-chain state can
+ * shift between simulation and execution, and a then-aborting sponsored
+ * transaction still charges the sponsor gas (and lands a failed digest).
  */
 export function simulationSucceeds(): Validator {
 	return createAnalyzer({
@@ -284,10 +295,20 @@ export function simulationSucceeds(): Validator {
 			() =>
 			({ transactionResponse }) => {
 				const status = transactionResponse.effects?.status;
-				if (!status || !status.success) {
+				if (!status) {
 					return reject({
-						code: 'SIMULATION_FAILED',
-						message: `Transaction would fail on-chain: ${JSON.stringify(status?.error ?? 'no status')}`,
+						code: 'SIMULATION_STATUS_MISSING',
+						message:
+							'Dry-run returned no execution status; cannot confirm the transaction succeeds.',
+					});
+				}
+				if (!status.success) {
+					// The dry-run *succeeded*; it simulated a transaction that aborts. Decline
+					// before signing — executing it anyway would cost gas and land a failed
+					// transaction on-chain. `status.error` is the structured ExecutionError.
+					return reject({
+						code: 'TRANSACTION_WOULD_FAIL',
+						message: `Transaction would abort on-chain (${status.error.$kind}): ${status.error.message}`,
 					});
 				}
 				return pass;

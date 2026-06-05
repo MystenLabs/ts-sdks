@@ -396,18 +396,25 @@ it contributes `SponsorRejection | null`, deduping its analyzers with that graph
 
 ## Built-in validators
 
-| Validator                   | Reads                  | Rejects when…                                       |
-| --------------------------- | ---------------------- | --------------------------------------------------- |
-| `senderIsNotSponsor()`      | `data`                 | the sender is the gas owner (sponsor)               |
-| `gasCoinNotUsed()`          | `data`                 | a command uses the gas coin (`tx.gas`)              |
-| `gasBudget({ min?, max? })` | `data`                 | the gas budget is unset or outside the range        |
-| `allowedPackages([...])`    | `data`                 | a MoveCall targets a package outside the allowlist  |
-| `allowedFunctions([...])`   | `data`                 | a MoveCall targets a function outside the allowlist |
-| `simulationSucceeds()`      | `transactionResponse`  | the transaction would abort in a dry-run simulation |
-| `boundedExpiration()`       | `data`, `currentEpoch` | the expiration is missing or beyond the next epoch  |
+| Validator                   | Reads                  | Rejects when…                                          |
+| --------------------------- | ---------------------- | ------------------------------------------------------ |
+| `senderIsNotSponsor()`      | `data`                 | the sender is the gas owner (sponsor)                  |
+| `gasCoinNotUsed()`          | `data`                 | a command uses the gas coin (`tx.gas`)                 |
+| `onlySenderWithdrawals()`   | `data`                 | a `FundsWithdrawal` input isn't the sender's           |
+| `gasBudget({ min?, max? })` | `data`                 | the gas budget is unset or outside the range           |
+| `allowedPackages([...])`    | `data`                 | a MoveCall targets a package outside the allowlist     |
+| `allowedFunctions([...])`   | `data`                 | a MoveCall targets a function outside the allowlist    |
+| `simulationSucceeds()`      | `transactionResponse`  | the dry-run succeeds but the transaction would abort\* |
+| `boundedExpiration()`       | `data`, `currentEpoch` | the expiration is missing or beyond the next epoch     |
 
-`defaults()` bundles `senderIsNotSponsor()` + `gasCoinNotUsed()` + `simulationSucceeds()` +
-`boundedExpiration()` (see [Defaults](#defaults)).
+\* The dry-run itself _succeeding_ but reporting an aborting transaction is a **policy** rejection
+(`TRANSACTION_WOULD_FAIL`) — the bytes are executable and would still cost the sponsor gas (landing
+a failed transaction with a digest) if submitted. The dry-run _failing to run at all_ (an
+unreachable node, unresolvable objects) is instead surfaced as `ANALYSIS_FAILED`, with the
+underlying error detail (see [Result variants](#the-primitives)).
+
+`defaults()` bundles `senderIsNotSponsor()` + `gasCoinNotUsed()` + `onlySenderWithdrawals()` +
+`simulationSucceeds()` + `boundedExpiration()` (see [Defaults](#defaults)).
 
 ## Timing-attack mitigation
 

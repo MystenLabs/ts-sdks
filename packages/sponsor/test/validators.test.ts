@@ -172,19 +172,23 @@ describe('simulationSucceeds', () => {
 		expect(await run(simulationSucceeds(), { transactionResponse })).toEqual([]);
 	});
 
-	it('rejects when the transaction would fail on-chain', async () => {
+	it('rejects a simulated transaction that would abort (the dry-run succeeded)', async () => {
 		const transactionResponse = {
-			effects: { status: { success: false, error: { code: 'MoveAbort' } } },
+			effects: {
+				status: { success: false, error: { $kind: 'MoveAbort', message: 'aborted at 0x2' } },
+			},
 		};
-		expect((await run(simulationSucceeds(), { transactionResponse })).map((i) => i.code)).toEqual([
-			'SIMULATION_FAILED',
-		]);
+		const issues = await run(simulationSucceeds(), { transactionResponse });
+		expect(issues.map((i) => i.code)).toEqual(['TRANSACTION_WOULD_FAIL']);
+		// The structured ExecutionError detail is surfaced, not a generic message.
+		expect(issues[0].message).toContain('MoveAbort');
+		expect(issues[0].message).toContain('aborted at 0x2');
 	});
 
 	it('fails closed when the status is missing', async () => {
 		const transactionResponse = { effects: {} };
 		expect((await run(simulationSucceeds(), { transactionResponse })).map((i) => i.code)).toEqual([
-			'SIMULATION_FAILED',
+			'SIMULATION_STATUS_MISSING',
 		]);
 	});
 
