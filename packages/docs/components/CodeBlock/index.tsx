@@ -20,6 +20,7 @@ import {
 	type CodeBlockProps,
 } from 'fumadocs-ui/components/codeblock';
 import { useEffect, useRef, useState, type ComponentProps, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 interface Agent {
 	id: string;
@@ -87,55 +88,88 @@ function BotIcon() {
 
 function OpenInAgentButton({ figureRef }: { figureRef: React.RefObject<HTMLElement | null> }) {
 	const [open, setOpen] = useState(false);
-	const wrapRef = useRef<HTMLDivElement | null>(null);
+	const [coords, setCoords] = useState<{ top: number; right: number } | null>(null);
+	const btnRef = useRef<HTMLButtonElement | null>(null);
+	const menuRef = useRef<HTMLDivElement | null>(null);
+
+	// Position the menu just below the button using viewport coordinates. The
+	// menu renders in a portal on document.body so the code block's
+	// `overflow-hidden` can't clip it.
+	const positionMenu = () => {
+		const rect = btnRef.current?.getBoundingClientRect();
+		if (!rect) return;
+		setCoords({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+	};
+
+	const toggle = () => {
+		if (!open) positionMenu();
+		setOpen((v) => !v);
+	};
 
 	useEffect(() => {
 		if (!open) return;
 		const onClick = (e: MouseEvent) => {
-			if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+			const target = e.target as Node;
+			if (!btnRef.current?.contains(target) && !menuRef.current?.contains(target)) {
+				setOpen(false);
+			}
 		};
 		const onKey = (e: KeyboardEvent) => {
 			if (e.key === 'Escape') setOpen(false);
 		};
+		const onReflow = () => setOpen(false);
 		document.addEventListener('mousedown', onClick);
 		document.addEventListener('keydown', onKey);
+		window.addEventListener('resize', onReflow);
+		window.addEventListener('scroll', onReflow, true);
 		return () => {
 			document.removeEventListener('mousedown', onClick);
 			document.removeEventListener('keydown', onKey);
+			window.removeEventListener('resize', onReflow);
+			window.removeEventListener('scroll', onReflow, true);
 		};
 	}, [open]);
 
 	const hrefFor = (agent: Agent) => agent.url(AGENT_PROMPT_PREFIX + readCode(figureRef.current));
 
 	return (
-		<div ref={wrapRef} className="relative">
+		<>
 			<button
+				ref={btnRef}
 				type="button"
 				aria-label="Open in agent"
 				aria-expanded={open}
 				className="inline-flex items-center justify-center rounded-md p-1 text-fd-muted-foreground transition-colors hover:text-fd-accent-foreground [&_svg]:size-4"
-				onClick={() => setOpen((v) => !v)}
+				onClick={toggle}
 			>
 				<BotIcon />
 			</button>
-			{open && (
-				<div className="absolute end-0 z-10 mt-1 min-w-36 rounded-lg border bg-fd-popover p-1 text-fd-popover-foreground shadow-lg">
-					<div className="px-2 py-1 text-xs font-medium text-fd-muted-foreground">Open in</div>
-					{AGENTS.map((agent) => (
-						<a
-							key={agent.id}
-							href={hrefFor(agent)}
-							target="_blank"
-							rel="noopener noreferrer"
-							className="block rounded-md px-2 py-1.5 text-sm hover:bg-fd-accent hover:text-fd-accent-foreground"
-							onClick={() => setOpen(false)}
-						>
-							{agent.label}
-						</a>
-					))}
-				</div>
-			)}
-		</div>
+			{open &&
+				coords &&
+				typeof document !== 'undefined' &&
+				createPortal(
+					<div
+						ref={menuRef}
+						className="fixed z-50 min-w-36 rounded-lg border bg-fd-popover p-1 text-fd-popover-foreground shadow-lg"
+						style={{ top: coords.top, right: coords.right }}
+					>
+						<div className="px-2 py-1 text-xs font-medium text-fd-muted-foreground">Open in</div>
+						{AGENTS.map((agent) => (
+							<a
+								key={agent.id}
+								href={hrefFor(agent)}
+								target="_blank"
+								rel="noopener noreferrer"
+								className="block rounded-md px-2 py-1.5 text-sm hover:bg-fd-accent hover:text-fd-accent-foreground"
+								onClick={() => setOpen(false)}
+							>
+								{agent.label}
+							</a>
+						))}
+					</div>,
+					document.body,
+				)}
+		</>
 	);
 }
 
