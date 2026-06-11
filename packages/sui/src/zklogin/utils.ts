@@ -89,7 +89,6 @@ export function hashASCIIStrToField(str: string, maxSize: number) {
 
 // Reject claim inputs whose decoded form reveals a JSON escape ('"', '\', control char):
 // the circuit hashes raw JWT bytes, so an escaped value would derive a different address.
-// TODO: stopgap — misses optional escapes (`\/`, `\uXXXX`); real fix lives in decodeJwt.
 function assertNoJsonEscape(value: string, label: string) {
 	for (let i = 0; i < value.length; i++) {
 		const c = value.charCodeAt(i);
