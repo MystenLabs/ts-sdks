@@ -3,7 +3,7 @@
 
 import { describe, expect, test } from 'vitest';
 
-import { toZkLoginPublicIdentifier } from '../../../src/zklogin/index.js';
+import { genAddressSeed, toZkLoginPublicIdentifier } from '../../../src/zklogin/index.js';
 import {
 	computeZkLoginAddressFromSeed,
 	jwtToAddress,
@@ -98,5 +98,32 @@ describe('zkLogin address', () => {
 		// Note: It should also fail for lengths slightly smaller than MAX_PADDED_UNSIGNED_JWT_LEN due to the SHA2 padding.
 		const jwt = '.' + 'a'.repeat(MAX_PADDED_UNSIGNED_JWT_LEN);
 		expect(() => lengthChecks(jwt)).toThrow(`JWT is too long`);
+	});
+});
+
+describe('genAddressSeed rejects escaped claim inputs', () => {
+	const salt = '248191903847969014646285995941615069143';
+	const aud = '1234567890.apps.googleusercontent.com';
+
+	test('plain name/value/aud do not throw', () => {
+		expect(() => genAddressSeed(salt, 'sub', '1234567890', aud)).not.toThrow();
+	});
+
+	const escaped = [
+		['backslash', 'abc\\'],
+		['double quote', 'a"b'],
+		['control character', 'a\x01b'],
+	] as const;
+
+	test.each(escaped)('throws when the key claim name contains a %s', (_label, bad) => {
+		expect(() => genAddressSeed(salt, bad, '1234567890', aud)).toThrow('JSON-escaped character');
+	});
+
+	test.each(escaped)('throws when the key claim value contains a %s', (_label, bad) => {
+		expect(() => genAddressSeed(salt, 'sub', bad, aud)).toThrow('JSON-escaped character');
+	});
+
+	test.each(escaped)('throws when aud contains a %s', (_label, bad) => {
+		expect(() => genAddressSeed(salt, 'sub', '1234567890', bad)).toThrow('JSON-escaped character');
 	});
 });

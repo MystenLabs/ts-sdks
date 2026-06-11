@@ -87,6 +87,20 @@ export function hashASCIIStrToField(str: string, maxSize: number) {
 	return poseidonHash(packed);
 }
 
+// Reject claim inputs whose decoded form reveals a JSON escape ('"', '\', control char):
+// the circuit hashes raw JWT bytes, so an escaped value would derive a different address.
+function assertNoJsonEscape(value: string, label: string) {
+	for (let i = 0; i < value.length; i++) {
+		const c = value.charCodeAt(i);
+		if (c < 0x20 || c === 0x22 || c === 0x5c) {
+			throw new Error(
+				`zkLogin ${label} contains a JSON-escaped character (code ${c}); the circuit ` +
+					`hashes raw JWT bytes, so claim values with escapes are not supported`,
+			);
+		}
+	}
+}
+
 export function genAddressSeed(
 	salt: string | bigint,
 	name: string,
@@ -96,6 +110,9 @@ export function genAddressSeed(
 	max_value_length = MAX_KEY_CLAIM_VALUE_LENGTH,
 	max_aud_length = MAX_AUD_VALUE_LENGTH,
 ): bigint {
+	assertNoJsonEscape(name, 'key claim name');
+	assertNoJsonEscape(value, 'key claim value');
+	assertNoJsonEscape(aud, 'aud');
 	return poseidonHash([
 		hashASCIIStrToField(name, max_name_length),
 		hashASCIIStrToField(value, max_value_length),
