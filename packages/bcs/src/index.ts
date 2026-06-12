@@ -12,7 +12,12 @@
  */
 
 import { toBase58, fromBase58, toBase64, fromBase64, toHex, fromHex } from '@mysten/utils';
-import type { BcsTypeOptions } from './bcs-type.js';
+import type {
+	BcsEnumOptions,
+	BcsStructOptions,
+	BcsTupleOptions,
+	BcsTypeOptions,
+} from './bcs-type.js';
 import {
 	BcsType,
 	BcsStruct,
@@ -57,6 +62,9 @@ export {
 	toBase58,
 	toBase64,
 	toHex,
+	type BcsEnumOptions,
+	type BcsStructOptions,
+	type BcsTupleOptions,
 	type BcsTypeOptions,
 	type BcsWriterOptions,
 	type Encoding,
