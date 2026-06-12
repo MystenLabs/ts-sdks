@@ -180,104 +180,6 @@ type IsMoveTypeName<Name extends string> = Name extends `${string}::${string}::$
 /** `0x2::vec_map::VecMap<u8, u64>` -> `0x2::vec_map::VecMap` */
 type BasePrefix<Name extends string> = Name extends `${infer Base}<${string}>` ? Base : Name;
 
-type SplitCommas<S extends string, Acc extends string[] = []> = S extends `${infer A},${infer B}`
-	? SplitCommas<B, [...Acc, A]>
-	: [...Acc, S];
-
-type CountLt<S extends string, A extends 0[] = []> = S extends `${string}<${infer R}`
-	? CountLt<R, [...A, 0]>
-	: A;
-type CountGt<S extends string, A extends 0[] = []> = S extends `${string}>${infer R}`
-	? CountGt<R, [...A, 0]>
-	: A;
-type IsBalanced<S extends string> = CountLt<S>['length'] extends CountGt<S>['length']
-	? true
-	: false;
-
-type Trim<S extends string> = S extends ` ${infer R}` ? Trim<R> : S;
-
-/** Re-merge comma-split segments whose angle brackets are unbalanced. */
-type MergeSegments<
-	Segs extends readonly string[],
-	Cur extends string | null = null,
-	Out extends string[] = [],
-> = Segs extends readonly [infer H extends string, ...infer T extends string[]]
-	? Cur extends string
-		? IsBalanced<`${Cur},${H}`> extends true
-			? MergeSegments<T, null, [...Out, Trim<`${Cur},${H}`>]>
-			: MergeSegments<T, `${Cur},${H}`, Out>
-		: IsBalanced<H> extends true
-			? MergeSegments<T, null, [...Out, Trim<H>]>
-			: MergeSegments<T, H, Out>
-	: Out;
-
-/** The type's type arguments as written in its name, in declaration order. */
-type TypeArgsOf<Name extends string> = Name extends `${string}<${infer Inner}>`
-	? MergeSegments<SplitCommas<Inner>>
-	: [];
-
-/** Skip a phantom parameter identifier (ends at the first `,` or `>`). */
-type AfterParam<S extends string> = S extends `${infer Id},${infer Rest}`
-	? Id extends `${string}>${string}`
-		? S extends `${string}>${infer R}`
-			? `>${R}`
-			: never
-		: `,${Rest}`
-	: S extends `${string}>${infer Rest}`
-		? `>${Rest}`
-		: '';
-
-/** Replace `phantom X` holes with `${string}` wildcards. */
-type HoleToWildcard<S extends string> = S extends `${infer Pre}phantom ${infer Rest}`
-	? `${Pre}${string}${HoleToWildcard<AfterParam<Rest>>}`
-	: S;
-
-/** Wildcard the package segment of a single `pkg::mod::Name` head. */
-type WildcardHead<S extends string> = S extends `${infer _Pkg}::${infer Rest}`
-	? `${string}::${Rest}`
-	: S;
-
-/**
- * Structural pattern of a baked type argument: package identifiers (short or
- * normalized addresses, or MVR names) are interchangeable at every nesting
- * level, phantom holes are free, and everything else stays anchored.
- */
-type PatternOf<E extends string> = E extends `phantom ${string}`
-	? `${string}`
-	: E extends `${infer Head}<${infer Inner}>`
-		? `${WildcardHead<Head>}<${JoinPatterns<MergeSegments<SplitCommas<Inner>>>}>`
-		: WildcardHead<E>;
-
-type JoinPatterns<T extends readonly string[]> = T extends readonly [
-	infer H extends string,
-	...infer R extends readonly string[],
-]
-	? R extends readonly []
-		? PatternOf<H>
-		: `${PatternOf<H>}, ${JoinPatterns<R>}`
-	: '';
-
-/**
- * What may be supplied at each position:
- * - phantom positions accept any type
- * - instantiated positions accept the exact baked literal (kept distinct via
- *   `& {}` so autocomplete shows the canonical form) or any package-substituted
- *   variant of it: structure and filled type arguments stay locked
- */
-type ArgPattern<E extends string> = HoleToWildcard<E> | (PatternOf<E> & {});
-type ArgInput<E extends string> = ArgPattern<E> | BcsType<any, any, ArgPattern<E>>;
-
-type MapArgInputs<Args extends readonly string[]> = {
-	[K in keyof Args]: ArgInput<Args[K] & string>;
-};
-
-/** The expected `typeArguments` tuple for a type, by position. */
-type TypeArgumentsFor<Name extends string> = MapArgInputs<TypeArgsOf<Name>>;
-
-/** Default: the baked arguments themselves, so zero-argument calls rebuild the exact name. */
-type DefaultTypeArgs<Name extends string> =
-	TypeArgsOf<Name> extends infer D extends TypeArgumentsFor<Name> ? D : never;
-
 type ArgNames<Args extends readonly TypeArgument[]> = {
 	[K in keyof Args]: ArgName<Args[K] & TypeArgument>;
 };
@@ -291,14 +193,19 @@ type Join<T extends readonly string[]> = T extends readonly [
 		: `${H}, ${Join<R>}`
 	: '';
 
-/** The tag built from a name and its supplied type arguments. */
+/**
+ * The tag built from a name and its supplied type arguments. When no arguments
+ * are supplied (`Args` stays `never`), the tag is the name as written.
+ */
 type BuiltTag<Name extends string, Args extends readonly TypeArgument[]> = string extends Name
 	? string
-	: TypeArgsOf<Name> extends readonly []
+	: [Args] extends [never]
 		? Name
-		: ArgNames<Args> extends infer N extends readonly string[]
-			? `${BasePrefix<Name>}<${Join<N>}>`
-			: never;
+		: Args extends readonly []
+			? BasePrefix<Name>
+			: ArgNames<Args> extends infer N extends readonly string[]
+				? `${BasePrefix<Name>}<${Join<N>}>`
+				: never;
 
 type ReplacePackage<Name extends string, P extends string> = [P] extends [never]
 	? Name
@@ -307,10 +214,11 @@ type ReplacePackage<Name extends string, P extends string> = [P] extends [never]
 		: Name;
 
 /** Reject type arguments that would leave an unfilled phantom hole in the output. */
-type NoUnfilledHoles<Name extends string, Args extends readonly TypeArgument[]> =
-	HasHoles<BuiltTag<Name, Args>> extends true
-		? { typeArguments: 'ERROR: a type argument contains an unfilled phantom parameter' }
-		: unknown;
+type NoUnfilledHoles<Args extends readonly TypeArgument[]> = true extends {
+	[K in keyof Args]: HasHoles<ArgName<Args[K] & TypeArgument> & string>;
+}[number]
+	? { typeArguments: 'ERROR: a type argument contains an unfilled phantom parameter' }
+	: unknown;
 
 type TypeTagParams<
 	Name extends string,
@@ -321,8 +229,8 @@ type TypeTagParams<
 	: IsMoveTypeName<Name> extends false
 		? [options: 'ERROR: this type does not have a top-level Move type name']
 		: HasHoles<Name> extends true
-			? [options: { package?: P; typeArguments: Args } & NoUnfilledHoles<Name, Args>]
-			: [options?: { package?: P; typeArguments?: Args } & NoUnfilledHoles<Name, Args>];
+			? [options: { package?: P; typeArguments: Args } & NoUnfilledHoles<Args>]
+			: [options?: { package?: P; typeArguments?: Args } & NoUnfilledHoles<Args>];
 
 type ResolveTypeTagParams<
 	Name extends string,
@@ -343,14 +251,14 @@ type ResolveTypeTagParams<
 						client: ClientWithCoreApi;
 						package?: string;
 						typeArguments: Args;
-					} & NoUnfilledHoles<Name, Args>,
+					} & NoUnfilledHoles<Args>,
 				]
 			: [
 					options: {
 						client: ClientWithCoreApi;
 						package?: string;
 						typeArguments?: Args;
-					} & NoUnfilledHoles<Name, Args>,
+					} & NoUnfilledHoles<Args>,
 				];
 
 const PHANTOM_HOLES_REGEX = /phantom [A-Za-z_$][A-Za-z0-9_$]*/g;
@@ -481,10 +389,7 @@ export class MoveStruct<
 	 * contain MVR names: those are valid in transaction `typeArguments`, but for
 	 * queries or comparisons against on-chain data use `resolveTypeTag` instead.
 	 */
-	typeTag<
-		const Args extends TypeArgumentsFor<Name> = DefaultTypeArgs<Name>,
-		const P extends string = never,
-	>(
+	typeTag<const Args extends readonly TypeArgument[] = never, const P extends string = never>(
 		...args: TypeTagParams<Name, Args, P>
 	): ReplacePackage<BuiltTag<Name, NoInfer<Args>>, NoInfer<P>> {
 		return buildTypeTag(this.name, args[0]) as never;
@@ -496,7 +401,7 @@ export class MoveStruct<
 	 * normalized, address-only form suitable for queries and comparisons against
 	 * on-chain data.
 	 */
-	async resolveTypeTag<const Args extends TypeArgumentsFor<Name> = DefaultTypeArgs<Name>>(
+	async resolveTypeTag<const Args extends readonly TypeArgument[] = never>(
 		...args: ResolveTypeTagParams<Name, Args>
 	): Promise<string> {
 		const options = args[0];
@@ -562,17 +467,14 @@ export class MoveEnum<
 	const Name extends string,
 > extends BcsEnum<T, Name> {
 	/** Build the type tag for this enum. See `MoveStruct.typeTag` for semantics. */
-	typeTag<
-		const Args extends TypeArgumentsFor<Name> = DefaultTypeArgs<Name>,
-		const P extends string = never,
-	>(
+	typeTag<const Args extends readonly TypeArgument[] = never, const P extends string = never>(
 		...args: TypeTagParams<Name, Args, P>
 	): ReplacePackage<BuiltTag<Name, NoInfer<Args>>, NoInfer<P>> {
 		return buildTypeTag(this.name, args[0]) as never;
 	}
 
 	/** Build and resolve the type tag for this enum. See `MoveStruct.resolveTypeTag`. */
-	async resolveTypeTag<const Args extends TypeArgumentsFor<Name> = DefaultTypeArgs<Name>>(
+	async resolveTypeTag<const Args extends readonly TypeArgument[] = never>(
 		...args: ResolveTypeTagParams<Name, Args>
 	): Promise<string> {
 		const options = args[0];
@@ -588,17 +490,14 @@ export class MoveTuple<
 	const Name extends string,
 > extends BcsTuple<T, Name> {
 	/** Build the type tag for this struct. See `MoveStruct.typeTag` for semantics. */
-	typeTag<
-		const Args extends TypeArgumentsFor<Name> = DefaultTypeArgs<Name>,
-		const P extends string = never,
-	>(
+	typeTag<const Args extends readonly TypeArgument[] = never, const P extends string = never>(
 		...args: TypeTagParams<Name, Args, P>
 	): ReplacePackage<BuiltTag<Name, NoInfer<Args>>, NoInfer<P>> {
 		return buildTypeTag(this.name, args[0]) as never;
 	}
 
 	/** Build and resolve the type tag for this struct. See `MoveStruct.resolveTypeTag`. */
-	async resolveTypeTag<const Args extends TypeArgumentsFor<Name> = DefaultTypeArgs<Name>>(
+	async resolveTypeTag<const Args extends readonly TypeArgument[] = never>(
 		...args: ResolveTypeTagParams<Name, Args>
 	): Promise<string> {
 		const options = args[0];
