@@ -7,10 +7,10 @@ import { join } from 'node:path';
 import ts from 'typescript';
 import { getUtilsContent } from '../src/generate-utils.js';
 
-// Runtime + compile-time tests for the typeTag/resolveTypeTag/withTypeArguments
-// methods on the generated MoveStruct/MoveEnum/MoveTuple classes. The utils
-// content lives inside a template literal in `generate-utils.ts`, so it is
-// written to a temp file and imported/typechecked from there.
+// Runtime + compile-time tests for the typeTag/resolveTypeTag methods on the
+// generated MoveStruct/MoveEnum/MoveTuple classes. The utils content lives
+// inside a template literal in `generate-utils.ts`, so it is written to a
+// temp file and imported/typechecked from there.
 
 const UTILS_PATH = join(__dirname, '__typetag_utils.ts');
 
@@ -166,6 +166,23 @@ describe('typeTag (runtime)', () => {
 		);
 	});
 
+	it('composes through nested typeTag calls', () => {
+		const { Balance, MapOfBalances } = makeTypes();
+		expect(
+			MapOfBalances.typeTag({
+				typeArguments: ['u8', Balance.typeTag({ typeArguments: ['0x2::sui::SUI'] })],
+			}),
+		).toBe('0x2::vec_map::VecMap<u8, 0x2::balance::Balance<0x2::sui::SUI>>');
+	});
+
+	it('rejects values that are not strings or BCS types', () => {
+		const { Balance } = makeTypes();
+		// functions have a .name property but are not valid type arguments
+		expect(() => Balance.typeTag({ typeArguments: [(() => {}) as never] })).toThrowError(
+			/Invalid type argument/,
+		);
+	});
+
 	it('rejects BCS types whose names are not Move types', () => {
 		const { Balance, bcs } = makeTypes();
 		// bcs.string() has name 'string', which is not a Move type tag
@@ -190,34 +207,20 @@ describe('typeTag (runtime)', () => {
 	});
 });
 
-describe('withTypeArguments (runtime)', () => {
-	it('creates a working instance with a concrete name', () => {
-		const { Balance } = makeTypes();
-		const SuiBalance = Balance.withTypeArguments(['0x2::sui::SUI']);
-		expect(SuiBalance.name).toBe('0x2::balance::Balance<0x2::sui::SUI>');
-		expect(SuiBalance.typeTag()).toBe('0x2::balance::Balance<0x2::sui::SUI>');
-		// still a working BCS type
-		expect(SuiBalance.parse(SuiBalance.serialize({ value: 100n }).toBytes())).toEqual({
-			value: '100',
+describe('instantiated types (runtime)', () => {
+	it('locks instantiated positions to their baked values', () => {
+		const { MoveStruct } = utils;
+		const { bcs } = makeTypes();
+		// as a generated factory bakes: VecMap(bcs.u8(), bcs.u64())
+		const PlainMap = new MoveStruct({
+			name: '0x2::vec_map::VecMap<u8, u64>',
+			fields: { key: bcs.u8(), value: bcs.u64() },
 		});
-	});
-
-	it('locks filled phantoms', () => {
-		const { Balance } = makeTypes();
-		const SuiBalance = Balance.withTypeArguments(['0x2::sui::SUI']);
-		expect(() => SuiBalance.typeTag({ typeArguments: ['0xb::wal::WAL'] })).toThrowError(
-			/does not match/,
+		expect(PlainMap.typeTag()).toBe('0x2::vec_map::VecMap<u8, u64>');
+		expect(PlainMap.typeTag({ typeArguments: ['u8', 'u64'] })).toBe(
+			'0x2::vec_map::VecMap<u8, u64>',
 		);
-	});
-
-	it('supports partial application by restating holes', () => {
-		const { Pool } = makeTypes();
-		const BasePool = Pool.withTypeArguments(['0x2::sui::SUI', 'phantom Quote']);
-		expect(BasePool.name).toBe('0xdee9::pool::Pool<0x2::sui::SUI, phantom Quote>');
-		expect(() => BasePool.typeTag()).toThrowError(/Missing type arguments/);
-		expect(BasePool.typeTag({ typeArguments: ['0x2::sui::SUI', '0xb::wal::WAL'] })).toBe(
-			'0xdee9::pool::Pool<0x2::sui::SUI, 0xb::wal::WAL>',
-		);
+		expect(() => PlainMap.typeTag({ typeArguments: ['u8', 'u32'] })).toThrowError(/does not match/);
 	});
 });
 
@@ -380,21 +383,29 @@ Balance.typeTag({ typeArguments: [Balance] });
 // @ts-expect-error — same as a raw string
 Balance.typeTag({ typeArguments: ['0x2::balance::Balance<phantom T>'] });
 
-// withTypeArguments: filled phantoms lock; partial application keeps holes open
-const SuiBalance = Balance.withTypeArguments(['0x2::sui::SUI']);
-const t5 = SuiBalance.typeTag();
-type _5 = Expect<Equal<typeof t5, '0x2::balance::Balance<0x2::sui::SUI>'>>;
-const t6 = VecMap(bcs.u8(), SuiBalance).typeTag();
-type _6 = Expect<
-	Equal<typeof t6, '0x2::vec_map::VecMap<u8, 0x2::balance::Balance<0x2::sui::SUI>>'>
+// only strings and BCS types are valid arguments — objects that merely have a
+// .name property (like every function) are rejected
+// @ts-expect-error — functions are not type arguments
+Balance.typeTag({ typeArguments: [() => {}] });
+// @ts-expect-error — arbitrary named objects are not type arguments
+Balance.typeTag({ typeArguments: [{ name: '0x2::sui::SUI' }] });
+
+// composition: nested typeTag calls flow exact literals
+const t5 = MapOfBalances.typeTag({
+	typeArguments: ['u8', Balance.typeTag({ typeArguments: ['0x2::sui::SUI'] })],
+});
+type _5 = Expect<
+	Equal<typeof t5, '0x2::vec_map::VecMap<u8, 0x2::balance::Balance<0x2::sui::SUI>>'>
 >;
-const BasePool = Pool.withTypeArguments(['0x2::sui::SUI', 'phantom Quote']);
-// @ts-expect-error — the remaining hole still requires an argument
-BasePool.typeTag();
-const t7 = BasePool.typeTag({ typeArguments: ['0x2::sui::SUI', '0xb::wal::WAL'] });
-type _7 = Expect<Equal<typeof t7, '0xdee9::pool::Pool<0x2::sui::SUI, 0xb::wal::WAL>'>>;
-// @ts-expect-error — the filled position is locked
-BasePool.typeTag({ typeArguments: ['0xb::wal::WAL', '0xb::wal::WAL'] });
+const t6 = Pool.typeTag({
+	typeArguments: [
+		Balance.typeTag({ typeArguments: ['0x2::sui::SUI'] }),
+		'0xb::wal::WAL',
+	],
+});
+type _6 = Expect<
+	Equal<typeof t6, '0xdee9::pool::Pool<0x2::balance::Balance<0x2::sui::SUI>, 0xb::wal::WAL>'>
+>;
 
 // package identifiers are substitutable (normalized/short/MVR), structure locked
 const t8 = MapOfBalances.typeTag({
@@ -426,5 +437,5 @@ const t11 = Dynamic.typeTag();
 const t12 = Dynamic.typeTag({ typeArguments: ['a', 'b', 'c'] });
 type _11 = Expect<Equal<typeof t11, string>> | Expect<Equal<typeof t12, string>>;
 
-console.log(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12);
+console.log(t1, t2, t3, t4, t5, t6, t8, t9, t10, t11, t12);
 `;

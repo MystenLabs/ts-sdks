@@ -54,9 +54,6 @@ export {
 	BcsEnum,
 	BcsTuple,
 	type BcsTypeOptions,
-	type BcsStructOptions,
-	type BcsEnumOptions,
-	type BcsTupleOptions,
 	compareBcsBytes,
 } from '@mysten/bcs';
 

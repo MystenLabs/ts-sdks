@@ -6,9 +6,6 @@ import {
 	BcsStruct,
 	BcsEnum,
 	BcsTuple,
-	type BcsStructOptions,
-	type BcsEnumOptions,
-	type BcsTupleOptions,
 } from '@mysten/sui/bcs';
 import { normalizeStructTag, normalizeSuiAddress } from '@mysten/sui/utils';
 import { type TransactionArgument, isArgument } from '@mysten/sui/transactions';
@@ -162,14 +159,14 @@ export function normalizeMoveArguments(
 
 /* -------------------------- Move type tags -------------------------- */
 
-/** A type argument: a type tag string, or any BCS type whose name is a Move type. */
-export type TypeArgument = string | { name: string };
+/** A type argument: a type tag string, or a BCS type whose name is a Move type. */
+export type TypeArgument = string | BcsType<any>;
 
 type ArgName<A extends TypeArgument> = A extends string
 	? A extends { name: unknown }
-		? never // inference artifact (`'lit' & { name: ... }`), not a real input
+		? never // inference artifact (`'lit' & BcsType`), not a real input
 		: A
-	: A extends { name: infer N extends string }
+	: A extends BcsType<any, any, infer N extends string>
 		? N
 		: string;
 
@@ -268,7 +265,7 @@ type JoinPatterns<T extends readonly string[]> = T extends readonly [
  *   variant of it: structure and filled type arguments stay locked
  */
 type ArgPattern<E extends string> = HoleToWildcard<E> | (PatternOf<E> & {});
-type ArgInput<E extends string> = ArgPattern<E> | { name: ArgPattern<E> };
+type ArgInput<E extends string> = ArgPattern<E> | BcsType<any, any, ArgPattern<E>>;
 
 type MapArgInputs<Args extends readonly string[]> = {
 	[K in keyof Args]: ArgInput<Args[K] & string>;
@@ -382,11 +379,7 @@ interface BuildTypeTagOptions {
 	typeArguments?: readonly TypeArgument[];
 }
 
-function buildTypeTag(
-	name: string,
-	options: BuildTypeTagOptions | string | undefined,
-	{ allowHoles = false } = {},
-): string {
+function buildTypeTag(name: string, options: BuildTypeTagOptions | string | undefined): string {
 	if (typeof options === 'string') {
 		// reachable only when the compile-time error sentinel is ignored
 		throw new Error(options);
@@ -403,7 +396,15 @@ function buildTypeTag(
 
 	if (options?.typeArguments) {
 		const baked = lt === -1 ? [] : splitTopLevelTypeArgs(name.slice(lt + 1, -1));
-		const supplied = options.typeArguments.map((arg) => (typeof arg === 'string' ? arg : arg.name));
+		const supplied = options.typeArguments.map((arg) => {
+			if (typeof arg === 'string') {
+				return arg;
+			}
+			if (arg && typeof arg.serialize === 'function' && typeof arg.name === 'string') {
+				return arg.name;
+			}
+			throw new Error(`Invalid type argument ${stringify(arg)}`);
+		});
 
 		if (supplied.length !== baked.length) {
 			throw new Error(
@@ -434,7 +435,7 @@ function buildTypeTag(
 		result = supplied.length === 0 ? base : `${base}<${supplied.join(', ')}>`;
 	}
 
-	if (!allowHoles && HAS_PHANTOM_REGEX.test(result)) {
+	if (HAS_PHANTOM_REGEX.test(result)) {
 		throw new Error(
 			options?.typeArguments
 				? `A type argument contains an unfilled phantom parameter in ${result}`
@@ -470,13 +471,6 @@ export class MoveStruct<
 	T extends Record<string, BcsType<any>>,
 	const Name extends string = string,
 > extends BcsStruct<T, Name> {
-	#options: BcsStructOptions<T, Name>;
-
-	constructor(options: BcsStructOptions<T, Name>) {
-		super(options);
-		this.#options = options;
-	}
-
 	/**
 	 * Build the type tag for this struct.
 	 *
@@ -490,7 +484,9 @@ export class MoveStruct<
 	typeTag<
 		const Args extends TypeArgumentsFor<Name> = DefaultTypeArgs<Name>,
 		const P extends string = never,
-	>(...args: TypeTagParams<Name, Args, P>): ReplacePackage<BuiltTag<Name, Args>, P> {
+	>(
+		...args: TypeTagParams<Name, Args, P>
+	): ReplacePackage<BuiltTag<Name, NoInfer<Args>>, NoInfer<P>> {
 		return buildTypeTag(this.name, args[0]) as never;
 	}
 
@@ -508,23 +504,6 @@ export class MoveStruct<
 			throw new Error(options);
 		}
 		return resolveBuiltTypeTag(this.name, options);
-	}
-
-	/**
-	 * Create a copy of this type with type arguments applied to its name.
-	 * Arguments may keep `phantom X` placeholders open (partial application);
-	 * `typeTag` will then require the remaining holes to be filled.
-	 */
-	withTypeArguments<const Args extends TypeArgumentsFor<Name>>(
-		typeArguments: Args,
-	): MoveStruct<T, BuiltTag<Name, Args>> {
-		return new MoveStruct({
-			...this.#options,
-			name: buildTypeTag(this.name, { typeArguments }, { allowHoles: true }) as BuiltTag<
-				Name,
-				Args
-			>,
-		});
 	}
 
 	async get<Include extends Omit<SuiClientTypes.ObjectInclude, 'content' | 'json'> = {}>({
@@ -582,18 +561,13 @@ export class MoveEnum<
 	T extends Record<string, BcsType<any> | null>,
 	const Name extends string,
 > extends BcsEnum<T, Name> {
-	#options: BcsEnumOptions<T, Name>;
-
-	constructor(options: BcsEnumOptions<T, Name>) {
-		super(options);
-		this.#options = options;
-	}
-
 	/** Build the type tag for this enum. See `MoveStruct.typeTag` for semantics. */
 	typeTag<
 		const Args extends TypeArgumentsFor<Name> = DefaultTypeArgs<Name>,
 		const P extends string = never,
-	>(...args: TypeTagParams<Name, Args, P>): ReplacePackage<BuiltTag<Name, Args>, P> {
+	>(
+		...args: TypeTagParams<Name, Args, P>
+	): ReplacePackage<BuiltTag<Name, NoInfer<Args>>, NoInfer<P>> {
 		return buildTypeTag(this.name, args[0]) as never;
 	}
 
@@ -607,37 +581,19 @@ export class MoveEnum<
 		}
 		return resolveBuiltTypeTag(this.name, options);
 	}
-
-	/** Create a copy of this type with type arguments applied to its name. */
-	withTypeArguments<const Args extends TypeArgumentsFor<Name>>(
-		typeArguments: Args,
-	): MoveEnum<T, BuiltTag<Name, Args>> {
-		return new MoveEnum({
-			...this.#options,
-			name: buildTypeTag(this.name, { typeArguments }, { allowHoles: true }) as BuiltTag<
-				Name,
-				Args
-			>,
-		});
-	}
 }
 
 export class MoveTuple<
 	const T extends readonly BcsType<any>[],
 	const Name extends string,
 > extends BcsTuple<T, Name> {
-	#options: BcsTupleOptions<T, Name>;
-
-	constructor(options: BcsTupleOptions<T, Name>) {
-		super(options);
-		this.#options = options;
-	}
-
 	/** Build the type tag for this struct. See `MoveStruct.typeTag` for semantics. */
 	typeTag<
 		const Args extends TypeArgumentsFor<Name> = DefaultTypeArgs<Name>,
 		const P extends string = never,
-	>(...args: TypeTagParams<Name, Args, P>): ReplacePackage<BuiltTag<Name, Args>, P> {
+	>(
+		...args: TypeTagParams<Name, Args, P>
+	): ReplacePackage<BuiltTag<Name, NoInfer<Args>>, NoInfer<P>> {
 		return buildTypeTag(this.name, args[0]) as never;
 	}
 
@@ -650,19 +606,6 @@ export class MoveTuple<
 			throw new Error(options);
 		}
 		return resolveBuiltTypeTag(this.name, options);
-	}
-
-	/** Create a copy of this type with type arguments applied to its name. */
-	withTypeArguments<const Args extends TypeArgumentsFor<Name>>(
-		typeArguments: Args,
-	): MoveTuple<T, BuiltTag<Name, Args>> {
-		return new MoveTuple({
-			...this.#options,
-			name: buildTypeTag(this.name, { typeArguments }, { allowHoles: true }) as BuiltTag<
-				Name,
-				Args
-			>,
-		});
 	}
 }
 
