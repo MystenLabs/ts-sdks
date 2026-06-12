@@ -316,8 +316,9 @@ This works correctly for parsing onchain data because phantom types don't change
 <Callout type="info">
 
 With the default behavior, phantom parameters appear as literals in the type name (for example,
-`Balance<phantom T>`). These names are useful for debugging but are not valid onchain type tags. If
-you need valid type names with resolved phantom parameters, enable `includePhantomTypeParameters`.
+`Balance<phantom T>`). These names are useful for debugging but are not valid onchain type tags. Use
+the [`typeTag` method](#getting-type-tags) to build valid type tags with the phantom parameters
+filled in.
 
 </Callout>
 
@@ -398,6 +399,40 @@ async function readCounter(client: ClientWithCoreApi, id: string) {
 	contains a full object envelope with additional metadata that will cause parsing to fail. See the
 	[Core API docs](/sui/clients/core#objectbcs) for details.
 </Callout>
+
+### Getting type tags
+
+Generated types can build their own type tag strings with the `typeTag` method:
+
+```typescript
+import { Counter } from './contracts/counter/counter';
+import { Balance } from './contracts/counter/deps/sui/balance';
+
+// Types without phantom type parameters need no arguments
+Counter.typeTag();
+// '@local-pkg/counter::counter::Counter'
+
+// Types with unfilled phantom parameters require typeArguments
+Balance.typeTag({ typeArguments: ['0x2::sui::SUI'] });
+// '0x2::balance::Balance<0x2::sui::SUI>'
+
+// Override the package address or name
+Counter.typeTag({ package: '0x123...' });
+```
+
+`typeArguments` is the full positional list of type arguments, in the order they are declared in
+Move. Each argument can be a type tag string, another `typeTag()` result, or a BCS type (its name is
+used). Arguments are validated against the type's declaration when the tag is built.
+
+For packages configured with MVR names, the result contains those names. These are valid in
+transaction `typeArguments` — they resolve automatically when the transaction is built — but for
+query filters or comparisons against onchain data, use `resolveTypeTag` to get the fully resolved,
+normalized form:
+
+```typescript
+const counterType = await Counter.resolveTypeTag({ client });
+// '0x0000…0123::counter::Counter'
+```
 
 ## Client configuration
 
