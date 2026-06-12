@@ -164,104 +164,25 @@ export function normalizeMoveArguments(
 /** A type argument: a type tag string, or a BCS type whose name is a Move type. */
 export type TypeArgument = string | BcsType<any>;
 
-type ArgName<A extends TypeArgument> = A extends string
-	? A extends { name: unknown }
-		? never // inference artifact (`'lit' & BcsType`), not a real input
-		: A
-	: A extends BcsType<any, any, infer N extends string>
-		? N
-		: string;
-
-/** Does the name contain an unfilled `phantom X` hole (at any depth)? */
-type HasHoles<Name extends string> = Name extends `${string}phantom ${string}` ? true : false;
-
-type IsMoveTypeName<Name extends string> = Name extends `${string}::${string}::${string}`
-	? true
-	: false;
-
-/** `0x2::vec_map::VecMap<u8, u64>` -> `0x2::vec_map::VecMap` */
-type BasePrefix<Name extends string> = Name extends `${infer Base}<${string}>` ? Base : Name;
-
-type ArgNames<Args extends readonly TypeArgument[]> = {
-	[K in keyof Args]: ArgName<Args[K] & TypeArgument>;
-};
-
-type Join<T extends readonly string[]> = T extends readonly [
-	infer H extends string,
-	...infer R extends readonly string[],
-]
-	? R extends readonly []
-		? H
-		: `${H}, ${Join<R>}`
-	: '';
+export interface TypeTagOptions {
+	package?: string;
+	typeArguments?: readonly TypeArgument[];
+}
 
 /**
- * The tag built from a name and its supplied type arguments. When no arguments
- * are supplied (`Args` stays `never`), the tag is the name as written.
+ * `typeArguments` is required when the type's name contains unfilled
+ * `phantom X` parameters (at any depth). Everything else — argument arity,
+ * position contents, and tag validity — is validated at runtime.
  */
-type BuiltTag<Name extends string, Args extends readonly TypeArgument[]> = string extends Name
-	? string
-	: [Args] extends [never]
-		? Name
-		: Args extends readonly []
-			? BasePrefix<Name>
-			: ArgNames<Args> extends infer N extends readonly string[]
-				? `${BasePrefix<Name>}<${Join<N>}>`
-				: never;
+type TypeTagParams<Name extends string> = Name extends `${string}phantom ${string}`
+	? [options: TypeTagOptions & { typeArguments: readonly TypeArgument[] }]
+	: [options?: TypeTagOptions];
 
-type ReplacePackage<Name extends string, P extends string> = [P] extends [never]
-	? Name
-	: Name extends `${string}::${infer Mod}::${infer Rest}`
-		? `${P}::${Mod}::${Rest}`
-		: Name;
-
-/** Reject type arguments that would leave an unfilled phantom hole in the output. */
-type NoUnfilledHoles<Args extends readonly TypeArgument[]> = true extends {
-	[K in keyof Args]: HasHoles<ArgName<Args[K] & TypeArgument> & string>;
-}[number]
-	? { typeArguments: 'ERROR: a type argument contains an unfilled phantom parameter' }
-	: unknown;
-
-type TypeTagParams<
-	Name extends string,
-	Args extends readonly TypeArgument[],
-	P extends string,
-> = string extends Name
-	? [options?: { package?: P; typeArguments?: readonly TypeArgument[] }]
-	: IsMoveTypeName<Name> extends false
-		? [options: 'ERROR: this type does not have a top-level Move type name']
-		: HasHoles<Name> extends true
-			? [options: { package?: P; typeArguments: Args } & NoUnfilledHoles<Args>]
-			: [options?: { package?: P; typeArguments?: Args } & NoUnfilledHoles<Args>];
-
-type ResolveTypeTagParams<
-	Name extends string,
-	Args extends readonly TypeArgument[],
-> = string extends Name
-	? [
-			options: {
-				client: ClientWithCoreApi;
-				package?: string;
-				typeArguments?: readonly TypeArgument[];
-			},
-		]
-	: IsMoveTypeName<Name> extends false
-		? [options: 'ERROR: this type does not have a top-level Move type name']
-		: HasHoles<Name> extends true
-			? [
-					options: {
-						client: ClientWithCoreApi;
-						package?: string;
-						typeArguments: Args;
-					} & NoUnfilledHoles<Args>,
-				]
-			: [
-					options: {
-						client: ClientWithCoreApi;
-						package?: string;
-						typeArguments?: Args;
-					} & NoUnfilledHoles<Args>,
-				];
+type ResolveTypeTagOptions<Name extends string> = {
+	client: ClientWithCoreApi;
+} & (Name extends `${string}phantom ${string}`
+	? TypeTagOptions & { typeArguments: readonly TypeArgument[] }
+	: TypeTagOptions);
 
 const PHANTOM_HOLES_REGEX = /phantom [A-Za-z_$][A-Za-z0-9_$]*/g;
 const HAS_PHANTOM_REGEX = /phantom [A-Za-z_$][A-Za-z0-9_$]*/;
@@ -284,17 +205,7 @@ function splitTopLevelTypeArgs(inner: string): string[] {
 	return parts;
 }
 
-interface BuildTypeTagOptions {
-	package?: string;
-	typeArguments?: readonly TypeArgument[];
-}
-
-function buildTypeTag(name: string, options: BuildTypeTagOptions | string | undefined): string {
-	if (typeof options === 'string') {
-		// reachable only when the compile-time error sentinel is ignored
-		throw new PASClientError(options);
-	}
-
+function buildTypeTag(name: string, options: TypeTagOptions | undefined): string {
 	const lt = name.indexOf('<');
 	const base = lt === -1 ? name : name.slice(0, lt);
 
@@ -368,7 +279,7 @@ function buildTypeTag(name: string, options: BuildTypeTagOptions | string | unde
 
 async function resolveBuiltTypeTag(
 	name: string,
-	options: { client: ClientWithCoreApi } & BuildTypeTagOptions,
+	options: { client: ClientWithCoreApi } & TypeTagOptions,
 ): Promise<string> {
 	const { client, ...rest } = options;
 	const { type } = await client.core.mvr.resolveType({
@@ -384,17 +295,16 @@ export class MoveStruct<
 	/**
 	 * Build the type tag for this struct.
 	 *
-	 * `typeArguments` is the full positional list, in Move declaration order.
-	 * Phantom positions accept any type; instantiated positions must restate the
-	 * type the instance was created with (package identifiers — short addresses,
+	 * `typeArguments` is the full positional list, in Move declaration order,
+	 * and is required when the struct has unfilled phantom parameters. Phantom
+	 * positions accept any type; instantiated positions must restate the type
+	 * the instance was created with (package identifiers — short addresses,
 	 * normalized addresses, and MVR names — are interchangeable). The result may
 	 * contain MVR names: those are valid in transaction `typeArguments`, but for
 	 * queries or comparisons against on-chain data use `resolveTypeTag` instead.
 	 */
-	typeTag<const Args extends readonly TypeArgument[] = never, const P extends string = never>(
-		...args: TypeTagParams<Name, Args, P>
-	): ReplacePackage<BuiltTag<Name, NoInfer<Args>>, NoInfer<P>> {
-		return buildTypeTag(this.name, args[0]) as never;
+	typeTag(...args: TypeTagParams<Name>): string {
+		return buildTypeTag(this.name, args[0] as TypeTagOptions | undefined);
 	}
 
 	/**
@@ -403,14 +313,11 @@ export class MoveStruct<
 	 * normalized, address-only form suitable for queries and comparisons against
 	 * on-chain data.
 	 */
-	async resolveTypeTag<const Args extends readonly TypeArgument[] = never>(
-		...args: ResolveTypeTagParams<Name, Args>
-	): Promise<string> {
-		const options = args[0];
-		if (typeof options === 'string') {
-			throw new PASClientError(options);
-		}
-		return resolveBuiltTypeTag(this.name, options);
+	async resolveTypeTag(options: ResolveTypeTagOptions<Name>): Promise<string> {
+		return resolveBuiltTypeTag(
+			this.name,
+			options as { client: ClientWithCoreApi } & TypeTagOptions,
+		);
 	}
 
 	async get<Include extends Omit<SuiClientTypes.ObjectInclude, 'content' | 'json'> = {}>({
@@ -469,21 +376,16 @@ export class MoveEnum<
 	const Name extends string,
 > extends BcsEnum<T, Name> {
 	/** Build the type tag for this enum. See `MoveStruct.typeTag` for semantics. */
-	typeTag<const Args extends readonly TypeArgument[] = never, const P extends string = never>(
-		...args: TypeTagParams<Name, Args, P>
-	): ReplacePackage<BuiltTag<Name, NoInfer<Args>>, NoInfer<P>> {
-		return buildTypeTag(this.name, args[0]) as never;
+	typeTag(...args: TypeTagParams<Name>): string {
+		return buildTypeTag(this.name, args[0] as TypeTagOptions | undefined);
 	}
 
 	/** Build and resolve the type tag for this enum. See `MoveStruct.resolveTypeTag`. */
-	async resolveTypeTag<const Args extends readonly TypeArgument[] = never>(
-		...args: ResolveTypeTagParams<Name, Args>
-	): Promise<string> {
-		const options = args[0];
-		if (typeof options === 'string') {
-			throw new PASClientError(options);
-		}
-		return resolveBuiltTypeTag(this.name, options);
+	async resolveTypeTag(options: ResolveTypeTagOptions<Name>): Promise<string> {
+		return resolveBuiltTypeTag(
+			this.name,
+			options as { client: ClientWithCoreApi } & TypeTagOptions,
+		);
 	}
 }
 
@@ -492,21 +394,16 @@ export class MoveTuple<
 	const Name extends string,
 > extends BcsTuple<T, Name> {
 	/** Build the type tag for this struct. See `MoveStruct.typeTag` for semantics. */
-	typeTag<const Args extends readonly TypeArgument[] = never, const P extends string = never>(
-		...args: TypeTagParams<Name, Args, P>
-	): ReplacePackage<BuiltTag<Name, NoInfer<Args>>, NoInfer<P>> {
-		return buildTypeTag(this.name, args[0]) as never;
+	typeTag(...args: TypeTagParams<Name>): string {
+		return buildTypeTag(this.name, args[0] as TypeTagOptions | undefined);
 	}
 
 	/** Build and resolve the type tag for this struct. See `MoveStruct.resolveTypeTag`. */
-	async resolveTypeTag<const Args extends readonly TypeArgument[] = never>(
-		...args: ResolveTypeTagParams<Name, Args>
-	): Promise<string> {
-		const options = args[0];
-		if (typeof options === 'string') {
-			throw new PASClientError(options);
-		}
-		return resolveBuiltTypeTag(this.name, options);
+	async resolveTypeTag(options: ResolveTypeTagOptions<Name>): Promise<string> {
+		return resolveBuiltTypeTag(
+			this.name,
+			options as { client: ClientWithCoreApi } & TypeTagOptions,
+		);
 	}
 }
 

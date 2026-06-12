@@ -322,18 +322,6 @@ const StakedWal = new MoveStruct({
 	fields: { id: bcs.Address },
 });
 
-const Pool = new MoveStruct({
-	name: '0xdee9::pool::Pool<phantom Base, phantom Quote>',
-	fields: { id: bcs.Address },
-});
-
-function Wrapper<B extends BcsType<any>>(...typeParameters: [B]) {
-	return new MoveStruct({
-		name: \`0xabc::wrapper::Wrapper<phantom A, \${typeParameters[0].name as B['name']}, phantom C>\` as const,
-		fields: { value: typeParameters[0] },
-	});
-}
-
 function VecMap<K extends BcsType<any>, V extends BcsType<any>>(...typeParameters: [K, V]) {
 	return new MoveStruct({
 		name: \`0x2::vec_map::VecMap<\${typeParameters[0].name as K['name']}, \${typeParameters[1].name as V['name']}>\` as const,
@@ -341,37 +329,27 @@ function VecMap<K extends BcsType<any>, V extends BcsType<any>>(...typeParameter
 	});
 }
 
-// non-generic: zero-arg, literal return
+// non-generic types: options are optional
 const t1 = StakedWal.typeTag();
-type _1 = Expect<Equal<typeof t1, '@local-pkg/walrus::staked_wal::StakedWal'>>;
+const t2 = StakedWal.typeTag({ package: '0x9f9' });
+type _1 = Expect<Equal<typeof t1, string>> | Expect<Equal<typeof t2, string>>;
 
-// phantom generic: required, exact literal out (arity is validated at runtime)
+// phantom parameters anywhere in the name make typeArguments required
 // @ts-expect-error — Balance requires type arguments
 Balance.typeTag();
-const t2 = Balance.typeTag({ typeArguments: ['0x2::sui::SUI'] });
-type _2 = Expect<Equal<typeof t2, '0x2::balance::Balance<0x2::sui::SUI>'>>;
+// @ts-expect-error — options without typeArguments are not enough
+Balance.typeTag({ package: '0x9f9' });
+const t3 = Balance.typeTag({ typeArguments: ['0x2::sui::SUI'] });
+type _3 = Expect<Equal<typeof t3, string>>;
 
-// mixed params stay positional (position contents are validated at runtime)
-const W = Wrapper(bcs.u64());
-const t3 = W.typeTag({ typeArguments: ['0xa::a::A', 'u64', '0xc::c::C'] });
-type _3 = Expect<Equal<typeof t3, '0xabc::wrapper::Wrapper<0xa::a::A, u64, 0xc::c::C>'>>;
-
-// a phantom hole nested inside an instantiated argument still requires arguments
+// ...including holes nested inside instantiated factory arguments
 const MapOfBalances = VecMap(bcs.u8(), Balance);
-// @ts-expect-error — nested hole means zero-arg is rejected
+// @ts-expect-error — the nested phantom hole requires type arguments
 MapOfBalances.typeTag();
-const t4 = MapOfBalances.typeTag({
-	typeArguments: ['u8', '0x2::balance::Balance<0x2::sui::SUI>'],
-});
-type _4 = Expect<
-	Equal<typeof t4, '0x2::vec_map::VecMap<u8, 0x2::balance::Balance<0x2::sui::SUI>>'>
->;
+MapOfBalances.typeTag({ typeArguments: ['u8', '0x2::balance::Balance<0x2::sui::SUI>'] });
 
-// unfilled phantoms cannot be smuggled through type arguments
-// @ts-expect-error — Balance still has an unfilled phantom parameter
-Balance.typeTag({ typeArguments: [Balance] });
-// @ts-expect-error — same as a raw string
-Balance.typeTag({ typeArguments: ['0x2::balance::Balance<phantom T>'] });
+// fully instantiated factory results are zero-arg
+VecMap(bcs.u8(), bcs.u64()).typeTag();
 
 // only strings and BCS types are valid arguments — objects that merely have a
 // .name property (like every function) are rejected
@@ -379,51 +357,21 @@ Balance.typeTag({ typeArguments: ['0x2::balance::Balance<phantom T>'] });
 Balance.typeTag({ typeArguments: [() => {}] });
 // @ts-expect-error — arbitrary named objects are not type arguments
 Balance.typeTag({ typeArguments: [{ name: '0x2::sui::SUI' }] });
+Balance.typeTag({ typeArguments: [bcs.vector(bcs.u8())] }); // BCS types are accepted
 
-// composition: nested typeTag calls flow exact literals
-const t5 = MapOfBalances.typeTag({
-	typeArguments: ['u8', Balance.typeTag({ typeArguments: ['0x2::sui::SUI'] })],
-});
-type _5 = Expect<
-	Equal<typeof t5, '0x2::vec_map::VecMap<u8, 0x2::balance::Balance<0x2::sui::SUI>>'>
->;
-const t6 = Pool.typeTag({
-	typeArguments: [
-		Balance.typeTag({ typeArguments: ['0x2::sui::SUI'] }),
-		'0xb::wal::WAL',
-	],
-});
-type _6 = Expect<
-	Equal<typeof t6, '0xdee9::pool::Pool<0x2::balance::Balance<0x2::sui::SUI>, 0xb::wal::WAL>'>
->;
+// resolveTypeTag always requires options (client), and typeArguments when phantom
+declare const client: import('@mysten/sui/client').ClientWithCoreApi;
+// @ts-expect-error — client is required
+StakedWal.resolveTypeTag();
+void StakedWal.resolveTypeTag({ client });
+// @ts-expect-error — Balance requires type arguments
+void Balance.resolveTypeTag({ client });
+void Balance.resolveTypeTag({ client, typeArguments: ['0x2::sui::SUI'] });
 
-// package identifiers are substitutable (normalized/short/MVR), structure locked
-const t8 = MapOfBalances.typeTag({
-	typeArguments: [
-		'u8',
-		'0x0000000000000000000000000000000000000000000000000000000000000002::balance::Balance<0x2::sui::SUI>',
-	],
-});
-type _8 = Expect<
-	Equal<
-		typeof t8,
-		'0x2::vec_map::VecMap<u8, 0x0000000000000000000000000000000000000000000000000000000000000002::balance::Balance<0x2::sui::SUI>>'
-	>
->;
-const t9 = VecMap(bcs.u8(), StakedWal).typeTag({
-	typeArguments: ['u8', '0x9f9::staked_wal::StakedWal'],
-});
-type _9 = Expect<Equal<typeof t9, '0x2::vec_map::VecMap<u8, 0x9f9::staked_wal::StakedWal>'>>;
-
-// package override rewrites the package at the type level
-const t10 = StakedWal.typeTag({ package: '0x9f9' });
-type _10 = Expect<Equal<typeof t10, '0x9f9::staked_wal::StakedWal'>>;
-
-// widened names degrade gracefully
+// widened names degrade gracefully: everything optional
 const Dynamic: MoveStruct<{ value: ReturnType<typeof bcs.u64> }, string> = Balance;
-const t11 = Dynamic.typeTag();
-const t12 = Dynamic.typeTag({ typeArguments: ['a', 'b', 'c'] });
-type _11 = Expect<Equal<typeof t11, string>> | Expect<Equal<typeof t12, string>>;
+Dynamic.typeTag();
+Dynamic.typeTag({ typeArguments: ['a', 'b', 'c'] });
 
-console.log(t1, t2, t3, t4, t5, t6, t8, t9, t10, t11, t12);
+console.log(t1, t2, t3);
 `;
