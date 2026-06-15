@@ -9,10 +9,15 @@ import {
 	WALLET_STANDARD_ERROR__FEATURES__WALLET_ACCOUNT_CHAIN_UNSUPPORTED,
 	WalletStandardError,
 } from '@mysten/wallet-standard';
-import type { UiWalletAccount, UiWalletHandle } from '@wallet-standard/ui';
-import { getWalletAccountFeature } from '@wallet-standard/ui';
-import { getWalletForHandle_DO_NOT_USE_OR_YOU_WILL_BE_FIRED as getWalletForHandle } from '@wallet-standard/ui-registry';
-import { ChainNotSupportedError, FeatureNotSupportedError } from './errors.js';
+import type { UiWallet, UiWalletAccount, UiWalletHandle } from '@wallet-standard/ui';
+import { getWalletAccountFeature, uiWalletAccountBelongsToUiWallet } from '@wallet-standard/ui';
+import { getWalletForHandle } from '@wallet-standard/ui-registry';
+import {
+	ChainNotSupportedError,
+	FeatureNotSupportedError,
+	WalletAccountNotFoundError,
+	WalletNotConnectedError,
+} from './errors.js';
 
 export const requiredWalletFeatures = [StandardConnect, StandardEvents] as const;
 
@@ -21,6 +26,30 @@ export const signingFeatures = [SuiSignTransaction, SuiSignTransactionBlock] as 
 export function getWalletUniqueIdentifier(walletHandle: UiWalletHandle) {
 	const underlyingWallet = getWalletForHandle(walletHandle);
 	return underlyingWallet.id ?? underlyingWallet.name;
+}
+
+/**
+ * Resolves the account a signing action should use, defaulting to the currently connected account.
+ *
+ * Enforces that the wallet, account, and (downstream) network all stay compatible: a wallet must be
+ * connected, and any explicitly provided account must belong to that connected wallet. The
+ * account-supports-network check happens later in {@link getAccountFeature} via `account.chains`.
+ */
+export function resolveSigningAccount(
+	connection: { wallet: UiWallet | null; account: UiWalletAccount | null },
+	account?: UiWalletAccount,
+): UiWalletAccount {
+	if (!connection.wallet || !connection.account) {
+		throw new WalletNotConnectedError('No wallet is connected.');
+	}
+
+	if (account && !uiWalletAccountBelongsToUiWallet(account, connection.wallet)) {
+		throw new WalletAccountNotFoundError(
+			`No account with address ${account.address} is connected to ${connection.wallet.name}.`,
+		);
+	}
+
+	return account ?? connection.account;
 }
 
 export function getAccountFeature<TAccount extends UiWalletAccount>({

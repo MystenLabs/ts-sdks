@@ -7,28 +7,39 @@ import type {
 	SuiSignPersonalMessageFeature,
 	SuiSignPersonalMessageInput,
 } from '@mysten/wallet-standard';
-import { getWalletAccountForUiWalletAccount_DO_NOT_USE_OR_YOU_WILL_BE_FIRED as getWalletAccountForUiWalletAccount } from '@wallet-standard/ui-registry';
-import { WalletNotConnectedError } from '../../utils/errors.js';
+import { getWalletAccountForUiWalletAccount } from '@wallet-standard/ui-registry';
+import type { UiWalletAccount } from '@wallet-standard/ui';
 import { getChain } from '../../utils/networks.js';
-import { getAccountFeature } from '../../utils/wallets.js';
+import type { Networks } from '../../utils/networks.js';
+import { getAccountFeature, resolveSigningAccount } from '../../utils/wallets.js';
 
-export type SignPersonalMessageArgs = Omit<SuiSignPersonalMessageInput, 'account' | 'chain'>;
+export type SignPersonalMessageArgs<TNetworks extends Networks = Networks> = {
+	/** The account to sign with. Defaults to the currently connected account. */
+	account?: UiWalletAccount;
+	/** The network to sign against. Defaults to the dApp kit's current network. */
+	network?: TNetworks[number];
+} & Omit<SuiSignPersonalMessageInput, 'account' | 'chain'>;
 
-export function signPersonalMessageCreator({ $connection, $currentNetwork }: DAppKitStores) {
+export function signPersonalMessageCreator<TNetworks extends Networks>({
+	$connection,
+	$currentNetwork,
+}: DAppKitStores<TNetworks>) {
 	/**
 	 * Prompts the specified wallet account to sign a personal message.
 	 */
-	return async function signPersonalMessage({ ...standardArgs }: SignPersonalMessageArgs) {
-		const { account } = $connection.get();
-		if (!account) {
-			throw new WalletNotConnectedError('No wallet is connected.');
-		}
+	return async function signPersonalMessage({
+		account: accountOverride,
+		network,
+		...standardArgs
+	}: SignPersonalMessageArgs<TNetworks>) {
+		const connection = $connection.get();
+		const account = resolveSigningAccount(connection, accountOverride);
 
-		const currentNetwork = $currentNetwork.get();
-		const chain = getChain(currentNetwork);
+		const resolvedNetwork = network ?? $currentNetwork.get();
+		const chain = getChain(resolvedNetwork);
 
 		const signPersonalMessageFeature = getAccountFeature({
-			account: account,
+			account,
 			chain,
 			featureName: SuiSignPersonalMessage,
 		}) as SuiSignPersonalMessageFeature[typeof SuiSignPersonalMessage];

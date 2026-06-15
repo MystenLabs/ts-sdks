@@ -11,40 +11,52 @@ import type {
 	SuiSignAndExecuteTransactionFeature,
 	SuiSignAndExecuteTransactionInput,
 } from '@mysten/wallet-standard';
-import { getWalletAccountForUiWalletAccount_DO_NOT_USE_OR_YOU_WILL_BE_FIRED as getWalletAccountForUiWalletAccount } from '@wallet-standard/ui-registry';
-import { FeatureNotSupportedError, WalletNotConnectedError } from '../../utils/errors.js';
+import { getWalletAccountForUiWalletAccount } from '@wallet-standard/ui-registry';
+import type { UiWalletAccount } from '@wallet-standard/ui';
+import { FeatureNotSupportedError } from '../../utils/errors.js';
 import { getChain } from '../../utils/networks.js';
+import type { Networks } from '../../utils/networks.js';
 import { Transaction } from '@mysten/sui/transactions';
-import { tryGetAccountFeature } from '../../utils/wallets.js';
+import { resolveSigningAccount, tryGetAccountFeature } from '../../utils/wallets.js';
 import { bcs } from '@mysten/sui/bcs';
 import { fromBase64 } from '@mysten/utils';
 import {
 	buildTransactionResult,
 	type TransactionResultWithEffects,
 } from '../../utils/transaction-result.js';
+import type { DAppKitCompatibleClient } from '../types.js';
 
-export type SignAndExecuteTransactionArgs = {
+export type SignAndExecuteTransactionArgs<TNetworks extends Networks = Networks> = {
 	transaction: Transaction | string;
+	/** The account to sign with. Defaults to the currently connected account. */
+	account?: UiWalletAccount;
+	/** The network to sign and execute against. Defaults to the dApp kit's current network. */
+	network?: TNetworks[number];
 } & Omit<SuiSignAndExecuteTransactionInput, 'account' | 'chain' | 'transaction'>;
 
 export type SignAndExecuteTransactionResult = TransactionResultWithEffects;
 
-export function signAndExecuteTransactionCreator({ $connection, $currentClient }: DAppKitStores) {
+export function signAndExecuteTransactionCreator<TNetworks extends Networks>(
+	{ $connection, $currentNetwork }: DAppKitStores<TNetworks>,
+	getClient: (network: TNetworks[number]) => DAppKitCompatibleClient,
+) {
 	/**
 	 * Prompts the specified wallet account to sign and execute a transaction.
 	 */
 	return async function signAndExecuteTransaction({
 		transaction,
+		account: accountOverride,
+		network,
 		...standardArgs
-	}: SignAndExecuteTransactionArgs): Promise<SignAndExecuteTransactionResult> {
-		const { account, supportedIntents } = $connection.get();
-		if (!account) {
-			throw new WalletNotConnectedError('No wallet is connected.');
-		}
+	}: SignAndExecuteTransactionArgs<TNetworks>): Promise<SignAndExecuteTransactionResult> {
+		const connection = $connection.get();
+		const account = resolveSigningAccount(connection, accountOverride);
+		const supportedIntents = [...connection.supportedIntents];
 
 		const underlyingAccount = getWalletAccountForUiWalletAccount(account);
-		const suiClient = $currentClient.get();
-		const chain = getChain(suiClient.network);
+		const resolvedNetwork = network ?? $currentNetwork.get();
+		const suiClient = getClient(resolvedNetwork);
+		const chain = getChain(resolvedNetwork);
 
 		const transactionWrapper = {
 			toJSON: async () => {
@@ -91,7 +103,7 @@ export function signAndExecuteTransactionCreator({ $connection, $currentClient }
 			const transactionBlock = Transaction.from(await transactionWrapper.toJSON());
 			const { digest, rawEffects, rawTransaction } =
 				await signAndExecuteTransactionBlockFeature.signAndExecuteTransactionBlock({
-					account,
+					account: underlyingAccount,
 					chain,
 					transactionBlock,
 					options: {

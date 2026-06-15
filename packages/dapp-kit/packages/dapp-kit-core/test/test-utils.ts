@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { getOrCreateUiWalletForStandardWallet_DO_NOT_USE_OR_YOU_WILL_BE_FIRED as getOrCreateUiWalletForStandardWallet } from '@wallet-standard/ui-registry';
+import { getOrCreateUiWalletForStandardWallet } from '@wallet-standard/ui-registry';
 
 import type { DAppKitStores } from '../src/core/store.js';
 import type { UiWallet } from '@wallet-standard/ui';
