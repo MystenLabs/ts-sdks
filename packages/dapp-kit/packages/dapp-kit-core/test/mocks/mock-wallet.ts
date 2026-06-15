@@ -20,7 +20,7 @@ export type MockWalletOptions = {
 	name: string;
 	accounts?: ReadonlyWalletAccount[];
 	skippedFeatures?: IdentifierArray;
-	addedFeatures?: IdentifierArray;
+	addedFeatures?: IdentifierRecord<any>;
 	chains?: IdentifierArray;
 };
 

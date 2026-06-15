@@ -31,6 +31,15 @@ console.log('Signature:', result.signature);
 ## Parameters
 
 - **`message`:** `Uint8Array` - The message to sign as a byte array
+- **`account`** (optional) - `UiWalletAccount` - The account to sign with. Defaults to the currently
+  connected account. Must belong to the connected wallet, otherwise a `WalletAccountNotFoundError`
+  is thrown. Lets you sign with a specific account without changing the selected account via
+  `switchAccount`.
+- **`network`** (optional) - The network to sign against (a configured network identifier such as
+  `'mainnet'`). Defaults to the active network. The signing chain is derived from it, so you can
+  sign against a network without changing the active network via `switchNetwork`. Throws a
+  `ChainNotSupportedError` if the signing account does not support the network. This matters for
+  network-bound signatures such as zkLogin.
 
 ## Return value
 
