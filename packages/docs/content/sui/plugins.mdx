@@ -283,8 +283,8 @@ the copy needs the intent resolvers, but resolvers are functions and cannot be r
 serialized transaction data.
 
 Built-in intents (such as the `CoinWithBalance` intent added by `tx.coin()`) are re-attached
-automatically. For custom intents, pass the resolvers via the `intentResolvers` option so the copy
-knows how to resolve them:
+automatically. For custom intents, pass the resolvers through the `intentResolvers` option so the
+copy knows how to resolve them:
 
 ```typescript
 import { Transaction } from '@mysten/sui/transactions';
