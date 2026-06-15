@@ -46,14 +46,14 @@
 		"node": ">=22"
 	},
 	"dependencies": {
-		"@noble/curves": "^2.0.1"
+		"@noble/curves": "^2.2.0"
 	},
 	"peerDependencies": {
 		"@mysten/sui": "workspace:^"
 	},
 	"devDependencies": {
-		"@types/node": "^25.0.8",
-		"typescript": "^5.9.3",
-		"vitest": "^4.0.17"
+		"@types/node": "^25.9.3",
+		"typescript": "^6.0.3",
+		"vitest": "^4.1.8"
 	}
 }

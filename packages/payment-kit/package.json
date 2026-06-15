@@ -43,8 +43,8 @@
 	},
 	"devDependencies": {
 		"@mysten/codegen": "workspace:^",
-		"typescript": "^5.9.3",
-		"vitest": "^4.0.17"
+		"typescript": "^6.0.3",
+		"vitest": "^4.1.8"
 	},
 	"dependencies": {
 		"@mysten/bcs": "workspace:^"

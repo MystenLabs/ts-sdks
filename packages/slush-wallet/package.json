@@ -41,15 +41,15 @@
 	},
 	"homepage": "https://github.com/MystenLabs/ts-sdks/tree/main/packages/slush-wallet#readme",
 	"devDependencies": {
-		"@types/node": "^25.0.8",
-		"typescript": "^5.9.3",
-		"vitest": "^4.0.17"
+		"@types/node": "^25.9.3",
+		"typescript": "^6.0.3",
+		"vitest": "^4.1.8"
 	},
 	"dependencies": {
 		"@mysten/utils": "workspace:^",
 		"@mysten/wallet-standard": "workspace:^",
 		"@mysten/window-wallet-core": "workspace:^",
-		"valibot": "^1.2.0"
+		"valibot": "^1.4.1"
 	},
 	"peerDependencies": {
 		"@mysten/sui": "workspace:^"

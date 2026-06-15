@@ -1,6 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { fileURLToPath } from 'node:url';
 import { createMDX } from 'fumadocs-mdx/next';
 
 const withMDX = createMDX();
@@ -8,6 +9,11 @@ const withMDX = createMDX();
 /** @type {import('next').NextConfig} */
 const config = {
 	reactStrictMode: true,
+	// Pin the workspace root so Next doesn't infer it from a stray lockfile
+	// outside the repo. Resolves to the ts-sdks monorepo root.
+	turbopack: {
+		root: fileURLToPath(new URL('../..', import.meta.url)),
+	},
 	serverExternalPackages: [
 		'ts-morph',
 		'typescript',

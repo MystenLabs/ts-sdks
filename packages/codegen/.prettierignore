@@ -2,3 +2,4 @@ dist
 tests/move/*/build
 tests/move/*/package_summaries
 CHANGELOG.md
+docs/
