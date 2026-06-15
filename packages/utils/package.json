@@ -42,10 +42,10 @@
 	},
 	"homepage": "https://github.com/MystenLabs/ts-sdks/tree/main/packages/utils#readme",
 	"devDependencies": {
-		"typescript": "^5.9.3",
-		"vitest": "^4.0.17"
+		"typescript": "^6.0.3",
+		"vitest": "^4.1.8"
 	},
 	"dependencies": {
-		"@scure/base": "^2.0.0"
+		"@scure/base": "^2.2.0"
 	}
 }

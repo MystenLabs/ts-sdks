@@ -385,7 +385,9 @@ export class MoveTuple<
 
 function stringify(val: unknown) {
 	if (typeof val === 'object') {
-		return JSON.stringify(val, (val: unknown) => val);
+		return JSON.stringify(val, (_key, value) =>
+			typeof value === 'bigint' ? value.toString() : value,
+		);
 	}
 	if (typeof val === 'bigint') {
 		return val.toString();

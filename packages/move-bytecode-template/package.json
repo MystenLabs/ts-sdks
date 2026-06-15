@@ -44,7 +44,7 @@
 	"license": "Apache-2.0",
 	"devDependencies": {
 		"@mysten/bcs": "workspace:^",
-		"typescript": "^5.9.3",
-		"vitest": "^4.0.17"
+		"typescript": "^6.0.3",
+		"vitest": "^4.1.8"
 	}
 }

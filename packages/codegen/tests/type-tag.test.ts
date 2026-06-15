@@ -162,6 +162,11 @@ describe('typeTag (runtime)', () => {
 		expect(() => Balance.typeTag({ typeArguments: [(() => {}) as never] })).toThrowError(
 			/Invalid type argument/,
 		);
+		// the error message includes the offending value (object args must not
+		// stringify to an empty string)
+		expect(() => Balance.typeTag({ typeArguments: [{ not: 'a type' } as never] })).toThrowError(
+			/Invalid type argument \{"not":"a type"\}/,
+		);
 	});
 
 	it('rejects BCS types whose names are not Move types', () => {

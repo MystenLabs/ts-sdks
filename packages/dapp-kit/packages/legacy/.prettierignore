@@ -2,3 +2,4 @@ CHANGELOG.md
 dist/
 build/
 tsconfig.tsbuildinfo
+docs/
