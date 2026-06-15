@@ -1,5 +1,15 @@
 # @mysten/docs
 
+## 0.1.30
+
+### Patch Changes
+
+- Updated dependencies [8a03101]
+  - @mysten/dapp-kit-core@1.5.0
+  - @mysten/dapp-kit-react@2.1.1
+  - @mysten/walrus@1.2.0
+  - @mysten/enoki@1.1.0
+
 ## 0.1.29
 
 ### Patch Changes
