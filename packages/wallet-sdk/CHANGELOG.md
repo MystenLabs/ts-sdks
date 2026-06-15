@@ -1,5 +1,17 @@
 # @mysten/wallet-sdk
 
+## 0.4.0
+
+### Minor Changes
+
+- bbf63cb: Updated dependencies
+
+### Patch Changes
+
+- Updated dependencies [bbf63cb]
+  - @mysten/bcs@2.1.0
+  - @mysten/wallet-standard@0.21.0
+
 ## 0.3.2
 
 ### Patch Changes

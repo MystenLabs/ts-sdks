@@ -1,5 +1,16 @@
 # @mysten/ledger-signer
 
+## 0.2.0
+
+### Minor Changes
+
+- bbf63cb: Updated dependencies
+
+### Patch Changes
+
+- Updated dependencies [bbf63cb]
+  - @mysten/ledgerjs-hw-app-sui@0.9.0
+
 ## 0.1.2
 
 ### Patch Changes

@@ -1,5 +1,16 @@
 # @mysten/seal
 
+## 1.2.0
+
+### Minor Changes
+
+- bbf63cb: Updated dependencies
+
+### Patch Changes
+
+- Updated dependencies [bbf63cb]
+  - @mysten/bcs@2.1.0
+
 ## 1.1.3
 
 ### Patch Changes

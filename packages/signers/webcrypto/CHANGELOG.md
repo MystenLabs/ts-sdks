@@ -1,5 +1,11 @@
 # @mysten/webcrypto-signer
 
+## 0.2.0
+
+### Minor Changes
+
+- bbf63cb: Updated dependencies
+
 ## 0.1.2
 
 ### Patch Changes

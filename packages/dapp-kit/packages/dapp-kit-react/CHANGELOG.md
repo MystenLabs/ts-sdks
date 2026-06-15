@@ -1,5 +1,16 @@
 # @mysten/dapp-kit-react
 
+## 2.1.0
+
+### Minor Changes
+
+- bbf63cb: Updated dependencies
+
+### Patch Changes
+
+- Updated dependencies [bbf63cb]
+  - @mysten/dapp-kit-core@1.4.0
+
 ## 2.0.3
 
 ### Patch Changes

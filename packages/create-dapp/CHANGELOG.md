@@ -1,5 +1,21 @@
 # @mysten/create-dapp
 
+## 0.7.0
+
+### Minor Changes
+
+- bbf63cb: Updated dependencies
+
+### Patch Changes
+
+- Updated dependencies [bbf63cb]
+- Updated dependencies [b093d05]
+- Updated dependencies [bbf63cb]
+- Updated dependencies [4ca4c66]
+  - @mysten/codegen@0.11.0
+  - @mysten/sui@2.18.0
+  - @mysten/dapp-kit-react@2.1.0
+
 ## 0.6.8
 
 ### Patch Changes

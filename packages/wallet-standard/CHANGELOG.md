@@ -1,5 +1,11 @@
 # @mysten/wallet-standard
 
+## 0.21.0
+
+### Minor Changes
+
+- bbf63cb: Updated dependencies
+
 ## 0.20.3
 
 ### Patch Changes
