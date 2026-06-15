@@ -90,10 +90,6 @@ describe('typeTag on real codegen output', () => {
 		expect(pair.typeTag({ typeArguments: ['u64', '0x2::sui::SUI'] })).toBe(
 			'@test/testpkg::counter::Pair<u64, 0x2::sui::SUI>',
 		);
-		// the instantiated T position is locked to what the factory was called with
-		expect(() => pair.typeTag({ typeArguments: ['u32', '0x2::sui::SUI'] })).toThrowError(
-			/does not match/,
-		);
 	});
 
 	it('takes the full positional list for a phantom-first factory (PhantomFirst<phantom A, B>)', () => {

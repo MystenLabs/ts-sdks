@@ -10,5 +10,5 @@
 
 Add `typeTag` and `resolveTypeTag` methods to the generated `MoveStruct`, `MoveEnum`, and `MoveTuple` classes.
 
-- `typeTag(options?)` builds the type tag string for a generated type. `typeArguments` is the full positional list in Move declaration order: phantom positions accept any type tag string or BCS type, while instantiated positions are validated against the type the instance was created with (package identifiers — short addresses, normalized addresses, and MVR names — are interchangeable). Types with unfilled phantom parameters require `typeArguments` at compile time; argument arity and position contents are validated at runtime.
+- `typeTag(options?)` builds the type tag string for a generated type. `typeArguments` is the full positional list of type arguments in Move declaration order; each entry is a type tag string, another `typeTag()` result, or a BCS type (its name is used). Types with unfilled phantom parameters require `typeArguments` at compile time, and argument arity is validated at runtime.
 - `resolveTypeTag({ client, ... })` builds the tag, resolves MVR names through `client.core.mvr.resolveType`, and returns the normalized address-only form suitable for queries and comparisons against on-chain data.

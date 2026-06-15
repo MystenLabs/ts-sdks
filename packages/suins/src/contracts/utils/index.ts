@@ -182,7 +182,6 @@ type ResolveTypeTagOptions<Name extends string> = {
 	? TypeTagOptions & { typeArguments: readonly TypeArgument[] }
 	: TypeTagOptions);
 
-const PHANTOM_HOLES_REGEX = /phantom [A-Za-z_$][A-Za-z0-9_$]*/g;
 const HAS_PHANTOM_REGEX = /phantom [A-Za-z_$][A-Za-z0-9_$]*/;
 
 function splitTopLevelTypeArgs(inner: string): string[] {
@@ -231,26 +230,6 @@ function buildTypeTag(name: string, options: TypeTagOptions | undefined): string
 			);
 		}
 
-		for (let i = 0; i < baked.length; i++) {
-			const bakedArg = baked[i]!;
-			const suppliedArg = supplied[i]!;
-			// package identifiers can't be verified without resolution, so they are
-			// wildcards; structure, primitives, and filled arguments stay anchored,
-			// and phantom holes are free
-			const pattern = new RegExp(
-				`^${bakedArg
-					.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-					.replace(PHANTOM_HOLES_REGEX, '.+')
-					.replace(/(^|<|, )([^,<>]+?)::/g, '$1[^,<>]+?::')}$`,
-			);
-
-			if (!pattern.test(suppliedArg)) {
-				throw new Error(
-					`Type argument ${suppliedArg} at position ${i} does not match ${bakedArg} in ${name}`,
-				);
-			}
-		}
-
 		result = supplied.length === 0 ? base : `${base}<${supplied.join(', ')}>`;
 	}
 
@@ -293,11 +272,8 @@ export class MoveStruct<
 	/**
 	 * Build the type tag for this struct.
 	 *
-	 * `typeArguments` is the full positional list, in Move declaration order,
-	 * and is required when the struct has unfilled phantom parameters. Phantom
-	 * positions accept any type; instantiated positions must restate the type
-	 * the instance was created with (package identifiers — short addresses,
-	 * normalized addresses, and MVR names — are interchangeable). The result may
+	 * `typeArguments` is the full positional list, in Move declaration order, and
+	 * is required when the struct has unfilled phantom parameters. The result may
 	 * contain MVR names: those are valid in transaction `typeArguments`, but for
 	 * queries or comparisons against on-chain data use `resolveTypeTag` instead.
 	 */

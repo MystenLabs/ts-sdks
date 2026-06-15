@@ -91,18 +91,31 @@ describe('typeTag (runtime)', () => {
 		);
 	});
 
-	it('keeps mixed phantom and non-phantom params positional', () => {
+	it('takes the full positional list for mixed phantom and non-phantom params', () => {
 		const { Wrapper } = makeTypes();
 		expect(Wrapper.typeTag({ typeArguments: ['0xa::a::A', 'u64', '0xc::c::C'] })).toBe(
 			'0xabc::wrapper::Wrapper<0xa::a::A, u64, 0xc::c::C>',
 		);
-		// instantiated positions cannot be overwritten
-		expect(() =>
-			Wrapper.typeTag({ typeArguments: ['0xa::a::A', 'u32', '0xc::c::C'] }),
-		).toThrowError(/does not match u64/);
 	});
 
-	it('requires nested phantom holes to be filled', () => {
+	it('uses supplied type arguments verbatim', () => {
+		// type arguments are not verified against the type the instance was created
+		// with; whatever the caller passes is used to build the tag
+		const { MapOfBalances } = makeTypes();
+		const padded = `0x${'0'.repeat(63)}2`;
+		expect(
+			MapOfBalances.typeTag({
+				typeArguments: ['u8', `${padded}::balance::Balance<0x2::sui::SUI>`],
+			}),
+		).toBe(`0x2::vec_map::VecMap<u8, ${padded}::balance::Balance<0x2::sui::SUI>>`);
+		expect(
+			MapOfBalances.typeTag({
+				typeArguments: ['u8', '@mysten/framework::balance::Balance<0x2::sui::SUI>'],
+			}),
+		).toBe('0x2::vec_map::VecMap<u8, @mysten/framework::balance::Balance<0x2::sui::SUI>>');
+	});
+
+	it('requires type arguments when the name has phantom holes', () => {
 		const { MapOfBalances } = makeTypes();
 		expect(
 			MapOfBalances.typeTag({
@@ -110,9 +123,6 @@ describe('typeTag (runtime)', () => {
 			}),
 		).toBe('0x2::vec_map::VecMap<u8, 0x2::balance::Balance<0x2::sui::SUI>>');
 		expect(() => MapOfBalances.typeTag()).toThrowError(/Missing type arguments/);
-		expect(() => MapOfBalances.typeTag({ typeArguments: ['u8', 'u64'] })).toThrowError(
-			/does not match/,
-		);
 	});
 
 	it('rejects type arguments that smuggle unfilled phantom holes', () => {
@@ -120,35 +130,6 @@ describe('typeTag (runtime)', () => {
 		expect(() =>
 			Balance.typeTag({ typeArguments: ['0x2::balance::Balance<phantom T>'] }),
 		).toThrowError(/unfilled phantom parameter/);
-	});
-
-	it('treats package identifiers as substitutable', () => {
-		const { MapOfBalances, StakedWal, Wrapper } = makeTypes();
-		const padded = `0x${'0'.repeat(63)}2`;
-		// normalized for short
-		expect(
-			MapOfBalances.typeTag({
-				typeArguments: ['u8', `${padded}::balance::Balance<0x2::sui::SUI>`],
-			}),
-		).toBe(`0x2::vec_map::VecMap<u8, ${padded}::balance::Balance<0x2::sui::SUI>>`);
-		// MVR name for address
-		expect(
-			MapOfBalances.typeTag({
-				typeArguments: ['u8', '@mysten/framework::balance::Balance<0x2::sui::SUI>'],
-			}),
-		).toBe('0x2::vec_map::VecMap<u8, @mysten/framework::balance::Balance<0x2::sui::SUI>>');
-		// but module::name structure stays anchored
-		expect(() =>
-			MapOfBalances.typeTag({
-				typeArguments: ['u8', '0x2::coin::Coin<0x2::sui::SUI>'],
-			}),
-		).toThrowError(/does not match/);
-		// address in place of a baked MVR name
-		expect(StakedWal.typeTag({ package: '0x9f9' })).toBe('0x9f9::staked_wal::StakedWal');
-		// instantiated non-package parts stay locked even with a substituted package
-		expect(() =>
-			Wrapper.typeTag({ typeArguments: ['0xa::a::A', `${padded}::other::Type`, '0xc::c::C'] }),
-		).toThrowError(/does not match/);
 	});
 
 	it('supports the package override', () => {
@@ -208,7 +189,7 @@ describe('typeTag (runtime)', () => {
 });
 
 describe('instantiated types (runtime)', () => {
-	it('locks instantiated positions to their baked values', () => {
+	it('builds tags for a fully instantiated type with or without restated args', () => {
 		const { MoveStruct } = utils;
 		const { bcs } = makeTypes();
 		// as a generated factory bakes: VecMap(bcs.u8(), bcs.u64())
@@ -220,7 +201,6 @@ describe('instantiated types (runtime)', () => {
 		expect(PlainMap.typeTag({ typeArguments: ['u8', 'u64'] })).toBe(
 			'0x2::vec_map::VecMap<u8, u64>',
 		);
-		expect(() => PlainMap.typeTag({ typeArguments: ['u8', 'u32'] })).toThrowError(/does not match/);
 	});
 });
 
