@@ -1,5 +1,11 @@
 # @mysten/walrus-wasm
 
+## 0.3.0
+
+### Minor Changes
+
+- bbf63cb: Updated dependencies
+
 ## 0.2.2
 
 ### Patch Changes

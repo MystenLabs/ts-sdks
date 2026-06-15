@@ -1,5 +1,23 @@
 # @mysten/sui.js
 
+## 2.18.0
+
+### Minor Changes
+
+- b093d05: `Transaction.from` now accepts an optional `intentResolvers` option, a map of intent
+  names to resolvers. This lets you synchronously copy a transaction that still contains unresolved
+  custom intents without first awaiting `prepareForSerialization`. Built-in intents (such as
+  `CoinWithBalance`) continue to be handled automatically.
+- bbf63cb: Updated dependencies
+
+### Patch Changes
+
+- 4ca4c66: zkLogin: `genAddressSeed` now rejects key claim name, value, or aud that contain a JSON
+  escape (`"`, `\`, or a control character).
+- Updated dependencies [bbf63cb]
+  - @mysten/bcs@2.1.0
+  - @mysten/utils@0.4.0
+
 ## 2.17.0
 
 ### Minor Changes

@@ -1,5 +1,11 @@
 # @mysten/utils
 
+## 0.4.0
+
+### Minor Changes
+
+- bbf63cb: Updated dependencies
+
 ## 0.3.3
 
 ### Patch Changes

@@ -1,5 +1,18 @@
 # @mysten/enoki
 
+## 1.1.0
+
+### Minor Changes
+
+- bbf63cb: Updated dependencies
+
+### Patch Changes
+
+- Updated dependencies [bbf63cb]
+  - @mysten/utils@0.4.0
+  - @mysten/wallet-standard@0.21.0
+  - @mysten/webcrypto-signer@0.2.0
+
 ## 1.0.8
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @mysten/move-bytecode-template
 
+## 0.4.0
+
+### Minor Changes
+
+- bbf63cb: Updated dependencies
+
 ## 0.3.2
 
 ### Patch Changes
