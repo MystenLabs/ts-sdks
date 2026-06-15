@@ -274,3 +274,28 @@ function transferToSender(objects: TransactionObjectInput[]) {
 const transaction = new Transaction();
 transaction.add(transferToSender(['0x1234']));
 ```
+
+## Copying transactions that use custom intents
+
+`Transaction.from` creates a deep copy of a transaction. Copying is synchronous, so any unresolved
+intents are carried over as-is and resolved later when the copy is built or serialized. To do that,
+the copy needs the intent resolvers, but resolvers are functions and cannot be represented in the
+serialized transaction data.
+
+Built-in intents (such as the `CoinWithBalance` intent added by `tx.coin()`) are re-attached
+automatically. For custom intents, pass the resolvers via the `intentResolvers` option so the copy
+knows how to resolve them:
+
+```typescript
+import { Transaction } from '@mysten/sui/transactions';
+
+const copy = Transaction.from(transaction, {
+	intentResolvers: {
+		TransferToSender: resolveTransferToSender,
+	},
+});
+```
+
+Without this, `Transaction.from` throws if the transaction still contains unresolved custom intents.
+Alternatively, you can `await transaction.prepareForSerialization()` first to resolve the intents
+before copying, but that requires an async call and (for some intents) a client.

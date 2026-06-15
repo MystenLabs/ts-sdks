@@ -139,6 +139,17 @@ type TransactionLike = {
 	getData(): unknown;
 };
 
+export interface TransactionCopyOptions {
+	/**
+	 * A map of intent names to resolvers for any custom intents used in the transaction being copied.
+	 *
+	 * Built-in intents (such as `CoinWithBalance`) are handled automatically. Providing resolvers for
+	 * custom intents lets `Transaction.from` copy a transaction synchronously even when it still
+	 * contains unresolved intents, without first awaiting `prepareForSerialization`.
+	 */
+	intentResolvers?: Record<string, TransactionPlugin>;
+}
+
 /**
  * Transaction Builder
  */
@@ -175,8 +186,15 @@ export class Transaction {
 	 * There are two supported serialized formats:
 	 * - A string returned from `Transaction#serialize`. The serialized format must be compatible, or it will throw an error.
 	 * - A byte array (or base64-encoded bytes) containing BCS transaction data.
+	 *
+	 * When copying an in-memory transaction that uses custom intents, pass resolvers for those intents
+	 * via `options.intentResolvers` so the copy can be created synchronously without first awaiting
+	 * `prepareForSerialization`. Built-in intents (such as `CoinWithBalance`) are handled automatically.
 	 */
-	static from(transaction: string | Uint8Array | TransactionLike) {
+	static from(
+		transaction: string | Uint8Array | TransactionLike,
+		options: TransactionCopyOptions = {},
+	) {
 		const newTransaction = new Transaction();
 
 		if (isTransaction(transaction)) {
@@ -195,14 +213,27 @@ export class Transaction {
 		newTransaction.#commandSection = newTransaction.#data.commands.slice();
 		newTransaction.#availableResults = new Set(newTransaction.#commandSection.map((_, i) => i));
 
-		if (!newTransaction.isPreparedForSerialization({ supportedIntents: [COIN_WITH_BALANCE] })) {
+		// Built-in intents are resolvable by default. Caller-supplied resolvers cover custom intents,
+		// and take precedence so a built-in resolver can be overridden if needed.
+		const intentResolvers = new Map<string, TransactionPlugin>([
+			[COIN_WITH_BALANCE, resolveCoinBalance],
+			...Object.entries(options.intentResolvers ?? {}),
+		]);
+
+		if (
+			!newTransaction.isPreparedForSerialization({
+				supportedIntents: [...intentResolvers.keys()],
+			})
+		) {
 			throw new Error(
-				'Transaction has unresolved intents or async thunks. Call `prepareForSerialization` before copying.',
+				'Transaction has unresolved intents or async thunks. Provide resolvers for any custom intents via the `intentResolvers` option, or call `prepareForSerialization` before copying.',
 			);
 		}
 
-		if (newTransaction.#data.commands.some((cmd) => cmd.$Intent?.name === COIN_WITH_BALANCE)) {
-			newTransaction.addIntentResolver(COIN_WITH_BALANCE, resolveCoinBalance);
+		// Register every resolver so the copy can resolve its intents on build. Resolvers for intents
+		// that aren't present are harmless — a resolver only runs when its intent appears in the data.
+		for (const [intent, resolver] of intentResolvers) {
+			newTransaction.addIntentResolver(intent, resolver);
 		}
 
 		return newTransaction;
