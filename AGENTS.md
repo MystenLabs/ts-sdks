@@ -163,6 +163,14 @@ When changing Core API behavior, use both of these to verify parity. Move test c
 - **`minor`**: New fields, methods, or types added to the public API (even if optional/additive)
 - **`major`**: Breaking changes to existing public API
 
+**Never manually edit the `version` field in any package's `package.json`.** Package versions are
+managed exclusively by changesets (`pnpm changeset` to add one, `pnpm changeset-version` to apply
+them at release time). Hand-bumping a version conflicts with the changesets workflow and breaks
+release automation. To get a package's version bumped, add a changeset describing the change — do not
+touch `version` directly. Likewise, prefer the root `pnpm.overrides` for forcing a transitive
+dependency version (for example, a security fix) rather than editing a published package's
+`dependencies`/`devDependencies`, which would change its manifest without a changeset.
+
 ### Development Workflow
 
 1. Changes require changesets for version management

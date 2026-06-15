@@ -402,36 +402,68 @@ async function readCounter(client: ClientWithCoreApi, id: string) {
 
 ### Getting type tags
 
-Generated types can build their own type tag strings with the `typeTag` method:
+Generated types build their own type tag strings with the `typeTag` method, so you don't hand-write
+strings like `` `${packageId}::module::Name<${coinType}>` ``. By default the tag uses the package
+the type was generated from — a real address for framework types, or the configured name for a local
+or MVR package:
 
 ```typescript
 import { Counter } from './contracts/counter/counter';
 import { Balance } from './contracts/counter/deps/sui/balance';
 
-// Types without phantom type parameters need no arguments
-Counter.typeTag();
-// '@local-pkg/counter::counter::Counter'
-
-// Types with unfilled phantom parameters require typeArguments
 Balance.typeTag({ typeArguments: ['0x2::sui::SUI'] });
 // '0x2::balance::Balance<0x2::sui::SUI>'
 
-// Override the package address or name
-Counter.typeTag({ package: '0x123...' });
+Counter.typeTag();
+// '@local-pkg/counter::counter::Counter'
 ```
 
-`typeArguments` is the full positional list of type arguments, in the order they are declared in
-Move. Each argument can be a type tag string, another `typeTag()` result, or a BCS type (its name is
-used). Arguments are validated against the type's declaration when the tag is built.
+Types with phantom type parameters require `typeArguments`; types without them take none. This is
+enforced at compile time:
 
-For packages configured with MVR names, the result contains those names. These are valid in
-transaction `typeArguments` — they resolve automatically when the transaction is built — but for
-query filters or comparisons against onchain data, use `resolveTypeTag` to get the fully resolved,
-normalized form:
+```typescript
+Counter.typeTag(); // ok — no type parameters
+Balance.typeTag({ typeArguments: ['0x2::sui::SUI'] }); // ok
+
+// @ts-expect-error — Balance has a phantom parameter, typeArguments is required
+Balance.typeTag();
+```
+
+`typeArguments` is the full positional list, in Move declaration order. Each entry is a type tag
+string, another `typeTag()` result, or a BCS type (its `name` is used):
+
+```typescript
+import { bcs } from '@mysten/sui/bcs';
+
+Balance.typeTag({ typeArguments: [bcs.u64()] });
+// '0x2::balance::Balance<u64>'
+```
+
+To override the package identifier — for example, to pin a specific published address — pass
+`package`:
+
+```typescript
+Counter.typeTag({ package: '0xPACKAGE_ID' });
+// '0xPACKAGE_ID::counter::Counter'
+```
+
+### Resolving type tags
+
+For a local or MVR package, `typeTag` returns the configured name (`@local-pkg/counter::…`). That is
+valid in transaction `typeArguments` — it resolves automatically when the transaction is built — but
+query filters and comparisons against onchain data need a resolved, address-only tag.
+`resolveTypeTag` takes the same options as `typeTag` plus a `client`, resolves any names through it,
+and normalizes the result:
 
 ```typescript
 const counterType = await Counter.resolveTypeTag({ client });
 // '0x0000…0123::counter::Counter'
+
+const balanceType = await Balance.resolveTypeTag({
+	client,
+	typeArguments: ['0x2::sui::SUI'],
+});
+// '0x0000…0002::balance::Balance<0x0000…0002::sui::SUI>'
 ```
 
 ## Client configuration
