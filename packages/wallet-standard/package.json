@@ -46,6 +46,6 @@
 		"typescript-json-schema": "^0.67.4"
 	},
 	"peerDependencies": {
-		"@mysten/sui": "*"
+		"@mysten/sui": "workspace:^"
 	}
 }

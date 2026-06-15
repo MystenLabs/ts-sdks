@@ -55,6 +55,6 @@
 		"valibot": "^1.4.1"
 	},
 	"peerDependencies": {
-		"@mysten/sui": "*"
+		"@mysten/sui": "workspace:^"
 	}
 }

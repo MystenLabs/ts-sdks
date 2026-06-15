@@ -815,6 +815,9 @@ importers:
 
   packages/enoki-connect:
     dependencies:
+      '@mysten/sui':
+        specifier: workspace:^
+        version: link:../sui
       '@mysten/utils':
         specifier: workspace:^
         version: link:../utils
@@ -828,9 +831,6 @@ importers:
         specifier: ^3.3.3
         version: 3.3.3
     devDependencies:
-      '@mysten/sui':
-        specifier: workspace:^
-        version: link:../sui
       '@types/node':
         specifier: ^25.9.3
         version: 25.9.3
@@ -1056,6 +1056,9 @@ importers:
       '@mysten/bcs':
         specifier: workspace:^
         version: link:../bcs
+      '@mysten/sui':
+        specifier: workspace:^
+        version: link:../sui
       '@noble/curves':
         specifier: ^2.2.0
         version: 2.2.0
@@ -1066,9 +1069,6 @@ importers:
       '@hey-api/openapi-ts':
         specifier: ^0.98.2
         version: 0.98.2(typescript@6.0.3)
-      '@mysten/sui':
-        specifier: workspace:^
-        version: link:../sui
       '@types/node':
         specifier: ^25.9.3
         version: 25.9.3
@@ -1090,13 +1090,13 @@ importers:
       '@mysten/ledger-signer':
         specifier: workspace:^
         version: link:ledger
+      '@mysten/sui':
+        specifier: workspace:^
+        version: link:../sui
       '@mysten/webcrypto-signer':
         specifier: workspace:^
         version: link:webcrypto
     devDependencies:
-      '@mysten/sui':
-        specifier: workspace:^
-        version: link:../sui
       '@types/node':
         specifier: ^25.9.3
         version: 25.9.3
@@ -1197,6 +1197,9 @@ importers:
 
   packages/slush-wallet:
     dependencies:
+      '@mysten/sui':
+        specifier: workspace:^
+        version: link:../sui
       '@mysten/utils':
         specifier: workspace:^
         version: link:../utils
@@ -1210,9 +1213,6 @@ importers:
         specifier: ^1.4.1
         version: 1.4.1(typescript@6.0.3)
     devDependencies:
-      '@mysten/sui':
-        specifier: workspace:^
-        version: link:../sui
       '@types/node':
         specifier: ^25.9.3
         version: 25.9.3
@@ -1388,7 +1388,7 @@ importers:
         specifier: workspace:^
         version: link:../bcs
       '@mysten/sui':
-        specifier: '*'
+        specifier: workspace:^
         version: link:../sui
       '@mysten/wallet-standard':
         specifier: workspace:^
@@ -1416,7 +1416,7 @@ importers:
   packages/wallet-standard:
     dependencies:
       '@mysten/sui':
-        specifier: '*'
+        specifier: workspace:^
         version: link:../sui
       '@wallet-standard/core':
         specifier: 1.1.2
@@ -1431,6 +1431,9 @@ importers:
 
   packages/walletconnect-wallet:
     dependencies:
+      '@mysten/sui':
+        specifier: workspace:^
+        version: link:../sui
       '@mysten/utils':
         specifier: workspace:^
         version: link:../utils
@@ -1444,9 +1447,6 @@ importers:
         specifier: ^1.4.1
         version: 1.4.1(typescript@6.0.3)
     devDependencies:
-      '@mysten/sui':
-        specifier: workspace:^
-        version: link:../sui
       '@types/node':
         specifier: ^25.9.3
         version: 25.9.3
@@ -1609,6 +1609,9 @@ importers:
 
   packages/zksend:
     dependencies:
+      '@mysten/sui':
+        specifier: workspace:^
+        version: link:../sui
       '@mysten/utils':
         specifier: workspace:^
         version: link:../utils
@@ -1628,9 +1631,6 @@ importers:
         specifier: ^1.4.1
         version: 1.4.1(typescript@6.0.3)
     devDependencies:
-      '@mysten/sui':
-        specifier: workspace:^
-        version: link:../sui
       '@types/node':
         specifier: ^25.9.3
         version: 25.9.3

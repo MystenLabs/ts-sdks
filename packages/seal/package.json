@@ -46,7 +46,6 @@
 	"homepage": "https://github.com/MystenLabs/seal#readme",
 	"devDependencies": {
 		"@hey-api/openapi-ts": "^0.98.2",
-		"@mysten/sui": "workspace:^",
 		"@types/node": "^25.9.3",
 		"typescript": "^6.0.3",
 		"vitest": "^4.1.8"
