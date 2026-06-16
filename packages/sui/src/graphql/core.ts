@@ -973,6 +973,9 @@ function parseGraphQLExecutionError(
 	executionError: GraphQLExecutionError | null | undefined,
 ): SuiClientTypes.ExecutionError {
 	const name = mapGraphQLExecutionErrorKind(executionError);
+	const metadata = parseGraphQLExecutionErrorMetadata(
+		(executionError as { metadata?: unknown } | null | undefined)?.metadata,
+	);
 
 	if (name === 'MoveAbort' && executionError?.abortCode != null) {
 		const location = parseGraphQLMoveLocation(executionError);
@@ -1002,6 +1005,7 @@ function parseGraphQLExecutionError(
 					: undefined,
 			}),
 			command,
+			metadata,
 			MoveAbort: {
 				abortCode: executionError.abortCode!,
 				location,
@@ -1013,8 +1017,20 @@ function parseGraphQLExecutionError(
 	return {
 		$kind: 'Unknown',
 		message: executionError?.message ?? 'Transaction failed',
+		metadata,
 		Unknown: null,
 	};
+}
+
+function parseGraphQLExecutionErrorMetadata(
+	metadata: unknown,
+): SuiClientTypes.ExecutionError['metadata'] {
+	if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
+		return undefined;
+	}
+
+	const message = (metadata as { message?: unknown }).message;
+	return typeof message === 'string' ? { message } : undefined;
 }
 
 function mapGraphQLExecutionErrorKind(
