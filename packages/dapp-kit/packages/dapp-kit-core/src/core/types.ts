@@ -45,7 +45,7 @@ export type CreateDAppKitOptions<
 	 * browser extensions), which have no deterministic "registered" signal. An
 	 * in-progress restore is never interrupted by this — a slow-but-valid wallet still
 	 * restores. Only applies when `autoConnect` is enabled and a session is persisted.
-	 * @default `2000`
+	 * @default `5000`
 	 */
 	autoConnectTimeout?: number;
 

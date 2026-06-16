@@ -21,7 +21,7 @@ so a very-late wallet can still restore. The `reconnecting` state also now repor
 `isReconnecting: true` while the target wallet/account is still resolving, instead of being
 suppressed to `disconnected`.
 
-Adds an `autoConnectTimeout` option (default `2000` ms) to tune that grace period.
+Adds an `autoConnectTimeout` option (default `5000` ms) to tune that grace period.
 
 Consumers can rely on `isReconnecting` to distinguish restoring from logged-out, e.g.
 `if (!isReconnecting && !account) redirect()`.
