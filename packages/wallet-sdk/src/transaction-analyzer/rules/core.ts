@@ -16,8 +16,18 @@ export const bytes = createAnalyzer({
 				return {
 					result: await transaction.build({ client: options.client }),
 				};
-			} catch {
-				return { issues: [{ message: 'Failed to build transaction' }] };
+			} catch (error) {
+				// Building can throw for many reasons (object resolution, a missing client,
+				// a malformed transaction) — keep the underlying detail instead of a generic
+				// message, and attach the error for programmatic inspection.
+				return {
+					issues: [
+						{
+							message: `Failed to build transaction: ${(error as Error).message}`,
+							error: error as Error,
+						},
+					],
+				};
 			}
 		},
 });
@@ -42,15 +52,31 @@ export const transactionResponse = createAnalyzer({
 	cacheKey: 'transactionResponse@1.0.0',
 	dependencies: { bytes },
 	analyze:
-		(options: { client: ClientWithCoreApi; transactionResponse?: SuiClientTypes.Transaction }) =>
-		async ({ bytes }): Promise<AnalyzerOutput<SuiClientTypes.Transaction>> => {
+		(options: {
+			client: ClientWithCoreApi;
+			transactionResponse?: SuiClientTypes.Transaction<{ effects: true }>;
+		}) =>
+		async ({ bytes }): Promise<AnalyzerOutput<SuiClientTypes.Transaction<{ effects: true }>>> => {
 			try {
-				const result = await options.client.core.simulateTransaction({ transaction: bytes });
+				const result = await options.client.core.simulateTransaction({
+					transaction: bytes,
+					include: { effects: true },
+				});
 				return {
 					result: options.transactionResponse ?? result.Transaction ?? result.FailedTransaction,
 				};
-			} catch {
-				return { issues: [{ message: 'Failed to dry run transaction' }] };
+			} catch (error) {
+				// Simulation throws for many reasons (object/version resolution, gas
+				// estimation, an unreachable node) — surface the underlying detail rather
+				// than a generic message, and attach the error for programmatic inspection.
+				return {
+					issues: [
+						{
+							message: `Failed to dry run transaction: ${(error as Error).message}`,
+							error: error as Error,
+						},
+					],
+				};
 			}
 		},
 });
