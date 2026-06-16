@@ -132,7 +132,7 @@ export function createStores<
 						return {
 							wallet: null,
 							account: null,
-							status: 'reconnecting',
+							status: connection.status,
 							supportedIntents: [],
 							isConnected: false,
 							isConnecting: false,
@@ -144,7 +144,7 @@ export function createStores<
 					return {
 						wallet,
 						account: currentAccount,
-						status: 'reconnecting',
+						status: connection.status,
 						supportedIntents: connection.supportedIntents,
 						isConnected: false,
 						isConnecting: false,

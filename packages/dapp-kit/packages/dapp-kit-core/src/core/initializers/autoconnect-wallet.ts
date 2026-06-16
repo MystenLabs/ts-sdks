@@ -120,9 +120,9 @@ export function autoConnectWallet({
 			}
 		});
 
-		return () => {
-			unsubscribe?.();
-		};
+		// `stop()` (not just `unsubscribe()`) so an in-flight eager task or restore can't
+		// mutate the shared store after teardown (e.g. a React StrictMode double-mount).
+		return stop;
 	});
 }
 
