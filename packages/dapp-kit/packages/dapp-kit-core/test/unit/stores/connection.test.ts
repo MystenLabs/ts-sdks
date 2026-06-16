@@ -115,6 +115,55 @@ describe('[Unit] $connection', () => {
 		});
 	});
 
+	test('Reconnecting without a known account yet (initial restore window)', () => {
+		const { stores, uiWallets } = setDefaultUnitTestEnvWithUnmockedStores();
+		stores.$registeredWallets.set(uiWallets);
+
+		// During an initial session restore we enter `reconnecting` before the saved
+		// wallet/account is known. We must still report `isReconnecting` so consumers
+		// can tell "restoring" apart from "logged out".
+		stores.$baseConnection.set({
+			status: 'reconnecting',
+			currentAccount: null,
+			supportedIntents: [],
+		});
+
+		expect(stores.$connection.get()).toStrictEqual({
+			wallet: null,
+			account: null,
+			status: 'reconnecting',
+			supportedIntents: [],
+			isConnected: false,
+			isConnecting: false,
+			isReconnecting: true,
+			isDisconnected: false,
+		});
+	});
+
+	test('Reconnecting reports isReconnecting even when the target wallet is not registered yet', () => {
+		const { stores, uiWallets } = setDefaultUnitTestEnvWithUnmockedStores();
+		const uiWallet = uiWallets[0];
+		const uiWalletAccount = uiWallet.accounts[0];
+
+		// No wallets registered yet, but we have a saved account we're restoring to.
+		stores.$baseConnection.set({
+			status: 'reconnecting',
+			currentAccount: uiWalletAccount,
+			supportedIntents: ['testIntent'],
+		});
+
+		expect(stores.$connection.get()).toStrictEqual({
+			wallet: null,
+			account: null,
+			status: 'reconnecting',
+			supportedIntents: [],
+			isConnected: false,
+			isConnecting: false,
+			isReconnecting: true,
+			isDisconnected: false,
+		});
+	});
+
 	test('Notifies subscribers when registered wallets change', () => {
 		const { stores, uiWallets } = setDefaultUnitTestEnvWithUnmockedStores();
 
