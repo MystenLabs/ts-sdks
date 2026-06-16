@@ -71,6 +71,7 @@ export function createDAppKit<
 	storage = getDefaultStorage(),
 	storageKey = DEFAULT_STORAGE_KEY,
 	walletInitializers = [],
+	autoConnectTimeout = 5000,
 }: CreateDAppKitOptions<TNetworks, Client>): DAppKit<TNetworks, Client> {
 	const networkConfig = createNetworkConfig(networks, createClient);
 	const stores = createStores<TNetworks, Client>({
@@ -87,11 +88,7 @@ export function createDAppKit<
 	syncRegisteredWallets(stores);
 	manageWalletConnection(stores);
 
-	if (autoConnect) {
-		autoConnectWallet({ networks, stores, storageKey, storage });
-	}
-
-	registerAdditionalWallets(
+	const walletsRegistered = registerAdditionalWallets(
 		[
 			...walletInitializers,
 			...(enableBurnerWallet ? [unsafeBurnerWalletInitializer()] : []),
@@ -99,6 +96,17 @@ export function createDAppKit<
 		],
 		{ networks, getClient },
 	);
+
+	if (autoConnect) {
+		autoConnectWallet({
+			networks,
+			stores,
+			storageKey,
+			storage,
+			walletsRegistered,
+			timeout: autoConnectTimeout,
+		});
+	}
 
 	return {
 		networks,
