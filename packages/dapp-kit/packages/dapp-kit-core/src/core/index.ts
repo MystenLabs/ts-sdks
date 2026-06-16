@@ -71,6 +71,7 @@ export function createDAppKit<
 	storage = getDefaultStorage(),
 	storageKey = DEFAULT_STORAGE_KEY,
 	walletInitializers = [],
+	autoConnectTimeout = 2000,
 }: CreateDAppKitOptions<TNetworks, Client>): DAppKit<TNetworks, Client> {
 	const networkConfig = createNetworkConfig(networks, createClient);
 	const stores = createStores<TNetworks, Client>({
@@ -97,7 +98,14 @@ export function createDAppKit<
 	);
 
 	if (autoConnect) {
-		autoConnectWallet({ networks, stores, storageKey, storage, walletsRegistered });
+		autoConnectWallet({
+			networks,
+			stores,
+			storageKey,
+			storage,
+			walletsRegistered,
+			timeout: autoConnectTimeout,
+		});
 	}
 
 	return {

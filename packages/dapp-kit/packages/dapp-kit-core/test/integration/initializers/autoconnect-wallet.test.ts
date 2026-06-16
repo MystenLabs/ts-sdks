@@ -34,13 +34,18 @@ describe('[Integration] autoConnectWallet initializer', () => {
 		storage,
 		autoConnect = true,
 		walletInitializers = [],
+		// Default to 0 so tests are bounded purely by initializer completion (fast and
+		// deterministic). The grace-floor tests pass an explicit value.
+		autoConnectTimeout = 0,
 	}: {
 		storage: ReturnType<typeof createInMemoryStorage>;
 		autoConnect?: boolean;
 		walletInitializers?: WalletInitializer[];
+		autoConnectTimeout?: number;
 	}): DAppKit<typeof TEST_NETWORKS> {
 		return createDAppKit({
 			autoConnect,
+			autoConnectTimeout,
 			networks: TEST_NETWORKS,
 			defaultNetwork: TEST_DEFAULT_NETWORK,
 			createClient(network) {
@@ -214,6 +219,81 @@ describe('[Integration] autoConnectWallet initializer', () => {
 		await allTasks();
 
 		expect(dAppKit.stores.$connection.get().status).toBe('disconnected');
+	});
+
+	test('Does not give up on a wallet that registers within the grace period', async () => {
+		const { wallet, account } = createSavedWallet();
+		const storage = createInMemoryStorage();
+		await storage.setItem(storageKey, savedSessionValue('saved-wallet', account.address));
+
+		// No initializers, so the only thing keeping us reconnecting is the grace
+		// period — this models a late-registering browser extension.
+		const dAppKit = createKit({ storage, autoConnectTimeout: 200 });
+
+		const statusesSeen: string[] = [];
+		dAppKit.stores.$connection.subscribe((connection) => statusesSeen.push(connection.status));
+
+		await tick();
+		expect(dAppKit.stores.$connection.get().status).toBe('reconnecting');
+
+		// The wallet registers within the grace window, so the session restores and we
+		// never falsely report a logged-out state.
+		registerWallets(wallet);
+		await allTasks();
+
+		const connection = dAppKit.stores.$connection.get();
+		expect(connection.status).toBe('connected');
+		expect(connection.account?.address).toBe(account.address);
+
+		// Crucially, once we start reconnecting we never flip to a (false) logged-out
+		// state before connecting — the grace period held the restore open.
+		const firstReconnecting = statusesSeen.indexOf('reconnecting');
+		expect(firstReconnecting).toBeGreaterThanOrEqual(0);
+		expect(statusesSeen.slice(firstReconnecting)).not.toContain('disconnected');
+	});
+
+	test('Settles to disconnected after the grace period when no wallet registers', async () => {
+		const { account } = createSavedWallet();
+		const storage = createInMemoryStorage();
+		await storage.setItem(storageKey, savedSessionValue('saved-wallet', account.address));
+
+		const dAppKit = createKit({ storage, autoConnectTimeout: 50 });
+		dAppKit.stores.$connection.subscribe(() => {});
+
+		await tick();
+		expect(dAppKit.stores.$connection.get().status).toBe('reconnecting');
+
+		// Once the grace period elapses with no matching wallet, we settle.
+		await new Promise((resolve) => setTimeout(resolve, 80));
+		await allTasks();
+
+		expect(dAppKit.stores.$connection.get()).toMatchObject({
+			status: 'disconnected',
+			isReconnecting: false,
+			account: null,
+		});
+	});
+
+	test('Restores a very-late wallet that registers after the grace period elapses', async () => {
+		const { wallet, account } = createSavedWallet();
+		const storage = createInMemoryStorage();
+		await storage.setItem(storageKey, savedSessionValue('saved-wallet', account.address));
+
+		const dAppKit = createKit({ storage, autoConnectTimeout: 30 });
+		dAppKit.stores.$connection.subscribe(() => {});
+
+		// Grace period elapses with no wallet → we settle the signal to disconnected...
+		await new Promise((resolve) => setTimeout(resolve, 60));
+		await allTasks();
+		expect(dAppKit.stores.$connection.get().status).toBe('disconnected');
+
+		// ...but we keep listening, so a wallet that shows up later still restores.
+		registerWallets(wallet);
+		await allTasks();
+
+		const connection = dAppKit.stores.$connection.get();
+		expect(connection.status).toBe('connected');
+		expect(connection.account?.address).toBe(account.address);
 	});
 
 	test('Does not attempt to reconnect when autoConnect is disabled', async () => {

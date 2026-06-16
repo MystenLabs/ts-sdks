@@ -12,13 +12,16 @@ identical to a logged-out user (`account: null`, `isConnecting: false`, `isRecon
 
 Auto-connect now eagerly enters the `reconnecting` state on mount whenever a persisted session
 exists — independent of wallet-registration timing, so the window is covered even before the saved
-wallet registers (default wallets such as Slush register asynchronously). The restore window is
-bounded by a real lifecycle signal — it stays `reconnecting` until every configured wallet
-initializer has finished registering, then settles to `disconnected` if the saved session still
-hasn't been restored — rather than a wall-clock timeout, so a slow-but-valid wallet is never cut off
-and a genuinely-absent wallet never hangs. The `reconnecting` state also now reports
+wallet registers (default wallets such as Slush register asynchronously). It stays `reconnecting`
+until both every configured wallet initializer has settled and a short grace period has elapsed (to
+absorb late-registering wallets such as browser extensions, which have no deterministic "registered"
+signal), then settles to `disconnected` if the saved session still hasn't restored — while never
+interrupting an in-flight restore, so a slow-but-valid wallet always wins, and continuing to listen
+so a very-late wallet can still restore. The `reconnecting` state also now reports
 `isReconnecting: true` while the target wallet/account is still resolving, instead of being
 suppressed to `disconnected`.
+
+Adds an `autoConnectTimeout` option (default `2000` ms) to tune that grace period.
 
 Consumers can rely on `isReconnecting` to distinguish restoring from logged-out, e.g.
 `if (!isReconnecting && !account) redirect()`.

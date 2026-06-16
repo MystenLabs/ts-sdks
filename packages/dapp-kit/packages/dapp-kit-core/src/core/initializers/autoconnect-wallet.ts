@@ -19,13 +19,19 @@ import type { Networks } from '../../utils/networks.js';
  * To let consumers distinguish "restoring a saved session" from "logged out" during
  * the async restore window, this eagerly moves the connection into the `reconnecting`
  * state on mount whenever a persisted session exists — even before the saved wallet
- * has registered (default wallets like Slush register asynchronously) — and settles
- * back to `disconnected` once every configured wallet has finished registering without
- * the saved session being restored.
+ * has registered (default wallets like Slush register asynchronously).
  *
- * The restore window is bounded by a real lifecycle signal (`walletsRegistered`
- * resolves once all wallet initializers settle) rather than a wall-clock timeout, so a
- * slow-but-valid wallet is never cut off and a genuinely-absent wallet never hangs.
+ * The restore window is bounded so a genuinely-absent wallet doesn't hang forever, but
+ * the bound is chosen to avoid a brittle cutoff:
+ * - We stay `reconnecting` until BOTH every configured wallet initializer has settled
+ *   (`walletsRegistered`) AND a short grace period (`timeout`) has elapsed. The grace
+ *   period absorbs wallets that register slightly after page load (e.g. browser
+ *   extensions), which have no deterministic "registered" signal.
+ * - An in-flight restore is never interrupted: once the bound is reached we make a final
+ *   restore attempt and await it (which awaits the wallet's own connect/hydration), so a
+ *   slow-but-valid wallet still wins the race.
+ * - If the session still hasn't restored, we settle to `disconnected` but keep listening,
+ *   so a very-late registration can still restore it.
  */
 export function autoConnectWallet({
 	networks,
@@ -33,6 +39,7 @@ export function autoConnectWallet({
 	storage,
 	storageKey,
 	walletsRegistered,
+	timeout,
 }: {
 	networks: Networks;
 	stores: DAppKitStores;
@@ -40,13 +47,15 @@ export function autoConnectWallet({
 	storageKey: string;
 	/** Resolves once all configured wallet initializers have finished registering. */
 	walletsRegistered: Promise<unknown>;
+	/** Grace period (ms) to keep waiting for a saved wallet to register before giving up. */
+	timeout: number;
 }) {
 	onMount($compatibleWallets, () => {
 		let done = false;
 		let unsubscribe: (() => void) | undefined;
 
-		// Terminal: we've either restored the session or determined there's nothing
-		// to restore. Stop listening for further wallet registrations.
+		// Terminal: we've restored the session (or a manual connect took over). Stop
+		// listening for further wallet registrations.
 		const stop = () => {
 			done = true;
 			unsubscribe?.();
@@ -113,20 +122,24 @@ export function autoConnectWallet({
 				});
 			}
 
-			// Wait for every configured wallet to finish registering, then make one
-			// final restore attempt against the complete wallet set. If the saved
-			// session still hasn't restored, it's genuinely unavailable — settle to
-			// `disconnected` so consumers aren't stuck reconnecting.
-			await walletsRegistered.catch(() => {});
+			// Wait for the registration storm to settle: all configured initializers
+			// plus a grace period for late-registering extensions.
+			const gracePeriod = new Promise((resolve) => setTimeout(resolve, timeout));
+			await Promise.all([walletsRegistered.catch(() => {}), gracePeriod]);
 			if (done) return;
 
+			// Final attempt against the now-complete wallet set. This awaits the saved
+			// wallet's connect/hydration if it's present, so an in-flight restore is
+			// never cut short.
 			await tryRestore($compatibleWallets.get() ?? []);
 			if (done) return;
 
+			// Still unresolved → the saved wallet is genuinely unavailable. Settle the
+			// signal so consumers aren't stuck, but keep listening so a very-late
+			// registration can still restore the session.
 			if ($baseConnection.get().status === 'reconnecting') {
 				$baseConnection.set({ status: 'disconnected', currentAccount: null });
 			}
-			stop();
 		});
 
 		return () => {
