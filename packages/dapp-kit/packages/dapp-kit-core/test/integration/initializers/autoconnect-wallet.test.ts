@@ -1,40 +1,43 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { describe, expect, test, afterEach, vi } from 'vitest';
+import { describe, expect, test, afterEach } from 'vitest';
 import { allTasks } from 'nanostores';
 import { getWallets } from '@mysten/wallet-standard';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
 
 import { createDAppKit, DAppKit } from '../../../src/index.js';
 import { createInMemoryStorage } from '../../../src/utils/storage.js';
-import { AUTO_CONNECT_RESTORE_TIMEOUT } from '../../../src/core/initializers/autoconnect-wallet.js';
+import type { WalletInitializer } from '../../../src/wallets/index.js';
 import { GRPC_URLS, TEST_DEFAULT_NETWORK, TEST_NETWORKS } from '../../test-utils.js';
 import { createMockWallets, MockWallet } from '../../mocks/mock-wallet.js';
 import { createMockAccount } from '../../mocks/mock-account.js';
 
 describe('[Integration] autoConnectWallet initializer', () => {
 	const storageKey = 'test-storage-key';
-	let unregisterCallbacks: Array<() => void> = [];
+	let cleanups: Array<() => void> = [];
 
 	afterEach(() => {
-		unregisterCallbacks.forEach((unregister) => unregister());
-		unregisterCallbacks = [];
-		vi.useRealTimers();
+		// Release any pending initializer gates and unregister wallets so a hung
+		// initializer in one test can't leak into the next.
+		cleanups.forEach((cleanup) => cleanup());
+		cleanups = [];
 	});
 
-	function registerWallets(...wallets: MockWallet[]) {
-		const unregister = getWallets().register(...wallets);
-		unregisterCallbacks.push(unregister);
-		return unregister;
+	// Lets a macrotask elapse so queued microtasks (storage reads, restore tasks)
+	// drain, without waiting on `allTasks()` (which would block on a pending gate).
+	function tick() {
+		return new Promise((resolve) => setTimeout(resolve, 0));
 	}
 
 	function createKit({
 		storage,
 		autoConnect = true,
+		walletInitializers = [],
 	}: {
 		storage: ReturnType<typeof createInMemoryStorage>;
 		autoConnect?: boolean;
+		walletInitializers?: WalletInitializer[];
 	}): DAppKit<typeof TEST_NETWORKS> {
 		return createDAppKit({
 			autoConnect,
@@ -46,6 +49,7 @@ describe('[Integration] autoConnectWallet initializer', () => {
 			storage,
 			storageKey,
 			slushWalletConfig: null,
+			walletInitializers,
 		});
 	}
 
@@ -62,6 +66,40 @@ describe('[Integration] autoConnectWallet initializer', () => {
 			accounts: [account],
 		});
 		return { wallet, account };
+	}
+
+	function registerWallets(...wallets: MockWallet[]) {
+		const unregister = getWallets().register(...wallets);
+		cleanups.push(unregister);
+		return unregister;
+	}
+
+	/**
+	 * Builds a wallet initializer whose registration is deferred until `release()` is
+	 * called, modelling an asynchronously-registering wallet (e.g. Slush). Pass a
+	 * `wallet` to register on release, or omit it to model an initializer that
+	 * finishes without ever registering the saved wallet.
+	 */
+	function deferredInitializer({ wallet }: { wallet?: MockWallet } = {}) {
+		let release!: () => void;
+		let reject!: (error: Error) => void;
+		const gate = new Promise<void>((resolve, rejectGate) => {
+			release = resolve;
+			reject = rejectGate;
+		});
+		// Ensure the gate is always settled so `afterEach` can't leave it dangling.
+		cleanups.push(() => release());
+
+		const initializer: WalletInitializer = {
+			id: 'deferred-test-initializer',
+			async initialize() {
+				await gate;
+				const unregister = wallet ? registerWallets(wallet) : () => {};
+				return { unregister };
+			},
+		};
+
+		return { initializer, release, fail: () => reject(new Error('initializer failed')) };
 	}
 
 	test('Settles to disconnected without ever reconnecting when there is no persisted session', async () => {
@@ -81,19 +119,21 @@ describe('[Integration] autoConnectWallet initializer', () => {
 		expect(statusesSeen).not.toContain('reconnecting');
 	});
 
-	test('Advertises reconnecting before the saved wallet registers, then restores the session', async () => {
+	test('Stays reconnecting while an async wallet registers, then restores the session', async () => {
 		const { wallet, account } = createSavedWallet();
+		const { initializer, release } = deferredInitializer({ wallet });
+
 		const storage = createInMemoryStorage();
 		await storage.setItem(storageKey, savedSessionValue('saved-wallet', account.address));
 
-		const dAppKit = createKit({ storage });
+		const dAppKit = createKit({ storage, walletInitializers: [initializer] });
 
 		const statusesSeen: string[] = [];
 		dAppKit.stores.$connection.subscribe((connection) => statusesSeen.push(connection.status));
 
-		// The saved wallet hasn't registered yet, but a persisted session exists, so
-		// the connection should immediately advertise that it is restoring.
-		await allTasks();
+		// The saved wallet's initializer hasn't registered it yet, but a persisted
+		// session exists, so the connection should advertise that it is restoring.
+		await tick();
 		expect(dAppKit.stores.$connection.get()).toMatchObject({
 			status: 'reconnecting',
 			wallet: null,
@@ -102,8 +142,8 @@ describe('[Integration] autoConnectWallet initializer', () => {
 			isDisconnected: false,
 		});
 
-		// Once the saved wallet finally registers, the session should restore.
-		registerWallets(wallet);
+		// Once the wallet finishes registering, the session restores.
+		release();
 		await allTasks();
 
 		const connection = dAppKit.stores.$connection.get();
@@ -130,22 +170,25 @@ describe('[Integration] autoConnectWallet initializer', () => {
 		expect(connection.account?.address).toBe(account.address);
 	});
 
-	test('Settles back to disconnected after a timeout if the saved wallet never registers', async () => {
-		vi.useFakeTimers();
-
+	test('Settles to disconnected once all initializers finish without the saved wallet', async () => {
 		const { account } = createSavedWallet();
+		// The initializer settles without ever registering the saved wallet, modelling
+		// a wallet that was uninstalled or is otherwise unavailable.
+		const { initializer, release } = deferredInitializer();
+
 		const storage = createInMemoryStorage();
 		await storage.setItem(storageKey, savedSessionValue('saved-wallet', account.address));
 
-		const dAppKit = createKit({ storage });
+		const dAppKit = createKit({ storage, walletInitializers: [initializer] });
 		dAppKit.stores.$connection.subscribe(() => {});
 
-		// We have a persisted session but the wallet never registers, so we stay in
-		// the reconnecting state until the restore window elapses.
-		await allTasks();
+		// While the initializer is still pending, we keep advertising reconnecting...
+		await tick();
 		expect(dAppKit.stores.$connection.get().status).toBe('reconnecting');
 
-		vi.advanceTimersByTime(AUTO_CONNECT_RESTORE_TIMEOUT);
+		// ...and settle deterministically once it finishes, with no wall-clock timeout.
+		release();
+		await allTasks();
 
 		expect(dAppKit.stores.$connection.get()).toMatchObject({
 			status: 'disconnected',
@@ -154,31 +197,23 @@ describe('[Integration] autoConnectWallet initializer', () => {
 		});
 	});
 
-	test('Restores a slow-registering wallet that appears after the restore window elapses', async () => {
-		vi.useFakeTimers();
+	test('Settles to disconnected when a wallet initializer fails', async () => {
+		const { account } = createSavedWallet();
+		const { initializer, fail } = deferredInitializer();
 
-		const { wallet, account } = createSavedWallet();
 		const storage = createInMemoryStorage();
 		await storage.setItem(storageKey, savedSessionValue('saved-wallet', account.address));
 
-		const dAppKit = createKit({ storage });
+		const dAppKit = createKit({ storage, walletInitializers: [initializer] });
 		dAppKit.stores.$connection.subscribe(() => {});
 
-		await allTasks();
+		await tick();
 		expect(dAppKit.stores.$connection.get().status).toBe('reconnecting');
 
-		// The restore window elapses before the wallet registers, so we stop
-		// advertising "reconnecting"...
-		vi.advanceTimersByTime(AUTO_CONNECT_RESTORE_TIMEOUT);
-		expect(dAppKit.stores.$connection.get().status).toBe('disconnected');
-
-		// ...but a slow-registering wallet can still restore the session afterwards.
-		registerWallets(wallet);
+		fail();
 		await allTasks();
 
-		const connection = dAppKit.stores.$connection.get();
-		expect(connection.status).toBe('connected');
-		expect(connection.account?.address).toBe(account.address);
+		expect(dAppKit.stores.$connection.get().status).toBe('disconnected');
 	});
 
 	test('Does not attempt to reconnect when autoConnect is disabled', async () => {

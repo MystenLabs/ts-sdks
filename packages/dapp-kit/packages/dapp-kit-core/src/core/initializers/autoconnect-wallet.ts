@@ -14,51 +14,42 @@ import {
 import type { Networks } from '../../utils/networks.js';
 
 /**
- * How long to keep advertising the `reconnecting` state while waiting for a saved
- * wallet to register before giving up. This bounds the restore window so consumers
- * don't wait forever when the saved wallet was uninstalled or never registers.
- */
-export const AUTO_CONNECT_RESTORE_TIMEOUT = 5000;
-
-/**
  * Attempts to connect to a previously authorized wallet account on mount and when new wallets are registered.
  *
  * To let consumers distinguish "restoring a saved session" from "logged out" during
  * the async restore window, this eagerly moves the connection into the `reconnecting`
  * state on mount whenever a persisted session exists — even before the saved wallet
- * has registered — and settles back to `disconnected` if the restore can't complete.
+ * has registered (default wallets like Slush register asynchronously) — and settles
+ * back to `disconnected` once every configured wallet has finished registering without
+ * the saved session being restored.
+ *
+ * The restore window is bounded by a real lifecycle signal (`walletsRegistered`
+ * resolves once all wallet initializers settle) rather than a wall-clock timeout, so a
+ * slow-but-valid wallet is never cut off and a genuinely-absent wallet never hangs.
  */
 export function autoConnectWallet({
 	networks,
 	stores: { $baseConnection, $compatibleWallets },
 	storage,
 	storageKey,
+	walletsRegistered,
 }: {
 	networks: Networks;
 	stores: DAppKitStores;
 	storage: StateStorage;
 	storageKey: string;
+	/** Resolves once all configured wallet initializers have finished registering. */
+	walletsRegistered: Promise<unknown>;
 }) {
 	onMount($compatibleWallets, () => {
 		let done = false;
 		let unsubscribe: (() => void) | undefined;
-		let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
 		// Terminal: we've either restored the session or determined there's nothing
 		// to restore. Stop listening for further wallet registrations.
 		const stop = () => {
 			done = true;
-			if (timeoutId !== undefined) clearTimeout(timeoutId);
 			unsubscribe?.();
-		};
-
-		// Bounded fallback: stop advertising `reconnecting` so consumers aren't stuck
-		// if the saved wallet never registers, but keep listening so a slow-registering
-		// wallet (e.g. an async-registered zkLogin wallet) can still restore later.
-		const stopReconnecting = () => {
-			if ($baseConnection.get().status === 'reconnecting') {
-				$baseConnection.set({ status: 'disconnected', currentAccount: null });
-			}
 		};
 
 		const tryRestore = (wallets: readonly UiWallet[]) =>
@@ -122,11 +113,23 @@ export function autoConnectWallet({
 				});
 			}
 
-			timeoutId = setTimeout(stopReconnecting, AUTO_CONNECT_RESTORE_TIMEOUT);
+			// Wait for every configured wallet to finish registering, then make one
+			// final restore attempt against the complete wallet set. If the saved
+			// session still hasn't restored, it's genuinely unavailable — settle to
+			// `disconnected` so consumers aren't stuck reconnecting.
+			await walletsRegistered.catch(() => {});
+			if (done) return;
+
+			await tryRestore($compatibleWallets.get() ?? []);
+			if (done) return;
+
+			if ($baseConnection.get().status === 'reconnecting') {
+				$baseConnection.set({ status: 'disconnected', currentAccount: null });
+			}
+			stop();
 		});
 
 		return () => {
-			if (timeoutId !== undefined) clearTimeout(timeoutId);
 			unsubscribe?.();
 		};
 	});

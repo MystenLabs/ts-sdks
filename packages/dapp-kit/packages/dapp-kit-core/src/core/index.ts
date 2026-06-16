@@ -87,11 +87,7 @@ export function createDAppKit<
 	syncRegisteredWallets(stores);
 	manageWalletConnection(stores);
 
-	if (autoConnect) {
-		autoConnectWallet({ networks, stores, storageKey, storage });
-	}
-
-	registerAdditionalWallets(
+	const walletsRegistered = registerAdditionalWallets(
 		[
 			...walletInitializers,
 			...(enableBurnerWallet ? [unsafeBurnerWalletInitializer()] : []),
@@ -99,6 +95,10 @@ export function createDAppKit<
 		],
 		{ networks, getClient },
 	);
+
+	if (autoConnect) {
+		autoConnectWallet({ networks, stores, storageKey, storage, walletsRegistered });
+	}
 
 	return {
 		networks,
