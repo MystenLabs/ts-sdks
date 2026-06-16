@@ -1,5 +1,25 @@
 # @mysten/wallet-sdk
 
+## 0.5.0
+
+### Minor Changes
+
+- cc5cb98: Export the `Analyzer` type from the transaction analyzer. This lets downstream packages
+  annotate custom analyzers (`const myAnalyzer: Analyzer<...> = createAnalyzer({...})`) so their
+  declaration output stays portable.
+- cc5cb98: The `transactionResponse` analyzer now dry-runs with `include: { effects: true }`, so its
+  result carries the simulated `effects` (including execution status). This lets consumers tell
+  whether a transaction would succeed without a second simulation.
+
+### Patch Changes
+
+- cc5cb98: The `bytes` and `transactionResponse` analyzers now include the underlying error in their
+  failure issues — the message carries the real cause (e.g.
+  `Failed to dry run transaction: <detail>`) and the caught `Error` is attached as `issue.error` —
+  instead of a generic `Failed to build/dry run transaction`. Many failures (object resolution, gas
+  estimation, an unreachable node) throw during build/simulation, and that detail was previously
+  discarded.
+
 ## 0.4.0
 
 ### Minor Changes
