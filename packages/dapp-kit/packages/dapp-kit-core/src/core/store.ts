@@ -16,9 +16,7 @@ type InternalWalletConnection =
 			currentAccount: null;
 	  }
 	| {
-			// `reconnecting` allows a `null` account because an initial session
-			// restore enters this state before the saved wallet has registered (and
-			// therefore before its account is known).
+			// `null` account: an initial restore enters this state before the saved wallet registers.
 			status: 'reconnecting';
 			currentAccount: UiWalletAccount | null;
 			supportedIntents: string[];
@@ -127,10 +125,9 @@ export function createStores<
 						? (wallets.find((w) => uiWalletAccountBelongsToUiWallet(currentAccount, w)) ?? null)
 						: null;
 
-					// Unlike `connected`, we keep reporting `isReconnecting` even when the
-					// target wallet/account isn't resolvable yet. During an initial session
-					// restore the saved wallet often hasn't registered, and consumers need a
-					// signal that distinguishes "restoring a session" from "logged out".
+					// Unlike `connected`, keep reporting `isReconnecting` even before the
+					// target wallet/account resolves, so an initial restore is distinguishable
+					// from a logged-out state.
 					if (!currentAccount || !wallet) {
 						return {
 							wallet: null,

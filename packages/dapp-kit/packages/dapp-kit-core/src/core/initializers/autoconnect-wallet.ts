@@ -16,22 +16,10 @@ import type { Networks } from '../../utils/networks.js';
 /**
  * Attempts to connect to a previously authorized wallet account on mount and when new wallets are registered.
  *
- * To let consumers distinguish "restoring a saved session" from "logged out" during
- * the async restore window, this eagerly moves the connection into the `reconnecting`
- * state on mount whenever a persisted session exists — even before the saved wallet
- * has registered (default wallets like Slush register asynchronously).
- *
- * The restore window is bounded so a genuinely-absent wallet doesn't hang forever, but
- * the bound is chosen to avoid a brittle cutoff:
- * - We stay `reconnecting` until BOTH every configured wallet initializer has settled
- *   (`walletsRegistered`) AND a short grace period (`timeout`) has elapsed. The grace
- *   period absorbs wallets that register slightly after page load (e.g. browser
- *   extensions), which have no deterministic "registered" signal.
- * - An in-flight restore is never interrupted: once the bound is reached we make a final
- *   restore attempt and await it (which awaits the wallet's own connect/hydration), so a
- *   slow-but-valid wallet still wins the race.
- * - If the session still hasn't restored, we settle to `disconnected` but keep listening,
- *   so a very-late registration can still restore it.
+ * Enters `reconnecting` on mount when a persisted session exists, so consumers can tell a
+ * restore apart from a logged-out state while the saved wallet is still resolving. Settles
+ * to `disconnected` once every initializer has registered and `timeout` has elapsed without
+ * a restore, but never interrupts an in-flight restore and keeps listening afterwards.
  */
 export function autoConnectWallet({
 	networks,
@@ -54,8 +42,6 @@ export function autoConnectWallet({
 		let done = false;
 		let unsubscribe: (() => void) | undefined;
 
-		// Terminal: we've restored the session (or a manual connect took over). Stop
-		// listening for further wallet registrations.
 		const stop = () => {
 			done = true;
 			unsubscribe?.();
@@ -65,9 +51,8 @@ export function autoConnectWallet({
 			task(async () => {
 				if (done) return;
 
+				// A manual connect takes precedence over auto-connect.
 				const { status } = $baseConnection.get();
-				// A manual connect takes precedence; only auto-connect while idle or
-				// while we're still mid-restore.
 				if (status !== 'disconnected' && status !== 'reconnecting') {
 					stop();
 					return;
@@ -102,9 +87,6 @@ export function autoConnectWallet({
 			},
 		);
 
-		// Eagerly enter `reconnecting` when there's a persisted session to restore,
-		// independent of wallet-registration timing, so the restore window is
-		// observable from mount. If there's nothing saved, settle immediately.
 		void task(async () => {
 			const hasSavedSession = Boolean(await storage.getItem(storageKey));
 			if (done) return;
@@ -122,21 +104,17 @@ export function autoConnectWallet({
 				});
 			}
 
-			// Wait for the registration storm to settle: all configured initializers
-			// plus a grace period for late-registering extensions.
+			// Give every initializer, plus a grace period for late-registering wallets,
+			// a chance to register before making a final attempt and giving up.
 			const gracePeriod = new Promise((resolve) => setTimeout(resolve, timeout));
 			await Promise.all([walletsRegistered.catch(() => {}), gracePeriod]);
 			if (done) return;
 
-			// Final attempt against the now-complete wallet set. This awaits the saved
-			// wallet's connect/hydration if it's present, so an in-flight restore is
-			// never cut short.
 			await tryRestore($compatibleWallets.get() ?? []);
 			if (done) return;
 
-			// Still unresolved → the saved wallet is genuinely unavailable. Settle the
-			// signal so consumers aren't stuck, but keep listening so a very-late
-			// registration can still restore the session.
+			// Settle the signal so consumers aren't stuck, but keep listening so a
+			// very-late registration can still restore the session.
 			if ($baseConnection.get().status === 'reconnecting') {
 				$baseConnection.set({ status: 'disconnected', currentAccount: null });
 			}

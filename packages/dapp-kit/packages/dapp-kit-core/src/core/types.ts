@@ -39,12 +39,9 @@ export type CreateDAppKitOptions<
 	autoConnect?: boolean;
 
 	/**
-	 * The grace period, in milliseconds, to keep attempting to restore a previously
-	 * connected session during auto-connect before treating the saved wallet as
-	 * unavailable. This absorbs wallets that register slightly after page load (e.g.
-	 * browser extensions), which have no deterministic "registered" signal. An
-	 * in-progress restore is never interrupted by this — a slow-but-valid wallet still
-	 * restores. Only applies when `autoConnect` is enabled and a session is persisted.
+	 * The grace period, in milliseconds, to wait for a previously connected wallet to
+	 * register during auto-connect before treating the saved session as unavailable. An
+	 * in-progress restore is never interrupted by this.
 	 * @default `5000`
 	 */
 	autoConnectTimeout?: number;
