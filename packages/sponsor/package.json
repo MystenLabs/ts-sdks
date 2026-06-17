@@ -1,6 +1,6 @@
 {
 	"name": "@mysten-incubation/sponsor",
-	"version": "0.0.1",
+	"version": "0.0.2",
 	"private": false,
 	"description": "Build Sui gas sponsorship flows from a signer, with pluggable transaction validation",
 	"license": "Apache-2.0",
