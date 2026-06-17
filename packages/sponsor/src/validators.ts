@@ -3,6 +3,7 @@
 
 import type { ClientWithCoreApi } from '@mysten/sui/client';
 import { normalizeSuiAddress } from '@mysten/sui/utils';
+import { isValidTransactionSignature } from '@mysten/sui/verify';
 import { analyze, analyzers, createAnalyzer, type Analyzer } from '@mysten/wallet-sdk';
 
 import type { TransactionData, ValidationIssue, Validator } from './validation.js';
@@ -52,13 +53,14 @@ function reject(...issues: ValidationIssue[]): { result: ValidationIssue[] } {
  * `createSponsor` runs these automatically when you pass no `validate`. Once you
  * add your own validators they no longer run automatically — include them with
  * `validate: [...defaults(), myValidator()]` (or `[defaults(), ...]`) to keep the
- * baseline: {@link senderIsNotSponsor}, {@link gasCoinNotUsed},
- * {@link onlySenderWithdrawals}, {@link simulationSucceeds}, and
- * {@link boundedExpiration}.
+ * baseline: {@link validSender}, {@link onlyAddressBalanceGas},
+ * {@link gasCoinNotUsed}, {@link onlySenderWithdrawals},
+ * {@link simulationSucceeds}, and {@link boundedExpiration}.
  */
 export function defaults(): Validator[] {
 	return [
-		senderIsNotSponsor(),
+		validSender(),
+		onlyAddressBalanceGas(),
 		gasCoinNotUsed(),
 		onlySenderWithdrawals(),
 		simulationSucceeds(),
@@ -67,21 +69,121 @@ export function defaults(): Validator[] {
 }
 
 /**
- * Reject when the sender is also the sponsor (the gas owner) — there's no
- * legitimate reason to sponsor your own transaction, and allowing it lets a
- * caller drain the sponsor's gas. Part of {@link defaults}. Reads only `data`.
+ * Validate the transaction's sender. Two explicit checks:
+ *
+ * - **Set** — reject an unset sender (`SENDER_UNSET`). An unset sender would
+ *   otherwise normalize to the zero address and slip past the next check.
+ * - **Not the sponsor** — reject when the sender is the gas owner (sponsor)
+ *   (`SENDER_IS_SPONSOR`); there's no legitimate reason to sponsor your own
+ *   transaction, and allowing it lets a caller drain the sponsor's gas.
+ *
+ * Part of {@link defaults}. Reads only `data`.
  */
-export function senderIsNotSponsor(): Validator {
+export function validSender(): Validator {
 	return createAnalyzer({
 		dependencies: { data: analyzers.data },
 		analyze:
 			() =>
 			({ data }) => {
-				if (
-					normalizeSuiAddress(data.sender ?? '') === normalizeSuiAddress(data.gasData.owner ?? '')
-				) {
+				if (!data.sender) {
+					return reject({ code: 'SENDER_UNSET', message: 'Transaction must have a sender set.' });
+				}
+				if (normalizeSuiAddress(data.sender) === normalizeSuiAddress(data.gasData.owner ?? '')) {
 					return reject({ code: 'SENDER_IS_SPONSOR', message: 'Sender cannot be the sponsor.' });
 				}
+				return pass;
+			},
+	});
+}
+
+/**
+ * Require **address-balance gas**: an empty gas payment (`[]`), so the sponsor
+ * pays from its address balance rather than from nominated gas coins. The
+ * sponsor-builds flow always sets this; a user-supplied transaction could
+ * instead nominate specific gas coins (the sponsor's), so reject anything but an
+ * empty payment. Part of {@link defaults}. Reads only `data`.
+ */
+export function onlyAddressBalanceGas(): Validator {
+	return createAnalyzer({
+		dependencies: { data: analyzers.data },
+		analyze:
+			() =>
+			({ data }) => {
+				const payment = data.gasData.payment;
+				if (payment == null) {
+					return reject({
+						code: 'GAS_PAYMENT_UNSET',
+						message:
+							'Gas payment is unset; expected an empty payment ([]) for address-balance gas.',
+					});
+				}
+				if (payment.length > 0) {
+					return reject({
+						code: 'GAS_PAYMENT_NOT_EMPTY',
+						message:
+							'Gas payment must be empty ([]) so gas is paid from the sponsor address balance.',
+					});
+				}
+				return pass;
+			},
+	});
+}
+
+/**
+ * Verify that the supplied user signature(s) match the transaction's sender —
+ * each is cryptographically valid over the transaction bytes *and* its public
+ * key resolves to `sender`. The sponsor injects the user signature(s) it was
+ * given, so this checks them ahead of time: a mismatched signature is caught
+ * before the sponsor co-signs, rather than only being rejected at execution.
+ * Passes when no user signature was supplied (the sponsor-builds flow, where the
+ * user signs the returned bytes afterward).
+ *
+ * **Every** supplied signature must be the sender's, not just one:
+ * `signTransaction` attaches all of them to execution, so a signature that isn't
+ * the sender's would be rejected on-chain *after* the sponsor already signed.
+ *
+ * A signature that's malformed, cryptographically invalid, or from a different
+ * signer is reported as `USER_SIGNATURE_INVALID` (a clear policy decline). Only a
+ * genuine *environmental* failure during verification (e.g. a zkLogin JWK/epoch
+ * lookup over the client throwing) propagates as `ANALYSIS_FAILED` — a network
+ * blip is never mislabeled as a bad signature. This split is exactly what
+ * `isValidTransactionSignature` provides: `false` for an invalid signature, but a
+ * throw for an environmental failure.
+ *
+ * Reads `bytes` and `data`, plus the sponsor-injected `userSignatures` and
+ * `client` (used to verify zkLogin signatures).
+ */
+export function userSignatureMatchesSender(): Validator {
+	return createAnalyzer({
+		dependencies: { bytes: analyzers.bytes, data: analyzers.data },
+		analyze:
+			(options: { client: ClientWithCoreApi; userSignatures?: string[] }) =>
+			async ({ bytes, data }) => {
+				const signatures = options.userSignatures ?? [];
+				// Nothing supplied to verify (e.g. the sponsor-builds flow).
+				if (signatures.length === 0) return pass;
+
+				if (!data.sender) {
+					return reject({
+						code: 'SENDER_UNSET',
+						message: 'Cannot verify a user signature: the transaction has no sender.',
+					});
+				}
+				const sender = normalizeSuiAddress(data.sender);
+
+				for (const signature of signatures) {
+					const valid = await isValidTransactionSignature(bytes, signature, {
+						address: sender,
+						client: options.client,
+					});
+					if (!valid) {
+						return reject({
+							code: 'USER_SIGNATURE_INVALID',
+							message: 'A supplied user signature is not a valid signature for the sender.',
+						});
+					}
+				}
+
 				return pass;
 			},
 	});

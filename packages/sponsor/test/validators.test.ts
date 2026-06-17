@@ -14,9 +14,10 @@ import {
 	defaults,
 	gasBudget,
 	gasCoinNotUsed,
-	senderIsNotSponsor,
+	onlyAddressBalanceGas,
 	simulationSucceeds,
 	onlySenderWithdrawals,
+	validSender,
 } from '../src/validators.js';
 
 function dataFor(buildTx: (tx: Transaction) => void) {
@@ -42,7 +43,7 @@ async function run(
 
 describe('defaults', () => {
 	it('bundles the baseline validators', () => {
-		expect(defaults()).toHaveLength(5);
+		expect(defaults()).toHaveLength(6);
 	});
 });
 
@@ -75,15 +76,18 @@ describe('onlySenderWithdrawals', () => {
 	});
 });
 
-describe('senderIsNotSponsor', () => {
+describe('validSender', () => {
+	it('rejects when the sender is unset', async () => {
+		const data = dataFor((tx) => tx.setGasOwner(normalizeSuiAddress('0x5')));
+		expect((await run(validSender(), { data })).map((i) => i.code)).toEqual(['SENDER_UNSET']);
+	});
+
 	it('rejects when the sender is the gas owner (sponsor)', async () => {
 		const data = dataFor((tx) => {
 			tx.setSender(normalizeSuiAddress('0x5'));
 			tx.setGasOwner(normalizeSuiAddress('0x5'));
 		});
-		expect((await run(senderIsNotSponsor(), { data })).map((i) => i.code)).toEqual([
-			'SENDER_IS_SPONSOR',
-		]);
+		expect((await run(validSender(), { data })).map((i) => i.code)).toEqual(['SENDER_IS_SPONSOR']);
 	});
 
 	it('allows a distinct sender and sponsor', async () => {
@@ -91,11 +95,35 @@ describe('senderIsNotSponsor', () => {
 			tx.setSender(normalizeSuiAddress('0xa'));
 			tx.setGasOwner(normalizeSuiAddress('0xb'));
 		});
-		expect(await run(senderIsNotSponsor(), { data })).toEqual([]);
+		expect(await run(validSender(), { data })).toEqual([]);
 	});
 
 	it('reads only `data`', () => {
-		expect(Object.keys(senderIsNotSponsor().dependencies)).toEqual(['data']);
+		expect(Object.keys(validSender().dependencies)).toEqual(['data']);
+	});
+});
+
+describe('onlyAddressBalanceGas', () => {
+	it('allows an empty gas payment (address-balance gas)', async () => {
+		const data = dataFor((tx) => tx.setGasPayment([]));
+		expect(await run(onlyAddressBalanceGas(), { data })).toEqual([]);
+	});
+
+	it('rejects an unset gas payment', async () => {
+		expect(
+			(await run(onlyAddressBalanceGas(), { data: { gasData: { payment: null } } })).map(
+				(i) => i.code,
+			),
+		).toEqual(['GAS_PAYMENT_UNSET']);
+	});
+
+	it('rejects a non-empty gas payment (nominated gas coins)', async () => {
+		const data = {
+			gasData: { payment: [{ objectId: '0x1', version: '1', digest: 'abc' }] },
+		};
+		expect((await run(onlyAddressBalanceGas(), { data })).map((i) => i.code)).toEqual([
+			'GAS_PAYMENT_NOT_EMPTY',
+		]);
 	});
 });
 
