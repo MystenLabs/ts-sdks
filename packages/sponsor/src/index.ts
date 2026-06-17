@@ -29,7 +29,9 @@ export type {
 
 export {
 	defaults,
-	senderIsNotSponsor,
+	validSender,
+	onlyAddressBalanceGas,
+	userSignatureMatchesSender,
 	gasCoinNotUsed,
 	onlySenderWithdrawals,
 	gasBudget,

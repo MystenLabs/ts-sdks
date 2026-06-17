@@ -43,6 +43,13 @@ export interface SponsorProvidedOptions {
 	transaction: Uint8Array;
 	client: ClientWithCoreApi;
 	balanceFlows: { excludeGasBudget: boolean };
+	/**
+	 * The user signature(s) supplied to `signTransaction` (a signed-flow request),
+	 * normalized to an array and empty in the sponsor-builds flow. Injected so a
+	 * validator can verify them (see `userSignatureMatchesSender`) without the
+	 * caller routing the signature through `validationOptions`.
+	 */
+	userSignatures: string[];
 }
 
 /**
@@ -57,6 +64,7 @@ const RESERVED_OPTION_KEYS = new Set<string>([
 	'transaction',
 	'client',
 	'balanceFlows',
+	'userSignatures',
 	'transactionResponse',
 ]);
 
@@ -322,7 +330,7 @@ export class Sponsor<TOptions extends object = object> {
 		// is what the validators guard.
 
 		const validationOptions = (options as { validationOptions?: object }).validationOptions ?? {};
-		const rejection = await this.#validate(bytes, validationOptions);
+		const rejection = await this.#validate(bytes, validationOptions, userSignatures);
 		if (rejection) return rejection;
 
 		const { signature } = await this.#signer.signTransaction(bytes);
@@ -390,7 +398,11 @@ export class Sponsor<TOptions extends object = object> {
 	}
 
 	/** Resolve `sponsor.analyzer` against the bytes, reducing it to a rejection (or `null`). */
-	async #validate(bytes: Uint8Array, validationOptions: object): Promise<SponsorRejection | null> {
+	async #validate(
+		bytes: Uint8Array,
+		validationOptions: object,
+		userSignatures: string[],
+	): Promise<SponsorRejection | null> {
 		// Delay before the analysis resolves (which is where simulation, if any, happens).
 		await this.#runDelay(this.#delay.beforeSimulate);
 		// Strip any sponsor-reserved keys an untrusted caller may have injected, then
@@ -405,6 +417,7 @@ export class Sponsor<TOptions extends object = object> {
 			transaction: bytes,
 			client: this.#client,
 			balanceFlows: { excludeGasBudget: true },
+			userSignatures,
 		};
 		const analysis = await analyze({ check: this.analyzer }, {
 			...safeOptions,

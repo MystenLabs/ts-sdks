@@ -61,22 +61,24 @@ Because gas is the sponsor's, **a sponsored transaction must never use the gas c
 
 ## Defaults
 
-If you pass no `validate`, the sponsor runs `defaults()` — `senderIsNotSponsor()`,
-`gasCoinNotUsed()`, `onlySenderWithdrawals()`, `simulationSucceeds()`, and `boundedExpiration()`.
-Once you add your own validators they no longer run automatically; drop them back in as one entry
-(the `validate` array flattens nested arrays):
+If you pass no `validate`, the sponsor runs `defaults()` — `validSender()`,
+`onlyAddressBalanceGas()`, `gasCoinNotUsed()`, `onlySenderWithdrawals()`, `simulationSucceeds()`,
+and `boundedExpiration()`. Once you add your own validators they no longer run automatically; drop
+them back in as one entry (the `validate` array flattens nested arrays):
 
 ```ts
 createSponsor({ signer, client }); // runs defaults()
 createSponsor({ signer, client, validate: [defaults(), allowedPackages(['0xabc'])] });
 ```
 
-Each default guards something real: `senderIsNotSponsor()` and `gasCoinNotUsed()` stop a caller from
-spending the sponsor's gas coin; `onlySenderWithdrawals()` rejects any `FundsWithdrawal` input that
-isn't the sender's — including one from the sponsor's **address balance** (the same balance that
-pays gas — a direct drain the gas-coin check can't see, since the withdrawal is an _input_, not a
-command argument); `simulationSucceeds()` avoids paying for a transaction that aborts; and
-`boundedExpiration()` caps how long the signed transaction stays valid.
+Each default guards something real: `validSender()` requires a sender and stops a caller from
+sponsoring their own transaction; `onlyAddressBalanceGas()` and `gasCoinNotUsed()` stop a caller
+from spending the sponsor's gas (its address balance pays, and the gas coin is the sponsor's);
+`onlySenderWithdrawals()` rejects any `FundsWithdrawal` input that isn't the sender's — including
+one from the sponsor's **address balance** (the same balance that pays gas — a direct drain the
+gas-coin check can't see, since the withdrawal is an _input_, not a command argument);
+`simulationSucceeds()` avoids paying for a transaction that aborts; and `boundedExpiration()` caps
+how long the signed transaction stays valid.
 
 Two things the defaults **don't** do, by design — handle them at your service boundary:
 
@@ -91,7 +93,7 @@ For **offline-only signing** — no dry-run — use validators that read only `d
 `transactionResponse`). Nothing depends on simulation, so the sponsor never simulates:
 
 ```ts
-createSponsor({ signer, client, validate: [senderIsNotSponsor(), gasCoinNotUsed()] });
+createSponsor({ signer, client, validate: [validSender(), gasCoinNotUsed()] });
 ```
 
 ## What `transaction` is
@@ -396,16 +398,18 @@ it contributes `SponsorRejection | null`, deduping its analyzers with that graph
 
 ## Built-in validators
 
-| Validator                   | Reads                  | Rejects when…                                          |
-| --------------------------- | ---------------------- | ------------------------------------------------------ |
-| `senderIsNotSponsor()`      | `data`                 | the sender is the gas owner (sponsor)                  |
-| `gasCoinNotUsed()`          | `data`                 | a command uses the gas coin (`tx.gas`)                 |
-| `onlySenderWithdrawals()`   | `data`                 | a `FundsWithdrawal` input isn't the sender's           |
-| `gasBudget({ min?, max? })` | `data`                 | the gas budget is unset or outside the range           |
-| `allowedPackages([...])`    | `data`                 | a MoveCall targets a package outside the allowlist     |
-| `allowedFunctions([...])`   | `data`                 | a MoveCall targets a function outside the allowlist    |
-| `simulationSucceeds()`      | `transactionResponse`  | the dry-run succeeds but the transaction would abort\* |
-| `boundedExpiration()`       | `data`, `currentEpoch` | the expiration is missing or beyond the next epoch     |
+| Validator                      | Reads                  | Rejects when…                                             |
+| ------------------------------ | ---------------------- | --------------------------------------------------------- |
+| `validSender()`                | `data`                 | the sender is unset, or is the gas owner (sponsor)        |
+| `onlyAddressBalanceGas()`      | `data`                 | the gas payment isn't empty (`[]`)†                       |
+| `gasCoinNotUsed()`             | `data`                 | a command uses the gas coin (`tx.gas`)                    |
+| `onlySenderWithdrawals()`      | `data`                 | a `FundsWithdrawal` input isn't the sender's              |
+| `userSignatureMatchesSender()` | `bytes`, `data`        | a supplied user signature isn't a valid sender signature‡ |
+| `gasBudget({ min?, max? })`    | `data`                 | the gas budget is unset or outside the range              |
+| `allowedPackages([...])`       | `data`                 | a MoveCall targets a package outside the allowlist        |
+| `allowedFunctions([...])`      | `data`                 | a MoveCall targets a function outside the allowlist       |
+| `simulationSucceeds()`         | `transactionResponse`  | the dry-run succeeds but the transaction would abort\*    |
+| `boundedExpiration()`          | `data`, `currentEpoch` | the expiration is missing or beyond the next epoch        |
 
 \* The dry-run itself _succeeding_ but reporting an aborting transaction is a **policy** rejection
 (`TRANSACTION_WOULD_FAIL`) — the bytes are executable and would still cost the sponsor gas (landing
@@ -413,8 +417,24 @@ a failed transaction with a digest) if submitted. The dry-run _failing to run at
 unreachable node, unresolvable objects) is instead surfaced as `ANALYSIS_FAILED`, with the
 underlying error detail (see [Result variants](#the-primitives)).
 
-`defaults()` bundles `senderIsNotSponsor()` + `gasCoinNotUsed()` + `onlySenderWithdrawals()` +
-`simulationSucceeds()` + `boundedExpiration()` (see [Defaults](#defaults)).
+† Address-balance gas (an empty payment) is how the sponsor pays from its own balance rather than
+from nominated gas coins; the sponsor-builds flow always sets this, so this validator mainly guards
+user-supplied bytes.
+
+‡ Verifies (via `@mysten/sui`'s `isValidTransactionSignature`) that **every** supplied user
+signature is cryptographically valid over the bytes **and** resolves to the sender — caught before
+the sponsor co-signs, rather than only at execution (all supplied signatures are attached to
+execution, so one that isn't the sender's would be rejected on-chain after the sponsor signed). A
+malformed, invalid, or wrong-signer signature is rejected as `USER_SIGNATURE_INVALID`; the sender
+match is key-type aware (a zkLogin key matches either its legacy or current address). An
+_environmental_ failure during verification (e.g. a zkLogin JWK/epoch lookup throwing) isn't a
+validation result — it surfaces as `ANALYSIS_FAILED`, so a network blip is never reported as a bad
+signature. Passes when no user signature was supplied (the sponsor-builds flow). The signature is
+read from the request, not from `validationOptions`.
+
+`defaults()` bundles `validSender()` + `onlyAddressBalanceGas()` + `gasCoinNotUsed()` +
+`onlySenderWithdrawals()` + `simulationSucceeds()` + `boundedExpiration()` (see
+[Defaults](#defaults)).
 
 ## Timing-attack mitigation
 

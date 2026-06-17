@@ -21,7 +21,7 @@ import {
 	defaults,
 	gasBudget,
 	gasCoinNotUsed,
-	senderIsNotSponsor,
+	validSender,
 } from '../src/index.js';
 
 // Placeholders for things an app supplies.
@@ -51,7 +51,7 @@ const sponsor = createSponsor({
 const offlineSponsor = createSponsor({
 	signer,
 	client,
-	validate: [senderIsNotSponsor(), gasCoinNotUsed()],
+	validate: [validSender(), gasCoinNotUsed()],
 });
 
 // ── A user transaction ───────────────────────────────────────────────────────

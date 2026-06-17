@@ -47,9 +47,9 @@
 		"vitest": "vitest"
 	},
 	"devDependencies": {
-		"@types/node": "^25.0.8",
-		"typescript": "^5.9.3",
-		"vitest": "^4.0.17"
+		"@types/node": "^25.9.3",
+		"typescript": "^6.0.3",
+		"vitest": "^4.1.8"
 	},
 	"dependencies": {
 		"@mysten/wallet-sdk": "workspace:^"

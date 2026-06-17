@@ -13,24 +13,65 @@ import { MultiSigPublicKey } from '../multisig/publickey.js';
 import { ZkLoginPublicIdentifier } from '../zklogin/publickey.js';
 import type { ClientWithCoreApi } from '../client/core.js';
 
+/**
+ * Whether `signature` is a valid signature over `bytes` (and, if `options.address`
+ * is given, was produced by that address). Returns `false` for a malformed or
+ * cryptographically invalid signature, or one that doesn't match the address;
+ * only an *environmental* failure (e.g. a zkLogin JWK/epoch lookup) throws, so a
+ * network blip is never reported as an invalid signature.
+ */
+export async function isValidSignature(
+	bytes: Uint8Array,
+	signature: string,
+	options: { address?: string } = {},
+): Promise<boolean> {
+	const parsed = tryParseSignature(signature);
+	if (!parsed) return false;
+	if (!(await parsed.publicKey.verify(bytes, parsed.serializedSignature))) return false;
+	return options.address ? parsed.publicKey.verifyAddress(options.address) : true;
+}
+
+/** Like {@link isValidSignature}, for a personal message. */
+export async function isValidPersonalMessageSignature(
+	message: Uint8Array,
+	signature: string,
+	options: { client?: ClientWithCoreApi; address?: string } = {},
+): Promise<boolean> {
+	const parsed = tryParseSignature(signature, { client: options.client });
+	if (!parsed) return false;
+	if (!(await parsed.publicKey.verifyPersonalMessage(message, parsed.serializedSignature))) {
+		return false;
+	}
+	return options.address ? parsed.publicKey.verifyAddress(options.address) : true;
+}
+
+/** Like {@link isValidSignature}, for transaction bytes. */
+export async function isValidTransactionSignature(
+	transaction: Uint8Array,
+	signature: string,
+	options: { client?: ClientWithCoreApi; address?: string } = {},
+): Promise<boolean> {
+	const parsed = tryParseSignature(signature, { client: options.client });
+	if (!parsed) return false;
+	if (!(await parsed.publicKey.verifyTransaction(transaction, parsed.serializedSignature))) {
+		return false;
+	}
+	return options.address ? parsed.publicKey.verifyAddress(options.address) : true;
+}
+
 export async function verifySignature(
 	bytes: Uint8Array,
 	signature: string,
-	options?: {
-		address?: string;
-	},
+	options: { address?: string } = {},
 ): Promise<PublicKey> {
-	const parsedSignature = parseSignature(signature);
-
-	if (!(await parsedSignature.publicKey.verify(bytes, parsedSignature.serializedSignature))) {
+	const { publicKey } = parseSignature(signature);
+	if (!(await isValidSignature(bytes, signature))) {
 		throw new Error(`Signature is not valid for the provided data`);
 	}
-
-	if (options?.address && !parsedSignature.publicKey.verifyAddress(options.address)) {
+	if (options.address && !publicKey.verifyAddress(options.address)) {
 		throw new Error(`Signature is not valid for the provided address`);
 	}
-
-	return parsedSignature.publicKey;
+	return publicKey;
 }
 
 export async function verifyPersonalMessageSignature(
@@ -38,22 +79,14 @@ export async function verifyPersonalMessageSignature(
 	signature: string,
 	options: { client?: ClientWithCoreApi; address?: string } = {},
 ): Promise<PublicKey> {
-	const parsedSignature = parseSignature(signature, options);
-
-	if (
-		!(await parsedSignature.publicKey.verifyPersonalMessage(
-			message,
-			parsedSignature.serializedSignature,
-		))
-	) {
+	const { publicKey } = parseSignature(signature, options);
+	if (!(await isValidPersonalMessageSignature(message, signature, { client: options.client }))) {
 		throw new Error(`Signature is not valid for the provided message`);
 	}
-
-	if (options?.address && !parsedSignature.publicKey.verifyAddress(options.address)) {
+	if (options.address && !publicKey.verifyAddress(options.address)) {
 		throw new Error(`Signature is not valid for the provided address`);
 	}
-
-	return parsedSignature.publicKey;
+	return publicKey;
 }
 
 export async function verifyTransactionSignature(
@@ -61,22 +94,14 @@ export async function verifyTransactionSignature(
 	signature: string,
 	options: { client?: ClientWithCoreApi; address?: string } = {},
 ): Promise<PublicKey> {
-	const parsedSignature = parseSignature(signature, options);
-
-	if (
-		!(await parsedSignature.publicKey.verifyTransaction(
-			transaction,
-			parsedSignature.serializedSignature,
-		))
-	) {
+	const { publicKey } = parseSignature(signature, options);
+	if (!(await isValidTransactionSignature(transaction, signature, { client: options.client }))) {
 		throw new Error(`Signature is not valid for the provided Transaction`);
 	}
-
-	if (options?.address && !parsedSignature.publicKey.verifyAddress(options.address)) {
+	if (options.address && !publicKey.verifyAddress(options.address)) {
 		throw new Error(`Signature is not valid for the provided address`);
 	}
-
-	return parsedSignature.publicKey;
+	return publicKey;
 }
 
 function parseSignature(signature: string, options: { client?: ClientWithCoreApi } = {}) {
@@ -98,6 +123,15 @@ function parseSignature(signature: string, options: { client?: ClientWithCoreApi
 		...parsedSignature,
 		publicKey,
 	};
+}
+
+/** {@link parseSignature}, returning `null` instead of throwing on a malformed signature. */
+function tryParseSignature(signature: string, options: { client?: ClientWithCoreApi } = {}) {
+	try {
+		return parseSignature(signature, options);
+	} catch {
+		return null;
+	}
 }
 
 export function publicKeyFromRawBytes(
