@@ -122,9 +122,15 @@ A `Sponsor` has three members:
   request-scoped options your validators read (see
   [Request-scoped options](#request-scoped-options)) — required only when a validator declares a
   required one.
-- **`sponsor.signAndExecuteTransaction({ transaction, userSignature, validationOptions? })`** —
-  `signTransaction` + execute. Returns `{ $kind: 'Rejected', … }` (never executed) or the execution
-  result (`{ $kind: 'Transaction', … }` / `{ $kind: 'FailedTransaction', … }`).
+- **`sponsor.signAndExecuteTransaction({ transaction, userSignature, include?, validationOptions?, … })`**
+  — `signTransaction` + execute. Returns `{ $kind: 'Rejected', … }` (never executed) or the
+  execution result (`{ $kind: 'Transaction', … }` / `{ $kind: 'FailedTransaction', … }`). It
+  forwards every other prop the core `executeTransaction` takes (e.g. `signal`). `include` selects
+  the **extra** result fields to fetch — `effects` is always included and can't be turned off — and
+  the result type reflects exactly what you asked for. The dry-run that backs validation can be
+  extended too: a validator declares the simulate `include` fields it needs (e.g.
+  `include: { balanceChanges: true }`), and that requirement surfaces, typed, on `validationOptions`
+  (see [Request-scoped options](#request-scoped-options)).
 
 Validation rejection is **returned, not thrown** — `switch (result.$kind)` to handle every outcome,
 the same way you handle `Transaction` vs `FailedTransaction`. (Genuine errors — network, malformed

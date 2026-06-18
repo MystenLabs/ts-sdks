@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { ClientWithCoreApi } from '@mysten/sui/client';
+import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { Transaction, TransactionDataBuilder } from '@mysten/sui/transactions';
 import { normalizeSuiAddress, toBase58, toBase64 } from '@mysten/sui/utils';
@@ -301,6 +301,61 @@ describe('Sponsor.analyzer', () => {
 
 		expect(probeRuns).toBe(1);
 		expect(analysis.check.result).toBeNull();
+	});
+});
+
+describe('Sponsor.signAndExecuteTransaction', () => {
+	it('returns custom result fields (events) requested via `include`, with effects forced on', async () => {
+		const sponsorKey = new Ed25519Keypair();
+		const senderKey = new Ed25519Keypair();
+		const tx = resolvedTransaction({
+			sender: senderKey.toSuiAddress(),
+			sponsor: sponsorKey.toSuiAddress(),
+		});
+		const bytes = await tx.build();
+		const { signature: userSignature } = await senderKey.signTransaction(bytes);
+
+		const events: SuiClientTypes.Event[] = [
+			{
+				packageId: normalizeSuiAddress('0x2'),
+				module: 'foo',
+				sender: senderKey.toSuiAddress(),
+				eventType: '0x2::foo::Bar',
+				bcs: new Uint8Array([1, 2, 3]),
+				json: { value: 1 },
+			},
+		];
+
+		// Capture what the sponsor forwards to the core execute call.
+		let executeArgs: { include?: unknown; signatures?: string[] } | undefined;
+		const client = {
+			core: {
+				executeTransaction: async (options: { include?: unknown; signatures?: string[] }) => {
+					executeArgs = options;
+					return { $kind: 'Transaction', Transaction: { digest: 'digest', events } };
+				},
+			},
+		} as unknown as ClientWithCoreApi;
+
+		const sponsor = createSponsor({ signer: sponsorKey, client, validate: [validSender()] });
+		const result = await sponsor.signAndExecuteTransaction({
+			transaction: bytes,
+			userSignature,
+			include: { events: true },
+		});
+
+		expect(result.$kind).toBe('Transaction');
+		if (result.$kind === 'Transaction') {
+			// `events` is typed `Event[]` (combined with the forced `effects`) — no cast.
+			const got: SuiClientTypes.Event[] = result.Transaction.events;
+			expect(got).toEqual(events);
+		}
+		// The requested `events` is merged with the always-on `effects`, and the
+		// user + sponsor signatures are both forwarded for execution (Ed25519 signing
+		// is deterministic, so the sponsor signature is reproducible here).
+		const { signature: sponsorSignature } = await sponsorKey.signTransaction(bytes);
+		expect(executeArgs?.include).toEqual({ events: true, effects: true });
+		expect(executeArgs?.signatures).toEqual([userSignature, sponsorSignature]);
 	});
 });
 
