@@ -148,11 +148,12 @@ export type SignTransactionResult = SponsoredTransaction | SponsorRejection;
 /**
  * `signAndExecuteTransaction`'s result: a {@link SponsorRejection} (`Rejected`,
  * never executed), or the execution result (`Transaction` / `FailedTransaction`).
- * Switch on `$kind`.
+ * Switch on `$kind`. The execution result carries exactly the data named by
+ * `Include` (defaulting to `{ effects: true }`).
  */
-export type SignAndExecuteResult =
-	| SponsorRejection
-	| SuiClientTypes.TransactionResult<{ effects: true }>;
+export type SignAndExecuteResult<
+	Include extends SuiClientTypes.TransactionInclude = { effects: true },
+> = SponsorRejection | SuiClientTypes.TransactionResult<Include>;
 
 /**
  * Anything `Transaction.from` accepts: a {@link Transaction} instance, built
@@ -184,12 +185,25 @@ export type SignOptions =
 			userSignature: string | string[];
 	  };
 
-export interface SignAndExecuteOptions {
+/**
+ * `signAndExecuteTransaction`'s options. The sponsor owns the transaction bytes
+ * and signatures it executes with, so those are omitted from the core
+ * {@link SuiClientTypes.ExecuteTransactionOptions}; every other core-execute prop
+ * (`signal`, …) is threaded straight through. `include` names the *extra* result
+ * fields to fetch — `effects` is always included (the sponsor forces it on), so
+ * it's omitted here and can't be turned off. `Include` is combined with that
+ * forced `effects` to shape the result (see {@link SignAndExecuteResult}).
+ */
+export type SignAndExecuteOptions<
+	Include extends Omit<SuiClientTypes.TransactionInclude, 'effects'> = {},
+> = Omit<SuiClientTypes.ExecuteTransactionOptions, 'transaction' | 'signatures' | 'include'> & {
 	/** The exact, already-built transaction the user signed — bytes or base64. */
 	transaction: Uint8Array | string;
 	/** The user's signature(s) — required, since execution needs every signature. */
 	userSignature: string | string[];
-}
+	/** Extra result fields to include beyond the always-present `effects`. */
+	include?: Include & { effects?: never };
+};
 
 /** Create a {@link Sponsor} bound to a signer, client, and validation policy. */
 export function createSponsor<const T extends readonly ValidateItem[] = []>(
@@ -349,19 +363,33 @@ export class Sponsor<TOptions extends object = object> {
 	 * execution result (`Transaction` / `FailedTransaction`) — switch on `$kind`.
 	 * Requires the user's signature, since execution needs both.
 	 */
-	async signAndExecuteTransaction(
-		options: SignAndExecuteOptions & ValidationOptionsArg<TOptions>,
-	): Promise<SignAndExecuteResult> {
+	async signAndExecuteTransaction<
+		Include extends Omit<SuiClientTypes.TransactionInclude, 'effects'> = {},
+	>(
+		options: SignAndExecuteOptions<Include> & ValidationOptionsArg<TOptions>,
+	): Promise<SignAndExecuteResult<Include & { effects: true }>> {
 		const signed = await this.signTransaction(
 			options as SignOptions & ValidationOptionsArg<TOptions>,
 		);
 		if (signed.$kind === 'Rejected') return signed;
 
 		await this.#runDelay(this.#delay.beforeExecute);
-		return this.#client.core.executeTransaction({
+
+		// Thread every other core-execute prop through (`signal`, …); the sponsor owns
+		// only the bytes and signatures, and forces `effects` on (merged last) so the
+		// result always carries them and a caller can't drop them.
+		const {
+			transaction: _transaction,
+			userSignature: _userSignature,
+			validationOptions: _validationOptions,
+			include,
+			...rest
+		} = options as SignAndExecuteOptions<Include> & { validationOptions?: unknown };
+		return this.#client.core.executeTransaction<Include & { effects: true }>({
+			...rest,
 			transaction: signed.bytes,
 			signatures: signed.signatures!,
-			include: { effects: true },
+			include: { ...include, effects: true } as Include & { effects: true },
 		});
 	}
 

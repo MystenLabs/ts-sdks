@@ -4,7 +4,7 @@
 import type { Transaction } from '@mysten/sui/transactions';
 import { TransactionDataBuilder } from '@mysten/sui/transactions';
 import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
-import type { AnalyzerOutput } from '../analyzer.js';
+import type { Analyzer, AnalyzerOutput } from '../analyzer.js';
 import { createAnalyzer } from '../analyzer.js';
 
 export const bytes = createAnalyzer({
@@ -48,19 +48,45 @@ export const digest = createAnalyzer({
 		},
 });
 
-export const transactionResponse = createAnalyzer({
+/**
+ * The *extra* simulate fields {@link transactionResponse} can fetch. `effects` is
+ * always included (this analyzer and its dependents rely on it), so it's omitted
+ * here and can't be turned off — `Include` only ever widens what's fetched.
+ */
+type SimulateExtraInclude = Omit<SuiClientTypes.SimulateTransactionInclude, 'effects'>;
+
+/**
+ * {@link transactionResponse}'s request-scoped options for a given extra-`Include`.
+ * `include` is required exactly when `Include` names a field that must be present
+ * (so a dependent that needs, say, `balanceChanges` forces it to be passed) and is
+ * optional otherwise. `effects` is always added on top.
+ */
+type TransactionResponseOptions<Include extends SimulateExtraInclude> = {
+	client: ClientWithCoreApi;
+	/**
+	 * Inject a pre-computed response to skip the dry-run (e.g. a host that already
+	 * simulated). Must carry at least the requested fields.
+	 */
+	transactionResponse?: SuiClientTypes.Transaction<Include & { effects: true }>;
+} & ({} extends Include ? { include?: Include } : { include: Include });
+
+// One shared instance — the dry-run logic lives here, once. `transactionResponse()`
+// hands this exact instance back, retyped per `Include`, so every consumer keeps the
+// same identity and `cacheKey` (deduped to a single simulation per run) instead of
+// each spinning up a copy. The runtime reads `include` off the shared options, so the
+// data fetched always matches what the call actually requested.
+const transactionResponseAnalyzer = createAnalyzer({
 	cacheKey: 'transactionResponse@1.0.0',
 	dependencies: { bytes },
 	analyze:
-		(options: {
-			client: ClientWithCoreApi;
-			transactionResponse?: SuiClientTypes.Transaction<{ effects: true }>;
-		}) =>
+		(options: TransactionResponseOptions<SimulateExtraInclude>) =>
 		async ({ bytes }): Promise<AnalyzerOutput<SuiClientTypes.Transaction<{ effects: true }>>> => {
 			try {
 				const result = await options.client.core.simulateTransaction({
 					transaction: bytes,
-					include: { effects: true },
+					// `effects` is forced last so a caller-supplied `include` can only add to
+					// it, never drop the effects that `simulationSucceeds` (and others) read.
+					include: { ...options.include, effects: true },
 				});
 				return {
 					result: options.transactionResponse ?? result.Transaction ?? result.FailedTransaction,
@@ -81,11 +107,38 @@ export const transactionResponse = createAnalyzer({
 		},
 });
 
+/**
+ * The dry-run analyzer, generic over the *extra* simulate `include` fields. Calling
+ * it returns the one shared analyzer instance (above) retyped for `Include`, so its
+ * result exposes exactly the fields you asked for and `include` becomes a required
+ * option when `Include` names one — all without duplicating the analyzer or running
+ * the simulation more than once. `effects` is always included.
+ *
+ * ```ts
+ * // Reusable, deduped, and typed to what you requested:
+ * createAnalyzer({
+ *   dependencies: { tx: transactionResponse<{ balanceChanges: true }>() },
+ *   analyze: () => ({ tx }) => ({ result: tx.balanceChanges }), // typed `BalanceChange[]`
+ * });
+ * ```
+ */
+export function transactionResponse<Include extends SimulateExtraInclude = {}>(): Analyzer<
+	SuiClientTypes.Transaction<Include & { effects: true }>,
+	TransactionResponseOptions<Include>,
+	{ bytes: Uint8Array }
+> {
+	return transactionResponseAnalyzer as unknown as Analyzer<
+		SuiClientTypes.Transaction<Include & { effects: true }>,
+		TransactionResponseOptions<Include>,
+		{ bytes: Uint8Array }
+	>;
+}
+
 export const balanceChanges = createAnalyzer({
-	dependencies: { transactionResponse },
+	dependencies: { transactionResponse: transactionResponse<{ balanceChanges: true }>() },
 	analyze:
 		() =>
 		({ transactionResponse }) => {
-			return { result: transactionResponse.balanceChanges || [] };
+			return { result: transactionResponse.balanceChanges };
 		},
 });

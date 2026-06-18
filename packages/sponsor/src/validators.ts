@@ -392,7 +392,7 @@ export function onlySenderWithdrawals(): Validator {
  */
 export function simulationSucceeds(): Validator {
 	return createAnalyzer({
-		dependencies: { transactionResponse: analyzers.transactionResponse },
+		dependencies: { transactionResponse: analyzers.transactionResponse() },
 		analyze:
 			() =>
 			({ transactionResponse }) => {
