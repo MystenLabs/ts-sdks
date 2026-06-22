@@ -1,7 +1,7 @@
 ---
 title: Key pairs
 description:
-  'Create Ed25519, Secp256k1, and Secp256r1 keypairs and derive them from mnemonics and secret keys.'
+  Create Ed25519, Secp256k1, and Secp256r1 keypairs and derive them from mnemonics and secret keys
 keywords:
   [keypairs, Ed25519, Secp256k1, Secp256r1, mnemonic, secret key, signing, Sui, TypeScript SDK]
 ---
@@ -36,8 +36,9 @@ reference a key pair from an existing secret key, pass the secret to the `fromSe
 ```typescript
 // random Keypair
 const keypair = new Ed25519Keypair();
-// Keypair from an existing secret key (Uint8Array)
-const keypair = Ed25519Keypair.fromSecretKey(secretKey);
+
+// or, a Keypair from an existing secret key (Uint8Array)
+const fromSecret = Ed25519Keypair.fromSecretKey(secretKey);
 ```
 
 With your key pair created, you can derive its address and sign with it. The following signs a
@@ -104,8 +105,8 @@ const keypair = Ed25519Keypair.fromSecretKey(secretKey);
 ```
 
 You can also use the `decodeSuiPrivateKey` function to decode the secret key and determine the
-keyScheme, and get the keypairs private key bytes, which can be used to instantiate the appropriate
-`Keypair` class.
+keyScheme, and get the key pair's private key bytes, which can be used to instantiate the
+appropriate `Keypair` class.
 
 ```typescript
 import { decodeSuiPrivateKey } from '@mysten/sui/cryptography';
@@ -113,9 +114,11 @@ import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { Secp256r1Keypair } from '@mysten/sui/keypairs/secp256r1';
 import { Secp256k1Keypair } from '@mysten/sui/keypairs/secp256k1';
 
+const encoded = 'suiprivkey1qzse89atw7d3zum8ujep76d2cxmgduyuast0y9fu23xcl0mpafgkktllhyc';
 const { scheme, secretKey } = decodeSuiPrivateKey(encoded);
 
 // use scheme to choose the correct key pair
+let keypair;
 switch (scheme) {
 	case 'ED25519':
 		keypair = Ed25519Keypair.fromSecretKey(secretKey);

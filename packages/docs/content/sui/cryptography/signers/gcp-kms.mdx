@@ -86,10 +86,11 @@ const client = new SuiGrpcClient({
 	baseUrl: 'https://fullnode.testnet.sui.io:443',
 });
 
-const { digest } = await client.core.signAndExecuteTransaction({
-	transaction,
-	signer,
-});
+const result = await client.signAndExecuteTransaction({ transaction, signer });
+if (result.FailedTransaction) {
+	throw new Error('Transaction failed to execute');
+}
+console.log(result.Transaction.digest);
 ```
 
 See [Cryptography](/sui/cryptography) for the full signing and verification API shared by all

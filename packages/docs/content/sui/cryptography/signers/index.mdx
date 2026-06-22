@@ -37,11 +37,12 @@ const address = signer.getPublicKey().toSuiAddress();
 const message = new TextEncoder().encode('hello world');
 const { signature } = await signer.signPersonalMessage(message);
 
-// Sign and execute a transaction
-const { digest } = await client.core.signAndExecuteTransaction({
-	transaction,
-	signer,
-});
+// Sign and execute a transaction (resolves to a discriminated union)
+const result = await client.signAndExecuteTransaction({ transaction, signer });
+if (result.FailedTransaction) {
+	throw new Error('Transaction failed to execute');
+}
+console.log(result.Transaction.digest);
 ```
 
 See [Cryptography](/sui/cryptography) for the full signing and verification API that all signers

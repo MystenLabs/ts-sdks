@@ -90,6 +90,10 @@ const message = new TextEncoder().encode('hello world');
 const { signature } = await keypair.signPersonalMessage(message);
 ```
 
+Both `signPersonalMessage` and `signTransaction` resolve to `{ bytes, signature }`, where
+`signature` is the serialized signature string used for execution and verification, and `bytes` is
+the base64 payload that was signed.
+
 To sign and submit a transaction in one step, pass the signer to a client:
 
 ```typescript
@@ -100,10 +104,17 @@ const client = new SuiGrpcClient({
 	baseUrl: 'https://fullnode.testnet.sui.io:443',
 });
 
-const { digest } = await client.signAndExecuteTransaction({
+const result = await client.signAndExecuteTransaction({
 	transaction,
 	signer: keypair,
 });
+
+// signAndExecuteTransaction resolves to a discriminated union — check for failure first
+if (result.FailedTransaction) {
+	throw new Error('Transaction failed to execute');
+}
+
+console.log('Digest:', result.Transaction.digest);
 ```
 
 ## Verifying signatures
