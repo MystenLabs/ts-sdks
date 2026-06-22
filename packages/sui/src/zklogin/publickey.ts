@@ -46,6 +46,13 @@ export class ZkLoginPublicIdentifier extends PublicKey {
 		}
 	}
 
+	/**
+	 * Whether this identifier resolves to the deprecated legacy address derivation.
+	 */
+	get legacyAddress(): boolean {
+		return this.#legacyAddress;
+	}
+
 	static fromBytes(
 		bytes: Uint8Array,
 		{
