@@ -1,5 +1,5 @@
 ---
-'@mysten/enoki': patch
+'@mysten/enoki': minor
 ---
 
 `EnokiKeypair` now extends the shared `ZkLoginSigner` from `@mysten/sui/zklogin`, removing duplicated
