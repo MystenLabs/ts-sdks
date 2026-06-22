@@ -78,9 +78,9 @@ await signer.signPersonalMessage(message);
 ```
 
 <Callout type="warn">
-	The Ledger signer only supports `signTransaction` and `signPersonalMessage`. The generic `sign`
-	and `signWithIntent` methods are not supported and throw an error, because the device only signs
-	recognized transaction and message payloads.
+	The Ledger signer supports only `signTransaction` and `signPersonalMessage`. It does not support
+	the generic `sign` and `signWithIntent` methods, which throw an error because the device only
+	signs recognized transaction and message payloads.
 </Callout>
 
 See [Cryptography](/sui/cryptography) for the signing and verification API shared by all signers.

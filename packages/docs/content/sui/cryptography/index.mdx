@@ -51,8 +51,8 @@ On top of those, `Signer` provides the methods you typically call:
 There are two broad families of signer:
 
 - **Key pairs** hold the private key in process. `Keypair` extends `Signer` and adds secret-key
-  import/export (`getSecretKey`, `fromSecretKey`). This is the easiest option for scripts, backends,
-  and tests. See [Key pairs](/sui/cryptography/keypairs).
+  import and export (`getSecretKey`, `fromSecretKey`). This is the easiest option for scripts,
+  backends, and tests. See [Key pairs](/sui/cryptography/keypairs).
 - **External signers** keep the private key outside your application, in a KMS, on a hardware
   wallet, or as a non-extractable browser key. They extend `Signer` directly. See
   [Signers](/sui/cryptography/signers).
