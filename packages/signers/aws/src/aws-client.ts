@@ -1,12 +1,13 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { Ed25519PublicKey } from '@mysten/sui/keypairs/ed25519';
 import { Secp256k1PublicKey } from '@mysten/sui/keypairs/secp256k1';
 import { Secp256r1PublicKey } from '@mysten/sui/keypairs/secp256r1';
 import { fromBase64 } from '@mysten/sui/utils';
 
 import { AwsClient } from './aws4fetch.js';
-import { publicKeyFromDER } from './utils.js';
+import { publicKeyFromDER, publicKeyFromEd25519DER } from './utils.js';
 
 interface KmsCommands {
 	Sign: {
@@ -14,7 +15,7 @@ interface KmsCommands {
 			KeyId: string;
 			Message: string;
 			MessageType: 'RAW' | 'DIGEST';
-			SigningAlgorithm: 'ECDSA_SHA_256';
+			SigningAlgorithm: 'ECDSA_SHA_256' | 'ED25519_SHA_512';
 		};
 		response: {
 			KeyId: string;
@@ -65,13 +66,15 @@ export class AwsKmsClient extends AwsClient {
 			throw new Error('Public Key not found for the supplied `keyId`');
 		}
 
-		const compressedKey = publicKeyFromDER(fromBase64(publicKeyResponse.PublicKey));
+		const derBytes = fromBase64(publicKeyResponse.PublicKey);
 
 		switch (publicKeyResponse.KeySpec) {
 			case 'ECC_NIST_P256':
-				return new Secp256r1PublicKey(compressedKey);
+				return new Secp256r1PublicKey(publicKeyFromDER(derBytes));
 			case 'ECC_SECG_P256K1':
-				return new Secp256k1PublicKey(compressedKey);
+				return new Secp256k1PublicKey(publicKeyFromDER(derBytes));
+			case 'ECC_NIST_EDWARDS25519':
+				return new Ed25519PublicKey(publicKeyFromEd25519DER(derBytes));
 			default:
 				throw new Error('Unsupported key spec: ' + publicKeyResponse.KeySpec);
 		}

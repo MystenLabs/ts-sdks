@@ -50,7 +50,7 @@ export class AwsKmsSigner extends Signer {
 
 	/**
 	 * Retrieves the key scheme used by this signer.
-	 * @returns AWS supports only Secp256k1 and Secp256r1 schemes.
+	 * @returns The scheme derived from the public key — `Ed25519`, `Secp256k1`, or `Secp256r1`.
 	 */
 	getKeyScheme() {
 		return SIGNATURE_FLAG_TO_SCHEME[this.#publicKey.flag() as SignatureFlag];
@@ -58,7 +58,7 @@ export class AwsKmsSigner extends Signer {
 
 	/**
 	 * Retrieves the public key associated with this signer.
-	 * @returns The Secp256k1PublicKey instance.
+	 * @returns The public key instance (`Ed25519PublicKey`, `Secp256k1PublicKey`, or `Secp256r1PublicKey`).
 	 * @throws Will throw an error if the public key has not been initialized.
 	 */
 	getPublicKey() {
@@ -72,6 +72,21 @@ export class AwsKmsSigner extends Signer {
 	 * @throws Will throw an error if the public key is not initialized or if signing fails.
 	 */
 	async sign(bytes: Uint8Array): Promise<Uint8Array<ArrayBuffer>> {
+		const keyScheme = this.getKeyScheme();
+
+		// Ed25519 keys use the EdDSA signing algorithm and return a raw 64-byte signature,
+		// so no DER parsing or low-S normalization (required for the ECDSA curves) is needed.
+		if (keyScheme === 'ED25519') {
+			const signResponse = await this.#client.runCommand('Sign', {
+				KeyId: this.#kmsKeyId,
+				Message: toBase64(bytes),
+				MessageType: 'RAW',
+				SigningAlgorithm: 'ED25519_SHA_512',
+			});
+
+			return fromBase64(signResponse.Signature) as Uint8Array<ArrayBuffer>;
+		}
+
 		const signResponse = await this.#client.runCommand('Sign', {
 			KeyId: this.#kmsKeyId,
 			Message: toBase64(bytes),
@@ -80,7 +95,7 @@ export class AwsKmsSigner extends Signer {
 		});
 
 		// Concatenate the signature components into a compact form
-		return getConcatenatedSignature(fromBase64(signResponse.Signature), this.getKeyScheme());
+		return getConcatenatedSignature(fromBase64(signResponse.Signature), keyScheme);
 	}
 
 	/**

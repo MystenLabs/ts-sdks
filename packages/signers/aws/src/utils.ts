@@ -33,6 +33,41 @@ function bitsToBytes(bitsArray: Uint8ClampedArray): Uint8Array {
 	return bytes;
 }
 
+/**
+ * The fixed ASN.1/DER (SPKI) prefix for an Ed25519 public key, as returned by AWS KMS
+ * `GetPublicKey` for an `ECC_NIST_EDWARDS25519` key. The raw 32-byte key follows the prefix.
+ *
+ * Structure: SEQUENCE { SEQUENCE { OID 1.3.101.112 } BIT STRING { 0x00 || <32 raw bytes> } }
+ */
+const ED25519_SPKI_PREFIX = new Uint8Array([
+	0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00,
+]);
+
+/**
+ * Extracts the raw 32-byte Ed25519 public key from its DER/SPKI encoding.
+ *
+ * Unlike the ECDSA curves, Ed25519 keys need no point decompression — the raw key is the
+ * final 32 bytes of the SPKI structure, so we validate the fixed prefix and slice it off.
+ *
+ * @param derBytes - The DER-encoded SPKI public key bytes.
+ * @returns A `Uint8Array` containing the raw 32-byte Ed25519 public key.
+ *
+ * @throws {Error} If the input does not match the expected Ed25519 SPKI structure.
+ */
+export function publicKeyFromEd25519DER(derBytes: Uint8Array): Uint8Array {
+	if (derBytes.length !== ED25519_SPKI_PREFIX.length + 32) {
+		throw new Error('Unexpected length for an Ed25519 SPKI public key');
+	}
+
+	for (let i = 0; i < ED25519_SPKI_PREFIX.length; i++) {
+		if (derBytes[i] !== ED25519_SPKI_PREFIX[i]) {
+			throw new Error('Unexpected ASN.1 structure for an Ed25519 public key');
+		}
+	}
+
+	return derBytes.slice(ED25519_SPKI_PREFIX.length);
+}
+
 export function publicKeyFromDER(derBytes: Uint8Array) {
 	const encodedData: Uint8Array = derBytes;
 	const derElement = new DERElement();
