@@ -1,6 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import type { ClientWithCoreApi } from '../client/core.js';
 import type { IntentScope } from '../cryptography/intent.js';
 import type { SignatureWithBytes } from '../cryptography/keypair.js';
 import { Signer } from '../cryptography/keypair.js';
@@ -21,8 +22,18 @@ export interface ZkLoginSignerOptions {
 	 * Whether this account uses the deprecated legacy address derivation. The zkLogin address is
 	 * derived from the proof inputs; this flag disambiguates legacy vs. current derivation, matching
 	 * the rest of the zkLogin address API (e.g. `jwtToAddress`, `toZkLoginPublicIdentifier`).
+	 *
+	 * A wrong flag silently yields a signer for the wrong address; pass `address` to guard against it.
 	 */
 	legacyAddress: boolean;
+	/**
+	 * The expected zkLogin address. When provided, the address derived from `inputs` + `legacyAddress`
+	 * is validated against it and the constructor throws on mismatch — guarding against a wrong
+	 * `legacyAddress` flag producing a signer for the wrong address.
+	 */
+	address?: string;
+	/** Optional client, threaded into the derived public key so it can verify signatures. */
+	client?: ClientWithCoreApi;
 }
 
 /**
@@ -37,18 +48,37 @@ export class ZkLoginSigner extends Signer {
 	#ephemeralSigner: Signer;
 	#maxEpoch: number;
 	#inputs: ZkLoginSignatureInputs;
-	#publicKey: ZkLoginPublicIdentifier;
+	#legacyAddress: boolean;
+	#client?: ClientWithCoreApi;
+	#publicKey?: ZkLoginPublicIdentifier;
 
 	constructor(options: ZkLoginSignerOptions) {
 		super();
 		this.#ephemeralSigner = options.ephemeralSigner;
 		this.#maxEpoch = options.maxEpoch;
 		this.#inputs = options.inputs;
-		this.#publicKey = toZkLoginPublicIdentifier(
-			BigInt(options.inputs.addressSeed),
-			extractClaimValue<string>(options.inputs.issBase64Details, 'iss'),
-			{ legacyAddress: options.legacyAddress },
-		);
+		this.#legacyAddress = options.legacyAddress;
+		this.#client = options.client;
+
+		if (options.address !== undefined) {
+			const derived = this.#derivePublicKey().toSuiAddress();
+			if (derived !== options.address) {
+				throw new Error(
+					`zkLogin proof does not match the provided address (derived ${derived}, expected ` +
+						`${options.address}) — check the \`legacyAddress\` flag`,
+				);
+			}
+		}
+	}
+
+	// Derived lazily and memoized so subclasses that override `getPublicKey()` (e.g. EnokiKeypair)
+	// don't pay for a derivation they never use.
+	#derivePublicKey(): ZkLoginPublicIdentifier {
+		return (this.#publicKey ??= toZkLoginPublicIdentifier(
+			BigInt(this.#inputs.addressSeed),
+			extractClaimValue<string>(this.#inputs.issBase64Details, 'iss'),
+			{ legacyAddress: this.#legacyAddress, client: this.#client },
+		));
 	}
 
 	/**
@@ -83,6 +113,6 @@ export class ZkLoginSigner extends Signer {
 	}
 
 	getPublicKey(): ZkLoginPublicIdentifier {
-		return this.#publicKey;
+		return this.#derivePublicKey();
 	}
 }

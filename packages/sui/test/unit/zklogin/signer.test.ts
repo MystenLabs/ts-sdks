@@ -1,14 +1,14 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { toBase64 } from '@mysten/bcs';
+import { bcs, fromBase64, toBase64 } from '@mysten/bcs';
 import { describe, expect, test } from 'vitest';
 
 import type { IntentScope } from '../../../src/cryptography/intent.js';
 import type { SignatureWithBytes } from '../../../src/cryptography/keypair.js';
 import { Signer } from '../../../src/cryptography/keypair.js';
 import { Ed25519Keypair } from '../../../src/keypairs/ed25519/index.js';
-import { toZkLoginPublicIdentifier } from '../../../src/zklogin/index.js';
+import { parseZkLoginSignature, toZkLoginPublicIdentifier } from '../../../src/zklogin/index.js';
 import { extractClaimValue } from '../../../src/zklogin/jwt-utils.js';
 import { ZkLoginSigner } from '../../../src/zklogin/signer.js';
 
@@ -73,6 +73,26 @@ class FixedEphemeralSigner extends Signer {
 	}
 }
 
+// A real ephemeral signer that records the (bytes, intent) it is asked to sign, so we can assert the
+// base-class routing (byteVector wrapping for personal messages, correct intents) actually happens.
+class RecordingSigner extends Signer {
+	calls: { bytes: Uint8Array; intent: IntentScope }[] = [];
+	#inner = new Ed25519Keypair();
+	sign(data: Uint8Array) {
+		return this.#inner.sign(data);
+	}
+	override signWithIntent(bytes: Uint8Array, intent: IntentScope): Promise<SignatureWithBytes> {
+		this.calls.push({ bytes, intent });
+		return this.#inner.signWithIntent(bytes, intent);
+	}
+	getKeyScheme() {
+		return this.#inner.getKeyScheme();
+	}
+	getPublicKey() {
+		return this.#inner.getPublicKey();
+	}
+}
+
 function makeSigner(legacyAddress = false) {
 	return new ZkLoginSigner({
 		ephemeralSigner: new FixedEphemeralSigner(),
@@ -84,14 +104,19 @@ function makeSigner(legacyAddress = false) {
 
 describe('ZkLoginSigner', () => {
 	test('signTransaction wraps the ephemeral signature in a zkLogin signature', async () => {
-		const { signature } = await makeSigner().signTransaction(new Uint8Array([1, 2, 3]));
+		const tx = new Uint8Array([1, 2, 3]);
+		const { bytes, signature } = await makeSigner().signTransaction(tx);
 		expect(signature).toBe(aSignature);
+		expect(bytes).toBe(toBase64(tx));
 	});
 
 	test('signPersonalMessage also produces a zkLogin signature', async () => {
-		const { signature } = await makeSigner().signPersonalMessage(new Uint8Array([1, 2, 3]));
+		const message = new Uint8Array([1, 2, 3]);
+		const { bytes, signature } = await makeSigner().signPersonalMessage(message);
 		// Both intents wrap the same fixed ephemeral signature with the same proof inputs.
 		expect(signature).toBe(aSignature);
+		// The returned bytes are the original message, not the byteVector-wrapped form.
+		expect(bytes).toBe(toBase64(message));
 	});
 
 	test('derives the current (non-legacy) address from the proof', () => {
@@ -108,6 +133,107 @@ describe('ZkLoginSigner', () => {
 	test('derives the legacy address from the proof when legacyAddress is true', () => {
 		const signer = makeSigner(true);
 		expect(signer.getPublicKey().toSuiAddress()).toBe(anAddress);
+	});
+
+	test('propagates legacyAddress into derivation (legacy and current differ for a short seed)', () => {
+		// A small addressSeed whose big-endian form is < 32 bytes, so the legacy (trimmed) and current
+		// (zero-padded) derivations genuinely diverge — unlike the 32-byte fixture seed above, which
+		// produces the same address either way.
+		const inputs = { ...aSignatureInputs, addressSeed: '12345' };
+		const iss = extractClaimValue<string>(inputs.issBase64Details, 'iss');
+		const seed = BigInt(inputs.addressSeed);
+
+		const legacy = new ZkLoginSigner({
+			ephemeralSigner: new FixedEphemeralSigner(),
+			maxEpoch,
+			inputs,
+			legacyAddress: true,
+		});
+		const current = new ZkLoginSigner({
+			ephemeralSigner: new FixedEphemeralSigner(),
+			maxEpoch,
+			inputs,
+			legacyAddress: false,
+		});
+
+		expect(legacy.getPublicKey().toSuiAddress()).not.toBe(current.getPublicKey().toSuiAddress());
+		expect(legacy.getPublicKey().toSuiAddress()).toBe(
+			toZkLoginPublicIdentifier(seed, iss, { legacyAddress: true }).toSuiAddress(),
+		);
+		expect(current.getPublicKey().toSuiAddress()).toBe(
+			toZkLoginPublicIdentifier(seed, iss, { legacyAddress: false }).toSuiAddress(),
+		);
+	});
+
+	test('routes intents and bytes to the ephemeral signer (personal message is byteVector-wrapped)', async () => {
+		const ephemeral = new RecordingSigner();
+		const signer = new ZkLoginSigner({
+			ephemeralSigner: ephemeral,
+			maxEpoch,
+			inputs: aSignatureInputs,
+			legacyAddress: false,
+		});
+
+		const tx = new Uint8Array([1, 2, 3, 4]);
+		await signer.signTransaction(tx);
+		expect(ephemeral.calls.at(-1)).toEqual({ bytes: tx, intent: 'TransactionData' });
+
+		const message = new Uint8Array([9, 8, 7]);
+		await signer.signPersonalMessage(message);
+		expect(ephemeral.calls.at(-1)).toEqual({
+			bytes: bcs.byteVector().serialize(message).toBytes(),
+			intent: 'PersonalMessage',
+		});
+	});
+
+	test('wraps the real ephemeral signWithIntent output as the zkLogin userSignature', async () => {
+		const ephemeral = new Ed25519Keypair();
+		const signer = new ZkLoginSigner({
+			ephemeralSigner: ephemeral,
+			maxEpoch,
+			inputs: aSignatureInputs,
+			legacyAddress: false,
+		});
+
+		const tx = new Uint8Array([1, 2, 3, 4]);
+		const { signature } = await signer.signTransaction(tx);
+
+		const parsed = parseZkLoginSignature(fromBase64(signature).slice(1));
+		expect(String(parsed.maxEpoch)).toBe(String(maxEpoch));
+		expect(parsed.inputs.addressSeed).toBe(aSignatureInputs.addressSeed);
+
+		// Ed25519 is deterministic, so re-signing the same (bytes, intent) reproduces the embedded sig.
+		const direct = await ephemeral.signWithIntent(tx, 'TransactionData');
+		expect(toBase64(parsed.userSignature)).toBe(direct.signature);
+	});
+
+	test('validates a provided address and throws on mismatch', () => {
+		const iss = extractClaimValue<string>(aSignatureInputs.issBase64Details, 'iss');
+		const address = toZkLoginPublicIdentifier(BigInt(aSignatureInputs.addressSeed), iss, {
+			legacyAddress: false,
+		}).toSuiAddress();
+
+		expect(
+			() =>
+				new ZkLoginSigner({
+					ephemeralSigner: new FixedEphemeralSigner(),
+					maxEpoch,
+					inputs: aSignatureInputs,
+					legacyAddress: false,
+					address,
+				}),
+		).not.toThrow();
+
+		expect(
+			() =>
+				new ZkLoginSigner({
+					ephemeralSigner: new FixedEphemeralSigner(),
+					maxEpoch,
+					inputs: aSignatureInputs,
+					legacyAddress: false,
+					address: '0x0000000000000000000000000000000000000000000000000000000000000000',
+				}),
+		).toThrow(/does not match the provided address/);
 	});
 
 	test('reports the ZkLogin key scheme', () => {
