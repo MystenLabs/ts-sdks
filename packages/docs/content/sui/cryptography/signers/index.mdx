@@ -1,0 +1,60 @@
+---
+title: Signers
+description:
+  External signer packages for AWS KMS, GCP KMS, Ledger hardware wallets, and the Web Crypto API
+keywords:
+  [signers, Signer, AWS KMS, GCP KMS, Ledger, Web Crypto, KMS, hardware wallet, Sui, TypeScript SDK]
+---
+
+In addition to the in-process [keypairs](/sui/cryptography/keypairs) built into `@mysten/sui`, the
+SDK ecosystem publishes standalone signer packages that keep the private key outside your
+application — in a cloud key-management service (KMS), on a hardware wallet, or as a non-extractable
+browser key. Each one extends the same [`Signer`](/sui/cryptography) base class, so it can be used
+anywhere a keypair can.
+
+## Available signers
+
+| Signer            | Package                    | Scheme                 | Key lives in                                                    |
+| ----------------- | -------------------------- | ---------------------- | --------------------------------------------------------------- |
+| `AwsKmsSigner`    | `@mysten/aws-kms-signer`   | Secp256k1 or Secp256r1 | [AWS KMS](/sui/cryptography/signers/aws-kms)                    |
+| `GcpKmsSigner`    | `@mysten/gcp-kms-signer`   | Secp256k1 or Secp256r1 | [GCP KMS](/sui/cryptography/signers/gcp-kms)                    |
+| `LedgerSigner`    | `@mysten/ledger-signer`    | Ed25519                | [Ledger hardware wallet](/sui/cryptography/signers/ledger)      |
+| `WebCryptoSigner` | `@mysten/webcrypto-signer` | Secp256r1              | [Browser Web Crypto store](/sui/cryptography/signers/webcrypto) |
+
+For the AWS and GCP signers, the signature scheme is determined by the curve of the underlying KMS
+key (`ECC_NIST_P256` → `Secp256r1`, `ECC_SECG_P256K1` → `Secp256k1`).
+
+## Shared interface
+
+Because every signer extends `Signer`, the signing API is identical regardless of where the key is
+held — only the way you construct the signer differs:
+
+```typescript
+// Derive the address
+const address = signer.getPublicKey().toSuiAddress();
+
+// Sign a personal message
+const message = new TextEncoder().encode('hello world');
+const { signature } = await signer.signPersonalMessage(message);
+
+// Sign and execute a transaction
+const { digest } = await client.core.signAndExecuteTransaction({
+	transaction,
+	signer,
+});
+```
+
+See [Cryptography](/sui/cryptography) for the full signing and verification API that all signers
+share.
+
+## Construction
+
+Each signer exposes a static factory rather than a public constructor, because preparing the signer
+requires an async round-trip to fetch the public key from the KMS or device:
+
+- `AwsKmsSigner.fromKeyId(keyId, options)` — see [AWS KMS Signer](/sui/cryptography/signers/aws-kms)
+- `GcpKmsSigner.fromOptions(options)` — see [GCP KMS Signer](/sui/cryptography/signers/gcp-kms)
+- `LedgerSigner.fromDerivationPath(path, ledgerClient, suiClient)` — see
+  [Ledger Signer](/sui/cryptography/signers/ledger)
+- `WebCryptoSigner.generate()` / `WebCryptoSigner.import(exported)` — see
+  [Web Crypto Signer](/sui/cryptography/signers/webcrypto)

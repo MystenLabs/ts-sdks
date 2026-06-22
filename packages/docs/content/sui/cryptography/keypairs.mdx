@@ -1,23 +1,24 @@
 ---
 title: Key pairs
 description:
-  'Create and manage Ed25519, Secp256k1, and Secp256r1 keypairs for Sui transaction signing.'
-keywords: [keypairs, Ed25519, Secp256k1, Secp256r1, cryptography, signing, Sui, TypeScript SDK]
+  'Create Ed25519, Secp256k1, and Secp256r1 keypairs and derive them from mnemonics and secret keys.'
+keywords:
+  [keypairs, Ed25519, Secp256k1, Secp256r1, mnemonic, secret key, signing, Sui, TypeScript SDK]
 ---
 
-The Sui TypeScript SDK provides `Keypair` classes that handle logic for signing and verification
-using the cryptographic key pairs associated with a Sui address.
+A `Keypair` holds a Sui private key in process and signs with it. It is the simplest
+[`Signer`](/sui/cryptography) to use — ideal for scripts, backends, and tests where you manage the
+secret key yourself. For the signing and verification API shared by all signers, see
+[Cryptography](/sui/cryptography); this page focuses on creating keypairs and deriving them from
+mnemonics and secret keys.
 
-The Sui TypeScript SDK supports three signing schemes:
+Each signing scheme has a corresponding `Keypair` class:
 
 | Sign scheme     | Class name         | Import folder                    |
 | --------------- | ------------------ | -------------------------------- |
 | Ed25519         | `Ed25519Keypair`   | `@mysten/sui/keypairs/ed25519`   |
 | ECDSA Secp256k1 | `Secp256k1Keypair` | `@mysten/sui/keypairs/secp256k1` |
 | ECDSA Secp256r1 | `Secp256r1Keypair` | `@mysten/sui/keypairs/secp256r1` |
-
-For information on these schemes, see the
-[Signatures](https://docs.sui.io/concepts/cryptography/transaction-auth/signatures) topic.
 
 To use, import the key pair class your project uses from the `@mysten/sui/keypairs` folder. For
 example, to use the Ed25519 scheme, import the `Ed25519Keypair` class from
@@ -26,6 +27,8 @@ example, to use the Ed25519 scheme, import the `Ed25519Keypair` class from
 ```typescript
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 ```
+
+## Creating a key pair
 
 To create a random key pair (which identifies a Sui address), instantiate a new `Keypair` class. To
 reference a key pair from an existing secret key, pass the secret to the `fromSecretKey` function.
@@ -37,157 +40,43 @@ const keypair = new Ed25519Keypair();
 const keypair = Ed25519Keypair.fromSecretKey(secretKey);
 ```
 
-With your key pair created, you can reference it when performing actions on the network. For
-example, you can use it to sign transactions, like the following code that creates and signs a
-personal message using the public key from the key pair created in the previous code:
+With your key pair created, you can derive its address and sign with it. The following signs a
+personal message and verifies it with the public key:
 
 ```typescript
 const publicKey = keypair.getPublicKey();
-const message = new TextEncoder().encode('hello world');
+const address = keypair.toSuiAddress();
 
+const message = new TextEncoder().encode('hello world');
 const { signature } = await keypair.signPersonalMessage(message);
 const isValid = await publicKey.verifyPersonalMessage(message, signature);
 ```
 
+See [Cryptography](/sui/cryptography) for the full signing and verification API, including
+[verifying signatures](/sui/cryptography#verifying-signatures) without the original key pair.
+
 ## Public keys
 
-Each `Keypair` has an associated `PublicKey` class. You use the public key to verify signatures or
-to retrieve its associated Sui address. You can access a `Keypair` from its `PublicKey` or construct
-it from the bytes (as a `Uint8Array`) of the `PublicKey`, as in the following code:
+Each `Keypair` has an associated `PublicKey`, which you use to verify signatures or to retrieve its
+Sui address. Access it from a `Keypair` with `getPublicKey()`. To recreate a keypair — and therefore
+its public key — from saved key material, reconstruct it from the secret key:
 
 ```typescript
-import { Ed25519Keypair, Ed25519PublicKey } from '@mysten/sui/keypairs/ed25519';
+import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 
-const keypair = new Ed25519Keypair();
+// Recreate the keypair from its secret key (Uint8Array)
+const keypair = Ed25519Keypair.fromSecretKey(secretKey);
 
-// method 1
-const bytes = keypair.getPublicKey().toRawBytes();
-const publicKey = new Ed25519PublicKey(bytes);
+// Access the public key and derive the address
+const publicKey = keypair.getPublicKey();
 const address = publicKey.toSuiAddress();
-
-// method 2
-const address = keypair.getPublicKey().toSuiAddress();
-// or use `toSuiAddress()` directly
-const address = keypair.toSuiAddress();
+// or derive the address directly from the keypair
+const sameAddress = keypair.toSuiAddress();
 ```
 
-## Verifying signatures without a key pair
-
-When you have an existing public key, you can use it to verify a signature. Verification ensures the
-signature is valid for the provided message and is signed with the appropriate secret key.
-
-The following code creates a key pair in the Ed25519 scheme, creates and signs a message with it,
-then verifies the message to retrieve the public key. The code then uses `toSuiAddress()` to check
-if the address associated with the public key matches the address that the key pair defines.
-
-```typescript
-import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
-import { verifyPersonalMessageSignature } from '@mysten/sui/verify';
-
-const keypair = new Ed25519Keypair();
-const message = new TextEncoder().encode('hello world');
-const { signature } = await keypair.signPersonalMessage(message);
-
-const publicKey = await verifyPersonalMessageSignature(message, signature);
-
-if (!publicKey.verifyAddress(keypair.toSuiAddress())) {
-	throw new Error('Signature was valid, but was signed by a different key pair');
-}
-```
-
-## Verifying that a signature is valid for a specific address
-
-`verifyPersonalMessageSignature` and `verifyTransactionSignature` accept an optional `address`, and
-will throw an error if the signature is not valid for the provided address.
-
-```typescript
-import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
-import { verifyPersonalMessageSignature } from '@mysten/sui/verify';
-
-const keypair = new Ed25519Keypair();
-const message = new TextEncoder().encode('hello world');
-const { signature } = await keypair.signPersonalMessage(message);
-
-await verifyPersonalMessageSignature(message, signature, {
-	address: keypair.toSuiAddress(),
-});
-```
-
-## Verifying transaction signatures
-
-Verifying transaction signatures is similar to personal message signature verification, except you
-use `verifyTransactionSignature`:
-
-```typescript
-// import SuiGrpcClient to create a network client
-import { SuiGrpcClient } from '@mysten/sui/grpc';
-import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
-import { verifyTransactionSignature } from '@mysten/sui/verify';
-
-// create a client connected to testnet
-const client = new SuiGrpcClient({
-	network: 'testnet',
-	baseUrl: 'https://fullnode.testnet.sui.io:443',
-});
-const tx = new Transaction();
-// ... add some transactions...
-const bytes = await tx.build({ client });
-
-const keypair = new Ed25519Keypair();
-const { signature } = await keypair.signTransaction(bytes);
-
-await verifyTransactionSignature(bytes, signature, {
-	// optionally verify that the signature is valid for a specific address
-	address: keypair.toSuiAddress(),
-});
-```
-
-## Verifying zkLogin signatures
-
-ZkLogin signatures can't be verified purely on the client. When verifying a zkLogin signature, the
-SDK uses the GraphQL API to verify the signature. This works for Mainnet signatures without any
-additional configuration.
-
-For Testnet signatures, you need to provide a Testnet GraphQL Client:
-
-```typescript
-import { SuiGraphQLClient } from '@mysten/sui/graphql';
-import { verifyPersonalMessageSignature } from '@mysten/sui/verify';
-
-const publicKey = await verifyPersonalMessageSignature(message, zkSignature, {
-	client: new SuiGraphQLClient({
-		url: 'https://graphql.testnet.sui.io/graphql',
-	}),
-});
-```
-
-For some zklogin accounts, there are two valid addresses for a given set of inputs. This means you
-might run into issues if you try to compare the address returned by `publicKey.toSuiAddress()`
-directly with an expected address.
-
-Instead, you can either pass in the expected address during verification, or use the
-`publicKey.verifyAddress(address)` method:
-
-```typescript
-import { SuiGraphQLClient } from '@mysten/sui/graphql';
-import { verifyPersonalMessageSignature } from '@mysten/sui/verify';
-
-const publicKey = await verifyPersonalMessageSignature(message, zkSignature, {
-	client: new SuiGraphQLClient({
-		url: 'https://graphql.testnet.sui.io/graphql',
-	}),
-	// Pass in the expected address, and the verification method will throw an error if the signature is not valid for the provided address
-	address: '0x...expectedAddress',
-});
-// or
-
-if (!publicKey.verifyAddress('0x...expectedAddress')) {
-	throw new Error('Signature was valid, but was signed by a different key pair');
-}
-```
-
-Both of these methods will check the signature against both the standard and
-[legacy versions of the zklogin address](https://sdk.mystenlabs.com/sui/zklogin#legacy-addresses).
+See
+[Deriving a `Keypair` from a Bech32 encoded secret key](#deriving-a-keypair-from-a-bech32-encoded-secret-key)
+for working with encoded secret-key formats.
 
 ## Deriving a key pair from a mnemonic
 
@@ -245,16 +134,7 @@ switch (scheme) {
 See [SIP-15](https://github.com/sui-foundation/sips/blob/main/sips/sip-15.md) for additional context
 and motivation.
 
-If you know your keypair scheme, you can use the `fromSecretKey` method of the appropriate keypair
-to directly derive the keypair from the secret key.
-
-```typescript
-const secretKey = 'suiprivkey1qzse89atw7d3zum8ujep76d2cxmgduyuast0y9fu23xcl0mpafgkktllhyc';
-
-const keypair = Ed25519Keypair.fromSecretKey(secretKey);
-```
-
-You can also export a keypair to a Bech32 encoded secret key using the `getSecretKey` method.
+You can export a keypair to a Bech32 encoded secret key using the `getSecretKey` method.
 
 ```typescript
 const secretKey = keypair.getSecretKey();

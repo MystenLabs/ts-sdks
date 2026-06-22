@@ -1,0 +1,86 @@
+---
+title: Ledger Signer
+description: Sign Sui transactions with a Ledger hardware wallet
+keywords:
+  [Ledger, signer, LedgerSigner, hardware wallet, Ed25519, derivation path, Sui, TypeScript SDK]
+---
+
+The `LedgerSigner` signs Sui transactions and personal messages with a
+[Ledger](https://www.ledger.com/) hardware wallet. The private key never leaves the device — each
+signature must be confirmed on the Ledger. The Ledger signer uses the `Ed25519` scheme.
+
+## Installation
+
+```sh npm2yarn
+npm i @mysten/ledger-signer @mysten/ledgerjs-hw-app-sui
+```
+
+You also need a
+[Ledger transport](https://github.com/LedgerHQ/ledger-live/tree/develop/libs/ledgerjs) for your
+environment — for example `@ledgerhq/hw-transport-node-hid` in Node.js or
+`@ledgerhq/hw-transport-webhid` in the browser.
+
+## Creating a signer
+
+Open a transport, wrap it in a `SuiLedgerClient`, then construct the signer with
+`LedgerSigner.fromDerivationPath`. This is async: it fetches the public key from the device so the
+signer can derive the Sui address.
+
+```typescript
+import Transport from '@ledgerhq/hw-transport-node-hid';
+import SuiLedgerClient from '@mysten/ledgerjs-hw-app-sui';
+import { LedgerSigner } from '@mysten/ledger-signer';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+const transport = await Transport.open(undefined);
+const ledgerClient = new SuiLedgerClient(transport);
+const suiClient = new SuiGrpcClient({
+	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
+});
+
+const signer = await LedgerSigner.fromDerivationPath(
+	"m/44'/784'/0'/0'/0'",
+	ledgerClient,
+	suiClient,
+);
+```
+
+### Parameters
+
+`fromDerivationPath(derivationPath, ledgerClient, suiClient)`
+
+| Parameter        | Type                | Description                                           |
+| ---------------- | ------------------- | ----------------------------------------------------- |
+| `derivationPath` | `string`            | BIP-32 derivation path (Sui uses coin type `784`)     |
+| `ledgerClient`   | `SuiLedgerClient`   | A `SuiLedgerClient` wrapping an open Ledger transport |
+| `suiClient`      | `ClientWithCoreApi` | A Sui client used to resolve transaction data         |
+
+## Usage
+
+Derive the address, then sign a transaction or personal message. The user confirms each signature on
+the device.
+
+```typescript
+import { Transaction } from '@mysten/sui/transactions';
+
+// Derive the Sui address
+const address = signer.toSuiAddress();
+
+// Build and sign a transaction
+const transaction = new Transaction();
+const transactionBytes = await transaction.build({ client: suiClient });
+const { signature } = await signer.signTransaction(transactionBytes);
+
+// Or sign a personal message
+const message = new TextEncoder().encode('Hello, Ledger Signer!');
+await signer.signPersonalMessage(message);
+```
+
+<Callout type="warn">
+	The Ledger signer only supports `signTransaction` and `signPersonalMessage`. The generic `sign`
+	and `signWithIntent` methods are not supported and throw an error, because the device only signs
+	recognized transaction and message payloads.
+</Callout>
+
+See [Cryptography](/sui/cryptography) for the signing and verification API shared by all signers.

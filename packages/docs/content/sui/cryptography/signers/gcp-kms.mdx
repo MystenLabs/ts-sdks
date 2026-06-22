@@ -1,0 +1,96 @@
+---
+title: GCP KMS Signer
+description: Sign Sui transactions with a key stored in Google Cloud Key Management Service
+keywords:
+  [GCP KMS, signer, GcpKmsSigner, KMS, Secp256k1, Secp256r1, Google Cloud, Sui, TypeScript SDK]
+---
+
+The `GcpKmsSigner` signs Sui transactions using a key held in
+[Google Cloud KMS](https://cloud.google.com/kms). The private key never leaves GCP — the signer
+sends the message digest to KMS and receives the signature back.
+
+GCP KMS supports the `Secp256k1` and `Secp256r1` schemes. The signature scheme is determined by the
+curve of the KMS key (`EC_SIGN_SECP256K1_SHA256` → `Secp256k1`, `EC_SIGN_P256_SHA256` →
+`Secp256r1`).
+
+## Installation
+
+```sh npm2yarn
+npm i @mysten/gcp-kms-signer
+```
+
+## Creating a signer
+
+Construct the signer with `GcpKmsSigner.fromOptions`, identifying the key by its project, location,
+key ring, key, and version. This is async: it fetches the public key from KMS so the signer can
+derive the Sui address.
+
+```typescript
+import { GcpKmsSigner } from '@mysten/gcp-kms-signer';
+
+const signer = await GcpKmsSigner.fromOptions({
+	projectId: 'your-google-project-id',
+	location: 'your-google-location',
+	keyRing: 'your-google-keyring',
+	cryptoKey: 'your-google-key-name',
+	cryptoKeyVersion: 'your-google-key-version',
+});
+```
+
+### Parameters
+
+`fromOptions(options)`
+
+| Parameter          | Type     | Description           |
+| ------------------ | -------- | --------------------- |
+| `projectId`        | `string` | The GCP project ID    |
+| `location`         | `string` | The GCP location      |
+| `keyRing`          | `string` | The GCP key ring name |
+| `cryptoKey`        | `string` | The GCP key name      |
+| `cryptoKeyVersion` | `string` | The GCP key version   |
+
+If you already have a fully-qualified KMS version name, construct the signer directly with
+`GcpKmsSigner.fromVersionName`:
+
+```typescript
+const signer = await GcpKmsSigner.fromVersionName(
+	'projects/p/locations/l/keyRings/r/cryptoKeys/k/cryptoKeyVersions/1',
+);
+```
+
+## Usage
+
+Once created, the signer behaves like any other [`Signer`](../index) — derive the address, sign
+messages, and sign or execute transactions.
+
+```typescript
+// Derive the Sui address
+const address = signer.getPublicKey().toSuiAddress();
+
+// Sign a personal message
+const message = new TextEncoder().encode('Hello, GCP KMS Signer!');
+const { signature } = await signer.signPersonalMessage(message);
+
+// Verify the signature
+const isValid = await signer.getPublicKey().verifyPersonalMessage(message, signature);
+console.log(isValid); // true
+```
+
+To sign and submit a transaction, pass the signer to a client:
+
+```typescript
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+const client = new SuiGrpcClient({
+	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
+});
+
+const { digest } = await client.core.signAndExecuteTransaction({
+	transaction,
+	signer,
+});
+```
+
+See [Cryptography](/sui/cryptography) for the full signing and verification API shared by all
+signers.
