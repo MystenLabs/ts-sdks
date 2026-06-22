@@ -55,6 +55,11 @@ const config = {
 				destination: '/dapp-kit/slush',
 				statusCode: 302,
 			},
+			{
+				source: '/sui/cryptography/webcrypto-signer',
+				destination: '/sui/cryptography/signers/webcrypto',
+				statusCode: 302,
+			},
 		];
 	},
 };
