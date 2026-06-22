@@ -71,8 +71,11 @@ export class ZkLoginSigner extends Signer {
 		}
 	}
 
-	// Derived lazily and memoized so subclasses that override `getPublicKey()` (e.g. EnokiKeypair)
-	// don't pay for a derivation they never use.
+	// Shared derive-and-memoize used by both the constructor's address validation and getPublicKey().
+	// It is `#private` (non-virtual) on purpose: the constructor must derive the *base* address even
+	// when a subclass overrides getPublicKey() — calling the overridable getPublicKey() from the
+	// constructor would dispatch to the subclass before its fields are initialized. Laziness also
+	// means subclasses that override getPublicKey() (e.g. EnokiKeypair) never pay for this derivation.
 	#derivePublicKey(): ZkLoginPublicIdentifier {
 		return (this.#publicKey ??= toZkLoginPublicIdentifier(
 			BigInt(this.#inputs.addressSeed),
