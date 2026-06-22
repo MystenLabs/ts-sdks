@@ -1,17 +1,13 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { SignatureWithBytes } from '@mysten/sui/cryptography';
-import { Signer } from '@mysten/sui/cryptography';
+import type { Signer } from '@mysten/sui/cryptography';
 import type { ZkLoginSignatureInputs } from '@mysten/sui/zklogin';
-import { getZkLoginSignature, ZkLoginPublicIdentifier } from '@mysten/sui/zklogin';
+import { ZkLoginPublicIdentifier, ZkLoginSigner } from '@mysten/sui/zklogin';
 
 export class EnokiPublicKey extends ZkLoginPublicIdentifier {}
 
-export class EnokiKeypair extends Signer {
-	#proof: ZkLoginSignatureInputs;
-	#maxEpoch: number;
-	#ephemeralKeypair: Signer;
+export class EnokiKeypair extends ZkLoginSigner {
 	#publicKey: EnokiPublicKey;
 
 	constructor(input: {
@@ -20,54 +16,19 @@ export class EnokiKeypair extends Signer {
 		proof: ZkLoginSignatureInputs;
 		ephemeralKeypair: Signer;
 	}) {
-		super();
-		this.#proof = input.proof;
-		this.#maxEpoch = input.maxEpoch;
-		this.#ephemeralKeypair = input.ephemeralKeypair;
-		this.#publicKey = EnokiPublicKey.fromProof(input.address, input.proof);
-	}
-
-	async sign(data: Uint8Array) {
-		return this.#ephemeralKeypair.sign(data);
-	}
-
-	async signPersonalMessage(bytes: Uint8Array): Promise<SignatureWithBytes> {
-		const { bytes: signedBytes, signature: userSignature } =
-			await this.#ephemeralKeypair.signPersonalMessage(bytes);
-
-		const zkSignature = getZkLoginSignature({
-			inputs: this.#proof,
-			maxEpoch: this.#maxEpoch,
-			userSignature,
+		// Resolve the public key exactly as before — `fromProof` matches the proof against the
+		// supplied address and validates it — then bridge that to the base's `legacyAddress` flag.
+		const publicKey = EnokiPublicKey.fromProof(input.address, input.proof);
+		super({
+			ephemeralSigner: input.ephemeralKeypair,
+			maxEpoch: input.maxEpoch,
+			inputs: input.proof,
+			legacyAddress: publicKey.legacyAddress,
 		});
-
-		return {
-			bytes: signedBytes,
-			signature: zkSignature,
-		};
+		this.#publicKey = publicKey;
 	}
 
-	async signTransaction(bytes: Uint8Array): Promise<SignatureWithBytes> {
-		const { bytes: signedBytes, signature: userSignature } =
-			await this.#ephemeralKeypair.signTransaction(bytes);
-
-		const zkSignature = getZkLoginSignature({
-			inputs: this.#proof,
-			maxEpoch: this.#maxEpoch,
-			userSignature,
-		});
-
-		return {
-			bytes: signedBytes,
-			signature: zkSignature,
-		};
-	}
-
-	getKeyScheme() {
-		return this.#ephemeralKeypair.getKeyScheme();
-	}
-
-	getPublicKey() {
+	override getPublicKey(): EnokiPublicKey {
 		return this.#publicKey;
 	}
 }
