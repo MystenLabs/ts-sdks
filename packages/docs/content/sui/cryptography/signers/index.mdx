@@ -1,16 +1,15 @@
 ---
 title: Signers
-description:
-  External signer packages for AWS KMS, GCP KMS, Ledger hardware wallets, and the Web Crypto API
+description: External signer packages for AWS KMS, GCP KMS, Ledger, and the Web Crypto API
 keywords:
   [signers, Signer, AWS KMS, GCP KMS, Ledger, Web Crypto, KMS, hardware wallet, Sui, TypeScript SDK]
 ---
 
 In addition to the in-process [keypairs](/sui/cryptography/keypairs) built into `@mysten/sui`, the
 SDK ecosystem publishes standalone signer packages that keep the private key outside your
-application — in a cloud key-management service (KMS), on a hardware wallet, or as a non-extractable
-browser key. Each one extends the same [`Signer`](/sui/cryptography) base class, so it can be used
-anywhere a keypair can.
+application, in a cloud key-management service (KMS), on a hardware wallet, or as a non-extractable
+browser key. Each one extends the same [`Signer`](/sui/cryptography) base class, so it works
+anywhere a keypair does.
 
 ## Available signers
 
@@ -27,7 +26,7 @@ key (`ECC_NIST_P256` → `Secp256r1`, `ECC_SECG_P256K1` → `Secp256k1`).
 ## Shared interface
 
 Because every signer extends `Signer`, the signing API is identical regardless of where the key is
-held — only the way you construct the signer differs:
+held; only the way you construct the signer differs:
 
 ```typescript
 // Derive the address
@@ -53,9 +52,9 @@ share.
 Each signer exposes a static factory rather than a public constructor, because preparing the signer
 requires an async round-trip to fetch the public key from the KMS or device:
 
-- `AwsKmsSigner.fromKeyId(keyId, options)` — see [AWS KMS Signer](/sui/cryptography/signers/aws-kms)
-- `GcpKmsSigner.fromOptions(options)` — see [GCP KMS Signer](/sui/cryptography/signers/gcp-kms)
-- `LedgerSigner.fromDerivationPath(path, ledgerClient, suiClient)` — see
-  [Ledger Signer](/sui/cryptography/signers/ledger)
-- `WebCryptoSigner.generate()` / `WebCryptoSigner.import(exported)` — see
-  [Web Crypto Signer](/sui/cryptography/signers/webcrypto)
+- `AwsKmsSigner.fromKeyId(keyId, options)`. See [AWS KMS Signer](/sui/cryptography/signers/aws-kms).
+- `GcpKmsSigner.fromOptions(options)`. See [GCP KMS Signer](/sui/cryptography/signers/gcp-kms).
+- `LedgerSigner.fromDerivationPath(path, ledgerClient, suiClient)`. See
+  [Ledger Signer](/sui/cryptography/signers/ledger).
+- `WebCryptoSigner.generate()` and `WebCryptoSigner.import(exported)`. See
+  [Web Crypto Signer](/sui/cryptography/signers/webcrypto).

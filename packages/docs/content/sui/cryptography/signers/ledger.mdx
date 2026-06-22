@@ -6,8 +6,8 @@ keywords:
 ---
 
 The `LedgerSigner` signs Sui transactions and personal messages with a
-[Ledger](https://www.ledger.com/) hardware wallet. The private key never leaves the device — each
-signature must be confirmed on the Ledger. The Ledger signer uses the `Ed25519` scheme.
+[Ledger](https://www.ledger.com/) hardware wallet. The private key never leaves the device; you
+confirm each signature on the Ledger. The Ledger signer uses the `Ed25519` scheme.
 
 ## Installation
 
@@ -17,7 +17,7 @@ npm i @mysten/ledger-signer @mysten/ledgerjs-hw-app-sui
 
 You also need a
 [Ledger transport](https://github.com/LedgerHQ/ledger-live/tree/develop/libs/ledgerjs) for your
-environment — for example `@ledgerhq/hw-transport-node-hid` in Node.js or
+environment, for example `@ledgerhq/hw-transport-node-hid` in Node.js or
 `@ledgerhq/hw-transport-webhid` in the browser.
 
 ## Creating a signer

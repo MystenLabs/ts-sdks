@@ -5,7 +5,7 @@ keywords: [AWS KMS, signer, AwsKmsSigner, KMS, Secp256k1, Secp256r1, Sui, TypeSc
 ---
 
 The `AwsKmsSigner` signs Sui transactions using a key held in
-[AWS Key Management Service](https://aws.amazon.com/kms/). The private key never leaves AWS — the
+[AWS Key Management Service](https://aws.amazon.com/kms/). The private key never leaves AWS; the
 signer sends the message digest to KMS and receives the signature back.
 
 AWS KMS supports the `Secp256k1` and `Secp256r1` schemes. The signature scheme is determined by the
@@ -53,8 +53,8 @@ const signer = await AwsKmsSigner.fromKeyId(AWS_KMS_KEY_ID, {
 
 ## Usage
 
-Once created, the signer behaves like any other [`Signer`](../index) — derive the address, sign
-messages, and sign or execute transactions.
+Once created, the signer behaves like any other [`Signer`](/sui/cryptography): derive the address,
+sign messages, and sign or execute transactions.
 
 ```typescript
 // Derive the Sui address

@@ -7,8 +7,8 @@ keywords:
 ---
 
 A `Keypair` holds a Sui private key in process and signs with it. It is the simplest
-[`Signer`](/sui/cryptography) to use — ideal for scripts, backends, and tests where you manage the
-secret key yourself. For the signing and verification API shared by all signers, see
+[`Signer`](/sui/cryptography) to use. It is ideal for scripts, backends, and tests where you manage
+the secret key yourself. For the signing and verification API shared by all signers, see
 [Cryptography](/sui/cryptography); this page focuses on creating keypairs and deriving them from
 mnemonics and secret keys.
 
@@ -59,8 +59,8 @@ See [Cryptography](/sui/cryptography) for the full signing and verification API,
 ## Public keys
 
 Each `Keypair` has an associated `PublicKey`, which you use to verify signatures or to retrieve its
-Sui address. Access it from a `Keypair` with `getPublicKey()`. To recreate a keypair — and therefore
-its public key — from saved key material, reconstruct it from the secret key:
+Sui address. Access it from a `Keypair` with `getPublicKey()`. To recreate a keypair, and therefore
+its public key, from saved key material, reconstruct it from the secret key:
 
 ```typescript
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
@@ -105,7 +105,7 @@ const keypair = Ed25519Keypair.fromSecretKey(secretKey);
 ```
 
 You can also use the `decodeSuiPrivateKey` function to decode the secret key and determine the
-keyScheme, and get the key pair's private key bytes, which can be used to instantiate the
+keyScheme, and get the key pair's private key bytes, which you can use to instantiate the
 appropriate `Keypair` class.
 
 ```typescript
