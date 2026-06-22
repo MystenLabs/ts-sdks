@@ -20,8 +20,8 @@ anywhere a keypair does.
 | `LedgerSigner`    | `@mysten/ledger-signer`    | Ed25519                | [Ledger hardware wallet](/sui/cryptography/signers/ledger)      |
 | `WebCryptoSigner` | `@mysten/webcrypto-signer` | Secp256r1              | [Browser Web Crypto store](/sui/cryptography/signers/webcrypto) |
 
-For the AWS and GCP signers, the signature scheme is determined by the curve of the underlying KMS
-key (`ECC_NIST_P256` → `Secp256r1`, `ECC_SECG_P256K1` → `Secp256k1`).
+For the AWS and GCP signers, the curve of the underlying KMS key determines the signature scheme
+(`ECC_NIST_P256` → `Secp256r1`, `ECC_SECG_P256K1` → `Secp256k1`).
 
 ## Shared interface
 

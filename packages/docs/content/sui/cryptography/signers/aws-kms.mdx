@@ -8,8 +8,8 @@ The `AwsKmsSigner` signs Sui transactions using a key held in
 [AWS Key Management Service](https://aws.amazon.com/kms/). The private key never leaves AWS; the
 signer sends the message digest to KMS and receives the signature back.
 
-AWS KMS supports the `Secp256k1` and `Secp256r1` schemes. The signature scheme is determined by the
-curve of the KMS key (`ECC_SECG_P256K1` → `Secp256k1`, `ECC_NIST_P256` → `Secp256r1`).
+AWS KMS supports the `Secp256k1` and `Secp256r1` schemes. The curve of the KMS key determines the
+signature scheme (`ECC_SECG_P256K1` → `Secp256k1`, `ECC_NIST_P256` → `Secp256r1`).
 
 <Callout type="warn">
 	The AWS KMS Signer requires Node.js >= 22 (the package's `engines.node` constraint) and relies on

@@ -51,8 +51,8 @@ On top of those, `Signer` provides the methods you typically call:
 There are two broad families of signer:
 
 - **Key pairs** hold the private key in process. `Keypair` extends `Signer` and adds secret-key
-  import/export (`getSecretKey`, `fromSecretKey`). This is the simplest option for scripts,
-  backends, and tests. See [Key pairs](/sui/cryptography/keypairs).
+  import/export (`getSecretKey`, `fromSecretKey`). This is the easiest option for scripts, backends,
+  and tests. See [Key pairs](/sui/cryptography/keypairs).
 - **External signers** keep the private key outside your application, in a KMS, on a hardware
   wallet, or as a non-extractable browser key. They extend `Signer` directly. See
   [Signers](/sui/cryptography/signers).
@@ -226,7 +226,7 @@ Both methods check the signature against the standard and
 ## Choosing an implementation
 
 - **[Key pairs](/sui/cryptography/keypairs)**: `Ed25519Keypair`, `Secp256k1Keypair`, and
-  `Secp256r1Keypair` hold the private key in process. The simplest option when you manage the secret
+  `Secp256r1Keypair` hold the private key in process. The easiest option when you manage the secret
   key yourself. Covers deriving keypairs from mnemonics and secret keys.
 - **[Multi-signature](/sui/cryptography/multisig)**: combine signatures from several public keys
   under a configurable threshold using `MultiSigPublicKey`.

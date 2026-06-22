@@ -17,9 +17,9 @@ keywords:
 For cases where you need to create keypairs directly within client apps, you can use the Web Crypto
 Signer. This signer leverages the
 [Web Crypto API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Crypto_API) to provide a
-secure and efficient way to generate and manage cryptographic keys in the browser. The generated
-keys are `Secp256r1` keys which can be persisted between sessions, and are not extractable by
-client-side code (including extensions).
+secure and efficient way to generate and manage cryptographic keys in the browser. It generates
+`Secp256r1` keys that you can persist between sessions, and that client-side code (including
+extensions) cannot extract.
 
 Common use cases for the Web Crypto Signer include:
 

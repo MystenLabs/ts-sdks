@@ -9,9 +9,8 @@ The `GcpKmsSigner` signs Sui transactions using a key held in
 [Google Cloud KMS](https://cloud.google.com/kms). The private key never leaves GCP; the signer sends
 the message digest to KMS and receives the signature back.
 
-GCP KMS supports the `Secp256k1` and `Secp256r1` schemes. The signature scheme is determined by the
-curve of the KMS key (`EC_SIGN_SECP256K1_SHA256` → `Secp256k1`, `EC_SIGN_P256_SHA256` →
-`Secp256r1`).
+GCP KMS supports the `Secp256k1` and `Secp256r1` schemes. The curve of the KMS key determines the
+signature scheme (`EC_SIGN_SECP256K1_SHA256` → `Secp256k1`, `EC_SIGN_P256_SHA256` → `Secp256r1`).
 
 ## Installation
 
