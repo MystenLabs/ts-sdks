@@ -53,6 +53,22 @@ const address = computeZkLoginAddress({
 });
 ```
 
+## Computing the address seed
+
+To compute the address seed directly, use `genAddressSeed`:
+
+```typescript
+import { genAddressSeed } from '@mysten/sui/zklogin';
+
+const addressSeed = genAddressSeed(userSalt, claimName, claimValue, aud);
+```
+
+The `claimName`, `claimValue`, and `aud` parameters must not contain backslashes (`\`),
+double-quotes (`"`), or control characters (codepoints below `0x20`). `genAddressSeed` throws an
+error if any of these characters are present, as they indicate improperly escaped JSON values.
+Ensure you pass the raw, unescaped claim values (for example, as decoded from the JWT payload), not
+JSON-encoded strings.
+
 To use zkLogin inside a multisig, see the [Multisig Guide](../sui/cryptography/multisig) for more
 details.
 
