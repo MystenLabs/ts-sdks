@@ -3,3 +3,54 @@
 @import 'fumadocs-ui/css/preset.css';
 
 @source '../node_modules/fumadocs-ui/dist/**/*.js';
+
+/* ---- Kapa sidebar content shift ---- */
+html.kapa-sidebar-open body {
+  width: calc(100vw - 500px) !important;
+  overflow-x: hidden;
+  transition: width 0.3s ease;
+}
+
+html.kapa-sidebar-open nav {
+  right: 500px !important;
+  overflow: hidden;
+  transition: right 0.3s ease;
+}
+
+html.kapa-sidebar-open .kapa-trigger-btn {
+  display: none !important;
+}
+
+nav {
+  transition: right 0.3s ease;
+}
+
+body {
+  transition: width 0.3s ease;
+}
+
+@media (max-width: 768px) {
+  html.kapa-sidebar-open body {
+    width: 100vw !important;
+  }
+}
+
+/* Kapa trigger button */
+.kapa-trigger-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  background: var(--fd-background);
+  color: var(--fd-foreground);
+  font-weight: 500;
+  font-size: 0.875rem;
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+  border: 1px solid var(--fd-border);
+  transition: background-color 0.15s;
+}
+
+.kapa-trigger-btn:hover {
+  background: var(--fd-muted);
+}
