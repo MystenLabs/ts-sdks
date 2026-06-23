@@ -161,3 +161,11 @@ For wallet builders and SDK maintainers building on the Sui ecosystem:
   adapting to `reportTransactionEffects` removal and new core API response format
 - **[SDK maintainers](/sui/migrations/sui-2.0/sdk-maintainers):** Guide for SDK authors migrating to
   `ClientWithCoreApi` and the new transport-agnostic architecture
+
+## Non-existent objects 
+
+When migrating from the v1 SDK to the v2 SDK, review any code paths that read objects or dynamic fields that may not exist.
+
+In v1, methods such as `core.getObject` and `getDynamicField` return `null` when the requested object or field does not exist. In v2, the same operations throw an exception instead. Applications that previously relied on `null` checks should be updated to handle exceptions appropriately, either through try/catch blocks or by validating object existence before attempting to read it.
+
+This behavioral change may require updates to error handling logic to avoid unexpected runtime failures after migration.
