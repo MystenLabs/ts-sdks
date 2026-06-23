@@ -51,7 +51,7 @@
 	"devDependencies": {
 		"@hono/node-server": "^2.0.4",
 		"@types/node": "^25.9.3",
-		"hono": "^4.12.25",
+		"hono": ">=4.12.18",
 		"typescript": "^6.0.3",
 		"vitest": "^4.1.8"
 	},
