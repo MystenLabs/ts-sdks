@@ -228,15 +228,13 @@ Both methods check the signature against the standard and
 - **[Key pairs](/sui/cryptography/keypairs)**: `Ed25519Keypair`, `Secp256k1Keypair`, and
   `Secp256r1Keypair` hold the private key in process. The easiest option when you manage the secret
   key yourself. Covers deriving keypairs from mnemonics and secret keys.
-- **[Multi-signature](/sui/cryptography/multisig)**: combine signatures from several public keys
-  under a configurable threshold using `MultiSigPublicKey`.
-- **[Passkey](/sui/cryptography/passkey)**: sign with a WebAuthn passkey (biometric or platform
-  authenticator) through `PasskeyKeypair`.
-- **[Signers](/sui/cryptography/signers)**: external signer packages that keep the private key
-  outside your application, including cloud KMS ([AWS](/sui/cryptography/signers/aws-kms),
-  [GCP](/sui/cryptography/signers/gcp-kms)), a [Ledger](/sui/cryptography/signers/ledger) hardware
-  wallet, and non-extractable browser keys with the
-  [Web Crypto](/sui/cryptography/signers/webcrypto) signer.
+- **[Signers](/sui/cryptography/signers)**: other implementations of the `Signer` interface,
+  including signer packages that keep the private key outside your application — cloud KMS
+  ([AWS](/sui/cryptography/signers/aws-kms), [GCP](/sui/cryptography/signers/gcp-kms)), a
+  [Ledger](/sui/cryptography/signers/ledger) hardware wallet, and non-extractable browser keys with
+  the [Web Crypto](/sui/cryptography/signers/webcrypto) signer — as well as
+  [passkeys](/sui/cryptography/signers/passkey) and
+  [multi-signature](/sui/cryptography/signers/multisig).
 
 If you just need to sign in a script or server and are comfortable managing the secret key yourself,
 start with [Key pairs](/sui/cryptography/keypairs). If the key must never live in your application's
