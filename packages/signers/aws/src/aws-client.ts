@@ -38,12 +38,46 @@ interface KmsCommands {
 	};
 }
 
-export interface AwsClientOptions extends Partial<ConstructorParameters<typeof AwsClient>[0]> {}
+/**
+ * A resolved set of AWS credentials. Structurally compatible with the AWS SDK's
+ * `AwsCredentialIdentity`, so providers from `@aws-sdk/credential-providers` can be passed directly.
+ */
+export interface AwsCredentialIdentity {
+	accessKeyId: string;
+	secretAccessKey: string;
+	sessionToken?: string;
+}
+
+/**
+ * An async function that resolves AWS credentials. Compatible with the AWS SDK's
+ * `AwsCredentialIdentityProvider` (e.g. the providers from `@aws-sdk/credential-providers`
+ * such as `fromNodeProviderChain()`), enabling SSO, IAM roles, and automatic refresh of
+ * temporary credentials.
+ */
+export type AwsCredentialProvider = () => Promise<AwsCredentialIdentity>;
+
+export interface AwsClientOptions extends Partial<ConstructorParameters<typeof AwsClient>[0]> {
+	/**
+	 * An optional async credential provider. When supplied, credentials are resolved before
+	 * each request instead of being captured statically at construction — enabling the standard
+	 * AWS credential provider chain (SSO, IAM roles, container/instance metadata) and letting
+	 * temporary credentials refresh automatically. Compatible with the providers exported by
+	 * `@aws-sdk/credential-providers`.
+	 */
+	credentials?: AwsCredentialProvider;
+}
 
 export class AwsKmsClient extends AwsClient {
+	/** Optional async credential provider, resolved before each request. */
+	readonly #credentialsProvider?: AwsCredentialProvider;
+
 	constructor(options: AwsClientOptions = {}) {
-		if (!options.accessKeyId || !options.secretAccessKey) {
-			throw new Error('AWS Access Key ID and Secret Access Key are required');
+		const hasStaticCredentials = Boolean(options.accessKeyId && options.secretAccessKey);
+
+		if (!hasStaticCredentials && !options.credentials) {
+			throw new Error(
+				'Either static credentials (`accessKeyId` and `secretAccessKey`) or a `credentials` provider is required',
+			);
 		}
 
 		if (!options.region) {
@@ -51,12 +85,35 @@ export class AwsKmsClient extends AwsClient {
 		}
 
 		super({
-			region: options.region,
-			accessKeyId: options.accessKeyId,
-			secretAccessKey: options.secretAccessKey,
-			service: 'kms',
 			...options,
+			service: 'kms',
+			// aws4fetch requires non-null credentials at construction. When a provider is used,
+			// pass placeholders here — `runCommand` resolves the real credentials before each
+			// request via `#resolveCredentials`.
+			accessKeyId: options.accessKeyId ?? '',
+			secretAccessKey: options.secretAccessKey ?? '',
 		});
+
+		this.#credentialsProvider = options.credentials;
+	}
+
+	/**
+	 * Resolves fresh credentials from the configured provider and applies them before signing
+	 * the next request. No-op when static credentials were supplied instead.
+	 *
+	 * This is what lets temporary credentials (SSO, IAM roles, STS) refresh: provider chains
+	 * memoize internally and only hit the network when the cached credentials are near expiry,
+	 * so calling this before every request is cheap and correct.
+	 */
+	async #resolveCredentials() {
+		if (!this.#credentialsProvider) {
+			return;
+		}
+
+		const credentials = await this.#credentialsProvider();
+		this.accessKeyId = credentials.accessKeyId;
+		this.secretAccessKey = credentials.secretAccessKey;
+		this.sessionToken = credentials.sessionToken;
 	}
 
 	async getPublicKey(keyId: string) {
@@ -92,6 +149,9 @@ export class AwsKmsClient extends AwsClient {
 		if (!region) {
 			throw new Error('Region is required');
 		}
+
+		// Resolve fresh credentials before signing (no-op unless a provider was configured).
+		await this.#resolveCredentials();
 
 		const res = await this.fetch(`https://kms.${region}.amazonaws.com/`, {
 			headers: {
