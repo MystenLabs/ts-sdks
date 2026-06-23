@@ -76,7 +76,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 				<KapaSidebar />
 				<Script
 					src="https://widget.kapa.ai/kapa-widget.bundle.js"
-					data-website-id="71684c7d-f008-4145-b4e0-67b2477287fc"
+					data-website-id="f40e82ec-5fe9-4776-a287-f889da70eaaa"
 					data-project-name="Sui SDK Knowledge"
 					data-project-color="#298DFF"
 					data-button-hide="true"

@@ -19,7 +19,7 @@ const OPEN_CLASS = 'kapa-sidebar-open';
 export function KapaSidebar() {
 	useEffect(() => {
 		let kapaOpen = false;
-		let hookedRef: typeof window.Kapa?.open | null = null;
+		let hookedRef: ((query?: string) => void) | null = null;
 
 		function syncClass() {
 			document.documentElement.classList.toggle(OPEN_CLASS, kapaOpen);
