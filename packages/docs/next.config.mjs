@@ -60,6 +60,16 @@ const config = {
 				destination: '/sui/cryptography/signers/webcrypto',
 				statusCode: 302,
 			},
+			{
+				source: '/sui/cryptography/multisig',
+				destination: '/sui/cryptography/signers/multisig',
+				statusCode: 302,
+			},
+			{
+				source: '/sui/cryptography/passkey',
+				destination: '/sui/cryptography/signers/passkey',
+				statusCode: 302,
+			},
 		];
 	},
 };

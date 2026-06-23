@@ -1,4 +1,4 @@
 {
 	"title": "Signers",
-	"pages": ["index", "aws-kms", "gcp-kms", "ledger", "webcrypto"]
+	"pages": ["index", "aws-kms", "gcp-kms", "ledger", "webcrypto", "passkey", "multisig"]
 }
