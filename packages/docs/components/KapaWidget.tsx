@@ -75,37 +75,20 @@ export function KapaSidebar() {
 }
 
 export function KapaButton() {
-	const [mounted, setMounted] = useState(false);
-
-	useEffect(() => {
-		setMounted(true);
-	}, []);
-
-	if (!mounted) return null;
-
 	return (
 		<button
 			type="button"
 			onClick={() => window.Kapa?.open()}
-			className="kapa-trigger-btn"
+			className="kapa-floating-btn"
 		>
 			<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-				<path d="M15 4V2" />
-				<path d="M15 16v-2" />
-				<path d="M8 9h2" />
-				<path d="M20 9h2" />
-				<path d="M17.8 11.8L19 13" />
-				<path d="M15 9h.01" />
-				<path d="M17.8 6.2L19 5" />
-				<path d="M11 6.2L9.7 5" />
-				<path d="M11 11.8L9.7 13" />
 				<path d="M8 15h8a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2z" />
 				<path d="M9 18h6" />
 				<path d="M10 22h4" />
 				<path d="M10 18v4" />
 				<path d="M14 18v4" />
 			</svg>
-			<span className="hidden lg:inline">Ask SDK AI</span>
+			<span>Ask SDK AI</span>
 		</button>
 	);
 }

@@ -1,7 +1,6 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 import type { BaseLayoutProps } from 'fumadocs-ui/layouts/shared';
-import { KapaButton } from '@/components/KapaWidget';
 
 /**
  * Shared layout configurations
@@ -13,7 +12,6 @@ import { KapaButton } from '@/components/KapaWidget';
 export const baseOptions: BaseLayoutProps = {
 	nav: {
 		title: 'Mysten Labs SDKs',
-		children: <KapaButton />,
 	},
 	links: [
 		{

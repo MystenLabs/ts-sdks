@@ -9,7 +9,7 @@ import { Inter } from 'next/font/google';
 import Link from 'next/link';
 import Script from 'next/script';
 import CloudFlareAnalytics from '@/components/CloudFlareAnalytics';
-import { KapaSidebar } from '@/components/KapaWidget';
+import { KapaSidebar, KapaButton } from '@/components/KapaWidget';
 
 export const metadata: Metadata = {
 	title: {
@@ -73,15 +73,20 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 				</Banner>
 				<RootProvider>{children}</RootProvider>
 				<CloudFlareAnalytics />
+				<KapaButton />
 				<KapaSidebar />
 				<Script
 					src="https://widget.kapa.ai/kapa-widget.bundle.js"
 					data-website-id="f40e82ec-5fe9-4776-a287-f889da70eaaa"
 					data-project-name="Sui SDK Knowledge"
 					data-project-color="#298DFF"
-					data-button-hide="true"
+					data-button-hide="false"
+					data-launcher-button-image="/logo.png"
+					data-launcher-button-image-height="24"
+					data-launcher-button-image-width="24"
 					data-view-mode="sidebar"
-					data-modal-title="Ask SDK AI"
+					data-modal-image="/logo.png"
+					data-modal-title="Ask Mysten Labs SDK AI"
 					data-modal-ask-ai-input-placeholder="Ask me anything about the Sui SDKs!"
 					data-modal-example-questions="How do I create a transaction in TypeScript?,How do I connect a wallet with dApp Kit?,How do I query objects with the Sui SDK?,How do I use BCS encoding?"
 					data-modal-overlay-hidden="true"

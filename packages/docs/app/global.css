@@ -54,3 +54,33 @@ body {
 .kapa-trigger-btn:hover {
   background: var(--fd-muted);
 }
+
+/* Floating Kapa button (bottom-right) */
+.kapa-floating-btn {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 999;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  background: #298DFF;
+  color: white;
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 0.75rem 1.25rem;
+  border-radius: 9999px;
+  border: none;
+  box-shadow: 0 4px 12px rgba(41, 141, 255, 0.4);
+  transition: background-color 0.15s, box-shadow 0.15s;
+}
+
+.kapa-floating-btn:hover {
+  background: #1B6FD1;
+  box-shadow: 0 6px 16px rgba(41, 141, 255, 0.5);
+}
+
+html.kapa-sidebar-open .kapa-floating-btn {
+  display: none !important;
+}
