@@ -34,20 +34,24 @@
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
 		"build": "rm -rf dist && tsc --noEmit && tsdown",
+		"dev:sponsor-server": "tsx examples/sponsor-server/index.ts",
 		"prettier:check": "prettier -c --ignore-unknown .",
 		"prettier:fix": "prettier -w --ignore-unknown .",
 		"oxlint:check": "oxlint  .",
 		"oxlint:fix": "oxlint --fix",
 		"lint": "pnpm run oxlint:check && pnpm run prettier:check",
 		"lint:fix": "pnpm run oxlint:fix && pnpm run prettier:fix",
-		"test": "pnpm run test:typecheck && pnpm run test:unit",
+		"test": "pnpm run test:typecheck && pnpm run test:examples && pnpm run test:unit",
+		"test:examples": "tsc -p ./examples",
 		"test:typecheck": "tsc -p ./test",
 		"test:unit": "vitest run",
 		"test:e2e": "vitest run --config test/e2e/vitest.config.ts",
 		"vitest": "vitest"
 	},
 	"devDependencies": {
+		"@hono/node-server": "^2.0.4",
 		"@types/node": "^25.9.3",
+		"hono": ">=4.12.18",
 		"typescript": "^6.0.3",
 		"vitest": "^4.1.8"
 	},

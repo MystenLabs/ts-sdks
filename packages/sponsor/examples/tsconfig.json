@@ -1,0 +1,11 @@
+{
+	"extends": "../tsconfig.json",
+	"include": ["**/*.ts", "../src/**/*.ts"],
+	"compilerOptions": {
+		"noEmit": true,
+		"rootDir": "..",
+		"types": ["node"],
+		"module": "preserve",
+		"moduleResolution": "bundler"
+	}
+}
