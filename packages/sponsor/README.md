@@ -8,6 +8,9 @@ the [`@mysten/wallet-sdk` transaction analyzer](https://www.npmjs.com/package/@m
 
 The transaction comes from your user; you decide what's allowed and cover the gas.
 
+Full documentation — the recommended flow, validation, and best practices, split into guides — lives
+at [sdk.mystenlabs.com/sponsor](https://sdk.mystenlabs.com/sponsor).
+
 > **Incubation package.** APIs may change without notice. The examples below are type-checked
 > (`test/examples.ts`).
 

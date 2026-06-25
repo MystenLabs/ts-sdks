@@ -1,0 +1,174 @@
+---
+title: Best Practices
+description: Operate a Sui sponsor with clear policy, gas limits, and outcome handling
+keywords:
+  [
+    Sponsor best practices,
+    gas sponsorship,
+    Sui gas model,
+    storage rebates,
+    KMS,
+    transaction validation,
+  ]
+---
+
+Gas sponsorship is a backend operating boundary. The user supplies transaction bytes; the sponsor
+decides whether to pay for them. Treat every sponsored transaction as untrusted input until your
+policy validates the exact bytes that get signed.
+
+## Prefer user-signed transaction bytes
+
+For public sponsor services, prefer accepting **already-built bytes plus `userSignature`**. The
+client builds the transaction with the sponsor as gas owner, the user signs those final bytes, and
+the sponsor validates, co-signs, and executes.
+
+This keeps the safer trust boundary: the sponsor only signs after the user has signed the exact
+transaction bytes. See [Basic Usage](/sponsor/basic-usage) for the recommended flow.
+
+## Understand the Sui gas model
+
+The Sponsor SDK uses address-balance gas:
+
+```ts
+transaction.setGasOwner(sponsorAddress);
+transaction.setGasPayment([]);
+```
+
+An empty gas payment means the sponsor pays from its SUI address balance. This avoids locking
+specific gas coin objects and allows parallel sponsor execution, but it also means the sponsor's
+address balance is the operating balance at risk.
+
+Fund the address balance intentionally. Faucet coins are coin objects; move SUI into the address
+balance with a transaction such as `0x2::coin::send_funds`.
+
+## Constrain sponsorship to product flows
+
+Never expose an endpoint that blindly co-signs any user transaction. At minimum, constrain:
+
+- **Allowed targets:** Use `allowedFunctions()` for fully qualified `package::module::function`
+  targets, not broad package allowlists, when the product flow only needs one function.
+- **PTB templates:** Validate the full Programmable Transaction Block shape your product expects:
+  command count, command kinds, Move targets, type arguments, argument sources, object ownership,
+  and value movement. A function allowlist is a starting point, not a complete policy.
+- **Gas budget:** Add `gasBudget({ max })` so a valid but expensive transaction cannot use the
+  protocol maximum.
+- **Sender signature:** Add `userSignatureMatchesSender()` so the supplied signature matches the
+  transaction sender before the sponsor co-signs.
+- **Value movement:** Use analyzers such as `balanceFlows` when sponsorship depends on payment,
+  refunds, or tenant-specific balances.
+
+The
+[sponsor server example](https://github.com/MystenLabs/ts-sdks/tree/main/packages/sponsor/examples/sponsor-server)
+uses a basic PTB template: exactly one command, and that command must be a call to one configured
+`package::module::function`. Real products should make the template as specific as their flow
+requires.
+
+## Keep `defaults()`
+
+`defaults()` protects against common sponsorship mistakes:
+
+| Validator                 | Why it matters                                                                |
+| ------------------------- | ----------------------------------------------------------------------------- |
+| `validSender()`           | Rejects unset senders and transactions where the sender is the sponsor        |
+| `onlyAddressBalanceGas()` | Requires empty gas payment so users cannot nominate sponsor gas coin objects  |
+| `gasCoinNotUsed()`        | Rejects commands that use `tx.gas`, which belongs to the sponsor              |
+| `onlySenderWithdrawals()` | Rejects address-balance withdrawals from the sponsor or any non-sender source |
+| `simulationSucceeds()`    | Rejects transactions that dry-run as aborting                                 |
+| `boundedExpiration()`     | Rejects missing or too-far-ahead transaction expirations                      |
+
+Once you pass `validate`, defaults no longer run automatically. Include `defaults()` explicitly:
+
+```ts
+const sponsor = createSponsor({
+	signer,
+	client,
+	validate: [defaults(), gasBudget({ max: 50_000_000n }), allowedFunctions([target])],
+});
+```
+
+## Gas budget is not the whole economic risk
+
+A gas cap limits how much gas the sponsor is willing to cover, but it is not a full business-policy
+check.
+
+Sui transactions can create, mutate, transfer, share, and delete objects. Storage costs and storage
+rebates can create economic incentives that are not obvious from the gas budget alone. If you
+sponsor arbitrary transactions, a user can try to externalize costs to the sponsor while directing
+objects, balances, or rebate-related value to themselves or another address.
+
+For product flows with financial value, validate the command shape and inspect net value movement:
+
+```ts
+import { analyzers, createAnalyzer } from '@mysten-incubation/sponsor';
+
+const USDC = '0x...::usdc::USDC';
+
+const requirePayment = createAnalyzer({
+	dependencies: { balanceFlows: analyzers.balanceFlows },
+	analyze:
+		() =>
+		({ balanceFlows }) => {
+			const paidToSponsor =
+				balanceFlows.sponsor
+					?.filter((flow) => flow.coinType === USDC)
+					.reduce((sum, flow) => sum + flow.amount, 0n) ?? 0n;
+
+			return paidToSponsor >= 10_000n
+				? { result: null }
+				: { result: [{ code: 'UNDERPAID', message: 'Sponsor was not paid enough.' }] };
+		},
+});
+```
+
+## Keep sponsor balances intentional
+
+If the sponsor signer is loaded from an environment variable, treat it as a hot key. Keep only the
+SUI needed for short operating windows in the sponsor address balance, and top it up from a more
+protected account.
+
+For production services, prefer a managed signer:
+
+- Use a KMS-backed signer such as `@mysten/aws-kms-signer` or `@mysten/gcp-kms-signer`.
+- Restrict who can deploy or read the signer configuration.
+- Separate the sponsor hot account from treasury accounts.
+- Rotate keys and drain old sponsor balances when access changes.
+
+The Sponsor SDK accepts any `Signer`, so KMS signers can be used in place of an in-memory keypair.
+
+## Dry-run is not an execution guarantee
+
+`simulationSucceeds()` dry-runs the transaction before signing, but chain state can change before
+execution. A transaction that passed simulation can still abort later and charge the sponsor gas.
+
+Use dry-run as one policy input, not as the only control. Add:
+
+- gas caps,
+- target allowlists,
+- command-shape checks,
+- rate limits,
+- authentication,
+- per-user or per-tenant quotas.
+
+Onchain replay isn't something you handle here. Sui executes a signed transaction at most once, and
+`boundedExpiration()` (a default) supplies the bounded expiration it requires for address-balance
+gas. Application-level idempotency is still yours: if a flow should be sponsored only once per user,
+dedupe it with a request ID, nonce, or stored intent.
+
+## Handle rejection and failed execution separately
+
+A `Rejected` result means the sponsor did not sign or execute. A `FailedTransaction` means the
+transaction executed onchain and failed, so the sponsor might have paid gas.
+
+```ts
+switch (result.$kind) {
+	case 'Rejected':
+		return { ok: false, status: 403, issues: result.issues };
+	case 'FailedTransaction':
+		return { ok: false, status: 502, digest: result.FailedTransaction.digest };
+	case 'Transaction':
+		return { ok: true, digest: result.Transaction.digest };
+}
+```
+
+Do not collapse those outcomes into a single error. They have different accounting and retry
+semantics.

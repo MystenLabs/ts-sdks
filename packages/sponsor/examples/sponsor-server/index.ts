@@ -99,7 +99,7 @@ app.get('/config', (c) =>
 );
 
 // Accept already-built, user-signed transaction bytes; validate policy, co-sign, and execute.
-app.post('/v1/sponsor', async (c) => {
+app.post('/sponsor', async (c) => {
 	const body = await c.req.json<SponsorRequest>();
 
 	const result = await sponsor.signAndExecuteTransaction({

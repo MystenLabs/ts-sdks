@@ -41,7 +41,7 @@ transaction.setGasPayment([]);
 const bytes = await transaction.build({ client });
 const { signature } = await userSigner.signTransaction(bytes);
 
-const response = await fetch('http://127.0.0.1:3000/v1/sponsor', {
+const response = await fetch('http://127.0.0.1:3000/sponsor', {
 	method: 'POST',
 	headers: { 'content-type': 'application/json' },
 	body: JSON.stringify({
