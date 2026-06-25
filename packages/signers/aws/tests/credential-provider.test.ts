@@ -56,6 +56,35 @@ describe('AwsKmsClient credential handling', () => {
 		expect(fetchMock).toHaveBeenCalledTimes(2);
 	});
 
+	it('signs each concurrent request with its own resolved credentials (no shared-state race)', async () => {
+		let counter = 0;
+		const provider = vi.fn(async () => {
+			const n = ++counter;
+			// Yield so the other in-flight request can interleave between resolve and sign.
+			await Promise.resolve();
+			return { accessKeyId: `AKID${n}`, secretAccessKey: `SECRET${n}` };
+		});
+
+		const signedAccessKeyIds: string[] = [];
+		const fetchMock = vi.fn(async (req: Request) => {
+			const credential = (req.headers.get('authorization') ?? '').match(/Credential=([^/]+)\//);
+			if (credential) signedAccessKeyIds.push(credential[1]);
+			return new Response(JSON.stringify({ KeyId: 'k' }), { status: 200 });
+		});
+		vi.stubGlobal('fetch', fetchMock);
+
+		const client = new AwsKmsClient({ region: 'us-east-1', credentials: provider });
+
+		await Promise.all([
+			client.runCommand('GetPublicKey', { KeyId: 'k' }),
+			client.runCommand('GetPublicKey', { KeyId: 'k' }),
+		]);
+
+		// Each request must be signed with the distinct credentials resolved for it — not whichever
+		// value the other concurrent request happened to resolve last into shared state.
+		expect(signedAccessKeyIds.sort()).toEqual(['AKID1', 'AKID2']);
+	});
+
 	it('does not invoke a provider when static credentials are used', async () => {
 		const fetchMock = vi.fn(
 			async () => new Response(JSON.stringify({ KeyId: 'k' }), { status: 200 }),

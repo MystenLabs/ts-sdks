@@ -88,32 +88,13 @@ export class AwsKmsClient extends AwsClient {
 			...options,
 			service: 'kms',
 			// aws4fetch requires non-null credentials at construction. When a provider is used,
-			// pass placeholders here — `runCommand` resolves the real credentials before each
-			// request via `#resolveCredentials`.
+			// pass placeholders here — `runCommand` resolves the real credentials per request and
+			// passes them through aws4fetch's `aws` override.
 			accessKeyId: options.accessKeyId ?? '',
 			secretAccessKey: options.secretAccessKey ?? '',
 		});
 
 		this.#credentialsProvider = options.credentials;
-	}
-
-	/**
-	 * Resolves fresh credentials from the configured provider and applies them before signing
-	 * the next request. No-op when static credentials were supplied instead.
-	 *
-	 * This is what lets temporary credentials (SSO, IAM roles, STS) refresh: provider chains
-	 * memoize internally and only hit the network when the cached credentials are near expiry,
-	 * so calling this before every request is cheap and correct.
-	 */
-	async #resolveCredentials() {
-		if (!this.#credentialsProvider) {
-			return;
-		}
-
-		const credentials = await this.#credentialsProvider();
-		this.accessKeyId = credentials.accessKeyId;
-		this.secretAccessKey = credentials.secretAccessKey;
-		this.sessionToken = credentials.sessionToken;
 	}
 
 	async getPublicKey(keyId: string) {
@@ -150,8 +131,12 @@ export class AwsKmsClient extends AwsClient {
 			throw new Error('Region is required');
 		}
 
-		// Resolve fresh credentials before signing (no-op unless a provider was configured).
-		await this.#resolveCredentials();
+		// Resolve fresh credentials for this request when a provider is configured. They're handed
+		// to aws4fetch per-request via its `aws` override rather than mutating shared instance
+		// state, so concurrent requests can't race on each other's credentials. Provider chains
+		// memoize internally and only hit the network near expiry, so this is cheap and is what
+		// lets temporary credentials (SSO, IAM roles, STS) refresh.
+		const credentials = await this.#credentialsProvider?.();
 
 		const res = await this.fetch(`https://kms.${region}.amazonaws.com/`, {
 			headers: {
@@ -159,6 +144,7 @@ export class AwsKmsClient extends AwsClient {
 				'X-Amz-Target': `TrentService.${command}`,
 			},
 			body: JSON.stringify(body),
+			...(credentials && { aws: credentials }),
 		});
 
 		if (!res.ok) {
