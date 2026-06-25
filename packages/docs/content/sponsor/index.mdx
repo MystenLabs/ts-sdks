@@ -1,0 +1,122 @@
+---
+title: Sponsor
+description: Build gas sponsorship services with pluggable transaction validation
+keywords:
+  [Sponsor, gas sponsorship, sponsored transactions, Sui, TypeScript, '@mysten-incubation/sponsor']
+---
+
+<Callout type="warn">
+	**Incubation package.** This package is still experimental and may change without notice. Pin
+	versions and review changes before upgrading.
+</Callout>
+
+Primitives for building gas-sponsorship flows on Sui. You are the **sponsor operator**: you bring a
+`Signer` (the sponsor) and a policy for what you'll pay for, and `createSponsor` takes a user's
+transaction, fills in the gas, validates it against that policy, and adds the sponsor's signature.
+The hard part — _validating what you're sponsoring_ — is handled by a pluggable pipeline backed by
+the [`@mysten/wallet-sdk` transaction analyzer](https://www.npmjs.com/package/@mysten/wallet-sdk).
+
+The transaction comes from your user; you decide what's allowed and cover the gas.
+
+## Install
+
+```npm
+npm i @mysten-incubation/sponsor @mysten/sui
+```
+
+## Quick start
+
+```ts
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
+import { createSponsor, defaults, gasBudget, allowedFunctions } from '@mysten-incubation/sponsor';
+
+const client = new SuiGrpcClient({
+	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
+});
+
+const sponsor = createSponsor({
+	signer: Ed25519Keypair.fromSecretKey(process.env.SPONSOR_KEY!),
+	client,
+	// `defaults()` keeps the baseline (see Defaults).
+	validate: [defaults(), gasBudget({ max: 50_000_000n }), allowedFunctions(['0xabc::shop::buy'])],
+});
+```
+
+## How gas works
+
+The sponsor pays gas from its **address balance** — the empty gas payment (`setGasPayment([])`)
+draws from the sponsor's on-chain SUI balance rather than from specific gas coins. This means the
+sponsor can sign and execute in parallel:
+
+Address-balance gas doesn't lock specific coin objects, so concurrent sponsored transactions don't
+contend for gas coins. A _sender_ that reuses its own versioned objects — coins — across rapid
+transactions still has to serialize those, but that's the sender's concern, not the sponsor's.
+
+You fund the address balance by depositing SUI into it (e.g. a one-time
+`0x2::coin::send_funds(coin, sponsorAddress)`); the faucet only hands out coin objects, not address
+balance.
+
+Because gas is the sponsor's, **a sponsored transaction must never use the gas coin** (`tx.gas`).
+`gasCoinNotUsed()` (a default) enforces this — when the user needs SUI, they spend their own with
+`tx.coin({ balance, useGasCoin: false })`.
+
+## Defaults
+
+If you pass no `validate`, the sponsor runs `defaults()` — `validSender()`,
+`onlyAddressBalanceGas()`, `gasCoinNotUsed()`, `onlySenderWithdrawals()`, `simulationSucceeds()`,
+and `boundedExpiration()`. Once you add your own validators they no longer run automatically; drop
+them back in as one entry (the `validate` array flattens nested arrays):
+
+```ts
+createSponsor({ signer, client }); // runs defaults()
+createSponsor({ signer, client, validate: [defaults(), allowedFunctions(['0xabc::shop::buy'])] });
+```
+
+Each default guards something real: `validSender()` requires a sender and rejects transactions where
+the sponsor is also the sender; `onlyAddressBalanceGas()` and `gasCoinNotUsed()` stop a caller from
+spending the sponsor's gas (its address balance pays, and the gas coin is the sponsor's);
+`onlySenderWithdrawals()` rejects any `FundsWithdrawal` input that isn't the sender's — including
+one from the sponsor's **address balance** (the same balance that pays gas — a direct drain the
+gas-coin check can't see, since the withdrawal is an _input_, not a command argument);
+`simulationSucceeds()` avoids paying for a transaction that aborts; and `boundedExpiration()`
+requires a bounded expiration for address-balance gas.
+
+Two things the defaults **don't** do, by design — handle them at your service boundary:
+
+- **No gas ceiling.** A legitimate but expensive transaction can cost up to the protocol max. Add
+  `gasBudget({ max })` for a cap, and rate-limit / authenticate callers.
+- **No execution guarantee.** `simulationSucceeds()` is a dry-run; on-chain state can shift before
+  execution, so a later-aborting sponsored transaction can still charge the sponsor gas.
+
+Keep `defaults()` unless you're deliberately replacing those checks.
+
+For **offline-only signing** — no dry-run — use validators that read only `data` (no
+`transactionResponse`). Nothing depends on simulation, so the sponsor never simulates:
+
+```ts
+createSponsor({ signer, client, validate: [validSender(), gasCoinNotUsed()] });
+```
+
+## What `transaction` is
+
+The sponsor methods take a `transaction` that is anything `Transaction.from` accepts:
+
+```ts
+type TransactionInput = Transaction | Uint8Array | string; // a Transaction, built bytes, base64, or JSON
+```
+
+When you also pass a `userSignature`, the bytes are already final (the user signed them), so that
+form must be the exact bytes — a `Uint8Array` or a base64 string (not a `Transaction` or JSON). The
+sponsor never rebuilds them (so the user's signature stays valid). The sender is already part of
+those bytes, so there's no `sender` parameter in this flow. `userSignature` may be a single string
+or an array (e.g. multiple required signers).
+
+## Next steps
+
+- [Basic Usage](/sponsor/basic-usage) covers the recommended service flow: client-built bytes, user
+  signatures, network usage, and the advanced sponsor-builds flow.
+- [Validation](/sponsor/validators) explains custom validation analyzers, request-scoped options,
+  analyzer execution, and built-in validation analyzers.
+- [Best Practices](/sponsor/best-practices) adds policy, gas, and operational guidance.

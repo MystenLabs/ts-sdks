@@ -1,0 +1,187 @@
+---
+title: Basic Usage
+description: Build a service that validates and executes user-signed sponsored bytes
+keywords:
+  [Sponsor basic usage, gas sponsorship, sponsored transaction flow, validation, Sui, TypeScript]
+---
+
+In the examples below, `userSigner` is the user's `Signer`. In a dApp, the user signs via dapp-kit's
+`signTransaction` instead.
+
+## Recommended flow
+
+Prefer services that expect **already-built bytes plus the user's signature**:
+
+1. The client gets the sponsor address.
+2. The client builds final transaction bytes with the sponsor as gas owner and address-balance gas.
+3. The user signs those exact bytes.
+4. The backend validates the bytes, co-signs, and executes.
+
+This means the sponsor knows exactly what it is co-signing, there is no half-signed transaction
+waiting on a user after the sponsor signs, and the flow avoids an extra sponsor-build round trip
+before the user can sign.
+
+## Provide the sponsor address
+
+The client needs a sponsor address before it builds the transaction. For services where the sponsor
+account may rotate, expose the current address through a small config endpoint:
+
+```ts
+app.get('/config', (c) => c.json({ sponsor: sponsor.address }));
+```
+
+Prefer fetching this value dynamically when you want the backend to rotate the sponsor key or move
+sponsorship to a different account without forcing client deployments. Use the chosen address as the
+transaction gas owner. In local examples where the client and sponsor live in the same process,
+`sponsor.address` is the same value.
+
+## Client builds the transaction
+
+The client sets the **sender**, the **gas owner to the sponsor**, and the **gas payment to `[]`**
+(address-balance gas). The user signs those final bytes and sends them to the sponsor service:
+
+```ts
+import { toBase64 } from '@mysten/sui/utils';
+
+const { sponsor } = await fetch('/config').then((res) => res.json());
+
+transaction.setSender(userAddress);
+transaction.setGasOwner(sponsor); // gas is paid by the sponsor…
+transaction.setGasPayment([]); // …from its address balance (no specific gas coins)
+const bytes = await transaction.build({ client });
+
+const { signature: userSignature } = await userSigner.signTransaction(bytes);
+
+await fetch('/sponsor', {
+	method: 'POST',
+	headers: { 'content-type': 'application/json' },
+	body: JSON.stringify({ transaction: toBase64(bytes), userSignature }),
+});
+```
+
+The backend validates those bytes, co-signs, and executes:
+
+```ts
+const result = await sponsor.signAndExecuteTransaction({
+	transaction: body.transaction,
+	userSignature: body.userSignature,
+});
+
+switch (result.$kind) {
+	case 'Rejected': // a validator declined; the sponsor never signed or executed
+		throw new Error(result.issues.map((issue) => issue.message).join('; '));
+	case 'FailedTransaction': // executed on-chain but aborted — the sponsor still paid gas
+		throw new Error(`Transaction failed on-chain: ${result.FailedTransaction.digest}`);
+	case 'Transaction': // executed successfully
+		return result.Transaction.digest;
+}
+```
+
+`signAndExecuteTransaction` has **three** outcomes: a policy `Rejected` (never executed), a
+`FailedTransaction` (executed but aborted on-chain — note the sponsor's gas is spent either way),
+and a successful `Transaction`. The non-obvious one is `FailedTransaction`: a result that isn't
+`Rejected` still isn't necessarily a success.
+
+Pass `include` when the service needs extra transaction details in the response. Effects are always
+included because they are needed to distinguish successful execution from failed execution.
+
+## A user transaction
+
+A sponsored transaction operates on the **user's** objects, never the gas coin. When the user spends
+SUI, source it from their own balance with `useGasCoin: false`:
+
+```ts
+function userPayment(amount: bigint) {
+	const tx = new Transaction();
+	const coin = tx.coin({ balance: amount, useGasCoin: false });
+	tx.transferObjects([coin], recipient);
+	return tx;
+}
+```
+
+## Over the network
+
+The methods are transport-agnostic: they take transaction bytes as `Uint8Array` or base64 strings,
+and user signatures as signature strings. You own the HTTP shape — serialize binary fields as
+base64. With the recommended flow, the client builds and signs, then sends the bytes and signature;
+the sponsor validates, co-signs, and executes. Every outcome is a `$kind`, so no try/catch is needed
+for a policy rejection:
+
+```ts
+import { toBase64 } from '@mysten/sui/utils';
+
+// Server handler — wire it into your framework's route however you like.
+async function handleSponsorRequest(body: { transaction: string; userSignature: string }) {
+	const result = await sponsor.signAndExecuteTransaction({
+		transaction: body.transaction,
+		userSignature: body.userSignature,
+	});
+	switch (result.$kind) {
+		case 'Rejected':
+			return { ok: false as const, issues: result.issues };
+		case 'FailedTransaction':
+			return { ok: false as const, issues: [{ message: 'Transaction failed on-chain.' }] };
+		case 'Transaction':
+			return { ok: true as const, digest: result.Transaction.digest };
+	}
+}
+
+// Client — build with the sponsor as gas owner, sign, send the bytes + signature.
+const { sponsor } = await fetch('/config').then((res) => res.json());
+transaction.setSender(userAddress);
+transaction.setGasOwner(sponsor);
+transaction.setGasPayment([]);
+const bytes = await transaction.build({ client });
+const { signature } = await userSigner.signTransaction(bytes);
+
+const res = await handleSponsorRequest({ transaction: toBase64(bytes), userSignature: signature });
+if (!res.ok) throw new Error(res.issues.map((issue) => issue.message).join('; '));
+```
+
+Need per-request context, such as an auth token or tenant id? Validators read it from `options`, and
+the sponsor requires it as typed `validationOptions`. See [Validation](/sponsor/validators). Handle
+replay prevention and rate limiting in your service.
+
+For a complete Hono server using this shape, see the
+[sponsor server example](https://github.com/MystenLabs/ts-sdks/tree/main/packages/sponsor/examples/sponsor-server).
+
+## Gas and unresolved transactions
+
+When the client builds, the user already built and signed final bytes, so they must be resolved. The
+sponsor never rebuilds them.
+
+When the sponsor builds the transaction, what you pass to `signTransaction` can be **unresolved** —
+unresolved object inputs and no gas budget are fine. The sponsor sets itself as gas owner with
+address-balance gas and calls `build({ client })`, which in one pass resolves object inputs, sets
+the gas price and expiration, and — unless the transaction already pins one (`tx.setGasBudget(…)`) —
+**estimates the gas budget by dry-running**. Validation then runs on the _built_ transaction, so
+`gasBudget({ max })` checks the resolved budget and analyzers see the exact bytes that get signed.
+
+## Advanced: sponsor builds the transaction
+
+<Callout type="warn">
+	For public sponsorship services, prefer accepting final bytes plus `userSignature`. Use the
+	sponsor-builds flow only when the backend owns transaction construction and you understand the
+	trust boundary.
+</Callout>
+
+Alternatively, hand the sponsor the user's commands. The sponsor sets itself as gas owner, builds
+(address-balance gas, and — unless you pinned one — a dry-run-estimated budget), validates, and
+signs. The user then signs the returned bytes, and both signatures execute together. `sender` is
+optional — it's applied only when the transaction doesn't already set one (e.g. bare commands):
+
+```ts
+const result = await sponsor.signTransaction({
+	transaction,
+	sender: userAddress, // optional — only used if `transaction` has no sender
+});
+if (result.$kind === 'Rejected') {
+	throw new Error(result.issues.map((issue) => issue.message).join('; '));
+}
+
+const { signature: userSignature } = await userSigner.signTransaction(result.bytes);
+await client.core.executeTransaction({
+	transaction: result.bytes,
+	signatures: [userSignature, result.sponsorSignature],
+});
+```
