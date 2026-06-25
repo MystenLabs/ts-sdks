@@ -76,12 +76,17 @@ export function KapaSidebar() {
 
 export function KapaButton() {
 	return (
-		<button
-			type="button"
-			onClick={() => window.Kapa?.open()}
-			className="kapa-floating-btn"
-		>
-			<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+		<button type="button" onClick={() => window.Kapa?.open()} className="kapa-floating-btn">
+			<svg
+				width="20"
+				height="20"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				strokeWidth="2"
+				strokeLinecap="round"
+				strokeLinejoin="round"
+			>
 				<path d="M8 15h8a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2z" />
 				<path d="M9 18h6" />
 				<path d="M10 22h4" />

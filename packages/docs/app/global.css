@@ -6,81 +6,83 @@
 
 /* ---- Kapa sidebar content shift ---- */
 html.kapa-sidebar-open body {
-  width: calc(100vw - 500px) !important;
-  overflow-x: hidden;
-  transition: width 0.3s ease;
+	width: calc(100vw - 500px) !important;
+	overflow-x: hidden;
+	transition: width 0.3s ease;
 }
 
 html.kapa-sidebar-open nav {
-  right: 500px !important;
-  overflow: hidden;
-  transition: right 0.3s ease;
+	right: 500px !important;
+	overflow: hidden;
+	transition: right 0.3s ease;
 }
 
 html.kapa-sidebar-open .kapa-trigger-btn {
-  display: none !important;
+	display: none !important;
 }
 
 nav {
-  transition: right 0.3s ease;
+	transition: right 0.3s ease;
 }
 
 body {
-  transition: width 0.3s ease;
+	transition: width 0.3s ease;
 }
 
 @media (max-width: 768px) {
-  html.kapa-sidebar-open body {
-    width: 100vw !important;
-  }
+	html.kapa-sidebar-open body {
+		width: 100vw !important;
+	}
 }
 
 /* Kapa trigger button */
 .kapa-trigger-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-  background: var(--fd-background);
-  color: var(--fd-foreground);
-  font-weight: 500;
-  font-size: 0.875rem;
-  padding: 0.5rem 1rem;
-  border-radius: 9999px;
-  border: 1px solid var(--fd-border);
-  transition: background-color 0.15s;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	cursor: pointer;
+	background: var(--fd-background);
+	color: var(--fd-foreground);
+	font-weight: 500;
+	font-size: 0.875rem;
+	padding: 0.5rem 1rem;
+	border-radius: 9999px;
+	border: 1px solid var(--fd-border);
+	transition: background-color 0.15s;
 }
 
 .kapa-trigger-btn:hover {
-  background: var(--fd-muted);
+	background: var(--fd-muted);
 }
 
 /* Floating Kapa button (bottom-right) */
 .kapa-floating-btn {
-  position: fixed;
-  bottom: 1.5rem;
-  right: 1.5rem;
-  z-index: 999;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-  background: #298DFF;
-  color: white;
-  font-weight: 600;
-  font-size: 0.875rem;
-  padding: 0.75rem 1.25rem;
-  border-radius: 9999px;
-  border: none;
-  box-shadow: 0 4px 12px rgba(41, 141, 255, 0.4);
-  transition: background-color 0.15s, box-shadow 0.15s;
+	position: fixed;
+	bottom: 1.5rem;
+	right: 1.5rem;
+	z-index: 999;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	cursor: pointer;
+	background: #298dff;
+	color: white;
+	font-weight: 600;
+	font-size: 0.875rem;
+	padding: 0.75rem 1.25rem;
+	border-radius: 9999px;
+	border: none;
+	box-shadow: 0 4px 12px rgba(41, 141, 255, 0.4);
+	transition:
+		background-color 0.15s,
+		box-shadow 0.15s;
 }
 
 .kapa-floating-btn:hover {
-  background: #1B6FD1;
-  box-shadow: 0 6px 16px rgba(41, 141, 255, 0.5);
+	background: #1b6fd1;
+	box-shadow: 0 6px 16px rgba(41, 141, 255, 0.5);
 }
 
 html.kapa-sidebar-open .kapa-floating-btn {
-  display: none !important;
+	display: none !important;
 }
