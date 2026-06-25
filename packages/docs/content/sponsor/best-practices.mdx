@@ -149,18 +149,10 @@ Use dry-run as one policy input, not as the only control. Add:
 - authentication,
 - per-user or per-tenant quotas.
 
-## Watch for timing and replay windows
-
-Do not rely on transaction expiration as your application-level replay control. Handle replay and
-timing concerns at your service boundary.
-
-Best practices:
-
-- Require authentication before sponsoring.
-- Add request IDs or nonces for product flows where a user should only claim sponsorship once.
-- Store sponsored digests or application-level intents to prevent duplicate sponsorship.
-- Use `delay.beforeSimulate` and `delay.beforeExecute` only as timing-attack mitigation, not as a
-  replacement for policy checks.
+On-chain replay isn't something you handle here — Sui executes a signed transaction at most once,
+and `boundedExpiration()` (a default) supplies the bounded expiration it requires for
+address-balance gas. Application-level idempotency is still yours: if a flow should be sponsored
+only once per user, dedupe it with a request ID, nonce, or stored intent.
 
 ## Handle rejection and failed execution separately
 
