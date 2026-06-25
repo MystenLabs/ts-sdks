@@ -103,13 +103,11 @@ function userPayment(amount: bigint) {
 
 The methods are transport-agnostic: they take transaction bytes as `Uint8Array` or base64 strings,
 and user signatures as signature strings. You own the HTTP shape — serialize binary fields as
-base64. With the recommended flow, the client builds and signs, then sends the bytes and signature;
-the sponsor validates, co-signs, and executes. Every outcome is a `$kind`, so no try/catch is needed
-for a policy rejection:
+base64. The client side is exactly the [build-and-sign flow above](#client-builds-the-transaction);
+the backend maps each result `$kind` to a response. Every outcome is a `$kind`, so no try/catch is
+needed for a policy rejection:
 
 ```ts
-import { toBase64 } from '@mysten/sui/utils';
-
 // Server handler — wire it into your framework's route however you like.
 async function handleSponsorRequest(body: { transaction: string; userSignature: string }) {
 	const result = await sponsor.signAndExecuteTransaction({
@@ -125,17 +123,6 @@ async function handleSponsorRequest(body: { transaction: string; userSignature: 
 			return { ok: true as const, digest: result.Transaction.digest };
 	}
 }
-
-// Client — build with the sponsor as gas owner, sign, send the bytes + signature.
-const { sponsor } = await fetch('/config').then((res) => res.json());
-transaction.setSender(userAddress);
-transaction.setGasOwner(sponsor);
-transaction.setGasPayment([]);
-const bytes = await transaction.build({ client });
-const { signature } = await userSigner.signTransaction(bytes);
-
-const res = await handleSponsorRequest({ transaction: toBase64(bytes), userSignature: signature });
-if (!res.ok) throw new Error(res.issues.map((issue) => issue.message).join('; '));
 ```
 
 Need per-request context, such as an auth token or tenant id? Validators read it from `options`, and

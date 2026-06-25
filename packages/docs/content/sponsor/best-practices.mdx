@@ -29,7 +29,7 @@ transaction bytes. See [Basic Usage](/sponsor/basic-usage) for the recommended f
 
 The Sponsor SDK uses address-balance gas:
 
-```tsx
+```ts
 transaction.setGasOwner(sponsorAddress);
 transaction.setGasPayment([]);
 ```
@@ -78,7 +78,7 @@ requires.
 
 Once you pass `validate`, defaults no longer run automatically. Include `defaults()` explicitly:
 
-```tsx
+```ts
 const sponsor = createSponsor({
 	signer,
 	client,
@@ -98,7 +98,7 @@ objects, balances, or rebate-related value to themselves or another address.
 
 For product flows with financial value, validate the command shape and inspect net value movement:
 
-```tsx
+```ts
 import { analyzers, createAnalyzer } from '@mysten-incubation/sponsor';
 
 const USDC = '0x...::usdc::USDC';
@@ -167,7 +167,7 @@ Best practices:
 A `Rejected` result means the sponsor did not sign or execute. A `FailedTransaction` means the
 transaction executed on-chain and failed, so the sponsor may have paid gas.
 
-```tsx
+```ts
 switch (result.$kind) {
 	case 'Rejected':
 		return { ok: false, status: 403, issues: result.issues };
