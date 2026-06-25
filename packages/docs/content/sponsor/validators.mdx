@@ -6,17 +6,17 @@ keywords: [Sponsor validation, custom validation analyzers, transaction analyzer
 
 A validator is an analyzer used for policy checks. Create one with `createAnalyzer(...)`, return the
 issues it found, and pass it to `createSponsor({ validate })`. It declares the analyzers it reads
-via `dependencies` and reports one of three outcomes:
+through `dependencies` and reports one of three outcomes:
 
-- **pass** — `{ result: null }` (or `{ result: [] }`);
-- **reject** — `{ result: [{ code, message }] }`: the transaction is well-formed but violates policy
-  → `POLICY_REJECTED`;
-- **couldn't analyze** — `{ issues: [{ message }] }` or `throw`: the analyzer itself couldn't decide
-  (a failed lookup, an unreachable service) → `ANALYSIS_FAILED`. This is the analyzer framework's
-  own channel, so it propagates — dependents don't run.
+- **pass**: `{ result: null }` (or `{ result: [] }`);
+- **reject**: `{ result: [{ code, message }] }`: the transaction is well-formed but violates policy
+  (`POLICY_REJECTED`);
+- **couldn't analyze**: `{ issues: [{ message }] }` or `throw`: the analyzer itself couldn't decide
+  (a failed lookup, an unreachable service), producing `ANALYSIS_FAILED`. This is the analyzer
+  framework's own channel, so it propagates, and dependents don't run.
 
-Reporting findings as the `result` (rather than via `issues`) is what keeps "violates policy"
-distinct from "couldn't be checked". There's no built-in "the sponsor must be paid" rule —
+Reporting findings as the `result` (rather than through `issues`) is what keeps "violates policy"
+distinct from "couldn't be checked". There's no built-in "the sponsor must be paid" rule, because
 value-flow policy is app-specific, so write it over the built-in `balanceFlows` analyzer (signed
 per-address deltas: **negative = value left the owner, positive = arrived**):
 
@@ -42,19 +42,19 @@ const requireSponsorPayment = createAnalyzer({
 });
 ```
 
-The most useful shared analyzer is **`data`** — the parsed transaction (sender, gas data, commands,
+The most useful shared analyzer is **`data`**, the parsed transaction (sender, gas data, commands,
 expiration), which most validators read. Alongside it: `balanceFlows` (signed value deltas),
-`transactionResponse` (the dry-run, incl. effects), `commands`, `moveFunctions`, `objects`, `coins`,
-`inputs`, and `bytes` — plus the sponsor's `currentEpoch`, and any others the analyzer package adds
-(see [`@mysten/wallet-sdk`](https://www.npmjs.com/package/@mysten/wallet-sdk) for the full set). All
-are re-exported as `analyzers` (with `currentEpoch` and `createAnalyzer` alongside). A failed
-analyzer never reaches your `analyze`: it short-circuits to an `ANALYSIS_FAILED` rejection.
+`transactionResponse` (the dry-run, including effects), `commands`, `moveFunctions`, `objects`,
+`coins`, `inputs`, and `bytes`, plus the sponsor's `currentEpoch`, and any others the analyzer
+package adds (see [`@mysten/wallet-sdk`](https://www.npmjs.com/package/@mysten/wallet-sdk) for the
+full set). All are re-exported as `analyzers` (with `currentEpoch` and `createAnalyzer` alongside).
+A failed analyzer never reaches your `analyze`: it short-circuits to an `ANALYSIS_FAILED` rejection.
 
 ## Loading data, and sharing it across validators
 
-An analyzer receives the same `options` the sponsor passes to `analyze` — including **`client`** —
-so it can load on-chain data. And because the framework runs each analyzer once and shares its
-result, several validators read it for the cost of one fetch:
+An analyzer receives the same `options` the sponsor passes to `analyze` (including **`client`**), so
+it can load onchain data. And because the framework runs each analyzer once and shares its result,
+several validators read it for the cost of one fetch:
 
 ```ts
 import { analyzers, createAnalyzer, createSponsor } from '@mysten-incubation/sponsor';
@@ -97,7 +97,7 @@ createSponsor({ signer, client, validate: [sponsorCanCoverGas, sponsorKeepsReser
 
 ## Request-scoped options
 
-A validator reads request inputs — an auth token, a tenant id — straight off `options`.
+A validator reads request inputs (an auth token, a tenant id) straight off `options`.
 `createSponsor` **infers** them and requires them, typed, under `validationOptions` on sponsor calls
 (required only when the option itself is required), without an untyped metadata bag:
 
@@ -125,17 +125,17 @@ await sponsor.signAndExecuteTransaction({
 `analyze({ check: sponsor.analyzer }, { transaction, client })`. The analyzer framework then
 handles:
 
-- **Lazy** — only analyzers some validator depends on run, so cost tracks your policy. `defaults()`
+- **Lazy**: only analyzers some validator depends on run, so cost tracks your policy. `defaults()`
   includes `simulationSucceeds`, so the default config _does_ dry-run; drop it (or use only
   validators that read `data`) and the sponsor **never simulates**. There's no "offline phase" to
-  declare — it falls out of the dependency graph.
-- **Deduped** — `data` / `balanceFlows` etc. resolve once even when many validators (and a host
-  graph) depend on them.
-- **Propagated** — a failed analyzer becomes an `ANALYSIS_FAILED` rejection rather than reaching a
+  declare, because it falls out of the dependency graph.
+- **Deduped**: `data` and `balanceFlows` and so on resolve once even when many validators (and a
+  host graph) depend on them.
+- **Propagated**: a failed analyzer becomes an `ANALYSIS_FAILED` rejection rather than reaching a
   validator with a broken value.
 
 When validation fails, the sponsor never signs and the method **returns**
-`{ $kind: 'Rejected', issues, reason }` — `issues` lists every reason, and `reason` is
+`{ $kind: 'Rejected', issues, reason }`, where `issues` lists every reason, and `reason` is
 `'POLICY_REJECTED'` or `'ANALYSIS_FAILED'`. To turn a rejection into a thrown error, the exported
 `SponsorValidationError` class takes `(issues, reason)`.
 
@@ -158,32 +158,32 @@ it contributes `SponsorRejection | null`, deduping its analyzers with that graph
 | `boundedExpiration()`          | `data`, `currentEpoch` | the expiration is missing or beyond the next epoch        |
 
 \* The dry-run itself _succeeding_ but reporting an aborting transaction is a **policy** rejection
-(`TRANSACTION_WOULD_FAIL`) — the bytes are executable and would still cost the sponsor gas (landing
-a failed transaction with a digest) if submitted. The dry-run _failing to run at all_ (an
-unreachable node, unresolvable objects) is instead surfaced as `ANALYSIS_FAILED`, with the
-underlying error detail.
+(`TRANSACTION_WOULD_FAIL`): the bytes are executable and would still cost the sponsor gas (landing a
+failed transaction with a digest) if submitted. The dry-run _failing to run at all_ (an unreachable
+node, unresolvable objects) is instead surfaced as `ANALYSIS_FAILED`, with the underlying error
+detail.
 
 † Address-balance gas (an empty payment) is how the sponsor pays from its own balance rather than
 from nominated gas coins; the sponsor-builds flow always sets this, so this validator mainly guards
 user-supplied bytes.
 
-‡ Verifies (via `@mysten/sui`'s `isValidTransactionSignature`) that **every** supplied user
-signature is cryptographically valid over the bytes **and** resolves to the sender — caught before
+‡ Verifies (through `@mysten/sui`'s `isValidTransactionSignature`) that **every** supplied user
+signature is cryptographically valid over the bytes **and** resolves to the sender, caught before
 the sponsor co-signs, rather than only at execution (all supplied signatures are attached to
-execution, so one that isn't the sender's would be rejected on-chain after the sponsor signed). A
+execution, so one that isn't the sender's would be rejected onchain after the sponsor signed). A
 malformed, invalid, or wrong-signer signature is rejected as `USER_SIGNATURE_INVALID`; the sender
 match is key-type aware (a zkLogin key matches either its legacy or current address). An
-_environmental_ failure during verification (e.g. a zkLogin JWK/epoch lookup throwing) isn't a
-validation result — it surfaces as `ANALYSIS_FAILED`, so a network blip is never reported as a bad
-signature. Passes when no user signature was supplied (the sponsor-builds flow). The signature is
-read from the request, not from `validationOptions`.
+_environmental_ failure during verification (for example, a zkLogin JWK or epoch lookup throwing)
+isn't a validation result; it surfaces as `ANALYSIS_FAILED`, so a network blip is never reported as
+a bad signature. Passes when no user signature was supplied (the sponsor-builds flow). The signature
+is read from the request, not from `validationOptions`.
 
 `defaults()` bundles `validSender()` + `onlyAddressBalanceGas()` + `gasCoinNotUsed()` +
 `onlySenderWithdrawals()` + `simulationSucceeds()` + `boundedExpiration()`.
 
 ## Timing-attack mitigation
 
-Optionally insert random delays to reduce timing manipulation of on-chain state between signing and
+Optionally insert random delays to reduce timing manipulation of onchain state between signing and
 execution:
 
 ```ts

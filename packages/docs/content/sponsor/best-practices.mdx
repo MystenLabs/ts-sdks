@@ -14,7 +14,7 @@ keywords:
 
 Gas sponsorship is a backend operating boundary. The user supplies transaction bytes; the sponsor
 decides whether to pay for them. Treat every sponsored transaction as untrusted input until your
-policy validates the exact bytes that will be signed.
+policy validates the exact bytes that get signed.
 
 ## Prefer user-signed transaction bytes
 
@@ -59,7 +59,7 @@ Never expose an endpoint that blindly co-signs any user transaction. At minimum,
 
 The
 [sponsor server example](https://github.com/MystenLabs/ts-sdks/tree/main/packages/sponsor/examples/sponsor-server)
-uses a simple PTB template: exactly one command, and that command must be a call to one configured
+uses a basic PTB template: exactly one command, and that command must be a call to one configured
 `package::module::function`. Real products should make the template as specific as their flow
 requires.
 
@@ -149,15 +149,15 @@ Use dry-run as one policy input, not as the only control. Add:
 - authentication,
 - per-user or per-tenant quotas.
 
-On-chain replay isn't something you handle here — Sui executes a signed transaction at most once,
-and `boundedExpiration()` (a default) supplies the bounded expiration it requires for
-address-balance gas. Application-level idempotency is still yours: if a flow should be sponsored
-only once per user, dedupe it with a request ID, nonce, or stored intent.
+Onchain replay isn't something you handle here. Sui executes a signed transaction at most once, and
+`boundedExpiration()` (a default) supplies the bounded expiration it requires for address-balance
+gas. Application-level idempotency is still yours: if a flow should be sponsored only once per user,
+dedupe it with a request ID, nonce, or stored intent.
 
 ## Handle rejection and failed execution separately
 
 A `Rejected` result means the sponsor did not sign or execute. A `FailedTransaction` means the
-transaction executed on-chain and failed, so the sponsor may have paid gas.
+transaction executed onchain and failed, so the sponsor might have paid gas.
 
 ```ts
 switch (result.$kind) {

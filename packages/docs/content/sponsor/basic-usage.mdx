@@ -5,8 +5,8 @@ keywords:
   [Sponsor basic usage, gas sponsorship, sponsored transaction flow, validation, Sui, TypeScript]
 ---
 
-In the examples below, `userSigner` is the user's `Signer`. In a dApp, the user signs via dapp-kit's
-`signTransaction` instead.
+In the examples below, `userSigner` is the user's `Signer`. In an app, the user signs through
+dapp-kit's `signTransaction` instead.
 
 ## Recommended flow
 
@@ -24,7 +24,7 @@ before the user can sign.
 ## Provide the sponsor address
 
 The client needs a sponsor address before it builds the transaction. For services where the sponsor
-account may rotate, expose the current address through a small config endpoint:
+account might rotate, expose the current address through a small config endpoint:
 
 ```ts
 app.get('/config', (c) => c.json({ sponsor: sponsor.address }));
@@ -70,20 +70,21 @@ const result = await sponsor.signAndExecuteTransaction({
 switch (result.$kind) {
 	case 'Rejected': // a validator declined; the sponsor never signed or executed
 		throw new Error(result.issues.map((issue) => issue.message).join('; '));
-	case 'FailedTransaction': // executed on-chain but aborted — the sponsor still paid gas
-		throw new Error(`Transaction failed on-chain: ${result.FailedTransaction.digest}`);
+	case 'FailedTransaction': // executed onchain but aborted, the sponsor still paid gas
+		throw new Error(`Transaction failed onchain: ${result.FailedTransaction.digest}`);
 	case 'Transaction': // executed successfully
 		return result.Transaction.digest;
 }
 ```
 
 `signAndExecuteTransaction` has **three** outcomes: a policy `Rejected` (never executed), a
-`FailedTransaction` (executed but aborted on-chain — note the sponsor's gas is spent either way),
-and a successful `Transaction`. The non-obvious one is `FailedTransaction`: a result that isn't
+`FailedTransaction` (executed but aborted onchain, where the sponsor still pays gas either way), and
+a successful `Transaction`. The non-obvious one is `FailedTransaction`: a result that isn't
 `Rejected` still isn't necessarily a success.
 
-Pass `include` when the service needs extra transaction details in the response. Effects are always
-included because they are needed to distinguish successful execution from failed execution.
+Pass `include` when the service needs extra transaction details in the response. The response always
+includes effects because the service needs them to distinguish successful execution from failed
+execution.
 
 ## A user transaction
 
@@ -102,7 +103,7 @@ function userPayment(amount: bigint) {
 ## Over the network
 
 The methods are transport-agnostic: they take transaction bytes as `Uint8Array` or base64 strings,
-and user signatures as signature strings. You own the HTTP shape — serialize binary fields as
+and user signatures as signature strings. You own the HTTP shape, so serialize binary fields as
 base64. The client side is exactly the [build-and-sign flow above](#client-builds-the-transaction);
 the backend maps each result `$kind` to a response. Every outcome is a `$kind`, so no try/catch is
 needed for a policy rejection:
@@ -137,12 +138,13 @@ For a complete Hono server using this shape, see the
 When the client builds, the user already built and signed final bytes, so they must be resolved. The
 sponsor never rebuilds them.
 
-When the sponsor builds the transaction, what you pass to `signTransaction` can be **unresolved** —
-unresolved object inputs and no gas budget are fine. The sponsor sets itself as gas owner with
-address-balance gas and calls `build({ client })`, which in one pass resolves object inputs, sets
-the gas price and expiration, and — unless the transaction already pins one (`tx.setGasBudget(…)`) —
-**estimates the gas budget by dry-running**. Validation then runs on the _built_ transaction, so
-`gasBudget({ max })` checks the resolved budget and analyzers see the exact bytes that get signed.
+When the sponsor builds the transaction, what you pass to `signTransaction` can be **unresolved**,
+with unresolved object inputs and no gas budget being fine. The sponsor sets itself as gas owner
+with address-balance gas and calls `build({ client })`, which in one pass resolves object inputs,
+sets the gas price and expiration, and (unless the transaction already pins one with
+`tx.setGasBudget(…)`) **estimates the gas budget by dry-running**. Validation then runs on the
+_built_ transaction, so `gasBudget({ max })` checks the resolved budget and analyzers see the exact
+bytes that get signed.
 
 ## Advanced: sponsor builds the transaction
 
@@ -152,10 +154,10 @@ the gas price and expiration, and — unless the transaction already pins one (`
 	trust boundary.
 </Callout>
 
-Alternatively, hand the sponsor the user's commands. The sponsor sets itself as gas owner, builds
-(address-balance gas, and — unless you pinned one — a dry-run-estimated budget), validates, and
+Alternatively, hand the sponsor the user's commands. The sponsor sets itself as gas owner,
+builds\n(address-balance gas, and a dry-run-estimated budget unless you pinned one), validates, and
 signs. The user then signs the returned bytes, and both signatures execute together. `sender` is
-optional — it's applied only when the transaction doesn't already set one (e.g. bare commands):
+optional, applied only when the transaction doesn't already set one (for example, bare commands):
 
 ```ts
 const result = await sponsor.signTransaction({
