@@ -1,5 +1,14 @@
 # @mysten/sui.js
 
+## 2.20.1
+
+### Patch Changes
+
+- 91c4ef5: Fix `CoinWithBalance` intent failing to build after a `toJSON`/`Transaction.from`
+  round-trip. Serializing a transaction with `CoinWithBalance` as a supported intent turns the
+  intent's `balance` into a string, which was not coerced back to a `bigint` on deserialization,
+  causing `ValiError: Invalid type: Expected bigint` when building the restored transaction.
+
 ## 2.20.0
 
 ### Minor Changes
