@@ -61,8 +61,8 @@ Instead of static keys, pass an async `credentials` provider (any function retur
 `{ accessKeyId, secretAccessKey, sessionToken? }`). This is structurally compatible with the
 providers from
 [`@aws-sdk/credential-providers`](https://docs.aws.amazon.com/sdk-for-javascript/v3/developer-guide/setting-credentials-node.html),
-so the standard AWS credential chain (SSO, IAM roles, and container/instance metadata) works out
-of the box. Credentials are resolved before each request, so temporary credentials refresh
+so the standard AWS credential chain (SSO, IAM roles, and container/instance metadata) works out of
+the box. Credentials are resolved before each request, so temporary credentials refresh
 automatically once their session nears expiry.
 
 ```typescript
@@ -76,8 +76,8 @@ const signer = await AwsKmsSigner.fromKeyId(process.env.AWS_KMS_KEY_ID, {
 });
 ```
 
-`@aws-sdk/credential-providers` is **not** a dependency of this package, so install it yourself if you
-want the AWS-provided resolvers. This keeps the signer lightweight for edge, browser, and Worker
+`@aws-sdk/credential-providers` is **not** a dependency of this package, so install it yourself if
+you want the AWS-provided resolvers. This keeps the signer lightweight for edge, browser, and Worker
 runtimes, where you can instead pass static credentials or a custom resolver.
 
 ## Usage
