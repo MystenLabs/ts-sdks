@@ -9,6 +9,36 @@ import { AwsKmsClient } from './aws-client.js';
 import { getConcatenatedSignature } from './utils.js';
 
 /**
+ * Maps each supported key scheme to its AWS KMS signing algorithm and the function that
+ * converts the raw KMS response into the compact signature Sui expects.
+ *
+ * - Ed25519 keys use EdDSA and return a raw 64-byte signature, so no DER parsing or low-S
+ *   normalization is needed.
+ * - The ECDSA curves return a DER-encoded signature that is parsed, low-S normalized, and
+ *   concatenated into compact form by `getConcatenatedSignature`.
+ */
+const SIGNING_ALGORITHMS: Record<
+	string,
+	{
+		algorithm: 'ED25519_SHA_512' | 'ECDSA_SHA_256';
+		format: (signature: Uint8Array) => Uint8Array<ArrayBuffer>;
+	}
+> = {
+	ED25519: {
+		algorithm: 'ED25519_SHA_512',
+		format: (signature) => signature as Uint8Array<ArrayBuffer>,
+	},
+	Secp256k1: {
+		algorithm: 'ECDSA_SHA_256',
+		format: (signature) => getConcatenatedSignature(signature, 'Secp256k1'),
+	},
+	Secp256r1: {
+		algorithm: 'ECDSA_SHA_256',
+		format: (signature) => getConcatenatedSignature(signature, 'Secp256r1'),
+	},
+};
+
+/**
  * Configuration options for initializing the AwsKmsSigner.
  */
 export interface AwsKmsSignerOptions {
@@ -50,7 +80,7 @@ export class AwsKmsSigner extends Signer {
 
 	/**
 	 * Retrieves the key scheme used by this signer.
-	 * @returns AWS supports only Secp256k1 and Secp256r1 schemes.
+	 * @returns The scheme derived from the public key — `Ed25519`, `Secp256k1`, or `Secp256r1`.
 	 */
 	getKeyScheme() {
 		return SIGNATURE_FLAG_TO_SCHEME[this.#publicKey.flag() as SignatureFlag];
@@ -58,7 +88,7 @@ export class AwsKmsSigner extends Signer {
 
 	/**
 	 * Retrieves the public key associated with this signer.
-	 * @returns The Secp256k1PublicKey instance.
+	 * @returns The public key instance (`Ed25519PublicKey`, `Secp256k1PublicKey`, or `Secp256r1PublicKey`).
 	 * @throws Will throw an error if the public key has not been initialized.
 	 */
 	getPublicKey() {
@@ -72,15 +102,20 @@ export class AwsKmsSigner extends Signer {
 	 * @throws Will throw an error if the public key is not initialized or if signing fails.
 	 */
 	async sign(bytes: Uint8Array): Promise<Uint8Array<ArrayBuffer>> {
+		const signing = SIGNING_ALGORITHMS[this.getKeyScheme()];
+
+		if (!signing) {
+			throw new Error('Unsupported key scheme');
+		}
+
 		const signResponse = await this.#client.runCommand('Sign', {
 			KeyId: this.#kmsKeyId,
 			Message: toBase64(bytes),
 			MessageType: 'RAW',
-			SigningAlgorithm: 'ECDSA_SHA_256',
+			SigningAlgorithm: signing.algorithm,
 		});
 
-		// Concatenate the signature components into a compact form
-		return getConcatenatedSignature(fromBase64(signResponse.Signature), this.getKeyScheme());
+		return signing.format(fromBase64(signResponse.Signature));
 	}
 
 	/**
