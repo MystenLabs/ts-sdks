@@ -1,5 +1,13 @@
 # @mysten/signers
 
+## 1.1.3
+
+### Patch Changes
+
+- Updated dependencies [9db8f64]
+- Updated dependencies [9db8f64]
+  - @mysten/aws-kms-signer@0.3.0
+
 ## 1.1.2
 
 ## 1.1.1
