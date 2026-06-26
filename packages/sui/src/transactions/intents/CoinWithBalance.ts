@@ -2,7 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { InferInput } from 'valibot';
-import { bigint, object, optional, parse, picklist, string } from 'valibot';
+import {
+	bigint,
+	integer,
+	number,
+	object,
+	optional,
+	parse,
+	picklist,
+	pipe,
+	string,
+	transform,
+	union,
+} from 'valibot';
 
 import { bcs } from '../../bcs/index.js';
 import { normalizeStructTag } from '../../utils/sui-types.js';
@@ -87,9 +99,15 @@ export function createBalance({
 	};
 }
 
+// `balance` is a bigint in memory, but serializing a transaction to JSON converts it to a
+// string. When that JSON is deserialized with `Transaction.from`, the value stays a string
+// (the intent `data` is opaque to the transaction schema), so coerce it back to a bigint here.
 const CoinWithBalanceData = object({
 	type: string(),
-	balance: bigint(),
+	balance: pipe(
+		union([bigint(), string(), pipe(number(), integer())]),
+		transform((value) => BigInt(value)),
+	),
 	outputKind: optional(picklist(['coin', 'balance'])),
 });
 
@@ -208,10 +226,7 @@ export async function resolveCoinBalance(
 			continue;
 		}
 
-		const { type, balance } = transaction.$Intent.data as {
-			type: string;
-			balance: bigint;
-		};
+		const { type, balance } = parse(CoinWithBalanceData, transaction.$Intent.data);
 		const coinType = type === 'gas' ? SUI_TYPE : type;
 		const totalRequired = totalByType.get(type)!;
 		const addressBalance = addressBalanceByType.get(type) ?? 0n;
