@@ -4,9 +4,20 @@
 import { Transaction } from '@mysten/sui/transactions';
 import type { Defined, Simplify, UnionToIntersection } from '../util.js';
 
+const OPTIONAL_ANALYZER = Symbol('optionalAnalyzer');
+
+export function optional<T extends Defined, Options, Analysis extends Record<string, Defined>>(
+	analyzer: Analyzer<T, Options, Analysis>,
+): OptionalAnalyzer<T, Options, Analysis> {
+	return {
+		[OPTIONAL_ANALYZER]: true,
+		analyzer,
+	};
+}
+
 export function createAnalyzer<
 	T extends Defined,
-	Deps extends Record<string, Analyzer<Defined, any, any>> = {},
+	Deps extends Record<string, AnalyzerDependency> = {},
 	Options = object,
 >({
 	cacheKey,
@@ -19,7 +30,7 @@ export function createAnalyzer<
 		options: Options,
 		transaction: Transaction,
 	) => (analysis: {
-		[k in keyof Deps]: Deps[k] extends Analyzer<infer R, any, any> ? R : never;
+		[k in keyof Deps]: DependencyResult<Deps[k]>;
 	}) => Promise<AnalyzerOutput<T>> | AnalyzerOutput<T>;
 }) {
 	return {
@@ -32,12 +43,12 @@ export function createAnalyzer<
 			UnionToIntersection<
 				| Options
 				| {
-						[k in keyof Deps]: Deps[k] extends Analyzer<any, infer O, any> ? O : never;
+						[k in keyof Deps]: DependencyOptions<Deps[k]>;
 				  }[keyof Deps]
 			>
 		>,
 		{
-			[k in keyof Deps]: Deps[k] extends Analyzer<infer R, any, any> ? R : never;
+			[k in keyof Deps]: DependencyResult<Deps[k]>;
 		}
 	>;
 }
@@ -49,6 +60,14 @@ type OptionsFromAnalyzers<T extends Record<string, Analyzer<Defined, any, any>>>
 		transaction: string | Uint8Array;
 	}
 >;
+
+function isOptionalAnalyzer(dep: AnalyzerDependency): dep is OptionalAnalyzer<Defined, any, any> {
+	return OPTIONAL_ANALYZER in dep;
+}
+
+function unwrapAnalyzer(dep: AnalyzerDependency): Analyzer<Defined> {
+	return isOptionalAnalyzer(dep) ? dep.analyzer : dep;
+}
 
 export async function analyze<T extends Record<string, Analyzer<Defined, any, any>>>(
 	analyzers: T,
@@ -64,10 +83,10 @@ export async function analyze<T extends Record<string, Analyzer<Defined, any, an
 		const cacheKey = analyzer.cacheKey ?? analyzer;
 
 		if (!analyzerMap.has(cacheKey)) {
-			const deps: Record<string, Analyzer<Defined>> = analyzer.dependencies || {};
+			const deps: Record<string, AnalyzerDependency> = analyzer.dependencies || {};
 			analyzerMap.set(cacheKey, analyzer.analyze(options, tx));
 
-			Object.values(deps).forEach((dep) => initializeAnalyzer(dep));
+			Object.values(deps).forEach((dep) => initializeAnalyzer(unwrapAnalyzer(dep)));
 		}
 
 		return analyzerMap.get(cacheKey)!;
@@ -78,40 +97,59 @@ export async function analyze<T extends Record<string, Analyzer<Defined, any, an
 	const analysisMap = new Map<unknown, Promise<AnalyzerResult>>();
 
 	async function runAnalyzer(analyzer: Analyzer<Defined>): Promise<AnalyzerResult> {
-		const deps: Record<string, AnalyzerResult> = Object.fromEntries(
-			await Promise.all(
-				Object.entries((analyzer.dependencies || {}) as Record<string, Analyzer<Defined>>).map(
-					async ([key, dep]) => [key, await getAnalysis(dep)],
-				),
+		const deps = await Promise.all(
+			Object.entries((analyzer.dependencies || {}) as Record<string, AnalyzerDependency>).map(
+				async ([key, dep]) => [key, dep, await getAnalysis(unwrapAnalyzer(dep))] as const,
 			),
 		);
 
+		const analysis: Record<string, Defined> = {};
 		const inherited = new Set<TransactionAnalysisIssue>();
+		let missingRequiredDependency = false;
 
-		for (const dep of Object.values(deps)) {
-			if (dep.issues) {
-				dep.issues.forEach((issue) => inherited.add(issue));
+		for (const [key, dep, result] of deps) {
+			if (isOptionalAnalyzer(dep)) {
+				analysis[key] = result;
+				continue;
+			}
+
+			if (result.issues) {
+				result.issues.forEach((issue) => inherited.add(issue));
+			}
+
+			if (result.status === 'success' || result.status === 'partial') {
+				analysis[key] = result.result;
+			} else {
+				missingRequiredDependency = true;
 			}
 		}
 
-		if (inherited.size) {
-			return { issues: [...inherited], ownIssues: [] };
+		if (missingRequiredDependency) {
+			return { status: 'skipped', issues: [...inherited], ownIssues: [] };
 		}
 
 		try {
-			const output = await analyzerMap.get(analyzer.cacheKey ?? analyzer)!(
-				Object.fromEntries(Object.entries(deps).map(([key, dep]) => [key, dep.result])),
-			);
+			const output = await analyzerMap.get(analyzer.cacheKey ?? analyzer)!(analysis);
+			const ownIssues = output.issues ? [...output.issues] : [];
+			const issues = [...new Set([...inherited, ...ownIssues])];
 
-			if (output.issues) {
-				return { issues: [...output.issues], ownIssues: [...output.issues] };
+			if (output.result !== undefined) {
+				if (issues.length) {
+					return { status: 'partial', result: output.result, issues, ownIssues };
+				}
+				return { status: 'success', result: output.result };
 			}
-			return { result: output.result };
+
+			return { status: 'failed', issues, ownIssues };
 		} catch (error) {
 			const issue = {
 				message: `Unexpected error while analyzing transaction: ${(error as Error).message}`,
 			};
-			return { issues: [issue], ownIssues: [issue] };
+			return {
+				status: 'failed',
+				issues: [...new Set([...inherited, issue])],
+				ownIssues: [issue],
+			};
 		}
 	}
 
@@ -139,8 +177,47 @@ export async function analyze<T extends Record<string, Analyzer<Defined, any, an
 		if (result.ownIssues) issues.push(...result.ownIssues);
 	}
 
-	return { ...perAnalyzer, issues };
+	const topLevelResults = Object.values(perAnalyzer);
+	const hasSuccessfulResult = topLevelResults.some(
+		(result) => result.status === 'success' || result.status === 'partial',
+	);
+	const status: AnalyzeStatus = topLevelResults.every((result) => result.status === 'success')
+		? 'complete'
+		: hasSuccessfulResult
+			? 'partial'
+			: 'failed';
+
+	return { ...perAnalyzer, issues, status };
 }
+
+export type AnalyzerDependency = Analyzer<Defined, any, any> | OptionalAnalyzer<Defined, any, any>;
+
+type DependencyResult<T extends AnalyzerDependency> =
+	T extends OptionalAnalyzer<infer R, any, any>
+		? AnalyzerResult<R>
+		: T extends Analyzer<infer R, any, any>
+			? R
+			: never;
+
+type DependencyOptions<T extends AnalyzerDependency> =
+	T extends OptionalAnalyzer<any, infer O, any>
+		? O
+		: T extends Analyzer<any, infer O, any>
+			? O
+			: never;
+
+export interface OptionalAnalyzer<
+	T extends Defined,
+	Options = object,
+	Analysis extends Record<string, Defined> = {},
+> {
+	[OPTIONAL_ANALYZER]: true;
+	analyzer: Analyzer<T, Options, Analysis>;
+}
+
+export type AnalyzerStatus = 'success' | 'partial' | 'failed' | 'skipped';
+
+export type AnalyzeStatus = 'complete' | 'partial' | 'failed';
 
 export type Analyzer<
 	T extends Defined,
@@ -148,9 +225,7 @@ export type Analyzer<
 	Analysis extends Record<string, Defined> = {},
 > = {
 	cacheKey?: unknown;
-	dependencies: {
-		[k in keyof Analysis]: Analyzer<Analysis[k], Options>;
-	};
+	dependencies: Record<string, AnalyzerDependency>;
 	analyze: (
 		options: Options,
 		transaction: Transaction,
@@ -160,7 +235,7 @@ export type Analyzer<
 export type AnalyzerOutput<T extends Defined = Defined> =
 	| {
 			result: T;
-			issues?: never;
+			issues?: TransactionAnalysisIssue[];
 	  }
 	| {
 			issues: TransactionAnalysisIssue[];
@@ -169,14 +244,28 @@ export type AnalyzerOutput<T extends Defined = Defined> =
 
 export type AnalyzerResult<T extends Defined = Defined> =
 	| {
+			status: 'success';
 			result: T;
 			issues?: never;
 			ownIssues?: never;
 	  }
 	| {
+			status: 'partial';
+			result: T;
+			issues: TransactionAnalysisIssue[];
+			ownIssues: TransactionAnalysisIssue[];
+	  }
+	| {
+			status: 'failed';
 			result?: never;
 			issues: TransactionAnalysisIssue[];
 			ownIssues: TransactionAnalysisIssue[];
+	  }
+	| {
+			status: 'skipped';
+			result?: never;
+			issues: TransactionAnalysisIssue[];
+			ownIssues: [];
 	  };
 
 export interface TransactionAnalysisIssue {

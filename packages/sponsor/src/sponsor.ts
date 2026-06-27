@@ -5,10 +5,16 @@ import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
 import type { Signer } from '@mysten/sui/cryptography';
 import { Transaction, TransactionDataBuilder } from '@mysten/sui/transactions';
 import { fromBase64, normalizeSuiAddress } from '@mysten/sui/utils';
-import { analyze, createAnalyzer, type Analyzer } from '@mysten/wallet-sdk';
+import {
+	analyze,
+	createAnalyzer,
+	optional,
+	type Analyzer,
+	type AnalyzerResult,
+} from '@mysten/wallet-sdk';
 
 import type { SponsorRejection, ValidationIssue, Validator } from './validation.js';
-import { reasonOf } from './validation.js';
+import { createSponsorRejection } from './validation.js';
 import { defaults } from './validators.js';
 
 /** A delay, in milliseconds — a fixed number, or `{ min, max }` for a uniform random delay. */
@@ -397,8 +403,9 @@ export class Sponsor<TOptions extends object = object> {
 	 * The sponsor's validation as a composable {@link Analyzer}: it depends on every
 	 * configured validator, so dropping it into any `analyze()` graph contributes
 	 * `SponsorRejection | null` (a rejection, or `null` if the policy passed) while
-	 * sharing/deduping analyzers with that graph. A failed analyzer propagates as
-	 * this analyzer's `issues`.
+	 * sharing/deduping analyzers with that graph. Validators are optional
+	 * dependencies of the aggregate so one validator's analysis failure is reported
+	 * in `analysisIssues` without suppressing policy findings from other validators.
 	 */
 	get analyzer(): Analyzer<SponsorRejection | null, TOptions & { client: ClientWithCoreApi }> {
 		// Memoized: a stable instance gives the framework a stable identity to dedupe
@@ -406,18 +413,36 @@ export class Sponsor<TOptions extends object = object> {
 		// than once) shares its analyzers rather than re-resolving them.
 		if (!this.#analyzer) {
 			const dependencies = Object.fromEntries(
-				this.#validators.map((validator, index) => [`v${index}`, validator]),
+				this.#validators.map((validator, index) => [`v${index}`, optional(validator)]),
 			);
 			this.#analyzer = createAnalyzer({
 				dependencies,
 				analyze:
-					(_options, _transaction) => (results: Record<string, ValidationIssue[] | null>) => {
-						// Each validator's result is its issues, or `null`/empty for a pass.
-						const issues = Object.values(results).flatMap((result) => result ?? []);
+					(_options, _transaction) =>
+					(results: Record<string, AnalyzerResult<ValidationIssue[] | null>>) => {
+						const policyIssues: ValidationIssue[] = [];
+						const analysisIssues: ValidationIssue[] = [];
+
+						for (const result of Object.values(results)) {
+							if ('result' in result) {
+								policyIssues.push(...(result.result ?? []));
+							}
+
+							if (result.issues) {
+								analysisIssues.push(
+									...result.issues.map((issue) => ({
+										code: 'ANALYSIS_FAILED',
+										message: issue.message,
+									})),
+								);
+							}
+						}
+
 						return {
-							result: issues.length
-								? { $kind: 'Rejected', issues, reason: reasonOf(issues) }
-								: null,
+							result:
+								policyIssues.length || analysisIssues.length
+									? createSponsorRejection({ policyIssues, analysisIssues })
+									: null,
 						};
 					},
 			}) as Analyzer<SponsorRejection | null, TOptions & { client: ClientWithCoreApi }>;
@@ -453,14 +478,16 @@ export class Sponsor<TOptions extends object = object> {
 		} as never);
 
 		const check = analysis.check;
-		if (check.issues) {
-			return {
-				$kind: 'Rejected',
-				issues: check.issues.map((issue) => ({ code: 'ANALYSIS_FAILED', message: issue.message })),
-				reason: 'ANALYSIS_FAILED',
-			};
+		if ('result' in check) {
+			return check.result ?? null;
 		}
-		return check.result ?? null;
+		return createSponsorRejection({
+			policyIssues: [],
+			analysisIssues: check.issues.map((issue) => ({
+				code: 'ANALYSIS_FAILED',
+				message: issue.message,
+			})),
+		});
 	}
 
 	#runDelay(spec: DelaySpec | undefined): Promise<void> {

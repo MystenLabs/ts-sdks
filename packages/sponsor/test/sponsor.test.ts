@@ -232,6 +232,32 @@ describe('Sponsor.signTransaction — analyzer behavior', () => {
 		}
 	});
 
+	it('preserves policy rejections when an independent validator cannot analyze', async () => {
+		const sponsorKey = new Ed25519Keypair();
+		const tx = resolvedTransaction({
+			sender: sponsorKey.toSuiAddress(),
+			sponsor: sponsorKey.toSuiAddress(),
+		});
+		const cantCheck = createAnalyzer({
+			analyze: () => () => ({ issues: [{ message: 'service down' }] }),
+		}) as Validator;
+		const sponsor = createSponsor({
+			signer: sponsorKey,
+			client: {} as ClientWithCoreApi,
+			validate: [validSender(), cantCheck],
+		});
+
+		const result = await sponsor.signTransaction({ transaction: tx });
+		expect(result.$kind).toBe('Rejected');
+		if (result.$kind === 'Rejected') {
+			expect(result.reason).toBe('ANALYSIS_FAILED');
+			expect(result.policyIssues.map((issue) => issue.code)).toEqual(['SENDER_IS_SPONSOR']);
+			expect(result.analysisIssues.map((issue) => issue.message)).toEqual(['service down']);
+			expect(result.issues.map((issue) => issue.code)).toContain('SENDER_IS_SPONSOR');
+			expect(result.issues.map((issue) => issue.message)).toContain('service down');
+		}
+	});
+
 	it('threads request-scoped `validationOptions` to validators', async () => {
 		const sponsorKey = new Ed25519Keypair();
 		const requiresToken = createAnalyzer({
