@@ -13,6 +13,10 @@ import { SuiGrpcClient } from '../../../src/grpc/client.js';
 
 export interface PrePublishedPackage {
 	packageId: string;
+	buildOutput: {
+		modules: string[];
+		dependencies: string[];
+	};
 	sharedObjects?: Record<string, string>; // typeName -> objectId
 	publisherAddress: string;
 	publisherObjectId?: string;
@@ -236,6 +240,7 @@ async function publishSinglePackage(options: {
 
 	return {
 		packageId,
+		buildOutput: { modules, dependencies },
 		sharedObjects: Object.keys(sharedObjects).length > 0 ? sharedObjects : undefined,
 		publisherAddress: address,
 		publisherObjectId: publisherObject?.objectId,

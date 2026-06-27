@@ -16,5 +16,6 @@ export {
 	isSuiJsonRpcClient,
 	SuiJsonRpcClient,
 } from './client.js';
+export { dryRunFromSimulate } from './dry-run-from-simulate.js';
 export { SuiHTTPStatusError, SuiHTTPTransportError, JsonRpcError } from './errors.js';
 export { getJsonRpcFullnodeUrl } from './network.js';

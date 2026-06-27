@@ -162,3 +162,29 @@ const ETestCleverError: vector<u8> = b"Test clever error message";
 public fun abort_with_clever_error() {
     abort ETestCleverError
 }
+
+/// Owned wrapper for testing wrapped object effects
+public struct SimpleObjectWrapper has key {
+    id: UID,
+    child: SimpleObject,
+}
+
+/// Delete a vector of simple objects (for testing MakeMoveVec inputs)
+public fun delete_simple_objects(mut objects: vector<SimpleObject>) {
+    while (!vector::is_empty(&objects)) {
+        let obj = vector::pop_back(&mut objects);
+        delete_simple_object(obj);
+    };
+    vector::destroy_empty(objects);
+}
+
+/// Wrap an existing simple object (for testing wrapped object changes)
+public fun wrap_simple_object(obj: SimpleObject, ctx: &mut TxContext) {
+    transfer::transfer(
+        SimpleObjectWrapper {
+            id: object::new(ctx),
+            child: obj,
+        },
+        ctx.sender(),
+    );
+}

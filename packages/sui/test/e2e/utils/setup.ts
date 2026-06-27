@@ -109,6 +109,17 @@ export class TestToolbox {
 		return info.packageId.replace(/^(0x)(0+)/, '0x');
 	}
 
+	public getPackageBuildOutput(name: string): { modules: string[]; dependencies: string[] } {
+		const info = prePublishedPackages?.[name];
+		if (!info) {
+			throw new Error(
+				`Package "${name}" not found. Add it to PACKAGES_TO_PREPUBLISH in prePublish.ts`,
+			);
+		}
+
+		return info.buildOutput;
+	}
+
 	/**
 	 * Get a shared object ID from a pre-published package.
 	 * Returns undefined if the package wasn't pre-published or doesn't have the specified shared object.
