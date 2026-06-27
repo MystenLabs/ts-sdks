@@ -9,7 +9,7 @@ export type {
 	AnalyzeStatus,
 	AnalyzerResult,
 	AnalyzerOutput,
-	OptionalAnalyzer,
+	Dependency,
 	TransactionAnalysisIssue,
 } from './analyzer.js';
 

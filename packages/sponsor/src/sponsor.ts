@@ -11,6 +11,7 @@ import {
 	optional,
 	type Analyzer,
 	type AnalyzerResult,
+	type Dependency,
 } from '@mysten/wallet-sdk';
 
 import type { SponsorRejection, ValidationIssue, Validator } from './validation.js';
@@ -412,7 +413,10 @@ export class Sponsor<TOptions extends object = object> {
 		// on, so dropping `sponsor.analyzer` into a host `analyze()` graph (even more
 		// than once) shares its analyzers rather than re-resolving them.
 		if (!this.#analyzer) {
-			const dependencies = Object.fromEntries(
+			const dependencies: Record<
+				string,
+				Dependency<ValidationIssue[] | null, AnalyzerResult<ValidationIssue[] | null>, any, any>
+			> = Object.fromEntries(
 				this.#validators.map((validator, index) => [`v${index}`, optional(validator)]),
 			);
 			this.#analyzer = createAnalyzer({
@@ -424,9 +428,27 @@ export class Sponsor<TOptions extends object = object> {
 						const analysisIssues: ValidationIssue[] = [];
 
 						for (const result of Object.values(results)) {
-							if ('result' in result) {
-								policyIssues.push(...(result.result ?? []));
+							// Fail closed: any validator that could not run (`failed`/`skipped`)
+							// must reject, even when it surfaced no message. Key this off `status`,
+							// NOT the presence of issues — a validator that returns `{ issues: [] }`
+							// or is skipped by an empty-issues required dep would otherwise contribute
+							// nothing to either bucket and let the sponsor sign.
+							if (result.status === 'failed' || result.status === 'skipped') {
+								const messages = (result.issues ?? []).map((issue) => ({
+									code: 'ANALYSIS_FAILED',
+									message: issue.message,
+								}));
+								analysisIssues.push(
+									...(messages.length
+										? messages
+										: [{ code: 'ANALYSIS_FAILED', message: 'Validator could not run' }]),
+								);
+								continue;
 							}
+
+							// `success`/`partial`: the validator ran. Its policy findings are the
+							// result; any issues alongside a `partial` result are analysis failures.
+							policyIssues.push(...(result.result ?? []));
 
 							if (result.issues) {
 								analysisIssues.push(

@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { Transaction } from '@mysten/sui/transactions';
 
+import type { AnalyzerResult } from '../../src/transaction-analyzer/analyzer.js';
 import { analyze, createAnalyzer, optional } from '../../src/transaction-analyzer/analyzer.js';
 import { DEFAULT_SENDER } from '../mocks/mockData.js';
 
@@ -58,6 +59,33 @@ const optionalDepAnalyzer = createAnalyzer({
 					? undefined
 					: [{ message: `optional dependency was ${failingDep.status}` }],
 		}),
+});
+
+// A required dependency edge with a custom `transform` that maps the dependency's
+// full result to a derived value (here: its status). Required edges still
+// short-circuit the parent when the dependency produces no result.
+const transformedRequiredDep = createAnalyzer({
+	cacheKey: 'test-transformed-required',
+	dependencies: { leaf: { analyzer: leafOk, transform: (r: AnalyzerResult<number>) => r.status } },
+	analyze:
+		() =>
+		({ leaf }) => ({ result: `leaf-was-${leaf}` }),
+});
+
+// An optional dependency edge with a custom `transform` that falls back to a
+// default when the dependency could not run, instead of receiving the full result.
+const transformedOptionalDep = createAnalyzer({
+	cacheKey: 'test-transformed-optional',
+	dependencies: {
+		failingDep: {
+			analyzer: failingDep,
+			required: false,
+			transform: (r: AnalyzerResult<string>) => r.result ?? 'fallback',
+		},
+	},
+	analyze:
+		() =>
+		({ failingDep }) => ({ result: failingDep }),
 });
 
 async function txJson() {
@@ -148,5 +176,23 @@ describe('analyze — issue handling', () => {
 			'optional dependency was failed',
 			'shared-dep failed',
 		]);
+	});
+
+	it('a required dependency can transform the dependency result into a derived value', async () => {
+		const r = await analyze({ transformedRequiredDep }, { transaction: await txJson() });
+		expect(r.status).toBe('complete');
+		expect(r.transformedRequiredDep.status).toBe('success');
+		expect(r.transformedRequiredDep.result).toBe('leaf-was-success');
+	});
+
+	it('an optional dependency transform can supply a fallback when the dependency fails', async () => {
+		const r = await analyze({ transformedOptionalDep }, { transaction: await txJson() });
+		expect(r.status).toBe('complete');
+		expect(r.transformedOptionalDep.status).toBe('success');
+		// Optional edges never inherit issues into the parent, so the parent stays `success`
+		// and reports no issues of its own (the dep's own-issue still surfaces at top level,
+		// since top-level `issues` collects every analyzer's own-issues).
+		expect(r.transformedOptionalDep.result).toBe('fallback');
+		expect(r.transformedOptionalDep.issues).toBeUndefined();
 	});
 });

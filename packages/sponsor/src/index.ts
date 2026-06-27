@@ -51,5 +51,5 @@ export type {
 	AnalyzerResult,
 	AnalyzerStatus,
 	AnalyzeStatus,
-	OptionalAnalyzer,
+	Dependency,
 } from '@mysten/wallet-sdk';

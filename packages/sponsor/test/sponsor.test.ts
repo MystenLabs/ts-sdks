@@ -258,6 +258,54 @@ describe('Sponsor.signTransaction — analyzer behavior', () => {
 		}
 	});
 
+	it('fails closed when a validator could not run but surfaced no issue', async () => {
+		const sponsorKey = new Ed25519Keypair();
+		// Degenerate "couldn't analyze" with an EMPTY issues array: status `failed`,
+		// no `result`, no message. Must still reject — never sign on a non-running validator.
+		const cantCheck = createAnalyzer({
+			analyze: () => () => ({ issues: [] }),
+		}) as Validator;
+		const sponsor = createSponsor({
+			signer: sponsorKey,
+			client: {} as ClientWithCoreApi,
+			validate: [cantCheck],
+		});
+
+		const result = await sponsor.signTransaction({ transaction: txFor(sponsorKey) });
+		expect(result.$kind).toBe('Rejected');
+		if (result.$kind === 'Rejected') {
+			expect(result.reason).toBe('ANALYSIS_FAILED');
+			expect(result.analysisIssues.map((issue) => issue.code)).toEqual(['ANALYSIS_FAILED']);
+		}
+	});
+
+	it('fails closed when a validator is skipped by an empty-issues required dependency', async () => {
+		const sponsorKey = new Ed25519Keypair();
+		// A required dependency that fails with an EMPTY issues array → the validator
+		// is `skipped` with `issues: []`. The aggregate must still reject.
+		const silentlyFailingDep = createAnalyzer({
+			cacheKey: 'test:silent-failing-dep',
+			analyze: () => () => ({ issues: [] }),
+		});
+		const skippedValidator = createAnalyzer({
+			dependencies: { silentlyFailingDep },
+			analyze:
+				() =>
+				({ silentlyFailingDep }) => ({ result: silentlyFailingDep ? null : null }),
+		}) as Validator;
+		const sponsor = createSponsor({
+			signer: sponsorKey,
+			client: {} as ClientWithCoreApi,
+			validate: [skippedValidator],
+		});
+
+		const result = await sponsor.signTransaction({ transaction: txFor(sponsorKey) });
+		expect(result.$kind).toBe('Rejected');
+		if (result.$kind === 'Rejected') {
+			expect(result.reason).toBe('ANALYSIS_FAILED');
+		}
+	});
+
 	it('threads request-scoped `validationOptions` to validators', async () => {
 		const sponsorKey = new Ed25519Keypair();
 		const requiresToken = createAnalyzer({
