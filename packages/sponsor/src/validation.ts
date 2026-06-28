@@ -19,21 +19,26 @@ export interface ValidationIssue {
  * A validator is an `Analyzer` whose result is the issues it found — just
  * `createAnalyzer(...)`. Declare the analyzers it reads via `dependencies`, read
  * request-scoped inputs (an auth token, a tenant id) off `options`, and report
- * the outcome through one of three channels:
+ * the outcome through these channels:
  *
  * - **Pass** — return `{ result: null }` (or `{ result: [] }`).
  * - **Reject (policy)** — return `{ result: [{ code, message }] }`. The
  *   transaction is well-formed but violates policy → `POLICY_REJECTED`.
+ * - **Partial** — return `{ result: [{ code, message }], issues: [{ message }] }`.
+ *   The validator found a policy rejection and also hit an analysis issue; sponsor
+ *   validation reports both and uses `ANALYSIS_FAILED`.
  * - **Couldn't analyze** — return `{ issues: [{ message }] }` or `throw`. The
  *   analyzer itself couldn't decide (a failed lookup, an unreachable service) →
  *   `ANALYSIS_FAILED`. This is the analyzer framework's own channel, so it
- *   propagates: dependents don't run, and the issue surfaces on the result.
+ *   propagates through strict dependencies. Sponsor validation treats each
+ *   configured validator independently, so one validator's analysis failure
+ *   doesn't suppress policy rejections from other validators.
  *
  * Reporting findings as the `result` (rather than via `issues`) is what keeps
- * "violates policy" distinct from "couldn't be checked". `createSponsor` makes
- * every validator a dependency of `sponsor.analyzer` (so the framework resolves
- * only what's depended on, dedupes, and propagates failures) and infers the
- * `options` each requires onto `signTransaction`.
+ * "violates policy" distinct from "couldn't be checked". `createSponsor`
+ * aggregates every configured validator through `sponsor.analyzer` (so the
+ * framework resolves only what's depended on and dedupes shared analyzers) and
+ * infers the `options` each requires onto `signTransaction`.
  *
  * The options and dependencies are `any` because validators are heterogeneous —
  * a validator always carries `client` in its options (its dependencies fetch data
@@ -53,18 +58,42 @@ export type SponsorRejectionReason = 'POLICY_REJECTED' | 'ANALYSIS_FAILED';
 /**
  * A validator-rejected outcome. The sponsor methods *return* this (rather than
  * throwing) so callers handle it alongside the execution result's `$kind`. The
- * `$kind` discriminates the union; `reason` says *why* it was rejected.
+ * `$kind` discriminates the union; `reason` says which class of issue requires
+ * the most conservative handling.
  */
 export interface SponsorRejection {
 	$kind: 'Rejected';
+	/** All rejection issues, preserved for existing callers. */
 	issues: ValidationIssue[];
+	/** Policy validators that ran and rejected the transaction. */
+	policyIssues: ValidationIssue[];
+	/** Analyzer/framework failures that made one or more validators unavailable. */
+	analysisIssues: ValidationIssue[];
 	reason: SponsorRejectionReason;
 }
 
-export function reasonOf(issues: ValidationIssue[]): SponsorRejectionReason {
-	return issues.some((issue) => issue.code === 'ANALYSIS_FAILED')
-		? 'ANALYSIS_FAILED'
-		: 'POLICY_REJECTED';
+export function reasonOf(
+	issues: ValidationIssue[],
+	analysisIssues: ValidationIssue[] = issues.filter((issue) => issue.code === 'ANALYSIS_FAILED'),
+): SponsorRejectionReason {
+	return analysisIssues.length > 0 ? 'ANALYSIS_FAILED' : 'POLICY_REJECTED';
+}
+
+export function createSponsorRejection({
+	policyIssues,
+	analysisIssues,
+}: {
+	policyIssues: ValidationIssue[];
+	analysisIssues: ValidationIssue[];
+}): SponsorRejection {
+	const issues = [...policyIssues, ...analysisIssues];
+	return {
+		$kind: 'Rejected',
+		issues,
+		policyIssues,
+		analysisIssues,
+		reason: reasonOf(issues, analysisIssues),
+	};
 }
 
 /**

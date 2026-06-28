@@ -44,5 +44,12 @@ export {
 export type { AnalyzerMap, AnalysisResults } from './validators.js';
 
 // Re-export the analyzer toolkit so authoring/composing validators is a single import.
-export { analyze, analyzers, createAnalyzer } from '@mysten/wallet-sdk';
-export type { Analyzer, AnalyzerResult } from '@mysten/wallet-sdk';
+export { analyze, analyzers, createAnalyzer, optional } from '@mysten/wallet-sdk';
+export type {
+	Analyzer,
+	AnalyzerDependency,
+	AnalyzerResult,
+	AnalyzerStatus,
+	AnalyzeStatus,
+	Dependency,
+} from '@mysten/wallet-sdk';

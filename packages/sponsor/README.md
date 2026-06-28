@@ -271,14 +271,19 @@ service.
 ## Custom validators
 
 A validator **is an analyzer** — just `createAnalyzer(...)` — whose result is the issues it found.
-It declares the analyzers it reads via `dependencies` and reports one of three outcomes:
+It declares the analyzers it reads via `dependencies` and reports these outcomes:
 
 - **pass** — `{ result: null }` (or `{ result: [] }`);
 - **reject** — `{ result: [{ code, message }] }`: the transaction is well-formed but violates policy
   → `POLICY_REJECTED`;
+- **partial** — `{ result: [{ code, message }], issues: [{ message }] }`: the validator found a
+  policy rejection but also hit an analysis issue, so sponsor validation reports both and treats the
+  overall reason as `ANALYSIS_FAILED`;
 - **couldn't analyze** — `{ issues: [{ message }] }` or `throw`: the analyzer itself couldn't decide
   (a failed lookup, an unreachable service) → `ANALYSIS_FAILED`. This is the analyzer framework's
-  own channel, so it propagates — dependents don't run.
+  own channel, so it propagates through strict dependencies. Sponsor validation treats each
+  configured validator independently, so one validator's analysis failure doesn't suppress policy
+  rejections from other validators.
 
 Reporting findings as the `result` (rather than via `issues`) is what keeps "violates policy"
 distinct from "couldn't be checked". There's no built-in "the sponsor must be paid" rule —
@@ -310,8 +315,10 @@ commands, expiration), which most validators read. Alongside it: `balanceFlows` 
 deltas), `transactionResponse` (the dry-run, incl. effects), `commands`, `moveFunctions`, `objects`,
 `coins`, `inputs`, and `bytes` — plus the sponsor's `currentEpoch`, and any others the analyzer
 package adds (see [`@mysten/wallet-sdk`](https://www.npmjs.com/package/@mysten/wallet-sdk) for the
-full set). All are re-exported as `analyzers` (with `currentEpoch` and `createAnalyzer` alongside).
-A failed analyzer never reaches your `analyze`: it short-circuits to an `ANALYSIS_FAILED` rejection.
+full set). All are re-exported as `analyzers` (with `currentEpoch`, `createAnalyzer`, and `optional`
+alongside). A failed required analyzer never reaches your validator's `analyze`: that validator
+contributes an `ANALYSIS_FAILED` issue while independent validators can still report policy
+rejections.
 
 ## Loading data, and sharing it across validators
 
@@ -384,7 +391,7 @@ await sponsor.signAndExecuteTransaction({
 
 ## How it runs
 
-`createSponsor` makes every validator a dependency of **`sponsor.analyzer`**, and validation is just
+`createSponsor` aggregates every validator through **`sponsor.analyzer`**, and validation is just
 `analyze({ check: sponsor.analyzer }, { transaction, client })`. The analyzer framework then gives,
 for free:
 
@@ -394,13 +401,15 @@ for free:
   declare — it falls out of the dependency graph.
 - **Deduped** — `data` / `balanceFlows` etc. resolve once even when many validators (and a host
   graph) depend on them.
-- **Propagated** — a failed analyzer becomes an `ANALYSIS_FAILED` rejection rather than reaching a
-  validator with a broken value.
+- **Independent failure reporting** — a failed validator becomes an `ANALYSIS_FAILED` entry in
+  `analysisIssues`, without suppressing policy rejections from validators that did run.
 
 When validation fails, the sponsor never signs and the method **returns**
-`{ $kind: 'Rejected', issues, reason }` — `issues` lists every reason, and `reason` is
-`'POLICY_REJECTED'` or `'ANALYSIS_FAILED'`. To turn a rejection into a thrown error, the exported
-`SponsorValidationError` class takes `(issues, reason)`.
+`{ $kind: 'Rejected', issues, policyIssues, analysisIssues, reason }`. `issues` preserves the
+combined list for existing callers, while `policyIssues` and `analysisIssues` separate policy
+rejections from checks that could not run. `reason` is `'POLICY_REJECTED'` when every reported issue
+is policy-only and `'ANALYSIS_FAILED'` when any check could not run. To turn a rejection into a
+thrown error, the exported `SponsorValidationError` class takes `(issues, reason)`.
 
 **`sponsor.analyzer`** is also the composable handle: drop it into any other `analyze()` graph and
 it contributes `SponsorRejection | null`, deduping its analyzers with that graph.

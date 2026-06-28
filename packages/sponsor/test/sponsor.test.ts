@@ -232,6 +232,109 @@ describe('Sponsor.signTransaction — analyzer behavior', () => {
 		}
 	});
 
+	it('preserves policy rejections when an independent validator cannot analyze', async () => {
+		const sponsorKey = new Ed25519Keypair();
+		const tx = resolvedTransaction({
+			sender: sponsorKey.toSuiAddress(),
+			sponsor: sponsorKey.toSuiAddress(),
+		});
+		const cantCheck = createAnalyzer({
+			analyze: () => () => ({ issues: [{ message: 'service down' }] }),
+		}) as Validator;
+		const sponsor = createSponsor({
+			signer: sponsorKey,
+			client: {} as ClientWithCoreApi,
+			validate: [validSender(), cantCheck],
+		});
+
+		const result = await sponsor.signTransaction({ transaction: tx });
+		expect(result.$kind).toBe('Rejected');
+		if (result.$kind === 'Rejected') {
+			expect(result.reason).toBe('ANALYSIS_FAILED');
+			expect(result.policyIssues.map((issue) => issue.code)).toEqual(['SENDER_IS_SPONSOR']);
+			expect(result.analysisIssues.map((issue) => issue.message)).toEqual(['service down']);
+			expect(result.issues.map((issue) => issue.code)).toContain('SENDER_IS_SPONSOR');
+			expect(result.issues.map((issue) => issue.message)).toContain('service down');
+		}
+	});
+
+	it('reports both policy and analysis issues from a partial validator result', async () => {
+		const sponsorKey = new Ed25519Keypair();
+		const partialValidator = createAnalyzer({
+			analyze: () => () => ({
+				result: [{ code: 'POLICY_FINDING', message: 'policy finding' }],
+				issues: [{ message: 'partial lookup failed' }],
+			}),
+		}) as Validator;
+		const sponsor = createSponsor({
+			signer: sponsorKey,
+			client: {} as ClientWithCoreApi,
+			validate: [partialValidator],
+		});
+
+		const result = await sponsor.signTransaction({ transaction: txFor(sponsorKey) });
+		expect(result.$kind).toBe('Rejected');
+		if (result.$kind === 'Rejected') {
+			expect(result.reason).toBe('ANALYSIS_FAILED');
+			expect(result.policyIssues).toEqual([{ code: 'POLICY_FINDING', message: 'policy finding' }]);
+			expect(result.analysisIssues).toEqual([
+				{ code: 'ANALYSIS_FAILED', message: 'partial lookup failed' },
+			]);
+			expect(result.issues).toEqual([
+				{ code: 'POLICY_FINDING', message: 'policy finding' },
+				{ code: 'ANALYSIS_FAILED', message: 'partial lookup failed' },
+			]);
+		}
+	});
+
+	it('fails closed when a validator could not run but surfaced no issue', async () => {
+		const sponsorKey = new Ed25519Keypair();
+		// Degenerate "couldn't analyze" with an EMPTY issues array: status `failed`,
+		// no `result`, no message. Must still reject — never sign on a non-running validator.
+		const cantCheck = createAnalyzer({
+			analyze: () => () => ({ issues: [] }),
+		}) as Validator;
+		const sponsor = createSponsor({
+			signer: sponsorKey,
+			client: {} as ClientWithCoreApi,
+			validate: [cantCheck],
+		});
+
+		const result = await sponsor.signTransaction({ transaction: txFor(sponsorKey) });
+		expect(result.$kind).toBe('Rejected');
+		if (result.$kind === 'Rejected') {
+			expect(result.reason).toBe('ANALYSIS_FAILED');
+			expect(result.analysisIssues.map((issue) => issue.code)).toEqual(['ANALYSIS_FAILED']);
+		}
+	});
+
+	it('fails closed when a validator is skipped by an empty-issues required dependency', async () => {
+		const sponsorKey = new Ed25519Keypair();
+		// A required dependency that fails with an EMPTY issues array → the validator
+		// is `skipped` with `issues: []`. The aggregate must still reject.
+		const silentlyFailingDep = createAnalyzer({
+			cacheKey: 'test:silent-failing-dep',
+			analyze: () => () => ({ issues: [] }),
+		});
+		const skippedValidator = createAnalyzer({
+			dependencies: { silentlyFailingDep },
+			analyze:
+				() =>
+				({ silentlyFailingDep }) => ({ result: silentlyFailingDep ? null : null }),
+		}) as Validator;
+		const sponsor = createSponsor({
+			signer: sponsorKey,
+			client: {} as ClientWithCoreApi,
+			validate: [skippedValidator],
+		});
+
+		const result = await sponsor.signTransaction({ transaction: txFor(sponsorKey) });
+		expect(result.$kind).toBe('Rejected');
+		if (result.$kind === 'Rejected') {
+			expect(result.reason).toBe('ANALYSIS_FAILED');
+		}
+	});
+
 	it('threads request-scoped `validationOptions` to validators', async () => {
 		const sponsorKey = new Ed25519Keypair();
 		const requiresToken = createAnalyzer({
