@@ -6,11 +6,14 @@ keywords: [Sponsor validation, custom validation analyzers, transaction analyzer
 
 A validator is an analyzer used for policy checks. Create one with `createAnalyzer(...)`, return the
 issues it found, and pass it to `createSponsor({ validate })`. It declares the analyzers it reads
-through `dependencies` and reports one of three outcomes:
+through `dependencies` and reports these outcomes:
 
 - **pass**: `{ result: null }` (or `{ result: [] }`);
 - **reject**: `{ result: [{ code, message }] }`: the transaction is well-formed but violates policy
   (`POLICY_REJECTED`);
+- **partial**: `{ result: [{ code, message }], issues: [{ message }] }`: the validator found a
+  policy rejection but also hit an analysis issue, so sponsor validation reports both and treats the
+  overall reason as `ANALYSIS_FAILED`;
 - **couldn't analyze**: `{ issues: [{ message }] }` or `throw`: the analyzer itself couldn't decide
   (a failed lookup, an unreachable service), producing `ANALYSIS_FAILED`. This is the analyzer
   framework's own channel, so it propagates through strict dependencies. Sponsor validation treats

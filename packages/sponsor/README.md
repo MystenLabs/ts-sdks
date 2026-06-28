@@ -271,11 +271,14 @@ service.
 ## Custom validators
 
 A validator **is an analyzer** — just `createAnalyzer(...)` — whose result is the issues it found.
-It declares the analyzers it reads via `dependencies` and reports one of three outcomes:
+It declares the analyzers it reads via `dependencies` and reports these outcomes:
 
 - **pass** — `{ result: null }` (or `{ result: [] }`);
 - **reject** — `{ result: [{ code, message }] }`: the transaction is well-formed but violates policy
   → `POLICY_REJECTED`;
+- **partial** — `{ result: [{ code, message }], issues: [{ message }] }`: the validator found a
+  policy rejection but also hit an analysis issue, so sponsor validation reports both and treats the
+  overall reason as `ANALYSIS_FAILED`;
 - **couldn't analyze** — `{ issues: [{ message }] }` or `throw`: the analyzer itself couldn't decide
   (a failed lookup, an unreachable service) → `ANALYSIS_FAILED`. This is the analyzer framework's
   own channel, so it propagates through strict dependencies. Sponsor validation treats each
