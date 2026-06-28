@@ -19,11 +19,14 @@ export interface ValidationIssue {
  * A validator is an `Analyzer` whose result is the issues it found — just
  * `createAnalyzer(...)`. Declare the analyzers it reads via `dependencies`, read
  * request-scoped inputs (an auth token, a tenant id) off `options`, and report
- * the outcome through one of three channels:
+ * the outcome through these channels:
  *
  * - **Pass** — return `{ result: null }` (or `{ result: [] }`).
  * - **Reject (policy)** — return `{ result: [{ code, message }] }`. The
  *   transaction is well-formed but violates policy → `POLICY_REJECTED`.
+ * - **Partial** — return `{ result: [{ code, message }], issues: [{ message }] }`.
+ *   The validator found a policy rejection and also hit an analysis issue; sponsor
+ *   validation reports both and uses `ANALYSIS_FAILED`.
  * - **Couldn't analyze** — return `{ issues: [{ message }] }` or `throw`. The
  *   analyzer itself couldn't decide (a failed lookup, an unreachable service) →
  *   `ANALYSIS_FAILED`. This is the analyzer framework's own channel, so it

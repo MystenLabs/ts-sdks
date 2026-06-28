@@ -421,52 +421,53 @@ export class Sponsor<TOptions extends object = object> {
 			);
 			this.#analyzer = createAnalyzer({
 				dependencies,
-				analyze:
-					(_options, _transaction) =>
-					(results: Record<string, AnalyzerResult<ValidationIssue[] | null>>) => {
-						const policyIssues: ValidationIssue[] = [];
-						const analysisIssues: ValidationIssue[] = [];
+				analyze: (_options, _transaction) => (results) => {
+					const validatorResults = Object.values(results) as AnalyzerResult<
+						ValidationIssue[] | null
+					>[];
+					const policyIssues: ValidationIssue[] = [];
+					const analysisIssues: ValidationIssue[] = [];
 
-						for (const result of Object.values(results)) {
-							// Fail closed: any validator that could not run (`failed`/`skipped`)
-							// must reject, even when it surfaced no message. Key this off `status`,
-							// NOT the presence of issues — a validator that returns `{ issues: [] }`
-							// or is skipped by an empty-issues required dep would otherwise contribute
-							// nothing to either bucket and let the sponsor sign.
-							if (result.status === 'failed' || result.status === 'skipped') {
-								const messages = (result.issues ?? []).map((issue) => ({
-									code: 'ANALYSIS_FAILED',
-									message: issue.message,
-								}));
-								analysisIssues.push(
-									...(messages.length
-										? messages
-										: [{ code: 'ANALYSIS_FAILED', message: 'Validator could not run' }]),
-								);
-								continue;
-							}
-
-							// `success`/`partial`: the validator ran. Its policy findings are the
-							// result; any issues alongside a `partial` result are analysis failures.
-							policyIssues.push(...(result.result ?? []));
-
-							if (result.issues) {
-								analysisIssues.push(
-									...result.issues.map((issue) => ({
-										code: 'ANALYSIS_FAILED',
-										message: issue.message,
-									})),
-								);
-							}
+					for (const result of validatorResults) {
+						// Fail closed: any validator that could not run (`failed`/`skipped`)
+						// must reject, even when it surfaced no message. Key this off `status`,
+						// NOT the presence of issues — a validator that returns `{ issues: [] }`
+						// or is skipped by an empty-issues required dep would otherwise contribute
+						// nothing to either bucket and let the sponsor sign.
+						if (result.status === 'failed' || result.status === 'skipped') {
+							const messages = (result.issues ?? []).map((issue) => ({
+								code: 'ANALYSIS_FAILED',
+								message: issue.message,
+							}));
+							analysisIssues.push(
+								...(messages.length
+									? messages
+									: [{ code: 'ANALYSIS_FAILED', message: 'Validator could not run' }]),
+							);
+							continue;
 						}
 
-						return {
-							result:
-								policyIssues.length || analysisIssues.length
-									? createSponsorRejection({ policyIssues, analysisIssues })
-									: null,
-						};
-					},
+						// `success`/`partial`: the validator ran. Its policy findings are the
+						// result; any issues alongside a `partial` result are analysis failures.
+						policyIssues.push(...(result.result ?? []));
+
+						if (result.issues) {
+							analysisIssues.push(
+								...result.issues.map((issue) => ({
+									code: 'ANALYSIS_FAILED',
+									message: issue.message,
+								})),
+							);
+						}
+					}
+
+					return {
+						result:
+							policyIssues.length || analysisIssues.length
+								? createSponsorRejection({ policyIssues, analysisIssues })
+								: null,
+					};
+				},
 			}) as Analyzer<SponsorRejection | null, TOptions & { client: ClientWithCoreApi }>;
 		}
 		return this.#analyzer;

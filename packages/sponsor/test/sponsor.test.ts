@@ -258,6 +258,35 @@ describe('Sponsor.signTransaction — analyzer behavior', () => {
 		}
 	});
 
+	it('reports both policy and analysis issues from a partial validator result', async () => {
+		const sponsorKey = new Ed25519Keypair();
+		const partialValidator = createAnalyzer({
+			analyze: () => () => ({
+				result: [{ code: 'POLICY_FINDING', message: 'policy finding' }],
+				issues: [{ message: 'partial lookup failed' }],
+			}),
+		}) as Validator;
+		const sponsor = createSponsor({
+			signer: sponsorKey,
+			client: {} as ClientWithCoreApi,
+			validate: [partialValidator],
+		});
+
+		const result = await sponsor.signTransaction({ transaction: txFor(sponsorKey) });
+		expect(result.$kind).toBe('Rejected');
+		if (result.$kind === 'Rejected') {
+			expect(result.reason).toBe('ANALYSIS_FAILED');
+			expect(result.policyIssues).toEqual([{ code: 'POLICY_FINDING', message: 'policy finding' }]);
+			expect(result.analysisIssues).toEqual([
+				{ code: 'ANALYSIS_FAILED', message: 'partial lookup failed' },
+			]);
+			expect(result.issues).toEqual([
+				{ code: 'POLICY_FINDING', message: 'policy finding' },
+				{ code: 'ANALYSIS_FAILED', message: 'partial lookup failed' },
+			]);
+		}
+	});
+
 	it('fails closed when a validator could not run but surfaced no issue', async () => {
 		const sponsorKey = new Ed25519Keypair();
 		// Degenerate "couldn't analyze" with an EMPTY issues array: status `failed`,

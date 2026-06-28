@@ -10,6 +10,8 @@ import { AutoApprovalPolicySchema, AutoApprovalSettingsSchema } from './schemas/
 import { parseStructTag } from '@mysten/sui/utils';
 import type { AutoApprovalResult } from './analyzer.js';
 
+type SuccessfulAutoApprovalResult = Extract<AutoApprovalResult, { status: 'success' }>;
+
 export interface AutoApprovalManagerOptions {
 	policy: string;
 	state: string | null;
@@ -60,7 +62,12 @@ export class AutoApprovalManager {
 		const results: AutoApprovalCheck = {
 			matchesPolicy: false,
 			canAutoApprove: false,
-			analysisIssues: [...(analysis.issues ?? [])],
+			analysisIssues:
+				analysis.status === 'success'
+					? []
+					: analysis.issues.length
+						? [...analysis.issues]
+						: [{ message: 'Transaction analysis failed' }],
 			policyIssues: [],
 			settingsIssues: [],
 		};
@@ -93,7 +100,7 @@ export class AutoApprovalManager {
 	#matchesPolicy(analysis: AutoApprovalResult): AutoApprovalIssue[] {
 		const issues: AutoApprovalIssue[] = [];
 
-		if (analysis.issues) {
+		if (analysis.status !== 'success') {
 			issues.push({ message: 'Transaction analysis failed' });
 			return issues;
 		}
@@ -171,7 +178,7 @@ export class AutoApprovalManager {
 			return issues;
 		}
 
-		if (analysis.issues) {
+		if (analysis.status !== 'success') {
 			issues.push({ message: 'Transaction analysis failed' });
 			return issues;
 		}
@@ -231,12 +238,10 @@ export class AutoApprovalManager {
 
 	// TODO: we should ensure that only 1 tx is pending at a time, and pending txs can't increase budgets
 	commitTransaction(analysis: AutoApprovalResult): void {
+		assertSuccessfulAnalysis(analysis);
+
 		if (!this.#state.settings) {
 			throw new Error('No auto-approval settings configured');
-		}
-
-		if (!analysis.result) {
-			throw new Error('Transaction analysis failed');
 		}
 
 		if (this.#state.settings.remainingTransactions !== null && this.#state.settings) {
@@ -272,6 +277,8 @@ export class AutoApprovalManager {
 	}
 
 	revertTransaction(analysis: AutoApprovalResult): void {
+		assertSuccessfulAnalysis(analysis);
+
 		if (analysis.result?.digest) {
 			this.#removePendingDigest(analysis.result?.digest);
 		}
@@ -284,12 +291,10 @@ export class AutoApprovalManager {
 	}
 
 	#revertCoinFlows(analysis: AutoApprovalResult): void {
+		assertSuccessfulAnalysis(analysis);
+
 		if (!this.#state.settings) {
 			throw new Error('No auto-approval settings configured');
-		}
-
-		if (!analysis.result) {
-			throw new Error('Transaction analysis failed');
 		}
 
 		for (const outflow of analysis.result.coinFlows.outflows) {
@@ -328,14 +333,12 @@ export class AutoApprovalManager {
 		analysis: AutoApprovalResult,
 		result: SuiClientTypes.Transaction<{ balanceChanges: true }>,
 	): void {
+		assertSuccessfulAnalysis(analysis);
+
 		this.#removePendingDigest(result.digest);
 
 		if (!this.#state.settings) {
 			throw new Error('No auto-approval settings configured');
-		}
-
-		if (!analysis.result) {
-			throw new Error('Transaction analysis failed');
 		}
 
 		// Revert coin flows and use real balance changes instead
@@ -406,4 +409,12 @@ function isCoinType(type: string): boolean {
 		parsedType.name === parsedCoinType.name &&
 		parsedType.typeParams.length === 1
 	);
+}
+
+function assertSuccessfulAnalysis(
+	analysis: AutoApprovalResult,
+): asserts analysis is SuccessfulAutoApprovalResult {
+	if (analysis.status !== 'success') {
+		throw new Error('Transaction analysis failed');
+	}
 }

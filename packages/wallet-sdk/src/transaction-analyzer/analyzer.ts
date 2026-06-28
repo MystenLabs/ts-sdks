@@ -81,16 +81,24 @@ function unwrapResult(result: AnalyzerResult): Defined {
 	return (result as { result?: Defined }).result as Defined;
 }
 
+/** The identity transform applied to optional dependency objects by default. */
+function identityResult(result: AnalyzerResult): Defined {
+	return result;
+}
+
 function isDependency(dep: AnalyzerDependency): dep is Dependency<Defined, Defined, any, any> {
 	return 'analyzer' in dep;
 }
 
 function normalizeDependency(dep: AnalyzerDependency): NormalizedDependency {
 	if (isDependency(dep)) {
+		const required = dep.required ?? true;
 		return {
 			analyzer: dep.analyzer,
-			required: dep.required ?? true,
-			transform: (dep.transform ?? unwrapResult) as (result: AnalyzerResult) => Defined,
+			required,
+			transform: (dep.transform ?? (required ? unwrapResult : identityResult)) as (
+				result: AnalyzerResult,
+			) => Defined,
 		};
 	}
 
@@ -101,6 +109,10 @@ export async function analyze<T extends Record<string, Analyzer<Defined, any, an
 	analyzers: T,
 	{ transaction, ...options }: OptionsFromAnalyzers<T>,
 ) {
+	if (Object.prototype.hasOwnProperty.call(analyzers, 'status')) {
+		throw new Error('Analyzer key "status" is reserved for the top-level analysis status');
+	}
+
 	const tx = Transaction.from(transaction);
 	const analyzerMap = new Map<
 		unknown,
@@ -138,33 +150,34 @@ export async function analyze<T extends Record<string, Analyzer<Defined, any, an
 		const inherited = new Set<TransactionAnalysisIssue>();
 		let missingRequiredDependency = false;
 
-		for (const [key, { required, transform }, result] of deps) {
-			// Optional deps never gate and never inherit issues: the parent owns the full
-			// result (default `transform` for `optional()` is identity) and decides itself.
-			if (!required) {
-				analysis[key] = transform(result);
-				continue;
-			}
-
-			if (result.issues) {
-				result.issues.forEach((issue) => inherited.add(issue));
-			}
-
-			// A required dep that produced no result (`failed`/`skipped`) short-circuits the
-			// parent. `partial` still has a result, so it proceeds — `partial` is only
-			// meaningful at the outer `analyze()` layer, not at a dependency boundary.
-			if (result.status === 'success' || result.status === 'partial') {
-				analysis[key] = transform(result);
-			} else {
-				missingRequiredDependency = true;
-			}
-		}
-
-		if (missingRequiredDependency) {
-			return { status: 'skipped', issues: [...inherited], ownIssues: [] };
-		}
-
 		try {
+			for (const [key, { required, transform }, result] of deps) {
+				// Optional deps never gate and never inherit issues: the parent owns the full
+				// result (default `transform` for `optional()` and explicit optional objects is
+				// identity) and decides itself.
+				if (!required) {
+					analysis[key] = transform(result);
+					continue;
+				}
+
+				if (result.issues) {
+					result.issues.forEach((issue) => inherited.add(issue));
+				}
+
+				// A required dep that produced no result (`failed`/`skipped`) short-circuits the
+				// parent. `partial` still has a result, so it proceeds — `partial` is only
+				// meaningful at the outer `analyze()` layer, not at a dependency boundary.
+				if (result.status === 'success' || result.status === 'partial') {
+					analysis[key] = transform(result);
+				} else {
+					missingRequiredDependency = true;
+				}
+			}
+
+			if (missingRequiredDependency) {
+				return { status: 'skipped', issues: [...inherited], ownIssues: [] };
+			}
+
 			const output = await analyzerMap.get(analyzer.cacheKey ?? analyzer)!(analysis);
 			const ownIssues = output.issues ? [...output.issues] : [];
 			const issues = [...new Set([...inherited, ...ownIssues])];
@@ -234,6 +247,7 @@ export async function analyze<T extends Record<string, Analyzer<Defined, any, an
  * value is the unwrapped result. The explicit object form lets you declare an
  * edge `required: false` (the parent never short-circuits on it) and/or map the
  * dependency's full {@link AnalyzerResult} to a custom value via `transform`.
+ * An optional edge without a `transform` receives the full {@link AnalyzerResult}.
  */
 export interface Dependency<
 	R extends Defined,
@@ -244,18 +258,26 @@ export interface Dependency<
 	analyzer: Analyzer<R, Options, Analysis>;
 	/** Whether a failed/skipped dependency short-circuits the parent. Default: `true`. */
 	required?: boolean;
-	/** Maps the dependency's full result to the value the parent sees. Default: `(r) => r.result`. */
+	/**
+	 * Maps the dependency's full result to the value the parent sees. Default:
+	 * `(r) => r.result` for required edges and `(r) => r` for optional edges.
+	 */
 	transform?: (result: AnalyzerResult<R>) => V;
 }
 
 export type AnalyzerDependency = Analyzer<Defined, any, any> | Dependency<any, Defined, any, any>;
 
-type DependencyResult<T extends AnalyzerDependency> =
-	T extends Dependency<any, infer V, any, any>
-		? V
-		: T extends Analyzer<infer R, any, any>
-			? R
-			: never;
+type DependencyResult<T extends AnalyzerDependency> = T extends {
+	transform: (result: AnalyzerResult<any>) => infer V;
+}
+	? V
+	: T extends { analyzer: Analyzer<infer R, any, any>; required: false; transform?: undefined }
+		? AnalyzerResult<R>
+		: T extends Dependency<any, infer V, any, any>
+			? V
+			: T extends Analyzer<infer R, any, any>
+				? R
+				: never;
 
 type DependencyOptions<T extends AnalyzerDependency> =
 	T extends Dependency<any, any, infer O, any>
@@ -274,12 +296,18 @@ export type Analyzer<
 	Analysis extends Record<string, Defined> = {},
 > = {
 	cacheKey?: unknown;
-	dependencies: Record<string, AnalyzerDependency>;
+	dependencies: AnalyzerDependencies<Analysis>;
 	analyze: (
 		options: Options,
 		transaction: Transaction,
 	) => (analysis: Analysis) => AnalyzerOutput<T> | Promise<AnalyzerOutput<T>>;
 };
+
+type IsAny<T> = 0 extends 1 & T ? true : false;
+type AnalyzerDependencies<Analysis extends Record<string, Defined>> =
+	IsAny<Analysis> extends true
+		? Record<string, AnalyzerDependency>
+		: { [K in keyof Analysis]: AnalyzerDependency } & Record<string, AnalyzerDependency>;
 
 export type AnalyzerOutput<T extends Defined = Defined> =
 	| {

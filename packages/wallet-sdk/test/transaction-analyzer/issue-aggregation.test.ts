@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { Transaction } from '@mysten/sui/transactions';
 
-import type { AnalyzerResult } from '../../src/transaction-analyzer/analyzer.js';
+import type { Analyzer, AnalyzerResult } from '../../src/transaction-analyzer/analyzer.js';
 import { analyze, createAnalyzer, optional } from '../../src/transaction-analyzer/analyzer.js';
 import { DEFAULT_SENDER } from '../mocks/mockData.js';
 
@@ -86,6 +86,42 @@ const transformedOptionalDep = createAnalyzer({
 	analyze:
 		() =>
 		({ failingDep }) => ({ result: failingDep }),
+});
+
+const optionalObjectDep = createAnalyzer({
+	cacheKey: 'test-optional-object-dep',
+	dependencies: {
+		failingDep: {
+			analyzer: failingDep,
+			required: false,
+		},
+	},
+	analyze:
+		() =>
+		({ failingDep }) => ({ result: failingDep.status }),
+});
+
+const parentOfPartialDep = createAnalyzer({
+	cacheKey: 'test-parent-of-partial-dep',
+	dependencies: { partialAnalyzer },
+	analyze:
+		() =>
+		({ partialAnalyzer }) => ({ result: `parent saw ${partialAnalyzer}` }),
+});
+
+const throwingTransformDep = createAnalyzer({
+	cacheKey: 'test-throwing-transform',
+	dependencies: {
+		leaf: {
+			analyzer: leafOk,
+			transform: (_result: AnalyzerResult<number>): string => {
+				throw new Error('transform boom');
+			},
+		},
+	},
+	analyze:
+		() =>
+		({ leaf }) => ({ result: leaf }),
 });
 
 async function txJson() {
@@ -194,5 +230,69 @@ describe('analyze — issue handling', () => {
 		// since top-level `issues` collects every analyzer's own-issues).
 		expect(r.transformedOptionalDep.result).toBe('fallback');
 		expect(r.transformedOptionalDep.issues).toBeUndefined();
+	});
+
+	it('an optional dependency object without a transform receives the full dependency result', async () => {
+		const r = await analyze({ optionalObjectDep }, { transaction: await txJson() });
+		expect(r.status).toBe('complete');
+		expect(r.optionalObjectDep.status).toBe('success');
+		expect(r.optionalObjectDep.result).toBe('failed');
+	});
+
+	it('transform errors are reported as analyzer failures', async () => {
+		const r = await analyze({ throwingTransformDep }, { transaction: await txJson() });
+		expect(r.status).toBe('failed');
+		expect(r.throwingTransformDep.status).toBe('failed');
+		if (r.throwingTransformDep.status !== 'failed') {
+			throw new Error(`Expected failed status, got ${r.throwingTransformDep.status}`);
+		}
+		expect(r.throwingTransformDep.issues.map((issue) => issue.message)).toEqual([
+			'Unexpected error while analyzing transaction: transform boom',
+		]);
+		expect(r.issues.map((issue) => issue.message)).toEqual([
+			'Unexpected error while analyzing transaction: transform boom',
+		]);
+	});
+
+	it('a required partial dependency still feeds the parent and inherits issues', async () => {
+		const r = await analyze({ parentOfPartialDep }, { transaction: await txJson() });
+		expect(r.status).toBe('partial');
+		expect(r.parentOfPartialDep.status).toBe('partial');
+		expect(r.parentOfPartialDep.result).toBe('parent saw partial-result');
+		expect(r.parentOfPartialDep.issues).toEqual([{ message: 'partial analyzer warning' }]);
+		expect(r.parentOfPartialDep.ownIssues).toEqual([]);
+	});
+
+	it.each([
+		['zero', 0],
+		['empty string', ''],
+		['false', false],
+		['null', null],
+	] as const)('keeps %s analyzer results as success', async (_name, value) => {
+		const falsyAnalyzer = createAnalyzer({
+			analyze: () => () => ({ result: value }),
+		});
+		const r = await analyze({ falsyAnalyzer }, { transaction: await txJson() });
+		expect(r.status).toBe('complete');
+		expect(r.falsyAnalyzer.status).toBe('success');
+		expect(r.falsyAnalyzer.result).toBe(value);
+	});
+
+	it('rejects analyzer key `status` because it is reserved for top-level status', async () => {
+		await expect(analyze({ status: leafOk }, { transaction: await txJson() })).rejects.toThrow(
+			'Analyzer key "status" is reserved for the top-level analysis status',
+		);
+	});
+
+	it('requires annotated Analyzer dependencies to include analysis keys', () => {
+		const invalidAnalyzer: Analyzer<string, object, { foo: number }> = {
+			// @ts-expect-error The `foo` analysis key must have a corresponding dependency.
+			dependencies: {},
+			analyze:
+				() =>
+				({ foo }) => ({ result: foo.toFixed() }),
+		};
+
+		expect(invalidAnalyzer.dependencies).toEqual({});
 	});
 });

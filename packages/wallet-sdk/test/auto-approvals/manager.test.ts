@@ -10,6 +10,8 @@ import {
 	AutoApprovalManager,
 	AutoApprovalPolicy,
 	operationType,
+	type AutoApprovalAnalysis,
+	type AutoApprovalResult,
 } from '../../src/index.js';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { MIST_PER_SUI } from '@mysten/sui/utils';
@@ -26,7 +28,84 @@ const policy: AutoApprovalPolicy = {
 	suggestedSettings: {},
 };
 
+function managerWithSettings() {
+	const manager = new AutoApprovalManager({
+		policy: JSON.stringify(policy),
+		state: null,
+	});
+	manager.updateSettings({
+		approvedOperations: ['test-operation'],
+		expiration: Date.now() + 1000 * 60 * 60,
+		remainingTransactions: 1,
+		sharedBudget: 10,
+		coinBudgets: {},
+	});
+	return manager;
+}
+
+function autoApprovalAnalysis(): AutoApprovalAnalysis {
+	return {
+		operationType: 'test-operation',
+		bytes: new Uint8Array([1, 2, 3]),
+		coinFlows: { outflows: [] },
+		coinValues: { total: 0, coinTypesWithoutPrice: [], coinTypes: [] },
+		accessLevel: {},
+		ownedObjects: [],
+		digest: 'test-digest',
+	};
+}
+
 describe('AutoApprovalManager', () => {
+	test('checkTransaction reports partial analysis as analysis issues', () => {
+		const manager = managerWithSettings();
+		const analysis: AutoApprovalResult = {
+			status: 'partial',
+			result: autoApprovalAnalysis(),
+			issues: [{ message: 'coin values unavailable' }],
+			ownIssues: [{ message: 'coin values unavailable' }],
+		};
+
+		expect(manager.checkTransaction(analysis)).toEqual({
+			matchesPolicy: false,
+			canAutoApprove: false,
+			analysisIssues: [{ message: 'coin values unavailable' }],
+			policyIssues: [],
+			settingsIssues: [],
+		});
+	});
+
+	test('commitTransaction rejects partial analysis without mutating state', () => {
+		const manager = managerWithSettings();
+		const analysis: AutoApprovalResult = {
+			status: 'partial',
+			result: autoApprovalAnalysis(),
+			issues: [{ message: 'coin values unavailable' }],
+			ownIssues: [{ message: 'coin values unavailable' }],
+		};
+
+		expect(() => manager.commitTransaction(analysis)).toThrow('Transaction analysis failed');
+		expect(manager.getSettings()?.remainingTransactions).toBe(1);
+		expect(manager.getState().pendingDigests).toEqual([]);
+	});
+
+	test('applyTransactionEffects rejects partial analysis before mutating pending digests', () => {
+		const manager = managerWithSettings();
+		const analysis: AutoApprovalResult = {
+			status: 'partial',
+			result: autoApprovalAnalysis(),
+			issues: [{ message: 'coin values unavailable' }],
+			ownIssues: [{ message: 'coin values unavailable' }],
+		};
+
+		expect(() =>
+			manager.applyTransactionEffects(analysis, {
+				digest: 'test-digest',
+				balanceChanges: [],
+			} as unknown as Parameters<AutoApprovalManager['applyTransactionEffects']>[1]),
+		).toThrow('Transaction analysis failed');
+		expect(manager.getState().pendingDigests).toEqual([]);
+	});
+
 	test.skip('placeholder example', async () => {
 		const keypair = new Ed25519Keypair();
 		const client = new SuiGrpcClient({
