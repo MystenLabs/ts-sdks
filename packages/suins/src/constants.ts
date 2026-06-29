@@ -56,6 +56,13 @@ export const mainPackage: Config = {
 			},
 		},
 		registryTableId: '0xe64cd9db9f829c6cc405d9790bd71567ae07259855f4fba6f02c84f52298c106',
+		// TODO: Add marketplace constants once the contracts are deployed on mainnet
+		// marketplace: {
+		//   packageId: '',
+		//   originalPackageId: '',
+		//   auctionTableId: '',
+		//   offerTableId: '',
+		// },
 	},
 	testnet: {
 		packageId: '0x40eee27b014a872f5c3330dcd5329aa55c7fe0fcc6e70c6498852e2e3727172e',
@@ -102,5 +109,11 @@ export const mainPackage: Config = {
 			},
 		},
 		registryTableId: '0xb120c0d55432630fce61f7854795a3463deb6e3b443cc4ae72e1282073ff56e4',
+		marketplace: {
+			packageId: '0xbd2b57cddef6674d5a4dfd14518583ea9bb194ec47207a8c1dcf00740babc2eb',
+			originalPackageId: '0xd421a8ebd93c4f93a4020e733b98108db3498be90a0d62ffed1ef926434aa569',
+			auctionTableId: '0x60ecc91870bd1d9c7b5ff74a05479aa53713096949c45aa830ef6f4d9cb6936b',
+			offerTableId: '0x1e848feb692bff38afc2d66c0757cd10cf062e2564697e6d4a1d8a1604304343',
+		},
 	},
 };
