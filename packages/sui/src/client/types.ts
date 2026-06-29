@@ -10,6 +10,7 @@ import type {
 import type { Signer } from '../cryptography/keypair.js';
 import type { ClientCache } from './cache.js';
 import type { BaseClient } from './client.js';
+import type { ObjectError } from './errors.js';
 
 export type SuiClientRegistration<
 	T extends BaseClient = BaseClient,
@@ -141,7 +142,7 @@ export namespace SuiClientTypes {
 	}
 
 	export interface GetObjectsResponse<out Include extends ObjectInclude = {}> {
-		objects: (Object<Include> | Error)[];
+		objects: (Object<Include> | ObjectError)[];
 	}
 
 	export interface GetObjectResponse<out Include extends ObjectInclude = {}> {

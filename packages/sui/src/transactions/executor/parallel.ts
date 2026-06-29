@@ -5,6 +5,7 @@ import { promiseWithResolvers } from '@mysten/utils';
 import type { SuiObjectRef } from '../../bcs/types.js';
 import type { ClientWithCoreApi } from '../../client/core.js';
 import { coreClientResolveTransactionPlugin } from '../../client/core-resolver.js';
+import { ObjectError } from '../../client/errors.js';
 import type { SuiClientTypes } from '../../client/types.js';
 import type { Signer } from '../../cryptography/index.js';
 import type { ObjectCacheOptions } from '../ObjectCache.js';
@@ -450,7 +451,7 @@ export class ParallelTransactionExecutor {
 				});
 				refs.push(
 					...objects
-						.filter((obj): obj is SuiClientTypes.Object => !(obj instanceof Error))
+						.filter((obj): obj is SuiClientTypes.Object => !(obj instanceof ObjectError))
 						.map((obj) => ({
 							objectId: obj.objectId,
 							version: obj.version,

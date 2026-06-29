@@ -9,6 +9,7 @@ import type {
 	DryRunTransactionBlockResponse,
 	ExecutionStatus as JsonRpcExecutionStatus,
 	ObjectOwner,
+	ObjectResponseError,
 	SuiMoveAbilitySet,
 	SuiMoveAbort,
 	SuiMoveNormalizedType,
@@ -28,7 +29,12 @@ import { deriveDynamicFieldID } from '../utils/dynamic-fields.js';
 import { SUI_FRAMEWORK_ADDRESS, SUI_SYSTEM_ADDRESS } from '../utils/constants.js';
 import { CoreClient } from '../client/core.js';
 import type { SuiClientTypes } from '../client/types.js';
-import { ObjectError } from '../client/errors.js';
+import {
+	ObjectError,
+	SuiClientError,
+	type ObjectErrorCode,
+	type TransportDetails,
+} from '../client/errors.js';
 import {
 	formatMoveAbortMessage,
 	parseTransactionBcs,
@@ -37,6 +43,38 @@ import {
 import type { SuiJsonRpcClient } from './client.js';
 
 const MAX_GAS = 50_000_000_000;
+
+function mapJsonRpcObjectErrorCode(wireCode: ObjectResponseError['code']): ObjectErrorCode {
+	switch (wireCode) {
+		case 'deleted':
+			return 'deleted';
+		case 'notExists':
+		case 'dynamicFieldNotFound':
+			return 'notFound';
+		case 'displayError':
+		case 'unknown':
+			return 'unknown';
+		default:
+			wireCode satisfies never;
+			return 'unknown';
+	}
+}
+
+function extractObjectIdFromResponseError(error: ObjectResponseError): string | undefined {
+	switch (error.code) {
+		case 'notExists':
+		case 'deleted':
+			return error.object_id;
+		case 'dynamicFieldNotFound':
+			return error.parent_object_id;
+		case 'displayError':
+		case 'unknown':
+			return undefined;
+		default:
+			error satisfies never;
+			return undefined;
+	}
+}
 
 function parseJsonRpcExecutionStatus(
 	status: JsonRpcExecutionStatus,
@@ -140,7 +178,11 @@ export class JSONRpcCoreClient extends CoreClient {
 
 			for (const [idx, object] of objects.entries()) {
 				if (object.error) {
-					results.push(ObjectError.fromResponse(object.error, batch[idx]));
+					results.push(
+						new ObjectError(mapJsonRpcObjectErrorCode(object.error.code), batch[idx], {
+							transportDetails: { $kind: 'jsonRpc', response: object.error },
+						}),
+					);
 				} else {
 					results.push(parseObject(object.data!, options.include));
 				}
@@ -187,7 +229,21 @@ export class JSONRpcCoreClient extends CoreClient {
 		return {
 			objects: objects.data.map((result) => {
 				if (result.error) {
-					throw ObjectError.fromResponse(result.error);
+					const wireError = result.error;
+					const transportDetails = {
+						$kind: 'jsonRpc',
+						response: wireError,
+					} satisfies TransportDetails;
+					const extractedId = extractObjectIdFromResponseError(wireError);
+					if (extractedId === undefined) {
+						throw new SuiClientError(
+							`JSON-RPC object error: no resolvable objectId for wire code '${wireError.code}'`,
+							{ transportDetails },
+						);
+					}
+					throw new ObjectError(mapJsonRpcObjectErrorCode(wireError.code), extractedId, {
+						transportDetails,
+					});
 				}
 
 				return parseObject(result.data!, options.include);
