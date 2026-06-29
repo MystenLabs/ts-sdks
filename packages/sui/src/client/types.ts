@@ -975,9 +975,14 @@ export namespace SuiClientTypes {
 		objectId: string;
 	}
 
+	export interface ExecutionErrorMetadata {
+		message?: string;
+	}
+
 	export type ExecutionError = {
 		message: string;
 		command?: number;
+		metadata?: ExecutionErrorMetadata;
 	} & EnumOutputShape<{
 		MoveAbort: MoveAbort;
 		SizeError: SizeError;

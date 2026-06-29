@@ -123,6 +123,15 @@ export interface ExecutionError {
 		| {
 				oneofKind: undefined;
 		  };
+	/**
+	 * Additional non-consensus metadata associated with this execution error.
+	 *
+	 * This metadata is produced by the executing node and is not part of the
+	 * certified transaction effects.
+	 *
+	 * @generated from protobuf field: optional sui.rpc.v2.ExecutionErrorMetadata metadata = 100;
+	 */
+	metadata?: ExecutionErrorMetadata;
 }
 /**
  * @generated from protobuf enum sui.rpc.v2.ExecutionError.ExecutionErrorKind
@@ -398,6 +407,15 @@ export enum ExecutionError_ExecutionErrorKind {
 	 * @generated from protobuf enum value: NON_EXCLUSIVE_WRITE_INPUT_OBJECT_MODIFIED = 42;
 	 */
 	NON_EXCLUSIVE_WRITE_INPUT_OBJECT_MODIFIED = 42,
+}
+/**
+ * @generated from protobuf message sui.rpc.v2.ExecutionErrorMetadata
+ */
+export interface ExecutionErrorMetadata {
+	/**
+	 * @generated from protobuf field: optional string message = 1;
+	 */
+	message?: string;
 }
 /**
  * @generated from protobuf message sui.rpc.v2.MoveAbort
@@ -927,6 +945,7 @@ class ExecutionError$Type extends MessageType<ExecutionError> {
 				oneof: 'errorDetails',
 				T: () => CongestedObjects,
 			},
+			{ no: 100, name: 'metadata', kind: 'message', T: () => ExecutionErrorMetadata },
 		]);
 	}
 }
@@ -934,6 +953,18 @@ class ExecutionError$Type extends MessageType<ExecutionError> {
  * @generated MessageType for protobuf message sui.rpc.v2.ExecutionError
  */
 export const ExecutionError = new ExecutionError$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class ExecutionErrorMetadata$Type extends MessageType<ExecutionErrorMetadata> {
+	constructor() {
+		super('sui.rpc.v2.ExecutionErrorMetadata', [
+			{ no: 1, name: 'message', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
+		]);
+	}
+}
+/**
+ * @generated MessageType for protobuf message sui.rpc.v2.ExecutionErrorMetadata
+ */
+export const ExecutionErrorMetadata = new ExecutionErrorMetadata$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class MoveAbort$Type extends MessageType<MoveAbort> {
 	constructor() {
