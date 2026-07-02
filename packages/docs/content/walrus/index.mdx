@@ -179,7 +179,10 @@ executes, the client funds payments with a small buffer on top of the estimated 
 default, configurable with the `costBufferBps` client option). Any WAL that isn't consumed by the
 payment is automatically returned to the signer's address balance, so only the actual on-chain cost
 is spent. If prices increase by more than the buffer, a `StalePriceError` is thrown and the client's
-cached prices are reset, so transactions built after the error will use freshly loaded prices.
+cached prices are reset, so transactions built after the error will use freshly loaded prices. When
+transactions are executed outside of the client (for example through a wallet or a sponsor), the
+exported `isStalePriceAbort` helper can detect this case from the execution error, and calling
+`client.reset()` clears the cached prices.
 
 ```ts
 const results: {

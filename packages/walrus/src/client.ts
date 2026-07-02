@@ -8,7 +8,7 @@ import type { ClientCache, ClientWithCoreApi, SuiClientTypes } from '@mysten/sui
 import { SimulationError } from '@mysten/sui/client';
 import type { TransactionObjectArgument, TransactionResult } from '@mysten/sui/transactions';
 import { coinWithBalance, Transaction } from '@mysten/sui/transactions';
-import { normalizeStructTag, normalizeSuiAddress, parseStructTag } from '@mysten/sui/utils';
+import { normalizeStructTag, parseStructTag } from '@mysten/sui/utils';
 
 import {
 	MAINNET_WALRUS_PACKAGE_CONFIG,
@@ -42,6 +42,7 @@ import {
 	BlobBlockedError,
 	BlobNotCertifiedError,
 	InconsistentBlobError,
+	isStalePriceAbort,
 	NoBlobMetadataReceivedError,
 	NoBlobStatusReceivedError,
 	NotEnoughBlobConfirmationsError,
@@ -2090,17 +2091,28 @@ export class WalrusClient {
 
 	// WAL payment amounts are estimated from cached prices, so an abort in `0x2::balance`
 	// (an underfunded payment split, or a non-zero remainder in older transactions) usually
-	// means the cached prices are stale.
-	#isStalePriceAbort(error: SuiClientTypes.ExecutionError | null | undefined) {
-		if (error?.$kind !== 'MoveAbort') {
+	// means the cached prices are stale. When the aborting command is known, only aborts from
+	// commands added for payments (walrus payment calls and coin splits/merges) are
+	// classified, since a caller-composed transaction can abort in `0x2::balance` for
+	// unrelated reasons.
+	#isStalePricePaymentAbort(
+		transaction: Transaction,
+		error: SuiClientTypes.ExecutionError | null | undefined,
+	) {
+		if (!isStalePriceAbort(error)) {
 			return false;
 		}
 
-		const location = error.MoveAbort.location;
+		const command = error?.command != null ? transaction.getData().commands[error.command] : null;
+
+		if (!command || command.$kind === 'SplitCoins' || command.$kind === 'MergeCoins') {
+			return true;
+		}
 
 		return (
-			location?.module === 'balance' &&
-			(!location.package || normalizeSuiAddress(location.package) === normalizeSuiAddress('0x2'))
+			command.$kind === 'MoveCall' &&
+			command.MoveCall.module === 'system' &&
+			['reserve_space', 'register_blob', 'extend_blob'].includes(command.MoveCall.function)
 		);
 	}
 
@@ -2116,7 +2128,10 @@ export class WalrusClient {
 		} catch (error) {
 			// Gas budget resolution simulates the transaction, so payment aborts usually
 			// surface here rather than from an executed transaction.
-			if (error instanceof SimulationError && this.#isStalePriceAbort(error.executionError)) {
+			if (
+				error instanceof SimulationError &&
+				this.#isStalePricePaymentAbort(transaction, error.executionError)
+			) {
 				this.reset();
 				throw new StalePriceError(`Failed to ${action}: ${error.message}`, { cause: error });
 			}
@@ -2127,7 +2142,7 @@ export class WalrusClient {
 			const { digest, status } = result.FailedTransaction;
 			const message = `Failed to ${action} (${digest}): ${status.error?.message}`;
 
-			if (this.#isStalePriceAbort(status.error)) {
+			if (this.#isStalePricePaymentAbort(transaction, status.error)) {
 				this.reset();
 				throw new StalePriceError(message);
 			}

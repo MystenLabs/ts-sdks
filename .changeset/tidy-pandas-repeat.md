@@ -9,4 +9,6 @@ buffer (`costBufferBps`, default 10%), and since the walrus contracts only deduc
 on-chain cost, any unspent WAL is merged back into the provided `walCoin`, or returned to the
 signer's address balance when paying from the signer's balance. Payment aborts caused by stale
 cached prices reset the client's caches and surface as the new `StalePriceError` (a
-`RetryableWalrusClientError`), so transactions built after the error use freshly loaded prices.
+`RetryableWalrusClientError`), so transactions built after the error use freshly loaded prices. The
+new `isStalePriceAbort` helper classifies these aborts for transactions executed outside of the
+client.
