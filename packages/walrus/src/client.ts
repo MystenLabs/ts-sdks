@@ -787,7 +787,7 @@ export class WalrusClient {
 			const amountWithBuffer = amount + (amount * this.#costBufferBps) / 10_000n;
 
 			if (source) {
-				const coin = tx.splitCoins(source, [amountWithBuffer])[0];
+				const [coin] = tx.splitCoins(source, [amountWithBuffer]);
 				const result = await fn(coin, tx);
 				tx.mergeCoins(source, [coin]);
 
