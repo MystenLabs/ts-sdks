@@ -4,10 +4,11 @@
 import type { InferBcsType } from '@mysten/bcs';
 import { bcs } from '@mysten/bcs';
 import type { Signer } from '@mysten/sui/cryptography';
-import type { ClientCache, ClientWithCoreApi } from '@mysten/sui/client';
+import type { ClientCache, ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
+import { SimulationError } from '@mysten/sui/client';
 import type { TransactionObjectArgument, TransactionResult } from '@mysten/sui/transactions';
 import { coinWithBalance, Transaction } from '@mysten/sui/transactions';
-import { normalizeStructTag, parseStructTag } from '@mysten/sui/utils';
+import { normalizeStructTag, normalizeSuiAddress, parseStructTag } from '@mysten/sui/utils';
 
 import {
 	MAINNET_WALRUS_PACKAGE_CONFIG,
@@ -47,6 +48,7 @@ import {
 	NotEnoughSliversReceivedError,
 	NoVerifiedBlobStatusReceivedError,
 	RetryableWalrusClientError,
+	StalePriceError,
 	WalrusClientError,
 } from './error.js';
 import { StorageNodeClient } from './storage-node/client.js';
@@ -173,6 +175,7 @@ export class WalrusClient {
 	#objectLoader: SuiObjectDataLoader;
 
 	#blobMetadataConcurrencyLimit = 10;
+	#costBufferBps: bigint;
 	#readCommittee?: CommitteeInfo | Promise<CommitteeInfo> | null;
 
 	#cache: ClientCache;
@@ -199,6 +202,13 @@ export class WalrusClient {
 
 		this.#wasmUrl = config.wasmUrl;
 		this.#storageNodeUrlScheme = config.storageNodeUrlScheme ?? 'https';
+		const costBufferBps = config.costBufferBps ?? 1_000;
+		if (!Number.isSafeInteger(costBufferBps) || costBufferBps < 0) {
+			throw new WalrusClientError(
+				`costBufferBps must be a non-negative integer, got ${costBufferBps}`,
+			);
+		}
+		this.#costBufferBps = BigInt(costBufferBps);
 		this.#uploadRelayConfig = config.uploadRelay ?? null;
 		if (this.#uploadRelayConfig) {
 			this.#uploadRelayClient = new UploadRelayClient(this.#uploadRelayConfig);
@@ -771,22 +781,35 @@ export class WalrusClient {
 		fn: (coin: TransactionObjectArgument, tx: Transaction) => T | Promise<T>,
 	) {
 		return async (tx: Transaction): Promise<T> => {
+			// `amount` is estimated from cached prices, so fund slightly more than the estimate
+			// to cover on-chain price increases. The payment calls only deduct the actual
+			// on-chain cost, and the remainder is returned after the payment.
+			const amountWithBuffer = amount + (amount * this.#costBufferBps) / 10_000n;
+
+			if (source) {
+				const [coin] = tx.splitCoins(source, [amountWithBuffer]);
+				const result = await fn(coin, tx);
+				tx.mergeCoins(source, [coin]);
+
+				return result;
+			}
+
 			const walType = await this.#walType();
-			const coin = source
-				? tx.splitCoins(source, [amount])[0]
-				: tx.add(
-						coinWithBalance({
-							balance: amount,
-							type: walType,
-						}),
-					);
+			const coin = tx.add(
+				coinWithBalance({
+					balance: amountWithBuffer,
+					type: walType,
+				}),
+			);
 
 			const result = await fn(coin, tx);
 
+			// Return the remainder to the sender's address balance instead of asserting an
+			// empty coin (send_funds accepts zero balances).
 			tx.moveCall({
-				target: '0x2::coin::destroy_zero',
+				target: '0x2::coin::send_funds',
 				typeArguments: [walType],
-				arguments: [coin],
+				arguments: [coin, tx.moveCall({ target: '0x2::tx_context::sender' })],
 			});
 
 			return result;
@@ -828,14 +851,13 @@ export class WalrusClient {
 		signer,
 		...options
 	}: StorageWithSizeOptions & { transaction?: Transaction; signer: Signer }) {
-		const transaction = this.createStorageTransaction({
-			...options,
-			owner: options.transaction?.getData().sender ?? signer.toSuiAddress(),
-		});
 		const blobType = await this.getBlobType();
 
 		const { digest, effects } = await this.#executeTransaction(
-			transaction,
+			this.createStorageTransaction({
+				...options,
+				owner: options.transaction?.getData().sender ?? signer.toSuiAddress(),
+			}),
 			signer,
 			'create storage',
 		);
@@ -883,23 +905,25 @@ export class WalrusClient {
 		attributes,
 	}: RegisterBlobOptions) {
 		return async (tx: Transaction) => {
-			const { writeCost } = await this.storageCost(size, epochs);
+			const { totalCost } = await this.storageCost(size, epochs);
 			const walrusPackageId = await this.#getWalrusPackageId();
 
+			// A single coin covers both the storage and write payments, so it is funded with
+			// the total cost and passed to `createStorage` as the `walCoin` source.
 			return tx.add(
-				this.#withWal(writeCost, walCoin ?? null, async (writeCoin, tx) => {
+				this.#withWal(totalCost, walCoin ?? null, async (coin, tx) => {
 					const blob = tx.add(
 						registerBlob({
 							package: walrusPackageId,
 							arguments: {
 								self: tx.object(this.#packageConfig.systemObjectId),
-								storage: this.createStorage({ size, epochs, walCoin }),
+								storage: this.createStorage({ size, epochs, walCoin: coin }),
 								blobId: blobIdToInt(blobId),
 								rootHash: BigInt(bcs.u256().parse(rootHash)),
 								size,
 								encodingType: 1,
 								deletable,
-								writePayment: writeCoin,
+								writePayment: coin,
 							},
 						}),
 					);
@@ -1064,13 +1088,13 @@ export class WalrusClient {
 		blob: (typeof Blob)['$inferType'];
 		digest: string;
 	}> {
-		const transaction = this.registerBlobTransaction({
-			...options,
-			owner: options.owner ?? options.transaction?.getData().sender ?? signer.toSuiAddress(),
-		});
 		const blobType = await this.getBlobType();
+
 		const { digest, effects } = await this.#executeTransaction(
-			transaction,
+			this.registerBlobTransaction({
+				...options,
+				owner: options.owner ?? options.transaction?.getData().sender ?? signer.toSuiAddress(),
+			}),
 			signer,
 			'register blob',
 		);
@@ -2064,18 +2088,51 @@ export class WalrusClient {
 		return encoded;
 	}
 
+	// WAL payment amounts are estimated from cached prices, so an abort in `0x2::balance`
+	// (an underfunded payment split, or a non-zero remainder in older transactions) usually
+	// means the cached prices are stale.
+	#isStalePriceAbort(error: SuiClientTypes.ExecutionError | null | undefined) {
+		if (error?.$kind !== 'MoveAbort') {
+			return false;
+		}
+
+		const location = error.MoveAbort.location;
+
+		return (
+			location?.module === 'balance' &&
+			(!location.package || normalizeSuiAddress(location.package) === normalizeSuiAddress('0x2'))
+		);
+	}
+
 	async #executeTransaction(transaction: Transaction, signer: Signer, action: string) {
 		transaction.setSenderIfNotSet(signer.toSuiAddress());
 
-		const result = await signer.signAndExecuteTransaction({
-			transaction,
-			client: this.#suiClient,
-		});
+		let result;
+		try {
+			result = await signer.signAndExecuteTransaction({
+				transaction,
+				client: this.#suiClient,
+			});
+		} catch (error) {
+			// Gas budget resolution simulates the transaction, so payment aborts usually
+			// surface here rather than from an executed transaction.
+			if (error instanceof SimulationError && this.#isStalePriceAbort(error.executionError)) {
+				this.reset();
+				throw new StalePriceError(`Failed to ${action}: ${error.message}`, { cause: error });
+			}
+			throw error;
+		}
 
 		if (result.FailedTransaction) {
-			throw new WalrusClientError(
-				`Failed to ${action} (${result.FailedTransaction.digest}): ${result.FailedTransaction.status.error?.message}`,
-			);
+			const { digest, status } = result.FailedTransaction;
+			const message = `Failed to ${action} (${digest}): ${status.error?.message}`;
+
+			if (this.#isStalePriceAbort(status.error)) {
+				this.reset();
+				throw new StalePriceError(message);
+			}
+
+			throw new WalrusClientError(message);
 		}
 
 		const { digest, effects } = result.Transaction;
