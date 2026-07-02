@@ -6,7 +6,11 @@ import { bcs } from '@mysten/bcs';
 import type { Signer } from '@mysten/sui/cryptography';
 import type { ClientCache, ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
 import { SimulationError } from '@mysten/sui/client';
-import type { TransactionObjectArgument, TransactionResult } from '@mysten/sui/transactions';
+import type {
+	Command,
+	TransactionObjectArgument,
+	TransactionResult,
+} from '@mysten/sui/transactions';
 import { coinWithBalance, Transaction } from '@mysten/sui/transactions';
 import { normalizeStructTag, parseStructTag } from '@mysten/sui/utils';
 
@@ -2090,11 +2094,10 @@ export class WalrusClient {
 	}
 
 	// WAL payment amounts are estimated from cached prices, so an abort in `0x2::balance`
-	// (an underfunded payment split, or a non-zero remainder in older transactions) usually
-	// means the cached prices are stale. When the aborting command is known, only aborts from
-	// commands added for payments (walrus payment calls and coin splits/merges) are
-	// classified, since a caller-composed transaction can abort in `0x2::balance` for
-	// unrelated reasons.
+	// (an underfunded payment, or a non-zero remainder in older transactions) usually means
+	// the cached prices are stale. When the aborting command is known, only aborts from
+	// payment calls (or the buffered splits that fund them) are classified, since a
+	// caller-composed transaction can abort in `0x2::balance` for unrelated reasons.
 	#isStalePricePaymentAbort(
 		transaction: Transaction,
 		error: SuiClientTypes.ExecutionError | null | undefined,
@@ -2103,12 +2106,41 @@ export class WalrusClient {
 			return false;
 		}
 
-		const command = error?.command != null ? transaction.getData().commands[error.command] : null;
-
-		if (!command || command.$kind === 'SplitCoins' || command.$kind === 'MergeCoins') {
+		if (error?.command == null) {
 			return true;
 		}
 
+		const commands = transaction.getData().commands;
+		const command = commands[error.command];
+
+		if (!command) {
+			return true;
+		}
+
+		if (this.#isPaymentCall(command)) {
+			return true;
+		}
+
+		// Payment coins are split from source coins using buffered estimates, so a SplitCoins
+		// abort is payment related when its result funds a payment call.
+		if (command.$kind === 'SplitCoins') {
+			const splitIndex = error.command;
+			return commands.some(
+				(cmd) =>
+					cmd.$kind === 'MoveCall' &&
+					this.#isPaymentCall(cmd) &&
+					cmd.MoveCall.arguments.some(
+						(arg) =>
+							(arg.$kind === 'Result' && arg.Result === splitIndex) ||
+							(arg.$kind === 'NestedResult' && arg.NestedResult[0] === splitIndex),
+					),
+			);
+		}
+
+		return false;
+	}
+
+	#isPaymentCall(command: Command) {
 		return (
 			command.$kind === 'MoveCall' &&
 			command.MoveCall.module === 'system' &&
