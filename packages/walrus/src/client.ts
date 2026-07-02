@@ -120,7 +120,6 @@ import {
 	toShardIndex,
 } from './utils/index.js';
 import { SuiObjectDataLoader } from './utils/object-loader.js';
-import { sendFundsToSender } from './utils/send-funds.js';
 import { shuffle, weightedShuffle } from './utils/randomness.js';
 import { getWasmBindings } from './wasm.js';
 import { chunk } from '@mysten/utils';
@@ -782,28 +781,36 @@ export class WalrusClient {
 		fn: (coin: TransactionObjectArgument, tx: Transaction) => T | Promise<T>,
 	) {
 		return async (tx: Transaction): Promise<T> => {
-			// Payment coins are passed by mutable reference, and only the current on-chain cost
-			// is deducted, so a provided source coin can be used directly and keeps whatever
-			// isn't consumed.
+			// `amount` is estimated from cached prices, so fund slightly more than the estimate
+			// to cover on-chain price increases. The payment calls only deduct the actual
+			// on-chain cost, and the remainder is returned after the payment.
+			const amountWithBuffer = amount + (amount * this.#costBufferBps) / 10_000n;
+
 			if (source) {
-				return await fn(source, tx);
+				const coin = tx.splitCoins(source, [amountWithBuffer])[0];
+				const result = await fn(coin, tx);
+				tx.mergeCoins(source, [coin]);
+
+				return result;
 			}
 
 			const walType = await this.#walType();
-			// `amount` is estimated from cached prices, so fund slightly more than the estimate
-			// to cover on-chain price increases.
 			const coin = tx.add(
 				coinWithBalance({
-					balance: amount + (amount * this.#costBufferBps) / 10_000n,
+					balance: amountWithBuffer,
 					type: walType,
 				}),
 			);
 
 			const result = await fn(coin, tx);
 
-			// The amount deducted on-chain may not match the estimate, so instead of asserting
-			// an empty coin, return the remainder to the sender's address balance.
-			tx.add(sendFundsToSender({ coin, coinType: walType }));
+			// Return the remainder to the sender's address balance instead of asserting an
+			// empty coin (send_funds accepts zero balances).
+			tx.moveCall({
+				target: '0x2::coin::send_funds',
+				typeArguments: [walType],
+				arguments: [coin, tx.moveCall({ target: '0x2::tx_context::sender' })],
+			});
 
 			return result;
 		};
@@ -846,17 +853,14 @@ export class WalrusClient {
 	}: StorageWithSizeOptions & { transaction?: Transaction; signer: Signer }) {
 		const blobType = await this.getBlobType();
 
-		const execute = () =>
-			this.#executeTransaction(
-				this.createStorageTransaction({
-					...options,
-					owner: options.transaction?.getData().sender ?? signer.toSuiAddress(),
-				}),
-				signer,
-				'create storage',
-			);
-
-		const { digest, effects } = await this.#executeWithRetry(options.transaction, execute);
+		const { digest, effects } = await this.#executeTransaction(
+			this.createStorageTransaction({
+				...options,
+				owner: options.transaction?.getData().sender ?? signer.toSuiAddress(),
+			}),
+			signer,
+			'create storage',
+		);
 
 		const createdObjectIds = effects?.changedObjects
 			.filter((object) => object.idOperation === 'Created')
@@ -1086,17 +1090,14 @@ export class WalrusClient {
 	}> {
 		const blobType = await this.getBlobType();
 
-		const execute = () =>
-			this.#executeTransaction(
-				this.registerBlobTransaction({
-					...options,
-					owner: options.owner ?? options.transaction?.getData().sender ?? signer.toSuiAddress(),
-				}),
-				signer,
-				'register blob',
-			);
-
-		const { digest, effects } = await this.#executeWithRetry(options.transaction, execute);
+		const { digest, effects } = await this.#executeTransaction(
+			this.registerBlobTransaction({
+				...options,
+				owner: options.owner ?? options.transaction?.getData().sender ?? signer.toSuiAddress(),
+			}),
+			signer,
+			'register blob',
+		);
 
 		const createdObjectIds = effects?.changedObjects
 			.filter((object) => object.idOperation === 'Created')
@@ -1447,10 +1448,11 @@ export class WalrusClient {
 		signer,
 		...options
 	}: ExtendBlobOptions & { signer: Signer; transaction?: Transaction }) {
-		const execute = async () =>
-			this.#executeTransaction(await this.extendBlobTransaction(options), signer, 'extend blob');
-
-		const { digest } = await this.#executeWithRetry(options.transaction, execute);
+		const { digest } = await this.#executeTransaction(
+			await this.extendBlobTransaction(options),
+			signer,
+			'extend blob',
+		);
 
 		return { digest };
 	}
@@ -2205,27 +2207,18 @@ export class WalrusClient {
 		this.#cache.clear();
 	}
 
-	async #retryOnRetryableError<T>(fn: () => Promise<T>): Promise<T> {
-		try {
-			return await fn();
-		} catch (error) {
-			if (error instanceof RetryableWalrusClientError) {
-				this.reset();
-				return await fn();
-			}
-			throw error;
-		}
-	}
-
-	// Retrying re-executes `fn`, which re-adds commands to the transaction it executes, so
-	// this only retries when the caller didn't provide their own transaction.
-	#executeWithRetry<T>(callerTransaction: Transaction | undefined, fn: () => Promise<T>) {
-		return callerTransaction ? fn() : this.#retryOnRetryableError(fn);
-	}
-
 	#retryOnPossibleEpochChange<T extends (...args: any[]) => Promise<any>>(fn: T): T {
-		return ((...args: Parameters<T>) =>
-			this.#retryOnRetryableError(() => fn.apply(this, args))) as T;
+		return (async (...args: Parameters<T>) => {
+			try {
+				return await fn.apply(this, args);
+			} catch (error) {
+				if (error instanceof RetryableWalrusClientError) {
+					this.reset();
+					return await fn.apply(this, args);
+				}
+				throw error;
+			}
+		}) as T;
 	}
 
 	async getBlob({ blobId }: { blobId: string }) {
@@ -2355,7 +2348,6 @@ export class WalrusClient {
 			hasUploadRelay: () => !!this.#uploadRelayClient,
 			executeTransaction: (transaction, signer, action) =>
 				this.#executeTransaction(transaction, signer, action),
-			retryOnRetryableError: (fn) => this.#retryOnRetryableError(fn),
 			getCreatedBlob: (digest) => this.#getCreatedBlob(digest),
 			loadBlobObject: (objectId) => this.#objectLoader.load(objectId, Blob),
 		};

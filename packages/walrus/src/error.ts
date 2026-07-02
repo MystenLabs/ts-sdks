@@ -32,8 +32,8 @@ export class InconsistentBlobError extends WalrusClientError {}
 /**
  * Thrown when a transaction aborts in a way that usually indicates the WAL payment was
  * computed from stale cached storage prices (it can also indicate an insufficient WAL balance).
- * The client's caches are reset before this error is thrown, so retrying will rebuild the
- * transaction with fresh prices.
+ * The client's caches are reset before this error is thrown, so transactions built after
+ * this error will use freshly loaded prices.
  */
 export class StalePriceError extends RetryableWalrusClientError {}
 

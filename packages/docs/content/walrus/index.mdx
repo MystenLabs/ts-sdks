@@ -178,8 +178,8 @@ Because storage and write prices can change between when costs are estimated and
 executes, the client funds payments with a small buffer on top of the estimated cost (10% by
 default, configurable with the `costBufferBps` client option). Any WAL that isn't consumed by the
 payment is automatically returned to the signer's address balance, so only the actual on-chain cost
-is spent. If prices increase by more than the buffer, the transaction is retried once with freshly
-loaded prices, and a `StalePriceError` is thrown if it still fails.
+is spent. If prices increase by more than the buffer, a `StalePriceError` is thrown and the client's
+cached prices are reset, so transactions built after the error will use freshly loaded prices.
 
 ```ts
 const results: {
