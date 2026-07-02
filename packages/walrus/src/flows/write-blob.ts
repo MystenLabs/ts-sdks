@@ -32,6 +32,8 @@ export interface WriteBlobFlowContext {
 		signer: Signer,
 		action: string,
 	): Promise<{ digest: string }>;
+	/** Runs `fn`, and retries it once with reset caches if it throws a retryable error. */
+	retryOnRetryableError<T>(fn: () => Promise<T>): Promise<T>;
 	getCreatedBlob(digest: string): Promise<(typeof Blob)['$inferType']>;
 	loadBlobObject(objectId: string): Promise<(typeof Blob)['$inferType']>;
 }
@@ -246,8 +248,11 @@ export function createWriteBlobFlow(
 		signer,
 		...options
 	}: WriteBlobFlowRegisterOptions & { signer: Signer }): Promise<WriteBlobStepRegistered> => {
-		const transaction = register(options);
-		const { digest } = await ctx.executeTransaction(transaction, signer, 'register blob');
+		// A retry builds a new registration transaction, so it will use fresh on-chain state
+		// after errors like StalePriceError reset the client's caches.
+		const { digest } = await ctx.retryOnRetryableError(() =>
+			ctx.executeTransaction(register(options), signer, 'register blob'),
+		);
 
 		return {
 			step: 'registered' as const,
