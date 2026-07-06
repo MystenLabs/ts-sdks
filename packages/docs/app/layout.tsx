@@ -80,7 +80,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 					data-website-id="f40e82ec-5fe9-4776-a287-f889da70eaaa"
 					data-project-name="Sui SDK Knowledge"
 					data-project-color="#298DFF"
-					data-button-hide="false"
+					data-button-hide="true"
 					data-launcher-button-image="/logo.png"
 					data-launcher-button-image-height="24"
 					data-launcher-button-image-width="24"
