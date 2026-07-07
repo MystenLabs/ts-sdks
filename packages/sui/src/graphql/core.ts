@@ -317,7 +317,11 @@ export class GraphQLCoreClient extends CoreClient {
 		const balances = await this.#graphqlQuery(
 			{
 				query: GetAllBalancesDocument,
-				variables: { owner: options.owner },
+				variables: {
+					owner: options.owner,
+					limit: options.limit,
+					cursor: options.cursor,
+				},
 			},
 			(result) => result.address?.balances,
 		);
