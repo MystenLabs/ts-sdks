@@ -187,34 +187,41 @@ describe('Core API - Coins', () => {
 			expect(BigInt(firstBalance.balance)).toBeGreaterThan(0n);
 		});
 
-		testWithAllClients('should paginate all balances', async (client) => {
-			// Get first page with limit
-			const firstPage = await client.core.listBalances({
-				owner: testAddress,
-				limit: 1,
-			});
+		// Skipped for JSON-RPC: its `suix_getAllBalances` endpoint takes no pagination
+		// parameters, so listBalances always returns every balance and cannot honor `limit`
+		// or `cursor`. gRPC and GraphQL both paginate natively.
+		testWithAllClients(
+			'should paginate all balances',
+			async (client) => {
+				// Get first page with limit
+				const firstPage = await client.core.listBalances({
+					owner: testAddress,
+					limit: 1,
+				});
 
-			expect(firstPage.balances.length).toBe(1);
-			expect(firstPage.hasNextPage).toBe(true);
-			expect(firstPage.cursor).toBeTruthy();
+				expect(firstPage.balances.length).toBe(1);
+				expect(firstPage.hasNextPage).toBe(true);
+				expect(firstPage.cursor).toBeTruthy();
 
-			// Get second page using the cursor
-			const secondPage = await client.core.listBalances({
-				owner: testAddress,
-				limit: 1,
-				cursor: firstPage.cursor,
-			});
+				// Get second page using the cursor
+				const secondPage = await client.core.listBalances({
+					owner: testAddress,
+					limit: 1,
+					cursor: firstPage.cursor,
+				});
 
-			expect(secondPage.balances.length).toBe(1);
+				expect(secondPage.balances.length).toBe(1);
 
-			// Verify different coin types on second page
-			const firstPageTypes = new Set(firstPage.balances.map((b) => b.coinType));
-			const secondPageTypes = secondPage.balances.map((b) => b.coinType);
+				// Verify different coin types on second page
+				const firstPageTypes = new Set(firstPage.balances.map((b) => b.coinType));
+				const secondPageTypes = secondPage.balances.map((b) => b.coinType);
 
-			for (const coinType of secondPageTypes) {
-				expect(firstPageTypes.has(coinType)).toBe(false);
-			}
-		});
+				for (const coinType of secondPageTypes) {
+					expect(firstPageTypes.has(coinType)).toBe(false);
+				}
+			},
+			{ skip: ['jsonrpc'] },
+		);
 
 		testWithAllClients('should return empty for address with no balances', async (client) => {
 			// Use a new keypair address that has no coins
