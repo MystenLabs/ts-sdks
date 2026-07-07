@@ -72,35 +72,6 @@ describe('Core API - Coins', () => {
 			}
 		});
 
-		testWithAllClients('should paginate coins', async (client) => {
-			// Get first page with limit
-			const firstPage = await client.core.listCoins({
-				owner: testAddress,
-				coinType: SUI_TYPE_ARG,
-				limit: 2,
-			});
-
-			expect(firstPage.objects.length).toBeLessThanOrEqual(2);
-
-			if (firstPage.hasNextPage && firstPage.cursor) {
-				// Get second page
-				const secondPage = await client.core.listCoins({
-					owner: testAddress,
-					coinType: SUI_TYPE_ARG,
-					limit: 2,
-					cursor: firstPage.cursor,
-				});
-
-				// Verify different coins on second page
-				const firstPageIds = new Set(firstPage.objects.map((coin) => coin.objectId));
-				const secondPageIds = secondPage.objects.map((coin) => coin.objectId);
-
-				for (const id of secondPageIds) {
-					expect(firstPageIds.has(id)).toBe(false);
-				}
-			}
-		});
-
 		testWithAllClients('should return empty for address with no coins', async (client) => {
 			// Use a new keypair address that has no coins
 			const emptyAddress = new Ed25519Keypair().toSuiAddress();
@@ -111,6 +82,46 @@ describe('Core API - Coins', () => {
 
 			expect(result.objects).toEqual([]);
 			expect(result.hasNextPage).toBe(false);
+		});
+	});
+
+	describe('listCoins pagination limit', () => {
+		let multiCoinAddress: string;
+
+		beforeAll(async () => {
+			const { address } = await toolbox.getSigner({
+				coins: [1_000_000n, 1_000_000n, 1_000_000n],
+			});
+			multiCoinAddress = address;
+		});
+
+		testWithAllClients('should respect the limit and paginate', async (client) => {
+			const firstPage = await client.core.listCoins({
+				owner: multiCoinAddress,
+				coinType: SUI_TYPE_ARG,
+				limit: 2,
+			});
+
+			// The address has exactly 3 SUI coins, so a limit of 2 must return exactly 2
+			// with a next page available.
+			expect(firstPage.objects.length).toBe(2);
+			expect(firstPage.hasNextPage).toBe(true);
+			expect(firstPage.cursor).toBeTruthy();
+
+			const secondPage = await client.core.listCoins({
+				owner: multiCoinAddress,
+				coinType: SUI_TYPE_ARG,
+				limit: 2,
+				cursor: firstPage.cursor,
+			});
+
+			// Remaining coin on the second page, and it must not overlap with the first.
+			expect(secondPage.objects.length).toBe(1);
+
+			const firstPageIds = new Set(firstPage.objects.map((coin) => coin.objectId));
+			for (const coin of secondPage.objects) {
+				expect(firstPageIds.has(coin.objectId)).toBe(false);
+			}
 		});
 	});
 
@@ -183,23 +194,25 @@ describe('Core API - Coins', () => {
 				limit: 1,
 			});
 
-			expect(firstPage.balances.length).toBeGreaterThan(0);
+			expect(firstPage.balances.length).toBe(1);
+			expect(firstPage.hasNextPage).toBe(true);
+			expect(firstPage.cursor).toBeTruthy();
 
-			if (firstPage.hasNextPage && firstPage.cursor) {
-				// Get second page
-				const secondPage = await client.core.listBalances({
-					owner: testAddress,
-					limit: 1,
-					cursor: firstPage.cursor,
-				});
+			// Get second page using the cursor
+			const secondPage = await client.core.listBalances({
+				owner: testAddress,
+				limit: 1,
+				cursor: firstPage.cursor,
+			});
 
-				// Verify different coin types on second page
-				const firstPageTypes = new Set(firstPage.balances.map((b) => b.coinType));
-				const secondPageTypes = secondPage.balances.map((b) => b.coinType);
+			expect(secondPage.balances.length).toBe(1);
 
-				for (const coinType of secondPageTypes) {
-					expect(firstPageTypes.has(coinType)).toBe(false);
-				}
+			// Verify different coin types on second page
+			const firstPageTypes = new Set(firstPage.balances.map((b) => b.coinType));
+			const secondPageTypes = secondPage.balances.map((b) => b.coinType);
+
+			for (const coinType of secondPageTypes) {
+				expect(firstPageTypes.has(coinType)).toBe(false);
 			}
 		});
 

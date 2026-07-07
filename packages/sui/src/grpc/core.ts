@@ -211,6 +211,7 @@ export class GrpcCoreClient extends CoreClient {
 			owner: options.owner,
 			objectType: `0x2::coin::Coin<${(await this.mvr.resolveType({ type: coinType })).type}>`,
 			pageToken: options.cursor ? fromBase64(options.cursor) : undefined,
+			pageSize: options.limit,
 			readMask: {
 				paths,
 			},
