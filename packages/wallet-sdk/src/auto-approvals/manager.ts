@@ -7,8 +7,9 @@ import type { AutoApprovalState } from './schemas/state.js';
 import { AutoApprovalStateSchema } from './schemas/state.js';
 import type { AutoApprovalSettings } from './schemas/policy.js';
 import { AutoApprovalPolicySchema, AutoApprovalSettingsSchema } from './schemas/policy.js';
-import { parseStructTag } from '@mysten/sui/utils';
+import { normalizeSuiAddress, parseStructTag } from '@mysten/sui/utils';
 import type { AutoApprovalResult } from './analyzer.js';
+import type { CoinFlow } from '../transaction-analyzer/rules/balance-flows.js';
 
 type SuccessfulAutoApprovalResult = Extract<AutoApprovalResult, { status: 'success' }>;
 
@@ -121,10 +122,10 @@ export class AutoApprovalManager {
 		}
 
 		if (!operation.permissions.anyBalance) {
-			for (const flow of analysis.result.coinFlows.outflows) {
-				if (!operation.permissions.balances?.find((b) => b.coinType === flow.coinType)) {
+			for (const outflow of getSenderOutflows(analysis)) {
+				if (!operation.permissions.balances?.find((b) => b.coinType === outflow.coinType)) {
 					issues.push({
-						message: `Operation does not have permission to use coin type ${flow.coinType}`,
+						message: `Operation does not have permission to use coin type ${outflow.coinType}`,
 					});
 				}
 			}
@@ -201,11 +202,7 @@ export class AutoApprovalManager {
 			issues.push({ message: 'Operation type not approved for auto-approval' });
 		}
 
-		for (const outflow of analysis.result.coinFlows.outflows) {
-			if (outflow.amount <= 0n) {
-				continue;
-			}
-
+		for (const outflow of getSenderOutflows(analysis)) {
 			if (this.#state.settings.coinBudgets[outflow.coinType] !== undefined) {
 				const coinBudget = this.#state.settings.coinBudgets[outflow.coinType];
 
@@ -251,7 +248,7 @@ export class AutoApprovalManager {
 			);
 		}
 
-		for (const outflow of analysis.result.coinFlows.outflows) {
+		for (const outflow of getSenderOutflows(analysis)) {
 			if (this.#state.settings.coinBudgets[outflow.coinType] !== undefined) {
 				const currentBudget = BigInt(this.#state.settings?.coinBudgets[outflow.coinType] ?? '0');
 				const newBalance = currentBudget - outflow.amount;
@@ -287,17 +284,17 @@ export class AutoApprovalManager {
 			this.#state.settings.remainingTransactions += 1;
 		}
 
-		this.#revertCoinFlows(analysis);
+		this.#revertBalanceFlows(analysis);
 	}
 
-	#revertCoinFlows(analysis: AutoApprovalResult): void {
+	#revertBalanceFlows(analysis: AutoApprovalResult): void {
 		assertSuccessfulAnalysis(analysis);
 
 		if (!this.#state.settings) {
 			throw new Error('No auto-approval settings configured');
 		}
 
-		for (const outflow of analysis.result.coinFlows.outflows) {
+		for (const outflow of getSenderOutflows(analysis)) {
 			if (this.#state.settings?.coinBudgets[outflow.coinType] !== undefined) {
 				const currentBudget = BigInt(this.#state.settings?.coinBudgets[outflow.coinType] ?? '0');
 				const newBalance = currentBudget + outflow.amount;
@@ -341,10 +338,19 @@ export class AutoApprovalManager {
 			throw new Error('No auto-approval settings configured');
 		}
 
-		// Revert coin flows and use real balance changes instead
-		this.#revertCoinFlows(analysis);
+		// Revert provisional balance flows and use real sender balance changes instead.
+		this.#revertBalanceFlows(analysis);
+
+		const outflowCoinTypes = new Set(getSenderOutflows(analysis).map((flow) => flow.coinType));
 
 		for (const change of result.balanceChanges) {
+			if (
+				!analysis.result.senderAddresses.includes(normalizeSuiAddress(change.address)) ||
+				!outflowCoinTypes.has(change.coinType)
+			) {
+				continue;
+			}
+
 			if (this.#state.settings.coinBudgets[change.coinType] !== undefined) {
 				const currentBudget = BigInt(this.#state.settings?.coinBudgets[change.coinType] ?? '0');
 				const newBalance = currentBudget + BigInt(change.amount);
@@ -397,6 +403,15 @@ export class AutoApprovalManager {
 		const validatedSettings = parse(AutoApprovalSettingsSchema, settings);
 		this.#state.settings = validatedSettings;
 	}
+}
+
+function getSenderOutflows(analysis: SuccessfulAutoApprovalResult): CoinFlow[] {
+	return analysis.result.senderBalanceFlows
+		.filter((flow) => flow.amount < 0n)
+		.map((flow) => ({
+			coinType: flow.coinType,
+			amount: -flow.amount,
+		}));
 }
 
 const parsedCoinType = parseStructTag('0x2::coin::Coin');
