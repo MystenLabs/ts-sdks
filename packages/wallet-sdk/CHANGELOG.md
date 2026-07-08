@@ -1,5 +1,13 @@
 # @mysten/wallet-sdk
 
+## 0.8.0
+
+### Minor Changes
+
+- 2f4d20f: Update auto-approval analysis to accept explicit operation types and use effective sender
+  balance flows for budget checks. Auto-approval policy and settings coin types are now normalized
+  before matching analyzer balance flows.
+
 ## 0.7.0
 
 ### Minor Changes
