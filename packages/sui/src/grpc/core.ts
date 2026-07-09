@@ -305,7 +305,13 @@ export class GrpcCoreClient extends CoreClient {
 	async getTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 		options: SuiClientTypes.GetTransactionOptions<Include>,
 	): Promise<SuiClientTypes.TransactionResult<Include>> {
-		const paths = ['digest', 'transaction.digest', 'signatures', 'effects.status'];
+		const paths = [
+			'digest',
+			'transaction.digest',
+			'signatures',
+			'effects.status',
+			'effects.status.error.metadata',
+		];
 		if (options.include?.transaction) {
 			paths.push(
 				'transaction.sender',
@@ -347,7 +353,13 @@ export class GrpcCoreClient extends CoreClient {
 	async executeTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 		options: SuiClientTypes.ExecuteTransactionOptions<Include>,
 	): Promise<SuiClientTypes.TransactionResult<Include>> {
-		const paths = ['digest', 'transaction.digest', 'signatures', 'effects.status'];
+		const paths = [
+			'digest',
+			'transaction.digest',
+			'signatures',
+			'effects.status',
+			'effects.status.error.metadata',
+		];
 		if (options.include?.transaction) {
 			paths.push(
 				'transaction.sender',
@@ -402,6 +414,7 @@ export class GrpcCoreClient extends CoreClient {
 			'transaction.transaction.digest',
 			'transaction.signatures',
 			'transaction.effects.status',
+			'transaction.effects.status.error.metadata',
 		];
 		if (options.include?.transaction) {
 			paths.push(
@@ -764,6 +777,7 @@ export class GrpcCoreClient extends CoreClient {
 							'transaction.transaction.expiration',
 							'transaction.transaction.kind',
 							'transaction.effects.status',
+							'transaction.effects.status.error.metadata',
 						],
 					},
 				});
@@ -870,6 +884,7 @@ function parseGrpcExecutionError(error: GrpcExecutionError): SuiClientTypes.Exec
 	const message = error.description ?? 'Unknown error';
 	const command = error.command != null ? Number(error.command) : undefined;
 	const details = error.errorDetails;
+	const metadata = error.metadata;
 
 	switch (details?.oneofKind) {
 		case 'abort': {
@@ -894,6 +909,7 @@ function parseGrpcExecutionError(error: GrpcExecutionError): SuiClientTypes.Exec
 						: undefined,
 				}),
 				command,
+				metadata,
 				MoveAbort: parseMoveAbort(abort),
 			};
 		}
@@ -903,6 +919,7 @@ function parseGrpcExecutionError(error: GrpcExecutionError): SuiClientTypes.Exec
 				$kind: 'SizeError',
 				message,
 				command,
+				metadata,
 				SizeError: {
 					name: mapErrorName(error.kind),
 					size: Number(details.sizeError.size ?? 0n),
@@ -915,6 +932,7 @@ function parseGrpcExecutionError(error: GrpcExecutionError): SuiClientTypes.Exec
 				$kind: 'CommandArgumentError',
 				message,
 				command,
+				metadata,
 				CommandArgumentError: {
 					argument: details.commandArgumentError.argument ?? 0,
 					name: mapErrorName(details.commandArgumentError.kind),
@@ -926,6 +944,7 @@ function parseGrpcExecutionError(error: GrpcExecutionError): SuiClientTypes.Exec
 				$kind: 'TypeArgumentError',
 				message,
 				command,
+				metadata,
 				TypeArgumentError: {
 					typeArgument: details.typeArgumentError.typeArgument ?? 0,
 					name: mapErrorName(details.typeArgumentError.kind),
@@ -937,6 +956,7 @@ function parseGrpcExecutionError(error: GrpcExecutionError): SuiClientTypes.Exec
 				$kind: 'PackageUpgradeError',
 				message,
 				command,
+				metadata,
 				PackageUpgradeError: {
 					name: mapErrorName(details.packageUpgradeError.kind),
 					packageId: details.packageUpgradeError.packageId,
@@ -949,6 +969,7 @@ function parseGrpcExecutionError(error: GrpcExecutionError): SuiClientTypes.Exec
 				$kind: 'IndexError',
 				message,
 				command,
+				metadata,
 				IndexError: {
 					index: details.indexError.index,
 					subresult: details.indexError.subresult,
@@ -960,6 +981,7 @@ function parseGrpcExecutionError(error: GrpcExecutionError): SuiClientTypes.Exec
 				$kind: 'CoinDenyListError',
 				message,
 				command,
+				metadata,
 				CoinDenyListError: {
 					name: mapErrorName(error.kind),
 					coinType: details.coinDenyListError.coinType!,
@@ -972,6 +994,7 @@ function parseGrpcExecutionError(error: GrpcExecutionError): SuiClientTypes.Exec
 				$kind: 'CongestedObjects',
 				message,
 				command,
+				metadata,
 				CongestedObjects: {
 					name: mapErrorName(error.kind),
 					objects: details.congestedObjects.objects,
@@ -983,6 +1006,7 @@ function parseGrpcExecutionError(error: GrpcExecutionError): SuiClientTypes.Exec
 				$kind: 'ObjectIdError',
 				message,
 				command,
+				metadata,
 				ObjectIdError: {
 					name: mapErrorName(error.kind),
 					objectId: details.objectId,
@@ -994,6 +1018,7 @@ function parseGrpcExecutionError(error: GrpcExecutionError): SuiClientTypes.Exec
 				$kind: 'Unknown',
 				message,
 				command,
+				metadata,
 				Unknown: null,
 			};
 	}

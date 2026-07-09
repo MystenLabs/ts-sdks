@@ -4419,6 +4419,15 @@ const introspection = {
             "isDeprecated": false
           },
           {
+            "name": "metadata",
+            "type": {
+              "kind": "SCALAR",
+              "name": "JSON"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
             "name": "module",
             "type": {
               "kind": "OBJECT",

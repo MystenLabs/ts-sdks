@@ -82,6 +82,7 @@ fragment TRANSACTION_FIELDS on Transaction {
 		status
 		executionError {
 			message
+			metadata
 			abortCode
 			identifier
 			constant
@@ -152,6 +153,7 @@ query resolveTransaction($transaction: JSON!, $doGasSelection: Boolean = true) {
 					status
 					executionError {
 						message
+						metadata
 						abortCode
 						identifier
 						constant
