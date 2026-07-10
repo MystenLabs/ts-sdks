@@ -740,6 +740,7 @@ export class GraphQLCoreClient extends CoreClient {
 					doGasSelection:
 						!options.onlyTransactionKind &&
 						(snapshot.gasData.budget == null || snapshot.gasData.payment == null),
+					checksEnabled: !options.onlyTransactionKind,
 				},
 			});
 
@@ -767,6 +768,7 @@ export class GraphQLCoreClient extends CoreClient {
 			if (options.onlyTransactionKind) {
 				transactionData.applyResolvedData({
 					...resolved,
+					sender: null,
 					gasData: {
 						budget: null,
 						owner: null,

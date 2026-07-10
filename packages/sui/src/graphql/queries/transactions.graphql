@@ -143,8 +143,16 @@ fragment TRANSACTION_FIELDS on Transaction {
 	}
 }
 
-query resolveTransaction($transaction: JSON!, $doGasSelection: Boolean = true) {
-	simulateTransaction(transaction: $transaction, doGasSelection: $doGasSelection) {
+query resolveTransaction(
+	$transaction: JSON!
+	$doGasSelection: Boolean = true
+	$checksEnabled: Boolean = true
+) {
+	simulateTransaction(
+		transaction: $transaction
+		doGasSelection: $doGasSelection
+		checksEnabled: $checksEnabled
+	) {
 		effects {
 			transaction {
 				transactionBcs
