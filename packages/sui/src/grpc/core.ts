@@ -757,6 +757,10 @@ export class GrpcCoreClient extends CoreClient {
 					doGasSelection:
 						!options.onlyTransactionKind &&
 						(snapshot.gasData.budget == null || snapshot.gasData.payment == null),
+					// Kind-only txns are never executed directly and do not have sender, so skip validation checks.
+					checks: options.onlyTransactionKind
+						? SimulateTransactionRequest_TransactionChecks.DISABLED
+						: SimulateTransactionRequest_TransactionChecks.ENABLED,
 					readMask: {
 						paths: [
 							'transaction.transaction.sender',
