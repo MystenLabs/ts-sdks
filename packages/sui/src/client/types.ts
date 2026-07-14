@@ -461,6 +461,150 @@ export namespace SuiClientTypes {
 		checksEnabled?: boolean;
 	}
 
+	/** Query methods */
+	export interface TransportMethods {
+		listTransactions?: <Include extends TransactionInclude = {}>(
+			options: ListTransactionsOptions<Include>,
+		) => Promise<ListTransactionsResponse<Include>>;
+		listEvents?: (options: ListEventsOptions) => Promise<ListEventsResponse>;
+	}
+
+	/**
+	 * A filter matching transactions. Exactly one predicate must be specified.
+	 *
+	 * All predicates are supported identically by every transport.
+	 */
+	export type TransactionFilter =
+		| {
+				/** Match transactions sent by this address. */
+				sender: string;
+				function?: never;
+		  }
+		| {
+				/**
+				 * Match transactions that called a Move function, specified as a
+				 * `::`-delimited Move path: `package`, `package::module`, or
+				 * `package::module::function`.
+				 */
+				function: string;
+				sender?: never;
+		  };
+
+	/**
+	 * A filter matching events. Exactly one predicate must be specified.
+	 *
+	 * All predicates are supported identically by every transport.
+	 */
+	export type EventFilter =
+		| {
+				/** Match events emitted by transactions sent by this address. */
+				sender: string;
+				emitModule?: never;
+				eventType?: never;
+		  }
+		| {
+				/** Match events emitted by a module, specified as `package::module`. */
+				emitModule: string;
+				sender?: never;
+				eventType?: never;
+		  }
+		| {
+				/**
+				 * Match events by type: either every event whose type is defined in a
+				 * module (`package::module`), or events with a fully qualified type
+				 * name (`package::module::Name` or `package::module::Name<T1, T2>`).
+				 */
+				eventType: string;
+				sender?: never;
+				emitModule?: never;
+		  };
+
+	export interface ListTransactionsOptions<
+		Include extends TransactionInclude = {},
+	> extends CoreClientMethodOptions {
+		filter?: TransactionFilter;
+		limit?: number;
+		/**
+		 * Return items strictly after this cursor in ledger order (usually the `endCursor` of
+		 * an ascending page, or the `startCursor` of a descending page to poll for new items).
+		 * Implies `order: 'ascending'`, and cannot be combined with `before`.
+		 */
+		after?: string | null;
+		/**
+		 * Return items strictly before this cursor in ledger order (usually the `endCursor` of
+		 * a descending page). Implies `order: 'descending'`, and cannot be combined with
+		 * `after`.
+		 */
+		before?: string | null;
+		/** Order of returned results. Defaults to `ascending` (oldest first). */
+		order?: 'ascending' | 'descending';
+		include?: Include & TransactionInclude;
+	}
+
+	export interface ListTransactionsResponse<out Include extends TransactionInclude = {}> {
+		transactions: TransactionResult<Include>[];
+		hasNextPage: boolean;
+		/**
+		 * Cursor at the first returned item. After a descending read of the most recent
+		 * items, pass as `after` to poll for items added since.
+		 */
+		startCursor: string | null;
+		/**
+		 * Cursor at the last returned item. Continue the query by passing it as `after`
+		 * (ascending) or `before` (descending).
+		 */
+		endCursor: string | null;
+	}
+
+	export interface ListEventsOptions extends CoreClientMethodOptions {
+		filter?: EventFilter;
+		limit?: number;
+		/**
+		 * Return items strictly after this cursor in ledger order (usually the `endCursor` of
+		 * an ascending page, or the `startCursor` of a descending page to poll for new items).
+		 * Implies `order: 'ascending'`, and cannot be combined with `before`.
+		 */
+		after?: string | null;
+		/**
+		 * Return items strictly before this cursor in ledger order (usually the `endCursor` of
+		 * a descending page). Implies `order: 'descending'`, and cannot be combined with
+		 * `after`.
+		 */
+		before?: string | null;
+		/** Order of returned results. Defaults to `ascending` (oldest first). */
+		order?: 'ascending' | 'descending';
+	}
+
+	/** An event returned from a query, along with its position in the ledger. */
+	export interface EventEntry extends Event {
+		/**
+		 * The sequence number of the checkpoint containing the emitting transaction.
+		 *
+		 * `null` on the JSON-RPC transport, which does not expose checkpoint
+		 * information for queried events.
+		 */
+		checkpoint: string | null;
+		/** The digest of the transaction that emitted this event. */
+		transactionDigest: string;
+		/** The index of this event within its transaction's event list. */
+		eventIndex: number;
+	}
+
+	export interface ListEventsResponse {
+		events: EventEntry[];
+		hasNextPage: boolean;
+		/**
+		 * Cursor at the first returned item. After a descending read of the most recent
+		 * items, pass as `after` to poll for items added since.
+		 */
+		startCursor: string | null;
+		/**
+		 * Cursor at the last returned item. Continue the query by passing it as `after`
+		 * (ascending) or `before` (descending).
+		 */
+		endCursor: string | null;
+	}
+
 	export interface GetReferenceGasPriceOptions extends CoreClientMethodOptions {}
 
 	export interface TransportMethods {

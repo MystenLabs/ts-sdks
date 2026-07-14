@@ -50,6 +50,15 @@ import {
 	SimulateTransactionRequest_TransactionChecks,
 	SimulateTransactionResponse,
 } from './proto/sui/rpc/v2/transaction_execution_service.js';
+import type { QueryEnd, QueryOptions } from './proto/sui/rpc/v2/query_options.js';
+import { Ordering, QueryEndReason } from './proto/sui/rpc/v2/query_options.js';
+import type { ResolvedPagination } from '../client/query-filters.js';
+import {
+	resolveEventFilter,
+	resolvePagination,
+	resolveTransactionFilter,
+} from '../client/query-filters.js';
+import { toGrpcEventFilter, toGrpcTransactionFilter } from './filters.js';
 
 export interface GrpcCoreClientOptions extends CoreClientOptions {
 	client: SuiGrpcClient;
@@ -389,6 +398,7 @@ export class GrpcCoreClient extends CoreClient {
 	async simulateTransaction<Include extends SuiClientTypes.SimulateTransactionInclude = {}>(
 		options: SuiClientTypes.SimulateTransactionOptions<Include>,
 	): Promise<SuiClientTypes.SimulateTransactionResult<Include>> {
+		// The simulated transaction is nested one level deeper in the response
 		const paths = transactionReadMaskPaths(options.include, 'transaction.');
 		if (options.include?.commandResults) {
 			paths.push('command_outputs');
@@ -565,6 +575,117 @@ export class GrpcCoreClient extends CoreClient {
 		options: SuiClientTypes.ListDynamicFieldsOptions,
 	): Promise<SuiClientTypes.ListDynamicFieldsResponse> {
 		return this.#client.listDynamicFields(options);
+	}
+
+	async listTransactions<Include extends SuiClientTypes.TransactionInclude = {}>(
+		options: SuiClientTypes.ListTransactionsOptions<Include>,
+	): Promise<SuiClientTypes.ListTransactionsResponse<Include>> {
+		const paths = transactionReadMaskPaths(options.include);
+
+		const call = this.#client.ledgerService.listTransactions(
+			{
+				readMask: { paths },
+				filter: options.filter
+					? toGrpcTransactionFilter(await resolveTransactionFilter(this.mvr, options.filter))
+					: undefined,
+				options: toGrpcQueryOptions(options.limit, resolvePagination(options)),
+			},
+			{ abort: options.signal },
+		);
+
+		const transactions: SuiClientTypes.TransactionResult<Include>[] = [];
+		let startCursor: string | null = null;
+		let endCursor: string | null = null;
+		let end: QueryEnd | undefined;
+
+		for await (const frame of call.responses) {
+			if (frame.watermark?.cursor) {
+				endCursor = toBase64(frame.watermark.cursor);
+			}
+			if (frame.transaction) {
+				startCursor ??= endCursor;
+				transactions.push(parseTransaction(frame.transaction, options.include));
+			}
+			if (frame.end) {
+				end = frame.end;
+			}
+		}
+
+		const hasNextPage = queryHasNextPage(end);
+
+		return {
+			transactions,
+			hasNextPage,
+			startCursor,
+			// A terminal empty page has no positions to continue from
+			endCursor: transactions.length === 0 && !hasNextPage ? null : endCursor,
+		};
+	}
+
+	async listEvents(
+		options: SuiClientTypes.ListEventsOptions,
+	): Promise<SuiClientTypes.ListEventsResponse> {
+		const call = this.#client.ledgerService.listEvents(
+			{
+				readMask: {
+					paths: [
+						'package_id',
+						'module',
+						'sender',
+						'event_type',
+						'contents',
+						'json',
+						'checkpoint',
+						'transaction_digest',
+						'event_index',
+					],
+				},
+				filter: options.filter
+					? toGrpcEventFilter(await resolveEventFilter(this.mvr, options.filter))
+					: undefined,
+				options: toGrpcQueryOptions(options.limit, resolvePagination(options)),
+			},
+			{ abort: options.signal },
+		);
+
+		const events: SuiClientTypes.EventEntry[] = [];
+		let startCursor: string | null = null;
+		let endCursor: string | null = null;
+		let end: QueryEnd | undefined;
+
+		for await (const frame of call.responses) {
+			if (frame.watermark?.cursor) {
+				endCursor = toBase64(frame.watermark.cursor);
+			}
+			if (frame.event) {
+				startCursor ??= endCursor;
+				const event = frame.event;
+				events.push({
+					packageId: normalizeSuiAddress(event.packageId!),
+					module: event.module!,
+					sender: normalizeSuiAddress(event.sender!),
+					eventType: normalizeStructTag(event.eventType!),
+					bcs: event.contents?.value ?? new Uint8Array(),
+					json: event.json ? (Value.toJson(event.json) as Record<string, unknown>) : null,
+					checkpoint: event.checkpoint?.toString() ?? null,
+					transactionDigest: event.transactionDigest!,
+					eventIndex: event.eventIndex!,
+				});
+			}
+			if (frame.end) {
+				end = frame.end;
+			}
+		}
+
+		const hasNextPage = queryHasNextPage(end);
+
+		return {
+			events,
+			hasNextPage,
+			startCursor,
+			// A terminal empty page has no positions to continue from
+			endCursor: events.length === 0 && !hasNextPage ? null : endCursor,
+		};
 	}
 
 	async verifyZkLoginSignature(
@@ -787,11 +908,28 @@ export class GrpcCoreClient extends CoreClient {
 	}
 }
 
+function toGrpcQueryOptions(
+	limit: number | undefined,
+	pagination: ResolvedPagination,
+): QueryOptions {
+	return {
+		limit,
+		ordering: pagination.descending ? Ordering.DESCENDING : Ordering.ASCENDING,
+		after: pagination.after ? fromBase64(pagination.after) : undefined,
+		before: pagination.before ? fromBase64(pagination.before) : undefined,
+	};
+}
+
+function queryHasNextPage(end: QueryEnd | undefined): boolean {
+	return end?.reason === QueryEndReason.ITEM_LIMIT || end?.reason === QueryEndReason.SCAN_LIMIT;
+}
+
 function transactionReadMaskPaths(
 	include: SuiClientTypes.TransactionInclude | undefined,
 	prefix = '',
-) {
+): string[] {
 	const paths = ['digest', 'transaction.digest', 'signatures', 'effects.status'];
+
 	if (include?.transaction) {
 		paths.push(
 			'transaction.sender',
@@ -813,6 +951,7 @@ function transactionReadMaskPaths(
 		paths.push('events');
 	}
 	if (include?.objectTypes) {
+		// Use effects.changed_objects to match JSON-RPC behavior (which uses objectChanges)
 		paths.push('effects.changed_objects.object_type');
 		paths.push('effects.changed_objects.object_id');
 	}

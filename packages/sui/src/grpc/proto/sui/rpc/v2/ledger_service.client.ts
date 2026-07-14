@@ -12,6 +12,13 @@
 import type { RpcTransport } from '@protobuf-ts/runtime-rpc';
 import type { ServiceInfo } from '@protobuf-ts/runtime-rpc';
 import { LedgerService } from './ledger_service.js';
+import type { ListEventsResponse } from './ledger_service.js';
+import type { ListEventsRequest } from './ledger_service.js';
+import type { ListTransactionsResponse } from './ledger_service.js';
+import type { ListTransactionsRequest } from './ledger_service.js';
+import type { ListCheckpointsResponse } from './ledger_service.js';
+import type { ListCheckpointsRequest } from './ledger_service.js';
+import type { ServerStreamingCall } from '@protobuf-ts/runtime-rpc';
 import type { GetEpochResponse } from './ledger_service.js';
 import type { GetEpochRequest } from './ledger_service.js';
 import type { GetCheckpointResponse } from './ledger_service.js';
@@ -84,6 +91,43 @@ export interface ILedgerServiceClient {
 		input: GetEpochRequest,
 		options?: RpcOptions,
 	): UnaryCall<GetEpochRequest, GetEpochResponse>;
+	/**
+	 * List checkpoints matching the provided filters.
+	 *
+	 * Checkpoints are returned in ascending or descending checkpoint sequence
+	 * number order according to the query options ordering.
+	 * A checkpoint matches if any transaction it contains satisfies the filter.
+	 *
+	 * @generated from protobuf rpc: ListCheckpoints(sui.rpc.v2.ListCheckpointsRequest) returns (stream sui.rpc.v2.ListCheckpointsResponse);
+	 */
+	listCheckpoints(
+		input: ListCheckpointsRequest,
+		options?: RpcOptions,
+	): ServerStreamingCall<ListCheckpointsRequest, ListCheckpointsResponse>;
+	/**
+	 * List transactions matching the provided filters.
+	 *
+	 * Transactions are returned in ascending or descending transaction sequence
+	 * order according to the query options ordering.
+	 *
+	 * @generated from protobuf rpc: ListTransactions(sui.rpc.v2.ListTransactionsRequest) returns (stream sui.rpc.v2.ListTransactionsResponse);
+	 */
+	listTransactions(
+		input: ListTransactionsRequest,
+		options?: RpcOptions,
+	): ServerStreamingCall<ListTransactionsRequest, ListTransactionsResponse>;
+	/**
+	 * List events matching the provided filters.
+	 *
+	 * Events are returned in ascending or descending packed event sequence order
+	 * according to the query options ordering.
+	 *
+	 * @generated from protobuf rpc: ListEvents(sui.rpc.v2.ListEventsRequest) returns (stream sui.rpc.v2.ListEventsResponse);
+	 */
+	listEvents(
+		input: ListEventsRequest,
+		options?: RpcOptions,
+	): ServerStreamingCall<ListEventsRequest, ListEventsResponse>;
 }
 /**
  * @generated from protobuf service sui.rpc.v2.LedgerService
@@ -208,6 +252,73 @@ export class LedgerServiceClient implements ILedgerServiceClient, ServiceInfo {
 			opt = this._transport.mergeOptions(options);
 		return stackIntercept<GetEpochRequest, GetEpochResponse>(
 			'unary',
+			this._transport,
+			method,
+			opt,
+			input,
+		);
+	}
+	/**
+	 * List checkpoints matching the provided filters.
+	 *
+	 * Checkpoints are returned in ascending or descending checkpoint sequence
+	 * number order according to the query options ordering.
+	 * A checkpoint matches if any transaction it contains satisfies the filter.
+	 *
+	 * @generated from protobuf rpc: ListCheckpoints(sui.rpc.v2.ListCheckpointsRequest) returns (stream sui.rpc.v2.ListCheckpointsResponse);
+	 */
+	listCheckpoints(
+		input: ListCheckpointsRequest,
+		options?: RpcOptions,
+	): ServerStreamingCall<ListCheckpointsRequest, ListCheckpointsResponse> {
+		const method = this.methods[7],
+			opt = this._transport.mergeOptions(options);
+		return stackIntercept<ListCheckpointsRequest, ListCheckpointsResponse>(
+			'serverStreaming',
+			this._transport,
+			method,
+			opt,
+			input,
+		);
+	}
+	/**
+	 * List transactions matching the provided filters.
+	 *
+	 * Transactions are returned in ascending or descending transaction sequence
+	 * order according to the query options ordering.
+	 *
+	 * @generated from protobuf rpc: ListTransactions(sui.rpc.v2.ListTransactionsRequest) returns (stream sui.rpc.v2.ListTransactionsResponse);
+	 */
+	listTransactions(
+		input: ListTransactionsRequest,
+		options?: RpcOptions,
+	): ServerStreamingCall<ListTransactionsRequest, ListTransactionsResponse> {
+		const method = this.methods[8],
+			opt = this._transport.mergeOptions(options);
+		return stackIntercept<ListTransactionsRequest, ListTransactionsResponse>(
+			'serverStreaming',
+			this._transport,
+			method,
+			opt,
+			input,
+		);
+	}
+	/**
+	 * List events matching the provided filters.
+	 *
+	 * Events are returned in ascending or descending packed event sequence order
+	 * according to the query options ordering.
+	 *
+	 * @generated from protobuf rpc: ListEvents(sui.rpc.v2.ListEventsRequest) returns (stream sui.rpc.v2.ListEventsResponse);
+	 */
+	listEvents(
+		input: ListEventsRequest,
+		options?: RpcOptions,
+	): ServerStreamingCall<ListEventsRequest, ListEventsResponse> {
+		const method = this.methods[9],
+			opt = this._transport.mergeOptions(options);
+		return stackIntercept<ListEventsRequest, ListEventsResponse>(
+			'serverStreaming',
 			this._transport,
 			method,
 			opt,

@@ -8,6 +8,31 @@ type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
 export type Incremental<T> = T | { [P in keyof T]?: P extends ' $fragmentName' | '__typename' ? T[P] : never };
 import { OpenMoveTypeSignature } from '../types.js';
 import { DocumentTypeDecoration } from '@graphql-typed-document-node/core';
+export type EventFilter = {
+  /** Limit to events that occured strictly after the given checkpoint. */
+  afterCheckpoint?: number | null | undefined;
+  /** Limit to events in the given checkpoint. */
+  atCheckpoint?: number | null | undefined;
+  /** Limit to event that occured strictly before the given checkpoint. */
+  beforeCheckpoint?: number | null | undefined;
+  /**
+   * Events emitted by a particular module. An event is emitted by a particular module if some function in the module is called by a PTB and emits an event.
+   *
+   * Modules can be filtered by their package, or package::module. We currently do not support filtering by emitting module and event type at the same time so if both are provided in one filter, the query will error.
+   */
+  module?: string | null | undefined;
+  /** Filter on events by transaction sender address. */
+  sender?: string | null | undefined;
+  /**
+   * This field is used to specify the type of event emitted.
+   *
+   * Events can be filtered by their type's package, package::module, or their fully qualified type name.
+   *
+   * Generic types can be queried by either the generic type name, e.g. `0x2::coin::Coin`, or by the full type name, such as `0x2::coin::Coin<0x2::sui::SUI>`.
+   */
+  type?: string | null | undefined;
+};
+
 /** The execution status of this transaction: success or failure. */
 export enum ExecutionStatus {
   /** The transaction could not be executed. */
@@ -116,6 +141,43 @@ export enum OwnerKind {
   Shared = 'SHARED'
 }
 
+export type TransactionFilter = {
+  /**
+   * Limit to transactions that interacted with the given address.
+   * The address could be a sender, sponsor, or recipient of the transaction.
+   */
+  affectedAddress?: string | null | undefined;
+  /**
+   * Limit to transactions that interacted with the given object.
+   * The object could have been created, read, modified, deleted, wrapped, or unwrapped by the transaction.
+   * Objects that were passed as a `Receiving` input are not considered to have been affected by a transaction unless they were actually received.
+   */
+  affectedObject?: string | null | undefined;
+  /** Filter to transactions that occurred strictly after the given checkpoint. */
+  afterCheckpoint?: number | null | undefined;
+  /** Filter to transactions in the given checkpoint. */
+  atCheckpoint?: number | null | undefined;
+  /** Filter to transaction that occurred strictly before the given checkpoint. */
+  beforeCheckpoint?: number | null | undefined;
+  /** Filter transactions by move function called. Calls can be filtered by the `package`, `package::module`, or the `package::module::name` of their function. */
+  function?: string | null | undefined;
+  /** An input filter selecting for either system or programmable transactions. */
+  kind?: TransactionKindInput | null | undefined;
+  /** Limit to transactions that were sent by the given address. */
+  sentAddress?: string | null | undefined;
+};
+
+/** An input filter selecting for either system or programmable transactions. */
+export enum TransactionKindInput {
+  /** A user submitted transaction block. */
+  ProgrammableTx = 'PROGRAMMABLE_TX',
+  /**
+   * A system transaction can be one of several types of transactions.
+   * See [unions/transaction-block-kind] for more details.
+   */
+  SystemTx = 'SYSTEM_TX'
+}
+
 /** An enum that specifies the intent scope to be used to parse the bytes for signature verification. */
 export enum ZkLoginIntentScope {
   /** Indicates that the bytes are to be parsed as a personal message. */
@@ -205,6 +267,17 @@ export type GetReferenceGasPriceQueryVariables = Exact<{ [key: string]: never; }
 
 
 export type GetReferenceGasPriceQuery = { epoch: { referenceGasPrice: string | null } | null };
+
+export type ListEventsQueryVariables = Exact<{
+  filter?: EventFilter | null | undefined;
+  first?: number | null | undefined;
+  after?: string | null | undefined;
+  last?: number | null | undefined;
+  before?: string | null | undefined;
+}>;
+
+
+export type ListEventsQuery = { events: { pageInfo: { hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null }, nodes: Array<{ sequenceNumber: number, transaction: { digest: string, effects: { checkpoint: { sequenceNumber: number } | null } | null } | null, transactionModule: { name: string, package: { address: string } | null } | null, sender: { address: string } | null, contents: { bcs: string | null, json: unknown, type: { repr: string } | null } | null }> } | null };
 
 export type DefaultSuinsNameQueryVariables = Exact<{
   address: string;
@@ -328,6 +401,23 @@ export type GetTransactionBlockQueryVariables = Exact<{
 
 
 export type GetTransactionBlockQuery = { transaction: { digest: string, transactionJson?: unknown, transactionBcs?: string | null, signatures: Array<{ signatureBytes: string | null }>, effects: { status: ExecutionStatus | null, effectsBcs?: string | null, effectsJson?: unknown, balanceChangesJson?: unknown, executionError: { message: string, abortCode: string | null, identifier: string | null, constant: string | null, sourceLineNumber: number | null, instructionOffset: number | null, module: { name: string, package: { address: string } | null } | null, function: { name: string } | null } | null, epoch: { epochId: number } | null, objectChanges?: { nodes: Array<{ address: string, outputState: { asMoveObject: { contents: { type: { repr: string } | null } | null } | null } | null }> } | null, events?: { pageInfo: { hasNextPage: boolean }, nodes: Array<{ transactionModule: { name: string, package: { address: string } | null } | null, sender: { address: string } | null, contents: { bcs: string | null, json: unknown, type: { repr: string } | null } | null }> } | null } | null } | null };
+
+export type ListTransactionsQueryVariables = Exact<{
+  filter?: TransactionFilter | null | undefined;
+  first?: number | null | undefined;
+  after?: string | null | undefined;
+  last?: number | null | undefined;
+  before?: string | null | undefined;
+  includeTransaction?: boolean | null | undefined;
+  includeEffects?: boolean | null | undefined;
+  includeEvents?: boolean | null | undefined;
+  includeBalanceChanges?: boolean | null | undefined;
+  includeObjectTypes?: boolean | null | undefined;
+  includeBcs?: boolean | null | undefined;
+}>;
+
+
+export type ListTransactionsQuery = { transactions: { pageInfo: { hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null }, nodes: Array<{ digest: string, transactionJson?: unknown, transactionBcs?: string | null, signatures: Array<{ signatureBytes: string | null }>, effects: { status: ExecutionStatus | null, effectsBcs?: string | null, effectsJson?: unknown, balanceChangesJson?: unknown, executionError: { message: string, abortCode: string | null, identifier: string | null, constant: string | null, sourceLineNumber: number | null, instructionOffset: number | null, module: { name: string, package: { address: string } | null } | null, function: { name: string } | null } | null, epoch: { epochId: number } | null, objectChanges?: { nodes: Array<{ address: string, outputState: { asMoveObject: { contents: { type: { repr: string } | null } | null } | null } | null }> } | null, events?: { pageInfo: { hasNextPage: boolean }, nodes: Array<{ transactionModule: { name: string, package: { address: string } | null } | null, sender: { address: string } | null, contents: { bcs: string | null, json: unknown, type: { repr: string } | null } | null }> } | null } | null }> } | null };
 
 export type Transaction_FieldsFragment = { digest: string, transactionJson?: unknown, transactionBcs?: string | null, signatures: Array<{ signatureBytes: string | null }>, effects: { status: ExecutionStatus | null, effectsBcs?: string | null, effectsJson?: unknown, balanceChangesJson?: unknown, executionError: { message: string, abortCode: string | null, identifier: string | null, constant: string | null, sourceLineNumber: number | null, instructionOffset: number | null, module: { name: string, package: { address: string } | null } | null, function: { name: string } | null } | null, epoch: { epochId: number } | null, objectChanges?: { nodes: Array<{ address: string, outputState: { asMoveObject: { contents: { type: { repr: string } | null } | null } | null } | null }> } | null, events?: { pageInfo: { hasNextPage: boolean }, nodes: Array<{ transactionModule: { name: string, package: { address: string } | null } | null, sender: { address: string } | null, contents: { bcs: string | null, json: unknown, type: { repr: string } | null } | null }> } | null } | null };
 
@@ -760,6 +850,51 @@ export const GetReferenceGasPriceDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<GetReferenceGasPriceQuery, GetReferenceGasPriceQueryVariables>;
+export const ListEventsDocument = new TypedDocumentString(`
+    query listEvents($filter: EventFilter, $first: Int, $after: String, $last: Int, $before: String) {
+  events(
+    filter: $filter
+    first: $first
+    after: $after
+    last: $last
+    before: $before
+  ) {
+    pageInfo {
+      hasNextPage
+      hasPreviousPage
+      startCursor
+      endCursor
+    }
+    nodes {
+      sequenceNumber
+      transaction {
+        digest
+        effects {
+          checkpoint {
+            sequenceNumber
+          }
+        }
+      }
+      transactionModule {
+        package {
+          address
+        }
+        name
+      }
+      sender {
+        address
+      }
+      contents {
+        type {
+          repr
+        }
+        bcs
+        json
+      }
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<ListEventsQuery, ListEventsQueryVariables>;
 export const DefaultSuinsNameDocument = new TypedDocumentString(`
     query defaultSuinsName($address: SuiAddress!) {
   address(address: $address) {
@@ -1142,6 +1277,97 @@ export const GetTransactionBlockDocument = new TypedDocumentString(`
     }
   }
 }`) as unknown as TypedDocumentString<GetTransactionBlockQuery, GetTransactionBlockQueryVariables>;
+export const ListTransactionsDocument = new TypedDocumentString(`
+    query listTransactions($filter: TransactionFilter, $first: Int, $after: String, $last: Int, $before: String, $includeTransaction: Boolean = false, $includeEffects: Boolean = false, $includeEvents: Boolean = false, $includeBalanceChanges: Boolean = false, $includeObjectTypes: Boolean = false, $includeBcs: Boolean = false) {
+  transactions(
+    filter: $filter
+    first: $first
+    after: $after
+    last: $last
+    before: $before
+  ) {
+    pageInfo {
+      hasNextPage
+      hasPreviousPage
+      startCursor
+      endCursor
+    }
+    nodes {
+      ...TRANSACTION_FIELDS
+    }
+  }
+}
+    fragment TRANSACTION_FIELDS on Transaction {
+  digest
+  transactionJson @include(if: $includeTransaction)
+  transactionBcs @include(if: $includeBcs)
+  signatures {
+    signatureBytes
+  }
+  effects {
+    status
+    executionError {
+      message
+      abortCode
+      identifier
+      constant
+      sourceLineNumber
+      instructionOffset
+      module {
+        name
+        package {
+          address
+        }
+      }
+      function {
+        name
+      }
+    }
+    epoch {
+      epochId
+    }
+    effectsBcs @include(if: $includeEffects)
+    effectsJson @include(if: $includeObjectTypes)
+    objectChanges(first: 50) @include(if: $includeObjectTypes) {
+      nodes {
+        address
+        outputState {
+          asMoveObject {
+            contents {
+              type {
+                repr
+              }
+            }
+          }
+        }
+      }
+    }
+    balanceChangesJson @include(if: $includeBalanceChanges)
+    events(first: 50) @include(if: $includeEvents) {
+      pageInfo {
+        hasNextPage
+      }
+      nodes {
+        transactionModule {
+          package {
+            address
+          }
+          name
+        }
+        sender {
+          address
+        }
+        contents {
+          type {
+            repr
+          }
+          bcs
+          json
+        }
+      }
+    }
+  }
+}`) as unknown as TypedDocumentString<ListTransactionsQuery, ListTransactionsQueryVariables>;
 export const ResolveTransactionDocument = new TypedDocumentString(`
     query resolveTransaction($transaction: JSON!, $doGasSelection: Boolean = true, $checksEnabled: Boolean = true) {
   simulateTransaction(

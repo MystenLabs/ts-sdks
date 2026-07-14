@@ -11,47 +11,161 @@
 //
 import { ServiceType } from '@protobuf-ts/runtime-rpc';
 import { MessageType } from '@protobuf-ts/runtime';
+import { Event } from './event.js';
+import { EventFilter } from './filter.js';
+import { Watermark } from './query_options.js';
+import { ExecutedTransaction } from './executed_transaction.js';
 import { Checkpoint } from './checkpoint.js';
+import { TransactionFilter } from './filter.js';
 import { FieldMask } from '../../../google/protobuf/field_mask.js';
 /**
- * Request message for SubscriptionService.SubscribeCheckpoints
+ * Request message for SubscriptionService.SubscribeCheckpoints.
  *
  * @generated from protobuf message sui.rpc.v2.SubscribeCheckpointsRequest
  */
 export interface SubscribeCheckpointsRequest {
 	/**
-	 * Optional. Mask for specifying which parts of the
-	 * SubscribeCheckpointsResponse should be returned.
+	 * Optional. Mask for specifying which parts of the Checkpoint should be
+	 * returned (e.g. summary, contents, signatures). `cursor` is always
+	 * populated and is not subject to the mask.
 	 *
 	 * @generated from protobuf field: optional google.protobuf.FieldMask read_mask = 1;
 	 */
 	readMask?: FieldMask;
+	/**
+	 * Optional. DNF filter over indexed transaction dimensions. A checkpoint
+	 * matches if any transaction it contains satisfies the filter. If absent,
+	 * every checkpoint is streamed.
+	 *
+	 * @generated from protobuf field: optional sui.rpc.v2.TransactionFilter filter = 2;
+	 */
+	filter?: TransactionFilter;
 }
 /**
- * Response message for SubscriptionService.SubscribeCheckpoints
+ * Response message for SubscriptionService.SubscribeCheckpoints.
+ *
+ * A checkpoint stream's position is checkpoint-granular, so the `cursor`
+ * sequence number stands in for the `Watermark` message the other
+ * subscription responses carry. Progress-only frames (with `checkpoint`
+ * unset) occur only on filtered streams: on an unfiltered stream every frame
+ * carries both fields, in order and without gaps.
  *
  * @generated from protobuf message sui.rpc.v2.SubscribeCheckpointsResponse
  */
 export interface SubscribeCheckpointsResponse {
 	/**
-	 * Required. The checkpoint sequence number and value of the current cursor
-	 * into the checkpoint stream
+	 * Required. The checkpoint sequence number the stream has fully covered,
+	 * inclusive: every matching checkpoint from the stream's start position
+	 * through `cursor` has been delivered. Present on every frame and
+	 * advances monotonically.
 	 *
 	 * @generated from protobuf field: optional uint64 cursor = 1;
 	 */
 	cursor?: bigint;
 	/**
-	 * The requested data for this checkpoint
+	 * The matching checkpoint. Unset when this frame only advances the
+	 * cursor past non-matching checkpoints.
 	 *
 	 * @generated from protobuf field: optional sui.rpc.v2.Checkpoint checkpoint = 2;
 	 */
 	checkpoint?: Checkpoint;
+}
+/**
+ * Request message for SubscriptionService.SubscribeTransactions.
+ *
+ * @generated from protobuf message sui.rpc.v2.SubscribeTransactionsRequest
+ */
+export interface SubscribeTransactionsRequest {
+	/**
+	 * Optional. Mask for specifying which parts of the ExecutedTransaction
+	 * should be returned.
+	 *
+	 * @generated from protobuf field: optional google.protobuf.FieldMask read_mask = 1;
+	 */
+	readMask?: FieldMask;
+	/**
+	 * Optional. DNF filter over indexed dimensions. If absent, every
+	 * transaction is streamed.
+	 *
+	 * @generated from protobuf field: optional sui.rpc.v2.TransactionFilter filter = 2;
+	 */
+	filter?: TransactionFilter;
+}
+/**
+ * Response message for SubscriptionService.SubscribeTransactions.
+ *
+ * Mirrors ListTransactionsResponse, except there is no `end` field: a
+ * subscription stream has no successful end.
+ *
+ * @generated from protobuf message sui.rpc.v2.SubscribeTransactionsResponse
+ */
+export interface SubscribeTransactionsResponse {
+	/**
+	 * One matching transaction. Its position within the containing checkpoint
+	 * is reported by `ExecutedTransaction.transaction_index`.
+	 *
+	 * @generated from protobuf field: optional sui.rpc.v2.ExecutedTransaction transaction = 1;
+	 */
+	transaction?: ExecutedTransaction;
+	/**
+	 * Progress watermark as of this frame. Present on every frame.
+	 *
+	 * @generated from protobuf field: optional sui.rpc.v2.Watermark watermark = 2;
+	 */
+	watermark?: Watermark;
+}
+/**
+ * Request message for SubscriptionService.SubscribeEvents.
+ *
+ * @generated from protobuf message sui.rpc.v2.SubscribeEventsRequest
+ */
+export interface SubscribeEventsRequest {
+	/**
+	 * Optional. Mask for specifying which parts of the Event should be
+	 * returned.
+	 *
+	 * @generated from protobuf field: optional google.protobuf.FieldMask read_mask = 1;
+	 */
+	readMask?: FieldMask;
+	/**
+	 * Optional. DNF filter over indexed dimensions. If absent, every event is
+	 * streamed.
+	 *
+	 * @generated from protobuf field: optional sui.rpc.v2.EventFilter filter = 2;
+	 */
+	filter?: EventFilter;
+}
+/**
+ * Response message for SubscriptionService.SubscribeEvents.
+ *
+ * Mirrors ListEventsResponse, except there is no `end` field: a subscription
+ * stream has no successful end.
+ *
+ * @generated from protobuf message sui.rpc.v2.SubscribeEventsResponse
+ */
+export interface SubscribeEventsResponse {
+	/**
+	 * One matching event. Its ledger position -- containing checkpoint,
+	 * emitting transaction digest and offset, and index within that
+	 * transaction's event list -- is reported by the corresponding fields on
+	 * `Event`.
+	 *
+	 * @generated from protobuf field: optional sui.rpc.v2.Event event = 1;
+	 */
+	event?: Event;
+	/**
+	 * Progress watermark as of this frame. Present on every frame.
+	 *
+	 * @generated from protobuf field: optional sui.rpc.v2.Watermark watermark = 2;
+	 */
+	watermark?: Watermark;
 }
 // @generated message type with reflection information, may provide speed optimized methods
 class SubscribeCheckpointsRequest$Type extends MessageType<SubscribeCheckpointsRequest> {
 	constructor() {
 		super('sui.rpc.v2.SubscribeCheckpointsRequest', [
 			{ no: 1, name: 'read_mask', kind: 'message', T: () => FieldMask },
+			{ no: 2, name: 'filter', kind: 'message', T: () => TransactionFilter },
 		]);
 	}
 }
@@ -79,6 +193,58 @@ class SubscribeCheckpointsResponse$Type extends MessageType<SubscribeCheckpoints
  * @generated MessageType for protobuf message sui.rpc.v2.SubscribeCheckpointsResponse
  */
 export const SubscribeCheckpointsResponse = new SubscribeCheckpointsResponse$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class SubscribeTransactionsRequest$Type extends MessageType<SubscribeTransactionsRequest> {
+	constructor() {
+		super('sui.rpc.v2.SubscribeTransactionsRequest', [
+			{ no: 1, name: 'read_mask', kind: 'message', T: () => FieldMask },
+			{ no: 2, name: 'filter', kind: 'message', T: () => TransactionFilter },
+		]);
+	}
+}
+/**
+ * @generated MessageType for protobuf message sui.rpc.v2.SubscribeTransactionsRequest
+ */
+export const SubscribeTransactionsRequest = new SubscribeTransactionsRequest$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class SubscribeTransactionsResponse$Type extends MessageType<SubscribeTransactionsResponse> {
+	constructor() {
+		super('sui.rpc.v2.SubscribeTransactionsResponse', [
+			{ no: 1, name: 'transaction', kind: 'message', T: () => ExecutedTransaction },
+			{ no: 2, name: 'watermark', kind: 'message', T: () => Watermark },
+		]);
+	}
+}
+/**
+ * @generated MessageType for protobuf message sui.rpc.v2.SubscribeTransactionsResponse
+ */
+export const SubscribeTransactionsResponse = new SubscribeTransactionsResponse$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class SubscribeEventsRequest$Type extends MessageType<SubscribeEventsRequest> {
+	constructor() {
+		super('sui.rpc.v2.SubscribeEventsRequest', [
+			{ no: 1, name: 'read_mask', kind: 'message', T: () => FieldMask },
+			{ no: 2, name: 'filter', kind: 'message', T: () => EventFilter },
+		]);
+	}
+}
+/**
+ * @generated MessageType for protobuf message sui.rpc.v2.SubscribeEventsRequest
+ */
+export const SubscribeEventsRequest = new SubscribeEventsRequest$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class SubscribeEventsResponse$Type extends MessageType<SubscribeEventsResponse> {
+	constructor() {
+		super('sui.rpc.v2.SubscribeEventsResponse', [
+			{ no: 1, name: 'event', kind: 'message', T: () => Event },
+			{ no: 2, name: 'watermark', kind: 'message', T: () => Watermark },
+		]);
+	}
+}
+/**
+ * @generated MessageType for protobuf message sui.rpc.v2.SubscribeEventsResponse
+ */
+export const SubscribeEventsResponse = new SubscribeEventsResponse$Type();
 /**
  * @generated ServiceType for protobuf service sui.rpc.v2.SubscriptionService
  */
@@ -89,5 +255,19 @@ export const SubscriptionService = new ServiceType('sui.rpc.v2.SubscriptionServi
 		options: {},
 		I: SubscribeCheckpointsRequest,
 		O: SubscribeCheckpointsResponse,
+	},
+	{
+		name: 'SubscribeTransactions',
+		serverStreaming: true,
+		options: {},
+		I: SubscribeTransactionsRequest,
+		O: SubscribeTransactionsResponse,
+	},
+	{
+		name: 'SubscribeEvents',
+		serverStreaming: true,
+		options: {},
+		I: SubscribeEventsRequest,
+		O: SubscribeEventsResponse,
 	},
 ]);
