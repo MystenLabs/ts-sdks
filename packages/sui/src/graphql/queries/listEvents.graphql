@@ -1,0 +1,40 @@
+# Copyright (c) Mysten Labs, Inc.
+# SPDX-License-Identifier: Apache-2.0
+
+query listEvents($filter: EventFilter, $first: Int, $after: String, $last: Int, $before: String) {
+	events(filter: $filter, first: $first, after: $after, last: $last, before: $before) {
+		pageInfo {
+			hasNextPage
+			hasPreviousPage
+			startCursor
+			endCursor
+		}
+		nodes {
+			sequenceNumber
+			transaction {
+				digest
+				effects {
+					checkpoint {
+						sequenceNumber
+					}
+				}
+			}
+			transactionModule {
+				package {
+					address
+				}
+				name
+			}
+			sender {
+				address
+			}
+			contents {
+				type {
+					repr
+				}
+				bcs
+				json
+			}
+		}
+	}
+}

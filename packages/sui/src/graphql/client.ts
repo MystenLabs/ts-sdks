@@ -324,6 +324,16 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 		return this.core.getDynamicField(input);
 	}
 
+	listTransactions<Include extends SuiClientTypes.TransactionInclude = {}>(
+		input: SuiClientTypes.ListTransactionsOptions<Include>,
+	): Promise<SuiClientTypes.ListTransactionsResponse<Include>> {
+		return this.core.listTransactions(input);
+	}
+
+	listEvents(input: SuiClientTypes.ListEventsOptions): Promise<SuiClientTypes.ListEventsResponse> {
+		return this.core.listEvents(input);
+	}
+
 	getMoveFunction(
 		input: SuiClientTypes.GetMoveFunctionOptions,
 	): Promise<SuiClientTypes.GetMoveFunctionResponse> {

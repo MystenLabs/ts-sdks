@@ -234,25 +234,32 @@ export class TestToolbox {
 	async expectAllClientsReturnSameData<T, N = T>(
 		queryFn: (client: ClientWithCoreApi, kind: 'jsonrpc' | 'grpc' | 'graphql') => Promise<T>,
 		normalize?: (result: T) => N,
-		options?: { skip?: boolean },
+		options?: { skip?: boolean; exclude?: Array<'jsonrpc' | 'grpc' | 'graphql'> },
 	) {
 		if (options?.skip) {
 			test.skip('all clients return same data', () => {});
 			return;
 		}
 
-		const [jsonRpcResult, grpcResult, graphqlResult] = await Promise.all([
-			queryFn(this.jsonRpcClient, 'jsonrpc'),
-			queryFn(this.grpcClient, 'grpc'),
-			queryFn(this.graphqlClient, 'graphql'),
-		]);
+		const clients = (
+			[
+				['jsonrpc', this.jsonRpcClient],
+				['grpc', this.grpcClient],
+				['graphql', this.graphqlClient],
+			] as const
+		).filter(([kind]) => !options?.exclude?.includes(kind));
 
-		const normalizedJson = normalize ? normalize(jsonRpcResult) : jsonRpcResult;
-		const normalizedGrpc = normalize ? normalize(grpcResult) : grpcResult;
-		const normalizedGraphql = normalize ? normalize(graphqlResult) : graphqlResult;
+		const results = await Promise.all(
+			clients.map(async ([kind, client]) => {
+				const result = await queryFn(client, kind);
+				return [kind, normalize ? normalize(result) : result] as const;
+			}),
+		);
 
-		expect(normalizedJson).toEqual(normalizedGrpc);
-		expect(normalizedJson).toEqual(normalizedGraphql);
+		const [[, first]] = results;
+		for (const [, result] of results.slice(1)) {
+			expect(result).toEqual(first);
+		}
 	}
 }
 

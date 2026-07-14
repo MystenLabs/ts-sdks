@@ -18,16 +18,17 @@ This guide covers migrating from `SuiJsonRpcClient` to the new client APIs. The 
 being deprecated in favor of `SuiGrpcClient` and `SuiGraphQLClient`.
 
 <Callout type="info">
-	We recommend using `SuiGrpcClient` for most operations and `SuiGraphQLClient` for complex queries
-	like filtering transactions and events.
+	We recommend using `SuiGrpcClient` for most operations, including filtering transactions and
+	events with the core query API. `SuiGraphQLClient` remains useful for complex queries that aren't
+	covered by the core API.
 </Callout>
 
 ## Choosing a client
 
-| Client             | Best For                                                        |
-| ------------------ | --------------------------------------------------------------- |
-| `SuiGrpcClient`    | Most operations, SDK integrations, real-time data               |
-| `SuiGraphQLClient` | Complex queries, filtering transactions/events, historical data |
+| Client             | Best For                                                              |
+| ------------------ | --------------------------------------------------------------------- |
+| `SuiGrpcClient`    | Most operations, SDK integrations, queries, real-time data            |
+| `SuiGraphQLClient` | Complex queries not covered by the core API (e.g. historical objects) |
 
 ## Quick migration to gRPC
 
@@ -72,6 +73,60 @@ These JSON-RPC methods have direct replacements in the core API:
 | `dryRunTransactionBlock`     | `simulateTransaction`                             |
 | `getNormalizedMoveFunction`  | `getMoveFunction`                                 |
 | `getMoveFunctionArgTypes`    | `getMoveFunction`                                 |
+| `queryTransactionBlocks`     | `listTransactions`                                |
+| `queryEvents`                | `listEvents`                                      |
+
+<Callout type="info">
+	The query methods (`listTransactions` and `listEvents`) behave identically on every client,
+	including `SuiJsonRpcClient`. See [Core API query methods](/sui/clients/core#query-methods) for
+	details.
+</Callout>
+
+### Example: Migrating queryTransactionBlocks
+
+```diff
+- const result = await jsonRpcClient.queryTransactionBlocks({
+-   filter: { FromAddress: '0xabc...' },
+-   options: { showEffects: true },
+-   limit: 10,
+- });
+- const digests = result.data.map((tx) => tx.digest);
++ const result = await client.core.listTransactions({
++   filter: { sender: '0xabc...' },
++   include: { effects: true },
++   limit: 10,
++ });
++ const digests = result.transactions.map(
++   (tx) => (tx.Transaction ?? tx.FailedTransaction).digest,
++ );
+```
+
+The core API filters map to the JSON-RPC `TransactionFilter` variants:
+
+| JSON-RPC filter                                                      | Core API filter predicate                                                                                        |
+| -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `FromAddress`                                                        | `sender`                                                                                                         |
+| `MoveFunction`                                                       | `function`                                                                                                       |
+| `ToAddress` / `FromOrToAddress` / `ChangedObject` / `AffectedObject` | No core equivalent — use raw [gRPC](/sui/clients/grpc#ledger-service) or [GraphQL](/sui/clients/graphql) queries |
+
+### Example: Migrating queryEvents
+
+```diff
+- const result = await jsonRpcClient.queryEvents({
+-   query: { MoveEventType: '0x2::coin::CoinCreated' },
+-   limit: 10,
+-   order: 'descending',
+- });
++ const result = await client.core.listEvents({
++   filter: { eventType: '0x2::coin::CoinCreated' },
++   limit: 10,
++   order: 'descending',
++ });
+```
+
+The JSON-RPC `EventFilter` variants map to `sender`, `emitModule` (replaces `MoveModule` /
+`MoveEventModule`), and `eventType` (replaces `MoveEventType`). Each returned event includes its
+ledger position (`checkpoint`, `transactionDigest`, and `eventIndex`).
 
 ### Example: Migrating devInspectTransactionBlock
 
@@ -109,6 +164,7 @@ These JSON-RPC methods can be replaced by calling gRPC service clients directly:
 | JSON-RPC Method                     | gRPC Service Replacement                                         |
 | ----------------------------------- | ---------------------------------------------------------------- |
 | `getCheckpoint`                     | `ledgerService.getCheckpoint`                                    |
+| `getCheckpoints`                    | `ledgerService.listCheckpoints`                                  |
 | `getLatestCheckpointSequenceNumber` | `ledgerService.getServiceInfo` (read `checkpointHeight`)         |
 | `getCurrentEpoch`                   | `ledgerService.getEpoch` (omit `epoch` for the current)          |
 | `getLatestSuiSystemState`           | `ledgerService.getEpoch` with `system_state` in the read mask    |
@@ -123,10 +179,10 @@ These JSON-RPC methods can be replaced by calling gRPC service clients directly:
 | `resolveNameServiceNames`           | `nameService.reverseLookupName`                                  |
 
 <Callout type="warn">
-	`getCheckpoints` and `getEpochs` (paginated listings) have no gRPC equivalent — use the
-	`checkpoints` / `epochs` GraphQL queries instead. `getValidatorsApy` also has no replacement:
-	there is no canonical definition of validator APY, so it must be computed client-side from
-	validator exchange rates (see [Validator APY](#validator-apy) below).
+	`getEpochs` (paginated listing) has no gRPC equivalent — use the `epochs` GraphQL query instead.
+	`getValidatorsApy` also has no replacement: there is no canonical definition of validator APY, so
+	it must be computed client-side from validator exchange rates (see [Validator APY](#validator-apy)
+	below).
 </Callout>
 
 ### Example: using gRPC service clients
@@ -184,16 +240,53 @@ const { response: address } = await client.nameService.lookupName({
 });
 ```
 
+## Methods replaced by gRPC subscriptions
+
+The deprecated JSON-RPC websocket subscriptions can be replaced with the gRPC `subscriptionService`,
+which provides filtered, real-time streams:
+
+| JSON-RPC Method        | gRPC Service Replacement                    |
+| ---------------------- | ------------------------------------------- |
+| `subscribeTransaction` | `subscriptionService.subscribeTransactions` |
+| `subscribeEvent`       | `subscriptionService.subscribeEvents`       |
+
+```typescript
+const stream = client.subscriptionService.subscribeEvents({
+	filter: {
+		terms: [
+			{
+				literals: [
+					{
+						negated: false,
+						predicate: {
+							oneofKind: 'eventType',
+							eventType: { eventType: '0x2::coin::CoinCreated' },
+						},
+					},
+				],
+			},
+		],
+	},
+	readMask: { paths: ['event_type', 'contents', 'json', 'checkpoint', 'transaction_digest'] },
+});
+
+for await (const frame of stream.responses) {
+	if (frame.event) {
+		console.log(frame.event.eventType, frame.event.json);
+	}
+}
+```
+
+Subscriptions always begin at the current tip of the chain. To recover events missed between
+subscriptions, replay the gap with `client.core.listEvents` using the same filter.
+
 ## Methods requiring GraphQL
 
 Some JSON-RPC methods don't have gRPC equivalents and require using `SuiGraphQLClient` instead:
 
 | JSON-RPC Method             | GraphQL Alternative                                       |
 | --------------------------- | --------------------------------------------------------- |
-| `queryTransactionBlocks`    | `transactions` query                                      |
 | `multiGetTransactionBlocks` | `multiGetTransactionEffects` query                        |
-| `queryEvents`               | `events` query                                            |
-| `getCheckpoints`            | `checkpoints` query                                       |
 | `getEpochs`                 | `epochs` query                                            |
 | `getCoinMetadata`           | `coinMetadata` query (or gRPC `stateService.getCoinInfo`) |
 | `getTotalSupply`            | `coinMetadata` query (or gRPC `stateService.getCoinInfo`) |
@@ -214,94 +307,6 @@ const graphqlClient = new SuiGraphQLClient({
 	network: 'mainnet',
 });
 ```
-
-### Querying transactions
-
-Replace `queryTransactionBlocks` with a GraphQL query:
-
-```typescript
-const result = await graphqlClient.query({
-	query: `
-    query QueryTransactions($sender: SuiAddress, $first: Int, $after: String) {
-      transactions(
-        first: $first
-        after: $after
-        filter: { sentAddress: $sender }
-      ) {
-        pageInfo {
-          hasNextPage
-          endCursor
-        }
-        nodes {
-          digest
-          effects {
-            status
-            epoch { epochId }
-          }
-        }
-      }
-    }
-  `,
-	variables: {
-		sender: '0xabc...',
-		first: 10,
-	},
-});
-```
-
-**Available transaction filters:**
-
-- `sentAddress`: Filter by sender address
-- `affectedAddress`: Filter by any address involved in the transaction
-- `affectedObject`: Filter by object ID that was affected
-- `function`: Filter by Move function called (for example, `0x2::coin::transfer`)
-- `kind`: Filter by transaction kind (`SYSTEM` or `PROGRAMMABLE`)
-- `atCheckpoint` / `beforeCheckpoint` / `afterCheckpoint` - Filter by checkpoint
-
-### Querying events
-
-Replace `queryEvents` with a GraphQL query:
-
-```typescript
-const result = await graphqlClient.query({
-	query: `
-    query QueryEvents($type: String, $first: Int, $after: String) {
-      events(
-        first: $first
-        after: $after
-        filter: { type: $type }
-      ) {
-        pageInfo {
-          hasNextPage
-          endCursor
-        }
-        nodes {
-          transactionModule {
-            package { address }
-            name
-          }
-          sender { address }
-          contents {
-            type { repr }
-            bcs
-          }
-        }
-      }
-    }
-  `,
-	variables: {
-		type: '0x2::coin::CoinCreated',
-		first: 10,
-	},
-});
-```
-
-**Available event filters:**
-
-- `type`: Filter by event type (package, package::module, or full type)
-- `module`: Filter by emitting module
-- `sender`: Filter by transaction sender
-- `atCheckpoint` / `beforeCheckpoint` / `afterCheckpoint`: Filter by checkpoint
 
 ### Fetching multiple transactions
 
