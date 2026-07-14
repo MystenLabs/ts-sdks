@@ -7,6 +7,7 @@ import {
 	resolveEventFilter,
 	resolvePagination,
 	resolveTransactionFilter,
+	validateTransactionQuery,
 } from '../../../src/client/query-filters.js';
 import type { SuiClientTypes } from '../../../src/client/types.js';
 import { toGrpcEventFilter, toGrpcTransactionFilter } from '../../../src/grpc/filters.js';
@@ -61,6 +62,32 @@ describe('resolvePagination', () => {
 		expect(() => resolvePagination({ before: 'B', order: 'ascending' })).toThrowError(
 			'`before` can not be combined with ascending queries',
 		);
+	});
+});
+
+describe('validateTransactionQuery', () => {
+	it('allows bounds with sender and fully qualified function filters', async () => {
+		const sender = await resolveTransactionFilter(mvr, { sender: '0x1' });
+		const fn = await resolveTransactionFilter(mvr, { function: '0x2::coin::transfer' });
+
+		expect(() => validateTransactionQuery(sender, resolvePagination({ after: 'A' }))).not.toThrow();
+		expect(() => validateTransactionQuery(fn, resolvePagination({ before: 'B' }))).not.toThrow();
+		expect(() =>
+			validateTransactionQuery(undefined, resolvePagination({ after: 'A' })),
+		).not.toThrow();
+	});
+
+	it('rejects bounds with partial function filters', async () => {
+		const pkg = await resolveTransactionFilter(mvr, { function: '0x2' });
+		const mod = await resolveTransactionFilter(mvr, { function: '0x2::coin' });
+
+		expect(() => validateTransactionQuery(pkg, resolvePagination({ after: 'A' }))).toThrowError(
+			'requires a fully qualified',
+		);
+		expect(() => validateTransactionQuery(mod, resolvePagination({ before: 'B' }))).toThrowError(
+			'requires a fully qualified',
+		);
+		expect(() => validateTransactionQuery(pkg, resolvePagination({}))).not.toThrow();
 	});
 });
 

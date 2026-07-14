@@ -57,6 +57,7 @@ import {
 	resolveEventFilter,
 	resolvePagination,
 	resolveTransactionFilter,
+	validateTransactionQuery,
 } from '../client/query-filters.js';
 import { toGrpcEventFilter, toGrpcTransactionFilter } from './filters.js';
 
@@ -582,13 +583,17 @@ export class GrpcCoreClient extends CoreClient {
 	): Promise<SuiClientTypes.ListTransactionsResponse<Include>> {
 		const paths = transactionReadMaskPaths(options.include);
 
+		const filter = options.filter
+			? await resolveTransactionFilter(this.mvr, options.filter)
+			: undefined;
+		const pagination = resolvePagination(options);
+		validateTransactionQuery(filter, pagination);
+
 		const call = this.#client.ledgerService.listTransactions(
 			{
 				readMask: { paths },
-				filter: options.filter
-					? toGrpcTransactionFilter(await resolveTransactionFilter(this.mvr, options.filter))
-					: undefined,
-				options: toGrpcQueryOptions(options.limit, resolvePagination(options)),
+				filter: filter && toGrpcTransactionFilter(filter),
+				options: toGrpcQueryOptions(options.limit, pagination),
 			},
 			{ abort: options.signal },
 		);

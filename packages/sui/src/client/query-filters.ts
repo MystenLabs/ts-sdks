@@ -44,6 +44,27 @@ export type ResolvedTransactionFilter =
 	| { $kind: 'sender'; sender: string }
 	| { $kind: 'function'; package: string; module?: string; function?: string };
 
+/**
+ * Validates that a transaction query's filter supports pagination bounds.
+ *
+ * Function filters can only be paginated when fully qualified, since JSON-RPC
+ * rejects cursors on package- or module-level `MoveFunction` filters.
+ */
+export function validateTransactionQuery(
+	filter: ResolvedTransactionFilter | undefined,
+	pagination: ResolvedPagination,
+): void {
+	if (
+		filter?.$kind === 'function' &&
+		(pagination.after != null || pagination.before != null) &&
+		(!filter.module || !filter.function)
+	) {
+		throw new Error(
+			'Paginating transactions filtered by function requires a fully qualified `package::module::function`',
+		);
+	}
+}
+
 export type ResolvedEventFilter =
 	| { $kind: 'sender'; sender: string }
 	| { $kind: 'emitModule'; package: string; module: string }

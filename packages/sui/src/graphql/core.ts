@@ -56,6 +56,7 @@ import {
 	resolveEventFilter,
 	resolvePagination,
 	resolveTransactionFilter,
+	validateTransactionQuery,
 } from '../client/query-filters.js';
 
 export class GraphQLCoreClient extends CoreClient {
@@ -603,10 +604,12 @@ export class GraphQLCoreClient extends CoreClient {
 	async listTransactions<Include extends SuiClientTypes.TransactionInclude = {}>(
 		options: SuiClientTypes.ListTransactionsOptions<Include>,
 	): Promise<SuiClientTypes.ListTransactionsResponse<Include>> {
-		const { descending, after, before } = resolvePagination(options);
+		const pagination = resolvePagination(options);
+		const { descending, after, before } = pagination;
 		const filter = options.filter
 			? await resolveTransactionFilter(this.mvr, options.filter)
 			: undefined;
+		validateTransactionQuery(filter, pagination);
 
 		const transactions = await this.#graphqlQuery(
 			{
