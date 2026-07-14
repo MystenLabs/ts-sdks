@@ -41,6 +41,11 @@ implementing the gRPC/GraphQL mappings, and extending the parity tests.
 - **Combining multiple predicates in one filter (AND)** — JSON-RPC accepts exactly one filter per
   query. GraphQL supports one instance of each predicate ANDed together, so this can be promoted to
   that level once JSON-RPC is gone.
+- **Pagination bounds with partial function filters** — JSON-RPC rejects cursors on package- or
+  module-level `MoveFunction` filters ("Cannot supply cursor without supplying module and
+  function"), so `validateTransactionQuery` requires a fully qualified `package::module::function`
+  when `after`/`before` is provided. gRPC and GraphQL paginate partial function filters without
+  restriction.
 - **Package-only prefixes for event predicates** — core `emitModule` requires `package::module` and
   `eventType` requires at least a module because JSON-RPC's `MoveModule`/`MoveEventModule` filters
   require a module name. GraphQL and gRPC both support package-only prefixes.
@@ -65,3 +70,7 @@ implementing the gRPC/GraphQL mappings, and extending the parity tests.
 - `MoveEventType` matching semantics for generic types differ between JSON-RPC (exact struct tag
   match) and gRPC/GraphQL (a bare `pkg::mod::Name` matches any instantiation). The parity tests only
   cover non-generic event types; revisit when promoting package-only prefixes.
+- The JSON-RPC `MoveFunction` filter matches aborted transactions, while the GraphQL `function`
+  filter only matches successful ones (gRPC behavior is unverified until the List RPCs are
+  testable). The parity tests avoid this by querying a freshly published package whose calls all
+  succeed; revisit once JSON-RPC is gone.

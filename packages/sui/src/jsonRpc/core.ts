@@ -24,6 +24,7 @@ import {
 	resolveEventFilter,
 	resolvePagination,
 	resolveTransactionFilter,
+	validateTransactionQuery,
 } from '../client/query-filters.js';
 import { Transaction } from '../transactions/Transaction.js';
 import { computeGasBudget, coreClientResolveTransactionPlugin } from '../client/core-resolver.js';
@@ -669,7 +670,9 @@ export class JSONRpcCoreClient extends CoreClient {
 
 		// Transaction cursors are digests, and bounds are interpreted relative to the
 		// traversal direction
-		const { descending, after, before } = resolvePagination(options);
+		const pagination = resolvePagination(options);
+		const { descending, after, before } = pagination;
+		validateTransactionQuery(filter, pagination);
 
 		const page = await this.#jsonRpcClient.queryTransactionBlocks({
 			filter:

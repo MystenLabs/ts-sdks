@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { beforeAll, describe, expect, it } from 'vitest';
-import { setup, TestToolbox, createTestWithAllClients } from '../../utils/setup.js';
+import { publishPackage, setup, TestToolbox, createTestWithAllClients } from '../../utils/setup.js';
 import { Transaction } from '../../../../src/transactions/index.js';
 import type { SuiClientTypes } from '../../../../src/client/index.js';
 
@@ -40,7 +40,13 @@ describe('Core API - Queries', () => {
 
 	beforeAll(async () => {
 		toolbox = await setup();
-		packageId = await toolbox.getPackage('test_data');
+
+		// Publish a fresh copy of the test package so package-scoped filters only
+		// match this file's transactions, keeping results deterministic while other
+		// test files execute transactions against the same localnet
+		const published = await publishPackage('shared/test_data', toolbox);
+		packageId = published.packageId;
+		await toolbox.waitForTransaction({ digest: published.publishTxn.digest });
 
 		const { keypair, address } = await toolbox.getSigner({ coins: [1_000_000_000n] });
 		senderAddress = address;
@@ -110,6 +116,20 @@ describe('Core API - Queries', () => {
 					{ exclude: EXCLUDE },
 				);
 			}
+
+			// Fully qualified function filters also support pagination bounds
+			await toolbox.expectAllClientsReturnSameData(
+				async (client) => {
+					const fn = `${packageId}::test_objects::create_object_with_event`;
+					const page = await client.core.listTransactions({ filter: { function: fn }, limit: 3 });
+					return client.core.listTransactions({
+						filter: { function: fn },
+						before: page.endCursor,
+					});
+				},
+				stripCursors,
+				{ exclude: EXCLUDE },
+			);
 		});
 
 		it('all clients return same data: descending order and pagination', async () => {
@@ -253,6 +273,18 @@ describe('Core API - Queries', () => {
 					filter: { sender: senderAddress, function: `${packageId}::test_objects` } as never,
 				}),
 			).rejects.toThrow('exactly one of sender, function');
+		});
+
+		testWithAllClients('should reject paginated partial function filters', async (client) => {
+			await expect(
+				client.core.listTransactions({ filter: { function: packageId }, after: 'A' }),
+			).rejects.toThrow('requires a fully qualified');
+			await expect(
+				client.core.listTransactions({
+					filter: { function: `${packageId}::test_objects` },
+					before: 'B',
+				}),
+			).rejects.toThrow('requires a fully qualified');
 		});
 
 		testWithAllClients('should reject invalid function filters', async (client) => {
