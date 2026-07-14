@@ -6,6 +6,7 @@ import type { TransactionPlugin } from '../transactions/index.js';
 import { deriveDynamicFieldID } from '../utils/dynamic-fields.js';
 import { normalizeStructTag, parseStructTag, SUI_ADDRESS_LENGTH } from '../utils/sui-types.js';
 import { BaseClient } from './client.js';
+import { ObjectError } from './errors.js';
 import type { ClientWithExtensions, SuiClientTypes } from './types.js';
 import { MvrClient } from './mvr.js';
 import { bcs } from '../bcs/index.js';
@@ -54,7 +55,7 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 			signal: options.signal,
 			include: options.include,
 		});
-		if (result instanceof Error) {
+		if (result instanceof ObjectError) {
 			throw result;
 		}
 		return { object: result };
@@ -148,7 +149,7 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 			},
 		});
 
-		if (fieldObject instanceof Error) {
+		if (fieldObject instanceof ObjectError) {
 			throw fieldObject;
 		}
 

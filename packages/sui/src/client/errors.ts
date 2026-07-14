@@ -1,50 +1,93 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { ObjectResponseError } from '../jsonRpc/index.js';
 import type { SuiClientTypes } from './types.js';
 
-export class SuiClientError extends Error {}
+/**
+ * Structured per-transport escape hatch attached to any `SuiClientError`.
+ */
+export type TransportDetails =
+	| {
+			$kind: 'jsonRpc';
+			/** The raw `ObjectResponseError` payload from the JSON-RPC response. */
+			response: unknown;
+	  }
+	| {
+			$kind: 'grpc';
+			/** The `google.rpc.Status` attached to the per-object gRPC result. */
+			status: { code: number; message: string; details: unknown[] };
+	  }
+	| {
+			/** No wire payload — GraphQL omits missing objects rather than emitting structured errors. */
+			$kind: 'graphql';
+	  };
+
+export class SuiClientError extends Error {
+	readonly transportDetails?: TransportDetails;
+
+	constructor(
+		message?: string,
+		options?: { cause?: unknown; transportDetails?: TransportDetails },
+	) {
+		super(message, { cause: options?.cause });
+		this.transportDetails = options?.transportDetails;
+	}
+}
 
 export class SimulationError extends SuiClientError {
-	executionError?: SuiClientTypes.ExecutionError;
+	readonly executionError?: SuiClientTypes.ExecutionError;
 
 	constructor(
 		message: string,
-		options?: { cause?: unknown; executionError?: SuiClientTypes.ExecutionError },
+		options?: {
+			cause?: unknown;
+			executionError?: SuiClientTypes.ExecutionError;
+			transportDetails?: TransportDetails;
+		},
 	) {
-		super(message, { cause: options?.cause });
+		super(message, options);
 		this.executionError = options?.executionError;
 	}
 }
 
-export class ObjectError extends SuiClientError {
-	code: string;
+export type ObjectErrorCode = 'notFound' | 'deleted' | 'unknown';
 
-	constructor(code: string, message: string) {
-		super(message);
+export class ObjectError extends SuiClientError {
+	readonly code: ObjectErrorCode;
+	readonly objectId: string;
+
+	constructor(
+		code: ObjectErrorCode,
+		objectId: string,
+		options?: { cause?: unknown; transportDetails?: TransportDetails },
+	) {
+		super(ObjectError.#formatMessage(code, objectId), options);
 		this.code = code;
+		this.objectId = objectId;
 	}
 
-	static fromResponse(response: ObjectResponseError, objectId?: string): ObjectError {
-		switch (response.code) {
-			case 'notExists':
-				return new ObjectError(response.code, `Object ${response.object_id} does not exist`);
-			case 'dynamicFieldNotFound':
-				return new ObjectError(
-					response.code,
-					`Dynamic field not found for object ${response.parent_object_id}`,
-				);
+	static #formatMessage(code: ObjectErrorCode, objectId: string): string {
+		switch (code) {
+			case 'notFound':
+				return `Object not found: ${objectId}`;
 			case 'deleted':
-				return new ObjectError(response.code, `Object ${response.object_id} has been deleted`);
-			case 'displayError':
-				return new ObjectError(response.code, `Display error: ${response.error}`);
+				return `Object deleted: ${objectId}`;
 			case 'unknown':
-			default:
-				return new ObjectError(
-					response.code,
-					`Unknown error while loading object${objectId ? ` ${objectId}` : ''}`,
-				);
+				return `Unknown object error: ${objectId}`;
 		}
+	}
+}
+
+export class AggregateObjectError extends SuiClientError {
+	readonly errors: ObjectError[];
+
+	constructor(errors: ObjectError[], options?: { cause?: unknown }) {
+		super(AggregateObjectError.#formatMessage(errors), options);
+		this.errors = errors;
+	}
+
+	static #formatMessage(errors: ObjectError[]): string {
+		const ids = errors.map((e) => e.objectId).join(', ');
+		return `${errors.length} object errors: ${ids}`;
 	}
 }
