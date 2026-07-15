@@ -178,14 +178,17 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 			paths.push('value');
 		}
 
-		const response = await this.stateService.listDynamicFields({
-			parent: input.parentId,
-			pageToken: input.cursor ? fromBase64(input.cursor) : undefined,
-			pageSize: input.limit,
-			readMask: {
-				paths,
+		const response = await this.stateService.listDynamicFields(
+			{
+				parent: input.parentId,
+				pageToken: input.cursor ? fromBase64(input.cursor) : undefined,
+				pageSize: input.limit,
+				readMask: {
+					paths,
+				},
 			},
-		});
+			{ abort: input.signal },
+		);
 
 		return {
 			dynamicFields: response.response.dynamicFields.map(

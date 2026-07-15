@@ -3,6 +3,7 @@
 
 import type { CoreClientOptions, SuiClientTypes } from '../client/index.js';
 import { CoreClient, formatMoveAbortMessage, SimulationError } from '../client/index.js';
+import { raceSignal } from '../client/mvr.js';
 import type { SuiGrpcClient } from './client.js';
 import type { Owner } from './proto/sui/rpc/v2/owner.js';
 import { Owner_OwnerKind } from './proto/sui/rpc/v2/owner.js';
@@ -80,12 +81,15 @@ export class GrpcCoreClient extends CoreClient {
 		}
 
 		for (const batch of batches) {
-			const response = await this.#client.ledgerService.batchGetObjects({
-				requests: batch.map((id) => ({ objectId: id })),
-				readMask: {
-					paths,
+			const response = await this.#client.ledgerService.batchGetObjects(
+				{
+					requests: batch.map((id) => ({ objectId: id })),
+					readMask: {
+						paths,
+					},
 				},
-			});
+				{ abort: options.signal },
+			);
 
 			results.push(
 				...response.response.objects.map((object): SuiClientTypes.Object<Include> | Error => {
@@ -160,17 +164,20 @@ export class GrpcCoreClient extends CoreClient {
 			paths.push('display');
 		}
 
-		const response = await this.#client.stateService.listOwnedObjects({
-			owner: options.owner,
-			objectType: options.type
-				? (await this.mvr.resolveType({ type: options.type })).type
-				: undefined,
-			pageToken: options.cursor ? fromBase64(options.cursor) : undefined,
-			pageSize: options.limit,
-			readMask: {
-				paths,
+		const response = await this.#client.stateService.listOwnedObjects(
+			{
+				owner: options.owner,
+				objectType: options.type
+					? (await this.mvr.resolveType({ type: options.type, signal: options.signal })).type
+					: undefined,
+				pageToken: options.cursor ? fromBase64(options.cursor) : undefined,
+				pageSize: options.limit,
+				readMask: {
+					paths,
+				},
 			},
-		});
+			{ abort: options.signal },
+		);
 
 		const objects = response.response.objects.map(
 			(object): SuiClientTypes.Object<Include> => ({
@@ -207,15 +214,18 @@ export class GrpcCoreClient extends CoreClient {
 		const paths = ['owner', 'object_type', 'digest', 'version', 'object_id', 'balance'];
 		const coinType = options.coinType ?? SUI_TYPE_ARG;
 
-		const response = await this.#client.stateService.listOwnedObjects({
-			owner: options.owner,
-			objectType: `0x2::coin::Coin<${(await this.mvr.resolveType({ type: coinType })).type}>`,
-			pageToken: options.cursor ? fromBase64(options.cursor) : undefined,
-			pageSize: options.limit,
-			readMask: {
-				paths,
+		const response = await this.#client.stateService.listOwnedObjects(
+			{
+				owner: options.owner,
+				objectType: `0x2::coin::Coin<${(await this.mvr.resolveType({ type: coinType, signal: options.signal })).type}>`,
+				pageToken: options.cursor ? fromBase64(options.cursor) : undefined,
+				pageSize: options.limit,
+				readMask: {
+					paths,
+				},
 			},
-		});
+			{ abort: options.signal },
+		);
 
 		return {
 			objects: response.response.objects.map(
@@ -237,10 +247,13 @@ export class GrpcCoreClient extends CoreClient {
 		options: SuiClientTypes.GetBalanceOptions,
 	): Promise<SuiClientTypes.GetBalanceResponse> {
 		const coinType = options.coinType ?? SUI_TYPE_ARG;
-		const result = await this.#client.stateService.getBalance({
-			owner: options.owner,
-			coinType: (await this.mvr.resolveType({ type: coinType })).type,
-		});
+		const result = await this.#client.stateService.getBalance(
+			{
+				owner: options.owner,
+				coinType: (await this.mvr.resolveType({ type: coinType, signal: options.signal })).type,
+			},
+			{ abort: options.signal },
+		);
 
 		return {
 			balance: {
@@ -255,14 +268,23 @@ export class GrpcCoreClient extends CoreClient {
 	async getCoinMetadata(
 		options: SuiClientTypes.GetCoinMetadataOptions,
 	): Promise<SuiClientTypes.GetCoinMetadataResponse> {
-		const coinType = (await this.mvr.resolveType({ type: options.coinType })).type;
+		const coinType = (
+			await this.mvr.resolveType({ type: options.coinType, signal: options.signal })
+		).type;
 
 		let response;
 		try {
-			({ response } = await this.#client.stateService.getCoinInfo({
-				coinType,
-			}));
-		} catch {
+			({ response } = await this.#client.stateService.getCoinInfo(
+				{
+					coinType,
+				},
+				{ abort: options.signal },
+			));
+		} catch (error) {
+			// Don't swallow cancellation — only treat the coin as missing on real errors.
+			if (options.signal?.aborted) {
+				throw error;
+			}
 			return { coinMetadata: null };
 		}
 
@@ -285,11 +307,14 @@ export class GrpcCoreClient extends CoreClient {
 	async listBalances(
 		options: SuiClientTypes.ListBalancesOptions,
 	): Promise<SuiClientTypes.ListBalancesResponse> {
-		const result = await this.#client.stateService.listBalances({
-			owner: options.owner,
-			pageToken: options.cursor ? fromBase64(options.cursor) : undefined,
-			pageSize: options.limit,
-		});
+		const result = await this.#client.stateService.listBalances(
+			{
+				owner: options.owner,
+				pageToken: options.cursor ? fromBase64(options.cursor) : undefined,
+				pageSize: options.limit,
+			},
+			{ abort: options.signal },
+		);
 
 		return {
 			hasNextPage: !!result.response.nextPageToken,
@@ -331,12 +356,15 @@ export class GrpcCoreClient extends CoreClient {
 			paths.push('effects.changed_objects.object_id');
 		}
 
-		const { response } = await this.#client.ledgerService.getTransaction({
-			digest: options.digest,
-			readMask: {
-				paths,
+		const { response } = await this.#client.ledgerService.getTransaction(
+			{
+				digest: options.digest,
+				readMask: {
+					paths,
+				},
 			},
-		});
+			{ abort: options.signal },
+		);
 
 		if (!response.transaction) {
 			throw new Error(`Transaction ${options.digest} not found`);
@@ -373,24 +401,27 @@ export class GrpcCoreClient extends CoreClient {
 			paths.push('effects.changed_objects.object_id');
 		}
 
-		const { response } = await this.#client.transactionExecutionService.executeTransaction({
-			transaction: {
-				bcs: {
-					value: options.transaction,
+		const { response } = await this.#client.transactionExecutionService.executeTransaction(
+			{
+				transaction: {
+					bcs: {
+						value: options.transaction,
+					},
+				},
+				signatures: options.signatures.map((signature) => ({
+					bcs: {
+						value: fromBase64(signature),
+					},
+					signature: {
+						oneofKind: undefined,
+					},
+				})),
+				readMask: {
+					paths,
 				},
 			},
-			signatures: options.signatures.map((signature) => ({
-				bcs: {
-					value: fromBase64(signature),
-				},
-				signature: {
-					oneofKind: undefined,
-				},
-			})),
-			readMask: {
-				paths,
-			},
-		});
+			{ abort: options.signal },
+		);
 
 		return parseTransaction(response.transaction!, options.include);
 	}
@@ -436,24 +467,27 @@ export class GrpcCoreClient extends CoreClient {
 			await options.transaction.prepareForSerialization({ client: this });
 		}
 
-		const { response } = await this.#client.transactionExecutionService.simulateTransaction({
-			transaction:
-				options.transaction instanceof Uint8Array
-					? {
-							bcs: {
-								value: options.transaction,
-							},
-						}
-					: transactionToGrpcTransaction(options.transaction),
-			readMask: {
-				paths,
+		const { response } = await this.#client.transactionExecutionService.simulateTransaction(
+			{
+				transaction:
+					options.transaction instanceof Uint8Array
+						? {
+								bcs: {
+									value: options.transaction,
+								},
+							}
+						: transactionToGrpcTransaction(options.transaction),
+				readMask: {
+					paths,
+				},
+				doGasSelection: false,
+				checks:
+					options.checksEnabled === false
+						? SimulateTransactionRequest_TransactionChecks.DISABLED
+						: SimulateTransactionRequest_TransactionChecks.ENABLED,
 			},
-			doGasSelection: false,
-			checks:
-				options.checksEnabled === false
-					? SimulateTransactionRequest_TransactionChecks.DISABLED
-					: SimulateTransactionRequest_TransactionChecks.ENABLED,
-		});
+			{ abort: options.signal },
+		);
 
 		const transactionResult = parseTransaction(response.transaction!, options.include);
 
@@ -486,22 +520,32 @@ export class GrpcCoreClient extends CoreClient {
 			};
 		}
 	}
-	async getReferenceGasPrice(): Promise<SuiClientTypes.GetReferenceGasPriceResponse> {
-		const response = await this.#client.ledgerService.getEpoch({
-			readMask: {
-				paths: ['reference_gas_price'],
+	async getReferenceGasPrice(
+		options?: SuiClientTypes.GetReferenceGasPriceOptions,
+	): Promise<SuiClientTypes.GetReferenceGasPriceResponse> {
+		const response = await this.#client.ledgerService.getEpoch(
+			{
+				readMask: {
+					paths: ['reference_gas_price'],
+				},
 			},
-		});
+			{ abort: options?.signal },
+		);
 
 		return {
 			referenceGasPrice: response.response.epoch?.referenceGasPrice?.toString() ?? '',
 		};
 	}
 
-	async getProtocolConfig(): Promise<SuiClientTypes.GetProtocolConfigResponse> {
-		const response = await this.#client.ledgerService.getEpoch({
-			readMask: { paths: ['protocol_config'] },
-		});
+	async getProtocolConfig(
+		options?: SuiClientTypes.GetProtocolConfigOptions,
+	): Promise<SuiClientTypes.GetProtocolConfigResponse> {
+		const response = await this.#client.ledgerService.getEpoch(
+			{
+				readMask: { paths: ['protocol_config'] },
+			},
+			{ abort: options?.signal },
+		);
 
 		const protocolConfig = response.response.epoch?.protocolConfig;
 		if (!protocolConfig) {
@@ -525,26 +569,31 @@ export class GrpcCoreClient extends CoreClient {
 		};
 	}
 
-	async getCurrentSystemState(): Promise<SuiClientTypes.GetCurrentSystemStateResponse> {
-		const response = await this.#client.ledgerService.getEpoch({
-			readMask: {
-				paths: [
-					'system_state.version',
-					'system_state.epoch',
-					'system_state.protocol_version',
-					'system_state.reference_gas_price',
-					'system_state.epoch_start_timestamp_ms',
-					'system_state.safe_mode',
-					'system_state.safe_mode_storage_rewards',
-					'system_state.safe_mode_computation_rewards',
-					'system_state.safe_mode_storage_rebates',
-					'system_state.safe_mode_non_refundable_storage_fee',
-					'system_state.parameters',
-					'system_state.storage_fund',
-					'system_state.stake_subsidy',
-				],
+	async getCurrentSystemState(
+		options?: SuiClientTypes.GetCurrentSystemStateOptions,
+	): Promise<SuiClientTypes.GetCurrentSystemStateResponse> {
+		const response = await this.#client.ledgerService.getEpoch(
+			{
+				readMask: {
+					paths: [
+						'system_state.version',
+						'system_state.epoch',
+						'system_state.protocol_version',
+						'system_state.reference_gas_price',
+						'system_state.epoch_start_timestamp_ms',
+						'system_state.safe_mode',
+						'system_state.safe_mode_storage_rewards',
+						'system_state.safe_mode_computation_rewards',
+						'system_state.safe_mode_storage_rebates',
+						'system_state.safe_mode_non_refundable_storage_fee',
+						'system_state.parameters',
+						'system_state.storage_fund',
+						'system_state.stake_subsidy',
+					],
+				},
 			},
-		});
+			{ abort: options?.signal },
+		);
 
 		const epoch = response.response.epoch;
 		const systemState = epoch?.systemState;
@@ -624,22 +673,25 @@ export class GrpcCoreClient extends CoreClient {
 				? bcs.byteVector().serialize(messageBytes).toBytes()
 				: messageBytes;
 
-		const { response } = await this.#client.signatureVerificationService.verifySignature({
-			message: {
-				name: options.intentScope,
-				value: messageValue,
-			},
-			signature: {
-				bcs: {
-					value: fromBase64(options.signature),
+		const { response } = await this.#client.signatureVerificationService.verifySignature(
+			{
+				message: {
+					name: options.intentScope,
+					value: messageValue,
 				},
 				signature: {
-					oneofKind: undefined,
+					bcs: {
+						value: fromBase64(options.signature),
+					},
+					signature: {
+						oneofKind: undefined,
+					},
 				},
+				address: options.address,
+				jwks: [],
 			},
-			address: options.address,
-			jwks: [],
-		});
+			{ abort: options.signal },
+		);
 
 		return {
 			success: response.isValid ?? false,
@@ -652,9 +704,12 @@ export class GrpcCoreClient extends CoreClient {
 	): Promise<SuiClientTypes.DefaultNameServiceNameResponse> {
 		const name =
 			(
-				await this.#client.nameService.reverseLookupName({
-					address: options.address,
-				})
+				await this.#client.nameService.reverseLookupName(
+					{
+						address: options.address,
+					},
+					{ abort: options.signal },
+				)
 			).response.record?.name ?? null;
 		return {
 			data: {
@@ -666,13 +721,17 @@ export class GrpcCoreClient extends CoreClient {
 	async getMoveFunction(
 		options: SuiClientTypes.GetMoveFunctionOptions,
 	): Promise<SuiClientTypes.GetMoveFunctionResponse> {
-		const resolvedPackageId = (await this.mvr.resolvePackage({ package: options.packageId }))
-			.package;
-		const { response } = await this.#client.movePackageService.getFunction({
-			packageId: resolvedPackageId,
-			moduleName: options.moduleName,
-			name: options.name,
-		});
+		const resolvedPackageId = (
+			await this.mvr.resolvePackage({ package: options.packageId, signal: options.signal })
+		).package;
+		const { response } = await this.#client.movePackageService.getFunction(
+			{
+				packageId: resolvedPackageId,
+				moduleName: options.moduleName,
+				name: options.name,
+			},
+			{ abort: options.signal },
+		);
 
 		let visibility: 'public' | 'private' | 'friend' | 'unknown' = 'unknown';
 
@@ -722,17 +781,24 @@ export class GrpcCoreClient extends CoreClient {
 	}
 
 	async getChainIdentifier(
-		_options?: SuiClientTypes.GetChainIdentifierOptions,
+		options?: SuiClientTypes.GetChainIdentifierOptions,
 	): Promise<SuiClientTypes.GetChainIdentifierResponse> {
-		return this.cache.read(['chainIdentifier'], async () => {
-			const { response } = await this.#client.ledgerService.getServiceInfo({});
-			if (!response.chainId) {
-				throw new Error('Chain identifier not found in service info');
-			}
-			return {
-				chainIdentifier: response.chainId,
-			};
-		});
+		// The result is cached and shared across callers, so the underlying request must
+		// not carry any single caller's signal. Isolate cancellation per-caller instead.
+		return raceSignal(
+			Promise.resolve(
+				this.cache.read(['chainIdentifier'], async () => {
+					const { response } = await this.#client.ledgerService.getServiceInfo({});
+					if (!response.chainId) {
+						throw new Error('Chain identifier not found in service info');
+					}
+					return {
+						chainIdentifier: response.chainId,
+					};
+				}),
+			),
+			options?.signal,
+		);
 	}
 
 	resolveTransactionPlugin() {
