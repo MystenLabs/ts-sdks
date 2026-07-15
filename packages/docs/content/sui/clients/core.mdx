@@ -468,7 +468,7 @@ and share a common set of options:
 | Option   | Type                               | Description                                           |
 | -------- | ---------------------------------- | ----------------------------------------------------- |
 | `filter` | `TransactionFilter \| EventFilter` | Filter to apply (transactions and events)             |
-| `limit`  | `number`                           | Maximum number of items to return                     |
+| `limit`  | `number`                           | Maximum number of items to return (defaults to 50)    |
 | `after`  | `string \| null`                   | Return items strictly after this cursor (ascending)   |
 | `before` | `string \| null`                   | Return items strictly before this cursor (descending) |
 | `order`  | `'ascending' \| 'descending'`      | Order of results (defaults to `ascending`)            |
@@ -477,7 +477,7 @@ A filter specifies exactly one predicate. MVR names in `function` and `eventType
 resolved automatically.
 
 `after` and `before` are exclusive ledger-position bounds, and each page reports the positions of
-its first and last items as `startCursor` and `endCursor`. At most one bound may be provided per
+its first and last items as `startCursor` and `endCursor`. You can provide at most one bound per
 query, and the bound implies the traversal direction (`after` reads ascending, `before` reads
 descending), so a feed of recent activity can page in both directions from any point:
 
@@ -545,7 +545,7 @@ Transaction filters support one of the following predicates:
 ### `listEvents`
 
 Query events matching a filter. Each event includes its position in the ledger (`transactionDigest`
-and `eventIndex`, plus `checkpoint` on transports that can provide it — `checkpoint` is `null` on
+and `eventIndex`, plus `checkpoint` on transports that can provide it; `checkpoint` is `null` on
 JSON-RPC).
 
 ```typescript

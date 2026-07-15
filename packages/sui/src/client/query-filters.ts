@@ -8,7 +8,15 @@ export interface ResolvedPagination {
 	descending: boolean;
 	after: string | undefined;
 	before: string | undefined;
+	limit: number;
 }
+
+/**
+ * Default page size applied when `limit` is omitted, so every transport
+ * requests the same page size instead of falling back to differing server
+ * defaults.
+ */
+const DEFAULT_PAGE_SIZE = 50;
 
 /**
  * Validates pagination bounds and resolves the traversal direction.
@@ -22,6 +30,7 @@ export function resolvePagination(options: {
 	after?: string | null;
 	before?: string | null;
 	order?: 'ascending' | 'descending';
+	limit?: number;
 }): ResolvedPagination {
 	if (options.after != null && options.before != null) {
 		throw new Error('Only one of `after` or `before` may be provided');
@@ -37,7 +46,12 @@ export function resolvePagination(options: {
 		throw new Error('`before` can not be combined with ascending queries');
 	}
 
-	return { descending, after: options.after ?? undefined, before: options.before ?? undefined };
+	return {
+		descending,
+		after: options.after ?? undefined,
+		before: options.before ?? undefined,
+		limit: options.limit ?? DEFAULT_PAGE_SIZE,
+	};
 }
 
 export type ResolvedTransactionFilter =

@@ -604,7 +604,7 @@ export class GraphQLCoreClient extends CoreClient {
 		options: SuiClientTypes.ListTransactionsOptions<Include>,
 	): Promise<SuiClientTypes.ListTransactionsResponse<Include>> {
 		const pagination = resolvePagination(options);
-		const { descending, after, before } = pagination;
+		const { descending, after, before, limit } = pagination;
 		const filter = options.filter
 			? await resolveTransactionFilter(this.mvr, options.filter)
 			: undefined;
@@ -622,9 +622,9 @@ export class GraphQLCoreClient extends CoreClient {
 								? [filter.package, filter.module, filter.function].filter(Boolean).join('::')
 								: undefined,
 					},
-					first: descending ? undefined : options.limit,
+					first: descending ? undefined : limit,
 					after,
-					last: descending ? (options.limit ?? 50) : undefined,
+					last: descending ? limit : undefined,
 					before,
 					includeTransaction: options.include?.transaction ?? false,
 					includeEffects: options.include?.effects ?? false,
@@ -655,7 +655,7 @@ export class GraphQLCoreClient extends CoreClient {
 	async listEvents(
 		options: SuiClientTypes.ListEventsOptions,
 	): Promise<SuiClientTypes.ListEventsResponse> {
-		const { descending, after, before } = resolvePagination(options);
+		const { descending, after, before, limit } = resolvePagination(options);
 		const filter = options.filter ? await resolveEventFilter(this.mvr, options.filter) : undefined;
 
 		const events = await this.#graphqlQuery(
@@ -674,9 +674,9 @@ export class GraphQLCoreClient extends CoreClient {
 									? filter.eventType
 									: undefined,
 					},
-					first: descending ? undefined : options.limit,
+					first: descending ? undefined : limit,
 					after,
-					last: descending ? (options.limit ?? 50) : undefined,
+					last: descending ? limit : undefined,
 					before,
 				},
 			},
@@ -689,9 +689,9 @@ export class GraphQLCoreClient extends CoreClient {
 		return {
 			events: nodes.map(
 				(event): SuiClientTypes.EventEntry => ({
-					packageId: event.transactionModule?.package?.address!,
+					packageId: normalizeSuiAddress(event.transactionModule?.package?.address!),
 					module: event.transactionModule?.name!,
-					sender: event.sender?.address!,
+					sender: normalizeSuiAddress(event.sender?.address!),
 					eventType: normalizeStructTag(event.contents?.type?.repr!),
 					bcs: event.contents?.bcs ? fromBase64(event.contents.bcs) : new Uint8Array(),
 					json: (event.contents?.json as Record<string, unknown>) ?? null,

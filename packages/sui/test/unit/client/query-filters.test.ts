@@ -26,12 +26,19 @@ describe('resolvePagination', () => {
 			descending: false,
 			after: undefined,
 			before: undefined,
+			limit: 50,
 		});
 		expect(resolvePagination({ order: 'descending' })).toEqual({
 			descending: true,
 			after: undefined,
 			before: undefined,
+			limit: 50,
 		});
+	});
+
+	it('applies a shared default page size', () => {
+		expect(resolvePagination({}).limit).toBe(50);
+		expect(resolvePagination({ limit: 7 }).limit).toBe(7);
 	});
 
 	it('infers direction from the provided bound', () => {
@@ -39,11 +46,13 @@ describe('resolvePagination', () => {
 			descending: false,
 			after: 'A',
 			before: undefined,
+			limit: 50,
 		});
 		expect(resolvePagination({ before: 'B' })).toEqual({
 			descending: true,
 			after: undefined,
 			before: 'B',
+			limit: 50,
 		});
 	});
 
