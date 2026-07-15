@@ -1,0 +1,309 @@
+name: Hashi Integration Tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'packages/hashi/**'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/hashi-ci.yml'
+  pull_request:
+    paths:
+      - 'packages/hashi/**'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/hashi-ci.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  localnet-integration:
+    name: Localnet Integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      # Pin the hashi checkout to the commit the committed SDK bindings in
+      # `packages/hashi/src/contracts` were generated from. Unlike the
+      # standalone hashi-ts-sdk repo, ts-sdks does NOT vendor hashi as a
+      # submodule, so we clone it explicitly below. Keep this in sync with
+      # the codegen revision when the bindings are regenerated.
+      HASHI_PIN: cd2b81f9a208f5077032110652f1e8bba297278c
+      LOCALNET_DATA_DIR: ${{ github.workspace }}/.hashi/localnet
+      LOCALNET_LOG: ${{ github.workspace }}/localnet.log
+    steps:
+      - name: Checkout ts-sdks
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # pin@v4
+
+      # ts-sdks has no hashi submodule (../hashi is only a codegen sibling),
+      # so pull the matching hashi revision into ./hashi. `pnpm-workspace.yaml`
+      # only globs `packages/**`, so this checkout is invisible to pnpm.
+      - name: Checkout hashi (localnet harness + contracts)
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # pin@v4
+        with:
+          repository: MystenLabs/hashi
+          ref: ${{ env.HASHI_PIN }}
+          path: hashi
+          submodules: recursive
+
+      - name: Record hashi pin in step summary
+        run: |
+          PIN=$(git -C hashi rev-parse HEAD)
+          echo "Hashi pin: \`$PIN\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # pin@v4
+        name: Install pnpm
+        with:
+          run_install: false
+
+      - name: Install Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # pin@v4
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
+      # `hashi/rust-toolchain.toml` pins 1.91 — match it so cargo doesn't
+      # auto-install a second toolchain inside the build step (slower and
+      # uncached).
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # pin@stable
+        with:
+          toolchain: '1.91'
+
+      - uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc # pin@v2.9.1
+        with:
+          workspaces: hashi -> hashi/target
+          # Bumping the pin should bust the cache. `Swatinem/rust-cache`
+          # already keys on Cargo.lock; the explicit hashi SHA in the key
+          # makes the relationship unambiguous in cache hit/miss logs.
+          shared-key: hashi-${{ env.HASHI_PIN }}
+
+      - name: Install Sui binary
+        # install-sui.sh queries the GitHub releases API with GITHUB_TOKEN
+        # (set -u, so it must be set) — mirrors the env in hashi's own ci.yml.
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: bash hashi/.github/scripts/install-sui.sh
+
+      # Mirrors the "Install Bitcoin Core" step in
+      # hashi/.github/workflows/ci.yml. Vendored verbatim because hashi-core
+      # has it inline (no install-bitcoin.sh to reuse). Revisit if hashi
+      # extracts a script.
+      - name: Install Bitcoin Core
+        env:
+          FALLBACK_VERSION: '29.1'
+        run: |
+          echo "Detecting latest Bitcoin Core version..."
+          BITCOIN_VERSION=$(curl -s https://api.github.com/repos/bitcoin/bitcoin/releases/latest | \
+            sed -n 's/.*"tag_name": "v\([^"]*\)".*/\1/p' || echo "$FALLBACK_VERSION")
+
+          if [ -z "$BITCOIN_VERSION" ]; then
+            echo "Failed to detect version, using fallback: $FALLBACK_VERSION"
+            BITCOIN_VERSION="$FALLBACK_VERSION"
+          fi
+
+          echo "Installing Bitcoin Core v${BITCOIN_VERSION}..."
+
+          wget -q https://bitcoincore.org/bin/bitcoin-core-${BITCOIN_VERSION}/bitcoin-${BITCOIN_VERSION}-x86_64-linux-gnu.tar.gz || {
+            echo "Download failed for ${BITCOIN_VERSION}; falling back to ${FALLBACK_VERSION}"
+            BITCOIN_VERSION="$FALLBACK_VERSION"
+            wget -q https://bitcoincore.org/bin/bitcoin-core-${BITCOIN_VERSION}/bitcoin-${BITCOIN_VERSION}-x86_64-linux-gnu.tar.gz
+          }
+
+          tar -xzf bitcoin-${BITCOIN_VERSION}-x86_64-linux-gnu.tar.gz
+          sudo mv bitcoin-${BITCOIN_VERSION}/bin/bitcoind /usr/local/bin/
+          sudo mv bitcoin-${BITCOIN_VERSION}/bin/bitcoin-cli /usr/local/bin/
+          rm -rf bitcoin-${BITCOIN_VERSION}-x86_64-linux-gnu.tar.gz bitcoin-${BITCOIN_VERSION}/
+
+          bitcoind --version | head -n1
+
+      - name: Build hashi-localnet binary
+        working-directory: hashi
+        run: cargo build --release --bin hashi-localnet -p e2e-tests
+
+      - name: Start hashi-localnet (background)
+        env:
+          NUM_VALIDATORS: 4
+        run: |
+          mkdir -p "$LOCALNET_DATA_DIR"
+          # 4 validators is the right floor: on-chain `committee::verify_certificate`
+          # threshold is 2 (`MpcManager initialized` shows `threshold=2 max_faulty=1`).
+          # We tried bumping to 6 in 0d3ddf5 expecting 2/6 fault tolerance, but it
+          # made things worse — every extra validator adds a Kyoto BIP-157 client
+          # contending for the single regtest bitcoind, which amplified the peer-
+          # disconnect storm seen in run 25097936525. Recovery here is
+          # "pre-warm Kyoto in the readiness step" (next), not "more validators".
+          nohup hashi/target/release/hashi-localnet start \
+            --num-validators "$NUM_VALIDATORS" \
+            --sui-rpc-port 9000 \
+            --btc-rpc-port 18443 \
+            --data-dir "$LOCALNET_DATA_DIR" \
+            --verbose \
+            > "$LOCALNET_LOG" 2>&1 &
+          echo $! > "$LOCALNET_DATA_DIR/runner.pid"
+          echo "NUM_VALIDATORS=$NUM_VALIDATORS" >> "$GITHUB_ENV"
+          echo "hashi-localnet PID: $(cat $LOCALNET_DATA_DIR/runner.pid)"
+
+      - name: Wait for localnet readiness
+        run: |
+          set -euo pipefail
+          echo "Phase 1/3: waiting for state.json (cap 5 min)…"
+          for i in $(seq 1 60); do
+            if [[ -f "$LOCALNET_DATA_DIR/state.json" ]]; then
+              echo "state.json appeared after ~$((i * 5)) s"
+              break
+            fi
+            sleep 5
+          done
+          if [[ ! -f "$LOCALNET_DATA_DIR/state.json" ]]; then
+            echo "::error::state.json never appeared — localnet failed to bootstrap"
+            tail -n 200 "$LOCALNET_LOG"
+            exit 1
+          fi
+
+          OBJ=$(jq -r .hashi_object_id "$LOCALNET_DATA_DIR/state.json")
+          echo "Phase 2/3: polling Hashi object $OBJ for non-empty MPC key (cap 3 min)…"
+          MPC_OK=0
+          for i in $(seq 1 36); do
+            LEN=$(curl -s -X POST http://127.0.0.1:9000 \
+              -H content-type:application/json \
+              -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"sui_getObject\",\"params\":[\"$OBJ\",{\"showContent\":true}]}" \
+              | jq -r '.result.data.content.fields.committee_set.fields.mpc_public_key | length' 2>/dev/null || echo 0)
+            if [[ "$LEN" -gt 0 ]]; then
+              echo "MPC key on chain (length=$LEN) after ~$((i * 5)) s — DKG settled."
+              MPC_OK=1
+              break
+            fi
+            sleep 5
+          done
+          if [[ "$MPC_OK" -ne 1 ]]; then
+            echo "::error::DKG did not settle within budget; MPC key still empty"
+            tail -n 200 "$LOCALNET_LOG"
+            exit 1
+          fi
+
+          # Phase 3: pre-warm Kyoto BIP-157 sync. PR #11 run 25097936525
+          # showed validators racing the in-test 300 s deadline to finish
+          # compact-filter download — most never made it, so the certificate
+          # collected only 1 signer (threshold=2) and aborted on-chain with
+          # `committee::verify_certificate` ENotEnoughStake. Move the wait
+          # into readiness so it surfaces as a single clear failure here
+          # instead of an opaque test timeout downstream.
+          #
+          # Signal: each validator emits exactly one
+          # `Synchronized to height $TIP …` log line per new tip — confirmed
+          # by counting hits in the artifact (6 validators → 6 hits per
+          # height). We poll until ≥ NUM_VALIDATORS hits exist at the
+          # current bitcoind tip.
+          BTC_USER=$(jq -r .btc_rpc_user "$LOCALNET_DATA_DIR/state.json")
+          BTC_PASS=$(jq -r .btc_rpc_password "$LOCALNET_DATA_DIR/state.json")
+          BTC_URL=$(jq -r .btc_rpc_url "$LOCALNET_DATA_DIR/state.json")
+          TIP=$(curl -s --user "$BTC_USER:$BTC_PASS" \
+            -H content-type:application/json \
+            --data '{"jsonrpc":"1.0","id":1,"method":"getblockcount","params":[]}' \
+            "$BTC_URL" | jq -r .result)
+          if [[ -z "$TIP" || "$TIP" == "null" ]]; then
+            echo "::error::Could not read regtest tip from bitcoind"
+            tail -n 200 "$LOCALNET_LOG"
+            exit 1
+          fi
+          echo "Phase 3/3: waiting for Kyoto sync to tip $TIP on ≥$NUM_VALIDATORS validators (cap 5 min)…"
+          for i in $(seq 1 60); do
+            SYNCED=$(grep -Ec "Synchronized to height $TIP\b" "$LOCALNET_LOG" 2>/dev/null || true)
+            SYNCED=${SYNCED:-0}
+            if [[ "$SYNCED" -ge "$NUM_VALIDATORS" ]]; then
+              echo "≥$NUM_VALIDATORS validators reached tip $TIP after ~$((i * 5)) s ($SYNCED hits)"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::Only $SYNCED of $NUM_VALIDATORS validators reached Kyoto tip $TIP within budget"
+          grep -E "Synchronized to height|Kyoto: Percent complete" "$LOCALNET_LOG" | tail -40 || true
+          tail -n 200 "$LOCALNET_LOG"
+          exit 1
+
+      - name: Export integration-test env
+        run: |
+          STATE="$LOCALNET_DATA_DIR/state.json"
+          {
+            echo "HASHI_E2E_SUI_RPC_URL=$(jq -r .sui_rpc_url $STATE)"
+            echo "HASHI_E2E_SUI_NETWORK=localnet"
+            echo "HASHI_E2E_PACKAGE_ID=$(jq -r .package_id $STATE)"
+            echo "HASHI_E2E_HASHI_OBJECT_ID=$(jq -r .hashi_object_id $STATE)"
+            echo "HASHI_E2E_BITCOIN_NETWORK=regtest"
+            echo "HASHI_E2E_FUNDED_KEY_PEM=$(jq -r .funded_sui_keypair_path $STATE)"
+            echo "HASHI_E2E_LOCALNET_BIN=${{ github.workspace }}/hashi/target/release/hashi-localnet"
+            echo "HASHI_E2E_LOCALNET_DATA_DIR=$LOCALNET_DATA_DIR"
+            echo "HASHI_E2E_BTC_RPC_URL=$(jq -r .btc_rpc_url $STATE)"
+            echo "HASHI_E2E_BTC_RPC_USER=$(jq -r .btc_rpc_user $STATE)"
+            echo "HASHI_E2E_BTC_RPC_PASS=$(jq -r .btc_rpc_password $STATE)"
+          } >> "$GITHUB_ENV"
+
+      - name: Install pnpm dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Unlike the standalone hashi-ts-sdk repo (where @mysten/sui was a
+      # published tarball), here it is a `workspace:^` peer dep that resolves
+      # to `dist/`. Build hashi + its workspace deps so the SDK source the
+      # integration tests import can load @mysten/sui. Mirrors seal-ci.yml.
+      - name: Build hashi and dependencies
+        run: pnpm turbo build --filter @mysten/hashi
+
+      # Kyoto BIP-157 polls bitcoind for new headers only every ~5 min when
+      # idle (no live block production on regtest). PR #11 run 25099701367
+      # showed validators stuck at tip 108 for 5 min after the deposit test
+      # mined to 115, missing the SDK's 300 s budget by 2 s. Mining one
+      # regtest block every 20 s keeps Kyoto's header stream warm so
+      # deposits confirm in seconds instead of waiting for the next poll.
+      # Tests don't depend on absolute block height — only on having
+      # `confirmation_threshold + 1` blocks past their funding tx, which
+      # they mine themselves.
+      - name: Start bitcoind block heartbeat
+        run: |
+          ADDR=$(curl -s --user "$HASHI_E2E_BTC_RPC_USER:$HASHI_E2E_BTC_RPC_PASS" \
+            -H content-type:application/json \
+            --data '{"jsonrpc":"1.0","id":1,"method":"getnewaddress","params":[]}' \
+            "$HASHI_E2E_BTC_RPC_URL/wallet/test" | jq -r .result)
+          if [[ -z "$ADDR" || "$ADDR" == "null" ]]; then
+            echo "::error::Could not obtain a regtest address for the heartbeat"
+            exit 1
+          fi
+          nohup bash -c "
+            while true; do
+              curl -s --user '$HASHI_E2E_BTC_RPC_USER:$HASHI_E2E_BTC_RPC_PASS' \
+                -H content-type:application/json \
+                --data '{\"jsonrpc\":\"1.0\",\"id\":1,\"method\":\"generatetoaddress\",\"params\":[1, \"$ADDR\"]}' \
+                '$HASHI_E2E_BTC_RPC_URL' > /dev/null
+              sleep 20
+            done
+          " > /dev/null 2>&1 &
+          echo $! > /tmp/btc-heartbeat.pid
+          echo "btc-heartbeat PID: $(cat /tmp/btc-heartbeat.pid) mining to $ADDR every 20s"
+
+      - name: Run integration tests
+        run: pnpm --filter @mysten/hashi test:integration
+
+      - name: Stop bitcoind block heartbeat
+        if: always()
+        run: |
+          if [[ -f /tmp/btc-heartbeat.pid ]]; then
+            kill "$(cat /tmp/btc-heartbeat.pid)" 2>/dev/null || true
+          fi
+
+      - name: Upload localnet logs and state on failure
+        if: failure()
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # pin@4.4.3
+        with:
+          name: localnet-logs
+          path: |
+            ${{ env.LOCALNET_LOG }}
+            ${{ env.LOCALNET_DATA_DIR }}/state.json
+            ${{ env.LOCALNET_DATA_DIR }}/hashi-cli.toml
+          if-no-files-found: ignore
+
+      - name: Stop hashi-localnet
+        if: always()
+        run: |
+          hashi/target/release/hashi-localnet stop \
+            --data-dir "$LOCALNET_DATA_DIR" || true
