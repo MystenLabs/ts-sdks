@@ -1,5 +1,16 @@
 # @mysten/sui.js
 
+## 2.20.4
+
+### Patch Changes
+
+- 7333638: Deprecate JSON-RPC client APIs, transport APIs, and JSON-RPC-specific types. Migrate to
+  `SuiGrpcClient` or `SuiGraphQLClient`.
+- e77aa8d: Forward `AbortSignal` from `SuiGrpcClient` method options to the underlying gRPC
+  requests. Previously methods like `listOwnedObjects` accepted a `signal` but never passed it
+  through, so passing `signal` did not cancel the request. MVR
+  (`resolveType`/`resolvePackage`/`resolve`) resolution is now also cancellable via the same signal.
+
 ## 2.20.3
 
 ### Patch Changes
