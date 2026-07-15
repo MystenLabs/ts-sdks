@@ -687,7 +687,7 @@ export class JSONRpcCoreClient extends CoreClient {
 							},
 						}),
 			cursor: after ?? before,
-			limit: options.limit,
+			limit: pagination.limit,
 			order: descending ? 'descending' : 'ascending',
 			options: {
 				// showRawInput is always needed to extract signatures from SenderSignedData
@@ -722,7 +722,7 @@ export class JSONRpcCoreClient extends CoreClient {
 		const filter = options.filter ? await resolveEventFilter(this.mvr, options.filter) : undefined;
 		// Event cursors are event ids, and bounds are interpreted relative to the
 		// traversal direction
-		const { descending, after, before } = resolvePagination(options);
+		const { descending, after, before, limit } = resolvePagination(options);
 		const cursor = after ?? before;
 
 		const page = await this.#jsonRpcClient.queryEvents({
@@ -735,8 +735,8 @@ export class JSONRpcCoreClient extends CoreClient {
 						: filter.$kind === 'eventTypeModule'
 							? { MoveEventModule: { package: filter.package, module: filter.module } }
 							: { MoveEventType: filter.eventType },
-			cursor: cursor ? (JSON.parse(cursor) as EventId) : undefined,
-			limit: options.limit,
+			cursor: cursor ? parseEventCursor(cursor) : undefined,
+			limit,
 			order: descending ? 'descending' : 'ascending',
 			signal: options.signal,
 		});
@@ -1063,6 +1063,18 @@ function parseOwnerAddress(owner: ObjectOwner): string | null {
 	}
 
 	throw new Error(`Unknown owner type: ${JSON.stringify(owner)}`);
+}
+
+function parseEventCursor(cursor: string): EventId {
+	try {
+		const parsed = JSON.parse(cursor) as EventId;
+		if (typeof parsed?.txDigest !== 'string' || typeof parsed?.eventSeq !== 'string') {
+			throw new Error('malformed event cursor');
+		}
+		return parsed;
+	} catch {
+		throw new Error(`Invalid event cursor: ${cursor}`);
+	}
 }
 
 function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(

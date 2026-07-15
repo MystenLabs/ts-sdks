@@ -593,7 +593,7 @@ export class GrpcCoreClient extends CoreClient {
 			{
 				readMask: { paths },
 				filter: filter && toGrpcTransactionFilter(filter),
-				options: toGrpcQueryOptions(options.limit, pagination),
+				options: toGrpcQueryOptions(pagination),
 			},
 			{ abort: options.signal },
 		);
@@ -601,15 +601,19 @@ export class GrpcCoreClient extends CoreClient {
 		const transactions: SuiClientTypes.TransactionResult<Include>[] = [];
 		let startCursor: string | null = null;
 		let endCursor: string | null = null;
+		let frontier: string | null = null;
 		let end: QueryEnd | undefined;
 
 		for await (const frame of call.responses) {
 			if (frame.watermark?.cursor) {
-				endCursor = toBase64(frame.watermark.cursor);
+				frontier = toBase64(frame.watermark.cursor);
 			}
 			if (frame.transaction) {
-				startCursor ??= endCursor;
-				transactions.push(parseTransaction(frame.transaction, options.include));
+				startCursor ??= frontier;
+				endCursor = frontier;
+				transactions.push(
+					parseGrpcTransactionResponse(frame.transaction, { include: options.include }),
+				);
 			}
 			if (frame.end) {
 				end = frame.end;
@@ -622,8 +626,9 @@ export class GrpcCoreClient extends CoreClient {
 			transactions,
 			hasNextPage,
 			startCursor,
-			// A terminal empty page has no positions to continue from
-			endCursor: transactions.length === 0 && !hasNextPage ? null : endCursor,
+			// Item-less scans that stopped early continue from the scan frontier,
+			// while terminal empty pages have no positions to continue from
+			endCursor: endCursor ?? (hasNextPage ? frontier : null),
 		};
 	}
 
@@ -648,7 +653,7 @@ export class GrpcCoreClient extends CoreClient {
 				filter: options.filter
 					? toGrpcEventFilter(await resolveEventFilter(this.mvr, options.filter))
 					: undefined,
-				options: toGrpcQueryOptions(options.limit, resolvePagination(options)),
+				options: toGrpcQueryOptions(resolvePagination(options)),
 			},
 			{ abort: options.signal },
 		);
@@ -656,14 +661,16 @@ export class GrpcCoreClient extends CoreClient {
 		const events: SuiClientTypes.EventEntry[] = [];
 		let startCursor: string | null = null;
 		let endCursor: string | null = null;
+		let frontier: string | null = null;
 		let end: QueryEnd | undefined;
 
 		for await (const frame of call.responses) {
 			if (frame.watermark?.cursor) {
-				endCursor = toBase64(frame.watermark.cursor);
+				frontier = toBase64(frame.watermark.cursor);
 			}
 			if (frame.event) {
-				startCursor ??= endCursor;
+				startCursor ??= frontier;
+				endCursor = frontier;
 				const event = frame.event;
 				events.push({
 					packageId: normalizeSuiAddress(event.packageId!),
@@ -688,8 +695,9 @@ export class GrpcCoreClient extends CoreClient {
 			events,
 			hasNextPage,
 			startCursor,
-			// A terminal empty page has no positions to continue from
-			endCursor: events.length === 0 && !hasNextPage ? null : endCursor,
+			// Item-less scans that stopped early continue from the scan frontier,
+			// while terminal empty pages have no positions to continue from
+			endCursor: endCursor ?? (hasNextPage ? frontier : null),
 		};
 	}
 
@@ -913,12 +921,9 @@ export class GrpcCoreClient extends CoreClient {
 	}
 }
 
-function toGrpcQueryOptions(
-	limit: number | undefined,
-	pagination: ResolvedPagination,
-): QueryOptions {
+function toGrpcQueryOptions(pagination: ResolvedPagination): QueryOptions {
 	return {
-		limit,
+		limit: pagination.limit,
 		ordering: pagination.descending ? Ordering.DESCENDING : Ordering.ASCENDING,
 		after: pagination.after ? fromBase64(pagination.after) : undefined,
 		before: pagination.before ? fromBase64(pagination.before) : undefined,

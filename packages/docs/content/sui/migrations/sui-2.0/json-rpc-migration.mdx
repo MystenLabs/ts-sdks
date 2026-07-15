@@ -18,17 +18,17 @@ This guide covers migrating from `SuiJsonRpcClient` to the new client APIs. The 
 being deprecated in favor of `SuiGrpcClient` and `SuiGraphQLClient`.
 
 <Callout type="info">
-	We recommend using `SuiGrpcClient` for most operations, including filtering transactions and
-	events with the core query API. `SuiGraphQLClient` remains useful for complex queries that aren't
-	covered by the core API.
+	Use `SuiGrpcClient` for most operations, including filtering transactions and events with the core
+	query API. `SuiGraphQLClient` remains useful for complex queries that aren't covered by the core
+	API.
 </Callout>
 
 ## Choosing a client
 
-| Client             | Best For                                                              |
-| ------------------ | --------------------------------------------------------------------- |
-| `SuiGrpcClient`    | Most operations, SDK integrations, queries, real-time data            |
-| `SuiGraphQLClient` | Complex queries not covered by the core API (e.g. historical objects) |
+| Client             | Best For                                                             |
+| ------------------ | -------------------------------------------------------------------- |
+| `SuiGrpcClient`    | Most operations, SDK integrations, queries, real-time data           |
+| `SuiGraphQLClient` | Complex queries not covered by the core API, like historical objects |
 
 ## Quick migration to gRPC
 
@@ -103,11 +103,11 @@ These JSON-RPC methods have direct replacements in the core API:
 
 The core API filters map to the JSON-RPC `TransactionFilter` variants:
 
-| JSON-RPC filter                                                      | Core API filter predicate                                                                                        |
-| -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `FromAddress`                                                        | `sender`                                                                                                         |
-| `MoveFunction`                                                       | `function`                                                                                                       |
-| `ToAddress` / `FromOrToAddress` / `ChangedObject` / `AffectedObject` | No core equivalent — use raw [gRPC](/sui/clients/grpc#ledger-service) or [GraphQL](/sui/clients/graphql) queries |
+| JSON-RPC filter                                                      | Core API filter predicate                                                                                       |
+| -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `FromAddress`                                                        | `sender`                                                                                                        |
+| `MoveFunction`                                                       | `function`                                                                                                      |
+| `ToAddress` / `FromOrToAddress` / `ChangedObject` / `AffectedObject` | No core equivalent. Use raw [gRPC](/sui/clients/grpc#ledger-service) or [GraphQL](/sui/clients/graphql) queries |
 
 ### Example: Migrating queryEvents
 
@@ -179,7 +179,7 @@ These JSON-RPC methods can be replaced by calling gRPC service clients directly:
 | `resolveNameServiceNames`           | `nameService.reverseLookupName`                                  |
 
 <Callout type="warn">
-	`getEpochs` (paginated listing) has no gRPC equivalent — use the `epochs` GraphQL query instead.
+	`getEpochs` (paginated listing) has no gRPC equivalent. Use the `epochs` GraphQL query instead.
 	`getValidatorsApy` also has no replacement: there is no canonical definition of validator APY, so
 	it must be computed client-side from validator exchange rates (see [Validator APY](#validator-apy)
 	below).
@@ -242,8 +242,8 @@ const { response: address } = await client.nameService.lookupName({
 
 ## Methods replaced by gRPC subscriptions
 
-The deprecated JSON-RPC websocket subscriptions can be replaced with the gRPC `subscriptionService`,
-which provides filtered, real-time streams:
+Replace the deprecated JSON-RPC websocket subscriptions with the gRPC `subscriptionService`, which
+provides filtered, real-time streams:
 
 | JSON-RPC Method        | gRPC Service Replacement                    |
 | ---------------------- | ------------------------------------------- |
@@ -277,7 +277,7 @@ for await (const frame of stream.responses) {
 }
 ```
 
-Subscriptions always begin at the current tip of the chain. To recover events missed between
+Subscriptions always begin at the current tip of the chain. To recover events you missed between
 subscriptions, replay the gap with `client.core.listEvents` using the same filter.
 
 ## Methods requiring GraphQL
