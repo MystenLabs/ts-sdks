@@ -1,12 +1,13 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { fromBase64, type InferBcsInput } from '@mysten/bcs';
+import { fromBase58, fromBase64, type InferBcsInput } from '@mysten/bcs';
 
 import { bcs, TypeTagSerializer } from '../bcs/index.js';
 import type {
 	DevInspectResults,
 	DryRunTransactionBlockResponse,
+	EventId,
 	ExecutionStatus as JsonRpcExecutionStatus,
 	ObjectOwner,
 	SuiMoveAbilitySet,
@@ -19,6 +20,12 @@ import type {
 	SuiTransactionBlockResponse,
 	TransactionEffects,
 } from './types/index.js';
+import {
+	resolveEventFilter,
+	resolvePagination,
+	resolveTransactionFilter,
+	validateTransactionQuery,
+} from '../client/query-filters.js';
 import { Transaction } from '../transactions/Transaction.js';
 import { computeGasBudget, coreClientResolveTransactionPlugin } from '../client/core-resolver.js';
 import { TransactionDataBuilder } from '../transactions/TransactionData.js';
@@ -654,6 +661,116 @@ export class JSONRpcCoreClient extends CoreClient {
 	 * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
 	 * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
 	 */
+	async listTransactions<Include extends SuiClientTypes.TransactionInclude = {}>(
+		options: SuiClientTypes.ListTransactionsOptions<Include>,
+	): Promise<SuiClientTypes.ListTransactionsResponse<Include>> {
+		const filter = options.filter
+			? await resolveTransactionFilter(this.mvr, options.filter)
+			: undefined;
+
+		// Transaction cursors are digests, and bounds are interpreted relative to the
+		// traversal direction
+		const pagination = resolvePagination(options);
+		const { descending, after, before } = pagination;
+		validateTransactionQuery(filter, pagination);
+
+		const page = await this.#jsonRpcClient.queryTransactionBlocks({
+			filter:
+				filter &&
+				(filter.$kind === 'sender'
+					? { FromAddress: filter.sender }
+					: {
+							MoveFunction: {
+								package: filter.package,
+								module: filter.module ?? null,
+								function: filter.function ?? null,
+							},
+						}),
+			cursor: after ?? before,
+			limit: pagination.limit,
+			order: descending ? 'descending' : 'ascending',
+			options: {
+				// showRawInput is always needed to extract signatures from SenderSignedData
+				showRawInput: true,
+				// showEffects is always needed to get status
+				showEffects: true,
+				showObjectChanges: options.include?.objectTypes ?? false,
+				showRawEffects: options.include?.effects ?? false,
+				showEvents: options.include?.events ?? false,
+				showBalanceChanges: options.include?.balanceChanges ?? false,
+			},
+			signal: options.signal,
+		});
+
+		return {
+			transactions: page.data.map((transaction) => parseTransaction(transaction, options.include)),
+			hasNextPage: page.hasNextPage,
+			startCursor: page.data[0]?.digest ?? null,
+			endCursor: page.data.length
+				? (page.nextCursor ?? page.data[page.data.length - 1].digest)
+				: null,
+		};
+	}
+
+	/**
+	 * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+	 * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+	 */
+	async listEvents(
+		options: SuiClientTypes.ListEventsOptions,
+	): Promise<SuiClientTypes.ListEventsResponse> {
+		const filter = options.filter ? await resolveEventFilter(this.mvr, options.filter) : undefined;
+		// Event cursors are event ids, and bounds are interpreted relative to the
+		// traversal direction
+		const { descending, after, before, limit } = resolvePagination(options);
+		const cursor = after ?? before;
+
+		const page = await this.#jsonRpcClient.queryEvents({
+			query: !filter
+				? { All: [] }
+				: filter.$kind === 'sender'
+					? { Sender: filter.sender }
+					: filter.$kind === 'emitModule'
+						? { MoveModule: { package: filter.package, module: filter.module } }
+						: filter.$kind === 'eventTypeModule'
+							? { MoveEventModule: { package: filter.package, module: filter.module } }
+							: { MoveEventType: filter.eventType },
+			cursor: cursor ? parseEventCursor(cursor) : undefined,
+			limit,
+			order: descending ? 'descending' : 'ascending',
+			signal: options.signal,
+		});
+
+		return {
+			events: page.data.map(
+				(event): SuiClientTypes.EventEntry => ({
+					packageId: normalizeSuiAddress(event.packageId),
+					module: event.transactionModule,
+					sender: normalizeSuiAddress(event.sender),
+					eventType: normalizeStructTag(event.type),
+					bcs: event.bcsEncoding === 'base58' ? fromBase58(event.bcs) : fromBase64(event.bcs),
+					json: (event.parsedJson as Record<string, unknown>) ?? null,
+					// queryEvents responses do not include checkpoint information
+					checkpoint: null,
+					transactionDigest: event.id.txDigest,
+					eventIndex: Number(event.id.eventSeq),
+				}),
+			),
+			hasNextPage: page.hasNextPage,
+			startCursor: page.data.length ? JSON.stringify(page.data[0].id) : null,
+			endCursor:
+				page.data.length && page.nextCursor
+					? JSON.stringify(page.nextCursor)
+					: page.data.length
+						? JSON.stringify(page.data[page.data.length - 1].id)
+						: null,
+		};
+	}
+
+	/**
+	 * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+	 * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+	 */
 	async verifyZkLoginSignature(options: SuiClientTypes.VerifyZkLoginSignatureOptions) {
 		const result = await this.#jsonRpcClient.verifyZkLoginSignature({
 			bytes: options.bytes,
@@ -948,6 +1065,18 @@ function parseOwnerAddress(owner: ObjectOwner): string | null {
 	throw new Error(`Unknown owner type: ${JSON.stringify(owner)}`);
 }
 
+function parseEventCursor(cursor: string): EventId {
+	try {
+		const parsed = JSON.parse(cursor) as EventId;
+		if (typeof parsed?.txDigest !== 'string' || typeof parsed?.eventSeq !== 'string') {
+			throw new Error('malformed event cursor');
+		}
+		return parsed;
+	} catch {
+		throw new Error(`Invalid event cursor: ${cursor}`);
+	}
+}
+
 function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 	transaction: SuiTransactionBlockResponse,
 	include?: Include,
@@ -968,7 +1097,10 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}
 
 	if (transaction.rawTransaction) {
 		const parsedTx = bcs.SenderSignedData.parse(fromBase64(transaction.rawTransaction))[0];
-		signatures = parsedTx.txSignatures;
+		// The genesis transaction's raw data carries a placeholder signature that
+		// other transports do not report
+		signatures =
+			parsedTx.intentMessage.value.V1.kind.$kind === 'Genesis' ? [] : parsedTx.txSignatures;
 
 		if (include?.transaction || include?.bcs) {
 			const bytes = bcs.TransactionData.serialize(parsedTx.intentMessage.value).toBytes();

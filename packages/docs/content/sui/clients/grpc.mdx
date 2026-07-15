@@ -176,6 +176,74 @@ const { response } = await grpcClient.ledgerService.getTransaction({
 const { response: epochInfo } = await grpcClient.ledgerService.getEpoch({});
 ```
 
+The ledger service also provides streaming `listCheckpoints`, `listTransactions`, and `listEvents`
+RPCs. For most use cases, prefer the corresponding
+[core API query methods](/sui/clients/core#query-methods), which handle pagination and filter
+construction for you. The raw RPCs additionally support DNF filters (combined, negated, and
+additional predicates like `affected_address` and `package_write`) and checkpoint range bounds that
+the core API does not expose:
+
+```typescript
+// Transactions that affected an address but were not sent by it:
+const stream = grpcClient.ledgerService.listTransactions({
+	filter: {
+		terms: [
+			{
+				literals: [
+					{
+						negated: false,
+						predicate: {
+							oneofKind: 'affectedAddress',
+							affectedAddress: { address: '0xabc...' },
+						},
+					},
+					{
+						negated: true,
+						predicate: { oneofKind: 'sender', sender: { address: '0xabc...' } },
+					},
+				],
+			},
+		],
+	},
+	readMask: { paths: ['digest'] },
+});
+
+for await (const frame of stream.responses) {
+	if (frame.transaction) {
+		console.log(frame.transaction.digest);
+	}
+}
+```
+
+### Subscription service
+
+Subscribe to filtered, real-time streams of checkpoints, transactions, or events. Streams begin at
+the current tip of the chain:
+
+```typescript
+const stream = grpcClient.subscriptionService.subscribeTransactions({
+	filter: {
+		terms: [
+			{
+				literals: [
+					{
+						negated: false,
+						predicate: { oneofKind: 'sender', sender: { address: '0xabc...' } },
+					},
+				],
+			},
+		],
+	},
+	readMask: { paths: ['digest', 'effects.status'] },
+});
+
+for await (const frame of stream.responses) {
+	if (frame.transaction) {
+		console.log(frame.transaction.digest);
+	}
+}
+```
+
 ### State service
 
 ```typescript

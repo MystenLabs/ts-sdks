@@ -460,6 +460,114 @@ const finalResult = await client.core.waitForTransaction({
 });
 ```
 
+## Query methods
+
+Query methods return pages of transactions or events. They behave identically on every transport,
+and share a common set of options:
+
+| Option   | Type                               | Description                                           |
+| -------- | ---------------------------------- | ----------------------------------------------------- |
+| `filter` | `TransactionFilter \| EventFilter` | Filter to apply (transactions and events)             |
+| `limit`  | `number`                           | Maximum number of items to return (defaults to 50)    |
+| `after`  | `string \| null`                   | Return items strictly after this cursor (ascending)   |
+| `before` | `string \| null`                   | Return items strictly before this cursor (descending) |
+| `order`  | `'ascending' \| 'descending'`      | Order of results (defaults to `ascending`)            |
+
+A filter specifies exactly one predicate. MVR names in `function` and `eventType` predicates are
+resolved automatically.
+
+`after` and `before` are exclusive ledger-position bounds, and each page reports the positions of
+its first and last items as `startCursor` and `endCursor`. You can provide at most one bound per
+query, and the bound implies the traversal direction (`after` reads ascending, `before` reads
+descending), so a feed of recent activity can page in both directions from any point:
+
+```typescript
+// Fetch the most recent transactions
+const latest = await client.core.listTransactions({
+	filter: { sender: '0xabc...' },
+	order: 'descending',
+	limit: 10,
+});
+
+// Load older transactions
+const older = await client.core.listTransactions({
+	filter: { sender: '0xabc...' },
+	before: latest.endCursor,
+	limit: 10,
+});
+
+// Poll for transactions executed since
+const newer = await client.core.listTransactions({
+	filter: { sender: '0xabc...' },
+	after: latest.startCursor,
+});
+```
+
+<Callout type="info">
+	Richer filtering (combined predicates, additional predicates like affected addresses and objects,
+	and checkpoint ranges on transaction and event queries) is available through the [raw gRPC ledger
+	service](/sui/clients/grpc#ledger-service) and [raw GraphQL queries](/sui/clients/graphql).
+</Callout>
+
+### `listTransactions`
+
+Query transactions matching a filter. Results support the same `include` options as
+[`getTransaction`](#gettransaction).
+
+```typescript
+const result = await client.core.listTransactions({
+	filter: { function: '0x2::coin::transfer' },
+	limit: 10,
+	include: { effects: true },
+});
+
+for (const tx of result.transactions) {
+	const transaction = tx.Transaction ?? tx.FailedTransaction;
+	console.log(transaction.digest, tx.$kind);
+}
+
+// Paginate
+if (result.hasNextPage) {
+	const nextPage = await client.core.listTransactions({
+		filter: { function: '0x2::coin::transfer' },
+		after: result.endCursor,
+	});
+}
+```
+
+Transaction filters support one of the following predicates:
+
+| Predicate  | Description                                                                 |
+| ---------- | --------------------------------------------------------------------------- |
+| `sender`   | Transactions sent by an address                                             |
+| `function` | Transactions calling a Move function (`pkg`, `pkg::mod`, or `pkg::mod::fn`) |
+
+### `listEvents`
+
+Query events matching a filter. Each event includes its position in the ledger (`transactionDigest`
+and `eventIndex`, plus `checkpoint` on transports that can provide it; `checkpoint` is `null` on
+JSON-RPC).
+
+```typescript
+const result = await client.core.listEvents({
+	filter: { eventType: '0x2::coin::CoinCreated' },
+	order: 'descending',
+	limit: 10,
+});
+
+for (const event of result.events) {
+	console.log(event.eventType, event.transactionDigest, event.json);
+}
+```
+
+Event filters support one of the following predicates:
+
+| Predicate    | Description                                                                       |
+| ------------ | --------------------------------------------------------------------------------- |
+| `sender`     | Events from transactions sent by an address                                       |
+| `emitModule` | Events emitted by a module (`pkg::mod`)                                           |
+| `eventType`  | Events with types defined in a module (`pkg::mod`) or a fully qualified type name |
+
 ## System methods
 
 ### `getReferenceGasPrice`
@@ -613,6 +721,9 @@ const options: SuiClientTypes.GetObjectOptions<{ content: true }> = {
 | `TransactionResult`    | Success or failure result from execution    |
 | `TransactionEffects`   | Detailed effects from transaction execution |
 | `Event`                | Emitted event from a transaction            |
+| `EventEntry`           | Queried event with its ledger position      |
+| `TransactionFilter`    | Filter for transaction queries              |
+| `EventFilter`          | Filter for event queries                    |
 | `ObjectOwner`          | Union of all owner types                    |
 | `ExecutionStatus`      | Success/failure status with error details   |
 | `DynamicFieldName`     | Name identifier for dynamic fields          |
@@ -643,3 +754,5 @@ const options: SuiClientTypes.GetObjectOptions<{ content: true }> = {
 | `SignAndExecuteTransactionOptions` | Options for `signAndExecuteTransaction` |
 | `GetTransactionOptions`            | Options for `getTransaction`            |
 | `WaitForTransactionOptions`        | Options for `waitForTransaction`        |
+| `ListTransactionsOptions`          | Options for `listTransactions`          |
+| `ListEventsOptions`                | Options for `listEvents`                |

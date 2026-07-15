@@ -228,13 +228,6 @@ export const ProgrammableTransaction = bcs.struct('ProgrammableTransaction', {
 	commands: bcs.vector(Command),
 });
 
-export const TransactionKind = bcs.enum('TransactionKind', {
-	ProgrammableTransaction: ProgrammableTransaction,
-	ChangeEpoch: null,
-	Genesis: null,
-	ConsensusCommitPrologue: null,
-});
-
 // Rust: crates/sui-types/src/transaction.rs
 export const ValidDuring = bcs.struct('ValidDuring', {
 	minEpoch: bcs.option(bcs.u64()),
@@ -263,17 +256,6 @@ export const GasData = bcs.struct('GasData', {
 	owner: Address,
 	price: bcs.u64(),
 	budget: bcs.u64(),
-});
-
-export const TransactionDataV1 = bcs.struct('TransactionDataV1', {
-	kind: TransactionKind,
-	sender: Address,
-	gasData: GasData,
-	expiration: TransactionExpiration,
-});
-
-export const TransactionData = bcs.enum('TransactionData', {
-	V1: TransactionDataV1,
 });
 
 export const IntentScope = bcs.enum('IntentScope', {
@@ -339,15 +321,6 @@ export const MultiSig = bcs.struct('MultiSig', {
 export const base64String = bcs.byteVector().transform({
 	input: (val: string | Uint8Array) => (typeof val === 'string' ? fromBase64(val) : val),
 	output: (val) => toBase64(new Uint8Array(val)),
-});
-
-export const SenderSignedTransaction = bcs.struct('SenderSignedTransaction', {
-	intentMessage: IntentMessage(TransactionData),
-	txSignatures: bcs.vector(base64String),
-});
-
-export const SenderSignedData = bcs.vector(SenderSignedTransaction, {
-	name: 'SenderSignedData',
 });
 
 export const PasskeyAuthenticator = bcs.struct('PasskeyAuthenticator', {

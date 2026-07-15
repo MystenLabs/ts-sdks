@@ -46,6 +46,16 @@ import {
 } from '../client/transaction-resolver.js';
 import { Value } from './proto/google/protobuf/struct.js';
 import { SimulateTransactionRequest_TransactionChecks } from './proto/sui/rpc/v2/transaction_execution_service.js';
+import type { QueryEnd, QueryOptions } from './proto/sui/rpc/v2/query_options.js';
+import { Ordering, QueryEndReason } from './proto/sui/rpc/v2/query_options.js';
+import type { ResolvedPagination } from '../client/query-filters.js';
+import {
+	resolveEventFilter,
+	resolvePagination,
+	resolveTransactionFilter,
+	validateTransactionQuery,
+} from '../client/query-filters.js';
+import { toGrpcEventFilter, toGrpcTransactionFilter } from './filters.js';
 
 export interface GrpcCoreClientOptions extends CoreClientOptions {
 	client: SuiGrpcClient;
@@ -330,31 +340,7 @@ export class GrpcCoreClient extends CoreClient {
 	async getTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 		options: SuiClientTypes.GetTransactionOptions<Include>,
 	): Promise<SuiClientTypes.TransactionResult<Include>> {
-		const paths = ['digest', 'transaction.digest', 'signatures', 'effects.status'];
-		if (options.include?.transaction) {
-			paths.push(
-				'transaction.sender',
-				'transaction.gas_payment',
-				'transaction.expiration',
-				'transaction.kind',
-			);
-		}
-		if (options.include?.bcs) {
-			paths.push('transaction.bcs');
-		}
-		if (options.include?.balanceChanges) {
-			paths.push('balance_changes');
-		}
-		if (options.include?.effects) {
-			paths.push('effects');
-		}
-		if (options.include?.events) {
-			paths.push('events');
-		}
-		if (options.include?.objectTypes) {
-			paths.push('effects.changed_objects.object_type');
-			paths.push('effects.changed_objects.object_id');
-		}
+		const paths = transactionReadMaskPaths(options.include);
 
 		const { response } = await this.#client.ledgerService.getTransaction(
 			{
@@ -375,31 +361,7 @@ export class GrpcCoreClient extends CoreClient {
 	async executeTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 		options: SuiClientTypes.ExecuteTransactionOptions<Include>,
 	): Promise<SuiClientTypes.TransactionResult<Include>> {
-		const paths = ['digest', 'transaction.digest', 'signatures', 'effects.status'];
-		if (options.include?.transaction) {
-			paths.push(
-				'transaction.sender',
-				'transaction.gas_payment',
-				'transaction.expiration',
-				'transaction.kind',
-			);
-		}
-		if (options.include?.bcs) {
-			paths.push('transaction.bcs');
-		}
-		if (options.include?.balanceChanges) {
-			paths.push('balance_changes');
-		}
-		if (options.include?.effects) {
-			paths.push('effects');
-		}
-		if (options.include?.events) {
-			paths.push('events');
-		}
-		if (options.include?.objectTypes) {
-			paths.push('effects.changed_objects.object_type');
-			paths.push('effects.changed_objects.object_id');
-		}
+		const paths = transactionReadMaskPaths(options.include);
 
 		const { response } = await this.#client.transactionExecutionService.executeTransaction(
 			{
@@ -428,37 +390,8 @@ export class GrpcCoreClient extends CoreClient {
 	async simulateTransaction<Include extends SuiClientTypes.SimulateTransactionInclude = {}>(
 		options: SuiClientTypes.SimulateTransactionOptions<Include>,
 	): Promise<SuiClientTypes.SimulateTransactionResult<Include>> {
-		const paths = [
-			'transaction.digest',
-			'transaction.transaction.digest',
-			'transaction.signatures',
-			'transaction.effects.status',
-		];
-		if (options.include?.transaction) {
-			paths.push(
-				'transaction.transaction.sender',
-				'transaction.transaction.gas_payment',
-				'transaction.transaction.expiration',
-				'transaction.transaction.kind',
-			);
-		}
-		if (options.include?.bcs) {
-			paths.push('transaction.transaction.bcs');
-		}
-		if (options.include?.balanceChanges) {
-			paths.push('transaction.balance_changes');
-		}
-		if (options.include?.effects) {
-			paths.push('transaction.effects');
-		}
-		if (options.include?.events) {
-			paths.push('transaction.events');
-		}
-		if (options.include?.objectTypes) {
-			// Use effects.changed_objects to match JSON-RPC behavior (which uses objectChanges)
-			paths.push('transaction.effects.changed_objects.object_type');
-			paths.push('transaction.effects.changed_objects.object_id');
-		}
+		// The simulated transaction is nested one level deeper in the response
+		const paths = transactionReadMaskPaths(options.include, 'transaction.');
 		if (options.include?.commandResults) {
 			paths.push('command_outputs');
 		}
@@ -659,6 +592,127 @@ export class GrpcCoreClient extends CoreClient {
 		options: SuiClientTypes.ListDynamicFieldsOptions,
 	): Promise<SuiClientTypes.ListDynamicFieldsResponse> {
 		return this.#client.listDynamicFields(options);
+	}
+
+	async listTransactions<Include extends SuiClientTypes.TransactionInclude = {}>(
+		options: SuiClientTypes.ListTransactionsOptions<Include>,
+	): Promise<SuiClientTypes.ListTransactionsResponse<Include>> {
+		const paths = transactionReadMaskPaths(options.include);
+
+		const filter = options.filter
+			? await resolveTransactionFilter(this.mvr, options.filter)
+			: undefined;
+		const pagination = resolvePagination(options);
+		validateTransactionQuery(filter, pagination);
+
+		const call = this.#client.ledgerService.listTransactions(
+			{
+				readMask: { paths },
+				filter: filter && toGrpcTransactionFilter(filter),
+				options: toGrpcQueryOptions(pagination),
+			},
+			{ abort: options.signal },
+		);
+
+		const transactions: SuiClientTypes.TransactionResult<Include>[] = [];
+		let startCursor: string | null = null;
+		let endCursor: string | null = null;
+		let frontier: string | null = null;
+		let end: QueryEnd | undefined;
+
+		for await (const frame of call.responses) {
+			if (frame.watermark?.cursor) {
+				frontier = toBase64(frame.watermark.cursor);
+			}
+			if (frame.transaction) {
+				startCursor ??= frontier;
+				endCursor = frontier;
+				transactions.push(parseTransaction(frame.transaction, options.include));
+			}
+			if (frame.end) {
+				end = frame.end;
+			}
+		}
+
+		const hasNextPage = queryHasNextPage(end);
+
+		return {
+			transactions,
+			hasNextPage,
+			startCursor,
+			// Item-less scans that stopped early continue from the scan frontier,
+			// while terminal empty pages have no positions to continue from
+			endCursor: endCursor ?? (hasNextPage ? frontier : null),
+		};
+	}
+
+	async listEvents(
+		options: SuiClientTypes.ListEventsOptions,
+	): Promise<SuiClientTypes.ListEventsResponse> {
+		const call = this.#client.ledgerService.listEvents(
+			{
+				readMask: {
+					paths: [
+						'package_id',
+						'module',
+						'sender',
+						'event_type',
+						'contents',
+						'json',
+						'checkpoint',
+						'transaction_digest',
+						'event_index',
+					],
+				},
+				filter: options.filter
+					? toGrpcEventFilter(await resolveEventFilter(this.mvr, options.filter))
+					: undefined,
+				options: toGrpcQueryOptions(resolvePagination(options)),
+			},
+			{ abort: options.signal },
+		);
+
+		const events: SuiClientTypes.EventEntry[] = [];
+		let startCursor: string | null = null;
+		let endCursor: string | null = null;
+		let frontier: string | null = null;
+		let end: QueryEnd | undefined;
+
+		for await (const frame of call.responses) {
+			if (frame.watermark?.cursor) {
+				frontier = toBase64(frame.watermark.cursor);
+			}
+			if (frame.event) {
+				startCursor ??= frontier;
+				endCursor = frontier;
+				const event = frame.event;
+				events.push({
+					packageId: normalizeSuiAddress(event.packageId!),
+					module: event.module!,
+					sender: normalizeSuiAddress(event.sender!),
+					eventType: normalizeStructTag(event.eventType!),
+					bcs: event.contents?.value ?? new Uint8Array(),
+					json: event.json ? (Value.toJson(event.json) as Record<string, unknown>) : null,
+					checkpoint: event.checkpoint?.toString() ?? null,
+					transactionDigest: event.transactionDigest!,
+					eventIndex: event.eventIndex!,
+				});
+			}
+			if (frame.end) {
+				end = frame.end;
+			}
+		}
+
+		const hasNextPage = queryHasNextPage(end);
+
+		return {
+			events,
+			hasNextPage,
+			startCursor,
+			// Item-less scans that stopped early continue from the scan frontier,
+			// while terminal empty pages have no positions to continue from
+			endCursor: endCursor ?? (hasNextPage ? frontier : null),
+		};
 	}
 
 	async verifyZkLoginSignature(
@@ -869,6 +923,54 @@ export class GrpcCoreClient extends CoreClient {
 			return await next();
 		};
 	}
+}
+
+function toGrpcQueryOptions(pagination: ResolvedPagination): QueryOptions {
+	return {
+		limit: pagination.limit,
+		ordering: pagination.descending ? Ordering.DESCENDING : Ordering.ASCENDING,
+		after: pagination.after ? fromBase64(pagination.after) : undefined,
+		before: pagination.before ? fromBase64(pagination.before) : undefined,
+	};
+}
+
+function queryHasNextPage(end: QueryEnd | undefined): boolean {
+	return end?.reason === QueryEndReason.ITEM_LIMIT || end?.reason === QueryEndReason.SCAN_LIMIT;
+}
+
+function transactionReadMaskPaths(
+	include: SuiClientTypes.TransactionInclude | undefined,
+	prefix = '',
+): string[] {
+	const paths = ['digest', 'transaction.digest', 'signatures', 'effects.status'];
+
+	if (include?.transaction) {
+		paths.push(
+			'transaction.sender',
+			'transaction.gas_payment',
+			'transaction.expiration',
+			'transaction.kind',
+		);
+	}
+	if (include?.bcs) {
+		paths.push('transaction.bcs');
+	}
+	if (include?.balanceChanges) {
+		paths.push('balance_changes');
+	}
+	if (include?.effects) {
+		paths.push('effects');
+	}
+	if (include?.events) {
+		paths.push('events');
+	}
+	if (include?.objectTypes) {
+		// Use effects.changed_objects to match JSON-RPC behavior (which uses objectChanges)
+		paths.push('effects.changed_objects.object_type');
+		paths.push('effects.changed_objects.object_id');
+	}
+
+	return prefix ? paths.map((path) => prefix + path) : paths;
 }
 
 function mapDisplayProto(

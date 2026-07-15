@@ -71,6 +71,32 @@ query getTransactionBlock(
 	}
 }
 
+query listTransactions(
+	$filter: TransactionFilter
+	$first: Int
+	$after: String
+	$last: Int
+	$before: String
+	$includeTransaction: Boolean = false
+	$includeEffects: Boolean = false
+	$includeEvents: Boolean = false
+	$includeBalanceChanges: Boolean = false
+	$includeObjectTypes: Boolean = false
+	$includeBcs: Boolean = false
+) {
+	transactions(filter: $filter, first: $first, after: $after, last: $last, before: $before) {
+		pageInfo {
+			hasNextPage
+			hasPreviousPage
+			startCursor
+			endCursor
+		}
+		nodes {
+			...TRANSACTION_FIELDS
+		}
+	}
+}
+
 fragment TRANSACTION_FIELDS on Transaction {
 	digest
 	transactionJson @include(if: $includeTransaction)
