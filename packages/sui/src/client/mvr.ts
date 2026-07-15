@@ -393,8 +393,10 @@ export function hasMvrName(nameOrType: string) {
  * caller's signal cannot cancel the shared network request without affecting other
  * callers. Instead, this rejects the awaiting caller as soon as its signal aborts
  * (the underlying request continues in the background).
+ *
+ * The same isolation applies to any shared/cached request (e.g. `cache.read`).
  */
-function raceSignal<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+export function raceSignal<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
 	if (!signal) {
 		return promise;
 	}

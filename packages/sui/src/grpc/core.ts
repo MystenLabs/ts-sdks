@@ -3,6 +3,7 @@
 
 import type { CoreClientOptions, SuiClientTypes } from '../client/index.js';
 import { CoreClient, formatMoveAbortMessage, SimulationError } from '../client/index.js';
+import { raceSignal } from '../client/mvr.js';
 import type { SuiGrpcClient } from './client.js';
 import type { Owner } from './proto/sui/rpc/v2/owner.js';
 import { Owner_OwnerKind } from './proto/sui/rpc/v2/owner.js';
@@ -279,7 +280,11 @@ export class GrpcCoreClient extends CoreClient {
 				},
 				{ abort: options.signal },
 			));
-		} catch {
+		} catch (error) {
+			// Don't swallow cancellation — only treat the coin as missing on real errors.
+			if (options.signal?.aborted) {
+				throw error;
+			}
 			return { coinMetadata: null };
 		}
 
@@ -778,18 +783,22 @@ export class GrpcCoreClient extends CoreClient {
 	async getChainIdentifier(
 		options?: SuiClientTypes.GetChainIdentifierOptions,
 	): Promise<SuiClientTypes.GetChainIdentifierResponse> {
-		return this.cache.read(['chainIdentifier'], async () => {
-			const { response } = await this.#client.ledgerService.getServiceInfo(
-				{},
-				{ abort: options?.signal },
-			);
-			if (!response.chainId) {
-				throw new Error('Chain identifier not found in service info');
-			}
-			return {
-				chainIdentifier: response.chainId,
-			};
-		});
+		// The result is cached and shared across callers, so the underlying request must
+		// not carry any single caller's signal. Isolate cancellation per-caller instead.
+		return raceSignal(
+			Promise.resolve(
+				this.cache.read(['chainIdentifier'], async () => {
+					const { response } = await this.#client.ledgerService.getServiceInfo({});
+					if (!response.chainId) {
+						throw new Error('Chain identifier not found in service info');
+					}
+					return {
+						chainIdentifier: response.chainId,
+					};
+				}),
+			),
+			options?.signal,
+		);
 	}
 
 	resolveTransactionPlugin() {
