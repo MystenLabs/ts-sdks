@@ -28,6 +28,7 @@
 		"packages/walrus/src/node-api",
 		"packages/sui/src/grpc/proto",
 		"packages/payment-kit/src/contracts",
+		"packages/hashi/src/contracts",
 		"generated",
 		"vite-env.d.ts",
 		"vitest.config.*",
