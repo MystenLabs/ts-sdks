@@ -133,6 +133,7 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 			(
 				await this.core.mvr.resolveType({
 					type: options.name.type,
+					signal: options.signal,
 				})
 			).type,
 		);
