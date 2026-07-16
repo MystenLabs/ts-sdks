@@ -8,6 +8,7 @@ import {
 	GrpcTypes,
 	parseGrpcSimulateTransactionResponse,
 	parseGrpcTransactionResponse,
+	SuiGrpcClient,
 } from '../../../src/grpc/index.js';
 
 function expectBytes(bytes: Uint8Array | undefined, expected: number[]) {
@@ -161,5 +162,121 @@ describe('gRPC transaction response parsers', () => {
 				Unknown: null,
 			},
 		});
+	});
+
+	it('includes protobuf JSON from top-level gRPC transaction methods', async () => {
+		const transaction = GrpcTypes.ExecutedTransaction.create({
+			digest: 'top-level-transaction-digest',
+			effects: {
+				status: {
+					success: true,
+				},
+			},
+		});
+		const simulation = GrpcTypes.SimulateTransactionResponse.create({
+			transaction,
+			suggestedGasPrice: 1000n,
+		});
+		const client = new SuiGrpcClient({
+			baseUrl: 'http://localhost',
+			network: 'testnet',
+		});
+
+		client.ledgerService.getTransaction = (async () => ({
+			response: {
+				transaction,
+			},
+		})) as never;
+		client.transactionExecutionService.executeTransaction = (async () => ({
+			response: {
+				transaction,
+			},
+		})) as never;
+		client.transactionExecutionService.simulateTransaction = (async () => ({
+			response: simulation,
+		})) as never;
+
+		const getResult = await client.getTransaction({
+			digest: 'top-level-transaction-digest',
+			include: {
+				protoJson: true,
+			},
+		});
+		expectTypeOf(getResult.protoJson).toEqualTypeOf<
+			ReturnType<typeof GrpcTypes.ExecutedTransaction.toJson>
+		>();
+		expect(GrpcTypes.ExecutedTransaction.fromJson(getResult.protoJson).digest).toBe(
+			'top-level-transaction-digest',
+		);
+
+		const defaultResult = await client.getTransaction({
+			digest: 'top-level-transaction-digest',
+		});
+		expectTypeOf(defaultResult.protoJson).toEqualTypeOf<undefined>();
+		expect(defaultResult.protoJson).toBeUndefined();
+
+		const executeResult = await client.executeTransaction({
+			transaction: new Uint8Array([1, 2, 3]),
+			signatures: ['AQID'],
+			include: {
+				protoJson: true,
+			},
+		});
+		expectTypeOf(executeResult.protoJson).toEqualTypeOf<
+			ReturnType<typeof GrpcTypes.ExecutedTransaction.toJson>
+		>();
+		expect(GrpcTypes.ExecutedTransaction.fromJson(executeResult.protoJson).digest).toBe(
+			'top-level-transaction-digest',
+		);
+
+		const signer = {
+			toSuiAddress: () => '0x1',
+			signTransaction: async () => ({
+				bytes: 'AQID',
+				signature: 'AQID',
+			}),
+		};
+		const signResult = await client.signAndExecuteTransaction({
+			transaction: new Uint8Array([1, 2, 3]),
+			signer: signer as never,
+			include: {
+				protoJson: true,
+			},
+		});
+		expectTypeOf(signResult.protoJson).toEqualTypeOf<
+			ReturnType<typeof GrpcTypes.ExecutedTransaction.toJson>
+		>();
+		expect(GrpcTypes.ExecutedTransaction.fromJson(signResult.protoJson).digest).toBe(
+			'top-level-transaction-digest',
+		);
+
+		const waitResult = await client.waitForTransaction({
+			digest: 'top-level-transaction-digest',
+			include: {
+				protoJson: true,
+			},
+			pollSchedule: [0],
+		});
+		expectTypeOf(waitResult.protoJson).toEqualTypeOf<
+			ReturnType<typeof GrpcTypes.ExecutedTransaction.toJson>
+		>();
+		expect(GrpcTypes.ExecutedTransaction.fromJson(waitResult.protoJson).digest).toBe(
+			'top-level-transaction-digest',
+		);
+
+		const simulateResult = await client.simulateTransaction({
+			transaction: new Uint8Array([1, 2, 3]),
+			include: {
+				protoJson: true,
+			},
+		});
+		expectTypeOf(simulateResult.protoJson).toEqualTypeOf<
+			ReturnType<typeof GrpcTypes.SimulateTransactionResponse.toJson>
+		>();
+		const parsedSimulation = GrpcTypes.SimulateTransactionResponse.fromJson(
+			simulateResult.protoJson,
+		);
+		expect(parsedSimulation.transaction?.digest).toBe('top-level-transaction-digest');
+		expect(parsedSimulation.suggestedGasPrice).toBe(1000n);
 	});
 });

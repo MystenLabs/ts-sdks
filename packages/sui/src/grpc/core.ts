@@ -8,7 +8,6 @@ import type { SuiGrpcClient } from './client.js';
 import type { Owner } from './proto/sui/rpc/v2/owner.js';
 import { Owner_OwnerKind } from './proto/sui/rpc/v2/owner.js';
 import { chunk, fromBase64, toBase64 } from '@mysten/utils';
-import type { ExecutedTransaction } from './proto/sui/rpc/v2/executed_transaction.js';
 import type { TransactionEffects } from './proto/sui/rpc/v2/effects.js';
 import {
 	UnchangedConsensusObject_UnchangedConsensusObjectKind,
@@ -45,12 +44,16 @@ import {
 	grpcTransactionToTransactionData,
 } from '../client/transaction-resolver.js';
 import { Value } from './proto/google/protobuf/struct.js';
-import type { SimulateTransactionResponse } from './proto/sui/rpc/v2/transaction_execution_service.js';
-import { SimulateTransactionRequest_TransactionChecks } from './proto/sui/rpc/v2/transaction_execution_service.js';
+import { ExecutedTransaction } from './proto/sui/rpc/v2/executed_transaction.js';
+import {
+	SimulateTransactionRequest_TransactionChecks,
+	SimulateTransactionResponse,
+} from './proto/sui/rpc/v2/transaction_execution_service.js';
 
 export interface GrpcCoreClientOptions extends CoreClientOptions {
 	client: SuiGrpcClient;
 }
+
 export class GrpcCoreClient extends CoreClient {
 	#client: SuiGrpcClient;
 	constructor({ client, ...options }: GrpcCoreClientOptions) {
@@ -331,37 +334,11 @@ export class GrpcCoreClient extends CoreClient {
 	async getTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 		options: SuiClientTypes.GetTransactionOptions<Include>,
 	): Promise<SuiClientTypes.TransactionResult<Include>> {
-		const paths = ['digest', 'transaction.digest', 'signatures', 'effects.status'];
-		if (options.include?.transaction) {
-			paths.push(
-				'transaction.sender',
-				'transaction.gas_payment',
-				'transaction.expiration',
-				'transaction.kind',
-			);
-		}
-		if (options.include?.bcs) {
-			paths.push('transaction.bcs');
-		}
-		if (options.include?.balanceChanges) {
-			paths.push('balance_changes');
-		}
-		if (options.include?.effects) {
-			paths.push('effects');
-		}
-		if (options.include?.events) {
-			paths.push('events');
-		}
-		if (options.include?.objectTypes) {
-			paths.push('effects.changed_objects.object_type');
-			paths.push('effects.changed_objects.object_id');
-		}
-
 		const { response } = await this.#client.ledgerService.getTransaction(
 			{
 				digest: options.digest,
 				readMask: {
-					paths,
+					paths: transactionReadMaskPaths(options.include),
 				},
 			},
 			{ abort: options.signal },
@@ -371,37 +348,15 @@ export class GrpcCoreClient extends CoreClient {
 			throw new Error(`Transaction ${options.digest} not found`);
 		}
 
-		return parseGrpcTransactionResponse(response.transaction, { include: options.include });
+		return withProtoJson(
+			parseGrpcTransactionResponse(response.transaction, { include: options.include }),
+			options.include,
+			() => ExecutedTransaction.toJson(response.transaction!),
+		);
 	}
 	async executeTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 		options: SuiClientTypes.ExecuteTransactionOptions<Include>,
 	): Promise<SuiClientTypes.TransactionResult<Include>> {
-		const paths = ['digest', 'transaction.digest', 'signatures', 'effects.status'];
-		if (options.include?.transaction) {
-			paths.push(
-				'transaction.sender',
-				'transaction.gas_payment',
-				'transaction.expiration',
-				'transaction.kind',
-			);
-		}
-		if (options.include?.bcs) {
-			paths.push('transaction.bcs');
-		}
-		if (options.include?.balanceChanges) {
-			paths.push('balance_changes');
-		}
-		if (options.include?.effects) {
-			paths.push('effects');
-		}
-		if (options.include?.events) {
-			paths.push('events');
-		}
-		if (options.include?.objectTypes) {
-			paths.push('effects.changed_objects.object_type');
-			paths.push('effects.changed_objects.object_id');
-		}
-
 		const { response } = await this.#client.transactionExecutionService.executeTransaction(
 			{
 				transaction: {
@@ -418,48 +373,22 @@ export class GrpcCoreClient extends CoreClient {
 					},
 				})),
 				readMask: {
-					paths,
+					paths: transactionReadMaskPaths(options.include),
 				},
 			},
 			{ abort: options.signal },
 		);
 
-		return parseGrpcTransactionResponse(response.transaction!, { include: options.include });
+		return withProtoJson(
+			parseGrpcTransactionResponse(response.transaction!, { include: options.include }),
+			options.include,
+			() => ExecutedTransaction.toJson(response.transaction!),
+		);
 	}
 	async simulateTransaction<Include extends SuiClientTypes.SimulateTransactionInclude = {}>(
 		options: SuiClientTypes.SimulateTransactionOptions<Include>,
 	): Promise<SuiClientTypes.SimulateTransactionResult<Include>> {
-		const paths = [
-			'transaction.digest',
-			'transaction.transaction.digest',
-			'transaction.signatures',
-			'transaction.effects.status',
-		];
-		if (options.include?.transaction) {
-			paths.push(
-				'transaction.transaction.sender',
-				'transaction.transaction.gas_payment',
-				'transaction.transaction.expiration',
-				'transaction.transaction.kind',
-			);
-		}
-		if (options.include?.bcs) {
-			paths.push('transaction.transaction.bcs');
-		}
-		if (options.include?.balanceChanges) {
-			paths.push('transaction.balance_changes');
-		}
-		if (options.include?.effects) {
-			paths.push('transaction.effects');
-		}
-		if (options.include?.events) {
-			paths.push('transaction.events');
-		}
-		if (options.include?.objectTypes) {
-			// Use effects.changed_objects to match JSON-RPC behavior (which uses objectChanges)
-			paths.push('transaction.effects.changed_objects.object_type');
-			paths.push('transaction.effects.changed_objects.object_id');
-		}
+		const paths = transactionReadMaskPaths(options.include, 'transaction.');
 		if (options.include?.commandResults) {
 			paths.push('command_outputs');
 		}
@@ -490,7 +419,11 @@ export class GrpcCoreClient extends CoreClient {
 			{ abort: options.signal },
 		);
 
-		return parseGrpcSimulateTransactionResponse(response, { include: options.include });
+		return withProtoJson(
+			parseGrpcSimulateTransactionResponse(response, { include: options.include }),
+			options.include,
+			() => SimulateTransactionResponse.toJson(response),
+		);
 	}
 	async getReferenceGasPrice(
 		options?: SuiClientTypes.GetReferenceGasPriceOptions,
@@ -841,6 +774,54 @@ export class GrpcCoreClient extends CoreClient {
 			return await next();
 		};
 	}
+}
+
+function transactionReadMaskPaths(
+	include: SuiClientTypes.TransactionInclude | undefined,
+	prefix = '',
+) {
+	const paths = ['digest', 'transaction.digest', 'signatures', 'effects.status'];
+	if (include?.transaction) {
+		paths.push(
+			'transaction.sender',
+			'transaction.gas_payment',
+			'transaction.expiration',
+			'transaction.kind',
+		);
+	}
+	if (include?.bcs) {
+		paths.push('transaction.bcs');
+	}
+	if (include?.balanceChanges) {
+		paths.push('balance_changes');
+	}
+	if (include?.effects) {
+		paths.push('effects');
+	}
+	if (include?.events) {
+		paths.push('events');
+	}
+	if (include?.objectTypes) {
+		paths.push('effects.changed_objects.object_type');
+		paths.push('effects.changed_objects.object_id');
+	}
+
+	return prefix ? paths.map((path) => prefix + path) : paths;
+}
+
+function withProtoJson<Result>(
+	result: Result,
+	include: ({ protoJson?: boolean } & object) | undefined,
+	getProtoJson: () => unknown,
+): Result {
+	if (!include?.protoJson) {
+		return result;
+	}
+
+	return {
+		...result,
+		protoJson: getProtoJson(),
+	};
 }
 
 function mapDisplayProto(
