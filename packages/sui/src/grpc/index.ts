@@ -7,7 +7,20 @@ export {
 	parseGrpcSimulateTransactionResponse,
 	parseGrpcTransactionResponse,
 } from './core.js';
-export type { SuiGrpcClientOptions } from './client.js';
+export type {
+	GrpcExecuteTransactionOptions,
+	GrpcGetTransactionOptions,
+	GrpcSignAndExecuteTransactionOptions,
+	GrpcSimulateTransactionInclude,
+	GrpcSimulateTransactionOptions,
+	GrpcSimulateTransactionProtoJson,
+	GrpcSimulateTransactionResult,
+	GrpcTransactionInclude,
+	GrpcTransactionProtoJson,
+	GrpcTransactionResult,
+	GrpcWaitForTransactionOptions,
+	SuiGrpcClientOptions,
+} from './client.js';
 export type { GrpcCoreClientOptions } from './core.js';
 
 // Re-export transports and types so users can configure custom transports
