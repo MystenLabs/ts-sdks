@@ -1,5 +1,12 @@
 # @mysten/sui.js
 
+## 2.21.0
+
+### Minor Changes
+
+- da78e18: Expose gRPC transaction response parsers for converting protobuf transaction responses
+  into SDK Core transaction result shapes.
+
 ## 2.20.4
 
 ### Patch Changes
