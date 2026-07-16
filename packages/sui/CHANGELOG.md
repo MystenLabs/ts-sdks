@@ -1,5 +1,12 @@
 # @mysten/sui.js
 
+## 2.22.0
+
+### Minor Changes
+
+- 899d9e3: Add gRPC client transaction results that include protobuf JSON with
+  `include: { protoJson: true }`.
+
 ## 2.21.0
 
 ### Minor Changes
