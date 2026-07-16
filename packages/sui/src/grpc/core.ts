@@ -45,6 +45,7 @@ import {
 	grpcTransactionToTransactionData,
 } from '../client/transaction-resolver.js';
 import { Value } from './proto/google/protobuf/struct.js';
+import type { SimulateTransactionResponse } from './proto/sui/rpc/v2/transaction_execution_service.js';
 import { SimulateTransactionRequest_TransactionChecks } from './proto/sui/rpc/v2/transaction_execution_service.js';
 
 export interface GrpcCoreClientOptions extends CoreClientOptions {
@@ -370,7 +371,7 @@ export class GrpcCoreClient extends CoreClient {
 			throw new Error(`Transaction ${options.digest} not found`);
 		}
 
-		return parseTransaction(response.transaction, options.include);
+		return parseGrpcTransactionResponse(response.transaction, { include: options.include });
 	}
 	async executeTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 		options: SuiClientTypes.ExecuteTransactionOptions<Include>,
@@ -423,7 +424,7 @@ export class GrpcCoreClient extends CoreClient {
 			{ abort: options.signal },
 		);
 
-		return parseTransaction(response.transaction!, options.include);
+		return parseGrpcTransactionResponse(response.transaction!, { include: options.include });
 	}
 	async simulateTransaction<Include extends SuiClientTypes.SimulateTransactionInclude = {}>(
 		options: SuiClientTypes.SimulateTransactionOptions<Include>,
@@ -489,36 +490,7 @@ export class GrpcCoreClient extends CoreClient {
 			{ abort: options.signal },
 		);
 
-		const transactionResult = parseTransaction(response.transaction!, options.include);
-
-		// Add command results if requested
-		const commandResults =
-			options.include?.commandResults && response.commandOutputs
-				? response.commandOutputs.map((output) => ({
-						returnValues: (output.returnValues ?? []).map((rv) => ({
-							bcs: rv.value?.value ?? null,
-						})),
-						mutatedReferences: (output.mutatedByRef ?? []).map((mr) => ({
-							bcs: mr.value?.value ?? null,
-						})),
-					}))
-				: undefined;
-
-		if (transactionResult.$kind === 'Transaction') {
-			return {
-				$kind: 'Transaction',
-				Transaction: transactionResult.Transaction,
-				commandResults:
-					commandResults as SuiClientTypes.SimulateTransactionResult<Include>['commandResults'],
-			};
-		} else {
-			return {
-				$kind: 'FailedTransaction',
-				FailedTransaction: transactionResult.FailedTransaction,
-				commandResults:
-					commandResults as SuiClientTypes.SimulateTransactionResult<Include>['commandResults'],
-			};
-		}
+		return parseGrpcSimulateTransactionResponse(response, { include: options.include });
 	}
 	async getReferenceGasPrice(
 		options?: SuiClientTypes.GetReferenceGasPriceOptions,
@@ -1275,10 +1247,15 @@ export function parseTransactionEffects({
 	};
 }
 
-function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
+export function parseGrpcTransactionResponse<
+	Include extends SuiClientTypes.TransactionInclude = {},
+>(
 	transaction: ExecutedTransaction,
-	include?: Include,
+	options?: {
+		include?: Include & SuiClientTypes.TransactionInclude;
+	},
 ): SuiClientTypes.TransactionResult<Include> {
+	const include = options?.include;
 	const objectTypes: Record<string, string> = {};
 	if (include?.objectTypes) {
 		transaction.effects?.changedObjects?.forEach((change) => {
@@ -1367,6 +1344,46 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}
 				$kind: 'FailedTransaction',
 				FailedTransaction: result,
 			};
+}
+
+export function parseGrpcSimulateTransactionResponse<
+	Include extends SuiClientTypes.SimulateTransactionInclude = {},
+>(
+	response: SimulateTransactionResponse,
+	options?: {
+		include?: Include & SuiClientTypes.SimulateTransactionInclude;
+	},
+): SuiClientTypes.SimulateTransactionResult<Include> {
+	const include = options?.include;
+	const transactionResult = parseGrpcTransactionResponse(response.transaction!, { include });
+
+	const commandResults =
+		include?.commandResults && response.commandOutputs
+			? response.commandOutputs.map((output) => ({
+					returnValues: (output.returnValues ?? []).map((rv) => ({
+						bcs: rv.value?.value ?? null,
+					})),
+					mutatedReferences: (output.mutatedByRef ?? []).map((mr) => ({
+						bcs: mr.value?.value ?? null,
+					})),
+				}))
+			: undefined;
+
+	if (transactionResult.$kind === 'Transaction') {
+		return {
+			$kind: 'Transaction',
+			Transaction: transactionResult.Transaction,
+			commandResults:
+				commandResults as SuiClientTypes.SimulateTransactionResult<Include>['commandResults'],
+		};
+	}
+
+	return {
+		$kind: 'FailedTransaction',
+		FailedTransaction: transactionResult.FailedTransaction,
+		commandResults:
+			commandResults as SuiClientTypes.SimulateTransactionResult<Include>['commandResults'],
+	};
 }
 
 function parseNormalizedSuiMoveType(type: OpenSignature): SuiClientTypes.OpenSignature {
