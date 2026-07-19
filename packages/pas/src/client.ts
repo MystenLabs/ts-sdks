@@ -3,7 +3,7 @@
 
 import type { ClientWithCoreApi } from '@mysten/sui/client';
 
-import { TESTNET_PAS_PACKAGE_CONFIG } from './constants.js';
+import { TESTNET_PAS_PACKAGE_CONFIG, MAINNET_PAS_PACKAGE_CONFIG } from './constants.js';
 import {
 	deriveAccountAddress,
 	derivePolicyAddress,
@@ -58,12 +58,8 @@ export class PASClient {
 			);
 		}
 
-		// TODO: Remove when we add mainnet data
-		if (network === 'mainnet') {
-			throw new PASClientError('Mainnet is not supported yet.');
-		}
-
-		this.#packageConfig = TESTNET_PAS_PACKAGE_CONFIG;
+		this.#packageConfig =
+			network === 'mainnet' ? MAINNET_PAS_PACKAGE_CONFIG : TESTNET_PAS_PACKAGE_CONFIG;
 	}
 
 	/**

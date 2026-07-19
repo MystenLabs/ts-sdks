@@ -5,6 +5,7 @@
 		"rootDir": "..",
 		"noEmit": true,
 		"emitDeclarationOnly": false,
-		"resolveJsonModule": true
+		"resolveJsonModule": true,
+		"types": ["node"]
 	}
 }

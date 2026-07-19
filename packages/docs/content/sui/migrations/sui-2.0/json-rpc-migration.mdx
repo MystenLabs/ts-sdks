@@ -106,22 +106,28 @@ These JSON-RPC methods have direct replacements in the core API:
 
 These JSON-RPC methods can be replaced by calling gRPC service clients directly:
 
-| JSON-RPC Method                     | gRPC Service Replacement                                        |
-| ----------------------------------- | --------------------------------------------------------------- |
-| `getCheckpoint`                     | `ledgerService.getCheckpoint`                                   |
-| `getCheckpoints`                    | `ledgerService.listCheckpoints`                                 |
-| `getLatestCheckpointSequenceNumber` | `ledgerService.getCheckpoint`                                   |
-| `getEpochs`                         | `ledgerService.listEpochs`                                      |
-| `getCurrentEpoch`                   | `ledgerService.getEpoch`                                        |
-| `getLatestSuiSystemState`           | `ledgerService.getSystemState`                                  |
-| `getCommitteeInfo`                  | `ledgerService.getCommittee`                                    |
-| `getValidatorsApy`                  | `ledgerService.getValidators`                                   |
-| `getProtocolConfig`                 | `ledgerService.getProtocolConfig`                               |
-| `getNormalizedMoveModule`           | `movePackageService.getPackage` (response includes all modules) |
-| `getNormalizedMoveModulesByPackage` | `movePackageService.getPackage`                                 |
-| `getNormalizedMoveStruct`           | `movePackageService.getDatatype`                                |
-| `resolveNameServiceAddress`         | `nameService.lookupName`                                        |
-| `resolveNameServiceNames`           | `nameService.reverseLookupName`                                 |
+| JSON-RPC Method                     | gRPC Service Replacement                                         |
+| ----------------------------------- | ---------------------------------------------------------------- |
+| `getCheckpoint`                     | `ledgerService.getCheckpoint`                                    |
+| `getLatestCheckpointSequenceNumber` | `ledgerService.getServiceInfo` (read `checkpointHeight`)         |
+| `getCurrentEpoch`                   | `ledgerService.getEpoch` (omit `epoch` for the current)          |
+| `getLatestSuiSystemState`           | `ledgerService.getEpoch` with `system_state` in the read mask    |
+| `getCommitteeInfo`                  | `ledgerService.getEpoch` with `committee` in the read mask       |
+| `getProtocolConfig`                 | `ledgerService.getEpoch` with `protocol_config` in the read mask |
+| `getCoinMetadata`                   | `stateService.getCoinInfo` (response includes `metadata`)        |
+| `getTotalSupply`                    | `stateService.getCoinInfo` (response includes `treasury`)        |
+| `getNormalizedMoveModule`           | `movePackageService.getPackage` (response includes all modules)  |
+| `getNormalizedMoveModulesByPackage` | `movePackageService.getPackage`                                  |
+| `getNormalizedMoveStruct`           | `movePackageService.getDatatype`                                 |
+| `resolveNameServiceAddress`         | `nameService.lookupName`                                         |
+| `resolveNameServiceNames`           | `nameService.reverseLookupName`                                  |
+
+<Callout type="warn">
+	`getCheckpoints` and `getEpochs` (paginated listings) have no gRPC equivalent — use the
+	`checkpoints` / `epochs` GraphQL queries instead. `getValidatorsApy` also has no replacement:
+	there is no canonical definition of validator APY, so it must be computed client-side from
+	validator exchange rates (see [Validator APY](#validator-apy) below).
+</Callout>
 
 ### Example: using gRPC service clients
 
@@ -133,13 +139,32 @@ const client = new SuiGrpcClient({
 	network: 'mainnet',
 });
 
-// Get checkpoint information
+// Get the latest checkpoint sequence number (replaces getLatestCheckpointSequenceNumber)
+const { response: info } = await client.ledgerService.getServiceInfo({});
+const latestCheckpoint = info.checkpointHeight;
+
+// Get a specific checkpoint by sequence number. `checkpointId` is required (a oneof);
+// the read mask defaults to `sequence_number,digest`, so request more fields as needed.
 const { response } = await client.ledgerService.getCheckpoint({
-	sequenceNumber: 12345n,
+	checkpointId: { oneofKind: 'sequenceNumber', sequenceNumber: latestCheckpoint },
 });
 
-// Get current epoch
-const { response: epoch } = await client.ledgerService.getEpoch({});
+// Get the current epoch (omit `epoch` for the current one). The system state,
+// committee, and protocol config are NOT returned by default — you must request
+// them via the read mask (the default mask is just `epoch`).
+const { response: epoch } = await client.ledgerService.getEpoch({
+	readMask: { paths: ['epoch', 'system_state', 'committee', 'protocol_config'] },
+});
+const systemState = epoch.epoch?.systemState;
+const committee = epoch.epoch?.committee;
+const protocolConfig = epoch.epoch?.protocolConfig;
+
+// Get coin metadata and total supply in one call
+const { response: coinInfo } = await client.stateService.getCoinInfo({
+	coinType: '0x2::sui::SUI',
+});
+const metadata = coinInfo.metadata;
+const totalSupply = coinInfo.treasury?.totalSupply;
 
 // Get Move package information (includes all modules)
 const { response: pkg } = await client.movePackageService.getPackage({
@@ -163,19 +188,21 @@ const { response: address } = await client.nameService.lookupName({
 
 Some JSON-RPC methods don't have gRPC equivalents and require using `SuiGraphQLClient` instead:
 
-| JSON-RPC Method             | GraphQL Alternative                |
-| --------------------------- | ---------------------------------- |
-| `queryTransactionBlocks`    | `transactions` query               |
-| `multiGetTransactionBlocks` | `multiGetTransactionEffects` query |
-| `queryEvents`               | `events` query                     |
-| `getCoinMetadata`           | `coinMetadata` query               |
-| `getTotalSupply`            | `coinMetadata` query               |
-| `getStakes`                 | `address.stakedSuis` query         |
-| `getStakesByIds`            | `multiGetObjects` query            |
-| `tryGetPastObject`          | Historical object queries          |
-| `getNetworkMetrics`         | Use indexer                        |
-| `getAddressMetrics`         | Use indexer                        |
-| `getMoveCallMetrics`        | Use indexer                        |
+| JSON-RPC Method             | GraphQL Alternative                                       |
+| --------------------------- | --------------------------------------------------------- |
+| `queryTransactionBlocks`    | `transactions` query                                      |
+| `multiGetTransactionBlocks` | `multiGetTransactionEffects` query                        |
+| `queryEvents`               | `events` query                                            |
+| `getCheckpoints`            | `checkpoints` query                                       |
+| `getEpochs`                 | `epochs` query                                            |
+| `getCoinMetadata`           | `coinMetadata` query (or gRPC `stateService.getCoinInfo`) |
+| `getTotalSupply`            | `coinMetadata` query (or gRPC `stateService.getCoinInfo`) |
+| `getStakes`                 | `address.stakedSuis` query                                |
+| `getStakesByIds`            | `multiGetObjects` query                                   |
+| `tryGetPastObject`          | Historical object queries                                 |
+| `getNetworkMetrics`         | Use indexer                                               |
+| `getAddressMetrics`         | Use indexer                                               |
+| `getMoveCallMetrics`        | Use indexer                                               |
 
 ### Setting up GraphQL client
 
@@ -379,6 +406,24 @@ const result = await graphqlClient.query({
 	},
 });
 ```
+
+## Validator APY
+
+There is **no replacement** for `getValidatorsApy`, and one will not be added. There is no canonical
+definition of validator APY — no other chain's core/general-purpose RPCs offer this endpoint — so it
+must be computed client-side from validator staking-pool exchange rates.
+
+The general approach: read each validator's `exchangeRates` (a table of `pool_token_amount` /
+`sui_amount` per epoch) and estimate the annualized rate from the change in exchange rate over the
+trailing epochs. Two concrete reference implementations:
+
+- The `jsonrpc-alt` implementation in
+  [`sui-indexer-alt-jsonrpc`](https://github.com/MystenLabs/sui/blob/31537d4d9235b9f61dc07a3a71b05ed61a2bda7b/crates/sui-indexer-alt-jsonrpc/src/api/governance.rs#L422-L440),
+  which is compact and readable.
+- [This GraphQL approach](https://github.com/MystenLabs/sui/issues/23832#issuecomment-4437791087),
+  which fetches the precursor exchange-rate information in a single query.
+
+Treat whichever formula you adopt as _a_ definition of validator APY, not _the_ definition.
 
 ## Response format differences
 

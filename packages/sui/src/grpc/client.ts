@@ -17,6 +17,7 @@ import { DynamicField_DynamicFieldKind } from './proto/sui/rpc/v2/state_service.
 import { normalizeStructTag } from '../utils/sui-types.js';
 import { fromBase64, toBase64 } from '@mysten/utils';
 import { NameServiceClient } from './proto/sui/rpc/v2/name_service.client.js';
+import { ForkingServiceClient } from './proto/sui/forking/v1alpha/forking_service.client.js';
 import type { TransactionPlugin } from '../transactions/index.js';
 
 interface SuiGrpcTransportOptions extends GrpcWebOptions {
@@ -56,6 +57,78 @@ export interface ListDynamicFieldsWithValueResponse<Include extends DynamicField
 	dynamicFields: DynamicFieldEntryWithValue<Include>[];
 }
 
+export interface GrpcTransactionInclude extends SuiClientTypes.TransactionInclude {
+	/** Include the parsed protobuf JSON value for the gRPC transaction response. */
+	protoJson?: boolean;
+}
+
+export interface GrpcSimulateTransactionInclude extends SuiClientTypes.SimulateTransactionInclude {
+	/** Include the parsed protobuf JSON value for the gRPC simulation response. */
+	protoJson?: boolean;
+}
+
+export type GrpcTransactionProtoJson = ReturnType<
+	typeof import('./proto/sui/rpc/v2/executed_transaction.js').ExecutedTransaction.toJson
+>;
+
+export type GrpcSimulateTransactionProtoJson = ReturnType<
+	typeof import('./proto/sui/rpc/v2/transaction_execution_service.js').SimulateTransactionResponse.toJson
+>;
+
+type ProtoJson<Include extends { protoJson?: boolean }, Json> = Include['protoJson'] extends true
+	? Json
+	: undefined;
+
+export type GrpcTransactionResult<Include extends GrpcTransactionInclude = {}> =
+	SuiClientTypes.TransactionResult<Include> & {
+		protoJson: ProtoJson<Include, GrpcTransactionProtoJson>;
+	};
+
+export type GrpcSimulateTransactionResult<Include extends GrpcSimulateTransactionInclude = {}> =
+	SuiClientTypes.SimulateTransactionResult<Include> & {
+		protoJson: ProtoJson<Include, GrpcSimulateTransactionProtoJson>;
+	};
+
+export interface GrpcGetTransactionOptions<
+	Include extends GrpcTransactionInclude = {},
+> extends SuiClientTypes.GetTransactionOptions<Include> {
+	include?: Include & GrpcTransactionInclude;
+}
+
+export interface GrpcWaitForTransactionByDigest<
+	Include extends GrpcTransactionInclude = {},
+> extends SuiClientTypes.WaitForTransactionByDigest<Include> {
+	include?: Include & GrpcTransactionInclude;
+}
+
+export interface GrpcWaitForTransactionByResult<
+	Include extends GrpcTransactionInclude = {},
+> extends SuiClientTypes.WaitForTransactionByResult<Include> {
+	include?: Include & GrpcTransactionInclude;
+}
+
+export type GrpcWaitForTransactionOptions<Include extends GrpcTransactionInclude = {}> =
+	| GrpcWaitForTransactionByDigest<Include>
+	| GrpcWaitForTransactionByResult<Include>;
+
+export interface GrpcExecuteTransactionOptions<
+	Include extends GrpcTransactionInclude = {},
+> extends SuiClientTypes.ExecuteTransactionOptions<Include> {
+	include?: Include & GrpcTransactionInclude;
+}
+
+export interface GrpcSignAndExecuteTransactionOptions<
+	Include extends GrpcTransactionInclude = {},
+> extends SuiClientTypes.SignAndExecuteTransactionOptions<Include> {
+	include?: Include & GrpcTransactionInclude;
+}
+
+export interface GrpcSimulateTransactionOptions<
+	Include extends GrpcSimulateTransactionInclude = {},
+> extends SuiClientTypes.SimulateTransactionOptions<Include> {
+	include?: Include & GrpcSimulateTransactionInclude;
+}
+
 export class SuiGrpcClient extends BaseClient implements SuiClientTypes.TransportMethods {
 	core: GrpcCoreClient;
 	get mvr(): SuiClientTypes.MvrMethods {
@@ -68,6 +141,7 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 	movePackageService: MovePackageServiceClient;
 	signatureVerificationService: SignatureVerificationServiceClient;
 	nameService: NameServiceClient;
+	forkingService: ForkingServiceClient;
 
 	get [SUI_CLIENT_BRAND]() {
 		return true;
@@ -85,6 +159,7 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 		this.movePackageService = new MovePackageServiceClient(transport);
 		this.signatureVerificationService = new SignatureVerificationServiceClient(transport);
 		this.nameService = new NameServiceClient(transport);
+		this.forkingService = new ForkingServiceClient(transport);
 
 		this.core = new GrpcCoreClient({
 			client: this,
@@ -132,34 +207,34 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 		return this.core.getCoinMetadata(input);
 	}
 
-	getTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
-		input: SuiClientTypes.GetTransactionOptions<Include>,
-	): Promise<SuiClientTypes.TransactionResult<Include>> {
-		return this.core.getTransaction(input);
+	getTransaction<Include extends GrpcTransactionInclude = {}>(
+		input: GrpcGetTransactionOptions<Include>,
+	): Promise<GrpcTransactionResult<Include>> {
+		return this.core.getTransaction(input) as Promise<GrpcTransactionResult<Include>>;
 	}
 
-	executeTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
-		input: SuiClientTypes.ExecuteTransactionOptions<Include>,
-	): Promise<SuiClientTypes.TransactionResult<Include>> {
-		return this.core.executeTransaction(input);
+	executeTransaction<Include extends GrpcTransactionInclude = {}>(
+		input: GrpcExecuteTransactionOptions<Include>,
+	): Promise<GrpcTransactionResult<Include>> {
+		return this.core.executeTransaction(input) as Promise<GrpcTransactionResult<Include>>;
 	}
 
-	signAndExecuteTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
-		input: SuiClientTypes.SignAndExecuteTransactionOptions<Include>,
-	): Promise<SuiClientTypes.TransactionResult<Include>> {
-		return this.core.signAndExecuteTransaction(input);
+	signAndExecuteTransaction<Include extends GrpcTransactionInclude = {}>(
+		input: GrpcSignAndExecuteTransactionOptions<Include>,
+	): Promise<GrpcTransactionResult<Include>> {
+		return this.core.signAndExecuteTransaction(input) as Promise<GrpcTransactionResult<Include>>;
 	}
 
-	waitForTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
-		input: SuiClientTypes.WaitForTransactionOptions<Include>,
-	): Promise<SuiClientTypes.TransactionResult<Include>> {
-		return this.core.waitForTransaction(input);
+	waitForTransaction<Include extends GrpcTransactionInclude = {}>(
+		input: GrpcWaitForTransactionOptions<Include>,
+	): Promise<GrpcTransactionResult<Include>> {
+		return this.core.waitForTransaction(input) as Promise<GrpcTransactionResult<Include>>;
 	}
 
-	simulateTransaction<Include extends SuiClientTypes.SimulateTransactionInclude = {}>(
-		input: SuiClientTypes.SimulateTransactionOptions<Include>,
-	): Promise<SuiClientTypes.SimulateTransactionResult<Include>> {
-		return this.core.simulateTransaction(input);
+	simulateTransaction<Include extends GrpcSimulateTransactionInclude = {}>(
+		input: GrpcSimulateTransactionOptions<Include>,
+	): Promise<GrpcSimulateTransactionResult<Include>> {
+		return this.core.simulateTransaction(input) as Promise<GrpcSimulateTransactionResult<Include>>;
 	}
 
 	getReferenceGasPrice(): Promise<SuiClientTypes.GetReferenceGasPriceResponse> {
@@ -175,14 +250,17 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 			paths.push('value');
 		}
 
-		const response = await this.stateService.listDynamicFields({
-			parent: input.parentId,
-			pageToken: input.cursor ? fromBase64(input.cursor) : undefined,
-			pageSize: input.limit,
-			readMask: {
-				paths,
+		const response = await this.stateService.listDynamicFields(
+			{
+				parent: input.parentId,
+				pageToken: input.cursor ? fromBase64(input.cursor) : undefined,
+				pageSize: input.limit,
+				readMask: {
+					paths,
+				},
 			},
-		});
+			{ abort: input.signal },
+		);
 
 		return {
 			dynamicFields: response.response.dynamicFields.map(

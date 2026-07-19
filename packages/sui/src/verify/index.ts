@@ -5,6 +5,9 @@ export {
 	verifySignature,
 	verifyPersonalMessageSignature,
 	verifyTransactionSignature,
+	isValidSignature,
+	isValidPersonalMessageSignature,
+	isValidTransactionSignature,
 	publicKeyFromRawBytes,
 	publicKeyFromSuiBytes,
 } from './verify.js';

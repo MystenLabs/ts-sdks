@@ -258,6 +258,25 @@ export enum ChangedObject_IdOperation {
 	DELETED = 3,
 }
 /**
+ * An entry in an event digest accumulator value.
+ *
+ * @generated from protobuf message sui.rpc.v2.EventDigestEntry
+ */
+export interface EventDigestEntry {
+	/**
+	 * Index of the event within its transaction.
+	 *
+	 * @generated from protobuf field: optional uint64 event_index = 1;
+	 */
+	eventIndex?: bigint;
+	/**
+	 * Digest of the event.
+	 *
+	 * @generated from protobuf field: optional string digest = 2;
+	 */
+	digest?: string;
+}
+/**
  * @generated from protobuf message sui.rpc.v2.AccumulatorWrite
  */
 export interface AccumulatorWrite {
@@ -274,9 +293,30 @@ export interface AccumulatorWrite {
 	 */
 	operation?: AccumulatorWrite_AccumulatorOperation;
 	/**
-	 * @generated from protobuf field: optional uint64 value = 5;
+	 * @generated from protobuf field: optional sui.rpc.v2.AccumulatorWrite.AccumulatorValue value_kind = 4;
 	 */
-	value?: bigint;
+	valueKind?: AccumulatorWrite_AccumulatorValue;
+	/**
+	 * Set when the accumulator value is an integer (value_kind = INTEGER).
+	 *
+	 * @generated from protobuf field: optional uint64 integer_value = 5;
+	 */
+	integerValue?: bigint;
+	/**
+	 * Set, with len 2, when the accumulator value is an integer tuple
+	 * (value_kind = INTEGER_TUPLE).
+	 *
+	 * @generated from protobuf field: repeated uint64 integer_tuple = 6;
+	 */
+	integerTuple: bigint[];
+	/**
+	 * Set when the accumulator value is an event digest list (value_kind = EVENT_DIGEST).
+	 * Contains a non-empty list of (event_index, digest) pairs representing
+	 * authenticated event stream entries within a transaction.
+	 *
+	 * @generated from protobuf field: repeated sui.rpc.v2.EventDigestEntry event_digest_value = 7;
+	 */
+	eventDigestValue: EventDigestEntry[];
 }
 /**
  * @generated from protobuf enum sui.rpc.v2.AccumulatorWrite.AccumulatorOperation
@@ -294,6 +334,27 @@ export enum AccumulatorWrite_AccumulatorOperation {
 	 * @generated from protobuf enum value: SPLIT = 2;
 	 */
 	SPLIT = 2,
+}
+/**
+ * @generated from protobuf enum sui.rpc.v2.AccumulatorWrite.AccumulatorValue
+ */
+export enum AccumulatorWrite_AccumulatorValue {
+	/**
+	 * @generated from protobuf enum value: ACCUMULATOR_VALUE_UNKNOWN = 0;
+	 */
+	ACCUMULATOR_VALUE_UNKNOWN = 0,
+	/**
+	 * @generated from protobuf enum value: INTEGER = 1;
+	 */
+	INTEGER = 1,
+	/**
+	 * @generated from protobuf enum value: INTEGER_TUPLE = 2;
+	 */
+	INTEGER_TUPLE = 2,
+	/**
+	 * @generated from protobuf enum value: EVENT_DIGEST = 3;
+	 */
+	EVENT_DIGEST = 3,
 }
 /**
  * A consensus object that wasn't changed during execution.
@@ -412,14 +473,14 @@ class TransactionEffects$Type extends MessageType<TransactionEffects> {
 				no: 12,
 				name: 'changed_objects',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => ChangedObject,
 			},
 			{
 				no: 13,
 				name: 'unchanged_consensus_objects',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => UnchangedConsensusObject,
 			},
 			{
@@ -433,7 +494,7 @@ class TransactionEffects$Type extends MessageType<TransactionEffects> {
 				no: 15,
 				name: 'unchanged_loaded_runtime_objects',
 				kind: 'message',
-				repeat: 1 /*RepeatType.PACKED*/,
+				repeat: 2 /*RepeatType.UNPACKED*/,
 				T: () => ObjectReference,
 			},
 		]);
@@ -507,6 +568,26 @@ class ChangedObject$Type extends MessageType<ChangedObject> {
  */
 export const ChangedObject = new ChangedObject$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class EventDigestEntry$Type extends MessageType<EventDigestEntry> {
+	constructor() {
+		super('sui.rpc.v2.EventDigestEntry', [
+			{
+				no: 1,
+				name: 'event_index',
+				kind: 'scalar',
+				opt: true,
+				T: 4 /*ScalarType.UINT64*/,
+				L: 0 /*LongType.BIGINT*/,
+			},
+			{ no: 2, name: 'digest', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
+		]);
+	}
+}
+/**
+ * @generated MessageType for protobuf message sui.rpc.v2.EventDigestEntry
+ */
+export const EventDigestEntry = new EventDigestEntry$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class AccumulatorWrite$Type extends MessageType<AccumulatorWrite> {
 	constructor() {
 		super('sui.rpc.v2.AccumulatorWrite', [
@@ -523,12 +604,37 @@ class AccumulatorWrite$Type extends MessageType<AccumulatorWrite> {
 				],
 			},
 			{
+				no: 4,
+				name: 'value_kind',
+				kind: 'enum',
+				opt: true,
+				T: () => [
+					'sui.rpc.v2.AccumulatorWrite.AccumulatorValue',
+					AccumulatorWrite_AccumulatorValue,
+				],
+			},
+			{
 				no: 5,
-				name: 'value',
+				name: 'integer_value',
 				kind: 'scalar',
 				opt: true,
 				T: 4 /*ScalarType.UINT64*/,
 				L: 0 /*LongType.BIGINT*/,
+			},
+			{
+				no: 6,
+				name: 'integer_tuple',
+				kind: 'scalar',
+				repeat: 1 /*RepeatType.PACKED*/,
+				T: 4 /*ScalarType.UINT64*/,
+				L: 0 /*LongType.BIGINT*/,
+			},
+			{
+				no: 7,
+				name: 'event_digest_value',
+				kind: 'message',
+				repeat: 2 /*RepeatType.UNPACKED*/,
+				T: () => EventDigestEntry,
 			},
 		]);
 	}

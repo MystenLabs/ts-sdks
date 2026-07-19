@@ -1,0 +1,84 @@
+{
+	"name": "@mysten/dapp-kit-core",
+	"author": "Mysten Labs <build@mystenlabs.com>",
+	"description": "Framework-agnostic toolkit for building decentralized applications on Sui.",
+	"homepage": "https://sdk.mystenlabs.com/sui",
+	"version": "1.6.8",
+	"license": "Apache-2.0",
+	"files": [
+		"CHANGELOG.md",
+		"LICENSE",
+		"README.md",
+		"dist",
+		"docs",
+		"src",
+		"web"
+	],
+	"type": "module",
+	"module": "./dist/index.mjs",
+	"types": "./dist/index.d.mts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.mts",
+			"import": "./dist/index.mjs",
+			"default": "./dist/index.mjs"
+		},
+		"./web": {
+			"types": "./dist/web/index.d.mts",
+			"import": "./dist/web/index.mjs",
+			"default": "./dist/web/index.mjs"
+		}
+	},
+	"scripts": {
+		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
+		"build": "pnpm typecheck && tsdown",
+		"build:docs": "node ../../../docs/scripts/build-docs.ts",
+		"typecheck": "tsc --noEmit",
+		"dev": "tsdown --watch",
+		"prettier:check": "prettier -c --ignore-unknown .",
+		"prettier:fix": "prettier -w --ignore-unknown .",
+		"oxlint:check": "oxlint  .",
+		"oxlint:fix": "oxlint --fix",
+		"lint": "pnpm run oxlint:check && pnpm run prettier:check",
+		"lint:fix": "pnpm run oxlint:fix && pnpm run prettier:fix",
+		"test": "pnpm test:typecheck && pnpm vitest run",
+		"test:typecheck": "tsc -b ./test ./stories",
+		"storybook": "storybook dev -p 6006",
+		"build-storybook": "storybook build"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/MystenLabs/ts-sdks.git"
+	},
+	"bugs": {
+		"url": "https://github.com/MystenLabs/ts-sdks/issues/new"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"devDependencies": {
+		"@storybook/web-components": "^10.4.4",
+		"@storybook/web-components-vite": "^10.4.4",
+		"storybook": "^10.4.4",
+		"tsdown": "0.22.2",
+		"typescript": "^6.0.3",
+		"vitest": "^4.1.8"
+	},
+	"dependencies": {
+		"@floating-ui/dom": "^1.7.4",
+		"@lit-labs/scoped-registry-mixin": "^1.0.4",
+		"@lit/task": "^1.0.3",
+		"@mysten/slush-wallet": "workspace:^",
+		"@mysten/utils": "workspace:^",
+		"@mysten/wallet-standard": "workspace:^",
+		"@nanostores/lit": "^0.2.3",
+		"@wallet-standard/ui": "^1.0.3",
+		"@wallet-standard/ui-registry": "^1.1.1",
+		"@webcomponents/scoped-custom-element-registry": "^0.0.10",
+		"lit": "^3.3.3",
+		"nanostores": "^1.3.0"
+	},
+	"peerDependencies": {
+		"@mysten/sui": "workspace:^"
+	}
+}

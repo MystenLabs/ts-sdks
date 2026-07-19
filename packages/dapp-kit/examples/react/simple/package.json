@@ -1,0 +1,26 @@
+{
+	"name": "react-simple-example",
+	"private": true,
+	"version": "0.0.0",
+	"type": "module",
+	"scripts": {
+		"dev": "vite",
+		"build": "tsc -b && vite build",
+		"preview": "vite preview"
+	},
+	"dependencies": {
+		"@mysten/dapp-kit-react": "workspace:^",
+		"@mysten/sui": "workspace:^",
+		"@nanostores/react": "^1.0.0",
+		"react": "^19.2.7",
+		"react-dom": "^19.2.7"
+	},
+	"devDependencies": {
+		"@types/react": "^19.2.17",
+		"@types/react-dom": "^19.2.3",
+		"@vitejs/plugin-react": "^6.0.2",
+		"globals": "^17.6.0",
+		"typescript": "^6.0.3",
+		"vite": "^8.0.16"
+	}
+}

@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/wallet-standard",
-	"version": "0.20.1",
+	"version": "0.21.8",
 	"description": "A suite of standard utilities for implementing wallets based on the Wallet Standard.",
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",
@@ -39,14 +39,13 @@
 		"json-schema": "typescript-json-schema src/types.ts SerializedTransactionDataV2 --required --strictNullChecks > serialized-transaction-data-v2.schema.json && prettier -w serialized-transaction-data-v2.schema.json"
 	},
 	"dependencies": {
-		"@wallet-standard/core": "1.1.1"
+		"@wallet-standard/core": "1.1.2"
 	},
 	"devDependencies": {
-		"@mysten/sui": "workspace:*",
-		"typescript": "^5.9.3",
-		"typescript-json-schema": "^0.67.1"
+		"typescript": "^6.0.3",
+		"typescript-json-schema": "^0.67.4"
 	},
 	"peerDependencies": {
-		"@mysten/sui": "*"
+		"@mysten/sui": "workspace:^"
 	}
 }

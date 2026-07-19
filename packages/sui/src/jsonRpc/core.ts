@@ -103,9 +103,17 @@ function parseJsonRpcExecutionStatus(
 	};
 }
 
+/**
+ * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+ * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+ */
 export class JSONRpcCoreClient extends CoreClient {
 	#jsonRpcClient: SuiJsonRpcClient;
 
+	/**
+	 * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+	 * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+	 */
 	constructor({
 		jsonRpcClient,
 		mvr,
@@ -117,6 +125,10 @@ export class JSONRpcCoreClient extends CoreClient {
 		this.#jsonRpcClient = jsonRpcClient;
 	}
 
+	/**
+	 * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+	 * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+	 */
 	async getObjects<Include extends SuiClientTypes.ObjectInclude = {}>(
 		options: SuiClientTypes.GetObjectsOptions<Include>,
 	) {
@@ -151,6 +163,10 @@ export class JSONRpcCoreClient extends CoreClient {
 			objects: results,
 		};
 	}
+	/**
+	 * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+	 * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+	 */
 	async listOwnedObjects<Include extends SuiClientTypes.ObjectInclude = {}>(
 		options: SuiClientTypes.ListOwnedObjectsOptions<Include>,
 	) {
@@ -197,6 +213,10 @@ export class JSONRpcCoreClient extends CoreClient {
 		};
 	}
 
+	/**
+	 * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+	 * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+	 */
 	async listCoins(options: SuiClientTypes.ListCoinsOptions) {
 		const coins = await this.#jsonRpcClient.getCoins({
 			owner: options.owner,
@@ -225,6 +245,10 @@ export class JSONRpcCoreClient extends CoreClient {
 		};
 	}
 
+	/**
+	 * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+	 * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+	 */
 	async getBalance(options: SuiClientTypes.GetBalanceOptions) {
 		const balance = await this.#jsonRpcClient.getBalance({
 			owner: options.owner,
@@ -244,6 +268,10 @@ export class JSONRpcCoreClient extends CoreClient {
 			},
 		};
 	}
+	/**
+	 * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+	 * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+	 */
 	async getCoinMetadata(
 		options: SuiClientTypes.GetCoinMetadataOptions,
 	): Promise<SuiClientTypes.GetCoinMetadataResponse> {
@@ -270,6 +298,10 @@ export class JSONRpcCoreClient extends CoreClient {
 		};
 	}
 
+	/**
+	 * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+	 * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+	 */
 	async listBalances(options: SuiClientTypes.ListBalancesOptions) {
 		const balances = await this.#jsonRpcClient.getAllBalances({
 			owner: options.owner,
@@ -291,6 +323,10 @@ export class JSONRpcCoreClient extends CoreClient {
 			cursor: null,
 		};
 	}
+	/**
+	 * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+	 * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+	 */
 	async getTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 		options: SuiClientTypes.GetTransactionOptions<Include>,
 	): Promise<SuiClientTypes.TransactionResult<Include>> {
@@ -311,6 +347,10 @@ export class JSONRpcCoreClient extends CoreClient {
 
 		return parseTransaction(transaction, options.include);
 	}
+	/**
+	 * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+	 * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+	 */
 	async executeTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 		options: SuiClientTypes.ExecuteTransactionOptions<Include>,
 	): Promise<SuiClientTypes.TransactionResult<Include>> {
@@ -332,6 +372,10 @@ export class JSONRpcCoreClient extends CoreClient {
 
 		return parseTransaction(transaction, options.include);
 	}
+	/**
+	 * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+	 * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+	 */
 	async simulateTransaction<Include extends SuiClientTypes.SimulateTransactionInclude = {}>(
 		options: SuiClientTypes.SimulateTransactionOptions<Include>,
 	): Promise<SuiClientTypes.SimulateTransactionResult<Include>> {
@@ -469,6 +513,10 @@ export class JSONRpcCoreClient extends CoreClient {
 						commandResults as SuiClientTypes.SimulateTransactionResult<Include>['commandResults'],
 				};
 	}
+	/**
+	 * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+	 * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+	 */
 	async getReferenceGasPrice(options?: SuiClientTypes.GetReferenceGasPriceOptions) {
 		const referenceGasPrice = await this.#jsonRpcClient.getReferenceGasPrice({
 			signal: options?.signal,
@@ -479,6 +527,10 @@ export class JSONRpcCoreClient extends CoreClient {
 		};
 	}
 
+	/**
+	 * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+	 * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+	 */
 	async getProtocolConfig(
 		options?: SuiClientTypes.GetProtocolConfigOptions,
 	): Promise<SuiClientTypes.GetProtocolConfigResponse> {
@@ -513,6 +565,10 @@ export class JSONRpcCoreClient extends CoreClient {
 		};
 	}
 
+	/**
+	 * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+	 * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+	 */
 	async getCurrentSystemState(
 		options?: SuiClientTypes.GetCurrentSystemStateOptions,
 	): Promise<SuiClientTypes.GetCurrentSystemStateResponse> {
@@ -555,6 +611,10 @@ export class JSONRpcCoreClient extends CoreClient {
 		};
 	}
 
+	/**
+	 * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+	 * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+	 */
 	async listDynamicFields(options: SuiClientTypes.ListDynamicFieldsOptions) {
 		const dynamicFields = await this.#jsonRpcClient.getDynamicFields({
 			parentId: options.parentId,
@@ -590,6 +650,10 @@ export class JSONRpcCoreClient extends CoreClient {
 		};
 	}
 
+	/**
+	 * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+	 * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+	 */
 	async verifyZkLoginSignature(options: SuiClientTypes.VerifyZkLoginSignatureOptions) {
 		const result = await this.#jsonRpcClient.verifyZkLoginSignature({
 			bytes: options.bytes,
@@ -604,6 +668,10 @@ export class JSONRpcCoreClient extends CoreClient {
 		};
 	}
 
+	/**
+	 * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+	 * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+	 */
 	async defaultNameServiceName(
 		options: SuiClientTypes.DefaultNameServiceNameOptions,
 	): Promise<SuiClientTypes.DefaultNameServiceNameResponse> {
@@ -615,10 +683,18 @@ export class JSONRpcCoreClient extends CoreClient {
 		};
 	}
 
+	/**
+	 * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+	 * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+	 */
 	resolveTransactionPlugin() {
 		return coreClientResolveTransactionPlugin;
 	}
 
+	/**
+	 * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+	 * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+	 */
 	async getMoveFunction(
 		options: SuiClientTypes.GetMoveFunctionOptions,
 	): Promise<SuiClientTypes.GetMoveFunctionResponse> {
@@ -647,6 +723,10 @@ export class JSONRpcCoreClient extends CoreClient {
 		};
 	}
 
+	/**
+	 * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+	 * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+	 */
 	async getChainIdentifier(
 		_options?: SuiClientTypes.GetChainIdentifierOptions,
 	): Promise<SuiClientTypes.GetChainIdentifierResponse> {

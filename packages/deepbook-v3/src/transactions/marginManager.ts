@@ -5,7 +5,8 @@ import { coinWithBalance } from '@mysten/sui/transactions';
 
 import type { DeepBookConfig } from '../utils/config.js';
 import type { DepositParams, DepositDuringInitParams } from '../types/index.js';
-import { convertQuantity } from '../utils/conversion.js';
+import { FLOAT_SCALAR } from '../utils/config.js';
+import { convertPrice, convertQuantity } from '../utils/conversion.js';
 
 /**
  * MarginManagerContract class for managing MarginManager operations.
@@ -82,6 +83,43 @@ export class MarginManagerContract {
 				typeArguments: [baseCoin.type, quoteCoin.type],
 			});
 		};
+
+	/**
+	 * @description Register a margin manager back to the margin registry. Lets
+	 * owners restore visibility of a manager that was unregistered by another
+	 * platform.
+	 * @param {string} managerKey The key to identify the margin manager
+	 * @returns A function that takes a Transaction object
+	 */
+	registerMarginManager = (managerKey: string) => (tx: Transaction) => {
+		const manager = this.#config.getMarginManager(managerKey);
+		const pool = this.#config.getPool(manager.poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::register_margin_manager`,
+			arguments: [tx.object(manager.address), tx.object(this.#config.MARGIN_REGISTRY_ID)],
+			typeArguments: [baseCoin.type, quoteCoin.type],
+		});
+	};
+
+	/**
+	 * @description Unregister a margin manager from the margin registry. Aborts
+	 * if the manager holds any outstanding debt or base/quote/DEEP balance.
+	 * @param {string} managerKey The key to identify the margin manager
+	 * @returns A function that takes a Transaction object
+	 */
+	unregisterMarginManager = (managerKey: string) => (tx: Transaction) => {
+		const manager = this.#config.getMarginManager(managerKey);
+		const pool = this.#config.getPool(manager.poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::unregister_margin_manager`,
+			arguments: [tx.object(manager.address), tx.object(this.#config.MARGIN_REGISTRY_ID)],
+			typeArguments: [baseCoin.type, quoteCoin.type],
+		});
+	};
 
 	/**
 	 * @description Deposit into a margin manager during initialization (before sharing).
@@ -754,4 +792,209 @@ export class MarginManagerContract {
 			typeArguments: [baseCoin.type, quoteCoin.type],
 		});
 	};
+
+	/**
+	 * @description Get the underlying BalanceManager ID for a margin manager.
+	 * Returns an ID (not a `&BalanceManager`), so it composes in PTBs unlike
+	 * `balanceManager`.
+	 * @param {string} poolKey The key to identify the pool
+	 * @param {string} marginManagerId The ID of the margin manager
+	 * @returns A function that takes a Transaction object
+	 */
+	balanceManagerId = (poolKey: string, marginManagerId: string) => (tx: Transaction) => {
+		const pool = this.#config.getPool(poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		return tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::balance_manager_id`,
+			arguments: [tx.object(marginManagerId)],
+			typeArguments: [baseCoin.type, quoteCoin.type],
+		});
+	};
+
+	/**
+	 * @description Get the BalanceManager referral ID for a pool (Option<ID>).
+	 * @param {string} poolKey The key to identify the pool
+	 * @param {string} marginManagerId The ID of the margin manager
+	 * @returns A function that takes a Transaction object
+	 */
+	getBalanceManagerReferralId = (poolKey: string, marginManagerId: string) => (tx: Transaction) => {
+		const pool = this.#config.getPool(poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		return tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::get_balance_manager_referral_id`,
+			arguments: [tx.object(marginManagerId), tx.pure.id(pool.address)],
+			typeArguments: [baseCoin.type, quoteCoin.type],
+		});
+	};
+
+	/**
+	 * @description Check if the margin manager's account exists in the pool.
+	 * @param {string} poolKey The key to identify the pool
+	 * @param {string} marginManagerId The ID of the margin manager
+	 * @returns A function that takes a Transaction object
+	 */
+	accountExists = (poolKey: string, marginManagerId: string) => (tx: Transaction) => {
+		const pool = this.#config.getPool(poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		return tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::account_exists`,
+			arguments: [tx.object(marginManagerId), tx.object(pool.address)],
+			typeArguments: [baseCoin.type, quoteCoin.type],
+		});
+	};
+
+	/**
+	 * @description Get the pool account data for the margin manager.
+	 * @param {string} poolKey The key to identify the pool
+	 * @param {string} marginManagerId The ID of the margin manager
+	 * @returns A function that takes a Transaction object
+	 */
+	account = (poolKey: string, marginManagerId: string) => (tx: Transaction) => {
+		const pool = this.#config.getPool(poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		return tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::account`,
+			arguments: [tx.object(marginManagerId), tx.object(pool.address)],
+			typeArguments: [baseCoin.type, quoteCoin.type],
+		});
+	};
+
+	/**
+	 * @description Get the open order IDs for the margin manager's account in
+	 * the pool.
+	 * @param {string} poolKey The key to identify the pool
+	 * @param {string} marginManagerId The ID of the margin manager
+	 * @returns A function that takes a Transaction object
+	 */
+	accountOpenOrders = (poolKey: string, marginManagerId: string) => (tx: Transaction) => {
+		const pool = this.#config.getPool(poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		return tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::account_open_orders`,
+			arguments: [tx.object(marginManagerId), tx.object(pool.address)],
+			typeArguments: [baseCoin.type, quoteCoin.type],
+		});
+	};
+
+	/**
+	 * @description Get full order details for the margin manager's account in
+	 * the pool.
+	 * @param {string} poolKey The key to identify the pool
+	 * @param {string} marginManagerId The ID of the margin manager
+	 * @returns A function that takes a Transaction object
+	 */
+	getAccountOrderDetails = (poolKey: string, marginManagerId: string) => (tx: Transaction) => {
+		const pool = this.#config.getPool(poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		return tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::get_account_order_details`,
+			arguments: [tx.object(marginManagerId), tx.object(pool.address)],
+			typeArguments: [baseCoin.type, quoteCoin.type],
+		});
+	};
+
+	/**
+	 * @description Get locked balances (base, quote, deep) for the margin
+	 * manager's account in the pool.
+	 * @param {string} poolKey The key to identify the pool
+	 * @param {string} marginManagerId The ID of the margin manager
+	 * @returns A function that takes a Transaction object
+	 */
+	lockedBalance = (poolKey: string, marginManagerId: string) => (tx: Transaction) => {
+		const pool = this.#config.getPool(poolKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		return tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::locked_balance`,
+			arguments: [tx.object(marginManagerId), tx.object(pool.address)],
+			typeArguments: [baseCoin.type, quoteCoin.type],
+		});
+	};
+
+	/**
+	 * @description Check whether a limit order can be placed given the
+	 * manager's current state.
+	 * @param {string} poolKey The key to identify the pool
+	 * @param {string} marginManagerId The ID of the margin manager
+	 * @param {number | bigint} price Limit price
+	 * @param {number | bigint} quantity Order quantity (base units)
+	 * @param {boolean} isBid True for bid, false for ask
+	 * @param {boolean} payWithDeep Whether to pay fees in DEEP
+	 * @param {number | bigint} expireTimestamp Order expiration timestamp (ms)
+	 * @returns A function that takes a Transaction object
+	 */
+	canPlaceLimitOrder =
+		(
+			poolKey: string,
+			marginManagerId: string,
+			price: number | bigint,
+			quantity: number | bigint,
+			isBid: boolean,
+			payWithDeep: boolean,
+			expireTimestamp: number | bigint,
+		) =>
+		(tx: Transaction) => {
+			const pool = this.#config.getPool(poolKey);
+			const baseCoin = this.#config.getCoin(pool.baseCoin);
+			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+			const inputPrice = convertPrice(price, FLOAT_SCALAR, quoteCoin.scalar, baseCoin.scalar);
+			const inputQuantity = convertQuantity(quantity, baseCoin.scalar);
+			return tx.moveCall({
+				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::can_place_limit_order`,
+				arguments: [
+					tx.object(marginManagerId),
+					tx.object(pool.address),
+					tx.pure.u64(inputPrice),
+					tx.pure.u64(inputQuantity),
+					tx.pure.bool(isBid),
+					tx.pure.bool(payWithDeep),
+					tx.pure.u64(expireTimestamp),
+					tx.object.clock(),
+				],
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			});
+		};
+
+	/**
+	 * @description Check whether a market order can be placed given the
+	 * manager's current state.
+	 * @param {string} poolKey The key to identify the pool
+	 * @param {string} marginManagerId The ID of the margin manager
+	 * @param {number | bigint} quantity Order quantity (base units)
+	 * @param {boolean} isBid True for bid, false for ask
+	 * @param {boolean} payWithDeep Whether to pay fees in DEEP
+	 * @returns A function that takes a Transaction object
+	 */
+	canPlaceMarketOrder =
+		(
+			poolKey: string,
+			marginManagerId: string,
+			quantity: number | bigint,
+			isBid: boolean,
+			payWithDeep: boolean,
+		) =>
+		(tx: Transaction) => {
+			const pool = this.#config.getPool(poolKey);
+			const baseCoin = this.#config.getCoin(pool.baseCoin);
+			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+			const inputQuantity = convertQuantity(quantity, baseCoin.scalar);
+			return tx.moveCall({
+				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::can_place_market_order`,
+				arguments: [
+					tx.object(marginManagerId),
+					tx.object(pool.address),
+					tx.pure.u64(inputQuantity),
+					tx.pure.bool(isBid),
+					tx.pure.bool(payWithDeep),
+					tx.object.clock(),
+				],
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			});
+		};
 }

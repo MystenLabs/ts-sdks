@@ -42,3 +42,4 @@ export * from './sui/rpc/v2/subscription_service.js';
 export * from './sui/rpc/v2/system_state.js';
 export * from './sui/rpc/v2/transaction.js';
 export * from './sui/rpc/v2/transaction_execution_service.js';
+export * from './sui/forking/v1alpha/forking_service.js';

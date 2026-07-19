@@ -317,7 +317,11 @@ export class GraphQLCoreClient extends CoreClient {
 		const balances = await this.#graphqlQuery(
 			{
 				query: GetAllBalancesDocument,
-				variables: { owner: options.owner },
+				variables: {
+					owner: options.owner,
+					limit: options.limit,
+					cursor: options.cursor,
+				},
 			},
 			(result) => result.address?.balances,
 		);
@@ -736,6 +740,7 @@ export class GraphQLCoreClient extends CoreClient {
 					doGasSelection:
 						!options.onlyTransactionKind &&
 						(snapshot.gasData.budget == null || snapshot.gasData.payment == null),
+					checksEnabled: !options.onlyTransactionKind,
 				},
 			});
 
@@ -763,6 +768,7 @@ export class GraphQLCoreClient extends CoreClient {
 			if (options.onlyTransactionKind) {
 				transactionData.applyResolvedData({
 					...resolved,
+					sender: null,
 					gasData: {
 						budget: null,
 						owner: null,

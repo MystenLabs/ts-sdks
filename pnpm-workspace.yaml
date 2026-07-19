@@ -1,9 +1,3 @@
-autoInstallPeers: false
-publicHoistPattern:
-  - '*storybook*'
-# Enforce that packages must be at least 2 days old before they're installed
-# This reduces the risk of supply chain attacks from newly published packages
-minimumReleaseAge: 2880
 packages:
   - 'packages/**'
   - '!**/dist/**'
@@ -28,16 +22,38 @@ packages:
   - '!packages/sui/keypairs/secp256r1'
   - '!packages/sui/graphql/schemas/2024.1'
   - '!packages/sui/graphql/schemas/2024.4'
-  - '!packages/signers/aws'
-  - '!packages/signers/gcp'
-  - '!packages/signers/ledger'
   - '!packages/sui/zklogin'
   - '!packages/sui/keypairs/passkey'
   - '!packages/sui/graphql/schema'
-  - '!packages/signers/utils'
-  - '!packages/signers/webcrypto'
   - '!packages/zksend/experimental/unified-adapter'
   - '!packages/sui/experimental'
-  - '!packages/dapp-kit-next/packages/dapp-kit-core/web'
+  - '!packages/dapp-kit/packages/dapp-kit-core/web'
   - '!packages/sui/grpc'
   - '!packages/sui/jsonRpc'
+
+# Explicit empty allowlist — no package is permitted to run install/build scripts.
+# Review a dependency before approving it with `pnpm approve-builds`.
+allowBuilds: {}
+autoInstallPeers: true
+
+# Prevent transitive dependencies from resolving untrusted git or tarball URLs.
+blockExoticSubdeps: true
+
+# Disable dependency install/build lifecycle scripts by default.
+ignoreScripts: true
+# Without this, peerDeps using `*` (wallet-sdk / wallet-standard for
+# @mysten/sui) auto-install the npm-published copy alongside the
+# workspace one — two distinct `Transaction` types -> TS2322 in the
+# dapp-kit / walrus build chain. With link-workspace-packages on, any
+# range that the workspace version satisfies (including `*`) links to
+# the workspace sibling instead of the registry copy.
+linkWorkspacePackages: true
+# Enforce that packages must be at least 2 days old before they're installed
+# This reduces the risk of supply chain attacks from newly published packages
+minimumReleaseAge: 2880
+publicHoistPattern:
+  - '*storybook*'
+
+# Prompt before running scripts when node_modules is out of sync with the
+# lockfile, to catch drift or tampering between `pnpm install` and `pnpm run`.
+verifyDepsBeforeRun: 'prompt'

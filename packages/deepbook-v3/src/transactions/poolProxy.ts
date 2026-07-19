@@ -26,7 +26,9 @@ export class PoolProxyContract {
 	}
 
 	/**
-	 * @description Place a limit order
+	 * @description Place a limit order. Enforces a post-trade `risk_ratio >=
+	 * min_borrow_risk_ratio` invariant on the manager (skipped when the manager
+	 * has no debt).
 	 * @param {PlaceMarginLimitOrderParams} params Parameters for placing a limit order
 	 * @returns A function that takes a Transaction object
 	 */
@@ -47,14 +49,20 @@ export class PoolProxyContract {
 		const manager = this.#config.getMarginManager(marginManagerKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		const baseMarginPool = this.#config.getMarginPool(pool.baseCoin);
+		const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
 		const inputPrice = convertPrice(price, FLOAT_SCALAR, quoteCoin.scalar, baseCoin.scalar);
 		const inputQuantity = convertQuantity(quantity, baseCoin.scalar);
 		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::pool_proxy::place_limit_order`,
+			target: `${this.#config.MARGIN_PACKAGE_ID}::pool_proxy::place_limit_order_v2`,
 			arguments: [
 				tx.object(this.#config.MARGIN_REGISTRY_ID),
 				tx.object(manager.address),
 				tx.object(pool.address),
+				tx.object(baseMarginPool.address),
+				tx.object(quoteMarginPool.address),
+				tx.object(baseCoin.priceInfoObjectId!),
+				tx.object(quoteCoin.priceInfoObjectId!),
 				tx.pure.u64(clientOrderId),
 				tx.pure.u8(orderType),
 				tx.pure.u8(selfMatchingOption),
@@ -70,7 +78,9 @@ export class PoolProxyContract {
 	};
 
 	/**
-	 * @description Place a market order
+	 * @description Place a market order. Enforces a post-trade `risk_ratio >=
+	 * min_borrow_risk_ratio` invariant on the manager (skipped when the manager
+	 * has no debt).
 	 * @param {PlaceMarginMarketOrderParams} params Parameters for placing a market order
 	 * @returns A function that takes a Transaction object
 	 */
@@ -88,13 +98,19 @@ export class PoolProxyContract {
 		const manager = this.#config.getMarginManager(marginManagerKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		const baseMarginPool = this.#config.getMarginPool(pool.baseCoin);
+		const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
 		const inputQuantity = convertQuantity(quantity, baseCoin.scalar);
 		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::pool_proxy::place_market_order`,
+			target: `${this.#config.MARGIN_PACKAGE_ID}::pool_proxy::place_market_order_v2`,
 			arguments: [
 				tx.object(this.#config.MARGIN_REGISTRY_ID),
 				tx.object(manager.address),
 				tx.object(pool.address),
+				tx.object(baseMarginPool.address),
+				tx.object(quoteMarginPool.address),
+				tx.object(baseCoin.priceInfoObjectId!),
+				tx.object(quoteCoin.priceInfoObjectId!),
 				tx.pure.u64(clientOrderId),
 				tx.pure.u8(selfMatchingOption),
 				tx.pure.u64(inputQuantity),
@@ -107,7 +123,10 @@ export class PoolProxyContract {
 	};
 
 	/**
-	 * @description Place a reduce only limit order
+	 * @description Place a reduce only limit order. Requires the manager to have
+	 * debt on the relevant side; enforces a monotonic `risk_ratio_after >=
+	 * risk_ratio_before` invariant so the fill cannot leak value to the
+	 * counterparty.
 	 * @param {PlaceMarginLimitOrderParams} params Parameters for placing a reduce only limit order
 	 * @returns A function that takes a Transaction object
 	 */
@@ -128,19 +147,20 @@ export class PoolProxyContract {
 		const manager = this.#config.getMarginManager(marginManagerKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		const baseMarginPool = this.#config.getMarginPool(pool.baseCoin);
+		const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
 		const inputPrice = convertPrice(price, FLOAT_SCALAR, quoteCoin.scalar, baseCoin.scalar);
 		const inputQuantity = convertQuantity(quantity, baseCoin.scalar);
-		const marginPool = isBid
-			? this.#config.getMarginPool(pool.baseCoin)
-			: this.#config.getMarginPool(pool.quoteCoin);
-		const debtType = isBid ? baseCoin.type : quoteCoin.type;
 		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::pool_proxy::place_reduce_only_limit_order`,
+			target: `${this.#config.MARGIN_PACKAGE_ID}::pool_proxy::place_reduce_only_limit_order_v2`,
 			arguments: [
 				tx.object(this.#config.MARGIN_REGISTRY_ID),
 				tx.object(manager.address),
 				tx.object(pool.address),
-				tx.object(marginPool.address),
+				tx.object(baseMarginPool.address),
+				tx.object(quoteMarginPool.address),
+				tx.object(baseCoin.priceInfoObjectId!),
+				tx.object(quoteCoin.priceInfoObjectId!),
 				tx.pure.u64(clientOrderId),
 				tx.pure.u8(orderType),
 				tx.pure.u8(selfMatchingOption),
@@ -151,12 +171,15 @@ export class PoolProxyContract {
 				tx.pure.u64(expiration),
 				tx.object.clock(),
 			],
-			typeArguments: [baseCoin.type, quoteCoin.type, debtType],
+			typeArguments: [baseCoin.type, quoteCoin.type],
 		});
 	};
 
 	/**
-	 * @description Place a reduce only market order
+	 * @description Place a reduce only market order. Requires the manager to
+	 * have debt on the relevant side; enforces a monotonic `risk_ratio_after >=
+	 * risk_ratio_before` invariant so the fill cannot leak value to the
+	 * counterparty.
 	 * @param {PlaceMarginMarketOrderParams} params Parameters for placing a reduce only market order
 	 * @returns A function that takes a Transaction object
 	 */
@@ -174,18 +197,19 @@ export class PoolProxyContract {
 		const manager = this.#config.getMarginManager(marginManagerKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		const baseMarginPool = this.#config.getMarginPool(pool.baseCoin);
+		const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
 		const inputQuantity = convertQuantity(quantity, baseCoin.scalar);
-		const marginPool = isBid
-			? this.#config.getMarginPool(pool.baseCoin)
-			: this.#config.getMarginPool(pool.quoteCoin);
-		const debtType = isBid ? baseCoin.type : quoteCoin.type;
 		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::pool_proxy::place_reduce_only_market_order`,
+			target: `${this.#config.MARGIN_PACKAGE_ID}::pool_proxy::place_reduce_only_market_order_v2`,
 			arguments: [
 				tx.object(this.#config.MARGIN_REGISTRY_ID),
 				tx.object(manager.address),
 				tx.object(pool.address),
-				tx.object(marginPool.address),
+				tx.object(baseMarginPool.address),
+				tx.object(quoteMarginPool.address),
+				tx.object(baseCoin.priceInfoObjectId!),
+				tx.object(quoteCoin.priceInfoObjectId!),
 				tx.pure.u64(clientOrderId),
 				tx.pure.u8(selfMatchingOption),
 				tx.pure.u64(inputQuantity),
@@ -193,7 +217,7 @@ export class PoolProxyContract {
 				tx.pure.bool(payWithDeep),
 				tx.object.clock(),
 			],
-			typeArguments: [baseCoin.type, quoteCoin.type, debtType],
+			typeArguments: [baseCoin.type, quoteCoin.type],
 		});
 	};
 
@@ -427,7 +451,7 @@ export class PoolProxyContract {
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 		tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::pool_proxy::claim_rebate`,
+			target: `${this.#config.MARGIN_PACKAGE_ID}::pool_proxy::claim_rebates`,
 			arguments: [
 				tx.object(this.#config.MARGIN_REGISTRY_ID),
 				tx.object(marginManager.address),

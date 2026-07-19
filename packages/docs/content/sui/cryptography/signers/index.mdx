@@ -1,0 +1,97 @@
+---
+title: Signers
+description:
+  Signer implementations beyond keypairs — cloud KMS, Ledger, Web Crypto, passkeys, and multisig
+keywords:
+  [
+    signers,
+    Signer,
+    AWS KMS,
+    GCP KMS,
+    Ledger,
+    Web Crypto,
+    passkey,
+    multisig,
+    KMS,
+    hardware wallet,
+    Sui,
+    TypeScript SDK,
+  ]
+---
+
+In addition to the in-process [keypairs](/sui/cryptography/keypairs) built into `@mysten/sui`, the
+SDK ecosystem ships more implementations of the [`Signer`](/sui/cryptography) interface. Some keep
+the private key outside your application — in a cloud key-management service (KMS), on a hardware
+wallet, or as a non-extractable browser key — while others, like
+[multisig](/sui/cryptography/signers/multisig), combine several signers together. Because each one
+extends the same `Signer` base class, it works anywhere a keypair does.
+
+## External signers
+
+These signers hold the key material outside your process. Each is published as its **own package**,
+so you install only the one you need:
+
+| Signer            | Package                    | Scheme                 | Key lives in                                                    |
+| ----------------- | -------------------------- | ---------------------- | --------------------------------------------------------------- |
+| `AwsKmsSigner`    | `@mysten/aws-kms-signer`   | Secp256k1 or Secp256r1 | [AWS KMS](/sui/cryptography/signers/aws-kms)                    |
+| `GcpKmsSigner`    | `@mysten/gcp-kms-signer`   | Secp256k1 or Secp256r1 | [GCP KMS](/sui/cryptography/signers/gcp-kms)                    |
+| `LedgerSigner`    | `@mysten/ledger-signer`    | Ed25519                | [Ledger hardware wallet](/sui/cryptography/signers/ledger)      |
+| `WebCryptoSigner` | `@mysten/webcrypto-signer` | Secp256r1              | [Browser Web Crypto store](/sui/cryptography/signers/webcrypto) |
+
+For the AWS and GCP signers, the curve of the underlying KMS key determines the signature scheme
+(`ECC_NIST_P256` → `Secp256r1`, `ECC_SECG_P256K1` → `Secp256k1`).
+
+<Callout>
+	Each signer above is its own npm package — import directly from `@mysten/aws-kms-signer`,
+	`@mysten/ledger-signer`, and so on, and depend only on the ones you use. The `@mysten/signers`
+	package is a convenience umbrella that re-exports all four under subpaths (`@mysten/signers/aws`,
+	`@mysten/signers/gcp`, `@mysten/signers/ledger`, `@mysten/signers/webcrypto`) if you would rather
+	depend on a single package. The individual pages below use the standalone packages.
+</Callout>
+
+## Other Signer implementations
+
+Two more `Signer` implementations live in `@mysten/sui` itself rather than in a standalone package:
+
+- **[Passkey](/sui/cryptography/signers/passkey)**: sign with a WebAuthn passkey (biometric or
+  platform authenticator) through `PasskeyKeypair`.
+- **[Multi-signature](/sui/cryptography/signers/multisig)**: combine signatures from several public
+  keys under a configurable threshold with `MultiSigPublicKey`. Its `getSigner` method returns a
+  `MultiSigSigner` you can use anywhere a keypair works. The underlying keys can be keypairs, KMS
+  signers, passkeys, or zkLogin identifiers.
+
+## Shared interface
+
+Because every signer extends `Signer`, the signing API is identical regardless of where the key is
+held; only the way you construct the signer differs:
+
+```typescript
+// Derive the address
+const address = signer.getPublicKey().toSuiAddress();
+
+// Sign a personal message
+const message = new TextEncoder().encode('hello world');
+const { signature } = await signer.signPersonalMessage(message);
+
+// Sign and execute a transaction (resolves to a discriminated union)
+const result = await client.signAndExecuteTransaction({ transaction, signer });
+if (result.FailedTransaction) {
+	throw new Error('Transaction failed to execute');
+}
+console.log(result.Transaction.digest);
+```
+
+See [Cryptography](/sui/cryptography) for the full signing and verification API that all signers
+share.
+
+## Construction
+
+Each external signer exposes a static factory rather than a public constructor, because preparing
+the signer requires an async round-trip to fetch the public key from the KMS or device:
+
+- `AwsKmsSigner.fromKeyId(keyId, options)`. See [AWS KMS Signer](/sui/cryptography/signers/aws-kms).
+- `GcpKmsSigner.fromOptions(options)`. See [GCP KMS Signer](/sui/cryptography/signers/gcp-kms).
+- `LedgerSigner.fromDerivationPath(path, ledgerClient, suiClient)`. See
+  [Ledger Signer](/sui/cryptography/signers/ledger).
+- `WebCryptoSigner.generate()` and `WebCryptoSigner.import(exported)`. See
+  [Web Crypto Signer](/sui/cryptography/signers/webcrypto).

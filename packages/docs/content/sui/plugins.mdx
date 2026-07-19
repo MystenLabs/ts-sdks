@@ -158,12 +158,12 @@ intent to standard commands.
 Adding an intent is similar to adding any other command to a transaction:
 
 ```typescript
-import { Commands, Transaction } from '@mysten/sui/transactions';
+import { TransactionCommands, Transaction } from '@mysten/sui/transactions';
 
 const transaction = new Transaction();
 
 transaction.add(
-	Commands.Intent({
+	TransactionCommands.Intent({
 		name: 'TransferToSender',
 		inputs: {
 			objects: [transaction.object(someId)],
@@ -177,12 +177,12 @@ wraps things up a bit. The `add` method on transactions accepts a function that 
 current transaction instance. This allows us to create a helper that automatically adds the intent:
 
 ```typescript
-import { Commands, Transaction, TransactionObjectInput } from '@mysten/sui/transactions';
+import { TransactionCommands, Transaction, TransactionObjectInput } from '@mysten/sui/transactions';
 
 function transferToSender(objects: TransactionObjectInput[]) {
 	return (tx: Transaction) => {
 		tx.add(
-			Commands.Intent({
+			TransactionCommands.Intent({
 				name: 'TransferToSender',
 				inputs: {
 					objects: objects.map((obj) => tx.object(obj)),
@@ -231,7 +231,7 @@ async function resolveTransferToSender(
 
 		// This will replace the intent command with the correct TransferObjects command
 		transactionData.replaceCommand(index, [
-			Commands.TransferObjects(
+			TransactionCommands.TransferObjects(
 				// The inputs for intents are not currently typed, so we need to cast to the correct type here
 				transaction.$Intent.inputs.objects as Extract<
 					TransactionObjectArgument,
@@ -254,14 +254,14 @@ Manually adding intent resolvers to a transaction can be cumbersome, so we can a
 automatically when our `transferToSender` helper is called:
 
 ```typescript
-import { Commands, Transaction, TransactionObjectInput } from '@mysten/sui/transactions';
+import { TransactionCommands, Transaction, TransactionObjectInput } from '@mysten/sui/transactions';
 
 function transferToSender(objects: TransactionObjectInput[]) {
 	return (tx: Transaction) => {
 		// As long as we are adding the same function reference, it will only be added once
 		tx.addIntentResolver('TransferToSender', resolveTransferToSender);
 		tx.add(
-			Commands.Intent({
+			TransactionCommands.Intent({
 				name: 'TransferToSender',
 				inputs: {
 					objects: objects.map((obj) => tx.object(obj)),
@@ -274,3 +274,28 @@ function transferToSender(objects: TransactionObjectInput[]) {
 const transaction = new Transaction();
 transaction.add(transferToSender(['0x1234']));
 ```
+
+## Copying transactions that use custom intents
+
+`Transaction.from` creates a deep copy of a transaction. Copying is synchronous, so any unresolved
+intents are carried over as-is and resolved later when the copy is built or serialized. To do that,
+the copy needs the intent resolvers, but resolvers are functions and cannot be represented in the
+serialized transaction data.
+
+Built-in intents (such as the `CoinWithBalance` intent added by `tx.coin()`) are re-attached
+automatically. For custom intents, pass the resolvers through the `intentResolvers` option so the
+copy knows how to resolve them:
+
+```typescript
+import { Transaction } from '@mysten/sui/transactions';
+
+const copy = Transaction.from(transaction, {
+	intentResolvers: {
+		TransferToSender: resolveTransferToSender,
+	},
+});
+```
+
+Without this, `Transaction.from` throws if the transaction still contains unresolved custom intents.
+Alternatively, you can `await transaction.prepareForSerialization()` first to resolve the intents
+before copying, but that requires an async call and (for some intents) a client.

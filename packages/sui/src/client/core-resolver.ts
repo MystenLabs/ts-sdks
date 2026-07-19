@@ -84,7 +84,18 @@ export async function coreClientResolveTransactionPlugin(
 		}
 	}
 
-	const needsSystemState = needsGasPrice || (needsPayment && usesGasCoin);
+	// `setGasBudget` simulates with `payment: []` whenever it has to compute a
+	// budget (i.e. one wasn't preset). The validator's replay-protection check
+	// then requires either a `ValidDuring` expiration or at least one
+	// "address-owned" input — an `ImmOrOwnedMoveObject` whose owner is
+	// `AddressOwner`, which we can't tell from `Immutable` without owner info we
+	// don't track. Provide a simulate-only `ValidDuring` whenever we'll actually
+	// simulate and one isn't user-set.
+	const needsSimulateExpiration =
+		!options.onlyTransactionKind && !transactionData.expiration && !transactionData.gasData.budget;
+	const needsSystemState =
+		needsGasPrice || (needsPayment && usesGasCoin) || needsSimulateExpiration;
+	const needsChainId = (needsPayment && usesGasCoin) || needsSimulateExpiration;
 	const [, systemStateResult, balanceResult, coinsResult, chainIdResult] = await Promise.all([
 		normalizeInputs(transactionData, client),
 		needsSystemState ? client.core.getCurrentSystemState() : null,
@@ -92,19 +103,25 @@ export async function coreClientResolveTransactionPlugin(
 		needsPayment && gasPayer
 			? client.core.listCoins({ owner: gasPayer, coinType: SUI_TYPE_ARG })
 			: null,
-		needsPayment && usesGasCoin ? client.core.getChainIdentifier() : null,
+		needsChainId ? client.core.getChainIdentifier() : null,
 	]);
 
 	await resolveObjectReferences(transactionData, client);
 
 	if (!options.onlyTransactionKind) {
 		const systemState = systemStateResult?.systemState ?? null;
+		const chainIdentifier = chainIdResult?.chainIdentifier ?? null;
 
 		if (systemState && !transactionData.gasData.price) {
 			transactionData.gasData.price = systemState.referenceGasPrice;
 		}
 
-		await setGasBudget(transactionData, client);
+		const simulateExpiration =
+			needsSimulateExpiration && systemState && chainIdentifier
+				? buildValidDuringExpiration(systemState, chainIdentifier)
+				: undefined;
+
+		await setGasBudget(transactionData, client, simulateExpiration);
 
 		if (needsPayment) {
 			if (!balanceResult || !coinsResult) {
@@ -119,25 +136,24 @@ export async function coreClientResolveTransactionPlugin(
 				usesGasCoin,
 				withdrawals,
 				gasPayer: gasPayer!,
-				chainIdentifier: chainIdResult?.chainIdentifier ?? null,
+				chainIdentifier,
 				epoch: systemState?.epoch ?? null,
 			});
 		}
 
 		if (!transactionData.expiration && transactionData.gasData.payment?.length === 0) {
-			await setExpiration(
-				transactionData,
-				client,
-				systemState,
-				chainIdResult?.chainIdentifier ?? null,
-			);
+			await setExpiration(transactionData, client, systemState, chainIdentifier);
 		}
 	}
 
 	return await next();
 }
 
-async function setGasBudget(transactionData: TransactionDataBuilder, client: ClientWithCoreApi) {
+async function setGasBudget(
+	transactionData: TransactionDataBuilder,
+	client: ClientWithCoreApi,
+	simulateExpiration?: ValidDuringExpiration,
+) {
 	if (transactionData.gasData.budget) {
 		return;
 	}
@@ -149,6 +165,7 @@ async function setGasBudget(transactionData: TransactionDataBuilder, client: Cli
 					budget: String(MAX_GAS),
 					payment: [],
 				},
+				...(simulateExpiration && { expiration: simulateExpiration }),
 			},
 		}),
 		include: { effects: true },
@@ -243,9 +260,27 @@ async function setExpiration(
 		existingChainIdentifier ?? client.core.getChainIdentifier().then((r) => r.chainIdentifier),
 		systemState ?? client.core.getCurrentSystemState().then((r) => r.systemState),
 	]);
-	const currentEpoch = BigInt(resolvedSystemState.epoch);
+	transactionData.expiration = buildValidDuringExpiration(resolvedSystemState, chainIdentifier);
+}
 
-	transactionData.expiration = {
+type ValidDuringExpiration = {
+	$kind: 'ValidDuring';
+	ValidDuring: {
+		minEpoch: string;
+		maxEpoch: string;
+		minTimestamp: null;
+		maxTimestamp: null;
+		chain: string;
+		nonce: number;
+	};
+};
+
+function buildValidDuringExpiration(
+	systemState: SystemStateData,
+	chainIdentifier: string,
+): ValidDuringExpiration {
+	const currentEpoch = BigInt(systemState.epoch);
+	return {
 		$kind: 'ValidDuring',
 		ValidDuring: {
 			minEpoch: String(currentEpoch),

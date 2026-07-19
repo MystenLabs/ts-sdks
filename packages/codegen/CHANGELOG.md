@@ -1,5 +1,155 @@
 # @mysten/codegen
 
+## 0.11.8
+
+### Patch Changes
+
+- Updated dependencies [899d9e3]
+  - @mysten/sui@2.22.0
+
+## 0.11.7
+
+### Patch Changes
+
+- Updated dependencies [da78e18]
+  - @mysten/sui@2.21.0
+
+## 0.11.6
+
+## 0.11.5
+
+## 0.11.4
+
+## 0.11.3
+
+## 0.11.2
+
+### Patch Changes
+
+- Updated dependencies [7452835]
+  - @mysten/sui@2.20.0
+
+## 0.11.1
+
+### Patch Changes
+
+- Updated dependencies [2be98ce]
+  - @mysten/sui@2.19.0
+
+## 0.11.0
+
+### Minor Changes
+
+- bbf63cb: Add `typeTag` and `resolveTypeTag` methods to the generated `MoveStruct`, `MoveEnum`, and
+  `MoveTuple` classes.
+
+  - `typeTag(options?)` builds the type tag string for a generated type. `typeArguments` is the full
+    positional list of type arguments in Move declaration order; each entry is a type tag string,
+    another `typeTag()` result, or a BCS type (its name is used). Types with unfilled phantom
+    parameters require `typeArguments` at compile time, and argument arity is validated at runtime.
+  - `resolveTypeTag({ client, ... })` builds the tag, resolves MVR names through
+    `client.core.mvr.resolveType`, and returns the normalized address-only form suitable for queries
+    and comparisons against on-chain data.
+
+- bbf63cb: Updated dependencies
+
+### Patch Changes
+
+- Updated dependencies [b093d05]
+- Updated dependencies [bbf63cb]
+- Updated dependencies [4ca4c66]
+  - @mysten/sui@2.18.0
+  - @mysten/bcs@2.1.0
+
+## 0.10.6
+
+### Patch Changes
+
+- f7de3e5: Restore docs in published tarballs.
+- Updated dependencies [f7de3e5]
+  - @mysten/bcs@2.0.5
+  - @mysten/sui@2.16.2
+
+## 0.10.5
+
+### Patch Changes
+
+- 9e067cf: Validate the new per-package release flow end-to-end across every public @mysten package.
+  No functional changes — empty patch bump to force the orchestrator to dispatch every
+  release-<pkg>.yml workflow with `dry_run=false` so each package publishes via OIDC trusted
+  publishing.
+- Updated dependencies [9e067cf]
+  - @mysten/bcs@2.0.4
+  - @mysten/sui@2.16.1
+
+## 0.10.4
+
+### Patch Changes
+
+- a08916e: Fix `sui-ts-codegen generate <path>` against fresh `sui move new` packages: the CLI now
+  propagates non-zero exit codes (was always exiting 0 on failure), the path-arg branch parses
+  `packageName` from `Move.toml` instead of using the raw path string, and the "Could not identify
+  main package directory" error now includes actionable remediation.
+
+## 0.10.3
+
+### Patch Changes
+
+- bb8d26a: Fix three latent type errors in the generated `utils/index.ts` that surfaced for
+  consumers with `noUncheckedIndexedAccess: true`:
+  - `getPureBcsSchema(structTag.typeParams[0])` passed `TypeTag | undefined` to a parameter typed
+    `string | TypeTag`. Now null-checks the inner tag before passing it.
+  - `argTypes[i]` was redundantly re-indexed inside a `for…of entries()` loop, returning
+    `string | null | undefined` and being passed back to `getPureBcsSchema`. Switched to the loop
+    variable, which is `string | null`.
+  - `MoveStruct.get()` returned the destructured `[res]` from `getMany([objectId])` without
+    asserting it was defined. Now throws if no object was returned.
+
+  The codegen test suite gained a `tsc`-based check that compiles the generated `utils/index.ts`
+  under strict + `noUncheckedIndexedAccess`, so embedded-template type bugs are caught before
+  release rather than by downstream consumers.
+
+  All consumer packages (`payment-kit`, `pas`, `walrus`, `suins`, `deepbook-v3`, `kiosk`) have been
+  regenerated with the fix.
+
+## 0.10.2
+
+### Patch Changes
+
+- cdea2b8: Fix off-by-one in utils/ import paths for multi-segment package names. Generated modules
+  imported utils as `../utils/index.js`, anchored to a virtual single-segment package directory.
+  When `packageName` contains a slash (e.g. callers nesting output under `move/<pkg>/` to mirror
+  Move source layout), the import resolved into a sibling subdirectory of `outputDir` instead of to
+  the actual `outputDir/utils/`. Utils imports are now anchored at the codegen output root, so they
+  work regardless of `packageName` depth.
+
+## 0.10.1
+
+### Patch Changes
+
+- 93dd1ff: Fix two codegen bugs:
+  - For functions with no Move arguments and no type parameters (e.g. `std::address::length`), the
+    generated wrapper used `options: NameOptions = {}` even when `package: string` was required on
+    the options interface. The `= {}` default no longer applies when `package` is required (i.e.
+    when no MVR name/address is configured).
+  - For local packages whose `[package].name` in `Move.toml` differs from the address label in
+    `[addresses]` (e.g. `name = "managed_coin"` with `[addresses].token_studio = "0x0"`), the prune
+    logic identified the main package dir by `[package].name` and silently dropped the package's own
+    modules. The main package dir is now resolved by intersecting the labels in the local
+    Move.toml's `[addresses]` table with the summary subdirectories.
+
+## 0.10.0
+
+### Minor Changes
+
+- c96956e: Fix codegen for upgraded on-chain package IDs (only `utils/` was emitted) and use each
+  type's introducing package version for BCS type names. Type origins are read per-(package, module)
+  from the summary metadata, so structs added in upgrades — for both the root package and any
+  upgraded deps — render with their correct on-chain address.
+
+  Adds an `errorClass` config option to swap the built-in `Error` thrown by
+  `normalizeMoveArguments`.
+
 ## 0.9.0
 
 ### Minor Changes

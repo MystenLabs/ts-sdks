@@ -4,12 +4,9 @@
 	"description": "TypeScript interfaces for Sui",
 	"pages": [
 		"index",
-		"install",
 		"llm-docs",
-		"hello-sui",
-		"faucet",
 		"clients",
-		"transaction-building",
+		"transactions",
 		"cryptography",
 		"utils",
 		"bcs",

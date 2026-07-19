@@ -19,10 +19,11 @@
 	"packageManager": "pnpm@10.33.0",
 	"pnpm": {
 		"overrides": {
-			"axios": "^1.15.0",
-			"lodash": ">=4.18.0",
-			"hono": ">=4.12.14",
-			"protobufjs": ">=7.5.5"
+			"axios": ">=1.16.0",
+			"esbuild@>=0.27.3 <0.28.1": "0.28.1",
+			"js-yaml@>=4.0.0 <=4.1.1": "4.2.0",
+			"postcss": ">=8.5.10",
+			"ws@>=8.0.0": ">=8.21.0"
 		}
 	},
 	"engines": {
@@ -31,25 +32,26 @@
 	"manypkg": {
 		"ignoredRules": [
 			"INTERNAL_MISMATCH",
-			"ROOT_HAS_DEV_DEPENDENCIES"
+			"ROOT_HAS_DEV_DEPENDENCIES",
+			"INVALID_DEV_AND_PEER_DEPENDENCY_RELATIONSHIP"
 		]
 	},
 	"devDependencies": {
-		"@arethetypeswrong/cli": "^0.18.1",
-		"@changesets/cli": "^2.29.8",
+		"@arethetypeswrong/cli": "^0.18.3",
+		"@changesets/cli": "^2.31.0",
 		"@ianvs/prettier-plugin-sort-imports": "^4.7.0",
 		"@manypkg/cli": "^0.25.1",
-		"@testcontainers/postgresql": "^11.11.0",
-		"concurrently": "^9.2.1",
+		"@testcontainers/postgresql": "^12.0.2",
+		"concurrently": "^10.0.3",
 		"graphql-config": "^5.1.5",
 		"oxlint": "1.47.0",
-		"oxlint-tsgolint": "^0.11.0",
-		"prettier": "^3.7.4",
-		"prettier-plugin-tailwindcss": "^0.7.2",
-		"testcontainers": "^11.11.0",
-		"tsdown": "0.20.0-beta.1",
-		"tsx": "^4.21.0",
-		"turbo": "^2.7.4",
-		"typescript": "^5.9.3"
+		"oxlint-tsgolint": "^0.23.0",
+		"prettier": "^3.8.4",
+		"prettier-plugin-tailwindcss": "^0.8.0",
+		"testcontainers": "^12.0.2",
+		"tsdown": "0.22.2",
+		"tsx": "^4.22.4",
+		"turbo": "^2.9.18",
+		"typescript": "^6.0.3"
 	}
 }

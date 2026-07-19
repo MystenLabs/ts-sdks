@@ -1,0 +1,6 @@
+{
+	"root": true,
+	"title": "Sponsor",
+	"description": "Build gas sponsorship services with pluggable validation",
+	"pages": ["index", "basic-usage", "validators", "best-practices"]
+}

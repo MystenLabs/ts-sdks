@@ -1,5 +1,91 @@
 # @mysten/create-dapp
 
+## 0.7.10
+
+### Patch Changes
+
+- Updated dependencies [899d9e3]
+  - @mysten/sui@2.22.0
+
+## 0.7.9
+
+### Patch Changes
+
+- Updated dependencies [da78e18]
+  - @mysten/sui@2.21.0
+
+## 0.7.8
+
+## 0.7.7
+
+## 0.7.6
+
+## 0.7.5
+
+## 0.7.4
+
+### Patch Changes
+
+- Updated dependencies [7452835]
+  - @mysten/sui@2.20.0
+
+## 0.7.3
+
+### Patch Changes
+
+- Updated dependencies [2be98ce]
+  - @mysten/sui@2.19.0
+
+## 0.7.2
+
+## 0.7.1
+
+## 0.7.0
+
+### Minor Changes
+
+- bbf63cb: Updated dependencies
+
+### Patch Changes
+
+- Updated dependencies [bbf63cb]
+- Updated dependencies [b093d05]
+- Updated dependencies [bbf63cb]
+- Updated dependencies [4ca4c66]
+  - @mysten/codegen@0.11.0
+  - @mysten/sui@2.18.0
+  - @mysten/dapp-kit-react@2.1.0
+
+## 0.6.8
+
+### Patch Changes
+
+- f7de3e5: Restore docs in published tarballs.
+- Updated dependencies [f7de3e5]
+  - @mysten/codegen@0.10.6
+  - @mysten/dapp-kit-react@2.0.3
+  - @mysten/sui@2.16.2
+
+## 0.6.7
+
+### Patch Changes
+
+- 9e067cf: Validate the new per-package release flow end-to-end across every public @mysten package.
+  No functional changes — empty patch bump to force the orchestrator to dispatch every
+  release-<pkg>.yml workflow with `dry_run=false` so each package publishes via OIDC trusted
+  publishing.
+- Updated dependencies [9e067cf]
+  - @mysten/codegen@0.10.5
+  - @mysten/dapp-kit-react@2.0.2
+  - @mysten/sui@2.16.1
+
+## 0.6.6
+
+### Patch Changes
+
+- Updated dependencies [c96956e]
+  - @mysten/codegen@0.10.0
+
 ## 0.6.5
 
 ### Patch Changes

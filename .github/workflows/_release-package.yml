@@ -1,0 +1,181 @@
+name: Release Package (template)
+
+# Reusable workflow that installs, builds, and publishes one workspace package.
+
+on:
+  workflow_call:
+    inputs:
+      package:
+        description: 'npm package name, e.g. @mysten/sui'
+        type: string
+        required: true
+      dir:
+        description: 'Package directory relative to repo root, e.g. packages/sui'
+        type: string
+        required: true
+      dry_run:
+        description: 'Run pnpm publish with --dry-run'
+        type: string
+        default: 'false'
+      full_install:
+        description: 'Use full pnpm install instead of minimal --prod + sandboxed tools'
+        type: string
+        default: 'false'
+      tools:
+        description: 'Space-separated npm specs for the sandboxed build tools dir (minimal install only). Empty = skip.'
+        type: string
+        default: 'tsdown@0.20.0-beta.1 typescript@5.9.3 @types/node@25.0.8'
+      build_command:
+        description: 'Override the default `pnpm --filter <package> run build`'
+        type: string
+        default: ''
+      ref:
+        description: 'Git ref or SHA to check out (defaults to main HEAD)'
+        type: string
+        default: ''
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # OIDC trusted publishing
+    env:
+      DRY_RUN: ${{ inputs.dry_run }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Compute artifact-safe package slug
+        id: slug
+        env:
+          PACKAGE: ${{ inputs.package }}
+        run: |
+          set -euo pipefail
+          # `@mysten/sui` -> `mysten-sui`; upload-artifact rejects `/` in names.
+          slug="${PACKAGE#@}"
+          slug="${slug//\//-}"
+          echo "slug=$slug" >> "$GITHUB_OUTPUT"
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@a3252b78c470c02df07e9d59298aecedc3ccdd6d # v3.0.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # v4.0.2
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'pnpm'
+
+      - name: Install
+        env:
+          PACKAGE: ${{ inputs.package }}
+          FULL_INSTALL: ${{ inputs.full_install }}
+        run: |
+          set -euo pipefail
+          if [ "$FULL_INSTALL" = "true" ]; then
+            pnpm install --frozen-lockfile --ignore-scripts
+          else
+            pnpm install --filter "${PACKAGE}..." --prod --frozen-lockfile --ignore-scripts
+          fi
+
+      - name: Install tools (sandboxed, minimal install only)
+        if: inputs.full_install != 'true' && inputs.tools != ''
+        env:
+          TOOLS: ${{ inputs.tools }}
+        run: |
+          set -euo pipefail
+          tools_dir="$RUNNER_TEMP/release-tools"
+          rm -rf "$tools_dir"
+          mkdir -p "$tools_dir"
+          # shellcheck disable=SC2086 — TOOLS is a space-separated arg list.
+          npm install --prefix "$tools_dir" --no-save --no-package-lock --ignore-scripts $TOOLS
+          # Symlink only the explicitly named tools — iterating over the
+          # whole tools_dir/node_modules/* would clobber prod-subgraph entries
+          # (npm's flat layout puts every transitive there too).
+          mkdir -p node_modules
+          for spec in $TOOLS; do
+            name="${spec%@*}"
+            [ -z "$name" ] && name="$spec"
+            src="$tools_dir/node_modules/$name"
+            dest="node_modules/$name"
+            if [ ! -e "$src" ]; then
+              echo "::error::tool '$name' not found at $src after npm install"
+              exit 1
+            fi
+            if [ -e "$dest" ] && [ ! -L "$dest" ]; then
+              echo "::error::refusing to overwrite existing $dest (not a symlink) with sandboxed tool"
+              exit 1
+            fi
+            mkdir -p "$(dirname "$dest")"
+            ln -sfn "$src" "$dest"
+          done
+          echo "$tools_dir/node_modules/.bin" >> "$GITHUB_PATH"
+
+      - name: Build
+        env:
+          PACKAGE: ${{ inputs.package }}
+          BUILD_COMMAND: ${{ inputs.build_command }}
+        run: |
+          set -euo pipefail
+          if [ -n "$BUILD_COMMAND" ]; then
+            bash -c "$BUILD_COMMAND"
+          else
+            # `--if-present` must precede `run` so pnpm consumes it instead of
+            # forwarding to the script (which breaks `tsc --build` etc.).
+            pnpm --filter "${PACKAGE}..." --if-present run build
+          fi
+
+      - name: Build docs
+        if: inputs.build_command == ''
+        env:
+          PACKAGE: ${{ inputs.package }}
+        run: |
+          set -euo pipefail
+          pnpm --filter "${PACKAGE}" --if-present run build:docs
+
+      - name: Drop workspace devDeps from manifest before publish
+        working-directory: ${{ inputs.dir }}
+        run: |
+          set -euo pipefail
+          # `pnpm publish` would otherwise try to resolve `workspace:` refs in
+          # devDependencies, which fails under --prod since workspace devDeps
+          # aren't installed. npm doesn't install devDeps for consumers, so
+          # dropping these entries is invisible to anyone downstream.
+          node -e "
+            const fs = require('node:fs');
+            const pj = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            const dropped = [];
+            for (const [k, v] of Object.entries(pj.devDependencies ?? {})) {
+              if (typeof v === 'string' && v.startsWith('workspace:')) {
+                delete pj.devDependencies[k];
+                dropped.push(k);
+              }
+            }
+            if (Object.keys(pj.devDependencies ?? {}).length === 0) delete pj.devDependencies;
+            if (dropped.length) console.log('dropped: ' + dropped.join(', '));
+            fs.writeFileSync('package.json', JSON.stringify(pj, null, '\t') + '\n');
+          "
+
+      - name: Publish to npm
+        working-directory: ${{ inputs.dir }}
+        env:
+          NPM_CONFIG_PROVENANCE: true
+        run: |
+          set -euo pipefail
+          if [ "$DRY_RUN" = "true" ]; then
+            pnpm publish --dry-run --access public --no-git-checks
+          else
+            pnpm publish --access public --no-git-checks
+          fi
+
+      - name: Upload tarball artifact
+        if: always()
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: tarball-${{ steps.slug.outputs.slug }}
+          path: ${{ inputs.dir }}/*.tgz
+          if-no-files-found: ignore
+          retention-days: 7

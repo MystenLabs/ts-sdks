@@ -1,0 +1,64 @@
+{
+	"name": "@mysten-incubation/sponsor",
+	"version": "0.2.5",
+	"private": false,
+	"description": "Build Sui gas sponsorship flows from a signer, with pluggable transaction validation",
+	"license": "Apache-2.0",
+	"author": "Mysten Labs <build@mystenlabs.com>",
+	"type": "module",
+	"main": "./dist/index.mjs",
+	"types": "./dist/index.d.mts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.mts",
+			"import": "./dist/index.mjs",
+			"default": "./dist/index.mjs"
+		}
+	},
+	"sideEffects": false,
+	"publishConfig": {
+		"access": "public"
+	},
+	"files": [
+		"CHANGELOG.md",
+		"dist"
+	],
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/MystenLabs/ts-sdks.git"
+	},
+	"bugs": {
+		"url": "https://github.com/MystenLabs/ts-sdks/issues/new"
+	},
+	"homepage": "https://github.com/MystenLabs/ts-sdks/tree/main/packages/sponsor#readme",
+	"scripts": {
+		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
+		"build": "rm -rf dist && tsc --noEmit && tsdown",
+		"dev:sponsor-server": "tsx examples/sponsor-server/index.ts",
+		"prettier:check": "prettier -c --ignore-unknown .",
+		"prettier:fix": "prettier -w --ignore-unknown .",
+		"oxlint:check": "oxlint  .",
+		"oxlint:fix": "oxlint --fix",
+		"lint": "pnpm run oxlint:check && pnpm run prettier:check",
+		"lint:fix": "pnpm run oxlint:fix && pnpm run prettier:fix",
+		"test": "pnpm run test:typecheck && pnpm run test:examples && pnpm run test:unit",
+		"test:examples": "tsc -p ./examples",
+		"test:typecheck": "tsc -p ./test",
+		"test:unit": "vitest run",
+		"test:e2e": "vitest run --config test/e2e/vitest.config.ts",
+		"vitest": "vitest"
+	},
+	"devDependencies": {
+		"@hono/node-server": "^2.0.4",
+		"@types/node": "^25.9.3",
+		"hono": ">=4.12.18",
+		"typescript": "^6.0.3",
+		"vitest": "^4.1.8"
+	},
+	"dependencies": {
+		"@mysten/wallet-sdk": "workspace:^"
+	},
+	"peerDependencies": {
+		"@mysten/sui": "workspace:^"
+	}
+}

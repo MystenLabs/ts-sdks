@@ -1,5 +1,150 @@
 # @mysten/deepbook-v3
 
+## 1.5.8
+
+## 1.5.7
+
+## 1.5.6
+
+## 1.5.5
+
+## 1.5.4
+
+## 1.5.3
+
+## 1.5.2
+
+## 1.5.1
+
+## 1.5.0
+
+### Minor Changes
+
+- bbf63cb: Add `typeTag` and `resolveTypeTag` methods to the generated `MoveStruct`, `MoveEnum`, and
+  `MoveTuple` classes.
+
+  - `typeTag(options?)` builds the type tag string for a generated type. `typeArguments` is the full
+    positional list of type arguments in Move declaration order; each entry is a type tag string,
+    another `typeTag()` result, or a BCS type (its name is used). Types with unfilled phantom
+    parameters require `typeArguments` at compile time, and argument arity is validated at runtime.
+  - `resolveTypeTag({ client, ... })` builds the tag, resolves MVR names through
+    `client.core.mvr.resolveType`, and returns the normalized address-only form suitable for queries
+    and comparisons against on-chain data.
+
+- bbf63cb: Updated dependencies
+
+### Patch Changes
+
+- Updated dependencies [bbf63cb]
+  - @mysten/bcs@2.1.0
+
+## 1.4.1
+
+### Patch Changes
+
+- bc99264: Bump mainnet `LIQUIDATION_PACKAGE_ID` to the latest published-at: `0x55718c06…41b8` →
+  `0xf17bff1bf21e9587acc5708714e520aa967f82f256f626938a33c4109b08adb9`.
+
+## 1.4.0
+
+### Minor Changes
+
+- e68bd36: Align margin SDK with `deepbook_margin` v5 on-chain source:
+  - Switch `pool_proxy` order placement builders (`placeLimitOrder`, `placeMarketOrder`,
+    `placeReduceOnlyLimitOrder`, `placeReduceOnlyMarketOrder`) to the `_v2` Move entries. The v1
+    entries are deprecated in the v5 package and abort with `EDeprecatedUseV2`. The v2 variants take
+    additional `base_margin_pool`, `quote_margin_pool`, `base_oracle`, and `quote_oracle` arguments
+    so the chain can enforce a post-trade `risk_ratio` invariant (borrow-floor for normal orders,
+    monotonic improvement for reduce-only).
+  - The reduce-only v2 entries dropped the `DebtAsset` generic and the explicit
+    `MarginPool<DebtAsset>` parameter; the package now dispatches on
+    `margin_manager.has_base_debt()` to pick the typed pool from the
+    `(base_margin_pool, quote_margin_pool)` pair. The SDK builders no longer take a debt-side margin
+    pool or third type argument.
+  - Switch `executeConditionalOrders` to `margin_manager::execute_conditional_orders_v2`, which adds
+    `base_margin_pool`/`quote_margin_pool` arguments and enforces the same post-fill solvency check.
+  - Fix `claimRebate` to target the actual Move entry name `pool_proxy::claim_rebates`. The previous
+    target did not exist on-chain.
+  - Rename `MarginPoolConfigParams.referralSpread` to `protocolSpread`. The Move field was renamed
+    upstream in the `protocol_config` module; the old SDK name was positionally correct but
+    misleading.
+  - Add `registerMarginManager` and `unregisterMarginManager` builders.
+  - Add read-only margin_manager builders exposed in newer source: `balanceManagerId`,
+    `getBalanceManagerReferralId`, `accountExists`, `account`, `accountOpenOrders`,
+    `getAccountOrderDetails`, `lockedBalance`, `canPlaceLimitOrder`, `canPlaceMarketOrder`.
+  - Add `MarginAdminContract.setPriceTolerance`, `setMaxPriceAge`, and `setMaxOrderTtl` builders for
+    the per-pool oracle and order-TTL admin entries on `margin_registry`. The `setMaxOrderTtl` entry
+    configures the per-pool `max_order_ttl_ms` cap that `pool_proxy::place_limit_order_v2` and
+    `place_reduce_only_limit_order_v2` use to clamp `expire_timestamp`.
+  - Add `DeepBookAdminContract.mintCorePauseCap`, `revokeCorePauseCap`,
+    `disableVersionWithCorePauseCap`, and `corePauseCaps` builders for the new
+    `DeepbookCorePauseCap` emergency-pause flow in the core spot `registry`. These mirror the
+    existing margin-side pause-cap builders.
+  - Bump mainnet `MARGIN_PACKAGE_ID` to
+    `0x124bb3d8105d6d301c0d40feaa54d65df6b301e4d8ddd5eb8475b0f8a18cff2e` to track the latest margin
+    package upgrade on mainnet.
+  - Bump mainnet `DEEPBOOK_PACKAGE_ID` to
+    `0x0e735f8c93a95722efd73521aca7a7652c0bb71ed1daf41b26dfd7d1ff71f748` to track the latest core
+    deepbook package upgrade on mainnet.
+
+## 1.3.6
+
+### Patch Changes
+
+- f7de3e5: Restore docs in published tarballs.
+- Updated dependencies [f7de3e5]
+  - @mysten/bcs@2.0.5
+  - @mysten/sui@2.16.2
+
+## 1.3.5
+
+### Patch Changes
+
+- 9e067cf: Validate the new per-package release flow end-to-end across every public @mysten package.
+  No functional changes — empty patch bump to force the orchestrator to dispatch every
+  release-<pkg>.yml workflow with `dry_run=false` so each package publishes via OIDC trusted
+  publishing.
+- Updated dependencies [9e067cf]
+  - @mysten/bcs@2.0.4
+  - @mysten/sui@2.16.1
+
+## 1.3.4
+
+### Patch Changes
+
+- 75a32c1: Bump `axios` to `^1.16.0` to address security advisories (CVE-2025-62718 and related
+  prototype pollution issues).
+
+## 1.3.3
+
+### Patch Changes
+
+- bb8d26a: Fix three latent type errors in the generated `utils/index.ts` that surfaced for
+  consumers with `noUncheckedIndexedAccess: true`:
+  - `getPureBcsSchema(structTag.typeParams[0])` passed `TypeTag | undefined` to a parameter typed
+    `string | TypeTag`. Now null-checks the inner tag before passing it.
+  - `argTypes[i]` was redundantly re-indexed inside a `for…of entries()` loop, returning
+    `string | null | undefined` and being passed back to `getPureBcsSchema`. Switched to the loop
+    variable, which is `string | null`.
+  - `MoveStruct.get()` returned the destructured `[res]` from `getMany([objectId])` without
+    asserting it was defined. Now throws if no object was returned.
+
+  The codegen test suite gained a `tsc`-based check that compiles the generated `utils/index.ts`
+  under strict + `noUncheckedIndexedAccess`, so embedded-template type bugs are caught before
+  release rather than by downstream consumers.
+
+  All consumer packages (`payment-kit`, `pas`, `walrus`, `suins`, `deepbook-v3`, `kiosk`) have been
+  regenerated with the fix.
+
+## 1.3.2
+
+### Patch Changes
+
+- c96956e: Regenerate generated Move types against the latest contract sources. The generated
+  `utils/index.ts` `GetOptions` / `GetManyOptions` are now exported as type aliases (intersection)
+  instead of interfaces. SuiNS gains `SubnamePrunedEvent`, `pruneExpiredSubname`, and
+  `pruneExpiredSubnames`.
+
 ## 1.3.1
 
 ### Patch Changes

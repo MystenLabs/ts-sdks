@@ -49,8 +49,8 @@ function buildIndex(baseUrl: string) {
 	const distIndex = path.resolve(process.cwd(), 'dist', 'llms-index.md');
 	if (fs.existsSync(distIndex)) {
 		let content = fs.readFileSync(distIndex, 'utf-8');
-		// Rewrite relative links (./section/page.md) to absolute URLs
-		content = content.replace(/\(\.\/([^)]+\.md)\)/g, `(${baseUrl}/$1)`);
+		// Rewrite relative links (./section/page.md) to absolute URLs (strip .md to match sitemap)
+		content = content.replace(/\(\.\/([^)]+)\.md\)/g, (_match, p) => `(${baseUrl}/${p}.md)`);
 		return new Response(content, {
 			headers: {
 				'Content-Type': 'text/plain; charset=utf-8',

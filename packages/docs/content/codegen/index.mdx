@@ -35,7 +35,7 @@ This package is currently in development and might have breaking changes.
 
 Install the codegen package as a dev dependency:
 
-```sh npm2yarn
+```npm
 npm install -D @mysten/codegen
 ```
 
@@ -316,8 +316,9 @@ This works correctly for parsing onchain data because phantom types don't change
 <Callout type="info">
 
 With the default behavior, phantom parameters appear as literals in the type name (for example,
-`Balance<phantom T>`). These names are useful for debugging but are not valid onchain type tags. If
-you need valid type names with resolved phantom parameters, enable `includePhantomTypeParameters`.
+`Balance<phantom T>`). These names are useful for debugging but are not valid onchain type tags. Use
+the [`typeTag` method](#getting-type-tags) to build valid type tags with the phantom parameters
+filled in.
 
 </Callout>
 
@@ -399,6 +400,72 @@ async function readCounter(client: ClientWithCoreApi, id: string) {
 	[Core API docs](/sui/clients/core#objectbcs) for details.
 </Callout>
 
+### Getting type tags
+
+Generated types build their own type tag strings with the `typeTag` method, so you don't hand-write
+strings like `` `${packageId}::module::Name<${coinType}>` ``. By default the tag uses the package
+the type was generated from — a real address for framework types, or the configured name for a local
+or MVR package:
+
+```typescript
+import { Counter } from './contracts/counter/counter';
+import { Balance } from './contracts/counter/deps/sui/balance';
+
+Balance.typeTag({ typeArguments: ['0x2::sui::SUI'] });
+// '0x2::balance::Balance<0x2::sui::SUI>'
+
+Counter.typeTag();
+// '@local-pkg/counter::counter::Counter'
+```
+
+Types with phantom type parameters require `typeArguments`; types without them take none. This is
+enforced at compile time:
+
+```typescript
+Counter.typeTag(); // ok — no type parameters
+Balance.typeTag({ typeArguments: ['0x2::sui::SUI'] }); // ok
+
+// @ts-expect-error — Balance has a phantom parameter, typeArguments is required
+Balance.typeTag();
+```
+
+`typeArguments` is the full positional list, in Move declaration order. Each entry is a type tag
+string, another `typeTag()` result, or a BCS type (its `name` is used):
+
+```typescript
+import { bcs } from '@mysten/sui/bcs';
+
+Balance.typeTag({ typeArguments: [bcs.u64()] });
+// '0x2::balance::Balance<u64>'
+```
+
+To override the package identifier — for example, to pin a specific published address — pass
+`package`:
+
+```typescript
+Counter.typeTag({ package: '0xPACKAGE_ID' });
+// '0xPACKAGE_ID::counter::Counter'
+```
+
+### Resolving type tags
+
+For a local or MVR package, `typeTag` returns the configured name (`@local-pkg/counter::…`). That is
+valid in transaction `typeArguments` — it resolves automatically when the transaction is built — but
+query filters and comparisons against onchain data need a resolved, address-only tag.
+`resolveTypeTag` takes the same options as `typeTag` plus a `client`, resolves any names through it,
+and normalizes the result:
+
+```typescript
+const counterType = await Counter.resolveTypeTag({ client });
+// '0x0000…0123::counter::Counter'
+
+const balanceType = await Balance.resolveTypeTag({
+	client,
+	typeArguments: ['0x2::sui::SUI'],
+});
+// '0x0000…0002::balance::Balance<0x0000…0002::sui::SUI>'
+```
+
 ## Client configuration
 
 ### Using with MVR (Move Version Registry)
@@ -467,5 +534,5 @@ const dAppKit = createDAppKit({
   already configured
 - [Sui Move documentation](https://docs.sui.io/concepts/sui-move-concepts)
 - [BCS documentation](/bcs)
-- [Transaction building](/sui/transaction-building/basics)
+- [Transaction building](/sui/transactions/basics)
 - [dApp Kit](/dapp-kit)

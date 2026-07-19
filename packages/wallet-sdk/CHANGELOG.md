@@ -1,5 +1,120 @@
 # @mysten/wallet-sdk
 
+## 0.8.4
+
+## 0.8.3
+
+## 0.8.2
+
+## 0.8.1
+
+## 0.8.0
+
+### Minor Changes
+
+- 2f4d20f: Update auto-approval analysis to accept explicit operation types and use effective sender
+  balance flows for budget checks. Auto-approval policy and settings coin types are now normalized
+  before matching analyzer balance flows.
+
+## 0.7.0
+
+### Minor Changes
+
+- da3a7b2: Add transaction analyzer status metadata and optional dependency edges.
+
+  Analyzer results now include `status`, and top-level analysis returns an overall status.
+  Dependency objects can use `{ analyzer, required?, transform? }`; bare analyzer dependencies
+  remain required and unwrap `result`, while `optional(analyzer)` and
+  `{ analyzer, required: false }` pass the full dependency `AnalyzerResult` unless a custom
+  transform is provided. The top-level analyzer key `status` is now reserved.
+
+  Sponsor validation now preserves policy findings from validators that ran while separately
+  reporting validators that failed or were skipped. Sponsor rejections include `policyIssues` and
+  `analysisIssues`, and failed or skipped validators reject even when they surface no issue message.
+
+  Auto-approval state mutation methods now require a `success` analysis result before mutating
+  budgets or pending digests.
+
+  Compatibility note: code that constructs analyzer results, constructs sponsor rejections, or
+  exhaustively matches the old analyzer result union may need updates for the required `status`
+  field, the `partial` and `skipped` statuses, and the required `policyIssues` and `analysisIssues`
+  fields.
+
+## 0.6.2
+
+## 0.6.1
+
+## 0.6.0
+
+### Minor Changes
+
+- 564c8e7: The `transactionResponse` analyzer is now a generic factory — call
+  `transactionResponse()` (was a bare analyzer value) — so its result can be typed to exactly the
+  simulate fields you request. `transactionResponse<{ balanceChanges: true }>()` returns the same
+  shared, deduped analyzer instance retyped so `result.balanceChanges` is present, and makes
+  `include` a required request-scoped option when it names a field that must be fetched. `effects`
+  is always included and can't be turned off. An injected `transactionResponse` now skips the
+  dry-run entirely (it previously simulated and then discarded the result), so `transactionResponse`
+  and `include` are mutually exclusive in effect — injection takes precedence. This is a breaking
+  change: update `transactionResponse` references to `transactionResponse()` (or
+  `transactionResponse<Include>()`). The `balanceChanges` analyzer now requests `balanceChanges`
+  from the dry-run, so its result is the real `BalanceChange[]` rather than always empty.
+
+## 0.5.1
+
+## 0.5.0
+
+### Minor Changes
+
+- cc5cb98: Export the `Analyzer` type from the transaction analyzer. This lets downstream packages
+  annotate custom analyzers (`const myAnalyzer: Analyzer<...> = createAnalyzer({...})`) so their
+  declaration output stays portable.
+- cc5cb98: The `transactionResponse` analyzer now dry-runs with `include: { effects: true }`, so its
+  result carries the simulated `effects` (including execution status). This lets consumers tell
+  whether a transaction would succeed without a second simulation.
+
+### Patch Changes
+
+- cc5cb98: The `bytes` and `transactionResponse` analyzers now include the underlying error in their
+  failure issues — the message carries the real cause (e.g.
+  `Failed to dry run transaction: <detail>`) and the caught `Error` is attached as `issue.error` —
+  instead of a generic `Failed to build/dry run transaction`. Many failures (object resolution, gas
+  estimation, an unreachable node) throw during build/simulation, and that detail was previously
+  discarded.
+
+## 0.4.0
+
+### Minor Changes
+
+- bbf63cb: Updated dependencies
+
+### Patch Changes
+
+- Updated dependencies [bbf63cb]
+  - @mysten/bcs@2.1.0
+  - @mysten/wallet-standard@0.21.0
+
+## 0.3.2
+
+### Patch Changes
+
+- f7de3e5: Restore docs in published tarballs.
+- Updated dependencies [f7de3e5]
+  - @mysten/bcs@2.0.5
+  - @mysten/wallet-standard@0.20.3
+
+## 0.3.1
+
+### Patch Changes
+
+- 9e067cf: Validate the new per-package release flow end-to-end across every public @mysten package.
+  No functional changes — empty patch bump to force the orchestrator to dispatch every
+  release-<pkg>.yml workflow with `dry_run=false` so each package publishes via OIDC trusted
+  publishing.
+- Updated dependencies [9e067cf]
+  - @mysten/bcs@2.0.4
+  - @mysten/wallet-standard@0.20.2
+
 ## 0.3.0
 
 ### Minor Changes

@@ -1,0 +1,162 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+import { p256 as secp256r1 } from '@noble/curves/nist.js';
+import { secp256k1 } from '@noble/curves/secp256k1.js';
+import { ASN1Construction, ASN1TagClass, DERElement } from 'asn1-ts';
+
+/** The total number of bits in the DER bit string for the uncompressed public key. */
+export const DER_BIT_STRING_LENGTH = 520;
+
+/** The total number of bytes corresponding to the DER bit string length. */
+export const DER_BYTES_LENGTH = DER_BIT_STRING_LENGTH / 8;
+
+// Reference Specifications:
+// https://datatracker.ietf.org/doc/html/rfc5480#section-2.2
+// https://www.secg.org/sec1-v2.pdf
+
+/**
+ * Converts an array of bits into a byte array.
+ *
+ * @param bitsArray - A `Uint8ClampedArray` representing the bits to convert.
+ * @returns A `Uint8Array` containing the corresponding bytes.
+ *
+ * @throws {Error} If the input array does not have the expected length.
+ */
+function bitsToBytes(bitsArray: Uint8ClampedArray): Uint8Array {
+	const bytes = new Uint8Array(DER_BYTES_LENGTH);
+	for (let i = 0; i < DER_BIT_STRING_LENGTH; i++) {
+		if (bitsArray[i] === 1) {
+			bytes[Math.floor(i / 8)] |= 1 << (7 - (i % 8));
+		}
+	}
+	return bytes;
+}
+
+/**
+ * The fixed ASN.1/DER (SPKI) prefix for an Ed25519 public key, as returned by AWS KMS
+ * `GetPublicKey` for an `ECC_NIST_EDWARDS25519` key. The raw 32-byte key follows the prefix.
+ *
+ * Structure: SEQUENCE { SEQUENCE { OID 1.3.101.112 } BIT STRING { 0x00 || <32 raw bytes> } }
+ */
+const ED25519_SPKI_PREFIX = new Uint8Array([
+	0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00,
+]);
+
+/**
+ * Extracts the raw 32-byte Ed25519 public key from its DER/SPKI encoding.
+ *
+ * Unlike the ECDSA curves, Ed25519 keys need no point decompression — the raw key is the
+ * final 32 bytes of the SPKI structure, so we validate the fixed prefix and slice it off.
+ *
+ * @param derBytes - The DER-encoded SPKI public key bytes.
+ * @returns A `Uint8Array` containing the raw 32-byte Ed25519 public key.
+ *
+ * @throws {Error} If the input does not match the expected Ed25519 SPKI structure.
+ */
+export function publicKeyFromEd25519DER(derBytes: Uint8Array): Uint8Array {
+	if (derBytes.length !== ED25519_SPKI_PREFIX.length + 32) {
+		throw new Error('Unexpected length for an Ed25519 SPKI public key');
+	}
+
+	for (let i = 0; i < ED25519_SPKI_PREFIX.length; i++) {
+		if (derBytes[i] !== ED25519_SPKI_PREFIX[i]) {
+			throw new Error('Unexpected ASN.1 structure for an Ed25519 public key');
+		}
+	}
+
+	return derBytes.slice(ED25519_SPKI_PREFIX.length);
+}
+
+export function publicKeyFromDER(derBytes: Uint8Array) {
+	const encodedData: Uint8Array = derBytes;
+	const derElement = new DERElement();
+	derElement.fromBytes(encodedData);
+
+	// Validate the ASN.1 structure of the public key
+	if (
+		!(
+			derElement.tagClass === ASN1TagClass.universal &&
+			derElement.construction === ASN1Construction.constructed
+		)
+	) {
+		throw new Error('Unexpected ASN.1 structure');
+	}
+
+	const components = derElement.components;
+	const publicKeyElement = components[1];
+
+	if (!publicKeyElement) {
+		throw new Error('Public Key not found in the DER structure');
+	}
+
+	return compressPublicKeyClamped(publicKeyElement.bitString);
+}
+
+export function getConcatenatedSignature(signature: Uint8Array, keyScheme: string) {
+	if (!signature || signature.length === 0) {
+		throw new Error('Invalid signature');
+	}
+
+	// Initialize a DERElement to parse the DER-encoded signature
+	const derElement = new DERElement();
+	derElement.fromBytes(signature);
+
+	const [r, s] = derElement.toJSON() as [string, string];
+
+	switch (keyScheme) {
+		case 'Secp256k1': {
+			const sig = new secp256k1.Signature(BigInt(r), BigInt(s));
+			const normalized = sig.hasHighS()
+				? new secp256k1.Signature(sig.r, secp256k1.Point.Fn.neg(sig.s))
+				: sig;
+
+			return normalized.toBytes('compact') as Uint8Array<ArrayBuffer>;
+		}
+		case 'Secp256r1': {
+			const sig = new secp256r1.Signature(BigInt(r), BigInt(s));
+			const normalized = sig.hasHighS()
+				? new secp256r1.Signature(sig.r, secp256r1.Point.Fn.neg(sig.s))
+				: sig;
+
+			return normalized.toBytes('compact') as Uint8Array<ArrayBuffer>;
+		}
+		default:
+			throw new Error('Unsupported key scheme');
+	}
+}
+
+/**
+ * Compresses an uncompressed public key into its compressed form.
+ *
+ * The uncompressed key must follow the DER bit string format as specified in [RFC 5480](https://datatracker.ietf.org/doc/html/rfc5480#section-2.2)
+ * and [SEC 1: Elliptic Curve Cryptography](https://www.secg.org/sec1-v2.pdf).
+ *
+ * @param uncompressedKey - A `Uint8ClampedArray` representing the uncompressed public key bits.
+ * @returns A `Uint8Array` containing the compressed public key.
+ *
+ * @throws {Error} If the uncompressed key has an unexpected length or does not start with the expected prefix.
+ */
+export function compressPublicKeyClamped(uncompressedKey: Uint8ClampedArray): Uint8Array {
+	if (uncompressedKey.length !== DER_BIT_STRING_LENGTH) {
+		throw new Error('Unexpected length for an uncompressed public key');
+	}
+
+	// Convert bits to bytes
+	const uncompressedBytes = bitsToBytes(uncompressedKey);
+
+	// Ensure the public key starts with the standard uncompressed prefix 0x04
+	if (uncompressedBytes[0] !== 0x04) {
+		throw new Error('Public key does not start with 0x04');
+	}
+
+	// Extract X-Coordinate (skip the first byte, which is the prefix 0x04)
+	const xCoord = uncompressedBytes.slice(1, 33);
+
+	// Determine parity byte for Y coordinate based on the last byte
+	const yCoordLastByte = uncompressedBytes[64];
+	const parityByte = yCoordLastByte % 2 === 0 ? 0x02 : 0x03;
+
+	// Return the compressed public key consisting of the parity byte and X-coordinate
+	return new Uint8Array([parityByte, ...xCoord]);
+}

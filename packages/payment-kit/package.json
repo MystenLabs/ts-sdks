@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/payment-kit",
-	"version": "0.1.7",
+	"version": "0.2.8",
 	"private": false,
 	"description": "Sui Payment Kit",
 	"license": "Apache-2.0",
@@ -30,7 +30,7 @@
 	"scripts": {
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
 		"build": "rm -rf dist && tsc --noEmit && tsdown",
-		"build:docs": "tsx ../docs/scripts/build-docs.ts",
+		"build:docs": "node ../docs/scripts/build-docs.ts",
 		"codegen": "sui-ts-codegen generate && pnpm lint:fix",
 		"prettier:check": "prettier -c --ignore-unknown .",
 		"prettier:fix": "prettier -w --ignore-unknown .",
@@ -43,9 +43,8 @@
 	},
 	"devDependencies": {
 		"@mysten/codegen": "workspace:^",
-		"@mysten/sui": "workspace:^",
-		"typescript": "^5.9.3",
-		"vitest": "^4.0.17"
+		"typescript": "^6.0.3",
+		"vitest": "^4.1.8"
 	},
 	"dependencies": {
 		"@mysten/bcs": "workspace:^"

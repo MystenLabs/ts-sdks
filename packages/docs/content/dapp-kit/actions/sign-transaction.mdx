@@ -33,6 +33,15 @@ const { bytes, signature } = await dAppKit.signTransaction({
 
 - **`transaction`:** `Transaction | string` - The transaction to sign. Can be either a Transaction
   instance or base64-encoded bcs bytes for the transaction.
+- **`account`** (optional) - `UiWalletAccount` - The account to sign with. Defaults to the currently
+  connected account. Must belong to the connected wallet, otherwise a `WalletAccountNotFoundError`
+  is thrown. Lets you sign with a specific account without changing the selected account via
+  `switchAccount`.
+- **`network`** (optional) - The network to sign against (a configured network identifier such as
+  `'mainnet'`). Defaults to the active network. The chain and the client used to build the
+  transaction are derived from it, so you can sign against a network without changing the active
+  network via `switchNetwork`. Throws a `ChainNotSupportedError` if the signing account does not
+  support the network.
 - **`signal`** (optional) - `AbortSignal` - An abort signal to cancel the signing request.
 
 ## Return value

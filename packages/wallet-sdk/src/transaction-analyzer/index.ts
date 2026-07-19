@@ -1,8 +1,17 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-export { analyze, createAnalyzer } from './analyzer.js';
-export type { AnalyzerResult, AnalyzerOutput, TransactionAnalysisIssue } from './analyzer.js';
+export { analyze, createAnalyzer, optional } from './analyzer.js';
+export type {
+	AnalyzerDependency,
+	Analyzer,
+	AnalyzerStatus,
+	AnalyzeStatus,
+	AnalyzerResult,
+	AnalyzerOutput,
+	Dependency,
+	TransactionAnalysisIssue,
+} from './analyzer.js';
 
 export type { AnalyzedCoin } from './rules/coins.js';
 export type { AnalyzedCommandArgument, AnalyzedCommand } from './rules/commands.js';

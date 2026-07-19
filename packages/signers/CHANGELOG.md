@@ -1,5 +1,86 @@
 # @mysten/signers
 
+## 1.1.8
+
+## 1.1.7
+
+## 1.1.6
+
+## 1.1.5
+
+## 1.1.4
+
+## 1.1.3
+
+### Patch Changes
+
+- Updated dependencies [9db8f64]
+- Updated dependencies [9db8f64]
+  - @mysten/aws-kms-signer@0.3.0
+
+## 1.1.2
+
+## 1.1.1
+
+## 1.1.0
+
+### Minor Changes
+
+- bbf63cb: Updated dependencies
+
+### Patch Changes
+
+- Updated dependencies [bbf63cb]
+  - @mysten/aws-kms-signer@0.2.0
+  - @mysten/gcp-kms-signer@0.2.0
+  - @mysten/ledger-signer@0.2.0
+  - @mysten/webcrypto-signer@0.2.0
+
+## 1.0.5
+
+### Patch Changes
+
+- f7de3e5: Restore docs in published tarballs.
+- Updated dependencies [f7de3e5]
+  - @mysten/aws-kms-signer@0.1.2
+  - @mysten/gcp-kms-signer@0.1.2
+  - @mysten/ledger-signer@0.1.2
+  - @mysten/sui@2.16.2
+  - @mysten/webcrypto-signer@0.1.2
+
+## 1.0.4
+
+### Patch Changes
+
+- 9e067cf: Validate the new per-package release flow end-to-end across every public @mysten package.
+  No functional changes — empty patch bump to force the orchestrator to dispatch every
+  release-<pkg>.yml workflow with `dry_run=false` so each package publishes via OIDC trusted
+  publishing.
+- Updated dependencies [9e067cf]
+  - @mysten/aws-kms-signer@0.1.1
+  - @mysten/gcp-kms-signer@0.1.1
+  - @mysten/ledger-signer@0.1.1
+  - @mysten/sui@2.16.1
+  - @mysten/webcrypto-signer@0.1.1
+
+## 1.0.3
+
+### Patch Changes
+
+- 75a32c1: Internal refactor: each backend now lives in its own package (`@mysten/aws-kms-signer`,
+  `@mysten/gcp-kms-signer`, `@mysten/ledger-signer`, `@mysten/webcrypto-signer`). The
+  `@mysten/signers/{aws,gcp,ledger,webcrypto}` subpaths now re-export from the new packages — no
+  public API change. To shrink your dependency tree, switch to importing from the per-backend
+  package directly.
+- Updated dependencies [75a32c1]
+- Updated dependencies [75a32c1]
+- Updated dependencies [75a32c1]
+- Updated dependencies [75a32c1]
+  - @mysten/aws-kms-signer@0.1.0
+  - @mysten/gcp-kms-signer@0.1.0
+  - @mysten/ledger-signer@0.1.0
+  - @mysten/webcrypto-signer@0.1.0
+
 ## 1.0.2
 
 ### Patch Changes

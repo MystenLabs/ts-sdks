@@ -1,5 +1,158 @@
 # @mysten/sui.js
 
+## 2.22.0
+
+### Minor Changes
+
+- 899d9e3: Add gRPC client transaction results that include protobuf JSON with
+  `include: { protoJson: true }`.
+
+## 2.21.0
+
+### Minor Changes
+
+- da78e18: Expose gRPC transaction response parsers for converting protobuf transaction responses
+  into SDK Core transaction result shapes.
+
+## 2.20.4
+
+### Patch Changes
+
+- 7333638: Deprecate JSON-RPC client APIs, transport APIs, and JSON-RPC-specific types. Migrate to
+  `SuiGrpcClient` or `SuiGraphQLClient`.
+- e77aa8d: Forward `AbortSignal` from `SuiGrpcClient` method options to the underlying gRPC
+  requests. Previously methods like `listOwnedObjects` accepted a `signal` but never passed it
+  through, so passing `signal` did not cancel the request. MVR
+  (`resolveType`/`resolvePackage`/`resolve`) resolution is now also cancellable via the same signal.
+
+## 2.20.3
+
+### Patch Changes
+
+- 5028c01: Fix kind-only transaction builds (`onlyTransactionKind: true`) that reference an owned
+  object without a sender set (e.g. the seal use-case). The gRPC and GraphQL clients now disable
+  simulation validation checks when resolving kind-only builds, so a transaction that would fail to
+  simulate can still be serialized. Kind-only builds also no longer leak the dummy `0x0` sender used
+  for resolution back into the transaction data, matching the JSON-RPC client's behavior.
+
+## 2.20.2
+
+### Patch Changes
+
+- 36ab719: Fix pagination options being dropped on the unified core client.
+
+  `GraphQLCoreClient.listBalances` now forwards the `limit` and `cursor` options to the underlying
+  query (previously both were ignored, so it always returned the full, unpaginated list).
+  `GrpcCoreClient.listCoins` now forwards `limit` as the request `pageSize` (previously only
+  `cursor` was passed, so `limit` had no effect). This brings both methods in line with the other
+  transports and list methods.
+
+## 2.20.1
+
+### Patch Changes
+
+- 91c4ef5: Fix `CoinWithBalance` intent failing to build after a `toJSON`/`Transaction.from`
+  round-trip. Serializing a transaction with `CoinWithBalance` as a supported intent turns the
+  intent's `balance` into a string, which was not coerced back to a `bigint` on deserialization,
+  causing `ValiError: Invalid type: Expected bigint` when building the restored transaction.
+
+## 2.20.0
+
+### Minor Changes
+
+- 7452835: Add `ZkLoginSigner`, a transport- and provider-agnostic zkLogin signer. It wraps any
+  ephemeral `Signer` and transforms its signatures into zkLogin signatures using the supplied proof
+  `inputs` and `maxEpoch`:
+  `new ZkLoginSigner({ ephemeralSigner, maxEpoch, inputs, legacyAddress })`. The address is derived
+  from the proof; `legacyAddress` is a required boolean (consistent with `jwtToAddress`,
+  `toZkLoginPublicIdentifier`, and the other zkLogin address APIs). Optionally pass `address` to
+  validate the derived address (throws on mismatch) and `client` to make the derived public key able
+  to verify signatures. Like other composite signers (e.g. `MultiSigSigner`), calling `sign()`
+  directly throws — use `signTransaction` / `signPersonalMessage`.
+
+  Also adds a read-only `legacyAddress` getter to `ZkLoginPublicIdentifier`.
+
+## 2.19.0
+
+### Minor Changes
+
+- 2be98ce: Add `isValidSignature`, `isValidPersonalMessageSignature`, and
+  `isValidTransactionSignature` to `@mysten/sui/verify` — boolean-returning siblings of the existing
+  `verify*` functions, taking the same arguments. They return `false` for a malformed or invalid
+  signature (or one that doesn't match a supplied `address`) instead of throwing, while still
+  letting a genuine environmental failure during verification (e.g. a zkLogin JWK/epoch lookup)
+  propagate. The `verify*` functions now delegate to these.
+
+## 2.18.0
+
+### Minor Changes
+
+- b093d05: `Transaction.from` now accepts an optional `intentResolvers` option, a map of intent
+  names to resolvers. This lets you synchronously copy a transaction that still contains unresolved
+  custom intents without first awaiting `prepareForSerialization`. Built-in intents (such as
+  `CoinWithBalance`) continue to be handled automatically.
+- bbf63cb: Updated dependencies
+
+### Patch Changes
+
+- 4ca4c66: zkLogin: `genAddressSeed` now rejects key claim name, value, or aud that contain a JSON
+  escape (`"`, `\`, or a control character).
+- Updated dependencies [bbf63cb]
+  - @mysten/bcs@2.1.0
+  - @mysten/utils@0.4.0
+
+## 2.17.0
+
+### Minor Changes
+
+- 521ec28: Regenerate gRPC, GraphQL, and JSON-RPC types from upstream sources, and add a
+  `ForkingService` gRPC client for use against `sui-fork` instances.
+  - gRPC: `AccumulatorWrite` splits the old `value` field into `integerValue` / `integerTuple` /
+    `eventDigestValue` (authenticated events), with a new `EventDigestEntry` message and
+    `AccumulatorValue` enum.
+  - GraphQL: new `verifySignature` query (deprecates `verifyZkLoginSignature`), `IntentScope` enum,
+    `SignatureVerifyResult` type, `digest` arg on `Query.checkpoint`, and `version` field on
+    `TransactionEffects`.
+  - JSON-RPC: regenerated; `DisplayFieldsResponse.data` override from #993 is preserved.
+  - `SuiGrpcClient` now exposes a `forkingService` member built from
+    `sui/forking/v1alpha/forking_service.proto` (pulled from the `sui` repo, since it is not
+    mirrored in `sui-apis`). The service is admin-only and works only against `sui-fork` instances;
+    it serves on the same host/port as the regular Sui gRPC services on a fork.
+
+## 2.16.3
+
+### Patch Changes
+
+- 5900ad5: Always pass a `ValidDuring` expiration as a simulate-only override when the resolver has
+  to compute a gas budget and the caller hasn't set an expiration. The simulate inside
+  `setGasBudget` runs with `payment: []`, and the validator's replay-protection check rejects
+  payment-less transactions that lack both a `ValidDuring` expiration and an address-owned input.
+  Previously this affected gasless / free-tier PTBs over JSON-RPC ("Transactions must either have
+  address-owned inputs, or a ValidDuring expiration with at most two epochs of validity"); it also
+  affects any PTB whose only inputs are shared objects, pure args, or balance withdrawals. The
+  override is scoped to the simulate request — the final transaction's expiration is unchanged.
+
+## 2.16.2
+
+### Patch Changes
+
+- f7de3e5: Restore docs in published tarballs.
+- Updated dependencies [f7de3e5]
+  - @mysten/bcs@2.0.5
+  - @mysten/utils@0.3.3
+
+## 2.16.1
+
+### Patch Changes
+
+- 9e067cf: Validate the new per-package release flow end-to-end across every public @mysten package.
+  No functional changes — empty patch bump to force the orchestrator to dispatch every
+  release-<pkg>.yml workflow with `dry_run=false` so each package publishes via OIDC trusted
+  publishing.
+- Updated dependencies [9e067cf]
+  - @mysten/bcs@2.0.4
+  - @mysten/utils@0.3.2
+
 ## 2.16.0
 
 ### Minor Changes

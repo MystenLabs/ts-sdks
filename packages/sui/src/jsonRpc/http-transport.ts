@@ -1,14 +1,20 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { PACKAGE_VERSION, TARGETED_RPC_VERSION } from '../version.js';
+import { PACKAGE_VERSION } from '../version.js';
 import { JsonRpcError, SuiHTTPStatusError } from './errors.js';
 
 /**
  * An object defining headers to be passed to the RPC server
+ * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+ * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
  */
 export type HttpHeaders = { [header: string]: string };
 
+/**
+ * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+ * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+ */
 export interface JsonRpcHTTPTransportOptions {
 	fetch?: typeof fetch;
 	url: string;
@@ -18,24 +24,44 @@ export interface JsonRpcHTTPTransportOptions {
 	};
 }
 
+/**
+ * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+ * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+ */
 export interface JsonRpcTransportRequestOptions {
 	method: string;
 	params: unknown[];
 	signal?: AbortSignal;
 }
 
+/**
+ * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+ * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+ */
 export interface JsonRpcTransport {
 	request<T = unknown>(input: JsonRpcTransportRequestOptions): Promise<T>;
 }
 
+/**
+ * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+ * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+ */
 export class JsonRpcHTTPTransport implements JsonRpcTransport {
 	#requestId = 0;
 	#options: JsonRpcHTTPTransportOptions;
 
+	/**
+	 * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+	 * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+	 */
 	constructor(options: JsonRpcHTTPTransportOptions) {
 		this.#options = options;
 	}
 
+	/**
+	 * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+	 * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+	 */
 	fetch(input: RequestInfo, init?: RequestInit): Promise<Response> {
 		const fetchFn = this.#options.fetch ?? fetch;
 
@@ -48,6 +74,10 @@ export class JsonRpcHTTPTransport implements JsonRpcTransport {
 		return fetchFn(input, init);
 	}
 
+	/**
+	 * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+	 * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+	 */
 	async request<T>(input: JsonRpcTransportRequestOptions): Promise<T> {
 		this.#requestId += 1;
 
@@ -58,7 +88,6 @@ export class JsonRpcHTTPTransport implements JsonRpcTransport {
 				'Content-Type': 'application/json',
 				'Client-Sdk-Type': 'typescript',
 				'Client-Sdk-Version': PACKAGE_VERSION,
-				'Client-Target-Api-Version': TARGETED_RPC_VERSION,
 				'Client-Request-Method': input.method,
 				...this.#options.rpc?.headers,
 			},

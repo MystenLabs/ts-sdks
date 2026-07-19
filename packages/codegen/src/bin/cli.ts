@@ -26,7 +26,7 @@ async function main() {
 }
 
 main().then(
-	() => process.exit(0),
+	() => process.exit(process.exitCode ?? 0),
 	(error) => {
 		console.error(error);
 		process.exit(1);
