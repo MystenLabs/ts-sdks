@@ -65,7 +65,6 @@ export function makeClient(): ExtendedHashiClient {
 	const cfg = resolveClientConfig();
 	return new SuiGrpcClient({ network: cfg.network, baseUrl: cfg.rpcUrl }).$extend(
 		hashi({
-			network: cfg.network,
 			packageId: cfg.packageId,
 			hashiObjectId: cfg.hashiObjectId,
 			bitcoinNetwork: cfg.bitcoinNetwork,

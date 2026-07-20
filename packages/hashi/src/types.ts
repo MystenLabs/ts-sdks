@@ -13,8 +13,6 @@ export interface NetworkConfig {
 
 export interface HashiClientOptions<Name = string> {
 	name?: Name;
-	/** Sui network — determines Hashi object IDs and default Bitcoin network. */
-	network: SuiNetwork;
 	/** Override the auto-resolved Hashi shared object ID (for custom/local deployments). */
 	hashiObjectId?: string;
 	/** Override the auto-resolved Hashi package ID (for custom/local deployments). */

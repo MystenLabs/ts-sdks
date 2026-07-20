@@ -120,7 +120,7 @@ function isObjectNotFoundError(err: Error): boolean {
 export function hashi<const Name = 'hashi'>({
 	name = 'hashi' as Name,
 	...options
-}: HashiClientOptions<Name>) {
+}: HashiClientOptions<Name> = {}) {
 	return {
 		name,
 		register: (client: ClientWithCoreApi) => {
@@ -134,7 +134,7 @@ export function hashi<const Name = 'hashi'>({
  * `hashi({...})` factory and attached to any Sui client via `$extend`:
  *
  * ```ts
- * const client = new SuiGrpcClient({ ... }).$extend(hashi({ network: "devnet" }));
+ * const client = new SuiGrpcClient({ network: "devnet", ... }).$extend(hashi());
  * const result = await client.hashi.deposit({ signer, ... });
  * ```
  *
@@ -160,7 +160,6 @@ export class HashiClient {
 
 	constructor({
 		client,
-		network,
 		hashiObjectId,
 		packageId,
 		bitcoinNetwork,
@@ -170,7 +169,6 @@ export class HashiClient {
 		guardianInfoProvider,
 	}: {
 		client: ClientWithCoreApi;
-		network: SuiNetwork;
 		hashiObjectId?: string;
 		packageId?: string;
 		bitcoinNetwork?: BitcoinNetwork;
@@ -179,7 +177,8 @@ export class HashiClient {
 		guardianUrl?: string;
 		guardianInfoProvider?: GuardianInfoProvider;
 	}) {
-		const config = NETWORK_CONFIG[network];
+		const network = client.network;
+		const config = NETWORK_CONFIG[network as SuiNetwork];
 		const resolvedObjectId = hashiObjectId ?? config?.hashiObjectId;
 		const resolvedPackageId = packageId ?? config?.packageId;
 		if (!resolvedObjectId || !resolvedPackageId) {

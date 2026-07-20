@@ -36,15 +36,15 @@ import { hashi } from '@mysten/hashi';
 const client = new SuiGrpcClient({
 	network: 'testnet',
 	baseUrl: 'https://fullnode.testnet.sui.io:443',
-}).$extend(hashi({ network: 'testnet' }));
+}).$extend(hashi());
 
 const signer = Ed25519Keypair.fromSecretKey(/* … */);
 ```
 
 > **Network support.** Sui **testnet** and **devnet** are wired up (Bitcoin **signet** by default).
 > Prefer testnet — devnet support is temporary and will be deprecated. Mainnet is not yet deployed;
-> `hashi({ network: "mainnet" })` will throw until it lands. To target a custom or local deployment,
-> pass `hashiObjectId`, `packageId`, and `bitcoinNetwork` explicitly.
+> `hashi()` will throw until it lands, based on the network of the client it's extending. To target
+> a custom or local deployment, pass `hashiObjectId`, `packageId`, and `bitcoinNetwork` explicitly.
 
 > **Optional client options.** `hashi({ ... })` also accepts `btcRpcUrl` — a Bitcoin Core JSON-RPC
 > URL, required for the [`client.hashi.bitcoin.*`](#bitcoin-rpc-optional) lookups — and
@@ -269,7 +269,7 @@ and for checking confirmations before submitting a deposit.
 const client = new SuiGrpcClient({
 	network: 'testnet',
 	baseUrl: 'https://fullnode.testnet.sui.io:443',
-}).$extend(hashi({ network: 'testnet', btcRpcUrl: 'http://user:pass@127.0.0.1:8332' }));
+}).$extend(hashi({ btcRpcUrl: 'http://user:pass@127.0.0.1:8332' }));
 
 // Which output(s) of the funding tx paid the deposit address?
 const output = await client.hashi.bitcoin.lookupVout(btcTxid, btcAddress);
@@ -294,9 +294,7 @@ headroom.
 const client = new SuiGrpcClient({
 	network: 'devnet',
 	baseUrl: 'https://fullnode.devnet.sui.io:443',
-}).$extend(
-	hashi({ network: 'devnet', guardianUrl: 'https://hashi-guardian-devnet.mystenlabs.com' }),
-);
+}).$extend(hashi({ guardianUrl: 'https://hashi-guardian-devnet.mystenlabs.com' }));
 
 // Guardian identity + limiter. `limiter` is null before the guardian is provisioned.
 const info = await client.hashi.guardian.info();

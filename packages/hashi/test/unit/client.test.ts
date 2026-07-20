@@ -130,7 +130,6 @@ describe('HashiClient', () => {
 			baseUrl: 'https://fullnode.devnet.sui.io:443',
 		}).$extend(
 			hashi({
-				network: 'devnet',
 				hashiObjectId: HASHI_OBJECT_ID,
 				packageId: PACKAGE_ID,
 				bitcoinNetwork: 'regtest',
@@ -287,7 +286,7 @@ describe('HashiClient', () => {
 			const devnetClient = new SuiGrpcClient({
 				network: 'devnet',
 				baseUrl: 'https://fullnode.devnet.sui.io:443',
-			}).$extend(hashi({ network: 'devnet' }));
+			}).$extend(hashi());
 
 			const suiAddress = '0xe40c8cf8b53822829b3a6dc9aea84b62653f60b771e9da4bd4e214cae851b87b';
 
@@ -757,7 +756,7 @@ describe('HashiClient', () => {
 				new SuiGrpcClient({
 					network: 'testnet',
 					baseUrl: 'https://fullnode.testnet.sui.io:443',
-				}).$extend(hashi({ network: 'testnet' })),
+				}).$extend(hashi()),
 			).not.toThrow();
 		});
 
@@ -766,7 +765,7 @@ describe('HashiClient', () => {
 				new SuiGrpcClient({
 					network: 'mainnet',
 					baseUrl: 'https://fullnode.mainnet.sui.io:443',
-				}).$extend(hashi({ network: 'mainnet' })),
+				}).$extend(hashi()),
 			).toThrow('not yet supported on Sui mainnet');
 		});
 
@@ -777,7 +776,6 @@ describe('HashiClient', () => {
 					baseUrl: 'https://fullnode.mainnet.sui.io:443',
 				}).$extend(
 					hashi({
-						network: 'mainnet',
 						hashiObjectId: HASHI_OBJECT_ID,
 						packageId: PACKAGE_ID,
 					}),
@@ -2165,7 +2163,6 @@ describe('HashiClient guardian', () => {
 			baseUrl: 'https://fullnode.devnet.sui.io:443',
 		}).$extend(
 			hashi({
-				network: 'devnet',
 				hashiObjectId: HASHI_OBJECT_ID,
 				packageId: PACKAGE_ID,
 				bitcoinNetwork: 'regtest',
