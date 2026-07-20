@@ -6,7 +6,7 @@ import type { Signer } from '@mysten/sui/cryptography';
 import { bcs, TypeTagSerializer } from '@mysten/sui/bcs';
 import { fromHex, deriveDynamicFieldID, normalizeSuiAddress } from '@mysten/sui/utils';
 import { base58 } from '@scure/base';
-import { Transaction, coinWithBalance } from '@mysten/sui/transactions';
+import { Transaction } from '@mysten/sui/transactions';
 import { Hashi } from './contracts/hashi/hashi.js';
 import { BitcoinState, BitcoinStateKey } from './contracts/hashi/bitcoin_state.js';
 import { DepositRequest } from './contracts/hashi/deposit_queue.js';
@@ -510,10 +510,10 @@ export class HashiClient {
 		},
 
 		/**
-		 * Build a transaction that submits a BTC withdrawal request. Sources the
-		 * BTC via `coinWithBalance`, unwraps it into a `Balance<BTC>`, and passes
-		 * it to `withdraw::request_withdrawal` along with the target Bitcoin
-		 * output address.
+		 * Build a transaction that submits a BTC withdrawal request. Sources a
+		 * `Balance<BTC>` via `tx.balance` and passes it to
+		 * `withdraw::request_withdrawal` along with the target Bitcoin output
+		 * address.
 		 */
 		requestWithdrawal: (options: {
 			/** Amount in sats to withdraw. Must be ≥ the on-chain withdrawal minimum. */
@@ -526,20 +526,9 @@ export class HashiClient {
 			bitcoinAddress: Uint8Array;
 		}): Transaction => {
 			const tx = new Transaction();
-			const btcType = `${this.#packageId}::btc::BTC`;
-			const coin = tx.add(
-				coinWithBalance({
-					type: btcType,
-					balance: options.amount,
-					useGasCoin: false,
-				}),
-			);
-			const [balance] = tx.moveCall({
-				package: '0x2',
-				module: 'coin',
-				function: 'into_balance',
-				typeArguments: [btcType],
-				arguments: [coin],
+			const balance = tx.balance({
+				type: `${this.#packageId}::btc::BTC`,
+				balance: options.amount,
 			});
 			tx.add(
 				this.call.requestWithdrawal({
@@ -1040,17 +1029,10 @@ export class HashiClient {
 			let gasEstimateMist = 0n;
 			if (sender) {
 				const dummyAmount = snap.bitcoinWithdrawalMinimum + 1n;
-				const btcType = `${this.#packageId}::btc::BTC`;
 				const tx = new Transaction();
-				const coin = tx.add(
-					coinWithBalance({ type: btcType, balance: dummyAmount, useGasCoin: false }),
-				);
-				const [balance] = tx.moveCall({
-					package: '0x2',
-					module: 'coin',
-					function: 'into_balance',
-					typeArguments: [btcType],
-					arguments: [coin],
+				const balance = tx.balance({
+					type: `${this.#packageId}::btc::BTC`,
+					balance: dummyAmount,
 				});
 				tx.add(
 					this.call.requestWithdrawal({

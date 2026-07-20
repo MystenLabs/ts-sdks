@@ -2098,19 +2098,25 @@ describe('HashiClient', () => {
 		});
 
 		describe('requestWithdrawal', () => {
-			it('composes coinWithBalance + into_balance + request_withdrawal', () => {
+			it('composes a Balance<BTC> intent + request_withdrawal', () => {
 				const tx = client.hashi.tx.requestWithdrawal({
 					amount: 50_000n,
 					bitcoinAddress: new Uint8Array(32),
 				});
 				expect(tx).toBeInstanceOf(Transaction);
 
+				// `tx.balance` emits a CoinWithBalance intent with a `balance`
+				// output kind; the `0x2::coin::into_balance` conversion is only
+				// inserted when the intent is resolved at build time.
 				const { commands } = tx.getData();
+				const intent = commands.find((c) => c.$kind === '$Intent');
+				expect(intent?.$Intent?.name).toBe('CoinWithBalance');
+				expect(intent?.$Intent?.data).toMatchObject({
+					type: `${PACKAGE_ID}::btc::BTC`,
+					outputKind: 'balance',
+				});
+
 				const moveCalls = commands.filter((c) => c.$kind === 'MoveCall');
-
-				const intoBalance = moveCalls.find((c) => c.MoveCall?.function === 'into_balance');
-				expect(intoBalance?.MoveCall?.typeArguments).toEqual([`${PACKAGE_ID}::btc::BTC`]);
-
 				expect(moveCalls.some((c) => c.MoveCall?.function === 'request_withdrawal')).toBe(true);
 			});
 		});
