@@ -3,20 +3,20 @@
 
 import type { UtxoLookupResult } from './types.js';
 
-async function rpcCall(
+async function rpcCall<T = unknown>(
 	url: string,
 	method: string,
 	params: unknown[],
 	id: string,
-): Promise<unknown> {
+): Promise<T> {
 	const res = await fetch(url, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({ jsonrpc: '1.0', id, method, params }),
 	});
-	const data = (await res.json()) as { error?: { message: string }; result?: unknown };
+	const data = (await res.json()) as { error?: { message: string }; result?: T };
 	if (data.error) throw new Error(data.error.message);
-	return data.result;
+	return data.result as T;
 }
 
 export async function lookupVout(
@@ -24,9 +24,9 @@ export async function lookupVout(
 	txid: string,
 	depositAddress: string,
 ): Promise<UtxoLookupResult | null> {
-	const tx = (await rpcCall(btcRpcUrl, 'getrawtransaction', [txid, true], 'hashi-lookup-vout')) as {
+	const tx = await rpcCall<{
 		vout: Array<{ n: number; value: number; scriptPubKey?: { address?: string } }>;
-	};
+	}>(btcRpcUrl, 'getrawtransaction', [txid, true], 'hashi-lookup-vout');
 	for (const output of tx.vout) {
 		if (output.scriptPubKey?.address === depositAddress) {
 			return { vout: output.n, amountSats: BigInt(Math.round(output.value * 1e8)) };
@@ -40,9 +40,9 @@ export async function lookupAllVouts(
 	txid: string,
 	depositAddress: string,
 ): Promise<UtxoLookupResult[]> {
-	const tx = (await rpcCall(btcRpcUrl, 'getrawtransaction', [txid, true], 'hashi-lookup-all')) as {
+	const tx = await rpcCall<{
 		vout: Array<{ n: number; value: number; scriptPubKey?: { address?: string } }>;
-	};
+	}>(btcRpcUrl, 'getrawtransaction', [txid, true], 'hashi-lookup-all');
 	const matches: UtxoLookupResult[] = [];
 	for (const output of tx.vout) {
 		if (output.scriptPubKey?.address === depositAddress) {
@@ -53,13 +53,11 @@ export async function lookupAllVouts(
 }
 
 export async function getTxConfirmations(btcRpcUrl: string, txid: string): Promise<number> {
-	const tx = (await rpcCall(
+	const tx = await rpcCall<{ confirmations?: number }>(
 		btcRpcUrl,
 		'getrawtransaction',
 		[txid, true],
 		'hashi-confirmations',
-	)) as {
-		confirmations?: number;
-	};
+	);
 	return Number(tx?.confirmations ?? 0);
 }
