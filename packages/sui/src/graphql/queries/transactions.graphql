@@ -157,6 +157,9 @@ query resolveTransaction(
 			transaction {
 				transactionBcs
 				effects {
+					epoch {
+						epochId
+					}
 					status
 					executionError {
 						message
