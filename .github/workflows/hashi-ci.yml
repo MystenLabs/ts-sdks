@@ -87,29 +87,21 @@ jobs:
         run: bash hashi/.github/scripts/install-sui.sh
 
       # Mirrors the "Install Bitcoin Core" step in
-      # hashi/.github/workflows/ci.yml. Vendored verbatim because hashi-core
-      # has it inline (no install-bitcoin.sh to reuse). Revisit if hashi
-      # extracts a script.
+      # hashi/.github/workflows/ci.yml, but pinned rather than tracking the
+      # latest upstream release: an unpinned bitcoind would let a new Bitcoin
+      # Core release change what these tests run against with no PR, and a
+      # floating version can't be checksum-verified. Bump both values together
+      # (checksums: https://bitcoincore.org/bin/bitcoin-core-<version>/SHA256SUMS).
       - name: Install Bitcoin Core
         env:
-          FALLBACK_VERSION: '29.1'
+          BITCOIN_VERSION: '29.1'
+          BITCOIN_SHA256: '2dddeaa8c0626ec446b6f21b64c0f3565a1e7e67ff0b586d25043cbd686c9455'
         run: |
-          echo "Detecting latest Bitcoin Core version..."
-          BITCOIN_VERSION=$(curl -s https://api.github.com/repos/bitcoin/bitcoin/releases/latest | \
-            sed -n 's/.*"tag_name": "v\([^"]*\)".*/\1/p' || echo "$FALLBACK_VERSION")
-
-          if [ -z "$BITCOIN_VERSION" ]; then
-            echo "Failed to detect version, using fallback: $FALLBACK_VERSION"
-            BITCOIN_VERSION="$FALLBACK_VERSION"
-          fi
-
           echo "Installing Bitcoin Core v${BITCOIN_VERSION}..."
 
-          wget -q https://bitcoincore.org/bin/bitcoin-core-${BITCOIN_VERSION}/bitcoin-${BITCOIN_VERSION}-x86_64-linux-gnu.tar.gz || {
-            echo "Download failed for ${BITCOIN_VERSION}; falling back to ${FALLBACK_VERSION}"
-            BITCOIN_VERSION="$FALLBACK_VERSION"
-            wget -q https://bitcoincore.org/bin/bitcoin-core-${BITCOIN_VERSION}/bitcoin-${BITCOIN_VERSION}-x86_64-linux-gnu.tar.gz
-          }
+          wget -q https://bitcoincore.org/bin/bitcoin-core-${BITCOIN_VERSION}/bitcoin-${BITCOIN_VERSION}-x86_64-linux-gnu.tar.gz
+
+          echo "${BITCOIN_SHA256}  bitcoin-${BITCOIN_VERSION}-x86_64-linux-gnu.tar.gz" | sha256sum -c -
 
           tar -xzf bitcoin-${BITCOIN_VERSION}-x86_64-linux-gnu.tar.gz
           sudo mv bitcoin-${BITCOIN_VERSION}/bin/bitcoind /usr/local/bin/
