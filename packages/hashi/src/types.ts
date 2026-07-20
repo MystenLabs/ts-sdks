@@ -11,7 +11,7 @@ export interface NetworkConfig {
 	bitcoinNetwork: BitcoinNetwork;
 }
 
-export interface HashiClientOptions<Name = 'HashiClient'> {
+export interface HashiClientOptions<Name = string> {
 	name?: Name;
 	/** Sui network — determines Hashi object IDs and default Bitcoin network. */
 	network: SuiNetwork;
