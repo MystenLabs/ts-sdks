@@ -23,6 +23,7 @@ import { Bag } from '../../src/contracts/hashi/deps/sui/bag.js';
 import { generateDepositAddress } from '../../src/bitcoin.js';
 import { reverseTxidBytes } from '../../src/util.js';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
+import { SuiGraphQLClient } from '@mysten/sui/graphql';
 import { bcs } from '@mysten/sui/bcs';
 import { Transaction } from '@mysten/sui/transactions';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
@@ -1269,20 +1270,19 @@ describe('HashiClient', () => {
 		}
 
 		function mockGraphQLDepositEvents(depositIds: string[]) {
-			vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
-				new Response(
-					JSON.stringify({
-						data: {
-							events: {
-								nodes: depositIds.map((id) => ({
-									contents: { json: { request_id: id } },
-								})),
-								pageInfo: { hasNextPage: false, endCursor: null },
-							},
-						},
-					}),
-				),
-			);
+			// The events lookup goes through the HashiClient's internal
+			// SuiGraphQLClient, which captures `fetch` at construction — so mock
+			// at the query boundary rather than on `globalThis.fetch`.
+			vi.spyOn(SuiGraphQLClient.prototype, 'query').mockResolvedValueOnce({
+				data: {
+					events: {
+						nodes: depositIds.map((id) => ({
+							contents: { json: { request_id: id } },
+						})),
+						pageInfo: { hasNextPage: false, endCursor: null },
+					},
+				},
+			} as never);
 		}
 
 		function mockDepositRequestObject() {

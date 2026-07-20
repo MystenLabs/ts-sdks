@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
+import type { GraphQLQueryResult } from '@mysten/sui/graphql';
+import { SuiGraphQLClient } from '@mysten/sui/graphql';
 import type { Signer } from '@mysten/sui/cryptography';
 import { bcs, TypeTagSerializer } from '@mysten/sui/bcs';
 import { fromHex, deriveDynamicFieldID, normalizeSuiAddress } from '@mysten/sui/utils';
@@ -76,8 +78,30 @@ const OBJECT_BAG_ADDRESS_TYPE =
 /** Max value of an unsigned 32-bit integer; vout is a u32 on the Bitcoin side. */
 const U32_MAX = 0xffffffff;
 
-/** Max objects per `getObjects` call. */
-const GET_OBJECTS_BATCH = 500;
+/** Events of a type emitted by a sender, paginated; used by `#queryEventRequestIds`. */
+const EVENT_REQUEST_IDS_QUERY = `
+	query EventRequestIds($sender: SuiAddress!, $type: String!, $after: String) {
+		events(filter: { sender: $sender, type: $type }, first: 50, after: $after) {
+			nodes {
+				contents {
+					json
+				}
+			}
+			pageInfo {
+				hasNextPage
+				endCursor
+			}
+		}
+	}
+`;
+
+/** Result shape of {@link EVENT_REQUEST_IDS_QUERY}. */
+interface EventRequestIdsResult {
+	events?: {
+		nodes: { contents: { json: { request_id: string } } }[];
+		pageInfo: { hasNextPage: boolean; endCursor: string | null };
+	} | null;
+}
 
 const GRAPHQL_URLS: Record<string, string> = {
 	devnet: 'https://fullnode.devnet.sui.io:443/graphql',
@@ -150,7 +174,7 @@ export class HashiClient {
 	#packageId: string;
 	#bitcoinNetwork: BitcoinNetwork;
 	#btcRpcUrl: string | undefined;
-	#graphqlUrl: string;
+	#graphql: SuiGraphQLClient;
 	#guardianUrl: string | undefined;
 	#guardianInfoProvider: GuardianInfoProvider | undefined;
 	// A URL resolved from the on-chain `guardian_url`, cached once found. Stays
@@ -191,7 +215,10 @@ export class HashiClient {
 		this.#packageId = resolvedPackageId;
 		this.#bitcoinNetwork = bitcoinNetwork ?? config?.bitcoinNetwork ?? 'testnet';
 		this.#btcRpcUrl = btcRpcUrl;
-		this.#graphqlUrl = graphqlUrl ?? defaultGraphqlUrl(network);
+		this.#graphql = new SuiGraphQLClient({
+			url: graphqlUrl ?? defaultGraphqlUrl(network),
+			network,
+		});
 		this.#guardianUrl = guardianUrl;
 		this.#guardianInfoProvider = guardianInfoProvider;
 	}
@@ -766,8 +793,9 @@ export class HashiClient {
 				);
 			}
 
-			// Batch-fetch — existence test only, no content needed.
-			const objects = await this.#batchGetObjects(fieldIds);
+			// Existence test only, no content needed. `core.getObjects`
+			// batches internally, so any number of ids is fine.
+			const { objects } = await this.#client.core.getObjects({ objectIds: fieldIds });
 
 			if (objects.length !== fieldIds.length) {
 				throw new HashiFetchError(
@@ -1074,7 +1102,10 @@ export class HashiClient {
 			if (userBagId !== null) {
 				const requestIds = await this.#listAllDynamicFieldAddressKeys(userBagId);
 				if (requestIds.length > 0) {
-					const objects = await this.#batchGetObjects(requestIds, { content: true });
+					const { objects } = await this.#client.core.getObjects({
+						objectIds: requestIds,
+						include: { content: true },
+					});
 					const classified = this.#classifyRequestObjects(objects, timeDelayMs);
 					items.push(...classified.items);
 					await this.#populateWithdrawalBtcTxids(items, classified.withdrawalTxnLookups);
@@ -1091,7 +1122,10 @@ export class HashiClient {
 				const pendingIds = allDepositIds.filter((id) => !confirmedIds.has(id));
 
 				if (pendingIds.length > 0) {
-					const objects = await this.#batchGetObjects(pendingIds, { content: true });
+					const { objects } = await this.#client.core.getObjects({
+						objectIds: pendingIds,
+						include: { content: true },
+					});
 					const classified = this.#classifyRequestObjects(objects, timeDelayMs);
 					items.push(...classified.items);
 				}
@@ -1412,24 +1446,6 @@ export class HashiClient {
 	}
 
 	/**
-	 * Batch-fetches objects in chunks of `GET_OBJECTS_BATCH`, concatenating
-	 * the results. Each element is either an object or an `Error` (for
-	 * missing / deleted objects).
-	 */
-	async #batchGetObjects(objectIds: string[], include?: { content?: boolean }) {
-		const results: (SuiClientTypes.Object<{ content: true }> | Error)[] = [];
-		for (let i = 0; i < objectIds.length; i += GET_OBJECTS_BATCH) {
-			const batch = objectIds.slice(i, i + GET_OBJECTS_BATCH);
-			const { objects } = await this.#client.core.getObjects({
-				objectIds: batch,
-				include: include as { content: true },
-			});
-			results.push(...objects);
-		}
-		return results;
-	}
-
-	/**
 	 * Query the Sui GraphQL endpoint for events of a given type emitted by
 	 * a sender. Returns the `request_id` from each event's JSON payload,
 	 * paginating through all results.
@@ -1440,37 +1456,15 @@ export class HashiClient {
 		let hasMore = true;
 
 		while (hasMore) {
-			const afterClause = cursor ? `, after: "${cursor}"` : '';
-			const query = `{
-                events(
-                    filter: { sender: "${sender}", type: "${eventType}" }
-                    first: 50${afterClause}
-                ) {
-                    nodes { contents { json } }
-                    pageInfo { hasNextPage endCursor }
-                }
-            }`;
-
-			const res = await fetch(this.#graphqlUrl, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ query }),
+			const result: GraphQLQueryResult<EventRequestIdsResult> = await this.#graphql.query({
+				query: EVENT_REQUEST_IDS_QUERY,
+				variables: { sender, type: eventType, after: cursor },
 			});
-			if (!res.ok) throw new Error(`GraphQL request failed: ${res.status}`);
-
-			const body = (await res.json()) as {
-				data?: {
-					events?: {
-						nodes: { contents: { json: { request_id: string } } }[];
-						pageInfo: { hasNextPage: boolean; endCursor: string | null };
-					};
-				};
-				errors?: { message: string }[];
-			};
-			if (body.errors?.length) {
-				throw new Error(`GraphQL error: ${body.errors[0].message}`);
+			const { data, errors } = result;
+			if (errors?.length) {
+				throw new Error(`GraphQL error: ${errors[0].message}`);
 			}
-			const events = body.data?.events;
+			const events = data?.events;
 			if (!events) break;
 
 			for (const node of events.nodes) {
@@ -1531,8 +1525,10 @@ export class HashiClient {
 		lookups: readonly { itemIndex: number; txnId: string }[],
 	): Promise<void> {
 		if (lookups.length === 0) return;
-		const txnIds = lookups.map((l) => l.txnId);
-		const txnObjects = await this.#batchGetObjects(txnIds, { content: true });
+		const { objects: txnObjects } = await this.#client.core.getObjects({
+			objectIds: lookups.map((l) => l.txnId),
+			include: { content: true },
+		});
 		for (let i = 0; i < lookups.length; i++) {
 			const txnObj = txnObjects[i];
 			if (txnObj instanceof Error) continue;
