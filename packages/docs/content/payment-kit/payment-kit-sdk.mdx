@@ -509,9 +509,7 @@ const tx = new Transaction();
 // Add custom logic before payment
 tx.moveCall({
 	target: '0xMyPackage::my_module::pre_payment_check',
-	arguments: [
-		/* ... */
-	],
+	arguments: [/* ... */],
 });
 
 // Add payment command
@@ -528,9 +526,7 @@ tx.add(
 // Add custom logic after payment
 tx.moveCall({
 	target: '0xMyPackage::my_module::post_payment_action',
-	arguments: [
-		/* ... */
-	],
+	arguments: [/* ... */],
 });
 
 await client.signAndExecuteTransaction({
