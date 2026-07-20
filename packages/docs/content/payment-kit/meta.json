@@ -1,7 +1,7 @@
 {
 	"root": true,
 	"title": "Payment Kit",
-	"description": "Accept payments in any coin type on Sui",
+	"description": "Accept P2P and merchant payments in any coin type on Sui with @mysten/payment-kit",
 	"pages": [
 		"index",
 		"getting-started",
