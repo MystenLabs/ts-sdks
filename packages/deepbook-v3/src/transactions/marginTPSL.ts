@@ -232,6 +232,47 @@ export class MarginTPSLContract {
 			});
 		};
 
+	/**
+	 * @description Execute conditional orders, deleveraging on each market-type
+	 * fill. Permissionless, with the same trigger and cancellation handling as
+	 * {@link executeConditionalOrders}, but the market proceeds are repaid into
+	 * the loan before the risk check, and the gate is the *net* post-repay
+	 * `risk_ratio` being at least the pre-fill ratio.
+	 *
+	 * This is what lets a stop-loss fire in the `liquidation..min_borrow` danger
+	 * band: a swap alone only lowers the oracle-valued ratio (so the v2
+	 * borrow-floor gate rejects it), while repaying actually improves it. If a
+	 * single triggered fill would worsen net solvency the whole txn aborts — no
+	 * partial-state landing.
+	 * @param {string} managerAddress The address of the margin manager
+	 * @param {string} poolKey The key to identify the pool (e.g., 'SUI_USDC')
+	 * @param {number} maxOrdersToExecute Maximum number of orders to execute in this call
+	 * @returns A function that takes a Transaction object
+	 */
+	executeConditionalOrdersV3 =
+		(managerAddress: string, poolKey: string, maxOrdersToExecute: number) => (tx: Transaction) => {
+			const pool = this.#config.getPool(poolKey);
+			const baseCoin = this.#config.getCoin(pool.baseCoin);
+			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+			const baseMarginPool = this.#config.getMarginPool(pool.baseCoin);
+			const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
+			return tx.moveCall({
+				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::execute_conditional_orders_v3`,
+				arguments: [
+					tx.object(managerAddress),
+					tx.object(pool.address),
+					tx.object(baseMarginPool.address),
+					tx.object(quoteMarginPool.address),
+					tx.object(baseCoin.priceInfoObjectId!),
+					tx.object(quoteCoin.priceInfoObjectId!),
+					tx.object(this.#config.MARGIN_REGISTRY_ID),
+					tx.pure.u64(maxOrdersToExecute),
+					tx.object.clock(),
+				],
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			});
+		};
+
 	// === Read-Only Functions ===
 
 	/**

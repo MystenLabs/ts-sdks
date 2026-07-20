@@ -68,6 +68,7 @@ export type {
 export type {
 	PlaceLimitOrderParams,
 	PlaceMarketOrderParams,
+	PlacePostOnlyLimitOrderParams,
 	PlaceMarginLimitOrderParams,
 	PlaceMarginMarketOrderParams,
 	SwapParams,

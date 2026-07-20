@@ -105,6 +105,21 @@ export class RegistryQueries {
 		return ratio / FLOAT_SCALAR;
 	}
 
+	async getMinOpenRiskRatio(poolKey: string): Promise<number> {
+		const tx = new Transaction();
+		tx.setSender(this.#ctx.address);
+		tx.add(this.#ctx.marginRegistry.minOpenRiskRatio(poolKey));
+
+		const res = await this.#ctx.client.core.simulateTransaction({
+			transaction: tx,
+			include: { commandResults: true, effects: true },
+		});
+
+		const bytes = res.commandResults![0].returnValues[0].bcs;
+		const ratio = Number(bcs.U64.parse(bytes));
+		return ratio / FLOAT_SCALAR;
+	}
+
 	async getLiquidationRiskRatio(poolKey: string): Promise<number> {
 		const tx = new Transaction();
 		tx.setSender(this.#ctx.address);

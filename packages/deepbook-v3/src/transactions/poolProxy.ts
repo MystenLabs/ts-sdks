@@ -222,6 +222,158 @@ export class PoolProxyContract {
 	};
 
 	/**
+	 * @description Place a market order and repay the loan from the fill proceeds.
+	 * The taker fill settles into the manager's balance, so the proceeds (plus any
+	 * idle balance) are repaid into the debt side before the risk check; the gate
+	 * is then the *net* post-repay `risk_ratio` being at least the pre-fill ratio.
+	 * Unlike {@link placeMarketOrder}, which checks the post-trade ratio against
+	 * `min_borrow_risk_ratio`, this lets a deleveraging fill go through in the
+	 * `liquidation..min_borrow` band, where a swap alone would be rejected.
+	 * @param {PlaceMarginMarketOrderParams} params Parameters for placing a market order
+	 * @returns A function that takes a Transaction object
+	 */
+	placeMarketOrderAndRepayLoan = (params: PlaceMarginMarketOrderParams) => (tx: Transaction) => {
+		const {
+			poolKey,
+			marginManagerKey,
+			clientOrderId,
+			quantity,
+			isBid,
+			selfMatchingOption = SelfMatchingOptions.SELF_MATCHING_ALLOWED,
+			payWithDeep = true,
+		} = params;
+		const pool = this.#config.getPool(poolKey);
+		const manager = this.#config.getMarginManager(marginManagerKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		const baseMarginPool = this.#config.getMarginPool(pool.baseCoin);
+		const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
+		const inputQuantity = convertQuantity(quantity, baseCoin.scalar);
+		return tx.moveCall({
+			target: `${this.#config.MARGIN_PACKAGE_ID}::pool_proxy::place_market_order_and_repay_loan`,
+			arguments: [
+				tx.object(this.#config.MARGIN_REGISTRY_ID),
+				tx.object(manager.address),
+				tx.object(pool.address),
+				tx.object(baseMarginPool.address),
+				tx.object(quoteMarginPool.address),
+				tx.object(baseCoin.priceInfoObjectId!),
+				tx.object(quoteCoin.priceInfoObjectId!),
+				tx.pure.u64(clientOrderId),
+				tx.pure.u8(selfMatchingOption),
+				tx.pure.u64(inputQuantity),
+				tx.pure.bool(isBid),
+				tx.pure.bool(payWithDeep),
+				tx.object.clock(),
+			],
+			typeArguments: [baseCoin.type, quoteCoin.type],
+		});
+	};
+
+	/**
+	 * @description Place a reduce only limit order and repay the loan from the
+	 * fill proceeds. Requires debt on the relevant side (a bid needs base debt; an
+	 * ask needs quote debt and sells at most the gross base held); the repay
+	 * happens before the monotonic `risk_ratio` gate, so the check is on the net
+	 * post-repay ratio.
+	 * @param {PlaceMarginLimitOrderParams} params Parameters for placing a reduce only limit order
+	 * @returns A function that takes a Transaction object
+	 */
+	placeReduceOnlyLimitOrderAndRepayLoan =
+		(params: PlaceMarginLimitOrderParams) => (tx: Transaction) => {
+			const {
+				poolKey,
+				marginManagerKey,
+				clientOrderId,
+				price,
+				quantity,
+				isBid,
+				expiration = MAX_TIMESTAMP,
+				orderType = OrderType.NO_RESTRICTION,
+				selfMatchingOption = SelfMatchingOptions.SELF_MATCHING_ALLOWED,
+				payWithDeep = true,
+			} = params;
+			const pool = this.#config.getPool(poolKey);
+			const manager = this.#config.getMarginManager(marginManagerKey);
+			const baseCoin = this.#config.getCoin(pool.baseCoin);
+			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+			const baseMarginPool = this.#config.getMarginPool(pool.baseCoin);
+			const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
+			const inputPrice = convertPrice(price, FLOAT_SCALAR, quoteCoin.scalar, baseCoin.scalar);
+			const inputQuantity = convertQuantity(quantity, baseCoin.scalar);
+			return tx.moveCall({
+				target: `${this.#config.MARGIN_PACKAGE_ID}::pool_proxy::place_reduce_only_limit_order_and_repay_loan`,
+				arguments: [
+					tx.object(this.#config.MARGIN_REGISTRY_ID),
+					tx.object(manager.address),
+					tx.object(pool.address),
+					tx.object(baseMarginPool.address),
+					tx.object(quoteMarginPool.address),
+					tx.object(baseCoin.priceInfoObjectId!),
+					tx.object(quoteCoin.priceInfoObjectId!),
+					tx.pure.u64(clientOrderId),
+					tx.pure.u8(orderType),
+					tx.pure.u8(selfMatchingOption),
+					tx.pure.u64(inputPrice),
+					tx.pure.u64(inputQuantity),
+					tx.pure.bool(isBid),
+					tx.pure.bool(payWithDeep),
+					tx.pure.u64(expiration),
+					tx.object.clock(),
+				],
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			});
+		};
+
+	/**
+	 * @description Place a reduce only market order and repay the loan from the
+	 * fill proceeds. Same reduce-only direction guard as
+	 * {@link placeReduceOnlyMarketOrder}, but the settled proceeds are repaid into
+	 * the debt side before the monotonic `risk_ratio` gate, so the check is on the
+	 * net post-repay ratio.
+	 * @param {PlaceMarginMarketOrderParams} params Parameters for placing a reduce only market order
+	 * @returns A function that takes a Transaction object
+	 */
+	placeReduceOnlyMarketOrderAndRepayLoan =
+		(params: PlaceMarginMarketOrderParams) => (tx: Transaction) => {
+			const {
+				poolKey,
+				marginManagerKey,
+				clientOrderId,
+				quantity,
+				isBid,
+				selfMatchingOption = SelfMatchingOptions.SELF_MATCHING_ALLOWED,
+				payWithDeep = true,
+			} = params;
+			const pool = this.#config.getPool(poolKey);
+			const manager = this.#config.getMarginManager(marginManagerKey);
+			const baseCoin = this.#config.getCoin(pool.baseCoin);
+			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+			const baseMarginPool = this.#config.getMarginPool(pool.baseCoin);
+			const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
+			const inputQuantity = convertQuantity(quantity, baseCoin.scalar);
+			return tx.moveCall({
+				target: `${this.#config.MARGIN_PACKAGE_ID}::pool_proxy::place_reduce_only_market_order_and_repay_loan`,
+				arguments: [
+					tx.object(this.#config.MARGIN_REGISTRY_ID),
+					tx.object(manager.address),
+					tx.object(pool.address),
+					tx.object(baseMarginPool.address),
+					tx.object(quoteMarginPool.address),
+					tx.object(baseCoin.priceInfoObjectId!),
+					tx.object(quoteCoin.priceInfoObjectId!),
+					tx.pure.u64(clientOrderId),
+					tx.pure.u8(selfMatchingOption),
+					tx.pure.u64(inputQuantity),
+					tx.pure.bool(isBid),
+					tx.pure.bool(payWithDeep),
+					tx.object.clock(),
+				],
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			});
+		};
+
+	/**
 	 * @description Modify an existing order
 	 * @param {string} marginManagerKey The key to identify the MarginManager
 	 * @param {string} orderId Order ID to modify

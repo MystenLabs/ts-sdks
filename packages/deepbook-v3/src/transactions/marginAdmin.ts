@@ -235,6 +235,33 @@ export class MarginAdminContract {
 	};
 
 	/**
+	 * @description Set the minimum risk ratio required to open a new position on
+	 * a pool. Distinct from the borrow floor: this gates position opening, not
+	 * borrowing. Stored in 9-decimal float scaling (1.0 = `FLOAT_SCALAR`); the SDK
+	 * applies the scaling, so callers pass a human-readable ratio (e.g. `1.25`).
+	 * @param {string} poolKey The key of the pool to update
+	 * @param {number | bigint} minOpenRiskRatio Minimum open risk ratio (e.g. 1.25)
+	 * @returns A function that takes a Transaction object
+	 */
+	setMinOpenRiskRatio =
+		(poolKey: string, minOpenRiskRatio: number | bigint) => (tx: Transaction) => {
+			const pool = this.#config.getPool(poolKey);
+			const baseCoin = this.#config.getCoin(pool.baseCoin);
+			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+			tx.moveCall({
+				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::set_min_open_risk_ratio`,
+				arguments: [
+					tx.object(this.#config.MARGIN_REGISTRY_ID),
+					tx.object(this.#marginAdminCap()),
+					tx.object(pool.address),
+					tx.pure.u64(convertRate(minOpenRiskRatio, FLOAT_SCALAR)),
+					tx.object.clock(),
+				],
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			});
+		};
+
+	/**
 	 * @description Add the PythConfig to the margin registry
 	 * @param {Transaction} tx The transaction object
 	 * @param {TransactionArgument} config The config to be added

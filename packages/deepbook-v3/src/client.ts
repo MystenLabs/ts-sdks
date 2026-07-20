@@ -242,6 +242,22 @@ export class DeepBookClient {
 		return this.#poolQueries.midPrice(poolKey);
 	}
 
+	/**
+	 * Best (highest) live bid price, or `null` when the bid side is empty.
+	 * Requires a core package newer than mainnet v8 / testnet v20.
+	 */
+	bestBidPrice(poolKey: string): Promise<number | null> {
+		return this.#poolQueries.bestBidPrice(poolKey);
+	}
+
+	/**
+	 * Best (lowest) live ask price, or `null` when the ask side is empty.
+	 * Requires a core package newer than mainnet v8 / testnet v20.
+	 */
+	bestAskPrice(poolKey: string): Promise<number | null> {
+		return this.#poolQueries.bestAskPrice(poolKey);
+	}
+
 	poolTradeParams(poolKey: string): Promise<PoolTradeParams> {
 		return this.#poolQueries.poolTradeParams(poolKey);
 	}
@@ -625,6 +641,14 @@ export class DeepBookClient {
 
 	getMinBorrowRiskRatio(poolKey: string): Promise<number> {
 		return this.#registryQueries.getMinBorrowRiskRatio(poolKey);
+	}
+
+	/**
+	 * Minimum risk ratio required to open a new position on the pool. Gates
+	 * position opening, unlike `getMinBorrowRiskRatio`, which gates borrowing.
+	 */
+	getMinOpenRiskRatio(poolKey: string): Promise<number> {
+		return this.#registryQueries.getMinOpenRiskRatio(poolKey);
 	}
 
 	getLiquidationRiskRatio(poolKey: string): Promise<number> {
