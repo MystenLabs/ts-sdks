@@ -15,6 +15,22 @@ test('can hash multiple inputs', () => {
 	expect(result).toBeTypeOf('bigint');
 });
 
+test.each([17, 32, 33, 48, 49, 64])('can hash %i inputs using 16-element chunks', (inputLength) => {
+	const inputs = Array.from({ length: inputLength }, (_, i) => BigInt(i));
+	const chunkHashes = [];
+	for (let i = 0; i < inputs.length; i += 16) {
+		chunkHashes.push(poseidonHash(inputs.slice(i, i + 16)));
+	}
+
+	expect(poseidonHash(inputs)).toBe(poseidonHash(chunkHashes));
+});
+
+test.each([0, 65])('throws error for unsupported input length %i', (inputLength) => {
+	expect(() => poseidonHash(Array(inputLength).fill(0))).toThrowError(
+		`Yet to implement: Unable to hash a vector of length ${inputLength}`,
+	);
+});
+
 test('throws error for invalid input', () => {
 	expect(() => poseidonHash([-1])).toThrowError('Element -1 not in the BN254 field');
 });
