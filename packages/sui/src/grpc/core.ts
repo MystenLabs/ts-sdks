@@ -43,6 +43,7 @@ import {
 	transactionToGrpcTransaction,
 	grpcTransactionToTransactionData,
 } from '../client/transaction-resolver.js';
+import { setAddressBalanceTransactionExpirationFromSimulatedEpoch } from '../client/address-balance-transaction-expiration.js';
 import { Value } from './proto/google/protobuf/struct.js';
 import { ExecutedTransaction } from './proto/sui/rpc/v2/executed_transaction.js';
 import {
@@ -720,14 +721,15 @@ export class GrpcCoreClient extends CoreClient {
 				snapshot.sender = '0x0000000000000000000000000000000000000000000000000000000000000000';
 			}
 			const grpcTransaction = transactionDataToGrpcTransaction(snapshot);
+			const doGasSelection =
+				!options.onlyTransactionKind &&
+				(snapshot.gasData.budget == null || snapshot.gasData.payment == null);
 
 			let response;
 			try {
 				const result = await client.transactionExecutionService.simulateTransaction({
 					transaction: grpcTransaction,
-					doGasSelection:
-						!options.onlyTransactionKind &&
-						(snapshot.gasData.budget == null || snapshot.gasData.payment == null),
+					doGasSelection,
 					// Kind-only txns are never executed directly and do not have sender, so skip validation checks.
 					checks: options.onlyTransactionKind
 						? SimulateTransactionRequest_TransactionChecks.DISABLED
@@ -739,6 +741,7 @@ export class GrpcCoreClient extends CoreClient {
 							'transaction.transaction.expiration',
 							'transaction.transaction.kind',
 							'transaction.effects.status',
+							'transaction.effects.epoch',
 						],
 					},
 				});
@@ -770,6 +773,14 @@ export class GrpcCoreClient extends CoreClient {
 			}
 
 			applyGrpcResolvedTransaction(transactionData, response.transaction.transaction, options);
+			await setAddressBalanceTransactionExpirationFromSimulatedEpoch({
+				transactionData,
+				client,
+				epoch: response.transaction.effects?.epoch,
+				originalTransactionData: snapshot,
+				isTransactionKindOnly: !!options.onlyTransactionKind,
+				doGasSelection,
+			});
 
 			return await next();
 		};

@@ -338,7 +338,7 @@ export type ResolveTransactionQueryVariables = Exact<{
 }>;
 
 
-export type ResolveTransactionQuery = { simulateTransaction: { effects: { transaction: { transactionBcs: string | null, effects: { status: ExecutionStatus | null, executionError: { message: string, abortCode: string | null, identifier: string | null, constant: string | null, sourceLineNumber: number | null, instructionOffset: number | null, module: { name: string, package: { address: string } | null } | null, function: { name: string } | null } | null } | null } | null } | null } };
+export type ResolveTransactionQuery = { simulateTransaction: { effects: { transaction: { transactionBcs: string | null, effects: { status: ExecutionStatus | null, epoch: { epochId: number } | null, executionError: { message: string, abortCode: string | null, identifier: string | null, constant: string | null, sourceLineNumber: number | null, instructionOffset: number | null, module: { name: string, package: { address: string } | null } | null, function: { name: string } | null } | null } | null } | null } | null } };
 
 export type VerifyZkLoginSignatureQueryVariables = Exact<{
   bytes: string;
@@ -1153,6 +1153,9 @@ export const ResolveTransactionDocument = new TypedDocumentString(`
       transaction {
         transactionBcs
         effects {
+          epoch {
+            epochId
+          }
           status
           executionError {
             message
