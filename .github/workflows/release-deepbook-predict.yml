@@ -1,0 +1,57 @@
+name: Release @mysten/deepbook-predict
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry-run mode'
+        required: false
+        default: 'false'
+      ref:
+        description: 'Git ref or SHA to publish (defaults to main HEAD)'
+        required: false
+        default: ''
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+permissions:
+  contents: read
+
+jobs:
+  # Drift gate: the SDK's builders are hand-written against a deployed package
+  # set, so publishing a build that no longer matches the live surface is the
+  # failure mode that actually reaches integrators. The smoke suite's arity
+  # guards catch exactly that, so they run before we publish.
+  smoke:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # pin@v4.1.1
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: pnpm/action-setup@a3252b78c470c02df07e9d59298aecedc3ccdd6d # pin@v3.0.0
+      - name: Install Node
+        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # pin@v4.0.2
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build DeepBook Predict dependencies
+        run: pnpm turbo build --filter @mysten/deepbook-predict
+      - name: Run live-testnet smoke tests
+        run: pnpm --filter @mysten/deepbook-predict test:e2e
+
+  release:
+    if: github.ref == 'refs/heads/main'
+    needs: smoke
+    permissions:
+      contents: read
+      id-token: write # OIDC trusted publishing
+    uses: ./.github/workflows/_release-package.yml
+    with:
+      package: '@mysten/deepbook-predict'
+      dir: 'packages/deepbook-predict'
+      dry_run: ${{ inputs.dry_run || 'false' }}
+      ref: ${{ inputs.ref }}

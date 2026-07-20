@@ -1,0 +1,53 @@
+{
+	"name": "@mysten/deepbook-predict",
+	"author": "Mysten Labs <build@mystenlabs.com>",
+	"description": "Sui DeepBook Predict SDK",
+	"version": "0.0.0",
+	"license": "Apache-2.0",
+	"type": "module",
+	"main": "./dist/index.mjs",
+	"types": "./dist/index.d.mts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.mts",
+			"import": "./dist/index.mjs",
+			"default": "./dist/index.mjs"
+		}
+	},
+	"files": [
+		"CHANGELOG.md",
+		"dist",
+		"src"
+	],
+	"engines": {
+		"node": ">=22"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/MystenLabs/ts-sdks.git"
+	},
+	"bugs": {
+		"url": "https://github.com/MystenLabs/ts-sdks/issues/new"
+	},
+	"scripts": {
+		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
+		"build": "rm -rf dist && tsc --noEmit && tsdown",
+		"prettier:check": "prettier -c --ignore-unknown .",
+		"prettier:fix": "prettier -w --ignore-unknown .",
+		"oxlint:check": "oxlint .",
+		"oxlint:fix": "oxlint --fix",
+		"test": "vitest run",
+		"test:e2e": "PREDICT_SDK_TESTNET=1 vitest run tests/testnet",
+		"lint": "pnpm run oxlint:check && pnpm run prettier:check",
+		"lint:fix": "pnpm run oxlint:fix && pnpm run prettier:fix"
+	},
+	"devDependencies": {
+		"@mysten/sui": "workspace:^",
+		"@types/node": "^25.9.3",
+		"typescript": "^6.0.3",
+		"vitest": "^4.1.8"
+	},
+	"peerDependencies": {
+		"@mysten/sui": "workspace:^"
+	}
+}
