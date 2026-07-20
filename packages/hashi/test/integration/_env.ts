@@ -108,7 +108,7 @@ export function makeSigner(): Ed25519Keypair {
 }
 
 /**
- * Invokes the `hashi-localnet` Rust CLI from the submodule. The CI workflow
+ * Invokes the `hashi-localnet` Rust CLI from the hashi repo checkout. The CI workflow
  * sets `HASHI_E2E_LOCALNET_BIN` to its absolute path and `HASHI_E2E_LOCALNET_DATA_DIR`
  * to the state dir; we always inject `--data-dir` so callers can't forget it.
  *
