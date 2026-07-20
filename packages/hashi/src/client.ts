@@ -1027,21 +1027,13 @@ export class HashiClient {
 		depositGasEstimate: async (sender: string): Promise<DepositFees> => {
 			const snap = await this.view.all();
 			const dummyAmount = snap.bitcoinDepositMinimum + 1n;
-			const dummyTxid = '0x' + '01'.repeat(32);
-			const tx = new Transaction();
-			const utxoId = tx.add(
-				utxoModule.utxoId({
-					package: this.#packageId,
-					arguments: { txid: dummyTxid, vout: 0 },
-				}),
-			);
-			const utxo = tx.add(
-				utxoModule.utxo({
-					package: this.#packageId,
-					arguments: { utxoId, amount: dummyAmount, derivationPath: sender },
-				}),
-			);
-			tx.add(this.call.deposit({ utxo }));
+			// Reuse the real builder with dummy values so the dry-run transaction
+			// can never drift out of sync with what users actually sign.
+			const tx = this.tx.deposit({
+				txid: '0x' + '01'.repeat(32),
+				utxos: [{ vout: 0, amountSats: dummyAmount }],
+				recipient: sender,
+			});
 			tx.setSender(sender);
 			return { gasEstimateMist: await this.#estimateGas(tx) };
 		},
@@ -1057,17 +1049,12 @@ export class HashiClient {
 			let gasEstimateMist = 0n;
 			if (sender) {
 				const dummyAmount = snap.bitcoinWithdrawalMinimum + 1n;
-				const tx = new Transaction();
-				const balance = tx.balance({
-					type: `${this.#packageId}::btc::BTC`,
-					balance: dummyAmount,
+				// Reuse the real builder with dummy values so the dry-run
+				// transaction can never drift out of sync with what users sign.
+				const tx = this.tx.requestWithdrawal({
+					amount: dummyAmount,
+					bitcoinAddress: new Uint8Array(20),
 				});
-				tx.add(
-					this.call.requestWithdrawal({
-						btc: balance,
-						bitcoinAddress: Array(20).fill(0),
-					}),
-				);
 				tx.setSender(sender);
 				gasEstimateMist = await this.#estimateGas(tx);
 			}
