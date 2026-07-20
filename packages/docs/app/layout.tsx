@@ -88,7 +88,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 					data-modal-image="/logo.png"
 					data-modal-title="Ask Mysten Labs SDK AI"
 					data-modal-ask-ai-input-placeholder="Ask me anything about the Sui SDKs!"
-					data-modal-example-questions="How do I create a transaction in TypeScript?,How do I connect a wallet with dApp Kit?,How do I process a payment with Payment Kit?,How do I query objects with the Sui SDK?"
+					data-modal-example-questions="How do I create a transaction in TypeScript?,How do I connect a wallet with dApp Kit?,How do I query objects with the Sui SDK?,How do I use BCS encoding?"
 					data-color-scheme-selector=".dark"
 					data-modal-overlay-hidden="true"
 					data-modal-lock-scroll="false"
