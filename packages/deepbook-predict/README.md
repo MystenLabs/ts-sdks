@@ -57,7 +57,8 @@ const { up, down } = await predict.read.price({
 const receipt = predict.decode.mint(mintResult);
 receipt.orderId; // PERSIST THIS — needed to redeem/claim later
 receipt.entryProbability; // your fill price (0..1 per $1 payout)
-(receipt.netPremium, receipt.fees); // exact cost breakdown
+receipt.netPremium; // exact cost breakdown
+receipt.fees;
 
 // Read: tradeable markets and pool state.
 const markets = await predict.read.markets();
@@ -163,7 +164,7 @@ stop requiring an SDK release for target resolution.
 
 ```sh
 pnpm install
-pnpm test          # offline unit suite (tx construction, parsing, facade)
-pnpm test:testnet  # live-testnet smoke: reads + deployed-surface arity guards
-pnpm build         # ESM + CJS + d.ts via tsup
+pnpm test      # offline unit suite (tx construction, parsing, facade)
+pnpm test:e2e  # live-testnet smoke: reads + deployed-surface arity guards
+pnpm build     # ESM + d.ts via tsdown
 ```

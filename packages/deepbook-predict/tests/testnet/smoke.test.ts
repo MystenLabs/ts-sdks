@@ -1,5 +1,5 @@
 // Live-testnet smoke suite — the SDK's first contact with the real deployment.
-// Network-gated: runs only under `pnpm test:testnet` (PREDICT_SDK_TESTNET=1).
+// Network-gated: runs only under `pnpm test:e2e` (PREDICT_SDK_TESTNET=1).
 //
 // What this proves that the offline suite cannot:
 //  1. The real gRPC SimulateTransactionResult shape matches what reads/inspect.ts
