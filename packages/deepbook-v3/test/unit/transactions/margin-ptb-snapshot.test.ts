@@ -9,6 +9,7 @@ import { Transaction } from '@mysten/sui/transactions';
 import { describe, expect, it } from 'vitest';
 
 import { MarginAdminContract } from '../../../src/transactions/marginAdmin.js';
+import { MarginLiquidationsContract } from '../../../src/transactions/marginLiquidations.js';
 import { MarginMaintainerContract } from '../../../src/transactions/marginMaintainer.js';
 import { MarginManagerContract } from '../../../src/transactions/marginManager.js';
 import { MarginPoolContract } from '../../../src/transactions/marginPool.js';
@@ -74,16 +75,35 @@ describe('marginRegistry PTB snapshots', () => {
 
 describe('poolProxy PTB snapshots', () => {
 	const c = () => new PoolProxyContract(config());
-	const limit = { poolKey: POOL_KEY, marginManagerKey: MGR_KEY, clientOrderId: '1', price: 1, quantity: 1, isBid: true };
-	const market = { poolKey: POOL_KEY, marginManagerKey: MGR_KEY, clientOrderId: '1', quantity: 1, isBid: true };
+	const limit = {
+		poolKey: POOL_KEY,
+		marginManagerKey: MGR_KEY,
+		clientOrderId: '1',
+		price: 1,
+		quantity: 1,
+		isBid: true,
+	};
+	const market = {
+		poolKey: POOL_KEY,
+		marginManagerKey: MGR_KEY,
+		clientOrderId: '1',
+		quantity: 1,
+		isBid: true,
+	};
 	const cases: Array<[string, (m: PoolProxyContract) => (tx: Transaction) => unknown]> = [
 		['placeLimitOrder', (m) => m.placeLimitOrder(limit)],
 		['placeMarketOrder', (m) => m.placeMarketOrder(market)],
 		['placeReduceOnlyLimitOrder', (m) => m.placeReduceOnlyLimitOrder(limit)],
 		['placeReduceOnlyMarketOrder', (m) => m.placeReduceOnlyMarketOrder(market)],
 		['placeMarketOrderAndRepayLoan', (m) => m.placeMarketOrderAndRepayLoan(market)],
-		['placeReduceOnlyLimitOrderAndRepayLoan', (m) => m.placeReduceOnlyLimitOrderAndRepayLoan(limit)],
-		['placeReduceOnlyMarketOrderAndRepayLoan', (m) => m.placeReduceOnlyMarketOrderAndRepayLoan(market)],
+		[
+			'placeReduceOnlyLimitOrderAndRepayLoan',
+			(m) => m.placeReduceOnlyLimitOrderAndRepayLoan(limit),
+		],
+		[
+			'placeReduceOnlyMarketOrderAndRepayLoan',
+			(m) => m.placeReduceOnlyMarketOrderAndRepayLoan(market),
+		],
 		['modifyOrder', (m) => m.modifyOrder(MGR_KEY, '123', 1)],
 		['cancelOrder', (m) => m.cancelOrder(MGR_KEY, '123')],
 		['cancelOrders', (m) => m.cancelOrders(MGR_KEY, ['123', '456'])],
@@ -91,11 +111,32 @@ describe('poolProxy PTB snapshots', () => {
 		['withdrawSettledAmounts', (m) => m.withdrawSettledAmounts(MGR_KEY)],
 		['stake', (m) => m.stake(MGR_KEY, 1)],
 		['unstake', (m) => m.unstake(MGR_KEY)],
-		['submitProposal', (m) => m.submitProposal(MGR_KEY, { takerFee: 0.001, makerFee: 0.001, stakeRequired: 100 })],
+		[
+			'submitProposal',
+			(m) => m.submitProposal(MGR_KEY, { takerFee: 0.001, makerFee: 0.001, stakeRequired: 100 }),
+		],
 		['vote', (m) => m.vote(MGR_KEY, MGR_ADDR)],
 		['claimRebate', (m) => m.claimRebate(MGR_KEY)],
 		['withdrawMarginSettledAmounts', (m) => m.withdrawMarginSettledAmounts(POOL_KEY, MGR_ADDR)],
 		['updateCurrentPrice', (m) => m.updateCurrentPrice(POOL_KEY)],
+	];
+	it.each(cases)('%s', (_name, build) => {
+		expect(ptb(build(c()))).toMatchSnapshot();
+	});
+});
+
+describe('marginLiquidations PTB snapshots', () => {
+	const c = () => new MarginLiquidationsContract(config());
+	const VAULT = '0x0000000000000000000000000000000000000000000000000000000000009999';
+	const CAP = '0x0000000000000000000000000000000000000000000000000000000000008888';
+	const cases: Array<[string, (m: MarginLiquidationsContract) => (tx: Transaction) => unknown]> = [
+		['createLiquidationVault', (m) => m.createLiquidationVault(CAP)],
+		['deposit', (m) => m.deposit(VAULT, CAP, COIN_KEY, 1)],
+		['withdraw', (m) => m.withdraw(VAULT, CAP, COIN_KEY, 1)],
+		['liquidateBase', (m) => m.liquidateBase(VAULT, MGR_ADDR, POOL_KEY, 1)],
+		['liquidateBaseAll', (m) => m.liquidateBase(VAULT, MGR_ADDR, POOL_KEY)],
+		['liquidateQuote', (m) => m.liquidateQuote(VAULT, MGR_ADDR, POOL_KEY, 1)],
+		['balance', (m) => m.balance(VAULT, COIN_KEY)],
 	];
 	it.each(cases)('%s', (_name, build) => {
 		expect(ptb(build(c()))).toMatchSnapshot();
@@ -144,9 +185,12 @@ describe('marginManager PTB snapshots', () => {
 			'depositDuringInitialization',
 			(m) => (tx: Transaction) => {
 				const { manager } = m.newMarginManagerWithInitializer(POOL_KEY)(tx);
-				m.depositDuringInitialization({ manager, poolKey: POOL_KEY, coinType: COIN_KEY, amount: 1 })(
-					tx,
-				);
+				m.depositDuringInitialization({
+					manager,
+					poolKey: POOL_KEY,
+					coinType: COIN_KEY,
+					amount: 1,
+				})(tx);
 			},
 		],
 		['depositBase', (m) => m.depositBase({ managerKey: MGR_KEY, amount: 1 })],
@@ -160,14 +204,14 @@ describe('marginManager PTB snapshots', () => {
 		['repayBase', (m) => m.repayBase(MGR_KEY, 1)],
 		['repayBaseAll', (m) => m.repayBase(MGR_KEY)],
 		['repayQuote', (m) => m.repayQuote(MGR_KEY, 1)],
-		['liquidate', (m) => (tx: Transaction) => m.liquidate(MGR_ADDR, POOL_KEY, true, tx.object(COIN))(tx)],
+		[
+			'liquidate',
+			(m) => (tx: Transaction) => m.liquidate(MGR_ADDR, POOL_KEY, true, tx.object(COIN))(tx),
+		],
 		['setMarginManagerReferral', (m) => m.setMarginManagerReferral(MGR_KEY, COIN)],
 		['unsetMarginManagerReferral', (m) => m.unsetMarginManagerReferral(MGR_KEY, POOL_KEY)],
 		['calculateDebts', (m) => m.calculateDebts(POOL_KEY, COIN_KEY, MGR_ADDR)],
-		[
-			'canPlaceLimitOrder',
-			(m) => m.canPlaceLimitOrder(POOL_KEY, MGR_ADDR, 1, 1, true, true, 1000),
-		],
+		['canPlaceLimitOrder', (m) => m.canPlaceLimitOrder(POOL_KEY, MGR_ADDR, 1, 1, true, true, 1000)],
 		['canPlaceMarketOrder', (m) => m.canPlaceMarketOrder(POOL_KEY, MGR_ADDR, 1, true, true)],
 		...twoArgReads.map(
 			(fn): [string, (m: MarginManagerContract) => (tx: Transaction) => unknown] => [
@@ -195,10 +239,16 @@ describe('marginAdmin PTB snapshots', () => {
 	const cases: Array<[string, (m: MarginAdminContract) => (tx: Transaction) => unknown]> = [
 		['mintMaintainerCap', (m) => m.mintMaintainerCap()],
 		['revokeMaintainerCap', (m) => m.revokeMaintainerCap(ID)],
-		['registerDeepbookPool', (m) => (tx: Transaction) => m.registerDeepbookPool(POOL_KEY, tx.object(ID))(tx)],
+		[
+			'registerDeepbookPool',
+			(m) => (tx: Transaction) => m.registerDeepbookPool(POOL_KEY, tx.object(ID))(tx),
+		],
 		['enableDeepbookPool', (m) => m.enableDeepbookPool(POOL_KEY)],
 		['disableDeepbookPool', (m) => m.disableDeepbookPool(POOL_KEY)],
-		['updateRiskParams', (m) => (tx: Transaction) => m.updateRiskParams(POOL_KEY, tx.object(ID))(tx)],
+		[
+			'updateRiskParams',
+			(m) => (tx: Transaction) => m.updateRiskParams(POOL_KEY, tx.object(ID))(tx),
+		],
 		['setPriceTolerance', (m) => m.setPriceTolerance(POOL_KEY, 0.1)],
 		['setMaxPriceAge', (m) => m.setMaxPriceAge(POOL_KEY, 60000)],
 		['setMaxOrderTtl', (m) => m.setMaxOrderTtl(POOL_KEY, 60000)],
@@ -212,7 +262,8 @@ describe('marginAdmin PTB snapshots', () => {
 		['newCoinTypeData', (m) => m.newCoinTypeData(COIN_KEY, 100, 100)],
 		[
 			'newPythConfig',
-			(m) => m.newPythConfig([{ coinKey: COIN_KEY, maxConfBps: 100, maxEwmaDifferenceBps: 100 }], 60),
+			(m) =>
+				m.newPythConfig([{ coinKey: COIN_KEY, maxConfBps: 100, maxEwmaDifferenceBps: 100 }], 60),
 		],
 		['mintPauseCap', (m) => m.mintPauseCap()],
 		['revokePauseCap', (m) => m.revokePauseCap(ID)],
@@ -256,12 +307,10 @@ describe('marginPool PTB snapshots', () => {
 		['deepbookPoolAllowed', (m) => m.deepbookPoolAllowed(COIN_KEY, ID)],
 		['userSupplyShares', (m) => m.userSupplyShares(COIN_KEY, ID)],
 		['userSupplyAmount', (m) => m.userSupplyAmount(COIN_KEY, ID)],
-		...reads.map(
-			(fn): [string, (m: MarginPoolContract) => (tx: Transaction) => unknown] => [
-				fn,
-				(m) => m[fn](COIN_KEY),
-			],
-		),
+		...reads.map((fn): [string, (m: MarginPoolContract) => (tx: Transaction) => unknown] => [
+			fn,
+			(m) => m[fn](COIN_KEY),
+		]),
 	];
 	it.each(cases)('%s', (_name, build) => {
 		expect(ptb(build(c()))).toMatchSnapshot();
@@ -282,7 +331,10 @@ describe('marginMaintainer PTB snapshots', () => {
 	const cases: Array<[string, (m: MarginMaintainerContract) => (tx: Transaction) => unknown]> = [
 		['newInterestConfig', (m) => m.newInterestConfig(IC)],
 		['newMarginPoolConfig', (m) => m.newMarginPoolConfig(COIN_KEY, MPC)],
-		['newMarginPoolConfigWithRateLimit', (m) => m.newMarginPoolConfigWithRateLimit(COIN_KEY, MPC_RL)],
+		[
+			'newMarginPoolConfigWithRateLimit',
+			(m) => m.newMarginPoolConfigWithRateLimit(COIN_KEY, MPC_RL),
+		],
 		['newProtocolConfig', (m) => m.newProtocolConfig(COIN_KEY, MPC, IC)],
 		[
 			'createMarginPool',
@@ -293,11 +345,13 @@ describe('marginMaintainer PTB snapshots', () => {
 		],
 		[
 			'enableDeepbookPoolForLoan',
-			(m) => (tx: Transaction) => m.enableDeepbookPoolForLoan(POOL_KEY, COIN_KEY, tx.object(CAP))(tx),
+			(m) => (tx: Transaction) =>
+				m.enableDeepbookPoolForLoan(POOL_KEY, COIN_KEY, tx.object(CAP))(tx),
 		],
 		[
 			'disableDeepbookPoolForLoan',
-			(m) => (tx: Transaction) => m.disableDeepbookPoolForLoan(POOL_KEY, COIN_KEY, tx.object(CAP))(tx),
+			(m) => (tx: Transaction) =>
+				m.disableDeepbookPoolForLoan(POOL_KEY, COIN_KEY, tx.object(CAP))(tx),
 		],
 		[
 			'updateInterestParams',
@@ -319,7 +373,13 @@ describe('marginTPSL PTB snapshots', () => {
 		['newCondition', (m) => m.newCondition(POOL_KEY, true, 1)],
 		[
 			'newPendingLimitOrder',
-			(m) => m.newPendingLimitOrder(POOL_KEY, { clientOrderId: '1', price: 1, quantity: 1, isBid: true }),
+			(m) =>
+				m.newPendingLimitOrder(POOL_KEY, {
+					clientOrderId: '1',
+					price: 1,
+					quantity: 1,
+					isBid: true,
+				}),
 		],
 		[
 			'newPendingMarketOrder',

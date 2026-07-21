@@ -507,7 +507,11 @@ export class MarginManagerContract {
 						pool: pool.address,
 						repayCoin,
 					},
-					typeArguments: [baseCoin.type, quoteCoin.type, debtIsBase ? baseCoin.type : quoteCoin.type],
+					typeArguments: [
+						baseCoin.type,
+						quoteCoin.type,
+						debtIsBase ? baseCoin.type : quoteCoin.type,
+					],
 				}),
 			);
 		};

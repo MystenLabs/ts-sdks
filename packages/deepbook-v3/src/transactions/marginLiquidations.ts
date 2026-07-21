@@ -5,6 +5,7 @@ import { coinWithBalance } from '@mysten/sui/transactions';
 
 import type { DeepBookConfig } from '../utils/config.js';
 import { convertQuantity } from '../utils/conversion.js';
+import * as liquidationVaultMoveCalls from '../contracts/margin_liquidation/liquidation_vault.js';
 
 /**
  * MarginLiquidationsContract class for managing LiquidationVault operations.
@@ -25,10 +26,12 @@ export class MarginLiquidationsContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	createLiquidationVault = (liquidationAdminCap: string) => (tx: Transaction) => {
-		tx.moveCall({
-			target: `${this.#config.LIQUIDATION_PACKAGE_ID}::liquidation_vault::create_liquidation_vault`,
-			arguments: [tx.object(liquidationAdminCap)],
-		});
+		tx.add(
+			liquidationVaultMoveCalls.createLiquidationVault({
+				package: this.#config.LIQUIDATION_PACKAGE_ID,
+				arguments: { LiquidationCap: liquidationAdminCap },
+			}),
+		);
 	};
 
 	/**
@@ -47,11 +50,13 @@ export class MarginLiquidationsContract {
 				type: coin.type,
 				balance: convertQuantity(amount, coin.scalar),
 			});
-			tx.moveCall({
-				target: `${this.#config.LIQUIDATION_PACKAGE_ID}::liquidation_vault::deposit`,
-				arguments: [tx.object(vaultId), tx.object(liquidationAdminCap), depositCoin],
-				typeArguments: [coin.type],
-			});
+			tx.add(
+				liquidationVaultMoveCalls.deposit({
+					package: this.#config.LIQUIDATION_PACKAGE_ID,
+					arguments: { self: vaultId, LiquidationCap: liquidationAdminCap, coin: depositCoin },
+					typeArguments: [coin.type],
+				}),
+			);
 		};
 
 	/**
@@ -66,15 +71,17 @@ export class MarginLiquidationsContract {
 		(vaultId: string, liquidationAdminCap: string, coinKey: string, amount: number) =>
 		(tx: Transaction) => {
 			const coin = this.#config.getCoin(coinKey);
-			return tx.moveCall({
-				target: `${this.#config.LIQUIDATION_PACKAGE_ID}::liquidation_vault::withdraw`,
-				arguments: [
-					tx.object(vaultId),
-					tx.object(liquidationAdminCap),
-					tx.pure.u64(convertQuantity(amount, coin.scalar)),
-				],
-				typeArguments: [coin.type],
-			});
+			return tx.add(
+				liquidationVaultMoveCalls.withdraw({
+					package: this.#config.LIQUIDATION_PACKAGE_ID,
+					arguments: {
+						self: vaultId,
+						LiquidationCap: liquidationAdminCap,
+						amount: convertQuantity(amount, coin.scalar),
+					},
+					typeArguments: [coin.type],
+				}),
+			);
 		};
 
 	/**
@@ -94,27 +101,30 @@ export class MarginLiquidationsContract {
 			const baseMarginPool = this.#config.getMarginPool(pool.baseCoin);
 			const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
 
+			// Build the Option arg first so its pure input registers ahead of the
+			// object inputs (matches the original positional ordering — byte-identical).
 			const repayAmountArg =
 				repayAmount !== undefined
 					? tx.pure.option('u64', convertQuantity(repayAmount, baseCoin.scalar))
 					: tx.pure.option('u64', null);
 
-			tx.moveCall({
-				target: `${this.#config.LIQUIDATION_PACKAGE_ID}::liquidation_vault::liquidate_base`,
-				arguments: [
-					tx.object(vaultId),
-					tx.object(managerAddress),
-					tx.object(this.#config.MARGIN_REGISTRY_ID),
-					tx.object(baseCoin.priceInfoObjectId!),
-					tx.object(quoteCoin.priceInfoObjectId!),
-					tx.object(baseMarginPool.address),
-					tx.object(quoteMarginPool.address),
-					tx.object(pool.address),
-					repayAmountArg,
-					tx.object.clock(),
-				],
-				typeArguments: [baseCoin.type, quoteCoin.type],
-			});
+			tx.add(
+				liquidationVaultMoveCalls.liquidateBase({
+					package: this.#config.LIQUIDATION_PACKAGE_ID,
+					arguments: {
+						self: vaultId,
+						marginManager: managerAddress,
+						registry: this.#config.MARGIN_REGISTRY_ID,
+						baseOracle: baseCoin.priceInfoObjectId!,
+						quoteOracle: quoteCoin.priceInfoObjectId!,
+						baseMarginPool: baseMarginPool.address,
+						quoteMarginPool: quoteMarginPool.address,
+						pool: pool.address,
+						repayAmount: repayAmountArg,
+					},
+					typeArguments: [baseCoin.type, quoteCoin.type],
+				}),
+			);
 		};
 
 	/**
@@ -134,27 +144,30 @@ export class MarginLiquidationsContract {
 			const baseMarginPool = this.#config.getMarginPool(pool.baseCoin);
 			const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
 
+			// Build the Option arg first so its pure input registers ahead of the
+			// object inputs (matches the original positional ordering — byte-identical).
 			const repayAmountArg =
 				repayAmount !== undefined
 					? tx.pure.option('u64', convertQuantity(repayAmount, quoteCoin.scalar))
 					: tx.pure.option('u64', null);
 
-			tx.moveCall({
-				target: `${this.#config.LIQUIDATION_PACKAGE_ID}::liquidation_vault::liquidate_quote`,
-				arguments: [
-					tx.object(vaultId),
-					tx.object(managerAddress),
-					tx.object(this.#config.MARGIN_REGISTRY_ID),
-					tx.object(baseCoin.priceInfoObjectId!),
-					tx.object(quoteCoin.priceInfoObjectId!),
-					tx.object(baseMarginPool.address),
-					tx.object(quoteMarginPool.address),
-					tx.object(pool.address),
-					repayAmountArg,
-					tx.object.clock(),
-				],
-				typeArguments: [baseCoin.type, quoteCoin.type],
-			});
+			tx.add(
+				liquidationVaultMoveCalls.liquidateQuote({
+					package: this.#config.LIQUIDATION_PACKAGE_ID,
+					arguments: {
+						self: vaultId,
+						marginManager: managerAddress,
+						registry: this.#config.MARGIN_REGISTRY_ID,
+						baseOracle: baseCoin.priceInfoObjectId!,
+						quoteOracle: quoteCoin.priceInfoObjectId!,
+						baseMarginPool: baseMarginPool.address,
+						quoteMarginPool: quoteMarginPool.address,
+						pool: pool.address,
+						repayAmount: repayAmountArg,
+					},
+					typeArguments: [baseCoin.type, quoteCoin.type],
+				}),
+			);
 		};
 
 	// === Read-Only Functions ===
@@ -167,10 +180,12 @@ export class MarginLiquidationsContract {
 	 */
 	balance = (vaultId: string, coinKey: string) => (tx: Transaction) => {
 		const coin = this.#config.getCoin(coinKey);
-		return tx.moveCall({
-			target: `${this.#config.LIQUIDATION_PACKAGE_ID}::liquidation_vault::balance`,
-			arguments: [tx.object(vaultId)],
-			typeArguments: [coin.type],
-		});
+		return tx.add(
+			liquidationVaultMoveCalls.balance({
+				package: this.#config.LIQUIDATION_PACKAGE_ID,
+				arguments: { self: vaultId },
+				typeArguments: [coin.type],
+			}),
+		);
 	};
 }
