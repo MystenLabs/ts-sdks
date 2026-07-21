@@ -980,6 +980,864 @@ exports[`marginMaintainer PTB snapshots > updateMarginPoolConfig 1`] = `
 }
 `;
 
+exports[`marginPool PTB snapshots > borrowShares 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+        ],
+        "function": "borrow_shares",
+        "module": "margin_pool",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0xcdbbe6a72e639b647296788e2e4b1cac5cea4246028ba388ba1332ff9a382eea",
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginPool PTB snapshots > deepbookPoolAllowed 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "pure",
+          },
+        ],
+        "function": "deepbook_pool_allowed",
+        "module": "margin_pool",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0xcdbbe6a72e639b647296788e2e4b1cac5cea4246028ba388ba1332ff9a382eea",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7u4=",
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginPool PTB snapshots > getId 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+        ],
+        "function": "id",
+        "module": "margin_pool",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0xcdbbe6a72e639b647296788e2e4b1cac5cea4246028ba388ba1332ff9a382eea",
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginPool PTB snapshots > interestRate 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+        ],
+        "function": "interest_rate",
+        "module": "margin_pool",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0xcdbbe6a72e639b647296788e2e4b1cac5cea4246028ba388ba1332ff9a382eea",
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginPool PTB snapshots > lastUpdateTimestamp 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+        ],
+        "function": "last_update_timestamp",
+        "module": "margin_pool",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0xcdbbe6a72e639b647296788e2e4b1cac5cea4246028ba388ba1332ff9a382eea",
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginPool PTB snapshots > maxUtilizationRate 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+        ],
+        "function": "max_utilization_rate",
+        "module": "margin_pool",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0xcdbbe6a72e639b647296788e2e4b1cac5cea4246028ba388ba1332ff9a382eea",
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginPool PTB snapshots > minBorrow 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+        ],
+        "function": "min_borrow",
+        "module": "margin_pool",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0xcdbbe6a72e639b647296788e2e4b1cac5cea4246028ba388ba1332ff9a382eea",
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginPool PTB snapshots > mintSupplierCap 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+        ],
+        "function": "mint_supplier_cap",
+        "module": "margin_pool",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "Object",
+      "Object": {
+        "$kind": "SharedObject",
+        "SharedObject": {
+          "initialSharedVersion": 1,
+          "mutable": false,
+          "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
+        },
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginPool PTB snapshots > mintSupplyReferral 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+        ],
+        "function": "mint_supply_referral",
+        "module": "margin_pool",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0xcdbbe6a72e639b647296788e2e4b1cac5cea4246028ba388ba1332ff9a382eea",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "Object",
+      "Object": {
+        "$kind": "SharedObject",
+        "SharedObject": {
+          "initialSharedVersion": 1,
+          "mutable": false,
+          "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
+        },
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginPool PTB snapshots > protocolSpread 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+        ],
+        "function": "protocol_spread",
+        "module": "margin_pool",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0xcdbbe6a72e639b647296788e2e4b1cac5cea4246028ba388ba1332ff9a382eea",
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginPool PTB snapshots > supplyCap 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+        ],
+        "function": "supply_cap",
+        "module": "margin_pool",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0xcdbbe6a72e639b647296788e2e4b1cac5cea4246028ba388ba1332ff9a382eea",
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginPool PTB snapshots > supplyShares 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+        ],
+        "function": "supply_shares",
+        "module": "margin_pool",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0xcdbbe6a72e639b647296788e2e4b1cac5cea4246028ba388ba1332ff9a382eea",
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginPool PTB snapshots > supplyToMarginPool 1`] = `
+{
+  "commands": [
+    {
+      "$Intent": {
+        "data": {
+          "balance": 1000000000n,
+          "outputKind": "coin",
+          "type": "gas",
+        },
+        "inputs": {},
+        "name": "CoinWithBalance",
+      },
+      "$kind": "$Intent",
+    },
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [],
+        "function": "none",
+        "module": "option",
+        "package": "0x0000000000000000000000000000000000000000000000000000000000000001",
+        "typeArguments": [
+          "0x2::object::ID",
+        ],
+      },
+    },
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Result",
+            "Result": 0,
+          },
+          {
+            "$kind": "Result",
+            "Result": 1,
+          },
+          {
+            "$kind": "Input",
+            "Input": 3,
+            "type": "object",
+          },
+        ],
+        "function": "supply",
+        "module": "margin_pool",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000dddd",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0xcdbbe6a72e639b647296788e2e4b1cac5cea4246028ba388ba1332ff9a382eea",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "Object",
+      "Object": {
+        "$kind": "SharedObject",
+        "SharedObject": {
+          "initialSharedVersion": 1,
+          "mutable": false,
+          "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
+        },
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginPool PTB snapshots > totalBorrow 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+        ],
+        "function": "total_borrow",
+        "module": "margin_pool",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0xcdbbe6a72e639b647296788e2e4b1cac5cea4246028ba388ba1332ff9a382eea",
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginPool PTB snapshots > totalSupply 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+        ],
+        "function": "total_supply",
+        "module": "margin_pool",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0xcdbbe6a72e639b647296788e2e4b1cac5cea4246028ba388ba1332ff9a382eea",
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginPool PTB snapshots > userSupplyAmount 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+        ],
+        "function": "user_supply_amount",
+        "module": "margin_pool",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0xcdbbe6a72e639b647296788e2e4b1cac5cea4246028ba388ba1332ff9a382eea",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7u4=",
+      },
+    },
+    {
+      "$kind": "Object",
+      "Object": {
+        "$kind": "SharedObject",
+        "SharedObject": {
+          "initialSharedVersion": 1,
+          "mutable": false,
+          "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
+        },
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginPool PTB snapshots > userSupplyShares 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "pure",
+          },
+        ],
+        "function": "user_supply_shares",
+        "module": "margin_pool",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0xcdbbe6a72e639b647296788e2e4b1cac5cea4246028ba388ba1332ff9a382eea",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7u4=",
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginPool PTB snapshots > withdrawFromMarginPool 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 3,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 4,
+            "type": "object",
+          },
+        ],
+        "function": "withdraw",
+        "module": "margin_pool",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000dddd",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0xcdbbe6a72e639b647296788e2e4b1cac5cea4246028ba388ba1332ff9a382eea",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AQDKmjsAAAAA",
+      },
+    },
+    {
+      "$kind": "Object",
+      "Object": {
+        "$kind": "SharedObject",
+        "SharedObject": {
+          "initialSharedVersion": 1,
+          "mutable": false,
+          "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
+        },
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginPool PTB snapshots > withdrawReferralFees 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+        ],
+        "function": "withdraw_referral_fees",
+        "module": "margin_pool",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0xcdbbe6a72e639b647296788e2e4b1cac5cea4246028ba388ba1332ff9a382eea",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000eeee",
+      },
+    },
+  ],
+}
+`;
+
 exports[`marginRegistry PTB snapshots > allowedMaintainers 1`] = `
 {
   "commands": [

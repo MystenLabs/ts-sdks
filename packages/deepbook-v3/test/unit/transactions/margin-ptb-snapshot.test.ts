@@ -9,6 +9,7 @@ import { Transaction } from '@mysten/sui/transactions';
 import { describe, expect, it } from 'vitest';
 
 import { MarginMaintainerContract } from '../../../src/transactions/marginMaintainer.js';
+import { MarginPoolContract } from '../../../src/transactions/marginPool.js';
 import { MarginRegistryContract } from '../../../src/transactions/marginRegistry.js';
 import { MarginTPSLContract } from '../../../src/transactions/marginTPSL.js';
 import { PoolProxyContract } from '../../../src/transactions/poolProxy.js';
@@ -93,6 +94,50 @@ describe('poolProxy PTB snapshots', () => {
 		['claimRebate', (m) => m.claimRebate(MGR_KEY)],
 		['withdrawMarginSettledAmounts', (m) => m.withdrawMarginSettledAmounts(POOL_KEY, MGR_ADDR)],
 		['updateCurrentPrice', (m) => m.updateCurrentPrice(POOL_KEY)],
+	];
+	it.each(cases)('%s', (_name, build) => {
+		expect(ptb(build(c()))).toMatchSnapshot();
+	});
+});
+
+describe('marginPool PTB snapshots', () => {
+	const c = () => new MarginPoolContract(config());
+	const CAP = '0x000000000000000000000000000000000000000000000000000000000000dddd';
+	const ID = '0x000000000000000000000000000000000000000000000000000000000000eeee';
+	const reads = [
+		'getId',
+		'totalSupply',
+		'supplyShares',
+		'totalBorrow',
+		'borrowShares',
+		'lastUpdateTimestamp',
+		'supplyCap',
+		'maxUtilizationRate',
+		'protocolSpread',
+		'minBorrow',
+		'interestRate',
+	] as const;
+	const cases: Array<[string, (m: MarginPoolContract) => (tx: Transaction) => unknown]> = [
+		['mintSupplierCap', (m) => m.mintSupplierCap()],
+		[
+			'supplyToMarginPool',
+			(m) => (tx: Transaction) => m.supplyToMarginPool(COIN_KEY, tx.object(CAP), 1)(tx),
+		],
+		[
+			'withdrawFromMarginPool',
+			(m) => (tx: Transaction) => m.withdrawFromMarginPool(COIN_KEY, tx.object(CAP), 1)(tx),
+		],
+		['mintSupplyReferral', (m) => m.mintSupplyReferral(COIN_KEY)],
+		['withdrawReferralFees', (m) => m.withdrawReferralFees(COIN_KEY, ID)],
+		['deepbookPoolAllowed', (m) => m.deepbookPoolAllowed(COIN_KEY, ID)],
+		['userSupplyShares', (m) => m.userSupplyShares(COIN_KEY, ID)],
+		['userSupplyAmount', (m) => m.userSupplyAmount(COIN_KEY, ID)],
+		...reads.map(
+			(fn): [string, (m: MarginPoolContract) => (tx: Transaction) => unknown] => [
+				fn,
+				(m) => m[fn](COIN_KEY),
+			],
+		),
 	];
 	it.each(cases)('%s', (_name, build) => {
 		expect(ptb(build(c()))).toMatchSnapshot();
