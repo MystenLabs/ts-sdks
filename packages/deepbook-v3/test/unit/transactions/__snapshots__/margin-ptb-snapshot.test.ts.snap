@@ -1,0 +1,603 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`marginRegistry PTB snapshots > allowedMaintainers 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+        ],
+        "function": "allowed_maintainers",
+        "module": "margin_registry",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginRegistry PTB snapshots > allowedPauseCaps 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+        ],
+        "function": "allowed_pause_caps",
+        "module": "margin_registry",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginRegistry PTB snapshots > baseMarginPoolId 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "pure",
+          },
+        ],
+        "function": "base_margin_pool_id",
+        "module": "margin_registry",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "HBk2LKUrj/16M87oBaZ9QPMea6MDdT/TpM/frOpxY6U=",
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginRegistry PTB snapshots > getDeepbookPoolMarginPoolIds 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "pure",
+          },
+        ],
+        "function": "get_deepbook_pool_margin_pool_ids",
+        "module": "margin_registry",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "HBk2LKUrj/16M87oBaZ9QPMea6MDdT/TpM/frOpxY6U=",
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginRegistry PTB snapshots > getMarginManagerIds 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "pure",
+          },
+        ],
+        "function": "get_margin_manager_ids",
+        "module": "margin_registry",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA3q0=",
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginRegistry PTB snapshots > getMarginPoolId 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+        ],
+        "function": "get_margin_pool_id",
+        "module": "margin_registry",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginRegistry PTB snapshots > liquidationRiskRatio 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "pure",
+          },
+        ],
+        "function": "liquidation_risk_ratio",
+        "module": "margin_registry",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "HBk2LKUrj/16M87oBaZ9QPMea6MDdT/TpM/frOpxY6U=",
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginRegistry PTB snapshots > minBorrowRiskRatio 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "pure",
+          },
+        ],
+        "function": "min_borrow_risk_ratio",
+        "module": "margin_registry",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "HBk2LKUrj/16M87oBaZ9QPMea6MDdT/TpM/frOpxY6U=",
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginRegistry PTB snapshots > minOpenRiskRatio 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "pure",
+          },
+        ],
+        "function": "min_open_risk_ratio",
+        "module": "margin_registry",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "HBk2LKUrj/16M87oBaZ9QPMea6MDdT/TpM/frOpxY6U=",
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginRegistry PTB snapshots > minWithdrawRiskRatio 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "pure",
+          },
+        ],
+        "function": "min_withdraw_risk_ratio",
+        "module": "margin_registry",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "HBk2LKUrj/16M87oBaZ9QPMea6MDdT/TpM/frOpxY6U=",
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginRegistry PTB snapshots > poolEnabled 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+        ],
+        "function": "pool_enabled",
+        "module": "margin_registry",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5",
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginRegistry PTB snapshots > poolLiquidationReward 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "pure",
+          },
+        ],
+        "function": "pool_liquidation_reward",
+        "module": "margin_registry",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "HBk2LKUrj/16M87oBaZ9QPMea6MDdT/TpM/frOpxY6U=",
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginRegistry PTB snapshots > quoteMarginPoolId 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "pure",
+          },
+        ],
+        "function": "quote_margin_pool_id",
+        "module": "margin_registry",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "HBk2LKUrj/16M87oBaZ9QPMea6MDdT/TpM/frOpxY6U=",
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginRegistry PTB snapshots > targetLiquidationRiskRatio 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "pure",
+          },
+        ],
+        "function": "target_liquidation_risk_ratio",
+        "module": "margin_registry",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "HBk2LKUrj/16M87oBaZ9QPMea6MDdT/TpM/frOpxY6U=",
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginRegistry PTB snapshots > userLiquidationReward 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "pure",
+          },
+        ],
+        "function": "user_liquidation_reward",
+        "module": "margin_registry",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "HBk2LKUrj/16M87oBaZ9QPMea6MDdT/TpM/frOpxY6U=",
+      },
+    },
+  ],
+}
+`;
