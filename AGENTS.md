@@ -192,6 +192,7 @@ Several packages depend on external repositories and remote schemas. These are u
 | `../sui-payment-kit` | Payment kit Move contracts         | `@mysten/payment-kit` codegen                               |
 | `../walrus`          | Walrus storage contracts           | `@mysten/walrus` codegen                                    |
 | `../deepbookv3`      | DeepBook v3 DEX contracts          | `@mysten/deepbook-v3` codegen                               |
+| `../hashi`           | Hashi BTC-bridge Move contracts    | `@mysten/hashi` codegen                                     |
 | `../apps/kiosk`      | Kiosk Move contracts (optional)    | `@mysten/kiosk` codegen                                     |
 
 ### Remote Resources (fetched from GitHub)
@@ -232,5 +233,6 @@ pnpm --filter @mysten/sui codegen:graphql
 pnpm --filter @mysten/payment-kit codegen
 pnpm --filter @mysten/walrus codegen
 pnpm --filter @mysten/deepbook-v3 codegen
+pnpm --filter @mysten/hashi codegen
 pnpm --filter @mysten/kiosk codegen
 ```
