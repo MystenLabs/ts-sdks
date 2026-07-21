@@ -23,5 +23,3 @@ risk of transposing same-typed arguments (e.g. base/quote oracles and margin poo
 Package IDs updated to match `Published.toml`: mainnet margin v5 → v6, testnet core v17 → v20,
 testnet margin → v14. Testnet `MARGIN_V1` (used to build `MarginApp` type tags) pointed at an
 abandoned package lineage and is corrected to the real original ID `0xb8620c24…`.
-
-Regenerated `src/contracts` bindings from deepbookv3 main.
