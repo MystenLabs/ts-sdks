@@ -9,6 +9,7 @@ import type { PoolConfigParams } from '../types/index.js';
 import { FLOAT_SCALAR } from '../utils/config.js';
 import { convertRate } from '../utils/conversion.js';
 import { hexToBytes } from '@noble/hashes/utils.js';
+import * as marginRegistryMoveCalls from '../contracts/deepbook_margin/margin_registry.js';
 
 /**
  * MarginAdminContract class for managing admin actions.
@@ -233,6 +234,34 @@ export class MarginAdminContract {
 			typeArguments: [baseCoin.type, quoteCoin.type],
 		});
 	};
+
+	/**
+	 * @description Set the minimum risk ratio required to open a new position on
+	 * a pool. Distinct from the borrow floor: this gates position opening, not
+	 * borrowing. Stored in 9-decimal float scaling (1.0 = `FLOAT_SCALAR`); the SDK
+	 * applies the scaling, so callers pass a human-readable ratio (e.g. `1.25`).
+	 * @param {string} poolKey The key of the pool to update
+	 * @param {number | bigint} minOpenRiskRatio Minimum open risk ratio (e.g. 1.25)
+	 * @returns A function that takes a Transaction object
+	 */
+	setMinOpenRiskRatio =
+		(poolKey: string, minOpenRiskRatio: number | bigint) => (tx: Transaction) => {
+			const pool = this.#config.getPool(poolKey);
+			const baseCoin = this.#config.getCoin(pool.baseCoin);
+			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+			tx.add(
+				marginRegistryMoveCalls.setMinOpenRiskRatio({
+					package: this.#config.MARGIN_PACKAGE_ID,
+					arguments: {
+						self: this.#config.MARGIN_REGISTRY_ID,
+						AdminCap: this.#marginAdminCap(),
+						pool: pool.address,
+						minOpenRiskRatio: convertRate(minOpenRiskRatio, FLOAT_SCALAR),
+					},
+					typeArguments: [baseCoin.type, quoteCoin.type],
+				}),
+			);
+		};
 
 	/**
 	 * @description Add the PythConfig to the margin registry

@@ -170,6 +170,27 @@ pnpm --filter @mysten/deepbook-v3 test
 pnpm --filter @mysten/deepbook-v3 codegen
 ```
 
+### Codegen gotchas (fresh checkout / worktree)
+
+1. **Build the workspace deps first.** `pnpm codegen` shells out to the `sui-ts-codegen` bin from
+   `@mysten/codegen`, which needs its own `dist/` — and `@mysten/codegen` in turn imports built
+   `@mysten/sui`. In a fresh clone or worktree both are unbuilt, so codegen fails with
+   `Command "sui-ts-codegen" not found` or `ERR_MODULE_NOT_FOUND` on `@mysten/sui/dist/utils`. Fix:
+   `pnpm turbo build --filter @mysten/codegen --filter @mysten/sui`, then **re-run `pnpm install`**
+   — pnpm only links a workspace bin when its target file exists at install time, so the first
+   install silently skipped it. Both `@deepbook/core` and `@deepbook/margin` are generated
+   (path-based entries pointing at the `../deepbookv3` sibling); the hand-written builders delegate
+   to the generated named-argument functions (e.g. `poolProxy.placeMarketOrderAndRepayLoan` →
+   `contracts/deepbook_margin/pool_proxy`) so positional-arg transposition can't happen. Unit
+   conversion stays in the facade.
+2. **The pyth entry in `sui-codegen.config.ts` currently fails.** Its on-chain package `0xabf837e9…`
+   resolves to `Object not found`, which aborts the CLI _after_ the `deepbook` package has been
+   written. The deepbook output is complete and correct; only the trailing `pnpm lint:fix` is
+   skipped, so run `pnpm lint:fix` yourself afterwards or the diff will be full of formatting noise
+   (~5k lines instead of ~300).
+3. **Codegen writes `package_summaries/` into the deepbookv3 checkout.** It is untracked there —
+   delete it when done so the sibling repo is left clean.
+
 ## Formatting
 
 After making changes, always run prettier to format the code:
@@ -368,3 +389,5 @@ Track significant updates to this file:
 - **2026-02**: Updated `PRICE_INFO_OBJECT_MAX_AGE_MS` from 15s to 30s
 - **2026-03**: Added constants management guide (coins, pools, margin pools)
 - **2026-03**: Documented query module pattern, conversion helpers, and named return types
+- **2026-07**: Added codegen gotchas (build workspace deps + re-install before `pnpm codegen`;
+  broken pyth config entry; `package_summaries/` cleanup)

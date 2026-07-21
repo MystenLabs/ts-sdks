@@ -627,6 +627,14 @@ export class DeepBookClient {
 		return this.#registryQueries.getMinBorrowRiskRatio(poolKey);
 	}
 
+	/**
+	 * Minimum risk ratio required to open a new position on the pool. Gates
+	 * position opening, unlike `getMinBorrowRiskRatio`, which gates borrowing.
+	 */
+	getMinOpenRiskRatio(poolKey: string): Promise<number> {
+		return this.#registryQueries.getMinOpenRiskRatio(poolKey);
+	}
+
 	getLiquidationRiskRatio(poolKey: string): Promise<number> {
 		return this.#registryQueries.getLiquidationRiskRatio(poolKey);
 	}
