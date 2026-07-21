@@ -4,12 +4,7 @@
 
 /** Registry holds all created pools. */
 
-import {
-	MoveStruct,
-	MoveTuple,
-	normalizeMoveArguments,
-	type RawTransactionArgument,
-} from '../utils/index.js';
+import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as versioned from './deps/sui/versioned.js';
@@ -25,12 +20,6 @@ export const REGISTRY = new MoveStruct({
 });
 export const DeepbookAdminCap = new MoveStruct({
 	name: `${$moduleName}::DeepbookAdminCap`,
-	fields: {
-		id: bcs.Address,
-	},
-});
-export const DeepbookCorePauseCap = new MoveStruct({
-	name: `${$moduleName}::DeepbookCorePauseCap`,
 	fields: {
 		id: bcs.Address,
 	},
@@ -69,18 +58,8 @@ export const BalanceManagerKey = new MoveStruct({
 		dummy_field: bcs.bool(),
 	},
 });
-export const AllowedPauseCapsKey = new MoveTuple({
-	name: `${$moduleName}::AllowedPauseCapsKey`,
-	fields: [bcs.bool()],
-});
 export const AppKey = new MoveStruct({
 	name: `${$moduleName}::AppKey<phantom App>`,
-	fields: {
-		dummy_field: bcs.bool(),
-	},
-});
-export const AppKeyV2 = new MoveStruct({
-	name: `${$moduleName}::AppKeyV2<phantom App>`,
 	fields: {
 		dummy_field: bcs.bool(),
 	},
@@ -253,97 +232,6 @@ export function disableVersion(options: DisableVersionOptions) {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export interface MintPauseCapArguments {
-	self: RawTransactionArgument<string>;
-	Cap: RawTransactionArgument<string>;
-}
-export interface MintPauseCapOptions {
-	package?: string;
-	arguments:
-		| MintPauseCapArguments
-		| [self: RawTransactionArgument<string>, Cap: RawTransactionArgument<string>];
-}
-/**
- * Mint a `DeepbookCorePauseCap`. The new cap's ID is recorded so it can later
- * disable a version via `disable_version_pause_cap`. Only Admin can mint. This
- * function does not have version restrictions.
- */
-export function mintPauseCap(options: MintPauseCapOptions) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [null, null] satisfies (string | null)[];
-	const parameterNames = ['self', 'Cap'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'registry',
-			function: 'mint_pause_cap',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
-}
-export interface RevokePauseCapArguments {
-	self: RawTransactionArgument<string>;
-	Cap: RawTransactionArgument<string>;
-	pauseCapId: RawTransactionArgument<string>;
-}
-export interface RevokePauseCapOptions {
-	package?: string;
-	arguments:
-		| RevokePauseCapArguments
-		| [
-				self: RawTransactionArgument<string>,
-				Cap: RawTransactionArgument<string>,
-				pauseCapId: RawTransactionArgument<string>,
-		  ];
-}
-/**
- * Revoke a previously minted pause cap by ID. Only Admin can revoke. This function
- * does not have version restrictions.
- */
-export function revokePauseCap(options: RevokePauseCapOptions) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [null, null, '0x2::object::ID'] satisfies (string | null)[];
-	const parameterNames = ['self', 'Cap', 'pauseCapId'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'registry',
-			function: 'revoke_pause_cap',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
-}
-export interface DisableVersionPauseCapArguments {
-	self: RawTransactionArgument<string>;
-	version: RawTransactionArgument<number | bigint>;
-	pauseCap: RawTransactionArgument<string>;
-}
-export interface DisableVersionPauseCapOptions {
-	package?: string;
-	arguments:
-		| DisableVersionPauseCapArguments
-		| [
-				self: RawTransactionArgument<string>,
-				version: RawTransactionArgument<number | bigint>,
-				pauseCap: RawTransactionArgument<string>,
-		  ];
-}
-/**
- * Disable any allowed package version (including the current one) using a valid
- * `DeepbookCorePauseCap`. The pause cap must be in `allowed_pause_caps`. This
- * function is the emergency kill switch; admin can re-enable via `enable_version`.
- * This function does not have version restrictions.
- */
-export function disableVersionPauseCap(options: DisableVersionPauseCapOptions) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [null, 'u64', null] satisfies (string | null)[];
-	const parameterNames = ['self', 'version', 'pauseCap'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'registry',
-			function: 'disable_version_pause_cap',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
-}
 export interface AddStablecoinArguments {
 	self: RawTransactionArgument<string>;
 	Cap: RawTransactionArgument<string>;
@@ -437,29 +325,6 @@ export function getBalanceManagerIds(options: GetBalanceManagerIdsOptions) {
 			package: packageAddress,
 			module: 'registry',
 			function: 'get_balance_manager_ids',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
-}
-export interface AllowedPauseCapsArguments {
-	self: RawTransactionArgument<string>;
-}
-export interface AllowedPauseCapsOptions {
-	package?: string;
-	arguments: AllowedPauseCapsArguments | [self: RawTransactionArgument<string>];
-}
-/**
- * Get the set of pause cap IDs allowed to disable package versions. Returns an
- * empty set if no pause caps have been minted yet.
- */
-export function allowedPauseCaps(options: AllowedPauseCapsOptions) {
-	const packageAddress = options.package ?? '@deepbook/core';
-	const argumentsTypes = [null] satisfies (string | null)[];
-	const parameterNames = ['self'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'registry',
-			function: 'allowed_pause_caps',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
