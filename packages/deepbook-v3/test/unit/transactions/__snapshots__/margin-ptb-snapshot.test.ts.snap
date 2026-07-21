@@ -1,5 +1,1529 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`marginAdmin PTB snapshots > addConfig 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+        ],
+        "function": "add_config",
+        "module": "margin_registry",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580::oracle::PythConfig",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000abcd",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000aaaa",
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginAdmin PTB snapshots > adminWithdrawDefaultReferralFees 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+        ],
+        "function": "admin_withdraw_default_referral_fees",
+        "module": "margin_pool",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0xcdbbe6a72e639b647296788e2e4b1cac5cea4246028ba388ba1332ff9a382eea",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000aaaa",
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginAdmin PTB snapshots > disableDeepbookPool 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 3,
+            "type": "object",
+          },
+        ],
+        "function": "disable_deepbook_pool",
+        "module": "margin_registry",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000aaaa",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5",
+      },
+    },
+    {
+      "$kind": "Object",
+      "Object": {
+        "$kind": "SharedObject",
+        "SharedObject": {
+          "initialSharedVersion": 1,
+          "mutable": false,
+          "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
+        },
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginAdmin PTB snapshots > disableVersion 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+        ],
+        "function": "disable_version",
+        "module": "margin_registry",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AwAAAAAAAAA=",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000aaaa",
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginAdmin PTB snapshots > disableVersionPauseCap 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+        ],
+        "function": "disable_version_pause_cap",
+        "module": "margin_registry",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AwAAAAAAAAA=",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000abcd",
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginAdmin PTB snapshots > enableDeepbookPool 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 3,
+            "type": "object",
+          },
+        ],
+        "function": "enable_deepbook_pool",
+        "module": "margin_registry",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000aaaa",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5",
+      },
+    },
+    {
+      "$kind": "Object",
+      "Object": {
+        "$kind": "SharedObject",
+        "SharedObject": {
+          "initialSharedVersion": 1,
+          "mutable": false,
+          "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
+        },
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginAdmin PTB snapshots > enableVersion 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+        ],
+        "function": "enable_version",
+        "module": "margin_registry",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AwAAAAAAAAA=",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000aaaa",
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginAdmin PTB snapshots > mintMaintainerCap 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+        ],
+        "function": "mint_maintainer_cap",
+        "module": "margin_registry",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000aaaa",
+      },
+    },
+    {
+      "$kind": "Object",
+      "Object": {
+        "$kind": "SharedObject",
+        "SharedObject": {
+          "initialSharedVersion": 1,
+          "mutable": false,
+          "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
+        },
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginAdmin PTB snapshots > mintPauseCap 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+        ],
+        "function": "mint_pause_cap",
+        "module": "margin_registry",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000aaaa",
+      },
+    },
+    {
+      "$kind": "Object",
+      "Object": {
+        "$kind": "SharedObject",
+        "SharedObject": {
+          "initialSharedVersion": 1,
+          "mutable": false,
+          "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
+        },
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginAdmin PTB snapshots > newCoinTypeData 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 3,
+            "type": "pure",
+          },
+        ],
+        "function": "new_coin_type_data_from_currency",
+        "module": "oracle",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0xf256d3fb6a50eaa748d94335b34f2982fbc3b63ceec78cafaa29ebc9ebaf2bbc",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "IFDGez/SJduJEqQk3Uuu1g/93mJe0v6q8oNyT5YI/qJm",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "ZAAAAAAAAAA=",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "ZAAAAAAAAAA=",
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginAdmin PTB snapshots > newPoolConfig 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 3,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 4,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 5,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 6,
+            "type": "pure",
+          },
+        ],
+        "function": "new_pool_config",
+        "module": "margin_registry",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AJQ1dwAAAAA=",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AC9oWQAAAAA=",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AKuQQQAAAAA=",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AIyGRwAAAAA=",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "gPD6AgAAAAA=",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "gJaYAAAAAAA=",
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginAdmin PTB snapshots > newPoolConfigWithLeverage 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "pure",
+          },
+        ],
+        "function": "new_pool_config_with_leverage",
+        "module": "margin_registry",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "APIFKgEAAAA=",
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginAdmin PTB snapshots > newPythConfig 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 3,
+            "type": "pure",
+          },
+        ],
+        "function": "new_coin_type_data_from_currency",
+        "module": "oracle",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+        ],
+      },
+    },
+    {
+      "$kind": "MakeMoveVec",
+      "MakeMoveVec": {
+        "elements": [
+          {
+            "$kind": "Result",
+            "Result": 0,
+          },
+        ],
+        "type": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580::oracle::CoinTypeData",
+      },
+    },
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Result",
+            "Result": 1,
+          },
+          {
+            "$kind": "Input",
+            "Input": 4,
+            "type": "pure",
+          },
+        ],
+        "function": "new_pyth_config",
+        "module": "oracle",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0xf256d3fb6a50eaa748d94335b34f2982fbc3b63ceec78cafaa29ebc9ebaf2bbc",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "IFDGez/SJduJEqQk3Uuu1g/93mJe0v6q8oNyT5YI/qJm",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "ZAAAAAAAAAA=",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "ZAAAAAAAAAA=",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "PAAAAAAAAAA=",
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginAdmin PTB snapshots > registerDeepbookPool 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 3,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 4,
+            "type": "object",
+          },
+        ],
+        "function": "register_deepbook_pool",
+        "module": "margin_registry",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000abcd",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000aaaa",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5",
+      },
+    },
+    {
+      "$kind": "Object",
+      "Object": {
+        "$kind": "SharedObject",
+        "SharedObject": {
+          "initialSharedVersion": 1,
+          "mutable": false,
+          "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
+        },
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginAdmin PTB snapshots > removeConfig 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+        ],
+        "function": "remove_config",
+        "module": "margin_registry",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580::oracle::PythConfig",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000aaaa",
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginAdmin PTB snapshots > revokeMaintainerCap 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 3,
+            "type": "object",
+          },
+        ],
+        "function": "revoke_maintainer_cap",
+        "module": "margin_registry",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000aaaa",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000abcd",
+      },
+    },
+    {
+      "$kind": "Object",
+      "Object": {
+        "$kind": "SharedObject",
+        "SharedObject": {
+          "initialSharedVersion": 1,
+          "mutable": false,
+          "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
+        },
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginAdmin PTB snapshots > revokePauseCap 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 3,
+            "type": "pure",
+          },
+        ],
+        "function": "revoke_pause_cap",
+        "module": "margin_registry",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000aaaa",
+      },
+    },
+    {
+      "$kind": "Object",
+      "Object": {
+        "$kind": "SharedObject",
+        "SharedObject": {
+          "initialSharedVersion": 1,
+          "mutable": false,
+          "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
+        },
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAq80=",
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginAdmin PTB snapshots > setMaxOrderTtl 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 3,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 4,
+            "type": "object",
+          },
+        ],
+        "function": "set_max_order_ttl",
+        "module": "margin_registry",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000aaaa",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "YOoAAAAAAAA=",
+      },
+    },
+    {
+      "$kind": "Object",
+      "Object": {
+        "$kind": "SharedObject",
+        "SharedObject": {
+          "initialSharedVersion": 1,
+          "mutable": false,
+          "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
+        },
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginAdmin PTB snapshots > setMaxPriceAge 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 3,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 4,
+            "type": "object",
+          },
+        ],
+        "function": "set_max_price_age",
+        "module": "margin_registry",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000aaaa",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "YOoAAAAAAAA=",
+      },
+    },
+    {
+      "$kind": "Object",
+      "Object": {
+        "$kind": "SharedObject",
+        "SharedObject": {
+          "initialSharedVersion": 1,
+          "mutable": false,
+          "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
+        },
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginAdmin PTB snapshots > setMinOpenRiskRatio 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 3,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 4,
+            "type": "object",
+          },
+        ],
+        "function": "set_min_open_risk_ratio",
+        "module": "margin_registry",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000aaaa",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "gHyBSgAAAAA=",
+      },
+    },
+    {
+      "$kind": "Object",
+      "Object": {
+        "$kind": "SharedObject",
+        "SharedObject": {
+          "initialSharedVersion": 1,
+          "mutable": false,
+          "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
+        },
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginAdmin PTB snapshots > setPriceTolerance 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 3,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 4,
+            "type": "object",
+          },
+        ],
+        "function": "set_price_tolerance",
+        "module": "margin_registry",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000aaaa",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AOH1BQAAAAA=",
+      },
+    },
+    {
+      "$kind": "Object",
+      "Object": {
+        "$kind": "SharedObject",
+        "SharedObject": {
+          "initialSharedVersion": 1,
+          "mutable": false,
+          "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
+        },
+      },
+    },
+  ],
+}
+`;
+
+exports[`marginAdmin PTB snapshots > updateRiskParams 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 3,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 4,
+            "type": "object",
+          },
+        ],
+        "function": "update_risk_params",
+        "module": "margin_registry",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000abcd",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000aaaa",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5",
+      },
+    },
+    {
+      "$kind": "Object",
+      "Object": {
+        "$kind": "SharedObject",
+        "SharedObject": {
+          "initialSharedVersion": 1,
+          "mutable": false,
+          "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
+        },
+      },
+    },
+  ],
+}
+`;
+
 exports[`marginMaintainer PTB snapshots > createMarginPool 1`] = `
 {
   "commands": [

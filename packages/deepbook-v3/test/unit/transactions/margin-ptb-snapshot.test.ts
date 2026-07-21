@@ -8,6 +8,7 @@
 import { Transaction } from '@mysten/sui/transactions';
 import { describe, expect, it } from 'vitest';
 
+import { MarginAdminContract } from '../../../src/transactions/marginAdmin.js';
 import { MarginMaintainerContract } from '../../../src/transactions/marginMaintainer.js';
 import { MarginPoolContract } from '../../../src/transactions/marginPool.js';
 import { MarginRegistryContract } from '../../../src/transactions/marginRegistry.js';
@@ -94,6 +95,49 @@ describe('poolProxy PTB snapshots', () => {
 		['claimRebate', (m) => m.claimRebate(MGR_KEY)],
 		['withdrawMarginSettledAmounts', (m) => m.withdrawMarginSettledAmounts(POOL_KEY, MGR_ADDR)],
 		['updateCurrentPrice', (m) => m.updateCurrentPrice(POOL_KEY)],
+	];
+	it.each(cases)('%s', (_name, build) => {
+		expect(ptb(build(c()))).toMatchSnapshot();
+	});
+});
+
+describe('marginAdmin PTB snapshots', () => {
+	const c = () => new MarginAdminContract(config());
+	const ID = '0x000000000000000000000000000000000000000000000000000000000000abcd';
+	const PCP = {
+		minWithdrawRiskRatio: 2,
+		minBorrowRiskRatio: 1.5,
+		liquidationRiskRatio: 1.1,
+		targetLiquidationRiskRatio: 1.2,
+		userLiquidationReward: 0.05,
+		poolLiquidationReward: 0.01,
+	};
+	const cases: Array<[string, (m: MarginAdminContract) => (tx: Transaction) => unknown]> = [
+		['mintMaintainerCap', (m) => m.mintMaintainerCap()],
+		['revokeMaintainerCap', (m) => m.revokeMaintainerCap(ID)],
+		['registerDeepbookPool', (m) => (tx: Transaction) => m.registerDeepbookPool(POOL_KEY, tx.object(ID))(tx)],
+		['enableDeepbookPool', (m) => m.enableDeepbookPool(POOL_KEY)],
+		['disableDeepbookPool', (m) => m.disableDeepbookPool(POOL_KEY)],
+		['updateRiskParams', (m) => (tx: Transaction) => m.updateRiskParams(POOL_KEY, tx.object(ID))(tx)],
+		['setPriceTolerance', (m) => m.setPriceTolerance(POOL_KEY, 0.1)],
+		['setMaxPriceAge', (m) => m.setMaxPriceAge(POOL_KEY, 60000)],
+		['setMaxOrderTtl', (m) => m.setMaxOrderTtl(POOL_KEY, 60000)],
+		['setMinOpenRiskRatio', (m) => m.setMinOpenRiskRatio(POOL_KEY, 1.25)],
+		['addConfig', (m) => (tx: Transaction) => m.addConfig(tx.object(ID))(tx)],
+		['removeConfig', (m) => m.removeConfig()],
+		['enableVersion', (m) => m.enableVersion(3)],
+		['disableVersion', (m) => m.disableVersion(3)],
+		['newPoolConfig', (m) => m.newPoolConfig(POOL_KEY, PCP)],
+		['newPoolConfigWithLeverage', (m) => m.newPoolConfigWithLeverage(POOL_KEY, 5)],
+		['newCoinTypeData', (m) => m.newCoinTypeData(COIN_KEY, 100, 100)],
+		[
+			'newPythConfig',
+			(m) => m.newPythConfig([{ coinKey: COIN_KEY, maxConfBps: 100, maxEwmaDifferenceBps: 100 }], 60),
+		],
+		['mintPauseCap', (m) => m.mintPauseCap()],
+		['revokePauseCap', (m) => m.revokePauseCap(ID)],
+		['disableVersionPauseCap', (m) => m.disableVersionPauseCap(3, ID)],
+		['adminWithdrawDefaultReferralFees', (m) => m.adminWithdrawDefaultReferralFees(COIN_KEY)],
 	];
 	it.each(cases)('%s', (_name, build) => {
 		expect(ptb(build(c()))).toMatchSnapshot();
