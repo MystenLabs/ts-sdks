@@ -1550,3 +1550,2161 @@ exports[`marginTPSL PTB snapshots > newPendingMarketOrder 1`] = `
   ],
 }
 `;
+
+exports[`poolProxy PTB snapshots > cancelAllOrders 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 3,
+            "type": "object",
+          },
+        ],
+        "function": "cancel_all_orders",
+        "module": "pool_proxy",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x2222222222222222222222222222222222222222222222222222222222222222",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5",
+      },
+    },
+    {
+      "$kind": "Object",
+      "Object": {
+        "$kind": "SharedObject",
+        "SharedObject": {
+          "initialSharedVersion": 1,
+          "mutable": false,
+          "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
+        },
+      },
+    },
+  ],
+}
+`;
+
+exports[`poolProxy PTB snapshots > cancelOrder 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 3,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 4,
+            "type": "object",
+          },
+        ],
+        "function": "cancel_order",
+        "module": "pool_proxy",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x2222222222222222222222222222222222222222222222222222222222222222",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "ewAAAAAAAAAAAAAAAAAAAA==",
+      },
+    },
+    {
+      "$kind": "Object",
+      "Object": {
+        "$kind": "SharedObject",
+        "SharedObject": {
+          "initialSharedVersion": 1,
+          "mutable": false,
+          "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
+        },
+      },
+    },
+  ],
+}
+`;
+
+exports[`poolProxy PTB snapshots > cancelOrders 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 3,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 4,
+            "type": "object",
+          },
+        ],
+        "function": "cancel_orders",
+        "module": "pool_proxy",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x2222222222222222222222222222222222222222222222222222222222222222",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AnsAAAAAAAAAAAAAAAAAAADIAQAAAAAAAAAAAAAAAAAA",
+      },
+    },
+    {
+      "$kind": "Object",
+      "Object": {
+        "$kind": "SharedObject",
+        "SharedObject": {
+          "initialSharedVersion": 1,
+          "mutable": false,
+          "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
+        },
+      },
+    },
+  ],
+}
+`;
+
+exports[`poolProxy PTB snapshots > claimRebate 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+        ],
+        "function": "claim_rebates",
+        "module": "pool_proxy",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x2222222222222222222222222222222222222222222222222222222222222222",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5",
+      },
+    },
+  ],
+}
+`;
+
+exports[`poolProxy PTB snapshots > modifyOrder 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 3,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 4,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 5,
+            "type": "object",
+          },
+        ],
+        "function": "modify_order",
+        "module": "pool_proxy",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x2222222222222222222222222222222222222222222222222222222222222222",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "ewAAAAAAAAAAAAAAAAAAAA==",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AMqaOwAAAAA=",
+      },
+    },
+    {
+      "$kind": "Object",
+      "Object": {
+        "$kind": "SharedObject",
+        "SharedObject": {
+          "initialSharedVersion": 1,
+          "mutable": false,
+          "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
+        },
+      },
+    },
+  ],
+}
+`;
+
+exports[`poolProxy PTB snapshots > placeLimitOrder 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 3,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 4,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 5,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 6,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 7,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 8,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 9,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 10,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 11,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 12,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 13,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 14,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 15,
+            "type": "object",
+          },
+        ],
+        "function": "place_limit_order_v2",
+        "module": "pool_proxy",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x2222222222222222222222222222222222222222222222222222222222222222",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0xcdbbe6a72e639b647296788e2e4b1cac5cea4246028ba388ba1332ff9a382eea",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0xf08568da93834e1ee04f09902ac7b1e78d3fdf113ab4d2106c7265e95318b14d",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1ebb295c789cc42b3b2a1606482cd1c7124076a0f5676718501fda8c7fd075a0",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AQAAAAAAAAA=",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AA==",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AA==",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "QEIPAAAAAAA=",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AMqaOwAAAAA=",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AQ==",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AQ==",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "mZmZmZmZmRk=",
+      },
+    },
+    {
+      "$kind": "Object",
+      "Object": {
+        "$kind": "SharedObject",
+        "SharedObject": {
+          "initialSharedVersion": 1,
+          "mutable": false,
+          "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
+        },
+      },
+    },
+  ],
+}
+`;
+
+exports[`poolProxy PTB snapshots > placeMarketOrder 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 3,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 4,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 5,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 6,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 7,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 8,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 9,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 10,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 11,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 12,
+            "type": "object",
+          },
+        ],
+        "function": "place_market_order_v2",
+        "module": "pool_proxy",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x2222222222222222222222222222222222222222222222222222222222222222",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0xcdbbe6a72e639b647296788e2e4b1cac5cea4246028ba388ba1332ff9a382eea",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0xf08568da93834e1ee04f09902ac7b1e78d3fdf113ab4d2106c7265e95318b14d",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1ebb295c789cc42b3b2a1606482cd1c7124076a0f5676718501fda8c7fd075a0",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AQAAAAAAAAA=",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AA==",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AMqaOwAAAAA=",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AQ==",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AQ==",
+      },
+    },
+    {
+      "$kind": "Object",
+      "Object": {
+        "$kind": "SharedObject",
+        "SharedObject": {
+          "initialSharedVersion": 1,
+          "mutable": false,
+          "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
+        },
+      },
+    },
+  ],
+}
+`;
+
+exports[`poolProxy PTB snapshots > placeMarketOrderAndRepayLoan 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 3,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 4,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 5,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 6,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 7,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 8,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 9,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 10,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 11,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 12,
+            "type": "object",
+          },
+        ],
+        "function": "place_market_order_and_repay_loan",
+        "module": "pool_proxy",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x2222222222222222222222222222222222222222222222222222222222222222",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0xcdbbe6a72e639b647296788e2e4b1cac5cea4246028ba388ba1332ff9a382eea",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0xf08568da93834e1ee04f09902ac7b1e78d3fdf113ab4d2106c7265e95318b14d",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1ebb295c789cc42b3b2a1606482cd1c7124076a0f5676718501fda8c7fd075a0",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AQAAAAAAAAA=",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AA==",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AMqaOwAAAAA=",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AQ==",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AQ==",
+      },
+    },
+    {
+      "$kind": "Object",
+      "Object": {
+        "$kind": "SharedObject",
+        "SharedObject": {
+          "initialSharedVersion": 1,
+          "mutable": false,
+          "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
+        },
+      },
+    },
+  ],
+}
+`;
+
+exports[`poolProxy PTB snapshots > placeReduceOnlyLimitOrder 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 3,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 4,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 5,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 6,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 7,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 8,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 9,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 10,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 11,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 12,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 13,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 14,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 15,
+            "type": "object",
+          },
+        ],
+        "function": "place_reduce_only_limit_order_v2",
+        "module": "pool_proxy",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x2222222222222222222222222222222222222222222222222222222222222222",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0xcdbbe6a72e639b647296788e2e4b1cac5cea4246028ba388ba1332ff9a382eea",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0xf08568da93834e1ee04f09902ac7b1e78d3fdf113ab4d2106c7265e95318b14d",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1ebb295c789cc42b3b2a1606482cd1c7124076a0f5676718501fda8c7fd075a0",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AQAAAAAAAAA=",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AA==",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AA==",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "QEIPAAAAAAA=",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AMqaOwAAAAA=",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AQ==",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AQ==",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "mZmZmZmZmRk=",
+      },
+    },
+    {
+      "$kind": "Object",
+      "Object": {
+        "$kind": "SharedObject",
+        "SharedObject": {
+          "initialSharedVersion": 1,
+          "mutable": false,
+          "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
+        },
+      },
+    },
+  ],
+}
+`;
+
+exports[`poolProxy PTB snapshots > placeReduceOnlyLimitOrderAndRepayLoan 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 3,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 4,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 5,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 6,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 7,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 8,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 9,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 10,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 11,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 12,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 13,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 14,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 15,
+            "type": "object",
+          },
+        ],
+        "function": "place_reduce_only_limit_order_and_repay_loan",
+        "module": "pool_proxy",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x2222222222222222222222222222222222222222222222222222222222222222",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0xcdbbe6a72e639b647296788e2e4b1cac5cea4246028ba388ba1332ff9a382eea",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0xf08568da93834e1ee04f09902ac7b1e78d3fdf113ab4d2106c7265e95318b14d",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1ebb295c789cc42b3b2a1606482cd1c7124076a0f5676718501fda8c7fd075a0",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AQAAAAAAAAA=",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AA==",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AA==",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "QEIPAAAAAAA=",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AMqaOwAAAAA=",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AQ==",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AQ==",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "mZmZmZmZmRk=",
+      },
+    },
+    {
+      "$kind": "Object",
+      "Object": {
+        "$kind": "SharedObject",
+        "SharedObject": {
+          "initialSharedVersion": 1,
+          "mutable": false,
+          "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
+        },
+      },
+    },
+  ],
+}
+`;
+
+exports[`poolProxy PTB snapshots > placeReduceOnlyMarketOrder 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 3,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 4,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 5,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 6,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 7,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 8,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 9,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 10,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 11,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 12,
+            "type": "object",
+          },
+        ],
+        "function": "place_reduce_only_market_order_v2",
+        "module": "pool_proxy",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x2222222222222222222222222222222222222222222222222222222222222222",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0xcdbbe6a72e639b647296788e2e4b1cac5cea4246028ba388ba1332ff9a382eea",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0xf08568da93834e1ee04f09902ac7b1e78d3fdf113ab4d2106c7265e95318b14d",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1ebb295c789cc42b3b2a1606482cd1c7124076a0f5676718501fda8c7fd075a0",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AQAAAAAAAAA=",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AA==",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AMqaOwAAAAA=",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AQ==",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AQ==",
+      },
+    },
+    {
+      "$kind": "Object",
+      "Object": {
+        "$kind": "SharedObject",
+        "SharedObject": {
+          "initialSharedVersion": 1,
+          "mutable": false,
+          "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
+        },
+      },
+    },
+  ],
+}
+`;
+
+exports[`poolProxy PTB snapshots > placeReduceOnlyMarketOrderAndRepayLoan 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 3,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 4,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 5,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 6,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 7,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 8,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 9,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 10,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 11,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 12,
+            "type": "object",
+          },
+        ],
+        "function": "place_reduce_only_market_order_and_repay_loan",
+        "module": "pool_proxy",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x2222222222222222222222222222222222222222222222222222222222222222",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0xcdbbe6a72e639b647296788e2e4b1cac5cea4246028ba388ba1332ff9a382eea",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0xf08568da93834e1ee04f09902ac7b1e78d3fdf113ab4d2106c7265e95318b14d",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1ebb295c789cc42b3b2a1606482cd1c7124076a0f5676718501fda8c7fd075a0",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AQAAAAAAAAA=",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AA==",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AMqaOwAAAAA=",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AQ==",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AQ==",
+      },
+    },
+    {
+      "$kind": "Object",
+      "Object": {
+        "$kind": "SharedObject",
+        "SharedObject": {
+          "initialSharedVersion": 1,
+          "mutable": false,
+          "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
+        },
+      },
+    },
+  ],
+}
+`;
+
+exports[`poolProxy PTB snapshots > stake 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 3,
+            "type": "pure",
+          },
+        ],
+        "function": "stake",
+        "module": "pool_proxy",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x2222222222222222222222222222222222222222222222222222222222222222",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "QEIPAAAAAAA=",
+      },
+    },
+  ],
+}
+`;
+
+exports[`poolProxy PTB snapshots > submitProposal 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 3,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 4,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 5,
+            "type": "pure",
+          },
+        ],
+        "function": "submit_proposal",
+        "module": "pool_proxy",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x2222222222222222222222222222222222222222222222222222222222222222",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "QEIPAAAAAAA=",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "QEIPAAAAAAA=",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AOh2SBcAAAA=",
+      },
+    },
+  ],
+}
+`;
+
+exports[`poolProxy PTB snapshots > unstake 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+        ],
+        "function": "unstake",
+        "module": "pool_proxy",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x2222222222222222222222222222222222222222222222222222222222222222",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5",
+      },
+    },
+  ],
+}
+`;
+
+exports[`poolProxy PTB snapshots > updateCurrentPrice 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 3,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 4,
+            "type": "object",
+          },
+        ],
+        "function": "update_current_price",
+        "module": "pool_proxy",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1ebb295c789cc42b3b2a1606482cd1c7124076a0f5676718501fda8c7fd075a0",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81",
+      },
+    },
+    {
+      "$kind": "Object",
+      "Object": {
+        "$kind": "SharedObject",
+        "SharedObject": {
+          "initialSharedVersion": 1,
+          "mutable": false,
+          "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
+        },
+      },
+    },
+  ],
+}
+`;
+
+exports[`poolProxy PTB snapshots > vote 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 3,
+            "type": "pure",
+          },
+        ],
+        "function": "vote",
+        "module": "pool_proxy",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x2222222222222222222222222222222222222222222222222222222222222222",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "IiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiI=",
+      },
+    },
+  ],
+}
+`;
+
+exports[`poolProxy PTB snapshots > withdrawMarginSettledAmounts 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+        ],
+        "function": "withdraw_settled_amounts_permissionless",
+        "module": "pool_proxy",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x2222222222222222222222222222222222222222222222222222222222222222",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5",
+      },
+    },
+  ],
+}
+`;
+
+exports[`poolProxy PTB snapshots > withdrawSettledAmounts 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+        ],
+        "function": "withdraw_settled_amounts",
+        "module": "pool_proxy",
+        "package": "0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x2222222222222222222222222222222222222222222222222222222222222222",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5",
+      },
+    },
+  ],
+}
+`;

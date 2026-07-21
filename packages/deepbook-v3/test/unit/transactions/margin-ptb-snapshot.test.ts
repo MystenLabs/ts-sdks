@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest';
 
 import { MarginRegistryContract } from '../../../src/transactions/marginRegistry.js';
 import { MarginTPSLContract } from '../../../src/transactions/marginTPSL.js';
+import { PoolProxyContract } from '../../../src/transactions/poolProxy.js';
 import { DeepBookConfig } from '../../../src/utils/config.js';
 
 const POOL_KEY = 'SUI_DBUSDC';
@@ -61,6 +62,36 @@ describe('marginRegistry PTB snapshots', () => {
 		['poolLiquidationReward', (m) => m.poolLiquidationReward(POOL_KEY)],
 		['allowedMaintainers', (m) => m.allowedMaintainers()],
 		['allowedPauseCaps', (m) => m.allowedPauseCaps()],
+	];
+	it.each(cases)('%s', (_name, build) => {
+		expect(ptb(build(c()))).toMatchSnapshot();
+	});
+});
+
+describe('poolProxy PTB snapshots', () => {
+	const c = () => new PoolProxyContract(config());
+	const limit = { poolKey: POOL_KEY, marginManagerKey: MGR_KEY, clientOrderId: '1', price: 1, quantity: 1, isBid: true };
+	const market = { poolKey: POOL_KEY, marginManagerKey: MGR_KEY, clientOrderId: '1', quantity: 1, isBid: true };
+	const cases: Array<[string, (m: PoolProxyContract) => (tx: Transaction) => unknown]> = [
+		['placeLimitOrder', (m) => m.placeLimitOrder(limit)],
+		['placeMarketOrder', (m) => m.placeMarketOrder(market)],
+		['placeReduceOnlyLimitOrder', (m) => m.placeReduceOnlyLimitOrder(limit)],
+		['placeReduceOnlyMarketOrder', (m) => m.placeReduceOnlyMarketOrder(market)],
+		['placeMarketOrderAndRepayLoan', (m) => m.placeMarketOrderAndRepayLoan(market)],
+		['placeReduceOnlyLimitOrderAndRepayLoan', (m) => m.placeReduceOnlyLimitOrderAndRepayLoan(limit)],
+		['placeReduceOnlyMarketOrderAndRepayLoan', (m) => m.placeReduceOnlyMarketOrderAndRepayLoan(market)],
+		['modifyOrder', (m) => m.modifyOrder(MGR_KEY, '123', 1)],
+		['cancelOrder', (m) => m.cancelOrder(MGR_KEY, '123')],
+		['cancelOrders', (m) => m.cancelOrders(MGR_KEY, ['123', '456'])],
+		['cancelAllOrders', (m) => m.cancelAllOrders(MGR_KEY)],
+		['withdrawSettledAmounts', (m) => m.withdrawSettledAmounts(MGR_KEY)],
+		['stake', (m) => m.stake(MGR_KEY, 1)],
+		['unstake', (m) => m.unstake(MGR_KEY)],
+		['submitProposal', (m) => m.submitProposal(MGR_KEY, { takerFee: 0.001, makerFee: 0.001, stakeRequired: 100 })],
+		['vote', (m) => m.vote(MGR_KEY, MGR_ADDR)],
+		['claimRebate', (m) => m.claimRebate(MGR_KEY)],
+		['withdrawMarginSettledAmounts', (m) => m.withdrawMarginSettledAmounts(POOL_KEY, MGR_ADDR)],
+		['updateCurrentPrice', (m) => m.updateCurrentPrice(POOL_KEY)],
 	];
 	it.each(cases)('%s', (_name, build) => {
 		expect(ptb(build(c()))).toMatchSnapshot();
