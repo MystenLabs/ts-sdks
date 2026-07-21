@@ -1,5 +1,14 @@
 # @mysten/sui.js
 
+## 2.22.1
+
+### Patch Changes
+
+- 5c0fa85: Set `ValidDuring` expiration when resolving transactions that explicitly use
+  address-balance gas with an empty gas payment and preset gas budget.
+- e890999: Extend zkLogin Poseidon hashing to support up to 64 inputs.
+- e2dca59: Update zkLogin JWT length validation limit.
+
 ## 2.22.0
 
 ### Minor Changes
