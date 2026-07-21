@@ -11,6 +11,8 @@ import type { DeepBookConfig } from '../utils/config.js';
 import type { MarginPoolConfigParams, InterestConfigParams } from '../types/index.js';
 import { FLOAT_SCALAR } from '../utils/config.js';
 import { convertQuantity, convertRate } from '../utils/conversion.js';
+import * as marginPoolMoveCalls from '../contracts/deepbook_margin/margin_pool.js';
+import * as protocolConfigMoveCalls from '../contracts/deepbook_margin/protocol_config.js';
 
 /**
  * DeepBookMaintainerContract class for managing maintainer actions.
@@ -45,16 +47,17 @@ export class MarginMaintainerContract {
 	 */
 	createMarginPool = (coinKey: string, poolConfig: TransactionArgument) => (tx: Transaction) => {
 		const coin = this.#config.getCoin(coinKey);
-		tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::create_margin_pool`,
-			arguments: [
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				poolConfig,
-				tx.object(this.#marginMaintainerCap()),
-				tx.object.clock(),
-			],
-			typeArguments: [coin.type],
-		});
+		tx.add(
+			marginPoolMoveCalls.createMarginPool({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					registry: this.#config.MARGIN_REGISTRY_ID,
+					config: poolConfig,
+					maintainerCap: this.#marginMaintainerCap(),
+				},
+				typeArguments: [coin.type],
+			}),
+		);
 	};
 
 	/**
@@ -84,10 +87,15 @@ export class MarginMaintainerContract {
 					})(tx)
 				: this.newMarginPoolConfig(coinKey, marginPoolConfig)(tx);
 			const interestConfigObject = this.newInterestConfig(interestConfig)(tx);
-			return tx.moveCall({
-				target: `${this.#config.MARGIN_PACKAGE_ID}::protocol_config::new_protocol_config`,
-				arguments: [marginPoolConfigObject, interestConfigObject],
-			});
+			return tx.add(
+				protocolConfigMoveCalls.newProtocolConfig({
+					package: this.#config.MARGIN_PACKAGE_ID,
+					arguments: {
+						marginPoolConfig: marginPoolConfigObject,
+						interestConfig: interestConfigObject,
+					},
+				}),
+			);
 		};
 
 	/**
@@ -100,15 +108,17 @@ export class MarginMaintainerContract {
 		(coinKey: string, marginPoolConfig: MarginPoolConfigParams) => (tx: Transaction) => {
 			const coin = this.#config.getCoin(coinKey);
 			const { supplyCap, maxUtilizationRate, protocolSpread, minBorrow } = marginPoolConfig;
-			return tx.moveCall({
-				target: `${this.#config.MARGIN_PACKAGE_ID}::protocol_config::new_margin_pool_config`,
-				arguments: [
-					tx.pure.u64(convertQuantity(supplyCap, coin.scalar)),
-					tx.pure.u64(convertRate(maxUtilizationRate, FLOAT_SCALAR)),
-					tx.pure.u64(convertRate(protocolSpread, FLOAT_SCALAR)),
-					tx.pure.u64(convertQuantity(minBorrow, coin.scalar)),
-				],
-			});
+			return tx.add(
+				protocolConfigMoveCalls.newMarginPoolConfig({
+					package: this.#config.MARGIN_PACKAGE_ID,
+					arguments: {
+						supplyCap: convertQuantity(supplyCap, coin.scalar),
+						maxUtilizationRate: convertRate(maxUtilizationRate, FLOAT_SCALAR),
+						protocolSpread: convertRate(protocolSpread, FLOAT_SCALAR),
+						minBorrow: convertQuantity(minBorrow, coin.scalar),
+					},
+				}),
+			);
 		};
 
 	/**
@@ -139,18 +149,20 @@ export class MarginMaintainerContract {
 				rateLimitRefillRatePerMs,
 				rateLimitEnabled,
 			} = marginPoolConfig;
-			return tx.moveCall({
-				target: `${this.#config.MARGIN_PACKAGE_ID}::protocol_config::new_margin_pool_config_with_rate_limit`,
-				arguments: [
-					tx.pure.u64(convertQuantity(supplyCap, coin.scalar)),
-					tx.pure.u64(convertRate(maxUtilizationRate, FLOAT_SCALAR)),
-					tx.pure.u64(convertRate(protocolSpread, FLOAT_SCALAR)),
-					tx.pure.u64(convertQuantity(minBorrow, coin.scalar)),
-					tx.pure.u64(convertQuantity(rateLimitCapacity, coin.scalar)),
-					tx.pure.u64(convertQuantity(rateLimitRefillRatePerMs, coin.scalar)),
-					tx.pure.bool(rateLimitEnabled),
-				],
-			});
+			return tx.add(
+				protocolConfigMoveCalls.newMarginPoolConfigWithRateLimit({
+					package: this.#config.MARGIN_PACKAGE_ID,
+					arguments: {
+						supplyCap: convertQuantity(supplyCap, coin.scalar),
+						maxUtilizationRate: convertRate(maxUtilizationRate, FLOAT_SCALAR),
+						protocolSpread: convertRate(protocolSpread, FLOAT_SCALAR),
+						minBorrow: convertQuantity(minBorrow, coin.scalar),
+						rateLimitCapacity: convertQuantity(rateLimitCapacity, coin.scalar),
+						rateLimitRefillRatePerMs: convertQuantity(rateLimitRefillRatePerMs, coin.scalar),
+						rateLimitEnabled,
+					},
+				}),
+			);
 		};
 
 	/**
@@ -160,15 +172,17 @@ export class MarginMaintainerContract {
 	 */
 	newInterestConfig = (interestConfig: InterestConfigParams) => (tx: Transaction) => {
 		const { baseRate, baseSlope, optimalUtilization, excessSlope } = interestConfig;
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::protocol_config::new_interest_config`,
-			arguments: [
-				tx.pure.u64(convertRate(baseRate, FLOAT_SCALAR)),
-				tx.pure.u64(convertRate(baseSlope, FLOAT_SCALAR)),
-				tx.pure.u64(convertRate(optimalUtilization, FLOAT_SCALAR)),
-				tx.pure.u64(convertRate(excessSlope, FLOAT_SCALAR)),
-			],
-		});
+		return tx.add(
+			protocolConfigMoveCalls.newInterestConfig({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					baseRate: convertRate(baseRate, FLOAT_SCALAR),
+					baseSlope: convertRate(baseSlope, FLOAT_SCALAR),
+					optimalUtilization: convertRate(optimalUtilization, FLOAT_SCALAR),
+					excessSlope: convertRate(excessSlope, FLOAT_SCALAR),
+				},
+			}),
+		);
 	};
 
 	/**
@@ -183,17 +197,18 @@ export class MarginMaintainerContract {
 		(tx: Transaction) => {
 			const deepbookPool = this.#config.getPool(deepbookPoolKey);
 			const marginPool = this.#config.getMarginPool(coinKey);
-			tx.moveCall({
-				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::enable_deepbook_pool_for_loan`,
-				arguments: [
-					tx.object(marginPool.address),
-					tx.object(this.#config.MARGIN_REGISTRY_ID),
-					tx.pure.id(deepbookPool.address),
-					tx.object(marginPoolCap),
-					tx.object.clock(),
-				],
-				typeArguments: [marginPool.type],
-			});
+			tx.add(
+				marginPoolMoveCalls.enableDeepbookPoolForLoan({
+					package: this.#config.MARGIN_PACKAGE_ID,
+					arguments: {
+						self: marginPool.address,
+						registry: this.#config.MARGIN_REGISTRY_ID,
+						deepbookPoolId: deepbookPool.address,
+						marginPoolCap,
+					},
+					typeArguments: [marginPool.type],
+				}),
+			);
 		};
 
 	/**
@@ -208,17 +223,18 @@ export class MarginMaintainerContract {
 		(tx: Transaction) => {
 			const deepbookPool = this.#config.getPool(deepbookPoolKey);
 			const marginPool = this.#config.getMarginPool(coinKey);
-			tx.moveCall({
-				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::disable_deepbook_pool_for_loan`,
-				arguments: [
-					tx.object(marginPool.address),
-					tx.object(this.#config.MARGIN_REGISTRY_ID),
-					tx.pure.id(deepbookPool.address),
-					tx.object(marginPoolCap),
-					tx.object.clock(),
-				],
-				typeArguments: [marginPool.type],
-			});
+			tx.add(
+				marginPoolMoveCalls.disableDeepbookPoolForLoan({
+					package: this.#config.MARGIN_PACKAGE_ID,
+					arguments: {
+						self: marginPool.address,
+						registry: this.#config.MARGIN_REGISTRY_ID,
+						deepbookPoolId: deepbookPool.address,
+						marginPoolCap,
+					},
+					typeArguments: [marginPool.type],
+				}),
+			);
 		};
 
 	/**
@@ -237,17 +253,18 @@ export class MarginMaintainerContract {
 		(tx: Transaction) => {
 			const marginPool = this.#config.getMarginPool(coinKey);
 			const interestConfigObject = this.newInterestConfig(interestConfig)(tx);
-			tx.moveCall({
-				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::update_interest_params`,
-				arguments: [
-					tx.object(marginPool.address),
-					tx.object(this.#config.MARGIN_REGISTRY_ID),
-					interestConfigObject,
-					tx.object(marginPoolCap),
-					tx.object.clock(),
-				],
-				typeArguments: [marginPool.type],
-			});
+			tx.add(
+				marginPoolMoveCalls.updateInterestParams({
+					package: this.#config.MARGIN_PACKAGE_ID,
+					arguments: {
+						self: marginPool.address,
+						registry: this.#config.MARGIN_REGISTRY_ID,
+						interestConfig: interestConfigObject,
+						marginPoolCap,
+					},
+					typeArguments: [marginPool.type],
+				}),
+			);
 		};
 
 	/**
@@ -277,16 +294,17 @@ export class MarginMaintainerContract {
 						rateLimitEnabled: marginPoolConfig.rateLimitEnabled!,
 					})(tx)
 				: this.newMarginPoolConfig(coinKey, marginPoolConfig)(tx);
-			tx.moveCall({
-				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::update_margin_pool_config`,
-				arguments: [
-					tx.object(marginPool.address),
-					tx.object(this.#config.MARGIN_REGISTRY_ID),
-					marginPoolConfigObject,
-					tx.object(marginPoolCap),
-					tx.object.clock(),
-				],
-				typeArguments: [marginPool.type],
-			});
+			tx.add(
+				marginPoolMoveCalls.updateMarginPoolConfig({
+					package: this.#config.MARGIN_PACKAGE_ID,
+					arguments: {
+						self: marginPool.address,
+						registry: this.#config.MARGIN_REGISTRY_ID,
+						marginPoolConfig: marginPoolConfigObject,
+						marginPoolCap,
+					},
+					typeArguments: [marginPool.type],
+				}),
+			);
 		};
 }

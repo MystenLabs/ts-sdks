@@ -8,6 +8,7 @@
 import { Transaction } from '@mysten/sui/transactions';
 import { describe, expect, it } from 'vitest';
 
+import { MarginMaintainerContract } from '../../../src/transactions/marginMaintainer.js';
 import { MarginRegistryContract } from '../../../src/transactions/marginRegistry.js';
 import { MarginTPSLContract } from '../../../src/transactions/marginTPSL.js';
 import { PoolProxyContract } from '../../../src/transactions/poolProxy.js';
@@ -92,6 +93,51 @@ describe('poolProxy PTB snapshots', () => {
 		['claimRebate', (m) => m.claimRebate(MGR_KEY)],
 		['withdrawMarginSettledAmounts', (m) => m.withdrawMarginSettledAmounts(POOL_KEY, MGR_ADDR)],
 		['updateCurrentPrice', (m) => m.updateCurrentPrice(POOL_KEY)],
+	];
+	it.each(cases)('%s', (_name, build) => {
+		expect(ptb(build(c()))).toMatchSnapshot();
+	});
+});
+
+describe('marginMaintainer PTB snapshots', () => {
+	const c = () => new MarginMaintainerContract(config());
+	const CAP = '0x000000000000000000000000000000000000000000000000000000000000cccc';
+	const IC = { baseRate: 0.01, baseSlope: 0.1, optimalUtilization: 0.8, excessSlope: 0.5 };
+	const MPC = { supplyCap: 1000, maxUtilizationRate: 0.9, protocolSpread: 0.1, minBorrow: 1 };
+	const MPC_RL = {
+		...MPC,
+		rateLimitCapacity: 100,
+		rateLimitRefillRatePerMs: 1,
+		rateLimitEnabled: true,
+	};
+	const cases: Array<[string, (m: MarginMaintainerContract) => (tx: Transaction) => unknown]> = [
+		['newInterestConfig', (m) => m.newInterestConfig(IC)],
+		['newMarginPoolConfig', (m) => m.newMarginPoolConfig(COIN_KEY, MPC)],
+		['newMarginPoolConfigWithRateLimit', (m) => m.newMarginPoolConfigWithRateLimit(COIN_KEY, MPC_RL)],
+		['newProtocolConfig', (m) => m.newProtocolConfig(COIN_KEY, MPC, IC)],
+		[
+			'createMarginPool',
+			(m) => (tx: Transaction) => {
+				const cfg = m.newProtocolConfig(COIN_KEY, MPC, IC)(tx);
+				m.createMarginPool(COIN_KEY, cfg)(tx);
+			},
+		],
+		[
+			'enableDeepbookPoolForLoan',
+			(m) => (tx: Transaction) => m.enableDeepbookPoolForLoan(POOL_KEY, COIN_KEY, tx.object(CAP))(tx),
+		],
+		[
+			'disableDeepbookPoolForLoan',
+			(m) => (tx: Transaction) => m.disableDeepbookPoolForLoan(POOL_KEY, COIN_KEY, tx.object(CAP))(tx),
+		],
+		[
+			'updateInterestParams',
+			(m) => (tx: Transaction) => m.updateInterestParams(COIN_KEY, tx.object(CAP), IC)(tx),
+		],
+		[
+			'updateMarginPoolConfig',
+			(m) => (tx: Transaction) => m.updateMarginPoolConfig(COIN_KEY, tx.object(CAP), MPC)(tx),
+		],
 	];
 	it.each(cases)('%s', (_name, build) => {
 		expect(ptb(build(c()))).toMatchSnapshot();
