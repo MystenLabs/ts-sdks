@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
-import type { GraphQLQueryResult } from '@mysten/sui/graphql';
 import { SuiGraphQLClient } from '@mysten/sui/graphql';
+import type { VariablesOf } from '@mysten/sui/graphql/schema';
+import { graphql } from '@mysten/sui/graphql/schema';
 import type { Signer } from '@mysten/sui/cryptography';
 import { bcs, TypeTagSerializer } from '@mysten/sui/bcs';
 import { fromHex, deriveDynamicFieldID, normalizeSuiAddress } from '@mysten/sui/utils';
@@ -79,7 +80,7 @@ const OBJECT_BAG_ADDRESS_TYPE =
 const U32_MAX = 0xffffffff;
 
 /** Events of a type emitted by a sender, paginated; used by `#queryEventRequestIds`. */
-const EVENT_REQUEST_IDS_QUERY = `
+const EVENT_REQUEST_IDS_QUERY = graphql(`
 	query EventRequestIds($sender: SuiAddress!, $type: String!, $after: String) {
 		events(filter: { sender: $sender, type: $type }, first: 50, after: $after) {
 			nodes {
@@ -93,15 +94,7 @@ const EVENT_REQUEST_IDS_QUERY = `
 			}
 		}
 	}
-`;
-
-/** Result shape of {@link EVENT_REQUEST_IDS_QUERY}. */
-interface EventRequestIdsResult {
-	events?: {
-		nodes: { contents: { json: { request_id: string } } }[];
-		pageInfo: { hasNextPage: boolean; endCursor: string | null };
-	} | null;
-}
+`);
 
 const GRAPHQL_URLS: Record<string, string> = {
 	devnet: 'https://fullnode.devnet.sui.io:443/graphql',
@@ -1443,11 +1436,18 @@ export class HashiClient {
 		let hasMore = true;
 
 		while (hasMore) {
-			const result: GraphQLQueryResult<EventRequestIdsResult> = await this.#graphql.query({
+			// The annotation pins `after` to the document's variable type; without
+			// it, `cursor`'s narrowed type feeds the query's inference while also
+			// flowing from the previous result, which is a type-inference cycle.
+			const variables: VariablesOf<typeof EVENT_REQUEST_IDS_QUERY> = {
+				sender,
+				type: eventType,
+				after: cursor,
+			};
+			const { data, errors } = await this.#graphql.query({
 				query: EVENT_REQUEST_IDS_QUERY,
-				variables: { sender, type: eventType, after: cursor },
+				variables,
 			});
-			const { data, errors } = result;
 			if (errors?.length) {
 				throw new Error(`GraphQL error: ${errors[0].message}`);
 			}
@@ -1455,7 +1455,8 @@ export class HashiClient {
 			if (!events) break;
 
 			for (const node of events.nodes) {
-				ids.push(node.contents.json.request_id);
+				const json = node.contents?.json as { request_id: string } | undefined;
+				if (json) ids.push(json.request_id);
 			}
 			hasMore = events.pageInfo.hasNextPage;
 			cursor = events.pageInfo.endCursor ?? null;
