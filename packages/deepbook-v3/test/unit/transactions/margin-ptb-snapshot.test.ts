@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest';
 
 import { MarginAdminContract } from '../../../src/transactions/marginAdmin.js';
 import { MarginMaintainerContract } from '../../../src/transactions/marginMaintainer.js';
+import { MarginManagerContract } from '../../../src/transactions/marginManager.js';
 import { MarginPoolContract } from '../../../src/transactions/marginPool.js';
 import { MarginRegistryContract } from '../../../src/transactions/marginRegistry.js';
 import { MarginTPSLContract } from '../../../src/transactions/marginTPSL.js';
@@ -95,6 +96,85 @@ describe('poolProxy PTB snapshots', () => {
 		['claimRebate', (m) => m.claimRebate(MGR_KEY)],
 		['withdrawMarginSettledAmounts', (m) => m.withdrawMarginSettledAmounts(POOL_KEY, MGR_ADDR)],
 		['updateCurrentPrice', (m) => m.updateCurrentPrice(POOL_KEY)],
+	];
+	it.each(cases)('%s', (_name, build) => {
+		expect(ptb(build(c()))).toMatchSnapshot();
+	});
+});
+
+describe('marginManager PTB snapshots', () => {
+	const c = () => new MarginManagerContract(config());
+	const COIN = '0x0000000000000000000000000000000000000000000000000000000000000fff';
+	// reads taking (poolKey, marginManagerId)
+	const twoArgReads = [
+		'ownerByPoolKey',
+		'deepbookPool',
+		'marginPoolId',
+		'borrowedShares',
+		'borrowedBaseShares',
+		'borrowedQuoteShares',
+		'hasBaseDebt',
+		'balanceManager',
+		'calculateAssets',
+		'managerState',
+		'baseBalance',
+		'quoteBalance',
+		'deepBalance',
+		'balanceManagerId',
+		'getBalanceManagerReferralId',
+		'accountExists',
+		'account',
+		'accountOpenOrders',
+		'getAccountOrderDetails',
+		'lockedBalance',
+	] as const;
+	const cases: Array<[string, (m: MarginManagerContract) => (tx: Transaction) => unknown]> = [
+		['newMarginManager', (m) => m.newMarginManager(POOL_KEY)],
+		['newMarginManagerWithInitializer', (m) => m.newMarginManagerWithInitializer(POOL_KEY)],
+		[
+			'shareMarginManager',
+			(m) => (tx: Transaction) => {
+				const { manager, initializer } = m.newMarginManagerWithInitializer(POOL_KEY)(tx);
+				m.shareMarginManager(POOL_KEY, manager, initializer)(tx);
+			},
+		],
+		['registerMarginManager', (m) => m.registerMarginManager(MGR_KEY)],
+		['unregisterMarginManager', (m) => m.unregisterMarginManager(MGR_KEY)],
+		[
+			'depositDuringInitialization',
+			(m) => (tx: Transaction) => {
+				const { manager } = m.newMarginManagerWithInitializer(POOL_KEY)(tx);
+				m.depositDuringInitialization({ manager, poolKey: POOL_KEY, coinType: COIN_KEY, amount: 1 })(
+					tx,
+				);
+			},
+		],
+		['depositBase', (m) => m.depositBase({ managerKey: MGR_KEY, amount: 1 })],
+		['depositQuote', (m) => m.depositQuote({ managerKey: MGR_KEY, amount: 1 })],
+		['depositDeep', (m) => m.depositDeep({ managerKey: MGR_KEY, amount: 1 })],
+		['withdrawBase', (m) => m.withdrawBase(MGR_KEY, 1)],
+		['withdrawQuote', (m) => m.withdrawQuote(MGR_KEY, 1)],
+		['withdrawDeep', (m) => m.withdrawDeep(MGR_KEY, 1)],
+		['borrowBase', (m) => m.borrowBase(MGR_KEY, 1)],
+		['borrowQuote', (m) => m.borrowQuote(MGR_KEY, 1)],
+		['repayBase', (m) => m.repayBase(MGR_KEY, 1)],
+		['repayBaseAll', (m) => m.repayBase(MGR_KEY)],
+		['repayQuote', (m) => m.repayQuote(MGR_KEY, 1)],
+		['liquidate', (m) => (tx: Transaction) => m.liquidate(MGR_ADDR, POOL_KEY, true, tx.object(COIN))(tx)],
+		['setMarginManagerReferral', (m) => m.setMarginManagerReferral(MGR_KEY, COIN)],
+		['unsetMarginManagerReferral', (m) => m.unsetMarginManagerReferral(MGR_KEY, POOL_KEY)],
+		['calculateDebts', (m) => m.calculateDebts(POOL_KEY, COIN_KEY, MGR_ADDR)],
+		[
+			'canPlaceLimitOrder',
+			(m) => m.canPlaceLimitOrder(POOL_KEY, MGR_ADDR, 1, 1, true, true, 1000),
+		],
+		['canPlaceMarketOrder', (m) => m.canPlaceMarketOrder(POOL_KEY, MGR_ADDR, 1, true, true)],
+		...twoArgReads.map(
+			(fn): [string, (m: MarginManagerContract) => (tx: Transaction) => unknown] => [
+				fn,
+				(m) => m[fn](POOL_KEY, MGR_ADDR),
+			],
+		),
 	];
 	it.each(cases)('%s', (_name, build) => {
 		expect(ptb(build(c()))).toMatchSnapshot();

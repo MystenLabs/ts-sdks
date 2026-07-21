@@ -7,6 +7,7 @@ import type { DeepBookConfig } from '../utils/config.js';
 import type { DepositParams, DepositDuringInitParams } from '../types/index.js';
 import { FLOAT_SCALAR } from '../utils/config.js';
 import { convertPrice, convertQuantity } from '../utils/conversion.js';
+import * as marginManagerMoveCalls from '../contracts/deepbook_margin/margin_manager.js';
 
 /**
  * MarginManagerContract class for managing MarginManager operations.
@@ -30,16 +31,17 @@ export class MarginManagerContract {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::new`,
-			arguments: [
-				tx.object(pool.address),
-				tx.object(this.#config.REGISTRY_ID),
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object.clock(),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		tx.add(
+			marginManagerMoveCalls._new({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					pool: pool.address,
+					deepbookRegistry: this.#config.REGISTRY_ID,
+					marginRegistry: this.#config.MARGIN_REGISTRY_ID,
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -51,16 +53,17 @@ export class MarginManagerContract {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		const [manager, initializer] = tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::new_with_initializer`,
-			arguments: [
-				tx.object(pool.address),
-				tx.object(this.#config.REGISTRY_ID),
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object.clock(),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		const [manager, initializer] = tx.add(
+			marginManagerMoveCalls.newWithInitializer({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					pool: pool.address,
+					deepbookRegistry: this.#config.REGISTRY_ID,
+					marginRegistry: this.#config.MARGIN_REGISTRY_ID,
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 		return { manager, initializer };
 	};
 
@@ -77,11 +80,13 @@ export class MarginManagerContract {
 			const pool = this.#config.getPool(poolKey);
 			const baseCoin = this.#config.getCoin(pool.baseCoin);
 			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-			tx.moveCall({
-				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::share`,
-				arguments: [manager, initializer],
-				typeArguments: [baseCoin.type, quoteCoin.type],
-			});
+			tx.add(
+				marginManagerMoveCalls.share({
+					package: this.#config.MARGIN_PACKAGE_ID,
+					arguments: { manager, initializer },
+					typeArguments: [baseCoin.type, quoteCoin.type],
+				}),
+			);
 		};
 
 	/**
@@ -96,11 +101,13 @@ export class MarginManagerContract {
 		const pool = this.#config.getPool(manager.poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::register_margin_manager`,
-			arguments: [tx.object(manager.address), tx.object(this.#config.MARGIN_REGISTRY_ID)],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		tx.add(
+			marginManagerMoveCalls.registerMarginManager({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: manager.address, marginRegistry: this.#config.MARGIN_REGISTRY_ID },
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -114,11 +121,13 @@ export class MarginManagerContract {
 		const pool = this.#config.getPool(manager.poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::unregister_margin_manager`,
-			arguments: [tx.object(manager.address), tx.object(this.#config.MARGIN_REGISTRY_ID)],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		tx.add(
+			marginManagerMoveCalls.unregisterMarginManager({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: manager.address, marginRegistry: this.#config.MARGIN_REGISTRY_ID },
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -145,18 +154,19 @@ export class MarginManagerContract {
 					})
 				: params.coin;
 
-		tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::deposit`,
-			arguments: [
-				manager,
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object(baseCoin.priceInfoObjectId!),
-				tx.object(quoteCoin.priceInfoObjectId!),
-				coin,
-				tx.object.clock(),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type, depositCoin.type],
-		});
+		tx.add(
+			marginManagerMoveCalls.deposit({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					self: manager,
+					registry: this.#config.MARGIN_REGISTRY_ID,
+					baseOracle: baseCoin.priceInfoObjectId!,
+					quoteOracle: quoteCoin.priceInfoObjectId!,
+					coin,
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type, depositCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -177,18 +187,19 @@ export class MarginManagerContract {
 						balance: convertQuantity(params.amount, baseCoin.scalar),
 					})
 				: params.coin;
-		tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::deposit`,
-			arguments: [
-				tx.object(manager.address),
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object(baseCoin.priceInfoObjectId!),
-				tx.object(quoteCoin.priceInfoObjectId!),
-				coin,
-				tx.object.clock(),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type, baseCoin.type],
-		});
+		tx.add(
+			marginManagerMoveCalls.deposit({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					self: manager.address,
+					registry: this.#config.MARGIN_REGISTRY_ID,
+					baseOracle: baseCoin.priceInfoObjectId!,
+					quoteOracle: quoteCoin.priceInfoObjectId!,
+					coin,
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type, baseCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -209,18 +220,19 @@ export class MarginManagerContract {
 						balance: convertQuantity(params.amount, quoteCoin.scalar),
 					})
 				: params.coin;
-		tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::deposit`,
-			arguments: [
-				tx.object(manager.address),
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object(baseCoin.priceInfoObjectId!),
-				tx.object(quoteCoin.priceInfoObjectId!),
-				coin,
-				tx.object.clock(),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type, quoteCoin.type],
-		});
+		tx.add(
+			marginManagerMoveCalls.deposit({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					self: manager.address,
+					registry: this.#config.MARGIN_REGISTRY_ID,
+					baseOracle: baseCoin.priceInfoObjectId!,
+					quoteOracle: quoteCoin.priceInfoObjectId!,
+					coin,
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -242,18 +254,19 @@ export class MarginManagerContract {
 						balance: convertQuantity(params.amount, deepCoin.scalar),
 					})
 				: params.coin;
-		tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::deposit`,
-			arguments: [
-				tx.object(manager.address),
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object(baseCoin.priceInfoObjectId!),
-				tx.object(quoteCoin.priceInfoObjectId!),
-				coin,
-				tx.object.clock(),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type, deepCoin.type],
-		});
+		tx.add(
+			marginManagerMoveCalls.deposit({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					self: manager.address,
+					registry: this.#config.MARGIN_REGISTRY_ID,
+					baseOracle: baseCoin.priceInfoObjectId!,
+					quoteOracle: quoteCoin.priceInfoObjectId!,
+					coin,
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type, deepCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -269,21 +282,22 @@ export class MarginManagerContract {
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 		const baseMarginPool = this.#config.getMarginPool(pool.baseCoin);
 		const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::withdraw`,
-			arguments: [
-				tx.object(manager.address),
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object(baseMarginPool.address),
-				tx.object(quoteMarginPool.address),
-				tx.object(baseCoin.priceInfoObjectId!),
-				tx.object(quoteCoin.priceInfoObjectId!),
-				tx.object(pool.address),
-				tx.pure.u64(convertQuantity(amount, baseCoin.scalar)),
-				tx.object.clock(),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type, baseCoin.type],
-		});
+		return tx.add(
+			marginManagerMoveCalls.withdraw({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					self: manager.address,
+					registry: this.#config.MARGIN_REGISTRY_ID,
+					baseMarginPool: baseMarginPool.address,
+					quoteMarginPool: quoteMarginPool.address,
+					baseOracle: baseCoin.priceInfoObjectId!,
+					quoteOracle: quoteCoin.priceInfoObjectId!,
+					pool: pool.address,
+					withdrawAmount: convertQuantity(amount, baseCoin.scalar),
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type, baseCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -299,21 +313,22 @@ export class MarginManagerContract {
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 		const baseMarginPool = this.#config.getMarginPool(pool.baseCoin);
 		const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::withdraw`,
-			arguments: [
-				tx.object(manager.address),
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object(baseMarginPool.address),
-				tx.object(quoteMarginPool.address),
-				tx.object(baseCoin.priceInfoObjectId!),
-				tx.object(quoteCoin.priceInfoObjectId!),
-				tx.object(pool.address),
-				tx.pure.u64(convertQuantity(amount, quoteCoin.scalar)),
-				tx.object.clock(),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type, quoteCoin.type],
-		});
+		return tx.add(
+			marginManagerMoveCalls.withdraw({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					self: manager.address,
+					registry: this.#config.MARGIN_REGISTRY_ID,
+					baseMarginPool: baseMarginPool.address,
+					quoteMarginPool: quoteMarginPool.address,
+					baseOracle: baseCoin.priceInfoObjectId!,
+					quoteOracle: quoteCoin.priceInfoObjectId!,
+					pool: pool.address,
+					withdrawAmount: convertQuantity(amount, quoteCoin.scalar),
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -330,21 +345,22 @@ export class MarginManagerContract {
 		const deepCoin = this.#config.getCoin('DEEP');
 		const baseMarginPool = this.#config.getMarginPool(pool.baseCoin);
 		const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::withdraw`,
-			arguments: [
-				tx.object(manager.address),
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object(baseMarginPool.address),
-				tx.object(quoteMarginPool.address),
-				tx.object(baseCoin.priceInfoObjectId!),
-				tx.object(quoteCoin.priceInfoObjectId!),
-				tx.object(pool.address),
-				tx.pure.u64(convertQuantity(amount, deepCoin.scalar)),
-				tx.object.clock(),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type, deepCoin.type],
-		});
+		return tx.add(
+			marginManagerMoveCalls.withdraw({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					self: manager.address,
+					registry: this.#config.MARGIN_REGISTRY_ID,
+					baseMarginPool: baseMarginPool.address,
+					quoteMarginPool: quoteMarginPool.address,
+					baseOracle: baseCoin.priceInfoObjectId!,
+					quoteOracle: quoteCoin.priceInfoObjectId!,
+					pool: pool.address,
+					withdrawAmount: convertQuantity(amount, deepCoin.scalar),
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type, deepCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -359,20 +375,21 @@ export class MarginManagerContract {
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 		const baseMarginPool = this.#config.getMarginPool(pool.baseCoin);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::borrow_base`,
-			arguments: [
-				tx.object(manager.address),
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object(baseMarginPool.address),
-				tx.object(baseCoin.priceInfoObjectId!),
-				tx.object(quoteCoin.priceInfoObjectId!),
-				tx.object(pool.address),
-				tx.pure.u64(convertQuantity(amount, baseCoin.scalar)),
-				tx.object.clock(),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		return tx.add(
+			marginManagerMoveCalls.borrowBase({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					self: manager.address,
+					registry: this.#config.MARGIN_REGISTRY_ID,
+					baseMarginPool: baseMarginPool.address,
+					baseOracle: baseCoin.priceInfoObjectId!,
+					quoteOracle: quoteCoin.priceInfoObjectId!,
+					pool: pool.address,
+					loanAmount: convertQuantity(amount, baseCoin.scalar),
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -387,20 +404,21 @@ export class MarginManagerContract {
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 		const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::borrow_quote`,
-			arguments: [
-				tx.object(manager.address),
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object(quoteMarginPool.address),
-				tx.object(baseCoin.priceInfoObjectId!),
-				tx.object(quoteCoin.priceInfoObjectId!),
-				tx.object(pool.address),
-				tx.pure.u64(convertQuantity(amount, quoteCoin.scalar)),
-				tx.object.clock(),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		return tx.add(
+			marginManagerMoveCalls.borrowQuote({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					self: manager.address,
+					registry: this.#config.MARGIN_REGISTRY_ID,
+					quoteMarginPool: quoteMarginPool.address,
+					baseOracle: baseCoin.priceInfoObjectId!,
+					quoteOracle: quoteCoin.priceInfoObjectId!,
+					pool: pool.address,
+					loanAmount: convertQuantity(amount, quoteCoin.scalar),
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -415,20 +433,18 @@ export class MarginManagerContract {
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 		const baseMarginPool = this.#config.getMarginPool(pool.baseCoin);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::repay_base`,
-			arguments: [
-				tx.object(manager.address),
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object(baseMarginPool.address),
-				tx.pure.option(
-					'u64',
-					amount !== undefined ? convertQuantity(amount, baseCoin.scalar) : null,
-				),
-				tx.object.clock(),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		return tx.add(
+			marginManagerMoveCalls.repayBase({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					self: manager.address,
+					registry: this.#config.MARGIN_REGISTRY_ID,
+					marginPool: baseMarginPool.address,
+					amount: amount !== undefined ? convertQuantity(amount, baseCoin.scalar) : null,
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -443,20 +459,18 @@ export class MarginManagerContract {
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 		const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::repay_quote`,
-			arguments: [
-				tx.object(manager.address),
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object(quoteMarginPool.address),
-				tx.pure.option(
-					'u64',
-					amount !== undefined ? convertQuantity(amount, quoteCoin.scalar) : null,
-				),
-				tx.object.clock(),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		return tx.add(
+			marginManagerMoveCalls.repayQuote({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					self: manager.address,
+					registry: this.#config.MARGIN_REGISTRY_ID,
+					marginPool: quoteMarginPool.address,
+					amount: amount !== undefined ? convertQuantity(amount, quoteCoin.scalar) : null,
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -481,20 +495,21 @@ export class MarginManagerContract {
 			const baseMarginPool = this.#config.getMarginPool(pool.baseCoin);
 			const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
 			const marginPool = debtIsBase ? baseMarginPool : quoteMarginPool;
-			return tx.moveCall({
-				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::liquidate`,
-				arguments: [
-					tx.object(managerAddress),
-					tx.object(this.#config.MARGIN_REGISTRY_ID),
-					tx.object(baseCoin.priceInfoObjectId!),
-					tx.object(quoteCoin.priceInfoObjectId!),
-					tx.object(marginPool.address),
-					tx.object(pool.address),
-					repayCoin,
-					tx.object.clock(),
-				],
-				typeArguments: [baseCoin.type, quoteCoin.type, debtIsBase ? baseCoin.type : quoteCoin.type],
-			});
+			return tx.add(
+				marginManagerMoveCalls.liquidate({
+					package: this.#config.MARGIN_PACKAGE_ID,
+					arguments: {
+						self: managerAddress,
+						registry: this.#config.MARGIN_REGISTRY_ID,
+						baseOracle: baseCoin.priceInfoObjectId!,
+						quoteOracle: quoteCoin.priceInfoObjectId!,
+						marginPool: marginPool.address,
+						pool: pool.address,
+						repayCoin,
+					},
+					typeArguments: [baseCoin.type, quoteCoin.type, debtIsBase ? baseCoin.type : quoteCoin.type],
+				}),
+			);
 		};
 
 	/**
@@ -509,11 +524,13 @@ export class MarginManagerContract {
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 
-		tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::set_margin_manager_referral`,
-			arguments: [tx.object(manager.address), tx.object(referral)],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		tx.add(
+			marginManagerMoveCalls.setMarginManagerReferral({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: manager.address, referralCap: referral },
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -528,11 +545,13 @@ export class MarginManagerContract {
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 
-		tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::unset_margin_manager_referral`,
-			arguments: [tx.object(manager.address), tx.pure.id(pool.address)],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		tx.add(
+			marginManagerMoveCalls.unsetMarginManagerReferral({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: manager.address, poolId: pool.address },
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	// === Read-Only Functions ===
@@ -547,11 +566,13 @@ export class MarginManagerContract {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::owner`,
-			arguments: [tx.object(marginManagerId)],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		return tx.add(
+			marginManagerMoveCalls.owner({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: marginManagerId },
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -564,11 +585,13 @@ export class MarginManagerContract {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::deepbook_pool`,
-			arguments: [tx.object(marginManagerId)],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		return tx.add(
+			marginManagerMoveCalls.deepbookPool({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: marginManagerId },
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -581,11 +604,13 @@ export class MarginManagerContract {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::margin_pool_id`,
-			arguments: [tx.object(marginManagerId)],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		return tx.add(
+			marginManagerMoveCalls.marginPoolId({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: marginManagerId },
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -598,11 +623,13 @@ export class MarginManagerContract {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::borrowed_shares`,
-			arguments: [tx.object(marginManagerId)],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		return tx.add(
+			marginManagerMoveCalls.borrowedShares({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: marginManagerId },
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -615,11 +642,13 @@ export class MarginManagerContract {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::borrowed_base_shares`,
-			arguments: [tx.object(marginManagerId)],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		return tx.add(
+			marginManagerMoveCalls.borrowedBaseShares({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: marginManagerId },
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -632,11 +661,13 @@ export class MarginManagerContract {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::borrowed_quote_shares`,
-			arguments: [tx.object(marginManagerId)],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		return tx.add(
+			marginManagerMoveCalls.borrowedQuoteShares({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: marginManagerId },
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -649,11 +680,13 @@ export class MarginManagerContract {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::has_base_debt`,
-			arguments: [tx.object(marginManagerId)],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		return tx.add(
+			marginManagerMoveCalls.hasBaseDebt({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: marginManagerId },
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -666,11 +699,13 @@ export class MarginManagerContract {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::balance_manager`,
-			arguments: [tx.object(marginManagerId)],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		return tx.add(
+			marginManagerMoveCalls.balanceManager({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: marginManagerId },
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -683,11 +718,13 @@ export class MarginManagerContract {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::calculate_assets`,
-			arguments: [tx.object(marginManagerId), tx.object(pool.address)],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		return tx.add(
+			marginManagerMoveCalls.calculateAssets({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: marginManagerId, pool: pool.address },
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -704,11 +741,13 @@ export class MarginManagerContract {
 			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 			const debtCoin = this.#config.getCoin(coinKey);
 			const marginPool = this.#config.getMarginPool(coinKey);
-			return tx.moveCall({
-				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::calculate_debts`,
-				arguments: [tx.object(marginManagerId), tx.object(marginPool.address), tx.object.clock()],
-				typeArguments: [baseCoin.type, quoteCoin.type, debtCoin.type],
-			});
+			return tx.add(
+				marginManagerMoveCalls.calculateDebts({
+					package: this.#config.MARGIN_PACKAGE_ID,
+					arguments: { self: marginManagerId, marginPool: marginPool.address },
+					typeArguments: [baseCoin.type, quoteCoin.type, debtCoin.type],
+				}),
+			);
 		};
 
 	/**
@@ -726,20 +765,21 @@ export class MarginManagerContract {
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 		const baseMarginPool = this.#config.getMarginPool(pool.baseCoin);
 		const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::manager_state`,
-			arguments: [
-				tx.object(marginManagerId),
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object(baseCoin.priceInfoObjectId!),
-				tx.object(quoteCoin.priceInfoObjectId!),
-				tx.object(pool.address),
-				tx.object(baseMarginPool.address),
-				tx.object(quoteMarginPool.address),
-				tx.object.clock(),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		return tx.add(
+			marginManagerMoveCalls.managerState({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					self: marginManagerId,
+					registry: this.#config.MARGIN_REGISTRY_ID,
+					baseOracle: baseCoin.priceInfoObjectId!,
+					quoteOracle: quoteCoin.priceInfoObjectId!,
+					pool: pool.address,
+					baseMarginPool: baseMarginPool.address,
+					quoteMarginPool: quoteMarginPool.address,
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -752,11 +792,13 @@ export class MarginManagerContract {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::base_balance`,
-			arguments: [tx.object(marginManagerId)],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		return tx.add(
+			marginManagerMoveCalls.baseBalance({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: marginManagerId },
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -769,11 +811,13 @@ export class MarginManagerContract {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::quote_balance`,
-			arguments: [tx.object(marginManagerId)],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		return tx.add(
+			marginManagerMoveCalls.quoteBalance({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: marginManagerId },
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -786,11 +830,13 @@ export class MarginManagerContract {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::deep_balance`,
-			arguments: [tx.object(marginManagerId)],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		return tx.add(
+			marginManagerMoveCalls.deepBalance({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: marginManagerId },
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -805,11 +851,13 @@ export class MarginManagerContract {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::balance_manager_id`,
-			arguments: [tx.object(marginManagerId)],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		return tx.add(
+			marginManagerMoveCalls.balanceManagerId({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: marginManagerId },
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -822,11 +870,13 @@ export class MarginManagerContract {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::get_balance_manager_referral_id`,
-			arguments: [tx.object(marginManagerId), tx.pure.id(pool.address)],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		return tx.add(
+			marginManagerMoveCalls.getBalanceManagerReferralId({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: marginManagerId, poolId: pool.address },
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -839,11 +889,13 @@ export class MarginManagerContract {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::account_exists`,
-			arguments: [tx.object(marginManagerId), tx.object(pool.address)],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		return tx.add(
+			marginManagerMoveCalls.accountExists({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: marginManagerId, pool: pool.address },
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -856,11 +908,13 @@ export class MarginManagerContract {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::account`,
-			arguments: [tx.object(marginManagerId), tx.object(pool.address)],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		return tx.add(
+			marginManagerMoveCalls.account({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: marginManagerId, pool: pool.address },
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -874,11 +928,13 @@ export class MarginManagerContract {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::account_open_orders`,
-			arguments: [tx.object(marginManagerId), tx.object(pool.address)],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		return tx.add(
+			marginManagerMoveCalls.accountOpenOrders({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: marginManagerId, pool: pool.address },
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -892,11 +948,13 @@ export class MarginManagerContract {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::get_account_order_details`,
-			arguments: [tx.object(marginManagerId), tx.object(pool.address)],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		return tx.add(
+			marginManagerMoveCalls.getAccountOrderDetails({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: marginManagerId, pool: pool.address },
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -910,11 +968,13 @@ export class MarginManagerContract {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::locked_balance`,
-			arguments: [tx.object(marginManagerId), tx.object(pool.address)],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		return tx.add(
+			marginManagerMoveCalls.lockedBalance({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: marginManagerId, pool: pool.address },
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -945,20 +1005,21 @@ export class MarginManagerContract {
 			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 			const inputPrice = convertPrice(price, FLOAT_SCALAR, quoteCoin.scalar, baseCoin.scalar);
 			const inputQuantity = convertQuantity(quantity, baseCoin.scalar);
-			return tx.moveCall({
-				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::can_place_limit_order`,
-				arguments: [
-					tx.object(marginManagerId),
-					tx.object(pool.address),
-					tx.pure.u64(inputPrice),
-					tx.pure.u64(inputQuantity),
-					tx.pure.bool(isBid),
-					tx.pure.bool(payWithDeep),
-					tx.pure.u64(expireTimestamp),
-					tx.object.clock(),
-				],
-				typeArguments: [baseCoin.type, quoteCoin.type],
-			});
+			return tx.add(
+				marginManagerMoveCalls.canPlaceLimitOrder({
+					package: this.#config.MARGIN_PACKAGE_ID,
+					arguments: {
+						self: marginManagerId,
+						pool: pool.address,
+						price: inputPrice,
+						quantity: inputQuantity,
+						isBid,
+						payWithDeep,
+						expireTimestamp,
+					},
+					typeArguments: [baseCoin.type, quoteCoin.type],
+				}),
+			);
 		};
 
 	/**
@@ -984,17 +1045,18 @@ export class MarginManagerContract {
 			const baseCoin = this.#config.getCoin(pool.baseCoin);
 			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 			const inputQuantity = convertQuantity(quantity, baseCoin.scalar);
-			return tx.moveCall({
-				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::can_place_market_order`,
-				arguments: [
-					tx.object(marginManagerId),
-					tx.object(pool.address),
-					tx.pure.u64(inputQuantity),
-					tx.pure.bool(isBid),
-					tx.pure.bool(payWithDeep),
-					tx.object.clock(),
-				],
-				typeArguments: [baseCoin.type, quoteCoin.type],
-			});
+			return tx.add(
+				marginManagerMoveCalls.canPlaceMarketOrder({
+					package: this.#config.MARGIN_PACKAGE_ID,
+					arguments: {
+						self: marginManagerId,
+						pool: pool.address,
+						quantity: inputQuantity,
+						isBid,
+						payWithDeep,
+					},
+					typeArguments: [baseCoin.type, quoteCoin.type],
+				}),
+			);
 		};
 }
