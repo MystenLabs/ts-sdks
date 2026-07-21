@@ -3,6 +3,7 @@
 import type { Transaction } from '@mysten/sui/transactions';
 
 import type { DeepBookConfig } from '../utils/config.js';
+import * as marginRegistryMoveCalls from '../contracts/deepbook_margin/margin_registry.js';
 
 /**
  * MarginRegistryContract class for managing MarginRegistry read-only operations.
@@ -138,11 +139,15 @@ export class MarginRegistryContract {
 	 */
 	minOpenRiskRatio = (poolKey: string) => (tx: Transaction) => {
 		const pool = this.#config.getPool(poolKey);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::min_open_risk_ratio`,
-			arguments: [tx.object(this.#config.MARGIN_REGISTRY_ID), tx.pure.id(pool.address)],
-			typeArguments: [],
-		});
+		return tx.add(
+			marginRegistryMoveCalls.minOpenRiskRatio({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					self: this.#config.MARGIN_REGISTRY_ID,
+					deepbookPoolId: pool.address,
+				},
+			}),
+		);
 	};
 
 	/**

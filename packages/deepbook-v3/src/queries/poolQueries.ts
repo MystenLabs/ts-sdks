@@ -95,55 +95,6 @@ export class PoolQueries {
 		return Number(adjusted_mid_price.toFixed(9));
 	}
 
-	/**
-	 * Best (highest) live bid price, or `null` when the bid side is empty.
-	 * Expired orders are skipped on chain.
-	 *
-	 * NOTE: requires a DeepBook core package newer than mainnet v8 / testnet v20
-	 * — this entry point is not yet deployed on either network (deepbookv3 #973).
-	 */
-	async bestBidPrice(poolKey: string): Promise<number | null> {
-		return this.#bestPrice(poolKey, this.#ctx.deepBook.bestBidPrice(poolKey));
-	}
-
-	/**
-	 * Best (lowest) live ask price, or `null` when the ask side is empty.
-	 * Expired orders are skipped on chain.
-	 *
-	 * NOTE: requires a DeepBook core package newer than mainnet v8 / testnet v20
-	 * — this entry point is not yet deployed on either network (deepbookv3 #973).
-	 */
-	async bestAskPrice(poolKey: string): Promise<number | null> {
-		return this.#bestPrice(poolKey, this.#ctx.deepBook.bestAskPrice(poolKey));
-	}
-
-	async #bestPrice(
-		poolKey: string,
-		build: ReturnType<QueryContext['deepBook']['bestBidPrice']>,
-	): Promise<number | null> {
-		const tx = new Transaction();
-		tx.setSender(this.#ctx.address);
-		const pool = this.#ctx.config.getPool(poolKey);
-		tx.add(build);
-
-		const baseCoin = this.#ctx.config.getCoin(pool.baseCoin);
-		const quoteCoin = this.#ctx.config.getCoin(pool.quoteCoin);
-
-		const res = await this.#ctx.client.core.simulateTransaction({
-			transaction: tx,
-			include: { commandResults: true, effects: true },
-		});
-
-		const bytes = res.commandResults![0].returnValues[0].bcs;
-		const price = bcs.option(bcs.U64).parse(bytes);
-		if (price === null) {
-			return null;
-		}
-
-		const adjusted = (Number(price) * baseCoin.scalar) / quoteCoin.scalar / FLOAT_SCALAR;
-		return Number(adjusted.toFixed(9));
-	}
-
 	async poolTradeParams(poolKey: string): Promise<PoolTradeParams> {
 		const tx = new Transaction();
 		tx.setSender(this.#ctx.address);

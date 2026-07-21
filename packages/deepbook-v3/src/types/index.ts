@@ -64,15 +64,6 @@ export interface PlaceLimitOrderParams {
 	payWithDeep?: boolean;
 }
 
-/**
- * Post-only placement fixes the order type to `POST_ONLY` and self-matching to
- * `SELF_MATCHING_ALLOWED` on chain, so neither is a caller parameter.
- */
-export type PlacePostOnlyLimitOrderParams = Omit<
-	PlaceLimitOrderParams,
-	'orderType' | 'selfMatchingOption'
->;
-
 export interface PlaceMarketOrderParams {
 	poolKey: string;
 	balanceManagerKey: string;

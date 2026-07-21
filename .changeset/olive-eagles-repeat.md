@@ -2,9 +2,9 @@
 '@mysten/deepbook-v3': minor
 ---
 
-Sync with deepbook_margin v6 and latest DeepBook core.
+Sync with deepbook_margin v6.
 
-Margin (live on mainnet at `0x8af25e44`):
+New margin entry points (live on mainnet at `0x8af25e44`):
 
 - `poolProxy.placeMarketOrderAndRepayLoan`, `poolProxy.placeReduceOnlyLimitOrderAndRepayLoan`,
   `poolProxy.placeReduceOnlyMarketOrderAndRepayLoan` — repay the loan from the fill proceeds before
@@ -14,8 +14,11 @@ Margin (live on mainnet at `0x8af25e44`):
 - `marginAdmin.setMinOpenRiskRatio` and `getMinOpenRiskRatio` — the position-opening risk floor,
   distinct from the borrow floor.
 
-Core — `deepBook.placePostOnlyLimitOrder`, `bestBidPrice`, `bestAskPrice`. These require a DeepBook
-core package newer than mainnet v8 / testnet v20 and are not yet callable on either network.
+These builders are constructed via generated codegen bindings with **named** arguments rather than
+positional `moveCall` arrays — `deepbook_margin` was added to `sui-codegen.config.ts`, so
+`src/contracts/deepbook_margin` is now generated. The human-unit conversion (`convertQuantity`,
+`convertPrice`, `convertRate`) stays in the facade; codegen handles call construction, removing the
+risk of transposing same-typed arguments (e.g. base/quote oracles and margin pools).
 
 Package IDs updated to match `Published.toml`: mainnet margin v5 → v6, testnet core v17 → v20,
 testnet margin → v14. Testnet `MARGIN_V1` (used to build `MarginApp` type tags) pointed at an

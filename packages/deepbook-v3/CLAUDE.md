@@ -178,7 +178,11 @@ pnpm --filter @mysten/deepbook-v3 codegen
    `Command "sui-ts-codegen" not found` or `ERR_MODULE_NOT_FOUND` on `@mysten/sui/dist/utils`. Fix:
    `pnpm turbo build --filter @mysten/codegen --filter @mysten/sui`, then **re-run `pnpm install`**
    — pnpm only links a workspace bin when its target file exists at install time, so the first
-   install silently skipped it.
+   install silently skipped it. Both `@deepbook/core` and `@deepbook/margin` are generated
+   (path-based entries pointing at the `../deepbookv3` sibling); the hand-written builders delegate
+   to the generated named-argument functions (e.g. `poolProxy.placeMarketOrderAndRepayLoan` →
+   `contracts/deepbook_margin/pool_proxy`) so positional-arg transposition can't happen. Unit
+   conversion stays in the facade.
 2. **The pyth entry in `sui-codegen.config.ts` currently fails.** Its on-chain package `0xabf837e9…`
    resolves to `Object not found`, which aborts the CLI _after_ the `deepbook` package has been
    written. The deepbook output is complete and correct; only the trailing `pnpm lint:fix` is

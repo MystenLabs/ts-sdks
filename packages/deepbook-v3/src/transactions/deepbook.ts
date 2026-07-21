@@ -10,7 +10,6 @@ import type {
 	CreatePermissionlessPoolParams,
 	PlaceLimitOrderParams,
 	PlaceMarketOrderParams,
-	PlacePostOnlyLimitOrderParams,
 	SwapParams,
 	SwapWithManagerParams,
 } from '../types/index.js';
@@ -82,102 +81,6 @@ export class DeepBookContract {
 				tx.pure.u64(expiration),
 				tx.object.clock(),
 			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
-	};
-
-	/**
-	 * @description Place a graceful post-only limit order. Checks the book first
-	 * and only forwards to `place_limit_order` with `POST_ONLY` when the order is
-	 * guaranteed not to cross, returning `none` instead of aborting with
-	 * `EPOSTOrderCrossesOrderbook`. Also returns `none` when the forwarded
-	 * placement rests nothing, so `some` always means the order is on the book.
-	 *
-	 * Self-matching is fixed to `SELF_MATCHING_ALLOWED` on chain and is therefore
-	 * not a parameter — the wrapper only ever forwards a non-crossing order. Use
-	 * {@link placeLimitOrder} directly to cross and cancel your own resting orders.
-	 *
-	 * NOTE: requires a DeepBook core package newer than mainnet v8 / testnet v20
-	 * — this entry point is not yet deployed on either network (deepbookv3 #973).
-	 * @param {PlacePostOnlyLimitOrderParams} params Parameters for placing a post-only limit order
-	 * @returns A function that takes a Transaction object
-	 */
-	placePostOnlyLimitOrder = (params: PlacePostOnlyLimitOrderParams) => (tx: Transaction) => {
-		const {
-			poolKey,
-			balanceManagerKey,
-			clientOrderId,
-			price,
-			quantity,
-			isBid,
-			expiration = MAX_TIMESTAMP,
-			payWithDeep = true,
-		} = params;
-
-		tx.setGasBudgetIfNotSet(GAS_BUDGET);
-		const pool = this.#config.getPool(poolKey);
-		const balanceManager = this.#config.getBalanceManager(balanceManagerKey);
-		const baseCoin = this.#config.getCoin(pool.baseCoin);
-		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		const inputPrice = convertPrice(price, FLOAT_SCALAR, quoteCoin.scalar, baseCoin.scalar);
-		const inputQuantity = convertQuantity(quantity, baseCoin.scalar);
-
-		const tradeProof = tx.add(this.#config.balanceManager.generateProof(balanceManagerKey));
-
-		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::place_post_only_limit_order`,
-			arguments: [
-				tx.object(pool.address),
-				tx.object(balanceManager.address),
-				tradeProof,
-				tx.pure.u64(clientOrderId),
-				tx.pure.u64(inputPrice),
-				tx.pure.u64(inputQuantity),
-				tx.pure.bool(isBid),
-				tx.pure.bool(payWithDeep),
-				tx.pure.u64(expiration),
-				tx.object.clock(),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
-	};
-
-	/**
-	 * @description Get the best (highest) bid price on the pool, skipping expired
-	 * orders. Returns `none` when the bid side has no live order.
-	 *
-	 * NOTE: requires a DeepBook core package newer than mainnet v8 / testnet v20
-	 * — this entry point is not yet deployed on either network (deepbookv3 #973).
-	 * @param {string} poolKey The key to identify the pool
-	 * @returns A function that takes a Transaction object
-	 */
-	bestBidPrice = (poolKey: string) => (tx: Transaction) => {
-		const pool = this.#config.getPool(poolKey);
-		const baseCoin = this.#config.getCoin(pool.baseCoin);
-		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		return tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::best_bid_price`,
-			arguments: [tx.object(pool.address), tx.object.clock()],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
-	};
-
-	/**
-	 * @description Get the best (lowest) ask price on the pool, skipping expired
-	 * orders. Returns `none` when the ask side has no live order.
-	 *
-	 * NOTE: requires a DeepBook core package newer than mainnet v8 / testnet v20
-	 * — this entry point is not yet deployed on either network (deepbookv3 #973).
-	 * @param {string} poolKey The key to identify the pool
-	 * @returns A function that takes a Transaction object
-	 */
-	bestAskPrice = (poolKey: string) => (tx: Transaction) => {
-		const pool = this.#config.getPool(poolKey);
-		const baseCoin = this.#config.getCoin(pool.baseCoin);
-		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		return tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::best_ask_price`,
-			arguments: [tx.object(pool.address), tx.object.clock()],
 			typeArguments: [baseCoin.type, quoteCoin.type],
 		});
 	};

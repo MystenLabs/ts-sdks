@@ -11,6 +11,7 @@ import type { DeepBookConfig } from '../utils/config.js';
 import { OrderType, SelfMatchingOptions } from '../types/index.js';
 import { MAX_TIMESTAMP, FLOAT_SCALAR } from '../utils/config.js';
 import { convertQuantity, convertPrice, convertRate } from '../utils/conversion.js';
+import * as poolProxyMoveCalls from '../contracts/deepbook_margin/pool_proxy.js';
 
 /**
  * PoolProxyContract class for managing PoolProxy operations.
@@ -249,25 +250,26 @@ export class PoolProxyContract {
 		const baseMarginPool = this.#config.getMarginPool(pool.baseCoin);
 		const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
 		const inputQuantity = convertQuantity(quantity, baseCoin.scalar);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::pool_proxy::place_market_order_and_repay_loan`,
-			arguments: [
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object(manager.address),
-				tx.object(pool.address),
-				tx.object(baseMarginPool.address),
-				tx.object(quoteMarginPool.address),
-				tx.object(baseCoin.priceInfoObjectId!),
-				tx.object(quoteCoin.priceInfoObjectId!),
-				tx.pure.u64(clientOrderId),
-				tx.pure.u8(selfMatchingOption),
-				tx.pure.u64(inputQuantity),
-				tx.pure.bool(isBid),
-				tx.pure.bool(payWithDeep),
-				tx.object.clock(),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		return tx.add(
+			poolProxyMoveCalls.placeMarketOrderAndRepayLoan({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					registry: this.#config.MARGIN_REGISTRY_ID,
+					marginManager: manager.address,
+					pool: pool.address,
+					baseMarginPool: baseMarginPool.address,
+					quoteMarginPool: quoteMarginPool.address,
+					baseOracle: baseCoin.priceInfoObjectId!,
+					quoteOracle: quoteCoin.priceInfoObjectId!,
+					clientOrderId: BigInt(clientOrderId),
+					selfMatchingOption,
+					quantity: inputQuantity,
+					isBid,
+					payWithDeep,
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -301,28 +303,29 @@ export class PoolProxyContract {
 			const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
 			const inputPrice = convertPrice(price, FLOAT_SCALAR, quoteCoin.scalar, baseCoin.scalar);
 			const inputQuantity = convertQuantity(quantity, baseCoin.scalar);
-			return tx.moveCall({
-				target: `${this.#config.MARGIN_PACKAGE_ID}::pool_proxy::place_reduce_only_limit_order_and_repay_loan`,
-				arguments: [
-					tx.object(this.#config.MARGIN_REGISTRY_ID),
-					tx.object(manager.address),
-					tx.object(pool.address),
-					tx.object(baseMarginPool.address),
-					tx.object(quoteMarginPool.address),
-					tx.object(baseCoin.priceInfoObjectId!),
-					tx.object(quoteCoin.priceInfoObjectId!),
-					tx.pure.u64(clientOrderId),
-					tx.pure.u8(orderType),
-					tx.pure.u8(selfMatchingOption),
-					tx.pure.u64(inputPrice),
-					tx.pure.u64(inputQuantity),
-					tx.pure.bool(isBid),
-					tx.pure.bool(payWithDeep),
-					tx.pure.u64(expiration),
-					tx.object.clock(),
-				],
-				typeArguments: [baseCoin.type, quoteCoin.type],
-			});
+			return tx.add(
+				poolProxyMoveCalls.placeReduceOnlyLimitOrderAndRepayLoan({
+					package: this.#config.MARGIN_PACKAGE_ID,
+					arguments: {
+						registry: this.#config.MARGIN_REGISTRY_ID,
+						marginManager: manager.address,
+						pool: pool.address,
+						baseMarginPool: baseMarginPool.address,
+						quoteMarginPool: quoteMarginPool.address,
+						baseOracle: baseCoin.priceInfoObjectId!,
+						quoteOracle: quoteCoin.priceInfoObjectId!,
+						clientOrderId: BigInt(clientOrderId),
+						orderType,
+						selfMatchingOption,
+						price: inputPrice,
+						quantity: inputQuantity,
+						isBid,
+						payWithDeep,
+						expireTimestamp: expiration,
+					},
+					typeArguments: [baseCoin.type, quoteCoin.type],
+				}),
+			);
 		};
 
 	/**
@@ -352,25 +355,26 @@ export class PoolProxyContract {
 			const baseMarginPool = this.#config.getMarginPool(pool.baseCoin);
 			const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
 			const inputQuantity = convertQuantity(quantity, baseCoin.scalar);
-			return tx.moveCall({
-				target: `${this.#config.MARGIN_PACKAGE_ID}::pool_proxy::place_reduce_only_market_order_and_repay_loan`,
-				arguments: [
-					tx.object(this.#config.MARGIN_REGISTRY_ID),
-					tx.object(manager.address),
-					tx.object(pool.address),
-					tx.object(baseMarginPool.address),
-					tx.object(quoteMarginPool.address),
-					tx.object(baseCoin.priceInfoObjectId!),
-					tx.object(quoteCoin.priceInfoObjectId!),
-					tx.pure.u64(clientOrderId),
-					tx.pure.u8(selfMatchingOption),
-					tx.pure.u64(inputQuantity),
-					tx.pure.bool(isBid),
-					tx.pure.bool(payWithDeep),
-					tx.object.clock(),
-				],
-				typeArguments: [baseCoin.type, quoteCoin.type],
-			});
+			return tx.add(
+				poolProxyMoveCalls.placeReduceOnlyMarketOrderAndRepayLoan({
+					package: this.#config.MARGIN_PACKAGE_ID,
+					arguments: {
+						registry: this.#config.MARGIN_REGISTRY_ID,
+						marginManager: manager.address,
+						pool: pool.address,
+						baseMarginPool: baseMarginPool.address,
+						quoteMarginPool: quoteMarginPool.address,
+						baseOracle: baseCoin.priceInfoObjectId!,
+						quoteOracle: quoteCoin.priceInfoObjectId!,
+						clientOrderId: BigInt(clientOrderId),
+						selfMatchingOption,
+						quantity: inputQuantity,
+						isBid,
+						payWithDeep,
+					},
+					typeArguments: [baseCoin.type, quoteCoin.type],
+				}),
+			);
 		};
 
 	/**

@@ -9,6 +9,7 @@ import type { PoolConfigParams } from '../types/index.js';
 import { FLOAT_SCALAR } from '../utils/config.js';
 import { convertRate } from '../utils/conversion.js';
 import { hexToBytes } from '@noble/hashes/utils.js';
+import * as marginRegistryMoveCalls from '../contracts/deepbook_margin/margin_registry.js';
 
 /**
  * MarginAdminContract class for managing admin actions.
@@ -248,17 +249,18 @@ export class MarginAdminContract {
 			const pool = this.#config.getPool(poolKey);
 			const baseCoin = this.#config.getCoin(pool.baseCoin);
 			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-			tx.moveCall({
-				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::set_min_open_risk_ratio`,
-				arguments: [
-					tx.object(this.#config.MARGIN_REGISTRY_ID),
-					tx.object(this.#marginAdminCap()),
-					tx.object(pool.address),
-					tx.pure.u64(convertRate(minOpenRiskRatio, FLOAT_SCALAR)),
-					tx.object.clock(),
-				],
-				typeArguments: [baseCoin.type, quoteCoin.type],
-			});
+			tx.add(
+				marginRegistryMoveCalls.setMinOpenRiskRatio({
+					package: this.#config.MARGIN_PACKAGE_ID,
+					arguments: {
+						self: this.#config.MARGIN_REGISTRY_ID,
+						AdminCap: this.#marginAdminCap(),
+						pool: pool.address,
+						minOpenRiskRatio: convertRate(minOpenRiskRatio, FLOAT_SCALAR),
+					},
+					typeArguments: [baseCoin.type, quoteCoin.type],
+				}),
+			);
 		};
 
 	/**

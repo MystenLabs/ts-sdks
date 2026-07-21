@@ -11,6 +11,7 @@ import type {
 import { OrderType, SelfMatchingOptions } from '../types/index.js';
 import { MAX_TIMESTAMP, FLOAT_SCALAR } from '../utils/config.js';
 import { convertQuantity, convertPrice } from '../utils/conversion.js';
+import * as marginManagerMoveCalls from '../contracts/deepbook_margin/margin_manager.js';
 
 /**
  * MarginTPSLContract class for managing Take Profit / Stop Loss operations.
@@ -256,21 +257,22 @@ export class MarginTPSLContract {
 			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 			const baseMarginPool = this.#config.getMarginPool(pool.baseCoin);
 			const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
-			return tx.moveCall({
-				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::execute_conditional_orders_v3`,
-				arguments: [
-					tx.object(managerAddress),
-					tx.object(pool.address),
-					tx.object(baseMarginPool.address),
-					tx.object(quoteMarginPool.address),
-					tx.object(baseCoin.priceInfoObjectId!),
-					tx.object(quoteCoin.priceInfoObjectId!),
-					tx.object(this.#config.MARGIN_REGISTRY_ID),
-					tx.pure.u64(maxOrdersToExecute),
-					tx.object.clock(),
-				],
-				typeArguments: [baseCoin.type, quoteCoin.type],
-			});
+			return tx.add(
+				marginManagerMoveCalls.executeConditionalOrdersV3({
+					package: this.#config.MARGIN_PACKAGE_ID,
+					arguments: {
+						self: managerAddress,
+						pool: pool.address,
+						baseMarginPool: baseMarginPool.address,
+						quoteMarginPool: quoteMarginPool.address,
+						basePriceInfoObject: baseCoin.priceInfoObjectId!,
+						quotePriceInfoObject: quoteCoin.priceInfoObjectId!,
+						registry: this.#config.MARGIN_REGISTRY_ID,
+						maxOrdersToExecute,
+					},
+					typeArguments: [baseCoin.type, quoteCoin.type],
+				}),
+			);
 		};
 
 	// === Read-Only Functions ===
