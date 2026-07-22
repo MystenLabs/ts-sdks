@@ -45,10 +45,13 @@ export interface SenderArguments {
 export interface SenderOptions {
 	package?: string;
 	arguments: SenderArguments | [request: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 export function sender(options: SenderOptions) {
-	const packageAddress = options.package ?? '@mysten/pas';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@pas/pas';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['request'];
 	return (tx: Transaction) =>
@@ -66,10 +69,13 @@ export interface RecipientArguments {
 export interface RecipientOptions {
 	package?: string;
 	arguments: RecipientArguments | [request: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 export function recipient(options: RecipientOptions) {
-	const packageAddress = options.package ?? '@mysten/pas';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@pas/pas';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['request'];
 	return (tx: Transaction) =>
@@ -87,10 +93,13 @@ export interface SenderAccountIdArguments {
 export interface SenderAccountIdOptions {
 	package?: string;
 	arguments: SenderAccountIdArguments | [request: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 export function senderAccountId(options: SenderAccountIdOptions) {
-	const packageAddress = options.package ?? '@mysten/pas';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@pas/pas';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['request'];
 	return (tx: Transaction) =>
@@ -108,10 +117,13 @@ export interface RecipientAccountIdArguments {
 export interface RecipientAccountIdOptions {
 	package?: string;
 	arguments: RecipientAccountIdArguments | [request: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 export function recipientAccountId(options: RecipientAccountIdOptions) {
-	const packageAddress = options.package ?? '@mysten/pas';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@pas/pas';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['request'];
 	return (tx: Transaction) =>
@@ -129,10 +141,13 @@ export interface FundsArguments {
 export interface FundsOptions {
 	package?: string;
 	arguments: FundsArguments | [request: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 export function funds(options: FundsOptions) {
-	const packageAddress = options.package ?? '@mysten/pas';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@pas/pas';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['request'];
 	return (tx: Transaction) =>
@@ -153,6 +168,9 @@ export interface ResolveBalanceOptions {
 	arguments:
 		| ResolveBalanceArguments
 		| [request: TransactionArgument, policy: RawTransactionArgument<string>];
+	config?: {
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 /**
@@ -160,7 +178,7 @@ export interface ResolveBalanceOptions {
  * approvals.
  */
 export function resolveBalance(options: ResolveBalanceOptions) {
-	const packageAddress = options.package ?? '@mysten/pas';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@pas/pas';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['request', 'policy'];
 	return (tx: Transaction) =>

@@ -11,7 +11,14 @@
  * 2.  Policies ... any other module we might add in the future
  */
 
-import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
+import {
+	MoveStruct,
+	normalizeMoveArguments,
+	type RawTransactionArgument,
+	type ConfigValue,
+	resolveConfigArgument,
+	applyConfigArguments,
+} from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
 import * as versioning from './versioning.js';
@@ -30,14 +37,18 @@ export const Namespace = new MoveStruct({
 	},
 });
 export interface SetupArguments {
-	namespace: RawTransactionArgument<string>;
+	namespace?: RawTransactionArgument<string>;
 	cap: RawTransactionArgument<string>;
 }
 export interface SetupOptions {
 	package?: string;
 	arguments:
 		| SetupArguments
-		| [namespace: RawTransactionArgument<string>, cap: RawTransactionArgument<string>];
+		| [namespace: RawTransactionArgument<string> | undefined, cap: RawTransactionArgument<string>];
+	config?: {
+		namespaceId: ConfigValue;
+		packageId?: string;
+	};
 }
 /**
  * Setup the namespace (links the `UpgradeCap`) once after publishing. This makes
@@ -45,7 +56,7 @@ export interface SetupOptions {
  * package).
  */
 export function setup(options: SetupOptions) {
-	const packageAddress = options.package ?? '@mysten/pas';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@pas/pas';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['namespace', 'cap'];
 	return (tx: Transaction) =>
@@ -53,11 +64,33 @@ export function setup(options: SetupOptions) {
 			package: packageAddress,
 			module: 'namespace',
 			function: 'setup',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'namespace',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.namespaceId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'namespace',
+									functionName: 'setup',
+									parameterIndex: 0,
+									parameterName: 'namespace',
+								},
+								'namespaceId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface BlockVersionArguments {
-	namespace: RawTransactionArgument<string>;
+	namespace?: RawTransactionArgument<string>;
 	cap: RawTransactionArgument<string>;
 	version: RawTransactionArgument<number | bigint>;
 }
@@ -66,10 +99,14 @@ export interface BlockVersionOptions {
 	arguments:
 		| BlockVersionArguments
 		| [
-				namespace: RawTransactionArgument<string>,
+				namespace: RawTransactionArgument<string> | undefined,
 				cap: RawTransactionArgument<string>,
 				version: RawTransactionArgument<number | bigint>,
 		  ];
+	config?: {
+		namespaceId: ConfigValue;
+		packageId?: string;
+	};
 }
 /**
  * Allows the package admin to block a version of the package.
@@ -78,7 +115,7 @@ export interface BlockVersionOptions {
  * there is a breaking change
  */
 export function blockVersion(options: BlockVersionOptions) {
-	const packageAddress = options.package ?? '@mysten/pas';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@pas/pas';
 	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
 	const parameterNames = ['namespace', 'cap', 'version'];
 	return (tx: Transaction) =>
@@ -86,11 +123,33 @@ export function blockVersion(options: BlockVersionOptions) {
 			package: packageAddress,
 			module: 'namespace',
 			function: 'block_version',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'namespace',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.namespaceId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'namespace',
+									functionName: 'block_version',
+									parameterIndex: 0,
+									parameterName: 'namespace',
+								},
+								'namespaceId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface UnblockVersionArguments {
-	namespace: RawTransactionArgument<string>;
+	namespace?: RawTransactionArgument<string>;
 	cap: RawTransactionArgument<string>;
 	version: RawTransactionArgument<number | bigint>;
 }
@@ -99,14 +158,18 @@ export interface UnblockVersionOptions {
 	arguments:
 		| UnblockVersionArguments
 		| [
-				namespace: RawTransactionArgument<string>,
+				namespace: RawTransactionArgument<string> | undefined,
 				cap: RawTransactionArgument<string>,
 				version: RawTransactionArgument<number | bigint>,
 		  ];
+	config?: {
+		namespaceId: ConfigValue;
+		packageId?: string;
+	};
 }
 /** Allows the package admin to unblock a version of the package. */
 export function unblockVersion(options: UnblockVersionOptions) {
-	const packageAddress = options.package ?? '@mysten/pas';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@pas/pas';
 	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
 	const parameterNames = ['namespace', 'cap', 'version'];
 	return (tx: Transaction) =>
@@ -114,20 +177,46 @@ export function unblockVersion(options: UnblockVersionOptions) {
 			package: packageAddress,
 			module: 'namespace',
 			function: 'unblock_version',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'namespace',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.namespaceId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'namespace',
+									functionName: 'unblock_version',
+									parameterIndex: 0,
+									parameterName: 'namespace',
+								},
+								'namespaceId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface PolicyExistsArguments {
-	namespace: RawTransactionArgument<string>;
+	namespace?: RawTransactionArgument<string>;
 }
 export interface PolicyExistsOptions {
 	package?: string;
-	arguments: PolicyExistsArguments | [namespace: RawTransactionArgument<string>];
+	arguments?: PolicyExistsArguments | [namespace?: RawTransactionArgument<string>];
+	config?: {
+		namespaceId: ConfigValue;
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 /** Check if `Policy<T>` exists in the namespace */
 export function policyExists(options: PolicyExistsOptions) {
-	const packageAddress = options.package ?? '@mysten/pas';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@pas/pas';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['namespace'];
 	return (tx: Transaction) =>
@@ -135,21 +224,47 @@ export function policyExists(options: PolicyExistsOptions) {
 			package: packageAddress,
 			module: 'namespace',
 			function: 'policy_exists',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments ?? {}, [
+					{
+						index: 0,
+						name: 'namespace',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.namespaceId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'namespace',
+									functionName: 'policy_exists',
+									parameterIndex: 0,
+									parameterName: 'namespace',
+								},
+								'namespaceId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 			typeArguments: options.typeArguments,
 		});
 }
 export interface PolicyAddressArguments {
-	namespace: RawTransactionArgument<string>;
+	namespace?: RawTransactionArgument<string>;
 }
 export interface PolicyAddressOptions {
 	package?: string;
-	arguments: PolicyAddressArguments | [namespace: RawTransactionArgument<string>];
+	arguments?: PolicyAddressArguments | [namespace?: RawTransactionArgument<string>];
+	config?: {
+		namespaceId: ConfigValue;
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 /** The derived address for `Policy<T>` */
 export function policyAddress(options: PolicyAddressOptions) {
-	const packageAddress = options.package ?? '@mysten/pas';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@pas/pas';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['namespace'];
 	return (tx: Transaction) =>
@@ -157,22 +272,51 @@ export function policyAddress(options: PolicyAddressOptions) {
 			package: packageAddress,
 			module: 'namespace',
 			function: 'policy_address',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments ?? {}, [
+					{
+						index: 0,
+						name: 'namespace',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.namespaceId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'namespace',
+									functionName: 'policy_address',
+									parameterIndex: 0,
+									parameterName: 'namespace',
+								},
+								'namespaceId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 			typeArguments: options.typeArguments,
 		});
 }
 export interface AccountExistsArguments {
-	namespace: RawTransactionArgument<string>;
+	namespace?: RawTransactionArgument<string>;
 	owner: RawTransactionArgument<string>;
 }
 export interface AccountExistsOptions {
 	package?: string;
 	arguments:
 		| AccountExistsArguments
-		| [namespace: RawTransactionArgument<string>, owner: RawTransactionArgument<string>];
+		| [
+				namespace: RawTransactionArgument<string> | undefined,
+				owner: RawTransactionArgument<string>,
+		  ];
+	config?: {
+		namespaceId: ConfigValue;
+		packageId?: string;
+	};
 }
 export function accountExists(options: AccountExistsOptions) {
-	const packageAddress = options.package ?? '@mysten/pas';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@pas/pas';
 	const argumentsTypes = [null, 'address'] satisfies (string | null)[];
 	const parameterNames = ['namespace', 'owner'];
 	return (tx: Transaction) =>
@@ -180,21 +324,50 @@ export function accountExists(options: AccountExistsOptions) {
 			package: packageAddress,
 			module: 'namespace',
 			function: 'account_exists',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'namespace',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.namespaceId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'namespace',
+									functionName: 'account_exists',
+									parameterIndex: 0,
+									parameterName: 'namespace',
+								},
+								'namespaceId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface AccountAddressArguments {
-	namespace: RawTransactionArgument<string>;
+	namespace?: RawTransactionArgument<string>;
 	owner: RawTransactionArgument<string>;
 }
 export interface AccountAddressOptions {
 	package?: string;
 	arguments:
 		| AccountAddressArguments
-		| [namespace: RawTransactionArgument<string>, owner: RawTransactionArgument<string>];
+		| [
+				namespace: RawTransactionArgument<string> | undefined,
+				owner: RawTransactionArgument<string>,
+		  ];
+	config?: {
+		namespaceId: ConfigValue;
+		packageId?: string;
+	};
 }
 export function accountAddress(options: AccountAddressOptions) {
-	const packageAddress = options.package ?? '@mysten/pas';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@pas/pas';
 	const argumentsTypes = [null, 'address'] satisfies (string | null)[];
 	const parameterNames = ['namespace', 'owner'];
 	return (tx: Transaction) =>
@@ -202,6 +375,28 @@ export function accountAddress(options: AccountAddressOptions) {
 			package: packageAddress,
 			module: 'namespace',
 			function: 'account_address',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'namespace',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.namespaceId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'namespace',
+									functionName: 'account_address',
+									parameterIndex: 0,
+									parameterName: 'namespace',
+								},
+								'namespaceId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }

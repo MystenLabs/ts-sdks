@@ -20,9 +20,12 @@ export const TemplateKey = new MoveTuple({
 export interface SendFundsActionOptions {
 	package?: string;
 	arguments?: [];
+	config?: {
+		packageId?: string;
+	};
 }
 export function sendFundsAction(options: SendFundsActionOptions = {}) {
-	const packageAddress = options.package ?? '@mysten/pas';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@pas/pas';
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -33,9 +36,12 @@ export function sendFundsAction(options: SendFundsActionOptions = {}) {
 export interface UnlockFundsActionOptions {
 	package?: string;
 	arguments?: [];
+	config?: {
+		packageId?: string;
+	};
 }
 export function unlockFundsAction(options: UnlockFundsActionOptions = {}) {
-	const packageAddress = options.package ?? '@mysten/pas';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@pas/pas';
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -46,9 +52,12 @@ export function unlockFundsAction(options: UnlockFundsActionOptions = {}) {
 export interface ClawbackFundsActionOptions {
 	package?: string;
 	arguments?: [];
+	config?: {
+		packageId?: string;
+	};
 }
 export function clawbackFundsAction(options: ClawbackFundsActionOptions = {}) {
-	const packageAddress = options.package ?? '@mysten/pas';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@pas/pas';
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -59,9 +68,12 @@ export function clawbackFundsAction(options: ClawbackFundsActionOptions = {}) {
 export interface ActionsOptions {
 	package?: string;
 	arguments?: [];
+	config?: {
+		packageId?: string;
+	};
 }
 export function actions(options: ActionsOptions = {}) {
-	const packageAddress = options.package ?? '@mysten/pas';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@pas/pas';
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -75,9 +87,12 @@ export interface IsValidActionArguments {
 export interface IsValidActionOptions {
 	package?: string;
 	arguments: IsValidActionArguments | [action: RawTransactionArgument<string>];
+	config?: {
+		packageId?: string;
+	};
 }
 export function isValidAction(options: IsValidActionOptions) {
-	const packageAddress = options.package ?? '@mysten/pas';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@pas/pas';
 	const argumentsTypes = ['0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['action'];
 	return (tx: Transaction) =>

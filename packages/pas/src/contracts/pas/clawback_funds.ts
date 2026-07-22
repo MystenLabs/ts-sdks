@@ -24,10 +24,13 @@ export interface OwnerArguments {
 export interface OwnerOptions {
 	package?: string;
 	arguments: OwnerArguments | [request: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 export function owner(options: OwnerOptions) {
-	const packageAddress = options.package ?? '@mysten/pas';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@pas/pas';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['request'];
 	return (tx: Transaction) =>
@@ -45,10 +48,13 @@ export interface AccountIdArguments {
 export interface AccountIdOptions {
 	package?: string;
 	arguments: AccountIdArguments | [request: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 export function accountId(options: AccountIdOptions) {
-	const packageAddress = options.package ?? '@mysten/pas';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@pas/pas';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['request'];
 	return (tx: Transaction) =>
@@ -66,10 +72,13 @@ export interface FundsArguments {
 export interface FundsOptions {
 	package?: string;
 	arguments: FundsArguments | [request: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 export function funds(options: FundsOptions) {
-	const packageAddress = options.package ?? '@mysten/pas';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@pas/pas';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['request'];
 	return (tx: Transaction) =>
@@ -90,6 +99,9 @@ export interface ResolveOptions {
 	arguments:
 		| ResolveArguments
 		| [request: TransactionArgument, policy: RawTransactionArgument<string>];
+	config?: {
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 /**
@@ -100,7 +112,7 @@ export interface ResolveOptions {
  * 3.  Make sure policy has enabled clawback resolution
  */
 export function resolve(options: ResolveOptions) {
-	const packageAddress = options.package ?? '@mysten/pas';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@pas/pas';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['request', 'policy'];
 	return (tx: Transaction) =>

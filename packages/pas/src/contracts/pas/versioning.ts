@@ -31,10 +31,13 @@ export interface IsValidVersionOptions {
 	arguments:
 		| IsValidVersionArguments
 		| [versioning: TransactionArgument, version: RawTransactionArgument<number | bigint>];
+	config?: {
+		packageId?: string;
+	};
 }
 /** Verify that a version is not part of the blocked version list. */
 export function isValidVersion(options: IsValidVersionOptions) {
-	const packageAddress = options.package ?? '@mysten/pas';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@pas/pas';
 	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
 	const parameterNames = ['versioning', 'version'];
 	return (tx: Transaction) =>
@@ -51,9 +54,12 @@ export interface AssertIsValidVersionArguments {
 export interface AssertIsValidVersionOptions {
 	package?: string;
 	arguments: AssertIsValidVersionArguments | [versioning: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 }
 export function assertIsValidVersion(options: AssertIsValidVersionOptions) {
-	const packageAddress = options.package ?? '@mysten/pas';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@pas/pas';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['versioning'];
 	return (tx: Transaction) =>
