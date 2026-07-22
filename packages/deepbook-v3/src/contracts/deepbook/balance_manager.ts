@@ -18,7 +18,7 @@ import {
 	normalizeMoveArguments,
 	type RawTransactionArgument,
 } from '../utils/index.js';
-import { bcs } from '@mysten/sui/bcs';
+import { bcs, type BcsType } from '@mysten/sui/bcs';
 import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as bag from './deps/sui/bag.js';
 import * as vec_set from './deps/sui/vec_set.js';
@@ -188,25 +188,66 @@ export function newWithCustomOwnerAndCaps(options: NewWithCustomOwnerAndCapsOpti
 		});
 }
 export interface NewWithCustomOwnerCapsArguments {
-	deepbookRegistry: RawTransactionArgument<string>;
-	owner: RawTransactionArgument<string>;
+	DeepbookRegistry: RawTransactionArgument<string>;
+	Owner: RawTransactionArgument<string>;
 }
 export interface NewWithCustomOwnerCapsOptions {
 	package?: string;
 	arguments:
 		| NewWithCustomOwnerCapsArguments
-		| [deepbookRegistry: RawTransactionArgument<string>, owner: RawTransactionArgument<string>];
+		| [DeepbookRegistry: RawTransactionArgument<string>, Owner: RawTransactionArgument<string>];
 	typeArguments: [string];
 }
 export function newWithCustomOwnerCaps(options: NewWithCustomOwnerCapsOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
 	const argumentsTypes = [null, 'address'] satisfies (string | null)[];
-	const parameterNames = ['deepbookRegistry', 'owner'];
+	const parameterNames = ['DeepbookRegistry', 'Owner'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'balance_manager',
 			function: 'new_with_custom_owner_caps',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface NewWithCustomOwnerCapsV2Arguments<App extends BcsType<any>> {
+	Witness: RawTransactionArgument<App>;
+	deepbookRegistry: RawTransactionArgument<string>;
+	owner: RawTransactionArgument<string>;
+}
+export interface NewWithCustomOwnerCapsV2Options<App extends BcsType<any>> {
+	package?: string;
+	arguments:
+		| NewWithCustomOwnerCapsV2Arguments<App>
+		| [
+				Witness: RawTransactionArgument<App>,
+				deepbookRegistry: RawTransactionArgument<string>,
+				owner: RawTransactionArgument<string>,
+		  ];
+	typeArguments: [string];
+}
+/**
+ * Create a `BalanceManager` with all three caps, gated on an authorized `App`
+ * witness. The witness ensures only the module defining `App` can mint caps for
+ * that app — the type tag alone is referenceable from any module, so the previous
+ * `<App>`-only signature let a rogue caller mint caps under another app's
+ * identity.
+ */
+export function newWithCustomOwnerCapsV2<App extends BcsType<any>>(
+	options: NewWithCustomOwnerCapsV2Options<App>,
+) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	const argumentsTypes = [`${options.typeArguments[0]}`, null, 'address'] satisfies (
+		| string
+		| null
+	)[];
+	const parameterNames = ['Witness', 'deepbookRegistry', 'owner'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'balance_manager',
+			function: 'new_with_custom_owner_caps_v2',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 			typeArguments: options.typeArguments,
 		});

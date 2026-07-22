@@ -301,6 +301,19 @@ export function defaultStakeRequired(options: DefaultStakeRequiredOptions = {}) 
 			function: 'default_stake_required',
 		});
 }
+export interface MaxStakeRequiredOptions {
+	package?: string;
+	arguments?: [];
+}
+export function maxStakeRequired(options: MaxStakeRequiredOptions = {}) {
+	const packageAddress = options.package ?? '@deepbook/core';
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'constants',
+			function: 'max_stake_required',
+		});
+}
 export interface HalfOptions {
 	package?: string;
 	arguments?: [];
