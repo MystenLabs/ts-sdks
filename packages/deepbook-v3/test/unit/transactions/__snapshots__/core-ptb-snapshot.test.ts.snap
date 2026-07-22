@@ -1,0 +1,612 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`flashLoans PTB snapshots > borrowBaseAsset 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "pure",
+          },
+        ],
+        "function": "borrow_flashloan_base",
+        "module": "pool",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AMqaOwAAAAA=",
+      },
+    },
+  ],
+}
+`;
+
+exports[`flashLoans PTB snapshots > borrowQuoteAsset 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "pure",
+          },
+        ],
+        "function": "borrow_flashloan_quote",
+        "module": "pool",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "QEIPAAAAAAA=",
+      },
+    },
+  ],
+}
+`;
+
+exports[`flashLoans PTB snapshots > returnBaseAsset 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "pure",
+          },
+        ],
+        "function": "borrow_flashloan_base",
+        "module": "pool",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+    {
+      "$kind": "SplitCoins",
+      "SplitCoins": {
+        "amounts": [
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "pure",
+          },
+        ],
+        "coin": {
+          "$kind": "NestedResult",
+          "NestedResult": [
+            0,
+            0,
+          ],
+        },
+      },
+    },
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "NestedResult",
+            "NestedResult": [
+              1,
+              0,
+            ],
+          },
+          {
+            "$kind": "NestedResult",
+            "NestedResult": [
+              0,
+              1,
+            ],
+          },
+        ],
+        "function": "return_flashloan_base",
+        "module": "pool",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AMqaOwAAAAA=",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AMqaOwAAAAA=",
+      },
+    },
+  ],
+}
+`;
+
+exports[`flashLoans PTB snapshots > returnQuoteAsset 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "pure",
+          },
+        ],
+        "function": "borrow_flashloan_quote",
+        "module": "pool",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+    {
+      "$kind": "SplitCoins",
+      "SplitCoins": {
+        "amounts": [
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "pure",
+          },
+        ],
+        "coin": {
+          "$kind": "NestedResult",
+          "NestedResult": [
+            0,
+            0,
+          ],
+        },
+      },
+    },
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "NestedResult",
+            "NestedResult": [
+              1,
+              0,
+            ],
+          },
+          {
+            "$kind": "NestedResult",
+            "NestedResult": [
+              0,
+              1,
+            ],
+          },
+        ],
+        "function": "return_flashloan_quote",
+        "module": "pool",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "QEIPAAAAAAA=",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "QEIPAAAAAAA=",
+      },
+    },
+  ],
+}
+`;
+
+exports[`governance PTB snapshots > stake 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+        ],
+        "function": "generate_proof_as_owner",
+        "module": "balance_manager",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [],
+      },
+    },
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Result",
+            "Result": 0,
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "pure",
+          },
+        ],
+        "function": "stake",
+        "module": "pool",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x3333333333333333333333333333333333333333333333333333333333333333",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "QEIPAAAAAAA=",
+      },
+    },
+  ],
+}
+`;
+
+exports[`governance PTB snapshots > submitProposal 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+        ],
+        "function": "generate_proof_as_owner",
+        "module": "balance_manager",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [],
+      },
+    },
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Result",
+            "Result": 0,
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 3,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 4,
+            "type": "pure",
+          },
+        ],
+        "function": "submit_proposal",
+        "module": "pool",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x3333333333333333333333333333333333333333333333333333333333333333",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "QEIPAAAAAAA=",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "QEIPAAAAAAA=",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AOH1BQAAAAA=",
+      },
+    },
+  ],
+}
+`;
+
+exports[`governance PTB snapshots > unstake 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+        ],
+        "function": "generate_proof_as_owner",
+        "module": "balance_manager",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [],
+      },
+    },
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Result",
+            "Result": 0,
+          },
+        ],
+        "function": "unstake",
+        "module": "pool",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x3333333333333333333333333333333333333333333333333333333333333333",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5",
+      },
+    },
+  ],
+}
+`;
+
+exports[`governance PTB snapshots > vote 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+        ],
+        "function": "generate_proof_as_owner",
+        "module": "balance_manager",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [],
+      },
+    },
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Result",
+            "Result": 0,
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "pure",
+          },
+        ],
+        "function": "vote",
+        "module": "pool",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x3333333333333333333333333333333333333333333333333333333333333333",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAq80=",
+      },
+    },
+  ],
+}
+`;
