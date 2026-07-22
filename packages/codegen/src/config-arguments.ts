@@ -8,13 +8,9 @@ import type { ModuleRegistry } from './module-registry.js';
 import type { Parameter, Type } from './types/summary.js';
 import { isWellKnownObjectParameter } from './utils.js';
 
-/** Whether an entry came from the shared global block or a package-scoped block. */
-export type ConfigArgumentSource = 'global' | 'package';
-
 export interface TypeConfigArgument {
 	kind: 'type';
 	key: string;
-	source: ConfigArgumentSource;
 	address: string;
 	module: string;
 	name: string;
@@ -40,7 +36,6 @@ export interface TypeConfigArgument {
 export interface FunctionConfigArgument {
 	kind: 'function';
 	key: string;
-	source: ConfigArgumentSource;
 	address: string;
 	module: string;
 	functionName: string;
@@ -54,7 +49,6 @@ export interface FunctionConfigArgument {
 export interface PackageConfigArgument {
 	kind: 'package';
 	key: string;
-	source: ConfigArgumentSource;
 	package: string;
 }
 
@@ -95,11 +89,8 @@ function normalizeAddress(address: string) {
 }
 
 interface ParseContext {
-	/**
-	 * Address a bare `module::Type` resolves against, or `null` when there is no ambient package
-	 * (global block), which makes the qualifier required.
-	 */
-	scopeAddress: string | null;
+	/** Address a bare `module::Type` resolves against: the declaring package. */
+	scopeAddress: string;
 	registry: ModuleRegistry;
 	currentPackage: { id: string; address: string };
 	packageIdentities: Record<string, PackageIdentity>;
@@ -107,31 +98,21 @@ interface ParseContext {
 }
 
 /**
- * Resolve the package part of a matcher to an address within the current package's dependency
- * closure. Returns `null` when the referenced run package is not part of this closure — the
- * matcher can't match anything here and is skipped (it is validated when its own package is
- * generated).
- *
- * Cross-package references are resolved through the consuming package's own address mapping (by
- * the referenced package's named-address label), falling back to its published root address.
- * Unpublished placeholder addresses (0x0) are never used for cross-package identity — multiple
- * unpublished local packages would otherwise be indistinguishable.
+ * Resolve the package part of a matcher to an address within the declaring package's dependency
+ * closure. Cross-package references are resolved through the consuming package's own address
+ * mapping (by the referenced package's named-address label), falling back to its published root
+ * address. Unpublished placeholder addresses (0x0) are never used for cross-package identity —
+ * multiple unpublished local packages would otherwise be indistinguishable. Referencing a run
+ * package outside the closure is a hard error: matchers only affect the declaring package's
+ * generated functions.
  */
 function resolveQualifier(
 	packagePart: string | undefined,
 	unqualified: string,
 	tag: string,
 	ctx: ParseContext,
-): string | null {
+): string {
 	if (packagePart === undefined) {
-		if (ctx.scopeAddress === null) {
-			throw new Error(
-				`configArguments matcher "${ctx.root}": "${unqualified}" must be qualified ` +
-					`with a package in the global configArguments block (e.g. ` +
-					`"@pkg/name::${unqualified}"). Bare matchers are only supported in a package's own ` +
-					`configArguments block.`,
-			);
-		}
 		return ctx.scopeAddress;
 	}
 	if (FRAMEWORK_ADDRESS.test(packagePart)) {
@@ -159,7 +140,18 @@ function resolveQualifier(
 	}
 
 	if (identity.label !== undefined && ctx.registry.addressMappings[identity.label] !== undefined) {
-		return normalizeAddress(ctx.registry.addressMappings[identity.label]);
+		const labelAddress = normalizeAddress(ctx.registry.addressMappings[identity.label]);
+		const knownAddress =
+			identity.address !== undefined ? normalizeAddress(identity.address) : undefined;
+		// A published address that contradicts the label means this closure's label belongs to a
+		// different package — don't trust the label.
+		if (
+			knownAddress === undefined ||
+			knownAddress === ZERO_ADDRESS ||
+			knownAddress === labelAddress
+		) {
+			return labelAddress;
+		}
 	}
 
 	if (identity.address !== undefined) {
@@ -169,11 +161,14 @@ function resolveQualifier(
 		}
 	}
 
-	return null;
+	// A package's configArguments only affect its own generated functions, so referencing a run
+	// package that isn't part of this dependency closure can never match anything — a mistake.
+	throw new Error(
+		`configArguments matcher "${tag}": package "${packagePart}" is not part of this package's ` +
+			`dependencies, so the matcher can never match. Declare it in a package that depends on ` +
+			`"${packagePart}" (or on "${packagePart}" itself).`,
+	);
 }
-
-/** Signals that a matcher references a package outside this package's dependency closure. */
-class OutOfClosureError extends Error {}
 
 /**
  * Parse a matcher type into `{ address, module, name, typeArguments }`, resolving the package
@@ -212,9 +207,6 @@ function parseMatcherType(
 	}
 
 	const address = resolveQualifier(packagePart, `${modulePart}::${namePart}`, tag, ctx);
-	if (address === null) {
-		throw new OutOfClosureError(tag);
-	}
 
 	const typeArguments =
 		lt === -1
@@ -323,18 +315,27 @@ export function isContextParameter(
 	return false;
 }
 
+const STDLIB_ADDRESS = normalizeSuiAddress('0x1');
+const FRAMEWORK_ADDR = normalizeSuiAddress('0x2');
+
 /** Is this a pure (BCS-serialized) type rather than an object? Config values supply objects. */
 function isPureParameterType(identity: string | null): boolean {
 	if (identity === null) return false;
-	return PRIMITIVES.has(identity) || identity.startsWith('vector<');
+	if (PRIMITIVES.has(identity) || identity.startsWith('vector<')) return true;
+	// Well-known pure datatypes are BCS-serialized, never object arguments.
+	return (
+		identity.startsWith(`${STDLIB_ADDRESS}::string::String`) ||
+		identity.startsWith(`${STDLIB_ADDRESS}::ascii::String`) ||
+		identity.startsWith(`${STDLIB_ADDRESS}::option::Option`) ||
+		identity.startsWith(`${FRAMEWORK_ADDR}::object::ID`)
+	);
 }
 
 function parseFunctionMatcher(
 	key: string,
-	source: ConfigArgumentSource,
 	matcher: { function: string; parameterName?: string; parameterIndex?: number },
 	ctx: ParseContext,
-): FunctionConfigArgument | null {
+): FunctionConfigArgument {
 	const parts = matcher.function.split('::');
 	if ((parts.length !== 2 && parts.length !== 3) || parts.some((part) => part.length === 0)) {
 		throw new Error(
@@ -363,33 +364,15 @@ function parseFunctionMatcher(
 		matcher.function,
 		ctx,
 	);
-	if (address === null) {
-		if (source === 'package') {
-			console.warn(
-				`configArguments.${key}: function "${matcher.function}" is not part of ` +
-					`${ctx.currentPackage.id}'s dependencies and will never match.`,
-			);
-		}
-		return null;
-	}
 
 	const registry = ctx.registry;
 	const summary = registry.getSummaryByResolvedAddress(address, modulePart);
 	const func = summary?.functions[functionPart];
 
 	if (!func) {
-		if (registry.hasResolvedAddress(address)) {
-			throw new Error(
-				`configArguments.${key}: function "${matcher.function}" was not found in its package's summaries`,
-			);
-		}
-		if (source === 'package') {
-			console.warn(
-				`configArguments.${key}: function "${matcher.function}" is not part of ` +
-					`${ctx.currentPackage.id}'s dependencies and will never match.`,
-			);
-		}
-		return null;
+		throw new Error(
+			`configArguments.${key}: function "${matcher.function}" was not found in its package's summaries`,
+		);
 	}
 
 	const resolveAddress = (target: string) => registry.resolveAddress(target);
@@ -446,7 +429,6 @@ function parseFunctionMatcher(
 	return {
 		kind: 'function',
 		key,
-		source,
 		address,
 		module: modulePart,
 		functionName: functionPart,
@@ -457,38 +439,32 @@ function parseFunctionMatcher(
 }
 
 /**
- * Parse and validate `configArguments` blocks against the modules loaded in `registry`.
- * Per-package entries are merged over global entries (per key).
+ * Parse and validate a package's `configArguments` against the modules loaded in `registry`.
  *
- * Matchers identify packages network-agnostically: by the package identifiers from the codegen
- * config (resolved through `context.packageIdentities`), by the ambient package for bare
- * matchers in a package-scoped block, or by the chain-stable framework addresses 0x1-0x3. If a
- * matcher's package is part of this package's summaries, the matched type/function must exist
- * there (typos fail generation); matchers referencing run packages that aren't part of this
- * dependency closure can't match anything here and are skipped.
+ * Matchers identify packages network-agnostically: bare `module::Type` refers to the declaring
+ * package, other run packages are referenced by their `packages` identifier (resolved through
+ * `context.packageIdentities`), and the chain-stable framework packages by address (0x1-0x3).
+ * Matched types and functions must exist in the referenced package's summaries — typos fail
+ * generation.
  */
 export function parseConfigArguments(
-	blocks: { global?: ConfigArguments; package?: ConfigArguments },
+	configArguments: ConfigArguments,
 	registry: ModuleRegistry,
 	context: ConfigArgumentsContext,
 ): { entries: ParsedConfigArgument[] } {
 	const entries: ParsedConfigArgument[] = [];
 	const currentAddress = normalizeAddress(context.package.address);
 
-	const merged = new Map<
-		string,
-		{ matcher: NonNullable<ConfigArguments[string]>; source: ConfigArgumentSource }
-	>();
-	for (const [key, matcher] of Object.entries(blocks.global ?? {})) {
-		merged.set(key, { matcher, source: 'global' });
-	}
-	for (const [key, matcher] of Object.entries(blocks.package ?? {})) {
-		merged.set(key, { matcher, source: 'package' });
-	}
-
-	for (const [key, { matcher, source }] of merged) {
+	for (const [key, matcher] of Object.entries(configArguments)) {
 		if (!Array.isArray(matcher) && 'package' in matcher) {
-			entries.push({ kind: 'package', key, source, package: matcher.package });
+			// A package entry only affects the declaring package's generated calls.
+			if (matcher.package !== context.package.id) {
+				throw new Error(
+					`configArguments.${key}: package entries must reference the package declaring them ` +
+						`("${context.package.id}"), got "${matcher.package}"`,
+				);
+			}
+			entries.push({ kind: 'package', key, package: matcher.package });
 			continue;
 		}
 
@@ -497,7 +473,7 @@ export function parseConfigArguments(
 
 		for (const single of matchers) {
 			const ctx: ParseContext = {
-				scopeAddress: source === 'package' ? currentAddress : null,
+				scopeAddress: currentAddress,
 				registry,
 				currentPackage: context.package,
 				packageIdentities: context.packageIdentities ?? {},
@@ -505,50 +481,20 @@ export function parseConfigArguments(
 			};
 
 			if ('function' in single) {
-				const entry = parseFunctionMatcher(key, source, single, ctx);
-				if (entry) {
-					entries.push(entry);
-				}
+				entries.push(parseFunctionMatcher(key, single, ctx));
 				continue;
 			}
 
-			let parsed: ReturnType<typeof parseMatcherType>;
-			try {
-				parsed = parseMatcherType(single.type, ctx);
-			} catch (error) {
-				if (error instanceof OutOfClosureError) {
-					if (source === 'package') {
-						console.warn(
-							`configArguments.${key}: type "${single.type}" is not part of ` +
-								`${context.package.id}'s dependencies and will never match — consider moving it ` +
-								`to the global block or the package it belongs to.`,
-						);
-					}
-					continue;
-				}
-				throw error;
-			}
+			const parsed = parseMatcherType(single.type, ctx);
 
 			const { address, module, name, typeArguments } = parsed;
 			const summary = registry.getSummaryByResolvedAddress(address, module);
 			const datatype = summary?.structs[name] ?? summary?.enums[name];
 
 			if (!datatype) {
-				if (registry.hasResolvedAddress(address)) {
-					// The matcher's package is part of this dependency closure, so the type has to
-					// exist — this is a typo.
-					throw new Error(
-						`configArguments.${key}: type "${single.type}" was not found in its package's summaries`,
-					);
-				}
-				if (source === 'package') {
-					console.warn(
-						`configArguments.${key}: type "${single.type}" is not part of ${context.package.id}'s ` +
-							`dependencies and will never match — consider moving it to the global block or the ` +
-							`package it belongs to.`,
-					);
-				}
-				continue;
+				throw new Error(
+					`configArguments.${key}: type "${single.type}" was not found in its package's summaries`,
+				);
 			}
 
 			const arity = datatype.type_parameters.length;
@@ -562,10 +508,20 @@ export function parseConfigArguments(
 				);
 			}
 
+			if (
+				isPureParameterType(
+					uninstantiated ? null : datatypeIdentity(address, module, name, typeArguments),
+				)
+			) {
+				throw new Error(
+					`configArguments.${key}: "${single.type}" is a pure (BCS-serialized) type — config ` +
+						`values supply objects, not pure values`,
+				);
+			}
+
 			entries.push({
 				kind: 'type',
 				key,
-				source,
 				address,
 				module,
 				name,

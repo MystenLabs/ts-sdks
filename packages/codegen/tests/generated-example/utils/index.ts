@@ -1,23 +1,4 @@
-// Copyright (c) Mysten Labs, Inc.
-// SPDX-License-Identifier: Apache-2.0
 
-import type { ErrorClassConfig } from './config.js';
-
-const ERROR_CLASS_SENTINEL = '__ERROR_CLASS__';
-const ERROR_IMPORT_SENTINEL = '__ERROR_IMPORT__';
-
-export function getUtilsContent(errorClass?: ErrorClassConfig): string {
-	const useDefault = !errorClass || errorClass.name === 'Error';
-	const errorImport = useDefault
-		? ''
-		: `import { ${errorClass.name} } from ${JSON.stringify(errorClass.source)};\n`;
-	const errorName = useDefault ? 'Error' : errorClass.name;
-	return content
-		.replaceAll(ERROR_CLASS_SENTINEL, errorName)
-		.replace(ERROR_IMPORT_SENTINEL, errorImport);
-}
-
-const content = /* ts */ `__ERROR_IMPORT__
 import {
 	bcs,
 	type BcsType,
@@ -106,8 +87,8 @@ export function normalizeMoveArguments(
 ) {
 	const argLen = Array.isArray(args) ? args.length : Object.keys(args).length;
 	if (parameterNames && argLen !== parameterNames.length) {
-		throw new __ERROR_CLASS__(
-			\`Invalid number of arguments, expected \${parameterNames.length}, got \${argLen}\`,
+		throw new Error(
+			`Invalid number of arguments, expected ${parameterNames.length}, got ${argLen}`,
 		);
 	}
 
@@ -144,14 +125,14 @@ export function normalizeMoveArguments(
 		let arg;
 		if (Array.isArray(args)) {
 			if (index >= args.length) {
-				throw new __ERROR_CLASS__(
-					\`Invalid number of arguments, expected at least \${index + 1}, got \${args.length}\`,
+				throw new Error(
+					`Invalid number of arguments, expected at least ${index + 1}, got ${args.length}`,
 				);
 			}
 			arg = args[index];
 		} else {
 			if (!parameterNames) {
-				throw new __ERROR_CLASS__(\`Expected arguments to be passed as an array\`);
+				throw new Error(`Expected arguments to be passed as an array`);
 			}
 			const name = parameterNames[index];
 			arg =
@@ -160,7 +141,7 @@ export function normalizeMoveArguments(
 					: undefined;
 
 			if (arg === undefined) {
-				throw new __ERROR_CLASS__(\`Parameter \${name} is required\`);
+				throw new Error(`Parameter ${name} is required`);
 			}
 		}
 
@@ -184,7 +165,7 @@ export function normalizeMoveArguments(
 			continue;
 		}
 
-		throw new __ERROR_CLASS__(\`Invalid argument \${stringify(arg)} for type \${argType}\`);
+		throw new Error(`Invalid argument ${stringify(arg)} for type ${argType}`);
 	}
 
 	return normalizedArgs;
@@ -215,9 +196,9 @@ export interface ConfigResolverContext {
 /**
  * A value in a generated config object: a plain object id/argument, or a resolver function.
  *
- * Any function is treated as a resolver and called with a \`ConfigResolverContext\`. To provide a
+ * Any function is treated as a resolver and called with a `ConfigResolverContext`. To provide a
  * transaction-callback object argument dynamically, return it from a resolver:
- * \`(ctx) => (tx) => ...\`.
+ * `(ctx) => (tx) => ...`.
  */
 export type ConfigValue =
 	| string
@@ -242,13 +223,13 @@ export interface ConfigCallSite {
 	module: string;
 	function: string;
 	parameters: {
-		/** Position in the generated arguments (and \`parameterIndex\` in resolver context). */
+		/** Position in the generated arguments (and `parameterIndex` in resolver context). */
 		index: number;
 		/** The config key this parameter resolves from. */
 		key: string;
 		/** Generated (camelCase) argument name, when the summary includes parameter names. */
 		name?: string;
-		/** Move parameter name, when it differs from \`name\`. */
+		/** Move parameter name, when it differs from `name`. */
 		parameterName?: string;
 		/** The parameter's own instantiated type arguments. */
 		typeArguments?: string[];
@@ -268,8 +249,8 @@ export function applyConfigArguments<T extends object | unknown[]>(
 		const value = config?.[parameter.key] as ConfigValue | undefined;
 
 		if (value == null) {
-			throw new __ERROR_CLASS__(
-				\`Missing config value for "\${parameter.key}": pass it explicitly in arguments, or include it in the config object\`,
+			throw new Error(
+				`Missing config value for "${parameter.key}": pass it explicitly in arguments, or include it in the config object`,
 			);
 		}
 
@@ -288,8 +269,8 @@ export function applyConfigArguments<T extends object | unknown[]>(
 		});
 
 		if (resolved == null) {
-			throw new __ERROR_CLASS__(
-				\`Config resolver for "\${parameter.key}" returned \${resolved} (\${callSite.module}::\${callSite.function}, typeArguments: [\${typeArguments.join(', ')}])\`,
+			throw new Error(
+				`Config resolver for "${parameter.key}" returned ${resolved} (${callSite.module}::${callSite.function}, typeArguments: [${typeArguments.join(', ')}])`,
 			);
 		}
 
@@ -308,7 +289,7 @@ export function applyConfigArguments<T extends object | unknown[]>(
 		// caller omitted; catch those holes here rather than failing deep inside serialization.
 		for (let i = 0; i < result.length; i++) {
 			if (result[i] === undefined && !matchedIndexes.has(i)) {
-				throw new __ERROR_CLASS__(\`Missing argument at position \${i}\`);
+				throw new Error(`Missing argument at position ${i}`);
 			}
 		}
 		return result as T;
@@ -347,16 +328,16 @@ export interface TypeTagOptions {
 }
 
 /**
- * \`typeArguments\` is required when the type's name contains unfilled
- * \`phantom X\` parameters (at any depth). Everything else — argument arity,
+ * `typeArguments` is required when the type's name contains unfilled
+ * `phantom X` parameters (at any depth). Everything else — argument arity,
  * position contents, and tag validity — is validated at runtime.
  */
-type TypeTagParams<Name extends string> = Name extends \`\${string}phantom \${string}\`
+type TypeTagParams<Name extends string> = Name extends `${string}phantom ${string}`
 	? [options: TypeTagOptions & { typeArguments: readonly TypeArgument[] }]
 	: [options?: TypeTagOptions];
 
 type ResolveTypeTagOptions<Name extends string> = { client: ClientWithCoreApi } & (
-	Name extends \`\${string}phantom \${string}\`
+	Name extends `${string}phantom ${string}`
 		? TypeTagOptions & { typeArguments: readonly TypeArgument[] }
 		: TypeTagOptions
 );
@@ -386,7 +367,7 @@ function buildTypeTag(name: string, options: TypeTagOptions | undefined): string
 	const base = lt === -1 ? name : name.slice(0, lt);
 
 	if (base.split('::').length !== 3) {
-		throw new __ERROR_CLASS__(\`\${name} is not a top-level Move type\`);
+		throw new Error(`${name} is not a top-level Move type`);
 	}
 
 	let result = name;
@@ -400,23 +381,23 @@ function buildTypeTag(name: string, options: TypeTagOptions | undefined): string
 			if (arg && typeof arg.serialize === 'function' && typeof arg.name === 'string') {
 				return arg.name;
 			}
-			throw new __ERROR_CLASS__(\`Invalid type argument \${stringify(arg)}\`);
+			throw new Error(`Invalid type argument ${stringify(arg)}`);
 		});
 
 		if (supplied.length !== baked.length) {
-			throw new __ERROR_CLASS__(
-				\`Expected \${baked.length} type arguments for \${base}, got \${supplied.length}\`,
+			throw new Error(
+				`Expected ${baked.length} type arguments for ${base}, got ${supplied.length}`,
 			);
 		}
 
-		result = supplied.length === 0 ? base : \`\${base}<\${supplied.join(', ')}>\`;
+		result = supplied.length === 0 ? base : `${base}<${supplied.join(', ')}>`;
 	}
 
 	if (HAS_PHANTOM_REGEX.test(result)) {
-		throw new __ERROR_CLASS__(
+		throw new Error(
 			options?.typeArguments
-				? \`A type argument contains an unfilled phantom parameter in \${result}\`
-				: \`Missing type arguments for \${result}\`,
+				? `A type argument contains an unfilled phantom parameter in ${result}`
+				: `Missing type arguments for ${result}`,
 		);
 	}
 
@@ -451,10 +432,10 @@ export class MoveStruct<
 	/**
 	 * Build the type tag for this struct.
 	 *
-	 * \`typeArguments\` is the full positional list, in Move declaration order, and
+	 * `typeArguments` is the full positional list, in Move declaration order, and
 	 * is required when the struct has unfilled phantom parameters. The result may
-	 * contain MVR names: those are valid in transaction \`typeArguments\`, but for
-	 * queries or comparisons against on-chain data use \`resolveTypeTag\` instead.
+	 * contain MVR names: those are valid in transaction `typeArguments`, but for
+	 * queries or comparisons against on-chain data use `resolveTypeTag` instead.
 	 */
 	typeTag(...args: TypeTagParams<Name>): string {
 		return buildTypeTag(this.name, args[0] as TypeTagOptions | undefined);
@@ -482,7 +463,7 @@ export class MoveStruct<
 		});
 
 		if (!res) {
-			throw new __ERROR_CLASS__(\`No object found for id \${objectId}\`);
+			throw new Error(`No object found for id ${objectId}`);
 		}
 
 		return res;
@@ -519,12 +500,12 @@ export class MoveEnum<
 	T extends Record<string, BcsType<any> | null>,
 	const Name extends string,
 > extends BcsEnum<T, Name> {
-	/** Build the type tag for this enum. See \`MoveStruct.typeTag\` for semantics. */
+	/** Build the type tag for this enum. See `MoveStruct.typeTag` for semantics. */
 	typeTag(...args: TypeTagParams<Name>): string {
 		return buildTypeTag(this.name, args[0] as TypeTagOptions | undefined);
 	}
 
-	/** Build and resolve the type tag for this enum. See \`MoveStruct.resolveTypeTag\`. */
+	/** Build and resolve the type tag for this enum. See `MoveStruct.resolveTypeTag`. */
 	async resolveTypeTag(options: ResolveTypeTagOptions<Name>): Promise<string> {
 		return resolveBuiltTypeTag(this.name, options as { client: ClientWithCoreApi } & TypeTagOptions);
 	}
@@ -534,12 +515,12 @@ export class MoveTuple<
 	const T extends readonly BcsType<any>[],
 	const Name extends string,
 > extends BcsTuple<T, Name> {
-	/** Build the type tag for this struct. See \`MoveStruct.typeTag\` for semantics. */
+	/** Build the type tag for this struct. See `MoveStruct.typeTag` for semantics. */
 	typeTag(...args: TypeTagParams<Name>): string {
 		return buildTypeTag(this.name, args[0] as TypeTagOptions | undefined);
 	}
 
-	/** Build and resolve the type tag for this struct. See \`MoveStruct.resolveTypeTag\`. */
+	/** Build and resolve the type tag for this struct. See `MoveStruct.resolveTypeTag`. */
 	async resolveTypeTag(options: ResolveTypeTagOptions<Name>): Promise<string> {
 		return resolveBuiltTypeTag(this.name, options as { client: ClientWithCoreApi } & TypeTagOptions);
 	}
@@ -557,4 +538,3 @@ function stringify(val: unknown) {
 
 	return val;
 }
-`;
