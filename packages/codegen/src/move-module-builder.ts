@@ -612,11 +612,7 @@ export class MoveModuleBuilder extends FileBuilder {
 			// Parameters (by index into `requiredParameters`) resolved from the runtime config
 			// object instead of being required arguments.
 			const configMatches = new Map<number, TypeConfigArgument | FunctionConfigArgument>();
-			// Keys that match more than one parameter of this signature: legal, but the config
-			// value must be a resolver (it receives per-parameter context).
-			const multiMatchedKeys = new Set<string>();
 			if (this.#configArguments.length > 0) {
-				const matchesByKey = new Map<string, number>();
 				requiredParameters.forEach((param, i) => {
 					const match = findConfigArgumentMatch(param, this.#configArguments, {
 						resolveAddress: (address) => this.#resolveAddress(address),
@@ -630,13 +626,7 @@ export class MoveModuleBuilder extends FileBuilder {
 					});
 					if (!match) return;
 					configMatches.set(i, match);
-					matchesByKey.set(match.key, (matchesByKey.get(match.key) ?? 0) + 1);
 				});
-				for (const [key, count] of matchesByKey) {
-					if (count > 1) {
-						multiMatchedKeys.add(key);
-					}
-				}
 				for (const match of configMatches.values()) {
 					this.usedConfigKeys.add(match.key);
 				}
@@ -749,16 +739,14 @@ export class MoveModuleBuilder extends FileBuilder {
 			for (const match of configMatches.values()) {
 				if (seenConfigKeys.has(match.key)) continue;
 				seenConfigKeys.add(match.key);
-				// A key must be a resolver function when it can resolve more than one binding:
-				// an uninstantiated generic, multiple declared matchers, or multiple parameters
-				// matched in this signature.
-				const keyEntries = this.#configArguments.filter(
-					(entry) => entry.kind !== 'package' && entry.key === match.key,
+				// A key must be a resolver function when it can bind more than one distinct type
+				// (or a generic). Multiple matchers sharing one concrete type share a plain value.
+				const boundTypes = new Set(
+					this.#configArguments.flatMap((entry) =>
+						entry.kind !== 'package' && entry.key === match.key ? [entry.boundType] : [],
+					),
 				);
-				const requiresResolver =
-					keyEntries.length > 1 ||
-					keyEntries.some((entry) => entry.kind !== 'package' && entry.requiresResolver) ||
-					multiMatchedKeys.has(match.key);
+				const requiresResolver = boundTypes.size > 1 || boundTypes.has(null);
 				configSliceFields.push(
 					requiresResolver
 						? `${match.key}: (ctx: ${this.#getImportName('ConfigResolverContext')}) => string | ${this.#getImportName('TransactionObjectArgument')}`

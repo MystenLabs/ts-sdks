@@ -324,8 +324,9 @@ const config: SuiCodegenConfig = {
 				// packages without parameter names; omit both when the function has exactly
 				// one argument.
 				adminCap: { function: 'admin::set_fees', parameterName: 'cap' },
-				// One key may declare several matchers. It then resolves multiple types, so
-				// its config value must be a resolver function.
+				// One key may declare several matchers. If they all bind the same concrete
+				// type, a plain value still works; if they span multiple types, the config
+				// value must be a resolver function.
 				registries: [{ type: 'registry::Registry' }, { type: 'config::GlobalConfig' }],
 				// Package entry (keyed by the `package` value of a `packages` entry): adds an
 				// optional config key that overrides the package address used for calls
