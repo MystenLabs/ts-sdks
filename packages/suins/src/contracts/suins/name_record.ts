@@ -46,10 +46,13 @@ export interface NewOptions {
 				nftId: RawTransactionArgument<string>,
 				expirationTimestampMs: RawTransactionArgument<number | bigint>,
 		  ];
+	config?: {
+		packageId?: string;
+	};
 }
 /** Create a new NameRecord. */
 export function _new(options: NewOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = ['0x2::object::ID', 'u64'] satisfies (string | null)[];
 	const parameterNames = ['nftId', 'expirationTimestampMs'];
 	return (tx: Transaction) =>
@@ -72,10 +75,13 @@ export interface NewLeafOptions {
 				parentId: RawTransactionArgument<string>,
 				targetAddress: RawTransactionArgument<string | null>,
 		  ];
+	config?: {
+		packageId?: string;
+	};
 }
 /** Create a `leaf` NameRecord. */
 export function newLeaf(options: NewLeafOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = ['0x2::object::ID', '0x1::option::Option<address>'] satisfies (
 		| string
 		| null
@@ -96,6 +102,9 @@ export interface SetDataArguments {
 export interface SetDataOptions {
 	package?: string;
 	arguments: SetDataArguments | [self: TransactionArgument, data: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 }
 /**
  * Set data as a vec_map directly overriding the data set in the registration self.
@@ -112,7 +121,7 @@ export interface SetDataOptions {
  * ```
  */
 export function setData(options: SetDataOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'data'];
 	return (tx: Transaction) =>
@@ -132,10 +141,13 @@ export interface SetTargetAddressOptions {
 	arguments:
 		| SetTargetAddressArguments
 		| [self: TransactionArgument, newAddress: RawTransactionArgument<string | null>];
+	config?: {
+		packageId?: string;
+	};
 }
 /** Set the `target_address` field of the `NameRecord`. */
 export function setTargetAddress(options: SetTargetAddressOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, '0x1::option::Option<address>'] satisfies (string | null)[];
 	const parameterNames = ['self', 'newAddress'];
 	return (tx: Transaction) =>
@@ -155,9 +167,12 @@ export interface SetExpirationTimestampMsOptions {
 	arguments:
 		| SetExpirationTimestampMsArguments
 		| [self: TransactionArgument, expirationTimestampMs: RawTransactionArgument<number | bigint>];
+	config?: {
+		packageId?: string;
+	};
 }
 export function setExpirationTimestampMs(options: SetExpirationTimestampMsOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
 	const parameterNames = ['self', 'expirationTimestampMs'];
 	return (tx: Transaction) =>
@@ -174,10 +189,13 @@ export interface HasExpiredArguments {
 export interface HasExpiredOptions {
 	package?: string;
 	arguments: HasExpiredArguments | [self: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 }
 /** Check if the record has expired. */
 export function hasExpired(options: HasExpiredOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
@@ -194,10 +212,13 @@ export interface HasExpiredPastGracePeriodArguments {
 export interface HasExpiredPastGracePeriodOptions {
 	package?: string;
 	arguments: HasExpiredPastGracePeriodArguments | [self: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 }
 /** Check if the record has expired, taking into account the grace period. */
 export function hasExpiredPastGracePeriod(options: HasExpiredPastGracePeriodOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
@@ -214,10 +235,13 @@ export interface IsLeafRecordArguments {
 export interface IsLeafRecordOptions {
 	package?: string;
 	arguments: IsLeafRecordArguments | [self: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 }
 /** Checks whether a name_record is a `leaf` record. */
 export function isLeafRecord(options: IsLeafRecordOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
@@ -234,10 +258,13 @@ export interface DataArguments {
 export interface DataOptions {
 	package?: string;
 	arguments: DataArguments | [self: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 }
 /** Read the `data` field from the `NameRecord`. */
 export function data(options: DataOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
@@ -254,10 +281,13 @@ export interface TargetAddressArguments {
 export interface TargetAddressOptions {
 	package?: string;
 	arguments: TargetAddressArguments | [self: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 }
 /** Read the `target_address` field from the `NameRecord`. */
 export function targetAddress(options: TargetAddressOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
@@ -274,10 +304,13 @@ export interface NftIdArguments {
 export interface NftIdOptions {
 	package?: string;
 	arguments: NftIdArguments | [self: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 }
 /** Read the `nft_id` field from the `NameRecord`. */
 export function nftId(options: NftIdOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
@@ -294,10 +327,13 @@ export interface ExpirationTimestampMsArguments {
 export interface ExpirationTimestampMsOptions {
 	package?: string;
 	arguments: ExpirationTimestampMsArguments | [self: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 }
 /** Read the `expiration_timestamp_ms` field from the `NameRecord`. */
 export function expirationTimestampMs(options: ExpirationTimestampMsOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>

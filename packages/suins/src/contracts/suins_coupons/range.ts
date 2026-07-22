@@ -23,10 +23,13 @@ export interface NewOptions {
 	arguments:
 		| NewArguments
 		| [from: RawTransactionArgument<number>, to: RawTransactionArgument<number>];
+	config?: {
+		packageId?: string;
+	};
 }
 /** a new Range constructor[from, to] */
 export function _new(options: NewOptions) {
-	const packageAddress = options.package ?? '@suins/coupons';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/coupons';
 	const argumentsTypes = ['u8', 'u8'] satisfies (string | null)[];
 	const parameterNames = ['from', 'to'];
 	return (tx: Transaction) =>
@@ -46,9 +49,12 @@ export interface IsInRangeOptions {
 	arguments:
 		| IsInRangeArguments
 		| [range: TransactionArgument, number: RawTransactionArgument<number>];
+	config?: {
+		packageId?: string;
+	};
 }
 export function isInRange(options: IsInRangeOptions) {
-	const packageAddress = options.package ?? '@suins/coupons';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/coupons';
 	const argumentsTypes = [null, 'u8'] satisfies (string | null)[];
 	const parameterNames = ['range', 'number'];
 	return (tx: Transaction) =>
@@ -65,10 +71,13 @@ export interface FromArguments {
 export interface FromOptions {
 	package?: string;
 	arguments: FromArguments | [range: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 }
 /** Get floor limit for the range. */
 export function _from(options: FromOptions) {
-	const packageAddress = options.package ?? '@suins/coupons';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/coupons';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['range'];
 	return (tx: Transaction) =>
@@ -85,10 +94,13 @@ export interface ToArguments {
 export interface ToOptions {
 	package?: string;
 	arguments: ToArguments | [range: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 }
 /** Get upper limit for the range. */
 export function to(options: ToOptions) {
-	const packageAddress = options.package ?? '@suins/coupons';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/coupons';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['range'];
 	return (tx: Transaction) =>

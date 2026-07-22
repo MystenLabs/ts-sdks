@@ -6,6 +6,9 @@ import {
 	MoveEnum,
 	normalizeMoveArguments,
 	type RawTransactionArgument,
+	type ConfigValue,
+	resolveConfigArgument,
+	applyConfigArguments,
 } from '../utils/index.js';
 import { bcs, type BcsType } from '@mysten/sui/bcs';
 import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
@@ -93,7 +96,7 @@ export const Receipt = new MoveEnum({
 });
 export interface ApplyPercentageDiscountArguments<A extends BcsType<any>> {
 	intent: TransactionArgument;
-	suins: RawTransactionArgument<string>;
+	suins?: RawTransactionArgument<string>;
 	_: RawTransactionArgument<A>;
 	discountKey: RawTransactionArgument<string>;
 	discount: RawTransactionArgument<number>;
@@ -105,12 +108,16 @@ export interface ApplyPercentageDiscountOptions<A extends BcsType<any>> {
 		| ApplyPercentageDiscountArguments<A>
 		| [
 				intent: TransactionArgument,
-				suins: RawTransactionArgument<string>,
+				suins: RawTransactionArgument<string> | undefined,
 				_: RawTransactionArgument<A>,
 				discountKey: RawTransactionArgument<string>,
 				discount: RawTransactionArgument<number>,
 				allowMultipleDiscounts: RawTransactionArgument<boolean>,
 		  ];
+	config?: {
+		suins: ConfigValue;
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 /**
@@ -121,7 +128,7 @@ export interface ApplyPercentageDiscountOptions<A extends BcsType<any>> {
 export function applyPercentageDiscount<A extends BcsType<any>>(
 	options: ApplyPercentageDiscountOptions<A>,
 ) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [
 		null,
 		null,
@@ -143,13 +150,35 @@ export function applyPercentageDiscount<A extends BcsType<any>>(
 			package: packageAddress,
 			module: 'payment',
 			function: 'apply_percentage_discount',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 1,
+						name: 'suins',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.suins,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'payment',
+									functionName: 'apply_percentage_discount',
+									parameterIndex: 1,
+									parameterName: 'suins',
+								},
+								'suins',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 			typeArguments: options.typeArguments,
 		});
 }
 export interface FinalizePaymentArguments<A extends BcsType<any>> {
 	intent: TransactionArgument;
-	suins: RawTransactionArgument<string>;
+	suins?: RawTransactionArgument<string>;
 	app: RawTransactionArgument<A>;
 	coin: RawTransactionArgument<string>;
 }
@@ -159,10 +188,14 @@ export interface FinalizePaymentOptions<A extends BcsType<any>> {
 		| FinalizePaymentArguments<A>
 		| [
 				intent: TransactionArgument,
-				suins: RawTransactionArgument<string>,
+				suins: RawTransactionArgument<string> | undefined,
 				app: RawTransactionArgument<A>,
 				coin: RawTransactionArgument<string>,
 		  ];
+	config?: {
+		suins: ConfigValue;
+		packageId?: string;
+	};
 	typeArguments: [string, string];
 }
 /**
@@ -173,7 +206,7 @@ export interface FinalizePaymentOptions<A extends BcsType<any>> {
  * funds in this helper. This is the responsibility of the `payments` app.
  */
 export function finalizePayment<A extends BcsType<any>>(options: FinalizePaymentOptions<A>) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, null, `${options.typeArguments[0]}`, null] satisfies (
 		| string
 		| null
@@ -184,26 +217,52 @@ export function finalizePayment<A extends BcsType<any>>(options: FinalizePayment
 			package: packageAddress,
 			module: 'payment',
 			function: 'finalize_payment',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 1,
+						name: 'suins',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.suins,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'payment',
+									functionName: 'finalize_payment',
+									parameterIndex: 1,
+									parameterName: 'suins',
+								},
+								'suins',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 			typeArguments: options.typeArguments,
 		});
 }
 export interface InitRegistrationArguments {
-	suins: RawTransactionArgument<string>;
+	suins?: RawTransactionArgument<string>;
 	domain: RawTransactionArgument<string>;
 }
 export interface InitRegistrationOptions {
 	package?: string;
 	arguments:
 		| InitRegistrationArguments
-		| [suins: RawTransactionArgument<string>, domain: RawTransactionArgument<string>];
+		| [suins: RawTransactionArgument<string> | undefined, domain: RawTransactionArgument<string>];
+	config?: {
+		suins: ConfigValue;
+		packageId?: string;
+	};
 }
 /**
  * Creates a `PaymentIntent` for registering a new domain. This is a hot-potato and
  * can only be consumed in a single transaction.
  */
 export function initRegistration(options: InitRegistrationOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, '0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['suins', 'domain'];
 	return (tx: Transaction) =>
@@ -211,11 +270,33 @@ export function initRegistration(options: InitRegistrationOptions) {
 			package: packageAddress,
 			module: 'payment',
 			function: 'init_registration',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'suins',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.suins,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'payment',
+									functionName: 'init_registration',
+									parameterIndex: 0,
+									parameterName: 'suins',
+								},
+								'suins',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface InitRenewalArguments {
-	suins: RawTransactionArgument<string>;
+	suins?: RawTransactionArgument<string>;
 	nft: RawTransactionArgument<string>;
 	years: RawTransactionArgument<number>;
 }
@@ -224,17 +305,21 @@ export interface InitRenewalOptions {
 	arguments:
 		| InitRenewalArguments
 		| [
-				suins: RawTransactionArgument<string>,
+				suins: RawTransactionArgument<string> | undefined,
 				nft: RawTransactionArgument<string>,
 				years: RawTransactionArgument<number>,
 		  ];
+	config?: {
+		suins: ConfigValue;
+		packageId?: string;
+	};
 }
 /**
  * Creates a `PaymentIntent` for renewing an existing domain. This is a hot-potato
  * and can only be consumed in a single transaction.
  */
 export function initRenewal(options: InitRenewalOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, null, 'u8'] satisfies (string | null)[];
 	const parameterNames = ['suins', 'nft', 'years'];
 	return (tx: Transaction) =>
@@ -242,25 +327,51 @@ export function initRenewal(options: InitRenewalOptions) {
 			package: packageAddress,
 			module: 'payment',
 			function: 'init_renewal',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'suins',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.suins,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'payment',
+									functionName: 'init_renewal',
+									parameterIndex: 0,
+									parameterName: 'suins',
+								},
+								'suins',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface RegisterArguments {
 	receipt: TransactionArgument;
-	suins: RawTransactionArgument<string>;
+	suins?: RawTransactionArgument<string>;
 }
 export interface RegisterOptions {
 	package?: string;
 	arguments:
 		| RegisterArguments
-		| [receipt: TransactionArgument, suins: RawTransactionArgument<string>];
+		| [receipt: TransactionArgument, suins?: RawTransactionArgument<string>];
+	config?: {
+		suins: ConfigValue;
+		packageId?: string;
+	};
 }
 /**
  * Register a domain with the given receipt. This is a hot-potato and can only be
  * consumed in a single transaction.
  */
 export function register(options: RegisterOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, null, '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['receipt', 'suins'];
 	return (tx: Transaction) =>
@@ -268,12 +379,34 @@ export function register(options: RegisterOptions) {
 			package: packageAddress,
 			module: 'payment',
 			function: 'register',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 1,
+						name: 'suins',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.suins,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'payment',
+									functionName: 'register',
+									parameterIndex: 1,
+									parameterName: 'suins',
+								},
+								'suins',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface RenewArguments {
 	receipt: TransactionArgument;
-	suins: RawTransactionArgument<string>;
+	suins?: RawTransactionArgument<string>;
 	nft: RawTransactionArgument<string>;
 }
 export interface RenewOptions {
@@ -282,16 +415,20 @@ export interface RenewOptions {
 		| RenewArguments
 		| [
 				receipt: TransactionArgument,
-				suins: RawTransactionArgument<string>,
+				suins: RawTransactionArgument<string> | undefined,
 				nft: RawTransactionArgument<string>,
 		  ];
+	config?: {
+		suins: ConfigValue;
+		packageId?: string;
+	};
 }
 /**
  * Renew a domain with the given receipt. This is a hot-potato and can only be
  * consumed in a single transaction.
  */
 export function renew(options: RenewOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, null, null, '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['receipt', 'suins', 'nft'];
 	return (tx: Transaction) =>
@@ -299,7 +436,29 @@ export function renew(options: RenewOptions) {
 			package: packageAddress,
 			module: 'payment',
 			function: 'renew',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 1,
+						name: 'suins',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.suins,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'payment',
+									functionName: 'renew',
+									parameterIndex: 1,
+									parameterName: 'suins',
+								},
+								'suins',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface RequestDataArguments {
@@ -308,10 +467,13 @@ export interface RequestDataArguments {
 export interface RequestDataOptions {
 	package?: string;
 	arguments: RequestDataArguments | [intent: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 }
 /** Getters */
 export function requestData(options: RequestDataOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['intent'];
 	return (tx: Transaction) =>
@@ -328,9 +490,12 @@ export interface YearsArguments {
 export interface YearsOptions {
 	package?: string;
 	arguments: YearsArguments | [self: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 }
 export function years(options: YearsOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
@@ -347,9 +512,12 @@ export interface BaseAmountArguments {
 export interface BaseAmountOptions {
 	package?: string;
 	arguments: BaseAmountArguments | [self: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 }
 export function baseAmount(options: BaseAmountOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
@@ -366,9 +534,12 @@ export interface DomainArguments {
 export interface DomainOptions {
 	package?: string;
 	arguments: DomainArguments | [self: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 }
 export function domain(options: DomainOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
@@ -385,10 +556,13 @@ export interface DiscountAppliedArguments {
 export interface DiscountAppliedOptions {
 	package?: string;
 	arguments: DiscountAppliedArguments | [self: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 }
 /** Returns true if at least one discount has been applied to the payment intent. */
 export function discountApplied(options: DiscountAppliedOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
@@ -405,10 +579,13 @@ export interface DiscountsAppliedArguments {
 export interface DiscountsAppliedOptions {
 	package?: string;
 	arguments: DiscountsAppliedArguments | [self: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 }
 /** A list of discounts that have been applied to the payment intent. */
 export function discountsApplied(options: DiscountsAppliedOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
@@ -428,10 +605,13 @@ export interface CalculateTotalAfterDiscountOptions {
 	arguments:
 		| CalculateTotalAfterDiscountArguments
 		| [data: TransactionArgument, discount: RawTransactionArgument<number>];
+	config?: {
+		packageId?: string;
+	};
 }
 /** Public helper to calculate price after a percentage discount has been applied. */
 export function calculateTotalAfterDiscount(options: CalculateTotalAfterDiscountOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, 'u8'] satisfies (string | null)[];
 	const parameterNames = ['data', 'discount'];
 	return (tx: Transaction) =>

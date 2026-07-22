@@ -26,9 +26,12 @@ export interface NewArguments {
 export interface NewOptions {
 	package?: string;
 	arguments: NewArguments | [_: RawTransactionArgument<string>];
+	config?: {
+		packageId?: string;
+	};
 }
 export function _new(options: NewOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['_'];
 	return (tx: Transaction) =>
@@ -53,6 +56,9 @@ export interface AddRecordIgnoringGracePeriodOptions {
 				domain: TransactionArgument,
 				noYears: RawTransactionArgument<number>,
 		  ];
+	config?: {
+		packageId?: string;
+	};
 }
 /**
  * Attempts to add a new record to the registry without looking at the grace
@@ -60,7 +66,7 @@ export interface AddRecordIgnoringGracePeriodOptions {
  * Returns a `SuinsRegistration` upon success.
  */
 export function addRecordIgnoringGracePeriod(options: AddRecordIgnoringGracePeriodOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, null, 'u8', '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['self', 'domain', 'noYears'];
 	return (tx: Transaction) =>
@@ -85,6 +91,9 @@ export interface AddRecordOptions {
 				domain: TransactionArgument,
 				noYears: RawTransactionArgument<number>,
 		  ];
+	config?: {
+		packageId?: string;
+	};
 }
 /**
  * Attempts to add a new record to the registry and returns a `SuinsRegistration`
@@ -92,7 +101,7 @@ export interface AddRecordOptions {
  * default. Not suitable for subdomains (unless a grace period is needed).
  */
 export function addRecord(options: AddRecordOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, null, 'u8', '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['self', 'domain', 'noYears'];
 	return (tx: Transaction) =>
@@ -112,13 +121,16 @@ export interface BurnRegistrationObjectOptions {
 	arguments:
 		| BurnRegistrationObjectArguments
 		| [self: TransactionArgument, nft: RawTransactionArgument<string>];
+	config?: {
+		packageId?: string;
+	};
 }
 /**
  * Attempts to burn an NFT and get storage rebates. Only works if the NFT has
  * expired.
  */
 export function burnRegistrationObject(options: BurnRegistrationObjectOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, null, '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['self', 'nft'];
 	return (tx: Transaction) =>
@@ -136,10 +148,13 @@ export interface WrapSubdomainArguments {
 export interface WrapSubdomainOptions {
 	package?: string;
 	arguments: WrapSubdomainArguments | [_: TransactionArgument, nft: RawTransactionArgument<string>];
+	config?: {
+		packageId?: string;
+	};
 }
 /** Allow creation of subdomain wrappers only to authorized modules. */
 export function wrapSubdomain(options: WrapSubdomainOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, null, '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['_', 'nft'];
 	return (tx: Transaction) =>
@@ -159,13 +174,16 @@ export interface BurnSubdomainObjectOptions {
 	arguments:
 		| BurnSubdomainObjectArguments
 		| [self: TransactionArgument, nft: RawTransactionArgument<string>];
+	config?: {
+		packageId?: string;
+	};
 }
 /**
  * Attempts to burn a subdomain registration object, and also invalidates any
  * records in the registry / reverse registry.
  */
 export function burnSubdomainObject(options: BurnSubdomainObjectOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, null, '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['self', 'nft'];
 	return (tx: Transaction) =>
@@ -190,6 +208,9 @@ export interface AddLeafRecordOptions {
 				domain: TransactionArgument,
 				target: RawTransactionArgument<string>,
 		  ];
+	config?: {
+		packageId?: string;
+	};
 }
 /**
  * Adds a `leaf` record to the registry. A `leaf` record is a record that is a
@@ -208,7 +229,7 @@ export interface AddLeafRecordOptions {
  * hasn't expired.
  */
 export function addLeafRecord(options: AddLeafRecordOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, null, '0x2::clock::Clock', 'address'] satisfies (string | null)[];
 	const parameterNames = ['self', 'domain', 'target'];
 	return (tx: Transaction) =>
@@ -226,6 +247,9 @@ export interface RemoveLeafRecordArguments {
 export interface RemoveLeafRecordOptions {
 	package?: string;
 	arguments: RemoveLeafRecordArguments | [self: TransactionArgument, domain: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 }
 /**
  * Can be used to remove a leaf record. Leaf records do not have any symmetrical
@@ -233,7 +257,7 @@ export interface RemoveLeafRecordOptions {
  * authorized module that calls this.
  */
 export function removeLeafRecord(options: RemoveLeafRecordOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'domain'];
 	return (tx: Transaction) =>
@@ -258,9 +282,12 @@ export interface SetTargetAddressOptions {
 				domain: TransactionArgument,
 				newTarget: RawTransactionArgument<string | null>,
 		  ];
+	config?: {
+		packageId?: string;
+	};
 }
 export function setTargetAddress(options: SetTargetAddressOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, null, '0x1::option::Option<address>'] satisfies (string | null)[];
 	const parameterNames = ['self', 'domain', 'newTarget'];
 	return (tx: Transaction) =>
@@ -280,9 +307,12 @@ export interface UnsetReverseLookupOptions {
 	arguments:
 		| UnsetReverseLookupArguments
 		| [self: TransactionArgument, address: RawTransactionArgument<string>];
+	config?: {
+		packageId?: string;
+	};
 }
 export function unsetReverseLookup(options: UnsetReverseLookupOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, 'address'] satisfies (string | null)[];
 	const parameterNames = ['self', 'address'];
 	return (tx: Transaction) =>
@@ -307,10 +337,13 @@ export interface SetReverseLookupOptions {
 				address: RawTransactionArgument<string>,
 				domain: TransactionArgument,
 		  ];
+	config?: {
+		packageId?: string;
+	};
 }
 /** Reverse lookup can only be set for the record that has the target address. */
 export function setReverseLookup(options: SetReverseLookupOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, 'address', null] satisfies (string | null)[];
 	const parameterNames = ['self', 'address', 'domain'];
 	return (tx: Transaction) =>
@@ -337,6 +370,9 @@ export interface SetExpirationTimestampMsOptions {
 				domain: TransactionArgument,
 				expirationTimestampMs: RawTransactionArgument<number | bigint>,
 		  ];
+	config?: {
+		packageId?: string;
+	};
 }
 /**
  * Update the `expiration_timestamp_ms` of the given `SuinsRegistration` and
@@ -344,7 +380,7 @@ export interface SetExpirationTimestampMsOptions {
  * are in sync.
  */
 export function setExpirationTimestampMs(options: SetExpirationTimestampMsOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, null, null, 'u64'] satisfies (string | null)[];
 	const parameterNames = ['self', 'nft', 'domain', 'expirationTimestampMs'];
 	return (tx: Transaction) =>
@@ -365,6 +401,9 @@ export interface SetDataOptions {
 	arguments:
 		| SetDataArguments
 		| [self: TransactionArgument, domain: TransactionArgument, data: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 }
 /**
  * Update the `data` of the given `NameRecord` using a `SuinsRegistration`. Use
@@ -373,7 +412,7 @@ export interface SetDataOptions {
  * field.
  */
 export function setData(options: SetDataOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'domain', 'data'];
 	return (tx: Transaction) =>
@@ -391,10 +430,13 @@ export interface HasRecordArguments {
 export interface HasRecordOptions {
 	package?: string;
 	arguments: HasRecordArguments | [self: TransactionArgument, domain: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 }
 /** Check whether the given `domain` is registered in the `Registry`. */
 export function hasRecord(options: HasRecordOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'domain'];
 	return (tx: Transaction) =>
@@ -412,10 +454,13 @@ export interface LookupArguments {
 export interface LookupOptions {
 	package?: string;
 	arguments: LookupArguments | [self: TransactionArgument, domain: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 }
 /** Returns the `NameRecord` associated with the given domain or None. */
 export function lookup(options: LookupOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'domain'];
 	return (tx: Transaction) =>
@@ -435,10 +480,13 @@ export interface ReverseLookupOptions {
 	arguments:
 		| ReverseLookupArguments
 		| [self: TransactionArgument, address: RawTransactionArgument<string>];
+	config?: {
+		packageId?: string;
+	};
 }
 /** Returns the `domain_name` associated with the given address or None. */
 export function reverseLookup(options: ReverseLookupOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, 'address'] satisfies (string | null)[];
 	const parameterNames = ['self', 'address'];
 	return (tx: Transaction) =>
@@ -458,6 +506,9 @@ export interface AssertNftIsAuthorizedOptions {
 	arguments:
 		| AssertNftIsAuthorizedArguments
 		| [self: TransactionArgument, nft: RawTransactionArgument<string>];
+	config?: {
+		packageId?: string;
+	};
 }
 /**
  * Asserts that the provided NFT:
@@ -466,7 +517,7 @@ export interface AssertNftIsAuthorizedOptions {
  * 2.  Has not expired (does not take into account the grace period)
  */
 export function assertNftIsAuthorized(options: AssertNftIsAuthorizedOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, null, '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['self', 'nft'];
 	return (tx: Transaction) =>
@@ -484,10 +535,13 @@ export interface GetDataArguments {
 export interface GetDataOptions {
 	package?: string;
 	arguments: GetDataArguments | [self: TransactionArgument, domain: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 }
 /** Returns the `data` associated with the given `Domain`. */
 export function getData(options: GetDataOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'domain'];
 	return (tx: Transaction) =>

@@ -6,6 +6,9 @@ import {
 	MoveTuple,
 	normalizeMoveArguments,
 	type RawTransactionArgument,
+	type ConfigValue,
+	resolveConfigArgument,
+	applyConfigArguments,
 } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
@@ -29,7 +32,7 @@ export const Controller = new MoveStruct({
 	},
 });
 export interface SetTargetAddressArguments {
-	suins: RawTransactionArgument<string>;
+	suins?: RawTransactionArgument<string>;
 	nft: RawTransactionArgument<string>;
 	newTarget: RawTransactionArgument<string | null>;
 }
@@ -38,14 +41,18 @@ export interface SetTargetAddressOptions {
 	arguments:
 		| SetTargetAddressArguments
 		| [
-				suins: RawTransactionArgument<string>,
+				suins: RawTransactionArgument<string> | undefined,
 				nft: RawTransactionArgument<string>,
 				newTarget: RawTransactionArgument<string | null>,
 		  ];
+	config?: {
+		suins: ConfigValue;
+		packageId?: string;
+	};
 }
 /** Set the target address of a domain. */
 export function setTargetAddress(options: SetTargetAddressOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [
 		null,
 		null,
@@ -58,22 +65,51 @@ export function setTargetAddress(options: SetTargetAddressOptions) {
 			package: packageAddress,
 			module: 'controller',
 			function: 'set_target_address',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'suins',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.suins,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'controller',
+									functionName: 'set_target_address',
+									parameterIndex: 0,
+									parameterName: 'suins',
+								},
+								'suins',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface SetReverseLookupArguments {
-	suins: RawTransactionArgument<string>;
+	suins?: RawTransactionArgument<string>;
 	domainName: RawTransactionArgument<string>;
 }
 export interface SetReverseLookupOptions {
 	package?: string;
 	arguments:
 		| SetReverseLookupArguments
-		| [suins: RawTransactionArgument<string>, domainName: RawTransactionArgument<string>];
+		| [
+				suins: RawTransactionArgument<string> | undefined,
+				domainName: RawTransactionArgument<string>,
+		  ];
+	config?: {
+		suins: ConfigValue;
+		packageId?: string;
+	};
 }
 /** Set the reverse lookup address for the domain */
 export function setReverseLookup(options: SetReverseLookupOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, '0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['suins', 'domainName'];
 	return (tx: Transaction) =>
@@ -81,19 +117,45 @@ export function setReverseLookup(options: SetReverseLookupOptions) {
 			package: packageAddress,
 			module: 'controller',
 			function: 'set_reverse_lookup',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'suins',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.suins,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'controller',
+									functionName: 'set_reverse_lookup',
+									parameterIndex: 0,
+									parameterName: 'suins',
+								},
+								'suins',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface UnsetReverseLookupArguments {
-	suins: RawTransactionArgument<string>;
+	suins?: RawTransactionArgument<string>;
 }
 export interface UnsetReverseLookupOptions {
 	package?: string;
-	arguments: UnsetReverseLookupArguments | [suins: RawTransactionArgument<string>];
+	arguments?: UnsetReverseLookupArguments | [suins?: RawTransactionArgument<string>];
+	config?: {
+		suins: ConfigValue;
+		packageId?: string;
+	};
 }
 /** User-facing function - unset the reverse lookup address for the domain. */
 export function unsetReverseLookup(options: UnsetReverseLookupOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['suins'];
 	return (tx: Transaction) =>
@@ -101,11 +163,33 @@ export function unsetReverseLookup(options: UnsetReverseLookupOptions) {
 			package: packageAddress,
 			module: 'controller',
 			function: 'unset_reverse_lookup',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments ?? {}, [
+					{
+						index: 0,
+						name: 'suins',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.suins,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'controller',
+									functionName: 'unset_reverse_lookup',
+									parameterIndex: 0,
+									parameterName: 'suins',
+								},
+								'suins',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface SetObjectReverseLookupArguments {
-	suins: RawTransactionArgument<string>;
+	suins?: RawTransactionArgument<string>;
 	obj: RawTransactionArgument<string>;
 	domainName: RawTransactionArgument<string>;
 }
@@ -114,17 +198,21 @@ export interface SetObjectReverseLookupOptions {
 	arguments:
 		| SetObjectReverseLookupArguments
 		| [
-				suins: RawTransactionArgument<string>,
+				suins: RawTransactionArgument<string> | undefined,
 				obj: RawTransactionArgument<string>,
 				domainName: RawTransactionArgument<string>,
 		  ];
+	config?: {
+		suins: ConfigValue;
+		packageId?: string;
+	};
 }
 /**
  * Allows setting the reverse lookup address for an object. Expects a mutable
  * reference of the object.
  */
 export function setObjectReverseLookup(options: SetObjectReverseLookupOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, '0x2::object::ID', '0x1::string::String'] satisfies (
 		| string
 		| null
@@ -135,25 +223,51 @@ export function setObjectReverseLookup(options: SetObjectReverseLookupOptions) {
 			package: packageAddress,
 			module: 'controller',
 			function: 'set_object_reverse_lookup',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'suins',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.suins,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'controller',
+									functionName: 'set_object_reverse_lookup',
+									parameterIndex: 0,
+									parameterName: 'suins',
+								},
+								'suins',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface UnsetObjectReverseLookupArguments {
-	suins: RawTransactionArgument<string>;
+	suins?: RawTransactionArgument<string>;
 	obj: RawTransactionArgument<string>;
 }
 export interface UnsetObjectReverseLookupOptions {
 	package?: string;
 	arguments:
 		| UnsetObjectReverseLookupArguments
-		| [suins: RawTransactionArgument<string>, obj: RawTransactionArgument<string>];
+		| [suins: RawTransactionArgument<string> | undefined, obj: RawTransactionArgument<string>];
+	config?: {
+		suins: ConfigValue;
+		packageId?: string;
+	};
 }
 /**
  * Allows unsetting the reverse lookup address for an object. Expects a mutable
  * reference of the object.
  */
 export function unsetObjectReverseLookup(options: UnsetObjectReverseLookupOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, '0x2::object::ID'] satisfies (string | null)[];
 	const parameterNames = ['suins', 'obj'];
 	return (tx: Transaction) =>
@@ -161,11 +275,33 @@ export function unsetObjectReverseLookup(options: UnsetObjectReverseLookupOption
 			package: packageAddress,
 			module: 'controller',
 			function: 'unset_object_reverse_lookup',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'suins',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.suins,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'controller',
+									functionName: 'unset_object_reverse_lookup',
+									parameterIndex: 0,
+									parameterName: 'suins',
+								},
+								'suins',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface SetUserDataArguments {
-	suins: RawTransactionArgument<string>;
+	suins?: RawTransactionArgument<string>;
 	nft: RawTransactionArgument<string>;
 	key: RawTransactionArgument<string>;
 	value: RawTransactionArgument<string>;
@@ -175,15 +311,19 @@ export interface SetUserDataOptions {
 	arguments:
 		| SetUserDataArguments
 		| [
-				suins: RawTransactionArgument<string>,
+				suins: RawTransactionArgument<string> | undefined,
 				nft: RawTransactionArgument<string>,
 				key: RawTransactionArgument<string>,
 				value: RawTransactionArgument<string>,
 		  ];
+	config?: {
+		suins: ConfigValue;
+		packageId?: string;
+	};
 }
 /** User-facing function - add a new key-value pair to the name record's data. */
 export function setUserData(options: SetUserDataOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [
 		null,
 		null,
@@ -197,11 +337,33 @@ export function setUserData(options: SetUserDataOptions) {
 			package: packageAddress,
 			module: 'controller',
 			function: 'set_user_data',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'suins',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.suins,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'controller',
+									functionName: 'set_user_data',
+									parameterIndex: 0,
+									parameterName: 'suins',
+								},
+								'suins',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface UnsetUserDataArguments {
-	suins: RawTransactionArgument<string>;
+	suins?: RawTransactionArgument<string>;
 	nft: RawTransactionArgument<string>;
 	key: RawTransactionArgument<string>;
 }
@@ -210,14 +372,18 @@ export interface UnsetUserDataOptions {
 	arguments:
 		| UnsetUserDataArguments
 		| [
-				suins: RawTransactionArgument<string>,
+				suins: RawTransactionArgument<string> | undefined,
 				nft: RawTransactionArgument<string>,
 				key: RawTransactionArgument<string>,
 		  ];
+	config?: {
+		suins: ConfigValue;
+		packageId?: string;
+	};
 }
 /** User-facing function - remove a key from the name record's data. */
 export function unsetUserData(options: UnsetUserDataOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, null, '0x1::string::String', '0x2::clock::Clock'] satisfies (
 		| string
 		| null
@@ -228,21 +394,47 @@ export function unsetUserData(options: UnsetUserDataOptions) {
 			package: packageAddress,
 			module: 'controller',
 			function: 'unset_user_data',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'suins',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.suins,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'controller',
+									functionName: 'unset_user_data',
+									parameterIndex: 0,
+									parameterName: 'suins',
+								},
+								'suins',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface BurnExpiredArguments {
-	suins: RawTransactionArgument<string>;
+	suins?: RawTransactionArgument<string>;
 	nft: RawTransactionArgument<string>;
 }
 export interface BurnExpiredOptions {
 	package?: string;
 	arguments:
 		| BurnExpiredArguments
-		| [suins: RawTransactionArgument<string>, nft: RawTransactionArgument<string>];
+		| [suins: RawTransactionArgument<string> | undefined, nft: RawTransactionArgument<string>];
+	config?: {
+		suins: ConfigValue;
+		packageId?: string;
+	};
 }
 export function burnExpired(options: BurnExpiredOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, null, '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['suins', 'nft'];
 	return (tx: Transaction) =>
@@ -250,21 +442,47 @@ export function burnExpired(options: BurnExpiredOptions) {
 			package: packageAddress,
 			module: 'controller',
 			function: 'burn_expired',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'suins',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.suins,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'controller',
+									functionName: 'burn_expired',
+									parameterIndex: 0,
+									parameterName: 'suins',
+								},
+								'suins',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface BurnExpiredSubnameArguments {
-	suins: RawTransactionArgument<string>;
+	suins?: RawTransactionArgument<string>;
 	nft: RawTransactionArgument<string>;
 }
 export interface BurnExpiredSubnameOptions {
 	package?: string;
 	arguments:
 		| BurnExpiredSubnameArguments
-		| [suins: RawTransactionArgument<string>, nft: RawTransactionArgument<string>];
+		| [suins: RawTransactionArgument<string> | undefined, nft: RawTransactionArgument<string>];
+	config?: {
+		suins: ConfigValue;
+		packageId?: string;
+	};
 }
 export function burnExpiredSubname(options: BurnExpiredSubnameOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, null, '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['suins', 'nft'];
 	return (tx: Transaction) =>
@@ -272,11 +490,33 @@ export function burnExpiredSubname(options: BurnExpiredSubnameOptions) {
 			package: packageAddress,
 			module: 'controller',
 			function: 'burn_expired_subname',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'suins',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.suins,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'controller',
+									functionName: 'burn_expired_subname',
+									parameterIndex: 0,
+									parameterName: 'suins',
+								},
+								'suins',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface PruneExpiredSubnameArguments {
-	suins: RawTransactionArgument<string>;
+	suins?: RawTransactionArgument<string>;
 	parent: RawTransactionArgument<string>;
 	subdomainName: RawTransactionArgument<string>;
 }
@@ -285,10 +525,14 @@ export interface PruneExpiredSubnameOptions {
 	arguments:
 		| PruneExpiredSubnameArguments
 		| [
-				suins: RawTransactionArgument<string>,
+				suins: RawTransactionArgument<string> | undefined,
 				parent: RawTransactionArgument<string>,
 				subdomainName: RawTransactionArgument<string>,
 		  ];
+	config?: {
+		suins: ConfigValue;
+		packageId?: string;
+	};
 }
 /**
  * Prunes an expired subdomain record from the registry by name, gated by ownership
@@ -301,7 +545,7 @@ export interface PruneExpiredSubnameOptions {
  * subdomain NFT.
  */
 export function pruneExpiredSubname(options: PruneExpiredSubnameOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, null, '0x1::string::String', '0x2::clock::Clock'] satisfies (
 		| string
 		| null
@@ -312,11 +556,33 @@ export function pruneExpiredSubname(options: PruneExpiredSubnameOptions) {
 			package: packageAddress,
 			module: 'controller',
 			function: 'prune_expired_subname',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'suins',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.suins,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'controller',
+									functionName: 'prune_expired_subname',
+									parameterIndex: 0,
+									parameterName: 'suins',
+								},
+								'suins',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface PruneExpiredSubnamesArguments {
-	suins: RawTransactionArgument<string>;
+	suins?: RawTransactionArgument<string>;
 	parent: RawTransactionArgument<string>;
 	subdomainNames: RawTransactionArgument<Array<string>>;
 }
@@ -325,10 +591,14 @@ export interface PruneExpiredSubnamesOptions {
 	arguments:
 		| PruneExpiredSubnamesArguments
 		| [
-				suins: RawTransactionArgument<string>,
+				suins: RawTransactionArgument<string> | undefined,
 				parent: RawTransactionArgument<string>,
 				subdomainNames: RawTransactionArgument<Array<string>>,
 		  ];
+	config?: {
+		suins: ConfigValue;
+		packageId?: string;
+	};
 }
 /**
  * Best-effort pruning of multiple expired subdomain records for a given parent.
@@ -345,7 +615,7 @@ export interface PruneExpiredSubnamesOptions {
  * pruned record, and returns the total count of pruned entries.
  */
 export function pruneExpiredSubnames(options: PruneExpiredSubnamesOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [
 		null,
 		null,
@@ -358,6 +628,28 @@ export function pruneExpiredSubnames(options: PruneExpiredSubnamesOptions) {
 			package: packageAddress,
 			module: 'controller',
 			function: 'prune_expired_subnames',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'suins',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.suins,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'controller',
+									functionName: 'prune_expired_subnames',
+									parameterIndex: 0,
+									parameterName: 'suins',
+								},
+								'suins',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }

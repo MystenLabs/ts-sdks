@@ -33,9 +33,12 @@ export interface NewArguments {
 export interface NewOptions {
 	package?: string;
 	arguments: NewArguments | [domain: RawTransactionArgument<string>];
+	config?: {
+		packageId?: string;
+	};
 }
 export function _new(options: NewOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = ['0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['domain'];
 	return (tx: Transaction) =>
@@ -52,10 +55,13 @@ export interface ToStringArguments {
 export interface ToStringOptions {
 	package?: string;
 	arguments: ToStringArguments | [self: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 }
 /** Converts a domain into a fully-qualified string representation. */
 export function toString(options: ToStringOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
@@ -75,6 +81,9 @@ export interface LabelOptions {
 	arguments:
 		| LabelArguments
 		| [self: TransactionArgument, level: RawTransactionArgument<number | bigint>];
+	config?: {
+		packageId?: string;
+	};
 }
 /**
  * Returns the `label` in a domain specified by `level`.
@@ -88,7 +97,7 @@ export interface LabelOptions {
  * This means that the TLD will always be at level `0`.
  */
 export function label(options: LabelOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
 	const parameterNames = ['self', 'level'];
 	return (tx: Transaction) =>
@@ -105,6 +114,9 @@ export interface TldArguments {
 export interface TldOptions {
 	package?: string;
 	arguments: TldArguments | [self: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 }
 /**
  * Returns the TLD (Top-Level Domain) of a `Domain`.
@@ -112,7 +124,7 @@ export interface TldOptions {
  * "name.sui" -> "sui"
  */
 export function tld(options: TldOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
@@ -129,6 +141,9 @@ export interface SldArguments {
 export interface SldOptions {
 	package?: string;
 	arguments: SldArguments | [self: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 }
 /**
  * Returns the SLD (Second-Level Domain) of a `Domain`.
@@ -136,7 +151,7 @@ export interface SldOptions {
  * "name.sui" -> "sui"
  */
 export function sld(options: SldOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
@@ -153,9 +168,12 @@ export interface NumberOfLevelsArguments {
 export interface NumberOfLevelsOptions {
 	package?: string;
 	arguments: NumberOfLevelsArguments | [self: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 }
 export function numberOfLevels(options: NumberOfLevelsOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
@@ -172,9 +190,12 @@ export interface IsSubdomainArguments {
 export interface IsSubdomainOptions {
 	package?: string;
 	arguments: IsSubdomainArguments | [domain: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 }
 export function isSubdomain(options: IsSubdomainOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['domain'];
 	return (tx: Transaction) =>
@@ -191,10 +212,13 @@ export interface ParentArguments {
 export interface ParentOptions {
 	package?: string;
 	arguments: ParentArguments | [domain: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 }
 /** Derive the parent of a subdomain. e.g. `subdomain.example.sui` -> `example.sui` */
 export function parent(options: ParentOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['domain'];
 	return (tx: Transaction) =>
@@ -212,10 +236,13 @@ export interface IsParentOfArguments {
 export interface IsParentOfOptions {
 	package?: string;
 	arguments: IsParentOfArguments | [parent: TransactionArgument, child: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 }
 /** Checks if `parent` domain is a valid parent for `child`. */
 export function isParentOf(options: IsParentOfOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['parent', 'child'];
 	return (tx: Transaction) =>

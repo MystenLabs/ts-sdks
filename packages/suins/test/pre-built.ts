@@ -8,6 +8,8 @@ import { expect } from 'vitest';
 
 import { ALLOWED_METADATA, SuinsTransaction, suins } from '../src/index.js';
 
+const SUI_PAYMENT_BUDGET = 100n * MIST_PER_SUI;
+
 export const e2eLiveNetworkDryRunFlow = async (network: 'mainnet' | 'testnet') => {
 	const client = new SuiGrpcClient({ baseUrl: getJsonRpcFullnodeUrl(network), network }).$extend(
 		suins(),
@@ -60,7 +62,7 @@ export const e2eLiveNetworkDryRunFlow = async (network: 'mainnet' | 'testnet') =
 	const coinConfig = client.suins.config.coins.SUI; // Specify the coin type used for the transaction
 
 	// Split coins for registration and Pyth fee upfront
-	const [coinInput, pythFeeCoin] = tx.splitCoins(tx.gas, [10n * MIST_PER_SUI, MIST_PER_SUI]);
+	const [coinInput, pythFeeCoin] = tx.splitCoins(tx.gas, [SUI_PAYMENT_BUDGET, MIST_PER_SUI]);
 
 	const priceInfoObjectId =
 		coinConfig !== client.suins.config.coins.USDC
