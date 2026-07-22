@@ -36,33 +36,56 @@ const IDENTIFIER = /^[A-Za-z_$][\w$]*$/;
 /** Keys that would collide with `Object.prototype` or mutate prototypes on plain objects. */
 const FORBIDDEN_CONFIG_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
+const typeMatcherSchema = z.strictObject({
+	/**
+	 * Move type to match function parameters against, written network-agnostically as
+	 * `module::TypeName`. In a package's own `configArguments` block a bare `module::TypeName`
+	 * refers to that package's type; other packages in the run are referenced by their
+	 * `packages` identifier (`@myapp/core::pool::Pool`), and the chain-stable framework
+	 * packages by address (`0x2::sui::SUI`). A generic type written without type arguments
+	 * matches every instantiation and requires a resolver function as the config value; a
+	 * fully instantiated generic (e.g. `pool::Pool<0x2::sui::SUI>`) only matches parameters
+	 * concretely typed with that exact instantiation.
+	 */
+	type: z.string(),
+	/**
+	 * Optional Move parameter-name refinement, for signatures with two parameters of the same
+	 * matched type. Only supported for summaries generated from local packages (bytecode
+	 * summaries do not include parameter names).
+	 */
+	parameterName: z.string().optional(),
+});
+
+const functionMatcherSchema = z.strictObject({
+	/**
+	 * A Move function whose parameter is configured directly, written `module::function_name`
+	 * (scoped like type matchers: bare form in a package's own block, `@pkg::module::fn`
+	 * otherwise). The parameter's type is derived from the signature.
+	 */
+	function: z.string(),
+	/** The Move name of the parameter to configure. */
+	parameterName: z.string().optional(),
+	/**
+	 * The position of the parameter to configure, in the generated function's arguments (the
+	 * same positions as the tuple form of `arguments` — `TxContext` and auto-injected well-known
+	 * objects are excluded). Use for summaries without parameter names. When both this and
+	 * `parameterName` are omitted, the function must have exactly one argument.
+	 */
+	parameterIndex: z.number().int().nonnegative().optional(),
+});
+
+const packageMatcherSchema = z.strictObject({
+	/**
+	 * Package entry, keyed by the package's name/MVR name from the `packages` config. Adds an
+	 * optional config key that overrides the package address used for generated calls.
+	 */
+	package: z.string(),
+});
+
 export const configArgumentMatcherSchema = z.union([
-	z.strictObject({
-		/**
-		 * Move type to match function parameters against, written network-agnostically as
-		 * `module::TypeName`. In a package's own `configArguments` block a bare `module::TypeName`
-		 * refers to that package's type; other packages in the run are referenced by their
-		 * `packages` identifier (`@myapp/core::pool::Pool`), and the chain-stable framework
-		 * packages by address (`0x2::sui::SUI`). A generic type written without type arguments
-		 * matches every instantiation and requires a resolver function as the config value; a
-		 * fully instantiated generic (e.g. `pool::Pool<0x2::sui::SUI>`) only matches parameters
-		 * concretely typed with that exact instantiation.
-		 */
-		type: z.string(),
-		/**
-		 * Optional Move parameter-name refinement, for signatures with two parameters of the same
-		 * matched type. Only supported for summaries generated from local packages (bytecode
-		 * summaries do not include parameter names).
-		 */
-		parameterName: z.string().optional(),
-	}),
-	z.strictObject({
-		/**
-		 * Package entry, keyed by the package's name/MVR name from the `packages` config. Adds an
-		 * optional config key that overrides the package address used for generated calls.
-		 */
-		package: z.string(),
-	}),
+	typeMatcherSchema,
+	functionMatcherSchema,
+	packageMatcherSchema,
 ]);
 
 export const configArgumentsSchema = z.record(
@@ -75,7 +98,12 @@ export const configArgumentsSchema = z.record(
 		.refine((key) => !FORBIDDEN_CONFIG_KEYS.has(key), {
 			message: 'configArguments keys must not be prototype property names',
 		}),
-	configArgumentMatcherSchema,
+	z.union([
+		configArgumentMatcherSchema,
+		// One key may resolve multiple types/parameters; its config value must then be a
+		// resolver function.
+		z.array(z.union([typeMatcherSchema, functionMatcherSchema])),
+	]),
 );
 
 export type ConfigArgumentMatcher = z.infer<typeof configArgumentMatcherSchema>;

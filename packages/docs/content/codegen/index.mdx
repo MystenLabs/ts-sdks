@@ -319,6 +319,14 @@ const config: SuiCodegenConfig = {
 				// this exact instantiation in the Move signature. Framework packages (0x1-0x3)
 				// have chain-stable addresses and can be referenced directly.
 				suiPool: { type: 'pool::Pool<0x2::sui::SUI>' },
+				// Function matcher: configure one function's parameter directly (opt-in).
+				// The type is derived from the signature. Use parameterIndex for onchain
+				// packages without parameter names; omit both when the function has exactly
+				// one argument.
+				adminCap: { function: 'admin::set_fees', parameterName: 'cap' },
+				// One key may declare several matchers. It then resolves multiple types, so
+				// its config value must be a resolver function.
+				registries: [{ type: 'registry::Registry' }, { type: 'config::GlobalConfig' }],
 				// Package entry (keyed by the `package` value of a `packages` entry): adds an
 				// optional config key that overrides the package address used for calls
 				corePackageId: { package: '@myapp/core' },
@@ -390,6 +398,7 @@ export interface ConfigResolverContext {
 	moduleName: string;
 	functionName: string;
 	parameterName?: string; // Move parameter name, when the summary includes names
+	parameterIndex: number; // position in the generated function's arguments
 }
 ```
 
@@ -430,8 +439,9 @@ const myConfig = { ... } satisfies CoreConfig & MarginConfig;
 ### Name refinement
 
 When a signature has two parameters of the same matched type (for example, `base_pool` and
-`quote_pool`, both `Pool<T>`), a bare type matcher is ambiguous and codegen fails with an error.
-Refine the matchers with the Move parameter names:
+`quote_pool`, both `Pool<T>`), a bare type matcher matches both: the key's config value must then be
+a resolver function, which receives each parameter's own context. To give each parameter its own
+config key instead, refine the matchers with the Move parameter names:
 
 ```typescript
 configArguments: {
@@ -443,9 +453,8 @@ configArguments: {
 Parameter names are only available in summaries generated from local packages. A `parameterName`
 matcher never matches a parameter without a name; if such a matcher would otherwise apply to a
 nameless parameter (same type and instantiation) and nothing else matches it, codegen fails with a
-clear error. When a bare matcher hits two parameters of a nameless (onchain bytecode) signature,
-where refinement is impossible, config mapping is skipped for that function with a warning instead
-of failing the run.
+clear error. For nameless (onchain bytecode) signatures, use function matchers with `parameterIndex`
+to target individual parameters.
 
 ### Package address precedence
 

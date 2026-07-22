@@ -19,12 +19,14 @@ interface TestResolverContext {
 	moduleName: string;
 	functionName: string;
 	parameterName?: string;
+	parameterIndex: number;
 }
 const TEST_CTX: TestResolverContext = {
 	typeArguments: [],
 	packageAddress: '0x0',
 	moduleName: 'test',
 	functionName: 'test',
+	parameterIndex: 0,
 };
 let resolveConfigArgument: (value: unknown, ctx: TestResolverContext, name: string) => unknown;
 let applyConfigArguments: (

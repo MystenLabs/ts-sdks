@@ -13,7 +13,11 @@ import {
 	SUI_SYSTEM_ADDRESS,
 } from './render-types.js';
 import { findConfigArgumentMatch } from './config-arguments.js';
-import type { ParsedConfigArgument, TypeConfigArgument } from './config-arguments.js';
+import type {
+	FunctionConfigArgument,
+	ParsedConfigArgument,
+	TypeConfigArgument,
+} from './config-arguments.js';
 import {
 	camelCase,
 	capitalize,
@@ -607,39 +611,30 @@ export class MoveModuleBuilder extends FileBuilder {
 			const functionLabel = `${this.summary.id.address}::${this.summary.id.name}::${name}`;
 			// Parameters (by index into `requiredParameters`) resolved from the runtime config
 			// object instead of being required arguments.
-			const configMatches = new Map<number, TypeConfigArgument>();
+			const configMatches = new Map<number, TypeConfigArgument | FunctionConfigArgument>();
+			// Keys that match more than one parameter of this signature: legal, but the config
+			// value must be a resolver (it receives per-parameter context).
+			const multiMatchedKeys = new Set<string>();
 			if (this.#configArguments.length > 0) {
-				const bareMatches = new Map<string, number[]>();
+				const matchesByKey = new Map<string, number>();
 				requiredParameters.forEach((param, i) => {
 					const match = findConfigArgumentMatch(param, this.#configArguments, {
 						resolveAddress: (address) => this.#resolveAddress(address),
 						functionLabel,
+						functionRef: {
+							moduleAddress: this.summary.id.address,
+							moduleName: this.summary.id.name,
+							functionName: name,
+						},
+						parameterIndex: i,
 					});
 					if (!match) return;
 					configMatches.set(i, match);
-					if (!match.parameterName) {
-						bareMatches.set(match.key, [...(bareMatches.get(match.key) ?? []), i]);
-					}
+					matchesByKey.set(match.key, (matchesByKey.get(match.key) ?? 0) + 1);
 				});
-				for (const [key, matched] of bareMatches) {
-					if (matched.length > 1) {
-						if (matched.every((i) => requiredParameters[i].name)) {
-							throw new Error(
-								`configArguments.${key} matches multiple parameters of ${functionLabel} (${matched
-									.map((i) => requiredParameters[i].name)
-									.join(', ')}). Add a \`parameterName\` refinement to disambiguate.`,
-							);
-						}
-						// Bytecode summaries have no parameter names, so refinement is impossible —
-						// skip config mapping for this function instead of failing the run.
-						console.warn(
-							`configArguments.${key} matches multiple parameters of ${functionLabel}, which cannot ` +
-								`be disambiguated because its parameters have no names. Config mapping is skipped ` +
-								`for this function.`,
-						);
-						for (const i of matched) {
-							configMatches.delete(i);
-						}
+				for (const [key, count] of matchesByKey) {
+					if (count > 1) {
+						multiMatchedKeys.add(key);
 					}
 				}
 				for (const match of configMatches.values()) {
@@ -754,10 +749,18 @@ export class MoveModuleBuilder extends FileBuilder {
 			for (const match of configMatches.values()) {
 				if (seenConfigKeys.has(match.key)) continue;
 				seenConfigKeys.add(match.key);
-				// An uninstantiated matcher on a generic type requires a resolver function — a
-				// static id cannot be correct across instantiations.
+				// A key must be a resolver function when it can resolve more than one binding:
+				// an uninstantiated generic, multiple declared matchers, or multiple parameters
+				// matched in this signature.
+				const keyEntries = this.#configArguments.filter(
+					(entry) => entry.kind !== 'package' && entry.key === match.key,
+				);
+				const requiresResolver =
+					keyEntries.length > 1 ||
+					keyEntries.some((entry) => entry.kind !== 'package' && entry.requiresResolver) ||
+					multiMatchedKeys.has(match.key);
 				configSliceFields.push(
-					match.isGeneric && match.typeArguments === null
+					requiresResolver
 						? `${match.key}: (ctx: ${this.#getImportName('ConfigResolverContext')}) => string | ${this.#getImportName('TransactionObjectArgument')}`
 						: `${match.key}: ${this.#getImportName('ConfigValue')}`,
 				);
@@ -812,7 +815,7 @@ export class MoveModuleBuilder extends FileBuilder {
 					});
 					return tag.includes('${') ? `\`${tag}\`` : `'${tag}'`;
 				});
-				const ctx = `{ typeArguments: [${ctxTags.join(', ')}], packageAddress, moduleName: '${this.summary.id.name}', functionName: '${name}'${
+				const ctx = `{ typeArguments: [${ctxTags.join(', ')}], packageAddress, moduleName: '${this.summary.id.name}', functionName: '${name}', parameterIndex: ${i}${
 					param.name ? `, parameterName: ${JSON.stringify(param.name)}` : ''
 				} }`;
 				return `{ index: ${i}, ${param.name ? `name: ${JSON.stringify(camelCase(param.name))}, ` : ''}resolve: () => ${this.#getImportName('resolveConfigArgument')}(options.config?.${match.key}, ${ctx}, ${JSON.stringify(match.key)}) }`;
