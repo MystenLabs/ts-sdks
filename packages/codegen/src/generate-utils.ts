@@ -154,7 +154,10 @@ export function normalizeMoveArguments(
 				throw new __ERROR_CLASS__(\`Expected arguments to be passed as an array\`);
 			}
 			const name = parameterNames[index];
-			arg = args[name as keyof typeof args];
+			arg =
+				name !== undefined && Object.prototype.hasOwnProperty.call(args, name)
+					? args[name as keyof typeof args]
+					: undefined;
 
 			if (arg === undefined) {
 				throw new __ERROR_CLASS__(\`Parameter \${name} is required\`);
@@ -193,9 +196,18 @@ export function normalizeMoveArguments(
 export interface ConfigResolverContext {
 	/**
 	 * The matched parameter's own instantiated type arguments (not the whole function's type
-	 * argument tuple), as fully-qualified type tags.
+	 * argument tuple), as fully-qualified type tags. Hex-addressed struct tags are normalized to
+	 * their long form before the resolver is invoked; MVR-named tags are passed through unchanged.
 	 */
 	typeArguments: string[];
+	/** The package address the generated call will be sent to. */
+	packageAddress: string;
+	/** The Move module of the generated call. */
+	moduleName: string;
+	/** The Move function of the generated call. */
+	functionName: string;
+	/** The Move name of the matched parameter, when the summary includes parameter names. */
+	parameterName?: string;
 }
 
 /**
@@ -210,7 +222,19 @@ export type ConfigValue =
 	| Exclude<TransactionObjectArgument, (...args: never[]) => unknown>
 	| ((ctx: ConfigResolverContext) => string | TransactionObjectArgument);
 
-export function resolveConfigArg(
+/** Normalize a hex-addressed struct tag to its long form; pass anything else through. */
+function normalizeConfigTypeTag(tag: string): string {
+	if (/[@/]/.test(tag) || !tag.includes('::')) {
+		return tag;
+	}
+	try {
+		return normalizeStructTag(tag);
+	} catch {
+		return tag;
+	}
+}
+
+export function resolveConfigArgument(
 	value: ConfigValue | undefined,
 	ctx: ConfigResolverContext,
 	name: string,
@@ -221,7 +245,22 @@ export function resolveConfigArg(
 		);
 	}
 
-	return typeof value === 'function' ? value(ctx) : value;
+	if (typeof value !== 'function') {
+		return value;
+	}
+
+	const resolved = value({
+		...ctx,
+		typeArguments: ctx.typeArguments.map(normalizeConfigTypeTag),
+	});
+
+	if (resolved == null) {
+		throw new __ERROR_CLASS__(
+			\`Config resolver for "\${name}" returned \${resolved} (\${ctx.moduleName}::\${ctx.functionName}, typeArguments: [\${ctx.typeArguments.join(', ')}])\`,
+		);
+	}
+
+	return resolved;
 }
 
 /**
@@ -234,9 +273,17 @@ export function applyConfigArguments<T extends object | unknown[]>(
 ): T {
 	if (Array.isArray(args)) {
 		const result = [...args];
+		const matchedIndexes = new Set(defaults.map((entry) => entry.index));
 		for (const entry of defaults) {
 			if (result[entry.index] === undefined) {
 				result[entry.index] = entry.resolve();
+			}
+		}
+		// Filling a trailing config-mapped position can extend the array past positions the
+		// caller omitted; catch those holes here rather than failing deep inside serialization.
+		for (let i = 0; i < result.length; i++) {
+			if (result[i] === undefined && !matchedIndexes.has(i)) {
+				throw new __ERROR_CLASS__(\`Missing argument at position \${i}\`);
 			}
 		}
 		return result as T;
@@ -244,8 +291,18 @@ export function applyConfigArguments<T extends object | unknown[]>(
 
 	const result: Record<string, unknown> = { ...args };
 	for (const entry of defaults) {
-		if (entry.name !== undefined && result[entry.name] === undefined) {
-			result[entry.name] = entry.resolve();
+		if (entry.name === undefined) {
+			continue;
+		}
+		// Own-property check so inherited properties (e.g. a key named "constructor") are never
+		// mistaken for explicitly passed arguments.
+		if (!Object.prototype.hasOwnProperty.call(result, entry.name) || result[entry.name] === undefined) {
+			Object.defineProperty(result, entry.name, {
+				value: entry.resolve(),
+				enumerable: true,
+				writable: true,
+				configurable: true,
+			});
 		}
 	}
 	return result as T;

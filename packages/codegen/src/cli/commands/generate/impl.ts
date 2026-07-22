@@ -49,6 +49,30 @@ export default async function generate(
 				})
 			: config.packages;
 
+	// Package entries in any configArguments block must reference a package in this run — a typo'd
+	// name would otherwise silently never apply.
+	const knownPackageNames = new Set(normalizedPackages.map((p) => p.package));
+	const configArgumentBlocks = [
+		config.configArguments ?? {},
+		...normalizedPackages.map((p) => ('configArguments' in p ? (p.configArguments ?? {}) : {})),
+	];
+	for (const block of configArgumentBlocks) {
+		for (const [key, matcher] of Object.entries(block)) {
+			if ('package' in matcher && !knownPackageNames.has(matcher.package)) {
+				throw new Error(
+					`configArguments.${key} references package "${matcher.package}", which is not part of ` +
+						`this codegen run (packages: ${[...knownPackageNames].join(', ')})`,
+				);
+			}
+		}
+	}
+
+	const globalTypeConfigKeys = Object.entries(config.configArguments ?? {})
+		.filter(([, matcher]) => 'type' in matcher)
+		.map(([key]) => key);
+	const unresolvedConfigKeysByPackage: Set<string>[] = [];
+	const unusedConfigKeysByPackage: Set<string>[] = [];
+
 	const generateSummaries =
 		flags.noSummaries === undefined ? config.generateSummaries : !flags.noSummaries;
 
@@ -141,7 +165,7 @@ export default async function generate(
 					}
 				: config.generate;
 
-		await generateFromPackageSummary({
+		const result = await generateFromPackageSummary({
 			package: pkgWithOverrides,
 			prune: flags.noPrune === undefined ? config.prune : !flags.noPrune,
 			outputDir: flags.outputDir ?? config.output,
@@ -151,5 +175,31 @@ export default async function generate(
 			errorClass: config.errorClass,
 			configArguments: config.configArguments,
 		});
+
+		unresolvedConfigKeysByPackage.push(new Set(result.unresolvedConfigKeys));
+		unusedConfigKeysByPackage.push(new Set(result.unusedConfigKeys));
+	}
+
+	if (unresolvedConfigKeysByPackage.length === 0) {
+		return;
+	}
+
+	// Per-package unresolved global keys are only warnings (they may belong to another package in
+	// the run), but a global key that resolved nowhere — or matched nothing anywhere — is a
+	// misconfiguration for the run as a whole.
+	for (const key of globalTypeConfigKeys) {
+		if (unresolvedConfigKeysByPackage.every((keys) => keys.has(key))) {
+			throw new Error(
+				`configArguments.${key} did not resolve in any package in this codegen run — check the matcher type for typos`,
+			);
+		}
+		const usedSomewhere = unresolvedConfigKeysByPackage.some(
+			(unresolved, i) => !unresolved.has(key) && !unusedConfigKeysByPackage[i].has(key),
+		);
+		if (!usedSomewhere) {
+			console.warn(
+				`configArguments.${key} matched no generated function parameters in any package in this codegen run`,
+			);
+		}
 	}
 }

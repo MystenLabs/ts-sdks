@@ -10,6 +10,7 @@ import { ModuleRegistry } from '../src/module-registry.js';
 import { MoveModuleBuilder } from '../src/move-module-builder.js';
 import { parseConfigArguments } from '../src/config-arguments.js';
 import { generateFromPackageSummary } from '../src/index.js';
+import { configArgumentsSchema } from '../src/config.js';
 import type { ConfigArguments } from '../src/config.js';
 
 const FIXTURE_PATH = join(__dirname, 'move/testpkg');
@@ -35,7 +36,7 @@ async function createBuilders(configArguments: ConfigArguments, packageConfigKey
 		'@test/testpkg',
 	);
 
-	const { entries } = parseConfigArguments(configArguments, registry);
+	const { entries } = parseConfigArguments({ global: configArguments }, registry);
 	counter.setConfigArguments(entries, packageConfigKey);
 	registryBuilder.setConfigArguments(entries, packageConfigKey);
 
@@ -49,7 +50,8 @@ async function render(builder: MoveModuleBuilder) {
 
 /**
  * A synthetic module with a generic `Pool<phantom T>` type used by functions in generic,
- * concretely-instantiated, and same-type-twice positions.
+ * concretely-instantiated, and same-type-twice positions, plus a `Coin` type used as a concrete
+ * own-package type argument.
  */
 function poolsSummary({ parameterNames = true }: { parameterNames?: boolean } = {}) {
 	const poolType = (typeArgument: unknown) => ({
@@ -66,6 +68,9 @@ function poolsSummary({ parameterNames = true }: { parameterNames?: boolean } = 
 	});
 	const suiType = {
 		Datatype: { module: { address: 'sui', name: 'sui' }, name: 'SUI', type_arguments: [] },
+	};
+	const ownCoinType = {
+		Datatype: { module: { address: 'testpkg', name: 'pools' }, name: 'Coin', type_arguments: [] },
 	};
 	const param = (name: string, type_: unknown) => (parameterNames ? { name, type_ } : { type_ });
 	const fn = (parameters: unknown[], type_parameters: unknown[] = []) => ({
@@ -92,6 +97,7 @@ function poolsSummary({ parameterNames = true }: { parameterNames?: boolean } = 
 				[{ name: 'T', phantom: false, constraints: [] }],
 			),
 			use_concrete: fn([param('pool', poolType(suiType)), param('amount', 'u64')]),
+			use_own_coin: fn([param('pool', poolType(ownCoinType)), param('amount', 'u64')]),
 			swap: fn(
 				[
 					param('base_pool', poolType({ TypeParameter: 0 })),
@@ -115,6 +121,17 @@ function poolsSummary({ parameterNames = true }: { parameterNames?: boolean } = 
 					fields: { id: { index: 0, doc: null, type_: 'address' } },
 				},
 			},
+			Coin: {
+				index: 1,
+				doc: '',
+				attributes: [],
+				abilities: ['Store'],
+				type_parameters: [],
+				fields: {
+					positional_fields: false,
+					fields: { value: { index: 0, doc: null, type_: 'u64' } },
+				},
+			},
 		},
 		enums: {},
 	};
@@ -122,7 +139,7 @@ function poolsSummary({ parameterNames = true }: { parameterNames?: boolean } = 
 
 function createPoolsBuilder(
 	configArguments: ConfigArguments,
-	options: { parameterNames?: boolean } = {},
+	options: { parameterNames?: boolean; typeOrigins?: Record<string, string> } = {},
 ) {
 	const registry = new ModuleRegistry(ADDRESS_MAPPINGS);
 	const builder = new MoveModuleBuilder({
@@ -130,11 +147,33 @@ function createPoolsBuilder(
 		registry,
 		mvrNameOrAddress: '@test/testpkg',
 		importExtension: '.js',
+		typeOrigins: options.typeOrigins,
 	});
-	const { entries } = parseConfigArguments(configArguments, registry);
+	const { entries } = parseConfigArguments({ global: configArguments }, registry);
 	builder.setConfigArguments(entries);
 	return builder;
 }
+
+describe('configArguments schema', () => {
+	it('rejects prototype-polluting keys', () => {
+		// zod itself drops `__proto__` record keys; the others are rejected by the key schema.
+		expect(
+			Object.keys(configArgumentsSchema.parse({ ['__proto__']: { type: '0x2::sui::SUI' } })),
+		).toEqual([]);
+		expect(() =>
+			configArgumentsSchema.parse({ constructor: { type: '0x2::sui::SUI' } }),
+		).toThrowError(/prototype property names/);
+		expect(() =>
+			configArgumentsSchema.parse({ prototype: { type: '0x2::sui::SUI' } }),
+		).toThrowError(/prototype property names/);
+	});
+
+	it('rejects matchers mixing type and package', () => {
+		expect(() =>
+			configArgumentsSchema.parse({ both: { type: '0x2::sui::SUI', package: '@x/y' } }),
+		).toThrowError();
+	});
+});
 
 describe('parseConfigArguments', () => {
 	it('parses type, instantiated type, and package matchers', async () => {
@@ -148,9 +187,11 @@ describe('parseConfigArguments', () => {
 
 		const { entries, unresolvedKeys } = parseConfigArguments(
 			{
-				pool: { type: 'testpkg::pools::Pool' },
-				suiPool: { type: 'testpkg::pools::Pool<0x2::sui::SUI>' },
-				pkg: { package: '@test/testpkg' },
+				global: {
+					pool: { type: 'testpkg::pools::Pool' },
+					suiPool: { type: 'testpkg::pools::Pool<0x2::sui::SUI>' },
+					pkg: { package: '@test/testpkg' },
+				},
 			},
 			registry,
 		);
@@ -160,6 +201,7 @@ describe('parseConfigArguments', () => {
 			{
 				kind: 'type',
 				key: 'pool',
+				source: 'global',
 				module: 'pools',
 				name: 'Pool',
 				typeArguments: null,
@@ -184,7 +226,36 @@ describe('parseConfigArguments', () => {
 		]);
 	});
 
-	it('reports matchers for types that are not in the summaries as unresolved', async () => {
+	it('merges package-scoped entries over global entries per key', async () => {
+		const registry = new ModuleRegistry(ADDRESS_MAPPINGS);
+		new MoveModuleBuilder({
+			summary: poolsSummary() as any,
+			registry,
+			mvrNameOrAddress: '@test/testpkg',
+			importExtension: '.js',
+		});
+
+		const { entries } = parseConfigArguments(
+			{
+				global: {
+					pool: { type: 'testpkg::pools::Pool' },
+					coin: { type: 'testpkg::pools::Coin' },
+				},
+				package: {
+					pool: { type: 'testpkg::pools::Pool<0x2::sui::SUI>' },
+				},
+			},
+			registry,
+		);
+
+		// Map insertion order keeps the global position for overridden keys.
+		expect(entries).toMatchObject([
+			{ key: 'pool', source: 'package', typeArguments: [{ datatype: { name: 'SUI' } }] },
+			{ key: 'coin', source: 'global', typeArguments: [] },
+		]);
+	});
+
+	it('reports global matchers for types that are not in the summaries as unresolved', async () => {
 		const registry = new ModuleRegistry(ADDRESS_MAPPINGS);
 		new MoveModuleBuilder({
 			summary: poolsSummary() as any,
@@ -195,9 +266,11 @@ describe('parseConfigArguments', () => {
 
 		const { entries, unresolvedKeys } = parseConfigArguments(
 			{
-				missingType: { type: 'testpkg::pools::DoesNotExist' },
-				missingModule: { type: '0x999::other::Thing' },
-				pool: { type: 'testpkg::pools::Pool' },
+				global: {
+					missingType: { type: 'testpkg::pools::DoesNotExist' },
+					missingModule: { type: '0x999::other::Thing' },
+					pool: { type: 'testpkg::pools::Pool' },
+				},
 			},
 			registry,
 		);
@@ -206,15 +279,68 @@ describe('parseConfigArguments', () => {
 		expect(entries.map((entry) => entry.key)).toEqual(['pool']);
 	});
 
+	it('errors for package-scoped matchers whose type is not in the summaries', async () => {
+		const registry = new ModuleRegistry(ADDRESS_MAPPINGS);
+		new MoveModuleBuilder({
+			summary: poolsSummary() as any,
+			registry,
+			mvrNameOrAddress: '@test/testpkg',
+			importExtension: '.js',
+		});
+
+		expect(() =>
+			parseConfigArguments(
+				{ package: { missing: { type: 'testpkg::pools::DoesNotExist' } } },
+				registry,
+			),
+		).toThrowError(/was not found in this package's summaries/);
+	});
+
 	it('rejects malformed matcher types', async () => {
 		const registry = new ModuleRegistry(ADDRESS_MAPPINGS);
+		new MoveModuleBuilder({
+			summary: poolsSummary() as any,
+			registry,
+			mvrNameOrAddress: '@test/testpkg',
+			importExtension: '.js',
+		});
 
-		expect(() => parseConfigArguments({ bad: { type: 'Pool' } }, registry)).toThrowError(
-			/Expected a fully-qualified Move type/,
+		const parse = (type: string) => parseConfigArguments({ global: { bad: { type } } }, registry);
+
+		expect(() => parse('Pool')).toThrowError(/Expected a fully-qualified Move type/);
+		expect(() => parse('u64')).toThrowError(/must be a Move datatype/);
+		expect(() => parse('testpkg::pools::Pool<0x2::sui::SUI>>')).toThrowError(/unbalanced '>'/);
+		expect(() => parse('testpkg::pools::Pool<0x2::sui::SUI')).toThrowError(/unbalanced '</);
+		expect(() => parse('testpkg::pools::Coin<>')).toThrowError(/empty type argument/);
+		expect(() => parse('testpkg::pools::Pool <0x2::sui::SUI>')).toThrowError(
+			/is not a valid module::type pair/,
 		);
-		expect(() => parseConfigArguments({ bad: { type: 'u64' } }, registry)).toThrowError(
-			/must be a Move datatype/,
+		expect(() => parse('testpkg::pools::Pool<2::sui::SUI>')).toThrowError(/Invalid address "2"/);
+		expect(() => parse('@test/testpkg::pools::Pool')).toThrowError(
+			/MVR names cannot be matched against package summaries/,
 		);
+	});
+
+	it('rejects partially instantiated matchers with a dedicated error', async () => {
+		const registry = new ModuleRegistry(ADDRESS_MAPPINGS);
+		new MoveModuleBuilder({
+			summary: poolsSummary() as any,
+			registry,
+			mvrNameOrAddress: '@test/testpkg',
+			importExtension: '.js',
+		});
+
+		expect(() =>
+			parseConfigArguments({ global: { pool: { type: 'testpkg::pools::Pool<T>' } } }, registry),
+		).toThrowError(/partially instantiated matchers are not supported/);
+
+		// A nested uninstantiated generic is also a partial instantiation.
+		expect(() =>
+			parseConfigArguments(
+				{ global: { pool: { type: 'testpkg::pools::Pool<testpkg::pools::Pool>' } } },
+				registry,
+			),
+		).toThrowError(/Partially instantiated matchers are not supported/);
 	});
 
 	it('rejects instantiated matchers with the wrong arity', async () => {
@@ -228,7 +354,7 @@ describe('parseConfigArguments', () => {
 
 		expect(() =>
 			parseConfigArguments(
-				{ pool: { type: 'testpkg::pools::Pool<0x2::sui::SUI, u64>' } },
+				{ global: { pool: { type: 'testpkg::pools::Pool<0x2::sui::SUI, u64>' } } },
 				registry,
 			),
 		).toThrowError(/expects 1 type argument\(s\), got 2/);
@@ -236,7 +362,7 @@ describe('parseConfigArguments', () => {
 });
 
 describe('config-driven function codegen', () => {
-	it('non-generic matcher: matched parameter becomes optional with a required config slice', async () => {
+	it('non-generic matcher: matched parameter becomes optional with an optional config slice', async () => {
 		const { registry } = await createBuilders({
 			registryObj: { type: 'testpkg::registry::Registry' },
 		});
@@ -261,7 +387,7 @@ describe('config-driven function codegen', () => {
 			        name: RawTransactionArgument<string>,
 			        tags: RawTransactionArgument<Array<string>>
 			    ];
-			    config: {
+			    config?: {
 			        registryObj: ConfigValue;
 			    };
 			}"
@@ -281,13 +407,13 @@ describe('config-driven function codegen', () => {
 			        package: packageAddress,
 			        module: 'registry',
 			        function: 'register',
-			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments, [{ index: 0, name: "registry", resolve: () => resolveConfigArg(options.config.registryObj, { typeArguments: [] }, "registryObj") }]), argumentsTypes, parameterNames),
+			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments, [{ index: 0, name: "registry", resolve: () => resolveConfigArgument(options.config?.registryObj, { typeArguments: [], packageAddress, moduleName: 'registry', functionName: 'register', parameterName: "registry" }, "registryObj") }]), argumentsTypes, parameterNames),
 			    });
 			}"
 		`);
 	});
 
-	it('makes arguments optional when every parameter is config-matched', async () => {
+	it('makes arguments optional and the tuple suffix optional when every parameter is config-matched', async () => {
 		const { registry } = await createBuilders({
 			registryObj: { type: 'testpkg::registry::Registry' },
 		});
@@ -299,9 +425,9 @@ describe('config-driven function codegen', () => {
 			"export interface LookupOptions {
 			    package?: string;
 			    arguments?: LookupArguments | [
-			        registry: RawTransactionArgument<string> | undefined
+			        registry?: RawTransactionArgument<string>
 			    ];
-			    config: {
+			    config?: {
 			        registryObj: ConfigValue;
 			    };
 			}"
@@ -319,7 +445,7 @@ describe('config-driven function codegen', () => {
 			        package: packageAddress,
 			        module: 'registry',
 			        function: 'lookup',
-			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments ?? {}, [{ index: 0, name: "registry", resolve: () => resolveConfigArg(options.config.registryObj, { typeArguments: [] }, "registryObj") }]), argumentsTypes, parameterNames),
+			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments ?? {}, [{ index: 0, name: "registry", resolve: () => resolveConfigArgument(options.config?.registryObj, { typeArguments: [], packageAddress, moduleName: 'registry', functionName: 'lookup', parameterName: "registry" }, "registryObj") }]), argumentsTypes, parameterNames),
 			    });
 			}"
 		`);
@@ -337,9 +463,9 @@ describe('config-driven function codegen', () => {
 			"export interface ContainerSizeOptions {
 			    package?: string;
 			    arguments?: ContainerSizeArguments | [
-			        container: RawTransactionArgument<string> | undefined
+			        container?: RawTransactionArgument<string>
 			    ];
-			    config: {
+			    config?: {
 			        container: (ctx: ConfigResolverContext) => string | TransactionObjectArgument;
 			    };
 			    typeArguments: [
@@ -360,7 +486,7 @@ describe('config-driven function codegen', () => {
 			        package: packageAddress,
 			        module: 'registry',
 			        function: 'container_size',
-			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments ?? {}, [{ index: 0, name: "container", resolve: () => resolveConfigArg(options.config.container, { typeArguments: [\`\${options.typeArguments[0]}\`] }, "container") }]), argumentsTypes, parameterNames),
+			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments ?? {}, [{ index: 0, name: "container", resolve: () => resolveConfigArgument(options.config?.container, { typeArguments: [\`\${options.typeArguments[0]}\`], packageAddress, moduleName: 'registry', functionName: 'container_size', parameterName: "container" }, "container") }]), argumentsTypes, parameterNames),
 			        typeArguments: options.typeArguments
 			    });
 			}"
@@ -385,7 +511,7 @@ describe('config-driven function codegen', () => {
 			        pool: RawTransactionArgument<string> | undefined,
 			        amount: RawTransactionArgument<number | bigint>
 			    ];
-			    config: {
+			    config?: {
 			        suiPool: ConfigValue;
 			    };
 			}"
@@ -404,7 +530,7 @@ describe('config-driven function codegen', () => {
 			        package: packageAddress,
 			        module: 'pools',
 			        function: 'use_concrete',
-			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments, [{ index: 0, name: "pool", resolve: () => resolveConfigArg(options.config.suiPool, { typeArguments: ['0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI'] }, "suiPool") }]), argumentsTypes, parameterNames),
+			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments, [{ index: 0, name: "pool", resolve: () => resolveConfigArgument(options.config?.suiPool, { typeArguments: ['0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI'], packageAddress, moduleName: 'pools', functionName: 'use_concrete', parameterName: "pool" }, "suiPool") }]), argumentsTypes, parameterNames),
 			    });
 			}"
 		`);
@@ -419,7 +545,7 @@ describe('config-driven function codegen', () => {
 			        pool: RawTransactionArgument<string> | undefined,
 			        amount: RawTransactionArgument<number | bigint>
 			    ];
-			    config: {
+			    config?: {
 			        pool: (ctx: ConfigResolverContext) => string | TransactionObjectArgument;
 			    };
 			    typeArguments: [
@@ -441,14 +567,38 @@ describe('config-driven function codegen', () => {
 			        package: packageAddress,
 			        module: 'pools',
 			        function: 'use_generic',
-			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments, [{ index: 0, name: "pool", resolve: () => resolveConfigArg(options.config.pool, { typeArguments: [\`\${options.typeArguments[0]}\`] }, "pool") }]), argumentsTypes, parameterNames),
+			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments, [{ index: 0, name: "pool", resolve: () => resolveConfigArgument(options.config?.pool, { typeArguments: [\`\${options.typeArguments[0]}\`], packageAddress, moduleName: 'pools', functionName: 'use_generic', parameterName: "pool" }, "pool") }]), argumentsTypes, parameterNames),
 			        typeArguments: options.typeArguments
 			    });
 			}"
 		`);
 	});
 
-	it('errors when a bare matcher hits two parameters in one signature', async () => {
+	it('resolver context tags for own-package types use the package name, not the placeholder address', async () => {
+		const builder = createPoolsBuilder({
+			pool: { type: 'testpkg::pools::Pool' },
+		});
+		builder.includeFunctions(['use_own_coin']);
+		const output = await render(builder);
+
+		const fnBody = output.match(/export function useOwnCoin[\s\S]*?^}/m);
+		expect(fnBody?.[0]).toContain("typeArguments: ['@test/testpkg::pools::Coin']");
+	});
+
+	it('resolver context tags use origin addresses for upgraded packages', async () => {
+		const ORIGIN_V1 = '0x000000000000000000000000000000000000000000000000000000000000aaaa';
+		const builder = createPoolsBuilder(
+			{ pool: { type: 'testpkg::pools::Pool' } },
+			{ typeOrigins: { Coin: ORIGIN_V1 } },
+		);
+		builder.includeFunctions(['use_own_coin']);
+		const output = await render(builder);
+
+		const fnBody = output.match(/export function useOwnCoin[\s\S]*?^}/m);
+		expect(fnBody?.[0]).toContain(`typeArguments: ['${ORIGIN_V1}::pools::Coin']`);
+	});
+
+	it('errors when a bare matcher hits two named parameters in one signature', async () => {
 		const builder = createPoolsBuilder({
 			pool: { type: 'testpkg::pools::Pool' },
 		});
@@ -459,10 +609,75 @@ describe('config-driven function codegen', () => {
 		);
 	});
 
+	it('warns and skips config mapping when a bare matcher hits two nameless parameters', async () => {
+		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		try {
+			const builder = createPoolsBuilder(
+				{ pool: { type: 'testpkg::pools::Pool' } },
+				{ parameterNames: false },
+			);
+			builder.includeFunctions(['swap']);
+			const output = await render(builder);
+
+			expect(warn).toHaveBeenCalledWith(
+				expect.stringContaining('configArguments.pool matches multiple parameters'),
+			);
+			// swap is still generated, without config mapping.
+			const optionsInterface = output.match(/export interface SwapOptions[\s\S]*?^}/m);
+			expect(optionsInterface?.[0]).not.toContain('config');
+		} finally {
+			warn.mockRestore();
+		}
+	});
+
+	it('generates tuple-only bindings for nameless summaries with a matched parameter', async () => {
+		const builder = createPoolsBuilder(
+			{ pool: { type: 'testpkg::pools::Pool' } },
+			{ parameterNames: false },
+		);
+		builder.includeFunctions(['use_generic']);
+		const output = await render(builder);
+
+		const optionsInterface = output.match(/export interface UseGenericOptions[\s\S]*?^}/m);
+		expect(optionsInterface?.[0]).toMatchInlineSnapshot(`
+			"export interface UseGenericOptions {
+			    package?: string;
+			    arguments: [
+			        RawTransactionArgument<string> | undefined,
+			        RawTransactionArgument<number | bigint>
+			    ];
+			    config?: {
+			        pool: (ctx: ConfigResolverContext) => string | TransactionObjectArgument;
+			    };
+			    typeArguments: [
+			        string
+			    ];
+			}"
+		`);
+
+		const fnBody = output.match(/export function useGeneric[\s\S]*?^}/m);
+		expect(fnBody?.[0]).toMatchInlineSnapshot(`
+			"export function useGeneric(options: UseGenericOptions) {
+			    const packageAddress = options.package ?? '@test/testpkg';
+			    const argumentsTypes = [
+			        null,
+			        'u64'
+			    ] satisfies (string | null)[];
+			    return (tx: Transaction) => tx.moveCall({
+			        package: packageAddress,
+			        module: 'pools',
+			        function: 'use_generic',
+			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments, [{ index: 0, resolve: () => resolveConfigArgument(options.config?.pool, { typeArguments: [\`\${options.typeArguments[0]}\`], packageAddress, moduleName: 'pools', functionName: 'use_generic' }, "pool") }]), argumentsTypes),
+			        typeArguments: options.typeArguments
+			    });
+			}"
+		`);
+	});
+
 	it('name refinement disambiguates two parameters of the same type', async () => {
 		const builder = createPoolsBuilder({
-			basePool: { type: 'testpkg::pools::Pool', name: 'base_pool' },
-			quotePool: { type: 'testpkg::pools::Pool', name: 'quote_pool' },
+			basePool: { type: 'testpkg::pools::Pool', parameterName: 'base_pool' },
+			quotePool: { type: 'testpkg::pools::Pool', parameterName: 'quote_pool' },
 		});
 		builder.includeFunctions(['swap']);
 		const output = await render(builder);
@@ -472,10 +687,10 @@ describe('config-driven function codegen', () => {
 			"export interface SwapOptions {
 			    package?: string;
 			    arguments?: SwapArguments | [
-			        basePool: RawTransactionArgument<string> | undefined,
-			        quotePool: RawTransactionArgument<string> | undefined
+			        basePool?: RawTransactionArgument<string>,
+			        quotePool?: RawTransactionArgument<string>
 			    ];
-			    config: {
+			    config?: {
 			        basePool: (ctx: ConfigResolverContext) => string | TransactionObjectArgument;
 			        quotePool: (ctx: ConfigResolverContext) => string | TransactionObjectArgument;
 			    };
@@ -499,7 +714,7 @@ describe('config-driven function codegen', () => {
 			        package: packageAddress,
 			        module: 'pools',
 			        function: 'swap',
-			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments ?? {}, [{ index: 0, name: "basePool", resolve: () => resolveConfigArg(options.config.basePool, { typeArguments: [\`\${options.typeArguments[0]}\`] }, "basePool") }, { index: 1, name: "quotePool", resolve: () => resolveConfigArg(options.config.quotePool, { typeArguments: [\`\${options.typeArguments[1]}\`] }, "quotePool") }]), argumentsTypes, parameterNames),
+			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments ?? {}, [{ index: 0, name: "basePool", resolve: () => resolveConfigArgument(options.config?.basePool, { typeArguments: [\`\${options.typeArguments[0]}\`], packageAddress, moduleName: 'pools', functionName: 'swap', parameterName: "base_pool" }, "basePool") }, { index: 1, name: "quotePool", resolve: () => resolveConfigArgument(options.config?.quotePool, { typeArguments: [\`\${options.typeArguments[1]}\`], packageAddress, moduleName: 'pools', functionName: 'swap', parameterName: "quote_pool" }, "quotePool") }]), argumentsTypes, parameterNames),
 			        typeArguments: options.typeArguments
 			    });
 			}"
@@ -509,8 +724,8 @@ describe('config-driven function codegen', () => {
 	it('name-refined matchers win over a bare matcher for the same type', async () => {
 		const builder = createPoolsBuilder({
 			pool: { type: 'testpkg::pools::Pool' },
-			basePool: { type: 'testpkg::pools::Pool', name: 'base_pool' },
-			quotePool: { type: 'testpkg::pools::Pool', name: 'quote_pool' },
+			basePool: { type: 'testpkg::pools::Pool', parameterName: 'base_pool' },
+			quotePool: { type: 'testpkg::pools::Pool', parameterName: 'quote_pool' },
 		});
 		builder.includeFunctions(['swap', 'use_generic']);
 		const output = await render(builder);
@@ -537,16 +752,47 @@ describe('config-driven function codegen', () => {
 		);
 	});
 
-	it('errors when a name matcher targets a summary without parameter names', async () => {
+	it('errors when a name matcher would apply to a nameless parameter and nothing else matches', async () => {
 		const builder = createPoolsBuilder(
-			{ basePool: { type: 'testpkg::pools::Pool', name: 'base_pool' } },
+			{ basePool: { type: 'testpkg::pools::Pool', parameterName: 'base_pool' } },
 			{ parameterNames: false },
 		);
 		builder.includeFunctions(['swap']);
 
 		await expect(render(builder)).rejects.toThrowError(
-			/parameters of testpkg::pools::swap have no names/,
+			/parameters have no names \(bytecode summaries do not include parameter names\)/,
 		);
+	});
+
+	it('does not error for a name matcher whose instantiation cannot match the nameless parameter', async () => {
+		// The instantiated+named matcher targets Pool<SUI>; use_own_coin's parameter is
+		// Pool<Coin>, so the matcher is filtered by instantiation before the nameless check.
+		const builder = createPoolsBuilder(
+			{
+				suiPool: { type: 'testpkg::pools::Pool<0x2::sui::SUI>', parameterName: 'sui_pool' },
+			},
+			{ parameterNames: false },
+		);
+		builder.includeFunctions(['use_own_coin']);
+		const output = await render(builder);
+
+		const optionsInterface = output.match(/export interface UseOwnCoinOptions[\s\S]*?^}/m);
+		expect(optionsInterface?.[0]).not.toContain('config');
+	});
+
+	it('falls back to a bare matcher instead of erroring when a name matcher hits a nameless parameter', async () => {
+		const builder = createPoolsBuilder(
+			{
+				pool: { type: 'testpkg::pools::Pool' },
+				basePool: { type: 'testpkg::pools::Pool', parameterName: 'base_pool' },
+			},
+			{ parameterNames: false },
+		);
+		builder.includeFunctions(['use_generic']);
+		const output = await render(builder);
+
+		const optionsInterface = output.match(/export interface UseGenericOptions[\s\S]*?^}/m);
+		expect(optionsInterface?.[0]).toContain('pool:');
 	});
 
 	it('package entries are added to the package-address precedence chain', async () => {
@@ -562,7 +808,7 @@ describe('config-driven function codegen', () => {
 
 		const fnBody = output.match(/export function lookup[\s\S]*?^}/m);
 		expect(fnBody?.[0]).toContain(
-			"const packageAddress = options.package ?? options.config.testpkgAddress ?? '@test/testpkg';",
+			"const packageAddress = options.package ?? options.config?.testpkgAddress ?? '@test/testpkg';",
 		);
 	});
 
@@ -606,8 +852,10 @@ describe('config-driven function codegen', () => {
 		);
 		const { entries } = parseConfigArguments(
 			{
-				registryObj: { type: 'testpkg::registry::Registry' },
-				testpkgAddress: { package: '@test/testpkg' },
+				global: {
+					registryObj: { type: 'testpkg::registry::Registry' },
+					testpkgAddress: { package: '@test/testpkg' },
+				},
 			},
 			registry,
 		);
@@ -620,7 +868,7 @@ describe('config-driven function codegen', () => {
 		// BCS type names keep the origin address; the call package comes from the config chain.
 		expect(output).toContain(`name: \`${ORIGIN_V1}::registry::Registry\``);
 		expect(output).toContain(
-			"const packageAddress = options.package ?? options.config.testpkgAddress ?? '@test/testpkg';",
+			"const packageAddress = options.package ?? options.config?.testpkgAddress ?? '@test/testpkg';",
 		);
 	});
 });
@@ -636,31 +884,38 @@ describe('generateFromPackageSummary with configArguments', () => {
 
 	async function generate() {
 		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-		await generateFromPackageSummary({
+		const result = await generateFromPackageSummary({
 			package: {
 				package: '@test/testpkg',
 				path: FIXTURE_PATH,
-				configArguments: {
-					registryObj: { type: 'testpkg::registry::Registry' },
-					container: { type: 'testpkg::registry::Container' },
-					testpkgAddress: { package: '@test/testpkg' },
-					missing: { type: 'testpkg::registry::DoesNotExist' },
-				},
 			},
 			prune: true,
 			outputDir: GENERATED_DIR,
+			configArguments: {
+				registryObj: { type: 'testpkg::registry::Registry' },
+				container: { type: 'testpkg::registry::Container' },
+				testpkgAddress: { package: '@test/testpkg' },
+				missing: { type: 'testpkg::registry::DoesNotExist' },
+				unusedEntry: { type: 'testpkg::registry::Entry' },
+			},
 		});
-		return warn;
+		return { warn, result };
 	}
 
-	it('emits config-args.ts and config-driven bindings, warning on unresolved keys', async () => {
-		const warn = await generate();
+	it('emits config-arguments.ts and config-driven bindings, reporting unresolved and unused keys', async () => {
+		const { warn, result } = await generate();
 
 		expect(warn).toHaveBeenCalledWith(
 			'configArguments keys not resolvable in @test/testpkg (skipped): missing',
 		);
+		expect(result.unresolvedConfigKeys).toEqual(['missing']);
+		// Entry is a plain store struct that no generated function takes as a parameter.
+		expect(result.unusedConfigKeys).toEqual(['unusedEntry']);
 
-		const configArgs = await readFile(join(GENERATED_DIR, 'testpkg', 'config-args.ts'), 'utf-8');
+		const configArgs = await readFile(
+			join(GENERATED_DIR, 'testpkg', 'config-arguments.ts'),
+			'utf-8',
+		);
 		expect(configArgs).toMatchInlineSnapshot(`
 			"/**************************************************************
 			 * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
@@ -671,12 +926,50 @@ describe('generateFromPackageSummary with configArguments', () => {
 			    registryObj: ConfigValue;
 			    container: (ctx: ConfigResolverContext) => string | TransactionObjectArgument;
 			    testpkgAddress?: string;
+			    unusedEntry: ConfigValue;
 			}"
 		`);
 
 		const registryModule = await readFile(join(GENERATED_DIR, 'testpkg', 'registry.ts'), 'utf-8');
 		expect(registryModule).toContain('applyConfigArguments');
-		expect(registryModule).toContain('resolveConfigArg');
+		expect(registryModule).toContain('resolveConfigArgument');
+	});
+
+	it('errors for unresolved keys in a package-scoped block', async () => {
+		await expect(
+			generateFromPackageSummary({
+				package: {
+					package: '@test/testpkg',
+					path: FIXTURE_PATH,
+					configArguments: {
+						missing: { type: 'testpkg::registry::DoesNotExist' },
+					},
+				},
+				prune: true,
+				outputDir: GENERATED_DIR,
+			}),
+		).rejects.toThrowError(/was not found in this package's summaries/);
+	});
+
+	it('warns for unused keys in a package-scoped block', async () => {
+		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		await generateFromPackageSummary({
+			package: {
+				package: '@test/testpkg',
+				path: FIXTURE_PATH,
+				configArguments: {
+					unusedEntry: { type: 'testpkg::registry::Entry' },
+				},
+			},
+			prune: true,
+			outputDir: GENERATED_DIR,
+		});
+
+		expect(warn).toHaveBeenCalledWith(
+			expect.stringContaining(
+				'configArguments keys that matched no generated function parameters in @test/testpkg: unusedEntry',
+			),
+		);
 	});
 
 	it('generated output typechecks under strict settings', { timeout: 60_000 }, async () => {
@@ -744,7 +1037,7 @@ describe('generateFromPackageSummary with configArguments', () => {
 		expect(json.inputs).toEqual([{ UnresolvedObject: { objectId: REGISTRY_ID } }]);
 		expect(json.commands[0].MoveCall.package).toBe(PACKAGE_ID);
 
-		// An explicitly passed argument overrides config resolution.
+		// An explicitly passed argument overrides config resolution (object form).
 		const OVERRIDE_ID = '0x0000000000000000000000000000000000000000000000000000000000000456';
 		const tx2 = new Transaction();
 		tx2.add(
@@ -760,9 +1053,46 @@ describe('generateFromPackageSummary with configArguments', () => {
 		);
 		const json2 = JSON.parse(await tx2.toJSON());
 		expect(json2.inputs).toEqual([{ UnresolvedObject: { objectId: OVERRIDE_ID } }]);
+
+		// Tuple form: an empty tuple resolves from config, an explicit tuple element overrides.
+		const tx3 = new Transaction();
+		tx3.add(
+			mod.lookup({
+				arguments: [],
+				config: { registryObj: REGISTRY_ID, testpkgAddress: PACKAGE_ID },
+			}),
+		);
+		const json3 = JSON.parse(await tx3.toJSON());
+		expect(json3.inputs).toEqual([{ UnresolvedObject: { objectId: REGISTRY_ID } }]);
+
+		const tx4 = new Transaction();
+		tx4.add(
+			mod.lookup({
+				arguments: [OVERRIDE_ID],
+				config: {
+					registryObj: () => {
+						throw new Error('should not be called');
+					},
+					testpkgAddress: PACKAGE_ID,
+				},
+			}),
+		);
+		const json4 = JSON.parse(await tx4.toJSON());
+		expect(json4.inputs).toEqual([{ UnresolvedObject: { objectId: OVERRIDE_ID } }]);
 	});
 
-	it('resolvers receive the matched parameter instantiation at runtime', async () => {
+	it('omitting both the argument and the config value fails with a descriptive error', async () => {
+		await generate();
+
+		const mod = await import(join(GENERATED_DIR, 'testpkg', 'registry.js'));
+		const tx = new Transaction();
+
+		expect(() => tx.add(mod.lookup({}))).toThrowError(
+			'Missing config value for "registryObj": pass it explicitly in arguments, or include it in the config object',
+		);
+	});
+
+	it('resolvers receive the normalized matched parameter instantiation and call-site metadata', async () => {
 		await generate();
 
 		const mod = await import(join(GENERATED_DIR, 'testpkg', 'registry.js'));
@@ -785,7 +1115,17 @@ describe('generateFromPackageSummary with configArguments', () => {
 		);
 		const json = JSON.parse(await tx.toJSON());
 
-		expect(contexts).toEqual([{ typeArguments: ['0x2::sui::SUI'] }]);
+		expect(contexts).toEqual([
+			{
+				typeArguments: [
+					'0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI',
+				],
+				packageAddress: PACKAGE_ID,
+				moduleName: 'registry',
+				functionName: 'container_size',
+				parameterName: 'container',
+			},
+		]);
 		expect(json.inputs).toEqual([{ UnresolvedObject: { objectId: CONTAINER_ID } }]);
 	});
 });

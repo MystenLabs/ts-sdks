@@ -33,9 +33,11 @@ export const moduleGenerateSchema = z.object({
 });
 
 const IDENTIFIER = /^[A-Za-z_$][\w$]*$/;
+/** Keys that would collide with `Object.prototype` or mutate prototypes on plain objects. */
+const FORBIDDEN_CONFIG_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
 export const configArgumentMatcherSchema = z.union([
-	z.object({
+	z.strictObject({
 		/**
 		 * Fully-qualified Move type to match function parameters against, e.g.
 		 * `0x...::margin_registry::MarginRegistry`. A generic type written without type arguments
@@ -49,9 +51,9 @@ export const configArgumentMatcherSchema = z.union([
 		 * matched type. Only supported for summaries generated from local packages (bytecode
 		 * summaries do not include parameter names).
 		 */
-		name: z.string().optional(),
+		parameterName: z.string().optional(),
 	}),
-	z.object({
+	z.strictObject({
 		/**
 		 * Package entry, keyed by the package's name/MVR name from the `packages` config. Adds an
 		 * optional config key that overrides the package address used for generated calls.
@@ -61,10 +63,15 @@ export const configArgumentMatcherSchema = z.union([
 ]);
 
 export const configArgumentsSchema = z.record(
-	z.string().regex(IDENTIFIER, {
-		message:
-			'configArguments keys become properties of the generated config interface and must be valid identifiers',
-	}),
+	z
+		.string()
+		.regex(IDENTIFIER, {
+			message:
+				'configArguments keys become properties of the generated config interface and must be valid identifiers',
+		})
+		.refine((key) => !FORBIDDEN_CONFIG_KEYS.has(key), {
+			message: 'configArguments keys must not be prototype property names',
+		}),
 	configArgumentMatcherSchema,
 );
 

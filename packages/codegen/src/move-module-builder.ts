@@ -23,7 +23,7 @@ import {
 	parseTS,
 	withComment,
 } from './utils.js';
-import type { Fields, ModuleSummary, Type, TypeParameter } from './types/summary.js';
+import type { Datatype, Fields, ModuleSummary, Type, TypeParameter } from './types/summary.js';
 import type { FunctionsOption, ImportExtension, TypesOption } from './config.js';
 import { join } from 'node:path';
 import { isValidSuiObjectId } from '@mysten/sui/utils';
@@ -38,7 +38,7 @@ const IMPORT_MAP = {
 	MoveEnum: { module: '~outputRoot/utils/index', isType: false },
 	normalizeMoveArguments: { module: '~outputRoot/utils/index', isType: false },
 	RawTransactionArgument: { module: '~outputRoot/utils/index', isType: true },
-	resolveConfigArg: { module: '~outputRoot/utils/index', isType: false },
+	resolveConfigArgument: { module: '~outputRoot/utils/index', isType: false },
 	applyConfigArguments: { module: '~outputRoot/utils/index', isType: false },
 	ConfigValue: { module: '~outputRoot/utils/index', isType: true },
 	ConfigResolverContext: { module: '~outputRoot/utils/index', isType: true },
@@ -62,6 +62,8 @@ export class MoveModuleBuilder extends FileBuilder {
 	#includePhantomTypeParameters: boolean;
 	#configArguments: ParsedConfigArgument[] = [];
 	#packageConfigKey?: string;
+	/** Config keys that matched at least one parameter of a rendered function. */
+	readonly usedConfigKeys = new Set<string>();
 
 	constructor({
 		mvrNameOrAddress,
@@ -162,6 +164,34 @@ export class MoveModuleBuilder extends FileBuilder {
 	setConfigArguments(entries: ParsedConfigArgument[], packageConfigKey?: string) {
 		this.#configArguments = entries;
 		this.#packageConfigKey = packageConfigKey;
+	}
+
+	/**
+	 * The address this module's generated type tags use for `name`: the type-origin address when
+	 * known, otherwise the same address BCS type names use (MVR name / root package id / resolved
+	 * summary address).
+	 */
+	getTypeTagAddress(name: string): string {
+		const origin = this.#typeOrigins?.[name];
+		if (origin) {
+			return origin;
+		}
+		const moduleTypeName = this.#getModuleTypeName();
+		return moduleTypeName.startsWith('0x') || /[@/]/.test(moduleTypeName)
+			? moduleTypeName
+			: this.#resolveAddress(moduleTypeName);
+	}
+
+	/**
+	 * Address for a datatype appearing in a resolver-context type tag: delegate to the defining
+	 * module's builder so origins and MVR names match generated BCS type names.
+	 */
+	#getResolverTagAddress(datatype: Datatype): string {
+		const builder = this.registry.getBuilder(datatype.module.address, datatype.module.name);
+		if (builder) {
+			return builder.getTypeTagAddress(datatype.name);
+		}
+		return this.#resolveAddress(datatype.module.address);
 	}
 
 	override async getHeader() {
@@ -579,7 +609,7 @@ export class MoveModuleBuilder extends FileBuilder {
 			// object instead of being required arguments.
 			const configMatches = new Map<number, TypeConfigArgument>();
 			if (this.#configArguments.length > 0) {
-				const bareMatches = new Map<string, string[]>();
+				const bareMatches = new Map<string, number[]>();
 				requiredParameters.forEach((param, i) => {
 					const match = findConfigArgumentMatch(param, this.#configArguments, {
 						resolveAddress: (address) => this.#resolveAddress(address),
@@ -587,20 +617,33 @@ export class MoveModuleBuilder extends FileBuilder {
 					});
 					if (!match) return;
 					configMatches.set(i, match);
-					if (!match.paramName) {
-						bareMatches.set(match.key, [
-							...(bareMatches.get(match.key) ?? []),
-							param.name ?? `#${i}`,
-						]);
+					if (!match.parameterName) {
+						bareMatches.set(match.key, [...(bareMatches.get(match.key) ?? []), i]);
 					}
 				});
 				for (const [key, matched] of bareMatches) {
 					if (matched.length > 1) {
-						throw new Error(
-							`configArguments.${key} matches multiple parameters of ${functionLabel} (${matched.join(', ')}). ` +
-								`Add a \`name\` refinement to disambiguate.`,
+						if (matched.every((i) => requiredParameters[i].name)) {
+							throw new Error(
+								`configArguments.${key} matches multiple parameters of ${functionLabel} (${matched
+									.map((i) => requiredParameters[i].name)
+									.join(', ')}). Add a \`parameterName\` refinement to disambiguate.`,
+							);
+						}
+						// Bytecode summaries have no parameter names, so refinement is impossible —
+						// skip config mapping for this function instead of failing the run.
+						console.warn(
+							`configArguments.${key} matches multiple parameters of ${functionLabel}, which cannot ` +
+								`be disambiguated because its parameters have no names. Config mapping is skipped ` +
+								`for this function.`,
 						);
+						for (const i of matched) {
+							configMatches.delete(i);
+						}
 					}
+				}
+				for (const match of configMatches.values()) {
+					this.usedConfigKeys.add(match.key);
 				}
 			}
 			const hasConfigMatches = configMatches.size > 0;
@@ -648,14 +691,21 @@ export class MoveModuleBuilder extends FileBuilder {
 				)
 				.join(',\n');
 
-			// Tuple items: optional tuple elements can't precede required ones, so config-matched
-			// positions accept an explicit `undefined` instead.
+			// Tuple items: a config-matched suffix becomes genuinely optional tuple elements.
+			// Optional elements can't precede required ones, so matched positions followed by a
+			// required one accept an explicit `undefined` instead.
+			const lastUnmatchedIndex = renderedArgTypes.reduce(
+				(last, _, i) => (configMatches.has(i) ? last : i),
+				-1,
+			);
 			const argumentTupleItems = renderedArgTypes
 				.map((type, i) => {
+					const paramName = requiredParameters[i].name;
+					if (configMatches.has(i) && i > lastUnmatchedIndex) {
+						return paramName ? `${camelCase(paramName)}?: ${wrap(type)}` : `${wrap(type)}?`;
+					}
 					const itemType = configMatches.has(i) ? `${wrap(type)} | undefined` : wrap(type);
-					return requiredParameters[i].name
-						? `${camelCase(requiredParameters[i].name)}: ${itemType}`
-						: itemType;
+					return paramName ? `${camelCase(paramName)}: ${itemType}` : itemType;
 				})
 				.join(',\n');
 
@@ -716,8 +766,7 @@ export class MoveModuleBuilder extends FileBuilder {
 				configSliceFields.push(`${packageConfigKey}?: string`);
 			}
 
-			const argumentsOptional =
-				requiredParameters.length === 0 || requiredParameters.every((_, i) => configMatches.has(i));
+			const argumentsOptional = requiredParameters.every((_, i) => configMatches.has(i));
 
 			this.statements.push(
 				...parseTS /* ts */ `export interface ${optionsInterface}${genericTypes} {
@@ -729,7 +778,7 @@ export class MoveModuleBuilder extends FileBuilder {
 					},
 					${
 						configSliceFields.length > 0
-							? `config${hasConfigMatches ? '' : '?'}: {
+							? `config?: {
 								${configSliceFields.join(',\n')}
 							},`
 							: ''
@@ -759,10 +808,14 @@ export class MoveModuleBuilder extends FileBuilder {
 						summary: this.summary,
 						typeParameters: func.type_parameters,
 						registry: this.registry,
+						getDatatypeTagAddress: (datatype) => this.#getResolverTagAddress(datatype),
 					});
 					return tag.includes('${') ? `\`${tag}\`` : `'${tag}'`;
 				});
-				return `{ index: ${i}, ${param.name ? `name: ${JSON.stringify(camelCase(param.name))}, ` : ''}resolve: () => ${this.#getImportName('resolveConfigArg')}(options.config.${match.key}, { typeArguments: [${ctxTags.join(', ')}] }, ${JSON.stringify(match.key)}) }`;
+				const ctx = `{ typeArguments: [${ctxTags.join(', ')}], packageAddress, moduleName: '${this.summary.id.name}', functionName: '${name}'${
+					param.name ? `, parameterName: ${JSON.stringify(param.name)}` : ''
+				} }`;
+				return `{ index: ${i}, ${param.name ? `name: ${JSON.stringify(camelCase(param.name))}, ` : ''}resolve: () => ${this.#getImportName('resolveConfigArgument')}(options.config?.${match.key}, ${ctx}, ${JSON.stringify(match.key)}) }`;
 			});
 
 			const baseArgumentsExpr = `options.arguments${
@@ -779,9 +832,7 @@ export class MoveModuleBuilder extends FileBuilder {
 				: baseArgumentsExpr;
 
 			const packageAddressExpr = `options.package${
-				packageConfigKey
-					? ` ?? options.config${hasConfigMatches ? '' : '?'}.${packageConfigKey}`
-					: ''
+				packageConfigKey ? ` ?? options.config?.${packageConfigKey}` : ''
 			}${packageIsRequired ? '' : ` ?? '${this.#mvrNameOrAddress}'`}`;
 
 			this.statements.push(

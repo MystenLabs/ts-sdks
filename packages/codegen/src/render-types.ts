@@ -193,7 +193,14 @@ export function renderTypeSignature(type: Type, options: RenderTypeSignatureOpti
  */
 export function renderResolverTypeTag(
 	type: Type,
-	options: Pick<RenderTypeSignatureOptions, 'summary' | 'typeParameters' | 'registry'>,
+	options: Pick<RenderTypeSignatureOptions, 'summary' | 'typeParameters' | 'registry'> & {
+		/**
+		 * Overrides the address used for a concrete datatype (e.g. to use type-origin addresses or
+		 * MVR names consistent with generated BCS type names). Falls back to the registry's
+		 * address mapping.
+		 */
+		getDatatypeTagAddress?: (datatype: Datatype) => string;
+	},
 ): string {
 	if (typeof type === 'string') {
 		if (type === 'signer' || type === '_') {
@@ -225,7 +232,8 @@ export function renderResolverTypeTag(
 
 	if ('Datatype' in type) {
 		const { Datatype } = type;
-		const address = resolveAddress(options, Datatype.module.address);
+		const address =
+			options.getDatatypeTagAddress?.(Datatype) ?? resolveAddress(options, Datatype.module.address);
 		const base = `${address}::${Datatype.module.name}::${Datatype.name}`;
 		if (Datatype.type_arguments.length === 0) {
 			return base;

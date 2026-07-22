@@ -297,7 +297,7 @@ declare which Move types (or package addresses) come from a config object, and t
 functions accept that config object directly instead of requiring those arguments on every call.
 
 `configArguments` maps author-chosen keys to matchers. It can be declared globally (shared by all
-packages) or per package entry (merged over the global block):
+packages) or per package entry (merged over the global block, per key):
 
 ```typescript
 const config: SuiCodegenConfig = {
@@ -325,13 +325,23 @@ const config: SuiCodegenConfig = {
 ```
 
 Matcher addresses are resolved through the package's address mapping, so named addresses (for
-example, `myapp::registry::Registry`) also work.
+example, `myapp::registry::Registry`) also work. Partially instantiated matchers (for example,
+`Pool<T>` or a nested uninstantiated generic) are not supported — use an uninstantiated matcher with
+a resolver function instead.
+
+Misconfigured matchers are surfaced at generation time: malformed types, wrong arity, and
+package-scoped matchers whose type isn't in the package's summaries are hard errors. Global-block
+matchers that don't resolve in a package are skipped with a warning (a shared global block may span
+multiple packages in one run), and the CLI errors if a global key resolves in no package at all.
+Keys that resolve but never match any generated parameter produce a warning.
 
 ### Generated output
 
-For each function with matched parameters, the generated options gain a `config` property typed as
-the minimal slice of keys that function actually uses. Matched parameters become optional in
-`arguments` — passing one explicitly overrides config resolution:
+For each function with matched parameters, the generated options gain an optional `config` property
+typed as the minimal slice of keys that function actually uses. Matched parameters become optional
+in `arguments` — passing one explicitly overrides config resolution, and resolvers are only invoked
+for arguments the caller did not pass. If a matched argument is omitted and no config value is
+available, the call fails with a descriptive runtime error:
 
 ```typescript
 export interface BorrowOptions {
@@ -342,7 +352,7 @@ export interface BorrowOptions {
 				pool: RawTransactionArgument<string> | undefined,
 				amount: RawTransactionArgument<number | bigint>,
 		  ];
-	config: {
+	config?: {
 		pool: (ctx: ConfigResolverContext) => string | TransactionObjectArgument;
 		corePackageId?: string;
 	};
@@ -350,17 +360,34 @@ export interface BorrowOptions {
 }
 ```
 
-Config values can be a plain object ID, a transaction argument, or a resolver function. Resolver
-functions receive the matched parameter's own instantiated type arguments (not the whole function's
-type argument tuple), which makes them reusable across functions that use the type in different
-positions:
+In the tuple form of `arguments`, a matched position followed by a required one accepts an explicit
+`undefined`; a matched suffix (the common case — registry-style objects last) becomes genuinely
+optional trailing elements.
+
+Config values can be a plain object ID, a transaction argument, or a resolver function. Any function
+value is treated as a resolver — to provide a transaction-callback object argument dynamically,
+return it from a resolver: `(ctx) => (tx) => ...`. Resolvers receive the matched parameter's own
+instantiated type arguments (not the whole function's type argument tuple), plus static call-site
+metadata:
+
+```typescript
+export interface ConfigResolverContext {
+	typeArguments: string[]; // hex-addressed struct tags are normalized to their long form
+	packageAddress: string;
+	moduleName: string;
+	functionName: string;
+	parameterName?: string; // Move parameter name, when the summary includes names
+}
+```
+
+This makes resolvers reusable across functions that use the type in different positions:
 
 ```typescript
 const myConfig = {
 	registry: '0x123...',
 	pool: (ctx: ConfigResolverContext) => poolsByCoinType[ctx.typeArguments[0]],
 	corePackageId: '0xabc...',
-} satisfies MyappCoreConfig;
+} satisfies CoreConfig;
 
 tx.add(
 	borrow({
@@ -377,9 +404,15 @@ can't be correct across instantiations. A parameter typed with the function's ow
 matcher also exists; only parameters concretely instantiated in the Move signature bind to
 instantiated matchers.
 
-Each package output also includes a `config-args.ts` file with an interface covering every declared
-key (named after the package, for example `MyappCoreConfig`), for use with `satisfies` when defining
-your config object.
+Each package output also includes a `config-arguments.ts` file with an interface covering the
+package's resolvable keys and its own package-address key, for use with `satisfies` when defining
+your config object. The interface is named after the package's `packageName` (for example,
+`packageName: 'core'` produces `CoreConfig`). When a global block spans multiple packages, define
+one shared config object and check it against the intersection of the per-package interfaces:
+
+```typescript
+const myConfig = { ... } satisfies CoreConfig & MarginConfig;
+```
 
 ### Name refinement
 
@@ -389,13 +422,17 @@ Refine the matchers with the Move parameter names:
 
 ```typescript
 configArguments: {
-	basePool: { type: '0x...::pool::Pool', name: 'base_pool' },
-	quotePool: { type: '0x...::pool::Pool', name: 'quote_pool' },
+	basePool: { type: '0x...::pool::Pool', parameterName: 'base_pool' },
+	quotePool: { type: '0x...::pool::Pool', parameterName: 'quote_pool' },
 },
 ```
 
-Parameter names are only available in summaries generated from local packages — using a `name`
-matcher against an onchain package's bytecode summary is a generation-time error.
+Parameter names are only available in summaries generated from local packages. A `parameterName`
+matcher never matches a parameter without a name; if such a matcher would otherwise apply to a
+nameless parameter (same type and instantiation) and nothing else matches it, codegen fails with a
+clear error. When a bare matcher hits two parameters of a nameless (onchain bytecode) signature —
+where refinement is impossible — config mapping is skipped for that function with a warning instead
+of failing the run.
 
 ### Package address precedence
 
@@ -406,7 +443,11 @@ For package entries, the address used for a generated call is resolved in this o
 3. The generated default (the package's MVR name or address)
 
 On mainnet with MVR names the config entry can be omitted entirely; on networks where the MVR name
-doesn't resolve, supply the deployed package ID through the config object.
+doesn't resolve, supply the deployed package ID through the config object. Two caveats: package
+entries only apply to the main package's generated modules (dependency modules under `deps/` never
+consult them), and they only apply where a generated default address exists — for packages generated
+without an MVR name or address, `package` stays required and always takes precedence. The CLI
+validates that every package entry references a package that is part of the codegen run.
 
 ## Phantom types
 
