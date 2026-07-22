@@ -165,16 +165,17 @@ export async function generateFromPackageSummary({
 		)
 	).flat();
 
-	const effectiveConfigArguments: ConfigArguments = {
-		...globalConfigArguments,
-		...pkg.configArguments,
-	};
+	const { entries: configArgumentEntries, unresolvedKeys } =
+		Object.keys(globalConfigArguments ?? {}).length || Object.keys(pkg.configArguments ?? {}).length
+			? parseConfigArguments(
+					{ global: globalConfigArguments, package: pkg.configArguments },
+					registry,
+				)
+			: { entries: [], unresolvedKeys: [] };
 
-	const { entries: configArgumentEntries, unresolvedKeys } = Object.keys(effectiveConfigArguments)
-		.length
-		? parseConfigArguments(effectiveConfigArguments, registry)
-		: { entries: [], unresolvedKeys: [] };
-
+	// Unresolved keys here are always from the global block (package-scoped unresolved matchers
+	// throw during parsing). They may belong to another package generated in the same run — the
+	// CLI aggregates these across packages and errors for keys that resolve nowhere.
 	if (unresolvedKeys.length > 0) {
 		console.warn(
 			`configArguments keys not resolvable in ${pkg.package} (skipped): ${unresolvedKeys.join(', ')}`,
@@ -266,21 +267,55 @@ export async function generateFromPackageSummary({
 		}),
 	);
 
+	const usedConfigKeys = new Set<string>();
+	for (const mod of modules) {
+		for (const key of mod.builder.usedConfigKeys) {
+			usedConfigKeys.add(key);
+		}
+	}
+
+	const unusedTypeEntries = configArgumentEntries.filter(
+		(entry) => entry.kind === 'type' && !usedConfigKeys.has(entry.key),
+	);
+	// Package-scoped entries can only target this package, so an unused one is a misconfiguration
+	// (wrong parameterName, wrong instantiation, or a function filtered out of generation).
+	const unusedPackageScoped = unusedTypeEntries.filter((entry) => entry.source === 'package');
+	if (unusedPackageScoped.length > 0) {
+		console.warn(
+			`configArguments keys that matched no generated function parameters in ${pkg.package}: ${unusedPackageScoped
+				.map((entry) => entry.key)
+				.join(', ')}`,
+		);
+	}
+
 	if (configArgumentEntries.length > 0) {
 		await generateConfigInterface({
 			packageOutputDir,
 			outputDir,
 			packageName,
-			entries: configArgumentEntries,
+			entries: configArgumentEntries.filter(
+				(entry) => entry.kind === 'type' || entry.package === pkg.package,
+			),
 			importExtension,
 		});
 	}
+
+	return {
+		/** Global-block keys whose matcher type was not found in this package's summaries. */
+		unresolvedConfigKeys: unresolvedKeys,
+		/** Global-block type keys that resolved here but matched no generated parameter. */
+		unusedConfigKeys: unusedTypeEntries
+			.filter((entry) => entry.source === 'global')
+			.map((entry) => entry.key),
+	};
 }
 
 /**
- * Emit `<output>/<packageName>/config-args.ts` with a convenience interface covering every
- * declared config key, for `satisfies` on the user side. The hyphenated filename can never
- * collide with a generated Move module file.
+ * Emit `<output>/<packageName>/config-arguments.ts` with a convenience interface covering this
+ * package's resolvable config keys (and its own package-address key), for `satisfies` on the user
+ * side. With a global block spanning multiple packages, intersect the per-package interfaces
+ * (`CoreConfig & MarginConfig`). The hyphenated filename can never collide with a generated Move
+ * module file.
  */
 async function generateConfigInterface({
 	packageOutputDir,
@@ -327,8 +362,8 @@ async function generateConfigInterface({
 
 	await mkdir(packageOutputDir, { recursive: true });
 	await writeFile(
-		join(packageOutputDir, 'config-args.ts'),
-		await builder.toString(packageOutputDir, 'config-args.ts', outputDir),
+		join(packageOutputDir, 'config-arguments.ts'),
+		await builder.toString(packageOutputDir, 'config-arguments.ts', outputDir),
 	);
 }
 

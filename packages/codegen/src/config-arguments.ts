@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { normalizeSuiAddress } from '@mysten/sui/utils';
+import { isValidNamedPackage, normalizeSuiAddress } from '@mysten/sui/utils';
 import type { ConfigArguments } from './config.js';
 import type { ModuleRegistry } from './module-registry.js';
 import type { Parameter, Type } from './types/summary.js';
@@ -12,15 +12,19 @@ export type ParsedTypeTag =
 	| { vector: ParsedTypeTag }
 	| { datatype: { address: string; module: string; name: string; typeArguments: ParsedTypeTag[] } };
 
+/** Whether an entry came from the shared global block or a package-scoped block. */
+export type ConfigArgumentSource = 'global' | 'package';
+
 export interface TypeConfigArgument {
 	kind: 'type';
 	key: string;
+	source: ConfigArgumentSource;
 	address: string;
 	module: string;
 	name: string;
 	/** `null` when the matcher is written without type arguments (matches every instantiation). */
 	typeArguments: ParsedTypeTag[] | null;
-	paramName?: string;
+	parameterName?: string;
 	/**
 	 * Whether the matched Move type is generic. Uninstantiated matchers on generic types require a
 	 * resolver function as the config value (a static id cannot be correct across instantiations).
@@ -31,12 +35,29 @@ export interface TypeConfigArgument {
 export interface PackageConfigArgument {
 	kind: 'package';
 	key: string;
+	source: ConfigArgumentSource;
 	package: string;
 }
 
 export type ParsedConfigArgument = TypeConfigArgument | PackageConfigArgument;
 
 const PRIMITIVES = new Set(['bool', 'u8', 'u16', 'u32', 'u64', 'u128', 'u256', 'address']);
+const MOVE_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const HEX_ADDRESS = /^0x[0-9a-fA-F]{1,64}$/;
+
+function assertBalancedBrackets(tag: string) {
+	let depth = 0;
+	for (const char of tag) {
+		if (char === '<') depth++;
+		if (char === '>') depth--;
+		if (depth < 0) {
+			throw new Error(`Invalid type in configArguments matcher: "${tag}" (unbalanced '>')`);
+		}
+	}
+	if (depth !== 0) {
+		throw new Error(`Invalid type in configArguments matcher: "${tag}" (unbalanced '<')`);
+	}
+}
 
 function splitTopLevelTypeArgs(inner: string): string[] {
 	const parts: string[] = [];
@@ -52,19 +73,41 @@ function splitTopLevelTypeArgs(inner: string): string[] {
 		if (char === '>') depth--;
 		current += char;
 	}
-	if (current.trim()) parts.push(current.trim());
+	parts.push(current.trim());
 	return parts;
 }
 
-function parseTypeTag(tag: string, resolveAddress: (address: string) => string): ParsedTypeTag {
+function parseTypeTag(
+	tag: string,
+	resolveAddress: (address: string) => string,
+	{ isTypeArgument = false, root = tag }: { isTypeArgument?: boolean; root?: string } = {},
+): ParsedTypeTag {
 	const trimmed = tag.trim();
+
+	if (!isTypeArgument) {
+		assertBalancedBrackets(trimmed);
+	}
 
 	if (PRIMITIVES.has(trimmed)) {
 		return { prim: trimmed };
 	}
 
 	if (trimmed.startsWith('vector<') && trimmed.endsWith('>')) {
-		return { vector: parseTypeTag(trimmed.slice('vector<'.length, -1), resolveAddress) };
+		return {
+			vector: parseTypeTag(trimmed.slice('vector<'.length, -1), resolveAddress, {
+				isTypeArgument: true,
+				root,
+			}),
+		};
+	}
+
+	// A bare identifier in type-argument position is a type-parameter placeholder like `Pool<T>`.
+	if (isTypeArgument && MOVE_IDENTIFIER.test(trimmed)) {
+		throw new Error(
+			`configArguments matcher "${root}" contains the type parameter "${trimmed}" — partially ` +
+				`instantiated matchers are not supported. Use an uninstantiated matcher (no type ` +
+				`arguments) with a resolver function instead.`,
+		);
 	}
 
 	const lt = trimmed.indexOf('<');
@@ -81,24 +124,47 @@ function parseTypeTag(tag: string, resolveAddress: (address: string) => string):
 		throw new Error(`Invalid type in configArguments matcher: "${tag}"`);
 	}
 
+	const [addressPart, modulePart, namePart] = parts;
+
+	if (!MOVE_IDENTIFIER.test(modulePart) || !MOVE_IDENTIFIER.test(namePart)) {
+		throw new Error(
+			`Invalid type in configArguments matcher: "${tag}" ("${modulePart}::${namePart}" is not a valid module::type pair)`,
+		);
+	}
+
+	if (isValidNamedPackage(addressPart)) {
+		throw new Error(
+			`Invalid address "${addressPart}" in configArguments matcher "${tag}": MVR names cannot be ` +
+				`matched against package summaries. Use the package's named address from ` +
+				`address_mapping.json or its hex address instead.`,
+		);
+	}
+
+	if (!HEX_ADDRESS.test(addressPart) && !MOVE_IDENTIFIER.test(addressPart)) {
+		throw new Error(`Invalid address "${addressPart}" in configArguments matcher "${tag}"`);
+	}
+
 	const typeArguments =
 		lt === -1
 			? []
-			: splitTopLevelTypeArgs(trimmed.slice(lt + 1, -1)).map((arg) =>
-					parseTypeTag(arg, resolveAddress),
-				);
+			: splitTopLevelTypeArgs(trimmed.slice(lt + 1, -1)).map((arg) => {
+					if (arg.length === 0) {
+						throw new Error(
+							`Invalid type in configArguments matcher: "${tag}" (empty type argument)`,
+						);
+					}
+					return parseTypeTag(arg, resolveAddress, { isTypeArgument: true, root });
+				});
 
 	return {
 		datatype: {
-			address: resolveMatcherAddress(parts[0], resolveAddress),
-			module: parts[1],
-			name: parts[2],
+			address: resolveMatcherAddress(addressPart, resolveAddress),
+			module: modulePart,
+			name: namePart,
 			typeArguments,
 		},
 	};
 }
-
-const HEX_ADDRESS = /^0x[0-9a-fA-F]{1,64}$/;
 
 function resolveMatcherAddress(address: string, resolveAddress: (address: string) => string) {
 	const resolved = resolveAddress(address);
@@ -106,25 +172,70 @@ function resolveMatcherAddress(address: string, resolveAddress: (address: string
 }
 
 /**
- * Parse and validate a `configArguments` record against the modules loaded in `registry`.
- * All addresses (in matchers and during matching) are resolved through the registry's address
- * mapping and normalized, so matchers can use named addresses from `address_mapping.json`.
+ * Check that every datatype nested in an instantiated matcher is itself fully instantiated,
+ * as far as the summaries can tell (unknown types are skipped).
+ */
+function assertFullyInstantiated(
+	tag: ParsedTypeTag,
+	registry: ModuleRegistry,
+	matcherType: string,
+) {
+	if ('prim' in tag) return;
+	if ('vector' in tag) {
+		assertFullyInstantiated(tag.vector, registry, matcherType);
+		return;
+	}
+
+	const { address, module, name, typeArguments } = tag.datatype;
+	const summary = registry.getSummaryByResolvedAddress(address, module);
+	const arity = (summary?.structs[name] ?? summary?.enums[name])?.type_parameters.length;
+
+	if (arity !== undefined && arity !== typeArguments.length) {
+		throw new Error(
+			`configArguments matcher "${matcherType}": ${module}::${name} expects ${arity} type ` +
+				`argument(s), got ${typeArguments.length}. Partially instantiated matchers are not ` +
+				`supported — use an uninstantiated matcher (no type arguments) with a resolver function instead.`,
+		);
+	}
+
+	for (const argument of typeArguments) {
+		assertFullyInstantiated(argument, registry, matcherType);
+	}
+}
+
+/**
+ * Parse and validate `configArguments` blocks against the modules loaded in `registry`.
+ * Per-package entries are merged over global entries (per key). All addresses (in matchers and
+ * during matching) are resolved through the registry's address mapping and normalized, so
+ * matchers can use named addresses from `address_mapping.json`.
  *
- * Type matchers referencing types that don't exist in this package's summaries are returned in
- * `unresolvedKeys` instead of the entry list — a shared global `configArguments` block may span
+ * Type matchers referencing types that don't exist in this package's summaries are a hard error
+ * when declared in a package-scoped block (they can only refer to this package's summaries), and
+ * are returned in `unresolvedKeys` when declared globally — a shared global block may span
  * multiple packages in one codegen run, and entries for other packages can't match anything here.
  */
 export function parseConfigArguments(
-	configArguments: ConfigArguments,
+	blocks: { global?: ConfigArguments; package?: ConfigArguments },
 	registry: ModuleRegistry,
 ): { entries: ParsedConfigArgument[]; unresolvedKeys: string[] } {
 	const resolveAddress = (address: string) => registry.resolveAddress(address);
 	const entries: ParsedConfigArgument[] = [];
 	const unresolvedKeys: string[] = [];
 
-	for (const [key, matcher] of Object.entries(configArguments)) {
+	const merged = new Map<
+		string,
+		{ matcher: NonNullable<ConfigArguments[string]>; source: ConfigArgumentSource }
+	>();
+	for (const [key, matcher] of Object.entries(blocks.global ?? {})) {
+		merged.set(key, { matcher, source: 'global' });
+	}
+	for (const [key, matcher] of Object.entries(blocks.package ?? {})) {
+		merged.set(key, { matcher, source: 'package' });
+	}
+
+	for (const [key, { matcher, source }] of merged) {
 		if ('package' in matcher) {
-			entries.push({ kind: 'package', key, package: matcher.package });
+			entries.push({ kind: 'package', key, source, package: matcher.package });
 			continue;
 		}
 
@@ -141,6 +252,14 @@ export function parseConfigArguments(
 		const datatype = summary?.structs[name] ?? summary?.enums[name];
 
 		if (!datatype) {
+			if (source === 'package') {
+				throw new Error(
+					`configArguments.${key}: type "${matcher.type}" was not found in this package's ` +
+						`summaries. Package-scoped configArguments can only reference types reachable from ` +
+						`this package — fix the type, or move the entry to the global configArguments block ` +
+						`if it targets another package.`,
+				);
+			}
 			unresolvedKeys.push(key);
 			continue;
 		}
@@ -156,14 +275,19 @@ export function parseConfigArguments(
 			);
 		}
 
+		for (const argument of typeArguments) {
+			assertFullyInstantiated(argument, registry, matcher.type);
+		}
+
 		entries.push({
 			kind: 'type',
 			key,
+			source,
 			address,
 			module,
 			name,
 			typeArguments: uninstantiated ? null : typeArguments,
-			paramName: matcher.name,
+			parameterName: matcher.parameterName,
 			isGeneric,
 		});
 	}
@@ -210,8 +334,13 @@ function typeEqualsTag(
  * Find the config entry matching a function parameter, or `null`.
  *
  * Most-specific matcher wins, decided statically: a fully instantiated matcher beats an
- * uninstantiated one, and a `name`-refined matcher beats a bare one at the same level. Ties are a
- * hard generation-time error.
+ * uninstantiated one, and a `parameterName`-refined matcher beats a bare one at the same level.
+ * Ties are a hard generation-time error.
+ *
+ * A `parameterName`-refined matcher never matches a parameter without a name — but if such a
+ * matcher would otherwise apply (type and instantiation match) and nothing else matches the
+ * parameter, that is a hard error: the matcher clearly targets this parameter's type and only the
+ * missing parameter names (bytecode summaries don't include them) prevent matching it.
  */
 export function findConfigArgumentMatch(
 	param: Parameter,
@@ -237,6 +366,7 @@ export function findConfigArgumentMatch(
 	const paramAddress = resolveMatcherAddress(Datatype.module.address, resolveAddress);
 
 	const candidates: { entry: TypeConfigArgument; specificity: number }[] = [];
+	const blockedNameMatchers: TypeConfigArgument[] = [];
 
 	for (const entry of entries) {
 		if (entry.kind !== 'type') continue;
@@ -248,16 +378,7 @@ export function findConfigArgumentMatch(
 			continue;
 		}
 
-		if (entry.paramName && param.name === undefined) {
-			throw new Error(
-				`configArguments.${entry.key} uses a parameter-name matcher, but parameters of ${functionLabel} have no names. ` +
-					`Name matchers are only supported for summaries generated from local packages.`,
-			);
-		}
-
-		if (entry.paramName && entry.paramName !== param.name) {
-			continue;
-		}
+		let specificity = 0;
 
 		if (entry.typeArguments !== null) {
 			// Fully instantiated matcher: only matches parameters concretely typed with that
@@ -270,13 +391,32 @@ export function findConfigArgumentMatch(
 			) {
 				continue;
 			}
-			candidates.push({ entry, specificity: 2 + (entry.paramName ? 1 : 0) });
-		} else {
-			candidates.push({ entry, specificity: entry.paramName ? 1 : 0 });
+			specificity += 2;
 		}
+
+		if (entry.parameterName) {
+			if (param.name === undefined) {
+				blockedNameMatchers.push(entry);
+				continue;
+			}
+			if (entry.parameterName !== param.name) {
+				continue;
+			}
+			specificity += 1;
+		}
+
+		candidates.push({ entry, specificity });
 	}
 
 	if (candidates.length === 0) {
+		if (blockedNameMatchers.length > 0) {
+			throw new Error(
+				`configArguments ${blockedNameMatchers.map((entry) => entry.key).join(', ')} use ` +
+					`parameterName matchers that would apply to a parameter of ${functionLabel}, but its ` +
+					`parameters have no names (bytecode summaries do not include parameter names). Remove ` +
+					`the parameterName refinement, or exclude this package from the matcher's scope.`,
+			);
+		}
 		return null;
 	}
 

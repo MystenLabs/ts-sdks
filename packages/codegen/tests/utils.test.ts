@@ -13,7 +13,20 @@ let normalizeMoveArguments: (
 	argTypes: readonly (string | null)[],
 	parameterNames?: string[],
 ) => any;
-let resolveConfigArg: (value: unknown, ctx: { typeArguments: string[] }, name: string) => unknown;
+interface TestResolverContext {
+	typeArguments: string[];
+	packageAddress: string;
+	moduleName: string;
+	functionName: string;
+	parameterName?: string;
+}
+const TEST_CTX: TestResolverContext = {
+	typeArguments: [],
+	packageAddress: '0x0',
+	moduleName: 'test',
+	functionName: 'test',
+};
+let resolveConfigArgument: (value: unknown, ctx: TestResolverContext, name: string) => unknown;
 let applyConfigArguments: (
 	args: unknown[] | object,
 	defaults: readonly { index: number; name?: string; resolve: () => unknown }[],
@@ -25,7 +38,7 @@ beforeAll(async () => {
 	const modPath = join(GENERATED_DIR, 'utils', 'index.js');
 	const mod = await import(modPath);
 	normalizeMoveArguments = mod.normalizeMoveArguments;
-	resolveConfigArg = mod.resolveConfigArg;
+	resolveConfigArgument = mod.resolveConfigArgument;
 	applyConfigArguments = mod.applyConfigArguments;
 });
 
@@ -431,25 +444,52 @@ describe('well-known AccumulatorRoot injection', () => {
 	});
 });
 
-describe('resolveConfigArg', () => {
+describe('resolveConfigArgument', () => {
 	it('returns plain values as-is', () => {
-		expect(resolveConfigArg('0x123', { typeArguments: [] }, 'pool')).toBe('0x123');
+		expect(resolveConfigArgument('0x123', TEST_CTX, 'pool')).toBe('0x123');
 	});
 
-	it('invokes resolver functions with the context', () => {
+	it('invokes resolver functions with the context, normalizing hex struct tags', () => {
 		const contexts: unknown[] = [];
 		const value = (ctx: unknown) => {
 			contexts.push(ctx);
 			return '0x456';
 		};
 
-		expect(resolveConfigArg(value, { typeArguments: ['0x2::sui::SUI'] }, 'pool')).toBe('0x456');
-		expect(contexts).toEqual([{ typeArguments: ['0x2::sui::SUI'] }]);
+		expect(
+			resolveConfigArgument(
+				value,
+				{ ...TEST_CTX, typeArguments: ['0x2::sui::SUI', '@mvr/name::a::B', 'u64'] },
+				'pool',
+			),
+		).toBe('0x456');
+		expect(contexts).toEqual([
+			{
+				...TEST_CTX,
+				typeArguments: [
+					'0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI',
+					'@mvr/name::a::B',
+					'u64',
+				],
+			},
+		]);
 	});
 
 	it('throws a descriptive error for missing values', () => {
-		expect(() => resolveConfigArg(undefined, { typeArguments: [] }, 'pool')).toThrowError(
+		expect(() => resolveConfigArgument(undefined, TEST_CTX, 'pool')).toThrowError(
 			'Missing config value for "pool": pass it explicitly in arguments, or include it in the config object',
+		);
+	});
+
+	it('throws a descriptive error when a resolver returns undefined', () => {
+		expect(() =>
+			resolveConfigArgument(
+				() => undefined,
+				{ ...TEST_CTX, typeArguments: ['0x2::sui::SUI'] },
+				'pool',
+			),
+		).toThrowError(
+			'Config resolver for "pool" returned undefined (test::test, typeArguments: [0x2::sui::SUI])',
 		);
 	});
 });
@@ -502,5 +542,60 @@ describe('applyConfigArguments', () => {
 		);
 
 		expect(result).toEqual([42n, '0x123']);
+	});
+
+	it('rejects array arguments with holes at non-matched positions', () => {
+		// Filling a trailing matched position must not mask an omitted required middle argument.
+		expect(() =>
+			applyConfigArguments(['0xaa'], [{ index: 2, name: 'pool', resolve: () => '0x123' }]),
+		).toThrowError('Missing argument at position 1');
+	});
+
+	it('does not treat inherited object properties as explicitly passed arguments', () => {
+		// `constructor` is a valid Move identifier; the inherited Object.prototype.constructor
+		// must not be mistaken for an explicit argument.
+		const result = applyConfigArguments({ amount: 1n }, [
+			{ index: 0, name: 'constructor', resolve: () => '0x123' },
+		]);
+
+		expect((result as Record<string, unknown>)['constructor']).toBe('0x123');
+	});
+});
+
+describe('well-known and config-matched parameters combined', () => {
+	it('aligns config-filled positions with well-known injection at runtime', async () => {
+		// Mimics a generated body for `fn(registry: &Registry, clock: &Clock, amount: u64)`:
+		// clock is elided from arguments, so the config-matched registry is index 0 and amount is
+		// index 1 while argumentsTypes still includes the clock tag between them.
+		const tx = new Transaction();
+		tx.moveCall({
+			target: '0x0::test::test',
+			arguments: normalizeMoveArguments(
+				applyConfigArguments({ amount: 42 }, [
+					{ index: 0, name: 'registry', resolve: () => '0x123' },
+				]),
+				[null, '0x2::clock::Clock', 'u32'],
+				['registry', 'amount'],
+			),
+		});
+
+		const json = JSON.parse(await tx.toJSON());
+		expect(json.inputs).toEqual([
+			{
+				UnresolvedObject: {
+					objectId: '0x0000000000000000000000000000000000000000000000000000000000000123',
+				},
+			},
+			{
+				Object: {
+					SharedObject: {
+						objectId: '0x0000000000000000000000000000000000000000000000000000000000000006',
+						initialSharedVersion: 1,
+						mutable: false,
+					},
+				},
+			},
+			{ Pure: { bytes: 'KgAAAA==' } },
+		]);
 	});
 });
