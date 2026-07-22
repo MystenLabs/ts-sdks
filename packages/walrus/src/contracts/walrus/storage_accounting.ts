@@ -32,10 +32,13 @@ export interface MaxEpochsAheadArguments {
 export interface MaxEpochsAheadOptions {
 	package?: string;
 	arguments: MaxEpochsAheadArguments | [self: TransactionArgument];
+	config?: {
+		walrusPackageId?: string;
+	};
 }
 /** The maximum number of epochs for which we can use `self`. */
 export function maxEpochsAhead(options: MaxEpochsAheadOptions) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
@@ -55,10 +58,13 @@ export interface RingLookupOptions {
 	arguments:
 		| RingLookupArguments
 		| [self: TransactionArgument, epochsInFuture: RawTransactionArgument<number>];
+	config?: {
+		walrusPackageId?: string;
+	};
 }
 /** Read-only lookup for an element in the `FutureAccountingRingBuffer` */
 export function ringLookup(options: RingLookupOptions) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, 'u32'] satisfies (string | null)[];
 	const parameterNames = ['self', 'epochsInFuture'];
 	return (tx: Transaction) =>
@@ -75,10 +81,13 @@ export interface EpochArguments {
 export interface EpochOptions {
 	package?: string;
 	arguments: EpochArguments | [accounting: TransactionArgument];
+	config?: {
+		walrusPackageId?: string;
+	};
 }
 /** Accessor for epoch, read-only. */
 export function epoch(options: EpochOptions) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['accounting'];
 	return (tx: Transaction) =>
@@ -95,10 +104,13 @@ export interface UsedCapacityArguments {
 export interface UsedCapacityOptions {
 	package?: string;
 	arguments: UsedCapacityArguments | [accounting: TransactionArgument];
+	config?: {
+		walrusPackageId?: string;
+	};
 }
 /** Accessor for used_capacity, read-only. */
 export function usedCapacity(options: UsedCapacityOptions) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['accounting'];
 	return (tx: Transaction) =>
@@ -115,10 +127,13 @@ export interface RewardsArguments {
 export interface RewardsOptions {
 	package?: string;
 	arguments: RewardsArguments | [accounting: TransactionArgument];
+	config?: {
+		walrusPackageId?: string;
+	};
 }
 /** Accessor for rewards, read-only. */
 export function rewards(options: RewardsOptions) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['accounting'];
 	return (tx: Transaction) =>

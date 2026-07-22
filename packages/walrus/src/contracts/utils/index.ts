@@ -8,7 +8,11 @@ import {
 	BcsTuple,
 } from '@mysten/sui/bcs';
 import { normalizeStructTag, normalizeSuiAddress } from '@mysten/sui/utils';
-import { type TransactionArgument, isArgument } from '@mysten/sui/transactions';
+import {
+	type TransactionArgument,
+	type TransactionObjectArgument,
+	isArgument,
+} from '@mysten/sui/transactions';
 import { type ClientWithCoreApi, type SuiClientTypes } from '@mysten/sui/client';
 
 const MOVE_STDLIB_ADDRESS = normalizeSuiAddress('0x1');
@@ -106,6 +110,12 @@ export function normalizeMoveArguments(
 			continue;
 		}
 
+		if (argType === '0x2::accumulator::AccumulatorRoot') {
+			// Chain-wide shared singleton at a fixed address (SUI_ACCUMULATOR_ROOT_OBJECT_ID).
+			normalizedArgs.push((tx) => tx.object('0xacc'));
+			continue;
+		}
+
 		if (argType === '0x3::sui_system::SuiSystemState') {
 			normalizedArgs.push((tx) => tx.object.system());
 			continue;
@@ -124,7 +134,10 @@ export function normalizeMoveArguments(
 				throw new Error(`Expected arguments to be passed as an array`);
 			}
 			const name = parameterNames[index];
-			arg = args[name as keyof typeof args];
+			arg =
+				name !== undefined && Object.prototype.hasOwnProperty.call(args, name)
+					? args[name as keyof typeof args]
+					: undefined;
 
 			if (arg === undefined) {
 				throw new Error(`Parameter ${name} is required`);
@@ -155,6 +168,129 @@ export function normalizeMoveArguments(
 	}
 
 	return normalizedArgs;
+}
+
+/* -------------------------- Config-mapped arguments -------------------------- */
+
+/** Context passed to config resolver functions. */
+export interface ConfigResolverContext {
+	/**
+	 * The matched parameter's own instantiated type arguments (not the whole function's type
+	 * argument tuple), as fully-qualified type tags. Hex-addressed struct tags are normalized to
+	 * their long form before the resolver is invoked; MVR-named tags are passed through unchanged.
+	 */
+	typeArguments: string[];
+	/** The package address the generated call will be sent to. */
+	packageAddress: string;
+	/** The Move module of the generated call. */
+	moduleName: string;
+	/** The Move function of the generated call. */
+	functionName: string;
+	/** The Move name of the matched parameter, when the summary includes parameter names. */
+	parameterName?: string;
+	/** The matched parameter's position in the generated function's arguments. */
+	parameterIndex: number;
+}
+
+/**
+ * A value in a generated config object: a plain object id/argument, or a resolver function.
+ *
+ * Any function is treated as a resolver and called with a `ConfigResolverContext`. To provide a
+ * transaction-callback object argument dynamically, return it from a resolver:
+ * `(ctx) => (tx) => ...`.
+ */
+export type ConfigValue =
+	| string
+	| Exclude<TransactionObjectArgument, (...args: never[]) => unknown>
+	| ((ctx: ConfigResolverContext) => string | TransactionObjectArgument);
+
+/** Normalize a hex-addressed struct tag to its long form; pass anything else through. */
+function normalizeConfigTypeTag(tag: string): string {
+	if (/[@/]/.test(tag) || !tag.includes('::')) {
+		return tag;
+	}
+	try {
+		return normalizeStructTag(tag);
+	} catch {
+		return tag;
+	}
+}
+
+export function resolveConfigArgument(
+	value: ConfigValue | undefined,
+	ctx: ConfigResolverContext,
+	name: string,
+): string | TransactionObjectArgument {
+	if (value == null) {
+		throw new Error(
+			`Missing config value for "${name}": pass it explicitly in arguments, or include it in the config object`,
+		);
+	}
+
+	if (typeof value !== 'function') {
+		return value;
+	}
+
+	const resolved = value({
+		...ctx,
+		typeArguments: ctx.typeArguments.map(normalizeConfigTypeTag),
+	});
+
+	if (resolved == null) {
+		throw new Error(
+			`Config resolver for "${name}" returned ${resolved} (${ctx.moduleName}::${ctx.functionName}, typeArguments: [${ctx.typeArguments.join(', ')}])`,
+		);
+	}
+
+	return resolved;
+}
+
+/**
+ * Fill unset config-mapped positions in an arguments array/object with their resolved config
+ * values. Resolvers are only invoked for positions the caller did not pass explicitly.
+ */
+export function applyConfigArguments<T extends object | unknown[]>(
+	args: T,
+	defaults: readonly { index: number; name?: string; resolve: () => unknown }[],
+): T {
+	if (Array.isArray(args)) {
+		const result = [...args];
+		const matchedIndexes = new Set(defaults.map((entry) => entry.index));
+		for (const entry of defaults) {
+			if (result[entry.index] === undefined) {
+				result[entry.index] = entry.resolve();
+			}
+		}
+		// Filling a trailing config-mapped position can extend the array past positions the
+		// caller omitted; catch those holes here rather than failing deep inside serialization.
+		for (let i = 0; i < result.length; i++) {
+			if (result[i] === undefined && !matchedIndexes.has(i)) {
+				throw new Error(`Missing argument at position ${i}`);
+			}
+		}
+		return result as T;
+	}
+
+	const result: Record<string, unknown> = { ...args };
+	for (const entry of defaults) {
+		if (entry.name === undefined) {
+			continue;
+		}
+		// Own-property check so inherited properties (e.g. a key named "constructor") are never
+		// mistaken for explicitly passed arguments.
+		if (
+			!Object.prototype.hasOwnProperty.call(result, entry.name) ||
+			result[entry.name] === undefined
+		) {
+			Object.defineProperty(result, entry.name, {
+				value: entry.resolve(),
+				enumerable: true,
+				writable: true,
+				configurable: true,
+			});
+		}
+	}
+	return result as T;
 }
 
 /* -------------------------- Move type tags -------------------------- */

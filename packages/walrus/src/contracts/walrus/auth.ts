@@ -30,10 +30,13 @@ export const Authorized = new MoveEnum({
 export interface AuthenticateSenderOptions {
 	package?: string;
 	arguments?: [];
+	config?: {
+		walrusPackageId?: string;
+	};
 }
 /** Authenticates the sender as the authorizer. */
 export function authenticateSender(options: AuthenticateSenderOptions = {}) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -47,13 +50,16 @@ export interface AuthenticateWithObjectArguments<T extends BcsType<any>> {
 export interface AuthenticateWithObjectOptions<T extends BcsType<any>> {
 	package?: string;
 	arguments: AuthenticateWithObjectArguments<T> | [obj: RawTransactionArgument<T>];
+	config?: {
+		walrusPackageId?: string;
+	};
 	typeArguments: [string];
 }
 /** Authenticates an object as the authorizer. */
 export function authenticateWithObject<T extends BcsType<any>>(
 	options: AuthenticateWithObjectOptions<T>,
 ) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	const argumentsTypes = [`${options.typeArguments[0]}`] satisfies (string | null)[];
 	const parameterNames = ['obj'];
 	return (tx: Transaction) =>
@@ -71,10 +77,13 @@ export interface AuthorizedAddressArguments {
 export interface AuthorizedAddressOptions {
 	package?: string;
 	arguments: AuthorizedAddressArguments | [addr: RawTransactionArgument<string>];
+	config?: {
+		walrusPackageId?: string;
+	};
 }
 /** Returns the `Authorized` as an address. */
 export function authorizedAddress(options: AuthorizedAddressOptions) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	const argumentsTypes = ['address'] satisfies (string | null)[];
 	const parameterNames = ['addr'];
 	return (tx: Transaction) =>
@@ -91,10 +100,13 @@ export interface AuthorizedObjectArguments {
 export interface AuthorizedObjectOptions {
 	package?: string;
 	arguments: AuthorizedObjectArguments | [id: RawTransactionArgument<string>];
+	config?: {
+		walrusPackageId?: string;
+	};
 }
 /** Returns the `Authorized` as an object. */
 export function authorizedObject(options: AuthorizedObjectOptions) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	const argumentsTypes = ['0x2::object::ID'] satisfies (string | null)[];
 	const parameterNames = ['id'];
 	return (tx: Transaction) =>

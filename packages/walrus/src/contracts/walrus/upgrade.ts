@@ -18,6 +18,9 @@ import {
 	MoveStruct,
 	normalizeMoveArguments,
 	type RawTransactionArgument,
+	type ConfigValue,
+	resolveConfigArgument,
+	applyConfigArguments,
 } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
@@ -70,7 +73,7 @@ export const EmergencyUpgradeCap = new MoveStruct({
 });
 export interface VoteForUpgradeArguments {
 	self: RawTransactionArgument<string>;
-	staking: RawTransactionArgument<string>;
+	staking?: RawTransactionArgument<string>;
 	auth: TransactionArgument;
 	nodeId: RawTransactionArgument<string>;
 	digest: RawTransactionArgument<Array<number>>;
@@ -81,11 +84,15 @@ export interface VoteForUpgradeOptions {
 		| VoteForUpgradeArguments
 		| [
 				self: RawTransactionArgument<string>,
-				staking: RawTransactionArgument<string>,
+				staking: RawTransactionArgument<string> | undefined,
 				auth: TransactionArgument,
 				nodeId: RawTransactionArgument<string>,
 				digest: RawTransactionArgument<Array<number>>,
 		  ];
+	config?: {
+		stakingPoolId: ConfigValue;
+		walrusPackageId?: string;
+	};
 }
 /**
  * Vote for an upgrade given the digest of the package to upgrade to.
@@ -93,7 +100,7 @@ export interface VoteForUpgradeOptions {
  * This will create a new upgrade proposal if none exists for the given digest.
  */
 export function voteForUpgrade(options: VoteForUpgradeOptions) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, null, '0x2::object::ID', 'vector<u8>'] satisfies (
 		| string
 		| null
@@ -104,12 +111,34 @@ export function voteForUpgrade(options: VoteForUpgradeOptions) {
 			package: packageAddress,
 			module: 'upgrade',
 			function: 'vote_for_upgrade',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 1,
+						name: 'staking',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.stakingPoolId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'upgrade',
+									functionName: 'vote_for_upgrade',
+									parameterIndex: 1,
+									parameterName: 'staking',
+								},
+								'stakingPoolId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface AuthorizeUpgradeArguments {
 	self: RawTransactionArgument<string>;
-	staking: RawTransactionArgument<string>;
+	staking?: RawTransactionArgument<string>;
 	digest: RawTransactionArgument<Array<number>>;
 }
 export interface AuthorizeUpgradeOptions {
@@ -118,13 +147,17 @@ export interface AuthorizeUpgradeOptions {
 		| AuthorizeUpgradeArguments
 		| [
 				self: RawTransactionArgument<string>,
-				staking: RawTransactionArgument<string>,
+				staking: RawTransactionArgument<string> | undefined,
 				digest: RawTransactionArgument<Array<number>>,
 		  ];
+	config?: {
+		stakingPoolId: ConfigValue;
+		walrusPackageId?: string;
+	};
 }
 /** Authorizes an upgrade that has reached quorum. */
 export function authorizeUpgrade(options: AuthorizeUpgradeOptions) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, 'vector<u8>'] satisfies (string | null)[];
 	const parameterNames = ['self', 'staking', 'digest'];
 	return (tx: Transaction) =>
@@ -132,7 +165,29 @@ export function authorizeUpgrade(options: AuthorizeUpgradeOptions) {
 			package: packageAddress,
 			module: 'upgrade',
 			function: 'authorize_upgrade',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 1,
+						name: 'staking',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.stakingPoolId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'upgrade',
+									functionName: 'authorize_upgrade',
+									parameterIndex: 1,
+									parameterName: 'staking',
+								},
+								'stakingPoolId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface AuthorizeEmergencyUpgradeArguments {
@@ -149,6 +204,9 @@ export interface AuthorizeEmergencyUpgradeOptions {
 				emergencyUpgradeCap: RawTransactionArgument<string>,
 				digest: RawTransactionArgument<Array<number>>,
 		  ];
+	config?: {
+		walrusPackageId?: string;
+	};
 }
 /**
  * Authorizes an upgrade using the emergency upgrade cap.
@@ -157,7 +215,7 @@ export interface AuthorizeEmergencyUpgradeOptions {
  * governance, the EmergencyUpgradeCap should be burned.
  */
 export function authorizeEmergencyUpgrade(options: AuthorizeEmergencyUpgradeOptions) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, 'vector<u8>'] satisfies (string | null)[];
 	const parameterNames = ['upgradeManager', 'emergencyUpgradeCap', 'digest'];
 	return (tx: Transaction) =>
@@ -170,8 +228,8 @@ export function authorizeEmergencyUpgrade(options: AuthorizeEmergencyUpgradeOpti
 }
 export interface CommitUpgradeArguments {
 	upgradeManager: RawTransactionArgument<string>;
-	staking: RawTransactionArgument<string>;
-	system: RawTransactionArgument<string>;
+	staking?: RawTransactionArgument<string>;
+	system?: RawTransactionArgument<string>;
 	receipt: TransactionArgument;
 }
 export interface CommitUpgradeOptions {
@@ -180,10 +238,15 @@ export interface CommitUpgradeOptions {
 		| CommitUpgradeArguments
 		| [
 				upgradeManager: RawTransactionArgument<string>,
-				staking: RawTransactionArgument<string>,
-				system: RawTransactionArgument<string>,
+				staking: RawTransactionArgument<string> | undefined,
+				system: RawTransactionArgument<string> | undefined,
 				receipt: TransactionArgument,
 		  ];
+	config?: {
+		stakingPoolId: ConfigValue;
+		systemObjectId: ConfigValue;
+		walrusPackageId?: string;
+	};
 }
 /**
  * Commits an upgrade and sets the new package id in the staking and system
@@ -194,7 +257,7 @@ export interface CommitUpgradeOptions {
  * storage nodes and prevent previous package versions from being used.
  */
 export function commitUpgrade(options: CommitUpgradeOptions) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, null, null] satisfies (string | null)[];
 	const parameterNames = ['upgradeManager', 'staking', 'system', 'receipt'];
 	return (tx: Transaction) =>
@@ -202,12 +265,51 @@ export function commitUpgrade(options: CommitUpgradeOptions) {
 			package: packageAddress,
 			module: 'upgrade',
 			function: 'commit_upgrade',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 1,
+						name: 'staking',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.stakingPoolId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'upgrade',
+									functionName: 'commit_upgrade',
+									parameterIndex: 1,
+									parameterName: 'staking',
+								},
+								'stakingPoolId',
+							),
+					},
+					{
+						index: 2,
+						name: 'system',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.systemObjectId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'upgrade',
+									functionName: 'commit_upgrade',
+									parameterIndex: 2,
+									parameterName: 'system',
+								},
+								'systemObjectId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface CleanupUpgradeProposalsArguments {
 	self: RawTransactionArgument<string>;
-	staking: RawTransactionArgument<string>;
+	staking?: RawTransactionArgument<string>;
 	proposals: RawTransactionArgument<Array<Array<number>>>;
 }
 export interface CleanupUpgradeProposalsOptions {
@@ -216,9 +318,13 @@ export interface CleanupUpgradeProposalsOptions {
 		| CleanupUpgradeProposalsArguments
 		| [
 				self: RawTransactionArgument<string>,
-				staking: RawTransactionArgument<string>,
+				staking: RawTransactionArgument<string> | undefined,
 				proposals: RawTransactionArgument<Array<Array<number>>>,
 		  ];
+	config?: {
+		stakingPoolId: ConfigValue;
+		walrusPackageId?: string;
+	};
 }
 /**
  * Cleans up the upgrade proposals table.
@@ -227,7 +333,7 @@ export interface CleanupUpgradeProposalsOptions {
  * current version.
  */
 export function cleanupUpgradeProposals(options: CleanupUpgradeProposalsOptions) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, 'vector<vector<u8>>'] satisfies (string | null)[];
 	const parameterNames = ['self', 'staking', 'proposals'];
 	return (tx: Transaction) =>
@@ -235,7 +341,29 @@ export function cleanupUpgradeProposals(options: CleanupUpgradeProposalsOptions)
 			package: packageAddress,
 			module: 'upgrade',
 			function: 'cleanup_upgrade_proposals',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 1,
+						name: 'staking',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.stakingPoolId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'upgrade',
+									functionName: 'cleanup_upgrade_proposals',
+									parameterIndex: 1,
+									parameterName: 'staking',
+								},
+								'stakingPoolId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface BurnEmergencyUpgradeCapArguments {
@@ -246,6 +374,9 @@ export interface BurnEmergencyUpgradeCapOptions {
 	arguments:
 		| BurnEmergencyUpgradeCapArguments
 		| [emergencyUpgradeCap: RawTransactionArgument<string>];
+	config?: {
+		walrusPackageId?: string;
+	};
 }
 /**
  * Burns the emergency upgrade cap.
@@ -254,7 +385,7 @@ export interface BurnEmergencyUpgradeCapOptions {
  * make upgrades fully reliant on quorum-based governance.
  */
 export function burnEmergencyUpgradeCap(options: BurnEmergencyUpgradeCapOptions) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['emergencyUpgradeCap'];
 	return (tx: Transaction) =>

@@ -41,10 +41,13 @@ export interface IdArguments {
 export interface IdOptions {
 	package?: string;
 	arguments: IdArguments | [cap: TransactionArgument];
+	config?: {
+		walrusPackageId?: string;
+	};
 }
 /** Return the node ID of the storage node. */
 export function id(options: IdOptions) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['cap'];
 	return (tx: Transaction) =>
@@ -61,10 +64,13 @@ export interface NodeIdArguments {
 export interface NodeIdOptions {
 	package?: string;
 	arguments: NodeIdArguments | [cap: RawTransactionArgument<string>];
+	config?: {
+		walrusPackageId?: string;
+	};
 }
 /** Return the pool ID of the storage node. */
 export function nodeId(options: NodeIdOptions) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['cap'];
 	return (tx: Transaction) =>
@@ -81,13 +87,16 @@ export interface LastEpochSyncDoneArguments {
 export interface LastEpochSyncDoneOptions {
 	package?: string;
 	arguments: LastEpochSyncDoneArguments | [cap: RawTransactionArgument<string>];
+	config?: {
+		walrusPackageId?: string;
+	};
 }
 /**
  * Return the last epoch in which the storage node attested that it has finished
  * syncing.
  */
 export function lastEpochSyncDone(options: LastEpochSyncDoneOptions) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['cap'];
 	return (tx: Transaction) =>
@@ -104,10 +113,13 @@ export interface LastEventBlobAttestationArguments {
 export interface LastEventBlobAttestationOptions {
 	package?: string;
 	arguments: LastEventBlobAttestationArguments | [cap: RawTransactionArgument<string>];
+	config?: {
+		walrusPackageId?: string;
+	};
 }
 /** Return the latest event blob attestation. */
 export function lastEventBlobAttestation(options: LastEventBlobAttestationOptions) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['cap'];
 	return (tx: Transaction) =>
@@ -124,10 +136,13 @@ export interface DenyListRootArguments {
 export interface DenyListRootOptions {
 	package?: string;
 	arguments: DenyListRootArguments | [cap: RawTransactionArgument<string>];
+	config?: {
+		walrusPackageId?: string;
+	};
 }
 /** Return the deny list root of the storage node. */
 export function denyListRoot(options: DenyListRootOptions) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['cap'];
 	return (tx: Transaction) =>
@@ -144,10 +159,13 @@ export interface DenyListSequenceArguments {
 export interface DenyListSequenceOptions {
 	package?: string;
 	arguments: DenyListSequenceArguments | [cap: RawTransactionArgument<string>];
+	config?: {
+		walrusPackageId?: string;
+	};
 }
 /** Return the deny list sequence number of the storage node. */
 export function denyListSequence(options: DenyListSequenceOptions) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['cap'];
 	return (tx: Transaction) =>

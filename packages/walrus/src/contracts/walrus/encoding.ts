@@ -17,13 +17,16 @@ export interface EncodedBlobLengthOptions {
 				encodingType: RawTransactionArgument<number>,
 				nShards: RawTransactionArgument<number>,
 		  ];
+	config?: {
+		walrusPackageId?: string;
+	};
 }
 /**
  * Computes the encoded length of a blob given its unencoded length, encoding type
  * and number of shards `n_shards`.
  */
 export function encodedBlobLength(options: EncodedBlobLengthOptions) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	const argumentsTypes = ['u64', 'u8', 'u16'] satisfies (string | null)[];
 	const parameterNames = ['unencodedLength', 'encodingType', 'nShards'];
 	return (tx: Transaction) =>

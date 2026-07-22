@@ -13,6 +13,11 @@ const config: SuiCodegenConfig = {
 		{
 			package: '@local-pkg/walrus',
 			path: '../../../walrus/contracts/walrus',
+			configArguments: {
+				walrusPackageId: { package: '@local-pkg/walrus' },
+				systemObjectId: { type: 'system::System' },
+				stakingPoolId: { type: 'staking::Staking' },
+			},
 		},
 	],
 };

@@ -40,11 +40,14 @@ export function ApportionmentQueue<T extends BcsType<any>>(...typeParameters: [T
 export interface NewOptions {
 	package?: string;
 	arguments?: [];
+	config?: {
+		walrusPackageId?: string;
+	};
 	typeArguments: [string];
 }
 /** Create a new priority queue. */
 export function _new(options: NewOptions) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -59,11 +62,14 @@ export interface PopMaxArguments {
 export interface PopMaxOptions {
 	package?: string;
 	arguments: PopMaxArguments | [pq: TransactionArgument];
+	config?: {
+		walrusPackageId?: string;
+	};
 	typeArguments: [string];
 }
 /** Pop the entry with the highest priority value. */
 export function popMax(options: PopMaxOptions) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['pq'];
 	return (tx: Transaction) =>
@@ -91,11 +97,14 @@ export interface InsertOptions<T extends BcsType<any>> {
 				tieBreaker: RawTransactionArgument<number | bigint>,
 				value: RawTransactionArgument<T>,
 		  ];
+	config?: {
+		walrusPackageId?: string;
+	};
 	typeArguments: [string];
 }
 /** Insert a new entry into the queue. */
 export function insert<T extends BcsType<any>>(options: InsertOptions<T>) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, 'u64', `${options.typeArguments[0]}`] satisfies (
 		| string
 		| null

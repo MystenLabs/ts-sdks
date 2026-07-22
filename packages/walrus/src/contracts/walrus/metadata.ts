@@ -18,10 +18,13 @@ export const Metadata = new MoveStruct({
 export interface NewOptions {
 	package?: string;
 	arguments?: [];
+	config?: {
+		walrusPackageId?: string;
+	};
 }
 /** Creates a new instance of Metadata. */
 export function _new(options: NewOptions = {}) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -43,6 +46,9 @@ export interface InsertOrUpdateOptions {
 				key: RawTransactionArgument<string>,
 				value: RawTransactionArgument<string>,
 		  ];
+	config?: {
+		walrusPackageId?: string;
+	};
 }
 /**
  * Inserts a key-value pair into the metadata.
@@ -50,7 +56,7 @@ export interface InsertOrUpdateOptions {
  * If the key is already present, the value is updated.
  */
 export function insertOrUpdate(options: InsertOrUpdateOptions) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, '0x1::string::String', '0x1::string::String'] satisfies (
 		| string
 		| null
@@ -71,10 +77,13 @@ export interface RemoveArguments {
 export interface RemoveOptions {
 	package?: string;
 	arguments: RemoveArguments | [self: TransactionArgument, key: RawTransactionArgument<string>];
+	config?: {
+		walrusPackageId?: string;
+	};
 }
 /** Removes the metadata associated with the given key. */
 export function remove(options: RemoveOptions) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, '0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['self', 'key'];
 	return (tx: Transaction) =>
@@ -94,6 +103,9 @@ export interface RemoveIfExistsOptions {
 	arguments:
 		| RemoveIfExistsArguments
 		| [self: TransactionArgument, key: RawTransactionArgument<string>];
+	config?: {
+		walrusPackageId?: string;
+	};
 }
 /**
  * Removes the metadata associated with the given key, if it exists.
@@ -101,7 +113,7 @@ export interface RemoveIfExistsOptions {
  * Optionally returns the previous value associated with the key.
  */
 export function removeIfExists(options: RemoveIfExistsOptions) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, '0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['self', 'key'];
 	return (tx: Transaction) =>

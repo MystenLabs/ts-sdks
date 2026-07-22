@@ -1,7 +1,14 @@
 /**************************************************************
  * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
  **************************************************************/
-import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
+import {
+	MoveStruct,
+	normalizeMoveArguments,
+	type RawTransactionArgument,
+	type ConfigValue,
+	resolveConfigArgument,
+	applyConfigArguments,
+} from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
 import * as _package from './deps/sui/package.js';
@@ -39,6 +46,9 @@ export interface InitializeWalrusOptions {
 				nShards: RawTransactionArgument<number>,
 				maxEpochsAhead: RawTransactionArgument<number>,
 		  ];
+	config?: {
+		walrusPackageId?: string;
+	};
 }
 /**
  * Initializes Walrus and shares the system and staking objects.
@@ -46,7 +56,7 @@ export interface InitializeWalrusOptions {
  * This can only be called once, after which the `InitCap` is destroyed.
  */
 export function initializeWalrus(options: InitializeWalrusOptions) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, 'u64', 'u64', 'u16', 'u32', '0x2::clock::Clock'] satisfies (
 		| string
 		| null
@@ -68,18 +78,23 @@ export function initializeWalrus(options: InitializeWalrusOptions) {
 		});
 }
 export interface MigrateArguments {
-	Staking: RawTransactionArgument<string>;
-	System: RawTransactionArgument<string>;
+	Staking?: RawTransactionArgument<string>;
+	System?: RawTransactionArgument<string>;
 }
 export interface MigrateOptions {
 	package?: string;
-	arguments:
+	arguments?:
 		| MigrateArguments
-		| [Staking: RawTransactionArgument<string>, System: RawTransactionArgument<string>];
+		| [Staking?: RawTransactionArgument<string>, System?: RawTransactionArgument<string>];
+	config?: {
+		stakingPoolId: ConfigValue;
+		systemObjectId: ConfigValue;
+		walrusPackageId?: string;
+	};
 }
 /** Deprecated old migration function. */
 export function migrate(options: MigrateOptions) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['Staking', 'System'];
 	return (tx: Transaction) =>
@@ -87,18 +102,62 @@ export function migrate(options: MigrateOptions) {
 			package: packageAddress,
 			module: 'init',
 			function: 'migrate',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments ?? {}, [
+					{
+						index: 0,
+						name: 'Staking',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.stakingPoolId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'init',
+									functionName: 'migrate',
+									parameterIndex: 0,
+									parameterName: '_staking',
+								},
+								'stakingPoolId',
+							),
+					},
+					{
+						index: 1,
+						name: 'System',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.systemObjectId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'init',
+									functionName: 'migrate',
+									parameterIndex: 1,
+									parameterName: '_system',
+								},
+								'systemObjectId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface MigrateV2Arguments {
-	staking: RawTransactionArgument<string>;
-	system: RawTransactionArgument<string>;
+	staking?: RawTransactionArgument<string>;
+	system?: RawTransactionArgument<string>;
 }
 export interface MigrateV2Options {
 	package?: string;
-	arguments:
+	arguments?:
 		| MigrateV2Arguments
-		| [staking: RawTransactionArgument<string>, system: RawTransactionArgument<string>];
+		| [staking?: RawTransactionArgument<string>, system?: RawTransactionArgument<string>];
+	config?: {
+		stakingPoolId: ConfigValue;
+		systemObjectId: ConfigValue;
+		walrusPackageId?: string;
+	};
 }
 /**
  * Migrates the staking and system objects to the new package ID.
@@ -116,7 +175,7 @@ export interface MigrateV2Options {
  * - No additional steps beyond version bump.
  */
 export function migrateV2(options: MigrateV2Options) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['staking', 'system'];
 	return (tx: Transaction) =>
@@ -124,6 +183,45 @@ export function migrateV2(options: MigrateV2Options) {
 			package: packageAddress,
 			module: 'init',
 			function: 'migrate_v2',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments ?? {}, [
+					{
+						index: 0,
+						name: 'staking',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.stakingPoolId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'init',
+									functionName: 'migrate_v2',
+									parameterIndex: 0,
+									parameterName: 'staking',
+								},
+								'stakingPoolId',
+							),
+					},
+					{
+						index: 1,
+						name: 'system',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.systemObjectId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'init',
+									functionName: 'migrate_v2',
+									parameterIndex: 1,
+									parameterName: 'system',
+								},
+								'systemObjectId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
