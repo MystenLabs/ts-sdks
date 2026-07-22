@@ -4190,12 +4190,12 @@ exports[`deepbook PTB snapshots > swapExactBaseForQuoteWithManager 1`] = `
           },
           {
             "$kind": "Input",
-            "Input": 2,
+            "Input": 3,
             "type": "object",
           },
           {
             "$kind": "Input",
-            "Input": 2,
+            "Input": 4,
             "type": "object",
           },
           {
@@ -4204,12 +4204,12 @@ exports[`deepbook PTB snapshots > swapExactBaseForQuoteWithManager 1`] = `
           },
           {
             "$kind": "Input",
-            "Input": 3,
+            "Input": 5,
             "type": "pure",
           },
           {
             "$kind": "Input",
-            "Input": 4,
+            "Input": 6,
             "type": "object",
           },
         ],
@@ -4239,7 +4239,19 @@ exports[`deepbook PTB snapshots > swapExactBaseForQuoteWithManager 1`] = `
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x000000000000000000000000000000000000000000000000000000000000c0c0",
+        "objectId": "0x00000000000000000000000000000000000000000000000000000000000000a1",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x00000000000000000000000000000000000000000000000000000000000000a2",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x00000000000000000000000000000000000000000000000000000000000000a3",
       },
     },
     {
@@ -4420,12 +4432,12 @@ exports[`deepbook PTB snapshots > swapExactQuantityWithManager 1`] = `
           },
           {
             "$kind": "Input",
-            "Input": 2,
+            "Input": 3,
             "type": "object",
           },
           {
             "$kind": "Input",
-            "Input": 2,
+            "Input": 4,
             "type": "object",
           },
           {
@@ -4438,12 +4450,12 @@ exports[`deepbook PTB snapshots > swapExactQuantityWithManager 1`] = `
           },
           {
             "$kind": "Input",
-            "Input": 3,
+            "Input": 5,
             "type": "pure",
           },
           {
             "$kind": "Input",
-            "Input": 4,
+            "Input": 6,
             "type": "object",
           },
         ],
@@ -4473,7 +4485,19 @@ exports[`deepbook PTB snapshots > swapExactQuantityWithManager 1`] = `
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x000000000000000000000000000000000000000000000000000000000000c0c0",
+        "objectId": "0x00000000000000000000000000000000000000000000000000000000000000a1",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x00000000000000000000000000000000000000000000000000000000000000a2",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x00000000000000000000000000000000000000000000000000000000000000a3",
       },
     },
     {
@@ -4626,12 +4650,12 @@ exports[`deepbook PTB snapshots > swapExactQuoteForBaseWithManager 1`] = `
           },
           {
             "$kind": "Input",
-            "Input": 2,
+            "Input": 3,
             "type": "object",
           },
           {
             "$kind": "Input",
-            "Input": 2,
+            "Input": 4,
             "type": "object",
           },
           {
@@ -4640,12 +4664,12 @@ exports[`deepbook PTB snapshots > swapExactQuoteForBaseWithManager 1`] = `
           },
           {
             "$kind": "Input",
-            "Input": 3,
+            "Input": 5,
             "type": "pure",
           },
           {
             "$kind": "Input",
-            "Input": 4,
+            "Input": 6,
             "type": "object",
           },
         ],
@@ -4675,7 +4699,19 @@ exports[`deepbook PTB snapshots > swapExactQuoteForBaseWithManager 1`] = `
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x000000000000000000000000000000000000000000000000000000000000c0c0",
+        "objectId": "0x00000000000000000000000000000000000000000000000000000000000000a1",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x00000000000000000000000000000000000000000000000000000000000000a2",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x00000000000000000000000000000000000000000000000000000000000000a3",
       },
     },
     {
