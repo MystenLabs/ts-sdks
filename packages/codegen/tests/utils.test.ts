@@ -13,6 +13,11 @@ let normalizeMoveArguments: (
 	argTypes: readonly (string | null)[],
 	parameterNames?: string[],
 ) => any;
+let resolveConfigArg: (value: unknown, ctx: { typeArguments: string[] }, name: string) => unknown;
+let applyConfigArguments: (
+	args: unknown[] | object,
+	defaults: readonly { index: number; name?: string; resolve: () => unknown }[],
+) => unknown[] | object;
 
 beforeAll(async () => {
 	await mkdir(join(GENERATED_DIR, 'utils'), { recursive: true });
@@ -20,6 +25,8 @@ beforeAll(async () => {
 	const modPath = join(GENERATED_DIR, 'utils', 'index.js');
 	const mod = await import(modPath);
 	normalizeMoveArguments = mod.normalizeMoveArguments;
+	resolveConfigArg = mod.resolveConfigArg;
+	applyConfigArguments = mod.applyConfigArguments;
 });
 
 afterAll(async () => {
@@ -397,5 +404,103 @@ describe('normalizeMoveArguments', () => {
 				},
 			},
 		]);
+	});
+});
+
+describe('well-known AccumulatorRoot injection', () => {
+	it('injects the accumulator root object without consuming arguments', async () => {
+		const tx = new Transaction();
+		tx.moveCall({
+			target: '0x0::test::test',
+			arguments: normalizeMoveArguments(
+				{ arbitraryValue: 42 },
+				['u32', '0x2::accumulator::AccumulatorRoot'],
+				['arbitraryValue'],
+			),
+		});
+
+		const json = JSON.parse(await tx.toJSON());
+		expect(json.inputs).toEqual([
+			{ Pure: { bytes: 'KgAAAA==' } },
+			{
+				UnresolvedObject: {
+					objectId: '0x0000000000000000000000000000000000000000000000000000000000000acc',
+				},
+			},
+		]);
+	});
+});
+
+describe('resolveConfigArg', () => {
+	it('returns plain values as-is', () => {
+		expect(resolveConfigArg('0x123', { typeArguments: [] }, 'pool')).toBe('0x123');
+	});
+
+	it('invokes resolver functions with the context', () => {
+		const contexts: unknown[] = [];
+		const value = (ctx: unknown) => {
+			contexts.push(ctx);
+			return '0x456';
+		};
+
+		expect(resolveConfigArg(value, { typeArguments: ['0x2::sui::SUI'] }, 'pool')).toBe('0x456');
+		expect(contexts).toEqual([{ typeArguments: ['0x2::sui::SUI'] }]);
+	});
+
+	it('throws a descriptive error for missing values', () => {
+		expect(() => resolveConfigArg(undefined, { typeArguments: [] }, 'pool')).toThrowError(
+			'Missing config value for "pool": pass it explicitly in arguments, or include it in the config object',
+		);
+	});
+});
+
+describe('applyConfigArguments', () => {
+	it('fills missing named arguments and leaves explicit ones untouched', () => {
+		const resolved: string[] = [];
+		const result = applyConfigArguments({ amount: 42n }, [
+			{
+				index: 0,
+				name: 'pool',
+				resolve: () => {
+					resolved.push('pool');
+					return '0x123';
+				},
+			},
+		]);
+
+		expect(result).toEqual({ amount: 42n, pool: '0x123' });
+		expect(resolved).toEqual(['pool']);
+	});
+
+	it('does not invoke resolvers for explicitly passed arguments', () => {
+		const result = applyConfigArguments({ pool: '0xabc', amount: 42n }, [
+			{
+				index: 0,
+				name: 'pool',
+				resolve: () => {
+					throw new Error('should not be called');
+				},
+			},
+		]);
+
+		expect(result).toEqual({ pool: '0xabc', amount: 42n });
+	});
+
+	it('fills undefined positions in array arguments', () => {
+		const result = applyConfigArguments(
+			[undefined, 42n],
+			[{ index: 0, name: 'pool', resolve: () => '0x123' }],
+		);
+
+		expect(result).toEqual(['0x123', 42n]);
+	});
+
+	it('fills trailing omitted positions in array arguments', () => {
+		const result = applyConfigArguments(
+			[42n],
+			[{ index: 1, name: 'pool', resolve: () => '0x123' }],
+		);
+
+		expect(result).toEqual([42n, '0x123']);
 	});
 });

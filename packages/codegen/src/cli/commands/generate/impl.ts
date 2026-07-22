@@ -235,6 +235,7 @@ export default async function generate(
 				importExtension,
 				includePhantomTypeParameters: config.includePhantomTypeParameters,
 				errorClass: config.errorClass,
+				configArguments: config.configArguments,
 			});
 		};
 

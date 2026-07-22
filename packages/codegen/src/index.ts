@@ -8,8 +8,13 @@ import { MoveModuleBuilder } from './move-module-builder.js';
 import { existsSync, statSync } from 'node:fs';
 import { getUtilsContent } from './generate-utils.js';
 import { parse } from 'toml';
+import { FileBuilder } from './file-builder.js';
+import { parseConfigArguments } from './config-arguments.js';
+import type { ParsedConfigArgument } from './config-arguments.js';
+import { camelCase, capitalize, parseTS } from './utils.js';
 import type { RootPackageMetadata } from './types/summary.js';
 import type {
+	ConfigArguments,
 	ErrorClassConfig,
 	FunctionsOption,
 	GenerateBase,
@@ -18,7 +23,11 @@ import type {
 	PackageGenerate,
 	TypesOption,
 } from './config.js';
-export { type SuiCodegenConfig } from './config.js';
+export {
+	type SuiCodegenConfig,
+	type ConfigArguments,
+	type ConfigArgumentMatcher,
+} from './config.js';
 
 export async function generateFromPackageSummary({
 	package: pkg,
@@ -28,6 +37,7 @@ export async function generateFromPackageSummary({
 	importExtension = '.js',
 	includePhantomTypeParameters = false,
 	errorClass,
+	configArguments: globalConfigArguments,
 }: {
 	package: PackageConfig;
 	prune: boolean;
@@ -36,6 +46,7 @@ export async function generateFromPackageSummary({
 	importExtension?: ImportExtension;
 	includePhantomTypeParameters?: boolean;
 	errorClass?: ErrorClassConfig;
+	configArguments?: ConfigArguments;
 }) {
 	if (!pkg.path) {
 		throw new Error(`Package path is required (got ${pkg.package})`);
@@ -154,6 +165,41 @@ export async function generateFromPackageSummary({
 		)
 	).flat();
 
+	const effectiveConfigArguments: ConfigArguments = {
+		...globalConfigArguments,
+		...pkg.configArguments,
+	};
+
+	const { entries: configArgumentEntries, unresolvedKeys } = Object.keys(effectiveConfigArguments)
+		.length
+		? parseConfigArguments(effectiveConfigArguments, registry)
+		: { entries: [], unresolvedKeys: [] };
+
+	if (unresolvedKeys.length > 0) {
+		console.warn(
+			`configArguments keys not resolvable in ${pkg.package} (skipped): ${unresolvedKeys.join(', ')}`,
+		);
+	}
+
+	const packageEntries = configArgumentEntries.filter(
+		(entry) => entry.kind === 'package' && entry.package === pkg.package,
+	);
+	if (packageEntries.length > 1) {
+		throw new Error(
+			`Multiple configArguments package entries match ${pkg.package}: ${packageEntries
+				.map((entry) => entry.key)
+				.join(', ')}`,
+		);
+	}
+	const packageConfigKey = packageEntries[0]?.key;
+
+	for (const mod of modules) {
+		mod.builder.setConfigArguments(
+			configArgumentEntries,
+			mod.isMainPackage ? packageConfigKey : undefined,
+		);
+	}
+
 	const packageGenerate: PackageGenerate | undefined = 'generate' in pkg ? pkg.generate : undefined;
 	const pkgModules = packageGenerate?.modules;
 	const pkgTypes: TypesOption = packageGenerate?.types ?? globalGenerate?.types ?? true;
@@ -218,6 +264,71 @@ export async function generateFromPackageSummary({
 				await mod.builder.toString(packageDir, fileRelToPackage, outputDir),
 			);
 		}),
+	);
+
+	if (configArgumentEntries.length > 0) {
+		await generateConfigInterface({
+			packageOutputDir,
+			outputDir,
+			packageName,
+			entries: configArgumentEntries,
+			importExtension,
+		});
+	}
+}
+
+/**
+ * Emit `<output>/<packageName>/config-args.ts` with a convenience interface covering every
+ * declared config key, for `satisfies` on the user side. The hyphenated filename can never
+ * collide with a generated Move module file.
+ */
+async function generateConfigInterface({
+	packageOutputDir,
+	outputDir,
+	packageName,
+	entries,
+	importExtension,
+}: {
+	packageOutputDir: string;
+	outputDir: string;
+	packageName: string;
+	entries: ParsedConfigArgument[];
+	importExtension: ImportExtension;
+}) {
+	const builder = new FileBuilder();
+	const utilsModule = `~outputRoot/utils/index${importExtension}`;
+
+	const interfaceName = `${capitalize(
+		camelCase(packageName.replaceAll(/[^A-Za-z0-9_$]+/g, '_').replace(/^(\d)/, '_$1')),
+	)}Config`;
+
+	const fields = entries.map((entry) => {
+		if (entry.kind === 'package') {
+			return `${entry.key}?: string`;
+		}
+
+		if (entry.isGeneric && entry.typeArguments === null) {
+			const ctxName = builder.addImport(utilsModule, 'type ConfigResolverContext');
+			const objArgName = builder.addImport(
+				'@mysten/sui/transactions',
+				'type TransactionObjectArgument',
+			);
+			return `${entry.key}: (ctx: ${ctxName}) => string | ${objArgName}`;
+		}
+
+		return `${entry.key}: ${builder.addImport(utilsModule, 'type ConfigValue')}`;
+	});
+
+	builder.statements.push(
+		...parseTS /* ts */ `export interface ${interfaceName} {
+			${fields.join(';\n')}
+		}`,
+	);
+
+	await mkdir(packageOutputDir, { recursive: true });
+	await writeFile(
+		join(packageOutputDir, 'config-args.ts'),
+		await builder.toString(packageOutputDir, 'config-args.ts', outputDir),
 	);
 }
 

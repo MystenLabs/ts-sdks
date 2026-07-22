@@ -168,6 +168,10 @@ export function isWellKnownObjectParameter(
 		if (Datatype.module.name === 'clock') {
 			return Datatype.name === 'Clock';
 		}
+
+		if (Datatype.module.name === 'accumulator') {
+			return Datatype.name === 'AccumulatorRoot';
+		}
 	}
 
 	if (address === SUI_SYSTEM_ADDRESS) {

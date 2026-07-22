@@ -28,7 +28,11 @@ import {
 	BcsTuple,
 } from '@mysten/sui/bcs';
 import { normalizeStructTag, normalizeSuiAddress } from '@mysten/sui/utils';
-import { type TransactionArgument, isArgument } from '@mysten/sui/transactions';
+import {
+	type TransactionArgument,
+	type TransactionObjectArgument,
+	isArgument,
+} from '@mysten/sui/transactions';
 import { type ClientWithCoreApi, type SuiClientTypes } from '@mysten/sui/client';
 
 const MOVE_STDLIB_ADDRESS = normalizeSuiAddress('0x1');
@@ -126,6 +130,12 @@ export function normalizeMoveArguments(
 			continue;
 		}
 
+		if (argType === '0x2::accumulator::AccumulatorRoot') {
+			// Chain-wide shared singleton at a fixed address (SUI_ACCUMULATOR_ROOT_OBJECT_ID).
+			normalizedArgs.push((tx) => tx.object('0xacc'));
+			continue;
+		}
+
 		if (argType === '0x3::sui_system::SuiSystemState') {
 			normalizedArgs.push((tx) => tx.object.system());
 			continue;
@@ -175,6 +185,70 @@ export function normalizeMoveArguments(
 	}
 
 	return normalizedArgs;
+}
+
+/* -------------------------- Config-mapped arguments -------------------------- */
+
+/** Context passed to config resolver functions. */
+export interface ConfigResolverContext {
+	/**
+	 * The matched parameter's own instantiated type arguments (not the whole function's type
+	 * argument tuple), as fully-qualified type tags.
+	 */
+	typeArguments: string[];
+}
+
+/**
+ * A value in a generated config object: a plain object id/argument, or a resolver function.
+ *
+ * Any function is treated as a resolver and called with a \`ConfigResolverContext\`. To provide a
+ * transaction-callback object argument dynamically, return it from a resolver:
+ * \`(ctx) => (tx) => ...\`.
+ */
+export type ConfigValue =
+	| string
+	| Exclude<TransactionObjectArgument, (...args: never[]) => unknown>
+	| ((ctx: ConfigResolverContext) => string | TransactionObjectArgument);
+
+export function resolveConfigArg(
+	value: ConfigValue | undefined,
+	ctx: ConfigResolverContext,
+	name: string,
+): string | TransactionObjectArgument {
+	if (value == null) {
+		throw new __ERROR_CLASS__(
+			\`Missing config value for "\${name}": pass it explicitly in arguments, or include it in the config object\`,
+		);
+	}
+
+	return typeof value === 'function' ? value(ctx) : value;
+}
+
+/**
+ * Fill unset config-mapped positions in an arguments array/object with their resolved config
+ * values. Resolvers are only invoked for positions the caller did not pass explicitly.
+ */
+export function applyConfigArguments<T extends object | unknown[]>(
+	args: T,
+	defaults: readonly { index: number; name?: string; resolve: () => unknown }[],
+): T {
+	if (Array.isArray(args)) {
+		const result = [...args];
+		for (const entry of defaults) {
+			if (result[entry.index] === undefined) {
+				result[entry.index] = entry.resolve();
+			}
+		}
+		return result as T;
+	}
+
+	const result: Record<string, unknown> = { ...args };
+	for (const entry of defaults) {
+		if (entry.name !== undefined && result[entry.name] === undefined) {
+			result[entry.name] = entry.resolve();
+		}
+	}
+	return result as T;
 }
 
 /* -------------------------- Move type tags -------------------------- */
