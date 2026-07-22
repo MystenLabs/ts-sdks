@@ -4,7 +4,14 @@
 
 /** Implementation of auction module. More information in: ../../../docs */
 
-import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
+import {
+	MoveStruct,
+	normalizeMoveArguments,
+	type RawTransactionArgument,
+	type ConfigValue,
+	resolveConfigArgument,
+	applyConfigArguments,
+} from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
 import * as balance from './deps/sui/balance.js';
@@ -75,7 +82,7 @@ export const AuctionExtendedEvent = new MoveStruct({
 });
 export interface StartAuctionAndPlaceBidArguments {
 	self: RawTransactionArgument<string>;
-	suins: RawTransactionArgument<string>;
+	suins?: RawTransactionArgument<string>;
 	domainName: RawTransactionArgument<string>;
 	bid: RawTransactionArgument<string>;
 }
@@ -85,14 +92,18 @@ export interface StartAuctionAndPlaceBidOptions {
 		| StartAuctionAndPlaceBidArguments
 		| [
 				self: RawTransactionArgument<string>,
-				suins: RawTransactionArgument<string>,
+				suins: RawTransactionArgument<string> | undefined,
 				domainName: RawTransactionArgument<string>,
 				bid: RawTransactionArgument<string>,
 		  ];
+	config?: {
+		suins: ConfigValue;
+		packageId?: string;
+	};
 }
 /** Start an auction if it's not started yet; and make the first bid. */
 export function startAuctionAndPlaceBid(options: StartAuctionAndPlaceBidOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, null, '0x1::string::String', null, '0x2::clock::Clock'] satisfies (
 		| string
 		| null
@@ -103,7 +114,29 @@ export function startAuctionAndPlaceBid(options: StartAuctionAndPlaceBidOptions)
 			package: packageAddress,
 			module: 'auction',
 			function: 'start_auction_and_place_bid',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 1,
+						name: 'suins',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.suins,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'auction',
+									functionName: 'start_auction_and_place_bid',
+									parameterIndex: 1,
+									parameterName: 'suins',
+								},
+								'suins',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface PlaceBidArguments {
@@ -120,6 +153,9 @@ export interface PlaceBidOptions {
 				domainName: RawTransactionArgument<string>,
 				bid: RawTransactionArgument<string>,
 		  ];
+	config?: {
+		packageId?: string;
+	};
 }
 /**
  * #### Notice
@@ -130,7 +166,7 @@ export interface PlaceBidOptions {
  * `bid` is too low,
  */
 export function placeBid(options: PlaceBidOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, '0x1::string::String', null, '0x2::clock::Clock'] satisfies (
 		| string
 		| null
@@ -153,6 +189,9 @@ export interface ClaimOptions {
 	arguments:
 		| ClaimArguments
 		| [self: RawTransactionArgument<string>, domainName: RawTransactionArgument<string>];
+	config?: {
+		packageId?: string;
+	};
 }
 /**
  * #### Notice
@@ -162,7 +201,7 @@ export interface ClaimOptions {
  * Panics sender is not the winner
  */
 export function claim(options: ClaimOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, '0x1::string::String', '0x2::clock::Clock'] satisfies (
 		| string
 		| null
@@ -185,6 +224,9 @@ export interface GetAuctionMetadataOptions {
 	arguments:
 		| GetAuctionMetadataArguments
 		| [self: RawTransactionArgument<string>, domainName: RawTransactionArgument<string>];
+	config?: {
+		packageId?: string;
+	};
 }
 /**
  * #### Notice
@@ -200,7 +242,7 @@ export interface GetAuctionMetadataOptions {
  * (`start_timestamp_ms`, `end_timestamp_ms`, `winner`, `highest_amount`)
  */
 export function getAuctionMetadata(options: GetAuctionMetadataOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, '0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['self', 'domainName'];
 	return (tx: Transaction) =>
@@ -220,9 +262,12 @@ export interface CollectWinningAuctionFundOptions {
 	arguments:
 		| CollectWinningAuctionFundArguments
 		| [self: RawTransactionArgument<string>, domainName: RawTransactionArgument<string>];
+	config?: {
+		packageId?: string;
+	};
 }
 export function collectWinningAuctionFund(options: CollectWinningAuctionFundOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, '0x1::string::String', '0x2::clock::Clock'] satisfies (
 		| string
 		| null
@@ -245,9 +290,12 @@ export interface AdminWithdrawFundsOptions {
 	arguments:
 		| AdminWithdrawFundsArguments
 		| [_: RawTransactionArgument<string>, self: RawTransactionArgument<string>];
+	config?: {
+		packageId?: string;
+	};
 }
 export function adminWithdrawFunds(options: AdminWithdrawFundsOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['_', 'self'];
 	return (tx: Transaction) =>
@@ -272,6 +320,9 @@ export interface AdminFinalizeAuctionOptions {
 				self: RawTransactionArgument<string>,
 				domain: RawTransactionArgument<string>,
 		  ];
+	config?: {
+		packageId?: string;
+	};
 }
 /**
  * Admin functionality used to finalize a single auction.
@@ -291,7 +342,7 @@ export interface AdminFinalizeAuctionOptions {
  * storage.
  */
 export function adminFinalizeAuction(options: AdminFinalizeAuctionOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, null, '0x1::string::String', '0x2::clock::Clock'] satisfies (
 		| string
 		| null
@@ -319,6 +370,9 @@ export interface AdminTryFinalizeAuctionsOptions {
 				self: RawTransactionArgument<string>,
 				operationLimit: RawTransactionArgument<number | bigint>,
 		  ];
+	config?: {
+		packageId?: string;
+	};
 }
 /**
  * Admin functionality used to finalize an arbitrary number of auctions.
@@ -328,7 +382,7 @@ export interface AdminTryFinalizeAuctionsOptions {
  * in finalizing auctions even in the presence of thousands of auctions/bids.
  */
 export function adminTryFinalizeAuctions(options: AdminTryFinalizeAuctionsOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, null, 'u64', '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['admin', 'self', 'operationLimit'];
 	return (tx: Transaction) =>

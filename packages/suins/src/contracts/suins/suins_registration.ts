@@ -38,13 +38,16 @@ export interface HasExpiredArguments {
 export interface HasExpiredOptions {
 	package?: string;
 	arguments: HasExpiredArguments | [self: RawTransactionArgument<string>];
+	config?: {
+		packageId?: string;
+	};
 }
 /**
  * Check whether the `SuinsRegistration` has expired by comparing the expiration
  * timeout with the current time.
  */
 export function hasExpired(options: HasExpiredOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
@@ -61,6 +64,9 @@ export interface HasExpiredPastGracePeriodArguments {
 export interface HasExpiredPastGracePeriodOptions {
 	package?: string;
 	arguments: HasExpiredPastGracePeriodArguments | [self: RawTransactionArgument<string>];
+	config?: {
+		packageId?: string;
+	};
 }
 /**
  * Check whether the `SuinsRegistration` has expired by comparing the expiration
@@ -68,7 +74,7 @@ export interface HasExpiredPastGracePeriodOptions {
  * period.
  */
 export function hasExpiredPastGracePeriod(options: HasExpiredPastGracePeriodOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
@@ -85,10 +91,13 @@ export interface DomainArguments {
 export interface DomainOptions {
 	package?: string;
 	arguments: DomainArguments | [self: RawTransactionArgument<string>];
+	config?: {
+		packageId?: string;
+	};
 }
 /** Get the `domain` field of the `SuinsRegistration`. */
 export function domain(options: DomainOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
@@ -105,10 +114,13 @@ export interface DomainNameArguments {
 export interface DomainNameOptions {
 	package?: string;
 	arguments: DomainNameArguments | [self: RawTransactionArgument<string>];
+	config?: {
+		packageId?: string;
+	};
 }
 /** Get the `domain_name` field of the `SuinsRegistration`. */
 export function domainName(options: DomainNameOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
@@ -125,10 +137,13 @@ export interface ExpirationTimestampMsArguments {
 export interface ExpirationTimestampMsOptions {
 	package?: string;
 	arguments: ExpirationTimestampMsArguments | [self: RawTransactionArgument<string>];
+	config?: {
+		packageId?: string;
+	};
 }
 /** Get the `expiration_timestamp_ms` field of the `SuinsRegistration`. */
 export function expirationTimestampMs(options: ExpirationTimestampMsOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
@@ -145,10 +160,13 @@ export interface ImageUrlArguments {
 export interface ImageUrlOptions {
 	package?: string;
 	arguments: ImageUrlArguments | [self: RawTransactionArgument<string>];
+	config?: {
+		packageId?: string;
+	};
 }
 /** Get the `image_url` field of the `SuinsRegistration`. */
 export function imageUrl(options: ImageUrlOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
@@ -165,9 +183,12 @@ export interface UidArguments {
 export interface UidOptions {
 	package?: string;
 	arguments: UidArguments | [self: RawTransactionArgument<string>];
+	config?: {
+		packageId?: string;
+	};
 }
 export function uid(options: UidOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
@@ -184,10 +205,13 @@ export interface UidMutArguments {
 export interface UidMutOptions {
 	package?: string;
 	arguments: UidMutArguments | [self: RawTransactionArgument<string>];
+	config?: {
+		packageId?: string;
+	};
 }
 /** Get the mutable `id` field of the `SuinsRegistration`. */
 export function uidMut(options: UidMutOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>

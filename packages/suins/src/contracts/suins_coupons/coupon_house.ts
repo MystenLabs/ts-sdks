@@ -13,7 +13,14 @@
  * to claim names and add earnings to the registry.
  */
 
-import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
+import {
+	MoveStruct,
+	normalizeMoveArguments,
+	type RawTransactionArgument,
+	type ConfigValue,
+	resolveConfigArgument,
+	applyConfigArguments,
+} from '../utils/index.js';
 import { bcs, type BcsType } from '@mysten/sui/bcs';
 import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as data from './data.js';
@@ -39,18 +46,22 @@ export const CouponHouse = new MoveStruct({
 	},
 });
 export interface SetupArguments {
-	suins: RawTransactionArgument<string>;
+	suins?: RawTransactionArgument<string>;
 	cap: RawTransactionArgument<string>;
 }
 export interface SetupOptions {
 	package?: string;
 	arguments:
 		| SetupArguments
-		| [suins: RawTransactionArgument<string>, cap: RawTransactionArgument<string>];
+		| [suins: RawTransactionArgument<string> | undefined, cap: RawTransactionArgument<string>];
+	config?: {
+		suins: ConfigValue;
+		packageId?: string;
+	};
 }
 /** Called once to setup the CouponHouse on SuiNS. */
 export function setup(options: SetupOptions) {
-	const packageAddress = options.package ?? '@suins/coupons';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/coupons';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['suins', 'cap'];
 	return (tx: Transaction) =>
@@ -58,11 +69,33 @@ export function setup(options: SetupOptions) {
 			package: packageAddress,
 			module: 'coupon_house',
 			function: 'setup',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'suins',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.suins,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'coupon_house',
+									functionName: 'setup',
+									parameterIndex: 0,
+									parameterName: 'suins',
+								},
+								'suins',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface ApplyCouponArguments {
-	suins: RawTransactionArgument<string>;
+	suins?: RawTransactionArgument<string>;
 	intent: TransactionArgument;
 	couponCode: RawTransactionArgument<string>;
 }
@@ -71,13 +104,17 @@ export interface ApplyCouponOptions {
 	arguments:
 		| ApplyCouponArguments
 		| [
-				suins: RawTransactionArgument<string>,
+				suins: RawTransactionArgument<string> | undefined,
 				intent: TransactionArgument,
 				couponCode: RawTransactionArgument<string>,
 		  ];
+	config?: {
+		suins: ConfigValue;
+		packageId?: string;
+	};
 }
 export function applyCoupon(options: ApplyCouponOptions) {
-	const packageAddress = options.package ?? '@suins/coupons';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/coupons';
 	const argumentsTypes = [null, null, '0x1::string::String', '0x2::clock::Clock'] satisfies (
 		| string
 		| null
@@ -88,7 +125,29 @@ export function applyCoupon(options: ApplyCouponOptions) {
 			package: packageAddress,
 			module: 'coupon_house',
 			function: 'apply_coupon',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'suins',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.suins,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'coupon_house',
+									functionName: 'apply_coupon',
+									parameterIndex: 0,
+									parameterName: 'suins',
+								},
+								'suins',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface RegisterWithCouponArguments {
@@ -109,9 +168,12 @@ export interface RegisterWithCouponOptions {
 				NoYears: RawTransactionArgument<number>,
 				Payment: RawTransactionArgument<string>,
 		  ];
+	config?: {
+		packageId?: string;
+	};
 }
 export function registerWithCoupon(options: RegisterWithCouponOptions) {
-	const packageAddress = options.package ?? '@suins/coupons';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/coupons';
 	const argumentsTypes = [
 		null,
 		'0x1::string::String',
@@ -143,9 +205,12 @@ export interface CalculateSalePriceOptions {
 				Price: RawTransactionArgument<number | bigint>,
 				CouponCode: RawTransactionArgument<string>,
 		  ];
+	config?: {
+		packageId?: string;
+	};
 }
 export function calculateSalePrice(options: CalculateSalePriceOptions) {
-	const packageAddress = options.package ?? '@suins/coupons';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/coupons';
 	const argumentsTypes = [null, 'u64', '0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['Suins', 'Price', 'CouponCode'];
 	return (tx: Transaction) =>
@@ -157,18 +222,22 @@ export function calculateSalePrice(options: CalculateSalePriceOptions) {
 		});
 }
 export interface AppDataMutArguments<A extends BcsType<any>> {
-	suins: RawTransactionArgument<string>;
+	suins?: RawTransactionArgument<string>;
 	_: RawTransactionArgument<A>;
 }
 export interface AppDataMutOptions<A extends BcsType<any>> {
 	package?: string;
 	arguments:
 		| AppDataMutArguments<A>
-		| [suins: RawTransactionArgument<string>, _: RawTransactionArgument<A>];
+		| [suins: RawTransactionArgument<string> | undefined, _: RawTransactionArgument<A>];
+	config?: {
+		suins: ConfigValue;
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 export function appDataMut<A extends BcsType<any>>(options: AppDataMutOptions<A>) {
-	const packageAddress = options.package ?? '@suins/coupons';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/coupons';
 	const argumentsTypes = [null, `${options.typeArguments[0]}`] satisfies (string | null)[];
 	const parameterNames = ['suins', '_'];
 	return (tx: Transaction) =>
@@ -176,19 +245,45 @@ export function appDataMut<A extends BcsType<any>>(options: AppDataMutOptions<A>
 			package: packageAddress,
 			module: 'coupon_house',
 			function: 'app_data_mut',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'suins',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.suins,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'coupon_house',
+									functionName: 'app_data_mut',
+									parameterIndex: 0,
+									parameterName: 'suins',
+								},
+								'suins',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 			typeArguments: options.typeArguments,
 		});
 }
 export interface AuthorizeAppArguments {
 	_: RawTransactionArgument<string>;
-	suins: RawTransactionArgument<string>;
+	suins?: RawTransactionArgument<string>;
 }
 export interface AuthorizeAppOptions {
 	package?: string;
 	arguments:
 		| AuthorizeAppArguments
-		| [_: RawTransactionArgument<string>, suins: RawTransactionArgument<string>];
+		| [_: RawTransactionArgument<string>, suins?: RawTransactionArgument<string>];
+	config?: {
+		suins: ConfigValue;
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 /**
@@ -196,7 +291,7 @@ export interface AuthorizeAppOptions {
  * add/remove coupons.
  */
 export function authorizeApp(options: AuthorizeAppOptions) {
-	const packageAddress = options.package ?? '@suins/coupons';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/coupons';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['_', 'suins'];
 	return (tx: Transaction) =>
@@ -204,24 +299,50 @@ export function authorizeApp(options: AuthorizeAppOptions) {
 			package: packageAddress,
 			module: 'coupon_house',
 			function: 'authorize_app',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 1,
+						name: 'suins',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.suins,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'coupon_house',
+									functionName: 'authorize_app',
+									parameterIndex: 1,
+									parameterName: 'suins',
+								},
+								'suins',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 			typeArguments: options.typeArguments,
 		});
 }
 export interface DeauthorizeAppArguments {
 	_: RawTransactionArgument<string>;
-	suins: RawTransactionArgument<string>;
+	suins?: RawTransactionArgument<string>;
 }
 export interface DeauthorizeAppOptions {
 	package?: string;
 	arguments:
 		| DeauthorizeAppArguments
-		| [_: RawTransactionArgument<string>, suins: RawTransactionArgument<string>];
+		| [_: RawTransactionArgument<string>, suins?: RawTransactionArgument<string>];
+	config?: {
+		suins: ConfigValue;
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 /** De-authorize an app. The app can no longer add or remove */
 export function deauthorizeApp(options: DeauthorizeAppOptions) {
-	const packageAddress = options.package ?? '@suins/coupons';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/coupons';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['_', 'suins'];
 	return (tx: Transaction) =>
@@ -229,13 +350,35 @@ export function deauthorizeApp(options: DeauthorizeAppOptions) {
 			package: packageAddress,
 			module: 'coupon_house',
 			function: 'deauthorize_app',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 1,
+						name: 'suins',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.suins,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'coupon_house',
+									functionName: 'deauthorize_app',
+									parameterIndex: 1,
+									parameterName: 'suins',
+								},
+								'suins',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 			typeArguments: options.typeArguments,
 		});
 }
 export interface SetVersionArguments {
 	_: RawTransactionArgument<string>;
-	suins: RawTransactionArgument<string>;
+	suins?: RawTransactionArgument<string>;
 	version: RawTransactionArgument<number>;
 }
 export interface SetVersionOptions {
@@ -244,16 +387,20 @@ export interface SetVersionOptions {
 		| SetVersionArguments
 		| [
 				_: RawTransactionArgument<string>,
-				suins: RawTransactionArgument<string>,
+				suins: RawTransactionArgument<string> | undefined,
 				version: RawTransactionArgument<number>,
 		  ];
+	config?: {
+		suins: ConfigValue;
+		packageId?: string;
+	};
 }
 /**
  * An admin helper to set the version of the shared object. Registrations are only
  * possible if the latest version is being used.
  */
 export function setVersion(options: SetVersionOptions) {
-	const packageAddress = options.package ?? '@suins/coupons';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/coupons';
 	const argumentsTypes = [null, null, 'u8'] satisfies (string | null)[];
 	const parameterNames = ['_', 'suins', 'version'];
 	return (tx: Transaction) =>
@@ -261,7 +408,29 @@ export function setVersion(options: SetVersionOptions) {
 			package: packageAddress,
 			module: 'coupon_house',
 			function: 'set_version',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 1,
+						name: 'suins',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.suins,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'coupon_house',
+									functionName: 'set_version',
+									parameterIndex: 1,
+									parameterName: 'suins',
+								},
+								'suins',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface AssertVersionIsValidArguments {
@@ -270,10 +439,13 @@ export interface AssertVersionIsValidArguments {
 export interface AssertVersionIsValidOptions {
 	package?: string;
 	arguments: AssertVersionIsValidArguments | [self: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 }
 /** Validate that the version of the app is the latest. */
 export function assertVersionIsValid(options: AssertVersionIsValidOptions) {
-	const packageAddress = options.package ?? '@suins/coupons';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/coupons';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
@@ -286,7 +458,7 @@ export function assertVersionIsValid(options: AssertVersionIsValidOptions) {
 }
 export interface AdminAddCouponArguments {
 	_: RawTransactionArgument<string>;
-	suins: RawTransactionArgument<string>;
+	suins?: RawTransactionArgument<string>;
 	code: RawTransactionArgument<string>;
 	kind: RawTransactionArgument<number>;
 	amount: RawTransactionArgument<number | bigint>;
@@ -298,12 +470,16 @@ export interface AdminAddCouponOptions {
 		| AdminAddCouponArguments
 		| [
 				_: RawTransactionArgument<string>,
-				suins: RawTransactionArgument<string>,
+				suins: RawTransactionArgument<string> | undefined,
 				code: RawTransactionArgument<string>,
 				kind: RawTransactionArgument<number>,
 				amount: RawTransactionArgument<number | bigint>,
 				rules: TransactionArgument,
 		  ];
+	config?: {
+		suins: ConfigValue;
+		packageId?: string;
+	};
 }
 /**
  * To create a coupon, you have to call the PTB in the specific order
@@ -313,7 +489,7 @@ export interface AdminAddCouponOptions {
  * 2.  Call rules::coupon_rules(...) to create the coupon's ruleset.
  */
 export function adminAddCoupon(options: AdminAddCouponOptions) {
-	const packageAddress = options.package ?? '@suins/coupons';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/coupons';
 	const argumentsTypes = [null, null, '0x1::string::String', 'u8', 'u64', null] satisfies (
 		| string
 		| null
@@ -324,12 +500,34 @@ export function adminAddCoupon(options: AdminAddCouponOptions) {
 			package: packageAddress,
 			module: 'coupon_house',
 			function: 'admin_add_coupon',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 1,
+						name: 'suins',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.suins,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'coupon_house',
+									functionName: 'admin_add_coupon',
+									parameterIndex: 1,
+									parameterName: 'suins',
+								},
+								'suins',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface AdminRemoveCouponArguments {
 	_: RawTransactionArgument<string>;
-	suins: RawTransactionArgument<string>;
+	suins?: RawTransactionArgument<string>;
 	code: RawTransactionArgument<string>;
 }
 export interface AdminRemoveCouponOptions {
@@ -338,12 +536,16 @@ export interface AdminRemoveCouponOptions {
 		| AdminRemoveCouponArguments
 		| [
 				_: RawTransactionArgument<string>,
-				suins: RawTransactionArgument<string>,
+				suins: RawTransactionArgument<string> | undefined,
 				code: RawTransactionArgument<string>,
 		  ];
+	config?: {
+		suins: ConfigValue;
+		packageId?: string;
+	};
 }
 export function adminRemoveCoupon(options: AdminRemoveCouponOptions) {
-	const packageAddress = options.package ?? '@suins/coupons';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/coupons';
 	const argumentsTypes = [null, null, '0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['_', 'suins', 'code'];
 	return (tx: Transaction) =>
@@ -351,7 +553,29 @@ export function adminRemoveCoupon(options: AdminRemoveCouponOptions) {
 			package: packageAddress,
 			module: 'coupon_house',
 			function: 'admin_remove_coupon',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 1,
+						name: 'suins',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.suins,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'coupon_house',
+									functionName: 'admin_remove_coupon',
+									parameterIndex: 1,
+									parameterName: 'suins',
+								},
+								'suins',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface AppAddCouponArguments {
@@ -372,9 +596,12 @@ export interface AppAddCouponOptions {
 				amount: RawTransactionArgument<number | bigint>,
 				rules: TransactionArgument,
 		  ];
+	config?: {
+		packageId?: string;
+	};
 }
 export function appAddCoupon(options: AppAddCouponOptions) {
-	const packageAddress = options.package ?? '@suins/coupons';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/coupons';
 	const argumentsTypes = [null, '0x1::string::String', 'u8', 'u64', null] satisfies (
 		| string
 		| null
@@ -397,9 +624,12 @@ export interface AppRemoveCouponOptions {
 	arguments:
 		| AppRemoveCouponArguments
 		| [data: TransactionArgument, code: RawTransactionArgument<string>];
+	config?: {
+		packageId?: string;
+	};
 }
 export function appRemoveCoupon(options: AppRemoveCouponOptions) {
-	const packageAddress = options.package ?? '@suins/coupons';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/coupons';
 	const argumentsTypes = [null, '0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['data', 'code'];
 	return (tx: Transaction) =>

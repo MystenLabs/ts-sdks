@@ -88,6 +88,9 @@ export interface WithdrawOptions {
 	arguments:
 		| WithdrawArguments
 		| [_: RawTransactionArgument<string>, self: RawTransactionArgument<string>];
+	config?: {
+		packageId?: string;
+	};
 }
 /**
  * Withdraw from the SuiNS balance directly and access the Coins within the same
@@ -95,7 +98,7 @@ export interface WithdrawOptions {
  * then send them somewhere specific or keep at the address.
  */
 export function withdraw(options: WithdrawOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['_', 'self'];
 	return (tx: Transaction) =>
@@ -115,11 +118,14 @@ export interface WithdrawCustomOptions {
 	arguments:
 		| WithdrawCustomArguments
 		| [self: RawTransactionArgument<string>, _: RawTransactionArgument<string>];
+	config?: {
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 /** Withdraw from the SuiNS balance of a custom coin type. */
 export function withdrawCustom(options: WithdrawCustomOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', '_'];
 	return (tx: Transaction) =>
@@ -140,11 +146,14 @@ export interface AuthorizeAppOptions {
 	arguments:
 		| AuthorizeAppArguments
 		| [_: RawTransactionArgument<string>, self: RawTransactionArgument<string>];
+	config?: {
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 /** Authorize an application to access protected features of the SuiNS. */
 export function authorizeApp(options: AuthorizeAppOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['_', 'self'];
 	return (tx: Transaction) =>
@@ -165,11 +174,14 @@ export interface DeauthorizeAppOptions {
 	arguments:
 		| DeauthorizeAppArguments
 		| [_: RawTransactionArgument<string>, self: RawTransactionArgument<string>];
+	config?: {
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 /** Deauthorize an application by removing its authorization key. */
 export function deauthorizeApp(options: DeauthorizeAppOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['_', 'self'];
 	return (tx: Transaction) =>
@@ -187,11 +199,14 @@ export interface IsAppAuthorizedArguments {
 export interface IsAppAuthorizedOptions {
 	package?: string;
 	arguments: IsAppAuthorizedArguments | [self: RawTransactionArgument<string>];
+	config?: {
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 /** Check if an application is authorized to access protected features of the SuiNS. */
 export function isAppAuthorized(options: IsAppAuthorizedOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
@@ -209,6 +224,9 @@ export interface AssertAppIsAuthorizedArguments {
 export interface AssertAppIsAuthorizedOptions {
 	package?: string;
 	arguments: AssertAppIsAuthorizedArguments | [self: RawTransactionArgument<string>];
+	config?: {
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 /**
@@ -216,7 +234,7 @@ export interface AssertAppIsAuthorizedOptions {
  * SuiNS. Aborts with `EAppNotAuthorized` if not.
  */
 export function assertAppIsAuthorized(options: AssertAppIsAuthorizedOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
@@ -242,11 +260,14 @@ export interface AppAddBalanceOptions<App extends BcsType<any>> {
 				self: RawTransactionArgument<string>,
 				balance: TransactionArgument,
 		  ];
+	config?: {
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 /** Adds balance to the SuiNS. */
 export function appAddBalance<App extends BcsType<any>>(options: AppAddBalanceOptions<App>) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [`${options.typeArguments[0]}`, null, null] satisfies (string | null)[];
 	const parameterNames = ['_', 'self', 'balance'];
 	return (tx: Transaction) =>
@@ -272,13 +293,16 @@ export interface AppAddCustomBalanceOptions<App extends BcsType<any>> {
 				_: RawTransactionArgument<App>,
 				balance: TransactionArgument,
 		  ];
+	config?: {
+		packageId?: string;
+	};
 	typeArguments: [string, string];
 }
 /** Adds a balance of type `T` to the SuiNS protocol as an authorized app. */
 export function appAddCustomBalance<App extends BcsType<any>>(
 	options: AppAddCustomBalanceOptions<App>,
 ) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, `${options.typeArguments[0]}`, null] satisfies (string | null)[];
 	const parameterNames = ['self', '_', 'balance'];
 	return (tx: Transaction) =>
@@ -299,6 +323,9 @@ export interface AppRegistryMutOptions<App extends BcsType<any>> {
 	arguments:
 		| AppRegistryMutArguments<App>
 		| [_: RawTransactionArgument<App>, self: RawTransactionArgument<string>];
+	config?: {
+		packageId?: string;
+	};
 	typeArguments: [string, string];
 }
 /**
@@ -306,7 +333,7 @@ export interface AppRegistryMutOptions<App extends BcsType<any>> {
  * authorized applications.
  */
 export function appRegistryMut<App extends BcsType<any>>(options: AppRegistryMutOptions<App>) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [`${options.typeArguments[0]}`, null] satisfies (string | null)[];
 	const parameterNames = ['_', 'self'];
 	return (tx: Transaction) =>
@@ -332,11 +359,14 @@ export interface AddConfigOptions<Config extends BcsType<any>> {
 				self: RawTransactionArgument<string>,
 				config: RawTransactionArgument<Config>,
 		  ];
+	config?: {
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 /** Attach dynamic configuration object to the application. */
 export function addConfig<Config extends BcsType<any>>(options: AddConfigOptions<Config>) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, null, `${options.typeArguments[0]}`] satisfies (string | null)[];
 	const parameterNames = ['_', 'self', 'config'];
 	return (tx: Transaction) =>
@@ -354,11 +384,14 @@ export interface GetConfigArguments {
 export interface GetConfigOptions {
 	package?: string;
 	arguments: GetConfigArguments | [self: RawTransactionArgument<string>];
+	config?: {
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 /** Borrow configuration object. Read-only mode for applications. */
 export function getConfig(options: GetConfigOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
@@ -379,6 +412,9 @@ export interface RemoveConfigOptions {
 	arguments:
 		| RemoveConfigArguments
 		| [_: RawTransactionArgument<string>, self: RawTransactionArgument<string>];
+	config?: {
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 /**
@@ -390,7 +426,7 @@ export interface RemoveConfigOptions {
  * Fully taking the config also allows for edits within a transaction.
  */
 export function removeConfig(options: RemoveConfigOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['_', 'self'];
 	return (tx: Transaction) =>
@@ -408,11 +444,14 @@ export interface RegistryArguments {
 export interface RegistryOptions {
 	package?: string;
 	arguments: RegistryArguments | [self: RawTransactionArgument<string>];
+	config?: {
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 /** Get a read-only access to the `Registry` object. */
 export function registry(options: RegistryOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
@@ -438,11 +477,14 @@ export interface AddRegistryOptions<R extends BcsType<any>> {
 				self: RawTransactionArgument<string>,
 				registry: RawTransactionArgument<R>,
 		  ];
+	config?: {
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 /** Add a registry to the SuiNS. Can only be performed by the admin. */
 export function addRegistry<R extends BcsType<any>>(options: AddRegistryOptions<R>) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, null, `${options.typeArguments[0]}`] satisfies (string | null)[];
 	const parameterNames = ['_', 'self', 'registry'];
 	return (tx: Transaction) =>

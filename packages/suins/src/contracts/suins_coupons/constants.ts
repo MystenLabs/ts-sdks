@@ -5,10 +5,13 @@ import { type Transaction } from '@mysten/sui/transactions';
 export interface PercentageDiscountTypeOptions {
 	package?: string;
 	arguments?: [];
+	config?: {
+		packageId?: string;
+	};
 }
 /** A getter for the percentage discount type. */
 export function percentageDiscountType(options: PercentageDiscountTypeOptions = {}) {
-	const packageAddress = options.package ?? '@suins/coupons';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/coupons';
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -19,10 +22,13 @@ export function percentageDiscountType(options: PercentageDiscountTypeOptions = 
 export interface DiscountRuleTypesOptions {
 	package?: string;
 	arguments?: [];
+	config?: {
+		packageId?: string;
+	};
 }
 /** A vector with all the discount rule types. */
 export function discountRuleTypes(options: DiscountRuleTypesOptions = {}) {
-	const packageAddress = options.package ?? '@suins/coupons';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/coupons';
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -33,9 +39,12 @@ export function discountRuleTypes(options: DiscountRuleTypesOptions = {}) {
 export interface FixedPriceDiscountTypeOptions {
 	package?: string;
 	arguments?: [];
+	config?: {
+		packageId?: string;
+	};
 }
 export function fixedPriceDiscountType(options: FixedPriceDiscountTypeOptions = {}) {
-	const packageAddress = options.package ?? '@suins/coupons';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/coupons';
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

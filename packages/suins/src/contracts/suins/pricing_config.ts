@@ -36,6 +36,9 @@ export interface CalculateBasePriceOptions {
 	arguments:
 		| CalculateBasePriceArguments
 		| [config: TransactionArgument, length: RawTransactionArgument<number | bigint>];
+	config?: {
+		packageId?: string;
+	};
 }
 /**
  * Calculates the base price for a given length.
@@ -46,7 +49,7 @@ export interface CalculateBasePriceOptions {
  *   available ranges.
  */
 export function calculateBasePrice(options: CalculateBasePriceOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
 	const parameterNames = ['config', 'length'];
 	return (tx: Transaction) =>
@@ -66,6 +69,9 @@ export interface NewOptions {
 	arguments:
 		| NewArguments
 		| [ranges: TransactionArgument, prices: RawTransactionArgument<Array<number | bigint>>];
+	config?: {
+		packageId?: string;
+	};
 }
 /**
  * Creates a new PricingConfig with the given ranges and prices.
@@ -76,7 +82,7 @@ export interface NewOptions {
  * All the ranges are inclusive (e.g. [3,5]: includes 3, 4, and 5).
  */
 export function _new(options: NewOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = ['vector<null>', 'vector<u64>'] satisfies (string | null)[];
 	const parameterNames = ['ranges', 'prices'];
 	return (tx: Transaction) =>
@@ -96,10 +102,13 @@ export interface IsBetweenInclusiveOptions {
 	arguments:
 		| IsBetweenInclusiveArguments
 		| [range: TransactionArgument, length: RawTransactionArgument<number | bigint>];
+	config?: {
+		packageId?: string;
+	};
 }
 /** Checks if the value is between the range (inclusive). */
 export function isBetweenInclusive(options: IsBetweenInclusiveOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
 	const parameterNames = ['range', 'length'];
 	return (tx: Transaction) =>
@@ -116,10 +125,13 @@ export interface PricingArguments {
 export interface PricingOptions {
 	package?: string;
 	arguments: PricingArguments | [config: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 }
 /** Returns the pricing config for usage in external apps. */
 export function pricing(options: PricingOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['config'];
 	return (tx: Transaction) =>
@@ -136,10 +148,13 @@ export interface NewRenewalConfigArguments {
 export interface NewRenewalConfigOptions {
 	package?: string;
 	arguments: NewRenewalConfigArguments | [config: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 }
 /** Constructor for Renewal<T> that initializes it with a PricingConfig. */
 export function newRenewalConfig(options: NewRenewalConfigOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['config'];
 	return (tx: Transaction) =>
@@ -156,9 +171,12 @@ export interface NewRangeArguments {
 export interface NewRangeOptions {
 	package?: string;
 	arguments: NewRangeArguments | [range: RawTransactionArgument<Array<number | bigint>>];
+	config?: {
+		packageId?: string;
+	};
 }
 export function newRange(options: NewRangeOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = ['vector<u64>'] satisfies (string | null)[];
 	const parameterNames = ['range'];
 	return (tx: Transaction) =>
@@ -175,9 +193,12 @@ export interface ConfigArguments {
 export interface ConfigOptions {
 	package?: string;
 	arguments: ConfigArguments | [renewal: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 }
 export function config(options: ConfigOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['renewal'];
 	return (tx: Transaction) =>

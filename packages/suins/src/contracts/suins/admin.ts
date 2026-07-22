@@ -7,7 +7,14 @@
  * suins admin.
  */
 
-import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
+import {
+	MoveStruct,
+	normalizeMoveArguments,
+	type RawTransactionArgument,
+	type ConfigValue,
+	resolveConfigArgument,
+	applyConfigArguments,
+} from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
 const $moduleName = '@suins/core::admin';
@@ -19,20 +26,24 @@ export const Admin = new MoveStruct({
 });
 export interface AuthorizeArguments {
 	cap: RawTransactionArgument<string>;
-	suins: RawTransactionArgument<string>;
+	suins?: RawTransactionArgument<string>;
 }
 export interface AuthorizeOptions {
 	package?: string;
 	arguments:
 		| AuthorizeArguments
-		| [cap: RawTransactionArgument<string>, suins: RawTransactionArgument<string>];
+		| [cap: RawTransactionArgument<string>, suins?: RawTransactionArgument<string>];
+	config?: {
+		suins: ConfigValue;
+		packageId?: string;
+	};
 }
 /**
  * Authorize the admin application in the SuiNS to get access to protected
  * functions. Must be called in order to use the rest of the functions.
  */
 export function authorize(options: AuthorizeOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['cap', 'suins'];
 	return (tx: Transaction) =>
@@ -40,12 +51,34 @@ export function authorize(options: AuthorizeOptions) {
 			package: packageAddress,
 			module: 'admin',
 			function: 'authorize',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 1,
+						name: 'suins',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.suins,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'admin',
+									functionName: 'authorize',
+									parameterIndex: 1,
+									parameterName: 'suins',
+								},
+								'suins',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface ReserveDomainArguments {
 	_: RawTransactionArgument<string>;
-	suins: RawTransactionArgument<string>;
+	suins?: RawTransactionArgument<string>;
 	domainName: RawTransactionArgument<string>;
 	noYears: RawTransactionArgument<number>;
 }
@@ -55,14 +88,18 @@ export interface ReserveDomainOptions {
 		| ReserveDomainArguments
 		| [
 				_: RawTransactionArgument<string>,
-				suins: RawTransactionArgument<string>,
+				suins: RawTransactionArgument<string> | undefined,
 				domainName: RawTransactionArgument<string>,
 				noYears: RawTransactionArgument<number>,
 		  ];
+	config?: {
+		suins: ConfigValue;
+		packageId?: string;
+	};
 }
 /** Reserve a `domain` in the `SuiNS`. */
 export function reserveDomain(options: ReserveDomainOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, null, '0x1::string::String', 'u8', '0x2::clock::Clock'] satisfies (
 		| string
 		| null
@@ -73,12 +110,34 @@ export function reserveDomain(options: ReserveDomainOptions) {
 			package: packageAddress,
 			module: 'admin',
 			function: 'reserve_domain',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 1,
+						name: 'suins',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.suins,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'admin',
+									functionName: 'reserve_domain',
+									parameterIndex: 1,
+									parameterName: 'suins',
+								},
+								'suins',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface ReserveDomainsArguments {
 	_: RawTransactionArgument<string>;
-	suins: RawTransactionArgument<string>;
+	suins?: RawTransactionArgument<string>;
 	domains: RawTransactionArgument<Array<string>>;
 	noYears: RawTransactionArgument<number>;
 }
@@ -88,14 +147,18 @@ export interface ReserveDomainsOptions {
 		| ReserveDomainsArguments
 		| [
 				_: RawTransactionArgument<string>,
-				suins: RawTransactionArgument<string>,
+				suins: RawTransactionArgument<string> | undefined,
 				domains: RawTransactionArgument<Array<string>>,
 				noYears: RawTransactionArgument<number>,
 		  ];
+	config?: {
+		suins: ConfigValue;
+		packageId?: string;
+	};
 }
 /** Reserve a list of domains. */
 export function reserveDomains(options: ReserveDomainsOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [
 		null,
 		null,
@@ -109,6 +172,28 @@ export function reserveDomains(options: ReserveDomainsOptions) {
 			package: packageAddress,
 			module: 'admin',
 			function: 'reserve_domains',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 1,
+						name: 'suins',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.suins,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'admin',
+									functionName: 'reserve_domains',
+									parameterIndex: 1,
+									parameterName: 'suins',
+								},
+								'suins',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }

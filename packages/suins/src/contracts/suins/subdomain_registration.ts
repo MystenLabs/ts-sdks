@@ -29,9 +29,12 @@ export interface NftArguments {
 export interface NftOptions {
 	package?: string;
 	arguments: NftArguments | [name: RawTransactionArgument<string>];
+	config?: {
+		packageId?: string;
+	};
 }
 export function nft(options: NftOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['name'];
 	return (tx: Transaction) =>
@@ -48,9 +51,12 @@ export interface NftMutArguments {
 export interface NftMutOptions {
 	package?: string;
 	arguments: NftMutArguments | [name: RawTransactionArgument<string>];
+	config?: {
+		packageId?: string;
+	};
 }
 export function nftMut(options: NftMutOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['name'];
 	return (tx: Transaction) =>

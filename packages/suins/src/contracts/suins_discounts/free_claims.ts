@@ -16,6 +16,9 @@ import {
 	MoveStruct,
 	normalizeMoveArguments,
 	type RawTransactionArgument,
+	type ConfigValue,
+	resolveConfigArgument,
+	applyConfigArguments,
 } from '../utils/index.js';
 import { bcs, type BcsType } from '@mysten/sui/bcs';
 import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
@@ -38,8 +41,8 @@ export const FreeClaimsConfig = new MoveStruct({
 	},
 });
 export interface FreeClaimArguments<T extends BcsType<any>> {
-	self: RawTransactionArgument<string>;
-	suins: RawTransactionArgument<string>;
+	self?: RawTransactionArgument<string>;
+	suins?: RawTransactionArgument<string>;
 	intent: TransactionArgument;
 	object: RawTransactionArgument<T>;
 }
@@ -48,16 +51,21 @@ export interface FreeClaimOptions<T extends BcsType<any>> {
 	arguments:
 		| FreeClaimArguments<T>
 		| [
-				self: RawTransactionArgument<string>,
-				suins: RawTransactionArgument<string>,
+				self: RawTransactionArgument<string> | undefined,
+				suins: RawTransactionArgument<string> | undefined,
 				intent: TransactionArgument,
 				object: RawTransactionArgument<T>,
 		  ];
+	config?: {
+		discountHouseId: ConfigValue;
+		suins: ConfigValue;
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 /** A function to register a name with a discount using type `T`. */
 export function freeClaim<T extends BcsType<any>>(options: FreeClaimOptions<T>) {
-	const packageAddress = options.package ?? '@suins/discounts';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/discounts';
 	const argumentsTypes = [null, null, null, `${options.typeArguments[0]}`] satisfies (
 		| string
 		| null
@@ -68,13 +76,52 @@ export function freeClaim<T extends BcsType<any>>(options: FreeClaimOptions<T>) 
 			package: packageAddress,
 			module: 'free_claims',
 			function: 'free_claim',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'self',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.discountHouseId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'free_claims',
+									functionName: 'free_claim',
+									parameterIndex: 0,
+									parameterName: 'self',
+								},
+								'discountHouseId',
+							),
+					},
+					{
+						index: 1,
+						name: 'suins',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.suins,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'free_claims',
+									functionName: 'free_claim',
+									parameterIndex: 1,
+									parameterName: 'suins',
+								},
+								'suins',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 			typeArguments: options.typeArguments,
 		});
 }
 export interface FreeClaimWithDayOneArguments {
-	self: RawTransactionArgument<string>;
-	suins: RawTransactionArgument<string>;
+	self?: RawTransactionArgument<string>;
+	suins?: RawTransactionArgument<string>;
 	intent: TransactionArgument;
 	dayOne: RawTransactionArgument<string>;
 }
@@ -83,14 +130,19 @@ export interface FreeClaimWithDayOneOptions {
 	arguments:
 		| FreeClaimWithDayOneArguments
 		| [
-				self: RawTransactionArgument<string>,
-				suins: RawTransactionArgument<string>,
+				self: RawTransactionArgument<string> | undefined,
+				suins: RawTransactionArgument<string> | undefined,
 				intent: TransactionArgument,
 				dayOne: RawTransactionArgument<string>,
 		  ];
+	config?: {
+		discountHouseId: ConfigValue;
+		suins: ConfigValue;
+		packageId?: string;
+	};
 }
 export function freeClaimWithDayOne(options: FreeClaimWithDayOneOptions) {
-	const packageAddress = options.package ?? '@suins/discounts';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/discounts';
 	const argumentsTypes = [null, null, null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'suins', 'intent', 'dayOne'];
 	return (tx: Transaction) =>
@@ -98,11 +150,50 @@ export function freeClaimWithDayOne(options: FreeClaimWithDayOneOptions) {
 			package: packageAddress,
 			module: 'free_claims',
 			function: 'free_claim_with_day_one',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'self',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.discountHouseId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'free_claims',
+									functionName: 'free_claim_with_day_one',
+									parameterIndex: 0,
+									parameterName: 'self',
+								},
+								'discountHouseId',
+							),
+					},
+					{
+						index: 1,
+						name: 'suins',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.suins,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'free_claims',
+									functionName: 'free_claim_with_day_one',
+									parameterIndex: 1,
+									parameterName: 'suins',
+								},
+								'suins',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface AuthorizeTypeArguments {
-	self: RawTransactionArgument<string>;
+	self?: RawTransactionArgument<string>;
 	_: RawTransactionArgument<string>;
 	domainLengthRange: TransactionArgument;
 }
@@ -111,10 +202,14 @@ export interface AuthorizeTypeOptions {
 	arguments:
 		| AuthorizeTypeArguments
 		| [
-				self: RawTransactionArgument<string>,
+				self: RawTransactionArgument<string> | undefined,
 				_: RawTransactionArgument<string>,
 				domainLengthRange: TransactionArgument,
 		  ];
+	config?: {
+		discountHouseId: ConfigValue;
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 /**
@@ -122,7 +217,7 @@ export interface AuthorizeTypeOptions {
  * an object of type `T`.
  */
 export function authorizeType(options: AuthorizeTypeOptions) {
-	const packageAddress = options.package ?? '@suins/discounts';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/discounts';
 	const argumentsTypes = [null, null, null] satisfies (string | null)[];
 	const parameterNames = ['self', '_', 'domainLengthRange'];
 	return (tx: Transaction) =>
@@ -130,24 +225,50 @@ export function authorizeType(options: AuthorizeTypeOptions) {
 			package: packageAddress,
 			module: 'free_claims',
 			function: 'authorize_type',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'self',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.discountHouseId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'free_claims',
+									functionName: 'authorize_type',
+									parameterIndex: 0,
+									parameterName: 'self',
+								},
+								'discountHouseId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 			typeArguments: options.typeArguments,
 		});
 }
 export interface DeauthorizeTypeArguments {
-	self: RawTransactionArgument<string>;
+	self?: RawTransactionArgument<string>;
 	_: RawTransactionArgument<string>;
 }
 export interface DeauthorizeTypeOptions {
 	package?: string;
 	arguments:
 		| DeauthorizeTypeArguments
-		| [self: RawTransactionArgument<string>, _: RawTransactionArgument<string>];
+		| [self: RawTransactionArgument<string> | undefined, _: RawTransactionArgument<string>];
+	config?: {
+		discountHouseId: ConfigValue;
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 /** Force-deauthorize type T from free claims. Drops the linked_table. */
 export function deauthorizeType(options: DeauthorizeTypeOptions) {
-	const packageAddress = options.package ?? '@suins/discounts';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/discounts';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', '_'];
 	return (tx: Transaction) =>
@@ -155,7 +276,29 @@ export function deauthorizeType(options: DeauthorizeTypeOptions) {
 			package: packageAddress,
 			module: 'free_claims',
 			function: 'deauthorize_type',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'self',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.discountHouseId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'free_claims',
+									functionName: 'deauthorize_type',
+									parameterIndex: 0,
+									parameterName: 'self',
+								},
+								'discountHouseId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 			typeArguments: options.typeArguments,
 		});
 }

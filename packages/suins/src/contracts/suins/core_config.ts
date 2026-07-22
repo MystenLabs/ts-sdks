@@ -60,9 +60,12 @@ export interface NewOptions {
 				validTlds: RawTransactionArgument<Array<string>>,
 				extra: TransactionArgument,
 		  ];
+	config?: {
+		packageId?: string;
+	};
 }
 export function _new(options: NewOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [
 		'vector<u8>',
 		'u8',
@@ -95,9 +98,12 @@ export interface PublicKeyArguments {
 export interface PublicKeyOptions {
 	package?: string;
 	arguments: PublicKeyArguments | [config: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 }
 export function publicKey(options: PublicKeyOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['config'];
 	return (tx: Transaction) =>
@@ -114,9 +120,12 @@ export interface MinLabelLengthArguments {
 export interface MinLabelLengthOptions {
 	package?: string;
 	arguments: MinLabelLengthArguments | [config: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 }
 export function minLabelLength(options: MinLabelLengthOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['config'];
 	return (tx: Transaction) =>
@@ -133,9 +142,12 @@ export interface MaxLabelLengthArguments {
 export interface MaxLabelLengthOptions {
 	package?: string;
 	arguments: MaxLabelLengthArguments | [config: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 }
 export function maxLabelLength(options: MaxLabelLengthOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['config'];
 	return (tx: Transaction) =>
@@ -155,9 +167,12 @@ export interface IsValidTldOptions {
 	arguments:
 		| IsValidTldArguments
 		| [config: TransactionArgument, tld: RawTransactionArgument<string>];
+	config?: {
+		packageId?: string;
+	};
 }
 export function isValidTld(options: IsValidTldOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null, '0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['config', 'tld'];
 	return (tx: Transaction) =>
@@ -174,9 +189,12 @@ export interface PaymentsVersionArguments {
 export interface PaymentsVersionOptions {
 	package?: string;
 	arguments: PaymentsVersionArguments | [config: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 }
 export function paymentsVersion(options: PaymentsVersionOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['config'];
 	return (tx: Transaction) =>
@@ -193,9 +211,12 @@ export interface MaxYearsArguments {
 export interface MaxYearsOptions {
 	package?: string;
 	arguments: MaxYearsArguments | [config: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 }
 export function maxYears(options: MaxYearsOptions) {
-	const packageAddress = options.package ?? '@suins/core';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@suins/core';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['config'];
 	return (tx: Transaction) =>
