@@ -7,6 +7,8 @@ import type { CreatePoolAdminParams, SetEwmaParams } from '../types/index.js';
 import type { DeepBookConfig } from '../utils/config.js';
 import { FLOAT_SCALAR } from '../utils/config.js';
 import { convertQuantity, convertPrice, convertRate } from '../utils/conversion.js';
+import * as poolMoveCalls from '../contracts/deepbook/pool.js';
+import * as registryMoveCalls from '../contracts/deepbook/registry.js';
 
 /**
  * DeepBookAdminContract class for managing admin actions.
@@ -52,19 +54,21 @@ export class DeepBookAdminContract {
 		const adjustedLotSize = convertQuantity(lotSize, baseScalar);
 		const adjustedMinSize = convertQuantity(minSize, baseScalar);
 
-		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::create_pool_admin`,
-			arguments: [
-				tx.object(this.#config.REGISTRY_ID), // registry_id
-				tx.pure.u64(adjustedTickSize), // adjusted tick_size
-				tx.pure.u64(adjustedLotSize), // adjusted lot_size
-				tx.pure.u64(adjustedMinSize), // adjusted min_size
-				tx.pure.bool(whitelisted),
-				tx.pure.bool(stablePool),
-				tx.object(this.#adminCap()),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		tx.add(
+			poolMoveCalls.createPoolAdmin({
+				package: this.#config.DEEPBOOK_PACKAGE_ID,
+				arguments: {
+					registry: this.#config.REGISTRY_ID,
+					tickSize: adjustedTickSize,
+					lotSize: adjustedLotSize,
+					minSize: adjustedMinSize,
+					whitelistedPool: whitelisted,
+					stablePool,
+					Cap: this.#adminCap(),
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -76,15 +80,13 @@ export class DeepBookAdminContract {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::unregister_pool_admin`,
-			arguments: [
-				tx.object(pool.address),
-				tx.object(this.#config.REGISTRY_ID),
-				tx.object(this.#adminCap()),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		tx.add(
+			poolMoveCalls.unregisterPoolAdmin({
+				package: this.#config.DEEPBOOK_PACKAGE_ID,
+				arguments: { self: pool.address, registry: this.#config.REGISTRY_ID, Cap: this.#adminCap() },
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -96,15 +98,13 @@ export class DeepBookAdminContract {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::update_allowed_versions`,
-			arguments: [
-				tx.object(pool.address),
-				tx.object(this.#config.REGISTRY_ID),
-				tx.object(this.#adminCap()),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		tx.add(
+			poolMoveCalls.updateAllowedVersions({
+				package: this.#config.DEEPBOOK_PACKAGE_ID,
+				arguments: { self: pool.address, registry: this.#config.REGISTRY_ID, Cap: this.#adminCap() },
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -113,14 +113,12 @@ export class DeepBookAdminContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	enableVersion = (version: number) => (tx: Transaction) => {
-		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::registry::enable_version`,
-			arguments: [
-				tx.object(this.#config.REGISTRY_ID),
-				tx.pure.u64(version),
-				tx.object(this.#adminCap()),
-			],
-		});
+		tx.add(
+			registryMoveCalls.enableVersion({
+				package: this.#config.DEEPBOOK_PACKAGE_ID,
+				arguments: { self: this.#config.REGISTRY_ID, version, Cap: this.#adminCap() },
+			}),
+		);
 	};
 
 	/**
@@ -129,14 +127,12 @@ export class DeepBookAdminContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	disableVersion = (version: number) => (tx: Transaction) => {
-		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::registry::disable_version`,
-			arguments: [
-				tx.object(this.#config.REGISTRY_ID),
-				tx.pure.u64(version),
-				tx.object(this.#adminCap()),
-			],
-		});
+		tx.add(
+			registryMoveCalls.disableVersion({
+				package: this.#config.DEEPBOOK_PACKAGE_ID,
+				arguments: { self: this.#config.REGISTRY_ID, version, Cap: this.#adminCap() },
+			}),
+		);
 	};
 
 	/**
@@ -145,14 +141,12 @@ export class DeepBookAdminContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	setTreasuryAddress = (treasuryAddress: string) => (tx: Transaction) => {
-		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::registry::set_treasury_address`,
-			arguments: [
-				tx.object(this.#config.REGISTRY_ID),
-				tx.pure.address(treasuryAddress),
-				tx.object(this.#adminCap()),
-			],
-		});
+		tx.add(
+			registryMoveCalls.setTreasuryAddress({
+				package: this.#config.DEEPBOOK_PACKAGE_ID,
+				arguments: { self: this.#config.REGISTRY_ID, treasuryAddress, Cap: this.#adminCap() },
+			}),
+		);
 	};
 
 	/**
@@ -162,11 +156,13 @@ export class DeepBookAdminContract {
 	 */
 	addStableCoin = (stableCoinKey: string) => (tx: Transaction) => {
 		const stableCoinType = this.#config.getCoin(stableCoinKey).type;
-		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::registry::add_stablecoin`,
-			arguments: [tx.object(this.#config.REGISTRY_ID), tx.object(this.#adminCap())],
-			typeArguments: [stableCoinType],
-		});
+		tx.add(
+			registryMoveCalls.addStablecoin({
+				package: this.#config.DEEPBOOK_PACKAGE_ID,
+				arguments: { self: this.#config.REGISTRY_ID, Cap: this.#adminCap() },
+				typeArguments: [stableCoinType],
+			}),
+		);
 	};
 
 	/**
@@ -176,11 +172,13 @@ export class DeepBookAdminContract {
 	 */
 	removeStableCoin = (stableCoinKey: string) => (tx: Transaction) => {
 		const stableCoinType = this.#config.getCoin(stableCoinKey).type;
-		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::registry::remove_stablecoin`,
-			arguments: [tx.object(this.#config.REGISTRY_ID), tx.object(this.#adminCap())],
-			typeArguments: [stableCoinType],
-		});
+		tx.add(
+			registryMoveCalls.removeStablecoin({
+				package: this.#config.DEEPBOOK_PACKAGE_ID,
+				arguments: { self: this.#config.REGISTRY_ID, Cap: this.#adminCap() },
+				typeArguments: [stableCoinType],
+			}),
+		);
 	};
 
 	/**
@@ -200,16 +198,13 @@ export class DeepBookAdminContract {
 
 		const adjustedTickSize = convertPrice(newTickSize, FLOAT_SCALAR, quoteScalar, baseScalar);
 
-		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::adjust_tick_size_admin`,
-			arguments: [
-				tx.object(pool.address), // pool address
-				tx.pure.u64(adjustedTickSize), // adjusted tick_size
-				tx.object(this.#adminCap()),
-				tx.object.clock(),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		tx.add(
+			poolMoveCalls.adjustTickSizeAdmin({
+				package: this.#config.DEEPBOOK_PACKAGE_ID,
+				arguments: { self: pool.address, newTickSize: adjustedTickSize, Cap: this.#adminCap() },
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -231,17 +226,18 @@ export class DeepBookAdminContract {
 			const adjustedLotSize = convertQuantity(newLotSize, baseScalar);
 			const adjustedMinSize = convertQuantity(newMinSize, baseScalar);
 
-			tx.moveCall({
-				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::adjust_min_lot_size_admin`,
-				arguments: [
-					tx.object(pool.address), // pool address
-					tx.pure.u64(adjustedLotSize),
-					tx.pure.u64(adjustedMinSize),
-					tx.object(this.#adminCap()),
-					tx.object.clock(),
-				],
-				typeArguments: [baseCoin.type, quoteCoin.type],
-			});
+			tx.add(
+				poolMoveCalls.adjustMinLotSizeAdmin({
+					package: this.#config.DEEPBOOK_PACKAGE_ID,
+					arguments: {
+						self: pool.address,
+						newLotSize: adjustedLotSize,
+						newMinSize: adjustedMinSize,
+						Cap: this.#adminCap(),
+					},
+					typeArguments: [baseCoin.type, quoteCoin.type],
+				}),
+			);
 		};
 
 	/**
@@ -249,10 +245,12 @@ export class DeepBookAdminContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	initBalanceManagerMap = () => (tx: Transaction) => {
-		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::registry::init_balance_manager_map`,
-			arguments: [tx.object(this.#config.REGISTRY_ID), tx.object(this.#adminCap())],
-		});
+		tx.add(
+			registryMoveCalls.initBalanceManagerMap({
+				package: this.#config.DEEPBOOK_PACKAGE_ID,
+				arguments: { self: this.#config.REGISTRY_ID, Cap: this.#adminCap() },
+			}),
+		);
 	};
 
 	/**
@@ -270,18 +268,19 @@ export class DeepBookAdminContract {
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 
-		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::set_ewma_params`,
-			arguments: [
-				tx.object(pool.address),
-				tx.object(this.#adminCap()),
-				tx.pure.u64(adjustedAlpha),
-				tx.pure.u64(adjustedZScoreThreshold),
-				tx.pure.u64(adjustedAdditionalTakerFee),
-				tx.object.clock(),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		tx.add(
+			poolMoveCalls.setEwmaParams({
+				package: this.#config.DEEPBOOK_PACKAGE_ID,
+				arguments: {
+					self: pool.address,
+					Cap: this.#adminCap(),
+					alpha: adjustedAlpha,
+					zScoreThreshold: adjustedZScoreThreshold,
+					additionalTakerFee: adjustedAdditionalTakerFee,
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -295,16 +294,13 @@ export class DeepBookAdminContract {
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 
-		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::enable_ewma_state`,
-			arguments: [
-				tx.object(pool.address),
-				tx.object(this.#adminCap()),
-				tx.pure.bool(enable),
-				tx.object.clock(),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		tx.add(
+			poolMoveCalls.enableEwmaState({
+				package: this.#config.DEEPBOOK_PACKAGE_ID,
+				arguments: { self: pool.address, Cap: this.#adminCap(), enable },
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -312,11 +308,13 @@ export class DeepBookAdminContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	authorizeMarginApp = () => (tx: Transaction) => {
-		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::registry::authorize_app`,
-			arguments: [tx.object(this.#config.REGISTRY_ID), tx.object(this.#adminCap())],
-			typeArguments: [`${this.#config.MARGIN_V1}::margin_manager::MarginApp`],
-		});
+		tx.add(
+			registryMoveCalls.authorizeApp({
+				package: this.#config.DEEPBOOK_PACKAGE_ID,
+				arguments: { self: this.#config.REGISTRY_ID, AdminCap: this.#adminCap() },
+				typeArguments: [`${this.#config.MARGIN_V1}::margin_manager::MarginApp`],
+			}),
+		);
 	};
 
 	/**
@@ -324,11 +322,13 @@ export class DeepBookAdminContract {
 	 * @returns A function that takes a Transaction object and returns a bool
 	 */
 	deauthorizeMarginApp = () => (tx: Transaction) => {
-		return tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::registry::deauthorize_app`,
-			arguments: [tx.object(this.#config.REGISTRY_ID), tx.object(this.#adminCap())],
-			typeArguments: [`${this.#config.MARGIN_V1}::margin_manager::MarginApp`],
-		});
+		return tx.add(
+			registryMoveCalls.deauthorizeApp({
+				package: this.#config.DEEPBOOK_PACKAGE_ID,
+				arguments: { self: this.#config.REGISTRY_ID, AdminCap: this.#adminCap() },
+				typeArguments: [`${this.#config.MARGIN_V1}::margin_manager::MarginApp`],
+			}),
+		);
 	};
 
 	/**
@@ -339,10 +339,12 @@ export class DeepBookAdminContract {
 	 * @returns A function that takes a Transaction object and returns the new pause cap
 	 */
 	mintCorePauseCap = () => (tx: Transaction) => {
-		return tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::registry::mint_pause_cap`,
-			arguments: [tx.object(this.#config.REGISTRY_ID), tx.object(this.#adminCap())],
-		});
+		return tx.add(
+			registryMoveCalls.mintPauseCap({
+				package: this.#config.DEEPBOOK_PACKAGE_ID,
+				arguments: { self: this.#config.REGISTRY_ID, Cap: this.#adminCap() },
+			}),
+		);
 	};
 
 	/**
@@ -351,14 +353,12 @@ export class DeepBookAdminContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	revokeCorePauseCap = (pauseCapId: string) => (tx: Transaction) => {
-		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::registry::revoke_pause_cap`,
-			arguments: [
-				tx.object(this.#config.REGISTRY_ID),
-				tx.object(this.#adminCap()),
-				tx.pure.id(pauseCapId),
-			],
-		});
+		tx.add(
+			registryMoveCalls.revokePauseCap({
+				package: this.#config.DEEPBOOK_PACKAGE_ID,
+				arguments: { self: this.#config.REGISTRY_ID, Cap: this.#adminCap(), pauseCapId },
+			}),
+		);
 	};
 
 	/**
@@ -371,14 +371,12 @@ export class DeepBookAdminContract {
 	 */
 	disableVersionWithCorePauseCap =
 		(version: number | bigint, pauseCapId: string) => (tx: Transaction) => {
-			tx.moveCall({
-				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::registry::disable_version_pause_cap`,
-				arguments: [
-					tx.object(this.#config.REGISTRY_ID),
-					tx.pure.u64(version),
-					tx.object(pauseCapId),
-				],
-			});
+			tx.add(
+				registryMoveCalls.disableVersionPauseCap({
+					package: this.#config.DEEPBOOK_PACKAGE_ID,
+					arguments: { self: this.#config.REGISTRY_ID, version, pauseCap: pauseCapId },
+				}),
+			);
 		};
 
 	/**
@@ -387,9 +385,11 @@ export class DeepBookAdminContract {
 	 * @returns A function that takes a Transaction object and returns a `VecSet<ID>`
 	 */
 	corePauseCaps = () => (tx: Transaction) => {
-		return tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::registry::allowed_pause_caps`,
-			arguments: [tx.object(this.#config.REGISTRY_ID)],
-		});
+		return tx.add(
+			registryMoveCalls.allowedPauseCaps({
+				package: this.#config.DEEPBOOK_PACKAGE_ID,
+				arguments: { self: this.#config.REGISTRY_ID },
+			}),
+		);
 	};
 }

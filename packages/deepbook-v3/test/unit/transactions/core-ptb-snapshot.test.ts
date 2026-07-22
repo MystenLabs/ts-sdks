@@ -9,6 +9,7 @@ import { Transaction } from '@mysten/sui/transactions';
 import { describe, expect, it } from 'vitest';
 
 import { BalanceManagerContract } from '../../../src/transactions/balanceManager.js';
+import { DeepBookAdminContract } from '../../../src/transactions/deepbookAdmin.js';
 import { FlashLoanContract } from '../../../src/transactions/flashLoans.js';
 import { GovernanceContract } from '../../../src/transactions/governance.js';
 import { DeepBookConfig } from '../../../src/utils/config.js';
@@ -35,6 +36,7 @@ function config() {
 				tradeCap: CAP,
 			},
 		},
+		adminCap: '0x000000000000000000000000000000000000000000000000000000000000ad11',
 	});
 }
 
@@ -63,6 +65,49 @@ describe('governance PTB snapshots', () => {
 				}),
 		],
 		['vote', (g) => g.vote(POOL_KEY, BM_KEY, ID)],
+	];
+	it.each(cases)('%s', (_name, build) => {
+		expect(ptb(build(c()))).toMatchSnapshot();
+	});
+});
+
+describe('deepbookAdmin PTB snapshots', () => {
+	const c = () => new DeepBookAdminContract(config());
+	const cases: Array<[string, (a: DeepBookAdminContract) => (tx: Transaction) => unknown]> = [
+		[
+			'createPoolAdmin',
+			(a) =>
+				a.createPoolAdmin({
+					baseCoinKey: 'SUI',
+					quoteCoinKey: 'DBUSDC',
+					tickSize: 0.001,
+					lotSize: 1,
+					minSize: 1,
+					whitelisted: false,
+					stablePool: false,
+				}),
+		],
+		['unregisterPoolAdmin', (a) => a.unregisterPoolAdmin(POOL_KEY)],
+		['updateAllowedVersions', (a) => a.updateAllowedVersions(POOL_KEY)],
+		['enableVersion', (a) => a.enableVersion(3)],
+		['disableVersion', (a) => a.disableVersion(3)],
+		['setTreasuryAddress', (a) => a.setTreasuryAddress(RECIPIENT)],
+		['addStableCoin', (a) => a.addStableCoin('DBUSDC')],
+		['removeStableCoin', (a) => a.removeStableCoin('DBUSDC')],
+		['adjustTickSize', (a) => a.adjustTickSize(POOL_KEY, 0.001)],
+		['adjustMinLotSize', (a) => a.adjustMinLotSize(POOL_KEY, 1, 1)],
+		['initBalanceManagerMap', (a) => a.initBalanceManagerMap()],
+		[
+			'setEwmaParams',
+			(a) => a.setEwmaParams(POOL_KEY, { alpha: 0.1, zScoreThreshold: 3, additionalTakerFee: 0.001 }),
+		],
+		['enableEwmaState', (a) => a.enableEwmaState(POOL_KEY, true)],
+		['authorizeMarginApp', (a) => a.authorizeMarginApp()],
+		['deauthorizeMarginApp', (a) => a.deauthorizeMarginApp()],
+		['mintCorePauseCap', (a) => a.mintCorePauseCap()],
+		['revokeCorePauseCap', (a) => a.revokeCorePauseCap(ID)],
+		['disableVersionWithCorePauseCap', (a) => a.disableVersionWithCorePauseCap(3, ID)],
+		['corePauseCaps', (a) => a.corePauseCaps()],
 	];
 	it.each(cases)('%s', (_name, build) => {
 		expect(ptb(build(c()))).toMatchSnapshot();

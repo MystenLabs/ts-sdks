@@ -985,6 +985,1095 @@ exports[`balanceManager PTB snapshots > withdrawWithCap 1`] = `
 }
 `;
 
+exports[`deepbookAdmin PTB snapshots > addStableCoin 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+        ],
+        "function": "add_stablecoin",
+        "module": "registry",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x7c256edbda983a2cd6f946655f4bf3f00a41043993781f8674a7046e8c0e11d1",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000ad11",
+      },
+    },
+  ],
+}
+`;
+
+exports[`deepbookAdmin PTB snapshots > adjustMinLotSize 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 3,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 4,
+            "type": "object",
+          },
+        ],
+        "function": "adjust_min_lot_size_admin",
+        "module": "pool",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AMqaOwAAAAA=",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AMqaOwAAAAA=",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000ad11",
+      },
+    },
+    {
+      "$kind": "Object",
+      "Object": {
+        "$kind": "SharedObject",
+        "SharedObject": {
+          "initialSharedVersion": 1,
+          "mutable": false,
+          "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
+        },
+      },
+    },
+  ],
+}
+`;
+
+exports[`deepbookAdmin PTB snapshots > adjustTickSize 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 3,
+            "type": "object",
+          },
+        ],
+        "function": "adjust_tick_size_admin",
+        "module": "pool",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "6AMAAAAAAAA=",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000ad11",
+      },
+    },
+    {
+      "$kind": "Object",
+      "Object": {
+        "$kind": "SharedObject",
+        "SharedObject": {
+          "initialSharedVersion": 1,
+          "mutable": false,
+          "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
+        },
+      },
+    },
+  ],
+}
+`;
+
+exports[`deepbookAdmin PTB snapshots > authorizeMarginApp 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+        ],
+        "function": "authorize_app",
+        "module": "registry",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [
+          "0xb8620c24c9ea1a4a41e79613d2b3d1d93648d1bb6f6b789a7c8f261c94110e4b::margin_manager::MarginApp",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x7c256edbda983a2cd6f946655f4bf3f00a41043993781f8674a7046e8c0e11d1",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000ad11",
+      },
+    },
+  ],
+}
+`;
+
+exports[`deepbookAdmin PTB snapshots > corePauseCaps 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+        ],
+        "function": "allowed_pause_caps",
+        "module": "registry",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x7c256edbda983a2cd6f946655f4bf3f00a41043993781f8674a7046e8c0e11d1",
+      },
+    },
+  ],
+}
+`;
+
+exports[`deepbookAdmin PTB snapshots > createPoolAdmin 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 3,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 4,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 5,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 6,
+            "type": "object",
+          },
+        ],
+        "function": "create_pool_admin",
+        "module": "pool",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x7c256edbda983a2cd6f946655f4bf3f00a41043993781f8674a7046e8c0e11d1",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "6AMAAAAAAAA=",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AMqaOwAAAAA=",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AMqaOwAAAAA=",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AA==",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AA==",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000ad11",
+      },
+    },
+  ],
+}
+`;
+
+exports[`deepbookAdmin PTB snapshots > deauthorizeMarginApp 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+        ],
+        "function": "deauthorize_app",
+        "module": "registry",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [
+          "0xb8620c24c9ea1a4a41e79613d2b3d1d93648d1bb6f6b789a7c8f261c94110e4b::margin_manager::MarginApp",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x7c256edbda983a2cd6f946655f4bf3f00a41043993781f8674a7046e8c0e11d1",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000ad11",
+      },
+    },
+  ],
+}
+`;
+
+exports[`deepbookAdmin PTB snapshots > disableVersion 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+        ],
+        "function": "disable_version",
+        "module": "registry",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x7c256edbda983a2cd6f946655f4bf3f00a41043993781f8674a7046e8c0e11d1",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AwAAAAAAAAA=",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000ad11",
+      },
+    },
+  ],
+}
+`;
+
+exports[`deepbookAdmin PTB snapshots > disableVersionWithCorePauseCap 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+        ],
+        "function": "disable_version_pause_cap",
+        "module": "registry",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x7c256edbda983a2cd6f946655f4bf3f00a41043993781f8674a7046e8c0e11d1",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AwAAAAAAAAA=",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000abcd",
+      },
+    },
+  ],
+}
+`;
+
+exports[`deepbookAdmin PTB snapshots > enableEwmaState 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 3,
+            "type": "object",
+          },
+        ],
+        "function": "enable_ewma_state",
+        "module": "pool",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000ad11",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AQ==",
+      },
+    },
+    {
+      "$kind": "Object",
+      "Object": {
+        "$kind": "SharedObject",
+        "SharedObject": {
+          "initialSharedVersion": 1,
+          "mutable": false,
+          "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
+        },
+      },
+    },
+  ],
+}
+`;
+
+exports[`deepbookAdmin PTB snapshots > enableVersion 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+        ],
+        "function": "enable_version",
+        "module": "registry",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x7c256edbda983a2cd6f946655f4bf3f00a41043993781f8674a7046e8c0e11d1",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AwAAAAAAAAA=",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000ad11",
+      },
+    },
+  ],
+}
+`;
+
+exports[`deepbookAdmin PTB snapshots > initBalanceManagerMap 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+        ],
+        "function": "init_balance_manager_map",
+        "module": "registry",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x7c256edbda983a2cd6f946655f4bf3f00a41043993781f8674a7046e8c0e11d1",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000ad11",
+      },
+    },
+  ],
+}
+`;
+
+exports[`deepbookAdmin PTB snapshots > mintCorePauseCap 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+        ],
+        "function": "mint_pause_cap",
+        "module": "registry",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x7c256edbda983a2cd6f946655f4bf3f00a41043993781f8674a7046e8c0e11d1",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000ad11",
+      },
+    },
+  ],
+}
+`;
+
+exports[`deepbookAdmin PTB snapshots > removeStableCoin 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+        ],
+        "function": "remove_stablecoin",
+        "module": "registry",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x7c256edbda983a2cd6f946655f4bf3f00a41043993781f8674a7046e8c0e11d1",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000ad11",
+      },
+    },
+  ],
+}
+`;
+
+exports[`deepbookAdmin PTB snapshots > revokeCorePauseCap 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "pure",
+          },
+        ],
+        "function": "revoke_pause_cap",
+        "module": "registry",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x7c256edbda983a2cd6f946655f4bf3f00a41043993781f8674a7046e8c0e11d1",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000ad11",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAq80=",
+      },
+    },
+  ],
+}
+`;
+
+exports[`deepbookAdmin PTB snapshots > setEwmaParams 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 3,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 4,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 5,
+            "type": "object",
+          },
+        ],
+        "function": "set_ewma_params",
+        "module": "pool",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000ad11",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AOH1BQAAAAA=",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AF7QsgAAAAA=",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "QEIPAAAAAAA=",
+      },
+    },
+    {
+      "$kind": "Object",
+      "Object": {
+        "$kind": "SharedObject",
+        "SharedObject": {
+          "initialSharedVersion": 1,
+          "mutable": false,
+          "objectId": "0x0000000000000000000000000000000000000000000000000000000000000006",
+        },
+      },
+    },
+  ],
+}
+`;
+
+exports[`deepbookAdmin PTB snapshots > setTreasuryAddress 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+        ],
+        "function": "set_treasury_address",
+        "module": "registry",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x7c256edbda983a2cd6f946655f4bf3f00a41043993781f8674a7046e8c0e11d1",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAur4=",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000ad11",
+      },
+    },
+  ],
+}
+`;
+
+exports[`deepbookAdmin PTB snapshots > unregisterPoolAdmin 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+        ],
+        "function": "unregister_pool_admin",
+        "module": "pool",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x7c256edbda983a2cd6f946655f4bf3f00a41043993781f8674a7046e8c0e11d1",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000ad11",
+      },
+    },
+  ],
+}
+`;
+
+exports[`deepbookAdmin PTB snapshots > updateAllowedVersions 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+        ],
+        "function": "update_allowed_versions",
+        "module": "pool",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+          "0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x7c256edbda983a2cd6f946655f4bf3f00a41043993781f8674a7046e8c0e11d1",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000ad11",
+      },
+    },
+  ],
+}
+`;
+
 exports[`flashLoans PTB snapshots > borrowBaseAsset 1`] = `
 {
   "commands": [
