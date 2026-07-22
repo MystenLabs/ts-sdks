@@ -74,8 +74,21 @@ describe('governance PTB snapshots', () => {
 
 describe('deepbook PTB snapshots', () => {
 	const c = () => new DeepBookContract(config());
-	const limit = { poolKey: POOL_KEY, balanceManagerKey: BM_KEY, clientOrderId: '1', price: 1, quantity: 1, isBid: true };
-	const market = { poolKey: POOL_KEY, balanceManagerKey: BM_KEY, clientOrderId: '1', quantity: 1, isBid: true };
+	const limit = {
+		poolKey: POOL_KEY,
+		balanceManagerKey: BM_KEY,
+		clientOrderId: '1',
+		price: 1,
+		quantity: 1,
+		isBid: true,
+	};
+	const market = {
+		poolKey: POOL_KEY,
+		balanceManagerKey: BM_KEY,
+		clientOrderId: '1',
+		quantity: 1,
+		isBid: true,
+	};
 	const swap = { poolKey: POOL_KEY, amount: 1, deepAmount: 1, minOut: 0 };
 	const swapMgr = {
 		poolKey: POOL_KEY,
@@ -96,8 +109,14 @@ describe('deepbook PTB snapshots', () => {
 		['cancelLiveOrders', (d) => d.cancelLiveOrders(POOL_KEY, BM_KEY, ['123', '456'])],
 		['cancelAllOrders', (d) => d.cancelAllOrders(POOL_KEY, BM_KEY)],
 		['withdrawSettledAmounts', (d) => d.withdrawSettledAmounts(POOL_KEY, BM_KEY)],
-		['withdrawSettledAmountsPermissionless', (d) => d.withdrawSettledAmountsPermissionless(POOL_KEY, BM_KEY)],
-		['withdrawSettledAmountsManagerID', (d) => d.withdrawSettledAmountsManagerID(POOL_KEY, BM_ADDR)],
+		[
+			'withdrawSettledAmountsPermissionless',
+			(d) => d.withdrawSettledAmountsPermissionless(POOL_KEY, BM_KEY),
+		],
+		[
+			'withdrawSettledAmountsManagerID',
+			(d) => d.withdrawSettledAmountsManagerID(POOL_KEY, BM_ADDR),
+		],
 		['addDeepPricePoint', (d) => d.addDeepPricePoint(POOL_KEY, 'DEEP_DBUSDC')],
 		['claimRebates', (d) => d.claimRebates(POOL_KEY, BM_KEY)],
 		['mintReferral', (d) => d.mintReferral(POOL_KEY, 2)],
@@ -116,13 +135,19 @@ describe('deepbook PTB snapshots', () => {
 		['getLevel2Range', (d) => d.getLevel2Range(POOL_KEY, 1, 2, true)],
 		['getLevel2TicksFromMid', (d) => d.getLevel2TicksFromMid(POOL_KEY, 10)],
 		['vaultBalances', (d) => d.vaultBalances(POOL_KEY)],
-		['getPoolIdByAssets', (d) => d.getPoolIdByAssets(config().getCoin('SUI').type, config().getCoin('DBUSDC').type)],
+		[
+			'getPoolIdByAssets',
+			(d) => d.getPoolIdByAssets(config().getCoin('SUI').type, config().getCoin('DBUSDC').type),
+		],
 		['swapExactBaseForQuote', (d) => d.swapExactBaseForQuote(swap)],
 		['swapExactQuoteForBase', (d) => d.swapExactQuoteForBase(swap)],
 		['swapExactQuantity', (d) => d.swapExactQuantity({ ...swap, isBaseToCoin: true })],
 		['swapExactBaseForQuoteWithManager', (d) => d.swapExactBaseForQuoteWithManager(swapMgr)],
 		['swapExactQuoteForBaseWithManager', (d) => d.swapExactQuoteForBaseWithManager(swapMgr)],
-		['swapExactQuantityWithManager', (d) => d.swapExactQuantityWithManager({ ...swapMgr, isBaseToCoin: true })],
+		[
+			'swapExactQuantityWithManager',
+			(d) => d.swapExactQuantityWithManager({ ...swapMgr, isBaseToCoin: true }),
+		],
 		[
 			'createPermissionlessPool',
 			(d) =>
@@ -215,7 +240,8 @@ describe('deepbookAdmin PTB snapshots', () => {
 		['initBalanceManagerMap', (a) => a.initBalanceManagerMap()],
 		[
 			'setEwmaParams',
-			(a) => a.setEwmaParams(POOL_KEY, { alpha: 0.1, zScoreThreshold: 3, additionalTakerFee: 0.001 }),
+			(a) =>
+				a.setEwmaParams(POOL_KEY, { alpha: 0.1, zScoreThreshold: 3, additionalTakerFee: 0.001 }),
 		],
 		['enableEwmaState', (a) => a.enableEwmaState(POOL_KEY, true)],
 		['authorizeMarginApp', (a) => a.authorizeMarginApp()],
@@ -260,7 +286,8 @@ describe('balanceManager PTB snapshots', () => {
 		],
 		[
 			'unsetBalanceManagerReferral',
-			(b) => (tx: Transaction) => b.unsetBalanceManagerReferral(BM_KEY, POOL_KEY, tx.object(CAP))(tx),
+			(b) => (tx: Transaction) =>
+				b.unsetBalanceManagerReferral(BM_KEY, POOL_KEY, tx.object(CAP))(tx),
 		],
 		['registerBalanceManager', (b) => b.registerBalanceManager(BM_KEY)],
 		['owner', (b) => b.owner(BM_KEY)],

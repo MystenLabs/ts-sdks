@@ -619,7 +619,10 @@ export class DeepBookContract {
 		tx.add(
 			poolMoveCalls.getQuoteQuantityOut({
 				package: this.#config.DEEPBOOK_PACKAGE_ID,
-				arguments: { self: pool.address, baseQuantity: convertQuantity(baseQuantity, baseCoin.scalar) },
+				arguments: {
+					self: pool.address,
+					baseQuantity: convertQuantity(baseQuantity, baseCoin.scalar),
+				},
 				typeArguments: [baseCoin.type, quoteCoin.type],
 			}),
 		);
@@ -640,7 +643,10 @@ export class DeepBookContract {
 		tx.add(
 			poolMoveCalls.getBaseQuantityOut({
 				package: this.#config.DEEPBOOK_PACKAGE_ID,
-				arguments: { self: pool.address, quoteQuantity: convertQuantity(quoteQuantity, quoteScalar) },
+				arguments: {
+					self: pool.address,
+					quoteQuantity: convertQuantity(quoteQuantity, quoteScalar),
+				},
 				typeArguments: [baseCoin.type, quoteCoin.type],
 			}),
 		);

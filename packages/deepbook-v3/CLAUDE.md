@@ -187,7 +187,12 @@ pnpm --filter @mysten/deepbook-v3 codegen
    test (`test/unit/transactions/margin-ptb-snapshot.test.ts`) guards that migrating a builder never
    changes its emitted transaction. Two builders that don't reduce cleanly are kept as positional
    moveCalls (documented in-code): `marginPool.supplyToMarginPool` and
-   `marginAdmin.revokeMaintainerCap`.
+   `marginAdmin.revokeMaintainerCap`. The **core** surface (deepbook / balanceManager /
+   deepbookAdmin / flashLoans / governance) is migrated the same way, guarded by
+   `test/unit/transactions/core-ptb-snapshot.test.ts`; its positional exceptions are
+   `balanceManager.createAndShareBalanceManager` (`balance_manager::new` is called zero-arg but the
+   regenerated binding adds an `Owner` — core source drifted from the deployed signature) and
+   `balanceManager.shareBalanceManager` (a `0x2::transfer` framework call).
 2. **The pyth entry in `sui-codegen.config.ts` currently fails.** Its on-chain package `0xabf837e9…`
    resolves to `Object not found`, which aborts the CLI _after_ the `deepbook` package has been
    written. The deepbook output is complete and correct; only the trailing `pnpm lint:fix` is

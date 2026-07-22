@@ -83,7 +83,11 @@ export class DeepBookAdminContract {
 		tx.add(
 			poolMoveCalls.unregisterPoolAdmin({
 				package: this.#config.DEEPBOOK_PACKAGE_ID,
-				arguments: { self: pool.address, registry: this.#config.REGISTRY_ID, Cap: this.#adminCap() },
+				arguments: {
+					self: pool.address,
+					registry: this.#config.REGISTRY_ID,
+					Cap: this.#adminCap(),
+				},
 				typeArguments: [baseCoin.type, quoteCoin.type],
 			}),
 		);
@@ -101,7 +105,11 @@ export class DeepBookAdminContract {
 		tx.add(
 			poolMoveCalls.updateAllowedVersions({
 				package: this.#config.DEEPBOOK_PACKAGE_ID,
-				arguments: { self: pool.address, registry: this.#config.REGISTRY_ID, Cap: this.#adminCap() },
+				arguments: {
+					self: pool.address,
+					registry: this.#config.REGISTRY_ID,
+					Cap: this.#adminCap(),
+				},
 				typeArguments: [baseCoin.type, quoteCoin.type],
 			}),
 		);
