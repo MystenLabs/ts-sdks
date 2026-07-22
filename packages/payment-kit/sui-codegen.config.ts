@@ -9,6 +9,10 @@ const config: SuiCodegenConfig = {
 		{
 			package: '@mysten/payment-kit',
 			path: '../../../sui-payment-kit',
+			configArguments: {
+				packageId: { package: '@mysten/payment-kit' },
+				namespaceId: { type: 'payment_kit::Namespace' },
+			},
 		},
 	],
 };

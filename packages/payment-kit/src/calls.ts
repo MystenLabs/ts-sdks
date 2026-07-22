@@ -62,6 +62,7 @@ export class PaymentKitCalls {
 				receiver,
 			},
 			typeArguments: [coinType],
+			config: this.#packageConfig,
 		});
 	};
 
@@ -89,6 +90,7 @@ export class PaymentKitCalls {
 				receiver,
 			},
 			typeArguments: [coinType],
+			config: this.#packageConfig,
 		});
 	};
 
@@ -103,9 +105,9 @@ export class PaymentKitCalls {
 	createRegistry = ({ registryName }: CreateRegistryOptions) => {
 		return createRegistry({
 			arguments: {
-				namespace: this.#packageConfig.namespaceId,
 				name: registryName,
 			},
+			config: this.#packageConfig,
 		});
 	};
 
@@ -132,6 +134,7 @@ export class PaymentKitCalls {
 				epochExpirationDuration,
 				cap: adminCapId,
 			},
+			config: this.#packageConfig,
 		});
 	};
 
@@ -158,6 +161,7 @@ export class PaymentKitCalls {
 				registryManagedFunds,
 				cap: adminCapId,
 			},
+			config: this.#packageConfig,
 		});
 	};
 
@@ -184,6 +188,7 @@ export class PaymentKitCalls {
 				cap: adminCapId,
 			},
 			typeArguments: [coinType],
+			config: this.#packageConfig,
 		});
 	};
 
@@ -216,9 +221,11 @@ export class PaymentKitCalls {
 						receiver,
 					},
 					typeArguments: [coinType],
+					config: this.#packageConfig,
 				}),
 			},
 			typeArguments: [coinType],
+			config: this.#packageConfig,
 		});
 	};
 }
