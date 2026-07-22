@@ -1,5 +1,46 @@
 # @mysten/deepbook-v3
 
+## 1.6.0
+
+### Minor Changes
+
+- 9e40665: Sync with deepbook_margin v6.
+
+  New margin entry points (live on mainnet at `0x8af25e44`):
+
+  - `poolProxy.placeMarketOrderAndRepayLoan`, `poolProxy.placeReduceOnlyLimitOrderAndRepayLoan`,
+    `poolProxy.placeReduceOnlyMarketOrderAndRepayLoan` — repay the loan from the fill proceeds
+    before the risk check, so the gate is the net post-repay `risk_ratio` rather than the borrow
+    floor.
+  - `marginTPSL.executeConditionalOrdersV3` — deleveraging conditional execution, letting a
+    stop-loss fire in the `liquidation..min_borrow` band. `executeConditionalOrders` (v2) is
+    unchanged.
+  - `marginAdmin.setMinOpenRiskRatio` and `getMinOpenRiskRatio` — the position-opening risk floor,
+    distinct from the borrow floor.
+
+  These builders are constructed via generated codegen bindings with **named** arguments rather than
+  positional `moveCall` arrays — `deepbook_margin` was added to `sui-codegen.config.ts`, so
+  `src/contracts/deepbook_margin` is now generated. The human-unit conversion (`convertQuantity`,
+  `convertPrice`, `convertRate`) stays in the facade; codegen handles call construction, removing
+  the risk of transposing same-typed arguments (e.g. base/quote oracles and margin pools).
+
+  Package IDs updated to match `Published.toml`: mainnet margin v5 → v6, testnet core v17 → v20,
+  testnet margin → v14. Testnet `MARGIN_V1` (used to build `MarginApp` type tags) pointed at an
+  abandoned package lineage and is corrected to the real original ID `0xb8620c24…`.
+
+### Patch Changes
+
+- 6af1e2e: Internal refactor: the margin transaction builders now delegate to generated codegen
+  bindings with named arguments instead of positional `moveCall` argument arrays, removing the risk
+  of transposing same-typed arguments (base/quote oracles, base/quote margin pools).
+  `deepbook_margin` and `margin_liquidation` were added to `sui-codegen.config.ts`; human-unit
+  conversion and coin plumbing stay in the facade, so this is a pure construction-layer change.
+
+  No API or behavior change: every migrated builder emits a byte-identical transaction, verified by
+  a new PTB snapshot test (`test/unit/transactions/margin-ptb-snapshot.test.ts`). Two builders whose
+  command/input interleaving does not reduce cleanly (`marginPool.supplyToMarginPool`,
+  `marginAdmin.revokeMaintainerCap`) are intentionally left as positional `moveCall`s.
+
 ## 1.5.9
 
 ### Patch Changes
