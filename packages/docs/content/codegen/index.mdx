@@ -289,16 +289,15 @@ Set `prune: false` to generate all dependency modules with their full types and 
 
 ## The `configArguments` option
 
-Many SDKs built on generated bindings spend most of their wrapper code mapping values from a
-per-network config object (package IDs, registry or treasury object IDs, pool addresses) into
-arguments of generated functions. The `configArguments` option moves that plumbing into codegen: you
-declare which Move types (or package addresses) come from a config object, and the generated
-functions accept that config object directly instead of requiring those arguments on every call.
+SDKs built on generated bindings often spend a lot of wrapper code passing values from a per-network
+config object (package IDs, registry or treasury object IDs, pool addresses) into generated function
+calls. The `configArguments` option moves that mapping into codegen: declare which Move types (or
+package addresses) come from a config object, and the generated functions accept that config object
+directly.
 
-`configArguments` maps author-chosen keys to matchers, declared on the package entry whose generated
-functions they configure. Because codegen output is network-agnostic, matchers never contain package
-addresses: types are identified by `module::TypeName`, optionally qualified with a package
-identifier from the `packages` config:
+`configArguments` is set on a package entry and maps config keys to matchers. Because generated code
+is network-agnostic, matchers reference types as `module::Type` (optionally qualified with a package
+identifier from the `packages` config) rather than by address:
 
 ```typescript
 const config: SuiCodegenConfig = {
@@ -308,27 +307,17 @@ const config: SuiCodegenConfig = {
 			package: '@myapp/core',
 			path: './move/core',
 			configArguments: {
-				// In a package's own block, a bare module::Type refers to that package's type.
-				// Non-generic type: parameters of this type resolve from `config.registry`
+				// Every parameter of this type resolves from `config.registry`
 				registry: { type: 'registry::Registry' },
-				// Generic type without type arguments: matches every instantiation, and the
-				// config value must be a resolver function
+				// Generic type: matches every instantiation, config value must be a resolver function
 				pool: { type: 'pool::Pool' },
-				// Fully instantiated generic: only matches parameters concretely typed with
-				// this exact instantiation in the Move signature. Framework packages (0x1-0x3)
-				// have chain-stable addresses and can be referenced directly.
+				// Instantiated generic: only matches this exact instantiation
 				suiPool: { type: 'pool::Pool<0x2::sui::SUI>' },
-				// Function matcher: configure one function's parameter directly (opt-in).
-				// The type is derived from the signature. Use parameterIndex for onchain
-				// packages without parameter names; omit both when the function has exactly
-				// one argument.
+				// Function matcher: configures a single function's parameter
 				adminCap: { function: 'admin::set_fees', parameterName: 'cap' },
-				// One key may declare several matchers. If they all bind the same concrete
-				// type, a plain value still works; if they span multiple types, the config
-				// value must be a resolver function.
+				// Multiple matchers for one key
 				registries: [{ type: 'registry::Registry' }, { type: 'config::GlobalConfig' }],
-				// Package entry (keyed by the `package` value of a `packages` entry): adds an
-				// optional config key that overrides the package address used for calls
+				// Package entry: adds a config key that overrides the package address used for calls
 				corePackageId: { package: '@myapp/core' },
 			},
 		},
@@ -336,7 +325,7 @@ const config: SuiCodegenConfig = {
 			package: '@myapp/vaults',
 			path: './move/vaults',
 			configArguments: {
-				// Types from other packages in the run are referenced by their identifier.
+				// Types from other packages are referenced by their package identifier
 				vaultPool: { type: '@myapp/core::pool::Pool' },
 			},
 		},
@@ -344,52 +333,48 @@ const config: SuiCodegenConfig = {
 };
 ```
 
-A bare `module::Type` refers to the declaring package's own type; types from other packages in the
-run are referenced by their identifier and must be dependencies of the declaring package (anything
-else is a generation-time error). Package entries must reference the declaring package itself.
-Partially instantiated matchers (for example, `Pool<T>` or a nested uninstantiated generic) are not
-supported. Use an uninstantiated matcher with a resolver function instead.
+Matcher rules:
 
-Misconfiguration is surfaced at generation time: malformed types, wrong arity, unknown package
-identifiers, non-framework package addresses, references to non-dependency packages, and matched
-types or functions missing from their package's summaries are all hard errors. Keys that never match
-any generated parameter produce a warning. Note that the generated `config-arguments.ts` interface
-covers all of the package's declared keys even when only some of its functions consume them; the
-per-function `config` slices are the authoritative types for calls.
+- A bare `module::Type` refers to a type from the package the config is declared on.
+- Types from other packages in the run use their package identifier (for example,
+  `@myapp/core::pool::Pool`) and must be dependencies of the declaring package.
+- Framework packages (`0x1` to `0x3`) have chain-stable addresses and can be referenced directly.
+- Partially instantiated generics like `Pool<T>` are not supported. Use an uninstantiated matcher
+  with a resolver function instead.
+- Function matchers can target a parameter by `parameterName` or `parameterIndex`. Both can be
+  omitted when the function has a single argument.
+- Invalid matchers fail at generation time, and keys that never match any generated parameter
+  produce a warning.
 
 ### Generated output
 
 For each function with matched parameters, the generated options gain an optional `config` property
-typed as the minimal slice of keys that function actually uses. Matched parameters become optional
-in `arguments`. Passing one explicitly overrides config resolution, and resolvers are only invoked
-for arguments the caller did not pass:
+typed with the keys that function uses. Matched parameters become optional in `arguments`, and an
+explicitly passed argument always takes precedence over the config value:
 
 ```typescript
 export interface BorrowOptions {
 	package?: string;
-	arguments:
-		| BorrowArguments
-		| [
-				pool: RawTransactionArgument<string> | undefined,
-				amount: RawTransactionArgument<number | bigint>,
-		  ];
+	arguments: BorrowArguments; // `pool` is optional here
 	config?: {
 		pool: (ctx: ConfigResolverContext) => string | TransactionObjectArgument;
 		corePackageId?: string;
 	};
 	typeArguments: [string];
 }
+
+export function borrow(options: BorrowOptions) {
+	const packageAddress = options.package ?? options.config?.corePackageId ?? '@myapp/core';
+	// ...
+	pool: options.arguments?.pool ?? options.config?.pool?.({ ... }),
+}
 ```
 
-Functions with matched parameters accept the named-object form of `arguments` (the tuple form is
-positional for summaries without parameter names). If a matched argument is omitted and no config
-value is available, the call fails with the standard missing-parameter error.
-
-Config values can be a plain object ID, a transaction argument, or a resolver function. Any function
-value is treated as a resolver. To provide a transaction-callback object argument dynamically,
-return it from a resolver: `(ctx) => (tx) => ...`. Resolvers receive the matched parameter's own
-instantiated type arguments (not the whole function's type argument tuple), plus static call-site
-metadata:
+Keys bound to a single concrete type accept a plain value (an object ID or a transaction argument).
+Keys that match a generic type, or multiple types, must be resolver functions, since a single ID
+can't be correct for every instantiation. A resolver can also return a transaction callback
+(`(ctx) => (tx) => ...`) to build the argument dynamically. Resolvers receive the matched
+parameter's own type arguments plus call-site metadata:
 
 ```typescript
 export interface ConfigResolverContext {
@@ -420,18 +405,11 @@ tx.add(
 );
 ```
 
-For generic types matched without type arguments, a resolver function is required, because a static
-ID can't be correct across instantiations. A parameter typed with the function's own type parameter
-(for example, `Pool<T>`) always binds to the uninstantiated matcher, even when a fully instantiated
-matcher also exists; only parameters concretely instantiated in the Move signature bind to
-instantiated matchers.
-
-Each package output also includes a `config-arguments.ts` file with an interface covering the
-package's resolvable keys and its own package-address key, for use with `satisfies` when defining
-your config object. The interface is named after the package's `packageName` (for example,
-`packageName: 'core'` produces `CoreConfig`). For an SDK spanning multiple packages, shared keys
-declared in several package blocks unify into one runtime config object — check it against the
-intersection of the per-package interfaces:
+Each package's output also includes a `config-arguments.ts` file with an interface covering the
+package's config keys, named after the package's `packageName` (for example, `packageName: 'core'`
+produces `CoreConfig`). Use it with `satisfies` when defining your config object, as shown above. An
+SDK spanning multiple packages can check one shared config object against the intersection of the
+per-package interfaces:
 
 ```typescript
 const myConfig = { ... } satisfies CoreConfig & MarginConfig;
@@ -451,11 +429,9 @@ configArguments: {
 },
 ```
 
-Parameter names are only available in summaries generated from local packages. A `parameterName`
-matcher never matches a parameter without a name; if such a matcher would otherwise apply to a
-nameless parameter (same type and instantiation) and nothing else matches it, codegen fails with a
-clear error. For nameless (onchain bytecode) signatures, use function matchers with `parameterIndex`
-to target individual parameters.
+Parameter names are only available in summaries generated from local packages. For onchain packages
+without parameter names, use function matchers with `parameterIndex` to target individual
+parameters.
 
 ### Package address precedence
 
@@ -465,12 +441,9 @@ For package entries, the address used for a generated call is resolved in this o
 2. The config key declared by the package entry (for example, `config.corePackageId`)
 3. The generated default (the package's MVR name or address)
 
-On Mainnet with MVR names the config entry can be omitted entirely; on networks where the MVR name
-doesn't resolve, supply the deployed package ID through the config object. Two caveats: package
-entries only apply to the main package's generated modules (dependency modules under `deps/` never
-consult them), and they only apply where a generated default address exists. For packages generated
-without an MVR name or address, `package` stays required and always takes precedence. The CLI
-validates that every package entry references a package that is part of the codegen run.
+On networks where the package's MVR name doesn't resolve, supply the deployed package ID through the
+config object. Package entries only apply to the main package's generated modules, and for packages
+generated without an MVR name or address `package` remains required.
 
 ## Phantom types
 
