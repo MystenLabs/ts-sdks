@@ -21,9 +21,14 @@ import { NameRecord as NameRecordBcs } from './contracts/suins/name_record.js';
 import { PricingConfig, RenewalConfig } from './contracts/suins/pricing_config.js';
 import { PaymentsConfig } from './contracts/suins_payments/payments.js';
 
+/** Keyed Pyth Hermes endpoint. A single host serves all networks under Pyth Pro. */
+const HERMES_ENDPOINT = 'https://pyth.dourolabs.app/hermes';
+
 export type SuinsExtensionOptions<Name extends string = 'suins'> = {
 	name?: Name;
 	packageInfo?: PackageInfo;
+	/** Access token for the keyed Pyth Hermes endpoint. Sent as `Authorization: Bearer <token>`. */
+	pythAccessToken?: string;
 };
 
 /**
@@ -45,6 +50,7 @@ export type SuinsExtensionOptions<Name extends string = 'suins'> = {
 export function suins<const Name extends string = 'suins'>({
 	name = 'suins' as Name,
 	packageInfo,
+	pythAccessToken,
 }: SuinsExtensionOptions<Name> = {}) {
 	return {
 		name,
@@ -53,6 +59,7 @@ export function suins<const Name extends string = 'suins'>({
 				client,
 				network: client.network,
 				packageInfo,
+				pythAccessToken,
 			});
 		},
 	};
@@ -62,10 +69,12 @@ export class SuinsClient {
 	client: ClientWithCoreApi;
 	network: SuiClientTypes.Network;
 	config: PackageInfo;
+	pythAccessToken?: string;
 
 	constructor(config: SuinsClientConfig) {
 		this.client = config.client;
 		this.network = config.network || 'mainnet';
+		this.pythAccessToken = config.pythAccessToken;
 
 		if (config.packageInfo) {
 			this.config = config.packageInfo;
@@ -285,11 +294,9 @@ export class SuinsClient {
 	}
 
 	async getPriceInfoObject(tx: Transaction, feed: string, feeCoin?: TransactionObjectArgument) {
-		const endpoint =
-			this.network === 'testnet'
-				? 'https://hermes-beta.pyth.network'
-				: 'https://hermes.pyth.network';
-		const connection = new SuiPriceServiceConnection(endpoint);
+		const connection = new SuiPriceServiceConnection(HERMES_ENDPOINT, {
+			accessToken: this.pythAccessToken,
+		});
 		const priceIDs = [feed];
 		const priceUpdateData = await connection.getPriceFeedsUpdateData(priceIDs);
 

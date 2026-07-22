@@ -102,6 +102,8 @@ export type SuinsClientConfig = {
 	client: ClientWithCoreApi;
 	network?: SuiClientTypes.Network;
 	packageInfo?: PackageInfo;
+	/** Access token for the keyed Pyth Hermes endpoint. Sent as `Authorization: Bearer <token>`. */
+	pythAccessToken?: string;
 };
 
 export type SuinsPriceList = Map<[number, number], number>;
