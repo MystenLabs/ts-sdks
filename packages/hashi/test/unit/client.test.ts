@@ -2036,7 +2036,7 @@ describe('HashiClient', () => {
 
 	describe('tx', () => {
 		describe('deposit', () => {
-			it('composes utxo_id + utxo + deposit for a single UTXO', () => {
+			it('composes utxo_id + utxo + deposit for a single UTXO', async () => {
 				const tx = client.hashi.tx.deposit({
 					txid: '0x' + 'ab'.repeat(32),
 					utxos: [{ vout: 0, amountSats: 100_000n }],
@@ -2055,6 +2055,17 @@ describe('HashiClient', () => {
 
 				expect(commands[2].$kind).toBe('MoveCall');
 				expect(commands[2].MoveCall?.function).toBe('deposit');
+
+				const json = JSON.parse(await tx.toJSON());
+				expect(
+					json.commands.map(
+						(command: { MoveCall?: { package: string } }) => command.MoveCall?.package,
+					),
+				).toEqual([PACKAGE_ID, PACKAGE_ID, PACKAGE_ID]);
+				expect(json.inputs[4].UnresolvedObject?.objectId).toBe(HASHI_OBJECT_ID);
+				expect(json.commands[2].MoveCall?.arguments[0]).toMatchObject({
+					Input: 4,
+				});
 			});
 
 			it('batches multiple UTXOs into one PTB (one triple per UTXO)', () => {

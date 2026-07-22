@@ -13,7 +13,14 @@
  */
 
 import { type BcsType, bcs } from '@mysten/sui/bcs';
-import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
+import {
+	MoveStruct,
+	normalizeMoveArguments,
+	type RawTransactionArgument,
+	type ConfigValue,
+	resolveConfigArgument,
+	applyConfigArguments,
+} from '../utils/index.js';
 import { type Transaction } from '@mysten/sui/transactions';
 import * as vec_map from './deps/sui/vec_map.js';
 const $moduleName = '@local-pkg/hashi::proposal';
@@ -76,7 +83,7 @@ export const QuorumReached = new MoveStruct({
 	},
 });
 export interface VoteArguments {
-	hashi: RawTransactionArgument<string>;
+	hashi?: RawTransactionArgument<string>;
 	validatorAddress: RawTransactionArgument<string>;
 	proposalId: RawTransactionArgument<string>;
 }
@@ -85,14 +92,18 @@ export interface VoteOptions {
 	arguments:
 		| VoteArguments
 		| [
-				hashi: RawTransactionArgument<string>,
+				hashi: RawTransactionArgument<string> | undefined,
 				validatorAddress: RawTransactionArgument<string>,
 				proposalId: RawTransactionArgument<string>,
 		  ];
+	config?: {
+		hashiObjectId: ConfigValue;
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 export function vote(options: VoteOptions) {
-	const packageAddress = options.package ?? '@local-pkg/hashi';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@local-pkg/hashi';
 	const argumentsTypes = [null, 'address', '0x2::object::ID', '0x2::clock::Clock'] satisfies (
 		| string
 		| null
@@ -103,12 +114,34 @@ export function vote(options: VoteOptions) {
 			package: packageAddress,
 			module: 'proposal',
 			function: 'vote',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'hashi',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.hashiObjectId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'proposal',
+									functionName: 'vote',
+									parameterIndex: 0,
+									parameterName: 'hashi',
+								},
+								'hashiObjectId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 			typeArguments: options.typeArguments,
 		});
 }
 export interface RemoveVoteArguments {
-	hashi: RawTransactionArgument<string>;
+	hashi?: RawTransactionArgument<string>;
 	validatorAddress: RawTransactionArgument<string>;
 	proposalId: RawTransactionArgument<string>;
 }
@@ -117,14 +150,18 @@ export interface RemoveVoteOptions {
 	arguments:
 		| RemoveVoteArguments
 		| [
-				hashi: RawTransactionArgument<string>,
+				hashi: RawTransactionArgument<string> | undefined,
 				validatorAddress: RawTransactionArgument<string>,
 				proposalId: RawTransactionArgument<string>,
 		  ];
+	config?: {
+		hashiObjectId: ConfigValue;
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 export function removeVote(options: RemoveVoteOptions) {
-	const packageAddress = options.package ?? '@local-pkg/hashi';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@local-pkg/hashi';
 	const argumentsTypes = [null, 'address', '0x2::object::ID'] satisfies (string | null)[];
 	const parameterNames = ['hashi', 'validatorAddress', 'proposalId'];
 	return (tx: Transaction) =>
@@ -132,23 +169,52 @@ export function removeVote(options: RemoveVoteOptions) {
 			package: packageAddress,
 			module: 'proposal',
 			function: 'remove_vote',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'hashi',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.hashiObjectId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'proposal',
+									functionName: 'remove_vote',
+									parameterIndex: 0,
+									parameterName: 'hashi',
+								},
+								'hashiObjectId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 			typeArguments: options.typeArguments,
 		});
 }
 export interface DeleteExpiredArguments {
-	hashi: RawTransactionArgument<string>;
+	hashi?: RawTransactionArgument<string>;
 	proposalId: RawTransactionArgument<string>;
 }
 export interface DeleteExpiredOptions {
 	package?: string;
 	arguments:
 		| DeleteExpiredArguments
-		| [hashi: RawTransactionArgument<string>, proposalId: RawTransactionArgument<string>];
+		| [
+				hashi: RawTransactionArgument<string> | undefined,
+				proposalId: RawTransactionArgument<string>,
+		  ];
+	config?: {
+		hashiObjectId: ConfigValue;
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 export function deleteExpired(options: DeleteExpiredOptions) {
-	const packageAddress = options.package ?? '@local-pkg/hashi';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@local-pkg/hashi';
 	const argumentsTypes = [null, '0x2::object::ID', '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['hashi', 'proposalId'];
 	return (tx: Transaction) =>
@@ -156,7 +222,29 @@ export function deleteExpired(options: DeleteExpiredOptions) {
 			package: packageAddress,
 			module: 'proposal',
 			function: 'delete_expired',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'hashi',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.hashiObjectId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'proposal',
+									functionName: 'delete_expired',
+									parameterIndex: 0,
+									parameterName: 'hashi',
+								},
+								'hashiObjectId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 			typeArguments: options.typeArguments,
 		});
 }

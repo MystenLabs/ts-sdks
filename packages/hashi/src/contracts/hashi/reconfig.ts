@@ -13,9 +13,16 @@
  * (`hashi::finish_publish`).
  */
 
-import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
+import {
+	MoveStruct,
+	normalizeMoveArguments,
+	type RawTransactionArgument,
+	type ConfigValue,
+	resolveConfigArgument,
+	applyConfigArguments,
+} from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as committee from './committee.js';
 const $moduleName = '@local-pkg/hashi::reconfig';
 export const ReconfigCompletionMessage = new MoveStruct({
@@ -49,14 +56,18 @@ export const ReconfigEnded = new MoveStruct({
 	},
 });
 export interface StartReconfigArguments {
-	self: RawTransactionArgument<string>;
+	self?: RawTransactionArgument<string>;
 }
 export interface StartReconfigOptions {
 	package?: string;
-	arguments: StartReconfigArguments | [self: RawTransactionArgument<string>];
+	arguments?: StartReconfigArguments | [self?: RawTransactionArgument<string>];
+	config?: {
+		hashiObjectId: ConfigValue;
+		packageId?: string;
+	};
 }
 export function startReconfig(options: StartReconfigOptions) {
-	const packageAddress = options.package ?? '@local-pkg/hashi';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@local-pkg/hashi';
 	const argumentsTypes = [null, '0x3::sui_system::SuiSystemState'] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
@@ -64,26 +75,52 @@ export function startReconfig(options: StartReconfigOptions) {
 			package: packageAddress,
 			module: 'reconfig',
 			function: 'start_reconfig',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments ?? {}, [
+					{
+						index: 0,
+						name: 'self',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.hashiObjectId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'reconfig',
+									functionName: 'start_reconfig',
+									parameterIndex: 0,
+									parameterName: 'self',
+								},
+								'hashiObjectId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface EndReconfigArguments {
-	self: RawTransactionArgument<string>;
-	mpcPublicKey: RawTransactionArgument<number[]>;
-	mpcCert: RawTransactionArgument<string>;
+	self?: RawTransactionArgument<string>;
+	mpcPublicKey: RawTransactionArgument<Array<number>>;
+	mpcCert: TransactionArgument;
 }
 export interface EndReconfigOptions {
 	package?: string;
 	arguments:
 		| EndReconfigArguments
 		| [
-				self: RawTransactionArgument<string>,
-				mpcPublicKey: RawTransactionArgument<number[]>,
-				mpcCert: RawTransactionArgument<string>,
+				self: RawTransactionArgument<string> | undefined,
+				mpcPublicKey: RawTransactionArgument<Array<number>>,
+				mpcCert: TransactionArgument,
 		  ];
+	config?: {
+		hashiObjectId: ConfigValue;
+		packageId?: string;
+	};
 }
 export function endReconfig(options: EndReconfigOptions) {
-	const packageAddress = options.package ?? '@local-pkg/hashi';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@local-pkg/hashi';
 	const argumentsTypes = [null, 'vector<u8>', null] satisfies (string | null)[];
 	const parameterNames = ['self', 'mpcPublicKey', 'mpcCert'];
 	return (tx: Transaction) =>
@@ -91,21 +128,47 @@ export function endReconfig(options: EndReconfigOptions) {
 			package: packageAddress,
 			module: 'reconfig',
 			function: 'end_reconfig',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'self',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.hashiObjectId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'reconfig',
+									functionName: 'end_reconfig',
+									parameterIndex: 0,
+									parameterName: 'self',
+								},
+								'hashiObjectId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface SubmitCommitteeHandoffArguments {
-	self: RawTransactionArgument<string>;
-	committeeHandoffCert: RawTransactionArgument<string>;
+	self?: RawTransactionArgument<string>;
+	committeeHandoffCert: TransactionArgument;
 }
 export interface SubmitCommitteeHandoffOptions {
 	package?: string;
 	arguments:
 		| SubmitCommitteeHandoffArguments
-		| [self: RawTransactionArgument<string>, committeeHandoffCert: RawTransactionArgument<string>];
+		| [self: RawTransactionArgument<string> | undefined, committeeHandoffCert: TransactionArgument];
+	config?: {
+		hashiObjectId: ConfigValue;
+		packageId?: string;
+	};
 }
 export function submitCommitteeHandoff(options: SubmitCommitteeHandoffOptions) {
-	const packageAddress = options.package ?? '@local-pkg/hashi';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@local-pkg/hashi';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'committeeHandoffCert'];
 	return (tx: Transaction) =>
@@ -113,6 +176,28 @@ export function submitCommitteeHandoff(options: SubmitCommitteeHandoffOptions) {
 			package: packageAddress,
 			module: 'reconfig',
 			function: 'submit_committee_handoff',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'self',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.hashiObjectId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'reconfig',
+									functionName: 'submit_committee_handoff',
+									parameterIndex: 0,
+									parameterName: 'self',
+								},
+								'hashiObjectId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }

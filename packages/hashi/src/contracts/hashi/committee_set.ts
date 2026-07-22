@@ -15,8 +15,6 @@ import { MoveStruct } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import * as committee from './committee.js';
 import * as bag from './deps/sui/bag.js';
-import * as bag_1 from './deps/sui/bag.js';
-import * as committee_1 from './committee.js';
 import * as group_ops from './deps/sui/group_ops.js';
 import * as config from './config.js';
 const $moduleName = '@local-pkg/hashi::committee_set';
@@ -33,7 +31,7 @@ export const CommitteeSet = new MoveStruct({
 		members: bag.Bag,
 		/** The current epoch. */
 		epoch: bcs.u64(),
-		committees: bag_1.Bag,
+		committees: bag.Bag,
 		pending_epoch_change: bcs.option(PendingEpochChange),
 		/** The MPC committee's threshold public key. */
 		mpc_public_key: bcs.vector(bcs.u8()),
@@ -49,7 +47,7 @@ export const CommitteeHandoff = new MoveStruct({
 	name: `${$moduleName}::CommitteeHandoff`,
 	fields: {
 		next_epoch: bcs.u64(),
-		cert: committee_1.CommitteeSignature,
+		cert: committee.CommitteeSignature,
 	},
 });
 export const MemberInfo = new MoveStruct({

@@ -9,6 +9,10 @@ const config: SuiCodegenConfig = {
 		{
 			package: '@local-pkg/hashi', // TODO: update this when hashi is published on MVR.
 			path: '../../../hashi/packages/hashi',
+			configArguments: {
+				hashiObjectId: { type: 'hashi::Hashi' },
+				packageId: { package: '@local-pkg/hashi' },
+			},
 		},
 	],
 };

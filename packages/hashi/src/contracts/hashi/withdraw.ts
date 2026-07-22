@@ -12,9 +12,16 @@
  * cooldown, refunding the hBTC.
  */
 
-import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
+import {
+	MoveStruct,
+	normalizeMoveArguments,
+	type RawTransactionArgument,
+	type ConfigValue,
+	resolveConfigArgument,
+	applyConfigArguments,
+} from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as utxo from './utxo.js';
 import * as withdrawal_queue from './withdrawal_queue.js';
 const $moduleName = '@local-pkg/hashi::withdraw';
@@ -57,22 +64,26 @@ export const WithdrawalConfirmationMessage = new MoveStruct({
 	},
 });
 export interface ApproveRequestArguments {
-	hashi: RawTransactionArgument<string>;
+	hashi?: RawTransactionArgument<string>;
 	requestId: RawTransactionArgument<string>;
-	cert: RawTransactionArgument<string>;
+	cert: TransactionArgument;
 }
 export interface ApproveRequestOptions {
 	package?: string;
 	arguments:
 		| ApproveRequestArguments
 		| [
-				hashi: RawTransactionArgument<string>,
+				hashi: RawTransactionArgument<string> | undefined,
 				requestId: RawTransactionArgument<string>,
-				cert: RawTransactionArgument<string>,
+				cert: TransactionArgument,
 		  ];
+	config?: {
+		hashiObjectId: ConfigValue;
+		packageId?: string;
+	};
 }
 export function approveRequest(options: ApproveRequestOptions) {
-	const packageAddress = options.package ?? '@local-pkg/hashi';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@local-pkg/hashi';
 	const argumentsTypes = [null, 'address', null, '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['hashi', 'requestId', 'cert'];
 	return (tx: Transaction) =>
@@ -80,32 +91,58 @@ export function approveRequest(options: ApproveRequestOptions) {
 			package: packageAddress,
 			module: 'withdraw',
 			function: 'approve_request',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'hashi',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.hashiObjectId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'withdraw',
+									functionName: 'approve_request',
+									parameterIndex: 0,
+									parameterName: 'hashi',
+								},
+								'hashiObjectId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface CommitWithdrawalTxArguments {
-	hashi: RawTransactionArgument<string>;
-	requestIds: RawTransactionArgument<string[]>;
-	selectedUtxos: RawTransactionArgument<string[]>;
-	outputs: RawTransactionArgument<string[]>;
+	hashi?: RawTransactionArgument<string>;
+	requestIds: RawTransactionArgument<Array<string>>;
+	selectedUtxos: TransactionArgument;
+	outputs: TransactionArgument;
 	txid: RawTransactionArgument<string>;
-	cert: RawTransactionArgument<string>;
+	cert: TransactionArgument;
 }
 export interface CommitWithdrawalTxOptions {
 	package?: string;
 	arguments:
 		| CommitWithdrawalTxArguments
 		| [
-				hashi: RawTransactionArgument<string>,
-				requestIds: RawTransactionArgument<string[]>,
-				selectedUtxos: RawTransactionArgument<string[]>,
-				outputs: RawTransactionArgument<string[]>,
+				hashi: RawTransactionArgument<string> | undefined,
+				requestIds: RawTransactionArgument<Array<string>>,
+				selectedUtxos: TransactionArgument,
+				outputs: TransactionArgument,
 				txid: RawTransactionArgument<string>,
-				cert: RawTransactionArgument<string>,
+				cert: TransactionArgument,
 		  ];
+	config?: {
+		hashiObjectId: ConfigValue;
+		packageId?: string;
+	};
 }
 export function commitWithdrawalTx(options: CommitWithdrawalTxOptions) {
-	const packageAddress = options.package ?? '@local-pkg/hashi';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@local-pkg/hashi';
 	const argumentsTypes = [
 		null,
 		'vector<address>',
@@ -122,27 +159,53 @@ export function commitWithdrawalTx(options: CommitWithdrawalTxOptions) {
 			package: packageAddress,
 			module: 'withdraw',
 			function: 'commit_withdrawal_tx',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'hashi',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.hashiObjectId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'withdraw',
+									functionName: 'commit_withdrawal_tx',
+									parameterIndex: 0,
+									parameterName: 'hashi',
+								},
+								'hashiObjectId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface CommitInputSignaturesArguments {
-	hashi: RawTransactionArgument<string>;
+	hashi?: RawTransactionArgument<string>;
 	withdrawalId: RawTransactionArgument<string>;
-	indices: RawTransactionArgument<number | bigint[]>;
-	signatures: RawTransactionArgument<number[][]>;
-	cert: RawTransactionArgument<string>;
+	indices: RawTransactionArgument<Array<number | bigint>>;
+	signatures: RawTransactionArgument<Array<Array<number>>>;
+	cert: TransactionArgument;
 }
 export interface CommitInputSignaturesOptions {
 	package?: string;
 	arguments:
 		| CommitInputSignaturesArguments
 		| [
-				hashi: RawTransactionArgument<string>,
+				hashi: RawTransactionArgument<string> | undefined,
 				withdrawalId: RawTransactionArgument<string>,
-				indices: RawTransactionArgument<number | bigint[]>,
-				signatures: RawTransactionArgument<number[][]>,
-				cert: RawTransactionArgument<string>,
+				indices: RawTransactionArgument<Array<number | bigint>>,
+				signatures: RawTransactionArgument<Array<Array<number>>>,
+				cert: TransactionArgument,
 		  ];
+	config?: {
+		hashiObjectId: ConfigValue;
+		packageId?: string;
+	};
 }
 /**
  * Record a chunk of completed per-input MPC signatures into the withdrawal's
@@ -152,7 +215,7 @@ export interface CommitInputSignaturesOptions {
  * bundle a final chunk + `finalize_withdrawal` in one PTB for small txns.
  */
 export function commitInputSignatures(options: CommitInputSignaturesOptions) {
-	const packageAddress = options.package ?? '@local-pkg/hashi';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@local-pkg/hashi';
 	const argumentsTypes = [null, 'address', 'vector<u64>', 'vector<vector<u8>>', null] satisfies (
 		| string
 		| null
@@ -163,27 +226,53 @@ export function commitInputSignatures(options: CommitInputSignaturesOptions) {
 			package: packageAddress,
 			module: 'withdraw',
 			function: 'commit_input_signatures',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'hashi',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.hashiObjectId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'withdraw',
+									functionName: 'commit_input_signatures',
+									parameterIndex: 0,
+									parameterName: 'hashi',
+								},
+								'hashiObjectId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface FinalizeWithdrawalArguments {
-	hashi: RawTransactionArgument<string>;
+	hashi?: RawTransactionArgument<string>;
 	withdrawalId: RawTransactionArgument<string>;
-	requestIds: RawTransactionArgument<string[]>;
-	guardianSignatures: RawTransactionArgument<number[][]>;
-	cert: RawTransactionArgument<string>;
+	requestIds: RawTransactionArgument<Array<string>>;
+	guardianSignatures: RawTransactionArgument<Array<Array<number>>>;
+	cert: TransactionArgument;
 }
 export interface FinalizeWithdrawalOptions {
 	package?: string;
 	arguments:
 		| FinalizeWithdrawalArguments
 		| [
-				hashi: RawTransactionArgument<string>,
+				hashi: RawTransactionArgument<string> | undefined,
 				withdrawalId: RawTransactionArgument<string>,
-				requestIds: RawTransactionArgument<string[]>,
-				guardianSignatures: RawTransactionArgument<number[][]>,
-				cert: RawTransactionArgument<string>,
+				requestIds: RawTransactionArgument<Array<string>>,
+				guardianSignatures: RawTransactionArgument<Array<Array<number>>>,
+				cert: TransactionArgument,
 		  ];
+	config?: {
+		hashiObjectId: ConfigValue;
+		packageId?: string;
+	};
 }
 /**
  * Finalize a withdrawal once all MPC signatures are in: attach the one-shot
@@ -192,7 +281,7 @@ export interface FinalizeWithdrawalOptions {
  * malicious leader cannot pair valid MPC sigs with garbage guardian sigs.
  */
 export function finalizeWithdrawal(options: FinalizeWithdrawalOptions) {
-	const packageAddress = options.package ?? '@local-pkg/hashi';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@local-pkg/hashi';
 	const argumentsTypes = [
 		null,
 		'address',
@@ -207,26 +296,52 @@ export function finalizeWithdrawal(options: FinalizeWithdrawalOptions) {
 			package: packageAddress,
 			module: 'withdraw',
 			function: 'finalize_withdrawal',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'hashi',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.hashiObjectId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'withdraw',
+									functionName: 'finalize_withdrawal',
+									parameterIndex: 0,
+									parameterName: 'hashi',
+								},
+								'hashiObjectId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface ConfirmWithdrawalArguments {
-	hashi: RawTransactionArgument<string>;
+	hashi?: RawTransactionArgument<string>;
 	withdrawalId: RawTransactionArgument<string>;
-	cert: RawTransactionArgument<string>;
+	cert: TransactionArgument;
 }
 export interface ConfirmWithdrawalOptions {
 	package?: string;
 	arguments:
 		| ConfirmWithdrawalArguments
 		| [
-				hashi: RawTransactionArgument<string>,
+				hashi: RawTransactionArgument<string> | undefined,
 				withdrawalId: RawTransactionArgument<string>,
-				cert: RawTransactionArgument<string>,
+				cert: TransactionArgument,
 		  ];
+	config?: {
+		hashiObjectId: ConfigValue;
+		packageId?: string;
+	};
 }
 export function confirmWithdrawal(options: ConfirmWithdrawalOptions) {
-	const packageAddress = options.package ?? '@local-pkg/hashi';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@local-pkg/hashi';
 	const argumentsTypes = [null, 'address', null, '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['hashi', 'withdrawalId', 'cert'];
 	return (tx: Transaction) =>
@@ -234,18 +349,47 @@ export function confirmWithdrawal(options: ConfirmWithdrawalOptions) {
 			package: packageAddress,
 			module: 'withdraw',
 			function: 'confirm_withdrawal',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'hashi',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.hashiObjectId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'withdraw',
+									functionName: 'confirm_withdrawal',
+									parameterIndex: 0,
+									parameterName: 'hashi',
+								},
+								'hashiObjectId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface ReallocatePresigsArguments {
-	hashi: RawTransactionArgument<string>;
+	hashi?: RawTransactionArgument<string>;
 	withdrawalId: RawTransactionArgument<string>;
 }
 export interface ReallocatePresigsOptions {
 	package?: string;
 	arguments:
 		| ReallocatePresigsArguments
-		| [hashi: RawTransactionArgument<string>, withdrawalId: RawTransactionArgument<string>];
+		| [
+				hashi: RawTransactionArgument<string> | undefined,
+				withdrawalId: RawTransactionArgument<string>,
+		  ];
+	config?: {
+		hashiObjectId: ConfigValue;
+		packageId?: string;
+	};
 }
 /**
  * Reassign fresh presignatures to the still-unsigned inputs of a withdrawal whose
@@ -259,7 +403,7 @@ export interface ReallocatePresigsOptions {
  * by the `mpc_signing` stale-epoch guard.
  */
 export function reallocatePresigs(options: ReallocatePresigsOptions) {
-	const packageAddress = options.package ?? '@local-pkg/hashi';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@local-pkg/hashi';
 	const argumentsTypes = [null, 'address'] satisfies (string | null)[];
 	const parameterNames = ['hashi', 'withdrawalId'];
 	return (tx: Transaction) =>
@@ -267,18 +411,44 @@ export function reallocatePresigs(options: ReallocatePresigsOptions) {
 			package: packageAddress,
 			module: 'withdraw',
 			function: 'reallocate_presigs',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'hashi',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.hashiObjectId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'withdraw',
+									functionName: 'reallocate_presigs',
+									parameterIndex: 0,
+									parameterName: 'hashi',
+								},
+								'hashiObjectId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface CleanupSpentUtxosArguments {
-	hashi: RawTransactionArgument<string>;
-	utxoIds: RawTransactionArgument<string[]>;
+	hashi?: RawTransactionArgument<string>;
+	utxoIds: TransactionArgument;
 }
 export interface CleanupSpentUtxosOptions {
 	package?: string;
 	arguments:
 		| CleanupSpentUtxosArguments
-		| [hashi: RawTransactionArgument<string>, utxoIds: RawTransactionArgument<string[]>];
+		| [hashi: RawTransactionArgument<string> | undefined, utxoIds: TransactionArgument];
+	config?: {
+		hashiObjectId: ConfigValue;
+		packageId?: string;
+	};
 }
 /**
  * Finalize the on-chain bookkeeping for spent UTXOs. Moves each UTXO's record from
@@ -290,7 +460,7 @@ export interface CleanupSpentUtxosOptions {
  * and must stay callable during an emergency pause.
  */
 export function cleanupSpentUtxos(options: CleanupSpentUtxosOptions) {
-	const packageAddress = options.package ?? '@local-pkg/hashi';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@local-pkg/hashi';
 	const argumentsTypes = [null, 'vector<null>'] satisfies (string | null)[];
 	const parameterNames = ['hashi', 'utxoIds'];
 	return (tx: Transaction) =>
@@ -298,23 +468,49 @@ export function cleanupSpentUtxos(options: CleanupSpentUtxosOptions) {
 			package: packageAddress,
 			module: 'withdraw',
 			function: 'cleanup_spent_utxos',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'hashi',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.hashiObjectId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'withdraw',
+									functionName: 'cleanup_spent_utxos',
+									parameterIndex: 0,
+									parameterName: 'hashi',
+								},
+								'hashiObjectId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface RequestWithdrawalArguments {
-	hashi: RawTransactionArgument<string>;
-	btc: RawTransactionArgument<string>;
-	bitcoinAddress: RawTransactionArgument<number[]>;
+	hashi?: RawTransactionArgument<string>;
+	btc: TransactionArgument;
+	bitcoinAddress: RawTransactionArgument<Array<number>>;
 }
 export interface RequestWithdrawalOptions {
 	package?: string;
 	arguments:
 		| RequestWithdrawalArguments
 		| [
-				hashi: RawTransactionArgument<string>,
-				btc: RawTransactionArgument<string>,
-				bitcoinAddress: RawTransactionArgument<number[]>,
+				hashi: RawTransactionArgument<string> | undefined,
+				btc: TransactionArgument,
+				bitcoinAddress: RawTransactionArgument<Array<number>>,
 		  ];
+	config?: {
+		hashiObjectId: ConfigValue;
+		packageId?: string;
+	};
 }
 /**
  * Request a withdrawal of BTC from the bridge.
@@ -326,7 +522,7 @@ export interface RequestWithdrawalOptions {
  * guarantees the amount covers worst-case miner fees plus dust.
  */
 export function requestWithdrawal(options: RequestWithdrawalOptions) {
-	const packageAddress = options.package ?? '@local-pkg/hashi';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@local-pkg/hashi';
 	const argumentsTypes = [null, '0x2::clock::Clock', null, 'vector<u8>'] satisfies (
 		| string
 		| null
@@ -337,18 +533,47 @@ export function requestWithdrawal(options: RequestWithdrawalOptions) {
 			package: packageAddress,
 			module: 'withdraw',
 			function: 'request_withdrawal',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'hashi',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.hashiObjectId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'withdraw',
+									functionName: 'request_withdrawal',
+									parameterIndex: 0,
+									parameterName: 'hashi',
+								},
+								'hashiObjectId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface CancelWithdrawalArguments {
-	hashi: RawTransactionArgument<string>;
+	hashi?: RawTransactionArgument<string>;
 	requestId: RawTransactionArgument<string>;
 }
 export interface CancelWithdrawalOptions {
 	package?: string;
 	arguments:
 		| CancelWithdrawalArguments
-		| [hashi: RawTransactionArgument<string>, requestId: RawTransactionArgument<string>];
+		| [
+				hashi: RawTransactionArgument<string> | undefined,
+				requestId: RawTransactionArgument<string>,
+		  ];
+	config?: {
+		hashiObjectId: ConfigValue;
+		packageId?: string;
+	};
 }
 /**
  * Cancel a pending withdrawal request and return the stored BTC to the requester.
@@ -359,7 +584,7 @@ export interface CancelWithdrawalOptions {
  * bag and its BTC is burned — cancellation is no longer possible.
  */
 export function cancelWithdrawal(options: CancelWithdrawalOptions) {
-	const packageAddress = options.package ?? '@local-pkg/hashi';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@local-pkg/hashi';
 	const argumentsTypes = [null, 'address', '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['hashi', 'requestId'];
 	return (tx: Transaction) =>
@@ -367,6 +592,28 @@ export function cancelWithdrawal(options: CancelWithdrawalOptions) {
 			package: packageAddress,
 			module: 'withdraw',
 			function: 'cancel_withdrawal',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'hashi',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.hashiObjectId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'withdraw',
+									functionName: 'cancel_withdrawal',
+									parameterIndex: 0,
+									parameterName: 'hashi',
+								},
+								'hashiObjectId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }

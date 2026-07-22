@@ -33,9 +33,12 @@ export interface NewU64Arguments {
 export interface NewU64Options {
 	package?: string;
 	arguments: NewU64Arguments | [value: RawTransactionArgument<number | bigint>];
+	config?: {
+		packageId?: string;
+	};
 }
 export function newU64(options: NewU64Options) {
-	const packageAddress = options.package ?? '@local-pkg/hashi';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@local-pkg/hashi';
 	const argumentsTypes = ['u64'] satisfies (string | null)[];
 	const parameterNames = ['value'];
 	return (tx: Transaction) =>
@@ -52,9 +55,12 @@ export interface NewAddressArguments {
 export interface NewAddressOptions {
 	package?: string;
 	arguments: NewAddressArguments | [value: RawTransactionArgument<string>];
+	config?: {
+		packageId?: string;
+	};
 }
 export function newAddress(options: NewAddressOptions) {
-	const packageAddress = options.package ?? '@local-pkg/hashi';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@local-pkg/hashi';
 	const argumentsTypes = ['address'] satisfies (string | null)[];
 	const parameterNames = ['value'];
 	return (tx: Transaction) =>
@@ -71,9 +77,12 @@ export interface NewStringArguments {
 export interface NewStringOptions {
 	package?: string;
 	arguments: NewStringArguments | [value: RawTransactionArgument<string>];
+	config?: {
+		packageId?: string;
+	};
 }
 export function newString(options: NewStringOptions) {
-	const packageAddress = options.package ?? '@local-pkg/hashi';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@local-pkg/hashi';
 	const argumentsTypes = ['0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['value'];
 	return (tx: Transaction) =>
@@ -90,9 +99,12 @@ export interface NewBoolArguments {
 export interface NewBoolOptions {
 	package?: string;
 	arguments: NewBoolArguments | [value: RawTransactionArgument<boolean>];
+	config?: {
+		packageId?: string;
+	};
 }
 export function newBool(options: NewBoolOptions) {
-	const packageAddress = options.package ?? '@local-pkg/hashi';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@local-pkg/hashi';
 	const argumentsTypes = ['bool'] satisfies (string | null)[];
 	const parameterNames = ['value'];
 	return (tx: Transaction) =>
@@ -104,14 +116,17 @@ export function newBool(options: NewBoolOptions) {
 		});
 }
 export interface NewBytesArguments {
-	value: RawTransactionArgument<number[]>;
+	value: RawTransactionArgument<Array<number>>;
 }
 export interface NewBytesOptions {
 	package?: string;
-	arguments: NewBytesArguments | [value: RawTransactionArgument<number[]>];
+	arguments: NewBytesArguments | [value: RawTransactionArgument<Array<number>>];
+	config?: {
+		packageId?: string;
+	};
 }
 export function newBytes(options: NewBytesOptions) {
-	const packageAddress = options.package ?? '@local-pkg/hashi';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@local-pkg/hashi';
 	const argumentsTypes = ['vector<u8>'] satisfies (string | null)[];
 	const parameterNames = ['value'];
 	return (tx: Transaction) =>
@@ -128,9 +143,12 @@ export interface NewU128Arguments {
 export interface NewU128Options {
 	package?: string;
 	arguments: NewU128Arguments | [value: RawTransactionArgument<number | bigint>];
+	config?: {
+		packageId?: string;
+	};
 }
 export function newU128(options: NewU128Options) {
-	const packageAddress = options.package ?? '@local-pkg/hashi';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@local-pkg/hashi';
 	const argumentsTypes = ['u128'] satisfies (string | null)[];
 	const parameterNames = ['value'];
 	return (tx: Transaction) =>
@@ -147,9 +165,12 @@ export interface NewU256Arguments {
 export interface NewU256Options {
 	package?: string;
 	arguments: NewU256Arguments | [value: RawTransactionArgument<number | bigint>];
+	config?: {
+		packageId?: string;
+	};
 }
 export function newU256(options: NewU256Options) {
-	const packageAddress = options.package ?? '@local-pkg/hashi';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@local-pkg/hashi';
 	const argumentsTypes = ['u256'] satisfies (string | null)[];
 	const parameterNames = ['value'];
 	return (tx: Transaction) =>
