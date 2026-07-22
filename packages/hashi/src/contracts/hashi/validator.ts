@@ -9,7 +9,14 @@
  * Every mutation emits an event for off-chain watchers.
  */
 
-import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
+import {
+	MoveStruct,
+	normalizeMoveArguments,
+	type RawTransactionArgument,
+	type ConfigValue,
+	resolveConfigArgument,
+	applyConfigArguments,
+} from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
 const $moduleName = '@local-pkg/hashi::validator';
@@ -26,11 +33,15 @@ export const ValidatorUpdated = new MoveStruct({
 	},
 });
 export interface RegisterArguments {
-	self: RawTransactionArgument<string>;
+	self?: RawTransactionArgument<string>;
 }
 export interface RegisterOptions {
 	package?: string;
-	arguments: RegisterArguments | [self: RawTransactionArgument<string>];
+	arguments?: RegisterArguments | [self?: RawTransactionArgument<string>];
+	config?: {
+		hashiObjectId: ConfigValue;
+		packageId?: string;
+	};
 }
 /**
  * Registration and key/metadata updates (below) are deliberately NOT gated on
@@ -39,7 +50,7 @@ export interface RegisterOptions {
  * reconfig freeze operator maintenance.
  */
 export function register(options: RegisterOptions) {
-	const packageAddress = options.package ?? '@local-pkg/hashi';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@local-pkg/hashi';
 	const argumentsTypes = [null, '0x3::sui_system::SuiSystemState'] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
@@ -47,28 +58,54 @@ export function register(options: RegisterOptions) {
 			package: packageAddress,
 			module: 'validator',
 			function: 'register',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments ?? {}, [
+					{
+						index: 0,
+						name: 'self',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.hashiObjectId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'validator',
+									functionName: 'register',
+									parameterIndex: 0,
+									parameterName: 'self',
+								},
+								'hashiObjectId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface UpdateNextEpochPublicKeyArguments {
-	self: RawTransactionArgument<string>;
+	self?: RawTransactionArgument<string>;
 	validator: RawTransactionArgument<string>;
-	nextEpochPublicKey: RawTransactionArgument<number[]>;
-	proofOfPossessionSignature: RawTransactionArgument<number[]>;
+	nextEpochPublicKey: RawTransactionArgument<Array<number>>;
+	proofOfPossessionSignature: RawTransactionArgument<Array<number>>;
 }
 export interface UpdateNextEpochPublicKeyOptions {
 	package?: string;
 	arguments:
 		| UpdateNextEpochPublicKeyArguments
 		| [
-				self: RawTransactionArgument<string>,
+				self: RawTransactionArgument<string> | undefined,
 				validator: RawTransactionArgument<string>,
-				nextEpochPublicKey: RawTransactionArgument<number[]>,
-				proofOfPossessionSignature: RawTransactionArgument<number[]>,
+				nextEpochPublicKey: RawTransactionArgument<Array<number>>,
+				proofOfPossessionSignature: RawTransactionArgument<Array<number>>,
 		  ];
+	config?: {
+		hashiObjectId: ConfigValue;
+		packageId?: string;
+	};
 }
 export function updateNextEpochPublicKey(options: UpdateNextEpochPublicKeyOptions) {
-	const packageAddress = options.package ?? '@local-pkg/hashi';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@local-pkg/hashi';
 	const argumentsTypes = [null, 'address', 'vector<u8>', 'vector<u8>'] satisfies (string | null)[];
 	const parameterNames = ['self', 'validator', 'nextEpochPublicKey', 'proofOfPossessionSignature'];
 	return (tx: Transaction) =>
@@ -76,11 +113,33 @@ export function updateNextEpochPublicKey(options: UpdateNextEpochPublicKeyOption
 			package: packageAddress,
 			module: 'validator',
 			function: 'update_next_epoch_public_key',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'self',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.hashiObjectId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'validator',
+									functionName: 'update_next_epoch_public_key',
+									parameterIndex: 0,
+									parameterName: 'self',
+								},
+								'hashiObjectId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface UpdateOperatorAddressArguments {
-	self: RawTransactionArgument<string>;
+	self?: RawTransactionArgument<string>;
 	validator: RawTransactionArgument<string>;
 	operator: RawTransactionArgument<string>;
 }
@@ -89,13 +148,17 @@ export interface UpdateOperatorAddressOptions {
 	arguments:
 		| UpdateOperatorAddressArguments
 		| [
-				self: RawTransactionArgument<string>,
+				self: RawTransactionArgument<string> | undefined,
 				validator: RawTransactionArgument<string>,
 				operator: RawTransactionArgument<string>,
 		  ];
+	config?: {
+		hashiObjectId: ConfigValue;
+		packageId?: string;
+	};
 }
 export function updateOperatorAddress(options: UpdateOperatorAddressOptions) {
-	const packageAddress = options.package ?? '@local-pkg/hashi';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@local-pkg/hashi';
 	const argumentsTypes = [null, 'address', 'address'] satisfies (string | null)[];
 	const parameterNames = ['self', 'validator', 'operator'];
 	return (tx: Transaction) =>
@@ -103,11 +166,33 @@ export function updateOperatorAddress(options: UpdateOperatorAddressOptions) {
 			package: packageAddress,
 			module: 'validator',
 			function: 'update_operator_address',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'self',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.hashiObjectId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'validator',
+									functionName: 'update_operator_address',
+									parameterIndex: 0,
+									parameterName: 'self',
+								},
+								'hashiObjectId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface UpdateEndpointUrlArguments {
-	self: RawTransactionArgument<string>;
+	self?: RawTransactionArgument<string>;
 	validator: RawTransactionArgument<string>;
 	endpointUrl: RawTransactionArgument<string>;
 }
@@ -116,13 +201,17 @@ export interface UpdateEndpointUrlOptions {
 	arguments:
 		| UpdateEndpointUrlArguments
 		| [
-				self: RawTransactionArgument<string>,
+				self: RawTransactionArgument<string> | undefined,
 				validator: RawTransactionArgument<string>,
 				endpointUrl: RawTransactionArgument<string>,
 		  ];
+	config?: {
+		hashiObjectId: ConfigValue;
+		packageId?: string;
+	};
 }
 export function updateEndpointUrl(options: UpdateEndpointUrlOptions) {
-	const packageAddress = options.package ?? '@local-pkg/hashi';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@local-pkg/hashi';
 	const argumentsTypes = [null, 'address', '0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['self', 'validator', 'endpointUrl'];
 	return (tx: Transaction) =>
@@ -130,26 +219,52 @@ export function updateEndpointUrl(options: UpdateEndpointUrlOptions) {
 			package: packageAddress,
 			module: 'validator',
 			function: 'update_endpoint_url',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'self',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.hashiObjectId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'validator',
+									functionName: 'update_endpoint_url',
+									parameterIndex: 0,
+									parameterName: 'self',
+								},
+								'hashiObjectId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface UpdateTlsPublicKeyArguments {
-	self: RawTransactionArgument<string>;
+	self?: RawTransactionArgument<string>;
 	validator: RawTransactionArgument<string>;
-	tlsPublicKey: RawTransactionArgument<number[]>;
+	tlsPublicKey: RawTransactionArgument<Array<number>>;
 }
 export interface UpdateTlsPublicKeyOptions {
 	package?: string;
 	arguments:
 		| UpdateTlsPublicKeyArguments
 		| [
-				self: RawTransactionArgument<string>,
+				self: RawTransactionArgument<string> | undefined,
 				validator: RawTransactionArgument<string>,
-				tlsPublicKey: RawTransactionArgument<number[]>,
+				tlsPublicKey: RawTransactionArgument<Array<number>>,
 		  ];
+	config?: {
+		hashiObjectId: ConfigValue;
+		packageId?: string;
+	};
 }
 export function updateTlsPublicKey(options: UpdateTlsPublicKeyOptions) {
-	const packageAddress = options.package ?? '@local-pkg/hashi';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@local-pkg/hashi';
 	const argumentsTypes = [null, 'address', 'vector<u8>'] satisfies (string | null)[];
 	const parameterNames = ['self', 'validator', 'tlsPublicKey'];
 	return (tx: Transaction) =>
@@ -157,28 +272,54 @@ export function updateTlsPublicKey(options: UpdateTlsPublicKeyOptions) {
 			package: packageAddress,
 			module: 'validator',
 			function: 'update_tls_public_key',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'self',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.hashiObjectId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'validator',
+									functionName: 'update_tls_public_key',
+									parameterIndex: 0,
+									parameterName: 'self',
+								},
+								'hashiObjectId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface UpdateNextEpochEncryptionPublicKeyArguments {
-	self: RawTransactionArgument<string>;
+	self?: RawTransactionArgument<string>;
 	validator: RawTransactionArgument<string>;
-	nextEpochEncryptionPublicKey: RawTransactionArgument<number[]>;
+	nextEpochEncryptionPublicKey: RawTransactionArgument<Array<number>>;
 }
 export interface UpdateNextEpochEncryptionPublicKeyOptions {
 	package?: string;
 	arguments:
 		| UpdateNextEpochEncryptionPublicKeyArguments
 		| [
-				self: RawTransactionArgument<string>,
+				self: RawTransactionArgument<string> | undefined,
 				validator: RawTransactionArgument<string>,
-				nextEpochEncryptionPublicKey: RawTransactionArgument<number[]>,
+				nextEpochEncryptionPublicKey: RawTransactionArgument<Array<number>>,
 		  ];
+	config?: {
+		hashiObjectId: ConfigValue;
+		packageId?: string;
+	};
 }
 export function updateNextEpochEncryptionPublicKey(
 	options: UpdateNextEpochEncryptionPublicKeyOptions,
 ) {
-	const packageAddress = options.package ?? '@local-pkg/hashi';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@local-pkg/hashi';
 	const argumentsTypes = [null, 'address', 'vector<u8>'] satisfies (string | null)[];
 	const parameterNames = ['self', 'validator', 'nextEpochEncryptionPublicKey'];
 	return (tx: Transaction) =>
@@ -186,6 +327,28 @@ export function updateNextEpochEncryptionPublicKey(
 			package: packageAddress,
 			module: 'validator',
 			function: 'update_next_epoch_encryption_public_key',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'self',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.hashiObjectId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'validator',
+									functionName: 'update_next_epoch_encryption_public_key',
+									parameterIndex: 0,
+									parameterName: 'self',
+								},
+								'hashiObjectId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }

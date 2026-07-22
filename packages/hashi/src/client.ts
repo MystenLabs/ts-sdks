@@ -9,13 +9,14 @@ import type { Signer } from '@mysten/sui/cryptography';
 import { bcs, TypeTagSerializer } from '@mysten/sui/bcs';
 import { fromHex, deriveDynamicFieldID, normalizeSuiAddress } from '@mysten/sui/utils';
 import { base58 } from '@scure/base';
-import { Transaction } from '@mysten/sui/transactions';
+import { Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import { Hashi } from './contracts/hashi/hashi.js';
 import { BitcoinState, BitcoinStateKey } from './contracts/hashi/bitcoin_state.js';
 import { DepositRequest } from './contracts/hashi/deposit_queue.js';
 import { Bag } from './contracts/hashi/deps/sui/bag.js';
 import { WithdrawalRequest, WithdrawalTransaction } from './contracts/hashi/withdrawal_queue.js';
 import { UtxoId as UtxoIdBcs } from './contracts/hashi/utxo.js';
+import type { HashiConfig } from './contracts/hashi/config-arguments.js';
 import * as depositModule from './contracts/hashi/deposit.js';
 import * as withdrawModule from './contracts/hashi/withdraw.js';
 import * as utxoModule from './contracts/hashi/utxo.js';
@@ -165,6 +166,7 @@ export class HashiClient {
 	#client: ClientWithCoreApi;
 	#hashiObjectId: string;
 	#packageId: string;
+	#contractConfig: HashiConfig;
 	#bitcoinNetwork: BitcoinNetwork;
 	#btcRpcUrl: string | undefined;
 	#graphql: SuiGraphQLClient;
@@ -206,6 +208,10 @@ export class HashiClient {
 		this.#client = client;
 		this.#hashiObjectId = resolvedObjectId;
 		this.#packageId = resolvedPackageId;
+		this.#contractConfig = {
+			hashiObjectId: resolvedObjectId,
+			packageId: resolvedPackageId,
+		};
 		this.#bitcoinNetwork = bitcoinNetwork ?? config?.bitcoinNetwork ?? 'testnet';
 		this.#btcRpcUrl = btcRpcUrl;
 		this.#graphql = new SuiGraphQLClient({
@@ -510,13 +516,13 @@ export class HashiClient {
 			for (const { vout, amountSats } of params.utxos) {
 				const utxoId = tx.add(
 					utxoModule.utxoId({
-						package: this.#packageId,
+						config: this.#contractConfig,
 						arguments: { txid: internalTxid, vout },
 					}),
 				);
 				const utxo = tx.add(
 					utxoModule.utxo({
-						package: this.#packageId,
+						config: this.#contractConfig,
 						arguments: {
 							utxoId,
 							amount: amountSats,
@@ -596,18 +602,17 @@ export class HashiClient {
 	call = {
 		deposit: (options: { utxo: RawTransactionArgument<string> }) =>
 			depositModule.deposit({
-				package: this.#packageId,
-				arguments: { hashi: this.#hashiObjectId, utxo: options.utxo },
+				config: this.#contractConfig,
+				arguments: { utxo: options.utxo as TransactionArgument },
 			}),
 		requestWithdrawal: (options: {
 			btc: RawTransactionArgument<string>;
 			bitcoinAddress: RawTransactionArgument<number[]>;
 		}) =>
 			withdrawModule.requestWithdrawal({
-				package: this.#packageId,
+				config: this.#contractConfig,
 				arguments: {
-					hashi: this.#hashiObjectId,
-					btc: options.btc,
+					btc: options.btc as TransactionArgument,
 					bitcoinAddress: options.bitcoinAddress,
 				},
 			}),
@@ -618,8 +623,8 @@ export class HashiClient {
 		 */
 		cancelWithdrawal: (options: { requestId: RawTransactionArgument<string> }) =>
 			withdrawModule.cancelWithdrawal({
-				package: this.#packageId,
-				arguments: { hashi: this.#hashiObjectId, requestId: options.requestId },
+				config: this.#contractConfig,
+				arguments: { requestId: options.requestId },
 			}),
 	};
 

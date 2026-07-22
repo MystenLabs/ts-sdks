@@ -12,7 +12,7 @@
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 const $moduleName = '@local-pkg/hashi::utxo';
 export const UtxoId = new MoveStruct({
 	name: `${$moduleName}::UtxoId`,
@@ -38,9 +38,12 @@ export interface UtxoIdOptions {
 	arguments:
 		| UtxoIdArguments
 		| [txid: RawTransactionArgument<string>, vout: RawTransactionArgument<number>];
+	config?: {
+		packageId?: string;
+	};
 }
 export function utxoId(options: UtxoIdOptions) {
-	const packageAddress = options.package ?? '@local-pkg/hashi';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@local-pkg/hashi';
 	const argumentsTypes = ['address', 'u32'] satisfies (string | null)[];
 	const parameterNames = ['txid', 'vout'];
 	return (tx: Transaction) =>
@@ -52,7 +55,7 @@ export function utxoId(options: UtxoIdOptions) {
 		});
 }
 export interface UtxoArguments {
-	utxoId: RawTransactionArgument<string>;
+	utxoId: TransactionArgument;
 	amount: RawTransactionArgument<number | bigint>;
 	derivationPath: RawTransactionArgument<string | null>;
 }
@@ -61,13 +64,16 @@ export interface UtxoOptions {
 	arguments:
 		| UtxoArguments
 		| [
-				utxoId: RawTransactionArgument<string>,
+				utxoId: TransactionArgument,
 				amount: RawTransactionArgument<number | bigint>,
 				derivationPath: RawTransactionArgument<string | null>,
 		  ];
+	config?: {
+		packageId?: string;
+	};
 }
 export function utxo(options: UtxoOptions) {
-	const packageAddress = options.package ?? '@local-pkg/hashi';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@local-pkg/hashi';
 	const argumentsTypes = [null, 'u64', '0x1::option::Option<address>'] satisfies (string | null)[];
 	const parameterNames = ['utxoId', 'amount', 'derivationPath'];
 	return (tx: Transaction) =>

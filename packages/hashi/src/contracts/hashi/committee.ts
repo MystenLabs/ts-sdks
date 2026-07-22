@@ -63,8 +63,8 @@ export function CertifiedMessage<T extends BcsType<any>>(...typeParameters: [T])
 }
 export interface NewCommitteeSignatureArguments {
 	epoch: RawTransactionArgument<number | bigint>;
-	signature: RawTransactionArgument<number[]>;
-	signersBitmap: RawTransactionArgument<number[]>;
+	signature: RawTransactionArgument<Array<number>>;
+	signersBitmap: RawTransactionArgument<Array<number>>;
 }
 export interface NewCommitteeSignatureOptions {
 	package?: string;
@@ -72,12 +72,15 @@ export interface NewCommitteeSignatureOptions {
 		| NewCommitteeSignatureArguments
 		| [
 				epoch: RawTransactionArgument<number | bigint>,
-				signature: RawTransactionArgument<number[]>,
-				signersBitmap: RawTransactionArgument<number[]>,
+				signature: RawTransactionArgument<Array<number>>,
+				signersBitmap: RawTransactionArgument<Array<number>>,
 		  ];
+	config?: {
+		packageId?: string;
+	};
 }
 export function newCommitteeSignature(options: NewCommitteeSignatureOptions) {
-	const packageAddress = options.package ?? '@local-pkg/hashi';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@local-pkg/hashi';
 	const argumentsTypes = ['u64', 'vector<u8>', 'vector<u8>'] satisfies (string | null)[];
 	const parameterNames = ['epoch', 'signature', 'signersBitmap'];
 	return (tx: Transaction) =>
