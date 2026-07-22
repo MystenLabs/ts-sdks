@@ -326,7 +326,7 @@ const config: SuiCodegenConfig = {
 
 Matcher addresses are resolved through the package's address mapping, so named addresses (for
 example, `myapp::registry::Registry`) also work. Partially instantiated matchers (for example,
-`Pool<T>` or a nested uninstantiated generic) are not supported — use an uninstantiated matcher with
+`Pool<T>` or a nested uninstantiated generic) are not supported. Use an uninstantiated matcher with
 a resolver function instead.
 
 Misconfigured matchers are surfaced at generation time: malformed types, wrong arity, and
@@ -339,7 +339,7 @@ Keys that resolve but never match any generated parameter produce a warning.
 
 For each function with matched parameters, the generated options gain an optional `config` property
 typed as the minimal slice of keys that function actually uses. Matched parameters become optional
-in `arguments` — passing one explicitly overrides config resolution, and resolvers are only invoked
+in `arguments`. Passing one explicitly overrides config resolution, and resolvers are only invoked
 for arguments the caller did not pass. If a matched argument is omitted and no config value is
 available, the call fails with a descriptive runtime error:
 
@@ -361,11 +361,11 @@ export interface BorrowOptions {
 ```
 
 In the tuple form of `arguments`, a matched position followed by a required one accepts an explicit
-`undefined`; a matched suffix (the common case — registry-style objects last) becomes genuinely
+`undefined`; a matched suffix (the common case, with registry-style objects last) becomes genuinely
 optional trailing elements.
 
 Config values can be a plain object ID, a transaction argument, or a resolver function. Any function
-value is treated as a resolver — to provide a transaction-callback object argument dynamically,
+value is treated as a resolver. To provide a transaction-callback object argument dynamically,
 return it from a resolver: `(ctx) => (tx) => ...`. Resolvers receive the matched parameter's own
 instantiated type arguments (not the whole function's type argument tuple), plus static call-site
 metadata:
@@ -398,8 +398,8 @@ tx.add(
 );
 ```
 
-For generic types matched without type arguments, a resolver function is required — a static ID
-can't be correct across instantiations. A parameter typed with the function's own type parameter
+For generic types matched without type arguments, a resolver function is required, because a static
+ID can't be correct across instantiations. A parameter typed with the function's own type parameter
 (for example, `Pool<T>`) always binds to the uninstantiated matcher, even when a fully instantiated
 matcher also exists; only parameters concretely instantiated in the Move signature bind to
 instantiated matchers.
@@ -430,8 +430,8 @@ configArguments: {
 Parameter names are only available in summaries generated from local packages. A `parameterName`
 matcher never matches a parameter without a name; if such a matcher would otherwise apply to a
 nameless parameter (same type and instantiation) and nothing else matches it, codegen fails with a
-clear error. When a bare matcher hits two parameters of a nameless (onchain bytecode) signature —
-where refinement is impossible — config mapping is skipped for that function with a warning instead
+clear error. When a bare matcher hits two parameters of a nameless (onchain bytecode) signature,
+where refinement is impossible, config mapping is skipped for that function with a warning instead
 of failing the run.
 
 ### Package address precedence
@@ -442,10 +442,10 @@ For package entries, the address used for a generated call is resolved in this o
 2. The config key declared by the package entry (for example, `config.corePackageId`)
 3. The generated default (the package's MVR name or address)
 
-On mainnet with MVR names the config entry can be omitted entirely; on networks where the MVR name
+On Mainnet with MVR names the config entry can be omitted entirely; on networks where the MVR name
 doesn't resolve, supply the deployed package ID through the config object. Two caveats: package
 entries only apply to the main package's generated modules (dependency modules under `deps/` never
-consult them), and they only apply where a generated default address exists — for packages generated
+consult them), and they only apply where a generated default address exists. For packages generated
 without an MVR name or address, `package` stays required and always takes precedence. The CLI
 validates that every package entry references a package that is part of the codegen run.
 
