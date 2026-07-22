@@ -720,6 +720,23 @@ describe('config-driven function codegen', () => {
 		expect(registerOptions?.[0]).not.toContain('lookupRegistry');
 	});
 
+	it('multiple matchers binding the same concrete type keep a plain config value', async () => {
+		const { registry } = await createBuilders({
+			reg: [
+				{ function: '@test/testpkg::registry::lookup' },
+				{ function: '@test/testpkg::registry::register', parameterName: 'registry' },
+			],
+		});
+		registry.includeFunctions(['lookup', 'register']);
+		const output = await render(registry);
+
+		// Both bindings are `registry::Registry`, so one static id serves both functions.
+		const lookupOptions = output.match(/export interface LookupOptions[\s\S]*?^}/m);
+		expect(lookupOptions?.[0]).toContain('reg: ConfigValue');
+		const registerOptions = output.match(/export interface RegisterOptions[\s\S]*?^}/m);
+		expect(registerOptions?.[0]).toContain('reg: ConfigValue');
+	});
+
 	it('function matchers win over type matchers and support parameterIndex', async () => {
 		const builder = createPoolsBuilder({
 			pool: { type: '@test/testpkg::pools::Pool' },

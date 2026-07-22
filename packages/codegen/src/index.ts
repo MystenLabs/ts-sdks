@@ -401,9 +401,11 @@ async function generateConfigInterface({
 			return `${key}?: string`;
 		}
 
-		// A key resolving multiple bindings (or a generic) must be a resolver function.
-		const requiresResolver =
-			group.length > 1 || group.some((entry) => entry.kind !== 'package' && entry.requiresResolver);
+		// A key binding multiple distinct types (or a generic) must be a resolver function.
+		const boundTypes = new Set(
+			group.flatMap((entry) => (entry.kind !== 'package' ? [entry.boundType] : [])),
+		);
+		const requiresResolver = boundTypes.size > 1 || boundTypes.has(null);
 
 		if (requiresResolver) {
 			const ctxName = builder.addImport(utilsModule, 'type ConfigResolverContext');

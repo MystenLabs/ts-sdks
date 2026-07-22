@@ -31,8 +31,12 @@ export interface TypeConfigArgument {
 	 * resolver function as the config value (a static id cannot be correct across instantiations).
 	 */
 	isGeneric: boolean;
-	/** Whether this entry alone forces the config value to be a resolver function. */
-	requiresResolver: boolean;
+	/**
+	 * Canonical identity of the concrete type this entry binds, or `null` when it can bind many
+	 * (an uninstantiated generic). A key whose entries span multiple identities (or any `null`)
+	 * must be a resolver function.
+	 */
+	boundType: string | null;
 }
 
 export interface FunctionConfigArgument {
@@ -45,8 +49,8 @@ export interface FunctionConfigArgument {
 	parameterName?: string;
 	/** Position in the generated function's arguments (TxContext/well-known excluded). */
 	parameterIndex?: number;
-	/** Whether this entry alone forces the config value to be a resolver function. */
-	requiresResolver: boolean;
+	/** See `TypeConfigArgument.boundType`. */
+	boundType: string | null;
 }
 
 export interface PackageConfigArgument {
@@ -298,6 +302,35 @@ function typeHasTypeParameter(type: Type): boolean {
 	return 'TypeParameter' in type || 'NamedTypeParameter' in type;
 }
 
+function tagIdentity(tag: ParsedTypeTag): string {
+	if ('prim' in tag) return tag.prim;
+	if ('vector' in tag) return `vector<${tagIdentity(tag.vector)}>`;
+	const { address, module, name, typeArguments } = tag.datatype;
+	const base = `${address}::${module}::${name}`;
+	return typeArguments.length ? `${base}<${typeArguments.map(tagIdentity).join(',')}>` : base;
+}
+
+function canonicalTypeIdentity(
+	type: Type,
+	resolveAddress: (address: string) => string,
+): string | null {
+	if (typeof type === 'string') return type === 'signer' || type === '_' ? null : type;
+	if ('Reference' in type) return canonicalTypeIdentity(type.Reference[1], resolveAddress);
+	if ('vector' in type) {
+		const inner = canonicalTypeIdentity(type.vector, resolveAddress);
+		return inner === null ? null : `vector<${inner}>`;
+	}
+	if ('Datatype' in type) {
+		const args = type.Datatype.type_arguments.map((argument) =>
+			canonicalTypeIdentity(argument.argument, resolveAddress),
+		);
+		if (args.some((argument) => argument === null)) return null;
+		const base = `${normalizeAddress(resolveAddress(type.Datatype.module.address))}::${type.Datatype.module.name}::${type.Datatype.name}`;
+		return args.length ? `${base}<${args.join(',')}>` : base;
+	}
+	return null;
+}
+
 function parseFunctionMatcher(
 	key: string,
 	source: ConfigArgumentSource,
@@ -415,7 +448,9 @@ function parseFunctionMatcher(
 		parameterName: matcher.parameterName,
 		parameterIndex,
 		// A parameter typed with the function's own type parameters cannot be a single static id.
-		requiresResolver: typeHasTypeParameter(bound.type_),
+		boundType: typeHasTypeParameter(bound.type_)
+			? null
+			: canonicalTypeIdentity(bound.type_, (target) => registry.resolveAddress(target)),
 	};
 }
 
@@ -461,10 +496,8 @@ export function parseConfigArguments(
 			continue;
 		}
 
-		// One key may declare several matchers; it then resolves multiple bindings, so its config
-		// value must be a resolver function.
+		// One key may declare several matchers (e.g. several functions sharing one config value).
 		const matchers = Array.isArray(matcher) ? matcher : [matcher];
-		const multi = matchers.length > 1;
 
 		for (const single of matchers) {
 			const scopeAddress = source === 'package' ? currentAddress : null;
@@ -477,7 +510,7 @@ export function parseConfigArguments(
 					packageId: context.package.id,
 				});
 				if (entry) {
-					entries.push({ ...entry, requiresResolver: entry.requiresResolver || multi });
+					entries.push(entry);
 				}
 				continue;
 			}
@@ -544,7 +577,9 @@ export function parseConfigArguments(
 				typeArguments: uninstantiated ? null : typeArguments,
 				parameterName: single.parameterName,
 				isGeneric,
-				requiresResolver: (isGeneric && uninstantiated) || multi,
+				boundType: uninstantiated
+					? null
+					: tagIdentity({ datatype: { address, module, name, typeArguments } }),
 			});
 		}
 	}
