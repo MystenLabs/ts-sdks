@@ -6,6 +6,9 @@ import {
 	MoveTuple,
 	normalizeMoveArguments,
 	type RawTransactionArgument,
+	type ConfigValue,
+	resolveConfigArgument,
+	applyConfigArguments,
 } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
@@ -46,7 +49,7 @@ export const PolicyCapKey = new MoveTuple({
 	fields: [bcs.bool()],
 });
 export interface NewForCurrencyArguments {
-	namespace: RawTransactionArgument<string>;
+	namespace?: RawTransactionArgument<string>;
 	Cap: RawTransactionArgument<string>;
 	clawbackAllowed: RawTransactionArgument<boolean>;
 }
@@ -55,14 +58,18 @@ export interface NewForCurrencyOptions {
 	arguments:
 		| NewForCurrencyArguments
 		| [
-				namespace: RawTransactionArgument<string>,
+				namespace: RawTransactionArgument<string> | undefined,
 				Cap: RawTransactionArgument<string>,
 				clawbackAllowed: RawTransactionArgument<boolean>,
 		  ];
+	config?: {
+		namespaceId: ConfigValue;
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 export function newForCurrency(options: NewForCurrencyOptions) {
-	const packageAddress = options.package ?? '@mysten/pas';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@pas/pas';
 	const argumentsTypes = [null, null, 'bool'] satisfies (string | null)[];
 	const parameterNames = ['namespace', 'Cap', 'clawbackAllowed'];
 	return (tx: Transaction) =>
@@ -70,7 +77,29 @@ export function newForCurrency(options: NewForCurrencyOptions) {
 			package: packageAddress,
 			module: 'policy',
 			function: 'new_for_currency',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 0,
+						name: 'namespace',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.namespaceId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'policy',
+									functionName: 'new_for_currency',
+									parameterIndex: 0,
+									parameterName: 'namespace',
+								},
+								'namespaceId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 			typeArguments: options.typeArguments,
 		});
 }
@@ -80,10 +109,13 @@ export interface ShareArguments {
 export interface ShareOptions {
 	package?: string;
 	arguments: ShareArguments | [policy: RawTransactionArgument<string>];
+	config?: {
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 export function share(options: ShareOptions) {
-	const packageAddress = options.package ?? '@mysten/pas';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@pas/pas';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['policy'];
 	return (tx: Transaction) =>
@@ -104,11 +136,14 @@ export interface RequiredApprovalsOptions {
 	arguments:
 		| RequiredApprovalsArguments
 		| [policy: RawTransactionArgument<string>, actionType: RawTransactionArgument<string>];
+	config?: {
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 /** Get the set of required approvals for a given action. */
 export function requiredApprovals(options: RequiredApprovalsOptions) {
-	const packageAddress = options.package ?? '@mysten/pas';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@pas/pas';
 	const argumentsTypes = [null, '0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['policy', 'actionType'];
 	return (tx: Transaction) =>
@@ -134,10 +169,13 @@ export interface SetRequiredApprovalOptions {
 				cap: RawTransactionArgument<string>,
 				action: RawTransactionArgument<string>,
 		  ];
+	config?: {
+		packageId?: string;
+	};
 	typeArguments: [string, string];
 }
 export function setRequiredApproval(options: SetRequiredApprovalOptions) {
-	const packageAddress = options.package ?? '@mysten/pas';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@pas/pas';
 	const argumentsTypes = [null, null, '0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['policy', 'cap', 'action'];
 	return (tx: Transaction) =>
@@ -163,6 +201,9 @@ export interface RemoveActionApprovalOptions {
 				_: RawTransactionArgument<string>,
 				action: RawTransactionArgument<string>,
 		  ];
+	config?: {
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 /**
@@ -170,7 +211,7 @@ export interface RemoveActionApprovalOptions {
  * resolve).
  */
 export function removeActionApproval(options: RemoveActionApprovalOptions) {
-	const packageAddress = options.package ?? '@mysten/pas';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@pas/pas';
 	const argumentsTypes = [null, null, '0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['policy', '_', 'action'];
 	return (tx: Transaction) =>
@@ -184,13 +225,17 @@ export function removeActionApproval(options: RemoveActionApprovalOptions) {
 }
 export interface SyncVersioningArguments {
 	policy: RawTransactionArgument<string>;
-	namespace: RawTransactionArgument<string>;
+	namespace?: RawTransactionArgument<string>;
 }
 export interface SyncVersioningOptions {
 	package?: string;
 	arguments:
 		| SyncVersioningArguments
-		| [policy: RawTransactionArgument<string>, namespace: RawTransactionArgument<string>];
+		| [policy: RawTransactionArgument<string>, namespace?: RawTransactionArgument<string>];
+	config?: {
+		namespaceId: ConfigValue;
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 /**
@@ -198,7 +243,7 @@ export interface SyncVersioningOptions {
  * permission-less and can be done by anyone.
  */
 export function syncVersioning(options: SyncVersioningOptions) {
-	const packageAddress = options.package ?? '@mysten/pas';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@pas/pas';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['policy', 'namespace'];
 	return (tx: Transaction) =>
@@ -206,7 +251,29 @@ export function syncVersioning(options: SyncVersioningOptions) {
 			package: packageAddress,
 			module: 'policy',
 			function: 'sync_versioning',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 1,
+						name: 'namespace',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.namespaceId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'policy',
+									functionName: 'sync_versioning',
+									parameterIndex: 1,
+									parameterName: 'namespace',
+								},
+								'namespaceId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 			typeArguments: options.typeArguments,
 		});
 }

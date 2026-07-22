@@ -27,11 +27,14 @@ export interface ApproveOptions<U extends BcsType<any>> {
 	arguments:
 		| ApproveArguments<U>
 		| [request: TransactionArgument, Approval: RawTransactionArgument<U>];
+	config?: {
+		packageId?: string;
+	};
 	typeArguments: [string, string];
 }
 /** Adds an approval to a request. Can be called to resolve rules */
 export function approve<U extends BcsType<any>>(options: ApproveOptions<U>) {
-	const packageAddress = options.package ?? '@mysten/pas';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@pas/pas';
 	const argumentsTypes = [null, `${options.typeArguments[1]}`] satisfies (string | null)[];
 	const parameterNames = ['request', 'Approval'];
 	return (tx: Transaction) =>
@@ -49,10 +52,13 @@ export interface DataArguments {
 export interface DataOptions {
 	package?: string;
 	arguments: DataArguments | [request: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 export function data(options: DataOptions) {
-	const packageAddress = options.package ?? '@mysten/pas';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@pas/pas';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['request'];
 	return (tx: Transaction) =>
@@ -70,10 +76,13 @@ export interface ApprovalsArguments {
 export interface ApprovalsOptions {
 	package?: string;
 	arguments: ApprovalsArguments | [request: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 export function approvals(options: ApprovalsOptions) {
-	const packageAddress = options.package ?? '@mysten/pas';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@pas/pas';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['request'];
 	return (tx: Transaction) =>

@@ -2,7 +2,14 @@
  * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
  **************************************************************/
 import { type BcsType, bcs } from '@mysten/sui/bcs';
-import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
+import {
+	MoveStruct,
+	normalizeMoveArguments,
+	type RawTransactionArgument,
+	type ConfigValue,
+	resolveConfigArgument,
+	applyConfigArguments,
+} from '../utils/index.js';
 import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 const $moduleName = '@pas/pas::unlock_funds';
 /**
@@ -36,10 +43,13 @@ export interface OwnerArguments {
 export interface OwnerOptions {
 	package?: string;
 	arguments: OwnerArguments | [request: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 export function owner(options: OwnerOptions) {
-	const packageAddress = options.package ?? '@mysten/pas';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@pas/pas';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['request'];
 	return (tx: Transaction) =>
@@ -57,10 +67,13 @@ export interface AccountIdArguments {
 export interface AccountIdOptions {
 	package?: string;
 	arguments: AccountIdArguments | [request: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 export function accountId(options: AccountIdOptions) {
-	const packageAddress = options.package ?? '@mysten/pas';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@pas/pas';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['request'];
 	return (tx: Transaction) =>
@@ -78,10 +91,13 @@ export interface FundsArguments {
 export interface FundsOptions {
 	package?: string;
 	arguments: FundsArguments | [request: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 export function funds(options: FundsOptions) {
-	const packageAddress = options.package ?? '@mysten/pas';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@pas/pas';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['request'];
 	return (tx: Transaction) =>
@@ -95,13 +111,17 @@ export function funds(options: FundsOptions) {
 }
 export interface ResolveUnrestrictedBalanceArguments {
 	request: TransactionArgument;
-	namespace: RawTransactionArgument<string>;
+	namespace?: RawTransactionArgument<string>;
 }
 export interface ResolveUnrestrictedBalanceOptions {
 	package?: string;
 	arguments:
 		| ResolveUnrestrictedBalanceArguments
-		| [request: TransactionArgument, namespace: RawTransactionArgument<string>];
+		| [request: TransactionArgument, namespace?: RawTransactionArgument<string>];
+	config?: {
+		namespaceId: ConfigValue;
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 /**
@@ -113,7 +133,7 @@ export interface ResolveUnrestrictedBalanceOptions {
  * to withdraw if anyone transfers some to their account.
  */
 export function resolveUnrestrictedBalance(options: ResolveUnrestrictedBalanceOptions) {
-	const packageAddress = options.package ?? '@mysten/pas';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@pas/pas';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['request', 'namespace'];
 	return (tx: Transaction) =>
@@ -121,7 +141,29 @@ export function resolveUnrestrictedBalance(options: ResolveUnrestrictedBalanceOp
 			package: packageAddress,
 			module: 'unlock_funds',
 			function: 'resolve_unrestricted_balance',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 1,
+						name: 'namespace',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.namespaceId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'unlock_funds',
+									functionName: 'resolve_unrestricted_balance',
+									parameterIndex: 1,
+									parameterName: 'namespace',
+								},
+								'namespaceId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 			typeArguments: options.typeArguments,
 		});
 }
@@ -134,6 +176,9 @@ export interface ResolveOptions {
 	arguments:
 		| ResolveArguments
 		| [request: TransactionArgument, policy: RawTransactionArgument<string>];
+	config?: {
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 /**
@@ -141,7 +186,7 @@ export interface ResolveOptions {
  * are enough valid approvals.
  */
 export function resolve(options: ResolveOptions) {
-	const packageAddress = options.package ?? '@mysten/pas';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@pas/pas';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['request', 'policy'];
 	return (tx: Transaction) =>

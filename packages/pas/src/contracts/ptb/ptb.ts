@@ -180,7 +180,7 @@ export interface NewOptions {
 }
 /** Create a new Transaction builder. */
 export function _new(options: NewOptions = {}) {
-	const packageAddress = options.package ?? '@mysten/ptb';
+	const packageAddress = options.package ?? '@pas/ptb';
 	return (tx: Transaction_1) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -194,7 +194,7 @@ export interface ClockOptions {
 }
 /** Shorthand for `object_by_id` with `0x6` (Clock). */
 export function clock(options: ClockOptions = {}) {
-	const packageAddress = options.package ?? '@mysten/ptb';
+	const packageAddress = options.package ?? '@pas/ptb';
 	return (tx: Transaction_1) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -208,7 +208,7 @@ export interface RandomOptions {
 }
 /** Shorthand for `object_by_id` with `0x8` (Random). */
 export function random(options: RandomOptions = {}) {
-	const packageAddress = options.package ?? '@mysten/ptb';
+	const packageAddress = options.package ?? '@pas/ptb';
 	return (tx: Transaction_1) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -222,7 +222,7 @@ export interface DisplayOptions {
 }
 /** Shorthand for `object_by_id` with `0xD` (DisplayRegistry). */
 export function display(options: DisplayOptions = {}) {
-	const packageAddress = options.package ?? '@mysten/ptb';
+	const packageAddress = options.package ?? '@pas/ptb';
 	return (tx: Transaction_1) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -236,7 +236,7 @@ export interface DenyListOptions {
 }
 /** Shorthand for `object_by_id` with `0x403` (DenyList). */
 export function denyList(options: DenyListOptions = {}) {
-	const packageAddress = options.package ?? '@mysten/ptb';
+	const packageAddress = options.package ?? '@pas/ptb';
 	return (tx: Transaction_1) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -250,7 +250,7 @@ export interface CoinRegistryOptions {
 }
 /** Shorthand for `object_by_id` with `0xC` (CoinRegistry). */
 export function coinRegistry(options: CoinRegistryOptions = {}) {
-	const packageAddress = options.package ?? '@mysten/ptb';
+	const packageAddress = options.package ?? '@pas/ptb';
 	return (tx: Transaction_1) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -264,7 +264,7 @@ export interface AccumulatorRootOptions {
 }
 /** Shorthand for `object_by_id` with `0xACC` (AccumulatorRoot). */
 export function accumulatorRoot(options: AccumulatorRootOptions = {}) {
-	const packageAddress = options.package ?? '@mysten/ptb';
+	const packageAddress = options.package ?? '@pas/ptb';
 	return (tx: Transaction_1) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -278,7 +278,7 @@ export interface GasOptions {
 }
 /** Create a gas coin input. */
 export function gas(options: GasOptions = {}) {
-	const packageAddress = options.package ?? '@mysten/ptb';
+	const packageAddress = options.package ?? '@pas/ptb';
 	return (tx: Transaction_1) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -296,7 +296,7 @@ export interface PureOptions<T extends BcsType<any>> {
 }
 /** Create a pure input. */
 export function pure<T extends BcsType<any>>(options: PureOptions<T>) {
-	const packageAddress = options.package ?? '@mysten/ptb';
+	const packageAddress = options.package ?? '@pas/ptb';
 	const argumentsTypes = [`${options.typeArguments[0]}`] satisfies (string | null)[];
 	const parameterNames = ['value'];
 	return (tx: Transaction_1) =>
@@ -329,7 +329,7 @@ export interface ObjectRefOptions {
  * version resolution, use `object_by_id`.
  */
 export function objectRef(options: ObjectRefOptions) {
-	const packageAddress = options.package ?? '@mysten/ptb';
+	const packageAddress = options.package ?? '@pas/ptb';
 	const argumentsTypes = ['0x2::object::ID', 'u64', 'address'] satisfies (string | null)[];
 	const parameterNames = ['objectId', 'sequenceNumber', 'digest'];
 	return (tx: Transaction_1) =>
@@ -364,7 +364,7 @@ export interface SharedObjectRefOptions {
  * changing elsewhere
  */
 export function sharedObjectRef(options: SharedObjectRefOptions) {
-	const packageAddress = options.package ?? '@mysten/ptb';
+	const packageAddress = options.package ?? '@pas/ptb';
 	const argumentsTypes = ['0x2::object::ID', 'u64', 'bool'] satisfies (string | null)[];
 	const parameterNames = ['objectId', 'initialSharedVersion', 'isMutable'];
 	return (tx: Transaction_1) =>
@@ -396,7 +396,7 @@ export interface ReceivingObjectRefOptions {
  * use `object_by_id`.
  */
 export function receivingObjectRef(options: ReceivingObjectRefOptions) {
-	const packageAddress = options.package ?? '@mysten/ptb';
+	const packageAddress = options.package ?? '@pas/ptb';
 	const argumentsTypes = ['0x2::object::ID', 'u64', 'address'] satisfies (string | null)[];
 	const parameterNames = ['objectId', 'sequenceNumber', 'digest'];
 	return (tx: Transaction_1) =>
@@ -414,7 +414,7 @@ export interface ObjectByTypeOptions {
 }
 /** Create an off-chain input handler for a given type T. */
 export function objectByType(options: ObjectByTypeOptions) {
-	const packageAddress = options.package ?? '@mysten/ptb';
+	const packageAddress = options.package ?? '@pas/ptb';
 	return (tx: Transaction_1) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -432,7 +432,7 @@ export interface ObjectByTypeStringOptions {
 }
 /** Create an off-chain input handler for a given type as a String. */
 export function objectByTypeString(options: ObjectByTypeStringOptions) {
-	const packageAddress = options.package ?? '@mysten/ptb';
+	const packageAddress = options.package ?? '@pas/ptb';
 	const argumentsTypes = ['0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['typeName'];
 	return (tx: Transaction_1) =>
@@ -452,7 +452,7 @@ export interface ObjectByIdOptions {
 }
 /** Create an off-chain input handler for an object with a specific ID. */
 export function objectById(options: ObjectByIdOptions) {
-	const packageAddress = options.package ?? '@mysten/ptb';
+	const packageAddress = options.package ?? '@pas/ptb';
 	const argumentsTypes = ['0x2::object::ID'] satisfies (string | null)[];
 	const parameterNames = ['id'];
 	return (tx: Transaction_1) =>
@@ -472,7 +472,7 @@ export interface ReceivingObjectByIdOptions {
 }
 /** Create an off-chain input handler for a receiving object with a specific ID. */
 export function receivingObjectById(options: ReceivingObjectByIdOptions) {
-	const packageAddress = options.package ?? '@mysten/ptb';
+	const packageAddress = options.package ?? '@pas/ptb';
 	const argumentsTypes = ['0x2::object::ID'] satisfies (string | null)[];
 	const parameterNames = ['id'];
 	return (tx: Transaction_1) =>
@@ -496,7 +496,7 @@ export interface ExtInputOptions {
  * tooling.
  */
 export function extInput(options: ExtInputOptions) {
-	const packageAddress = options.package ?? '@mysten/ptb';
+	const packageAddress = options.package ?? '@pas/ptb';
 	const argumentsTypes = ['0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['name'];
 	return (tx: Transaction_1) =>
@@ -523,7 +523,7 @@ export interface ExtInputRawOptions {
  * hardcode the namespace value without having access to `T`.
  */
 export function extInputRaw(options: ExtInputRawOptions) {
-	const packageAddress = options.package ?? '@mysten/ptb';
+	const packageAddress = options.package ?? '@pas/ptb';
 	const argumentsTypes = ['0x1::string::String', '0x1::string::String'] satisfies (string | null)[];
 	const parameterNames = ['namespace', 'name'];
 	return (tx: Transaction_1) =>
@@ -548,7 +548,7 @@ export interface CommandOptions {
  * result `NestedResult(idx, idx)`.
  */
 export function command(options: CommandOptions) {
-	const packageAddress = options.package ?? '@mysten/ptb';
+	const packageAddress = options.package ?? '@pas/ptb';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'command'];
 	return (tx: Transaction_1) =>
@@ -572,7 +572,7 @@ export interface NestedOptions {
  * output.
  */
 export function nested(options: NestedOptions) {
-	const packageAddress = options.package ?? '@mysten/ptb';
+	const packageAddress = options.package ?? '@pas/ptb';
 	const argumentsTypes = [null, 'u16'] satisfies (string | null)[];
 	const parameterNames = ['self', 'subIdx'];
 	return (tx: Transaction_1) =>
@@ -604,7 +604,7 @@ export interface MoveCallOptions {
 }
 /** Create a `MoveCall` command. */
 export function moveCall(options: MoveCallOptions) {
-	const packageAddress = options.package ?? '@mysten/ptb';
+	const packageAddress = options.package ?? '@pas/ptb';
 	const argumentsTypes = [
 		'0x1::string::String',
 		'0x1::string::String',
@@ -634,7 +634,7 @@ export interface TransferObjectsOptions {
  * an address value for destination.
  */
 export function transferObjects(options: TransferObjectsOptions) {
-	const packageAddress = options.package ?? '@mysten/ptb';
+	const packageAddress = options.package ?? '@pas/ptb';
 	const argumentsTypes = ['vector<null>', null] satisfies (string | null)[];
 	const parameterNames = ['objects', 'to'];
 	return (tx: Transaction_1) =>
@@ -655,7 +655,7 @@ export interface SplitCoinsOptions {
 }
 /** Create a `SplitCoins` command. */
 export function splitCoins(options: SplitCoinsOptions) {
-	const packageAddress = options.package ?? '@mysten/ptb';
+	const packageAddress = options.package ?? '@pas/ptb';
 	const argumentsTypes = [null, 'vector<null>'] satisfies (string | null)[];
 	const parameterNames = ['coin', 'amounts'];
 	return (tx: Transaction_1) =>
@@ -679,7 +679,7 @@ export interface MergeCoinsOptions {
  * arguments to merge into it.
  */
 export function mergeCoins(options: MergeCoinsOptions) {
-	const packageAddress = options.package ?? '@mysten/ptb';
+	const packageAddress = options.package ?? '@pas/ptb';
 	const argumentsTypes = [null, 'vector<null>'] satisfies (string | null)[];
 	const parameterNames = ['coin', 'coins'];
 	return (tx: Transaction_1) =>
@@ -708,7 +708,7 @@ export interface PublishOptions {
  * dependencies.
  */
 export function publish(options: PublishOptions) {
-	const packageAddress = options.package ?? '@mysten/ptb';
+	const packageAddress = options.package ?? '@pas/ptb';
 	const argumentsTypes = ['vector<vector<u8>>', 'vector<0x2::object::ID>'] satisfies (
 		| string
 		| null
@@ -737,7 +737,7 @@ export interface MakeMoveVecOptions {
  * elements to make into a vector.
  */
 export function makeMoveVec(options: MakeMoveVecOptions) {
-	const packageAddress = options.package ?? '@mysten/ptb';
+	const packageAddress = options.package ?? '@pas/ptb';
 	const argumentsTypes = ['0x1::option::Option<0x1::string::String>', 'vector<null>'] satisfies (
 		| string
 		| null
@@ -773,7 +773,7 @@ export interface UpgradeOptions {
  * dependencies, an updated package ID, and an upgrade ticket.
  */
 export function upgrade(options: UpgradeOptions) {
-	const packageAddress = options.package ?? '@mysten/ptb';
+	const packageAddress = options.package ?? '@pas/ptb';
 	const argumentsTypes = [
 		'vector<vector<u8>>',
 		'vector<0x2::object::ID>',
@@ -798,7 +798,7 @@ export interface ExtOptions {
 }
 /** Create an `Ext` command. */
 export function ext(options: ExtOptions) {
-	const packageAddress = options.package ?? '@mysten/ptb';
+	const packageAddress = options.package ?? '@pas/ptb';
 	const argumentsTypes = ['vector<u8>'] satisfies (string | null)[];
 	const parameterNames = ['data'];
 	return (tx: Transaction_1) =>

@@ -9,7 +9,14 @@
  * versioning enforcement here, as this is purely an off-chain used endpoint.
  */
 
-import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
+import {
+	MoveStruct,
+	normalizeMoveArguments,
+	type RawTransactionArgument,
+	type ConfigValue,
+	resolveConfigArgument,
+	applyConfigArguments,
+} from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 const $moduleName = '@pas/pas::templates';
@@ -26,15 +33,19 @@ export const Templates = new MoveStruct({
 	},
 });
 export interface SetupArguments {
-	namespace: RawTransactionArgument<string>;
+	namespace?: RawTransactionArgument<string>;
 }
 export interface SetupOptions {
 	package?: string;
-	arguments: SetupArguments | [namespace: RawTransactionArgument<string>];
+	arguments?: SetupArguments | [namespace?: RawTransactionArgument<string>];
+	config?: {
+		namespaceId: ConfigValue;
+		packageId?: string;
+	};
 }
 /** Create the templates registry */
 export function setup(options: SetupOptions) {
-	const packageAddress = options.package ?? '@mysten/pas';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@pas/pas';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['namespace'];
 	return (tx: Transaction) =>
@@ -42,7 +53,29 @@ export function setup(options: SetupOptions) {
 			package: packageAddress,
 			module: 'templates',
 			function: 'setup',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments ?? {}, [
+					{
+						index: 0,
+						name: 'namespace',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.namespaceId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'templates',
+									functionName: 'setup',
+									parameterIndex: 0,
+									parameterName: 'namespace',
+								},
+								'namespaceId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface SetTemplateCommandArguments {
@@ -59,11 +92,14 @@ export interface SetTemplateCommandOptions {
 				_: TransactionArgument,
 				command: TransactionArgument,
 		  ];
+	config?: {
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 /** Sets the PTB template for a given Action. */
 export function setTemplateCommand(options: SetTemplateCommandOptions) {
-	const packageAddress = options.package ?? '@mysten/pas';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@pas/pas';
 	const argumentsTypes = [null, null, null] satisfies (string | null)[];
 	const parameterNames = ['templates', '_', 'command'];
 	return (tx: Transaction) =>
@@ -84,10 +120,13 @@ export interface UnsetTemplateCommandOptions {
 	arguments:
 		| UnsetTemplateCommandArguments
 		| [templates: RawTransactionArgument<string>, _: TransactionArgument];
+	config?: {
+		packageId?: string;
+	};
 	typeArguments: [string];
 }
 export function unsetTemplateCommand(options: UnsetTemplateCommandOptions) {
-	const packageAddress = options.package ?? '@mysten/pas';
+	const packageAddress = options.package ?? options.config?.packageId ?? '@pas/pas';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['templates', '_'];
 	return (tx: Transaction) =>

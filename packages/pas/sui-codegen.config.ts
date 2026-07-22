@@ -13,6 +13,10 @@ const config: SuiCodegenConfig = {
 		{
 			package: '@pas/pas',
 			path: '../../../pas/packages/pas',
+			configArguments: {
+				packageId: { package: '@pas/pas' },
+				namespaceId: { type: 'namespace::Namespace' },
+			},
 		},
 		{
 			package: '@pas/ptb',
