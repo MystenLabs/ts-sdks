@@ -2,20 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
-import { readFile, readdir, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import ts from 'typescript';
 import { Transaction } from '@mysten/sui/transactions';
 import { ModuleRegistry } from '../src/module-registry.js';
 import { MoveModuleBuilder } from '../src/move-module-builder.js';
 import { parseConfigArguments } from '../src/config-arguments.js';
-import { generateFromPackageSummary } from '../src/index.js';
+import { generateFromPackageSummary, resolvePackageIdentity } from '../src/index.js';
 import { configArgumentsSchema } from '../src/config.js';
 import type { ConfigArguments } from '../src/config.js';
 
 const FIXTURE_PATH = join(__dirname, 'move/testpkg');
 const SUMMARIES_DIR = join(FIXTURE_PATH, 'package_summaries');
-const GENERATED_DIR = join(__dirname, 'generated-config');
 
 const ADDRESS_MAPPINGS = {
 	std: '0x0000000000000000000000000000000000000000000000000000000000000001',
@@ -102,6 +101,7 @@ function poolsSummary({ parameterNames = true }: { parameterNames?: boolean } = 
 			),
 			use_concrete: fn([param('pool', poolType(suiType)), param('amount', 'u64')]),
 			use_own_coin: fn([param('pool', poolType(ownCoinType)), param('amount', 'u64')]),
+			merge: fn([param('from_pool', poolType(suiType)), param('to_pool', poolType(suiType))]),
 			swap: fn(
 				[
 					param('base_pool', poolType({ TypeParameter: 0 })),
@@ -219,14 +219,7 @@ describe('parseConfigArguments', () => {
 				kind: 'type',
 				key: 'suiPool',
 				typeArguments: [
-					{
-						datatype: {
-							address: '0x0000000000000000000000000000000000000000000000000000000000000002',
-							module: 'sui',
-							name: 'SUI',
-							typeArguments: [],
-						},
-					},
+					'0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI',
 				],
 				isGeneric: true,
 			},
@@ -257,13 +250,7 @@ describe('parseConfigArguments', () => {
 			{
 				key: 'coinPool',
 				typeArguments: [
-					{
-						datatype: {
-							address: '0x0000000000000000000000000000000000000000000000000000000000000000',
-							module: 'pools',
-							name: 'Coin',
-						},
-					},
+					'0x0000000000000000000000000000000000000000000000000000000000000000::pools::Coin',
 				],
 			},
 		]);
@@ -279,18 +266,36 @@ describe('parseConfigArguments', () => {
 		).toThrowError(/must be qualified with a package in the global configArguments block/);
 	});
 
-	it('resolves other run packages through the packageAddresses map', async () => {
+	it('resolves other run packages through their named-address label in this closure', async () => {
 		const { entries } = parseConfigArguments(
 			{ global: { pool: { type: '@other/pkg::pools::Pool' } } },
 			createRegistry(),
 			{
 				...TESTPKG_CONTEXT,
-				// @other/pkg resolves to the same summary package in this test closure.
-				packageAddresses: { '@other/pkg': ADDRESS_MAPPINGS.testpkg },
+				// @other/pkg's label resolves through this closure's own address mapping.
+				packageIdentities: { '@other/pkg': { label: 'testpkg' } },
 			},
 		);
 
 		expect(entries).toMatchObject([{ key: 'pool', module: 'pools', name: 'Pool' }]);
+	});
+
+	it('never uses unpublished 0x0 addresses for cross-package identity', async () => {
+		// Two unpublished local packages both resolve to 0x0. A matcher for the other package
+		// must be skipped (not matched against, and not hard-errored) even though the current
+		// package's own address is also 0x0.
+		const { entries } = parseConfigArguments(
+			{ global: { other: { type: '@other/pkg::pools::Pool' } } },
+			createRegistry(),
+			{
+				...TESTPKG_CONTEXT,
+				packageIdentities: {
+					'@other/pkg': { label: 'not_in_this_closure', address: ADDRESS_MAPPINGS.testpkg },
+				},
+			},
+		);
+
+		expect(entries).toEqual([]);
 	});
 
 	it('merges package-scoped entries over global entries per key', async () => {
@@ -310,7 +315,13 @@ describe('parseConfigArguments', () => {
 
 		// Map insertion order keeps the global position for overridden keys.
 		expect(entries).toMatchObject([
-			{ key: 'pool', source: 'package', typeArguments: [{ datatype: { name: 'SUI' } }] },
+			{
+				key: 'pool',
+				source: 'package',
+				typeArguments: [
+					'0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI',
+				],
+			},
 			{ key: 'coin', source: 'global', typeArguments: [] },
 		]);
 	});
@@ -325,8 +336,11 @@ describe('parseConfigArguments', () => {
 				createRegistry(),
 				{
 					...TESTPKG_CONTEXT,
-					packageAddresses: {
-						'@other/pkg': '0x0000000000000000000000000000000000000000000000000000000000000042',
+					packageIdentities: {
+						'@other/pkg': {
+							label: 'other',
+							address: '0x0000000000000000000000000000000000000000000000000000000000000042',
+						},
 					},
 				},
 			);
@@ -340,8 +354,11 @@ describe('parseConfigArguments', () => {
 				createRegistry(),
 				{
 					...TESTPKG_CONTEXT,
-					packageAddresses: {
-						'@other/pkg': '0x0000000000000000000000000000000000000000000000000000000000000042',
+					packageIdentities: {
+						'@other/pkg': {
+							label: 'other',
+							address: '0x0000000000000000000000000000000000000000000000000000000000000042',
+						},
 					},
 				},
 			);
@@ -367,11 +384,13 @@ describe('parseConfigArguments', () => {
 			parseConfigArguments({ global: { bad: { type } } }, registry, TESTPKG_CONTEXT);
 
 		expect(() => parse('Pool')).toThrowError(/Expected "module::Type"/);
-		expect(() => parse('u64')).toThrowError(/must be a Move datatype/);
+		expect(() => parse('u64')).toThrowError(/Expected "module::Type"/);
 		expect(() => parse('@test/testpkg::pools::Pool<0x2::sui::SUI>>')).toThrowError(
-			/unbalanced '>'/,
+			/not a valid module::type pair/,
 		);
-		expect(() => parse('@test/testpkg::pools::Pool<0x2::sui::SUI')).toThrowError(/unbalanced '</);
+		expect(() => parse('@test/testpkg::pools::Pool<0x2::sui::SUI')).toThrowError(
+			/Invalid type in configArguments matcher/,
+		);
 		expect(() => parse('@test/testpkg::pools::Coin<>')).toThrowError(/empty type argument/);
 		expect(() => parse('@test/testpkg::pools::Pool <0x2::sui::SUI>')).toThrowError(
 			/is not a valid module::type pair/,
@@ -737,6 +756,40 @@ describe('config-driven function codegen', () => {
 		expect(registerOptions?.[0]).toContain('reg: ConfigValue');
 	});
 
+	it('one key matching two same-typed parameters of one signature is resolver-typed', async () => {
+		const builder = createPoolsBuilder({
+			suiPool: { type: '@test/testpkg::pools::Pool<0x2::sui::SUI>' },
+		});
+		builder.includeFunctions(['merge', 'use_concrete']);
+		const output = await render(builder);
+
+		// merge takes Pool<SUI> twice: a single static value would silently bind the same
+		// object to both positions, so the slice demands a resolver there...
+		const mergeOptions = output.match(/export interface MergeOptions[\s\S]*?^}/m);
+		expect(mergeOptions?.[0]).toContain(
+			'suiPool: (ctx: ConfigResolverContext) => string | TransactionObjectArgument',
+		);
+
+		// ...while use_concrete (one matched parameter) keeps the plain value form.
+		const concreteOptions = output.match(/export interface UseConcreteOptions[\s\S]*?^}/m);
+		expect(concreteOptions?.[0]).toContain('suiPool: ConfigValue');
+	});
+
+	it('function matchers support parameterIndex on nameless summaries', async () => {
+		const builder = createPoolsBuilder(
+			{ pool0: { function: '@test/testpkg::pools::use_concrete', parameterIndex: 0 } },
+			{ parameterNames: false },
+		);
+		builder.includeFunctions(['use_concrete']);
+		const output = await render(builder);
+
+		const optionsInterface = output.match(/export interface UseConcreteOptions[\s\S]*?^}/m);
+		expect(optionsInterface?.[0]).toContain('pool0: ConfigValue');
+
+		const fnBody = output.match(/export function useConcrete[\s\S]*?^}/m);
+		expect(fnBody?.[0]).toContain('{ index: 0, resolve: () =>');
+	});
+
 	it('function matchers win over type matchers and support parameterIndex', async () => {
 		const builder = createPoolsBuilder({
 			pool: { type: '@test/testpkg::pools::Pool' },
@@ -1030,16 +1083,47 @@ describe('config-driven function codegen', () => {
 	});
 });
 
+describe('resolvePackageIdentity', () => {
+	it('resolves a local package to its named-address label and mapped address', async () => {
+		expect(await resolvePackageIdentity(FIXTURE_PATH)).toEqual({
+			label: 'testpkg',
+			address: ADDRESS_MAPPINGS.testpkg,
+		});
+	});
+
+	it('honors the packageName override', async () => {
+		expect(await resolvePackageIdentity(FIXTURE_PATH, 'testpkg')).toEqual({
+			label: 'testpkg',
+			address: ADDRESS_MAPPINGS.testpkg,
+		});
+	});
+
+	it('returns undefined for paths without summaries', async () => {
+		expect(await resolvePackageIdentity(join(__dirname, 'move'))).toBeUndefined();
+	});
+});
+
 describe('generateFromPackageSummary with configArguments', () => {
+	const generatedDirs: string[] = [];
+
 	afterAll(async () => {
-		await rm(GENERATED_DIR, { recursive: true, force: true });
+		await Promise.all(generatedDirs.map((dir) => rm(dir, { recursive: true, force: true })));
 	});
 
 	afterEach(() => {
 		vi.restoreAllMocks();
 	});
 
+	// Each test generates into its own temp dir — tests in this file run concurrently. The dirs
+	// live under tests/ so generated imports resolve workspace packages via node_modules.
+	async function tempOutputDir() {
+		const dir = await mkdtemp(join(__dirname, 'generated-config-'));
+		generatedDirs.push(dir);
+		return dir;
+	}
+
 	async function generate() {
+		const dir = await tempOutputDir();
 		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 		await generateFromPackageSummary({
 			package: {
@@ -1047,19 +1131,20 @@ describe('generateFromPackageSummary with configArguments', () => {
 				path: FIXTURE_PATH,
 			},
 			prune: true,
-			outputDir: GENERATED_DIR,
+			outputDir: dir,
 			configArguments: {
 				registryObj: { type: '@test/testpkg::registry::Registry' },
 				container: { type: '@test/testpkg::registry::Container' },
 				testpkgAddress: { package: '@test/testpkg' },
 				unusedEntry: { type: '@test/testpkg::registry::Entry' },
+				statusViaFn: { function: '@test/testpkg::registry::is_active' },
 			},
 		});
-		return warn;
+		return { warn, dir };
 	}
 
 	it('emits config-arguments.ts and config-driven bindings, warning on unused keys', async () => {
-		const warn = await generate();
+		const { warn, dir } = await generate();
 
 		// Entry is a plain store struct that no generated function takes as a parameter.
 		expect(warn).toHaveBeenCalledWith(
@@ -1068,10 +1153,7 @@ describe('generateFromPackageSummary with configArguments', () => {
 			),
 		);
 
-		const configArgs = await readFile(
-			join(GENERATED_DIR, 'testpkg', 'config-arguments.ts'),
-			'utf-8',
-		);
+		const configArgs = await readFile(join(dir, 'testpkg', 'config-arguments.ts'), 'utf-8');
 		expect(configArgs).toMatchInlineSnapshot(`
 			"/**************************************************************
 			 * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
@@ -1083,10 +1165,11 @@ describe('generateFromPackageSummary with configArguments', () => {
 			    container: (ctx: ConfigResolverContext) => string | TransactionObjectArgument;
 			    testpkgAddress?: string;
 			    unusedEntry: ConfigValue;
+			    statusViaFn: ConfigValue;
 			}"
 		`);
 
-		const registryModule = await readFile(join(GENERATED_DIR, 'testpkg', 'registry.ts'), 'utf-8');
+		const registryModule = await readFile(join(dir, 'testpkg', 'registry.ts'), 'utf-8');
 		expect(registryModule).toContain('applyConfigArguments');
 		expect(registryModule).toContain('resolveConfigArgument');
 	});
@@ -1102,7 +1185,7 @@ describe('generateFromPackageSummary with configArguments', () => {
 					},
 				},
 				prune: true,
-				outputDir: GENERATED_DIR,
+				outputDir: await tempOutputDir(),
 			}),
 		).rejects.toThrowError(/was not found in its package's summaries/);
 	});
@@ -1118,7 +1201,7 @@ describe('generateFromPackageSummary with configArguments', () => {
 				},
 			},
 			prune: true,
-			outputDir: GENERATED_DIR,
+			outputDir: await tempOutputDir(),
 		});
 
 		expect(warn).toHaveBeenCalledWith(
@@ -1129,7 +1212,7 @@ describe('generateFromPackageSummary with configArguments', () => {
 	});
 
 	it('generated output typechecks under strict settings', { timeout: 60_000 }, async () => {
-		await generate();
+		const { dir } = await generate();
 
 		const files: string[] = [];
 		const walk = async (dir: string) => {
@@ -1142,7 +1225,7 @@ describe('generateFromPackageSummary with configArguments', () => {
 				}
 			}
 		};
-		await walk(GENERATED_DIR);
+		await walk(dir);
 
 		const program = ts.createProgram({
 			rootNames: files,
@@ -1176,9 +1259,9 @@ describe('generateFromPackageSummary with configArguments', () => {
 	});
 
 	it('config values are applied at runtime, with explicit arguments overriding', async () => {
-		await generate();
+		const { dir } = await generate();
 
-		const mod = await import(join(GENERATED_DIR, 'testpkg', 'registry.js'));
+		const mod = await import(join(dir, 'testpkg', 'registry.js'));
 		const PACKAGE_ID = '0x00000000000000000000000000000000000000000000000000000000000000ee';
 		const REGISTRY_ID = '0x0000000000000000000000000000000000000000000000000000000000000123';
 
@@ -1238,9 +1321,9 @@ describe('generateFromPackageSummary with configArguments', () => {
 	});
 
 	it('omitting both the argument and the config value fails with a descriptive error', async () => {
-		await generate();
+		const { dir } = await generate();
 
-		const mod = await import(join(GENERATED_DIR, 'testpkg', 'registry.js'));
+		const mod = await import(join(dir, 'testpkg', 'registry.js'));
 		const tx = new Transaction();
 
 		expect(() => tx.add(mod.lookup({}))).toThrowError(
@@ -1249,9 +1332,9 @@ describe('generateFromPackageSummary with configArguments', () => {
 	});
 
 	it('resolvers receive the normalized matched parameter instantiation and call-site metadata', async () => {
-		await generate();
+		const { dir } = await generate();
 
-		const mod = await import(join(GENERATED_DIR, 'testpkg', 'registry.js'));
+		const mod = await import(join(dir, 'testpkg', 'registry.js'));
 		const PACKAGE_ID = '0x00000000000000000000000000000000000000000000000000000000000000ee';
 		const CONTAINER_ID = '0x0000000000000000000000000000000000000000000000000000000000000789';
 		const contexts: unknown[] = [];

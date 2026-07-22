@@ -11,7 +11,7 @@ import { getUtilsContent } from './generate-utils.js';
 import { parse } from 'toml';
 import { FileBuilder } from './file-builder.js';
 import { parseConfigArguments } from './config-arguments.js';
-import type { ParsedConfigArgument } from './config-arguments.js';
+import type { PackageIdentity, ParsedConfigArgument } from './config-arguments.js';
 import { camelCase, capitalize, parseTS } from './utils.js';
 import type { RootPackageMetadata } from './types/summary.js';
 import type {
@@ -39,7 +39,7 @@ export async function generateFromPackageSummary({
 	includePhantomTypeParameters = false,
 	errorClass,
 	configArguments: globalConfigArguments,
-	packageAddresses,
+	packageIdentities,
 }: {
 	package: PackageConfig;
 	prune: boolean;
@@ -50,11 +50,11 @@ export async function generateFromPackageSummary({
 	errorClass?: ErrorClassConfig;
 	configArguments?: ConfigArguments;
 	/**
-	 * Resolved root addresses of the other packages in the codegen run, keyed by their `packages`
-	 * identifier, so `configArguments` matchers can reference them (see
-	 * `resolvePackageRootAddress`). The CLI builds this automatically.
+	 * Identities of the other packages in the codegen run, keyed by their `packages` identifier,
+	 * so `configArguments` matchers can reference them (see `resolvePackageIdentity`). The CLI
+	 * builds this automatically.
 	 */
-	packageAddresses?: Record<string, string>;
+	packageIdentities?: Record<string, PackageIdentity>;
 }) {
 	if (!pkg.path) {
 		throw new Error(`Package path is required (got ${pkg.package})`);
@@ -184,7 +184,7 @@ export async function generateFromPackageSummary({
 					registry,
 					{
 						package: { id: pkg.package, address: currentPackageAddress },
-						packageAddresses,
+						packageIdentities,
 					},
 				)
 			: { entries: [] };
@@ -294,9 +294,11 @@ export async function generateFromPackageSummary({
 	);
 	if (unusedOwnEntries.length > 0) {
 		console.warn(
-			`configArguments keys that matched no generated function parameters in ${pkg.package}: ${unusedOwnEntries
-				.map((entry) => entry.key)
-				.join(', ')}`,
+			`configArguments keys that matched no generated function parameters in ${pkg.package}: ${[
+				...new Set(unusedOwnEntries.map((entry) => entry.key)),
+			].join(
+				', ',
+			)} (a key targeting this package's types may still match in other packages of the run)`,
 		);
 	}
 
@@ -320,14 +322,20 @@ function normalizePackageAddress(address: string) {
 }
 
 /**
- * Resolve a package's root address from its summaries directory, for the `packageAddresses` map
- * passed to `generateFromPackageSummary`. Requires summaries to already exist at `pkgPath`.
+ * Resolve how a package is identified inside other packages' summaries — its named-address label
+ * (local packages) and root address — for the `packageIdentities` map passed to
+ * `generateFromPackageSummary`. Requires summaries to already exist at `pkgPath`.
+ * `packageNameOverride` mirrors the `packageName` config option.
  */
-export async function resolvePackageRootAddress(pkgPath: string): Promise<string | undefined> {
+export async function resolvePackageIdentity(
+	pkgPath: string,
+	packageNameOverride?: string,
+): Promise<PackageIdentity | undefined> {
 	const metadataPath = join(pkgPath, 'root_package_metadata.json');
 	if (existsSync(metadataPath)) {
 		const metadata: RootPackageMetadata = JSON.parse(await readFile(metadataPath, 'utf-8'));
-		return metadata.root_package_original_id ?? metadata.root_package_id;
+		const address = metadata.root_package_original_id ?? metadata.root_package_id;
+		return address ? { address } : undefined;
 	}
 
 	const summaryDir = join(pkgPath, 'package_summaries');
@@ -339,13 +347,13 @@ export async function resolvePackageRootAddress(pkgPath: string): Promise<string
 	);
 
 	let localAddressLabels: string[] = [];
-	let packageName = '';
+	let packageName = packageNameOverride ?? '';
 	try {
 		const parsedToml: { package?: { name?: unknown }; addresses?: Record<string, string> } = parse(
 			await readFile(join(pkgPath, 'Move.toml'), 'utf-8'),
 		);
 		localAddressLabels = Object.keys(parsedToml.addresses ?? {});
-		if (typeof parsedToml.package?.name === 'string') {
+		if (!packageName && typeof parsedToml.package?.name === 'string') {
 			packageName = parsedToml.package.name.toLowerCase();
 		}
 	} catch {
@@ -358,7 +366,7 @@ export async function resolvePackageRootAddress(pkgPath: string): Promise<string
 
 	try {
 		const mainDir = resolveLocalMainPackageDir(localAddressLabels, packages, packageName, pkgPath);
-		return addressMappings[mainDir] ?? mainDir;
+		return { label: mainDir, address: addressMappings[mainDir] };
 	} catch {
 		return undefined;
 	}
