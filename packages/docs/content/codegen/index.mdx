@@ -92,6 +92,7 @@ The `SuiCodegenConfig` type supports the following options:
 | `prune`                        | `boolean`              | `true`  | When enabled, only generates code for the main package and omits dependency modules (dependency types referenced by included types are still generated under `deps/`) |
 | `generateSummaries`            | `boolean`              | `true`  | Automatically run `sui move summary` before generating code. Creates a `package_summaries` directory in your Move package which can be added to `.gitignore`          |
 | `generate`                     | `GenerateOptions`      | -       | Default [generate options](#the-generate-option) (types, functions) for all packages                                                                                  |
+| `configArguments`              | `ConfigArguments`      | -       | Map function parameters and package addresses to a [runtime config object](#the-configarguments-option), shared by all packages                                       |
 | `importExtension`              | `'.js' \| '.ts' \| ''` | `'.js'` | File extension used in generated import statements                                                                                                                    |
 | `includePhantomTypeParameters` | `boolean`              | `false` | Include [phantom type parameters](#phantom-types) as function arguments in generated BCS types                                                                        |
 
@@ -102,12 +103,13 @@ local (from source) or onchain (fetched from a network).
 
 #### Local packages
 
-| Option        | Type                     | Required | Description                                               |
-| ------------- | ------------------------ | -------- | --------------------------------------------------------- |
-| `package`     | `string`                 | yes      | Package identifier (for example, `@local-pkg/my-package`) |
-| `path`        | `string`                 | yes      | Path to the Move package directory                        |
-| `packageName` | `string`                 | no       | Custom name for generated code directory                  |
-| `generate`    | `PackageGenerateOptions` | no       | Control what gets generated from this package             |
+| Option            | Type                     | Required | Description                                                            |
+| ----------------- | ------------------------ | -------- | ---------------------------------------------------------------------- |
+| `package`         | `string`                 | yes      | Package identifier (for example, `@local-pkg/my-package`)              |
+| `path`            | `string`                 | yes      | Path to the Move package directory                                     |
+| `packageName`     | `string`                 | no       | Custom name for generated code directory                               |
+| `generate`        | `PackageGenerateOptions` | no       | Control what gets generated from this package                          |
+| `configArguments` | `ConfigArguments`        | no       | Package-scoped [config argument matchers](#the-configarguments-option) |
 
 ```typescript
 {
@@ -121,12 +123,13 @@ local (from source) or onchain (fetched from a network).
 For packages already deployed onchain, generate code directly from a package ID or MVR name without
 needing local source code:
 
-| Option        | Type                     | Required | Description                                   |
-| ------------- | ------------------------ | -------- | --------------------------------------------- |
-| `package`     | `string`                 | yes      | Package ID or MVR name                        |
-| `packageName` | `string`                 | yes      | Name for the generated code directory         |
-| `network`     | `'mainnet' \| 'testnet'` | yes      | Network to fetch the package from             |
-| `generate`    | `PackageGenerateOptions` | no       | Control what gets generated from this package |
+| Option            | Type                     | Required | Description                                                            |
+| ----------------- | ------------------------ | -------- | ---------------------------------------------------------------------- |
+| `package`         | `string`                 | yes      | Package ID or MVR name                                                 |
+| `packageName`     | `string`                 | yes      | Name for the generated code directory                                  |
+| `network`         | `'mainnet' \| 'testnet'` | yes      | Network to fetch the package from                                      |
+| `generate`        | `PackageGenerateOptions` | no       | Control what gets generated from this package                          |
+| `configArguments` | `ConfigArguments`        | no       | Package-scoped [config argument matchers](#the-configarguments-option) |
 
 ```typescript
 {
@@ -284,6 +287,126 @@ src/contracts/
 ```
 
 Set `prune: false` to generate all dependency modules with their full types and functions.
+
+## The `configArguments` option
+
+Many SDKs built on generated bindings spend most of their wrapper code mapping values from a
+per-network config object (package IDs, registry or treasury object IDs, pool addresses) into
+arguments of generated functions. The `configArguments` option moves that plumbing into codegen: you
+declare which Move types (or package addresses) come from a config object, and the generated
+functions accept that config object directly instead of requiring those arguments on every call.
+
+`configArguments` maps author-chosen keys to matchers. It can be declared globally (shared by all
+packages) or per package entry (merged over the global block):
+
+```typescript
+const config: SuiCodegenConfig = {
+	output: './src/contracts',
+	packages: [
+		{
+			package: '@myapp/core',
+			path: './move/core',
+			configArguments: {
+				// Non-generic type: parameters of this type resolve from `config.registry`
+				registry: { type: '0x...::registry::Registry' },
+				// Generic type without type arguments: matches every instantiation, and the
+				// config value must be a resolver function
+				pool: { type: '0x...::pool::Pool' },
+				// Fully instantiated generic: only matches parameters concretely typed with
+				// this exact instantiation in the Move signature
+				suiPool: { type: '0x...::pool::Pool<0x2::sui::SUI>' },
+				// Package entry (keyed by the `package` value of a `packages` entry): adds an
+				// optional config key that overrides the package address used for calls
+				corePackageId: { package: '@myapp/core' },
+			},
+		},
+	],
+};
+```
+
+Matcher addresses are resolved through the package's address mapping, so named addresses (for
+example, `myapp::registry::Registry`) also work.
+
+### Generated output
+
+For each function with matched parameters, the generated options gain a `config` property typed as
+the minimal slice of keys that function actually uses. Matched parameters become optional in
+`arguments` — passing one explicitly overrides config resolution:
+
+```typescript
+export interface BorrowOptions {
+	package?: string;
+	arguments:
+		| BorrowArguments
+		| [
+				pool: RawTransactionArgument<string> | undefined,
+				amount: RawTransactionArgument<number | bigint>,
+		  ];
+	config: {
+		pool: (ctx: ConfigResolverContext) => string | TransactionObjectArgument;
+		corePackageId?: string;
+	};
+	typeArguments: [string];
+}
+```
+
+Config values can be a plain object ID, a transaction argument, or a resolver function. Resolver
+functions receive the matched parameter's own instantiated type arguments (not the whole function's
+type argument tuple), which makes them reusable across functions that use the type in different
+positions:
+
+```typescript
+const myConfig = {
+	registry: '0x123...',
+	pool: (ctx: ConfigResolverContext) => poolsByCoinType[ctx.typeArguments[0]],
+	corePackageId: '0xabc...',
+} satisfies MyappCoreConfig;
+
+tx.add(
+	borrow({
+		arguments: { amount: 100n },
+		config: myConfig,
+		typeArguments: ['0x2::sui::SUI'],
+	}),
+);
+```
+
+For generic types matched without type arguments, a resolver function is required — a static ID
+can't be correct across instantiations. A parameter typed with the function's own type parameter
+(for example, `Pool<T>`) always binds to the uninstantiated matcher, even when a fully instantiated
+matcher also exists; only parameters concretely instantiated in the Move signature bind to
+instantiated matchers.
+
+Each package output also includes a `config-args.ts` file with an interface covering every declared
+key (named after the package, for example `MyappCoreConfig`), for use with `satisfies` when defining
+your config object.
+
+### Name refinement
+
+When a signature has two parameters of the same matched type (for example, `base_pool` and
+`quote_pool`, both `Pool<T>`), a bare type matcher is ambiguous and codegen fails with an error.
+Refine the matchers with the Move parameter names:
+
+```typescript
+configArguments: {
+	basePool: { type: '0x...::pool::Pool', name: 'base_pool' },
+	quotePool: { type: '0x...::pool::Pool', name: 'quote_pool' },
+},
+```
+
+Parameter names are only available in summaries generated from local packages — using a `name`
+matcher against an onchain package's bytecode summary is a generation-time error.
+
+### Package address precedence
+
+For package entries, the address used for a generated call is resolved in this order:
+
+1. An explicit `options.package` argument
+2. The config key declared by the package entry (for example, `config.corePackageId`)
+3. The generated default (the package's MVR name or address)
+
+On mainnet with MVR names the config entry can be omitted entirely; on networks where the MVR name
+doesn't resolve, supply the deployed package ID through the config object.
 
 ## Phantom types
 

@@ -7,10 +7,13 @@ import { ModuleRegistry } from './module-registry.js';
 import {
 	getSafeName,
 	isSupportedRawTransactionInput,
+	renderResolverTypeTag,
 	renderTypeSignature,
 	SUI_FRAMEWORK_ADDRESS,
 	SUI_SYSTEM_ADDRESS,
 } from './render-types.js';
+import { findConfigArgumentMatch } from './config-arguments.js';
+import type { ParsedConfigArgument, TypeConfigArgument } from './config-arguments.js';
 import {
 	camelCase,
 	capitalize,
@@ -35,6 +38,11 @@ const IMPORT_MAP = {
 	MoveEnum: { module: '~outputRoot/utils/index', isType: false },
 	normalizeMoveArguments: { module: '~outputRoot/utils/index', isType: false },
 	RawTransactionArgument: { module: '~outputRoot/utils/index', isType: true },
+	resolveConfigArg: { module: '~outputRoot/utils/index', isType: false },
+	applyConfigArguments: { module: '~outputRoot/utils/index', isType: false },
+	ConfigValue: { module: '~outputRoot/utils/index', isType: true },
+	ConfigResolverContext: { module: '~outputRoot/utils/index', isType: true },
+	TransactionObjectArgument: { module: '@mysten/sui/transactions', isType: true },
 } as const;
 
 type ImportName = keyof typeof IMPORT_MAP;
@@ -52,6 +60,8 @@ export class MoveModuleBuilder extends FileBuilder {
 	#importNames: Partial<Record<ImportName, string>> = {};
 	#importExtension: ImportExtension;
 	#includePhantomTypeParameters: boolean;
+	#configArguments: ParsedConfigArgument[] = [];
+	#packageConfigKey?: string;
 
 	constructor({
 		mvrNameOrAddress,
@@ -142,6 +152,16 @@ export class MoveModuleBuilder extends FileBuilder {
 			this.#importNames[name] = this.addImport(module, importSpec);
 		}
 		return this.#importNames[name]!;
+	}
+
+	/**
+	 * Configure parsed `configArguments` entries for this module's generated functions. Must be
+	 * called before `renderFunctions`. `packageConfigKey` is the config key (if any) that supplies
+	 * this package's call address.
+	 */
+	setConfigArguments(entries: ParsedConfigArgument[], packageConfigKey?: string) {
+		this.#configArguments = entries;
+		this.#packageConfigKey = packageConfigKey;
 	}
 
 	override async getHeader() {
@@ -554,6 +574,37 @@ export class MoveModuleBuilder extends FileBuilder {
 					!isWellKnownObjectParameter(param.type_, (address) => this.#resolveAddress(address)),
 			);
 
+			const functionLabel = `${this.summary.id.address}::${this.summary.id.name}::${name}`;
+			// Parameters (by index into `requiredParameters`) resolved from the runtime config
+			// object instead of being required arguments.
+			const configMatches = new Map<number, TypeConfigArgument>();
+			if (this.#configArguments.length > 0) {
+				const bareMatches = new Map<string, string[]>();
+				requiredParameters.forEach((param, i) => {
+					const match = findConfigArgumentMatch(param, this.#configArguments, {
+						resolveAddress: (address) => this.#resolveAddress(address),
+						functionLabel,
+					});
+					if (!match) return;
+					configMatches.set(i, match);
+					if (!match.paramName) {
+						bareMatches.set(match.key, [
+							...(bareMatches.get(match.key) ?? []),
+							param.name ?? `#${i}`,
+						]);
+					}
+				});
+				for (const [key, matched] of bareMatches) {
+					if (matched.length > 1) {
+						throw new Error(
+							`configArguments.${key} matches multiple parameters of ${functionLabel} (${matched.join(', ')}). ` +
+								`Add a \`name\` refinement to disambiguate.`,
+						);
+					}
+				}
+			}
+			const hasConfigMatches = configMatches.size > 0;
+
 			const normalizeName =
 				parameters.length > 0 ? this.#getImportName('normalizeMoveArguments') : null;
 
@@ -588,12 +639,24 @@ export class MoveModuleBuilder extends FileBuilder {
 			const wrap = (type: string | null): string =>
 				type === null ? transactionArgName! : `${rawTxArgName}<${type}>`;
 
-			const argumentsTypes = renderedArgTypes
+			// Interface fields: config-matched parameters become optional properties.
+			const argumentFields = renderedArgTypes
 				.map((type, i) =>
 					requiredParameters[i].name
-						? `${camelCase(requiredParameters[i].name)}: ${wrap(type)}`
+						? `${camelCase(requiredParameters[i].name)}${configMatches.has(i) ? '?' : ''}: ${wrap(type)}`
 						: wrap(type),
 				)
+				.join(',\n');
+
+			// Tuple items: optional tuple elements can't precede required ones, so config-matched
+			// positions accept an explicit `undefined` instead.
+			const argumentTupleItems = renderedArgTypes
+				.map((type, i) => {
+					const itemType = configMatches.has(i) ? `${wrap(type)} | undefined` : wrap(type);
+					return requiredParameters[i].name
+						? `${camelCase(requiredParameters[i].name)}: ${itemType}`
+						: itemType;
+				})
 				.join(',\n');
 
 			const bcsTypeName = usedTypeParameters.size > 0 ? this.#getImportName('BcsType') : null;
@@ -621,24 +684,56 @@ export class MoveModuleBuilder extends FileBuilder {
 			if (hasAllParameterNames) {
 				this.statements.push(
 					...parseTS /* ts */ `export interface ${argumentsInterface}${genericTypes} {
-						${argumentsTypes}
+						${argumentFields}
 					}`,
 				);
 			}
 
 			const optionsInterface = this.getUnusedName(`${capitalize(fnName.replace(/^_/, ''))}Options`);
 			const packageIsRequired = !this.#mvrNameOrAddress;
+			// The package-address config key only applies when a generated default exists —
+			// otherwise `package` stays required and always takes precedence.
+			const packageConfigKey = packageIsRequired ? undefined : this.#packageConfigKey;
 			const requiresOptions =
-				packageIsRequired || argumentsTypes.length > 0 || func.type_parameters.length > 0;
+				packageIsRequired || requiredParameters.length > 0 || func.type_parameters.length > 0;
+
+			// The minimal structural config slice for this function: only the keys whose matchers
+			// hit its parameters, plus this package's own package key if declared.
+			const configSliceFields: string[] = [];
+			const seenConfigKeys = new Set<string>();
+			for (const match of configMatches.values()) {
+				if (seenConfigKeys.has(match.key)) continue;
+				seenConfigKeys.add(match.key);
+				// An uninstantiated matcher on a generic type requires a resolver function — a
+				// static id cannot be correct across instantiations.
+				configSliceFields.push(
+					match.isGeneric && match.typeArguments === null
+						? `${match.key}: (ctx: ${this.#getImportName('ConfigResolverContext')}) => string | ${this.#getImportName('TransactionObjectArgument')}`
+						: `${match.key}: ${this.#getImportName('ConfigValue')}`,
+				);
+			}
+			if (packageConfigKey) {
+				configSliceFields.push(`${packageConfigKey}?: string`);
+			}
+
+			const argumentsOptional =
+				requiredParameters.length === 0 || requiredParameters.every((_, i) => configMatches.has(i));
 
 			this.statements.push(
 				...parseTS /* ts */ `export interface ${optionsInterface}${genericTypes} {
 					package${packageIsRequired ? ': string' : '?: string'}
-					${argumentsTypes.length > 0 ? 'arguments: ' : 'arguments?: '}${
+					arguments${argumentsOptional ? '?' : ''}: ${
 						hasAllParameterNames
-							? `${argumentsInterface}${genericTypeArgs} | [${argumentsTypes}]`
-							: `[${argumentsTypes}]`
+							? `${argumentsInterface}${genericTypeArgs} | [${argumentTupleItems}]`
+							: `[${argumentTupleItems}]`
 					},
+					${
+						configSliceFields.length > 0
+							? `config${hasConfigMatches ? '' : '?'}: {
+								${configSliceFields.join(',\n')}
+							},`
+							: ''
+					}
 					${
 						func.type_parameters.length
 							? `typeArguments: [${func.type_parameters.map(() => 'string').join(', ')}]`
@@ -647,11 +742,53 @@ export class MoveModuleBuilder extends FileBuilder {
 			}`,
 			);
 
+			// Config-matched positions are resolved lazily — only when the caller did not pass the
+			// argument explicitly.
+			const configDefaults = [...configMatches.entries()].map(([i, match]) => {
+				const param = requiredParameters[i];
+				let paramType = param.type_;
+				while (typeof paramType !== 'string' && 'Reference' in paramType) {
+					paramType = paramType.Reference[1];
+				}
+				const paramTypeArguments =
+					typeof paramType !== 'string' && 'Datatype' in paramType
+						? paramType.Datatype.type_arguments
+						: [];
+				const ctxTags = paramTypeArguments.map((arg) => {
+					const tag = renderResolverTypeTag(arg.argument, {
+						summary: this.summary,
+						typeParameters: func.type_parameters,
+						registry: this.registry,
+					});
+					return tag.includes('${') ? `\`${tag}\`` : `'${tag}'`;
+				});
+				return `{ index: ${i}, ${param.name ? `name: ${JSON.stringify(camelCase(param.name))}, ` : ''}resolve: () => ${this.#getImportName('resolveConfigArg')}(options.config.${match.key}, { typeArguments: [${ctxTags.join(', ')}] }, ${JSON.stringify(match.key)}) }`;
+			});
+
+			const baseArgumentsExpr = `options.arguments${
+				requiredParameters.length === 0
+					? ' ?? []'
+					: argumentsOptional
+						? hasAllParameterNames
+							? ' ?? {}'
+							: ' ?? []'
+						: ''
+			}`;
+			const argumentsExpr = hasConfigMatches
+				? `${this.#getImportName('applyConfigArguments')}(${baseArgumentsExpr}, [${configDefaults.join(', ')}])`
+				: baseArgumentsExpr;
+
+			const packageAddressExpr = `options.package${
+				packageConfigKey
+					? ` ?? options.config${hasConfigMatches ? '' : '?'}.${packageConfigKey}`
+					: ''
+			}${packageIsRequired ? '' : ` ?? '${this.#mvrNameOrAddress}'`}`;
+
 			this.statements.push(
 				...(await withComment(
 					func,
 					parseTS /* ts */ `export function ${fnName}${genericTypes}(options: ${optionsInterface}${genericTypeArgs}${requiresOptions ? '' : ' = {}'}) {
-					const packageAddress = options.package${packageIsRequired ? '' : ` ?? '${this.#mvrNameOrAddress}'`};
+					const packageAddress = ${packageAddressExpr};
 					${
 						parameters.length > 0
 							? `const argumentsTypes = [
@@ -676,7 +813,7 @@ export class MoveModuleBuilder extends FileBuilder {
 						package: packageAddress,
 						module: '${this.summary.id.name}',
 						function: '${name}',
-						${parameters.length > 0 ? `arguments: ${normalizeName}(options.arguments${argumentsTypes.length > 0 ? '' : ' ?? []'} , argumentsTypes${hasAllParameterNames ? `, parameterNames` : ''}),` : ''}
+						${parameters.length > 0 ? `arguments: ${normalizeName}(${argumentsExpr}, argumentsTypes${hasAllParameterNames ? `, parameterNames` : ''}),` : ''}
 						${func.type_parameters.length ? 'typeArguments: options.typeArguments' : ''}
 					})
 				}`,

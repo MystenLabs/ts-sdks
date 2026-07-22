@@ -185,6 +185,59 @@ export function renderTypeSignature(type: Type, options: RenderTypeSignatureOpti
 	throw new Error(`Unknown type signature: ${JSON.stringify(type, null, 2)}`);
 }
 
+/**
+ * Render a type as a full type-tag string for config resolver contexts. Unlike the `typeTag`
+ * format (which emits `null` for non-pure datatypes because the runtime doesn't need those tags),
+ * this always produces a real tag. Function type parameters are interpolated from the generated
+ * function's `options.typeArguments`, so the result may be a template-literal fragment.
+ */
+export function renderResolverTypeTag(
+	type: Type,
+	options: Pick<RenderTypeSignatureOptions, 'summary' | 'typeParameters' | 'registry'>,
+): string {
+	if (typeof type === 'string') {
+		if (type === 'signer' || type === '_') {
+			throw new Error(`${type} is not supported in type arguments`);
+		}
+		return type;
+	}
+
+	if ('Reference' in type) {
+		return renderResolverTypeTag(type.Reference[1], options);
+	}
+
+	if ('vector' in type) {
+		return `vector<${renderResolverTypeTag(type.vector, options)}>`;
+	}
+
+	if ('TypeParameter' in type) {
+		return `\${options.typeArguments[${type.TypeParameter}]}`;
+	}
+
+	if ('NamedTypeParameter' in type) {
+		const originalIndex =
+			options.typeParameters?.findIndex((p) => p.name === type.NamedTypeParameter) ?? -1;
+		if (originalIndex === -1) {
+			throw new Error(`Named type parameter ${type.NamedTypeParameter} not found`);
+		}
+		return `\${options.typeArguments[${originalIndex}]}`;
+	}
+
+	if ('Datatype' in type) {
+		const { Datatype } = type;
+		const address = resolveAddress(options, Datatype.module.address);
+		const base = `${address}::${Datatype.module.name}::${Datatype.name}`;
+		if (Datatype.type_arguments.length === 0) {
+			return base;
+		}
+		return `${base}<${Datatype.type_arguments
+			.map((arg) => renderResolverTypeTag(arg.argument, options))
+			.join(', ')}>`;
+	}
+
+	throw new Error(`Unknown type signature: ${JSON.stringify(type, null, 2)}`);
+}
+
 function getDatatypeAbilities(
 	type: Datatype,
 	options: Pick<RenderTypeSignatureOptions, 'summary' | 'registry'>,
@@ -260,6 +313,8 @@ function renderDataType(type: Datatype, options: RenderTypeSignatureOptions): st
 			if (type.module.name === 'random' && type.name === 'Random') return '0x2::random::Random';
 			if (type.module.name === 'deny_list' && type.name === 'DenyList')
 				return '0x2::deny_list::DenyList';
+			if (type.module.name === 'accumulator' && type.name === 'AccumulatorRoot')
+				return '0x2::accumulator::AccumulatorRoot';
 			if (type.module.name === 'object' && (type.name === 'ID' || type.name === 'UID'))
 				return '0x2::object::ID';
 		}

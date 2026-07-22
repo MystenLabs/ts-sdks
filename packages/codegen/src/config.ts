@@ -32,6 +32,45 @@ export const moduleGenerateSchema = z.object({
 	types: typesOptionSchema.optional(),
 });
 
+const IDENTIFIER = /^[A-Za-z_$][\w$]*$/;
+
+export const configArgumentMatcherSchema = z.union([
+	z.object({
+		/**
+		 * Fully-qualified Move type to match function parameters against, e.g.
+		 * `0x...::margin_registry::MarginRegistry`. A generic type written without type arguments
+		 * (e.g. `0x...::pool::Pool`) matches every instantiation and requires a resolver function
+		 * as the config value. A fully instantiated generic (e.g. `0x...::margin_pool::MarginPool<0x2::sui::SUI>`)
+		 * only matches parameters concretely typed with that exact instantiation.
+		 */
+		type: z.string(),
+		/**
+		 * Optional Move parameter-name refinement, for signatures with two parameters of the same
+		 * matched type. Only supported for summaries generated from local packages (bytecode
+		 * summaries do not include parameter names).
+		 */
+		name: z.string().optional(),
+	}),
+	z.object({
+		/**
+		 * Package entry, keyed by the package's name/MVR name from the `packages` config. Adds an
+		 * optional config key that overrides the package address used for generated calls.
+		 */
+		package: z.string(),
+	}),
+]);
+
+export const configArgumentsSchema = z.record(
+	z.string().regex(IDENTIFIER, {
+		message:
+			'configArguments keys become properties of the generated config interface and must be valid identifiers',
+	}),
+	configArgumentMatcherSchema,
+);
+
+export type ConfigArgumentMatcher = z.infer<typeof configArgumentMatcherSchema>;
+export type ConfigArguments = z.infer<typeof configArgumentsSchema>;
+
 export const packageGenerateSchema = globalGenerateSchema.extend({
 	modules: z
 		.union([
@@ -49,6 +88,7 @@ export const onChainPackageSchema = z.object({
 	path: z.never().optional(),
 	network: z.enum(['mainnet', 'testnet']),
 	generate: packageGenerateSchema.optional(),
+	configArguments: configArgumentsSchema.optional(),
 });
 
 export const localPackageSchema = z.object({
@@ -56,6 +96,7 @@ export const localPackageSchema = z.object({
 	package: z.string(),
 	packageName: z.string().optional(),
 	generate: packageGenerateSchema.optional(),
+	configArguments: configArgumentsSchema.optional(),
 });
 
 export const packageConfigSchema = z.union([onChainPackageSchema, localPackageSchema]);
@@ -67,8 +108,6 @@ export type GenerateBase = z.infer<typeof globalGenerateSchema>;
 export type PackageGenerate = z.infer<typeof packageGenerateSchema>;
 export type FunctionsOption = z.infer<typeof functionsOptionSchema>;
 export type TypesOption = z.infer<typeof typesOptionSchema>;
-
-const IDENTIFIER = /^[A-Za-z_$][\w$]*$/;
 
 export const errorClassSchema = z.object({
 	name: z.string().regex(IDENTIFIER, {
@@ -84,6 +123,12 @@ export const configSchema = z.object({
 	generateSummaries: z.boolean().optional().default(true),
 	packages: z.array(packageConfigSchema),
 	generate: globalGenerateSchema.optional(),
+	/**
+	 * Maps config-object keys to Move type (or package) matchers. Matched function parameters are
+	 * resolved from a runtime config object instead of being required arguments. Per-package
+	 * `configArguments` entries are merged over these global entries.
+	 */
+	configArguments: configArgumentsSchema.optional(),
 	/** @deprecated Use `generate: { functions: { private: 'entry' } }` instead */
 	privateMethods: z.union([z.literal('none'), z.literal('entry'), z.literal('all')]).optional(),
 	importExtension: importExtensionSchema.optional().default('.js'),
