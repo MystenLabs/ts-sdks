@@ -44,6 +44,7 @@ import {
 	transactionToGrpcJson,
 	grpcTransactionToTransactionData,
 } from '../client/transaction-resolver.js';
+import { setAddressBalanceTransactionExpirationFromSimulatedEpoch } from '../client/address-balance-transaction-expiration.js';
 import { BalanceChange as BalanceChangeType } from '../grpc/proto/sui/rpc/v2/balance_change.js';
 import { TransactionEffects as TransactionEffectsType } from '../grpc/proto/sui/rpc/v2/effects.js';
 import { Transaction as GrpcTransactionType } from '../grpc/proto/sui/rpc/v2/transaction.js';
@@ -317,7 +318,11 @@ export class GraphQLCoreClient extends CoreClient {
 		const balances = await this.#graphqlQuery(
 			{
 				query: GetAllBalancesDocument,
-				variables: { owner: options.owner },
+				variables: {
+					owner: options.owner,
+					limit: options.limit,
+					cursor: options.cursor,
+				},
 			},
 			(result) => result.address?.balances,
 		);
@@ -728,14 +733,16 @@ export class GraphQLCoreClient extends CoreClient {
 			}
 			const grpcTransaction = transactionDataToGrpcTransaction(snapshot);
 			const transactionJson = GrpcTransactionType.toJson(grpcTransaction);
+			const doGasSelection =
+				!options.onlyTransactionKind &&
+				(snapshot.gasData.budget == null || snapshot.gasData.payment == null);
 
 			const { data, errors } = await graphqlClient.query({
 				query: ResolveTransactionDocument,
 				variables: {
 					transaction: transactionJson,
-					doGasSelection:
-						!options.onlyTransactionKind &&
-						(snapshot.gasData.budget == null || snapshot.gasData.payment == null),
+					doGasSelection,
+					checksEnabled: !options.onlyTransactionKind,
 				},
 			});
 
@@ -763,6 +770,7 @@ export class GraphQLCoreClient extends CoreClient {
 			if (options.onlyTransactionKind) {
 				transactionData.applyResolvedData({
 					...resolved,
+					sender: null,
 					gasData: {
 						budget: null,
 						owner: null,
@@ -774,6 +782,14 @@ export class GraphQLCoreClient extends CoreClient {
 			} else {
 				transactionData.applyResolvedData(resolved);
 			}
+			await setAddressBalanceTransactionExpirationFromSimulatedEpoch({
+				transactionData,
+				client: graphqlClient,
+				epoch: transactionEffects?.epoch?.epochId,
+				originalTransactionData: snapshot,
+				isTransactionKindOnly: !!options.onlyTransactionKind,
+				doGasSelection,
+			});
 
 			return await next();
 		};

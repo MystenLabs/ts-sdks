@@ -1,5 +1,83 @@
 # @mysten/dapp-kit-core
 
+## 1.6.9
+
+## 1.6.8
+
+## 1.6.7
+
+## 1.6.6
+
+## 1.6.5
+
+## 1.6.4
+
+## 1.6.3
+
+## 1.6.2
+
+## 1.6.1
+
+## 1.6.0
+
+### Minor Changes
+
+- 0c3eec4: Report `isReconnecting` during the initial auto-connect session restore.
+
+  Previously, restoring a persisted session on page load jumped the connection straight from
+  `disconnected` to `connected`, so for the entire async restore window the connection looked
+  identical to a logged-out user (`account: null`, `isConnecting: false`, `isReconnecting: false`,
+  `status: "disconnected"`). Consumers had no way to tell "restoring a saved session" apart from
+  "logged out", which caused auth gates to incorrectly redirect logged-in users on hard refresh.
+
+  Auto-connect now eagerly enters the `reconnecting` state on mount whenever a persisted session
+  exists — independent of wallet-registration timing, so the window is covered even before the saved
+  wallet registers (default wallets such as Slush register asynchronously). It stays `reconnecting`
+  until both every configured wallet initializer has settled and a short grace period has elapsed
+  (to absorb late-registering wallets such as browser extensions, which have no deterministic
+  "registered" signal), then settles to `disconnected` if the saved session still hasn't restored —
+  while never interrupting an in-flight restore, so a slow-but-valid wallet always wins, and
+  continuing to listen so a very-late wallet can still restore. The `reconnecting` state also now
+  reports `isReconnecting: true` while the target wallet/account is still resolving, instead of
+  being suppressed to `disconnected`.
+
+  Adds an `autoConnectTimeout` option (default `5000` ms) to tune that grace period.
+
+  Consumers can rely on `isReconnecting` to distinguish restoring from logged-out, e.g.
+  `if (!isReconnecting && !account) redirect()`.
+
+## 1.5.0
+
+### Minor Changes
+
+- 8a03101: Allow `signTransaction`, `signAndExecuteTransaction`, and `signPersonalMessage` to take
+  optional `account` and `network` overrides.
+
+  - `account` (a `UiWalletAccount` belonging to the connected wallet) signs with a specific account
+    without changing the globally selected account via `switchAccount`. Throws
+    `WalletAccountNotFoundError` if the account does not belong to the connected wallet.
+  - `network` signs/executes against a specific configured network without changing the active
+    network via `switchNetwork`, which is useful for apps that operate on multiple networks (for
+    example mainnet and testnet) at once. The chain is derived from the network and the transaction
+    is built against that network's client. Throws `ChainNotSupportedError` if the signing account
+    does not support the requested network.
+
+  Both default to the currently connected account and active network, so existing call sites are
+  unaffected.
+
+## 1.4.0
+
+### Minor Changes
+
+- bbf63cb: Updated dependencies
+
+### Patch Changes
+
+- Updated dependencies [bbf63cb]
+  - @mysten/slush-wallet@1.1.0
+  - @mysten/utils@0.4.0
+  - @mysten/wallet-standard@0.21.0
+
 ## 1.3.2
 
 ### Patch Changes

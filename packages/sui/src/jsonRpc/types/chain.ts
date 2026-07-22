@@ -11,12 +11,20 @@ import type {
 	SuiValidatorSummary,
 } from './generated.js';
 
+/**
+ * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+ * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+ */
 export type ResolvedNameServiceNames = {
 	data: string[];
 	hasNextPage: boolean;
 	nextCursor: string | null;
 };
 
+/**
+ * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+ * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+ */
 export type EpochInfo = {
 	epoch: string;
 	validators: SuiValidatorSummary[];
@@ -27,6 +35,10 @@ export type EpochInfo = {
 	referenceGasPrice: number | null;
 };
 
+/**
+ * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+ * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+ */
 export type EpochMetrics = {
 	epoch: string;
 	epochTotalTransactions: string;
@@ -35,18 +47,30 @@ export type EpochMetrics = {
 	endOfEpochInfo: EndOfEpochInfo | null;
 };
 
+/**
+ * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+ * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+ */
 export type EpochPage = {
 	data: EpochInfo[];
 	nextCursor: string | null;
 	hasNextPage: boolean;
 };
 
+/**
+ * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+ * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+ */
 export type EpochMetricsPage = {
 	data: EpochMetrics[];
 	nextCursor: string | null;
 	hasNextPage: boolean;
 };
 
+/**
+ * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+ * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+ */
 export type EndOfEpochInfo = {
 	lastCheckpointId: string;
 	epochEndTimestamp: string;
@@ -63,12 +87,20 @@ export type EndOfEpochInfo = {
 	leftoverStorageFundInflow: string;
 };
 
+/**
+ * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+ * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+ */
 export type CheckpointPage = {
 	data: Checkpoint[];
 	nextCursor: string | null;
 	hasNextPage: boolean;
 };
 
+/**
+ * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+ * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+ */
 export type NetworkMetrics = {
 	currentTps: number;
 	tps30Days: number;
@@ -79,6 +111,10 @@ export type NetworkMetrics = {
 	totalPackages: string;
 };
 
+/**
+ * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+ * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+ */
 export type AddressMetrics = {
 	checkpoint: number;
 	epoch: number;
@@ -88,14 +124,26 @@ export type AddressMetrics = {
 	dailyActiveAddresses: number;
 };
 
+/**
+ * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+ * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+ */
 export type AllEpochsAddressMetrics = AddressMetrics[];
 
+/**
+ * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+ * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+ */
 export type MoveCallMetrics = {
 	rank3Days: MoveCallMetric[];
 	rank7Days: MoveCallMetric[];
 	rank30Days: MoveCallMetric[];
 };
 
+/**
+ * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+ * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+ */
 export type MoveCallMetric = [
 	{
 		module: string;
@@ -105,17 +153,37 @@ export type MoveCallMetric = [
 	string,
 ];
 
+/**
+ * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+ * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+ */
 export type DynamicFieldPage = {
 	data: DynamicFieldInfo[];
 	nextCursor: string | null;
 	hasNextPage: boolean;
 };
 
+/**
+ * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+ * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+ */
 export type SuiMoveNormalizedModules = Record<string, SuiMoveNormalizedModule>;
 
+/**
+ * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+ * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+ */
 export type SuiMoveObject = Extract<SuiParsedData, { dataType: 'moveObject' }>;
+/**
+ * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+ * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+ */
 export type SuiMovePackage = Extract<SuiParsedData, { dataType: 'package' }>;
 
+/**
+ * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+ * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+ */
 export type ProgrammableTransaction = {
 	transactions: SuiTransaction[];
 	inputs: SuiCallArg[];

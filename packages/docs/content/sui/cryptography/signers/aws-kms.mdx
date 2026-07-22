@@ -1,0 +1,119 @@
+---
+title: AWS KMS Signer
+description: Sign Sui transactions with a key stored in AWS Key Management Service
+keywords: [AWS KMS, signer, AwsKmsSigner, KMS, Ed25519, Secp256k1, Secp256r1, Sui, TypeScript SDK]
+---
+
+The `AwsKmsSigner` signs Sui transactions using a key held in
+[AWS Key Management Service](https://aws.amazon.com/kms/). The private key never leaves AWS; the
+signer sends the message to KMS and receives the signature back.
+
+AWS KMS supports the `Ed25519`, `Secp256k1`, and `Secp256r1` schemes. The curve of the KMS key
+determines the signature scheme (`ECC_NIST_EDWARDS25519` → `Ed25519`, `ECC_SECG_P256K1` →
+`Secp256k1`, `ECC_NIST_P256` → `Secp256r1`). `Ed25519` is Sui's native scheme.
+
+<Callout type="warn">
+	The AWS KMS Signer requires Node.js >= 22 (the package's `engines.node` constraint) and relies on
+	the global Web Crypto API.
+</Callout>
+
+## Installation
+
+```sh npm2yarn
+npm i @mysten/aws-kms-signer
+```
+
+## Creating a signer
+
+Construct the signer with `AwsKmsSigner.fromKeyId`, passing the KMS key ID and the AWS credentials
+and region. This is async: it fetches the public key from KMS so the signer can derive the Sui
+address.
+
+```typescript
+import { AwsKmsSigner } from '@mysten/aws-kms-signer';
+
+const { AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, AWS_KMS_KEY_ID } = process.env;
+
+const signer = await AwsKmsSigner.fromKeyId(AWS_KMS_KEY_ID, {
+	region: AWS_REGION,
+	accessKeyId: AWS_ACCESS_KEY_ID,
+	secretAccessKey: AWS_SECRET_ACCESS_KEY,
+});
+```
+
+### Parameters
+
+`fromKeyId(keyId, options)`
+
+| Parameter                 | Type                    | Description                                                      |
+| ------------------------- | ----------------------- | ---------------------------------------------------------------- |
+| `keyId`                   | `string`                | The AWS KMS key ID                                               |
+| `options.region`          | `string`                | The AWS region the key lives in                                  |
+| `options.accessKeyId`     | `string`                | The AWS access key ID (omit when using `credentials`)            |
+| `options.secretAccessKey` | `string`                | The AWS secret access key (omit when using `credentials`)        |
+| `options.credentials`     | `AwsCredentialProvider` | Optional async provider resolved before each request (see below) |
+
+You must supply either static `accessKeyId`/`secretAccessKey` **or** a `credentials` provider.
+
+### Using a credential provider
+
+Instead of static keys, pass an async `credentials` provider (any function returning
+`{ accessKeyId, secretAccessKey, sessionToken? }`). This is structurally compatible with the
+providers from
+[`@aws-sdk/credential-providers`](https://docs.aws.amazon.com/sdk-for-javascript/v3/developer-guide/setting-credentials-node.html),
+so the standard AWS credential chain (SSO, IAM roles, and container/instance metadata) works out of
+the box. Credentials are resolved before each request, so temporary credentials refresh
+automatically once their session nears expiry.
+
+```typescript
+import { fromNodeProviderChain } from '@aws-sdk/credential-providers';
+
+import { AwsKmsSigner } from '@mysten/aws-kms-signer';
+
+const signer = await AwsKmsSigner.fromKeyId(process.env.AWS_KMS_KEY_ID, {
+	region: process.env.AWS_REGION,
+	credentials: fromNodeProviderChain(),
+});
+```
+
+`@aws-sdk/credential-providers` is **not** a dependency of this package, so install it yourself if
+you want the AWS-provided resolvers. This keeps the signer lightweight for edge, browser, and Worker
+runtimes, where you can instead pass static credentials or a custom resolver.
+
+## Usage
+
+Once created, the signer behaves like any other [`Signer`](/sui/cryptography): derive the address,
+sign messages, and sign or execute transactions.
+
+```typescript
+// Derive the Sui address
+const address = signer.getPublicKey().toSuiAddress();
+
+// Sign a personal message
+const message = new TextEncoder().encode('Hello, AWS KMS Signer!');
+const { signature } = await signer.signPersonalMessage(message);
+
+// Verify the signature
+const isValid = await signer.getPublicKey().verifyPersonalMessage(message, signature);
+console.log(isValid); // true
+```
+
+To sign and submit a transaction, pass the signer to a client:
+
+```typescript
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+const client = new SuiGrpcClient({
+	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
+});
+
+const result = await client.signAndExecuteTransaction({ transaction, signer });
+if (result.FailedTransaction) {
+	throw new Error('Transaction failed to execute');
+}
+console.log(result.Transaction.digest);
+```
+
+See [Cryptography](/sui/cryptography) for the full signing and verification API shared by all
+signers.

@@ -16,7 +16,13 @@ type InternalWalletConnection =
 			currentAccount: null;
 	  }
 	| {
-			status: 'reconnecting' | 'connected';
+			// `null` account: an initial restore enters this state before the saved wallet registers.
+			status: 'reconnecting';
+			currentAccount: UiWalletAccount | null;
+			supportedIntents: string[];
+	  }
+	| {
+			status: 'connected';
 			currentAccount: UiWalletAccount;
 			supportedIntents: string[];
 	  };
@@ -114,24 +120,30 @@ export function createStores<
 						isDisconnected: false,
 					} as const;
 				case 'reconnecting': {
-					const wallet = wallets.find((w) =>
-						uiWalletAccountBelongsToUiWallet(connection.currentAccount, w),
-					);
-					if (!wallet) {
+					const { currentAccount } = connection;
+					const wallet = currentAccount
+						? (wallets.find((w) => uiWalletAccountBelongsToUiWallet(currentAccount, w)) ?? null)
+						: null;
+
+					// Unlike `connected`, keep reporting `isReconnecting` even before the
+					// target wallet/account resolves, so an initial restore is distinguishable
+					// from a logged-out state.
+					if (!currentAccount || !wallet) {
 						return {
 							wallet: null,
 							account: null,
-							status: 'disconnected',
+							status: connection.status,
 							supportedIntents: [],
 							isConnected: false,
 							isConnecting: false,
-							isReconnecting: false,
-							isDisconnected: true,
+							isReconnecting: true,
+							isDisconnected: false,
 						} as const;
 					}
+
 					return {
 						wallet,
-						account: connection.currentAccount,
+						account: currentAccount,
 						status: connection.status,
 						supportedIntents: connection.supportedIntents,
 						isConnected: false,

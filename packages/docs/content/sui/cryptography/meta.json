@@ -1,0 +1,4 @@
+{
+	"title": "Cryptography",
+	"pages": ["index", "keypairs", "signers"]
+}

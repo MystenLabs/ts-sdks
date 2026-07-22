@@ -202,7 +202,11 @@ The built-in mutation hooks have been removed. Use TanStack Query's `useMutation
 
 In the old dApp kit, you could optionally pass a `chain` parameter (for example, `sui:mainnet`) to
 methods like `signTransaction` and `signAndExecuteTransaction`. In the new dApp kit, use the
-`network` parameter instead - the chain is automatically derived from the network.
+`network` parameter instead - the chain is automatically derived from the network. It is optional
+and defaults to the active network, so you only need it when targeting a network other than the
+active one (for example, an app that operates on both mainnet and testnet). Likewise, the
+per-account `account` override is preserved as an optional parameter that defaults to the connected
+account.
 
 ```diff
 - const { mutateAsync: signAndExecute } = useSignAndExecuteTransaction();

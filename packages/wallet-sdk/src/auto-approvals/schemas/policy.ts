@@ -2,12 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import * as v from 'valibot';
+import { normalizeStructTag } from '@mysten/sui/utils';
 
 const AccessLevelSchema = v.union([v.literal('read'), v.literal('mutate'), v.literal('transfer')]);
 
 const BasePermissionSchema = v.object({
 	description: v.string(),
 });
+
+const CoinTypeSchema = v.pipe(
+	v.string(),
+	v.transform((coinType) => normalizeStructTag(coinType)),
+);
 
 const ObjectTypePermissionSchema = v.object({
 	...BasePermissionSchema.entries,
@@ -19,7 +25,7 @@ const ObjectTypePermissionSchema = v.object({
 const CoinBalancePermissionSchema = v.object({
 	...BasePermissionSchema.entries,
 	$kind: v.literal('CoinBalance'),
-	coinType: v.string(),
+	coinType: CoinTypeSchema,
 });
 
 const AnyBalancesPermissionSchema = v.object({
@@ -50,8 +56,7 @@ export const AutoApprovalSettingsSchema = v.looseObject({
 	// TODO: figure out a better name
 	remainingTransactions: v.nullable(v.number()),
 	sharedBudget: v.nullable(v.number()),
-	// TODO: normalize coin types
-	coinBudgets: v.record(v.string(), v.string()),
+	coinBudgets: v.record(CoinTypeSchema, v.string()),
 });
 
 export const AutoApprovalPolicySchema = v.object({

@@ -3,7 +3,7 @@
 	"author": "Mysten Labs <build@mystenlabs.com>",
 	"description": "Sui signer using the WebCrypto API (P-256 / Secp256r1)",
 	"homepage": "https://sdk.mystenlabs.com",
-	"version": "0.1.2",
+	"version": "0.2.9",
 	"license": "Apache-2.0",
 	"type": "module",
 	"sideEffects": false,
@@ -46,14 +46,14 @@
 		"node": ">=22"
 	},
 	"dependencies": {
-		"@noble/curves": "^2.0.1"
+		"@noble/curves": "^2.2.0"
 	},
 	"peerDependencies": {
 		"@mysten/sui": "workspace:^"
 	},
 	"devDependencies": {
-		"@types/node": "^25.0.8",
-		"typescript": "^5.9.3",
-		"vitest": "^4.0.17"
+		"@types/node": "^25.9.3",
+		"typescript": "^6.0.3",
+		"vitest": "^4.1.8"
 	}
 }

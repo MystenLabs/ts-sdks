@@ -59,6 +59,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 						url: '/zksend',
 					},
 					{
+						title: 'Sponsor',
+						description: 'Build gas sponsorship services',
+						url: '/sponsor',
+					},
+					{
 						title: 'API Reference',
 						url: '/typedoc/index.html',
 					},

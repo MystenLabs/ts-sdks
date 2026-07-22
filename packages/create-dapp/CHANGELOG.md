@@ -1,5 +1,63 @@
 # @mysten/create-dapp
 
+## 0.7.11
+
+## 0.7.10
+
+### Patch Changes
+
+- Updated dependencies [899d9e3]
+  - @mysten/sui@2.22.0
+
+## 0.7.9
+
+### Patch Changes
+
+- Updated dependencies [da78e18]
+  - @mysten/sui@2.21.0
+
+## 0.7.8
+
+## 0.7.7
+
+## 0.7.6
+
+## 0.7.5
+
+## 0.7.4
+
+### Patch Changes
+
+- Updated dependencies [7452835]
+  - @mysten/sui@2.20.0
+
+## 0.7.3
+
+### Patch Changes
+
+- Updated dependencies [2be98ce]
+  - @mysten/sui@2.19.0
+
+## 0.7.2
+
+## 0.7.1
+
+## 0.7.0
+
+### Minor Changes
+
+- bbf63cb: Updated dependencies
+
+### Patch Changes
+
+- Updated dependencies [bbf63cb]
+- Updated dependencies [b093d05]
+- Updated dependencies [bbf63cb]
+- Updated dependencies [4ca4c66]
+  - @mysten/codegen@0.11.0
+  - @mysten/sui@2.18.0
+  - @mysten/dapp-kit-react@2.1.0
+
 ## 0.6.8
 
 ### Patch Changes

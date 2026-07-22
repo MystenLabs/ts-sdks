@@ -2,10 +2,48 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { beforeAll, describe, expect, it } from 'vitest';
-import { setup, TestToolbox, createTestWithAllClients } from '../../utils/setup.js';
+import {
+	setup,
+	TestToolbox,
+	createTestWithAllClients,
+	getRandomAddresses,
+} from '../../utils/setup.js';
 import { Transaction } from '../../../../src/transactions/index.js';
 import { SUI_TYPE_ARG } from '../../../../src/utils/index.js';
 import { bcs } from '../../../../src/bcs/index.js';
+
+const CLOCK_OBJECT_ID = '0x6';
+
+function addClockRead(tx: Transaction) {
+	tx.moveCall({
+		target: '0x2::clock::timestamp_ms',
+		arguments: [
+			tx.sharedObjectRef({
+				objectId: CLOCK_OBJECT_ID,
+				initialSharedVersion: '1',
+				mutable: false,
+			}),
+		],
+	});
+}
+
+function expectAddressBalanceTransactionExpiration(bytes: Uint8Array, budget: bigint) {
+	const parsed = bcs.TransactionData.parse(bytes);
+	const validDuring = parsed.V1?.expiration.ValidDuring;
+
+	expect(parsed.V1?.gasData.payment).toEqual([]);
+	expect(String(parsed.V1?.gasData.budget)).toBe(String(budget));
+	expect(Number(parsed.V1?.gasData.price)).toBeGreaterThan(0);
+	expect(validDuring).toBeDefined();
+	expect(validDuring?.chain).toEqual(expect.any(String));
+	expect(validDuring?.chain.length).toBeGreaterThan(0);
+	expect(validDuring?.nonce).toEqual(expect.any(Number));
+	expect(validDuring?.minEpoch).toEqual(expect.any(String));
+	expect(validDuring?.maxEpoch).toEqual(expect.any(String));
+	expect(BigInt(validDuring!.maxEpoch!)).toBe(BigInt(validDuring!.minEpoch!) + 1n);
+
+	return validDuring!;
+}
 
 /**
  * Transaction Resolution Test Suite
@@ -218,6 +256,136 @@ describe('Core API - Transaction Resolution', () => {
 			const parsed = bcs.TransactionData.parse(bytes);
 			expect(parsed.V1?.gasData.payment?.[0].objectId).toBe(explicitGasCoin.objectId);
 		});
+
+		testWithAllClients(
+			'should set ValidDuring expiration for address balance gas without selecting coins',
+			async (client) => {
+				const [sender, gasOwner] = getRandomAddresses(2);
+				const budget = 50_000_000n;
+
+				const tx = new Transaction();
+				addClockRead(tx);
+				tx.setSender(sender);
+				tx.setGasOwner(gasOwner);
+				tx.setGasPayment([]);
+				tx.setGasBudget(budget);
+
+				const bytes = await tx.build({ client });
+				expectAddressBalanceTransactionExpiration(bytes, budget);
+			},
+		);
+
+		testWithAllClients(
+			'should preserve explicit None expiration for address balance gas',
+			async (client) => {
+				const [sender, gasOwner] = getRandomAddresses(2);
+				const budget = 50_000_000n;
+
+				const tx = new Transaction();
+				addClockRead(tx);
+				tx.setSender(sender);
+				tx.setGasOwner(gasOwner);
+				tx.setGasPayment([]);
+				tx.setGasBudget(budget);
+				tx.setExpiration({ None: true });
+
+				const bytes = await tx.build({ client });
+				const parsed = bcs.TransactionData.parse(bytes);
+
+				expect(parsed.V1?.gasData.payment).toEqual([]);
+				expect(String(parsed.V1?.gasData.budget)).toBe(String(budget));
+				expect(Number(parsed.V1?.gasData.price)).toBeGreaterThan(0);
+				expect(parsed.V1?.expiration.None).toBe(true);
+				expect(tx.getData().expiration?.$kind).toBe('None');
+			},
+		);
+
+		testWithAllClients(
+			'should not synthesize ValidDuring when address balance gas request uses backend gas selection',
+			async (client) => {
+				const { address } = await toolbox.getSigner({ coins: [200_000_000n] });
+
+				const tx = new Transaction();
+				addClockRead(tx);
+				tx.setSender(address);
+				tx.setGasPayment([]);
+
+				const bytes = await tx.build({ client });
+				const parsed = bcs.TransactionData.parse(bytes);
+
+				expect(Number(parsed.V1?.gasData.budget)).toBeGreaterThan(0);
+				expect(Number(parsed.V1?.gasData.price)).toBeGreaterThan(0);
+				expect(parsed.V1?.expiration.ValidDuring).toBeUndefined();
+			},
+			{ skip: ['jsonrpc'] },
+		);
+
+		testWithAllClients(
+			'should execute resolved address balance gas transactions without gas coins',
+			async (client) => {
+				const { keypair, address } = await toolbox.getSigner({ addressBalance: 200_000_000n });
+				const budget = 50_000_000n;
+
+				const tx = new Transaction();
+				addClockRead(tx);
+				tx.setSender(address);
+				tx.setGasPayment([]);
+				tx.setGasBudget(budget);
+
+				const bytes = await tx.build({ client });
+				const validDuring = expectAddressBalanceTransactionExpiration(bytes, budget);
+
+				const simulation = await client.core.simulateTransaction({
+					transaction: bytes,
+					include: { effects: true, transaction: true },
+				});
+
+				if (simulation.$kind !== 'Transaction') {
+					throw new Error(
+						`Expected transaction simulation to succeed: ${
+							simulation.FailedTransaction.status.error?.message ?? 'unknown error'
+						}`,
+					);
+				}
+
+				expect(simulation.Transaction.effects?.status.success).toBe(true);
+				expect(
+					simulation.Transaction.transaction?.expiration &&
+						'ValidDuring' in simulation.Transaction.transaction.expiration,
+				).toBe(true);
+				if (simulation.Transaction.epoch != null) {
+					expect(BigInt(simulation.Transaction.epoch)).toBeGreaterThanOrEqual(
+						BigInt(validDuring.minEpoch!),
+					);
+					expect(BigInt(simulation.Transaction.epoch)).toBeLessThan(BigInt(validDuring.maxEpoch!));
+				}
+
+				const result = await client.core.signAndExecuteTransaction({
+					transaction: bytes,
+					signer: keypair,
+					include: { effects: true, transaction: true },
+				});
+
+				if (result.$kind !== 'Transaction') {
+					throw new Error(
+						`Expected transaction execution to succeed: ${
+							result.FailedTransaction.status.error?.message ?? 'unknown error'
+						}`,
+					);
+				}
+
+				expect(result.Transaction.effects?.status.success).toBe(true);
+				expect(
+					result.Transaction.transaction?.expiration &&
+						'ValidDuring' in result.Transaction.transaction.expiration,
+				).toBe(true);
+				expect(BigInt(result.Transaction.epoch!)).toBeGreaterThanOrEqual(
+					BigInt(validDuring.minEpoch!),
+				);
+				expect(BigInt(result.Transaction.epoch!)).toBeLessThan(BigInt(validDuring.maxEpoch!));
+				await toolbox.waitForTransaction({ result });
+			},
+		);
 	});
 
 	describe('Transaction Execution', () => {

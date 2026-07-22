@@ -1,7 +1,8 @@
 name: Release Orchestrator
 
-# Dispatches `release-<pkg>.yml` for each public @mysten package whose
-# current version isn't on npm yet. Skips while `.changeset/*.md` is non-empty.
+# Dispatches `release-<pkg>.yml` for each public @mysten / @mysten-incubation
+# package whose current version isn't on npm yet. Skips while `.changeset/*.md`
+# is non-empty.
 
 on:
   workflow_dispatch:
@@ -67,7 +68,7 @@ jobs:
           const out = [];
           for (const p of paths) {
             const pkg = JSON.parse(fs.readFileSync(p, 'utf8'));
-            if (pkg.private || !pkg.name || !pkg.name.startsWith('@mysten/')) continue;
+            if (pkg.private || !pkg.name || !/^@mysten(-incubation)?\//.test(pkg.name)) continue;
             try {
               cp.execFileSync('npm', ['view', `${pkg.name}@${pkg.version}`, 'version'], { stdio: 'ignore' });
             } catch {
@@ -103,7 +104,7 @@ jobs:
           failed=()
           while IFS= read -r pkg; do
             [ -z "$pkg" ] && continue
-            file="release-${pkg#@mysten/}.yml"
+            file="release-${pkg##*/}.yml"
             echo "Dispatching $file (dry_run=$DRY_RUN, ref=$HEAD_SHA)"
             if ! gh workflow run "$file" --ref main \
                 -f "dry_run=$DRY_RUN" \

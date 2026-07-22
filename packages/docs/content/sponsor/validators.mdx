@@ -1,0 +1,211 @@
+---
+title: Validation
+description: Compose built-in and custom validation analyzers for sponsorship policy
+keywords: [Sponsor validation, custom validation analyzers, transaction analyzer, balanceFlows, Sui]
+---
+
+A validator is an analyzer used for policy checks. Create one with `createAnalyzer(...)`, return the
+issues it found, and pass it to `createSponsor({ validate })`. It declares the analyzers it reads
+through `dependencies` and reports these outcomes:
+
+- **pass**: `{ result: null }` (or `{ result: [] }`);
+- **reject**: `{ result: [{ code, message }] }`: the transaction is well-formed but violates policy
+  (`POLICY_REJECTED`);
+- **partial**: `{ result: [{ code, message }], issues: [{ message }] }`: the validator found a
+  policy rejection but also hit an analysis issue, so sponsor validation reports both and treats the
+  overall reason as `ANALYSIS_FAILED`;
+- **couldn't analyze**: `{ issues: [{ message }] }` or `throw`: the analyzer itself couldn't decide
+  (a failed lookup, an unreachable service), producing `ANALYSIS_FAILED`. This is the analyzer
+  framework's own channel, so it propagates through strict dependencies. Sponsor validation treats
+  each configured validator independently, so one validator's analysis failure doesn't suppress
+  policy rejections from other validators.
+
+Reporting findings as the `result` (rather than through `issues`) is what keeps "violates policy"
+distinct from "couldn't be checked". There's no built-in "the sponsor must be paid" rule, because
+value-flow policy is app-specific, so write it over the built-in `balanceFlows` analyzer (signed
+per-address deltas: **negative = value left the owner, positive = arrived**):
+
+```ts
+import { analyzers, createAnalyzer } from '@mysten-incubation/sponsor';
+
+const USDC = '0x...::usdc::USDC';
+
+const requireSponsorPayment = createAnalyzer({
+	dependencies: { balanceFlows: analyzers.balanceFlows },
+	analyze:
+		() =>
+		({ balanceFlows }) => {
+			const received =
+				balanceFlows.sponsor
+					?.filter((flow) => flow.coinType === USDC)
+					.reduce((sum, flow) => sum + flow.amount, 0n) ?? 0n;
+
+			return received < 10_000n
+				? { result: [{ code: 'UNDERPAID', message: `Sponsor received ${received}, needs 10000.` }] }
+				: { result: null };
+		},
+});
+```
+
+The most useful shared analyzer is **`data`**, the parsed transaction (sender, gas data, commands,
+expiration), which most validators read. Alongside it: `balanceFlows` (signed value deltas),
+`transactionResponse` (the dry-run, including effects), `commands`, `moveFunctions`, `objects`,
+`coins`, `inputs`, and `bytes`, plus the sponsor's `currentEpoch`, and any others the analyzer
+package adds (see [`@mysten/wallet-sdk`](https://www.npmjs.com/package/@mysten/wallet-sdk) for the
+full set). All are re-exported as `analyzers` (with `currentEpoch`, `createAnalyzer`, and `optional`
+alongside). A failed required analyzer never reaches your validator's `analyze`: that validator
+contributes an `ANALYSIS_FAILED` issue while independent validators can still report policy
+rejections.
+
+## Loading data, and sharing it across validators
+
+An analyzer receives the same `options` the sponsor passes to `analyze` (including **`client`**), so
+it can load onchain data. And because the framework runs each analyzer once and shares its result,
+several validators read it for the cost of one fetch:
+
+```ts
+import { analyzers, createAnalyzer, createSponsor } from '@mysten-incubation/sponsor';
+
+// Loads the *sponsor's* SUI balance via options.client (the gas owner is the sponsor)…
+const sponsorBalance = createAnalyzer({
+	dependencies: { data: analyzers.data },
+	analyze:
+		(options) =>
+		async ({ data }) => {
+			const { balance } = await options.client.core.getBalance({ owner: data.gasData.owner! });
+			return { result: BigInt(balance.balance) };
+		},
+});
+
+// …read by two validators; the `getBalance` call still runs only once.
+const sponsorCanCoverGas = createAnalyzer({
+	dependencies: { sponsorBalance, data: analyzers.data },
+	analyze:
+		() =>
+		({ sponsorBalance, data }) =>
+			sponsorBalance >= BigInt(data.gasData.budget ?? 0)
+				? { result: null }
+				: {
+						result: [{ code: 'SPONSOR_UNDERFUNDED', message: 'Sponsor balance cannot cover gas.' }],
+					},
+});
+const sponsorKeepsReserve = createAnalyzer({
+	dependencies: { sponsorBalance },
+	analyze:
+		() =>
+		({ sponsorBalance }) =>
+			sponsorBalance >= 1_000_000_000n
+				? { result: null }
+				: { result: [{ code: 'RESERVE_LOW', message: 'Sponsor reserve below 1 SUI.' }] },
+});
+
+createSponsor({ signer, client, validate: [sponsorCanCoverGas, sponsorKeepsReserve] });
+```
+
+## Request-scoped options
+
+A validator reads request inputs (an auth token, a tenant id) straight off `options`.
+`createSponsor` **infers** them and requires them, typed, under `validationOptions` on sponsor calls
+(required only when the option itself is required), without an untyped metadata bag:
+
+```ts
+const authChecked = createAnalyzer({
+	analyze: (options: { authToken: string }) => () =>
+		isValidToken(options.authToken)
+			? { result: null }
+			: { result: [{ code: 'BAD_AUTH', message: 'Invalid auth token.' }] },
+});
+
+const sponsor = createSponsor({ signer, client, validate: [authChecked] });
+
+// `validationOptions.authToken` is now a required, typed argument:
+await sponsor.signAndExecuteTransaction({
+	transaction,
+	userSignature,
+	validationOptions: { authToken },
+});
+```
+
+## How it runs
+
+`createSponsor` aggregates every validator through **`sponsor.analyzer`**, and validation is just
+`analyze({ check: sponsor.analyzer }, { transaction, client })`. The analyzer framework then
+handles:
+
+- **Lazy**: only analyzers some validator depends on run, so cost tracks your policy. `defaults()`
+  includes `simulationSucceeds`, so the default config _does_ dry-run; drop it (or use only
+  validators that read `data`) and the sponsor **never simulates**. There's no "offline phase" to
+  declare, because it falls out of the dependency graph.
+- **Deduped**: `data` and `balanceFlows` and so on resolve once even when many validators (and a
+  host graph) depend on them.
+- **Independent failure reporting**: a failed validator becomes an `ANALYSIS_FAILED` entry in
+  `analysisIssues`, without suppressing policy rejections from validators that did run.
+
+When validation fails, the sponsor never signs and the method **returns**
+`{ $kind: 'Rejected', issues, policyIssues, analysisIssues, reason }`. `issues` preserves the
+combined list for existing callers, while `policyIssues` and `analysisIssues` separate policy
+rejections from checks that could not run. `reason` is `'POLICY_REJECTED'` when every reported issue
+is policy-only and `'ANALYSIS_FAILED'` when any check could not run. To turn a rejection into a
+thrown error, the exported `SponsorValidationError` class takes `(issues, reason)`.
+
+**`sponsor.analyzer`** is also the composable handle: drop it into any other `analyze()` graph and
+it contributes `SponsorRejection | null`, deduping its analyzers with that graph.
+
+## Built-in validation analyzers
+
+| Validator                      | Reads                  | Rejects when…                                             |
+| ------------------------------ | ---------------------- | --------------------------------------------------------- |
+| `validSender()`                | `data`                 | the sender is unset, or is the gas owner (sponsor)        |
+| `onlyAddressBalanceGas()`      | `data`                 | the gas payment isn't empty (`[]`)†                       |
+| `gasCoinNotUsed()`             | `data`                 | a command uses the gas coin (`tx.gas`)                    |
+| `onlySenderWithdrawals()`      | `data`                 | a `FundsWithdrawal` input isn't the sender's              |
+| `userSignatureMatchesSender()` | `bytes`, `data`        | a supplied user signature isn't a valid sender signature‡ |
+| `gasBudget({ min?, max? })`    | `data`                 | the gas budget is unset or outside the range              |
+| `allowedPackages([...])`       | `data`                 | a MoveCall targets a package outside the allowlist        |
+| `allowedFunctions([...])`      | `data`                 | a MoveCall targets a function outside the allowlist       |
+| `simulationSucceeds()`         | `transactionResponse`  | the dry-run succeeds but the transaction would abort\*    |
+| `boundedExpiration()`          | `data`, `currentEpoch` | the expiration is missing or beyond the next epoch        |
+
+\* The dry-run itself _succeeding_ but reporting an aborting transaction is a **policy** rejection
+(`TRANSACTION_WOULD_FAIL`): the bytes are executable and would still cost the sponsor gas (landing a
+failed transaction with a digest) if submitted. The dry-run _failing to run at all_ (an unreachable
+node, unresolvable objects) is instead surfaced as `ANALYSIS_FAILED`, with the underlying error
+detail.
+
+† Address-balance gas (an empty payment) is how the sponsor pays from its own balance rather than
+from nominated gas coins; the sponsor-builds flow always sets this, so this validator mainly guards
+user-supplied bytes.
+
+‡ Verifies (through `@mysten/sui`'s `isValidTransactionSignature`) that **every** supplied user
+signature is cryptographically valid over the bytes **and** resolves to the sender, caught before
+the sponsor co-signs, rather than only at execution (all supplied signatures are attached to
+execution, so one that isn't the sender's would be rejected onchain after the sponsor signed). A
+malformed, invalid, or wrong-signer signature is rejected as `USER_SIGNATURE_INVALID`; the sender
+match is key-type aware (a zkLogin key matches either its legacy or current address). An
+_environmental_ failure during verification (for example, a zkLogin JWK or epoch lookup throwing)
+isn't a validation result; it surfaces as `ANALYSIS_FAILED`, so a network blip is never reported as
+a bad signature. Passes when no user signature was supplied (the sponsor-builds flow). The signature
+is read from the request, not from `validationOptions`.
+
+`defaults()` bundles `validSender()` + `onlyAddressBalanceGas()` + `gasCoinNotUsed()` +
+`onlySenderWithdrawals()` + `simulationSucceeds()` + `boundedExpiration()`.
+
+## Timing-attack mitigation
+
+Optionally insert random delays to reduce timing manipulation of onchain state between signing and
+execution:
+
+```ts
+createSponsor({
+	signer,
+	client,
+	delay: {
+		beforeSimulate: { min: 50, max: 200 }, // ms (or a fixed number) before the analysis is resolved
+		beforeExecute: { min: 50, max: 200 }, // before executing
+		// random: () => 0.5,                 // override the RNG (e.g. in tests)
+	},
+});
+```
+
+This is mitigation, not prevention. `beforeSimulate` runs once before the analysis resolves (where
+simulation, if any, happens). Default is off.

@@ -4,6 +4,7 @@
 import { describe, it, expect } from 'vitest';
 
 import { Transaction } from '../../../src/transactions/Transaction.js';
+import { COIN_WITH_BALANCE } from '../../../src/transactions/intents/CoinWithBalance.js';
 import { normalizeSuiAddress, normalizeStructTag } from '../../../src/utils/index.js';
 
 const TEST_TYPE = normalizeStructTag('0x123::test::TOKEN');
@@ -2215,6 +2216,27 @@ describe('tx.balance', () => {
 		// Both transfer commands should follow
 		const transferCmds = result.commands.filter((c: any) => c.TransferObjects);
 		expect(transferCmds).toHaveLength(2);
+	});
+
+	// https://github.com/MystenLabs/ts-sdks/issues/1120
+	it('resolves after a toJSON/Transaction.from round-trip with CoinWithBalance as a supported intent', async () => {
+		const tx = new Transaction();
+		tx.setSenderIfNotSet(SENDER);
+		tx.transferObjects([tx.coin({ type: TEST_TYPE, balance: 60n })], RECEIVER);
+
+		// Serialize while keeping the intent unresolved — `balance` becomes a string in JSON.
+		const json = await tx.toJSON({ supportedIntents: [COIN_WITH_BALANCE] });
+		expect(JSON.parse(json).commands.find((c: any) => c.$Intent)?.$Intent.data.balance).toBe('60');
+
+		// Deserializing keeps `balance` a string; the resolver must coerce it back to a bigint.
+		const restored = Transaction.from(json);
+		const result = await resolvedData(
+			restored,
+			mockClient({ addressBalance: 0n, coinBalance: 100n, coins: [makeCoin('0xc01', '100')] }),
+		);
+
+		const splitCmds = result.commands.filter((c: any) => c.SplitCoins);
+		expect(splitCmds).toHaveLength(1);
 	});
 });
 

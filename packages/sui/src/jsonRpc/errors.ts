@@ -20,8 +20,16 @@ const CODE_TO_ERROR_TYPE: Record<number, string> = {
 	'-32002': 'TransactionExecutionClientError',
 };
 
+/**
+ * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+ * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+ */
 export class SuiHTTPTransportError extends Error {}
 
+/**
+ * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+ * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+ */
 export class JsonRpcError extends SuiHTTPTransportError {
 	code: number;
 	type: string;
@@ -33,6 +41,10 @@ export class JsonRpcError extends SuiHTTPTransportError {
 	}
 }
 
+/**
+ * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+ * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+ */
 export class SuiHTTPStatusError extends SuiHTTPTransportError {
 	status: number;
 	statusText: string;

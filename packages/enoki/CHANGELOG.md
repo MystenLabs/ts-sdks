@@ -1,5 +1,45 @@
 # @mysten/enoki
 
+## 1.2.7
+
+## 1.2.6
+
+## 1.2.5
+
+## 1.2.4
+
+## 1.2.3
+
+## 1.2.2
+
+## 1.2.1
+
+## 1.2.0
+
+### Minor Changes
+
+- 7452835: `EnokiKeypair` now extends the shared `ZkLoginSigner` from `@mysten/sui/zklogin`,
+  removing duplicated signature-wrapping logic. `signTransaction` / `signPersonalMessage` /
+  `getPublicKey` are unchanged. Two behaviors are corrected to match `ZkLoginSigner`:
+  `getKeyScheme()` now returns `'ZkLogin'` (previously the ephemeral key's scheme), and `sign()` now
+  throws instead of returning a bare ephemeral signature (which was never valid for the zkLogin
+  address).
+
+## 1.1.1
+
+## 1.1.0
+
+### Minor Changes
+
+- bbf63cb: Updated dependencies
+
+### Patch Changes
+
+- Updated dependencies [bbf63cb]
+  - @mysten/utils@0.4.0
+  - @mysten/wallet-standard@0.21.0
+  - @mysten/webcrypto-signer@0.2.0
+
 ## 1.0.8
 
 ### Patch Changes

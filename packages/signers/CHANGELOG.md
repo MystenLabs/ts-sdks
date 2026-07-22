@@ -1,5 +1,43 @@
 # @mysten/signers
 
+## 1.1.9
+
+## 1.1.8
+
+## 1.1.7
+
+## 1.1.6
+
+## 1.1.5
+
+## 1.1.4
+
+## 1.1.3
+
+### Patch Changes
+
+- Updated dependencies [9db8f64]
+- Updated dependencies [9db8f64]
+  - @mysten/aws-kms-signer@0.3.0
+
+## 1.1.2
+
+## 1.1.1
+
+## 1.1.0
+
+### Minor Changes
+
+- bbf63cb: Updated dependencies
+
+### Patch Changes
+
+- Updated dependencies [bbf63cb]
+  - @mysten/aws-kms-signer@0.2.0
+  - @mysten/gcp-kms-signer@0.2.0
+  - @mysten/ledger-signer@0.2.0
+  - @mysten/webcrypto-signer@0.2.0
+
 ## 1.0.5
 
 ### Patch Changes

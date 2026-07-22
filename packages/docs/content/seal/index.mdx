@@ -52,9 +52,52 @@ const client = new SuiGrpcClient({
 
 The `seal()` function accepts the following options:
 
-- **`serverConfigs`** (required) - Array of key server configurations with `objectId` and `weight`
+- **`serverConfigs`** (required) - Array of key server configurations (see
+  [Choosing key servers](#choosing-key-servers)). Each entry contains:
+  - **`objectId`** (required) - The key server object ID
+  - **`weight`** (required) - How many times the key server can contribute towards reaching the
+    decryption threshold
+  - **`aggregatorUrl`** (required for decentralized servers) - The aggregator endpoint URL
+  - **`apiKeyName`** and **`apiKey`** (optional) - Required if the server requires API key
+    authentication
 - **`verifyKeyServers`** (optional) - Whether to verify key server authenticity (default: `true`)
 - **`timeout`** (optional) - Timeout in milliseconds for network requests (default: `10000`)
+
+## Choosing key servers
+
+Seal supports two server types, **independent** and **decentralized** (committee mode), which you
+can use individually or in combination. Each key server counts as one server in your threshold
+configuration. Decentralized servers require an `aggregatorUrl`, because all fetch key calls go
+through an aggregator:
+
+```ts
+const client = new SuiGrpcClient({
+	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
+}).$extend(
+	seal({
+		serverConfigs: [
+			// Decentralized (committee mode) server
+			{
+				objectId: '0xb012378c9f3799fb5b1a7083da74a4069e3c3f1c93de0b27212a5799ce1e1e98',
+				aggregatorUrl: 'https://seal-aggregator-testnet.mystenlabs.com',
+				weight: 1,
+			},
+			// Independent server
+			{
+				objectId: '0x73d05d62c18d9374e3ea529e8e0ed6161da1a141a94d3f76ae3fe4e99356db75',
+				weight: 1,
+			},
+		],
+	}),
+);
+```
+
+If a server requires API key authentication, include `apiKeyName` and `apiKey` in its configuration
+object. The SDK sends these as an HTTP header in the format `apiKeyName: apiKey`.
+
+For more details on server types, verified key servers, and API key authentication, see
+[Using Seal](https://seal-docs.wal.app/UsingSeal) in the main Seal documentation.
 
 ## Basic usage
 

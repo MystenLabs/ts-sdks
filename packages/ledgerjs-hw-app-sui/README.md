@@ -7,6 +7,16 @@
 [Ledger Hardware Wallet](https://www.ledger.com/) JavaScript bindings for [Sui](https://sui.io/),
 based on [LedgerJS](https://github.com/LedgerHQ/ledgerjs).
 
+> **Most applications should use the
+> [`@mysten/ledger-signer`](https://www.npmjs.com/package/@mysten/ledger-signer) package instead.**
+> This package is a low-level binding to the Ledger Sui app. `@mysten/ledger-signer` wraps it in a
+> `LedgerSigner` that implements the standard Sui `Signer` interface, so it works anywhere the SDK
+> accepts a signer (deriving addresses, signing transactions and personal messages,
+> `signAndExecuteTransaction`, and so on). See the
+> [Ledger Signer documentation](https://sdk.mystenlabs.com/sui/cryptography/signers/ledger) for
+> setup and usage. Reach for this package directly only when you need lower-level control over the
+> device protocol.
+
 ## Using LedgerJS for Sui
 
 Here is a sample app for Node:

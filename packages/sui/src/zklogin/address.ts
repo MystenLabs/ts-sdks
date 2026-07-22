@@ -40,8 +40,8 @@ export function computeZkLoginAddressFromSeed(
 	);
 }
 
-export const MAX_HEADER_LEN_B64 = 248;
-export const MAX_PADDED_UNSIGNED_JWT_LEN = 64 * 25;
+export const MAX_HEADER_LEN_B64 = 279;
+export const MAX_PADDED_UNSIGNED_JWT_LEN = 64 * 30;
 
 export function lengthChecks(jwt: string) {
 	const [header, payload] = jwt.split('.');

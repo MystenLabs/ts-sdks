@@ -1,0 +1,241 @@
+---
+title: Cryptography
+description: Sign and verify Sui transactions and messages with keypairs and external signers
+keywords: [cryptography, signing, Signer, Keypair, public key, verification, multisig, passkey, Sui]
+---
+
+A signature authorizes every transaction and personal message on Sui. The Sui TypeScript SDK exposes
+a single abstraction for producing those signatures, the `Signer`, along with several
+implementations of it, from in-process keypairs to hardware wallets and cloud key-management
+services (KMS). This page walks through the concepts shared by every signer; the subpages cover each
+implementation in detail.
+
+## Signing schemes
+
+A signer always produces a signature under a signature scheme, which determines the curve and
+signature format. Sui supports three schemes, each with a corresponding `Keypair` class:
+
+| Scheme          | Class              | Import                           |
+| --------------- | ------------------ | -------------------------------- |
+| Ed25519         | `Ed25519Keypair`   | `@mysten/sui/keypairs/ed25519`   |
+| ECDSA Secp256k1 | `Secp256k1Keypair` | `@mysten/sui/keypairs/secp256k1` |
+| ECDSA Secp256r1 | `Secp256r1Keypair` | `@mysten/sui/keypairs/secp256r1` |
+
+For background on the schemes themselves, see the
+[Signatures](https://docs.sui.io/concepts/cryptography/transaction-auth/signatures) concept topic. A
+signer's scheme determines the format of its public key and the Sui address it derives.
+
+## The Signer interface
+
+`Signer` is an abstract class exported from `@mysten/sui/cryptography`. Every signer, whether it
+holds the private key in memory, on a Ledger device, or in AWS KMS, implements the same interface,
+so the rest of your code doesn't need to know where the key lives.
+
+Implementations provide three primitives:
+
+| Method           | Description                                                        |
+| ---------------- | ------------------------------------------------------------------ |
+| `getPublicKey()` | Returns the `PublicKey` for deriving the address and verifying     |
+| `getKeyScheme()` | Returns the signature scheme (`ED25519`, `Secp256k1`, `Secp256r1`) |
+| `sign(bytes)`    | Signs raw bytes and returns the signature                          |
+
+On top of those, `Signer` provides the methods you typically call:
+
+| Method                        | Description                                      |
+| ----------------------------- | ------------------------------------------------ |
+| `toSuiAddress()`              | The Sui address derived from the public key      |
+| `signTransaction(bytes)`      | Signs transaction bytes with the correct intent  |
+| `signPersonalMessage(bytes)`  | Signs a personal message                         |
+| `signAndExecuteTransaction()` | Signs and submits a transaction through a client |
+
+There are two broad families of signer:
+
+- **Key pairs** hold the private key in process. `Keypair` extends `Signer` and adds secret-key
+  import and export (`getSecretKey`, `fromSecretKey`). This is the easiest option for scripts,
+  backends, and tests. See [Key pairs](/sui/cryptography/keypairs).
+- **External signers** keep the private key outside your application, in a KMS, on a hardware
+  wallet, or as a non-extractable browser key. They extend `Signer` directly. See
+  [Signers](/sui/cryptography/signers).
+
+Because both families share the `Signer` interface, you can pass any signer wherever the SDK accepts
+one, for example as the `signer` argument to a client's `signAndExecuteTransaction`.
+
+## Public keys and addresses
+
+Every signer exposes a `PublicKey` through `getPublicKey()`. You use the public key to derive the
+signer's Sui address and to verify signatures:
+
+```typescript
+import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
+
+const keypair = new Ed25519Keypair();
+
+// Derive the address directly from the signer...
+const address = keypair.toSuiAddress();
+
+// ...or from its public key
+const publicKey = keypair.getPublicKey();
+const sameAddress = publicKey.toSuiAddress();
+```
+
+## Signing messages and transactions
+
+The signing API is identical for every signer; only construction differs. Use `signPersonalMessage`
+to sign arbitrary bytes and `signTransaction` to sign built transaction bytes:
+
+```typescript
+const message = new TextEncoder().encode('hello world');
+const { signature } = await keypair.signPersonalMessage(message);
+```
+
+Both `signPersonalMessage` and `signTransaction` resolve to `{ bytes, signature }`, where
+`signature` is the serialized signature string used for execution and verification, and `bytes` is
+the base64 payload that the signer signed.
+
+To sign and submit a transaction in one step, pass the signer to a client:
+
+```typescript
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+const client = new SuiGrpcClient({
+	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
+});
+
+const result = await client.signAndExecuteTransaction({
+	transaction,
+	signer: keypair,
+});
+
+// signAndExecuteTransaction resolves to a discriminated union, so check for failure first
+if (result.FailedTransaction) {
+	throw new Error('Transaction failed to execute');
+}
+
+console.log('Digest:', result.Transaction.digest);
+```
+
+## Verifying signatures
+
+Verification confirms a signature is valid for a given message and that the expected key produced
+it. The `@mysten/sui/verify` module verifies a signature against a message and recovers the
+`PublicKey` that produced it, without needing the original signer.
+
+```typescript
+import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
+import { verifyPersonalMessageSignature } from '@mysten/sui/verify';
+
+const keypair = new Ed25519Keypair();
+const message = new TextEncoder().encode('hello world');
+const { signature } = await keypair.signPersonalMessage(message);
+
+const publicKey = await verifyPersonalMessageSignature(message, signature);
+
+if (!publicKey.verifyAddress(keypair.toSuiAddress())) {
+	throw new Error('Signature was valid, but was signed by a different key pair');
+}
+```
+
+### Verifying that a signature is valid for a specific address
+
+`verifyPersonalMessageSignature` and `verifyTransactionSignature` accept an optional `address` and
+throw if the signature is not valid for it:
+
+```typescript
+import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
+import { verifyPersonalMessageSignature } from '@mysten/sui/verify';
+
+const keypair = new Ed25519Keypair();
+const message = new TextEncoder().encode('hello world');
+const { signature } = await keypair.signPersonalMessage(message);
+
+await verifyPersonalMessageSignature(message, signature, {
+	address: keypair.toSuiAddress(),
+});
+```
+
+### Verifying transaction signatures
+
+Verifying transaction signatures works the same way, using `verifyTransactionSignature`:
+
+```typescript
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
+import { Transaction } from '@mysten/sui/transactions';
+import { verifyTransactionSignature } from '@mysten/sui/verify';
+
+const client = new SuiGrpcClient({
+	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
+});
+const tx = new Transaction();
+// ... add some transactions...
+const bytes = await tx.build({ client });
+
+const keypair = new Ed25519Keypair();
+const { signature } = await keypair.signTransaction(bytes);
+
+await verifyTransactionSignature(bytes, signature, {
+	// optionally verify that the signature is valid for a specific address
+	address: keypair.toSuiAddress(),
+});
+```
+
+### Verifying zkLogin signatures
+
+You can't verify zkLogin signatures purely on the client. When verifying a zkLogin signature, the
+SDK uses the GraphQL API. This works for Mainnet signatures without any additional configuration.
+For Testnet signatures, provide a Testnet GraphQL client:
+
+```typescript
+import { SuiGraphQLClient } from '@mysten/sui/graphql';
+import { verifyPersonalMessageSignature } from '@mysten/sui/verify';
+
+const publicKey = await verifyPersonalMessageSignature(message, zkSignature, {
+	client: new SuiGraphQLClient({
+		url: 'https://graphql.testnet.sui.io/graphql',
+	}),
+});
+```
+
+For some zkLogin accounts, there are two valid addresses for a given set of inputs, so comparing the
+address from `publicKey.toSuiAddress()` directly against an expected address can fail. Instead, pass
+the expected address during verification, or use `publicKey.verifyAddress(address)`:
+
+```typescript
+import { SuiGraphQLClient } from '@mysten/sui/graphql';
+import { verifyPersonalMessageSignature } from '@mysten/sui/verify';
+
+const publicKey = await verifyPersonalMessageSignature(message, zkSignature, {
+	client: new SuiGraphQLClient({
+		url: 'https://graphql.testnet.sui.io/graphql',
+	}),
+	// Throws if the signature is not valid for the provided address
+	address: '0x...expectedAddress',
+});
+// or
+
+if (!publicKey.verifyAddress('0x...expectedAddress')) {
+	throw new Error('Signature was valid, but was signed by a different key pair');
+}
+```
+
+Both methods check the signature against the standard and
+[legacy versions of the zkLogin address](https://sdk.mystenlabs.com/sui/zklogin#legacy-addresses).
+
+## Choosing an implementation
+
+- **[Key pairs](/sui/cryptography/keypairs)**: `Ed25519Keypair`, `Secp256k1Keypair`, and
+  `Secp256r1Keypair` hold the private key in process. The easiest option when you manage the secret
+  key yourself. Covers deriving keypairs from mnemonics and secret keys.
+- **[Signers](/sui/cryptography/signers)**: other implementations of the `Signer` interface,
+  including signer packages that keep the private key outside your application — cloud KMS
+  ([AWS](/sui/cryptography/signers/aws-kms), [GCP](/sui/cryptography/signers/gcp-kms)), a
+  [Ledger](/sui/cryptography/signers/ledger) hardware wallet, and non-extractable browser keys with
+  the [Web Crypto](/sui/cryptography/signers/webcrypto) signer — as well as
+  [passkeys](/sui/cryptography/signers/passkey) and
+  [multi-signature](/sui/cryptography/signers/multisig).
+
+If you just need to sign in a script or server and are comfortable managing the secret key yourself,
+start with [Key pairs](/sui/cryptography/keypairs). If the key must never live in your application's
+memory, use one of the external [signers](/sui/cryptography/signers).

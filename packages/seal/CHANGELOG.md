@@ -1,5 +1,38 @@
 # @mysten/seal
 
+## 1.3.4
+
+## 1.3.3
+
+## 1.3.2
+
+## 1.3.1
+
+## 1.3.0
+
+### Minor Changes
+
+- 440a4e4: [seal] Update default for verifyKeyServers to false
+
+## 1.2.4
+
+## 1.2.3
+
+## 1.2.2
+
+## 1.2.1
+
+## 1.2.0
+
+### Minor Changes
+
+- bbf63cb: Updated dependencies
+
+### Patch Changes
+
+- Updated dependencies [bbf63cb]
+  - @mysten/bcs@2.1.0
+
 ## 1.1.3
 
 ### Patch Changes

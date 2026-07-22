@@ -3,7 +3,7 @@
   "collaborators": [
     "jonaslindstrom"
   ],
-  "version": "0.2.2",
+  "version": "0.3.0",
   "private": false,
   "main": "index.js",
   "types": "./index.d.mts",
@@ -35,7 +35,7 @@
   },
   "devDependencies": {
     "@mysten/bcs": "workspace:^",
-    "vite": "^8.0.5",
-    "vitest": "^4.0.17"
+    "vite": "^8.0.16",
+    "vitest": "^4.1.8"
   }
 }

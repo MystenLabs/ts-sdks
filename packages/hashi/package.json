@@ -1,0 +1,68 @@
+{
+	"name": "@mysten/hashi",
+	"version": "0.6.0",
+	"private": false,
+	"description": "TypeScript SDK for the Hashi Sui Move smart contracts",
+	"license": "Apache-2.0",
+	"author": "Mysten Labs <build@mystenlabs.com>",
+	"type": "module",
+	"main": "./dist/index.mjs",
+	"types": "./dist/index.d.mts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.mts",
+			"import": "./dist/index.mjs",
+			"default": "./dist/index.mjs"
+		}
+	},
+	"sideEffects": false,
+	"files": [
+		"CHANGELOG.md",
+		"dist"
+	],
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/MystenLabs/ts-sdks.git"
+	},
+	"bugs": {
+		"url": "https://github.com/MystenLabs/ts-sdks/issues/new"
+	},
+	"keywords": [
+		"sui",
+		"hashi",
+		"bitcoin",
+		"btc",
+		"sdk",
+		"mysten"
+	],
+	"scripts": {
+		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
+		"build": "rm -rf dist && tsc --noEmit && tsdown",
+		"codegen": "sui-ts-codegen generate && pnpm lint:fix",
+		"prettier:check": "prettier -c --ignore-unknown .",
+		"prettier:fix": "prettier -w --ignore-unknown .",
+		"oxlint:check": "oxlint  .",
+		"oxlint:fix": "oxlint --fix",
+		"lint": "pnpm run oxlint:check && pnpm run prettier:check",
+		"lint:fix": "pnpm run oxlint:fix && pnpm run prettier:fix",
+		"test": "pnpm test:typecheck && pnpm test:unit",
+		"test:typecheck": "tsc -p ./test",
+		"test:unit": "vitest run --project=unit",
+		"test:integration": "vitest run --project=integration",
+		"vitest": "vitest"
+	},
+	"dependencies": {
+		"@noble/curves": "^2.2.0",
+		"@noble/hashes": "^2.2.0",
+		"@scure/base": "^2.2.0"
+	},
+	"devDependencies": {
+		"@mysten/codegen": "workspace:^",
+		"@types/node": "^25.9.3",
+		"typescript": "^6.0.3",
+		"vitest": "^4.1.8"
+	},
+	"peerDependencies": {
+		"@mysten/sui": "workspace:^"
+	}
+}

@@ -39,11 +39,11 @@ export type DAppKit<
 > = {
 	networks: TNetworks;
 	getClient: (network?: TNetworks[number]) => Client;
-	signTransaction: (args: SignTransactionArgs) => Promise<SignedTransaction>;
+	signTransaction: (args: SignTransactionArgs<TNetworks>) => Promise<SignedTransaction>;
 	signAndExecuteTransaction: (
-		args: SignAndExecuteTransactionArgs,
+		args: SignAndExecuteTransactionArgs<TNetworks>,
 	) => Promise<SignAndExecuteTransactionResult>;
-	signPersonalMessage: (args: SignPersonalMessageArgs) => Promise<SignedPersonalMessage>;
+	signPersonalMessage: (args: SignPersonalMessageArgs<TNetworks>) => Promise<SignedPersonalMessage>;
 	connectWallet: (args: ConnectWalletArgs) => Promise<{
 		accounts: UiWalletAccount[];
 	}>;
@@ -71,9 +71,13 @@ export function createDAppKit<
 	storage = getDefaultStorage(),
 	storageKey = DEFAULT_STORAGE_KEY,
 	walletInitializers = [],
+	autoConnectTimeout = 5000,
 }: CreateDAppKitOptions<TNetworks, Client>): DAppKit<TNetworks, Client> {
 	const networkConfig = createNetworkConfig(networks, createClient);
-	const stores = createStores({ defaultNetwork, getClient: networkConfig.getClient });
+	const stores = createStores<TNetworks, Client>({
+		defaultNetwork,
+		getClient: networkConfig.getClient,
+	});
 
 	function getClient<T extends TNetworks[number]>(network?: TNetworks[number] | T): Client {
 		return network ? networkConfig.getClient(network) : stores.$currentClient.get();
@@ -84,11 +88,7 @@ export function createDAppKit<
 	syncRegisteredWallets(stores);
 	manageWalletConnection(stores);
 
-	if (autoConnect) {
-		autoConnectWallet({ networks, stores, storageKey, storage });
-	}
-
-	registerAdditionalWallets(
+	const walletsRegistered = registerAdditionalWallets(
 		[
 			...walletInitializers,
 			...(enableBurnerWallet ? [unsafeBurnerWalletInitializer()] : []),
@@ -97,11 +97,22 @@ export function createDAppKit<
 		{ networks, getClient },
 	);
 
+	if (autoConnect) {
+		autoConnectWallet({
+			networks,
+			stores,
+			storageKey,
+			storage,
+			walletsRegistered,
+			timeout: autoConnectTimeout,
+		});
+	}
+
 	return {
 		networks,
 		getClient,
-		signTransaction: signTransactionCreator(stores),
-		signAndExecuteTransaction: signAndExecuteTransactionCreator(stores),
+		signTransaction: signTransactionCreator(stores, networkConfig.getClient),
+		signAndExecuteTransaction: signAndExecuteTransactionCreator(stores, networkConfig.getClient),
 		signPersonalMessage: signPersonalMessageCreator(stores),
 		connectWallet: connectWalletCreator(stores, networks, { storage, storageKey }),
 		disconnectWallet: disconnectWalletCreator(stores, { storage, storageKey }),

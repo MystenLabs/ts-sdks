@@ -565,6 +565,12 @@ const nextConfig: NextConfig = {
 };
 ```
 
+This is the same setting for both the webpack and Turbopack (`next dev --turbo`) bundlers. Without
+it, bundling the WASM loader into a server route can break how it locates the binary at runtime;
+Turbopack in particular surfaces this as a virtualized path such as `/ROOT/...`. If you cannot use
+`serverExternalPackages`, point `wasmUrl` at the web build as shown in the Vite example above, which
+resolves the binary through `import.meta.url` instead of the filesystem.
+
 ## Known fetch limitations
 
 - Some nodes can be slow to respond. When running in Node.js, the default `connectTimeout` is 10

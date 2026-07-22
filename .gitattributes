@@ -9,3 +9,4 @@ packages/deepbook-v3/src/contracts/** linguist-generated=true
 packages/payment-kit/src/contracts/** linguist-generated=true
 packages/kiosk/src/contracts/** linguist-generated=true
 packages/pas/src/contracts/** linguist-generated=true
+packages/hashi/src/contracts/** linguist-generated=true

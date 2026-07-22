@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/payment-kit",
-	"version": "0.1.11",
+	"version": "0.2.9",
 	"private": false,
 	"description": "Sui Payment Kit",
 	"license": "Apache-2.0",
@@ -43,8 +43,8 @@
 	},
 	"devDependencies": {
 		"@mysten/codegen": "workspace:^",
-		"typescript": "^5.9.3",
-		"vitest": "^4.0.17"
+		"typescript": "^6.0.3",
+		"vitest": "^4.1.8"
 	},
 	"dependencies": {
 		"@mysten/bcs": "workspace:^"

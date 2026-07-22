@@ -39,6 +39,14 @@ export type CreateDAppKitOptions<
 	autoConnect?: boolean;
 
 	/**
+	 * The grace period, in milliseconds, to wait for a previously connected wallet to
+	 * register during auto-connect before treating the saved session as unavailable. An
+	 * in-progress restore is never interrupted by this.
+	 * @default `5000`
+	 */
+	autoConnectTimeout?: number;
+
+	/**
 	 * A list of networks supported by the application.
 	 */
 	networks: TNetworks;

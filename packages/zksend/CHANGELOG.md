@@ -1,5 +1,36 @@
 # @mysten/zksend
 
+## 1.2.9
+
+## 1.2.8
+
+## 1.2.7
+
+## 1.2.6
+
+## 1.2.5
+
+## 1.2.4
+
+## 1.2.3
+
+## 1.2.2
+
+## 1.2.1
+
+## 1.2.0
+
+### Minor Changes
+
+- bbf63cb: Updated dependencies
+
+### Patch Changes
+
+- Updated dependencies [bbf63cb]
+  - @mysten/utils@0.4.0
+  - @mysten/wallet-standard@0.21.0
+  - @mysten/window-wallet-core@0.2.0
+
 ## 1.1.2
 
 ### Patch Changes

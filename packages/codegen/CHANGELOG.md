@@ -1,5 +1,68 @@
 # @mysten/codegen
 
+## 0.11.9
+
+## 0.11.8
+
+### Patch Changes
+
+- Updated dependencies [899d9e3]
+  - @mysten/sui@2.22.0
+
+## 0.11.7
+
+### Patch Changes
+
+- Updated dependencies [da78e18]
+  - @mysten/sui@2.21.0
+
+## 0.11.6
+
+## 0.11.5
+
+## 0.11.4
+
+## 0.11.3
+
+## 0.11.2
+
+### Patch Changes
+
+- Updated dependencies [7452835]
+  - @mysten/sui@2.20.0
+
+## 0.11.1
+
+### Patch Changes
+
+- Updated dependencies [2be98ce]
+  - @mysten/sui@2.19.0
+
+## 0.11.0
+
+### Minor Changes
+
+- bbf63cb: Add `typeTag` and `resolveTypeTag` methods to the generated `MoveStruct`, `MoveEnum`, and
+  `MoveTuple` classes.
+
+  - `typeTag(options?)` builds the type tag string for a generated type. `typeArguments` is the full
+    positional list of type arguments in Move declaration order; each entry is a type tag string,
+    another `typeTag()` result, or a BCS type (its name is used). Types with unfilled phantom
+    parameters require `typeArguments` at compile time, and argument arity is validated at runtime.
+  - `resolveTypeTag({ client, ... })` builds the tag, resolves MVR names through
+    `client.core.mvr.resolveType`, and returns the normalized address-only form suitable for queries
+    and comparisons against on-chain data.
+
+- bbf63cb: Updated dependencies
+
+### Patch Changes
+
+- Updated dependencies [b093d05]
+- Updated dependencies [bbf63cb]
+- Updated dependencies [4ca4c66]
+  - @mysten/sui@2.18.0
+  - @mysten/bcs@2.1.0
+
 ## 0.10.6
 
 ### Patch Changes

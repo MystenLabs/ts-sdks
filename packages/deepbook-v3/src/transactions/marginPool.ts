@@ -5,6 +5,7 @@ import type { Transaction, TransactionObjectArgument } from '@mysten/sui/transac
 
 import type { DeepBookConfig } from '../utils/config.js';
 import { convertQuantity } from '../utils/conversion.js';
+import * as marginPoolMoveCalls from '../contracts/deepbook_margin/margin_pool.js';
 
 /**
  * MarginPoolContract class for managing MarginPool operations.
@@ -24,10 +25,12 @@ export class MarginPoolContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	mintSupplierCap = () => (tx: Transaction) => {
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::mint_supplier_cap`,
-			arguments: [tx.object(this.#config.MARGIN_REGISTRY_ID), tx.object.clock()],
-		});
+		return tx.add(
+			marginPoolMoveCalls.mintSupplierCap({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { registry: this.#config.MARGIN_REGISTRY_ID },
+			}),
+		);
 	};
 
 	/**
@@ -55,6 +58,11 @@ export class MarginPoolContract {
 				balance: depositInput,
 			});
 
+			// NOTE: left as a positional moveCall (not codegen). This builder's
+			// coinWithBalance + `tx.object.option` (an on-chain option::none MoveCall
+			// for the Option<ID> referral) interleave commands in a way that a
+			// generated named-arg call reorders — so migrating it would change the
+			// emitted PTB. Kept verbatim to stay byte-identical.
 			tx.moveCall({
 				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::supply`,
 				arguments: [
@@ -86,17 +94,18 @@ export class MarginPoolContract {
 			const coin = this.#config.getCoin(coinKey);
 			const withdrawInput =
 				amountToWithdraw !== undefined ? convertQuantity(amountToWithdraw, coin.scalar) : null;
-			return tx.moveCall({
-				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::withdraw`,
-				arguments: [
-					tx.object(marginPool.address),
-					tx.object(this.#config.MARGIN_REGISTRY_ID),
-					supplierCap,
-					tx.pure.option('u64', withdrawInput),
-					tx.object.clock(),
-				],
-				typeArguments: [marginPool.type],
-			});
+			return tx.add(
+				marginPoolMoveCalls.withdraw({
+					package: this.#config.MARGIN_PACKAGE_ID,
+					arguments: {
+						self: marginPool.address,
+						registry: this.#config.MARGIN_REGISTRY_ID,
+						supplierCap,
+						amount: withdrawInput,
+					},
+					typeArguments: [marginPool.type],
+				}),
+			);
 		};
 
 	/**
@@ -106,15 +115,13 @@ export class MarginPoolContract {
 	 */
 	mintSupplyReferral = (coinKey: string) => (tx: Transaction) => {
 		const marginPool = this.#config.getMarginPool(coinKey);
-		tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::mint_supply_referral`,
-			arguments: [
-				tx.object(marginPool.address),
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object.clock(),
-			],
-			typeArguments: [marginPool.type],
-		});
+		tx.add(
+			marginPoolMoveCalls.mintSupplyReferral({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: marginPool.address, registry: this.#config.MARGIN_REGISTRY_ID },
+				typeArguments: [marginPool.type],
+			}),
+		);
 	};
 
 	/**
@@ -125,15 +132,17 @@ export class MarginPoolContract {
 	 */
 	withdrawReferralFees = (coinKey: string, referralId: string) => (tx: Transaction) => {
 		const marginPool = this.#config.getMarginPool(coinKey);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::withdraw_referral_fees`,
-			arguments: [
-				tx.object(marginPool.address),
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object(referralId),
-			],
-			typeArguments: [marginPool.type],
-		});
+		return tx.add(
+			marginPoolMoveCalls.withdrawReferralFees({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					self: marginPool.address,
+					registry: this.#config.MARGIN_REGISTRY_ID,
+					referral: referralId,
+				},
+				typeArguments: [marginPool.type],
+			}),
+		);
 	};
 
 	// === Read-only/View Functions ===
@@ -145,11 +154,13 @@ export class MarginPoolContract {
 	 */
 	getId = (coinKey: string) => (tx: Transaction) => {
 		const marginPool = this.#config.getMarginPool(coinKey);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::id`,
-			arguments: [tx.object(marginPool.address)],
-			typeArguments: [marginPool.type],
-		});
+		return tx.add(
+			marginPoolMoveCalls.id({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: marginPool.address },
+				typeArguments: [marginPool.type],
+			}),
+		);
 	};
 
 	/**
@@ -160,11 +171,13 @@ export class MarginPoolContract {
 	 */
 	deepbookPoolAllowed = (coinKey: string, deepbookPoolId: string) => (tx: Transaction) => {
 		const marginPool = this.#config.getMarginPool(coinKey);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::deepbook_pool_allowed`,
-			arguments: [tx.object(marginPool.address), tx.pure.id(deepbookPoolId)],
-			typeArguments: [marginPool.type],
-		});
+		return tx.add(
+			marginPoolMoveCalls.deepbookPoolAllowed({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: marginPool.address, deepbookPoolId },
+				typeArguments: [marginPool.type],
+			}),
+		);
 	};
 
 	/**
@@ -174,11 +187,13 @@ export class MarginPoolContract {
 	 */
 	totalSupply = (coinKey: string) => (tx: Transaction) => {
 		const marginPool = this.#config.getMarginPool(coinKey);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::total_supply`,
-			arguments: [tx.object(marginPool.address)],
-			typeArguments: [marginPool.type],
-		});
+		return tx.add(
+			marginPoolMoveCalls.totalSupply({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: marginPool.address },
+				typeArguments: [marginPool.type],
+			}),
+		);
 	};
 
 	/**
@@ -188,11 +203,13 @@ export class MarginPoolContract {
 	 */
 	supplyShares = (coinKey: string) => (tx: Transaction) => {
 		const marginPool = this.#config.getMarginPool(coinKey);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::supply_shares`,
-			arguments: [tx.object(marginPool.address)],
-			typeArguments: [marginPool.type],
-		});
+		return tx.add(
+			marginPoolMoveCalls.supplyShares({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: marginPool.address },
+				typeArguments: [marginPool.type],
+			}),
+		);
 	};
 
 	/**
@@ -202,11 +219,13 @@ export class MarginPoolContract {
 	 */
 	totalBorrow = (coinKey: string) => (tx: Transaction) => {
 		const marginPool = this.#config.getMarginPool(coinKey);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::total_borrow`,
-			arguments: [tx.object(marginPool.address)],
-			typeArguments: [marginPool.type],
-		});
+		return tx.add(
+			marginPoolMoveCalls.totalBorrow({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: marginPool.address },
+				typeArguments: [marginPool.type],
+			}),
+		);
 	};
 
 	/**
@@ -216,11 +235,13 @@ export class MarginPoolContract {
 	 */
 	borrowShares = (coinKey: string) => (tx: Transaction) => {
 		const marginPool = this.#config.getMarginPool(coinKey);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::borrow_shares`,
-			arguments: [tx.object(marginPool.address)],
-			typeArguments: [marginPool.type],
-		});
+		return tx.add(
+			marginPoolMoveCalls.borrowShares({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: marginPool.address },
+				typeArguments: [marginPool.type],
+			}),
+		);
 	};
 
 	/**
@@ -230,11 +251,13 @@ export class MarginPoolContract {
 	 */
 	lastUpdateTimestamp = (coinKey: string) => (tx: Transaction) => {
 		const marginPool = this.#config.getMarginPool(coinKey);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::last_update_timestamp`,
-			arguments: [tx.object(marginPool.address)],
-			typeArguments: [marginPool.type],
-		});
+		return tx.add(
+			marginPoolMoveCalls.lastUpdateTimestamp({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: marginPool.address },
+				typeArguments: [marginPool.type],
+			}),
+		);
 	};
 
 	/**
@@ -244,11 +267,13 @@ export class MarginPoolContract {
 	 */
 	supplyCap = (coinKey: string) => (tx: Transaction) => {
 		const marginPool = this.#config.getMarginPool(coinKey);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::supply_cap`,
-			arguments: [tx.object(marginPool.address)],
-			typeArguments: [marginPool.type],
-		});
+		return tx.add(
+			marginPoolMoveCalls.supplyCap({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: marginPool.address },
+				typeArguments: [marginPool.type],
+			}),
+		);
 	};
 
 	/**
@@ -258,11 +283,13 @@ export class MarginPoolContract {
 	 */
 	maxUtilizationRate = (coinKey: string) => (tx: Transaction) => {
 		const marginPool = this.#config.getMarginPool(coinKey);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::max_utilization_rate`,
-			arguments: [tx.object(marginPool.address)],
-			typeArguments: [marginPool.type],
-		});
+		return tx.add(
+			marginPoolMoveCalls.maxUtilizationRate({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: marginPool.address },
+				typeArguments: [marginPool.type],
+			}),
+		);
 	};
 
 	/**
@@ -272,11 +299,13 @@ export class MarginPoolContract {
 	 */
 	protocolSpread = (coinKey: string) => (tx: Transaction) => {
 		const marginPool = this.#config.getMarginPool(coinKey);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::protocol_spread`,
-			arguments: [tx.object(marginPool.address)],
-			typeArguments: [marginPool.type],
-		});
+		return tx.add(
+			marginPoolMoveCalls.protocolSpread({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: marginPool.address },
+				typeArguments: [marginPool.type],
+			}),
+		);
 	};
 
 	/**
@@ -286,11 +315,13 @@ export class MarginPoolContract {
 	 */
 	minBorrow = (coinKey: string) => (tx: Transaction) => {
 		const marginPool = this.#config.getMarginPool(coinKey);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::min_borrow`,
-			arguments: [tx.object(marginPool.address)],
-			typeArguments: [marginPool.type],
-		});
+		return tx.add(
+			marginPoolMoveCalls.minBorrow({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: marginPool.address },
+				typeArguments: [marginPool.type],
+			}),
+		);
 	};
 
 	/**
@@ -300,11 +331,13 @@ export class MarginPoolContract {
 	 */
 	interestRate = (coinKey: string) => (tx: Transaction) => {
 		const marginPool = this.#config.getMarginPool(coinKey);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::interest_rate`,
-			arguments: [tx.object(marginPool.address)],
-			typeArguments: [marginPool.type],
-		});
+		return tx.add(
+			marginPoolMoveCalls.interestRate({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: marginPool.address },
+				typeArguments: [marginPool.type],
+			}),
+		);
 	};
 
 	/**
@@ -315,11 +348,13 @@ export class MarginPoolContract {
 	 */
 	userSupplyShares = (coinKey: string, supplierCapId: string) => (tx: Transaction) => {
 		const marginPool = this.#config.getMarginPool(coinKey);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::user_supply_shares`,
-			arguments: [tx.object(marginPool.address), tx.pure.id(supplierCapId)],
-			typeArguments: [marginPool.type],
-		});
+		return tx.add(
+			marginPoolMoveCalls.userSupplyShares({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: marginPool.address, supplierCapId },
+				typeArguments: [marginPool.type],
+			}),
+		);
 	};
 
 	/**
@@ -330,10 +365,12 @@ export class MarginPoolContract {
 	 */
 	userSupplyAmount = (coinKey: string, supplierCapId: string) => (tx: Transaction) => {
 		const marginPool = this.#config.getMarginPool(coinKey);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::user_supply_amount`,
-			arguments: [tx.object(marginPool.address), tx.pure.id(supplierCapId), tx.object.clock()],
-			typeArguments: [marginPool.type],
-		});
+		return tx.add(
+			marginPoolMoveCalls.userSupplyAmount({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: marginPool.address, supplierCapId },
+				typeArguments: [marginPool.type],
+			}),
+		);
 	};
 }

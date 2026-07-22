@@ -288,6 +288,7 @@ export function applyGrpcResolvedTransaction(
 	if (options?.onlyTransactionKind) {
 		transactionData.applyResolvedData({
 			...resolved,
+			sender: null,
 			gasData: {
 				budget: null,
 				owner: null,

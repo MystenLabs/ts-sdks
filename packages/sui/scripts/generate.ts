@@ -41,6 +41,9 @@ export const LICENSE_HEADER = `
  */
 `.trim();
 
+const JSON_RPC_DEPRECATION_NOTICE =
+	'@deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient` from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.';
+
 const options: {
 	types: Record<
 		string,
@@ -179,7 +182,7 @@ const options: {
 					typeAlias: 'string | string[]',
 				},
 				requestType: {
-					deprecated: 'requestType will be ignored by JSON RPC in the future',
+					deprecated: 'requestType is deprecated and should not be used',
 				},
 			},
 		},
@@ -265,7 +268,7 @@ fileGenerator.statements.push(
 				const typeOptions = options.types[name] ?? {};
 				if ('anyOf' in schema) {
 					return withDescription(
-						schema,
+						withJsonRpcDeprecation(schema),
 						ts.factory.createTypeAliasDeclaration(
 							[ts.factory.createModifier(ts.SyntaxKind.ExportKeyword)],
 							normalizeName(name),
@@ -281,7 +284,7 @@ fileGenerator.statements.push(
 
 				if ('oneOf' in schema) {
 					return withDescription(
-						schema,
+						withJsonRpcDeprecation(schema),
 						ts.factory.createTypeAliasDeclaration(
 							[ts.factory.createModifier(ts.SyntaxKind.ExportKeyword)],
 							normalizeName(name),
@@ -297,7 +300,7 @@ fileGenerator.statements.push(
 
 				if ('type' in schema && schema.type === 'string') {
 					return withDescription(
-						schema,
+						withJsonRpcDeprecation(schema),
 						ts.factory.createTypeAliasDeclaration(
 							[ts.factory.createModifier(ts.SyntaxKind.ExportKeyword)],
 							normalizeName(name),
@@ -308,7 +311,7 @@ fileGenerator.statements.push(
 				}
 
 				return await withDescription(
-					schema,
+					withJsonRpcDeprecation(schema),
 					ts.factory.createInterfaceDeclaration(
 						[ts.factory.createModifier(ts.SyntaxKind.ExportKeyword)],
 						normalizeName(name),
@@ -398,7 +401,7 @@ async function createMethodParams(method: OpenRpcMethod) {
 	]);
 	if (methodOptions.flattenParams && methodOptions.flattenParams?.length > 0) {
 		return withDescription(
-			method,
+			withJsonRpcDeprecation(method),
 			ts.factory.createTypeAliasDeclaration(
 				[ts.factory.createModifier(ts.SyntaxKind.ExportKeyword)],
 				`${normalizeMethodName(method.name)}Params`,
@@ -416,7 +419,7 @@ async function createMethodParams(method: OpenRpcMethod) {
 	}
 
 	return withDescription(
-		method,
+		withJsonRpcDeprecation(method),
 		ts.factory.createInterfaceDeclaration(
 			[ts.factory.createModifier(ts.SyntaxKind.ExportKeyword)],
 			`${normalizeMethodName(method.name)}Params`,
@@ -501,6 +504,13 @@ async function createObjectMembers(
 	);
 
 	return members;
+}
+
+function withJsonRpcDeprecation<T extends { description?: string }>(options: T): T {
+	return {
+		...options,
+		description: [options.description, JSON_RPC_DEPRECATION_NOTICE].filter(Boolean).join('\n\n'),
+	};
 }
 
 async function withDescription<T extends ts.Node>(

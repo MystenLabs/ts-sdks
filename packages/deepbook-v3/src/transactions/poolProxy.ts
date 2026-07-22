@@ -11,6 +11,7 @@ import type { DeepBookConfig } from '../utils/config.js';
 import { OrderType, SelfMatchingOptions } from '../types/index.js';
 import { MAX_TIMESTAMP, FLOAT_SCALAR } from '../utils/config.js';
 import { convertQuantity, convertPrice, convertRate } from '../utils/conversion.js';
+import * as poolProxyMoveCalls from '../contracts/deepbook_margin/pool_proxy.js';
 
 /**
  * PoolProxyContract class for managing PoolProxy operations.
@@ -53,28 +54,29 @@ export class PoolProxyContract {
 		const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
 		const inputPrice = convertPrice(price, FLOAT_SCALAR, quoteCoin.scalar, baseCoin.scalar);
 		const inputQuantity = convertQuantity(quantity, baseCoin.scalar);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::pool_proxy::place_limit_order_v2`,
-			arguments: [
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object(manager.address),
-				tx.object(pool.address),
-				tx.object(baseMarginPool.address),
-				tx.object(quoteMarginPool.address),
-				tx.object(baseCoin.priceInfoObjectId!),
-				tx.object(quoteCoin.priceInfoObjectId!),
-				tx.pure.u64(clientOrderId),
-				tx.pure.u8(orderType),
-				tx.pure.u8(selfMatchingOption),
-				tx.pure.u64(inputPrice),
-				tx.pure.u64(inputQuantity),
-				tx.pure.bool(isBid),
-				tx.pure.bool(payWithDeep),
-				tx.pure.u64(expiration),
-				tx.object.clock(),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		return tx.add(
+			poolProxyMoveCalls.placeLimitOrderV2({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					registry: this.#config.MARGIN_REGISTRY_ID,
+					marginManager: manager.address,
+					pool: pool.address,
+					baseMarginPool: baseMarginPool.address,
+					quoteMarginPool: quoteMarginPool.address,
+					baseOracle: baseCoin.priceInfoObjectId!,
+					quoteOracle: quoteCoin.priceInfoObjectId!,
+					clientOrderId: BigInt(clientOrderId),
+					orderType,
+					selfMatchingOption,
+					price: inputPrice,
+					quantity: inputQuantity,
+					isBid,
+					payWithDeep,
+					expireTimestamp: expiration,
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -101,25 +103,26 @@ export class PoolProxyContract {
 		const baseMarginPool = this.#config.getMarginPool(pool.baseCoin);
 		const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
 		const inputQuantity = convertQuantity(quantity, baseCoin.scalar);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::pool_proxy::place_market_order_v2`,
-			arguments: [
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object(manager.address),
-				tx.object(pool.address),
-				tx.object(baseMarginPool.address),
-				tx.object(quoteMarginPool.address),
-				tx.object(baseCoin.priceInfoObjectId!),
-				tx.object(quoteCoin.priceInfoObjectId!),
-				tx.pure.u64(clientOrderId),
-				tx.pure.u8(selfMatchingOption),
-				tx.pure.u64(inputQuantity),
-				tx.pure.bool(isBid),
-				tx.pure.bool(payWithDeep),
-				tx.object.clock(),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		return tx.add(
+			poolProxyMoveCalls.placeMarketOrderV2({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					registry: this.#config.MARGIN_REGISTRY_ID,
+					marginManager: manager.address,
+					pool: pool.address,
+					baseMarginPool: baseMarginPool.address,
+					quoteMarginPool: quoteMarginPool.address,
+					baseOracle: baseCoin.priceInfoObjectId!,
+					quoteOracle: quoteCoin.priceInfoObjectId!,
+					clientOrderId: BigInt(clientOrderId),
+					selfMatchingOption,
+					quantity: inputQuantity,
+					isBid,
+					payWithDeep,
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -151,28 +154,29 @@ export class PoolProxyContract {
 		const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
 		const inputPrice = convertPrice(price, FLOAT_SCALAR, quoteCoin.scalar, baseCoin.scalar);
 		const inputQuantity = convertQuantity(quantity, baseCoin.scalar);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::pool_proxy::place_reduce_only_limit_order_v2`,
-			arguments: [
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object(manager.address),
-				tx.object(pool.address),
-				tx.object(baseMarginPool.address),
-				tx.object(quoteMarginPool.address),
-				tx.object(baseCoin.priceInfoObjectId!),
-				tx.object(quoteCoin.priceInfoObjectId!),
-				tx.pure.u64(clientOrderId),
-				tx.pure.u8(orderType),
-				tx.pure.u8(selfMatchingOption),
-				tx.pure.u64(inputPrice),
-				tx.pure.u64(inputQuantity),
-				tx.pure.bool(isBid),
-				tx.pure.bool(payWithDeep),
-				tx.pure.u64(expiration),
-				tx.object.clock(),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		return tx.add(
+			poolProxyMoveCalls.placeReduceOnlyLimitOrderV2({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					registry: this.#config.MARGIN_REGISTRY_ID,
+					marginManager: manager.address,
+					pool: pool.address,
+					baseMarginPool: baseMarginPool.address,
+					quoteMarginPool: quoteMarginPool.address,
+					baseOracle: baseCoin.priceInfoObjectId!,
+					quoteOracle: quoteCoin.priceInfoObjectId!,
+					clientOrderId: BigInt(clientOrderId),
+					orderType,
+					selfMatchingOption,
+					price: inputPrice,
+					quantity: inputQuantity,
+					isBid,
+					payWithDeep,
+					expireTimestamp: expiration,
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -200,26 +204,182 @@ export class PoolProxyContract {
 		const baseMarginPool = this.#config.getMarginPool(pool.baseCoin);
 		const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
 		const inputQuantity = convertQuantity(quantity, baseCoin.scalar);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::pool_proxy::place_reduce_only_market_order_v2`,
-			arguments: [
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object(manager.address),
-				tx.object(pool.address),
-				tx.object(baseMarginPool.address),
-				tx.object(quoteMarginPool.address),
-				tx.object(baseCoin.priceInfoObjectId!),
-				tx.object(quoteCoin.priceInfoObjectId!),
-				tx.pure.u64(clientOrderId),
-				tx.pure.u8(selfMatchingOption),
-				tx.pure.u64(inputQuantity),
-				tx.pure.bool(isBid),
-				tx.pure.bool(payWithDeep),
-				tx.object.clock(),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		return tx.add(
+			poolProxyMoveCalls.placeReduceOnlyMarketOrderV2({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					registry: this.#config.MARGIN_REGISTRY_ID,
+					marginManager: manager.address,
+					pool: pool.address,
+					baseMarginPool: baseMarginPool.address,
+					quoteMarginPool: quoteMarginPool.address,
+					baseOracle: baseCoin.priceInfoObjectId!,
+					quoteOracle: quoteCoin.priceInfoObjectId!,
+					clientOrderId: BigInt(clientOrderId),
+					selfMatchingOption,
+					quantity: inputQuantity,
+					isBid,
+					payWithDeep,
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
+
+	/**
+	 * @description Place a market order and repay the loan from the fill proceeds.
+	 * The taker fill settles into the manager's balance, so the proceeds (plus any
+	 * idle balance) are repaid into the debt side before the risk check; the gate
+	 * is then the *net* post-repay `risk_ratio` being at least the pre-fill ratio.
+	 * Unlike {@link placeMarketOrder}, which checks the post-trade ratio against
+	 * `min_borrow_risk_ratio`, this lets a deleveraging fill go through in the
+	 * `liquidation..min_borrow` band, where a swap alone would be rejected.
+	 * @param {PlaceMarginMarketOrderParams} params Parameters for placing a market order
+	 * @returns A function that takes a Transaction object
+	 */
+	placeMarketOrderAndRepayLoan = (params: PlaceMarginMarketOrderParams) => (tx: Transaction) => {
+		const {
+			poolKey,
+			marginManagerKey,
+			clientOrderId,
+			quantity,
+			isBid,
+			selfMatchingOption = SelfMatchingOptions.SELF_MATCHING_ALLOWED,
+			payWithDeep = true,
+		} = params;
+		const pool = this.#config.getPool(poolKey);
+		const manager = this.#config.getMarginManager(marginManagerKey);
+		const baseCoin = this.#config.getCoin(pool.baseCoin);
+		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+		const baseMarginPool = this.#config.getMarginPool(pool.baseCoin);
+		const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
+		const inputQuantity = convertQuantity(quantity, baseCoin.scalar);
+		return tx.add(
+			poolProxyMoveCalls.placeMarketOrderAndRepayLoan({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					registry: this.#config.MARGIN_REGISTRY_ID,
+					marginManager: manager.address,
+					pool: pool.address,
+					baseMarginPool: baseMarginPool.address,
+					quoteMarginPool: quoteMarginPool.address,
+					baseOracle: baseCoin.priceInfoObjectId!,
+					quoteOracle: quoteCoin.priceInfoObjectId!,
+					clientOrderId: BigInt(clientOrderId),
+					selfMatchingOption,
+					quantity: inputQuantity,
+					isBid,
+					payWithDeep,
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
+	};
+
+	/**
+	 * @description Place a reduce only limit order and repay the loan from the
+	 * fill proceeds. Requires debt on the relevant side (a bid needs base debt; an
+	 * ask needs quote debt and sells at most the gross base held); the repay
+	 * happens before the monotonic `risk_ratio` gate, so the check is on the net
+	 * post-repay ratio.
+	 * @param {PlaceMarginLimitOrderParams} params Parameters for placing a reduce only limit order
+	 * @returns A function that takes a Transaction object
+	 */
+	placeReduceOnlyLimitOrderAndRepayLoan =
+		(params: PlaceMarginLimitOrderParams) => (tx: Transaction) => {
+			const {
+				poolKey,
+				marginManagerKey,
+				clientOrderId,
+				price,
+				quantity,
+				isBid,
+				expiration = MAX_TIMESTAMP,
+				orderType = OrderType.NO_RESTRICTION,
+				selfMatchingOption = SelfMatchingOptions.SELF_MATCHING_ALLOWED,
+				payWithDeep = true,
+			} = params;
+			const pool = this.#config.getPool(poolKey);
+			const manager = this.#config.getMarginManager(marginManagerKey);
+			const baseCoin = this.#config.getCoin(pool.baseCoin);
+			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+			const baseMarginPool = this.#config.getMarginPool(pool.baseCoin);
+			const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
+			const inputPrice = convertPrice(price, FLOAT_SCALAR, quoteCoin.scalar, baseCoin.scalar);
+			const inputQuantity = convertQuantity(quantity, baseCoin.scalar);
+			return tx.add(
+				poolProxyMoveCalls.placeReduceOnlyLimitOrderAndRepayLoan({
+					package: this.#config.MARGIN_PACKAGE_ID,
+					arguments: {
+						registry: this.#config.MARGIN_REGISTRY_ID,
+						marginManager: manager.address,
+						pool: pool.address,
+						baseMarginPool: baseMarginPool.address,
+						quoteMarginPool: quoteMarginPool.address,
+						baseOracle: baseCoin.priceInfoObjectId!,
+						quoteOracle: quoteCoin.priceInfoObjectId!,
+						clientOrderId: BigInt(clientOrderId),
+						orderType,
+						selfMatchingOption,
+						price: inputPrice,
+						quantity: inputQuantity,
+						isBid,
+						payWithDeep,
+						expireTimestamp: expiration,
+					},
+					typeArguments: [baseCoin.type, quoteCoin.type],
+				}),
+			);
+		};
+
+	/**
+	 * @description Place a reduce only market order and repay the loan from the
+	 * fill proceeds. Same reduce-only direction guard as
+	 * {@link placeReduceOnlyMarketOrder}, but the settled proceeds are repaid into
+	 * the debt side before the monotonic `risk_ratio` gate, so the check is on the
+	 * net post-repay ratio.
+	 * @param {PlaceMarginMarketOrderParams} params Parameters for placing a reduce only market order
+	 * @returns A function that takes a Transaction object
+	 */
+	placeReduceOnlyMarketOrderAndRepayLoan =
+		(params: PlaceMarginMarketOrderParams) => (tx: Transaction) => {
+			const {
+				poolKey,
+				marginManagerKey,
+				clientOrderId,
+				quantity,
+				isBid,
+				selfMatchingOption = SelfMatchingOptions.SELF_MATCHING_ALLOWED,
+				payWithDeep = true,
+			} = params;
+			const pool = this.#config.getPool(poolKey);
+			const manager = this.#config.getMarginManager(marginManagerKey);
+			const baseCoin = this.#config.getCoin(pool.baseCoin);
+			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
+			const baseMarginPool = this.#config.getMarginPool(pool.baseCoin);
+			const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
+			const inputQuantity = convertQuantity(quantity, baseCoin.scalar);
+			return tx.add(
+				poolProxyMoveCalls.placeReduceOnlyMarketOrderAndRepayLoan({
+					package: this.#config.MARGIN_PACKAGE_ID,
+					arguments: {
+						registry: this.#config.MARGIN_REGISTRY_ID,
+						marginManager: manager.address,
+						pool: pool.address,
+						baseMarginPool: baseMarginPool.address,
+						quoteMarginPool: quoteMarginPool.address,
+						baseOracle: baseCoin.priceInfoObjectId!,
+						quoteOracle: quoteCoin.priceInfoObjectId!,
+						clientOrderId: BigInt(clientOrderId),
+						selfMatchingOption,
+						quantity: inputQuantity,
+						isBid,
+						payWithDeep,
+					},
+					typeArguments: [baseCoin.type, quoteCoin.type],
+				}),
+			);
+		};
 
 	/**
 	 * @description Modify an existing order
@@ -236,18 +396,19 @@ export class PoolProxyContract {
 			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 			const inputQuantity = convertQuantity(newQuantity, baseCoin.scalar);
 
-			tx.moveCall({
-				target: `${this.#config.MARGIN_PACKAGE_ID}::pool_proxy::modify_order`,
-				arguments: [
-					tx.object(this.#config.MARGIN_REGISTRY_ID),
-					tx.object(marginManager.address),
-					tx.object(pool.address),
-					tx.pure.u128(orderId),
-					tx.pure.u64(inputQuantity),
-					tx.object.clock(),
-				],
-				typeArguments: [baseCoin.type, quoteCoin.type],
-			});
+			tx.add(
+				poolProxyMoveCalls.modifyOrder({
+					package: this.#config.MARGIN_PACKAGE_ID,
+					arguments: {
+						registry: this.#config.MARGIN_REGISTRY_ID,
+						marginManager: marginManager.address,
+						pool: pool.address,
+						orderId: BigInt(orderId),
+						newQuantity: inputQuantity,
+					},
+					typeArguments: [baseCoin.type, quoteCoin.type],
+				}),
+			);
 		};
 
 	/**
@@ -261,17 +422,18 @@ export class PoolProxyContract {
 		const pool = this.#config.getPool(marginManager.poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::pool_proxy::cancel_order`,
-			arguments: [
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object(marginManager.address),
-				tx.object(pool.address),
-				tx.pure.u128(orderId),
-				tx.object.clock(),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		tx.add(
+			poolProxyMoveCalls.cancelOrder({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					registry: this.#config.MARGIN_REGISTRY_ID,
+					marginManager: marginManager.address,
+					pool: pool.address,
+					orderId: BigInt(orderId),
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -285,17 +447,18 @@ export class PoolProxyContract {
 		const pool = this.#config.getPool(marginManager.poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::pool_proxy::cancel_orders`,
-			arguments: [
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object(marginManager.address),
-				tx.object(pool.address),
-				tx.pure.vector('u128', orderIds),
-				tx.object.clock(),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		tx.add(
+			poolProxyMoveCalls.cancelOrders({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					registry: this.#config.MARGIN_REGISTRY_ID,
+					marginManager: marginManager.address,
+					pool: pool.address,
+					orderIds: orderIds.map(BigInt),
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -308,16 +471,17 @@ export class PoolProxyContract {
 		const pool = this.#config.getPool(marginManager.poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::pool_proxy::cancel_all_orders`,
-			arguments: [
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object(marginManager.address),
-				tx.object(pool.address),
-				tx.object.clock(),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		tx.add(
+			poolProxyMoveCalls.cancelAllOrders({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					registry: this.#config.MARGIN_REGISTRY_ID,
+					marginManager: marginManager.address,
+					pool: pool.address,
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -330,15 +494,17 @@ export class PoolProxyContract {
 		const pool = this.#config.getPool(marginManager.poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::pool_proxy::withdraw_settled_amounts`,
-			arguments: [
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object(marginManager.address),
-				tx.object(pool.address),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		tx.add(
+			poolProxyMoveCalls.withdrawSettledAmounts({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					registry: this.#config.MARGIN_REGISTRY_ID,
+					marginManager: marginManager.address,
+					pool: pool.address,
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -354,16 +520,18 @@ export class PoolProxyContract {
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 		const deepCoin = this.#config.getCoin('DEEP');
 		const stakeInput = convertQuantity(stakeAmount, deepCoin.scalar);
-		tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::pool_proxy::stake`,
-			arguments: [
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object(marginManager.address),
-				tx.object(pool.address),
-				tx.pure.u64(stakeInput),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		tx.add(
+			poolProxyMoveCalls.stake({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					registry: this.#config.MARGIN_REGISTRY_ID,
+					marginManager: marginManager.address,
+					pool: pool.address,
+					amount: stakeInput,
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -376,15 +544,17 @@ export class PoolProxyContract {
 		const pool = this.#config.getPool(marginManager.poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::pool_proxy::unstake`,
-			arguments: [
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object(marginManager.address),
-				tx.object(pool.address),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		tx.add(
+			poolProxyMoveCalls.unstake({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					registry: this.#config.MARGIN_REGISTRY_ID,
+					marginManager: marginManager.address,
+					pool: pool.address,
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -403,18 +573,20 @@ export class PoolProxyContract {
 			const stakeInput = convertRate(stakeRequired, FLOAT_SCALAR);
 			const takerFeeInput = convertRate(takerFee, FLOAT_SCALAR);
 			const makerFeeInput = convertRate(makerFee, FLOAT_SCALAR);
-			tx.moveCall({
-				target: `${this.#config.MARGIN_PACKAGE_ID}::pool_proxy::submit_proposal`,
-				arguments: [
-					tx.object(this.#config.MARGIN_REGISTRY_ID),
-					tx.object(marginManager.address),
-					tx.object(pool.address),
-					tx.pure.u64(takerFeeInput),
-					tx.pure.u64(makerFeeInput),
-					tx.pure.u64(stakeInput),
-				],
-				typeArguments: [baseCoin.type, quoteCoin.type],
-			});
+			tx.add(
+				poolProxyMoveCalls.submitProposal({
+					package: this.#config.MARGIN_PACKAGE_ID,
+					arguments: {
+						registry: this.#config.MARGIN_REGISTRY_ID,
+						marginManager: marginManager.address,
+						pool: pool.address,
+						takerFee: takerFeeInput,
+						makerFee: makerFeeInput,
+						stakeRequired: stakeInput,
+					},
+					typeArguments: [baseCoin.type, quoteCoin.type],
+				}),
+			);
 		};
 
 	/**
@@ -428,16 +600,18 @@ export class PoolProxyContract {
 		const pool = this.#config.getPool(marginManager.poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::pool_proxy::vote`,
-			arguments: [
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object(marginManager.address),
-				tx.object(pool.address),
-				tx.pure.id(proposalId),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		tx.add(
+			poolProxyMoveCalls.vote({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					registry: this.#config.MARGIN_REGISTRY_ID,
+					marginManager: marginManager.address,
+					pool: pool.address,
+					proposalId,
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -450,15 +624,17 @@ export class PoolProxyContract {
 		const pool = this.#config.getPool(marginManager.poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::pool_proxy::claim_rebates`,
-			arguments: [
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object(marginManager.address),
-				tx.object(pool.address),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		tx.add(
+			poolProxyMoveCalls.claimRebates({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					registry: this.#config.MARGIN_REGISTRY_ID,
+					marginManager: marginManager.address,
+					pool: pool.address,
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -472,15 +648,17 @@ export class PoolProxyContract {
 			const pool = this.#config.getPool(poolKey);
 			const baseCoin = this.#config.getCoin(pool.baseCoin);
 			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-			tx.moveCall({
-				target: `${this.#config.MARGIN_PACKAGE_ID}::pool_proxy::withdraw_settled_amounts_permissionless`,
-				arguments: [
-					tx.object(this.#config.MARGIN_REGISTRY_ID),
-					tx.object(marginManagerId),
-					tx.object(pool.address),
-				],
-				typeArguments: [baseCoin.type, quoteCoin.type],
-			});
+			tx.add(
+				poolProxyMoveCalls.withdrawSettledAmountsPermissionless({
+					package: this.#config.MARGIN_PACKAGE_ID,
+					arguments: {
+						registry: this.#config.MARGIN_REGISTRY_ID,
+						marginManager: marginManagerId,
+						pool: pool.address,
+					},
+					typeArguments: [baseCoin.type, quoteCoin.type],
+				}),
+			);
 		};
 
 	/**
@@ -498,16 +676,17 @@ export class PoolProxyContract {
 		if (!quoteCoin.priceInfoObjectId) {
 			throw new Error(`Missing priceInfoObjectId for ${pool.quoteCoin}`);
 		}
-		tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::pool_proxy::update_current_price`,
-			arguments: [
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object(pool.address),
-				tx.object(baseCoin.priceInfoObjectId),
-				tx.object(quoteCoin.priceInfoObjectId),
-				tx.object.clock(),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		tx.add(
+			poolProxyMoveCalls.updateCurrentPrice({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					registry: this.#config.MARGIN_REGISTRY_ID,
+					pool: pool.address,
+					basePriceInfoObject: baseCoin.priceInfoObjectId,
+					quotePriceInfoObject: quoteCoin.priceInfoObjectId,
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 }

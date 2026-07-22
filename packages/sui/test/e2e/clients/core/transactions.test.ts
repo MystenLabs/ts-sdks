@@ -1486,6 +1486,42 @@ describe('Core API - Transactions', () => {
 				expect(bytes.length).toBeGreaterThan(0);
 			},
 		);
+
+		testWithAllClients(
+			'should build onlyTransactionKind referencing an owned object without a sender',
+			async (client) => {
+				const createTx = new Transaction();
+				const [obj] = createTx.moveCall({
+					target: `${packageId}::test_objects::create_simple_object`,
+					arguments: [createTx.pure.u64(42)],
+				});
+				createTx.transferObjects([obj], createTx.pure.address(testAddress));
+
+				const createResult = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+					transaction: createTx,
+					signer: toolbox.keypair,
+					options: { showObjectChanges: true },
+				});
+				await toolbox.waitForTransaction({ digest: createResult.digest });
+
+				const createdObject = createResult.objectChanges?.find(
+					(change) => change.type === 'created' && change.objectType.includes('SimpleObject'),
+				);
+				expect(createdObject).toBeDefined();
+				const createdObjectId = (createdObject as { objectId: string }).objectId;
+
+				const tx = new Transaction();
+				tx.moveCall({
+					target: `${packageId}::test_objects::update_value`,
+					arguments: [tx.object(createdObjectId), tx.pure.u64(43)],
+				});
+
+				const bytes = await tx.build({ client, onlyTransactionKind: true });
+				expect(bytes).toBeInstanceOf(Uint8Array);
+				expect(bytes.length).toBeGreaterThan(0);
+				expect(tx.getData().sender).toBeFalsy();
+			},
+		);
 	});
 
 	describe('objectTypes', () => {

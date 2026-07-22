@@ -9,8 +9,8 @@ import type { StandardConnectFeature } from '@mysten/wallet-standard';
 import { StandardConnect } from '@mysten/wallet-standard';
 import { getWalletFeature, uiWalletAccountBelongsToUiWallet } from '@wallet-standard/ui';
 import {
-	getOrCreateUiWalletAccountForStandardWalletAccount_DO_NOT_USE_OR_YOU_WILL_BE_FIRED as getOrCreateUiWalletAccountForStandardWalletAccount,
-	getWalletForHandle_DO_NOT_USE_OR_YOU_WILL_BE_FIRED as getWalletForHandle,
+	getOrCreateUiWalletAccountForStandardWalletAccount,
+	getWalletForHandle,
 } from '@wallet-standard/ui-registry';
 import { WalletAccountNotFoundError, WalletNoAccountsConnectedError } from '../../utils/errors.js';
 import { getChain } from '../../utils/networks.js';

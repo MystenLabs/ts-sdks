@@ -54,10 +54,12 @@ export function poseidonHash(inputs: (number | bigint | string)[]): bigint {
 
 	if (hashFN) {
 		return hashFN(inputs);
-	} else if (inputs.length <= 32) {
-		const hash1 = poseidonHash(inputs.slice(0, 16));
-		const hash2 = poseidonHash(inputs.slice(16));
-		return poseidonHash([hash1, hash2]);
+	} else if (inputs.length > 16 && inputs.length <= 64) {
+		const chunkHashes = [];
+		for (let i = 0; i < inputs.length; i += 16) {
+			chunkHashes.push(poseidonHash(inputs.slice(i, i + 16)));
+		}
+		return poseidonHash(chunkHashes);
 	} else {
 		throw new Error(`Yet to implement: Unable to hash a vector of length ${inputs.length}`);
 	}

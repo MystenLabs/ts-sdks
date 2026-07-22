@@ -5,7 +5,7 @@ import { getWallets, StandardEvents } from '@mysten/wallet-standard';
 import { onMount } from 'nanostores';
 import type { DAppKitStores } from '../store.js';
 
-import { getOrCreateUiWalletForStandardWallet_DO_NOT_USE_OR_YOU_WILL_BE_FIRED as getOrCreateUiWalletForStandardWallet } from '@wallet-standard/ui-registry';
+import { getOrCreateUiWalletForStandardWallet } from '@wallet-standard/ui-registry';
 import type { StandardEventsFeature, Wallet, WalletWithFeatures } from '@mysten/wallet-standard';
 
 /**
