@@ -208,6 +208,8 @@ export interface ConfigResolverContext {
 	functionName: string;
 	/** The Move name of the matched parameter, when the summary includes parameter names. */
 	parameterName?: string;
+	/** The matched parameter's position in the generated function's arguments. */
+	parameterIndex: number;
 }
 
 /**

@@ -190,7 +190,8 @@ export async function generateFromPackageSummary({
 			: { entries: [] };
 
 	const packageEntries = configArgumentEntries.filter(
-		(entry) => entry.kind === 'package' && entry.package === pkg.package,
+		(entry): entry is ParsedConfigArgument & { kind: 'package' } =>
+			entry.kind === 'package' && entry.package === pkg.package,
 	);
 	if (packageEntries.length > 1) {
 		throw new Error(
@@ -287,7 +288,7 @@ export async function generateFromPackageSummary({
 	const normalizedCurrentAddress = normalizePackageAddress(currentPackageAddress);
 	const unusedOwnEntries = configArgumentEntries.filter(
 		(entry) =>
-			entry.kind === 'type' &&
+			entry.kind !== 'package' &&
 			entry.address === normalizedCurrentAddress &&
 			!usedConfigKeys.has(entry.key),
 	);
@@ -305,7 +306,7 @@ export async function generateFromPackageSummary({
 			outputDir,
 			packageName,
 			entries: configArgumentEntries.filter(
-				(entry) => entry.kind === 'type' || entry.package === pkg.package,
+				(entry) => entry.kind !== 'package' || entry.package === pkg.package,
 			),
 			importExtension,
 		});
@@ -390,21 +391,30 @@ async function generateConfigInterface({
 		camelCase(packageName.replaceAll(/[^A-Za-z0-9_$]+/g, '_').replace(/^(\d)/, '_$1')),
 	)}Config`;
 
-	const fields = entries.map((entry) => {
-		if (entry.kind === 'package') {
-			return `${entry.key}?: string`;
+	const fieldEntries = new Map<string, ParsedConfigArgument[]>();
+	for (const entry of entries) {
+		fieldEntries.set(entry.key, [...(fieldEntries.get(entry.key) ?? []), entry]);
+	}
+
+	const fields = [...fieldEntries.entries()].map(([key, group]) => {
+		if (group[0].kind === 'package') {
+			return `${key}?: string`;
 		}
 
-		if (entry.isGeneric && entry.typeArguments === null) {
+		// A key resolving multiple bindings (or a generic) must be a resolver function.
+		const requiresResolver =
+			group.length > 1 || group.some((entry) => entry.kind !== 'package' && entry.requiresResolver);
+
+		if (requiresResolver) {
 			const ctxName = builder.addImport(utilsModule, 'type ConfigResolverContext');
 			const objArgName = builder.addImport(
 				'@mysten/sui/transactions',
 				'type TransactionObjectArgument',
 			);
-			return `${entry.key}: (ctx: ${ctxName}) => string | ${objArgName}`;
+			return `${key}: (ctx: ${ctxName}) => string | ${objArgName}`;
 		}
 
-		return `${entry.key}: ${builder.addImport(utilsModule, 'type ConfigValue')}`;
+		return `${key}: ${builder.addImport(utilsModule, 'type ConfigValue')}`;
 	});
 
 	builder.statements.push(

@@ -473,7 +473,7 @@ describe('config-driven function codegen', () => {
 			        package: packageAddress,
 			        module: 'registry',
 			        function: 'register',
-			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments, [{ index: 0, name: "registry", resolve: () => resolveConfigArgument(options.config?.registryObj, { typeArguments: [], packageAddress, moduleName: 'registry', functionName: 'register', parameterName: "registry" }, "registryObj") }]), argumentsTypes, parameterNames),
+			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments, [{ index: 0, name: "registry", resolve: () => resolveConfigArgument(options.config?.registryObj, { typeArguments: [], packageAddress, moduleName: 'registry', functionName: 'register', parameterIndex: 0, parameterName: "registry" }, "registryObj") }]), argumentsTypes, parameterNames),
 			    });
 			}"
 		`);
@@ -511,7 +511,7 @@ describe('config-driven function codegen', () => {
 			        package: packageAddress,
 			        module: 'registry',
 			        function: 'lookup',
-			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments ?? {}, [{ index: 0, name: "registry", resolve: () => resolveConfigArgument(options.config?.registryObj, { typeArguments: [], packageAddress, moduleName: 'registry', functionName: 'lookup', parameterName: "registry" }, "registryObj") }]), argumentsTypes, parameterNames),
+			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments ?? {}, [{ index: 0, name: "registry", resolve: () => resolveConfigArgument(options.config?.registryObj, { typeArguments: [], packageAddress, moduleName: 'registry', functionName: 'lookup', parameterIndex: 0, parameterName: "registry" }, "registryObj") }]), argumentsTypes, parameterNames),
 			    });
 			}"
 		`);
@@ -552,7 +552,7 @@ describe('config-driven function codegen', () => {
 			        package: packageAddress,
 			        module: 'registry',
 			        function: 'container_size',
-			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments ?? {}, [{ index: 0, name: "container", resolve: () => resolveConfigArgument(options.config?.container, { typeArguments: [\`\${options.typeArguments[0]}\`], packageAddress, moduleName: 'registry', functionName: 'container_size', parameterName: "container" }, "container") }]), argumentsTypes, parameterNames),
+			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments ?? {}, [{ index: 0, name: "container", resolve: () => resolveConfigArgument(options.config?.container, { typeArguments: [\`\${options.typeArguments[0]}\`], packageAddress, moduleName: 'registry', functionName: 'container_size', parameterIndex: 0, parameterName: "container" }, "container") }]), argumentsTypes, parameterNames),
 			        typeArguments: options.typeArguments
 			    });
 			}"
@@ -596,7 +596,7 @@ describe('config-driven function codegen', () => {
 			        package: packageAddress,
 			        module: 'pools',
 			        function: 'use_concrete',
-			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments, [{ index: 0, name: "pool", resolve: () => resolveConfigArgument(options.config?.suiPool, { typeArguments: ['0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI'], packageAddress, moduleName: 'pools', functionName: 'use_concrete', parameterName: "pool" }, "suiPool") }]), argumentsTypes, parameterNames),
+			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments, [{ index: 0, name: "pool", resolve: () => resolveConfigArgument(options.config?.suiPool, { typeArguments: ['0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI'], packageAddress, moduleName: 'pools', functionName: 'use_concrete', parameterIndex: 0, parameterName: "pool" }, "suiPool") }]), argumentsTypes, parameterNames),
 			    });
 			}"
 		`);
@@ -633,7 +633,7 @@ describe('config-driven function codegen', () => {
 			        package: packageAddress,
 			        module: 'pools',
 			        function: 'use_generic',
-			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments, [{ index: 0, name: "pool", resolve: () => resolveConfigArgument(options.config?.pool, { typeArguments: [\`\${options.typeArguments[0]}\`], packageAddress, moduleName: 'pools', functionName: 'use_generic', parameterName: "pool" }, "pool") }]), argumentsTypes, parameterNames),
+			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments, [{ index: 0, name: "pool", resolve: () => resolveConfigArgument(options.config?.pool, { typeArguments: [\`\${options.typeArguments[0]}\`], packageAddress, moduleName: 'pools', functionName: 'use_generic', parameterIndex: 0, parameterName: "pool" }, "pool") }]), argumentsTypes, parameterNames),
 			        typeArguments: options.typeArguments
 			    });
 			}"
@@ -664,36 +664,109 @@ describe('config-driven function codegen', () => {
 		expect(fnBody?.[0]).toContain(`typeArguments: ['${ORIGIN_V1}::pools::Coin']`);
 	});
 
-	it('errors when a bare matcher hits two named parameters in one signature', async () => {
+	it('allows one key to match multiple parameters, forcing a resolver-typed config value', async () => {
 		const builder = createPoolsBuilder({
 			pool: { type: '@test/testpkg::pools::Pool' },
 		});
 		builder.includeFunctions(['swap']);
+		const output = await render(builder);
 
-		await expect(render(builder)).rejects.toThrowError(
-			/configArguments\.pool matches multiple parameters of testpkg::pools::swap \(base_pool, quote_pool\)/,
+		// Both base_pool and quote_pool resolve through config.pool; the resolver
+		// disambiguates via ctx (parameterName/parameterIndex/typeArguments).
+		const optionsInterface = output.match(/export interface SwapOptions[\s\S]*?^}/m);
+		expect(optionsInterface?.[0]).toContain(
+			'pool: (ctx: ConfigResolverContext) => string | TransactionObjectArgument',
+		);
+
+		const fnBody = output.match(/export function swap[\s\S]*?^}/m);
+		expect(fnBody?.[0]).toContain('parameterIndex: 0');
+		expect(fnBody?.[0]).toContain('parameterIndex: 1');
+	});
+
+	it('allows one key to declare matchers for multiple types, forcing a resolver-typed config value', async () => {
+		const builder = createPoolsBuilder({
+			objects: [
+				{ type: '@test/testpkg::pools::Coin' },
+				{ type: '@test/testpkg::pools::Pool<0x2::sui::SUI>' },
+			],
+		});
+		builder.includeFunctions(['use_concrete']);
+		const output = await render(builder);
+
+		const optionsInterface = output.match(/export interface UseConcreteOptions[\s\S]*?^}/m);
+		expect(optionsInterface?.[0]).toContain(
+			'objects: (ctx: ConfigResolverContext) => string | TransactionObjectArgument',
 		);
 	});
 
-	it('warns and skips config mapping when a bare matcher hits two nameless parameters', async () => {
-		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-		try {
-			const builder = createPoolsBuilder(
-				{ pool: { type: '@test/testpkg::pools::Pool' } },
-				{ parameterNames: false },
-			);
-			builder.includeFunctions(['swap']);
-			const output = await render(builder);
+	it('function matchers configure a single function parameter directly', async () => {
+		const { registry } = await createBuilders({
+			// lookup has exactly one argument, so the parameter can be inferred.
+			lookupRegistry: { function: '@test/testpkg::registry::lookup' },
+			registerRegistry: {
+				function: '@test/testpkg::registry::register',
+				parameterName: 'registry',
+			},
+		});
+		registry.includeFunctions(['lookup', 'register']);
+		const output = await render(registry);
 
-			expect(warn).toHaveBeenCalledWith(
-				expect.stringContaining('configArguments.pool matches multiple parameters'),
-			);
-			// swap is still generated, without config mapping.
-			const optionsInterface = output.match(/export interface SwapOptions[\s\S]*?^}/m);
-			expect(optionsInterface?.[0]).not.toContain('config');
-		} finally {
-			warn.mockRestore();
-		}
+		const lookupOptions = output.match(/export interface LookupOptions[\s\S]*?^}/m);
+		expect(lookupOptions?.[0]).toContain('lookupRegistry: ConfigValue');
+
+		const registerOptions = output.match(/export interface RegisterOptions[\s\S]*?^}/m);
+		expect(registerOptions?.[0]).toContain('registerRegistry: ConfigValue');
+		// The function matcher only applies to its own function.
+		expect(registerOptions?.[0]).not.toContain('lookupRegistry');
+	});
+
+	it('function matchers win over type matchers and support parameterIndex', async () => {
+		const builder = createPoolsBuilder({
+			pool: { type: '@test/testpkg::pools::Pool' },
+			concretePool: { function: '@test/testpkg::pools::use_concrete', parameterIndex: 0 },
+		});
+		builder.includeFunctions(['use_concrete', 'use_generic']);
+		const output = await render(builder);
+
+		const concreteOptions = output.match(/export interface UseConcreteOptions[\s\S]*?^}/m);
+		expect(concreteOptions?.[0]).toContain('concretePool: ConfigValue');
+		const concreteSlice = concreteOptions?.[0].match(/config\?: \{[\s\S]*?\}/);
+		expect(concreteSlice?.[0]).not.toContain('pool: (ctx');
+
+		const genericOptions = output.match(/export interface UseGenericOptions[\s\S]*?^}/m);
+		expect(genericOptions?.[0]).toContain('pool:');
+	});
+
+	it('validates function matchers at parse time', async () => {
+		const registry = new ModuleRegistry(ADDRESS_MAPPINGS);
+		new MoveModuleBuilder({
+			summary: poolsSummary() as any,
+			registry,
+			mvrNameOrAddress: '@test/testpkg',
+			importExtension: '.js',
+		});
+		const parse = (matcher: object) =>
+			parseConfigArguments({ global: { key: matcher as never } }, registry, TESTPKG_CONTEXT);
+
+		expect(() => parse({ function: '@test/testpkg::pools::nope' })).toThrowError(
+			/was not found in its package's summaries/,
+		);
+		expect(() => parse({ function: '@test/testpkg::pools::swap' })).toThrowError(
+			/has 2 argument\(s\) — specify parameterName or parameterIndex/,
+		);
+		expect(() =>
+			parse({ function: '@test/testpkg::pools::swap', parameterName: 'nope' }),
+		).toThrowError(/has no parameter named "nope"/);
+		expect(() => parse({ function: '@test/testpkg::pools::swap', parameterIndex: 5 })).toThrowError(
+			/parameterIndex 5 is out of range/,
+		);
+		expect(() =>
+			parse({
+				function: '@test/testpkg::pools::swap',
+				parameterName: 'base_pool',
+				parameterIndex: 0,
+			}),
+		).toThrowError(/not both/);
 	});
 
 	it('generates tuple-only bindings for nameless summaries with a matched parameter', async () => {
@@ -733,7 +806,7 @@ describe('config-driven function codegen', () => {
 			        package: packageAddress,
 			        module: 'pools',
 			        function: 'use_generic',
-			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments, [{ index: 0, resolve: () => resolveConfigArgument(options.config?.pool, { typeArguments: [\`\${options.typeArguments[0]}\`], packageAddress, moduleName: 'pools', functionName: 'use_generic' }, "pool") }]), argumentsTypes),
+			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments, [{ index: 0, resolve: () => resolveConfigArgument(options.config?.pool, { typeArguments: [\`\${options.typeArguments[0]}\`], packageAddress, moduleName: 'pools', functionName: 'use_generic', parameterIndex: 0 }, "pool") }]), argumentsTypes),
 			        typeArguments: options.typeArguments
 			    });
 			}"
@@ -780,7 +853,7 @@ describe('config-driven function codegen', () => {
 			        package: packageAddress,
 			        module: 'pools',
 			        function: 'swap',
-			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments ?? {}, [{ index: 0, name: "basePool", resolve: () => resolveConfigArgument(options.config?.basePool, { typeArguments: [\`\${options.typeArguments[0]}\`], packageAddress, moduleName: 'pools', functionName: 'swap', parameterName: "base_pool" }, "basePool") }, { index: 1, name: "quotePool", resolve: () => resolveConfigArgument(options.config?.quotePool, { typeArguments: [\`\${options.typeArguments[1]}\`], packageAddress, moduleName: 'pools', functionName: 'swap', parameterName: "quote_pool" }, "quotePool") }]), argumentsTypes, parameterNames),
+			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments ?? {}, [{ index: 0, name: "basePool", resolve: () => resolveConfigArgument(options.config?.basePool, { typeArguments: [\`\${options.typeArguments[0]}\`], packageAddress, moduleName: 'pools', functionName: 'swap', parameterIndex: 0, parameterName: "base_pool" }, "basePool") }, { index: 1, name: "quotePool", resolve: () => resolveConfigArgument(options.config?.quotePool, { typeArguments: [\`\${options.typeArguments[1]}\`], packageAddress, moduleName: 'pools', functionName: 'swap', parameterIndex: 1, parameterName: "quote_pool" }, "quotePool") }]), argumentsTypes, parameterNames),
 			        typeArguments: options.typeArguments
 			    });
 			}"
@@ -1190,6 +1263,7 @@ describe('generateFromPackageSummary with configArguments', () => {
 				moduleName: 'registry',
 				functionName: 'container_size',
 				parameterName: 'container',
+				parameterIndex: 0,
 			},
 		]);
 		expect(json.inputs).toEqual([{ UnresolvedObject: { objectId: CONTAINER_ID } }]);
