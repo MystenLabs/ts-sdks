@@ -8,13 +8,18 @@
 import { Transaction } from '@mysten/sui/transactions';
 import { describe, expect, it } from 'vitest';
 
+import { BalanceManagerContract } from '../../../src/transactions/balanceManager.js';
 import { FlashLoanContract } from '../../../src/transactions/flashLoans.js';
 import { GovernanceContract } from '../../../src/transactions/governance.js';
 import { DeepBookConfig } from '../../../src/utils/config.js';
 
 const POOL_KEY = 'SUI_DBUSDC';
+const COIN_KEY = 'SUI';
 const BM_KEY = 'TEST_BM';
+const CAPS_KEY = 'BM_CAPS';
 const BM_ADDR = '0x3333333333333333333333333333333333333333333333333333333333333333';
+const CAP = '0x000000000000000000000000000000000000000000000000000000000000c0c0';
+const RECIPIENT = '0x000000000000000000000000000000000000000000000000000000000000babe';
 const ID = '0x000000000000000000000000000000000000000000000000000000000000abcd';
 
 function config() {
@@ -23,6 +28,12 @@ function config() {
 		address: '0x1',
 		balanceManagers: {
 			[BM_KEY]: { address: BM_ADDR },
+			[CAPS_KEY]: {
+				address: '0x4444444444444444444444444444444444444444444444444444444444444444',
+				depositCap: CAP,
+				withdrawCap: CAP,
+				tradeCap: CAP,
+			},
 		},
 	});
 }
@@ -52,6 +63,51 @@ describe('governance PTB snapshots', () => {
 				}),
 		],
 		['vote', (g) => g.vote(POOL_KEY, BM_KEY, ID)],
+	];
+	it.each(cases)('%s', (_name, build) => {
+		expect(ptb(build(c()))).toMatchSnapshot();
+	});
+});
+
+describe('balanceManager PTB snapshots', () => {
+	const c = () => new BalanceManagerContract(config());
+	const cases: Array<[string, (b: BalanceManagerContract) => (tx: Transaction) => unknown]> = [
+		['createAndShareBalanceManager', (b) => b.createAndShareBalanceManager()],
+		['createBalanceManagerWithOwner', (b) => b.createBalanceManagerWithOwner(RECIPIENT)],
+		[
+			'shareBalanceManager',
+			(b) => (tx: Transaction) => {
+				const m = b.createBalanceManagerWithOwner(RECIPIENT)(tx);
+				b.shareBalanceManager(m)(tx);
+			},
+		],
+		['depositIntoManager', (b) => b.depositIntoManager(BM_KEY, COIN_KEY, 1)],
+		['withdrawFromManager', (b) => b.withdrawFromManager(BM_KEY, COIN_KEY, 1, RECIPIENT)],
+		['withdrawAllFromManager', (b) => b.withdrawAllFromManager(BM_KEY, COIN_KEY, RECIPIENT)],
+		['checkManagerBalance', (b) => b.checkManagerBalance(BM_KEY, COIN_KEY)],
+		['generateProof', (b) => b.generateProof(BM_KEY)],
+		['generateProofAsOwner', (b) => b.generateProofAsOwner(BM_ADDR)],
+		['generateProofAsTrader', (b) => b.generateProofAsTrader(BM_ADDR, CAP)],
+		['mintTradeCap', (b) => b.mintTradeCap(BM_KEY)],
+		['mintDepositCap', (b) => b.mintDepositCap(BM_KEY)],
+		['mintWithdrawalCap', (b) => b.mintWithdrawalCap(BM_KEY)],
+		['depositWithCap', (b) => b.depositWithCap(CAPS_KEY, COIN_KEY, 1)],
+		['withdrawWithCap', (b) => b.withdrawWithCap(CAPS_KEY, COIN_KEY, 1)],
+		[
+			'setBalanceManagerReferral',
+			(b) => (tx: Transaction) => b.setBalanceManagerReferral(BM_KEY, ID, tx.object(CAP))(tx),
+		],
+		[
+			'unsetBalanceManagerReferral',
+			(b) => (tx: Transaction) => b.unsetBalanceManagerReferral(BM_KEY, POOL_KEY, tx.object(CAP))(tx),
+		],
+		['registerBalanceManager', (b) => b.registerBalanceManager(BM_KEY)],
+		['owner', (b) => b.owner(BM_KEY)],
+		['id', (b) => b.id(BM_KEY)],
+		['balanceManagerReferralOwner', (b) => b.balanceManagerReferralOwner(ID)],
+		['balanceManagerReferralPoolId', (b) => b.balanceManagerReferralPoolId(ID)],
+		['getBalanceManagerReferralId', (b) => b.getBalanceManagerReferralId(BM_KEY, POOL_KEY)],
+		['revokeTradeCap', (b) => b.revokeTradeCap(BM_KEY, ID)],
 	];
 	it.each(cases)('%s', (_name, build) => {
 		expect(ptb(build(c()))).toMatchSnapshot();

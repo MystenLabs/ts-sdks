@@ -1,5 +1,990 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`balanceManager PTB snapshots > balanceManagerReferralOwner 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+        ],
+        "function": "balance_manager_referral_owner",
+        "module": "balance_manager",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000abcd",
+      },
+    },
+  ],
+}
+`;
+
+exports[`balanceManager PTB snapshots > balanceManagerReferralPoolId 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+        ],
+        "function": "balance_manager_referral_pool_id",
+        "module": "balance_manager",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000abcd",
+      },
+    },
+  ],
+}
+`;
+
+exports[`balanceManager PTB snapshots > checkManagerBalance 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+        ],
+        "function": "balance",
+        "module": "balance_manager",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x3333333333333333333333333333333333333333333333333333333333333333",
+      },
+    },
+  ],
+}
+`;
+
+exports[`balanceManager PTB snapshots > createAndShareBalanceManager 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [],
+        "function": "new",
+        "module": "balance_manager",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [],
+      },
+    },
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Result",
+            "Result": 0,
+          },
+        ],
+        "function": "public_share_object",
+        "module": "transfer",
+        "package": "0x0000000000000000000000000000000000000000000000000000000000000002",
+        "typeArguments": [
+          "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24::balance_manager::BalanceManager",
+        ],
+      },
+    },
+  ],
+  "inputs": [],
+}
+`;
+
+exports[`balanceManager PTB snapshots > createBalanceManagerWithOwner 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "pure",
+          },
+        ],
+        "function": "new_with_custom_owner",
+        "module": "balance_manager",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAur4=",
+      },
+    },
+  ],
+}
+`;
+
+exports[`balanceManager PTB snapshots > depositIntoManager 1`] = `
+{
+  "commands": [
+    {
+      "$Intent": {
+        "data": {
+          "balance": 1000000000n,
+          "outputKind": "coin",
+          "type": "gas",
+        },
+        "inputs": {},
+        "name": "CoinWithBalance",
+      },
+      "$kind": "$Intent",
+    },
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Result",
+            "Result": 0,
+          },
+        ],
+        "function": "deposit",
+        "module": "balance_manager",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x3333333333333333333333333333333333333333333333333333333333333333",
+      },
+    },
+  ],
+}
+`;
+
+exports[`balanceManager PTB snapshots > depositWithCap 1`] = `
+{
+  "commands": [
+    {
+      "$Intent": {
+        "data": {
+          "balance": 1000000000n,
+          "outputKind": "coin",
+          "type": "gas",
+        },
+        "inputs": {},
+        "name": "CoinWithBalance",
+      },
+      "$kind": "$Intent",
+    },
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Result",
+            "Result": 0,
+          },
+        ],
+        "function": "deposit_with_cap",
+        "module": "balance_manager",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x4444444444444444444444444444444444444444444444444444444444444444",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000c0c0",
+      },
+    },
+  ],
+}
+`;
+
+exports[`balanceManager PTB snapshots > generateProof 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+        ],
+        "function": "generate_proof_as_owner",
+        "module": "balance_manager",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x3333333333333333333333333333333333333333333333333333333333333333",
+      },
+    },
+  ],
+}
+`;
+
+exports[`balanceManager PTB snapshots > generateProofAsOwner 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+        ],
+        "function": "generate_proof_as_owner",
+        "module": "balance_manager",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x3333333333333333333333333333333333333333333333333333333333333333",
+      },
+    },
+  ],
+}
+`;
+
+exports[`balanceManager PTB snapshots > generateProofAsTrader 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+        ],
+        "function": "generate_proof_as_trader",
+        "module": "balance_manager",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x3333333333333333333333333333333333333333333333333333333333333333",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000c0c0",
+      },
+    },
+  ],
+}
+`;
+
+exports[`balanceManager PTB snapshots > getBalanceManagerReferralId 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "pure",
+          },
+        ],
+        "function": "get_balance_manager_referral_id",
+        "module": "balance_manager",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x3333333333333333333333333333333333333333333333333333333333333333",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "HBk2LKUrj/16M87oBaZ9QPMea6MDdT/TpM/frOpxY6U=",
+      },
+    },
+  ],
+}
+`;
+
+exports[`balanceManager PTB snapshots > id 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+        ],
+        "function": "id",
+        "module": "balance_manager",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x3333333333333333333333333333333333333333333333333333333333333333",
+      },
+    },
+  ],
+}
+`;
+
+exports[`balanceManager PTB snapshots > mintDepositCap 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+        ],
+        "function": "mint_deposit_cap",
+        "module": "balance_manager",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x3333333333333333333333333333333333333333333333333333333333333333",
+      },
+    },
+  ],
+}
+`;
+
+exports[`balanceManager PTB snapshots > mintTradeCap 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+        ],
+        "function": "mint_trade_cap",
+        "module": "balance_manager",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x3333333333333333333333333333333333333333333333333333333333333333",
+      },
+    },
+  ],
+}
+`;
+
+exports[`balanceManager PTB snapshots > mintWithdrawalCap 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+        ],
+        "function": "mint_withdraw_cap",
+        "module": "balance_manager",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x3333333333333333333333333333333333333333333333333333333333333333",
+      },
+    },
+  ],
+}
+`;
+
+exports[`balanceManager PTB snapshots > owner 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+        ],
+        "function": "owner",
+        "module": "balance_manager",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x3333333333333333333333333333333333333333333333333333333333333333",
+      },
+    },
+  ],
+}
+`;
+
+exports[`balanceManager PTB snapshots > registerBalanceManager 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+        ],
+        "function": "register_balance_manager",
+        "module": "balance_manager",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x3333333333333333333333333333333333333333333333333333333333333333",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x7c256edbda983a2cd6f946655f4bf3f00a41043993781f8674a7046e8c0e11d1",
+      },
+    },
+  ],
+}
+`;
+
+exports[`balanceManager PTB snapshots > revokeTradeCap 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "pure",
+          },
+        ],
+        "function": "revoke_trade_cap",
+        "module": "balance_manager",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x3333333333333333333333333333333333333333333333333333333333333333",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAq80=",
+      },
+    },
+  ],
+}
+`;
+
+exports[`balanceManager PTB snapshots > setBalanceManagerReferral 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+        ],
+        "function": "set_balance_manager_referral",
+        "module": "balance_manager",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000c0c0",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x3333333333333333333333333333333333333333333333333333333333333333",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000abcd",
+      },
+    },
+  ],
+}
+`;
+
+exports[`balanceManager PTB snapshots > shareBalanceManager 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "pure",
+          },
+        ],
+        "function": "new_with_custom_owner",
+        "module": "balance_manager",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [],
+      },
+    },
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Result",
+            "Result": 0,
+          },
+        ],
+        "function": "public_share_object",
+        "module": "transfer",
+        "package": "0x0000000000000000000000000000000000000000000000000000000000000002",
+        "typeArguments": [
+          "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24::balance_manager::BalanceManager",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAur4=",
+      },
+    },
+  ],
+}
+`;
+
+exports[`balanceManager PTB snapshots > unsetBalanceManagerReferral 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "pure",
+          },
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+        ],
+        "function": "unset_balance_manager_referral",
+        "module": "balance_manager",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000c0c0",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x3333333333333333333333333333333333333333333333333333333333333333",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "HBk2LKUrj/16M87oBaZ9QPMea6MDdT/TpM/frOpxY6U=",
+      },
+    },
+  ],
+}
+`;
+
+exports[`balanceManager PTB snapshots > withdrawAllFromManager 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+        ],
+        "function": "withdraw_all",
+        "module": "balance_manager",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+        ],
+      },
+    },
+    {
+      "$kind": "TransferObjects",
+      "TransferObjects": {
+        "address": {
+          "$kind": "Input",
+          "Input": 1,
+          "type": "pure",
+        },
+        "objects": [
+          {
+            "$kind": "Result",
+            "Result": 0,
+          },
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x3333333333333333333333333333333333333333333333333333333333333333",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAur4=",
+      },
+    },
+  ],
+}
+`;
+
+exports[`balanceManager PTB snapshots > withdrawFromManager 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "pure",
+          },
+        ],
+        "function": "withdraw",
+        "module": "balance_manager",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+        ],
+      },
+    },
+    {
+      "$kind": "TransferObjects",
+      "TransferObjects": {
+        "address": {
+          "$kind": "Input",
+          "Input": 2,
+          "type": "pure",
+        },
+        "objects": [
+          {
+            "$kind": "Result",
+            "Result": 0,
+          },
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x3333333333333333333333333333333333333333333333333333333333333333",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AMqaOwAAAAA=",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAur4=",
+      },
+    },
+  ],
+}
+`;
+
+exports[`balanceManager PTB snapshots > withdrawWithCap 1`] = `
+{
+  "commands": [
+    {
+      "$kind": "MoveCall",
+      "MoveCall": {
+        "arguments": [
+          {
+            "$kind": "Input",
+            "Input": 0,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 1,
+            "type": "object",
+          },
+          {
+            "$kind": "Input",
+            "Input": 2,
+            "type": "pure",
+          },
+        ],
+        "function": "withdraw_with_cap",
+        "module": "balance_manager",
+        "package": "0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24",
+        "typeArguments": [
+          "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+        ],
+      },
+    },
+  ],
+  "inputs": [
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x4444444444444444444444444444444444444444444444444444444444444444",
+      },
+    },
+    {
+      "$kind": "UnresolvedObject",
+      "UnresolvedObject": {
+        "objectId": "0x000000000000000000000000000000000000000000000000000000000000c0c0",
+      },
+    },
+    {
+      "$kind": "Pure",
+      "Pure": {
+        "bytes": "AMqaOwAAAAA=",
+      },
+    },
+  ],
+}
+`;
+
 exports[`flashLoans PTB snapshots > borrowBaseAsset 1`] = `
 {
   "commands": [
