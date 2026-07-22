@@ -13,7 +13,14 @@
  * the new epoch and prior votes are cleared.
  */
 
-import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
+import {
+	MoveStruct,
+	normalizeMoveArguments,
+	type RawTransactionArgument,
+	type ConfigValue,
+	resolveConfigArgument,
+	applyConfigArguments,
+} from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as vec_set from './deps/sui/vec_set.js';
@@ -47,7 +54,7 @@ export const SlashingManager = new MoveStruct({
 });
 export interface VoteForSlashingArguments {
 	self: RawTransactionArgument<string>;
-	staking: RawTransactionArgument<string>;
+	staking?: RawTransactionArgument<string>;
 	auth: TransactionArgument;
 	voterNodeId: RawTransactionArgument<string>;
 	candidateNodeId: RawTransactionArgument<string>;
@@ -58,11 +65,15 @@ export interface VoteForSlashingOptions {
 		| VoteForSlashingArguments
 		| [
 				self: RawTransactionArgument<string>,
-				staking: RawTransactionArgument<string>,
+				staking: RawTransactionArgument<string> | undefined,
 				auth: TransactionArgument,
 				voterNodeId: RawTransactionArgument<string>,
 				candidateNodeId: RawTransactionArgument<string>,
 		  ];
+	config?: {
+		stakingPoolId: ConfigValue;
+		walrusPackageId?: string;
+	};
 }
 /**
  * Vote for slashing a node given its node ID.
@@ -72,7 +83,7 @@ export interface VoteForSlashingOptions {
  * cleared and the epoch is updated).
  */
 export function voteForSlashing(options: VoteForSlashingOptions) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, null, '0x2::object::ID', '0x2::object::ID'] satisfies (
 		| string
 		| null
@@ -83,12 +94,34 @@ export function voteForSlashing(options: VoteForSlashingOptions) {
 			package: packageAddress,
 			module: 'slashing',
 			function: 'vote_for_slashing',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 1,
+						name: 'staking',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.stakingPoolId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'slashing',
+									functionName: 'vote_for_slashing',
+									parameterIndex: 1,
+									parameterName: 'staking',
+								},
+								'stakingPoolId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface ExecuteSlashingArguments {
 	self: RawTransactionArgument<string>;
-	staking: RawTransactionArgument<string>;
+	staking?: RawTransactionArgument<string>;
 	treasury: RawTransactionArgument<string>;
 	candidateNodeId: RawTransactionArgument<string>;
 }
@@ -98,10 +131,14 @@ export interface ExecuteSlashingOptions {
 		| ExecuteSlashingArguments
 		| [
 				self: RawTransactionArgument<string>,
-				staking: RawTransactionArgument<string>,
+				staking: RawTransactionArgument<string> | undefined,
 				treasury: RawTransactionArgument<string>,
 				candidateNodeId: RawTransactionArgument<string>,
 		  ];
+	config?: {
+		stakingPoolId: ConfigValue;
+		walrusPackageId?: string;
+	};
 }
 /**
  * Execute slashing for a node whose proposal has reached quorum.
@@ -110,7 +147,7 @@ export interface ExecuteSlashingOptions {
  * must be from the current epoch and have reached quorum.
  */
 export function executeSlashing(options: ExecuteSlashingOptions) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, null, '0x2::object::ID'] satisfies (string | null)[];
 	const parameterNames = ['self', 'staking', 'treasury', 'candidateNodeId'];
 	return (tx: Transaction) =>
@@ -118,12 +155,34 @@ export function executeSlashing(options: ExecuteSlashingOptions) {
 			package: packageAddress,
 			module: 'slashing',
 			function: 'execute_slashing',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 1,
+						name: 'staking',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.stakingPoolId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'slashing',
+									functionName: 'execute_slashing',
+									parameterIndex: 1,
+									parameterName: 'staking',
+								},
+								'stakingPoolId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface CleanupSlashingProposalsArguments {
 	self: RawTransactionArgument<string>;
-	staking: RawTransactionArgument<string>;
+	staking?: RawTransactionArgument<string>;
 	nodeIds: RawTransactionArgument<Array<string>>;
 }
 export interface CleanupSlashingProposalsOptions {
@@ -132,9 +191,13 @@ export interface CleanupSlashingProposalsOptions {
 		| CleanupSlashingProposalsArguments
 		| [
 				self: RawTransactionArgument<string>,
-				staking: RawTransactionArgument<string>,
+				staking: RawTransactionArgument<string> | undefined,
 				nodeIds: RawTransactionArgument<Array<string>>,
 		  ];
+	config?: {
+		stakingPoolId: ConfigValue;
+		walrusPackageId?: string;
+	};
 }
 /**
  * Remove any slashing proposals whose epoch is in the past.
@@ -142,7 +205,7 @@ export interface CleanupSlashingProposalsOptions {
  * This is a permissionless cleanup function that anyone can call.
  */
 export function cleanupSlashingProposals(options: CleanupSlashingProposalsOptions) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, 'vector<0x2::object::ID>'] satisfies (string | null)[];
 	const parameterNames = ['self', 'staking', 'nodeIds'];
 	return (tx: Transaction) =>
@@ -150,6 +213,28 @@ export function cleanupSlashingProposals(options: CleanupSlashingProposalsOption
 			package: packageAddress,
 			module: 'slashing',
 			function: 'cleanup_slashing_proposals',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				applyConfigArguments(options.arguments, [
+					{
+						index: 1,
+						name: 'staking',
+						resolve: () =>
+							resolveConfigArgument(
+								options.config?.stakingPoolId,
+								{
+									typeArguments: [],
+									packageAddress,
+									moduleName: 'slashing',
+									functionName: 'cleanup_slashing_proposals',
+									parameterIndex: 1,
+									parameterName: 'staking',
+								},
+								'stakingPoolId',
+							),
+					},
+				]),
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }

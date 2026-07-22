@@ -22,6 +22,7 @@ import {
 	removeMetadataPair,
 } from './contracts/walrus/blob.js';
 import type { Committee } from './contracts/walrus/committee.js';
+import type { WalrusConfig } from './contracts/walrus/config-arguments.js';
 import * as metadata from './contracts/walrus/metadata.js';
 import { StakingInnerV1 } from './contracts/walrus/staking_inner.js';
 import { StakingPool } from './contracts/walrus/staking_pool.js';
@@ -252,6 +253,14 @@ export class WalrusClient {
 			const { package_id } = await this.systemObject();
 			return package_id;
 		});
+	}
+
+	async #getWalrusConfig(): Promise<WalrusConfig> {
+		return {
+			walrusPackageId: await this.#getWalrusPackageId(),
+			systemObjectId: this.#packageConfig.systemObjectId,
+			stakingPoolId: this.#packageConfig.stakingPoolId,
+		};
 	}
 
 	#wasmBindings() {
@@ -739,21 +748,19 @@ export class WalrusClient {
 	 */
 	createStorage({ size, epochs, walCoin }: StorageWithSizeOptions) {
 		return async (tx: Transaction) => {
-			const systemObject = await this.systemObject();
 			const systemState = await this.systemState();
 			const encodedSize = encodedBlobLength(size, systemState.committee.n_shards);
-			const [{ storageCost }, walrusPackageId] = await Promise.all([
+			const [{ storageCost }, walrusConfig] = await Promise.all([
 				this.storageCost(size, epochs),
-				this.#getWalrusPackageId(),
+				this.#getWalrusConfig(),
 			]);
 
 			return tx.add(
 				this.#withWal(storageCost, walCoin ?? null, (coin, tx) => {
 					return tx.add(
 						reserveSpace({
-							package: walrusPackageId,
+							config: walrusConfig,
 							arguments: {
-								self: systemObject.id,
 								storageAmount: encodedSize,
 								epochsAhead: epochs,
 								payment: coin,
@@ -884,15 +891,14 @@ export class WalrusClient {
 	}: RegisterBlobOptions) {
 		return async (tx: Transaction) => {
 			const { writeCost } = await this.storageCost(size, epochs);
-			const walrusPackageId = await this.#getWalrusPackageId();
+			const walrusConfig = await this.#getWalrusConfig();
 
 			return tx.add(
 				this.#withWal(writeCost, walCoin ?? null, async (writeCoin, tx) => {
 					const blob = tx.add(
 						registerBlob({
-							package: walrusPackageId,
+							config: walrusConfig,
 							arguments: {
-								self: tx.object(this.#packageConfig.systemObjectId),
 								storage: this.createStorage({ size, epochs, walCoin }),
 								blobId: blobIdToInt(blobId),
 								rootHash: BigInt(bcs.u256().parse(rootHash)),
@@ -1218,13 +1224,12 @@ export class WalrusClient {
 					blobObjectId,
 				}));
 
-			const walrusPackageId = await this.#getWalrusPackageId();
+			const walrusConfig = await this.#getWalrusConfig();
 
 			tx.add(
 				certifyBlob({
-					package: walrusPackageId,
+					config: walrusConfig,
 					arguments: {
-						self: this.#packageConfig.systemObjectId,
 						blob: blobObjectId,
 						signature: tx.pure.vector('u8', combinedSignature.signature),
 						signersBitmap: tx.pure.vector(
@@ -1290,12 +1295,11 @@ export class WalrusClient {
 	 */
 	deleteBlob({ blobObjectId }: DeleteBlobOptions) {
 		return async (tx: Transaction) => {
-			const walrusPackageId = await this.#getWalrusPackageId();
+			const walrusConfig = await this.#getWalrusConfig();
 			const storage = tx.add(
 				deleteBlob({
-					package: walrusPackageId,
+					config: walrusConfig,
 					arguments: {
-						self: this.#packageConfig.systemObjectId,
 						blob: blobObjectId,
 					},
 				}),
@@ -1375,15 +1379,14 @@ export class WalrusClient {
 				Number(blob.storage.storage_size),
 				numEpochs,
 			);
-			const walrusPackageId = await this.#getWalrusPackageId();
+			const walrusConfig = await this.#getWalrusConfig();
 
 			return tx.add(
 				this.#withWal(storageCost, walCoin ?? null, async (coin, tx) => {
 					tx.add(
 						extendBlob({
-							package: walrusPackageId,
+							config: walrusConfig,
 							arguments: {
-								self: this.#packageConfig.systemObjectId,
 								blob: blobObjectId,
 								extendedEpochs: numEpochs,
 								payment: coin,
@@ -1463,16 +1466,16 @@ export class WalrusClient {
 		blob: TransactionObjectArgument;
 	}) {
 		return async (tx: Transaction) => {
-			const walrusPackageId = await this.#getWalrusPackageId();
+			const walrusConfig = await this.#getWalrusConfig();
 
 			if (!existingAttributes) {
 				tx.add(
 					addMetadata({
-						package: walrusPackageId,
+						config: walrusConfig,
 						arguments: {
 							self: blob,
 							metadata: metadata._new({
-								package: walrusPackageId,
+								config: walrusConfig,
 							}),
 						},
 					}),
@@ -1486,7 +1489,7 @@ export class WalrusClient {
 					if (existingAttributes && key in existingAttributes) {
 						tx.add(
 							removeMetadataPair({
-								package: walrusPackageId,
+								config: walrusConfig,
 								arguments: {
 									self: blob,
 									key,
@@ -1497,7 +1500,7 @@ export class WalrusClient {
 				} else {
 					tx.add(
 						insertOrUpdateMetadataPair({
-							package: walrusPackageId,
+							config: walrusConfig,
 							arguments: {
 								self: blob,
 								key,

@@ -26,11 +26,14 @@ export interface NewArguments<T extends BcsType<any>> {
 export interface NewOptions<T extends BcsType<any>> {
 	package?: string;
 	arguments: NewArguments<T> | [value: RawTransactionArgument<T>];
+	config?: {
+		walrusPackageId?: string;
+	};
 	typeArguments: [string];
 }
 /** Creates a new extended field with the given value. */
 export function _new<T extends BcsType<any>>(options: NewOptions<T>) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	const argumentsTypes = [`${options.typeArguments[0]}`] satisfies (string | null)[];
 	const parameterNames = ['value'];
 	return (tx: Transaction) =>
@@ -48,11 +51,14 @@ export interface BorrowArguments {
 export interface BorrowOptions {
 	package?: string;
 	arguments: BorrowArguments | [field: RawTransactionArgument<string>];
+	config?: {
+		walrusPackageId?: string;
+	};
 	typeArguments: [string];
 }
 /** Borrows the value stored in the extended field. */
 export function borrow(options: BorrowOptions) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['field'];
 	return (tx: Transaction) =>
@@ -70,11 +76,14 @@ export interface BorrowMutArguments {
 export interface BorrowMutOptions {
 	package?: string;
 	arguments: BorrowMutArguments | [field: RawTransactionArgument<string>];
+	config?: {
+		walrusPackageId?: string;
+	};
 	typeArguments: [string];
 }
 /** Borrows the value stored in the extended field mutably. */
 export function borrowMut(options: BorrowMutOptions) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['field'];
 	return (tx: Transaction) =>
@@ -95,11 +104,14 @@ export interface SwapOptions<T extends BcsType<any>> {
 	arguments:
 		| SwapArguments<T>
 		| [field: RawTransactionArgument<string>, value: RawTransactionArgument<T>];
+	config?: {
+		walrusPackageId?: string;
+	};
 	typeArguments: [string];
 }
 /** Swaps the value stored in the extended field with the given value. */
 export function swap<T extends BcsType<any>>(options: SwapOptions<T>) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, `${options.typeArguments[0]}`] satisfies (string | null)[];
 	const parameterNames = ['field', 'value'];
 	return (tx: Transaction) =>
@@ -117,11 +129,14 @@ export interface DestroyArguments {
 export interface DestroyOptions {
 	package?: string;
 	arguments: DestroyArguments | [field: RawTransactionArgument<string>];
+	config?: {
+		walrusPackageId?: string;
+	};
 	typeArguments: [string];
 }
 /** Destroys the extended field and returns the value stored in it. */
 export function destroy(options: DestroyOptions) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['field'];
 	return (tx: Transaction) =>

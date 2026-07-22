@@ -24,10 +24,13 @@ export interface ShardsArguments {
 export interface ShardsOptions {
 	package?: string;
 	arguments: ShardsArguments | [cmt: TransactionArgument, nodeId: RawTransactionArgument<string>];
+	config?: {
+		walrusPackageId?: string;
+	};
 }
 /** Get the shards assigned to the given `node_id`. */
 export function shards(options: ShardsOptions) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, '0x2::object::ID'] satisfies (string | null)[];
 	const parameterNames = ['cmt', 'nodeId'];
 	return (tx: Transaction) =>
@@ -44,10 +47,13 @@ export interface SizeArguments {
 export interface SizeOptions {
 	package?: string;
 	arguments: SizeArguments | [cmt: TransactionArgument];
+	config?: {
+		walrusPackageId?: string;
+	};
 }
 /** Get the number of nodes in the committee. */
 export function size(options: SizeOptions) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['cmt'];
 	return (tx: Transaction) =>
@@ -64,10 +70,13 @@ export interface InnerArguments {
 export interface InnerOptions {
 	package?: string;
 	arguments: InnerArguments | [cmt: TransactionArgument];
+	config?: {
+		walrusPackageId?: string;
+	};
 }
 /** Get the inner representation of the committee. */
 export function inner(options: InnerOptions) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['cmt'];
 	return (tx: Transaction) =>
@@ -84,10 +93,13 @@ export interface ToInnerArguments {
 export interface ToInnerOptions {
 	package?: string;
 	arguments: ToInnerArguments | [cmt: TransactionArgument];
+	config?: {
+		walrusPackageId?: string;
+	};
 }
 /** Copy the inner representation of the committee. */
 export function toInner(options: ToInnerOptions) {
-	const packageAddress = options.package ?? '@local-pkg/walrus';
+	const packageAddress = options.package ?? options.config?.walrusPackageId ?? '@local-pkg/walrus';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['cmt'];
 	return (tx: Transaction) =>
