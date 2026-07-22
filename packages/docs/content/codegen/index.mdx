@@ -297,7 +297,9 @@ declare which Move types (or package addresses) come from a config object, and t
 functions accept that config object directly instead of requiring those arguments on every call.
 
 `configArguments` maps author-chosen keys to matchers. It can be declared globally (shared by all
-packages) or per package entry (merged over the global block, per key):
+packages) or per package entry (merged over the global block, per key). Because codegen output is
+network-agnostic, matchers never contain package addresses: types are identified by
+`module::TypeName`, qualified with the package identifier you already use in the `packages` config:
 
 ```typescript
 const config: SuiCodegenConfig = {
@@ -307,33 +309,44 @@ const config: SuiCodegenConfig = {
 			package: '@myapp/core',
 			path: './move/core',
 			configArguments: {
+				// In a package's own block, a bare module::Type refers to that package's type.
 				// Non-generic type: parameters of this type resolve from `config.registry`
-				registry: { type: '0x...::registry::Registry' },
+				registry: { type: 'registry::Registry' },
 				// Generic type without type arguments: matches every instantiation, and the
 				// config value must be a resolver function
-				pool: { type: '0x...::pool::Pool' },
+				pool: { type: 'pool::Pool' },
 				// Fully instantiated generic: only matches parameters concretely typed with
-				// this exact instantiation in the Move signature
-				suiPool: { type: '0x...::pool::Pool<0x2::sui::SUI>' },
+				// this exact instantiation in the Move signature. Framework packages (0x1-0x3)
+				// have chain-stable addresses and can be referenced directly.
+				suiPool: { type: 'pool::Pool<0x2::sui::SUI>' },
 				// Package entry (keyed by the `package` value of a `packages` entry): adds an
 				// optional config key that overrides the package address used for calls
 				corePackageId: { package: '@myapp/core' },
+			},
+		},
+		{
+			package: '@myapp/vaults',
+			path: './move/vaults',
+			configArguments: {
+				// Types from other packages in the run are referenced by their identifier.
+				vaultPool: { type: '@myapp/core::pool::Pool' },
 			},
 		},
 	],
 };
 ```
 
-Matcher addresses are resolved through the package's address mapping, so named addresses (for
-example, `myapp::registry::Registry`) also work. Partially instantiated matchers (for example,
+In the global `configArguments` block there is no ambient package, so type matchers there must be
+package-qualified (`@myapp/core::pool::Pool`). Partially instantiated matchers (for example,
 `Pool<T>` or a nested uninstantiated generic) are not supported. Use an uninstantiated matcher with
 a resolver function instead.
 
-Misconfigured matchers are surfaced at generation time: malformed types, wrong arity, and
-package-scoped matchers whose type isn't in the package's summaries are hard errors. Global-block
-matchers that don't resolve in a package are skipped with a warning (a shared global block may span
-multiple packages in one run), and the CLI errors if a global key resolves in no package at all.
-Keys that resolve but never match any generated parameter produce a warning.
+Misconfiguration is surfaced at generation time: malformed types, wrong arity, unknown package
+identifiers, and non-framework package addresses are hard errors, and every matcher's type is
+checked for existence when the package it references is part of the generated package's dependency
+closure. Matchers referencing run packages outside that closure can't match anything there and are
+skipped (they are validated when their own package is generated). Keys that never match any
+generated parameter of their own package produce a warning.
 
 ### Generated output
 
@@ -422,8 +435,8 @@ Refine the matchers with the Move parameter names:
 
 ```typescript
 configArguments: {
-	basePool: { type: '0x...::pool::Pool', parameterName: 'base_pool' },
-	quotePool: { type: '0x...::pool::Pool', parameterName: 'quote_pool' },
+	basePool: { type: 'pool::Pool', parameterName: 'base_pool' },
+	quotePool: { type: 'pool::Pool', parameterName: 'quote_pool' },
 },
 ```
 

@@ -64,6 +64,17 @@ export class ModuleRegistry {
 		return summary?.structs[name]?.abilities ?? summary?.enums[name]?.abilities;
 	}
 
+	/** Whether any loaded module belongs to a package with this resolved address. */
+	hasResolvedAddress(resolvedAddress: string): boolean {
+		const normalized = normalizeAddress(resolvedAddress);
+		for (const builder of this.#builders.values()) {
+			if (normalizeAddress(this.resolveAddress(builder.summary.id.address)) === normalized) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	#keyOf(address: string, module: string): string {
 		return `${address}::${module}`;
 	}

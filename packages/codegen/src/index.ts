@@ -6,6 +6,7 @@ import { basename, join } from 'node:path';
 import { ModuleRegistry } from './module-registry.js';
 import { MoveModuleBuilder } from './move-module-builder.js';
 import { existsSync, statSync } from 'node:fs';
+import { normalizeSuiAddress } from '@mysten/sui/utils';
 import { getUtilsContent } from './generate-utils.js';
 import { parse } from 'toml';
 import { FileBuilder } from './file-builder.js';
@@ -38,6 +39,7 @@ export async function generateFromPackageSummary({
 	includePhantomTypeParameters = false,
 	errorClass,
 	configArguments: globalConfigArguments,
+	packageAddresses,
 }: {
 	package: PackageConfig;
 	prune: boolean;
@@ -47,6 +49,12 @@ export async function generateFromPackageSummary({
 	includePhantomTypeParameters?: boolean;
 	errorClass?: ErrorClassConfig;
 	configArguments?: ConfigArguments;
+	/**
+	 * Resolved root addresses of the other packages in the codegen run, keyed by their `packages`
+	 * identifier, so `configArguments` matchers can reference them (see
+	 * `resolvePackageRootAddress`). The CLI builds this automatically.
+	 */
+	packageAddresses?: Record<string, string>;
 }) {
 	if (!pkg.path) {
 		throw new Error(`Package path is required (got ${pkg.package})`);
@@ -165,22 +173,21 @@ export async function generateFromPackageSummary({
 		)
 	).flat();
 
-	const { entries: configArgumentEntries, unresolvedKeys } =
+	const currentPackageAddress = isOnChainPackage
+		? rootPackageId!
+		: (addressMappings[mainPackageDir] ?? mainPackageDir);
+
+	const { entries: configArgumentEntries } =
 		Object.keys(globalConfigArguments ?? {}).length || Object.keys(pkg.configArguments ?? {}).length
 			? parseConfigArguments(
 					{ global: globalConfigArguments, package: pkg.configArguments },
 					registry,
+					{
+						package: { id: pkg.package, address: currentPackageAddress },
+						packageAddresses,
+					},
 				)
-			: { entries: [], unresolvedKeys: [] };
-
-	// Unresolved keys here are always from the global block (package-scoped unresolved matchers
-	// throw during parsing). They may belong to another package generated in the same run — the
-	// CLI aggregates these across packages and errors for keys that resolve nowhere.
-	if (unresolvedKeys.length > 0) {
-		console.warn(
-			`configArguments keys not resolvable in ${pkg.package} (skipped): ${unresolvedKeys.join(', ')}`,
-		);
-	}
+			: { entries: [] };
 
 	const packageEntries = configArgumentEntries.filter(
 		(entry) => entry.kind === 'package' && entry.package === pkg.package,
@@ -274,15 +281,19 @@ export async function generateFromPackageSummary({
 		}
 	}
 
-	const unusedTypeEntries = configArgumentEntries.filter(
-		(entry) => entry.kind === 'type' && !usedConfigKeys.has(entry.key),
+	// Every matcher is checked in the run of the package it targets: an unused entry targeting
+	// this package is a misconfiguration (wrong parameterName, wrong instantiation, or a function
+	// filtered out of generation). Entries targeting other packages are checked in their own runs.
+	const normalizedCurrentAddress = normalizePackageAddress(currentPackageAddress);
+	const unusedOwnEntries = configArgumentEntries.filter(
+		(entry) =>
+			entry.kind === 'type' &&
+			entry.address === normalizedCurrentAddress &&
+			!usedConfigKeys.has(entry.key),
 	);
-	// Package-scoped entries can only target this package, so an unused one is a misconfiguration
-	// (wrong parameterName, wrong instantiation, or a function filtered out of generation).
-	const unusedPackageScoped = unusedTypeEntries.filter((entry) => entry.source === 'package');
-	if (unusedPackageScoped.length > 0) {
+	if (unusedOwnEntries.length > 0) {
 		console.warn(
-			`configArguments keys that matched no generated function parameters in ${pkg.package}: ${unusedPackageScoped
+			`configArguments keys that matched no generated function parameters in ${pkg.package}: ${unusedOwnEntries
 				.map((entry) => entry.key)
 				.join(', ')}`,
 		);
@@ -299,15 +310,57 @@ export async function generateFromPackageSummary({
 			importExtension,
 		});
 	}
+}
 
-	return {
-		/** Global-block keys whose matcher type was not found in this package's summaries. */
-		unresolvedConfigKeys: unresolvedKeys,
-		/** Global-block type keys that resolved here but matched no generated parameter. */
-		unusedConfigKeys: unusedTypeEntries
-			.filter((entry) => entry.source === 'global')
-			.map((entry) => entry.key),
-	};
+const HEX_ADDRESS = /^0x[0-9a-fA-F]{1,64}$/;
+
+function normalizePackageAddress(address: string) {
+	return HEX_ADDRESS.test(address) ? normalizeSuiAddress(address) : address;
+}
+
+/**
+ * Resolve a package's root address from its summaries directory, for the `packageAddresses` map
+ * passed to `generateFromPackageSummary`. Requires summaries to already exist at `pkgPath`.
+ */
+export async function resolvePackageRootAddress(pkgPath: string): Promise<string | undefined> {
+	const metadataPath = join(pkgPath, 'root_package_metadata.json');
+	if (existsSync(metadataPath)) {
+		const metadata: RootPackageMetadata = JSON.parse(await readFile(metadataPath, 'utf-8'));
+		return metadata.root_package_original_id ?? metadata.root_package_id;
+	}
+
+	const summaryDir = join(pkgPath, 'package_summaries');
+	if (!existsSync(join(summaryDir, 'address_mapping.json'))) {
+		return undefined;
+	}
+	const addressMappings: Record<string, string> = JSON.parse(
+		await readFile(join(summaryDir, 'address_mapping.json'), 'utf-8'),
+	);
+
+	let localAddressLabels: string[] = [];
+	let packageName = '';
+	try {
+		const parsedToml: { package?: { name?: unknown }; addresses?: Record<string, string> } = parse(
+			await readFile(join(pkgPath, 'Move.toml'), 'utf-8'),
+		);
+		localAddressLabels = Object.keys(parsedToml.addresses ?? {});
+		if (typeof parsedToml.package?.name === 'string') {
+			packageName = parsedToml.package.name.toLowerCase();
+		}
+	} catch {
+		// fall through to summary-directory-based resolution
+	}
+
+	const packages = (await readdir(summaryDir)).filter((file) =>
+		statSync(join(summaryDir, file)).isDirectory(),
+	);
+
+	try {
+		const mainDir = resolveLocalMainPackageDir(localAddressLabels, packages, packageName, pkgPath);
+		return addressMappings[mainDir] ?? mainDir;
+	} catch {
+		return undefined;
+	}
 }
 
 /**

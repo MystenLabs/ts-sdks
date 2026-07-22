@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { LocalContext } from '../../context.js';
-import { generateFromPackageSummary } from '../../../index.js';
+import { generateFromPackageSummary, resolvePackageRootAddress } from '../../../index.js';
 import { loadConfig, type GenerateBase, type PackageGenerate } from '../../../config.js';
 import { isValidNamedPackage, isValidSuiObjectId } from '@mysten/sui/utils';
 import { execSync } from 'node:child_process';
@@ -67,12 +67,6 @@ export default async function generate(
 		}
 	}
 
-	const globalTypeConfigKeys = Object.entries(config.configArguments ?? {})
-		.filter(([, matcher]) => 'type' in matcher)
-		.map(([key]) => key);
-	const unresolvedConfigKeysByPackage: Set<string>[] = [];
-	const unusedConfigKeysByPackage: Set<string>[] = [];
-
 	const generateSummaries =
 		flags.noSummaries === undefined ? config.generateSummaries : !flags.noSummaries;
 
@@ -105,6 +99,8 @@ export default async function generate(
 				}
 			: undefined;
 
+	// First ensure summaries exist for every package, then resolve each package's root address so
+	// configArguments matchers can reference any package in the run by its identifier.
 	for (const pkg of normalizedPackages) {
 		// Detect on-chain packages: they have 'network' field and no 'path'
 		const isOnChainPackage =
@@ -132,6 +128,18 @@ export default async function generate(
 				stdio: 'inherit',
 			});
 		}
+	}
+
+	const packageAddresses: Record<string, string> = {};
+	for (const pkg of normalizedPackages) {
+		if (!pkg.path) continue;
+		const address = await resolvePackageRootAddress(pkg.path);
+		if (address !== undefined) {
+			packageAddresses[pkg.package] = address;
+		}
+	}
+
+	for (const pkg of normalizedPackages) {
 		const importExtension =
 			flags.importExtension === undefined
 				? config.importExtension
@@ -165,7 +173,7 @@ export default async function generate(
 					}
 				: config.generate;
 
-		const result = await generateFromPackageSummary({
+		await generateFromPackageSummary({
 			package: pkgWithOverrides,
 			prune: flags.noPrune === undefined ? config.prune : !flags.noPrune,
 			outputDir: flags.outputDir ?? config.output,
@@ -174,32 +182,7 @@ export default async function generate(
 			includePhantomTypeParameters: config.includePhantomTypeParameters,
 			errorClass: config.errorClass,
 			configArguments: config.configArguments,
+			packageAddresses,
 		});
-
-		unresolvedConfigKeysByPackage.push(new Set(result.unresolvedConfigKeys));
-		unusedConfigKeysByPackage.push(new Set(result.unusedConfigKeys));
-	}
-
-	if (unresolvedConfigKeysByPackage.length === 0) {
-		return;
-	}
-
-	// Per-package unresolved global keys are only warnings (they may belong to another package in
-	// the run), but a global key that resolved nowhere — or matched nothing anywhere — is a
-	// misconfiguration for the run as a whole.
-	for (const key of globalTypeConfigKeys) {
-		if (unresolvedConfigKeysByPackage.every((keys) => keys.has(key))) {
-			throw new Error(
-				`configArguments.${key} did not resolve in any package in this codegen run — check the matcher type for typos`,
-			);
-		}
-		const usedSomewhere = unresolvedConfigKeysByPackage.some(
-			(unresolved, i) => !unresolved.has(key) && !unusedConfigKeysByPackage[i].has(key),
-		);
-		if (!usedSomewhere) {
-			console.warn(
-				`configArguments.${key} matched no generated function parameters in any package in this codegen run`,
-			);
-		}
 	}
 }
