@@ -355,7 +355,9 @@ identifiers, and non-framework package addresses are hard errors, and every matc
 checked for existence when the package it references is part of the generated package's dependency
 closure. Matchers referencing run packages outside that closure can't match anything there and are
 skipped (they are validated when their own package is generated). Keys that never match any
-generated parameter of their own package produce a warning.
+generated parameter of their own package produce a warning. Note that the generated
+`config-arguments.ts` interface covers the package's resolvable keys even when only some of its
+functions consume them; the per-function `config` slices are the authoritative types for calls.
 
 ### Generated output
 

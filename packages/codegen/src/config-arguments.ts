@@ -1,17 +1,12 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { splitGenericParameters } from '@mysten/bcs';
 import { normalizeSuiAddress } from '@mysten/sui/utils';
 import type { ConfigArguments } from './config.js';
 import type { ModuleRegistry } from './module-registry.js';
 import type { Parameter, Type } from './types/summary.js';
 import { isWellKnownObjectParameter } from './utils.js';
-
-/** A parsed type tag from a `configArguments` matcher. Always fully concrete. */
-export type ParsedTypeTag =
-	| { prim: string }
-	| { vector: ParsedTypeTag }
-	| { datatype: { address: string; module: string; name: string; typeArguments: ParsedTypeTag[] } };
 
 /** Whether an entry came from the shared global block or a package-scoped block. */
 export type ConfigArgumentSource = 'global' | 'package';
@@ -23,8 +18,11 @@ export interface TypeConfigArgument {
 	address: string;
 	module: string;
 	name: string;
-	/** `null` when the matcher is written without type arguments (matches every instantiation). */
-	typeArguments: ParsedTypeTag[] | null;
+	/**
+	 * Canonical identities of the matcher's type arguments, or `null` when the matcher is written
+	 * without type arguments (matches every instantiation).
+	 */
+	typeArguments: string[] | null;
 	parameterName?: string;
 	/**
 	 * Whether the matched Move type is generic. Uninstantiated matchers on generic types require a
@@ -65,14 +63,24 @@ export type ParsedConfigArgument =
 	| FunctionConfigArgument
 	| PackageConfigArgument;
 
+/**
+ * How a package in the codegen run is identified inside other packages' summaries: by its named
+ * address label (local packages) and/or its root address (published/on-chain packages).
+ */
+export interface PackageIdentity {
+	label?: string;
+	address?: string;
+}
+
 export interface ConfigArgumentsContext {
 	/** Identifier (from the `packages` config) and resolved address of the package being generated. */
 	package: { id: string; address: string };
 	/**
-	 * Resolved root addresses of the other packages in the codegen run, keyed by their `packages`
-	 * identifier. Matchers can reference any of these packages' types.
+	 * Identities of the other packages in the codegen run, keyed by their `packages` identifier.
+	 * Matchers can reference any of these packages' types. The CLI builds this via
+	 * `resolvePackageIdentity`.
 	 */
-	packageAddresses?: Record<string, string>;
+	packageIdentities?: Record<string, PackageIdentity>;
 }
 
 const PRIMITIVES = new Set(['bool', 'u8', 'u16', 'u32', 'u64', 'u128', 'u256', 'address']);
@@ -80,17 +88,41 @@ const MOVE_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const HEX_ADDRESS = /^0x[0-9a-fA-F]{1,64}$/;
 /** The only packages with chain-stable addresses. Everything else must use a package identifier. */
 const FRAMEWORK_ADDRESS = /^0x0*[123]$/;
+const ZERO_ADDRESS = normalizeSuiAddress('0x0');
 
 function normalizeAddress(address: string) {
 	return HEX_ADDRESS.test(address) ? normalizeSuiAddress(address) : address;
 }
 
+interface ParseContext {
+	/**
+	 * Address a bare `module::Type` resolves against, or `null` when there is no ambient package
+	 * (global block), which makes the qualifier required.
+	 */
+	scopeAddress: string | null;
+	registry: ModuleRegistry;
+	currentPackage: { id: string; address: string };
+	packageIdentities: Record<string, PackageIdentity>;
+	root: string;
+}
+
+/**
+ * Resolve the package part of a matcher to an address within the current package's dependency
+ * closure. Returns `null` when the referenced run package is not part of this closure — the
+ * matcher can't match anything here and is skipped (it is validated when its own package is
+ * generated).
+ *
+ * Cross-package references are resolved through the consuming package's own address mapping (by
+ * the referenced package's named-address label), falling back to its published root address.
+ * Unpublished placeholder addresses (0x0) are never used for cross-package identity — multiple
+ * unpublished local packages would otherwise be indistinguishable.
+ */
 function resolveQualifier(
 	packagePart: string | undefined,
 	unqualified: string,
 	tag: string,
-	ctx: { scopeAddress: string | null; packageAddresses: Record<string, string>; root: string },
-): string {
+	ctx: ParseContext,
+): string | null {
 	if (packagePart === undefined) {
 		if (ctx.scopeAddress === null) {
 			throw new Error(
@@ -113,89 +145,46 @@ function resolveQualifier(
 				`config instead (e.g. "@pkg/name::${unqualified}").`,
 		);
 	}
-	const resolved = ctx.packageAddresses[packagePart];
-	if (resolved === undefined) {
+
+	if (packagePart === ctx.currentPackage.id) {
+		return normalizeAddress(ctx.currentPackage.address);
+	}
+
+	const identity = ctx.packageIdentities[packagePart];
+	if (identity === undefined) {
 		throw new Error(
 			`Unknown package "${packagePart}" in configArguments matcher "${tag}". Known packages in ` +
-				`this codegen run: ${Object.keys(ctx.packageAddresses).join(', ')}`,
+				`this codegen run: ${[ctx.currentPackage.id, ...Object.keys(ctx.packageIdentities)].join(', ')}`,
 		);
 	}
-	return resolved;
-}
 
-interface ParseContext {
-	/**
-	 * Address a bare `module::Type` resolves against, or `null` when there is no ambient package
-	 * (global block), which makes the qualifier required.
-	 */
-	scopeAddress: string | null;
-	/** Resolved addresses by package identifier from the `packages` config. */
-	packageAddresses: Record<string, string>;
-	root: string;
-	isTypeArgument?: boolean;
-}
+	if (identity.label !== undefined && ctx.registry.addressMappings[identity.label] !== undefined) {
+		return normalizeAddress(ctx.registry.addressMappings[identity.label]);
+	}
 
-function assertBalancedBrackets(tag: string) {
-	let depth = 0;
-	for (const char of tag) {
-		if (char === '<') depth++;
-		if (char === '>') depth--;
-		if (depth < 0) {
-			throw new Error(`Invalid type in configArguments matcher: "${tag}" (unbalanced '>')`);
+	if (identity.address !== undefined) {
+		const address = normalizeAddress(identity.address);
+		if (address !== ZERO_ADDRESS && ctx.registry.hasResolvedAddress(address)) {
+			return address;
 		}
 	}
-	if (depth !== 0) {
-		throw new Error(`Invalid type in configArguments matcher: "${tag}" (unbalanced '<')`);
-	}
+
+	return null;
 }
 
-function splitTopLevelTypeArgs(inner: string): string[] {
-	const parts: string[] = [];
-	let depth = 0;
-	let current = '';
-	for (const char of inner) {
-		if (char === ',' && depth === 0) {
-			parts.push(current.trim());
-			current = '';
-			continue;
-		}
-		if (char === '<') depth++;
-		if (char === '>') depth--;
-		current += char;
-	}
-	parts.push(current.trim());
-	return parts;
-}
+/** Signals that a matcher references a package outside this package's dependency closure. */
+class OutOfClosureError extends Error {}
 
-function parseTypeTag(tag: string, ctx: ParseContext): ParsedTypeTag {
+/**
+ * Parse a matcher type into `{ address, module, name, typeArguments }`, resolving the package
+ * qualifier and canonicalizing type arguments with the same identity encoding used for Move
+ * parameter types (so matcher-side and signature-side identities are directly comparable).
+ */
+function parseMatcherType(
+	tag: string,
+	ctx: ParseContext,
+): { address: string; module: string; name: string; typeArguments: string[] } {
 	const trimmed = tag.trim();
-
-	if (!ctx.isTypeArgument) {
-		assertBalancedBrackets(trimmed);
-	}
-
-	if (PRIMITIVES.has(trimmed)) {
-		return { prim: trimmed };
-	}
-
-	if (trimmed.startsWith('vector<') && trimmed.endsWith('>')) {
-		return {
-			vector: parseTypeTag(trimmed.slice('vector<'.length, -1), {
-				...ctx,
-				isTypeArgument: true,
-			}),
-		};
-	}
-
-	// A bare identifier in type-argument position is a type-parameter placeholder like `Pool<T>`.
-	if (ctx.isTypeArgument && MOVE_IDENTIFIER.test(trimmed)) {
-		throw new Error(
-			`configArguments matcher "${ctx.root}" contains the type parameter "${trimmed}" — partially ` +
-				`instantiated matchers are not supported. Use an uninstantiated matcher (no type ` +
-				`arguments) with a resolver function instead.`,
-		);
-	}
-
 	const lt = trimmed.indexOf('<');
 	const base = lt === -1 ? trimmed : trimmed.slice(0, lt);
 	const parts = base.split('::');
@@ -223,94 +212,76 @@ function parseTypeTag(tag: string, ctx: ParseContext): ParsedTypeTag {
 	}
 
 	const address = resolveQualifier(packagePart, `${modulePart}::${namePart}`, tag, ctx);
+	if (address === null) {
+		throw new OutOfClosureError(tag);
+	}
 
 	const typeArguments =
 		lt === -1
 			? []
-			: splitTopLevelTypeArgs(trimmed.slice(lt + 1, -1)).map((arg) => {
-					if (arg.length === 0) {
-						throw new Error(
-							`Invalid type in configArguments matcher: "${tag}" (empty type argument)`,
-						);
-					}
-					return parseTypeTag(arg, { ...ctx, isTypeArgument: true });
-				});
+			: splitGenericParameters(trimmed.slice(lt + 1, -1)).map((argument) =>
+					matcherArgumentIdentity(argument.trim(), ctx),
+				);
 
-	return {
-		datatype: {
-			address: normalizeAddress(address),
-			module: modulePart,
-			name: namePart,
-			typeArguments,
-		},
-	};
+	return { address, module: modulePart, name: namePart, typeArguments };
+}
+
+/** Canonical identity of a matcher type argument (recursive). */
+function matcherArgumentIdentity(argument: string, ctx: ParseContext): string {
+	if (argument.length === 0) {
+		throw new Error(`Invalid type in configArguments matcher: "${ctx.root}" (empty type argument)`);
+	}
+
+	if (PRIMITIVES.has(argument)) {
+		return argument;
+	}
+
+	if (argument.startsWith('vector<') && argument.endsWith('>')) {
+		return `vector<${matcherArgumentIdentity(argument.slice('vector<'.length, -1).trim(), ctx)}>`;
+	}
+
+	// A bare identifier in type-argument position is a type-parameter placeholder like `Pool<T>`.
+	if (MOVE_IDENTIFIER.test(argument)) {
+		throw new Error(
+			`configArguments matcher "${ctx.root}" contains the type parameter "${argument}" — partially ` +
+				`instantiated matchers are not supported. Use an uninstantiated matcher (no type ` +
+				`arguments) with a resolver function instead.`,
+		);
+	}
+
+	const parsed = parseMatcherType(argument, ctx);
+
+	// Nested datatypes must themselves be fully instantiated, as far as the summaries can tell.
+	const summary = ctx.registry.getSummaryByResolvedAddress(parsed.address, parsed.module);
+	const arity = (summary?.structs[parsed.name] ?? summary?.enums[parsed.name])?.type_parameters
+		.length;
+	if (arity !== undefined && arity !== parsed.typeArguments.length) {
+		throw new Error(
+			`configArguments matcher "${ctx.root}": ${parsed.module}::${parsed.name} expects ${arity} ` +
+				`type argument(s), got ${parsed.typeArguments.length}. Partially instantiated matchers ` +
+				`are not supported — use an uninstantiated matcher (no type arguments) with a resolver ` +
+				`function instead.`,
+		);
+	}
+
+	return datatypeIdentity(parsed.address, parsed.module, parsed.name, parsed.typeArguments);
+}
+
+function datatypeIdentity(
+	address: string,
+	module: string,
+	name: string,
+	typeArguments: string[],
+): string {
+	const base = `${address}::${module}::${name}`;
+	return typeArguments.length ? `${base}<${typeArguments.join(',')}>` : base;
 }
 
 /**
- * Check that every datatype nested in an instantiated matcher is itself fully instantiated,
- * as far as the summaries can tell (unknown types are skipped).
+ * Canonical identity of a Move parameter type, or `null` when it references function type
+ * parameters (it then has no single concrete identity). The same encoding as matcher identities.
  */
-function assertFullyInstantiated(
-	tag: ParsedTypeTag,
-	registry: ModuleRegistry,
-	matcherType: string,
-) {
-	if ('prim' in tag) return;
-	if ('vector' in tag) {
-		assertFullyInstantiated(tag.vector, registry, matcherType);
-		return;
-	}
-
-	const { address, module, name, typeArguments } = tag.datatype;
-	const summary = registry.getSummaryByResolvedAddress(address, module);
-	const arity = (summary?.structs[name] ?? summary?.enums[name])?.type_parameters.length;
-
-	if (arity !== undefined && arity !== typeArguments.length) {
-		throw new Error(
-			`configArguments matcher "${matcherType}": ${module}::${name} expects ${arity} type ` +
-				`argument(s), got ${typeArguments.length}. Partially instantiated matchers are not ` +
-				`supported — use an uninstantiated matcher (no type arguments) with a resolver function instead.`,
-		);
-	}
-
-	for (const argument of typeArguments) {
-		assertFullyInstantiated(argument, registry, matcherType);
-	}
-}
-
-function isContextParameter(type: Type, resolveAddress: (address: string) => string): boolean {
-	if (typeof type === 'string') return false;
-	if ('Reference' in type) return isContextParameter(type.Reference[1], resolveAddress);
-	if ('Datatype' in type) {
-		return (
-			normalizeAddress(resolveAddress(type.Datatype.module.address)) ===
-				normalizeSuiAddress('0x2') &&
-			type.Datatype.module.name === 'tx_context' &&
-			type.Datatype.name === 'TxContext'
-		);
-	}
-	return false;
-}
-
-function typeHasTypeParameter(type: Type): boolean {
-	if (typeof type === 'string') return false;
-	if ('Reference' in type) return typeHasTypeParameter(type.Reference[1]);
-	if ('vector' in type) return typeHasTypeParameter(type.vector);
-	if ('Datatype' in type) {
-		return type.Datatype.type_arguments.some((argument) => typeHasTypeParameter(argument.argument));
-	}
-	return 'TypeParameter' in type || 'NamedTypeParameter' in type;
-}
-
-function tagIdentity(tag: ParsedTypeTag): string {
-	if ('prim' in tag) return tag.prim;
-	if ('vector' in tag) return `vector<${tagIdentity(tag.vector)}>`;
-	const { address, module, name, typeArguments } = tag.datatype;
-	const base = `${address}::${module}::${name}`;
-	return typeArguments.length ? `${base}<${typeArguments.map(tagIdentity).join(',')}>` : base;
-}
-
-function canonicalTypeIdentity(
+export function canonicalTypeIdentity(
 	type: Type,
 	resolveAddress: (address: string) => string,
 ): string | null {
@@ -325,27 +296,44 @@ function canonicalTypeIdentity(
 			canonicalTypeIdentity(argument.argument, resolveAddress),
 		);
 		if (args.some((argument) => argument === null)) return null;
-		const base = `${normalizeAddress(resolveAddress(type.Datatype.module.address))}::${type.Datatype.module.name}::${type.Datatype.name}`;
-		return args.length ? `${base}<${args.join(',')}>` : base;
+		return datatypeIdentity(
+			normalizeAddress(resolveAddress(type.Datatype.module.address)),
+			type.Datatype.module.name,
+			type.Datatype.name,
+			args as string[],
+		);
 	}
 	return null;
+}
+
+export function isContextParameter(
+	type: Type,
+	resolveAddress: (address: string) => string,
+): boolean {
+	if (typeof type === 'string') return false;
+	if ('Reference' in type) return isContextParameter(type.Reference[1], resolveAddress);
+	if ('Datatype' in type) {
+		return (
+			normalizeAddress(resolveAddress(type.Datatype.module.address)) ===
+				normalizeSuiAddress('0x2') &&
+			type.Datatype.module.name === 'tx_context' &&
+			type.Datatype.name === 'TxContext'
+		);
+	}
+	return false;
+}
+
+/** Is this a pure (BCS-serialized) type rather than an object? Config values supply objects. */
+function isPureParameterType(identity: string | null): boolean {
+	if (identity === null) return false;
+	return PRIMITIVES.has(identity) || identity.startsWith('vector<');
 }
 
 function parseFunctionMatcher(
 	key: string,
 	source: ConfigArgumentSource,
 	matcher: { function: string; parameterName?: string; parameterIndex?: number },
-	{
-		registry,
-		scopeAddress,
-		packageAddresses,
-		packageId,
-	}: {
-		registry: ModuleRegistry;
-		scopeAddress: string | null;
-		packageAddresses: Record<string, string>;
-		packageId: string;
-	},
+	ctx: ParseContext,
 ): FunctionConfigArgument | null {
 	const parts = matcher.function.split('::');
 	if ((parts.length !== 2 && parts.length !== 3) || parts.some((part) => part.length === 0)) {
@@ -373,13 +361,19 @@ function parseFunctionMatcher(
 		packagePart,
 		`${modulePart}::${functionPart}`,
 		matcher.function,
-		{
-			scopeAddress,
-			packageAddresses,
-			root: matcher.function,
-		},
+		ctx,
 	);
+	if (address === null) {
+		if (source === 'package') {
+			console.warn(
+				`configArguments.${key}: function "${matcher.function}" is not part of ` +
+					`${ctx.currentPackage.id}'s dependencies and will never match.`,
+			);
+		}
+		return null;
+	}
 
+	const registry = ctx.registry;
 	const summary = registry.getSummaryByResolvedAddress(address, modulePart);
 	const func = summary?.functions[functionPart];
 
@@ -391,8 +385,8 @@ function parseFunctionMatcher(
 		}
 		if (source === 'package') {
 			console.warn(
-				`configArguments.${key}: function "${matcher.function}" is not part of ${packageId}'s ` +
-					`dependencies and will never match.`,
+				`configArguments.${key}: function "${matcher.function}" is not part of ` +
+					`${ctx.currentPackage.id}'s dependencies and will never match.`,
 			);
 		}
 		return null;
@@ -438,6 +432,17 @@ function parseFunctionMatcher(
 		parameterIndex = 0;
 	}
 
+	// A parameter typed with the function's own type parameters cannot be a single static id.
+	const boundType = canonicalTypeIdentity(bound.type_, resolveAddress);
+
+	if (isPureParameterType(boundType)) {
+		throw new Error(
+			`configArguments.${key}: parameter ${matcher.parameterName ?? `#${parameterIndex}`} of ` +
+				`"${matcher.function}" has the pure type ${boundType} — config values supply objects, ` +
+				`not pure values`,
+		);
+	}
+
 	return {
 		kind: 'function',
 		key,
@@ -447,10 +452,7 @@ function parseFunctionMatcher(
 		functionName: functionPart,
 		parameterName: matcher.parameterName,
 		parameterIndex,
-		// A parameter typed with the function's own type parameters cannot be a single static id.
-		boundType: typeHasTypeParameter(bound.type_)
-			? null
-			: canonicalTypeIdentity(bound.type_, (target) => registry.resolveAddress(target)),
+		boundType,
 	};
 }
 
@@ -459,10 +461,10 @@ function parseFunctionMatcher(
  * Per-package entries are merged over global entries (per key).
  *
  * Matchers identify packages network-agnostically: by the package identifiers from the codegen
- * config (resolved through `context.packageAddresses`), by the ambient package for bare
- * `module::Type` matchers in a package-scoped block, or by the chain-stable framework addresses
- * 0x1-0x3. If a matcher's package is part of this package's summaries, the matched type must
- * exist there (typos fail generation); matchers referencing run packages that aren't part of this
+ * config (resolved through `context.packageIdentities`), by the ambient package for bare
+ * matchers in a package-scoped block, or by the chain-stable framework addresses 0x1-0x3. If a
+ * matcher's package is part of this package's summaries, the matched type/function must exist
+ * there (typos fail generation); matchers referencing run packages that aren't part of this
  * dependency closure can't match anything here and are skipped.
  */
 export function parseConfigArguments(
@@ -472,12 +474,6 @@ export function parseConfigArguments(
 ): { entries: ParsedConfigArgument[] } {
 	const entries: ParsedConfigArgument[] = [];
 	const currentAddress = normalizeAddress(context.package.address);
-	const packageAddresses: Record<string, string> = Object.fromEntries(
-		Object.entries({
-			...context.packageAddresses,
-			[context.package.id]: context.package.address,
-		}).map(([id, address]) => [id, normalizeAddress(address)]),
-	);
 
 	const merged = new Map<
 		string,
@@ -500,34 +496,40 @@ export function parseConfigArguments(
 		const matchers = Array.isArray(matcher) ? matcher : [matcher];
 
 		for (const single of matchers) {
-			const scopeAddress = source === 'package' ? currentAddress : null;
+			const ctx: ParseContext = {
+				scopeAddress: source === 'package' ? currentAddress : null,
+				registry,
+				currentPackage: context.package,
+				packageIdentities: context.packageIdentities ?? {},
+				root: 'function' in single ? single.function : single.type,
+			};
 
 			if ('function' in single) {
-				const entry = parseFunctionMatcher(key, source, single, {
-					registry,
-					scopeAddress,
-					packageAddresses,
-					packageId: context.package.id,
-				});
+				const entry = parseFunctionMatcher(key, source, single, ctx);
 				if (entry) {
 					entries.push(entry);
 				}
 				continue;
 			}
 
-			const parsed = parseTypeTag(single.type, {
-				scopeAddress,
-				packageAddresses,
-				root: single.type,
-			});
-
-			if (!('datatype' in parsed)) {
-				throw new Error(
-					`configArguments.${key}: matcher type "${single.type}" must be a Move datatype`,
-				);
+			let parsed: ReturnType<typeof parseMatcherType>;
+			try {
+				parsed = parseMatcherType(single.type, ctx);
+			} catch (error) {
+				if (error instanceof OutOfClosureError) {
+					if (source === 'package') {
+						console.warn(
+							`configArguments.${key}: type "${single.type}" is not part of ` +
+								`${context.package.id}'s dependencies and will never match — consider moving it ` +
+								`to the global block or the package it belongs to.`,
+						);
+					}
+					continue;
+				}
+				throw error;
 			}
 
-			const { address, module, name, typeArguments } = parsed.datatype;
+			const { address, module, name, typeArguments } = parsed;
 			const summary = registry.getSummaryByResolvedAddress(address, module);
 			const datatype = summary?.structs[name] ?? summary?.enums[name];
 
@@ -539,9 +541,6 @@ export function parseConfigArguments(
 						`configArguments.${key}: type "${single.type}" was not found in its package's summaries`,
 					);
 				}
-				// The matcher references a run package that isn't part of this package's dependency
-				// closure — it can't match anything here. It is validated when its own package is
-				// generated.
 				if (source === 'package') {
 					console.warn(
 						`configArguments.${key}: type "${single.type}" is not part of ${context.package.id}'s ` +
@@ -563,10 +562,6 @@ export function parseConfigArguments(
 				);
 			}
 
-			for (const argument of typeArguments) {
-				assertFullyInstantiated(argument, registry, single.type);
-			}
-
 			entries.push({
 				kind: 'type',
 				key,
@@ -577,9 +572,7 @@ export function parseConfigArguments(
 				typeArguments: uninstantiated ? null : typeArguments,
 				parameterName: single.parameterName,
 				isGeneric,
-				boundType: uninstantiated
-					? null
-					: tagIdentity({ datatype: { address, module, name, typeArguments } }),
+				boundType: uninstantiated ? null : datatypeIdentity(address, module, name, typeArguments),
 			});
 		}
 	}
@@ -587,47 +580,12 @@ export function parseConfigArguments(
 	return { entries };
 }
 
-function typeEqualsTag(
-	type: Type,
-	tag: ParsedTypeTag,
-	resolveAddress: (address: string) => string,
-): boolean {
-	if (typeof type === 'string') {
-		return 'prim' in tag && tag.prim === type;
-	}
-
-	if ('Reference' in type) {
-		return typeEqualsTag(type.Reference[1], tag, resolveAddress);
-	}
-
-	if ('vector' in type) {
-		return 'vector' in tag && typeEqualsTag(type.vector, tag.vector, resolveAddress);
-	}
-
-	if ('Datatype' in type) {
-		if (!('datatype' in tag)) return false;
-		const { Datatype } = type;
-		return (
-			normalizeAddress(resolveAddress(Datatype.module.address)) === tag.datatype.address &&
-			Datatype.module.name === tag.datatype.module &&
-			Datatype.name === tag.datatype.name &&
-			Datatype.type_arguments.length === tag.datatype.typeArguments.length &&
-			Datatype.type_arguments.every((arg, i) =>
-				typeEqualsTag(arg.argument, tag.datatype.typeArguments[i], resolveAddress),
-			)
-		);
-	}
-
-	// TypeParameter / NamedTypeParameter / tuple / fun never match a concrete tag.
-	return false;
-}
-
 /**
  * Find the config entry matching a function parameter, or `null`.
  *
- * Most-specific matcher wins, decided statically: a fully instantiated matcher beats an
- * uninstantiated one, and a `parameterName`-refined matcher beats a bare one at the same level.
- * Ties are a hard generation-time error.
+ * Most-specific matcher wins, decided statically: function matchers beat type matchers, a fully
+ * instantiated matcher beats an uninstantiated one, and a `parameterName`-refined matcher beats a
+ * bare one at the same level. Ties across different keys are a hard generation-time error.
  *
  * A `parameterName`-refined matcher never matches a parameter without a name — but if such a
  * matcher would otherwise apply (type and instantiation match) and nothing else matches the
@@ -705,11 +663,12 @@ export function findConfigArgumentMatch(
 		if (entry.typeArguments !== null) {
 			// Fully instantiated matcher: only matches parameters concretely typed with that
 			// exact instantiation in the Move signature.
+			const argIdentities = datatype.type_arguments.map((argument) =>
+				canonicalTypeIdentity(argument.argument, resolveAddress),
+			);
 			if (
-				datatype.type_arguments.length !== entry.typeArguments.length ||
-				!datatype.type_arguments.every((arg, i) =>
-					typeEqualsTag(arg.argument, entry.typeArguments![i], resolveAddress),
-				)
+				argIdentities.length !== entry.typeArguments.length ||
+				argIdentities.some((identity, i) => identity !== entry.typeArguments![i])
 			) {
 				continue;
 			}

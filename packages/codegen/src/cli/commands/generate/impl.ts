@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { LocalContext } from '../../context.js';
-import { generateFromPackageSummary, resolvePackageRootAddress } from '../../../index.js';
+import { generateFromPackageSummary, resolvePackageIdentity } from '../../../index.js';
+import type { PackageIdentity } from '../../../config-arguments.js';
 import { loadConfig, type GenerateBase, type PackageGenerate } from '../../../config.js';
 import { isValidNamedPackage, isValidSuiObjectId } from '@mysten/sui/utils';
 import { execSync } from 'node:child_process';
@@ -51,7 +52,12 @@ export default async function generate(
 
 	// Package entries in any configArguments block must reference a package in this run — a typo'd
 	// name would otherwise silently never apply.
-	const knownPackageNames = new Set(normalizedPackages.map((p) => p.package));
+	const knownPackageNames = new Set([
+		...normalizedPackages.map((p) => p.package),
+		// Ad-hoc CLI package args may coexist with a config file whose global block references
+		// config-file packages; validate against the union.
+		...config.packages.map((p) => p.package),
+	]);
 	const configArgumentBlocks = [
 		config.configArguments ?? {},
 		...normalizedPackages.map((p) => ('configArguments' in p ? (p.configArguments ?? {}) : {})),
@@ -130,12 +136,15 @@ export default async function generate(
 		}
 	}
 
-	const packageAddresses: Record<string, string> = {};
+	const packageIdentities: Record<string, PackageIdentity> = {};
 	for (const pkg of normalizedPackages) {
 		if (!pkg.path) continue;
-		const address = await resolvePackageRootAddress(pkg.path);
-		if (address !== undefined) {
-			packageAddresses[pkg.package] = address;
+		const identity = await resolvePackageIdentity(
+			pkg.path,
+			'packageName' in pkg ? pkg.packageName : undefined,
+		);
+		if (identity !== undefined) {
+			packageIdentities[pkg.package] = identity;
 		}
 	}
 
@@ -182,7 +191,7 @@ export default async function generate(
 			includePhantomTypeParameters: config.includePhantomTypeParameters,
 			errorClass: config.errorClass,
 			configArguments: config.configArguments,
-			packageAddresses,
+			packageIdentities,
 		});
 	}
 }

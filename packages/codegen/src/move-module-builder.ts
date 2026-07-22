@@ -12,7 +12,7 @@ import {
 	SUI_FRAMEWORK_ADDRESS,
 	SUI_SYSTEM_ADDRESS,
 } from './render-types.js';
-import { findConfigArgumentMatch } from './config-arguments.js';
+import { findConfigArgumentMatch, isContextParameter } from './config-arguments.js';
 import type {
 	FunctionConfigArgument,
 	ParsedConfigArgument,
@@ -612,7 +612,11 @@ export class MoveModuleBuilder extends FileBuilder {
 			// Parameters (by index into `requiredParameters`) resolved from the runtime config
 			// object instead of being required arguments.
 			const configMatches = new Map<number, TypeConfigArgument | FunctionConfigArgument>();
+			// Keys matching more than one parameter of this signature must be resolver-typed —
+			// a single static value silently bound to two positions is almost always a bug.
+			const multiMatchedKeys = new Set<string>();
 			if (this.#configArguments.length > 0) {
+				const matchesByKey = new Map<string, number>();
 				requiredParameters.forEach((param, i) => {
 					const match = findConfigArgumentMatch(param, this.#configArguments, {
 						resolveAddress: (address) => this.#resolveAddress(address),
@@ -626,7 +630,13 @@ export class MoveModuleBuilder extends FileBuilder {
 					});
 					if (!match) return;
 					configMatches.set(i, match);
+					matchesByKey.set(match.key, (matchesByKey.get(match.key) ?? 0) + 1);
 				});
+				for (const [key, count] of matchesByKey) {
+					if (count > 1) {
+						multiMatchedKeys.add(key);
+					}
+				}
 				for (const match of configMatches.values()) {
 					this.usedConfigKeys.add(match.key);
 				}
@@ -746,7 +756,8 @@ export class MoveModuleBuilder extends FileBuilder {
 						entry.kind !== 'package' && entry.key === match.key ? [entry.boundType] : [],
 					),
 				);
-				const requiresResolver = boundTypes.size > 1 || boundTypes.has(null);
+				const requiresResolver =
+					boundTypes.size > 1 || boundTypes.has(null) || multiMatchedKeys.has(match.key);
 				configSliceFields.push(
 					requiresResolver
 						? `${match.key}: (ctx: ${this.#getImportName('ConfigResolverContext')}) => string | ${this.#getImportName('TransactionObjectArgument')}`
@@ -865,23 +876,7 @@ export class MoveModuleBuilder extends FileBuilder {
 	}
 
 	isContextReference(type: Type): boolean {
-		if (typeof type === 'string') {
-			return false;
-		}
-
-		if ('Reference' in type) {
-			return this.isContextReference(type.Reference[1]);
-		}
-
-		if ('Datatype' in type) {
-			return (
-				this.#resolveAddress(type.Datatype.module.address) === SUI_FRAMEWORK_ADDRESS &&
-				type.Datatype.module.name === 'tx_context' &&
-				type.Datatype.name === 'TxContext'
-			);
-		}
-
-		return false;
+		return isContextParameter(type, (address) => this.#resolveAddress(address));
 	}
 }
 

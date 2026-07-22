@@ -100,8 +100,9 @@ export const configArgumentsSchema = z.record(
 		}),
 	z.union([
 		configArgumentMatcherSchema,
-		// One key may resolve multiple types/parameters; its config value must then be a
-		// resolver function.
+		// One key may declare several matchers. If they span multiple distinct types, the
+		// config value must be a resolver function; matchers sharing one concrete type share
+		// a plain value.
 		z.array(z.union([typeMatcherSchema, functionMatcherSchema])),
 	]),
 );
