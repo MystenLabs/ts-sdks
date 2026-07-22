@@ -177,8 +177,8 @@ export function normalizeMoveArguments(
 export interface ConfigResolverContext {
 	/**
 	 * The matched parameter's own instantiated type arguments (not the whole function's type
-	 * argument tuple), as fully-qualified type tags. Hex-addressed struct tags are normalized to
-	 * their long form before the resolver is invoked; MVR-named tags are passed through unchanged.
+	 * argument tuple). Concrete instantiations are canonical type tags; generic positions pass
+	 * the caller's `typeArguments` strings through as provided.
 	 */
 	typeArguments: string[];
 	/** The package address the generated call will be sent to. */
@@ -194,128 +194,10 @@ export interface ConfigResolverContext {
 }
 
 /**
- * A value in a generated config object: a plain object id/argument, or a resolver function.
- *
- * Any function is treated as a resolver and called with a `ConfigResolverContext`. To provide a
- * transaction-callback object argument dynamically, return it from a resolver:
- * `(ctx) => (tx) => ...`.
+ * A plain value in a generated config object: an object id or a non-callback transaction
+ * argument. Keys that can resolve multiple bindings are typed as resolver functions instead.
  */
-export type ConfigValue =
-	| string
-	| Exclude<TransactionObjectArgument, (...args: never[]) => unknown>
-	| ((ctx: ConfigResolverContext) => string | TransactionObjectArgument);
-
-/** Normalize a hex-addressed struct tag to its long form; pass anything else through. */
-function normalizeConfigTypeTag(tag: string): string {
-	if (/[@/]/.test(tag) || !tag.includes('::')) {
-		return tag;
-	}
-	try {
-		return normalizeStructTag(tag);
-	} catch {
-		return tag;
-	}
-}
-
-/** Static call-site description emitted once per generated function with config-mapped arguments. */
-export interface ConfigCallSite {
-	package: string;
-	module: string;
-	function: string;
-	parameters: {
-		/** Position in the generated arguments (and `parameterIndex` in resolver context). */
-		index: number;
-		/** The config key this parameter resolves from. */
-		key: string;
-		/** Generated (camelCase) argument name, when the summary includes parameter names. */
-		name?: string;
-		/** Move parameter name, when it differs from `name`. */
-		parameterName?: string;
-		/** The parameter's own instantiated type arguments. */
-		typeArguments?: string[];
-	}[];
-}
-
-/**
- * Fill unset config-mapped positions in an arguments array/object with their resolved config
- * values. Resolvers are only invoked for positions the caller did not pass explicitly.
- */
-export function applyConfigArguments<T extends object | unknown[]>(
-	args: T,
-	config: Record<string, ConfigValue | string | undefined> | undefined,
-	callSite: ConfigCallSite,
-): T {
-	function resolve(parameter: ConfigCallSite['parameters'][number]): unknown {
-		const value = config?.[parameter.key] as ConfigValue | undefined;
-
-		if (value == null) {
-			throw new Error(
-				`Missing config value for "${parameter.key}": pass it explicitly in arguments, or include it in the config object`,
-			);
-		}
-
-		if (typeof value !== 'function') {
-			return value;
-		}
-
-		const typeArguments = parameter.typeArguments ?? [];
-		const resolved = value({
-			typeArguments: typeArguments.map(normalizeConfigTypeTag),
-			packageAddress: callSite.package,
-			moduleName: callSite.module,
-			functionName: callSite.function,
-			parameterName: parameter.parameterName ?? parameter.name,
-			parameterIndex: parameter.index,
-		});
-
-		if (resolved == null) {
-			throw new Error(
-				`Config resolver for "${parameter.key}" returned ${resolved} (${callSite.module}::${callSite.function}, typeArguments: [${typeArguments.join(', ')}])`,
-			);
-		}
-
-		return resolved;
-	}
-
-	if (Array.isArray(args)) {
-		const result = [...args];
-		const matchedIndexes = new Set(callSite.parameters.map((parameter) => parameter.index));
-		for (const parameter of callSite.parameters) {
-			if (result[parameter.index] === undefined) {
-				result[parameter.index] = resolve(parameter);
-			}
-		}
-		// Filling a trailing config-mapped position can extend the array past positions the
-		// caller omitted; catch those holes here rather than failing deep inside serialization.
-		for (let i = 0; i < result.length; i++) {
-			if (result[i] === undefined && !matchedIndexes.has(i)) {
-				throw new Error(`Missing argument at position ${i}`);
-			}
-		}
-		return result as T;
-	}
-
-	const result: Record<string, unknown> = { ...args };
-	for (const parameter of callSite.parameters) {
-		if (parameter.name === undefined) {
-			continue;
-		}
-		// Own-property check so inherited properties (e.g. a key named "constructor") are never
-		// mistaken for explicitly passed arguments.
-		if (
-			!Object.prototype.hasOwnProperty.call(result, parameter.name) ||
-			result[parameter.name] === undefined
-		) {
-			Object.defineProperty(result, parameter.name, {
-				value: resolve(parameter),
-				enumerable: true,
-				writable: true,
-				configurable: true,
-			});
-		}
-	}
-	return result as T;
-}
+export type ConfigValue = string | Exclude<TransactionObjectArgument, (...args: never[]) => unknown>;
 
 /* -------------------------- Move type tags -------------------------- */
 

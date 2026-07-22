@@ -362,8 +362,7 @@ per-function `config` slices are the authoritative types for calls.
 For each function with matched parameters, the generated options gain an optional `config` property
 typed as the minimal slice of keys that function actually uses. Matched parameters become optional
 in `arguments`. Passing one explicitly overrides config resolution, and resolvers are only invoked
-for arguments the caller did not pass. If a matched argument is omitted and no config value is
-available, the call fails with a descriptive runtime error:
+for arguments the caller did not pass:
 
 ```typescript
 export interface BorrowOptions {
@@ -382,9 +381,9 @@ export interface BorrowOptions {
 }
 ```
 
-In the tuple form of `arguments`, a matched position followed by a required one accepts an explicit
-`undefined`; a matched suffix (the common case, with registry-style objects last) becomes genuinely
-optional trailing elements.
+Functions with matched parameters accept the named-object form of `arguments` (the tuple form is
+positional for summaries without parameter names). If a matched argument is omitted and no config
+value is available, the call fails with the standard missing-parameter error.
 
 Config values can be a plain object ID, a transaction argument, or a resolver function. Any function
 value is treated as a resolver. To provide a transaction-callback object argument dynamically,
@@ -394,7 +393,7 @@ metadata:
 
 ```typescript
 export interface ConfigResolverContext {
-	typeArguments: string[]; // hex-addressed struct tags are normalized to their long form
+	typeArguments: string[]; // canonical for concrete instantiations; as-provided for generic positions
 	packageAddress: string;
 	moduleName: string;
 	functionName: string;

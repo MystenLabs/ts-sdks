@@ -1,1 +1,4 @@
+dist/
+docs/
 tests/generated-example/
+tests/move/testpkg/package_summaries/

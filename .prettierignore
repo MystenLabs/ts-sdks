@@ -30,4 +30,4 @@ pnpm-lock.yaml
 package_summaries/
 packages/*/docs/
 packages/*/packages/*/docs/
-packages/codegen/tests/generated-example/
+tests/generated-example/

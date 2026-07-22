@@ -391,11 +391,7 @@ describe('config-driven function codegen', () => {
 		expect(optionsInterface?.[0]).toMatchInlineSnapshot(`
 			"export interface RegisterOptions {
 			    package?: string;
-			    arguments: RegisterArguments | [
-			        registry: RawTransactionArgument<string> | undefined,
-			        name: RawTransactionArgument<string>,
-			        tags: RawTransactionArgument<Array<string>>
-			    ];
+			    arguments: RegisterArguments;
 			    config?: {
 			        registryObj: ConfigValue;
 			    };
@@ -416,12 +412,10 @@ describe('config-driven function codegen', () => {
 			        package: packageAddress,
 			        module: 'registry',
 			        function: 'register',
-			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments, options.config, {
-			            package: packageAddress,
-			            module: 'registry',
-			            function: 'register',
-			            parameters: [{ index: 0, key: "registryObj", name: "registry" }]
-			        }), argumentsTypes, parameterNames),
+			        arguments: normalizeMoveArguments({
+			            ...options.arguments,
+			            registry: options.arguments?.registry ?? options.config?.registryObj
+			        }, argumentsTypes, parameterNames),
 			    });
 			}"
 		`);
@@ -438,9 +432,7 @@ describe('config-driven function codegen', () => {
 		expect(optionsInterface?.[0]).toMatchInlineSnapshot(`
 			"export interface LookupOptions {
 			    package?: string;
-			    arguments?: LookupArguments | [
-			        registry?: RawTransactionArgument<string>
-			    ];
+			    arguments?: LookupArguments;
 			    config?: {
 			        registryObj: ConfigValue;
 			    };
@@ -459,12 +451,10 @@ describe('config-driven function codegen', () => {
 			        package: packageAddress,
 			        module: 'registry',
 			        function: 'lookup',
-			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments ?? {}, options.config, {
-			            package: packageAddress,
-			            module: 'registry',
-			            function: 'lookup',
-			            parameters: [{ index: 0, key: "registryObj", name: "registry" }]
-			        }), argumentsTypes, parameterNames),
+			        arguments: normalizeMoveArguments({
+			            ...options.arguments,
+			            registry: options.arguments?.registry ?? options.config?.registryObj
+			        }, argumentsTypes, parameterNames),
 			    });
 			}"
 		`);
@@ -481,9 +471,7 @@ describe('config-driven function codegen', () => {
 		expect(optionsInterface?.[0]).toMatchInlineSnapshot(`
 			"export interface ContainerSizeOptions {
 			    package?: string;
-			    arguments?: ContainerSizeArguments | [
-			        container?: RawTransactionArgument<string>
-			    ];
+			    arguments?: ContainerSizeArguments;
 			    config?: {
 			        container: (ctx: ConfigResolverContext) => string | TransactionObjectArgument;
 			    };
@@ -505,12 +493,10 @@ describe('config-driven function codegen', () => {
 			        package: packageAddress,
 			        module: 'registry',
 			        function: 'container_size',
-			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments ?? {}, options.config, {
-			            package: packageAddress,
-			            module: 'registry',
-			            function: 'container_size',
-			            parameters: [{ index: 0, key: "container", name: "container", typeArguments: [\`\${options.typeArguments[0]}\`] }]
-			        }), argumentsTypes, parameterNames),
+			        arguments: normalizeMoveArguments({
+			            ...options.arguments,
+			            container: options.arguments?.container ?? options.config?.container?.({ typeArguments: [\`\${options.typeArguments[0]}\`], packageAddress, moduleName: 'registry', functionName: 'container_size', parameterName: "container", parameterIndex: 0 })
+			        }, argumentsTypes, parameterNames),
 			        typeArguments: options.typeArguments
 			    });
 			}"
@@ -531,10 +517,7 @@ describe('config-driven function codegen', () => {
 		expect(concreteOptions?.[0]).toMatchInlineSnapshot(`
 			"export interface UseConcreteOptions {
 			    package?: string;
-			    arguments: UseConcreteArguments | [
-			        pool: RawTransactionArgument<string> | undefined,
-			        amount: RawTransactionArgument<number | bigint>
-			    ];
+			    arguments: UseConcreteArguments;
 			    config?: {
 			        suiPool: ConfigValue;
 			    };
@@ -554,12 +537,10 @@ describe('config-driven function codegen', () => {
 			        package: packageAddress,
 			        module: 'pools',
 			        function: 'use_concrete',
-			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments, options.config, {
-			            package: packageAddress,
-			            module: 'pools',
-			            function: 'use_concrete',
-			            parameters: [{ index: 0, key: "suiPool", name: "pool", typeArguments: ['0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI'] }]
-			        }), argumentsTypes, parameterNames),
+			        arguments: normalizeMoveArguments({
+			            ...options.arguments,
+			            pool: options.arguments?.pool ?? options.config?.suiPool
+			        }, argumentsTypes, parameterNames),
 			    });
 			}"
 		`);
@@ -570,10 +551,7 @@ describe('config-driven function codegen', () => {
 		expect(genericOptions?.[0]).toMatchInlineSnapshot(`
 			"export interface UseGenericOptions {
 			    package?: string;
-			    arguments: UseGenericArguments | [
-			        pool: RawTransactionArgument<string> | undefined,
-			        amount: RawTransactionArgument<number | bigint>
-			    ];
+			    arguments: UseGenericArguments;
 			    config?: {
 			        pool: (ctx: ConfigResolverContext) => string | TransactionObjectArgument;
 			    };
@@ -596,12 +574,10 @@ describe('config-driven function codegen', () => {
 			        package: packageAddress,
 			        module: 'pools',
 			        function: 'use_generic',
-			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments, options.config, {
-			            package: packageAddress,
-			            module: 'pools',
-			            function: 'use_generic',
-			            parameters: [{ index: 0, key: "pool", name: "pool", typeArguments: [\`\${options.typeArguments[0]}\`] }]
-			        }), argumentsTypes, parameterNames),
+			        arguments: normalizeMoveArguments({
+			            ...options.arguments,
+			            pool: options.arguments?.pool ?? options.config?.pool?.({ typeArguments: [\`\${options.typeArguments[0]}\`], packageAddress, moduleName: 'pools', functionName: 'use_generic', parameterName: "pool", parameterIndex: 0 })
+			        }, argumentsTypes, parameterNames),
 			        typeArguments: options.typeArguments
 			    });
 			}"
@@ -647,8 +623,8 @@ describe('config-driven function codegen', () => {
 		);
 
 		const fnBody = output.match(/export function swap[\s\S]*?^}/m);
-		expect(fnBody?.[0]).toContain('index: 0, key: "pool"');
-		expect(fnBody?.[0]).toContain('index: 1, key: "pool"');
+		expect(fnBody?.[0]).toContain('parameterIndex: 0');
+		expect(fnBody?.[0]).toContain('parameterIndex: 1');
 	});
 
 	it('allows one key to declare matchers for multiple types, forcing a resolver-typed config value', async () => {
@@ -736,7 +712,7 @@ describe('config-driven function codegen', () => {
 		expect(optionsInterface?.[0]).toContain('pool0: ConfigValue');
 
 		const fnBody = output.match(/export function useConcrete[\s\S]*?^}/m);
-		expect(fnBody?.[0]).toContain('index: 0, key: "pool0"');
+		expect(fnBody?.[0]).toContain('options.arguments[0] ?? options.config?.pool0');
 	});
 
 	it('function matchers win over type matchers and support parameterIndex', async () => {
@@ -825,12 +801,10 @@ describe('config-driven function codegen', () => {
 			        package: packageAddress,
 			        module: 'pools',
 			        function: 'use_generic',
-			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments, options.config, {
-			            package: packageAddress,
-			            module: 'pools',
-			            function: 'use_generic',
-			            parameters: [{ index: 0, key: "pool", typeArguments: [\`\${options.typeArguments[0]}\`] }]
-			        }), argumentsTypes),
+			        arguments: normalizeMoveArguments([
+			            options.arguments[0] ?? options.config?.pool?.({ typeArguments: [\`\${options.typeArguments[0]}\`], packageAddress, moduleName: 'pools', functionName: 'use_generic', parameterIndex: 0 }),
+			            options.arguments[1]
+			        ], argumentsTypes),
 			        typeArguments: options.typeArguments
 			    });
 			}"
@@ -849,10 +823,7 @@ describe('config-driven function codegen', () => {
 		expect(optionsInterface?.[0]).toMatchInlineSnapshot(`
 			"export interface SwapOptions {
 			    package?: string;
-			    arguments?: SwapArguments | [
-			        basePool?: RawTransactionArgument<string>,
-			        quotePool?: RawTransactionArgument<string>
-			    ];
+			    arguments?: SwapArguments;
 			    config?: {
 			        basePool: (ctx: ConfigResolverContext) => string | TransactionObjectArgument;
 			        quotePool: (ctx: ConfigResolverContext) => string | TransactionObjectArgument;
@@ -877,12 +848,11 @@ describe('config-driven function codegen', () => {
 			        package: packageAddress,
 			        module: 'pools',
 			        function: 'swap',
-			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments ?? {}, options.config, {
-			            package: packageAddress,
-			            module: 'pools',
-			            function: 'swap',
-			            parameters: [{ index: 0, key: "basePool", name: "basePool", parameterName: "base_pool", typeArguments: [\`\${options.typeArguments[0]}\`] }, { index: 1, key: "quotePool", name: "quotePool", parameterName: "quote_pool", typeArguments: [\`\${options.typeArguments[1]}\`] }]
-			        }), argumentsTypes, parameterNames),
+			        arguments: normalizeMoveArguments({
+			            ...options.arguments,
+			            basePool: options.arguments?.basePool ?? options.config?.basePool?.({ typeArguments: [\`\${options.typeArguments[0]}\`], packageAddress, moduleName: 'pools', functionName: 'swap', parameterName: "base_pool", parameterIndex: 0 }),
+			            quotePool: options.arguments?.quotePool ?? options.config?.quotePool?.({ typeArguments: [\`\${options.typeArguments[1]}\`], packageAddress, moduleName: 'pools', functionName: 'swap', parameterName: "quote_pool", parameterIndex: 1 })
+			        }, argumentsTypes, parameterNames),
 			        typeArguments: options.typeArguments
 			    });
 			}"
@@ -1127,7 +1097,7 @@ describe('generateFromPackageSummary with configArguments', () => {
 		`);
 
 		const registryModule = await readFile(join(dir, 'testpkg', 'registry.ts'), 'utf-8');
-		expect(registryModule).toContain('applyConfigArguments');
+		expect(registryModule).toContain('options.config?.registryObj');
 	});
 
 	it('errors when a matcher references a type missing from its package', async () => {
@@ -1248,32 +1218,6 @@ describe('generateFromPackageSummary with configArguments', () => {
 		);
 		const json2 = JSON.parse(await tx2.toJSON());
 		expect(json2.inputs).toEqual([{ UnresolvedObject: { objectId: OVERRIDE_ID } }]);
-
-		// Tuple form: an empty tuple resolves from config, an explicit tuple element overrides.
-		const tx3 = new Transaction();
-		tx3.add(
-			mod.lookup({
-				arguments: [],
-				config: { registryObj: REGISTRY_ID, testpkgAddress: PACKAGE_ID },
-			}),
-		);
-		const json3 = JSON.parse(await tx3.toJSON());
-		expect(json3.inputs).toEqual([{ UnresolvedObject: { objectId: REGISTRY_ID } }]);
-
-		const tx4 = new Transaction();
-		tx4.add(
-			mod.lookup({
-				arguments: [OVERRIDE_ID],
-				config: {
-					registryObj: () => {
-						throw new Error('should not be called');
-					},
-					testpkgAddress: PACKAGE_ID,
-				},
-			}),
-		);
-		const json4 = JSON.parse(await tx4.toJSON());
-		expect(json4.inputs).toEqual([{ UnresolvedObject: { objectId: OVERRIDE_ID } }]);
 	});
 
 	it('omitting both the argument and the config value fails with a descriptive error', async () => {
@@ -1282,9 +1226,7 @@ describe('generateFromPackageSummary with configArguments', () => {
 		const mod = await import(join(dir, 'testpkg', 'registry.js'));
 		const tx = new Transaction();
 
-		expect(() => tx.add(mod.lookup({}))).toThrowError(
-			'Missing config value for "registryObj": pass it explicitly in arguments, or include it in the config object',
-		);
+		expect(() => tx.add(mod.lookup({}))).toThrowError('Parameter registry is required');
 	});
 	it('resolvers receive the normalized matched parameter instantiation and call-site metadata', async () => {
 		const { dir } = await generate();
@@ -1311,9 +1253,7 @@ describe('generateFromPackageSummary with configArguments', () => {
 
 		expect(contexts).toEqual([
 			{
-				typeArguments: [
-					'0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI',
-				],
+				typeArguments: ['0x2::sui::SUI'],
 				packageAddress: PACKAGE_ID,
 				moduleName: 'registry',
 				functionName: 'container_size',

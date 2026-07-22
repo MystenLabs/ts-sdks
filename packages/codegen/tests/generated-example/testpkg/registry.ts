@@ -5,7 +5,7 @@
 
 /** A registry module with generics, enums, and various function visibilities. */
 
-import { MoveStruct, MoveEnum, normalizeMoveArguments, type RawTransactionArgument, type ConfigValue, applyConfigArguments, type ConfigResolverContext } from '../utils/index.js';
+import { MoveStruct, MoveEnum, normalizeMoveArguments, type RawTransactionArgument, type ConfigValue, type ConfigResolverContext } from '../utils/index.js';
 import { bcs, type BcsType } from '@mysten/sui/bcs';
 import { type Transaction, type TransactionObjectArgument, type TransactionArgument } from '@mysten/sui/transactions';
 const $moduleName = '@test/testpkg::registry';
@@ -76,11 +76,7 @@ export interface RegisterArguments {
 }
 export interface RegisterOptions {
     package?: string;
-    arguments: RegisterArguments | [
-        registry: RawTransactionArgument<string> | undefined,
-        name: RawTransactionArgument<string>,
-        tags: RawTransactionArgument<Array<string>>
-    ];
+    arguments: RegisterArguments;
     config?: {
         registry: ConfigValue;
         testpkgPackageId?: string;
@@ -99,12 +95,10 @@ export function register(options: RegisterOptions) {
         package: packageAddress,
         module: 'registry',
         function: 'register',
-        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments, options.config, {
-            package: packageAddress,
-            module: 'registry',
-            function: 'register',
-            parameters: [{ index: 0, key: "registry", name: "registry" }]
-        }), argumentsTypes, parameterNames),
+        arguments: normalizeMoveArguments({
+            ...options.arguments,
+            registry: options.arguments?.registry ?? options.config?.registry
+        }, argumentsTypes, parameterNames),
     });
 }
 export interface LookupArguments {
@@ -112,9 +106,7 @@ export interface LookupArguments {
 }
 export interface LookupOptions {
     package?: string;
-    arguments?: LookupArguments | [
-        registry?: RawTransactionArgument<string>
-    ];
+    arguments?: LookupArguments;
     config?: {
         registry: ConfigValue;
         testpkgPackageId?: string;
@@ -131,12 +123,10 @@ export function lookup(options: LookupOptions) {
         package: packageAddress,
         module: 'registry',
         function: 'lookup',
-        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments ?? {}, options.config, {
-            package: packageAddress,
-            module: 'registry',
-            function: 'lookup',
-            parameters: [{ index: 0, key: "registry", name: "registry" }]
-        }), argumentsTypes, parameterNames),
+        arguments: normalizeMoveArguments({
+            ...options.arguments,
+            registry: options.arguments?.registry ?? options.config?.registry
+        }, argumentsTypes, parameterNames),
     });
 }
 export interface NewContainerOptions {
@@ -165,9 +155,7 @@ export interface ContainerSizeArguments {
 }
 export interface ContainerSizeOptions {
     package?: string;
-    arguments?: ContainerSizeArguments | [
-        container?: RawTransactionArgument<string>
-    ];
+    arguments?: ContainerSizeArguments;
     config?: {
         container: (ctx: ConfigResolverContext) => string | TransactionObjectArgument;
         testpkgPackageId?: string;
@@ -187,12 +175,10 @@ export function containerSize(options: ContainerSizeOptions) {
         package: packageAddress,
         module: 'registry',
         function: 'container_size',
-        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments ?? {}, options.config, {
-            package: packageAddress,
-            module: 'registry',
-            function: 'container_size',
-            parameters: [{ index: 0, key: "container", name: "container", typeArguments: [`${options.typeArguments[0]}`] }]
-        }), argumentsTypes, parameterNames),
+        arguments: normalizeMoveArguments({
+            ...options.arguments,
+            container: options.arguments?.container ?? options.config?.container?.({ typeArguments: [`${options.typeArguments[0]}`], packageAddress, moduleName: 'registry', functionName: 'container_size', parameterName: "container", parameterIndex: 0 })
+        }, argumentsTypes, parameterNames),
         typeArguments: options.typeArguments
     });
 }
@@ -202,10 +188,7 @@ export interface MigrateArguments {
 }
 export interface MigrateOptions {
     package?: string;
-    arguments: MigrateArguments | [
-        registry: RawTransactionArgument<string> | undefined,
-        newCount: RawTransactionArgument<number | bigint>
-    ];
+    arguments: MigrateArguments;
     config?: {
         registry: ConfigValue;
         testpkgPackageId?: string;
@@ -223,12 +206,10 @@ export function migrate(options: MigrateOptions) {
         package: packageAddress,
         module: 'registry',
         function: 'migrate',
-        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments, options.config, {
-            package: packageAddress,
-            module: 'registry',
-            function: 'migrate',
-            parameters: [{ index: 0, key: "registry", name: "registry" }]
-        }), argumentsTypes, parameterNames),
+        arguments: normalizeMoveArguments({
+            ...options.arguments,
+            registry: options.arguments?.registry ?? options.config?.registry
+        }, argumentsTypes, parameterNames),
     });
 }
 export interface IsActiveArguments {
@@ -236,9 +217,7 @@ export interface IsActiveArguments {
 }
 export interface IsActiveOptions {
     package?: string;
-    arguments?: IsActiveArguments | [
-        status?: TransactionArgument
-    ];
+    arguments?: IsActiveArguments;
     config?: {
         status: ConfigValue;
         testpkgPackageId?: string;
@@ -255,12 +234,10 @@ export function isActive(options: IsActiveOptions) {
         package: packageAddress,
         module: 'registry',
         function: 'is_active',
-        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments ?? {}, options.config, {
-            package: packageAddress,
-            module: 'registry',
-            function: 'is_active',
-            parameters: [{ index: 0, key: "status", name: "status" }]
-        }), argumentsTypes, parameterNames),
+        arguments: normalizeMoveArguments({
+            ...options.arguments,
+            status: options.arguments?.status ?? options.config?.status
+        }, argumentsTypes, parameterNames),
     });
 }
 export interface OkResultArguments<T extends BcsType<any>> {

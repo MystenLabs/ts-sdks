@@ -42,7 +42,6 @@ const IMPORT_MAP = {
 	MoveEnum: { module: '~outputRoot/utils/index', isType: false },
 	normalizeMoveArguments: { module: '~outputRoot/utils/index', isType: false },
 	RawTransactionArgument: { module: '~outputRoot/utils/index', isType: true },
-	applyConfigArguments: { module: '~outputRoot/utils/index', isType: false },
 	ConfigValue: { module: '~outputRoot/utils/index', isType: true },
 	ConfigResolverContext: { module: '~outputRoot/utils/index', isType: true },
 	TransactionObjectArgument: { module: '@mysten/sui/transactions', isType: true },
@@ -746,22 +745,24 @@ export class MoveModuleBuilder extends FileBuilder {
 
 			// The minimal structural config slice for this function: only the keys whose matchers
 			// hit its parameters, plus this package's own package key if declared.
+			// A key must be a resolver function when it can bind more than one distinct type (or a
+			// generic). Multiple matchers sharing one concrete type share a plain value.
+			const resolverKeys = new Set<string>();
 			const configSliceFields: string[] = [];
 			const seenConfigKeys = new Set<string>();
 			for (const match of configMatches.values()) {
 				if (seenConfigKeys.has(match.key)) continue;
 				seenConfigKeys.add(match.key);
-				// A key must be a resolver function when it can bind more than one distinct type
-				// (or a generic). Multiple matchers sharing one concrete type share a plain value.
 				const boundTypes = new Set(
 					this.#configArguments.flatMap((entry) =>
 						entry.kind !== 'package' && entry.key === match.key ? [entry.boundType] : [],
 					),
 				);
-				const requiresResolver =
-					boundTypes.size > 1 || boundTypes.has(null) || multiMatchedKeys.has(match.key);
+				if (boundTypes.size > 1 || boundTypes.has(null) || multiMatchedKeys.has(match.key)) {
+					resolverKeys.add(match.key);
+				}
 				configSliceFields.push(
-					requiresResolver
+					resolverKeys.has(match.key)
 						? `${match.key}: (ctx: ${this.#getImportName('ConfigResolverContext')}) => string | ${this.#getImportName('TransactionObjectArgument')}`
 						: `${match.key}: ${this.#getImportName('ConfigValue')}`,
 				);
@@ -777,7 +778,9 @@ export class MoveModuleBuilder extends FileBuilder {
 					package${packageIsRequired ? ': string' : '?: string'}
 					arguments${argumentsOptional ? '?' : ''}: ${
 						hasAllParameterNames
-							? `${argumentsInterface}${genericTypeArgs} | [${argumentTupleItems}]`
+							? hasConfigMatches
+								? `${argumentsInterface}${genericTypeArgs}`
+								: `${argumentsInterface}${genericTypeArgs} | [${argumentTupleItems}]`
 							: `[${argumentTupleItems}]`
 					},
 					${
@@ -795,10 +798,15 @@ export class MoveModuleBuilder extends FileBuilder {
 			}`,
 			);
 
-			// Config-matched positions are resolved lazily — only when the caller did not pass the
-			// argument explicitly. The static call-site description is expanded by
-			// applyConfigArguments at runtime.
-			const configParameters = [...configMatches.entries()].map(([i, match]) => {
+			// Config-matched positions resolve inline: an explicitly passed argument wins, then the
+			// config value (resolver keys are invoked with their call-site context).
+			const configExprFor = (
+				i: number,
+				match: typeof configMatches extends Map<number, infer V> ? V : never,
+			) => {
+				if (!resolverKeys.has(match.key)) {
+					return `options.config?.${match.key}`;
+				}
 				const param = requiredParameters[i];
 				let paramType = param.type_;
 				while (typeof paramType !== 'string' && 'Reference' in paramType) {
@@ -817,37 +825,41 @@ export class MoveModuleBuilder extends FileBuilder {
 					});
 					return tag.includes('${') ? `\`${tag}\`` : `'${tag}'`;
 				});
-
-				const fields = [`index: ${i}`, `key: ${JSON.stringify(match.key)}`];
-				if (param.name) {
-					fields.push(`name: ${JSON.stringify(camelCase(param.name))}`);
-					if (camelCase(param.name) !== param.name) {
-						fields.push(`parameterName: ${JSON.stringify(param.name)}`);
-					}
-				}
-				if (ctxTags.length > 0) {
-					fields.push(`typeArguments: [${ctxTags.join(', ')}]`);
-				}
-				return `{ ${fields.join(', ')} }`;
-			});
+				const ctx = `{ typeArguments: [${ctxTags.join(', ')}], packageAddress, moduleName: '${this.summary.id.name}', functionName: '${name}'${param.name ? `, parameterName: ${JSON.stringify(param.name)}` : ''}, parameterIndex: ${i} }`;
+				return `options.config?.${match.key}?.(${ctx})`;
+			};
 
 			const baseArgumentsExpr = `options.arguments${
 				requiredParameters.length === 0
 					? ' ?? []'
-					: argumentsOptional
+					: argumentsOptional && !hasConfigMatches
 						? hasAllParameterNames
 							? ' ?? {}'
 							: ' ?? []'
 						: ''
 			}`;
-			const argumentsExpr = hasConfigMatches
-				? `${this.#getImportName('applyConfigArguments')}(${baseArgumentsExpr}, options.config, {
-					package: packageAddress,
-					module: '${this.summary.id.name}',
-					function: '${name}',
-					parameters: [${configParameters.join(', ')}]
-				})`
-				: baseArgumentsExpr;
+			let argumentsExpr = baseArgumentsExpr;
+			if (hasConfigMatches) {
+				if (hasAllParameterNames) {
+					const overrides = [...configMatches.entries()]
+						.map(
+							([i, match]) =>
+								`${camelCase(requiredParameters[i].name!)}: options.arguments?.${camelCase(requiredParameters[i].name!)} ?? ${configExprFor(i, match)}`,
+						)
+						.join(',\n');
+					argumentsExpr = `{\n...options.arguments,\n${overrides}\n}`;
+				} else {
+					const elements = requiredParameters
+						.map((_, i) => {
+							const match = configMatches.get(i);
+							return match
+								? `options.arguments${argumentsOptional ? '?.' : ''}[${i}] ?? ${configExprFor(i, match)}`
+								: `options.arguments${argumentsOptional ? '?.' : ''}[${i}]`;
+						})
+						.join(',\n');
+					argumentsExpr = `[\n${elements}\n]`;
+				}
+			}
 
 			const packageAddressExpr = `options.package${
 				packageConfigKey ? ` ?? options.config?.${packageConfigKey}` : ''
