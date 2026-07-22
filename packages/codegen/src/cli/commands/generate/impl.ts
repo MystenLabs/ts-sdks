@@ -50,29 +50,6 @@ export default async function generate(
 				})
 			: config.packages;
 
-	// Package entries in any configArguments block must reference a package in this run — a typo'd
-	// name would otherwise silently never apply.
-	const knownPackageNames = new Set([
-		...normalizedPackages.map((p) => p.package),
-		// Ad-hoc CLI package args may coexist with a config file whose global block references
-		// config-file packages; validate against the union.
-		...config.packages.map((p) => p.package),
-	]);
-	const configArgumentBlocks = [
-		config.configArguments ?? {},
-		...normalizedPackages.map((p) => ('configArguments' in p ? (p.configArguments ?? {}) : {})),
-	];
-	for (const block of configArgumentBlocks) {
-		for (const [key, matcher] of Object.entries(block)) {
-			if ('package' in matcher && !knownPackageNames.has(matcher.package)) {
-				throw new Error(
-					`configArguments.${key} references package "${matcher.package}", which is not part of ` +
-						`this codegen run (packages: ${[...knownPackageNames].join(', ')})`,
-				);
-			}
-		}
-	}
-
 	const generateSummaries =
 		flags.noSummaries === undefined ? config.generateSummaries : !flags.noSummaries;
 
@@ -190,7 +167,6 @@ export default async function generate(
 			importExtension,
 			includePhantomTypeParameters: config.includePhantomTypeParameters,
 			errorClass: config.errorClass,
-			configArguments: config.configArguments,
 			packageIdentities,
 		});
 	}

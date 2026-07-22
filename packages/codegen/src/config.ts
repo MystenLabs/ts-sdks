@@ -162,12 +162,6 @@ export const configSchema = z.object({
 	generateSummaries: z.boolean().optional().default(true),
 	packages: z.array(packageConfigSchema),
 	generate: globalGenerateSchema.optional(),
-	/**
-	 * Maps config-object keys to Move type (or package) matchers. Matched function parameters are
-	 * resolved from a runtime config object instead of being required arguments. Per-package
-	 * `configArguments` entries are merged over these global entries.
-	 */
-	configArguments: configArgumentsSchema.optional(),
 	/** @deprecated Use `generate: { functions: { private: 'entry' } }` instead */
 	privateMethods: z.union([z.literal('none'), z.literal('entry'), z.literal('all')]).optional(),
 	importExtension: importExtensionSchema.optional().default('.js'),

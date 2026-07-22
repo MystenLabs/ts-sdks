@@ -42,7 +42,6 @@ const IMPORT_MAP = {
 	MoveEnum: { module: '~outputRoot/utils/index', isType: false },
 	normalizeMoveArguments: { module: '~outputRoot/utils/index', isType: false },
 	RawTransactionArgument: { module: '~outputRoot/utils/index', isType: true },
-	resolveConfigArgument: { module: '~outputRoot/utils/index', isType: false },
 	applyConfigArguments: { module: '~outputRoot/utils/index', isType: false },
 	ConfigValue: { module: '~outputRoot/utils/index', isType: true },
 	ConfigResolverContext: { module: '~outputRoot/utils/index', isType: true },
@@ -68,6 +67,8 @@ export class MoveModuleBuilder extends FileBuilder {
 	#packageConfigKey?: string;
 	/** Config keys that matched at least one parameter of a rendered function. */
 	readonly usedConfigKeys = new Set<string>();
+	/** Config keys forced to resolver form (matched multiple parameters of one signature). */
+	readonly resolverRequiredKeys = new Set<string>();
 
 	constructor({
 		mvrNameOrAddress,
@@ -635,6 +636,7 @@ export class MoveModuleBuilder extends FileBuilder {
 				for (const [key, count] of matchesByKey) {
 					if (count > 1) {
 						multiMatchedKeys.add(key);
+						this.resolverRequiredKeys.add(key);
 					}
 				}
 				for (const match of configMatches.values()) {
@@ -794,8 +796,9 @@ export class MoveModuleBuilder extends FileBuilder {
 			);
 
 			// Config-matched positions are resolved lazily — only when the caller did not pass the
-			// argument explicitly.
-			const configDefaults = [...configMatches.entries()].map(([i, match]) => {
+			// argument explicitly. The static call-site description is expanded by
+			// applyConfigArguments at runtime.
+			const configParameters = [...configMatches.entries()].map(([i, match]) => {
 				const param = requiredParameters[i];
 				let paramType = param.type_;
 				while (typeof paramType !== 'string' && 'Reference' in paramType) {
@@ -814,10 +817,18 @@ export class MoveModuleBuilder extends FileBuilder {
 					});
 					return tag.includes('${') ? `\`${tag}\`` : `'${tag}'`;
 				});
-				const ctx = `{ typeArguments: [${ctxTags.join(', ')}], packageAddress, moduleName: '${this.summary.id.name}', functionName: '${name}', parameterIndex: ${i}${
-					param.name ? `, parameterName: ${JSON.stringify(param.name)}` : ''
-				} }`;
-				return `{ index: ${i}, ${param.name ? `name: ${JSON.stringify(camelCase(param.name))}, ` : ''}resolve: () => ${this.#getImportName('resolveConfigArgument')}(options.config?.${match.key}, ${ctx}, ${JSON.stringify(match.key)}) }`;
+
+				const fields = [`index: ${i}`, `key: ${JSON.stringify(match.key)}`];
+				if (param.name) {
+					fields.push(`name: ${JSON.stringify(camelCase(param.name))}`);
+					if (camelCase(param.name) !== param.name) {
+						fields.push(`parameterName: ${JSON.stringify(param.name)}`);
+					}
+				}
+				if (ctxTags.length > 0) {
+					fields.push(`typeArguments: [${ctxTags.join(', ')}]`);
+				}
+				return `{ ${fields.join(', ')} }`;
 			});
 
 			const baseArgumentsExpr = `options.arguments${
@@ -830,7 +841,12 @@ export class MoveModuleBuilder extends FileBuilder {
 						: ''
 			}`;
 			const argumentsExpr = hasConfigMatches
-				? `${this.#getImportName('applyConfigArguments')}(${baseArgumentsExpr}, [${configDefaults.join(', ')}])`
+				? `${this.#getImportName('applyConfigArguments')}(${baseArgumentsExpr}, options.config, {
+					package: packageAddress,
+					module: '${this.summary.id.name}',
+					function: '${name}',
+					parameters: [${configParameters.join(', ')}]
+				})`
 				: baseArgumentsExpr;
 
 			const packageAddressExpr = `options.package${

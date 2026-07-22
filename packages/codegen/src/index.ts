@@ -6,7 +6,6 @@ import { basename, join } from 'node:path';
 import { ModuleRegistry } from './module-registry.js';
 import { MoveModuleBuilder } from './move-module-builder.js';
 import { existsSync, statSync } from 'node:fs';
-import { normalizeSuiAddress } from '@mysten/sui/utils';
 import { getUtilsContent } from './generate-utils.js';
 import { parse } from 'toml';
 import { FileBuilder } from './file-builder.js';
@@ -15,7 +14,6 @@ import type { PackageIdentity, ParsedConfigArgument } from './config-arguments.j
 import { camelCase, capitalize, parseTS } from './utils.js';
 import type { RootPackageMetadata } from './types/summary.js';
 import type {
-	ConfigArguments,
 	ErrorClassConfig,
 	FunctionsOption,
 	GenerateBase,
@@ -38,7 +36,6 @@ export async function generateFromPackageSummary({
 	importExtension = '.js',
 	includePhantomTypeParameters = false,
 	errorClass,
-	configArguments: globalConfigArguments,
 	packageIdentities,
 }: {
 	package: PackageConfig;
@@ -48,7 +45,6 @@ export async function generateFromPackageSummary({
 	importExtension?: ImportExtension;
 	includePhantomTypeParameters?: boolean;
 	errorClass?: ErrorClassConfig;
-	configArguments?: ConfigArguments;
 	/**
 	 * Identities of the other packages in the codegen run, keyed by their `packages` identifier,
 	 * so `configArguments` matchers can reference them (see `resolvePackageIdentity`). The CLI
@@ -177,17 +173,12 @@ export async function generateFromPackageSummary({
 		? rootPackageId!
 		: (addressMappings[mainPackageDir] ?? mainPackageDir);
 
-	const { entries: configArgumentEntries } =
-		Object.keys(globalConfigArguments ?? {}).length || Object.keys(pkg.configArguments ?? {}).length
-			? parseConfigArguments(
-					{ global: globalConfigArguments, package: pkg.configArguments },
-					registry,
-					{
-						package: { id: pkg.package, address: currentPackageAddress },
-						packageIdentities,
-					},
-				)
-			: { entries: [] };
+	const { entries: configArgumentEntries } = Object.keys(pkg.configArguments ?? {}).length
+		? parseConfigArguments(pkg.configArguments!, registry, {
+				package: { id: pkg.package, address: currentPackageAddress },
+				packageIdentities,
+			})
+		: { entries: [] };
 
 	const packageEntries = configArgumentEntries.filter(
 		(entry): entry is ParsedConfigArgument & { kind: 'package' } =>
@@ -276,29 +267,27 @@ export async function generateFromPackageSummary({
 	);
 
 	const usedConfigKeys = new Set<string>();
+	const resolverRequiredKeys = new Set<string>();
 	for (const mod of modules) {
 		for (const key of mod.builder.usedConfigKeys) {
 			usedConfigKeys.add(key);
 		}
+		for (const key of mod.builder.resolverRequiredKeys) {
+			resolverRequiredKeys.add(key);
+		}
 	}
 
-	// Every matcher is checked in the run of the package it targets: an unused entry targeting
-	// this package is a misconfiguration (wrong parameterName, wrong instantiation, or a function
-	// filtered out of generation). Entries targeting other packages are checked in their own runs.
-	const normalizedCurrentAddress = normalizePackageAddress(currentPackageAddress);
-	const unusedOwnEntries = configArgumentEntries.filter(
-		(entry) =>
-			entry.kind !== 'package' &&
-			entry.address === normalizedCurrentAddress &&
-			!usedConfigKeys.has(entry.key),
+	// configArguments only affect this package's generated functions, so an unused entry is a
+	// misconfiguration (wrong parameterName, wrong instantiation, or a function filtered out of
+	// generation).
+	const unusedEntries = configArgumentEntries.filter(
+		(entry) => entry.kind !== 'package' && !usedConfigKeys.has(entry.key),
 	);
-	if (unusedOwnEntries.length > 0) {
+	if (unusedEntries.length > 0) {
 		console.warn(
 			`configArguments keys that matched no generated function parameters in ${pkg.package}: ${[
-				...new Set(unusedOwnEntries.map((entry) => entry.key)),
-			].join(
-				', ',
-			)} (a key targeting this package's types may still match in other packages of the run)`,
+				...new Set(unusedEntries.map((entry) => entry.key)),
+			].join(', ')}`,
 		);
 	}
 
@@ -307,18 +296,11 @@ export async function generateFromPackageSummary({
 			packageOutputDir,
 			outputDir,
 			packageName,
-			entries: configArgumentEntries.filter(
-				(entry) => entry.kind !== 'package' || entry.package === pkg.package,
-			),
+			entries: configArgumentEntries,
+			resolverRequiredKeys,
 			importExtension,
 		});
 	}
-}
-
-const HEX_ADDRESS = /^0x[0-9a-fA-F]{1,64}$/;
-
-function normalizePackageAddress(address: string) {
-	return HEX_ADDRESS.test(address) ? normalizeSuiAddress(address) : address;
 }
 
 /**
@@ -375,7 +357,7 @@ export async function resolvePackageIdentity(
 /**
  * Emit `<output>/<packageName>/config-arguments.ts` with a convenience interface covering this
  * package's resolvable config keys (and its own package-address key), for `satisfies` on the user
- * side. With a global block spanning multiple packages, intersect the per-package interfaces
+ * side. For an SDK spanning multiple packages, intersect the per-package interfaces
  * (`CoreConfig & MarginConfig`). The hyphenated filename can never collide with a generated Move
  * module file.
  */
@@ -384,12 +366,15 @@ async function generateConfigInterface({
 	outputDir,
 	packageName,
 	entries,
+	resolverRequiredKeys,
 	importExtension,
 }: {
 	packageOutputDir: string;
 	outputDir: string;
 	packageName: string;
 	entries: ParsedConfigArgument[];
+	/** Keys forced to resolver form by per-function multi-matches. */
+	resolverRequiredKeys: Set<string>;
 	importExtension: ImportExtension;
 }) {
 	const builder = new FileBuilder();
@@ -413,7 +398,8 @@ async function generateConfigInterface({
 		const boundTypes = new Set(
 			group.flatMap((entry) => (entry.kind !== 'package' ? [entry.boundType] : [])),
 		);
-		const requiresResolver = boundTypes.size > 1 || boundTypes.has(null);
+		const requiresResolver =
+			boundTypes.size > 1 || boundTypes.has(null) || resolverRequiredKeys.has(key);
 
 		if (requiresResolver) {
 			const ctxName = builder.addImport(utilsModule, 'type ConfigResolverContext');

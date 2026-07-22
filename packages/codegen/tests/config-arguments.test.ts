@@ -39,7 +39,7 @@ async function createBuilders(configArguments: ConfigArguments, packageConfigKey
 		'@test/testpkg',
 	);
 
-	const { entries } = parseConfigArguments({ global: configArguments }, registry, TESTPKG_CONTEXT);
+	const { entries } = parseConfigArguments(configArguments, registry, TESTPKG_CONTEXT);
 	counter.setConfigArguments(entries, packageConfigKey);
 	registryBuilder.setConfigArguments(entries, packageConfigKey);
 
@@ -153,7 +153,7 @@ function createPoolsBuilder(
 		importExtension: '.js',
 		typeOrigins: options.typeOrigins,
 	});
-	const { entries } = parseConfigArguments({ global: configArguments }, registry, TESTPKG_CONTEXT);
+	const { entries } = parseConfigArguments(configArguments, registry, TESTPKG_CONTEXT);
 	builder.setConfigArguments(entries);
 	return builder;
 }
@@ -194,11 +194,9 @@ describe('parseConfigArguments', () => {
 	it('parses package-qualified, framework-qualified, and package matchers', async () => {
 		const { entries } = parseConfigArguments(
 			{
-				global: {
-					pool: { type: '@test/testpkg::pools::Pool' },
-					suiPool: { type: '@test/testpkg::pools::Pool<0x2::sui::SUI>' },
-					pkg: { package: '@test/testpkg' },
-				},
+				pool: { type: '@test/testpkg::pools::Pool' },
+				suiPool: { type: '@test/testpkg::pools::Pool<0x2::sui::SUI>' },
+				pkg: { package: '@test/testpkg' },
 			},
 			createRegistry(),
 			TESTPKG_CONTEXT,
@@ -208,7 +206,6 @@ describe('parseConfigArguments', () => {
 			{
 				kind: 'type',
 				key: 'pool',
-				source: 'global',
 				address: '0x0000000000000000000000000000000000000000000000000000000000000000',
 				module: 'pools',
 				name: 'Pool',
@@ -230,10 +227,8 @@ describe('parseConfigArguments', () => {
 	it('resolves bare module::Type matchers against the declaring package', async () => {
 		const { entries } = parseConfigArguments(
 			{
-				package: {
-					pool: { type: 'pools::Pool' },
-					coinPool: { type: 'pools::Pool<pools::Coin>' },
-				},
+				pool: { type: 'pools::Pool' },
+				coinPool: { type: 'pools::Pool<pools::Coin>' },
 			},
 			createRegistry(),
 			TESTPKG_CONTEXT,
@@ -256,19 +251,15 @@ describe('parseConfigArguments', () => {
 		]);
 	});
 
-	it('requires package qualification for global matchers', async () => {
+	it('rejects package entries referencing other packages', async () => {
 		expect(() =>
-			parseConfigArguments(
-				{ global: { pool: { type: 'pools::Pool' } } },
-				createRegistry(),
-				TESTPKG_CONTEXT,
-			),
-		).toThrowError(/must be qualified with a package in the global configArguments block/);
+			parseConfigArguments({ pkg: { package: '@other/pkg' } }, createRegistry(), TESTPKG_CONTEXT),
+		).toThrowError(/package entries must reference the package declaring them/);
 	});
 
 	it('resolves other run packages through their named-address label in this closure', async () => {
 		const { entries } = parseConfigArguments(
-			{ global: { pool: { type: '@other/pkg::pools::Pool' } } },
+			{ pool: { type: '@other/pkg::pools::Pool' } },
 			createRegistry(),
 			{
 				...TESTPKG_CONTEXT,
@@ -280,98 +271,34 @@ describe('parseConfigArguments', () => {
 		expect(entries).toMatchObject([{ key: 'pool', module: 'pools', name: 'Pool' }]);
 	});
 
-	it('never uses unpublished 0x0 addresses for cross-package identity', async () => {
-		// Two unpublished local packages both resolve to 0x0. A matcher for the other package
-		// must be skipped (not matched against, and not hard-errored) even though the current
-		// package's own address is also 0x0.
-		const { entries } = parseConfigArguments(
-			{ global: { other: { type: '@other/pkg::pools::Pool' } } },
-			createRegistry(),
-			{
+	it('errors for run packages outside this dependency closure, never using 0x0 identity', async () => {
+		// configArguments only affect the declaring package's functions, so referencing a
+		// non-dependency can never match — and an unpublished 0x0 address must not be used to
+		// claim closure membership even though the current package's own address is also 0x0.
+		expect(() =>
+			parseConfigArguments({ other: { type: '@other/pkg::pools::Pool' } }, createRegistry(), {
 				...TESTPKG_CONTEXT,
 				packageIdentities: {
 					'@other/pkg': { label: 'not_in_this_closure', address: ADDRESS_MAPPINGS.testpkg },
 				},
-			},
-		);
-
-		expect(entries).toEqual([]);
+			}),
+		).toThrowError(/is not part of this package's dependencies/);
 	});
 
-	it('merges package-scoped entries over global entries per key', async () => {
-		const { entries } = parseConfigArguments(
-			{
-				global: {
-					pool: { type: '@test/testpkg::pools::Pool' },
-					coin: { type: '@test/testpkg::pools::Coin' },
-				},
-				package: {
-					pool: { type: 'pools::Pool<0x2::sui::SUI>' },
-				},
-			},
-			createRegistry(),
-			TESTPKG_CONTEXT,
-		);
-
-		// Map insertion order keeps the global position for overridden keys.
-		expect(entries).toMatchObject([
-			{
-				key: 'pool',
-				source: 'package',
-				typeArguments: [
-					'0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI',
-				],
-			},
-			{ key: 'coin', source: 'global', typeArguments: [] },
-		]);
-	});
-
-	it('skips matchers for run packages outside this dependency closure', async () => {
-		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-		try {
-			// Global entries for other packages are silently inapplicable here (they are
-			// validated when their own package is generated).
-			const { entries } = parseConfigArguments(
-				{ global: { other: { type: '@other/pkg::vault::Vault' } } },
-				createRegistry(),
-				{
-					...TESTPKG_CONTEXT,
-					packageIdentities: {
-						'@other/pkg': {
-							label: 'other',
-							address: '0x0000000000000000000000000000000000000000000000000000000000000042',
-						},
-					},
-				},
-			);
-			expect(entries).toEqual([]);
-			expect(warn).not.toHaveBeenCalled();
-
-			// A package-scoped entry referencing a package that is not a dependency can never
-			// match, which deserves a warning.
-			parseConfigArguments(
-				{ package: { other: { type: '@other/pkg::vault::Vault' } } },
-				createRegistry(),
-				{
-					...TESTPKG_CONTEXT,
-					packageIdentities: {
-						'@other/pkg': {
-							label: 'other',
-							address: '0x0000000000000000000000000000000000000000000000000000000000000042',
-						},
-					},
-				},
-			);
-			expect(warn).toHaveBeenCalledWith(expect.stringContaining('will never match'));
-		} finally {
-			warn.mockRestore();
-		}
-	});
-
-	it('errors when the matched type does not exist in a package that is part of the closure', async () => {
+	it('errors for unknown package identifiers', async () => {
 		expect(() =>
 			parseConfigArguments(
-				{ global: { missing: { type: '@test/testpkg::pools::DoesNotExist' } } },
+				{ pool: { type: '@unknown/pkg::pools::Pool' } },
+				createRegistry(),
+				TESTPKG_CONTEXT,
+			),
+		).toThrowError(/Unknown package "@unknown\/pkg"/);
+	});
+
+	it('errors when the matched type does not exist in its package', async () => {
+		expect(() =>
+			parseConfigArguments(
+				{ missing: { type: '@test/testpkg::pools::DoesNotExist' } },
 				createRegistry(),
 				TESTPKG_CONTEXT,
 			),
@@ -381,7 +308,7 @@ describe('parseConfigArguments', () => {
 	it('rejects malformed matcher types', async () => {
 		const registry = createRegistry();
 		const parse = (type: string) =>
-			parseConfigArguments({ global: { bad: { type } } }, registry, TESTPKG_CONTEXT);
+			parseConfigArguments({ bad: { type } }, registry, TESTPKG_CONTEXT);
 
 		expect(() => parse('Pool')).toThrowError(/Expected "module::Type"/);
 		expect(() => parse('u64')).toThrowError(/Expected "module::Type"/);
@@ -396,15 +323,12 @@ describe('parseConfigArguments', () => {
 			/is not a valid module::type pair/,
 		);
 		expect(() => parse('2::sui::SUI')).toThrowError(/Unknown package "2"/);
-		expect(() => parse('@unknown/pkg::pools::Pool')).toThrowError(
-			/Unknown package "@unknown\/pkg"/,
-		);
 	});
 
 	it('rejects non-framework package addresses', async () => {
 		const registry = createRegistry();
 		const parse = (type: string) =>
-			parseConfigArguments({ global: { bad: { type } } }, registry, TESTPKG_CONTEXT);
+			parseConfigArguments({ bad: { type } }, registry, TESTPKG_CONTEXT);
 
 		expect(() => parse('0x999::vault::Vault')).toThrowError(
 			/package addresses are network-specific/,
@@ -419,7 +343,7 @@ describe('parseConfigArguments', () => {
 
 		expect(() =>
 			parseConfigArguments(
-				{ global: { pool: { type: '@test/testpkg::pools::Pool<T>' } } },
+				{ pool: { type: '@test/testpkg::pools::Pool<T>' } },
 				registry,
 				TESTPKG_CONTEXT,
 			),
@@ -428,7 +352,7 @@ describe('parseConfigArguments', () => {
 		// A nested uninstantiated generic is also a partial instantiation.
 		expect(() =>
 			parseConfigArguments(
-				{ global: { pool: { type: '@test/testpkg::pools::Pool<@test/testpkg::pools::Pool>' } } },
+				{ pool: { type: '@test/testpkg::pools::Pool<@test/testpkg::pools::Pool>' } },
 				registry,
 				TESTPKG_CONTEXT,
 			),
@@ -438,7 +362,7 @@ describe('parseConfigArguments', () => {
 	it('rejects instantiated matchers with the wrong arity', async () => {
 		expect(() =>
 			parseConfigArguments(
-				{ global: { pool: { type: '@test/testpkg::pools::Pool<0x2::sui::SUI, u64>' } } },
+				{ pool: { type: '@test/testpkg::pools::Pool<0x2::sui::SUI, u64>' } },
 				createRegistry(),
 				TESTPKG_CONTEXT,
 			),
@@ -492,7 +416,12 @@ describe('config-driven function codegen', () => {
 			        package: packageAddress,
 			        module: 'registry',
 			        function: 'register',
-			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments, [{ index: 0, name: "registry", resolve: () => resolveConfigArgument(options.config?.registryObj, { typeArguments: [], packageAddress, moduleName: 'registry', functionName: 'register', parameterIndex: 0, parameterName: "registry" }, "registryObj") }]), argumentsTypes, parameterNames),
+			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments, options.config, {
+			            package: packageAddress,
+			            module: 'registry',
+			            function: 'register',
+			            parameters: [{ index: 0, key: "registryObj", name: "registry" }]
+			        }), argumentsTypes, parameterNames),
 			    });
 			}"
 		`);
@@ -530,7 +459,12 @@ describe('config-driven function codegen', () => {
 			        package: packageAddress,
 			        module: 'registry',
 			        function: 'lookup',
-			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments ?? {}, [{ index: 0, name: "registry", resolve: () => resolveConfigArgument(options.config?.registryObj, { typeArguments: [], packageAddress, moduleName: 'registry', functionName: 'lookup', parameterIndex: 0, parameterName: "registry" }, "registryObj") }]), argumentsTypes, parameterNames),
+			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments ?? {}, options.config, {
+			            package: packageAddress,
+			            module: 'registry',
+			            function: 'lookup',
+			            parameters: [{ index: 0, key: "registryObj", name: "registry" }]
+			        }), argumentsTypes, parameterNames),
 			    });
 			}"
 		`);
@@ -571,7 +505,12 @@ describe('config-driven function codegen', () => {
 			        package: packageAddress,
 			        module: 'registry',
 			        function: 'container_size',
-			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments ?? {}, [{ index: 0, name: "container", resolve: () => resolveConfigArgument(options.config?.container, { typeArguments: [\`\${options.typeArguments[0]}\`], packageAddress, moduleName: 'registry', functionName: 'container_size', parameterIndex: 0, parameterName: "container" }, "container") }]), argumentsTypes, parameterNames),
+			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments ?? {}, options.config, {
+			            package: packageAddress,
+			            module: 'registry',
+			            function: 'container_size',
+			            parameters: [{ index: 0, key: "container", name: "container", typeArguments: [\`\${options.typeArguments[0]}\`] }]
+			        }), argumentsTypes, parameterNames),
 			        typeArguments: options.typeArguments
 			    });
 			}"
@@ -615,7 +554,12 @@ describe('config-driven function codegen', () => {
 			        package: packageAddress,
 			        module: 'pools',
 			        function: 'use_concrete',
-			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments, [{ index: 0, name: "pool", resolve: () => resolveConfigArgument(options.config?.suiPool, { typeArguments: ['0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI'], packageAddress, moduleName: 'pools', functionName: 'use_concrete', parameterIndex: 0, parameterName: "pool" }, "suiPool") }]), argumentsTypes, parameterNames),
+			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments, options.config, {
+			            package: packageAddress,
+			            module: 'pools',
+			            function: 'use_concrete',
+			            parameters: [{ index: 0, key: "suiPool", name: "pool", typeArguments: ['0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI'] }]
+			        }), argumentsTypes, parameterNames),
 			    });
 			}"
 		`);
@@ -652,7 +596,12 @@ describe('config-driven function codegen', () => {
 			        package: packageAddress,
 			        module: 'pools',
 			        function: 'use_generic',
-			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments, [{ index: 0, name: "pool", resolve: () => resolveConfigArgument(options.config?.pool, { typeArguments: [\`\${options.typeArguments[0]}\`], packageAddress, moduleName: 'pools', functionName: 'use_generic', parameterIndex: 0, parameterName: "pool" }, "pool") }]), argumentsTypes, parameterNames),
+			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments, options.config, {
+			            package: packageAddress,
+			            module: 'pools',
+			            function: 'use_generic',
+			            parameters: [{ index: 0, key: "pool", name: "pool", typeArguments: [\`\${options.typeArguments[0]}\`] }]
+			        }), argumentsTypes, parameterNames),
 			        typeArguments: options.typeArguments
 			    });
 			}"
@@ -698,8 +647,8 @@ describe('config-driven function codegen', () => {
 		);
 
 		const fnBody = output.match(/export function swap[\s\S]*?^}/m);
-		expect(fnBody?.[0]).toContain('parameterIndex: 0');
-		expect(fnBody?.[0]).toContain('parameterIndex: 1');
+		expect(fnBody?.[0]).toContain('index: 0, key: "pool"');
+		expect(fnBody?.[0]).toContain('index: 1, key: "pool"');
 	});
 
 	it('allows one key to declare matchers for multiple types, forcing a resolver-typed config value', async () => {
@@ -787,7 +736,7 @@ describe('config-driven function codegen', () => {
 		expect(optionsInterface?.[0]).toContain('pool0: ConfigValue');
 
 		const fnBody = output.match(/export function useConcrete[\s\S]*?^}/m);
-		expect(fnBody?.[0]).toContain('{ index: 0, resolve: () =>');
+		expect(fnBody?.[0]).toContain('index: 0, key: "pool0"');
 	});
 
 	it('function matchers win over type matchers and support parameterIndex', async () => {
@@ -816,7 +765,7 @@ describe('config-driven function codegen', () => {
 			importExtension: '.js',
 		});
 		const parse = (matcher: object) =>
-			parseConfigArguments({ global: { key: matcher as never } }, registry, TESTPKG_CONTEXT);
+			parseConfigArguments({ key: matcher as never }, registry, TESTPKG_CONTEXT);
 
 		expect(() => parse({ function: '@test/testpkg::pools::nope' })).toThrowError(
 			/was not found in its package's summaries/,
@@ -876,7 +825,12 @@ describe('config-driven function codegen', () => {
 			        package: packageAddress,
 			        module: 'pools',
 			        function: 'use_generic',
-			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments, [{ index: 0, resolve: () => resolveConfigArgument(options.config?.pool, { typeArguments: [\`\${options.typeArguments[0]}\`], packageAddress, moduleName: 'pools', functionName: 'use_generic', parameterIndex: 0 }, "pool") }]), argumentsTypes),
+			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments, options.config, {
+			            package: packageAddress,
+			            module: 'pools',
+			            function: 'use_generic',
+			            parameters: [{ index: 0, key: "pool", typeArguments: [\`\${options.typeArguments[0]}\`] }]
+			        }), argumentsTypes),
 			        typeArguments: options.typeArguments
 			    });
 			}"
@@ -923,7 +877,12 @@ describe('config-driven function codegen', () => {
 			        package: packageAddress,
 			        module: 'pools',
 			        function: 'swap',
-			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments ?? {}, [{ index: 0, name: "basePool", resolve: () => resolveConfigArgument(options.config?.basePool, { typeArguments: [\`\${options.typeArguments[0]}\`], packageAddress, moduleName: 'pools', functionName: 'swap', parameterIndex: 0, parameterName: "base_pool" }, "basePool") }, { index: 1, name: "quotePool", resolve: () => resolveConfigArgument(options.config?.quotePool, { typeArguments: [\`\${options.typeArguments[1]}\`], packageAddress, moduleName: 'pools', functionName: 'swap', parameterIndex: 1, parameterName: "quote_pool" }, "quotePool") }]), argumentsTypes, parameterNames),
+			        arguments: normalizeMoveArguments(applyConfigArguments(options.arguments ?? {}, options.config, {
+			            package: packageAddress,
+			            module: 'pools',
+			            function: 'swap',
+			            parameters: [{ index: 0, key: "basePool", name: "basePool", parameterName: "base_pool", typeArguments: [\`\${options.typeArguments[0]}\`] }, { index: 1, key: "quotePool", name: "quotePool", parameterName: "quote_pool", typeArguments: [\`\${options.typeArguments[1]}\`] }]
+			        }), argumentsTypes, parameterNames),
 			        typeArguments: options.typeArguments
 			    });
 			}"
@@ -1061,10 +1020,8 @@ describe('config-driven function codegen', () => {
 		);
 		const { entries } = parseConfigArguments(
 			{
-				global: {
-					registryObj: { type: '@test/testpkg::registry::Registry' },
-					testpkgAddress: { package: '@test/testpkg' },
-				},
+				registryObj: { type: '@test/testpkg::registry::Registry' },
+				testpkgAddress: { package: '@test/testpkg' },
 			},
 			registry,
 			TESTPKG_CONTEXT,
@@ -1129,16 +1086,16 @@ describe('generateFromPackageSummary with configArguments', () => {
 			package: {
 				package: '@test/testpkg',
 				path: FIXTURE_PATH,
+				configArguments: {
+					registryObj: { type: '@test/testpkg::registry::Registry' },
+					container: { type: '@test/testpkg::registry::Container' },
+					testpkgAddress: { package: '@test/testpkg' },
+					unusedEntry: { type: '@test/testpkg::registry::Entry' },
+					statusViaFn: { function: '@test/testpkg::registry::is_active' },
+				},
 			},
 			prune: true,
 			outputDir: dir,
-			configArguments: {
-				registryObj: { type: '@test/testpkg::registry::Registry' },
-				container: { type: '@test/testpkg::registry::Container' },
-				testpkgAddress: { package: '@test/testpkg' },
-				unusedEntry: { type: '@test/testpkg::registry::Entry' },
-				statusViaFn: { function: '@test/testpkg::registry::is_active' },
-			},
 		});
 		return { warn, dir };
 	}
@@ -1171,7 +1128,6 @@ describe('generateFromPackageSummary with configArguments', () => {
 
 		const registryModule = await readFile(join(dir, 'testpkg', 'registry.ts'), 'utf-8');
 		expect(registryModule).toContain('applyConfigArguments');
-		expect(registryModule).toContain('resolveConfigArgument');
 	});
 
 	it('errors when a matcher references a type missing from its package', async () => {
@@ -1330,7 +1286,6 @@ describe('generateFromPackageSummary with configArguments', () => {
 			'Missing config value for "registryObj": pass it explicitly in arguments, or include it in the config object',
 		);
 	});
-
 	it('resolvers receive the normalized matched parameter instantiation and call-site metadata', async () => {
 		const { dir } = await generate();
 

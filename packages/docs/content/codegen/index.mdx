@@ -92,7 +92,6 @@ The `SuiCodegenConfig` type supports the following options:
 | `prune`                        | `boolean`              | `true`  | When enabled, only generates code for the main package and omits dependency modules (dependency types referenced by included types are still generated under `deps/`) |
 | `generateSummaries`            | `boolean`              | `true`  | Automatically run `sui move summary` before generating code. Creates a `package_summaries` directory in your Move package which can be added to `.gitignore`          |
 | `generate`                     | `GenerateOptions`      | -       | Default [generate options](#the-generate-option) (types, functions) for all packages                                                                                  |
-| `configArguments`              | `ConfigArguments`      | -       | Map function parameters and package addresses to a [runtime config object](#the-configarguments-option), shared by all packages                                       |
 | `importExtension`              | `'.js' \| '.ts' \| ''` | `'.js'` | File extension used in generated import statements                                                                                                                    |
 | `includePhantomTypeParameters` | `boolean`              | `false` | Include [phantom type parameters](#phantom-types) as function arguments in generated BCS types                                                                        |
 
@@ -103,13 +102,13 @@ local (from source) or onchain (fetched from a network).
 
 #### Local packages
 
-| Option            | Type                     | Required | Description                                                            |
-| ----------------- | ------------------------ | -------- | ---------------------------------------------------------------------- |
-| `package`         | `string`                 | yes      | Package identifier (for example, `@local-pkg/my-package`)              |
-| `path`            | `string`                 | yes      | Path to the Move package directory                                     |
-| `packageName`     | `string`                 | no       | Custom name for generated code directory                               |
-| `generate`        | `PackageGenerateOptions` | no       | Control what gets generated from this package                          |
-| `configArguments` | `ConfigArguments`        | no       | Package-scoped [config argument matchers](#the-configarguments-option) |
+| Option            | Type                     | Required | Description                                                                                      |
+| ----------------- | ------------------------ | -------- | ------------------------------------------------------------------------------------------------ |
+| `package`         | `string`                 | yes      | Package identifier (for example, `@local-pkg/my-package`)                                        |
+| `path`            | `string`                 | yes      | Path to the Move package directory                                                               |
+| `packageName`     | `string`                 | no       | Custom name for generated code directory                                                         |
+| `generate`        | `PackageGenerateOptions` | no       | Control what gets generated from this package                                                    |
+| `configArguments` | `ConfigArguments`        | no       | Map this package's function parameters to a [runtime config object](#the-configarguments-option) |
 
 ```typescript
 {
@@ -123,13 +122,13 @@ local (from source) or onchain (fetched from a network).
 For packages already deployed onchain, generate code directly from a package ID or MVR name without
 needing local source code:
 
-| Option            | Type                     | Required | Description                                                            |
-| ----------------- | ------------------------ | -------- | ---------------------------------------------------------------------- |
-| `package`         | `string`                 | yes      | Package ID or MVR name                                                 |
-| `packageName`     | `string`                 | yes      | Name for the generated code directory                                  |
-| `network`         | `'mainnet' \| 'testnet'` | yes      | Network to fetch the package from                                      |
-| `generate`        | `PackageGenerateOptions` | no       | Control what gets generated from this package                          |
-| `configArguments` | `ConfigArguments`        | no       | Package-scoped [config argument matchers](#the-configarguments-option) |
+| Option            | Type                     | Required | Description                                                                                      |
+| ----------------- | ------------------------ | -------- | ------------------------------------------------------------------------------------------------ |
+| `package`         | `string`                 | yes      | Package ID or MVR name                                                                           |
+| `packageName`     | `string`                 | yes      | Name for the generated code directory                                                            |
+| `network`         | `'mainnet' \| 'testnet'` | yes      | Network to fetch the package from                                                                |
+| `generate`        | `PackageGenerateOptions` | no       | Control what gets generated from this package                                                    |
+| `configArguments` | `ConfigArguments`        | no       | Map this package's function parameters to a [runtime config object](#the-configarguments-option) |
 
 ```typescript
 {
@@ -296,10 +295,10 @@ arguments of generated functions. The `configArguments` option moves that plumbi
 declare which Move types (or package addresses) come from a config object, and the generated
 functions accept that config object directly instead of requiring those arguments on every call.
 
-`configArguments` maps author-chosen keys to matchers. It can be declared globally (shared by all
-packages) or per package entry (merged over the global block, per key). Because codegen output is
-network-agnostic, matchers never contain package addresses: types are identified by
-`module::TypeName`, qualified with the package identifier you already use in the `packages` config:
+`configArguments` maps author-chosen keys to matchers, declared on the package entry whose generated
+functions they configure. Because codegen output is network-agnostic, matchers never contain package
+addresses: types are identified by `module::TypeName`, optionally qualified with a package
+identifier from the `packages` config:
 
 ```typescript
 const config: SuiCodegenConfig = {
@@ -345,19 +344,18 @@ const config: SuiCodegenConfig = {
 };
 ```
 
-In the global `configArguments` block there is no ambient package, so type matchers there must be
-package-qualified (`@myapp/core::pool::Pool`). Partially instantiated matchers (for example,
-`Pool<T>` or a nested uninstantiated generic) are not supported. Use an uninstantiated matcher with
-a resolver function instead.
+A bare `module::Type` refers to the declaring package's own type; types from other packages in the
+run are referenced by their identifier and must be dependencies of the declaring package (anything
+else is a generation-time error). Package entries must reference the declaring package itself.
+Partially instantiated matchers (for example, `Pool<T>` or a nested uninstantiated generic) are not
+supported. Use an uninstantiated matcher with a resolver function instead.
 
 Misconfiguration is surfaced at generation time: malformed types, wrong arity, unknown package
-identifiers, and non-framework package addresses are hard errors, and every matcher's type is
-checked for existence when the package it references is part of the generated package's dependency
-closure. Matchers referencing run packages outside that closure can't match anything there and are
-skipped (they are validated when their own package is generated). Keys that never match any
-generated parameter of their own package produce a warning. Note that the generated
-`config-arguments.ts` interface covers the package's resolvable keys even when only some of its
-functions consume them; the per-function `config` slices are the authoritative types for calls.
+identifiers, non-framework package addresses, references to non-dependency packages, and matched
+types or functions missing from their package's summaries are all hard errors. Keys that never match
+any generated parameter produce a warning. Note that the generated `config-arguments.ts` interface
+covers all of the package's declared keys even when only some of its functions consume them; the
+per-function `config` slices are the authoritative types for calls.
 
 ### Generated output
 
@@ -432,8 +430,9 @@ instantiated matchers.
 Each package output also includes a `config-arguments.ts` file with an interface covering the
 package's resolvable keys and its own package-address key, for use with `satisfies` when defining
 your config object. The interface is named after the package's `packageName` (for example,
-`packageName: 'core'` produces `CoreConfig`). When a global block spans multiple packages, define
-one shared config object and check it against the intersection of the per-package interfaces:
+`packageName: 'core'` produces `CoreConfig`). For an SDK spanning multiple packages, shared keys
+declared in several package blocks unify into one runtime config object — check it against the
+intersection of the per-package interfaces:
 
 ```typescript
 const myConfig = { ... } satisfies CoreConfig & MarginConfig;

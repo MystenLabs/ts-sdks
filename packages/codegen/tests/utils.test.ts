@@ -13,25 +13,21 @@ let normalizeMoveArguments: (
 	argTypes: readonly (string | null)[],
 	parameterNames?: string[],
 ) => any;
-interface TestResolverContext {
-	typeArguments: string[];
-	packageAddress: string;
-	moduleName: string;
-	functionName: string;
-	parameterName?: string;
-	parameterIndex: number;
-}
-const TEST_CTX: TestResolverContext = {
-	typeArguments: [],
-	packageAddress: '0x0',
-	moduleName: 'test',
-	functionName: 'test',
-	parameterIndex: 0,
-};
-let resolveConfigArgument: (value: unknown, ctx: TestResolverContext, name: string) => unknown;
 let applyConfigArguments: (
 	args: unknown[] | object,
-	defaults: readonly { index: number; name?: string; resolve: () => unknown }[],
+	config: object | undefined,
+	callSite: {
+		package: string;
+		module: string;
+		function: string;
+		parameters: {
+			index: number;
+			key: string;
+			name?: string;
+			parameterName?: string;
+			typeArguments?: string[];
+		}[];
+	},
 ) => unknown[] | object;
 
 beforeAll(async () => {
@@ -40,7 +36,6 @@ beforeAll(async () => {
 	const modPath = join(GENERATED_DIR, 'utils', 'index.js');
 	const mod = await import(modPath);
 	normalizeMoveArguments = mod.normalizeMoveArguments;
-	resolveConfigArgument = mod.resolveConfigArgument;
 	applyConfigArguments = mod.applyConfigArguments;
 });
 
@@ -446,119 +441,151 @@ describe('well-known AccumulatorRoot injection', () => {
 	});
 });
 
-describe('resolveConfigArgument', () => {
-	it('returns plain values as-is', () => {
-		expect(resolveConfigArgument('0x123', TEST_CTX, 'pool')).toBe('0x123');
+describe('applyConfigArguments', () => {
+	const CALL_SITE = { package: '0x0', module: 'test', function: 'test' };
+
+	it('fills missing named arguments with plain config values and leaves explicit ones untouched', () => {
+		const result = applyConfigArguments(
+			{ amount: 42n },
+			{ pool: '0x123' },
+			{ ...CALL_SITE, parameters: [{ index: 0, key: 'pool', name: 'pool' }] },
+		);
+
+		expect(result).toEqual({ amount: 42n, pool: '0x123' });
 	});
 
-	it('invokes resolver functions with the context, normalizing hex struct tags', () => {
-		const contexts: unknown[] = [];
-		const value = (ctx: unknown) => {
-			contexts.push(ctx);
-			return '0x456';
-		};
+	it('does not invoke resolvers for explicitly passed arguments', () => {
+		const result = applyConfigArguments(
+			{ pool: '0xabc', amount: 42n },
+			{
+				pool: () => {
+					throw new Error('should not be called');
+				},
+			},
+			{ ...CALL_SITE, parameters: [{ index: 0, key: 'pool', name: 'pool' }] },
+		);
 
-		expect(
-			resolveConfigArgument(
-				value,
-				{ ...TEST_CTX, typeArguments: ['0x2::sui::SUI', '@mvr/name::a::B', 'u64'] },
-				'pool',
-			),
-		).toBe('0x456');
+		expect(result).toEqual({ pool: '0xabc', amount: 42n });
+	});
+
+	it('invokes resolvers with call-site context, normalizing hex struct tags', () => {
+		const contexts: unknown[] = [];
+		const result = applyConfigArguments(
+			{},
+			{
+				pool: (ctx: unknown) => {
+					contexts.push(ctx);
+					return '0x456';
+				},
+			},
+			{
+				package: '0xee',
+				module: 'pools',
+				function: 'swap',
+				parameters: [
+					{
+						index: 1,
+						key: 'pool',
+						name: 'basePool',
+						parameterName: 'base_pool',
+						typeArguments: ['0x2::sui::SUI', '@mvr/name::a::B', 'u64'],
+					},
+				],
+			},
+		);
+
+		expect((result as Record<string, unknown>).basePool).toBe('0x456');
 		expect(contexts).toEqual([
 			{
-				...TEST_CTX,
 				typeArguments: [
 					'0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI',
 					'@mvr/name::a::B',
 					'u64',
 				],
+				packageAddress: '0xee',
+				moduleName: 'pools',
+				functionName: 'swap',
+				parameterName: 'base_pool',
+				parameterIndex: 1,
 			},
 		]);
 	});
 
-	it('throws a descriptive error for missing values', () => {
-		expect(() => resolveConfigArgument(undefined, TEST_CTX, 'pool')).toThrowError(
+	it('throws a descriptive error for missing config values', () => {
+		expect(() =>
+			applyConfigArguments({}, undefined, {
+				...CALL_SITE,
+				parameters: [{ index: 0, key: 'pool', name: 'pool' }],
+			}),
+		).toThrowError(
 			'Missing config value for "pool": pass it explicitly in arguments, or include it in the config object',
 		);
 	});
 
 	it('throws a descriptive error when a resolver returns undefined', () => {
 		expect(() =>
-			resolveConfigArgument(
-				() => undefined,
-				{ ...TEST_CTX, typeArguments: ['0x2::sui::SUI'] },
-				'pool',
+			applyConfigArguments(
+				{},
+				{ pool: () => undefined as never },
+				{
+					...CALL_SITE,
+					parameters: [{ index: 0, key: 'pool', name: 'pool', typeArguments: ['0x2::sui::SUI'] }],
+				},
 			),
 		).toThrowError(
 			'Config resolver for "pool" returned undefined (test::test, typeArguments: [0x2::sui::SUI])',
 		);
 	});
-});
 
-describe('applyConfigArguments', () => {
-	it('fills missing named arguments and leaves explicit ones untouched', () => {
-		const resolved: string[] = [];
-		const result = applyConfigArguments({ amount: 42n }, [
-			{
-				index: 0,
-				name: 'pool',
-				resolve: () => {
-					resolved.push('pool');
-					return '0x123';
+	it('fills undefined and trailing omitted positions in array arguments', () => {
+		expect(
+			applyConfigArguments(
+				[undefined, 42n],
+				{ pool: '0x123' },
+				{
+					...CALL_SITE,
+					parameters: [{ index: 0, key: 'pool' }],
 				},
-			},
-		]);
+			),
+		).toEqual(['0x123', 42n]);
 
-		expect(result).toEqual({ amount: 42n, pool: '0x123' });
-		expect(resolved).toEqual(['pool']);
-	});
-
-	it('does not invoke resolvers for explicitly passed arguments', () => {
-		const result = applyConfigArguments({ pool: '0xabc', amount: 42n }, [
-			{
-				index: 0,
-				name: 'pool',
-				resolve: () => {
-					throw new Error('should not be called');
+		expect(
+			applyConfigArguments(
+				[42n],
+				{ pool: '0x123' },
+				{
+					...CALL_SITE,
+					parameters: [{ index: 1, key: 'pool' }],
 				},
-			},
-		]);
-
-		expect(result).toEqual({ pool: '0xabc', amount: 42n });
-	});
-
-	it('fills undefined positions in array arguments', () => {
-		const result = applyConfigArguments(
-			[undefined, 42n],
-			[{ index: 0, name: 'pool', resolve: () => '0x123' }],
-		);
-
-		expect(result).toEqual(['0x123', 42n]);
-	});
-
-	it('fills trailing omitted positions in array arguments', () => {
-		const result = applyConfigArguments(
-			[42n],
-			[{ index: 1, name: 'pool', resolve: () => '0x123' }],
-		);
-
-		expect(result).toEqual([42n, '0x123']);
+			),
+		).toEqual([42n, '0x123']);
 	});
 
 	it('rejects array arguments with holes at non-matched positions', () => {
 		// Filling a trailing matched position must not mask an omitted required middle argument.
 		expect(() =>
-			applyConfigArguments(['0xaa'], [{ index: 2, name: 'pool', resolve: () => '0x123' }]),
+			applyConfigArguments(
+				['0xaa'],
+				{ pool: '0x123' },
+				{
+					...CALL_SITE,
+					parameters: [{ index: 2, key: 'pool' }],
+				},
+			),
 		).toThrowError('Missing argument at position 1');
 	});
 
 	it('does not treat inherited object properties as explicitly passed arguments', () => {
 		// `constructor` is a valid Move identifier; the inherited Object.prototype.constructor
 		// must not be mistaken for an explicit argument.
-		const result = applyConfigArguments({ amount: 1n }, [
-			{ index: 0, name: 'constructor', resolve: () => '0x123' },
-		]);
+		const result = applyConfigArguments(
+			{ amount: 1n },
+			{ ctor: '0x123' },
+			{
+				...CALL_SITE,
+				parameters: [{ index: 0, key: 'ctor', name: 'constructor' }],
+			},
+		);
 
 		expect((result as Record<string, unknown>)['constructor']).toBe('0x123');
 	});
@@ -573,9 +600,16 @@ describe('well-known and config-matched parameters combined', () => {
 		tx.moveCall({
 			target: '0x0::test::test',
 			arguments: normalizeMoveArguments(
-				applyConfigArguments({ amount: 42 }, [
-					{ index: 0, name: 'registry', resolve: () => '0x123' },
-				]),
+				applyConfigArguments(
+					{ amount: 42 },
+					{ registry: '0x123' },
+					{
+						package: '0x0',
+						module: 'test',
+						function: 'test',
+						parameters: [{ index: 0, key: 'registry', name: 'registry' }],
+					},
+				),
 				[null, '0x2::clock::Clock', 'u32'],
 				['registry', 'amount'],
 			),

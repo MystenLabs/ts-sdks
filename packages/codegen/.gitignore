@@ -1,2 +1,3 @@
-tests/move/*/package_summaries
-!tests/move/testpkg/package_summaries
+tests/generated/
+tests/generated-config-*
+tests/generated-example-tmp-*
