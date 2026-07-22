@@ -98,10 +98,22 @@ export type ReceiptParams = {
 	priceInfoObjectId?: string | null;
 };
 
+/**
+ * Optional overrides for how the SDK reaches the Pyth Hermes price service.
+ * Needed once the public endpoint is retired and a keyed endpoint is required.
+ */
+export type PythConnectionConfig = {
+	/** Base URL of the Hermes endpoint. Defaults to the public host for the network. */
+	endpoint?: string;
+	/** Bearer access token for keyed endpoints. Sent as `Authorization: Bearer <token>`. */
+	accessToken?: string;
+};
+
 export type SuinsClientConfig = {
 	client: ClientWithCoreApi;
 	network?: SuiClientTypes.Network;
 	packageInfo?: PackageInfo;
+	pyth?: PythConnectionConfig;
 };
 
 export type SuinsPriceList = Map<[number, number], number>;

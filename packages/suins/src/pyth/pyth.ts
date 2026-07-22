@@ -10,8 +10,6 @@ import { fromBase64, fromHex, parseStructTag } from '@mysten/sui/utils';
 import type { HexString } from './PriceServiceConnection.js';
 import { PriceServiceConnection } from './PriceServiceConnection.js';
 import { extractVaaBytesFromAccumulatorMessage } from './pyth-helpers.js';
-import { State as PythState } from '../contracts/pyth/state.js';
-import { State as WormholeState } from '../contracts/wormhole/state.js';
 
 const MAX_ARGUMENT_SIZE = 16 * 1024;
 export type ObjectId = string;
@@ -28,10 +26,22 @@ export class SuiPriceServiceConnection extends PriceServiceConnection {
 	}
 }
 
-type ParsedPythState = ReturnType<typeof PythState.parse>;
+type PythStateFields = { packageId: ObjectId; baseUpdateFee: number };
+
+/**
+ * The `.core` JSON view represents a nested Move struct as `{ type, fields }` over
+ * JSON-RPC but flattens it to a plain field map over gRPC. Return the inner field map
+ * for either shape so callers can read fields transport-agnostically.
+ */
+function getStructFields(value: unknown): Record<string, unknown> {
+	if (value && typeof value === 'object' && 'fields' in value) {
+		return (value as { fields: Record<string, unknown> }).fields;
+	}
+	return value as Record<string, unknown>;
+}
 
 export class SuiPythClient {
-	#pythState?: Promise<ParsedPythState>;
+	#pythState?: Promise<PythStateFields>;
 	#wormholePackageId?: Promise<ObjectId>;
 	#priceFeedObjectIdCache: Map<HexString, Promise<ObjectId>> = new Map();
 	#priceTableInfo?: Promise<{ id: ObjectId; fieldType: ObjectId }>;
@@ -238,22 +248,21 @@ export class SuiPythClient {
 	async #fetchWormholePackageId(): Promise<ObjectId> {
 		const result = await this.provider.core.getObject({
 			objectId: this.wormholeStateId,
-			include: { content: true },
+			include: { json: true },
 		});
 
-		if (!result.object?.content) {
+		if (!result.object?.json) {
 			throw new Error('Unable to fetch Wormhole state object');
 		}
 
-		const state = WormholeState.parse(result.object.content);
-		return state.upgrade_cap.package;
+		return getStructFields(result.object.json.upgrade_cap).package as ObjectId;
 	}
 
 	/**
 	 * Fetches and caches the parsed Pyth state object.
 	 * This is shared between getPythPackageId and getBaseUpdateFee to avoid redundant fetches.
 	 */
-	#getPythState(): Promise<ParsedPythState> {
+	#getPythState(): Promise<PythStateFields> {
 		if (!this.#pythState) {
 			this.#pythState = this.#fetchPythState();
 		}
@@ -261,19 +270,24 @@ export class SuiPythClient {
 	}
 
 	/**
-	 * Fetches the Pyth state object (no caching).
+	 * Fetches the Pyth state object (no caching). Reads named JSON fields instead of
+	 * decoding the struct via BCS, so it stays compatible across Pyth package layouts.
 	 */
-	async #fetchPythState(): Promise<ParsedPythState> {
+	async #fetchPythState(): Promise<PythStateFields> {
 		const result = await this.provider.core.getObject({
 			objectId: this.pythStateId,
-			include: { content: true },
+			include: { json: true },
 		});
 
-		if (!result.object?.content) {
+		if (!result.object?.json) {
 			throw new Error('Unable to fetch Pyth state object');
 		}
 
-		return PythState.parse(result.object.content);
+		const state = result.object.json;
+		return {
+			packageId: getStructFields(state.upgrade_cap).package as ObjectId,
+			baseUpdateFee: Number(state.base_update_fee),
+		};
 	}
 
 	/**
@@ -281,8 +295,7 @@ export class SuiPythClient {
 	 * Uses the shared Pyth state cache.
 	 */
 	async getPythPackageId(): Promise<ObjectId> {
-		const state = await this.#getPythState();
-		return state.upgrade_cap.package;
+		return (await this.#getPythState()).packageId;
 	}
 
 	/**
@@ -290,7 +303,6 @@ export class SuiPythClient {
 	 * Uses the shared Pyth state cache.
 	 */
 	async getBaseUpdateFee(): Promise<number> {
-		const state = await this.#getPythState();
-		return Number(state.base_update_fee);
+		return (await this.#getPythState()).baseUpdateFee;
 	}
 }

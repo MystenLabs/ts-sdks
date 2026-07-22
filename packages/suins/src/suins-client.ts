@@ -11,6 +11,7 @@ import type {
 	CoinTypeDiscount,
 	NameRecord,
 	PackageInfo,
+	PythConnectionConfig,
 	SuinsClientConfig,
 	SuinsPriceList,
 } from './types.js';
@@ -62,10 +63,12 @@ export class SuinsClient {
 	client: ClientWithCoreApi;
 	network: SuiClientTypes.Network;
 	config: PackageInfo;
+	pyth?: PythConnectionConfig;
 
 	constructor(config: SuinsClientConfig) {
 		this.client = config.client;
 		this.network = config.network || 'mainnet';
+		this.pyth = config.pyth;
 
 		if (config.packageInfo) {
 			this.config = config.packageInfo;
@@ -286,10 +289,13 @@ export class SuinsClient {
 
 	async getPriceInfoObject(tx: Transaction, feed: string, feeCoin?: TransactionObjectArgument) {
 		const endpoint =
-			this.network === 'testnet'
+			this.pyth?.endpoint ??
+			(this.network === 'testnet'
 				? 'https://hermes-beta.pyth.network'
-				: 'https://hermes.pyth.network';
-		const connection = new SuiPriceServiceConnection(endpoint);
+				: 'https://hermes.pyth.network');
+		const connection = new SuiPriceServiceConnection(endpoint, {
+			accessToken: this.pyth?.accessToken,
+		});
 		const priceIDs = [feed];
 		const priceUpdateData = await connection.getPriceFeedsUpdateData(priceIDs);
 
