@@ -10,6 +10,8 @@ import { FLOAT_SCALAR } from '../utils/config.js';
 import { convertRate } from '../utils/conversion.js';
 import { hexToBytes } from '@noble/hashes/utils.js';
 import * as marginRegistryMoveCalls from '../contracts/deepbook_margin/margin_registry.js';
+import * as marginPoolMoveCalls from '../contracts/deepbook_margin/margin_pool.js';
+import * as oracleMoveCalls from '../contracts/deepbook_margin/oracle.js';
 
 /**
  * MarginAdminContract class for managing admin actions.
@@ -41,14 +43,12 @@ export class MarginAdminContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	mintMaintainerCap = () => (tx: Transaction) => {
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::mint_maintainer_cap`,
-			arguments: [
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object(this.#marginAdminCap()),
-				tx.object.clock(),
-			],
-		});
+		return tx.add(
+			marginRegistryMoveCalls.mintMaintainerCap({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: this.#config.MARGIN_REGISTRY_ID, AdminCap: this.#marginAdminCap() },
+			}),
+		);
 	};
 
 	/**
@@ -56,6 +56,10 @@ export class MarginAdminContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	revokeMaintainerCap = (maintainerCapId: string) => (tx: Transaction) => {
+		// NOTE: left as a positional moveCall (not codegen). The original passes
+		// `maintainerCapId` as an object reference (`tx.object`), whereas the
+		// generated binding encodes it as a pure `ID` value — migrating would change
+		// the emitted PTB. Kept verbatim to stay byte-identical.
 		tx.moveCall({
 			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::revoke_maintainer_cap`,
 			arguments: [
@@ -78,17 +82,18 @@ export class MarginAdminContract {
 			const pool = this.#config.getPool(poolKey);
 			const baseCoin = this.#config.getCoin(pool.baseCoin);
 			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-			tx.moveCall({
-				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::register_deepbook_pool`,
-				arguments: [
-					tx.object(this.#config.MARGIN_REGISTRY_ID),
-					tx.object(this.#marginAdminCap()),
-					tx.object(pool.address),
-					poolConfig,
-					tx.object.clock(),
-				],
-				typeArguments: [baseCoin.type, quoteCoin.type],
-			});
+			tx.add(
+				marginRegistryMoveCalls.registerDeepbookPool({
+					package: this.#config.MARGIN_PACKAGE_ID,
+					arguments: {
+						self: this.#config.MARGIN_REGISTRY_ID,
+						AdminCap: this.#marginAdminCap(),
+						pool: pool.address,
+						poolConfig,
+					},
+					typeArguments: [baseCoin.type, quoteCoin.type],
+				}),
+			);
 		};
 
 	/**
@@ -100,16 +105,17 @@ export class MarginAdminContract {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::enable_deepbook_pool`,
-			arguments: [
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object(this.#marginAdminCap()),
-				tx.object(pool.address),
-				tx.object.clock(),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		tx.add(
+			marginRegistryMoveCalls.enableDeepbookPool({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					self: this.#config.MARGIN_REGISTRY_ID,
+					AdminCap: this.#marginAdminCap(),
+					pool: pool.address,
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -121,16 +127,17 @@ export class MarginAdminContract {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::disable_deepbook_pool`,
-			arguments: [
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object(this.#marginAdminCap()),
-				tx.object(pool.address),
-				tx.object.clock(),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		tx.add(
+			marginRegistryMoveCalls.disableDeepbookPool({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					self: this.#config.MARGIN_REGISTRY_ID,
+					AdminCap: this.#marginAdminCap(),
+					pool: pool.address,
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -143,17 +150,18 @@ export class MarginAdminContract {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::update_risk_params`,
-			arguments: [
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object(this.#marginAdminCap()),
-				tx.object(pool.address),
-				poolConfig,
-				tx.object.clock(),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		tx.add(
+			marginRegistryMoveCalls.updateRiskParams({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					self: this.#config.MARGIN_REGISTRY_ID,
+					AdminCap: this.#marginAdminCap(),
+					pool: pool.address,
+					poolConfig,
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -170,17 +178,18 @@ export class MarginAdminContract {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::set_price_tolerance`,
-			arguments: [
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object(this.#marginAdminCap()),
-				tx.object(pool.address),
-				tx.pure.u64(convertRate(tolerance, FLOAT_SCALAR)),
-				tx.object.clock(),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		tx.add(
+			marginRegistryMoveCalls.setPriceTolerance({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					self: this.#config.MARGIN_REGISTRY_ID,
+					AdminCap: this.#marginAdminCap(),
+					pool: pool.address,
+					tolerance: convertRate(tolerance, FLOAT_SCALAR),
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -195,17 +204,18 @@ export class MarginAdminContract {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::set_max_price_age`,
-			arguments: [
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object(this.#marginAdminCap()),
-				tx.object(pool.address),
-				tx.pure.u64(maxAgeMs),
-				tx.object.clock(),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		tx.add(
+			marginRegistryMoveCalls.setMaxPriceAge({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					self: this.#config.MARGIN_REGISTRY_ID,
+					AdminCap: this.#marginAdminCap(),
+					pool: pool.address,
+					maxAgeMs,
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -222,17 +232,18 @@ export class MarginAdminContract {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::set_max_order_ttl`,
-			arguments: [
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object(this.#marginAdminCap()),
-				tx.object(pool.address),
-				tx.pure.u64(maxOrderTtlMs),
-				tx.object.clock(),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		tx.add(
+			marginRegistryMoveCalls.setMaxOrderTtl({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					self: this.#config.MARGIN_REGISTRY_ID,
+					AdminCap: this.#marginAdminCap(),
+					pool: pool.address,
+					maxOrderTtlMs,
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -270,15 +281,17 @@ export class MarginAdminContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	addConfig = (config: TransactionArgument) => (tx: Transaction) => {
-		tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::add_config`,
-			arguments: [
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object(this.#marginAdminCap()),
-				config,
-			],
-			typeArguments: [`${this.#config.MARGIN_PACKAGE_ID}::oracle::PythConfig`],
-		});
+		tx.add(
+			marginRegistryMoveCalls.addConfig({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					self: this.#config.MARGIN_REGISTRY_ID,
+					AdminCap: this.#marginAdminCap(),
+					config,
+				},
+				typeArguments: [`${this.#config.MARGIN_PACKAGE_ID}::oracle::PythConfig`],
+			}),
+		);
 	};
 
 	/**
@@ -287,11 +300,13 @@ export class MarginAdminContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	removeConfig = () => (tx: Transaction) => {
-		tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::remove_config`,
-			arguments: [tx.object(this.#config.MARGIN_REGISTRY_ID), tx.object(this.#marginAdminCap())],
-			typeArguments: [`${this.#config.MARGIN_PACKAGE_ID}::oracle::PythConfig`],
-		});
+		tx.add(
+			marginRegistryMoveCalls.removeConfig({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: this.#config.MARGIN_REGISTRY_ID, AdminCap: this.#marginAdminCap() },
+				typeArguments: [`${this.#config.MARGIN_PACKAGE_ID}::oracle::PythConfig`],
+			}),
+		);
 	};
 
 	/**
@@ -300,14 +315,16 @@ export class MarginAdminContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	enableVersion = (version: number) => (tx: Transaction) => {
-		tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::enable_version`,
-			arguments: [
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.pure.u64(version),
-				tx.object(this.#marginAdminCap()),
-			],
-		});
+		tx.add(
+			marginRegistryMoveCalls.enableVersion({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					self: this.#config.MARGIN_REGISTRY_ID,
+					version,
+					AdminCap: this.#marginAdminCap(),
+				},
+			}),
+		);
 	};
 
 	/**
@@ -316,14 +333,16 @@ export class MarginAdminContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	disableVersion = (version: number) => (tx: Transaction) => {
-		tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::disable_version`,
-			arguments: [
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.pure.u64(version),
-				tx.object(this.#marginAdminCap()),
-			],
-		});
+		tx.add(
+			marginRegistryMoveCalls.disableVersion({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					self: this.#config.MARGIN_REGISTRY_ID,
+					version,
+					AdminCap: this.#marginAdminCap(),
+				},
+			}),
+		);
 	};
 
 	/**
@@ -344,19 +363,21 @@ export class MarginAdminContract {
 			userLiquidationReward,
 			poolLiquidationReward,
 		} = poolConfigParams;
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::new_pool_config`,
-			arguments: [
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.pure.u64(convertRate(minWithdrawRiskRatio, FLOAT_SCALAR)),
-				tx.pure.u64(convertRate(minBorrowRiskRatio, FLOAT_SCALAR)),
-				tx.pure.u64(convertRate(liquidationRiskRatio, FLOAT_SCALAR)),
-				tx.pure.u64(convertRate(targetLiquidationRiskRatio, FLOAT_SCALAR)),
-				tx.pure.u64(convertRate(userLiquidationReward, FLOAT_SCALAR)),
-				tx.pure.u64(convertRate(poolLiquidationReward, FLOAT_SCALAR)),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		return tx.add(
+			marginRegistryMoveCalls.newPoolConfig({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					self: this.#config.MARGIN_REGISTRY_ID,
+					minWithdrawRiskRatio: convertRate(minWithdrawRiskRatio, FLOAT_SCALAR),
+					minBorrowRiskRatio: convertRate(minBorrowRiskRatio, FLOAT_SCALAR),
+					liquidationRiskRatio: convertRate(liquidationRiskRatio, FLOAT_SCALAR),
+					targetLiquidationRiskRatio: convertRate(targetLiquidationRiskRatio, FLOAT_SCALAR),
+					userLiquidationReward: convertRate(userLiquidationReward, FLOAT_SCALAR),
+					poolLiquidationReward: convertRate(poolLiquidationReward, FLOAT_SCALAR),
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -369,14 +390,16 @@ export class MarginAdminContract {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::new_pool_config_with_leverage`,
-			arguments: [
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.pure.u64(convertRate(leverage, FLOAT_SCALAR)),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		tx.add(
+			marginRegistryMoveCalls.newPoolConfigWithLeverage({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					self: this.#config.MARGIN_REGISTRY_ID,
+					leverage: convertRate(leverage, FLOAT_SCALAR),
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -395,16 +418,18 @@ export class MarginAdminContract {
 			const priceFeedInput = new Uint8Array(
 				hexToBytes(coin['feed']!.startsWith('0x') ? coin.feed!.slice(2) : coin['feed']),
 			);
-			return tx.moveCall({
-				target: `${this.#config.MARGIN_PACKAGE_ID}::oracle::new_coin_type_data_from_currency`,
-				arguments: [
-					tx.object(coin.currencyId!),
-					tx.pure.vector('u8', priceFeedInput),
-					tx.pure.u64(maxConfBps),
-					tx.pure.u64(maxEwmaDifferenceBps),
-				],
-				typeArguments: [coin.type],
-			});
+			return tx.add(
+				oracleMoveCalls.newCoinTypeDataFromCurrency({
+					package: this.#config.MARGIN_PACKAGE_ID,
+					arguments: {
+						currency: coin.currencyId!,
+						priceFeedId: Array.from(priceFeedInput),
+						maxConfBps,
+						maxEwmaDifferenceBps,
+					},
+					typeArguments: [coin.type],
+				}),
+			);
 		};
 
 	/**
@@ -425,16 +450,18 @@ export class MarginAdminContract {
 					this.newCoinTypeData(setup.coinKey, setup.maxConfBps, setup.maxEwmaDifferenceBps)(tx),
 				);
 			}
-			return tx.moveCall({
-				target: `${this.#config.MARGIN_PACKAGE_ID}::oracle::new_pyth_config`,
-				arguments: [
-					tx.makeMoveVec({
-						elements: coinTypeDataList,
-						type: `${this.#config.MARGIN_PACKAGE_ID}::oracle::CoinTypeData`,
-					}),
-					tx.pure.u64(maxAgeSeconds),
-				],
-			});
+			return tx.add(
+				oracleMoveCalls.newPythConfig({
+					package: this.#config.MARGIN_PACKAGE_ID,
+					arguments: {
+						setups: tx.makeMoveVec({
+							elements: coinTypeDataList,
+							type: `${this.#config.MARGIN_PACKAGE_ID}::oracle::CoinTypeData`,
+						}),
+						maxAgeSecs: maxAgeSeconds,
+					},
+				}),
+			);
 		};
 
 	/**
@@ -442,14 +469,12 @@ export class MarginAdminContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	mintPauseCap = () => (tx: Transaction) => {
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::mint_pause_cap`,
-			arguments: [
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object(this.#marginAdminCap()),
-				tx.object.clock(),
-			],
-		});
+		return tx.add(
+			marginRegistryMoveCalls.mintPauseCap({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: this.#config.MARGIN_REGISTRY_ID, AdminCap: this.#marginAdminCap() },
+			}),
+		);
 	};
 
 	/**
@@ -458,15 +483,16 @@ export class MarginAdminContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	revokePauseCap = (pauseCapId: string) => (tx: Transaction) => {
-		tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::revoke_pause_cap`,
-			arguments: [
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object(this.#marginAdminCap()),
-				tx.object.clock(),
-				tx.pure.id(pauseCapId),
-			],
-		});
+		tx.add(
+			marginRegistryMoveCalls.revokePauseCap({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					self: this.#config.MARGIN_REGISTRY_ID,
+					AdminCap: this.#marginAdminCap(),
+					pauseCapId,
+				},
+			}),
+		);
 	};
 
 	/**
@@ -476,14 +502,16 @@ export class MarginAdminContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	disableVersionPauseCap = (version: number, pauseCapId: string) => (tx: Transaction) => {
-		tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::disable_version_pause_cap`,
-			arguments: [
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.pure.u64(version),
-				tx.object(pauseCapId),
-			],
-		});
+		tx.add(
+			marginRegistryMoveCalls.disableVersionPauseCap({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					self: this.#config.MARGIN_REGISTRY_ID,
+					version,
+					pauseCap: pauseCapId,
+				},
+			}),
+		);
 	};
 
 	/**
@@ -495,14 +523,16 @@ export class MarginAdminContract {
 	adminWithdrawDefaultReferralFees = (coinKey: string) => (tx: Transaction) => {
 		const coin = this.#config.getCoin(coinKey);
 		const marginPool = this.#config.getMarginPool(coinKey);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_pool::admin_withdraw_default_referral_fees`,
-			arguments: [
-				tx.object(marginPool.address),
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.object(this.#marginAdminCap()),
-			],
-			typeArguments: [coin.type],
-		});
+		return tx.add(
+			marginPoolMoveCalls.adminWithdrawDefaultReferralFees({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					self: marginPool.address,
+					registry: this.#config.MARGIN_REGISTRY_ID,
+					AdminCap: this.#marginAdminCap(),
+				},
+				typeArguments: [coin.type],
+			}),
+		);
 	};
 }

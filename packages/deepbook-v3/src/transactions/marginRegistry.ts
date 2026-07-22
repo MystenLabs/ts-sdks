@@ -27,11 +27,13 @@ export class MarginRegistryContract {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::pool_enabled`,
-			arguments: [tx.object(this.#config.MARGIN_REGISTRY_ID), tx.object(pool.address)],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		return tx.add(
+			marginRegistryMoveCalls.poolEnabled({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: this.#config.MARGIN_REGISTRY_ID, pool: pool.address },
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -41,11 +43,13 @@ export class MarginRegistryContract {
 	 */
 	getMarginPoolId = (coinKey: string) => (tx: Transaction) => {
 		const coin = this.#config.getCoin(coinKey);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::get_margin_pool_id`,
-			arguments: [tx.object(this.#config.MARGIN_REGISTRY_ID)],
-			typeArguments: [coin.type],
-		});
+		return tx.add(
+			marginRegistryMoveCalls.getMarginPoolId({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: this.#config.MARGIN_REGISTRY_ID },
+				typeArguments: [coin.type],
+			}),
+		);
 	};
 
 	/**
@@ -55,11 +59,12 @@ export class MarginRegistryContract {
 	 */
 	getDeepbookPoolMarginPoolIds = (poolKey: string) => (tx: Transaction) => {
 		const pool = this.#config.getPool(poolKey);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::get_deepbook_pool_margin_pool_ids`,
-			arguments: [tx.object(this.#config.MARGIN_REGISTRY_ID), tx.pure.id(pool.address)],
-			typeArguments: [],
-		});
+		return tx.add(
+			marginRegistryMoveCalls.getDeepbookPoolMarginPoolIds({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: this.#config.MARGIN_REGISTRY_ID, deepbookPoolId: pool.address },
+			}),
+		);
 	};
 
 	/**
@@ -68,11 +73,12 @@ export class MarginRegistryContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	getMarginManagerIds = (owner: string) => (tx: Transaction) => {
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::get_margin_manager_ids`,
-			arguments: [tx.object(this.#config.MARGIN_REGISTRY_ID), tx.pure.address(owner)],
-			typeArguments: [],
-		});
+		return tx.add(
+			marginRegistryMoveCalls.getMarginManagerIds({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: this.#config.MARGIN_REGISTRY_ID, owner },
+			}),
+		);
 	};
 
 	/**
@@ -82,11 +88,12 @@ export class MarginRegistryContract {
 	 */
 	baseMarginPoolId = (poolKey: string) => (tx: Transaction) => {
 		const pool = this.#config.getPool(poolKey);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::base_margin_pool_id`,
-			arguments: [tx.object(this.#config.MARGIN_REGISTRY_ID), tx.pure.id(pool.address)],
-			typeArguments: [],
-		});
+		return tx.add(
+			marginRegistryMoveCalls.baseMarginPoolId({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: this.#config.MARGIN_REGISTRY_ID, deepbookPoolId: pool.address },
+			}),
+		);
 	};
 
 	/**
@@ -96,11 +103,12 @@ export class MarginRegistryContract {
 	 */
 	quoteMarginPoolId = (poolKey: string) => (tx: Transaction) => {
 		const pool = this.#config.getPool(poolKey);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::quote_margin_pool_id`,
-			arguments: [tx.object(this.#config.MARGIN_REGISTRY_ID), tx.pure.id(pool.address)],
-			typeArguments: [],
-		});
+		return tx.add(
+			marginRegistryMoveCalls.quoteMarginPoolId({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: this.#config.MARGIN_REGISTRY_ID, deepbookPoolId: pool.address },
+			}),
+		);
 	};
 
 	/**
@@ -110,11 +118,12 @@ export class MarginRegistryContract {
 	 */
 	minWithdrawRiskRatio = (poolKey: string) => (tx: Transaction) => {
 		const pool = this.#config.getPool(poolKey);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::min_withdraw_risk_ratio`,
-			arguments: [tx.object(this.#config.MARGIN_REGISTRY_ID), tx.pure.id(pool.address)],
-			typeArguments: [],
-		});
+		return tx.add(
+			marginRegistryMoveCalls.minWithdrawRiskRatio({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: this.#config.MARGIN_REGISTRY_ID, deepbookPoolId: pool.address },
+			}),
+		);
 	};
 
 	/**
@@ -124,11 +133,12 @@ export class MarginRegistryContract {
 	 */
 	minBorrowRiskRatio = (poolKey: string) => (tx: Transaction) => {
 		const pool = this.#config.getPool(poolKey);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::min_borrow_risk_ratio`,
-			arguments: [tx.object(this.#config.MARGIN_REGISTRY_ID), tx.pure.id(pool.address)],
-			typeArguments: [],
-		});
+		return tx.add(
+			marginRegistryMoveCalls.minBorrowRiskRatio({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: this.#config.MARGIN_REGISTRY_ID, deepbookPoolId: pool.address },
+			}),
+		);
 	};
 
 	/**
@@ -142,10 +152,7 @@ export class MarginRegistryContract {
 		return tx.add(
 			marginRegistryMoveCalls.minOpenRiskRatio({
 				package: this.#config.MARGIN_PACKAGE_ID,
-				arguments: {
-					self: this.#config.MARGIN_REGISTRY_ID,
-					deepbookPoolId: pool.address,
-				},
+				arguments: { self: this.#config.MARGIN_REGISTRY_ID, deepbookPoolId: pool.address },
 			}),
 		);
 	};
@@ -157,11 +164,12 @@ export class MarginRegistryContract {
 	 */
 	liquidationRiskRatio = (poolKey: string) => (tx: Transaction) => {
 		const pool = this.#config.getPool(poolKey);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::liquidation_risk_ratio`,
-			arguments: [tx.object(this.#config.MARGIN_REGISTRY_ID), tx.pure.id(pool.address)],
-			typeArguments: [],
-		});
+		return tx.add(
+			marginRegistryMoveCalls.liquidationRiskRatio({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: this.#config.MARGIN_REGISTRY_ID, deepbookPoolId: pool.address },
+			}),
+		);
 	};
 
 	/**
@@ -171,11 +179,12 @@ export class MarginRegistryContract {
 	 */
 	targetLiquidationRiskRatio = (poolKey: string) => (tx: Transaction) => {
 		const pool = this.#config.getPool(poolKey);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::target_liquidation_risk_ratio`,
-			arguments: [tx.object(this.#config.MARGIN_REGISTRY_ID), tx.pure.id(pool.address)],
-			typeArguments: [],
-		});
+		return tx.add(
+			marginRegistryMoveCalls.targetLiquidationRiskRatio({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: this.#config.MARGIN_REGISTRY_ID, deepbookPoolId: pool.address },
+			}),
+		);
 	};
 
 	/**
@@ -185,11 +194,12 @@ export class MarginRegistryContract {
 	 */
 	userLiquidationReward = (poolKey: string) => (tx: Transaction) => {
 		const pool = this.#config.getPool(poolKey);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::user_liquidation_reward`,
-			arguments: [tx.object(this.#config.MARGIN_REGISTRY_ID), tx.pure.id(pool.address)],
-			typeArguments: [],
-		});
+		return tx.add(
+			marginRegistryMoveCalls.userLiquidationReward({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: this.#config.MARGIN_REGISTRY_ID, deepbookPoolId: pool.address },
+			}),
+		);
 	};
 
 	/**
@@ -199,11 +209,12 @@ export class MarginRegistryContract {
 	 */
 	poolLiquidationReward = (poolKey: string) => (tx: Transaction) => {
 		const pool = this.#config.getPool(poolKey);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::pool_liquidation_reward`,
-			arguments: [tx.object(this.#config.MARGIN_REGISTRY_ID), tx.pure.id(pool.address)],
-			typeArguments: [],
-		});
+		return tx.add(
+			marginRegistryMoveCalls.poolLiquidationReward({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: this.#config.MARGIN_REGISTRY_ID, deepbookPoolId: pool.address },
+			}),
+		);
 	};
 
 	/**
@@ -211,11 +222,12 @@ export class MarginRegistryContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	allowedMaintainers = () => (tx: Transaction) => {
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::allowed_maintainers`,
-			arguments: [tx.object(this.#config.MARGIN_REGISTRY_ID)],
-			typeArguments: [],
-		});
+		return tx.add(
+			marginRegistryMoveCalls.allowedMaintainers({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: this.#config.MARGIN_REGISTRY_ID },
+			}),
+		);
 	};
 
 	/**
@@ -223,10 +235,11 @@ export class MarginRegistryContract {
 	 * @returns A function that takes a Transaction object
 	 */
 	allowedPauseCaps = () => (tx: Transaction) => {
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_registry::allowed_pause_caps`,
-			arguments: [tx.object(this.#config.MARGIN_REGISTRY_ID)],
-			typeArguments: [],
-		});
+		return tx.add(
+			marginRegistryMoveCalls.allowedPauseCaps({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: this.#config.MARGIN_REGISTRY_ID },
+			}),
+		);
 	};
 }

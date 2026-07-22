@@ -12,6 +12,7 @@ import { OrderType, SelfMatchingOptions } from '../types/index.js';
 import { MAX_TIMESTAMP, FLOAT_SCALAR } from '../utils/config.js';
 import { convertQuantity, convertPrice } from '../utils/conversion.js';
 import * as marginManagerMoveCalls from '../contracts/deepbook_margin/margin_manager.js';
+import * as tpslMoveCalls from '../contracts/deepbook_margin/tpsl.js';
 
 /**
  * MarginTPSLContract class for managing Take Profit / Stop Loss operations.
@@ -47,10 +48,12 @@ export class MarginTPSLContract {
 				quoteCoin.scalar,
 				baseCoin.scalar,
 			);
-			return tx.moveCall({
-				target: `${this.#config.MARGIN_PACKAGE_ID}::tpsl::new_condition`,
-				arguments: [tx.pure.bool(triggerBelowPrice), tx.pure.u64(inputPrice)],
-			});
+			return tx.add(
+				tpslMoveCalls.newCondition({
+					package: this.#config.MARGIN_PACKAGE_ID,
+					arguments: { triggerBelowPrice, triggerPrice: inputPrice },
+				}),
+			);
 		};
 
 	/**
@@ -76,19 +79,21 @@ export class MarginTPSLContract {
 			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 			const inputPrice = convertPrice(price, FLOAT_SCALAR, quoteCoin.scalar, baseCoin.scalar);
 			const inputQuantity = convertQuantity(quantity, baseCoin.scalar);
-			return tx.moveCall({
-				target: `${this.#config.MARGIN_PACKAGE_ID}::tpsl::new_pending_limit_order`,
-				arguments: [
-					tx.pure.u64(clientOrderId),
-					tx.pure.u8(orderType),
-					tx.pure.u8(selfMatchingOption),
-					tx.pure.u64(inputPrice),
-					tx.pure.u64(inputQuantity),
-					tx.pure.bool(isBid),
-					tx.pure.bool(payWithDeep),
-					tx.pure.u64(expireTimestamp),
-				],
-			});
+			return tx.add(
+				tpslMoveCalls.newPendingLimitOrder({
+					package: this.#config.MARGIN_PACKAGE_ID,
+					arguments: {
+						clientOrderId: BigInt(clientOrderId),
+						orderType,
+						selfMatchingOption,
+						price: inputPrice,
+						quantity: inputQuantity,
+						isBid,
+						payWithDeep,
+						expireTimestamp,
+					},
+				}),
+			);
 		};
 
 	/**
@@ -109,16 +114,18 @@ export class MarginTPSLContract {
 			const pool = this.#config.getPool(poolKey);
 			const baseCoin = this.#config.getCoin(pool.baseCoin);
 			const inputQuantity = convertQuantity(quantity, baseCoin.scalar);
-			return tx.moveCall({
-				target: `${this.#config.MARGIN_PACKAGE_ID}::tpsl::new_pending_market_order`,
-				arguments: [
-					tx.pure.u64(clientOrderId),
-					tx.pure.u8(selfMatchingOption),
-					tx.pure.u64(inputQuantity),
-					tx.pure.bool(isBid),
-					tx.pure.bool(payWithDeep),
-				],
-			});
+			return tx.add(
+				tpslMoveCalls.newPendingMarketOrder({
+					package: this.#config.MARGIN_PACKAGE_ID,
+					arguments: {
+						clientOrderId: BigInt(clientOrderId),
+						selfMatchingOption,
+						quantity: inputQuantity,
+						isBid,
+						payWithDeep,
+					},
+				}),
+			);
 		};
 
 	// === Public Functions ===
@@ -145,21 +152,22 @@ export class MarginTPSLContract {
 			? this.newPendingLimitOrder(manager.poolKey, pendingOrder as PendingLimitOrderParams)(tx)
 			: this.newPendingMarketOrder(manager.poolKey, pendingOrder as PendingMarketOrderParams)(tx);
 
-		tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::add_conditional_order`,
-			arguments: [
-				tx.object(manager.address),
-				tx.object(pool.address),
-				tx.object(baseCoin.priceInfoObjectId!),
-				tx.object(quoteCoin.priceInfoObjectId!),
-				tx.object(this.#config.MARGIN_REGISTRY_ID),
-				tx.pure.u64(conditionalOrderId),
-				condition,
-				pending,
-				tx.object.clock(),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		tx.add(
+			marginManagerMoveCalls.addConditionalOrder({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: {
+					self: manager.address,
+					pool: pool.address,
+					basePriceInfoObject: baseCoin.priceInfoObjectId!,
+					quotePriceInfoObject: quoteCoin.priceInfoObjectId!,
+					registry: this.#config.MARGIN_REGISTRY_ID,
+					conditionalOrderId: BigInt(conditionalOrderId),
+					condition,
+					pendingOrder: pending,
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -172,11 +180,13 @@ export class MarginTPSLContract {
 		const pool = this.#config.getPool(manager.poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::cancel_all_conditional_orders`,
-			arguments: [tx.object(manager.address), tx.object.clock()],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		tx.add(
+			marginManagerMoveCalls.cancelAllConditionalOrders({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: manager.address },
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -191,11 +201,13 @@ export class MarginTPSLContract {
 			const pool = this.#config.getPool(manager.poolKey);
 			const baseCoin = this.#config.getCoin(pool.baseCoin);
 			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-			tx.moveCall({
-				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::cancel_conditional_order`,
-				arguments: [tx.object(manager.address), tx.pure.u64(conditionalOrderId), tx.object.clock()],
-				typeArguments: [baseCoin.type, quoteCoin.type],
-			});
+			tx.add(
+				marginManagerMoveCalls.cancelConditionalOrder({
+					package: this.#config.MARGIN_PACKAGE_ID,
+					arguments: { self: manager.address, conditionalOrderId: BigInt(conditionalOrderId) },
+					typeArguments: [baseCoin.type, quoteCoin.type],
+				}),
+			);
 		};
 
 	/**
@@ -216,21 +228,22 @@ export class MarginTPSLContract {
 			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 			const baseMarginPool = this.#config.getMarginPool(pool.baseCoin);
 			const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
-			return tx.moveCall({
-				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::execute_conditional_orders_v2`,
-				arguments: [
-					tx.object(managerAddress),
-					tx.object(pool.address),
-					tx.object(baseMarginPool.address),
-					tx.object(quoteMarginPool.address),
-					tx.object(baseCoin.priceInfoObjectId!),
-					tx.object(quoteCoin.priceInfoObjectId!),
-					tx.object(this.#config.MARGIN_REGISTRY_ID),
-					tx.pure.u64(maxOrdersToExecute),
-					tx.object.clock(),
-				],
-				typeArguments: [baseCoin.type, quoteCoin.type],
-			});
+			return tx.add(
+				marginManagerMoveCalls.executeConditionalOrdersV2({
+					package: this.#config.MARGIN_PACKAGE_ID,
+					arguments: {
+						self: managerAddress,
+						pool: pool.address,
+						baseMarginPool: baseMarginPool.address,
+						quoteMarginPool: quoteMarginPool.address,
+						basePriceInfoObject: baseCoin.priceInfoObjectId!,
+						quotePriceInfoObject: quoteCoin.priceInfoObjectId!,
+						registry: this.#config.MARGIN_REGISTRY_ID,
+						maxOrdersToExecute,
+					},
+					typeArguments: [baseCoin.type, quoteCoin.type],
+				}),
+			);
 		};
 
 	/**
@@ -287,11 +300,13 @@ export class MarginTPSLContract {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::conditional_order_ids`,
-			arguments: [tx.object(marginManagerId)],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		return tx.add(
+			marginManagerMoveCalls.conditionalOrderIds({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: marginManagerId },
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -306,11 +321,13 @@ export class MarginTPSLContract {
 			const pool = this.#config.getPool(poolKey);
 			const baseCoin = this.#config.getCoin(pool.baseCoin);
 			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-			return tx.moveCall({
-				target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::conditional_order`,
-				arguments: [tx.object(marginManagerId), tx.pure.u64(conditionalOrderId)],
-				typeArguments: [baseCoin.type, quoteCoin.type],
-			});
+			return tx.add(
+				marginManagerMoveCalls.conditionalOrder({
+					package: this.#config.MARGIN_PACKAGE_ID,
+					arguments: { self: marginManagerId, conditionalOrderId: BigInt(conditionalOrderId) },
+					typeArguments: [baseCoin.type, quoteCoin.type],
+				}),
+			);
 		};
 
 	/**
@@ -324,11 +341,13 @@ export class MarginTPSLContract {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::lowest_trigger_above_price`,
-			arguments: [tx.object(marginManagerId)],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		return tx.add(
+			marginManagerMoveCalls.lowestTriggerAbovePrice({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: marginManagerId },
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -342,10 +361,12 @@ export class MarginTPSLContract {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		return tx.moveCall({
-			target: `${this.#config.MARGIN_PACKAGE_ID}::margin_manager::highest_trigger_below_price`,
-			arguments: [tx.object(marginManagerId)],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		return tx.add(
+			marginManagerMoveCalls.highestTriggerBelowPrice({
+				package: this.#config.MARGIN_PACKAGE_ID,
+				arguments: { self: marginManagerId },
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 }
