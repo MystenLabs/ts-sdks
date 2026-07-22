@@ -578,6 +578,21 @@ importers:
         specifier: ^4.1.8
         version: 4.1.8(@types/node@25.9.3)(happy-dom@20.10.3(bufferutil@4.1.0)(utf-8-validate@6.0.6))(jsdom@29.1.1(@noble/hashes@2.2.0))(msw@2.14.6(@types/node@25.9.3)(typescript@6.0.3))(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0))
 
+  packages/deepbook-predict:
+    devDependencies:
+      '@mysten/sui':
+        specifier: workspace:^
+        version: link:../sui
+      '@types/node':
+        specifier: ^25.9.3
+        version: 25.9.3
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.8
+        version: 4.1.8(@types/node@25.9.3)(happy-dom@20.10.3(bufferutil@4.1.0)(utf-8-validate@6.0.6))(jsdom@29.1.1(@noble/hashes@2.2.0))(msw@2.14.6(@types/node@25.9.3)(typescript@6.0.3))(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0))
+
   packages/deepbook-v3:
     dependencies:
       '@mysten/bcs':
