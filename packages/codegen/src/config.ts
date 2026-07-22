@@ -39,11 +39,14 @@ const FORBIDDEN_CONFIG_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
 export const configArgumentMatcherSchema = z.union([
 	z.strictObject({
 		/**
-		 * Fully-qualified Move type to match function parameters against, e.g.
-		 * `0x...::margin_registry::MarginRegistry`. A generic type written without type arguments
-		 * (e.g. `0x...::pool::Pool`) matches every instantiation and requires a resolver function
-		 * as the config value. A fully instantiated generic (e.g. `0x...::margin_pool::MarginPool<0x2::sui::SUI>`)
-		 * only matches parameters concretely typed with that exact instantiation.
+		 * Move type to match function parameters against, written network-agnostically as
+		 * `module::TypeName`. In a package's own `configArguments` block a bare `module::TypeName`
+		 * refers to that package's type; other packages in the run are referenced by their
+		 * `packages` identifier (`@myapp/core::pool::Pool`), and the chain-stable framework
+		 * packages by address (`0x2::sui::SUI`). A generic type written without type arguments
+		 * matches every instantiation and requires a resolver function as the config value; a
+		 * fully instantiated generic (e.g. `pool::Pool<0x2::sui::SUI>`) only matches parameters
+		 * concretely typed with that exact instantiation.
 		 */
 		type: z.string(),
 		/**
