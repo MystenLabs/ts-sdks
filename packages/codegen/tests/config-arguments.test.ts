@@ -325,8 +325,9 @@ describe('parseConfigArguments', () => {
 		expect(() => parse('2::sui::SUI')).toThrowError(/Unknown package "2"/);
 	});
 
-	it('accepts built-in system package addresses beyond 0x1-0x3', async () => {
-		// Bridge (0xb) and deepbook (0xdee9) are system packages with chain-stable addresses.
+	it('accepts reserved system addresses beyond 0x1-0x3', async () => {
+		// Bridge (0xb) and deepbook (0xdee9) are system packages with chain-stable addresses;
+		// the reserved-range check covers future additions without hardcoding the list.
 		const { entries } = parseConfigArguments(
 			{ pool: { type: '@test/testpkg::pools::Pool<0xb::bridge::Bridge>' } },
 			createRegistry(),
@@ -343,15 +344,21 @@ describe('parseConfigArguments', () => {
 		]);
 	});
 
-	it('rejects package addresses that are not built-in system packages', async () => {
+	it('rejects package addresses outside the reserved system range', async () => {
 		const registry = createRegistry();
 		const parse = (type: string) =>
 			parseConfigArguments({ bad: { type } }, registry, TESTPKG_CONTEXT);
 
-		expect(() => parse('0x999::vault::Vault')).toThrowError(
+		// Digest-derived (published) package addresses are network-specific.
+		const PUBLISHED = '0x8ca2f2b8b8a446b917e4b9d24a35d17a4b57d4c8bd7a4a4ad3d97bd54c752cbf';
+		expect(() => parse(`${PUBLISHED}::vault::Vault`)).toThrowError(
 			/package addresses are network-specific/,
 		);
-		expect(() => parse('@test/testpkg::pools::Pool<0xabc123::coin::COIN>')).toThrowError(
+		expect(() => parse(`@test/testpkg::pools::Pool<${PUBLISHED}::coin::COIN>`)).toThrowError(
+			/package addresses are network-specific/,
+		);
+		// The zero address is a placeholder, never a package.
+		expect(() => parse('0x0::vault::Vault')).toThrowError(
 			/package addresses are network-specific/,
 		);
 	});
