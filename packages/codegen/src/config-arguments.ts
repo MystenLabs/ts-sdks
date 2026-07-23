@@ -80,13 +80,6 @@ export interface ConfigArgumentsContext {
 const PRIMITIVES = new Set(['bool', 'u8', 'u16', 'u32', 'u64', 'u128', 'u256', 'address']);
 const MOVE_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const HEX_ADDRESS = /^0x[0-9a-fA-F]{1,64}$/;
-/**
- * Published package ids are derived from transaction digests, so real packages never land on
- * tiny addresses — a normalized address in the reserved low range (e.g. `0x2`, `0xb`, `0xdee9`)
- * can only be a built-in system package, and those are chain-stable. Everything else must use a
- * package identifier. The range check avoids hardcoding the system package list, which grows.
- */
-const RESERVED_SYSTEM_ADDRESS = /^0x0{56}[0-9a-f]{8}$/;
 const ZERO_ADDRESS = normalizeSuiAddress('0x0');
 
 function normalizeAddress(address: string) {
@@ -103,34 +96,21 @@ interface ParseContext {
 }
 
 /**
- * Resolve the package part of a matcher to an address within the declaring package's dependency
- * closure. Cross-package references are resolved through the consuming package's own address
- * mapping (by the referenced package's named-address label), falling back to its published root
- * address. Unpublished placeholder addresses (0x0) are never used for cross-package identity —
- * multiple unpublished local packages would otherwise be indistinguishable. Referencing a run
- * package outside the closure is a hard error: matchers only affect the declaring package's
- * generated functions.
+ * Resolve the package part of a matcher to an address. Explicit hex addresses are used as-is —
+ * it's up to the author to only use them for packages whose address is the same on every network
+ * the generated code targets. Cross-package identifier references are resolved through the
+ * consuming package's own address mapping (by the referenced package's named-address label),
+ * falling back to its published root address. Unpublished placeholder addresses (0x0) are never
+ * used for cross-package identity — multiple unpublished local packages would otherwise be
+ * indistinguishable. Referencing a run package outside the closure is a hard error: matchers only
+ * affect the declaring package's generated functions.
  */
-function resolveQualifier(
-	packagePart: string | undefined,
-	unqualified: string,
-	tag: string,
-	ctx: ParseContext,
-): string {
+function resolveQualifier(packagePart: string | undefined, tag: string, ctx: ParseContext): string {
 	if (packagePart === undefined) {
 		return ctx.scopeAddress;
 	}
 	if (HEX_ADDRESS.test(packagePart)) {
-		const normalized = normalizeSuiAddress(packagePart);
-		if (normalized !== ZERO_ADDRESS && RESERVED_SYSTEM_ADDRESS.test(normalized)) {
-			return normalized;
-		}
-		throw new Error(
-			`Invalid package "${packagePart}" in configArguments matcher "${tag}": package addresses ` +
-				`are network-specific and cannot be used in matchers (only built-in system packages ` +
-				`like 0x2 are chain-stable). Reference the package by its identifier from the codegen ` +
-				`config instead (e.g. "@pkg/name::${unqualified}").`,
-		);
+		return normalizeSuiAddress(packagePart);
 	}
 
 	if (packagePart === ctx.currentPackage.id) {
@@ -193,8 +173,8 @@ function parseMatcherType(
 	if ((parts.length !== 2 && parts.length !== 3) || parts.some((part) => part.length === 0)) {
 		throw new Error(
 			`Invalid type in configArguments matcher: "${tag}". Expected "module::Type", optionally ` +
-				`qualified with a package from the codegen config ("@pkg/name::module::Type") or a ` +
-				`built-in system package address ("0x2::module::Type").`,
+				`qualified with a package from the codegen config ("@pkg/name::module::Type") or an ` +
+				`address ("0x2::module::Type").`,
 		);
 	}
 
@@ -212,7 +192,7 @@ function parseMatcherType(
 		);
 	}
 
-	const address = resolveQualifier(packagePart, `${modulePart}::${namePart}`, tag, ctx);
+	const address = resolveQualifier(packagePart, tag, ctx);
 
 	const typeArguments =
 		lt === -1
@@ -364,12 +344,7 @@ function parseFunctionMatcher(
 		);
 	}
 
-	const address = resolveQualifier(
-		packagePart,
-		`${modulePart}::${functionPart}`,
-		matcher.function,
-		ctx,
-	);
+	const address = resolveQualifier(packagePart, matcher.function, ctx);
 
 	const registry = ctx.registry;
 	const summary = registry.getSummaryByResolvedAddress(address, modulePart);
@@ -447,10 +422,11 @@ function parseFunctionMatcher(
 /**
  * Parse and validate a package's `configArguments` against the modules loaded in `registry`.
  *
- * Matchers identify packages network-agnostically: bare `module::Type` refers to the declaring
- * package, other run packages are referenced by their `packages` identifier (resolved through
- * `context.packageIdentities`), and built-in system packages by their chain-stable address
- * (e.g. `0x2`).
+ * Matchers identify packages by scope: bare `module::Type` refers to the declaring package, other
+ * run packages are referenced by their `packages` identifier (resolved through
+ * `context.packageIdentities`), and explicit addresses (e.g. `0x2`) are used as-is — authors are
+ * responsible for only using addresses that are valid on every network their generated code
+ * targets.
  * Matched types and functions must exist in the referenced package's summaries — typos fail
  * generation.
  */

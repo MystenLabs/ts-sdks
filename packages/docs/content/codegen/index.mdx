@@ -295,9 +295,9 @@ calls. The `configArguments` option moves that mapping into codegen: declare whi
 package addresses) come from a config object, and the generated functions accept that config object
 directly.
 
-`configArguments` is set on a package entry and maps config keys to matchers. Because generated code
-is network-agnostic, matchers reference types as `module::Type` (optionally qualified with a package
-identifier from the `packages` config) rather than by address:
+`configArguments` is set on a package entry and maps config keys to matchers. Matchers reference
+types as `module::Type`, optionally qualified with a package identifier from the `packages` config
+or an address:
 
 ```typescript
 const config: SuiCodegenConfig = {
@@ -336,8 +336,9 @@ Matcher rules:
 - A bare `module::Type` refers to a type from the package the config is declared on.
 - Types from other packages in the run use their package identifier (for example,
   `@myapp/core::pool::Pool`) and must be dependencies of the declaring package.
-- Built-in system packages have chain-stable addresses and can be referenced by address (for
-  example, `0x2::sui::SUI`).
+- Types can also be referenced by an explicit address (for example, `0x2::sui::SUI`). Addresses
+  aren't validated, so only use addresses that are valid on every network your generated code
+  targets.
 - Partially instantiated generics like `Pool<T>` are not supported. Use an uninstantiated matcher
   with a resolver function instead.
 - Function matchers can target a parameter by `parameterName` or `parameterIndex`. Both can be
