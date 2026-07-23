@@ -77,6 +77,15 @@ interface BaseWalrusClientConfig {
 	 * terminate TLS.
 	 */
 	storageNodeUrlScheme?: 'http' | 'https';
+	/**
+	 * Extra WAL added on top of estimated storage and write costs (in basis points of the
+	 * estimated cost) when funding payments. This protects against on-chain price increases
+	 * between cost estimation and execution. Only the actual on-chain cost is deducted from
+	 * the funded amount: any remainder is merged back into the provided `walCoin`, or
+	 * returned to the sender's address balance when paying from the signer's balance, so the
+	 * buffer is only spent if prices actually increased. Defaults to `1000` (10%).
+	 */
+	costBufferBps?: number;
 }
 
 /**
@@ -118,7 +127,7 @@ export interface StorageWithSizeOptions {
 	size: number;
 	/** The number of epoch the storage will be reserved for. */
 	epochs: number;
-	/** optionally specify a WAL coin pay for the registration.  This will consume WAL from the signer by default. */
+	/** Optionally specify a WAL coin to pay from. The estimated cost plus the configured buffer is split from this coin, and any WAL that isn't consumed by the payment is merged back into it. By default WAL is consumed from the signer's balance instead. */
 	walCoin?: TransactionObjectArgument;
 }
 
@@ -126,7 +135,7 @@ export interface RegisterBlobOptions extends StorageWithSizeOptions {
 	blobId: string;
 	rootHash: Uint8Array;
 	deletable: boolean;
-	/** optionally specify a WAL coin pay for the registration.  This will consume WAL from the signer by default. */
+	/** Optionally specify a WAL coin to pay from. The estimated cost plus the configured buffer is split from this coin, and any WAL that isn't consumed by the payment is merged back into it. By default WAL is consumed from the signer's balance instead. */
 	walCoin?: TransactionObjectArgument;
 	/** The attributes to write for the blob. */
 	attributes?: Record<string, string | null>;
@@ -384,7 +393,7 @@ export interface DeleteBlobOptions {
 
 export type ExtendBlobOptions = {
 	blobObjectId: string;
-	/** optionally specify a WAL coin pay for the registration.  This will consume WAL from the signer by default. */
+	/** Optionally specify a WAL coin to pay from. The estimated cost plus the configured buffer is split from this coin, and any WAL that isn't consumed by the payment is merged back into it. By default WAL is consumed from the signer's balance instead. */
 	walCoin?: TransactionObjectArgument;
 } & (
 	| {
