@@ -336,7 +336,8 @@ Matcher rules:
 - A bare `module::Type` refers to a type from the package the config is declared on.
 - Types from other packages in the run use their package identifier (for example,
   `@myapp/core::pool::Pool`) and must be dependencies of the declaring package.
-- Framework packages (`0x1` to `0x3`) have chain-stable addresses and can be referenced directly.
+- Built-in system packages have chain-stable addresses and can be referenced by address (for
+  example, `0x2::sui::SUI`).
 - Partially instantiated generics like `Pool<T>` are not supported. Use an uninstantiated matcher
   with a resolver function instead.
 - Function matchers can target a parameter by `parameterName` or `parameterIndex`. Both can be

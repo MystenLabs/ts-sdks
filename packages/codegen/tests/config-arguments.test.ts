@@ -191,7 +191,7 @@ describe('parseConfigArguments', () => {
 		return registry;
 	}
 
-	it('parses package-qualified, framework-qualified, and package matchers', async () => {
+	it('parses package-qualified, builtin-qualified, and package matchers', async () => {
 		const { entries } = parseConfigArguments(
 			{
 				pool: { type: '@test/testpkg::pools::Pool' },
@@ -325,7 +325,25 @@ describe('parseConfigArguments', () => {
 		expect(() => parse('2::sui::SUI')).toThrowError(/Unknown package "2"/);
 	});
 
-	it('rejects non-framework package addresses', async () => {
+	it('accepts built-in system package addresses beyond 0x1-0x3', async () => {
+		// Bridge (0xb) and deepbook (0xdee9) are system packages with chain-stable addresses.
+		const { entries } = parseConfigArguments(
+			{ pool: { type: '@test/testpkg::pools::Pool<0xb::bridge::Bridge>' } },
+			createRegistry(),
+			TESTPKG_CONTEXT,
+		);
+
+		expect(entries).toMatchObject([
+			{
+				key: 'pool',
+				typeArguments: [
+					'0x000000000000000000000000000000000000000000000000000000000000000b::bridge::Bridge',
+				],
+			},
+		]);
+	});
+
+	it('rejects package addresses that are not built-in system packages', async () => {
 		const registry = createRegistry();
 		const parse = (type: string) =>
 			parseConfigArguments({ bad: { type } }, registry, TESTPKG_CONTEXT);
