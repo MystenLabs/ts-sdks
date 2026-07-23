@@ -325,11 +325,15 @@ describe('parseConfigArguments', () => {
 		expect(() => parse('2::sui::SUI')).toThrowError(/Unknown package "2"/);
 	});
 
-	it('accepts reserved system addresses beyond 0x1-0x3', async () => {
-		// Bridge (0xb) and deepbook (0xdee9) are system packages with chain-stable addresses;
-		// the reserved-range check covers future additions without hardcoding the list.
+	it('accepts arbitrary package addresses, normalized', async () => {
+		// Addresses are not validated for chain-stability — it's up to the author to only use
+		// addresses valid on every network the generated code targets.
+		const PUBLISHED = '0x8ca2f2b8b8a446b917e4b9d24a35d17a4b57d4c8bd7a4a4ad3d97bd54c752cbf';
 		const { entries } = parseConfigArguments(
-			{ pool: { type: '@test/testpkg::pools::Pool<0xb::bridge::Bridge>' } },
+			{
+				pool: { type: '@test/testpkg::pools::Pool<0xb::bridge::Bridge>' },
+				published: { type: `@test/testpkg::pools::Pool<${PUBLISHED}::coin::COIN>` },
+			},
 			createRegistry(),
 			TESTPKG_CONTEXT,
 		);
@@ -341,24 +345,11 @@ describe('parseConfigArguments', () => {
 					'0x000000000000000000000000000000000000000000000000000000000000000b::bridge::Bridge',
 				],
 			},
+			{
+				key: 'published',
+				typeArguments: [`${PUBLISHED}::coin::COIN`],
+			},
 		]);
-	});
-
-	it('rejects package addresses outside the reserved system range', async () => {
-		const registry = createRegistry();
-		const parse = (type: string) =>
-			parseConfigArguments({ bad: { type } }, registry, TESTPKG_CONTEXT);
-
-		// Digest-derived (published) package addresses are network-specific.
-		const PUBLISHED = '0x8ca2f2b8b8a446b917e4b9d24a35d17a4b57d4c8bd7a4a4ad3d97bd54c752cbf';
-		expect(() => parse(`${PUBLISHED}::vault::Vault`)).toThrowError(
-			/package addresses are network-specific/,
-		);
-		expect(() => parse(`@test/testpkg::pools::Pool<${PUBLISHED}::coin::COIN>`)).toThrowError(
-			/package addresses are network-specific/,
-		);
-		// The zero address is a placeholder, never a package.
-		expect(() => parse('0x0::vault::Vault')).toThrowError(/package addresses are network-specific/);
 	});
 
 	it('rejects partially instantiated matchers with a dedicated error', async () => {
