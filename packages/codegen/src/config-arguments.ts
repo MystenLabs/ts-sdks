@@ -81,12 +81,12 @@ const PRIMITIVES = new Set(['bool', 'u8', 'u16', 'u32', 'u64', 'u128', 'u256', '
 const MOVE_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const HEX_ADDRESS = /^0x[0-9a-fA-F]{1,64}$/;
 /**
- * Built-in system packages (mirrors `is_system_package` in sui-types) — the only packages with
- * chain-stable addresses. Everything else must use a package identifier.
+ * Published package ids are derived from transaction digests, so real packages never land on
+ * tiny addresses — a normalized address in the reserved low range (e.g. `0x2`, `0xb`, `0xdee9`)
+ * can only be a built-in system package, and those are chain-stable. Everything else must use a
+ * package identifier. The range check avoids hardcoding the system package list, which grows.
  */
-const BUILTIN_PACKAGE_ADDRESSES = new Set(
-	['0x1', '0x2', '0x3', '0xb', '0xdee9'].map((address) => normalizeSuiAddress(address)),
-);
+const RESERVED_SYSTEM_ADDRESS = /^0x0{56}[0-9a-f]{8}$/;
 const ZERO_ADDRESS = normalizeSuiAddress('0x0');
 
 function normalizeAddress(address: string) {
@@ -122,7 +122,7 @@ function resolveQualifier(
 	}
 	if (HEX_ADDRESS.test(packagePart)) {
 		const normalized = normalizeSuiAddress(packagePart);
-		if (BUILTIN_PACKAGE_ADDRESSES.has(normalized)) {
+		if (normalized !== ZERO_ADDRESS && RESERVED_SYSTEM_ADDRESS.test(normalized)) {
 			return normalized;
 		}
 		throw new Error(
