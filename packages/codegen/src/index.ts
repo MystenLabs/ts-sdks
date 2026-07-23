@@ -228,6 +228,31 @@ export async function generateFromPackageSummary({
 		mod.builder.includeFunctions(functions);
 	}
 
+	// Pre-pass: match configArguments against every module that will render functions, so
+	// resolver requirement and value typing for each key are package-wide before any code is
+	// emitted. A later module can force a key already used by an earlier one into resolver form,
+	// and every function's config slice must agree with the generated package config interface.
+	const usedConfigKeys = new Set<string>();
+	const resolverRequiredKeys = new Set<string>();
+	const stringlessConfigKeys = new Set<string>();
+	for (const mod of modules) {
+		if ((mod.isMainPackage || !prune) && mod.builder.hasTypesOrFunctions()) {
+			mod.builder.collectConfigMatches();
+		}
+		for (const key of mod.builder.usedConfigKeys) {
+			usedConfigKeys.add(key);
+		}
+		for (const key of mod.builder.resolverRequiredKeys) {
+			resolverRequiredKeys.add(key);
+		}
+		for (const key of mod.builder.stringlessConfigKeys) {
+			stringlessConfigKeys.add(key);
+		}
+	}
+	for (const mod of modules) {
+		mod.builder.setPackageConfigKeySets(resolverRequiredKeys, stringlessConfigKeys);
+	}
+
 	// Wipe stale files before writing fresh ones.
 	const packageOutputDir = join(outputDir, packageName);
 	await rm(packageOutputDir, { recursive: true, force: true });
@@ -266,17 +291,6 @@ export async function generateFromPackageSummary({
 		}),
 	);
 
-	const usedConfigKeys = new Set<string>();
-	const resolverRequiredKeys = new Set<string>();
-	for (const mod of modules) {
-		for (const key of mod.builder.usedConfigKeys) {
-			usedConfigKeys.add(key);
-		}
-		for (const key of mod.builder.resolverRequiredKeys) {
-			resolverRequiredKeys.add(key);
-		}
-	}
-
 	// configArguments only affect this package's generated functions, so an unused entry is a
 	// misconfiguration (wrong parameterName, wrong instantiation, or a function filtered out of
 	// generation).
@@ -298,6 +312,7 @@ export async function generateFromPackageSummary({
 			packageName,
 			entries: configArgumentEntries,
 			resolverRequiredKeys,
+			stringlessConfigKeys,
 			importExtension,
 		});
 	}
@@ -367,6 +382,7 @@ async function generateConfigInterface({
 	packageName,
 	entries,
 	resolverRequiredKeys,
+	stringlessConfigKeys,
 	importExtension,
 }: {
 	packageOutputDir: string;
@@ -375,6 +391,8 @@ async function generateConfigInterface({
 	entries: ParsedConfigArgument[];
 	/** Keys forced to resolver form by per-function multi-matches. */
 	resolverRequiredKeys: Set<string>;
+	/** Keys bound to a parameter that can't be supplied as an object id string. */
+	stringlessConfigKeys: Set<string>;
 	importExtension: ImportExtension;
 }) {
 	const builder = new FileBuilder();
@@ -407,10 +425,14 @@ async function generateConfigInterface({
 				'@mysten/sui/transactions',
 				'type TransactionObjectArgument',
 			);
-			return `${key}: (ctx: ${ctxName}) => string | ${objArgName}`;
+			return stringlessConfigKeys.has(key)
+				? `${key}: (ctx: ${ctxName}) => ${objArgName}`
+				: `${key}: (ctx: ${ctxName}) => string | ${objArgName}`;
 		}
 
-		return `${key}: ${builder.addImport(utilsModule, 'type ConfigValue')}`;
+		return stringlessConfigKeys.has(key)
+			? `${key}: ${builder.addImport(utilsModule, 'type ConfigObjectValue')}`
+			: `${key}: ${builder.addImport(utilsModule, 'type ConfigValue')}`;
 	});
 
 	builder.statements.push(

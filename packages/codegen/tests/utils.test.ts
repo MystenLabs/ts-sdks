@@ -424,6 +424,40 @@ describe('well-known AccumulatorRoot injection', () => {
 	});
 });
 
+describe('prototype-colliding parameter names', () => {
+	it('reports an omitted parameter as missing even when its name is an Object.prototype member', () => {
+		// Without the own-property guard, args['constructor'] resolves to
+		// Object.prototype.constructor (a function), which would be silently passed through as a
+		// transaction callback instead of throwing. The decoy key keeps the arity check satisfied.
+		expect(() =>
+			normalizeMoveArguments({ other: 42, decoy: 1 }, [null, 'u32'], ['constructor', 'other']),
+		).toThrowError('Parameter constructor is required');
+	});
+});
+
+describe('positional arguments with config-filled values', () => {
+	it('normalizes the array shape nameless config bindings emit', async () => {
+		// Mimics a generated nameless body: `[options.arguments?.[0] ?? options.config?.key,
+		// options.arguments?.[1]]` — a config-provided object id in a positional slot with a
+		// `null` (object) argument type.
+		const tx = new Transaction();
+		tx.moveCall({
+			target: '0x0::test::test',
+			arguments: normalizeMoveArguments(['0x123', 42], [null, 'u32']),
+		});
+
+		const json = JSON.parse(await tx.toJSON());
+		expect(json.inputs).toEqual([
+			{
+				UnresolvedObject: {
+					objectId: '0x0000000000000000000000000000000000000000000000000000000000000123',
+				},
+			},
+			{ Pure: { bytes: 'KgAAAA==' } },
+		]);
+	});
+});
+
 describe('well-known and config-matched parameters combined', () => {
 	it('aligns config-filled positions with well-known injection at runtime', async () => {
 		// Mimics a generated body for `fn(registry: &Registry, clock: &Clock, amount: u64)`:
