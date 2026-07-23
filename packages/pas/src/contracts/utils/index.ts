@@ -195,12 +195,16 @@ export interface ConfigResolverContext {
 }
 
 /**
+ * A non-callback transaction argument in a generated config object, used for keys whose matched
+ * parameter can't be supplied as an object id string.
+ */
+export type ConfigObjectValue = Exclude<TransactionObjectArgument, (...args: never[]) => unknown>;
+
+/**
  * A plain value in a generated config object: an object id or a non-callback transaction
  * argument. Keys that can resolve multiple bindings are typed as resolver functions instead.
  */
-export type ConfigValue =
-	| string
-	| Exclude<TransactionObjectArgument, (...args: never[]) => unknown>;
+export type ConfigValue = string | ConfigObjectValue;
 
 /* -------------------------- Move type tags -------------------------- */
 

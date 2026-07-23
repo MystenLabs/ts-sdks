@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
-import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
+import { cp, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import ts from 'typescript';
 import { Transaction } from '@mysten/sui/transactions';
@@ -695,9 +695,15 @@ describe('config-driven function codegen', () => {
 			'suiPool: (ctx: ConfigResolverContext) => string | TransactionObjectArgument',
 		);
 
-		// ...while use_concrete (one matched parameter) keeps the plain value form.
+		// ...and the requirement is package-wide: use_concrete (one matched parameter) must accept
+		// the same resolver-typed config object, so its slice stays assignable from a shared config
+		// written against the generated package interface.
 		const concreteOptions = output.match(/export interface UseConcreteOptions[\s\S]*?^}/m);
-		expect(concreteOptions?.[0]).toContain('suiPool: ConfigValue');
+		expect(concreteOptions?.[0]).toContain(
+			'suiPool: (ctx: ConfigResolverContext) => string | TransactionObjectArgument',
+		);
+		// The resolver is invoked (not passed through as a value) at the single-match call site.
+		expect(output).toContain('options.config?.suiPool?.({');
 	});
 
 	it('function matchers support parameterIndex on nameless summaries', async () => {
@@ -1085,14 +1091,14 @@ describe('generateFromPackageSummary with configArguments', () => {
 			"/**************************************************************
 			 * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
 			 **************************************************************/
-			import { type ConfigValue, type ConfigResolverContext } from '../utils/index.js';
+			import { type ConfigValue, type ConfigResolverContext, type ConfigObjectValue } from '../utils/index.js';
 			import { type TransactionObjectArgument } from '@mysten/sui/transactions';
 			export interface TestpkgConfig {
 			    registryObj: ConfigValue;
 			    container: (ctx: ConfigResolverContext) => string | TransactionObjectArgument;
 			    testpkgAddress?: string;
 			    unusedEntry: ConfigValue;
-			    statusViaFn: ConfigValue;
+			    statusViaFn: ConfigObjectValue;
 			}"
 		`);
 
@@ -1228,6 +1234,58 @@ describe('generateFromPackageSummary with configArguments', () => {
 
 		expect(() => tx.add(mod.lookup({}))).toThrowError('Parameter registry is required');
 	});
+	it('config values resolve positionally for nameless summaries at runtime', async () => {
+		// Strip parameter names from the registry summary so codegen emits the tuple form, then
+		// execute the generated positional bindings.
+		const fixture = await tempOutputDir();
+		await cp(FIXTURE_PATH, fixture, { recursive: true });
+		const summaryPath = join(fixture, 'package_summaries', 'testpkg', 'registry.json');
+		const summary = JSON.parse(await readFile(summaryPath, 'utf-8'));
+		for (const func of Object.values(summary.functions) as { parameters: { name?: string }[] }[]) {
+			for (const param of func.parameters) {
+				delete param.name;
+			}
+		}
+		await writeFile(summaryPath, JSON.stringify(summary));
+
+		const dir = await tempOutputDir();
+		await generateFromPackageSummary({
+			package: {
+				package: '@test/testpkg',
+				path: fixture,
+				configArguments: {
+					registryObj: { type: '@test/testpkg::registry::Registry' },
+					testpkgAddress: { package: '@test/testpkg' },
+				},
+			},
+			prune: true,
+			outputDir: dir,
+		});
+
+		const mod = await import(join(dir, 'testpkg', 'registry.js'));
+		const PACKAGE_ID = '0x00000000000000000000000000000000000000000000000000000000000000ee';
+		const REGISTRY_ID = '0x0000000000000000000000000000000000000000000000000000000000000123';
+
+		// Config fills the omitted positional argument.
+		const tx = new Transaction();
+		tx.add(mod.lookup({ config: { registryObj: REGISTRY_ID, testpkgAddress: PACKAGE_ID } }));
+		const json = JSON.parse(await tx.toJSON());
+		expect(json.inputs).toEqual([{ UnresolvedObject: { objectId: REGISTRY_ID } }]);
+		expect(json.commands[0].MoveCall.package).toBe(PACKAGE_ID);
+
+		// An explicit positional argument overrides the config value.
+		const OVERRIDE_ID = '0x0000000000000000000000000000000000000000000000000000000000000456';
+		const tx2 = new Transaction();
+		tx2.add(
+			mod.lookup({
+				arguments: [OVERRIDE_ID],
+				config: { registryObj: REGISTRY_ID, testpkgAddress: PACKAGE_ID },
+			}),
+		);
+		const json2 = JSON.parse(await tx2.toJSON());
+		expect(json2.inputs).toEqual([{ UnresolvedObject: { objectId: OVERRIDE_ID } }]);
+	});
+
 	it('resolvers receive the normalized matched parameter instantiation and call-site metadata', async () => {
 		const { dir } = await generate();
 

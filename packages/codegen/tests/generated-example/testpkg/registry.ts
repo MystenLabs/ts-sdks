@@ -5,7 +5,7 @@
 
 /** A registry module with generics, enums, and various function visibilities. */
 
-import { MoveStruct, MoveEnum, normalizeMoveArguments, type RawTransactionArgument, type ConfigValue, type ConfigResolverContext } from '../utils/index.js';
+import { MoveStruct, MoveEnum, normalizeMoveArguments, type RawTransactionArgument, type ConfigValue, type ConfigResolverContext, type ConfigObjectValue } from '../utils/index.js';
 import { bcs, type BcsType } from '@mysten/sui/bcs';
 import { type Transaction, type TransactionObjectArgument, type TransactionArgument } from '@mysten/sui/transactions';
 const $moduleName = '@test/testpkg::registry';
@@ -219,7 +219,7 @@ export interface IsActiveOptions {
     package?: string;
     arguments?: IsActiveArguments;
     config?: {
-        status: ConfigValue;
+        status: ConfigObjectValue;
         testpkgPackageId?: string;
     };
 }
