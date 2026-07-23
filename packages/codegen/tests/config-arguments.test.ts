@@ -358,9 +358,7 @@ describe('parseConfigArguments', () => {
 			/package addresses are network-specific/,
 		);
 		// The zero address is a placeholder, never a package.
-		expect(() => parse('0x0::vault::Vault')).toThrowError(
-			/package addresses are network-specific/,
-		);
+		expect(() => parse('0x0::vault::Vault')).toThrowError(/package addresses are network-specific/);
 	});
 
 	it('rejects partially instantiated matchers with a dedicated error', async () => {
