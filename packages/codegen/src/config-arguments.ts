@@ -80,8 +80,13 @@ export interface ConfigArgumentsContext {
 const PRIMITIVES = new Set(['bool', 'u8', 'u16', 'u32', 'u64', 'u128', 'u256', 'address']);
 const MOVE_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const HEX_ADDRESS = /^0x[0-9a-fA-F]{1,64}$/;
-/** The only packages with chain-stable addresses. Everything else must use a package identifier. */
-const FRAMEWORK_ADDRESS = /^0x0*[123]$/;
+/**
+ * Built-in system packages (mirrors `is_system_package` in sui-types) — the only packages with
+ * chain-stable addresses. Everything else must use a package identifier.
+ */
+const BUILTIN_PACKAGE_ADDRESSES = new Set(
+	['0x1', '0x2', '0x3', '0xb', '0xdee9'].map((address) => normalizeSuiAddress(address)),
+);
 const ZERO_ADDRESS = normalizeSuiAddress('0x0');
 
 function normalizeAddress(address: string) {
@@ -115,14 +120,15 @@ function resolveQualifier(
 	if (packagePart === undefined) {
 		return ctx.scopeAddress;
 	}
-	if (FRAMEWORK_ADDRESS.test(packagePart)) {
-		return normalizeSuiAddress(packagePart);
-	}
 	if (HEX_ADDRESS.test(packagePart)) {
+		const normalized = normalizeSuiAddress(packagePart);
+		if (BUILTIN_PACKAGE_ADDRESSES.has(normalized)) {
+			return normalized;
+		}
 		throw new Error(
 			`Invalid package "${packagePart}" in configArguments matcher "${tag}": package addresses ` +
-				`are network-specific and cannot be used in matchers (only the framework addresses ` +
-				`0x1-0x3 are chain-stable). Reference the package by its identifier from the codegen ` +
+				`are network-specific and cannot be used in matchers (only built-in system packages ` +
+				`like 0x2 are chain-stable). Reference the package by its identifier from the codegen ` +
 				`config instead (e.g. "@pkg/name::${unqualified}").`,
 		);
 	}
@@ -187,8 +193,8 @@ function parseMatcherType(
 	if ((parts.length !== 2 && parts.length !== 3) || parts.some((part) => part.length === 0)) {
 		throw new Error(
 			`Invalid type in configArguments matcher: "${tag}". Expected "module::Type", optionally ` +
-				`qualified with a package from the codegen config ("@pkg/name::module::Type") or a Sui ` +
-				`framework address ("0x2::module::Type").`,
+				`qualified with a package from the codegen config ("@pkg/name::module::Type") or a ` +
+				`built-in system package address ("0x2::module::Type").`,
 		);
 	}
 
@@ -443,7 +449,8 @@ function parseFunctionMatcher(
  *
  * Matchers identify packages network-agnostically: bare `module::Type` refers to the declaring
  * package, other run packages are referenced by their `packages` identifier (resolved through
- * `context.packageIdentities`), and the chain-stable framework packages by address (0x1-0x3).
+ * `context.packageIdentities`), and built-in system packages by their chain-stable address
+ * (e.g. `0x2`).
  * Matched types and functions must exist in the referenced package's summaries — typos fail
  * generation.
  */
