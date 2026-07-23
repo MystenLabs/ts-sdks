@@ -399,3 +399,97 @@ describe('normalizeMoveArguments', () => {
 		]);
 	});
 });
+
+describe('well-known AccumulatorRoot injection', () => {
+	it('injects the accumulator root object without consuming arguments', async () => {
+		const tx = new Transaction();
+		tx.moveCall({
+			target: '0x0::test::test',
+			arguments: normalizeMoveArguments(
+				{ arbitraryValue: 42 },
+				['u32', '0x2::accumulator::AccumulatorRoot'],
+				['arbitraryValue'],
+			),
+		});
+
+		const json = JSON.parse(await tx.toJSON());
+		expect(json.inputs).toEqual([
+			{ Pure: { bytes: 'KgAAAA==' } },
+			{
+				UnresolvedObject: {
+					objectId: '0x0000000000000000000000000000000000000000000000000000000000000acc',
+				},
+			},
+		]);
+	});
+});
+
+describe('prototype-colliding parameter names', () => {
+	it('reports an omitted parameter as missing even when its name is an Object.prototype member', () => {
+		// Without the own-property guard, args['constructor'] resolves to
+		// Object.prototype.constructor (a function), which would be silently passed through as a
+		// transaction callback instead of throwing. The decoy key keeps the arity check satisfied.
+		expect(() =>
+			normalizeMoveArguments({ other: 42, decoy: 1 }, [null, 'u32'], ['constructor', 'other']),
+		).toThrowError('Parameter constructor is required');
+	});
+});
+
+describe('positional arguments with config-filled values', () => {
+	it('normalizes the array shape nameless config bindings emit', async () => {
+		// Mimics a generated nameless body: `[options.arguments?.[0] ?? options.config?.key,
+		// options.arguments?.[1]]` — a config-provided object id in a positional slot with a
+		// `null` (object) argument type.
+		const tx = new Transaction();
+		tx.moveCall({
+			target: '0x0::test::test',
+			arguments: normalizeMoveArguments(['0x123', 42], [null, 'u32']),
+		});
+
+		const json = JSON.parse(await tx.toJSON());
+		expect(json.inputs).toEqual([
+			{
+				UnresolvedObject: {
+					objectId: '0x0000000000000000000000000000000000000000000000000000000000000123',
+				},
+			},
+			{ Pure: { bytes: 'KgAAAA==' } },
+		]);
+	});
+});
+
+describe('well-known and config-matched parameters combined', () => {
+	it('aligns config-filled positions with well-known injection at runtime', async () => {
+		// Mimics a generated body for `fn(registry: &Registry, clock: &Clock, amount: u64)`:
+		// clock is elided from arguments, so the config-matched registry is index 0 and amount is
+		// index 1 while argumentsTypes still includes the clock tag between them.
+		const tx = new Transaction();
+		tx.moveCall({
+			target: '0x0::test::test',
+			arguments: normalizeMoveArguments(
+				{ amount: 42, registry: '0x123' },
+				[null, '0x2::clock::Clock', 'u32'],
+				['registry', 'amount'],
+			),
+		});
+
+		const json = JSON.parse(await tx.toJSON());
+		expect(json.inputs).toEqual([
+			{
+				UnresolvedObject: {
+					objectId: '0x0000000000000000000000000000000000000000000000000000000000000123',
+				},
+			},
+			{
+				Object: {
+					SharedObject: {
+						objectId: '0x0000000000000000000000000000000000000000000000000000000000000006',
+						initialSharedVersion: 1,
+						mutable: false,
+					},
+				},
+			},
+			{ Pure: { bytes: 'KgAAAA==' } },
+		]);
+	});
+});

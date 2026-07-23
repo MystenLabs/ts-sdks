@@ -1,5 +1,4 @@
-dist
-tests/move/*/build
-tests/move/*/package_summaries
-CHANGELOG.md
+dist/
 docs/
+tests/generated-example/
+tests/move/testpkg/package_summaries/

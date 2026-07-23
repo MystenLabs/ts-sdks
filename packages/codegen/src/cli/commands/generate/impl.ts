@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { LocalContext } from '../../context.js';
-import { generateFromPackageSummary } from '../../../index.js';
+import { generateFromPackageSummary, resolvePackageIdentity } from '../../../index.js';
+import type { PackageIdentity } from '../../../config-arguments.js';
 import { loadConfig, type GenerateBase, type PackageGenerate } from '../../../config.js';
 import { isValidNamedPackage, isValidSuiObjectId } from '@mysten/sui/utils';
 import { execSync } from 'node:child_process';
@@ -81,6 +82,8 @@ export default async function generate(
 				}
 			: undefined;
 
+	// First ensure summaries exist for every package, then resolve each package's root address so
+	// configArguments matchers can reference any package in the run by its identifier.
 	for (const pkg of normalizedPackages) {
 		// Detect on-chain packages: they have 'network' field and no 'path'
 		const isOnChainPackage =
@@ -108,6 +111,21 @@ export default async function generate(
 				stdio: 'inherit',
 			});
 		}
+	}
+
+	const packageIdentities: Record<string, PackageIdentity> = {};
+	for (const pkg of normalizedPackages) {
+		if (!pkg.path) continue;
+		const identity = await resolvePackageIdentity(
+			pkg.path,
+			'packageName' in pkg ? pkg.packageName : undefined,
+		);
+		if (identity !== undefined) {
+			packageIdentities[pkg.package] = identity;
+		}
+	}
+
+	for (const pkg of normalizedPackages) {
 		const importExtension =
 			flags.importExtension === undefined
 				? config.importExtension
@@ -149,6 +167,7 @@ export default async function generate(
 			importExtension,
 			includePhantomTypeParameters: config.includePhantomTypeParameters,
 			errorClass: config.errorClass,
+			packageIdentities,
 		});
 	}
 }

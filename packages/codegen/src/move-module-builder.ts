@@ -7,10 +7,17 @@ import { ModuleRegistry } from './module-registry.js';
 import {
 	getSafeName,
 	isSupportedRawTransactionInput,
+	renderResolverTypeTag,
 	renderTypeSignature,
 	SUI_FRAMEWORK_ADDRESS,
 	SUI_SYSTEM_ADDRESS,
 } from './render-types.js';
+import { findConfigArgumentMatch, isContextParameter } from './config-arguments.js';
+import type {
+	FunctionConfigArgument,
+	ParsedConfigArgument,
+	TypeConfigArgument,
+} from './config-arguments.js';
 import {
 	camelCase,
 	capitalize,
@@ -20,7 +27,7 @@ import {
 	parseTS,
 	withComment,
 } from './utils.js';
-import type { Fields, ModuleSummary, Type, TypeParameter } from './types/summary.js';
+import type { Datatype, Fields, ModuleSummary, Type, TypeParameter } from './types/summary.js';
 import type { FunctionsOption, ImportExtension, TypesOption } from './config.js';
 import { join } from 'node:path';
 import { isValidSuiObjectId } from '@mysten/sui/utils';
@@ -35,6 +42,10 @@ const IMPORT_MAP = {
 	MoveEnum: { module: '~outputRoot/utils/index', isType: false },
 	normalizeMoveArguments: { module: '~outputRoot/utils/index', isType: false },
 	RawTransactionArgument: { module: '~outputRoot/utils/index', isType: true },
+	ConfigValue: { module: '~outputRoot/utils/index', isType: true },
+	ConfigObjectValue: { module: '~outputRoot/utils/index', isType: true },
+	ConfigResolverContext: { module: '~outputRoot/utils/index', isType: true },
+	TransactionObjectArgument: { module: '@mysten/sui/transactions', isType: true },
 } as const;
 
 type ImportName = keyof typeof IMPORT_MAP;
@@ -52,6 +63,18 @@ export class MoveModuleBuilder extends FileBuilder {
 	#importNames: Partial<Record<ImportName, string>> = {};
 	#importExtension: ImportExtension;
 	#includePhantomTypeParameters: boolean;
+	#configArguments: ParsedConfigArgument[] = [];
+	#packageConfigKey?: string;
+	#configMatches: Map<string, Map<number, TypeConfigArgument | FunctionConfigArgument>> | null =
+		null;
+	#packageResolverRequiredKeys?: Set<string>;
+	#packageStringlessConfigKeys?: Set<string>;
+	/** Config keys that matched at least one parameter of a rendered function. */
+	readonly usedConfigKeys = new Set<string>();
+	/** Config keys forced to resolver form (matched multiple parameters of one signature). */
+	readonly resolverRequiredKeys = new Set<string>();
+	/** Config keys bound to a parameter that can't be supplied as an object id string. */
+	readonly stringlessConfigKeys = new Set<string>();
 
 	constructor({
 		mvrNameOrAddress,
@@ -142,6 +165,116 @@ export class MoveModuleBuilder extends FileBuilder {
 			this.#importNames[name] = this.addImport(module, importSpec);
 		}
 		return this.#importNames[name]!;
+	}
+
+	/**
+	 * Configure parsed `configArguments` entries for this module's generated functions. Must be
+	 * called before `renderFunctions`. `packageConfigKey` is the config key (if any) that supplies
+	 * this package's call address.
+	 */
+	setConfigArguments(entries: ParsedConfigArgument[], packageConfigKey?: string) {
+		this.#configArguments = entries;
+		this.#packageConfigKey = packageConfigKey;
+	}
+
+	/**
+	 * Resolver requirement and value typing for a config key are package-wide properties: a key
+	 * multi-matched in any one signature must be resolver-typed everywhere it appears, so every
+	 * function's `config` slice stays assignable from one shared config object. These sets are the
+	 * union across all of the package's rendered modules, provided before `renderFunctions`.
+	 */
+	setPackageConfigKeySets(resolverRequiredKeys: Set<string>, stringlessConfigKeys: Set<string>) {
+		this.#packageResolverRequiredKeys = resolverRequiredKeys;
+		this.#packageStringlessConfigKeys = stringlessConfigKeys;
+	}
+
+	/**
+	 * Match `configArguments` entries against every included function's parameters, populating
+	 * `usedConfigKeys`, `resolverRequiredKeys`, and `stringlessConfigKeys`. Runs as a pre-pass so
+	 * package-wide key sets exist before any module emits code; `renderFunctions` reuses the cached
+	 * matches.
+	 */
+	collectConfigMatches() {
+		if (this.#configMatches) {
+			return;
+		}
+		this.#configMatches = new Map();
+		if (!this.hasFunctions() || this.#configArguments.length === 0) {
+			return;
+		}
+		for (const [name, func] of Object.entries(this.summary.functions)) {
+			if (func.macro_ || !this.#includedFunctions.has(name)) {
+				continue;
+			}
+			const parameters = func.parameters.filter((param) => !this.isContextReference(param.type_));
+			const requiredParameters = parameters.filter(
+				(param) =>
+					!isWellKnownObjectParameter(param.type_, (address) => this.#resolveAddress(address)),
+			);
+			const functionLabel = `${this.summary.id.address}::${this.summary.id.name}::${name}`;
+			const matches = new Map<number, TypeConfigArgument | FunctionConfigArgument>();
+			const matchesByKey = new Map<string, number>();
+			requiredParameters.forEach((param, i) => {
+				const match = findConfigArgumentMatch(param, this.#configArguments, {
+					resolveAddress: (address) => this.#resolveAddress(address),
+					functionLabel,
+					functionRef: {
+						moduleAddress: this.summary.id.address,
+						moduleName: this.summary.id.name,
+						functionName: name,
+					},
+					parameterIndex: i,
+				});
+				if (!match) return;
+				matches.set(i, match);
+				matchesByKey.set(match.key, (matchesByKey.get(match.key) ?? 0) + 1);
+				this.usedConfigKeys.add(match.key);
+				if (
+					!isSupportedRawTransactionInput(param.type_, {
+						summary: this.summary,
+						registry: this.registry,
+					})
+				) {
+					this.stringlessConfigKeys.add(match.key);
+				}
+			});
+			// A key matching more than one parameter of one signature must be resolver-typed — a
+			// single static value silently bound to two positions is almost always a bug.
+			for (const [key, count] of matchesByKey) {
+				if (count > 1) {
+					this.resolverRequiredKeys.add(key);
+				}
+			}
+			this.#configMatches.set(name, matches);
+		}
+	}
+
+	/**
+	 * The address this module's generated type tags use for `name`: the type-origin address when
+	 * known, otherwise the same address BCS type names use (MVR name / root package id / resolved
+	 * summary address).
+	 */
+	getTypeTagAddress(name: string): string {
+		const origin = this.#typeOrigins?.[name];
+		if (origin) {
+			return origin;
+		}
+		const moduleTypeName = this.#getModuleTypeName();
+		return moduleTypeName.startsWith('0x') || /[@/]/.test(moduleTypeName)
+			? moduleTypeName
+			: this.#resolveAddress(moduleTypeName);
+	}
+
+	/**
+	 * Address for a datatype appearing in a resolver-context type tag: delegate to the defining
+	 * module's builder so origins and MVR names match generated BCS type names.
+	 */
+	#getResolverTagAddress(datatype: Datatype): string {
+		const builder = this.registry.getBuilder(datatype.module.address, datatype.module.name);
+		if (builder) {
+			return builder.getTypeTagAddress(datatype.name);
+		}
+		return this.#resolveAddress(datatype.module.address);
 	}
 
 	override async getHeader() {
@@ -535,6 +668,8 @@ export class MoveModuleBuilder extends FileBuilder {
 			return;
 		}
 
+		this.collectConfigMatches();
+
 		const transactionTypeName = this.#getImportName('Transaction');
 
 		for (const [name, func] of Object.entries(this.summary.functions)) {
@@ -553,6 +688,17 @@ export class MoveModuleBuilder extends FileBuilder {
 				(param) =>
 					!isWellKnownObjectParameter(param.type_, (address) => this.#resolveAddress(address)),
 			);
+
+			// Parameters (by index into `requiredParameters`) resolved from the runtime config
+			// object instead of being required arguments. Matches were computed by the
+			// `collectConfigMatches` pre-pass; the package-wide key sets default to this module's
+			// own when no orchestrator provided a union.
+			const configMatches =
+				this.#configMatches!.get(name) ??
+				new Map<number, TypeConfigArgument | FunctionConfigArgument>();
+			const resolverRequiredKeys = this.#packageResolverRequiredKeys ?? this.resolverRequiredKeys;
+			const stringlessConfigKeys = this.#packageStringlessConfigKeys ?? this.stringlessConfigKeys;
+			const hasConfigMatches = configMatches.size > 0;
 
 			const normalizeName =
 				parameters.length > 0 ? this.#getImportName('normalizeMoveArguments') : null;
@@ -588,12 +734,31 @@ export class MoveModuleBuilder extends FileBuilder {
 			const wrap = (type: string | null): string =>
 				type === null ? transactionArgName! : `${rawTxArgName}<${type}>`;
 
-			const argumentsTypes = renderedArgTypes
+			// Interface fields: config-matched parameters become optional properties.
+			const argumentFields = renderedArgTypes
 				.map((type, i) =>
 					requiredParameters[i].name
-						? `${camelCase(requiredParameters[i].name)}: ${wrap(type)}`
+						? `${camelCase(requiredParameters[i].name)}${configMatches.has(i) ? '?' : ''}: ${wrap(type)}`
 						: wrap(type),
 				)
+				.join(',\n');
+
+			// Tuple items: a config-matched suffix becomes genuinely optional tuple elements.
+			// Optional elements can't precede required ones, so matched positions followed by a
+			// required one accept an explicit `undefined` instead.
+			const lastUnmatchedIndex = renderedArgTypes.reduce(
+				(last, _, i) => (configMatches.has(i) ? last : i),
+				-1,
+			);
+			const argumentTupleItems = renderedArgTypes
+				.map((type, i) => {
+					const paramName = requiredParameters[i].name;
+					if (configMatches.has(i) && i > lastUnmatchedIndex) {
+						return paramName ? `${camelCase(paramName)}?: ${wrap(type)}` : `${wrap(type)}?`;
+					}
+					const itemType = configMatches.has(i) ? `${wrap(type)} | undefined` : wrap(type);
+					return paramName ? `${camelCase(paramName)}: ${itemType}` : itemType;
+				})
 				.join(',\n');
 
 			const bcsTypeName = usedTypeParameters.size > 0 ? this.#getImportName('BcsType') : null;
@@ -621,24 +786,74 @@ export class MoveModuleBuilder extends FileBuilder {
 			if (hasAllParameterNames) {
 				this.statements.push(
 					...parseTS /* ts */ `export interface ${argumentsInterface}${genericTypes} {
-						${argumentsTypes}
+						${argumentFields}
 					}`,
 				);
 			}
 
 			const optionsInterface = this.getUnusedName(`${capitalize(fnName.replace(/^_/, ''))}Options`);
 			const packageIsRequired = !this.#mvrNameOrAddress;
+			// The package-address config key only applies when a generated default exists —
+			// otherwise `package` stays required and always takes precedence.
+			const packageConfigKey = packageIsRequired ? undefined : this.#packageConfigKey;
 			const requiresOptions =
-				packageIsRequired || argumentsTypes.length > 0 || func.type_parameters.length > 0;
+				packageIsRequired || requiredParameters.length > 0 || func.type_parameters.length > 0;
+
+			// The minimal structural config slice for this function: only the keys whose matchers
+			// hit its parameters, plus this package's own package key if declared.
+			// A key must be a resolver function when it can bind more than one distinct type (or a
+			// generic), anywhere in the package — the slices of every function using a key must
+			// agree with each other and with the generated package config interface, so one shared
+			// config object satisfies them all. Keys bound to a parameter that can't be supplied as
+			// an object id drop the plain-string form.
+			const resolverKeys = new Set<string>();
+			const configSliceFields: string[] = [];
+			const seenConfigKeys = new Set<string>();
+			for (const match of configMatches.values()) {
+				if (seenConfigKeys.has(match.key)) continue;
+				seenConfigKeys.add(match.key);
+				const boundTypes = new Set(
+					this.#configArguments.flatMap((entry) =>
+						entry.kind !== 'package' && entry.key === match.key ? [entry.boundType] : [],
+					),
+				);
+				if (boundTypes.size > 1 || boundTypes.has(null) || resolverRequiredKeys.has(match.key)) {
+					resolverKeys.add(match.key);
+				}
+				const valueType = stringlessConfigKeys.has(match.key)
+					? this.#getImportName('TransactionObjectArgument')
+					: `string | ${this.#getImportName('TransactionObjectArgument')}`;
+				configSliceFields.push(
+					resolverKeys.has(match.key)
+						? `${match.key}: (ctx: ${this.#getImportName('ConfigResolverContext')}) => ${valueType}`
+						: stringlessConfigKeys.has(match.key)
+							? `${match.key}: ${this.#getImportName('ConfigObjectValue')}`
+							: `${match.key}: ${this.#getImportName('ConfigValue')}`,
+				);
+			}
+			if (packageConfigKey) {
+				configSliceFields.push(`${packageConfigKey}?: string`);
+			}
+
+			const argumentsOptional = requiredParameters.every((_, i) => configMatches.has(i));
 
 			this.statements.push(
 				...parseTS /* ts */ `export interface ${optionsInterface}${genericTypes} {
 					package${packageIsRequired ? ': string' : '?: string'}
-					${argumentsTypes.length > 0 ? 'arguments: ' : 'arguments?: '}${
+					arguments${argumentsOptional ? '?' : ''}: ${
 						hasAllParameterNames
-							? `${argumentsInterface}${genericTypeArgs} | [${argumentsTypes}]`
-							: `[${argumentsTypes}]`
+							? hasConfigMatches
+								? `${argumentsInterface}${genericTypeArgs}`
+								: `${argumentsInterface}${genericTypeArgs} | [${argumentTupleItems}]`
+							: `[${argumentTupleItems}]`
 					},
+					${
+						configSliceFields.length > 0
+							? `config?: {
+								${configSliceFields.join(',\n')}
+							},`
+							: ''
+					}
 					${
 						func.type_parameters.length
 							? `typeArguments: [${func.type_parameters.map(() => 'string').join(', ')}]`
@@ -647,11 +862,69 @@ export class MoveModuleBuilder extends FileBuilder {
 			}`,
 			);
 
+			// Config-matched positions resolve inline: an explicitly passed argument wins, then the
+			// config value (resolver keys are invoked with their call-site context).
+			const configExprFor = (
+				i: number,
+				match: typeof configMatches extends Map<number, infer V> ? V : never,
+			) => {
+				if (!resolverKeys.has(match.key)) {
+					return `options.config?.${match.key}`;
+				}
+				const param = requiredParameters[i];
+				let paramType = param.type_;
+				while (typeof paramType !== 'string' && 'Reference' in paramType) {
+					paramType = paramType.Reference[1];
+				}
+				const paramTypeArguments =
+					typeof paramType !== 'string' && 'Datatype' in paramType
+						? paramType.Datatype.type_arguments
+						: [];
+				const ctxTags = paramTypeArguments.map((arg) => {
+					const tag = renderResolverTypeTag(arg.argument, {
+						summary: this.summary,
+						typeParameters: func.type_parameters,
+						registry: this.registry,
+						getDatatypeTagAddress: (datatype) => this.#getResolverTagAddress(datatype),
+					});
+					return tag.includes('${') ? `\`${tag}\`` : `'${tag}'`;
+				});
+				const ctx = `{ typeArguments: [${ctxTags.join(', ')}], packageAddress, moduleName: '${this.summary.id.name}', functionName: '${name}'${param.name ? `, parameterName: ${JSON.stringify(param.name)}` : ''}, parameterIndex: ${i} }`;
+				return `options.config?.${match.key}?.(${ctx})`;
+			};
+
+			let argumentsExpr = `options.arguments${requiredParameters.length === 0 ? ' ?? []' : ''}`;
+			if (hasConfigMatches) {
+				if (hasAllParameterNames) {
+					const overrides = [...configMatches.entries()]
+						.map(
+							([i, match]) =>
+								`${camelCase(requiredParameters[i].name!)}: options.arguments?.${camelCase(requiredParameters[i].name!)} ?? ${configExprFor(i, match)}`,
+						)
+						.join(',\n');
+					argumentsExpr = `{\n...options.arguments,\n${overrides}\n}`;
+				} else {
+					const elements = requiredParameters
+						.map((_, i) => {
+							const match = configMatches.get(i);
+							return match
+								? `options.arguments${argumentsOptional ? '?.' : ''}[${i}] ?? ${configExprFor(i, match)}`
+								: `options.arguments${argumentsOptional ? '?.' : ''}[${i}]`;
+						})
+						.join(',\n');
+					argumentsExpr = `[\n${elements}\n]`;
+				}
+			}
+
+			const packageAddressExpr = `options.package${
+				packageConfigKey ? ` ?? options.config?.${packageConfigKey}` : ''
+			}${packageIsRequired ? '' : ` ?? '${this.#mvrNameOrAddress}'`}`;
+
 			this.statements.push(
 				...(await withComment(
 					func,
 					parseTS /* ts */ `export function ${fnName}${genericTypes}(options: ${optionsInterface}${genericTypeArgs}${requiresOptions ? '' : ' = {}'}) {
-					const packageAddress = options.package${packageIsRequired ? '' : ` ?? '${this.#mvrNameOrAddress}'`};
+					const packageAddress = ${packageAddressExpr};
 					${
 						parameters.length > 0
 							? `const argumentsTypes = [
@@ -676,7 +949,7 @@ export class MoveModuleBuilder extends FileBuilder {
 						package: packageAddress,
 						module: '${this.summary.id.name}',
 						function: '${name}',
-						${parameters.length > 0 ? `arguments: ${normalizeName}(options.arguments${argumentsTypes.length > 0 ? '' : ' ?? []'} , argumentsTypes${hasAllParameterNames ? `, parameterNames` : ''}),` : ''}
+						${parameters.length > 0 ? `arguments: ${normalizeName}(${argumentsExpr}, argumentsTypes${hasAllParameterNames ? `, parameterNames` : ''}),` : ''}
 						${func.type_parameters.length ? 'typeArguments: options.typeArguments' : ''}
 					})
 				}`,
@@ -686,23 +959,7 @@ export class MoveModuleBuilder extends FileBuilder {
 	}
 
 	isContextReference(type: Type): boolean {
-		if (typeof type === 'string') {
-			return false;
-		}
-
-		if ('Reference' in type) {
-			return this.isContextReference(type.Reference[1]);
-		}
-
-		if ('Datatype' in type) {
-			return (
-				this.#resolveAddress(type.Datatype.module.address) === SUI_FRAMEWORK_ADDRESS &&
-				type.Datatype.module.name === 'tx_context' &&
-				type.Datatype.name === 'TxContext'
-			);
-		}
-
-		return false;
+		return isContextParameter(type, (address) => this.#resolveAddress(address));
 	}
 }
 

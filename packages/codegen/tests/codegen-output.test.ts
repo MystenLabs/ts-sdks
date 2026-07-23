@@ -586,6 +586,68 @@ describe('function codegen output', () => {
 		expect(fnBody?.[0]).toContain("'0x2::clock::Clock'");
 	});
 
+	it('function with well-known AccumulatorRoot parameter', async () => {
+		const summary = {
+			id: { address: 'testpkg', name: 'settlement' },
+			doc: '',
+			immediate_dependencies: [],
+			attributes: [],
+			functions: {
+				settle: {
+					source_index: 0,
+					index: 0,
+					doc: '',
+					attributes: [],
+					visibility: 'Public',
+					entry: false,
+					macro_: false,
+					type_parameters: [],
+					parameters: [
+						{
+							name: 'root',
+							type_: {
+								Reference: [
+									true,
+									{
+										Datatype: {
+											module: { address: 'sui', name: 'accumulator' },
+											name: 'AccumulatorRoot',
+											type_arguments: [],
+										},
+									},
+								],
+							},
+						},
+						{ name: 'amount', type_: 'u64' },
+					],
+					return_: [],
+				},
+			},
+			structs: {},
+			enums: {},
+		};
+
+		const builder = new MoveModuleBuilder({
+			summary: summary as any,
+			registry: new ModuleRegistry(ADDRESS_MAPPINGS),
+			mvrNameOrAddress: '@test/testpkg',
+			importExtension: '.js',
+		});
+		builder.includeFunctions();
+		const output = await render(builder, { functions: true });
+
+		// AccumulatorRoot should be auto-injected, not in the arguments interface
+		const argInterface = output.match(/export interface SettleArguments[\s\S]*?^}/m);
+		expect(argInterface?.[0]).toMatchInlineSnapshot(`
+			"export interface SettleArguments {
+			    amount: RawTransactionArgument<number | bigint>;
+			}"
+		`);
+
+		const fnBody = output.match(/export function settle[\s\S]*?^}/m);
+		expect(fnBody?.[0]).toContain("'0x2::accumulator::AccumulatorRoot'");
+	});
+
 	it('function with enum parameter (is_active)', async () => {
 		const { registry } = await createBuilders();
 		registry.includeTypes();

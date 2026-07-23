@@ -8,6 +8,10 @@ import { MoveModuleBuilder } from './move-module-builder.js';
 import { existsSync, statSync } from 'node:fs';
 import { getUtilsContent } from './generate-utils.js';
 import { parse } from 'toml';
+import { FileBuilder } from './file-builder.js';
+import { parseConfigArguments } from './config-arguments.js';
+import type { PackageIdentity, ParsedConfigArgument } from './config-arguments.js';
+import { camelCase, capitalize, parseTS } from './utils.js';
 import type { RootPackageMetadata } from './types/summary.js';
 import type {
 	ErrorClassConfig,
@@ -18,7 +22,11 @@ import type {
 	PackageGenerate,
 	TypesOption,
 } from './config.js';
-export { type SuiCodegenConfig } from './config.js';
+export {
+	type SuiCodegenConfig,
+	type ConfigArguments,
+	type ConfigArgumentMatcher,
+} from './config.js';
 
 export async function generateFromPackageSummary({
 	package: pkg,
@@ -28,6 +36,7 @@ export async function generateFromPackageSummary({
 	importExtension = '.js',
 	includePhantomTypeParameters = false,
 	errorClass,
+	packageIdentities,
 }: {
 	package: PackageConfig;
 	prune: boolean;
@@ -36,6 +45,12 @@ export async function generateFromPackageSummary({
 	importExtension?: ImportExtension;
 	includePhantomTypeParameters?: boolean;
 	errorClass?: ErrorClassConfig;
+	/**
+	 * Identities of the other packages in the codegen run, keyed by their `packages` identifier,
+	 * so `configArguments` matchers can reference them (see `resolvePackageIdentity`). The CLI
+	 * builds this automatically.
+	 */
+	packageIdentities?: Record<string, PackageIdentity>;
 }) {
 	if (!pkg.path) {
 		throw new Error(`Package path is required (got ${pkg.package})`);
@@ -154,6 +169,37 @@ export async function generateFromPackageSummary({
 		)
 	).flat();
 
+	const currentPackageAddress = isOnChainPackage
+		? rootPackageId!
+		: (addressMappings[mainPackageDir] ?? mainPackageDir);
+
+	const { entries: configArgumentEntries } = Object.keys(pkg.configArguments ?? {}).length
+		? parseConfigArguments(pkg.configArguments!, registry, {
+				package: { id: pkg.package, address: currentPackageAddress },
+				packageIdentities,
+			})
+		: { entries: [] };
+
+	const packageEntries = configArgumentEntries.filter(
+		(entry): entry is ParsedConfigArgument & { kind: 'package' } =>
+			entry.kind === 'package' && entry.package === pkg.package,
+	);
+	if (packageEntries.length > 1) {
+		throw new Error(
+			`Multiple configArguments package entries match ${pkg.package}: ${packageEntries
+				.map((entry) => entry.key)
+				.join(', ')}`,
+		);
+	}
+	const packageConfigKey = packageEntries[0]?.key;
+
+	for (const mod of modules) {
+		mod.builder.setConfigArguments(
+			configArgumentEntries,
+			mod.isMainPackage ? packageConfigKey : undefined,
+		);
+	}
+
 	const packageGenerate: PackageGenerate | undefined = 'generate' in pkg ? pkg.generate : undefined;
 	const pkgModules = packageGenerate?.modules;
 	const pkgTypes: TypesOption = packageGenerate?.types ?? globalGenerate?.types ?? true;
@@ -180,6 +226,31 @@ export async function generateFromPackageSummary({
 
 		mod.builder.includeTypes(types);
 		mod.builder.includeFunctions(functions);
+	}
+
+	// Pre-pass: match configArguments against every module that will render functions, so
+	// resolver requirement and value typing for each key are package-wide before any code is
+	// emitted. A later module can force a key already used by an earlier one into resolver form,
+	// and every function's config slice must agree with the generated package config interface.
+	const usedConfigKeys = new Set<string>();
+	const resolverRequiredKeys = new Set<string>();
+	const stringlessConfigKeys = new Set<string>();
+	for (const mod of modules) {
+		if ((mod.isMainPackage || !prune) && mod.builder.hasTypesOrFunctions()) {
+			mod.builder.collectConfigMatches();
+		}
+		for (const key of mod.builder.usedConfigKeys) {
+			usedConfigKeys.add(key);
+		}
+		for (const key of mod.builder.resolverRequiredKeys) {
+			resolverRequiredKeys.add(key);
+		}
+		for (const key of mod.builder.stringlessConfigKeys) {
+			stringlessConfigKeys.add(key);
+		}
+	}
+	for (const mod of modules) {
+		mod.builder.setPackageConfigKeySets(resolverRequiredKeys, stringlessConfigKeys);
 	}
 
 	// Wipe stale files before writing fresh ones.
@@ -218,6 +289,162 @@ export async function generateFromPackageSummary({
 				await mod.builder.toString(packageDir, fileRelToPackage, outputDir),
 			);
 		}),
+	);
+
+	// configArguments only affect this package's generated functions, so an unused entry is a
+	// misconfiguration (wrong parameterName, wrong instantiation, or a function filtered out of
+	// generation).
+	const unusedEntries = configArgumentEntries.filter(
+		(entry) => entry.kind !== 'package' && !usedConfigKeys.has(entry.key),
+	);
+	if (unusedEntries.length > 0) {
+		console.warn(
+			`configArguments keys that matched no generated function parameters in ${pkg.package}: ${[
+				...new Set(unusedEntries.map((entry) => entry.key)),
+			].join(', ')}`,
+		);
+	}
+
+	if (configArgumentEntries.length > 0) {
+		await generateConfigInterface({
+			packageOutputDir,
+			outputDir,
+			packageName,
+			entries: configArgumentEntries,
+			resolverRequiredKeys,
+			stringlessConfigKeys,
+			importExtension,
+		});
+	}
+}
+
+/**
+ * Resolve how a package is identified inside other packages' summaries — its named-address label
+ * (local packages) and root address — for the `packageIdentities` map passed to
+ * `generateFromPackageSummary`. Requires summaries to already exist at `pkgPath`.
+ * `packageNameOverride` mirrors the `packageName` config option.
+ */
+export async function resolvePackageIdentity(
+	pkgPath: string,
+	packageNameOverride?: string,
+): Promise<PackageIdentity | undefined> {
+	const metadataPath = join(pkgPath, 'root_package_metadata.json');
+	if (existsSync(metadataPath)) {
+		const metadata: RootPackageMetadata = JSON.parse(await readFile(metadataPath, 'utf-8'));
+		const address = metadata.root_package_original_id ?? metadata.root_package_id;
+		return address ? { address } : undefined;
+	}
+
+	const summaryDir = join(pkgPath, 'package_summaries');
+	if (!existsSync(join(summaryDir, 'address_mapping.json'))) {
+		return undefined;
+	}
+	const addressMappings: Record<string, string> = JSON.parse(
+		await readFile(join(summaryDir, 'address_mapping.json'), 'utf-8'),
+	);
+
+	let localAddressLabels: string[] = [];
+	let packageName = packageNameOverride ?? '';
+	try {
+		const parsedToml: { package?: { name?: unknown }; addresses?: Record<string, string> } = parse(
+			await readFile(join(pkgPath, 'Move.toml'), 'utf-8'),
+		);
+		localAddressLabels = Object.keys(parsedToml.addresses ?? {});
+		if (!packageName && typeof parsedToml.package?.name === 'string') {
+			packageName = parsedToml.package.name.toLowerCase();
+		}
+	} catch {
+		// fall through to summary-directory-based resolution
+	}
+
+	const packages = (await readdir(summaryDir)).filter((file) =>
+		statSync(join(summaryDir, file)).isDirectory(),
+	);
+
+	try {
+		const mainDir = resolveLocalMainPackageDir(localAddressLabels, packages, packageName, pkgPath);
+		return { label: mainDir, address: addressMappings[mainDir] };
+	} catch {
+		return undefined;
+	}
+}
+
+/**
+ * Emit `<output>/<packageName>/config-arguments.ts` with a convenience interface covering this
+ * package's resolvable config keys (and its own package-address key), for `satisfies` on the user
+ * side. For an SDK spanning multiple packages, intersect the per-package interfaces
+ * (`CoreConfig & MarginConfig`). The hyphenated filename can never collide with a generated Move
+ * module file.
+ */
+async function generateConfigInterface({
+	packageOutputDir,
+	outputDir,
+	packageName,
+	entries,
+	resolverRequiredKeys,
+	stringlessConfigKeys,
+	importExtension,
+}: {
+	packageOutputDir: string;
+	outputDir: string;
+	packageName: string;
+	entries: ParsedConfigArgument[];
+	/** Keys forced to resolver form by per-function multi-matches. */
+	resolverRequiredKeys: Set<string>;
+	/** Keys bound to a parameter that can't be supplied as an object id string. */
+	stringlessConfigKeys: Set<string>;
+	importExtension: ImportExtension;
+}) {
+	const builder = new FileBuilder();
+	const utilsModule = `~outputRoot/utils/index${importExtension}`;
+
+	const interfaceName = `${capitalize(
+		camelCase(packageName.replaceAll(/[^A-Za-z0-9_$]+/g, '_').replace(/^(\d)/, '_$1')),
+	)}Config`;
+
+	const fieldEntries = new Map<string, ParsedConfigArgument[]>();
+	for (const entry of entries) {
+		fieldEntries.set(entry.key, [...(fieldEntries.get(entry.key) ?? []), entry]);
+	}
+
+	const fields = [...fieldEntries.entries()].map(([key, group]) => {
+		if (group[0].kind === 'package') {
+			return `${key}?: string`;
+		}
+
+		// A key binding multiple distinct types (or a generic) must be a resolver function.
+		const boundTypes = new Set(
+			group.flatMap((entry) => (entry.kind !== 'package' ? [entry.boundType] : [])),
+		);
+		const requiresResolver =
+			boundTypes.size > 1 || boundTypes.has(null) || resolverRequiredKeys.has(key);
+
+		if (requiresResolver) {
+			const ctxName = builder.addImport(utilsModule, 'type ConfigResolverContext');
+			const objArgName = builder.addImport(
+				'@mysten/sui/transactions',
+				'type TransactionObjectArgument',
+			);
+			return stringlessConfigKeys.has(key)
+				? `${key}: (ctx: ${ctxName}) => ${objArgName}`
+				: `${key}: (ctx: ${ctxName}) => string | ${objArgName}`;
+		}
+
+		return stringlessConfigKeys.has(key)
+			? `${key}: ${builder.addImport(utilsModule, 'type ConfigObjectValue')}`
+			: `${key}: ${builder.addImport(utilsModule, 'type ConfigValue')}`;
+	});
+
+	builder.statements.push(
+		...parseTS /* ts */ `export interface ${interfaceName} {
+			${fields.join(';\n')}
+		}`,
+	);
+
+	await mkdir(packageOutputDir, { recursive: true });
+	await writeFile(
+		join(packageOutputDir, 'config-arguments.ts'),
+		await builder.toString(packageOutputDir, 'config-arguments.ts', outputDir),
 	);
 }
 
