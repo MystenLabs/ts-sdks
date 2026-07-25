@@ -210,7 +210,6 @@ export async function resolveCoinBalance(
 			: null,
 	]);
 
-	const mergedCoins = new Map<string, Argument>();
 	const exactBalanceByType = new Map<string, boolean>();
 	const usedAddressBalance = new Set<string>();
 
@@ -351,8 +350,6 @@ export async function resolveCoinBalance(
 					commands.push(TransactionCommands.MergeCoins(baseCoin, rest.slice(i, i + 500)));
 				}
 
-				mergedCoins.set(type, baseCoin);
-
 				// Step 2: Combined SplitCoins for all intents of this type
 				const splitCmdIndex = index + commands.length;
 				commands.push(
@@ -389,6 +386,47 @@ export async function resolveCoinBalance(
 					}
 				}
 
+				// Step 3: Remainder handling
+				//
+				// Add cleanup to this replacement command list rather than appending
+				// it to the complete transaction. Appending cleanup can place it after
+				// a MoveCall that consumes Random, which Sui rejects.
+				//
+				// When gas type used GasCoin (not AB), leftover stays in the gas coin
+				// -- no remainder handling is needed.
+				if (type !== 'gas' || usedAddressBalance.has(type)) {
+					const hasBalanceIntent = intents.some((intent) => intent.outputKind === 'balance');
+					const sourcedFromAB = usedAddressBalance.has(type);
+
+					if (hasBalanceIntent || sourcedFromAB) {
+						// Sourced from AB or balance intents exist: send remainder back to sender's address
+						// balance. `coin::send_funds` is gasless-eligible and handles zero amounts.
+						commands.push(
+							TransactionCommands.MoveCall({
+								target: '0x2::coin::send_funds',
+								typeArguments: [coinType],
+								arguments: [
+									baseCoin,
+									transactionData.addInput(
+										'pure',
+										Inputs.Pure(bcs.Address.serialize(transactionData.sender!)),
+									),
+								],
+							}),
+						);
+					} else if (exactBalanceByType.get(type)) {
+						// Coin-only with exact match: destroy the zero-value dust coin.
+						commands.push(
+							TransactionCommands.MoveCall({
+								target: '0x2::coin::destroy_zero',
+								typeArguments: [coinType],
+								arguments: [baseCoin],
+							}),
+						);
+					}
+					// Coin-only with surplus: merged coin stays with sender as an owned object.
+				}
+
 				typeState.set(type, { results, nextIntent: 0 });
 			}
 
@@ -406,44 +444,6 @@ export async function resolveCoinBalance(
 		// of a combined split), the command was removed and the next command shifted
 		// into this position — so we stay at the same index.
 		index += commands.length;
-	}
-
-	// Step 3: Remainder handling
-	for (const [type, mergedCoin] of mergedCoins) {
-		// When gas type used GasCoin (not AB), leftover stays in the gas coin — no remainder needed.
-		if (type === 'gas' && !usedAddressBalance.has(type)) continue;
-
-		const coinType = type === 'gas' ? SUI_TYPE : type;
-		const hasBalanceIntent = intentsByType.get(type)?.some((i) => i.outputKind === 'balance');
-		const sourcedFromAB = usedAddressBalance.has(type);
-
-		if (hasBalanceIntent || sourcedFromAB) {
-			// Sourced from AB or balance intents exist: send remainder back to sender's address balance.
-			// coin::send_funds is gasless-eligible and handles zero amounts.
-			transactionData.commands.push(
-				TransactionCommands.MoveCall({
-					target: '0x2::coin::send_funds',
-					typeArguments: [coinType],
-					arguments: [
-						mergedCoin,
-						transactionData.addInput(
-							'pure',
-							Inputs.Pure(bcs.Address.serialize(transactionData.sender!)),
-						),
-					],
-				}),
-			);
-		} else if (exactBalanceByType.get(type)) {
-			// Coin-only with exact match: destroy the zero-value dust coin.
-			transactionData.commands.push(
-				TransactionCommands.MoveCall({
-					target: '0x2::coin::destroy_zero',
-					typeArguments: [coinType],
-					arguments: [mergedCoin],
-				}),
-			);
-		}
-		// Coin-only with surplus: merged coin stays with sender as an owned object
 	}
 
 	return next();
