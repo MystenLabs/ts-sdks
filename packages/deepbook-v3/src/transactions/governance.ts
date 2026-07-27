@@ -6,6 +6,7 @@ import type { ProposalParams } from '../types/index.js';
 import type { DeepBookConfig } from '../utils/config.js';
 import { DEEP_SCALAR, FLOAT_SCALAR } from '../utils/config.js';
 import { convertQuantity, convertRate } from '../utils/conversion.js';
+import * as poolMoveCalls from '../contracts/deepbook/pool.js';
 
 /**
  * GovernanceContract class for managing governance operations in DeepBook.
@@ -36,16 +37,18 @@ export class GovernanceContract {
 			const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 			const stakeInput = convertQuantity(stakeAmount, DEEP_SCALAR);
 
-			tx.moveCall({
-				target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::stake`,
-				arguments: [
-					tx.object(pool.address),
-					tx.object(balanceManager.address),
-					tradeProof,
-					tx.pure.u64(stakeInput),
-				],
-				typeArguments: [baseCoin.type, quoteCoin.type],
-			});
+			tx.add(
+				poolMoveCalls.stake({
+					package: this.#config.DEEPBOOK_PACKAGE_ID,
+					arguments: {
+						self: pool.address,
+						balanceManager: balanceManager.address,
+						tradeProof,
+						amount: stakeInput,
+					},
+					typeArguments: [baseCoin.type, quoteCoin.type],
+				}),
+			);
 		};
 
 	/**
@@ -61,11 +64,17 @@ export class GovernanceContract {
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 
-		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::unstake`,
-			arguments: [tx.object(pool.address), tx.object(balanceManager.address), tradeProof],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		tx.add(
+			poolMoveCalls.unstake({
+				package: this.#config.DEEPBOOK_PACKAGE_ID,
+				arguments: {
+					self: pool.address,
+					balanceManager: balanceManager.address,
+					tradeProof,
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -82,18 +91,20 @@ export class GovernanceContract {
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 
-		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::submit_proposal`,
-			arguments: [
-				tx.object(pool.address),
-				tx.object(balanceManager.address),
-				tradeProof,
-				tx.pure.u64(convertRate(takerFee, FLOAT_SCALAR)),
-				tx.pure.u64(convertRate(makerFee, FLOAT_SCALAR)),
-				tx.pure.u64(convertQuantity(stakeRequired, DEEP_SCALAR)),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		tx.add(
+			poolMoveCalls.submitProposal({
+				package: this.#config.DEEPBOOK_PACKAGE_ID,
+				arguments: {
+					self: pool.address,
+					balanceManager: balanceManager.address,
+					tradeProof,
+					takerFee: convertRate(takerFee, FLOAT_SCALAR),
+					makerFee: convertRate(makerFee, FLOAT_SCALAR),
+					stakeRequired: convertQuantity(stakeRequired, DEEP_SCALAR),
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 
 	/**
@@ -110,15 +121,17 @@ export class GovernanceContract {
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 
-		tx.moveCall({
-			target: `${this.#config.DEEPBOOK_PACKAGE_ID}::pool::vote`,
-			arguments: [
-				tx.object(pool.address),
-				tx.object(balanceManager.address),
-				tradeProof,
-				tx.pure.id(proposal_id),
-			],
-			typeArguments: [baseCoin.type, quoteCoin.type],
-		});
+		tx.add(
+			poolMoveCalls.vote({
+				package: this.#config.DEEPBOOK_PACKAGE_ID,
+				arguments: {
+					self: pool.address,
+					balanceManager: balanceManager.address,
+					tradeProof,
+					proposalId: proposal_id,
+				},
+				typeArguments: [baseCoin.type, quoteCoin.type],
+			}),
+		);
 	};
 }

@@ -26,6 +26,9 @@ describe('Core API - System State', () => {
 						},
 					};
 				},
+				// System state advances every localnet epoch; refetch when the
+				// three transports straddle a boundary mid-read.
+				{ attempts: 3 },
 			);
 		});
 

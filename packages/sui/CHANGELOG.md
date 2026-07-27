@@ -1,5 +1,12 @@
 # @mysten/sui.js
 
+## 2.22.2
+
+### Patch Changes
+
+- c6e06f6: Resolve `tx.coin` and `tx.balance` cleanup before later transaction commands so coin
+  intents remain compatible with Random-consuming Move calls.
+
 ## 2.22.1
 
 ### Patch Changes

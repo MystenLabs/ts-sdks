@@ -229,30 +229,44 @@ export class TestToolbox {
 	 *
 	 * @param queryFn - Function that takes a client and returns a promise with the query result
 	 * @param normalize - Optional function to normalize results before comparison (e.g., to ignore cursor differences)
-	 * @param options - Options to skip the test entirely
+	 * @param options - Options to skip the test entirely, or to refetch on mismatch: for queries of
+	 *   live chain state (e.g. system state around a localnet epoch boundary), the state can advance
+	 *   between the three transport reads, so a strict single-shot comparison is flaky. `attempts`
+	 *   refetches the whole read set until the transports agree; a genuine transport inconsistency
+	 *   still fails on every attempt.
 	 */
 	async expectAllClientsReturnSameData<T, N = T>(
 		queryFn: (client: ClientWithCoreApi, kind: 'jsonrpc' | 'grpc' | 'graphql') => Promise<T>,
 		normalize?: (result: T) => N,
-		options?: { skip?: boolean },
+		options?: { skip?: boolean; attempts?: number },
 	) {
 		if (options?.skip) {
 			test.skip('all clients return same data', () => {});
 			return;
 		}
 
-		const [jsonRpcResult, grpcResult, graphqlResult] = await Promise.all([
-			queryFn(this.jsonRpcClient, 'jsonrpc'),
-			queryFn(this.grpcClient, 'grpc'),
-			queryFn(this.graphqlClient, 'graphql'),
-		]);
+		const attempts = options?.attempts ?? 1;
+		for (let attempt = 1; ; attempt++) {
+			const [jsonRpcResult, grpcResult, graphqlResult] = await Promise.all([
+				queryFn(this.jsonRpcClient, 'jsonrpc'),
+				queryFn(this.grpcClient, 'grpc'),
+				queryFn(this.graphqlClient, 'graphql'),
+			]);
 
-		const normalizedJson = normalize ? normalize(jsonRpcResult) : jsonRpcResult;
-		const normalizedGrpc = normalize ? normalize(grpcResult) : grpcResult;
-		const normalizedGraphql = normalize ? normalize(graphqlResult) : graphqlResult;
+			const normalizedJson = normalize ? normalize(jsonRpcResult) : jsonRpcResult;
+			const normalizedGrpc = normalize ? normalize(grpcResult) : grpcResult;
+			const normalizedGraphql = normalize ? normalize(graphqlResult) : graphqlResult;
 
-		expect(normalizedJson).toEqual(normalizedGrpc);
-		expect(normalizedJson).toEqual(normalizedGraphql);
+			try {
+				expect(normalizedJson).toEqual(normalizedGrpc);
+				expect(normalizedJson).toEqual(normalizedGraphql);
+				return;
+			} catch (error) {
+				if (attempt >= attempts) throw error;
+				// Let the chain settle before refetching all three transports.
+				await new Promise((resolve) => setTimeout(resolve, 500));
+			}
+		}
 	}
 }
 
