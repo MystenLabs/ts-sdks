@@ -96,10 +96,13 @@ const EVENT_REQUEST_IDS_QUERY = graphql(`
 	}
 `);
 
+// Dedicated GraphQL RPC hosts. The fullnode-served /graphql endpoints are
+// being retired (testnet already 404s); the graphql.<network>.sui.io hosts
+// are the supported homes.
 const GRAPHQL_URLS: Record<string, string> = {
-	devnet: 'https://fullnode.devnet.sui.io:443/graphql',
-	testnet: 'https://fullnode.testnet.sui.io:443/graphql',
-	mainnet: 'https://fullnode.mainnet.sui.io:443/graphql',
+	devnet: 'https://graphql.devnet.sui.io/graphql',
+	testnet: 'https://graphql.testnet.sui.io/graphql',
+	mainnet: 'https://graphql.mainnet.sui.io/graphql',
 	localnet: 'http://127.0.0.1:9000/graphql',
 };
 
@@ -1109,8 +1112,12 @@ export class HashiClient {
 					const classified = this.#classifyRequestObjects(objects, timeDelayMs);
 					items.push(...classified.items);
 				}
-			} catch {
-				// GraphQL endpoint may not be available (localnet, custom deployments).
+			} catch (err) {
+				// GraphQL endpoint may not be available (localnet, custom
+				// deployments). Warn instead of failing so the confirmed set
+				// still renders — but don't hide the miss: a dead endpoint here
+				// silently drops all in-flight requests from history.
+				console.warn('[hashi] transactionHistory: pending-request event query failed:', err);
 			}
 
 			items.sort((a, b) => Number(b.timestampMs - a.timestampMs));
