@@ -33,6 +33,7 @@ export interface PackageInfo {
 	};
 	payments: {
 		packageId: string;
+		packageIdV1: string;
 	};
 	bbb: {
 		packageId: string;

@@ -177,7 +177,7 @@ export class SuinsClient {
 		if (!this.config.suins) throw new Error('Suins object ID is not set');
 		if (!this.config.packageId) throw new Error('Price list config not found');
 
-		const configType = `${this.config.packageIdV1}::suins::ConfigKey<${this.config.payments.packageId}::payments::PaymentsConfig>`;
+		const configType = `${this.config.packageIdV1}::suins::ConfigKey<${this.config.payments.packageIdV1}::payments::PaymentsConfig>`;
 
 		const result = await this.client.core.getDynamicField({
 			parentId: this.config.suins,

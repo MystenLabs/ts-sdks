@@ -132,7 +132,7 @@ export class SuinsTransaction {
 	): TransactionObjectArgument {
 		const config = this.suinsClient.config;
 		return this.transaction.add(
-			paymentsModule.calculatePrice({
+			paymentsModule.calculatePricePro({
 				package: config.payments.packageId,
 				arguments: {
 					suins: config.suins,
@@ -173,7 +173,7 @@ export class SuinsTransaction {
 	): TransactionObjectArgument {
 		const config = this.suinsClient.config;
 		return this.transaction.add(
-			paymentsModule.handlePayment({
+			paymentsModule.handlePaymentPro({
 				package: config.payments.packageId,
 				arguments: {
 					suins: config.suins,

@@ -32,6 +32,7 @@ export const mainPackage: Config = {
 		},
 		payments: {
 			packageId: '0xdd0a4a34152a80d7841710e916a407b2a62961eee5b2188dcfdaa24194f66286',
+			packageIdV1: '0xdd0a4a34152a80d7841710e916a407b2a62961eee5b2188dcfdaa24194f66286',
 		},
 		bbb: {
 			packageId: '0x6268d072063a311f6f0a1db516d06d97c06a3fa6d10e797cad578937a47b3992',
@@ -73,10 +74,11 @@ export const mainPackage: Config = {
 			packageId: '0x63029aae8abbefae4f4ac6c5e3e0021159ea93a94ba648681fd64caf5b40677a',
 		},
 		payments: {
-			packageId: '0xc391c200188dd1a363ff12dcffe07eaac5cf28ad1cd8dc0fcc18f2f8625f0da2',
+			packageId: '0x4f33a0e1e30530f2aa500a41b9e3d502f8af3ef2c20bd0a1e42374e329da7cb0',
+			packageIdV1: '0xc391c200188dd1a363ff12dcffe07eaac5cf28ad1cd8dc0fcc18f2f8625f0da2',
 		},
 		bbb: {
-			packageId: '0xed9b18147ca81c8f3f60192c8d0630574e42387cd200a6e39b3e4e07df1ce6e6',
+			packageId: '0xab7f8da0f974ae38c205d9351787ae938da65c0a0e81d9788014f5f62a917aa1',
 			vault: '0xa0b7a4dcbb85209c9096a4e0e85e43b716377c605743193abe915e9c9f3043e5',
 		},
 		pyth: {
