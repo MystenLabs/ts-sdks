@@ -21,9 +21,6 @@ import { NameRecord as NameRecordBcs } from './contracts/suins/name_record.js';
 import { PricingConfig, RenewalConfig } from './contracts/suins/pricing_config.js';
 import { PaymentsConfig } from './contracts/suins_payments/payments.js';
 
-/** Keyed Pyth Hermes endpoint. A single host serves all networks under Pyth Pro. */
-const HERMES_ENDPOINT = 'https://pyth.dourolabs.app/hermes';
-
 export type SuinsExtensionOptions<Name extends string = 'suins'> = {
 	name?: Name;
 	packageInfo?: PackageInfo;
@@ -294,7 +291,8 @@ export class SuinsClient {
 	}
 
 	async getPriceInfoObject(tx: Transaction, feed: string, feeCoin?: TransactionObjectArgument) {
-		const connection = new SuiPriceServiceConnection(HERMES_ENDPOINT, {
+		const endpoint = 'https://pyth.dourolabs.app/hermes';
+		const connection = new SuiPriceServiceConnection(endpoint, {
 			accessToken: this.pythAccessToken,
 		});
 		const priceIDs = [feed];
