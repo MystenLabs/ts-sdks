@@ -2,4 +2,4 @@
 '@mysten/sui': minor
 ---
 
-Enable gas selection in `core.simulateTransaction` for the gRPC and GraphQL clients when simulating built transaction bytes, or a `Transaction` with an explicitly set gas payment. This ensures transactions with an empty gas payment (`[]`) are simulated using the sender's address balance for gas rather than a mocked gas coin. The default can be overridden by passing `doGasSelection` to `simulateTransaction` on `SuiGrpcClient` and `SuiGraphQLClient`.
+Enable gas selection in `core.simulateTransaction` for the gRPC and GraphQL clients when the transaction's gas payment is explicitly set to an empty list (`[]`). This ensures transactions paying gas from the sender's address balance are simulated with real gas selection rather than a mocked gas coin. Transactions with gas coins set are simulated as-is, and transactions without a gas payment keep the mocked gas coin behavior. The default can be overridden by passing `doGasSelection` to `simulateTransaction` on `SuiGrpcClient` and `SuiGraphQLClient`.

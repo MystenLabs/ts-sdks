@@ -409,13 +409,14 @@ export class GrpcCoreClient extends CoreClient {
 			await options.transaction.prepareForSerialization({ client: this });
 		}
 
-		// Built transaction bytes and transactions with an explicitly set gas payment are fully
-		// resolved, so an empty payment means gas is paid from the sender's address balance rather
-		// than a mocked gas coin. Gas selection is a noop when the payment covers the budget.
+		// A gas payment explicitly set to an empty list means gas is paid from the sender's
+		// address balance, so the server needs to perform gas selection rather than simulating
+		// with a mocked gas coin.
 		const doGasSelection =
 			options.doGasSelection ??
-			(options.transaction instanceof Uint8Array ||
-				options.transaction.getData().gasData.payment != null);
+			(options.transaction instanceof Uint8Array
+				? bcs.TransactionData.parse(options.transaction).V1?.gasData.payment?.length === 0
+				: options.transaction.getData().gasData.payment?.length === 0);
 
 		const { response } = await this.#client.transactionExecutionService.simulateTransaction(
 			{

@@ -76,10 +76,10 @@ export interface GraphQLSimulateTransactionOptions<
 	/**
 	 * Overrides whether the server selects gas payment during simulation.
 	 *
-	 * When not set, gas selection is enabled for built transaction bytes and for transactions with
-	 * an explicitly set gas payment, so transactions with an empty gas payment (`[]`) are simulated
-	 * using the sender's address balance. Transactions without a gas payment are simulated with a
-	 * mocked gas coin.
+	 * When not set, gas selection is enabled only when the transaction's gas payment is explicitly
+	 * set to an empty list (`[]`), which indicates gas is paid from the sender's address balance.
+	 * Transactions with gas coins set are simulated as-is, and transactions without a gas payment
+	 * are simulated with a mocked gas coin.
 	 */
 	doGasSelection?: boolean;
 }
