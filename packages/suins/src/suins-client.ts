@@ -66,7 +66,7 @@ export class SuinsClient {
 	client: ClientWithCoreApi;
 	network: SuiClientTypes.Network;
 	config: PackageInfo;
-	pythAccessToken?: string;
+	readonly pythAccessToken?: string;
 
 	constructor(config: SuinsClientConfig) {
 		this.client = config.client;
