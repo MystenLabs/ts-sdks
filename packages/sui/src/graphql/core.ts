@@ -28,6 +28,8 @@ import {
 	GetOwnedObjectsDocument,
 	GetReferenceGasPriceDocument,
 	GetTransactionBlockDocument,
+	ListEventsDocument,
+	ListTransactionsDocument,
 	MultiGetObjectsDocument,
 	ResolveTransactionDocument,
 	SimulateTransactionDocument,
@@ -36,8 +38,12 @@ import {
 } from './generated/queries.js';
 import { ObjectError, SimulationError } from '../client/errors.js';
 import { chunk, fromBase64, toBase64 } from '@mysten/utils';
-import { normalizeSuiAddress } from '../utils/sui-types.js';
-import { formatMoveAbortMessage, parseTransactionEffectsBcs } from '../client/utils.js';
+import { normalizeStructTag, normalizeSuiAddress } from '../utils/sui-types.js';
+import {
+	formatMoveAbortMessage,
+	parseTransactionEffectsBcs,
+	transactionBytesHaveEmptyGasPayment,
+} from '../client/utils.js';
 import type { OpenMoveTypeSignatureBody, OpenMoveTypeSignature } from './types.js';
 import {
 	transactionDataToGrpcTransaction,
@@ -50,6 +56,12 @@ import { TransactionEffects as TransactionEffectsType } from '../grpc/proto/sui/
 import { Transaction as GrpcTransactionType } from '../grpc/proto/sui/rpc/v2/transaction.js';
 import { TransactionDataBuilder } from '../transactions/TransactionData.js';
 import type { BuildTransactionOptions } from '../transactions/index.js';
+import {
+	resolveEventFilter,
+	resolvePagination,
+	resolveTransactionFilter,
+	validateTransactionQuery,
+} from '../client/query-filters.js';
 
 export class GraphQLCoreClient extends CoreClient {
 	#graphqlClient: SuiGraphQLClient;
@@ -386,11 +398,20 @@ export class GraphQLCoreClient extends CoreClient {
 		return parseTransaction(result.effects?.transaction!, options.include);
 	}
 	async simulateTransaction<Include extends SuiClientTypes.SimulateTransactionInclude = {}>(
-		options: SuiClientTypes.SimulateTransactionOptions<Include>,
+		options: SuiClientTypes.SimulateTransactionOptions<Include> & { doGasSelection?: boolean },
 	): Promise<SuiClientTypes.SimulateTransactionResult<Include>> {
 		if (!(options.transaction instanceof Uint8Array)) {
 			await options.transaction.prepareForSerialization({ client: this });
 		}
+
+		// A gas payment explicitly set to an empty list means gas is paid from the sender's
+		// address balance, so the server needs to perform gas selection rather than simulating
+		// with a mocked gas coin.
+		const doGasSelection =
+			options.doGasSelection ??
+			(options.transaction instanceof Uint8Array
+				? transactionBytesHaveEmptyGasPayment(options.transaction)
+				: options.transaction.getData().gasData.payment?.length === 0);
 
 		const result = await this.#graphqlQuery(
 			{
@@ -411,6 +432,7 @@ export class GraphQLCoreClient extends CoreClient {
 					includeObjectTypes: options.include?.objectTypes ?? false,
 					includeCommandResults: options.include?.commandResults ?? false,
 					includeBcs: options.include?.bcs ?? false,
+					doGasSelection,
 					checksEnabled: options.checksEnabled ?? true,
 				},
 			},
@@ -591,6 +613,124 @@ export class GraphQLCoreClient extends CoreClient {
 		options: SuiClientTypes.ListDynamicFieldsOptions,
 	): Promise<SuiClientTypes.ListDynamicFieldsResponse> {
 		return this.#graphqlClient.listDynamicFields(options);
+	}
+
+	async listTransactions<Include extends SuiClientTypes.TransactionInclude = {}>(
+		options: SuiClientTypes.ListTransactionsOptions<Include>,
+	): Promise<SuiClientTypes.ListTransactionsResponse<Include>> {
+		const pagination = resolvePagination(options);
+		const { descending, after, before, limit } = pagination;
+		const filter = options.filter
+			? await resolveTransactionFilter(this.mvr, options.filter, options.signal)
+			: undefined;
+		validateTransactionQuery(filter, pagination);
+
+		const transactions = await this.#graphqlQuery(
+			{
+				query: ListTransactionsDocument,
+				signal: options.signal,
+				variables: {
+					filter: filter && {
+						sentAddress: filter.$kind === 'sender' ? filter.sender : undefined,
+						function:
+							filter.$kind === 'function'
+								? [filter.package, filter.module, filter.function].filter(Boolean).join('::')
+								: undefined,
+					},
+					first: descending ? undefined : limit,
+					after,
+					last: descending ? limit : undefined,
+					before,
+					includeTransaction: options.include?.transaction ?? false,
+					includeEffects: options.include?.effects ?? false,
+					includeEvents: options.include?.events ?? false,
+					includeBalanceChanges: options.include?.balanceChanges ?? false,
+					includeObjectTypes: options.include?.objectTypes ?? false,
+					includeBcs: options.include?.bcs ?? false,
+				},
+			},
+			(result) => result.transactions,
+		);
+
+		// Backwards pagination returns nodes in ascending order, so reverse them for descending reads
+		const nodes = descending ? [...transactions.nodes].reverse() : transactions.nodes;
+
+		return {
+			transactions: nodes.map((transaction) => parseTransaction(transaction, options.include)),
+			hasNextPage: descending
+				? transactions.pageInfo.hasPreviousPage
+				: transactions.pageInfo.hasNextPage,
+			startCursor:
+				(descending ? transactions.pageInfo.endCursor : transactions.pageInfo.startCursor) ?? null,
+			endCursor:
+				(descending ? transactions.pageInfo.startCursor : transactions.pageInfo.endCursor) ?? null,
+		};
+	}
+
+	async listEvents(
+		options: SuiClientTypes.ListEventsOptions,
+	): Promise<SuiClientTypes.ListEventsResponse> {
+		const { descending, after, before, limit } = resolvePagination(options);
+		const filter = options.filter
+			? await resolveEventFilter(this.mvr, options.filter, options.signal)
+			: undefined;
+
+		const events = await this.#graphqlQuery(
+			{
+				query: ListEventsDocument,
+				signal: options.signal,
+				variables: {
+					filter: filter && {
+						sender: filter.$kind === 'sender' ? filter.sender : undefined,
+						module:
+							filter.$kind === 'emitModule' ? `${filter.package}::${filter.module}` : undefined,
+						type:
+							filter.$kind === 'eventTypeModule'
+								? `${filter.package}::${filter.module}`
+								: filter.$kind === 'eventType'
+									? filter.eventType
+									: undefined,
+					},
+					first: descending ? undefined : limit,
+					after,
+					last: descending ? limit : undefined,
+					before,
+				},
+			},
+			(result) => result.events,
+		);
+
+		// Backwards pagination returns nodes in ascending order, so reverse them for descending reads
+		const nodes = descending ? [...events.nodes].reverse() : events.nodes;
+
+		return {
+			events: nodes.map((event): SuiClientTypes.EventEntry => {
+				const packageId = event.transactionModule?.package?.address;
+				const module = event.transactionModule?.name;
+				const sender = event.sender?.address;
+				const eventType = event.contents?.type?.repr;
+				const transactionDigest = event.transaction?.digest;
+
+				if (!packageId || !module || !sender || !eventType || !transactionDigest) {
+					throw new Error('listEvents response is missing expected event fields');
+				}
+
+				return {
+					packageId: normalizeSuiAddress(packageId),
+					module,
+					sender: normalizeSuiAddress(sender),
+					eventType: normalizeStructTag(eventType),
+					bcs: event.contents?.bcs ? fromBase64(event.contents.bcs) : new Uint8Array(),
+					json: (event.contents?.json as Record<string, unknown>) ?? null,
+					checkpoint: event.transaction?.effects?.checkpoint?.sequenceNumber?.toString() ?? null,
+					transactionDigest,
+					eventIndex: event.sequenceNumber,
+				};
+			}),
+			hasNextPage: descending ? events.pageInfo.hasPreviousPage : events.pageInfo.hasNextPage,
+			startCursor: (descending ? events.pageInfo.endCursor : events.pageInfo.startCursor) ?? null,
+			endCursor: (descending ? events.pageInfo.startCursor : events.pageInfo.endCursor) ?? null,
+		};
 	}
 
 	async verifyZkLoginSignature(

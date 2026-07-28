@@ -30,19 +30,21 @@ import {
 	ProgrammableMoveCall,
 	ProgrammableTransaction,
 	PublicKey,
-	SenderSignedData,
-	SenderSignedTransaction,
 	SharedObjectRef,
 	StructTag,
 	SuiObjectRef,
-	TransactionData,
-	TransactionDataV1,
 	TransactionExpiration,
-	TransactionKind,
 	TypeOrigin,
 	TypeTag,
 	UpgradeInfo,
 } from './bcs.js';
+import {
+	SenderSignedData,
+	SenderSignedTransaction,
+	TransactionData,
+	TransactionDataV1,
+	TransactionKind,
+} from './transactions.js';
 import { TransactionEffects } from './effects.js';
 
 export type { TypeTag } from './types.js';

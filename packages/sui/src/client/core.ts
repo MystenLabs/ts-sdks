@@ -112,6 +112,14 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 		options: SuiClientTypes.ListDynamicFieldsOptions,
 	): Promise<SuiClientTypes.ListDynamicFieldsResponse>;
 
+	abstract listTransactions<Include extends SuiClientTypes.TransactionInclude = {}>(
+		options: SuiClientTypes.ListTransactionsOptions<Include>,
+	): Promise<SuiClientTypes.ListTransactionsResponse<Include>>;
+
+	abstract listEvents(
+		options: SuiClientTypes.ListEventsOptions,
+	): Promise<SuiClientTypes.ListEventsResponse>;
+
 	abstract resolveTransactionPlugin(): TransactionPlugin;
 
 	abstract verifyZkLoginSignature(

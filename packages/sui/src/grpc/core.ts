@@ -44,12 +44,23 @@ import {
 	grpcTransactionToTransactionData,
 } from '../client/transaction-resolver.js';
 import { setAddressBalanceTransactionExpirationFromSimulatedEpoch } from '../client/address-balance-transaction-expiration.js';
+import { transactionBytesHaveEmptyGasPayment } from '../client/utils.js';
 import { Value } from './proto/google/protobuf/struct.js';
 import { ExecutedTransaction } from './proto/sui/rpc/v2/executed_transaction.js';
 import {
 	SimulateTransactionRequest_TransactionChecks,
 	SimulateTransactionResponse,
 } from './proto/sui/rpc/v2/transaction_execution_service.js';
+import type { QueryEnd, QueryOptions } from './proto/sui/rpc/v2/query_options.js';
+import { Ordering, QueryEndReason } from './proto/sui/rpc/v2/query_options.js';
+import type { ResolvedPagination } from '../client/query-filters.js';
+import {
+	resolveEventFilter,
+	resolvePagination,
+	resolveTransactionFilter,
+	validateTransactionQuery,
+} from '../client/query-filters.js';
+import { toGrpcEventFilter, toGrpcTransactionFilter } from './filters.js';
 
 export interface GrpcCoreClientOptions extends CoreClientOptions {
 	client: SuiGrpcClient;
@@ -387,8 +398,9 @@ export class GrpcCoreClient extends CoreClient {
 		);
 	}
 	async simulateTransaction<Include extends SuiClientTypes.SimulateTransactionInclude = {}>(
-		options: SuiClientTypes.SimulateTransactionOptions<Include>,
+		options: SuiClientTypes.SimulateTransactionOptions<Include> & { doGasSelection?: boolean },
 	): Promise<SuiClientTypes.SimulateTransactionResult<Include>> {
+		// The simulated transaction is nested one level deeper in the response
 		const paths = transactionReadMaskPaths(options.include, 'transaction.');
 		if (options.include?.commandResults) {
 			paths.push('command_outputs');
@@ -397,6 +409,15 @@ export class GrpcCoreClient extends CoreClient {
 		if (!(options.transaction instanceof Uint8Array)) {
 			await options.transaction.prepareForSerialization({ client: this });
 		}
+
+		// A gas payment explicitly set to an empty list means gas is paid from the sender's
+		// address balance, so the server needs to perform gas selection rather than simulating
+		// with a mocked gas coin.
+		const doGasSelection =
+			options.doGasSelection ??
+			(options.transaction instanceof Uint8Array
+				? transactionBytesHaveEmptyGasPayment(options.transaction)
+				: options.transaction.getData().gasData.payment?.length === 0);
 
 		const { response } = await this.#client.transactionExecutionService.simulateTransaction(
 			{
@@ -411,7 +432,7 @@ export class GrpcCoreClient extends CoreClient {
 				readMask: {
 					paths,
 				},
-				doGasSelection: false,
+				doGasSelection,
 				checks:
 					options.checksEnabled === false
 						? SimulateTransactionRequest_TransactionChecks.DISABLED
@@ -565,6 +586,158 @@ export class GrpcCoreClient extends CoreClient {
 		options: SuiClientTypes.ListDynamicFieldsOptions,
 	): Promise<SuiClientTypes.ListDynamicFieldsResponse> {
 		return this.#client.listDynamicFields(options);
+	}
+
+	async listTransactions<Include extends SuiClientTypes.TransactionInclude = {}>(
+		options: SuiClientTypes.ListTransactionsOptions<Include>,
+	): Promise<SuiClientTypes.ListTransactionsResponse<Include>> {
+		const paths = transactionReadMaskPaths(options.include);
+
+		const filter = options.filter
+			? await resolveTransactionFilter(this.mvr, options.filter, options.signal)
+			: undefined;
+		const pagination = resolvePagination(options);
+		validateTransactionQuery(filter, pagination);
+
+		const call = this.#client.ledgerService.listTransactions(
+			{
+				readMask: { paths },
+				filter: filter && toGrpcTransactionFilter(filter),
+				// Request one extra item as lookahead: the server reports its item limit as reached
+				// without scanning past it, so an exact-limit final page is otherwise
+				// indistinguishable from one with more results
+				options: toGrpcQueryOptions(pagination, pagination.limit + 1),
+			},
+			{ abort: options.signal },
+		);
+
+		const transactions: SuiClientTypes.TransactionResult<Include>[] = [];
+		let startCursor: string | null = null;
+		let endCursor: string | null = null;
+		let frontier: string | null = null;
+		let end: QueryEnd | undefined;
+		let sawLookaheadItem = false;
+
+		for await (const frame of call.responses) {
+			if (frame.watermark?.cursor) {
+				frontier = toBase64(frame.watermark.cursor);
+			}
+			if (frame.transaction) {
+				if (transactions.length >= pagination.limit) {
+					sawLookaheadItem = true;
+				} else {
+					startCursor ??= frontier;
+					endCursor = frontier;
+					transactions.push(
+						parseGrpcTransactionResponse(frame.transaction, { include: options.include }),
+					);
+				}
+			}
+			if (frame.end) {
+				end = frame.end;
+			}
+		}
+
+		// ITEM_LIMIT without the lookahead item means the server clamped the requested limit to
+		// its own maximum, so the filled page is still evidence of a possible next page
+		const hasNextPage =
+			sawLookaheadItem ||
+			end?.reason === QueryEndReason.SCAN_LIMIT ||
+			end?.reason === QueryEndReason.ITEM_LIMIT;
+
+		return {
+			transactions,
+			hasNextPage,
+			startCursor,
+			// Scans that stopped early without filling the page continue from the scan frontier
+			// (so already-scanned positions are not revisited), full pages continue after the last
+			// returned item, and terminal pages have no positions to continue from
+			endCursor: sawLookaheadItem ? endCursor : hasNextPage ? (frontier ?? endCursor) : endCursor,
+		};
+	}
+
+	async listEvents(
+		options: SuiClientTypes.ListEventsOptions,
+	): Promise<SuiClientTypes.ListEventsResponse> {
+		const pagination = resolvePagination(options);
+		const call = this.#client.ledgerService.listEvents(
+			{
+				readMask: {
+					paths: [
+						'package_id',
+						'module',
+						'sender',
+						'event_type',
+						'contents',
+						'json',
+						'checkpoint',
+						'transaction_digest',
+						'event_index',
+					],
+				},
+				filter: options.filter
+					? toGrpcEventFilter(await resolveEventFilter(this.mvr, options.filter, options.signal))
+					: undefined,
+				// Request one extra item as lookahead: the server reports its item limit as reached
+				// without scanning past it, so an exact-limit final page is otherwise
+				// indistinguishable from one with more results
+				options: toGrpcQueryOptions(pagination, pagination.limit + 1),
+			},
+			{ abort: options.signal },
+		);
+
+		const events: SuiClientTypes.EventEntry[] = [];
+		let startCursor: string | null = null;
+		let endCursor: string | null = null;
+		let frontier: string | null = null;
+		let end: QueryEnd | undefined;
+		let sawLookaheadItem = false;
+
+		for await (const frame of call.responses) {
+			if (frame.watermark?.cursor) {
+				frontier = toBase64(frame.watermark.cursor);
+			}
+			if (frame.event) {
+				if (events.length >= pagination.limit) {
+					sawLookaheadItem = true;
+				} else {
+					startCursor ??= frontier;
+					endCursor = frontier;
+					const event = frame.event;
+					events.push({
+						packageId: normalizeSuiAddress(event.packageId!),
+						module: event.module!,
+						sender: normalizeSuiAddress(event.sender!),
+						eventType: normalizeStructTag(event.eventType!),
+						bcs: event.contents?.value ?? new Uint8Array(),
+						json: event.json ? (Value.toJson(event.json) as Record<string, unknown>) : null,
+						checkpoint: event.checkpoint?.toString() ?? null,
+						transactionDigest: event.transactionDigest!,
+						eventIndex: event.eventIndex!,
+					});
+				}
+			}
+			if (frame.end) {
+				end = frame.end;
+			}
+		}
+
+		// ITEM_LIMIT without the lookahead item means the server clamped the requested limit to
+		// its own maximum, so the filled page is still evidence of a possible next page
+		const hasNextPage =
+			sawLookaheadItem ||
+			end?.reason === QueryEndReason.SCAN_LIMIT ||
+			end?.reason === QueryEndReason.ITEM_LIMIT;
+
+		return {
+			events,
+			hasNextPage,
+			startCursor,
+			// Scans that stopped early without filling the page continue from the scan frontier
+			// (so already-scanned positions are not revisited), full pages continue after the last
+			// returned item, and terminal pages have no positions to continue from
+			endCursor: sawLookaheadItem ? endCursor : hasNextPage ? (frontier ?? endCursor) : endCursor,
+		};
 	}
 
 	async verifyZkLoginSignature(
@@ -787,11 +960,21 @@ export class GrpcCoreClient extends CoreClient {
 	}
 }
 
+function toGrpcQueryOptions(pagination: ResolvedPagination, limit: number): QueryOptions {
+	return {
+		limit,
+		ordering: pagination.descending ? Ordering.DESCENDING : Ordering.ASCENDING,
+		after: pagination.after ? fromBase64(pagination.after) : undefined,
+		before: pagination.before ? fromBase64(pagination.before) : undefined,
+	};
+}
+
 function transactionReadMaskPaths(
 	include: SuiClientTypes.TransactionInclude | undefined,
 	prefix = '',
-) {
+): string[] {
 	const paths = ['digest', 'transaction.digest', 'signatures', 'effects.status'];
+
 	if (include?.transaction) {
 		paths.push(
 			'transaction.sender',
@@ -813,6 +996,7 @@ function transactionReadMaskPaths(
 		paths.push('events');
 	}
 	if (include?.objectTypes) {
+		// Use effects.changed_objects to match JSON-RPC behavior (which uses objectChanges)
 		paths.push('effects.changed_objects.object_type');
 		paths.push('effects.changed_objects.object_id');
 	}

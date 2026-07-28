@@ -341,6 +341,18 @@ export class MockSuiClient extends CoreClient {
 		throw new Error('defaultNameServiceName not implemented in MockSuiClient');
 	}
 
+	async listTransactions<Include extends SuiClientTypes.TransactionInclude = object>(
+		_options: SuiClientTypes.ListTransactionsOptions<Include>,
+	): Promise<SuiClientTypes.ListTransactionsResponse<Include>> {
+		throw new Error('listTransactions not implemented in MockSuiClient');
+	}
+
+	async listEvents(
+		_options: SuiClientTypes.ListEventsOptions,
+	): Promise<SuiClientTypes.ListEventsResponse> {
+		throw new Error('listEvents not implemented in MockSuiClient');
+	}
+
 	async simulateTransaction<Include extends SuiClientTypes.SimulateTransactionInclude = object>(
 		_options: SuiClientTypes.SimulateTransactionOptions<Include>,
 	): Promise<SuiClientTypes.SimulateTransactionResult<Include>> {

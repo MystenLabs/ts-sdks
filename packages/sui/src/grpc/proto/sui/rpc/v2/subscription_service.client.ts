@@ -12,27 +12,54 @@
 import type { RpcTransport } from '@protobuf-ts/runtime-rpc';
 import type { ServiceInfo } from '@protobuf-ts/runtime-rpc';
 import { SubscriptionService } from './subscription_service.js';
+import type { SubscribeEventsResponse } from './subscription_service.js';
+import type { SubscribeEventsRequest } from './subscription_service.js';
+import type { SubscribeTransactionsResponse } from './subscription_service.js';
+import type { SubscribeTransactionsRequest } from './subscription_service.js';
 import { stackIntercept } from '@protobuf-ts/runtime-rpc';
 import type { SubscribeCheckpointsResponse } from './subscription_service.js';
 import type { SubscribeCheckpointsRequest } from './subscription_service.js';
 import type { ServerStreamingCall } from '@protobuf-ts/runtime-rpc';
 import type { RpcOptions } from '@protobuf-ts/runtime-rpc';
 /**
+ * SubscriptionService provides filtered, real-time streams of checkpoints,
+ * transactions, and events.
+ *
+ * Each Subscribe API pairs with the LedgerService List API of the same name:
+ * requests take the same filter message, and responses carry the same item
+ * and watermark shapes with identical cursor semantics.
+ *
+ * Subscriptions do not support resumption. A new subscription always begins
+ * at the current tip of the chain as seen by the server (the latest executed
+ * checkpoint). To recover data missed between subscriptions, replay the gap
+ * with the paired List API: pass the last received `Watermark.cursor` as
+ * `options.after` on the List request (for checkpoints, pass the last
+ * received `cursor + 1` as `start_checkpoint`). The List scan reads from the
+ * indexed tip, which may trail the subscription's start position; repeat the
+ * List call as the index advances until the replay reaches the position
+ * established by the subscription's first frame.
+ *
+ * A subscription behaves like an unbounded ascending scan: every frame
+ * carries the subscriber's resume point, and progress advances as
+ * checkpoints are fully covered. Two delivery guarantees keep sparse
+ * filters live: the first frame on a filtered subscription is a
+ * progress-only frame establishing the stream's start position, and
+ * progress continues to advance with bounded staleness even when no item
+ * matches.
+ *
+ * Subscription streams have no successful end: they run until cancelled by
+ * the client or terminated by the server with a gRPC status.
+ *
  * @generated from protobuf service sui.rpc.v2.SubscriptionService
  */
 export interface ISubscriptionServiceClient {
 	/**
 	 * Subscribe to the stream of checkpoints.
 	 *
-	 * This API provides a subscription to the checkpoint stream for the Sui
-	 * blockchain. When a subscription is initialized the stream will begin with
-	 * the latest executed checkpoint as seen by the server. Responses are
-	 * guaranteed to return checkpoints in-order and without gaps. This enables
-	 * clients to know exactly the last checkpoint they have processed and in the
-	 * event the subscription terminates (either by the client/server or by the
-	 * connection breaking), clients will be able to reinitialize a subscription
-	 * and then leverage other APIs in order to request data for the checkpoints
-	 * they missed.
+	 * The stream begins at the latest executed checkpoint as seen by the
+	 * server and yields checkpoints matching the filter as they are executed.
+	 * A checkpoint matches if any transaction it contains satisfies the
+	 * filter.
 	 *
 	 * @generated from protobuf rpc: SubscribeCheckpoints(sui.rpc.v2.SubscribeCheckpointsRequest) returns (stream sui.rpc.v2.SubscribeCheckpointsResponse);
 	 */
@@ -40,8 +67,60 @@ export interface ISubscriptionServiceClient {
 		input: SubscribeCheckpointsRequest,
 		options?: RpcOptions,
 	): ServerStreamingCall<SubscribeCheckpointsRequest, SubscribeCheckpointsResponse>;
+	/**
+	 * Subscribe to the stream of transactions.
+	 *
+	 * The stream begins at the latest executed checkpoint as seen by the
+	 * server and yields transactions matching the filter as they are executed.
+	 *
+	 * @generated from protobuf rpc: SubscribeTransactions(sui.rpc.v2.SubscribeTransactionsRequest) returns (stream sui.rpc.v2.SubscribeTransactionsResponse);
+	 */
+	subscribeTransactions(
+		input: SubscribeTransactionsRequest,
+		options?: RpcOptions,
+	): ServerStreamingCall<SubscribeTransactionsRequest, SubscribeTransactionsResponse>;
+	/**
+	 * Subscribe to the stream of events.
+	 *
+	 * The stream begins at the latest executed checkpoint as seen by the
+	 * server and yields events matching the filter as they are emitted.
+	 *
+	 * @generated from protobuf rpc: SubscribeEvents(sui.rpc.v2.SubscribeEventsRequest) returns (stream sui.rpc.v2.SubscribeEventsResponse);
+	 */
+	subscribeEvents(
+		input: SubscribeEventsRequest,
+		options?: RpcOptions,
+	): ServerStreamingCall<SubscribeEventsRequest, SubscribeEventsResponse>;
 }
 /**
+ * SubscriptionService provides filtered, real-time streams of checkpoints,
+ * transactions, and events.
+ *
+ * Each Subscribe API pairs with the LedgerService List API of the same name:
+ * requests take the same filter message, and responses carry the same item
+ * and watermark shapes with identical cursor semantics.
+ *
+ * Subscriptions do not support resumption. A new subscription always begins
+ * at the current tip of the chain as seen by the server (the latest executed
+ * checkpoint). To recover data missed between subscriptions, replay the gap
+ * with the paired List API: pass the last received `Watermark.cursor` as
+ * `options.after` on the List request (for checkpoints, pass the last
+ * received `cursor + 1` as `start_checkpoint`). The List scan reads from the
+ * indexed tip, which may trail the subscription's start position; repeat the
+ * List call as the index advances until the replay reaches the position
+ * established by the subscription's first frame.
+ *
+ * A subscription behaves like an unbounded ascending scan: every frame
+ * carries the subscriber's resume point, and progress advances as
+ * checkpoints are fully covered. Two delivery guarantees keep sparse
+ * filters live: the first frame on a filtered subscription is a
+ * progress-only frame establishing the stream's start position, and
+ * progress continues to advance with bounded staleness even when no item
+ * matches.
+ *
+ * Subscription streams have no successful end: they run until cancelled by
+ * the client or terminated by the server with a gRPC status.
+ *
  * @generated from protobuf service sui.rpc.v2.SubscriptionService
  */
 export class SubscriptionServiceClient implements ISubscriptionServiceClient, ServiceInfo {
@@ -52,15 +131,10 @@ export class SubscriptionServiceClient implements ISubscriptionServiceClient, Se
 	/**
 	 * Subscribe to the stream of checkpoints.
 	 *
-	 * This API provides a subscription to the checkpoint stream for the Sui
-	 * blockchain. When a subscription is initialized the stream will begin with
-	 * the latest executed checkpoint as seen by the server. Responses are
-	 * guaranteed to return checkpoints in-order and without gaps. This enables
-	 * clients to know exactly the last checkpoint they have processed and in the
-	 * event the subscription terminates (either by the client/server or by the
-	 * connection breaking), clients will be able to reinitialize a subscription
-	 * and then leverage other APIs in order to request data for the checkpoints
-	 * they missed.
+	 * The stream begins at the latest executed checkpoint as seen by the
+	 * server and yields checkpoints matching the filter as they are executed.
+	 * A checkpoint matches if any transaction it contains satisfies the
+	 * filter.
 	 *
 	 * @generated from protobuf rpc: SubscribeCheckpoints(sui.rpc.v2.SubscribeCheckpointsRequest) returns (stream sui.rpc.v2.SubscribeCheckpointsResponse);
 	 */
@@ -71,6 +145,50 @@ export class SubscriptionServiceClient implements ISubscriptionServiceClient, Se
 		const method = this.methods[0],
 			opt = this._transport.mergeOptions(options);
 		return stackIntercept<SubscribeCheckpointsRequest, SubscribeCheckpointsResponse>(
+			'serverStreaming',
+			this._transport,
+			method,
+			opt,
+			input,
+		);
+	}
+	/**
+	 * Subscribe to the stream of transactions.
+	 *
+	 * The stream begins at the latest executed checkpoint as seen by the
+	 * server and yields transactions matching the filter as they are executed.
+	 *
+	 * @generated from protobuf rpc: SubscribeTransactions(sui.rpc.v2.SubscribeTransactionsRequest) returns (stream sui.rpc.v2.SubscribeTransactionsResponse);
+	 */
+	subscribeTransactions(
+		input: SubscribeTransactionsRequest,
+		options?: RpcOptions,
+	): ServerStreamingCall<SubscribeTransactionsRequest, SubscribeTransactionsResponse> {
+		const method = this.methods[1],
+			opt = this._transport.mergeOptions(options);
+		return stackIntercept<SubscribeTransactionsRequest, SubscribeTransactionsResponse>(
+			'serverStreaming',
+			this._transport,
+			method,
+			opt,
+			input,
+		);
+	}
+	/**
+	 * Subscribe to the stream of events.
+	 *
+	 * The stream begins at the latest executed checkpoint as seen by the
+	 * server and yields events matching the filter as they are emitted.
+	 *
+	 * @generated from protobuf rpc: SubscribeEvents(sui.rpc.v2.SubscribeEventsRequest) returns (stream sui.rpc.v2.SubscribeEventsResponse);
+	 */
+	subscribeEvents(
+		input: SubscribeEventsRequest,
+		options?: RpcOptions,
+	): ServerStreamingCall<SubscribeEventsRequest, SubscribeEventsResponse> {
+		const method = this.methods[2],
+			opt = this._transport.mergeOptions(options);
+		return stackIntercept<SubscribeEventsRequest, SubscribeEventsResponse>(
 			'serverStreaming',
 			this._transport,
 			method,
