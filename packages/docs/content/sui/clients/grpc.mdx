@@ -178,10 +178,10 @@ const { response: epochInfo } = await grpcClient.ledgerService.getEpoch({});
 
 The ledger service also provides streaming `listCheckpoints`, `listTransactions`, and `listEvents`
 RPCs. For most use cases, prefer the corresponding
-[core API query methods](/sui/clients/core#query-methods), which handle pagination and filter
-construction for you. The raw RPCs additionally support DNF filters (combined, negated, and
-additional predicates like `affected_address` and `package_write`) and checkpoint range bounds that
-the core API does not expose:
+[core API query methods](/sui/clients/core#query-methods) (`listTransactions` and `listEvents`),
+which handle pagination and filter construction for you. The raw RPCs additionally support DNF
+filters (combined, negated, and additional predicates like `affected_address` and `package_write`)
+and checkpoint range bounds that the core API does not expose:
 
 ```typescript
 // Transactions that affected an address but were not sent by it:

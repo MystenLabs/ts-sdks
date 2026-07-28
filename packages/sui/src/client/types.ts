@@ -366,7 +366,12 @@ export namespace SuiClientTypes {
 		balanceChanges?: boolean;
 		/** Include parsed transaction effects (gas used, changed objects, status, etc.). */
 		effects?: boolean;
-		/** Include events emitted by the transaction. */
+		/**
+		 * Include events emitted by the transaction.
+		 *
+		 * On the GraphQL transport, at most the first 50 events of a transaction are returned;
+		 * gRPC and JSON-RPC return the full event list.
+		 */
 		events?: boolean;
 		/** Include a map of object IDs to their types for all changed objects. */
 		objectTypes?: boolean;
@@ -463,10 +468,10 @@ export namespace SuiClientTypes {
 
 	/** Query methods */
 	export interface TransportMethods {
-		listTransactions?: <Include extends TransactionInclude = {}>(
+		listTransactions: <Include extends TransactionInclude = {}>(
 			options: ListTransactionsOptions<Include>,
 		) => Promise<ListTransactionsResponse<Include>>;
-		listEvents?: (options: ListEventsOptions) => Promise<ListEventsResponse>;
+		listEvents: (options: ListEventsOptions) => Promise<ListEventsResponse>;
 	}
 
 	/**
@@ -493,7 +498,11 @@ export namespace SuiClientTypes {
 	/**
 	 * A filter matching events. Exactly one predicate must be specified.
 	 *
-	 * All predicates are supported identically by every transport.
+	 * All predicates are supported by every transport, with one caveat: on the deprecated
+	 * JSON-RPC transport, an `eventType` naming a generic type must include type arguments —
+	 * a bare generic name (e.g. `0xpkg::mod::Event` for events of type `0xpkg::mod::Event<T>`)
+	 * matches any instantiation on gRPC and GraphQL, but matches nothing on JSON-RPC, which
+	 * compares the full type for exact equality.
 	 */
 	export type EventFilter =
 		| {
@@ -513,6 +522,10 @@ export namespace SuiClientTypes {
 				 * Match events by type: either every event whose type is defined in a
 				 * module (`package::module`), or events with a fully qualified type
 				 * name (`package::module::Name` or `package::module::Name<T1, T2>`).
+				 *
+				 * A bare generic name (`package::module::Name` without type arguments) matches
+				 * any instantiation on gRPC and GraphQL, but matches nothing on the deprecated
+				 * JSON-RPC transport, which compares the full type for exact equality.
 				 */
 				eventType: string;
 				sender?: never;
@@ -523,6 +536,13 @@ export namespace SuiClientTypes {
 		Include extends TransactionInclude = {},
 	> extends CoreClientMethodOptions {
 		filter?: TransactionFilter;
+		/**
+		 * Maximum number of items to return. Defaults to 50.
+		 *
+		 * Servers cap page sizes (50 by default): values above the server's cap cause the
+		 * GraphQL and JSON-RPC transports to throw, while gRPC servers silently truncate
+		 * the page to their configured maximum.
+		 */
 		limit?: number;
 		/**
 		 * Return items strictly after this cursor in ledger order (usually the `endCursor` of
@@ -543,6 +563,13 @@ export namespace SuiClientTypes {
 
 	export interface ListTransactionsResponse<out Include extends TransactionInclude = {}> {
 		transactions: TransactionResult<Include>[];
+		/**
+		 * Whether more items may be available after this page.
+		 *
+		 * gRPC servers bound how much of the ledger a single request scans, so a scan-limited
+		 * query can return fewer items than `limit` (even none) with `hasNextPage: true`;
+		 * continuing from `endCursor` always makes progress through the scanned range.
+		 */
 		hasNextPage: boolean;
 		/**
 		 * Cursor at the first returned item. After a descending read of the most recent
@@ -558,6 +585,13 @@ export namespace SuiClientTypes {
 
 	export interface ListEventsOptions extends CoreClientMethodOptions {
 		filter?: EventFilter;
+		/**
+		 * Maximum number of items to return. Defaults to 50.
+		 *
+		 * Servers cap page sizes (50 by default): values above the server's cap cause the
+		 * GraphQL and JSON-RPC transports to throw, while gRPC servers silently truncate
+		 * the page to their configured maximum.
+		 */
 		limit?: number;
 		/**
 		 * Return items strictly after this cursor in ledger order (usually the `endCursor` of
@@ -592,6 +626,13 @@ export namespace SuiClientTypes {
 
 	export interface ListEventsResponse {
 		events: EventEntry[];
+		/**
+		 * Whether more items may be available after this page.
+		 *
+		 * gRPC servers bound how much of the ledger a single request scans, so a scan-limited
+		 * query can return fewer items than `limit` (even none) with `hasNextPage: true`;
+		 * continuing from `endCursor` always makes progress through the scanned range.
+		 */
 		hasNextPage: boolean;
 		/**
 		 * Cursor at the first returned item. After a descending read of the most recent

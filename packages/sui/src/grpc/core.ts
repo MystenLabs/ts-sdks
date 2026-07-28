@@ -603,7 +603,10 @@ export class GrpcCoreClient extends CoreClient {
 			{
 				readMask: { paths },
 				filter: filter && toGrpcTransactionFilter(filter),
-				options: toGrpcQueryOptions(pagination),
+				// Request one extra item as lookahead: the server reports its item limit as reached
+				// without scanning past it, so an exact-limit final page is otherwise
+				// indistinguishable from one with more results
+				options: toGrpcQueryOptions(pagination, pagination.limit + 1),
 			},
 			{ abort: options.signal },
 		);
@@ -613,38 +616,45 @@ export class GrpcCoreClient extends CoreClient {
 		let endCursor: string | null = null;
 		let frontier: string | null = null;
 		let end: QueryEnd | undefined;
+		let sawLookaheadItem = false;
 
 		for await (const frame of call.responses) {
 			if (frame.watermark?.cursor) {
 				frontier = toBase64(frame.watermark.cursor);
 			}
 			if (frame.transaction) {
-				startCursor ??= frontier;
-				endCursor = frontier;
-				transactions.push(
-					parseGrpcTransactionResponse(frame.transaction, { include: options.include }),
-				);
+				if (transactions.length >= pagination.limit) {
+					sawLookaheadItem = true;
+				} else {
+					startCursor ??= frontier;
+					endCursor = frontier;
+					transactions.push(
+						parseGrpcTransactionResponse(frame.transaction, { include: options.include }),
+					);
+				}
 			}
 			if (frame.end) {
 				end = frame.end;
 			}
 		}
 
-		const hasNextPage = queryHasNextPage(end);
+		const hasNextPage = sawLookaheadItem || end?.reason === QueryEndReason.SCAN_LIMIT;
 
 		return {
 			transactions,
 			hasNextPage,
 			startCursor,
-			// Item-less scans that stopped early continue from the scan frontier,
-			// while terminal empty pages have no positions to continue from
-			endCursor: endCursor ?? (hasNextPage ? frontier : null),
+			// Scans that stopped early without filling the page continue from the scan frontier
+			// (so already-scanned positions are not revisited), full pages continue after the last
+			// returned item, and terminal pages have no positions to continue from
+			endCursor: sawLookaheadItem ? endCursor : hasNextPage ? (frontier ?? endCursor) : endCursor,
 		};
 	}
 
 	async listEvents(
 		options: SuiClientTypes.ListEventsOptions,
 	): Promise<SuiClientTypes.ListEventsResponse> {
+		const pagination = resolvePagination(options);
 		const call = this.#client.ledgerService.listEvents(
 			{
 				readMask: {
@@ -663,7 +673,10 @@ export class GrpcCoreClient extends CoreClient {
 				filter: options.filter
 					? toGrpcEventFilter(await resolveEventFilter(this.mvr, options.filter))
 					: undefined,
-				options: toGrpcQueryOptions(resolvePagination(options)),
+				// Request one extra item as lookahead: the server reports its item limit as reached
+				// without scanning past it, so an exact-limit final page is otherwise
+				// indistinguishable from one with more results
+				options: toGrpcQueryOptions(pagination, pagination.limit + 1),
 			},
 			{ abort: options.signal },
 		);
@@ -673,41 +686,47 @@ export class GrpcCoreClient extends CoreClient {
 		let endCursor: string | null = null;
 		let frontier: string | null = null;
 		let end: QueryEnd | undefined;
+		let sawLookaheadItem = false;
 
 		for await (const frame of call.responses) {
 			if (frame.watermark?.cursor) {
 				frontier = toBase64(frame.watermark.cursor);
 			}
 			if (frame.event) {
-				startCursor ??= frontier;
-				endCursor = frontier;
-				const event = frame.event;
-				events.push({
-					packageId: normalizeSuiAddress(event.packageId!),
-					module: event.module!,
-					sender: normalizeSuiAddress(event.sender!),
-					eventType: normalizeStructTag(event.eventType!),
-					bcs: event.contents?.value ?? new Uint8Array(),
-					json: event.json ? (Value.toJson(event.json) as Record<string, unknown>) : null,
-					checkpoint: event.checkpoint?.toString() ?? null,
-					transactionDigest: event.transactionDigest!,
-					eventIndex: event.eventIndex!,
-				});
+				if (events.length >= pagination.limit) {
+					sawLookaheadItem = true;
+				} else {
+					startCursor ??= frontier;
+					endCursor = frontier;
+					const event = frame.event;
+					events.push({
+						packageId: normalizeSuiAddress(event.packageId!),
+						module: event.module!,
+						sender: normalizeSuiAddress(event.sender!),
+						eventType: normalizeStructTag(event.eventType!),
+						bcs: event.contents?.value ?? new Uint8Array(),
+						json: event.json ? (Value.toJson(event.json) as Record<string, unknown>) : null,
+						checkpoint: event.checkpoint?.toString() ?? null,
+						transactionDigest: event.transactionDigest!,
+						eventIndex: event.eventIndex!,
+					});
+				}
 			}
 			if (frame.end) {
 				end = frame.end;
 			}
 		}
 
-		const hasNextPage = queryHasNextPage(end);
+		const hasNextPage = sawLookaheadItem || end?.reason === QueryEndReason.SCAN_LIMIT;
 
 		return {
 			events,
 			hasNextPage,
 			startCursor,
-			// Item-less scans that stopped early continue from the scan frontier,
-			// while terminal empty pages have no positions to continue from
-			endCursor: endCursor ?? (hasNextPage ? frontier : null),
+			// Scans that stopped early without filling the page continue from the scan frontier
+			// (so already-scanned positions are not revisited), full pages continue after the last
+			// returned item, and terminal pages have no positions to continue from
+			endCursor: sawLookaheadItem ? endCursor : hasNextPage ? (frontier ?? endCursor) : endCursor,
 		};
 	}
 
@@ -931,17 +950,13 @@ export class GrpcCoreClient extends CoreClient {
 	}
 }
 
-function toGrpcQueryOptions(pagination: ResolvedPagination): QueryOptions {
+function toGrpcQueryOptions(pagination: ResolvedPagination, limit: number): QueryOptions {
 	return {
-		limit: pagination.limit,
+		limit,
 		ordering: pagination.descending ? Ordering.DESCENDING : Ordering.ASCENDING,
 		after: pagination.after ? fromBase64(pagination.after) : undefined,
 		before: pagination.before ? fromBase64(pagination.before) : undefined,
 	};
-}
-
-function queryHasNextPage(end: QueryEnd | undefined): boolean {
-	return end?.reason === QueryEndReason.ITEM_LIMIT || end?.reason === QueryEndReason.SCAN_LIMIT;
 }
 
 function transactionReadMaskPaths(

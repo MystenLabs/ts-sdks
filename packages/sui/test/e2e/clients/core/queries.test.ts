@@ -2,7 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { beforeAll, describe, expect, it } from 'vitest';
-import { publishPackage, setup, TestToolbox, createTestWithAllClients } from '../../utils/setup.js';
+import {
+	publishPackage,
+	setup,
+	TestToolbox,
+	createTestWithAllClients,
+	getRandomAddresses,
+} from '../../utils/setup.js';
 import { Transaction } from '../../../../src/transactions/index.js';
 import type { SuiClientTypes } from '../../../../src/client/index.js';
 
@@ -292,6 +298,28 @@ describe('Core API - Queries', () => {
 				client.core.listTransactions({ filter: { function: '0x2::a::b::c' } }),
 			).rejects.toThrow('Invalid function filter');
 		});
+
+		testWithAllClients(
+			'should return empty pages with null cursors',
+			async (client) => {
+				const [emptyAddress] = getRandomAddresses(1);
+
+				expect(await client.core.listTransactions({ filter: { sender: emptyAddress } })).toEqual({
+					transactions: [],
+					hasNextPage: false,
+					startCursor: null,
+					endCursor: null,
+				});
+
+				expect(await client.core.listEvents({ filter: { sender: emptyAddress } })).toEqual({
+					events: [],
+					hasNextPage: false,
+					startCursor: null,
+					endCursor: null,
+				});
+			},
+			{ skip: EXCLUDE },
+		);
 	});
 
 	describe('listEvents', () => {
@@ -410,6 +438,81 @@ describe('Core API - Queries', () => {
 				expect(secondPage.events.map((event) => event.transactionDigest)).toEqual(
 					[...digests].reverse().slice(2),
 				);
+			},
+			{ skip: EXCLUDE },
+		);
+
+		testWithAllClients(
+			'should paginate events in ascending order',
+			async (client) => {
+				const firstPage = await client.core.listEvents({
+					filter: { sender: senderAddress },
+					limit: 2,
+				});
+
+				expect(firstPage.events.map((event) => event.transactionDigest)).toEqual(
+					digests.slice(0, 2),
+				);
+				expect(firstPage.hasNextPage).toBe(true);
+
+				const secondPage = await client.core.listEvents({
+					filter: { sender: senderAddress },
+					limit: 2,
+					after: firstPage.endCursor,
+				});
+
+				expect(secondPage.events.map((event) => event.transactionDigest)).toEqual(digests.slice(2));
+			},
+			{ skip: EXCLUDE },
+		);
+
+		it('all clients return same data: eventIndex for multi-event transactions', async () => {
+			const { keypair, address } = await toolbox.getSigner({ coins: [1_000_000_000n] });
+
+			const tx = new Transaction();
+			tx.moveCall({
+				target: `${packageId}::test_objects::create_object_with_event`,
+				arguments: [tx.pure.u64(1)],
+			});
+			tx.moveCall({
+				target: `${packageId}::test_objects::create_object_with_event`,
+				arguments: [tx.pure.u64(2)],
+			});
+			const result = await toolbox.signAndExecuteTransaction({
+				transaction: tx,
+				signer: keypair,
+			});
+
+			if (result.$kind !== 'Transaction') {
+				throw new Error(
+					`Setup tx failed: ${result.FailedTransaction.status.error?.message ?? 'unknown error'}`,
+				);
+			}
+
+			await toolbox.expectAllClientsReturnSameData(
+				async (client) => {
+					const page = await client.core.listEvents({ filter: { sender: address } });
+					return page.events.map((event) => ({
+						transactionDigest: event.transactionDigest,
+						eventIndex: event.eventIndex,
+					}));
+				},
+				undefined,
+				{ exclude: EXCLUDE },
+			);
+
+			const { events } = await toolbox.jsonRpcClient.core.listEvents({
+				filter: { sender: address },
+			});
+			expect(events.map((event) => event.eventIndex)).toEqual([0, 1]);
+		});
+
+		testWithAllClients(
+			'should reject malformed cursors',
+			async (client) => {
+				await expect(
+					client.core.listEvents({ filter: { sender: senderAddress }, after: 'not-a-cursor!' }),
+				).rejects.toThrow();
 			},
 			{ skip: EXCLUDE },
 		);

@@ -702,19 +702,29 @@ export class GraphQLCoreClient extends CoreClient {
 		const nodes = descending ? [...events.nodes].reverse() : events.nodes;
 
 		return {
-			events: nodes.map(
-				(event): SuiClientTypes.EventEntry => ({
-					packageId: normalizeSuiAddress(event.transactionModule?.package?.address!),
-					module: event.transactionModule?.name!,
-					sender: normalizeSuiAddress(event.sender?.address!),
-					eventType: normalizeStructTag(event.contents?.type?.repr!),
+			events: nodes.map((event): SuiClientTypes.EventEntry => {
+				const packageId = event.transactionModule?.package?.address;
+				const module = event.transactionModule?.name;
+				const sender = event.sender?.address;
+				const eventType = event.contents?.type?.repr;
+				const transactionDigest = event.transaction?.digest;
+
+				if (!packageId || !module || !sender || !eventType || !transactionDigest) {
+					throw new Error('listEvents response is missing expected event fields');
+				}
+
+				return {
+					packageId: normalizeSuiAddress(packageId),
+					module,
+					sender: normalizeSuiAddress(sender),
+					eventType: normalizeStructTag(eventType),
 					bcs: event.contents?.bcs ? fromBase64(event.contents.bcs) : new Uint8Array(),
 					json: (event.contents?.json as Record<string, unknown>) ?? null,
 					checkpoint: event.transaction?.effects?.checkpoint?.sequenceNumber?.toString() ?? null,
-					transactionDigest: event.transaction?.digest!,
+					transactionDigest,
 					eventIndex: event.sequenceNumber,
-				}),
-			),
+				};
+			}),
 			hasNextPage: descending ? events.pageInfo.hasPreviousPage : events.pageInfo.hasNextPage,
 			startCursor: (descending ? events.pageInfo.endCursor : events.pageInfo.startCursor) ?? null,
 			endCursor: (descending ? events.pageInfo.startCursor : events.pageInfo.endCursor) ?? null,

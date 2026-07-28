@@ -1,16 +1,27 @@
 # Core query API follow-ups gated on the JSON-RPC sunset
 
-The core query APIs (`listTransactions`, `listEvents`, `listCheckpoints`) are intentionally
-restricted to what all three transports (gRPC, GraphQL, JSON-RPC) can support with identical
-behavior, verified by the parity tests in `test/e2e/clients/core/queries.test.ts`. Several
-capabilities were left out of the core API only because JSON-RPC cannot express them. Once JSON-RPC
-is fully deprecated and removed, they can be promoted into the core API.
+The core query APIs (`listTransactions`, `listEvents`) are intentionally restricted to what all
+three transports (gRPC, GraphQL, JSON-RPC) can support with identical behavior, verified by the
+parity tests in `test/e2e/clients/core/queries.test.ts` (gRPC is covered by the unit tests in
+`test/unit/grpc/list-queries.test.ts` until the pinned localnet image serves the List RPCs, at which
+point it should be added to the parity matrix). Several capabilities were left out of the core API
+only because JSON-RPC cannot express them. Once JSON-RPC is fully deprecated and removed, they can
+be promoted into the core API.
 
 Until then, advanced filtering is available through the raw gRPC ledger service
 (`client.ledgerService.listTransactions` and friends take full DNF filters), and through raw GraphQL
 queries where the schema supports it. Promoting a capability means extending the core filter types
 in `src/client/types.ts` and the shared resolution helpers in `src/client/query-filters.ts`,
 implementing the gRPC/GraphQL mappings, and extending the parity tests.
+
+## Known transport gaps (not gated on the sunset)
+
+- **GraphQL truncates transaction events at 50** — the shared `TRANSACTION_FIELDS` fragment requests
+  `events(first: 50)` and no transaction method pages past the first page, so
+  `include: { events: true }` on GraphQL returns at most 50 events per transaction while gRPC and
+  JSON-RPC return the full list (documented on `TransactionInclude.events`). Fixing this means
+  following `pageInfo.hasNextPage` with per-transaction follow-up queries in `parseTransaction`,
+  which applies to every transaction method on the GraphQL transport, not just the query APIs.
 
 ## Blocked only by JSON-RPC
 
