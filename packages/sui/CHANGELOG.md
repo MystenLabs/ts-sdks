@@ -1,5 +1,29 @@
 # @mysten/sui.js
 
+## 2.23.0
+
+### Minor Changes
+
+- f9bfbbf: Add `listTransactions` and `listEvents` core API methods for querying transactions and
+  events with filters, pagination, and ordering. The methods behave identically across the gRPC,
+  GraphQL, and JSON-RPC transports. The regenerated gRPC protos also add the new
+  `SubscribeTransactions` and `SubscribeEvents` subscription APIs.
+
+  The `TransactionKind` BCS schema exported from `@mysten/sui/bcs` now fully parses system
+  transactions: the previously-unparseable placeholder variants (`ChangeEpoch`, `Genesis`,
+  `ConsensusCommitPrologue`) have typed payloads, and the missing system variants
+  (`AuthenticatorStateUpdate`, `EndOfEpochTransaction`, `RandomnessStateUpdate`,
+  `ConsensusCommitPrologueV2`–`V4`, and `ProgrammableSystemTransaction`) were added. JSON-RPC
+  `getTransaction` also no longer reports the genesis transaction's placeholder signature, matching
+  the other transports.
+
+- f9bfbbf: Enable gas selection in `core.simulateTransaction` for the gRPC and GraphQL clients when
+  the transaction's gas payment is explicitly set to an empty list (`[]`). This ensures transactions
+  paying gas from the sender's address balance are simulated with real gas selection rather than a
+  mocked gas coin. Transactions with gas coins set are simulated as-is, and transactions without a
+  gas payment keep the mocked gas coin behavior. The default can be overridden by passing
+  `doGasSelection` to `simulateTransaction` on `SuiGrpcClient` and `SuiGraphQLClient`.
+
 ## 2.22.2
 
 ### Patch Changes
