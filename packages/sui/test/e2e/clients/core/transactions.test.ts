@@ -2,7 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { beforeAll, describe, expect, it } from 'vitest';
-import { setup, TestToolbox, createTestWithAllClients } from '../../utils/setup.js';
+import {
+	setup,
+	TestToolbox,
+	createTestWithAllClients,
+	getRandomAddresses,
+} from '../../utils/setup.js';
 import { Transaction } from '../../../../src/transactions/index.js';
 import { SUI_TYPE_ARG } from '../../../../src/utils/index.js';
 import { Ed25519Keypair } from '../../../../src/keypairs/ed25519/keypair.js';
@@ -1444,6 +1449,208 @@ describe('Core API - Transactions', () => {
 				expect(result.commandResults).toBeDefined();
 			},
 		);
+	});
+
+	describe('simulateTransaction - gas selection', () => {
+		testWithAllClients(
+			'should simulate built bytes paying gas from an address balance',
+			async (client) => {
+				// Sender's SUI is held entirely in an address balance (no coin objects), and the
+				// transaction deposits into a fresh recipient's address balance, so it has a real
+				// storage cost with no rebate. Before gas selection was enabled for built bytes,
+				// the empty gas payment was simulated as a mocked gas coin and this failed with
+				// InsufficientGas.
+				const { address } = await toolbox.getSigner({ addressBalance: 500_000_000n });
+				const [recipient] = getRandomAddresses(1);
+
+				const tx = new Transaction();
+				const withdrawal = tx.withdrawal({ amount: 100_000_000n, type: SUI_TYPE_ARG });
+				const balance = tx.moveCall({
+					target: '0x2::balance::redeem_funds',
+					typeArguments: [SUI_TYPE_ARG],
+					arguments: [withdrawal],
+				});
+				const coin = tx.moveCall({
+					target: '0x2::coin::from_balance',
+					typeArguments: [SUI_TYPE_ARG],
+					arguments: [balance],
+				});
+				tx.moveCall({
+					target: '0x2::coin::send_funds',
+					typeArguments: [SUI_TYPE_ARG],
+					arguments: [coin, tx.pure.address(recipient)],
+				});
+				tx.setSender(address);
+				tx.setGasPayment([]);
+
+				const bytes = await tx.build({ client });
+
+				const result = await client.core.simulateTransaction({
+					transaction: bytes,
+					include: { effects: true, transaction: true },
+				});
+
+				if (result.$kind !== 'Transaction') {
+					throw new Error(
+						`Expected simulation to succeed: ${
+							result.FailedTransaction.status.error?.message ?? 'unknown error'
+						}`,
+					);
+				}
+
+				expect(result.Transaction.effects?.status.success).toBe(true);
+				expect(result.Transaction.transaction?.gasData.payment).toEqual([]);
+			},
+			{ skip: ['jsonrpc'] },
+		);
+
+		testWithAllClients(
+			'should not overwrite explicit gas payment when simulating built bytes',
+			async (client) => {
+				const coins = await client.core.listCoins({ owner: testAddress, coinType: SUI_TYPE_ARG });
+				const explicitGasCoin = coins.objects[0];
+
+				const tx = new Transaction();
+				tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
+				tx.setSender(testAddress);
+				tx.setGasPayment([
+					{
+						objectId: explicitGasCoin.objectId,
+						version: explicitGasCoin.version,
+						digest: explicitGasCoin.digest,
+					},
+				]);
+
+				const bytes = await tx.build({ client });
+
+				const result = await client.core.simulateTransaction({
+					transaction: bytes,
+					include: { effects: true, transaction: true },
+				});
+
+				expect(result.Transaction!.effects?.status.success).toBe(true);
+				expect(result.Transaction!.transaction?.gasData.payment).toEqual([
+					{
+						objectId: explicitGasCoin.objectId,
+						version: explicitGasCoin.version,
+						digest: explicitGasCoin.digest,
+					},
+				]);
+			},
+		);
+
+		testWithAllClients(
+			'should simulate Transaction instance with explicitly empty gas payment',
+			async (client) => {
+				const { address } = await toolbox.getSigner({ addressBalance: 500_000_000n });
+
+				const tx = new Transaction();
+				const withdrawal = tx.withdrawal({ amount: 100_000_000n, type: SUI_TYPE_ARG });
+				const balance = tx.moveCall({
+					target: '0x2::balance::redeem_funds',
+					typeArguments: [SUI_TYPE_ARG],
+					arguments: [withdrawal],
+				});
+				const coin = tx.moveCall({
+					target: '0x2::coin::from_balance',
+					typeArguments: [SUI_TYPE_ARG],
+					arguments: [balance],
+				});
+				tx.transferObjects([coin], tx.pure.address(address));
+				tx.setSender(address);
+				tx.setGasPayment([]);
+
+				const result = await client.core.simulateTransaction({
+					transaction: tx,
+					include: { effects: true },
+				});
+
+				if (result.$kind !== 'Transaction') {
+					throw new Error(
+						`Expected simulation to succeed: ${
+							result.FailedTransaction.status.error?.message ?? 'unknown error'
+						}`,
+					);
+				}
+
+				expect(result.Transaction.effects?.status.success).toBe(true);
+			},
+			{ skip: ['jsonrpc'] },
+		);
+
+		testWithAllClients(
+			'should simulate Transaction instance without gas payment using a mocked gas coin',
+			async (client) => {
+				// An unfunded sender can't pay for gas, so a successful simulation requires the
+				// server to mock a gas coin. Transactions without an explicit gas payment must keep
+				// this behavior rather than opting into gas selection.
+				const [sender] = getRandomAddresses(1);
+
+				const tx = new Transaction();
+				tx.moveCall({
+					target: '0x2::clock::timestamp_ms',
+					arguments: [
+						tx.sharedObjectRef({ objectId: '0x6', initialSharedVersion: '1', mutable: false }),
+					],
+				});
+				tx.setSender(sender);
+
+				const result = await client.core.simulateTransaction({
+					transaction: tx,
+					include: { effects: true },
+				});
+
+				if (result.$kind !== 'Transaction') {
+					throw new Error(
+						`Expected simulation to succeed: ${
+							result.FailedTransaction.status.error?.message ?? 'unknown error'
+						}`,
+					);
+				}
+
+				expect(result.Transaction.effects?.status.success).toBe(true);
+			},
+			{ skip: ['jsonrpc'] },
+		);
+
+		// An unfunded sender simulates successfully with the default mocked gas coin, but
+		// forcing gas selection fails because the sender has nothing to pay gas with.
+		function unfundedSenderTx() {
+			const [sender] = getRandomAddresses(1);
+
+			const tx = new Transaction();
+			tx.moveCall({
+				target: '0x2::clock::timestamp_ms',
+				arguments: [
+					tx.sharedObjectRef({ objectId: '0x6', initialSharedVersion: '1', mutable: false }),
+				],
+			});
+			tx.setSender(sender);
+
+			return tx;
+		}
+
+		it('[gRPC] should allow overriding gas selection on the client', async () => {
+			const tx = unfundedSenderTx();
+
+			const defaultResult = await toolbox.grpcClient.simulateTransaction({ transaction: tx });
+			expect(defaultResult.$kind).toBe('Transaction');
+
+			await expect(
+				toolbox.grpcClient.simulateTransaction({ transaction: tx, doGasSelection: true }),
+			).rejects.toThrow();
+		});
+
+		it('[GraphQL] should allow overriding gas selection on the client', async () => {
+			const tx = unfundedSenderTx();
+
+			const defaultResult = await toolbox.graphqlClient.simulateTransaction({ transaction: tx });
+			expect(defaultResult.$kind).toBe('Transaction');
+
+			await expect(
+				toolbox.graphqlClient.simulateTransaction({ transaction: tx, doGasSelection: true }),
+			).rejects.toThrow();
+		});
 	});
 
 	describe('build with onlyTransactionKind', () => {

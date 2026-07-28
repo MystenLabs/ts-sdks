@@ -39,7 +39,11 @@ import {
 import { ObjectError, SimulationError } from '../client/errors.js';
 import { chunk, fromBase64, toBase64 } from '@mysten/utils';
 import { normalizeStructTag, normalizeSuiAddress } from '../utils/sui-types.js';
-import { formatMoveAbortMessage, parseTransactionEffectsBcs } from '../client/utils.js';
+import {
+	formatMoveAbortMessage,
+	parseTransactionEffectsBcs,
+	transactionBytesHaveEmptyGasPayment,
+} from '../client/utils.js';
 import type { OpenMoveTypeSignatureBody, OpenMoveTypeSignature } from './types.js';
 import {
 	transactionDataToGrpcTransaction,
@@ -394,11 +398,20 @@ export class GraphQLCoreClient extends CoreClient {
 		return parseTransaction(result.effects?.transaction!, options.include);
 	}
 	async simulateTransaction<Include extends SuiClientTypes.SimulateTransactionInclude = {}>(
-		options: SuiClientTypes.SimulateTransactionOptions<Include>,
+		options: SuiClientTypes.SimulateTransactionOptions<Include> & { doGasSelection?: boolean },
 	): Promise<SuiClientTypes.SimulateTransactionResult<Include>> {
 		if (!(options.transaction instanceof Uint8Array)) {
 			await options.transaction.prepareForSerialization({ client: this });
 		}
+
+		// A gas payment explicitly set to an empty list means gas is paid from the sender's
+		// address balance, so the server needs to perform gas selection rather than simulating
+		// with a mocked gas coin.
+		const doGasSelection =
+			options.doGasSelection ??
+			(options.transaction instanceof Uint8Array
+				? transactionBytesHaveEmptyGasPayment(options.transaction)
+				: options.transaction.getData().gasData.payment?.length === 0);
 
 		const result = await this.#graphqlQuery(
 			{
@@ -419,6 +432,7 @@ export class GraphQLCoreClient extends CoreClient {
 					includeObjectTypes: options.include?.objectTypes ?? false,
 					includeCommandResults: options.include?.commandResults ?? false,
 					includeBcs: options.include?.bcs ?? false,
+					doGasSelection,
 					checksEnabled: options.checksEnabled ?? true,
 				},
 			},

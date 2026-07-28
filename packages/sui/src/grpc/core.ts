@@ -44,6 +44,7 @@ import {
 	grpcTransactionToTransactionData,
 } from '../client/transaction-resolver.js';
 import { setAddressBalanceTransactionExpirationFromSimulatedEpoch } from '../client/address-balance-transaction-expiration.js';
+import { transactionBytesHaveEmptyGasPayment } from '../client/utils.js';
 import { Value } from './proto/google/protobuf/struct.js';
 import { ExecutedTransaction } from './proto/sui/rpc/v2/executed_transaction.js';
 import {
@@ -397,7 +398,7 @@ export class GrpcCoreClient extends CoreClient {
 		);
 	}
 	async simulateTransaction<Include extends SuiClientTypes.SimulateTransactionInclude = {}>(
-		options: SuiClientTypes.SimulateTransactionOptions<Include>,
+		options: SuiClientTypes.SimulateTransactionOptions<Include> & { doGasSelection?: boolean },
 	): Promise<SuiClientTypes.SimulateTransactionResult<Include>> {
 		// The simulated transaction is nested one level deeper in the response
 		const paths = transactionReadMaskPaths(options.include, 'transaction.');
@@ -408,6 +409,15 @@ export class GrpcCoreClient extends CoreClient {
 		if (!(options.transaction instanceof Uint8Array)) {
 			await options.transaction.prepareForSerialization({ client: this });
 		}
+
+		// A gas payment explicitly set to an empty list means gas is paid from the sender's
+		// address balance, so the server needs to perform gas selection rather than simulating
+		// with a mocked gas coin.
+		const doGasSelection =
+			options.doGasSelection ??
+			(options.transaction instanceof Uint8Array
+				? transactionBytesHaveEmptyGasPayment(options.transaction)
+				: options.transaction.getData().gasData.payment?.length === 0);
 
 		const { response } = await this.#client.transactionExecutionService.simulateTransaction(
 			{
@@ -422,7 +432,7 @@ export class GrpcCoreClient extends CoreClient {
 				readMask: {
 					paths,
 				},
-				doGasSelection: false,
+				doGasSelection,
 				checks:
 					options.checksEnabled === false
 						? SimulateTransactionRequest_TransactionChecks.DISABLED
