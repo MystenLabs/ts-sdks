@@ -47,6 +47,10 @@ export class PriceServiceConnection {
 				parsed: false,
 			},
 		});
-		return response.data.binary.data;
+		const data = response.data?.binary?.data;
+		if (!Array.isArray(data)) {
+			throw new Error('Unexpected Hermes response: missing `binary.data`.');
+		}
+		return data;
 	}
 }
