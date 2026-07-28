@@ -31,6 +31,7 @@ export const RawSVI = new MoveStruct({
 	fields: {
 		bs_source_id: bcs.u32(),
 		expiry_ms: bcs.u64(),
+		params_timestamp_ms: bcs.u64(),
 		svi: SVIParams,
 	},
 });
@@ -156,6 +157,32 @@ export function normalizedSvi(options: NormalizedSviOptions) {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface ParamsTimestampMsArguments {
+	feed: RawTransactionArgument<string>;
+	expiryMs: RawTransactionArgument<number | bigint>;
+}
+export interface ParamsTimestampMsOptions {
+	package?: string;
+	arguments:
+		| ParamsTimestampMsArguments
+		| [feed: RawTransactionArgument<string>, expiryMs: RawTransactionArgument<number | bigint>];
+}
+/**
+ * Source timestamp of the first accepted envelope carrying the latest exact
+ * normalized SVI tuple for `expiry_ms`.
+ */
+export function paramsTimestampMs(options: ParamsTimestampMsOptions) {
+	const packageAddress = options.package ?? '@local-pkg/propbook';
+	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
+	const parameterNames = ['feed', 'expiryMs'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'block_scholes_svi_feed',
+			function: 'params_timestamp_ms',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
 export interface RawSviAtArguments {
 	feed: RawTransactionArgument<string>;
 	expiryMs: RawTransactionArgument<number | bigint>;
@@ -249,6 +276,26 @@ export function rawExpiryMs(options: RawExpiryMsOptions) {
 			package: packageAddress,
 			module: 'block_scholes_svi_feed',
 			function: 'raw_expiry_ms',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface RawParamsTimestampMsArguments {
+	raw: TransactionArgument;
+}
+export interface RawParamsTimestampMsOptions {
+	package?: string;
+	arguments: RawParamsTimestampMsArguments | [raw: TransactionArgument];
+}
+/** Return when the currently stored normalized parameter tuple first appeared. */
+export function rawParamsTimestampMs(options: RawParamsTimestampMsOptions) {
+	const packageAddress = options.package ?? '@local-pkg/propbook';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['raw'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'block_scholes_svi_feed',
+			function: 'raw_params_timestamp_ms',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }

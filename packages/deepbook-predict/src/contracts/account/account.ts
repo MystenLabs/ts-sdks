@@ -36,6 +36,8 @@ export const Account = new MoveStruct({
 		balances: bag.Bag,
 		/** Type-indexed timestamps of the latest settlement attempt. */
 		settlements: bag.Bag,
+		/** Canonical account ID supplied at referral-based creation, if any. */
+		referrer_account_id: bcs.option(bcs.Address),
 	},
 });
 export const AccountWrapper = new MoveStruct({
@@ -166,6 +168,29 @@ export function accountId(options: AccountIdOptions) {
 			package: packageAddress,
 			module: 'account',
 			function: 'account_id',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface ReferrerAccountIdArguments {
+	self: TransactionArgument;
+}
+export interface ReferrerAccountIdOptions {
+	package?: string;
+	arguments: ReferrerAccountIdArguments | [self: TransactionArgument];
+}
+/**
+ * Returns the canonical referrer account ID recorded at creation for external Move
+ * composition.
+ */
+export function referrerAccountId(options: ReferrerAccountIdOptions) {
+	const packageAddress = options.package ?? '@local-pkg/account';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['self'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'account',
+			function: 'referrer_account_id',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }

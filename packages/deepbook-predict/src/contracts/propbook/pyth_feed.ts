@@ -6,9 +6,16 @@
  * Decodes verifier-produced Pyth Lazer spot updates and stores their source-native
  * fields in a shared Propbook oracle lane. Writes are permissionless because
  * possession of `LazerUpdate` carries the upstream verification result; the
- * registry separately owns source uniqueness and canonical binding. This module
- * normalizes positive prices to 1e9 scale but leaves freshness and market-use
- * policy to consumers.
+ * registry separately owns source uniqueness and canonical binding. A Lazer update
+ * carries two distinct clocks: the envelope `timestamp()` is when the signed
+ * update was published, and the per-feed `feed_update_timestamp()` is when the
+ * price it carries was generated. They are equal only when the update carries a
+ * freshly generated aggregate; when Pyth has no new aggregate it carries the
+ * previous price forward under a newer envelope. `latest` keys on the generation
+ * time so a carried price ages by its true age, while the exact-history key stays
+ * on the envelope so a settlement tick resolves to the canonical price as of that
+ * tick. This module normalizes positive prices to 1e9 scale but leaves freshness
+ * and market-use policy to consumers.
  */
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
@@ -24,7 +31,7 @@ export const RawSpot = new MoveStruct({
 		price_is_negative: bcs.bool(),
 		exponent_magnitude: bcs.u16(),
 		exponent_is_negative: bcs.bool(),
-		source_timestamp_us: bcs.u64(),
+		feed_update_timestamp_us: bcs.u64(),
 	},
 });
 export const PythFeed = new MoveStruct({
@@ -295,15 +302,19 @@ export function rawExponentIsNegative(options: RawExponentIsNegativeOptions) {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export interface RawSourceTimestampUsArguments {
+export interface RawFeedUpdateTimestampUsArguments {
 	raw: TransactionArgument;
 }
-export interface RawSourceTimestampUsOptions {
+export interface RawFeedUpdateTimestampUsOptions {
 	package?: string;
-	arguments: RawSourceTimestampUsArguments | [raw: TransactionArgument];
+	arguments: RawFeedUpdateTimestampUsArguments | [raw: TransactionArgument];
 }
-/** Return the source timestamp in microseconds for external raw-feed inspection. */
-export function rawSourceTimestampUs(options: RawSourceTimestampUsOptions) {
+/**
+ * Return the microsecond time at which Pyth generated this price, for external
+ * raw-feed inspection. This is the price's true age; it can be older than the
+ * envelope that delivered it.
+ */
+export function rawFeedUpdateTimestampUs(options: RawFeedUpdateTimestampUsOptions) {
 	const packageAddress = options.package ?? '@local-pkg/propbook';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['raw'];
@@ -311,7 +322,7 @@ export function rawSourceTimestampUs(options: RawSourceTimestampUsOptions) {
 		tx.moveCall({
 			package: packageAddress,
 			module: 'pyth_feed',
-			function: 'raw_source_timestamp_us',
+			function: 'raw_feed_update_timestamp_us',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
@@ -324,10 +335,12 @@ export interface UpdateOptions {
 	arguments: UpdateArguments | [feed: RawTransactionArgument<string>, update: TransactionArgument];
 }
 /**
- * Decode and record a verifier-produced Pyth Lazer update when its source
- * timestamp advances. A zero, future, duplicate, or stale source timestamp is
- * ignored without changing `latest` or emitting an event. The raw observation may
- * be stored even when its positive normalized projection is unavailable.
+ * Decode and record a verifier-produced Pyth Lazer update when its generation
+ * timestamp advances. A zero, future, duplicate, or stale generation timestamp is
+ * ignored without changing `latest` or emitting an event; a price Pyth carried
+ * forward therefore leaves `latest` untouched, so redelivery cannot renew a
+ * consumer's freshness window. The raw observation may be stored even when its
+ * positive normalized projection is unavailable.
  */
 export function update(options: UpdateOptions) {
 	const packageAddress = options.package ?? '@local-pkg/propbook';
@@ -353,11 +366,14 @@ export interface InsertAtOptions {
 }
 /**
  * Insert an exact Pyth Lazer spot observation keyed by its exact millisecond
- * source timestamp. Aborts `EInsertTimestampNotExactMillisecond` if the source
+ * envelope timestamp. Aborts `EInsertTimestampNotExactMillisecond` if the envelope
  * timestamp is not a whole millisecond, so the exact-history key is an unambiguous
- * millisecond a consumer can look up by equality. This does not mutate `latest`.
- * The first lane-valid raw observation owns the key and cannot be replaced, even
- * if its normalized projection is unavailable.
+ * millisecond a consumer can look up by equality. Aborts
+ * `ESettlementCarryExceedsWindow` if Pyth generated the price more than
+ * `constants::max_settlement_carry_ms` before that envelope, so a long-carried
+ * price cannot claim a settlement key. This does not mutate `latest`. The first
+ * lane-valid raw observation owns the key and cannot be replaced, even if its
+ * normalized projection is unavailable.
  */
 export function insertAt(options: InsertAtOptions) {
 	const packageAddress = options.package ?? '@local-pkg/propbook';

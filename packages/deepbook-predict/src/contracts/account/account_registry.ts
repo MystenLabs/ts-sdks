@@ -164,6 +164,32 @@ export function _new(options: NewOptions) {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface NewWithReferrerArguments {
+	registry: RawTransactionArgument<string>;
+	referrer: TransactionArgument;
+}
+export interface NewWithReferrerOptions {
+	package?: string;
+	arguments:
+		| NewWithReferrerArguments
+		| [registry: RawTransactionArgument<string>, referrer: TransactionArgument];
+}
+/**
+ * Creates the sender's canonical account and permanently records the supplied
+ * account as its referrer.
+ */
+export function newWithReferrer(options: NewWithReferrerOptions) {
+	const packageAddress = options.package ?? '@local-pkg/account';
+	const argumentsTypes = [null, null] satisfies (string | null)[];
+	const parameterNames = ['registry', 'referrer'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'account_registry',
+			function: 'new_with_referrer',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
 export interface NewSelfOwnedArguments {
 	registry: RawTransactionArgument<string>;
 	ownerUid: RawTransactionArgument<string>;

@@ -14,6 +14,13 @@ export const TradingPausedUpdated = new MoveStruct({
 		paused: bcs.bool(),
 	},
 });
+export const ProtocolFrozenUpdated = new MoveStruct({
+	name: `${$moduleName}::ProtocolFrozenUpdated`,
+	fields: {
+		protocol_config_id: bcs.Address,
+		frozen: bcs.bool(),
+	},
+});
 export const MarketCreated = new MoveStruct({
 	name: `${$moduleName}::MarketCreated`,
 	fields: {

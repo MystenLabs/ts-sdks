@@ -7,11 +7,11 @@
  *
  * This module owns pool idle DUSDC custody, the durable set of expiries registered
  * to a pool, the active expiry index used for valuation, DUSDC sent from the main
- * pool into each expiry, DUSDC received back from each expiry, lifetime
- * fee-incentive allocations, terminal cash watermarks, and per-expiry cap checks.
- * It does not classify expiry-local liabilities or apply PLP reserve policy;
- * PoolVault uses the aggregate profit basis to price PLP and decide protocol
- * reserve transfers.
+ * pool into each expiry, DUSDC received back from each expiry, snapshotted
+ * lifetime fee-incentive caps and allocations, terminal cash watermarks, and
+ * per-expiry cap checks. It does not classify expiry-local liabilities or apply
+ * PLP reserve policy; PoolVault uses the aggregate profit basis to price PLP and
+ * decide protocol reserve transfers.
  */
 
 import { MoveStruct } from '../utils/index.js';
@@ -66,6 +66,8 @@ export const RegisteredExpiry = new MoveStruct({
 		sent_to_expiry: bcs.u64(),
 		/** DUSDC returned from this expiry to the main pool. */
 		received_from_expiry: bcs.u64(),
+		/** Absolute lifetime fee-incentive cap snapshotted when this expiry was registered. */
+		fee_incentive_lifetime_cap: bcs.u64(),
 		/** Lifetime sponsor-funded fee incentives allocated to this expiry. */
 		fee_incentives_allocated: bcs.u64(),
 		/** True once this expiry has started terminal profit/loss accounting. */

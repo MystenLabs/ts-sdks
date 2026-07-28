@@ -18,6 +18,7 @@ export const AccountCreated = new MoveStruct({
 		wrapper_id: bcs.Address,
 		owner: bcs.Address,
 		self_owned: bcs.bool(),
+		referrer_account_id: bcs.option(bcs.Address),
 	},
 });
 export const AppAuthorized = new MoveStruct({

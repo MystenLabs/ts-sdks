@@ -6,8 +6,9 @@
  * Protocol-wide configuration and flow gates for Predict.
  *
  * This shared object owns the admin-tunable config structs, the trading pause
- * gate, and the transaction-local full-pool valuation lock. Flow modules decide
- * which gates apply before they mutate expiry, oracle, pool, or account state.
+ * gate, the protocol-wide emergency freeze, and the transaction-local full-pool
+ * valuation lock. Flow modules decide which gates apply before they mutate expiry,
+ * oracle, pool, or account state.
  */
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
@@ -45,6 +46,15 @@ export const ProtocolConfig = new MoveStruct({
 		version_watermark: bcs.u64(),
 		/** Blocks new risk creation while true. */
 		trading_paused: bcs.bool(),
+		/**
+		 * Emergency hard stop. While true, `assert_version` aborts, halting every
+		 * version-gated flow (mint, redeem, settlement, valuation, LP supply/withdraw,
+		 * admin config) — the same blast radius as a version-disable, but reversible
+		 * without a package upgrade. Force-on via `PauseCap`; cleared by `AdminCap`.
+		 * Account-package custody withdrawals and builder-fee claims are ungated and stay
+		 * available (already-earned funds).
+		 */
+		frozen: bcs.bool(),
 		/**
 		 * Transaction-local lock held while a full-pool valuation is assembled, so no
 		 * NAV-changing op can interleave between per-market value steps in the PTB.
@@ -92,6 +102,26 @@ export function tradingPaused(options: TradingPausedOptions) {
 			package: packageAddress,
 			module: 'protocol_config',
 			function: 'trading_paused',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface FrozenArguments {
+	config: RawTransactionArgument<string>;
+}
+export interface FrozenOptions {
+	package?: string;
+	arguments: FrozenArguments | [config: RawTransactionArgument<string>];
+}
+/** Return the global protocol-freeze state for SDK and devInspect reads. */
+export function frozen(options: FrozenOptions) {
+	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['config'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'protocol_config',
+			function: 'frozen',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
@@ -644,6 +674,40 @@ export function setTradingPaused(options: SetTradingPausedOptions) {
 			package: packageAddress,
 			module: 'protocol_config',
 			function: 'set_trading_paused',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface SetFrozenArguments {
+	config: RawTransactionArgument<string>;
+	AdminCap: RawTransactionArgument<string>;
+	frozen: RawTransactionArgument<boolean>;
+}
+export interface SetFrozenOptions {
+	package?: string;
+	arguments:
+		| SetFrozenArguments
+		| [
+				config: RawTransactionArgument<string>,
+				AdminCap: RawTransactionArgument<string>,
+				frozen: RawTransactionArgument<boolean>,
+		  ];
+}
+/**
+ * Set the protocol-wide emergency freeze.
+ *
+ * Intentionally NOT version-gated, unlike every other admin setter: the freeze
+ * gate lives inside `assert_version`, so routing this through it would make an
+ * engaged freeze unclearable without a package upgrade — defeating the point.
+ */
+export function setFrozen(options: SetFrozenOptions) {
+	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null, null, 'bool'] satisfies (string | null)[];
+	const parameterNames = ['config', 'AdminCap', 'frozen'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'protocol_config',
+			function: 'set_frozen',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }

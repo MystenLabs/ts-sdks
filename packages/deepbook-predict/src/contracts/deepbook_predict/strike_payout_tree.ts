@@ -11,11 +11,10 @@
  * (`raw_strike = tick * tick_size`); the tree stores no grid geometry.
  *
  * This treap stores finite interval boundaries touched by positions. It tracks
- * each order's quantity and static floor shares, deriving net payout
- * (`quantity -  floor_shares = Q - F`) for settled liability and max single-point
- * payout. Live cash backing is the max-point net payout plus a buffer over the
- * disjoint-book gap; the tree's max-point term is the floor anchor of that
- * enforced reserve.
+ * each order's quantity and its net payout (`Q - F`), converting the packed static
+ * floor once at the write boundary so no aggregate read re-derives it. Live cash
+ * backing is the max-point net payout plus a buffer over the disjoint-book gap;
+ * the tree's max-point term is the floor anchor of that enforced reserve.
  */
 
 import { MoveStruct } from '../utils/index.js';
@@ -31,10 +30,12 @@ export const PayoutTerms = new MoveStruct({
 		 */
 		quantity: bcs.u64(),
 		/**
-		 * Aggregate static floor shares over the prefix. Net payout is derived as
-		 * `quantity - floor_shares` for settled liability and max-point reserve reads.
+		 * Aggregate net payout (`Q - F`) over the prefix — the basis for settled liability
+		 * and max-point reserve reads. Stored rather than derived so a negative aggregate
+		 * net payout is unrepresentable instead of relying on the per-order `F <= Q`
+		 * invariant surviving every summation.
 		 */
-		floor_shares: bcs.u64(),
+		net_payout: bcs.u64(),
 	},
 });
 export const StrikePayoutTree = new MoveStruct({
@@ -49,8 +50,8 @@ export const StrikePayoutTree = new MoveStruct({
 export const PayoutSummary = new MoveStruct({
 	name: `${$moduleName}::PayoutSummary`,
 	fields: {
-		total_start: PayoutTerms,
-		total_end: PayoutTerms,
+		net_start: bcs.u64(),
+		net_end: bcs.u64(),
 		max_net_payout_prefix_gain: bcs.u64(),
 	},
 });

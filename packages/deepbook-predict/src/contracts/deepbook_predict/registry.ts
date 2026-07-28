@@ -317,6 +317,37 @@ export function pauseTradingPauseCap(options: PauseTradingPauseCapOptions) {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface FreezeProtocolPauseCapArguments {
+	config: RawTransactionArgument<string>;
+	registry: RawTransactionArgument<string>;
+	pauseCap: RawTransactionArgument<string>;
+}
+export interface FreezeProtocolPauseCapOptions {
+	package?: string;
+	arguments:
+		| FreezeProtocolPauseCapArguments
+		| [
+				config: RawTransactionArgument<string>,
+				registry: RawTransactionArgument<string>,
+				pauseCap: RawTransactionArgument<string>,
+		  ];
+}
+/**
+ * Force the protocol-wide emergency freeze via a valid `PauseCap`. One-way;
+ * admin's `protocol_config::set_frozen` is needed to lift the freeze.
+ */
+export function freezeProtocolPauseCap(options: FreezeProtocolPauseCapOptions) {
+	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null, null, null] satisfies (string | null)[];
+	const parameterNames = ['config', 'registry', 'pauseCap'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'registry',
+			function: 'freeze_protocol_pause_cap',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
 export interface PauseExpiryMarketMintPauseCapArguments {
 	market: RawTransactionArgument<string>;
 	registry: RawTransactionArgument<string>;

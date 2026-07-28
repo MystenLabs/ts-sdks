@@ -1060,6 +1060,7 @@ export interface MintExactAmountArguments {
 	maxPremium: RawTransactionArgument<number | bigint>;
 	minQuantity: RawTransactionArgument<number | bigint>;
 	leverage: RawTransactionArgument<number | bigint>;
+	maxCost: RawTransactionArgument<number | bigint>;
 	root: RawTransactionArgument<string>;
 }
 export interface MintExactAmountOptions {
@@ -1077,6 +1078,7 @@ export interface MintExactAmountOptions {
 				maxPremium: RawTransactionArgument<number | bigint>,
 				minQuantity: RawTransactionArgument<number | bigint>,
 				leverage: RawTransactionArgument<number | bigint>,
+				maxCost: RawTransactionArgument<number | bigint>,
 				root: RawTransactionArgument<string>,
 		  ];
 }
@@ -1086,10 +1088,14 @@ export interface MintExactAmountOptions {
  * quantity and must meet `min_quantity`.
  *
  * Fees, builder fees, and EWMA congestion penalties are charged on top of
- * `max_premium`. The sizing budget is first capped to the account's available
- * DUSDC after settlement; fees still require additional available DUSDC at payment
- * time. Any unspent premium dust remains in the account because order quantity
- * must be an integer number of `position_lot_size` lots.
+ * `max_premium`, so `max_cost` — not `max_premium` — bounds the all-in DUSDC
+ * withdrawal (`net_premium + trader-paid fee + builder_fee + EWMA penalty`).
+ * `max_cost` is required: unlike `mint_exact_quantity`'s guards there is no value
+ * that disables it, because the budget shape exists to bound spend. The sizing
+ * budget is first capped to the account's available DUSDC after settlement; fees
+ * still require additional available DUSDC at payment time. Any unspent premium
+ * dust remains in the account because order quantity must be an integer number of
+ * `position_lot_size` lots.
  */
 export function mintExactAmount(options: MintExactAmountOptions) {
 	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
@@ -1099,6 +1105,7 @@ export function mintExactAmount(options: MintExactAmountOptions) {
 		null,
 		null,
 		null,
+		'u64',
 		'u64',
 		'u64',
 		'u64',
@@ -1118,6 +1125,7 @@ export function mintExactAmount(options: MintExactAmountOptions) {
 		'maxPremium',
 		'minQuantity',
 		'leverage',
+		'maxCost',
 		'root',
 	];
 	return (tx: Transaction) =>
