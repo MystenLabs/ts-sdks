@@ -400,6 +400,13 @@ export class GraphQLCoreClient extends CoreClient {
 			await options.transaction.prepareForSerialization({ client: this });
 		}
 
+		// Built transaction bytes and transactions with an explicitly set gas payment are fully
+		// resolved, so an empty payment means gas is paid from the sender's address balance rather
+		// than a mocked gas coin. Gas selection is a noop when the payment covers the budget.
+		const doGasSelection =
+			options.transaction instanceof Uint8Array ||
+			options.transaction.getData().gasData.payment != null;
+
 		const result = await this.#graphqlQuery(
 			{
 				query: SimulateTransactionDocument,
@@ -419,6 +426,7 @@ export class GraphQLCoreClient extends CoreClient {
 					includeObjectTypes: options.include?.objectTypes ?? false,
 					includeCommandResults: options.include?.commandResults ?? false,
 					includeBcs: options.include?.bcs ?? false,
+					doGasSelection,
 					checksEnabled: options.checksEnabled ?? true,
 				},
 			},
