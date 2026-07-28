@@ -402,6 +402,19 @@ export function parseTransactionBcs(
 }
 
 /**
+ * Checks whether serialized transaction bytes have a gas payment explicitly set to an empty
+ * list, which indicates gas is paid from the sender's address balance. Returns false for
+ * bytes that can't be parsed as `TransactionData`, leaving validation to the server.
+ */
+export function transactionBytesHaveEmptyGasPayment(bytes: Uint8Array): boolean {
+	try {
+		return bcs.TransactionData.parse(bytes).V1?.gasData.payment?.length === 0;
+	} catch {
+		return false;
+	}
+}
+
+/**
  * Extracts just the status from transaction effects BCS without fully parsing.
  * This is optimized for cases where we only need the status (success/failure)
  * without parsing the entire effects structure.

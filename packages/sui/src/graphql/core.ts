@@ -39,7 +39,11 @@ import {
 import { ObjectError, SimulationError } from '../client/errors.js';
 import { chunk, fromBase64, toBase64 } from '@mysten/utils';
 import { normalizeStructTag, normalizeSuiAddress } from '../utils/sui-types.js';
-import { formatMoveAbortMessage, parseTransactionEffectsBcs } from '../client/utils.js';
+import {
+	formatMoveAbortMessage,
+	parseTransactionEffectsBcs,
+	transactionBytesHaveEmptyGasPayment,
+} from '../client/utils.js';
 import type { OpenMoveTypeSignatureBody, OpenMoveTypeSignature } from './types.js';
 import {
 	transactionDataToGrpcTransaction,
@@ -50,7 +54,6 @@ import { setAddressBalanceTransactionExpirationFromSimulatedEpoch } from '../cli
 import { BalanceChange as BalanceChangeType } from '../grpc/proto/sui/rpc/v2/balance_change.js';
 import { TransactionEffects as TransactionEffectsType } from '../grpc/proto/sui/rpc/v2/effects.js';
 import { Transaction as GrpcTransactionType } from '../grpc/proto/sui/rpc/v2/transaction.js';
-import { bcs } from '../bcs/index.js';
 import { TransactionDataBuilder } from '../transactions/TransactionData.js';
 import type { BuildTransactionOptions } from '../transactions/index.js';
 import {
@@ -407,7 +410,7 @@ export class GraphQLCoreClient extends CoreClient {
 		const doGasSelection =
 			options.doGasSelection ??
 			(options.transaction instanceof Uint8Array
-				? bcs.TransactionData.parse(options.transaction).V1?.gasData.payment?.length === 0
+				? transactionBytesHaveEmptyGasPayment(options.transaction)
 				: options.transaction.getData().gasData.payment?.length === 0);
 
 		const result = await this.#graphqlQuery(

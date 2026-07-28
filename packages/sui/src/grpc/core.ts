@@ -44,6 +44,7 @@ import {
 	grpcTransactionToTransactionData,
 } from '../client/transaction-resolver.js';
 import { setAddressBalanceTransactionExpirationFromSimulatedEpoch } from '../client/address-balance-transaction-expiration.js';
+import { transactionBytesHaveEmptyGasPayment } from '../client/utils.js';
 import { Value } from './proto/google/protobuf/struct.js';
 import { ExecutedTransaction } from './proto/sui/rpc/v2/executed_transaction.js';
 import {
@@ -415,7 +416,7 @@ export class GrpcCoreClient extends CoreClient {
 		const doGasSelection =
 			options.doGasSelection ??
 			(options.transaction instanceof Uint8Array
-				? bcs.TransactionData.parse(options.transaction).V1?.gasData.payment?.length === 0
+				? transactionBytesHaveEmptyGasPayment(options.transaction)
 				: options.transaction.getData().gasData.payment?.length === 0);
 
 		const { response } = await this.#client.transactionExecutionService.simulateTransaction(
