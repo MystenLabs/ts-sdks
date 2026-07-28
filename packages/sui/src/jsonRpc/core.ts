@@ -665,7 +665,7 @@ export class JSONRpcCoreClient extends CoreClient {
 		options: SuiClientTypes.ListTransactionsOptions<Include>,
 	): Promise<SuiClientTypes.ListTransactionsResponse<Include>> {
 		const filter = options.filter
-			? await resolveTransactionFilter(this.mvr, options.filter)
+			? await resolveTransactionFilter(this.mvr, options.filter, options.signal)
 			: undefined;
 
 		// Transaction cursors are digests, and bounds are interpreted relative to the
@@ -719,7 +719,9 @@ export class JSONRpcCoreClient extends CoreClient {
 	async listEvents(
 		options: SuiClientTypes.ListEventsOptions,
 	): Promise<SuiClientTypes.ListEventsResponse> {
-		const filter = options.filter ? await resolveEventFilter(this.mvr, options.filter) : undefined;
+		const filter = options.filter
+			? await resolveEventFilter(this.mvr, options.filter, options.signal)
+			: undefined;
 		// Event cursors are event ids, and bounds are interpreted relative to the
 		// traversal direction
 		const { descending, after, before, limit } = resolvePagination(options);

@@ -148,6 +148,19 @@ describe('gRPC listTransactions pagination', () => {
 		expect(result.endCursor).toBe(cursorB64(7));
 	});
 
+	it('reports a next page when the server clamps the lookahead request to its own limit', async () => {
+		const client = makeClient();
+		// Requested limit 3 (lookahead 4), but the server clamps to its max of 3 and ends the
+		// filled page with ITEM_LIMIT instead of producing the lookahead item
+		mockListTransactions(client, [txFrame(1), txFrame(2), txFrame(3, QueryEndReason.ITEM_LIMIT)]);
+
+		const result = await client.core.listTransactions({ limit: 3 });
+
+		expect(result.transactions).toHaveLength(3);
+		expect(result.hasNextPage).toBe(true);
+		expect(result.endCursor).toBe(cursorB64(3));
+	});
+
 	it('returns null cursors for empty terminal pages', async () => {
 		const client = makeClient();
 		mockListTransactions(client, [txEndFrame(9, QueryEndReason.LEDGER_TIP)]);
@@ -187,6 +200,17 @@ describe('gRPC listEvents pagination', () => {
 
 		expect(result.events).toHaveLength(2);
 		expect(result.hasNextPage).toBe(false);
+		expect(result.endCursor).toBe(cursorB64(2));
+	});
+
+	it('reports a next page when the server clamps the lookahead request to its own limit', async () => {
+		const client = makeClient();
+		mockListEvents(client, [eventFrame(1), eventFrame(2, QueryEndReason.ITEM_LIMIT)]);
+
+		const result = await client.core.listEvents({ limit: 2 });
+
+		expect(result.events).toHaveLength(2);
+		expect(result.hasNextPage).toBe(true);
 		expect(result.endCursor).toBe(cursorB64(2));
 	});
 

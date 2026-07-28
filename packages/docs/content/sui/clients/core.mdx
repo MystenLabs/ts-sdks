@@ -462,8 +462,11 @@ const finalResult = await client.core.waitForTransaction({
 
 ## Query methods
 
-Query methods return pages of transactions or events. They behave identically on every transport,
-and share a common set of options:
+Query methods return pages of transactions or events. They expose the same filters, pagination, and
+results on every transport, and share a common set of options. A few transport-specific caveats
+(page-size caps, gRPC scan-limited pages, generic event types and missing event checkpoints on the
+deprecated JSON-RPC transport, and GraphQL's per-transaction event limit) are documented on the
+corresponding option and response types in `SuiClientTypes`.
 
 | Option   | Type                               | Description                                           |
 | -------- | ---------------------------------- | ----------------------------------------------------- |

@@ -621,7 +621,7 @@ export class GraphQLCoreClient extends CoreClient {
 		const pagination = resolvePagination(options);
 		const { descending, after, before, limit } = pagination;
 		const filter = options.filter
-			? await resolveTransactionFilter(this.mvr, options.filter)
+			? await resolveTransactionFilter(this.mvr, options.filter, options.signal)
 			: undefined;
 		validateTransactionQuery(filter, pagination);
 
@@ -671,7 +671,9 @@ export class GraphQLCoreClient extends CoreClient {
 		options: SuiClientTypes.ListEventsOptions,
 	): Promise<SuiClientTypes.ListEventsResponse> {
 		const { descending, after, before, limit } = resolvePagination(options);
-		const filter = options.filter ? await resolveEventFilter(this.mvr, options.filter) : undefined;
+		const filter = options.filter
+			? await resolveEventFilter(this.mvr, options.filter, options.signal)
+			: undefined;
 
 		const events = await this.#graphqlQuery(
 			{

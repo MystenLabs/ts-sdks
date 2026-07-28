@@ -594,7 +594,7 @@ export class GrpcCoreClient extends CoreClient {
 		const paths = transactionReadMaskPaths(options.include);
 
 		const filter = options.filter
-			? await resolveTransactionFilter(this.mvr, options.filter)
+			? await resolveTransactionFilter(this.mvr, options.filter, options.signal)
 			: undefined;
 		const pagination = resolvePagination(options);
 		validateTransactionQuery(filter, pagination);
@@ -638,7 +638,12 @@ export class GrpcCoreClient extends CoreClient {
 			}
 		}
 
-		const hasNextPage = sawLookaheadItem || end?.reason === QueryEndReason.SCAN_LIMIT;
+		// ITEM_LIMIT without the lookahead item means the server clamped the requested limit to
+		// its own maximum, so the filled page is still evidence of a possible next page
+		const hasNextPage =
+			sawLookaheadItem ||
+			end?.reason === QueryEndReason.SCAN_LIMIT ||
+			end?.reason === QueryEndReason.ITEM_LIMIT;
 
 		return {
 			transactions,
@@ -671,7 +676,7 @@ export class GrpcCoreClient extends CoreClient {
 					],
 				},
 				filter: options.filter
-					? toGrpcEventFilter(await resolveEventFilter(this.mvr, options.filter))
+					? toGrpcEventFilter(await resolveEventFilter(this.mvr, options.filter, options.signal))
 					: undefined,
 				// Request one extra item as lookahead: the server reports its item limit as reached
 				// without scanning past it, so an exact-limit final page is otherwise
@@ -717,7 +722,12 @@ export class GrpcCoreClient extends CoreClient {
 			}
 		}
 
-		const hasNextPage = sawLookaheadItem || end?.reason === QueryEndReason.SCAN_LIMIT;
+		// ITEM_LIMIT without the lookahead item means the server clamped the requested limit to
+		// its own maximum, so the filled page is still evidence of a possible next page
+		const hasNextPage =
+			sawLookaheadItem ||
+			end?.reason === QueryEndReason.SCAN_LIMIT ||
+			end?.reason === QueryEndReason.ITEM_LIMIT;
 
 		return {
 			events,

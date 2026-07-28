@@ -12,6 +12,30 @@ import {
 import type { SuiClientTypes } from '../../../src/client/types.js';
 import { toGrpcEventFilter, toGrpcTransactionFilter } from '../../../src/grpc/filters.js';
 
+describe('filter resolution abort signals', () => {
+	it('forwards the abort signal to MVR resolution', async () => {
+		const signals: (AbortSignal | undefined)[] = [];
+		const recordingMvr: SuiClientTypes.MvrMethods = {
+			resolvePackage: async ({ package: pkg, signal }) => {
+				signals.push(signal);
+				return { package: pkg };
+			},
+			resolveType: async ({ type, signal }) => {
+				signals.push(signal);
+				return { type };
+			},
+			resolve: async () => ({ packages: {}, types: {} }),
+		};
+
+		const { signal } = new AbortController();
+		await resolveTransactionFilter(recordingMvr, { function: '0x2::coin::transfer' }, signal);
+		await resolveEventFilter(recordingMvr, { emitModule: '0x2::coin' }, signal);
+		await resolveEventFilter(recordingMvr, { eventType: '0x2::coin::CoinCreated' }, signal);
+
+		expect(signals).toEqual([signal, signal, signal]);
+	});
+});
+
 const mvr: SuiClientTypes.MvrMethods = {
 	resolvePackage: async ({ package: pkg }) => ({
 		package: pkg === '@mysten/demo' ? '0x123' : pkg,

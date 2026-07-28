@@ -94,6 +94,7 @@ export type ResolvedEventFilter =
 export async function resolveTransactionFilter(
 	mvr: SuiClientTypes.MvrMethods,
 	filter: SuiClientTypes.TransactionFilter,
+	signal?: AbortSignal,
 ): Promise<ResolvedTransactionFilter> {
 	assertSinglePredicate(filter, ['sender', 'function'], 'transaction');
 
@@ -111,7 +112,7 @@ export async function resolveTransactionFilter(
 
 	return {
 		$kind: 'function',
-		package: normalizeSuiAddress((await mvr.resolvePackage({ package: pkg })).package),
+		package: normalizeSuiAddress((await mvr.resolvePackage({ package: pkg, signal })).package),
 		module,
 		function: fn,
 	};
@@ -128,6 +129,7 @@ export async function resolveTransactionFilter(
 export async function resolveEventFilter(
 	mvr: SuiClientTypes.MvrMethods,
 	filter: SuiClientTypes.EventFilter,
+	signal?: AbortSignal,
 ): Promise<ResolvedEventFilter> {
 	assertSinglePredicate(filter, ['sender', 'emitModule', 'eventType'], 'event');
 
@@ -146,7 +148,7 @@ export async function resolveEventFilter(
 
 		return {
 			$kind: 'emitModule',
-			package: normalizeSuiAddress((await mvr.resolvePackage({ package: pkg })).package),
+			package: normalizeSuiAddress((await mvr.resolvePackage({ package: pkg, signal })).package),
 			module,
 		};
 	}
@@ -157,7 +159,9 @@ export async function resolveEventFilter(
 	if (segments.length === 2 && segments.every((segment) => segment !== '')) {
 		return {
 			$kind: 'eventTypeModule',
-			package: normalizeSuiAddress((await mvr.resolvePackage({ package: segments[0] })).package),
+			package: normalizeSuiAddress(
+				(await mvr.resolvePackage({ package: segments[0], signal })).package,
+			),
 			module: segments[1],
 		};
 	}
@@ -170,7 +174,7 @@ export async function resolveEventFilter(
 
 	return {
 		$kind: 'eventType',
-		eventType: (await mvr.resolveType({ type: eventType })).type,
+		eventType: (await mvr.resolveType({ type: eventType, signal })).type,
 	};
 }
 
