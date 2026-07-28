@@ -291,6 +291,12 @@ export class SuinsClient {
 	}
 
 	async getPriceInfoObject(tx: Transaction, feed: string, feeCoin?: TransactionObjectArgument) {
+		if (!this.pythAccessToken) {
+			throw new Error(
+				'A `pythAccessToken` is required to fetch Pyth price updates from the keyed Pro Hermes endpoint.',
+			);
+		}
+
 		const endpoint = 'https://pyth.dourolabs.app/hermes';
 		const connection = new SuiPriceServiceConnection(endpoint, {
 			accessToken: this.pythAccessToken,
