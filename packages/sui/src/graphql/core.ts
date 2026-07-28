@@ -394,7 +394,7 @@ export class GraphQLCoreClient extends CoreClient {
 		return parseTransaction(result.effects?.transaction!, options.include);
 	}
 	async simulateTransaction<Include extends SuiClientTypes.SimulateTransactionInclude = {}>(
-		options: SuiClientTypes.SimulateTransactionOptions<Include>,
+		options: SuiClientTypes.SimulateTransactionOptions<Include> & { doGasSelection?: boolean },
 	): Promise<SuiClientTypes.SimulateTransactionResult<Include>> {
 		if (!(options.transaction instanceof Uint8Array)) {
 			await options.transaction.prepareForSerialization({ client: this });
@@ -404,8 +404,9 @@ export class GraphQLCoreClient extends CoreClient {
 		// resolved, so an empty payment means gas is paid from the sender's address balance rather
 		// than a mocked gas coin. Gas selection is a noop when the payment covers the budget.
 		const doGasSelection =
-			options.transaction instanceof Uint8Array ||
-			options.transaction.getData().gasData.payment != null;
+			options.doGasSelection ??
+			(options.transaction instanceof Uint8Array ||
+				options.transaction.getData().gasData.payment != null);
 
 		const result = await this.#graphqlQuery(
 			{

@@ -70,6 +70,20 @@ export function isSuiGraphQLClient(client: unknown): client is SuiGraphQLClient 
 	);
 }
 
+export interface GraphQLSimulateTransactionOptions<
+	Include extends SuiClientTypes.SimulateTransactionInclude = {},
+> extends SuiClientTypes.SimulateTransactionOptions<Include> {
+	/**
+	 * Overrides whether the server selects gas payment during simulation.
+	 *
+	 * When not set, gas selection is enabled for built transaction bytes and for transactions with
+	 * an explicitly set gas payment, so transactions with an empty gas payment (`[]`) are simulated
+	 * using the sender's address balance. Transactions without a gas payment are simulated with a
+	 * mocked gas coin.
+	 */
+	doGasSelection?: boolean;
+}
+
 export interface DynamicFieldInclude {
 	value?: boolean;
 }
@@ -230,7 +244,7 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 	}
 
 	simulateTransaction<Include extends SuiClientTypes.SimulateTransactionInclude = {}>(
-		input: SuiClientTypes.SimulateTransactionOptions<Include>,
+		input: GraphQLSimulateTransactionOptions<Include>,
 	): Promise<SuiClientTypes.SimulateTransactionResult<Include>> {
 		return this.core.simulateTransaction(input);
 	}

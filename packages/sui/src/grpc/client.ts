@@ -127,6 +127,15 @@ export interface GrpcSimulateTransactionOptions<
 	Include extends GrpcSimulateTransactionInclude = {},
 > extends SuiClientTypes.SimulateTransactionOptions<Include> {
 	include?: Include & GrpcSimulateTransactionInclude;
+	/**
+	 * Overrides whether the server selects gas payment during simulation.
+	 *
+	 * When not set, gas selection is enabled for built transaction bytes and for transactions with
+	 * an explicitly set gas payment, so transactions with an empty gas payment (`[]`) are simulated
+	 * using the sender's address balance. Transactions without a gas payment are simulated with a
+	 * mocked gas coin.
+	 */
+	doGasSelection?: boolean;
 }
 
 export class SuiGrpcClient extends BaseClient implements SuiClientTypes.TransportMethods {
