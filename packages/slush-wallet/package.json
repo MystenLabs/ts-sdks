@@ -49,7 +49,7 @@
 		"@mysten/utils": "workspace:^",
 		"@mysten/wallet-standard": "workspace:^",
 		"@mysten/window-wallet-core": "workspace:^",
-		"valibot": "^1.4.1"
+		"valibot": "^1.4.2"
 	},
 	"peerDependencies": {
 		"@mysten/sui": "workspace:^"

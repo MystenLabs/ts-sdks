@@ -49,9 +49,9 @@
 		"vitest": "vitest"
 	},
 	"devDependencies": {
-		"@hono/node-server": "^2.0.4",
+		"@hono/node-server": "^2.0.12",
 		"@types/node": "^25.9.3",
-		"hono": ">=4.12.18",
+		"hono": "^4.12.32",
 		"typescript": "^6.0.3",
 		"vitest": "^4.1.8"
 	},

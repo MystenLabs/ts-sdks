@@ -62,7 +62,7 @@
 		"esbuild": "^0.28.1",
 		"happy-dom": "^20.10.3",
 		"jsdom": "^29.1.1",
-		"postcss": ">=8.5.10",
+		"postcss": "^8.5.23",
 		"postcss-prefix-selector": "^2.1.1",
 		"react-dom": "^19.2.7",
 		"typescript": "^6.0.3",

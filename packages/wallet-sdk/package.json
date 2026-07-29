@@ -52,7 +52,7 @@
 	"dependencies": {
 		"@mysten/bcs": "workspace:^",
 		"@mysten/wallet-standard": "workspace:^",
-		"valibot": "^1.4.1"
+		"valibot": "^1.4.2"
 	},
 	"peerDependencies": {
 		"@mysten/sui": "workspace:^"
