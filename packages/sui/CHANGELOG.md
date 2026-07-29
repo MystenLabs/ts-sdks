@@ -1,5 +1,12 @@
 # @mysten/sui.js
 
+## 2.23.1
+
+### Patch Changes
+
+- 8c4b149: Update dependencies to versions that resolve security advisories: hono,
+  @hono/node-server, next, postcss, and valibot
+
 ## 2.23.0
 
 ### Minor Changes

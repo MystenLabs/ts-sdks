@@ -1,5 +1,12 @@
 # @mysten/window-wallet-core
 
+## 0.2.1
+
+### Patch Changes
+
+- 8c4b149: Update dependencies to versions that resolve security advisories: hono,
+  @hono/node-server, next, postcss, and valibot
+
 ## 0.2.0
 
 ### Minor Changes

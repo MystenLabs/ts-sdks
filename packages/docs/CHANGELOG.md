@@ -1,5 +1,33 @@
 # @mysten/docs
 
+## 0.1.43
+
+### Patch Changes
+
+- 8c4b149: Update dependencies to versions that resolve security advisories: hono,
+  @hono/node-server, next, postcss, and valibot
+- Updated dependencies [8c4b149]
+  - @mysten/dapp-kit@1.1.12
+  - @mysten/slush-wallet@1.1.12
+  - @mysten/sui@2.23.1
+  - @mysten/walrus@1.2.12
+  - @mysten/zksend@1.2.12
+  - @mysten/dapp-kit-core@1.6.12
+  - @mysten/deepbook-v3@1.6.2
+  - @mysten/enoki@1.2.10
+  - @mysten/enoki-connect@1.1.12
+  - @mysten/kiosk@1.3.12
+  - @mysten/payment-kit@0.2.12
+  - @mysten/seal@1.3.7
+  - @mysten/signers@1.1.12
+  - @mysten/aws-kms-signer@0.3.9
+  - @mysten/gcp-kms-signer@0.2.12
+  - @mysten/ledger-signer@0.2.12
+  - @mysten/webcrypto-signer@0.2.12
+  - @mysten/suins@1.2.12
+  - @mysten/wallet-standard@0.21.12
+  - @mysten/dapp-kit-react@2.1.14
+
 ## 0.1.42
 
 ### Patch Changes

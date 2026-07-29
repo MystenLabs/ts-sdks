@@ -1,5 +1,12 @@
 # @mysten/slush-wallet
 
+## 1.1.12
+
+### Patch Changes
+
+- 8c4b149: Update dependencies to versions that resolve security advisories: hono,
+  @hono/node-server, next, postcss, and valibot
+
 ## 1.1.11
 
 ## 1.1.10
