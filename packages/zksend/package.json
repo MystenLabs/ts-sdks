@@ -52,7 +52,7 @@
 		"@mysten/window-wallet-core": "workspace:^",
 		"mitt": "^3.0.1",
 		"nanostores": "^1.3.0",
-		"valibot": "^1.4.1"
+		"valibot": "^1.4.2"
 	},
 	"peerDependencies": {
 		"@mysten/sui": "workspace:^"
