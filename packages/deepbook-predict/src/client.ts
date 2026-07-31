@@ -83,11 +83,14 @@ export interface MintOptions {
 	maxProbability?: number;
 }
 
-/** Options for `mintAmount` (spend an exact amount, floor the quantity received). */
+/** Options for `mintAmount` (spend up to a premium budget, floor the quantity received). */
 export interface MintAmountOptions {
+	/** Premium budget in quote units — the max premium paid (chain also caps it at the account balance). */
 	spend: number;
 	minQuantity: number;
 	leverage?: number;
+	/** All-in cost ceiling in quote units (premium + fees). Omitted → uncapped. */
+	maxCost?: number;
 }
 
 /** Options for `redeem` / `claimSettled`: which order and how much to close. */
@@ -198,15 +201,14 @@ export class PredictClient {
 		return deriveAccountWrapperId(this.cfg, owner);
 	}
 
-	// The four oracle feed ids for a symbol; throws a typed error on an unknown symbol.
+	// The oracle feed ids for a symbol; throws a typed error on an unknown symbol.
 	private feeds(underlying: string): MarketFeeds {
 		const u = this.cfg.underlyings[underlying];
 		if (!u) throw new PredictInputError(`unknown underlying: ${underlying}`);
 		return {
-			pythFeedId: u.pythFeedId,
-			bsSpotFeedId: u.bsSpotFeedId,
-			bsForwardFeedId: u.bsForwardFeedId,
-			bsSviFeedId: u.bsSviFeedId,
+			pythFeed: u.pythFeed,
+			blockScholesValueStore: u.blockScholesValueStore,
+			blockScholesSviStore: u.blockScholesSviStore,
 		};
 	}
 
@@ -404,9 +406,10 @@ export class PredictClient {
 				wrapperId: this.wrapperIdFor(owner),
 				lowerTick,
 				higherTick,
-				amountRaw: usdcToRaw(opts.spend),
+				maxPremiumRaw: usdcToRaw(opts.spend),
 				minQuantityRaw,
 				leverageRaw: leverageToRaw(opts.leverage ?? 1),
+				maxCostRaw: opts.maxCost != null ? usdcToRaw(opts.maxCost) : undefined,
 				...feeds,
 			});
 			return tx;
@@ -417,10 +420,9 @@ export class PredictClient {
 
 		claimSettled: async (
 			owner: string,
-			m: MarketDescriptor,
+			m: Pick<MarketDescriptor, 'underlying' | 'expiryMs'>,
 			opts: CloseOptions,
 		): Promise<Transaction> => {
-			const feeds = this.feeds(m.underlying);
 			const { id } = await this.resolveMarket(m);
 			const closeQuantityRaw = usdcToRaw(opts.quantity);
 			this.assertLot(closeQuantityRaw);
@@ -430,7 +432,6 @@ export class PredictClient {
 				wrapperId: this.wrapperIdFor(owner),
 				orderId: opts.orderId,
 				closeQuantityRaw,
-				pythFeedId: feeds.pythFeedId,
 			});
 			return tx;
 		},
@@ -524,7 +525,14 @@ export class PredictClient {
 			const feeds = this.feeds(m.underlying);
 			const { id, state } = await this.resolveMarket(m);
 			const strikeRaw = await this.strikeRawFor(m, id, state);
-			const { upRaw, downRaw } = await rangePrices(this.client, this.cfg, id, feeds, strikeRaw);
+			const { upRaw, downRaw } = await rangePrices(
+				this.client,
+				this.cfg,
+				id,
+				feeds,
+				strikeRaw,
+				state.tickSizeRaw,
+			);
 			return { up: rawToProbability(upRaw), down: rawToProbability(downRaw) };
 		},
 

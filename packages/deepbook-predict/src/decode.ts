@@ -1,6 +1,9 @@
-import { bcs } from '@mysten/sui/bcs';
 import { fromBase64, normalizeSuiAddress } from '@mysten/sui/utils';
 import type { PredictConfig } from './config/index.js';
+import * as accountEvents from './contracts/account/account_events.js';
+import * as builderCodeEvents from './contracts/deepbook_predict/builder_code_events.js';
+import * as orderEvents from './contracts/deepbook_predict/order_events.js';
+import * as vaultEvents from './contracts/deepbook_predict/vault_events.js';
 import { PredictInputError } from './errors.js';
 import { fromRaw } from './units.js';
 
@@ -14,10 +17,9 @@ import { fromRaw } from './units.js';
 //
 // Decoding uses each event's BCS bytes, not its `json`: the client typings
 // warn the JSON rendering varies across transports (JSON-RPC/gRPC/GraphQL),
-// while BCS is canonical. Layouts below mirror the DEPLOYED event structs
-// verbatim (git show ec99cfae: packages/predict/sources/events/*.move and
-// packages/account/sources/account_events.move) — field ORDER is load-bearing.
-// Regenerate alongside the abort tables if the deployed package changes.
+// while BCS is canonical. Layouts come from the GENERATED event MoveStructs
+// (src/contracts/{deepbook_predict,account}/*_events.ts), whose field order
+// mirrors the deployed Move — regenerate the bindings if the package changes.
 // ============================================================================
 
 /** The slice of an executed/simulated transaction result the decoders need. */
@@ -34,101 +36,6 @@ export interface DecodableEvent {
 export interface DecodableTransactionResult {
 	events?: readonly DecodableEvent[] | null;
 }
-
-// --- BCS layouts (verbatim deployed field order) ---------------------------
-
-const OrderMintedBcs = bcs.struct('OrderMinted', {
-	expiry_market_id: bcs.Address,
-	account_id: bcs.Address,
-	order_id: bcs.u256(),
-	position_root_id: bcs.u256(),
-	owner: bcs.Address,
-	lower_tick: bcs.u64(),
-	higher_tick: bcs.u64(),
-	leverage: bcs.u64(),
-	entry_probability: bcs.u64(),
-	quantity: bcs.u64(),
-	net_premium: bcs.u64(),
-	trading_fee: bcs.u64(),
-	fee_incentive_subsidy: bcs.u64(),
-	builder_fee: bcs.u64(),
-	penalty_fee: bcs.u64(),
-	builder_code_id: bcs.option(bcs.Address),
-});
-
-const LiveOrderRedeemedBcs = bcs.struct('LiveOrderRedeemed', {
-	expiry_market_id: bcs.Address,
-	account_id: bcs.Address,
-	order_id: bcs.u256(),
-	position_root_id: bcs.u256(),
-	owner: bcs.Address,
-	quantity_closed: bcs.u64(),
-	remaining_quantity: bcs.u64(),
-	replacement_order_id: bcs.option(bcs.u256()),
-	redeem_amount: bcs.u64(),
-	trading_fee: bcs.u64(),
-	builder_fee: bcs.u64(),
-	penalty_fee: bcs.u64(),
-	builder_code_id: bcs.option(bcs.Address),
-});
-
-const LiquidatedOrderRedeemedBcs = bcs.struct('LiquidatedOrderRedeemed', {
-	expiry_market_id: bcs.Address,
-	account_id: bcs.Address,
-	order_id: bcs.u256(),
-	position_root_id: bcs.u256(),
-	owner: bcs.Address,
-	quantity_closed: bcs.u64(),
-});
-
-const SettledOrderRedeemedBcs = bcs.struct('SettledOrderRedeemed', {
-	expiry_market_id: bcs.Address,
-	account_id: bcs.Address,
-	order_id: bcs.u256(),
-	position_root_id: bcs.u256(),
-	owner: bcs.Address,
-	quantity_closed: bcs.u64(),
-	settlement_price: bcs.u64(),
-	payout_amount: bcs.u64(),
-});
-
-const SupplyRequestedBcs = bcs.struct('SupplyRequested', {
-	pool_vault_id: bcs.Address,
-	account_id: bcs.Address,
-	recipient: bcs.Address,
-	index: bcs.u64(),
-	amount: bcs.u64(),
-});
-const WithdrawRequestedBcs = SupplyRequestedBcs; // identical layout, different name
-
-const RequestCancelledBcs = bcs.struct('RequestCancelled', {
-	pool_vault_id: bcs.Address,
-	account_id: bcs.Address,
-	recipient: bcs.Address,
-	index: bcs.u64(),
-	amount: bcs.u64(),
-	is_supply: bcs.bool(),
-});
-
-const AccountCreatedBcs = bcs.struct('AccountCreated', {
-	account_id: bcs.Address,
-	wrapper_id: bcs.Address,
-	owner: bcs.Address,
-	self_owned: bcs.bool(),
-});
-
-const BalanceChangedBcs = bcs.struct('BalanceChanged', {
-	account_id: bcs.Address,
-	coin_type: bcs.string(),
-	amount: bcs.u64(),
-	new_balance: bcs.u64(),
-}); // shared layout of Deposited / Withdrawn
-
-const BuilderCodeSetBcs = bcs.struct('BuilderCodeSet', {
-	account_id: bcs.Address,
-	owner: bcs.Address,
-	builder_code_id: bcs.option(bcs.Address),
-});
 
 // --- matching + plumbing ----------------------------------------------------
 
@@ -316,38 +223,42 @@ export interface BuilderCodeReceipt {
 // --- decoders (plural = all matching events, in event order) ----------------
 
 export function decodeMints(cfg: PredictConfig, result: DecodableTransactionResult): MintReceipt[] {
-	return decodeAll(result, cfg.packages.predict, 'order_events', 'OrderMinted', OrderMintedBcs).map(
-		(e) => ({
-			marketId: normalizeSuiAddress(e.expiry_market_id),
-			accountId: normalizeSuiAddress(e.account_id),
-			owner: normalizeSuiAddress(e.owner),
-			orderId: BigInt(e.order_id),
-			positionRootId: BigInt(e.position_root_id),
-			lowerTick: BigInt(e.lower_tick),
-			higherTick: BigInt(e.higher_tick),
-			leverage: fromRaw(BigInt(e.leverage), 9),
-			entryProbability: fromRaw(BigInt(e.entry_probability), 9),
-			quantity: fromRaw(BigInt(e.quantity), 6),
-			netPremium: fromRaw(BigInt(e.net_premium), 6),
-			fees: {
-				trading: fromRaw(BigInt(e.trading_fee), 6),
-				subsidy: fromRaw(BigInt(e.fee_incentive_subsidy), 6),
-				builder: fromRaw(BigInt(e.builder_fee), 6),
-				penalty: fromRaw(BigInt(e.penalty_fee), 6),
-			},
-			builderCodeId: optId(e.builder_code_id),
-			raw: {
-				quantity: BigInt(e.quantity),
-				netPremium: BigInt(e.net_premium),
-				tradingFee: BigInt(e.trading_fee),
-				feeIncentiveSubsidy: BigInt(e.fee_incentive_subsidy),
-				builderFee: BigInt(e.builder_fee),
-				penaltyFee: BigInt(e.penalty_fee),
-				leverage: BigInt(e.leverage),
-				entryProbability: BigInt(e.entry_probability),
-			},
-		}),
-	);
+	return decodeAll(
+		result,
+		cfg.packages.predict,
+		'order_events',
+		'OrderMinted',
+		orderEvents.OrderMinted,
+	).map((e) => ({
+		marketId: normalizeSuiAddress(e.expiry_market_id),
+		accountId: normalizeSuiAddress(e.account_id),
+		owner: normalizeSuiAddress(e.owner),
+		orderId: BigInt(e.order_id),
+		positionRootId: BigInt(e.position_root_id),
+		lowerTick: BigInt(e.lower_tick),
+		higherTick: BigInt(e.higher_tick),
+		leverage: fromRaw(BigInt(e.leverage), 9),
+		entryProbability: fromRaw(BigInt(e.entry_probability), 9),
+		quantity: fromRaw(BigInt(e.quantity), 6),
+		netPremium: fromRaw(BigInt(e.net_premium), 6),
+		fees: {
+			trading: fromRaw(BigInt(e.trading_fee), 6),
+			subsidy: fromRaw(BigInt(e.fee_incentive_subsidy), 6),
+			builder: fromRaw(BigInt(e.builder_fee), 6),
+			penalty: fromRaw(BigInt(e.penalty_fee), 6),
+		},
+		builderCodeId: optId(e.builder_code_id),
+		raw: {
+			quantity: BigInt(e.quantity),
+			netPremium: BigInt(e.net_premium),
+			tradingFee: BigInt(e.trading_fee),
+			feeIncentiveSubsidy: BigInt(e.fee_incentive_subsidy),
+			builderFee: BigInt(e.builder_fee),
+			penaltyFee: BigInt(e.penalty_fee),
+			leverage: BigInt(e.leverage),
+			entryProbability: BigInt(e.entry_probability),
+		},
+	}));
 }
 
 export function decodeRedeems(
@@ -360,7 +271,7 @@ export function decodeRedeems(
 		pkg,
 		'order_events',
 		'LiveOrderRedeemed',
-		LiveOrderRedeemedBcs,
+		orderEvents.LiveOrderRedeemed,
 	).map(
 		(e): RedeemReceipt => ({
 			marketId: normalizeSuiAddress(e.expiry_market_id),
@@ -408,7 +319,7 @@ export function decodeRedeems(
 		pkg,
 		'order_events',
 		'LiquidatedOrderRedeemed',
-		LiquidatedOrderRedeemedBcs,
+		orderEvents.LiquidatedOrderRedeemed,
 	).map(
 		(e): RedeemReceipt => ({
 			marketId: normalizeSuiAddress(e.expiry_market_id),
@@ -447,7 +358,7 @@ export function decodeClaims(
 		cfg.packages.predict,
 		'order_events',
 		'SettledOrderRedeemed',
-		SettledOrderRedeemedBcs,
+		orderEvents.SettledOrderRedeemed,
 	).map((e) => ({
 		marketId: normalizeSuiAddress(e.expiry_market_id),
 		accountId: normalizeSuiAddress(e.account_id),
@@ -474,7 +385,7 @@ export function decodeAccountsCreated(
 		cfg.packages.account,
 		'account_events',
 		'AccountCreated',
-		AccountCreatedBcs,
+		accountEvents.AccountCreated,
 	).map((e) => ({
 		accountId: normalizeSuiAddress(e.account_id),
 		wrapperId: normalizeSuiAddress(e.wrapper_id),
@@ -488,15 +399,14 @@ function decodeBalanceChanges(
 	result: DecodableTransactionResult,
 	name: 'Deposited' | 'Withdrawn',
 ): BalanceChangeReceipt[] {
-	return decodeAll(result, cfg.packages.account, 'account_events', name, BalanceChangedBcs).map(
-		(e) => ({
-			accountId: normalizeSuiAddress(e.account_id),
-			coinType: e.coin_type,
-			amount: fromRaw(BigInt(e.amount), 6),
-			newBalance: fromRaw(BigInt(e.new_balance), 6),
-			raw: { amount: BigInt(e.amount), newBalance: BigInt(e.new_balance) },
-		}),
-	);
+	const layout = name === 'Deposited' ? accountEvents.Deposited : accountEvents.Withdrawn;
+	return decodeAll(result, cfg.packages.account, 'account_events', name, layout).map((e) => ({
+		accountId: normalizeSuiAddress(e.account_id),
+		coinType: e.coin_type,
+		amount: fromRaw(BigInt(e.amount), 6),
+		newBalance: fromRaw(BigInt(e.new_balance), 6),
+		raw: { amount: BigInt(e.amount), newBalance: BigInt(e.new_balance) },
+	}));
 }
 
 export const decodeDeposits = (
@@ -514,9 +424,15 @@ export function decodePlpRequests(
 	result: DecodableTransactionResult,
 ): PlpRequestReceipt[] {
 	const pkg = cfg.packages.predict;
+	// Supply/WithdrawRequested differ only in their min-out field (unused here);
+	// pick the fields both share so either generated struct's parse feeds `make`.
+	type RequestedCommon = Pick<
+		(typeof vaultEvents.SupplyRequested)['$inferType'],
+		'pool_vault_id' | 'account_id' | 'recipient' | 'index' | 'amount'
+	>;
 	const make =
 		(kind: 'supply' | 'withdraw') =>
-		(e: (typeof SupplyRequestedBcs)['$inferType']): PlpRequestReceipt => ({
+		(e: RequestedCommon): PlpRequestReceipt => ({
 			kind,
 			vaultId: normalizeSuiAddress(e.pool_vault_id),
 			accountId: normalizeSuiAddress(e.account_id),
@@ -526,12 +442,16 @@ export function decodePlpRequests(
 			raw: { amount: BigInt(e.amount) },
 		});
 	return [
-		...decodeAll(result, pkg, 'vault_events', 'SupplyRequested', SupplyRequestedBcs).map(
+		...decodeAll(result, pkg, 'vault_events', 'SupplyRequested', vaultEvents.SupplyRequested).map(
 			make('supply'),
 		),
-		...decodeAll(result, pkg, 'vault_events', 'WithdrawRequested', WithdrawRequestedBcs).map(
-			make('withdraw'),
-		),
+		...decodeAll(
+			result,
+			pkg,
+			'vault_events',
+			'WithdrawRequested',
+			vaultEvents.WithdrawRequested,
+		).map(make('withdraw')),
 	];
 }
 
@@ -544,7 +464,7 @@ export function decodePlpCancels(
 		cfg.packages.predict,
 		'vault_events',
 		'RequestCancelled',
-		RequestCancelledBcs,
+		vaultEvents.RequestCancelled,
 	).map((e) => ({
 		vaultId: normalizeSuiAddress(e.pool_vault_id),
 		accountId: normalizeSuiAddress(e.account_id),
@@ -565,7 +485,7 @@ export function decodeBuilderCodeSets(
 		cfg.packages.predict,
 		'builder_code_events',
 		'BuilderCodeSet',
-		BuilderCodeSetBcs,
+		builderCodeEvents.BuilderCodeSet,
 	).map((e) => ({
 		accountId: normalizeSuiAddress(e.account_id),
 		owner: normalizeSuiAddress(e.owner),

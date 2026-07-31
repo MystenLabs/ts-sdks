@@ -1,13 +1,6 @@
 import { expect, test } from 'vitest';
 
-import {
-	ACCUMULATOR_ROOT_ID,
-	CLOCK_ID,
-	TESTNET_CONFIG,
-	accountTarget,
-	getConfig,
-	predictTarget,
-} from '../src/config/index.js';
+import { ACCUMULATOR_ROOT_ID, TESTNET_CONFIG, getConfig } from '../src/config/index.js';
 
 const ID_RE = /^0x[0-9a-f]{1,64}$/;
 
@@ -31,22 +24,9 @@ test('BTC underlying is present and well-formed', () => {
 	const btc = TESTNET_CONFIG.underlyings.BTC;
 	expect(btc.symbol).toBe('BTC');
 	expect(Number.isInteger(btc.propbookUnderlyingId)).toBe(true);
-	expect(btc.pythFeedId).toMatch(ID_RE);
-	expect(btc.bsSpotFeedId).toMatch(ID_RE);
-	expect(btc.bsForwardFeedId).toMatch(ID_RE);
-	expect(btc.bsSviFeedId).toMatch(ID_RE);
-});
-
-test('predictTarget concatenates from the predict package', () => {
-	expect(predictTarget(TESTNET_CONFIG, 'plp', 'request_supply')).toBe(
-		`${TESTNET_CONFIG.packages.predict}::plp::request_supply`,
-	);
-});
-
-test('accountTarget concatenates from the account package', () => {
-	expect(accountTarget(TESTNET_CONFIG, 'account', 'open')).toBe(
-		`${TESTNET_CONFIG.packages.account}::account::open`,
-	);
+	expect(btc.pythFeed).toMatch(ID_RE);
+	expect(btc.blockScholesValueStore).toMatch(ID_RE);
+	expect(btc.blockScholesSviStore).toMatch(ID_RE);
 });
 
 test('getConfig returns the testnet config', () => {
@@ -57,7 +37,6 @@ test('getConfig throws for mainnet', () => {
 	expect(() => getConfig('mainnet')).toThrow(/no mainnet deployment/);
 });
 
-test('well-known object id constants', () => {
-	expect(CLOCK_ID).toBe('0x6');
+test('well-known AccumulatorRoot id constant', () => {
 	expect(ACCUMULATOR_ROOT_ID).toBe('0xacc');
 });

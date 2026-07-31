@@ -57,14 +57,14 @@ function argPureBytes(tx: Transaction, cmdIdx: number, argIdx: number): string |
 
 const AUTH = `${cfg.packages.account}::account::generate_auth`;
 
-test('requestSupply: auth → request_supply, 7 args, exact slot kinds/values', () => {
+test('requestSupply: auth → request_supply, 8 args, min-plp-out floor slot', () => {
 	const tx = new Transaction();
 	requestSupply(cfg, tx, { wrapperId: '0xdef', amountRaw: 5_000_000n });
 	expect(targets(tx)).toEqual([AUTH, `${cfg.packages.predict}::plp::request_supply`]);
 	const c = call(tx, 1);
-	// deployed sig: (vault, wrapper, auth, config, amount u64, root, clock, ctx)
-	// → 7 moveCall args (ctx is implicit)
-	expect(c.arguments).toHaveLength(7);
+	// deployed sig: (vault, wrapper, auth, config, amount u64, min_plp_out u64, root, clock, ctx)
+	// → 8 moveCall args (ctx is implicit, clock auto-injected)
+	expect(c.arguments).toHaveLength(8);
 	// slot 0: vault = cfg.objects.poolVault
 	expectObject(tx, 1, 0, cfg.objects.poolVault);
 	// slot 1: wrapper
@@ -77,26 +77,45 @@ test('requestSupply: auth → request_supply, 7 args, exact slot kinds/values', 
 	expect(argPureBytes(tx, 1, 4)).toBe(
 		Buffer.from(bcs.u64().serialize(5_000_000n).toBytes()).toString('base64'),
 	);
-	// slot 5: root = 0xacc, slot 6: clock = 0x6
-	expectObject(tx, 1, 5, '0xacc');
-	expectObject(tx, 1, 6, '0x6');
+	// slot 5: pure u64 min_plp_out slippage floor, default 0
+	expect(argPureBytes(tx, 1, 5)).toBe(
+		Buffer.from(bcs.u64().serialize(0n).toBytes()).toString('base64'),
+	);
+	// slot 6: root = 0xacc, slot 7: clock = 0x6
+	expectObject(tx, 1, 6, '0xacc');
+	expectObject(tx, 1, 7, '0x6');
 });
 
-test('requestWithdraw: auth → request_withdraw, 7 args, shares in u64 slot', () => {
+test('requestSupply: explicit minPlpOut overrides the 0 default', () => {
+	const tx = new Transaction();
+	requestSupply(cfg, tx, { wrapperId: '0xdef', amountRaw: 5_000_000n, minPlpOutRaw: 4_500_000n });
+	expect(argPureBytes(tx, 1, 5)).toBe(
+		Buffer.from(bcs.u64().serialize(4_500_000n).toBytes()).toString('base64'),
+	);
+});
+
+test('requestWithdraw: auth → request_withdraw, 8 args, shares + min-dusdc-out floor', () => {
 	const tx = new Transaction();
 	requestWithdraw(cfg, tx, { wrapperId: '0xdef', sharesRaw: 1_234n });
 	expect(targets(tx)).toEqual([AUTH, `${cfg.packages.predict}::plp::request_withdraw`]);
 	const c = call(tx, 1);
-	expect(c.arguments).toHaveLength(7);
+	// deployed sig: (vault, wrapper, auth, config, amount u64, min_dusdc_out u64, root, clock, ctx)
+	// → 8 moveCall args
+	expect(c.arguments).toHaveLength(8);
 	expectObject(tx, 1, 0, cfg.objects.poolVault);
 	expectObject(tx, 1, 1, '0xdef');
 	expect(c.arguments[2].$kind).toBe('Result');
 	expectObject(tx, 1, 3, cfg.objects.protocolConfig);
+	// slot 4: pure u64 shares
 	expect(argPureBytes(tx, 1, 4)).toBe(
 		Buffer.from(bcs.u64().serialize(1_234n).toBytes()).toString('base64'),
 	);
-	expectObject(tx, 1, 5, '0xacc');
-	expectObject(tx, 1, 6, '0x6');
+	// slot 5: pure u64 min_dusdc_out slippage floor, default 0
+	expect(argPureBytes(tx, 1, 5)).toBe(
+		Buffer.from(bcs.u64().serialize(0n).toBytes()).toString('base64'),
+	);
+	expectObject(tx, 1, 6, '0xacc');
+	expectObject(tx, 1, 7, '0x6');
 });
 
 test('cancelSupplyRequest: auth → cancel_supply_request, 7 args, index in u64 slot', () => {

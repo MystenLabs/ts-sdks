@@ -3,9 +3,11 @@
 // Two failure kinds cross the SDK boundary:
 //   - PredictInputError — a caller gave us something we rejected before touching
 //     the chain (unknown underlying, malformed argument, …).
-//   - PredictMoveError — a Move `abort` surfaced by a read/simulate. We decode the
-//     on-chain module + code into the human abort name so callers can branch on
-//     `abortName` / `code` instead of string-matching a rendered failure.
+//   - PredictMoveError — a Move `abort` surfaced by a read/simulate. The deployed
+//     Predict packages are compiled with CLEVER ERRORS, so the fullnode decodes the
+//     `E…` error-constant name out of the abort code's high bits and returns it on
+//     the structured execution error. We read that name straight from chain instead
+//     of maintaining a module→code→name table that goes stale on every redeploy.
 
 /** A caller-supplied argument the SDK rejected before building/sending a tx. */
 export class PredictInputError extends Error {
@@ -21,7 +23,9 @@ export class PredictMoveError extends Error {
 	/** Exact u64 abort code — bigint because clever-error encodings pack data
 	 * into the high bits, which Number would silently truncate. */
 	readonly code: bigint;
-	/** The `E…` constant name from the abort table, or null if unmapped. */
+	/** The `E…` constant name, decoded from the clever-error abort code by the
+	 * fullnode, or null when the transport surfaced no name (a non-clever abort,
+	 * or a JSON-RPC failure that carries only a line number). */
 	readonly abortName: string | null;
 
 	constructor(module: string, code: bigint, abortName: string | null) {
@@ -37,85 +41,41 @@ export class PredictMoveError extends Error {
 	}
 }
 
-// Abort code → name, per module. Generated from the DEPLOYED sources at commit
-// ec99cfae (this repo's packages/predict + packages/account): grep of
-// `const E<Name>: u64 = <n>;` in each module. Regenerate from that same commit if
-// the deployed package changes — a stale table mislabels a real abort.
-export const ABORT_TABLES: Record<string, Record<number, string>> = {
-	expiry_market: {
-		0: 'EMintPaused',
-		1: 'EFullCloseRequired',
-		2: 'EMarketNotSettled',
-		3: 'EWrongPythFeed',
-		4: 'EMintCostAboveMax',
-		5: 'EMintProbabilityAboveMax',
-		6: 'EMintQuantityBelowMin',
-		7: 'EWrongPricer',
-		8: 'EReferenceTickObservationMissing',
-		9: 'EReferenceTickTimestampMismatch',
-		10: 'EMintRedeemSameTimestamp',
-	},
-	plp: {
-		0: 'EExpiryMarketNotActive',
-		1: 'EExpiryMarketAlreadyValued',
-		2: 'EWrongPoolVault',
-		3: 'EMissingExpiryValuation',
-		4: 'ENotBootstrapped',
-		5: 'EPlpPriceBelowCircuitBreaker',
-		6: 'EPlpPriceAboveCircuitBreaker',
-		7: 'EAlreadyBootstrapped',
-		8: 'EPoolNavDust',
-		9: 'EBelowMinBootstrapLiquidity',
-		10: 'EBelowMinFeeIncentiveSponsorship',
-		11: 'EMarketNotSettled',
-	},
-	lp_book: {
-		0: 'ERequestNotFound',
-		1: 'EBelowMinSupplyRequest',
-		2: 'EBelowMinWithdrawRequest',
-		3: 'ENotRequestOwner',
-		4: 'EInvalidDrainMark',
-	},
-	predict_account: {
-		0: 'EPositionAlreadyExists',
-		1: 'EPositionNotFound',
-		2: 'EInsufficientPosition',
-		3: 'EExpirySummaryHasOpenPositions',
-	},
-	account: {
-		0: 'EInvalidOwner',
-		1: 'EBalanceTooLow',
-		2: 'EInvalidAuth',
-	},
-	registry: {
-		0: 'EPauseCapNotValid',
-		1: 'ELifecycleCapNotValid',
-		2: 'ELifecycleCapNotFound',
-	},
-};
-
-// The module name lives inside `ModuleId { … name: Identifier("<module>") }`.
-const MODULE_RE = /name:\s*Identifier\("([^"]+)"\)/;
-// The abort code is the integer following the MoveLocation block, i.e. the last
-// `, <n>)` in the string. The greedy `.*` skips ahead to that final occurrence,
-// so a trailing suffix (e.g. " in command 0") after the code is tolerated.
-const CODE_RE = /MoveAbort\(.*,\s*(\d+)\s*\)/s;
+// The structured MoveAbort execution error surfaced by `@mysten/sui` on a failed
+// simulate/execute. Read structurally rather than via the client's exported
+// `SuiClientTypes.ExecutionError` (`@mysten/sui/client`) so mocked simulate results
+// and future API-shape drift still satisfy it — the same convention reads/inspect.ts
+// uses for its simulate seam. Field provenance:
+//   - `MoveAbort.abortCode`                → u64 abort code as a decimal string.
+//   - `MoveAbort.location.module`          → the aborting module's short name.
+//   - `MoveAbort.cleverError.constantName` → the `E…` error constant, decoded by the
+//     fullnode from the clever-error bits of the abort code and surfaced by the gRPC
+//     (`grpc/core.ts` parseMoveAbort) and GraphQL transports. This is the on-chain
+//     name that replaces the old hand-maintained ABORT_TABLES. JSON-RPC surfaces only
+//     a line number, so `constantName` (and thus `abortName`) is absent there.
+export interface MoveAbortError {
+	MoveAbort?: {
+		abortCode?: string | number | bigint;
+		location?: { module?: string };
+		cleverError?: { constantName?: string };
+	};
+}
 
 /**
- * Decode a rendered Move-abort failure string into a {@link PredictMoveError}.
- * Returns null when `raw` is not a MoveAbort. An abort in an unmapped module or
- * with an unmapped code still decodes (module/code populated, `abortName: null`).
+ * Decode a `@mysten/sui` MoveAbort execution error into a {@link PredictMoveError}.
+ * Returns null when `error` carries no MoveAbort (InsufficientGas, a size error, any
+ * non-abort failure), so callers can fall back to a plain Error.
+ *
+ * `abortName` is taken straight from the chain-decoded clever-error constant; it is
+ * null when the abort predates clever errors or the transport didn't surface a name.
+ * `code` stays a bigint — a clever-error abort code packs the module, line, and
+ * constant index into the high bits of the u64 and would lose precision as a Number.
  */
-export function decodeMoveAbort(raw: string): PredictMoveError | null {
-	if (typeof raw !== 'string' || !raw.includes('MoveAbort')) return null;
-	const moduleMatch = raw.match(MODULE_RE);
-	const codeMatch = raw.match(CODE_RE);
-	if (!moduleMatch || !codeMatch) return null;
-	const module = moduleMatch[1];
-	const code = BigInt(codeMatch[1]);
-	// Table lookup via Number is safe: enum codes are tiny; a packed code above
-	// 2^53 can't collide into the table because it simply won't be found there.
-	const abortName =
-		code <= BigInt(Number.MAX_SAFE_INTEGER) ? (ABORT_TABLES[module]?.[Number(code)] ?? null) : null;
+export function decodeMoveAbort(error: MoveAbortError | null | undefined): PredictMoveError | null {
+	const abort = error?.MoveAbort;
+	if (!abort) return null;
+	const module = abort.location?.module ?? '';
+	const code = abort.abortCode != null ? BigInt(abort.abortCode) : 0n;
+	const abortName = abort.cleverError?.constantName ?? null;
 	return new PredictMoveError(module, code, abortName);
 }

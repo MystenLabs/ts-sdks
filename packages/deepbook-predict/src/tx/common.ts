@@ -1,14 +1,15 @@
 import { bcs } from '@mysten/sui/bcs';
 import type { Transaction, TransactionResult } from '@mysten/sui/transactions';
 import { deriveObjectID } from '@mysten/sui/utils';
-import { accountTarget, type PredictConfig } from '../config/index.js';
+import type { PredictConfig } from '../config/index.js';
+import * as account from '../contracts/account/account.js';
 
 // Owner authority is a hot-potato `Auth` minted from the tx sender (`ctx` is implicit
 // in a PTB) and consumed by the very next account-loading call (`load_account_mut`
 // inside `deposit_funds` / `withdraw_funds` / `mint` / …). It resolves to owner auth
-// for whoever signs the transaction. See `packages/account/sources/account.move:113`.
+// for whoever signs the transaction. See `packages/account/sources/account.move`.
 export function generateAuth(cfg: PredictConfig, tx: Transaction): TransactionResult {
-	return tx.moveCall({ target: accountTarget(cfg, 'account', 'generate_auth'), arguments: [] });
+	return tx.add(account.generateAuth({ package: cfg.packages.account }));
 }
 
 // `AccountWrapperKey(address)` is a one-field positional struct, so its BCS is just the

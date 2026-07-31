@@ -1,32 +1,33 @@
 import type { PredictConfig } from './types.js';
 
 /**
- * Testnet deployment constants. Pure data — every id below is public on-chain
- * data. Regenerate from the deployment record when a new package version ships.
+ * Testnet deployment constants. Pure data — every id below is public on-chain data,
+ * transcribed from `packages/predict/deployment/deployment.testnet.json` (deployment
+ * `predict-testnet-7-29`, sourceCommit `4c3c62c6`). Regenerate from the deployment
+ * record when a new package version ships.
  */
 export const TESTNET_CONFIG: PredictConfig = {
 	network: 'testnet',
 	packages: {
-		predict: '0xdb3ef5a5129920e59c9b2ae25a77eddb48acd0e1c6307b97073f0e076016446e',
-		account: '0xb9389eac8d59170ffd1427c1a66e5c8306263464fcc6615e825c1f5b3e15da3b',
-		propbook: '0x8eb2adde1c91f8b7c9ba5e9b0a32bfb804510c342939c5f77458fd8143f9755b',
+		predict: '0xd94387c857ab56857f5f2750f2ba959fb007306f977a24290342433aef090298',
+		account: '0xdabedf28ee547a20cb4ed30d4ff3dab686ff2926add584822466efded14cec4a',
+		propbook: '0x756ab217b8b7cbbe7a9e45a5cc385347cb43f74aac0102772336a24cf48ab9cb',
 	},
 	objects: {
-		registry: '0x54afbf245caf42466cedb5756ed7816f34f544afdfa13579a862eccf3afa21ca',
-		protocolConfig: '0x2325224629b4bd96d1f1d7ee937e07f8a06f861018a130bbb26db09cb0394cb6',
-		poolVault: '0xfde98c636eb8a7aba59c3a238cfee6b576b7118d1e5ffa2952876c4b270a3a2a',
-		oracleRegistry: '0xf3deaff68cbd081a35ec21653af6f671d2ad5f012f3b4d817d81752843374136',
-		accountRegistry: '0x3c54d5b8b6bca376fc289121838ad02f8a5b3843242b9ad7e8f8245720e685a2',
+		registry: '0xafc24283eec35728da1184eea118c41067bbde153447f9946e0667672f18a383',
+		protocolConfig: '0x19a07f5be96ca7b47e8b2ec39d7caf40e1fbb7d4156a699bfecda807d1d3d427',
+		poolVault: '0x90454f005b8eca464317ffb31adf5e39da94a9304b11b9501d5668d0103bbb0a',
+		oracleRegistry: '0xec1a1aa6aeffb45aae40cba097714e711acc28739faa005e1932de608189667f',
+		accountRegistry: '0x316fa986a919b2f69884bfeec2a8668bf671a4d05c1c434ad6d9647a41d2ccb2',
 	},
 	quoteCoinType: '0xe95040085976bfd54a1a07225cd46c8a2b4e8e2b6732f140a0fc49850ba73e1a::dusdc::DUSDC',
 	underlyings: {
 		BTC: {
 			symbol: 'BTC',
 			propbookUnderlyingId: 1,
-			pythFeedId: '0xc78d7de16217d46d21b92ae475da799448be30b71a758dc6d7bb3ac2f1c35afb',
-			bsSpotFeedId: '0xcdc5fa7364e60fd2504aa96f65b707dc0734e507a919b1a7d7d63164fd67b745',
-			bsForwardFeedId: '0xe72c734ea8d8dcbc9183d9d8f96f51aaa1fb5034d5ed33ac60d67d261e15b48a',
-			bsSviFeedId: '0xdc2f8270676bd05fb28491e8d4a41a495722fda7a454926dd66dbba256a21c69',
+			pythFeed: '0x980be0a52ea3f1e5243d5d5cd116c4de9107abb07fdbe134314996302a97c524',
+			blockScholesValueStore: '0x24b684a5f9168bbe792e1e10aece0353e5e5f8f9be3d07acded253644f1c3d4c',
+			blockScholesSviStore: '0x8400d1ea44291177bd02ff33d49be5785cc809cdf280f7e2f05f72866af05dca',
 		},
 	},
 };

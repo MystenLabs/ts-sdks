@@ -1,21 +1,24 @@
 import { Transaction } from '@mysten/sui/transactions';
 import { describe, expect, test } from 'vitest';
-import {
-	ABORT_TABLES,
-	PredictInputError,
-	PredictMoveError,
-	decodeMoveAbort,
-} from '../src/errors.js';
+import { PredictInputError, PredictMoveError, decodeMoveAbort } from '../src/errors.js';
+import type { MoveAbortError } from '../src/errors.js';
 import type { ReadClient } from '../src/reads/inspect.js';
 import { inspectReturns } from '../src/reads/inspect.js';
 
-// A representative failure string as the gRPC/JSON-RPC layer renders a MoveAbort.
-const ABORT_STR =
-	'MoveAbort(MoveLocation { module: ModuleId { address: 0000000000000000000000000000000000000000000000000000000000000abc, name: Identifier("expiry_market") }, function: 12, instruction: 34 }, 6)';
+// The structured MoveAbort execution error `@mysten/sui` surfaces on a failed
+// simulate. `abortName` comes from the fullnode's chain-decoded clever-error
+// `constantName`, never a local table.
+const ABORT: MoveAbortError = {
+	MoveAbort: {
+		abortCode: '6',
+		location: { module: 'expiry_market' },
+		cleverError: { constantName: 'EMintQuantityBelowMin' },
+	},
+};
 
 describe('decodeMoveAbort', () => {
-	test('decodes a real abort string to module/code/name', () => {
-		const e = decodeMoveAbort(ABORT_STR);
+	test('decodes a structured MoveAbort to module/code/name', () => {
+		const e = decodeMoveAbort(ABORT);
 		expect(e).toBeInstanceOf(PredictMoveError);
 		expect(e).toMatchObject({
 			module: 'expiry_market',
@@ -24,59 +27,63 @@ describe('decodeMoveAbort', () => {
 		});
 	});
 
-	test('known module, unknown code → abortName null', () => {
-		const e = decodeMoveAbort(ABORT_STR.replace(/, 6\)$/, ', 99)'));
+	test('no cleverError → abortName null (non-clever / JSON-RPC abort)', () => {
+		const e = decodeMoveAbort({
+			MoveAbort: { abortCode: '99', location: { module: 'expiry_market' } },
+		});
 		expect(e?.module).toBe('expiry_market');
 		expect(e?.code).toBe(99n);
 		expect(e?.abortName).toBeNull();
 	});
 
-	test('unknown module → abortName null', () => {
-		const e = decodeMoveAbort(ABORT_STR.replace('expiry_market', 'nonsense_mod'));
-		expect(e?.module).toBe('nonsense_mod');
-		expect(e?.abortName).toBeNull();
-	});
-
 	test('u64 abort codes above 2^53 decode exactly (clever-error packing)', () => {
-		const e = decodeMoveAbort(ABORT_STR.replace(/, 6\)$/, ', 9223372036854775814)'));
+		// A clever-error abort code packs module/line/constant into the high bits, so it
+		// routinely exceeds Number.MAX_SAFE_INTEGER; BigInt(<string>) must keep it exact.
+		const e = decodeMoveAbort({
+			MoveAbort: {
+				abortCode: '9223372036854775814',
+				location: { module: 'expiry_market' },
+				cleverError: { constantName: 'EMintQuantityBelowMin' },
+			},
+		});
 		expect(e?.code).toBe(9223372036854775814n);
-		expect(e?.abortName).toBeNull();
+		expect(e?.abortName).toBe('EMintQuantityBelowMin');
 	});
 
-	test('non-abort string → null', () => {
-		expect(decodeMoveAbort('some random error')).toBeNull();
-		expect(decodeMoveAbort('InsufficientGas')).toBeNull();
-		expect(decodeMoveAbort('')).toBeNull();
+	test('accepts abortCode as a number or bigint', () => {
+		expect(decodeMoveAbort({ MoveAbort: { abortCode: 6 } })?.code).toBe(6n);
+		expect(decodeMoveAbort({ MoveAbort: { abortCode: 6n } })?.code).toBe(6n);
 	});
 
-	test("tolerates a trailing suffix after the abort code (e.g. ' in command 0')", () => {
-		const e = decodeMoveAbort(`${ABORT_STR} in command 0`);
-		expect(e).toMatchObject({ module: 'expiry_market', code: 6n });
+	test('no MoveAbort → null', () => {
+		expect(decodeMoveAbort({})).toBeNull();
+		expect(decodeMoveAbort(null)).toBeNull();
+		expect(decodeMoveAbort(undefined)).toBeNull();
 	});
 
-	test('message includes module and abort name when known', () => {
-		const msg = decodeMoveAbort(ABORT_STR)!.message;
+	test('MoveAbort without a location decodes with an empty module', () => {
+		const e = decodeMoveAbort({ MoveAbort: { abortCode: '6' } });
+		expect(e).toBeInstanceOf(PredictMoveError);
+		expect(e?.module).toBe('');
+		expect(e?.code).toBe(6n);
+	});
+
+	test('MoveAbort without an abortCode defaults code to 0n', () => {
+		expect(decodeMoveAbort({ MoveAbort: { location: { module: 'plp' } } })?.code).toBe(0n);
+	});
+
+	test('message includes module and abort name when the name is known', () => {
+		const msg = decodeMoveAbort(ABORT)!.message;
 		expect(msg).toContain('expiry_market');
 		expect(msg).toContain('EMintQuantityBelowMin');
 	});
 
 	test('message includes the raw code when the abort is unnamed', () => {
-		const msg = decodeMoveAbort(ABORT_STR.replace(/, 6\)$/, ', 99)'))!.message;
+		const msg = decodeMoveAbort({
+			MoveAbort: { abortCode: '99', location: { module: 'expiry_market' } },
+		})!.message;
 		expect(msg).toContain('expiry_market');
 		expect(msg).toContain('99');
-	});
-});
-
-describe('ABORT_TABLES', () => {
-	test('carry the six covered modules with their seed values', () => {
-		expect(ABORT_TABLES.expiry_market[6]).toBe('EMintQuantityBelowMin');
-		expect(ABORT_TABLES.expiry_market[0]).toBe('EMintPaused');
-		expect(ABORT_TABLES.plp[5]).toBe('EPlpPriceBelowCircuitBreaker');
-		expect(ABORT_TABLES.plp[6]).toBe('EPlpPriceAboveCircuitBreaker');
-		expect(ABORT_TABLES.lp_book[0]).toBe('ERequestNotFound');
-		expect(ABORT_TABLES.predict_account[1]).toBe('EPositionNotFound');
-		expect(ABORT_TABLES.account[0]).toBe('EInvalidOwner');
-		expect(ABORT_TABLES.registry[0]).toBe('EPauseCapNotValid');
 	});
 });
 
@@ -101,25 +108,22 @@ describe('inspectReturns decodes aborts on FailedTransaction', () => {
 		} as unknown as ReadClient;
 	}
 
-	test('throws PredictMoveError from the display `message` string', async () => {
-		const client = failingClient({ message: ABORT_STR });
-		const err = await inspectReturns(client, new Transaction()).catch((e) => e);
-		expect(err).toBeInstanceOf(PredictMoveError);
-		expect(err.abortName).toBe('EMintQuantityBelowMin');
-	});
-
-	test('throws PredictMoveError from the structured gRPC MoveAbort arm', async () => {
+	test('throws PredictMoveError from the structured MoveAbort arm (chain-decoded name)', async () => {
 		const client = failingClient({
-			$kind: 'MoveAbort',
-			message: 'transaction aborted',
-			MoveAbort: { abortCode: '6', location: { module: 'expiry_market' } },
+			MoveAbort: {
+				abortCode: '6',
+				location: { module: 'expiry_market' },
+				cleverError: { constantName: 'EMintQuantityBelowMin' },
+			},
 		});
 		const err = await inspectReturns(client, new Transaction()).catch((e) => e);
 		expect(err).toBeInstanceOf(PredictMoveError);
+		expect(err.module).toBe('expiry_market');
+		expect(err.code).toBe(6n);
 		expect(err.abortName).toBe('EMintQuantityBelowMin');
 	});
 
-	test('falls back to a plain Error when the abort cannot be decoded', async () => {
+	test('falls back to a plain Error when the failure carries no MoveAbort', async () => {
 		const client = failingClient({ message: 'InsufficientGas' });
 		const err = await inspectReturns(client, new Transaction()).catch((e) => e);
 		expect(err).toBeInstanceOf(Error);

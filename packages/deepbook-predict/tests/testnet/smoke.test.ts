@@ -14,14 +14,13 @@
 import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { Transaction } from '@mysten/sui/transactions';
 import { describe, expect, test } from 'vitest';
-import {
-	PredictClient,
-	PredictMoveError,
-	TESTNET_CONFIG,
-	accountTarget,
-	mintExactQuantity,
-	redeemLive,
-} from '../../src/index.js';
+import { PredictClient, PredictMoveError, TESTNET_CONFIG } from '../../src/index.js';
+// The trade builders are internal to the facade; the arity guard drives them directly.
+import { mintExactQuantity, redeemLive } from '../../src/tx/trade.js';
+// Generated move-calls: build the fresh wrapper (`account_registry::new`) and share it
+// (`account::share`) the same way `src/tx/account.ts` does, no hand-rolled targets.
+import * as account from '../../src/contracts/account/account.js';
+import * as accountRegistry from '../../src/contracts/account/account_registry.js';
 
 const TESTNET_GRPC_URL = 'https://fullnode.testnet.sui.io:443';
 
@@ -41,22 +40,27 @@ let liveMarkets: Awaited<ReturnType<typeof predict.read.markets>> = [];
 // accounts, which a throwaway sender does not have — simulation would then fail at
 // input resolution, before the VM ever checks the call's arity. Creating the
 // wrapper in-PTB guarantees execution reaches the deployed Move entrypoint.
-// `tx.object()` passes a result handle through unchanged, so the primitives accept
-// it at runtime; the cast bridges their string-typed wrapperId.
+// The generated `_new` call returns the wrapper as a result handle (a
+// TransactionArgument); it threads through the builders and `share` unchanged at
+// runtime, and the cast bridges their string-typed wrapperId.
 function freshWrapperTx(): { tx: Transaction; wrapper: string } {
 	const tx = new Transaction();
-	const wrapper = tx.moveCall({
-		target: accountTarget(cfg, 'account_registry', 'new'),
-		arguments: [tx.object(cfg.objects.accountRegistry)],
-	});
+	const wrapper = tx.add(
+		accountRegistry._new({
+			package: cfg.packages.account,
+			arguments: { registry: cfg.objects.accountRegistry },
+		}),
+	);
 	return { tx, wrapper: wrapper as unknown as string };
 }
 
 function shareWrapper(tx: Transaction, wrapper: string): void {
-	tx.moveCall({
-		target: accountTarget(cfg, 'account', 'share'),
-		arguments: [tx.object(wrapper)],
-	});
+	tx.add(
+		account.share({
+			package: cfg.packages.account,
+			arguments: { self: wrapper },
+		}),
+	);
 }
 
 // Simulate and classify the failure. Returns null on success, the error otherwise.
@@ -236,9 +240,8 @@ describe('testnet smoke (live deployment)', () => {
 function predictFeeds() {
 	const u = cfg.underlyings.BTC;
 	return {
-		pythFeedId: u.pythFeedId,
-		bsSpotFeedId: u.bsSpotFeedId,
-		bsForwardFeedId: u.bsForwardFeedId,
-		bsSviFeedId: u.bsSviFeedId,
+		pythFeed: u.pythFeed,
+		blockScholesValueStore: u.blockScholesValueStore,
+		blockScholesSviStore: u.blockScholesSviStore,
 	};
 }

@@ -10,50 +10,38 @@ import {
 	type ObjectReadClient,
 } from '../src/reads/positions.js';
 import { deriveAccountWrapperId } from '../src/tx/common.js';
+import { AccountWrapper } from '../src/contracts/account/account.js';
+import { PositionKey, PredictData } from '../src/contracts/deepbook_predict/predict_account.js';
 
 const OWNER = '0x' + 'ab'.repeat(32);
 const ACCOUNT_UID = '0x' + '22'.repeat(32);
 const TABLE_ID = '0x' + '33'.repeat(32);
 const MARKET = '0x' + '44'.repeat(32);
 
-// Fixtures serialize with the same layouts as src (field order anchored to the
-// deployed structs; the live smoke validates against the real chain).
-const BagBcs = bcs.struct('Bag', { id: bcs.Address, size: bcs.u64() });
-const wrapperContent = bcs
-	.struct('AccountWrapper', {
-		id: bcs.Address,
-		account: bcs.struct('Account', {
-			account_id: bcs.Address,
-			owner: bcs.Address,
-			receive_address: bcs.Address,
-			balances: BagBcs,
-			settlements: BagBcs,
-		}),
-	})
-	.serialize({
-		id: deriveAccountWrapperId(cfg, OWNER),
-		account: {
-			account_id: ACCOUNT_UID,
-			owner: OWNER,
-			receive_address: OWNER,
-			balances: { id: '0x1', size: 0n },
-			settlements: { id: '0x2', size: 0n },
-		},
-	})
-	.toBytes();
+// Fixtures serialize with the GENERATED account/predict_account MoveStructs
+// (src/contracts/...) — the exact layouts positions.ts parses, so they can't
+// drift from the deployed `account`/`predict_account` sources. The account
+// carries the DBU-666 trailing `referrer_account_id`.
+const wrapperContent = AccountWrapper.serialize({
+	id: deriveAccountWrapperId(cfg, OWNER),
+	account: {
+		account_id: ACCOUNT_UID,
+		owner: OWNER,
+		receive_address: OWNER,
+		balances: { id: '0x1', size: 0n },
+		settlements: { id: '0x2', size: 0n },
+		referrer_account_id: null,
+	},
+}).toBytes();
 
+// The dynamic-field envelope is Sui-fixed (id, DataKey's hidden dummy_field
+// bool, value); only the `value` PredictData layout is package-owned, so it
+// uses the generated struct — mirroring positions.ts's own field wrapper.
 const dataFieldContent = bcs
-	.struct('Field', {
+	.struct('Field<DataKey,PredictData>', {
 		id: bcs.Address,
 		name: bcs.bool(), // DataKey's hidden dummy_field
-		value: bcs.struct('PredictData', {
-			positions: bcs.struct('T1', { id: bcs.Address, size: bcs.u64() }),
-			expiry_summaries: bcs.struct('T2', { id: bcs.Address, size: bcs.u64() }),
-			active_stake: bcs.u64(),
-			inactive_stake: bcs.u64(),
-			stake_epoch: bcs.u64(),
-			builder_code_id: bcs.option(bcs.Address),
-		}),
+		value: PredictData,
 	})
 	.serialize({
 		id: '0x5',
@@ -70,10 +58,7 @@ const dataFieldContent = bcs
 	.toBytes();
 
 const keyBcs = (orderId: bigint) =>
-	bcs
-		.struct('PositionKey', { expiry_market_id: bcs.Address, order_id: bcs.u256() })
-		.serialize({ expiry_market_id: MARKET, order_id: orderId })
-		.toBytes();
+	PositionKey.serialize({ expiry_market_id: MARKET, order_id: orderId }).toBytes();
 
 const DATA_FIELD_ID = deriveDynamicFieldID(
 	ACCOUNT_UID,

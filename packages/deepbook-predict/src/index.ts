@@ -1,31 +1,28 @@
-export const SDK_NAME = '@mysten/deepbook-predict';
+// Public API for `@mysten/deepbook-predict`. The curated surface is the `PredictClient`
+// facade plus the value types, unit conversions, tick helpers, typed errors, and typed
+// execution-result decoders. Low-level move-call builders and raw reads are internal to
+// the facade; power users who need to compose PTBs directly can use the generated
+// bindings under `contracts/` or the facade's exported primitives on request.
 
 // === Facade ===
 export { PredictClient } from './client.js';
 export type {
-	MintQuote,
-	RedeemQuote,
 	ActiveMarket,
+	CloseOptions,
 	MarketDescriptor,
 	MarketSummary,
-	MintOptions,
 	MintAmountOptions,
-	CloseOptions,
+	MintOptions,
+	MintQuote,
 	PoolSummary,
+	RedeemQuote,
 } from './client.js';
 
-// === Config + target seam ===
-export {
-	ACCUMULATOR_ROOT_ID,
-	CLOCK_ID,
-	TESTNET_CONFIG,
-	accountTarget,
-	getConfig,
-	predictTarget,
-} from './config/index.js';
+// === Config ===
+export { TESTNET_CONFIG, getConfig } from './config/index.js';
 export type { PredictConfig, PredictPackages, UnderlyingConfig } from './config/index.js';
 
-// === Units ===
+// === Units (raw ⇄ human conversions) ===
 export {
 	U64_MAX,
 	fromRaw,
@@ -44,46 +41,13 @@ export { POS_INF_TICK, binaryRangeTicks } from './ticks.js';
 export type { Side } from './ticks.js';
 
 // === Errors ===
-export { ABORT_TABLES, PredictInputError, PredictMoveError, decodeMoveAbort } from './errors.js';
+export { PredictInputError, PredictMoveError, decodeMoveAbort } from './errors.js';
+export type { MoveAbortError } from './errors.js';
 
-// === Transaction primitives ===
-export {
-	loadLivePricer,
-	mintExactAmount,
-	mintExactQuantity,
-	redeemLive,
-	redeemSettled,
-} from './tx/trade.js';
-export type { MarketFeeds } from './tx/trade.js';
-export { createAccount, depositFunds, withdrawFunds } from './tx/account.js';
-export { deriveAccountWrapperId, generateAuth } from './tx/common.js';
-export {
-	cancelSupplyRequest,
-	cancelWithdrawRequest,
-	requestSupply,
-	requestWithdraw,
-} from './tx/plp.js';
-export { setBuilderCode, unsetBuilderCode } from './tx/builderCode.js';
-
-// === Reads ===
-export { inspectReturns, simulateWithEvents } from './reads/inspect.js';
+// === Client seam + market feed bundle (needed to construct a client / read prices) ===
 export type { ReadClient } from './reads/inspect.js';
-export {
-	activeMarketIds,
-	currentNav,
-	expiryMarketId,
-	marketState,
-	marketStates,
-	rangePrices,
-	referenceTick,
-	settlementPrice,
-} from './reads/markets.js';
-export type { MarketState } from './reads/markets.js';
-export { accountBalance, hasPosition } from './reads/balances.js';
-export { positions, positionsFromTable, resolvePositionsTable } from './reads/positions.js';
-export type { ObjectReadClient, OpenPosition, PositionsHandle } from './reads/positions.js';
-export { poolStats } from './reads/pool.js';
-export type { PoolStats } from './reads/pool.js';
+export type { MarketFeeds } from './tx/trade.js';
+export type { OpenPosition } from './reads/positions.js';
 
 // === Execution-result decoders (pure event parsing, no network) ===
 export {
@@ -109,4 +73,3 @@ export type {
 	PlpRequestReceipt,
 	RedeemReceipt,
 } from './decode.js';
-export { parseOptionalId, parseOptionalU64, parseU64LE, parseVectorOfIds } from './reads/parse.js';

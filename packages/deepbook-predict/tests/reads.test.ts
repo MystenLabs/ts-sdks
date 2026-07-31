@@ -24,6 +24,7 @@ import {
 	parseVectorOfIds,
 } from '../src/reads/parse.js';
 import { poolStats } from '../src/reads/pool.js';
+import { POS_INF_TICK } from '../src/ticks.js';
 
 // The moveCall targets in the order the read built its PTB.
 function targets(tx: Transaction): string[] {
@@ -172,34 +173,47 @@ describe('markets reads', () => {
 		});
 	});
 
-	test('rangePrices: one pricer, both sides, sentinel bounds', async () => {
+	test('rangePrices: one pricer, three Strike codecs, both sides read', async () => {
+		// Command layout the migrated read emits: load_live_pricer, then three
+		// range_codec::strike_from_tick (finite strike, +inf, -inf), then two
+		// pricing::range_price. UP = commands[len-2], DOWN = commands[len-1].
 		const { client, captured } = mockClient([
-			[new Uint8Array(0)], // load_live_pricer (reference return unused)
-			[bcs.u64().serialize(340_000_000n).toBytes()], // up
-			[bcs.u64().serialize(660_000_000n).toBytes()], // down
+			[new Uint8Array(0)], // 0: load_live_pricer (&Pricer reference, unused)
+			[new Uint8Array(0)], // 1: strike_from_tick — finite strike
+			[new Uint8Array(0)], // 2: strike_from_tick — +inf sentinel
+			[new Uint8Array(0)], // 3: strike_from_tick — -inf sentinel
+			[bcs.u64().serialize(340_000_000n).toBytes()], // 4: range_price UP
+			[bcs.u64().serialize(660_000_000n).toBytes()], // 5: range_price DOWN
 		]);
 		const feeds = {
-			pythFeedId: cfg.underlyings.BTC.pythFeedId,
-			bsSpotFeedId: cfg.underlyings.BTC.bsSpotFeedId,
-			bsForwardFeedId: cfg.underlyings.BTC.bsForwardFeedId,
-			bsSviFeedId: cfg.underlyings.BTC.bsSviFeedId,
+			pythFeed: cfg.underlyings.BTC.pythFeed,
+			blockScholesValueStore: cfg.underlyings.BTC.blockScholesValueStore,
+			blockScholesSviStore: cfg.underlyings.BTC.blockScholesSviStore,
 		};
-		const r = await rangePrices(client, cfg, ADDR_A, feeds, 105_000_000_000_000n);
+		const strikeRaw = 105_000_000_000_000n;
+		const tickSizeRaw = 10_000_000n;
+		const r = await rangePrices(client, cfg, ADDR_A, feeds, strikeRaw, tickSizeRaw);
 		expect(r).toEqual({ upRaw: 340_000_000n, downRaw: 660_000_000n });
 		expect(targets(captured.tx!)).toEqual([
 			`${cfg.packages.predict}::expiry_market::load_live_pricer`,
+			`${cfg.packages.predict}::range_codec::strike_from_tick`,
+			`${cfg.packages.predict}::range_codec::strike_from_tick`,
+			`${cfg.packages.predict}::range_codec::strike_from_tick`,
 			`${cfg.packages.predict}::pricing::range_price`,
 			`${cfg.packages.predict}::pricing::range_price`,
 		]);
-		// sentinel bounds: UP = (strike, u64::MAX), DOWN = (0, strike)
+		// Each Strike is strike_from_tick(tick, tickSize): the finite boundary tick is
+		// strikeRaw / tickSizeRaw, and the open ends are the POS_INF_TICK (+inf) and 0
+		// (-inf) sentinels — no raw u64::MAX / 0 price bounds anymore.
 		const pure = captured
 			.tx!.getData()
 			.inputs.filter((i) => 'Pure' in i && i.Pure)
 			.map((i) => (i as { Pure: { bytes: string } }).Pure.bytes);
 		const b64u64 = (v: bigint) => Buffer.from(bcs.u64().serialize(v).toBytes()).toString('base64');
-		expect(pure).toContain(b64u64((1n << 64n) - 1n));
-		expect(pure).toContain(b64u64(0n));
-		expect(pure).toContain(b64u64(105_000_000_000_000n));
+		expect(pure).toContain(b64u64(strikeRaw / tickSizeRaw)); // finite strike tick
+		expect(pure).toContain(b64u64(POS_INF_TICK)); // +inf sentinel tick
+		expect(pure).toContain(b64u64(0n)); // -inf sentinel tick
+		expect(pure).toContain(b64u64(tickSizeRaw)); // tick size fed to strike_from_tick
 	});
 
 	test('referenceTick: Some → tick, None → null', async () => {

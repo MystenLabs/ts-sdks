@@ -1,34 +1,17 @@
 import type { SuiGrpcClient } from '@mysten/sui/grpc';
 import type { Transaction } from '@mysten/sui/transactions';
 import { normalizeSuiAddress } from '@mysten/sui/utils';
-import { decodeMoveAbort } from '../errors.js';
+import { decodeMoveAbort, type MoveAbortError } from '../errors.js';
 
 // The one network seam every read sits on. Structural — any object with a
 // `simulateTransaction` matching the gRPC client's satisfies it, so callers can
 // inject a mock in tests and the SDK never constructs its own transport.
 export type ReadClient = Pick<SuiGrpcClient, 'simulateTransaction'>;
 
-// The abort payload the failed simulate result carries. Read structurally (not via
-// the client's exported ExecutionError type) so mocks and future API-shape drift
-// still satisfy it. Two renderings occur: a display `message` string of the form
-// `MoveAbort(MoveLocation { … name: Identifier("expiry_market") … }, 6)`, and the
-// structured gRPC `MoveAbort` enum arm `{ abortCode, location: { module } }`.
-type SimAbortError = {
-	message?: string;
-	MoveAbort?: { abortCode?: string | number; location?: { module?: string } };
-};
-
-// Normalize either abort rendering to the string decodeMoveAbort understands.
-// Prefer the structured arm (synthesize a canonical MoveAbort string from it) and
-// fall back to the display message.
-function abortRawString(error: SimAbortError | undefined): string | undefined {
-	if (!error) return undefined;
-	const ma = error.MoveAbort;
-	if (ma?.location?.module != null && ma.abortCode != null) {
-		return `MoveAbort(MoveLocation { module: ModuleId { name: Identifier("${ma.location.module}") }, function: 0, instruction: 0 }, ${ma.abortCode})`;
-	}
-	return error.message;
-}
+// The abort payload a failed simulate result carries: the structured gRPC `MoveAbort`
+// arm (`{ abortCode, location: { module }, cleverError: { constantName } }`) plus an
+// optional display `message`. Read structurally so mocks and API-shape drift satisfy it.
+type SimAbortError = MoveAbortError & { message?: string };
 
 // Run a read-only PTB through the gRPC `simulateTransaction` (the devInspect
 // replacement) and return each command's BCS return values, indexed
@@ -51,8 +34,7 @@ function abortRawString(error: SimAbortError | undefined): string | undefined {
 function throwSimFailure(failed: unknown): never {
 	const status = (failed as { status?: { success: boolean; error?: SimAbortError } })?.status;
 	const error = status && status.success === false ? status.error : undefined;
-	const raw = abortRawString(error);
-	const decoded = raw != null ? decodeMoveAbort(raw) : null;
+	const decoded = error ? decodeMoveAbort(error) : null;
 	if (decoded) throw decoded;
 	throw new Error(error?.message ?? 'simulateTransaction aborted (FailedTransaction)');
 }

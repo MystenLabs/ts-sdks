@@ -1,4 +1,3 @@
-import { bcs } from '@mysten/sui/bcs';
 import { toBase64 } from '@mysten/sui/utils';
 import { describe, expect, test } from 'vitest';
 import { TESTNET_CONFIG as cfg } from '../src/config/index.js';
@@ -12,13 +11,16 @@ import {
 	decodeRedeems,
 	type DecodableEvent,
 } from '../src/decode.js';
+import * as accountEvents from '../src/contracts/account/account_events.js';
+import * as orderEvents from '../src/contracts/deepbook_predict/order_events.js';
+import * as vaultEvents from '../src/contracts/deepbook_predict/vault_events.js';
 import { PredictClient } from '../src/client.js';
 import { PredictInputError } from '../src/errors.js';
 
-// Fixtures serialize with layouts mirroring the deployed structs. NOTE: this
-// round-trips the SDK's own layouts (field order vs chain is anchored by the
-// verbatim-source comments in decode.ts and validated live for AccountCreated
-// in the testnet smoke).
+// Fixtures serialize with the GENERATED event MoveStructs (src/contracts/...) —
+// the exact layouts decode.ts now parses, so a fixture can't drift from the
+// deployed struct order. Assertions cover the receipt fields the decoders
+// expose; trailing on-chain fields the receipts don't surface get placeholders.
 
 const MARKET = '0x' + '11'.repeat(32);
 const ACCOUNT = '0x' + '22'.repeat(32);
@@ -26,29 +28,10 @@ const OWNER = '0x' + '33'.repeat(32);
 const VAULT = '0x' + '44'.repeat(32);
 const CODE = '0x' + '55'.repeat(32);
 
-const OrderMintedBcs = bcs.struct('OrderMinted', {
-	expiry_market_id: bcs.Address,
-	account_id: bcs.Address,
-	order_id: bcs.u256(),
-	position_root_id: bcs.u256(),
-	owner: bcs.Address,
-	lower_tick: bcs.u64(),
-	higher_tick: bcs.u64(),
-	leverage: bcs.u64(),
-	entry_probability: bcs.u64(),
-	quantity: bcs.u64(),
-	net_premium: bcs.u64(),
-	trading_fee: bcs.u64(),
-	fee_incentive_subsidy: bcs.u64(),
-	builder_fee: bcs.u64(),
-	penalty_fee: bcs.u64(),
-	builder_code_id: bcs.option(bcs.Address),
-});
-
 function mintedEvent(orderId: bigint, overrides: Record<string, unknown> = {}): DecodableEvent {
 	return {
 		eventType: `${cfg.packages.predict}::order_events::OrderMinted`,
-		bcs: OrderMintedBcs.serialize({
+		bcs: orderEvents.OrderMinted.serialize({
 			expiry_market_id: MARKET,
 			account_id: ACCOUNT,
 			order_id: orderId,
@@ -65,6 +48,12 @@ function mintedEvent(orderId: bigint, overrides: Record<string, unknown> = {}): 
 			builder_fee: 30_000n,
 			penalty_fee: 5_000n,
 			builder_code_id: CODE,
+			// Trailing fields decode.ts parses but the mint receipt does not surface.
+			minted_at_ms: 0n,
+			pyth_spot_source_timestamp_ms: 0n,
+			block_scholes_spot_source_timestamp_ms: 0n,
+			block_scholes_forward_source_timestamp_ms: 0n,
+			block_scholes_svi_source_timestamp_ms: 0n,
 			...overrides,
 		}).toBytes(),
 	};
@@ -128,26 +117,10 @@ describe('decodeMints', () => {
 });
 
 describe('decodeRedeems', () => {
-	const LiveOrderRedeemedBcs = bcs.struct('LiveOrderRedeemed', {
-		expiry_market_id: bcs.Address,
-		account_id: bcs.Address,
-		order_id: bcs.u256(),
-		position_root_id: bcs.u256(),
-		owner: bcs.Address,
-		quantity_closed: bcs.u64(),
-		remaining_quantity: bcs.u64(),
-		replacement_order_id: bcs.option(bcs.u256()),
-		redeem_amount: bcs.u64(),
-		trading_fee: bcs.u64(),
-		builder_fee: bcs.u64(),
-		penalty_fee: bcs.u64(),
-		builder_code_id: bcs.option(bcs.Address),
-	});
-
 	function liveRedeem(replacement: bigint | null): DecodableEvent {
 		return {
 			eventType: `${cfg.packages.predict}::order_events::LiveOrderRedeemed`,
-			bcs: LiveOrderRedeemedBcs.serialize({
+			bcs: orderEvents.LiveOrderRedeemed.serialize({
 				expiry_market_id: MARKET,
 				account_id: ACCOUNT,
 				order_id: 7n,
@@ -161,6 +134,12 @@ describe('decodeRedeems', () => {
 				builder_fee: 0n,
 				penalty_fee: 0n,
 				builder_code_id: null,
+				// Trailing fields decode.ts parses but the redeem receipt does not surface.
+				redeemed_at_ms: 0n,
+				pyth_spot_source_timestamp_ms: 0n,
+				block_scholes_spot_source_timestamp_ms: 0n,
+				block_scholes_forward_source_timestamp_ms: 0n,
+				block_scholes_svi_source_timestamp_ms: 0n,
 			}).toBytes(),
 		};
 	}
@@ -183,25 +162,18 @@ describe('decodeRedeems', () => {
 	});
 
 	test('liquidated tombstone → zero payout, liquidated flag', () => {
-		const LiquidatedBcs = bcs.struct('LiquidatedOrderRedeemed', {
-			expiry_market_id: bcs.Address,
-			account_id: bcs.Address,
-			order_id: bcs.u256(),
-			position_root_id: bcs.u256(),
-			owner: bcs.Address,
-			quantity_closed: bcs.u64(),
-		});
 		const [r] = decodeRedeems(cfg, {
 			events: [
 				{
 					eventType: `${cfg.packages.predict}::order_events::LiquidatedOrderRedeemed`,
-					bcs: LiquidatedBcs.serialize({
+					bcs: orderEvents.LiquidatedOrderRedeemed.serialize({
 						expiry_market_id: MARKET,
 						account_id: ACCOUNT,
 						order_id: 7n,
 						position_root_id: 7n,
 						owner: OWNER,
 						quantity_closed: 50_000_000n,
+						redeemed_at_ms: 0n,
 					}).toBytes(),
 				},
 			],
@@ -214,21 +186,11 @@ describe('decodeRedeems', () => {
 
 describe('other decoders', () => {
 	test('claim receipt', () => {
-		const SettledBcs = bcs.struct('SettledOrderRedeemed', {
-			expiry_market_id: bcs.Address,
-			account_id: bcs.Address,
-			order_id: bcs.u256(),
-			position_root_id: bcs.u256(),
-			owner: bcs.Address,
-			quantity_closed: bcs.u64(),
-			settlement_price: bcs.u64(),
-			payout_amount: bcs.u64(),
-		});
 		const [r] = decodeClaims(cfg, {
 			events: [
 				{
 					eventType: `${cfg.packages.predict}::order_events::SettledOrderRedeemed`,
-					bcs: SettledBcs.serialize({
+					bcs: orderEvents.SettledOrderRedeemed.serialize({
 						expiry_market_id: MARKET,
 						account_id: ACCOUNT,
 						order_id: 7n,
@@ -237,6 +199,7 @@ describe('other decoders', () => {
 						quantity_closed: 50_000_000n,
 						settlement_price: 106_000_000_000_000n,
 						payout_amount: 50_000_000n,
+						redeemed_at_ms: 0n,
 					}).toBytes(),
 				},
 			],
@@ -246,21 +209,17 @@ describe('other decoders', () => {
 	});
 
 	test('createManager receipt', () => {
-		const AccountCreatedBcs = bcs.struct('AccountCreated', {
-			account_id: bcs.Address,
-			wrapper_id: bcs.Address,
-			owner: bcs.Address,
-			self_owned: bcs.bool(),
-		});
 		const [r] = decodeAccountsCreated(cfg, {
 			events: [
 				{
 					eventType: `${cfg.packages.account}::account_events::AccountCreated`,
-					bcs: AccountCreatedBcs.serialize({
+					bcs: accountEvents.AccountCreated.serialize({
 						account_id: ACCOUNT,
 						wrapper_id: VAULT,
 						owner: OWNER,
 						self_owned: true,
+						// DBU-666 trailing field; the receipt does not surface it.
+						referrer_account_id: null,
 					}).toBytes(),
 				},
 			],
@@ -269,17 +228,11 @@ describe('other decoders', () => {
 	});
 
 	test('deposit receipt carries new balance', () => {
-		const DepositedBcs = bcs.struct('Deposited', {
-			account_id: bcs.Address,
-			coin_type: bcs.string(),
-			amount: bcs.u64(),
-			new_balance: bcs.u64(),
-		});
 		const [r] = decodeDeposits(cfg, {
 			events: [
 				{
 					eventType: `${cfg.packages.account}::account_events::Deposited`,
-					bcs: DepositedBcs.serialize({
+					bcs: accountEvents.Deposited.serialize({
 						account_id: ACCOUNT,
 						coin_type: cfg.quoteCoinType.slice(2),
 						amount: 250_000_000n,
@@ -293,23 +246,19 @@ describe('other decoders', () => {
 	});
 
 	test('plp request receipt yields the cancel index', () => {
-		const SupplyRequestedBcs = bcs.struct('SupplyRequested', {
-			pool_vault_id: bcs.Address,
-			account_id: bcs.Address,
-			recipient: bcs.Address,
-			index: bcs.u64(),
-			amount: bcs.u64(),
-		});
 		const [r] = decodePlpRequests(cfg, {
 			events: [
 				{
 					eventType: `${cfg.packages.predict}::vault_events::SupplyRequested`,
-					bcs: SupplyRequestedBcs.serialize({
+					bcs: vaultEvents.SupplyRequested.serialize({
 						pool_vault_id: VAULT,
 						account_id: ACCOUNT,
 						recipient: OWNER,
 						index: 42n,
 						amount: 100_000_000n,
+						// Trailing fields the request receipt does not surface.
+						min_plp_out: 0n,
+						requests_pending_after: 0n,
 					}).toBytes(),
 				},
 			],
@@ -320,25 +269,20 @@ describe('other decoders', () => {
 	});
 
 	test('plp cancel receipt', () => {
-		const RequestCancelledBcs = bcs.struct('RequestCancelled', {
-			pool_vault_id: bcs.Address,
-			account_id: bcs.Address,
-			recipient: bcs.Address,
-			index: bcs.u64(),
-			amount: bcs.u64(),
-			is_supply: bcs.bool(),
-		});
 		const [r] = decodePlpCancels(cfg, {
 			events: [
 				{
 					eventType: `${cfg.packages.predict}::vault_events::RequestCancelled`,
-					bcs: RequestCancelledBcs.serialize({
+					bcs: vaultEvents.RequestCancelled.serialize({
 						pool_vault_id: VAULT,
 						account_id: ACCOUNT,
 						recipient: OWNER,
 						index: 42n,
 						amount: 100_000_000n,
 						is_supply: true,
+						// Trailing fields the cancel receipt does not surface.
+						reason: 0,
+						requests_pending_after: 0n,
 					}).toBytes(),
 				},
 			],

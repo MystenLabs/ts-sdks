@@ -3,6 +3,7 @@ import type { Transaction } from '@mysten/sui/transactions';
 import { describe, expect, test } from 'vitest';
 import { PredictClient } from '../src/client.js';
 import { TESTNET_CONFIG as cfg } from '../src/config/index.js';
+import * as orderEvents from '../src/contracts/deepbook_predict/order_events.js';
 import { PredictInputError } from '../src/errors.js';
 import type { ReadClient } from '../src/reads/inspect.js';
 import { POS_INF_TICK } from '../src/ticks.js';
@@ -36,82 +37,56 @@ function argPureBytes(tx: Transaction, cmdIdx: number, argIdx: number): string |
 
 const b64 = (v: bigint) => Buffer.from(bcs.u64().serialize(v).toBytes()).toString('base64');
 
-// Canned trade events for quote dry-runs (layouts mirror src/decode.ts).
+// Canned trade events for quote dry-runs, serialized with the generated event structs
+// so the layout matches what src/decode.ts parses (incl. the trailing timestamp fields).
 const MINTED_EVENT = {
 	eventType: `${cfg.packages.predict}::order_events::OrderMinted`,
-	bcs: bcs
-		.struct('OrderMinted', {
-			expiry_market_id: bcs.Address,
-			account_id: bcs.Address,
-			order_id: bcs.u256(),
-			position_root_id: bcs.u256(),
-			owner: bcs.Address,
-			lower_tick: bcs.u64(),
-			higher_tick: bcs.u64(),
-			leverage: bcs.u64(),
-			entry_probability: bcs.u64(),
-			quantity: bcs.u64(),
-			net_premium: bcs.u64(),
-			trading_fee: bcs.u64(),
-			fee_incentive_subsidy: bcs.u64(),
-			builder_fee: bcs.u64(),
-			penalty_fee: bcs.u64(),
-			builder_code_id: bcs.option(bcs.Address),
-		})
-		.serialize({
-			expiry_market_id: MARKET_ID,
-			account_id: MARKET_ID,
-			order_id: 7n,
-			position_root_id: 7n,
-			owner: OWNER,
-			lower_tick: 10_500_000n,
-			higher_tick: (1n << 30n) - 1n,
-			leverage: 1_000_000_000n,
-			entry_probability: 340_000_000n, // 0.34
-			quantity: 50_000_000n, // $50
-			net_premium: 17_000_000n, // $17
-			trading_fee: 100_000n, // $0.10
-			fee_incentive_subsidy: 20_000n, // $0.02 sponsor-paid
-			builder_fee: 30_000n, // $0.03
-			penalty_fee: 5_000n, // $0.005
-			builder_code_id: null,
-		})
-		.toBytes(),
+	bcs: orderEvents.OrderMinted.serialize({
+		expiry_market_id: MARKET_ID,
+		account_id: MARKET_ID,
+		order_id: 7n,
+		position_root_id: 7n,
+		owner: OWNER,
+		lower_tick: 10_500_000n,
+		higher_tick: (1n << 30n) - 1n,
+		leverage: 1_000_000_000n,
+		entry_probability: 340_000_000n, // 0.34
+		quantity: 50_000_000n, // $50
+		net_premium: 17_000_000n, // $17
+		trading_fee: 100_000n, // $0.10
+		fee_incentive_subsidy: 20_000n, // $0.02 sponsor-paid
+		builder_fee: 30_000n, // $0.03
+		penalty_fee: 5_000n, // $0.005
+		builder_code_id: null,
+		minted_at_ms: 0n,
+		pyth_spot_source_timestamp_ms: 0n,
+		block_scholes_spot_source_timestamp_ms: 0n,
+		block_scholes_forward_source_timestamp_ms: 0n,
+		block_scholes_svi_source_timestamp_ms: 0n,
+	}).toBytes(),
 };
 const REDEEMED_EVENT = {
 	eventType: `${cfg.packages.predict}::order_events::LiveOrderRedeemed`,
-	bcs: bcs
-		.struct('LiveOrderRedeemed', {
-			expiry_market_id: bcs.Address,
-			account_id: bcs.Address,
-			order_id: bcs.u256(),
-			position_root_id: bcs.u256(),
-			owner: bcs.Address,
-			quantity_closed: bcs.u64(),
-			remaining_quantity: bcs.u64(),
-			replacement_order_id: bcs.option(bcs.u256()),
-			redeem_amount: bcs.u64(),
-			trading_fee: bcs.u64(),
-			builder_fee: bcs.u64(),
-			penalty_fee: bcs.u64(),
-			builder_code_id: bcs.option(bcs.Address),
-		})
-		.serialize({
-			expiry_market_id: MARKET_ID,
-			account_id: MARKET_ID,
-			order_id: 7n,
-			position_root_id: 7n,
-			owner: OWNER,
-			quantity_closed: 20_000_000n,
-			remaining_quantity: 30_000_000n,
-			replacement_order_id: 8n,
-			redeem_amount: 6_000_000n, // gross $6
-			trading_fee: 50_000n,
-			builder_fee: 0n,
-			penalty_fee: 0n,
-			builder_code_id: null,
-		})
-		.toBytes(),
+	bcs: orderEvents.LiveOrderRedeemed.serialize({
+		expiry_market_id: MARKET_ID,
+		account_id: MARKET_ID,
+		order_id: 7n,
+		position_root_id: 7n,
+		owner: OWNER,
+		quantity_closed: 20_000_000n,
+		remaining_quantity: 30_000_000n,
+		replacement_order_id: 8n,
+		redeem_amount: 6_000_000n, // gross $6
+		trading_fee: 50_000n,
+		builder_fee: 0n,
+		penalty_fee: 0n,
+		builder_code_id: null,
+		redeemed_at_ms: 0n,
+		pyth_spot_source_timestamp_ms: 0n,
+		block_scholes_spot_source_timestamp_ms: 0n,
+		block_scholes_forward_source_timestamp_ms: 0n,
+		block_scholes_svi_source_timestamp_ms: 0n,
+	}).toBytes(),
 };
 
 // A mock ReadClient that dispatches canned return values by the first command's
@@ -133,12 +108,16 @@ function mockClient() {
 				return { $kind: 'Transaction', Transaction: { events: [REDEEMED_EVENT] } };
 			}
 			let results: Uint8Array[][];
-			if (fns[1] === 'range_price') {
-				// price PTB: load_live_pricer → up range → down range
+			if (fns.includes('range_price')) {
+				// price PTB: load_live_pricer → strike_from_tick ×3 → range_price ×2.
+				// read.price maps upRaw = commands[len-2], downRaw = commands[len-1].
 				results = [
-					[new Uint8Array(0)],
-					[bcs.u64().serialize(340_000_000n).toBytes()], // up 0.34
-					[bcs.u64().serialize(660_000_000n).toBytes()], // down 0.66
+					[new Uint8Array(0)], // load_live_pricer
+					[new Uint8Array(0)], // strike_from_tick — finite
+					[new Uint8Array(0)], // strike_from_tick — +inf
+					[new Uint8Array(0)], // strike_from_tick — -inf
+					[bcs.u64().serialize(340_000_000n).toBytes()], // range_price up 0.34
+					[bcs.u64().serialize(660_000_000n).toBytes()], // range_price down 0.66
 				];
 			} else if (fn === 'active_expiry_markets') {
 				results = [[bcs.vector(bcs.Address).serialize([MARKET_ID]).toBytes()]];

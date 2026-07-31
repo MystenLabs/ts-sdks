@@ -3,6 +3,8 @@ import type { SuiGrpcClient } from '@mysten/sui/grpc';
 import { deriveDynamicFieldID, normalizeSuiAddress } from '@mysten/sui/utils';
 import { type PredictConfig } from '../config/index.js';
 import { deriveAccountWrapperId } from '../tx/common.js';
+import { AccountWrapper } from '../contracts/account/account.js';
+import { PositionKey, PredictData } from '../contracts/deepbook_predict/predict_account.js';
 
 // ============================================================================
 // Chain-only position enumeration.
@@ -13,10 +15,9 @@ import { deriveAccountWrapperId } from '../tx/common.js';
 // entries are dynamic fields, so the KEYS (everything redeem/claim need)
 // arrive directly from a dynamic-field listing. No indexer, no simulation.
 //
-// The walk (all parsing is exact BCS via `include: {content: true}`; struct
-// layouts verbatim from the deployed sources at ec99cfae —
-// packages/account/sources/account.move:45-60 and
-// packages/predict/sources/predict_account.move PredictData):
+// The walk (all parsing is exact BCS via `include: {content: true}`; the account
+// and PredictData struct layouts come from the generated `contracts/*` MoveStructs
+// so they can't drift from the deployed `account`/`predict_account` sources):
 //   1. wrapper object (id derived client-side)     → account UID
 //   2. derived DataKey<PredictApp> field object     → positions Table id
 //   3. listDynamicFields(table)                    → PositionKey per entry
@@ -28,42 +29,15 @@ import { deriveAccountWrapperId } from '../tx/common.js';
  * only need `simulateTransaction`). A structural pick, so mocks stay easy. */
 export type ObjectReadClient = Pick<SuiGrpcClient, 'getObject' | 'listDynamicFields'>;
 
-const BagBcs = bcs.struct('Bag', { id: bcs.Address, size: bcs.u64() });
-const TableBcs = bcs.struct('Table', { id: bcs.Address, size: bcs.u64() });
-
-// account::AccountWrapper { id, account: Account { account_id, owner,
-// receive_address, balances: Bag, settlements: Bag } }
-const AccountWrapperBcs = bcs.struct('AccountWrapper', {
-	id: bcs.Address,
-	account: bcs.struct('Account', {
-		account_id: bcs.Address,
-		owner: bcs.Address,
-		receive_address: bcs.Address,
-		balances: BagBcs,
-		settlements: BagBcs,
-	}),
-});
-
 // sui::dynamic_field::Field<DataKey<PredictApp>, PredictData>. DataKey is
 // source-empty, but Move inserts a hidden `dummy_field: bool` into empty
 // structs — so the name occupies ONE zero byte between id and value (and the
-// same byte is the derived-field key, below).
+// same byte is the derived-field key, below). The `value` uses the generated
+// `PredictData` layout so it tracks the deployed struct.
 const PredictDataFieldBcs = bcs.struct('Field<DataKey,PredictData>', {
 	id: bcs.Address,
 	name: bcs.bool(), // DataKey's hidden dummy_field
-	value: bcs.struct('PredictData', {
-		positions: TableBcs,
-		expiry_summaries: TableBcs,
-		active_stake: bcs.u64(),
-		inactive_stake: bcs.u64(),
-		stake_epoch: bcs.u64(),
-		builder_code_id: bcs.option(bcs.Address),
-	}),
-});
-
-const PositionKeyBcs = bcs.struct('PositionKey', {
-	expiry_market_id: bcs.Address,
-	order_id: bcs.u256(),
+	value: PredictData,
 });
 
 /** One open position — the coordinates redeem/claim/hasPosition take. */
@@ -106,9 +80,7 @@ export async function resolvePositionsTable(
 ): Promise<PositionsHandle | null> {
 	const wrapperContent = await contentOf(client, deriveAccountWrapperId(cfg, owner));
 	if (!wrapperContent) return null;
-	const accountUid = normalizeSuiAddress(
-		AccountWrapperBcs.parse(wrapperContent).account.account_id,
-	);
+	const accountUid = normalizeSuiAddress(AccountWrapper.parse(wrapperContent).account.account_id);
 
 	// The PredictData field id is derivable — no listing needed for this hop.
 	const dataFieldId = deriveDynamicFieldID(
@@ -148,7 +120,7 @@ export async function positionsFromTable(
 				cursor,
 			});
 		for (const entry of res.dynamicFields) {
-			const key = PositionKeyBcs.parse(entry.name.bcs);
+			const key = PositionKey.parse(entry.name.bcs);
 			out.push({
 				marketId: normalizeSuiAddress(key.expiry_market_id),
 				orderId: BigInt(key.order_id),

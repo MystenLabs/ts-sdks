@@ -1,5 +1,6 @@
 import { Transaction } from '@mysten/sui/transactions';
-import { predictTarget, type PredictConfig } from '../config/index.js';
+import { type PredictConfig } from '../config/index.js';
+import * as plp from '../contracts/deepbook_predict/plp.js';
 import { inspectReturns, type ReadClient } from './inspect.js';
 import { parseU64LE } from './parse.js';
 
@@ -13,19 +14,16 @@ export interface PoolStats {
 // The pool's four u64 vault stats batched into one PTB (command order fixed below).
 // `plp::{plp_total_supply, idle_balance, supply_requests_pending,
 // withdraw_requests_pending}(vault)` — see
-// packages/predict/sources/plp/plp.move:{167,152,172,177}.
+// packages/predict/sources/plp/plp.move:{164,149,169,174}.
 export async function poolStats(client: ReadClient, cfg: PredictConfig): Promise<PoolStats> {
 	const tx = new Transaction();
 	for (const fn of [
-		'plp_total_supply',
-		'idle_balance',
-		'supply_requests_pending',
-		'withdraw_requests_pending',
+		plp.plpTotalSupply,
+		plp.idleBalance,
+		plp.supplyRequestsPending,
+		plp.withdrawRequestsPending,
 	]) {
-		tx.moveCall({
-			target: predictTarget(cfg, 'plp', fn),
-			arguments: [tx.object(cfg.objects.poolVault)],
-		});
+		tx.add(fn({ package: cfg.packages.predict, arguments: { vault: cfg.objects.poolVault } }));
 	}
 	const cmds = await inspectReturns(client, tx);
 	return {

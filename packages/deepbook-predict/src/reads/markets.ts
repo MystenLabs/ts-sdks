@@ -1,26 +1,33 @@
 import { Transaction } from '@mysten/sui/transactions';
-import { predictTarget, type PredictConfig } from '../config/index.js';
+import { type PredictConfig } from '../config/index.js';
 import { PredictMoveError } from '../errors.js';
-import { U64_MAX } from '../units.js';
+import { POS_INF_TICK } from '../ticks.js';
 import { loadLivePricer, type MarketFeeds } from '../tx/trade.js';
+import * as expiryMarket from '../contracts/deepbook_predict/expiry_market.js';
+import * as plp from '../contracts/deepbook_predict/plp.js';
+import * as pricing from '../contracts/deepbook_predict/pricing.js';
+import * as rangeCodec from '../contracts/deepbook_predict/range_codec.js';
+import * as registry from '../contracts/deepbook_predict/registry.js';
 import { inspectReturns, type ReadClient } from './inspect.js';
 import { parseOptionalId, parseOptionalU64, parseU64LE, parseVectorOfIds } from './parse.js';
 
 // On-chain ids of the pool's active (live, not-yet-settled) expiry markets.
-// `plp::active_expiry_markets(vault)` — see packages/predict/sources/plp/plp.move:182.
+// `plp::active_expiry_markets(vault)` — see packages/predict/sources/plp/plp.move:179.
 export async function activeMarketIds(client: ReadClient, cfg: PredictConfig): Promise<string[]> {
 	const tx = new Transaction();
-	tx.moveCall({
-		target: predictTarget(cfg, 'plp', 'active_expiry_markets'),
-		arguments: [tx.object(cfg.objects.poolVault)],
-	});
+	tx.add(
+		plp.activeExpiryMarkets({
+			package: cfg.packages.predict,
+			arguments: { vault: cfg.objects.poolVault },
+		}),
+	);
 	const [cmd0] = await inspectReturns(client, tx);
 	return parseVectorOfIds(cmd0[0]);
 }
 
 // The expiry market id for one underlying at one expiry, or null if none exists.
 // `registry::expiry_market_id(registry, propbook_underlying_id: u32, expiry: u64):
-// Option<ID>` — see packages/predict/sources/registry/registry.move:54.
+// Option<ID>` — see packages/predict/sources/registry/registry.move:53.
 export async function expiryMarketId(
 	client: ReadClient,
 	cfg: PredictConfig,
@@ -30,14 +37,16 @@ export async function expiryMarketId(
 	const u = cfg.underlyings[underlying];
 	if (!u) throw new Error(`unknown underlying: ${underlying}`);
 	const tx = new Transaction();
-	tx.moveCall({
-		target: predictTarget(cfg, 'registry', 'expiry_market_id'),
-		arguments: [
-			tx.object(cfg.objects.registry),
-			tx.pure.u32(u.propbookUnderlyingId),
-			tx.pure.u64(expiryMs),
-		],
-	});
+	tx.add(
+		registry.expiryMarketId({
+			package: cfg.packages.predict,
+			arguments: {
+				registry: cfg.objects.registry,
+				propbookUnderlyingId: u.propbookUnderlyingId,
+				expiry: expiryMs,
+			},
+		}),
+	);
 	const [cmd0] = await inspectReturns(client, tx);
 	return parseOptionalId(cmd0[0]);
 }
@@ -54,13 +63,17 @@ export interface MarketState {
 	referenceTickRaw: bigint | null;
 }
 
-// The per-market state commands, in fixed order. `expiry_market::{expiry,
+// The per-market state getters, in fixed order. `expiry_market::{expiry,
 // tick_size, mint_paused, reference_tick}` — see
-// packages/predict/sources/expiry_market.move:{90,141,~230,149}. reference_tick
-// returns Option (no abort risk), unlike settlement_price which is deliberately
-// NOT batched here: on the deployed package it aborts for a live (unsettled)
-// market — use `settlementPrice` below.
-const STATE_FNS = ['expiry', 'tick_size', 'mint_paused', 'reference_tick'] as const;
+// packages/predict/sources/expiry_market.move:{101,177,259,187}. reference_tick
+// returns Option (no abort risk). settlement is read separately via
+// `settlementPrice` (its own non-batched getter below).
+const STATE_FNS = [
+	expiryMarket.expiry,
+	expiryMarket.tickSize,
+	expiryMarket.mintPaused,
+	expiryMarket.referenceTick,
+] as const;
 
 function parseStateAt(cmds: Uint8Array[][], base: number): MarketState {
 	return {
@@ -91,10 +104,7 @@ export async function marketStates(
 	const tx = new Transaction();
 	for (const id of marketIds) {
 		for (const fn of STATE_FNS) {
-			tx.moveCall({
-				target: predictTarget(cfg, 'expiry_market', fn),
-				arguments: [tx.object(id)],
-			});
+			tx.add(fn({ package: cfg.packages.predict, arguments: { market: id } }));
 		}
 	}
 	const cmds = await inspectReturns(client, tx);
@@ -102,32 +112,54 @@ export async function marketStates(
 }
 
 // Anonymous both-sides pricing for one strike: the chain's own probability for
-// (strike, +inf) and (-inf, strike). `pricing::range_price` takes RAW strikes
-// with sentinels neg_inf=0 / pos_inf=u64::MAX (range_codec::strikes_from_ticks);
-// it is public(package) on the deployed package, reachable here only because
-// simulate runs with checksEnabled:false — same coupling as `settlementPrice`,
-// dies when a public quote endpoint lands on-chain. Both sides are read from
-// the SAME pricer in one PTB, so `down` is the chain's number, not 1 − up.
+// (strike, +inf] and (-inf, strike]. Deployed `pricing::range_price` takes typed
+// `range_codec::Strike`s (NOT raw u64) — each boundary is built via
+// `range_codec::strike_from_tick(tick, tick_size)`, which maps tick 0 → -inf,
+// POS_INF_TICK → +inf, and any finite tick → tick*tick_size. `range_price` is
+// public(package) on the deployed package, reachable here only because simulate
+// runs with checksEnabled:false. Both sides read the SAME pricer in one PTB, so
+// `down` is the chain's number, not 1 − up.
 export async function rangePrices(
 	client: ReadClient,
 	cfg: PredictConfig,
 	marketId: string,
 	feeds: MarketFeeds,
 	strikeRaw: bigint,
+	tickSizeRaw: bigint,
 ): Promise<{ upRaw: bigint; downRaw: bigint }> {
 	const tx = new Transaction();
 	const pricer = loadLivePricer(cfg, tx, { expiryMarketId: marketId, ...feeds });
-	for (const [lower, higher] of [
-		[strikeRaw, U64_MAX], // UP: (strike, +inf)
-		[0n, strikeRaw], // DOWN: (-inf, strike)
-	] as const) {
-		tx.moveCall({
-			target: predictTarget(cfg, 'pricing', 'range_price'),
-			arguments: [pricer, tx.pure.u64(lower), tx.pure.u64(higher)],
-		});
-	}
+	// strikeRaw is a whole tick multiple (the caller validates divisibility), so the
+	// finite boundary is `strike_from_tick(strikeRaw / tickSize, tickSize)`.
+	const strikeTick = strikeRaw / tickSizeRaw;
+	const mkStrike = (tick: bigint) =>
+		tx.add(
+			rangeCodec.strikeFromTick({
+				package: cfg.packages.predict,
+				arguments: { tick, tickSize: tickSizeRaw },
+			}),
+		);
+	const strike = mkStrike(strikeTick);
+	const posInf = mkStrike(POS_INF_TICK);
+	const negInf = mkStrike(0n);
+	// UP: (strike, +inf], then DOWN: (-inf, strike] — the last two commands.
+	tx.add(
+		pricing.rangePrice({
+			package: cfg.packages.predict,
+			arguments: { pricer, lower: strike, higher: posInf },
+		}),
+	);
+	tx.add(
+		pricing.rangePrice({
+			package: cfg.packages.predict,
+			arguments: { pricer, lower: negInf, higher: strike },
+		}),
+	);
 	const cmds = await inspectReturns(client, tx);
-	return { upRaw: parseU64LE(cmds[1][0]), downRaw: parseU64LE(cmds[2][0]) };
+	return {
+		upRaw: parseU64LE(cmds[cmds.length - 2][0]),
+		downRaw: parseU64LE(cmds[cmds.length - 1][0]),
+	};
 }
 
 // Fresh single read of the reference tick — used by mint-at-reference, which
@@ -139,31 +171,34 @@ export async function referenceTick(
 	marketId: string,
 ): Promise<bigint | null> {
 	const tx = new Transaction();
-	tx.moveCall({
-		target: predictTarget(cfg, 'expiry_market', 'reference_tick'),
-		arguments: [tx.object(marketId)],
-	});
+	tx.add(
+		expiryMarket.referenceTick({ package: cfg.packages.predict, arguments: { market: marketId } }),
+	);
 	const [cmd0] = await inspectReturns(client, tx);
 	return parseOptionalU64(cmd0[0]);
 }
 
 // The recorded settlement price, or null while the market is unsettled.
 //
-// On the deployed package `expiry_market::settlement_price` is public(package) and
+// On the deployed package `expiry_market::settlement_price` is public and
 // `destroy_some`s the stored Option — callable here only because simulate runs with
 // checksEnabled:false, and it aborts in std::option (EOPTION_NOT_SET) when the
 // market has not settled; we map exactly that abort (and the public
 // EMarketNotSettled variant, should a future package guard it directly) to null.
+// (A non-aborting `try_settlement_price` also exists on-chain if this ever wants to
+// drop the abort-catch.)
 export async function settlementPrice(
 	client: ReadClient,
 	cfg: PredictConfig,
 	marketId: string,
 ): Promise<bigint | null> {
 	const tx = new Transaction();
-	tx.moveCall({
-		target: predictTarget(cfg, 'expiry_market', 'settlement_price'),
-		arguments: [tx.object(marketId)],
-	});
+	tx.add(
+		expiryMarket.settlementPrice({
+			package: cfg.packages.predict,
+			arguments: { market: marketId },
+		}),
+	);
 	try {
 		const [cmd0] = await inspectReturns(client, tx);
 		return parseU64LE(cmd0[0]);
@@ -181,8 +216,8 @@ export async function settlementPrice(
 
 // A market's current NAV mark (the per-expiry recoverable value the flush prices
 // against). Loads a fresh live pricer, then reads `current_nav(market, &pricer)` —
-// see packages/predict/sources/expiry_market.move:221 and harness runtime.ts:476-481.
-// `Pricer` has copy+drop, so the unconsumed borrow is fine in a read-only inspect.
+// see packages/predict/sources/expiry_market.move:236. `Pricer` has copy+drop, so
+// the unconsumed borrow is fine in a read-only inspect.
 export async function currentNav(
 	client: ReadClient,
 	cfg: PredictConfig,
@@ -194,15 +229,16 @@ export async function currentNav(
 	const tx = new Transaction();
 	const pricer = loadLivePricer(cfg, tx, {
 		expiryMarketId: marketId,
-		pythFeedId: u.pythFeedId,
-		bsSpotFeedId: u.bsSpotFeedId,
-		bsForwardFeedId: u.bsForwardFeedId,
-		bsSviFeedId: u.bsSviFeedId,
+		pythFeed: u.pythFeed,
+		blockScholesValueStore: u.blockScholesValueStore,
+		blockScholesSviStore: u.blockScholesSviStore,
 	});
-	tx.moveCall({
-		target: predictTarget(cfg, 'expiry_market', 'current_nav'),
-		arguments: [tx.object(marketId), pricer],
-	});
+	tx.add(
+		expiryMarket.currentNav({
+			package: cfg.packages.predict,
+			arguments: { market: marketId, pricer },
+		}),
+	);
 	const cmds = await inspectReturns(client, tx);
 	// current_nav is the last command; load_live_pricer precedes it.
 	return parseU64LE(cmds[cmds.length - 1][0]);

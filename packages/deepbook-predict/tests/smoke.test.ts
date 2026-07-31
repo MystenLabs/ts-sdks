@@ -1,5 +1,11 @@
 import { expect, test } from 'vitest';
 
-import { SDK_NAME } from '../src/index.js';
+import { PredictClient, TESTNET_CONFIG } from '../src/index.js';
 
-test('package exports', () => expect(SDK_NAME).toBe('@mysten/deepbook-predict'));
+// Trivial "package exports load" smoke: the public surface resolves and the bundled
+// testnet config is the testnet one. (SDK_NAME was removed from the public surface.)
+test('package exports load', () => {
+	expect(PredictClient).toBeDefined();
+	expect(TESTNET_CONFIG).toBeDefined();
+	expect(TESTNET_CONFIG.network).toBe('testnet');
+});

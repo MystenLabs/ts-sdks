@@ -1,52 +1,46 @@
 import type { Transaction, TransactionResult } from '@mysten/sui/transactions';
-import {
-	ACCUMULATOR_ROOT_ID,
-	CLOCK_ID,
-	predictTarget,
-	type PredictConfig,
-} from '../config/index.js';
+import { ACCUMULATOR_ROOT_ID, type PredictConfig } from '../config/index.js';
 import { U64_MAX } from '../units.js';
+import * as expiryMarket from '../contracts/deepbook_predict/expiry_market.js';
 import { generateAuth } from './common.js';
 
-// The four oracle feed object ids a live market's pricer / redeem paths read. Grouped
-// so callers pass one bundle; the deployment's per-underlying ids live in
-// `cfg.underlyings[symbol]` (see `src/config/testnet.ts`).
+// The oracle feed object ids a live market's pricer reads. Grouped so callers pass one
+// bundle; the deployment's per-underlying ids live in `cfg.underlyings[symbol]` (see
+// `src/config/testnet.ts`), named to match `deployment.testnet.json`.
 export interface MarketFeeds {
-	pythFeedId: string;
-	bsSpotFeedId: string;
-	bsForwardFeedId: string;
-	bsSviFeedId: string;
+	pythFeed: string;
+	blockScholesValueStore: string;
+	blockScholesSviStore: string;
 }
 
-// Load a fresh `Pricer` from the four live oracle feeds. Every live-flow trade call
+// Load a fresh `Pricer` from the live oracle feeds. Every live-flow trade call
 // (`mint_*`, `redeem_live`) borrows this `&Pricer` and it must be loaded first in the
-// PTB. Ports harness `runtime.ts:804` (`load_live_pricer`, 8 args) against the deployed
-// surface (`git show ec99cfae:.../expiry_market.move:167`). `ctx` is not a param here.
+// PTB. Deployed sig `load_live_pricer` (expiry_market.move): market, config,
+// propbook_registry (&OracleRegistry), pyth, bs_values, bs_svi, clock (auto-injected).
 export function loadLivePricer(
 	cfg: PredictConfig,
 	tx: Transaction,
 	args: { expiryMarketId: string } & MarketFeeds,
 ): TransactionResult {
-	return tx.moveCall({
-		target: predictTarget(cfg, 'expiry_market', 'load_live_pricer'),
-		arguments: [
-			tx.object(args.expiryMarketId),
-			tx.object(cfg.objects.protocolConfig),
-			tx.object(cfg.objects.oracleRegistry),
-			tx.object(args.pythFeedId),
-			tx.object(args.bsSpotFeedId),
-			tx.object(args.bsForwardFeedId),
-			tx.object(args.bsSviFeedId),
-			tx.object(CLOCK_ID),
-		],
-	});
+	return tx.add(
+		expiryMarket.loadLivePricer({
+			package: cfg.packages.predict,
+			arguments: {
+				market: args.expiryMarketId,
+				config: cfg.objects.protocolConfig,
+				propbookRegistry: cfg.objects.oracleRegistry,
+				pyth: args.pythFeed,
+				bsValues: args.blockScholesValueStore,
+				bsSvi: args.blockScholesSviStore,
+			},
+		}),
+	);
 }
 
-// Mint a position of an exact `quantityRaw` at a fixed cost/probability ceiling, returning
-// the new order id (u256). Command order is pricer → auth → mint (auth is a hot potato
-// consumed by this call). Ports harness `runtime.ts:863` (`mint_exact_quantity`, 13 args,
-// deployed sig `expiry_market.move:242`). `maxCostRaw`/`maxProbabilityRaw` default to
-// `U64_MAX` (no slippage cap), matching the harness.
+// Mint a position of an exact `quantityRaw`, capped by cost/probability ceilings,
+// returning the new order id (u256). Command order is pricer → auth → mint (auth is a
+// hot potato consumed by this call). `maxCostRaw`/`maxProbabilityRaw` default to
+// `U64_MAX` (no slippage cap). Deployed sig `mint_exact_quantity`.
 export function mintExactQuantity(
 	cfg: PredictConfig,
 	tx: Transaction,
@@ -63,30 +57,31 @@ export function mintExactQuantity(
 ): TransactionResult {
 	const pricer = loadLivePricer(cfg, tx, args);
 	const auth = generateAuth(cfg, tx);
-	return tx.moveCall({
-		target: predictTarget(cfg, 'expiry_market', 'mint_exact_quantity'),
-		arguments: [
-			tx.object(args.expiryMarketId),
-			tx.object(args.wrapperId),
-			auth,
-			tx.object(cfg.objects.protocolConfig),
-			pricer,
-			tx.pure.u64(args.lowerTick),
-			tx.pure.u64(args.higherTick),
-			tx.pure.u64(args.quantityRaw),
-			tx.pure.u64(args.leverageRaw),
-			tx.pure.u64(args.maxCostRaw ?? U64_MAX),
-			tx.pure.u64(args.maxProbabilityRaw ?? U64_MAX),
-			tx.object(ACCUMULATOR_ROOT_ID),
-			tx.object(CLOCK_ID),
-		],
-	});
+	return tx.add(
+		expiryMarket.mintExactQuantity({
+			package: cfg.packages.predict,
+			arguments: {
+				market: args.expiryMarketId,
+				wrapper: args.wrapperId,
+				auth,
+				config: cfg.objects.protocolConfig,
+				pricer,
+				lowerTick: args.lowerTick,
+				higherTick: args.higherTick,
+				quantity: args.quantityRaw,
+				leverage: args.leverageRaw,
+				maxCost: args.maxCostRaw ?? U64_MAX,
+				maxProbability: args.maxProbabilityRaw ?? U64_MAX,
+				root: ACCUMULATOR_ROOT_ID,
+			},
+		}),
+	);
 }
 
-// Mint by spending an exact `amountRaw` (raw quote units), enforcing a `minQuantityRaw`
-// floor on the position received, returning the new order id (u256). Command order is
-// pricer → auth → mint. Deployed sig `expiry_market.move:293` (`mint_exact_amount`, 12
-// moveCall args — note: no cost/probability ceilings, the floor is `min_quantity`).
+// Mint by spending up to `maxPremiumRaw` (raw quote units) at leverage, enforcing a
+// `minQuantityRaw` floor on the position received and a `maxCostRaw` all-in ceiling,
+// returning the new order id (u256). Command order is pricer → auth → mint. Deployed
+// sig `mint_exact_amount`: …, max_premium, min_quantity, leverage, max_cost, root.
 export function mintExactAmount(
 	cfg: PredictConfig,
 	tx: Transaction,
@@ -95,41 +90,40 @@ export function mintExactAmount(
 		wrapperId: string;
 		lowerTick: bigint;
 		higherTick: bigint;
-		amountRaw: bigint;
+		maxPremiumRaw: bigint;
 		minQuantityRaw: bigint;
 		leverageRaw: bigint;
+		maxCostRaw?: bigint;
 	} & MarketFeeds,
 ): TransactionResult {
 	const pricer = loadLivePricer(cfg, tx, args);
 	const auth = generateAuth(cfg, tx);
-	return tx.moveCall({
-		target: predictTarget(cfg, 'expiry_market', 'mint_exact_amount'),
-		arguments: [
-			tx.object(args.expiryMarketId),
-			tx.object(args.wrapperId),
-			auth,
-			tx.object(cfg.objects.protocolConfig),
-			pricer,
-			tx.pure.u64(args.lowerTick),
-			tx.pure.u64(args.higherTick),
-			tx.pure.u64(args.amountRaw),
-			tx.pure.u64(args.minQuantityRaw),
-			tx.pure.u64(args.leverageRaw),
-			tx.object(ACCUMULATOR_ROOT_ID),
-			tx.object(CLOCK_ID),
-		],
-	});
+	return tx.add(
+		expiryMarket.mintExactAmount({
+			package: cfg.packages.predict,
+			arguments: {
+				market: args.expiryMarketId,
+				wrapper: args.wrapperId,
+				auth,
+				config: cfg.objects.protocolConfig,
+				pricer,
+				lowerTick: args.lowerTick,
+				higherTick: args.higherTick,
+				maxPremium: args.maxPremiumRaw,
+				minQuantity: args.minQuantityRaw,
+				leverage: args.leverageRaw,
+				maxCost: args.maxCostRaw ?? U64_MAX,
+				root: ACCUMULATOR_ROOT_ID,
+			},
+		}),
+	);
 }
 
 // Owner-authorized redeem of a live (not-yet-settled) position: close `closeQuantityRaw`
-// of `orderId` at the live pricer's mark, returning (closed_order_id u256,
-// Option<replacement order id> — present when a partial close leaves quantity open).
-// Command order is pricer → auth → redeem.
-//
-// DEPLOYED SURFACE (drift guard): the live testnet contract's `redeem_live` takes NO
-// `min_probability`/`min_proceeds` close-side slippage floors — 9 moveCall args, not the
-// 11 the main-shaped harness `runtime.ts:891` passes. Authored from the deployed
-// signature `git show ec99cfae:.../expiry_market.move:350`, NOT from runtime.ts.
+// of `orderId` at the live pricer's mark, enforcing close-side slippage floors
+// (`minProbabilityRaw`/`minProceedsRaw`, default 0 = uncapped). Returns (closed order id
+// u256, Option<replacement order id>). Command order is pricer → auth → redeem. Deployed
+// sig `redeem_live`.
 export function redeemLive(
 	cfg: PredictConfig,
 	tx: Transaction,
@@ -138,35 +132,36 @@ export function redeemLive(
 		wrapperId: string;
 		orderId: bigint;
 		closeQuantityRaw: bigint;
+		minProbabilityRaw?: bigint;
+		minProceedsRaw?: bigint;
 	} & MarketFeeds,
 ): TransactionResult {
 	const pricer = loadLivePricer(cfg, tx, args);
 	const auth = generateAuth(cfg, tx);
-	return tx.moveCall({
-		target: predictTarget(cfg, 'expiry_market', 'redeem_live'),
-		arguments: [
-			tx.object(args.expiryMarketId),
-			tx.object(args.wrapperId),
-			auth,
-			tx.object(cfg.objects.protocolConfig),
-			pricer,
-			tx.pure.u256(args.orderId),
-			tx.pure.u64(args.closeQuantityRaw),
-			tx.object(ACCUMULATOR_ROOT_ID),
-			tx.object(CLOCK_ID),
-		],
-	});
+	return tx.add(
+		expiryMarket.redeemLive({
+			package: cfg.packages.predict,
+			arguments: {
+				market: args.expiryMarketId,
+				wrapper: args.wrapperId,
+				auth,
+				config: cfg.objects.protocolConfig,
+				pricer,
+				orderId: args.orderId,
+				closeQuantity: args.closeQuantityRaw,
+				minProbability: args.minProbabilityRaw ?? 0n,
+				minProceeds: args.minProceedsRaw ?? 0n,
+				root: ACCUMULATOR_ROOT_ID,
+			},
+		}),
+	);
 }
 
-// Permissionless redeem of a settled position: close `closeQuantityRaw` of `orderId`
-// against the settlement pyth price, returning (closed_order_id u256,
-// Option<replacement order id>). Requires a full close on the deployed package.
-//
-// DEPLOYED SURFACE (drift guard): this is the app-auth path — it takes `account_registry`
-// and threads NO `Auth` hot potato, so there is no `generate_auth` call and no live
-// `Pricer`. 10 moveCall args (market, accountRegistry, wrapper, config, oracleRegistry,
-// pyth, order_id, close_quantity, root, clock). Deployed sig
-// `git show ec99cfae:.../expiry_market.move:387`.
+// Owner-authorized redeem of a settled position: close `closeQuantityRaw` of `orderId`
+// against the recorded settlement price. Returns (closed order id u256, Option<replacement
+// order id>). No live pricer (settlement price is fixed); auth is consumed by the call.
+// Deployed sig `redeem_settled` (owner-auth form). The keeper-facing
+// `redeem_settled_permissionless` is a separate entrypoint, out of scope for this SDK.
 export function redeemSettled(
 	cfg: PredictConfig,
 	tx: Transaction,
@@ -175,22 +170,21 @@ export function redeemSettled(
 		wrapperId: string;
 		orderId: bigint;
 		closeQuantityRaw: bigint;
-		pythFeedId: string;
 	},
 ): TransactionResult {
-	return tx.moveCall({
-		target: predictTarget(cfg, 'expiry_market', 'redeem_settled'),
-		arguments: [
-			tx.object(args.expiryMarketId),
-			tx.object(cfg.objects.accountRegistry),
-			tx.object(args.wrapperId),
-			tx.object(cfg.objects.protocolConfig),
-			tx.object(cfg.objects.oracleRegistry),
-			tx.object(args.pythFeedId),
-			tx.pure.u256(args.orderId),
-			tx.pure.u64(args.closeQuantityRaw),
-			tx.object(ACCUMULATOR_ROOT_ID),
-			tx.object(CLOCK_ID),
-		],
-	});
+	const auth = generateAuth(cfg, tx);
+	return tx.add(
+		expiryMarket.redeemSettled({
+			package: cfg.packages.predict,
+			arguments: {
+				market: args.expiryMarketId,
+				wrapper: args.wrapperId,
+				auth,
+				config: cfg.objects.protocolConfig,
+				orderId: args.orderId,
+				closeQuantity: args.closeQuantityRaw,
+				root: ACCUMULATOR_ROOT_ID,
+			},
+		}),
+	);
 }

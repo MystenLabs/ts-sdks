@@ -5,14 +5,20 @@ export interface PredictPackages {
 	propbook: string;
 }
 
-/** Per-underlying oracle wiring: the propbook underlying id plus the four feed object ids. */
+/**
+ * Per-underlying oracle wiring: the propbook underlying id plus the feed object ids the
+ * live pricer reads. Names mirror the deployment manifest
+ * (`packages/predict/deployment/deployment.testnet.json` → `underlyings`).
+ */
 export interface UnderlyingConfig {
 	symbol: string;
 	propbookUnderlyingId: number;
-	pythFeedId: string;
-	bsSpotFeedId: string;
-	bsForwardFeedId: string;
-	bsSviFeedId: string;
+	/** `&PythFeed` — spot price feed. */
+	pythFeed: string;
+	/** `&BlockScholesValueStore` — Black-Scholes value store. */
+	blockScholesValueStore: string;
+	/** `&BlockScholesSVIStore` — SVI-surface store. */
+	blockScholesSviStore: string;
 }
 
 /** Everything a tx builder or read needs to address a Predict deployment on one network. */
