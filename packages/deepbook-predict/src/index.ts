@@ -44,9 +44,8 @@ export type { Side } from './ticks.js';
 export { PredictInputError, PredictMoveError, decodeMoveAbort } from './errors.js';
 export type { MoveAbortError } from './errors.js';
 
-// === Client seam + market feed bundle (needed to construct a client / read prices) ===
+// === Client seam + position type used in public read signatures ===
 export type { ReadClient } from './reads/inspect.js';
-export type { MarketFeeds } from './tx/trade.js';
 export type { OpenPosition } from './reads/positions.js';
 
 // === Execution-result decoders (pure event parsing, no network) ===

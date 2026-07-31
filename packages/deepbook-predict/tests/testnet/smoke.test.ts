@@ -110,8 +110,10 @@ describe('testnet smoke (live deployment)', () => {
 		const pool = await predict.read.pool();
 		expect(pool.plpTotalSupply > 0n).toBe(true);
 		expect(pool.idleUsdc).toBeGreaterThanOrEqual(0);
-		expect(pool.supplyPending).toBeGreaterThanOrEqual(0);
-		expect(pool.withdrawPending).toBeGreaterThanOrEqual(0);
+		expect(pool.supplyRequestsPending).toBeGreaterThanOrEqual(0);
+		expect(Number.isInteger(pool.supplyRequestsPending)).toBe(true);
+		expect(pool.withdrawRequestsPending).toBeGreaterThanOrEqual(0);
+		expect(Number.isInteger(pool.withdrawRequestsPending)).toBe(true);
 	});
 
 	test('registry mapping agrees with the summary for a live market', async () => {

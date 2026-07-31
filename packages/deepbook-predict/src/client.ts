@@ -121,12 +121,16 @@ export interface MarketSummary {
 	referencePrice: number | null;
 }
 
-/** Aggregate pool figures, in human units (shares raw, everything else scaled). */
+/** Aggregate pool figures. Balances in human units (shares raw); the pending fields
+ * are request COUNTS, not amounts — the on-chain getters expose queue lengths, and
+ * the escrowed DUSDC/PLP behind them is tracked separately. */
 export interface PoolSummary {
 	plpTotalSupply: bigint;
 	idleUsdc: number;
-	supplyPending: number;
-	withdrawPending: number;
+	/** Number of LP supply requests queued for the next flush. */
+	supplyRequestsPending: number;
+	/** Number of LP withdraw requests queued for the next flush. */
+	withdrawRequestsPending: number;
 }
 
 /** Exact pre-trade quote: the dry-run receipt of the mint you are about to send. */
@@ -171,8 +175,8 @@ interface ResolvedMarket {
  * The one object an app constructs. Wraps the config, a gRPC client for reads, and
  * a derived-account model so callers pass owner addresses, decimal amounts, and
  * human market coordinates — the facade converts to raw units, resolves markets
- * (cached), and delegates to the tx primitives / reads. Every primitive stays
- * exported for callers that need to compose their own PTBs.
+ * (cached), and delegates to the internal tx primitives / reads. Callers who need
+ * to compose their own PTBs can use the generated bindings under `contracts/`.
  */
 export class PredictClient {
 	readonly cfg: PredictConfig;
@@ -280,8 +284,9 @@ export class PredictClient {
 		return c;
 	}
 
-	// Shared construction for tx.mint and read.quoteMint — the quote dry-runs
-	// EXACTLY the transaction the trade would send.
+	// Shared construction for tx.mint and read.quoteMint. The quote dry-runs the
+	// same mint the trade sends; quoteMint omits the caller's cost/probability caps
+	// (they only gate via abort and don't change the receipt numbers).
 	private async buildMint(
 		owner: string,
 		m: MarketDescriptor,
@@ -395,6 +400,11 @@ export class PredictClient {
 			opts: MintAmountOptions,
 		): Promise<Transaction> => {
 			const feeds = this.feeds(m.underlying);
+			// The chain requires a positive all-in cost cap (EMintCostCapRequired);
+			// reject a zero cap pre-flight rather than surface a cryptic Move abort.
+			if (opts.maxCost != null && opts.maxCost <= 0) {
+				throw new PredictInputError('maxCost must be > 0');
+			}
 			const { id, state } = await this.resolveMarket(m);
 			// No lot check: min_quantity is a floor the chain compares against an
 			// already-lot-floored minted quantity, so any floor value is legal.
@@ -628,8 +638,9 @@ export class PredictClient {
 			return {
 				plpTotalSupply: s.plpTotalSupply, // shares raw (6-decimal)
 				idleUsdc: rawToUsdc(s.idleBalance),
-				supplyPending: rawToUsdc(s.supplyRequestsPending), // DUSDC queued
-				withdrawPending: fromRaw(s.withdrawRequestsPending, 6), // PLP shares queued
+				// These are queue LENGTHS (counts of pending requests), not token amounts.
+				supplyRequestsPending: Number(s.supplyRequestsPending),
+				withdrawRequestsPending: Number(s.withdrawRequestsPending),
 			};
 		},
 	};
