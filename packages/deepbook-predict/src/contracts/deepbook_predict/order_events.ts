@@ -52,14 +52,13 @@ export const OrderMinted = new MoveStruct({
 		builder_code_id: bcs.option(bcs.Address),
 		minted_at_ms: bcs.u64(),
 		/**
-		 * Oracle timestamps present when this mint was priced. The SVI parameter timestamp
-		 * is the first source time for the current tuple; its source timestamp is the
-		 * latest envelope. Pyth is `0` only when unusable.
+		 * Oracle source timestamps present when this mint was priced: the provider model
+		 * times the data is "as of" (the SVI one is also the roll-down anchor). Pyth is
+		 * `0` only when unusable.
 		 */
 		pyth_spot_source_timestamp_ms: bcs.u64(),
 		block_scholes_spot_source_timestamp_ms: bcs.u64(),
 		block_scholes_forward_source_timestamp_ms: bcs.u64(),
-		block_scholes_svi_params_timestamp_ms: bcs.u64(),
 		block_scholes_svi_source_timestamp_ms: bcs.u64(),
 	},
 });
@@ -93,14 +92,13 @@ export const LiveOrderRedeemed = new MoveStruct({
 		builder_code_id: bcs.option(bcs.Address),
 		redeemed_at_ms: bcs.u64(),
 		/**
-		 * Oracle timestamps present when this redemption was priced. The SVI parameter
-		 * timestamp is the first source time for the current tuple; its source timestamp
-		 * is the latest envelope. Pyth is `0` only when unusable.
+		 * Oracle source timestamps present when this redemption was priced: the provider
+		 * model times the data is "as of" (the SVI one is also the roll-down anchor). Pyth
+		 * is `0` only when unusable.
 		 */
 		pyth_spot_source_timestamp_ms: bcs.u64(),
 		block_scholes_spot_source_timestamp_ms: bcs.u64(),
 		block_scholes_forward_source_timestamp_ms: bcs.u64(),
-		block_scholes_svi_params_timestamp_ms: bcs.u64(),
 		block_scholes_svi_source_timestamp_ms: bcs.u64(),
 	},
 });
@@ -146,14 +144,13 @@ export const OrderLiquidated = new MoveStruct({
 		liquidation_ltv: bcs.u64(),
 		liquidated_at_ms: bcs.u64(),
 		/**
-		 * Oracle timestamps present when this liquidation was priced. The SVI parameter
-		 * timestamp is the first source time for the current tuple; its source timestamp
-		 * is the latest envelope. Pyth is `0` only when unusable.
+		 * Oracle source timestamps present when this liquidation was priced: the provider
+		 * model times the data is "as of" (the SVI one is also the roll-down anchor). Pyth
+		 * is `0` only when unusable.
 		 */
 		pyth_spot_source_timestamp_ms: bcs.u64(),
 		block_scholes_spot_source_timestamp_ms: bcs.u64(),
 		block_scholes_forward_source_timestamp_ms: bcs.u64(),
-		block_scholes_svi_params_timestamp_ms: bcs.u64(),
 		block_scholes_svi_source_timestamp_ms: bcs.u64(),
 	},
 });

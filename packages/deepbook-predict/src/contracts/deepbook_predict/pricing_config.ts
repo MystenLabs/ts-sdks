@@ -3,7 +3,7 @@
  **************************************************************/
 
 /**
- * Stored oracle freshness config for Predict quotes.
+ * Stored oracle source-selection and freshness config for Predict quotes.
  *
  * ProtocolConfig owns this mutable policy. Pricing reads it when resolving live
  * probabilities for mint and redeem flows.
@@ -15,6 +15,12 @@ const $moduleName = '@local-pkg/deepbook_predict::pricing_config';
 export const PricingConfig = new MoveStruct({
 	name: `${$moduleName}::PricingConfig`,
 	fields: {
+		/**
+		 * Selects which live-forward formula pricing uses. True carries the Block Scholes
+		 * basis on a fresh Pyth spot (`pyth_spot * bs_forward / bs_spot`); false uses the
+		 * Block Scholes forward directly and no Pyth spot, fresh or not, moves a quote.
+		 */
+		use_pyth_spot_for_forward: bcs.bool(),
 		/**
 		 * Fixed wall-clock maximum age for Pyth spot; it does not vary with time to
 		 * expiry.

@@ -7,9 +7,10 @@
  *
  * This module reads canonical Propbook Pyth and Block Scholes feeds and computes
  * SVI-adjusted digital probabilities. Live reads require fresh, pricing-safe Block
- * Scholes spot, forward, and SVI observations. A fresh positive Pyth spot
- * reanchors the Block Scholes forward basis; otherwise pricing uses that forward
- * directly. Exact-history reads do not apply live freshness policy.
+ * Scholes spot, forward, and SVI observations. The live forward comes from one of
+ * two admin-selected sources (`PricingConfig.use_pyth_spot_for_forward`): a fresh
+ * positive Pyth spot carrying the Block Scholes basis, or the Block Scholes
+ * forward directly. Exact-history reads do not apply live freshness policy.
  */
 
 import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
@@ -39,17 +40,27 @@ export const Pricer = new MoveStruct({
 		svi: PricingSVI,
 		/**
 		 * Source timestamps of the oracle observations present when this snapshot was
-		 * loaded. Pyth is `0` only when no usable normalized observation exists.
+		 * loaded. Pyth is `0` only when no usable normalized observation exists. The Block
+		 * Scholes ones are the provider's model times — when each series' data is "as of",
+		 * held fixed across retransmissions of an unchanged value. They are the economic
+		 * clocks: freshness is asserted against them and the SVI one anchors the
+		 * roll-down; the batch envelope time is transport metadata and never reaches the
+		 * `Pricer`.
 		 */
 		pyth_spot_source_timestamp_ms: bcs.u64(),
 		block_scholes_spot_source_timestamp_ms: bcs.u64(),
 		block_scholes_forward_source_timestamp_ms: bcs.u64(),
-		/**
-		 * First source envelope carrying the raw SVI tuple from which `svi` was rolled
-		 * down.
-		 */
-		block_scholes_svi_params_timestamp_ms: bcs.u64(),
 		block_scholes_svi_source_timestamp_ms: bcs.u64(),
+	},
+});
+export const RawSVI = new MoveStruct({
+	name: `${$moduleName}::RawSVI`,
+	fields: {
+		a: i64.I64,
+		b: bcs.u64(),
+		rho: i64.I64,
+		m: i64.I64,
+		sigma: bcs.u64(),
 	},
 });
 export const ExactSpotRead = new MoveStruct({

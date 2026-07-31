@@ -364,8 +364,7 @@ export interface ValueExpiryArguments {
 	config: RawTransactionArgument<string>;
 	propbookRegistry: RawTransactionArgument<string>;
 	pyth: RawTransactionArgument<string>;
-	bsSpot: RawTransactionArgument<string>;
-	bsForward: RawTransactionArgument<string>;
+	bsValues: RawTransactionArgument<string>;
 	bsSvi: RawTransactionArgument<string>;
 }
 export interface ValueExpiryOptions {
@@ -379,8 +378,7 @@ export interface ValueExpiryOptions {
 				config: RawTransactionArgument<string>,
 				propbookRegistry: RawTransactionArgument<string>,
 				pyth: RawTransactionArgument<string>,
-				bsSpot: RawTransactionArgument<string>,
-				bsForward: RawTransactionArgument<string>,
+				bsValues: RawTransactionArgument<string>,
 				bsSvi: RawTransactionArgument<string>,
 		  ];
 }
@@ -405,7 +403,6 @@ export function valueExpiry(options: ValueExpiryOptions) {
 		null,
 		null,
 		null,
-		null,
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
 	const parameterNames = [
@@ -415,8 +412,7 @@ export function valueExpiry(options: ValueExpiryOptions) {
 		'config',
 		'propbookRegistry',
 		'pyth',
-		'bsSpot',
-		'bsForward',
+		'bsValues',
 		'bsSvi',
 	];
 	return (tx: Transaction) =>

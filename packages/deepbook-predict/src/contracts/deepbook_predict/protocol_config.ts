@@ -449,6 +449,39 @@ export function setTemplateMaxEntryProbability(options: SetTemplateMaxEntryProba
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface SetUsePythSpotForForwardArguments {
+	config: RawTransactionArgument<string>;
+	AdminCap: RawTransactionArgument<string>;
+	enabled: RawTransactionArgument<boolean>;
+}
+export interface SetUsePythSpotForForwardOptions {
+	package?: string;
+	arguments:
+		| SetUsePythSpotForForwardArguments
+		| [
+				config: RawTransactionArgument<string>,
+				AdminCap: RawTransactionArgument<string>,
+				enabled: RawTransactionArgument<boolean>,
+		  ];
+}
+/**
+ * Select which source the live forward is built from: `true` carries the Block
+ * Scholes basis on a fresh Pyth spot, `false` uses the Block Scholes forward
+ * directly. Locked during valuation so one flush marks every market on one
+ * formula.
+ */
+export function setUsePythSpotForForward(options: SetUsePythSpotForForwardOptions) {
+	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null, null, 'bool'] satisfies (string | null)[];
+	const parameterNames = ['config', 'AdminCap', 'enabled'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'protocol_config',
+			function: 'set_use_pyth_spot_for_forward',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
 export interface SetPythSpotFreshnessMsArguments {
 	config: RawTransactionArgument<string>;
 	AdminCap: RawTransactionArgument<string>;

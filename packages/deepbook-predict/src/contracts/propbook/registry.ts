@@ -33,6 +33,19 @@ export const OracleRegistry = new MoveStruct({
 		bindings: table.Table,
 		/** Provider/source pair to the sole underlying it may serve. */
 		source_bindings: table.Table,
+		/**
+		 * Underlying to its Block Scholes store pair. Stores carry no source id — a signed
+		 * series names its own underlying — so they bind directly here rather than through
+		 * the source catalog, and an underlying has at most one pair for its lifetime.
+		 */
+		block_scholes_stores: table.Table,
+	},
+});
+export const BlockScholesStorePair = new MoveStruct({
+	name: `${$moduleName}::BlockScholesStorePair`,
+	fields: {
+		value_store_id: bcs.Address,
+		svi_store_id: bcs.Address,
 	},
 });
 export const OracleSourceKey = new MoveStruct({
@@ -76,6 +89,14 @@ export const OracleBound = new MoveStruct({
 		source_id: bcs.u32(),
 		propbook_oracle_id: bcs.Address,
 		value_kind: bcs.u8(),
+	},
+});
+export const BlockScholesStoresRegistered = new MoveStruct({
+	name: `${$moduleName}::BlockScholesStoresRegistered`,
+	fields: {
+		propbook_underlying_id: bcs.u32(),
+		value_store_id: bcs.Address,
+		svi_store_id: bcs.Address,
 	},
 });
 export const OracleRebound = new MoveStruct({
@@ -156,86 +177,6 @@ export function containsPythSource(options: ContainsPythSourceOptions) {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export interface ContainsBlockScholesSpotSourceArguments {
-	registry: RawTransactionArgument<string>;
-	bsSourceId: RawTransactionArgument<number>;
-}
-export interface ContainsBlockScholesSpotSourceOptions {
-	package?: string;
-	arguments:
-		| ContainsBlockScholesSpotSourceArguments
-		| [registry: RawTransactionArgument<string>, bsSourceId: RawTransactionArgument<number>];
-}
-/**
- * Returns whether the Block Scholes spot wrapper exists in the external source
- * catalog.
- */
-export function containsBlockScholesSpotSource(options: ContainsBlockScholesSpotSourceOptions) {
-	const packageAddress = options.package ?? '@local-pkg/propbook';
-	const argumentsTypes = [null, 'u32'] satisfies (string | null)[];
-	const parameterNames = ['registry', 'bsSourceId'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'registry',
-			function: 'contains_block_scholes_spot_source',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
-}
-export interface ContainsBlockScholesForwardSourceArguments {
-	registry: RawTransactionArgument<string>;
-	bsSourceId: RawTransactionArgument<number>;
-}
-export interface ContainsBlockScholesForwardSourceOptions {
-	package?: string;
-	arguments:
-		| ContainsBlockScholesForwardSourceArguments
-		| [registry: RawTransactionArgument<string>, bsSourceId: RawTransactionArgument<number>];
-}
-/**
- * Returns whether the Block Scholes forward wrapper exists in the external source
- * catalog.
- */
-export function containsBlockScholesForwardSource(
-	options: ContainsBlockScholesForwardSourceOptions,
-) {
-	const packageAddress = options.package ?? '@local-pkg/propbook';
-	const argumentsTypes = [null, 'u32'] satisfies (string | null)[];
-	const parameterNames = ['registry', 'bsSourceId'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'registry',
-			function: 'contains_block_scholes_forward_source',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
-}
-export interface ContainsBlockScholesSviSourceArguments {
-	registry: RawTransactionArgument<string>;
-	bsSourceId: RawTransactionArgument<number>;
-}
-export interface ContainsBlockScholesSviSourceOptions {
-	package?: string;
-	arguments:
-		| ContainsBlockScholesSviSourceArguments
-		| [registry: RawTransactionArgument<string>, bsSourceId: RawTransactionArgument<number>];
-}
-/**
- * Returns whether the Block Scholes SVI wrapper exists in the external source
- * catalog.
- */
-export function containsBlockScholesSviSource(options: ContainsBlockScholesSviSourceOptions) {
-	const packageAddress = options.package ?? '@local-pkg/propbook';
-	const argumentsTypes = [null, 'u32'] satisfies (string | null)[];
-	const parameterNames = ['registry', 'bsSourceId'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'registry',
-			function: 'contains_block_scholes_svi_source',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
-}
 export interface PropbookPythIdForSourceArguments {
 	registry: RawTransactionArgument<string>;
 	pythSourceId: RawTransactionArgument<number>;
@@ -256,90 +197,6 @@ export function propbookPythIdForSource(options: PropbookPythIdForSourceOptions)
 			package: packageAddress,
 			module: 'registry',
 			function: 'propbook_pyth_id_for_source',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
-}
-export interface PropbookBlockScholesSpotIdForSourceArguments {
-	registry: RawTransactionArgument<string>;
-	bsSourceId: RawTransactionArgument<number>;
-}
-export interface PropbookBlockScholesSpotIdForSourceOptions {
-	package?: string;
-	arguments:
-		| PropbookBlockScholesSpotIdForSourceArguments
-		| [registry: RawTransactionArgument<string>, bsSourceId: RawTransactionArgument<number>];
-}
-/**
- * Resolves a registered Block Scholes spot wrapper for external composition or
- * discovery.
- */
-export function propbookBlockScholesSpotIdForSource(
-	options: PropbookBlockScholesSpotIdForSourceOptions,
-) {
-	const packageAddress = options.package ?? '@local-pkg/propbook';
-	const argumentsTypes = [null, 'u32'] satisfies (string | null)[];
-	const parameterNames = ['registry', 'bsSourceId'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'registry',
-			function: 'propbook_block_scholes_spot_id_for_source',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
-}
-export interface PropbookBlockScholesForwardIdForSourceArguments {
-	registry: RawTransactionArgument<string>;
-	bsSourceId: RawTransactionArgument<number>;
-}
-export interface PropbookBlockScholesForwardIdForSourceOptions {
-	package?: string;
-	arguments:
-		| PropbookBlockScholesForwardIdForSourceArguments
-		| [registry: RawTransactionArgument<string>, bsSourceId: RawTransactionArgument<number>];
-}
-/**
- * Resolves a registered Block Scholes forward wrapper for external composition or
- * discovery.
- */
-export function propbookBlockScholesForwardIdForSource(
-	options: PropbookBlockScholesForwardIdForSourceOptions,
-) {
-	const packageAddress = options.package ?? '@local-pkg/propbook';
-	const argumentsTypes = [null, 'u32'] satisfies (string | null)[];
-	const parameterNames = ['registry', 'bsSourceId'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'registry',
-			function: 'propbook_block_scholes_forward_id_for_source',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
-}
-export interface PropbookBlockScholesSviIdForSourceArguments {
-	registry: RawTransactionArgument<string>;
-	bsSourceId: RawTransactionArgument<number>;
-}
-export interface PropbookBlockScholesSviIdForSourceOptions {
-	package?: string;
-	arguments:
-		| PropbookBlockScholesSviIdForSourceArguments
-		| [registry: RawTransactionArgument<string>, bsSourceId: RawTransactionArgument<number>];
-}
-/**
- * Resolves a registered Block Scholes SVI wrapper for external composition or
- * discovery.
- */
-export function propbookBlockScholesSviIdForSource(
-	options: PropbookBlockScholesSviIdForSourceOptions,
-) {
-	const packageAddress = options.package ?? '@local-pkg/propbook';
-	const argumentsTypes = [null, 'u32'] satisfies (string | null)[];
-	const parameterNames = ['registry', 'bsSourceId'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'registry',
-			function: 'propbook_block_scholes_svi_id_for_source',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
@@ -369,25 +226,26 @@ export function propbookPythIdForUnderlying(options: PropbookPythIdForUnderlying
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export interface PropbookBlockScholesSpotIdForUnderlyingArguments {
+export interface PropbookBlockScholesValueStoreIdForUnderlyingArguments {
 	registry: RawTransactionArgument<string>;
 	propbookUnderlyingId: RawTransactionArgument<number>;
 }
-export interface PropbookBlockScholesSpotIdForUnderlyingOptions {
+export interface PropbookBlockScholesValueStoreIdForUnderlyingOptions {
 	package?: string;
 	arguments:
-		| PropbookBlockScholesSpotIdForUnderlyingArguments
+		| PropbookBlockScholesValueStoreIdForUnderlyingArguments
 		| [
 				registry: RawTransactionArgument<string>,
 				propbookUnderlyingId: RawTransactionArgument<number>,
 		  ];
 }
 /**
- * Resolves the canonical Block Scholes spot feed for external composition or
- * discovery.
+ * Resolves the canonical Block Scholes value store, which a consumer checks its
+ * argument against before pricing from it: a store names its own underlying, but
+ * only this binding says which store is the one for that underlying.
  */
-export function propbookBlockScholesSpotIdForUnderlying(
-	options: PropbookBlockScholesSpotIdForUnderlyingOptions,
+export function propbookBlockScholesValueStoreIdForUnderlying(
+	options: PropbookBlockScholesValueStoreIdForUnderlyingOptions,
 ) {
 	const packageAddress = options.package ?? '@local-pkg/propbook';
 	const argumentsTypes = [null, 'u32'] satisfies (string | null)[];
@@ -396,29 +254,29 @@ export function propbookBlockScholesSpotIdForUnderlying(
 		tx.moveCall({
 			package: packageAddress,
 			module: 'registry',
-			function: 'propbook_block_scholes_spot_id_for_underlying',
+			function: 'propbook_block_scholes_value_store_id_for_underlying',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export interface PropbookBlockScholesForwardIdForUnderlyingArguments {
+export interface PropbookBlockScholesSviStoreIdForUnderlyingArguments {
 	registry: RawTransactionArgument<string>;
 	propbookUnderlyingId: RawTransactionArgument<number>;
 }
-export interface PropbookBlockScholesForwardIdForUnderlyingOptions {
+export interface PropbookBlockScholesSviStoreIdForUnderlyingOptions {
 	package?: string;
 	arguments:
-		| PropbookBlockScholesForwardIdForUnderlyingArguments
+		| PropbookBlockScholesSviStoreIdForUnderlyingArguments
 		| [
 				registry: RawTransactionArgument<string>,
 				propbookUnderlyingId: RawTransactionArgument<number>,
 		  ];
 }
 /**
- * Resolves the canonical Block Scholes forward feed for external composition or
- * discovery.
+ * Resolves the canonical Block Scholes SVI store. Same trust role as the value
+ * store binding.
  */
-export function propbookBlockScholesForwardIdForUnderlying(
-	options: PropbookBlockScholesForwardIdForUnderlyingOptions,
+export function propbookBlockScholesSviStoreIdForUnderlying(
+	options: PropbookBlockScholesSviStoreIdForUnderlyingOptions,
 ) {
 	const packageAddress = options.package ?? '@local-pkg/propbook';
 	const argumentsTypes = [null, 'u32'] satisfies (string | null)[];
@@ -427,38 +285,7 @@ export function propbookBlockScholesForwardIdForUnderlying(
 		tx.moveCall({
 			package: packageAddress,
 			module: 'registry',
-			function: 'propbook_block_scholes_forward_id_for_underlying',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
-}
-export interface PropbookBlockScholesSviIdForUnderlyingArguments {
-	registry: RawTransactionArgument<string>;
-	propbookUnderlyingId: RawTransactionArgument<number>;
-}
-export interface PropbookBlockScholesSviIdForUnderlyingOptions {
-	package?: string;
-	arguments:
-		| PropbookBlockScholesSviIdForUnderlyingArguments
-		| [
-				registry: RawTransactionArgument<string>,
-				propbookUnderlyingId: RawTransactionArgument<number>,
-		  ];
-}
-/**
- * Resolves the canonical Block Scholes SVI feed for external composition or
- * discovery.
- */
-export function propbookBlockScholesSviIdForUnderlying(
-	options: PropbookBlockScholesSviIdForUnderlyingOptions,
-) {
-	const packageAddress = options.package ?? '@local-pkg/propbook';
-	const argumentsTypes = [null, 'u32'] satisfies (string | null)[];
-	const parameterNames = ['registry', 'propbookUnderlyingId'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'registry',
-			function: 'propbook_block_scholes_svi_id_for_underlying',
+			function: 'propbook_block_scholes_svi_store_id_for_underlying',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
@@ -488,99 +315,6 @@ export function pythMetadataForUnderlying(options: PythMetadataForUnderlyingOpti
 			package: packageAddress,
 			module: 'registry',
 			function: 'pyth_metadata_for_underlying',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
-}
-export interface BlockScholesSpotMetadataForUnderlyingArguments {
-	registry: RawTransactionArgument<string>;
-	propbookUnderlyingId: RawTransactionArgument<number>;
-}
-export interface BlockScholesSpotMetadataForUnderlyingOptions {
-	package?: string;
-	arguments:
-		| BlockScholesSpotMetadataForUnderlyingArguments
-		| [
-				registry: RawTransactionArgument<string>,
-				propbookUnderlyingId: RawTransactionArgument<number>,
-		  ];
-}
-/**
- * Returns the canonical Block Scholes spot binding metadata for external
- * composition or inspection.
- */
-export function blockScholesSpotMetadataForUnderlying(
-	options: BlockScholesSpotMetadataForUnderlyingOptions,
-) {
-	const packageAddress = options.package ?? '@local-pkg/propbook';
-	const argumentsTypes = [null, 'u32'] satisfies (string | null)[];
-	const parameterNames = ['registry', 'propbookUnderlyingId'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'registry',
-			function: 'block_scholes_spot_metadata_for_underlying',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
-}
-export interface BlockScholesForwardMetadataForUnderlyingArguments {
-	registry: RawTransactionArgument<string>;
-	propbookUnderlyingId: RawTransactionArgument<number>;
-}
-export interface BlockScholesForwardMetadataForUnderlyingOptions {
-	package?: string;
-	arguments:
-		| BlockScholesForwardMetadataForUnderlyingArguments
-		| [
-				registry: RawTransactionArgument<string>,
-				propbookUnderlyingId: RawTransactionArgument<number>,
-		  ];
-}
-/**
- * Returns the canonical Block Scholes forward binding metadata for external
- * composition or inspection.
- */
-export function blockScholesForwardMetadataForUnderlying(
-	options: BlockScholesForwardMetadataForUnderlyingOptions,
-) {
-	const packageAddress = options.package ?? '@local-pkg/propbook';
-	const argumentsTypes = [null, 'u32'] satisfies (string | null)[];
-	const parameterNames = ['registry', 'propbookUnderlyingId'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'registry',
-			function: 'block_scholes_forward_metadata_for_underlying',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
-}
-export interface BlockScholesSviMetadataForUnderlyingArguments {
-	registry: RawTransactionArgument<string>;
-	propbookUnderlyingId: RawTransactionArgument<number>;
-}
-export interface BlockScholesSviMetadataForUnderlyingOptions {
-	package?: string;
-	arguments:
-		| BlockScholesSviMetadataForUnderlyingArguments
-		| [
-				registry: RawTransactionArgument<string>,
-				propbookUnderlyingId: RawTransactionArgument<number>,
-		  ];
-}
-/**
- * Returns the canonical Block Scholes SVI binding metadata for external
- * composition or inspection.
- */
-export function blockScholesSviMetadataForUnderlying(
-	options: BlockScholesSviMetadataForUnderlyingOptions,
-) {
-	const packageAddress = options.package ?? '@local-pkg/propbook';
-	const argumentsTypes = [null, 'u32'] satisfies (string | null)[];
-	const parameterNames = ['registry', 'propbookUnderlyingId'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'registry',
-			function: 'block_scholes_svi_metadata_for_underlying',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
@@ -712,88 +446,37 @@ export function createAndSharePythFeed(options: CreateAndSharePythFeedOptions) {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export interface CreateAndShareBlockScholesSpotFeedArguments {
+export interface CreateAndShareBlockScholesStoresArguments {
 	registry: RawTransactionArgument<string>;
-	bsSourceId: RawTransactionArgument<number>;
+	AdminCap: RawTransactionArgument<string>;
+	propbookUnderlyingId: RawTransactionArgument<number>;
 }
-export interface CreateAndShareBlockScholesSpotFeedOptions {
+export interface CreateAndShareBlockScholesStoresOptions {
 	package?: string;
 	arguments:
-		| CreateAndShareBlockScholesSpotFeedArguments
-		| [registry: RawTransactionArgument<string>, bsSourceId: RawTransactionArgument<number>];
+		| CreateAndShareBlockScholesStoresArguments
+		| [
+				registry: RawTransactionArgument<string>,
+				AdminCap: RawTransactionArgument<string>,
+				propbookUnderlyingId: RawTransactionArgument<number>,
+		  ];
 }
 /**
- * Create and share the Propbook BS spot wrapper for `bs_source_id`, then record it
- * in the source catalog. Permissionless: a duplicate source aborts before object
- * creation.
+ * Create and share this underlying's Block Scholes store pair and record it as
+ * canonical. Admin-gated and once per underlying: the binding is what lets a
+ * consumer reject a store it was not meant to price from, so a second pair would
+ * leave two stores each able to claim the underlying with nothing to choose
+ * between them.
  */
-export function createAndShareBlockScholesSpotFeed(
-	options: CreateAndShareBlockScholesSpotFeedOptions,
-) {
+export function createAndShareBlockScholesStores(options: CreateAndShareBlockScholesStoresOptions) {
 	const packageAddress = options.package ?? '@local-pkg/propbook';
-	const argumentsTypes = [null, 'u32'] satisfies (string | null)[];
-	const parameterNames = ['registry', 'bsSourceId'];
+	const argumentsTypes = [null, null, 'u32'] satisfies (string | null)[];
+	const parameterNames = ['registry', 'AdminCap', 'propbookUnderlyingId'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'registry',
-			function: 'create_and_share_block_scholes_spot_feed',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
-}
-export interface CreateAndShareBlockScholesForwardFeedArguments {
-	registry: RawTransactionArgument<string>;
-	bsSourceId: RawTransactionArgument<number>;
-}
-export interface CreateAndShareBlockScholesForwardFeedOptions {
-	package?: string;
-	arguments:
-		| CreateAndShareBlockScholesForwardFeedArguments
-		| [registry: RawTransactionArgument<string>, bsSourceId: RawTransactionArgument<number>];
-}
-/**
- * Create and share the Propbook BS forward wrapper for `bs_source_id`, then record
- * it in the source catalog.
- */
-export function createAndShareBlockScholesForwardFeed(
-	options: CreateAndShareBlockScholesForwardFeedOptions,
-) {
-	const packageAddress = options.package ?? '@local-pkg/propbook';
-	const argumentsTypes = [null, 'u32'] satisfies (string | null)[];
-	const parameterNames = ['registry', 'bsSourceId'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'registry',
-			function: 'create_and_share_block_scholes_forward_feed',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
-}
-export interface CreateAndShareBlockScholesSviFeedArguments {
-	registry: RawTransactionArgument<string>;
-	bsSourceId: RawTransactionArgument<number>;
-}
-export interface CreateAndShareBlockScholesSviFeedOptions {
-	package?: string;
-	arguments:
-		| CreateAndShareBlockScholesSviFeedArguments
-		| [registry: RawTransactionArgument<string>, bsSourceId: RawTransactionArgument<number>];
-}
-/**
- * Create and share the Propbook BS SVI wrapper for `bs_source_id`, then record it
- * in the source catalog.
- */
-export function createAndShareBlockScholesSviFeed(
-	options: CreateAndShareBlockScholesSviFeedOptions,
-) {
-	const packageAddress = options.package ?? '@local-pkg/propbook';
-	const argumentsTypes = [null, 'u32'] satisfies (string | null)[];
-	const parameterNames = ['registry', 'bsSourceId'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'registry',
-			function: 'create_and_share_block_scholes_svi_feed',
+			function: 'create_and_share_block_scholes_stores',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
@@ -860,122 +543,6 @@ export function replacePythBindingForUnderlying(options: ReplacePythBindingForUn
 			package: packageAddress,
 			module: 'registry',
 			function: 'replace_pyth_binding_for_underlying',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
-}
-export interface BindBlockScholesSpotToUnderlyingArguments {
-	registry: RawTransactionArgument<string>;
-	adminCap: RawTransactionArgument<string>;
-	feed: RawTransactionArgument<string>;
-	propbookUnderlyingId: RawTransactionArgument<number>;
-}
-export interface BindBlockScholesSpotToUnderlyingOptions {
-	package?: string;
-	arguments:
-		| BindBlockScholesSpotToUnderlyingArguments
-		| [
-				registry: RawTransactionArgument<string>,
-				adminCap: RawTransactionArgument<string>,
-				feed: RawTransactionArgument<string>,
-				propbookUnderlyingId: RawTransactionArgument<number>,
-		  ];
-}
-/** Admin-bind this BS spot source feed to a canonical Propbook underlying. */
-export function bindBlockScholesSpotToUnderlying(options: BindBlockScholesSpotToUnderlyingOptions) {
-	const packageAddress = options.package ?? '@local-pkg/propbook';
-	const argumentsTypes = [null, null, null, 'u32'] satisfies (string | null)[];
-	const parameterNames = ['registry', 'adminCap', 'feed', 'propbookUnderlyingId'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'registry',
-			function: 'bind_block_scholes_spot_to_underlying',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
-}
-export interface BindBlockScholesSurfaceToUnderlyingArguments {
-	registry: RawTransactionArgument<string>;
-	adminCap: RawTransactionArgument<string>;
-	forwardFeed: RawTransactionArgument<string>;
-	sviFeed: RawTransactionArgument<string>;
-	propbookUnderlyingId: RawTransactionArgument<number>;
-}
-export interface BindBlockScholesSurfaceToUnderlyingOptions {
-	package?: string;
-	arguments:
-		| BindBlockScholesSurfaceToUnderlyingArguments
-		| [
-				registry: RawTransactionArgument<string>,
-				adminCap: RawTransactionArgument<string>,
-				forwardFeed: RawTransactionArgument<string>,
-				sviFeed: RawTransactionArgument<string>,
-				propbookUnderlyingId: RawTransactionArgument<number>,
-		  ];
-}
-/**
- * Admin-bind this BS forward/SVI surface pair to a canonical Propbook underlying.
- * The underlying's BS spot feed must already be bound, and all three BS feeds must
- * come from the same source id.
- */
-export function bindBlockScholesSurfaceToUnderlying(
-	options: BindBlockScholesSurfaceToUnderlyingOptions,
-) {
-	const packageAddress = options.package ?? '@local-pkg/propbook';
-	const argumentsTypes = [null, null, null, null, 'u32'] satisfies (string | null)[];
-	const parameterNames = ['registry', 'adminCap', 'forwardFeed', 'sviFeed', 'propbookUnderlyingId'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'registry',
-			function: 'bind_block_scholes_surface_to_underlying',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
-}
-export interface ReplaceBlockScholesBindingsForUnderlyingArguments {
-	registry: RawTransactionArgument<string>;
-	adminCap: RawTransactionArgument<string>;
-	spotFeed: RawTransactionArgument<string>;
-	forwardFeed: RawTransactionArgument<string>;
-	sviFeed: RawTransactionArgument<string>;
-	propbookUnderlyingId: RawTransactionArgument<number>;
-}
-export interface ReplaceBlockScholesBindingsForUnderlyingOptions {
-	package?: string;
-	arguments:
-		| ReplaceBlockScholesBindingsForUnderlyingArguments
-		| [
-				registry: RawTransactionArgument<string>,
-				adminCap: RawTransactionArgument<string>,
-				spotFeed: RawTransactionArgument<string>,
-				forwardFeed: RawTransactionArgument<string>,
-				sviFeed: RawTransactionArgument<string>,
-				propbookUnderlyingId: RawTransactionArgument<number>,
-		  ];
-}
-/**
- * Admin-replace all canonical Block Scholes feeds for a Propbook underlying.
- *
- * Spot, forward, and SVI are replaced atomically and must all come from the same
- * `bs_source_id`, preserving the same-source surface invariant consumers rely on.
- */
-export function replaceBlockScholesBindingsForUnderlying(
-	options: ReplaceBlockScholesBindingsForUnderlyingOptions,
-) {
-	const packageAddress = options.package ?? '@local-pkg/propbook';
-	const argumentsTypes = [null, null, null, null, null, 'u32'] satisfies (string | null)[];
-	const parameterNames = [
-		'registry',
-		'adminCap',
-		'spotFeed',
-		'forwardFeed',
-		'sviFeed',
-		'propbookUnderlyingId',
-	];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'registry',
-			function: 'replace_block_scholes_bindings_for_underlying',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }

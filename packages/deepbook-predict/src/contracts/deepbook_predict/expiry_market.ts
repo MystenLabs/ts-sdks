@@ -519,8 +519,7 @@ export interface LoadLivePricerArguments {
 	config: RawTransactionArgument<string>;
 	propbookRegistry: RawTransactionArgument<string>;
 	pyth: RawTransactionArgument<string>;
-	bsSpot: RawTransactionArgument<string>;
-	bsForward: RawTransactionArgument<string>;
+	bsValues: RawTransactionArgument<string>;
 	bsSvi: RawTransactionArgument<string>;
 }
 export interface LoadLivePricerOptions {
@@ -532,8 +531,7 @@ export interface LoadLivePricerOptions {
 				config: RawTransactionArgument<string>,
 				propbookRegistry: RawTransactionArgument<string>,
 				pyth: RawTransactionArgument<string>,
-				bsSpot: RawTransactionArgument<string>,
-				bsForward: RawTransactionArgument<string>,
+				bsValues: RawTransactionArgument<string>,
 				bsSvi: RawTransactionArgument<string>,
 		  ];
 }
@@ -545,19 +543,11 @@ export interface LoadLivePricerOptions {
  */
 export function loadLivePricer(options: LoadLivePricerOptions) {
 	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, null, null, null, null, null, '0x2::clock::Clock'] satisfies (
+	const argumentsTypes = [null, null, null, null, null, null, '0x2::clock::Clock'] satisfies (
 		| string
 		| null
 	)[];
-	const parameterNames = [
-		'market',
-		'config',
-		'propbookRegistry',
-		'pyth',
-		'bsSpot',
-		'bsForward',
-		'bsSvi',
-	];
+	const parameterNames = ['market', 'config', 'propbookRegistry', 'pyth', 'bsValues', 'bsSvi'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
