@@ -17,6 +17,9 @@ import { describe, expect, test } from 'vitest';
 import { PredictClient, PredictMoveError, TESTNET_CONFIG } from '../../src/index.js';
 // The trade builders are internal to the facade; the arity guard drives them directly.
 import { mintExactQuantity, redeemLive } from '../../src/tx/trade.js';
+// Pricer-free registry read, to assert the (underlying, expiry) → id mapping even when
+// the oracle is stale (NAV/price reads abort in that state — see isOracleUnavailable).
+import { expiryMarketId } from '../../src/reads/markets.js';
 // Generated move-calls: build the fresh wrapper (`account_registry::new`) and share it
 // (`account::share`) the same way `src/tx/account.ts` does, no hand-rolled targets.
 import * as account from '../../src/contracts/account/account.js';
@@ -92,6 +95,19 @@ function expectSemanticOrSuccess(outcome: unknown, label: string): void {
 	expect(text, `${label}: expected a Move abort, got: ${text}`).toMatch(/MoveAbort/i);
 }
 
+// A market is only priceable when its Block-Scholes / Pyth oracle inputs are fresh. On
+// testnet the oracle keeper is intermittent, so NAV / price reads can abort in the
+// `pricing` module (EBlockScholesPriceStale=4, EBlockScholesInputsInvalid=5,
+// EPythSpotInvalid=6, ELivePricingExpired=9). That is a market-liveness condition, not
+// an SDK fault — the read still built + simulated + decoded correctly — so the publish
+// gate tolerates it rather than flaking whenever the keeper is between updates.
+const ORACLE_UNAVAILABLE_CODES = new Set([4n, 5n, 6n, 9n]);
+function isOracleUnavailable(e: unknown): boolean {
+	return (
+		e instanceof PredictMoveError && e.module === 'pricing' && ORACLE_UNAVAILABLE_CODES.has(e.code)
+	);
+}
+
 describe('testnet smoke (live deployment)', () => {
 	test('read.markets() — tradeable summaries, simulate plumbing end-to-end', async () => {
 		liveMarkets = await predict.read.markets();
@@ -116,15 +132,23 @@ describe('testnet smoke (live deployment)', () => {
 		expect(Number.isInteger(pool.withdrawRequestsPending)).toBe(true);
 	});
 
-	test('registry mapping agrees with the summary for a live market', async () => {
+	test('registry maps (BTC, expiry) → the listed market id', async () => {
 		if (liveMarkets.length === 0) return; // no live expiry right now — skip
 		const m = liveMarkets[0];
 		// BTC is the only registered underlying on testnet, so the registry must map
-		// (BTC, this expiry) back to this exact market object.
-		const summary = await predict.read.market({ underlying: 'BTC', expiryMs: m.expiryMs });
-		expect(summary?.id).toBe(m.id);
-		expect(summary!.nav).toBeGreaterThanOrEqual(0);
-		expect(summary!.tickSize).toBe(m.tickSize);
+		// (BTC, this expiry) back to this exact market object. This resolution is
+		// pricer-free, so it holds regardless of oracle liveness.
+		expect(await expiryMarketId(client, cfg, 'BTC', m.expiryMs)).toBe(m.id);
+		// The full facade summary additionally computes NAV via the live pricer; assert
+		// it when the oracle is fresh, tolerate a stale-oracle abort otherwise.
+		try {
+			const summary = await predict.read.market({ underlying: 'BTC', expiryMs: m.expiryMs });
+			expect(summary?.id).toBe(m.id);
+			expect(summary!.nav).toBeGreaterThanOrEqual(0);
+			expect(summary!.tickSize).toBe(m.tickSize);
+		} catch (e) {
+			if (!isOracleUnavailable(e)) throw e;
+		}
 	});
 
 	test('arity guard: mint_exact_quantity matches the deployed surface', async () => {
@@ -159,23 +183,25 @@ describe('testnet smoke (live deployment)', () => {
 		expectSemanticOrSuccess(await simulate(tx), 'redeem_live');
 	});
 
-	test('read.price: live both-sides pricing for a grid strike', async () => {
+	test('read.price: live both-sides pricing for a grid strike (oracle-permitting)', async () => {
 		if (liveMarkets.length === 0) return;
 		const m = liveMarkets[0];
 		// A deep-ITM-for-UP strike: 1000 ticks above zero — any grid point works,
 		// the assertion is on plumbing + probability domain, not on moneyness.
 		const strike = m.tickSize * 1_000;
-		const p = await predict.read.price({
-			underlying: 'BTC',
-			expiryMs: m.expiryMs,
-			strike,
-		});
-		expect(p.up).toBeGreaterThanOrEqual(0);
-		expect(p.up).toBeLessThanOrEqual(1);
-		expect(p.down).toBeGreaterThanOrEqual(0);
-		expect(p.down).toBeLessThanOrEqual(1);
-		// Complementary within chain rounding.
-		expect(Math.abs(p.up + p.down - 1)).toBeLessThan(0.05);
+		try {
+			const p = await predict.read.price({ underlying: 'BTC', expiryMs: m.expiryMs, strike });
+			expect(p.up).toBeGreaterThanOrEqual(0);
+			expect(p.up).toBeLessThanOrEqual(1);
+			expect(p.down).toBeGreaterThanOrEqual(0);
+			expect(p.down).toBeLessThanOrEqual(1);
+			// Complementary within chain rounding.
+			expect(Math.abs(p.up + p.down - 1)).toBeLessThan(0.05);
+		} catch (e) {
+			// Stale oracle → the SDK correctly surfaced a typed pricing abort (the
+			// build/simulate/decode path still ran); not a publish-gate failure.
+			if (!isOracleUnavailable(e)) throw e;
+		}
 	});
 
 	test('read.quoteMint: unfunded owner fails as a typed semantic abort (preflight)', async () => {
