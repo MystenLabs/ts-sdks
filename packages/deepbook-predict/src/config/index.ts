@@ -1,8 +1,8 @@
 import { TESTNET_CONFIG } from './testnet.js';
 import type { PredictConfig } from './types.js';
 
+export { TESTNET_CONFIG };
 export type { PredictConfig, PredictPackages, UnderlyingConfig } from './types.js';
-export { TESTNET_CONFIG } from './testnet.js';
 
 /**
  * The shared AccumulatorRoot object — a fixed well-known id on every network. The
