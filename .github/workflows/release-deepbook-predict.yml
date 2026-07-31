@@ -18,8 +18,8 @@ permissions:
   contents: read
 
 jobs:
-  # Drift gate: the SDK's builders are hand-written against a deployed package
-  # set, so publishing a build that no longer matches the live surface is the
+  # Drift gate: the SDK's bindings are generated against (and pinned to) a deployed
+  # package set, so publishing a build that no longer matches the live surface is the
   # failure mode that actually reaches integrators. The smoke suite's arity
   # guards catch exactly that, so they run before we publish.
   smoke:

@@ -59,7 +59,7 @@ import {
 } from './units.js';
 
 // `position_lot_size` — a position quantity must be a whole multiple of this many
-// raw payout units ($0.01 lots). See packages/predict/sources/constants.move:34.
+// raw payout units ($0.01 lots). See packages/predict/sources/constants.move.
 const POSITION_LOT_SIZE = 10_000n;
 
 /** A live/settled binary market addressed by its human coordinates. */

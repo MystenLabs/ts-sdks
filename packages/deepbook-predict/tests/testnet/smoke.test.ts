@@ -97,14 +97,33 @@ function expectSemanticOrSuccess(outcome: unknown, label: string): void {
 
 // A market is only priceable when its Block-Scholes / Pyth oracle inputs are fresh. On
 // testnet the oracle keeper is intermittent, so NAV / price reads can abort in the
-// `pricing` module (EBlockScholesPriceStale=4, EBlockScholesInputsInvalid=5,
-// EPythSpotInvalid=6, ELivePricingExpired=9). That is a market-liveness condition, not
-// an SDK fault — the read still built + simulated + decoded correctly — so the publish
-// gate tolerates it rather than flaking whenever the keeper is between updates.
-const ORACLE_UNAVAILABLE_CODES = new Set([4n, 5n, 6n, 9n]);
+// `pricing` module with a stale/unavailable-oracle error. That is a market-liveness
+// condition, not an SDK fault — the read still built + simulated + decoded correctly —
+// so the publish gate tolerates it rather than flaking whenever the keeper is between
+// updates. Only the oracle-data codes are tolerated; config errors (wrong feed object:
+// EWrongPythFeed=7 / EWrongBlockScholesValueStore=8 / EWrongBlockScholesSVIStore=11) and
+// input/math/logic errors are deliberately NOT tolerated — those would signal a real SDK
+// or config bug and must still fail the gate. See pricing.move error constants.
+//
+// Matched by BOTH numeric code and name: the deployed `pricing` aborts currently surface
+// as plain small codes with a null name (verified live: code=4n, abortName=null), so the
+// numeric set is what fires today; the name set future-proofs against the module being
+// compiled with clever errors (which would pack the code and populate abortName).
+const ORACLE_UNAVAILABLE_CODES = new Set([4n, 5n, 6n, 9n, 10n, 13n, 14n]);
+const ORACLE_UNAVAILABLE_NAMES = new Set([
+	'EBlockScholesPriceStale', // 4
+	'EBlockScholesInputsInvalid', // 5
+	'EPythSpotInvalid', // 6
+	'ELivePricingExpired', // 9
+	'EBlockScholesSVIStale', // 10
+	'EBlockScholesPriceUnavailable', // 13
+	'EBlockScholesSVIUnavailable', // 14
+]);
 function isOracleUnavailable(e: unknown): boolean {
+	if (!(e instanceof PredictMoveError) || e.module !== 'pricing') return false;
 	return (
-		e instanceof PredictMoveError && e.module === 'pricing' && ORACLE_UNAVAILABLE_CODES.has(e.code)
+		ORACLE_UNAVAILABLE_CODES.has(e.code) ||
+		(e.abortName != null && ORACLE_UNAVAILABLE_NAMES.has(e.abortName))
 	);
 }
 

@@ -1,11 +1,11 @@
 ---
 name: DeepBook Predict live-testnet tests
 
-# The Predict SDK is hand-written against a specific deployed package set, so its
-# smoke suite runs against LIVE testnet rather than localnet: localnet publishes
-# deepbookv3 `main`, which has drifted from the deployed surface and is therefore
-# the wrong parity oracle. Kept off the `pull_request` lane so a network blip
-# never fails unrelated PRs; the offline suite (`test`) covers those.
+# The Predict SDK's bindings are generated against (and pinned to) a specific deployed
+# package set, so its smoke suite runs against LIVE testnet rather than localnet:
+# localnet publishes deepbookv3 `main`, which has drifted from the deployed surface and
+# is therefore the wrong parity oracle. Kept off the `pull_request` lane so a network
+# blip never fails unrelated PRs; the offline suite (`test`) covers those.
 on:
   workflow_dispatch:
   schedule:
