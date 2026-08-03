@@ -11,6 +11,6 @@ export type { PredictConfig, PredictPackages, UnderlyingConfig } from './types.j
 export const ACCUMULATOR_ROOT_ID = '0xacc';
 
 export function getConfig(network: 'testnet' | 'mainnet'): PredictConfig {
-	if (network === 'mainnet') throw new Error('no mainnet deployment');
-	return TESTNET_CONFIG;
+	if (network === 'testnet') return TESTNET_CONFIG;
+	throw new Error(`no deployment for network: ${network}`);
 }

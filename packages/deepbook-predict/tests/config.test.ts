@@ -34,7 +34,7 @@ test('getConfig returns the testnet config', () => {
 });
 
 test('getConfig throws for mainnet', () => {
-	expect(() => getConfig('mainnet')).toThrow(/no mainnet deployment/);
+	expect(() => getConfig('mainnet')).toThrow(/no deployment for network/);
 });
 
 test('well-known AccumulatorRoot id constant', () => {
