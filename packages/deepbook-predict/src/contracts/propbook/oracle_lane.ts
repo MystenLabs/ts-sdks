@@ -19,7 +19,9 @@ const $moduleName = '@local-pkg/propbook::oracle_lane';
 /**
  * A source value paired with its source publication time and on-chain recording
  * time. Raw and normalized projections preserve this envelope so consumers can
- * apply one freshness policy.
+ * apply one freshness policy. `writer_digest` is the digest of the transaction
+ * that accepted the observation; consumers use it to refuse pricing against an
+ * observation written in the same PTB.
  */
 export function OracleRead<Value extends BcsType<any>>(...typeParameters: [Value]) {
 	return new MoveStruct({
@@ -29,6 +31,8 @@ export function OracleRead<Value extends BcsType<any>>(...typeParameters: [Value
 			source_timestamp_ms: bcs.u64(),
 			/** Sui clock time in Unix milliseconds when the update transaction executed. */
 			update_timestamp_ms: bcs.u64(),
+			/** Digest of the transaction that wrote this observation. */
+			writer_digest: bcs.vector(bcs.u8()),
 			value: typeParameters[0],
 		},
 	});
@@ -113,6 +117,27 @@ export function readUpdateTimestampMs(options: ReadUpdateTimestampMsOptions) {
 			package: packageAddress,
 			module: 'oracle_lane',
 			function: 'read_update_timestamp_ms',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface ReadWriterDigestArguments {
+	read: TransactionArgument;
+}
+export interface ReadWriterDigestOptions {
+	package?: string;
+	arguments: ReadWriterDigestArguments | [read: TransactionArgument];
+	typeArguments: [string];
+}
+export function readWriterDigest(options: ReadWriterDigestOptions) {
+	const packageAddress = options.package ?? '@local-pkg/propbook';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['read'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'oracle_lane',
+			function: 'read_writer_digest',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 			typeArguments: options.typeArguments,
 		});

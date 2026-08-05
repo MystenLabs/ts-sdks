@@ -34,9 +34,8 @@ export const OracleRegistry = new MoveStruct({
 		/** Provider/source pair to the sole underlying it may serve. */
 		source_bindings: table.Table,
 		/**
-		 * Underlying to its Block Scholes store pair. Stores carry no source id — a signed
-		 * series names its own underlying — so they bind directly here rather than through
-		 * the source catalog, and an underlying has at most one pair for its lifetime.
+		 * Underlying to its canonical Block Scholes store pair. Each store owns the
+		 * immutable Block Scholes base asset that gates its reads and writes.
 		 */
 		block_scholes_stores: table.Table,
 	},
@@ -97,6 +96,7 @@ export const BlockScholesStoresRegistered = new MoveStruct({
 		propbook_underlying_id: bcs.u32(),
 		value_store_id: bcs.Address,
 		svi_store_id: bcs.Address,
+		block_scholes_base_asset: bcs.string(),
 	},
 });
 export const OracleRebound = new MoveStruct({
@@ -226,26 +226,22 @@ export function propbookPythIdForUnderlying(options: PropbookPythIdForUnderlying
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export interface PropbookBlockScholesValueStoreIdForUnderlyingArguments {
+export interface PropbookBlockScholesStorePairForUnderlyingArguments {
 	registry: RawTransactionArgument<string>;
 	propbookUnderlyingId: RawTransactionArgument<number>;
 }
-export interface PropbookBlockScholesValueStoreIdForUnderlyingOptions {
+export interface PropbookBlockScholesStorePairForUnderlyingOptions {
 	package?: string;
 	arguments:
-		| PropbookBlockScholesValueStoreIdForUnderlyingArguments
+		| PropbookBlockScholesStorePairForUnderlyingArguments
 		| [
 				registry: RawTransactionArgument<string>,
 				propbookUnderlyingId: RawTransactionArgument<number>,
 		  ];
 }
-/**
- * Resolves the canonical Block Scholes value store, which a consumer checks its
- * argument against before pricing from it: a store names its own underlying, but
- * only this binding says which store is the one for that underlying.
- */
-export function propbookBlockScholesValueStoreIdForUnderlying(
-	options: PropbookBlockScholesValueStoreIdForUnderlyingOptions,
+/** Resolves the complete immutable Block Scholes binding for an underlying. */
+export function propbookBlockScholesStorePairForUnderlying(
+	options: PropbookBlockScholesStorePairForUnderlyingOptions,
 ) {
 	const packageAddress = options.package ?? '@local-pkg/propbook';
 	const argumentsTypes = [null, 'u32'] satisfies (string | null)[];
@@ -254,38 +250,50 @@ export function propbookBlockScholesValueStoreIdForUnderlying(
 		tx.moveCall({
 			package: packageAddress,
 			module: 'registry',
-			function: 'propbook_block_scholes_value_store_id_for_underlying',
+			function: 'propbook_block_scholes_store_pair_for_underlying',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export interface PropbookBlockScholesSviStoreIdForUnderlyingArguments {
-	registry: RawTransactionArgument<string>;
-	propbookUnderlyingId: RawTransactionArgument<number>;
+export interface BlockScholesValueStoreIdArguments {
+	pair: TransactionArgument;
 }
-export interface PropbookBlockScholesSviStoreIdForUnderlyingOptions {
+export interface BlockScholesValueStoreIdOptions {
 	package?: string;
-	arguments:
-		| PropbookBlockScholesSviStoreIdForUnderlyingArguments
-		| [
-				registry: RawTransactionArgument<string>,
-				propbookUnderlyingId: RawTransactionArgument<number>,
-		  ];
+	arguments: BlockScholesValueStoreIdArguments | [pair: TransactionArgument];
 }
 /**
- * Resolves the canonical Block Scholes SVI store. Same trust role as the value
- * store binding.
+ * Returns the canonical value-store identity for external composition or
+ * discovery.
  */
-export function propbookBlockScholesSviStoreIdForUnderlying(
-	options: PropbookBlockScholesSviStoreIdForUnderlyingOptions,
-) {
+export function blockScholesValueStoreId(options: BlockScholesValueStoreIdOptions) {
 	const packageAddress = options.package ?? '@local-pkg/propbook';
-	const argumentsTypes = [null, 'u32'] satisfies (string | null)[];
-	const parameterNames = ['registry', 'propbookUnderlyingId'];
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['pair'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'registry',
-			function: 'propbook_block_scholes_svi_store_id_for_underlying',
+			function: 'block_scholes_value_store_id',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface BlockScholesSviStoreIdArguments {
+	pair: TransactionArgument;
+}
+export interface BlockScholesSviStoreIdOptions {
+	package?: string;
+	arguments: BlockScholesSviStoreIdArguments | [pair: TransactionArgument];
+}
+/** Returns the canonical SVI-store identity for external composition or discovery. */
+export function blockScholesSviStoreId(options: BlockScholesSviStoreIdOptions) {
+	const packageAddress = options.package ?? '@local-pkg/propbook';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['pair'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'registry',
+			function: 'block_scholes_svi_store_id',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
@@ -450,6 +458,7 @@ export interface CreateAndShareBlockScholesStoresArguments {
 	registry: RawTransactionArgument<string>;
 	AdminCap: RawTransactionArgument<string>;
 	propbookUnderlyingId: RawTransactionArgument<number>;
+	blockScholesBaseAsset: RawTransactionArgument<string>;
 }
 export interface CreateAndShareBlockScholesStoresOptions {
 	package?: string;
@@ -459,19 +468,18 @@ export interface CreateAndShareBlockScholesStoresOptions {
 				registry: RawTransactionArgument<string>,
 				AdminCap: RawTransactionArgument<string>,
 				propbookUnderlyingId: RawTransactionArgument<number>,
+				blockScholesBaseAsset: RawTransactionArgument<string>,
 		  ];
 }
 /**
- * Create and share this underlying's Block Scholes store pair and record it as
- * canonical. Admin-gated and once per underlying: the binding is what lets a
- * consumer reject a store it was not meant to price from, so a second pair would
- * leave two stores each able to claim the underlying with nothing to choose
- * between them.
+ * Create and share this underlying's Block Scholes store partition and bind its
+ * source identity. Admin-gated and once per underlying so consumers have one
+ * immutable descriptor and store pair.
  */
 export function createAndShareBlockScholesStores(options: CreateAndShareBlockScholesStoresOptions) {
 	const packageAddress = options.package ?? '@local-pkg/propbook';
-	const argumentsTypes = [null, null, 'u32'] satisfies (string | null)[];
-	const parameterNames = ['registry', 'AdminCap', 'propbookUnderlyingId'];
+	const argumentsTypes = [null, null, 'u32', '0x1::string::String'] satisfies (string | null)[];
+	const parameterNames = ['registry', 'AdminCap', 'propbookUnderlyingId', 'blockScholesBaseAsset'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

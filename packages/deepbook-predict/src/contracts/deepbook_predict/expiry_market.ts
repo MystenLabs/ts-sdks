@@ -540,6 +540,12 @@ export interface LoadLivePricerOptions {
  *
  * The returned `Pricer` is bound to `market.id()` and can be passed into live
  * mint, redeem, liquidation, and NAV functions in the same transaction.
+ *
+ * Aborts `pricing::EOracleWrittenInThisTransaction` when any observation that
+ * feeds the returned forward or SVI was written in this transaction (RP-24).
+ * Independently submitted refresh-then-trade PTBs are unaffected: the guard
+ * compares observation `writer_digest` to `tx_context::digest()`, not sender
+ * identity, and does not prohibit reads of older observations.
  */
 export function loadLivePricer(options: LoadLivePricerOptions) {
 	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';

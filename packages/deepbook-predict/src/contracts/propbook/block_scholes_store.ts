@@ -3,15 +3,14 @@
  **************************************************************/
 
 /**
- * Stores the latest Block Scholes observation for each series of one underlying,
- * keyed by the series id the provider signed. Nothing here decides where a value
- * belongs: the id names its own slot, so a valid observation for one series can
- * only ever land in that series' slot, and reads derive the id they want rather
- * than trusting one supplied by a caller. Values are held exactly as the verifier
- * produced them; scaling and signed-value interpretation belong to the reading
- * package. Spot and forward share the value store because they ride one signed
- * batch and are separated by their ids; SVI has its own store because it arrives
- * as an independently signed batch.
+ * Stores the latest verifier-authenticated Block Scholes observations for one
+ * immutable base asset. Propbook derives every accepted series id from that
+ * identity through the upstream SID package, so a valid observation for another
+ * asset cannot enter this store. Values are held exactly as the verifier produced
+ * them; scaling and signed-value interpretation belong to the reading package.
+ * Value and SVI observations use separate stores because the verifier exposes
+ * distinct batch and value types. The registry creates and binds both stores
+ * atomically from one base-asset input.
  */
 
 import { type BcsType, bcs } from '@mysten/sui/bcs';
@@ -43,6 +42,8 @@ export function BsRead<Value extends BcsType<any>>(...typeParameters: [Value]) {
 			published_at_ms: bcs.u64(),
 			/** Sui clock time when the accepting transaction executed. */
 			recorded_at_ms: bcs.u64(),
+			/** Digest of the transaction that accepted this observation. */
+			writer_digest: bcs.vector(bcs.u8()),
 			value: typeParameters[0],
 		},
 	});
@@ -64,11 +65,7 @@ export const BlockScholesValueStore = new MoveStruct({
 	name: `${$moduleName}::BlockScholesValueStore`,
 	fields: {
 		id: bcs.Address,
-		/**
-		 * The sole underlying this store holds series for; observations for any other are
-		 * skipped.
-		 */
-		propbook_underlying_id: bcs.u32(),
+		block_scholes_base_asset: bcs.string(),
 		/**
 		 * Package version this store runs at; writes require an exact match and `migrate`
 		 * advances it forward-only after a package upgrade.
@@ -81,7 +78,7 @@ export const BlockScholesSVIStore = new MoveStruct({
 	name: `${$moduleName}::BlockScholesSVIStore`,
 	fields: {
 		id: bcs.Address,
-		propbook_underlying_id: bcs.u32(),
+		block_scholes_base_asset: bcs.string(),
 		version: bcs.u64(),
 		svis: table.Table,
 	},
@@ -98,6 +95,10 @@ export function BlockScholesObservationRecorded<Observation extends BcsType<any>
 		fields: {
 			propbook_oracle_id: bcs.Address,
 			sid: bcs.u256(),
+			/** `0` = spot, `1` = forward, and `2` = SVI. */
+			series_kind: bcs.u8(),
+			/** Absolute unix-millisecond expiry; zero for the non-expiring spot series. */
+			expiry_ms: bcs.u64(),
 			observation: typeParameters[0],
 		},
 	});
@@ -107,10 +108,8 @@ export const BlockScholesBatchIngested = new MoveStruct({
 	fields: {
 		propbook_oracle_id: bcs.Address,
 		published_at_ms: bcs.u64(),
-		/** Observations carried by the batch, including those for other underlyings. */
+		/** Verified observations carried by the batch. */
 		update_count: bcs.u64(),
-		/** Observations naming a series this store holds. */
-		matched: bcs.u64(),
 		/** Observations that became their series' latest. */
 		applied: bcs.u64(),
 	},
@@ -153,14 +152,18 @@ export function sviStoreId(options: SviStoreIdOptions) {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export interface ValueStoreUnderlyingIdArguments {
+export interface ValueStoreBaseAssetArguments {
 	store: RawTransactionArgument<string>;
 }
-export interface ValueStoreUnderlyingIdOptions {
+export interface ValueStoreBaseAssetOptions {
 	package?: string;
-	arguments: ValueStoreUnderlyingIdArguments | [store: RawTransactionArgument<string>];
+	arguments: ValueStoreBaseAssetArguments | [store: RawTransactionArgument<string>];
 }
-export function valueStoreUnderlyingId(options: ValueStoreUnderlyingIdOptions) {
+/**
+ * Returns the immutable provider base-asset spelling for external composition or
+ * devInspect.
+ */
+export function valueStoreBaseAsset(options: ValueStoreBaseAssetOptions) {
 	const packageAddress = options.package ?? '@local-pkg/propbook';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['store'];
@@ -168,18 +171,22 @@ export function valueStoreUnderlyingId(options: ValueStoreUnderlyingIdOptions) {
 		tx.moveCall({
 			package: packageAddress,
 			module: 'block_scholes_store',
-			function: 'value_store_underlying_id',
+			function: 'value_store_base_asset',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export interface SviStoreUnderlyingIdArguments {
+export interface SviStoreBaseAssetArguments {
 	store: RawTransactionArgument<string>;
 }
-export interface SviStoreUnderlyingIdOptions {
+export interface SviStoreBaseAssetOptions {
 	package?: string;
-	arguments: SviStoreUnderlyingIdArguments | [store: RawTransactionArgument<string>];
+	arguments: SviStoreBaseAssetArguments | [store: RawTransactionArgument<string>];
 }
-export function sviStoreUnderlyingId(options: SviStoreUnderlyingIdOptions) {
+/**
+ * Returns the immutable provider base-asset spelling for external composition or
+ * devInspect.
+ */
+export function sviStoreBaseAsset(options: SviStoreBaseAssetOptions) {
 	const packageAddress = options.package ?? '@local-pkg/propbook';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['store'];
@@ -187,7 +194,7 @@ export function sviStoreUnderlyingId(options: SviStoreUnderlyingIdOptions) {
 		tx.moveCall({
 			package: packageAddress,
 			module: 'block_scholes_store',
-			function: 'svi_store_underlying_id',
+			function: 'svi_store_base_asset',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
@@ -229,6 +236,72 @@ export function sviStoreVersion(options: SviStoreVersionOptions) {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface SpotSidArguments {
+	store: RawTransactionArgument<string>;
+}
+export interface SpotSidOptions {
+	package?: string;
+	arguments: SpotSidArguments | [store: RawTransactionArgument<string>];
+}
+/** Returns the canonical spot series id for external subscription construction. */
+export function spotSid(options: SpotSidOptions) {
+	const packageAddress = options.package ?? '@local-pkg/propbook';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['store'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'block_scholes_store',
+			function: 'spot_sid',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface ForwardSidArguments {
+	store: RawTransactionArgument<string>;
+	expiryMs: RawTransactionArgument<number | bigint>;
+}
+export interface ForwardSidOptions {
+	package?: string;
+	arguments:
+		| ForwardSidArguments
+		| [store: RawTransactionArgument<string>, expiryMs: RawTransactionArgument<number | bigint>];
+}
+/** Returns one canonical forward series id for external subscription construction. */
+export function forwardSid(options: ForwardSidOptions) {
+	const packageAddress = options.package ?? '@local-pkg/propbook';
+	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
+	const parameterNames = ['store', 'expiryMs'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'block_scholes_store',
+			function: 'forward_sid',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface SviSidArguments {
+	store: RawTransactionArgument<string>;
+	expiryMs: RawTransactionArgument<number | bigint>;
+}
+export interface SviSidOptions {
+	package?: string;
+	arguments:
+		| SviSidArguments
+		| [store: RawTransactionArgument<string>, expiryMs: RawTransactionArgument<number | bigint>];
+}
+/** Returns one canonical SVI series id for external subscription construction. */
+export function sviSid(options: SviSidOptions) {
+	const packageAddress = options.package ?? '@local-pkg/propbook';
+	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
+	const parameterNames = ['store', 'expiryMs'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'block_scholes_store',
+			function: 'svi_sid',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
 export interface SpotArguments {
 	store: RawTransactionArgument<string>;
 }
@@ -236,10 +309,7 @@ export interface SpotOptions {
 	package?: string;
 	arguments: SpotArguments | [store: RawTransactionArgument<string>];
 }
-/**
- * Returns the latest spot observation for this store's underlying, or `none` if
- * none has landed.
- */
+/** Returns the latest canonical spot observation, or `none` if none has landed. */
 export function spot(options: SpotOptions) {
 	const packageAddress = options.package ?? '@local-pkg/propbook';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -262,10 +332,7 @@ export interface ForwardOptions {
 		| ForwardArguments
 		| [store: RawTransactionArgument<string>, expiryMs: RawTransactionArgument<number | bigint>];
 }
-/**
- * Returns the latest forward observation at `expiry_ms`, or `none` if none has
- * landed.
- */
+/** Returns the latest canonical forward observation at `expiry_ms`. */
 export function forward(options: ForwardOptions) {
 	const packageAddress = options.package ?? '@local-pkg/propbook';
 	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
@@ -288,7 +355,7 @@ export interface SviOptions {
 		| SviArguments
 		| [store: RawTransactionArgument<string>, expiryMs: RawTransactionArgument<number | bigint>];
 }
-/** Returns the latest SVI observation at `expiry_ms`, or `none` if none has landed. */
+/** Returns the latest canonical SVI observation at `expiry_ms`. */
 export function svi(options: SviOptions) {
 	const packageAddress = options.package ?? '@local-pkg/propbook';
 	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
@@ -360,6 +427,27 @@ export function readRecordedAtMs(options: ReadRecordedAtMsOptions) {
 			package: packageAddress,
 			module: 'block_scholes_store',
 			function: 'read_recorded_at_ms',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface ReadWriterDigestArguments {
+	read: TransactionArgument;
+}
+export interface ReadWriterDigestOptions {
+	package?: string;
+	arguments: ReadWriterDigestArguments | [read: TransactionArgument];
+	typeArguments: [string];
+}
+export function readWriterDigest(options: ReadWriterDigestOptions) {
+	const packageAddress = options.package ?? '@local-pkg/propbook';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['read'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'block_scholes_store',
+			function: 'read_writer_digest',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 			typeArguments: options.typeArguments,
 		});
@@ -537,25 +625,18 @@ export function sviMIsNegative(options: SviMIsNegativeOptions) {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export interface ApplyValueBatchArguments {
+export interface ApplySpotBatchArguments {
 	store: RawTransactionArgument<string>;
 	batch: TransactionArgument;
 }
-export interface ApplyValueBatchOptions {
+export interface ApplySpotBatchOptions {
 	package?: string;
 	arguments:
-		| ApplyValueBatchArguments
+		| ApplySpotBatchArguments
 		| [store: RawTransactionArgument<string>, batch: TransactionArgument];
 }
-/**
- * Ingest a verified batch of spot and forward observations. The batch is taken by
- * value rather than as its unpacked updates so the envelope time comes from inside
- * the signature: it breaks ties between retransmissions of the same model data and
- * feeds the batch events, so a caller must not be able to fabricate it. Holding a
- * `ValueBatch` at all is proof of a valid Block Scholes signature, so this never
- * sees keys, bytes, or the signer registry.
- */
-export function applyValueBatch(options: ApplyValueBatchOptions) {
+/** Ingest the canonical spot batch for this store's base asset. */
+export function applySpotBatch(options: ApplySpotBatchOptions) {
 	const packageAddress = options.package ?? '@local-pkg/propbook';
 	const argumentsTypes = [null, null, '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['store', 'batch'];
@@ -563,28 +644,68 @@ export function applyValueBatch(options: ApplyValueBatchOptions) {
 		tx.moveCall({
 			package: packageAddress,
 			module: 'block_scholes_store',
-			function: 'apply_value_batch',
+			function: 'apply_spot_batch',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface ApplyForwardBatchArguments {
+	store: RawTransactionArgument<string>;
+	batch: TransactionArgument;
+	expiriesMs: RawTransactionArgument<Array<number | bigint>>;
+}
+export interface ApplyForwardBatchOptions {
+	package?: string;
+	arguments:
+		| ApplyForwardBatchArguments
+		| [
+				store: RawTransactionArgument<string>,
+				batch: TransactionArgument,
+				expiriesMs: RawTransactionArgument<Array<number | bigint>>,
+		  ];
+}
+/**
+ * Ingest canonical forwards for this store's base asset. `expiries_ms[i]` is an
+ * untrusted descriptor witness for signed update `i`; equality with the
+ * upstream-derived SID proves the association before any observation is stored.
+ */
+export function applyForwardBatch(options: ApplyForwardBatchOptions) {
+	const packageAddress = options.package ?? '@local-pkg/propbook';
+	const argumentsTypes = [null, null, 'vector<u64>', '0x2::clock::Clock'] satisfies (
+		| string
+		| null
+	)[];
+	const parameterNames = ['store', 'batch', 'expiriesMs'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'block_scholes_store',
+			function: 'apply_forward_batch',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
 export interface ApplySviBatchArguments {
 	store: RawTransactionArgument<string>;
 	batch: TransactionArgument;
+	expiriesMs: RawTransactionArgument<Array<number | bigint>>;
 }
 export interface ApplySviBatchOptions {
 	package?: string;
 	arguments:
 		| ApplySviBatchArguments
-		| [store: RawTransactionArgument<string>, batch: TransactionArgument];
+		| [
+				store: RawTransactionArgument<string>,
+				batch: TransactionArgument,
+				expiriesMs: RawTransactionArgument<Array<number | bigint>>,
+		  ];
 }
-/**
- * Ingest a verified batch of SVI observations. Same batch-by-value reasoning as
- * `apply_value_batch`.
- */
+/** Ingest canonical SVI observations for this store's base asset. */
 export function applySviBatch(options: ApplySviBatchOptions) {
 	const packageAddress = options.package ?? '@local-pkg/propbook';
-	const argumentsTypes = [null, null, '0x2::clock::Clock'] satisfies (string | null)[];
-	const parameterNames = ['store', 'batch'];
+	const argumentsTypes = [null, null, 'vector<u64>', '0x2::clock::Clock'] satisfies (
+		| string
+		| null
+	)[];
+	const parameterNames = ['store', 'batch', 'expiriesMs'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

@@ -32,6 +32,19 @@ export const ProtocolConfig = new MoveStruct({
 		protocol_reserve_profit_share: bcs.u64(),
 		/** Total liquidation candidates checked before mint and redeem flows. */
 		trade_liquidation_budget: bcs.u64(),
+		/**
+		 * Frozen-mark attempts a queued LP supply/withdraw request gets before the
+		 * protocol cancels and refunds it. `1` (the default) is fill-or-kill; above that a
+		 * missing request rests at the queue head and stops that queue for the flush, so
+		 * this is an LP-queue liveness knob (RP-12).
+		 */
+		lp_request_limit_flush_attempts: bcs.u64(),
+		/**
+		 * Ceiling on LP-attributable pool value that queued supplies may raise the pool
+		 * to, enforced at the flush against the frozen mark. Defaults to `u64::MAX`, so
+		 * the pool is uncapped until an operator sets a figure (RP-23).
+		 */
+		max_lp_pool_value: bcs.u64(),
 		expiry_cash_template_config: expiry_cash_config.ExpiryCashConfig,
 		strike_exposure_template_config: strike_exposure_config.StrikeExposureConfig,
 		stake_config: stake_config.StakeConfig,
@@ -619,6 +632,73 @@ export function setTradeLiquidationBudget(options: SetTradeLiquidationBudgetOpti
 			package: packageAddress,
 			module: 'protocol_config',
 			function: 'set_trade_liquidation_budget',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface SetLpRequestLimitFlushAttemptsArguments {
+	config: RawTransactionArgument<string>;
+	AdminCap: RawTransactionArgument<string>;
+	attempts: RawTransactionArgument<number | bigint>;
+}
+export interface SetLpRequestLimitFlushAttemptsOptions {
+	package?: string;
+	arguments:
+		| SetLpRequestLimitFlushAttemptsArguments
+		| [
+				config: RawTransactionArgument<string>,
+				AdminCap: RawTransactionArgument<string>,
+				attempts: RawTransactionArgument<number | bigint>,
+		  ];
+}
+/**
+ * Set how many frozen-mark attempts a queued LP request gets before it is
+ * cancelled and refunded. `1` is fill-or-kill. Raising it lets a request rest at
+ * the head across flushes, which stops that queue each time it misses — see RP-12
+ * for the liveness cost that buys.
+ */
+export function setLpRequestLimitFlushAttempts(options: SetLpRequestLimitFlushAttemptsOptions) {
+	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
+	const parameterNames = ['config', 'AdminCap', 'attempts'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'protocol_config',
+			function: 'set_lp_request_limit_flush_attempts',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface SetMaxLpPoolValueArguments {
+	config: RawTransactionArgument<string>;
+	AdminCap: RawTransactionArgument<string>;
+	maxPoolValue: RawTransactionArgument<number | bigint>;
+}
+export interface SetMaxLpPoolValueOptions {
+	package?: string;
+	arguments:
+		| SetMaxLpPoolValueArguments
+		| [
+				config: RawTransactionArgument<string>,
+				AdminCap: RawTransactionArgument<string>,
+				maxPoolValue: RawTransactionArgument<number | bigint>,
+		  ];
+}
+/**
+ * Set the ceiling on LP-attributable pool value that queued supplies may raise the
+ * pool to. A supply that would carry the pool past it is filled up to the cap at
+ * the flush and its remainder stays queued; withdrawals and already-issued PLP are
+ * unaffected, so lowering this below current pool value closes the pool to new
+ * capital rather than forcing anyone out.
+ */
+export function setMaxLpPoolValue(options: SetMaxLpPoolValueOptions) {
+	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
+	const parameterNames = ['config', 'AdminCap', 'maxPoolValue'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'protocol_config',
+			function: 'set_max_lp_pool_value',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }

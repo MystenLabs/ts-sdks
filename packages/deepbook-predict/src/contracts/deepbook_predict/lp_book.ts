@@ -54,6 +54,11 @@ export const RequestEntry = new MoveStruct({
 		recipient: bcs.Address,
 		amount: bcs.u64(),
 		min_output: bcs.u64(),
+		/**
+		 * Frozen marks this request has already missed. Only ever non-zero when the
+		 * protocol allows more than one attempt (`ProtocolConfig`), since at one attempt a
+		 * miss refunds immediately.
+		 */
 		missed_flushes: bcs.u64(),
 	},
 });

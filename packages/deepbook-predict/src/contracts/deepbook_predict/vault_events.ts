@@ -109,7 +109,10 @@ export const RequestCancelled = new MoveStruct({
 		index: bcs.u64(),
 		amount: bcs.u64(),
 		is_supply: bcs.bool(),
-		/** 0=user, 1=non-executable frozen mark, 2=limit expired. */
+		/**
+		 * 0=user, 1=non-executable frozen mark, 2=quote below the request's minimum
+		 * output.
+		 */
 		reason: bcs.u8(),
 		requests_pending_after: bcs.u64(),
 	},
@@ -136,8 +139,18 @@ export const SupplyFilled = new MoveStruct({
 		account_id: bcs.Address,
 		recipient: bcs.Address,
 		index: bcs.u64(),
+		/**
+		 * DUSDC actually taken into the pool, which is less than the request's escrow when
+		 * the supply cap left only part of it room.
+		 */
 		dusdc_amount: bcs.u64(),
 		shares_minted: bcs.u64(),
+		/**
+		 * Escrow still queued at the head after a partial fill; `0` on a full fill, in
+		 * which case the request is gone. `dusdc_amount + dusdc_remaining` is the amount
+		 * the request carried into this flush.
+		 */
+		dusdc_remaining: bcs.u64(),
 		requests_pending_after: bcs.u64(),
 	},
 });
@@ -150,6 +163,12 @@ export const WithdrawFilled = new MoveStruct({
 		index: bcs.u64(),
 		shares_burned: bcs.u64(),
 		dusdc_amount: bcs.u64(),
+		/**
+		 * Escrowed PLP still queued at the head after a partial fill; `0` on a full fill,
+		 * in which case the request is gone. `shares_burned + shares_remaining` is the
+		 * amount the request carried into this flush.
+		 */
+		shares_remaining: bcs.u64(),
 		requests_pending_after: bcs.u64(),
 	},
 });
