@@ -9,8 +9,8 @@ The Kiosk SDK exports a client extension that provides all Kiosk functionality.
 > We recommend you keep only one client instance throughout your app or script. For example, in
 > React, you'd use a context to provide the client.
 
-> The Kiosk SDK currently requires `SuiGraphQLClient` or the deprecated `SuiJsonRpcClient`. Use
-> `SuiGraphQLClient` for new Kiosk code until the Kiosk SDK supports gRPC.
+The Kiosk extension accepts any Sui client that implements `ClientWithCoreApi`. Use `SuiGrpcClient`
+for new Kiosk code; `SuiGraphQLClient` and the deprecated `SuiJsonRpcClient` are also compatible.
 
 ## Setting up the kiosk extension
 
@@ -22,10 +22,10 @@ require constantly changing the package IDs).
 
 ```typescript
 import { kiosk } from '@mysten/kiosk';
-import { SuiGraphQLClient } from '@mysten/sui/graphql';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 
-const client = new SuiGraphQLClient({
-	url: 'https://graphql.testnet.sui.io/graphql',
+const client = new SuiGrpcClient({
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
 	network: 'testnet',
 }).$extend(kiosk());
 
@@ -40,10 +40,10 @@ for the rules and extensions you want to use.
 
 ```typescript
 import { kiosk } from '@mysten/kiosk';
-import { SuiGraphQLClient } from '@mysten/sui/graphql';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 
-const client = new SuiGraphQLClient({
-	url: 'https://graphql.devnet.sui.io/graphql',
+const client = new SuiGrpcClient({
+	baseUrl: 'https://fullnode.devnet.sui.io:443',
 	network: 'devnet',
 }).$extend(
 	kiosk({

@@ -18,7 +18,7 @@ npm i @mysten/kiosk
 The Kiosk SDK exports a client extension that integrates with Sui clients. Add it to your client
 using `$extend(kiosk())` to access kiosk functionality through `client.kiosk`.
 
-> The Kiosk SDK currently requires `SuiGraphQLClient` or the deprecated `SuiJsonRpcClient`. Use
-> `SuiGraphQLClient` for new Kiosk code until the Kiosk SDK supports gRPC.
+The Kiosk extension accepts any Sui client that implements `ClientWithCoreApi`. Use `SuiGrpcClient`
+for new Kiosk code; `SuiGraphQLClient` and the deprecated `SuiJsonRpcClient` are also compatible.
 
 - [Read more about setting up the Kiosk client extension](/kiosk/kiosk-client/introduction)

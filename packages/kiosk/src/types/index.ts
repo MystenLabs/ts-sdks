@@ -1,12 +1,10 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { SuiClientTypes } from '@mysten/sui/client';
+import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
 import type { TransactionObjectArgument } from '@mysten/sui/transactions';
 
 import type { BaseRulePackageIds } from '../constants.js';
-import { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
-import { SuiGraphQLClient } from '@mysten/sui/graphql';
 
 export * from './kiosk.js';
 export * from './transfer-policy.js';
@@ -25,4 +23,9 @@ export type KioskClientOptions = {
 	packageIds?: BaseRulePackageIds;
 };
 
-export type KioskCompatibleClient = SuiJsonRpcClient | SuiGraphQLClient;
+export type KioskCompatibleClient = ClientWithCoreApi;
+
+export type KioskPaginationArguments = {
+	cursor?: string | null;
+	limit?: number | null;
+};

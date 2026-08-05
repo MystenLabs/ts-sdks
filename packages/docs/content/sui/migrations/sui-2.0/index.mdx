@@ -88,11 +88,18 @@ Then migrate old JSON-RPC method names to the gRPC top-level methods:
 
 - const txs = await client.queryTransactionBlocks({ filter, options });
 + const txs = await client.listTransactions({ filter, include });
+
+- const events = await client.queryEvents({ query, order: 'descending' });
++ const events = await client.listEvents({ filter, order: 'descending' });
+
+- const transaction = await client.getTransactionBlock({ digest, options });
++ const transaction = await client.getTransaction({ digest, include });
 ```
 
 The gRPC API runs on full nodes, so in most cases you can use the same full node host when migrating
-from JSON-RPC to gRPC. Use `SuiGraphQLClient` for indexed or historical queries that are not covered
-by gRPC top-level methods.
+from JSON-RPC to gRPC. Standard transaction and event queries are top-level methods on both
+`SuiGrpcClient` and `SuiGraphQLClient`. Use custom GraphQL queries for indexed data, historical
+object versions, or selection sets that are not covered by the shared methods.
 
 `SuiJsonRpcClient` still exists under `@mysten/sui/jsonRpc` for legacy code, but JSON-RPC APIs are
 deprecated in the Sui TypeScript SDK. See

@@ -1,7 +1,6 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { PaginationArguments } from '@mysten/sui/jsonRpc';
 import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
 import { isValidSuiAddress } from '@mysten/sui/utils';
 
@@ -11,6 +10,7 @@ import type {
 	KioskCompatibleClient,
 	KioskExtension,
 	KioskListing,
+	KioskPaginationArguments,
 	OwnedKiosks,
 	PagedKioskData,
 } from '../types/index.js';
@@ -29,7 +29,7 @@ import { PersonalKioskCap } from '../contracts/kiosk/personal_kiosk.js';
 export async function fetchKiosk(
 	client: KioskCompatibleClient,
 	kioskId: string,
-	pagination: PaginationArguments<string>,
+	pagination: KioskPaginationArguments,
 	options: FetchKioskOptions,
 ): Promise<PagedKioskData> {
 	// TODO: Replace the `getAllDynamicFields` with a paginated
@@ -83,7 +83,7 @@ export async function getOwnedKiosks(
 	client: ClientWithCoreApi,
 	address: string,
 	options?: {
-		pagination?: PaginationArguments<string>;
+		pagination?: KioskPaginationArguments;
 		personalKioskType: string;
 	},
 ): Promise<OwnedKiosks> {

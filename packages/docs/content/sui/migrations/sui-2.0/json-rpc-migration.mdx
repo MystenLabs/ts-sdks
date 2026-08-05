@@ -1,6 +1,6 @@
 ---
 title: Migrating from JSON-RPC
-description: Migrate deprecated JSON-RPC code to SuiGrpcClient, with GraphQL for indexed queries
+description: Migrate deprecated JSON-RPC code to shared gRPC and GraphQL top-level methods
 keywords:
   [
     migration,
@@ -16,8 +16,9 @@ keywords:
 
 JSON-RPC APIs are deprecated in the Sui TypeScript SDK. For most application code, migrate from
 `SuiJsonRpcClient` to [`SuiGrpcClient`](/sui/clients/grpc) and call the gRPC client's top-level
-methods. Use [`SuiGraphQLClient`](/sui/clients/graphql) when the code needs indexed data, historical
-object reads, or custom GraphQL selection sets.
+methods. Use [`SuiGraphQLClient`](/sui/clients/graphql) when the code needs custom indexed queries,
+historical object versions, or custom GraphQL selection sets. Standard transaction and event queries
+are available directly on both clients.
 
 <Callout type="info">
 	Create one client for the transport you want to use. Application code should usually call
@@ -27,11 +28,11 @@ object reads, or custom GraphQL selection sets.
 
 ## Choosing a target client
 
-| Client             | Use For                                                                 |
-| ------------------ | ----------------------------------------------------------------------- |
-| `SuiGrpcClient`    | Most reads, writes, simulations, transaction/event queries, and streams |
-| `SuiGraphQLClient` | Indexed queries, historical data, staking queries, custom query shapes  |
-| `SuiJsonRpcClient` | Maintaining legacy JSON-RPC code while migrating                        |
+| Client             | Use For                                                                            |
+| ------------------ | ---------------------------------------------------------------------------------- |
+| `SuiGrpcClient`    | Standard reads, writes, simulations, transaction/event queries, and streams        |
+| `SuiGraphQLClient` | The same shared methods plus custom indexed queries and historical object versions |
+| `SuiJsonRpcClient` | Maintaining legacy JSON-RPC code while migrating                                   |
 
 ## Quick migration to gRPC
 
@@ -59,6 +60,10 @@ as `baseUrl` instead of `url`, and verify the protocol and port used by your nod
 The gRPC and GraphQL clients expose top-level methods for the common client API. These methods use
 the same options and response shapes as `client.core`, with transport-specific additions where the
 transport can expose more data.
+
+This includes transaction and event methods. Use `getTransaction`, `waitForTransaction`,
+`listTransactions`, and `listEvents` directly instead of dropping down to a raw gRPC service or a
+custom GraphQL query for standard queries.
 
 ```typescript
 const { object } = await client.getObject({
@@ -107,7 +112,10 @@ use the same replacement under `client.core`.
 | `getCoinMetadata`            | `getCoinMetadata`                                                              |
 | `getDynamicFields`           | `listDynamicFields`                                                            |
 | `getDynamicFieldObject`      | `getDynamicField` or `client.core.getDynamicObjectField`                       |
+| `getTransactionBlock`        | `getTransaction`                                                               |
+| `multiGetTransactionBlocks`  | Multiple `getTransaction` calls                                                |
 | `executeTransactionBlock`    | `executeTransaction`                                                           |
+| `waitForTransaction`         | `waitForTransaction`                                                           |
 | `dryRunTransactionBlock`     | `simulateTransaction`                                                          |
 | `devInspectTransactionBlock` | `simulateTransaction` with `checksEnabled: false`                              |
 | `queryTransactionBlocks`     | `listTransactions`                                                             |
@@ -182,6 +190,50 @@ for parsing application data.
 
 ## Transaction execution and simulation
 
+### Migrating `getTransactionBlock`
+
+```diff
+- const result = await jsonRpcClient.getTransactionBlock({
+-   digest,
+-   options: {
+-     showEffects: true,
+-     showEvents: true,
+-     showInput: true,
+-   },
+- });
++ const result = await client.getTransaction({
++   digest,
++   include: {
++     effects: true,
++     events: true,
++     transaction: true,
++   },
++ });
+```
+
+Both `SuiGrpcClient` and `SuiGraphQLClient` expose `getTransaction`. SDKs can make the same request
+through `client.core.getTransaction`.
+
+For multiple digests, call the same top-level method for each transaction:
+
+```diff
+- const results = await jsonRpcClient.multiGetTransactionBlocks({
+-   digests,
+-   options: { showEffects: true },
+- });
++ const results = await Promise.all(
++   digests.map((digest) =>
++     client.getTransaction({
++       digest,
++       include: { effects: true },
++     }),
++   ),
++ );
+```
+
+The raw gRPC `ledgerService.batchGetTransactions` method remains available when an application
+specifically needs the transport's batch wire API, but it is not required for ordinary client code.
+
 ### Migrating `executeTransactionBlock`
 
 ```diff
@@ -226,6 +278,27 @@ for parsing application data.
 + }
 ```
 
+### Migrating `waitForTransaction`
+
+```diff
+- const result = await jsonRpcClient.waitForTransaction({
+-   digest,
+-   options: { showEffects: true },
+-   timeout: 60_000,
+-   pollInterval: 2_000,
+- });
++ const result = await client.waitForTransaction({
++   digest,
++   include: { effects: true },
++   timeout: 60_000,
++   pollSchedule: [0, 2_000],
++ });
+```
+
+`waitForTransaction` is a top-level method on both `SuiGrpcClient` and `SuiGraphQLClient`. It can
+also accept the result of `executeTransaction` or `signAndExecuteTransaction` through its `result`
+option.
+
 ### Migrating `dryRunTransactionBlock`
 
 ```diff
@@ -259,6 +332,10 @@ for parsing application data.
 
 ## Transaction and event queries
 
+`listTransactions` and `listEvents` are first-class methods on `SuiGrpcClient`, `SuiGraphQLClient`,
+and the Core API. Application code should call the top-level method on its chosen client. Reusable
+SDK code should call the same method through `client.core`.
+
 ### Migrating `queryTransactionBlocks`
 
 ```diff
@@ -268,12 +345,13 @@ for parsing application data.
 -   limit: 10,
 - });
 - const digests = result.data.map((tx) => tx.digest);
-+ const result = await client.listTransactions({
++ const page = await client.listTransactions({
 +   filter: { sender: '0xabc...' },
 +   include: { effects: true },
 +   limit: 10,
++   order: 'descending',
 + });
-+ const digests = result.transactions.map(
++ const digests = page.transactions.map(
 +   (tx) => (tx.Transaction ?? tx.FailedTransaction).digest,
 + );
 ```
@@ -285,6 +363,27 @@ Common transaction filter mappings:
 | `FromAddress`                                                     | `sender`                                              |
 | `MoveFunction`                                                    | `function`                                            |
 | `ToAddress`, `FromOrToAddress`, `ChangedObject`, `AffectedObject` | Use raw gRPC ledger filters or a custom GraphQL query |
+
+The response contains normalized transaction results plus ledger-position cursors:
+
+```typescript
+for (const result of page.transactions) {
+	const transaction = result.Transaction ?? result.FailedTransaction;
+	console.log(transaction.digest, result.$kind);
+}
+
+const nextPage = page.hasNextPage
+	? await client.listTransactions({
+			filter: { sender: '0xabc...' },
+			before: page.endCursor,
+			limit: 10,
+		})
+	: null;
+```
+
+The legacy JSON-RPC transaction and event queries default to descending order, while
+`listTransactions` and `listEvents` default to ascending order. Pass `order: 'descending'` when
+preserving the legacy default.
 
 ### Migrating `queryEvents`
 
@@ -299,6 +398,9 @@ Common transaction filter mappings:
 +   limit: 10,
 +   order: 'descending',
 + });
++ for (const event of result.events) {
++   console.log(event.eventType, event.transactionDigest, event.json);
++ }
 ```
 
 Common event filter mappings:
@@ -313,6 +415,10 @@ The top-level query methods handle pagination and cursor normalization. For rich
 combined predicates, affected addresses, affected objects, or checkpoint ranges, use the raw
 [`ledgerService`](/sui/clients/grpc#ledger-service) on `SuiGrpcClient` or a custom GraphQL query.
 
+Use `after: result.endCursor` to continue an ascending query and `before: result.endCursor` to
+continue a descending query. `startCursor` identifies the first item in a page and can be used with
+`after` to poll for newer transactions or events.
+
 ## Native gRPC replacements
 
 Some JSON-RPC methods map to gRPC service clients rather than top-level methods:
@@ -326,7 +432,6 @@ Some JSON-RPC methods map to gRPC service clients rather than top-level methods:
 | `getCommitteeInfo`                  | `ledgerService.getEpoch` with `committee` in the read mask      |
 | `getLatestSuiSystemState`           | `client.core.getCurrentSystemState` or `ledgerService.getEpoch` |
 | `getProtocolConfig`                 | `client.core.getProtocolConfig` or `ledgerService.getEpoch`     |
-| `multiGetTransactionBlocks`         | `ledgerService.batchGetTransactions`                            |
 | `getTotalSupply`                    | `stateService.getCoinInfo` and read `treasury.totalSupply`      |
 | `getNormalizedMoveModule`           | `movePackageService.getPackage`                                 |
 | `getNormalizedMoveModulesByPackage` | `movePackageService.getPackage`                                 |
@@ -346,11 +451,6 @@ const latestCheckpoint = info.checkpointHeight;
 const { response: checkpoint } = await client.ledgerService.getCheckpoint({
 	checkpointId: { oneofKind: 'sequenceNumber', sequenceNumber: latestCheckpoint },
 	readMask: { paths: ['sequence_number', 'digest', 'timestamp'] },
-});
-
-const { response: transactions } = await client.ledgerService.batchGetTransactions({
-	digests: ['<TRANSACTION_DIGEST>'],
-	readMask: { paths: ['digest', 'effects', 'events'] },
 });
 ```
 
@@ -395,8 +495,10 @@ replay the gap with `client.listEvents()` using the same filter.
 
 ## When to use GraphQL
 
-Use `SuiGraphQLClient` when the replacement needs indexed data, historical reads, or a custom
-selection set:
+Use `SuiGraphQLClient` when the replacement needs a custom indexed query, a historical object
+version, staking data, or a custom selection set. Standard transaction and event history does not
+require a custom GraphQL query; call `graphqlClient.listTransactions()` or
+`graphqlClient.listEvents()` directly.
 
 | JSON-RPC Method      | GraphQL Alternative                                 |
 | -------------------- | --------------------------------------------------- |

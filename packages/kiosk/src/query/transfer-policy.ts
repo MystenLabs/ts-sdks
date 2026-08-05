@@ -21,12 +21,8 @@ import { queryEvents } from './client-utils.js';
  * and the caller needs to filter the results accordingly (ie single owner can not
  * be accessed by anyone but the owner).
  *
- * This method requires event querying support (JSON-RPC or GraphQL clients).
- * gRPC clients do not support event querying and will throw an error.
- *
- * @param client - The Sui client (must support event querying)
+ * @param client - A Sui client with the Core API
  * @param type - The type of the asset (e.g., "0x123::nft::NFT")
- * @throws Error if the client doesn't support event querying
  */
 export async function queryTransferPolicy(
 	client: KioskCompatibleClient,

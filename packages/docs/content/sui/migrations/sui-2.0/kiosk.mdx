@@ -8,14 +8,14 @@ keywords:
 This package now exports a client extension that integrates with Sui clients.
 
 <Callout type="info">
-	The Kiosk SDK currently requires `SuiGraphQLClient` or the deprecated `SuiJsonRpcClient`. Use
-	`SuiGraphQLClient` for new Kiosk code until the Kiosk SDK supports gRPC.
+	The Kiosk SDK accepts `SuiGrpcClient`, `SuiGraphQLClient`, and other clients that implement
+	`ClientWithCoreApi`. Use `SuiGrpcClient` for new Kiosk code.
 </Callout>
 
 ```diff
 - import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 - import { KioskClient, Network } from '@mysten/kiosk';
-+ import { SuiGraphQLClient } from '@mysten/sui/graphql';
++ import { SuiGrpcClient } from '@mysten/sui/grpc';
 + import { kiosk } from '@mysten/kiosk';
 
 - const suiClient = new SuiClient({ url: getFullnodeUrl('mainnet') });
@@ -23,8 +23,8 @@ This package now exports a client extension that integrates with Sui clients.
 -   client: suiClient,
 -   network: Network.MAINNET,
 - });
-+ const client = new SuiGraphQLClient({
-+   url: 'https://sui-mainnet.mystenlabs.com/graphql',
++ const client = new SuiGrpcClient({
++   baseUrl: 'https://fullnode.mainnet.sui.io:443',
 +   network: 'mainnet',
 + }).$extend(kiosk());
 
@@ -105,14 +105,14 @@ The low-level helper functions have been removed in favor of the `KioskTransacti
 ```diff
 - import { createKiosk, shareKiosk, placeAndList } from '@mysten/kiosk';
 + import { kiosk, KioskTransaction } from '@mysten/kiosk';
-+ import { SuiGraphQLClient } from '@mysten/sui/graphql';
++ import { SuiGrpcClient } from '@mysten/sui/grpc';
 
 - const [kiosk, cap] = createKiosk(tx);
 - shareKiosk(tx, kiosk);
 - placeAndList(tx, itemType, kiosk, cap, item, price);
 
-+ const client = new SuiGraphQLClient({
-+   url: 'https://sui-mainnet.mystenlabs.com/graphql',
++ const client = new SuiGrpcClient({
++   baseUrl: 'https://fullnode.mainnet.sui.io:443',
 +   network: 'mainnet',
 + }).$extend(kiosk());
 +
