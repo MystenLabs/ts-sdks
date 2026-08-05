@@ -1,6 +1,6 @@
 ---
 title: Transaction Executors
-description: Manage transaction execution with queuing and parallel strategies.
+description: Manage transaction execution with queuing and parallel strategies
 keywords:
   [
     transaction executor,
@@ -102,7 +102,7 @@ way that avoids conflicts between transactions using the same object ids.
 
 `ParallelTransactionExecutor` can be configured with a number of options:
 
-- `client`: An instance of `SuiJsonRpcClient` used to execute transactions.
+- `client`: A client implementing `ClientWithCoreApi`. `SuiGrpcClient` is the recommended default.
 - `signer`: The signer/keypair used for signed transactions.
 - `gasMode`: Either `'coins'` (default) to use owned coins for gas, or `'addressBalance'` to pay gas
   from the sender's address balance. When using `'addressBalance'`, coin-specific options like
@@ -125,10 +125,13 @@ way that avoids conflicts between transactions using the same object ids.
   `1000`)
 
 ```ts
-import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { ParallelTransactionExecutor } from '@mysten/sui/transactions';
 
-const client = new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl('devnet'), network: 'devnet' });
+const client = new SuiGrpcClient({
+	baseUrl: 'https://fullnode.devnet.sui.io:443',
+	network: 'devnet',
+});
 
 const executor = new ParallelTransactionExecutor({
 	client,

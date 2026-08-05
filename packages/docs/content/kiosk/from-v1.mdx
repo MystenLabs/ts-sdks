@@ -1,6 +1,6 @@
 ---
 title: Migrating from Kiosk SDK V1
-description: Migrate from Kiosk SDK v1 to the current version with the builder-pattern API.
+description: Migrate from Kiosk SDK v1 to the current version with the builder-pattern API
 keywords: [Kiosk SDK, migration, v1, upgrade, builder pattern, Personal Kiosk, Sui]
 ---
 
@@ -49,11 +49,11 @@ Using the new SDK, you can build the same transaction as follows:
 
 ```typescript
 import { kiosk, KioskTransaction } from '@mysten/kiosk';
-import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+import { SuiGraphQLClient } from '@mysten/sui/graphql';
 
 // You need to do this only once and re-use it in the application.
-const client = new SuiJsonRpcClient({
-	url: getJsonRpcFullnodeUrl('mainnet'),
+const client = new SuiGraphQLClient({
+	url: 'https://sui-mainnet.mystenlabs.com/graphql',
 	network: 'mainnet',
 }).$extend(kiosk());
 
@@ -105,11 +105,11 @@ Using the new SDK, you can build the same transaction as follows:
 
 ```typescript
 import { kiosk, KioskTransaction } from '@mysten/kiosk';
-import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+import { SuiGraphQLClient } from '@mysten/sui/graphql';
 
 // You need to do this only once and re-use it in the application.
-const client = new SuiJsonRpcClient({
-	url: getJsonRpcFullnodeUrl('mainnet'),
+const client = new SuiGraphQLClient({
+	url: 'https://sui-mainnet.mystenlabs.com/graphql',
 	network: 'mainnet',
 }).$extend(kiosk());
 
@@ -208,11 +208,11 @@ Using the new SDK, you can build the same transaction as follows:
 
 ```typescript
 import { kiosk, KioskTransaction } from '@mysten/kiosk';
-import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+import { SuiGraphQLClient } from '@mysten/sui/graphql';
 
 // You need to do this only once and re-use it in the application.
-const client = new SuiJsonRpcClient({
-	url: getJsonRpcFullnodeUrl('mainnet'),
+const client = new SuiGraphQLClient({
+	url: 'https://sui-mainnet.mystenlabs.com/graphql',
 	network: 'mainnet',
 }).$extend(kiosk());
 
@@ -309,11 +309,11 @@ On the new SDK, the same transaction can be built as follows:
 
 ```typescript
 import { kiosk, TransferPolicyTransaction, percentageToBasisPoints } from '@mysten/kiosk';
-import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+import { SuiGraphQLClient } from '@mysten/sui/graphql';
 
 // You need to do this only once and re-use it in the application.
-const client = new SuiJsonRpcClient({
-	url: getJsonRpcFullnodeUrl('mainnet'),
+const client = new SuiGraphQLClient({
+	url: 'https://sui-mainnet.mystenlabs.com/graphql',
 	network: 'mainnet',
 }).$extend(kiosk());
 

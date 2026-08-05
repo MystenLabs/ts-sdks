@@ -1,12 +1,12 @@
 ---
 title: '@mysten/zksend'
-description: Migrate @mysten/zksend to 2.0 with client extension pattern and simplified API.
+description: Migrate @mysten/zksend to 2.0 with client extension pattern and simplified API
 keywords:
   [migration, '@mysten/zksend', zkSend, 2.0, client extension, contract links, breaking changes]
 ---
 
-This package now exports a client extension that integrates with Sui clients, enabling compatibility
-with gRPC, GraphQL, and JSON RPC transports.
+This package now exports a client extension that integrates with Sui clients through the Core API.
+Use `SuiGrpcClient` for most applications.
 
 ## Breaking changes
 
@@ -26,7 +26,7 @@ Update your code to use the client extension:
 ```diff
 - import { ZkSendLinkBuilder, ZkSendLink } from '@mysten/zksend';
 + import { zksend } from '@mysten/zksend';
-+ import { SuiGrpcClient } from '@mysten/sui/grpc'; // or SuiJsonRpcClient, SuiGraphQLClient
++ import { SuiGrpcClient } from '@mysten/sui/grpc';
 
 + const client = new SuiGrpcClient({
 +   baseUrl: 'https://fullnode.testnet.sui.io:443',
@@ -75,7 +75,7 @@ Update your code to use the client extension:
 
 ```ts
 import { zksend } from '@mysten/zksend';
-import { SuiGrpcClient } from '@mysten/sui/grpc'; // or SuiJsonRpcClient, SuiGraphQLClient
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 
 // Create client with zkSend extension
 const client = new SuiGrpcClient({

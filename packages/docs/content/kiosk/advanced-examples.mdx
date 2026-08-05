@@ -1,6 +1,6 @@
 ---
 title: Advanced Examples
-description: Advanced Kiosk SDK usage patterns and code examples for complex scenarios.
+description: Advanced Kiosk SDK usage patterns and code examples for complex scenarios
 keywords: [Kiosk SDK, advanced examples, transfer policy, purchase, listing, Sui, TypeScript]
 ---
 
@@ -10,7 +10,7 @@ For these examples, assume you have the following data and functions available:
 
 ```typescript
 import { kiosk, KioskTransaction } from '@mysten/kiosk';
-import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+import { SuiGraphQLClient } from '@mysten/sui/graphql';
 
 // a constant for bullshark's type.
 const bullsharkType = `${packageId}::suifrens::SuiFren<${packageId}::bullshark::Bullshark>`;
@@ -18,8 +18,8 @@ const bullsharkType = `${packageId}::suifrens::SuiFren<${packageId}::bullshark::
 const capyType = `${packageId}::suifrens::SuiFren<${packageId}::capy::Capy>`;
 
 // initialize the client with the kiosk extension.
-const client = new SuiJsonRpcClient({
-	url: getJsonRpcFullnodeUrl('mainnet'),
+const client = new SuiGraphQLClient({
+	url: 'https://sui-mainnet.mystenlabs.com/graphql',
 	network: 'mainnet',
 }).$extend(kiosk());
 ```

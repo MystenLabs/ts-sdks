@@ -139,7 +139,7 @@ const grpcClient = new SuiGrpcClient({
 	baseUrl: 'https://fullnode.devnet.sui.io:443',
 });
 
-const { balance } = await grpcClient.core.getBalance({
+const { balance } = await grpcClient.getBalance({
 	owner: keypair.toSuiAddress(),
 });
 

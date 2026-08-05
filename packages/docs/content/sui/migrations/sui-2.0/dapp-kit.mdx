@@ -1,6 +1,6 @@
 ---
 title: '@mysten/dapp-kit'
-description: Migrate @mysten/dapp-kit to the new dapp-kit-react package in 2.0.
+description: Migrate @mysten/dapp-kit to the new dapp-kit-react package in 2.0
 keywords:
   [
     migration,
@@ -291,7 +291,7 @@ The built-in data fetching hooks have been removed. Use TanStack Query's `useQue
 - 	});
 + 	const { data, isLoading, error } = useQuery({
 + 		queryKey: ['object', objectId],
-+ 		queryFn: () => client.core.getObject({ objectId }),
++ 		queryFn: () => client.getObject({ objectId }),
 + 	});
   	// ...
   }
@@ -312,7 +312,7 @@ export function ExampleComponent({ objectId }: { objectId: string }) {
 	const [error, setError] = useState<string | null>(null);
 
 	useEffect(() => {
-		client.core
+		client
 			.getObject({ objectId })
 			.then((result) => setData(result.object ?? null))
 			.catch((err) => setError(err.message))

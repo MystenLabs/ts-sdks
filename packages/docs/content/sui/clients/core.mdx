@@ -1,6 +1,6 @@
 ---
 title: Core API
-description: Transport-agnostic Core API shared by all Sui clients.
+description: Transport-agnostic Core API shared by Sui clients
 keywords:
   [
     Core API,
@@ -14,9 +14,14 @@ keywords:
   ]
 ---
 
-The Core API is the transport-agnostic interface that all Sui clients implement. It provides a
-consistent set of methods for interacting with the Sui blockchain, regardless of whether you're
-using gRPC, GraphQL, or JSON-RPC.
+The Core API is the transport-agnostic interface shared by Sui clients. It provides a consistent set
+of methods for interacting with the Sui blockchain across `SuiGrpcClient`, `SuiGraphQLClient`, and
+the deprecated `SuiJsonRpcClient`.
+
+For application code, prefer the top-level methods on the concrete client you instantiate, such as
+`grpcClient.getObject()` or `graphqlClient.listTransactions()`. Those methods match the Core API for
+common operations and may expose transport-specific additions. Use `client.core` when writing SDKs,
+libraries, or helpers that accept any `ClientWithCoreApi`.
 
 ## `ClientWithCoreApi`
 

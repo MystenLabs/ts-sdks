@@ -1,6 +1,6 @@
 ---
 title: useCurrentClient
-description: React hook to get the current Sui client instance for the active network.
+description: React hook to get the current Sui client instance for the active network
 keywords:
   [useCurrentClient, React hook, Sui client, blockchain client, dApp Kit, network, TypeScript]
 ---
@@ -9,9 +9,9 @@ The `useCurrentClient` hook provides access to the blockchain client instance fo
 network.
 
 <Callout type="info">
-	By default, this returns a `SuiClient` instance when using the standard setup. However, the dApp
-	Kit supports any client that implements the Sui core API, making it flexible for different
-	blockchain implementations.
+	With the standard setup, this returns the `SuiGrpcClient` instance created by `createClient`. More
+	generally, it returns whatever client type your dApp Kit instance creates, as long as that client
+	implements the Sui Core API.
 </Callout>
 
 <Callout type="warn">
@@ -41,5 +41,5 @@ export function MyComponent() {
 ## Return value
 
 ```tsx
-SuiClient;
+ReturnType<typeof dAppKit.getClient>;
 ```

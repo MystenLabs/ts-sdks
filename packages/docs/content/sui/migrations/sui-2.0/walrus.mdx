@@ -1,6 +1,6 @@
 ---
 title: '@mysten/walrus'
-description: Migrate @mysten/walrus to 2.0 with required client parameter and updated API.
+description: Migrate @mysten/walrus to 2.0 with required client parameter and updated API
 keywords:
   [
     migration,
@@ -29,7 +29,7 @@ If you were creating `WalrusClient` directly:
 
 ```diff
 - import { WalrusClient } from '@mysten/walrus';
-+ import { SuiGrpcClient } from '@mysten/sui/grpc'; // or SuiJsonRpcClient, SuiGraphQLClient
++ import { SuiGrpcClient } from '@mysten/sui/grpc';
 + import { walrus } from '@mysten/walrus';
 
 - const walrusClient = new WalrusClient({

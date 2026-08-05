@@ -1,6 +1,6 @@
 ---
 title: SDK Maintainers
-description: Migration guide for SDK maintainers and library authors upgrading to 2.0.
+description: Migration guide for SDK maintainers and library authors upgrading to 2.0
 keywords:
   [
     migration,
@@ -21,8 +21,8 @@ For comprehensive SDK development patterns, see the [Building SDKs guide](/sui/s
 
 ## Use `ClientWithCoreApi`
 
-Accept `ClientWithCoreApi` instead of `SuiClient` to support all 3 Sui clients (JSON-RPC, GraphQL,
-gRPC):
+Accept `ClientWithCoreApi` instead of `SuiClient` so applications can pass a `SuiGrpcClient`,
+`SuiGraphQLClient`, or a legacy `SuiJsonRpcClient` during migration:
 
 ```diff
 - import { SuiClient } from '@mysten/sui/client';
@@ -36,7 +36,9 @@ export class MySDKClient {
 
 ## Access data through `client.core` methods
 
-All data access methods are namespaced under `client.core`:
+SDKs should access shared client methods through `client.core`. Application code can use the same
+methods at the top level of its concrete client, but `client.core` is the stable contract for
+libraries that should work across transports:
 
 ```diff
 - const result = await this.client.getObject({ objectId });
@@ -46,13 +48,13 @@ All data access methods are namespaced under `client.core`:
 + const result = await this.client.core.listOwnedObjects({ owner });
 ```
 
-| v1.x Method                      | v2.0 Method                       |
-| -------------------------------- | --------------------------------- |
-| `client.getObject()`             | `client.core.getObject()`         |
-| `client.getOwnedObjects()`       | `client.core.listOwnedObjects()`  |
-| `client.getDynamicFieldObject()` | `client.core.getDynamicField()`   |
-| `client.getDynamicFields()`      | `client.core.listDynamicFields()` |
-| `client.multiGetObjects()`       | `client.core.getObjects()`        |
+| v1.x Method                      | v2.0 Method                           |
+| -------------------------------- | ------------------------------------- |
+| `client.getObject()`             | `client.core.getObject()`             |
+| `client.getOwnedObjects()`       | `client.core.listOwnedObjects()`      |
+| `client.getDynamicFieldObject()` | `client.core.getDynamicObjectField()` |
+| `client.getDynamicFields()`      | `client.core.listDynamicFields()`     |
+| `client.multiGetObjects()`       | `client.core.getObjects()`            |
 
 See the [Core API documentation](/sui/clients/core) for all available methods.
 

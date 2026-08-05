@@ -1,31 +1,33 @@
 ---
 title: Sui Clients
-description: 'Choose and configure gRPC, GraphQL, or JSON-RPC clients for the Sui network.'
+description: Choose and configure SuiGrpcClient, SuiGraphQLClient, and legacy JSON-RPC clients
 keywords:
   [Sui client, gRPC, GraphQL, JSON-RPC, SuiGrpcClient, SuiGraphQLClient, SuiJsonRpcClient, Core API]
 ---
 
 The Sui TypeScript SDK provides multiple client implementations for interacting with the Sui
-network. Each client connects to a different API but provides two levels of access:
+network. For application code, choose one client for your transport and use its top-level methods
+for common reads, writes, and queries. `SuiGrpcClient` is the recommended default.
 
-- Native API: Full access to everything the underlying API offers
-- [Core API](/sui/clients/core): A consistent interface across all clients for common operations
+Each client exposes three useful surfaces:
+
+- Top-level methods: the main application API, matching the Core API for common operations
+- [Core API](/sui/clients/core): the shared `client.core` contract used by SDKs and libraries
+- Native API: direct access to transport-specific features when the common methods are not enough
 
 ## Available clients
 
-| Client                                                   | API                                                                |
-| -------------------------------------------------------- | ------------------------------------------------------------------ |
-| [`SuiGrpcClient`](/sui/clients/grpc) (recommended)       | [Full Node gRPC](https://docs.sui.io/references/fullnode-protocol) |
-| [`SuiGraphQLClient`](/sui/clients/graphql)               | [GraphQL](https://docs.sui.io/references/sui-graphql)              |
-| [`SuiJsonRpcClient`](/sui/clients/json-rpc) (deprecated) | [JSON-RPC (deprecated)](https://docs.sui.io/sui-api-ref)           |
+| Client                                                   | Use For                                                                 |
+| -------------------------------------------------------- | ----------------------------------------------------------------------- |
+| [`SuiGrpcClient`](/sui/clients/grpc) (recommended)       | Most application and SDK operations, full node data, execution, streams |
+| [`SuiGraphQLClient`](/sui/clients/graphql)               | Indexed queries, historical data, or custom GraphQL selection sets      |
+| [`SuiJsonRpcClient`](/sui/clients/json-rpc) (deprecated) | Maintaining legacy JSON-RPC code while migrating to gRPC or GraphQL     |
 
-All clients are compatible with Mysten SDKs like `@mysten/walrus`, `@mysten/seal` and
-`@mysten/suins`.
-
-For most application gRPC is a good default. The JSON RPC API has been deprecated and will be
-decommissioned soon. The GraphQL can be used for more advanced query patterns that can not be
-supported directly on full nodes (for example, querying for transactions or events with various
-filters).
+All active Mysten SDKs are designed to accept clients that implement the Core API. `SuiGrpcClient`
+is the default choice for most apps because it uses the full node gRPC API and has the most complete
+top-level SDK surface. Use `SuiGraphQLClient` when the code needs GraphQL-specific indexed queries
+or a custom query shape. JSON-RPC APIs are deprecated in the Sui TypeScript SDK; migrate legacy
+JSON-RPC code to gRPC or GraphQL.
 
 ## Quick start
 
@@ -37,28 +39,85 @@ const client = new SuiGrpcClient({
 	baseUrl: 'https://fullnode.mainnet.sui.io:443',
 });
 
-// Use the native API for full access to transport-specific features
-const { response } = await client.ledgerService.getTransaction({ digest: '0x...' });
-
-// Use the Core API for transport-agnostic operations
-const { object } = await client.core.getObject({ objectId: '0x...' });
+const { balance } = await client.getBalance({ owner: '0x...' });
+const { object } = await client.getObject({
+	objectId: '0x...',
+	include: { content: true },
+});
 ```
 
-## Native vs core API
+## Top-level, core, and native APIs
+
+### Top-level methods
+
+Use top-level methods when writing app code against a concrete client like `SuiGrpcClient` or
+`SuiGraphQLClient`. These methods use the same option and response shapes as the Core API, and a
+transport can add narrowly scoped fields where it has extra native data.
+
+```typescript
+const { objects } = await client.listOwnedObjects({
+	owner: '0x...',
+	include: { display: true },
+});
+
+const result = await client.signAndExecuteTransaction({
+	transaction,
+	signer,
+	include: { effects: true, balanceChanges: true },
+});
+```
+
+Common top-level methods include:
+
+| Category       | Methods                                                                                   |
+| -------------- | ----------------------------------------------------------------------------------------- |
+| Objects        | `getObject`, `getObjects`, `listOwnedObjects`, `listDynamicFields`, `getDynamicField`     |
+| Coins          | `listCoins`, `getBalance`, `listBalances`, `getCoinMetadata`                              |
+| Transactions   | `getTransaction`, `executeTransaction`, `signAndExecuteTransaction`, `waitForTransaction` |
+| Simulation     | `simulateTransaction`                                                                     |
+| Queries        | `listTransactions`, `listEvents`                                                          |
+| Move and names | `getMoveFunction`, `defaultNameServiceName`, `mvr.resolvePackage`, `mvr.resolveType`      |
+| Verification   | `verifyZkLoginSignature`                                                                  |
+
+### Core API
+
+Use `client.core` when building SDKs or libraries that accept any client implementing
+`ClientWithCoreApi`. The Core API is the shared contract that `SuiGrpcClient`, `SuiGraphQLClient`,
+and the deprecated `SuiJsonRpcClient` implement.
+
+```typescript
+import type { ClientWithCoreApi } from '@mysten/sui/client';
+
+export async function fetchResource(client: ClientWithCoreApi, objectId: string) {
+	return client.core.getObject({
+		objectId,
+		include: { content: true },
+	});
+}
+```
 
 ### Native API
 
 Each client exposes the full capabilities of its underlying transport. Use the native API when you
-need transport-specific features or want maximum control:
+need transport-specific features or want maximum control.
 
 ```typescript
 import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { SuiGraphQLClient } from '@mysten/sui/graphql';
 import { graphql } from '@mysten/sui/graphql/schema';
-import { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+
+const grpcClient = new SuiGrpcClient({
+	network: 'mainnet',
+	baseUrl: 'https://fullnode.mainnet.sui.io:443',
+});
 
 // gRPC - access various service clients to call any gRPC method
 const { response } = await grpcClient.stateService.listOwnedObjects({ owner: '0x...' });
+
+const graphqlClient = new SuiGraphQLClient({
+	network: 'mainnet',
+	url: 'https://sui-mainnet.mystenlabs.com/graphql',
+});
 
 // GraphQL - write type-safe custom queries using the graphql function
 const result = await graphqlClient.query({
@@ -68,25 +127,10 @@ const result = await graphqlClient.query({
 		}
 	`),
 });
-
-// JSON-RPC - call any JSON-RPC method
-const coins = await jsonRpcClient.getCoins({ owner: '0x...' });
 ```
 
-### Core API
-
-All clients also implement the [Core API](/sui/clients/core) through `client.core`. This provides a
-consistent interface for common operations that works identically across all transports:
-
-```typescript
-// These methods work the same on any client
-const { object } = await client.core.getObject({ objectId: '0x...' });
-const balance = await client.core.getBalance({ owner: '0x...' });
-await client.core.executeTransaction({ transaction, signatures });
-```
-
-The Core API is essential for [building SDKs](/sui/sdk-building) that work with any client the user
-chooses.
+For legacy JSON-RPC-only code, see the [`SuiJsonRpcClient` page](/sui/clients/json-rpc) and the
+[JSON-RPC migration guide](/sui/migrations/sui-2.0/json-rpc-migration).
 
 ## Client extensions
 
