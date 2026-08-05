@@ -34,6 +34,8 @@ import {
 	type MarketState,
 } from './reads/markets.js';
 import { poolStats } from './reads/pool.js';
+import { readPricerSnapshot, type PricerSnapshot } from './reads/pricing.js';
+import { boardPricer, type BoardPricer } from './pricing.js';
 import { POS_INF_TICK, binaryRangeTicks, type Side } from './ticks.js';
 import { createAccount, depositFunds, withdrawFunds } from './tx/account.js';
 import { setBuilderCode, unsetBuilderCode } from './tx/builderCode.js';
@@ -577,6 +579,22 @@ export class PredictClient {
 				state.tickSizeRaw,
 			);
 			return { up: rawToProbability(upRaw), down: rawToProbability(downRaw) };
+		},
+
+		// A client-side board pricer for one market: ONE simulate reads the chain's
+		// resolved pricer (already forward-selected + rolled to now), then prices every
+		// strike LOCALLY with no further chain calls — `pricer.up(strike)`,
+		// `.down(strike)`, `.range(lo,hi)`, `.strikeAtProbability(p)`. Use this to paint a
+		// whole board instantly; `read.price` / `read.quoteMint` stay the authoritative
+		// per-strike quote at trade time. Throws the same typed stale-oracle/expired
+		// PredictMoveError `read.price` would when the chain itself cannot quote.
+		pricer: async (
+			m: Pick<MarketDescriptor, 'underlying' | 'expiryMs'>,
+		): Promise<BoardPricer & { asOf: PricerSnapshot['sources'] }> => {
+			const feeds = this.#feeds(m.underlying);
+			const { id } = await this.#resolveMarket(m);
+			const snap = await readPricerSnapshot(this.#client, this.cfg, id, feeds);
+			return { ...boardPricer(snap), asOf: snap.sources };
 		},
 
 		// Exact pre-trade quote: dry-runs the caller's own mint (same tx as
