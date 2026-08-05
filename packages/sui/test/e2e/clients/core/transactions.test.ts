@@ -105,6 +105,46 @@ describe('Core API - Transactions', () => {
 		testWithAllClients('should throw error for invalid digest format', async (client) => {
 			await expect(client.core.getTransaction({ digest: 'invalid' })).rejects.toThrow();
 		});
+
+		// The first transaction on the chain is the genesis transaction, a system
+		// transaction that has no gas object. Fetched over JSON-RPC because the
+		// localnet image does not serve the gRPC ListTransactions RPC yet.
+		async function getGenesisDigest() {
+			const { transactions } = await toolbox.jsonRpcClient.core.listTransactions({
+				limit: 1,
+				order: 'ascending',
+			});
+			return transactions[0].Transaction!.digest;
+		}
+
+		it('all clients return same data: transaction without a gas object', async () => {
+			const genesisDigest = await getGenesisDigest();
+
+			await toolbox.expectAllClientsReturnSameData(
+				(client) =>
+					client.core.getTransaction({
+						digest: genesisDigest,
+						include: { effects: true },
+					}),
+				// Transports disagree on whether the genesis transaction has a
+				// placeholder signature, which is unrelated to effects parity
+				(result) =>
+					result.$kind === 'Transaction'
+						? { ...result, Transaction: { ...result.Transaction, signatures: [] } }
+						: result,
+			);
+		});
+
+		testWithAllClients('should return null gas object for system transactions', async (client) => {
+			const genesisDigest = await getGenesisDigest();
+
+			const result = await client.core.getTransaction({
+				digest: genesisDigest,
+				include: { effects: true },
+			});
+
+			expect(result.Transaction!.effects!.gasObject).toBeNull();
+		});
 	});
 
 	describe('executeTransaction', () => {
