@@ -1,14 +1,10 @@
 import { bcs } from '@mysten/sui/bcs';
+import type { ClientWithCoreApi } from '@mysten/sui/client';
 import { deriveDynamicFieldID, normalizeSuiAddress } from '@mysten/sui/utils';
 import { describe, expect, test } from 'vitest';
 import { PredictClient } from '../src/client.js';
 import { TESTNET_CONFIG as cfg } from '../src/config/index.js';
-import { PredictInputError } from '../src/errors.js';
-import {
-	positionsFromTable,
-	resolvePositionsTable,
-	type ObjectReadClient,
-} from '../src/reads/positions.js';
+import { positionsFromTable, resolvePositionsTable } from '../src/reads/positions.js';
 import { deriveAccountWrapperId } from '../src/tx/common.js';
 import { AccountWrapper } from '../src/contracts/account/account.js';
 import { PositionKey, PredictData } from '../src/contracts/deepbook_predict/predict_account.js';
@@ -70,32 +66,34 @@ function mockClient(opts: { pages?: number } = {}) {
 	const pages = opts.pages ?? 1;
 	const calls = { getObject: 0, listDynamicFields: 0 };
 	const client = {
-		async getObject({ objectId }: { objectId: string }) {
-			calls.getObject++;
-			if (
-				normalizeSuiAddress(objectId) === normalizeSuiAddress(deriveAccountWrapperId(cfg, OWNER))
-			) {
-				return { object: { content: wrapperContent } };
-			}
-			if (normalizeSuiAddress(objectId) === normalizeSuiAddress(DATA_FIELD_ID)) {
-				return { object: { content: dataFieldContent } };
-			}
-			throw new Error(`object not found: ${objectId}`);
+		core: {
+			async getObject({ objectId }: { objectId: string }) {
+				calls.getObject++;
+				if (
+					normalizeSuiAddress(objectId) === normalizeSuiAddress(deriveAccountWrapperId(cfg, OWNER))
+				) {
+					return { object: { content: wrapperContent } };
+				}
+				if (normalizeSuiAddress(objectId) === normalizeSuiAddress(DATA_FIELD_ID)) {
+					return { object: { content: dataFieldContent } };
+				}
+				throw new Error(`object not found: ${objectId}`);
+			},
+			async listDynamicFields({ cursor }: { parentId: string; cursor?: string }) {
+				calls.listDynamicFields++;
+				const page = cursor ? Number(cursor) : 0;
+				const base = BigInt(page * 2);
+				return {
+					hasNextPage: page + 1 < pages,
+					cursor: page + 1 < pages ? String(page + 1) : null,
+					dynamicFields: [
+						{ fieldId: '0x7', type: '', valueType: '', name: { type: '', bcs: keyBcs(base + 1n) } },
+						{ fieldId: '0x8', type: '', valueType: '', name: { type: '', bcs: keyBcs(base + 2n) } },
+					],
+				};
+			},
 		},
-		async listDynamicFields({ cursor }: { parentId: string; cursor?: string }) {
-			calls.listDynamicFields++;
-			const page = cursor ? Number(cursor) : 0;
-			const base = BigInt(page * 2);
-			return {
-				hasNextPage: page + 1 < pages,
-				cursor: page + 1 < pages ? String(page + 1) : null,
-				dynamicFields: [
-					{ fieldId: '0x7', type: '', valueType: '', name: { type: '', bcs: keyBcs(base + 1n) } },
-					{ fieldId: '0x8', type: '', valueType: '', name: { type: '', bcs: keyBcs(base + 2n) } },
-				],
-			};
-		},
-	} as unknown as ObjectReadClient;
+	} as unknown as ClientWithCoreApi;
 	return { client, calls };
 }
 
@@ -113,13 +111,15 @@ describe('position enumeration', () => {
 
 	test('never-onboarded owner → null handle, [] from the facade', async () => {
 		const client = {
-			async getObject() {
-				throw new Error('Object 0xabc not found');
+			core: {
+				async getObject() {
+					throw new Error('Object 0xabc not found');
+				},
+				async listDynamicFields() {
+					throw new Error('unreachable');
+				},
 			},
-			async listDynamicFields() {
-				throw new Error('unreachable');
-			},
-		} as unknown as ObjectReadClient;
+		} as unknown as ClientWithCoreApi;
 		expect(await resolvePositionsTable(client, cfg, OWNER)).toBeNull();
 		const pc = new PredictClient({ network: 'testnet', client: client as never });
 		expect(await pc.read.positions(OWNER)).toEqual([]);
@@ -155,14 +155,5 @@ describe('position enumeration', () => {
 		await pc.read.positions(OWNER);
 		expect(calls.getObject).toBe(afterFirst.getObject); // no re-resolution
 		expect(calls.listDynamicFields).toBe(afterFirst.listDynamicFields + 1);
-	});
-
-	test('simulate-only client → pointed capability error', async () => {
-		const pc = new PredictClient({
-			network: 'testnet',
-			client: { simulateTransaction: async () => ({}) } as never,
-		});
-		await expect(pc.read.positions(OWNER)).rejects.toThrow(PredictInputError);
-		await expect(pc.read.positions(OWNER)).rejects.toThrow(/getObject/);
 	});
 });

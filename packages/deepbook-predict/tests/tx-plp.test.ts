@@ -59,7 +59,7 @@ const AUTH = `${cfg.packages.account}::account::generate_auth`;
 
 test('requestSupply: auth → request_supply, 8 args, min-plp-out floor slot', () => {
 	const tx = new Transaction();
-	requestSupply(cfg, tx, { wrapperId: '0xdef', amountRaw: 5_000_000n });
+	tx.add(requestSupply(cfg, { wrapperId: '0xdef', amountRaw: 5_000_000n }));
 	expect(targets(tx)).toEqual([AUTH, `${cfg.packages.predict}::plp::request_supply`]);
 	const c = call(tx, 1);
 	// deployed sig: (vault, wrapper, auth, config, amount u64, min_plp_out u64, root, clock, ctx)
@@ -88,7 +88,9 @@ test('requestSupply: auth → request_supply, 8 args, min-plp-out floor slot', (
 
 test('requestSupply: explicit minPlpOut overrides the 0 default', () => {
 	const tx = new Transaction();
-	requestSupply(cfg, tx, { wrapperId: '0xdef', amountRaw: 5_000_000n, minPlpOutRaw: 4_500_000n });
+	tx.add(
+		requestSupply(cfg, { wrapperId: '0xdef', amountRaw: 5_000_000n, minPlpOutRaw: 4_500_000n }),
+	);
 	expect(argPureBytes(tx, 1, 5)).toBe(
 		Buffer.from(bcs.u64().serialize(4_500_000n).toBytes()).toString('base64'),
 	);
@@ -96,7 +98,7 @@ test('requestSupply: explicit minPlpOut overrides the 0 default', () => {
 
 test('requestWithdraw: auth → request_withdraw, 8 args, shares + min-dusdc-out floor', () => {
 	const tx = new Transaction();
-	requestWithdraw(cfg, tx, { wrapperId: '0xdef', sharesRaw: 1_234n });
+	tx.add(requestWithdraw(cfg, { wrapperId: '0xdef', sharesRaw: 1_234n }));
 	expect(targets(tx)).toEqual([AUTH, `${cfg.packages.predict}::plp::request_withdraw`]);
 	const c = call(tx, 1);
 	// deployed sig: (vault, wrapper, auth, config, amount u64, min_dusdc_out u64, root, clock, ctx)
@@ -120,7 +122,7 @@ test('requestWithdraw: auth → request_withdraw, 8 args, shares + min-dusdc-out
 
 test('cancelSupplyRequest: auth → cancel_supply_request, 7 args, index in u64 slot', () => {
 	const tx = new Transaction();
-	cancelSupplyRequest(cfg, tx, { wrapperId: '0xdef', index: 3n });
+	tx.add(cancelSupplyRequest(cfg, { wrapperId: '0xdef', index: 3n }));
 	expect(targets(tx)).toEqual([AUTH, `${cfg.packages.predict}::plp::cancel_supply_request`]);
 	const c = call(tx, 1);
 	expect(c.arguments).toHaveLength(7);
@@ -137,7 +139,7 @@ test('cancelSupplyRequest: auth → cancel_supply_request, 7 args, index in u64 
 
 test('cancelWithdrawRequest: auth → cancel_withdraw_request, 7 args, index in u64 slot', () => {
 	const tx = new Transaction();
-	cancelWithdrawRequest(cfg, tx, { wrapperId: '0xdef', index: 7n });
+	tx.add(cancelWithdrawRequest(cfg, { wrapperId: '0xdef', index: 7n }));
 	expect(targets(tx)).toEqual([AUTH, `${cfg.packages.predict}::plp::cancel_withdraw_request`]);
 	const c = call(tx, 1);
 	expect(c.arguments).toHaveLength(7);
@@ -154,7 +156,7 @@ test('cancelWithdrawRequest: auth → cancel_withdraw_request, 7 args, index in 
 
 test('setBuilderCode: auth → set_builder_code (predict pkg), 3 args', () => {
 	const tx = new Transaction();
-	setBuilderCode(cfg, tx, { wrapperId: '0xdef', builderCodeId: '0xbc0de' });
+	tx.add(setBuilderCode(cfg, { wrapperId: '0xdef', builderCodeId: '0xbc0de' }));
 	expect(targets(tx)).toEqual([AUTH, `${cfg.packages.predict}::predict_account::set_builder_code`]);
 	const c = call(tx, 1);
 	// deployed sig: (wrapper, auth, code: &BuilderCode, ctx) → 3 moveCall args
@@ -166,7 +168,7 @@ test('setBuilderCode: auth → set_builder_code (predict pkg), 3 args', () => {
 
 test('unsetBuilderCode: auth → unset_builder_code (predict pkg), 2 args', () => {
 	const tx = new Transaction();
-	unsetBuilderCode(cfg, tx, { wrapperId: '0xdef' });
+	tx.add(unsetBuilderCode(cfg, { wrapperId: '0xdef' }));
 	expect(targets(tx)).toEqual([
 		AUTH,
 		`${cfg.packages.predict}::predict_account::unset_builder_code`,

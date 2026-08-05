@@ -1,4 +1,4 @@
-import type { SuiGrpcClient } from '@mysten/sui/grpc';
+import type { ClientWithCoreApi, SuiClientRegistration } from '@mysten/sui/client';
 import { Transaction, coinWithBalance } from '@mysten/sui/transactions';
 import { getConfig, type PredictConfig } from './config/index.js';
 import {
@@ -15,12 +15,10 @@ import {
 	type DecodableTransactionResult,
 } from './decode.js';
 import { PredictInputError } from './errors.js';
-import type { ReadClient } from './reads/inspect.js';
 import { simulateWithEvents } from './reads/inspect.js';
 import {
 	positionsFromTable,
 	resolvePositionsTable,
-	type ObjectReadClient,
 	type OpenPosition,
 	type PositionsHandle,
 } from './reads/positions.js';
@@ -171,8 +169,32 @@ interface ResolvedMarket {
 	state: MarketState;
 }
 
+/** The Sui client surface PredictClient reads through: any `ClientWithCoreApi`
+ * (gRPC or JSON-RPC) provides both the `simulateTransaction` the reads/quotes
+ * sit on and the `core` object methods position enumeration needs. */
+export interface PredictCompatibleClient extends ClientWithCoreApi {}
+
 /**
- * The one object an app constructs. Wraps the config, a gRPC client for reads, and
+ * Register PredictClient as a `client.predict` extension, mirroring
+ * `@mysten/deepbook-v3`'s `deepbook(...)`: `client.$extend(predict({ network }))`.
+ */
+export function predict<Name extends string = 'predict'>({
+	name = 'predict' as Name,
+	network,
+	config,
+}: {
+	name?: Name;
+	network: 'testnet' | 'mainnet';
+	config?: PredictConfig;
+}): SuiClientRegistration<PredictCompatibleClient, Name, PredictClient> {
+	return {
+		name,
+		register: (client) => new PredictClient({ client, network, config }),
+	};
+}
+
+/**
+ * The one object an app constructs. Wraps the config, a client for reads, and
  * a derived-account model so callers pass owner addresses, decimal amounts, and
  * human market coordinates — the facade converts to raw units, resolves markets
  * (cached), and delegates to the internal tx primitives / reads. Callers who need
@@ -180,24 +202,24 @@ interface ResolvedMarket {
  */
 export class PredictClient {
 	readonly cfg: PredictConfig;
-	private readonly client: ReadClient;
+	#client: PredictCompatibleClient;
 	// underlying:expiryMs → resolved market. The id and tickSizeRaw — the only
 	// state tx building depends on — are immutable per (underlying, expiry), so
 	// one resolution per market per client suffices. (mintPaused IS mutable; the
 	// cached copy is never consulted for a tx decision — the chain enforces it.)
-	private readonly marketCache = new Map<string, ResolvedMarket>();
+	#marketCache = new Map<string, ResolvedMarket>();
 	// owner → resolved position-store ids. accountUid and the table id are
 	// immutable once created, so cache-forever; a missing table (no Predict
 	// data yet) is NOT cached — it appears after the owner's first trade.
-	private readonly positionsCache = new Map<string, PositionsHandle>();
+	#positionsCache = new Map<string, PositionsHandle>();
 
 	constructor(opts: {
 		network: 'testnet' | 'mainnet';
-		client: SuiGrpcClient | ReadClient;
+		client: PredictCompatibleClient;
 		config?: PredictConfig;
 	}) {
 		this.cfg = opts.config ?? getConfig(opts.network);
-		this.client = opts.client;
+		this.#client = opts.client;
 	}
 
 	/** The deterministic id of an owner's canonical account wrapper — no chain read. */
@@ -206,7 +228,7 @@ export class PredictClient {
 	}
 
 	// The oracle feed ids for a symbol; throws a typed error on an unknown symbol.
-	private feeds(underlying: string): MarketFeeds {
+	#feeds(underlying: string): MarketFeeds {
 		const u = this.cfg.underlyings[underlying];
 		if (!u) throw new PredictInputError(`unknown underlying: ${underlying}`);
 		return {
@@ -217,23 +239,23 @@ export class PredictClient {
 	}
 
 	// Resolve (and cache) a market's id + state from its human coordinates.
-	private async resolveMarket(
+	async #resolveMarket(
 		m: Pick<MarketDescriptor, 'underlying' | 'expiryMs'>,
 	): Promise<ResolvedMarket> {
 		const expiryMs = BigInt(m.expiryMs);
 		const key = `${m.underlying}:${expiryMs}`;
-		const hit = this.marketCache.get(key);
+		const hit = this.#marketCache.get(key);
 		if (hit) return hit;
-		const id = await expiryMarketId(this.client, this.cfg, m.underlying, expiryMs);
+		const id = await expiryMarketId(this.#client, this.cfg, m.underlying, expiryMs);
 		if (!id) throw new PredictInputError(`no market for ${m.underlying} at expiry ${expiryMs}`);
-		const state = await marketState(this.client, this.cfg, id);
+		const state = await marketState(this.#client, this.cfg, id);
 		const resolved: ResolvedMarket = { id, state };
-		this.marketCache.set(key, resolved);
+		this.#marketCache.set(key, resolved);
 		return resolved;
 	}
 
 	// Reference PRICE in USD from a state (tick index × tick size), or null.
-	private static referencePriceOf(state: MarketState): number | null {
+	static #referencePriceOf(state: MarketState): number | null {
 		return state.referenceTickRaw == null
 			? null
 			: fromRaw(state.referenceTickRaw * state.tickSizeRaw, 9);
@@ -243,7 +265,7 @@ export class PredictClient {
 	// strike converts and validates against the tick grid; "reference" reads the
 	// market's reference tick FRESH (never cached — it is unset early in a
 	// window) and uses it directly: it is on the tick grid by construction.
-	private async strikeTicks(
+	async #strikeTicks(
 		m: MarketDescriptor,
 		marketId: string,
 		state: MarketState,
@@ -251,7 +273,7 @@ export class PredictClient {
 		if (m.strike !== 'reference') {
 			return binaryRangeTicks(priceToRaw(m.strike), m.side, state.tickSizeRaw);
 		}
-		const tick = await referenceTick(this.client, this.cfg, marketId);
+		const tick = await referenceTick(this.#client, this.cfg, marketId);
 		if (tick == null) {
 			throw new PredictInputError(
 				`reference price not set yet for ${m.underlying} @ ${m.expiryMs} — retry shortly or pass a numeric strike`,
@@ -263,7 +285,7 @@ export class PredictClient {
 	}
 
 	// Raw payout quantity must land on a lot boundary — the chain rejects otherwise.
-	private assertLot(quantityRaw: bigint): void {
+	#assertLot(quantityRaw: bigint): void {
 		if (quantityRaw % POSITION_LOT_SIZE !== 0n) {
 			throw new PredictInputError(
 				`quantity ${quantityRaw} raw is not a whole ${POSITION_LOT_SIZE}-unit lot (position_lot_size)`,
@@ -271,72 +293,55 @@ export class PredictClient {
 		}
 	}
 
-	// Position enumeration needs object reads beyond the simulate-only
-	// ReadClient contract; real SuiGrpcClient/SuiJsonRpcClient instances have
-	// them, simulate-only mocks do not — fail with a pointed message.
-	private objectReadClient(): ObjectReadClient {
-		const c = this.client as unknown as ObjectReadClient;
-		if (typeof c.getObject !== 'function' || typeof c.listDynamicFields !== 'function') {
-			throw new PredictInputError(
-				'read.positions needs a client with getObject + listDynamicFields (e.g. SuiGrpcClient)',
-			);
-		}
-		return c;
-	}
-
 	// Shared construction for tx.mint and read.quoteMint. The quote dry-runs the
 	// same mint the trade sends; quoteMint omits the caller's cost/probability caps
 	// (they only gate via abort and don't change the receipt numbers).
-	private async buildMint(
-		owner: string,
-		m: MarketDescriptor,
-		opts: MintOptions,
-	): Promise<Transaction> {
-		const feeds = this.feeds(m.underlying);
-		const { id, state } = await this.resolveMarket(m);
+	async #buildMint(owner: string, m: MarketDescriptor, opts: MintOptions): Promise<Transaction> {
+		const feeds = this.#feeds(m.underlying);
+		const { id, state } = await this.#resolveMarket(m);
 		const quantityRaw = usdcToRaw(opts.quantity);
-		this.assertLot(quantityRaw);
-		const { lowerTick, higherTick } = await this.strikeTicks(m, id, state);
+		this.#assertLot(quantityRaw);
+		const { lowerTick, higherTick } = await this.#strikeTicks(m, id, state);
 		const tx = new Transaction();
-		mintExactQuantity(this.cfg, tx, {
-			expiryMarketId: id,
-			wrapperId: this.wrapperIdFor(owner),
-			lowerTick,
-			higherTick,
-			quantityRaw,
-			leverageRaw: leverageToRaw(opts.leverage ?? 1),
-			maxCostRaw: opts.maxCost != null ? usdcToRaw(opts.maxCost) : undefined,
-			maxProbabilityRaw:
-				opts.maxProbability != null ? probabilityToRaw(opts.maxProbability) : undefined,
-			...feeds,
-		});
+		tx.add(
+			mintExactQuantity(this.cfg, {
+				expiryMarketId: id,
+				wrapperId: this.wrapperIdFor(owner),
+				lowerTick,
+				higherTick,
+				quantityRaw,
+				leverageRaw: leverageToRaw(opts.leverage ?? 1),
+				maxCostRaw: opts.maxCost != null ? usdcToRaw(opts.maxCost) : undefined,
+				maxProbabilityRaw:
+					opts.maxProbability != null ? probabilityToRaw(opts.maxProbability) : undefined,
+				...feeds,
+			}),
+		);
 		return tx;
 	}
 
 	// Shared construction for tx.redeem and read.quoteRedeem.
-	private async buildRedeem(
-		owner: string,
-		m: MarketDescriptor,
-		opts: CloseOptions,
-	): Promise<Transaction> {
-		const feeds = this.feeds(m.underlying);
-		const { id } = await this.resolveMarket(m);
+	async #buildRedeem(owner: string, m: MarketDescriptor, opts: CloseOptions): Promise<Transaction> {
+		const feeds = this.#feeds(m.underlying);
+		const { id } = await this.#resolveMarket(m);
 		const closeQuantityRaw = usdcToRaw(opts.quantity);
-		this.assertLot(closeQuantityRaw);
+		this.#assertLot(closeQuantityRaw);
 		const tx = new Transaction();
-		redeemLive(this.cfg, tx, {
-			expiryMarketId: id,
-			wrapperId: this.wrapperIdFor(owner),
-			orderId: opts.orderId,
-			closeQuantityRaw,
-			...feeds,
-		});
+		tx.add(
+			redeemLive(this.cfg, {
+				expiryMarketId: id,
+				wrapperId: this.wrapperIdFor(owner),
+				orderId: opts.orderId,
+				closeQuantityRaw,
+				...feeds,
+			}),
+		);
 		return tx;
 	}
 
 	// Raw strike for anonymous pricing: numeric strikes validate against the tick
 	// grid; "reference" reads the market's reference tick fresh (unset → typed error).
-	private async strikeRawFor(
+	async #strikeRawFor(
 		m: Pick<MarketDescriptor, 'underlying' | 'expiryMs' | 'strike'>,
 		marketId: string,
 		state: MarketState,
@@ -350,7 +355,7 @@ export class PredictClient {
 			}
 			return raw;
 		}
-		const tick = await referenceTick(this.client, this.cfg, marketId);
+		const tick = await referenceTick(this.#client, this.cfg, marketId);
 		if (tick == null) {
 			throw new PredictInputError(
 				`reference price not set yet for ${m.underlying} @ ${m.expiryMs} — retry shortly or pass a numeric strike`,
@@ -364,7 +369,7 @@ export class PredictClient {
 	readonly tx = {
 		createManager: (): Transaction => {
 			const tx = new Transaction();
-			createAccount(this.cfg, tx);
+			tx.add(createAccount(this.cfg));
 			return tx;
 		},
 
@@ -377,114 +382,124 @@ export class PredictClient {
 					useGasCoin: false,
 				}),
 			);
-			depositFunds(this.cfg, tx, { wrapperId: this.wrapperIdFor(owner), coin });
+			tx.add(depositFunds(this.cfg, { wrapperId: this.wrapperIdFor(owner), coin }));
 			return tx;
 		},
 
 		withdraw: (owner: string, amountUsdc: number | string): Transaction => {
 			const tx = new Transaction();
-			const coin = withdrawFunds(this.cfg, tx, {
-				wrapperId: this.wrapperIdFor(owner),
-				amountRaw: usdcToRaw(amountUsdc),
-			});
+			const coin = tx.add(
+				withdrawFunds(this.cfg, {
+					wrapperId: this.wrapperIdFor(owner),
+					amountRaw: usdcToRaw(amountUsdc),
+				}),
+			);
 			tx.transferObjects([coin], owner);
 			return tx;
 		},
 
 		mint: (owner: string, m: MarketDescriptor, opts: MintOptions): Promise<Transaction> =>
-			this.buildMint(owner, m, opts),
+			this.#buildMint(owner, m, opts),
 
 		mintAmount: async (
 			owner: string,
 			m: MarketDescriptor,
 			opts: MintAmountOptions,
 		): Promise<Transaction> => {
-			const feeds = this.feeds(m.underlying);
+			const feeds = this.#feeds(m.underlying);
 			// The chain requires a positive all-in cost cap (EMintCostCapRequired);
 			// reject a zero cap pre-flight rather than surface a cryptic Move abort.
 			if (opts.maxCost != null && opts.maxCost <= 0) {
 				throw new PredictInputError('maxCost must be > 0');
 			}
-			const { id, state } = await this.resolveMarket(m);
+			const { id, state } = await this.#resolveMarket(m);
 			// No lot check: min_quantity is a floor the chain compares against an
 			// already-lot-floored minted quantity, so any floor value is legal.
 			const minQuantityRaw = usdcToRaw(opts.minQuantity);
-			const { lowerTick, higherTick } = await this.strikeTicks(m, id, state);
+			const { lowerTick, higherTick } = await this.#strikeTicks(m, id, state);
 			const tx = new Transaction();
-			mintExactAmount(this.cfg, tx, {
-				expiryMarketId: id,
-				wrapperId: this.wrapperIdFor(owner),
-				lowerTick,
-				higherTick,
-				maxPremiumRaw: usdcToRaw(opts.spend),
-				minQuantityRaw,
-				leverageRaw: leverageToRaw(opts.leverage ?? 1),
-				maxCostRaw: opts.maxCost != null ? usdcToRaw(opts.maxCost) : undefined,
-				...feeds,
-			});
+			tx.add(
+				mintExactAmount(this.cfg, {
+					expiryMarketId: id,
+					wrapperId: this.wrapperIdFor(owner),
+					lowerTick,
+					higherTick,
+					maxPremiumRaw: usdcToRaw(opts.spend),
+					minQuantityRaw,
+					leverageRaw: leverageToRaw(opts.leverage ?? 1),
+					maxCostRaw: opts.maxCost != null ? usdcToRaw(opts.maxCost) : undefined,
+					...feeds,
+				}),
+			);
 			return tx;
 		},
 
 		redeem: (owner: string, m: MarketDescriptor, opts: CloseOptions): Promise<Transaction> =>
-			this.buildRedeem(owner, m, opts),
+			this.#buildRedeem(owner, m, opts),
 
 		claimSettled: async (
 			owner: string,
 			m: Pick<MarketDescriptor, 'underlying' | 'expiryMs'>,
 			opts: CloseOptions,
 		): Promise<Transaction> => {
-			const { id } = await this.resolveMarket(m);
+			const { id } = await this.#resolveMarket(m);
 			const closeQuantityRaw = usdcToRaw(opts.quantity);
-			this.assertLot(closeQuantityRaw);
+			this.#assertLot(closeQuantityRaw);
 			const tx = new Transaction();
-			redeemSettled(this.cfg, tx, {
-				expiryMarketId: id,
-				wrapperId: this.wrapperIdFor(owner),
-				orderId: opts.orderId,
-				closeQuantityRaw,
-			});
+			tx.add(
+				redeemSettled(this.cfg, {
+					expiryMarketId: id,
+					wrapperId: this.wrapperIdFor(owner),
+					orderId: opts.orderId,
+					closeQuantityRaw,
+				}),
+			);
 			return tx;
 		},
 
 		supplyPlp: (owner: string, amountUsdc: number | string): Transaction => {
 			const tx = new Transaction();
-			requestSupply(this.cfg, tx, {
-				wrapperId: this.wrapperIdFor(owner),
-				amountRaw: usdcToRaw(amountUsdc),
-			});
+			tx.add(
+				requestSupply(this.cfg, {
+					wrapperId: this.wrapperIdFor(owner),
+					amountRaw: usdcToRaw(amountUsdc),
+				}),
+			);
 			return tx;
 		},
 
 		withdrawPlp: (owner: string, shares: bigint): Transaction => {
 			const tx = new Transaction();
-			requestWithdraw(this.cfg, tx, {
-				wrapperId: this.wrapperIdFor(owner),
-				sharesRaw: shares,
-			});
+			tx.add(
+				requestWithdraw(this.cfg, {
+					wrapperId: this.wrapperIdFor(owner),
+					sharesRaw: shares,
+				}),
+			);
 			return tx;
 		},
 
 		cancelSupplyPlp: (owner: string, index: bigint): Transaction => {
 			const tx = new Transaction();
-			cancelSupplyRequest(this.cfg, tx, { wrapperId: this.wrapperIdFor(owner), index });
+			tx.add(cancelSupplyRequest(this.cfg, { wrapperId: this.wrapperIdFor(owner), index }));
 			return tx;
 		},
 
 		cancelWithdrawPlp: (owner: string, index: bigint): Transaction => {
 			const tx = new Transaction();
-			cancelWithdrawRequest(this.cfg, tx, { wrapperId: this.wrapperIdFor(owner), index });
+			tx.add(cancelWithdrawRequest(this.cfg, { wrapperId: this.wrapperIdFor(owner), index }));
 			return tx;
 		},
 
 		setBuilderCode: (owner: string, builderCodeId: string): Transaction => {
 			const tx = new Transaction();
-			setBuilderCode(this.cfg, tx, { wrapperId: this.wrapperIdFor(owner), builderCodeId });
+			tx.add(setBuilderCode(this.cfg, { wrapperId: this.wrapperIdFor(owner), builderCodeId }));
 			return tx;
 		},
 
 		unsetBuilderCode: (owner: string): Transaction => {
 			const tx = new Transaction();
-			unsetBuilderCode(this.cfg, tx, { wrapperId: this.wrapperIdFor(owner) });
+			tx.add(unsetBuilderCode(this.cfg, { wrapperId: this.wrapperIdFor(owner) }));
 			return tx;
 		},
 	};
@@ -494,36 +509,35 @@ export class PredictClient {
 		// All tradeable (active) markets with the state a frontend needs to render
 		// and mint: one chain read for ids + one batched PTB for the states.
 		markets: async (): Promise<ActiveMarket[]> => {
-			const ids = await activeMarketIds(this.client, this.cfg);
-			const states = await marketStates(this.client, this.cfg, ids);
+			const ids = await activeMarketIds(this.#client, this.cfg);
+			const states = await marketStates(this.#client, this.cfg, ids);
 			return ids.map((id, i) => ({
 				id,
 				expiryMs: states[i].expiryMs,
 				tickSize: fromRaw(states[i].tickSizeRaw, 9),
 				mintPaused: states[i].mintPaused,
-				referencePrice: PredictClient.referencePriceOf(states[i]),
+				referencePrice: PredictClient.#referencePriceOf(states[i]),
 			}));
 		},
 
 		// Validate an app-stored order id against the chain (stale after full
 		// close or partial-close replacement — see RedeemReceipt.replacementOrderId).
 		hasPosition: (owner: string, marketId: string, orderId: bigint): Promise<boolean> =>
-			hasPosition(this.client, this.cfg, owner, marketId, orderId),
+			hasPosition(this.#client, this.cfg, owner, marketId, orderId),
 
 		// All open positions for an owner, enumerated from the chain (the
 		// account's positions Table): 1 call per page warm, +2 resolution calls
 		// once per owner. Returns [] for owners with no Predict account.
 		positions: async (owner: string): Promise<OpenPosition[]> => {
-			const client = this.objectReadClient();
-			let handle = this.positionsCache.get(owner);
+			let handle = this.#positionsCache.get(owner);
 			if (!handle?.positionsTableId) {
-				const resolved = await resolvePositionsTable(client, this.cfg, owner);
+				const resolved = await resolvePositionsTable(this.#client, this.cfg, owner);
 				if (!resolved) return []; // never onboarded — do not cache
-				if (resolved.positionsTableId) this.positionsCache.set(owner, resolved);
+				if (resolved.positionsTableId) this.#positionsCache.set(owner, resolved);
 				handle = resolved;
 			}
 			if (!handle.positionsTableId) return [];
-			return positionsFromTable(client, handle.positionsTableId);
+			return positionsFromTable(this.#client, handle.positionsTableId);
 		},
 
 		// Anonymous board pricing: the chain's probability for both sides of a
@@ -532,11 +546,11 @@ export class PredictClient {
 		price: async (
 			m: Pick<MarketDescriptor, 'underlying' | 'expiryMs' | 'strike'>,
 		): Promise<{ up: number; down: number }> => {
-			const feeds = this.feeds(m.underlying);
-			const { id, state } = await this.resolveMarket(m);
-			const strikeRaw = await this.strikeRawFor(m, id, state);
+			const feeds = this.#feeds(m.underlying);
+			const { id, state } = await this.#resolveMarket(m);
+			const strikeRaw = await this.#strikeRawFor(m, id, state);
 			const { upRaw, downRaw } = await rangePrices(
-				this.client,
+				this.#client,
 				this.cfg,
 				id,
 				feeds,
@@ -554,8 +568,8 @@ export class PredictClient {
 			m: MarketDescriptor,
 			opts: Pick<MintOptions, 'quantity' | 'leverage'>,
 		): Promise<MintQuote> => {
-			const tx = await this.buildMint(owner, m, opts);
-			const events = await simulateWithEvents(this.client, tx, owner);
+			const tx = await this.#buildMint(owner, m, opts);
+			const events = await simulateWithEvents(this.#client, tx, owner);
 			const r = exactlyOne(decodeMints(this.cfg, { events }), 'OrderMinted');
 			const costRaw =
 				r.raw.netPremium +
@@ -585,8 +599,8 @@ export class PredictClient {
 			m: MarketDescriptor,
 			opts: CloseOptions,
 		): Promise<RedeemQuote> => {
-			const tx = await this.buildRedeem(owner, m, opts);
-			const events = await simulateWithEvents(this.client, tx, owner);
+			const tx = await this.#buildRedeem(owner, m, opts);
+			const events = await simulateWithEvents(this.#client, tx, owner);
 			const r = exactlyOne(decodeRedeems(this.cfg, { events }), 'order-redeemed');
 			return {
 				proceeds: r.proceeds,
@@ -611,30 +625,30 @@ export class PredictClient {
 			// Deliberately re-queries and overwrites the cache instead of reading
 			// through it: this read must return live state (nav, mintPaused), and
 			// refreshing the cache on the way keeps later tx builds consistent.
-			const id = await expiryMarketId(this.client, this.cfg, m.underlying, expiryMs);
+			const id = await expiryMarketId(this.#client, this.cfg, m.underlying, expiryMs);
 			if (!id) return null;
-			const state = await marketState(this.client, this.cfg, id);
-			this.marketCache.set(`${m.underlying}:${expiryMs}`, { id, state });
-			const navRaw = await currentNav(this.client, this.cfg, id, m.underlying);
+			const state = await marketState(this.#client, this.cfg, id);
+			this.#marketCache.set(`${m.underlying}:${expiryMs}`, { id, state });
+			const navRaw = await currentNav(this.#client, this.cfg, id, m.underlying);
 			return {
 				id,
 				expiryMs: state.expiryMs,
 				tickSize: fromRaw(state.tickSizeRaw, 9), // strike/price scale
 				mintPaused: state.mintPaused,
 				nav: rawToUsdc(navRaw),
-				referencePrice: PredictClient.referencePriceOf(state),
+				referencePrice: PredictClient.#referencePriceOf(state),
 			};
 		},
 
 		balance: async (owner: string): Promise<number> =>
-			rawToUsdc(await accountBalance(this.client, this.cfg, owner)),
+			rawToUsdc(await accountBalance(this.#client, this.cfg, owner)),
 
 		// PLP shares held in the owner's account custody (raw u64, 6-decimal PLP coin).
 		plpBalance: (owner: string): Promise<bigint> =>
-			accountBalance(this.client, this.cfg, owner, `${this.cfg.packages.predict}::plp::PLP`),
+			accountBalance(this.#client, this.cfg, owner, `${this.cfg.packages.predict}::plp::PLP`),
 
 		pool: async (): Promise<PoolSummary> => {
-			const s = await poolStats(this.client, this.cfg);
+			const s = await poolStats(this.#client, this.cfg);
 			return {
 				plpTotalSupply: s.plpTotalSupply, // shares raw (6-decimal)
 				idleUsdc: rawToUsdc(s.idleBalance),

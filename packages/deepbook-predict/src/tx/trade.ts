@@ -19,22 +19,23 @@ export interface MarketFeeds {
 // propbook_registry (&OracleRegistry), pyth, bs_values, bs_svi, clock (auto-injected).
 export function loadLivePricer(
 	cfg: PredictConfig,
-	tx: Transaction,
 	args: { expiryMarketId: string } & MarketFeeds,
-): TransactionResult {
-	return tx.add(
-		expiryMarket.loadLivePricer({
-			package: cfg.packages.predict,
-			arguments: {
-				market: args.expiryMarketId,
-				config: cfg.objects.protocolConfig,
-				propbookRegistry: cfg.objects.oracleRegistry,
-				pyth: args.pythFeed,
-				bsValues: args.blockScholesValueStore,
-				bsSvi: args.blockScholesSviStore,
-			},
-		}),
-	);
+): (tx: Transaction) => TransactionResult {
+	return (tx) => {
+		return tx.add(
+			expiryMarket.loadLivePricer({
+				package: cfg.packages.predict,
+				arguments: {
+					market: args.expiryMarketId,
+					config: cfg.objects.protocolConfig,
+					propbookRegistry: cfg.objects.oracleRegistry,
+					pyth: args.pythFeed,
+					bsValues: args.blockScholesValueStore,
+					bsSvi: args.blockScholesSviStore,
+				},
+			}),
+		);
+	};
 }
 
 // Mint a position of an exact `quantityRaw`, capped by cost/probability ceilings,
@@ -43,7 +44,6 @@ export function loadLivePricer(
 // `U64_MAX` (no slippage cap). Deployed sig `mint_exact_quantity`.
 export function mintExactQuantity(
 	cfg: PredictConfig,
-	tx: Transaction,
 	args: {
 		expiryMarketId: string;
 		wrapperId: string;
@@ -54,28 +54,30 @@ export function mintExactQuantity(
 		maxCostRaw?: bigint;
 		maxProbabilityRaw?: bigint;
 	} & MarketFeeds,
-): TransactionResult {
-	const pricer = loadLivePricer(cfg, tx, args);
-	const auth = generateAuth(cfg, tx);
-	return tx.add(
-		expiryMarket.mintExactQuantity({
-			package: cfg.packages.predict,
-			arguments: {
-				market: args.expiryMarketId,
-				wrapper: args.wrapperId,
-				auth,
-				config: cfg.objects.protocolConfig,
-				pricer,
-				lowerTick: args.lowerTick,
-				higherTick: args.higherTick,
-				quantity: args.quantityRaw,
-				leverage: args.leverageRaw,
-				maxCost: args.maxCostRaw ?? U64_MAX,
-				maxProbability: args.maxProbabilityRaw ?? U64_MAX,
-				root: ACCUMULATOR_ROOT_ID,
-			},
-		}),
-	);
+): (tx: Transaction) => TransactionResult {
+	return (tx) => {
+		const pricer = tx.add(loadLivePricer(cfg, args));
+		const auth = tx.add(generateAuth(cfg));
+		return tx.add(
+			expiryMarket.mintExactQuantity({
+				package: cfg.packages.predict,
+				arguments: {
+					market: args.expiryMarketId,
+					wrapper: args.wrapperId,
+					auth,
+					config: cfg.objects.protocolConfig,
+					pricer,
+					lowerTick: args.lowerTick,
+					higherTick: args.higherTick,
+					quantity: args.quantityRaw,
+					leverage: args.leverageRaw,
+					maxCost: args.maxCostRaw ?? U64_MAX,
+					maxProbability: args.maxProbabilityRaw ?? U64_MAX,
+					root: ACCUMULATOR_ROOT_ID,
+				},
+			}),
+		);
+	};
 }
 
 // Mint by spending up to `maxPremiumRaw` (raw quote units) at leverage, enforcing a
@@ -84,7 +86,6 @@ export function mintExactQuantity(
 // sig `mint_exact_amount`: …, max_premium, min_quantity, leverage, max_cost, root.
 export function mintExactAmount(
 	cfg: PredictConfig,
-	tx: Transaction,
 	args: {
 		expiryMarketId: string;
 		wrapperId: string;
@@ -95,28 +96,30 @@ export function mintExactAmount(
 		leverageRaw: bigint;
 		maxCostRaw?: bigint;
 	} & MarketFeeds,
-): TransactionResult {
-	const pricer = loadLivePricer(cfg, tx, args);
-	const auth = generateAuth(cfg, tx);
-	return tx.add(
-		expiryMarket.mintExactAmount({
-			package: cfg.packages.predict,
-			arguments: {
-				market: args.expiryMarketId,
-				wrapper: args.wrapperId,
-				auth,
-				config: cfg.objects.protocolConfig,
-				pricer,
-				lowerTick: args.lowerTick,
-				higherTick: args.higherTick,
-				maxPremium: args.maxPremiumRaw,
-				minQuantity: args.minQuantityRaw,
-				leverage: args.leverageRaw,
-				maxCost: args.maxCostRaw ?? U64_MAX,
-				root: ACCUMULATOR_ROOT_ID,
-			},
-		}),
-	);
+): (tx: Transaction) => TransactionResult {
+	return (tx) => {
+		const pricer = tx.add(loadLivePricer(cfg, args));
+		const auth = tx.add(generateAuth(cfg));
+		return tx.add(
+			expiryMarket.mintExactAmount({
+				package: cfg.packages.predict,
+				arguments: {
+					market: args.expiryMarketId,
+					wrapper: args.wrapperId,
+					auth,
+					config: cfg.objects.protocolConfig,
+					pricer,
+					lowerTick: args.lowerTick,
+					higherTick: args.higherTick,
+					maxPremium: args.maxPremiumRaw,
+					minQuantity: args.minQuantityRaw,
+					leverage: args.leverageRaw,
+					maxCost: args.maxCostRaw ?? U64_MAX,
+					root: ACCUMULATOR_ROOT_ID,
+				},
+			}),
+		);
+	};
 }
 
 // Owner-authorized redeem of a live (not-yet-settled) position: close `closeQuantityRaw`
@@ -126,7 +129,6 @@ export function mintExactAmount(
 // sig `redeem_live`.
 export function redeemLive(
 	cfg: PredictConfig,
-	tx: Transaction,
 	args: {
 		expiryMarketId: string;
 		wrapperId: string;
@@ -135,26 +137,28 @@ export function redeemLive(
 		minProbabilityRaw?: bigint;
 		minProceedsRaw?: bigint;
 	} & MarketFeeds,
-): TransactionResult {
-	const pricer = loadLivePricer(cfg, tx, args);
-	const auth = generateAuth(cfg, tx);
-	return tx.add(
-		expiryMarket.redeemLive({
-			package: cfg.packages.predict,
-			arguments: {
-				market: args.expiryMarketId,
-				wrapper: args.wrapperId,
-				auth,
-				config: cfg.objects.protocolConfig,
-				pricer,
-				orderId: args.orderId,
-				closeQuantity: args.closeQuantityRaw,
-				minProbability: args.minProbabilityRaw ?? 0n,
-				minProceeds: args.minProceedsRaw ?? 0n,
-				root: ACCUMULATOR_ROOT_ID,
-			},
-		}),
-	);
+): (tx: Transaction) => TransactionResult {
+	return (tx) => {
+		const pricer = tx.add(loadLivePricer(cfg, args));
+		const auth = tx.add(generateAuth(cfg));
+		return tx.add(
+			expiryMarket.redeemLive({
+				package: cfg.packages.predict,
+				arguments: {
+					market: args.expiryMarketId,
+					wrapper: args.wrapperId,
+					auth,
+					config: cfg.objects.protocolConfig,
+					pricer,
+					orderId: args.orderId,
+					closeQuantity: args.closeQuantityRaw,
+					minProbability: args.minProbabilityRaw ?? 0n,
+					minProceeds: args.minProceedsRaw ?? 0n,
+					root: ACCUMULATOR_ROOT_ID,
+				},
+			}),
+		);
+	};
 }
 
 // Owner-authorized redeem of a settled position: close `closeQuantityRaw` of `orderId`
@@ -164,27 +168,28 @@ export function redeemLive(
 // `redeem_settled_permissionless` is a separate entrypoint, out of scope for this SDK.
 export function redeemSettled(
 	cfg: PredictConfig,
-	tx: Transaction,
 	args: {
 		expiryMarketId: string;
 		wrapperId: string;
 		orderId: bigint;
 		closeQuantityRaw: bigint;
 	},
-): TransactionResult {
-	const auth = generateAuth(cfg, tx);
-	return tx.add(
-		expiryMarket.redeemSettled({
-			package: cfg.packages.predict,
-			arguments: {
-				market: args.expiryMarketId,
-				wrapper: args.wrapperId,
-				auth,
-				config: cfg.objects.protocolConfig,
-				orderId: args.orderId,
-				closeQuantity: args.closeQuantityRaw,
-				root: ACCUMULATOR_ROOT_ID,
-			},
-		}),
-	);
+): (tx: Transaction) => TransactionResult {
+	return (tx) => {
+		const auth = tx.add(generateAuth(cfg));
+		return tx.add(
+			expiryMarket.redeemSettled({
+				package: cfg.packages.predict,
+				arguments: {
+					market: args.expiryMarketId,
+					wrapper: args.wrapperId,
+					auth,
+					config: cfg.objects.protocolConfig,
+					orderId: args.orderId,
+					closeQuantity: args.closeQuantityRaw,
+					root: ACCUMULATOR_ROOT_ID,
+				},
+			}),
+		);
+	};
 }

@@ -1,5 +1,5 @@
 import { bcs } from '@mysten/sui/bcs';
-import type { SuiGrpcClient } from '@mysten/sui/grpc';
+import type { ClientWithCoreApi } from '@mysten/sui/client';
 import { deriveDynamicFieldID, normalizeSuiAddress } from '@mysten/sui/utils';
 import { type PredictConfig } from '../config/index.js';
 import { deriveAccountWrapperId } from '../tx/common.js';
@@ -24,10 +24,6 @@ import { PositionKey, PredictData } from '../contracts/deepbook_predict/predict_
 // Steps 1-2 resolve ids that are immutable once created — cache them per
 // owner (the facade does) and steady state is ONE call per page of positions.
 // ============================================================================
-
-/** The object-read capabilities this module needs (reads elsewhere in the SDK
- * only need `simulateTransaction`). A structural pick, so mocks stay easy. */
-export type ObjectReadClient = Pick<SuiGrpcClient, 'getObject' | 'listDynamicFields'>;
 
 // sui::dynamic_field::Field<DataKey<PredictApp>, PredictData>. DataKey is
 // source-empty, but Move inserts a hidden `dummy_field: bool` into empty
@@ -55,10 +51,10 @@ export interface PositionsHandle {
 	positionCount: bigint;
 }
 
-async function contentOf(client: ObjectReadClient, objectId: string): Promise<Uint8Array | null> {
+async function contentOf(client: ClientWithCoreApi, objectId: string): Promise<Uint8Array | null> {
 	try {
-		const { object } = await client.getObject({ objectId, include: { content: true } });
-		return (object as { content?: Uint8Array }).content ?? null;
+		const { object } = await client.core.getObject({ objectId, include: { content: true } });
+		return object.content ?? null;
 	} catch (e) {
 		// Only a genuinely absent object means "no positions" (never-onboarded
 		// owner, or no Predict data yet). Anything else — transport failures,
@@ -74,7 +70,7 @@ async function contentOf(client: ObjectReadClient, objectId: string): Promise<Ui
  * created a Predict account.
  */
 export async function resolvePositionsTable(
-	client: ObjectReadClient,
+	client: ClientWithCoreApi,
 	cfg: PredictConfig,
 	owner: string,
 ): Promise<PositionsHandle | null> {
@@ -104,7 +100,7 @@ export async function resolvePositionsTable(
  * keys parsed from the dynamic-field NAMES (no per-entry fetches).
  */
 export async function positionsFromTable(
-	client: ObjectReadClient,
+	client: ClientWithCoreApi,
 	positionsTableId: string,
 	opts: { limit?: number; maxPages?: number } = {},
 ): Promise<OpenPosition[]> {
@@ -113,12 +109,11 @@ export async function positionsFromTable(
 	const out: OpenPosition[] = [];
 	let cursor: string | undefined = undefined;
 	for (let page = 0; page < maxPages; page++) {
-		const res: Awaited<ReturnType<ObjectReadClient['listDynamicFields']>> =
-			await client.listDynamicFields({
-				parentId: positionsTableId,
-				limit,
-				cursor,
-			});
+		const res = await client.core.listDynamicFields({
+			parentId: positionsTableId,
+			limit,
+			cursor,
+		});
 		for (const entry of res.dynamicFields) {
 			const key = PositionKey.parse(entry.name.bcs);
 			out.push({
@@ -136,7 +131,7 @@ export async function positionsFromTable(
 
 /** Convenience: resolve + list in one call (uncached; the facade caches). */
 export async function positions(
-	client: ObjectReadClient,
+	client: ClientWithCoreApi,
 	cfg: PredictConfig,
 	owner: string,
 	opts: { limit?: number; maxPages?: number } = {},

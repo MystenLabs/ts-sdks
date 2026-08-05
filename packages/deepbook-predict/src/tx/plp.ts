@@ -11,24 +11,25 @@ import { generateAuth } from './common.js';
 // cancelled and refunded).
 export function requestSupply(
 	cfg: PredictConfig,
-	tx: Transaction,
 	args: { wrapperId: string; amountRaw: bigint; minPlpOutRaw?: bigint },
-): void {
-	const auth = generateAuth(cfg, tx);
-	tx.add(
-		plp.requestSupply({
-			package: cfg.packages.predict,
-			arguments: {
-				vault: cfg.objects.poolVault,
-				wrapper: args.wrapperId,
-				auth,
-				config: cfg.objects.protocolConfig,
-				amount: args.amountRaw,
-				minPlpOut: args.minPlpOutRaw ?? 0n,
-				root: ACCUMULATOR_ROOT_ID,
-			},
-		}),
-	);
+): (tx: Transaction) => void {
+	return (tx) => {
+		const auth = tx.add(generateAuth(cfg));
+		tx.add(
+			plp.requestSupply({
+				package: cfg.packages.predict,
+				arguments: {
+					vault: cfg.objects.poolVault,
+					wrapper: args.wrapperId,
+					auth,
+					config: cfg.objects.protocolConfig,
+					amount: args.amountRaw,
+					minPlpOut: args.minPlpOutRaw ?? 0n,
+					root: ACCUMULATOR_ROOT_ID,
+				},
+			}),
+		);
+	};
 }
 
 // Queue a withdraw request pulling `sharesRaw` (raw PLP u64) from account custody into queue
@@ -38,68 +39,71 @@ export function requestSupply(
 // misses the request is cancelled and refunded).
 export function requestWithdraw(
 	cfg: PredictConfig,
-	tx: Transaction,
 	args: { wrapperId: string; sharesRaw: bigint; minDusdcOutRaw?: bigint },
-): void {
-	const auth = generateAuth(cfg, tx);
-	tx.add(
-		plp.requestWithdraw({
-			package: cfg.packages.predict,
-			arguments: {
-				vault: cfg.objects.poolVault,
-				wrapper: args.wrapperId,
-				auth,
-				config: cfg.objects.protocolConfig,
-				amount: args.sharesRaw,
-				minDusdcOut: args.minDusdcOutRaw ?? 0n,
-				root: ACCUMULATOR_ROOT_ID,
-			},
-		}),
-	);
+): (tx: Transaction) => void {
+	return (tx) => {
+		const auth = tx.add(generateAuth(cfg));
+		tx.add(
+			plp.requestWithdraw({
+				package: cfg.packages.predict,
+				arguments: {
+					vault: cfg.objects.poolVault,
+					wrapper: args.wrapperId,
+					auth,
+					config: cfg.objects.protocolConfig,
+					amount: args.sharesRaw,
+					minDusdcOut: args.minDusdcOutRaw ?? 0n,
+					root: ACCUMULATOR_ROOT_ID,
+				},
+			}),
+		);
+	};
 }
 
 // Cancel a still-pending supply request by queue `index`, refunding its escrowed DUSDC
 // straight back into the requesting account. Command order is auth → cancel.
 export function cancelSupplyRequest(
 	cfg: PredictConfig,
-	tx: Transaction,
 	args: { wrapperId: string; index: bigint },
-): void {
-	const auth = generateAuth(cfg, tx);
-	tx.add(
-		plp.cancelSupplyRequest({
-			package: cfg.packages.predict,
-			arguments: {
-				vault: cfg.objects.poolVault,
-				wrapper: args.wrapperId,
-				auth,
-				config: cfg.objects.protocolConfig,
-				index: args.index,
-				root: ACCUMULATOR_ROOT_ID,
-			},
-		}),
-	);
+): (tx: Transaction) => void {
+	return (tx) => {
+		const auth = tx.add(generateAuth(cfg));
+		tx.add(
+			plp.cancelSupplyRequest({
+				package: cfg.packages.predict,
+				arguments: {
+					vault: cfg.objects.poolVault,
+					wrapper: args.wrapperId,
+					auth,
+					config: cfg.objects.protocolConfig,
+					index: args.index,
+					root: ACCUMULATOR_ROOT_ID,
+				},
+			}),
+		);
+	};
 }
 
 // Cancel a still-pending withdraw request by queue `index`, refunding its escrowed PLP
 // straight back into the requesting account. Command order is auth → cancel.
 export function cancelWithdrawRequest(
 	cfg: PredictConfig,
-	tx: Transaction,
 	args: { wrapperId: string; index: bigint },
-): void {
-	const auth = generateAuth(cfg, tx);
-	tx.add(
-		plp.cancelWithdrawRequest({
-			package: cfg.packages.predict,
-			arguments: {
-				vault: cfg.objects.poolVault,
-				wrapper: args.wrapperId,
-				auth,
-				config: cfg.objects.protocolConfig,
-				index: args.index,
-				root: ACCUMULATOR_ROOT_ID,
-			},
-		}),
-	);
+): (tx: Transaction) => void {
+	return (tx) => {
+		const auth = tx.add(generateAuth(cfg));
+		tx.add(
+			plp.cancelWithdrawRequest({
+				package: cfg.packages.predict,
+				arguments: {
+					vault: cfg.objects.poolVault,
+					wrapper: args.wrapperId,
+					auth,
+					config: cfg.objects.protocolConfig,
+					index: args.index,
+					root: ACCUMULATOR_ROOT_ID,
+				},
+			}),
+		);
+	};
 }

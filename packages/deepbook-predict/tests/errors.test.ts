@@ -98,12 +98,14 @@ describe('PredictInputError', () => {
 describe('inspectReturns decodes aborts on FailedTransaction', () => {
 	function failingClient(error: unknown): ReadClient {
 		return {
-			async simulateTransaction() {
-				return {
-					$kind: 'FailedTransaction',
-					FailedTransaction: { status: { success: false, error } },
-					commandResults: undefined,
-				};
+			core: {
+				async simulateTransaction() {
+					return {
+						$kind: 'FailedTransaction',
+						FailedTransaction: { status: { success: false, error } },
+						commandResults: undefined,
+					};
+				},
 			},
 		} as unknown as ReadClient;
 	}

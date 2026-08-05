@@ -1,8 +1,8 @@
 # @mysten/deepbook-predict
 
 TypeScript SDK for DeepBook Predict — binary markets on Sui. Builds ready-to-sign transactions and
-reads on-chain state over gRPC. The SDK never signs and never touches keys: every `tx.*` method
-returns a `Transaction` for your wallet (dapp-kit) or signer to execute.
+reads on-chain state through your Sui client. The SDK never signs and never touches keys: every
+`tx.*` method returns a `Transaction` for your wallet (dapp-kit) or signer to execute.
 
 ## Install
 
@@ -17,24 +17,26 @@ npm i @mysten/deepbook-predict @mysten/sui
 
 ## Quickstart
 
+The SDK registers as a client extension — `$extend` it onto your `SuiClient`/`SuiGrpcClient`, then
+reach it at `client.predict.*`:
+
 ```ts
 import { SuiGrpcClient } from '@mysten/sui/grpc';
-import { PredictClient } from '@mysten/deepbook-predict';
+import { predict } from '@mysten/deepbook-predict';
 
 const client = new SuiGrpcClient({
 	network: 'testnet',
 	baseUrl: 'https://fullnode.testnet.sui.io:443',
-});
-const predict = new PredictClient({ network: 'testnet', client });
+}).$extend(predict({ network: 'testnet' }));
 
 // One-time: create your Predict account (a shared AccountWrapper).
-const createTx = predict.tx.createManager();
+const createTx = client.predict.tx.createManager();
 
 // Fund it: pulls DUSDC from your wallet coins.
-const depositTx = predict.tx.deposit(myAddress, 250); // $250
+const depositTx = client.predict.tx.deposit(myAddress, 250); // $250
 
 // Trade: BTC above $105,000 at this hour's expiry, $50 max payout, 2x leverage.
-const mintTx = await predict.tx.mint(
+const mintTx = await client.predict.tx.mint(
 	myAddress,
 	{ underlying: 'BTC', expiryMs: 1767225600000, strike: 105_000, side: 'up' },
 	{ quantity: 50, leverage: 2, maxCost: 12.5 },
@@ -42,28 +44,31 @@ const mintTx = await predict.tx.mint(
 // -> sign & execute any of these with your wallet / dapp-kit / signer
 
 // Quote before you trade: dry-runs your exact mint, real fees, real account.
-const q = await predict.read.quoteMint(myAddress, market, { quantity: 50 });
+const q = await client.predict.read.quoteMint(myAddress, market, { quantity: 50 });
 q.entryProbability; // your fill (0..1 per $1 payout)
 q.cost; // exact all-in debit — pass as maxCost (+ your buffer)
 
 // Anonymous board price (no account needed): both sides of any strike.
-const { up, down } = await predict.read.price({
+const { up, down } = await client.predict.read.price({
 	underlying: 'BTC',
 	expiryMs,
 	strike: 'reference',
 });
 
 // Decode the receipt from the execution result (execute with events included):
-const receipt = predict.decode.mint(mintResult);
+const receipt = client.predict.decode.mint(mintResult);
 receipt.orderId; // PERSIST THIS — needed to redeem/claim later
 receipt.entryProbability; // your fill price (0..1 per $1 payout)
 receipt.netPremium; // exact cost breakdown
 receipt.fees;
 
 // Read: tradeable markets and pool state.
-const markets = await predict.read.markets();
+const markets = await client.predict.read.markets();
 // -> [{ id, expiryMs, tickSize, mintPaused, referencePrice }, ...]
-const market = await predict.read.market({ underlying: 'BTC', expiryMs: markets[0].expiryMs });
+const market = await client.predict.read.market({
+	underlying: 'BTC',
+	expiryMs: markets[0].expiryMs,
+});
 console.log(market?.nav, market?.tickSize, market?.mintPaused);
 ```
 
@@ -101,10 +106,10 @@ anchors the next window's strike). Build an up/down board straight from discover
 anchor with `strike: "reference"`:
 
 ```ts
-const markets = await predict.read.markets();
+const markets = await client.predict.read.markets();
 // each market: "BTC above $<referencePrice>?  ↑ / ↓"
 
-const tx = await predict.tx.mint(
+const tx = await client.predict.tx.mint(
 	myAddress,
 	{ underlying: 'BTC', expiryMs: markets[0].expiryMs, strike: 'reference', side: 'up' },
 	{ quantity: 25, maxCost: 15 },
@@ -117,27 +122,26 @@ strikes away from the reference remain fully supported.
 
 ## What's in the box
 
-- **`PredictClient.tx`** — `createManager`, `deposit`, `withdraw`, `mint`, `mintAmount`, `redeem`,
+- **`client.predict.tx`** — `createManager`, `deposit`, `withdraw`, `mint`, `mintAmount`, `redeem`,
   `claimSettled`, `supplyPlp`, `withdrawPlp`, `cancelSupplyPlp`, `cancelWithdrawPlp`,
   `setBuilderCode`, `unsetBuilderCode`. Market-resolving builders
   (`mint`/`mintAmount`/`redeem`/`claimSettled`) are async: they resolve the market object from
   `{ underlying, expiryMs, strike, side }` via the on-chain registry (cached per client).
-- **`PredictClient.read`** — `markets()` (tradeable summaries: id, expiry, tick size, mint-paused,
+- **`client.predict.read`** — `markets()` (tradeable summaries: id, expiry, tick size, mint-paused,
   reference price), `market(desc)` (state + live NAV), `price(m)` (anonymous both-sides pricing for
   any strike), `quoteMint(owner, m, opts)` / `quoteRedeem(owner, m, opts)` (exact dry-run quotes:
   real fees from the real code path — and they throw the same typed errors the real trade would, so
   a quote doubles as preflight), `balance(owner)`, `plpBalance(owner)`, `pool()`, `positions(owner)`
   (chain-only enumeration of open positions), `hasPosition(owner, marketId, orderId)`. All reads run
-  over gRPC `simulateTransaction`; no indexer required.
-- **`PredictClient.decode`** — pure execution-result decoders (no network): `mint`, `redeem`,
+  over the client's `simulateTransaction`; no indexer required.
+- **`client.predict.decode`** — pure execution-result decoders (no network): `mint`, `redeem`,
   `claim`, `createManager`, `deposit`, `withdraw`, `plpRequest`, `plpCancel`, `builderCode`, each
   with a plural form for batched PTBs. Execute transactions with events included and pass the
   result; receipts come back in SDK units with raw bigints alongside. Decoding uses the events'
   canonical BCS bytes, so it is transport-independent.
-- **Composable primitives** — every Move entrypoint is also exported as a `(cfg, tx, args) => …`
-  function with raw bigint units (`mintExactQuantity`, `redeemLive`, `requestSupply`, …) for
-  integrators composing their own PTBs, plus the reads (`marketState`, `settlementPrice`,
-  `currentNav`, `poolStats`, …).
+- **PTB composition** — integrators who need to compose their own transactions can use the generated
+  Move bindings under `contracts/` directly (transaction thunks + BCS structs), the same layer the
+  facade builds on.
 - **Typed errors** — invalid inputs throw `PredictInputError` before the chain sees them; failed
   simulations throw `PredictMoveError` with the decoded Move abort (`module`, `code`, `abortName`).
 

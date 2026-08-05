@@ -4,8 +4,9 @@
 // the facade; power users who need to compose PTBs directly can use the generated
 // bindings under `contracts/` or the facade's exported primitives on request.
 
-// === Facade ===
-export { PredictClient } from './client.js';
+// === Facade === (register as a client extension: `client.$extend(predict({ network }))`)
+export { PredictClient, predict } from './client.js';
+export type { PredictCompatibleClient } from './client.js';
 export type {
 	ActiveMarket,
 	CloseOptions,
@@ -22,17 +23,16 @@ export type {
 export { TESTNET_CONFIG, getConfig } from './config/index.js';
 export type { PredictConfig, PredictPackages, UnderlyingConfig } from './config/index.js';
 
-// === Units (raw ⇄ human conversions) ===
+// === Units (raw ⇄ human conversions) === domain-specific only; the generic `toRaw`/
+// `fromRaw` primitives stay internal to avoid colliding with consumers' own helpers.
 export {
 	U64_MAX,
-	fromRaw,
 	leverageToRaw,
 	priceToRaw,
 	probabilityToRaw,
 	rawToPrice,
 	rawToProbability,
 	rawToUsdc,
-	toRaw,
 	usdcToRaw,
 } from './units.js';
 
@@ -48,18 +48,8 @@ export type { MoveAbortError } from './errors.js';
 export type { ReadClient } from './reads/inspect.js';
 export type { OpenPosition } from './reads/positions.js';
 
-// === Execution-result decoders (pure event parsing, no network) ===
-export {
-	decodeAccountsCreated,
-	decodeBuilderCodeSets,
-	decodeClaims,
-	decodeDeposits,
-	decodeMints,
-	decodePlpCancels,
-	decodePlpRequests,
-	decodeRedeems,
-	decodeWithdrawals,
-} from './decode.js';
+// === Execution-result decoder types === the decoders themselves are reached via
+// `client.predict.decode.*`; only the receipt types are needed on the public surface.
 export type {
 	BalanceChangeReceipt,
 	BuilderCodeReceipt,

@@ -71,7 +71,7 @@ const U64_MAX_B64 = u64B64(U64_MAX);
 
 test('loadLivePricer: 6 feed args + auto clock = 7, oracleRegistry as propbook_registry', () => {
 	const tx = new Transaction();
-	loadLivePricer(cfg, tx, { expiryMarketId: '0xabc', ...feeds });
+	tx.add(loadLivePricer(cfg, { expiryMarketId: '0xabc', ...feeds }));
 	expect(targets(tx)).toEqual([`${cfg.packages.predict}::expiry_market::load_live_pricer`]);
 	// deployed sig: (market, config, propbook_registry, pyth, bs_values, bs_svi, clock)
 	// → 6 passed args + auto-injected clock = 7 moveCall args (all objects, no pure/Result)
@@ -90,15 +90,17 @@ test('loadLivePricer: 6 feed args + auto clock = 7, oracleRegistry as propbook_r
 
 test('mintExactQuantity: pricer → auth → mint, 13 args', () => {
 	const tx = new Transaction();
-	mintExactQuantity(cfg, tx, {
-		expiryMarketId: '0xabc',
-		wrapperId: '0xdef',
-		lowerTick: 10n,
-		higherTick: 20n,
-		quantityRaw: 1_000_000n,
-		leverageRaw: 1_000_000_000n,
-		...feeds,
-	});
+	tx.add(
+		mintExactQuantity(cfg, {
+			expiryMarketId: '0xabc',
+			wrapperId: '0xdef',
+			lowerTick: 10n,
+			higherTick: 20n,
+			quantityRaw: 1_000_000n,
+			leverageRaw: 1_000_000_000n,
+			...feeds,
+		}),
+	);
 	expect(targets(tx)).toEqual([
 		`${cfg.packages.predict}::expiry_market::load_live_pricer`,
 		`${cfg.packages.account}::account::generate_auth`,
@@ -117,17 +119,19 @@ test('mintExactQuantity: pricer → auth → mint, 13 args', () => {
 
 test('mintExactQuantity: explicit maxCost/maxProbability override defaults', () => {
 	const tx = new Transaction();
-	mintExactQuantity(cfg, tx, {
-		expiryMarketId: '0xabc',
-		wrapperId: '0xdef',
-		lowerTick: 10n,
-		higherTick: 20n,
-		quantityRaw: 1_000_000n,
-		leverageRaw: 1_000_000_000n,
-		maxCostRaw: 5_000_000n,
-		maxProbabilityRaw: 900_000_000n,
-		...feeds,
-	});
+	tx.add(
+		mintExactQuantity(cfg, {
+			expiryMarketId: '0xabc',
+			wrapperId: '0xdef',
+			lowerTick: 10n,
+			higherTick: 20n,
+			quantityRaw: 1_000_000n,
+			leverageRaw: 1_000_000_000n,
+			maxCostRaw: 5_000_000n,
+			maxProbabilityRaw: 900_000_000n,
+			...feeds,
+		}),
+	);
 	expect(argPureBytes(tx, 2, 9)).toBe(u64B64(5_000_000n));
 	expect(argPureBytes(tx, 2, 10)).toBe(u64B64(900_000_000n));
 	expect(argPureBytes(tx, 2, 9)).not.toBe(U64_MAX_B64);
@@ -135,16 +139,18 @@ test('mintExactQuantity: explicit maxCost/maxProbability override defaults', () 
 
 test('mintExactAmount: pricer → auth → mint, 13 args, budget/min-quantity slots', () => {
 	const tx = new Transaction();
-	mintExactAmount(cfg, tx, {
-		expiryMarketId: '0xabc',
-		wrapperId: '0xdef',
-		lowerTick: 10n,
-		higherTick: 20n,
-		maxPremiumRaw: 5_000_000n,
-		minQuantityRaw: 1_000_000n,
-		leverageRaw: 1_000_000_000n,
-		...feeds,
-	});
+	tx.add(
+		mintExactAmount(cfg, {
+			expiryMarketId: '0xabc',
+			wrapperId: '0xdef',
+			lowerTick: 10n,
+			higherTick: 20n,
+			maxPremiumRaw: 5_000_000n,
+			minQuantityRaw: 1_000_000n,
+			leverageRaw: 1_000_000_000n,
+			...feeds,
+		}),
+	);
 	expect(targets(tx)).toEqual([
 		`${cfg.packages.predict}::expiry_market::load_live_pricer`,
 		`${cfg.packages.account}::account::generate_auth`,
@@ -166,13 +172,15 @@ test('mintExactAmount: pricer → auth → mint, 13 args, budget/min-quantity sl
 
 test('redeemLive: pricer → auth → redeem, 11 args, min-probability/min-proceeds floors', () => {
 	const tx = new Transaction();
-	redeemLive(cfg, tx, {
-		expiryMarketId: '0xabc',
-		wrapperId: '0xdef',
-		orderId: 42n,
-		closeQuantityRaw: 500_000n,
-		...feeds,
-	});
+	tx.add(
+		redeemLive(cfg, {
+			expiryMarketId: '0xabc',
+			wrapperId: '0xdef',
+			orderId: 42n,
+			closeQuantityRaw: 500_000n,
+			...feeds,
+		}),
+	);
 	expect(targets(tx)).toEqual([
 		`${cfg.packages.predict}::expiry_market::load_live_pricer`,
 		`${cfg.packages.account}::account::generate_auth`,
@@ -196,27 +204,31 @@ test('redeemLive: pricer → auth → redeem, 11 args, min-probability/min-proce
 
 test('redeemLive: explicit min-probability/min-proceeds override the 0 defaults', () => {
 	const tx = new Transaction();
-	redeemLive(cfg, tx, {
-		expiryMarketId: '0xabc',
-		wrapperId: '0xdef',
-		orderId: 42n,
-		closeQuantityRaw: 500_000n,
-		minProbabilityRaw: 100_000_000n,
-		minProceedsRaw: 400_000n,
-		...feeds,
-	});
+	tx.add(
+		redeemLive(cfg, {
+			expiryMarketId: '0xabc',
+			wrapperId: '0xdef',
+			orderId: 42n,
+			closeQuantityRaw: 500_000n,
+			minProbabilityRaw: 100_000_000n,
+			minProceedsRaw: 400_000n,
+			...feeds,
+		}),
+	);
 	expect(argPureBytes(tx, 2, 7)).toBe(u64B64(100_000_000n)); // min_probability
 	expect(argPureBytes(tx, 2, 8)).toBe(u64B64(400_000n)); // min_proceeds
 });
 
 test('redeemSettled: auth → redeem_settled, 8 args, owner-auth hot potato', () => {
 	const tx = new Transaction();
-	redeemSettled(cfg, tx, {
-		expiryMarketId: '0xabc',
-		wrapperId: '0xdef',
-		orderId: 42n,
-		closeQuantityRaw: 500_000n,
-	});
+	tx.add(
+		redeemSettled(cfg, {
+			expiryMarketId: '0xabc',
+			wrapperId: '0xdef',
+			orderId: 42n,
+			closeQuantityRaw: 500_000n,
+		}),
+	);
 	// owner-auth form now mints an Auth hot potato first (no accountRegistry/oracle/pyth)
 	expect(targets(tx)).toEqual([
 		`${cfg.packages.account}::account::generate_auth`,

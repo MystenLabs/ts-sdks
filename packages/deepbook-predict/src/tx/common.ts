@@ -8,8 +8,10 @@ import * as account from '../contracts/account/account.js';
 // in a PTB) and consumed by the very next account-loading call (`load_account_mut`
 // inside `deposit_funds` / `withdraw_funds` / `mint` / …). It resolves to owner auth
 // for whoever signs the transaction. See `packages/account/sources/account.move`.
-export function generateAuth(cfg: PredictConfig, tx: Transaction): TransactionResult {
-	return tx.add(account.generateAuth({ package: cfg.packages.account }));
+export function generateAuth(cfg: PredictConfig): (tx: Transaction) => TransactionResult {
+	return (tx) => {
+		return tx.add(account.generateAuth({ package: cfg.packages.account }));
+	};
 }
 
 // `AccountWrapperKey(address)` is a one-field positional struct, so its BCS is just the

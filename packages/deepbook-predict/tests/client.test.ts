@@ -94,58 +94,60 @@ const REDEEMED_EVENT = {
 function mockClient() {
 	const counts: Record<string, number> = {};
 	const client = {
-		async simulateTransaction(opts: { transaction: Transaction }) {
-			const cmds = opts.transaction.getData().commands;
-			const fns = cmds.map((c) => ('MoveCall' in c && c.MoveCall ? c.MoveCall.function : '?'));
-			const fn = fns[0];
-			counts[fn] = (counts[fn] ?? 0) + 1;
-			// Quote dry-runs: a simulated trade returns its emitted events.
-			if (fns.includes('mint_exact_quantity')) {
-				counts.quote_mint_sim = (counts.quote_mint_sim ?? 0) + 1;
-				return { $kind: 'Transaction', Transaction: { events: [MINTED_EVENT] } };
-			}
-			if (fns.includes('redeem_live')) {
-				return { $kind: 'Transaction', Transaction: { events: [REDEEMED_EVENT] } };
-			}
-			let results: Uint8Array[][];
-			if (fns.includes('range_price')) {
-				// price PTB: load_live_pricer → strike_from_tick ×3 → range_price ×2.
-				// read.price maps upRaw = commands[len-2], downRaw = commands[len-1].
-				results = [
-					[new Uint8Array(0)], // load_live_pricer
-					[new Uint8Array(0)], // strike_from_tick — finite
-					[new Uint8Array(0)], // strike_from_tick — +inf
-					[new Uint8Array(0)], // strike_from_tick — -inf
-					[bcs.u64().serialize(340_000_000n).toBytes()], // range_price up 0.34
-					[bcs.u64().serialize(660_000_000n).toBytes()], // range_price down 0.66
-				];
-			} else if (fn === 'active_expiry_markets') {
-				results = [[bcs.vector(bcs.Address).serialize([MARKET_ID]).toBytes()]];
-			} else if (fn === 'expiry_market_id') {
-				results = [[bcs.option(bcs.Address).serialize(MARKET_ID).toBytes()]];
-			} else if (fn === 'expiry') {
-				// marketState PTB: expiry, tick_size, mint_paused, reference_tick
-				results = [
-					[bcs.u64().serialize(BigInt(EXPIRY)).toBytes()],
-					[bcs.u64().serialize(10_000_000n).toBytes()],
-					[bcs.bool().serialize(false).toBytes()],
-					[bcs.option(bcs.u64()).serialize(10_500_000n).toBytes()],
-				];
-			} else if (fn === 'reference_tick') {
-				// mint-at-reference fresh read: tick 10_500_000 (= $105,000 @ $0.01)
-				results = [[bcs.option(bcs.u64()).serialize(10_500_000n).toBytes()]];
-			} else {
-				// e.g. currentNav's load_live_pricer → current_nav: one u64 per command.
-				results = cmds.map(() => [bcs.u64().serialize(0n).toBytes()]);
-			}
-			return {
-				$kind: 'Transaction',
-				Transaction: {},
-				commandResults: results.map((rvs) => ({
-					returnValues: rvs.map((b) => ({ bcs: b })),
-					mutatedReferences: [],
-				})),
-			};
+		core: {
+			async simulateTransaction(opts: { transaction: Transaction }) {
+				const cmds = opts.transaction.getData().commands;
+				const fns = cmds.map((c) => ('MoveCall' in c && c.MoveCall ? c.MoveCall.function : '?'));
+				const fn = fns[0];
+				counts[fn] = (counts[fn] ?? 0) + 1;
+				// Quote dry-runs: a simulated trade returns its emitted events.
+				if (fns.includes('mint_exact_quantity')) {
+					counts.quote_mint_sim = (counts.quote_mint_sim ?? 0) + 1;
+					return { $kind: 'Transaction', Transaction: { events: [MINTED_EVENT] } };
+				}
+				if (fns.includes('redeem_live')) {
+					return { $kind: 'Transaction', Transaction: { events: [REDEEMED_EVENT] } };
+				}
+				let results: Uint8Array[][];
+				if (fns.includes('range_price')) {
+					// price PTB: load_live_pricer → strike_from_tick ×3 → range_price ×2.
+					// read.price maps upRaw = commands[len-2], downRaw = commands[len-1].
+					results = [
+						[new Uint8Array(0)], // load_live_pricer
+						[new Uint8Array(0)], // strike_from_tick — finite
+						[new Uint8Array(0)], // strike_from_tick — +inf
+						[new Uint8Array(0)], // strike_from_tick — -inf
+						[bcs.u64().serialize(340_000_000n).toBytes()], // range_price up 0.34
+						[bcs.u64().serialize(660_000_000n).toBytes()], // range_price down 0.66
+					];
+				} else if (fn === 'active_expiry_markets') {
+					results = [[bcs.vector(bcs.Address).serialize([MARKET_ID]).toBytes()]];
+				} else if (fn === 'expiry_market_id') {
+					results = [[bcs.option(bcs.Address).serialize(MARKET_ID).toBytes()]];
+				} else if (fn === 'expiry') {
+					// marketState PTB: expiry, tick_size, mint_paused, reference_tick
+					results = [
+						[bcs.u64().serialize(BigInt(EXPIRY)).toBytes()],
+						[bcs.u64().serialize(10_000_000n).toBytes()],
+						[bcs.bool().serialize(false).toBytes()],
+						[bcs.option(bcs.u64()).serialize(10_500_000n).toBytes()],
+					];
+				} else if (fn === 'reference_tick') {
+					// mint-at-reference fresh read: tick 10_500_000 (= $105,000 @ $0.01)
+					results = [[bcs.option(bcs.u64()).serialize(10_500_000n).toBytes()]];
+				} else {
+					// e.g. currentNav's load_live_pricer → current_nav: one u64 per command.
+					results = cmds.map(() => [bcs.u64().serialize(0n).toBytes()]);
+				}
+				return {
+					$kind: 'Transaction',
+					Transaction: {},
+					commandResults: results.map((rvs) => ({
+						returnValues: rvs.map((b) => ({ bcs: b })),
+						mutatedReferences: [],
+					})),
+				};
+			},
 		},
 	} as unknown as ReadClient;
 	return { client, counts };
@@ -154,17 +156,19 @@ function mockClient() {
 // A mock that reports NO market for the descriptor.
 function mockNoMarket() {
 	const client = {
-		async simulateTransaction() {
-			return {
-				$kind: 'Transaction',
-				Transaction: {},
-				commandResults: [
-					{
-						returnValues: [{ bcs: bcs.option(bcs.Address).serialize(null).toBytes() }],
-						mutatedReferences: [],
-					},
-				],
-			};
+		core: {
+			async simulateTransaction() {
+				return {
+					$kind: 'Transaction',
+					Transaction: {},
+					commandResults: [
+						{
+							returnValues: [{ bcs: bcs.option(bcs.Address).serialize(null).toBytes() }],
+							mutatedReferences: [],
+						},
+					],
+				};
+			},
 		},
 	} as unknown as ReadClient;
 	return client;
@@ -329,26 +333,28 @@ describe('tx.mint (market resolution + unit conversion)', () => {
 
 	test('mint at reference: unset reference → PredictInputError', async () => {
 		const base = mockClient().client as unknown as {
-			simulateTransaction: (o: { transaction: Transaction }) => Promise<unknown>;
+			core: { simulateTransaction: (o: { transaction: Transaction }) => Promise<unknown> };
 		};
 		// Wrap the mock: reference_tick returns None; everything else passes through.
 		const client = {
-			async simulateTransaction(opts: { transaction: Transaction }) {
-				const cmds = opts.transaction.getData().commands;
-				const fn = 'MoveCall' in cmds[0] && cmds[0].MoveCall ? cmds[0].MoveCall.function : '?';
-				if (fn === 'reference_tick') {
-					return {
-						$kind: 'Transaction',
-						Transaction: {},
-						commandResults: [
-							{
-								returnValues: [{ bcs: bcs.option(bcs.u64()).serialize(null).toBytes() }],
-								mutatedReferences: [],
-							},
-						],
-					};
-				}
-				return base.simulateTransaction(opts);
+			core: {
+				async simulateTransaction(opts: { transaction: Transaction }) {
+					const cmds = opts.transaction.getData().commands;
+					const fn = 'MoveCall' in cmds[0] && cmds[0].MoveCall ? cmds[0].MoveCall.function : '?';
+					if (fn === 'reference_tick') {
+						return {
+							$kind: 'Transaction',
+							Transaction: {},
+							commandResults: [
+								{
+									returnValues: [{ bcs: bcs.option(bcs.u64()).serialize(null).toBytes() }],
+									mutatedReferences: [],
+								},
+							],
+						};
+					}
+					return base.core.simulateTransaction(opts);
+				},
 			},
 		} as never;
 		const pc = new PredictClient({ network: 'testnet', client });

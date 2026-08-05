@@ -11,37 +11,39 @@ import { generateAuth } from './common.js';
 // (wrapper, auth, code; ctx implicit).
 export function setBuilderCode(
 	cfg: PredictConfig,
-	tx: Transaction,
 	args: { wrapperId: string; builderCodeId: string },
-): void {
-	const auth = generateAuth(cfg, tx);
-	tx.add(
-		predictAccount.setBuilderCode({
-			package: cfg.packages.predict,
-			arguments: {
-				wrapper: args.wrapperId,
-				auth,
-				code: args.builderCodeId,
-			},
-		}),
-	);
+): (tx: Transaction) => void {
+	return (tx) => {
+		const auth = tx.add(generateAuth(cfg));
+		tx.add(
+			predictAccount.setBuilderCode({
+				package: cfg.packages.predict,
+				arguments: {
+					wrapper: args.wrapperId,
+					auth,
+					code: args.builderCodeId,
+				},
+			}),
+		);
+	};
 }
 
 // Clear the account's sticky builder-code attribution. Command order is auth → unset.
 // Deployed sig `.../predict_account.move:151` — 2 moveCall args (wrapper, auth; ctx implicit).
 export function unsetBuilderCode(
 	cfg: PredictConfig,
-	tx: Transaction,
 	args: { wrapperId: string },
-): void {
-	const auth = generateAuth(cfg, tx);
-	tx.add(
-		predictAccount.unsetBuilderCode({
-			package: cfg.packages.predict,
-			arguments: {
-				wrapper: args.wrapperId,
-				auth,
-			},
-		}),
-	);
+): (tx: Transaction) => void {
+	return (tx) => {
+		const auth = tx.add(generateAuth(cfg));
+		tx.add(
+			predictAccount.unsetBuilderCode({
+				package: cfg.packages.predict,
+				arguments: {
+					wrapper: args.wrapperId,
+					auth,
+				},
+			}),
+		);
+	};
 }

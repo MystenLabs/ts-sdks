@@ -174,16 +174,18 @@ describe('testnet smoke (live deployment)', () => {
 		if (liveMarkets.length === 0) return;
 		const id = liveMarkets[0].id;
 		const { tx, wrapper } = freshWrapperTx();
-		mintExactQuantity(cfg, tx, {
-			expiryMarketId: id,
-			wrapperId: wrapper,
-			// tick 1_000 is deep in the finite domain for any sane tick size
-			lowerTick: 1_000n,
-			higherTick: 1_001n,
-			quantityRaw: 1_000_000n, // $1 payout, 100 lots
-			leverageRaw: 1_000_000_000n, // 1x
-			...predictFeeds(),
-		});
+		tx.add(
+			mintExactQuantity(cfg, {
+				expiryMarketId: id,
+				wrapperId: wrapper,
+				// tick 1_000 is deep in the finite domain for any sane tick size
+				lowerTick: 1_000n,
+				higherTick: 1_001n,
+				quantityRaw: 1_000_000n, // $1 payout, 100 lots
+				leverageRaw: 1_000_000_000n, // 1x
+				...predictFeeds(),
+			}),
+		);
 		shareWrapper(tx, wrapper);
 		expectSemanticOrSuccess(await simulate(tx), `mint on ${id}`);
 	});
@@ -191,13 +193,15 @@ describe('testnet smoke (live deployment)', () => {
 	test('arity guard: redeem_live matches the deployed surface', async () => {
 		if (liveMarkets.length === 0) return;
 		const { tx, wrapper } = freshWrapperTx();
-		redeemLive(cfg, tx, {
-			expiryMarketId: liveMarkets[0].id,
-			wrapperId: wrapper,
-			orderId: 1n, // no such order for a fresh account — semantic abort expected
-			closeQuantityRaw: 10_000n,
-			...predictFeeds(),
-		});
+		tx.add(
+			redeemLive(cfg, {
+				expiryMarketId: liveMarkets[0].id,
+				wrapperId: wrapper,
+				orderId: 1n, // no such order for a fresh account — semantic abort expected
+				closeQuantityRaw: 10_000n,
+				...predictFeeds(),
+			}),
+		);
 		shareWrapper(tx, wrapper);
 		expectSemanticOrSuccess(await simulate(tx), 'redeem_live');
 	});

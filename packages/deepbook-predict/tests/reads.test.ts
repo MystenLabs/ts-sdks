@@ -46,18 +46,20 @@ function mockClient(
 ) {
 	const captured: { tx?: Transaction; opts?: Record<string, unknown> } = {};
 	const client = {
-		async simulateTransaction(opts: { transaction: Transaction } & Record<string, unknown>) {
-			captured.tx = opts.transaction;
-			captured.opts = opts;
-			return {
-				$kind: kind,
-				Transaction: {},
-				FailedTransaction: {},
-				commandResults: commandReturns.map((rvs) => ({
-					returnValues: rvs.map((b) => ({ bcs: b })),
-					mutatedReferences: [],
-				})),
-			};
+		core: {
+			async simulateTransaction(opts: { transaction: Transaction } & Record<string, unknown>) {
+				captured.tx = opts.transaction;
+				captured.opts = opts;
+				return {
+					$kind: kind,
+					Transaction: {},
+					FailedTransaction: {},
+					commandResults: commandReturns.map((rvs) => ({
+						returnValues: rvs.map((b) => ({ bcs: b })),
+						mutatedReferences: [],
+					})),
+				};
+			},
 		},
 	} as unknown as ReadClient;
 	return { client, captured };
@@ -248,9 +250,11 @@ describe('markets reads', () => {
 	test('marketStates: empty input → no network call', async () => {
 		let called = 0;
 		const client = {
-			simulateTransaction: async () => {
-				called++;
-				throw new Error('unreachable');
+			core: {
+				simulateTransaction: async () => {
+					called++;
+					throw new Error('unreachable');
+				},
 			},
 		} as unknown as ReadClient;
 		expect(await marketStates(client, cfg, [])).toEqual([]);
@@ -283,8 +287,10 @@ describe('markets reads', () => {
 		// The deployed getter destroy_some()s the stored Option; unsettled markets
 		// abort in std::option. The read maps exactly that abort to null.
 		const client = {
-			simulateTransaction: async () => {
-				throw new PredictMoveError('option', 262145n, null);
+			core: {
+				simulateTransaction: async () => {
+					throw new PredictMoveError('option', 262145n, null);
+				},
 			},
 		} as unknown as ReadClient;
 		expect(await settlementPrice(client, cfg, '0xdeadbeef')).toBeNull();
@@ -292,8 +298,10 @@ describe('markets reads', () => {
 
 	test('settlementPrice: unrelated aborts propagate', async () => {
 		const client = {
-			simulateTransaction: async () => {
-				throw new PredictMoveError('expiry_market', 3n, 'EWrongPythFeed');
+			core: {
+				simulateTransaction: async () => {
+					throw new PredictMoveError('expiry_market', 3n, 'EWrongPythFeed');
+				},
 			},
 		} as unknown as ReadClient;
 		await expect(settlementPrice(client, cfg, '0xdeadbeef')).rejects.toThrow(PredictMoveError);

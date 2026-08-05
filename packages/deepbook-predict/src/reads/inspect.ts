@@ -1,12 +1,12 @@
-import type { SuiGrpcClient } from '@mysten/sui/grpc';
+import type { ClientWithCoreApi } from '@mysten/sui/client';
 import type { Transaction } from '@mysten/sui/transactions';
 import { normalizeSuiAddress } from '@mysten/sui/utils';
 import { decodeMoveAbort, type MoveAbortError } from '../errors.js';
 
-// The one network seam every read sits on. Structural — any object with a
-// `simulateTransaction` matching the gRPC client's satisfies it, so callers can
-// inject a mock in tests and the SDK never constructs its own transport.
-export type ReadClient = Pick<SuiGrpcClient, 'simulateTransaction'>;
+// The one network seam every read sits on: any client exposing the core API
+// (`client.core.simulateTransaction`, plus the object reads positions.ts needs).
+// Callers pass a real SuiGrpcClient/SuiJsonRpcClient; tests inject a structural mock.
+export type ReadClient = ClientWithCoreApi;
 
 // The abort payload a failed simulate result carries: the structured gRPC `MoveAbort`
 // arm (`{ abortCode, location: { module }, cleverError: { constantName } }`) plus an
@@ -49,7 +49,7 @@ export async function simulateWithEvents(
 	sender: string,
 ): Promise<{ eventType?: string; bcs?: Uint8Array | string }[]> {
 	tx.setSender(sender);
-	const result = await client.simulateTransaction<{ events: true }>({
+	const result = await client.core.simulateTransaction<{ events: true }>({
 		transaction: tx,
 		checksEnabled: false,
 		include: { events: true },
@@ -64,7 +64,7 @@ export async function inspectReturns(
 	sender: string = normalizeSuiAddress('0x0'),
 ): Promise<Uint8Array[][]> {
 	tx.setSender(sender);
-	const result = await client.simulateTransaction<{ commandResults: true }>({
+	const result = await client.core.simulateTransaction<{ commandResults: true }>({
 		transaction: tx,
 		checksEnabled: false,
 		include: { commandResults: true },

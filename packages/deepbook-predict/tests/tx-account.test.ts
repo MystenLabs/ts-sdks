@@ -16,7 +16,7 @@ function targets(tx: Transaction): string[] {
 
 test('createAccount = registry.new → share', () => {
 	const tx = new Transaction();
-	createAccount(cfg, tx);
+	tx.add(createAccount(cfg));
 	expect(targets(tx)).toEqual([
 		`${cfg.packages.account}::account_registry::new`,
 		`${cfg.packages.account}::account::share`,
@@ -26,7 +26,7 @@ test('createAccount = registry.new → share', () => {
 test('depositFunds: auth then deposit_funds<DUSDC>', () => {
 	const tx = new Transaction();
 	const coin = tx.object('0xc0');
-	depositFunds(cfg, tx, { wrapperId: '0x123', coin });
+	tx.add(depositFunds(cfg, { wrapperId: '0x123', coin }));
 	const t = targets(tx);
 	expect(t[0]).toBe(`${cfg.packages.account}::account::generate_auth`);
 	expect(t[1]).toBe(`${cfg.packages.account}::account::deposit_funds`);
@@ -36,13 +36,13 @@ test('depositFunds: auth then deposit_funds<DUSDC>', () => {
 test('depositFunds honors coinType override', () => {
 	const tx = new Transaction();
 	const coin = tx.object('0xc0');
-	depositFunds(cfg, tx, { wrapperId: '0x123', coin, coinType: '0x2::sui::SUI' });
+	tx.add(depositFunds(cfg, { wrapperId: '0x123', coin, coinType: '0x2::sui::SUI' }));
 	expect(tx.getData().commands[1].MoveCall!.typeArguments).toEqual(['0x2::sui::SUI']);
 });
 
 test('withdrawFunds: auth then withdraw_funds<DUSDC> with amount', () => {
 	const tx = new Transaction();
-	withdrawFunds(cfg, tx, { wrapperId: '0x123', amountRaw: 5_000_000n });
+	tx.add(withdrawFunds(cfg, { wrapperId: '0x123', amountRaw: 5_000_000n }));
 	const t = targets(tx);
 	expect(t[0]).toBe(`${cfg.packages.account}::account::generate_auth`);
 	expect(t[1]).toBe(`${cfg.packages.account}::account::withdraw_funds`);

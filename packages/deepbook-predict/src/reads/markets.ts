@@ -128,7 +128,7 @@ export async function rangePrices(
 	tickSizeRaw: bigint,
 ): Promise<{ upRaw: bigint; downRaw: bigint }> {
 	const tx = new Transaction();
-	const pricer = loadLivePricer(cfg, tx, { expiryMarketId: marketId, ...feeds });
+	const pricer = tx.add(loadLivePricer(cfg, { expiryMarketId: marketId, ...feeds }));
 	// strikeRaw is a whole tick multiple (the caller validates divisibility), so the
 	// finite boundary is `strike_from_tick(strikeRaw / tickSize, tickSize)`.
 	const strikeTick = strikeRaw / tickSizeRaw;
@@ -227,12 +227,14 @@ export async function currentNav(
 	const u = cfg.underlyings[underlying];
 	if (!u) throw new Error(`unknown underlying: ${underlying}`);
 	const tx = new Transaction();
-	const pricer = loadLivePricer(cfg, tx, {
-		expiryMarketId: marketId,
-		pythFeed: u.pythFeed,
-		blockScholesValueStore: u.blockScholesValueStore,
-		blockScholesSviStore: u.blockScholesSviStore,
-	});
+	const pricer = tx.add(
+		loadLivePricer(cfg, {
+			expiryMarketId: marketId,
+			pythFeed: u.pythFeed,
+			blockScholesValueStore: u.blockScholesValueStore,
+			blockScholesSviStore: u.blockScholesSviStore,
+		}),
+	);
 	tx.add(
 		expiryMarket.currentNav({
 			package: cfg.packages.predict,
