@@ -91,5 +91,11 @@ describe('Test Object Display Standard', () => {
 			})
 		).data?.display;
 		expect(display?.data).toEqual(null);
+
+		const { object } = await toolbox.jsonRpcClient.core.getObject({
+			objectId: coinId,
+			include: { display: true },
+		});
+		expect(object.display).toBeNull();
 	});
 });

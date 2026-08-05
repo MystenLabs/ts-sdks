@@ -945,7 +945,7 @@ function parseObject<Include extends SuiClientTypes.ObjectInclude = {}>(
 				: undefined;
 
 	const displayData = include?.display
-		? object.display
+		? object.display && (object.display.data != null || object.display.error != null)
 			? {
 					output: (object.display.data as Record<string, unknown> | null) ?? null,
 					errors: object.display.error
