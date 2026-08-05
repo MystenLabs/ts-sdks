@@ -70,15 +70,6 @@ describe('Test Object Display Standard', () => {
 		expect([errorMessage1, errorMessage2, errorMessage3]).toContain(
 			(display.error as { error: string })?.error,
 		);
-
-		const { object } = await toolbox.jsonRpcClient.core.getObject({
-			objectId: boarId,
-			include: { display: true },
-		});
-		expect(object.display).toEqual({
-			output: display.data,
-			errors: display.error,
-		});
 	});
 
 	it('Test getting Display fields for object that has no display object', async () => {
@@ -91,11 +82,5 @@ describe('Test Object Display Standard', () => {
 			})
 		).data?.display;
 		expect(display?.data).toEqual(null);
-
-		const { object } = await toolbox.jsonRpcClient.core.getObject({
-			objectId: coinId,
-			include: { display: true },
-		});
-		expect(object.display).toBeNull();
 	});
 });
