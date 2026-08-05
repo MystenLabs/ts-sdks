@@ -203,7 +203,8 @@ describe('tx.deposit / tx.withdraw', () => {
 		tx
 			.getData()
 			.commands.find(
-				(c) => 'MoveCall' in c && c.MoveCall?.module === 'coin' && c.MoveCall.function === 'send_funds',
+				(c) =>
+					'MoveCall' in c && c.MoveCall?.module === 'coin' && c.MoveCall.function === 'send_funds',
 			);
 
 	test('withdraw defaults to depositing into the owner address balance (coin::send_funds)', () => {
