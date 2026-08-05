@@ -1392,18 +1392,22 @@ export function parseTransactionEffects({
 			nonRefundableStorageFee: effects.gasUsed?.nonRefundableStorageFee?.toString()!,
 		},
 		transactionDigest: effects.transactionDigest!,
-		gasObject: {
-			objectId: effects.gasObject?.objectId!,
-			inputState: mapInputObjectState(effects.gasObject?.inputState)!,
-			inputVersion: effects.gasObject?.inputVersion?.toString() ?? null,
-			inputDigest: effects.gasObject?.inputDigest ?? null,
-			inputOwner: mapOwner(effects.gasObject?.inputOwner),
-			outputState: mapOutputObjectState(effects.gasObject?.outputState)!,
-			outputVersion: effects.gasObject?.outputVersion?.toString() ?? null,
-			outputDigest: effects.gasObject?.outputDigest ?? null,
-			outputOwner: mapOwner(effects.gasObject?.outputOwner),
-			idOperation: mapIdOperation(effects.gasObject?.idOperation)!,
-		},
+		// gas_object is unset when the transaction has no gas object (system
+		// transactions, or gas paid from an address balance)
+		gasObject: effects.gasObject
+			? {
+					objectId: effects.gasObject.objectId!,
+					inputState: mapInputObjectState(effects.gasObject.inputState)!,
+					inputVersion: effects.gasObject.inputVersion?.toString() ?? null,
+					inputDigest: effects.gasObject.inputDigest ?? null,
+					inputOwner: mapOwner(effects.gasObject.inputOwner),
+					outputState: mapOutputObjectState(effects.gasObject.outputState)!,
+					outputVersion: effects.gasObject.outputVersion?.toString() ?? null,
+					outputDigest: effects.gasObject.outputDigest ?? null,
+					outputOwner: mapOwner(effects.gasObject.outputOwner),
+					idOperation: mapIdOperation(effects.gasObject.idOperation)!,
+				}
+			: null,
 		eventsDigest: effects.eventsDigest ?? null,
 		dependencies: effects.dependencies,
 		lamportVersion: effects.lamportVersion?.toString() ?? null,

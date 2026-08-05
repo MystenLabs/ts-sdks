@@ -1182,7 +1182,7 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}
 			};
 }
 
-function parseTransactionEffectsJson({
+export function parseTransactionEffectsJson({
 	bytes,
 	effects,
 	objectChanges,
@@ -1302,6 +1302,28 @@ function parseTransactionEffectsJson({
 		}
 	});
 
+	// When the transaction has no gas object (system transactions, or gas paid
+	// from an address balance), the RPC substitutes a placeholder ref with the
+	// 0x0 object id rather than omitting the field.
+	const hasGasObject =
+		normalizeSuiAddress(effects.gasObject.reference.objectId) !== normalizeSuiAddress('0x0');
+
+	let lamportVersion: string | null = null;
+	if (hasGasObject) {
+		lamportVersion = effects.gasObject.reference.version;
+	} else {
+		// Written objects are all assigned the lamport version, so recover it
+		// from the changed objects when the gas object can't provide it.
+		for (const change of changedObjects) {
+			if (
+				change.outputVersion &&
+				(lamportVersion === null || BigInt(change.outputVersion) > BigInt(lamportVersion))
+			) {
+				lamportVersion = change.outputVersion;
+			}
+		}
+	}
+
 	return {
 		objectTypes,
 		effects: {
@@ -1310,21 +1332,23 @@ function parseTransactionEffectsJson({
 			status: parseJsonRpcExecutionStatus(effects.status, effects.abortError),
 			gasUsed: effects.gasUsed,
 			transactionDigest: effects.transactionDigest,
-			gasObject: {
-				objectId: effects.gasObject?.reference.objectId,
-				inputState: 'Exists',
-				inputVersion: null,
-				inputDigest: null,
-				inputOwner: null,
-				outputState: 'ObjectWrite',
-				outputVersion: effects.gasObject.reference.version,
-				outputDigest: effects.gasObject.reference.digest,
-				outputOwner: parseOwner(effects.gasObject.owner),
-				idOperation: 'None',
-			},
+			gasObject: hasGasObject
+				? {
+						objectId: effects.gasObject.reference.objectId,
+						inputState: 'Exists',
+						inputVersion: null,
+						inputDigest: null,
+						inputOwner: null,
+						outputState: 'ObjectWrite',
+						outputVersion: effects.gasObject.reference.version,
+						outputDigest: effects.gasObject.reference.digest,
+						outputOwner: parseOwner(effects.gasObject.owner),
+						idOperation: 'None',
+					}
+				: null,
 			eventsDigest: effects.eventsDigest ?? null,
 			dependencies: effects.dependencies ?? [],
-			lamportVersion: effects.gasObject.reference.version,
+			lamportVersion,
 			changedObjects,
 			unchangedConsensusObjects,
 			auxiliaryDataDigest: null,
