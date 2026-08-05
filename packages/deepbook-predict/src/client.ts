@@ -386,7 +386,18 @@ export class PredictClient {
 			return tx;
 		},
 
-		withdraw: (owner: string, amountUsdc: number | string): Transaction => {
+		// Withdraw `amountUsdc` from the account back to `owner`. By default the funds land
+		// in the owner's DUSDC *address balance* (the versionless accumulator) via
+		// `0x2::coin::send_funds` — no coin-object churn, and they merge into the same
+		// balance `deposit` draws from, closing the loop. Pass `{ toCoinObject: true }` to
+		// instead receive a discrete `Coin<T>` object (for wallets/explorers that only
+		// render coin objects, or to compose the coin further in your own PTB). The
+		// low-level `withdrawFunds` builder always returns the raw `Coin<T>` either way.
+		withdraw: (
+			owner: string,
+			amountUsdc: number | string,
+			opts?: { toCoinObject?: boolean },
+		): Transaction => {
 			const tx = new Transaction();
 			const coin = tx.add(
 				withdrawFunds(this.cfg, {
@@ -394,7 +405,15 @@ export class PredictClient {
 					amountRaw: usdcToRaw(amountUsdc),
 				}),
 			);
-			tx.transferObjects([coin], owner);
+			if (opts?.toCoinObject) {
+				tx.transferObjects([coin], owner);
+			} else {
+				tx.moveCall({
+					target: '0x2::coin::send_funds',
+					typeArguments: [this.cfg.quoteCoinType],
+					arguments: [coin, tx.pure.address(owner)],
+				});
+			}
 			return tx;
 		},
 

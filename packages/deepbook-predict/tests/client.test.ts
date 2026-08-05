@@ -199,10 +199,33 @@ describe('tx.deposit / tx.withdraw', () => {
 		expect(targets(tx)).toContain(`${cfg.packages.account}::account::deposit_funds`);
 	});
 
-	test('withdraw transfers the returned coin to the owner (TransferObjects present)', () => {
+	const sendFundsCmd = (tx: Transaction) =>
+		tx
+			.getData()
+			.commands.find(
+				(c) => 'MoveCall' in c && c.MoveCall?.module === 'coin' && c.MoveCall.function === 'send_funds',
+			);
+
+	test('withdraw defaults to depositing into the owner address balance (coin::send_funds)', () => {
 		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
 		const tx = pc.tx.withdraw(OWNER, '5');
 		expect(targets(tx)).toContain(`${cfg.packages.account}::account::withdraw_funds`);
+		// send_funds<DUSDC> deposits the withdrawn coin into the owner's address balance
+		const sf = sendFundsCmd(tx);
+		expect(sf).toBeDefined();
+		expect(sf && 'MoveCall' in sf && sf.MoveCall?.typeArguments).toEqual([cfg.quoteCoinType]);
+		// and no coin object is left owned by the sender
+		const hasTransfer = tx
+			.getData()
+			.commands.some((c) => 'TransferObjects' in c && c.TransferObjects);
+		expect(hasTransfer).toBe(false);
+	});
+
+	test('withdraw({ toCoinObject: true }) returns a discrete Coin via TransferObjects', () => {
+		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
+		const tx = pc.tx.withdraw(OWNER, '5', { toCoinObject: true });
+		expect(targets(tx)).toContain(`${cfg.packages.account}::account::withdraw_funds`);
+		expect(sendFundsCmd(tx)).toBeUndefined();
 		const hasTransfer = tx
 			.getData()
 			.commands.some((c) => 'TransferObjects' in c && c.TransferObjects);

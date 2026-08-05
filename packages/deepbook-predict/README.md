@@ -32,8 +32,12 @@ const client = new SuiGrpcClient({
 // One-time: create your Predict account (a shared AccountWrapper).
 const createTx = client.predict.tx.createManager();
 
-// Fund it: pulls DUSDC from your wallet coins.
+// Fund it: pulls DUSDC from your address (coin objects and/or address balance).
 const depositTx = client.predict.tx.deposit(myAddress, 250); // $250
+
+// Cash out: lands in your DUSDC address balance by default (no coin-object churn).
+// Pass { toCoinObject: true } if you need a discrete Coin<T> instead.
+const withdrawTx = client.predict.tx.withdraw(myAddress, 100); // $100
 
 // Trade: BTC above $105,000 at this hour's expiry, $50 max payout, 2x leverage.
 const mintTx = await client.predict.tx.mint(
@@ -163,6 +167,12 @@ stop requiring an SDK release for target resolution.
 - PLP supply/withdraw are queued and fill at the next pool flush; cancels take the queue `index` —
   get it from `decode.plpRequest(result).index`.
 - `claimSettled` requires a full close of the order (contract rule).
+- **`withdraw` lands in your address balance by default** (`0x2::coin::send_funds`), not a coin
+  object — it merges into the versionless accumulator `deposit` already draws from, so the round
+  trip never accretes stray `Coin<DUSDC>` objects. `read.balance(owner)` reflects the account's
+  internal custody balance; use the client's `getBalance(owner)` for the wallet-side DUSDC total
+  (coin objects + address balance). Pass `withdraw(owner, amt, { toCoinObject: true })` for a
+  discrete coin (wallets/explorers that only render coin objects, or same-PTB composition).
 
 ## Development
 
