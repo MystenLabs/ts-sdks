@@ -110,7 +110,7 @@ Contains the Sui client instance for the current network:
 const client = dAppKit.stores.$currentClient.get();
 
 // Use the client to query the blockchain
-const balance = await client.core.getBalance({
+const balance = await client.getBalance({
 	owner: '0x...',
 });
 ```

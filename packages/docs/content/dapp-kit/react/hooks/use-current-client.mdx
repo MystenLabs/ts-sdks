@@ -11,7 +11,8 @@ network.
 <Callout type="info">
 	With the standard setup, this returns the `SuiGrpcClient` instance created by `createClient`. More
 	generally, it returns whatever client type your dApp Kit instance creates, as long as that client
-	implements the Sui Core API.
+	implements the Sui Core API. Application code should call the concrete client's top-level methods
+	directly.
 </Callout>
 
 <Callout type="warn">
@@ -28,7 +29,7 @@ export function MyComponent() {
 	const client = useCurrentClient();
 
 	const handleQuery = async () => {
-		const balance = await client.core.getBalance({
+		const balance = await client.getBalance({
 			owner: '0x...',
 		});
 		console.log(balance);
