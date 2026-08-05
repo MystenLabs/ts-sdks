@@ -44,7 +44,6 @@
 	},
 	"devDependencies": {
 		"@mysten/codegen": "workspace:^",
-		"@mysten/sui": "workspace:^",
 		"@types/node": "^25.9.3",
 		"typescript": "^6.0.3",
 		"vitest": "^4.1.8"
