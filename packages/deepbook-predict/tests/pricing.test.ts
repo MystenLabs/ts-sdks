@@ -16,8 +16,9 @@ import {
 // (see the DBU-610 pricer PR / ledger 0006), from the SAME formula the port implements:
 //   up = N(d2) − φ(d2)·w'/(2√w),  d2 = −(k+w/2)/√w,  w = a + b·(ρ·x+√(x²+σ²)),  x = k−m.
 // The port's A&S 7.1.26 erf differs from Python's erf by < 1.5e-7, so agreement to ~1e-5
-// confirms every term/sign/scale. A missing or wrong-signed skew term would miss Set 2 by
-// ~2e-3 (the no-correction counterpart is 0.33881, vs 0.34093 with it).
+// confirms every term/sign/scale. The skew correction matters: for Set 2, dropping it gives
+// N(d2)=0.35591 and flipping its sign gives 0.37090, vs 0.34093 correct — a ~1.5e-2 gap the
+// 1e-5 tolerance easily distinguishes.
 const F100 = (svi: Svi): PricerInputs => ({ forward: 100, svi });
 const ZERO_SKEW: Svi = { a: 0.01, b: 0, rho: 0, m: 0, sigma: 0.1 };
 const SKEWED: Svi = { a: 0.02, b: 0.1, rho: -0.3, m: 0, sigma: 0.1 };
