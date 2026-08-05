@@ -28,7 +28,7 @@ export function MyComponent() {
 	const client = useCurrentClient();
 
 	const handleQuery = async () => {
-		const balance = await client.getBalance({
+		const balance = await client.core.getBalance({
 			owner: '0x...',
 		});
 		console.log(balance);

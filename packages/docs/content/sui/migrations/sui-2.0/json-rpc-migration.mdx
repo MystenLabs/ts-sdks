@@ -101,29 +101,35 @@ export async function readObject(client: ClientWithCoreApi, objectId: string) {
 Replace legacy JSON-RPC method names with the gRPC top-level method when one exists. In SDK code,
 use the same replacement under `client.core`.
 
-| JSON-RPC Method              | App Code Replacement                                                           |
-| ---------------------------- | ------------------------------------------------------------------------------ |
-| `getObject`                  | `getObject`                                                                    |
-| `multiGetObjects`            | `getObjects`                                                                   |
-| `getOwnedObjects`            | `listOwnedObjects`                                                             |
-| `getCoins`                   | `listCoins`                                                                    |
-| `getAllBalances`             | `listBalances`                                                                 |
-| `getBalance`                 | `getBalance`                                                                   |
-| `getCoinMetadata`            | `getCoinMetadata`                                                              |
-| `getDynamicFields`           | `listDynamicFields`                                                            |
-| `getDynamicFieldObject`      | `getDynamicField` or `client.core.getDynamicObjectField`                       |
-| `getTransactionBlock`        | `getTransaction`                                                               |
-| `multiGetTransactionBlocks`  | Multiple `getTransaction` calls                                                |
-| `executeTransactionBlock`    | `executeTransaction`                                                           |
-| `waitForTransaction`         | `waitForTransaction`                                                           |
-| `dryRunTransactionBlock`     | `simulateTransaction`                                                          |
-| `devInspectTransactionBlock` | `simulateTransaction` with `checksEnabled: false`                              |
-| `queryTransactionBlocks`     | `listTransactions`                                                             |
-| `queryEvents`                | `listEvents`                                                                   |
-| `getNormalizedMoveFunction`  | `getMoveFunction`                                                              |
-| `getMoveFunctionArgTypes`    | `getMoveFunction`                                                              |
-| `resolveNameServiceAddress`  | `nameService.lookupName` or GraphQL query                                      |
-| `resolveNameServiceNames`    | `nameService.reverseLookupName`; `defaultNameServiceName` for the default name |
+| JSON-RPC Method              | App Code Replacement                                                  |
+| ---------------------------- | --------------------------------------------------------------------- |
+| `getObject`                  | `getObject`                                                           |
+| `multiGetObjects`            | `getObjects`                                                          |
+| `getOwnedObjects`            | `listOwnedObjects` for an exact `StructType` filter                   |
+| `getCoins`                   | `listCoins`                                                           |
+| `getAllBalances`             | Paginate `listBalances` and map its normalized response               |
+| `getBalance`                 | `getBalance`                                                          |
+| `getCoinMetadata`            | `getCoinMetadata`                                                     |
+| `getDynamicFields`           | `listDynamicFields`                                                   |
+| `getDynamicFieldObject`      | `getDynamicField` or `client.core.getDynamicObjectField`              |
+| `getTransactionBlock`        | `getTransaction`                                                      |
+| `multiGetTransactionBlocks`  | Multiple `getTransaction` calls                                       |
+| `executeTransactionBlock`    | `executeTransaction`                                                  |
+| `waitForTransaction`         | `waitForTransaction`                                                  |
+| `dryRunTransactionBlock`     | `simulateTransaction`                                                 |
+| `devInspectTransactionBlock` | `simulateTransaction` with the sender set and `checksEnabled: false`  |
+| `queryTransactionBlocks`     | `listTransactions`                                                    |
+| `queryEvents`                | `listEvents`                                                          |
+| `getNormalizedMoveFunction`  | `getMoveFunction`                                                     |
+| `getMoveFunctionArgTypes`    | No direct equivalent; `getMoveFunction` returns normalized signatures |
+| `resolveNameServiceAddress`  | `nameService.lookupName` or GraphQL query                             |
+| `resolveNameServiceNames`    | No direct equivalent for listing every name assigned to an address    |
+
+`getMoveFunction` exposes normalized parameter signatures, but it does not reproduce the legacy
+`Pure`, `Object`, and object-access classifications from `getMoveFunctionArgTypes`. Likewise,
+`defaultNameServiceName` and raw gRPC `nameService.reverseLookupName` return only the configured
+default name; they do not replace the paginated list returned by `resolveNameServiceNames`. Keep a
+legacy endpoint or use an application indexer when those exact results are required.
 
 Some composed helpers are currently exposed through `client.core` rather than as top-level gRPC or
 GraphQL methods:
@@ -151,6 +157,12 @@ const { chainIdentifier } = await client.core.getChainIdentifier();
 + });
 ```
 
+Only the legacy `StructType` filter maps directly to `listOwnedObjects.type`. Legacy package,
+module, owner, object ID, version, and boolean-composition filters do not have top-level Core
+equivalents. A custom GraphQL `ObjectFilter` can cover package, module, and owner-kind cases. For
+the remaining filters, use an indexer or paginate and filter the normalized results in application
+code.
+
 ### Migrating `getCoins`
 
 ```diff
@@ -163,6 +175,13 @@ const { chainIdentifier } = await client.core.getChainIdentifier();
 +   coinType: '0x2::sui::SUI',
 + });
 ```
+
+### Migrating `getAllBalances`
+
+Unlike `getAllBalances`, `listBalances` is paginated. It also returns normalized `balance`,
+`coinBalance`, and `addressBalance` fields instead of the legacy `CoinBalance` shape with
+`coinObjectCount`, `totalBalance`, and `lockedBalance`. Follow `cursor` while `hasNextPage` is true
+and map the result explicitly if existing code depends on the legacy shape.
 
 ### Migrating object include options
 
@@ -189,6 +208,15 @@ Use `include.content` for BCS-encoded Move struct bytes. It is the most stable c
 for parsing application data.
 
 ## Transaction execution and simulation
+
+Legacy JSON-RPC methods accept serialized transaction blocks as base64 strings. `executeTransaction`
+accepts bytes, while `simulateTransaction` accepts bytes or a `Transaction`, so decode existing
+strings before passing them to the new client:
+
+```typescript
+import { Transaction } from '@mysten/sui/transactions';
+import { fromBase64 } from '@mysten/sui/utils';
+```
 
 ### Migrating `getTransactionBlock`
 
@@ -246,7 +274,7 @@ specifically needs the transport's batch wire API, but it is not required for or
 -   },
 - });
 + const result = await client.executeTransaction({
-+   transaction: bytes,
++   transaction: fromBase64(bytes),
 +   signatures: [signature],
 +   include: {
 +     effects: true,
@@ -306,7 +334,7 @@ option.
 -   transactionBlock: tx,
 - });
 + const result = await client.simulateTransaction({
-+   transaction: tx,
++   transaction: fromBase64(tx),
 +   include: {
 +     effects: true,
 +     balanceChanges: true,
@@ -322,8 +350,10 @@ option.
 -   transactionBlock: tx,
 - });
 - const returnValues = result.results?.[0]?.returnValues;
++ const transaction = Transaction.fromKind(tx);
++ transaction.setSender('0xabc...');
 + const result = await client.simulateTransaction({
-+   transaction: tx,
++   transaction,
 +   checksEnabled: false,
 +   include: { commandResults: true },
 + });
@@ -375,6 +405,7 @@ for (const result of page.transactions) {
 const nextPage = page.hasNextPage
 	? await client.listTransactions({
 			filter: { sender: '0xabc...' },
+			include: { effects: true },
 			before: page.endCursor,
 			limit: 10,
 		})
@@ -405,11 +436,12 @@ preserving the legacy default.
 
 Common event filter mappings:
 
-| JSON-RPC Filter                 | gRPC/GraphQL Top-Level Filter |
-| ------------------------------- | ----------------------------- |
-| `Sender`                        | `sender`                      |
-| `MoveModule`, `MoveEventModule` | `emitModule`                  |
-| `MoveEventType`                 | `eventType`                   |
+| JSON-RPC Filter   | gRPC/GraphQL Top-Level Filter         |
+| ----------------- | ------------------------------------- |
+| `Sender`          | `sender`                              |
+| `MoveModule`      | `emitModule: 'package::module'`       |
+| `MoveEventModule` | `eventType: 'package::module'`        |
+| `MoveEventType`   | `eventType: 'package::module::Event'` |
 
 The top-level query methods handle pagination and cursor normalization. For richer filters, such as
 combined predicates, affected addresses, affected objects, or checkpoint ranges, use the raw
@@ -448,10 +480,16 @@ const client = new SuiGrpcClient({
 const { response: info } = await client.ledgerService.getServiceInfo({});
 const latestCheckpoint = info.checkpointHeight;
 
-const { response: checkpoint } = await client.ledgerService.getCheckpoint({
+if (latestCheckpoint == null) {
+	throw new Error('The server did not return a checkpoint height');
+}
+
+const { response } = await client.ledgerService.getCheckpoint({
 	checkpointId: { oneofKind: 'sequenceNumber', sequenceNumber: latestCheckpoint },
-	readMask: { paths: ['sequence_number', 'digest', 'timestamp'] },
+	readMask: { paths: ['sequence_number', 'digest', 'summary.timestamp'] },
 });
+
+console.log(response.checkpoint?.sequenceNumber, response.checkpoint?.summary?.timestamp);
 ```
 
 ## Subscriptions
@@ -490,25 +528,28 @@ for await (const frame of stream.responses) {
 }
 ```
 
-Subscriptions begin at the current tip of the chain. To recover events missed between connections,
-replay the gap with `client.listEvents()` using the same filter.
+Subscriptions begin at the current tip of the chain and do not resume automatically. For gap
+recovery, retain the last `frame.watermark.cursor`, open the new subscription to establish its
+first-frame position, and replay with the paired raw `client.ledgerService.listEvents()` call using
+the same protobuf filter and `options.after` cursor. Repeat the raw list call as the index advances
+until it reaches the new subscription's start position. Do not pass the subscription filter or
+cursor to top-level `client.listEvents()`: its Core filter and base64 cursor are different types.
 
 ## When to use GraphQL
 
 Use `SuiGraphQLClient` when the replacement needs a custom indexed query, a historical object
-version, staking data, or a custom selection set. Standard transaction and event history does not
-require a custom GraphQL query; call `graphqlClient.listTransactions()` or
-`graphqlClient.listEvents()` directly.
+version, or a custom selection set. Standard transaction and event history does not require a custom
+GraphQL query; call `graphqlClient.listTransactions()` or `graphqlClient.listEvents()` directly.
 
-| JSON-RPC Method      | GraphQL Alternative                                 |
-| -------------------- | --------------------------------------------------- |
-| `getEpochs`          | `epochs` query                                      |
-| `tryGetPastObject`   | `object(address:, version:)` query                  |
-| `getStakes`          | `address.stakedSuis` query                          |
-| `getStakesByIds`     | `multiGetObjects` query                             |
-| `getNetworkMetrics`  | Use an indexer or analytics-specific GraphQL schema |
-| `getAddressMetrics`  | Use an indexer or analytics-specific GraphQL schema |
-| `getMoveCallMetrics` | Use an indexer or analytics-specific GraphQL schema |
+| JSON-RPC Method      | Alternative                                                    |
+| -------------------- | -------------------------------------------------------------- |
+| `getEpochs`          | GraphQL `epochs` query                                         |
+| `tryGetPastObject`   | GraphQL `object(address:, version:)` query                     |
+| `getStakes`          | No current gRPC/Core/GraphQL equivalent; use a staking indexer |
+| `getStakesByIds`     | No current gRPC/Core/GraphQL equivalent; use a staking indexer |
+| `getNetworkMetrics`  | Use an indexer or analytics-specific GraphQL schema            |
+| `getAddressMetrics`  | Use an indexer or analytics-specific GraphQL schema            |
+| `getMoveCallMetrics` | Use an indexer or analytics-specific GraphQL schema            |
 
 ```typescript
 import { SuiGraphQLClient } from '@mysten/sui/graphql';
@@ -595,7 +636,7 @@ const client = new SuiGrpcClient({
 }).$extend(deepbook({ address: myAddress }), suins());
 
 await client.deepbook.checkManagerBalance(manager, asset);
-await client.suins.getName('0xabc...');
+await client.suins.getNameRecord('example.sui');
 ```
 
 ## See also

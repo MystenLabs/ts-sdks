@@ -9,7 +9,8 @@ This package now exports a client extension that integrates with Sui clients.
 
 <Callout type="info">
 	The Kiosk SDK accepts `SuiGrpcClient`, `SuiGraphQLClient`, and other clients that implement
-	`ClientWithCoreApi`. Use `SuiGrpcClient` for new Kiosk code.
+	`ClientWithCoreApi`. Use `SuiGrpcClient` for new Kiosk code. The gRPC object API returns Display
+	v2 metadata; use GraphQL or JSON-RPC for object types that still rely on legacy Display metadata.
 </Callout>
 
 ```diff

@@ -9,11 +9,14 @@ The Sui TypeScript SDK provides multiple client implementations for interacting 
 network. For application code, choose one client for your transport and use its top-level methods
 for common reads, writes, and queries. `SuiGrpcClient` is the recommended default.
 
-Each client exposes three useful surfaces:
+The gRPC and GraphQL clients expose three useful surfaces:
 
 - Top-level methods: the main application API, matching the Core API for common operations
 - [Core API](/sui/clients/core): the shared `client.core` contract used by SDKs and libraries
 - Native API: direct access to transport-specific features when the common methods are not enough
+
+The deprecated `SuiJsonRpcClient` also exposes `client.core`, but its top-level methods retain their
+legacy JSON-RPC names and response shapes.
 
 ## Available clients
 
@@ -50,9 +53,10 @@ const { object } = await client.getObject({
 
 ### Top-level methods
 
-Use top-level methods when writing app code against a concrete client like `SuiGrpcClient` or
-`SuiGraphQLClient`. These methods use the same option and response shapes as the Core API, and a
-transport can add narrowly scoped fields where it has extra native data.
+Use top-level methods when writing app code against `SuiGrpcClient` or `SuiGraphQLClient`. These
+methods use the same option and response shapes as the Core API, and a transport can add narrowly
+scoped fields where it has extra native data. For `SuiJsonRpcClient`, use `client.core` for these
+shapes or migrate its legacy top-level calls to gRPC or GraphQL.
 
 ```typescript
 const { objects } = await client.listOwnedObjects({
@@ -116,7 +120,7 @@ const { response } = await grpcClient.stateService.listOwnedObjects({ owner: '0x
 
 const graphqlClient = new SuiGraphQLClient({
 	network: 'mainnet',
-	url: 'https://sui-mainnet.mystenlabs.com/graphql',
+	url: 'https://graphql.mainnet.sui.io/graphql',
 });
 
 // GraphQL - write type-safe custom queries using the graphql function

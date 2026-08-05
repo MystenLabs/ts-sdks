@@ -84,6 +84,7 @@ import { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 
 const client = new SuiJsonRpcClient({
 	url: 'https://fullnode.devnet.sui.io:443',
+	network: 'devnet',
 });
 // asynchronously call suix_getCommitteeInfo
 const committeeInfo = await client.call('suix_getCommitteeInfo', []);
@@ -94,9 +95,9 @@ For a full list of available RPC methods, see the
 
 ## Customizing the transport
 
-The `SuiJsonRpcClient` uses a `Transport` class to manage connections to the RPC node. The default
-`SuiHTTPTransport` alias for `JsonRpcHTTPTransport` makes HTTP JSON-RPC requests. You can construct
-a custom transport instance if you need to pass custom options, such as headers or timeout values.
+The `SuiJsonRpcClient` uses a transport to manage connections to the RPC node. By default it creates
+a `JsonRpcHTTPTransport` for HTTP JSON-RPC requests. You can construct a custom transport instance
+if you need to pass options such as headers or a custom `fetch` implementation.
 
 ```typescript
 import { SuiJsonRpcClient, JsonRpcHTTPTransport } from '@mysten/sui/jsonRpc';
@@ -169,8 +170,8 @@ const result = await client.executeTransactionBlock({
 
 #### Arguments
 
-- `transactionBlock`: either a Transaction or BCS serialized transaction data bytes as a Uint8Array
-  or as a base-64 encoded string.
+- `transactionBlock`: BCS serialized transaction data bytes as a `Uint8Array` or base64-encoded
+  string.
 - `signature`: A signature, or list of signatures committed to the intent message of the transaction
   data, as a base-64 encoded string.
 - `options`:
@@ -197,15 +198,14 @@ const result = await client.signAndExecuteTransaction({
 });
 
 // IMPORTANT: Always check the transaction status
-if (result.$kind === 'FailedTransaction') {
-	throw new Error(`Transaction failed: ${result.FailedTransaction.status.error?.message}`);
+if (result.effects?.status.status === 'failure') {
+	throw new Error(`Transaction failed: ${result.effects.status.error}`);
 }
 ```
 
 #### Arguments
 
-- `transaction`: BCS serialized transaction data bytes as a Uint8Array or as a base-64 encoded
-  string.
+- `transaction`: A `Transaction` or BCS serialized transaction data bytes as a `Uint8Array`.
 - `signer`: A `Keypair` instance to sign the transaction
 - `options`:
   - `showBalanceChanges`: Whether to show balance_changes. Default to be False
@@ -227,15 +227,18 @@ const tx = new Transaction();
 const result = await client.signAndExecuteTransaction({
 	transaction: tx,
 	signer: keypair,
+	options: {
+		showEffects: true,
+	},
 });
 
 // Check transaction status
-if (result.$kind === 'FailedTransaction') {
-	throw new Error(`Transaction failed: ${result.FailedTransaction.status.error?.message}`);
+if (result.effects?.status.status === 'failure') {
+	throw new Error(`Transaction failed: ${result.effects.status.error}`);
 }
 
 const transaction = await client.waitForTransaction({
-	digest: result.Transaction.digest,
+	digest: result.digest,
 	options: {
 		showEffects: true,
 	},

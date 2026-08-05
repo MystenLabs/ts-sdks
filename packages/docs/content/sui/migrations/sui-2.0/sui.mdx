@@ -32,7 +32,7 @@ JSON-RPC method names or response shapes during migration.
 - `isSuiClient` (use `isSuiGrpcClient`, `isSuiGraphQLClient`, or legacy `isSuiJsonRpcClient`)
 - `SuiTransport` (legacy JSON-RPC code can use `JsonRpcTransport`)
 - `SuiTransportRequestOptions` (use `JsonRpcTransportRequestOptions` instead)
-- `SuiTransportSubscribeOptions` (use `JsonRpcTransportSubscribeOptions` instead)
+- `SuiTransportSubscribeOptions` (removed; use the gRPC subscription service for streaming APIs)
 - `SuiHTTPTransportOptions` (use `JsonRpcHTTPTransportOptions` instead)
 - `SuiHTTPTransport` (use `JsonRpcHTTPTransport` instead)
 - `getFullnodeUrl` (pass the full node URL to `SuiGrpcClient.baseUrl`; legacy JSON-RPC code can use
@@ -288,7 +288,8 @@ requiring `SuiJsonRpcClient` specifically.
 **Breaking changes:**
 
 - Constructor `client` parameter type changed from `SuiJsonRpcClient` to `ClientWithCoreApi`
-- Return type of `executeTransaction()`: `data` property renamed to `result`
+- Return type of `executeTransaction()` changed from the legacy `{ digest, effects, data }` wrapper
+  to a Core API `TransactionResult` discriminated union returned directly
 - The second parameter changed from JSON-RPC options to core API include options
 
 **Migration:**
@@ -311,10 +312,10 @@ const executor = new SerialTransactionExecutor({
 
 const result = await executor.executeTransaction(tx);
 
-// Accessing the transaction result (changed)
+// Accessing the transaction result now returned directly
 - console.log(result.data.effects?.status.status);
-+ const tx = result.Transaction ?? result.FailedTransaction;
-+ console.log(tx.effects.status.success);
++ const transaction = result.Transaction ?? result.FailedTransaction;
++ console.log(transaction.effects.status.success);
 ```
 
 Include options have also changed:

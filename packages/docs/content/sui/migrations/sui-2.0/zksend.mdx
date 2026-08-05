@@ -89,12 +89,13 @@ const linkBuilder = client.zksend.linkBuilder({
 });
 
 // Add assets to the link
-linkBuilder.addSui(1_000_000_000n); // 1 SUI
+linkBuilder.addClaimableMist(1_000_000_000n); // 1 SUI
 
-// Create the transaction
-const { tx, link } = await linkBuilder.build();
+// Create the transaction and get the claim URL
+const tx = await linkBuilder.createSendTransaction();
+const linkUrl = linkBuilder.getLink();
 
 // Later, load an existing link
 const existingLink = await client.zksend.loadLinkFromUrl(linkUrl);
-const assets = await existingLink.getAssets();
+const assets = existingLink.assets;
 ```

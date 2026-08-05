@@ -42,7 +42,7 @@ If you were creating `WalrusClient` directly:
 + }).$extend(walrus());
 
 - await walrusClient.getBlob(blobId);
-+ await client.walrus.getBlob(blobId);
++ await client.walrus.getBlob({ blobId });
 ```
 
 If you were passing `network` to `walrus()`, remove it:

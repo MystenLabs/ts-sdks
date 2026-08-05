@@ -91,4 +91,52 @@ describe('Kiosk Core API queries', () => {
 			order: 'descending',
 		});
 	});
+
+	it('continues scan-limited event pages until it finds matching events', async () => {
+		const eventType = '0x2::transfer_policy::TransferPolicyCreated<0x4::example::Item>';
+		const listEvents = vi
+			.fn()
+			.mockResolvedValueOnce({
+				events: [],
+				hasNextPage: true,
+				startCursor: null,
+				endCursor: 'scan-frontier',
+			})
+			.mockResolvedValueOnce({
+				events: [{ json: { id: '0x5' } }],
+				hasNextPage: false,
+				startCursor: 'event',
+				endCursor: 'event',
+			});
+		const client = { core: { listEvents } } as unknown as ClientWithCoreApi;
+
+		await expect(queryEvents(client, eventType)).resolves.toEqual([{ json: { id: '0x5' } }]);
+		expect(listEvents).toHaveBeenNthCalledWith(2, {
+			filter: { eventType },
+			limit: 50,
+			order: 'descending',
+			before: 'scan-frontier',
+		});
+	});
+
+	it('preserves the existing ascending GraphQL event window', async () => {
+		const eventType = '0x2::transfer_policy::TransferPolicyCreated<0x4::example::Item>';
+		const listEvents = vi.fn().mockResolvedValue({
+			events: [],
+			hasNextPage: false,
+			startCursor: null,
+			endCursor: null,
+		});
+		const client = {
+			core: { listEvents },
+			[Symbol.for('@mysten/SuiGraphQLClient')]: true,
+		} as unknown as ClientWithCoreApi;
+
+		await queryEvents(client, eventType);
+		expect(listEvents).toHaveBeenCalledWith({
+			filter: { eventType },
+			limit: 50,
+			order: 'ascending',
+		});
+	});
 });

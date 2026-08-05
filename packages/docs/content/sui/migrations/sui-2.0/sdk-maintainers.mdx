@@ -48,13 +48,17 @@ libraries that should work across transports:
 + const result = await this.client.core.listOwnedObjects({ owner });
 ```
 
-| v1.x Method                      | v2.0 Method                           |
-| -------------------------------- | ------------------------------------- |
-| `client.getObject()`             | `client.core.getObject()`             |
-| `client.getOwnedObjects()`       | `client.core.listOwnedObjects()`      |
-| `client.getDynamicFieldObject()` | `client.core.getDynamicObjectField()` |
-| `client.getDynamicFields()`      | `client.core.listDynamicFields()`     |
-| `client.multiGetObjects()`       | `client.core.getObjects()`            |
+| v1.x Method                      | v2.0 Method                                                              |
+| -------------------------------- | ------------------------------------------------------------------------ |
+| `client.getObject()`             | `client.core.getObject()`                                                |
+| `client.getOwnedObjects()`       | `client.core.listOwnedObjects()`                                         |
+| `client.getDynamicFieldObject()` | `client.core.getDynamicField()` or `client.core.getDynamicObjectField()` |
+| `client.getDynamicFields()`      | `client.core.listDynamicFields()`                                        |
+| `client.multiGetObjects()`       | `client.core.getObjects()`                                               |
+
+Use `getDynamicField()` for regular dynamic fields and when you need the field entry or BCS-encoded
+value. Use `getDynamicObjectField()` only for dynamic object fields when you want the referenced
+child object returned directly.
 
 See the [Core API documentation](/sui/clients/core) for all available methods.
 

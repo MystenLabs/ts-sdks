@@ -1,6 +1,9 @@
 ---
 '@mysten/kiosk': minor
+'@mysten/sui': patch
 ---
 
 Add support for `SuiGrpcClient` and other `ClientWithCoreApi` implementations to the Kiosk SDK, and
-use the shared Core API object owner type for transfer policies.
+query objects and transfer policy events through the shared Core API.
+
+Preserve JSON-RPC Display rendering errors when mapping object responses to the Core API.

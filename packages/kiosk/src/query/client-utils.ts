@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { SuiClientTypes } from '@mysten/sui/client';
+import { isSuiGraphQLClient } from '@mysten/sui/graphql';
 
 import type { ObjectWithDisplay } from '../types/kiosk.js';
 import type { KioskCompatibleClient } from '../types/index.js';
@@ -49,11 +50,27 @@ export async function queryEvents(
 	client: KioskCompatibleClient,
 	eventType: string,
 ): Promise<{ json: unknown }[]> {
-	const { events } = await client.core.listEvents({
-		filter: { eventType },
-		limit: DEFAULT_QUERY_LIMIT,
-		order: 'descending',
-	});
+	// Preserve the windows returned by the previously transport-specific implementations.
+	const order = isSuiGraphQLClient(client) ? 'ascending' : 'descending';
+	const events: SuiClientTypes.EventEntry[] = [];
+	let cursor: string | null = null;
+
+	while (events.length < DEFAULT_QUERY_LIMIT) {
+		const page = await client.core.listEvents({
+			filter: { eventType },
+			limit: DEFAULT_QUERY_LIMIT - events.length,
+			order,
+			...(cursor ? (order === 'descending' ? { before: cursor } : { after: cursor }) : {}),
+		});
+
+		events.push(...page.events);
+		if (!page.hasNextPage || events.length >= DEFAULT_QUERY_LIMIT) break;
+
+		if (!page.endCursor || page.endCursor === cursor) {
+			throw new Error('Event query did not return a cursor for the next page');
+		}
+		cursor = page.endCursor;
+	}
 
 	return events.map((event) => ({ json: event.json }));
 }

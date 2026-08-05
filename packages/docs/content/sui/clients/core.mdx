@@ -101,9 +101,7 @@ List objects owned by an address.
 ```typescript
 const result = await client.core.listOwnedObjects({
 	owner: '0xabc...',
-	filter: {
-		StructType: '0x2::coin::Coin<0x2::sui::SUI>',
-	},
+	type: '0x2::coin::Coin<0x2::sui::SUI>',
 	limit: 10,
 });
 
@@ -367,9 +365,12 @@ const result = await client.core.simulateTransaction({
 	},
 });
 
+const simulatedTransaction =
+	result.$kind === 'Transaction' ? result.Transaction : result.FailedTransaction;
+
 // Check simulated effects before signing
-console.log(result.effects);
-console.log(result.balanceChanges);
+console.log(simulatedTransaction.effects);
+console.log(simulatedTransaction.balanceChanges);
 ```
 
 #### Disabling checks

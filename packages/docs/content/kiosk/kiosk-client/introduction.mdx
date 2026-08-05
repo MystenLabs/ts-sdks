@@ -12,6 +12,11 @@ The Kiosk SDK exports a client extension that provides all Kiosk functionality.
 The Kiosk extension accepts any Sui client that implements `ClientWithCoreApi`. Use `SuiGrpcClient`
 for new Kiosk code; `SuiGraphQLClient` and the deprecated `SuiJsonRpcClient` are also compatible.
 
+<Callout type="info">
+	The gRPC object API returns Display v2 metadata. Use GraphQL or JSON-RPC when reading objects
+	whose types still rely on legacy Display metadata.
+</Callout>
+
 ## Setting up the kiosk extension
 
 Add the kiosk extension to your Sui client using `$extend()`. The extension currently supports

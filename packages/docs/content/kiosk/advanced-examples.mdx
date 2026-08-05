@@ -9,8 +9,9 @@ keywords: [Kiosk SDK, advanced examples, transfer policy, purchase, listing, Sui
 For these examples, assume you have the following data and functions available:
 
 ```typescript
-import { kiosk, KioskTransaction } from '@mysten/kiosk';
+import { kiosk, KioskTransaction, type KioskOwnerCap } from '@mysten/kiosk';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
+import { Transaction } from '@mysten/sui/transactions';
 
 // a constant for bullshark's type.
 const bullsharkType = `${packageId}::suifrens::SuiFren<${packageId}::bullshark::Bullshark>`;
