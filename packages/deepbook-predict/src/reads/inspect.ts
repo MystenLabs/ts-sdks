@@ -49,7 +49,7 @@ export async function simulateWithEvents(
 	sender: string,
 ): Promise<{ eventType?: string; bcs?: Uint8Array | string }[]> {
 	tx.setSender(sender);
-	const result = await client.core.simulateTransaction<{ events: true }>({
+	const result = await client.core.simulateTransaction({
 		transaction: tx,
 		checksEnabled: false,
 		include: { events: true },
@@ -64,7 +64,7 @@ export async function inspectReturns(
 	sender: string = normalizeSuiAddress('0x0'),
 ): Promise<Uint8Array[][]> {
 	tx.setSender(sender);
-	const result = await client.core.simulateTransaction<{ commandResults: true }>({
+	const result = await client.core.simulateTransaction({
 		transaction: tx,
 		checksEnabled: false,
 		include: { commandResults: true },
