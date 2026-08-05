@@ -119,34 +119,49 @@ describe('Kiosk Core API queries', () => {
 		});
 	});
 
-	it('queries every event page when more than 50 policies exist', async () => {
+	it('stops after the existing 50-event window', async () => {
 		const eventType = '0x2::transfer_policy::TransferPolicyCreated<0x4::example::Item>';
-		const firstPage = Array.from({ length: 50 }, (_, index) => ({ json: { id: `0x${index}` } }));
+		const firstPage = Array.from({ length: 40 }, (_, index) => ({ json: { id: `0x${index}` } }));
 		const listEvents = vi
 			.fn()
 			.mockResolvedValueOnce({
 				events: firstPage,
 				hasNextPage: true,
 				startCursor: 'first',
-				endCursor: 'fiftieth',
+				endCursor: 'fortieth',
 			})
 			.mockResolvedValueOnce({
-				events: [{ json: { id: '0x50' } }],
-				hasNextPage: false,
-				startCursor: 'fifty-first',
-				endCursor: 'fifty-first',
+				events: Array.from({ length: 10 }, (_, index) => ({ json: { id: `0x${index + 40}` } })),
+				hasNextPage: true,
+				startCursor: 'forty-first',
+				endCursor: 'fiftieth',
 			});
 		const client = { core: { listEvents } } as unknown as ClientWithCoreApi;
 
 		const events = await queryEvents(client, eventType);
-		expect(events).toHaveLength(51);
-		expect(events.at(-1)).toEqual({ json: { id: '0x50' } });
+		expect(events).toHaveLength(50);
+		expect(events.at(-1)).toEqual({ json: { id: '0x49' } });
+		expect(listEvents).toHaveBeenCalledTimes(2);
 		expect(listEvents).toHaveBeenNthCalledWith(2, {
 			filter: { eventType },
-			limit: 50,
+			limit: 10,
 			order: 'descending',
-			before: 'fiftieth',
+			before: 'fortieth',
 		});
+	});
+
+	it('stops after a bounded number of scan-limited pages', async () => {
+		const eventType = '0x2::transfer_policy::TransferPolicyCreated<0x4::example::Item>';
+		const listEvents = vi.fn().mockImplementation(async () => ({
+			events: [],
+			hasNextPage: true,
+			startCursor: null,
+			endCursor: `scan-frontier-${listEvents.mock.calls.length}`,
+		}));
+		const client = { core: { listEvents } } as unknown as ClientWithCoreApi;
+
+		await expect(queryEvents(client, eventType)).resolves.toEqual([]);
+		expect(listEvents).toHaveBeenCalledTimes(10);
 	});
 
 	it('preserves the existing ascending GraphQL event window', async () => {

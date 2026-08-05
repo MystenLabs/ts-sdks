@@ -8,6 +8,7 @@ import type { ObjectWithDisplay } from '../types/kiosk.js';
 import type { KioskCompatibleClient } from '../types/index.js';
 
 const DEFAULT_QUERY_LIMIT = 50;
+const MAX_EVENT_QUERY_PAGES = 10;
 
 export async function getAllObjects(
 	client: KioskCompatibleClient,
@@ -55,16 +56,19 @@ export async function queryEvents(
 	const events: SuiClientTypes.EventEntry[] = [];
 	let cursor: string | null = null;
 
-	while (true) {
+	// gRPC can return empty scan-limited pages. Continue through a bounded number of those pages
+	// while preserving the 50-event window returned by the previous transport-specific queries.
+	for (let pageCount = 0; pageCount < MAX_EVENT_QUERY_PAGES; pageCount++) {
+		const remaining = DEFAULT_QUERY_LIMIT - events.length;
 		const page = await client.core.listEvents({
 			filter: { eventType },
-			limit: DEFAULT_QUERY_LIMIT,
+			limit: remaining,
 			order,
 			...(cursor ? (order === 'descending' ? { before: cursor } : { after: cursor }) : {}),
 		});
 
-		events.push(...page.events);
-		if (!page.hasNextPage) break;
+		events.push(...page.events.slice(0, remaining));
+		if (!page.hasNextPage || events.length === DEFAULT_QUERY_LIMIT) break;
 
 		if (!page.endCursor || page.endCursor === cursor) {
 			throw new Error('Event query did not return a cursor for the next page');
