@@ -55,16 +55,16 @@ export async function queryEvents(
 	const events: SuiClientTypes.EventEntry[] = [];
 	let cursor: string | null = null;
 
-	while (events.length < DEFAULT_QUERY_LIMIT) {
+	while (true) {
 		const page = await client.core.listEvents({
 			filter: { eventType },
-			limit: DEFAULT_QUERY_LIMIT - events.length,
+			limit: DEFAULT_QUERY_LIMIT,
 			order,
 			...(cursor ? (order === 'descending' ? { before: cursor } : { after: cursor }) : {}),
 		});
 
 		events.push(...page.events);
-		if (!page.hasNextPage || events.length >= DEFAULT_QUERY_LIMIT) break;
+		if (!page.hasNextPage) break;
 
 		if (!page.endCursor || page.endCursor === cursor) {
 			throw new Error('Event query did not return a cursor for the next page');

@@ -119,6 +119,36 @@ describe('Kiosk Core API queries', () => {
 		});
 	});
 
+	it('queries every event page when more than 50 policies exist', async () => {
+		const eventType = '0x2::transfer_policy::TransferPolicyCreated<0x4::example::Item>';
+		const firstPage = Array.from({ length: 50 }, (_, index) => ({ json: { id: `0x${index}` } }));
+		const listEvents = vi
+			.fn()
+			.mockResolvedValueOnce({
+				events: firstPage,
+				hasNextPage: true,
+				startCursor: 'first',
+				endCursor: 'fiftieth',
+			})
+			.mockResolvedValueOnce({
+				events: [{ json: { id: '0x50' } }],
+				hasNextPage: false,
+				startCursor: 'fifty-first',
+				endCursor: 'fifty-first',
+			});
+		const client = { core: { listEvents } } as unknown as ClientWithCoreApi;
+
+		const events = await queryEvents(client, eventType);
+		expect(events).toHaveLength(51);
+		expect(events.at(-1)).toEqual({ json: { id: '0x50' } });
+		expect(listEvents).toHaveBeenNthCalledWith(2, {
+			filter: { eventType },
+			limit: 50,
+			order: 'descending',
+			before: 'fiftieth',
+		});
+	});
+
 	it('preserves the existing ascending GraphQL event window', async () => {
 		const eventType = '0x2::transfer_policy::TransferPolicyCreated<0x4::example::Item>';
 		const listEvents = vi.fn().mockResolvedValue({
