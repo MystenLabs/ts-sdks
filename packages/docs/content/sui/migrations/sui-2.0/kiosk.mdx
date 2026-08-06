@@ -1,6 +1,6 @@
 ---
 title: '@mysten/kiosk'
-description: Migrate @mysten/kiosk to 2.0 with client extension pattern and KioskTransaction.
+description: Migrate @mysten/kiosk to 2.0 with client extension pattern and KioskTransaction
 keywords:
   [migration, mysten/kiosk, Kiosk, 2.0, client extension, KioskTransaction, NFT, breaking changes]
 ---
@@ -8,14 +8,15 @@ keywords:
 This package now exports a client extension that integrates with Sui clients.
 
 <Callout type="info">
-	The Kiosk SDK requires `SuiJsonRpcClient` or `SuiGraphQLClient`. It does not work with
-	`SuiGrpcClient` because it uses event queries that are not available in gRPC.
+	The Kiosk SDK accepts `SuiGrpcClient`, `SuiGraphQLClient`, and other clients that implement
+	`ClientWithCoreApi`. Use `SuiGrpcClient` for new Kiosk code. The gRPC object API returns Display
+	v2 metadata; use GraphQL or JSON-RPC for object types that still rely on legacy Display metadata.
 </Callout>
 
 ```diff
 - import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 - import { KioskClient, Network } from '@mysten/kiosk';
-+ import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc'; // or SuiGraphQLClient
++ import { SuiGrpcClient } from '@mysten/sui/grpc';
 + import { kiosk } from '@mysten/kiosk';
 
 - const suiClient = new SuiClient({ url: getFullnodeUrl('mainnet') });
@@ -23,8 +24,8 @@ This package now exports a client extension that integrates with Sui clients.
 -   client: suiClient,
 -   network: Network.MAINNET,
 - });
-+ const client = new SuiJsonRpcClient({
-+   url: getJsonRpcFullnodeUrl('mainnet'),
++ const client = new SuiGrpcClient({
++   baseUrl: 'https://fullnode.mainnet.sui.io:443',
 +   network: 'mainnet',
 + }).$extend(kiosk());
 
@@ -105,14 +106,14 @@ The low-level helper functions have been removed in favor of the `KioskTransacti
 ```diff
 - import { createKiosk, shareKiosk, placeAndList } from '@mysten/kiosk';
 + import { kiosk, KioskTransaction } from '@mysten/kiosk';
-+ import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
++ import { SuiGrpcClient } from '@mysten/sui/grpc';
 
 - const [kiosk, cap] = createKiosk(tx);
 - shareKiosk(tx, kiosk);
 - placeAndList(tx, itemType, kiosk, cap, item, price);
 
-+ const client = new SuiJsonRpcClient({
-+   url: getJsonRpcFullnodeUrl('mainnet'),
++ const client = new SuiGrpcClient({
++   baseUrl: 'https://fullnode.mainnet.sui.io:443',
 +   network: 'mainnet',
 + }).$extend(kiosk());
 +

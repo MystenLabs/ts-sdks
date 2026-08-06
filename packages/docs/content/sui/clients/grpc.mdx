@@ -1,6 +1,6 @@
 ---
 title: SuiGrpcClient
-description: Connect to Sui through gRPC with SuiGrpcClient.
+description: Connect to Sui through gRPC with the recommended SuiGrpcClient
 keywords:
   [
     SuiGrpcClient,
@@ -14,7 +14,8 @@ keywords:
   ]
 ---
 
-The `SuiGrpcClient` provides access to the Full Node gRPC API.
+The `SuiGrpcClient` provides access to the Full Node gRPC API. It is the recommended default client
+for application code and SDK integrations.
 
 For more complete details on what is available through this API see the
 [gRPC API docs](https://docs.sui.io/develop/accessing-data/grpc/what-is-grpc).
@@ -40,6 +41,75 @@ const grpcClient = new SuiGrpcClient({
 	baseUrl: 'http://127.0.0.1:9000',
 });
 ```
+
+## Using top-level methods
+
+Use top-level methods for most application code. These methods match the shared
+[Core API](/sui/clients/core) option and response shapes, so the same calls can also be written as
+`grpcClient.core.<method>()` when SDK code needs the transport-agnostic `ClientWithCoreApi`
+contract.
+
+```typescript
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+const grpcClient = new SuiGrpcClient({
+	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
+});
+
+const { balance } = await grpcClient.getBalance({
+	owner: '<OWNER_ADDRESS>',
+});
+
+const { object } = await grpcClient.getObject({
+	objectId: '<OBJECT_ID>',
+	include: { content: true, display: true },
+});
+
+const coins = await grpcClient.listCoins({
+	owner: '<OWNER_ADDRESS>',
+	coinType: '0x2::sui::SUI',
+});
+```
+
+Common top-level methods:
+
+| Category       | Methods                                                                                   |
+| -------------- | ----------------------------------------------------------------------------------------- |
+| Objects        | `getObject`, `getObjects`, `listOwnedObjects`, `listDynamicFields`, `getDynamicField`     |
+| Coins          | `listCoins`, `getBalance`, `listBalances`, `getCoinMetadata`                              |
+| Transactions   | `getTransaction`, `executeTransaction`, `signAndExecuteTransaction`, `waitForTransaction` |
+| Simulation     | `simulateTransaction`                                                                     |
+| Queries        | `listTransactions`, `listEvents`                                                          |
+| Move and names | `getMoveFunction`, `defaultNameServiceName`, `mvr.resolvePackage`, `mvr.resolveType`      |
+| Verification   | `verifyZkLoginSignature`                                                                  |
+
+### gRPC-specific top-level data
+
+Top-level gRPC methods are a superset of the shared Core API where the transport can expose useful
+gRPC data directly:
+
+```typescript
+const result = await grpcClient.getTransaction({
+	digest: '<TRANSACTION_DIGEST>',
+	include: {
+		effects: true,
+		protoJson: true,
+	},
+});
+
+const tx = result.Transaction ?? result.FailedTransaction;
+console.log(tx.digest, result.protoJson);
+```
+
+gRPC-specific options include:
+
+| Option                     | Methods                                                                                   |
+| -------------------------- | ----------------------------------------------------------------------------------------- |
+| `include.protoJson`        | `getTransaction`, `executeTransaction`, `signAndExecuteTransaction`, `waitForTransaction` |
+| `include.protoJson`        | `simulateTransaction`                                                                     |
+| `doGasSelection`           | `simulateTransaction`                                                                     |
+| `include: { value: true }` | `listDynamicFields`                                                                       |
 
 ## Transport options
 
@@ -124,23 +194,25 @@ service clients are generated using [protobuf-ts](https://github.com/timostamm/p
 provides type-safe gRPC clients for TypeScript. For more details on how to use gRPC with Sui, see
 the [gRPC overview](https://docs.sui.io/develop/accessing-data/grpc/what-is-grpc).
 
-### With the core API
+### Prefer top-level methods first
 
-The gRPC client implements all the [`core`](./core) API methods:
+For common operations, call the top-level method before reaching for raw service clients:
 
 ```typescript
 import { SuiGrpcClient } from '@mysten/sui/grpc';
+
 const grpcClient = new SuiGrpcClient({
 	network: 'testnet',
 	baseUrl: 'https://fullnode.testnet.sui.io:443',
 });
-// Get coins owned by an address
-await grpcClient.getCoins({
+
+await grpcClient.listCoins({
 	owner: '<OWNER_ADDRESS>',
 });
 ```
 
-To query additional data not available in the core API, you can use the service clients directly:
+Use the generated service clients directly when you need gRPC methods, read masks, streaming
+behavior, or filters that are not exposed by the top-level API.
 
 ### Transaction execution service
 

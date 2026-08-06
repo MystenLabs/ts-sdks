@@ -2,66 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { SuiClientTypes } from '@mysten/sui/client';
-import { graphql } from '@mysten/sui/graphql/schema';
 import { isSuiGraphQLClient } from '@mysten/sui/graphql';
-import { isSuiJsonRpcClient } from '@mysten/sui/jsonRpc';
-import { normalizeStructTag } from '@mysten/sui/utils';
-import { chunk, fromBase64 } from '@mysten/utils';
 
-import type { KioskDisplay, ObjectWithDisplay } from '../types/kiosk.js';
+import type { ObjectWithDisplay } from '../types/kiosk.js';
 import type { KioskCompatibleClient } from '../types/index.js';
 
 const DEFAULT_QUERY_LIMIT = 50;
-
-const FetchObjectsWithDisplayQuery = graphql(`
-	query FetchObjectsWithDisplay($objectKeys: [ObjectKey!]!) {
-		multiGetObjects(keys: $objectKeys) {
-			address
-			digest
-			version
-			asMoveObject {
-				contents {
-					bcs
-					type {
-						repr
-					}
-					display {
-						output
-						errors
-					}
-				}
-			}
-			asMovePackage {
-				__typename
-			}
-			owner {
-				__typename
-				... on AddressOwner {
-					address {
-						address
-					}
-				}
-				... on ObjectOwner {
-					address {
-						address
-					}
-				}
-				... on Shared {
-					initialSharedVersion
-				}
-				... on ConsensusAddressOwner {
-					startVersion
-					address {
-						address
-					}
-				}
-			}
-			previousTransaction {
-				digest
-			}
-		}
-	}
-`);
+const MAX_EVENT_QUERY_PAGES = 10;
 
 export async function getAllObjects(
 	client: KioskCompatibleClient,
@@ -69,234 +16,65 @@ export async function getAllObjects(
 ): Promise<ObjectWithDisplay[]> {
 	if (ids.length === 0) return [];
 
-	const chunks = chunk(ids, DEFAULT_QUERY_LIMIT);
-	const results: ObjectWithDisplay[] = [];
+	const { objects } = await client.core.getObjects({
+		objectIds: ids,
+		include: {
+			content: true,
+			previousTransaction: true,
+			display: true,
+		},
+	});
 
-	if (isSuiGraphQLClient(client)) {
-		for (const batch of chunks) {
-			const { data } = await client.query({
-				query: FetchObjectsWithDisplayQuery,
-				variables: {
-					objectKeys: batch.map((address) => ({ address })),
-				},
-			});
-
-			if (data?.multiGetObjects) {
-				for (const obj of data.multiGetObjects) {
-					if (!obj) continue;
-
-					let type: string;
-					if (obj.asMovePackage) {
-						type = 'package';
-					} else if (obj.asMoveObject?.contents?.type?.repr) {
-						type = obj.asMoveObject.contents.type.repr;
-					} else {
-						type = '';
+	return objects
+		.filter(
+			(
+				object,
+			): object is SuiClientTypes.Object<{
+				content: true;
+				previousTransaction: true;
+				display: true;
+			}> => !(object instanceof Error),
+		)
+		.map((object) => ({
+			...object,
+			previousTransaction: object.previousTransaction ?? null,
+			display: object.display
+				? {
+						data: object.display.output,
+						error: object.display.errors ? JSON.stringify(object.display.errors) : null,
 					}
-
-					const bcsContent = obj.asMoveObject?.contents?.bcs
-						? fromBase64(obj.asMoveObject.contents.bcs)
-						: undefined;
-
-					const displayData = obj.asMoveObject?.contents?.display;
-					const display: KioskDisplay | undefined = displayData
-						? {
-								data: (displayData.output as Record<string, unknown> | null) ?? null,
-								error: displayData.errors ? JSON.stringify(displayData.errors) : null,
-							}
-						: undefined;
-
-					results.push({
-						objectId: obj.address,
-						version: obj.version?.toString()!,
-						digest: obj.digest!,
-						type,
-						content: bcsContent!,
-						owner: mapGraphQLOwner(obj.owner!),
-						previousTransaction: (obj.previousTransaction?.digest ?? null)!,
-						objectBcs: undefined,
-						json: undefined,
-						display,
-					});
-				}
-			}
-		}
-
-		return results;
-	}
-
-	if (isSuiJsonRpcClient(client)) {
-		for (const batch of chunks) {
-			const responses = await client.multiGetObjects({
-				ids: batch,
-				options: {
-					showDisplay: true,
-					showBcs: true,
-					showType: true,
-					showOwner: true,
-					showPreviousTransaction: true,
-				},
-			});
-
-			for (const resp of responses) {
-				if (!resp.data) continue;
-				const obj = resp.data;
-
-				const bcsContent =
-					obj.bcs?.dataType === 'moveObject' ? fromBase64(obj.bcs.bcsBytes) : undefined;
-
-				const type =
-					obj.type && obj.type.includes('::') ? normalizeStructTag(obj.type) : (obj.type ?? '');
-
-				const display: KioskDisplay | undefined = obj.display
-					? {
-							data: obj.display.data ?? null,
-							error: obj.display.error ? JSON.stringify(obj.display.error) : null,
-						}
-					: undefined;
-
-				results.push({
-					objectId: obj.objectId,
-					version: obj.version,
-					digest: obj.digest,
-					type,
-					content: bcsContent!,
-					owner: parseJsonRpcOwner(obj.owner!),
-					previousTransaction: (obj.previousTransaction ?? null)!,
-					objectBcs: undefined,
-					json: undefined,
-					display,
-				});
-			}
-		}
-
-		return results;
-	}
-
-	throw new Error(
-		'Object fetching requires a JSON-RPC or GraphQL client. ' +
-			'gRPC clients are not supported by the kiosk SDK.',
-	);
-}
-
-function parseJsonRpcOwner(owner: NonNullable<unknown>): SuiClientTypes.ObjectOwner {
-	if (owner === 'Immutable') {
-		return { $kind: 'Immutable', Immutable: true } as SuiClientTypes.ObjectOwner;
-	}
-
-	const ownerObj = owner as Record<string, any>;
-
-	if ('ConsensusAddressOwner' in ownerObj) {
-		return {
-			$kind: 'ConsensusAddressOwner',
-			ConsensusAddressOwner: {
-				owner: ownerObj.ConsensusAddressOwner.owner,
-				startVersion: ownerObj.ConsensusAddressOwner.start_version,
-			},
-		} as SuiClientTypes.ObjectOwner;
-	}
-
-	if ('AddressOwner' in ownerObj) {
-		return {
-			$kind: 'AddressOwner',
-			AddressOwner: ownerObj.AddressOwner,
-		} as SuiClientTypes.ObjectOwner;
-	}
-
-	if ('ObjectOwner' in ownerObj) {
-		return {
-			$kind: 'ObjectOwner',
-			ObjectOwner: ownerObj.ObjectOwner,
-		} as SuiClientTypes.ObjectOwner;
-	}
-
-	if ('Shared' in ownerObj) {
-		return {
-			$kind: 'Shared',
-			Shared: {
-				initialSharedVersion: ownerObj.Shared.initial_shared_version,
-			},
-		} as SuiClientTypes.ObjectOwner;
-	}
-
-	throw new Error(`Unknown owner type: ${JSON.stringify(owner)}`);
-}
-
-function mapGraphQLOwner(
-	owner: NonNullable<unknown> & { __typename?: string },
-): SuiClientTypes.ObjectOwner {
-	const o = owner as Record<string, any>;
-	switch (o.__typename) {
-		case 'AddressOwner':
-			return {
-				$kind: 'AddressOwner',
-				AddressOwner: o.address?.address!,
-			} as SuiClientTypes.ObjectOwner;
-		case 'ObjectOwner':
-			return {
-				$kind: 'ObjectOwner',
-				ObjectOwner: o.address?.address!,
-			} as SuiClientTypes.ObjectOwner;
-		case 'Immutable':
-			return { $kind: 'Immutable', Immutable: true } as SuiClientTypes.ObjectOwner;
-		case 'Shared':
-			return {
-				$kind: 'Shared',
-				Shared: { initialSharedVersion: String(o.initialSharedVersion) },
-			} as SuiClientTypes.ObjectOwner;
-		case 'ConsensusAddressOwner':
-			return {
-				$kind: 'ConsensusAddressOwner',
-				ConsensusAddressOwner: {
-					owner: o.address?.address!,
-					startVersion: String(o.startVersion),
-				},
-			} as SuiClientTypes.ObjectOwner;
-		default:
-			throw new Error(`Unknown GraphQL owner type: ${o.__typename}`);
-	}
+				: undefined,
+		}));
 }
 
 export async function queryEvents(
 	client: KioskCompatibleClient,
 	eventType: string,
 ): Promise<{ json: unknown }[]> {
-	if (isSuiGraphQLClient(client)) {
-		const query = graphql(`
-			query QueryEvents($eventType: String!) {
-				events(filter: { eventType: $eventType }, first: 50) {
-					nodes {
-						contents {
-							json
-						}
-					}
-				}
-			}
-		`);
+	// Preserve the windows returned by the previously transport-specific implementations.
+	const order = isSuiGraphQLClient(client) ? 'ascending' : 'descending';
+	const events: SuiClientTypes.EventEntry[] = [];
+	let cursor: string | null = null;
 
-		const result = await client.query({
-			query,
-			variables: { eventType },
+	// gRPC can return empty scan-limited pages. Continue through a bounded number of those pages
+	// while preserving the 50-event window returned by the previous transport-specific queries.
+	for (let pageCount = 0; pageCount < MAX_EVENT_QUERY_PAGES; pageCount++) {
+		const remaining = DEFAULT_QUERY_LIMIT - events.length;
+		const page = await client.core.listEvents({
+			filter: { eventType },
+			limit: remaining,
+			order,
+			...(cursor ? (order === 'descending' ? { before: cursor } : { after: cursor }) : {}),
 		});
 
-		return (
-			result.data?.events?.nodes.map((event) => ({
-				json: event.contents?.json,
-			})) ?? []
-		);
+		events.push(...page.events.slice(0, remaining));
+		if (!page.hasNextPage || events.length === DEFAULT_QUERY_LIMIT) break;
+
+		if (!page.endCursor || page.endCursor === cursor) {
+			throw new Error('Event query did not return a cursor for the next page');
+		}
+		cursor = page.endCursor;
 	}
 
-	if (isSuiJsonRpcClient(client)) {
-		const events = await client.queryEvents({
-			query: { MoveEventType: eventType },
-		});
-
-		return events.data?.map((d) => ({ json: d.parsedJson })) ?? [];
-	}
-
-	throw new Error(
-		'Event querying is not supported by this client type. ' +
-			'JSON-RPC and GraphQL clients support event querying, but gRPC does not. ' +
-			'Please use a JSON-RPC or GraphQL client, or provide the required IDs directly.',
-	);
+	return events.map((event) => ({ json: event.json }));
 }

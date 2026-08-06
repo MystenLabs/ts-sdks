@@ -35,7 +35,7 @@
 		"build": "rm -rf dist && tsc --noEmit && tsdown",
 		"build:docs": "node ../docs/scripts/build-docs.ts",
 		"codegen": "sui-ts-codegen generate && pnpm lint:fix",
-		"test": "echo 'No unit tests for kiosk SDK'",
+		"test": "vitest run --typecheck --config vitest.unit.config.mts",
 		"pre-commit": "pnpm prettier:fix && pnpm lint && pnpm build",
 		"prettier:check": "prettier -c --ignore-unknown .",
 		"prettier:fix": "prettier -w --ignore-unknown .",
@@ -46,8 +46,7 @@
 		"test:e2e": "vitest run e2e"
 	},
 	"dependencies": {
-		"@mysten/bcs": "workspace:^",
-		"@mysten/utils": "workspace:^"
+		"@mysten/bcs": "workspace:^"
 	},
 	"devDependencies": {
 		"@mysten/codegen": "workspace:^",

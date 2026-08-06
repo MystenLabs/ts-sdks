@@ -951,9 +951,6 @@ importers:
       '@mysten/sui':
         specifier: workspace:^
         version: link:../sui
-      '@mysten/utils':
-        specifier: workspace:^
-        version: link:../utils
     devDependencies:
       '@mysten/codegen':
         specifier: workspace:^

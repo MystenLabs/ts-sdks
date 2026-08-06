@@ -1,6 +1,6 @@
 ---
 title: Core API
-description: Transport-agnostic Core API shared by all Sui clients.
+description: Transport-agnostic Core API shared by Sui clients
 keywords:
   [
     Core API,
@@ -14,9 +14,14 @@ keywords:
   ]
 ---
 
-The Core API is the transport-agnostic interface that all Sui clients implement. It provides a
-consistent set of methods for interacting with the Sui blockchain, regardless of whether you're
-using gRPC, GraphQL, or JSON-RPC.
+The Core API is the transport-agnostic interface shared by Sui clients. It provides a consistent set
+of methods for interacting with the Sui blockchain across `SuiGrpcClient`, `SuiGraphQLClient`, and
+the deprecated `SuiJsonRpcClient`.
+
+For application code, prefer the top-level methods on the concrete client you instantiate, such as
+`grpcClient.getObject()` or `graphqlClient.listTransactions()`. Those methods match the Core API for
+common operations and may expose transport-specific additions. Use `client.core` when writing SDKs,
+libraries, or helpers that accept any `ClientWithCoreApi`.
 
 ## `ClientWithCoreApi`
 
@@ -96,9 +101,7 @@ List objects owned by an address.
 ```typescript
 const result = await client.core.listOwnedObjects({
 	owner: '0xabc...',
-	filter: {
-		StructType: '0x2::coin::Coin<0x2::sui::SUI>',
-	},
+	type: '0x2::coin::Coin<0x2::sui::SUI>',
 	limit: 10,
 });
 
@@ -362,9 +365,12 @@ const result = await client.core.simulateTransaction({
 	},
 });
 
+const simulatedTransaction =
+	result.$kind === 'Transaction' ? result.Transaction : result.FailedTransaction;
+
 // Check simulated effects before signing
-console.log(result.effects);
-console.log(result.balanceChanges);
+console.log(simulatedTransaction.effects);
+console.log(simulatedTransaction.balanceChanges);
 ```
 
 #### Disabling checks

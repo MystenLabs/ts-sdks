@@ -1,6 +1,6 @@
 ---
 title: Migrating from Kiosk SDK V1
-description: Migrate from Kiosk SDK v1 to the current version with the builder-pattern API.
+description: Migrate from Kiosk SDK v1 to the current version with the builder-pattern API
 keywords: [Kiosk SDK, migration, v1, upgrade, builder pattern, Personal Kiosk, Sui]
 ---
 
@@ -49,11 +49,12 @@ Using the new SDK, you can build the same transaction as follows:
 
 ```typescript
 import { kiosk, KioskTransaction } from '@mysten/kiosk';
-import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+import { Transaction } from '@mysten/sui/transactions';
 
 // You need to do this only once and re-use it in the application.
-const client = new SuiJsonRpcClient({
-	url: getJsonRpcFullnodeUrl('mainnet'),
+const client = new SuiGrpcClient({
+	baseUrl: 'https://fullnode.mainnet.sui.io:443',
 	network: 'mainnet',
 }).$extend(kiosk());
 
@@ -105,11 +106,12 @@ Using the new SDK, you can build the same transaction as follows:
 
 ```typescript
 import { kiosk, KioskTransaction } from '@mysten/kiosk';
-import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+import { Transaction } from '@mysten/sui/transactions';
 
 // You need to do this only once and re-use it in the application.
-const client = new SuiJsonRpcClient({
-	url: getJsonRpcFullnodeUrl('mainnet'),
+const client = new SuiGrpcClient({
+	baseUrl: 'https://fullnode.mainnet.sui.io:443',
 	network: 'mainnet',
 }).$extend(kiosk());
 
@@ -138,6 +140,7 @@ import {
 	testnetEnvironment,
 } from '@mysten/kiosk';
 import { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import { Transaction } from '@mysten/sui/transactions';
 
 const client = new SuiJsonRpcClient({
 	url: 'https://fullnode.testnet.sui.io:443',
@@ -208,11 +211,12 @@ Using the new SDK, you can build the same transaction as follows:
 
 ```typescript
 import { kiosk, KioskTransaction } from '@mysten/kiosk';
-import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+import { Transaction } from '@mysten/sui/transactions';
 
 // You need to do this only once and re-use it in the application.
-const client = new SuiJsonRpcClient({
-	url: getJsonRpcFullnodeUrl('mainnet'),
+const client = new SuiGrpcClient({
+	baseUrl: 'https://fullnode.mainnet.sui.io:443',
 	network: 'mainnet',
 }).$extend(kiosk());
 
@@ -309,11 +313,12 @@ On the new SDK, the same transaction can be built as follows:
 
 ```typescript
 import { kiosk, TransferPolicyTransaction, percentageToBasisPoints } from '@mysten/kiosk';
-import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+import { Transaction } from '@mysten/sui/transactions';
 
 // You need to do this only once and re-use it in the application.
-const client = new SuiJsonRpcClient({
-	url: getJsonRpcFullnodeUrl('mainnet'),
+const client = new SuiGrpcClient({
+	baseUrl: 'https://fullnode.mainnet.sui.io:443',
 	network: 'mainnet',
 }).$extend(kiosk());
 

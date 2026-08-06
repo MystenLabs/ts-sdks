@@ -1,6 +1,6 @@
 ---
 title: SuiJsonRpcClient
-description: Connect to Sui through JSON-RPC with SuiJsonRpcClient.
+description: Maintain legacy JSON-RPC code while migrating to SuiGrpcClient or SuiGraphQLClient
 keywords:
   [
     SuiJsonRpcClient,
@@ -15,13 +15,18 @@ keywords:
 ---
 
 <Callout type="warn">
-	The Sui JSON-RPC API has been deprecated. We recommend migration to
-	[`SuiGrpcClient`](/sui/clients/grpc) or [`SuiGraphQLClient`](/sui/clients/graphql) as soon as
-	possible.
+	JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use [`SuiGrpcClient`](/sui/clients/grpc)
+	for most application code, or [`SuiGraphQLClient`](/sui/clients/graphql) for GraphQL-specific
+	indexed queries.
 </Callout>
 
-The `SuiJsonRpcClient` connects to a Sui network's JSON-RPC server. It implements the
-[Core API](/sui/clients/core), so it can be used with any SDK that accepts `ClientWithCoreApi`.
+This page exists for maintaining legacy JSON-RPC code. New code should use
+[`SuiGrpcClient`](/sui/clients/grpc) and its top-level methods by default. See
+[Migrating from JSON-RPC](/sui/migrations/sui-2.0/json-rpc-migration) for replacement examples.
+
+The `SuiJsonRpcClient` connects to a Sui network's JSON-RPC server. It also implements the
+[Core API](/sui/clients/core), so SDKs that accept `ClientWithCoreApi` can support it during a
+migration.
 
 ```typescript
 import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
@@ -37,9 +42,9 @@ const { object } = await client.core.getObject({ objectId: '0x...' });
 
 ## Connecting to a Sui network
 
-To establish a connection to a network, import `SuiJsonRpcClient` from `@mysten/sui/client` and pass
-the relevant URL to the `url` parameter. The following example establishes a connection to Devnet
-and get all `Coin<coin_type>` objects owned by an address.
+To establish a legacy JSON-RPC connection, import `SuiJsonRpcClient` from `@mysten/sui/jsonRpc` and
+pass the relevant URL to the `url` parameter. The following example establishes a connection to
+Devnet and gets all `Coin<coin_type>` objects owned by an address.
 
 ```typescript
 import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
@@ -79,6 +84,7 @@ import { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 
 const client = new SuiJsonRpcClient({
 	url: 'https://fullnode.devnet.sui.io:443',
+	network: 'devnet',
 });
 // asynchronously call suix_getCommitteeInfo
 const committeeInfo = await client.call('suix_getCommitteeInfo', []);
@@ -89,21 +95,17 @@ For a full list of available RPC methods, see the
 
 ## Customizing the transport
 
-The `SuiJsonRpcClient` uses a `Transport` class to manage connections to the RPC node. The default
-`SuiHTTPTransport` (alias for `JsonRpcHTTPTransport`) makes both JSON RPC requests, as well as
-websocket requests for subscriptions. You can construct a custom transport instance if you need to
-pass any custom options, such as headers or timeout values.
+The `SuiJsonRpcClient` uses a transport to manage connections to the RPC node. By default it creates
+a `JsonRpcHTTPTransport` for HTTP JSON-RPC requests. You can construct a custom transport instance
+if you need to pass options such as headers or a custom `fetch` implementation.
 
 ```typescript
 import { SuiJsonRpcClient, JsonRpcHTTPTransport } from '@mysten/sui/jsonRpc';
 
 const client = new SuiJsonRpcClient({
+	network: 'devnet',
 	transport: new JsonRpcHTTPTransport({
 		url: 'https://fullnode.devnet.sui.io:443',
-		websocket: {
-			reconnectTimeout: 1000,
-			url: 'wss://fullnode.devnet.sui.io:443',
-		},
 		rpc: {
 			headers: {
 				'x-custom-header': 'custom value',
@@ -168,8 +170,8 @@ const result = await client.executeTransactionBlock({
 
 #### Arguments
 
-- `transactionBlock`: either a Transaction or BCS serialized transaction data bytes as a Uint8Array
-  or as a base-64 encoded string.
+- `transactionBlock`: BCS serialized transaction data bytes as a `Uint8Array` or base64-encoded
+  string.
 - `signature`: A signature, or list of signatures committed to the intent message of the transaction
   data, as a base-64 encoded string.
 - `options`:
@@ -196,15 +198,14 @@ const result = await client.signAndExecuteTransaction({
 });
 
 // IMPORTANT: Always check the transaction status
-if (result.$kind === 'FailedTransaction') {
-	throw new Error(`Transaction failed: ${result.FailedTransaction.status.error?.message}`);
+if (result.effects?.status.status === 'failure') {
+	throw new Error(`Transaction failed: ${result.effects.status.error}`);
 }
 ```
 
 #### Arguments
 
-- `transaction`: BCS serialized transaction data bytes as a Uint8Array or as a base-64 encoded
-  string.
+- `transaction`: A `Transaction` or BCS serialized transaction data bytes as a `Uint8Array`.
 - `signer`: A `Keypair` instance to sign the transaction
 - `options`:
   - `showBalanceChanges`: Whether to show balance_changes. Default to be False
@@ -226,15 +227,18 @@ const tx = new Transaction();
 const result = await client.signAndExecuteTransaction({
 	transaction: tx,
 	signer: keypair,
+	options: {
+		showEffects: true,
+	},
 });
 
 // Check transaction status
-if (result.$kind === 'FailedTransaction') {
-	throw new Error(`Transaction failed: ${result.FailedTransaction.status.error?.message}`);
+if (result.effects?.status.status === 'failure') {
+	throw new Error(`Transaction failed: ${result.effects.status.error}`);
 }
 
 const transaction = await client.waitForTransaction({
-	digest: result.Transaction.digest,
+	digest: result.digest,
 	options: {
 		showEffects: true,
 	},
