@@ -133,11 +133,13 @@ strikes away from the reference remain fully supported.
   `{ underlying, expiryMs, strike, side }` via the on-chain registry (cached per client).
 - **`client.predict.read`** — `markets()` (tradeable summaries: id, expiry, tick size, mint-paused,
   reference price), `market(desc)` (state + live NAV), `price(m)` (anonymous both-sides pricing for
-  any strike), `quoteMint(owner, m, opts)` / `quoteRedeem(owner, m, opts)` (exact dry-run quotes:
-  real fees from the real code path — and they throw the same typed errors the real trade would, so
-  a quote doubles as preflight), `balance(owner)`, `plpBalance(owner)`, `pool()`, `positions(owner)`
-  (chain-only enumeration of open positions), `hasPosition(owner, marketId, orderId)`. All reads run
-  over the client's `simulateTransaction`; no indexer required.
+  any strike, one chain call per strike), `pricer(m)` (a **client-side board pricer** — one chain
+  read of the resolved pricer, then price every strike locally; see below),
+  `quoteMint(owner, m, opts)` / `quoteRedeem(owner, m, opts)` (exact dry-run quotes: real fees from
+  the real code path — and they throw the same typed errors the real trade would, so a quote doubles
+  as preflight), `balance(owner)`, `plpBalance(owner)`, `pool()`, `positions(owner)` (chain-only
+  enumeration of open positions), `hasPosition(owner, marketId, orderId)`. All reads run over the
+  client's `simulateTransaction`; no indexer required.
 - **`client.predict.decode`** — pure execution-result decoders (no network): `mint`, `redeem`,
   `claim`, `createManager`, `deposit`, `withdraw`, `plpRequest`, `plpCancel`, `builderCode`, each
   with a plural form for batched PTBs. Execute transactions with events included and pass the
@@ -148,6 +150,46 @@ strikes away from the reference remain fully supported.
   facade builds on.
 - **Typed errors** — invalid inputs throw `PredictInputError` before the chain sees them; failed
   simulations throw `PredictMoveError` with the decoded Move abort (`module`, `code`, `abortName`).
+
+## Client-side pricing (`read.pricer` + `pricing`)
+
+`read.price` runs the deployed SVI math on-chain and is authoritative, but it costs one chain call
+per strike. To paint a whole board — every strike, both sides, implied strikes — instantly, read the
+resolved pricer **once** and compute the rest locally:
+
+```ts
+const pricer = await client.predict.read.pricer({ underlying: 'BTC', expiryMs });
+pricer.up(105_000); // P(settle > $105,000), 0..1
+pricer.down(105_000); // = 1 − up
+pricer.range(104_000, 106_000); // P(strike in (104k, 106k])
+pricer.strikeAtProbability(0.25); // the strike whose UP price is 25¢
+pricer.forward; // the forward it prices against
+```
+
+`read.pricer` does a single simulate of the chain's `load_live_pricer` and decodes the returned
+`Pricer` — so the forward selection (Pyth-vs-Block-Scholes) and the SVI roll-down already happened
+on-chain; the client only evaluates the digital. It throws the same typed stale-oracle/expired
+`PredictMoveError` that `read.price` would when the chain itself cannot quote.
+
+The math is a faithful float port of the deployed `pricing::compute_nd2` (SVI with the skew
+correction, signed params, and the remaining-time roll-down). It agrees with the chain to ~1e-7 in
+probability (`tests/testnet/pricing-parity` bounds it live). The pure functions are exported under a
+`pricing` namespace for callers who already hold their own oracle inputs (e.g. a live feed) and want
+zero chain calls:
+
+```ts
+import { pricing } from '@mysten/deepbook-predict';
+
+// From a rolled SVI surface + resolved forward you already have:
+const inputs = { forward, svi: { a, b, rho, m, sigma } };
+pricing.upProbability(inputs, strike);
+pricing.strikeAtProbability(inputs, 0.25);
+pricing.boardPricer(inputs); // same shape as read.pricer's return
+
+// Or resolve raw feed data yourself (Strategy-2, matching the on-chain steps):
+const fwd = pricing.forward(pythSpot, bsSpot, bsForward); // Pyth re-anchored by the BS basis
+const rolled = pricing.rollDown(rawSvi, remainingMs, anchorTteMs); // decay a, b toward expiry
+```
 
 ## Networks & deployments
 

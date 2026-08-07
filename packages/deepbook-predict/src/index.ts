@@ -40,6 +40,14 @@ export {
 export { POS_INF_TICK, binaryRangeTicks } from './ticks.js';
 export type { Side } from './ticks.js';
 
+// === Client-side pricing === the deployed SVI digital math (skew-corrected, signed
+// params, roll-down) as a float port, namespaced to keep the top-level surface clean:
+// `pricing.upProbability`, `.boardPricer`, `.rollDown`, `.forward`, types `pricing.Svi` /
+// `pricing.PricerInputs` / `pricing.BoardPricer`. Turnkey path: `client.predict.read.pricer(
+// market)` reads the chain's resolved pricer once, then prices a whole board locally.
+export * as pricing from './pricing.js';
+export type { PricerSnapshot } from './reads/pricing.js';
+
 // === Errors ===
 export { PredictInputError, PredictMoveError, decodeMoveAbort } from './errors.js';
 export type { MoveAbortError } from './errors.js';
