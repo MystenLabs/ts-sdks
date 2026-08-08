@@ -108,7 +108,7 @@ function createMockV2Client(
 			getObject: mockGetObject,
 			getDynamicField: mockGetDynamicField,
 		},
-	} as unknown as SuiGrpcClient;
+	} as unknown as SealCompatibleClient;
 }
 
 describe('key-server tests', () => {
@@ -303,13 +303,7 @@ describe('key-server tests', () => {
 			});
 		});
 		const client = new SealClient({
-			suiClient: createMockV2Client(
-				id,
-				2,
-				2,
-				'Independent',
-				url,
-			) as unknown as SealCompatibleClient,
+			suiClient: createMockV2Client(id, 2, 2, 'Independent', url),
 			serverConfigs: [{ objectId: id, weight: 1 }],
 			verifyKeyServers: true,
 			fetch: customFetch,
@@ -335,13 +329,7 @@ describe('key-server tests', () => {
 			});
 		});
 		const client = new SealClient({
-			suiClient: createMockV2Client(
-				id,
-				2,
-				2,
-				'Independent',
-				url,
-			) as unknown as SealCompatibleClient,
+			suiClient: createMockV2Client(id, 2, 2, 'Independent', url),
 			serverConfigs: [{ objectId: id, weight: 1 }],
 			verifyKeyServers: false,
 			fetch: customFetch,
