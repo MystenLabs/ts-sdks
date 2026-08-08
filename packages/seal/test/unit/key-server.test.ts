@@ -299,7 +299,7 @@ describe('key-server tests', () => {
 			return Promise.resolve({
 				ok: false,
 				status: 503,
-				text: () => Promise.resolve('Internal server error, please try again later'),
+				text: () => Promise.resolve('Mock 503 response from customFetch'),
 			});
 		});
 		const client = new SealClient({
@@ -325,7 +325,7 @@ describe('key-server tests', () => {
 			return Promise.resolve({
 				ok: false,
 				status: 503,
-				text: () => Promise.resolve('Internal server error, please try again later'),
+				text: () => Promise.resolve('Mock 503 response from customFetch'),
 			});
 		});
 		const client = new SealClient({
