@@ -23,7 +23,7 @@ export interface SealOptions<Name = 'seal'> {
 	timeout?: number;
 	/**
 	 * Custom fetch implementation used for all key server requests, e.g. to send
-	 * cookies (`credentials: 'include'`) or attach per-request headers.
+	 * cookies (`credentials: 'include'`) or attach your own headers.
 	 * Defaults to the global `fetch`.
 	 */
 	fetch?: typeof fetch;
@@ -56,7 +56,7 @@ export interface SealClientOptions {
 	timeout?: number;
 	/**
 	 * Custom fetch implementation used for all key server requests, e.g. to send
-	 * cookies (`credentials: 'include'`) or attach per-request headers.
+	 * cookies (`credentials: 'include'`) or attach your own headers.
 	 * Defaults to the global `fetch`.
 	 */
 	fetch?: typeof fetch;
