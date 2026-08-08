@@ -59,6 +59,7 @@ export class SealClient {
 	#cachedPublicKeys = new Map<string, G2Element>();
 	#timeout: number;
 	#totalWeight: number;
+	#fetch?: typeof fetch;
 
 	constructor(options: SealClientOptions) {
 		this.#suiClient = options.suiClient;
@@ -84,6 +85,7 @@ export class SealClient {
 
 		this.#verifyKeyServers = options.verifyKeyServers ?? false;
 		this.#timeout = options.timeout ?? 10_000;
+		this.#fetch = options.fetch;
 	}
 
 	/**
@@ -299,7 +301,15 @@ export class SealClient {
 						return;
 					}
 					const config = this.#configs.get(server.objectId);
-					if (!(await verifyKeyServer(server, this.#timeout, config?.apiKeyName, config?.apiKey))) {
+					if (
+						!(await verifyKeyServer(
+							server,
+							this.#timeout,
+							config?.apiKeyName,
+							config?.apiKey,
+							this.#fetch,
+						))
+					) {
 						throw new InvalidKeyServerError(`Key server ${server.objectId} is not valid`);
 					}
 				}),
@@ -370,6 +380,7 @@ export class SealClient {
 					apiKeyName: config?.apiKeyName,
 					apiKey: config?.apiKey,
 					signal: controller.signal,
+					fetch: this.#fetch,
 				});
 				// Check validity of the keys and add them to the cache.
 				for (const { fullId, key } of allKeys) {
