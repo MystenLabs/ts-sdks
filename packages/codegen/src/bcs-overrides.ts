@@ -9,7 +9,6 @@ import {
 	canonicalTypeIdentity,
 	datatypeIdentity,
 	matcherArgumentIdentity,
-	MOVE_IDENTIFIER,
 	normalizeAddress,
 	parseMatcherType,
 	PRIMITIVES,
@@ -48,6 +47,12 @@ export interface FieldBcsOverride {
 	kind: 'field';
 	/** `type` and `fields` of the entry, for diagnostics. */
 	label: string;
+	/**
+	 * How narrowly the entry targets a field site: the number of `module`/`type`/`field` glob
+	 * segments that name something concrete rather than matching everything. When several entries
+	 * match one field the most specific wins, so a broad rule can be given a narrower exception.
+	 */
+	specificity: number;
 	/** Resolved address of the field pattern's scope. */
 	address: string;
 	modulePattern: RegExp;
@@ -69,6 +74,8 @@ export interface BcsOverridesContext {
 }
 
 const GLOB_SEGMENT = /^[A-Za-z0-9_*]+$/;
+/** Export names are TypeScript identifiers, which allow `$` unlike Move identifiers. */
+const JS_IDENTIFIER = /^[A-Za-z_$][\w$]*$/;
 
 function globToRegExp(glob: string): RegExp {
 	return new RegExp(`^${glob.replaceAll(/[.+?^${}()|[\]\\]/g, '\\$&').replaceAll('*', '.*')}$`);
@@ -93,7 +100,7 @@ function parseSource(
 				`default export name`,
 		);
 	}
-	if (!MOVE_IDENTIFIER.test(exportName)) {
+	if (!JS_IDENTIFIER.test(exportName)) {
 		throw new Error(
 			`bcsOverrides entry for "${label}": "${exportName}" is not a valid export name`,
 		);
@@ -160,7 +167,10 @@ function parseFieldsPattern(
 	fields: string,
 	label: string,
 	ctx: ParseContext,
-): Pick<FieldBcsOverride, 'address' | 'modulePattern' | 'datatypePattern' | 'fieldPattern'> {
+): Pick<
+	FieldBcsOverride,
+	'address' | 'modulePattern' | 'datatypePattern' | 'fieldPattern' | 'specificity'
+> {
 	const dot = fields.indexOf('.', fields.lastIndexOf('::'));
 	const typePath = dot === -1 ? fields : fields.slice(0, dot);
 	const fieldGlob = dot === -1 ? '' : fields.slice(dot + 1);
@@ -200,15 +210,23 @@ function parseFieldsPattern(
 		modulePattern: globToRegExp(moduleGlob),
 		datatypePattern: globToRegExp(typeGlob),
 		fieldPattern: globToRegExp(fieldGlob),
+		specificity: [moduleGlob, typeGlob, fieldGlob].filter((glob) => glob !== '*').length,
 	};
 }
+
+/** Field patterns for an entry with no `fields`: every field of every type in the entry's scope. */
+const MATCH_ALL = /^.*$/;
 
 /**
  * Parse and validate a package's `bcsOverrides` against the modules loaded in `registry`.
  *
  * Matchers use the `configArguments` package scoping, extended with named-address labels from the
- * summaries so entries can target dependency packages (`fixed_math::i64::I64`). Datatype entries
- * without `fields` must name an existing type; pure types require `fields`.
+ * summaries so entries can target dependency packages (`fixed_math::i64::I64`).
+ *
+ * An entry replaces a datatype's generated declaration when the type has one; for types that
+ * generated layouts serialize inline (primitives, `vector`, `String`, `Option`, `ID`/`UID`) it
+ * replaces field sites instead. `fields` is optional in both cases and narrows which field sites
+ * are replaced.
  */
 export function parseBcsOverrides(
 	overrides: BcsOverrides,
@@ -228,24 +246,36 @@ export function parseBcsOverrides(
 			allowAddressLabels: true,
 		};
 
-		if (override.fields !== undefined) {
-			const label = `${override.type} at ${override.fields}`;
+		// Types with no generated declaration to replace are always field-site overrides.
+		const isPure = PRIMITIVES.has(override.type) || override.type.startsWith('vector<');
+		const inlined =
+			!isPure &&
+			!override.type.includes('<') &&
+			(() => {
+				const parsed = parseMatcherType(override.type, ctx);
+				return isBcsInlinedDatatype(parsed.address, parsed.module, parsed.name);
+			})();
+
+		if (override.fields !== undefined || isPure || inlined) {
+			const label =
+				override.fields === undefined ? override.type : `${override.type} at ${override.fields}`;
 			const { filter, defaultExportName } = parseFieldTypeFilter(override.type, ctx);
 			entries.push({
 				kind: 'field',
 				label,
-				...parseFieldsPattern(override.fields, label, ctx),
+				...(override.fields === undefined
+					? {
+							address: ctx.scopeAddress,
+							modulePattern: MATCH_ALL,
+							datatypePattern: MATCH_ALL,
+							fieldPattern: MATCH_ALL,
+							specificity: 0,
+						}
+					: parseFieldsPattern(override.fields, label, ctx)),
 				fieldType: filter,
 				source: parseSource(override.source, context.configDir, defaultExportName, label),
 			});
 			continue;
-		}
-
-		if (PRIMITIVES.has(override.type) || override.type.startsWith('vector<')) {
-			throw new Error(
-				`bcsOverrides entry for "${override.type}": pure types can only be replaced at specific ` +
-					`field sites — add a "fields" pattern`,
-			);
 		}
 
 		if (override.type.includes('<')) {
@@ -256,18 +286,6 @@ export function parseBcsOverrides(
 		}
 
 		const parsed = parseMatcherType(override.type, ctx);
-
-		// Generated layouts inline these as `bcs.string()` / `bcs.option(...)` / `bcs.Address`
-		// instead of referencing the declaration, so replacing the declaration would silently do
-		// nothing.
-		if (isBcsInlinedDatatype(parsed.address, parsed.module, parsed.name)) {
-			throw new Error(
-				`bcsOverrides entry for "${override.type}": generated layouts serialize this type ` +
-					`inline rather than referencing its declaration, so it can only be replaced at ` +
-					`specific field sites — add a "fields" pattern`,
-			);
-		}
-
 		const summary = registry.getSummaryByResolvedAddress(parsed.address, parsed.module);
 		const datatype = summary?.structs[parsed.name] ?? summary?.enums[parsed.name];
 		if (!datatype) {
@@ -349,8 +367,12 @@ function fieldTypeMatches(filter: BcsFieldTypeFilter, site: BcsFieldSite): boole
 }
 
 /**
- * Find the field override matching a field site, or `null`. Two distinct entries matching the same
- * field is a hard generation-time error — refine the patterns instead of relying on order.
+ * Find the field override matching a field site, or `null`.
+ *
+ * The most specific matching entry wins, so a broad rule (`{ type: 'u64' }`) can be given a
+ * narrower exception (`{ type: 'u64', fields: 'order::Order.price' }`). Two entries that match
+ * equally specifically are a generation-time error — the winner would otherwise depend on
+ * declaration order.
  */
 export function findBcsFieldOverride(
 	entries: ParsedBcsOverride[],
@@ -383,15 +405,22 @@ export function findBcsFieldOverride(
 		matches.push(entry);
 	}
 
-	if (matches.length > 1) {
+	if (matches.length === 0) {
+		return null;
+	}
+
+	const best = Math.max(...matches.map((entry) => entry.specificity));
+	const winners = matches.filter((entry) => entry.specificity === best);
+
+	if (winners.length > 1 && !winners.every((entry) => entry.source === winners[0].source)) {
 		throw new Error(
 			`Field ${site.datatypeName}.${
 				site.variantName !== undefined ? `${site.variantName}.` : ''
 			}${site.fieldName} in module ${site.moduleName} is matched by multiple bcsOverrides ` +
-				`entries: ${matches.map((entry) => `"${entry.label}"`).join(', ')}. Refine the field ` +
-				`patterns so a single entry applies.`,
+				`entries with equal specificity: ${winners.map((entry) => `"${entry.label}"`).join(', ')}. ` +
+				`Refine the field patterns so a single entry applies.`,
 		);
 	}
 
-	return matches[0] ?? null;
+	return winners[0];
 }

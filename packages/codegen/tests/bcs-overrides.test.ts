@@ -78,13 +78,14 @@ describe('bcsOverrides config schema', () => {
 });
 
 describe('parseBcsOverrides', () => {
-	it('requires a fields pattern for pure types', () => {
-		expect(() => parse([{ type: 'u64', source: './bcs-fixtures/units.ts#ScaledU64' }])).toThrow(
-			/pure types can only be replaced at specific field sites/,
-		);
+	it('treats a pure type without a fields pattern as every field site', () => {
+		const { entries } = parse([{ type: 'u64', source: './bcs-fixtures/units.ts#ScaledU64' }]);
+		expect(entries).toHaveLength(1);
+		expect(entries[0].kind).toBe('field');
+		expect(entries[0]).toMatchObject({ specificity: 0 });
 		expect(() =>
 			parse([{ type: 'vector<u64>', source: './bcs-fixtures/units.ts#ScaledU64' }]),
-		).toThrow(/pure types can only be replaced at specific field sites/);
+		).not.toThrow();
 	});
 
 	it('rejects instantiated declaration replacements', async () => {
@@ -157,18 +158,17 @@ describe('parseBcsOverrides', () => {
 		).toThrow(/Known named-address labels: std, sui, testpkg/);
 	});
 
-	it('rejects declaration replacements of BCS-inlined types', async () => {
+	it('routes BCS-inlined types to field sites rather than a declaration', async () => {
 		const { moduleRegistry } = await createBuilders([]);
+		// These are serialized inline (`bcs.string()` / `bcs.option(...)` / `bcs.Address`) rather
+		// than by reference, so there is no declaration to replace.
 		for (const type of ['0x1::string::String', '0x1::option::Option', '0x2::object::ID']) {
-			expect(
-				() =>
-					parseBcsOverrides(
-						[{ type, source: './bcs-fixtures/units.ts#ScaledU64' }],
-						moduleRegistry,
-						TESTPKG_CONTEXT,
-					),
-				`${type} should be rejected as a declaration target`,
-			).toThrow(/can only be replaced at specific field sites/);
+			const { entries } = parseBcsOverrides(
+				[{ type, source: './bcs-fixtures/units.ts#ScaledU64' }],
+				moduleRegistry,
+				TESTPKG_CONTEXT,
+			);
+			expect(entries[0].kind, `${type} should become a field override`).toBe('field');
 		}
 	});
 
@@ -284,13 +284,38 @@ describe('rendering with bcsOverrides', () => {
 		expect(output).toMatch(/name:\s*bcs\.string\(\)/);
 	});
 
-	it('errors when multiple entries match one field', async () => {
+	it('lets a narrower entry override a broader one', async () => {
 		const { registry } = await createBuilders([
-			{ type: 'u64', fields: 'registry::Registry.count', source: './units.ts#A' },
-			{ type: 'u64', fields: 'registry::*.count', source: './units.ts#B' },
+			// A blanket rule for every u64, with one field carved out.
+			{ type: 'u64', source: './bcs-fixtures/units.ts#ScaledU64' },
+			{
+				type: 'u64',
+				fields: 'registry::Registry.count',
+				source: './bcs-fixtures/other.ts#ScaledU64',
+			},
+		]);
+		registry.includeTypes(['Registry', 'Result']);
+		const output = await render(registry);
+
+		// The narrower entry wins for `count`; the broad rule still covers `code`. Which local name
+		// each import gets depends on render order, so assert they differ rather than fixing names.
+		const count = output.match(/count:\s*(\w+)/)?.[1];
+		const code = output.match(/code:\s*(\w+)/)?.[1];
+		expect(count).toBeDefined();
+		expect(code).toBeDefined();
+		expect(count).not.toBe(code);
+		expect(output).toContain(`from '../../bcs-fixtures/units.js'`);
+		expect(output).toContain(`from '../../bcs-fixtures/other.js'`);
+	});
+
+	it('errors when two entries match one field equally specifically', async () => {
+		const { registry } = await createBuilders([
+			// Both have one wildcard segment, so neither is more specific.
+			{ type: 'u64', fields: 'registry::*.count', source: './units.ts#A' },
+			{ type: 'u64', fields: '*::Registry.count', source: './units.ts#B' },
 		]);
 		expect(() => registry.includeTypes(['Registry'])).toThrow(
-			/matched by multiple bcsOverrides entries/,
+			/matched by multiple bcsOverrides entries with equal specificity/,
 		);
 	});
 
@@ -407,14 +432,12 @@ describe('generateFromPackageSummary with bcsOverrides', () => {
 		return { warn, dir };
 	}
 
-	it('generates overridden modules and warns on unmatched entries', async () => {
+	it('generates overridden modules, ignoring entries that match nothing', async () => {
 		const { warn, dir } = await generate();
 
-		expect(warn).toHaveBeenCalledWith(
-			expect.stringContaining(
-				'bcsOverrides entries that matched no generated types or fields in @test/testpkg: "u64 at counter::Counter.does_not_exist"',
-			),
-		);
+		// An entry that matches nothing is harmless — a config may legitimately declare a rule for
+		// a type a given package has no fields of.
+		expect(warn).not.toHaveBeenCalledWith(expect.stringContaining('bcsOverrides'));
 
 		const registryModule = await readFile(join(dir, 'testpkg', 'registry.ts'), 'utf-8');
 		expect(registryModule).toContain('export const Status = Status_1');

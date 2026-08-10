@@ -477,10 +477,15 @@ const config: SuiCodegenConfig = {
 				// references it uses the custom type. Imports `I64` from the source module.
 				{ type: 'fixed_math::i64::I64', source: './src/bcs/i64.ts' },
 
-				// Replace a pure type at matching field sites only. `fields` accepts `*`
-				// wildcards in the module, type, and field segments.
+				// A type with no generated declaration is replaced at its field sites. Without
+				// `fields`, that means every field of that type in the package — here, parsing
+				// every `u64` to a bigint instead of a decimal string.
+				{ type: 'u64', source: './src/bcs/integers.ts#U64' },
+
+				// `fields` narrows which sites are replaced, and accepts `*` wildcards in the
+				// module, type, and field segments. The most specific entry matching a field
+				// wins, so this carves an exception out of the blanket rule above.
 				{ type: 'u64', fields: 'order::Order.*_price', source: './src/bcs/units.ts#Price9' },
-				{ type: 'u64', fields: 'pool_accounting::*.*', source: './src/bcs/units.ts#Usdc6' },
 				{ type: 'vector<u64>', fields: 'tree::Node.levels', source: './src/bcs/units.ts#Payouts' },
 			],
 		},
@@ -517,10 +522,16 @@ Entry rules:
   mirroring the generated call convention.
 - Types that generated layouts serialize inline rather than by reference — primitives, `vector`,
   `0x1::string::String`, `0x1::ascii::String`, `0x1::option::Option`, `0x2::object::ID`, and
-  `0x2::object::UID` — can only be replaced at field sites, so they require a `fields` pattern.
-- `fields` is written `module::TypeName.field` and only replaces fields whose declared Move type
-  matches `type` exactly (an uninstantiated generic datatype matches every instantiation). Enum
-  variant fields match on both `field` and `variant.field` (for example, `Result.Err.code`).
+  `0x2::object::UID` — have no declaration to replace, so they are replaced at their field sites.
+- `fields` is optional and narrows which field sites are replaced. Omit it to replace every
+  matching field in the package. It is written `module::TypeName.field`, and only fields whose
+  declared Move type matches `type` exactly are replaced (an uninstantiated generic datatype
+  matches every instantiation). Enum variant fields match on both `field` and `variant.field` (for
+  example, `Result.Err.code`). Supplying `fields` on a datatype that has a generated declaration
+  replaces those field sites instead of the declaration.
+- When several entries match one field, the most specific wins — the one naming more of the
+  module, type, and field segments concretely — so a broad rule can be given narrower exceptions.
+  Two entries matching equally specifically fail generation.
 - `source` is an import specifier, optionally suffixed with `#ExportName`. Relative specifiers
   resolve against the config file's directory and are rewritten into relative imports from each
   generated file, with their extension replaced by the configured `importExtension` (so a
@@ -530,8 +541,8 @@ Entry rules:
 - Replacement modules must be self-contained: a module whose export replaces a declaration can't
   import generated modules that reference the replaced type, because that would create a circular
   import. Declare the raw layout inline when building a transform.
-- Two entries matching the same field fail generation; entries that never match anything produce a
-  warning.
+- An entry that matches nothing is not an error. A shared set of overrides can be applied to
+  several packages even when only some of them have fields of a given type.
 
 Overrides only affect generated BCS layouts (parsing and serializing structs, enums, and events,
 including `MoveStruct.get()`). Generated transaction-building functions serialize their arguments

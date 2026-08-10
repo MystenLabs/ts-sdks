@@ -76,8 +76,6 @@ export class MoveModuleBuilder extends FileBuilder {
 	#packageResolverRequiredKeys?: Set<string>;
 	#packageStringlessConfigKeys?: Set<string>;
 	#bcsOverrides: ParsedBcsOverride[] = [];
-	/** Labels of `bcsOverrides` entries that matched an included type or field. */
-	readonly usedBcsOverrides = new Set<string>();
 	/** Config keys that matched at least one parameter of a rendered function. */
 	readonly usedConfigKeys = new Set<string>();
 	/** Config keys forced to resolver form (matched multiple parameters of one signature). */
@@ -226,9 +224,6 @@ export class MoveModuleBuilder extends FileBuilder {
 			this.summary.id.name,
 			name,
 		);
-		if (override) {
-			this.usedBcsOverrides.add(override.label);
-		}
 		return override;
 	}
 
@@ -247,9 +242,6 @@ export class MoveModuleBuilder extends FileBuilder {
 			fieldType,
 			resolveAddress: (address) => this.#resolveAddress(address),
 		});
-		if (override) {
-			this.usedBcsOverrides.add(override.label);
-		}
 		return override;
 	}
 
@@ -971,12 +963,15 @@ export class MoveModuleBuilder extends FileBuilder {
 				if (boundTypes.size > 1 || boundTypes.has(null) || resolverRequiredKeys.has(match.key)) {
 					resolverKeys.add(match.key);
 				}
-				const valueType = stringlessConfigKeys.has(match.key)
-					? this.#getImportName('TransactionObjectArgument')
-					: `string | ${this.#getImportName('TransactionObjectArgument')}`;
+				// Resolved lazily: naming an import adds it, and the resolver return type is only
+				// emitted for resolver keys.
+				const valueType = () =>
+					stringlessConfigKeys.has(match.key)
+						? this.#getImportName('TransactionObjectArgument')
+						: `string | ${this.#getImportName('TransactionObjectArgument')}`;
 				configSliceFields.push(
 					resolverKeys.has(match.key)
-						? `${match.key}: (ctx: ${this.#getImportName('ConfigResolverContext')}) => ${valueType}`
+						? `${match.key}: (ctx: ${this.#getImportName('ConfigResolverContext')}) => ${valueType()}`
 						: stringlessConfigKeys.has(match.key)
 							? `${match.key}: ${this.#getImportName('ConfigObjectValue')}`
 							: `${match.key}: ${this.#getImportName('ConfigValue')}`,

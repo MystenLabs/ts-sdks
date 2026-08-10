@@ -325,18 +325,6 @@ export async function generateFromPackageSummary({
 
 	// An override that matched nothing is a misconfiguration (typo in the pattern, or the type was
 	// filtered out of generation).
-	const usedBcsOverrides = new Set(modules.flatMap((mod) => [...mod.builder.usedBcsOverrides]));
-	const unusedBcsOverrides = bcsOverrideEntries.filter(
-		(entry) => !usedBcsOverrides.has(entry.label),
-	);
-	if (unusedBcsOverrides.length > 0) {
-		console.warn(
-			`bcsOverrides entries that matched no generated types or fields in ${pkg.package}: ${[
-				...new Set(unusedBcsOverrides.map((entry) => `"${entry.label}"`)),
-			].join(', ')}`,
-		);
-	}
-
 	if (configArgumentEntries.length > 0) {
 		await generateConfigInterface({
 			packageOutputDir,

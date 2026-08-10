@@ -117,18 +117,23 @@ export const bcsOverrideSchema = z.strictObject({
 	 * `module::TypeName`, scoped like `configArguments` matchers (bare form for the declaring
 	 * package, `@pkg` identifiers for other run packages, explicit addresses) — plus named-address
 	 * labels from the package's summaries (e.g. `fixed_math::i64::I64`) for dependency packages
-	 * that are not codegen-run entries. Without `fields`, the datatype's generated declaration is
-	 * replaced, so every generated layout referencing it uses the custom type. Pure types (`u64`,
-	 * `vector<u64>`, `0x1::string::String`, ...) have no generated declaration and require
-	 * `fields`.
+	 * that are not codegen-run entries.
+	 *
+	 * A datatype with a generated declaration has that declaration replaced, so every layout
+	 * referencing it uses the custom type. Types that generated layouts serialize inline instead
+	 * of by reference — primitives, `vector`, `0x1::string::String`, `0x1::option::Option`,
+	 * `0x2::object::ID`/`UID` — are replaced at their field sites.
 	 */
 	type: z.string(),
 	/**
-	 * Restrict the replacement to matching field sites, written
-	 * `[scope::]module::TypeName.field` with `*` wildcards allowed in the module, type, and field
-	 * segments (e.g. `order::Order.*_price`, `order::*.*`). Enum variant fields match on both
-	 * `field` and `variant.field`. Only fields whose declared Move type matches `type` are
-	 * replaced.
+	 * Narrows which field sites are replaced, written `[scope::]module::TypeName.field` with `*`
+	 * wildcards allowed in the module, type, and field segments (e.g. `order::Order.*_price`,
+	 * `order::*.*`). Enum variant fields match on both `field` and `variant.field`. Only fields
+	 * whose declared Move type matches `type` are replaced.
+	 *
+	 * Omit it to replace every matching field site in the declaring package. On a datatype that
+	 * has a generated declaration, supplying `fields` replaces those field sites instead of the
+	 * declaration.
 	 */
 	fields: z.string().optional(),
 	/**
