@@ -52,6 +52,16 @@ export const MarketCreated = new MoveStruct({
 		/** Window before expiry within which this market admits no leverage above 1x. */
 		no_leverage_window_ms: bcs.u64(),
 		trading_loss_rebate_rate: bcs.u64(),
+		/**
+		 * Share of the DEEP-stake benefit curve this market pays out, snapshotted at
+		 * creation. `0` means staking earns nothing here, whatever the template later
+		 * becomes, so an indexer must read this per market rather than protocol-wide.
+		 */
+		max_benefit_ratio: bcs.u64(),
+		/** Active stake at this market's benefit-curve kink (half benefits), raw DEEP. */
+		lower_benefit_power: bcs.u64(),
+		/** Active stake for this market's full benefits, raw DEEP. */
+		upper_benefit_power: bcs.u64(),
 	},
 });
 export const CadenceConfigUpdated = new MoveStruct({

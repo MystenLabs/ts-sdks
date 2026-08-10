@@ -166,17 +166,17 @@ export function _new(options: NewOptions) {
 }
 export interface NewWithReferrerArguments {
 	registry: RawTransactionArgument<string>;
-	referrer: TransactionArgument;
+	referrer: RawTransactionArgument<string>;
 }
 export interface NewWithReferrerOptions {
 	package?: string;
 	arguments:
 		| NewWithReferrerArguments
-		| [registry: RawTransactionArgument<string>, referrer: TransactionArgument];
+		| [registry: RawTransactionArgument<string>, referrer: RawTransactionArgument<string>];
 }
 /**
  * Creates the sender's canonical account and permanently records the supplied
- * account as its referrer.
+ * wrapper's account as its referrer.
  */
 export function newWithReferrer(options: NewWithReferrerOptions) {
 	const packageAddress = options.package ?? '@local-pkg/account';

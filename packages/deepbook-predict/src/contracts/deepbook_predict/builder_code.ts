@@ -90,20 +90,17 @@ export function index(options: IndexOptions) {
 		});
 }
 export interface ClaimableBuilderFeesArguments {
-	root: RawTransactionArgument<string>;
 	code: RawTransactionArgument<string>;
 }
 export interface ClaimableBuilderFeesOptions {
 	package?: string;
-	arguments:
-		| ClaimableBuilderFeesArguments
-		| [root: RawTransactionArgument<string>, code: RawTransactionArgument<string>];
+	arguments: ClaimableBuilderFeesArguments | [code: RawTransactionArgument<string>];
 }
 /** Return visible DUSDC builder fees for SDK and devInspect reads. */
 export function claimableBuilderFees(options: ClaimableBuilderFeesOptions) {
 	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null] satisfies (string | null)[];
-	const parameterNames = ['root', 'code'];
+	const argumentsTypes = ['0x2::accumulator::AccumulatorRoot', null] satisfies (string | null)[];
+	const parameterNames = ['code'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -114,13 +111,10 @@ export function claimableBuilderFees(options: ClaimableBuilderFeesOptions) {
 }
 export interface ClaimAllBuilderFeesArguments {
 	code: RawTransactionArgument<string>;
-	root: RawTransactionArgument<string>;
 }
 export interface ClaimAllBuilderFeesOptions {
 	package?: string;
-	arguments:
-		| ClaimAllBuilderFeesArguments
-		| [code: RawTransactionArgument<string>, root: RawTransactionArgument<string>];
+	arguments: ClaimAllBuilderFeesArguments | [code: RawTransactionArgument<string>];
 }
 /**
  * Claims all settled DUSDC builder fees for the immutable owner; an empty
@@ -128,8 +122,8 @@ export interface ClaimAllBuilderFeesOptions {
  */
 export function claimAllBuilderFees(options: ClaimAllBuilderFeesOptions) {
 	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null] satisfies (string | null)[];
-	const parameterNames = ['code', 'root'];
+	const argumentsTypes = [null, '0x2::accumulator::AccumulatorRoot'] satisfies (string | null)[];
+	const parameterNames = ['code'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

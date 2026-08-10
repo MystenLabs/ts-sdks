@@ -107,6 +107,8 @@ export const BlockScholesBatchIngested = new MoveStruct({
 	name: `${$moduleName}::BlockScholesBatchIngested`,
 	fields: {
 		propbook_oracle_id: bcs.Address,
+		/** `0` = spot, `1` = forward, and `2` = SVI. */
+		series_kind: bcs.u8(),
 		published_at_ms: bcs.u64(),
 		/** Verified observations carried by the batch. */
 		update_count: bcs.u64(),

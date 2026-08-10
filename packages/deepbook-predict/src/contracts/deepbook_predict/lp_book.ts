@@ -78,6 +78,22 @@ export const FlushMark = new MoveStruct({
 		executable: bcs.bool(),
 	},
 });
+export const FeeRates = new MoveStruct({
+	name: `${$moduleName}::FeeRates`,
+	fields: {
+		/** Supply-leg rate. Ships at zero: a deposit dilutes the pool's risk per dollar. */
+		supply: bcs.u64(),
+		/** Withdraw-leg rate, frozen with it so one flush charges one pair. */
+		withdraw: bcs.u64(),
+	},
+});
+export const FillQuote = new MoveStruct({
+	name: `${$moduleName}::FillQuote`,
+	fields: {
+		output: bcs.u64(),
+		fee: bcs.u64(),
+	},
+});
 export const DrainSummary = new MoveStruct({
 	name: `${$moduleName}::DrainSummary`,
 	fields: {

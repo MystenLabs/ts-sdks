@@ -20,6 +20,7 @@ import * as expiry_cash from './expiry_cash.js';
 import * as balance from './deps/sui/balance.js';
 import * as strike_exposure from './strike_exposure.js';
 import * as ewma from './ewma.js';
+import * as stake_config from './stake_config.js';
 const $moduleName = '@local-pkg/deepbook_predict::expiry_market';
 export const ExpiryMarket = new MoveStruct({
 	name: `${$moduleName}::ExpiryMarket`,
@@ -42,6 +43,15 @@ export const ExpiryMarket = new MoveStruct({
 		 * through the registry (ungated kill switch).
 		 */
 		mint_paused: bcs.bool(),
+		/**
+		 * DEEP-stake benefit policy for this market, snapshotted at creation from the
+		 * protocol template and immutable thereafter. Frozen because both benefits resolve
+		 * after the trade that earned them — the fee discount at mint, the loss rebate at
+		 * a post-settlement claim — so reading live policy would let an admin reprice
+		 * contracts already written, and shrink or erase a rebate already earned (the
+		 * claim is one-shot).
+		 */
+		stake_config: stake_config.StakeConfig,
 	},
 });
 export const MintQuote = new MoveStruct({
@@ -724,7 +734,6 @@ export interface QuoteMintForAccountArguments {
 	minQuantity: RawTransactionArgument<number | bigint>;
 	exactQuantity: RawTransactionArgument<boolean>;
 	leverage: RawTransactionArgument<number | bigint>;
-	root: RawTransactionArgument<string>;
 }
 export interface QuoteMintForAccountOptions {
 	package?: string;
@@ -741,7 +750,6 @@ export interface QuoteMintForAccountOptions {
 				minQuantity: RawTransactionArgument<number | bigint>,
 				exactQuantity: RawTransactionArgument<boolean>,
 				leverage: RawTransactionArgument<number | bigint>,
-				root: RawTransactionArgument<string>,
 		  ];
 }
 /**
@@ -765,7 +773,7 @@ export function quoteMintForAccount(options: QuoteMintForAccountOptions) {
 		'u64',
 		'bool',
 		'u64',
-		null,
+		'0x2::accumulator::AccumulatorRoot',
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
 	const parameterNames = [
@@ -779,7 +787,6 @@ export function quoteMintForAccount(options: QuoteMintForAccountOptions) {
 		'minQuantity',
 		'exactQuantity',
 		'leverage',
-		'root',
 	];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -967,7 +974,6 @@ export interface MintExactQuantityArguments {
 	leverage: RawTransactionArgument<number | bigint>;
 	maxCost: RawTransactionArgument<number | bigint>;
 	maxProbability: RawTransactionArgument<number | bigint>;
-	root: RawTransactionArgument<string>;
 }
 export interface MintExactQuantityOptions {
 	package?: string;
@@ -985,7 +991,6 @@ export interface MintExactQuantityOptions {
 				leverage: RawTransactionArgument<number | bigint>,
 				maxCost: RawTransactionArgument<number | bigint>,
 				maxProbability: RawTransactionArgument<number | bigint>,
-				root: RawTransactionArgument<string>,
 		  ];
 }
 /**
@@ -1020,7 +1025,7 @@ export function mintExactQuantity(options: MintExactQuantityOptions) {
 		'u64',
 		'u64',
 		'u64',
-		null,
+		'0x2::accumulator::AccumulatorRoot',
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
 	const parameterNames = [
@@ -1035,7 +1040,6 @@ export function mintExactQuantity(options: MintExactQuantityOptions) {
 		'leverage',
 		'maxCost',
 		'maxProbability',
-		'root',
 	];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -1057,7 +1061,6 @@ export interface MintExactAmountArguments {
 	minQuantity: RawTransactionArgument<number | bigint>;
 	leverage: RawTransactionArgument<number | bigint>;
 	maxCost: RawTransactionArgument<number | bigint>;
-	root: RawTransactionArgument<string>;
 }
 export interface MintExactAmountOptions {
 	package?: string;
@@ -1075,7 +1078,6 @@ export interface MintExactAmountOptions {
 				minQuantity: RawTransactionArgument<number | bigint>,
 				leverage: RawTransactionArgument<number | bigint>,
 				maxCost: RawTransactionArgument<number | bigint>,
-				root: RawTransactionArgument<string>,
 		  ];
 }
 /**
@@ -1107,7 +1109,7 @@ export function mintExactAmount(options: MintExactAmountOptions) {
 		'u64',
 		'u64',
 		'u64',
-		null,
+		'0x2::accumulator::AccumulatorRoot',
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
 	const parameterNames = [
@@ -1122,7 +1124,6 @@ export function mintExactAmount(options: MintExactAmountOptions) {
 		'minQuantity',
 		'leverage',
 		'maxCost',
-		'root',
 	];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -1142,7 +1143,6 @@ export interface RedeemLiveArguments {
 	closeQuantity: RawTransactionArgument<number | bigint>;
 	minProbability: RawTransactionArgument<number | bigint>;
 	minProceeds: RawTransactionArgument<number | bigint>;
-	root: RawTransactionArgument<string>;
 }
 export interface RedeemLiveOptions {
 	package?: string;
@@ -1158,7 +1158,6 @@ export interface RedeemLiveOptions {
 				closeQuantity: RawTransactionArgument<number | bigint>,
 				minProbability: RawTransactionArgument<number | bigint>,
 				minProceeds: RawTransactionArgument<number | bigint>,
-				root: RawTransactionArgument<string>,
 		  ];
 }
 /**
@@ -1191,7 +1190,7 @@ export function redeemLive(options: RedeemLiveOptions) {
 		'u64',
 		'u64',
 		'u64',
-		null,
+		'0x2::accumulator::AccumulatorRoot',
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
 	const parameterNames = [
@@ -1204,7 +1203,6 @@ export function redeemLive(options: RedeemLiveOptions) {
 		'closeQuantity',
 		'minProbability',
 		'minProceeds',
-		'root',
 	];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -1221,7 +1219,6 @@ export interface RedeemSettledArguments {
 	config: RawTransactionArgument<string>;
 	orderId: RawTransactionArgument<number | bigint>;
 	closeQuantity: RawTransactionArgument<number | bigint>;
-	root: RawTransactionArgument<string>;
 }
 export interface RedeemSettledOptions {
 	package?: string;
@@ -1234,7 +1231,6 @@ export interface RedeemSettledOptions {
 				config: RawTransactionArgument<string>,
 				orderId: RawTransactionArgument<number | bigint>,
 				closeQuantity: RawTransactionArgument<number | bigint>,
-				root: RawTransactionArgument<string>,
 		  ];
 }
 /**
@@ -1254,18 +1250,10 @@ export function redeemSettled(options: RedeemSettledOptions) {
 		null,
 		'u256',
 		'u64',
-		null,
+		'0x2::accumulator::AccumulatorRoot',
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
-	const parameterNames = [
-		'market',
-		'wrapper',
-		'auth',
-		'config',
-		'orderId',
-		'closeQuantity',
-		'root',
-	];
+	const parameterNames = ['market', 'wrapper', 'auth', 'config', 'orderId', 'closeQuantity'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -1281,7 +1269,6 @@ export interface RedeemSettledPermissionlessArguments {
 	config: RawTransactionArgument<string>;
 	orderId: RawTransactionArgument<number | bigint>;
 	closeQuantity: RawTransactionArgument<number | bigint>;
-	root: RawTransactionArgument<string>;
 }
 export interface RedeemSettledPermissionlessOptions {
 	package?: string;
@@ -1294,7 +1281,6 @@ export interface RedeemSettledPermissionlessOptions {
 				config: RawTransactionArgument<string>,
 				orderId: RawTransactionArgument<number | bigint>,
 				closeQuantity: RawTransactionArgument<number | bigint>,
-				root: RawTransactionArgument<string>,
 		  ];
 }
 /**
@@ -1313,7 +1299,7 @@ export function redeemSettledPermissionless(options: RedeemSettledPermissionless
 		null,
 		'u256',
 		'u64',
-		null,
+		'0x2::accumulator::AccumulatorRoot',
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
 	const parameterNames = [
@@ -1323,7 +1309,6 @@ export function redeemSettledPermissionless(options: RedeemSettledPermissionless
 		'config',
 		'orderId',
 		'closeQuantity',
-		'root',
 	];
 	return (tx: Transaction) =>
 		tx.moveCall({

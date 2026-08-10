@@ -141,10 +141,13 @@ export const SupplyFilled = new MoveStruct({
 		index: bcs.u64(),
 		/**
 		 * DUSDC actually taken into the pool, which is less than the request's escrow when
-		 * the supply cap left only part of it room.
+		 * the supply cap left only part of it room. Shares were priced on
+		 * `dusdc_amount - fee_dusdc`.
 		 */
 		dusdc_amount: bcs.u64(),
 		shares_minted: bcs.u64(),
+		/** Supply fee withheld from `dusdc_amount` and retained by the pool. */
+		fee_dusdc: bcs.u64(),
 		/**
 		 * Escrow still queued at the head after a partial fill; `0` on a full fill, in
 		 * which case the request is gone. `dusdc_amount + dusdc_remaining` is the amount
@@ -162,7 +165,13 @@ export const WithdrawFilled = new MoveStruct({
 		recipient: bcs.Address,
 		index: bcs.u64(),
 		shares_burned: bcs.u64(),
+		/**
+		 * Net DUSDC delivered to `recipient`. The gross marked value of `shares_burned`
+		 * was `dusdc_amount + fee_dusdc`.
+		 */
 		dusdc_amount: bcs.u64(),
+		/** Withdraw fee withheld from the payout and retained by the pool. */
+		fee_dusdc: bcs.u64(),
 		/**
 		 * Escrowed PLP still queued at the head after a partial fill; `0` on a full fill,
 		 * in which case the request is gone. `shares_burned + shares_remaining` is the
@@ -184,6 +193,13 @@ export const FlushExecuted = new MoveStruct({
 		pool_value: bcs.u64(),
 		/** PLP supply in the frozen pre-drain mark used to price every fill. */
 		total_supply: bcs.u64(),
+		/**
+		 * Supply-leg fee rate in FLOAT_SCALING, frozen with the mark and charged on every
+		 * supply fill in this flush.
+		 */
+		supply_fee_rate: bcs.u64(),
+		/** Withdraw-leg fee rate in FLOAT_SCALING, frozen alongside it. */
+		withdraw_fee_rate: bcs.u64(),
 		/**
 		 * Sum of the marked NAV contributed by each active market; settled markets add
 		 * zero.

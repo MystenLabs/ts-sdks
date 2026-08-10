@@ -1,5 +1,5 @@
 import type { Transaction, TransactionResult } from '@mysten/sui/transactions';
-import { ACCUMULATOR_ROOT_ID, type PredictConfig } from '../config/index.js';
+import type { PredictConfig } from '../config/index.js';
 import { U64_MAX } from '../units.js';
 import * as expiryMarket from '../contracts/deepbook_predict/expiry_market.js';
 import { generateAuth } from './common.js';
@@ -73,7 +73,6 @@ export function mintExactQuantity(
 					leverage: args.leverageRaw,
 					maxCost: args.maxCostRaw ?? U64_MAX,
 					maxProbability: args.maxProbabilityRaw ?? U64_MAX,
-					root: ACCUMULATOR_ROOT_ID,
 				},
 			}),
 		);
@@ -115,7 +114,6 @@ export function mintExactAmount(
 					minQuantity: args.minQuantityRaw,
 					leverage: args.leverageRaw,
 					maxCost: args.maxCostRaw ?? U64_MAX,
-					root: ACCUMULATOR_ROOT_ID,
 				},
 			}),
 		);
@@ -154,7 +152,6 @@ export function redeemLive(
 					closeQuantity: args.closeQuantityRaw,
 					minProbability: args.minProbabilityRaw ?? 0n,
 					minProceeds: args.minProceedsRaw ?? 0n,
-					root: ACCUMULATOR_ROOT_ID,
 				},
 			}),
 		);
@@ -187,7 +184,6 @@ export function redeemSettled(
 					config: cfg.objects.protocolConfig,
 					orderId: args.orderId,
 					closeQuantity: args.closeQuantityRaw,
-					root: ACCUMULATOR_ROOT_ID,
 				},
 			}),
 		);

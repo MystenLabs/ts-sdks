@@ -30,6 +30,20 @@ export const ProtocolConfig = new MoveStruct({
 		 * FLOAT_SCALING. The complement accrues to LPs.
 		 */
 		protocol_reserve_profit_share: bcs.u64(),
+		/**
+		 * Fee charged on an executed PLP supply fill, in FLOAT_SCALING, deducted from the
+		 * DUSDC taken in before shares are priced. Ships at zero — a deposit dilutes the
+		 * pool's risk per dollar rather than concentrating it, so it is not taxed; the
+		 * knob exists to keep that reversible.
+		 */
+		plp_supply_fee_rate: bcs.u64(),
+		/**
+		 * Fee charged on an executed PLP withdraw fill, in FLOAT_SCALING, withheld from
+		 * the marked payout. Retained by the pool, so it accrues to the holders who stay.
+		 * Both rates are read once per flush into the frozen mark, so every fill in one
+		 * flush is charged the same pair.
+		 */
+		plp_withdraw_fee_rate: bcs.u64(),
 		/** Total liquidation candidates checked before mint and redeem flows. */
 		trade_liquidation_budget: bcs.u64(),
 		/**
@@ -367,16 +381,49 @@ export function setTemplateBackingBufferLambda(options: SetTemplateBackingBuffer
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export interface SetBenefitPowersArguments {
+export interface SetTemplateMaxBenefitRatioArguments {
+	config: RawTransactionArgument<string>;
+	AdminCap: RawTransactionArgument<string>;
+	value: RawTransactionArgument<number | bigint>;
+}
+export interface SetTemplateMaxBenefitRatioOptions {
+	package?: string;
+	arguments:
+		| SetTemplateMaxBenefitRatioArguments
+		| [
+				config: RawTransactionArgument<string>,
+				AdminCap: RawTransactionArgument<string>,
+				value: RawTransactionArgument<number | bigint>,
+		  ];
+}
+/**
+ * Set how much of the DEEP-stake benefit programme newly created expiry markets
+ * run, from `0` (nothing) to `float_scaling` (full strength). Ships at 0, so
+ * markets charge undiscounted fees and pay no stake-scaled loss rebate until this
+ * is raised. Existing markets keep the value they snapshotted.
+ */
+export function setTemplateMaxBenefitRatio(options: SetTemplateMaxBenefitRatioOptions) {
+	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
+	const parameterNames = ['config', 'AdminCap', 'value'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'protocol_config',
+			function: 'set_template_max_benefit_ratio',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface SetTemplateBenefitPowersArguments {
 	config: RawTransactionArgument<string>;
 	AdminCap: RawTransactionArgument<string>;
 	lower: RawTransactionArgument<number | bigint>;
 	upper: RawTransactionArgument<number | bigint>;
 }
-export interface SetBenefitPowersOptions {
+export interface SetTemplateBenefitPowersOptions {
 	package?: string;
 	arguments:
-		| SetBenefitPowersArguments
+		| SetTemplateBenefitPowersArguments
 		| [
 				config: RawTransactionArgument<string>,
 				AdminCap: RawTransactionArgument<string>,
@@ -385,10 +432,11 @@ export interface SetBenefitPowersOptions {
 		  ];
 }
 /**
- * Set the staking benefit thresholds: `lower` (half of max benefits) and `upper`
- * (full benefits). Validated as a pair (`upper > 2 * lower`).
+ * Set the staking benefit thresholds snapshotted by newly created expiry markets:
+ * `lower` (half of max benefits) and `upper` (full benefits). Validated as a pair
+ * (`upper > 2 * lower`). Existing markets keep the curve they snapshotted.
  */
-export function setBenefitPowers(options: SetBenefitPowersOptions) {
+export function setTemplateBenefitPowers(options: SetTemplateBenefitPowersOptions) {
 	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, null, 'u64', 'u64'] satisfies (string | null)[];
 	const parameterNames = ['config', 'AdminCap', 'lower', 'upper'];
@@ -396,7 +444,7 @@ export function setBenefitPowers(options: SetBenefitPowersOptions) {
 		tx.moveCall({
 			package: packageAddress,
 			module: 'protocol_config',
-			function: 'set_benefit_powers',
+			function: 'set_template_benefit_powers',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
@@ -881,6 +929,69 @@ export function setProtocolReserveProfitShare(options: SetProtocolReserveProfitS
 			package: packageAddress,
 			module: 'protocol_config',
 			function: 'set_protocol_reserve_profit_share',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface SetPlpSupplyFeeRateArguments {
+	config: RawTransactionArgument<string>;
+	AdminCap: RawTransactionArgument<string>;
+	rate: RawTransactionArgument<number | bigint>;
+}
+export interface SetPlpSupplyFeeRateOptions {
+	package?: string;
+	arguments:
+		| SetPlpSupplyFeeRateArguments
+		| [
+				config: RawTransactionArgument<string>,
+				AdminCap: RawTransactionArgument<string>,
+				rate: RawTransactionArgument<number | bigint>,
+		  ];
+}
+/**
+ * Set the fee charged on executed PLP supply fills. Admin-gated and validated
+ * against its config-constants envelope. Locked during valuation so the rate a
+ * flush froze into its mark cannot change midway through that flush.
+ */
+export function setPlpSupplyFeeRate(options: SetPlpSupplyFeeRateOptions) {
+	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
+	const parameterNames = ['config', 'AdminCap', 'rate'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'protocol_config',
+			function: 'set_plp_supply_fee_rate',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface SetPlpWithdrawFeeRateArguments {
+	config: RawTransactionArgument<string>;
+	AdminCap: RawTransactionArgument<string>;
+	rate: RawTransactionArgument<number | bigint>;
+}
+export interface SetPlpWithdrawFeeRateOptions {
+	package?: string;
+	arguments:
+		| SetPlpWithdrawFeeRateArguments
+		| [
+				config: RawTransactionArgument<string>,
+				AdminCap: RawTransactionArgument<string>,
+				rate: RawTransactionArgument<number | bigint>,
+		  ];
+}
+/**
+ * Set the fee charged on executed PLP withdraw fills. Same gating as the supply
+ * leg; the two are independent so the exit charge can move without taxing entry.
+ */
+export function setPlpWithdrawFeeRate(options: SetPlpWithdrawFeeRateOptions) {
+	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
+	const parameterNames = ['config', 'AdminCap', 'rate'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'protocol_config',
+			function: 'set_plp_withdraw_fee_rate',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }

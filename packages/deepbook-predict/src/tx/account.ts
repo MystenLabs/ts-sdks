@@ -3,7 +3,7 @@ import type {
 	TransactionObjectArgument,
 	TransactionResult,
 } from '@mysten/sui/transactions';
-import { ACCUMULATOR_ROOT_ID, type PredictConfig } from '../config/index.js';
+import type { PredictConfig } from '../config/index.js';
 import * as account from '../contracts/account/account.js';
 import * as accountRegistry from '../contracts/account/account_registry.js';
 import { generateAuth } from './common.js';
@@ -51,7 +51,7 @@ export function createAccountAndDeposit(
 		tx.add(
 			account.depositFunds({
 				package: cfg.packages.account,
-				arguments: { wrapper, auth, coin: args.coin, root: ACCUMULATOR_ROOT_ID },
+				arguments: { wrapper, auth, coin: args.coin },
 				typeArguments: [args.coinType ?? cfg.quoteCoinType],
 			}),
 		);
@@ -81,7 +81,6 @@ export function depositFunds(
 					wrapper: args.wrapperId,
 					auth,
 					coin: args.coin,
-					root: ACCUMULATOR_ROOT_ID,
 				},
 				typeArguments: [args.coinType ?? cfg.quoteCoinType],
 			}),
@@ -106,7 +105,6 @@ export function withdrawFunds(
 					wrapper: args.wrapperId,
 					auth,
 					amount: args.amountRaw,
-					root: ACCUMULATOR_ROOT_ID,
 				},
 				typeArguments: [args.coinType ?? cfg.quoteCoinType],
 			}),

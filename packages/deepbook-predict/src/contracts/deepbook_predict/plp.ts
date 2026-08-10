@@ -493,7 +493,6 @@ export interface StakeDeepArguments {
 	auth: TransactionArgument;
 	config: RawTransactionArgument<string>;
 	amount: RawTransactionArgument<number | bigint>;
-	root: RawTransactionArgument<string>;
 }
 export interface StakeDeepOptions {
 	package?: string;
@@ -505,7 +504,6 @@ export interface StakeDeepOptions {
 				auth: TransactionArgument,
 				config: RawTransactionArgument<string>,
 				amount: RawTransactionArgument<number | bigint>,
-				root: RawTransactionArgument<string>,
 		  ];
 }
 /**
@@ -516,11 +514,16 @@ export interface StakeDeepOptions {
  */
 export function stakeDeep(options: StakeDeepOptions) {
 	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, null, null, 'u64', null, '0x2::clock::Clock'] satisfies (
-		| string
-		| null
-	)[];
-	const parameterNames = ['vault', 'wrapper', 'auth', 'config', 'amount', 'root'];
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = ['vault', 'wrapper', 'auth', 'config', 'amount'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -534,7 +537,6 @@ export interface UnstakeDeepArguments {
 	wrapper: RawTransactionArgument<string>;
 	auth: TransactionArgument;
 	config: RawTransactionArgument<string>;
-	root: RawTransactionArgument<string>;
 }
 export interface UnstakeDeepOptions {
 	package?: string;
@@ -545,17 +547,20 @@ export interface UnstakeDeepOptions {
 				wrapper: RawTransactionArgument<string>,
 				auth: TransactionArgument,
 				config: RawTransactionArgument<string>,
-				root: RawTransactionArgument<string>,
 		  ];
 }
 /** Withdraw all staked DEEP (active and inactive) at any time, no penalty. */
 export function unstakeDeep(options: UnstakeDeepOptions) {
 	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, null, null, null, '0x2::clock::Clock'] satisfies (
-		| string
-		| null
-	)[];
-	const parameterNames = ['vault', 'wrapper', 'auth', 'config', 'root'];
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = ['vault', 'wrapper', 'auth', 'config'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -611,7 +616,6 @@ export interface ClaimTradingLossRebateArguments {
 	wrapper: RawTransactionArgument<string>;
 	auth: TransactionArgument;
 	config: RawTransactionArgument<string>;
-	root: RawTransactionArgument<string>;
 }
 export interface ClaimTradingLossRebateOptions {
 	package?: string;
@@ -623,17 +627,21 @@ export interface ClaimTradingLossRebateOptions {
 				wrapper: RawTransactionArgument<string>,
 				auth: TransactionArgument,
 				config: RawTransactionArgument<string>,
-				root: RawTransactionArgument<string>,
 		  ];
 }
 /** Resolve a settled trading-loss rebate using valid account authority. */
 export function claimTradingLossRebate(options: ClaimTradingLossRebateOptions) {
 	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, null, null, null, null, '0x2::clock::Clock'] satisfies (
-		| string
-		| null
-	)[];
-	const parameterNames = ['vault', 'market', 'wrapper', 'auth', 'config', 'root'];
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = ['vault', 'market', 'wrapper', 'auth', 'config'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -648,7 +656,6 @@ export interface ClaimTradingLossRebatePermissionlessArguments {
 	wrapper: RawTransactionArgument<string>;
 	accountRegistry: RawTransactionArgument<string>;
 	config: RawTransactionArgument<string>;
-	root: RawTransactionArgument<string>;
 }
 export interface ClaimTradingLossRebatePermissionlessOptions {
 	package?: string;
@@ -660,7 +667,6 @@ export interface ClaimTradingLossRebatePermissionlessOptions {
 				wrapper: RawTransactionArgument<string>,
 				accountRegistry: RawTransactionArgument<string>,
 				config: RawTransactionArgument<string>,
-				root: RawTransactionArgument<string>,
 		  ];
 }
 /**
@@ -672,11 +678,16 @@ export function claimTradingLossRebatePermissionless(
 	options: ClaimTradingLossRebatePermissionlessOptions,
 ) {
 	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, null, null, null, null, '0x2::clock::Clock'] satisfies (
-		| string
-		| null
-	)[];
-	const parameterNames = ['vault', 'market', 'wrapper', 'accountRegistry', 'config', 'root'];
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = ['vault', 'market', 'wrapper', 'accountRegistry', 'config'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -762,7 +773,6 @@ export interface RequestSupplyArguments {
 	config: RawTransactionArgument<string>;
 	amount: RawTransactionArgument<number | bigint>;
 	minPlpOut: RawTransactionArgument<number | bigint>;
-	root: RawTransactionArgument<string>;
 }
 export interface RequestSupplyOptions {
 	package?: string;
@@ -775,21 +785,22 @@ export interface RequestSupplyOptions {
 				config: RawTransactionArgument<string>,
 				amount: RawTransactionArgument<number | bigint>,
 				minPlpOut: RawTransactionArgument<number | bigint>,
-				root: RawTransactionArgument<string>,
 		  ];
 }
 /**
  * Queue a supply request: pull `amount` DUSDC from account custody into queue
  * escrow, recording the account's receive address as the fill recipient. The pull
- * auto-settles any flush-delivered DUSDC first. The account receives minted PLP
- * only at a mark that mints at least `min_plp_out` for the whole `amount` — a
- * **price floor**, not a promise of that many shares: if the pool cap leaves room
- * for only part of the deposit, the fill is proportionally smaller at the same
- * price and the remainder stays queued with its limit rescaled. At the shipped
- * attempt count of one, a flush whose mark quotes less cancels and refunds the
- * request there and then; a higher configured count lets it rest and retry that
- * many flushes first. Returns the queue index, the handle used to cancel before
- * the flush.
+ * auto-settles any flush-delivered DUSDC first. The flush charges the protocol's
+ * supply fee — zero by default — on the DUSDC it takes in and prices shares on the
+ * remainder, so `min_plp_out` is measured after that fee. The account receives
+ * minted PLP only at a mark that mints at least `min_plp_out` for the whole
+ * `amount` — a **price floor**, not a promise of that many shares: if the pool cap
+ * leaves room for only part of the deposit, the fill is proportionally smaller at
+ * the same price and the remainder stays queued with its limit rescaled. At the
+ * shipped attempt count of one, a flush whose mark quotes less cancels and refunds
+ * the request there and then; a higher configured count lets it rest and retry
+ * that many flushes first. Returns the queue index, the handle used to cancel
+ * before the flush.
  */
 export function requestSupply(options: RequestSupplyOptions) {
 	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
@@ -800,10 +811,10 @@ export function requestSupply(options: RequestSupplyOptions) {
 		null,
 		'u64',
 		'u64',
-		null,
+		'0x2::accumulator::AccumulatorRoot',
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
-	const parameterNames = ['vault', 'wrapper', 'auth', 'config', 'amount', 'minPlpOut', 'root'];
+	const parameterNames = ['vault', 'wrapper', 'auth', 'config', 'amount', 'minPlpOut'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -819,7 +830,6 @@ export interface RequestWithdrawArguments {
 	config: RawTransactionArgument<string>;
 	amount: RawTransactionArgument<number | bigint>;
 	minDusdcOut: RawTransactionArgument<number | bigint>;
-	root: RawTransactionArgument<string>;
 }
 export interface RequestWithdrawOptions {
 	package?: string;
@@ -832,21 +842,21 @@ export interface RequestWithdrawOptions {
 				config: RawTransactionArgument<string>,
 				amount: RawTransactionArgument<number | bigint>,
 				minDusdcOut: RawTransactionArgument<number | bigint>,
-				root: RawTransactionArgument<string>,
 		  ];
 }
 /**
  * Queue a withdraw request: pull `amount` PLP shares from account custody into
  * queue escrow, recording the account's receive address as the fill recipient. The
- * pull auto-settles any flush-delivered PLP first. The account is paid only at a
- * mark that quotes at least `min_dusdc_out` for the whole `amount` — a **price
- * floor**, not a promise of that much DUSDC: if idle liquidity covers only part of
- * the payout, only the shares idle affords are burned, the fill is proportionally
- * smaller at the same price, and the remainder stays queued with its limit
- * rescaled. At the shipped attempt count of one, a flush whose mark quotes less
- * cancels and refunds the request there and then; a higher configured count lets
- * it rest and retry that many flushes first. Returns the queue index used to
- * cancel before the flush.
+ * pull auto-settles any flush-delivered PLP first. The flush withholds the
+ * protocol's withdraw fee from the marked payout, so `min_dusdc_out` is measured
+ * after the fee. The account is paid only at a mark that quotes at least
+ * `min_dusdc_out` for the whole `amount` — a **price floor**, not a promise of
+ * that much DUSDC: if idle liquidity covers only part of the payout, only the
+ * shares idle affords are burned, the fill is proportionally smaller at the same
+ * price, and the remainder stays queued with its limit rescaled. At the shipped
+ * attempt count of one, a flush whose mark quotes less cancels and refunds the
+ * request there and then; a higher configured count lets it rest and retry that
+ * many flushes first. Returns the queue index used to cancel before the flush.
  */
 export function requestWithdraw(options: RequestWithdrawOptions) {
 	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
@@ -857,10 +867,10 @@ export function requestWithdraw(options: RequestWithdrawOptions) {
 		null,
 		'u64',
 		'u64',
-		null,
+		'0x2::accumulator::AccumulatorRoot',
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
-	const parameterNames = ['vault', 'wrapper', 'auth', 'config', 'amount', 'minDusdcOut', 'root'];
+	const parameterNames = ['vault', 'wrapper', 'auth', 'config', 'amount', 'minDusdcOut'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -875,7 +885,6 @@ export interface CancelSupplyRequestArguments {
 	auth: TransactionArgument;
 	config: RawTransactionArgument<string>;
 	index: RawTransactionArgument<number | bigint>;
-	root: RawTransactionArgument<string>;
 }
 export interface CancelSupplyRequestOptions {
 	package?: string;
@@ -887,7 +896,6 @@ export interface CancelSupplyRequestOptions {
 				auth: TransactionArgument,
 				config: RawTransactionArgument<string>,
 				index: RawTransactionArgument<number | bigint>,
-				root: RawTransactionArgument<string>,
 		  ];
 }
 /**
@@ -896,11 +904,16 @@ export interface CancelSupplyRequestOptions {
  */
 export function cancelSupplyRequest(options: CancelSupplyRequestOptions) {
 	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, null, null, 'u64', null, '0x2::clock::Clock'] satisfies (
-		| string
-		| null
-	)[];
-	const parameterNames = ['vault', 'wrapper', 'auth', 'config', 'index', 'root'];
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = ['vault', 'wrapper', 'auth', 'config', 'index'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -915,7 +928,6 @@ export interface CancelWithdrawRequestArguments {
 	auth: TransactionArgument;
 	config: RawTransactionArgument<string>;
 	index: RawTransactionArgument<number | bigint>;
-	root: RawTransactionArgument<string>;
 }
 export interface CancelWithdrawRequestOptions {
 	package?: string;
@@ -927,7 +939,6 @@ export interface CancelWithdrawRequestOptions {
 				auth: TransactionArgument,
 				config: RawTransactionArgument<string>,
 				index: RawTransactionArgument<number | bigint>,
-				root: RawTransactionArgument<string>,
 		  ];
 }
 /**
@@ -936,11 +947,16 @@ export interface CancelWithdrawRequestOptions {
  */
 export function cancelWithdrawRequest(options: CancelWithdrawRequestOptions) {
 	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, null, null, 'u64', null, '0x2::clock::Clock'] satisfies (
-		| string
-		| null
-	)[];
-	const parameterNames = ['vault', 'wrapper', 'auth', 'config', 'index', 'root'];
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = ['vault', 'wrapper', 'auth', 'config', 'index'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

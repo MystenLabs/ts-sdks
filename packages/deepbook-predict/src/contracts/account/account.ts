@@ -104,11 +104,10 @@ export function loadAccount(options: LoadAccountOptions) {
 }
 export interface BalanceArguments {
 	self: TransactionArgument;
-	root: RawTransactionArgument<string>;
 }
 export interface BalanceOptions {
 	package?: string;
-	arguments: BalanceArguments | [self: TransactionArgument, root: RawTransactionArgument<string>];
+	arguments: BalanceArguments | [self: TransactionArgument];
 	typeArguments: [string];
 }
 /**
@@ -117,8 +116,12 @@ export interface BalanceOptions {
  */
 export function balance(options: BalanceOptions) {
 	const packageAddress = options.package ?? '@local-pkg/account';
-	const argumentsTypes = [null, null, '0x2::clock::Clock'] satisfies (string | null)[];
-	const parameterNames = ['self', 'root'];
+	const argumentsTypes = [
+		null,
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -297,13 +300,10 @@ export function loadAccountMut(options: LoadAccountMutOptions) {
 }
 export interface SettleArguments {
 	wrapper: RawTransactionArgument<string>;
-	root: RawTransactionArgument<string>;
 }
 export interface SettleOptions {
 	package?: string;
-	arguments:
-		| SettleArguments
-		| [wrapper: RawTransactionArgument<string>, root: RawTransactionArgument<string>];
+	arguments: SettleArguments | [wrapper: RawTransactionArgument<string>];
 	typeArguments: [string];
 }
 /**
@@ -316,8 +316,12 @@ export interface SettleOptions {
  */
 export function settle(options: SettleOptions) {
 	const packageAddress = options.package ?? '@local-pkg/account';
-	const argumentsTypes = [null, null, '0x2::clock::Clock'] satisfies (string | null)[];
-	const parameterNames = ['wrapper', 'root'];
+	const argumentsTypes = [
+		null,
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = ['wrapper'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -385,7 +389,6 @@ export interface DepositFundsArguments {
 	wrapper: RawTransactionArgument<string>;
 	auth: TransactionArgument;
 	coin: RawTransactionArgument<string>;
-	root: RawTransactionArgument<string>;
 }
 export interface DepositFundsOptions {
 	package?: string;
@@ -395,7 +398,6 @@ export interface DepositFundsOptions {
 				wrapper: RawTransactionArgument<string>,
 				auth: TransactionArgument,
 				coin: RawTransactionArgument<string>,
-				root: RawTransactionArgument<string>,
 		  ];
 	typeArguments: [string];
 }
@@ -405,8 +407,14 @@ export interface DepositFundsOptions {
  */
 export function depositFunds(options: DepositFundsOptions) {
 	const packageAddress = options.package ?? '@local-pkg/account';
-	const argumentsTypes = [null, null, null, null, '0x2::clock::Clock'] satisfies (string | null)[];
-	const parameterNames = ['wrapper', 'auth', 'coin', 'root'];
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = ['wrapper', 'auth', 'coin'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -420,7 +428,6 @@ export interface WithdrawFundsArguments {
 	wrapper: RawTransactionArgument<string>;
 	auth: TransactionArgument;
 	amount: RawTransactionArgument<number | bigint>;
-	root: RawTransactionArgument<string>;
 }
 export interface WithdrawFundsOptions {
 	package?: string;
@@ -430,7 +437,6 @@ export interface WithdrawFundsOptions {
 				wrapper: RawTransactionArgument<string>,
 				auth: TransactionArgument,
 				amount: RawTransactionArgument<number | bigint>,
-				root: RawTransactionArgument<string>,
 		  ];
 	typeArguments: [string];
 }
@@ -440,8 +446,14 @@ export interface WithdrawFundsOptions {
  */
 export function withdrawFunds(options: WithdrawFundsOptions) {
 	const packageAddress = options.package ?? '@local-pkg/account';
-	const argumentsTypes = [null, null, 'u64', null, '0x2::clock::Clock'] satisfies (string | null)[];
-	const parameterNames = ['wrapper', 'auth', 'amount', 'root'];
+	const argumentsTypes = [
+		null,
+		null,
+		'u64',
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = ['wrapper', 'auth', 'amount'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

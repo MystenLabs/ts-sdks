@@ -1,5 +1,5 @@
 import { Transaction } from '@mysten/sui/transactions';
-import { ACCUMULATOR_ROOT_ID, type PredictConfig } from '../config/index.js';
+import type { PredictConfig } from '../config/index.js';
 import { deriveAccountWrapperId } from '../tx/common.js';
 import * as account from '../contracts/account/account.js';
 import * as predictAccount from '../contracts/deepbook_predict/predict_account.js';
@@ -26,7 +26,7 @@ export async function accountBalance(
 		account.balance({
 			package: cfg.packages.account,
 			typeArguments: [coinType],
-			arguments: { self: acct, root: ACCUMULATOR_ROOT_ID },
+			arguments: { self: acct },
 		}),
 	);
 	const cmds = await inspectReturns(client, tx);

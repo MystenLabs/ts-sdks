@@ -1,5 +1,5 @@
 import type { Transaction } from '@mysten/sui/transactions';
-import { ACCUMULATOR_ROOT_ID, type PredictConfig } from '../config/index.js';
+import type { PredictConfig } from '../config/index.js';
 import * as plp from '../contracts/deepbook_predict/plp.js';
 import { generateAuth } from './common.js';
 
@@ -25,7 +25,6 @@ export function requestSupply(
 					config: cfg.objects.protocolConfig,
 					amount: args.amountRaw,
 					minPlpOut: args.minPlpOutRaw ?? 0n,
-					root: ACCUMULATOR_ROOT_ID,
 				},
 			}),
 		);
@@ -53,7 +52,6 @@ export function requestWithdraw(
 					config: cfg.objects.protocolConfig,
 					amount: args.sharesRaw,
 					minDusdcOut: args.minDusdcOutRaw ?? 0n,
-					root: ACCUMULATOR_ROOT_ID,
 				},
 			}),
 		);
@@ -77,7 +75,6 @@ export function cancelSupplyRequest(
 					auth,
 					config: cfg.objects.protocolConfig,
 					index: args.index,
-					root: ACCUMULATOR_ROOT_ID,
 				},
 			}),
 		);
@@ -101,7 +98,6 @@ export function cancelWithdrawRequest(
 					auth,
 					config: cfg.objects.protocolConfig,
 					index: args.index,
-					root: ACCUMULATOR_ROOT_ID,
 				},
 			}),
 		);
