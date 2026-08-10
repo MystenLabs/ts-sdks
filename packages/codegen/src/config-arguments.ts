@@ -189,14 +189,28 @@ export function parseMatcherType(
 
 	if ((parts.length !== 2 && parts.length !== 3) || parts.some((part) => part.length === 0)) {
 		throw new Error(
-			`Invalid type in configArguments matcher: "${tag}". Expected "module::Type", optionally ` +
+			`Invalid type in matcher: "${tag}". Expected "module::Type", optionally ` +
 				`qualified with a package from the codegen config ("@pkg/name::module::Type") or an ` +
 				`address ("0x2::module::Type").`,
 		);
 	}
 
 	if (lt !== -1 && !trimmed.endsWith('>')) {
-		throw new Error(`Invalid type in configArguments matcher: "${tag}"`);
+		throw new Error(`Invalid type in matcher: "${tag}" (missing closing ">")`);
+	}
+
+	// `splitGenericParameters` assumes balanced input, so unbalanced brackets would otherwise
+	// surface downstream as a confusing "not a valid module::type pair".
+	if (lt !== -1) {
+		let depth = 0;
+		for (const char of trimmed) {
+			if (char === '<') depth++;
+			else if (char === '>') depth--;
+			if (depth < 0) break;
+		}
+		if (depth !== 0) {
+			throw new Error(`Invalid type in matcher: "${tag}" (unbalanced angle brackets)`);
+		}
 	}
 
 	const packagePart = parts.length === 3 ? parts[0] : undefined;
@@ -205,7 +219,7 @@ export function parseMatcherType(
 
 	if (!MOVE_IDENTIFIER.test(modulePart) || !MOVE_IDENTIFIER.test(namePart)) {
 		throw new Error(
-			`Invalid type in configArguments matcher: "${tag}" ("${modulePart}::${namePart}" is not a valid module::type pair)`,
+			`Invalid type in matcher: "${tag}" ("${modulePart}::${namePart}" is not a valid module::type pair)`,
 		);
 	}
 
@@ -224,7 +238,7 @@ export function parseMatcherType(
 /** Canonical identity of a matcher type argument (recursive). */
 export function matcherArgumentIdentity(argument: string, ctx: ParseContext): string {
 	if (argument.length === 0) {
-		throw new Error(`Invalid type in configArguments matcher: "${ctx.root}" (empty type argument)`);
+		throw new Error(`Invalid type in matcher: "${ctx.root}" (empty type argument)`);
 	}
 
 	if (PRIMITIVES.has(argument)) {
@@ -238,7 +252,7 @@ export function matcherArgumentIdentity(argument: string, ctx: ParseContext): st
 	// A bare identifier in type-argument position is a type-parameter placeholder like `Pool<T>`.
 	if (MOVE_IDENTIFIER.test(argument)) {
 		throw new Error(
-			`configArguments matcher "${ctx.root}" contains the type parameter "${argument}" — partially ` +
+			`Matcher "${ctx.root}" contains the type parameter "${argument}" — partially ` +
 				`instantiated matchers are not supported. Use an uninstantiated matcher (no type ` +
 				`arguments) with a resolver function instead.`,
 		);
@@ -252,7 +266,7 @@ export function matcherArgumentIdentity(argument: string, ctx: ParseContext): st
 		.length;
 	if (arity !== undefined && arity !== parsed.typeArguments.length) {
 		throw new Error(
-			`configArguments matcher "${ctx.root}": ${parsed.module}::${parsed.name} expects ${arity} ` +
+			`Matcher "${ctx.root}": ${parsed.module}::${parsed.name} expects ${arity} ` +
 				`type argument(s), got ${parsed.typeArguments.length}. Partially instantiated matchers ` +
 				`are not supported — use an uninstantiated matcher (no type arguments) with a resolver ` +
 				`function instead.`,

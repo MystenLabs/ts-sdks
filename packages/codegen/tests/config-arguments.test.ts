@@ -313,10 +313,13 @@ describe('parseConfigArguments', () => {
 		expect(() => parse('Pool')).toThrowError(/Expected "module::Type"/);
 		expect(() => parse('u64')).toThrowError(/Expected "module::Type"/);
 		expect(() => parse('@test/testpkg::pools::Pool<0x2::sui::SUI>>')).toThrowError(
-			/not a valid module::type pair/,
+			/unbalanced angle brackets/,
+		);
+		expect(() => parse('@test/testpkg::pools::Pool<<0x2::sui::SUI>')).toThrowError(
+			/unbalanced angle brackets/,
 		);
 		expect(() => parse('@test/testpkg::pools::Pool<0x2::sui::SUI')).toThrowError(
-			/Invalid type in configArguments matcher/,
+			/missing closing ">"/,
 		);
 		expect(() => parse('@test/testpkg::pools::Coin<>')).toThrowError(/empty type argument/);
 		expect(() => parse('@test/testpkg::pools::Pool <0x2::sui::SUI>')).toThrowError(
