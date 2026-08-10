@@ -52,15 +52,15 @@ The same methods are available through `client.core` when SDK code needs the tra
 
 Common top-level methods:
 
-| Category       | Methods                                                                                   |
-| -------------- | ----------------------------------------------------------------------------------------- |
-| Objects        | `getObject`, `getObjects`, `listOwnedObjects`, `listDynamicFields`, `getDynamicField`     |
-| Coins          | `listCoins`, `getBalance`, `listBalances`, `getCoinMetadata`                              |
-| Transactions   | `getTransaction`, `executeTransaction`, `signAndExecuteTransaction`, `waitForTransaction` |
-| Simulation     | `simulateTransaction`                                                                     |
-| Queries        | `listTransactions`, `listEvents`                                                          |
-| Move and names | `getMoveFunction`, `defaultNameServiceName`, `mvr.resolvePackage`, `mvr.resolveType`      |
-| Verification   | `verifyZkLoginSignature`                                                                  |
+| Category       | Methods                                                                                            |
+| -------------- | -------------------------------------------------------------------------------------------------- |
+| Objects        | `getObject`, `getObjects`, `listOwnedObjects`, `listDynamicFields`, `getDynamicField`              |
+| Coins          | `listCoins`, `getBalance`, `listBalances`, `getCoinMetadata`                                       |
+| Transactions   | `getTransaction`, `executeTransaction`, `signAndExecuteTransaction`, `waitForTransaction`          |
+| Simulation     | `simulateTransaction`                                                                              |
+| Queries        | `listTransactions`, `listEvents`                                                                   |
+| Move and names | `getMoveFunction`, `lookupName`, `defaultNameServiceName`, `mvr.resolvePackage`, `mvr.resolveType` |
+| Verification   | `verifyZkLoginSignature`                                                                           |
 
 GraphQL-specific top-level options include `doGasSelection` on `simulateTransaction` and
 `include: { value: true }` on `listDynamicFields`.
@@ -110,7 +110,9 @@ passed to your query are properly typed.
 const getSuinsName = graphql(`
 	query getSuiName($address: SuiAddress!) {
 		address(address: $address) {
-			defaultSuinsName
+			defaultNameRecord {
+				domain
+			}
 		}
 	}
 `);
@@ -123,7 +125,7 @@ async function getDefaultSuinsName(address: string) {
 		},
 	});
 
-	return result.data?.address?.defaultSuinsName;
+	return result.data?.address?.defaultNameRecord?.domain;
 }
 ```
 

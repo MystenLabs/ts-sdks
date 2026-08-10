@@ -16,6 +16,12 @@ describe('Core API - Name Service', () => {
 		testAddress = toolbox.address();
 	});
 
+	describe('lookupName', () => {
+		testWithAllClients('should throw for an invalid name', async (client) => {
+			await expect(client.core.lookupName({ name: '' })).rejects.toThrow();
+		});
+	});
+
 	describe('defaultNameServiceName', () => {
 		// Note: SuiNS is not configured on localnet, so we expect specific behavior
 		// gRPC throws "SuiNS not configured for this network"

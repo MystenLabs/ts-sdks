@@ -286,6 +286,13 @@ export type DefaultSuinsNameQueryVariables = Exact<{
 
 export type DefaultSuinsNameQuery = { address: { defaultNameRecord: { domain: string } | null } | null };
 
+export type LookupNameQueryVariables = Exact<{
+  name: string;
+}>;
+
+
+export type LookupNameQuery = { address: { address: string } | null };
+
 export type GetOwnedObjectsQueryVariables = Exact<{
   owner: string;
   limit?: number | null | undefined;
@@ -904,6 +911,13 @@ export const DefaultSuinsNameDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<DefaultSuinsNameQuery, DefaultSuinsNameQueryVariables>;
+export const LookupNameDocument = new TypedDocumentString(`
+    query lookupName($name: String!) {
+  address(name: $name) {
+    address
+  }
+}
+    `) as unknown as TypedDocumentString<LookupNameQuery, LookupNameQueryVariables>;
 export const GetOwnedObjectsDocument = new TypedDocumentString(`
     query getOwnedObjects($owner: SuiAddress!, $limit: Int, $cursor: String, $filter: ObjectFilter, $includeContent: Boolean = false, $includePreviousTransaction: Boolean = false, $includeObjectBcs: Boolean = false, $includeJson: Boolean = false, $includeDisplay: Boolean = false) {
   address(address: $owner) {

@@ -122,7 +122,7 @@ use the same replacement under `client.core`.
 | `queryEvents`                | `listEvents`                                                          |
 | `getNormalizedMoveFunction`  | `getMoveFunction`                                                     |
 | `getMoveFunctionArgTypes`    | No direct equivalent; `getMoveFunction` returns normalized signatures |
-| `resolveNameServiceAddress`  | `nameService.lookupName` or GraphQL query                             |
+| `resolveNameServiceAddress`  | `lookupName`                                                          |
 | `resolveNameServiceNames`    | No direct equivalent for listing every name assigned to an address    |
 
 `getMoveFunction` exposes normalized parameter signatures, but it does not reproduce the legacy
@@ -130,6 +130,12 @@ use the same replacement under `client.core`.
 `defaultNameServiceName` and raw gRPC `nameService.reverseLookupName` return only the configured
 default name; they do not replace the paginated list returned by `resolveNameServiceNames`. Keep a
 legacy endpoint or use an application indexer when those exact results are required.
+
+```typescript
+const { address } = await client.lookupName({
+	name: 'example.sui',
+});
+```
 
 Some composed helpers are currently exposed through `client.core` rather than as top-level gRPC or
 GraphQL methods:

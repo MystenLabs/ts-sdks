@@ -74,15 +74,15 @@ const coins = await grpcClient.listCoins({
 
 Common top-level methods:
 
-| Category       | Methods                                                                                   |
-| -------------- | ----------------------------------------------------------------------------------------- |
-| Objects        | `getObject`, `getObjects`, `listOwnedObjects`, `listDynamicFields`, `getDynamicField`     |
-| Coins          | `listCoins`, `getBalance`, `listBalances`, `getCoinMetadata`                              |
-| Transactions   | `getTransaction`, `executeTransaction`, `signAndExecuteTransaction`, `waitForTransaction` |
-| Simulation     | `simulateTransaction`                                                                     |
-| Queries        | `listTransactions`, `listEvents`                                                          |
-| Move and names | `getMoveFunction`, `defaultNameServiceName`, `mvr.resolvePackage`, `mvr.resolveType`      |
-| Verification   | `verifyZkLoginSignature`                                                                  |
+| Category       | Methods                                                                                            |
+| -------------- | -------------------------------------------------------------------------------------------------- |
+| Objects        | `getObject`, `getObjects`, `listOwnedObjects`, `listDynamicFields`, `getDynamicField`              |
+| Coins          | `listCoins`, `getBalance`, `listBalances`, `getCoinMetadata`                                       |
+| Transactions   | `getTransaction`, `executeTransaction`, `signAndExecuteTransaction`, `waitForTransaction`          |
+| Simulation     | `simulateTransaction`                                                                              |
+| Queries        | `listTransactions`, `listEvents`                                                                   |
+| Move and names | `getMoveFunction`, `lookupName`, `defaultNameServiceName`, `mvr.resolvePackage`, `mvr.resolveType` |
+| Verification   | `verifyZkLoginSignature`                                                                           |
 
 ### gRPC-specific top-level data
 
@@ -345,8 +345,20 @@ const { response } = await grpcClient.movePackageService.getFunction({
 ### Name service
 
 ```typescript
-// Reverse lookup address to get name
-const { response } = await grpcClient.nameService.reverseLookupName({
+const { address } = await grpcClient.lookupName({
+	name: 'example.sui',
+});
+```
+
+Use the raw name service when you need the complete gRPC `NameRecord` instead of only its target
+address:
+
+```typescript
+const { response } = await grpcClient.nameService.lookupName({
+	name: 'example.sui',
+});
+
+const { response: reverseResponse } = await grpcClient.nameService.reverseLookupName({
 	address: '0xabc...',
 });
 ```

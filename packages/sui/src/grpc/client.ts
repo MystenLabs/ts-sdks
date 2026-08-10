@@ -336,4 +336,8 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 	): Promise<SuiClientTypes.DefaultNameServiceNameResponse> {
 		return this.core.defaultNameServiceName(input);
 	}
+
+	lookupName(input: SuiClientTypes.LookupNameOptions): Promise<SuiClientTypes.LookupNameResponse> {
+		return this.core.lookupName(input);
+	}
 }

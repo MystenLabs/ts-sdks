@@ -54,6 +54,7 @@ import {
 import type { QueryEnd, QueryOptions } from './proto/sui/rpc/v2/query_options.js';
 import { Ordering, QueryEndReason } from './proto/sui/rpc/v2/query_options.js';
 import type { ResolvedPagination } from '../client/query-filters.js';
+import { RpcError } from '@protobuf-ts/runtime-rpc';
 import {
 	resolveEventFilter,
 	resolvePagination,
@@ -795,6 +796,29 @@ export class GrpcCoreClient extends CoreClient {
 				name,
 			},
 		};
+	}
+
+	async lookupName(
+		options: SuiClientTypes.LookupNameOptions,
+	): Promise<SuiClientTypes.LookupNameResponse> {
+		try {
+			const { response } = await this.#client.nameService.lookupName(
+				{ name: options.name },
+				{ abort: options.signal },
+			);
+
+			return { address: response.record?.targetAddress ?? null };
+		} catch (error) {
+			if (
+				error instanceof RpcError &&
+				(error.code === 'NOT_FOUND' ||
+					(error.code === 'RESOURCE_EXHAUSTED' && error.message === 'name has expired'))
+			) {
+				return { address: null };
+			}
+
+			throw error;
+		}
 	}
 
 	async getMoveFunction(

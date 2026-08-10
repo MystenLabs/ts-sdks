@@ -30,6 +30,7 @@ import {
 	GetTransactionBlockDocument,
 	ListEventsDocument,
 	ListTransactionsDocument,
+	LookupNameDocument,
 	MultiGetObjectsDocument,
 	ResolveTransactionDocument,
 	SimulateTransactionDocument,
@@ -774,6 +775,20 @@ export class GraphQLCoreClient extends CoreClient {
 		return {
 			data: { name: name },
 		};
+	}
+
+	async lookupName(
+		options: SuiClientTypes.LookupNameOptions,
+	): Promise<SuiClientTypes.LookupNameResponse> {
+		const { data, errors } = await this.#graphqlClient.query({
+			query: LookupNameDocument,
+			signal: options.signal,
+			variables: { name: options.name },
+		});
+
+		handleGraphQLErrors(errors);
+
+		return { address: data?.address?.address ?? null };
 	}
 
 	async getMoveFunction(

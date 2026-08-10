@@ -369,4 +369,8 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 	): Promise<SuiClientTypes.DefaultNameServiceNameResponse> {
 		return this.core.defaultNameServiceName(input);
 	}
+
+	lookupName(input: SuiClientTypes.LookupNameOptions): Promise<SuiClientTypes.LookupNameResponse> {
+		return this.core.lookupName(input);
+	}
 }

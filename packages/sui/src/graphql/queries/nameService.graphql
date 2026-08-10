@@ -8,3 +8,9 @@ query defaultSuinsName($address: SuiAddress!) {
 		}
 	}
 }
+
+query lookupName($name: String!) {
+	address(name: $name) {
+		address
+	}
+}
