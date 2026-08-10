@@ -62,6 +62,9 @@ The `seal()` function accepts the following options:
     authentication
 - **`verifyKeyServers`** (optional) - Whether to verify key server authenticity (default: `true`)
 - **`timeout`** (optional) - Timeout in milliseconds for network requests (default: `10000`)
+- **`fetch`** (optional) - Custom fetch implementation used for all key server requests (default:
+  the global `fetch`), for example to send cookies with `credentials: 'include'` or attach your own
+  headers
 
 ## Choosing key servers
 

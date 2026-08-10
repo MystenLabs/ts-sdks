@@ -7,6 +7,7 @@ import { getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { bcs } from '@mysten/sui/bcs';
 
+import { SealClient } from '../../src/client.js';
 import { GeneralError, InvalidClientOptionsError } from '../../src/error.js';
 import {
 	retrieveKeyServers,
@@ -14,6 +15,8 @@ import {
 	ServerType,
 	verifyKeyServer,
 } from '../../src/key-server.js';
+import type { SessionKey } from '../../src/session-key.js';
+import type { SealCompatibleClient } from '../../src/types.js';
 import { Version } from '../../src/utils.js';
 
 // Data for mock response from SuiGrpcClient
@@ -105,12 +108,13 @@ function createMockV2Client(
 			getObject: mockGetObject,
 			getDynamicField: mockGetDynamicField,
 		},
-	} as unknown as SuiGrpcClient;
+	} as unknown as SealCompatibleClient;
 }
 
 describe('key-server tests', () => {
 	afterEach(() => {
 		vi.clearAllMocks();
+		vi.unstubAllGlobals();
 	});
 
 	it('test retrieveKeyServers with invalid version', async () => {
@@ -286,5 +290,79 @@ describe('key-server tests', () => {
 				},
 			}),
 		);
+	});
+
+	it('test SealClient passes the custom fetch to verifyKeyServer', async () => {
+		const globalFetch = vi.fn();
+		vi.stubGlobal('fetch', globalFetch);
+		const customFetch = vi.fn().mockImplementation(() => {
+			return Promise.resolve({
+				ok: false,
+				status: 503,
+				text: () => Promise.resolve('Mock 503 response from customFetch'),
+			});
+		});
+		const client = new SealClient({
+			suiClient: createMockV2Client(id, 2, 2, 'Independent', url),
+			serverConfigs: [{ objectId: id, weight: 1 }],
+			verifyKeyServers: true,
+			fetch: customFetch,
+		});
+
+		await expect(client.getKeyServers()).rejects.toThrow(GeneralError);
+		expect(customFetch).toHaveBeenCalledOnce();
+		expect(customFetch).toHaveBeenCalledWith(
+			url + '/v1/service?service_id=' + id,
+			expect.anything(),
+		);
+		expect(globalFetch).not.toHaveBeenCalled();
+	});
+
+	it('test SealClient passes the custom fetch to fetchKeysForAllIds', async () => {
+		const globalFetch = vi.fn();
+		vi.stubGlobal('fetch', globalFetch);
+		const customFetch = vi.fn().mockImplementation(() => {
+			return Promise.resolve({
+				ok: false,
+				status: 503,
+				text: () => Promise.resolve('Mock 503 response from customFetch'),
+			});
+		});
+		const client = new SealClient({
+			suiClient: createMockV2Client(id, 2, 2, 'Independent', url),
+			serverConfigs: [{ objectId: id, weight: 1 }],
+			verifyKeyServers: false,
+			fetch: customFetch,
+		});
+		const sessionKey = {
+			getPackageId: () => '0x0000000000000000000000000000000000000000000000000000000000000001',
+			getCertificate: () =>
+				Promise.resolve({
+					user: '0x1',
+					session_vk: 'vk',
+					creation_time: 0,
+					ttl_min: 10,
+					signature: 'sig',
+				}),
+			createRequestParams: () =>
+				Promise.resolve({
+					requestSignature: 'sig',
+					encKey: new Uint8Array(32),
+					encKeyPk: new Uint8Array(32),
+					encVerificationKey: new Uint8Array(32),
+				}),
+		} as unknown as SessionKey;
+
+		await expect(
+			client.fetchKeys({
+				ids: ['0x01'],
+				txBytes: new Uint8Array([0, 1, 2]),
+				sessionKey,
+				threshold: 1,
+			}),
+		).rejects.toThrow(GeneralError);
+		expect(customFetch).toHaveBeenCalledOnce();
+		expect(customFetch).toHaveBeenCalledWith(url + '/v1/fetch_key', expect.anything());
+		expect(globalFetch).not.toHaveBeenCalled();
 	});
 });

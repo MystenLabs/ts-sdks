@@ -21,6 +21,12 @@ export interface SealOptions<Name = 'seal'> {
 	verifyKeyServers?: boolean;
 	/** Timeout in milliseconds for network requests. */
 	timeout?: number;
+	/**
+	 * Custom fetch implementation used for all key server requests, for example to send
+	 * cookies (`credentials: 'include'`) or attach your own headers.
+	 * Defaults to the global `fetch`.
+	 */
+	fetch?: typeof fetch;
 	// Name of the seal extension, defaults to 'seal'
 	name?: Name;
 }
@@ -48,6 +54,12 @@ export interface SealClientOptions {
 	verifyKeyServers?: boolean;
 	/** Timeout in milliseconds for network requests. */
 	timeout?: number;
+	/**
+	 * Custom fetch implementation used for all key server requests, for example to send
+	 * cookies (`credentials: 'include'`) or attach your own headers.
+	 * Defaults to the global `fetch`.
+	 */
+	fetch?: typeof fetch;
 }
 
 export interface EncryptOptions {
