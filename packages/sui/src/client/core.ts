@@ -134,6 +134,10 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 		options: SuiClientTypes.DefaultNameServiceNameOptions,
 	): Promise<SuiClientTypes.DefaultNameServiceNameResponse>;
 
+	abstract resolveNameServiceAddress(
+		options: SuiClientTypes.ResolveNameServiceAddressOptions,
+	): Promise<SuiClientTypes.ResolveNameServiceAddressResponse>;
+
 	async getDynamicField(
 		options: SuiClientTypes.GetDynamicFieldOptions,
 	): Promise<SuiClientTypes.GetDynamicFieldResponse> {

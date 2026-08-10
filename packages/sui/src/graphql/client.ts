@@ -369,4 +369,10 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 	): Promise<SuiClientTypes.DefaultNameServiceNameResponse> {
 		return this.core.defaultNameServiceName(input);
 	}
+
+	resolveNameServiceAddress(
+		input: SuiClientTypes.ResolveNameServiceAddressOptions,
+	): Promise<SuiClientTypes.ResolveNameServiceAddressResponse> {
+		return this.core.resolveNameServiceAddress(input);
+	}
 }

@@ -757,6 +757,14 @@ export namespace SuiClientTypes {
 	}
 
 	/** Name service methods */
+	export interface ResolveNameServiceAddressOptions extends CoreClientMethodOptions {
+		name: string;
+	}
+
+	export interface ResolveNameServiceAddressResponse {
+		address: string | null;
+	}
+
 	export interface DefaultNameServiceNameOptions extends CoreClientMethodOptions {
 		address: string;
 	}
@@ -768,6 +776,9 @@ export namespace SuiClientTypes {
 	}
 
 	export interface TransportMethods {
+		resolveNameServiceAddress: (
+			options: ResolveNameServiceAddressOptions,
+		) => Promise<ResolveNameServiceAddressResponse>;
 		defaultNameServiceName: (
 			options: DefaultNameServiceNameOptions,
 		) => Promise<DefaultNameServiceNameResponse>;

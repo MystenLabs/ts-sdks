@@ -54,6 +54,7 @@ import {
 import type { QueryEnd, QueryOptions } from './proto/sui/rpc/v2/query_options.js';
 import { Ordering, QueryEndReason } from './proto/sui/rpc/v2/query_options.js';
 import type { ResolvedPagination } from '../client/query-filters.js';
+import { RpcError } from '@protobuf-ts/runtime-rpc';
 import {
 	resolveEventFilter,
 	resolvePagination,
@@ -64,6 +65,21 @@ import { toGrpcEventFilter, toGrpcTransactionFilter } from './filters.js';
 
 export interface GrpcCoreClientOptions extends CoreClientOptions {
 	client: SuiGrpcClient;
+}
+
+function isNameServiceResolutionMiss(error: unknown): boolean {
+	if (!(error instanceof RpcError)) return false;
+	if (error.code === 'NOT_FOUND') return true;
+	if (error.code !== 'RESOURCE_EXHAUSTED') return false;
+
+	try {
+		// The gRPC service currently reports expired names as RESOURCE_EXHAUSTED without a
+		// structured reason. grpc-web URI-encodes status messages, so decode before matching while
+		// preserving unrelated RESOURCE_EXHAUSTED failures such as capacity limits.
+		return decodeURIComponent(error.message) === 'name has expired';
+	} catch {
+		return false;
+	}
 }
 
 export class GrpcCoreClient extends CoreClient {
@@ -795,6 +811,25 @@ export class GrpcCoreClient extends CoreClient {
 				name,
 			},
 		};
+	}
+
+	async resolveNameServiceAddress(
+		options: SuiClientTypes.ResolveNameServiceAddressOptions,
+	): Promise<SuiClientTypes.ResolveNameServiceAddressResponse> {
+		try {
+			const { response } = await this.#client.nameService.lookupName(
+				{ name: options.name },
+				{ abort: options.signal },
+			);
+
+			return { address: response.record?.targetAddress ?? null };
+		} catch (error) {
+			if (isNameServiceResolutionMiss(error)) {
+				return { address: null };
+			}
+
+			throw error;
+		}
 	}
 
 	async getMoveFunction(

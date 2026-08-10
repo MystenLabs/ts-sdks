@@ -31,6 +31,7 @@ import {
 	ListEventsDocument,
 	ListTransactionsDocument,
 	MultiGetObjectsDocument,
+	ResolveNameServiceAddressDocument,
 	ResolveTransactionDocument,
 	SimulateTransactionDocument,
 	VerifyZkLoginSignatureDocument,
@@ -774,6 +775,20 @@ export class GraphQLCoreClient extends CoreClient {
 		return {
 			data: { name: name },
 		};
+	}
+
+	async resolveNameServiceAddress(
+		options: SuiClientTypes.ResolveNameServiceAddressOptions,
+	): Promise<SuiClientTypes.ResolveNameServiceAddressResponse> {
+		const { data, errors } = await this.#graphqlClient.query({
+			query: ResolveNameServiceAddressDocument,
+			signal: options.signal,
+			variables: { name: options.name },
+		});
+
+		handleGraphQLErrors(errors);
+
+		return { address: data?.address?.address ?? null };
 	}
 
 	async getMoveFunction(

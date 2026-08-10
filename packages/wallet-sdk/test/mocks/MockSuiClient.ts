@@ -341,6 +341,12 @@ export class MockSuiClient extends CoreClient {
 		throw new Error('defaultNameServiceName not implemented in MockSuiClient');
 	}
 
+	async resolveNameServiceAddress(
+		_options: SuiClientTypes.ResolveNameServiceAddressOptions,
+	): Promise<SuiClientTypes.ResolveNameServiceAddressResponse> {
+		throw new Error('resolveNameServiceAddress not implemented in MockSuiClient');
+	}
+
 	async listTransactions<Include extends SuiClientTypes.TransactionInclude = object>(
 		_options: SuiClientTypes.ListTransactionsOptions<Include>,
 	): Promise<SuiClientTypes.ListTransactionsResponse<Include>> {

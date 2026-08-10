@@ -8,3 +8,9 @@ query defaultSuinsName($address: SuiAddress!) {
 		}
 	}
 }
+
+query resolveNameServiceAddress($name: String!) {
+	address(name: $name) {
+		address
+	}
+}
