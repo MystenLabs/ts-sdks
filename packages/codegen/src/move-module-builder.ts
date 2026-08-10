@@ -12,12 +12,18 @@ import {
 	SUI_FRAMEWORK_ADDRESS,
 	SUI_SYSTEM_ADDRESS,
 } from './render-types.js';
-import { findConfigArgumentMatch, isContextParameter } from './config-arguments.js';
+import {
+	findConfigArgumentMatch,
+	isContextParameter,
+	normalizeAddress,
+} from './config-arguments.js';
 import type {
 	FunctionConfigArgument,
 	ParsedConfigArgument,
 	TypeConfigArgument,
 } from './config-arguments.js';
+import { findBcsFieldOverride, findBcsTypeOverride } from './bcs-overrides.js';
+import type { FieldBcsOverride, ParsedBcsOverride, TypeBcsOverride } from './bcs-overrides.js';
 import {
 	camelCase,
 	capitalize,
@@ -29,7 +35,7 @@ import {
 } from './utils.js';
 import type { Datatype, Fields, ModuleSummary, Type, TypeParameter } from './types/summary.js';
 import type { FunctionsOption, ImportExtension, TypesOption } from './config.js';
-import { join } from 'node:path';
+import { isAbsolute, join } from 'node:path';
 import { isValidSuiObjectId } from '@mysten/sui/utils';
 
 const IMPORT_MAP = {
@@ -69,6 +75,9 @@ export class MoveModuleBuilder extends FileBuilder {
 		null;
 	#packageResolverRequiredKeys?: Set<string>;
 	#packageStringlessConfigKeys?: Set<string>;
+	#bcsOverrides: ParsedBcsOverride[] = [];
+	/** Labels of `bcsOverrides` entries that matched an included type or field. */
+	readonly usedBcsOverrides = new Set<string>();
 	/** Config keys that matched at least one parameter of a rendered function. */
 	readonly usedConfigKeys = new Set<string>();
 	/** Config keys forced to resolver form (matched multiple parameters of one signature). */
@@ -195,6 +204,67 @@ export class MoveModuleBuilder extends FileBuilder {
 	setPackageConfigKeySets(resolverRequiredKeys: Set<string>, stringlessConfigKeys: Set<string>) {
 		this.#packageResolverRequiredKeys = resolverRequiredKeys;
 		this.#packageStringlessConfigKeys = stringlessConfigKeys;
+	}
+
+	/**
+	 * Configure parsed `bcsOverrides` entries for this module. Must be called before types are
+	 * included, because overridden types and fields skip dependency inclusion.
+	 */
+	setBcsOverrides(entries: ParsedBcsOverride[]) {
+		this.#bcsOverrides = entries;
+	}
+
+	/** This module's resolved, normalized package address, for matching override scopes. */
+	#resolvedOwnAddress(): string {
+		return normalizeAddress(this.#resolveAddress(this.summary.id.address));
+	}
+
+	#typeOverrideFor(name: string): TypeBcsOverride | null {
+		const override = findBcsTypeOverride(
+			this.#bcsOverrides,
+			this.#resolvedOwnAddress(),
+			this.summary.id.name,
+			name,
+		);
+		if (override) {
+			this.usedBcsOverrides.add(override.label);
+		}
+		return override;
+	}
+
+	#fieldOverrideFor(
+		datatypeName: string,
+		fieldName: string,
+		fieldType: Type,
+		variantName?: string,
+	): FieldBcsOverride | null {
+		const override = findBcsFieldOverride(this.#bcsOverrides, {
+			moduleAddress: this.#resolvedOwnAddress(),
+			moduleName: this.summary.id.name,
+			datatypeName,
+			fieldName,
+			variantName,
+			fieldType,
+			resolveAddress: (address) => this.#resolveAddress(address),
+		});
+		if (override) {
+			this.usedBcsOverrides.add(override.label);
+		}
+		return override;
+	}
+
+	/**
+	 * Import a replacement BCS type. Config-relative sources are absolute paths here; their file
+	 * extension is rewritten to the run's `importExtension` so the emitted specifier matches the
+	 * rest of the generated imports (a `./src/bcs/units.ts` source is imported as `units.js` by
+	 * default).
+	 */
+	#bcsOverrideImport(override: TypeBcsOverride | FieldBcsOverride): string {
+		const { module } = override.source;
+		return this.addImport(
+			isAbsolute(module) ? module.replace(/\.[cm]?ts$/, this.#importExtension) : module,
+			override.source.exportName,
+		);
 	}
 
 	/**
@@ -343,7 +413,23 @@ export class MoveModuleBuilder extends FileBuilder {
 			);
 		}
 
-		const includeFromField = (field: { type_: Type }, typeParameters: TypeParameter[]) => {
+		// A replaced declaration renders as a re-export of the custom type, so its field
+		// dependencies are never referenced. Overridden field sites likewise skip their field's
+		// dependencies — the custom import replaces the whole expression.
+		if (this.#typeOverrideFor(name)) {
+			this.#orderedTypes.push(name);
+			return;
+		}
+
+		const includeFromField = (
+			fieldName: string,
+			field: { type_: Type },
+			typeParameters: TypeParameter[],
+			variantName?: string,
+		) => {
+			if (this.#fieldOverrideFor(name, fieldName, field.type_, variantName)) {
+				return;
+			}
 			renderTypeSignature(field.type_, {
 				format: 'bcs',
 				summary: this.summary,
@@ -362,15 +448,15 @@ export class MoveModuleBuilder extends FileBuilder {
 		};
 
 		if (struct) {
-			Object.values(struct.fields.fields).forEach((field) =>
-				includeFromField(field, struct.type_parameters),
+			Object.entries(struct.fields.fields).forEach(([fieldName, field]) =>
+				includeFromField(fieldName, field, struct.type_parameters),
 			);
 		}
 
 		if (enum_) {
-			Object.values(enum_.variants).forEach((variant) =>
-				Object.values(variant.fields.fields).forEach((field) =>
-					includeFromField(field, enum_.type_parameters),
+			Object.entries(enum_.variants).forEach(([variantName, variant]) =>
+				Object.entries(variant.fields.fields).forEach(([fieldName, field]) =>
+					includeFromField(fieldName, field, enum_.type_parameters, variantName),
 				),
 			);
 		}
@@ -393,7 +479,10 @@ export class MoveModuleBuilder extends FileBuilder {
 
 	async renderBCSTypes() {
 		const needsModuleName =
-			this.hasBcsTypes() && this.#orderedTypes.some((name) => this.#getTypePrefix(name) === null);
+			this.hasBcsTypes() &&
+			this.#orderedTypes.some(
+				(name) => this.#getTypePrefix(name) === null && !this.#typeOverrideFor(name),
+			);
 
 		if (needsModuleName) {
 			this.statements.push(
@@ -435,9 +524,37 @@ export class MoveModuleBuilder extends FileBuilder {
 		return undefined;
 	};
 
+	/** The BCS expression for one field: an override's custom import, or the rendered signature. */
+	#renderFieldBcs(
+		fieldSite: { datatypeName: string; fieldName: string; variantName?: string },
+		field: { type_: Type },
+		typeParameters: TypeParameter[],
+		includePhantomTypeParameters: boolean,
+	): string {
+		const override = this.#fieldOverrideFor(
+			fieldSite.datatypeName,
+			fieldSite.fieldName,
+			field.type_,
+			fieldSite.variantName,
+		);
+		if (override) {
+			return this.#bcsOverrideImport(override);
+		}
+		return renderTypeSignature(field.type_, {
+			format: 'bcs',
+			bcsImport: () => this.#getImportName('bcs'),
+			summary: this.summary,
+			typeParameters,
+			includePhantomTypeParameters,
+			registry: this.registry,
+			onDependency: this.#importDependency,
+		});
+	}
+
 	async #renderFieldsAsStruct(
 		name: string,
 		{ fields }: Fields,
+		fieldSite: { datatypeName: string; variantName?: string },
 		typeParameters: TypeParameter[] = [],
 		includePhantomTypeParameters = false,
 	) {
@@ -445,17 +562,14 @@ export class MoveModuleBuilder extends FileBuilder {
 		const fieldObject = await mapToObject({
 			items: Object.entries(fields),
 			getComment: ([_name, field]) => field.doc,
-			mapper: ([name, field]) => [
-				name,
-				renderTypeSignature(field.type_, {
-					format: 'bcs',
-					bcsImport: () => this.#getImportName('bcs'),
-					summary: this.summary,
+			mapper: ([fieldName, field]) => [
+				fieldName,
+				this.#renderFieldBcs(
+					{ ...fieldSite, fieldName },
+					field,
 					typeParameters,
 					includePhantomTypeParameters,
-					registry: this.registry,
-					onDependency: this.#importDependency,
-				}),
+				),
 			],
 		});
 
@@ -465,20 +579,18 @@ export class MoveModuleBuilder extends FileBuilder {
 	async #renderFieldsAsTuple(
 		name: string,
 		{ fields }: Fields,
+		fieldSite: { datatypeName: string; variantName?: string },
 		typeParameters: TypeParameter[] = [],
 		includePhantomTypeParameters = false,
 	) {
 		const moveTupleName = this.#getImportName('MoveTuple');
-		const values = Object.values(fields).map((field) =>
-			renderTypeSignature(field.type_, {
-				format: 'bcs',
-				summary: this.summary,
+		const values = Object.entries(fields).map(([fieldName, field]) =>
+			this.#renderFieldBcs(
+				{ ...fieldSite, fieldName },
+				field,
 				typeParameters,
 				includePhantomTypeParameters,
-				bcsImport: () => this.#getImportName('bcs'),
-				registry: this.registry,
-				onDependency: this.#importDependency,
-			}),
+			),
 		);
 
 		return parseTS /* ts */ `new ${moveTupleName}({ name: \`${name}\`, fields: [${values.join(', ')}] })`;
@@ -499,6 +611,17 @@ export class MoveModuleBuilder extends FileBuilder {
 
 		this.exports.push(name);
 
+		const override = this.#typeOverrideFor(name);
+		if (override) {
+			this.statements.push(
+				...(await withComment(
+					struct,
+					parseTS /* ts */ `export const ${name} = ${this.#bcsOverrideImport(override)}`,
+				)),
+			);
+			return;
+		}
+
 		const includePhantom = this.#includePhantomTypeParameters;
 		const params = struct.type_parameters
 			.map((param, i) => ({ param, originalIndex: i }))
@@ -518,12 +641,14 @@ export class MoveModuleBuilder extends FileBuilder {
 						? await this.#renderFieldsAsTuple(
 								`${structName}${phantomPlaceholders}`,
 								struct.fields,
+								{ datatypeName: name },
 								struct.type_parameters,
 								includePhantom,
 							)
 						: await this.#renderFieldsAsStruct(
 								`${structName}${phantomPlaceholders}`,
 								struct.fields,
+								{ datatypeName: name },
 								struct.type_parameters,
 								includePhantom,
 							)
@@ -556,12 +681,14 @@ export class MoveModuleBuilder extends FileBuilder {
 								? await this.#renderFieldsAsTuple(
 										`${structName}<${nameGenerics}>`,
 										struct.fields,
+										{ datatypeName: name },
 										struct.type_parameters,
 										includePhantom,
 									)
 								: await this.#renderFieldsAsStruct(
 										`${structName}<${nameGenerics}>`,
 										struct.fields,
+										{ datatypeName: name },
 										struct.type_parameters,
 										includePhantom,
 									)
@@ -586,8 +713,20 @@ export class MoveModuleBuilder extends FileBuilder {
 		}
 
 		const includePhantom = this.#includePhantomTypeParameters;
-		const moveEnumName = this.#getImportName('MoveEnum');
 		this.exports.push(name);
+
+		const override = this.#typeOverrideFor(name);
+		if (override) {
+			this.statements.push(
+				...(await withComment(
+					enumDef,
+					parseTS /* ts */ `export const ${name} = ${this.#bcsOverrideImport(override)}`,
+				)),
+			);
+			return;
+		}
+
+		const moveEnumName = this.#getImportName('MoveEnum');
 
 		const prefix = this.#getTypePrefix(name);
 		const enumName = prefix !== null ? `${prefix}::${name}` : `\${$moduleName}::${name}`;
@@ -601,24 +740,27 @@ export class MoveModuleBuilder extends FileBuilder {
 					? 'null'
 					: isPositional(variant.fields)
 						? Object.keys(variant.fields.fields).length === 1
-							? renderTypeSignature(Object.values(variant.fields.fields)[0].type_, {
-									format: 'bcs',
-									summary: this.summary,
-									typeParameters: enumDef.type_parameters,
-									includePhantomTypeParameters: includePhantom,
-									bcsImport: () => this.#getImportName('bcs'),
-									registry: this.registry,
-									onDependency: this.#importDependency,
-								})
+							? this.#renderFieldBcs(
+									{
+										datatypeName: name,
+										fieldName: Object.keys(variant.fields.fields)[0],
+										variantName,
+									},
+									Object.values(variant.fields.fields)[0],
+									enumDef.type_parameters,
+									includePhantom,
+								)
 							: await this.#renderFieldsAsTuple(
 									`${name}.${variantName}`,
 									variant.fields,
+									{ datatypeName: name, variantName },
 									enumDef.type_parameters,
 									includePhantom,
 								)
 						: await this.#renderFieldsAsStruct(
 								`${name}.${variantName}`,
 								variant.fields,
+								{ datatypeName: name, variantName },
 								enumDef.type_parameters,
 								includePhantom,
 							),

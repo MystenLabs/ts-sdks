@@ -245,6 +245,7 @@ export default async function generate(
 				includePhantomTypeParameters: config.includePhantomTypeParameters,
 				errorClass: config.errorClass,
 				packageIdentities,
+				configDir: config.configDir,
 			});
 		}
 	});

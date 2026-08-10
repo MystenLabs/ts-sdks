@@ -11,6 +11,7 @@ import { parse } from 'toml';
 import { FileBuilder } from './file-builder.js';
 import { parseConfigArguments } from './config-arguments.js';
 import type { PackageIdentity, ParsedConfigArgument } from './config-arguments.js';
+import { parseBcsOverrides } from './bcs-overrides.js';
 import { camelCase, capitalize, parseTS } from './utils.js';
 import type { RootPackageMetadata } from './types/summary.js';
 import type {
@@ -26,6 +27,8 @@ export {
 	type SuiCodegenConfig,
 	type ConfigArguments,
 	type ConfigArgumentMatcher,
+	type BcsOverride,
+	type BcsOverrides,
 } from './config.js';
 
 export async function generateFromPackageSummary({
@@ -37,6 +40,7 @@ export async function generateFromPackageSummary({
 	includePhantomTypeParameters = false,
 	errorClass,
 	packageIdentities,
+	configDir,
 }: {
 	package: PackageConfig;
 	prune: boolean;
@@ -51,6 +55,11 @@ export async function generateFromPackageSummary({
 	 * builds this automatically.
 	 */
 	packageIdentities?: Record<string, PackageIdentity>;
+	/**
+	 * Directory relative `bcsOverrides` sources resolve against — the config file's directory when
+	 * loaded through the CLI. Defaults to the current working directory.
+	 */
+	configDir?: string;
 }) {
 	if (!pkg.path) {
 		throw new Error(`Package path is required (got ${pkg.package})`);
@@ -193,11 +202,20 @@ export async function generateFromPackageSummary({
 	}
 	const packageConfigKey = packageEntries[0]?.key;
 
+	const { entries: bcsOverrideEntries } = pkg.bcsOverrides?.length
+		? parseBcsOverrides(pkg.bcsOverrides, registry, {
+				package: { id: pkg.package, address: currentPackageAddress },
+				packageIdentities,
+				configDir: configDir ?? process.cwd(),
+			})
+		: { entries: [] };
+
 	for (const mod of modules) {
 		mod.builder.setConfigArguments(
 			configArgumentEntries,
 			mod.isMainPackage ? packageConfigKey : undefined,
 		);
+		mod.builder.setBcsOverrides(bcsOverrideEntries);
 	}
 
 	const packageGenerate: PackageGenerate | undefined = 'generate' in pkg ? pkg.generate : undefined;
@@ -301,6 +319,20 @@ export async function generateFromPackageSummary({
 		console.warn(
 			`configArguments keys that matched no generated function parameters in ${pkg.package}: ${[
 				...new Set(unusedEntries.map((entry) => entry.key)),
+			].join(', ')}`,
+		);
+	}
+
+	// An override that matched nothing is a misconfiguration (typo in the pattern, or the type was
+	// filtered out of generation).
+	const usedBcsOverrides = new Set(modules.flatMap((mod) => [...mod.builder.usedBcsOverrides]));
+	const unusedBcsOverrides = bcsOverrideEntries.filter(
+		(entry) => !usedBcsOverrides.has(entry.label),
+	);
+	if (unusedBcsOverrides.length > 0) {
+		console.warn(
+			`bcsOverrides entries that matched no generated types or fields in ${pkg.package}: ${[
+				...new Set(unusedBcsOverrides.map((entry) => `"${entry.label}"`)),
 			].join(', ')}`,
 		);
 	}

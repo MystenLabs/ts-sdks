@@ -281,6 +281,28 @@ function isPureDatatype(type: Datatype, options: TypeCheckOptions): boolean {
 	return false;
 }
 
+/**
+ * Datatypes whose BCS reference sites are always inlined as a `bcs.*` expression rather than a
+ * reference to the generated declaration. Replacing such a declaration has no effect on any layout
+ * that uses the type, so `bcsOverrides` rejects it.
+ */
+export function isBcsInlinedDatatype(
+	resolvedAddress: string,
+	module: string,
+	name: string,
+): boolean {
+	if (resolvedAddress === MOVE_STDLIB_ADDRESS) {
+		return (
+			((module === 'ascii' || module === 'string') && name === 'String') ||
+			(module === 'option' && name === 'Option')
+		);
+	}
+	if (resolvedAddress === SUI_FRAMEWORK_ADDRESS) {
+		return module === 'object' && (name === 'ID' || name === 'UID');
+	}
+	return false;
+}
+
 /** Can this type be BCS-serialized from a plain TS value (no object resolution)? */
 function isPureType(type: Type, options: TypeCheckOptions): boolean {
 	if (typeof type === 'string') return true;

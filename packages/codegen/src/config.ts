@@ -3,6 +3,7 @@
 
 import { isValidNamedPackage, isValidSuiObjectId, normalizeSuiObjectId } from '@mysten/sui/utils';
 import { cosmiconfig } from 'cosmiconfig';
+import { dirname } from 'node:path';
 import * as z from 'zod/v4';
 
 export const globalFunctionsOptionSchema = z.union([
@@ -110,6 +111,40 @@ export const configArgumentsSchema = z.record(
 export type ConfigArgumentMatcher = z.infer<typeof configArgumentMatcherSchema>;
 export type ConfigArguments = z.infer<typeof configArgumentsSchema>;
 
+export const bcsOverrideSchema = z.strictObject({
+	/**
+	 * The Move type this entry replaces in generated BCS layouts. A datatype is written as
+	 * `module::TypeName`, scoped like `configArguments` matchers (bare form for the declaring
+	 * package, `@pkg` identifiers for other run packages, explicit addresses) — plus named-address
+	 * labels from the package's summaries (e.g. `fixed_math::i64::I64`) for dependency packages
+	 * that are not codegen-run entries. Without `fields`, the datatype's generated declaration is
+	 * replaced, so every generated layout referencing it uses the custom type. Pure types (`u64`,
+	 * `vector<u64>`, `0x1::string::String`, ...) have no generated declaration and require
+	 * `fields`.
+	 */
+	type: z.string(),
+	/**
+	 * Restrict the replacement to matching field sites, written
+	 * `[scope::]module::TypeName.field` with `*` wildcards allowed in the module, type, and field
+	 * segments (e.g. `order::Order.*_price`, `order::*.*`). Enum variant fields match on both
+	 * `field` and `variant.field`. Only fields whose declared Move type matches `type` are
+	 * replaced.
+	 */
+	fields: z.string().optional(),
+	/**
+	 * Import specifier for the replacement BCS type, optionally suffixed with `#ExportName`.
+	 * Relative specifiers resolve against the config file's directory; bare package specifiers are
+	 * emitted as-is. Without a fragment, datatype entries import the Move type's name; `fields`
+	 * entries for pure types must include one.
+	 */
+	source: z.string(),
+});
+
+export const bcsOverridesSchema = z.array(bcsOverrideSchema);
+
+export type BcsOverride = z.infer<typeof bcsOverrideSchema>;
+export type BcsOverrides = z.infer<typeof bcsOverridesSchema>;
+
 export const packageGenerateSchema = globalGenerateSchema.extend({
 	modules: z
 		.union([
@@ -133,6 +168,7 @@ export const onChainPackageSchema = z
 		network: z.enum(['mainnet', 'testnet']),
 		generate: packageGenerateSchema.optional(),
 		configArguments: configArgumentsSchema.optional(),
+		bcsOverrides: bcsOverridesSchema.optional(),
 	})
 	.superRefine((config, context) => {
 		if (
@@ -154,6 +190,7 @@ export const localPackageSchema = z.object({
 	packageName: z.string().optional(),
 	generate: packageGenerateSchema.optional(),
 	configArguments: configArgumentsSchema.optional(),
+	bcsOverrides: bcsOverridesSchema.optional(),
 });
 
 export const packageConfigSchema = z.union([onChainPackageSchema, localPackageSchema]);
@@ -216,7 +253,12 @@ export type PackageConfig = z.infer<typeof packageConfigSchema>;
 export type SuiCodegenConfig = z.input<typeof configSchema>;
 export type ParsedSuiCodegenConfig = z.infer<typeof configSchema>;
 
-export async function loadConfig(): Promise<ParsedSuiCodegenConfig> {
+export async function loadConfig(): Promise<
+	ParsedSuiCodegenConfig & {
+		/** Directory of the loaded config file; relative `bcsOverrides` sources resolve against it. */
+		configDir?: string;
+	}
+> {
 	const config = await cosmiconfig('sui-codegen').search();
 
 	if (!config) {
@@ -231,5 +273,5 @@ export async function loadConfig(): Promise<ParsedSuiCodegenConfig> {
 		};
 	}
 
-	return configSchema.parse(config.config);
+	return { ...configSchema.parse(config.config), configDir: dirname(config.filepath) };
 }

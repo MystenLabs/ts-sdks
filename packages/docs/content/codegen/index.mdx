@@ -110,6 +110,7 @@ local (from source) or onchain (fetched from a network).
 | `packageName`     | `string`                 | no       | Custom name for generated code directory                                                         |
 | `generate`        | `PackageGenerateOptions` | no       | Control what gets generated from this package                                                    |
 | `configArguments` | `ConfigArguments`        | no       | Map this package's function parameters to a [runtime config object](#the-configarguments-option) |
+| `bcsOverrides`    | `BcsOverrides`           | no       | Replace generated BCS types with [custom types](#the-bcsoverrides-option)                        |
 
 ```typescript
 {
@@ -131,6 +132,7 @@ needing local source code:
 | `network`         | `'mainnet' \| 'testnet'` | yes      | Network to resolve and fetch the package from                                                   |
 | `generate`        | `PackageGenerateOptions` | no       | Control what gets generated from this package                                                    |
 | `configArguments` | `ConfigArguments`        | no       | Map this package's function parameters to a [runtime config object](#the-configarguments-option) |
+| `bcsOverrides`    | `BcsOverrides`           | no       | Replace generated BCS types with [custom types](#the-bcsoverrides-option)                        |
 
 ```typescript
 {
@@ -450,6 +452,90 @@ For package entries, the address used for a generated call is resolved in this o
 On networks where the package's MVR name doesn't resolve, supply the deployed package ID through the
 config object. Package entries only apply to the main package's generated modules, and for packages
 generated without an MVR name or address `package` remains required.
+
+## The `bcsOverrides` option
+
+Generated BCS types mirror the raw Move layout, but the raw layout is often not the shape an SDK
+wants to expose: a `u64` field might be a 1e9 fixed-point price, or a struct like
+`i64::I64 { magnitude: u64, is_negative: bool }` is really a signed integer. The `bcsOverrides`
+option replaces generated BCS types with custom ones — typically built with
+[`transform`](/bcs#transforms) — so parsed values come out in the shape you want and inputs accept
+it.
+
+`bcsOverrides` is set on a package entry as an array. Every entry names the Move `type` it replaces
+and the `source` module the replacement is imported from:
+
+```typescript
+const config: SuiCodegenConfig = {
+	output: './src/contracts',
+	packages: [
+		{
+			package: '@local-pkg/deepbook_predict',
+			path: './move/deepbook_predict',
+			bcsOverrides: [
+				// Replace a datatype's generated declaration: every generated layout that
+				// references it uses the custom type. Imports `I64` from the source module.
+				{ type: 'fixed_math::i64::I64', source: './src/bcs/i64.ts' },
+
+				// Replace a pure type at matching field sites only. `fields` accepts `*`
+				// wildcards in the module, type, and field segments.
+				{ type: 'u64', fields: 'order::Order.*_price', source: './src/bcs/units.ts#Price9' },
+				{ type: 'u64', fields: 'pool_accounting::*.*', source: './src/bcs/units.ts#Usdc6' },
+				{ type: 'vector<u64>', fields: 'tree::Node.levels', source: './src/bcs/units.ts#Payouts' },
+			],
+		},
+	],
+};
+```
+
+The replacement module exports plain BCS types:
+
+```typescript
+// ./src/bcs/units.ts
+import { bcs } from '@mysten/sui/bcs';
+
+/** 1e9 fixed-point u64 exposed as a decimal number. */
+export const Price9 = bcs.u64().transform({
+	input: (value: number) => BigInt(Math.round(value * 1e9)).toString(),
+	output: (raw) => Number(raw) / 1e9,
+});
+```
+
+The custom type's inferred input and output types flow through the generated code, so
+`Order.parse(bytes).entry_price` is a `number` and `Order.serialize` accepts one.
+
+Entry rules:
+
+- `type` uses the same package scoping as `configArguments` matchers (bare `module::Type` for the
+  declaring package, package identifiers, explicit addresses), and additionally accepts
+  named-address labels from the package's summaries (for example, `fixed_math::i64::I64`) so
+  entries can target dependency packages that are not codegen-run entries.
+- A datatype entry without `fields` replaces the type's generated declaration: the generated module
+  exports the custom type under the Move type's name, and reference sites are unchanged. Write the
+  type without type arguments — the replacement applies to every instantiation, and for a generic
+  type the source must export a function `(...typeParameters: BcsType<any>[]) => BcsType<any>`
+  mirroring the generated call convention.
+- Types that generated layouts serialize inline rather than by reference — primitives, `vector`,
+  `0x1::string::String`, `0x1::ascii::String`, `0x1::option::Option`, `0x2::object::ID`, and
+  `0x2::object::UID` — can only be replaced at field sites, so they require a `fields` pattern.
+- `fields` is written `module::TypeName.field` and only replaces fields whose declared Move type
+  matches `type` exactly (an uninstantiated generic datatype matches every instantiation). Enum
+  variant fields match on both `field` and `variant.field` (for example, `Result.Err.code`).
+- `source` is an import specifier, optionally suffixed with `#ExportName`. Relative specifiers
+  resolve against the config file's directory and are rewritten into relative imports from each
+  generated file, with their extension replaced by the configured `importExtension` (so a
+  `./src/bcs/units.ts` source is imported as `units.js` by default); bare package specifiers are
+  emitted as-is. Without a fragment, datatype entries import the Move type's name; entries whose
+  `type` is a primitive or `vector` must include one.
+- Replacement modules must be self-contained: a module whose export replaces a declaration can't
+  import generated modules that reference the replaced type, because that would create a circular
+  import. Declare the raw layout inline when building a transform.
+- Two entries matching the same field fail generation; entries that never match anything produce a
+  warning.
+
+Overrides only affect generated BCS layouts (parsing and serializing structs, enums, and events,
+including `MoveStruct.get()`). Generated transaction-building functions serialize their arguments
+from Move type tags at runtime, so pure function arguments are unaffected.
 
 ## Phantom types
 

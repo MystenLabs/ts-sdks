@@ -77,22 +77,33 @@ export interface ConfigArgumentsContext {
 	packageIdentities?: Record<string, PackageIdentity>;
 }
 
-const PRIMITIVES = new Set(['bool', 'u8', 'u16', 'u32', 'u64', 'u128', 'u256', 'address']);
-const MOVE_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
+export const PRIMITIVES = new Set(['bool', 'u8', 'u16', 'u32', 'u64', 'u128', 'u256', 'address']);
+export const MOVE_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const HEX_ADDRESS = /^0x[0-9a-fA-F]{1,64}$/;
 const ZERO_ADDRESS = normalizeSuiAddress('0x0');
 
-function normalizeAddress(address: string) {
+export function normalizeAddress(address: string) {
 	return HEX_ADDRESS.test(address) ? normalizeSuiAddress(address) : address;
 }
 
-interface ParseContext {
+export interface ParseContext {
 	/** Address a bare `module::Type` resolves against: the declaring package. */
 	scopeAddress: string;
 	registry: ModuleRegistry;
 	currentPackage: { id: string; address: string };
 	packageIdentities: Record<string, PackageIdentity>;
 	root: string;
+	/**
+	 * Also accept named-address labels from the loaded summaries as package qualifiers
+	 * (`fixed_math::i64::I64`), so matchers can reference dependency packages that are not
+	 * codegen-run entries. Used by `bcsOverrides`; `configArguments` matchers keep the stricter
+	 * run-package scoping because their config keys are part of the generated public API.
+	 *
+	 * Labels resolve to the summaries' address mapping, which is `0x0` for every unpublished local
+	 * package — the same ambiguity the run-package label branch below already accepts. Two
+	 * unpublished packages declaring the same module and type name can't be told apart by scope.
+	 */
+	allowAddressLabels?: boolean;
 }
 
 /**
@@ -119,9 +130,15 @@ function resolveQualifier(packagePart: string | undefined, tag: string, ctx: Par
 
 	const identity = ctx.packageIdentities[packagePart];
 	if (identity === undefined) {
+		if (ctx.allowAddressLabels && ctx.registry.addressMappings[packagePart] !== undefined) {
+			return normalizeAddress(ctx.registry.addressMappings[packagePart]);
+		}
 		throw new Error(
-			`Unknown package "${packagePart}" in configArguments matcher "${tag}". Known packages in ` +
-				`this codegen run: ${[ctx.currentPackage.id, ...Object.keys(ctx.packageIdentities)].join(', ')}`,
+			`Unknown package "${packagePart}" in matcher "${tag}". Known packages in ` +
+				`this codegen run: ${[ctx.currentPackage.id, ...Object.keys(ctx.packageIdentities)].join(', ')}` +
+				(ctx.allowAddressLabels
+					? `. Known named-address labels: ${Object.keys(ctx.registry.addressMappings).join(', ')}`
+					: ''),
 		);
 	}
 
@@ -147,10 +164,10 @@ function resolveQualifier(packagePart: string | undefined, tag: string, ctx: Par
 		}
 	}
 
-	// A package's configArguments only affect its own generated functions, so referencing a run
-	// package that isn't part of this dependency closure can never match anything — a mistake.
+	// A package's matchers only affect its own generated code, so referencing a run package that
+	// isn't part of this dependency closure can never match anything — a mistake.
 	throw new Error(
-		`configArguments matcher "${tag}": package "${packagePart}" is not part of this package's ` +
+		`Matcher "${tag}": package "${packagePart}" is not part of this package's ` +
 			`dependencies, so the matcher can never match. Declare it in a package that depends on ` +
 			`"${packagePart}" (or on "${packagePart}" itself).`,
 	);
@@ -161,7 +178,7 @@ function resolveQualifier(packagePart: string | undefined, tag: string, ctx: Par
  * qualifier and canonicalizing type arguments with the same identity encoding used for Move
  * parameter types (so matcher-side and signature-side identities are directly comparable).
  */
-function parseMatcherType(
+export function parseMatcherType(
 	tag: string,
 	ctx: ParseContext,
 ): { address: string; module: string; name: string; typeArguments: string[] } {
@@ -205,7 +222,7 @@ function parseMatcherType(
 }
 
 /** Canonical identity of a matcher type argument (recursive). */
-function matcherArgumentIdentity(argument: string, ctx: ParseContext): string {
+export function matcherArgumentIdentity(argument: string, ctx: ParseContext): string {
 	if (argument.length === 0) {
 		throw new Error(`Invalid type in configArguments matcher: "${ctx.root}" (empty type argument)`);
 	}
@@ -245,7 +262,7 @@ function matcherArgumentIdentity(argument: string, ctx: ParseContext): string {
 	return datatypeIdentity(parsed.address, parsed.module, parsed.name, parsed.typeArguments);
 }
 
-function datatypeIdentity(
+export function datatypeIdentity(
 	address: string,
 	module: string,
 	name: string,
