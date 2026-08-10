@@ -1,5 +1,6 @@
 import type { ClientWithCoreApi, SuiClientRegistration } from '@mysten/sui/client';
 import { Transaction, coinWithBalance } from '@mysten/sui/transactions';
+import { isValidSuiObjectId } from '@mysten/sui/utils';
 import { getConfig, type PredictConfig } from './config/index.js';
 import {
 	decodeAccountsCreated,
@@ -37,7 +38,12 @@ import { poolStats } from './reads/pool.js';
 import { readPricerSnapshot, type PricerSnapshot } from './reads/pricing.js';
 import { boardPricer, type BoardPricer } from './pricing.js';
 import { POS_INF_TICK, binaryRangeTicks, type Side } from './ticks.js';
-import { createAccount, depositFunds, withdrawFunds } from './tx/account.js';
+import {
+	createAccount,
+	createAccountAndDeposit,
+	depositFunds,
+	withdrawFunds,
+} from './tx/account.js';
 import { setBuilderCode, unsetBuilderCode } from './tx/builderCode.js';
 import { deriveAccountWrapperId } from './tx/common.js';
 import {
@@ -60,20 +66,39 @@ import {
 
 // `position_lot_size` — a position quantity must be a whole multiple of this many
 // raw payout units ($0.01 lots). See packages/predict/sources/constants.move.
-const POSITION_LOT_SIZE = 10_000n;
+export const POSITION_LOT_SIZE = 10_000n;
 
-/** A live/settled binary market addressed by its human coordinates. */
-export interface MarketDescriptor {
+/** A live/settled market addressed by its human coordinates: a binary position
+ * (single strike + side) or a two-strike range position. */
+export type MarketDescriptor = {
 	underlying: string;
 	expiryMs: number | bigint;
 	/**
-	 * Strike in USD, or "reference" to trade at the market's on-chain reference
-	 * price (the Polymarket-style anchor: derived from the exact previous-window
-	 * oracle observation, so consecutive windows chain settlement → next strike).
+	 * Pin resolution to this exact `ExpiryMarket` object, skipping the
+	 * underlying+expiry lookup — a caller that reviewed a specific market object
+	 * mints against exactly that object, not whatever resolves at submit time.
 	 */
-	strike: number | 'reference';
-	side: Side;
-}
+	marketId?: string;
+} & (
+	| {
+			side: Side;
+			/**
+			 * Strike in USD, or "reference" to trade at the market's on-chain reference
+			 * price (the Polymarket-style anchor: derived from the exact previous-window
+			 * oracle observation, so consecutive windows chain settlement → next strike).
+			 */
+			strike: number | 'reference';
+	  }
+	| {
+			/** A range position: pays out when settlement lands inside `(lower, upper]`
+			 * (left-open, right-closed — same convention as the on-chain range key). */
+			side: 'range';
+			/** Lower strike bound in USD — finite, on the tick grid. */
+			lower: number;
+			/** Upper strike bound in USD — finite, on the tick grid, above `lower`. */
+			upper: number;
+	  }
+);
 
 /** Options for the friendly `mint` (exact payout quantity). */
 export interface MintOptions {
@@ -171,6 +196,12 @@ interface ResolvedMarket {
 	state: MarketState;
 }
 
+// The strike-bearing (binary) arm of MarketDescriptor, for read.price and its
+// seam — anonymous board pricing has no range semantics.
+type BinaryMarketCoordinates = Pick<MarketDescriptor, 'underlying' | 'expiryMs' | 'marketId'> & {
+	strike: number | 'reference';
+};
+
 /** The Sui client surface PredictClient reads through: any `ClientWithCoreApi`
  * (gRPC or JSON-RPC) provides both the `simulateTransaction` the reads/quotes
  * sit on and the `core` object methods position enumeration needs. */
@@ -240,10 +271,31 @@ export class PredictClient {
 		};
 	}
 
-	// Resolve (and cache) a market's id + state from its human coordinates.
+	// Resolve (and cache) a market's id + state from its human coordinates. An
+	// explicit `marketId` pin skips the underlying+expiry lookup but still reads
+	// that market's state — tx building depends on tickSizeRaw.
 	async #resolveMarket(
-		m: Pick<MarketDescriptor, 'underlying' | 'expiryMs'>,
+		m: Pick<MarketDescriptor, 'underlying' | 'expiryMs' | 'marketId'>,
 	): Promise<ResolvedMarket> {
+		if (m.marketId != null) {
+			if (!isValidSuiObjectId(m.marketId)) {
+				throw new PredictInputError(`invalid marketId: ${JSON.stringify(m.marketId)}`);
+			}
+			const resolved: ResolvedMarket = this.#marketCache.get(m.marketId) ?? {
+				id: m.marketId,
+				state: await marketState(this.#client, this.cfg, m.marketId),
+			};
+			// The pin must agree with the descriptor's coordinates: catching a stale or
+			// wrong-market id here beats minting against mismatched oracle feeds. (The
+			// underlying cannot be cross-checked — market state does not carry it.)
+			if (resolved.state.expiryMs !== BigInt(m.expiryMs)) {
+				throw new PredictInputError(
+					`pinned market ${m.marketId} expires at ${resolved.state.expiryMs}, descriptor says ${BigInt(m.expiryMs)}`,
+				);
+			}
+			this.#marketCache.set(m.marketId, resolved);
+			return resolved;
+		}
 		const expiryMs = BigInt(m.expiryMs);
 		const key = `${m.underlying}:${expiryMs}`;
 		const hit = this.#marketCache.get(key);
@@ -263,15 +315,44 @@ export class PredictClient {
 			: fromRaw(state.referenceTickRaw * state.tickSizeRaw, 9);
 	}
 
-	// Resolve a descriptor's strike to the (lower, higher) tick pair. A numeric
-	// strike converts and validates against the tick grid; "reference" reads the
-	// market's reference tick FRESH (never cached — it is unset early in a
-	// window) and uses it directly: it is on the tick grid by construction.
+	// A finite tick from a USD strike, validated exactly like binaryRangeTicks:
+	// whole-tick multiple, inside the finite domain (1..POS_INF_TICK-1).
+	#gridTick(strike: number, tickSizeRaw: bigint): bigint {
+		const raw = priceToRaw(strike);
+		const tick = raw / tickSizeRaw;
+		if (tick * tickSizeRaw !== raw) {
+			throw new PredictInputError(
+				`strike ${strike} is not on the ${fromRaw(tickSizeRaw, 9)} tick grid`,
+			);
+		}
+		if (tick <= 0n || tick >= POS_INF_TICK) {
+			throw new PredictInputError(
+				`strike tick ${tick} outside the finite tick domain (1..POS_INF_TICK-1)`,
+			);
+		}
+		return tick;
+	}
+
+	// Resolve a descriptor's strike(s) to the (lower, higher) tick pair. A binary
+	// numeric strike converts and validates against the tick grid; "reference"
+	// reads the market's reference tick FRESH (never cached — it is unset early in
+	// a window) and uses it directly: it is on the tick grid by construction. A
+	// range descriptor converts both bounds to finite grid ticks ("reference" is
+	// binary-only: a range has no single reference strike).
 	async #strikeTicks(
 		m: MarketDescriptor,
 		marketId: string,
 		state: MarketState,
 	): Promise<{ lowerTick: bigint; higherTick: bigint }> {
+		if (m.side === 'range') {
+			if (!(m.lower < m.upper)) {
+				throw new PredictInputError(`range lower ${m.lower} must be below upper ${m.upper}`);
+			}
+			return {
+				lowerTick: this.#gridTick(m.lower, state.tickSizeRaw),
+				higherTick: this.#gridTick(m.upper, state.tickSizeRaw),
+			};
+		}
 		if (m.strike !== 'reference') {
 			return binaryRangeTicks(priceToRaw(m.strike), m.side, state.tickSizeRaw);
 		}
@@ -344,18 +425,14 @@ export class PredictClient {
 	// Raw strike for anonymous pricing: numeric strikes validate against the tick
 	// grid; "reference" reads the market's reference tick fresh (unset → typed error).
 	async #strikeRawFor(
-		m: Pick<MarketDescriptor, 'underlying' | 'expiryMs' | 'strike'>,
+		m: BinaryMarketCoordinates,
 		marketId: string,
 		state: MarketState,
 	): Promise<bigint> {
 		if (m.strike !== 'reference') {
-			const raw = priceToRaw(m.strike);
-			if (raw % state.tickSizeRaw !== 0n) {
-				throw new PredictInputError(
-					`strike ${m.strike} is not on the ${fromRaw(state.tickSizeRaw, 9)} tick grid`,
-				);
-			}
-			return raw;
+			// Same validation as the mint path: on the grid AND inside the finite tick
+			// domain (0 / POS_INF are the ±inf sentinels, not quotable strikes).
+			return this.#gridTick(m.strike, state.tickSizeRaw) * state.tickSizeRaw;
 		}
 		const tick = await referenceTick(this.#client, this.cfg, marketId);
 		if (tick == null) {
@@ -375,7 +452,20 @@ export class PredictClient {
 			return tx;
 		},
 
-		deposit: (owner: string, amountUsdc: number | string): Transaction => {
+		// `create: true` composes first-time funding into ONE PTB: create the account
+		// wrapper, deposit into it through the fresh handle, and `share` it LAST (once
+		// shared, by-value use of the handle is over). The wrapper is derived from the
+		// transaction SENDER (`account_registry::new` takes no owner), so `owner` MUST
+		// be the address that signs this transaction — a sponsored/backend signer would
+		// silently fund its own fresh account instead. The caller also asserts the
+		// account does not exist yet: `new` ABORTS at the deterministic address if it
+		// already exists — no chain read is done here. Gate on your own existence check
+		// (`wrapperIdFor(owner)` + a getObject), or retry without the flag on that abort.
+		deposit: (
+			owner: string,
+			amountUsdc: number | string,
+			opts?: { create?: boolean },
+		): Transaction => {
 			const tx = new Transaction();
 			const coin = tx.add(
 				coinWithBalance({
@@ -384,7 +474,11 @@ export class PredictClient {
 					useGasCoin: false,
 				}),
 			);
-			tx.add(depositFunds(this.cfg, { wrapperId: this.wrapperIdFor(owner), coin }));
+			if (opts?.create) {
+				tx.add(createAccountAndDeposit(this.cfg, { coin }));
+			} else {
+				tx.add(depositFunds(this.cfg, { wrapperId: this.wrapperIdFor(owner), coin }));
+			}
 			return tx;
 		},
 
@@ -460,7 +554,7 @@ export class PredictClient {
 
 		claimSettled: async (
 			owner: string,
-			m: Pick<MarketDescriptor, 'underlying' | 'expiryMs'>,
+			m: Pick<MarketDescriptor, 'underlying' | 'expiryMs' | 'marketId'>,
 			opts: CloseOptions,
 		): Promise<Transaction> => {
 			const { id } = await this.#resolveMarket(m);
@@ -564,9 +658,7 @@ export class PredictClient {
 		// Anonymous board pricing: the chain's probability for both sides of a
 		// strike, from one fresh pricer (no account needed). This is the ↑/↓
 		// button price before a user has onboarded.
-		price: async (
-			m: Pick<MarketDescriptor, 'underlying' | 'expiryMs' | 'strike'>,
-		): Promise<{ up: number; down: number }> => {
+		price: async (m: BinaryMarketCoordinates): Promise<{ up: number; down: number }> => {
 			const feeds = this.#feeds(m.underlying);
 			const { id, state } = await this.#resolveMarket(m);
 			const strikeRaw = await this.#strikeRawFor(m, id, state);
