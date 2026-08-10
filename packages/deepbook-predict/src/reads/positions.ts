@@ -118,7 +118,7 @@ export async function positionsFromTable(
 			const key = PositionKey.parse(entry.name.bcs);
 			out.push({
 				marketId: normalizeSuiAddress(key.expiry_market_id),
-				orderId: BigInt(key.order_id),
+				orderId: key.order_id,
 			});
 		}
 		if (!res.hasNextPage || !res.cursor) return out;
