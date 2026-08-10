@@ -627,13 +627,13 @@ console.log(fn.typeParameters);
 
 ## Name service methods
 
-### `lookupName`
+### `resolveNameServiceAddress`
 
 Resolve a SuiNS name to its target address. The address is `null` when the name does not exist, has
 expired, or does not have a target address.
 
 ```typescript
-const { address } = await client.core.lookupName({
+const { address } = await client.core.resolveNameServiceAddress({
 	name: 'example.sui',
 });
 

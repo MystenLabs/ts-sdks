@@ -52,15 +52,15 @@ The same methods are available through `client.core` when SDK code needs the tra
 
 Common top-level methods:
 
-| Category       | Methods                                                                                            |
-| -------------- | -------------------------------------------------------------------------------------------------- |
-| Objects        | `getObject`, `getObjects`, `listOwnedObjects`, `listDynamicFields`, `getDynamicField`              |
-| Coins          | `listCoins`, `getBalance`, `listBalances`, `getCoinMetadata`                                       |
-| Transactions   | `getTransaction`, `executeTransaction`, `signAndExecuteTransaction`, `waitForTransaction`          |
-| Simulation     | `simulateTransaction`                                                                              |
-| Queries        | `listTransactions`, `listEvents`                                                                   |
-| Move and names | `getMoveFunction`, `lookupName`, `defaultNameServiceName`, `mvr.resolvePackage`, `mvr.resolveType` |
-| Verification   | `verifyZkLoginSignature`                                                                           |
+| Category       | Methods                                                                                                           |
+| -------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Objects        | `getObject`, `getObjects`, `listOwnedObjects`, `listDynamicFields`, `getDynamicField`                             |
+| Coins          | `listCoins`, `getBalance`, `listBalances`, `getCoinMetadata`                                                      |
+| Transactions   | `getTransaction`, `executeTransaction`, `signAndExecuteTransaction`, `waitForTransaction`                         |
+| Simulation     | `simulateTransaction`                                                                                             |
+| Queries        | `listTransactions`, `listEvents`                                                                                  |
+| Move and names | `getMoveFunction`, `resolveNameServiceAddress`, `defaultNameServiceName`, `mvr.resolvePackage`, `mvr.resolveType` |
+| Verification   | `verifyZkLoginSignature`                                                                                          |
 
 GraphQL-specific top-level options include `doGasSelection` on `simulateTransaction` and
 `include: { value: true }` on `listDynamicFields`.

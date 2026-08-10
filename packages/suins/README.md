@@ -1,8 +1,8 @@
 # SuiNS SDK
 
 > Name resolution is available directly from `SuiGrpcClient` and `SuiGraphQLClient`. Use
-> `lookupName` for name-to-address resolution and `defaultNameServiceName` for address-to-name
-> resolution.
+> `resolveNameServiceAddress` for name-to-address resolution and `defaultNameServiceName` for
+> address-to-name resolution.
 
 SuiNS SDK is a convenient wrapper for querying detailed name records and building transactions for
 the Name Service.

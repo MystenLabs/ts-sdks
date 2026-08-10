@@ -16,9 +16,9 @@ describe('Core API - Name Service', () => {
 		testAddress = toolbox.address();
 	});
 
-	describe('lookupName', () => {
+	describe('resolveNameServiceAddress', () => {
 		testWithAllClients('should throw for an invalid name', async (client) => {
-			await expect(client.core.lookupName({ name: '' })).rejects.toThrow();
+			await expect(client.core.resolveNameServiceAddress({ name: '' })).rejects.toThrow();
 		});
 	});
 

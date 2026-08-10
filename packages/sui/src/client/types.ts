@@ -757,11 +757,11 @@ export namespace SuiClientTypes {
 	}
 
 	/** Name service methods */
-	export interface LookupNameOptions extends CoreClientMethodOptions {
+	export interface ResolveNameServiceAddressOptions extends CoreClientMethodOptions {
 		name: string;
 	}
 
-	export interface LookupNameResponse {
+	export interface ResolveNameServiceAddressResponse {
 		address: string | null;
 	}
 
@@ -776,7 +776,9 @@ export namespace SuiClientTypes {
 	}
 
 	export interface TransportMethods {
-		lookupName: (options: LookupNameOptions) => Promise<LookupNameResponse>;
+		resolveNameServiceAddress: (
+			options: ResolveNameServiceAddressOptions,
+		) => Promise<ResolveNameServiceAddressResponse>;
 		defaultNameServiceName: (
 			options: DefaultNameServiceNameOptions,
 		) => Promise<DefaultNameServiceNameResponse>;

@@ -67,6 +67,21 @@ export interface GrpcCoreClientOptions extends CoreClientOptions {
 	client: SuiGrpcClient;
 }
 
+function isNameServiceResolutionMiss(error: unknown): boolean {
+	if (!(error instanceof RpcError)) return false;
+	if (error.code === 'NOT_FOUND') return true;
+	if (error.code !== 'RESOURCE_EXHAUSTED') return false;
+
+	try {
+		// The gRPC service currently reports expired names as RESOURCE_EXHAUSTED without a
+		// structured reason. grpc-web URI-encodes status messages, so decode before matching while
+		// preserving unrelated RESOURCE_EXHAUSTED failures such as capacity limits.
+		return decodeURIComponent(error.message) === 'name has expired';
+	} catch {
+		return false;
+	}
+}
+
 export class GrpcCoreClient extends CoreClient {
 	#client: SuiGrpcClient;
 	constructor({ client, ...options }: GrpcCoreClientOptions) {
@@ -798,9 +813,9 @@ export class GrpcCoreClient extends CoreClient {
 		};
 	}
 
-	async lookupName(
-		options: SuiClientTypes.LookupNameOptions,
-	): Promise<SuiClientTypes.LookupNameResponse> {
+	async resolveNameServiceAddress(
+		options: SuiClientTypes.ResolveNameServiceAddressOptions,
+	): Promise<SuiClientTypes.ResolveNameServiceAddressResponse> {
 		try {
 			const { response } = await this.#client.nameService.lookupName(
 				{ name: options.name },
@@ -809,11 +824,7 @@ export class GrpcCoreClient extends CoreClient {
 
 			return { address: response.record?.targetAddress ?? null };
 		} catch (error) {
-			if (
-				error instanceof RpcError &&
-				(error.code === 'NOT_FOUND' ||
-					(error.code === 'RESOURCE_EXHAUSTED' && error.message === 'name has expired'))
-			) {
+			if (isNameServiceResolutionMiss(error)) {
 				return { address: null };
 			}
 

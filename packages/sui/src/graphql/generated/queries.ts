@@ -286,12 +286,12 @@ export type DefaultSuinsNameQueryVariables = Exact<{
 
 export type DefaultSuinsNameQuery = { address: { defaultNameRecord: { domain: string } | null } | null };
 
-export type LookupNameQueryVariables = Exact<{
+export type ResolveNameServiceAddressQueryVariables = Exact<{
   name: string;
 }>;
 
 
-export type LookupNameQuery = { address: { address: string } | null };
+export type ResolveNameServiceAddressQuery = { address: { address: string } | null };
 
 export type GetOwnedObjectsQueryVariables = Exact<{
   owner: string;
@@ -911,13 +911,13 @@ export const DefaultSuinsNameDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<DefaultSuinsNameQuery, DefaultSuinsNameQueryVariables>;
-export const LookupNameDocument = new TypedDocumentString(`
-    query lookupName($name: String!) {
+export const ResolveNameServiceAddressDocument = new TypedDocumentString(`
+    query resolveNameServiceAddress($name: String!) {
   address(name: $name) {
     address
   }
 }
-    `) as unknown as TypedDocumentString<LookupNameQuery, LookupNameQueryVariables>;
+    `) as unknown as TypedDocumentString<ResolveNameServiceAddressQuery, ResolveNameServiceAddressQueryVariables>;
 export const GetOwnedObjectsDocument = new TypedDocumentString(`
     query getOwnedObjects($owner: SuiAddress!, $limit: Int, $cursor: String, $filter: ObjectFilter, $includeContent: Boolean = false, $includePreviousTransaction: Boolean = false, $includeObjectBcs: Boolean = false, $includeJson: Boolean = false, $includeDisplay: Boolean = false) {
   address(address: $owner) {

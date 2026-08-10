@@ -30,8 +30,8 @@ import {
 	GetTransactionBlockDocument,
 	ListEventsDocument,
 	ListTransactionsDocument,
-	LookupNameDocument,
 	MultiGetObjectsDocument,
+	ResolveNameServiceAddressDocument,
 	ResolveTransactionDocument,
 	SimulateTransactionDocument,
 	VerifyZkLoginSignatureDocument,
@@ -777,11 +777,11 @@ export class GraphQLCoreClient extends CoreClient {
 		};
 	}
 
-	async lookupName(
-		options: SuiClientTypes.LookupNameOptions,
-	): Promise<SuiClientTypes.LookupNameResponse> {
+	async resolveNameServiceAddress(
+		options: SuiClientTypes.ResolveNameServiceAddressOptions,
+	): Promise<SuiClientTypes.ResolveNameServiceAddressResponse> {
 		const { data, errors } = await this.#graphqlClient.query({
-			query: LookupNameDocument,
+			query: ResolveNameServiceAddressDocument,
 			signal: options.signal,
 			variables: { name: options.name },
 		});

@@ -9,7 +9,7 @@ query defaultSuinsName($address: SuiAddress!) {
 	}
 }
 
-query lookupName($name: String!) {
+query resolveNameServiceAddress($name: String!) {
 	address(name: $name) {
 		address
 	}

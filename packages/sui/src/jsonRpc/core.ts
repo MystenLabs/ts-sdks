@@ -806,9 +806,9 @@ export class JSONRpcCoreClient extends CoreClient {
 	 * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
 	 * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
 	 */
-	async lookupName(
-		options: SuiClientTypes.LookupNameOptions,
-	): Promise<SuiClientTypes.LookupNameResponse> {
+	async resolveNameServiceAddress(
+		options: SuiClientTypes.ResolveNameServiceAddressOptions,
+	): Promise<SuiClientTypes.ResolveNameServiceAddressResponse> {
 		return {
 			address: await this.#jsonRpcClient.resolveNameServiceAddress(options),
 		};

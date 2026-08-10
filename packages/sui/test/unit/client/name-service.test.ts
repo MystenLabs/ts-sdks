@@ -15,7 +15,7 @@ import { SuiJsonRpcClient } from '../../../src/jsonRpc/index.js';
 const name = '@mysten';
 const address = '0x123';
 
-describe('lookupName', () => {
+describe('resolveNameServiceAddress', () => {
 	it('maps the gRPC name record target address', async () => {
 		const client = new SuiGrpcClient({ baseUrl: 'http://localhost', network: 'mainnet' });
 		const signal = AbortSignal.timeout(1_000);
@@ -24,28 +24,32 @@ describe('lookupName', () => {
 		);
 		client.nameService.lookupName = lookupName as never;
 
-		await expect(client.lookupName({ name, signal })).resolves.toEqual({ address });
+		await expect(client.resolveNameServiceAddress({ name, signal })).resolves.toEqual({ address });
 		expect(lookupName).toHaveBeenCalledWith({ name }, { abort: signal });
 	});
 
 	it.each([
 		new RpcError('not found', 'NOT_FOUND'),
 		new RpcError('name has expired', 'RESOURCE_EXHAUSTED'),
+		new RpcError('name%20has%20expired', 'RESOURCE_EXHAUSTED'),
 	])('maps absent gRPC names to null ($code)', async (error) => {
 		const client = new SuiGrpcClient({ baseUrl: 'http://localhost', network: 'mainnet' });
 		client.nameService.lookupName = (() => Promise.reject(error)) as never;
 
-		await expect(client.core.lookupName({ name })).resolves.toEqual({ address: null });
+		await expect(client.core.resolveNameServiceAddress({ name })).resolves.toEqual({
+			address: null,
+		});
 	});
 
 	it.each([
 		new RpcError('invalid domain', 'INVALID_ARGUMENT'),
 		new RpcError('quota exceeded', 'RESOURCE_EXHAUSTED'),
+		new RpcError('%invalid-encoding', 'RESOURCE_EXHAUSTED'),
 	])('preserves other gRPC errors ($code)', async (error) => {
 		const client = new SuiGrpcClient({ baseUrl: 'http://localhost', network: 'mainnet' });
 		client.nameService.lookupName = (() => Promise.reject(error)) as never;
 
-		await expect(client.core.lookupName({ name })).rejects.toBe(error);
+		await expect(client.core.resolveNameServiceAddress({ name })).rejects.toBe(error);
 	});
 
 	it.each([address, null])('maps GraphQL address results (%s)', async (resolvedAddress) => {
@@ -64,7 +68,9 @@ describe('lookupName', () => {
 			fetch,
 		});
 
-		await expect(client.lookupName({ name })).resolves.toEqual({ address: resolvedAddress });
+		await expect(client.resolveNameServiceAddress({ name })).resolves.toEqual({
+			address: resolvedAddress,
+		});
 		expect(JSON.parse(String(requestInit?.body))).toMatchObject({
 			variables: { name },
 		});
@@ -80,7 +86,9 @@ describe('lookupName', () => {
 		};
 		const client = new SuiJsonRpcClient({ network: 'mainnet', transport });
 
-		await expect(client.core.lookupName({ name })).resolves.toEqual({ address: resolvedAddress });
+		await expect(client.core.resolveNameServiceAddress({ name })).resolves.toEqual({
+			address: resolvedAddress,
+		});
 		expect(requestInput).toEqual({
 			method: 'suix_resolveNameServiceAddress',
 			params: [name],
