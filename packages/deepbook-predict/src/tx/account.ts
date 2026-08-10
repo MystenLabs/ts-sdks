@@ -29,6 +29,41 @@ export function createAccount(cfg: PredictConfig): (tx: Transaction) => void {
 	};
 }
 
+// First-time funding in ONE PTB: create the sender's canonical wrapper, deposit the
+// caller-provided `coin` into it through the fresh handle, and `share` it LAST (once
+// shared, by-value use of the handle is over). This cannot be split across
+// `createAccount` + `depositFunds`: an object input can only address an object that
+// pre-exists the PTB, so a wrapper created inside it is reachable only through `new`'s
+// result handle. `new` derives the wrapper at its deterministic address and aborts if
+// it already exists.
+export function createAccountAndDeposit(
+	cfg: PredictConfig,
+	args: { coin: TransactionObjectArgument; coinType?: string },
+): (tx: Transaction) => void {
+	return (tx) => {
+		const wrapper = tx.add(
+			accountRegistry._new({
+				package: cfg.packages.account,
+				arguments: { registry: cfg.objects.accountRegistry },
+			}),
+		);
+		const auth = tx.add(generateAuth(cfg));
+		tx.add(
+			account.depositFunds({
+				package: cfg.packages.account,
+				arguments: { wrapper, auth, coin: args.coin, root: ACCUMULATOR_ROOT_ID },
+				typeArguments: [args.coinType ?? cfg.quoteCoinType],
+			}),
+		);
+		tx.add(
+			account.share({
+				package: cfg.packages.account,
+				arguments: { self: wrapper },
+			}),
+		);
+	};
+}
+
 // Deposit a caller-provided `coin` into the account's stored balance via the
 // PTB-callable `deposit_funds` (folds settle → authorize → load → deposit; clock
 // auto-injected). The caller owns coin sourcing. See

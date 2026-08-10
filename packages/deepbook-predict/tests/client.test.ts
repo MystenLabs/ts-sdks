@@ -1,12 +1,14 @@
 import { bcs } from '@mysten/sui/bcs';
-import type { Transaction } from '@mysten/sui/transactions';
+import { Transaction, coinWithBalance } from '@mysten/sui/transactions';
 import { describe, expect, test } from 'vitest';
 import { PredictClient } from '../src/client.js';
 import { TESTNET_CONFIG as cfg } from '../src/config/index.js';
+import * as accountEvents from '../src/contracts/account/account_events.js';
 import * as orderEvents from '../src/contracts/deepbook_predict/order_events.js';
 import { PredictInputError } from '../src/errors.js';
 import type { ReadClient } from '../src/reads/inspect.js';
 import { POS_INF_TICK } from '../src/ticks.js';
+import { depositFunds } from '../src/tx/account.js';
 
 const OWNER = '0x' + 'ab'.repeat(32);
 const MARKET_ID = '0x' + 'cd'.repeat(32);
@@ -222,6 +224,70 @@ describe('tx.deposit / tx.withdraw', () => {
 		expect(hasTransfer).toBe(false);
 	});
 
+	test('deposit({ create: true }) composes coin → new → auth → deposit_funds → share', () => {
+		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
+		const tx = pc.tx.deposit(OWNER, 100, { create: true });
+		const cmds = tx.getData().commands;
+		expect(cmds).toHaveLength(5);
+		// exact order; the coin intent resolves in place at build time
+		expect('$Intent' in cmds[0] && cmds[0].$Intent?.name).toBe('CoinWithBalance');
+		expect('MoveCall' in cmds[1] && cmds[1].MoveCall!.function).toBe('new');
+		expect('MoveCall' in cmds[2] && cmds[2].MoveCall!.function).toBe('generate_auth');
+		expect('MoveCall' in cmds[3] && cmds[3].MoveCall!.function).toBe('deposit_funds');
+		expect('MoveCall' in cmds[4] && cmds[4].MoveCall!.function).toBe('share');
+		// deposit_funds addresses the wrapper through the `new` RESULT HANDLE — not a
+		// pure/object input (an input could only reference a pre-existing object) —
+		// and share consumes the same handle, last.
+		const wrapperArg = call(tx, 3).arguments[0] as { $kind: string; Result?: number };
+		expect(wrapperArg).toMatchObject({ $kind: 'Result', Result: 1 });
+		const shareArg = call(tx, 4).arguments[0] as { $kind: string; Result?: number };
+		expect(shareArg).toMatchObject({ $kind: 'Result', Result: 1 });
+	});
+
+	test('deposit without create is unchanged (regression pin)', () => {
+		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
+		const tx = pc.tx.deposit(OWNER, 100);
+		// Pin against the pre-`create` construction, byte for byte.
+		const expected = new Transaction();
+		const coin = expected.add(
+			coinWithBalance({ type: cfg.quoteCoinType, balance: 100_000_000n, useGasCoin: false }),
+		);
+		expected.add(depositFunds(cfg, { wrapperId: pc.wrapperIdFor(OWNER), coin }));
+		const json = (v: unknown) =>
+			JSON.stringify(v, (_k, x) => (typeof x === 'bigint' ? `${x}n` : x));
+		expect(json(tx.getData())).toBe(json(expected.getData()));
+	});
+
+	test('decode.createManager and decode.deposit both resolve from one combined result', () => {
+		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
+		const wrapperId = pc.wrapperIdFor(OWNER);
+		const result = {
+			events: [
+				{
+					eventType: `${cfg.packages.account}::account_events::AccountCreated`,
+					bcs: accountEvents.AccountCreated.serialize({
+						account_id: MARKET_ID,
+						wrapper_id: wrapperId,
+						owner: OWNER,
+						self_owned: false,
+						referrer_account_id: null,
+					}).toBytes(),
+				},
+				{
+					eventType: `${cfg.packages.account}::account_events::Deposited`,
+					bcs: accountEvents.Deposited.serialize({
+						account_id: MARKET_ID,
+						coin_type: cfg.quoteCoinType,
+						amount: 100_000_000n,
+						new_balance: 100_000_000n,
+					}).toBytes(),
+				},
+			],
+		};
+		expect(pc.decode.createManager(result).wrapperId).toBe(wrapperId);
+		expect(pc.decode.deposit(result).amount).toBe(100);
+	});
+
 	test('withdraw({ toCoinObject: true }) returns a discrete Coin via TransferObjects', () => {
 		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
 		const tx = pc.tx.withdraw(OWNER, '5', { toCoinObject: true });
@@ -404,6 +470,13 @@ describe('tx.mint (market resolution + unit conversion)', () => {
 		).rejects.toThrow(/tick grid/);
 	});
 
+	test('read.price rejects sentinel strikes (same domain rule as mint)', async () => {
+		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
+		await expect(pc.read.price({ underlying: 'BTC', expiryMs: EXPIRY, strike: 0 })).rejects.toThrow(
+			/finite tick domain/,
+		);
+	});
+
 	test('read.quoteMint dry-runs the mint and computes the all-in cost', async () => {
 		const { client, counts } = mockClient();
 		const pc = new PredictClient({ network: 'testnet', client });
@@ -443,6 +516,95 @@ describe('tx.mint (market resolution + unit conversion)', () => {
 		await pc.tx.mint(OWNER, m, { quantity: 50 });
 		await pc.tx.mint(OWNER, m, { quantity: 50 });
 		expect(counts.expiry_market_id).toBe(1);
+	});
+});
+
+describe('range markets', () => {
+	const RANGE = {
+		underlying: 'BTC',
+		expiryMs: EXPIRY,
+		side: 'range',
+		lower: 104_000,
+		upper: 106_000,
+	} as const;
+
+	test('mint converts both bounds to finite grid ticks', async () => {
+		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
+		const tx = await pc.tx.mint(OWNER, RANGE, { quantity: 50 });
+		expect(targets(tx)).toContain(`${cfg.packages.predict}::expiry_market::mint_exact_quantity`);
+		// mint args: [market, wrapper, auth, config, pricer, lower, higher, ...]
+		expect(argPureBytes(tx, 2, 5)).toBe(b64(10_400_000n)); // 104,000 / $0.01
+		expect(argPureBytes(tx, 2, 6)).toBe(b64(10_600_000n)); // 106,000 / $0.01 — finite, not +inf
+	});
+
+	test('off-grid bound → PredictInputError /tick grid/', async () => {
+		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
+		const bad = { ...RANGE, upper: 106_000.005 };
+		await expect(pc.tx.mint(OWNER, bad, { quantity: 50 })).rejects.toBeInstanceOf(
+			PredictInputError,
+		);
+		await expect(pc.tx.mint(OWNER, bad, { quantity: 50 })).rejects.toThrow(/tick grid/);
+	});
+
+	test('inverted or empty range → PredictInputError', async () => {
+		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
+		const inverted = { ...RANGE, lower: 106_000, upper: 104_000 };
+		await expect(pc.tx.mint(OWNER, inverted, { quantity: 50 })).rejects.toBeInstanceOf(
+			PredictInputError,
+		);
+		await expect(pc.tx.mint(OWNER, inverted, { quantity: 50 })).rejects.toThrow(/below upper/);
+		const empty = { ...RANGE, lower: 104_000, upper: 104_000 };
+		await expect(pc.tx.mint(OWNER, empty, { quantity: 50 })).rejects.toThrow(/below upper/);
+	});
+
+	test('bounds outside the finite tick domain → PredictInputError', async () => {
+		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
+		await expect(pc.tx.mint(OWNER, { ...RANGE, lower: 0 }, { quantity: 50 })).rejects.toThrow(
+			/finite tick domain/,
+		);
+	});
+});
+
+describe('marketId pin', () => {
+	test('skips the underlying+expiry ladder and reads the pinned market state', async () => {
+		const { client, counts } = mockClient();
+		const pc = new PredictClient({ network: 'testnet', client });
+		const tx = await pc.tx.mint(
+			OWNER,
+			{ underlying: 'BTC', expiryMs: EXPIRY, marketId: MARKET_ID, strike: 105_000, side: 'up' },
+			{ quantity: 50 },
+		);
+		expect(counts.expiry_market_id).toBeUndefined(); // no ladder resolution
+		expect(counts.expiry).toBe(1); // the pinned market's state IS read (tickSizeRaw)
+		expect(targets(tx)).toContain(`${cfg.packages.predict}::expiry_market::mint_exact_quantity`);
+	});
+
+	test('pin disagreeing with the descriptor expiry → PredictInputError', async () => {
+		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
+		await expect(
+			pc.tx.mint(
+				OWNER,
+				{
+					underlying: 'BTC',
+					expiryMs: EXPIRY + 1,
+					marketId: MARKET_ID,
+					strike: 105_000,
+					side: 'up',
+				},
+				{ quantity: 50 },
+			),
+		).rejects.toThrow(/expires at/);
+	});
+
+	test('malformed marketId → PredictInputError, not a silent ladder fallback', async () => {
+		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
+		await expect(
+			pc.tx.mint(
+				OWNER,
+				{ underlying: 'BTC', expiryMs: EXPIRY, marketId: '', strike: 105_000, side: 'up' },
+				{ quantity: 50 },
+			),
+		).rejects.toThrow(/invalid marketId/);
 	});
 });
 
