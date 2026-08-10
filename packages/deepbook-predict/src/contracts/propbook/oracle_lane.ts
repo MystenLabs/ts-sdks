@@ -13,6 +13,7 @@
 
 import { type BcsType, bcs } from '@mysten/sui/bcs';
 import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
+import { U64 } from '../../bcs/integers.js';
 import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as table from './deps/sui/table.js';
 const $moduleName = '@local-pkg/propbook::oracle_lane';
@@ -28,9 +29,9 @@ export function OracleRead<Value extends BcsType<any>>(...typeParameters: [Value
 		name: `${$moduleName}::OracleRead<${typeParameters[0].name as Value['name']}>`,
 		fields: {
 			/** Source publication time in Unix milliseconds and the key used for exact reads. */
-			source_timestamp_ms: bcs.u64(),
+			source_timestamp_ms: U64,
 			/** Sui clock time in Unix milliseconds when the update transaction executed. */
-			update_timestamp_ms: bcs.u64(),
+			update_timestamp_ms: U64,
 			/** Digest of the transaction that wrote this observation. */
 			writer_digest: bcs.vector(bcs.u8()),
 			value: typeParameters[0],

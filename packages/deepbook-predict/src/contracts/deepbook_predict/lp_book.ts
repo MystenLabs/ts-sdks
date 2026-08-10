@@ -12,6 +12,7 @@
 
 import { MoveStruct } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
+import { U64 } from '../../bcs/integers.js';
 import * as table from './deps/sui/table.js';
 import * as balance from './deps/sui/balance.js';
 import * as coin from './deps/sui/coin.js';
@@ -22,8 +23,8 @@ export const RequestQueue = new MoveStruct({
 		pages: table.Table,
 		head_page_id: bcs.option(bcs.u64()),
 		tail_page_id: bcs.option(bcs.u64()),
-		next_index: bcs.u64(),
-		pending: bcs.u64(),
+		next_index: U64,
+		pending: U64,
 		escrow: balance.Balance,
 	},
 });
@@ -45,21 +46,21 @@ export const LpBook = new MoveStruct({
 export const RequestEntry = new MoveStruct({
 	name: `${$moduleName}::RequestEntry`,
 	fields: {
-		index: bcs.u64(),
+		index: U64,
 		/**
 		 * Owning account, carried so a fill can attribute to the account directly rather
 		 * than only the derived `recipient` address (address is not invertible).
 		 */
 		account_id: bcs.Address,
 		recipient: bcs.Address,
-		amount: bcs.u64(),
-		min_output: bcs.u64(),
+		amount: U64,
+		min_output: U64,
 		/**
 		 * Frozen marks this request has already missed. Only ever non-zero when the
 		 * protocol allows more than one attempt (`ProtocolConfig`), since at one attempt a
 		 * miss refunds immediately.
 		 */
-		missed_flushes: bcs.u64(),
+		missed_flushes: U64,
 	},
 });
 export const RequestPage = new MoveStruct({
@@ -73,8 +74,8 @@ export const RequestPage = new MoveStruct({
 export const FlushMark = new MoveStruct({
 	name: `${$moduleName}::FlushMark`,
 	fields: {
-		pool_value: bcs.u64(),
-		total_supply: bcs.u64(),
+		pool_value: U64,
+		total_supply: U64,
 		executable: bcs.bool(),
 	},
 });
@@ -82,23 +83,23 @@ export const FeeRates = new MoveStruct({
 	name: `${$moduleName}::FeeRates`,
 	fields: {
 		/** Supply-leg rate. Ships at zero: a deposit dilutes the pool's risk per dollar. */
-		supply: bcs.u64(),
+		supply: U64,
 		/** Withdraw-leg rate, frozen with it so one flush charges one pair. */
-		withdraw: bcs.u64(),
+		withdraw: U64,
 	},
 });
 export const FillQuote = new MoveStruct({
 	name: `${$moduleName}::FillQuote`,
 	fields: {
-		output: bcs.u64(),
-		fee: bcs.u64(),
+		output: U64,
+		fee: U64,
 	},
 });
 export const DrainSummary = new MoveStruct({
 	name: `${$moduleName}::DrainSummary`,
 	fields: {
-		supplies_filled: bcs.u64(),
-		withdrawals_filled: bcs.u64(),
-		requests_processed: bcs.u64(),
+		supplies_filled: U64,
+		withdrawals_filled: U64,
+		requests_processed: U64,
 	},
 });

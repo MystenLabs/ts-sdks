@@ -13,6 +13,7 @@
 
 import { MoveStruct } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
+import { U64 } from '../../bcs/integers.js';
 import * as table from './deps/sui/table.js';
 const $moduleName = '@local-pkg/deepbook_predict::liquidation_book';
 export const LiquidationBook = new MoveStruct({
@@ -23,8 +24,8 @@ export const LiquidationBook = new MoveStruct({
 		page_ids: bcs.vector(bcs.u64()),
 		/** Maximum order ID stored in each page, aligned with `page_ids`. */
 		max_order_ids: bcs.vector(bcs.u256()),
-		next_page_id: bcs.u64(),
-		active_order_count: bcs.u64(),
+		next_page_id: U64,
+		active_order_count: U64,
 		/** Last order ID visited by the passive liquidation scan. */
 		passive_watermark: bcs.option(bcs.u256()),
 	},
@@ -38,7 +39,7 @@ export const OrderIdPage = new MoveStruct({
 export const ScanCursor = new MoveStruct({
 	name: `${$moduleName}::ScanCursor`,
 	fields: {
-		page_ix: bcs.u64(),
-		offset: bcs.u64(),
+		page_ix: U64,
+		offset: U64,
 	},
 });

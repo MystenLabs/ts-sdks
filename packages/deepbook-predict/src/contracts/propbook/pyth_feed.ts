@@ -20,6 +20,7 @@
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
+import { U64 } from '../../bcs/integers.js';
 import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as oracle_lane from './oracle_lane.js';
 const $moduleName = '@local-pkg/propbook::pyth_feed';
@@ -27,11 +28,11 @@ export const RawSpot = new MoveStruct({
 	name: `${$moduleName}::RawSpot`,
 	fields: {
 		pyth_source_id: bcs.u32(),
-		price_magnitude: bcs.u64(),
+		price_magnitude: U64,
 		price_is_negative: bcs.bool(),
 		exponent_magnitude: bcs.u16(),
 		exponent_is_negative: bcs.bool(),
-		feed_update_timestamp_us: bcs.u64(),
+		feed_update_timestamp_us: U64,
 	},
 });
 export const PythFeed = new MoveStruct({
@@ -43,7 +44,7 @@ export const PythFeed = new MoveStruct({
 		 * Package version this feed runs at; updates require an exact match and `migrate`
 		 * advances it forward-only after a package upgrade.
 		 */
-		version: bcs.u64(),
+		version: U64,
 		lane: oracle_lane.OracleLane(RawSpot),
 	},
 });

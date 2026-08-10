@@ -12,7 +12,7 @@
  */
 
 import { MoveStruct } from '../utils/index.js';
-import { bcs } from '@mysten/sui/bcs';
+import { U64 } from '../../bcs/integers.js';
 import * as balance from './deps/sui/balance.js';
 import * as expiry_cash_config from './expiry_cash_config.js';
 const $moduleName = '@local-pkg/deepbook_predict::expiry_cash';
@@ -20,7 +20,7 @@ export const ExpiryCash = new MoveStruct({
 	name: `${$moduleName}::ExpiryCash`,
 	fields: {
 		cash_balance: balance.Balance,
-		unresolved_trading_fees_paid: bcs.u64(),
+		unresolved_trading_fees_paid: U64,
 		config: expiry_cash_config.ExpiryCashConfig,
 	},
 });

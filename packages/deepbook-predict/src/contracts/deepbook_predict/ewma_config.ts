@@ -10,17 +10,18 @@
  */
 
 import { MoveStruct } from '../utils/index.js';
+import { U64 } from '../../bcs/integers.js';
 import { bcs } from '@mysten/sui/bcs';
 const $moduleName = '@local-pkg/deepbook_predict::ewma_config';
 export const EwmaConfig = new MoveStruct({
 	name: `${$moduleName}::EwmaConfig`,
 	fields: {
 		/** Smoothing factor for the gas-price mean and variance; higher reacts faster. */
-		alpha: bcs.u64(),
+		alpha: U64,
 		/** Standard deviations above the smoothed mean required before a penalty applies. */
-		z_score_threshold: bcs.u64(),
+		z_score_threshold: U64,
 		/** Per-unit fee added to a penalized trade's trading fee. */
-		penalty_rate: bcs.u64(),
+		penalty_rate: U64,
 		/** Master switch; no penalty applies while false. */
 		enabled: bcs.bool(),
 	},

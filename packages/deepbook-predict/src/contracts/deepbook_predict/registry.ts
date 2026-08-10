@@ -12,7 +12,12 @@
  * positions stay in their owning modules.
  */
 
-import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
+import {
+	MoveStruct,
+	normalizeMoveArguments,
+	type RawTransactionArgument,
+	type ConfigValue,
+} from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
 import * as market_manager from './market_manager.js';
@@ -41,15 +46,20 @@ export const Registry = new MoveStruct({
 	},
 });
 export interface IdArguments {
-	registry: RawTransactionArgument<string>;
+	registry?: RawTransactionArgument<string>;
 }
 export interface IdOptions {
 	package?: string;
-	arguments: IdArguments | [registry: RawTransactionArgument<string>];
+	arguments?: IdArguments;
+	config?: {
+		registry: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /** Return the registry object ID for external discovery and PTB construction. */
 export function id(options: IdOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['registry'];
 	return (tx: Transaction) =>
@@ -57,27 +67,33 @@ export function id(options: IdOptions) {
 			package: packageAddress,
 			module: 'registry',
 			function: 'id',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					registry: options.arguments?.registry ?? options.config?.registry,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface ExpiryMarketIdArguments {
-	registry: RawTransactionArgument<string>;
+	registry?: RawTransactionArgument<string>;
 	propbookUnderlyingId: RawTransactionArgument<number>;
 	expiry: RawTransactionArgument<number | bigint>;
 }
 export interface ExpiryMarketIdOptions {
 	package?: string;
-	arguments:
-		| ExpiryMarketIdArguments
-		| [
-				registry: RawTransactionArgument<string>,
-				propbookUnderlyingId: RawTransactionArgument<number>,
-				expiry: RawTransactionArgument<number | bigint>,
-		  ];
+	arguments: ExpiryMarketIdArguments;
+	config?: {
+		registry: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /** Resolve an expiry market ID for external discovery and PTB construction. */
 export function expiryMarketId(options: ExpiryMarketIdOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, 'u32', 'u64'] satisfies (string | null)[];
 	const parameterNames = ['registry', 'propbookUnderlyingId', 'expiry'];
 	return (tx: Transaction) =>
@@ -85,27 +101,33 @@ export function expiryMarketId(options: ExpiryMarketIdOptions) {
 			package: packageAddress,
 			module: 'registry',
 			function: 'expiry_market_id',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					registry: options.arguments?.registry ?? options.config?.registry,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface CadenceConfigArguments {
-	registry: RawTransactionArgument<string>;
+	registry?: RawTransactionArgument<string>;
 	propbookUnderlyingId: RawTransactionArgument<number>;
 	cadenceId: RawTransactionArgument<number>;
 }
 export interface CadenceConfigOptions {
 	package?: string;
-	arguments:
-		| CadenceConfigArguments
-		| [
-				registry: RawTransactionArgument<string>,
-				propbookUnderlyingId: RawTransactionArgument<number>,
-				cadenceId: RawTransactionArgument<number>,
-		  ];
+	arguments: CadenceConfigArguments;
+	config?: {
+		registry: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /** Return deployment policy for SDK and devInspect market discovery. */
 export function cadenceConfig(options: CadenceConfigOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, 'u32', 'u8'] satisfies (string | null)[];
 	const parameterNames = ['registry', 'propbookUnderlyingId', 'cadenceId'];
 	return (tx: Transaction) =>
@@ -113,21 +135,27 @@ export function cadenceConfig(options: CadenceConfigOptions) {
 			package: packageAddress,
 			module: 'registry',
 			function: 'cadence_config',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					registry: options.arguments?.registry ?? options.config?.registry,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface CadenceConfigsArguments {
-	registry: RawTransactionArgument<string>;
+	registry?: RawTransactionArgument<string>;
 	propbookUnderlyingId: RawTransactionArgument<number>;
 }
 export interface CadenceConfigsOptions {
 	package?: string;
-	arguments:
-		| CadenceConfigsArguments
-		| [
-				registry: RawTransactionArgument<string>,
-				propbookUnderlyingId: RawTransactionArgument<number>,
-		  ];
+	arguments: CadenceConfigsArguments;
+	config?: {
+		registry: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /**
  * Return one underlying's complete deployment policy as a single coherent
@@ -138,7 +166,8 @@ export interface CadenceConfigsOptions {
  * underlying is not registered.
  */
 export function cadenceConfigs(options: CadenceConfigsOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, 'u32'] satisfies (string | null)[];
 	const parameterNames = ['registry', 'propbookUnderlyingId'];
 	return (tx: Transaction) =>
@@ -146,25 +175,35 @@ export function cadenceConfigs(options: CadenceConfigsOptions) {
 			package: packageAddress,
 			module: 'registry',
 			function: 'cadence_configs',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					registry: options.arguments?.registry ?? options.config?.registry,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface MintPauseCapArguments {
-	registry: RawTransactionArgument<string>;
+	registry?: RawTransactionArgument<string>;
 	AdminCap: RawTransactionArgument<string>;
 }
 export interface MintPauseCapOptions {
 	package?: string;
-	arguments:
-		| MintPauseCapArguments
-		| [registry: RawTransactionArgument<string>, AdminCap: RawTransactionArgument<string>];
+	arguments: MintPauseCapArguments;
+	config?: {
+		registry: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /**
  * Mint a new `PauseCap`. This bypasses the version gate so emergency pause
  * authority remains available from a package version below the runtime floor.
  */
 export function mintPauseCap(options: MintPauseCapOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['registry', 'AdminCap'];
 	return (tx: Transaction) =>
@@ -172,27 +211,33 @@ export function mintPauseCap(options: MintPauseCapOptions) {
 			package: packageAddress,
 			module: 'registry',
 			function: 'mint_pause_cap',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					registry: options.arguments?.registry ?? options.config?.registry,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface RevokePauseCapArguments {
-	registry: RawTransactionArgument<string>;
+	registry?: RawTransactionArgument<string>;
 	AdminCap: RawTransactionArgument<string>;
 	pauseCapId: RawTransactionArgument<string>;
 }
 export interface RevokePauseCapOptions {
 	package?: string;
-	arguments:
-		| RevokePauseCapArguments
-		| [
-				registry: RawTransactionArgument<string>,
-				AdminCap: RawTransactionArgument<string>,
-				pauseCapId: RawTransactionArgument<string>,
-		  ];
+	arguments: RevokePauseCapArguments;
+	config?: {
+		registry: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /** Revoke a previously minted `PauseCap` by ID. Admin-only. */
 export function revokePauseCap(options: RevokePauseCapOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, null, '0x2::object::ID'] satisfies (string | null)[];
 	const parameterNames = ['registry', 'AdminCap', 'pauseCapId'];
 	return (tx: Transaction) =>
@@ -200,30 +245,37 @@ export function revokePauseCap(options: RevokePauseCapOptions) {
 			package: packageAddress,
 			module: 'registry',
 			function: 'revoke_pause_cap',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					registry: options.arguments?.registry ?? options.config?.registry,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface MintLifecycleCapArguments {
-	registry: RawTransactionArgument<string>;
-	config: RawTransactionArgument<string>;
+	registry?: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
 	AdminCap: RawTransactionArgument<string>;
 }
 export interface MintLifecycleCapOptions {
 	package?: string;
-	arguments:
-		| MintLifecycleCapArguments
-		| [
-				registry: RawTransactionArgument<string>,
-				config: RawTransactionArgument<string>,
-				AdminCap: RawTransactionArgument<string>,
-		  ];
+	arguments: MintLifecycleCapArguments;
+	config?: {
+		registry: ConfigValue;
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /**
  * Mint a version-gated `MarketLifecycleCap` with market-creation and valuation
  * authority.
  */
 export function mintLifecycleCap(options: MintLifecycleCapOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, null, null] satisfies (string | null)[];
 	const parameterNames = ['registry', 'config', 'AdminCap'];
 	return (tx: Transaction) =>
@@ -231,27 +283,34 @@ export function mintLifecycleCap(options: MintLifecycleCapOptions) {
 			package: packageAddress,
 			module: 'registry',
 			function: 'mint_lifecycle_cap',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					registry: options.arguments?.registry ?? options.config?.registry,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface RevokeLifecycleCapArguments {
-	registry: RawTransactionArgument<string>;
+	registry?: RawTransactionArgument<string>;
 	AdminCap: RawTransactionArgument<string>;
 	lifecycleCapId: RawTransactionArgument<string>;
 }
 export interface RevokeLifecycleCapOptions {
 	package?: string;
-	arguments:
-		| RevokeLifecycleCapArguments
-		| [
-				registry: RawTransactionArgument<string>,
-				AdminCap: RawTransactionArgument<string>,
-				lifecycleCapId: RawTransactionArgument<string>,
-		  ];
+	arguments: RevokeLifecycleCapArguments;
+	config?: {
+		registry: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /** Revoke a `MarketLifecycleCap` by ID without applying the version gate. */
 export function revokeLifecycleCap(options: RevokeLifecycleCapOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, null, '0x2::object::ID'] satisfies (string | null)[];
 	const parameterNames = ['registry', 'AdminCap', 'lifecycleCapId'];
 	return (tx: Transaction) =>
@@ -259,18 +318,27 @@ export function revokeLifecycleCap(options: RevokeLifecycleCapOptions) {
 			package: packageAddress,
 			module: 'registry',
 			function: 'revoke_lifecycle_cap',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					registry: options.arguments?.registry ?? options.config?.registry,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface GenerateLifecycleProofArguments {
-	registry: RawTransactionArgument<string>;
+	registry?: RawTransactionArgument<string>;
 	lifecycleCap: RawTransactionArgument<string>;
 }
 export interface GenerateLifecycleProofOptions {
 	package?: string;
-	arguments:
-		| GenerateLifecycleProofArguments
-		| [registry: RawTransactionArgument<string>, lifecycleCap: RawTransactionArgument<string>];
+	arguments: GenerateLifecycleProofArguments;
+	config?: {
+		registry: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /**
  * Generate a transaction-local proof that `lifecycle_cap` is currently
@@ -278,7 +346,8 @@ export interface GenerateLifecycleProofOptions {
  * authorize cross-module lifecycle actions.
  */
 export function generateLifecycleProof(options: GenerateLifecycleProofOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['registry', 'lifecycleCap'];
 	return (tx: Transaction) =>
@@ -286,27 +355,34 @@ export function generateLifecycleProof(options: GenerateLifecycleProofOptions) {
 			package: packageAddress,
 			module: 'registry',
 			function: 'generate_lifecycle_proof',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					registry: options.arguments?.registry ?? options.config?.registry,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface PauseTradingPauseCapArguments {
-	config: RawTransactionArgument<string>;
-	registry: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
+	registry?: RawTransactionArgument<string>;
 	pauseCap: RawTransactionArgument<string>;
 }
 export interface PauseTradingPauseCapOptions {
 	package?: string;
-	arguments:
-		| PauseTradingPauseCapArguments
-		| [
-				config: RawTransactionArgument<string>,
-				registry: RawTransactionArgument<string>,
-				pauseCap: RawTransactionArgument<string>,
-		  ];
+	arguments: PauseTradingPauseCapArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		registry: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /** Force `trading_paused = true` via a valid `PauseCap`. One-way. */
 export function pauseTradingPauseCap(options: PauseTradingPauseCapOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, null, null] satisfies (string | null)[];
 	const parameterNames = ['config', 'registry', 'pauseCap'];
 	return (tx: Transaction) =>
@@ -314,30 +390,38 @@ export function pauseTradingPauseCap(options: PauseTradingPauseCapOptions) {
 			package: packageAddress,
 			module: 'registry',
 			function: 'pause_trading_pause_cap',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+					registry: options.arguments?.registry ?? options.config?.registry,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface FreezeProtocolPauseCapArguments {
-	config: RawTransactionArgument<string>;
-	registry: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
+	registry?: RawTransactionArgument<string>;
 	pauseCap: RawTransactionArgument<string>;
 }
 export interface FreezeProtocolPauseCapOptions {
 	package?: string;
-	arguments:
-		| FreezeProtocolPauseCapArguments
-		| [
-				config: RawTransactionArgument<string>,
-				registry: RawTransactionArgument<string>,
-				pauseCap: RawTransactionArgument<string>,
-		  ];
+	arguments: FreezeProtocolPauseCapArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		registry: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /**
  * Force the protocol-wide emergency freeze via a valid `PauseCap`. One-way;
  * admin's `protocol_config::set_frozen` is needed to lift the freeze.
  */
 export function freezeProtocolPauseCap(options: FreezeProtocolPauseCapOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, null, null] satisfies (string | null)[];
 	const parameterNames = ['config', 'registry', 'pauseCap'];
 	return (tx: Transaction) =>
@@ -345,30 +429,37 @@ export function freezeProtocolPauseCap(options: FreezeProtocolPauseCapOptions) {
 			package: packageAddress,
 			module: 'registry',
 			function: 'freeze_protocol_pause_cap',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+					registry: options.arguments?.registry ?? options.config?.registry,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface PauseExpiryMarketMintPauseCapArguments {
 	market: RawTransactionArgument<string>;
-	registry: RawTransactionArgument<string>;
+	registry?: RawTransactionArgument<string>;
 	pauseCap: RawTransactionArgument<string>;
 }
 export interface PauseExpiryMarketMintPauseCapOptions {
 	package?: string;
-	arguments:
-		| PauseExpiryMarketMintPauseCapArguments
-		| [
-				market: RawTransactionArgument<string>,
-				registry: RawTransactionArgument<string>,
-				pauseCap: RawTransactionArgument<string>,
-		  ];
+	arguments: PauseExpiryMarketMintPauseCapArguments;
+	config?: {
+		registry: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /**
  * Force `mint_paused = true` on a single expiry market via a valid `PauseCap`.
  * One-way; admin's `expiry_market::set_mint_paused` is needed to unpause.
  */
 export function pauseExpiryMarketMintPauseCap(options: PauseExpiryMarketMintPauseCapOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, null, null] satisfies (string | null)[];
 	const parameterNames = ['market', 'registry', 'pauseCap'];
 	return (tx: Transaction) =>
@@ -376,25 +467,30 @@ export function pauseExpiryMarketMintPauseCap(options: PauseExpiryMarketMintPaus
 			package: packageAddress,
 			module: 'registry',
 			function: 'pause_expiry_market_mint_pause_cap',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					registry: options.arguments?.registry ?? options.config?.registry,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface RegisterUnderlyingArguments {
-	registry: RawTransactionArgument<string>;
-	config: RawTransactionArgument<string>;
+	registry?: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
 	AdminCap: RawTransactionArgument<string>;
 	propbookUnderlyingId: RawTransactionArgument<number>;
 }
 export interface RegisterUnderlyingOptions {
 	package?: string;
-	arguments:
-		| RegisterUnderlyingArguments
-		| [
-				registry: RawTransactionArgument<string>,
-				config: RawTransactionArgument<string>,
-				AdminCap: RawTransactionArgument<string>,
-				propbookUnderlyingId: RawTransactionArgument<number>,
-		  ];
+	arguments: RegisterUnderlyingArguments;
+	config?: {
+		registry: ConfigValue;
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /**
  * Record admin approval of one Propbook underlying. Source IDs and canonical
@@ -402,7 +498,8 @@ export interface RegisterUnderlyingOptions {
  * underlyings Predict will build markets on and stores deployment watermarks.
  */
 export function registerUnderlying(options: RegisterUnderlyingOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, null, null, 'u32'] satisfies (string | null)[];
 	const parameterNames = ['registry', 'config', 'AdminCap', 'propbookUnderlyingId'];
 	return (tx: Transaction) =>
@@ -410,12 +507,20 @@ export function registerUnderlying(options: RegisterUnderlyingOptions) {
 			package: packageAddress,
 			module: 'registry',
 			function: 'register_underlying',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					registry: options.arguments?.registry ?? options.config?.registry,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface SetTemplateCadenceConfigArguments {
-	registry: RawTransactionArgument<string>;
-	config: RawTransactionArgument<string>;
+	registry?: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
 	AdminCap: RawTransactionArgument<string>;
 	propbookUnderlyingId: RawTransactionArgument<number>;
 	cadenceId: RawTransactionArgument<number>;
@@ -427,27 +532,20 @@ export interface SetTemplateCadenceConfigArguments {
 }
 export interface SetTemplateCadenceConfigOptions {
 	package?: string;
-	arguments:
-		| SetTemplateCadenceConfigArguments
-		| [
-				registry: RawTransactionArgument<string>,
-				config: RawTransactionArgument<string>,
-				AdminCap: RawTransactionArgument<string>,
-				propbookUnderlyingId: RawTransactionArgument<number>,
-				cadenceId: RawTransactionArgument<number>,
-				tickSize: RawTransactionArgument<number | bigint>,
-				admissionTickSize: RawTransactionArgument<number | bigint>,
-				maxExpiryAllocation: RawTransactionArgument<number | bigint>,
-				initialExpiryCash: RawTransactionArgument<number | bigint>,
-				windowSize: RawTransactionArgument<number | bigint>,
-		  ];
+	arguments: SetTemplateCadenceConfigArguments;
+	config?: {
+		registry: ConfigValue;
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /**
  * Set all deployment terms for one underlying's cadence. Passing zero for all five
  * values disables the cadence; otherwise all values must be nonzero and valid.
  */
 export function setTemplateCadenceConfig(options: SetTemplateCadenceConfigOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [
 		null,
 		null,
@@ -477,31 +575,36 @@ export function setTemplateCadenceConfig(options: SetTemplateCadenceConfigOption
 			package: packageAddress,
 			module: 'registry',
 			function: 'set_template_cadence_config',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					registry: options.arguments?.registry ?? options.config?.registry,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface CreateAndShareExpiryMarketArguments {
-	registry: RawTransactionArgument<string>;
-	poolVault: RawTransactionArgument<string>;
-	config: RawTransactionArgument<string>;
-	propbookRegistry: RawTransactionArgument<string>;
+	registry?: RawTransactionArgument<string>;
+	poolVault?: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
+	propbookRegistry?: RawTransactionArgument<string>;
 	lifecycleCap: RawTransactionArgument<string>;
 	propbookUnderlyingId: RawTransactionArgument<number>;
 	cadenceId: RawTransactionArgument<number>;
 }
 export interface CreateAndShareExpiryMarketOptions {
 	package?: string;
-	arguments:
-		| CreateAndShareExpiryMarketArguments
-		| [
-				registry: RawTransactionArgument<string>,
-				poolVault: RawTransactionArgument<string>,
-				config: RawTransactionArgument<string>,
-				propbookRegistry: RawTransactionArgument<string>,
-				lifecycleCap: RawTransactionArgument<string>,
-				propbookUnderlyingId: RawTransactionArgument<number>,
-				cadenceId: RawTransactionArgument<number>,
-		  ];
+	arguments: CreateAndShareExpiryMarketArguments;
+	config?: {
+		registry: ConfigValue;
+		poolVault: ConfigValue;
+		protocolConfig: ConfigValue;
+		oracleRegistry: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /**
  * Create the next deployable `ExpiryMarket` for one cadence on a Propbook
@@ -514,7 +617,8 @@ export interface CreateAndShareExpiryMarketOptions {
  * until pool rebalancing funds it. Live pricing reads current Propbook bindings.
  */
 export function createAndShareExpiryMarket(options: CreateAndShareExpiryMarketOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [
 		null,
 		null,
@@ -539,27 +643,37 @@ export function createAndShareExpiryMarket(options: CreateAndShareExpiryMarketOp
 			package: packageAddress,
 			module: 'registry',
 			function: 'create_and_share_expiry_market',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					registry: options.arguments?.registry ?? options.config?.registry,
+					poolVault: options.arguments?.poolVault ?? options.config?.poolVault,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+					propbookRegistry: options.arguments?.propbookRegistry ?? options.config?.oracleRegistry,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface CreateAndShareBuilderCodeArguments {
-	registry: RawTransactionArgument<string>;
-	config: RawTransactionArgument<string>;
+	registry?: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
 	index: RawTransactionArgument<number | bigint>;
 }
 export interface CreateAndShareBuilderCodeOptions {
 	package?: string;
-	arguments:
-		| CreateAndShareBuilderCodeArguments
-		| [
-				registry: RawTransactionArgument<string>,
-				config: RawTransactionArgument<string>,
-				index: RawTransactionArgument<number | bigint>,
-		  ];
+	arguments: CreateAndShareBuilderCodeArguments;
+	config?: {
+		registry: ConfigValue;
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /** Create a derived shared BuilderCode for the caller and index. */
 export function createAndShareBuilderCode(options: CreateAndShareBuilderCodeOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
 	const parameterNames = ['registry', 'config', 'index'];
 	return (tx: Transaction) =>
@@ -567,6 +681,14 @@ export function createAndShareBuilderCode(options: CreateAndShareBuilderCodeOpti
 			package: packageAddress,
 			module: 'registry',
 			function: 'create_and_share_builder_code',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					registry: options.arguments?.registry ?? options.config?.registry,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }

@@ -13,10 +13,10 @@
  */
 
 import { MoveTuple, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
-import { bcs } from '@mysten/sui/bcs';
+import { U64 } from '../../bcs/integers.js';
 import { type Transaction } from '@mysten/sui/transactions';
 const $moduleName = '@local-pkg/deepbook_predict::range_codec';
-export const Strike = new MoveTuple({ name: `${$moduleName}::Strike`, fields: [bcs.u64()] });
+export const Strike = new MoveTuple({ name: `${$moduleName}::Strike`, fields: [U64] });
 export interface StrikeFromTickArguments {
 	tick: RawTransactionArgument<number | bigint>;
 	tickSize: RawTransactionArgument<number | bigint>;
@@ -29,6 +29,9 @@ export interface StrikeFromTickOptions {
 				tick: RawTransactionArgument<number | bigint>,
 				tickSize: RawTransactionArgument<number | bigint>,
 		  ];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /**
  * Convert a boundary tick to its raw strike, including the open-end sentinels.
@@ -36,7 +39,8 @@ export interface StrikeFromTickOptions {
  * callers are responsible for supplying the intended market domain.
  */
 export function strikeFromTick(options: StrikeFromTickOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = ['u64', 'u64'] satisfies (string | null)[];
 	const parameterNames = ['tick', 'tickSize'];
 	return (tx: Transaction) =>

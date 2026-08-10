@@ -22,20 +22,20 @@
  */
 
 import { MoveStruct } from '../utils/index.js';
-import { bcs } from '@mysten/sui/bcs';
+import { U64 } from '../../bcs/integers.js';
 const $moduleName = '@local-pkg/deepbook_predict::stake_config';
 export const StakeConfig = new MoveStruct({
 	name: `${$moduleName}::StakeConfig`,
 	fields: {
 		/** Active stake at the curve kink (half of max benefits), in raw DEEP units. */
-		lower_benefit_power: bcs.u64(),
+		lower_benefit_power: U64,
 		/** Active stake for full (max) benefits, in raw DEEP units. */
-		upper_benefit_power: bcs.u64(),
+		upper_benefit_power: U64,
 		/**
 		 * Ceiling on the benefit ratio, in FLOAT_SCALING. Scales the whole curve, so `0`
 		 * disables every staking benefit and `float_scaling` runs the programme at full
 		 * strength. Ships at 0.
 		 */
-		max_benefit_ratio: bcs.u64(),
+		max_benefit_ratio: U64,
 	},
 });

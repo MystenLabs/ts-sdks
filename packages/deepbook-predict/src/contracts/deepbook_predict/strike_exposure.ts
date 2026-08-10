@@ -17,6 +17,7 @@
 
 import { MoveStruct, MoveEnum } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
+import { U64 } from '../../bcs/integers.js';
 import * as strike_exposure_config from './strike_exposure_config.js';
 import * as liquidation_book from './liquidation_book.js';
 import * as strike_payout_tree from './strike_payout_tree.js';
@@ -28,22 +29,22 @@ export const StrikeExposure = new MoveStruct({
 		/** Expiry market that owns this exposure book. */
 		expiry_market_id: bcs.Address,
 		/** Terminal timestamp used by fee and settlement math. */
-		expiry_ms: bcs.u64(),
+		expiry_ms: U64,
 		/** Raw-price-per-tick conversion factor; `raw_strike = tick * tick_size`. */
-		tick_size: bcs.u64(),
+		tick_size: U64,
 		/** Coarser raw-price step that new finite mint boundaries must align to. */
-		admission_tick_size: bcs.u64(),
+		admission_tick_size: U64,
 		/** Exact Propbook Pyth source timestamp used to derive the reference tick. */
-		reference_tick_source_timestamp_ms: bcs.u64(),
+		reference_tick_source_timestamp_ms: U64,
 		/** Reference fine-grid tick that may bypass the coarser admission grid once set. */
 		reference_tick: bcs.option(bcs.u64()),
 		/** Snapshotted exposure and fee policy for this expiry. */
 		config: strike_exposure_config.StrikeExposureConfig,
-		next_order_sequence: bcs.u64(),
+		next_order_sequence: U64,
 		/** Terminal settlement price once the exposure has entered its settled phase. */
 		settlement_price: bcs.option(bcs.u64()),
 		/** Remaining payout liability in the settled phase. */
-		settled_payout_liability: bcs.u64(),
+		settled_payout_liability: U64,
 		liquidation: liquidation_book.LiquidationBook,
 		/** Sparse payout tree for live cash backing and settled liability. */
 		payout: strike_payout_tree.StrikePayoutTree,
@@ -53,23 +54,23 @@ export const MintTerms = new MoveStruct({
 	name: `${$moduleName}::MintTerms`,
 	fields: {
 		expiry_market_id: bcs.Address,
-		lower_tick: bcs.u64(),
-		higher_tick: bcs.u64(),
-		quantity: bcs.u64(),
-		leverage: bcs.u64(),
-		entry_probability: bcs.u64(),
-		net_premium: bcs.u64(),
-		floor_shares: bcs.u64(),
+		lower_tick: U64,
+		higher_tick: U64,
+		quantity: U64,
+		leverage: U64,
+		entry_probability: U64,
+		net_premium: U64,
+		floor_shares: U64,
 	},
 });
 export const LiveCloseTerms = new MoveStruct({
 	name: `${$moduleName}::LiveCloseTerms`,
 	fields: {
-		close_quantity: bcs.u64(),
+		close_quantity: U64,
 		/** Floor shares leaving the book with the closed slice. */
-		remove_floor_shares: bcs.u64(),
-		redeem_amount: bcs.u64(),
-		range_probability: bcs.u64(),
+		remove_floor_shares: U64,
+		redeem_amount: U64,
+		range_probability: U64,
 	},
 });
 /**
@@ -87,14 +88,14 @@ export const CloseOutcome = new MoveEnum({
 		Liquidatable: new MoveStruct({
 			name: `CloseOutcome.Liquidatable`,
 			fields: {
-				gross_value: bcs.u64(),
+				gross_value: U64,
 			},
 		}),
 		Live: LiveCloseTerms,
 		Settled: new MoveStruct({
 			name: `CloseOutcome.Settled`,
 			fields: {
-				payout: bcs.u64(),
+				payout: U64,
 			},
 		}),
 	},
