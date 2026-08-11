@@ -22,10 +22,11 @@ export class PriceFeedQueries {
 	 *
 	 * In `'upgraded'` mode there are two routes, chosen by whether the caller brought
 	 * credentials. With `hermesHeaders` set, the SDK talks to Pyth directly and no DeepBook
-	 * infrastructure is in the path. Without them it falls back to the DeepBook-operated
-	 * proxy, which supplies credentials server-side — Pyth's own endpoint answers 401
-	 * unauthenticated, so the alternative is no price updates at all for consumers without
-	 * a Pyth plan. An explicit `hermesEndpoint` overrides both.
+	 * infrastructure is in the path — note the token is then sent to Pyth's own host, so a
+	 * token minted for some other endpoint must be paired with an explicit `hermesEndpoint`.
+	 * Without headers it falls back to the DeepBook-operated proxy, which supplies
+	 * credentials server-side; that proxy is not deployed yet, so today this path throws a
+	 * `ConfigurationError` instead. An explicit `hermesEndpoint` overrides both.
 	 */
 	#hermesEndpoint(): string {
 		const { hermesEndpoint, hermesHeaders } = this.#ctx.config.activePyth;
@@ -135,8 +136,10 @@ export class PriceFeedQueries {
 			return result;
 		}
 
-		// Distinct coins can share a feed — testnet DBTC prices off the generic BTC/USD feed,
-		// and a caller-supplied coin map may add more. Deduplicate before building the update:
+		// Distinct coins can share a feed. No shipped map has a collision today, but `coins`
+		// is a public constructor option and coins that track the same underlying are the
+		// normal case for it — testnet DBTC already prices off the generic BTC/USD feed.
+		// Deduplicate before building the update:
 		// a feed listed twice would emit two `update_single_price_feed` calls against the same
 		// object off one hot-potato vector, and pay two update fees for it. One feed can also
 		// map to several coins, so the reverse index holds a list, not a single key.

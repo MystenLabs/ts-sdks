@@ -412,11 +412,9 @@ export class MarginAdminContract {
 	newCoinTypeData =
 		(coinKey: string, maxConfBps: number, maxEwmaDifferenceBps: number) => (tx: Transaction) => {
 			const coin = this.#config.getCoin(coinKey);
-			if (!coin.feed) {
-				throw new Error('Coin feed not found');
-			}
+			const feed = this.#config.getFeedId(coinKey);
 			const priceFeedInput = new Uint8Array(
-				hexToBytes(coin['feed']!.startsWith('0x') ? coin.feed!.slice(2) : coin['feed']),
+				hexToBytes(feed.startsWith('0x') ? feed.slice(2) : feed),
 			);
 			return tx.add(
 				oracleMoveCalls.newCoinTypeDataFromCurrency({

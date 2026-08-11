@@ -27,7 +27,8 @@ objects were removed rather than retained, so forcing `marginPyth: 'legacy'` on 
 naming the coin instead of pairing one deployment's feed with another's object.
 
 **Mainnet is unchanged and still defaults to `'legacy'`** — byte-identical to today's behaviour.
-Its upgraded price objects are included for the five feeds that have them; XBTC has no upgraded
+Its upgraded price objects are included for all six feeds that have them (DEEP, SUI, USDC, WAL,
+SUIUSDE, USDSUI), each read off the upgraded price table on chain; XBTC has no upgraded
 `PriceInfoObject` yet.
 
 Price update data is now fetched from Hermes v2 (`/v2/updates/price/latest`) instead of the

@@ -184,13 +184,6 @@ export class DeepBookConfig {
 	}
 
 	/**
-	 * The `PriceInfoObject` id for a coin under the active Pyth deployment.
-	 *
-	 * Throws rather than passing `undefined` into a move call: under the upgraded
-	 * deployment a feed may simply have no object yet, and the resulting on-chain abort
-	 * (`EPriceFeedIdMismatch`) does not say which coin was at fault.
-	 */
-	/**
 	 * The Pyth feed id for a coin under the active deployment.
 	 *
 	 * Pairs with {@link getPriceInfoObjectId}: Hermes is queried by feed id and the Move
@@ -207,6 +200,13 @@ export class DeepBookConfig {
 		return feed;
 	}
 
+	/**
+	 * The `PriceInfoObject` id for a coin under the active Pyth deployment.
+	 *
+	 * Throws rather than passing `undefined` into a move call: under the upgraded
+	 * deployment a feed may simply have no object yet, and the resulting on-chain abort
+	 * (`EPriceFeedIdMismatch`) does not say which coin was at fault.
+	 */
 	getPriceInfoObjectId(coinKey: string): string {
 		const coin = this.getCoin(coinKey);
 		const id =

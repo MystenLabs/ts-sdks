@@ -15,7 +15,12 @@ import { execSync } from 'child_process';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { Transaction } from '@mysten/sui/transactions';
 
-import { deepbook, OrderType, SelfMatchingOptions } from '../src/index.js';
+import {
+	deepbook,
+	OrderType,
+	SelfMatchingOptions,
+	testnetPythUpgradedConfigs,
+} from '../src/index.js';
 
 const SUI = process.env.SUI_BINARY ?? `sui`;
 
@@ -56,6 +61,17 @@ const GRPC_URLS = {
 		deepbook({
 			address: getActiveAddress(),
 			marginManagers,
+			// Testnet margin prices against Pyth's upgraded Core, whose Hermes requires a
+			// token; supply one to run this against testnet. Mainnet still defaults to the
+			// legacy deployment and needs nothing here.
+			...(process.env.PYTH_TOKEN
+				? {
+						pythUpgraded: {
+							...testnetPythUpgradedConfigs,
+							hermesHeaders: { Authorization: `Bearer ${process.env.PYTH_TOKEN}` },
+						},
+					}
+				: {}),
 		}),
 	);
 

@@ -27,6 +27,7 @@ import { fromBase64 } from '@mysten/sui/utils';
 import { Transaction } from '@mysten/sui/transactions';
 
 import { deepbook } from '../src/index.js';
+import { testnetPythUpgradedConfigs } from '../src/index.js';
 
 const SUI = process.env.SUI_BINARY ?? `sui`;
 
@@ -91,7 +92,20 @@ const getSigner = () => {
 	console.log(`Network: ${network}\n`);
 
 	const client = new SuiGrpcClient({ network, baseUrl: GRPC_URLS[network] }).$extend(
-		deepbook({ address }),
+		deepbook({
+			address,
+			// Testnet margin prices against Pyth's upgraded Core, whose Hermes requires a
+			// token; supply one to run this against testnet. Mainnet still defaults to the
+			// legacy deployment and needs nothing here.
+			...(process.env.PYTH_TOKEN
+				? {
+						pythUpgraded: {
+							...testnetPythUpgradedConfigs,
+							hermesHeaders: { Authorization: `Bearer ${process.env.PYTH_TOKEN}` },
+						},
+					}
+				: {}),
+		}),
 	);
 
 	// All 4 mainnet assets with Pyth price feeds

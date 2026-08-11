@@ -462,7 +462,6 @@ export const mainnetPythConfigs = {
 } satisfies PythConfig;
 
 /**
-/**
  * Hermes serving Pyth's upgraded Core. Requires an `Authorization: Bearer <token>` header
  * and answers 401 without one. Note that from the Core cutover this also becomes true of
  * legacy Hermes, so an unauthenticated price push has no long-term path.
