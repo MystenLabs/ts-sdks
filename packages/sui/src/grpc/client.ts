@@ -250,6 +250,24 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 		return this.core.getReferenceGasPrice();
 	}
 
+	getCurrentSystemState(
+		input?: SuiClientTypes.GetCurrentSystemStateOptions,
+	): Promise<SuiClientTypes.GetCurrentSystemStateResponse> {
+		return this.core.getCurrentSystemState(input);
+	}
+
+	getProtocolConfig(
+		input?: SuiClientTypes.GetProtocolConfigOptions,
+	): Promise<SuiClientTypes.GetProtocolConfigResponse> {
+		return this.core.getProtocolConfig(input);
+	}
+
+	getChainIdentifier(
+		input?: SuiClientTypes.GetChainIdentifierOptions,
+	): Promise<SuiClientTypes.GetChainIdentifierResponse> {
+		return this.core.getChainIdentifier(input);
+	}
+
 	async listDynamicFields<Include extends DynamicFieldInclude = {}>(
 		input: SuiClientTypes.ListDynamicFieldsOptions & { include?: Include & DynamicFieldInclude },
 	): Promise<ListDynamicFieldsWithValueResponse<Include>> {
@@ -303,6 +321,12 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 		input: SuiClientTypes.GetDynamicFieldOptions,
 	): Promise<SuiClientTypes.GetDynamicFieldResponse> {
 		return this.core.getDynamicField(input);
+	}
+
+	getDynamicObjectField<Include extends SuiClientTypes.ObjectInclude = {}>(
+		input: SuiClientTypes.GetDynamicObjectFieldOptions<Include>,
+	): Promise<SuiClientTypes.GetDynamicObjectFieldResponse<Include>> {
+		return this.core.getDynamicObjectField(input);
 	}
 
 	listTransactions<Include extends SuiClientTypes.TransactionInclude = {}>(

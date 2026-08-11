@@ -52,9 +52,9 @@ export class MySDK {
 }
 ```
 
-Accept the client as a parameter rather than constructing one. Your caller has already configured a
-network, endpoint, and transport, and creating a second client would bypass all of it — along with
-the request cache the caller's client already holds.
+Take the client as a parameter rather than constructing one: the caller has already configured a
+network, endpoint, and transport, and a second client would bypass all of it along with the request
+cache the caller's client holds.
 
 ### Why go through `client.core`
 
@@ -82,31 +82,8 @@ include flags, and response shapes — in [Querying data](/sui/clients/querying)
 | Verification   | `verifyZkLoginSignature`                                                                   |
 | Building       | `resolveTransactionPlugin`                                                                 |
 
-### Methods only on `client.core`
-
-Most of the contract is also mirrored as top-level methods on the concrete clients. These four are
-not, so they are always reached through `client.core` — including from application code:
-
-```typescript
-const { object } = await client.core.getDynamicObjectField({
-	parentId: '0x123...',
-	name: { type: '0x2::object::ID', bcs: nameBytes },
-});
-
-const { systemState } = await client.core.getCurrentSystemState();
-console.log(systemState.epoch, systemState.referenceGasPrice);
-
-const { protocolConfig } = await client.core.getProtocolConfig();
-console.log(protocolConfig.protocolVersion, protocolConfig.featureFlags);
-
-const { chainIdentifier } = await client.core.getChainIdentifier();
-```
-
-`getChainIdentifier` returns the digest of the genesis checkpoint, base58-encoded — the value that
-uniquely identifies a network. It never changes, so the client caches it after the first call.
-
-`getReferenceGasPrice` returns `{ referenceGasPrice }` as a decimal string. You rarely need it
-directly: the transaction builder sets the gas price for you.
+Every method here is also available as a top-level method on the concrete clients, so the choice
+between `client.core.getObject()` and `client.getObject()` is about portability rather than reach.
 
 ## Typing library code
 
@@ -199,18 +176,10 @@ are visible to callers. Library code that runs against any client should account
 | Page-size caps              | Over-large `limit` values are silently truncated on gRPC and rejected with an error on GraphQL and JSON-RPC              |
 | Short pages                 | gRPC bounds how much ledger a filtered query scans, so a page can be short or empty with `hasNextPage: true`             |
 | Read-after-write            | GraphQL reads an index that trails execution. Use `waitForTransaction` before reading your own writes                    |
-| Subscriptions               | Real-time streams exist only on gRPC. See [subscriptions](/sui/clients/grpc#subscriptions)                               |
 
 Two constraints are enforced by the client itself, so they fail the same way everywhere: a query
 takes at most one of `after` or `before`, and paginating transactions filtered by `function`
 requires a fully qualified `package::module::function`.
-
-### Testing against every transport
-
-Because these differences are real, the SDK's own parity tests run each case against all three
-clients rather than trusting one. If your library depends on the contract, do the same — construct a
-`SuiGrpcClient` and a `SuiGraphQLClient` in your test setup and run the same assertions through
-both.
 
 ## Client services
 
@@ -223,8 +192,8 @@ library code:
 | `client.cache`    | A shared cache; call `cache.scope('my-sdk')` for a namespace of your own     |
 | `client.core.mvr` | Move Registry resolution, with its own cache                                 |
 
-Every Core API method also accepts a `signal`, and library methods should forward the caller's
-`AbortSignal` rather than swallowing it:
+Every Core API method also accepts a `signal`, so a library method can pass its caller's
+`AbortSignal` straight through:
 
 ```typescript
 async function getResource(
@@ -240,22 +209,6 @@ async function getResource(
 }
 ```
 
-## Extending clients
-
-SDKs attach themselves to a client with `$extend`, which is what lets an application compose several
-SDKs on one client instance:
-
-```typescript
-import { SuiGrpcClient } from '@mysten/sui/grpc';
-import { walrus } from '@mysten/walrus';
-
-const client = new SuiGrpcClient({
-	network: 'mainnet',
-	baseUrl: 'https://fullnode.mainnet.sui.io:443',
-}).$extend(walrus());
-
-await client.walrus.readBlob({ blobId });
-```
-
-See [Building SDKs](/sui/sdk-building) for how to author an extension, choose peer dependencies, and
-structure your SDK's methods.
+SDKs attach themselves to a client with `$extend`, so several SDKs can compose on one client
+instance. See [Building SDKs](/sui/sdk-building) for how to author an extension, choose peer
+dependencies, and structure your SDK's methods.

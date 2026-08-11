@@ -58,13 +58,7 @@ const client = new SuiGraphQLClient({
 });
 ```
 
-## GraphQL-specific options
-
-Two top-level methods take options beyond the shared shape: `simulateTransaction` accepts
-`doGasSelection`, and `listDynamicFields` accepts `include: { value: true }` to fetch each field's
-BCS-encoded value in the same request.
-
-## Custom queries
+## Writing queries
 
 Use `query` to run any GraphQL document against the endpoint:
 
@@ -113,6 +107,26 @@ async function getDefaultSuinsName(address: string) {
 
 	return result.data?.address?.defaultNameRecord?.domain;
 }
+```
+
+### Using typed documents with other clients
+
+The `graphql` function returns document nodes implementing the
+[`TypedDocumentNode`](https://github.com/dotansimha/graphql-typed-document-node) standard, so the
+same typed documents work with most GraphQL clients:
+
+```typescript
+import { useQuery } from '@apollo/client';
+import { graphql } from '@mysten/sui/graphql/schema';
+
+const chainIdentifierQuery = graphql(`
+	query {
+		chainIdentifier
+	}
+`);
+
+// Result types flow through the other client's own hooks and methods
+const { data } = useQuery(chainIdentifierQuery);
 ```
 
 ### Handling errors
@@ -322,26 +336,3 @@ the stored checkpoint.
 	already returned may not appear in a query for a moment. Use `waitForTransaction` when you need to
 	read your own write.
 </Callout>
-
-## Using typed documents with other clients
-
-The `graphql` function returns document nodes implementing the
-[`TypedDocumentNode`](https://github.com/dotansimha/graphql-typed-document-node) standard, so they
-work with most GraphQL clients while staying typed:
-
-```tsx
-import { useQuery } from '@apollo/client';
-import { graphql } from '@mysten/sui/graphql/schema';
-
-const chainIdentifierQuery = graphql(`
-	query {
-		chainIdentifier
-	}
-`);
-
-function ChainIdentifier() {
-	const { loading, error, data } = useQuery(chainIdentifierQuery);
-
-	return <div>{data?.chainIdentifier}</div>;
-}
-```

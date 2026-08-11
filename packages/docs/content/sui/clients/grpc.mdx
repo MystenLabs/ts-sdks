@@ -17,8 +17,8 @@ keywords:
 ---
 
 `SuiGrpcClient` talks to the full node gRPC API. It is the recommended default for application code
-and SDK integrations: it reads directly from a full node, has the most complete method surface, and
-is the only client with real-time subscriptions.
+and SDK integrations: it reads directly from a full node with no indexer in the path, and it is the
+only client with real-time subscriptions.
 
 ```typescript
 import { SuiGrpcClient } from '@mysten/sui/grpc';
@@ -48,12 +48,9 @@ is specific to gRPC.
 Top-level gRPC methods are a superset of the shared API, adding fields where the transport exposes
 more data than the common shape can carry:
 
-| Option                     | Available on                                                                              |
-| -------------------------- | ----------------------------------------------------------------------------------------- |
-| `include.protoJson`        | `getTransaction`, `executeTransaction`, `signAndExecuteTransaction`, `waitForTransaction` |
-| `include.protoJson`        | `simulateTransaction`                                                                     |
-| `doGasSelection`           | `simulateTransaction`                                                                     |
-| `include: { value: true }` | `listDynamicFields`                                                                       |
+| Option              | Available on                                                                                                     |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `include.protoJson` | `getTransaction`, `executeTransaction`, `signAndExecuteTransaction`, `waitForTransaction`, `simulateTransaction` |
 
 `protoJson` returns the raw protobuf response alongside the parsed result, which is useful when you
 need a field the unified shape does not expose yet:

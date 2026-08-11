@@ -483,10 +483,13 @@ export class GraphQLCoreClient extends CoreClient {
 		};
 	}
 
-	async getProtocolConfig(): Promise<SuiClientTypes.GetProtocolConfigResponse> {
+	async getProtocolConfig(
+		options?: SuiClientTypes.GetProtocolConfigOptions,
+	): Promise<SuiClientTypes.GetProtocolConfigResponse> {
 		const result = await this.#graphqlQuery(
 			{
 				query: GetProtocolConfigDocument,
+				signal: options?.signal,
 			},
 			(result) => result.epoch?.protocolConfigs,
 		);
@@ -509,10 +512,13 @@ export class GraphQLCoreClient extends CoreClient {
 		};
 	}
 
-	async getCurrentSystemState(): Promise<SuiClientTypes.GetCurrentSystemStateResponse> {
+	async getCurrentSystemState(
+		options?: SuiClientTypes.GetCurrentSystemStateOptions,
+	): Promise<SuiClientTypes.GetCurrentSystemStateResponse> {
 		const result = await this.#graphqlQuery(
 			{
 				query: GetCurrentSystemStateDocument,
+				signal: options?.signal,
 			},
 			(result) => result.epoch,
 		);
