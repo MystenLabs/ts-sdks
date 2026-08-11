@@ -11,6 +11,10 @@ keywords:
     Core API,
     '@mysten/sui',
     protocol buffers,
+    subscriptions,
+    streaming,
+    listTransactions,
+    listEvents,
   ]
 ---
 
@@ -110,6 +114,78 @@ gRPC-specific options include:
 | `include.protoJson`        | `simulateTransaction`                                                                     |
 | `doGasSelection`           | `simulateTransaction`                                                                     |
 | `include: { value: true }` | `listDynamicFields`                                                                       |
+
+## Querying transactions and events
+
+`listTransactions` and `listEvents` return filtered, cursor-paginated pages of history. They are
+backed by the gRPC `LedgerService.ListTransactions` and `LedgerService.ListEvents` streaming RPCs,
+and behave identically to the [Core API query methods](/sui/clients/core#query-methods) on the other
+transports.
+
+```typescript
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+const grpcClient = new SuiGrpcClient({
+	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
+});
+
+// Most recent transactions sent by an address
+const page = await grpcClient.listTransactions({
+	filter: { sender: '0xabc...' },
+	order: 'descending',
+	limit: 20,
+	include: { effects: true },
+});
+
+for (const result of page.transactions) {
+	const transaction = result.Transaction ?? result.FailedTransaction;
+	console.log(transaction.digest, result.$kind);
+}
+
+// Events emitted by a module, oldest first
+const events = await grpcClient.listEvents({
+	filter: { emitModule: '0xpkg...::my_module' },
+	limit: 20,
+});
+```
+
+Both methods take `filter`, `limit`, `order`, and one of the exclusive cursor bounds `after`
+(ascending) or `before` (descending), and return `startCursor`, `endCursor`, and `hasNextPage`.
+Continue an ascending read by passing `endCursor` as `after`; poll for newer items after a
+descending read by passing `startCursor` as `after`.
+
+```typescript
+let cursor: string | null = null;
+
+do {
+	const page = await grpcClient.listEvents({
+		filter: { eventType: '0xpkg...::my_module::MyEvent' },
+		after: cursor,
+		limit: 50,
+	});
+
+	for (const event of page.events) {
+		console.log(event.checkpoint, event.transactionDigest, event.eventIndex, event.json);
+	}
+
+	// A short page can still have more results, so drive the loop off hasNextPage
+	cursor = page.hasNextPage ? page.endCursor : null;
+} while (cursor !== null);
+```
+
+<Callout type="info">
+	gRPC servers bound how much of the ledger a single filtered request scans. A scan-limited page can
+	return fewer items than `limit` — even zero — while still reporting `hasNextPage: true`. Continue
+	from `endCursor` rather than stopping on a short page: each request makes progress through the
+	scanned range. Servers also cap page sizes (50 by default) and silently truncate larger `limit`
+	values.
+</Callout>
+
+Filters accept exactly one predicate: `sender` or `function` for transactions, and `sender`,
+`emitModule`, or `eventType` for events. MVR names are resolved automatically. For combined,
+negated, or additional predicates, and for checkpoint range bounds, use the
+[raw ledger service](#ledger-service).
 
 ## Transport options
 
@@ -248,12 +324,17 @@ const { response } = await grpcClient.ledgerService.getTransaction({
 const { response: epochInfo } = await grpcClient.ledgerService.getEpoch({});
 ```
 
+#### Raw list RPCs
+
 The ledger service also provides streaming `listCheckpoints`, `listTransactions`, and `listEvents`
 RPCs. For most use cases, prefer the corresponding
-[core API query methods](/sui/clients/core#query-methods) (`listTransactions` and `listEvents`),
-which handle pagination and filter construction for you. The raw RPCs additionally support DNF
-filters (combined, negated, and additional predicates like `affected_address` and `package_write`)
-and checkpoint range bounds that the core API does not expose:
+[top-level query methods](#querying-transactions-and-events), which handle pagination and filter
+construction for you. Reach for the raw RPCs when you need what those methods do not expose:
+disjunctive normal form (DNF) filters, additional predicates, checkpoint range bounds, or
+`listCheckpoints`.
+
+A filter is a list of `terms` that are ORed together, and each term is a list of `literals` that are
+ANDed together. Setting `negated: true` on a literal inverts that predicate:
 
 ```typescript
 // Transactions that affected an address but were not sent by it:
@@ -287,34 +368,58 @@ for await (const frame of stream.responses) {
 }
 ```
 
-### Subscription service
+Transaction predicates are `sender`, `affectedAddress`, `affectedObject`, `moveCall`, `emitModule`,
+`eventType`, `eventStreamHead`, and `packageWrite`. Event predicates are `sender`, `emitModule`,
+`eventType`, and `eventStreamHead`. An absent filter matches everything; a present filter must have
+at least one term.
 
-Subscribe to filtered, real-time streams of checkpoints, transactions, or events. Streams begin at
-the current tip of the chain:
+#### Scan frames, watermarks, and resumption
+
+Every list RPC is a server stream of frames rather than a single response. A frame either delivers
+one matching item or only reports scan progress, and every frame carries a `watermark` whose
+`cursor` is a safe resume point. Exactly one frame of a successful stream carries `end`, which
+reports why the scan stopped:
+
+| `end.reason`       | Meaning                                                          |
+| ------------------ | ---------------------------------------------------------------- |
+| `ITEM_LIMIT`       | The requested item limit was reached; that frame carries an item |
+| `SCAN_LIMIT`       | The server's per-request scan budget was exhausted               |
+| `CHECKPOINT_BOUND` | A requested checkpoint range bound was reached                   |
+| `CURSOR_BOUND`     | An exclusive cursor bound was reached                            |
+| `LEDGER_TIP`       | The scan reached the currently indexed ledger tip                |
+
+Pass `options` to bound and order a scan. `after` and `before` are canonical ledger-position bounds
+that keep the same meaning in both directions — ordering only controls the order of items within the
+resulting interval — and they intersect with `startCheckpoint`/`endCheckpoint` when both are given:
 
 ```typescript
-const stream = grpcClient.subscriptionService.subscribeTransactions({
-	filter: {
-		terms: [
-			{
-				literals: [
-					{
-						negated: false,
-						predicate: { oneofKind: 'sender', sender: { address: '0xabc...' } },
-					},
-				],
-			},
-		],
+import { GrpcTypes } from '@mysten/sui/grpc';
+
+let resumeFrom: Uint8Array | undefined;
+
+const stream = grpcClient.ledgerService.listEvents({
+	readMask: { paths: ['event_type', 'transaction_digest', 'event_index'] },
+	startCheckpoint: 1_000_000n,
+	options: {
+		after: resumeFrom,
+		limit: 100,
+		ordering: GrpcTypes.Ordering.ASCENDING,
 	},
-	readMask: { paths: ['digest', 'effects.status'] },
 });
 
 for await (const frame of stream.responses) {
-	if (frame.transaction) {
-		console.log(frame.transaction.digest);
+	// Track the latest watermark: it is always the safe place to resume from
+	resumeFrom = frame.watermark?.cursor ?? resumeFrom;
+
+	if (frame.event) {
+		console.log(frame.event.eventType, frame.event.transactionDigest);
 	}
 }
 ```
+
+A `SCAN_LIMIT` end reason means the scan stopped before reaching the bound, not that the results are
+exhausted — issue the next request with `options.after` set to the last watermark cursor to keep
+making progress.
 
 ### State service
 
@@ -379,3 +484,178 @@ const { response } = await grpcClient.signatureVerificationService.verifySignatu
 	jwks: [],
 });
 ```
+
+## Subscriptions
+
+gRPC is the only transport with real-time push. `grpcClient.subscriptionService` provides filtered
+server streams of checkpoints, transactions, and events:
+
+| Method                  | Yields                                          |
+| ----------------------- | ----------------------------------------------- |
+| `subscribeCheckpoints`  | Checkpoints, and progress-only cursor frames    |
+| `subscribeTransactions` | Executed transactions, and progress-only frames |
+| `subscribeEvents`       | Emitted events, and progress-only frames        |
+
+Each subscription pairs with the ledger service `List` RPC of the same name: it takes the same
+filter message and its frames carry the same item and watermark shapes, with identical cursor
+semantics.
+
+```typescript
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+const grpcClient = new SuiGrpcClient({
+	network: 'testnet',
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
+});
+
+const stream = grpcClient.subscriptionService.subscribeTransactions({
+	filter: {
+		terms: [
+			{
+				literals: [
+					{
+						negated: false,
+						predicate: { oneofKind: 'sender', sender: { address: '0xabc...' } },
+					},
+				],
+			},
+		],
+	},
+	readMask: { paths: ['digest', 'effects.status'] },
+});
+
+for await (const frame of stream.responses) {
+	if (frame.transaction) {
+		console.log(frame.transaction.digest, frame.transaction.effects?.status?.success);
+	}
+}
+```
+
+Filters use the same DNF structure as the [raw list RPCs](#raw-list-rpcs). Omit `filter` to receive
+every item.
+
+### Frames and watermarks
+
+A subscription behaves like an unbounded ascending scan. Every frame carries the subscriber's resume
+point, so a frame may report progress without delivering an item:
+
+- `subscribeTransactions` and `subscribeEvents` frames carry `watermark` on every frame, and
+  `transaction` or `event` only when the frame delivers a match.
+- `subscribeCheckpoints` frames are checkpoint-granular, so they carry a `cursor` sequence number
+  instead of a watermark, plus `checkpoint` when the checkpoint matched.
+
+Two delivery guarantees keep sparse filters alive: the first frame of a filtered subscription is
+always a progress-only frame that establishes the stream's start position, and progress keeps
+advancing with bounded staleness even while nothing matches.
+
+```typescript
+let lastCursor: Uint8Array | undefined;
+
+for await (const frame of stream.responses) {
+	// Every frame advances the resume point, including progress-only frames
+	lastCursor = frame.watermark?.cursor ?? lastCursor;
+
+	if (!frame.transaction) {
+		continue;
+	}
+
+	await handleTransaction(frame.transaction);
+}
+```
+
+Checkpoint streams track a sequence number instead. An unfiltered checkpoint stream delivers every
+frame with both fields set, in order and without gaps:
+
+```typescript
+const checkpoints = grpcClient.subscriptionService.subscribeCheckpoints({
+	readMask: { paths: ['sequence_number', 'digest', 'summary'] },
+});
+
+let lastCheckpoint: bigint | undefined;
+
+for await (const frame of checkpoints.responses) {
+	lastCheckpoint = frame.cursor ?? lastCheckpoint;
+
+	if (frame.checkpoint) {
+		console.log(frame.checkpoint.sequenceNumber, frame.checkpoint.digest);
+	}
+}
+```
+
+### Cancelling a subscription
+
+Subscription streams have no successful end — they run until the client cancels them or the server
+terminates them with a gRPC status. Pass an `AbortSignal` through `RpcOptions` to cancel:
+
+```typescript
+const controller = new AbortController();
+
+const stream = grpcClient.subscriptionService.subscribeEvents(
+	{ readMask: { paths: ['event_type', 'transaction_digest'] } },
+	{ abort: controller.signal },
+);
+
+// Later, to tear the stream down
+controller.abort();
+```
+
+### Recovering missed data after a disconnect
+
+Subscriptions do not support resumption: a new subscription always starts at the current tip of the
+chain as seen by the server, so anything that happened while you were disconnected is skipped.
+Replay the gap with the paired `List` RPC before resuming live delivery.
+
+Scan the interval between the last cursor you processed and the cursor the new subscription started
+at, by passing them as `options.after` and `options.before` (for checkpoints, use
+`startCheckpoint`/`endCheckpoint` with the corresponding sequence numbers instead). The indexed tip
+that `List` reads from may trail the subscription's start position, so repeat the call until a scan
+actually reaches the upper bound, which the terminal frame reports as `CURSOR_BOUND`:
+
+```typescript
+import { GrpcTypes } from '@mysten/sui/grpc';
+
+async function replayGap(after: Uint8Array, before: Uint8Array) {
+	let cursor = after;
+
+	while (true) {
+		const stream = grpcClient.ledgerService.listTransactions({
+			readMask: { paths: ['digest'] },
+			options: { after: cursor, before, limit: 100 },
+		});
+
+		let reason: GrpcTypes.QueryEndReason | undefined;
+
+		for await (const frame of stream.responses) {
+			cursor = frame.watermark?.cursor ?? cursor;
+			reason = frame.end?.reason ?? reason;
+
+			if (frame.transaction) {
+				await handleTransaction(frame.transaction);
+			}
+		}
+
+		// The bound was reached: the gap is fully replayed
+		if (reason === GrpcTypes.QueryEndReason.CURSOR_BOUND) {
+			return;
+		}
+
+		// The scan stopped at the indexed tip — wait for the index to catch up
+		if (reason === GrpcTypes.QueryEndReason.LEDGER_TIP) {
+			await new Promise((resolve) => setTimeout(resolve, 1000));
+		}
+	}
+}
+```
+
+A durable consumer therefore keeps two pieces of state: the last cursor it processed, and the start
+cursor reported by the first frame of each new subscription. On reconnect, start the subscription
+first, buffer its frames, replay the gap between those two cursors, then process the buffer.
+
+<Callout type="info">
+	Subscriptions work over both the default gRPC-web transport and the native gRPC transport. In a
+	browser, long-lived streams are subject to normal connection limits and proxy timeouts, so treat
+	disconnects as routine and always implement the replay path above.
+</Callout>
+
+For polling-based alternatives on the other transports, see
+[live data over GraphQL](/sui/clients/graphql#subscriptions-and-live-data).

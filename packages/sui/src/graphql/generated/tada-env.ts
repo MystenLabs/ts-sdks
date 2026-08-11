@@ -3699,6 +3699,10 @@ const introspection = {
           },
           {
             "kind": "OBJECT",
+            "name": "ForwardingAddressRegistryCreateTransaction"
+          },
+          {
+            "kind": "OBJECT",
             "name": "RandomnessStateCreateTransaction"
           },
           {
@@ -4544,6 +4548,22 @@ const introspection = {
                 "kind": "SCALAR",
                 "name": "Boolean"
               }
+            },
+            "args": [],
+            "isDeprecated": false
+          }
+        ],
+        "interfaces": []
+      },
+      {
+        "kind": "OBJECT",
+        "name": "ForwardingAddressRegistryCreateTransaction",
+        "fields": [
+          {
+            "name": "_",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean"
             },
             "args": [],
             "isDeprecated": false

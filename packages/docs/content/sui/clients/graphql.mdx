@@ -11,6 +11,10 @@ keywords:
     Core API,
     '@mysten/sui',
     type-safe,
+    subscriptions,
+    polling,
+    listTransactions,
+    listEvents,
   ]
 ---
 
@@ -64,6 +68,77 @@ Common top-level methods:
 
 GraphQL-specific top-level options include `doGasSelection` on `simulateTransaction` and
 `include: { value: true }` on `listDynamicFields`.
+
+## Querying transactions and events
+
+`listTransactions` and `listEvents` return filtered, cursor-paginated pages of history, with the
+same options and results as the [Core API query methods](/sui/clients/core#query-methods) on the
+other transports. They are backed by the `transactions` and `events` connections, so cursors are
+GraphQL connection cursors.
+
+```typescript
+import { SuiGraphQLClient } from '@mysten/sui/graphql';
+
+const client = new SuiGraphQLClient({
+	url: 'https://graphql.mainnet.sui.io/graphql',
+	network: 'mainnet',
+});
+
+// Most recent transactions sent by an address
+const page = await client.listTransactions({
+	filter: { sender: '0xabc...' },
+	order: 'descending',
+	limit: 20,
+	include: { effects: true },
+});
+
+for (const result of page.transactions) {
+	const transaction = result.Transaction ?? result.FailedTransaction;
+	console.log(transaction.digest, result.$kind);
+}
+
+// Events of a given type, oldest first
+const events = await client.listEvents({
+	filter: { eventType: '0xpkg...::my_module::MyEvent' },
+	limit: 20,
+});
+
+for (const event of events.events) {
+	console.log(event.checkpoint, event.transactionDigest, event.eventIndex, event.json);
+}
+```
+
+Both methods take `filter`, `limit`, `order`, and one of the exclusive cursor bounds `after`
+(ascending) or `before` (descending), and return `startCursor`, `endCursor`, and `hasNextPage`.
+Continue an ascending read by passing `endCursor` as `after`:
+
+```typescript
+let cursor: string | null = null;
+
+do {
+	const page = await client.listEvents({
+		filter: { emitModule: '0xpkg...::my_module' },
+		after: cursor,
+		limit: 50,
+	});
+
+	for (const event of page.events) {
+		console.log(event.eventType, event.transactionDigest);
+	}
+
+	cursor = page.hasNextPage ? page.endCursor : null;
+} while (cursor !== null);
+```
+
+A filter specifies exactly one predicate — `sender` or `function` for transactions, and `sender`,
+`emitModule`, or `eventType` for events — and MVR names are resolved automatically. The GraphQL API
+also caps page sizes (50 by default) and throws when `limit` exceeds the cap.
+
+For richer filtering, including checkpoint ranges and affected addresses or objects, query the
+`transactions` and `events` connections directly with a [custom query](#custom-graphql-queries).
+Their `TransactionFilter` input supports `sentAddress`, `affectedAddress`, `affectedObject`,
+`function`, `kind`, `atCheckpoint`, `afterCheckpoint`, and `beforeCheckpoint`; `EventFilter`
+supports `sender`, `module`, `type`, and the same three checkpoint bounds.
 
 ## Custom GraphQL queries
 
@@ -151,3 +226,110 @@ function ChainIdentifier() {
 	return <div>{data?.chainIdentifier}</div>;
 }
 ```
+
+## Subscriptions and live data
+
+The Sui GraphQL schema defines only `Query` and `Mutation` root types — there is no `subscription`
+operation, and `SuiGraphQLClient` has no subscribe method. Follow live activity over GraphQL by
+polling with cursors, or use [gRPC subscriptions](/sui/clients/grpc#subscriptions) when you need
+server push.
+
+<Callout type="info">
+	`SuiGrpcClient` is the only client with real-time streams. It exposes `subscribeCheckpoints`,
+	`subscribeTransactions`, and `subscribeEvents`, each with the same filters as its query
+	counterpart.
+</Callout>
+
+### Cursor polling
+
+Read the current tip once in descending order, then poll forward from `startCursor`. Because `after`
+is an exclusive ledger-position bound, each poll returns only what has landed since the previous
+one, with no overlap and no gaps:
+
+```typescript
+// Establish a starting position at the current tip
+const latest = await client.listEvents({
+	filter: { emitModule: '0xpkg...::my_module' },
+	order: 'descending',
+	limit: 1,
+});
+
+let cursor = latest.startCursor;
+
+async function poll() {
+	while (true) {
+		const page = await client.listEvents({
+			filter: { emitModule: '0xpkg...::my_module' },
+			after: cursor,
+			limit: 50,
+		});
+
+		for (const event of page.events) {
+			await handleEvent(event);
+		}
+
+		// Only advance the cursor once the page is fully handled
+		cursor = page.endCursor ?? cursor;
+
+		// Drain a backlog without waiting, otherwise wait before polling again
+		if (!page.hasNextPage) {
+			await new Promise((resolve) => setTimeout(resolve, 2000));
+		}
+	}
+}
+```
+
+Persist `cursor` if the consumer needs to survive restarts. The same pattern works with
+`listTransactions`.
+
+### Checkpoint polling
+
+When you need a consistent view of everything in a range rather than one filtered feed, drive the
+loop off checkpoint sequence numbers with a custom query. Checkpoint bounds are available on both
+the `transactions` and `events` filters:
+
+```typescript
+import { graphql } from '@mysten/sui/graphql/schema';
+
+const newTransactionsQuery = graphql(`
+	query newTransactions($afterCheckpoint: UInt53!, $after: String) {
+		checkpoint {
+			sequenceNumber
+		}
+		transactions(filter: { afterCheckpoint: $afterCheckpoint }, first: 50, after: $after) {
+			pageInfo {
+				hasNextPage
+				endCursor
+			}
+			nodes {
+				digest
+				effects {
+					checkpoint {
+						sequenceNumber
+					}
+				}
+			}
+		}
+	}
+`);
+
+let lastProcessedCheckpoint = 0;
+
+const result = await gqlClient.query({
+	query: newTransactionsQuery,
+	variables: { afterCheckpoint: lastProcessedCheckpoint, after: null },
+});
+
+// The latest indexed checkpoint, so the consumer knows how far it has caught up
+console.log(result.data?.checkpoint?.sequenceNumber);
+```
+
+Querying `checkpoint` without arguments returns the latest indexed checkpoint, which is the upper
+bound the poller is working toward. Page through `transactions` with the connection cursor until
+`hasNextPage` is false before advancing the stored checkpoint.
+
+<Callout type="warn">
+	GraphQL reads the indexed ledger, which trails execution slightly. A transaction that
+	`executeTransaction` has already returned may not appear in a query for a short time. Use
+	`waitForTransaction` when you need to read your own write.
+</Callout>

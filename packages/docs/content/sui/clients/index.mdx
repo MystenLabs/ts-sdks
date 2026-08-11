@@ -83,6 +83,9 @@ Common top-level methods include:
 | Move and names | `getMoveFunction`, `resolveNameServiceAddress`, `defaultNameServiceName`, `mvr.resolvePackage`, `mvr.resolveType` |
 | Verification   | `verifyZkLoginSignature`                                                                                          |
 
+The query methods return filtered, cursor-paginated history and behave identically on every
+transport. See [Core API query methods](/sui/clients/core#query-methods) for filters and pagination.
+
 ### Core API
 
 Use `client.core` when building SDKs or libraries that accept any client implementing
@@ -132,6 +135,10 @@ const result = await graphqlClient.query({
 	`),
 });
 ```
+
+Real-time streams are a gRPC-only capability: `SuiGrpcClient` can
+[subscribe](/sui/clients/grpc#subscriptions) to checkpoints, transactions, and events, while GraphQL
+consumers [poll with cursors](/sui/clients/graphql#subscriptions-and-live-data).
 
 For legacy JSON-RPC-only code, see the [`SuiJsonRpcClient` page](/sui/clients/json-rpc) and the
 [JSON-RPC migration guide](/sui/migrations/sui-2.0/json-rpc-migration).
