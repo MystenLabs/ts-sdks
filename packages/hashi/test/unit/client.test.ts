@@ -1907,6 +1907,27 @@ describe('HashiClient', () => {
 			// (2000 + 1000 - 500) * 120 / 100 = 3000
 			expect(result.gasEstimateMist).toBe(3000n);
 		});
+
+		it('caps the fee bound when the withdrawal minimum is raised as a policy throttle', async () => {
+			// A 10 BTC minimum makes the on-chain fee budget (min - 546)
+			// ~10 BTC — subtracting THAT from a 10.84 BTC withdrawal displayed
+			// "~0.84 BTC" in production. The estimation API must cap it.
+			const throttledConfig = [
+				...WELL_FORMED_CONFIG.filter((e) => e.key !== 'bitcoin_withdrawal_minimum'),
+				{ key: 'bitcoin_withdrawal_minimum', value: { $kind: 'U64', U64: '1000000000' } },
+			];
+			mockHashiWithConfig(throttledConfig);
+
+			const result = await client.hashi.view.withdrawalFees();
+			expect(result.withdrawalMinimumSats).toBe(1_000_000_000n);
+			expect(result.worstCaseNetworkFeeSats).toBe(100_000n);
+
+			// The uncapped protocol budget stays visible on the raw snapshot
+			// (each view call fetches once, so re-arm the single-shot mock).
+			mockHashiWithConfig(throttledConfig);
+			const snap = await client.hashi.view.all();
+			expect(snap.worstCaseNetworkFee).toBe(1_000_000_000n - 546n);
+		});
 	});
 
 	describe('waitForDeposit', () => {
