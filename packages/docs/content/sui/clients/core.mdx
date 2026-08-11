@@ -1,723 +1,126 @@
 ---
 title: Core API
-description: Transport-agnostic Core API shared by Sui clients
+description: The transport-agnostic client contract that SDKs and libraries build against
 keywords:
   [
     Core API,
     ClientWithCoreApi,
     transport-agnostic,
-    Sui client,
+    SDK development,
+    SuiClientTypes,
     gRPC,
     GraphQL,
-    JSON-RPC,
     TypeScript SDK,
   ]
 ---
 
-The Core API is the transport-agnostic interface shared by Sui clients. It provides a consistent set
-of methods for interacting with the Sui blockchain across `SuiGrpcClient`, `SuiGraphQLClient`, and
-the deprecated `SuiJsonRpcClient`.
+The Core API is the contract every Sui client implements. It exists so that libraries do not have to
+care which transport their caller chose: an SDK written against the Core API works with
+`SuiGrpcClient`, `SuiGraphQLClient`, and the deprecated `SuiJsonRpcClient` alike.
 
-For application code, prefer the top-level methods on the concrete client you instantiate, such as
-`grpcClient.getObject()` or `graphqlClient.listTransactions()`. Those methods match the Core API for
-common operations and may expose transport-specific additions. Use `client.core` when writing SDKs,
-libraries, or helpers that accept any `ClientWithCoreApi`.
+<Callout type="info">
+	This page is for SDK and library authors. If you are writing application code, create a client and
+	call its [top-level methods](/sui/clients/querying) directly — you do not need `client.core`.
+</Callout>
+
+For packaging, extension, and code-generation patterns that go with this contract, see
+[Building SDKs](/sui/sdk-building).
 
 ## `ClientWithCoreApi`
 
-The `ClientWithCoreApi` type represents any client that implements the Core API. Use this type when
-building SDKs or libraries that should work with any transport:
+`ClientWithCoreApi` is the type to accept in library code. It says "any Sui client", and gives you
+`client.core` to work through:
 
 ```typescript
 import type { ClientWithCoreApi } from '@mysten/sui/client';
 
-// Your SDK works with any client
-class MySDK {
-	constructor(private client: ClientWithCoreApi) {}
+export class MySDK {
+	#client: ClientWithCoreApi;
 
-	async doSomething() {
-		// Use client.core for all operations
-		return this.client.core.getObject({ objectId: '0x...' });
+	constructor(client: ClientWithCoreApi) {
+		this.#client = client;
+	}
+
+	async getResource(objectId: string) {
+		const { object } = await this.#client.core.getObject({
+			objectId,
+			include: { content: true },
+		});
+
+		return object;
 	}
 }
 ```
 
-## Object methods
-
-Object methods accept an optional `include` parameter to control what data is returned. By default,
-every object comes with `objectId`, `version`, `digest`, `owner`, and `type`. The following fields
-are only populated when requested:
-
-| Option                | Type      | Description                                                               |
-| --------------------- | --------- | ------------------------------------------------------------------------- |
-| `content`             | `boolean` | BCS-encoded Move struct content (pass this to generated BCS type parsers) |
-| `previousTransaction` | `boolean` | Digest of the transaction that last mutated this object                   |
-| `json`                | `boolean` | JSON representation of the object's Move struct content                   |
-| `objectBcs`           | `boolean` | Full BCS-encoded object envelope (rarely needed; see [below](#objectbcs)) |
-| `display`             | `boolean` | [Sui Display Standard](https://docs.sui.io/standards/display) metadata    |
-
-### `getObject`
-
-Fetch a single object by ID.
-
-```typescript
-const { object } = await client.core.getObject({
-	objectId: '0x123...',
-	include: {
-		content: true, // Include BCS-encoded content
-		previousTransaction: true, // Include creating transaction digest
-	},
-});
-
-console.log(object.objectId);
-console.log(object.version);
-console.log(object.digest);
-console.log(object.type); // e.g., "0x2::coin::Coin<0x2::sui::SUI>"
-```
-
-### `getObjects`
-
-Fetch multiple objects in a single request.
-
-```typescript
-const { objects } = await client.core.getObjects({
-	objectIds: ['0x123...', '0x456...'],
-	include: { content: true },
-});
-
-for (const obj of objects) {
-	if (obj instanceof Error) {
-		console.log('Object not found:', obj.message);
-	} else {
-		console.log(obj.objectId, obj.type);
-	}
-}
-```
-
-### `listOwnedObjects`
-
-List objects owned by an address.
-
-```typescript
-const result = await client.core.listOwnedObjects({
-	owner: '0xabc...',
-	type: '0x2::coin::Coin<0x2::sui::SUI>',
-	limit: 10,
-});
-
-for (const obj of result.objects) {
-	console.log(obj.objectId, obj.type);
-}
-
-// Paginate
-if (result.cursor) {
-	const nextPage = await client.core.listOwnedObjects({
-		owner: '0xabc...',
-		cursor: result.cursor,
-	});
-}
-```
-
-### Parsing object content
-
-Use `include: { content: true }` to get the BCS-encoded Move struct bytes, then parse them with
-generated types (from `@mysten/codegen`) or manual BCS definitions:
-
-```typescript
-import { MyStruct } from './generated/my-module';
-
-const { object } = await client.core.getObject({
-	objectId: '0x123...',
-	include: { content: true },
-});
-
-const parsed = MyStruct.parse(object.content);
-```
-
-### `json` include option
-
-You can also fetch a JSON representation of the object's content with `include: { json: true }`.
-
-<Callout type="warn">
-	The `json` field structure might vary between API implementations. For example, JSON-RPC returns
-	UID fields as nested objects (`{ "id": { "id": "0x..." } }`), while gRPC and GraphQL flatten
-	them (`{ "id": "0x..." }`). For consistent data across all clients, use `content` and parse BCS
-	directly.
-</Callout>
-
-### `objectBcs`
-
-The `objectBcs` option returns the full BCS-encoded object envelope, which is the struct content
-wrapped in metadata (type, `hasPublicTransfer`, version, owner, previous transaction, and storage
-rebate). Most of this metadata is already available as fields on the object response, so you
-typically only need `content`. If you do need `objectBcs`, parse it with `bcs.Object` from
-`@mysten/sui/bcs`:
-
-```typescript
-import { bcs } from '@mysten/sui/bcs';
-
-const envelope = bcs.Object.parse(object.objectBcs);
-```
-
-<Callout type="error">
-	Do not pass `objectBcs` to a Move struct parser. It contains wrapping metadata that will cause
-	parsing to fail or produce incorrect results. Use `content` for parsing Move struct fields.
-</Callout>
-
-### `display` include option
-
-The `display` option fetches [Sui Display Standard](https://docs.sui.io/standards/display) metadata
-for an object. Display templates define how an object should be presented in wallets and explorers,
-including fields like `name`, `description`, and `image_url`.
-
-```typescript
-const { object } = await client.core.getObject({
-	objectId: '0x123...',
-	include: { display: true },
-});
-
-if (object.display) {
-	// display is null if the object's type has no Display template
-	console.log(object.display.output?.name);
-	console.log(object.display.output?.image_url);
-}
-```
-
-The `display` field is `null` when the object's type has no registered Display template, and
-`undefined` when `display` was not requested. The `Display` type has two fields:
-
-| Field    | Type                             | Description                                                     |
-| -------- | -------------------------------- | --------------------------------------------------------------- |
-| `output` | `Record<string, string> \| null` | Interpolated display fields (template variables resolved)       |
-| `errors` | `Record<string, string> \| null` | Per-field errors if any template variable failed to interpolate |
-
-`display` works with `getObject`, `getObjects`, and `listOwnedObjects`.
-
-## Coin and balance methods
-
-### `getBalance`
-
-Get the balance of a specific coin type for an owner.
-
-```typescript
-const { balance } = await client.core.getBalance({
-	owner: '0xabc...',
-	coinType: '0x2::sui::SUI', // Optional, defaults to SUI
-});
-
-console.log(balance.balance); // Total balance (coin objects + address balance)
-console.log(balance.coinBalance); // Balance from coin objects only
-console.log(balance.addressBalance); // Balance from address balance only
-```
-
-### `listBalances`
-
-List all coin balances for an owner.
-
-```typescript
-const { balances } = await client.core.listBalances({
-	owner: '0xabc...',
-});
-
-for (const balance of balances) {
-	console.log(balance.coinType, balance.balance);
-}
-```
-
-### `listCoins`
-
-List coin objects of a specific type owned by an address.
-
-```typescript
-const result = await client.core.listCoins({
-	owner: '0xabc...',
-	coinType: '0x2::sui::SUI',
-	limit: 10,
-});
-
-for (const coin of result.objects) {
-	console.log(coin.objectId, coin.balance);
-}
-```
-
-### `getCoinMetadata`
-
-Get metadata for a coin type, including its name, symbol, decimals, and description.
-
-```typescript
-const { coinMetadata } = await client.core.getCoinMetadata({
-	coinType: '0x2::sui::SUI',
-});
-
-if (coinMetadata) {
-	console.log(coinMetadata.name, coinMetadata.symbol, coinMetadata.decimals);
-	// "Sui" "SUI" 9
-}
-```
-
-## Dynamic field methods
-
-### `listDynamicFields`
-
-List dynamic fields on an object.
-
-```typescript
-const result = await client.core.listDynamicFields({
-	parentId: '0x123...',
-	limit: 10,
-});
-
-for (const field of result.dynamicFields) {
-	console.log(field.name, field.type);
-}
-```
-
-### `getDynamicField`
-
-Get a specific dynamic field by name.
-
-```typescript
-import { bcs } from '@mysten/sui/bcs';
-
-const { dynamicField } = await client.core.getDynamicField({
-	parentId: '0x123...',
-	name: {
-		type: 'u64',
-		bcs: bcs.u64().serialize(42).toBytes(),
-	},
-});
-
-console.log(dynamicField.name);
-console.log(dynamicField.value.type);
-console.log(dynamicField.value.bcs); // BCS-encoded value
-```
-
-### `getDynamicObjectField`
-
-Get a dynamic object field, returning the referenced object. Supports the same
-[object include options](#object-methods) as `getObject`.
+Accept the client as a parameter rather than constructing one. Your caller has already configured a
+network, endpoint, and transport, and creating a second client would bypass all of it — along with
+the request cache the caller's client already holds.
+
+### Why go through `client.core`
+
+Top-level methods on `SuiGrpcClient` and `SuiGraphQLClient` are a superset of the Core API: each
+transport can add fields where it has extra native data, such as `include: { protoJson: true }` on
+gRPC. Those additions are not portable. `client.core` is the subset that every transport guarantees,
+so library code that stays inside it keeps working whichever client the caller supplies.
+
+## The contract
+
+Every client implements these methods on `client.core`. They are documented in full — with options,
+include flags, and response shapes — in [Querying data](/sui/clients/querying).
+
+| Category       | Methods                                                                                    |
+| -------------- | ------------------------------------------------------------------------------------------ |
+| Objects        | `getObject`, `getObjects`, `listOwnedObjects`                                              |
+| Coins          | `getBalance`, `listBalances`, `listCoins`, `getCoinMetadata`                               |
+| Dynamic fields | `listDynamicFields`, `getDynamicField`, `getDynamicObjectField`                            |
+| Transactions   | `getTransaction`, `executeTransaction`, `signAndExecuteTransaction`, `waitForTransaction`  |
+| Simulation     | `simulateTransaction`                                                                      |
+| History        | `listTransactions`, `listEvents`                                                           |
+| Move           | `getMoveFunction`                                                                          |
+| Names          | `resolveNameServiceAddress`, `defaultNameServiceName`, `mvr`                               |
+| Network        | `getReferenceGasPrice`, `getCurrentSystemState`, `getProtocolConfig`, `getChainIdentifier` |
+| Verification   | `verifyZkLoginSignature`                                                                   |
+| Building       | `resolveTransactionPlugin`                                                                 |
+
+### Methods only on `client.core`
+
+Most of the contract is also mirrored as top-level methods on the concrete clients. These four are
+not, so they are always reached through `client.core` — including from application code:
 
 ```typescript
 const { object } = await client.core.getDynamicObjectField({
 	parentId: '0x123...',
-	name: {
-		type: '0x2::object::ID',
-		bcs: bcs.Address.serialize('0x456...').toBytes(),
-	},
-	include: { content: true },
-});
-```
-
-## Transaction methods
-
-Transaction methods accept an optional `include` parameter to control what data is returned. By
-default, every transaction result includes `digest`, `signatures`, `epoch`, and `status`. The
-following fields are only populated when requested:
-
-| Option           | Type      | Description                                                        |
-| ---------------- | --------- | ------------------------------------------------------------------ |
-| `effects`        | `boolean` | Parsed transaction effects (gas used, changed objects, and status) |
-| `events`         | `boolean` | Events emitted during execution                                    |
-| `transaction`    | `boolean` | Parsed transaction data (sender, gas config, inputs, commands)     |
-| `balanceChanges` | `boolean` | Balance changes caused by the transaction                          |
-| `objectTypes`    | `boolean` | Map of object IDs to their types for all changed objects           |
-| `bcs`            | `boolean` | Raw BCS-encoded transaction bytes                                  |
-
-`simulateTransaction` also supports:
-
-| Option           | Type      | Description                                            |
-| ---------------- | --------- | ------------------------------------------------------ |
-| `commandResults` | `boolean` | Return values and mutated references from each command |
-
-### `executeTransaction`
-
-Execute a signed transaction.
-
-```typescript
-const result = await client.core.executeTransaction({
-	transaction: transactionBytes,
-	signatures: [signature],
-	include: {
-		effects: true,
-		events: true,
-	},
+	name: { type: '0x2::object::ID', bcs: nameBytes },
 });
 
-if (result.Transaction) {
-	console.log('Success:', result.Transaction.digest);
-	console.log('Effects:', result.Transaction.effects);
-} else {
-	console.log('Failed:', result.FailedTransaction?.status.error);
-}
-```
-
-### `simulateTransaction`
-
-Simulate a transaction without executing it.
-
-```typescript
-const result = await client.core.simulateTransaction({
-	transaction: transactionBytes,
-	include: {
-		effects: true,
-		balanceChanges: true,
-		commandResults: true, // simulation-only option
-	},
-});
-
-const simulatedTransaction =
-	result.$kind === 'Transaction' ? result.Transaction : result.FailedTransaction;
-
-// Check simulated effects before signing
-console.log(simulatedTransaction.effects);
-console.log(simulatedTransaction.balanceChanges);
-```
-
-#### Disabling checks
-
-By default, `simulateTransaction` runs with full transaction validation. For example when inspecting
-non-public or non-entry Move functions set `checksEnabled: false`:
-
-```typescript
-const result = await client.core.simulateTransaction({
-	transaction: transactionBytes,
-	checksEnabled: false,
-	include: {
-		commandResults: true,
-	},
-});
-```
-
-### `signAndExecuteTransaction`
-
-Sign and execute a transaction in one step.
-
-```typescript
-import { Transaction } from '@mysten/sui/transactions';
-
-const tx = new Transaction();
-tx.transferObjects([tx.object('0x123...')], '0xrecipient...');
-
-const result = await client.core.signAndExecuteTransaction({
-	transaction: tx,
-	signer: keypair,
-	include: { effects: true },
-});
-
-// Always check the result
-if (result.FailedTransaction) {
-	throw new Error(`Failed: ${result.FailedTransaction.status.error}`);
-}
-
-console.log('Digest:', result.Transaction.digest);
-```
-
-### `getTransaction`
-
-Fetch a transaction by digest.
-
-```typescript
-const result = await client.core.getTransaction({
-	digest: 'ABC123...',
-	include: {
-		effects: true,
-		events: true,
-		transaction: true,
-	},
-});
-
-console.log(result.Transaction?.digest);
-console.log(result.Transaction?.effects);
-console.log(result.Transaction?.transaction?.sender);
-```
-
-You can also fetch raw BCS-encoded transaction bytes:
-
-```typescript
-const result = await client.core.getTransaction({
-	digest: 'ABC123...',
-	include: { bcs: true },
-});
-
-// Raw BCS bytes for the transaction
-console.log(result.Transaction?.bcs); // Uint8Array
-```
-
-### `waitForTransaction`
-
-Wait for a transaction to be available.
-
-```typescript
-const result = await client.core.waitForTransaction({
-	digest: 'ABC123...',
-	timeout: 60_000, // 60 seconds
-	include: { effects: true },
-});
-```
-
-You can also pass the result directly from `executeTransaction`:
-
-```typescript
-const executeResult = await client.core.executeTransaction({ ... });
-
-const finalResult = await client.core.waitForTransaction({
-	result: executeResult,
-	include: { effects: true },
-});
-```
-
-## Query methods
-
-Query methods return pages of transactions or events. They expose the same filters, pagination, and
-results on every transport, and share a common set of options. A few transport-specific caveats
-(page-size caps, gRPC scan-limited pages, generic event types and missing event checkpoints on the
-deprecated JSON-RPC transport, and GraphQL's per-transaction event limit) are documented on the
-corresponding option and response types in `SuiClientTypes`.
-
-| Option   | Type                               | Description                                           |
-| -------- | ---------------------------------- | ----------------------------------------------------- |
-| `filter` | `TransactionFilter \| EventFilter` | Filter to apply (transactions and events)             |
-| `limit`  | `number`                           | Maximum number of items to return (defaults to 50)    |
-| `after`  | `string \| null`                   | Return items strictly after this cursor (ascending)   |
-| `before` | `string \| null`                   | Return items strictly before this cursor (descending) |
-| `order`  | `'ascending' \| 'descending'`      | Order of results (defaults to `ascending`)            |
-
-A filter specifies exactly one predicate. MVR names in `function` and `eventType` predicates are
-resolved automatically.
-
-`after` and `before` are exclusive ledger-position bounds, and each page reports the positions of
-its first and last items as `startCursor` and `endCursor`. You can provide at most one bound per
-query, and the bound implies the traversal direction (`after` reads ascending, `before` reads
-descending), so a feed of recent activity can page in both directions from any point:
-
-```typescript
-// Fetch the most recent transactions
-const latest = await client.core.listTransactions({
-	filter: { sender: '0xabc...' },
-	order: 'descending',
-	limit: 10,
-});
-
-// Load older transactions
-const older = await client.core.listTransactions({
-	filter: { sender: '0xabc...' },
-	before: latest.endCursor,
-	limit: 10,
-});
-
-// Poll for transactions executed since
-const newer = await client.core.listTransactions({
-	filter: { sender: '0xabc...' },
-	after: latest.startCursor,
-});
-```
-
-<Callout type="info">
-	Richer filtering (combined predicates, additional predicates like affected addresses and objects,
-	and checkpoint ranges on transaction and event queries) is available through the [raw gRPC ledger
-	service](/sui/clients/grpc#ledger-service) and [raw GraphQL queries](/sui/clients/graphql).
-</Callout>
-
-### `listTransactions`
-
-Query transactions matching a filter. Results support the same `include` options as
-[`getTransaction`](#gettransaction).
-
-```typescript
-const result = await client.core.listTransactions({
-	filter: { function: '0x2::coin::transfer' },
-	limit: 10,
-	include: { effects: true },
-});
-
-for (const tx of result.transactions) {
-	const transaction = tx.Transaction ?? tx.FailedTransaction;
-	console.log(transaction.digest, tx.$kind);
-}
-
-// Paginate
-if (result.hasNextPage) {
-	const nextPage = await client.core.listTransactions({
-		filter: { function: '0x2::coin::transfer' },
-		after: result.endCursor,
-	});
-}
-```
-
-Transaction filters support one of the following predicates:
-
-| Predicate  | Description                                                                 |
-| ---------- | --------------------------------------------------------------------------- |
-| `sender`   | Transactions sent by an address                                             |
-| `function` | Transactions calling a Move function (`pkg`, `pkg::mod`, or `pkg::mod::fn`) |
-
-### `listEvents`
-
-Query events matching a filter. Each event includes its position in the ledger (`transactionDigest`
-and `eventIndex`, plus `checkpoint` on transports that can provide it; `checkpoint` is `null` on
-JSON-RPC).
-
-```typescript
-const result = await client.core.listEvents({
-	filter: { eventType: '0x2::coin::CoinCreated' },
-	order: 'descending',
-	limit: 10,
-});
-
-for (const event of result.events) {
-	console.log(event.eventType, event.transactionDigest, event.json);
-}
-```
-
-Event filters support one of the following predicates:
-
-| Predicate    | Description                                                                       |
-| ------------ | --------------------------------------------------------------------------------- |
-| `sender`     | Events from transactions sent by an address                                       |
-| `emitModule` | Events emitted by a module (`pkg::mod`)                                           |
-| `eventType`  | Events with types defined in a module (`pkg::mod`) or a fully qualified type name |
-
-## System methods
-
-### `getReferenceGasPrice`
-
-Get the current reference gas price.
-
-```typescript
-const { referenceGasPrice } = await client.core.getReferenceGasPrice();
-console.log(referenceGasPrice); // bigint
-```
-
-### `getCurrentSystemState`
-
-Get the current system state including epoch information.
-
-```typescript
 const { systemState } = await client.core.getCurrentSystemState();
-console.log(systemState.epoch);
-console.log(systemState.systemStateVersion);
-```
+console.log(systemState.epoch, systemState.referenceGasPrice);
 
-### `getChainIdentifier`
+const { protocolConfig } = await client.core.getProtocolConfig();
+console.log(protocolConfig.protocolVersion, protocolConfig.featureFlags);
 
-Get the chain identifier for the network.
-
-```typescript
 const { chainIdentifier } = await client.core.getChainIdentifier();
-console.log(chainIdentifier); // e.g., "4c78adac"
 ```
 
-## Move methods
+`getChainIdentifier` returns the digest of the genesis checkpoint, base58-encoded — the value that
+uniquely identifies a network. It never changes, so the client caches it after the first call.
 
-### `getMoveFunction`
+`getReferenceGasPrice` returns `{ referenceGasPrice }` as a decimal string. You rarely need it
+directly: the transaction builder sets the gas price for you.
 
-Get information about a Move function.
+## Typing library code
 
-```typescript
-const { function: fn } = await client.core.getMoveFunction({
-	packageId: '0x2',
-	moduleName: 'coin',
-	name: 'value',
-});
-
-console.log(fn.name);
-console.log(fn.parameters);
-console.log(fn.typeParameters);
-```
-
-## Name service methods
-
-### `resolveNameServiceAddress`
-
-Resolve a SuiNS name to its target address. The address is `null` when the name does not exist, has
-expired, or does not have a target address.
+`SuiClientTypes` holds every option and response type in the contract. Import it to type your own
+signatures rather than re-deriving shapes:
 
 ```typescript
-const { address } = await client.core.resolveNameServiceAddress({
-	name: 'example.sui',
-});
+import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
 
-console.log(address); // e.g., "0x..." or null
-```
-
-### `defaultNameServiceName`
-
-Resolve an address to its default SuiNS name.
-
-```typescript
-const {
-	data: { name },
-} = await client.core.defaultNameServiceName({
-	address: '0xabc...',
-});
-
-console.log(name); // e.g., "example.sui"
-```
-
-## MVR methods
-
-The client also exposes MVR (Move Registry) methods through `client.core.mvr`:
-
-### `resolveType`
-
-Resolve a type name (including `.move` names) to a fully qualified type.
-
-```typescript
-const { type } = await client.core.mvr.resolveType({
-	type: '@mysten/sui::coin::Coin<@mysten/sui::sui::SUI>',
-});
-
-console.log(type); // "0x2::coin::Coin<0x2::sui::SUI>"
-```
-
-## Error handling
-
-Methods that fetch objects might return errors in the result:
-
-```typescript
-const { objects } = await client.core.getObjects({
-	objectIds: ['0x123...', '0x456...'],
-});
-
-for (const obj of objects) {
-	if (obj instanceof Error) {
-		// Object not found or other error
-		console.error('Error:', obj.message);
-	} else {
-		// Successfully fetched
-		console.log(obj.objectId);
-	}
-}
-```
-
-For transaction execution, always check the result type:
-
-```typescript
-const result = await client.core.executeTransaction({ ... });
-
-if (result.Transaction) {
-	// Success
-	console.log(result.Transaction.digest);
-} else if (result.FailedTransaction) {
-	// Transaction was executed but failed
-	throw new Error(result.FailedTransaction.status.error);
-}
-```
-
-## `SuiClientTypes` Namespace
-
-The `SuiClientTypes` namespace contains all type definitions for the Core API. Import it when you
-need to type function parameters, return values, or variables:
-
-```typescript
-import type { SuiClientTypes } from '@mysten/sui/client';
-
-// Type function parameters
-function processObject(obj: SuiClientTypes.Object<{ content: true }>) {
-	console.log(obj.objectId, obj.content);
+// Include generics flow through, so `object.content` is typed as present here
+function parseResource(object: SuiClientTypes.Object<{ content: true }>) {
+	return MyStruct.parse(object.content);
 }
 
-// Type return values
 async function fetchBalance(
 	client: ClientWithCoreApi,
 	owner: string,
@@ -725,13 +128,37 @@ async function fetchBalance(
 	const { balance } = await client.core.getBalance({ owner });
 	return balance;
 }
-
-// Type options
-const options: SuiClientTypes.GetObjectOptions<{ content: true }> = {
-	objectId: '0x123...',
-	include: { content: true },
-};
 ```
+
+The `Include` generic is what makes optional data type-safe: a field that was not requested is typed
+`undefined`, so forgetting to ask for `content` is a compile error rather than a runtime one.
+
+### Discriminated unions
+
+Polymorphic types in the contract use a `$kind` discriminant rather than optional fields. Narrow on
+`$kind` and the matching property is typed for you:
+
+```typescript
+function describeOwner(owner: SuiClientTypes.ObjectOwner) {
+	switch (owner.$kind) {
+		case 'AddressOwner':
+			return `owned by ${owner.AddressOwner}`;
+		case 'ObjectOwner':
+			return `owned by object ${owner.ObjectOwner}`;
+		case 'Shared':
+			return `shared since ${owner.Shared.initialSharedVersion}`;
+		case 'ConsensusAddressOwner':
+			return `consensus-owned by ${owner.ConsensusAddressOwner.owner}`;
+		case 'Immutable':
+			return 'immutable';
+		default:
+			return 'unknown';
+	}
+}
+```
+
+`TransactionResult`, `SimulateTransactionResult`, `DatatypeResponse`, `ExecutionError`, and
+`OpenSignatureBody` follow the same pattern.
 
 ### Common types
 
@@ -754,29 +181,81 @@ const options: SuiClientTypes.GetObjectOptions<{ content: true }> = {
 | `FunctionResponse`     | Move function metadata                      |
 | `Network`              | Network identifier type                     |
 
-### Include options types
+Option types follow a predictable naming scheme — `GetObjectOptions`, `ListCoinsOptions`,
+`SimulateTransactionOptions`, and so on — along with the include shapes `ObjectInclude`,
+`TransactionInclude`, and `SimulateTransactionInclude`.
 
-| Type                         | Description                             |
-| ---------------------------- | --------------------------------------- |
-| `ObjectInclude`              | Options for object data inclusion       |
-| `TransactionInclude`         | Options for transaction data inclusion  |
-| `SimulateTransactionInclude` | Extended options for simulation results |
+## Differences you have to handle
 
-### Method options types
+All transports produce the same shapes, but they read from different backends, and a few differences
+are visible to callers. Library code that runs against any client should account for them.
 
-| Type                               | Description                             |
-| ---------------------------------- | --------------------------------------- |
-| `GetObjectOptions`                 | Options for `getObject`                 |
-| `GetObjectsOptions`                | Options for `getObjects`                |
-| `ListOwnedObjectsOptions`          | Options for `listOwnedObjects`          |
-| `ListCoinsOptions`                 | Options for `listCoins`                 |
-| `GetBalanceOptions`                | Options for `getBalance`                |
-| `ListBalancesOptions`              | Options for `listBalances`              |
-| `GetCoinMetadataOptions`           | Options for `getCoinMetadata`           |
-| `ExecuteTransactionOptions`        | Options for `executeTransaction`        |
-| `SimulateTransactionOptions`       | Options for `simulateTransaction`       |
-| `SignAndExecuteTransactionOptions` | Options for `signAndExecuteTransaction` |
-| `GetTransactionOptions`            | Options for `getTransaction`            |
-| `WaitForTransactionOptions`        | Options for `waitForTransaction`        |
-| `ListTransactionsOptions`          | Options for `listTransactions`          |
-| `ListEventsOptions`                | Options for `listEvents`                |
+| Behavior                    | What differs                                                                                                             |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `include: { json: true }`   | Field shapes vary between implementations. Use `content` and parse BCS when the result must be stable                    |
+| `include: { events: true }` | GraphQL returns at most the first 50 events of a transaction; gRPC and JSON-RPC return all of them                       |
+| `listEvents` checkpoints    | `EventEntry.checkpoint` is `null` on JSON-RPC, which does not expose it                                                  |
+| Generic `eventType` filters | A bare generic name matches any instantiation on gRPC and GraphQL, but nothing on JSON-RPC, which compares the full type |
+| Page-size caps              | Over-large `limit` values are silently truncated on gRPC and rejected with an error on GraphQL and JSON-RPC              |
+| Short pages                 | gRPC bounds how much ledger a filtered query scans, so a page can be short or empty with `hasNextPage: true`             |
+| Read-after-write            | GraphQL reads an index that trails execution. Use `waitForTransaction` before reading your own writes                    |
+| Subscriptions               | Real-time streams exist only on gRPC. See [subscriptions](/sui/clients/grpc#subscriptions)                               |
+
+Two constraints are enforced by the client itself, so they fail the same way everywhere: a query
+takes at most one of `after` or `before`, and paginating transactions filtered by `function`
+requires a fully qualified `package::module::function`.
+
+### Testing against every transport
+
+Because these differences are real, the SDK's own parity tests run each case against all three
+clients rather than trusting one. If your library depends on the contract, do the same — construct a
+`SuiGrpcClient` and a `SuiGraphQLClient` in your test setup and run the same assertions through
+both.
+
+## Client services
+
+Beyond the methods, `ClientWithCoreApi` carries a few properties worth knowing about when writing
+library code:
+
+| Property          | Purpose                                                                      |
+| ----------------- | ---------------------------------------------------------------------------- |
+| `client.network`  | The network the client was created for (`'mainnet'`, `'testnet'`, and so on) |
+| `client.cache`    | A shared cache; call `cache.scope('my-sdk')` for a namespace of your own     |
+| `client.core.mvr` | Move Registry resolution, with its own cache                                 |
+
+Every Core API method also accepts a `signal`, and library methods should forward the caller's
+`AbortSignal` rather than swallowing it:
+
+```typescript
+async function getResource(
+	client: ClientWithCoreApi,
+	objectId: string,
+	options?: { signal?: AbortSignal },
+) {
+	return client.core.getObject({
+		objectId,
+		include: { content: true },
+		signal: options?.signal,
+	});
+}
+```
+
+## Extending clients
+
+SDKs attach themselves to a client with `$extend`, which is what lets an application compose several
+SDKs on one client instance:
+
+```typescript
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+import { walrus } from '@mysten/walrus';
+
+const client = new SuiGrpcClient({
+	network: 'mainnet',
+	baseUrl: 'https://fullnode.mainnet.sui.io:443',
+}).$extend(walrus());
+
+await client.walrus.readBlob({ blobId });
+```
+
+See [Building SDKs](/sui/sdk-building) for how to author an extension, choose peer dependencies, and
+structure your SDK's methods.

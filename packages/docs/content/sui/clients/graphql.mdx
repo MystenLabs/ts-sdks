@@ -1,35 +1,23 @@
 ---
 title: SuiGraphQLClient
-description: Connect to Sui through GraphQL with SuiGraphQLClient
+description: Connect to Sui over GraphQL, with type-safe custom queries and indexed historical data
 keywords:
   [
     SuiGraphQLClient,
     GraphQL,
     Sui client,
-    queries,
-    TypeScript SDK,
-    Core API,
-    '@mysten/sui',
+    gql.tada,
     type-safe,
-    subscriptions,
+    historical data,
+    multiGet,
     polling,
-    listTransactions,
-    listEvents,
+    '@mysten/sui',
   ]
 ---
 
-The `SuiGraphQLClient` enables type-safe GraphQL queries against the Sui GraphQL API.
-
-For more details on the Sui GraphQL API, see the
-[GraphQL reference](https://docs.sui.io/references/sui-graphql).
-
-Use `SuiGraphQLClient` when an app needs indexed GraphQL data, historical queries, or custom
-selection sets that are not exposed by the gRPC top-level API.
-
-## Using top-level methods
-
-`SuiGraphQLClient` exposes top-level methods for the same common operations as the
-[Core API](/sui/clients/core). Use them directly in application code:
+`SuiGraphQLClient` talks to the Sui GraphQL API. It implements the same client API as
+`SuiGrpcClient`, so anything on [Querying data](/sui/clients/querying) and
+[Signing and execution](/sui/transactions/signing-and-execution) works here unchanged:
 
 ```typescript
 import { SuiGraphQLClient } from '@mysten/sui/graphql';
@@ -43,109 +31,42 @@ const { object } = await client.getObject({
 	objectId: '0x...',
 	include: { content: true },
 });
-
-const txs = await client.listTransactions({
-	filter: { sender: '0x...' },
-	order: 'descending',
-	limit: 10,
-});
 ```
 
-The same methods are available through `client.core` when SDK code needs the transport-agnostic
-`ClientWithCoreApi` contract.
+On top of that shared surface, GraphQL gives you things a per-method RPC cannot: batching many reads
+into a single round trip, point-in-time and historical reads, and custom selection sets that fetch
+exactly the fields you need and nothing else. The rest of this page covers those.
 
-Common top-level methods:
+For the full API, see the [GraphQL reference](https://docs.sui.io/references/sui-graphql).
 
-| Category       | Methods                                                                                                           |
-| -------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Objects        | `getObject`, `getObjects`, `listOwnedObjects`, `listDynamicFields`, `getDynamicField`                             |
-| Coins          | `listCoins`, `getBalance`, `listBalances`, `getCoinMetadata`                                                      |
-| Transactions   | `getTransaction`, `executeTransaction`, `signAndExecuteTransaction`, `waitForTransaction`                         |
-| Simulation     | `simulateTransaction`                                                                                             |
-| Queries        | `listTransactions`, `listEvents`                                                                                  |
-| Move and names | `getMoveFunction`, `resolveNameServiceAddress`, `defaultNameServiceName`, `mvr.resolvePackage`, `mvr.resolveType` |
-| Verification   | `verifyZkLoginSignature`                                                                                          |
+## Creating a client
 
-GraphQL-specific top-level options include `doGasSelection` on `simulateTransaction` and
-`include: { value: true }` on `listDynamicFields`.
-
-## Querying transactions and events
-
-`listTransactions` and `listEvents` return filtered, cursor-paginated pages of history, with the
-same options and results as the [Core API query methods](/sui/clients/core#query-methods) on the
-other transports. They are backed by the `transactions` and `events` connections, so cursors are
-GraphQL connection cursors.
+| Option    | Description                                                    |
+| --------- | -------------------------------------------------------------- |
+| `url`     | GraphQL endpoint                                               |
+| `network` | Network the endpoint serves, used for caching and MVR defaults |
+| `headers` | Extra headers sent with every request, such as an API key      |
+| `fetch`   | Custom `fetch` implementation                                  |
+| `queries` | Named documents callable through [`execute`](#named-queries)   |
+| `mvr`     | Move Registry overrides                                        |
 
 ```typescript
-import { SuiGraphQLClient } from '@mysten/sui/graphql';
-
 const client = new SuiGraphQLClient({
 	url: 'https://graphql.mainnet.sui.io/graphql',
 	network: 'mainnet',
+	headers: { 'x-api-key': process.env.API_KEY! },
 });
-
-// Most recent transactions sent by an address
-const page = await client.listTransactions({
-	filter: { sender: '0xabc...' },
-	order: 'descending',
-	limit: 20,
-	include: { effects: true },
-});
-
-for (const result of page.transactions) {
-	const transaction = result.Transaction ?? result.FailedTransaction;
-	console.log(transaction.digest, result.$kind);
-}
-
-// Events of a given type, oldest first
-const events = await client.listEvents({
-	filter: { eventType: '0xpkg...::my_module::MyEvent' },
-	limit: 20,
-});
-
-for (const event of events.events) {
-	console.log(event.checkpoint, event.transactionDigest, event.eventIndex, event.json);
-}
 ```
 
-Both methods take `filter`, `limit`, `order`, and one of the exclusive cursor bounds `after`
-(ascending) or `before` (descending), and return `startCursor`, `endCursor`, and `hasNextPage`.
-Continue an ascending read by passing `endCursor` as `after`:
+## GraphQL-specific options
 
-```typescript
-let cursor: string | null = null;
+Two top-level methods take options beyond the shared shape: `simulateTransaction` accepts
+`doGasSelection`, and `listDynamicFields` accepts `include: { value: true }` to fetch each field's
+BCS-encoded value in the same request.
 
-do {
-	const page = await client.listEvents({
-		filter: { emitModule: '0xpkg...::my_module' },
-		after: cursor,
-		limit: 50,
-	});
+## Custom queries
 
-	for (const event of page.events) {
-		console.log(event.eventType, event.transactionDigest);
-	}
-
-	cursor = page.hasNextPage ? page.endCursor : null;
-} while (cursor !== null);
-```
-
-A filter specifies exactly one predicate — `sender` or `function` for transactions, and `sender`,
-`emitModule`, or `eventType` for events — and MVR names are resolved automatically. The GraphQL API
-also caps page sizes (50 by default) and throws when `limit` exceeds the cap.
-
-For richer filtering, including checkpoint ranges and affected addresses or objects, query the
-`transactions` and `events` connections directly with a [custom query](#custom-graphql-queries).
-Their `TransactionFilter` input supports `sentAddress`, `affectedAddress`, `affectedObject`,
-`function`, `kind`, `atCheckpoint`, `afterCheckpoint`, and `beforeCheckpoint`; `EventFilter`
-supports `sender`, `module`, `type`, and the same three checkpoint bounds.
-
-## Custom GraphQL queries
-
-To query anything not in the top-level API, use the `query` method to execute custom GraphQL
-queries.
-
-We'll start by creating our client, and executing a very basic query:
+Use `query` to run any GraphQL document against the endpoint:
 
 ```typescript
 import { SuiGraphQLClient } from '@mysten/sui/graphql';
@@ -162,24 +83,16 @@ const chainIdentifierQuery = graphql(`
 	}
 `);
 
-async function getChainIdentifier() {
-	const result = await gqlClient.query({
-		query: chainIdentifierQuery,
-	});
+const result = await gqlClient.query({ query: chainIdentifierQuery });
 
-	return result.data?.chainIdentifier;
-}
+console.log(result.data?.chainIdentifier);
 ```
 
-## Type-safety for GraphQL queries
+### Type safety
 
-You might have noticed the example above does not include any type definitions for the query. The
-`graphql` function used in the example is powered by [`gql.tada`](https://gql-tada.0no.co/) and will
-automatically provide the required type information to ensure that your queries are properly typed
-when executed through `SuiGraphQLClient`.
-
-The `graphql` function detects variables used by your query, and will ensure that the variables
-passed to your query are properly typed.
+The `graphql` function is powered by [`gql.tada`](https://gql-tada.0no.co/), which types results and
+variables from the schema itself — no code generation step and no hand-written result types. Fields
+you did not select are not on the result type, and variables are checked against the query:
 
 ```typescript
 const getSuinsName = graphql(`
@@ -195,59 +108,145 @@ const getSuinsName = graphql(`
 async function getDefaultSuinsName(address: string) {
 	const result = await gqlClient.query({
 		query: getSuinsName,
-		variables: {
-			address,
-		},
+		variables: { address },
 	});
 
 	return result.data?.address?.defaultNameRecord?.domain;
 }
 ```
 
-## Using typed GraphQL queries with other GraphQL clients
+### Handling errors
 
-The `graphql` function returns document nodes that implement the
-[`TypedDocumentNode`](https://github.com/dotansimha/graphql-typed-document-node) standard, and will
-work with the majority of popular GraphQL clients to provide queries that are automatically typed.
+`query` returns `{ data, errors }` rather than throwing on GraphQL errors, because a response can be
+partially successful — some fields resolved, others failed. Check `errors` before trusting `data`:
 
 ```typescript
-import { useQuery } from '@apollo/client';
-import { graphql } from '@mysten/sui/graphql/schema';
+const { data, errors } = await gqlClient.query({ query: chainIdentifierQuery });
 
-const chainIdentifierQuery = graphql(`
-	query {
-		chainIdentifier
-	}
-`);
-
-function ChainIdentifier() {
-	const { loading, error, data } = useQuery(chainIdentifierQuery);
-
-	return <div>{data?.chainIdentifier}</div>;
+if (errors?.length) {
+	throw new AggregateError(errors.map((error) => new Error(error.message)));
 }
 ```
 
-## Subscriptions and live data
+A transport-level failure — a non-2xx response — throws `SuiGraphQLRequestError` instead.
 
-The Sui GraphQL schema defines only `Query` and `Mutation` root types — there is no `subscription`
-operation, and `SuiGraphQLClient` has no subscribe method. Follow live activity over GraphQL by
-polling with cursors, or use [gRPC subscriptions](/sui/clients/grpc#subscriptions) when you need
-server push.
+### Named queries
 
-<Callout type="info">
-	`SuiGrpcClient` is the only client with real-time streams. It exposes `subscribeCheckpoints`,
-	`subscribeTransactions`, and `subscribeEvents`, each with the same filters as its query
-	counterpart.
-</Callout>
+Pass a `queries` map when constructing the client and call them by name with `execute`. This keeps
+query documents in one place instead of threading them through your call sites:
+
+```typescript
+const client = new SuiGraphQLClient({
+	url: 'https://graphql.mainnet.sui.io/graphql',
+	network: 'mainnet',
+	queries: {
+		getSuinsName,
+		chainIdentifier: chainIdentifierQuery,
+	},
+});
+
+const result = await client.execute('getSuinsName', {
+	variables: { address: '0xabc...' },
+});
+```
+
+Results and variables stay typed from the document the name resolves to.
+
+## Native queries
+
+These are the capabilities worth reaching for GraphQL specifically to get.
+
+### Batching reads
+
+The `multiGet*` fields fetch many entities in a single round trip, and a single document can combine
+unrelated reads that would otherwise be separate requests:
+
+```typescript
+const dashboardQuery = graphql(`
+	query dashboard($objectIds: [ObjectKey!]!, $digests: [String!]!, $owner: SuiAddress!) {
+		multiGetObjects(keys: $objectIds) {
+			address
+			version
+			asMoveObject {
+				contents {
+					type {
+						repr
+					}
+					bcs
+				}
+			}
+		}
+		multiGetTransactions(keys: $digests) {
+			digest
+			effects {
+				status
+			}
+		}
+		address(address: $owner) {
+			defaultNameRecord {
+				domain
+			}
+		}
+	}
+`);
+```
+
+`multiGetAddresses`, `multiGetCheckpoints`, `multiGetEpochs`, `multiGetObjects`, `multiGetPackages`,
+`multiGetTransactions`, `multiGetTransactionEffects`, and `multiGetTypes` are all available.
+
+### Historical and point-in-time reads
+
+`object` accepts `version`, `rootVersion`, or `atCheckpoint`, so you can read an object as it was
+rather than as it is. `objectVersions` and `packageVersions` page through the history of one
+address:
+
+```typescript
+const objectAtVersionQuery = graphql(`
+	query objectAtVersion($address: SuiAddress!, $version: UInt53!) {
+		object(address: $address, version: $version) {
+			address
+			version
+			digest
+			asMoveObject {
+				contents {
+					type {
+						repr
+					}
+					bcs
+				}
+			}
+		}
+	}
+`);
+```
+
+`package` takes the same `version`/`atCheckpoint` arguments, and `address` accepts `rootVersion` and
+`atCheckpoint` for reading an account's state at a past point.
+
+### Richer filters
+
+The `transactions` and `events` connections accept filters beyond the single predicate the shared
+[history queries](/sui/clients/querying#transactions-and-events) expose. `TransactionFilter`
+supports `sentAddress`, `affectedAddress`, `affectedObject`, `function`, `kind`, `atCheckpoint`,
+`afterCheckpoint`, and `beforeCheckpoint`; `EventFilter` supports `sender`, `module`, `type`, and
+the same three checkpoint bounds.
+
+The schema also exposes `epochs`, `checkpoints`, `packages`, `objectVersions`, and `serviceConfig`,
+none of which have a shared-API equivalent.
+
+## Live data
+
+The Sui GraphQL schema defines only `Query` and `Mutation` root types. There is no `subscription`
+operation and no subscribe method on the client, so follow live activity by polling — or use
+[gRPC subscriptions](/sui/clients/grpc#subscriptions) when you need server push.
 
 ### Cursor polling
 
 Read the current tip once in descending order, then poll forward from `startCursor`. Because `after`
-is an exclusive ledger-position bound, each poll returns only what has landed since the previous
-one, with no overlap and no gaps:
+is an exclusive ledger-position bound, each poll returns only what has landed since the last one,
+with no overlap and no gaps:
 
 ```typescript
-// Establish a starting position at the current tip
 const latest = await client.listEvents({
 	filter: { emitModule: '0xpkg...::my_module' },
 	order: 'descending',
@@ -256,25 +255,23 @@ const latest = await client.listEvents({
 
 let cursor = latest.startCursor;
 
-async function poll() {
-	while (true) {
-		const page = await client.listEvents({
-			filter: { emitModule: '0xpkg...::my_module' },
-			after: cursor,
-			limit: 50,
-		});
+while (true) {
+	const page = await client.listEvents({
+		filter: { emitModule: '0xpkg...::my_module' },
+		after: cursor,
+		limit: 50,
+	});
 
-		for (const event of page.events) {
-			await handleEvent(event);
-		}
+	for (const event of page.events) {
+		await handleEvent(event);
+	}
 
-		// Only advance the cursor once the page is fully handled
-		cursor = page.endCursor ?? cursor;
+	// Only advance the cursor once the page is fully handled
+	cursor = page.endCursor ?? cursor;
 
-		// Drain a backlog without waiting, otherwise wait before polling again
-		if (!page.hasNextPage) {
-			await new Promise((resolve) => setTimeout(resolve, 2000));
-		}
+	// Drain a backlog without waiting, otherwise pause before polling again
+	if (!page.hasNextPage) {
+		await new Promise((resolve) => setTimeout(resolve, 2000));
 	}
 }
 ```
@@ -284,13 +281,11 @@ Persist `cursor` if the consumer needs to survive restarts. The same pattern wor
 
 ### Checkpoint polling
 
-When you need a consistent view of everything in a range rather than one filtered feed, drive the
-loop off checkpoint sequence numbers with a custom query. Checkpoint bounds are available on both
-the `transactions` and `events` filters:
+When you need everything in a range rather than one filtered feed, drive the loop off checkpoint
+sequence numbers. Querying `checkpoint` with no arguments returns the latest indexed checkpoint,
+which is the upper bound the poller works toward:
 
 ```typescript
-import { graphql } from '@mysten/sui/graphql/schema';
-
 const newTransactionsQuery = graphql(`
 	query newTransactions($afterCheckpoint: UInt53!, $after: String) {
 		checkpoint {
@@ -313,23 +308,40 @@ const newTransactionsQuery = graphql(`
 	}
 `);
 
-let lastProcessedCheckpoint = 0;
-
 const result = await gqlClient.query({
 	query: newTransactionsQuery,
 	variables: { afterCheckpoint: lastProcessedCheckpoint, after: null },
 });
-
-// The latest indexed checkpoint, so the consumer knows how far it has caught up
-console.log(result.data?.checkpoint?.sequenceNumber);
 ```
 
-Querying `checkpoint` without arguments returns the latest indexed checkpoint, which is the upper
-bound the poller is working toward. Page through `transactions` with the connection cursor until
-`hasNextPage` is false before advancing the stored checkpoint.
+Page through `transactions` with the connection cursor until `hasNextPage` is false before advancing
+the stored checkpoint.
 
 <Callout type="warn">
-	GraphQL reads the indexed ledger, which trails execution slightly. A transaction that
-	`executeTransaction` has already returned may not appear in a query for a short time. Use
-	`waitForTransaction` when you need to read your own write.
+	GraphQL reads an index that trails execution slightly, so a transaction `executeTransaction` has
+	already returned may not appear in a query for a moment. Use `waitForTransaction` when you need to
+	read your own write.
 </Callout>
+
+## Using typed documents with other clients
+
+The `graphql` function returns document nodes implementing the
+[`TypedDocumentNode`](https://github.com/dotansimha/graphql-typed-document-node) standard, so they
+work with most GraphQL clients while staying typed:
+
+```tsx
+import { useQuery } from '@apollo/client';
+import { graphql } from '@mysten/sui/graphql/schema';
+
+const chainIdentifierQuery = graphql(`
+	query {
+		chainIdentifier
+	}
+`);
+
+function ChainIdentifier() {
+	const { loading, error, data } = useQuery(chainIdentifierQuery);
+
+	return <div>{data?.chainIdentifier}</div>;
+}
+```
