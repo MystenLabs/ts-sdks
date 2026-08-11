@@ -365,5 +365,3 @@ rather than `LEDGER_TIP`.
 A durable consumer therefore keeps two pieces of state: the last cursor it processed, and the start
 cursor of each new subscription. On reconnect, open the subscription first, buffer its frames,
 replay the gap, then drain the buffer.
-
-For polling-based alternatives, see [live data over GraphQL](/sui/clients/graphql#live-data).

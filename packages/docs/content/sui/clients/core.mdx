@@ -176,7 +176,7 @@ are visible to callers. Library code that runs against any client should account
 | JSON-RPC query gaps         | `EventEntry.checkpoint` is `null`, and a bare generic `eventType` filter matches nothing where gRPC and GraphQL match any instantiation |
 | Page-size caps              | Over-large `limit` values are silently truncated on gRPC and rejected with an error on GraphQL and JSON-RPC                             |
 | Short pages                 | gRPC bounds how much ledger a filtered query scans, so a page can be short or empty with `hasNextPage: true`                            |
-| Read-after-write            | GraphQL reads an index that [trails execution](/sui/clients/graphql#live-data). Use `waitForTransaction` before reading your own writes |
+| Read-after-write            | GraphQL reads an index that trails execution. Use `waitForTransaction` before reading your own writes                                   |
 
 Two constraints are enforced by the client itself, so they fail the same way everywhere: a query
 takes at most one of `after` or `before`, and paginating transactions filtered by `function`

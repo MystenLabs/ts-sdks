@@ -12,12 +12,11 @@ choice is about which transport suits your application, not about which features
 | Client                                     | Choose it for                                                                         |
 | ------------------------------------------ | ------------------------------------------------------------------------------------- |
 | [`SuiGrpcClient`](/sui/clients/grpc)       | The default. Reads from a full node, and the only client with real-time subscriptions |
-| [`SuiGraphQLClient`](/sui/clients/graphql) | Batched reads, historical and point-in-time data, and custom selection sets           |
+| [`SuiGraphQLClient`](/sui/clients/graphql) | Reads from the indexer, and custom queries written against the GraphQL schema         |
 
 Both are fully supported primary choices. Pick `SuiGrpcClient` if you have no particular reason to
-prefer one, and `SuiGraphQLClient` when batching, historical reads, or custom selection sets matter
-to your application. Because they share an API, moving between them is mostly a matter of changing
-the constructor.
+prefer one, and `SuiGraphQLClient` when your application wants to query the GraphQL schema directly.
+Because they share an API, moving between them is mostly a matter of changing the constructor.
 
 <Callout type="info">
 	JSON-RPC is deprecated. If you are maintaining existing JSON-RPC code, see the [JSON-RPC migration
@@ -119,7 +118,7 @@ const result = await graphqlClient.query({
 
 gRPC adds [raw list RPCs](/sui/clients/grpc#raw-list-rpcs) and
 [subscriptions](/sui/clients/grpc#subscriptions); GraphQL adds
-[batching, historical reads, and richer filters](/sui/clients/graphql#native-queries).
+[custom queries](/sui/clients/graphql#writing-queries) against the schema.
 
 ## Client extensions
 
