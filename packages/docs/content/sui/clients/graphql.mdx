@@ -158,16 +158,16 @@ Results and variables stay typed from the document the name resolves to.
 
 Three things are worth writing a custom query for, because the shared API has no equivalent:
 
-- **Batching.** The `multiGet*` fields read many entities at once, and one document can combine
-  unrelated reads that would otherwise be separate round trips.
-- **Historical reads.** `object`, `package`, and `address` take `version`, `rootVersion`, or
-  `atCheckpoint` arguments, so you can read state as it was rather than as it is.
-- **Richer filters.** The `transactions` and `events` connections accept combinations and checkpoint
-  bounds beyond the single predicate the shared
-  [history queries](/sui/clients/querying#transactions-and-events) expose.
+- **Batching.** One document can read many entities at once, and can combine unrelated reads that
+  would otherwise be separate round trips.
+- **Historical reads.** Objects, packages, and addresses can be read at a past version or
+  checkpoint, rather than only as they are now.
+- **Richer filters.** Transaction and event queries accept combinations and checkpoint bounds beyond
+  the single predicate the shared [history queries](/sui/clients/querying#transactions-and-events)
+  expose.
 
-The [GraphQL reference](https://docs.sui.io/references/sui-graphql) documents the schema itself —
-which fields exist, and what arguments each one takes.
+See the [GraphQL reference](https://docs.sui.io/references/sui-graphql) for the schema — which
+fields exist and what arguments each one takes.
 
 ## Live data
 

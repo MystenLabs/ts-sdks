@@ -318,13 +318,13 @@ const { object } = await client.getDynamicObjectField({
 
 ## Transactions and events
 
-Reading transactions back is a client concern; building, signing, and executing them is covered in
-[Signing and execution](/sui/transactions/signing-and-execution).
+Reading transactions back is covered here; running them is covered in
+[Executing transactions](/sui/clients/executing).
 
 ### `getTransaction`
 
 Fetch one transaction by digest. The result is the same discriminated union that execution returns,
-and it takes the same [include options](/sui/transactions/signing-and-execution#include-options).
+and it takes the same [include options](/sui/clients/executing#include-options).
 
 ```typescript
 const result = await client.getTransaction({

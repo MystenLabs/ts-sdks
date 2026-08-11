@@ -230,28 +230,19 @@ for await (const frame of stream.responses) {
 }
 ```
 
-Transaction predicates are `sender`, `affectedAddress`, `affectedObject`, `moveCall`, `emitModule`,
-`eventType`, `eventStreamHead`, and `packageWrite`. Event predicates are `sender`, `emitModule`,
-`eventType`, and `eventStreamHead`. An absent filter matches everything; a present filter needs at
-least one term.
+An absent filter matches everything; a present filter needs at least one term. The proto files
+define which predicates each filter accepts.
 
 ### Scan frames and watermarks
 
 A list RPC is a stream of frames, not a single response. Each frame either delivers one item or just
 reports progress, and every frame carries a `watermark` whose `cursor` is a safe resume point.
-Exactly one frame of a successful stream carries `end`, reporting why the scan stopped:
+Exactly one frame of a successful stream carries `end`, reporting why the scan stopped.
 
-| `end.reason`       | Meaning                                                          |
-| ------------------ | ---------------------------------------------------------------- |
-| `ITEM_LIMIT`       | The requested item limit was reached; that frame carries an item |
-| `SCAN_LIMIT`       | The server's per-request scan budget was exhausted               |
-| `CHECKPOINT_BOUND` | A requested checkpoint range bound was reached                   |
-| `CURSOR_BOUND`     | An exclusive cursor bound was reached                            |
-| `LEDGER_TIP`       | The scan reached the currently indexed ledger tip                |
-
-`options.after` and `options.before` are canonical ledger-position bounds that mean the same thing
-in both directions — ordering only controls the order of items within the interval — and they
-intersect with `startCheckpoint`/`endCheckpoint` when both are given:
+This matters because a single request does not necessarily reach the end of the range you asked for:
+the server bounds how much ledger a filtered scan reads, so a stream can stop early and report
+`SCAN_LIMIT`. Reissue from the last watermark cursor until the reason says the scan is genuinely
+finished:
 
 ```typescript
 import { GrpcTypes } from '@mysten/sui/grpc';
@@ -283,8 +274,9 @@ do {
 } while (reason !== GrpcTypes.QueryEndReason.LEDGER_TIP);
 ```
 
-A `SCAN_LIMIT` end reason means the scan stopped early, not that results are exhausted — which is
-why the loop above reissues from the last watermark cursor rather than stopping.
+`options.after` and `options.before` are ledger-position bounds that mean the same thing in both
+directions — ordering only controls the order of items within the interval — and they intersect with
+the checkpoint range when both are given.
 
 ## Subscriptions
 
