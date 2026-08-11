@@ -206,6 +206,52 @@ const stream = client.ledgerService.listTransactions({
 
 An absent filter matches everything; a present filter needs at least one term.
 
+## Generated types and helpers
+
+`@mysten/sui/grpc` re-exports everything you need to work with the generated API, so nothing has to
+depend on `@protobuf-ts/*` or the proto files directly.
+
+`GrpcTypes` is a namespace holding every generated message interface and enum. Use it to type values
+you pass around, and to reference enums by name rather than by number:
+
+```typescript
+import { GrpcTypes } from '@mysten/sui/grpc';
+
+function describe(status: GrpcTypes.ExecutionStatus) {
+	return status.success ? 'succeeded' : status.error?.description;
+}
+
+const ordering = GrpcTypes.Ordering.DESCENDING;
+```
+
+Two helpers map a raw protobuf response into the same shape the top-level methods return, which is
+useful when you drop to a service client for the request but still want the unified result:
+
+```typescript
+import { parseGrpcTransactionResponse } from '@mysten/sui/grpc';
+
+const { response } = await client.ledgerService.getTransaction({
+	digest: 'ABC123...',
+	readMask: { paths: ['digest', 'effects'] },
+});
+
+// Same discriminated union that client.getTransaction() returns
+const result = parseGrpcTransactionResponse(response.transaction!, {
+	include: { effects: true },
+});
+```
+
+`parseGrpcSimulateTransactionResponse` does the same for `SimulateTransactionResponse`.
+
+| Export                                                    | Use                                                   |
+| --------------------------------------------------------- | ----------------------------------------------------- |
+| `GrpcTypes`                                               | Generated message interfaces and enums                |
+| `parseGrpcTransactionResponse`                            | Raw `ExecutedTransaction` to the unified result shape |
+| `parseGrpcSimulateTransactionResponse`                    | Raw simulation response to the unified result shape   |
+| `GrpcWebFetchTransport`, `GrpcWebOptions`, `RpcTransport` | Configuring a [transport](#transport-options)         |
+| `SuiGrpcClientOptions`, `GrpcTransactionInclude`, …       | Typing your own wrappers around the client            |
+| `isSuiGrpcClient`                                         | Type guard for narrowing an unknown client            |
+
 ## Streaming responses
 
 The list and subscribe RPCs return server streams rather than a single response, consumed with
