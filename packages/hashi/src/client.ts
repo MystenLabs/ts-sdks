@@ -30,6 +30,7 @@ import {
 	GUARDIAN_BTC_PUBLIC_KEY_LEN,
 	GUARDIAN_PUBLIC_KEY_LEN,
 	NETWORK_CONFIG,
+	WORST_CASE_NETWORK_FEE_CEILING_SATS,
 } from './constants.js';
 import type { AmountViolation } from './errors.js';
 import {
@@ -1056,7 +1057,15 @@ export class HashiClient {
 			}
 
 			return {
-				worstCaseNetworkFeeSats: snap.worstCaseNetworkFee,
+				// The raw on-chain budget tracks `bitcoin_withdrawal_minimum`, so it
+				// explodes when governance raises the minimum as a policy throttle
+				// (a 10 BTC minimum implies a ~10 BTC "fee"). Cap it at the ceiling
+				// derived from validator consensus limits so this stays a usable
+				// display bound — see WORST_CASE_NETWORK_FEE_CEILING_SATS.
+				worstCaseNetworkFeeSats:
+					snap.worstCaseNetworkFee < WORST_CASE_NETWORK_FEE_CEILING_SATS
+						? snap.worstCaseNetworkFee
+						: WORST_CASE_NETWORK_FEE_CEILING_SATS,
 				withdrawalMinimumSats: snap.bitcoinWithdrawalMinimum,
 				gasEstimateMist,
 			};
