@@ -95,6 +95,8 @@ signatures rather than re-deriving shapes:
 ```typescript
 import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
 
+import { MyStruct } from './generated/my-module';
+
 // Include generics flow through, so `object.content` is typed as present here
 function parseResource(object: SuiClientTypes.Object<{ content: true }>) {
 	return MyStruct.parse(object.content);

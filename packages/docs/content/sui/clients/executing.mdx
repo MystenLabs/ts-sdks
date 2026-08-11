@@ -23,6 +23,13 @@ ways to obtain a signature — keypairs, wallets, sponsorship — in
 Signs with the given signer and executes, in one call:
 
 ```typescript
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+const client = new SuiGrpcClient({
+	network: 'mainnet',
+	baseUrl: 'https://fullnode.mainnet.sui.io:443',
+});
+
 const result = await client.signAndExecuteTransaction({
 	transaction: tx,
 	signer: keypair,
@@ -115,3 +122,9 @@ Two further options change how the node runs the simulation:
 | ---------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | `checksEnabled`  | Set `false` to skip transaction validation, so non-public and non-entry functions can be inspected. Defaults to `true` |
 | `doGasSelection` | Overrides whether the server selects gas payment during the simulation                                                 |
+
+## Next steps
+
+- [Signing and execution](/sui/transactions/signing-and-execution) for keypairs, wallets, gas, and
+  sponsored transactions
+- [Querying data](/sui/clients/querying) for reading transactions back

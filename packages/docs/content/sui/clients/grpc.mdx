@@ -102,7 +102,7 @@ For server-side applications (Node.js, Bun, and others), use the native gRPC tra
 `@protobuf-ts/grpc-transport` and `@grpc/grpc-js`. This speaks HTTP/2 and the native gRPC protocol
 rather than the gRPC-web translation layer.
 
-```bash
+```npm
 npm install @protobuf-ts/grpc-transport @grpc/grpc-js
 ```
 
@@ -387,3 +387,9 @@ rather than `LEDGER_TIP`.
 A durable consumer therefore keeps two pieces of state: the last cursor it processed, and the start
 cursor of each new subscription. On reconnect, open the subscription first, buffer its frames,
 replay the gap, then drain the buffer.
+
+## Next steps
+
+- [Querying data](/sui/clients/querying) and [Executing transactions](/sui/clients/executing) for
+  the methods every client shares
+- [Core API](/sui/clients/core) for writing libraries against any client
