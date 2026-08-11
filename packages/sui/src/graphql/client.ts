@@ -249,8 +249,10 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 		return this.core.simulateTransaction(input);
 	}
 
-	getReferenceGasPrice(): Promise<SuiClientTypes.GetReferenceGasPriceResponse> {
-		return this.core.getReferenceGasPrice();
+	getReferenceGasPrice(
+		input?: SuiClientTypes.GetReferenceGasPriceOptions,
+	): Promise<SuiClientTypes.GetReferenceGasPriceResponse> {
+		return this.core.getReferenceGasPrice(input);
 	}
 
 	getCurrentSystemState(
@@ -278,6 +280,7 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 
 		const { data, errors } = await this.query({
 			query: GetDynamicFieldsDocument,
+			signal: input.signal,
 			variables: {
 				parentId: input.parentId,
 				first: input.limit,

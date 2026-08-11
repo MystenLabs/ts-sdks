@@ -96,7 +96,8 @@ await client.waitForTransaction({ result });
 const { balance } = await client.getBalance({ owner: myAddress });
 ```
 
-It also accepts a `digest` instead of a result, along with `timeout` and `pollInterval`.
+It also accepts a `digest` instead of a result, along with `timeout` and a `pollSchedule` array of
+backoff delays.
 
 ## `simulateTransaction`
 

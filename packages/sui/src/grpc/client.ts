@@ -246,8 +246,10 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 		return this.core.simulateTransaction(input) as Promise<GrpcSimulateTransactionResult<Include>>;
 	}
 
-	getReferenceGasPrice(): Promise<SuiClientTypes.GetReferenceGasPriceResponse> {
-		return this.core.getReferenceGasPrice();
+	getReferenceGasPrice(
+		input?: SuiClientTypes.GetReferenceGasPriceOptions,
+	): Promise<SuiClientTypes.GetReferenceGasPriceResponse> {
+		return this.core.getReferenceGasPrice(input);
 	}
 
 	getCurrentSystemState(

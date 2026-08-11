@@ -272,11 +272,13 @@ import { GrpcTypes } from '@mysten/sui/grpc';
 let resumeFrom: Uint8Array | undefined;
 let reason: GrpcTypes.QueryEndReason | undefined;
 
-// One request can stop before the interval is exhausted, so scan until it reports the ledger tip
+// One request can stop before the range is exhausted, so scan until the range bound is reached
 do {
 	const stream = client.ledgerService.listEvents({
 		readMask: { paths: ['event_type', 'transaction_digest', 'event_index'] },
+		// Bound the scan. Without an end, this walks the whole ledger to the current tip
 		startCheckpoint: 1_000_000n,
+		endCheckpoint: 1_000_100n,
 		options: {
 			after: resumeFrom,
 			limit: 100,
@@ -293,7 +295,7 @@ do {
 			console.log(frame.event.eventType, frame.event.transactionDigest);
 		}
 	}
-} while (reason !== GrpcTypes.QueryEndReason.LEDGER_TIP);
+} while (reason === GrpcTypes.QueryEndReason.SCAN_LIMIT);
 ```
 
 `options.after` and `options.before` are ledger-position bounds that mean the same thing in both
@@ -387,3 +389,9 @@ rather than `LEDGER_TIP`.
 A durable consumer therefore keeps two pieces of state: the last cursor it processed, and the start
 cursor of each new subscription. On reconnect, open the subscription first, buffer its frames,
 replay the gap, then drain the buffer.
+
+Checkpoint subscriptions recover differently. `subscribeCheckpoints` reports its position as a
+checkpoint sequence number rather than a watermark cursor, and `listCheckpoints` bounds a scan with
+`startCheckpoint` and `endCheckpoint` rather than `options.after` and `options.before`. Replay that
+gap by listing from the sequence number after the last one you processed, up to the sequence number
+the new subscription started at.

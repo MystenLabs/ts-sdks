@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { CoreClient } from '../client/core.js';
+import { raceSignal } from '../client/mvr.js';
 import type { SuiClientTypes } from '../client/types.js';
 import { SUI_TYPE_ARG } from '../utils/constants.js';
 import type { GraphQLQueryOptions, SuiGraphQLClient } from './client.js';
@@ -109,6 +110,7 @@ export class GraphQLCoreClient extends CoreClient {
 			const page = await this.#graphqlQuery(
 				{
 					query: MultiGetObjectsDocument,
+					signal: options.signal,
 					variables: {
 						objectKeys: batch.map((address) => ({ address })),
 						includeContent: options.include?.content ?? false,
@@ -187,6 +189,7 @@ export class GraphQLCoreClient extends CoreClient {
 		const objects = await this.#graphqlQuery(
 			{
 				query: GetOwnedObjectsDocument,
+				signal: options.signal,
 				variables: {
 					owner: options.owner,
 					limit: options.limit,
@@ -242,6 +245,7 @@ export class GraphQLCoreClient extends CoreClient {
 		const coins = await this.#graphqlQuery(
 			{
 				query: GetCoinsDocument,
+				signal: options.signal,
 				variables: {
 					owner: options.owner,
 					cursor: options.cursor,
@@ -275,6 +279,7 @@ export class GraphQLCoreClient extends CoreClient {
 		const result = await this.#graphqlQuery(
 			{
 				query: GetBalanceDocument,
+				signal: options.signal,
 				variables: {
 					owner: options.owner,
 					coinType: (await this.mvr.resolveType({ type: coinType })).type,
@@ -302,6 +307,7 @@ export class GraphQLCoreClient extends CoreClient {
 
 		const { data, errors } = await this.#graphqlClient.query({
 			query: GetCoinMetadataDocument,
+			signal: options.signal,
 			variables: {
 				coinType,
 			},
@@ -331,6 +337,7 @@ export class GraphQLCoreClient extends CoreClient {
 		const balances = await this.#graphqlQuery(
 			{
 				query: GetAllBalancesDocument,
+				signal: options.signal,
 				variables: {
 					owner: options.owner,
 					limit: options.limit,
@@ -361,6 +368,7 @@ export class GraphQLCoreClient extends CoreClient {
 		const result = await this.#graphqlQuery(
 			{
 				query: GetTransactionBlockDocument,
+				signal: options.signal,
 				variables: {
 					digest: options.digest,
 					includeTransaction: options.include?.transaction ?? false,
@@ -382,6 +390,7 @@ export class GraphQLCoreClient extends CoreClient {
 		const result = await this.#graphqlQuery(
 			{
 				query: ExecuteTransactionDocument,
+				signal: options.signal,
 				variables: {
 					transactionDataBcs: toBase64(options.transaction),
 					signatures: options.signatures,
@@ -417,6 +426,7 @@ export class GraphQLCoreClient extends CoreClient {
 		const result = await this.#graphqlQuery(
 			{
 				query: SimulateTransactionDocument,
+				signal: options.signal,
 				variables: {
 					transaction:
 						options.transaction instanceof Uint8Array
@@ -470,10 +480,13 @@ export class GraphQLCoreClient extends CoreClient {
 			};
 		}
 	}
-	async getReferenceGasPrice(): Promise<SuiClientTypes.GetReferenceGasPriceResponse> {
+	async getReferenceGasPrice(
+		options?: SuiClientTypes.GetReferenceGasPriceOptions,
+	): Promise<SuiClientTypes.GetReferenceGasPriceResponse> {
 		const result = await this.#graphqlQuery(
 			{
 				query: GetReferenceGasPriceDocument,
+				signal: options?.signal,
 			},
 			(result) => result.epoch?.referenceGasPrice,
 		);
@@ -750,6 +763,7 @@ export class GraphQLCoreClient extends CoreClient {
 
 		const { data } = await this.#graphqlClient.query({
 			query: VerifyZkLoginSignatureDocument,
+			signal: options.signal,
 			variables: {
 				bytes: options.bytes,
 				signature: options.signature,
@@ -803,6 +817,7 @@ export class GraphQLCoreClient extends CoreClient {
 		const moveFunction = await this.#graphqlQuery(
 			{
 				query: GetMoveFunctionDocument,
+				signal: options.signal,
 				variables: {
 					package: (await this.mvr.resolvePackage({ package: options.packageId })).package,
 					module: options.moduleName,
@@ -862,9 +877,11 @@ export class GraphQLCoreClient extends CoreClient {
 	}
 
 	async getChainIdentifier(
-		_options?: SuiClientTypes.GetChainIdentifierOptions,
+		options?: SuiClientTypes.GetChainIdentifierOptions,
 	): Promise<SuiClientTypes.GetChainIdentifierResponse> {
-		return this.cache.read(['chainIdentifier'], async () => {
+		// The result is cached and shared across callers, so the underlying request must
+		// not carry any single caller's signal. Isolate cancellation per-caller instead.
+		const cached = this.cache.read(['chainIdentifier'], async () => {
 			const checkpoint = await this.#graphqlQuery(
 				{
 					query: GetChainIdentifierDocument,
@@ -878,6 +895,8 @@ export class GraphQLCoreClient extends CoreClient {
 				chainIdentifier: checkpoint.digest,
 			};
 		});
+
+		return raceSignal(Promise.resolve(cached), options?.signal);
 	}
 
 	resolveTransactionPlugin() {
