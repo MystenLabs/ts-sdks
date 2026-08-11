@@ -21,21 +21,17 @@ export class MarginLiquidationsContract {
 	}
 
 	/**
-	 * The liquidation entrypoints matching the configured Pyth deployment. Unlike the
-	 * margin package, `margin_liquidation` puts the upgraded entries in the same module as
-	 * parallel functions rather than in a parallel module, so this selects a function
-	 * rather than a namespace. The vault's own deposit/withdraw/balance take no oracle.
+	 * The oracle-taking liquidation entrypoints. Unlike the margin package,
+	 * `margin_liquidation` puts the upgraded entries in the same module as parallel
+	 * functions rather than in a parallel module, so these name a function rather than a
+	 * namespace. The vault's own deposit/withdraw/balance take no oracle and are unchanged.
 	 */
 	get #liquidateBaseCall() {
-		return this.#config.usesUpgradedPyth
-			? liquidationVaultMoveCalls.liquidateBaseUpgraded
-			: liquidationVaultMoveCalls.liquidateBase;
+		return liquidationVaultMoveCalls.liquidateBaseUpgraded;
 	}
 
 	get #liquidateQuoteCall() {
-		return this.#config.usesUpgradedPyth
-			? liquidationVaultMoveCalls.liquidateQuoteUpgraded
-			: liquidationVaultMoveCalls.liquidateQuote;
+		return liquidationVaultMoveCalls.liquidateQuoteUpgraded;
 	}
 
 	/**

@@ -10,7 +10,6 @@ import type {
 	Coin,
 	Pool,
 	MarginPool,
-	MarginPythMode,
 	PythConfig,
 } from '../types/index.js';
 import type { CoinMap, PoolMap, MarginPoolMap, DeepbookPackageIds } from './constants.js';
@@ -26,10 +25,6 @@ import {
 	testnetMarginPools,
 	mainnetPythConfigs,
 	testnetPythConfigs,
-	mainnetPythUpgradedConfigs,
-	testnetPythUpgradedConfigs,
-	mainnetMarginPyth,
-	testnetMarginPyth,
 } from './constants.js';
 
 // Constants for numerical precision and scaling
@@ -53,10 +48,6 @@ export class DeepBookConfig {
 	marginManagers: { [key: string]: MarginManager };
 	address: string;
 	pyth: PythConfig;
-	/** Pyth's upgraded Core. Used by margin calls when {@link marginPyth} is `'upgraded'`. */
-	pythUpgraded: PythConfig;
-	/** Which Pyth deployment margin entrypoints price against. */
-	marginPyth: MarginPythMode;
 
 	DEEPBOOK_PACKAGE_ID: string;
 	REGISTRY_ID: string;
@@ -84,8 +75,6 @@ export class DeepBookConfig {
 		marginPools,
 		packageIds,
 		pyth,
-		pythUpgraded,
-		marginPyth,
 	}: {
 		network: SuiClientTypes.Network;
 		address: string;
@@ -99,8 +88,6 @@ export class DeepBookConfig {
 		marginPools?: MarginPoolMap;
 		packageIds?: DeepbookPackageIds;
 		pyth?: PythConfig;
-		pythUpgraded?: PythConfig;
-		marginPyth?: MarginPythMode;
 	}) {
 		this.network = network;
 		this.address = normalizeSuiAddress(address);
@@ -122,8 +109,6 @@ export class DeepBookConfig {
 			this.#pools = pools || {};
 			this.#marginPools = marginPools || {};
 			this.pyth = pyth || { pythStateId: '', wormholeStateId: '' };
-			this.pythUpgraded = pythUpgraded || { pythStateId: '', wormholeStateId: '' };
-			this.marginPyth = marginPyth || 'legacy';
 		} else if (network === 'mainnet') {
 			this.#coins = coins || mainnetCoins;
 			this.#pools = pools || mainnetPools;
@@ -136,8 +121,6 @@ export class DeepBookConfig {
 			this.MARGIN_REGISTRY_ID = mainnetPackageIds.MARGIN_REGISTRY_ID;
 			this.LIQUIDATION_PACKAGE_ID = mainnetPackageIds.LIQUIDATION_PACKAGE_ID;
 			this.pyth = pyth || mainnetPythConfigs;
-			this.pythUpgraded = pythUpgraded || mainnetPythUpgradedConfigs;
-			this.marginPyth = marginPyth || mainnetMarginPyth;
 		} else if (network === 'testnet') {
 			this.#coins = coins || testnetCoins;
 			this.#pools = pools || testnetPools;
@@ -150,8 +133,6 @@ export class DeepBookConfig {
 			this.MARGIN_REGISTRY_ID = testnetPackageIds.MARGIN_REGISTRY_ID;
 			this.LIQUIDATION_PACKAGE_ID = testnetPackageIds.LIQUIDATION_PACKAGE_ID;
 			this.pyth = pyth || testnetPythConfigs;
-			this.pythUpgraded = pythUpgraded || testnetPythUpgradedConfigs;
-			this.marginPyth = marginPyth || testnetMarginPyth;
 		} else {
 			throw new Error(
 				`Network '${network}' is not supported by default. Provide custom 'packageIds' for non-standard networks.`,
@@ -162,25 +143,12 @@ export class DeepBookConfig {
 	}
 
 	requirePyth() {
-		const { pythStateId, wormholeStateId } = this.activePyth;
+		const { pythStateId, wormholeStateId } = this.pyth;
 		if (!pythStateId || !wormholeStateId) {
-			const field = this.marginPyth === 'upgraded' ? 'pythUpgraded' : 'pyth';
 			throw new ConfigurationError(
-				`Pyth configuration is required for price feed operations. Provide '${field}' when using custom packageIds.`,
+				"Pyth configuration is required for price feed operations. Provide 'pyth' when using custom packageIds.",
 			);
 		}
-	}
-
-	// === Pyth deployment routing ===
-
-	/** The Pyth deployment margin currently prices against. */
-	get activePyth(): PythConfig {
-		return this.marginPyth === 'upgraded' ? this.pythUpgraded : this.pyth;
-	}
-
-	/** True when margin calls should use the upgraded modules and price objects. */
-	get usesUpgradedPyth(): boolean {
-		return this.marginPyth === 'upgraded';
 	}
 
 	/**
@@ -201,26 +169,22 @@ export class DeepBookConfig {
 	}
 
 	/**
-	 * The `PriceInfoObject` id for a coin under the active Pyth deployment.
+	 * The `PriceInfoObject` id for a coin on Pyth's upgraded Core.
 	 *
-	 * Throws rather than passing `undefined` into a move call: under the upgraded
-	 * deployment a feed may simply have no object yet, and the resulting on-chain abort
+	 * Throws rather than passing `undefined` into a move call: a feed may simply have no
+	 * object on the upgraded deployment yet, and the resulting on-chain abort
 	 * (`EPriceFeedIdMismatch`) does not say which coin was at fault.
 	 */
 	getPriceInfoObjectId(coinKey: string): string {
-		const coin = this.getCoin(coinKey);
-		const id =
-			this.marginPyth === 'upgraded' ? coin.priceInfoObjectIdUpgraded : coin.priceInfoObjectId;
+		const { priceInfoObjectId } = this.getCoin(coinKey);
 
-		if (!id) {
+		if (!priceInfoObjectId) {
 			throw new ConfigurationError(
-				this.marginPyth === 'upgraded'
-					? `Coin '${coinKey}' has no priceInfoObjectIdUpgraded. Pyth's upgraded Core has no price feed object for it on ${this.network}, or the id is missing from your coin config.`
-					: `Coin '${coinKey}' has no priceInfoObjectId configured.`,
+				`Coin '${coinKey}' has no priceInfoObjectId. Pyth's upgraded Core has no price feed object for it on ${this.network}, or the id is missing from your coin config.`,
 			);
 		}
 
-		return id;
+		return priceInfoObjectId;
 	}
 
 	// Getters

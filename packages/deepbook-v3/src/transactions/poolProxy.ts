@@ -33,8 +33,13 @@ export class PoolProxyContract {
 	 * modifies, settlement withdrawals, staking and governance take no oracle and stay on
 	 * `pool_proxy` in both modes.
 	 */
+	/**
+	 * Oracle-taking entrypoints live in the parallel `_upgraded` module, which takes Pyth's
+	 * upgraded-Core `PriceInfoObject`. Entrypoints with no oracle argument stay on the base
+	 * module, which is the only place they exist.
+	 */
 	get #oracleCalls() {
-		return this.#config.usesUpgradedPyth ? poolProxyUpgradedMoveCalls : poolProxyMoveCalls;
+		return poolProxyUpgradedMoveCalls;
 	}
 
 	/**

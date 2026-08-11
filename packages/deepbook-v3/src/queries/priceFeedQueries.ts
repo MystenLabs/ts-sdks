@@ -29,26 +29,21 @@ export class PriceFeedQueries {
 	 * `ConfigurationError` instead. An explicit `hermesEndpoint` overrides both.
 	 */
 	#hermesEndpoint(): string {
-		const { hermesEndpoint, hermesHeaders } = this.#ctx.config.activePyth;
+		const { hermesEndpoint, hermesHeaders } = this.#ctx.config.pyth;
 		if (hermesEndpoint) {
 			return hermesEndpoint;
 		}
 
-		if (this.#ctx.config.usesUpgradedPyth) {
-			if (hermesHeaders) {
-				return PYTH_UPGRADED_HERMES;
-			}
-			if (DEEPBOOK_HERMES_PROXY) {
-				return DEEPBOOK_HERMES_PROXY;
-			}
-			throw new ConfigurationError(
-				"Pushing price updates against Pyth's upgraded Core needs credentials: its Hermes answers 401 unauthenticated. Set 'pythUpgraded.hermesHeaders' to { Authorization: `Bearer <pyth-token>` }, or set 'pythUpgraded.hermesEndpoint' to an endpoint that supplies them.",
-			);
+		if (hermesHeaders) {
+			return PYTH_UPGRADED_HERMES;
+		}
+		if (DEEPBOOK_HERMES_PROXY) {
+			return DEEPBOOK_HERMES_PROXY;
 		}
 
-		return this.#ctx.config.network === 'testnet'
-			? 'https://hermes-beta.pyth.network'
-			: 'https://hermes.pyth.network';
+		throw new ConfigurationError(
+			"Pushing price updates against Pyth's upgraded Core needs credentials: its Hermes answers 401 unauthenticated. Set 'pyth.hermesHeaders' to { Authorization: `Bearer <pyth-token>` }, or set 'pyth.hermesEndpoint' to an endpoint that supplies them.",
+		);
 	}
 
 	/**
@@ -57,7 +52,7 @@ export class PriceFeedQueries {
 	 * and answers 401 without one.
 	 */
 	#connection(): SuiPriceServiceConnection {
-		const { hermesHeaders } = this.#ctx.config.activePyth;
+		const { hermesHeaders } = this.#ctx.config.pyth;
 		return new SuiPriceServiceConnection(
 			this.#hermesEndpoint(),
 			hermesHeaders ? { headers: hermesHeaders } : undefined,
@@ -81,7 +76,7 @@ export class PriceFeedQueries {
 
 		const priceUpdateData = await connection.getPriceFeedsUpdateData(priceIDs);
 
-		const { pythStateId, wormholeStateId } = this.#ctx.config.activePyth;
+		const { pythStateId, wormholeStateId } = this.#ctx.config.pyth;
 
 		const client = new SuiPythClient(this.#ctx.client, pythStateId, wormholeStateId);
 
@@ -158,7 +153,7 @@ export class PriceFeedQueries {
 
 		const priceUpdateData = await connection.getPriceFeedsUpdateData(staleFeedIds);
 
-		const { pythStateId, wormholeStateId } = this.#ctx.config.activePyth;
+		const { pythStateId, wormholeStateId } = this.#ctx.config.pyth;
 		const pythClient = new SuiPythClient(this.#ctx.client, pythStateId, wormholeStateId);
 
 		const updatedObjectIds = await pythClient.updatePriceFeeds(tx, priceUpdateData, staleFeedIds);

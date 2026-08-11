@@ -19,7 +19,8 @@ import {
 	deepbook,
 	OrderType,
 	SelfMatchingOptions,
-	testnetPythUpgradedConfigs,
+	mainnetPythConfigs,
+	testnetPythConfigs,
 } from '../src/index.js';
 
 const SUI = process.env.SUI_BINARY ?? `sui`;
@@ -61,13 +62,12 @@ const GRPC_URLS = {
 		deepbook({
 			address: getActiveAddress(),
 			marginManagers,
-			// Testnet margin prices against Pyth's upgraded Core, whose Hermes requires a
-			// token; supply one to run this against testnet. Mainnet still defaults to the
-			// legacy deployment and needs nothing here.
+			// Margin prices against Pyth's upgraded Core, whose Hermes requires a token and
+			// answers 401 without one. Supply PYTH_TOKEN to push price updates.
 			...(process.env.PYTH_TOKEN
 				? {
-						pythUpgraded: {
-							...testnetPythUpgradedConfigs,
+						pyth: {
+							...(network === 'mainnet' ? mainnetPythConfigs : testnetPythConfigs),
 							hermesHeaders: { Authorization: `Bearer ${process.env.PYTH_TOKEN}` },
 						},
 					}

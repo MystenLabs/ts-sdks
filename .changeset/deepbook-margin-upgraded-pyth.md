@@ -1,44 +1,37 @@
 ---
-'@mysten/deepbook-v3': minor
+'@mysten/deepbook-v3': major
 ---
 
-Add support for the margin surface against Pyth's upgraded Core. Pyth is replacing Core with a
-separately published Sui package rather than upgrading it in place, so its `PriceInfoObject` is a
-distinct Move type that the existing margin entrypoints can never accept — their signatures are
-frozen by the `compatible` upgrade policy. `deepbook_margin` therefore exposes the upgraded surface
-as parallel modules (`margin_manager_upgraded`, `pool_proxy_upgraded`) and `margin_liquidation` as
-parallel entrypoints (`liquidate_base_upgraded`, `liquidate_quote_upgraded`), all under the same
-function names.
+Move the margin surface onto Pyth's upgraded Core and drop the legacy Pyth surface.
 
-The SDK follows suit without changing its own surface: every margin method keeps its name and
-signature, and a new `marginPyth` setting (`'legacy' | 'upgraded'`) decides which module it targets
-and whether it passes `priceInfoObjectId` or the new `priceInfoObjectIdUpgraded`. Price feed pushes
-follow the same setting, via a new `pythUpgraded` state config. Entrypoints that take no oracle —
-manager creation, repayment, referrals, cancels, staking, governance and every getter — stay on the
-base modules in both modes, because the upgraded modules do not carry them.
+Pyth is replacing Core with a separately published Sui package rather than upgrading it in place, so
+its `PriceInfoObject` is a distinct Move type that the existing margin entrypoints can never accept
+— their signatures are frozen by the `compatible` upgrade policy. `deepbook_margin` therefore
+exposes the upgraded surface as parallel modules (`margin_manager_upgraded`, `pool_proxy_upgraded`)
+and `margin_liquidation` as parallel entrypoints (`liquidate_base_upgraded`,
+`liquidate_quote_upgraded`), all under the same function names.
 
-**Testnet now defaults to `'upgraded'`, which changes every margin transaction the SDK emits on
-that network.** Its `MarginRegistry` was migrated onto the feed ids upgraded Pyth Core carries;
-because `oracle::validate_feed_id` checks both readers against the configured id, that migration
-also retired legacy testnet margin. Testnet callers who pass no `marginPyth` now target
-`margin_manager_upgraded` / `pool_proxy_upgraded` and pass upgraded price objects. The testnet coin
-map carries the upgraded identity only — the superseded beta feed ids and their legacy price
-objects were removed rather than retained, so forcing `marginPyth: 'legacy'` on testnet now throws
-naming the coin instead of pairing one deployment's feed with another's object.
+**This SDK now targets only the upgraded deployment.** Legacy Core is being retired, so carrying
+both was short-lived complexity: there is no `marginPyth` switch, no `pythUpgraded` config and no
+`priceInfoObjectIdUpgraded` field. `pyth` is the upgraded deployment's state objects and
+`priceInfoObjectId` is its price object. Every margin method keeps its name and signature; what
+changes is the module each one targets and the price object it passes. Entrypoints that take no
+oracle — manager creation, repayment, referrals, cancels, staking, governance and every getter —
+stay on the base modules, which is the only place they exist.
 
-**Mainnet is unchanged and still defaults to `'legacy'`** — byte-identical to today's behaviour.
-Its upgraded price objects are included for all six feeds that have them (DEEP, SUI, USDC, WAL,
-SUIUSDE, USDSUI), each read off the upgraded price table on chain; XBTC has no upgraded
-`PriceInfoObject` yet.
+**Requires the upgraded margin package on the target network.** The upgraded modules do not exist in
+earlier `deepbook_margin` publications, so this release must not be used against a network whose
+margin package predates them.
 
 Price update data is now fetched from Hermes v2 (`/v2/updates/price/latest`) instead of the
-deprecated v1 `/api/latest_vaas`. Both return the same payload, so this is not a behaviour change
-today, but v1 is going away. `PythConfig` gains `hermesHeaders`, forwarded to every Hermes request:
-the endpoint serving the upgraded Core requires an `Authorization` header and answers 401 without
-one. Supply the token at runtime — no credential ships with the SDK. Consumers who supply none fall
-back to a DeepBook-operated proxy, which is not yet deployed; until it is, `'upgraded'` mode without
-credentials throws a `ConfigurationError` naming the field to set.
+deprecated v1 `/api/latest_vaas`; both return the same payload. `PythConfig` gains `hermesHeaders`,
+forwarded to every Hermes request — the endpoint serving the upgraded Core requires an
+`Authorization` header and answers 401 without one, so price updates cannot work without it. Supply
+the token at runtime; no credential ships with the SDK. Consumers who supply none are intended to
+fall back to a DeepBook-operated proxy, which is not deployed yet, so that path currently throws a
+`ConfigurationError` naming the field to set.
 
-Testnet package ids move to `deepbook_margin` v16 and `margin_liquidation` v4, the first testnet
-packages carrying the upgraded-Pyth surface. The previous testnet margin id was two upgrades behind
-(v14).
+Testnet package ids move to `deepbook_margin` v16 and `margin_liquidation` v4, and testnet coins
+carry the feed ids its migrated `MarginRegistry` is configured with — DBTC prices off BTC/USD, as
+the upgraded deployment carries no distinct DBTC feed. Mainnet XBTC has no upgraded price object
+yet, so pricing it throws until one is created.

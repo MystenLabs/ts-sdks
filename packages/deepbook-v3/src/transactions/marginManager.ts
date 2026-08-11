@@ -29,8 +29,13 @@ export class MarginManagerContract {
 	 * repayment, referrals and the getters take no oracle and stay on `margin_manager` in
 	 * both modes.
 	 */
+	/**
+	 * Oracle-taking entrypoints live in the parallel `_upgraded` module, which takes Pyth's
+	 * upgraded-Core `PriceInfoObject`. Entrypoints with no oracle argument stay on the base
+	 * module, which is the only place they exist.
+	 */
 	get #oracleCalls() {
-		return this.#config.usesUpgradedPyth ? marginManagerUpgradedMoveCalls : marginManagerMoveCalls;
+		return marginManagerUpgradedMoveCalls;
 	}
 
 	/**

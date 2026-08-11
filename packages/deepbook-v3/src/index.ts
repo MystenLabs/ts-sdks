@@ -34,7 +34,6 @@ export type {
 	Pool,
 	MarginManager,
 	MarginPool,
-	MarginPythMode,
 	PythConfig,
 	Config,
 } from './types/index.js';
@@ -108,10 +107,6 @@ export {
 	testnetPackageIds,
 	mainnetPythConfigs,
 	testnetPythConfigs,
-	mainnetPythUpgradedConfigs,
-	testnetPythUpgradedConfigs,
-	mainnetMarginPyth,
-	testnetMarginPyth,
 	PYTH_UPGRADED_HERMES,
 	DEEPBOOK_HERMES_PROXY,
 } from './utils/constants.js';

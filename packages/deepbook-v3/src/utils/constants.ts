@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { Coin, Pool, MarginPool, MarginPythMode, PythConfig } from '../types/index.js';
+import type { Coin, Pool, MarginPool, PythConfig } from '../types/index.js';
 
 export type CoinMap = Record<string, Coin>;
 export type PoolMap = Record<string, Pool>;
@@ -39,20 +39,11 @@ export const mainnetPackageIds = {
 } satisfies DeepbookPackageIds;
 
 /**
- * Testnet margin prices against Pyth's UPGRADED Core only.
+ * Feed ids and price objects on Pyth's upgraded Core, the only deployment this SDK targets.
  *
  * The testnet `MarginRegistry` was migrated (2026-08-11) off Pyth's beta feed ids and onto
- * the ids upgraded testnet Core actually carries, which are the mainnet-style ids — the
- * beta ids have no upgraded price objects and the upgraded Hermes does not serve them.
- * `oracle::validate_feed_id` guards both readers against the *configured* id, so legacy
- * testnet margin no longer resolves: legacy testnet Core only holds beta-id objects. Hence
- * `testnetMarginPyth = 'upgraded'` below.
- *
- * These coins therefore carry the upgraded identity only. The superseded beta feed ids and
- * their legacy `priceInfoObjectId`s are deliberately absent rather than retained: keeping
- * them would leave `feed` and `priceInfoObjectId` describing two different deployments, so
- * a forced `marginPyth: 'legacy'` would fetch one deployment's update data for the other's
- * object. Without them it fails immediately, naming the coin.
+ * the ids upgraded testnet Core carries, which are the mainnet-style ids — the beta ids
+ * have no upgraded price objects and the upgraded Hermes does not serve them.
  *
  * DBTC's feed is BTC/USD: the upgraded deployment carries no distinct DBTC feed.
  */
@@ -63,7 +54,7 @@ export const testnetCoins: CoinMap = {
 		scalar: 1000000,
 		feed: '0x29bdd5248234e33bd93d3b81100b5fa32eaa5997843847e2c2cb16d7c6d9f7ff',
 		currencyId: '0xbf1b77e244f649c736a44898585cc8ac939fbb0bbdf1d8d2a183978cc312e613',
-		priceInfoObjectIdUpgraded: '0x27882b43c2cc62bbd8fb5f4ebc20be004b14454b2c98755033f5446d35474339',
+		priceInfoObjectId: '0x27882b43c2cc62bbd8fb5f4ebc20be004b14454b2c98755033f5446d35474339',
 	},
 	SUI: {
 		address: `0x0000000000000000000000000000000000000000000000000000000000000002`,
@@ -71,7 +62,7 @@ export const testnetCoins: CoinMap = {
 		scalar: 1000000000,
 		feed: '0x23d7315113f5b1d3ba7a83604c44b94d79f4fd69af77f804fc7f920a6dc65744',
 		currencyId: '0xf256d3fb6a50eaa748d94335b34f2982fbc3b63ceec78cafaa29ebc9ebaf2bbc',
-		priceInfoObjectIdUpgraded: '0x867877562b5d8ac262d93b02062e04b428a2f9bfbb2f05b8af52e04cd98bd241',
+		priceInfoObjectId: '0x867877562b5d8ac262d93b02062e04b428a2f9bfbb2f05b8af52e04cd98bd241',
 	},
 	DBUSDC: {
 		address: `0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7`,
@@ -79,7 +70,7 @@ export const testnetCoins: CoinMap = {
 		scalar: 1000000,
 		feed: '0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a',
 		currencyId: '0x509db0f9283c9ee4fdc5b99028a439d3639f49e9709e3d7a6de14b3bfdb0c784',
-		priceInfoObjectIdUpgraded: '0x17de8d80e8efedfd1053c46fb921e51824479ed32c6aded5f7279995bb84db05',
+		priceInfoObjectId: '0x17de8d80e8efedfd1053c46fb921e51824479ed32c6aded5f7279995bb84db05',
 	},
 	DBTC: {
 		address: `0x6502dae813dbe5e42643c119a6450a518481f03063febc7e20238e43b6ea9e86`,
@@ -87,7 +78,7 @@ export const testnetCoins: CoinMap = {
 		scalar: 100000000,
 		feed: '0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43',
 		currencyId: '0x3ef2afa2126704bf721b9c8495d94288f6bd090fc454fe3e1613eb765a8a348f',
-		priceInfoObjectIdUpgraded: '0x0fcd3e0ca9ae888e30ce509049749075c36d477660f4de9f60ffb28459f38af2',
+		priceInfoObjectId: '0x0fcd3e0ca9ae888e30ce509049749075c36d477660f4de9f60ffb28459f38af2',
 	},
 	DBUSDT: {
 		address: `0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7`,
@@ -108,8 +99,7 @@ export const mainnetCoins: CoinMap = {
 		scalar: 1000000,
 		feed: '0x29bdd5248234e33bd93d3b81100b5fa32eaa5997843847e2c2cb16d7c6d9f7ff',
 		currencyId: '0x3f2afb7c5f245870a8b8a3808e6dd7042446a0e7504e9d2795372da053858cd9',
-		priceInfoObjectId: '0x8c7f3a322b94cc69db2a2ac575cbd94bf5766113324c3a3eceac91e3e88a51ed',
-		priceInfoObjectIdUpgraded: '0x562957f70afaf8a0870e2959abc3e3f327a8159f803d8c56cff27ac2df260477',
+		priceInfoObjectId: '0x562957f70afaf8a0870e2959abc3e3f327a8159f803d8c56cff27ac2df260477',
 	},
 	SUI: {
 		address: `0x0000000000000000000000000000000000000000000000000000000000000002`,
@@ -117,8 +107,7 @@ export const mainnetCoins: CoinMap = {
 		scalar: 1000000000,
 		feed: '0x23d7315113f5b1d3ba7a83604c44b94d79f4fd69af77f804fc7f920a6dc65744',
 		currencyId: '0xf256d3fb6a50eaa748d94335b34f2982fbc3b63ceec78cafaa29ebc9ebaf2bbc',
-		priceInfoObjectId: '0x801dbc2f0053d34734814b2d6df491ce7807a725fe9a01ad74a07e9c51396c37',
-		priceInfoObjectIdUpgraded: '0x89b2add829cb6fcd017153fff428bc9faec4d06d643ecfc435af5b55a9e987f0',
+		priceInfoObjectId: '0x89b2add829cb6fcd017153fff428bc9faec4d06d643ecfc435af5b55a9e987f0',
 	},
 	USDC: {
 		address: `0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7`,
@@ -126,8 +115,7 @@ export const mainnetCoins: CoinMap = {
 		scalar: 1000000,
 		feed: '0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a',
 		currencyId: '0x75cfbbf8c962d542e99a1d15731e6069f60a00db895407785b15d14f606f2b4a',
-		priceInfoObjectId: '0x5dec622733a204ca27f5a90d8c2fad453cc6665186fd5dff13a83d0b6c9027ab',
-		priceInfoObjectIdUpgraded: '0x6ddfc6f9921e55998cbc2e68f78eba897981d79ac17f66c5277bc38954a2a3f8',
+		priceInfoObjectId: '0x6ddfc6f9921e55998cbc2e68f78eba897981d79ac17f66c5277bc38954a2a3f8',
 	},
 	WAL: {
 		address: `0x356a26eb9e012a68958082340d4c4116e7f55615cf27affcff209cf0ae544f59`,
@@ -135,8 +123,7 @@ export const mainnetCoins: CoinMap = {
 		scalar: 1000000000,
 		feed: '0xeba0732395fae9dec4bae12e52760b35fc1c5671e2da8b449c9af4efe5d54341',
 		currencyId: '0xb6a0c0bacb1c87c3be4dff20c22ef1012125b5724b5b0ff424f852a2651b23fa',
-		priceInfoObjectId: '0xeb7e669f74d976c0b99b6ef9801e3a77716a95f1a15754e0f1399ce3fb60973d',
-		priceInfoObjectIdUpgraded: '0xdbea8600eeeb0399df58c28e73b8201ae880a954813131d33bfa6902ccdadd24',
+		priceInfoObjectId: '0xdbea8600eeeb0399df58c28e73b8201ae880a954813131d33bfa6902ccdadd24',
 	},
 	SUIUSDE: {
 		address: `0x41d587e5336f1c86cad50d38a7136db99333bb9bda91cea4ba69115defeb1402`,
@@ -144,8 +131,7 @@ export const mainnetCoins: CoinMap = {
 		scalar: 1000000,
 		feed: '0x8cead549d0e770dea8fdf5e018a85d59585265cf8bff16ba83962fc7996dbb7f',
 		currencyId: '0x44f0959110bd9e5e91af0483364c42075ac19f173b28f708989f419ef3560576',
-		priceInfoObjectId: '0x9b2028bfc829127d2e5ead1691dc3002de9e9b8d8076b4915e5ecc7d9b99d63f',
-		priceInfoObjectIdUpgraded: '0xa8023b552578bd5036be60d3132306882469d1871cb4bec3099c47dece08c4cd',
+		priceInfoObjectId: '0xa8023b552578bd5036be60d3132306882469d1871cb4bec3099c47dece08c4cd',
 	},
 	XBTC: {
 		address: `0x876a4b7bce8aeaef60464c11f4026903e9afacab79b9b142686158aa86560b50`,
@@ -153,9 +139,9 @@ export const mainnetCoins: CoinMap = {
 		scalar: 100000000,
 		feed: '0xae8f269ed9c4bed616c99a98cf6dfe562bd3202e7f91821a471ff854713851b4',
 		currencyId: '0x907bb173bffab7c57bbd3350a633aa32c8770937b496d7d88874087b59200bcc',
-		priceInfoObjectId: '0xa4b9db1866ee6e2a156e8c36fc66be0f68f232388ebb578c949c2c6beb50128b',
-		// No priceInfoObjectIdUpgraded: Pyth's upgraded Core has no XBTC feed object
-		// (checked 2026-08-11). Margin cannot price XBTC in 'upgraded' mode until one exists.
+		// No priceInfoObjectId: Pyth's upgraded Core has no XBTC price object (checked
+		// 2026-08-11). The feed itself is live and serves signed updates, and creating the
+		// object is permissionless — until someone does, margin cannot price XBTC.
 	},
 	USDSUI: {
 		address: `0x44f838219cf67b058f3b37907b655f226153c18e33dfcd0da559a844fea9b1c1`,
@@ -163,8 +149,7 @@ export const mainnetCoins: CoinMap = {
 		scalar: 1000000,
 		feed: '0xd510fcdb3a63f35d3bb118d5db3afc5815a3f13bc55d48abb893b63f0315902a',
 		currencyId: '0x535e826a2acddab687c81cb6c6166553b479f61a9023800ec0020baba8d94731',
-		priceInfoObjectId: '0x68644a3ab7a1aab113a4a68b6115a5b51eba4cb6aaac2d99b734be2e5e748425',
-		priceInfoObjectIdUpgraded: '0x6896ccc8c08a84e47f0ab8affbd3fce2623a72c76f9092e59f8f6ece450119cd',
+		priceInfoObjectId: '0x6896ccc8c08a84e47f0ab8affbd3fce2623a72c76f9092e59f8f6ece450119cd',
 	},
 	WUSDC: {
 		address: `0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf`,
@@ -450,15 +435,13 @@ export const mainnetMarginPools = {
 };
 
 export const testnetPythConfigs = {
-	pythStateId: '0x243759059f4c3111179da5878c12f68d612c21a8d54d85edc86164bb18be1c7c',
-	wormholeStateId: '0x31358d198147da50db32eda2562951d53973a0c0ad5ed738e9b17d88b213d790',
-	hermesEndpoint: 'https://hermes-beta.pyth.network',
+	pythStateId: '0x3c48fe392912de6c18087a2b3f5fdbfbfdb4598e180947feff1f12f8e9ea073e',
+	wormholeStateId: '0x750da8e6d16b6a363a39fe2eaa8295ac224a1e6fce4e47b58845e2e8746164f0',
 } satisfies PythConfig;
 
 export const mainnetPythConfigs = {
-	pythStateId: '0x1f9310238ee9298fb703c3419030b35b22bb1cc37113e3bb5007c99aec79e5b8',
-	wormholeStateId: '0xaeab97f96cf9877fee2883315d459552b2b921edc16d7ceac6eab944dd88919c',
-	hermesEndpoint: 'https://hermes.pyth.network',
+	pythStateId: '0x03719fae774ddab3cfcaa53bbc046f0cbe21410019b6280811bf3f9f4b05839d',
+	wormholeStateId: '0xdbca52b9fb4f712e25f61f974586d93ac541bcf8389564f0323bb07215168b5c',
 } satisfies PythConfig;
 
 /**
@@ -480,34 +463,3 @@ export const PYTH_UPGRADED_HERMES = 'https://pyth.dourolabs.app/hermes';
  * axios instead of a configuration error naming the field to set.
  */
 export const DEEPBOOK_HERMES_PROXY: string | undefined = undefined;
-
-export const testnetPythUpgradedConfigs = {
-	pythStateId: '0x3c48fe392912de6c18087a2b3f5fdbfbfdb4598e180947feff1f12f8e9ea073e',
-	wormholeStateId: '0x750da8e6d16b6a363a39fe2eaa8295ac224a1e6fce4e47b58845e2e8746164f0',
-} satisfies PythConfig;
-
-export const mainnetPythUpgradedConfigs = {
-	pythStateId: '0x03719fae774ddab3cfcaa53bbc046f0cbe21410019b6280811bf3f9f4b05839d',
-	wormholeStateId: '0xdbca52b9fb4f712e25f61f974586d93ac541bcf8389564f0323bb07215168b5c',
-} satisfies PythConfig;
-
-/**
- * Default margin Pyth mode per network — the deployment each network's margin package can
- * actually be called against today.
- *
- * **Testnet is `'upgraded'` and cannot go back.** Its margin package (v16) carries the
- * upgraded modules with gate version 7 enabled, and its `MarginRegistry` was migrated onto
- * the feed ids upgraded Core carries. Because `oracle::validate_feed_id` checks both
- * readers against the configured id, that migration also retired legacy testnet margin —
- * legacy testnet Core holds only beta-id objects.
- *
- * **Mainnet is `'legacy'`**: margin has not been upgraded there, and XBTC still has no
- * upgraded `PriceInfoObject` (the feed itself is served — only the on-chain object is
- * missing, and creating it is permissionless).
- *
- * Flip a network here once its margin package is upgraded, its gate version is enabled,
- * and every coin it prices has a fresh `priceInfoObjectIdUpgraded` below. Consumers can
- * flip ahead of a release with `new DeepBookClient({ marginPyth: 'upgraded', ... })`.
- */
-export const testnetMarginPyth: MarginPythMode = 'upgraded';
-export const mainnetMarginPyth: MarginPythMode = 'legacy';
