@@ -190,6 +190,23 @@ export class DeepBookConfig {
 	 * deployment a feed may simply have no object yet, and the resulting on-chain abort
 	 * (`EPriceFeedIdMismatch`) does not say which coin was at fault.
 	 */
+	/**
+	 * The Pyth feed id for a coin under the active deployment.
+	 *
+	 * Pairs with {@link getPriceInfoObjectId}: Hermes is queried by feed id and the Move
+	 * call takes the object, so the two must come from the same deployment or the update
+	 * lands on an object the on-chain feed-id check then rejects.
+	 */
+	getFeedId(coinKey: string): string {
+		const { feed } = this.getCoin(coinKey);
+
+		if (!feed) {
+			throw new ConfigurationError(`Coin '${coinKey}' has no Pyth feed id configured.`);
+		}
+
+		return feed;
+	}
+
 	getPriceInfoObjectId(coinKey: string): string {
 		const coin = this.getCoin(coinKey);
 		const id =

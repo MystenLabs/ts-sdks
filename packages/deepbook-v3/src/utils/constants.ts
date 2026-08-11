@@ -38,38 +38,56 @@ export const mainnetPackageIds = {
 	LIQUIDATION_PACKAGE_ID: '0xf17bff1bf21e9587acc5708714e520aa967f82f256f626938a33c4109b08adb9',
 } satisfies DeepbookPackageIds;
 
+/**
+ * Testnet margin prices against Pyth's UPGRADED Core only.
+ *
+ * The testnet `MarginRegistry` was migrated (2026-08-11) off Pyth's beta feed ids and onto
+ * the ids upgraded testnet Core actually carries, which are the mainnet-style ids — the
+ * beta ids have no upgraded price objects and the upgraded Hermes does not serve them.
+ * `oracle::validate_feed_id` guards both readers against the *configured* id, so legacy
+ * testnet margin no longer resolves: legacy testnet Core only holds beta-id objects. Hence
+ * `testnetMarginPyth = 'upgraded'` below.
+ *
+ * These coins therefore carry the upgraded identity only. The superseded beta feed ids and
+ * their legacy `priceInfoObjectId`s are deliberately absent rather than retained: keeping
+ * them would leave `feed` and `priceInfoObjectId` describing two different deployments, so
+ * a forced `marginPyth: 'legacy'` would fetch one deployment's update data for the other's
+ * object. Without them it fails immediately, naming the coin.
+ *
+ * DBTC's feed is BTC/USD: the upgraded deployment carries no distinct DBTC feed.
+ */
 export const testnetCoins: CoinMap = {
 	DEEP: {
 		address: `0x36dbef866a1d62bf7328989a10fb2f07d769f4ee587c0de4a0a256e57e0a58a8`,
 		type: `0x36dbef866a1d62bf7328989a10fb2f07d769f4ee587c0de4a0a256e57e0a58a8::deep::DEEP`,
 		scalar: 1000000,
-		feed: '0x99137a18354efa7fb6840889d059fdb04c46a6ce21be97ab60d9ad93e91ac758', // DEEP uses HFT feed on testnet
+		feed: '0x29bdd5248234e33bd93d3b81100b5fa32eaa5997843847e2c2cb16d7c6d9f7ff',
 		currencyId: '0xbf1b77e244f649c736a44898585cc8ac939fbb0bbdf1d8d2a183978cc312e613',
-		priceInfoObjectId: '0x3d52fffa2cd9e54b39bb36d282bdda560b15b8b4fdf4766a3c58499ef172bafc',
+		priceInfoObjectIdUpgraded: '0x27882b43c2cc62bbd8fb5f4ebc20be004b14454b2c98755033f5446d35474339',
 	},
 	SUI: {
 		address: `0x0000000000000000000000000000000000000000000000000000000000000002`,
 		type: `0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI`,
 		scalar: 1000000000,
-		feed: '0x50c67b3fd225db8912a424dd4baed60ffdde625ed2feaaf283724f9608fea266',
+		feed: '0x23d7315113f5b1d3ba7a83604c44b94d79f4fd69af77f804fc7f920a6dc65744',
 		currencyId: '0xf256d3fb6a50eaa748d94335b34f2982fbc3b63ceec78cafaa29ebc9ebaf2bbc',
-		priceInfoObjectId: '0x1ebb295c789cc42b3b2a1606482cd1c7124076a0f5676718501fda8c7fd075a0',
+		priceInfoObjectIdUpgraded: '0x867877562b5d8ac262d93b02062e04b428a2f9bfbb2f05b8af52e04cd98bd241',
 	},
 	DBUSDC: {
 		address: `0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7`,
 		type: `0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7::DBUSDC::DBUSDC`,
 		scalar: 1000000,
-		feed: '0x41f3625971ca2ed2263e78573fe5ce23e13d2558ed3f2e47ab0f84fb9e7ae722',
+		feed: '0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a',
 		currencyId: '0x509db0f9283c9ee4fdc5b99028a439d3639f49e9709e3d7a6de14b3bfdb0c784',
-		priceInfoObjectId: '0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81',
+		priceInfoObjectIdUpgraded: '0x17de8d80e8efedfd1053c46fb921e51824479ed32c6aded5f7279995bb84db05',
 	},
 	DBTC: {
 		address: `0x6502dae813dbe5e42643c119a6450a518481f03063febc7e20238e43b6ea9e86`,
 		type: `0x6502dae813dbe5e42643c119a6450a518481f03063febc7e20238e43b6ea9e86::dbtc::DBTC`,
 		scalar: 100000000,
-		feed: '0xf9c0172ba10dfa4d19088d94f5bf61d3b54d5bd7483a322a982e1373ee8ea31b',
+		feed: '0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43',
 		currencyId: '0x3ef2afa2126704bf721b9c8495d94288f6bd090fc454fe3e1613eb765a8a348f',
-		priceInfoObjectId: '0x72431a238277695d3f31e4425225a4462674ee6cceeea9d66447b210755fffba',
+		priceInfoObjectIdUpgraded: '0x0fcd3e0ca9ae888e30ce509049749075c36d477660f4de9f60ffb28459f38af2',
 	},
 	DBUSDT: {
 		address: `0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7`,
@@ -444,12 +462,26 @@ export const mainnetPythConfigs = {
 } satisfies PythConfig;
 
 /**
- * Pyth's upgraded Core, published separately from legacy Core and vendoring
- * `WormholeSimpleMajority` rather than standard Wormhole. State object ids resolved on
- * chain 2026-08-11; `hermesEndpoint` is unset because the upgraded deployment is served
- * by a different Hermes than legacy Core — set it explicitly before pushing updates
- * through `updatePriceFeeds` in `'upgraded'` mode.
+/**
+ * Hermes serving Pyth's upgraded Core. Requires an `Authorization: Bearer <token>` header
+ * and answers 401 without one. Note that from the Core cutover this also becomes true of
+ * legacy Hermes, so an unauthenticated price push has no long-term path.
  */
+export const PYTH_UPGRADED_HERMES = 'https://pyth.dourolabs.app/hermes';
+
+/**
+ * DeepBook-operated Hermes proxy: forwards to {@link PYTH_UPGRADED_HERMES} supplying
+ * credentials server-side, so consumers without their own Pyth plan can still push price
+ * updates. Used only when no `hermesHeaders` are configured — bring your own token and the
+ * SDK talks to Pyth directly, with no DeepBook infrastructure in the path.
+ *
+ * `undefined` until the proxy is deployed. It must stay `undefined` rather than a
+ * placeholder URL: it is the default endpoint whenever a consumer supplies no credentials,
+ * so a non-resolving value here surfaces as an opaque `Invalid URL`/DNS error from inside
+ * axios instead of a configuration error naming the field to set.
+ */
+export const DEEPBOOK_HERMES_PROXY: string | undefined = undefined;
+
 export const testnetPythUpgradedConfigs = {
 	pythStateId: '0x3c48fe392912de6c18087a2b3f5fdbfbfdb4598e180947feff1f12f8e9ea073e',
 	wormholeStateId: '0x750da8e6d16b6a363a39fe2eaa8295ac224a1e6fce4e47b58845e2e8746164f0',
@@ -464,18 +496,19 @@ export const mainnetPythUpgradedConfigs = {
  * Default margin Pyth mode per network — the deployment each network's margin package can
  * actually be called against today.
  *
- * Both are `'legacy'`: the upgraded margin surface is on `deepbookv3` main but neither
- * network has been upgraded to a package that carries it, and neither network's upgraded
- * Pyth deployment yet serves every feed its `MarginRegistry` has configured (checked
- * 2026-08-11 — mainnet is missing XBTC; testnet has none of its four configured feeds,
- * since upgraded testnet Core carries mainnet-style feed ids while the registry is
- * configured with Pyth's beta ids). `oracle::read_price_upgraded` asserts the object's
- * feed id equals the registry's configured id, so a call in `'upgraded'` mode against a
- * feed with no upgraded object aborts `EPriceFeedIdMismatch`.
+ * **Testnet is `'upgraded'` and cannot go back.** Its margin package (v16) carries the
+ * upgraded modules with gate version 7 enabled, and its `MarginRegistry` was migrated onto
+ * the feed ids upgraded Core carries. Because `oracle::validate_feed_id` checks both
+ * readers against the configured id, that migration also retired legacy testnet margin —
+ * legacy testnet Core holds only beta-id objects.
+ *
+ * **Mainnet is `'legacy'`**: margin has not been upgraded there, and XBTC still has no
+ * upgraded `PriceInfoObject` (the feed itself is served — only the on-chain object is
+ * missing, and creating it is permissionless).
  *
  * Flip a network here once its margin package is upgraded, its gate version is enabled,
  * and every coin it prices has a fresh `priceInfoObjectIdUpgraded` below. Consumers can
  * flip ahead of a release with `new DeepBookClient({ marginPyth: 'upgraded', ... })`.
  */
-export const testnetMarginPyth: MarginPythMode = 'legacy';
+export const testnetMarginPyth: MarginPythMode = 'upgraded';
 export const mainnetMarginPyth: MarginPythMode = 'legacy';

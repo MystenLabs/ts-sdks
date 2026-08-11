@@ -112,6 +112,8 @@ export {
 	testnetPythUpgradedConfigs,
 	mainnetMarginPyth,
 	testnetMarginPyth,
+	PYTH_UPGRADED_HERMES,
+	DEEPBOOK_HERMES_PROXY,
 } from './utils/constants.js';
 export {
 	DEEP_SCALAR,

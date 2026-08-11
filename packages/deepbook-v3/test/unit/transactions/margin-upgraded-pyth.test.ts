@@ -26,13 +26,25 @@ const VAULT = '0x333333333333333333333333333333333333333333333333333333333333333
 
 const SUI_UPGRADED = '0x1111111111111111111111111111111111111111111111111111111111110001';
 const DBUSDC_UPGRADED = '0x1111111111111111111111111111111111111111111111111111111111110002';
+const SUI_LEGACY = '0x2222222222222222222222222222222222222222222222222222222222220001';
+const DBUSDC_LEGACY = '0x2222222222222222222222222222222222222222222222222222222222220002';
 
-// Testnet's upgraded Pyth has no object for any feed the margin registry is configured
-// with, so the shipped coin map carries no upgraded ids. Supply them here.
+// These are routing tests: they assert which module each builder targets and which price
+// object it passes, so the fixture supplies BOTH ids for both modes. The shipped testnet
+// map deliberately carries the upgraded identity only (its registry was migrated onto
+// upgraded-Core feed ids), which is asserted separately under 'shipped defaults'.
 const coinsWithUpgraded: CoinMap = {
 	...testnetCoins,
-	SUI: { ...testnetCoins.SUI, priceInfoObjectIdUpgraded: SUI_UPGRADED },
-	DBUSDC: { ...testnetCoins.DBUSDC, priceInfoObjectIdUpgraded: DBUSDC_UPGRADED },
+	SUI: {
+		...testnetCoins.SUI,
+		priceInfoObjectId: SUI_LEGACY,
+		priceInfoObjectIdUpgraded: SUI_UPGRADED,
+	},
+	DBUSDC: {
+		...testnetCoins.DBUSDC,
+		priceInfoObjectId: DBUSDC_LEGACY,
+		priceInfoObjectIdUpgraded: DBUSDC_UPGRADED,
+	},
 };
 
 function config(marginPyth: MarginPythMode, coins: CoinMap = coinsWithUpgraded) {
@@ -109,13 +121,13 @@ describe('margin entrypoints follow the configured Pyth deployment', () => {
 		const inputs = objectInputs(build);
 		expect(inputs).toContain(SUI_UPGRADED);
 		expect(inputs).toContain(DBUSDC_UPGRADED);
-		expect(inputs).not.toContain(testnetCoins.SUI.priceInfoObjectId);
+		expect(inputs).not.toContain(SUI_LEGACY);
 	});
 
 	it('passes the legacy price objects in legacy mode', () => {
 		const build = new MarginManagerContract(config('legacy')).managerState(POOL_KEY, MGR_ADDR);
 		const inputs = objectInputs(build);
-		expect(inputs).toContain(testnetCoins.SUI.priceInfoObjectId);
+		expect(inputs).toContain(SUI_LEGACY);
 		expect(inputs).not.toContain(SUI_UPGRADED);
 	});
 });
@@ -216,28 +228,32 @@ describe('liquidation entries are parallel functions, not a parallel module', ()
 	});
 });
 
-describe('a missing upgraded price object fails before the move call', () => {
+describe('a missing price object fails before the move call', () => {
 	// On chain this would abort `EPriceFeedIdMismatch` deep inside the oracle read, which
 	// does not say which coin was at fault.
-	it('names the coin and the reason', () => {
+	it('names the coin and the reason in upgraded mode', () => {
+		// WAL ships no price ids at all on testnet.
 		const c = config('upgraded', testnetCoins);
-		expect(() => c.getPriceInfoObjectId('SUI')).toThrowError(
-			/Coin 'SUI' has no priceInfoObjectIdUpgraded/,
+		expect(() => c.getPriceInfoObjectId('WAL')).toThrowError(
+			/Coin 'WAL' has no priceInfoObjectIdUpgraded/,
 		);
 	});
 
-	it('still resolves in legacy mode', () => {
+	it('names the coin when legacy ids were retired', () => {
+		// Testnet carries the upgraded identity only, so forcing legacy fails here rather
+		// than pairing a legacy object with an upgraded feed.
 		const c = config('legacy', testnetCoins);
-		expect(c.getPriceInfoObjectId('SUI')).toBe(testnetCoins.SUI.priceInfoObjectId);
+		expect(() => c.getPriceInfoObjectId('SUI')).toThrowError(
+			/Coin 'SUI' has no priceInfoObjectId configured/,
+		);
 	});
 });
 
 describe('shipped defaults', () => {
-	// Neither network can serve the upgraded surface yet: the margin packages carrying it
-	// are not deployed, and neither upgraded Pyth deployment has an object for every feed
-	// the corresponding MarginRegistry is configured with.
-	it('default to legacy on both networks', () => {
-		expect(new DeepBookConfig({ network: 'testnet', address: '0x1' }).marginPyth).toBe('legacy');
+	// Testnet's MarginRegistry was migrated onto upgraded-Core feed ids, which retired
+	// legacy testnet margin; mainnet margin has not been upgraded yet.
+	it('testnet defaults to upgraded, mainnet to legacy', () => {
+		expect(new DeepBookConfig({ network: 'testnet', address: '0x1' }).marginPyth).toBe('upgraded');
 		expect(new DeepBookConfig({ network: 'mainnet', address: '0x1' }).marginPyth).toBe('legacy');
 	});
 

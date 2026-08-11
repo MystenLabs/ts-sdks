@@ -576,7 +576,7 @@ exports[`marginAdmin PTB snapshots > newCoinTypeData 1`] = `
     {
       "$kind": "Pure",
       "Pure": {
-        "bytes": "IFDGez/SJduJEqQk3Uuu1g/93mJe0v6q8oNyT5YI/qJm",
+        "bytes": "ICPXMVET9bHTunqDYExEuU159P1pr3f4BPx/kgptxldE",
       },
     },
     {
@@ -819,7 +819,7 @@ exports[`marginAdmin PTB snapshots > newPythConfig 1`] = `
     {
       "$kind": "Pure",
       "Pure": {
-        "bytes": "IFDGez/SJduJEqQk3Uuu1g/93mJe0v6q8oNyT5YI/qJm",
+        "bytes": "ICPXMVET9bHTunqDYExEuU159P1pr3f4BPx/kgptxldE",
       },
     },
     {
@@ -1706,7 +1706,7 @@ exports[`marginLiquidations PTB snapshots > liquidateBase 1`] = `
             "type": "object",
           },
         ],
-        "function": "liquidate_base",
+        "function": "liquidate_base_upgraded",
         "module": "liquidation_vault",
         "package": "0x29bccec5261b7d040555a13e98bbc6bef7bad007d62759aac8b71c19916f6476",
         "typeArguments": [
@@ -1744,13 +1744,13 @@ exports[`marginLiquidations PTB snapshots > liquidateBase 1`] = `
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x1ebb295c789cc42b3b2a1606482cd1c7124076a0f5676718501fda8c7fd075a0",
+        "objectId": "0x867877562b5d8ac262d93b02062e04b428a2f9bfbb2f05b8af52e04cd98bd241",
       },
     },
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81",
+        "objectId": "0x17de8d80e8efedfd1053c46fb921e51824479ed32c6aded5f7279995bb84db05",
       },
     },
     {
@@ -1844,7 +1844,7 @@ exports[`marginLiquidations PTB snapshots > liquidateBaseAll 1`] = `
             "type": "object",
           },
         ],
-        "function": "liquidate_base",
+        "function": "liquidate_base_upgraded",
         "module": "liquidation_vault",
         "package": "0x29bccec5261b7d040555a13e98bbc6bef7bad007d62759aac8b71c19916f6476",
         "typeArguments": [
@@ -1882,13 +1882,13 @@ exports[`marginLiquidations PTB snapshots > liquidateBaseAll 1`] = `
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x1ebb295c789cc42b3b2a1606482cd1c7124076a0f5676718501fda8c7fd075a0",
+        "objectId": "0x867877562b5d8ac262d93b02062e04b428a2f9bfbb2f05b8af52e04cd98bd241",
       },
     },
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81",
+        "objectId": "0x17de8d80e8efedfd1053c46fb921e51824479ed32c6aded5f7279995bb84db05",
       },
     },
     {
@@ -1982,7 +1982,7 @@ exports[`marginLiquidations PTB snapshots > liquidateQuote 1`] = `
             "type": "object",
           },
         ],
-        "function": "liquidate_quote",
+        "function": "liquidate_quote_upgraded",
         "module": "liquidation_vault",
         "package": "0x29bccec5261b7d040555a13e98bbc6bef7bad007d62759aac8b71c19916f6476",
         "typeArguments": [
@@ -2020,13 +2020,13 @@ exports[`marginLiquidations PTB snapshots > liquidateQuote 1`] = `
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x1ebb295c789cc42b3b2a1606482cd1c7124076a0f5676718501fda8c7fd075a0",
+        "objectId": "0x867877562b5d8ac262d93b02062e04b428a2f9bfbb2f05b8af52e04cd98bd241",
       },
     },
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81",
+        "objectId": "0x17de8d80e8efedfd1053c46fb921e51824479ed32c6aded5f7279995bb84db05",
       },
     },
     {
@@ -3383,7 +3383,7 @@ exports[`marginManager PTB snapshots > borrowBase 1`] = `
           },
         ],
         "function": "borrow_base",
-        "module": "margin_manager",
+        "module": "margin_manager_upgraded",
         "package": "0xce6ab6290458f597fc078793335f4b1d98479f29ebc02198ae960e9401d0c72f",
         "typeArguments": [
           "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
@@ -3414,13 +3414,13 @@ exports[`marginManager PTB snapshots > borrowBase 1`] = `
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x1ebb295c789cc42b3b2a1606482cd1c7124076a0f5676718501fda8c7fd075a0",
+        "objectId": "0x867877562b5d8ac262d93b02062e04b428a2f9bfbb2f05b8af52e04cd98bd241",
       },
     },
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81",
+        "objectId": "0x17de8d80e8efedfd1053c46fb921e51824479ed32c6aded5f7279995bb84db05",
       },
     },
     {
@@ -3499,7 +3499,7 @@ exports[`marginManager PTB snapshots > borrowQuote 1`] = `
           },
         ],
         "function": "borrow_quote",
-        "module": "margin_manager",
+        "module": "margin_manager_upgraded",
         "package": "0xce6ab6290458f597fc078793335f4b1d98479f29ebc02198ae960e9401d0c72f",
         "typeArguments": [
           "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
@@ -3530,13 +3530,13 @@ exports[`marginManager PTB snapshots > borrowQuote 1`] = `
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x1ebb295c789cc42b3b2a1606482cd1c7124076a0f5676718501fda8c7fd075a0",
+        "objectId": "0x867877562b5d8ac262d93b02062e04b428a2f9bfbb2f05b8af52e04cd98bd241",
       },
     },
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81",
+        "objectId": "0x17de8d80e8efedfd1053c46fb921e51824479ed32c6aded5f7279995bb84db05",
       },
     },
     {
@@ -4103,7 +4103,7 @@ exports[`marginManager PTB snapshots > depositBase 1`] = `
           },
         ],
         "function": "deposit",
-        "module": "margin_manager",
+        "module": "margin_manager_upgraded",
         "package": "0xce6ab6290458f597fc078793335f4b1d98479f29ebc02198ae960e9401d0c72f",
         "typeArguments": [
           "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
@@ -4129,13 +4129,13 @@ exports[`marginManager PTB snapshots > depositBase 1`] = `
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x1ebb295c789cc42b3b2a1606482cd1c7124076a0f5676718501fda8c7fd075a0",
+        "objectId": "0x867877562b5d8ac262d93b02062e04b428a2f9bfbb2f05b8af52e04cd98bd241",
       },
     },
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81",
+        "objectId": "0x17de8d80e8efedfd1053c46fb921e51824479ed32c6aded5f7279995bb84db05",
       },
     },
     {
@@ -4203,7 +4203,7 @@ exports[`marginManager PTB snapshots > depositDeep 1`] = `
           },
         ],
         "function": "deposit",
-        "module": "margin_manager",
+        "module": "margin_manager_upgraded",
         "package": "0xce6ab6290458f597fc078793335f4b1d98479f29ebc02198ae960e9401d0c72f",
         "typeArguments": [
           "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
@@ -4229,13 +4229,13 @@ exports[`marginManager PTB snapshots > depositDeep 1`] = `
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x1ebb295c789cc42b3b2a1606482cd1c7124076a0f5676718501fda8c7fd075a0",
+        "objectId": "0x867877562b5d8ac262d93b02062e04b428a2f9bfbb2f05b8af52e04cd98bd241",
       },
     },
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81",
+        "objectId": "0x17de8d80e8efedfd1053c46fb921e51824479ed32c6aded5f7279995bb84db05",
       },
     },
     {
@@ -4339,7 +4339,7 @@ exports[`marginManager PTB snapshots > depositDuringInitialization 1`] = `
           },
         ],
         "function": "deposit",
-        "module": "margin_manager",
+        "module": "margin_manager_upgraded",
         "package": "0xce6ab6290458f597fc078793335f4b1d98479f29ebc02198ae960e9401d0c72f",
         "typeArguments": [
           "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
@@ -4382,13 +4382,13 @@ exports[`marginManager PTB snapshots > depositDuringInitialization 1`] = `
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x1ebb295c789cc42b3b2a1606482cd1c7124076a0f5676718501fda8c7fd075a0",
+        "objectId": "0x867877562b5d8ac262d93b02062e04b428a2f9bfbb2f05b8af52e04cd98bd241",
       },
     },
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81",
+        "objectId": "0x17de8d80e8efedfd1053c46fb921e51824479ed32c6aded5f7279995bb84db05",
       },
     },
   ],
@@ -4445,7 +4445,7 @@ exports[`marginManager PTB snapshots > depositQuote 1`] = `
           },
         ],
         "function": "deposit",
-        "module": "margin_manager",
+        "module": "margin_manager_upgraded",
         "package": "0xce6ab6290458f597fc078793335f4b1d98479f29ebc02198ae960e9401d0c72f",
         "typeArguments": [
           "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
@@ -4471,13 +4471,13 @@ exports[`marginManager PTB snapshots > depositQuote 1`] = `
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x1ebb295c789cc42b3b2a1606482cd1c7124076a0f5676718501fda8c7fd075a0",
+        "objectId": "0x867877562b5d8ac262d93b02062e04b428a2f9bfbb2f05b8af52e04cd98bd241",
       },
     },
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81",
+        "objectId": "0x17de8d80e8efedfd1053c46fb921e51824479ed32c6aded5f7279995bb84db05",
       },
     },
     {
@@ -4668,7 +4668,7 @@ exports[`marginManager PTB snapshots > liquidate 1`] = `
           },
         ],
         "function": "liquidate",
-        "module": "margin_manager",
+        "module": "margin_manager_upgraded",
         "package": "0xce6ab6290458f597fc078793335f4b1d98479f29ebc02198ae960e9401d0c72f",
         "typeArguments": [
           "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
@@ -4700,13 +4700,13 @@ exports[`marginManager PTB snapshots > liquidate 1`] = `
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x1ebb295c789cc42b3b2a1606482cd1c7124076a0f5676718501fda8c7fd075a0",
+        "objectId": "0x867877562b5d8ac262d93b02062e04b428a2f9bfbb2f05b8af52e04cd98bd241",
       },
     },
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81",
+        "objectId": "0x17de8d80e8efedfd1053c46fb921e51824479ed32c6aded5f7279995bb84db05",
       },
     },
     {
@@ -4830,7 +4830,7 @@ exports[`marginManager PTB snapshots > managerState 1`] = `
           },
         ],
         "function": "manager_state",
-        "module": "margin_manager",
+        "module": "margin_manager_upgraded",
         "package": "0xce6ab6290458f597fc078793335f4b1d98479f29ebc02198ae960e9401d0c72f",
         "typeArguments": [
           "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
@@ -4855,13 +4855,13 @@ exports[`marginManager PTB snapshots > managerState 1`] = `
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x1ebb295c789cc42b3b2a1606482cd1c7124076a0f5676718501fda8c7fd075a0",
+        "objectId": "0x867877562b5d8ac262d93b02062e04b428a2f9bfbb2f05b8af52e04cd98bd241",
       },
     },
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81",
+        "objectId": "0x17de8d80e8efedfd1053c46fb921e51824479ed32c6aded5f7279995bb84db05",
       },
     },
     {
@@ -5726,7 +5726,7 @@ exports[`marginManager PTB snapshots > withdrawBase 1`] = `
           },
         ],
         "function": "withdraw",
-        "module": "margin_manager",
+        "module": "margin_manager_upgraded",
         "package": "0xce6ab6290458f597fc078793335f4b1d98479f29ebc02198ae960e9401d0c72f",
         "typeArguments": [
           "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
@@ -5764,13 +5764,13 @@ exports[`marginManager PTB snapshots > withdrawBase 1`] = `
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x1ebb295c789cc42b3b2a1606482cd1c7124076a0f5676718501fda8c7fd075a0",
+        "objectId": "0x867877562b5d8ac262d93b02062e04b428a2f9bfbb2f05b8af52e04cd98bd241",
       },
     },
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81",
+        "objectId": "0x17de8d80e8efedfd1053c46fb921e51824479ed32c6aded5f7279995bb84db05",
       },
     },
     {
@@ -5854,7 +5854,7 @@ exports[`marginManager PTB snapshots > withdrawDeep 1`] = `
           },
         ],
         "function": "withdraw",
-        "module": "margin_manager",
+        "module": "margin_manager_upgraded",
         "package": "0xce6ab6290458f597fc078793335f4b1d98479f29ebc02198ae960e9401d0c72f",
         "typeArguments": [
           "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
@@ -5892,13 +5892,13 @@ exports[`marginManager PTB snapshots > withdrawDeep 1`] = `
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x1ebb295c789cc42b3b2a1606482cd1c7124076a0f5676718501fda8c7fd075a0",
+        "objectId": "0x867877562b5d8ac262d93b02062e04b428a2f9bfbb2f05b8af52e04cd98bd241",
       },
     },
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81",
+        "objectId": "0x17de8d80e8efedfd1053c46fb921e51824479ed32c6aded5f7279995bb84db05",
       },
     },
     {
@@ -5982,7 +5982,7 @@ exports[`marginManager PTB snapshots > withdrawQuote 1`] = `
           },
         ],
         "function": "withdraw",
-        "module": "margin_manager",
+        "module": "margin_manager_upgraded",
         "package": "0xce6ab6290458f597fc078793335f4b1d98479f29ebc02198ae960e9401d0c72f",
         "typeArguments": [
           "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
@@ -6020,13 +6020,13 @@ exports[`marginManager PTB snapshots > withdrawQuote 1`] = `
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x1ebb295c789cc42b3b2a1606482cd1c7124076a0f5676718501fda8c7fd075a0",
+        "objectId": "0x867877562b5d8ac262d93b02062e04b428a2f9bfbb2f05b8af52e04cd98bd241",
       },
     },
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81",
+        "objectId": "0x17de8d80e8efedfd1053c46fb921e51824479ed32c6aded5f7279995bb84db05",
       },
     },
     {
@@ -7625,7 +7625,7 @@ exports[`marginTPSL PTB snapshots > addConditionalOrder 1`] = `
           },
         ],
         "function": "add_conditional_order",
-        "module": "margin_manager",
+        "module": "margin_manager_upgraded",
         "package": "0xce6ab6290458f597fc078793335f4b1d98479f29ebc02198ae960e9401d0c72f",
         "typeArguments": [
           "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
@@ -7692,13 +7692,13 @@ exports[`marginTPSL PTB snapshots > addConditionalOrder 1`] = `
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x1ebb295c789cc42b3b2a1606482cd1c7124076a0f5676718501fda8c7fd075a0",
+        "objectId": "0x867877562b5d8ac262d93b02062e04b428a2f9bfbb2f05b8af52e04cd98bd241",
       },
     },
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81",
+        "objectId": "0x17de8d80e8efedfd1053c46fb921e51824479ed32c6aded5f7279995bb84db05",
       },
     },
     {
@@ -7972,7 +7972,7 @@ exports[`marginTPSL PTB snapshots > executeConditionalOrders 1`] = `
           },
         ],
         "function": "execute_conditional_orders_v2",
-        "module": "margin_manager",
+        "module": "margin_manager_upgraded",
         "package": "0xce6ab6290458f597fc078793335f4b1d98479f29ebc02198ae960e9401d0c72f",
         "typeArguments": [
           "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
@@ -8009,13 +8009,13 @@ exports[`marginTPSL PTB snapshots > executeConditionalOrders 1`] = `
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x1ebb295c789cc42b3b2a1606482cd1c7124076a0f5676718501fda8c7fd075a0",
+        "objectId": "0x867877562b5d8ac262d93b02062e04b428a2f9bfbb2f05b8af52e04cd98bd241",
       },
     },
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81",
+        "objectId": "0x17de8d80e8efedfd1053c46fb921e51824479ed32c6aded5f7279995bb84db05",
       },
     },
     {
@@ -8099,7 +8099,7 @@ exports[`marginTPSL PTB snapshots > executeConditionalOrdersV3 1`] = `
           },
         ],
         "function": "execute_conditional_orders_v3",
-        "module": "margin_manager",
+        "module": "margin_manager_upgraded",
         "package": "0xce6ab6290458f597fc078793335f4b1d98479f29ebc02198ae960e9401d0c72f",
         "typeArguments": [
           "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
@@ -8136,13 +8136,13 @@ exports[`marginTPSL PTB snapshots > executeConditionalOrdersV3 1`] = `
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x1ebb295c789cc42b3b2a1606482cd1c7124076a0f5676718501fda8c7fd075a0",
+        "objectId": "0x867877562b5d8ac262d93b02062e04b428a2f9bfbb2f05b8af52e04cd98bd241",
       },
     },
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81",
+        "objectId": "0x17de8d80e8efedfd1053c46fb921e51824479ed32c6aded5f7279995bb84db05",
       },
     },
     {
@@ -8942,7 +8942,7 @@ exports[`poolProxy PTB snapshots > placeLimitOrder 1`] = `
           },
         ],
         "function": "place_limit_order_v2",
-        "module": "pool_proxy",
+        "module": "pool_proxy_upgraded",
         "package": "0xce6ab6290458f597fc078793335f4b1d98479f29ebc02198ae960e9401d0c72f",
         "typeArguments": [
           "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
@@ -8985,13 +8985,13 @@ exports[`poolProxy PTB snapshots > placeLimitOrder 1`] = `
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x1ebb295c789cc42b3b2a1606482cd1c7124076a0f5676718501fda8c7fd075a0",
+        "objectId": "0x867877562b5d8ac262d93b02062e04b428a2f9bfbb2f05b8af52e04cd98bd241",
       },
     },
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81",
+        "objectId": "0x17de8d80e8efedfd1053c46fb921e51824479ed32c6aded5f7279995bb84db05",
       },
     },
     {
@@ -9131,7 +9131,7 @@ exports[`poolProxy PTB snapshots > placeMarketOrder 1`] = `
           },
         ],
         "function": "place_market_order_v2",
-        "module": "pool_proxy",
+        "module": "pool_proxy_upgraded",
         "package": "0xce6ab6290458f597fc078793335f4b1d98479f29ebc02198ae960e9401d0c72f",
         "typeArguments": [
           "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
@@ -9174,13 +9174,13 @@ exports[`poolProxy PTB snapshots > placeMarketOrder 1`] = `
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x1ebb295c789cc42b3b2a1606482cd1c7124076a0f5676718501fda8c7fd075a0",
+        "objectId": "0x867877562b5d8ac262d93b02062e04b428a2f9bfbb2f05b8af52e04cd98bd241",
       },
     },
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81",
+        "objectId": "0x17de8d80e8efedfd1053c46fb921e51824479ed32c6aded5f7279995bb84db05",
       },
     },
     {
@@ -9302,7 +9302,7 @@ exports[`poolProxy PTB snapshots > placeMarketOrderAndRepayLoan 1`] = `
           },
         ],
         "function": "place_market_order_and_repay_loan",
-        "module": "pool_proxy",
+        "module": "pool_proxy_upgraded",
         "package": "0xce6ab6290458f597fc078793335f4b1d98479f29ebc02198ae960e9401d0c72f",
         "typeArguments": [
           "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
@@ -9345,13 +9345,13 @@ exports[`poolProxy PTB snapshots > placeMarketOrderAndRepayLoan 1`] = `
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x1ebb295c789cc42b3b2a1606482cd1c7124076a0f5676718501fda8c7fd075a0",
+        "objectId": "0x867877562b5d8ac262d93b02062e04b428a2f9bfbb2f05b8af52e04cd98bd241",
       },
     },
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81",
+        "objectId": "0x17de8d80e8efedfd1053c46fb921e51824479ed32c6aded5f7279995bb84db05",
       },
     },
     {
@@ -9488,7 +9488,7 @@ exports[`poolProxy PTB snapshots > placeReduceOnlyLimitOrder 1`] = `
           },
         ],
         "function": "place_reduce_only_limit_order_v2",
-        "module": "pool_proxy",
+        "module": "pool_proxy_upgraded",
         "package": "0xce6ab6290458f597fc078793335f4b1d98479f29ebc02198ae960e9401d0c72f",
         "typeArguments": [
           "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
@@ -9531,13 +9531,13 @@ exports[`poolProxy PTB snapshots > placeReduceOnlyLimitOrder 1`] = `
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x1ebb295c789cc42b3b2a1606482cd1c7124076a0f5676718501fda8c7fd075a0",
+        "objectId": "0x867877562b5d8ac262d93b02062e04b428a2f9bfbb2f05b8af52e04cd98bd241",
       },
     },
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81",
+        "objectId": "0x17de8d80e8efedfd1053c46fb921e51824479ed32c6aded5f7279995bb84db05",
       },
     },
     {
@@ -9692,7 +9692,7 @@ exports[`poolProxy PTB snapshots > placeReduceOnlyLimitOrderAndRepayLoan 1`] = `
           },
         ],
         "function": "place_reduce_only_limit_order_and_repay_loan",
-        "module": "pool_proxy",
+        "module": "pool_proxy_upgraded",
         "package": "0xce6ab6290458f597fc078793335f4b1d98479f29ebc02198ae960e9401d0c72f",
         "typeArguments": [
           "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
@@ -9735,13 +9735,13 @@ exports[`poolProxy PTB snapshots > placeReduceOnlyLimitOrderAndRepayLoan 1`] = `
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x1ebb295c789cc42b3b2a1606482cd1c7124076a0f5676718501fda8c7fd075a0",
+        "objectId": "0x867877562b5d8ac262d93b02062e04b428a2f9bfbb2f05b8af52e04cd98bd241",
       },
     },
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81",
+        "objectId": "0x17de8d80e8efedfd1053c46fb921e51824479ed32c6aded5f7279995bb84db05",
       },
     },
     {
@@ -9881,7 +9881,7 @@ exports[`poolProxy PTB snapshots > placeReduceOnlyMarketOrder 1`] = `
           },
         ],
         "function": "place_reduce_only_market_order_v2",
-        "module": "pool_proxy",
+        "module": "pool_proxy_upgraded",
         "package": "0xce6ab6290458f597fc078793335f4b1d98479f29ebc02198ae960e9401d0c72f",
         "typeArguments": [
           "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
@@ -9924,13 +9924,13 @@ exports[`poolProxy PTB snapshots > placeReduceOnlyMarketOrder 1`] = `
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x1ebb295c789cc42b3b2a1606482cd1c7124076a0f5676718501fda8c7fd075a0",
+        "objectId": "0x867877562b5d8ac262d93b02062e04b428a2f9bfbb2f05b8af52e04cd98bd241",
       },
     },
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81",
+        "objectId": "0x17de8d80e8efedfd1053c46fb921e51824479ed32c6aded5f7279995bb84db05",
       },
     },
     {
@@ -10052,7 +10052,7 @@ exports[`poolProxy PTB snapshots > placeReduceOnlyMarketOrderAndRepayLoan 1`] = 
           },
         ],
         "function": "place_reduce_only_market_order_and_repay_loan",
-        "module": "pool_proxy",
+        "module": "pool_proxy_upgraded",
         "package": "0xce6ab6290458f597fc078793335f4b1d98479f29ebc02198ae960e9401d0c72f",
         "typeArguments": [
           "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
@@ -10095,13 +10095,13 @@ exports[`poolProxy PTB snapshots > placeReduceOnlyMarketOrderAndRepayLoan 1`] = 
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x1ebb295c789cc42b3b2a1606482cd1c7124076a0f5676718501fda8c7fd075a0",
+        "objectId": "0x867877562b5d8ac262d93b02062e04b428a2f9bfbb2f05b8af52e04cd98bd241",
       },
     },
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81",
+        "objectId": "0x17de8d80e8efedfd1053c46fb921e51824479ed32c6aded5f7279995bb84db05",
       },
     },
     {
@@ -10395,7 +10395,7 @@ exports[`poolProxy PTB snapshots > updateCurrentPrice 1`] = `
           },
         ],
         "function": "update_current_price",
-        "module": "pool_proxy",
+        "module": "pool_proxy_upgraded",
         "package": "0xce6ab6290458f597fc078793335f4b1d98479f29ebc02198ae960e9401d0c72f",
         "typeArguments": [
           "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
@@ -10420,13 +10420,13 @@ exports[`poolProxy PTB snapshots > updateCurrentPrice 1`] = `
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x1ebb295c789cc42b3b2a1606482cd1c7124076a0f5676718501fda8c7fd075a0",
+        "objectId": "0x867877562b5d8ac262d93b02062e04b428a2f9bfbb2f05b8af52e04cd98bd241",
       },
     },
     {
       "$kind": "UnresolvedObject",
       "UnresolvedObject": {
-        "objectId": "0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81",
+        "objectId": "0x17de8d80e8efedfd1053c46fb921e51824479ed32c6aded5f7279995bb84db05",
       },
     },
     {

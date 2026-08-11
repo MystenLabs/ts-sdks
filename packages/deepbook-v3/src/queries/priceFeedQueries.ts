@@ -6,6 +6,7 @@ import type { Transaction } from '@mysten/sui/transactions';
 import { PriceInfoObject } from '../contracts/pyth/price_info.js';
 import { SuiPriceServiceConnection, SuiPythClient } from '../pyth/pyth.js';
 import { PRICE_INFO_OBJECT_MAX_AGE_MS } from '../utils/config.js';
+import { DEEPBOOK_HERMES_PROXY, PYTH_UPGRADED_HERMES } from '../utils/constants.js';
 import { ConfigurationError } from '../utils/errors.js';
 import type { QueryContext } from './context.js';
 
@@ -17,20 +18,30 @@ export class PriceFeedQueries {
 	}
 
 	/**
-	 * The Hermes endpoint serving the Pyth deployment margin is configured against. The
-	 * upgraded deployment is served by a different Hermes than legacy Core, so it must be
-	 * set explicitly on the `pythUpgraded` config — there is no network-derived default
-	 * for it.
+	 * The Hermes endpoint serving the Pyth deployment margin is configured against.
+	 *
+	 * In `'upgraded'` mode there are two routes, chosen by whether the caller brought
+	 * credentials. With `hermesHeaders` set, the SDK talks to Pyth directly and no DeepBook
+	 * infrastructure is in the path. Without them it falls back to the DeepBook-operated
+	 * proxy, which supplies credentials server-side — Pyth's own endpoint answers 401
+	 * unauthenticated, so the alternative is no price updates at all for consumers without
+	 * a Pyth plan. An explicit `hermesEndpoint` overrides both.
 	 */
 	#hermesEndpoint(): string {
-		const configured = this.#ctx.config.activePyth.hermesEndpoint;
-		if (configured) {
-			return configured;
+		const { hermesEndpoint, hermesHeaders } = this.#ctx.config.activePyth;
+		if (hermesEndpoint) {
+			return hermesEndpoint;
 		}
 
 		if (this.#ctx.config.usesUpgradedPyth) {
+			if (hermesHeaders) {
+				return PYTH_UPGRADED_HERMES;
+			}
+			if (DEEPBOOK_HERMES_PROXY) {
+				return DEEPBOOK_HERMES_PROXY;
+			}
 			throw new ConfigurationError(
-				"No hermesEndpoint configured for Pyth's upgraded Core. Set 'pythUpgraded.hermesEndpoint' to the endpoint serving the upgraded deployment before pushing price updates.",
+				"Pushing price updates against Pyth's upgraded Core needs credentials: its Hermes answers 401 unauthenticated. Set 'pythUpgraded.hermesHeaders' to { Authorization: `Bearer <pyth-token>` }, or set 'pythUpgraded.hermesEndpoint' to an endpoint that supplies them.",
 			);
 		}
 
@@ -65,7 +76,7 @@ export class PriceFeedQueries {
 
 		const connection = this.#connection();
 
-		const priceIDs = [this.#ctx.config.getCoin(coinKey).feed!];
+		const priceIDs = [this.#ctx.config.getFeedId(coinKey)];
 
 		const priceUpdateData = await connection.getPriceFeedsUpdateData(priceIDs);
 
@@ -124,12 +135,20 @@ export class PriceFeedQueries {
 			return result;
 		}
 
+		// Distinct coins can share a feed — testnet DBTC prices off the generic BTC/USD feed,
+		// and a caller-supplied coin map may add more. Deduplicate before building the update:
+		// a feed listed twice would emit two `update_single_price_feed` calls against the same
+		// object off one hot-potato vector, and pay two update fees for it. One feed can also
+		// map to several coins, so the reverse index holds a list, not a single key.
 		const staleFeedIds: string[] = [];
-		const feedIdToCoinKey: Record<string, string> = {};
+		const feedIdToCoinKeys: Record<string, string[]> = {};
 		for (const coinKey of staleCoinKeys) {
-			const feedId = this.#ctx.config.getCoin(coinKey).feed!;
-			staleFeedIds.push(feedId);
-			feedIdToCoinKey[feedId] = coinKey;
+			const feedId = this.#ctx.config.getFeedId(coinKey);
+			if (!feedIdToCoinKeys[feedId]) {
+				feedIdToCoinKeys[feedId] = [];
+				staleFeedIds.push(feedId);
+			}
+			feedIdToCoinKeys[feedId].push(coinKey);
 		}
 
 		const connection = this.#connection();
@@ -142,8 +161,9 @@ export class PriceFeedQueries {
 		const updatedObjectIds = await pythClient.updatePriceFeeds(tx, priceUpdateData, staleFeedIds);
 
 		for (let i = 0; i < staleFeedIds.length; i++) {
-			const coinKey = feedIdToCoinKey[staleFeedIds[i]];
-			result[coinKey] = updatedObjectIds[i];
+			for (const coinKey of feedIdToCoinKeys[staleFeedIds[i]]) {
+				result[coinKey] = updatedObjectIds[i];
+			}
 		}
 
 		return result;

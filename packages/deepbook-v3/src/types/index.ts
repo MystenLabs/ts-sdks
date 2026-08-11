@@ -24,9 +24,9 @@ export interface Coin {
 	currencyId?: string;
 	priceInfoObjectId?: string;
 	/**
-	 * The `PriceInfoObject` for the same feed under Pyth's upgraded Core. Pyth replaced
-	 * Core with a separately published package rather than upgrading it in place, so the
-	 * per-feed object ids differ from `priceInfoObjectId` even though the feed id does not.
+	 * The `PriceInfoObject` for this coin under Pyth's upgraded Core. Pyth replaced Core
+	 * with a separately published package rather than upgrading it in place, so the
+	 * per-feed object ids differ from `priceInfoObjectId`.
 	 * Read by margin calls when `marginPyth` is `'upgraded'`.
 	 */
 	priceInfoObjectIdUpgraded?: string;

@@ -11,6 +11,7 @@ import axios from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PriceServiceConnection } from '../../../src/pyth/PriceServiceConnection.js';
+import { DEEPBOOK_HERMES_PROXY, PYTH_UPGRADED_HERMES } from '../../../src/utils/constants.js';
 
 const FEED = 'e62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43';
 const UPDATE = 'UE5BVQEAAAAD';
@@ -68,6 +69,20 @@ describe('PriceServiceConnection', () => {
 		get.mockResolvedValue({ data: { binary: { data: [UPDATE] } } });
 
 		expect(await connection().getLatestVaas([FEED, second])).toHaveLength(1);
+	});
+
+	// Regression: DEEPBOOK_HERMES_PROXY briefly shipped as a literal placeholder host, which
+	// made the default testnet path throw `TypeError: Invalid URL` from inside axios —
+	// naming neither Hermes, nor the config field, nor the coin. Whatever the constant holds,
+	// it must be a resolvable URL or absent, never a placeholder.
+	it('the shipped proxy constant is a parseable URL or undefined', () => {
+		if (DEEPBOOK_HERMES_PROXY !== undefined) {
+			expect(() => new URL(DEEPBOOK_HERMES_PROXY)).not.toThrow();
+		}
+	});
+
+	it('the shipped upgraded Hermes constant is a parseable URL', () => {
+		expect(() => new URL(PYTH_UPGRADED_HERMES)).not.toThrow();
 	});
 
 	it('throws a diagnosable error when the response is not v2-shaped', async () => {
