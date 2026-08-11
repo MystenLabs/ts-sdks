@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
-import { TESTNET_CONFIG as cfg } from '../src/config/index.js';
+import { toGeneratedConfig } from '../src/config/generated.js';
+import { TESTNET_CONFIG } from '../src/config/index.js';
 import { Pricer } from '../src/contracts/deepbook_predict/pricing.js';
 import type { ReadClient } from '../src/reads/inspect.js';
 import { readPricerSnapshot } from '../src/reads/pricing.js';
@@ -22,6 +23,7 @@ function clientReturning(bytes: Uint8Array): ReadClient {
 	} as unknown as ReadClient;
 }
 
+const config = toGeneratedConfig(TESTNET_CONFIG);
 const FEEDS = { pythFeed: '0x1', blockScholesValueStore: '0x2', blockScholesSviStore: '0x3' };
 const MARKET = '0x' + 'ab'.repeat(32);
 
@@ -31,7 +33,7 @@ const E18 = 1_000_000_000_000_000_000n;
 async function decode(pricer: Parameters<typeof Pricer.serialize>[0]) {
 	return readPricerSnapshot(
 		clientReturning(Pricer.serialize(pricer).toBytes()),
-		cfg,
+		config,
 		MARKET,
 		FEEDS,
 	);

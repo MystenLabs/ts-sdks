@@ -15,6 +15,7 @@ import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { Transaction } from '@mysten/sui/transactions';
 import { describe, expect, test } from 'vitest';
 import { PredictClient, PredictMoveError, TESTNET_CONFIG } from '../../src/index.js';
+import { toGeneratedConfig } from '../../src/config/generated.js';
 // The trade builders are internal to the facade; the arity guard drives them directly.
 import { mintExactQuantity, redeemLive } from '../../src/tx/trade.js';
 // Pricer-free registry read, to assert the (underlying, expiry) → id mapping even when
@@ -32,6 +33,7 @@ const TESTNET_GRPC_URL = 'https://fullnode.testnet.sui.io:443';
 const SMOKE_SENDER = '0x51de1e01c51dc51dc51dc51dc51dc51dc51dc51dc51dc51dc51dc51dc51dc51d';
 
 const cfg = TESTNET_CONFIG;
+const config = toGeneratedConfig(cfg);
 const client = new SuiGrpcClient({ network: 'testnet', baseUrl: TESTNET_GRPC_URL });
 const predict = new PredictClient({ network: 'testnet', client });
 
@@ -157,7 +159,7 @@ describe('testnet smoke (live deployment)', () => {
 		// BTC is the only registered underlying on testnet, so the registry must map
 		// (BTC, this expiry) back to this exact market object. This resolution is
 		// pricer-free, so it holds regardless of oracle liveness.
-		expect(await expiryMarketId(client, cfg, 'BTC', m.expiryMs)).toBe(m.id);
+		expect(await expiryMarketId(client, config, cfg.underlyings.BTC, m.expiryMs)).toBe(m.id);
 		// The full facade summary additionally computes NAV via the live pricer; assert
 		// it when the oracle is fresh, tolerate a stale-oracle abort otherwise.
 		try {
@@ -175,7 +177,7 @@ describe('testnet smoke (live deployment)', () => {
 		const id = liveMarkets[0].id;
 		const { tx, wrapper } = freshWrapperTx();
 		tx.add(
-			mintExactQuantity(cfg, {
+			mintExactQuantity(config, {
 				expiryMarketId: id,
 				wrapperId: wrapper,
 				// tick 1_000 is deep in the finite domain for any sane tick size
@@ -194,7 +196,7 @@ describe('testnet smoke (live deployment)', () => {
 		if (liveMarkets.length === 0) return;
 		const { tx, wrapper } = freshWrapperTx();
 		tx.add(
-			redeemLive(cfg, {
+			redeemLive(config, {
 				expiryMarketId: liveMarkets[0].id,
 				wrapperId: wrapper,
 				orderId: 1n, // no such order for a fresh account — semantic abort expected

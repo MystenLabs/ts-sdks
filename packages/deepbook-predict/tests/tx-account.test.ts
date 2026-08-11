@@ -1,7 +1,8 @@
 import { Transaction } from '@mysten/sui/transactions';
 import { expect, test } from 'vitest';
+import { toGeneratedConfig } from '../src/config/generated.js';
 import { TESTNET_CONFIG as cfg } from '../src/config/index.js';
-import { createAccount, depositFunds, withdrawFunds } from '../src/tx/account.js';
+import { createAccount } from '../src/tx/account.js';
 import { deriveAccountWrapperId } from '../src/tx/common.js';
 
 function targets(tx: Transaction): string[] {
@@ -16,38 +17,11 @@ function targets(tx: Transaction): string[] {
 
 test('createAccount = registry.new → share', () => {
 	const tx = new Transaction();
-	tx.add(createAccount(cfg));
+	tx.add(createAccount(toGeneratedConfig(cfg)));
 	expect(targets(tx)).toEqual([
 		`${cfg.packages.account}::account_registry::new`,
 		`${cfg.packages.account}::account::share`,
 	]);
-});
-
-test('depositFunds: auth then deposit_funds<DUSDC>', () => {
-	const tx = new Transaction();
-	const coin = tx.object('0xc0');
-	tx.add(depositFunds(cfg, { wrapperId: '0x123', coin }));
-	const t = targets(tx);
-	expect(t[0]).toBe(`${cfg.packages.account}::account::generate_auth`);
-	expect(t[1]).toBe(`${cfg.packages.account}::account::deposit_funds`);
-	expect(tx.getData().commands[1].MoveCall!.typeArguments).toEqual([cfg.quoteCoinType]);
-});
-
-test('depositFunds honors coinType override', () => {
-	const tx = new Transaction();
-	const coin = tx.object('0xc0');
-	tx.add(depositFunds(cfg, { wrapperId: '0x123', coin, coinType: '0x2::sui::SUI' }));
-	expect(tx.getData().commands[1].MoveCall!.typeArguments).toEqual(['0x2::sui::SUI']);
-});
-
-test('withdrawFunds: auth then withdraw_funds<DUSDC> with amount', () => {
-	const tx = new Transaction();
-	tx.add(withdrawFunds(cfg, { wrapperId: '0x123', amountRaw: 5_000_000n }));
-	const t = targets(tx);
-	expect(t[0]).toBe(`${cfg.packages.account}::account::generate_auth`);
-	expect(t[1]).toBe(`${cfg.packages.account}::account::withdraw_funds`);
-	const call = tx.getData().commands[1].MoveCall!;
-	expect(call.typeArguments).toEqual([cfg.quoteCoinType]);
 });
 
 test('wrapper id derivation is deterministic', () => {

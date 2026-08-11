@@ -8,7 +8,9 @@ import * as orderEvents from '../src/contracts/deepbook_predict/order_events.js'
 import { PredictInputError } from '../src/errors.js';
 import type { ReadClient } from '../src/reads/inspect.js';
 import { POS_INF_TICK } from '../src/ticks.js';
-import { depositFunds } from '../src/tx/account.js';
+import { toGeneratedConfig } from '../src/config/generated.js';
+import * as account from '../src/contracts/account/account.js';
+import { generateAuth } from '../src/tx/common.js';
 
 const OWNER = '0x' + 'ab'.repeat(32);
 const MARKET_ID = '0x' + 'cd'.repeat(32);
@@ -199,6 +201,12 @@ describe('tx.deposit / tx.withdraw', () => {
 			.commands.some((c) => '$Intent' in c && c.$Intent?.name === 'CoinWithBalance');
 		expect(hasIntent).toBe(true);
 		expect(targets(tx)).toContain(`${cfg.packages.account}::account::deposit_funds`);
+		// auth is minted immediately before the deposit that consumes it, and the
+		// deposit is typed to the quote coin
+		const t = targets(tx);
+		expect(t[t.length - 2]).toBe(`${cfg.packages.account}::account::generate_auth`);
+		const deposit = tx.getData().commands.at(-1)!;
+		expect('MoveCall' in deposit && deposit.MoveCall!.typeArguments).toEqual([cfg.quoteCoinType]);
 	});
 
 	const sendFundsCmd = (tx: Transaction) =>
@@ -212,7 +220,13 @@ describe('tx.deposit / tx.withdraw', () => {
 	test('withdraw defaults to depositing into the owner address balance (coin::send_funds)', () => {
 		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
 		const tx = pc.tx.withdraw(OWNER, '5');
-		expect(targets(tx)).toContain(`${cfg.packages.account}::account::withdraw_funds`);
+		// auth → withdraw_funds<DUSDC>, amount converted to raw in the u64 slot
+		expect(targets(tx).slice(0, 2)).toEqual([
+			`${cfg.packages.account}::account::generate_auth`,
+			`${cfg.packages.account}::account::withdraw_funds`,
+		]);
+		expect(call(tx, 1).typeArguments).toEqual([cfg.quoteCoinType]);
+		expect(argPureBytes(tx, 1, 2)).toBe(b64(5_000_000n));
 		// send_funds<DUSDC> deposits the withdrawn coin into the owner's address balance
 		const sf = sendFundsCmd(tx);
 		expect(sf).toBeDefined();
@@ -252,7 +266,15 @@ describe('tx.deposit / tx.withdraw', () => {
 		const coin = expected.add(
 			coinWithBalance({ type: cfg.quoteCoinType, balance: 100_000_000n, useGasCoin: false }),
 		);
-		expected.add(depositFunds(cfg, { wrapperId: pc.wrapperIdFor(OWNER), coin }));
+		const config = toGeneratedConfig(cfg);
+		const auth = expected.add(generateAuth(cfg));
+		expected.add(
+			account.depositFunds({
+				config,
+				arguments: { wrapper: pc.wrapperIdFor(OWNER), auth, coin },
+				typeArguments: [cfg.quoteCoinType],
+			}),
+		);
 		const json = (v: unknown) =>
 			JSON.stringify(v, (_k, x) => (typeof x === 'bigint' ? `${x}n` : x));
 		expect(json(tx.getData())).toBe(json(expected.getData()));
@@ -341,6 +363,24 @@ describe('tx.mint (market resolution + unit conversion)', () => {
 				{ quantity: 50 },
 			),
 		).rejects.toBeInstanceOf(PredictInputError);
+	});
+
+	test('unknown underlying → PredictInputError on the paths with no feed lookup', async () => {
+		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
+		// claimSettled resolves a market without ever asking for oracle feeds, so this
+		// pins the lookup the market-id ladder itself performs.
+		await expect(
+			pc.tx.claimSettled(
+				OWNER,
+				{ underlying: 'DOGE', expiryMs: EXPIRY },
+				{ orderId: 1n, quantity: 1 },
+			),
+		).rejects.toBeInstanceOf(PredictInputError);
+	});
+
+	test('read.market: unknown underlying → PredictInputError', async () => {
+		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
+		await expect(pc.read.market({ underlying: 'DOGE', expiryMs: EXPIRY })).rejects.toThrow(/DOGE/);
 	});
 
 	test('sub-lot quantity throws /lot/', async () => {

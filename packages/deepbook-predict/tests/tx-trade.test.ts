@@ -2,6 +2,7 @@ import { bcs } from '@mysten/sui/bcs';
 import { Transaction } from '@mysten/sui/transactions';
 import { normalizeSuiObjectId } from '@mysten/sui/utils';
 import { expect, test } from 'vitest';
+import { toGeneratedConfig } from '../src/config/generated.js';
 import { TESTNET_CONFIG as cfg } from '../src/config/index.js';
 import { U64_MAX } from '../src/units.js';
 import {
@@ -12,6 +13,7 @@ import {
 	redeemSettled,
 } from '../src/tx/trade.js';
 
+const config = toGeneratedConfig(cfg);
 const btc = cfg.underlyings.BTC;
 // The live-pricer feed bundle, keyed as the migrated `MarketFeeds` builder expects
 // (see src/config/testnet.ts): one Pyth feed plus the two Block-Scholes stores.
@@ -71,7 +73,7 @@ const U64_MAX_B64 = u64B64(U64_MAX);
 
 test('loadLivePricer: 6 feed args + auto clock = 7, oracleRegistry as propbook_registry', () => {
 	const tx = new Transaction();
-	tx.add(loadLivePricer(cfg, { expiryMarketId: '0xabc', ...feeds }));
+	tx.add(loadLivePricer(config, { expiryMarketId: '0xabc', ...feeds }));
 	expect(targets(tx)).toEqual([`${cfg.packages.predict}::expiry_market::load_live_pricer`]);
 	// deployed sig: (market, config, propbook_registry, pyth, bs_values, bs_svi, clock)
 	// → 6 passed args + auto-injected clock = 7 moveCall args (all objects, no pure/Result)
@@ -91,7 +93,7 @@ test('loadLivePricer: 6 feed args + auto clock = 7, oracleRegistry as propbook_r
 test('mintExactQuantity: pricer → auth → mint, 13 args', () => {
 	const tx = new Transaction();
 	tx.add(
-		mintExactQuantity(cfg, {
+		mintExactQuantity(config, {
 			expiryMarketId: '0xabc',
 			wrapperId: '0xdef',
 			lowerTick: 10n,
@@ -120,7 +122,7 @@ test('mintExactQuantity: pricer → auth → mint, 13 args', () => {
 test('mintExactQuantity: explicit maxCost/maxProbability override defaults', () => {
 	const tx = new Transaction();
 	tx.add(
-		mintExactQuantity(cfg, {
+		mintExactQuantity(config, {
 			expiryMarketId: '0xabc',
 			wrapperId: '0xdef',
 			lowerTick: 10n,
@@ -140,7 +142,7 @@ test('mintExactQuantity: explicit maxCost/maxProbability override defaults', () 
 test('mintExactAmount: pricer → auth → mint, 13 args, budget/min-quantity slots', () => {
 	const tx = new Transaction();
 	tx.add(
-		mintExactAmount(cfg, {
+		mintExactAmount(config, {
 			expiryMarketId: '0xabc',
 			wrapperId: '0xdef',
 			lowerTick: 10n,
@@ -173,7 +175,7 @@ test('mintExactAmount: pricer → auth → mint, 13 args, budget/min-quantity sl
 test('redeemLive: pricer → auth → redeem, 11 args, min-probability/min-proceeds floors', () => {
 	const tx = new Transaction();
 	tx.add(
-		redeemLive(cfg, {
+		redeemLive(config, {
 			expiryMarketId: '0xabc',
 			wrapperId: '0xdef',
 			orderId: 42n,
@@ -205,7 +207,7 @@ test('redeemLive: pricer → auth → redeem, 11 args, min-probability/min-proce
 test('redeemLive: explicit min-probability/min-proceeds override the 0 defaults', () => {
 	const tx = new Transaction();
 	tx.add(
-		redeemLive(cfg, {
+		redeemLive(config, {
 			expiryMarketId: '0xabc',
 			wrapperId: '0xdef',
 			orderId: 42n,
@@ -222,7 +224,7 @@ test('redeemLive: explicit min-probability/min-proceeds override the 0 defaults'
 test('redeemSettled: auth → redeem_settled, 8 args, owner-auth hot potato', () => {
 	const tx = new Transaction();
 	tx.add(
-		redeemSettled(cfg, {
+		redeemSettled(config, {
 			expiryMarketId: '0xabc',
 			wrapperId: '0xdef',
 			orderId: 42n,
