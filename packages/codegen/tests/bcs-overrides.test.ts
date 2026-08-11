@@ -78,25 +78,25 @@ describe('bcsOverrides config schema', () => {
 });
 
 describe('parseBcsOverrides', () => {
-	it('treats a pure type without a fields pattern as every field site', () => {
+	it('treats a pure type without a fields pattern as every use site', () => {
 		const { entries } = parse([{ type: 'u64', source: './bcs-fixtures/units.ts#ScaledU64' }]);
 		expect(entries).toHaveLength(1);
-		expect(entries[0].kind).toBe('field');
+		expect(entries[0].kind).toBe('use');
 		expect(entries[0]).toMatchObject({ specificity: 0 });
 		expect(() =>
 			parse([{ type: 'vector<u64>', source: './bcs-fixtures/units.ts#ScaledU64' }]),
 		).not.toThrow();
 	});
 
-	it('rejects instantiated declaration replacements', async () => {
+	it('replaces one instantiation of a generic at its use sites', async () => {
+		// A declaration can only be replaced wholesale, so naming an instantiation targets uses.
 		const { moduleRegistry } = await createBuilders([]);
-		expect(() =>
-			parseBcsOverrides(
-				[{ type: 'registry::Result<u64>', source: './bcs-fixtures/units.ts#CustomResult' }],
-				moduleRegistry,
-				TESTPKG_CONTEXT,
-			),
-		).toThrow(/write the type without type arguments/);
+		const { entries } = parseBcsOverrides(
+			[{ type: 'registry::Result<u64>', source: './bcs-fixtures/units.ts#CustomResult' }],
+			moduleRegistry,
+			TESTPKG_CONTEXT,
+		);
+		expect(entries[0].kind).toBe('use');
 	});
 
 	it('errors for declaration replacements of unknown types', async () => {
@@ -158,8 +158,21 @@ describe('parseBcsOverrides', () => {
 		).toThrow(/Known named-address labels: std, sui, testpkg/);
 	});
 
-	it('routes BCS-inlined types to field sites rather than a declaration', async () => {
+	it('routes BCS-inlined types to use sites rather than a declaration', async () => {
 		const { moduleRegistry } = await createBuilders([]);
+		// A real run loads every module in the summary directory, including the stdlib ones these
+		// types live in.
+		for (const [pkg, mod] of [
+			['std', 'string'],
+			['std', 'option'],
+			['sui', 'object'],
+		]) {
+			await MoveModuleBuilder.fromSummaryFile(
+				join(SUMMARIES_DIR, pkg, `${mod}.json`),
+				moduleRegistry,
+			);
+		}
+
 		// These are serialized inline (`bcs.string()` / `bcs.option(...)` / `bcs.Address`) rather
 		// than by reference, so there is no declaration to replace.
 		for (const type of ['0x1::string::String', '0x1::option::Option', '0x2::object::ID']) {
@@ -168,8 +181,19 @@ describe('parseBcsOverrides', () => {
 				moduleRegistry,
 				TESTPKG_CONTEXT,
 			);
-			expect(entries[0].kind, `${type} should become a field override`).toBe('field');
+			expect(entries[0].kind, `${type} should become a use override`).toBe('use');
 		}
+	});
+
+	it('errors when a datatype entry names a type that does not exist', async () => {
+		const { moduleRegistry } = await createBuilders([]);
+		expect(() =>
+			parseBcsOverrides(
+				[{ type: 'registry::Nope', fields: 'registry::Registry.count', source: './u.ts#X' }],
+				moduleRegistry,
+				TESTPKG_CONTEXT,
+			),
+		).toThrow(/was not found in this package's summaries/);
 	});
 
 	it('derives the default export name from an instantiated field type', async () => {
@@ -220,6 +244,36 @@ describe('rendering with bcsOverrides', () => {
 		// Other val_u* fields have different Move types and keep their generated schemas.
 		expect(output).toMatch(/val_u8:\s*bcs\.u8\(\)/);
 		expect(output).toMatch(/val_u128:\s*bcs\.u128\(\)/);
+	});
+
+	it('reaches types nested inside vector and option', async () => {
+		// The whole point of resolving at the type level: the renderer recurses, so an override on
+		// `u64` applies to the `u64` inside `vector<u64>` and `Option<u64>` with no extra matching.
+		const { counter } = await createBuilders([
+			{ type: 'u64', source: './bcs-fixtures/units.ts#ScaledU64' },
+		]);
+		counter.includeTypes(['Composites', 'Primitives']);
+		const output = await render(counter);
+
+		expect(output).toMatch(/val_u64:\s*ScaledU64/);
+		expect(output).toMatch(/val_vector_u64:\s*bcs\.vector\(ScaledU64\)/);
+		expect(output).toMatch(/val_option_u64:\s*bcs\.option\(ScaledU64\)/);
+		// Other widths are untouched.
+		expect(output).toMatch(/val_u128:\s*bcs\.u128\(\)/);
+		expect(output).toMatch(/val_vector_u8:\s*bcs\.vector\(bcs\.u8\(\)\)/);
+	});
+
+	it('prefers a whole-type override over its element type', async () => {
+		const { counter } = await createBuilders([
+			{ type: 'u64', source: './bcs-fixtures/units.ts#ScaledU64' },
+			{ type: 'vector<u64>', source: './bcs-fixtures/units.ts#ScaledU64Vector' },
+		]);
+		counter.includeTypes(['Composites']);
+		const output = await render(counter);
+
+		// `vector<u64>` matches the outer type first, so the element override never applies there.
+		expect(output).toMatch(/val_vector_u64:\s*ScaledU64Vector/);
+		expect(output).toMatch(/val_option_u64:\s*bcs\.option\(ScaledU64\)/);
 	});
 
 	it('replaces vector-typed fields with an exact type match', async () => {

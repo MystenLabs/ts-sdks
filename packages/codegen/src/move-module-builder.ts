@@ -22,8 +22,8 @@ import type {
 	ParsedConfigArgument,
 	TypeConfigArgument,
 } from './config-arguments.js';
-import { findBcsFieldOverride, findBcsTypeOverride } from './bcs-overrides.js';
-import type { FieldBcsOverride, ParsedBcsOverride, TypeBcsOverride } from './bcs-overrides.js';
+import { findBcsDeclarationOverride, findBcsUseOverride } from './bcs-overrides.js';
+import type { BcsRenderSite, DeclarationBcsOverride, ParsedBcsOverride } from './bcs-overrides.js';
 import {
 	camelCase,
 	capitalize,
@@ -206,7 +206,8 @@ export class MoveModuleBuilder extends FileBuilder {
 
 	/**
 	 * Configure parsed `bcsOverrides` entries for this module. Must be called before types are
-	 * included, because overridden types and fields skip dependency inclusion.
+	 * included: an overridden type short-circuits rendering, and the dependency walk uses the same
+	 * renderer, so its dependencies are correctly left out of the inclusion graph.
 	 */
 	setBcsOverrides(entries: ParsedBcsOverride[]) {
 		this.#bcsOverrides = entries;
@@ -217,32 +218,46 @@ export class MoveModuleBuilder extends FileBuilder {
 		return normalizeAddress(this.#resolveAddress(this.summary.id.address));
 	}
 
-	#typeOverrideFor(name: string): TypeBcsOverride | null {
-		const override = findBcsTypeOverride(
+	#declarationOverrideFor(name: string): DeclarationBcsOverride | null {
+		return findBcsDeclarationOverride(
 			this.#bcsOverrides,
 			this.#resolvedOwnAddress(),
 			this.summary.id.name,
 			name,
 		);
-		return override;
 	}
 
-	#fieldOverrideFor(
-		datatypeName: string,
-		fieldName: string,
-		fieldType: Type,
-		variantName?: string,
-	): FieldBcsOverride | null {
-		const override = findBcsFieldOverride(this.#bcsOverrides, {
+	/**
+	 * The `resolveBcsOverride` hook handed to the type renderer. `site` is the field being rendered,
+	 * used only to scope `fields`-narrowed entries; the lookup itself is keyed on the type, so the
+	 * renderer's own recursion applies overrides at any depth.
+	 */
+	#bcsOverrideResolver(site: BcsRenderSite | null, { emitImport = true } = {}) {
+		if (this.#bcsOverrides.length === 0) {
+			return undefined;
+		}
+		return (type: Type): string | undefined => {
+			const override = findBcsUseOverride(
+				this.#bcsOverrides,
+				type,
+				(address) => this.#resolveAddress(address),
+				site,
+			);
+			if (!override) return undefined;
+			// The dependency walk discards the rendered string and only needs the short-circuit;
+			// importing there would add bindings for types that may never be emitted.
+			return emitImport ? this.#bcsOverrideImport(override) : override.source.exportName;
+		};
+	}
+
+	#renderSite(datatypeName: string, fieldName: string, variantName?: string): BcsRenderSite {
+		return {
 			moduleAddress: this.#resolvedOwnAddress(),
 			moduleName: this.summary.id.name,
 			datatypeName,
 			fieldName,
 			variantName,
-			fieldType,
-			resolveAddress: (address) => this.#resolveAddress(address),
-		});
-		return override;
+		};
 	}
 
 	/**
@@ -251,7 +266,7 @@ export class MoveModuleBuilder extends FileBuilder {
 	 * rest of the generated imports (a `./src/bcs/units.ts` source is imported as `units.js` by
 	 * default).
 	 */
-	#bcsOverrideImport(override: TypeBcsOverride | FieldBcsOverride): string {
+	#bcsOverrideImport(override: { source: { module: string; exportName: string } }): string {
 		const { module } = override.source;
 		return this.addImport(
 			isAbsolute(module) ? module.replace(/\.[cm]?ts$/, this.#importExtension) : module,
@@ -405,29 +420,30 @@ export class MoveModuleBuilder extends FileBuilder {
 			);
 		}
 
-		// A replaced declaration renders as a re-export of the custom type, so its field
-		// dependencies are never referenced. Overridden field sites likewise skip their field's
-		// dependencies — the custom import replaces the whole expression.
-		if (this.#typeOverrideFor(name)) {
+		// A replaced declaration re-exports the custom type, so none of its fields are rendered.
+		if (this.#declarationOverrideFor(name)) {
 			this.#orderedTypes.push(name);
 			return;
 		}
 
+		// Walking dependencies through the same renderer means an overridden type short-circuits
+		// here exactly as it will when emitted, so its dependencies stay out of the graph.
 		const includeFromField = (
 			fieldName: string,
 			field: { type_: Type },
 			typeParameters: TypeParameter[],
 			variantName?: string,
 		) => {
-			if (this.#fieldOverrideFor(name, fieldName, field.type_, variantName)) {
-				return;
-			}
 			renderTypeSignature(field.type_, {
 				format: 'bcs',
 				summary: this.summary,
 				typeParameters,
 				includePhantomTypeParameters: false,
 				registry: this.registry,
+				resolveBcsOverride: this.#bcsOverrideResolver(
+					this.#renderSite(name, fieldName, variantName),
+					{ emitImport: false },
+				),
 				onDependency: (address, mod, depName) => {
 					const builder = this.registry.getBuilder(address, mod);
 					if (!builder) {
@@ -473,7 +489,7 @@ export class MoveModuleBuilder extends FileBuilder {
 		const needsModuleName =
 			this.hasBcsTypes() &&
 			this.#orderedTypes.some(
-				(name) => this.#getTypePrefix(name) === null && !this.#typeOverrideFor(name),
+				(name) => this.#getTypePrefix(name) === null && !this.#declarationOverrideFor(name),
 			);
 
 		if (needsModuleName) {
@@ -516,22 +532,13 @@ export class MoveModuleBuilder extends FileBuilder {
 		return undefined;
 	};
 
-	/** The BCS expression for one field: an override's custom import, or the rendered signature. */
+	/** The BCS expression for one field. Overrides are applied by the renderer, at any depth. */
 	#renderFieldBcs(
 		fieldSite: { datatypeName: string; fieldName: string; variantName?: string },
 		field: { type_: Type },
 		typeParameters: TypeParameter[],
 		includePhantomTypeParameters: boolean,
 	): string {
-		const override = this.#fieldOverrideFor(
-			fieldSite.datatypeName,
-			fieldSite.fieldName,
-			field.type_,
-			fieldSite.variantName,
-		);
-		if (override) {
-			return this.#bcsOverrideImport(override);
-		}
 		return renderTypeSignature(field.type_, {
 			format: 'bcs',
 			bcsImport: () => this.#getImportName('bcs'),
@@ -539,6 +546,9 @@ export class MoveModuleBuilder extends FileBuilder {
 			typeParameters,
 			includePhantomTypeParameters,
 			registry: this.registry,
+			resolveBcsOverride: this.#bcsOverrideResolver(
+				this.#renderSite(fieldSite.datatypeName, fieldSite.fieldName, fieldSite.variantName),
+			),
 			onDependency: this.#importDependency,
 		});
 	}
@@ -603,7 +613,7 @@ export class MoveModuleBuilder extends FileBuilder {
 
 		this.exports.push(name);
 
-		const override = this.#typeOverrideFor(name);
+		const override = this.#declarationOverrideFor(name);
 		if (override) {
 			this.statements.push(
 				...(await withComment(
@@ -707,7 +717,7 @@ export class MoveModuleBuilder extends FileBuilder {
 		const includePhantom = this.#includePhantomTypeParameters;
 		this.exports.push(name);
 
-		const override = this.#typeOverrideFor(name);
+		const override = this.#declarationOverrideFor(name);
 		if (override) {
 			this.statements.push(
 				...(await withComment(

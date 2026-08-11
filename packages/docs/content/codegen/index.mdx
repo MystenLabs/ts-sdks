@@ -515,23 +515,25 @@ Entry rules:
   declaring package, package identifiers, explicit addresses), and additionally accepts
   named-address labels from the package's summaries (for example, `fixed_math::i64::I64`) so
   entries can target dependency packages that are not codegen-run entries.
-- A datatype entry without `fields` replaces the type's generated declaration: the generated module
-  exports the custom type under the Move type's name, and reference sites are unchanged. Write the
-  type without type arguments — the replacement applies to every instantiation, and for a generic
-  type the source must export a function `(...typeParameters: BcsType<any>[]) => BcsType<any>`
-  mirroring the generated call convention.
-- Types that generated layouts serialize inline rather than by reference — primitives, `vector`,
-  `0x1::string::String`, `0x1::ascii::String`, `0x1::option::Option`, `0x2::object::ID`, and
-  `0x2::object::UID` — have no declaration to replace, so they are replaced at their field sites.
-- `fields` is optional and narrows which field sites are replaced. Omit it to replace every
-  matching field in the package. It is written `module::TypeName.field`, and only fields whose
-  declared Move type matches `type` exactly are replaced (an uninstantiated generic datatype
-  matches every instantiation). Enum variant fields match on both `field` and `variant.field` (for
-  example, `Result.Err.code`). Supplying `fields` on a datatype that has a generated declaration
-  replaces those field sites instead of the declaration.
-- When several entries match one field, the most specific wins — the one naming more of the
-  module, type, and field segments concretely — so a broad rule can be given narrower exceptions.
-  Two entries matching equally specifically fail generation.
+- A datatype entry with no `fields` and no type arguments replaces the type's generated
+  **declaration**: the module exports the custom type under the Move type's name, and every use
+  picks it up because uses already reference the declaration. For a generic type the source must
+  export a function `(...typeParameters: BcsType<any>[]) => BcsType<any>` mirroring the generated
+  call convention.
+- Every other entry replaces the type **wherever it is rendered**. That covers types with no
+  declaration to replace (primitives, `vector`, and the stdlib types generated layouts serialize
+  inline — `String`, `Option`, `ID`/`UID`), a single instantiation of a generic
+  (`pool::Pool<0x2::sui::SUI>`), and anything narrowed by `fields`.
+- Replacement applies at **any depth**, because the type renderer consults overrides as it
+  recurses. An override on `u64` also replaces the `u64` inside `vector<u64>` and `Option<u64>`. A
+  whole-type match wins over its elements, so an entry for `vector<u64>` replaces the vector rather
+  than its items.
+- `fields` narrows which sites are replaced, written `module::TypeName.field` with `*` wildcards in
+  the module, type, and field segments. Only sites whose type matches `type` are replaced. Enum
+  variant fields match on both `field` and `variant.field` (for example, `Result.Err.code`).
+- When several entries match one site, the most specific wins — the one naming more of the module,
+  type, and field segments concretely — so a broad rule can be given narrower exceptions. Two
+  entries matching equally specifically fail generation.
 - `source` is an import specifier, optionally suffixed with `#ExportName`. Relative specifiers
   resolve against the config file's directory and are rewritten into relative imports from each
   generated file, with their extension replaced by the configured `importExtension` (so a
@@ -541,6 +543,9 @@ Entry rules:
 - Replacement modules must be self-contained: a module whose export replaces a declaration can't
   import generated modules that reference the replaced type, because that would create a circular
   import. Declare the raw layout inline when building a transform.
+- A replacement built with `.transform()` is a plain `BcsType`, so a type replaced that way loses
+  the `MoveStruct` helpers (`typeTag()`, `resolveTypeTag()`, `get()`, `getMany()`). Extend
+  `MoveStruct` instead if the replaced type needs them.
 - An entry that matches nothing is not an error. A shared set of overrides can be applied to
   several packages even when only some of them have fields of a given type.
 

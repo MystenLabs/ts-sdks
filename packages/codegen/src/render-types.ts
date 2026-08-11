@@ -27,6 +27,13 @@ interface RenderTypeSignatureOptions {
 	onTypeParameter?: (typeParameter: number | string) => void;
 	registry?: ModuleRegistry;
 	includePhantomTypeParameters: boolean;
+	/**
+	 * Substitutes a custom BCS expression for a type (`bcsOverrides`). Consulted for every type the
+	 * renderer visits, so an override on `u64` also replaces the `u64` inside `vector<u64>` or
+	 * `Option<u64>`. Returning a value short-circuits rendering, which also stops dependency
+	 * collection from descending into a type the generated code no longer references.
+	 */
+	resolveBcsOverride?: (type: Type) => string | undefined;
 }
 
 function resolveAddress(
@@ -54,6 +61,13 @@ function getFilteredTypeParameterIndex(
 }
 
 export function renderTypeSignature(type: Type, options: RenderTypeSignatureOptions): string {
+	if (options.format === 'bcs') {
+		const override = options.resolveBcsOverride?.(type);
+		if (override !== undefined) {
+			return override;
+		}
+	}
+
 	const bcs =
 		options.format === 'bcs' && options.bcsImport && rendersBcsExpression(type, options)
 			? options.bcsImport()
