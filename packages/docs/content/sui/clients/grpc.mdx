@@ -125,78 +125,58 @@ const client = new SuiGrpcClient({
 For local development without TLS, use `ChannelCredentials.createInsecure()` and a plain
 `host: '127.0.0.1:9000'`.
 
-## Using service clients
+## Read masks
 
-`SuiGrpcClient` exposes the generated gRPC service clients directly, for methods, read masks, and
-filters the shared API does not cover:
-
-| Service                        | Covers                                                              |
-| ------------------------------ | ------------------------------------------------------------------- |
-| `ledgerService`                | Objects, transactions, checkpoints, epochs, service info, list RPCs |
-| `stateService`                 | Owned objects, dynamic fields, balances                             |
-| `transactionExecutionService`  | Transaction execution                                               |
-| `subscriptionService`          | Real-time streams                                                   |
-| `movePackageService`           | Packages, functions, datatypes                                      |
-| `nameService`                  | SuiNS lookup and reverse lookup                                     |
-| `signatureVerificationService` | Signature verification                                              |
-| `forkingService`               | Admin APIs for `sui-fork` instances only                            |
-
-These clients are generated with [protobuf-ts](https://github.com/timostamm/protobuf-ts). Requests
-that return entity data take a read mask naming the fields to return, and every call accepts an
-`RpcOptions` argument where `abort` carries an `AbortSignal`. Reach for them when the top-level
-method cannot express what you need — otherwise prefer the top-level method, which handles field
-selection and response mapping.
-
-### Ledger service
+gRPC responses are opt-in. A request names the fields it wants in a `readMask`, and the server
+returns only those. Paths are proto field names in `snake_case`, and nested fields are dotted:
 
 ```typescript
-// Get a transaction by digest, naming the fields to return
 const { response } = await client.ledgerService.getTransaction({
 	digest: 'ABC123...',
-	readMask: { paths: ['digest', 'effects.status'] },
-});
-
-// Get current epoch information
-const { response: epochInfo } = await client.ledgerService.getEpoch({});
-
-// Node and chain metadata: chain id, epoch, checkpoint height, available range
-const { response: info } = await client.ledgerService.getServiceInfo({});
-```
-
-### Name service
-
-Use the raw name service when you need the complete `NameRecord` rather than only a target address:
-
-```typescript
-const { response } = await client.nameService.lookupName({ name: 'example.sui' });
-const { response: reverse } = await client.nameService.reverseLookupName({ address: '0xabc...' });
-```
-
-### Signature verification service
-
-```typescript
-const { response } = await client.signatureVerificationService.verifySignature({
-	message: {
-		name: 'TransactionData',
-		value: messageBytes,
-	},
-	signature: {
-		bcs: { value: signatureBytes },
-		signature: { oneofKind: undefined },
-	},
-	jwks: [],
+	readMask: { paths: ['digest', 'effects.status', 'transaction.sender'] },
 });
 ```
 
-## Raw list RPCs
+A field you did not ask for comes back unset, which is the most common surprise when moving from a
+JSON-RPC mindset — an empty field usually means it was not requested rather than that it has no
+value.
 
-`ledgerService` provides streaming `listCheckpoints`, `listTransactions`, and `listEvents` RPCs
-underneath the [top-level query methods](/sui/clients/querying#transactions-and-events). Use them
-directly when you need what those do not expose: disjunctive normal form (DNF) filters, extra
-predicates, checkpoint range bounds, or `listCheckpoints`.
+The top-level methods build masks for you from their `include` options, adding the paths each option
+needs on top of the handful every result carries. That is the main reason to prefer them: field
+selection and the mapping back into the unified shape are handled for you.
 
-A filter is a list of `terms` ORed together, each term a list of `literals` ANDed together. Setting
-`negated: true` inverts a literal:
+## Using service clients
+
+`SuiGrpcClient` exposes the generated service clients as properties, so any RPC the node serves is
+reachable even where the shared API has no method for it:
+
+| Property                       | Service                                   |
+| ------------------------------ | ----------------------------------------- |
+| `ledgerService`                | Ledger reads, and the streaming list RPCs |
+| `stateService`                 | Live object and balance state             |
+| `transactionExecutionService`  | Transaction execution                     |
+| `subscriptionService`          | Real-time streams                         |
+| `movePackageService`           | Move package metadata                     |
+| `nameService`                  | SuiNS lookup and reverse lookup           |
+| `signatureVerificationService` | Signature verification                    |
+| `forkingService`               | Admin APIs, for `sui-fork` instances only |
+
+The clients are generated with [protobuf-ts](https://github.com/timostamm/protobuf-ts). Each call
+takes the request message and an optional `RpcOptions`, where `abort` carries an `AbortSignal`:
+
+```typescript
+const controller = new AbortController();
+
+const { response } = await client.nameService.lookupName(
+	{ name: 'example.sui' },
+	{ abort: controller.signal },
+);
+```
+
+Request and response shapes come from the proto definitions, so the generated types are the
+reference for what each RPC accepts. Filters on the list and subscribe RPCs are one place worth
+knowing the shape: a filter is a list of `terms` ORed together, each term a list of `literals` ANDed
+together, and `negated: true` inverts a literal.
 
 ```typescript
 // Transactions that affected an address but were not sent by it
@@ -222,18 +202,14 @@ const stream = client.ledgerService.listTransactions({
 	},
 	readMask: { paths: ['digest'] },
 });
-
-for await (const frame of stream.responses) {
-	if (frame.transaction) {
-		console.log(frame.transaction.digest);
-	}
-}
 ```
 
-An absent filter matches everything; a present filter needs at least one term. The proto files
-define which predicates each filter accepts.
+An absent filter matches everything; a present filter needs at least one term.
 
-### Scan frames and watermarks
+## Streaming responses
+
+The list and subscribe RPCs return server streams rather than a single response, consumed with
+`for await` over `stream.responses`. Both use the same frame shape.
 
 A list RPC is a stream of frames, not a single response. Each frame either delivers one item or just
 reports progress, and every frame carries a `watermark` whose `cursor` is a safe resume point.
@@ -318,11 +294,11 @@ Omit `filter` to receive everything.
 ### Frames and watermarks
 
 A subscription behaves like an unbounded ascending scan, so its frames work the same way as a
-[list RPC's](#scan-frames-and-watermarks), with two differences: checkpoint frames are
-checkpoint-granular and carry a `cursor` sequence number instead of a watermark, and the first frame
-of a filtered subscription is always progress-only, establishing the start position. Progress also
-keeps advancing with bounded staleness while nothing matches, which is what keeps a sparse filter
-alive. Track the cursor on every frame, not just the ones with items:
+[list RPC's](#streaming-responses), with two differences: checkpoint frames are checkpoint-granular
+and carry a `cursor` sequence number instead of a watermark, and the first frame of a filtered
+subscription is always progress-only, establishing the start position. Progress also keeps advancing
+with bounded staleness while nothing matches, which is what keeps a sparse filter alive. Track the
+cursor on every frame, not just the ones with items:
 
 ```typescript
 let lastCursor: Uint8Array | undefined;

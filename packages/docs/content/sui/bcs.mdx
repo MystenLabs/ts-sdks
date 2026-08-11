@@ -128,8 +128,8 @@ const serialized = bcs.Object.serialize({
 
 <Callout type="warn">
 	Do not pass `objectBcs` bytes to a Move struct parser. It contains wrapping metadata that will
-	cause parsing to fail. Use `content` for parsing Move struct fields. See [Querying
-	data](/sui/clients/querying#objectbcs) for details.
+	cause parsing to fail. Use `content` for parsing Move struct fields, as described under
+	[objectBcs](/sui/clients/querying#objectbcs).
 </Callout>
 
 ## Working with transaction effects

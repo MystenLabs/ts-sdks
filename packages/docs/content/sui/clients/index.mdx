@@ -19,8 +19,8 @@ prefer one, and `SuiGraphQLClient` when your application wants to query the Grap
 Because they share an API, moving between them is mostly a matter of changing the constructor.
 
 <Callout type="info">
-	JSON-RPC is deprecated. If you are maintaining existing JSON-RPC code, see the [JSON-RPC migration
-	guide](/sui/migrations/sui-2.0/json-rpc-migration).
+	JSON-RPC is deprecated. See the [migration guide](/sui/migrations/sui-2.0/json-rpc-migration) if
+	you maintain existing JSON-RPC code.
 </Callout>
 
 ## Quick start
@@ -116,7 +116,7 @@ const result = await graphqlClient.query({
 });
 ```
 
-gRPC adds [raw list RPCs](/sui/clients/grpc#raw-list-rpcs) and
+gRPC adds [raw list RPCs](/sui/clients/grpc#using-service-clients) and
 [subscriptions](/sui/clients/grpc#subscriptions); GraphQL adds
 [custom queries](/sui/clients/graphql#writing-queries) against the schema.
 
