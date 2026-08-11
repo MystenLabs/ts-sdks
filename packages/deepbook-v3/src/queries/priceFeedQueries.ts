@@ -6,6 +6,7 @@ import type { Transaction } from '@mysten/sui/transactions';
 import { PriceInfoObject } from '../contracts/pyth/price_info.js';
 import { SuiPriceServiceConnection, SuiPythClient } from '../pyth/pyth.js';
 import { PRICE_INFO_OBJECT_MAX_AGE_MS } from '../utils/config.js';
+import { ConfigurationError } from '../utils/errors.js';
 import type { QueryContext } from './context.js';
 
 export class PriceFeedQueries {
@@ -13,6 +14,29 @@ export class PriceFeedQueries {
 
 	constructor(ctx: QueryContext) {
 		this.#ctx = ctx;
+	}
+
+	/**
+	 * The Hermes endpoint serving the Pyth deployment margin is configured against. The
+	 * upgraded deployment is served by a different Hermes than legacy Core, so it must be
+	 * set explicitly on the `pythUpgraded` config — there is no network-derived default
+	 * for it.
+	 */
+	#hermesEndpoint(): string {
+		const configured = this.#ctx.config.activePyth.hermesEndpoint;
+		if (configured) {
+			return configured;
+		}
+
+		if (this.#ctx.config.usesUpgradedPyth) {
+			throw new ConfigurationError(
+				"No hermesEndpoint configured for Pyth's upgraded Core. Set 'pythUpgraded.hermesEndpoint' to the endpoint serving the upgraded deployment before pushing price updates.",
+			);
+		}
+
+		return this.#ctx.config.network === 'testnet'
+			? 'https://hermes-beta.pyth.network'
+			: 'https://hermes.pyth.network';
 	}
 
 	async getPriceInfoObject(tx: Transaction, coinKey: string): Promise<string> {
@@ -23,21 +47,16 @@ export class PriceFeedQueries {
 			priceInfoObjectAge &&
 			currentTime - priceInfoObjectAge * 1000 < PRICE_INFO_OBJECT_MAX_AGE_MS
 		) {
-			return await this.#ctx.config.getCoin(coinKey).priceInfoObjectId!;
+			return this.#ctx.config.getPriceInfoObjectId(coinKey);
 		}
 
-		const endpoint =
-			this.#ctx.config.network === 'testnet'
-				? 'https://hermes-beta.pyth.network'
-				: 'https://hermes.pyth.network';
-		const connection = new SuiPriceServiceConnection(endpoint);
+		const connection = new SuiPriceServiceConnection(this.#hermesEndpoint());
 
 		const priceIDs = [this.#ctx.config.getCoin(coinKey).feed!];
 
 		const priceUpdateData = await connection.getPriceFeedsUpdateData(priceIDs);
 
-		const wormholeStateId = this.#ctx.config.pyth.wormholeStateId;
-		const pythStateId = this.#ctx.config.pyth.pythStateId;
+		const { pythStateId, wormholeStateId } = this.#ctx.config.activePyth;
 
 		const client = new SuiPythClient(this.#ctx.client, pythStateId, wormholeStateId);
 
@@ -55,7 +74,7 @@ export class PriceFeedQueries {
 		const coinToObjectId: Record<string, string> = {};
 		const objectIds: string[] = [];
 		for (const coinKey of coinKeys) {
-			const priceInfoObjectId = this.#ctx.config.getCoin(coinKey).priceInfoObjectId!;
+			const priceInfoObjectId = this.#ctx.config.getPriceInfoObjectId(coinKey);
 			coinToObjectId[coinKey] = priceInfoObjectId;
 			objectIds.push(priceInfoObjectId);
 		}
@@ -100,16 +119,11 @@ export class PriceFeedQueries {
 			feedIdToCoinKey[feedId] = coinKey;
 		}
 
-		const endpoint =
-			this.#ctx.config.network === 'testnet'
-				? 'https://hermes-beta.pyth.network'
-				: 'https://hermes.pyth.network';
-		const connection = new SuiPriceServiceConnection(endpoint);
+		const connection = new SuiPriceServiceConnection(this.#hermesEndpoint());
 
 		const priceUpdateData = await connection.getPriceFeedsUpdateData(staleFeedIds);
 
-		const wormholeStateId = this.#ctx.config.pyth.wormholeStateId;
-		const pythStateId = this.#ctx.config.pyth.pythStateId;
+		const { pythStateId, wormholeStateId } = this.#ctx.config.activePyth;
 		const pythClient = new SuiPythClient(this.#ctx.client, pythStateId, wormholeStateId);
 
 		const updatedObjectIds = await pythClient.updatePriceFeeds(tx, priceUpdateData, staleFeedIds);
@@ -123,7 +137,7 @@ export class PriceFeedQueries {
 	}
 
 	async getPriceInfoObjectAge(coinKey: string): Promise<number> {
-		const priceInfoObjectId = this.#ctx.config.getCoin(coinKey).priceInfoObjectId!;
+		const priceInfoObjectId = this.#ctx.config.getPriceInfoObjectId(coinKey);
 		const res = await this.#ctx.client.core.getObject({
 			objectId: priceInfoObjectId,
 			include: {

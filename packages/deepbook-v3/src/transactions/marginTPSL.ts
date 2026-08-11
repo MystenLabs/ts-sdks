@@ -12,6 +12,7 @@ import { OrderType, SelfMatchingOptions } from '../types/index.js';
 import { MAX_TIMESTAMP, FLOAT_SCALAR } from '../utils/config.js';
 import { convertQuantity, convertPrice } from '../utils/conversion.js';
 import * as marginManagerMoveCalls from '../contracts/deepbook_margin/margin_manager.js';
+import * as marginManagerUpgradedMoveCalls from '../contracts/deepbook_margin/margin_manager_upgraded.js';
 import * as tpslMoveCalls from '../contracts/deepbook_margin/tpsl.js';
 
 /**
@@ -25,6 +26,16 @@ export class MarginTPSLContract {
 	 */
 	constructor(config: DeepBookConfig) {
 		this.#config = config;
+	}
+
+	/**
+	 * Conditional-order entrypoints that take a `PriceInfoObject`, from the module matching
+	 * the configured Pyth deployment. Cancels and the trigger getters take no oracle and
+	 * stay on `margin_manager`; `tpsl` itself only builds values, so it is deployment
+	 * independent.
+	 */
+	get #oracleCalls() {
+		return this.#config.usesUpgradedPyth ? marginManagerUpgradedMoveCalls : marginManagerMoveCalls;
 	}
 
 	// === Helper Functions ===
@@ -153,13 +164,13 @@ export class MarginTPSLContract {
 			: this.newPendingMarketOrder(manager.poolKey, pendingOrder as PendingMarketOrderParams)(tx);
 
 		tx.add(
-			marginManagerMoveCalls.addConditionalOrder({
+			this.#oracleCalls.addConditionalOrder({
 				package: this.#config.MARGIN_PACKAGE_ID,
 				arguments: {
 					self: manager.address,
 					pool: pool.address,
-					basePriceInfoObject: baseCoin.priceInfoObjectId!,
-					quotePriceInfoObject: quoteCoin.priceInfoObjectId!,
+					basePriceInfoObject: this.#config.getPriceInfoObjectId(pool.baseCoin),
+					quotePriceInfoObject: this.#config.getPriceInfoObjectId(pool.quoteCoin),
 					registry: this.#config.MARGIN_REGISTRY_ID,
 					conditionalOrderId: BigInt(conditionalOrderId),
 					condition,
@@ -229,15 +240,15 @@ export class MarginTPSLContract {
 			const baseMarginPool = this.#config.getMarginPool(pool.baseCoin);
 			const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
 			return tx.add(
-				marginManagerMoveCalls.executeConditionalOrdersV2({
+				this.#oracleCalls.executeConditionalOrdersV2({
 					package: this.#config.MARGIN_PACKAGE_ID,
 					arguments: {
 						self: managerAddress,
 						pool: pool.address,
 						baseMarginPool: baseMarginPool.address,
 						quoteMarginPool: quoteMarginPool.address,
-						basePriceInfoObject: baseCoin.priceInfoObjectId!,
-						quotePriceInfoObject: quoteCoin.priceInfoObjectId!,
+						basePriceInfoObject: this.#config.getPriceInfoObjectId(pool.baseCoin),
+						quotePriceInfoObject: this.#config.getPriceInfoObjectId(pool.quoteCoin),
 						registry: this.#config.MARGIN_REGISTRY_ID,
 						maxOrdersToExecute,
 					},
@@ -271,15 +282,15 @@ export class MarginTPSLContract {
 			const baseMarginPool = this.#config.getMarginPool(pool.baseCoin);
 			const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
 			return tx.add(
-				marginManagerMoveCalls.executeConditionalOrdersV3({
+				this.#oracleCalls.executeConditionalOrdersV3({
 					package: this.#config.MARGIN_PACKAGE_ID,
 					arguments: {
 						self: managerAddress,
 						pool: pool.address,
 						baseMarginPool: baseMarginPool.address,
 						quoteMarginPool: quoteMarginPool.address,
-						basePriceInfoObject: baseCoin.priceInfoObjectId!,
-						quotePriceInfoObject: quoteCoin.priceInfoObjectId!,
+						basePriceInfoObject: this.#config.getPriceInfoObjectId(pool.baseCoin),
+						quotePriceInfoObject: this.#config.getPriceInfoObjectId(pool.quoteCoin),
 						registry: this.#config.MARGIN_REGISTRY_ID,
 						maxOrdersToExecute,
 					},

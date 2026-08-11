@@ -34,6 +34,8 @@ export type {
 	Pool,
 	MarginManager,
 	MarginPool,
+	MarginPythMode,
+	PythConfig,
 	Config,
 } from './types/index.js';
 
@@ -106,6 +108,10 @@ export {
 	testnetPackageIds,
 	mainnetPythConfigs,
 	testnetPythConfigs,
+	mainnetPythUpgradedConfigs,
+	testnetPythUpgradedConfigs,
+	mainnetMarginPyth,
+	testnetMarginPyth,
 } from './utils/constants.js';
 export {
 	DEEP_SCALAR,

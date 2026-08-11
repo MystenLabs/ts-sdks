@@ -47,10 +47,12 @@ import type {
 	MarginManagerBalancesResult,
 	MarginManagerDebts,
 	MarginManagerState,
+	MarginPythMode,
 	OrderDeepRequiredResult,
 	PoolBookParams,
 	PoolDeepPrice,
 	PoolTradeParams,
+	PythConfig,
 	QuantityOut,
 	QuoteQuantityIn,
 	QuoteQuantityOut,
@@ -73,7 +75,14 @@ export interface DeepBookOptions<Name = 'deepbook'> {
 	marginAdminCap?: string;
 	marginMaintainerCap?: string;
 	packageIds?: DeepbookPackageIds;
-	pyth?: { pythStateId: string; wormholeStateId: string };
+	pyth?: PythConfig;
+	/** Pyth's upgraded Core. Used by margin calls when `marginPyth` is `'upgraded'`. */
+	pythUpgraded?: PythConfig;
+	/**
+	 * Which Pyth deployment margin entrypoints price against. Defaults to the network's
+	 * configured mode; set it to move ahead of that default.
+	 */
+	marginPyth?: MarginPythMode;
 	name?: Name;
 }
 
@@ -144,6 +153,8 @@ export class DeepBookClient {
 		marginMaintainerCap,
 		packageIds,
 		pyth,
+		pythUpgraded,
+		marginPyth,
 	}: DeepBookClientOptions) {
 		const normalizedAddress = normalizeSuiAddress(address);
 		const config = new DeepBookConfig({
@@ -158,6 +169,8 @@ export class DeepBookClient {
 			marginMaintainerCap,
 			packageIds,
 			pyth,
+			pythUpgraded,
+			marginPyth,
 		});
 
 		this.balanceManager = new BalanceManagerContract(config);

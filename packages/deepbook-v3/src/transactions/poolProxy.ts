@@ -12,6 +12,7 @@ import { OrderType, SelfMatchingOptions } from '../types/index.js';
 import { MAX_TIMESTAMP, FLOAT_SCALAR } from '../utils/config.js';
 import { convertQuantity, convertPrice, convertRate } from '../utils/conversion.js';
 import * as poolProxyMoveCalls from '../contracts/deepbook_margin/pool_proxy.js';
+import * as poolProxyUpgradedMoveCalls from '../contracts/deepbook_margin/pool_proxy_upgraded.js';
 
 /**
  * PoolProxyContract class for managing PoolProxy operations.
@@ -24,6 +25,16 @@ export class PoolProxyContract {
 	 */
 	constructor(config: DeepBookConfig) {
 		this.#config = config;
+	}
+
+	/**
+	 * Order-placing entrypoints that take a `PriceInfoObject`, from the module matching the
+	 * configured Pyth deployment. `pool_proxy_upgraded` carries only these — cancels,
+	 * modifies, settlement withdrawals, staking and governance take no oracle and stay on
+	 * `pool_proxy` in both modes.
+	 */
+	get #oracleCalls() {
+		return this.#config.usesUpgradedPyth ? poolProxyUpgradedMoveCalls : poolProxyMoveCalls;
 	}
 
 	/**
@@ -55,7 +66,7 @@ export class PoolProxyContract {
 		const inputPrice = convertPrice(price, FLOAT_SCALAR, quoteCoin.scalar, baseCoin.scalar);
 		const inputQuantity = convertQuantity(quantity, baseCoin.scalar);
 		return tx.add(
-			poolProxyMoveCalls.placeLimitOrderV2({
+			this.#oracleCalls.placeLimitOrderV2({
 				package: this.#config.MARGIN_PACKAGE_ID,
 				arguments: {
 					registry: this.#config.MARGIN_REGISTRY_ID,
@@ -63,8 +74,8 @@ export class PoolProxyContract {
 					pool: pool.address,
 					baseMarginPool: baseMarginPool.address,
 					quoteMarginPool: quoteMarginPool.address,
-					baseOracle: baseCoin.priceInfoObjectId!,
-					quoteOracle: quoteCoin.priceInfoObjectId!,
+					baseOracle: this.#config.getPriceInfoObjectId(pool.baseCoin),
+					quoteOracle: this.#config.getPriceInfoObjectId(pool.quoteCoin),
 					clientOrderId: BigInt(clientOrderId),
 					orderType,
 					selfMatchingOption,
@@ -104,7 +115,7 @@ export class PoolProxyContract {
 		const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
 		const inputQuantity = convertQuantity(quantity, baseCoin.scalar);
 		return tx.add(
-			poolProxyMoveCalls.placeMarketOrderV2({
+			this.#oracleCalls.placeMarketOrderV2({
 				package: this.#config.MARGIN_PACKAGE_ID,
 				arguments: {
 					registry: this.#config.MARGIN_REGISTRY_ID,
@@ -112,8 +123,8 @@ export class PoolProxyContract {
 					pool: pool.address,
 					baseMarginPool: baseMarginPool.address,
 					quoteMarginPool: quoteMarginPool.address,
-					baseOracle: baseCoin.priceInfoObjectId!,
-					quoteOracle: quoteCoin.priceInfoObjectId!,
+					baseOracle: this.#config.getPriceInfoObjectId(pool.baseCoin),
+					quoteOracle: this.#config.getPriceInfoObjectId(pool.quoteCoin),
 					clientOrderId: BigInt(clientOrderId),
 					selfMatchingOption,
 					quantity: inputQuantity,
@@ -155,7 +166,7 @@ export class PoolProxyContract {
 		const inputPrice = convertPrice(price, FLOAT_SCALAR, quoteCoin.scalar, baseCoin.scalar);
 		const inputQuantity = convertQuantity(quantity, baseCoin.scalar);
 		return tx.add(
-			poolProxyMoveCalls.placeReduceOnlyLimitOrderV2({
+			this.#oracleCalls.placeReduceOnlyLimitOrderV2({
 				package: this.#config.MARGIN_PACKAGE_ID,
 				arguments: {
 					registry: this.#config.MARGIN_REGISTRY_ID,
@@ -163,8 +174,8 @@ export class PoolProxyContract {
 					pool: pool.address,
 					baseMarginPool: baseMarginPool.address,
 					quoteMarginPool: quoteMarginPool.address,
-					baseOracle: baseCoin.priceInfoObjectId!,
-					quoteOracle: quoteCoin.priceInfoObjectId!,
+					baseOracle: this.#config.getPriceInfoObjectId(pool.baseCoin),
+					quoteOracle: this.#config.getPriceInfoObjectId(pool.quoteCoin),
 					clientOrderId: BigInt(clientOrderId),
 					orderType,
 					selfMatchingOption,
@@ -205,7 +216,7 @@ export class PoolProxyContract {
 		const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
 		const inputQuantity = convertQuantity(quantity, baseCoin.scalar);
 		return tx.add(
-			poolProxyMoveCalls.placeReduceOnlyMarketOrderV2({
+			this.#oracleCalls.placeReduceOnlyMarketOrderV2({
 				package: this.#config.MARGIN_PACKAGE_ID,
 				arguments: {
 					registry: this.#config.MARGIN_REGISTRY_ID,
@@ -213,8 +224,8 @@ export class PoolProxyContract {
 					pool: pool.address,
 					baseMarginPool: baseMarginPool.address,
 					quoteMarginPool: quoteMarginPool.address,
-					baseOracle: baseCoin.priceInfoObjectId!,
-					quoteOracle: quoteCoin.priceInfoObjectId!,
+					baseOracle: this.#config.getPriceInfoObjectId(pool.baseCoin),
+					quoteOracle: this.#config.getPriceInfoObjectId(pool.quoteCoin),
 					clientOrderId: BigInt(clientOrderId),
 					selfMatchingOption,
 					quantity: inputQuantity,
@@ -255,7 +266,7 @@ export class PoolProxyContract {
 		const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
 		const inputQuantity = convertQuantity(quantity, baseCoin.scalar);
 		return tx.add(
-			poolProxyMoveCalls.placeMarketOrderAndRepayLoan({
+			this.#oracleCalls.placeMarketOrderAndRepayLoan({
 				package: this.#config.MARGIN_PACKAGE_ID,
 				arguments: {
 					registry: this.#config.MARGIN_REGISTRY_ID,
@@ -263,8 +274,8 @@ export class PoolProxyContract {
 					pool: pool.address,
 					baseMarginPool: baseMarginPool.address,
 					quoteMarginPool: quoteMarginPool.address,
-					baseOracle: baseCoin.priceInfoObjectId!,
-					quoteOracle: quoteCoin.priceInfoObjectId!,
+					baseOracle: this.#config.getPriceInfoObjectId(pool.baseCoin),
+					quoteOracle: this.#config.getPriceInfoObjectId(pool.quoteCoin),
 					clientOrderId: BigInt(clientOrderId),
 					selfMatchingOption,
 					quantity: inputQuantity,
@@ -308,7 +319,7 @@ export class PoolProxyContract {
 			const inputPrice = convertPrice(price, FLOAT_SCALAR, quoteCoin.scalar, baseCoin.scalar);
 			const inputQuantity = convertQuantity(quantity, baseCoin.scalar);
 			return tx.add(
-				poolProxyMoveCalls.placeReduceOnlyLimitOrderAndRepayLoan({
+				this.#oracleCalls.placeReduceOnlyLimitOrderAndRepayLoan({
 					package: this.#config.MARGIN_PACKAGE_ID,
 					arguments: {
 						registry: this.#config.MARGIN_REGISTRY_ID,
@@ -316,8 +327,8 @@ export class PoolProxyContract {
 						pool: pool.address,
 						baseMarginPool: baseMarginPool.address,
 						quoteMarginPool: quoteMarginPool.address,
-						baseOracle: baseCoin.priceInfoObjectId!,
-						quoteOracle: quoteCoin.priceInfoObjectId!,
+						baseOracle: this.#config.getPriceInfoObjectId(pool.baseCoin),
+						quoteOracle: this.#config.getPriceInfoObjectId(pool.quoteCoin),
 						clientOrderId: BigInt(clientOrderId),
 						orderType,
 						selfMatchingOption,
@@ -360,7 +371,7 @@ export class PoolProxyContract {
 			const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
 			const inputQuantity = convertQuantity(quantity, baseCoin.scalar);
 			return tx.add(
-				poolProxyMoveCalls.placeReduceOnlyMarketOrderAndRepayLoan({
+				this.#oracleCalls.placeReduceOnlyMarketOrderAndRepayLoan({
 					package: this.#config.MARGIN_PACKAGE_ID,
 					arguments: {
 						registry: this.#config.MARGIN_REGISTRY_ID,
@@ -368,8 +379,8 @@ export class PoolProxyContract {
 						pool: pool.address,
 						baseMarginPool: baseMarginPool.address,
 						quoteMarginPool: quoteMarginPool.address,
-						baseOracle: baseCoin.priceInfoObjectId!,
-						quoteOracle: quoteCoin.priceInfoObjectId!,
+						baseOracle: this.#config.getPriceInfoObjectId(pool.baseCoin),
+						quoteOracle: this.#config.getPriceInfoObjectId(pool.quoteCoin),
 						clientOrderId: BigInt(clientOrderId),
 						selfMatchingOption,
 						quantity: inputQuantity,
@@ -670,20 +681,14 @@ export class PoolProxyContract {
 		const pool = this.#config.getPool(poolKey);
 		const baseCoin = this.#config.getCoin(pool.baseCoin);
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
-		if (!baseCoin.priceInfoObjectId) {
-			throw new Error(`Missing priceInfoObjectId for ${pool.baseCoin}`);
-		}
-		if (!quoteCoin.priceInfoObjectId) {
-			throw new Error(`Missing priceInfoObjectId for ${pool.quoteCoin}`);
-		}
 		tx.add(
-			poolProxyMoveCalls.updateCurrentPrice({
+			this.#oracleCalls.updateCurrentPrice({
 				package: this.#config.MARGIN_PACKAGE_ID,
 				arguments: {
 					registry: this.#config.MARGIN_REGISTRY_ID,
 					pool: pool.address,
-					basePriceInfoObject: baseCoin.priceInfoObjectId,
-					quotePriceInfoObject: quoteCoin.priceInfoObjectId,
+					basePriceInfoObject: this.#config.getPriceInfoObjectId(pool.baseCoin),
+					quotePriceInfoObject: this.#config.getPriceInfoObjectId(pool.quoteCoin),
 				},
 				typeArguments: [baseCoin.type, quoteCoin.type],
 			}),

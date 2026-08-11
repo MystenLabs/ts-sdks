@@ -8,6 +8,7 @@ import type { DepositParams, DepositDuringInitParams } from '../types/index.js';
 import { FLOAT_SCALAR } from '../utils/config.js';
 import { convertPrice, convertQuantity } from '../utils/conversion.js';
 import * as marginManagerMoveCalls from '../contracts/deepbook_margin/margin_manager.js';
+import * as marginManagerUpgradedMoveCalls from '../contracts/deepbook_margin/margin_manager_upgraded.js';
 
 /**
  * MarginManagerContract class for managing MarginManager operations.
@@ -20,6 +21,16 @@ export class MarginManagerContract {
 	 */
 	constructor(config: DeepBookConfig) {
 		this.#config = config;
+	}
+
+	/**
+	 * The entrypoints that take a `PriceInfoObject`, from the module matching the
+	 * configured Pyth deployment. `margin_manager_upgraded` carries only these — creation,
+	 * repayment, referrals and the getters take no oracle and stay on `margin_manager` in
+	 * both modes.
+	 */
+	get #oracleCalls() {
+		return this.#config.usesUpgradedPyth ? marginManagerUpgradedMoveCalls : marginManagerMoveCalls;
 	}
 
 	/**
@@ -155,13 +166,13 @@ export class MarginManagerContract {
 				: params.coin;
 
 		tx.add(
-			marginManagerMoveCalls.deposit({
+			this.#oracleCalls.deposit({
 				package: this.#config.MARGIN_PACKAGE_ID,
 				arguments: {
 					self: manager,
 					registry: this.#config.MARGIN_REGISTRY_ID,
-					baseOracle: baseCoin.priceInfoObjectId!,
-					quoteOracle: quoteCoin.priceInfoObjectId!,
+					baseOracle: this.#config.getPriceInfoObjectId(pool.baseCoin),
+					quoteOracle: this.#config.getPriceInfoObjectId(pool.quoteCoin),
 					coin,
 				},
 				typeArguments: [baseCoin.type, quoteCoin.type, depositCoin.type],
@@ -188,13 +199,13 @@ export class MarginManagerContract {
 					})
 				: params.coin;
 		tx.add(
-			marginManagerMoveCalls.deposit({
+			this.#oracleCalls.deposit({
 				package: this.#config.MARGIN_PACKAGE_ID,
 				arguments: {
 					self: manager.address,
 					registry: this.#config.MARGIN_REGISTRY_ID,
-					baseOracle: baseCoin.priceInfoObjectId!,
-					quoteOracle: quoteCoin.priceInfoObjectId!,
+					baseOracle: this.#config.getPriceInfoObjectId(pool.baseCoin),
+					quoteOracle: this.#config.getPriceInfoObjectId(pool.quoteCoin),
 					coin,
 				},
 				typeArguments: [baseCoin.type, quoteCoin.type, baseCoin.type],
@@ -221,13 +232,13 @@ export class MarginManagerContract {
 					})
 				: params.coin;
 		tx.add(
-			marginManagerMoveCalls.deposit({
+			this.#oracleCalls.deposit({
 				package: this.#config.MARGIN_PACKAGE_ID,
 				arguments: {
 					self: manager.address,
 					registry: this.#config.MARGIN_REGISTRY_ID,
-					baseOracle: baseCoin.priceInfoObjectId!,
-					quoteOracle: quoteCoin.priceInfoObjectId!,
+					baseOracle: this.#config.getPriceInfoObjectId(pool.baseCoin),
+					quoteOracle: this.#config.getPriceInfoObjectId(pool.quoteCoin),
 					coin,
 				},
 				typeArguments: [baseCoin.type, quoteCoin.type, quoteCoin.type],
@@ -255,13 +266,13 @@ export class MarginManagerContract {
 					})
 				: params.coin;
 		tx.add(
-			marginManagerMoveCalls.deposit({
+			this.#oracleCalls.deposit({
 				package: this.#config.MARGIN_PACKAGE_ID,
 				arguments: {
 					self: manager.address,
 					registry: this.#config.MARGIN_REGISTRY_ID,
-					baseOracle: baseCoin.priceInfoObjectId!,
-					quoteOracle: quoteCoin.priceInfoObjectId!,
+					baseOracle: this.#config.getPriceInfoObjectId(pool.baseCoin),
+					quoteOracle: this.#config.getPriceInfoObjectId(pool.quoteCoin),
 					coin,
 				},
 				typeArguments: [baseCoin.type, quoteCoin.type, deepCoin.type],
@@ -283,15 +294,15 @@ export class MarginManagerContract {
 		const baseMarginPool = this.#config.getMarginPool(pool.baseCoin);
 		const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
 		return tx.add(
-			marginManagerMoveCalls.withdraw({
+			this.#oracleCalls.withdraw({
 				package: this.#config.MARGIN_PACKAGE_ID,
 				arguments: {
 					self: manager.address,
 					registry: this.#config.MARGIN_REGISTRY_ID,
 					baseMarginPool: baseMarginPool.address,
 					quoteMarginPool: quoteMarginPool.address,
-					baseOracle: baseCoin.priceInfoObjectId!,
-					quoteOracle: quoteCoin.priceInfoObjectId!,
+					baseOracle: this.#config.getPriceInfoObjectId(pool.baseCoin),
+					quoteOracle: this.#config.getPriceInfoObjectId(pool.quoteCoin),
 					pool: pool.address,
 					withdrawAmount: convertQuantity(amount, baseCoin.scalar),
 				},
@@ -314,15 +325,15 @@ export class MarginManagerContract {
 		const baseMarginPool = this.#config.getMarginPool(pool.baseCoin);
 		const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
 		return tx.add(
-			marginManagerMoveCalls.withdraw({
+			this.#oracleCalls.withdraw({
 				package: this.#config.MARGIN_PACKAGE_ID,
 				arguments: {
 					self: manager.address,
 					registry: this.#config.MARGIN_REGISTRY_ID,
 					baseMarginPool: baseMarginPool.address,
 					quoteMarginPool: quoteMarginPool.address,
-					baseOracle: baseCoin.priceInfoObjectId!,
-					quoteOracle: quoteCoin.priceInfoObjectId!,
+					baseOracle: this.#config.getPriceInfoObjectId(pool.baseCoin),
+					quoteOracle: this.#config.getPriceInfoObjectId(pool.quoteCoin),
 					pool: pool.address,
 					withdrawAmount: convertQuantity(amount, quoteCoin.scalar),
 				},
@@ -346,15 +357,15 @@ export class MarginManagerContract {
 		const baseMarginPool = this.#config.getMarginPool(pool.baseCoin);
 		const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
 		return tx.add(
-			marginManagerMoveCalls.withdraw({
+			this.#oracleCalls.withdraw({
 				package: this.#config.MARGIN_PACKAGE_ID,
 				arguments: {
 					self: manager.address,
 					registry: this.#config.MARGIN_REGISTRY_ID,
 					baseMarginPool: baseMarginPool.address,
 					quoteMarginPool: quoteMarginPool.address,
-					baseOracle: baseCoin.priceInfoObjectId!,
-					quoteOracle: quoteCoin.priceInfoObjectId!,
+					baseOracle: this.#config.getPriceInfoObjectId(pool.baseCoin),
+					quoteOracle: this.#config.getPriceInfoObjectId(pool.quoteCoin),
 					pool: pool.address,
 					withdrawAmount: convertQuantity(amount, deepCoin.scalar),
 				},
@@ -376,14 +387,14 @@ export class MarginManagerContract {
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 		const baseMarginPool = this.#config.getMarginPool(pool.baseCoin);
 		return tx.add(
-			marginManagerMoveCalls.borrowBase({
+			this.#oracleCalls.borrowBase({
 				package: this.#config.MARGIN_PACKAGE_ID,
 				arguments: {
 					self: manager.address,
 					registry: this.#config.MARGIN_REGISTRY_ID,
 					baseMarginPool: baseMarginPool.address,
-					baseOracle: baseCoin.priceInfoObjectId!,
-					quoteOracle: quoteCoin.priceInfoObjectId!,
+					baseOracle: this.#config.getPriceInfoObjectId(pool.baseCoin),
+					quoteOracle: this.#config.getPriceInfoObjectId(pool.quoteCoin),
 					pool: pool.address,
 					loanAmount: convertQuantity(amount, baseCoin.scalar),
 				},
@@ -405,14 +416,14 @@ export class MarginManagerContract {
 		const quoteCoin = this.#config.getCoin(pool.quoteCoin);
 		const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
 		return tx.add(
-			marginManagerMoveCalls.borrowQuote({
+			this.#oracleCalls.borrowQuote({
 				package: this.#config.MARGIN_PACKAGE_ID,
 				arguments: {
 					self: manager.address,
 					registry: this.#config.MARGIN_REGISTRY_ID,
 					quoteMarginPool: quoteMarginPool.address,
-					baseOracle: baseCoin.priceInfoObjectId!,
-					quoteOracle: quoteCoin.priceInfoObjectId!,
+					baseOracle: this.#config.getPriceInfoObjectId(pool.baseCoin),
+					quoteOracle: this.#config.getPriceInfoObjectId(pool.quoteCoin),
 					pool: pool.address,
 					loanAmount: convertQuantity(amount, quoteCoin.scalar),
 				},
@@ -496,13 +507,13 @@ export class MarginManagerContract {
 			const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
 			const marginPool = debtIsBase ? baseMarginPool : quoteMarginPool;
 			return tx.add(
-				marginManagerMoveCalls.liquidate({
+				this.#oracleCalls.liquidate({
 					package: this.#config.MARGIN_PACKAGE_ID,
 					arguments: {
 						self: managerAddress,
 						registry: this.#config.MARGIN_REGISTRY_ID,
-						baseOracle: baseCoin.priceInfoObjectId!,
-						quoteOracle: quoteCoin.priceInfoObjectId!,
+						baseOracle: this.#config.getPriceInfoObjectId(pool.baseCoin),
+						quoteOracle: this.#config.getPriceInfoObjectId(pool.quoteCoin),
 						marginPool: marginPool.address,
 						pool: pool.address,
 						repayCoin,
@@ -770,13 +781,13 @@ export class MarginManagerContract {
 		const baseMarginPool = this.#config.getMarginPool(pool.baseCoin);
 		const quoteMarginPool = this.#config.getMarginPool(pool.quoteCoin);
 		return tx.add(
-			marginManagerMoveCalls.managerState({
+			this.#oracleCalls.managerState({
 				package: this.#config.MARGIN_PACKAGE_ID,
 				arguments: {
 					self: marginManagerId,
 					registry: this.#config.MARGIN_REGISTRY_ID,
-					baseOracle: baseCoin.priceInfoObjectId!,
-					quoteOracle: quoteCoin.priceInfoObjectId!,
+					baseOracle: this.#config.getPriceInfoObjectId(pool.baseCoin),
+					quoteOracle: this.#config.getPriceInfoObjectId(pool.quoteCoin),
 					pool: pool.address,
 					baseMarginPool: baseMarginPool.address,
 					quoteMarginPool: quoteMarginPool.address,

@@ -21,6 +21,24 @@ export class MarginLiquidationsContract {
 	}
 
 	/**
+	 * The liquidation entrypoints matching the configured Pyth deployment. Unlike the
+	 * margin package, `margin_liquidation` puts the upgraded entries in the same module as
+	 * parallel functions rather than in a parallel module, so this selects a function
+	 * rather than a namespace. The vault's own deposit/withdraw/balance take no oracle.
+	 */
+	get #liquidateBaseCall() {
+		return this.#config.usesUpgradedPyth
+			? liquidationVaultMoveCalls.liquidateBaseUpgraded
+			: liquidationVaultMoveCalls.liquidateBase;
+	}
+
+	get #liquidateQuoteCall() {
+		return this.#config.usesUpgradedPyth
+			? liquidationVaultMoveCalls.liquidateQuoteUpgraded
+			: liquidationVaultMoveCalls.liquidateQuote;
+	}
+
+	/**
 	 * @description Create a new liquidation vault
 	 * @param {string} liquidationAdminCap The liquidation admin cap object ID
 	 * @returns A function that takes a Transaction object
@@ -109,14 +127,14 @@ export class MarginLiquidationsContract {
 					: tx.pure.option('u64', null);
 
 			tx.add(
-				liquidationVaultMoveCalls.liquidateBase({
+				this.#liquidateBaseCall({
 					package: this.#config.LIQUIDATION_PACKAGE_ID,
 					arguments: {
 						self: vaultId,
 						marginManager: managerAddress,
 						registry: this.#config.MARGIN_REGISTRY_ID,
-						baseOracle: baseCoin.priceInfoObjectId!,
-						quoteOracle: quoteCoin.priceInfoObjectId!,
+						baseOracle: this.#config.getPriceInfoObjectId(pool.baseCoin),
+						quoteOracle: this.#config.getPriceInfoObjectId(pool.quoteCoin),
 						baseMarginPool: baseMarginPool.address,
 						quoteMarginPool: quoteMarginPool.address,
 						pool: pool.address,
@@ -152,14 +170,14 @@ export class MarginLiquidationsContract {
 					: tx.pure.option('u64', null);
 
 			tx.add(
-				liquidationVaultMoveCalls.liquidateQuote({
+				this.#liquidateQuoteCall({
 					package: this.#config.LIQUIDATION_PACKAGE_ID,
 					arguments: {
 						self: vaultId,
 						marginManager: managerAddress,
 						registry: this.#config.MARGIN_REGISTRY_ID,
-						baseOracle: baseCoin.priceInfoObjectId!,
-						quoteOracle: quoteCoin.priceInfoObjectId!,
+						baseOracle: this.#config.getPriceInfoObjectId(pool.baseCoin),
+						quoteOracle: this.#config.getPriceInfoObjectId(pool.quoteCoin),
 						baseMarginPool: baseMarginPool.address,
 						quoteMarginPool: quoteMarginPool.address,
 						pool: pool.address,

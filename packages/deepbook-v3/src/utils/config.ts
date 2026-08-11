@@ -4,7 +4,15 @@ import type { SuiClientTypes } from '@mysten/sui/client';
 import { normalizeSuiAddress } from '@mysten/sui/utils';
 
 import { BalanceManagerContract } from '../transactions/balanceManager.js';
-import type { BalanceManager, MarginManager, Coin, Pool, MarginPool } from '../types/index.js';
+import type {
+	BalanceManager,
+	MarginManager,
+	Coin,
+	Pool,
+	MarginPool,
+	MarginPythMode,
+	PythConfig,
+} from '../types/index.js';
 import type { CoinMap, PoolMap, MarginPoolMap, DeepbookPackageIds } from './constants.js';
 import { ResourceNotFoundError, ConfigurationError, ErrorMessages } from './errors.js';
 import {
@@ -18,6 +26,10 @@ import {
 	testnetMarginPools,
 	mainnetPythConfigs,
 	testnetPythConfigs,
+	mainnetPythUpgradedConfigs,
+	testnetPythUpgradedConfigs,
+	mainnetMarginPyth,
+	testnetMarginPyth,
 } from './constants.js';
 
 // Constants for numerical precision and scaling
@@ -40,10 +52,11 @@ export class DeepBookConfig {
 	balanceManagers: { [key: string]: BalanceManager };
 	marginManagers: { [key: string]: MarginManager };
 	address: string;
-	pyth: {
-		pythStateId: string;
-		wormholeStateId: string;
-	};
+	pyth: PythConfig;
+	/** Pyth's upgraded Core. Used by margin calls when {@link marginPyth} is `'upgraded'`. */
+	pythUpgraded: PythConfig;
+	/** Which Pyth deployment margin entrypoints price against. */
+	marginPyth: MarginPythMode;
 
 	DEEPBOOK_PACKAGE_ID: string;
 	REGISTRY_ID: string;
@@ -71,6 +84,8 @@ export class DeepBookConfig {
 		marginPools,
 		packageIds,
 		pyth,
+		pythUpgraded,
+		marginPyth,
 	}: {
 		network: SuiClientTypes.Network;
 		address: string;
@@ -83,7 +98,9 @@ export class DeepBookConfig {
 		pools?: PoolMap;
 		marginPools?: MarginPoolMap;
 		packageIds?: DeepbookPackageIds;
-		pyth?: { pythStateId: string; wormholeStateId: string };
+		pyth?: PythConfig;
+		pythUpgraded?: PythConfig;
+		marginPyth?: MarginPythMode;
 	}) {
 		this.network = network;
 		this.address = normalizeSuiAddress(address);
@@ -105,6 +122,8 @@ export class DeepBookConfig {
 			this.#pools = pools || {};
 			this.#marginPools = marginPools || {};
 			this.pyth = pyth || { pythStateId: '', wormholeStateId: '' };
+			this.pythUpgraded = pythUpgraded || { pythStateId: '', wormholeStateId: '' };
+			this.marginPyth = marginPyth || 'legacy';
 		} else if (network === 'mainnet') {
 			this.#coins = coins || mainnetCoins;
 			this.#pools = pools || mainnetPools;
@@ -116,7 +135,9 @@ export class DeepBookConfig {
 			this.MARGIN_V1 = mainnetPackageIds.MARGIN_V1;
 			this.MARGIN_REGISTRY_ID = mainnetPackageIds.MARGIN_REGISTRY_ID;
 			this.LIQUIDATION_PACKAGE_ID = mainnetPackageIds.LIQUIDATION_PACKAGE_ID;
-			this.pyth = mainnetPythConfigs;
+			this.pyth = pyth || mainnetPythConfigs;
+			this.pythUpgraded = pythUpgraded || mainnetPythUpgradedConfigs;
+			this.marginPyth = marginPyth || mainnetMarginPyth;
 		} else if (network === 'testnet') {
 			this.#coins = coins || testnetCoins;
 			this.#pools = pools || testnetPools;
@@ -128,7 +149,9 @@ export class DeepBookConfig {
 			this.MARGIN_V1 = testnetPackageIds.MARGIN_V1;
 			this.MARGIN_REGISTRY_ID = testnetPackageIds.MARGIN_REGISTRY_ID;
 			this.LIQUIDATION_PACKAGE_ID = testnetPackageIds.LIQUIDATION_PACKAGE_ID;
-			this.pyth = testnetPythConfigs;
+			this.pyth = pyth || testnetPythConfigs;
+			this.pythUpgraded = pythUpgraded || testnetPythUpgradedConfigs;
+			this.marginPyth = marginPyth || testnetMarginPyth;
 		} else {
 			throw new Error(
 				`Network '${network}' is not supported by default. Provide custom 'packageIds' for non-standard networks.`,
@@ -139,11 +162,48 @@ export class DeepBookConfig {
 	}
 
 	requirePyth() {
-		if (!this.pyth.pythStateId || !this.pyth.wormholeStateId) {
+		const { pythStateId, wormholeStateId } = this.activePyth;
+		if (!pythStateId || !wormholeStateId) {
+			const field = this.marginPyth === 'upgraded' ? 'pythUpgraded' : 'pyth';
 			throw new ConfigurationError(
-				"Pyth configuration is required for price feed operations. Provide 'pyth' when using custom packageIds.",
+				`Pyth configuration is required for price feed operations. Provide '${field}' when using custom packageIds.`,
 			);
 		}
+	}
+
+	// === Pyth deployment routing ===
+
+	/** The Pyth deployment margin currently prices against. */
+	get activePyth(): PythConfig {
+		return this.marginPyth === 'upgraded' ? this.pythUpgraded : this.pyth;
+	}
+
+	/** True when margin calls should use the upgraded modules and price objects. */
+	get usesUpgradedPyth(): boolean {
+		return this.marginPyth === 'upgraded';
+	}
+
+	/**
+	 * The `PriceInfoObject` id for a coin under the active Pyth deployment.
+	 *
+	 * Throws rather than passing `undefined` into a move call: under the upgraded
+	 * deployment a feed may simply have no object yet, and the resulting on-chain abort
+	 * (`EPriceFeedIdMismatch`) does not say which coin was at fault.
+	 */
+	getPriceInfoObjectId(coinKey: string): string {
+		const coin = this.getCoin(coinKey);
+		const id =
+			this.marginPyth === 'upgraded' ? coin.priceInfoObjectIdUpgraded : coin.priceInfoObjectId;
+
+		if (!id) {
+			throw new ConfigurationError(
+				this.marginPyth === 'upgraded'
+					? `Coin '${coinKey}' has no priceInfoObjectIdUpgraded. Pyth's upgraded Core has no price feed object for it on ${this.network}, or the id is missing from your coin config.`
+					: `Coin '${coinKey}' has no priceInfoObjectId configured.`,
+			);
+		}
+
+		return id;
 	}
 
 	// Getters

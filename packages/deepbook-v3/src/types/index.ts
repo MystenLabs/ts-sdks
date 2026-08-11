@@ -23,6 +23,34 @@ export interface Coin {
 	feed?: string;
 	currencyId?: string;
 	priceInfoObjectId?: string;
+	/**
+	 * The `PriceInfoObject` for the same feed under Pyth's upgraded Core. Pyth replaced
+	 * Core with a separately published package rather than upgrading it in place, so the
+	 * per-feed object ids differ from `priceInfoObjectId` even though the feed id does not.
+	 * Read by margin calls when `marginPyth` is `'upgraded'`.
+	 */
+	priceInfoObjectIdUpgraded?: string;
+}
+
+/**
+ * Which Pyth deployment the margin entrypoints price against.
+ *
+ * Pyth's upgraded Core is a separately published package, so its `PriceInfoObject` is a
+ * distinct Move type. A `compatible` upgrade cannot change a public function's parameter
+ * types, so `deepbook_margin` exposes the upgraded surface as parallel modules
+ * (`margin_manager_upgraded`, `pool_proxy_upgraded`) and `margin_liquidation` as parallel
+ * entrypoints (`liquidate_base_upgraded`, `liquidate_quote_upgraded`), under the same
+ * function names. Callers switch module, not function name — which is all this setting
+ * does. Every SDK method keeps its name and signature either way.
+ */
+export type MarginPythMode = 'legacy' | 'upgraded';
+
+/** State objects identifying one Pyth deployment (legacy Core or upgraded Core). */
+export interface PythConfig {
+	pythStateId: string;
+	wormholeStateId: string;
+	/** Hermes endpoint serving update data for this deployment. */
+	hermesEndpoint?: string;
 }
 
 export interface Pool {
