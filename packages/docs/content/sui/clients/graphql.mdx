@@ -59,8 +59,8 @@ console.log(result.data?.chainIdentifier);
 ### Type safety
 
 The `graphql` function is powered by [`gql.tada`](https://gql-tada.0no.co/), which types results and
-variables from the schema itself — no code generation step and no hand-written result types. Fields
-you did not select are not on the result type, and variables are checked against the query:
+variables from the schema itself, with no code generation step and no hand-written result types.
+Fields you did not select are not on the result type, and variables are checked against the query:
 
 ```typescript
 const getSuinsName = graphql(`
@@ -110,7 +110,8 @@ function ChainIdentifier() {
 ### Handling errors
 
 `query` returns `{ data, errors }` rather than throwing on GraphQL errors, because a response can be
-partially successful — some fields resolved, others failed. Check `errors` before trusting `data`:
+partially successful, where some fields resolve and others fail. Check `errors` before trusting
+`data`:
 
 ```typescript
 const { data, errors } = await client.query({ query: chainIdentifierQuery });
@@ -120,7 +121,7 @@ if (errors?.length) {
 }
 ```
 
-A transport-level failure — a non-2xx response — throws `SuiGraphQLRequestError` instead.
+A transport-level failure (a non-2xx response) throws `SuiGraphQLRequestError` instead.
 
 ### Named queries
 
@@ -147,6 +148,6 @@ Results and variables stay typed from the document the name resolves to.
 ## Reading your own writes
 
 GraphQL reads an index that trails execution slightly, so a transaction `executeTransaction` has
-already returned may not appear in a query for a moment. Use
+already returned might not appear in a query for a moment. Use
 [`waitForTransaction`](/sui/clients/executing#waitfortransaction) before reading back a
 transaction's effects.

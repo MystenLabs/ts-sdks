@@ -39,7 +39,7 @@ const client = new SuiGrpcClient({
 ```
 
 Reading data, executing transactions, and querying history all work the same way here as on any
-client — see [Querying data](/sui/clients/querying) and
+client. See [Querying data](/sui/clients/querying) and
 [Signing and execution](/sui/transactions/signing-and-execution). The rest of this page covers what
 is specific to gRPC.
 
@@ -138,7 +138,7 @@ const { response } = await client.ledgerService.getTransaction({
 ```
 
 A field you did not ask for comes back unset, which is the most common surprise when moving from a
-JSON-RPC mindset — an empty field usually means it was not requested rather than that it has no
+JSON-RPC mindset: an empty field usually means it was not requested rather than that it has no
 value.
 
 The top-level methods build masks for you from their `include` options, adding the paths each option
@@ -297,7 +297,7 @@ do {
 ```
 
 `options.after` and `options.before` are ledger-position bounds that mean the same thing in both
-directions — ordering only controls the order of items within the interval — and they intersect with
+directions (ordering only controls the order of items within the interval), and they intersect with
 the checkpoint range when both are given.
 
 ## Subscriptions
@@ -360,8 +360,8 @@ for await (const frame of stream.responses) {
 
 ### Cancelling a subscription
 
-Subscription streams have no successful end — they run until cancelled by the client or terminated
-by the server with a gRPC status. Pass an `AbortSignal` through `RpcOptions`:
+Subscription streams have no successful end. They run until the client cancels them, or until the
+server terminates them with a gRPC status. Pass an `AbortSignal` through `RpcOptions`:
 
 ```typescript
 const controller = new AbortController();
@@ -379,17 +379,11 @@ controller.abort();
 
 Subscriptions do not resume: a new subscription starts at the current tip, so anything that happened
 while you were disconnected is skipped. Close the gap with the paired list RPC, scanning between the
-last cursor you processed and the cursor the new subscription reported in its first frame — pass
-them as `options.after` and `options.before`. The indexed tip the list RPC reads from can trail the
+last cursor you processed and the cursor the new subscription reported in its first frame. Pass them
+as `options.after` and `options.before`. The indexed tip the list RPC reads from can trail the
 subscription's start position, so repeat the scan until a terminal frame reports `CURSOR_BOUND`
 rather than `LEDGER_TIP`.
 
 A durable consumer therefore keeps two pieces of state: the last cursor it processed, and the start
 cursor of each new subscription. On reconnect, open the subscription first, buffer its frames,
 replay the gap, then drain the buffer.
-
-## Next steps
-
-- [Querying data](/sui/clients/querying) and [Executing transactions](/sui/clients/executing) for
-  the methods every client shares
-- [Core API](/sui/clients/core) for writing libraries against any client

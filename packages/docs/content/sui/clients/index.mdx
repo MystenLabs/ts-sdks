@@ -6,8 +6,8 @@ keywords:
 ---
 
 A client is how your code reads from and writes to the Sui network. There are two to choose from,
-and they implement the same API — the same method names, options, and response shapes — so the
-choice is about which transport suits your application, not about which features you get.
+and they implement the same API (the same method names, options, and response shapes), so the choice
+is about which transport suits your application, not about which features you get.
 
 | Client                                     | Choose it for                                                                         |
 | ------------------------------------------ | ------------------------------------------------------------------------------------- |
@@ -76,8 +76,7 @@ const result = await client.signAndExecuteTransaction({
 
 These are documented in [Querying data](/sui/clients/querying) and
 [Signing and execution](/sui/transactions/signing-and-execution). Where a transport can return more
-than the shared shape carries, it adds options here — such as `include: { protoJson: true }` on
-gRPC.
+than the shared shape carries, it adds options here, such as `include: { protoJson: true }` on gRPC.
 
 ### `client.core`
 
@@ -96,7 +95,7 @@ export async function fetchResource(client: ClientWithCoreApi, objectId: string)
 ```
 
 See the [Core API](/sui/clients/core) for the contract and the cross-transport differences to
-account for. Application code does not need this — call the top-level methods instead.
+account for. Application code does not need this. Call the top-level methods instead.
 
 ### Native APIs
 

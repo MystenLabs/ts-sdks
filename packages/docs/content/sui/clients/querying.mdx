@@ -35,7 +35,7 @@ const { object } = await client.getObject({
 ```
 
 Application code should call the top-level method, as above. Libraries that accept any client should
-call `client.core.getObject(...)` instead — see the [Core API](/sui/clients/core) for that contract.
+call `client.core.getObject(...)` instead. See the [Core API](/sui/clients/core) for that contract.
 
 ## Objects
 
@@ -82,9 +82,9 @@ for (const object of objects) {
 ### `listOwnedObjects`
 
 List objects owned by an address, optionally filtered by type. The filter can be as broad or as
-narrow as you need — a package, a module, a type name, or a full instantiation — so
-`0x2::coin::Coin` matches every `Coin<T>` while `0x2::coin::Coin<0x2::sui::SUI>` matches only SUI
-coins. The `type` accepts [MVR](#move-registry-names) names as well as fully qualified types.
+narrow as you need: a package, a module, a type name, or a full instantiation. `0x2::coin::Coin`
+matches every `Coin<T>`, while `0x2::coin::Coin<0x2::sui::SUI>` matches only SUI coins. The `type`
+accepts [MVR](#move-registry-names) names as well as fully qualified types.
 
 ```typescript
 const page = await client.listOwnedObjects({
@@ -138,9 +138,9 @@ const parsed = MyStruct.parse(object.content);
 object has none.
 
 <Callout type="warn">
-	The shape of the `json` field varies between API implementations — field names and nesting are not
-	guaranteed to match across clients. When the result has to be stable, use `content` and parse the
-	BCS directly.
+	The shape of the `json` field varies between API implementations, and field names and nesting are
+	not guaranteed to match across clients. When the result has to be stable, use `content` and parse
+	the BCS directly.
 </Callout>
 
 ### `objectBcs`
@@ -158,8 +158,8 @@ const envelope = bcs.Object.parse(object.objectBcs);
 ```
 
 <Callout type="error">
-	Do not pass `objectBcs` to a Move struct parser. It contains wrapping metadata that will cause
-	parsing to fail or produce incorrect results. Use `content` for parsing Move struct fields.
+	Do not pass `objectBcs` to a Move struct parser. It contains wrapping metadata that causes parsing
+	to fail or produce incorrect results. Use `content` for parsing Move struct fields.
 </Callout>
 
 ### `display`
@@ -209,7 +209,7 @@ console.log(balance.coinBalance); // From coin objects only
 console.log(balance.addressBalance); // From the address balance only
 ```
 
-All three values are decimal strings, not numbers — use `BigInt` for arithmetic.
+All three values are decimal strings, not numbers, so use `BigInt` for arithmetic.
 
 ### `listBalances`
 
@@ -241,7 +241,7 @@ for (const coin of page.objects) {
 
 <Callout type="info">
 	You rarely need to select coins by hand. The transaction builder resolves gas and coin inputs for
-	you — see [Coins and balances](/sui/transactions/coins-and-balances).
+	you. See [Coins and balances](/sui/transactions/coins-and-balances).
 </Callout>
 
 ### `getCoinMetadata`
@@ -343,8 +343,8 @@ console.log(transaction.status.success);
 console.log(transaction.effects);
 ```
 
-A transaction that executed but aborted on-chain comes back as `FailedTransaction` rather than
-throwing — see
+A transaction that executed but aborted onchain comes back as `FailedTransaction` rather than
+throwing. See
 [checking success or failure](/sui/transactions/signing-and-execution#checking-success-or-failure).
 
 ### `listTransactions`
@@ -374,8 +374,8 @@ Transaction filters take exactly one predicate:
 
 ### `listEvents`
 
-Page through events matching a filter. Each event carries its ledger position — `checkpoint`,
-`transactionDigest`, and `eventIndex` — alongside the event data.
+Page through events matching a filter. Each event carries its ledger position (`checkpoint`,
+`transactionDigest`, and `eventIndex`) alongside the event data.
 
 ```typescript
 const page = await client.listEvents({
@@ -401,8 +401,8 @@ Both filters resolve [MVR](#move-registry-names) names automatically, and both m
 `limit` and an `order` and page through history with the cursors described under
 [Pagination](#pagination).
 
-For filters beyond one predicate — combined or negated predicates, affected addresses and objects,
-or checkpoint ranges — use the [raw gRPC list RPCs](/sui/clients/grpc#using-service-clients) or a
+For filters beyond one predicate (combined or negated predicates, affected addresses and objects, or
+checkpoint ranges), use the [raw gRPC list RPCs](/sui/clients/grpc#using-service-clients) or a
 [custom GraphQL query](/sui/clients/graphql#writing-queries). To follow new activity as it happens,
 see [gRPC subscriptions](/sui/clients/grpc#subscriptions).
 
@@ -445,10 +445,10 @@ while (true) {
 ### History cursors
 
 `listTransactions` and `listEvents` read an ordered ledger instead of a collection, so they take
-`after` and `before` — exclusive ledger-position bounds. A query takes at most one of them, and the
-bound implies the direction: `after` reads ascending, `before` reads descending. Each page reports
-the position of its first and last item as `startCursor` and `endCursor`, so a feed can page in both
-directions from any point:
+`after` and `before`, which are exclusive ledger-position bounds. A query takes at most one of them,
+and the bound implies the direction: `after` reads ascending, `before` reads descending. Each page
+reports the position of its first and last item as `startCursor` and `endCursor`, so a feed can page
+in both directions from any point:
 
 ```typescript
 // The most recent transactions
@@ -474,8 +474,8 @@ const newer = await client.listTransactions({
 
 <Callout type="info">
 	Drive pagination off `hasNextPage` rather than page length. On gRPC, a filtered query is bounded
-	in how much ledger it scans per request, so a page can come back shorter than `limit` — even empty
-	— while `hasNextPage` is still `true`; continuing from `endCursor` always makes progress. Servers
+	in how much ledger it scans per request, so a page can come back shorter than `limit`, even empty,
+	while `hasNextPage` is still `true`; continuing from `endCursor` always makes progress. Servers
 	also cap page sizes (50 by default); over-large `limit` values are truncated on gRPC and rejected
 	on GraphQL.
 </Callout>
@@ -523,8 +523,8 @@ const {
 
 ## Move Registry names
 
-Wherever a method takes a Move type or package, it also accepts a Move Registry (MVR) name — a
-human-readable alias such as `@deepbook/core` — which the client resolves for you. You can also
+Wherever a method takes a Move type or package, it also accepts a Move Registry (MVR) name, a
+human-readable alias such as `@deepbook/core`, which the client resolves for you. You can also
 resolve them directly through `client.mvr`:
 
 ```typescript
@@ -541,7 +541,7 @@ const { type } = await client.mvr.resolveType({
 cached on the client.
 
 <Callout type="info">
-	MVR has default endpoints for mainnet and testnet only. On other networks, pass an `mvr` option
+	MVR has default endpoints for Mainnet and Testnet only. On other networks, pass an `mvr` option
 	when constructing the client. Names that are not registered are rejected rather than passed
 	through, so only packages actually published to the registry resolve.
 </Callout>
@@ -564,6 +564,6 @@ const { object } = await client.getObject({
 Methods reject when a request fails. The one exception is [`getObjects`](#getobjects), which reports
 per-object failures in its result array so a single bad ID does not fail the batch.
 
-Transaction results have their own convention, where a transaction that executed but failed on-chain
-is not an error — see
+Transaction results have their own convention, where a transaction that executed but failed onchain
+is not an error. See
 [checking success or failure](/sui/transactions/signing-and-execution#checking-success-or-failure).

@@ -39,7 +39,7 @@ if (result.$kind === 'FailedTransaction') {
 }
 ```
 
-`commandResults` is unique to simulation — each entry holds a command's `returnValues` and
+`commandResults` is unique to simulation. Each entry holds a command's `returnValues` and
 `mutatedReferences` as BCS-encoded bytes, which you can decode with the [BCS library](/bcs). For the
 rest of the `include` options, and the two flags that change how the node runs a simulation, see
 [Executing transactions](/sui/clients/executing#simulatetransaction).
@@ -172,12 +172,10 @@ const result = await grpcClient.executeTransaction({
 });
 ```
 
-The `include` parameter controls what comes back with the result — see
-[include options](/sui/clients/executing#include-options) for the full set.
-
 Clients also expose `signAndExecuteTransaction`, which takes a signer instead of bytes and does both
-steps in one call — useful when the signer is not a keypair, or in library code that holds a client.
-See [Executing transactions](/sui/clients/executing) for the full set of client execution methods.
+steps in one call, which is useful when the signer is not a keypair, or in library code that holds a
+client. See [Executing transactions](/sui/clients/executing) for the full `include` options and the
+rest of the client execution methods.
 
 ## Observing results
 

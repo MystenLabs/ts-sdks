@@ -15,7 +15,7 @@ keywords:
 
 Executing a transaction is a client operation, and every client exposes the same four methods for
 it. Building transactions is covered in [Building transactions](/sui/transactions/basics), and the
-ways to obtain a signature — keypairs, wallets, sponsorship — in
+ways to obtain a signature (keypairs, wallets, sponsorship) in
 [Signing and execution](/sui/transactions/signing-and-execution).
 
 ## `signAndExecuteTransaction`
@@ -37,9 +37,9 @@ const result = await client.signAndExecuteTransaction({
 });
 ```
 
-The signer can be any `Signer` — a keypair, or a KMS or Ledger signer. Pass `additionalSignatures`
-for transactions needing more than one, such as a sponsored transaction the sponsor has already
-signed.
+The signer can be any `Signer`, such as a keypair or a KMS or Ledger signer. Pass
+`additionalSignatures` for transactions needing more than one, such as a sponsored transaction the
+sponsor has already signed.
 
 ## `executeTransaction`
 
@@ -54,7 +54,7 @@ const result = await client.executeTransaction({
 ```
 
 Both methods return a discriminated union rather than throwing on failure: a transaction that
-executed but aborted on-chain comes back as `FailedTransaction`.
+executed but aborted onchain comes back as `FailedTransaction`.
 
 ```typescript
 const transaction = result.Transaction ?? result.FailedTransaction;
@@ -62,8 +62,8 @@ const transaction = result.Transaction ?? result.FailedTransaction;
 console.log(transaction.digest, transaction.status.success);
 ```
 
-A resolved promise means the transaction was executed, which is not the same as it having succeeded
-— see
+A resolved promise means the transaction was executed, which is not the same as it having succeeded.
+See
 [checking success or failure](/sui/transactions/signing-and-execution#checking-success-or-failure)
 for handling both outcomes.
 
@@ -122,9 +122,3 @@ Two further options change how the node runs the simulation:
 | ---------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | `checksEnabled`  | Set `false` to skip transaction validation, so non-public and non-entry functions can be inspected. Defaults to `true` |
 | `doGasSelection` | Overrides whether the server selects gas payment during the simulation                                                 |
-
-## Next steps
-
-- [Signing and execution](/sui/transactions/signing-and-execution) for keypairs, wallets, gas, and
-  sponsored transactions
-- [Querying data](/sui/clients/querying) for reading transactions back

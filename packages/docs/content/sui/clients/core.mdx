@@ -20,7 +20,7 @@ care which transport their caller chose: an SDK written against the Core API wor
 
 <Callout type="info">
 	This page is for SDK and library authors. If you are writing application code, create a client and
-	call its [top-level methods](/sui/clients/querying) directly — you do not need `client.core`.
+	call its [top-level methods](/sui/clients/querying) directly. You do not need `client.core`.
 </Callout>
 
 For packaging, extension, and code-generation patterns that go with this contract, see
@@ -65,8 +65,8 @@ so library code that stays inside it keeps working whichever client the caller s
 
 ## The contract
 
-Every client implements these methods on `client.core`. They are documented in full — with options,
-include flags, and response shapes — in [Querying data](/sui/clients/querying).
+Every client implements these methods on `client.core`. [Querying data](/sui/clients/querying)
+documents them in full, with options, include flags, and response shapes.
 
 | Category       | Methods                                                                                    |
 | -------------- | ------------------------------------------------------------------------------------------ |
@@ -162,8 +162,8 @@ function describeOwner(owner: SuiClientTypes.ObjectOwner) {
 | `FunctionResponse`     | Move function metadata                                                                   |
 | `Network`              | Network identifier type                                                                  |
 
-Option types follow a predictable naming scheme — `GetObjectOptions`, `ListCoinsOptions`,
-`SimulateTransactionOptions`, and so on — along with the include shapes `ObjectInclude`,
+Option types follow a predictable naming scheme (`GetObjectOptions`, `ListCoinsOptions`,
+`SimulateTransactionOptions`, and so on), along with the include shapes `ObjectInclude`,
 `TransactionInclude`, and `SimulateTransactionInclude`.
 
 ## Cross-transport differences
