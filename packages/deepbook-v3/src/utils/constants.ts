@@ -76,9 +76,12 @@ export const testnetCoins: CoinMap = {
 		address: `0x6502dae813dbe5e42643c119a6450a518481f03063febc7e20238e43b6ea9e86`,
 		type: `0x6502dae813dbe5e42643c119a6450a518481f03063febc7e20238e43b6ea9e86::dbtc::DBTC`,
 		scalar: 100000000,
-		feed: '0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43',
+		// Crypto.XBTC/USD — DBTC is testnet's wrapped BTC, so it takes the same feed mainnet
+		// XBTC does rather than plain BTC/USD. Its object was created on upgraded testnet
+		// Core on 2026-08-11; before that none existed and BTC/USD stood in.
+		feed: '0xae8f269ed9c4bed616c99a98cf6dfe562bd3202e7f91821a471ff854713851b4',
 		currencyId: '0x3ef2afa2126704bf721b9c8495d94288f6bd090fc454fe3e1613eb765a8a348f',
-		priceInfoObjectId: '0x0fcd3e0ca9ae888e30ce509049749075c36d477660f4de9f60ffb28459f38af2',
+		priceInfoObjectId: '0x88387b85b9a53c4365219aee4d77e62213877f110eb859d8e03812a5bea0d1f7',
 	},
 	DBUSDT: {
 		address: `0xf7152c05930480cd740d7311b5b8b45c6f488e3a53a11c3f74a6fac36a52e0d7`,
@@ -139,9 +142,15 @@ export const mainnetCoins: CoinMap = {
 		scalar: 100000000,
 		feed: '0xae8f269ed9c4bed616c99a98cf6dfe562bd3202e7f91821a471ff854713851b4',
 		currencyId: '0x907bb173bffab7c57bbd3350a633aa32c8770937b496d7d88874087b59200bcc',
-		// No priceInfoObjectId: Pyth's upgraded Core has no XBTC price object (checked
-		// 2026-08-11). The feed itself is live and serves signed updates, and creating the
-		// object is permissionless — until someone does, margin cannot price XBTC.
+		// priceInfoObjectId: TO BE CREATED. Pyth's upgraded Core has no XBTC price object on
+		// mainnet yet (checked 2026-08-11), so pricing XBTC throws until one exists. The feed
+		// is live and serves signed updates under the id above — only the object is missing,
+		// and `pyth::create_price_feeds_using_accumulator` is `public fun` with no capability
+		// gate, so creating it needs one ordinary transaction from any funded address rather
+		// than an admin action. Demonstrated on testnet 2026-08-11 (tx `5BMfpRju…nP6eK`).
+		//
+		// XBTC is not singled out: 320 of mainnet's 418 legacy feeds have no upgraded object.
+		// Fill this in with the created object id.
 	},
 	USDSUI: {
 		address: `0x44f838219cf67b058f3b37907b655f226153c18e33dfcd0da559a844fea9b1c1`,
