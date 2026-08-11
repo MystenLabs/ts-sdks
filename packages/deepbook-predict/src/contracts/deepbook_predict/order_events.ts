@@ -79,7 +79,7 @@ export const LiveOrderRedeemed = new MoveStruct({
 		/** `0` means the position was fully closed. */
 		remaining_quantity: U64,
 		/** New order ID minted to carry the remainder on a partial live close. */
-		replacement_order_id: bcs.option(bcs.u256()),
+		replacement_order_id: bcs.option(U256),
 		/** Redeem value before fees, after any floor deduction. */
 		redeem_amount: U64,
 		trading_fee: U64,

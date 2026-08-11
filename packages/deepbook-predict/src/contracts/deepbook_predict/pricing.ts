@@ -67,16 +67,16 @@ export const RawSVI = new MoveStruct({
 export const ExactSpotRead = new MoveStruct({
 	name: `${$moduleName}::ExactSpotRead`,
 	fields: {
-		spot: bcs.option(bcs.u64()),
+		spot: bcs.option(U64),
 	},
 });
 export const PriceMemo = new MoveStruct({
 	name: `${$moduleName}::PriceMemo`,
 	fields: {
 		/** Finite boundary ticks in ascending order (the in-order walk appends them). */
-		ticks: bcs.vector(bcs.u64()),
+		ticks: bcs.vector(U64),
 		/** `up_price(ticks[i] * tick_size)`, parallel to `ticks`. */
-		prices: bcs.vector(bcs.u64()),
+		prices: bcs.vector(U64),
 	},
 });
 export interface UpPriceArguments {

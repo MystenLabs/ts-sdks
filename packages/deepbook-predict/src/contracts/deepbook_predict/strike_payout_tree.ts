@@ -58,7 +58,7 @@ export const PayoutTerms = new MoveStruct({
 export const StrikePayoutTree = new MoveStruct({
 	name: `${$moduleName}::StrikePayoutTree`,
 	fields: {
-		root: bcs.option(bcs.u64()),
+		root: bcs.option(U64),
 		nodes: table.Table,
 		node_count: U64,
 		base: PayoutTerms,
@@ -89,8 +89,8 @@ export const PayoutNode = new MoveStruct({
 		 * only by `rebalance` — never by a caller, and never derived from a tick.
 		 */
 		height: U64,
-		left: bcs.option(bcs.u64()),
-		right: bcs.option(bcs.u64()),
+		left: bcs.option(U64),
+		right: bcs.option(U64),
 		/**
 		 * This node's own boundary terms, stored so the subtree `summary` can be
 		 * recomputed without deriving locals by subtracting child summaries.

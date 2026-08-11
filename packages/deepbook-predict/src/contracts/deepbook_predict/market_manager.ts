@@ -69,7 +69,7 @@ export const UnderlyingMarketConfig = new MoveStruct({
 		/** Deployment config indexed by cadence ID. */
 		cadences: bcs.vector(CadenceConfig),
 		/** Highest deployed expiry timestamp indexed by cadence ID. */
-		last_deployed_expiries: bcs.vector(bcs.u64()),
+		last_deployed_expiries: bcs.vector(U64),
 	},
 });
 export interface CadenceTickSizeArguments {

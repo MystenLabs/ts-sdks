@@ -29,6 +29,7 @@
 
 import { MoveStruct } from '../../../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
+import { U64 } from '../../../../bcs/integers.js';
 const $moduleName = '0x2::bag';
 export const Bag = new MoveStruct({
 	name: `${$moduleName}::Bag`,
@@ -36,6 +37,6 @@ export const Bag = new MoveStruct({
 		/** the ID of this bag */
 		id: bcs.Address,
 		/** the number of key-value pairs in the bag */
-		size: bcs.u64(),
+		size: U64,
 	},
 });

@@ -21,8 +21,8 @@ export const RequestQueue = new MoveStruct({
 	name: `${$moduleName}::RequestQueue<phantom T>`,
 	fields: {
 		pages: table.Table,
-		head_page_id: bcs.option(bcs.u64()),
-		tail_page_id: bcs.option(bcs.u64()),
+		head_page_id: bcs.option(U64),
+		tail_page_id: bcs.option(U64),
 		next_index: U64,
 		pending: U64,
 		escrow: balance.Balance,
@@ -66,8 +66,8 @@ export const RequestEntry = new MoveStruct({
 export const RequestPage = new MoveStruct({
 	name: `${$moduleName}::RequestPage`,
 	fields: {
-		prev: bcs.option(bcs.u64()),
-		next: bcs.option(bcs.u64()),
+		prev: bcs.option(U64),
+		next: bcs.option(U64),
 		entries: bcs.vector(RequestEntry),
 	},
 });

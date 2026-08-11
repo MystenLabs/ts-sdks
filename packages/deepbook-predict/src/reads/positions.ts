@@ -91,7 +91,7 @@ export async function resolvePositionsTable(
 	return {
 		accountUid,
 		positionsTableId: normalizeSuiAddress(data.positions.id),
-		positionCount: BigInt(data.positions.size),
+		positionCount: data.positions.size,
 	};
 }
 

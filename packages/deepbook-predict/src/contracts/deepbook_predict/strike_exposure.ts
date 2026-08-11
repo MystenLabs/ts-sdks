@@ -37,12 +37,12 @@ export const StrikeExposure = new MoveStruct({
 		/** Exact Propbook Pyth source timestamp used to derive the reference tick. */
 		reference_tick_source_timestamp_ms: U64,
 		/** Reference fine-grid tick that may bypass the coarser admission grid once set. */
-		reference_tick: bcs.option(bcs.u64()),
+		reference_tick: bcs.option(U64),
 		/** Snapshotted exposure and fee policy for this expiry. */
 		config: strike_exposure_config.StrikeExposureConfig,
 		next_order_sequence: U64,
 		/** Terminal settlement price once the exposure has entered its settled phase. */
-		settlement_price: bcs.option(bcs.u64()),
+		settlement_price: bcs.option(U64),
 		/** Remaining payout liability in the settled phase. */
 		settled_payout_liability: U64,
 		liquidation: liquidation_book.LiquidationBook,

@@ -281,7 +281,7 @@ export function decodeRedeems(
 			positionRootId: e.position_root_id,
 			quantityClosed: fromRaw(e.quantity_closed, 6),
 			remaining: fromRaw(e.remaining_quantity, 6),
-			replacementOrderId: e.replacement_order_id == null ? null : BigInt(e.replacement_order_id),
+			replacementOrderId: e.replacement_order_id,
 			// settle_live_redeem_payment credits redeem_amount minus all three
 			// fee components — the event's redeem_amount is GROSS.
 			proceeds: fromRaw(e.redeem_amount - e.trading_fee - e.builder_fee - e.penalty_fee, 6),
