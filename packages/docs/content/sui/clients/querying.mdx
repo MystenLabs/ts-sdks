@@ -81,8 +81,10 @@ for (const object of objects) {
 
 ### `listOwnedObjects`
 
-List objects owned by an address, optionally filtered to an exact type. The `type` accepts
-[MVR](#move-registry-names) names as well as fully qualified types.
+List objects owned by an address, optionally filtered by type. The filter can be as broad or as
+narrow as you need — a package, a module, a type name, or a full instantiation — so
+`0x2::coin::Coin` matches every `Coin<T>` while `0x2::coin::Coin<0x2::sui::SUI>` matches only SUI
+coins. The `type` accepts [MVR](#move-registry-names) names as well as fully qualified types.
 
 ```typescript
 const page = await client.listOwnedObjects({
@@ -302,10 +304,10 @@ console.log(dynamicField.value.bcs); // BCS-encoded value
 ### `getDynamicObjectField`
 
 Fetch a dynamic _object_ field and return the referenced object itself, with the same
-[include options](#include-options) as `getObject`. This one is only available on `client.core`.
+[include options](#include-options) as `getObject`.
 
 ```typescript
-const { object } = await client.core.getDynamicObjectField({
+const { object } = await client.getDynamicObjectField({
 	parentId: '0x123...',
 	name: {
 		type: '0x2::object::ID',
@@ -354,7 +356,7 @@ Results use the same include options as `getTransaction`.
 
 ```typescript
 const page = await client.listTransactions({
-	filter: { function: '0x2::coin::transfer' },
+	filter: { function: '0x2::coin::mint_and_transfer' },
 	limit: 10,
 	include: { effects: true },
 });
@@ -428,10 +430,11 @@ const newer = await client.listTransactions({
 ```
 
 <Callout type="info">
-	These queries scan the ledger, so a page can come back shorter than `limit` — even empty — while
-	`hasNextPage` is still `true`. Drive the loop off `hasNextPage` rather than page length, and
-	continue from `endCursor`: every request makes progress. Servers also cap page sizes (50 by
-	default); over-large `limit` values are truncated on gRPC and rejected on GraphQL.
+	Drive pagination off `hasNextPage` rather than page length. On gRPC, a filtered query is bounded
+	in how much ledger it scans per request, so a page can come back shorter than `limit` — even empty
+	— while `hasNextPage` is still `true`; continuing from `endCursor` always makes progress. Servers
+	also cap page sizes (50 by default); over-large `limit` values are truncated on gRPC and rejected
+	on GraphQL.
 </Callout>
 
 For filters beyond one predicate — combined or negated predicates, affected addresses and objects,
@@ -484,23 +487,27 @@ const {
 ## Move Registry names
 
 Wherever a method takes a Move type or package, it also accepts a Move Registry (MVR) name — a
-human-readable alias such as `@mysten/sui` — which the client resolves for you. You can also resolve
-them directly through `client.mvr`:
+human-readable alias such as `@deepbook/core` — which the client resolves for you. You can also
+resolve them directly through `client.mvr`:
 
 ```typescript
-const { type } = await client.mvr.resolveType({
-	type: '@mysten/sui::coin::Coin<@mysten/sui::sui::SUI>',
+const { package: packageId } = await client.mvr.resolvePackage({
+	package: '@deepbook/core',
 });
 
-console.log(type); // "0x2::coin::Coin<0x2::sui::SUI>"
-
-const { package: packageId } = await client.mvr.resolvePackage({
-	package: '@mysten/sui',
+const { type } = await client.mvr.resolveType({
+	type: '@deepbook/core::pool::Pool<@deepbook/core::deep::DEEP>',
 });
 ```
 
 `client.mvr.resolve({ packages, types })` resolves several names in one call. Resolved names are
 cached on the client.
+
+<Callout type="info">
+	MVR has default endpoints for mainnet and testnet only. On other networks, pass an `mvr` option
+	when constructing the client. Names that are not registered are rejected rather than passed
+	through, so only packages actually published to the registry resolve.
+</Callout>
 
 ## Pagination
 
@@ -509,22 +516,31 @@ List methods that read collections — `listOwnedObjects`, `listCoins`, `listBal
 `hasNextPage` back.
 
 ```typescript
-let cursor: string | null = null;
+let page = await client.listOwnedObjects({ owner: '0xabc...', limit: 50 });
 
-do {
-	const page = await client.listOwnedObjects({
-		owner: '0xabc...',
-		cursor,
-		limit: 50,
-	});
-
+while (true) {
 	for (const object of page.objects) {
 		console.log(object.objectId);
 	}
 
-	cursor = page.hasNextPage ? page.cursor : null;
-} while (cursor !== null);
+	if (!page.hasNextPage) {
+		break;
+	}
+
+	page = await client.listOwnedObjects({
+		owner: '0xabc...',
+		cursor: page.cursor,
+		limit: 50,
+	});
+}
 ```
+
+<Callout type="info">
+	Carrying the cursor in a separately annotated variable (`let cursor: string | null = null`) makes
+	these methods fail to infer: because they are generic over `include`, the type of the page depends
+	on the argument that holds the cursor, which depends on the page. Reassigning the page itself, as
+	above, avoids the cycle.
+</Callout>
 
 `listTransactions` and `listEvents` are ordered history queries rather than collection reads, so
 they use the richer [query cursors](#query-cursors) described above instead of a single `cursor`.

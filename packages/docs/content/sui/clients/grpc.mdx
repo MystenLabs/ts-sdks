@@ -17,8 +17,8 @@ keywords:
 ---
 
 `SuiGrpcClient` talks to the full node gRPC API. It is the recommended default for application code
-and SDK integrations: it reads directly from a full node with no indexer in the path, and it is the
-only client with real-time subscriptions.
+and SDK integrations: it reads directly from a full node, and it is the only client with real-time
+subscriptions.
 
 ```typescript
 import { SuiGrpcClient } from '@mysten/sui/grpc';
@@ -130,28 +130,30 @@ For local development without TLS, use `ChannelCredentials.createInsecure()` and
 `SuiGrpcClient` exposes the generated gRPC service clients directly, for methods, read masks, and
 filters the shared API does not cover:
 
-| Service                        | Covers                                                     |
-| ------------------------------ | ---------------------------------------------------------- |
-| `ledgerService`                | Transactions, checkpoints, epochs, service info, list RPCs |
-| `stateService`                 | Owned objects, dynamic fields, balances                    |
-| `transactionExecutionService`  | Transaction execution                                      |
-| `subscriptionService`          | Real-time streams                                          |
-| `movePackageService`           | Packages, modules, functions, datatypes                    |
-| `nameService`                  | SuiNS lookup and reverse lookup                            |
-| `signatureVerificationService` | Signature verification                                     |
-| `forkingService`               | Admin APIs for `sui-fork` instances only                   |
+| Service                        | Covers                                                              |
+| ------------------------------ | ------------------------------------------------------------------- |
+| `ledgerService`                | Objects, transactions, checkpoints, epochs, service info, list RPCs |
+| `stateService`                 | Owned objects, dynamic fields, balances                             |
+| `transactionExecutionService`  | Transaction execution                                               |
+| `subscriptionService`          | Real-time streams                                                   |
+| `movePackageService`           | Packages, functions, datatypes                                      |
+| `nameService`                  | SuiNS lookup and reverse lookup                                     |
+| `signatureVerificationService` | Signature verification                                              |
+| `forkingService`               | Admin APIs for `sui-fork` instances only                            |
 
 These clients are generated with [protobuf-ts](https://github.com/timostamm/protobuf-ts). Requests
-take a read mask naming the fields to return, and every call accepts an `RpcOptions` argument where
-`abort` carries an `AbortSignal`. Reach for them when the top-level method cannot express what you
-need — otherwise prefer the top-level method, which handles field selection and response mapping.
+that return entity data take a read mask naming the fields to return, and every call accepts an
+`RpcOptions` argument where `abort` carries an `AbortSignal`. Reach for them when the top-level
+method cannot express what you need — otherwise prefer the top-level method, which handles field
+selection and response mapping.
 
 ### Ledger service
 
 ```typescript
-// Get a transaction by digest
+// Get a transaction by digest, naming the fields to return
 const { response } = await client.ledgerService.getTransaction({
-	digest: '0x123...',
+	digest: 'ABC123...',
+	readMask: { paths: ['digest', 'effects.status'] },
 });
 
 // Get current epoch information
@@ -278,29 +280,34 @@ intersect with `startCheckpoint`/`endCheckpoint` when both are given:
 import { GrpcTypes } from '@mysten/sui/grpc';
 
 let resumeFrom: Uint8Array | undefined;
+let reason: GrpcTypes.QueryEndReason | undefined;
 
-const stream = client.ledgerService.listEvents({
-	readMask: { paths: ['event_type', 'transaction_digest', 'event_index'] },
-	startCheckpoint: 1_000_000n,
-	options: {
-		after: resumeFrom,
-		limit: 100,
-		ordering: GrpcTypes.Ordering.ASCENDING,
-	},
-});
+// One request can stop before the interval is exhausted, so scan until it reports the ledger tip
+do {
+	const stream = client.ledgerService.listEvents({
+		readMask: { paths: ['event_type', 'transaction_digest', 'event_index'] },
+		startCheckpoint: 1_000_000n,
+		options: {
+			after: resumeFrom,
+			limit: 100,
+			ordering: GrpcTypes.Ordering.ASCENDING,
+		},
+	});
 
-for await (const frame of stream.responses) {
-	// The latest watermark is always the safe place to resume from
-	resumeFrom = frame.watermark?.cursor ?? resumeFrom;
+	for await (const frame of stream.responses) {
+		// The latest watermark is always the safe place to resume from
+		resumeFrom = frame.watermark?.cursor ?? resumeFrom;
+		reason = frame.end?.reason ?? reason;
 
-	if (frame.event) {
-		console.log(frame.event.eventType, frame.event.transactionDigest);
+		if (frame.event) {
+			console.log(frame.event.eventType, frame.event.transactionDigest);
+		}
 	}
-}
+} while (reason !== GrpcTypes.QueryEndReason.LEDGER_TIP);
 ```
 
-A `SCAN_LIMIT` end reason means the scan stopped early, not that results are exhausted. Reissue the
-request with `options.after` set to the last watermark cursor to keep making progress.
+A `SCAN_LIMIT` end reason means the scan stopped early, not that results are exhausted — which is
+why the loop above reissues from the last watermark cursor rather than stopping.
 
 ## Subscriptions
 

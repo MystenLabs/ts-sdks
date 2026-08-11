@@ -130,7 +130,12 @@ import { walrus } from '@mysten/walrus';
 
 const client = new SuiGrpcClient({ network: 'mainnet', baseUrl: '...' }).$extend(walrus());
 
-await client.walrus.writeBlob({ ... });
+const { blobId } = await client.walrus.writeBlob({
+	blob: file,
+	deletable: false,
+	epochs: 3,
+	signer: keypair,
+});
 ```
 
 See [Building SDKs](/sui/sdk-building) for creating your own.

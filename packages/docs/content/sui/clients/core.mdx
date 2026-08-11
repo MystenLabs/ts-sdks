@@ -82,8 +82,10 @@ include flags, and response shapes — in [Querying data](/sui/clients/querying)
 | Verification   | `verifyZkLoginSignature`                                                                   |
 | Building       | `resolveTransactionPlugin`                                                                 |
 
-Every method here is also available as a top-level method on the concrete clients, so the choice
-between `client.core.getObject()` and `client.getObject()` is about portability rather than reach.
+`SuiGrpcClient` and `SuiGraphQLClient` also expose every one of these as a top-level method, so the
+choice between `client.core.getObject()` and `client.getObject()` is about portability rather than
+reach. The deprecated `SuiJsonRpcClient` is the exception: it implements the contract on
+`client.core`, but its own top-level methods keep their legacy JSON-RPC names and shapes.
 
 ## Typing library code
 

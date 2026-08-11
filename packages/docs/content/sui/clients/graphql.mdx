@@ -63,13 +63,7 @@ const client = new SuiGraphQLClient({
 Use `query` to run any GraphQL document against the endpoint:
 
 ```typescript
-import { SuiGraphQLClient } from '@mysten/sui/graphql';
 import { graphql } from '@mysten/sui/graphql/schema';
-
-const gqlClient = new SuiGraphQLClient({
-	url: 'https://graphql.testnet.sui.io/graphql',
-	network: 'testnet',
-});
 
 const chainIdentifierQuery = graphql(`
 	query {
@@ -77,7 +71,7 @@ const chainIdentifierQuery = graphql(`
 	}
 `);
 
-const result = await gqlClient.query({ query: chainIdentifierQuery });
+const result = await client.query({ query: chainIdentifierQuery });
 
 console.log(result.data?.chainIdentifier);
 ```
@@ -100,7 +94,7 @@ const getSuinsName = graphql(`
 `);
 
 async function getDefaultSuinsName(address: string) {
-	const result = await gqlClient.query({
+	const result = await client.query({
 		query: getSuinsName,
 		variables: { address },
 	});
@@ -115,7 +109,7 @@ The `graphql` function returns document nodes implementing the
 [`TypedDocumentNode`](https://github.com/dotansimha/graphql-typed-document-node) standard, so the
 same typed documents work with most GraphQL clients:
 
-```typescript
+```tsx
 import { useQuery } from '@apollo/client';
 import { graphql } from '@mysten/sui/graphql/schema';
 
@@ -125,8 +119,12 @@ const chainIdentifierQuery = graphql(`
 	}
 `);
 
-// Result types flow through the other client's own hooks and methods
-const { data } = useQuery(chainIdentifierQuery);
+function ChainIdentifier() {
+	// Result types flow through the other client's own hooks and methods
+	const { data } = useQuery(chainIdentifierQuery);
+
+	return <span>{data?.chainIdentifier}</span>;
+}
 ```
 
 ### Handling errors
@@ -135,7 +133,7 @@ const { data } = useQuery(chainIdentifierQuery);
 partially successful — some fields resolved, others failed. Check `errors` before trusting `data`:
 
 ```typescript
-const { data, errors } = await gqlClient.query({ query: chainIdentifierQuery });
+const { data, errors } = await client.query({ query: chainIdentifierQuery });
 
 if (errors?.length) {
 	throw new AggregateError(errors.map((error) => new Error(error.message)));
@@ -322,7 +320,10 @@ const newTransactionsQuery = graphql(`
 	}
 `);
 
-const result = await gqlClient.query({
+// The last checkpoint this consumer finished, loaded from wherever you persist it
+const lastProcessedCheckpoint = 0;
+
+const result = await client.query({
 	query: newTransactionsQuery,
 	variables: { afterCheckpoint: lastProcessedCheckpoint, after: null },
 });
