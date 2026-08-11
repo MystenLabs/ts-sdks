@@ -1,5 +1,12 @@
 # @mysten/sui.js
 
+## 2.24.0
+
+### Minor Changes
+
+- c5f452f: Add `resolveNameServiceAddress` to the Core, gRPC, and GraphQL client APIs for
+  transport-agnostic SuiNS name-to-address resolution.
+
 ## 2.23.2
 
 ### Patch Changes

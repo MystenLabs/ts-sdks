@@ -1,5 +1,30 @@
 # @mysten/deepbook-predict
 
+## 0.1.0
+
+### Minor Changes
+
+- fb8c6e1: Add facade capabilities and minimal composition exports. `MarketDescriptor` becomes a
+  discriminated union that also accepts two-strike range positions (`side: 'range'` with
+  `lower`/`upper` bounds) and an optional `marketId` pin that mints against an exact `ExpiryMarket`
+  object instead of resolving by underlying+expiry. `tx.deposit` gains a `create: true` option that
+  composes first-time funding into one PTB (create the account wrapper, deposit through the fresh
+  handle, share last). The root entry now exports `generateAuth`, `deriveAccountWrapperId`,
+  `ACCUMULATOR_ROOT_ID`, and `POSITION_LOT_SIZE` for PTBs that compose predict accounts with foreign
+  packages.
+
+### Patch Changes
+
+- 5fd97fb: Add a client-side board pricer for painting a whole board without a chain call per
+  strike. `client.predict.read.pricer(market)` does one simulate of the chain's resolved pricer and
+  returns a `BoardPricer` (`up`/`down`/`range`/`strikeAtProbability`/`forward`) that evaluates every
+  strike locally. The underlying math — a faithful float port of the deployed `pricing::compute_nd2`
+  (SVI with skew correction, signed params, remaining-time roll-down) — is also exported under the
+  `pricing` namespace (`upProbability`, `downProbability`, `rangeProbability`, `probability`,
+  `strikeAtProbability`, `boardPricer`, `rollDown`, `forward`) for callers that already hold their
+  own oracle inputs and want zero chain calls. Agreement with the on-chain price is bounded live to
+  ~1e-7 by `tests/testnet/pricing-parity`.
+
 ## 0.0.1
 
 ### Patch Changes

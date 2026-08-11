@@ -1,5 +1,14 @@
 # @mysten/seal
 
+## 1.4.0
+
+### Minor Changes
+
+- 5b147a2: Add an optional `fetch` option to `SealClient`, used for all key server requests. This
+  lets callers customize how requests are sent — for example send cookies with
+  `credentials: 'include'` or attach your own headers — mirroring the `fetch` option of
+  `SuiHTTPTransport`.
+
 ## 1.3.8
 
 ## 1.3.7

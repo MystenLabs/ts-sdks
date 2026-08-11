@@ -1,5 +1,12 @@
 # @mysten/codegen
 
+## 0.11.14
+
+### Patch Changes
+
+- Updated dependencies [c5f452f]
+  - @mysten/sui@2.24.0
+
 ## 0.11.13
 
 ## 0.11.12
