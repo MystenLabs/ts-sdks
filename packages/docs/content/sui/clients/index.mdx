@@ -14,8 +14,10 @@ choice is about which transport suits your application, not about which features
 | [`SuiGrpcClient`](/sui/clients/grpc)       | The default. Reads from a full node, and the only client with real-time subscriptions |
 | [`SuiGraphQLClient`](/sui/clients/graphql) | Batched reads, historical and point-in-time data, and custom selection sets           |
 
-Start with `SuiGrpcClient` unless you know you want what GraphQL offers. Both are fully supported,
-and because they share an API, moving between them is mostly a matter of changing the constructor.
+Both are fully supported primary choices. Pick `SuiGrpcClient` if you have no particular reason to
+prefer one, and `SuiGraphQLClient` when batching, historical reads, or custom selection sets matter
+to your application. Because they share an API, moving between them is mostly a matter of changing
+the constructor.
 
 <Callout type="info">
 	JSON-RPC is deprecated. If you are maintaining existing JSON-RPC code, see the [JSON-RPC migration
@@ -103,7 +105,7 @@ Each client also exposes its transport in full, for the cases the shared API doe
 
 ```typescript
 // gRPC: generated service clients, read masks, and streams
-const { response } = await grpcClient.stateService.listOwnedObjects({ owner: '0x...' });
+const { response } = await grpcClient.ledgerService.getServiceInfo({});
 
 // GraphQL: type-safe custom queries
 const result = await graphqlClient.query({

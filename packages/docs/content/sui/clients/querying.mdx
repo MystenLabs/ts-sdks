@@ -1,5 +1,5 @@
 ---
-title: Querying data
+title: Querying Data
 description: Read objects, coins, balances, dynamic fields, and history with any Sui client
 keywords:
   [
@@ -100,7 +100,7 @@ for (const object of page.objects) {
 
 See [Pagination](#pagination) for reading the next page.
 
-### Include options
+## Include options
 
 Object methods accept an `include` parameter that controls what extra data is fetched. Every object
 always comes back with `objectId`, `version`, `digest`, `owner`, and `type`. Anything else must be
@@ -116,7 +116,7 @@ requested, and is typed as `undefined` when it was not:
 
 These options work with `getObject`, `getObjects`, `listOwnedObjects`, and `getDynamicObjectField`.
 
-### Parsing object content
+### `content`
 
 `include: { content: true }` returns the BCS-encoded Move struct bytes. Parse them with generated
 types (from [@mysten/codegen](/codegen)) or with manual BCS definitions:
@@ -132,16 +132,15 @@ const { object } = await client.getObject({
 const parsed = MyStruct.parse(object.content);
 ```
 
-### `json` include option
+### `json`
 
 `include: { json: true }` returns a JSON representation of the object's content, or `null` if the
 object has none.
 
 <Callout type="warn">
-	The `json` field structure might vary between API implementations. For example, JSON-RPC returns
-	UID fields as nested objects (`{ "id": { "id": "0x..." } }`), while gRPC and GraphQL flatten them
-	(`{ "id": "0x..." }`). For consistent data across all clients, use `content` and parse BCS
-	directly.
+	The shape of the `json` field varies between API implementations — field names and nesting are not
+	guaranteed to match across clients. When the result has to be stable, use `content` and parse the
+	BCS directly.
 </Callout>
 
 ### `objectBcs`
@@ -163,7 +162,7 @@ const envelope = bcs.Object.parse(object.objectBcs);
 	parsing to fail or produce incorrect results. Use `content` for parsing Move struct fields.
 </Callout>
 
-### `display` include option
+### `display`
 
 The `display` option fetches [Sui Display Standard](https://docs.sui.io/standards/display) metadata,
 which defines how wallets and explorers should present an object.
@@ -320,9 +319,7 @@ const { object } = await client.getDynamicObjectField({
 ## Transactions and events
 
 Reading transactions back is a client concern; building, signing, and executing them is covered in
-[Signing and execution](/sui/transactions/signing-and-execution). Alongside fetching a single
-transaction, `listTransactions` and `listEvents` return filtered, cursor-paginated pages of history
-— both take a `filter`, a `limit`, an `order`, and one cursor bound.
+[Signing and execution](/sui/transactions/signing-and-execution).
 
 ### `getTransaction`
 
@@ -352,7 +349,8 @@ throwing — see
 
 ### `listTransactions`
 
-Results use the same include options as `getTransaction`.
+Page through transactions matching a filter. Results use the same include options as
+`getTransaction`.
 
 ```typescript
 const page = await client.listTransactions({
@@ -376,7 +374,8 @@ Transaction filters take exactly one predicate:
 
 ### `listEvents`
 
-Each event carries its ledger position alongside the event data.
+Page through events matching a filter. Each event carries its ledger position — `checkpoint`,
+`transactionDigest`, and `eventIndex` — alongside the event data.
 
 ```typescript
 const page = await client.listEvents({
@@ -398,14 +397,59 @@ Event filters take exactly one predicate:
 | `emitModule` | Events emitted by a module (`pkg::mod`)                                           |
 | `eventType`  | Events with types defined in a module (`pkg::mod`) or a fully qualified type name |
 
-Both filters resolve [MVR](#move-registry-names) names automatically.
+Both filters resolve [MVR](#move-registry-names) names automatically, and both methods take a
+`limit` and an `order` and page through history with the cursors described under
+[Pagination](#pagination).
 
-### Query cursors
+For filters beyond one predicate — combined or negated predicates, affected addresses and objects,
+or checkpoint ranges — use the [raw gRPC list RPCs](/sui/clients/grpc#raw-list-rpcs) or a
+[custom GraphQL query](/sui/clients/graphql#native-queries). To follow new activity as it happens,
+see [gRPC subscriptions](/sui/clients/grpc#subscriptions) or
+[GraphQL polling](/sui/clients/graphql#live-data).
 
-`after` and `before` are exclusive ledger-position bounds. A query takes at most one of them, and
-the bound implies the direction: `after` reads ascending, `before` reads descending. Each page
-reports the position of its first and last item as `startCursor` and `endCursor`, so a feed can page
-in both directions from any point:
+## Pagination
+
+Collection reads and history queries paginate differently, and both report `hasNextPage`.
+
+### Collection cursors
+
+`listOwnedObjects`, `listCoins`, `listBalances`, and `listDynamicFields` take a `limit` and a
+`cursor`, and return the next `cursor` alongside the results:
+
+```typescript
+let page = await client.listOwnedObjects({ owner: '0xabc...', limit: 50 });
+
+while (true) {
+	for (const object of page.objects) {
+		console.log(object.objectId);
+	}
+
+	if (!page.hasNextPage) {
+		break;
+	}
+
+	page = await client.listOwnedObjects({
+		owner: '0xabc...',
+		cursor: page.cursor,
+		limit: 50,
+	});
+}
+```
+
+<Callout type="info">
+	Carrying the cursor in a separately annotated variable (`let cursor: string | null = null`) makes
+	these methods fail to infer: because they are generic over `include`, the type of the page depends
+	on the argument that holds the cursor, which depends on the page. Reassigning the page itself, as
+	above, avoids the cycle.
+</Callout>
+
+### History cursors
+
+`listTransactions` and `listEvents` read an ordered ledger instead of a collection, so they take
+`after` and `before` — exclusive ledger-position bounds. A query takes at most one of them, and the
+bound implies the direction: `after` reads ascending, `before` reads descending. Each page reports
+the position of its first and last item as `startCursor` and `endCursor`, so a feed can page in both
+directions from any point:
 
 ```typescript
 // The most recent transactions
@@ -436,12 +480,6 @@ const newer = await client.listTransactions({
 	also cap page sizes (50 by default); over-large `limit` values are truncated on gRPC and rejected
 	on GraphQL.
 </Callout>
-
-For filters beyond one predicate — combined or negated predicates, affected addresses and objects,
-or checkpoint ranges — use the [raw gRPC list RPCs](/sui/clients/grpc#raw-list-rpcs) or a
-[custom GraphQL query](/sui/clients/graphql#native-queries). To follow new activity as it happens,
-see [gRPC subscriptions](/sui/clients/grpc#subscriptions) or
-[GraphQL polling](/sui/clients/graphql#live-data).
 
 ## Move functions
 
@@ -509,42 +547,6 @@ cached on the client.
 	through, so only packages actually published to the registry resolve.
 </Callout>
 
-## Pagination
-
-List methods that read collections — `listOwnedObjects`, `listCoins`, `listBalances`, and
-`listDynamicFields` — share one pagination shape: pass `limit` and `cursor`, and read `cursor` and
-`hasNextPage` back.
-
-```typescript
-let page = await client.listOwnedObjects({ owner: '0xabc...', limit: 50 });
-
-while (true) {
-	for (const object of page.objects) {
-		console.log(object.objectId);
-	}
-
-	if (!page.hasNextPage) {
-		break;
-	}
-
-	page = await client.listOwnedObjects({
-		owner: '0xabc...',
-		cursor: page.cursor,
-		limit: 50,
-	});
-}
-```
-
-<Callout type="info">
-	Carrying the cursor in a separately annotated variable (`let cursor: string | null = null`) makes
-	these methods fail to infer: because they are generic over `include`, the type of the page depends
-	on the argument that holds the cursor, which depends on the page. Reassigning the page itself, as
-	above, avoids the cycle.
-</Callout>
-
-`listTransactions` and `listEvents` are ordered history queries rather than collection reads, so
-they use the richer [query cursors](#query-cursors) described above instead of a single `cursor`.
-
 ## Cancelling requests
 
 Every method accepts a `signal` to cancel an in-flight request:
@@ -560,23 +562,8 @@ const { object } = await client.getObject({
 
 ## Error handling
 
-Methods reject when a request fails. The one place errors are returned rather than thrown is
-`getObjects`, which reports per-object failures in its result array so a single bad ID does not fail
-the batch:
-
-```typescript
-const { objects } = await client.getObjects({
-	objectIds: ['0x123...', '0x456...'],
-});
-
-for (const object of objects) {
-	if (object instanceof Error) {
-		console.error('Error:', object.message);
-	} else {
-		console.log(object.objectId);
-	}
-}
-```
+Methods reject when a request fails. The one exception is [`getObjects`](#getobjects), which reports
+per-object failures in its result array so a single bad ID does not fail the batch.
 
 Transaction results have their own convention, where a transaction that executed but failed on-chain
 is not an error — see

@@ -141,43 +141,42 @@ function describeOwner(owner: SuiClientTypes.ObjectOwner) {
 
 ### Common types
 
-| Type                   | Description                                 |
-| ---------------------- | ------------------------------------------- |
-| `Object<Include>`      | Fetched object with optional included data  |
-| `Coin`                 | Coin object with balance                    |
-| `Balance`              | Balance summary for a coin type             |
-| `CoinMetadata`         | Metadata for a coin type                    |
-| `Transaction<Include>` | Executed transaction with optional data     |
-| `TransactionResult`    | Success or failure result from execution    |
-| `TransactionEffects`   | Detailed effects from transaction execution |
-| `Event`                | Emitted event from a transaction            |
-| `EventEntry`           | Queried event with its ledger position      |
-| `TransactionFilter`    | Filter for transaction queries              |
-| `EventFilter`          | Filter for event queries                    |
-| `ObjectOwner`          | Union of all owner types                    |
-| `ExecutionStatus`      | Success/failure status with error details   |
-| `DynamicFieldName`     | Name identifier for dynamic fields          |
-| `FunctionResponse`     | Move function metadata                      |
-| `Network`              | Network identifier type                     |
+| Type                   | Description                                                                              |
+| ---------------------- | ---------------------------------------------------------------------------------------- |
+| `Object<Include>`      | The unified object shape; `Include` controls which optional fields are present and typed |
+| `Coin`                 | Coin object with balance                                                                 |
+| `Balance`              | Balance summary for a coin type                                                          |
+| `CoinMetadata`         | Metadata for a coin type                                                                 |
+| `Transaction<Include>` | An executed transaction; `Include` controls which optional fields are present            |
+| `TransactionResult`    | Success or failure result from execution                                                 |
+| `TransactionEffects`   | Detailed effects from transaction execution                                              |
+| `Event`                | Emitted event from a transaction                                                         |
+| `EventEntry`           | Queried event with its ledger position                                                   |
+| `TransactionFilter`    | Filter for transaction queries                                                           |
+| `EventFilter`          | Filter for event queries                                                                 |
+| `ObjectOwner`          | Union of all owner types                                                                 |
+| `ExecutionStatus`      | Success/failure status with error details                                                |
+| `DynamicFieldName`     | Name identifier for dynamic fields                                                       |
+| `FunctionResponse`     | Move function metadata                                                                   |
+| `Network`              | Network identifier type                                                                  |
 
 Option types follow a predictable naming scheme — `GetObjectOptions`, `ListCoinsOptions`,
 `SimulateTransactionOptions`, and so on — along with the include shapes `ObjectInclude`,
 `TransactionInclude`, and `SimulateTransactionInclude`.
 
-## Differences you have to handle
+## Cross-transport differences
 
 All transports produce the same shapes, but they read from different backends, and a few differences
 are visible to callers. Library code that runs against any client should account for them.
 
-| Behavior                    | What differs                                                                                                             |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `include: { json: true }`   | Field shapes vary between implementations. Use `content` and parse BCS when the result must be stable                    |
-| `include: { events: true }` | GraphQL returns at most the first 50 events of a transaction; gRPC and JSON-RPC return all of them                       |
-| `listEvents` checkpoints    | `EventEntry.checkpoint` is `null` on JSON-RPC, which does not expose it                                                  |
-| Generic `eventType` filters | A bare generic name matches any instantiation on gRPC and GraphQL, but nothing on JSON-RPC, which compares the full type |
-| Page-size caps              | Over-large `limit` values are silently truncated on gRPC and rejected with an error on GraphQL and JSON-RPC              |
-| Short pages                 | gRPC bounds how much ledger a filtered query scans, so a page can be short or empty with `hasNextPage: true`             |
-| Read-after-write            | GraphQL reads an index that trails execution. Use `waitForTransaction` before reading your own writes                    |
+| Behavior                    | What differs                                                                                                                            |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `include: { json: true }`   | Field shapes vary between implementations. Use `content` and parse BCS when the result must be stable                                   |
+| `include: { events: true }` | GraphQL returns at most the first 50 events of a transaction; gRPC and JSON-RPC return all of them                                      |
+| JSON-RPC query gaps         | `EventEntry.checkpoint` is `null`, and a bare generic `eventType` filter matches nothing where gRPC and GraphQL match any instantiation |
+| Page-size caps              | Over-large `limit` values are silently truncated on gRPC and rejected with an error on GraphQL and JSON-RPC                             |
+| Short pages                 | gRPC bounds how much ledger a filtered query scans, so a page can be short or empty with `hasNextPage: true`                            |
+| Read-after-write            | GraphQL reads an index that [trails execution](/sui/clients/graphql#live-data). Use `waitForTransaction` before reading your own writes |
 
 Two constraints are enforced by the client itself, so they fail the same way everywhere: a query
 takes at most one of `after` or `before`, and paginating transactions filtered by `function`
