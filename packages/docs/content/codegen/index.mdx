@@ -463,7 +463,8 @@ option replaces generated BCS types with custom ones — typically built with
 it.
 
 `bcsOverrides` is set on a package entry as an array. Every entry names the Move `type` it replaces
-and the `source` module the replacement is imported from:
+and the `source` module the replacement is imported from, and can optionally narrow the entry to
+specific `fields`:
 
 ```typescript
 const config: SuiCodegenConfig = {
@@ -477,16 +478,17 @@ const config: SuiCodegenConfig = {
 				// references it uses the custom type. Imports `I64` from the source module.
 				{ type: 'fixed_math::i64::I64', source: './src/bcs/i64.ts' },
 
-				// A type with no generated declaration is replaced at its field sites. Without
-				// `fields`, that means every field of that type in the package — here, parsing
-				// every `u64` to a bigint instead of a decimal string.
+				// `fields` narrows an entry to the field sites matching a glob. Entries are tried
+				// in declaration order and the first match wins, so narrow entries go first.
+				{ type: 'u64', fields: 'order::*.*_price', source: './src/bcs/units.ts#Price9' },
+
+				// A type with no generated declaration is replaced wherever it is rendered —
+				// here, every remaining `u64` parses to a bigint instead of a decimal string.
 				{ type: 'u64', source: './src/bcs/integers.ts#U64' },
 
-				// `fields` narrows which sites are replaced, and accepts `*` wildcards in the
-				// module, type, and field segments. The most specific entry matching a field
-				// wins, so this carves an exception out of the blanket rule above.
-				{ type: 'u64', fields: 'order::Order.*_price', source: './src/bcs/units.ts#Price9' },
-				{ type: 'vector<u64>', fields: 'tree::Node.levels', source: './src/bcs/units.ts#Payouts' },
+				// A whole-type match wins over its elements, so this replaces the vector itself
+				// rather than letting the `u64` rule apply to its items.
+				{ type: 'vector<u64>', source: './src/bcs/units.ts#Payouts' },
 			],
 		},
 	],
@@ -500,22 +502,24 @@ The replacement module exports plain BCS types:
 import { bcs } from '@mysten/sui/bcs';
 
 /** 1e9 fixed-point u64 exposed as a decimal number. */
-export const Price9 = bcs.u64().transform({
+const Price9 = bcs.u64().transform({
 	input: (value: number) => BigInt(Math.round(value * 1e9)).toString(),
 	output: (raw) => Number(raw) / 1e9,
 });
+
+export const Payouts = bcs.vector(Price9);
 ```
 
 The custom type's inferred input and output types flow through the generated code, so
-`Order.parse(bytes).entry_price` is a `number` and `Order.serialize` accepts one.
+`Node.parse(bytes).levels` is a `number[]` and `Node.serialize` accepts one.
 
 Entry rules:
 
 - `type` uses the same package scoping as `configArguments` matchers (bare `module::Type` for the
   declaring package, package identifiers, explicit addresses), and additionally accepts
-  named-address labels from the package's summaries (for example, `fixed_math::i64::I64`) so
-  entries can target dependency packages that are not codegen-run entries.
-- A datatype entry with no `fields` and no type arguments replaces the type's generated
+  named-address labels from the package's summaries (for example, `fixed_math::i64::I64`) so entries
+  can target dependency packages that are not codegen-run entries.
+- A datatype entry written without type arguments or `fields` replaces the type's generated
   **declaration**: the module exports the custom type under the Move type's name, and every use
   picks it up because uses already reference the declaration. For a generic type the source must
   export a function `(...typeParameters: BcsType<any>[]) => BcsType<any>` mirroring the generated
@@ -523,17 +527,18 @@ Entry rules:
 - Every other entry replaces the type **wherever it is rendered**. That covers types with no
   declaration to replace (primitives, `vector`, and the stdlib types generated layouts serialize
   inline — `String`, `Option`, `ID`/`UID`), a single instantiation of a generic
-  (`pool::Pool<0x2::sui::SUI>`), and anything narrowed by `fields`.
-- Replacement applies at **any depth**, because the type renderer consults overrides as it
-  recurses. An override on `u64` also replaces the `u64` inside `vector<u64>` and `Option<u64>`. A
-  whole-type match wins over its elements, so an entry for `vector<u64>` replaces the vector rather
-  than its items.
-- `fields` narrows which sites are replaced, written `module::TypeName.field` with `*` wildcards in
-  the module, type, and field segments. Only sites whose type matches `type` are replaced. Enum
-  variant fields match on both `field` and `variant.field` (for example, `Result.Err.code`).
-- When several entries match one site, the most specific wins — the one naming more of the module,
-  type, and field segments concretely — so a broad rule can be given narrower exceptions. Two
-  entries matching equally specifically fail generation.
+  (`pool::Pool<0x2::sui::SUI>`), and any entry narrowed with `fields`.
+- Replacement applies at **any depth**, because the type renderer consults overrides as it recurses.
+  An override on `u64` also replaces the `u64` inside `vector<u64>` and `Option<u64>`. A whole-type
+  match wins over its elements, so an entry for `vector<u64>` replaces the vector rather than its
+  items.
+- `fields` restricts an entry to the field sites matching one glob, where `*` matches any run of
+  characters. Sites are written `module::Type.field`, or `module::Type.variant.field` for enum
+  variant fields (positional fields are named `pos0`, `pos1`, …). A glob that names no module —
+  `Order.*_price` — is matched against the `Type.field` suffix, so it applies in every module. An
+  entry with `fields` never replaces a declaration, since a declaration exists once for every use.
+- Entries are tried in **declaration order and the first match wins**. There is no specificity
+  scoring, so put narrow entries before broad ones.
 - `source` is an import specifier, optionally suffixed with `#ExportName`. Relative specifiers
   resolve against the config file's directory and are rewritten into relative imports from each
   generated file, with their extension replaced by the configured `importExtension` (so a
@@ -546,8 +551,8 @@ Entry rules:
 - A replacement built with `.transform()` is a plain `BcsType`, so a type replaced that way loses
   the `MoveStruct` helpers (`typeTag()`, `resolveTypeTag()`, `get()`, `getMany()`). Extend
   `MoveStruct` instead if the replaced type needs them.
-- An entry that matches nothing is not an error. A shared set of overrides can be applied to
-  several packages even when only some of them have fields of a given type.
+- An entry that matches nothing is not an error. A shared set of overrides can be applied to several
+  packages even when only some of them have fields of a given type.
 
 Overrides only affect generated BCS layouts (parsing and serializing structs, enums, and events,
 including `MoveStruct.get()`). Generated transaction-building functions serialize their arguments

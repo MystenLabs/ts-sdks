@@ -202,20 +202,20 @@ export async function generateFromPackageSummary({
 	}
 	const packageConfigKey = packageEntries[0]?.key;
 
-	const { entries: bcsOverrideEntries } = pkg.bcsOverrides?.length
+	const bcsOverrideRules = pkg.bcsOverrides?.length
 		? parseBcsOverrides(pkg.bcsOverrides, registry, {
 				package: { id: pkg.package, address: currentPackageAddress },
 				packageIdentities,
 				configDir: configDir ?? process.cwd(),
 			})
-		: { entries: [] };
+		: [];
 
 	for (const mod of modules) {
 		mod.builder.setConfigArguments(
 			configArgumentEntries,
 			mod.isMainPackage ? packageConfigKey : undefined,
 		);
-		mod.builder.setBcsOverrides(bcsOverrideEntries);
+		mod.builder.setBcsOverrides(bcsOverrideRules);
 	}
 
 	const packageGenerate: PackageGenerate | undefined = 'generate' in pkg ? pkg.generate : undefined;

@@ -126,21 +126,18 @@ export const bcsOverrideSchema = z.strictObject({
 	 */
 	type: z.string(),
 	/**
-	 * Narrows which field sites are replaced, written `[scope::]module::TypeName.field` with `*`
-	 * wildcards allowed in the module, type, and field segments (e.g. `order::Order.*_price`,
-	 * `order::*.*`). Enum variant fields match on both `field` and `variant.field`. Only fields
-	 * whose declared Move type matches `type` are replaced.
-	 *
-	 * Omit it to replace every matching field site in the declaring package. On a datatype that
-	 * has a generated declaration, supplying `fields` replaces those field sites instead of the
-	 * declaration.
+	 * Restricts the entry to matching field sites. A glob tested against `module::Type.field` (or
+	 * `module::Type.variant.field` for enum variant fields), where `*` matches any run of
+	 * characters. A glob that names no module (`Order.*_price`) matches the `Type.field` suffix in
+	 * every module. An entry with `fields` always substitutes at the matched sites, never by
+	 * replacing a declaration.
 	 */
 	fields: z.string().optional(),
 	/**
 	 * Import specifier for the replacement BCS type, optionally suffixed with `#ExportName`.
 	 * Relative specifiers resolve against the config file's directory; bare package specifiers are
-	 * emitted as-is. Without a fragment, datatype entries import the Move type's name; `fields`
-	 * entries for pure types must include one.
+	 * emitted as-is. Without a fragment, datatype entries import the Move type's name; entries for
+	 * primitives and `vector` types must include one.
 	 */
 	source: z.string(),
 });
