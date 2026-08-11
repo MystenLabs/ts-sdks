@@ -48,8 +48,6 @@ The constructor takes:
 | `queries` | Named documents callable through [`execute`](#named-queries)   |
 | `mvr`     | Move Registry overrides                                        |
 
-For the full API, see the [GraphQL reference](https://docs.sui.io/references/sui-graphql).
-
 ## Writing queries
 
 Use `query` to run any GraphQL document against the endpoint:
@@ -158,85 +156,18 @@ Results and variables stay typed from the document the name resolves to.
 
 ## Native queries
 
-The `multiGet*` fields, versioned reads, and the full filter set have no shared-API equivalent.
+Three things are worth writing a custom query for, because the shared API has no equivalent:
 
-### Batching reads
+- **Batching.** The `multiGet*` fields read many entities at once, and one document can combine
+  unrelated reads that would otherwise be separate round trips.
+- **Historical reads.** `object`, `package`, and `address` take `version`, `rootVersion`, or
+  `atCheckpoint` arguments, so you can read state as it was rather than as it is.
+- **Richer filters.** The `transactions` and `events` connections accept combinations and checkpoint
+  bounds beyond the single predicate the shared
+  [history queries](/sui/clients/querying#transactions-and-events) expose.
 
-The `multiGet*` fields fetch many entities in a single round trip, and a single document can combine
-unrelated reads that would otherwise be separate requests:
-
-```typescript
-const dashboardQuery = graphql(`
-	query dashboard($objectIds: [ObjectKey!]!, $digests: [String!]!, $owner: SuiAddress!) {
-		multiGetObjects(keys: $objectIds) {
-			address
-			version
-			asMoveObject {
-				contents {
-					type {
-						repr
-					}
-					bcs
-				}
-			}
-		}
-		multiGetTransactions(keys: $digests) {
-			digest
-			effects {
-				status
-			}
-		}
-		address(address: $owner) {
-			defaultNameRecord {
-				domain
-			}
-		}
-	}
-`);
-```
-
-`multiGetAddresses`, `multiGetCheckpoints`, `multiGetEpochs`, `multiGetObjects`, `multiGetPackages`,
-`multiGetTransactions`, `multiGetTransactionEffects`, and `multiGetTypes` are all available.
-
-### Historical and point-in-time reads
-
-`object` accepts `version`, `rootVersion`, or `atCheckpoint`, so you can read an object as it was
-rather than as it is. `objectVersions` and `packageVersions` page through the history of one
-address:
-
-```typescript
-const objectAtVersionQuery = graphql(`
-	query objectAtVersion($address: SuiAddress!, $version: UInt53!) {
-		object(address: $address, version: $version) {
-			address
-			version
-			digest
-			asMoveObject {
-				contents {
-					type {
-						repr
-					}
-					bcs
-				}
-			}
-		}
-	}
-`);
-```
-
-`package` takes the same `version`/`atCheckpoint` arguments, and `address` accepts `rootVersion` and
-`atCheckpoint` for reading an account's state at a past point.
-
-### Richer filters
-
-The `transactions` and `events` connections accept filters beyond the single predicate the shared
-[history queries](/sui/clients/querying#transactions-and-events) expose. `TransactionFilter`
-supports `sentAddress`, `affectedAddress`, `affectedObject`, `function`, `kind`, `atCheckpoint`,
-`afterCheckpoint`, and `beforeCheckpoint`; `EventFilter` supports `sender`, `module`, `type`, and
-the same three checkpoint bounds.
-
-The schema also exposes `epochs`, `checkpoints`, `packages`, `objectVersions`, and `serviceConfig`,
-none of which have a shared-API equivalent.
+The [GraphQL reference](https://docs.sui.io/references/sui-graphql) documents the schema itself —
+which fields exist, and what arguments each one takes.
 
 ## Live data
 
