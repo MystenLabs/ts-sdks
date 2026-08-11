@@ -23,3 +23,13 @@ price objects are included for the five feeds that have them (XBTC has no upgrad
 testnet ships none, because its upgraded Pyth deployment carries mainnet-style feed ids while the
 testnet `MarginRegistry` is configured with Pyth's beta ids, and `oracle::read_price_upgraded`
 asserts the two match.
+
+Price update data is now fetched from Hermes v2 (`/v2/updates/price/latest`) instead of the
+deprecated v1 `/api/latest_vaas`. Both return the same payload, so this is not a behaviour change
+today, but v1 is going away. `PythConfig` also gains `hermesHeaders`, forwarded to every Hermes
+request: the endpoint serving the upgraded Core requires an `Authorization` header and answers 401
+without one. Supply the token at runtime — the SDK ships no default and no credential.
+
+Testnet package ids move to `deepbook_margin` v16 and `margin_liquidation` v4, the first testnet
+packages carrying the upgraded-Pyth surface. The previous testnet margin id was two upgrades behind
+(v14).

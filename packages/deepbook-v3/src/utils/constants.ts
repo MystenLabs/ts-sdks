@@ -20,10 +20,12 @@ export const testnetPackageIds = {
 	DEEPBOOK_PACKAGE_ID: '0xd874d2417a55bfa6479bffa06ad950fea144ef93a94cc6c49f32b03e386bbb24',
 	REGISTRY_ID: '0x7c256edbda983a2cd6f946655f4bf3f00a41043993781f8674a7046e8c0e11d1',
 	DEEP_TREASURY_ID: '0x69fffdae0075f8f71f4fa793549c11079266910e8905169845af1f5d00e09dcb',
-	MARGIN_PACKAGE_ID: '0xe52c1dece2bb5d5645689d6da8b8debe8347e3446011704a4fcb386746876580',
+	// deepbook_margin v16 — the first testnet package carrying the upgraded-Pyth modules.
+	MARGIN_PACKAGE_ID: '0xce6ab6290458f597fc078793335f4b1d98479f29ebc02198ae960e9401d0c72f',
 	MARGIN_V1: '0xb8620c24c9ea1a4a41e79613d2b3d1d93648d1bb6f6b789a7c8f261c94110e4b',
 	MARGIN_REGISTRY_ID: '0x48d7640dfae2c6e9ceeada197a7a1643984b5a24c55a0c6c023dac77e0339f75',
-	LIQUIDATION_PACKAGE_ID: '0x8d69c3ef3ef580e5bf87b933ce28de19a5d0323588d1a44b9c60b4001741aa24',
+	// margin_liquidation v4 — carries liquidate_base_upgraded / liquidate_quote_upgraded.
+	LIQUIDATION_PACKAGE_ID: '0x29bccec5261b7d040555a13e98bbc6bef7bad007d62759aac8b71c19916f6476',
 } satisfies DeepbookPackageIds;
 
 export const mainnetPackageIds = {

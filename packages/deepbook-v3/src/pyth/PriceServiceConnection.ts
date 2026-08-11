@@ -12,6 +12,12 @@ export type PriceFeedRequestConfig = {
 export type PriceServiceConnectionConfig = {
 	timeout?: number;
 	httpRetries?: number;
+	/**
+	 * Extra headers sent with every request. Required for Hermes deployments that
+	 * authenticate — the endpoint serving Pyth's upgraded Core answers 401 without an
+	 * `Authorization` header.
+	 */
+	headers?: Record<string, string>;
 };
 export class PriceServiceConnection {
 	private httpClient: AxiosInstance;
@@ -25,6 +31,7 @@ export class PriceServiceConnection {
 		this.httpClient = axios.create({
 			baseURL: endpoint,
 			timeout: config?.timeout || 5000,
+			...(config?.headers ? { headers: config.headers } : {}),
 		});
 		axiosRetry(this.httpClient, {
 			retries: config?.httpRetries || 3,
@@ -32,17 +39,34 @@ export class PriceServiceConnection {
 		});
 	}
 	/**
-	 * Fetch latest VAAs of given price IDs.
+	 * Fetch the latest price update data for the given price IDs.
+	 *
+	 * Uses Hermes v2 (`/v2/updates/price/latest`). The v1 endpoint (`/api/latest_vaas`)
+	 * is deprecated; it returned the same payload this reads out of `binary.data`.
+	 *
+	 * Hermes returns one accumulator message covering every requested feed, not one per
+	 * feed, so the result is normally a single element regardless of `priceIds.length`.
 	 *
 	 * @param priceIds Array of hex-encoded price IDs.
-	 * @returns Array of base64 encoded VAAs.
+	 * @returns Array of base64-encoded update messages.
 	 */
 	async getLatestVaas(priceIds: HexString[]): Promise<string[]> {
-		const response = await this.httpClient.get('/api/latest_vaas', {
+		const response = await this.httpClient.get('/v2/updates/price/latest', {
 			params: {
 				ids: priceIds,
+				encoding: 'base64',
 			},
 		});
-		return response.data;
+
+		const data = response.data?.binary?.data;
+		if (!Array.isArray(data)) {
+			throw new Error(
+				`Unexpected Hermes response: expected 'binary.data' array from /v2/updates/price/latest, got ${JSON.stringify(
+					response.data,
+				)?.slice(0, 200)}`,
+			);
+		}
+
+		return data;
 	}
 }

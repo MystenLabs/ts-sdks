@@ -39,6 +39,19 @@ export class PriceFeedQueries {
 			: 'https://hermes.pyth.network';
 	}
 
+	/**
+	 * A Hermes connection for the active Pyth deployment, carrying any configured auth
+	 * headers. The endpoint serving the upgraded Core requires an `Authorization` header
+	 * and answers 401 without one.
+	 */
+	#connection(): SuiPriceServiceConnection {
+		const { hermesHeaders } = this.#ctx.config.activePyth;
+		return new SuiPriceServiceConnection(
+			this.#hermesEndpoint(),
+			hermesHeaders ? { headers: hermesHeaders } : undefined,
+		);
+	}
+
 	async getPriceInfoObject(tx: Transaction, coinKey: string): Promise<string> {
 		this.#ctx.config.requirePyth();
 		const currentTime = Date.now();
@@ -50,7 +63,7 @@ export class PriceFeedQueries {
 			return this.#ctx.config.getPriceInfoObjectId(coinKey);
 		}
 
-		const connection = new SuiPriceServiceConnection(this.#hermesEndpoint());
+		const connection = this.#connection();
 
 		const priceIDs = [this.#ctx.config.getCoin(coinKey).feed!];
 
@@ -119,7 +132,7 @@ export class PriceFeedQueries {
 			feedIdToCoinKey[feedId] = coinKey;
 		}
 
-		const connection = new SuiPriceServiceConnection(this.#hermesEndpoint());
+		const connection = this.#connection();
 
 		const priceUpdateData = await connection.getPriceFeedsUpdateData(staleFeedIds);
 

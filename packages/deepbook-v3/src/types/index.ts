@@ -51,6 +51,14 @@ export interface PythConfig {
 	wormholeStateId: string;
 	/** Hermes endpoint serving update data for this deployment. */
 	hermesEndpoint?: string;
+	/**
+	 * Headers sent with every Hermes request for this deployment. The endpoint serving
+	 * Pyth's upgraded Core requires an `Authorization: Bearer <token>` header and answers
+	 * 401 without one, so pushing updates in `'upgraded'` mode needs this set.
+	 *
+	 * Supply the token at runtime — do not commit it. There is no default.
+	 */
+	hermesHeaders?: Record<string, string>;
 }
 
 export interface Pool {
