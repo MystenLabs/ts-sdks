@@ -62,15 +62,15 @@ const transaction = result.Transaction ?? result.FailedTransaction;
 console.log(transaction.digest, transaction.status.success);
 ```
 
-A resolved promise means the transaction was executed, which is not the same as it having succeeded.
-See
+A resolved promise means the network executed the transaction, which is not the same as it having
+succeeded. See
 [checking success or failure](/sui/transactions/signing-and-execution#checking-success-or-failure)
 for handling both outcomes.
 
 ## Include options
 
 Execution, simulation, and [`getTransaction`](/sui/clients/querying#gettransaction) share one set of
-`include` options. Everything is off by default, and a field that was not requested is typed
+`include` options. Everything is off by default, and a field that you did not request is typed
 `undefined`:
 
 | Option           | Description                                                        |
