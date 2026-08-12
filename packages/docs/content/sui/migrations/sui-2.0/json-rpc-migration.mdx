@@ -451,7 +451,8 @@ Common event filter mappings:
 
 The top-level query methods handle pagination and cursor normalization. For richer filters, such as
 combined predicates, affected addresses, affected objects, or checkpoint ranges, use the raw
-[`ledgerService`](/sui/clients/grpc#ledger-service) on `SuiGrpcClient` or a custom GraphQL query.
+[`ledgerService`](/sui/clients/grpc#using-service-clients) on `SuiGrpcClient` or a custom GraphQL
+query.
 
 Use `after: result.endCursor` to continue an ascending query and `before: result.endCursor` to
 continue a descending query. `startCursor` identifies the first item in a page and can be used with
@@ -649,5 +650,6 @@ await client.suins.getNameRecord('example.sui');
 
 - [SuiGrpcClient](/sui/clients/grpc)
 - [SuiGraphQLClient](/sui/clients/graphql)
+- [Querying data](/sui/clients/querying)
 - [Core API](/sui/clients/core)
 - [Building SDKs](/sui/sdk-building)

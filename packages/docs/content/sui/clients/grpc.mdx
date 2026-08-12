@@ -1,6 +1,6 @@
 ---
 title: SuiGrpcClient
-description: Connect to Sui through gRPC with the recommended SuiGrpcClient
+description: Connect to Sui over gRPC, with native service clients and real-time subscriptions
 keywords:
   [
     SuiGrpcClient,
@@ -8,122 +8,78 @@ keywords:
     Sui client,
     full node,
     TypeScript SDK,
-    Core API,
+    subscriptions,
+    streaming,
+    read masks,
     '@mysten/sui',
     protocol buffers,
   ]
 ---
 
-The `SuiGrpcClient` provides access to the Full Node gRPC API. It is the recommended default client
-for application code and SDK integrations.
-
-For more complete details on what is available through this API see the
-[gRPC API docs](https://docs.sui.io/develop/accessing-data/grpc/what-is-grpc).
-
-## Creating a gRPC client
-
-To get started, create a `SuiGrpcClient` instance by specifying a network and base URL:
+`SuiGrpcClient` talks to the full node gRPC API. It is the recommended default for application code
+and SDK integrations: it reads directly from a full node, and it is the only client with real-time
+subscriptions.
 
 ```typescript
 import { SuiGrpcClient } from '@mysten/sui/grpc';
 
-const grpcClient = new SuiGrpcClient({
-	network: 'testnet',
-	baseUrl: 'https://fullnode.testnet.sui.io:443',
+const client = new SuiGrpcClient({
+	network: 'mainnet',
+	baseUrl: 'https://fullnode.mainnet.sui.io:443',
 });
 ```
 
 For local development:
 
 ```typescript
-const grpcClient = new SuiGrpcClient({
+const client = new SuiGrpcClient({
 	network: 'localnet',
 	baseUrl: 'http://127.0.0.1:9000',
 });
 ```
 
-## Using top-level methods
+Reading data, executing transactions, and querying history all work the same way here as on any
+client. See [Querying data](/sui/clients/querying) and
+[Signing and execution](/sui/transactions/signing-and-execution). The rest of this page covers what
+is specific to gRPC.
 
-Use top-level methods for most application code. These methods match the shared
-[Core API](/sui/clients/core) option and response shapes, so the same calls can also be written as
-`grpcClient.core.<method>()` when SDK code needs the transport-agnostic `ClientWithCoreApi`
-contract.
+## gRPC-specific options
 
-```typescript
-import { SuiGrpcClient } from '@mysten/sui/grpc';
+Top-level gRPC methods are a superset of the shared API, adding fields where the transport exposes
+more data than the common shape can carry:
 
-const grpcClient = new SuiGrpcClient({
-	network: 'testnet',
-	baseUrl: 'https://fullnode.testnet.sui.io:443',
-});
+| Option              | Available on                                                                                                     |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `include.protoJson` | `getTransaction`, `executeTransaction`, `signAndExecuteTransaction`, `waitForTransaction`, `simulateTransaction` |
 
-const { balance } = await grpcClient.getBalance({
-	owner: '<OWNER_ADDRESS>',
-});
-
-const { object } = await grpcClient.getObject({
-	objectId: '<OBJECT_ID>',
-	include: { content: true, display: true },
-});
-
-const coins = await grpcClient.listCoins({
-	owner: '<OWNER_ADDRESS>',
-	coinType: '0x2::sui::SUI',
-});
-```
-
-Common top-level methods:
-
-| Category       | Methods                                                                                                           |
-| -------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Objects        | `getObject`, `getObjects`, `listOwnedObjects`, `listDynamicFields`, `getDynamicField`                             |
-| Coins          | `listCoins`, `getBalance`, `listBalances`, `getCoinMetadata`                                                      |
-| Transactions   | `getTransaction`, `executeTransaction`, `signAndExecuteTransaction`, `waitForTransaction`                         |
-| Simulation     | `simulateTransaction`                                                                                             |
-| Queries        | `listTransactions`, `listEvents`                                                                                  |
-| Move and names | `getMoveFunction`, `resolveNameServiceAddress`, `defaultNameServiceName`, `mvr.resolvePackage`, `mvr.resolveType` |
-| Verification   | `verifyZkLoginSignature`                                                                                          |
-
-### gRPC-specific top-level data
-
-Top-level gRPC methods are a superset of the shared Core API where the transport can expose useful
-gRPC data directly:
+`protoJson` returns the raw protobuf response alongside the parsed result, which is useful when you
+need a field the unified shape does not expose yet:
 
 ```typescript
-const result = await grpcClient.getTransaction({
-	digest: '<TRANSACTION_DIGEST>',
+const result = await client.getTransaction({
+	digest: 'ABC123...',
 	include: {
 		effects: true,
 		protoJson: true,
 	},
 });
 
-const tx = result.Transaction ?? result.FailedTransaction;
-console.log(tx.digest, result.protoJson);
+const transaction = result.Transaction ?? result.FailedTransaction;
+console.log(transaction.digest, result.protoJson);
 ```
-
-gRPC-specific options include:
-
-| Option                     | Methods                                                                                   |
-| -------------------------- | ----------------------------------------------------------------------------------------- |
-| `include.protoJson`        | `getTransaction`, `executeTransaction`, `signAndExecuteTransaction`, `waitForTransaction` |
-| `include.protoJson`        | `simulateTransaction`                                                                     |
-| `doGasSelection`           | `simulateTransaction`                                                                     |
-| `include: { value: true }` | `listDynamicFields`                                                                       |
 
 ## Transport options
 
 By default, `SuiGrpcClient` uses `GrpcWebFetchTransport` from
 [protobuf-ts](https://github.com/timostamm/protobuf-ts), which works in browsers and Node.js through
-the Fetch API. You can also provide a custom transport for advanced use cases.
-
-The `GrpcWebFetchTransport` class, `GrpcWebOptions` type, and `RpcTransport` type are all
-re-exported from `@mysten/sui/grpc` for convenience.
+the Fetch API. The `GrpcWebFetchTransport` class, `GrpcWebOptions` type, and `RpcTransport` type are
+re-exported from `@mysten/sui/grpc`, so you can configure a transport without adding
+`@protobuf-ts/*` as a direct dependency.
 
 ### gRPC-web transport (default)
 
-The default transport uses the gRPC-web protocol over HTTP/1.1 or HTTP/2. You can customize it by
-passing `GrpcWebFetchTransport` options directly:
+The default transport uses the gRPC-web protocol over HTTP/1.1 or HTTP/2. Pass
+`GrpcWebFetchTransport` options to customize it:
 
 ```typescript
 import { SuiGrpcClient, GrpcWebFetchTransport } from '@mysten/sui/grpc';
@@ -134,7 +90,7 @@ const transport = new GrpcWebFetchTransport({
 	// Additional transport options like fetchInit
 });
 
-const grpcClient = new SuiGrpcClient({
+const client = new SuiGrpcClient({
 	network: 'testnet',
 	transport,
 });
@@ -142,17 +98,13 @@ const grpcClient = new SuiGrpcClient({
 
 ### Native gRPC transport
 
-For server-side applications (Node.js, Bun, and others), you can use the native gRPC transport with
-`@protobuf-ts/grpc-transport` and `@grpc/grpc-js`. This uses HTTP/2 with the native gRPC protocol
+For server-side applications (Node.js, Bun, and others), use the native gRPC transport with
+`@protobuf-ts/grpc-transport` and `@grpc/grpc-js`. This speaks HTTP/2 and the native gRPC protocol
 rather than the gRPC-web translation layer.
 
-Install the required packages:
-
-```bash
+```npm
 npm install @protobuf-ts/grpc-transport @grpc/grpc-js
 ```
-
-Then create the client with a `GrpcTransport`:
 
 ```typescript
 import { SuiGrpcClient } from '@mysten/sui/grpc';
@@ -164,100 +116,71 @@ const transport = new GrpcTransport({
 	channelCredentials: ChannelCredentials.createSsl(),
 });
 
-const grpcClient = new SuiGrpcClient({
+const client = new SuiGrpcClient({
 	network: 'testnet',
 	transport,
 });
 ```
 
-For local development without TLS:
+For local development without TLS, use `ChannelCredentials.createInsecure()` and a plain
+`host: '127.0.0.1:9000'`.
+
+## Read masks
+
+gRPC responses are opt-in. A request names the fields it wants in a `readMask`, and the server
+returns only those. Paths are proto field names in `snake_case`, and nested fields are dotted:
 
 ```typescript
-import { GrpcTransport } from '@protobuf-ts/grpc-transport';
-import { ChannelCredentials } from '@grpc/grpc-js';
-
-const transport = new GrpcTransport({
-	host: '127.0.0.1:9000',
-	channelCredentials: ChannelCredentials.createInsecure(),
-});
-
-const grpcClient = new SuiGrpcClient({
-	network: 'localnet',
-	transport,
+const { response } = await client.ledgerService.getTransaction({
+	digest: 'ABC123...',
+	readMask: { paths: ['digest', 'effects.status', 'transaction.sender'] },
 });
 ```
+
+A field you did not ask for comes back unset, which is the most common surprise when moving from a
+JSON-RPC mindset: an empty field usually means it was not requested rather than that it has no
+value.
+
+The top-level methods build masks for you from their `include` options, adding the paths each option
+needs on top of the handful every result carries. That is the main reason to prefer them: field
+selection and the mapping back into the unified shape are handled for you.
 
 ## Using service clients
 
-The `SuiGrpcClient` exposes several service clients for lower-level access to the gRPC API. These
-service clients are generated using [protobuf-ts](https://github.com/timostamm/protobuf-ts), which
-provides type-safe gRPC clients for TypeScript. For more details on how to use gRPC with Sui, see
-the [gRPC overview](https://docs.sui.io/develop/accessing-data/grpc/what-is-grpc).
+`SuiGrpcClient` exposes the generated service clients as properties, so any RPC the node serves is
+reachable even where the shared API has no method for it:
 
-### Prefer top-level methods first
+| Property                       | Service                                   |
+| ------------------------------ | ----------------------------------------- |
+| `ledgerService`                | Ledger reads, and the streaming list RPCs |
+| `stateService`                 | Live object and balance state             |
+| `transactionExecutionService`  | Transaction execution                     |
+| `subscriptionService`          | Real-time streams                         |
+| `movePackageService`           | Move package metadata                     |
+| `nameService`                  | SuiNS lookup and reverse lookup           |
+| `signatureVerificationService` | Signature verification                    |
+| `forkingService`               | Admin APIs, for `sui-fork` instances only |
 
-For common operations, call the top-level method before reaching for raw service clients:
+The clients are generated with [protobuf-ts](https://github.com/timostamm/protobuf-ts). Each call
+takes the request message and an optional `RpcOptions`, where `abort` carries an `AbortSignal`:
 
 ```typescript
-import { SuiGrpcClient } from '@mysten/sui/grpc';
+const controller = new AbortController();
 
-const grpcClient = new SuiGrpcClient({
-	network: 'testnet',
-	baseUrl: 'https://fullnode.testnet.sui.io:443',
-});
-
-await grpcClient.listCoins({
-	owner: '<OWNER_ADDRESS>',
-});
+const { response } = await client.nameService.lookupName(
+	{ name: 'example.sui' },
+	{ abort: controller.signal },
+);
 ```
 
-Use the generated service clients directly when you need gRPC methods, read masks, streaming
-behavior, or filters that are not exposed by the top-level API.
-
-### Transaction execution service
-
-```typescript
-const { response } = await grpcClient.transactionExecutionService.executeTransaction({
-	transaction: {
-		bcs: {
-			value: transactionBytes,
-		},
-	},
-	signatures: signatures.map((sig) => ({
-		bcs: { value: fromBase64(sig) },
-		signature: { oneofKind: undefined },
-	})),
-});
-
-// IMPORTANT: Always check the transaction status
-if (!response.finality?.effects?.status?.success) {
-	const error = response.finality?.effects?.status?.error;
-	throw new Error(`Transaction failed: ${error || 'Unknown error'}`);
-}
-```
-
-### Ledger service
+Request and response shapes come from the proto definitions, so the generated types are the
+reference for what each RPC accepts. Filters on the list and subscribe RPCs are one place worth
+knowing the shape: a filter is a list of `terms` ORed together, each term a list of `literals` ANDed
+together, and `negated: true` inverts a literal.
 
 ```typescript
-// Get transaction by digest
-const { response } = await grpcClient.ledgerService.getTransaction({
-	digest: '0x123...',
-});
-
-// Get current epoch information
-const { response: epochInfo } = await grpcClient.ledgerService.getEpoch({});
-```
-
-The ledger service also provides streaming `listCheckpoints`, `listTransactions`, and `listEvents`
-RPCs. For most use cases, prefer the corresponding
-[core API query methods](/sui/clients/core#query-methods) (`listTransactions` and `listEvents`),
-which handle pagination and filter construction for you. The raw RPCs additionally support DNF
-filters (combined, negated, and additional predicates like `affected_address` and `package_write`)
-and checkpoint range bounds that the core API does not expose:
-
-```typescript
-// Transactions that affected an address but were not sent by it:
-const stream = grpcClient.ledgerService.listTransactions({
+// Transactions that affected an address but were not sent by it
+const stream = client.ledgerService.listTransactions({
 	filter: {
 		terms: [
 			{
@@ -279,21 +202,119 @@ const stream = grpcClient.ledgerService.listTransactions({
 	},
 	readMask: { paths: ['digest'] },
 });
-
-for await (const frame of stream.responses) {
-	if (frame.transaction) {
-		console.log(frame.transaction.digest);
-	}
-}
 ```
 
-### Subscription service
+An absent filter matches everything; a present filter needs at least one term.
 
-Subscribe to filtered, real-time streams of checkpoints, transactions, or events. Streams begin at
-the current tip of the chain:
+## Generated types and helpers
+
+`@mysten/sui/grpc` re-exports everything you need to work with the generated API, so nothing has to
+depend on `@protobuf-ts/*` or the proto files directly.
+
+`GrpcTypes` is a namespace holding every generated message interface and enum. Use it to type values
+you pass around, and to reference enums by name rather than by number:
 
 ```typescript
-const stream = grpcClient.subscriptionService.subscribeTransactions({
+import { GrpcTypes } from '@mysten/sui/grpc';
+
+function describe(status: GrpcTypes.ExecutionStatus) {
+	return status.success ? 'succeeded' : status.error?.description;
+}
+
+const ordering = GrpcTypes.Ordering.DESCENDING;
+```
+
+Two helpers map a raw protobuf response into the same shape the top-level methods return, which is
+useful when you drop to a service client for the request but still want the unified result:
+
+```typescript
+import { parseGrpcTransactionResponse } from '@mysten/sui/grpc';
+
+const { response } = await client.ledgerService.getTransaction({
+	digest: 'ABC123...',
+	readMask: { paths: ['digest', 'effects'] },
+});
+
+// Same discriminated union that client.getTransaction() returns
+const result = parseGrpcTransactionResponse(response.transaction!, {
+	include: { effects: true },
+});
+```
+
+`parseGrpcSimulateTransactionResponse` does the same for `SimulateTransactionResponse`.
+
+| Export                                                    | Use                                                   |
+| --------------------------------------------------------- | ----------------------------------------------------- |
+| `GrpcTypes`                                               | Generated message interfaces and enums                |
+| `parseGrpcTransactionResponse`                            | Raw `ExecutedTransaction` to the unified result shape |
+| `parseGrpcSimulateTransactionResponse`                    | Raw simulation response to the unified result shape   |
+| `GrpcWebFetchTransport`, `GrpcWebOptions`, `RpcTransport` | Configuring a [transport](#transport-options)         |
+| `SuiGrpcClientOptions`, `GrpcTransactionInclude`, …       | Typing your own wrappers around the client            |
+| `isSuiGrpcClient`                                         | Type guard for narrowing an unknown client            |
+
+## Streaming responses
+
+The list and subscribe RPCs return server streams rather than a single response, consumed with
+`for await` over `stream.responses`. Both use the same frame shape.
+
+A list RPC is a stream of frames, not a single response. Each frame either delivers one item or just
+reports progress, and every frame carries a `watermark` whose `cursor` is a safe resume point.
+Exactly one frame of a successful stream carries `end`, reporting why the scan stopped.
+
+This matters because a single request does not necessarily reach the end of the range you asked for:
+the server bounds how much ledger a filtered scan reads, so a stream can stop early and report
+`SCAN_LIMIT`. Reissue from the last watermark cursor until the reason says the scan is genuinely
+finished:
+
+```typescript
+import { GrpcTypes } from '@mysten/sui/grpc';
+
+let resumeFrom: Uint8Array | undefined;
+let reason: GrpcTypes.QueryEndReason | undefined;
+
+// One request can stop before the range is exhausted, so scan until the range bound is reached
+do {
+	const stream = client.ledgerService.listEvents({
+		readMask: { paths: ['event_type', 'transaction_digest', 'event_index'] },
+		// Bound the scan. Without an end, this walks the whole ledger to the current tip
+		startCheckpoint: 1_000_000n,
+		endCheckpoint: 1_000_100n,
+		options: {
+			after: resumeFrom,
+			limit: 100,
+			ordering: GrpcTypes.Ordering.ASCENDING,
+		},
+	});
+
+	for await (const frame of stream.responses) {
+		// The latest watermark is always the safe place to resume from
+		resumeFrom = frame.watermark?.cursor ?? resumeFrom;
+		reason = frame.end?.reason ?? reason;
+
+		if (frame.event) {
+			console.log(frame.event.eventType, frame.event.transactionDigest);
+		}
+	}
+} while (reason === GrpcTypes.QueryEndReason.SCAN_LIMIT);
+```
+
+`options.after` and `options.before` are ledger-position bounds that mean the same thing in both
+directions (ordering only controls the order of items within the interval), and they intersect with
+the checkpoint range when both are given.
+
+## Subscriptions
+
+`subscriptionService` provides filtered, real-time streams. Each subscription pairs with the list
+RPC of the same name: same filter message, same item and watermark shapes, same cursor semantics.
+
+| Method                  | Yields                                          |
+| ----------------------- | ----------------------------------------------- |
+| `subscribeCheckpoints`  | Checkpoints, and progress-only cursor frames    |
+| `subscribeTransactions` | Executed transactions, and progress-only frames |
+| `subscribeEvents`       | Emitted events, and progress-only frames        |
+
+```typescript
+const stream = client.subscriptionService.subscribeTransactions({
 	filter: {
 		terms: [
 			{
@@ -311,71 +332,66 @@ const stream = grpcClient.subscriptionService.subscribeTransactions({
 
 for await (const frame of stream.responses) {
 	if (frame.transaction) {
-		console.log(frame.transaction.digest);
+		console.log(frame.transaction.digest, frame.transaction.effects?.status?.success);
 	}
 }
 ```
 
-### State service
+Omit `filter` to receive everything.
+
+### Frames and watermarks
+
+A subscription behaves like an unbounded ascending scan, so its frames work the same way as a
+[list RPC's](#streaming-responses), with two differences: checkpoint frames are checkpoint-granular
+and carry a `cursor` sequence number instead of a watermark, and the first frame of a filtered
+subscription is always progress-only, establishing the start position. Progress also keeps advancing
+with bounded staleness while nothing matches, which is what keeps a sparse filter alive. Track the
+cursor on every frame, not just the ones with items:
 
 ```typescript
-// List owned objects
-const { response } = await grpcClient.stateService.listOwnedObjects({
-	owner: '0xabc...',
-	objectType: '0x2::coin::Coin<0x2::sui::SUI>',
-});
+let lastCursor: Uint8Array | undefined;
 
-// Get dynamic fields
-const { response: fields } = await grpcClient.stateService.listDynamicFields({
-	parent: '0x123...',
-});
+for await (const frame of stream.responses) {
+	lastCursor = frame.watermark?.cursor ?? lastCursor;
+
+	if (frame.transaction) {
+		await handleTransaction(frame.transaction);
+	}
+}
 ```
 
-### Move package service
+### Cancelling a subscription
+
+Subscription streams have no successful end. They run until the client cancels them, or until the
+server terminates them with a gRPC status. Pass an `AbortSignal` through `RpcOptions`:
 
 ```typescript
-// Get function information
-const { response } = await grpcClient.movePackageService.getFunction({
-	packageId: '0x2',
-	moduleName: 'coin',
-	name: 'value',
-});
+const controller = new AbortController();
+
+const stream = client.subscriptionService.subscribeEvents(
+	{ readMask: { paths: ['event_type', 'transaction_digest'] } },
+	{ abort: controller.signal },
+);
+
+// Later, to tear the stream down
+controller.abort();
 ```
 
-### Name service
+### Recovering missed data
 
-```typescript
-const { address } = await grpcClient.resolveNameServiceAddress({
-	name: 'example.sui',
-});
-```
+Subscriptions do not resume: a new subscription starts at the current tip, so anything that happened
+while you were disconnected is skipped. Close the gap with the paired list RPC, scanning between the
+last cursor you processed and the cursor the new subscription reported in its first frame. Pass them
+as `options.after` and `options.before`. The indexed tip the list RPC reads from can trail the
+subscription's start position, so repeat the scan until a terminal frame reports `CURSOR_BOUND`
+rather than `LEDGER_TIP`.
 
-Use the raw name service when you need the complete gRPC `NameRecord` instead of only its target
-address:
+A durable consumer therefore keeps two pieces of state: the last cursor it processed, and the start
+cursor of each new subscription. On reconnect, open the subscription first, buffer its frames,
+replay the gap, then drain the buffer.
 
-```typescript
-const { response } = await grpcClient.nameService.lookupName({
-	name: 'example.sui',
-});
-
-const { response: reverseResponse } = await grpcClient.nameService.reverseLookupName({
-	address: '0xabc...',
-});
-```
-
-### Signature verification service
-
-```typescript
-// Verify a signature
-const { response } = await grpcClient.signatureVerificationService.verifySignature({
-	message: {
-		name: 'TransactionData',
-		value: messageBytes,
-	},
-	signature: {
-		bcs: { value: signatureBytes },
-		signature: { oneofKind: undefined },
-	},
-	jwks: [],
-});
-```
+Checkpoint subscriptions recover differently. `subscribeCheckpoints` reports its position as a
+checkpoint sequence number rather than a watermark cursor, and `listCheckpoints` bounds a scan with
+`startCheckpoint` and `endCheckpoint` rather than `options.after` and `options.before`. Replay that
+gap by listing from the sequence number after the last one you processed, up to the sequence number
+the new subscription started at.

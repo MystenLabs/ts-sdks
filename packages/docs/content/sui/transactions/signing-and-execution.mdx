@@ -39,24 +39,10 @@ if (result.$kind === 'FailedTransaction') {
 }
 ```
 
-### `include` options
-
-The `include` parameter controls what data is returned from the simulation. All fields are optional
-and default to `false`:
-
-| Field            | Description                                                                            |
-| ---------------- | -------------------------------------------------------------------------------------- |
-| `effects`        | Execution effects: created, mutated, and deleted objects, gas usage                    |
-| `events`         | Move events emitted during execution                                                   |
-| `balanceChanges` | Token balance changes for each affected address and coin type                          |
-| `objectTypes`    | Map of object ID to type string for all changed objects                                |
-| `transaction`    | The full transaction data (sender, commands, gas config)                               |
-| `bcs`            | Raw BCS-encoded transaction bytes                                                      |
-| `commandResults` | BCS-encoded return values and mutated references from each command _(simulation only)_ |
-
-The `commandResults` field is unique to simulation. It is not available on `executeTransaction`.
-Each entry contains `returnValues` and `mutatedReferences`, both as BCS-encoded `Uint8Array` values
-that you can decode with the [BCS library](/bcs).
+`commandResults` is unique to simulation. Each entry holds a command's `returnValues` and
+`mutatedReferences` as BCS-encoded bytes, which you can decode with the [BCS library](/bcs). For the
+rest of the `include` options, and the two flags that change how the node runs a simulation, see
+[Executing transactions](/sui/clients/executing#simulatetransaction).
 
 ## With a keypair (backend or scripts)
 
@@ -186,16 +172,10 @@ const result = await grpcClient.executeTransaction({
 });
 ```
 
-The `include` parameter controls what data is returned with the result:
-
-| Field            | Description                                              |
-| ---------------- | -------------------------------------------------------- |
-| `transaction`    | The full transaction data (sender, commands, gas)        |
-| `effects`        | Execution effects (created, mutated, or deleted objects) |
-| `events`         | Move events emitted during execution                     |
-| `balanceChanges` | Token balance changes for each affected address          |
-| `objectTypes`    | Map of object ID to type for changed objects             |
-| `bcs`            | Raw BCS bytes of the transaction                         |
+Clients also expose `signAndExecuteTransaction`, which takes a signer instead of bytes and does both
+steps in one call, which is useful when the signer is not a keypair, or in library code that holds a
+client. See [Executing transactions](/sui/clients/executing) for the full `include` options and the
+rest of the client execution methods.
 
 ## Observing results
 

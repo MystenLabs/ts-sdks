@@ -401,6 +401,12 @@ export function raceSignal<T>(promise: Promise<T>, signal?: AbortSignal): Promis
 		return promise;
 	}
 
+	// An `abort` event is not replayed for listeners added after the fact, so a signal that was
+	// already aborted would otherwise resolve normally.
+	if (signal.aborted) {
+		return Promise.reject(signal.reason);
+	}
+
 	return new Promise<T>((resolve, reject) => {
 		const onAbort = () => reject(signal.reason);
 		signal.addEventListener('abort', onAbort, { once: true });

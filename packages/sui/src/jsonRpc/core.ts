@@ -26,6 +26,7 @@ import {
 	resolveTransactionFilter,
 	validateTransactionQuery,
 } from '../client/query-filters.js';
+import { raceSignal } from '../client/mvr.js';
 import { Transaction } from '../transactions/Transaction.js';
 import { computeGasBudget, coreClientResolveTransactionPlugin } from '../client/core-resolver.js';
 import { TransactionDataBuilder } from '../transactions/TransactionData.js';
@@ -282,7 +283,9 @@ export class JSONRpcCoreClient extends CoreClient {
 	async getCoinMetadata(
 		options: SuiClientTypes.GetCoinMetadataOptions,
 	): Promise<SuiClientTypes.GetCoinMetadataResponse> {
-		const coinType = (await this.mvr.resolveType({ type: options.coinType })).type;
+		const coinType = (
+			await this.mvr.resolveType({ type: options.coinType, signal: options.signal })
+		).type;
 
 		const result = await this.#jsonRpcClient.getCoinMetadata({
 			coinType,
@@ -402,7 +405,9 @@ export class JSONRpcCoreClient extends CoreClient {
 					overrides: {
 						gasData: {
 							budget: data.gasData.budget ?? String(MAX_GAS),
-							price: data.gasData.price ?? String(await this.#jsonRpcClient.getReferenceGasPrice()),
+							price:
+								data.gasData.price ??
+								String(await this.#jsonRpcClient.getReferenceGasPrice({ signal: options.signal })),
 							payment: data.gasData.payment ?? [],
 						},
 					},
@@ -627,6 +632,7 @@ export class JSONRpcCoreClient extends CoreClient {
 			parentId: options.parentId,
 			limit: options.limit,
 			cursor: options.cursor,
+			signal: options.signal,
 		});
 
 		return {
@@ -775,6 +781,7 @@ export class JSONRpcCoreClient extends CoreClient {
 	 */
 	async verifyZkLoginSignature(options: SuiClientTypes.VerifyZkLoginSignatureOptions) {
 		const result = await this.#jsonRpcClient.verifyZkLoginSignature({
+			signal: options.signal,
 			bytes: options.bytes,
 			signature: options.signature,
 			intentScope: options.intentScope,
@@ -829,12 +836,14 @@ export class JSONRpcCoreClient extends CoreClient {
 	async getMoveFunction(
 		options: SuiClientTypes.GetMoveFunctionOptions,
 	): Promise<SuiClientTypes.GetMoveFunctionResponse> {
-		const resolvedPackageId = (await this.mvr.resolvePackage({ package: options.packageId }))
-			.package;
+		const resolvedPackageId = (
+			await this.mvr.resolvePackage({ package: options.packageId, signal: options.signal })
+		).package;
 		const result = await this.#jsonRpcClient.getNormalizedMoveFunction({
 			package: resolvedPackageId,
 			module: options.moduleName,
 			function: options.name,
+			signal: options.signal,
 		});
 
 		return {
@@ -859,14 +868,18 @@ export class JSONRpcCoreClient extends CoreClient {
 	 * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
 	 */
 	async getChainIdentifier(
-		_options?: SuiClientTypes.GetChainIdentifierOptions,
+		options?: SuiClientTypes.GetChainIdentifierOptions,
 	): Promise<SuiClientTypes.GetChainIdentifierResponse> {
-		return this.cache.read(['chainIdentifier'], async () => {
+		// The result is cached and shared across callers, so the underlying request must
+		// not carry any single caller's signal. Isolate cancellation per-caller instead.
+		const cached = this.cache.read(['chainIdentifier'], async () => {
 			const checkpoint = await this.#jsonRpcClient.getCheckpoint({ id: '0' });
 			return {
 				chainIdentifier: checkpoint.digest,
 			};
 		});
+
+		return raceSignal(Promise.resolve(cached), options?.signal);
 	}
 }
 

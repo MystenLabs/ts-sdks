@@ -70,6 +70,11 @@ const config = {
 				destination: '/sui/cryptography/signers/passkey',
 				statusCode: 302,
 			},
+			{
+				source: '/sui/clients/json-rpc',
+				destination: '/sui/migrations/sui-2.0/json-rpc-migration',
+				statusCode: 302,
+			},
 		];
 	},
 };

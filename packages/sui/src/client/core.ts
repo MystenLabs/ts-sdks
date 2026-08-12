@@ -209,6 +209,7 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 		const resolvedNameType = (
 			await this.core.mvr.resolveType({
 				type: options.name.type,
+				signal: options.signal,
 			})
 		).type;
 		const wrappedType = `0x2::dynamic_object_field::Wrapper<${resolvedNameType}>`;
