@@ -220,6 +220,7 @@ export class SuiJsonRpcClient extends BaseClient {
 			coinType = (
 				await this.core.mvr.resolveType({
 					type: coinType,
+					signal,
 				})
 			).type;
 		}
@@ -272,6 +273,7 @@ export class SuiJsonRpcClient extends BaseClient {
 			coinType = (
 				await this.core.mvr.resolveType({
 					type: coinType,
+					signal,
 				})
 			).type;
 		}
@@ -309,6 +311,7 @@ export class SuiJsonRpcClient extends BaseClient {
 			coinType = (
 				await this.core.mvr.resolveType({
 					type: coinType,
+					signal,
 				})
 			).type;
 		}
@@ -330,6 +333,7 @@ export class SuiJsonRpcClient extends BaseClient {
 			coinType = (
 				await this.core.mvr.resolveType({
 					type: coinType,
+					signal,
 				})
 			).type;
 		}
@@ -371,6 +375,7 @@ export class SuiJsonRpcClient extends BaseClient {
 			pkg = (
 				await this.core.mvr.resolvePackage({
 					package: pkg,
+					signal,
 				})
 			).package;
 		}
@@ -396,6 +401,7 @@ export class SuiJsonRpcClient extends BaseClient {
 			pkg = (
 				await this.core.mvr.resolvePackage({
 					package: pkg,
+					signal,
 				})
 			).package;
 		}
@@ -421,6 +427,7 @@ export class SuiJsonRpcClient extends BaseClient {
 			pkg = (
 				await this.core.mvr.resolvePackage({
 					package: pkg,
+					signal,
 				})
 			).package;
 		}
@@ -447,6 +454,7 @@ export class SuiJsonRpcClient extends BaseClient {
 			pkg = (
 				await this.core.mvr.resolvePackage({
 					package: pkg,
+					signal,
 				})
 			).package;
 		}
@@ -473,6 +481,7 @@ export class SuiJsonRpcClient extends BaseClient {
 			pkg = (
 				await this.core.mvr.resolvePackage({
 					package: pkg,
+					signal,
 				})
 			).package;
 		}
@@ -506,6 +515,7 @@ export class SuiJsonRpcClient extends BaseClient {
 				package: (
 					await this.core.mvr.resolvePackage({
 						package: filter.MoveModule.package,
+						signal: input.signal,
 					})
 				).package,
 			};
@@ -513,6 +523,7 @@ export class SuiJsonRpcClient extends BaseClient {
 			filter.StructType = (
 				await this.core.mvr.resolveType({
 					type: filter.StructType,
+					signal: input.signal,
 				})
 			).type;
 		}
@@ -603,6 +614,7 @@ export class SuiJsonRpcClient extends BaseClient {
 					package: (
 						await this.core.mvr.resolvePackage({
 							package: filter.MoveFunction.package,
+							signal,
 						})
 					).package,
 				},
@@ -820,6 +832,7 @@ export class SuiJsonRpcClient extends BaseClient {
 				MoveEventType: (
 					await this.core.mvr.resolveType({
 						type: query.MoveEventType,
+						signal,
 					})
 				).type,
 			};
@@ -833,6 +846,7 @@ export class SuiJsonRpcClient extends BaseClient {
 					package: (
 						await this.core.mvr.resolvePackage({
 							package: query.MoveEventModule.package,
+							signal,
 						})
 					).package,
 				},
@@ -847,6 +861,7 @@ export class SuiJsonRpcClient extends BaseClient {
 					package: (
 						await this.core.mvr.resolvePackage({
 							package: query.MoveModule.package,
+							signal,
 						})
 					).package,
 				},
