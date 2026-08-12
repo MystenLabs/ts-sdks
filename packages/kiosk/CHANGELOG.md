@@ -1,5 +1,12 @@
 # @mysten/kiosk
 
+## 1.4.0
+
+### Minor Changes
+
+- f27cd69: Add support for `SuiGrpcClient` and other `ClientWithCoreApi` implementations to the
+  Kiosk SDK, and query objects and transfer policy events through the shared Core API.
+
 ## 1.3.13
 
 ## 1.3.12
