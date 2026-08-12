@@ -92,7 +92,10 @@ export class DeepBookConfig {
 		/**
 		 * Bearer token for the Hermes serving Pyth's upgraded Core, which answers 401
 		 * without one. Set this rather than `pyth` when the built-in state objects are
-		 * correct and only the credential is missing — `pyth` replaces the whole config.
+		 * correct and only the credential is missing — `pyth` replaces the whole config,
+		 * so setting a token through it means restating the state object ids.
+		 *
+		 * Applied after `pyth`, so if both carry a token this one wins.
 		 */
 		pythAccessToken?: string;
 	}) {
@@ -148,6 +151,9 @@ export class DeepBookConfig {
 
 		// Applied after the branches so a token composes with the built-in state objects
 		// instead of forcing the caller to restate them.
+		// Empty is treated as absent rather than as a credential: `PYTH_TOKEN=` exported
+		// blank is the common way this arrives, and a blank bearer header 401s with a
+		// worse message than the configuration error.
 		if (pythAccessToken) {
 			this.pyth = { ...this.pyth, accessToken: pythAccessToken };
 		}

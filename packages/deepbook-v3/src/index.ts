@@ -23,6 +23,7 @@ export { MarginTPSLContract } from './transactions/marginTPSL.js';
 
 // Pyth price feed integration
 export { SuiPythClient, SuiPriceServiceConnection } from './pyth/pyth.js';
+export type { PriceServiceConnectionConfig } from './pyth/PriceServiceConnection.js';
 
 // BCS types for parsing on-chain data
 export { Account, Balances, Order, OrderDeepPrice, VecSet } from './types/bcs.js';

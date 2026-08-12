@@ -45,7 +45,8 @@ export const mainnetPackageIds = {
  * the ids upgraded testnet Core carries, which are the mainnet-style ids — the beta ids
  * have no upgraded price objects and the upgraded Hermes does not serve them.
  *
- * DBTC's feed is BTC/USD: the upgraded deployment carries no distinct DBTC feed.
+ * DBTC is testnet's wrapped BTC and takes Crypto.XBTC/USD — the same feed mainnet XBTC
+ * uses. The upgraded deployment carries no distinct DBTC feed.
  */
 export const testnetCoins: CoinMap = {
 	DEEP: {

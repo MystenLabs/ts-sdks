@@ -30,7 +30,7 @@ beforeEach(() => {
 	} as never);
 });
 
-function connection(config?: Parameters<typeof PriceServiceConnection>[1]) {
+function connection(config?: ConstructorParameters<typeof PriceServiceConnection>[1]) {
 	return new PriceServiceConnection('https://example.invalid/hermes', config);
 }
 
@@ -75,8 +75,9 @@ describe('PriceServiceConnection', () => {
 	// naming neither Hermes, nor the config field, nor the coin. Whatever the constant holds,
 	// it must be a resolvable URL or absent, never a placeholder.
 	it('the shipped proxy constant is a parseable URL or undefined', () => {
-		if (DEEPBOOK_HERMES_PROXY !== undefined) {
-			expect(() => new URL(DEEPBOOK_HERMES_PROXY)).not.toThrow();
+		const proxy = DEEPBOOK_HERMES_PROXY;
+		if (proxy !== undefined) {
+			expect(() => new URL(proxy)).not.toThrow();
 		}
 	});
 

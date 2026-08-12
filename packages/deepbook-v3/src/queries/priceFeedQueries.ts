@@ -20,10 +20,15 @@ export class PriceFeedQueries {
 	/**
 	 * The Hermes endpoint serving the Pyth deployment margin is configured against.
 	 *
-	 * In `'upgraded'` mode there are two routes, chosen by whether the caller brought
+	 * There are two routes, chosen by whether the caller brought
 	 * credentials. With `accessToken` set, the SDK talks to Pyth directly and no DeepBook
 	 * infrastructure is in the path — the token is sent to Pyth's own host, so a token
 	 * minted for some other endpoint must be paired with an explicit `hermesEndpoint`.
+	 *
+	 * Note the converse too: an explicit `hermesEndpoint` wins over everything, and the
+	 * token is sent to whatever host it names. Point it at a mirror or staging proxy while
+	 * a production token is still configured and the credential goes there.
+	 *
 	 * Without a token it falls back to the DeepBook-operated proxy, which supplies
 	 * credentials server-side; that proxy is not deployed yet, so today this path throws a
 	 * `ConfigurationError` instead. An explicit `hermesEndpoint` overrides both.
@@ -131,10 +136,10 @@ export class PriceFeedQueries {
 			return result;
 		}
 
-		// Distinct coins can share a feed. No shipped map has a collision today, but `coins`
-		// is a public constructor option and coins that track the same underlying are the
-		// normal case for it — testnet DBTC already prices off the generic BTC/USD feed.
-		// Deduplicate before building the update:
+		// Distinct coins can share a feed. No shipped map has a collision — every configured
+		// coin is on its own feed — but `coins` is a public constructor option, and coins
+		// tracking the same underlying (a wrapped asset priced off its reference, say) are
+		// the normal reason to supply one. Deduplicate before building the update:
 		// a feed listed twice would emit two `update_single_price_feed` calls against the same
 		// object off one hot-potato vector, and pay two update fees for it. One feed can also
 		// map to several coins, so the reverse index holds a list, not a single key.

@@ -14,8 +14,11 @@ export type PriceServiceConnectionConfig = {
 	httpRetries?: number;
 	/**
 	 * Bearer token for Hermes deployments that authenticate. The endpoint serving Pyth's
-	 * upgraded Core answers 401 without one. Named to match `@mysten/suins` and Pyth's own
-	 * client, which take the same credential under the same name.
+	 * upgraded Core answers 401 without one.
+	 *
+	 * `accessToken` is chosen to converge with the in-flight `@mysten/suins` Pyth migration
+	 * (ts-sdks#1158), which takes the same credential under this name. That is not yet
+	 * published, so this is a convergence target rather than an existing convention.
 	 */
 	accessToken?: string;
 };
