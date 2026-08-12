@@ -13,11 +13,11 @@ export type PriceServiceConnectionConfig = {
 	timeout?: number;
 	httpRetries?: number;
 	/**
-	 * Extra headers sent with every request. Required for Hermes deployments that
-	 * authenticate — the endpoint serving Pyth's upgraded Core answers 401 without an
-	 * `Authorization` header.
+	 * Bearer token for Hermes deployments that authenticate. The endpoint serving Pyth's
+	 * upgraded Core answers 401 without one. Named to match `@mysten/suins` and Pyth's own
+	 * client, which take the same credential under the same name.
 	 */
-	headers?: Record<string, string>;
+	accessToken?: string;
 };
 export class PriceServiceConnection {
 	private httpClient: AxiosInstance;
@@ -31,7 +31,7 @@ export class PriceServiceConnection {
 		this.httpClient = axios.create({
 			baseURL: endpoint,
 			timeout: config?.timeout || 5000,
-			...(config?.headers ? { headers: config.headers } : {}),
+			headers: config?.accessToken ? { Authorization: `Bearer ${config.accessToken}` } : undefined,
 		});
 		axiosRetry(this.httpClient, {
 			retries: config?.httpRetries || 3,
@@ -53,8 +53,11 @@ export class PriceServiceConnection {
 	async getLatestVaas(priceIds: HexString[]): Promise<string[]> {
 		const response = await this.httpClient.get('/v2/updates/price/latest', {
 			params: {
-				ids: priceIds,
+				// Serialized explicitly rather than relying on axios's array encoding, which is
+				// what Hermes expects and what a future axios major could change under us.
+				'ids[]': priceIds,
 				encoding: 'base64',
+				parsed: false,
 			},
 		});
 

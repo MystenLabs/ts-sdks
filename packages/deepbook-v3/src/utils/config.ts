@@ -75,6 +75,7 @@ export class DeepBookConfig {
 		marginPools,
 		packageIds,
 		pyth,
+		pythAccessToken,
 	}: {
 		network: SuiClientTypes.Network;
 		address: string;
@@ -88,6 +89,12 @@ export class DeepBookConfig {
 		marginPools?: MarginPoolMap;
 		packageIds?: DeepbookPackageIds;
 		pyth?: PythConfig;
+		/**
+		 * Bearer token for the Hermes serving Pyth's upgraded Core, which answers 401
+		 * without one. Set this rather than `pyth` when the built-in state objects are
+		 * correct and only the credential is missing — `pyth` replaces the whole config.
+		 */
+		pythAccessToken?: string;
 	}) {
 		this.network = network;
 		this.address = normalizeSuiAddress(address);
@@ -137,6 +144,12 @@ export class DeepBookConfig {
 			throw new Error(
 				`Network '${network}' is not supported by default. Provide custom 'packageIds' for non-standard networks.`,
 			);
+		}
+
+		// Applied after the branches so a token composes with the built-in state objects
+		// instead of forcing the caller to restate them.
+		if (pythAccessToken) {
+			this.pyth = { ...this.pyth, accessToken: pythAccessToken };
 		}
 
 		this.balanceManager = new BalanceManagerContract(this);

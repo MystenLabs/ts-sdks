@@ -32,13 +32,13 @@ export interface PythConfig {
 	/** Hermes endpoint serving update data for this deployment. */
 	hermesEndpoint?: string;
 	/**
-	 * Headers sent with every Hermes request. The endpoint serving Pyth's upgraded Core
-	 * requires an `Authorization: Bearer <token>` header and answers 401 without one, so
-	 * pushing price updates needs this set.
+	 * Bearer token for the Hermes endpoint. The one serving Pyth's upgraded Core answers
+	 * 401 without it, so pushing price updates needs this set.
 	 *
-	 * Supply the token at runtime — do not commit it. There is no default.
+	 * Prefer the client-level `pythAccessToken` option, which sets this without having to
+	 * restate the state object ids. Supply the token at runtime — do not commit it.
 	 */
-	hermesHeaders?: Record<string, string>;
+	accessToken?: string;
 }
 
 export interface Pool {

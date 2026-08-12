@@ -21,20 +21,20 @@ export class PriceFeedQueries {
 	 * The Hermes endpoint serving the Pyth deployment margin is configured against.
 	 *
 	 * In `'upgraded'` mode there are two routes, chosen by whether the caller brought
-	 * credentials. With `hermesHeaders` set, the SDK talks to Pyth directly and no DeepBook
-	 * infrastructure is in the path — note the token is then sent to Pyth's own host, so a
-	 * token minted for some other endpoint must be paired with an explicit `hermesEndpoint`.
-	 * Without headers it falls back to the DeepBook-operated proxy, which supplies
+	 * credentials. With `accessToken` set, the SDK talks to Pyth directly and no DeepBook
+	 * infrastructure is in the path — the token is sent to Pyth's own host, so a token
+	 * minted for some other endpoint must be paired with an explicit `hermesEndpoint`.
+	 * Without a token it falls back to the DeepBook-operated proxy, which supplies
 	 * credentials server-side; that proxy is not deployed yet, so today this path throws a
 	 * `ConfigurationError` instead. An explicit `hermesEndpoint` overrides both.
 	 */
 	#hermesEndpoint(): string {
-		const { hermesEndpoint, hermesHeaders } = this.#ctx.config.pyth;
+		const { hermesEndpoint, accessToken } = this.#ctx.config.pyth;
 		if (hermesEndpoint) {
 			return hermesEndpoint;
 		}
 
-		if (hermesHeaders) {
+		if (accessToken) {
 			return PYTH_UPGRADED_HERMES;
 		}
 		if (DEEPBOOK_HERMES_PROXY) {
@@ -42,7 +42,7 @@ export class PriceFeedQueries {
 		}
 
 		throw new ConfigurationError(
-			"Pushing price updates against Pyth's upgraded Core needs credentials: its Hermes answers 401 unauthenticated. Set 'pyth.hermesHeaders' to { Authorization: `Bearer <pyth-token>` }, or set 'pyth.hermesEndpoint' to an endpoint that supplies them.",
+			"Pushing price updates against Pyth's upgraded Core needs credentials: its Hermes answers 401 unauthenticated. Set the client's `pythAccessToken` option (or `pyth.accessToken`), or point `pyth.hermesEndpoint` at an endpoint that supplies credentials itself.",
 		);
 	}
 
@@ -52,10 +52,10 @@ export class PriceFeedQueries {
 	 * and answers 401 without one.
 	 */
 	#connection(): SuiPriceServiceConnection {
-		const { hermesHeaders } = this.#ctx.config.pyth;
+		const { accessToken } = this.#ctx.config.pyth;
 		return new SuiPriceServiceConnection(
 			this.#hermesEndpoint(),
-			hermesHeaders ? { headers: hermesHeaders } : undefined,
+			accessToken ? { accessToken } : undefined,
 		);
 	}
 

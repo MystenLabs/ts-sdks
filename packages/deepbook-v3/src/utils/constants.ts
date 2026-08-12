@@ -463,7 +463,7 @@ export const PYTH_UPGRADED_HERMES = 'https://pyth.dourolabs.app/hermes';
 /**
  * DeepBook-operated Hermes proxy: forwards to {@link PYTH_UPGRADED_HERMES} supplying
  * credentials server-side, so consumers without their own Pyth plan can still push price
- * updates. Used only when no `hermesHeaders` are configured — bring your own token and the
+ * updates. Used only when no `accessToken` is configured — bring your own token and the
  * SDK talks to Pyth directly, with no DeepBook infrastructure in the path.
  *
  * `undefined` until the proxy is deployed. It must stay `undefined` rather than a

@@ -34,7 +34,6 @@ import { fromBase64 } from '@mysten/sui/utils';
 import { Transaction } from '@mysten/sui/transactions';
 
 import { deepbook } from '../src/index.js';
-import { mainnetPythConfigs, testnetPythConfigs } from '../src/index.js';
 
 const SUI = process.env.SUI_BINARY ?? `sui`;
 
@@ -101,16 +100,9 @@ const getSigner = () => {
 	const client = new SuiGrpcClient({ network, baseUrl: GRPC_URLS[network] }).$extend(
 		deepbook({
 			address,
-			// Margin prices against Pyth's upgraded Core, whose Hermes requires a token and
-			// answers 401 without one. Supply PYTH_TOKEN to push price updates.
-			...(process.env.PYTH_TOKEN
-				? {
-						pyth: {
-							...(network === 'mainnet' ? mainnetPythConfigs : testnetPythConfigs),
-							hermesHeaders: { Authorization: `Bearer ${process.env.PYTH_TOKEN}` },
-						},
-					}
-				: {}),
+			// Margin prices against Pyth's upgraded Core, whose Hermes answers 401 without a
+			// token. Supply PYTH_TOKEN to push price updates.
+			pythAccessToken: process.env.PYTH_TOKEN,
 		}),
 	);
 

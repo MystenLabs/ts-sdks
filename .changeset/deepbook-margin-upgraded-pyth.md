@@ -24,10 +24,11 @@ earlier `deepbook_margin` publications, so this release must not be used against
 margin package predates them.
 
 Price update data is now fetched from Hermes v2 (`/v2/updates/price/latest`) instead of the
-deprecated v1 `/api/latest_vaas`; both return the same payload. `PythConfig` gains `hermesHeaders`,
-forwarded to every Hermes request — the endpoint serving the upgraded Core requires an
-`Authorization` header and answers 401 without one, so price updates cannot work without it. Supply
-the token at runtime; no credential ships with the SDK. Consumers who supply none are intended to
+deprecated v1 `/api/latest_vaas`; both return the same payload. The client gains a `pythAccessToken` option (and `pyth.accessToken` beneath it), sent as
+`Authorization: Bearer`: the endpoint serving the upgraded Core answers 401 without it, so price
+updates cannot work otherwise. It is named to match `@mysten/suins`, which takes the same
+credential, and it composes with the built-in Pyth state objects rather than replacing them the
+way a whole `pyth` config does. Supply the token at runtime; no credential ships with the SDK. Consumers who supply none are intended to
 fall back to a DeepBook-operated proxy, which is not deployed yet, so that path currently throws a
 `ConfigurationError` naming the field to set.
 

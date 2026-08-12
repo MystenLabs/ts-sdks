@@ -15,13 +15,7 @@ import { execSync } from 'child_process';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { Transaction } from '@mysten/sui/transactions';
 
-import {
-	deepbook,
-	OrderType,
-	SelfMatchingOptions,
-	mainnetPythConfigs,
-	testnetPythConfigs,
-} from '../src/index.js';
+import { deepbook, OrderType, SelfMatchingOptions } from '../src/index.js';
 
 const SUI = process.env.SUI_BINARY ?? `sui`;
 
@@ -62,16 +56,9 @@ const GRPC_URLS = {
 		deepbook({
 			address: getActiveAddress(),
 			marginManagers,
-			// Margin prices against Pyth's upgraded Core, whose Hermes requires a token and
-			// answers 401 without one. Supply PYTH_TOKEN to push price updates.
-			...(process.env.PYTH_TOKEN
-				? {
-						pyth: {
-							...(network === 'mainnet' ? mainnetPythConfigs : testnetPythConfigs),
-							hermesHeaders: { Authorization: `Bearer ${process.env.PYTH_TOKEN}` },
-						},
-					}
-				: {}),
+			// Margin prices against Pyth's upgraded Core, whose Hermes answers 401 without a
+			// token. Supply PYTH_TOKEN to push price updates.
+			pythAccessToken: process.env.PYTH_TOKEN,
 		}),
 	);
 

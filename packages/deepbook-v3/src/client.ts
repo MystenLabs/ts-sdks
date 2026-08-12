@@ -75,6 +75,11 @@ export interface DeepBookOptions<Name = 'deepbook'> {
 	marginMaintainerCap?: string;
 	packageIds?: DeepbookPackageIds;
 	pyth?: PythConfig;
+	/**
+	 * Bearer token for the Hermes serving Pyth's upgraded Core. Matches the option of the
+	 * same name in `@mysten/suins`, which takes the same credential.
+	 */
+	pythAccessToken?: string;
 	name?: Name;
 }
 
@@ -145,6 +150,7 @@ export class DeepBookClient {
 		marginMaintainerCap,
 		packageIds,
 		pyth,
+		pythAccessToken,
 	}: DeepBookClientOptions) {
 		const normalizedAddress = normalizeSuiAddress(address);
 		const config = new DeepBookConfig({
@@ -159,6 +165,7 @@ export class DeepBookClient {
 			marginMaintainerCap,
 			packageIds,
 			pyth,
+			pythAccessToken,
 		});
 
 		this.balanceManager = new BalanceManagerContract(config);

@@ -40,26 +40,25 @@ describe('PriceServiceConnection', () => {
 
 		const result = await connection().getLatestVaas([FEED]);
 
+		// `ids[]` is serialized explicitly rather than left to axios's array encoding.
 		expect(get).toHaveBeenCalledWith('/v2/updates/price/latest', {
-			params: { ids: [FEED], encoding: 'base64' },
+			params: { 'ids[]': [FEED], encoding: 'base64', parsed: false },
 		});
 		expect(result).toEqual([UPDATE]);
 	});
 
-	it('passes auth headers to the http client', () => {
-		connection({ headers: { Authorization: 'Bearer token' } });
+	it('sends the access token as a bearer header', () => {
+		connection({ accessToken: 'token' });
 
 		expect(create).toHaveBeenCalledWith(
 			expect.objectContaining({ headers: { Authorization: 'Bearer token' } }),
 		);
 	});
 
-	it('omits the headers key entirely when none are configured', () => {
+	it('sends no auth header when no token is configured', () => {
 		connection();
 
-		expect(create).toHaveBeenCalledWith(
-			expect.not.objectContaining({ headers: expect.anything() }),
-		);
+		expect(create).toHaveBeenCalledWith(expect.objectContaining({ headers: undefined }));
 	});
 
 	it('returns the single combined message Hermes sends for multiple feeds', async () => {
