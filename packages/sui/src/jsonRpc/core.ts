@@ -282,7 +282,9 @@ export class JSONRpcCoreClient extends CoreClient {
 	async getCoinMetadata(
 		options: SuiClientTypes.GetCoinMetadataOptions,
 	): Promise<SuiClientTypes.GetCoinMetadataResponse> {
-		const coinType = (await this.mvr.resolveType({ type: options.coinType })).type;
+		const coinType = (
+			await this.mvr.resolveType({ type: options.coinType, signal: options.signal })
+		).type;
 
 		const result = await this.#jsonRpcClient.getCoinMetadata({
 			coinType,
@@ -829,8 +831,9 @@ export class JSONRpcCoreClient extends CoreClient {
 	async getMoveFunction(
 		options: SuiClientTypes.GetMoveFunctionOptions,
 	): Promise<SuiClientTypes.GetMoveFunctionResponse> {
-		const resolvedPackageId = (await this.mvr.resolvePackage({ package: options.packageId }))
-			.package;
+		const resolvedPackageId = (
+			await this.mvr.resolvePackage({ package: options.packageId, signal: options.signal })
+		).package;
 		const result = await this.#jsonRpcClient.getNormalizedMoveFunction({
 			package: resolvedPackageId,
 			module: options.moduleName,

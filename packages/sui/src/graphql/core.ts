@@ -195,7 +195,10 @@ export class GraphQLCoreClient extends CoreClient {
 					limit: options.limit,
 					cursor: options.cursor,
 					filter: options.type
-						? { type: (await this.mvr.resolveType({ type: options.type })).type }
+						? {
+								type: (await this.mvr.resolveType({ type: options.type, signal: options.signal }))
+									.type,
+							}
 						: undefined,
 					includeContent: options.include?.content ?? false,
 					includePreviousTransaction: options.include?.previousTransaction ?? false,
@@ -250,7 +253,7 @@ export class GraphQLCoreClient extends CoreClient {
 					owner: options.owner,
 					cursor: options.cursor,
 					first: options.limit,
-					type: `0x2::coin::Coin<${(await this.mvr.resolveType({ type: coinType })).type}>`,
+					type: `0x2::coin::Coin<${(await this.mvr.resolveType({ type: coinType, signal: options.signal })).type}>`,
 				},
 			},
 			(result) => result.address?.objects,
@@ -282,7 +285,7 @@ export class GraphQLCoreClient extends CoreClient {
 				signal: options.signal,
 				variables: {
 					owner: options.owner,
-					coinType: (await this.mvr.resolveType({ type: coinType })).type,
+					coinType: (await this.mvr.resolveType({ type: coinType, signal: options.signal })).type,
 				},
 			},
 			(result) => result.address?.balance,
@@ -303,7 +306,9 @@ export class GraphQLCoreClient extends CoreClient {
 	async getCoinMetadata(
 		options: SuiClientTypes.GetCoinMetadataOptions,
 	): Promise<SuiClientTypes.GetCoinMetadataResponse> {
-		const coinType = (await this.mvr.resolveType({ type: options.coinType })).type;
+		const coinType = (
+			await this.mvr.resolveType({ type: options.coinType, signal: options.signal })
+		).type;
 
 		const { data, errors } = await this.#graphqlClient.query({
 			query: GetCoinMetadataDocument,
@@ -819,7 +824,9 @@ export class GraphQLCoreClient extends CoreClient {
 				query: GetMoveFunctionDocument,
 				signal: options.signal,
 				variables: {
-					package: (await this.mvr.resolvePackage({ package: options.packageId })).package,
+					package: (
+						await this.mvr.resolvePackage({ package: options.packageId, signal: options.signal })
+					).package,
 					module: options.moduleName,
 					function: options.name,
 				},
