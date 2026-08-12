@@ -157,6 +157,11 @@ export const mainnetCoins: CoinMap = {
 		address: `0x44f838219cf67b058f3b37907b655f226153c18e33dfcd0da559a844fea9b1c1`,
 		type: `0x44f838219cf67b058f3b37907b655f226153c18e33dfcd0da559a844fea9b1c1::usdsui::USDSUI`,
 		scalar: 1000000,
+		// Valid Pyth data, but margin cannot price USDSUI: the mainnet MarginRegistry's
+		// PythConfig configures six currencies and USDSUI is not among them (read on chain
+		// 2026-08-11), so an oracle-taking call aborts in the registry's currency lookup
+		// before the feed id is ever compared. Lending is unaffected — margin_pool supply
+		// and withdraw take no oracle — and no USDSUI DeepBook pool is margin-registered.
 		feed: '0xd510fcdb3a63f35d3bb118d5db3afc5815a3f13bc55d48abb893b63f0315902a',
 		currencyId: '0x535e826a2acddab687c81cb6c6166553b479f61a9023800ec0020baba8d94731',
 		priceInfoObjectId: '0x6896ccc8c08a84e47f0ab8affbd3fce2623a72c76f9092e59f8f6ece450119cd',
