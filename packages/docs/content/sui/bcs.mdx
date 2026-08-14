@@ -11,12 +11,15 @@ keywords:
   - schemas
   - TypeScript
 questions:
-  - What is BCS?
-  - How do I use BCS?
-  - How does BCS work?
-answer: Binary Canonical Serialization for encoding Sui Move types.
+  - How do I use BCS in the Sui SDK?
+  - How do I serialize transaction data?
+  - What BCS types are built into @mysten/sui?
+answer: >-
+  The @mysten/sui package re-exports BCS utilities for serializing and
+  deserializing Sui-specific types like addresses, objects, and transaction
+  data.
 goal:
-  description: Reader understands and can use BCS
+  description: Reader can use the BCS module in @mysten/sui for serialization
   requires:
     - has_frontmatter:
         - title

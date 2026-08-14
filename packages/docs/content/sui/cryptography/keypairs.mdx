@@ -14,14 +14,16 @@ keywords:
   - Sui
   - TypeScript SDK
 questions:
-  - What is Key pairs?
-  - How do I use Key pairs?
-  - How does Key pairs work?
+  - How do I create a keypair in the Sui SDK?
+  - How do I import a private key in the Sui SDK?
+  - What keypair types does Sui support?
 answer: >-
-  Create Ed25519, Secp256k1, and Secp256r1 keypairs and derive them from
-  mnemonics and secret keys
+  Create keypairs with Ed25519Keypair.generate(), import from private keys or
+  mnemonics, and use them to sign transactions and messages on Sui.
 goal:
-  description: Reader understands and can use Key pairs
+  description: >-
+    Reader can create, import, and use cryptographic keypairs for Sui
+    transactions
   requires:
     - has_frontmatter:
         - title

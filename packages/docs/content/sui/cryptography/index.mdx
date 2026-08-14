@@ -14,16 +14,17 @@ keywords:
   - passkey
   - Sui
 questions:
-  - What is Cryptography?
-  - How do I use Cryptography?
-  - How does Cryptography work?
+  - What cryptographic schemes does Sui support?
+  - How do I sign transactions in TypeScript?
+  - What is the Signer interface in the Sui SDK?
 answer: >-
-  Sign and verify Sui transactions and messages with keypairs and external
-  signers
+  The Sui SDK supports Ed25519, Secp256k1, and Secp256r1 keypairs, plus external
+  signers (AWS KMS, GCP KMS, Ledger, WebCrypto, Passkey) through a unified
+  Signer interface.
 goal:
   description: >-
-    Reader understands what Cryptography is, how to install it, and its core
-    capabilities
+    Reader understands the cryptographic primitives available in the Sui SDK for
+    signing and verification
   requires:
     - has_frontmatter:
         - title

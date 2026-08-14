@@ -10,12 +10,14 @@ keywords:
   - library authors
   - transport-agnostic
 questions:
-  - What is Building SDKs?
-  - How do I use Building SDKs?
-  - How does Building SDKs work?
-answer: Build custom SDKs on top of the Sui TypeScript SDK
+  - How do I build a custom SDK on Sui?
+  - How do I extend @mysten/sui?
+  - What patterns should I use for building Sui SDKs?
+answer: >-
+  Build custom SDKs by composing @mysten/sui primitives: extend the client,
+  create typed transaction builders with codegen, and use BCS for serialization.
 goal:
-  description: Reader understands and can use Building SDKs
+  description: Reader can build custom SDKs on top of @mysten/sui
   requires:
     - has_frontmatter:
         - title

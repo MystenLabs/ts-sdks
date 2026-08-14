@@ -10,12 +10,15 @@ keywords:
   - Sui
   - framework-agnostic
 questions:
-  - What is State?
-  - How do I use State?
-  - How does State work?
-answer: Access and subscribe to wallet connection state in dApp Kit
+  - How does dApp Kit manage state?
+  - How do I access the current wallet in dApp Kit?
+  - How do I track network changes in dApp Kit?
+answer: >-
+  DApp Kit manages wallet connection state, current account, and network
+  selection through a centralized store that can be accessed via hooks (React)
+  or direct subscription (core).
 goal:
-  description: Reader understands and can use State
+  description: 'Reader understands how dApp Kit manages wallet, account, and network state'
   requires:
     - has_frontmatter:
         - title
