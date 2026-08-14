@@ -1,33 +1,27 @@
-import { bcs } from '@mysten/sui/bcs';
 import type { Transaction, TransactionResult } from '@mysten/sui/transactions';
-import { deriveObjectID } from '@mysten/sui/utils';
+import { AccountContract } from '@mysten/deepbook-account';
 import type { PredictConfig } from '../config/index.js';
-import * as account from '../contracts/account/account.js';
+
+// Predict's accounts ARE the shared on-chain account primitive (`packages/account`), so
+// the builders live in `@mysten/deepbook-account` and this module is the thin adapter that
+// drives them with Predict's deployed ids. Predict's own entrypoints (mint, redeem, PLP,
+// builder codes) take the same `Auth` hot potato, which is why `generateAuth` is re-exposed
+// here in `(cfg) => (tx)` thunk form rather than callers reaching for the contract directly.
+export function accountContract(cfg: PredictConfig): AccountContract {
+	return new AccountContract({
+		ACCOUNT_PACKAGE_ID: cfg.packages.account,
+		ACCOUNT_REGISTRY_ID: cfg.objects.accountRegistry,
+	});
+}
 
 // Owner authority is a hot-potato `Auth` minted from the tx sender (`ctx` is implicit
 // in a PTB) and consumed by the very next account-loading call (`load_account_mut`
-// inside `deposit_funds` / `withdraw_funds` / `mint` / …). It resolves to owner auth
-// for whoever signs the transaction. See `packages/account/sources/account.move`.
+// inside `deposit_funds` / `withdraw_funds` / `mint` / …).
 export function generateAuth(cfg: PredictConfig): (tx: Transaction) => TransactionResult {
-	return (tx) => {
-		return tx.add(account.generateAuth({ package: cfg.packages.account }));
-	};
+	return accountContract(cfg).generateAuth();
 }
-
-// `AccountWrapperKey(address)` is a one-field positional struct, so its BCS is just the
-// owner's 32-byte address. The wrapper is a derived object of the account registry, so
-// its id is `derive_address(accountRegistry, AccountWrapperKey(owner))`. See
-// `packages/account/sources/account_registry.move:39`.
-const AccountWrapperKeyBcs = bcs.struct('AccountWrapperKey', {
-	pos0: bcs.Address,
-});
 
 // The deterministic id of an owner's canonical account wrapper — no chain read needed.
 export function deriveAccountWrapperId(cfg: PredictConfig, owner: string): string {
-	const key = AccountWrapperKeyBcs.serialize({ pos0: owner }).toBytes();
-	return deriveObjectID(
-		cfg.objects.accountRegistry,
-		`${cfg.packages.account}::account_registry::AccountWrapperKey`,
-		key,
-	);
+	return accountContract(cfg).deriveAccountWrapperId(owner);
 }

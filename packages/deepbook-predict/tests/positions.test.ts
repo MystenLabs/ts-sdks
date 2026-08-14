@@ -6,7 +6,7 @@ import { PredictClient } from '../src/client.js';
 import { TESTNET_CONFIG as cfg } from '../src/config/index.js';
 import { positionsFromTable, resolvePositionsTable } from '../src/reads/positions.js';
 import { deriveAccountWrapperId } from '../src/tx/common.js';
-import { AccountWrapper } from '../src/contracts/account/account.js';
+import { AccountWrapper } from '@mysten/deepbook-account';
 import { PositionKey, PredictData } from '../src/contracts/deepbook_predict/predict_account.js';
 
 const OWNER = '0x' + 'ab'.repeat(32);

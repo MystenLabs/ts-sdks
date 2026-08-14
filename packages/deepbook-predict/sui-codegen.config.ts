@@ -20,10 +20,6 @@ const config: SuiCodegenConfig = {
 			path: '../../../deepbookv3/packages/predict',
 		},
 		{
-			package: '@local-pkg/account',
-			path: '../../../deepbookv3/packages/account',
-		},
-		{
 			package: '@local-pkg/propbook',
 			path: '../../../deepbookv3/packages/propbook',
 		},

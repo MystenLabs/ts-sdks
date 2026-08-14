@@ -3,12 +3,12 @@ import { Transaction, coinWithBalance } from '@mysten/sui/transactions';
 import { describe, expect, test } from 'vitest';
 import { PredictClient } from '../src/client.js';
 import { TESTNET_CONFIG as cfg } from '../src/config/index.js';
-import * as accountEvents from '../src/contracts/account/account_events.js';
+import { accountEvents } from '@mysten/deepbook-account';
 import * as orderEvents from '../src/contracts/deepbook_predict/order_events.js';
 import { PredictInputError } from '../src/errors.js';
 import type { ReadClient } from '../src/reads/inspect.js';
 import { POS_INF_TICK } from '../src/ticks.js';
-import { depositFunds } from '../src/tx/account.js';
+import { accountContract } from '../src/tx/common.js';
 
 const OWNER = '0x' + 'ab'.repeat(32);
 const MARKET_ID = '0x' + 'cd'.repeat(32);
@@ -252,7 +252,13 @@ describe('tx.deposit / tx.withdraw', () => {
 		const coin = expected.add(
 			coinWithBalance({ type: cfg.quoteCoinType, balance: 100_000_000n, useGasCoin: false }),
 		);
-		expected.add(depositFunds(cfg, { wrapperId: pc.wrapperIdFor(OWNER), coin }));
+		expected.add(
+			accountContract(cfg).depositFunds({
+				wrapperId: pc.wrapperIdFor(OWNER),
+				coin,
+				coinType: cfg.quoteCoinType,
+			}),
+		);
 		const json = (v: unknown) =>
 			JSON.stringify(v, (_k, x) => (typeof x === 'bigint' ? `${x}n` : x));
 		expect(json(tx.getData())).toBe(json(expected.getData()));

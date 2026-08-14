@@ -22,8 +22,8 @@ import { mintExactQuantity, redeemLive } from '../../src/tx/trade.js';
 import { expiryMarketId } from '../../src/reads/markets.js';
 // Generated move-calls: build the fresh wrapper (`account_registry::new`) and share it
 // (`account::share`) the same way `src/tx/account.ts` does, no hand-rolled targets.
-import * as account from '../../src/contracts/account/account.js';
-import * as accountRegistry from '../../src/contracts/account/account_registry.js';
+import { accountMoveCalls as account } from '@mysten/deepbook-account';
+import { accountRegistryMoveCalls as accountRegistry } from '@mysten/deepbook-account';
 
 const TESTNET_GRPC_URL = 'https://fullnode.testnet.sui.io:443';
 

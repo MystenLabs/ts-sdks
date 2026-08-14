@@ -1,6 +1,6 @@
 import { fromBase64, normalizeSuiAddress } from '@mysten/sui/utils';
 import type { PredictConfig } from './config/index.js';
-import * as accountEvents from './contracts/account/account_events.js';
+import { accountEvents } from '@mysten/deepbook-account';
 import * as builderCodeEvents from './contracts/deepbook_predict/builder_code_events.js';
 import * as orderEvents from './contracts/deepbook_predict/order_events.js';
 import * as vaultEvents from './contracts/deepbook_predict/vault_events.js';

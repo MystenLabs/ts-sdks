@@ -38,14 +38,8 @@ import { poolStats } from './reads/pool.js';
 import { readPricerSnapshot, type PricerSnapshot } from './reads/pricing.js';
 import { boardPricer, type BoardPricer } from './pricing.js';
 import { POS_INF_TICK, binaryRangeTicks, type Side } from './ticks.js';
-import {
-	createAccount,
-	createAccountAndDeposit,
-	depositFunds,
-	withdrawFunds,
-} from './tx/account.js';
 import { setBuilderCode, unsetBuilderCode } from './tx/builderCode.js';
-import { deriveAccountWrapperId } from './tx/common.js';
+import { accountContract, deriveAccountWrapperId } from './tx/common.js';
 import {
 	cancelSupplyRequest,
 	cancelWithdrawRequest,
@@ -448,7 +442,7 @@ export class PredictClient {
 	readonly tx = {
 		createManager: (): Transaction => {
 			const tx = new Transaction();
-			tx.add(createAccount(this.cfg));
+			tx.add(accountContract(this.cfg).createAccount());
 			return tx;
 		},
 
@@ -474,10 +468,17 @@ export class PredictClient {
 					useGasCoin: false,
 				}),
 			);
+			const account = accountContract(this.cfg);
 			if (opts?.create) {
-				tx.add(createAccountAndDeposit(this.cfg, { coin }));
+				tx.add(account.createAccountAndDeposit({ coin, coinType: this.cfg.quoteCoinType }));
 			} else {
-				tx.add(depositFunds(this.cfg, { wrapperId: this.wrapperIdFor(owner), coin }));
+				tx.add(
+					account.depositFunds({
+						wrapperId: this.wrapperIdFor(owner),
+						coin,
+						coinType: this.cfg.quoteCoinType,
+					}),
+				);
 			}
 			return tx;
 		},
@@ -496,9 +497,10 @@ export class PredictClient {
 		): Transaction => {
 			const tx = new Transaction();
 			const coin = tx.add(
-				withdrawFunds(this.cfg, {
+				accountContract(this.cfg).withdrawFunds({
 					wrapperId: this.wrapperIdFor(owner),
-					amountRaw: usdcToRaw(amountUsdc),
+					amount: usdcToRaw(amountUsdc),
+					coinType: this.cfg.quoteCoinType,
 				}),
 			);
 			if (opts?.toCoinObject) {
