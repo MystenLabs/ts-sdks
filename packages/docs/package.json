@@ -25,6 +25,10 @@
 		"postinstall": "fumadocs-mdx",
 		"test": "node scripts/validate-llm-docs.ts",
 		"validate-docs": "node scripts/validate-llm-docs.ts",
+		"docs:validate-frontmatter": "node scripts/validate-frontmatter.ts --summary",
+		"docs:audit": "node scripts/audit-docs.ts",
+		"docs:audit:summary": "node scripts/audit-docs.ts --summary",
+		"docs:audit:failures": "node scripts/audit-docs.ts --only-failures --summary",
 		"prettier:check": "prettier -c --ignore-unknown .",
 		"prettier:fix": "prettier -w --ignore-unknown .",
 		"oxlint:check": "oxlint  .",
@@ -67,6 +71,8 @@
 		"react-dom": "^19.2.7"
 	},
 	"devDependencies": {
+		"ajv": "^8.17.1",
+		"gray-matter": "^4.0.3",
 		"@tailwindcss/postcss": "^4.3.1",
 		"@types/mdx": "^2.0.14",
 		"@types/node": "^25.9.3",

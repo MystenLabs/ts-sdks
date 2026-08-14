@@ -2,7 +2,32 @@
 title: '@mysten/zksend'
 description: Migrate @mysten/zksend to 2.0 with client extension pattern and simplified API
 keywords:
-  [migration, '@mysten/zksend', zkSend, 2.0, client extension, contract links, breaking changes]
+  - migration
+  - '@mysten/zksend'
+  - zkSend
+  - "2.0"
+  - client extension
+  - contract links
+  - breaking changes
+questions:
+  - How do I migrate @mysten/zksend?
+  - What changed in @mysten/zksend?
+  - What are the breaking changes in @mysten/zksend?
+answer: Migrate @mysten/zksend to 2.0 with client extension pattern and simplified API
+goal:
+  description: Reader can migrate their code to @mysten/zksend
+  requires:
+    - has_frontmatter:
+        - title
+        - description
+        - keywords
+      label: Has required frontmatter fields
+    - min_words: 30
+      label: Needs content depth
+    - has_questions: true
+      label: Needs questions for AI search visibility
+    - has_answer: true
+      label: Needs answer summary for AI citation
 ---
 
 This package now exports a client extension that integrates with Sui clients through the Core API.

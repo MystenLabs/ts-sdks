@@ -1,9 +1,37 @@
 ---
 title: Sign Personal Message
-description:
-  Sign an arbitrary message with the connected wallet for authentication or proof of ownership.
+description: >-
+  Sign an arbitrary message with the connected wallet for authentication or
+  proof of ownership.
 keywords:
-  [sign message, personal message, dApp Kit, authentication, wallet, Sui, cryptographic signature]
+  - sign message
+  - personal message
+  - dApp Kit
+  - authentication
+  - wallet
+  - Sui
+  - cryptographic signature
+questions:
+  - How do I sign personal message in Sui dApp Kit?
+  - What is the Sign Personal Message action?
+  - How do I use Sign Personal Message?
+answer: >-
+  Sign an arbitrary message with the connected wallet for authentication or
+  proof of ownership.
+goal:
+  description: Reader can use Sign Personal Message in their application
+  requires:
+    - has_frontmatter:
+        - title
+        - description
+        - keywords
+      label: Has required frontmatter fields
+    - min_words: 30
+      label: Needs content depth
+    - has_questions: true
+      label: Needs questions for AI search visibility
+    - has_answer: true
+      label: Needs answer summary for AI citation
 ---
 
 The `signPersonalMessage` action prompts the connected wallet to sign a personal message. This is

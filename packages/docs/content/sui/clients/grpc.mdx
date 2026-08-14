@@ -1,19 +1,40 @@
 ---
 title: SuiGrpcClient
-description: Connect to Sui over gRPC, with native service clients and real-time subscriptions
+description: >-
+  Connect to Sui over gRPC, with native service clients and real-time
+  subscriptions
 keywords:
-  [
-    SuiGrpcClient,
-    gRPC,
-    Sui client,
-    full node,
-    TypeScript SDK,
-    subscriptions,
-    streaming,
-    read masks,
-    '@mysten/sui',
-    protocol buffers,
-  ]
+  - SuiGrpcClient
+  - gRPC
+  - Sui client
+  - full node
+  - TypeScript SDK
+  - subscriptions
+  - streaming
+  - read masks
+  - '@mysten/sui'
+  - protocol buffers
+questions:
+  - What is SuiGrpcClient?
+  - How do I use SuiGrpcClient?
+  - How does SuiGrpcClient work?
+answer: >-
+  Connect to Sui over gRPC, with native service clients and real-time
+  subscriptions
+goal:
+  description: Reader understands and can use SuiGrpcClient
+  requires:
+    - has_frontmatter:
+        - title
+        - description
+        - keywords
+      label: Has required frontmatter fields
+    - min_words: 30
+      label: Needs content depth
+    - has_questions: true
+      label: Needs questions for AI search visibility
+    - has_answer: true
+      label: Needs answer summary for AI citation
 ---
 
 `SuiGrpcClient` talks to the full node gRPC API. It is the recommended default for application code

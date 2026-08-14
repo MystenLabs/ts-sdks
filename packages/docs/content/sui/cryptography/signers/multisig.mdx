@@ -2,16 +2,33 @@
 title: Multi-Signature Transactions
 description: Create multi-signature transactions with multiple signers on Sui.
 keywords:
-  [
-    multisig,
-    multi-signature,
-    MultiSigPublicKey,
-    threshold,
-    cryptography,
-    Sui,
-    signing,
-    TypeScript SDK,
-  ]
+  - multisig
+  - multi-signature
+  - MultiSigPublicKey
+  - threshold
+  - cryptography
+  - Sui
+  - signing
+  - TypeScript SDK
+questions:
+  - How do I use Multi-Signature Transactions?
+  - How do I set up Multi-Signature Transactions?
+  - What is Multi-Signature Transactions in the Sui SDK?
+answer: Create multi-signature transactions with multiple signers on Sui.
+goal:
+  description: Reader understands and can use Multi-Signature Transactions
+  requires:
+    - has_frontmatter:
+        - title
+        - description
+        - keywords
+      label: Has required frontmatter fields
+    - min_words: 30
+      label: Needs content depth
+    - has_questions: true
+      label: Needs questions for AI search visibility
+    - has_answer: true
+      label: Needs answer summary for AI citation
 ---
 
 The Sui TypeScript SDK provides a `MultiSigPublicKey` class to support

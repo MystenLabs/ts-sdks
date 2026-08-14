@@ -1,7 +1,34 @@
 ---
 title: Passkey
 description: Use WebAuthn passkeys for Sui transaction signing.
-keywords: [passkey, WebAuthn, PasskeyKeypair, authentication, Sui, signing, biometric, SIP-9]
+keywords:
+  - passkey
+  - WebAuthn
+  - PasskeyKeypair
+  - authentication
+  - Sui
+  - signing
+  - biometric
+  - SIP-9
+questions:
+  - How do I use Passkey?
+  - How do I set up Passkey?
+  - What is Passkey in the Sui SDK?
+answer: Use WebAuthn passkeys for Sui transaction signing.
+goal:
+  description: Reader understands and can use Passkey
+  requires:
+    - has_frontmatter:
+        - title
+        - description
+        - keywords
+      label: Has required frontmatter fields
+    - min_words: 30
+      label: Needs content depth
+    - has_questions: true
+      label: Needs questions for AI search visibility
+    - has_answer: true
+      label: Needs answer summary for AI citation
 ---
 
 Similar to other Keypair classes, the Sui TypeScript SDK provides the `PasskeyKeypair` that handles

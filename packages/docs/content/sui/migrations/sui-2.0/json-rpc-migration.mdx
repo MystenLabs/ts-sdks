@@ -2,16 +2,33 @@
 title: Migrating from JSON-RPC
 description: Migrate deprecated JSON-RPC code to shared gRPC and GraphQL top-level methods
 keywords:
-  [
-    migration,
-    JSON-RPC,
-    Core API,
-    SuiGrpcClient,
-    SuiGraphQLClient,
-    deprecated,
-    Sui client,
-    transport,
-  ]
+  - migration
+  - JSON-RPC
+  - Core API
+  - SuiGrpcClient
+  - SuiGraphQLClient
+  - deprecated
+  - Sui client
+  - transport
+questions:
+  - How do I migrate Migrating from JSON-RPC?
+  - What changed in Migrating from JSON-RPC?
+  - What are the breaking changes in Migrating from JSON-RPC?
+answer: Migrate deprecated JSON-RPC code to shared gRPC and GraphQL top-level methods
+goal:
+  description: Reader can migrate their code to Migrating from JSON-RPC
+  requires:
+    - has_frontmatter:
+        - title
+        - description
+        - keywords
+      label: Has required frontmatter fields
+    - min_words: 30
+      label: Needs content depth
+    - has_questions: true
+      label: Needs questions for AI search visibility
+    - has_answer: true
+      label: Needs answer summary for AI citation
 ---
 
 JSON-RPC APIs are deprecated in the Sui TypeScript SDK. For most application code, migrate from
