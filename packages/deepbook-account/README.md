@@ -47,8 +47,8 @@ tx.add(account.depositFunds({ wrapperId, coin, coinType: USDC }));
 const withdrawn = tx.add(account.withdrawFunds({ wrapperId, amount: 1_000_000n, coinType: USDC }));
 ```
 
-`DeepBookConfig` structurally satisfies `AccountConfig`, so a `@mysten/deepbook-v3` config can be
-passed directly once DeepBook's account wrapper is deployed.
+`AccountConfig` is ids-only by design: any config object carrying these two fields satisfies it
+directly. `DeepBookConfig` will once DeepBook's own account wrapper is deployed and ships its ids.
 
 ## What's in the box
 

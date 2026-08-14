@@ -20,10 +20,11 @@ export const ACCUMULATOR_ROOT_ID = '0xacc';
 /**
  * The deployed ids of the shared `account` package this contract builds against.
  *
- * Kept deliberately minimal — and structurally satisfied by `DeepBookConfig` — so any
- * consumer of the shared account primitive (DeepBook core's account wrapper, Predict, …)
- * can drive these builders with its OWN deployment's ids without constructing a full
- * `DeepBookConfig`.
+ * Kept deliberately minimal — ids only — so any consumer of the shared account primitive
+ * (DeepBook core's account wrapper, Predict, …) can drive these builders with its OWN
+ * deployment's ids without constructing a full product-SDK config. It is shaped so that a
+ * config carrying these two fields satisfies it directly; `DeepBookConfig` will once
+ * DeepBook's own account wrapper is deployed and ships its ids.
  */
 export interface AccountConfig {
 	/** The `account` Move package id. */

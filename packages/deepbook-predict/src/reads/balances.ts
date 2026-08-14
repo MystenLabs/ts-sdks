@@ -44,5 +44,5 @@ export async function hasPosition(
 		}),
 	);
 	const cmds = await inspectReturns(client, tx);
-	return (cmds[1][0][0] ?? 0) !== 0; // BCS bool: 1 byte
+	return (cmds[cmds.length - 1][0][0] ?? 0) !== 0; // BCS bool: 1 byte
 }
