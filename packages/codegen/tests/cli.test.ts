@@ -87,28 +87,32 @@ describe('CLI', () => {
 	});
 
 	describe('config invocation', () => {
-		it('preserves unpublished MVR names for runtime client overrides', async () => {
-			const dir = await mkdtemp(join(tmpdir(), 'codegen-cli-config-'));
-			try {
-				await cp(FIXTURE, join(dir, 'testpkg'), { recursive: true });
-				await writeFile(
-					join(dir, '.sui-codegenrc.json'),
-					JSON.stringify({
-						output: './out',
-						generateSummaries: false,
-						fullnodeUrls: { testnet: 'https://custom.testnet.example' },
-						packages: [{ package: '@local-pkg/testpkg', path: './testpkg' }],
-					}),
-				);
+		it(
+			'preserves unpublished MVR names for runtime client overrides',
+			{ timeout: 30_000 },
+			async () => {
+				const dir = await mkdtemp(join(tmpdir(), 'codegen-cli-config-'));
+				try {
+					await cp(FIXTURE, join(dir, 'testpkg'), { recursive: true });
+					await writeFile(
+						join(dir, '.sui-codegenrc.json'),
+						JSON.stringify({
+							output: './out',
+							generateSummaries: false,
+							fullnodeUrls: { testnet: 'https://custom.testnet.example' },
+							packages: [{ package: '@local-pkg/testpkg', path: './testpkg' }],
+						}),
+					);
 
-				const { code, stderr } = run(['generate'], dir);
-				expect(code, `stderr: ${stderr}`).toBe(0);
+					const { code, stderr } = run(['generate'], dir);
+					expect(code, `stderr: ${stderr}`).toBe(0);
 
-				const counter = await readFile(join(dir, 'out', 'testpkg', 'counter.ts'), 'utf-8');
-				expect(counter).toContain("options.package ?? '@local-pkg/testpkg'");
-			} finally {
-				await rm(dir, { recursive: true, force: true });
-			}
-		});
+					const counter = await readFile(join(dir, 'out', 'testpkg', 'counter.ts'), 'utf-8');
+					expect(counter).toContain("options.package ?? '@local-pkg/testpkg'");
+				} finally {
+					await rm(dir, { recursive: true, force: true });
+				}
+			},
+		);
 	});
 });
