@@ -4,8 +4,9 @@
 import type { LocalContext } from '../../context.js';
 import { generateFromPackageSummary } from '../../../index.js';
 import { loadConfig, type GenerateBase, type PackageGenerate } from '../../../config.js';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { isValidNamedPackage, isValidSuiObjectId } from '@mysten/sui/utils';
-import { execSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
 import { existsSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
@@ -20,6 +21,40 @@ export interface SubdirCommandFlags {
 	noTypes?: boolean;
 	noFunctions?: boolean;
 	private?: 'none' | 'entry' | 'all';
+}
+
+export async function resolveOnChainPackageId(
+	packageNameOrId: string,
+	network: 'mainnet' | 'testnet',
+) {
+	if (isValidSuiObjectId(packageNameOrId)) {
+		return packageNameOrId;
+	}
+
+	const client = new SuiGrpcClient({
+		network,
+		baseUrl: `https://fullnode.${network}.sui.io:443`,
+	});
+	const { package: packageId } = await client.mvr.resolvePackage({ package: packageNameOrId });
+
+	return packageId;
+}
+
+export function getOnChainSummaryArgs(
+	packageId: string,
+	network: 'mainnet' | 'testnet',
+	outputDirectory: string,
+) {
+	return [
+		'move',
+		'--client.env',
+		network,
+		'summary',
+		'--package-id',
+		packageId,
+		'--output-directory',
+		outputDirectory,
+	];
 }
 
 export default async function generate(
@@ -88,11 +123,12 @@ export default async function generate(
 
 		// Generate summaries for on-chain packages using --package-id
 		if (isOnChainPackage) {
-			const packageId = 'packageId' in pkg ? pkg.packageId : pkg.package;
+			const packageNameOrId = 'packageId' in pkg && pkg.packageId ? pkg.packageId : pkg.package;
+			const packageId = await resolveOnChainPackageId(packageNameOrId, pkg.network);
 			const tempDir = mkdtempSync(join(tmpdir(), 'sui-codegen-'));
 			console.log(`Generating summary for on-chain package ${packageId} to ${tempDir}`);
 
-			execSync(`sui move summary --package-id ${packageId} --output-directory ${tempDir}`, {
+			execFileSync('sui', getOnChainSummaryArgs(packageId, pkg.network, tempDir), {
 				stdio: 'inherit',
 			});
 
