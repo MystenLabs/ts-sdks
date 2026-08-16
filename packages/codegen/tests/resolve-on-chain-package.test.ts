@@ -21,10 +21,11 @@ describe('resolveOnChainPackageId', () => {
 	it('returns package IDs without resolving them', async () => {
 		const fetch = vi.fn();
 		vi.stubGlobal('fetch', fetch);
+		const packageId = `0x${'2'.repeat(64)}`;
 
 		await expect(
-			resolveOnChainPackageId('0x2', 'testnet', DEFAULT_FULLNODE_URLS.testnet),
-		).resolves.toBe('0x2');
+			resolveOnChainPackageId(packageId, 'testnet', DEFAULT_FULLNODE_URLS.testnet),
+		).resolves.toBe(packageId);
 		expect(fetch).not.toHaveBeenCalled();
 	});
 
