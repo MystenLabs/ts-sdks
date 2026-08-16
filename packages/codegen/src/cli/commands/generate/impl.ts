@@ -7,7 +7,7 @@ import { loadConfig, type GenerateBase, type PackageGenerate } from '../../../co
 import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { isValidNamedPackage, isValidSuiObjectId } from '@mysten/sui/utils';
 import { execFileSync, execSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 
@@ -87,6 +87,18 @@ export function writeSuiClientConfig(directory: string, fullnodeUrl: string) {
 	return configPath;
 }
 
+export async function withTemporaryDirectory<T>(
+	callback: (directory: string) => T | Promise<T>,
+): Promise<T> {
+	const directory = mkdtempSync(join(tmpdir(), 'sui-codegen-'));
+
+	try {
+		return await callback(directory);
+	} finally {
+		rmSync(directory, { recursive: true, force: true });
+	}
+}
+
 export default async function generate(
 	this: LocalContext,
 	flags: SubdirCommandFlags,
@@ -151,74 +163,85 @@ export default async function generate(
 		const isOnChainPackage =
 			('packageId' in pkg && pkg.packageId) || ('network' in pkg && !('path' in pkg));
 
-		// Generate summaries for on-chain packages using --package-id
-		if (isOnChainPackage) {
-			const packageNameOrId = 'packageId' in pkg && pkg.packageId ? pkg.packageId : pkg.package;
-			const fullnodeUrl = config.fullnodeUrls[pkg.network];
-			const packageId = await resolveOnChainPackageId(packageNameOrId, pkg.network, fullnodeUrl);
-			const tempDir = mkdtempSync(join(tmpdir(), 'sui-codegen-'));
-			const summaryDir = join(tempDir, 'summary');
-			mkdirSync(summaryDir);
-			const clientConfig = writeSuiClientConfig(tempDir, fullnodeUrl);
-			console.log(`Generating summary for on-chain package ${packageId} to ${summaryDir}`);
-
-			execFileSync('sui', getOnChainSummaryArgs(packageId, clientConfig, summaryDir), {
-				stdio: 'inherit',
-			});
-
-			// Set the path to use the generated summary directory
-			(pkg as { path?: string }).path = summaryDir;
-		} else if (generateSummaries && pkg.path) {
-			if (!existsSync(pkg.path)) {
-				throw new Error(`Package path does not exist: ${pkg.path}`);
-			}
-
-			execSync('sui move summary', {
-				cwd: pkg.path,
-				stdio: 'inherit',
-			});
-		}
-		const importExtension =
-			flags.importExtension === undefined
-				? config.importExtension
-				: flags.importExtension === 'none'
-					? ''
-					: flags.importExtension;
-
-		const pkgWithOverrides = cliGenerate
-			? {
-					...pkg,
-					generate: {
-						...('generate' in pkg ? pkg.generate : {}),
-						...cliGenerate,
-					},
+		const generatePackage = async (tempDir?: string) => {
+			// Generate summaries for on-chain packages using --package-id
+			if (isOnChainPackage) {
+				if (!tempDir) {
+					throw new Error('Temporary directory is required for on-chain packages');
 				}
-			: pkg;
 
-		// Fold deprecated privateMethods into globalGenerate
-		const globalGenerate: GenerateBase | undefined =
-			config.privateMethods && !config.generate?.functions
+				const packageNameOrId = 'packageId' in pkg && pkg.packageId ? pkg.packageId : pkg.package;
+				const fullnodeUrl = config.fullnodeUrls[pkg.network];
+				const packageId = await resolveOnChainPackageId(packageNameOrId, pkg.network, fullnodeUrl);
+				const summaryDir = join(tempDir, 'summary');
+				mkdirSync(summaryDir);
+				const clientConfig = writeSuiClientConfig(tempDir, fullnodeUrl);
+				console.log(`Generating summary for on-chain package ${packageId} to ${summaryDir}`);
+
+				execFileSync('sui', getOnChainSummaryArgs(packageId, clientConfig, summaryDir), {
+					stdio: 'inherit',
+				});
+
+				// Set the path to use the generated summary directory
+				(pkg as { path?: string }).path = summaryDir;
+			} else if (generateSummaries && pkg.path) {
+				if (!existsSync(pkg.path)) {
+					throw new Error(`Package path does not exist: ${pkg.path}`);
+				}
+
+				execSync('sui move summary', {
+					cwd: pkg.path,
+					stdio: 'inherit',
+				});
+			}
+			const importExtension =
+				flags.importExtension === undefined
+					? config.importExtension
+					: flags.importExtension === 'none'
+						? ''
+						: flags.importExtension;
+
+			const pkgWithOverrides = cliGenerate
 				? {
-						...config.generate,
-						functions: {
-							private:
-								config.privateMethods === 'all'
-									? true
-									: config.privateMethods === 'none'
-										? false
-										: 'entry',
+						...pkg,
+						generate: {
+							...('generate' in pkg ? pkg.generate : {}),
+							...cliGenerate,
 						},
 					}
-				: config.generate;
+				: pkg;
 
-		await generateFromPackageSummary({
-			package: pkgWithOverrides,
-			prune: flags.noPrune === undefined ? config.prune : !flags.noPrune,
-			outputDir: flags.outputDir ?? config.output,
-			globalGenerate,
-			importExtension,
-			includePhantomTypeParameters: config.includePhantomTypeParameters,
-			errorClass: config.errorClass,
-		});
+			// Fold deprecated privateMethods into globalGenerate
+			const globalGenerate: GenerateBase | undefined =
+				config.privateMethods && !config.generate?.functions
+					? {
+							...config.generate,
+							functions: {
+								private:
+									config.privateMethods === 'all'
+										? true
+										: config.privateMethods === 'none'
+											? false
+											: 'entry',
+							},
+						}
+					: config.generate;
+
+			await generateFromPackageSummary({
+				package: pkgWithOverrides,
+				prune: flags.noPrune === undefined ? config.prune : !flags.noPrune,
+				outputDir: flags.outputDir ?? config.output,
+				globalGenerate,
+				importExtension,
+				includePhantomTypeParameters: config.includePhantomTypeParameters,
+				errorClass: config.errorClass,
+			});
+		};
+
+		if (isOnChainPackage) {
+			await withTemporaryDirectory(generatePackage);
+		} else {
+			await generatePackage();
+		}
 	}
 }

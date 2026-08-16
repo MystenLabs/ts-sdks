@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import {
 	getOnChainSummaryArgs,
 	resolveOnChainPackageId,
+	withTemporaryDirectory,
 	writeSuiClientConfig,
 } from '../src/cli/commands/generate/impl.js';
 import { configSchema, DEFAULT_FULLNODE_URLS } from '../src/config.js';
@@ -30,10 +32,11 @@ describe('resolveOnChainPackageId', () => {
 	});
 
 	it('resolves MVR names on the configured network', async () => {
+		const packageId = `0x${'1'.repeat(64)}`;
 		const fetch = vi.fn(async () =>
 			Response.json({
 				resolution: {
-					'@deepbook/core': { package_id: '0x123' },
+					'@deepbook/core': { package_id: packageId },
 				},
 			}),
 		);
@@ -41,7 +44,7 @@ describe('resolveOnChainPackageId', () => {
 
 		await expect(
 			resolveOnChainPackageId('@deepbook/core', 'testnet', 'https://custom.testnet.example'),
-		).resolves.toBe('0x123');
+		).resolves.toBe(packageId);
 		expect(fetch).toHaveBeenCalledWith(
 			'https://testnet.mvr.mystenlabs.com/v1/resolution/bulk',
 			expect.objectContaining({
@@ -95,5 +98,33 @@ describe('resolveOnChainPackageId', () => {
 			mainnet: DEFAULT_FULLNODE_URLS.mainnet,
 			testnet: 'https://custom.testnet.example',
 		});
+	});
+});
+
+describe('withTemporaryDirectory', () => {
+	it('removes the directory after the callback succeeds', async () => {
+		let directory = '';
+
+		await withTemporaryDirectory(async (tempDir) => {
+			directory = tempDir;
+			await writeFile(join(tempDir, 'client.json'), 'secret');
+			expect(existsSync(tempDir)).toBe(true);
+		});
+
+		expect(existsSync(directory)).toBe(false);
+	});
+
+	it('removes the directory after the callback fails', async () => {
+		let directory = '';
+
+		await expect(
+			withTemporaryDirectory(async (tempDir) => {
+				directory = tempDir;
+				await writeFile(join(tempDir, 'client.json'), 'secret');
+				throw new Error('summary generation failed');
+			}),
+		).rejects.toThrow('summary generation failed');
+
+		expect(existsSync(directory)).toBe(false);
 	});
 });
