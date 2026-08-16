@@ -7,7 +7,7 @@ import { loadConfig, type GenerateBase, type PackageGenerate } from '../../../co
 import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { isValidNamedPackage, isValidSuiObjectId } from '@mysten/sui/utils';
 import { execFileSync, execSync } from 'node:child_process';
-import { existsSync, mkdtempSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 
@@ -26,6 +26,7 @@ export interface SubdirCommandFlags {
 export async function resolveOnChainPackageId(
 	packageNameOrId: string,
 	network: 'mainnet' | 'testnet',
+	fullnodeUrl: string,
 ) {
 	if (isValidSuiObjectId(packageNameOrId)) {
 		return packageNameOrId;
@@ -33,7 +34,7 @@ export async function resolveOnChainPackageId(
 
 	const client = new SuiGrpcClient({
 		network,
-		baseUrl: `https://fullnode.${network}.sui.io:443`,
+		baseUrl: fullnodeUrl,
 	});
 	const { package: packageId } = await client.mvr.resolvePackage({ package: packageNameOrId });
 
@@ -42,19 +43,48 @@ export async function resolveOnChainPackageId(
 
 export function getOnChainSummaryArgs(
 	packageId: string,
-	network: 'mainnet' | 'testnet',
+	clientConfig: string,
 	outputDirectory: string,
 ) {
 	return [
 		'move',
+		'--client.config',
+		clientConfig,
 		'--client.env',
-		network,
+		'codegen',
 		'summary',
 		'--package-id',
 		packageId,
 		'--output-directory',
 		outputDirectory,
 	];
+}
+
+export function writeSuiClientConfig(directory: string, fullnodeUrl: string) {
+	const configPath = join(directory, 'client.json');
+	writeFileSync(
+		configPath,
+		JSON.stringify(
+			{
+				keystore: { File: join(directory, 'sui.keystore') },
+				external_keys: null,
+				envs: [
+					{
+						alias: 'codegen',
+						rpc: fullnodeUrl,
+						ws: null,
+						basic_auth: null,
+					},
+				],
+				active_env: 'codegen',
+				active_address: null,
+			},
+			null,
+			2,
+		),
+	);
+
+	return configPath;
 }
 
 export default async function generate(
@@ -124,16 +154,20 @@ export default async function generate(
 		// Generate summaries for on-chain packages using --package-id
 		if (isOnChainPackage) {
 			const packageNameOrId = 'packageId' in pkg && pkg.packageId ? pkg.packageId : pkg.package;
-			const packageId = await resolveOnChainPackageId(packageNameOrId, pkg.network);
+			const fullnodeUrl = config.fullnodeUrls[pkg.network];
+			const packageId = await resolveOnChainPackageId(packageNameOrId, pkg.network, fullnodeUrl);
 			const tempDir = mkdtempSync(join(tmpdir(), 'sui-codegen-'));
-			console.log(`Generating summary for on-chain package ${packageId} to ${tempDir}`);
+			const summaryDir = join(tempDir, 'summary');
+			mkdirSync(summaryDir);
+			const clientConfig = writeSuiClientConfig(tempDir, fullnodeUrl);
+			console.log(`Generating summary for on-chain package ${packageId} to ${summaryDir}`);
 
-			execFileSync('sui', getOnChainSummaryArgs(packageId, pkg.network, tempDir), {
+			execFileSync('sui', getOnChainSummaryArgs(packageId, clientConfig, summaryDir), {
 				stdio: 'inherit',
 			});
 
 			// Set the path to use the generated summary directory
-			(pkg as { path?: string }).path = tempDir;
+			(pkg as { path?: string }).path = summaryDir;
 		} else if (generateSummaries && pkg.path) {
 			if (!existsSync(pkg.path)) {
 				throw new Error(`Package path does not exist: ${pkg.path}`);

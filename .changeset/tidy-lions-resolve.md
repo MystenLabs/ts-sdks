@@ -1,6 +1,6 @@
 ---
-'@mysten/codegen': patch
+'@mysten/codegen': minor
 ---
 
-Resolve MVR package names and use the configured network when generating summaries for on-chain
+Resolve MVR package names and add configurable fullnode URLs for generating summaries from on-chain
 packages.

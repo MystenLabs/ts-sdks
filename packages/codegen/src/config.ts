@@ -63,6 +63,16 @@ export const packageConfigSchema = z.union([onChainPackageSchema, localPackageSc
 export const importExtensionSchema = z.union([z.literal('.js'), z.literal('.ts'), z.literal('')]);
 export type ImportExtension = z.infer<typeof importExtensionSchema>;
 
+export const DEFAULT_FULLNODE_URLS = {
+	mainnet: 'https://fullnode.mainnet.sui.io:443',
+	testnet: 'https://fullnode.testnet.sui.io:443',
+};
+
+export const fullnodeUrlsSchema = z.object({
+	mainnet: z.string().url().default(DEFAULT_FULLNODE_URLS.mainnet),
+	testnet: z.string().url().default(DEFAULT_FULLNODE_URLS.testnet),
+});
+
 export type GenerateBase = z.infer<typeof globalGenerateSchema>;
 export type PackageGenerate = z.infer<typeof packageGenerateSchema>;
 export type FunctionsOption = z.infer<typeof functionsOptionSchema>;
@@ -88,6 +98,8 @@ export const configSchema = z.object({
 	privateMethods: z.union([z.literal('none'), z.literal('entry'), z.literal('all')]).optional(),
 	importExtension: importExtensionSchema.optional().default('.js'),
 	includePhantomTypeParameters: z.boolean().optional().default(false),
+	/** Fullnode URLs used to fetch summaries for on-chain packages. */
+	fullnodeUrls: fullnodeUrlsSchema.optional().default(DEFAULT_FULLNODE_URLS),
 	/**
 	 * Custom error class for `normalizeMoveArguments` in the generated `utils/index.ts`.
 	 * Defaults to the built-in `Error`.
@@ -112,6 +124,7 @@ export async function loadConfig(): Promise<ParsedSuiCodegenConfig> {
 			generateSummaries: true,
 			importExtension: '.js',
 			includePhantomTypeParameters: false,
+			fullnodeUrls: DEFAULT_FULLNODE_URLS,
 		};
 	}
 

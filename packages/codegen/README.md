@@ -30,6 +30,29 @@ const config: SuiCodegenConfig = {
 export default config;
 ```
 
+To generate from an on-chain package, provide its package ID or published MVR name and network. You
+can also override the default fullnode URL for either supported network:
+
+```ts
+const config: SuiCodegenConfig = {
+	output: './src/generated',
+	fullnodeUrls: {
+		testnet: 'https://your-testnet-fullnode.example.com',
+	},
+	packages: [
+		{
+			package: '@deepbook/core',
+			packageName: 'deepbook',
+			network: 'testnet',
+		},
+	],
+};
+```
+
+`fullnodeUrls` can override the default mainnet or testnet fullnode used to fetch summaries for
+on-chain packages. It does not change the configured `package` value used in generated code. Local
+or unpublished MVR names can still be resolved at runtime through client overrides.
+
 The `package` field should be the MVR name for your move package. If you have not registered your
 package on MVR yet, you can use the `@local-pkg` scope, and set up an override in your
 `SuiGrpcClient` to resolve it to the correct address.

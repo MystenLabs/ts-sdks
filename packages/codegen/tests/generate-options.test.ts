@@ -856,7 +856,7 @@ describe('generate options', () => {
 			expect(counter).toContain(`options.package ?? '${LATEST_ID}'`);
 		});
 
-		it('uses original id for type names even when queried by MVR name', async () => {
+		it('preserves an unpublished MVR name for runtime client overrides', async () => {
 			onChainPath = await buildOnChainFixture({
 				rootPackageId: LATEST_ID,
 				rootPackageOriginalId: V1_ID,
@@ -865,7 +865,7 @@ describe('generate options', () => {
 			outputDir = await mkdtemp(join(tmpdir(), 'codegen-test-'));
 
 			await generateFromPackageSummary({
-				package: { package: '@test/testpkg', packageName: 'testpkg', path: onChainPath },
+				package: { package: '@local-pkg/testpkg', packageName: 'testpkg', path: onChainPath },
 				prune: true,
 				outputDir,
 			});
@@ -874,8 +874,8 @@ describe('generate options', () => {
 			// MVR names resolve to the latest version at runtime — that wouldn't match on-chain
 			// type tags for upgraded packages. Type names must always use the original id.
 			expect(counter).toContain(`const $moduleName = '${V1_ID}::counter';`);
-			// Function helpers can use the MVR name (it resolves to latest at call time).
-			expect(counter).toContain(`options.package ?? '@test/testpkg'`);
+			// Function helpers keep the unpublished name so client-side MVR overrides can resolve it.
+			expect(counter).toContain(`options.package ?? '@local-pkg/testpkg'`);
 		});
 
 		it('inlines per-type origin addresses from type_origins (across multiple versions)', async () => {
