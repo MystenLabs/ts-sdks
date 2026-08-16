@@ -99,6 +99,16 @@ describe('resolveOnChainPackageId', () => {
 			testnet: 'https://custom.testnet.example',
 		});
 	});
+
+	it('rejects non-HTTP fullnode URLs', () => {
+		expect(() =>
+			configSchema.parse({
+				output: './generated',
+				packages: [],
+				fullnodeUrls: { testnet: 'ftp://custom.testnet.example' },
+			}),
+		).toThrow('Fullnode URL must use HTTP or HTTPS');
+	});
 });
 
 describe('withTemporaryDirectory', () => {

@@ -68,9 +68,16 @@ export const DEFAULT_FULLNODE_URLS = {
 	testnet: 'https://fullnode.testnet.sui.io:443',
 };
 
+const fullnodeUrlSchema = z
+	.string()
+	.url()
+	.refine((url) => ['http:', 'https:'].includes(new URL(url).protocol), {
+		message: 'Fullnode URL must use HTTP or HTTPS',
+	});
+
 export const fullnodeUrlsSchema = z.object({
-	mainnet: z.string().url().default(DEFAULT_FULLNODE_URLS.mainnet),
-	testnet: z.string().url().default(DEFAULT_FULLNODE_URLS.testnet),
+	mainnet: fullnodeUrlSchema.default(DEFAULT_FULLNODE_URLS.mainnet),
+	testnet: fullnodeUrlSchema.default(DEFAULT_FULLNODE_URLS.testnet),
 });
 
 export type GenerateBase = z.infer<typeof globalGenerateSchema>;
