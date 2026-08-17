@@ -1,5 +1,7 @@
 # @mysten/payment-kit
 
+## 0.2.16
+
 ## 0.2.15
 
 ### Patch Changes
