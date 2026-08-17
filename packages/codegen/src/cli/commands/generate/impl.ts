@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { LocalContext } from '../../context.js';
-import { generateFromPackageSummary } from '../../../index.js';
+import { generateFromPackageSummary, resolvePackageIdentity } from '../../../index.js';
+import type { PackageIdentity } from '../../../config-arguments.js';
 import { loadConfig, type GenerateBase, type PackageGenerate } from '../../../config.js';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { isValidNamedPackage, isValidSuiObjectId } from '@mysten/sui/utils';
@@ -158,31 +159,26 @@ export default async function generate(
 				}
 			: undefined;
 
-	for (const pkg of normalizedPackages) {
-		// Detect on-chain packages: they have 'network' field and no 'path'
-		const isOnChainPackage = 'network' in pkg && !('path' in pkg);
+	await withTemporaryDirectory(async (temporaryRoot) => {
+		// First ensure summaries exist for every package, then resolve each package's identity so
+		// configArguments matchers can reference any package in the run by its identifier.
+		for (const [index, pkg] of normalizedPackages.entries()) {
+			const isOnChainPackage = 'network' in pkg && !('path' in pkg);
 
-		const generatePackage = async (tempDir?: string) => {
-			// Generate summaries for on-chain packages using --package-id
 			if (isOnChainPackage) {
-				if (!tempDir) {
-					throw new Error('Temporary directory is required for on-chain packages');
-				}
-
 				const packageNameOrId =
 					'sourcePackageId' in pkg && pkg.sourcePackageId ? pkg.sourcePackageId : pkg.package;
 				const fullnodeUrl = config.fullnodeUrls[pkg.network];
 				const packageId = await resolveOnChainPackageId(packageNameOrId, pkg.network, fullnodeUrl);
-				const summaryDir = join(tempDir, 'summary');
-				mkdirSync(summaryDir);
-				const clientConfig = writeSuiClientConfig(tempDir, fullnodeUrl);
+				const packageTempDir = join(temporaryRoot, String(index));
+				const summaryDir = join(packageTempDir, 'summary');
+				mkdirSync(summaryDir, { recursive: true });
+				const clientConfig = writeSuiClientConfig(packageTempDir, fullnodeUrl);
 				console.log(`Generating summary for on-chain package ${packageId} to ${summaryDir}`);
 
 				execFileSync('sui', getOnChainSummaryArgs(packageId, clientConfig, summaryDir), {
 					stdio: 'inherit',
 				});
-
-				// Set the path to use the generated summary directory
 				(pkg as { path?: string }).path = summaryDir;
 			} else if (generateSummaries && pkg.path) {
 				if (!existsSync(pkg.path)) {
@@ -194,6 +190,21 @@ export default async function generate(
 					stdio: 'inherit',
 				});
 			}
+		}
+
+		const packageIdentities: Record<string, PackageIdentity> = {};
+		for (const pkg of normalizedPackages) {
+			if (!pkg.path) continue;
+			const identity = await resolvePackageIdentity(
+				pkg.path,
+				'packageName' in pkg ? pkg.packageName : undefined,
+			);
+			if (identity !== undefined) {
+				packageIdentities[pkg.package] = identity;
+			}
+		}
+
+		for (const pkg of normalizedPackages) {
 			const importExtension =
 				flags.importExtension === undefined
 					? config.importExtension
@@ -210,8 +221,6 @@ export default async function generate(
 						},
 					}
 				: pkg;
-
-			// Fold deprecated privateMethods into globalGenerate
 			const globalGenerate: GenerateBase | undefined =
 				config.privateMethods && !config.generate?.functions
 					? {
@@ -235,13 +244,9 @@ export default async function generate(
 				importExtension,
 				includePhantomTypeParameters: config.includePhantomTypeParameters,
 				errorClass: config.errorClass,
+				packageIdentities,
+				configDir: config.configDir,
 			});
-		};
-
-		if (isOnChainPackage) {
-			await withTemporaryDirectory(generatePackage);
-		} else {
-			await generatePackage();
 		}
-	}
+	});
 }

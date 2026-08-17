@@ -3,6 +3,7 @@
 
 import { isValidNamedPackage, isValidSuiObjectId, normalizeSuiObjectId } from '@mysten/sui/utils';
 import { cosmiconfig } from 'cosmiconfig';
+import { dirname } from 'node:path';
 import * as z from 'zod/v4';
 
 export const globalFunctionsOptionSchema = z.union([
@@ -32,6 +33,120 @@ export const moduleGenerateSchema = z.object({
 	types: typesOptionSchema.optional(),
 });
 
+const IDENTIFIER = /^[A-Za-z_$][\w$]*$/;
+/** Keys that would collide with `Object.prototype` or mutate prototypes on plain objects. */
+const FORBIDDEN_CONFIG_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
+const typeMatcherSchema = z.strictObject({
+	/**
+	 * Move type to match function parameters against, written as `module::TypeName`. In a
+	 * package's own `configArguments` block a bare `module::TypeName` refers to that package's
+	 * type; other packages in the run are referenced by their `packages` identifier
+	 * (`@myapp/core::pool::Pool`) or an explicit address (`0x2::sui::SUI` — only use addresses
+	 * valid on every network the generated code targets). A generic type written without type arguments
+	 * matches every instantiation and requires a resolver function as the config value; a
+	 * fully instantiated generic (e.g. `pool::Pool<0x2::sui::SUI>`) only matches parameters
+	 * concretely typed with that exact instantiation.
+	 */
+	type: z.string(),
+	/**
+	 * Optional Move parameter-name refinement, for signatures with two parameters of the same
+	 * matched type. Only supported for summaries generated from local packages (bytecode
+	 * summaries do not include parameter names).
+	 */
+	parameterName: z.string().optional(),
+});
+
+const functionMatcherSchema = z.strictObject({
+	/**
+	 * A Move function whose parameter is configured directly, written `module::function_name`
+	 * (scoped like type matchers: bare form in a package's own block, `@pkg::module::fn`
+	 * otherwise). The parameter's type is derived from the signature.
+	 */
+	function: z.string(),
+	/** The Move name of the parameter to configure. */
+	parameterName: z.string().optional(),
+	/**
+	 * The position of the parameter to configure, in the generated function's arguments (the
+	 * same positions as the tuple form of `arguments` — `TxContext` and auto-injected well-known
+	 * objects are excluded). Use for summaries without parameter names. When both this and
+	 * `parameterName` are omitted, the function must have exactly one argument.
+	 */
+	parameterIndex: z.number().int().nonnegative().optional(),
+});
+
+const packageMatcherSchema = z.strictObject({
+	/**
+	 * Package entry, keyed by the package's name/MVR name from the `packages` config. Adds an
+	 * optional config key that overrides the package address used for generated calls.
+	 */
+	package: z.string(),
+});
+
+export const configArgumentMatcherSchema = z.union([
+	typeMatcherSchema,
+	functionMatcherSchema,
+	packageMatcherSchema,
+]);
+
+export const configArgumentsSchema = z.record(
+	z
+		.string()
+		.regex(IDENTIFIER, {
+			message:
+				'configArguments keys become properties of the generated config interface and must be valid identifiers',
+		})
+		.refine((key) => !FORBIDDEN_CONFIG_KEYS.has(key), {
+			message: 'configArguments keys must not be prototype property names',
+		}),
+	z.union([
+		configArgumentMatcherSchema,
+		// One key may declare several matchers. If they span multiple distinct types, the
+		// config value must be a resolver function; matchers sharing one concrete type share
+		// a plain value.
+		z.array(z.union([typeMatcherSchema, functionMatcherSchema])),
+	]),
+);
+
+export type ConfigArgumentMatcher = z.infer<typeof configArgumentMatcherSchema>;
+export type ConfigArguments = z.infer<typeof configArgumentsSchema>;
+
+export const bcsOverrideSchema = z.strictObject({
+	/**
+	 * The Move type this entry replaces in generated BCS layouts. A datatype is written as
+	 * `module::TypeName`, scoped like `configArguments` matchers (bare form for the declaring
+	 * package, `@pkg` identifiers for other run packages, explicit addresses) — plus named-address
+	 * labels from the package's summaries (e.g. `fixed_math::i64::I64`) for dependency packages
+	 * that are not codegen-run entries.
+	 *
+	 * A datatype with a generated declaration has that declaration replaced, so every layout
+	 * referencing it uses the custom type. Types that generated layouts serialize inline instead
+	 * of by reference — primitives, `vector`, `0x1::string::String`, `0x1::option::Option`,
+	 * `0x2::object::ID`/`UID` — are replaced at their field sites.
+	 */
+	type: z.string(),
+	/**
+	 * Restricts the entry to matching field sites. A glob tested against `module::Type.field` (or
+	 * `module::Type.variant.field` for enum variant fields), where `*` matches any run of
+	 * characters. A glob that names no module (`Order.*_price`) matches the `Type.field` suffix in
+	 * every module. An entry with `fields` always substitutes at the matched sites, never by
+	 * replacing a declaration.
+	 */
+	fields: z.string().optional(),
+	/**
+	 * Import specifier for the replacement BCS type, optionally suffixed with `#ExportName`.
+	 * Relative specifiers resolve against the config file's directory; bare package specifiers are
+	 * emitted as-is. Without a fragment, datatype entries import the Move type's name; entries for
+	 * primitives and `vector` types must include one.
+	 */
+	source: z.string(),
+});
+
+export const bcsOverridesSchema = z.array(bcsOverrideSchema);
+
+export type BcsOverride = z.infer<typeof bcsOverrideSchema>;
+export type BcsOverrides = z.infer<typeof bcsOverridesSchema>;
+
 export const packageGenerateSchema = globalGenerateSchema.extend({
 	modules: z
 		.union([
@@ -54,6 +169,8 @@ export const onChainPackageSchema = z
 		path: z.never().optional(),
 		network: z.enum(['mainnet', 'testnet']),
 		generate: packageGenerateSchema.optional(),
+		configArguments: configArgumentsSchema.optional(),
+		bcsOverrides: bcsOverridesSchema.optional(),
 	})
 	.superRefine((config, context) => {
 		if (
@@ -74,6 +191,8 @@ export const localPackageSchema = z.object({
 	package: z.string(),
 	packageName: z.string().optional(),
 	generate: packageGenerateSchema.optional(),
+	configArguments: configArgumentsSchema.optional(),
+	bcsOverrides: bcsOverridesSchema.optional(),
 });
 
 export const packageConfigSchema = z.union([onChainPackageSchema, localPackageSchema]);
@@ -102,8 +221,6 @@ export type GenerateBase = z.infer<typeof globalGenerateSchema>;
 export type PackageGenerate = z.infer<typeof packageGenerateSchema>;
 export type FunctionsOption = z.infer<typeof functionsOptionSchema>;
 export type TypesOption = z.infer<typeof typesOptionSchema>;
-
-const IDENTIFIER = /^[A-Za-z_$][\w$]*$/;
 
 export const errorClassSchema = z.object({
 	name: z.string().regex(IDENTIFIER, {
@@ -138,7 +255,12 @@ export type PackageConfig = z.infer<typeof packageConfigSchema>;
 export type SuiCodegenConfig = z.input<typeof configSchema>;
 export type ParsedSuiCodegenConfig = z.infer<typeof configSchema>;
 
-export async function loadConfig(): Promise<ParsedSuiCodegenConfig> {
+export async function loadConfig(): Promise<
+	ParsedSuiCodegenConfig & {
+		/** Directory of the loaded config file; relative `bcsOverrides` sources resolve against it. */
+		configDir?: string;
+	}
+> {
 	const config = await cosmiconfig('sui-codegen').search();
 
 	if (!config) {
@@ -153,5 +275,5 @@ export async function loadConfig(): Promise<ParsedSuiCodegenConfig> {
 		};
 	}
 
-	return configSchema.parse(config.config);
+	return { ...configSchema.parse(config.config), configDir: dirname(config.filepath) };
 }

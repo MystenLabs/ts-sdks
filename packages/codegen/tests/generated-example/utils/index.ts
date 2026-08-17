@@ -1,3 +1,4 @@
+
 import {
 	bcs,
 	type BcsType,
@@ -223,11 +224,11 @@ type TypeTagParams<Name extends string> = Name extends `${string}phantom ${strin
 	? [options: TypeTagOptions & { typeArguments: readonly TypeArgument[] }]
 	: [options?: TypeTagOptions];
 
-type ResolveTypeTagOptions<Name extends string> = {
-	client: ClientWithCoreApi;
-} & (Name extends `${string}phantom ${string}`
-	? TypeTagOptions & { typeArguments: readonly TypeArgument[] }
-	: TypeTagOptions);
+type ResolveTypeTagOptions<Name extends string> = { client: ClientWithCoreApi } & (
+	Name extends `${string}phantom ${string}`
+		? TypeTagOptions & { typeArguments: readonly TypeArgument[] }
+		: TypeTagOptions
+);
 
 const HAS_PHANTOM_REGEX = /phantom [A-Za-z_$][A-Za-z0-9_$]*/;
 
@@ -335,19 +336,14 @@ export class MoveStruct<
 	 * on-chain data.
 	 */
 	async resolveTypeTag(options: ResolveTypeTagOptions<Name>): Promise<string> {
-		return resolveBuiltTypeTag(
-			this.name,
-			options as { client: ClientWithCoreApi } & TypeTagOptions,
-		);
+		return resolveBuiltTypeTag(this.name, options as { client: ClientWithCoreApi } & TypeTagOptions);
 	}
 
 	async get<Include extends Omit<SuiClientTypes.ObjectInclude, 'content' | 'json'> = {}>({
 		objectId,
 		...options
 	}: GetOptions<Include>): Promise<
-		SuiClientTypes.Object<Include & { content: true; json: true }> & {
-			json: BcsStruct<T>['$inferType'];
-		}
+		SuiClientTypes.Object<Include & { content: true, json: true }> & { json: BcsStruct<T>['$inferType'] }
 	> {
 		const [res] = await this.getMany<Include>({
 			...options,
@@ -365,11 +361,7 @@ export class MoveStruct<
 		client,
 		...options
 	}: GetManyOptions<Include>): Promise<
-		Array<
-			SuiClientTypes.Object<Include & { content: true; json: true }> & {
-				json: BcsStruct<T>['$inferType'];
-			}
-		>
+		Array<SuiClientTypes.Object<Include & { content: true, json: true }> & { json: BcsStruct<T>['$inferType'] }>
 	> {
 		const response = (await client.core.getObjects({
 			...options,
@@ -403,10 +395,7 @@ export class MoveEnum<
 
 	/** Build and resolve the type tag for this enum. See `MoveStruct.resolveTypeTag`. */
 	async resolveTypeTag(options: ResolveTypeTagOptions<Name>): Promise<string> {
-		return resolveBuiltTypeTag(
-			this.name,
-			options as { client: ClientWithCoreApi } & TypeTagOptions,
-		);
+		return resolveBuiltTypeTag(this.name, options as { client: ClientWithCoreApi } & TypeTagOptions);
 	}
 }
 
@@ -421,10 +410,7 @@ export class MoveTuple<
 
 	/** Build and resolve the type tag for this struct. See `MoveStruct.resolveTypeTag`. */
 	async resolveTypeTag(options: ResolveTypeTagOptions<Name>): Promise<string> {
-		return resolveBuiltTypeTag(
-			this.name,
-			options as { client: ClientWithCoreApi } & TypeTagOptions,
-		);
+		return resolveBuiltTypeTag(this.name, options as { client: ClientWithCoreApi } & TypeTagOptions);
 	}
 }
 
