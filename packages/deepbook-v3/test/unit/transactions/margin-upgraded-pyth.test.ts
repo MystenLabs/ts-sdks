@@ -21,7 +21,7 @@ import { MarginManagerContract } from '../../../src/transactions/marginManager.j
 import { MarginTPSLContract } from '../../../src/transactions/marginTPSL.js';
 import { PoolProxyContract } from '../../../src/transactions/poolProxy.js';
 import { DeepBookConfig } from '../../../src/utils/config.js';
-import { testnetCoins } from '../../../src/utils/constants.js';
+import { mainnetCoins, testnetCoins } from '../../../src/utils/constants.js';
 
 const POOL_KEY = 'SUI_DBUSDC';
 const MGR_KEY = 'TEST_MGR';
@@ -158,5 +158,35 @@ describe('a coin with no upgraded price object fails before the move call', () =
 		expect(() => config().getPriceInfoObjectId('WAL')).toThrowError(
 			/Coin 'WAL' has no priceInfoObjectId/,
 		);
+	});
+});
+
+// XBTC is a distinct asset from BTC — its own peg, its own redemption risk — so pricing it
+// off Crypto.BTC/USD would misstate collateral exactly when the two diverge. Pricing XBTC
+// (and testnet's DBTC, which is the same underlying) off BTC is not a configuration option,
+// so this pins the feed rather than leaving it to a comment.
+describe('XBTC is always priced off its own feed, never BTC/USD', () => {
+	const XBTC_USD = '0xae8f269ed9c4bed616c99a98cf6dfe562bd3202e7f91821a471ff854713851b4';
+	const BTC_USD = '0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43';
+
+	it('mainnet XBTC uses Crypto.XBTC/USD', () => {
+		expect(mainnetCoins.XBTC?.feed).toBe(XBTC_USD);
+	});
+
+	it('testnet DBTC uses Crypto.XBTC/USD — it is the same underlying', () => {
+		expect(testnetCoins.DBTC?.feed).toBe(XBTC_USD);
+	});
+
+	it('Crypto.BTC/USD is configured for no coin on either network', () => {
+		for (const [network, coins] of [
+			['mainnet', mainnetCoins],
+			['testnet', testnetCoins],
+		] as const) {
+			for (const [name, coin] of Object.entries(coins)) {
+				expect(`${network}.${name}=${coin.feed ?? 'none'}`).not.toBe(
+					`${network}.${name}=${BTC_USD}`,
+				);
+			}
+		}
 	});
 });

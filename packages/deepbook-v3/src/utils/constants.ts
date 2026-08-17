@@ -56,7 +56,10 @@ export const mainnetPackageIds = {
  * have no upgraded price objects and the upgraded Hermes does not serve them.
  *
  * DBTC is testnet's wrapped BTC and takes Crypto.XBTC/USD — the same feed mainnet XBTC
- * uses. The upgraded deployment carries no distinct DBTC feed.
+ * uses. The upgraded deployment carries no distinct DBTC feed. Plain Crypto.BTC/USD is
+ * NOT an accepted substitute for either: XBTC is a distinct asset with its own peg and
+ * redemption risk, so pricing it off BTC would misstate collateral in exactly the stress
+ * where the two diverge.
  */
 export const testnetCoins: CoinMap = {
 	DEEP: {
@@ -88,8 +91,9 @@ export const testnetCoins: CoinMap = {
 		type: `0x6502dae813dbe5e42643c119a6450a518481f03063febc7e20238e43b6ea9e86::dbtc::DBTC`,
 		scalar: 100000000,
 		// Crypto.XBTC/USD — DBTC is testnet's wrapped BTC, so it takes the same feed mainnet
-		// XBTC does rather than plain BTC/USD. Its object was created on upgraded testnet
-		// Core on 2026-08-11; before that none existed and BTC/USD stood in.
+		// XBTC does. Never plain BTC/USD: that is a different asset, and standing it in
+		// would misprice DBTC collateral whenever XBTC's peg moves. Object created on
+		// upgraded testnet Core 2026-08-11.
 		feed: '0xae8f269ed9c4bed616c99a98cf6dfe562bd3202e7f91821a471ff854713851b4',
 		currencyId: '0x3ef2afa2126704bf721b9c8495d94288f6bd090fc454fe3e1613eb765a8a348f',
 		priceInfoObjectId: '0x88387b85b9a53c4365219aee4d77e62213877f110eb859d8e03812a5bea0d1f7',
@@ -151,6 +155,11 @@ export const mainnetCoins: CoinMap = {
 		address: `0x876a4b7bce8aeaef60464c11f4026903e9afacab79b9b142686158aa86560b50`,
 		type: `0x876a4b7bce8aeaef60464c11f4026903e9afacab79b9b142686158aa86560b50::xbtc::XBTC`,
 		scalar: 100000000,
+		// Crypto.XBTC/USD, always. XBTC must never be priced off Crypto.BTC/USD
+		// (`0xe62df6c8…`): it is a distinct asset carrying its own peg and redemption risk,
+		// so a BTC substitute misstates collateral precisely when the two diverge. This
+		// holds regardless of XBTC's wider confidence band — that is a bound to set on the
+		// registry's `max_conf_bps`, not a reason to price a different asset.
 		feed: '0xae8f269ed9c4bed616c99a98cf6dfe562bd3202e7f91821a471ff854713851b4',
 		currencyId: '0x907bb173bffab7c57bbd3350a633aa32c8770937b496d7d88874087b59200bcc',
 		// Created 2026-08-17 (tx `3SbNisBM…ePnSx`) — XBTC is absent from Pyth's Sui push-feed
