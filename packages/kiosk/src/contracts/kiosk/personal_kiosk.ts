@@ -45,8 +45,7 @@ export interface DefaultArguments {
 export interface DefaultOptions {
 	package?: string;
 	arguments:
-		| DefaultArguments
-		| [kiosk: RawTransactionArgument<string>, cap: RawTransactionArgument<string>];
+		DefaultArguments | [kiosk: RawTransactionArgument<string>, cap: RawTransactionArgument<string>];
 }
 /** The default setup for the PersonalKioskCap. */
 export function _default(options: DefaultOptions) {
@@ -68,8 +67,7 @@ export interface NewArguments {
 export interface NewOptions {
 	package?: string;
 	arguments:
-		| NewArguments
-		| [kiosk: RawTransactionArgument<string>, cap: RawTransactionArgument<string>];
+		NewArguments | [kiosk: RawTransactionArgument<string>, cap: RawTransactionArgument<string>];
 }
 /**
  * Wrap the KioskOwnerCap making the Kiosk "owned" and non-transferable. The

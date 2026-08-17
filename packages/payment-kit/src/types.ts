@@ -16,8 +16,7 @@ export interface PaymentKitClientOptions {
 }
 
 export type Registry =
-	| { registryName?: string; registryId?: never }
-	| { registryName?: never; registryId: string };
+	{ registryName?: string; registryId?: never } | { registryName?: never; registryId: string };
 
 export type RegistryAndAdminCap = {
 	adminCapId: string;

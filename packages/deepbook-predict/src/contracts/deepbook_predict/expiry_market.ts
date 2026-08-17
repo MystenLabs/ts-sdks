@@ -651,8 +651,7 @@ export function loadLivePricer(options: LoadLivePricerOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, null, null, null, null, null, '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['market', 'config', 'propbookRegistry', 'pyth', 'bsValues', 'bsSvi'];
 	return (tx: Transaction) =>
@@ -678,8 +677,7 @@ export interface CurrentNavArguments {
 export interface CurrentNavOptions {
 	package?: string;
 	arguments:
-		| CurrentNavArguments
-		| [market: RawTransactionArgument<string>, pricer: TransactionArgument];
+		CurrentNavArguments | [market: RawTransactionArgument<string>, pricer: TransactionArgument];
 	config?: {
 		predictPackageId?: string;
 	};
@@ -1526,8 +1524,7 @@ export function liquidateOrder(options: LiquidateOrderOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, null, null, 'u256', '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['market', 'config', 'pricer', 'orderId'];
 	return (tx: Transaction) =>

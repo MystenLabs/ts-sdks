@@ -154,8 +154,7 @@ export interface CommitInputSignaturesOptions {
 export function commitInputSignatures(options: CommitInputSignaturesOptions) {
 	const packageAddress = options.package ?? '@local-pkg/hashi';
 	const argumentsTypes = [null, 'address', 'vector<u64>', 'vector<vector<u8>>', null] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['hashi', 'withdrawalId', 'indices', 'signatures', 'cert'];
 	return (tx: Transaction) =>
@@ -328,8 +327,7 @@ export interface RequestWithdrawalOptions {
 export function requestWithdrawal(options: RequestWithdrawalOptions) {
 	const packageAddress = options.package ?? '@local-pkg/hashi';
 	const argumentsTypes = [null, '0x2::clock::Clock', null, 'vector<u8>'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['hashi', 'btc', 'bitcoinAddress'];
 	return (tx: Transaction) =>

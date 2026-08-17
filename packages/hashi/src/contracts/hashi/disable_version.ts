@@ -39,8 +39,7 @@ export interface ProposeOptions {
 export function propose(options: ProposeOptions) {
 	const packageAddress = options.package ?? '@local-pkg/hashi';
 	const argumentsTypes = [null, 'address', 'u64', null, '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['hashi', 'validatorAddress', 'version', 'metadata'];
 	return (tx: Transaction) =>

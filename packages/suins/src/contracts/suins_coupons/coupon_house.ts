@@ -45,8 +45,7 @@ export interface SetupArguments {
 export interface SetupOptions {
 	package?: string;
 	arguments:
-		| SetupArguments
-		| [suins: RawTransactionArgument<string>, cap: RawTransactionArgument<string>];
+		SetupArguments | [suins: RawTransactionArgument<string>, cap: RawTransactionArgument<string>];
 }
 /** Called once to setup the CouponHouse on SuiNS. */
 export function setup(options: SetupOptions) {
@@ -79,8 +78,7 @@ export interface ApplyCouponOptions {
 export function applyCoupon(options: ApplyCouponOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
 	const argumentsTypes = [null, null, '0x1::string::String', '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['suins', 'intent', 'couponCode'];
 	return (tx: Transaction) =>
@@ -163,8 +161,7 @@ export interface AppDataMutArguments<A extends BcsType<any>> {
 export interface AppDataMutOptions<A extends BcsType<any>> {
 	package?: string;
 	arguments:
-		| AppDataMutArguments<A>
-		| [suins: RawTransactionArgument<string>, _: RawTransactionArgument<A>];
+		AppDataMutArguments<A> | [suins: RawTransactionArgument<string>, _: RawTransactionArgument<A>];
 	typeArguments: [string];
 }
 export function appDataMut<A extends BcsType<any>>(options: AppDataMutOptions<A>) {
@@ -315,8 +312,7 @@ export interface AdminAddCouponOptions {
 export function adminAddCoupon(options: AdminAddCouponOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
 	const argumentsTypes = [null, null, '0x1::string::String', 'u8', 'u64', null] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['_', 'suins', 'code', 'kind', 'amount', 'rules'];
 	return (tx: Transaction) =>
@@ -376,8 +372,7 @@ export interface AppAddCouponOptions {
 export function appAddCoupon(options: AppAddCouponOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';
 	const argumentsTypes = [null, '0x1::string::String', 'u8', 'u64', null] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['data', 'code', 'kind', 'amount', 'rules'];
 	return (tx: Transaction) =>
@@ -395,8 +390,7 @@ export interface AppRemoveCouponArguments {
 export interface AppRemoveCouponOptions {
 	package?: string;
 	arguments:
-		| AppRemoveCouponArguments
-		| [data: TransactionArgument, code: RawTransactionArgument<string>];
+		AppRemoveCouponArguments | [data: TransactionArgument, code: RawTransactionArgument<string>];
 }
 export function appRemoveCoupon(options: AppRemoveCouponOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';

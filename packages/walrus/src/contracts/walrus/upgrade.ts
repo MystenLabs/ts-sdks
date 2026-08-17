@@ -95,8 +95,7 @@ export interface VoteForUpgradeOptions {
 export function voteForUpgrade(options: VoteForUpgradeOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, null, '0x2::object::ID', 'vector<u8>'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['self', 'staking', 'auth', 'nodeId', 'digest'];
 	return (tx: Transaction) =>
@@ -244,8 +243,7 @@ export interface BurnEmergencyUpgradeCapArguments {
 export interface BurnEmergencyUpgradeCapOptions {
 	package?: string;
 	arguments:
-		| BurnEmergencyUpgradeCapArguments
-		| [emergencyUpgradeCap: RawTransactionArgument<string>];
+		BurnEmergencyUpgradeCapArguments | [emergencyUpgradeCap: RawTransactionArgument<string>];
 }
 /**
  * Burns the emergency upgrade cap.

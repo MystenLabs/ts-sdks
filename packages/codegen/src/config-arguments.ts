@@ -53,9 +53,7 @@ export interface PackageConfigArgument {
 }
 
 export type ParsedConfigArgument =
-	| TypeConfigArgument
-	| FunctionConfigArgument
-	| PackageConfigArgument;
+	TypeConfigArgument | FunctionConfigArgument | PackageConfigArgument;
 
 /**
  * How a package in the codegen run is identified inside other packages' summaries: by its named

@@ -788,8 +788,7 @@ export interface AddCommissionToPoolsOptions {
 export function addCommissionToPools(options: AddCommissionToPoolsOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, 'vector<0x2::object::ID>', 'vector<null>'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['staking', 'nodeIds', 'commissions'];
 	return (tx: Transaction) =>

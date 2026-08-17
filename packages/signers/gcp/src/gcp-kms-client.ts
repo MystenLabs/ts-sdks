@@ -9,6 +9,11 @@ import { fromBase64 } from '@mysten/sui/utils';
 
 import { getConcatenatedSignature, publicKeyFromDER } from './utils.js';
 
+type GcpKmsClient = Pick<
+	KeyManagementServiceClient,
+	'asymmetricSign' | 'cryptoKeyVersionPath' | 'getPublicKey'
+>;
+
 /**
  * Configuration options for initializing the GcpKmsSigner.
  */
@@ -16,7 +21,7 @@ export interface GcpKmsSignerOptions {
 	/** The version name generated from `client.cryptoKeyVersionPath()` */
 	versionName: string;
 	/** Options for setting up the GCP KMS client */
-	client: KeyManagementServiceClient;
+	client: GcpKmsClient;
 	/** Public key */
 	publicKey: PublicKey;
 }
@@ -28,7 +33,7 @@ export interface GcpKmsSignerOptions {
 export class GcpKmsSigner extends Signer {
 	#publicKey: PublicKey;
 	/** GCP KMS client instance */
-	#client: KeyManagementServiceClient;
+	#client: GcpKmsClient;
 	/** GCP KMS version name (generated from `client.cryptoKeyVersionPath()`) */
 	#versionName: string;
 
@@ -128,10 +133,7 @@ export class GcpKmsSigner extends Signer {
 /**
  * Retrieves the public key associated with the given version name.
  */
-async function getPublicKey(
-	client: KeyManagementServiceClient,
-	versionName: string,
-): Promise<PublicKey> {
+async function getPublicKey(client: GcpKmsClient, versionName: string): Promise<PublicKey> {
 	const [publicKey] = await client.getPublicKey({ name: versionName });
 
 	const { algorithm, pem } = publicKey;

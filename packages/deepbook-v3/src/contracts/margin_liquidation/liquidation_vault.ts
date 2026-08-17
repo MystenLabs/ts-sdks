@@ -205,8 +205,7 @@ export interface SwapBaseToQuoteOptions {
 export function swapBaseToQuote(options: SwapBaseToQuoteOptions) {
 	const packageAddress = options.package ?? '@deepbook/margin-liquidation';
 	const argumentsTypes = [null, null, 'u64', 'u64', 'u64', '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['self', 'pool', 'baseIn', 'deepIn', 'minQuoteOut'];
 	return (tx: Transaction) =>
@@ -241,8 +240,7 @@ export interface SwapQuoteToBaseOptions {
 export function swapQuoteToBase(options: SwapQuoteToBaseOptions) {
 	const packageAddress = options.package ?? '@deepbook/margin-liquidation';
 	const argumentsTypes = [null, null, 'u64', 'u64', 'u64', '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['self', 'pool', 'quoteIn', 'deepIn', 'minBaseOut'];
 	return (tx: Transaction) =>

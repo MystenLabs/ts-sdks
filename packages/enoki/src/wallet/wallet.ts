@@ -341,7 +341,7 @@ export class EnokiWallet implements Wallet {
 		const sessionContext = chain ? this.#state.getSessionContext(chain.split(':')[1]) : null;
 		if (!sessionContext) {
 			throw new Error(
-				`A valid Sui chain identifier was not provided in the request. Please report this issue to the dApp developer. Examples of valid Sui chain identifiers are 'sui:testnet' and 'sui:mainnet'. Consider using the '@mysten/dapp-kit' package, which provides this value automatically.`,
+				`A valid Sui chain identifier was not provided in the request. Please report this issue to the dApp developer. Examples of valid Sui chain identifiers are 'sui:testnet' and 'sui:mainnet'. Consider using the '@mysten/dapp-kit-react' package, which provides this value automatically.`,
 			);
 		}
 

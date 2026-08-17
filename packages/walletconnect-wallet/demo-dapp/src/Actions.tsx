@@ -2,12 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 import {
   useCurrentAccount,
-  useCurrentWallet,
-  useSignAndExecuteTransaction,
-  useSignPersonalMessage,
-  useSignTransaction,
-  useSuiClientContext,
-} from "@mysten/dapp-kit";
+  useCurrentClient,
+  useCurrentNetwork,
+  useDAppKit,
+} from "@mysten/dapp-kit-react";
 import { Transaction } from "@mysten/sui/transactions";
 import {
   verifyPersonalMessageSignature,
@@ -15,40 +13,12 @@ import {
 } from "@mysten/sui/verify";
 import { Button, Container } from "@radix-ui/themes";
 import { fromBase64 } from "@mysten/sui/utils";
-import type {
-  SuiChain,
-  WalletAccount,
-  WalletWithRequiredFeatures,
-} from "@mysten/wallet-standard";
-import { signAndExecuteTransaction as signAndExecuteTransactionWalletStandard } from "@mysten/wallet-standard";
-import { useMutation } from "@tanstack/react-query";
 
 export function Actions() {
   const account = useCurrentAccount();
-  const signMessage = useSignPersonalMessage();
-  const signTransaction = useSignTransaction();
-  const signAndExecuteTransaction = useSignAndExecuteTransaction();
-  const { network, client } = useSuiClientContext();
-  const { currentWallet } = useCurrentWallet();
-  const signAndExecuteTransactionForceInWallet = useMutation({
-    mutationFn: ({
-      transaction,
-      account,
-      chain,
-      wallet,
-    }: {
-      transaction: Transaction;
-      account: WalletAccount;
-      chain: SuiChain;
-      wallet: WalletWithRequiredFeatures;
-    }) => {
-      return signAndExecuteTransactionWalletStandard(wallet, {
-        transaction,
-        account,
-        chain,
-      });
-    },
-  });
+  const client = useCurrentClient();
+  const network = useCurrentNetwork();
+  const dAppKit = useDAppKit();
 
   if (!account) {
     return null;
@@ -59,10 +29,10 @@ export function Actions() {
       <Button
         onClick={async () => {
           const message = new TextEncoder().encode("Hello, world!");
-          const { signature } = await signMessage.mutateAsync({
+          const { signature } = await dAppKit.signPersonalMessage({
             message,
             account,
-            chain: `sui:${network}`,
+            network,
           });
           try {
             await verifyPersonalMessageSignature(message, signature, {
@@ -86,10 +56,10 @@ export function Actions() {
           transaction.transferObjects([coin], account.address);
           transaction.setSender(account.address);
 
-          const { signature, bytes } = await signTransaction.mutateAsync({
+          const { signature, bytes } = await dAppKit.signTransaction({
             transaction,
             account,
-            chain: `sui:${network}`,
+            network,
           });
           try {
             await verifyTransactionSignature(fromBase64(bytes), signature, {
@@ -113,39 +83,20 @@ export function Actions() {
           transaction.transferObjects([coin], account.address);
           transaction.setSender(account.address);
 
-          const { digest } = await signAndExecuteTransaction.mutateAsync({
+          const result = await dAppKit.signAndExecuteTransaction({
             transaction,
             account,
-            chain: `sui:${network}`,
+            network,
           });
+          const digest =
+            result.$kind === "Transaction"
+              ? result.Transaction.digest
+              : result.FailedTransaction.digest;
           console.log("Transaction digest:", digest);
         }}
         mr="2"
       >
         Sign & Execute Transaction
-      </Button>
-      <Button
-        onClick={async () => {
-          if (!currentWallet) {
-            throw new Error("No wallet connected");
-          }
-
-          const transaction = new Transaction();
-          const [coin] = transaction.splitCoins(transaction.gas, [1]);
-
-          transaction.transferObjects([coin], account.address);
-          transaction.setSender(account.address);
-          const { digest } =
-            await signAndExecuteTransactionForceInWallet.mutateAsync({
-              transaction,
-              account,
-              chain: `sui:${network}` as SuiChain,
-              wallet: currentWallet,
-            });
-          console.log("Transaction digest:", digest);
-        }}
-      >
-        Sign & force Wallet Execute Transaction
       </Button>
     </Container>
   );

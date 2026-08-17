@@ -25,8 +25,7 @@ export interface ApproveArguments<U extends BcsType<any>> {
 export interface ApproveOptions<U extends BcsType<any>> {
 	package?: string;
 	arguments:
-		| ApproveArguments<U>
-		| [request: TransactionArgument, Approval: RawTransactionArgument<U>];
+		ApproveArguments<U> | [request: TransactionArgument, Approval: RawTransactionArgument<U>];
 	typeArguments: [string, string];
 }
 /** Adds an approval to a request. Can be called to resolve rules */

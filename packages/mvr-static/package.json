@@ -44,15 +44,15 @@
 		"access": "public"
 	},
 	"devDependencies": {
-		"typescript": "^6.0.3",
-		"vitest": "^4.1.8"
+		"typescript": "^7.0.2",
+		"vitest": "^4.1.10"
 	},
 	"dependencies": {
 		"@mysten/sui": "workspace:^",
-		"@types/node": "^25.9.3",
+		"@types/node": "^26.2.0",
 		"enquirer": "^2.4.1",
 		"glob": "^13.0.0",
-		"prettier": "^3.8.4"
+		"prettier": "3.9.6"
 	},
 	"sideEffects": false,
 	"bin": "./bin/parser.js"

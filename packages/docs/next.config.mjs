@@ -9,6 +9,11 @@ const withMDX = createMDX();
 /** @type {import('next').NextConfig} */
 const config = {
 	reactStrictMode: true,
+	experimental: {
+		// The docs package uses the TypeScript 6 compatibility package for TypeDoc,
+		// which exposes the compiler API but not the `tsc` binary Next expects.
+		useTypeScriptCli: false,
+	},
 	// Pin the workspace root so Next doesn't infer it from a stray lockfile
 	// outside the repo. Resolves to the ts-sdks monorepo root.
 	turbopack: {

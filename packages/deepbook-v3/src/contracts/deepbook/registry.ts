@@ -470,8 +470,7 @@ export interface IsStablecoinArguments {
 export interface IsStablecoinOptions {
 	package?: string;
 	arguments:
-		| IsStablecoinArguments
-		| [self: RawTransactionArgument<string>, stableType: TransactionArgument];
+		IsStablecoinArguments | [self: RawTransactionArgument<string>, stableType: TransactionArgument];
 }
 /** Returns whether the given coin is whitelisted */
 export function isStablecoin(options: IsStablecoinOptions) {

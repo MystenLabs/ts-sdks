@@ -86,8 +86,7 @@ export interface WithdrawArguments {
 export interface WithdrawOptions {
 	package?: string;
 	arguments:
-		| WithdrawArguments
-		| [_: RawTransactionArgument<string>, self: RawTransactionArgument<string>];
+		WithdrawArguments | [_: RawTransactionArgument<string>, self: RawTransactionArgument<string>];
 }
 /**
  * Withdraw from the SuiNS balance directly and access the Coins within the same

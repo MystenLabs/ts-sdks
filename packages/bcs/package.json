@@ -57,13 +57,13 @@
 	],
 	"homepage": "https://sdk.mystenlabs.com/bcs",
 	"devDependencies": {
-		"@size-limit/preset-small-lib": "^12.1.0",
-		"size-limit": "^12.1.0",
-		"typescript": "^6.0.3",
-		"vitest": "^4.1.8"
+		"@size-limit/preset-small-lib": "^13.0.3",
+		"size-limit": "^13.0.3",
+		"typescript": "^7.0.2",
+		"vitest": "^4.1.10"
 	},
 	"dependencies": {
 		"@mysten/utils": "workspace:^",
-		"@scure/base": "^2.2.0"
+		"@scure/base": "^2.3.0"
 	}
 }

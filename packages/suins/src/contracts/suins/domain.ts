@@ -73,8 +73,7 @@ export interface LabelArguments {
 export interface LabelOptions {
 	package?: string;
 	arguments:
-		| LabelArguments
-		| [self: TransactionArgument, level: RawTransactionArgument<number | bigint>];
+		LabelArguments | [self: TransactionArgument, level: RawTransactionArgument<number | bigint>];
 }
 /**
  * Returns the `label` in a domain specified by `level`.

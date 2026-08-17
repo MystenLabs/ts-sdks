@@ -153,8 +153,7 @@ export type CertifyBlobOptions = {
 );
 
 export type DeletableConfirmationOptions =
-	| { deletable: false; objectId?: string }
-	| { deletable: true; objectId: string };
+	{ deletable: false; objectId?: string } | { deletable: true; objectId: string };
 
 export type GetStorageConfirmationOptions = {
 	blobId: string;
@@ -270,10 +269,7 @@ export interface WriteFilesOptions extends Omit<WriteBlobOptions, 'blob'> {
 }
 
 export type WriteBlobStep =
-	| WriteBlobStepEncoded
-	| WriteBlobStepRegistered
-	| WriteBlobStepUploaded
-	| WriteBlobStepCertified;
+	WriteBlobStepEncoded | WriteBlobStepRegistered | WriteBlobStepUploaded | WriteBlobStepCertified;
 
 export interface WriteBlobStepEncoded {
 	step: 'encoded';

@@ -36,8 +36,7 @@ export interface AddArguments {
 export interface AddOptions {
 	package?: string;
 	arguments:
-		| AddArguments
-		| [policy: RawTransactionArgument<string>, cap: RawTransactionArgument<string>];
+		AddArguments | [policy: RawTransactionArgument<string>, cap: RawTransactionArgument<string>];
 	typeArguments: [string, string];
 }
 /**

@@ -97,8 +97,7 @@ export interface InsertOptions<T extends BcsType<any>> {
 export function insert<T extends BcsType<any>>(options: InsertOptions<T>) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, 'u64', `${options.typeArguments[0]}`] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['pq', 'priority', 'tieBreaker', 'value'];
 	return (tx: Transaction) =>

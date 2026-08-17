@@ -157,8 +157,7 @@ export interface BurnSubdomainObjectArguments {
 export interface BurnSubdomainObjectOptions {
 	package?: string;
 	arguments:
-		| BurnSubdomainObjectArguments
-		| [self: TransactionArgument, nft: RawTransactionArgument<string>];
+		BurnSubdomainObjectArguments | [self: TransactionArgument, nft: RawTransactionArgument<string>];
 }
 /**
  * Attempts to burn a subdomain registration object, and also invalidates any
@@ -433,8 +432,7 @@ export interface ReverseLookupArguments {
 export interface ReverseLookupOptions {
 	package?: string;
 	arguments:
-		| ReverseLookupArguments
-		| [self: TransactionArgument, address: RawTransactionArgument<string>];
+		ReverseLookupArguments | [self: TransactionArgument, address: RawTransactionArgument<string>];
 }
 /** Returns the `domain_name` associated with the given address or None. */
 export function reverseLookup(options: ReverseLookupOptions) {

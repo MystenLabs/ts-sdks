@@ -27,8 +27,7 @@ export interface SerialTransactionExecutorAddressBalanceOptions extends SerialTr
 }
 
 export type SerialTransactionExecutorOptions =
-	| SerialTransactionExecutorCoinOptions
-	| SerialTransactionExecutorAddressBalanceOptions;
+	SerialTransactionExecutorCoinOptions | SerialTransactionExecutorAddressBalanceOptions;
 
 export class SerialTransactionExecutor {
 	#queue = new SerialQueue();

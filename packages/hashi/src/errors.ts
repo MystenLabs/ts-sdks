@@ -84,11 +84,7 @@ export class HashiFetchError extends Error {
  * `malformed-response` (bad JSON or limiter field), `not-initialized` (no limiter yet).
  */
 export type GuardianErrorCode =
-	| 'not-configured'
-	| 'unreachable'
-	| 'http-error'
-	| 'malformed-response'
-	| 'not-initialized';
+	'not-configured' | 'unreachable' | 'http-error' | 'malformed-response' | 'not-initialized';
 
 /**
  * Thrown by the `client.hashi.guardian.*` methods when the guardian `/info`
@@ -208,11 +204,7 @@ export class InvalidParamsError extends Error {
  * switch, "bad-checksum" → flag a typo) without string-parsing the message.
  */
 export type InvalidBitcoinAddressCode =
-	| 'malformed'
-	| 'bad-checksum'
-	| 'wrong-network'
-	| 'unsupported-version'
-	| 'bad-program-length';
+	'malformed' | 'bad-checksum' | 'wrong-network' | 'unsupported-version' | 'bad-program-length';
 
 /**
  * Thrown when a user-supplied Bitcoin address cannot be decoded into a

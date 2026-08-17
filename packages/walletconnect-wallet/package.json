@@ -38,14 +38,14 @@
 	},
 	"homepage": "https://github.com/MystenLabs/ts-sdks/tree/main/packages/walletconnect-wallet#readme",
 	"devDependencies": {
-		"@types/node": "^25.9.3",
-		"typescript": "^6.0.3",
-		"vitest": "^4.1.8"
+		"@types/node": "^26.2.0",
+		"typescript": "^7.0.2",
+		"vitest": "^4.1.10"
 	},
 	"dependencies": {
 		"@mysten/utils": "workspace:^",
 		"@mysten/wallet-standard": "workspace:^",
-		"@reown/appkit-universal-connector": "1.8.20",
+		"@reown/appkit-universal-connector": "1.8.23",
 		"valibot": "^1.4.2"
 	},
 	"peerDependencies": {

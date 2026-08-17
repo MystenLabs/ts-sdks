@@ -108,31 +108,26 @@ Available keypair types:
 
 ## With dapp-kit (React frontend)
 
-In a React app, use the `useSignAndExecuteTransaction` hook. The user's connected wallet signs and
-submits the transaction:
+In a React app, use the `useDAppKit` hook. The user's connected wallet signs and submits the
+transaction:
 
 ```tsx
-import { useSignAndExecuteTransaction } from '@mysten/dapp-kit';
+import { useDAppKit } from '@mysten/dapp-kit-react';
 import { Transaction } from '@mysten/sui/transactions';
 
 function SendButton() {
-	const { mutate: signAndExecute } = useSignAndExecuteTransaction();
+	const dAppKit = useDAppKit();
 
-	function handleClick() {
+	async function handleClick() {
 		const tx = new Transaction();
 		// ... build your transaction ...
 
-		signAndExecute(
-			{ transaction: tx },
-			{
-				onSuccess: (result) => {
-					console.log('Transaction digest:', result.digest);
-				},
-				onError: (error) => {
-					console.error('Transaction failed:', error);
-				},
-			},
-		);
+		const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
+		if (result.FailedTransaction) {
+			throw new Error(`Transaction failed: ${result.FailedTransaction.status.error?.message}`);
+		}
+
+		console.log('Transaction digest:', result.Transaction.digest);
 	}
 
 	return <button onClick={handleClick}>Send</button>;
@@ -160,23 +155,17 @@ const { signature } = await keypair.signTransaction(bytes);
 ### With dapp-kit
 
 ```tsx
-import { useSignTransaction } from '@mysten/dapp-kit';
+import { useDAppKit } from '@mysten/dapp-kit-react';
 
 function SignButton() {
-	const { mutate: signTransaction } = useSignTransaction();
+	const dAppKit = useDAppKit();
 
-	function handleClick() {
+	async function handleClick() {
 		const tx = new Transaction();
 		// ... build your transaction ...
 
-		signTransaction(
-			{ transaction: tx },
-			{
-				onSuccess: ({ bytes, signature }) => {
-					// Send bytes + signature to your backend, sponsor, etc.
-				},
-			},
-		);
+		const { bytes, signature } = await dAppKit.signTransaction({ transaction: tx });
+		// Send bytes + signature to your backend, sponsor, etc.
 	}
 
 	return <button onClick={handleClick}>Sign</button>;

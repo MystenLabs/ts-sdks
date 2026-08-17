@@ -48,8 +48,7 @@ export interface InitializeWalrusOptions {
 export function initializeWalrus(options: InitializeWalrusOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, 'u64', 'u64', 'u16', 'u32', '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = [
 		'initCap',

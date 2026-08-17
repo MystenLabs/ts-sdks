@@ -132,6 +132,4 @@ type ValidDuring = {
  * Indications the expiration time for a transaction.
  */
 export type TransactionExpiration =
-	| { None: null }
-	| { Epoch: number }
-	| { ValidDuring: ValidDuring };
+	{ None: null } | { Epoch: number } | { ValidDuring: ValidDuring };

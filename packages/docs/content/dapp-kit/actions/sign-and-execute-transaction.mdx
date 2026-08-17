@@ -41,9 +41,7 @@ a transaction on the Sui network. This is the most common way to execute transac
 import { createDAppKit } from '@mysten/dapp-kit-core';
 import { Transaction, coinWithBalance } from '@mysten/sui/transactions';
 
-const dAppKit = createDAppKit({
-	/* config */
-});
+const dAppKit = createDAppKit({/* config */});
 
 const tx = new Transaction();
 // No need to manually set sender - it's done automatically

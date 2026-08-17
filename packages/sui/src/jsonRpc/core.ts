@@ -293,19 +293,17 @@ export class JSONRpcCoreClient extends CoreClient {
 		});
 
 		return {
-			objects: coins.data.map(
-				(coin): SuiClientTypes.Coin => ({
-					objectId: coin.coinObjectId,
-					version: coin.version,
-					digest: coin.digest,
-					balance: coin.balance,
-					type: normalizeStructTag(`0x2::coin::Coin<${coin.coinType}>`),
-					owner: {
-						$kind: 'AddressOwner' as const,
-						AddressOwner: options.owner,
-					},
-				}),
-			),
+			objects: coins.data.map((coin): SuiClientTypes.Coin => ({
+				objectId: coin.coinObjectId,
+				version: coin.version,
+				digest: coin.digest,
+				balance: coin.balance,
+				type: normalizeStructTag(`0x2::coin::Coin<${coin.coinType}>`),
+				owner: {
+					$kind: 'AddressOwner' as const,
+					AddressOwner: options.owner,
+				},
+			})),
 			hasNextPage: coins.hasNextPage,
 			cursor: coins.nextCursor ?? null,
 		};
@@ -815,20 +813,18 @@ export class JSONRpcCoreClient extends CoreClient {
 		});
 
 		return {
-			events: page.data.map(
-				(event): SuiClientTypes.EventEntry => ({
-					packageId: normalizeSuiAddress(event.packageId),
-					module: event.transactionModule,
-					sender: normalizeSuiAddress(event.sender),
-					eventType: normalizeStructTag(event.type),
-					bcs: event.bcsEncoding === 'base58' ? fromBase58(event.bcs) : fromBase64(event.bcs),
-					json: (event.parsedJson as Record<string, unknown>) ?? null,
-					// queryEvents responses do not include checkpoint information
-					checkpoint: null,
-					transactionDigest: event.id.txDigest,
-					eventIndex: Number(event.id.eventSeq),
-				}),
-			),
+			events: page.data.map((event): SuiClientTypes.EventEntry => ({
+				packageId: normalizeSuiAddress(event.packageId),
+				module: event.transactionModule,
+				sender: normalizeSuiAddress(event.sender),
+				eventType: normalizeStructTag(event.type),
+				bcs: event.bcsEncoding === 'base58' ? fromBase58(event.bcs) : fromBase64(event.bcs),
+				json: (event.parsedJson as Record<string, unknown>) ?? null,
+				// queryEvents responses do not include checkpoint information
+				checkpoint: null,
+				transactionDigest: event.id.txDigest,
+				eventIndex: Number(event.id.eventSeq),
+			})),
 			hasNextPage: page.hasNextPage,
 			startCursor: page.data.length ? JSON.stringify(page.data[0].id) : null,
 			endCursor:

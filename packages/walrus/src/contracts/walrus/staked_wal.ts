@@ -184,8 +184,7 @@ export interface JoinArguments {
 export interface JoinOptions {
 	package?: string;
 	arguments:
-		| JoinArguments
-		| [sw: RawTransactionArgument<string>, other: RawTransactionArgument<string>];
+		JoinArguments | [sw: RawTransactionArgument<string>, other: RawTransactionArgument<string>];
 }
 /**
  * Joins the staked WAL with another staked WAL, adding the `principal` of the

@@ -239,8 +239,7 @@ export function newWithCustomOwnerCapsV2<App extends BcsType<any>>(
 ) {
 	const packageAddress = options.package ?? '@deepbook/core';
 	const argumentsTypes = [`${options.typeArguments[0]}`, null, 'address'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['Witness', 'deepbookRegistry', 'owner'];
 	return (tx: Transaction) =>

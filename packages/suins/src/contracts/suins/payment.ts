@@ -175,8 +175,7 @@ export interface FinalizePaymentOptions<A extends BcsType<any>> {
 export function finalizePayment<A extends BcsType<any>>(options: FinalizePaymentOptions<A>) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [null, null, `${options.typeArguments[0]}`, null] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['intent', 'suins', 'app', 'coin'];
 	return (tx: Transaction) =>
@@ -252,8 +251,7 @@ export interface RegisterArguments {
 export interface RegisterOptions {
 	package?: string;
 	arguments:
-		| RegisterArguments
-		| [receipt: TransactionArgument, suins: RawTransactionArgument<string>];
+		RegisterArguments | [receipt: TransactionArgument, suins: RawTransactionArgument<string>];
 }
 /**
  * Register a domain with the given receipt. This is a hot-potato and can only be

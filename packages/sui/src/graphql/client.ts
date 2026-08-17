@@ -15,10 +15,7 @@ import { normalizeStructTag } from '../utils/sui-types.js';
 import { deriveDynamicFieldID } from '../utils/dynamic-fields.js';
 import type { TransactionPlugin } from '../transactions/index.js';
 
-export type GraphQLDocument<
-	Result = Record<string, unknown>,
-	Variables = Record<string, unknown>,
-> =
+export type GraphQLDocument<Result = Record<string, unknown>, Variables = Record<string, unknown>> =
 	| string
 	| DocumentNode
 	| TypedDocumentString<Result, Variables>

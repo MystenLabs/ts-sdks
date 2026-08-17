@@ -126,8 +126,7 @@ export interface SetExtraFieldsArguments {
 export interface SetExtraFieldsOptions {
 	package?: string;
 	arguments:
-		| SetExtraFieldsArguments
-		| [metadata: TransactionArgument, extraFields: TransactionArgument];
+		SetExtraFieldsArguments | [metadata: TransactionArgument, extraFields: TransactionArgument];
 }
 /** Set an extra field of the Validator. */
 export function setExtraFields(options: SetExtraFieldsOptions) {

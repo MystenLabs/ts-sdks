@@ -54,8 +54,8 @@
 	},
 	"homepage": "https://github.com/MystenLabs/ts-sdks/tree/main/packages/signers#readme",
 	"devDependencies": {
-		"@types/node": "^25.9.3",
-		"typescript": "^6.0.3"
+		"@types/node": "^26.2.0",
+		"typescript": "^7.0.2"
 	},
 	"dependencies": {
 		"@mysten/aws-kms-signer": "workspace:^",

@@ -52,8 +52,7 @@ export function borrow<T0 extends BcsType<any>>(options: BorrowOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = ['0x2::object::ID', `${options.typeArguments[0]}`] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -73,8 +72,7 @@ export function borrowMut<T0 extends BcsType<any>>(options: BorrowMutOptions<T0>
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = ['0x2::object::ID', `${options.typeArguments[0]}`] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -94,8 +92,7 @@ export function remove<T0 extends BcsType<any>>(options: RemoveOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = ['0x2::object::ID', `${options.typeArguments[0]}`] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -115,8 +112,7 @@ export function exists_<T0 extends BcsType<any>>(options: Exists_Options<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = ['0x2::object::ID', `${options.typeArguments[0]}`] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -136,8 +132,7 @@ export function removeIfExists<T0 extends BcsType<any>>(options: RemoveIfExistsO
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = ['0x2::object::ID', `${options.typeArguments[0]}`] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -157,8 +152,7 @@ export function existsWithType<T0 extends BcsType<any>>(options: ExistsWithTypeO
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = ['0x2::object::ID', `${options.typeArguments[0]}`] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	return (tx: Transaction) =>
 		tx.moveCall({

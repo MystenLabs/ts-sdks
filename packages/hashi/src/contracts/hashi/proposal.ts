@@ -94,8 +94,7 @@ export interface VoteOptions {
 export function vote(options: VoteOptions) {
 	const packageAddress = options.package ?? '@local-pkg/hashi';
 	const argumentsTypes = [null, 'address', '0x2::object::ID', '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['hashi', 'validatorAddress', 'proposalId'];
 	return (tx: Transaction) =>
