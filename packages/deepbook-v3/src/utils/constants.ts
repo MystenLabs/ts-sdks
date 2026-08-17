@@ -32,9 +32,19 @@ export const mainnetPackageIds = {
 	DEEPBOOK_PACKAGE_ID: '0x0e735f8c93a95722efd73521aca7a7652c0bb71ed1daf41b26dfd7d1ff71f748',
 	REGISTRY_ID: '0xaf16199a2dff736e9f07a845f23c5da6df6f756eddb631aed9d24a93efc4549d',
 	DEEP_TREASURY_ID: '0x032abf8948dda67a271bcc18e776dbbcfb0d58c8d288a700ff0d5521e57a1ffe',
-	MARGIN_PACKAGE_ID: '0x8af25e44bcdfb8b19ceffef5a1bd457a89a4270b8237e1025f30cd26acb4edbe',
+	// deepbook_margin v7 — the first mainnet package carrying the upgraded-Pyth modules.
+	// Its gate constant is `MARGIN_VERSION = 7`, and every entrypoint asserts the registry
+	// allows that version, so this id only works once `enable_version(7)` has run on the
+	// mainnet MarginRegistry. Until then v7 flows abort `EPackageVersionDisabled`.
+	MARGIN_PACKAGE_ID: '0x55ee8099674e46266df2bf0ffed9569e1511aa269f2a9b8c63a2c72f16404e72',
 	MARGIN_V1: '0x97d9473771b01f77b0940c589484184b49f6444627ec121314fae6a6d36fb86b',
 	MARGIN_REGISTRY_ID: '0x0e40998b359a9ccbab22a98ed21bd4346abf19158bc7980c8291908086b3a742',
+	// margin_liquidation v4 — the latest mainnet publication, and it predates the upgraded
+	// entrypoints: its `liquidation_vault` exposes only `liquidate_base`/`liquidate_quote`.
+	// `MarginLiquidationsContract` targets the `_upgraded` pair, so those two builders have
+	// no mainnet target until `margin_liquidation` is upgraded there. Every other vault
+	// entrypoint (deposit, withdraw, balance, swaps, trader authorization) takes no oracle
+	// and works against this id today.
 	LIQUIDATION_PACKAGE_ID: '0xf17bff1bf21e9587acc5708714e520aa967f82f256f626938a33c4109b08adb9',
 } satisfies DeepbookPackageIds;
 

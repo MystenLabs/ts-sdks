@@ -19,9 +19,16 @@ changes is the module each one targets and the price object it passes. Entrypoin
 oracle — manager creation, repayment, referrals, cancels, staking, governance and every getter —
 stay on the base modules, which is the only place they exist.
 
-**Requires the upgraded margin package on the target network.** The upgraded modules do not exist in
-earlier `deepbook_margin` publications, so this release must not be used against a network whose
-margin package predates them.
+**Requires the upgraded margin package on the target network, enabled.** The upgraded modules do not
+exist in earlier `deepbook_margin` publications, so this release must not be used against a network
+whose margin package predates them. Publication alone is not enough: each package asserts its own
+`MARGIN_VERSION` against the registry's allowed versions, so the version must also be enabled on
+that network's `MarginRegistry` or every entrypoint aborts `EPackageVersionDisabled`.
+
+**`liquidateBase` / `liquidateQuote` have no mainnet target yet.** They call
+`liquidation_vault::liquidate_base_upgraded` / `liquidate_quote_upgraded`, which exist in
+`margin_liquidation` on testnet but not in the current mainnet publication. Every other vault
+method takes no oracle and is unaffected.
 
 Price update data is now fetched from Hermes v2 (`/v2/updates/price/latest`) instead of the
 deprecated v1 `/api/latest_vaas`; the update bytes are identical, though the response envelopes
@@ -35,7 +42,8 @@ way a whole `pyth` config does. Supply the token at runtime; no credential ships
 fall back to a DeepBook-operated proxy, which is not deployed yet, so that path currently throws a
 `ConfigurationError` naming the field to set.
 
-Testnet package ids move to `deepbook_margin` v16 and `margin_liquidation` v4, and testnet coins
+Package ids move to `deepbook_margin` v16 on testnet and v7 on mainnet, and `margin_liquidation` v4
+on testnet; mainnet `margin_liquidation` is unchanged, having no upgraded publication. Testnet coins
 carry the feed ids its migrated `MarginRegistry` is configured with. DBTC is testnet's wrapped BTC
 and takes Crypto.XBTC/USD, the same feed mainnet XBTC uses, the upgraded deployment carrying no
 distinct DBTC feed. Mainnet XBTC's upgraded price object was created on
