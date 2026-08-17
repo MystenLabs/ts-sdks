@@ -23,6 +23,7 @@ export { MarginTPSLContract } from './transactions/marginTPSL.js';
 
 // Pyth price feed integration
 export { SuiPythClient, SuiPriceServiceConnection } from './pyth/pyth.js';
+export type { PriceServiceConnectionConfig } from './pyth/PriceServiceConnection.js';
 
 // BCS types for parsing on-chain data
 export { Account, Balances, Order, OrderDeepPrice, VecSet } from './types/bcs.js';
@@ -34,6 +35,7 @@ export type {
 	Pool,
 	MarginManager,
 	MarginPool,
+	PythConfig,
 	Config,
 } from './types/index.js';
 
@@ -106,6 +108,8 @@ export {
 	testnetPackageIds,
 	mainnetPythConfigs,
 	testnetPythConfigs,
+	PYTH_UPGRADED_HERMES,
+	DEEPBOOK_HERMES_PROXY,
 } from './utils/constants.js';
 export {
 	DEEP_SCALAR,

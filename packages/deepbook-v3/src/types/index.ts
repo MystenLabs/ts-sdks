@@ -25,6 +25,22 @@ export interface Coin {
 	priceInfoObjectId?: string;
 }
 
+/** State objects identifying the Pyth deployment margin prices against. */
+export interface PythConfig {
+	pythStateId: string;
+	wormholeStateId: string;
+	/** Hermes endpoint serving update data for this deployment. */
+	hermesEndpoint?: string;
+	/**
+	 * Bearer token for the Hermes endpoint. The one serving Pyth's upgraded Core answers
+	 * 401 without it, so pushing price updates needs this set.
+	 *
+	 * Prefer the client-level `pythAccessToken` option, which sets this without having to
+	 * restate the state object ids. Supply the token at runtime — do not commit it.
+	 */
+	accessToken?: string;
+}
+
 export interface Pool {
 	address: string;
 	baseCoin: string;

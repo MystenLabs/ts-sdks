@@ -36,6 +36,65 @@ export const ConversionConfig = new MoveStruct({
 		pyth_decimals: bcs.u8(),
 	},
 });
+export const PythReading = new MoveStruct({
+	name: `${$moduleName}::PythReading`,
+	fields: {
+		price: bcs.u64(),
+		decimals: bcs.u8(),
+		/**
+		 * `some` only for validated reads. The confidence bound is a _pricing_ guard, not
+		 * a read guard: it is asserted in `price_config`, so a reading taken purely for
+		 * telemetry (the deposit event) is never rejected for a wide interval. Unvalidated
+		 * reads carry `none` and skip the check, as they always have.
+		 */
+		conf: bcs.option(bcs.u64()),
+		/**
+		 * The asset this price is _for_, stamped by the reader from the same config row
+		 * the feed id was checked against. `price_config` asserts it matches the type it
+		 * is being consumed as, so a reading routed to the wrong leg aborts instead of
+		 * silently mis-pricing. Without it, transposing the base and quote readings at a
+		 * call site is invisible: both are well-formed, both pass every other guard.
+		 */
+		coin_type: type_name.TypeName,
+	},
+});
+export interface NewCoinTypeDataArguments {
+	CoinMetadata: RawTransactionArgument<string>;
+	PriceFeedId: RawTransactionArgument<Array<number>>;
+	MaxConfBps: RawTransactionArgument<number | bigint>;
+	MaxEwmaDifferenceBps: RawTransactionArgument<number | bigint>;
+}
+export interface NewCoinTypeDataOptions {
+	package?: string;
+	arguments:
+		| NewCoinTypeDataArguments
+		| [
+				CoinMetadata: RawTransactionArgument<string>,
+				PriceFeedId: RawTransactionArgument<Array<number>>,
+				MaxConfBps: RawTransactionArgument<number | bigint>,
+				MaxEwmaDifferenceBps: RawTransactionArgument<number | bigint>,
+		  ];
+	typeArguments: [string];
+}
+/**
+ * Superseded by `new_coin_type_data_from_currency`, which reads decimals from
+ * `Currency` instead of trusting the caller-supplied `CoinMetadata`. Retained as
+ * an aborting stub because it is public in the deployed package: a `compatible`
+ * upgrade cannot drop a public function.
+ */
+export function newCoinTypeData(options: NewCoinTypeDataOptions) {
+	const packageAddress = options.package ?? '@deepbook/margin';
+	const argumentsTypes = [null, 'vector<u8>', 'u64', 'u64'] satisfies (string | null)[];
+	const parameterNames = ['CoinMetadata', 'PriceFeedId', 'MaxConfBps', 'MaxEwmaDifferenceBps'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'oracle',
+			function: 'new_coin_type_data',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
 export interface NewCoinTypeDataFromCurrencyArguments {
 	currency: RawTransactionArgument<string>;
 	priceFeedId: RawTransactionArgument<Array<number>>;

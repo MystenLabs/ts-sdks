@@ -282,6 +282,7 @@ export interface LiquidateBaseOptions {
 		  ];
 	typeArguments: [string, string];
 }
+/** Twin: `liquidate_base_upgraded`. Edit both. */
 export function liquidateBase(options: LiquidateBaseOptions) {
 	const packageAddress = options.package ?? '@deepbook/margin-liquidation';
 	const argumentsTypes = [
@@ -344,6 +345,7 @@ export interface LiquidateQuoteOptions {
 		  ];
 	typeArguments: [string, string];
 }
+/** Twin: `liquidate_quote_upgraded`. Edit both. */
 export function liquidateQuote(options: LiquidateQuoteOptions) {
 	const packageAddress = options.package ?? '@deepbook/margin-liquidation';
 	const argumentsTypes = [
@@ -395,6 +397,146 @@ export function balance(options: BalanceOptions) {
 			package: packageAddress,
 			module: 'liquidation_vault',
 			function: 'balance',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface LiquidateBaseUpgradedArguments {
+	self: RawTransactionArgument<string>;
+	marginManager: RawTransactionArgument<string>;
+	registry: RawTransactionArgument<string>;
+	baseOracle: RawTransactionArgument<string>;
+	quoteOracle: RawTransactionArgument<string>;
+	baseMarginPool: RawTransactionArgument<string>;
+	quoteMarginPool: RawTransactionArgument<string>;
+	pool: RawTransactionArgument<string>;
+	repayAmount: RawTransactionArgument<number | bigint | null>;
+}
+export interface LiquidateBaseUpgradedOptions {
+	package?: string;
+	arguments:
+		| LiquidateBaseUpgradedArguments
+		| [
+				self: RawTransactionArgument<string>,
+				marginManager: RawTransactionArgument<string>,
+				registry: RawTransactionArgument<string>,
+				baseOracle: RawTransactionArgument<string>,
+				quoteOracle: RawTransactionArgument<string>,
+				baseMarginPool: RawTransactionArgument<string>,
+				quoteMarginPool: RawTransactionArgument<string>,
+				pool: RawTransactionArgument<string>,
+				repayAmount: RawTransactionArgument<number | bigint | null>,
+		  ];
+	typeArguments: [string, string];
+}
+/**
+ * `liquidate_base` against Pyth's upgraded Core.
+ *
+ * Pyth is replacing Core with a separately published package, so its
+ * `PriceInfoObject` is a distinct Move type and `liquidate_base`'s frozen
+ * signature can never accept it. Once Pyth stops publishing legacy Core the legacy
+ * entry aborts on staleness by itself, and this becomes the only way the vault can
+ * liquidate. The gate (`should_liquidate`) and the settlement
+ * (`settle_base_liquidation`) are shared with the legacy entry; the body between
+ * them is duplicated, because the two `PriceInfoObject` types cannot be unified.
+ * Twin: `liquidate_base`. Edit both.
+ */
+export function liquidateBaseUpgraded(options: LiquidateBaseUpgradedOptions) {
+	const packageAddress = options.package ?? '@deepbook/margin-liquidation';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'0x1::option::Option<u64>',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'self',
+		'marginManager',
+		'registry',
+		'baseOracle',
+		'quoteOracle',
+		'baseMarginPool',
+		'quoteMarginPool',
+		'pool',
+		'repayAmount',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'liquidation_vault',
+			function: 'liquidate_base_upgraded',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface LiquidateQuoteUpgradedArguments {
+	self: RawTransactionArgument<string>;
+	marginManager: RawTransactionArgument<string>;
+	registry: RawTransactionArgument<string>;
+	baseOracle: RawTransactionArgument<string>;
+	quoteOracle: RawTransactionArgument<string>;
+	baseMarginPool: RawTransactionArgument<string>;
+	quoteMarginPool: RawTransactionArgument<string>;
+	pool: RawTransactionArgument<string>;
+	repayAmount: RawTransactionArgument<number | bigint | null>;
+}
+export interface LiquidateQuoteUpgradedOptions {
+	package?: string;
+	arguments:
+		| LiquidateQuoteUpgradedArguments
+		| [
+				self: RawTransactionArgument<string>,
+				marginManager: RawTransactionArgument<string>,
+				registry: RawTransactionArgument<string>,
+				baseOracle: RawTransactionArgument<string>,
+				quoteOracle: RawTransactionArgument<string>,
+				baseMarginPool: RawTransactionArgument<string>,
+				quoteMarginPool: RawTransactionArgument<string>,
+				pool: RawTransactionArgument<string>,
+				repayAmount: RawTransactionArgument<number | bigint | null>,
+		  ];
+	typeArguments: [string, string];
+}
+/**
+ * `liquidate_quote` against Pyth's upgraded Core. See `liquidate_base_upgraded`.
+ * Twin: `liquidate_quote`. Edit both.
+ */
+export function liquidateQuoteUpgraded(options: LiquidateQuoteUpgradedOptions) {
+	const packageAddress = options.package ?? '@deepbook/margin-liquidation';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'0x1::option::Option<u64>',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'self',
+		'marginManager',
+		'registry',
+		'baseOracle',
+		'quoteOracle',
+		'baseMarginPool',
+		'quoteMarginPool',
+		'pool',
+		'repayAmount',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'liquidation_vault',
+			function: 'liquidate_quote_upgraded',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 			typeArguments: options.typeArguments,
 		});

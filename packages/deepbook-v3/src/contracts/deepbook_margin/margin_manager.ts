@@ -155,7 +155,8 @@ export interface AddConditionalOrderOptions {
  * _limit_ pending order is intentionally transient — when it triggers, the resting
  * order it places is clamped to `max_order_ttl_ms` (default 3 days) by
  * `clamp_expire_timestamp`, the same stale-price guard as any margin limit order.
- * For a permanent stop, use a market pending order.
+ * For a permanent stop, use a market pending order. Twin:
+ * `margin_manager_upgraded::add_conditional_order`. Edit both.
  */
 export function addConditionalOrder(options: AddConditionalOrderOptions) {
 	const packageAddress = options.package ?? '@deepbook/margin';
@@ -326,7 +327,8 @@ export interface ExecuteConditionalOrdersV2Options {
  * v2 adds `base_margin_pool` + `quote_margin_pool` parameters and enforces a
  * post-fill `risk_ratio >= min_borrow_risk_ratio` invariant inside the inner loop.
  * If any single triggered fill would breach that floor, the entire txn aborts — no
- * partial-state landing.
+ * partial-state landing. Twin:
+ * `margin_manager_upgraded::execute_conditional_orders_v2`. Edit both.
  */
 export function executeConditionalOrdersV2(options: ExecuteConditionalOrdersV2Options) {
 	const packageAddress = options.package ?? '@deepbook/margin';
@@ -396,7 +398,8 @@ export interface ExecuteConditionalOrdersV3Options {
  * This is what lets a stop-loss fire in the `liquidation..min_borrow` danger band:
  * a swap alone only lowers the oracle-valued ratio (so the v2 borrow-floor gate
  * rejects it), while repaying actually improves it. If a single triggered fill
- * would worsen net solvency the whole txn aborts — no partial-state landing.
+ * would worsen net solvency the whole txn aborts — no partial-state landing. Twin:
+ * `margin_manager_upgraded::execute_conditional_orders_v3`. Edit both.
  */
 export function executeConditionalOrdersV3(options: ExecuteConditionalOrdersV3Options) {
 	const packageAddress = options.package ?? '@deepbook/margin';
@@ -618,6 +621,60 @@ export function unsetMarginManagerReferral(options: UnsetMarginManagerReferralOp
 			typeArguments: options.typeArguments,
 		});
 }
+export interface SetReferralArguments {
+	Self: RawTransactionArgument<string>;
+	ReferralCap: RawTransactionArgument<string>;
+}
+export interface SetReferralOptions {
+	package?: string;
+	arguments:
+		| SetReferralArguments
+		| [Self: RawTransactionArgument<string>, ReferralCap: RawTransactionArgument<string>];
+	typeArguments: [string, string];
+}
+/**
+ * Superseded by `set_margin_manager_referral`, which takes a pool-scoped
+ * `DeepBookPoolReferral`. Retained as an aborting stub because it is public in the
+ * deployed package: a `compatible` upgrade cannot drop a public function.
+ */
+export function setReferral(options: SetReferralOptions) {
+	const packageAddress = options.package ?? '@deepbook/margin';
+	const argumentsTypes = [null, null] satisfies (string | null)[];
+	const parameterNames = ['Self', 'ReferralCap'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'margin_manager',
+			function: 'set_referral',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface UnsetReferralArguments {
+	Self: RawTransactionArgument<string>;
+}
+export interface UnsetReferralOptions {
+	package?: string;
+	arguments: UnsetReferralArguments | [Self: RawTransactionArgument<string>];
+	typeArguments: [string, string];
+}
+/**
+ * Superseded by `unset_margin_manager_referral`, which is pool-scoped. Retained as
+ * an aborting stub for the same reason as `set_referral`.
+ */
+export function unsetReferral(options: UnsetReferralOptions) {
+	const packageAddress = options.package ?? '@deepbook/margin';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['Self'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'margin_manager',
+			function: 'unset_referral',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
 export interface DepositArguments {
 	self: RawTransactionArgument<string>;
 	registry: RawTransactionArgument<string>;
@@ -640,7 +697,8 @@ export interface DepositOptions {
 }
 /**
  * Deposit a coin into the margin manager. The coin must be of the same type as
- * either the base, quote, or DEEP.
+ * either the base, quote, or DEEP. Twin: `margin_manager_upgraded::deposit`. Edit
+ * both.
  */
 export function deposit(options: DepositOptions) {
 	const packageAddress = options.package ?? '@deepbook/margin';
@@ -687,7 +745,8 @@ export interface WithdrawOptions {
 /**
  * Withdraw a specified amount of an asset from the margin manager. The asset must
  * be of the same type as either the base, quote, or DEEP. The withdrawal is
- * subject to the risk ratio limit.
+ * subject to the risk ratio limit. Twin: `margin_manager_upgraded::withdraw`. Edit
+ * both.
  */
 export function withdraw(options: WithdrawOptions) {
 	const packageAddress = options.package ?? '@deepbook/margin';
@@ -745,7 +804,10 @@ export interface BorrowBaseOptions {
 		  ];
 	typeArguments: [string, string];
 }
-/** Borrow the base asset using the margin manager. */
+/**
+ * Borrow the base asset using the margin manager. Twin:
+ * `margin_manager_upgraded::borrow_base`. Edit both.
+ */
 export function borrowBase(options: BorrowBaseOptions) {
 	const packageAddress = options.package ?? '@deepbook/margin';
 	const argumentsTypes = [
@@ -800,7 +862,10 @@ export interface BorrowQuoteOptions {
 		  ];
 	typeArguments: [string, string];
 }
-/** Borrow the quote asset using the margin manager. */
+/**
+ * Borrow the quote asset using the margin manager. Twin:
+ * `margin_manager_upgraded::borrow_quote`. Edit both.
+ */
 export function borrowQuote(options: BorrowQuoteOptions) {
 	const packageAddress = options.package ?? '@deepbook/margin';
 	const argumentsTypes = [
@@ -937,6 +1002,7 @@ export interface LiquidateOptions {
 		  ];
 	typeArguments: [string, string, string];
 }
+/** Twin: `margin_manager_upgraded::liquidate`. Edit both. */
 export function liquidate(options: LiquidateOptions) {
 	const packageAddress = options.package ?? '@deepbook/margin';
 	const argumentsTypes = [null, null, null, null, null, null, null, '0x2::clock::Clock'] satisfies (
@@ -985,6 +1051,7 @@ export interface RiskRatioOptions {
 		  ];
 	typeArguments: [string, string];
 }
+/** Twin: `margin_manager_upgraded::risk_ratio`. Edit both. */
 export function riskRatio(options: RiskRatioOptions) {
 	const packageAddress = options.package ?? '@deepbook/margin';
 	const argumentsTypes = [null, null, null, null, null, null, null, '0x2::clock::Clock'] satisfies (
@@ -1034,8 +1101,10 @@ export interface RiskRatioUnsafeOptions {
 	typeArguments: [string, string];
 }
 /**
- * Returns the risk ratio without validating oracle price staleness or confidence.
- * Use for read-only queries where stale prices are acceptable.
+ * Returns the risk ratio without validating staleness, EWMA divergence or
+ * confidence - only the feed id is checked. Use for read-only queries where stale
+ * prices are acceptable. Twin: `margin_manager_upgraded::risk_ratio_unsafe`. Edit
+ * both.
  */
 export function riskRatioUnsafe(options: RiskRatioUnsafeOptions) {
 	const packageAddress = options.package ?? '@deepbook/margin';
@@ -1223,7 +1292,8 @@ export interface ManagerStateOptions {
  * (manager_id, deepbook_pool_id, risk_ratio, base_asset, quote_asset, base_debt,
  * quote_debt, base_pyth_price, base_pyth_decimals, quote_pyth_price,
  * quote_pyth_decimals, current_price, lowest_trigger_above_price,
- * highest_trigger_below_price)
+ * highest_trigger_below_price) Twin: `margin_manager_upgraded::manager_state`.
+ * Edit both.
  */
 export function managerState(options: ManagerStateOptions) {
 	const packageAddress = options.package ?? '@deepbook/margin';
@@ -1245,6 +1315,66 @@ export function managerState(options: ManagerStateOptions) {
 			package: packageAddress,
 			module: 'margin_manager',
 			function: 'manager_state',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface ManagerStatesArguments {
+	marginManagers: TransactionArgument;
+	registry: RawTransactionArgument<string>;
+	baseOracle: RawTransactionArgument<string>;
+	quoteOracle: RawTransactionArgument<string>;
+	pool: RawTransactionArgument<string>;
+	baseMarginPool: RawTransactionArgument<string>;
+	quoteMarginPool: RawTransactionArgument<string>;
+}
+export interface ManagerStatesOptions {
+	package?: string;
+	arguments:
+		| ManagerStatesArguments
+		| [
+				marginManagers: TransactionArgument,
+				registry: RawTransactionArgument<string>,
+				baseOracle: RawTransactionArgument<string>,
+				quoteOracle: RawTransactionArgument<string>,
+				pool: RawTransactionArgument<string>,
+				baseMarginPool: RawTransactionArgument<string>,
+				quoteMarginPool: RawTransactionArgument<string>,
+		  ];
+	typeArguments: [string, string];
+}
+/**
+ * Returns comprehensive state information for multiple margin managers. Same as
+ * manager_state but takes a vector and returns vectors of all values. All managers
+ * must be of the same type. Twin: `margin_manager_upgraded::manager_states`. Edit
+ * both.
+ */
+export function managerStates(options: ManagerStatesOptions) {
+	const packageAddress = options.package ?? '@deepbook/margin';
+	const argumentsTypes = [
+		'vector<null>',
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'marginManagers',
+		'registry',
+		'baseOracle',
+		'quoteOracle',
+		'pool',
+		'baseMarginPool',
+		'quoteMarginPool',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'margin_manager',
+			function: 'manager_states',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 			typeArguments: options.typeArguments,
 		});
