@@ -14,11 +14,11 @@
  */
 
 import { MoveStruct } from '../utils/index.js';
-import { bcs } from '@mysten/sui/bcs';
+import { U256 } from '../../bcs/integers.js';
 const $moduleName = '@local-pkg/deepbook_predict::order';
 export const Order = new MoveStruct({
 	name: `${$moduleName}::Order`,
 	fields: {
-		id: bcs.u256(),
+		id: U256,
 	},
 });

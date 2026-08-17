@@ -1,5 +1,6 @@
 import { Transaction } from '@mysten/sui/transactions';
-import { type PredictConfig } from '../config/index.js';
+import { type GeneratedConfig } from '../config/generated.js';
+import { type UnderlyingConfig } from '../config/index.js';
 import { PredictMoveError } from '../errors.js';
 import { POS_INF_TICK } from '../ticks.js';
 import { loadLivePricer, type MarketFeeds } from '../tx/trade.js';
@@ -13,14 +14,12 @@ import { parseOptionalId, parseOptionalU64, parseU64LE, parseVectorOfIds } from 
 
 // On-chain ids of the pool's active (live, not-yet-settled) expiry markets.
 // `plp::active_expiry_markets(vault)` — see packages/predict/sources/plp/plp.move:179.
-export async function activeMarketIds(client: ReadClient, cfg: PredictConfig): Promise<string[]> {
+export async function activeMarketIds(
+	client: ReadClient,
+	config: GeneratedConfig,
+): Promise<string[]> {
 	const tx = new Transaction();
-	tx.add(
-		plp.activeExpiryMarkets({
-			package: cfg.packages.predict,
-			arguments: { vault: cfg.objects.poolVault },
-		}),
-	);
+	tx.add(plp.activeExpiryMarkets({ config }));
 	const [cmd0] = await inspectReturns(client, tx);
 	return parseVectorOfIds(cmd0[0]);
 }
@@ -30,21 +29,15 @@ export async function activeMarketIds(client: ReadClient, cfg: PredictConfig): P
 // Option<ID>` — see packages/predict/sources/registry/registry.move:53.
 export async function expiryMarketId(
 	client: ReadClient,
-	cfg: PredictConfig,
-	underlying: string,
+	config: GeneratedConfig,
+	underlying: UnderlyingConfig,
 	expiryMs: bigint,
 ): Promise<string | null> {
-	const u = cfg.underlyings[underlying];
-	if (!u) throw new Error(`unknown underlying: ${underlying}`);
 	const tx = new Transaction();
 	tx.add(
 		registry.expiryMarketId({
-			package: cfg.packages.predict,
-			arguments: {
-				registry: cfg.objects.registry,
-				propbookUnderlyingId: u.propbookUnderlyingId,
-				expiry: expiryMs,
-			},
+			config,
+			arguments: { propbookUnderlyingId: underlying.propbookUnderlyingId, expiry: expiryMs },
 		}),
 	);
 	const [cmd0] = await inspectReturns(client, tx);
@@ -86,10 +79,10 @@ function parseStateAt(cmds: Uint8Array[][], base: number): MarketState {
 
 export async function marketState(
 	client: ReadClient,
-	cfg: PredictConfig,
+	config: GeneratedConfig,
 	marketId: string,
 ): Promise<MarketState> {
-	const [state] = await marketStates(client, cfg, [marketId]);
+	const [state] = await marketStates(client, config, [marketId]);
 	return state;
 }
 
@@ -97,14 +90,14 @@ export async function marketState(
 // market, same order). Returns states aligned with `marketIds`.
 export async function marketStates(
 	client: ReadClient,
-	cfg: PredictConfig,
+	config: GeneratedConfig,
 	marketIds: readonly string[],
 ): Promise<MarketState[]> {
 	if (marketIds.length === 0) return [];
 	const tx = new Transaction();
 	for (const id of marketIds) {
 		for (const fn of STATE_FNS) {
-			tx.add(fn({ package: cfg.packages.predict, arguments: { market: id } }));
+			tx.add(fn({ config, arguments: { market: id } }));
 		}
 	}
 	const cmds = await inspectReturns(client, tx);
@@ -121,40 +114,25 @@ export async function marketStates(
 // `down` is the chain's number, not 1 − up.
 export async function rangePrices(
 	client: ReadClient,
-	cfg: PredictConfig,
+	config: GeneratedConfig,
 	marketId: string,
 	feeds: MarketFeeds,
 	strikeRaw: bigint,
 	tickSizeRaw: bigint,
 ): Promise<{ upRaw: bigint; downRaw: bigint }> {
 	const tx = new Transaction();
-	const pricer = tx.add(loadLivePricer(cfg, { expiryMarketId: marketId, ...feeds }));
+	const pricer = tx.add(loadLivePricer(config, { expiryMarketId: marketId, ...feeds }));
 	// strikeRaw is a whole tick multiple (the caller validates divisibility), so the
 	// finite boundary is `strike_from_tick(strikeRaw / tickSize, tickSize)`.
 	const strikeTick = strikeRaw / tickSizeRaw;
 	const mkStrike = (tick: bigint) =>
-		tx.add(
-			rangeCodec.strikeFromTick({
-				package: cfg.packages.predict,
-				arguments: { tick, tickSize: tickSizeRaw },
-			}),
-		);
+		tx.add(rangeCodec.strikeFromTick({ config, arguments: { tick, tickSize: tickSizeRaw } }));
 	const strike = mkStrike(strikeTick);
 	const posInf = mkStrike(POS_INF_TICK);
 	const negInf = mkStrike(0n);
 	// UP: (strike, +inf], then DOWN: (-inf, strike] — the last two commands.
-	tx.add(
-		pricing.rangePrice({
-			package: cfg.packages.predict,
-			arguments: { pricer, lower: strike, higher: posInf },
-		}),
-	);
-	tx.add(
-		pricing.rangePrice({
-			package: cfg.packages.predict,
-			arguments: { pricer, lower: negInf, higher: strike },
-		}),
-	);
+	tx.add(pricing.rangePrice({ config, arguments: { pricer, lower: strike, higher: posInf } }));
+	tx.add(pricing.rangePrice({ config, arguments: { pricer, lower: negInf, higher: strike } }));
 	const cmds = await inspectReturns(client, tx);
 	return {
 		upRaw: parseU64LE(cmds[cmds.length - 2][0]),
@@ -167,13 +145,11 @@ export async function rangePrices(
 // until the keeper seeds it).
 export async function referenceTick(
 	client: ReadClient,
-	cfg: PredictConfig,
+	config: GeneratedConfig,
 	marketId: string,
 ): Promise<bigint | null> {
 	const tx = new Transaction();
-	tx.add(
-		expiryMarket.referenceTick({ package: cfg.packages.predict, arguments: { market: marketId } }),
-	);
+	tx.add(expiryMarket.referenceTick({ config, arguments: { market: marketId } }));
 	const [cmd0] = await inspectReturns(client, tx);
 	return parseOptionalU64(cmd0[0]);
 }
@@ -189,16 +165,11 @@ export async function referenceTick(
 // drop the abort-catch.)
 export async function settlementPrice(
 	client: ReadClient,
-	cfg: PredictConfig,
+	config: GeneratedConfig,
 	marketId: string,
 ): Promise<bigint | null> {
 	const tx = new Transaction();
-	tx.add(
-		expiryMarket.settlementPrice({
-			package: cfg.packages.predict,
-			arguments: { market: marketId },
-		}),
-	);
+	tx.add(expiryMarket.settlementPrice({ config, arguments: { market: marketId } }));
 	try {
 		const [cmd0] = await inspectReturns(client, tx);
 		return parseU64LE(cmd0[0]);
@@ -220,27 +191,20 @@ export async function settlementPrice(
 // the unconsumed borrow is fine in a read-only inspect.
 export async function currentNav(
 	client: ReadClient,
-	cfg: PredictConfig,
+	config: GeneratedConfig,
 	marketId: string,
-	underlying: string,
+	underlying: UnderlyingConfig,
 ): Promise<bigint> {
-	const u = cfg.underlyings[underlying];
-	if (!u) throw new Error(`unknown underlying: ${underlying}`);
 	const tx = new Transaction();
 	const pricer = tx.add(
-		loadLivePricer(cfg, {
+		loadLivePricer(config, {
 			expiryMarketId: marketId,
-			pythFeed: u.pythFeed,
-			blockScholesValueStore: u.blockScholesValueStore,
-			blockScholesSviStore: u.blockScholesSviStore,
+			pythFeed: underlying.pythFeed,
+			blockScholesValueStore: underlying.blockScholesValueStore,
+			blockScholesSviStore: underlying.blockScholesSviStore,
 		}),
 	);
-	tx.add(
-		expiryMarket.currentNav({
-			package: cfg.packages.predict,
-			arguments: { market: marketId, pricer },
-		}),
-	);
+	tx.add(expiryMarket.currentNav({ config, arguments: { market: marketId, pricer } }));
 	const cmds = await inspectReturns(client, tx);
 	// current_nav is the last command; load_live_pricer precedes it.
 	return parseU64LE(cmds[cmds.length - 1][0]);

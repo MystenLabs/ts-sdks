@@ -233,30 +233,30 @@ export function decodeMints(cfg: PredictConfig, result: DecodableTransactionResu
 		marketId: normalizeSuiAddress(e.expiry_market_id),
 		accountId: normalizeSuiAddress(e.account_id),
 		owner: normalizeSuiAddress(e.owner),
-		orderId: BigInt(e.order_id),
-		positionRootId: BigInt(e.position_root_id),
-		lowerTick: BigInt(e.lower_tick),
-		higherTick: BigInt(e.higher_tick),
-		leverage: fromRaw(BigInt(e.leverage), 9),
-		entryProbability: fromRaw(BigInt(e.entry_probability), 9),
-		quantity: fromRaw(BigInt(e.quantity), 6),
-		netPremium: fromRaw(BigInt(e.net_premium), 6),
+		orderId: e.order_id,
+		positionRootId: e.position_root_id,
+		lowerTick: e.lower_tick,
+		higherTick: e.higher_tick,
+		leverage: fromRaw(e.leverage, 9),
+		entryProbability: fromRaw(e.entry_probability, 9),
+		quantity: fromRaw(e.quantity, 6),
+		netPremium: fromRaw(e.net_premium, 6),
 		fees: {
-			trading: fromRaw(BigInt(e.trading_fee), 6),
-			subsidy: fromRaw(BigInt(e.fee_incentive_subsidy), 6),
-			builder: fromRaw(BigInt(e.builder_fee), 6),
-			penalty: fromRaw(BigInt(e.penalty_fee), 6),
+			trading: fromRaw(e.trading_fee, 6),
+			subsidy: fromRaw(e.fee_incentive_subsidy, 6),
+			builder: fromRaw(e.builder_fee, 6),
+			penalty: fromRaw(e.penalty_fee, 6),
 		},
 		builderCodeId: optId(e.builder_code_id),
 		raw: {
-			quantity: BigInt(e.quantity),
-			netPremium: BigInt(e.net_premium),
-			tradingFee: BigInt(e.trading_fee),
-			feeIncentiveSubsidy: BigInt(e.fee_incentive_subsidy),
-			builderFee: BigInt(e.builder_fee),
-			penaltyFee: BigInt(e.penalty_fee),
-			leverage: BigInt(e.leverage),
-			entryProbability: BigInt(e.entry_probability),
+			quantity: e.quantity,
+			netPremium: e.net_premium,
+			tradingFee: e.trading_fee,
+			feeIncentiveSubsidy: e.fee_incentive_subsidy,
+			builderFee: e.builder_fee,
+			penaltyFee: e.penalty_fee,
+			leverage: e.leverage,
+			entryProbability: e.entry_probability,
 		},
 	}));
 }
@@ -277,40 +277,30 @@ export function decodeRedeems(
 			marketId: normalizeSuiAddress(e.expiry_market_id),
 			accountId: normalizeSuiAddress(e.account_id),
 			owner: normalizeSuiAddress(e.owner),
-			orderId: BigInt(e.order_id),
-			positionRootId: BigInt(e.position_root_id),
-			quantityClosed: fromRaw(BigInt(e.quantity_closed), 6),
-			remaining: fromRaw(BigInt(e.remaining_quantity), 6),
-			replacementOrderId: e.replacement_order_id == null ? null : BigInt(e.replacement_order_id),
+			orderId: e.order_id,
+			positionRootId: e.position_root_id,
+			quantityClosed: fromRaw(e.quantity_closed, 6),
+			remaining: fromRaw(e.remaining_quantity, 6),
+			replacementOrderId: e.replacement_order_id,
 			// settle_live_redeem_payment credits redeem_amount minus all three
 			// fee components — the event's redeem_amount is GROSS.
-			proceeds: fromRaw(
-				BigInt(e.redeem_amount) -
-					BigInt(e.trading_fee) -
-					BigInt(e.builder_fee) -
-					BigInt(e.penalty_fee),
-				6,
-			),
-			gross: fromRaw(BigInt(e.redeem_amount), 6),
+			proceeds: fromRaw(e.redeem_amount - e.trading_fee - e.builder_fee - e.penalty_fee, 6),
+			gross: fromRaw(e.redeem_amount, 6),
 			liquidated: false,
 			fees: {
-				trading: fromRaw(BigInt(e.trading_fee), 6),
-				builder: fromRaw(BigInt(e.builder_fee), 6),
-				penalty: fromRaw(BigInt(e.penalty_fee), 6),
+				trading: fromRaw(e.trading_fee, 6),
+				builder: fromRaw(e.builder_fee, 6),
+				penalty: fromRaw(e.penalty_fee, 6),
 			},
 			builderCodeId: optId(e.builder_code_id),
 			raw: {
-				quantityClosed: BigInt(e.quantity_closed),
-				remaining: BigInt(e.remaining_quantity),
-				proceeds:
-					BigInt(e.redeem_amount) -
-					BigInt(e.trading_fee) -
-					BigInt(e.builder_fee) -
-					BigInt(e.penalty_fee),
-				gross: BigInt(e.redeem_amount),
-				tradingFee: BigInt(e.trading_fee),
-				builderFee: BigInt(e.builder_fee),
-				penaltyFee: BigInt(e.penalty_fee),
+				quantityClosed: e.quantity_closed,
+				remaining: e.remaining_quantity,
+				proceeds: e.redeem_amount - e.trading_fee - e.builder_fee - e.penalty_fee,
+				gross: e.redeem_amount,
+				tradingFee: e.trading_fee,
+				builderFee: e.builder_fee,
+				penaltyFee: e.penalty_fee,
 			},
 		}),
 	);
@@ -325,9 +315,9 @@ export function decodeRedeems(
 			marketId: normalizeSuiAddress(e.expiry_market_id),
 			accountId: normalizeSuiAddress(e.account_id),
 			owner: normalizeSuiAddress(e.owner),
-			orderId: BigInt(e.order_id),
-			positionRootId: BigInt(e.position_root_id),
-			quantityClosed: fromRaw(BigInt(e.quantity_closed), 6),
+			orderId: e.order_id,
+			positionRootId: e.position_root_id,
+			quantityClosed: fromRaw(e.quantity_closed, 6),
 			remaining: 0,
 			replacementOrderId: null,
 			proceeds: 0,
@@ -336,7 +326,7 @@ export function decodeRedeems(
 			fees: { trading: 0, builder: 0, penalty: 0 },
 			builderCodeId: null,
 			raw: {
-				quantityClosed: BigInt(e.quantity_closed),
+				quantityClosed: e.quantity_closed,
 				remaining: 0n,
 				proceeds: 0n,
 				gross: 0n,
@@ -363,15 +353,15 @@ export function decodeClaims(
 		marketId: normalizeSuiAddress(e.expiry_market_id),
 		accountId: normalizeSuiAddress(e.account_id),
 		owner: normalizeSuiAddress(e.owner),
-		orderId: BigInt(e.order_id),
-		positionRootId: BigInt(e.position_root_id),
-		quantityClosed: fromRaw(BigInt(e.quantity_closed), 6),
-		settlementPrice: fromRaw(BigInt(e.settlement_price), 9),
-		payout: fromRaw(BigInt(e.payout_amount), 6),
+		orderId: e.order_id,
+		positionRootId: e.position_root_id,
+		quantityClosed: fromRaw(e.quantity_closed, 6),
+		settlementPrice: fromRaw(e.settlement_price, 9),
+		payout: fromRaw(e.payout_amount, 6),
 		raw: {
-			quantityClosed: BigInt(e.quantity_closed),
-			settlementPrice: BigInt(e.settlement_price),
-			payout: BigInt(e.payout_amount),
+			quantityClosed: e.quantity_closed,
+			settlementPrice: e.settlement_price,
+			payout: e.payout_amount,
 		},
 	}));
 }
@@ -403,9 +393,9 @@ function decodeBalanceChanges(
 	return decodeAll(result, cfg.packages.account, 'account_events', name, layout).map((e) => ({
 		accountId: normalizeSuiAddress(e.account_id),
 		coinType: e.coin_type,
-		amount: fromRaw(BigInt(e.amount), 6),
-		newBalance: fromRaw(BigInt(e.new_balance), 6),
-		raw: { amount: BigInt(e.amount), newBalance: BigInt(e.new_balance) },
+		amount: fromRaw(e.amount, 6),
+		newBalance: fromRaw(e.new_balance, 6),
+		raw: { amount: e.amount, newBalance: e.new_balance },
 	}));
 }
 
@@ -437,9 +427,9 @@ export function decodePlpRequests(
 			vaultId: normalizeSuiAddress(e.pool_vault_id),
 			accountId: normalizeSuiAddress(e.account_id),
 			recipient: normalizeSuiAddress(e.recipient),
-			index: BigInt(e.index),
-			amount: fromRaw(BigInt(e.amount), 6),
-			raw: { amount: BigInt(e.amount) },
+			index: e.index,
+			amount: fromRaw(e.amount, 6),
+			raw: { amount: e.amount },
 		});
 	return [
 		...decodeAll(result, pkg, 'vault_events', 'SupplyRequested', vaultEvents.SupplyRequested).map(
@@ -469,10 +459,10 @@ export function decodePlpCancels(
 		vaultId: normalizeSuiAddress(e.pool_vault_id),
 		accountId: normalizeSuiAddress(e.account_id),
 		recipient: normalizeSuiAddress(e.recipient),
-		index: BigInt(e.index),
+		index: e.index,
 		isSupply: e.is_supply,
-		amount: fromRaw(BigInt(e.amount), 6),
-		raw: { amount: BigInt(e.amount) },
+		amount: fromRaw(e.amount, 6),
+		raw: { amount: e.amount },
 	}));
 }
 

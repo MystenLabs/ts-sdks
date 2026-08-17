@@ -24,10 +24,14 @@ export interface IdArguments {
 export interface IdOptions {
 	package?: string;
 	arguments: IdArguments | [cap: RawTransactionArgument<string>];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /** Returns the capability identity for administration tooling and object discovery. */
 export function id(options: IdOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['cap'];
 	return (tx: Transaction) =>

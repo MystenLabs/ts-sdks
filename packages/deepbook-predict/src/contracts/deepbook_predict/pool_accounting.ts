@@ -16,6 +16,7 @@
 
 import { MoveStruct } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
+import { U64 } from '../../bcs/integers.js';
 import * as balance from './deps/sui/balance.js';
 import * as table from './deps/sui/table.js';
 const $moduleName = '@local-pkg/deepbook_predict::pool_accounting';
@@ -23,7 +24,7 @@ export const ActiveExpiry = new MoveStruct({
 	name: `${$moduleName}::ActiveExpiry`,
 	fields: {
 		expiry_market_id: bcs.Address,
-		expiry_ms: bcs.u64(),
+		expiry_ms: U64,
 	},
 });
 export const Ledger = new MoveStruct({
@@ -39,40 +40,40 @@ export const Ledger = new MoveStruct({
 		 */
 		registered_expiries: table.Table,
 		/** Pricing debit basis: DUSDC sent to expiries plus materialized terminal profit. */
-		profit_basis_debits: bcs.u64(),
+		profit_basis_debits: U64,
 		/** Pricing credit basis: all DUSDC received back from expiries. */
-		profit_basis_credits: bcs.u64(),
+		profit_basis_credits: U64,
 		/**
 		 * Aggregate terminal losses that later terminal profits must recover first; losses
 		 * do not claw back profit that was already materialized.
 		 */
-		net_losses_to_fill: bcs.u64(),
+		net_losses_to_fill: U64,
 		/**
 		 * Protocol profit already materialized into the debit basis but not yet physically
 		 * moved to the reserve because idle was deployed in other active markets at
 		 * materialization. Excluded from LP value until drained.
 		 */
-		pending_protocol_profit: bcs.u64(),
+		pending_protocol_profit: U64,
 	},
 });
 export const RegisteredExpiry = new MoveStruct({
 	name: `${$moduleName}::RegisteredExpiry`,
 	fields: {
 		/** DUSDC pool allocation cap snapshotted when this expiry was created. */
-		max_expiry_allocation: bcs.u64(),
+		max_expiry_allocation: U64,
 		/** Minimum DUSDC cash target snapshotted when this expiry was created. */
-		initial_expiry_cash: bcs.u64(),
+		initial_expiry_cash: U64,
 		/** DUSDC sent from the main pool into this expiry. */
-		sent_to_expiry: bcs.u64(),
+		sent_to_expiry: U64,
 		/** DUSDC returned from this expiry to the main pool. */
-		received_from_expiry: bcs.u64(),
+		received_from_expiry: U64,
 		/** Absolute lifetime fee-incentive cap snapshotted when this expiry was registered. */
-		fee_incentive_lifetime_cap: bcs.u64(),
+		fee_incentive_lifetime_cap: U64,
 		/** Lifetime sponsor-funded fee incentives allocated to this expiry. */
-		fee_incentives_allocated: bcs.u64(),
+		fee_incentives_allocated: U64,
 		/** True once this expiry has started terminal profit/loss accounting. */
 		terminal_accounting_started: bcs.bool(),
 		/** Received amount already consumed by terminal accounting. */
-		terminal_received_watermark: bcs.u64(),
+		terminal_received_watermark: U64,
 	},
 });

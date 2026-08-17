@@ -15,6 +15,7 @@
 
 import { type BcsType, bcs } from '@mysten/sui/bcs';
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
+import { U64, U128, U256 } from '../../bcs/integers.js';
 import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as table from './deps/sui/table.js';
 const $moduleName = '@local-pkg/propbook::block_scholes_store';
@@ -33,15 +34,15 @@ export function BsRead<Value extends BcsType<any>>(...typeParameters: [Value]) {
 			 * value that has not changed. The provider's per-series replay key: ordering keys
 			 * on this first.
 			 */
-			model_timestamp_ms: bcs.u64(),
+			model_timestamp_ms: U64,
 			/**
 			 * Envelope time of the batch this observation arrived in, advancing on every
 			 * provider flush. Transport metadata: ordering falls back to it only between equal
 			 * model times, and consumers price from the model time, never from this.
 			 */
-			published_at_ms: bcs.u64(),
+			published_at_ms: U64,
 			/** Sui clock time when the accepting transaction executed. */
-			recorded_at_ms: bcs.u64(),
+			recorded_at_ms: U64,
 			/** Digest of the transaction that accepted this observation. */
 			writer_digest: bcs.vector(bcs.u8()),
 			value: typeParameters[0],
@@ -51,13 +52,13 @@ export function BsRead<Value extends BcsType<any>>(...typeParameters: [Value]) {
 export const SVIParams = new MoveStruct({
 	name: `${$moduleName}::SVIParams`,
 	fields: {
-		a_magnitude: bcs.u128(),
+		a_magnitude: U128,
 		a_is_negative: bcs.bool(),
-		b: bcs.u128(),
-		sigma: bcs.u128(),
-		rho_magnitude: bcs.u128(),
+		b: U128,
+		sigma: U128,
+		rho_magnitude: U128,
 		rho_is_negative: bcs.bool(),
-		m_magnitude: bcs.u128(),
+		m_magnitude: U128,
 		m_is_negative: bcs.bool(),
 	},
 });
@@ -70,7 +71,7 @@ export const BlockScholesValueStore = new MoveStruct({
 		 * Package version this store runs at; writes require an exact match and `migrate`
 		 * advances it forward-only after a package upgrade.
 		 */
-		version: bcs.u64(),
+		version: U64,
 		values: table.Table,
 	},
 });
@@ -79,7 +80,7 @@ export const BlockScholesSVIStore = new MoveStruct({
 	fields: {
 		id: bcs.Address,
 		block_scholes_base_asset: bcs.string(),
-		version: bcs.u64(),
+		version: U64,
 		svis: table.Table,
 	},
 });
@@ -94,11 +95,11 @@ export function BlockScholesObservationRecorded<Observation extends BcsType<any>
 		name: `${$moduleName}::BlockScholesObservationRecorded<${typeParameters[0].name as Observation['name']}>`,
 		fields: {
 			propbook_oracle_id: bcs.Address,
-			sid: bcs.u256(),
+			sid: U256,
 			/** `0` = spot, `1` = forward, and `2` = SVI. */
 			series_kind: bcs.u8(),
 			/** Absolute unix-millisecond expiry; zero for the non-expiring spot series. */
-			expiry_ms: bcs.u64(),
+			expiry_ms: U64,
 			observation: typeParameters[0],
 		},
 	});
@@ -107,11 +108,13 @@ export const BlockScholesBatchIngested = new MoveStruct({
 	name: `${$moduleName}::BlockScholesBatchIngested`,
 	fields: {
 		propbook_oracle_id: bcs.Address,
-		published_at_ms: bcs.u64(),
+		/** `0` = spot, `1` = forward, and `2` = SVI. */
+		series_kind: bcs.u8(),
+		published_at_ms: U64,
 		/** Verified observations carried by the batch. */
-		update_count: bcs.u64(),
+		update_count: U64,
 		/** Observations that became their series' latest. */
-		applied: bcs.u64(),
+		applied: U64,
 	},
 });
 export interface ValueStoreIdArguments {

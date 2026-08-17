@@ -13,14 +13,14 @@
  */
 
 import { MoveStruct } from '../utils/index.js';
-import { bcs } from '@mysten/sui/bcs';
+import { U64 } from '../../bcs/integers.js';
 const $moduleName = '@local-pkg/deepbook_predict::ewma';
 export const EwmaState = new MoveStruct({
 	name: `${$moduleName}::EwmaState`,
 	fields: {
-		mean: bcs.u64(),
-		variance: bcs.u64(),
+		mean: U64,
+		variance: U64,
 		/** On-chain time of the last fold; guards against more than one update per ms. */
-		last_updated_timestamp_ms: bcs.u64(),
+		last_updated_timestamp_ms: U64,
 	},
 });

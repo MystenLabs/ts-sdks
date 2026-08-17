@@ -6,13 +6,14 @@
 
 import { MoveStruct } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
+import { U64 } from '../../bcs/integers.js';
 const $moduleName = '@local-pkg/deepbook_predict::builder_code_events';
 export const BuilderCodeCreated = new MoveStruct({
 	name: `${$moduleName}::BuilderCodeCreated`,
 	fields: {
 		builder_code_id: bcs.Address,
 		owner: bcs.Address,
-		builder_code_index: bcs.u64(),
+		builder_code_index: U64,
 	},
 });
 export const BuilderCodeSet = new MoveStruct({
@@ -28,6 +29,6 @@ export const BuilderFeesClaimed = new MoveStruct({
 	fields: {
 		builder_code_id: bcs.Address,
 		owner: bcs.Address,
-		amount: bcs.u64(),
+		amount: U64,
 	},
 });

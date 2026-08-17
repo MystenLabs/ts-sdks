@@ -3,6 +3,7 @@ import { Transaction } from '@mysten/sui/transactions';
 import { normalizeSuiAddress } from '@mysten/sui/utils';
 import { describe, expect, test } from 'vitest';
 import { TESTNET_CONFIG as cfg } from '../src/config/index.js';
+import { toGeneratedConfig } from '../src/config/generated.js';
 import { PredictMoveError } from '../src/errors.js';
 import { accountBalance, hasPosition } from '../src/reads/balances.js';
 import type { ReadClient } from '../src/reads/inspect.js';
@@ -64,6 +65,9 @@ function mockClient(
 	} as unknown as ReadClient;
 	return { client, captured };
 }
+
+const config = toGeneratedConfig(cfg);
+const BTC = cfg.underlyings.BTC;
 
 const ADDR_A = normalizeSuiAddress('0x1');
 const ADDR_B = normalizeSuiAddress('0xabc');
@@ -129,7 +133,7 @@ describe('markets reads', () => {
 		const { client, captured } = mockClient([
 			[bcs.vector(bcs.Address).serialize([ADDR_A, ADDR_B]).toBytes()],
 		]);
-		const ids = await activeMarketIds(client, cfg);
+		const ids = await activeMarketIds(client, config);
 		expect(targets(captured.tx!)).toEqual([`${cfg.packages.predict}::plp::active_expiry_markets`]);
 		expect(ids).toEqual([ADDR_A, ADDR_B]);
 	});
@@ -138,19 +142,14 @@ describe('markets reads', () => {
 		const { client, captured } = mockClient([
 			[bcs.option(bcs.Address).serialize(ADDR_B).toBytes()],
 		]);
-		const id = await expiryMarketId(client, cfg, 'BTC', 1_700_000_000_000n);
+		const id = await expiryMarketId(client, config, BTC, 1_700_000_000_000n);
 		expect(targets(captured.tx!)).toEqual([`${cfg.packages.predict}::registry::expiry_market_id`]);
 		expect(id).toBe(ADDR_B);
 	});
 
 	test('expiryMarketId: None → null', async () => {
 		const { client } = mockClient([[bcs.option(bcs.Address).serialize(null).toBytes()]]);
-		expect(await expiryMarketId(client, cfg, 'BTC', 1n)).toBeNull();
-	});
-
-	test('expiryMarketId: unknown underlying throws', async () => {
-		const { client } = mockClient([]);
-		await expect(expiryMarketId(client, cfg, 'DOGE', 1n)).rejects.toThrow(/DOGE/);
+		expect(await expiryMarketId(client, config, BTC, 1n)).toBeNull();
 	});
 
 	test('marketState: one PTB with 4 reads, dispatched per command index', async () => {
@@ -160,7 +159,7 @@ describe('markets reads', () => {
 			[bcs.bool().serialize(true).toBytes()], // mint_paused
 			[bcs.option(bcs.u64()).serialize(10_500_000n).toBytes()], // reference_tick
 		]);
-		const s = await marketState(client, cfg, '0xdeadbeef');
+		const s = await marketState(client, config, '0xdeadbeef');
 		expect(targets(captured.tx!)).toEqual([
 			`${cfg.packages.predict}::expiry_market::expiry`,
 			`${cfg.packages.predict}::expiry_market::tick_size`,
@@ -194,7 +193,7 @@ describe('markets reads', () => {
 		};
 		const strikeRaw = 105_000_000_000_000n;
 		const tickSizeRaw = 10_000_000n;
-		const r = await rangePrices(client, cfg, ADDR_A, feeds, strikeRaw, tickSizeRaw);
+		const r = await rangePrices(client, config, ADDR_A, feeds, strikeRaw, tickSizeRaw);
 		expect(r).toEqual({ upRaw: 340_000_000n, downRaw: 660_000_000n });
 		expect(targets(captured.tx!)).toEqual([
 			`${cfg.packages.predict}::expiry_market::load_live_pricer`,
@@ -220,12 +219,12 @@ describe('markets reads', () => {
 
 	test('referenceTick: Some → tick, None → null', async () => {
 		const some = mockClient([[bcs.option(bcs.u64()).serialize(42n).toBytes()]]);
-		expect(await referenceTick(some.client, cfg, '0xdeadbeef')).toBe(42n);
+		expect(await referenceTick(some.client, config, '0xdeadbeef')).toBe(42n);
 		expect(targets(some.captured.tx!)).toEqual([
 			`${cfg.packages.predict}::expiry_market::reference_tick`,
 		]);
 		const none = mockClient([[bcs.option(bcs.u64()).serialize(null).toBytes()]]);
-		expect(await referenceTick(none.client, cfg, '0xdeadbeef')).toBeNull();
+		expect(await referenceTick(none.client, config, '0xdeadbeef')).toBeNull();
 	});
 
 	test('marketStates: batched N markets in one PTB, parsed by index', async () => {
@@ -239,7 +238,7 @@ describe('markets reads', () => {
 			[bcs.bool().serialize(true).toBytes()], // m1 paused
 			[bcs.option(bcs.u64()).serialize(null).toBytes()], // m1 reference (unset)
 		]);
-		const states = await marketStates(client, cfg, [ADDR_A, ADDR_B]);
+		const states = await marketStates(client, config, [ADDR_A, ADDR_B]);
 		expect(targets(captured.tx!).length).toBe(8);
 		expect(states).toEqual([
 			{ expiryMs: 1_000n, tickSizeRaw: 10_000_000n, mintPaused: false, referenceTickRaw: 7n },
@@ -257,7 +256,7 @@ describe('markets reads', () => {
 				},
 			},
 		} as unknown as ReadClient;
-		expect(await marketStates(client, cfg, [])).toEqual([]);
+		expect(await marketStates(client, config, [])).toEqual([]);
 		expect(called).toBe(0);
 	});
 
@@ -266,7 +265,7 @@ describe('markets reads', () => {
 			[new Uint8Array(0)], // load_account returns a reference — no value needed
 			[bcs.bool().serialize(true).toBytes()],
 		]);
-		const ok = await hasPosition(client, cfg, ADDR_A, ADDR_B, 7n);
+		const ok = await hasPosition(client, config, ADDR_A, ADDR_B, 7n);
 		expect(targets(captured.tx!)).toEqual([
 			`${cfg.packages.account}::account::load_account`,
 			`${cfg.packages.predict}::predict_account::has_position`,
@@ -276,7 +275,7 @@ describe('markets reads', () => {
 
 	test('settlementPrice: settled market → u64', async () => {
 		const { client, captured } = mockClient([[bcs.u64().serialize(65_000_000_000_000n).toBytes()]]);
-		const p = await settlementPrice(client, cfg, '0xdeadbeef');
+		const p = await settlementPrice(client, config, '0xdeadbeef');
 		expect(targets(captured.tx!)).toEqual([
 			`${cfg.packages.predict}::expiry_market::settlement_price`,
 		]);
@@ -293,7 +292,7 @@ describe('markets reads', () => {
 				},
 			},
 		} as unknown as ReadClient;
-		expect(await settlementPrice(client, cfg, '0xdeadbeef')).toBeNull();
+		expect(await settlementPrice(client, config, '0xdeadbeef')).toBeNull();
 	});
 
 	test('settlementPrice: unrelated aborts propagate', async () => {
@@ -304,7 +303,7 @@ describe('markets reads', () => {
 				},
 			},
 		} as unknown as ReadClient;
-		await expect(settlementPrice(client, cfg, '0xdeadbeef')).rejects.toThrow(PredictMoveError);
+		await expect(settlementPrice(client, config, '0xdeadbeef')).rejects.toThrow(PredictMoveError);
 	});
 
 	test("currentNav: load_live_pricer → current_nav, parses last command's u64", async () => {
@@ -312,17 +311,12 @@ describe('markets reads', () => {
 			[new Uint8Array([0])], // load_live_pricer's Pricer bytes (opaque here)
 			[bcs.u64().serialize(999n).toBytes()], // current_nav
 		]);
-		const nav = await currentNav(client, cfg, '0xabc123', 'BTC');
+		const nav = await currentNav(client, config, '0xabc123', BTC);
 		expect(targets(captured.tx!)).toEqual([
 			`${cfg.packages.predict}::expiry_market::load_live_pricer`,
 			`${cfg.packages.predict}::expiry_market::current_nav`,
 		]);
 		expect(nav).toBe(999n);
-	});
-
-	test('currentNav: unknown underlying throws', async () => {
-		const { client } = mockClient([]);
-		await expect(currentNav(client, cfg, '0xabc123', 'DOGE')).rejects.toThrow(/DOGE/);
 	});
 });
 
@@ -332,20 +326,19 @@ describe('balances read', () => {
 			[], // load_account returns a &Account reference (no bcs return value)
 			[bcs.u64().serialize(123_456n).toBytes()], // balance
 		]);
-		const bal = await accountBalance(client, cfg, ADDR_A);
+		const bal = await accountBalance(client, config, ADDR_A, cfg.quoteCoinType);
 		expect(targets(captured.tx!)).toEqual([
 			`${cfg.packages.account}::account::load_account`,
 			`${cfg.packages.account}::account::balance`,
 		]);
 		expect(bal).toBe(123_456n);
-		// default coin type is the quote coin
 		const balCmd = captured.tx!.getData().commands[1];
 		expect('MoveCall' in balCmd && balCmd.MoveCall?.typeArguments).toEqual([cfg.quoteCoinType]);
 	});
 
 	test('accountBalance: honors an explicit coin type', async () => {
 		const { client, captured } = mockClient([[], [bcs.u64().serialize(1n).toBytes()]]);
-		await accountBalance(client, cfg, ADDR_A, '0x2::sui::SUI');
+		await accountBalance(client, config, ADDR_A, '0x2::sui::SUI');
 		const balCmd = captured.tx!.getData().commands[1];
 		expect('MoveCall' in balCmd && balCmd.MoveCall?.typeArguments).toEqual(['0x2::sui::SUI']);
 	});
@@ -359,7 +352,7 @@ describe('pool read', () => {
 			[bcs.u64().serialize(3_000n).toBytes()], // supply_requests_pending
 			[bcs.u64().serialize(4_000n).toBytes()], // withdraw_requests_pending
 		]);
-		const stats = await poolStats(client, cfg);
+		const stats = await poolStats(client, config);
 		expect(targets(captured.tx!)).toEqual([
 			`${cfg.packages.predict}::plp::plp_total_supply`,
 			`${cfg.packages.predict}::plp::idle_balance`,

@@ -2,14 +2,14 @@ import { bcs } from '@mysten/sui/bcs';
 import { Transaction } from '@mysten/sui/transactions';
 import { normalizeSuiObjectId } from '@mysten/sui/utils';
 import { expect, test } from 'vitest';
+import { PredictClient } from '../src/client.js';
 import { TESTNET_CONFIG as cfg } from '../src/config/index.js';
-import { setBuilderCode, unsetBuilderCode } from '../src/tx/builderCode.js';
-import {
-	cancelSupplyRequest,
-	cancelWithdrawRequest,
-	requestSupply,
-	requestWithdraw,
-} from '../src/tx/plp.js';
+
+const OWNER = '0x' + 'ab'.repeat(32);
+
+// tx builders never touch the client — these tests only inspect the emitted PTB.
+const pc = new PredictClient({ network: 'testnet', client: {} as never });
+const WRAPPER = pc.wrapperIdFor(OWNER);
 
 function targets(tx: Transaction): string[] {
 	return tx
@@ -55,11 +55,12 @@ function argPureBytes(tx: Transaction, cmdIdx: number, argIdx: number): string |
 	return 'Pure' in input && input.Pure ? input.Pure.bytes : undefined;
 }
 
+const b64 = (v: bigint) => Buffer.from(bcs.u64().serialize(v).toBytes()).toString('base64');
+
 const AUTH = `${cfg.packages.account}::account::generate_auth`;
 
-test('requestSupply: auth → request_supply, 8 args, min-plp-out floor slot', () => {
-	const tx = new Transaction();
-	tx.add(requestSupply(cfg, { wrapperId: '0xdef', amountRaw: 5_000_000n }));
+test('supplyPlp: auth → request_supply, 8 args, min-plp-out floor slot', () => {
+	const tx = pc.tx.supplyPlp(OWNER, 5);
 	expect(targets(tx)).toEqual([AUTH, `${cfg.packages.predict}::plp::request_supply`]);
 	const c = call(tx, 1);
 	// deployed sig: (vault, wrapper, auth, config, amount u64, min_plp_out u64, root, clock, ctx)
@@ -68,107 +69,80 @@ test('requestSupply: auth → request_supply, 8 args, min-plp-out floor slot', (
 	// slot 0: vault = cfg.objects.poolVault
 	expectObject(tx, 1, 0, cfg.objects.poolVault);
 	// slot 1: wrapper
-	expectObject(tx, 1, 1, '0xdef');
+	expectObject(tx, 1, 1, WRAPPER);
 	// slot 2: auth (Result from generate_auth immediately before this call)
 	expect(c.arguments[2].$kind).toBe('Result');
 	// slot 3: config = cfg.objects.protocolConfig
 	expectObject(tx, 1, 3, cfg.objects.protocolConfig);
-	// slot 4: pure u64 amount
-	expect(argPureBytes(tx, 1, 4)).toBe(
-		Buffer.from(bcs.u64().serialize(5_000_000n).toBytes()).toString('base64'),
-	);
-	// slot 5: pure u64 min_plp_out slippage floor, default 0
-	expect(argPureBytes(tx, 1, 5)).toBe(
-		Buffer.from(bcs.u64().serialize(0n).toBytes()).toString('base64'),
-	);
+	// slot 4: pure u64 amount — 5 USDC → 5_000_000 raw
+	expect(argPureBytes(tx, 1, 4)).toBe(b64(5_000_000n));
+	// slot 5: pure u64 min_plp_out slippage floor, pinned to 0 (no floor)
+	expect(argPureBytes(tx, 1, 5)).toBe(b64(0n));
 	// slot 6: root = 0xacc, slot 7: clock = 0x6
 	expectObject(tx, 1, 6, '0xacc');
 	expectObject(tx, 1, 7, '0x6');
 });
 
-test('requestSupply: explicit minPlpOut overrides the 0 default', () => {
-	const tx = new Transaction();
-	tx.add(
-		requestSupply(cfg, { wrapperId: '0xdef', amountRaw: 5_000_000n, minPlpOutRaw: 4_500_000n }),
-	);
-	expect(argPureBytes(tx, 1, 5)).toBe(
-		Buffer.from(bcs.u64().serialize(4_500_000n).toBytes()).toString('base64'),
-	);
-});
-
-test('requestWithdraw: auth → request_withdraw, 8 args, shares + min-dusdc-out floor', () => {
-	const tx = new Transaction();
-	tx.add(requestWithdraw(cfg, { wrapperId: '0xdef', sharesRaw: 1_234n }));
+test('withdrawPlp: auth → request_withdraw, 8 args, shares + min-dusdc-out floor', () => {
+	const tx = pc.tx.withdrawPlp(OWNER, 1_234n);
 	expect(targets(tx)).toEqual([AUTH, `${cfg.packages.predict}::plp::request_withdraw`]);
 	const c = call(tx, 1);
 	// deployed sig: (vault, wrapper, auth, config, amount u64, min_dusdc_out u64, root, clock, ctx)
 	// → 8 moveCall args
 	expect(c.arguments).toHaveLength(8);
 	expectObject(tx, 1, 0, cfg.objects.poolVault);
-	expectObject(tx, 1, 1, '0xdef');
+	expectObject(tx, 1, 1, WRAPPER);
 	expect(c.arguments[2].$kind).toBe('Result');
 	expectObject(tx, 1, 3, cfg.objects.protocolConfig);
-	// slot 4: pure u64 shares
-	expect(argPureBytes(tx, 1, 4)).toBe(
-		Buffer.from(bcs.u64().serialize(1_234n).toBytes()).toString('base64'),
-	);
-	// slot 5: pure u64 min_dusdc_out slippage floor, default 0
-	expect(argPureBytes(tx, 1, 5)).toBe(
-		Buffer.from(bcs.u64().serialize(0n).toBytes()).toString('base64'),
-	);
+	// slot 4: pure u64 — the Move param is `amount` but it counts PLP SHARES, passed raw
+	expect(argPureBytes(tx, 1, 4)).toBe(b64(1_234n));
+	// slot 5: pure u64 min_dusdc_out slippage floor, pinned to 0 (no floor)
+	expect(argPureBytes(tx, 1, 5)).toBe(b64(0n));
 	expectObject(tx, 1, 6, '0xacc');
 	expectObject(tx, 1, 7, '0x6');
 });
 
-test('cancelSupplyRequest: auth → cancel_supply_request, 7 args, index in u64 slot', () => {
-	const tx = new Transaction();
-	tx.add(cancelSupplyRequest(cfg, { wrapperId: '0xdef', index: 3n }));
+test('cancelSupplyPlp: auth → cancel_supply_request, 7 args, index in u64 slot', () => {
+	const tx = pc.tx.cancelSupplyPlp(OWNER, 3n);
 	expect(targets(tx)).toEqual([AUTH, `${cfg.packages.predict}::plp::cancel_supply_request`]);
 	const c = call(tx, 1);
 	expect(c.arguments).toHaveLength(7);
 	expectObject(tx, 1, 0, cfg.objects.poolVault);
-	expectObject(tx, 1, 1, '0xdef');
+	expectObject(tx, 1, 1, WRAPPER);
 	expect(c.arguments[2].$kind).toBe('Result');
 	expectObject(tx, 1, 3, cfg.objects.protocolConfig);
-	expect(argPureBytes(tx, 1, 4)).toBe(
-		Buffer.from(bcs.u64().serialize(3n).toBytes()).toString('base64'),
-	);
+	expect(argPureBytes(tx, 1, 4)).toBe(b64(3n));
 	expectObject(tx, 1, 5, '0xacc');
 	expectObject(tx, 1, 6, '0x6');
 });
 
-test('cancelWithdrawRequest: auth → cancel_withdraw_request, 7 args, index in u64 slot', () => {
-	const tx = new Transaction();
-	tx.add(cancelWithdrawRequest(cfg, { wrapperId: '0xdef', index: 7n }));
+test('cancelWithdrawPlp: auth → cancel_withdraw_request, 7 args, index in u64 slot', () => {
+	const tx = pc.tx.cancelWithdrawPlp(OWNER, 7n);
 	expect(targets(tx)).toEqual([AUTH, `${cfg.packages.predict}::plp::cancel_withdraw_request`]);
 	const c = call(tx, 1);
 	expect(c.arguments).toHaveLength(7);
 	expectObject(tx, 1, 0, cfg.objects.poolVault);
-	expectObject(tx, 1, 1, '0xdef');
+	expectObject(tx, 1, 1, WRAPPER);
 	expect(c.arguments[2].$kind).toBe('Result');
 	expectObject(tx, 1, 3, cfg.objects.protocolConfig);
-	expect(argPureBytes(tx, 1, 4)).toBe(
-		Buffer.from(bcs.u64().serialize(7n).toBytes()).toString('base64'),
-	);
+	expect(argPureBytes(tx, 1, 4)).toBe(b64(7n));
 	expectObject(tx, 1, 5, '0xacc');
 	expectObject(tx, 1, 6, '0x6');
 });
 
 test('setBuilderCode: auth → set_builder_code (predict pkg), 3 args', () => {
-	const tx = new Transaction();
-	tx.add(setBuilderCode(cfg, { wrapperId: '0xdef', builderCodeId: '0xbc0de' }));
+	const tx = pc.tx.setBuilderCode(OWNER, '0xbc0de');
 	expect(targets(tx)).toEqual([AUTH, `${cfg.packages.predict}::predict_account::set_builder_code`]);
 	const c = call(tx, 1);
 	// deployed sig: (wrapper, auth, code: &BuilderCode, ctx) → 3 moveCall args
 	expect(c.arguments).toHaveLength(3);
-	expectObject(tx, 1, 0, '0xdef'); // wrapper
+	expectObject(tx, 1, 0, WRAPPER); // wrapper
 	expect(c.arguments[1].$kind).toBe('Result'); // auth
 	expectObject(tx, 1, 2, '0xbc0de'); // builder code object
 });
 
 test('unsetBuilderCode: auth → unset_builder_code (predict pkg), 2 args', () => {
-	const tx = new Transaction();
-	tx.add(unsetBuilderCode(cfg, { wrapperId: '0xdef' }));
+	const tx = pc.tx.unsetBuilderCode(OWNER);
 	expect(targets(tx)).toEqual([
 		AUTH,
 		`${cfg.packages.predict}::predict_account::unset_builder_code`,
@@ -176,6 +150,6 @@ test('unsetBuilderCode: auth → unset_builder_code (predict pkg), 2 args', () =
 	const c = call(tx, 1);
 	// deployed sig: (wrapper, auth, ctx) → 2 moveCall args
 	expect(c.arguments).toHaveLength(2);
-	expectObject(tx, 1, 0, '0xdef'); // wrapper
+	expectObject(tx, 1, 0, WRAPPER); // wrapper
 	expect(c.arguments[1].$kind).toBe('Result'); // auth
 });

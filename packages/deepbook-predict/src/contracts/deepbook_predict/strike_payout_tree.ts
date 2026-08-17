@@ -34,6 +34,7 @@
  */
 
 import { MoveStruct } from '../utils/index.js';
+import { U64 } from '../../bcs/integers.js';
 import { bcs } from '@mysten/sui/bcs';
 import * as table from './deps/sui/table.js';
 const $moduleName = '@local-pkg/deepbook_predict::strike_payout_tree';
@@ -44,30 +45,30 @@ export const PayoutTerms = new MoveStruct({
 		 * Aggregate order quantity over the prefix. Read by the NAV linear walk
 		 * (`walk_linear`), which prices each boundary's start/end quantity.
 		 */
-		quantity: bcs.u64(),
+		quantity: U64,
 		/**
 		 * Aggregate net payout (`Q - F`) over the prefix — the basis for settled liability
 		 * and max-point reserve reads. Stored rather than derived so a negative aggregate
 		 * net payout is unrepresentable instead of relying on the per-order `F <= Q`
 		 * invariant surviving every summation.
 		 */
-		net_payout: bcs.u64(),
+		net_payout: U64,
 	},
 });
 export const StrikePayoutTree = new MoveStruct({
 	name: `${$moduleName}::StrikePayoutTree`,
 	fields: {
-		root: bcs.option(bcs.u64()),
+		root: bcs.option(U64),
 		nodes: table.Table,
-		node_count: bcs.u64(),
+		node_count: U64,
 		base: PayoutTerms,
 	},
 });
 export const PayoutSummary = new MoveStruct({
 	name: `${$moduleName}::PayoutSummary`,
 	fields: {
-		net_start: bcs.u64(),
-		net_end: bcs.u64(),
+		net_start: U64,
+		net_end: U64,
 		/**
 		 * Never exceeds `net_start`, by construction in `boundary_summary` and
 		 * `combine_summaries`. That bound is what makes `combine_summaries` associative at
@@ -76,7 +77,7 @@ export const PayoutSummary = new MoveStruct({
 		 * shape-independence with no test to catch it, and would also abort
 		 * `strike_exposure`'s plain `total - max` subtraction.
 		 */
-		max_net_payout_prefix_gain: bcs.u64(),
+		max_net_payout_prefix_gain: U64,
 	},
 });
 export const PayoutNode = new MoveStruct({
@@ -87,9 +88,9 @@ export const PayoutNode = new MoveStruct({
 		 * absent child is 0. Maintained by `resummarize` alongside `summary`, and read
 		 * only by `rebalance` — never by a caller, and never derived from a tick.
 		 */
-		height: bcs.u64(),
-		left: bcs.option(bcs.u64()),
-		right: bcs.option(bcs.u64()),
+		height: U64,
+		left: bcs.option(U64),
+		right: bcs.option(U64),
 		/**
 		 * This node's own boundary terms, stored so the subtree `summary` can be
 		 * recomputed without deriving locals by subtracting child summaries.

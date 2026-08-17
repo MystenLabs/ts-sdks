@@ -11,6 +11,7 @@
 
 import { MoveStruct } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
+import { U64 } from '../../bcs/integers.js';
 const $moduleName = '@local-pkg/deepbook_predict::pricing_config';
 export const PricingConfig = new MoveStruct({
 	name: `${$moduleName}::PricingConfig`,
@@ -25,16 +26,16 @@ export const PricingConfig = new MoveStruct({
 		 * Fixed wall-clock maximum age for Pyth spot; it does not vary with time to
 		 * expiry.
 		 */
-		pyth_spot_freshness_ms: bcs.u64(),
+		pyth_spot_freshness_ms: U64,
 		/**
 		 * Fixed wall-clock maximum age for Block Scholes spot and forward; it does not
 		 * vary with time to expiry.
 		 */
-		block_scholes_price_freshness_ms: bcs.u64(),
+		block_scholes_price_freshness_ms: U64,
 		/**
 		 * Fixed wall-clock maximum age for Block Scholes SVI parameters; it does not vary
 		 * with time to expiry.
 		 */
-		block_scholes_svi_freshness_ms: bcs.u64(),
+		block_scholes_svi_freshness_ms: U64,
 	},
 });

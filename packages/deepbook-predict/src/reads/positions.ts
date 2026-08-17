@@ -1,8 +1,8 @@
 import { bcs } from '@mysten/sui/bcs';
 import type { ClientWithCoreApi } from '@mysten/sui/client';
 import { deriveDynamicFieldID, normalizeSuiAddress } from '@mysten/sui/utils';
-import { type PredictConfig } from '../config/index.js';
-import { deriveAccountWrapperId } from '../tx/common.js';
+import { type GeneratedConfig } from '../config/generated.js';
+import { deriveAccountWrapperIdFrom } from '../tx/common.js';
 import { AccountWrapper } from '../contracts/account/account.js';
 import { PositionKey, PredictData } from '../contracts/deepbook_predict/predict_account.js';
 
@@ -71,17 +71,17 @@ async function contentOf(client: ClientWithCoreApi, objectId: string): Promise<U
  */
 export async function resolvePositionsTable(
 	client: ClientWithCoreApi,
-	cfg: PredictConfig,
+	config: GeneratedConfig,
 	owner: string,
 ): Promise<PositionsHandle | null> {
-	const wrapperContent = await contentOf(client, deriveAccountWrapperId(cfg, owner));
+	const wrapperContent = await contentOf(client, deriveAccountWrapperIdFrom(config, owner));
 	if (!wrapperContent) return null;
 	const accountUid = normalizeSuiAddress(AccountWrapper.parse(wrapperContent).account.account_id);
 
 	// The PredictData field id is derivable — no listing needed for this hop.
 	const dataFieldId = deriveDynamicFieldID(
 		accountUid,
-		`${cfg.packages.account}::account::DataKey<${cfg.packages.predict}::predict_account::PredictApp>`,
+		`${config.accountPackageId}::account::DataKey<${config.predictPackageId}::predict_account::PredictApp>`,
 		new Uint8Array([0]), // DataKey's hidden dummy_field: bool = false
 	);
 	const fieldContent = await contentOf(client, dataFieldId);
@@ -91,7 +91,7 @@ export async function resolvePositionsTable(
 	return {
 		accountUid,
 		positionsTableId: normalizeSuiAddress(data.positions.id),
-		positionCount: BigInt(data.positions.size),
+		positionCount: data.positions.size,
 	};
 }
 
@@ -118,7 +118,7 @@ export async function positionsFromTable(
 			const key = PositionKey.parse(entry.name.bcs);
 			out.push({
 				marketId: normalizeSuiAddress(key.expiry_market_id),
-				orderId: BigInt(key.order_id),
+				orderId: key.order_id,
 			});
 		}
 		if (!res.hasNextPage || !res.cursor) return out;
@@ -132,11 +132,11 @@ export async function positionsFromTable(
 /** Convenience: resolve + list in one call (uncached; the facade caches). */
 export async function positions(
 	client: ClientWithCoreApi,
-	cfg: PredictConfig,
+	config: GeneratedConfig,
 	owner: string,
 	opts: { limit?: number; maxPages?: number } = {},
 ): Promise<OpenPosition[]> {
-	const handle = await resolvePositionsTable(client, cfg, owner);
+	const handle = await resolvePositionsTable(client, config, owner);
 	if (!handle?.positionsTableId) return [];
 	return positionsFromTable(client, handle.positionsTableId, opts);
 }

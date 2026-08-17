@@ -11,12 +11,12 @@
  */
 
 import { MoveStruct } from '../utils/index.js';
-import { bcs } from '@mysten/sui/bcs';
+import { U64 } from '../../bcs/integers.js';
 const $moduleName = '@local-pkg/deepbook_predict::expiry_cash_config';
 export const ExpiryCashConfig = new MoveStruct({
 	name: `${$moduleName}::ExpiryCashConfig`,
 	fields: {
 		/** Fraction of aggregate expiry trading fees reserved for loss rebates. */
-		trading_loss_rebate_rate: bcs.u64(),
+		trading_loss_rebate_rate: U64,
 	},
 });

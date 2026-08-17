@@ -13,13 +13,20 @@
  * and profit accounting remain outside this module.
  */
 
-import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
+import {
+	MoveStruct,
+	normalizeMoveArguments,
+	type RawTransactionArgument,
+	type ConfigValue,
+} from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
+import { U64 } from '../../bcs/integers.js';
 import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as expiry_cash from './expiry_cash.js';
 import * as balance from './deps/sui/balance.js';
 import * as strike_exposure from './strike_exposure.js';
 import * as ewma from './ewma.js';
+import * as stake_config from './stake_config.js';
 const $moduleName = '@local-pkg/deepbook_predict::expiry_market';
 export const ExpiryMarket = new MoveStruct({
 	name: `${$moduleName}::ExpiryMarket`,
@@ -27,7 +34,7 @@ export const ExpiryMarket = new MoveStruct({
 		id: bcs.Address,
 		/** Propbook underlying this market was created for. */
 		propbook_underlying_id: bcs.u32(),
-		expiry: bcs.u64(),
+		expiry: U64,
 		/** DUSDC custody, payout backing, and unresolved rebate reserve basis. */
 		cash: expiry_cash.ExpiryCash,
 		/** Sponsor-funded DUSDC available to subsidize this market's taker fees. */
@@ -42,19 +49,28 @@ export const ExpiryMarket = new MoveStruct({
 		 * through the registry (ungated kill switch).
 		 */
 		mint_paused: bcs.bool(),
+		/**
+		 * DEEP-stake benefit policy for this market, snapshotted at creation from the
+		 * protocol template and immutable thereafter. Frozen because both benefits resolve
+		 * after the trade that earned them — the fee discount at mint, the loss rebate at
+		 * a post-settlement claim — so reading live policy would let an admin reprice
+		 * contracts already written, and shrink or erase a rebate already earned (the
+		 * claim is one-shot).
+		 */
+		stake_config: stake_config.StakeConfig,
 	},
 });
 export const MintQuote = new MoveStruct({
 	name: `${$moduleName}::MintQuote`,
 	fields: {
-		quantity: bcs.u64(),
-		entry_probability: bcs.u64(),
-		net_premium: bcs.u64(),
-		trading_fee: bcs.u64(),
-		fee_incentive_subsidy: bcs.u64(),
-		builder_fee: bcs.u64(),
-		penalty_fee: bcs.u64(),
-		all_in_cost: bcs.u64(),
+		quantity: U64,
+		entry_probability: U64,
+		net_premium: U64,
+		trading_fee: U64,
+		fee_incentive_subsidy: U64,
+		builder_fee: U64,
+		penalty_fee: U64,
+		all_in_cost: U64,
 	},
 });
 export interface IdArguments {
@@ -63,10 +79,14 @@ export interface IdArguments {
 export interface IdOptions {
 	package?: string;
 	arguments: IdArguments | [market: RawTransactionArgument<string>];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /** Return the market object ID for external discovery and PTB construction. */
 export function id(options: IdOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['market'];
 	return (tx: Transaction) =>
@@ -83,10 +103,14 @@ export interface PropbookUnderlyingIdArguments {
 export interface PropbookUnderlyingIdOptions {
 	package?: string;
 	arguments: PropbookUnderlyingIdArguments | [market: RawTransactionArgument<string>];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /** Return the Propbook underlying for SDK and devInspect market reads. */
 export function propbookUnderlyingId(options: PropbookUnderlyingIdOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['market'];
 	return (tx: Transaction) =>
@@ -103,10 +127,14 @@ export interface ExpiryArguments {
 export interface ExpiryOptions {
 	package?: string;
 	arguments: ExpiryArguments | [market: RawTransactionArgument<string>];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /** Return the expiry timestamp for SDK and devInspect market reads. */
 export function expiry(options: ExpiryOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['market'];
 	return (tx: Transaction) =>
@@ -123,10 +151,14 @@ export interface SettlementPriceArguments {
 export interface SettlementPriceOptions {
 	package?: string;
 	arguments: SettlementPriceArguments | [market: RawTransactionArgument<string>];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /** Return the recorded settlement price. Aborts if the market is not settled. */
 export function settlementPrice(options: SettlementPriceOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['market'];
 	return (tx: Transaction) =>
@@ -143,13 +175,17 @@ export interface IsSettledArguments {
 export interface IsSettledOptions {
 	package?: string;
 	arguments: IsSettledArguments | [market: RawTransactionArgument<string>];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /**
  * Return whether terminal settlement has been recorded for this market. Public
  * read for SDK/devInspect settlement-state checks.
  */
 export function isSettled(options: IsSettledOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['market'];
 	return (tx: Transaction) =>
@@ -166,13 +202,17 @@ export interface TrySettlementPriceArguments {
 export interface TrySettlementPriceOptions {
 	package?: string;
 	arguments: TrySettlementPriceArguments | [market: RawTransactionArgument<string>];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /**
  * Return the recorded settlement price, or `none` while the market is live.
  * Non-aborting companion to `settlement_price` for SDK/devInspect reads.
  */
 export function trySettlementPrice(options: TrySettlementPriceOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['market'];
 	return (tx: Transaction) =>
@@ -189,10 +229,14 @@ export interface CashBalanceArguments {
 export interface CashBalanceOptions {
 	package?: string;
 	arguments: CashBalanceArguments | [market: RawTransactionArgument<string>];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /** Return expiry DUSDC custody for SDK and devInspect state reads. */
 export function cashBalance(options: CashBalanceOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['market'];
 	return (tx: Transaction) =>
@@ -209,10 +253,14 @@ export interface RebateReserveArguments {
 export interface RebateReserveOptions {
 	package?: string;
 	arguments: RebateReserveArguments | [market: RawTransactionArgument<string>];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /** Return unresolved rebate reserve for SDK and devInspect state reads. */
 export function rebateReserve(options: RebateReserveOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['market'];
 	return (tx: Transaction) =>
@@ -229,10 +277,14 @@ export interface FeeIncentiveBalanceArguments {
 export interface FeeIncentiveBalanceOptions {
 	package?: string;
 	arguments: FeeIncentiveBalanceArguments | [market: RawTransactionArgument<string>];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /** Return local fee incentives for SDK and devInspect state reads. */
 export function feeIncentiveBalance(options: FeeIncentiveBalanceOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['market'];
 	return (tx: Transaction) =>
@@ -249,10 +301,14 @@ export interface TradingLossRebateRateArguments {
 export interface TradingLossRebateRateOptions {
 	package?: string;
 	arguments: TradingLossRebateRateArguments | [market: RawTransactionArgument<string>];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /** Return the snapshotted loss-rebate rate for SDK and devInspect reads. */
 export function tradingLossRebateRate(options: TradingLossRebateRateOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['market'];
 	return (tx: Transaction) =>
@@ -269,10 +325,14 @@ export interface LiquidationLtvArguments {
 export interface LiquidationLtvOptions {
 	package?: string;
 	arguments: LiquidationLtvArguments | [market: RawTransactionArgument<string>];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /** Return the snapshotted liquidation LTV for SDK and devInspect reads. */
 export function liquidationLtv(options: LiquidationLtvOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['market'];
 	return (tx: Transaction) =>
@@ -289,10 +349,14 @@ export interface MaxAdmissionLeverageArguments {
 export interface MaxAdmissionLeverageOptions {
 	package?: string;
 	arguments: MaxAdmissionLeverageArguments | [market: RawTransactionArgument<string>];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /** Return the snapshotted admission-leverage cap for SDK and devInspect reads. */
 export function maxAdmissionLeverage(options: MaxAdmissionLeverageOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['market'];
 	return (tx: Transaction) =>
@@ -309,10 +373,14 @@ export interface BackingBufferLambdaArguments {
 export interface BackingBufferLambdaOptions {
 	package?: string;
 	arguments: BackingBufferLambdaArguments | [market: RawTransactionArgument<string>];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /** Return the snapshotted backing-buffer lambda for SDK and devInspect reads. */
 export function backingBufferLambda(options: BackingBufferLambdaOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['market'];
 	return (tx: Transaction) =>
@@ -329,10 +397,14 @@ export interface ExpiryFeeWindowMsArguments {
 export interface ExpiryFeeWindowMsOptions {
 	package?: string;
 	arguments: ExpiryFeeWindowMsArguments | [market: RawTransactionArgument<string>];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /** Return the snapshotted fee-ramp window for SDK and devInspect reads. */
 export function expiryFeeWindowMs(options: ExpiryFeeWindowMsOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['market'];
 	return (tx: Transaction) =>
@@ -349,10 +421,14 @@ export interface ExpiryFeeMaxMultiplierArguments {
 export interface ExpiryFeeMaxMultiplierOptions {
 	package?: string;
 	arguments: ExpiryFeeMaxMultiplierArguments | [market: RawTransactionArgument<string>];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /** Return the snapshotted fee-ramp multiplier for SDK and devInspect reads. */
 export function expiryFeeMaxMultiplier(options: ExpiryFeeMaxMultiplierOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['market'];
 	return (tx: Transaction) =>
@@ -369,6 +445,9 @@ export interface NoLeverageWindowMsArguments {
 export interface NoLeverageWindowMsOptions {
 	package?: string;
 	arguments: NoLeverageWindowMsArguments | [market: RawTransactionArgument<string>];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /**
  * Return the near-expiry no-leverage window snapshotted for this expiry, in ms.
@@ -377,7 +456,8 @@ export interface NoLeverageWindowMsOptions {
  * against the market's own snapshotted terms rather than the live template.
  */
 export function noLeverageWindowMs(options: NoLeverageWindowMsOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['market'];
 	return (tx: Transaction) =>
@@ -394,13 +474,17 @@ export interface TickSizeArguments {
 export interface TickSizeOptions {
 	package?: string;
 	arguments: TickSizeArguments | [market: RawTransactionArgument<string>];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /**
  * Return the strike tick size for SDK and devInspect range construction. Raw
  * strikes are `tick * tick_size`.
  */
 export function tickSize(options: TickSizeOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['market'];
 	return (tx: Transaction) =>
@@ -417,10 +501,14 @@ export interface AdmissionTickSizeArguments {
 export interface AdmissionTickSizeOptions {
 	package?: string;
 	arguments: AdmissionTickSizeArguments | [market: RawTransactionArgument<string>];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /** Return the admission-grid step for SDK and devInspect range construction. */
 export function admissionTickSize(options: AdmissionTickSizeOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['market'];
 	return (tx: Transaction) =>
@@ -437,10 +525,14 @@ export interface ReferenceTickArguments {
 export interface ReferenceTickOptions {
 	package?: string;
 	arguments: ReferenceTickArguments | [market: RawTransactionArgument<string>];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /** Return the admitted reference tick for SDK and devInspect range construction. */
 export function referenceTick(options: ReferenceTickOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['market'];
 	return (tx: Transaction) =>
@@ -457,10 +549,14 @@ export interface ReferenceTickSourceTimestampMsArguments {
 export interface ReferenceTickSourceTimestampMsOptions {
 	package?: string;
 	arguments: ReferenceTickSourceTimestampMsArguments | [market: RawTransactionArgument<string>];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /** Return the reference observation timestamp for SDK and devInspect reads. */
 export function referenceTickSourceTimestampMs(options: ReferenceTickSourceTimestampMsOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['market'];
 	return (tx: Transaction) =>
@@ -477,13 +573,17 @@ export interface PayoutLiabilityArguments {
 export interface PayoutLiabilityOptions {
 	package?: string;
 	arguments: PayoutLiabilityArguments | [market: RawTransactionArgument<string>];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /**
  * Return payout reserve or settled liability for external accounting
  * observability.
  */
 export function payoutLiability(options: PayoutLiabilityOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['market'];
 	return (tx: Transaction) =>
@@ -500,10 +600,14 @@ export interface RequiredCashArguments {
 export interface RequiredCashOptions {
 	package?: string;
 	arguments: RequiredCashArguments | [market: RawTransactionArgument<string>];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /** Return required expiry cash for external accounting observability. */
 export function requiredCash(options: RequiredCashOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['market'];
 	return (tx: Transaction) =>
@@ -516,24 +620,20 @@ export function requiredCash(options: RequiredCashOptions) {
 }
 export interface LoadLivePricerArguments {
 	market: RawTransactionArgument<string>;
-	config: RawTransactionArgument<string>;
-	propbookRegistry: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
+	propbookRegistry?: RawTransactionArgument<string>;
 	pyth: RawTransactionArgument<string>;
 	bsValues: RawTransactionArgument<string>;
 	bsSvi: RawTransactionArgument<string>;
 }
 export interface LoadLivePricerOptions {
 	package?: string;
-	arguments:
-		| LoadLivePricerArguments
-		| [
-				market: RawTransactionArgument<string>,
-				config: RawTransactionArgument<string>,
-				propbookRegistry: RawTransactionArgument<string>,
-				pyth: RawTransactionArgument<string>,
-				bsValues: RawTransactionArgument<string>,
-				bsSvi: RawTransactionArgument<string>,
-		  ];
+	arguments: LoadLivePricerArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		oracleRegistry: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /**
  * Load a PTB-local live pricing snapshot for this market.
@@ -548,7 +648,8 @@ export interface LoadLivePricerOptions {
  * identity, and does not prohibit reads of older observations.
  */
 export function loadLivePricer(options: LoadLivePricerOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, null, null, null, null, null, '0x2::clock::Clock'] satisfies (
 		| string
 		| null
@@ -559,7 +660,15 @@ export function loadLivePricer(options: LoadLivePricerOptions) {
 			package: packageAddress,
 			module: 'expiry_market',
 			function: 'load_live_pricer',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+					propbookRegistry: options.arguments?.propbookRegistry ?? options.config?.oracleRegistry,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface CurrentNavArguments {
@@ -571,6 +680,9 @@ export interface CurrentNavOptions {
 	arguments:
 		| CurrentNavArguments
 		| [market: RawTransactionArgument<string>, pricer: TransactionArgument];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /**
  * Return live marked NAV as free expiry cash minus the exposure book's marked
@@ -579,7 +691,8 @@ export interface CurrentNavOptions {
  * Public for PTB composition and devInspect pool valuation.
  */
 export function currentNav(options: CurrentNavOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['market', 'pricer'];
 	return (tx: Transaction) =>
@@ -604,6 +717,9 @@ export interface OrderValueOptions {
 				pricer: TransactionArgument,
 				orderId: RawTransactionArgument<number | bigint>,
 		  ];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /**
  * Return one order's close value before fees. Liquidated or currently liquidatable
@@ -613,7 +729,8 @@ export interface OrderValueOptions {
  * `order_id`. Public for SDK and devInspect position valuation.
  */
 export function orderValue(options: OrderValueOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, null, 'u256'] satisfies (string | null)[];
 	const parameterNames = ['market', 'pricer', 'orderId'];
 	return (tx: Transaction) =>
@@ -630,10 +747,14 @@ export interface MintPausedArguments {
 export interface MintPausedOptions {
 	package?: string;
 	arguments: MintPausedArguments | [market: RawTransactionArgument<string>];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /** Return the market mint-pause state for SDK and devInspect reads. */
 export function mintPaused(options: MintPausedOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['market'];
 	return (tx: Transaction) =>
@@ -646,7 +767,7 @@ export function mintPaused(options: MintPausedOptions) {
 }
 export interface QuoteMintArguments {
 	market: RawTransactionArgument<string>;
-	config: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
 	pricer: TransactionArgument;
 	lowerTick: RawTransactionArgument<number | bigint>;
 	higherTick: RawTransactionArgument<number | bigint>;
@@ -657,19 +778,11 @@ export interface QuoteMintArguments {
 }
 export interface QuoteMintOptions {
 	package?: string;
-	arguments:
-		| QuoteMintArguments
-		| [
-				market: RawTransactionArgument<string>,
-				config: RawTransactionArgument<string>,
-				pricer: TransactionArgument,
-				lowerTick: RawTransactionArgument<number | bigint>,
-				higherTick: RawTransactionArgument<number | bigint>,
-				maxPremium: RawTransactionArgument<number | bigint>,
-				minQuantity: RawTransactionArgument<number | bigint>,
-				exactQuantity: RawTransactionArgument<boolean>,
-				leverage: RawTransactionArgument<number | bigint>,
-		  ];
+	arguments: QuoteMintArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /**
  * Quote the all-in cost of a mint request for an anonymous taker (no stake
@@ -681,7 +794,8 @@ export interface QuoteMintOptions {
  * pre-trade pricing.
  */
 export function quoteMint(options: QuoteMintOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [
 		null,
 		null,
@@ -710,13 +824,20 @@ export function quoteMint(options: QuoteMintOptions) {
 			package: packageAddress,
 			module: 'expiry_market',
 			function: 'quote_mint',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface QuoteMintForAccountArguments {
 	market: RawTransactionArgument<string>;
 	wrapper: RawTransactionArgument<string>;
-	config: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
 	pricer: TransactionArgument;
 	lowerTick: RawTransactionArgument<number | bigint>;
 	higherTick: RawTransactionArgument<number | bigint>;
@@ -724,25 +845,14 @@ export interface QuoteMintForAccountArguments {
 	minQuantity: RawTransactionArgument<number | bigint>;
 	exactQuantity: RawTransactionArgument<boolean>;
 	leverage: RawTransactionArgument<number | bigint>;
-	root: RawTransactionArgument<string>;
 }
 export interface QuoteMintForAccountOptions {
 	package?: string;
-	arguments:
-		| QuoteMintForAccountArguments
-		| [
-				market: RawTransactionArgument<string>,
-				wrapper: RawTransactionArgument<string>,
-				config: RawTransactionArgument<string>,
-				pricer: TransactionArgument,
-				lowerTick: RawTransactionArgument<number | bigint>,
-				higherTick: RawTransactionArgument<number | bigint>,
-				maxPremium: RawTransactionArgument<number | bigint>,
-				minQuantity: RawTransactionArgument<number | bigint>,
-				exactQuantity: RawTransactionArgument<boolean>,
-				leverage: RawTransactionArgument<number | bigint>,
-				root: RawTransactionArgument<string>,
-		  ];
+	arguments: QuoteMintForAccountArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /**
  * Quote the all-in cost of a mint request for one account, reading the account's
@@ -753,7 +863,8 @@ export interface QuoteMintForAccountOptions {
  * pricing.
  */
 export function quoteMintForAccount(options: QuoteMintForAccountOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [
 		null,
 		null,
@@ -765,7 +876,7 @@ export function quoteMintForAccount(options: QuoteMintForAccountOptions) {
 		'u64',
 		'bool',
 		'u64',
-		null,
+		'0x2::accumulator::AccumulatorRoot',
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
 	const parameterNames = [
@@ -779,14 +890,20 @@ export function quoteMintForAccount(options: QuoteMintForAccountOptions) {
 		'minQuantity',
 		'exactQuantity',
 		'leverage',
-		'root',
 	];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'expiry_market',
 			function: 'quote_mint_for_account',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface QuantityArguments {
@@ -795,10 +912,14 @@ export interface QuantityArguments {
 export interface QuantityOptions {
 	package?: string;
 	arguments: QuantityArguments | [quote: TransactionArgument];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /** Return the sized quantity for SDK and devInspect quote consumers. */
 export function quantity(options: QuantityOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['quote'];
 	return (tx: Transaction) =>
@@ -815,10 +936,14 @@ export interface EntryProbabilityArguments {
 export interface EntryProbabilityOptions {
 	package?: string;
 	arguments: EntryProbabilityArguments | [quote: TransactionArgument];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /** Return the quoted range probability for SDK and devInspect consumers. */
 export function entryProbability(options: EntryProbabilityOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['quote'];
 	return (tx: Transaction) =>
@@ -835,10 +960,14 @@ export interface NetPremiumArguments {
 export interface NetPremiumOptions {
 	package?: string;
 	arguments: NetPremiumArguments | [quote: TransactionArgument];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /** Return the quoted net premium for SDK and devInspect consumers. */
 export function netPremium(options: NetPremiumOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['quote'];
 	return (tx: Transaction) =>
@@ -855,13 +984,17 @@ export interface TradingFeeArguments {
 export interface TradingFeeOptions {
 	package?: string;
 	arguments: TradingFeeArguments | [quote: TransactionArgument];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /**
  * Return the quoted post-stake trading fee before subsidy for SDK and devInspect
  * consumers.
  */
 export function tradingFee(options: TradingFeeOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['quote'];
 	return (tx: Transaction) =>
@@ -878,13 +1011,17 @@ export interface FeeIncentiveSubsidyArguments {
 export interface FeeIncentiveSubsidyOptions {
 	package?: string;
 	arguments: FeeIncentiveSubsidyArguments | [quote: TransactionArgument];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /**
  * Return the sponsor-funded portion of the quoted fee for SDK and devInspect
  * consumers.
  */
 export function feeIncentiveSubsidy(options: FeeIncentiveSubsidyOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['quote'];
 	return (tx: Transaction) =>
@@ -901,10 +1038,14 @@ export interface BuilderFeeArguments {
 export interface BuilderFeeOptions {
 	package?: string;
 	arguments: BuilderFeeArguments | [quote: TransactionArgument];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /** Return the quoted builder fee for SDK and devInspect consumers. */
 export function builderFee(options: BuilderFeeOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['quote'];
 	return (tx: Transaction) =>
@@ -921,10 +1062,14 @@ export interface PenaltyFeeArguments {
 export interface PenaltyFeeOptions {
 	package?: string;
 	arguments: PenaltyFeeArguments | [quote: TransactionArgument];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /** Return the quoted EWMA congestion surcharge for SDK and devInspect consumers. */
 export function penaltyFee(options: PenaltyFeeOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['quote'];
 	return (tx: Transaction) =>
@@ -941,10 +1086,14 @@ export interface AllInCostArguments {
 export interface AllInCostOptions {
 	package?: string;
 	arguments: AllInCostArguments | [quote: TransactionArgument];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /** Return the total quoted account withdrawal for SDK and devInspect consumers. */
 export function allInCost(options: AllInCostOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['quote'];
 	return (tx: Transaction) =>
@@ -959,7 +1108,7 @@ export interface MintExactQuantityArguments {
 	market: RawTransactionArgument<string>;
 	wrapper: RawTransactionArgument<string>;
 	auth: TransactionArgument;
-	config: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
 	pricer: TransactionArgument;
 	lowerTick: RawTransactionArgument<number | bigint>;
 	higherTick: RawTransactionArgument<number | bigint>;
@@ -967,26 +1116,14 @@ export interface MintExactQuantityArguments {
 	leverage: RawTransactionArgument<number | bigint>;
 	maxCost: RawTransactionArgument<number | bigint>;
 	maxProbability: RawTransactionArgument<number | bigint>;
-	root: RawTransactionArgument<string>;
 }
 export interface MintExactQuantityOptions {
 	package?: string;
-	arguments:
-		| MintExactQuantityArguments
-		| [
-				market: RawTransactionArgument<string>,
-				wrapper: RawTransactionArgument<string>,
-				auth: TransactionArgument,
-				config: RawTransactionArgument<string>,
-				pricer: TransactionArgument,
-				lowerTick: RawTransactionArgument<number | bigint>,
-				higherTick: RawTransactionArgument<number | bigint>,
-				quantity: RawTransactionArgument<number | bigint>,
-				leverage: RawTransactionArgument<number | bigint>,
-				maxCost: RawTransactionArgument<number | bigint>,
-				maxProbability: RawTransactionArgument<number | bigint>,
-				root: RawTransactionArgument<string>,
-		  ];
+	arguments: MintExactQuantityArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /**
  * Mint an exact live position quantity against this expiry market.
@@ -1007,7 +1144,8 @@ export interface MintExactQuantityOptions {
  * for future order-scoped flows.
  */
 export function mintExactQuantity(options: MintExactQuantityOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [
 		null,
 		null,
@@ -1020,7 +1158,7 @@ export function mintExactQuantity(options: MintExactQuantityOptions) {
 		'u64',
 		'u64',
 		'u64',
-		null,
+		'0x2::accumulator::AccumulatorRoot',
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
 	const parameterNames = [
@@ -1035,21 +1173,27 @@ export function mintExactQuantity(options: MintExactQuantityOptions) {
 		'leverage',
 		'maxCost',
 		'maxProbability',
-		'root',
 	];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'expiry_market',
 			function: 'mint_exact_quantity',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface MintExactAmountArguments {
 	market: RawTransactionArgument<string>;
 	wrapper: RawTransactionArgument<string>;
 	auth: TransactionArgument;
-	config: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
 	pricer: TransactionArgument;
 	lowerTick: RawTransactionArgument<number | bigint>;
 	higherTick: RawTransactionArgument<number | bigint>;
@@ -1057,26 +1201,14 @@ export interface MintExactAmountArguments {
 	minQuantity: RawTransactionArgument<number | bigint>;
 	leverage: RawTransactionArgument<number | bigint>;
 	maxCost: RawTransactionArgument<number | bigint>;
-	root: RawTransactionArgument<string>;
 }
 export interface MintExactAmountOptions {
 	package?: string;
-	arguments:
-		| MintExactAmountArguments
-		| [
-				market: RawTransactionArgument<string>,
-				wrapper: RawTransactionArgument<string>,
-				auth: TransactionArgument,
-				config: RawTransactionArgument<string>,
-				pricer: TransactionArgument,
-				lowerTick: RawTransactionArgument<number | bigint>,
-				higherTick: RawTransactionArgument<number | bigint>,
-				maxPremium: RawTransactionArgument<number | bigint>,
-				minQuantity: RawTransactionArgument<number | bigint>,
-				leverage: RawTransactionArgument<number | bigint>,
-				maxCost: RawTransactionArgument<number | bigint>,
-				root: RawTransactionArgument<string>,
-		  ];
+	arguments: MintExactAmountArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /**
  * Mint a conservatively sized lot-rounded position whose net premium does not
@@ -1094,7 +1226,8 @@ export interface MintExactAmountOptions {
  * `position_lot_size` lots.
  */
 export function mintExactAmount(options: MintExactAmountOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [
 		null,
 		null,
@@ -1107,7 +1240,7 @@ export function mintExactAmount(options: MintExactAmountOptions) {
 		'u64',
 		'u64',
 		'u64',
-		null,
+		'0x2::accumulator::AccumulatorRoot',
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
 	const parameterNames = [
@@ -1122,44 +1255,40 @@ export function mintExactAmount(options: MintExactAmountOptions) {
 		'minQuantity',
 		'leverage',
 		'maxCost',
-		'root',
 	];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'expiry_market',
 			function: 'mint_exact_amount',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface RedeemLiveArguments {
 	market: RawTransactionArgument<string>;
 	wrapper: RawTransactionArgument<string>;
 	auth: TransactionArgument;
-	config: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
 	pricer: TransactionArgument;
 	orderId: RawTransactionArgument<number | bigint>;
 	closeQuantity: RawTransactionArgument<number | bigint>;
 	minProbability: RawTransactionArgument<number | bigint>;
 	minProceeds: RawTransactionArgument<number | bigint>;
-	root: RawTransactionArgument<string>;
 }
 export interface RedeemLiveOptions {
 	package?: string;
-	arguments:
-		| RedeemLiveArguments
-		| [
-				market: RawTransactionArgument<string>,
-				wrapper: RawTransactionArgument<string>,
-				auth: TransactionArgument,
-				config: RawTransactionArgument<string>,
-				pricer: TransactionArgument,
-				orderId: RawTransactionArgument<number | bigint>,
-				closeQuantity: RawTransactionArgument<number | bigint>,
-				minProbability: RawTransactionArgument<number | bigint>,
-				minProceeds: RawTransactionArgument<number | bigint>,
-				root: RawTransactionArgument<string>,
-		  ];
+	arguments: RedeemLiveArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /**
  * Redeem a live order you hold account authority over.
@@ -1180,7 +1309,8 @@ export interface RedeemLiveOptions {
  * market-quoted.
  */
 export function redeemLive(options: RedeemLiveOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [
 		null,
 		null,
@@ -1191,7 +1321,7 @@ export function redeemLive(options: RedeemLiveOptions) {
 		'u64',
 		'u64',
 		'u64',
-		null,
+		'0x2::accumulator::AccumulatorRoot',
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
 	const parameterNames = [
@@ -1204,38 +1334,37 @@ export function redeemLive(options: RedeemLiveOptions) {
 		'closeQuantity',
 		'minProbability',
 		'minProceeds',
-		'root',
 	];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'expiry_market',
 			function: 'redeem_live',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface RedeemSettledArguments {
 	market: RawTransactionArgument<string>;
 	wrapper: RawTransactionArgument<string>;
 	auth: TransactionArgument;
-	config: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
 	orderId: RawTransactionArgument<number | bigint>;
 	closeQuantity: RawTransactionArgument<number | bigint>;
-	root: RawTransactionArgument<string>;
 }
 export interface RedeemSettledOptions {
 	package?: string;
-	arguments:
-		| RedeemSettledArguments
-		| [
-				market: RawTransactionArgument<string>,
-				wrapper: RawTransactionArgument<string>,
-				auth: TransactionArgument,
-				config: RawTransactionArgument<string>,
-				orderId: RawTransactionArgument<number | bigint>,
-				closeQuantity: RawTransactionArgument<number | bigint>,
-				root: RawTransactionArgument<string>,
-		  ];
+	arguments: RedeemSettledArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /**
  * Redeem a settled order you hold account authority over.
@@ -1246,7 +1375,8 @@ export interface RedeemSettledOptions {
  * deauthorized; another authorized app may also supply valid account auth.
  */
 export function redeemSettled(options: RedeemSettledOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [
 		null,
 		null,
@@ -1254,48 +1384,40 @@ export function redeemSettled(options: RedeemSettledOptions) {
 		null,
 		'u256',
 		'u64',
-		null,
+		'0x2::accumulator::AccumulatorRoot',
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
-	const parameterNames = [
-		'market',
-		'wrapper',
-		'auth',
-		'config',
-		'orderId',
-		'closeQuantity',
-		'root',
-	];
+	const parameterNames = ['market', 'wrapper', 'auth', 'config', 'orderId', 'closeQuantity'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'expiry_market',
 			function: 'redeem_settled',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface RedeemSettledPermissionlessArguments {
 	market: RawTransactionArgument<string>;
 	accountRegistry: RawTransactionArgument<string>;
 	wrapper: RawTransactionArgument<string>;
-	config: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
 	orderId: RawTransactionArgument<number | bigint>;
 	closeQuantity: RawTransactionArgument<number | bigint>;
-	root: RawTransactionArgument<string>;
 }
 export interface RedeemSettledPermissionlessOptions {
 	package?: string;
-	arguments:
-		| RedeemSettledPermissionlessArguments
-		| [
-				market: RawTransactionArgument<string>,
-				accountRegistry: RawTransactionArgument<string>,
-				wrapper: RawTransactionArgument<string>,
-				config: RawTransactionArgument<string>,
-				orderId: RawTransactionArgument<number | bigint>,
-				closeQuantity: RawTransactionArgument<number | bigint>,
-				root: RawTransactionArgument<string>,
-		  ];
+	arguments: RedeemSettledPermissionlessArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /**
  * Permissionlessly redeem a settled order without account-owner authority.
@@ -1305,7 +1427,8 @@ export interface RedeemSettledPermissionlessOptions {
  * `redeem_settled` with owner auth to redeem their own settled positions.
  */
 export function redeemSettledPermissionless(options: RedeemSettledPermissionlessOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [
 		null,
 		null,
@@ -1313,7 +1436,7 @@ export function redeemSettledPermissionless(options: RedeemSettledPermissionless
 		null,
 		'u256',
 		'u64',
-		null,
+		'0x2::accumulator::AccumulatorRoot',
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
 	const parameterNames = [
@@ -1323,32 +1446,35 @@ export function redeemSettledPermissionless(options: RedeemSettledPermissionless
 		'config',
 		'orderId',
 		'closeQuantity',
-		'root',
 	];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'expiry_market',
 			function: 'redeem_settled_permissionless',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface LiquidateArguments {
 	market: RawTransactionArgument<string>;
-	config: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
 	pricer: TransactionArgument;
 	budget: RawTransactionArgument<number | bigint>;
 }
 export interface LiquidateOptions {
 	package?: string;
-	arguments:
-		| LiquidateArguments
-		| [
-				market: RawTransactionArgument<string>,
-				config: RawTransactionArgument<string>,
-				pricer: TransactionArgument,
-				budget: RawTransactionArgument<number | bigint>,
-		  ];
+	arguments: LiquidateArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /**
  * Run one bounded liquidation pass over active leveraged orders.
@@ -1358,7 +1484,8 @@ export interface LiquidateOptions {
  * position later through `redeem_live` or `redeem_settled`, receiving no payout.
  */
 export function liquidate(options: LiquidateOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, null, null, 'u64', '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['market', 'config', 'pricer', 'budget'];
 	return (tx: Transaction) =>
@@ -1366,25 +1493,29 @@ export function liquidate(options: LiquidateOptions) {
 			package: packageAddress,
 			module: 'expiry_market',
 			function: 'liquidate',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface LiquidateOrderArguments {
 	market: RawTransactionArgument<string>;
-	config: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
 	pricer: TransactionArgument;
 	orderId: RawTransactionArgument<number | bigint>;
 }
 export interface LiquidateOrderOptions {
 	package?: string;
-	arguments:
-		| LiquidateOrderArguments
-		| [
-				market: RawTransactionArgument<string>,
-				config: RawTransactionArgument<string>,
-				pricer: TransactionArgument,
-				orderId: RawTransactionArgument<number | bigint>,
-		  ];
+	arguments: LiquidateOrderArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /**
  * Try to liquidate one active leveraged order by ID, through the close flow: quote
@@ -1392,7 +1523,8 @@ export interface LiquidateOrderOptions {
  * outcome. Returns whether the order was liquidated.
  */
 export function liquidateOrder(options: LiquidateOrderOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, null, null, 'u256', '0x2::clock::Clock'] satisfies (
 		| string
 		| null
@@ -1403,25 +1535,30 @@ export function liquidateOrder(options: LiquidateOrderOptions) {
 			package: packageAddress,
 			module: 'expiry_market',
 			function: 'liquidate_order',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface SetReferenceTickArguments {
 	market: RawTransactionArgument<string>;
-	config: RawTransactionArgument<string>;
-	propbookRegistry: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
+	propbookRegistry?: RawTransactionArgument<string>;
 	pyth: RawTransactionArgument<string>;
 }
 export interface SetReferenceTickOptions {
 	package?: string;
-	arguments:
-		| SetReferenceTickArguments
-		| [
-				market: RawTransactionArgument<string>,
-				config: RawTransactionArgument<string>,
-				propbookRegistry: RawTransactionArgument<string>,
-				pyth: RawTransactionArgument<string>,
-		  ];
+	arguments: SetReferenceTickArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		oracleRegistry: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /**
  * Set this expiry's reference fine-grid tick from the exact previous-window
@@ -1430,7 +1567,8 @@ export interface SetReferenceTickOptions {
  * spot is floored to the market's `tick_size`.
  */
 export function setReferenceTick(options: SetReferenceTickOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, null, null, null, '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['market', 'config', 'propbookRegistry', 'pyth'];
 	return (tx: Transaction) =>
@@ -1438,25 +1576,30 @@ export function setReferenceTick(options: SetReferenceTickOptions) {
 			package: packageAddress,
 			module: 'expiry_market',
 			function: 'set_reference_tick',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+					propbookRegistry: options.arguments?.propbookRegistry ?? options.config?.oracleRegistry,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface SetMintPausedArguments {
 	market: RawTransactionArgument<string>;
-	config: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
 	AdminCap: RawTransactionArgument<string>;
 	paused: RawTransactionArgument<boolean>;
 }
 export interface SetMintPausedOptions {
 	package?: string;
-	arguments:
-		| SetMintPausedArguments
-		| [
-				market: RawTransactionArgument<string>,
-				config: RawTransactionArgument<string>,
-				AdminCap: RawTransactionArgument<string>,
-				paused: RawTransactionArgument<boolean>,
-		  ];
+	arguments: SetMintPausedArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /**
  * Set whether new mints are paused on this expiry market. Admin-only and
@@ -1464,7 +1607,8 @@ export interface SetMintPausedOptions {
  * version freeze via `registry::pause_expiry_market_mint_pause_cap`.
  */
 export function setMintPaused(options: SetMintPausedOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, null, null, 'bool'] satisfies (string | null)[];
 	const parameterNames = ['market', 'config', 'AdminCap', 'paused'];
 	return (tx: Transaction) =>
@@ -1472,25 +1616,30 @@ export function setMintPaused(options: SetMintPausedOptions) {
 			package: packageAddress,
 			module: 'expiry_market',
 			function: 'set_mint_paused',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface TrySettleArguments {
 	market: RawTransactionArgument<string>;
-	config: RawTransactionArgument<string>;
-	propbookRegistry: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
+	propbookRegistry?: RawTransactionArgument<string>;
 	pyth: RawTransactionArgument<string>;
 }
 export interface TrySettleOptions {
 	package?: string;
-	arguments:
-		| TrySettleArguments
-		| [
-				market: RawTransactionArgument<string>,
-				config: RawTransactionArgument<string>,
-				propbookRegistry: RawTransactionArgument<string>,
-				pyth: RawTransactionArgument<string>,
-		  ];
+	arguments: TrySettleArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		oracleRegistry: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /**
  * Settle from Propbook's exact positive normalized Pyth spot at expiry and
@@ -1498,7 +1647,8 @@ export interface TrySettleOptions {
  * or non-normalizable observation leaves the market unsettled.
  */
 export function trySettle(options: TrySettleOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, null, null, null, '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['market', 'config', 'propbookRegistry', 'pyth'];
 	return (tx: Transaction) =>
@@ -1506,6 +1656,14 @@ export function trySettle(options: TrySettleOptions) {
 			package: packageAddress,
 			module: 'expiry_market',
 			function: 'try_settle',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+					propbookRegistry: options.arguments?.propbookRegistry ?? options.config?.oracleRegistry,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }

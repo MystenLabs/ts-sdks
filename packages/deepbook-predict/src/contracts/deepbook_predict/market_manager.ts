@@ -12,6 +12,7 @@
 
 import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
+import { U64 } from '../../bcs/integers.js';
 import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as table from './deps/sui/table.js';
 const $moduleName = '@local-pkg/deepbook_predict::market_manager';
@@ -19,7 +20,7 @@ export const MarketKey = new MoveStruct({
 	name: `${$moduleName}::MarketKey`,
 	fields: {
 		propbook_underlying_id: bcs.u32(),
-		expiry: bcs.u64(),
+		expiry: U64,
 	},
 });
 export const MarketManager = new MoveStruct({
@@ -35,30 +36,30 @@ export const CadenceConfig = new MoveStruct({
 	name: `${$moduleName}::CadenceConfig`,
 	fields: {
 		/** Raw-price-per-tick factor snapshotted into each created market. */
-		tick_size: bcs.u64(),
+		tick_size: U64,
 		/** Coarser raw-price step that new finite mint boundaries must align to. */
-		admission_tick_size: bcs.u64(),
+		admission_tick_size: U64,
 		/**
 		 * DUSDC pool allocation cap snapshotted into pool accounting for each created
 		 * expiry.
 		 */
-		max_expiry_allocation: bcs.u64(),
+		max_expiry_allocation: U64,
 		/**
 		 * Minimum DUSDC cash target snapshotted into pool accounting for each created
 		 * expiry.
 		 */
-		initial_expiry_cash: bcs.u64(),
+		initial_expiry_cash: U64,
 		/**
 		 * Number of cadence periods in the rolling future deployment horizon. Zero
 		 * disables this cadence.
 		 */
-		window_size: bcs.u64(),
+		window_size: U64,
 	},
 });
 export const DeployableMarket = new MoveStruct({
 	name: `${$moduleName}::DeployableMarket`,
 	fields: {
-		expiry: bcs.u64(),
+		expiry: U64,
 		cadence: CadenceConfig,
 	},
 });
@@ -68,7 +69,7 @@ export const UnderlyingMarketConfig = new MoveStruct({
 		/** Deployment config indexed by cadence ID. */
 		cadences: bcs.vector(CadenceConfig),
 		/** Highest deployed expiry timestamp indexed by cadence ID. */
-		last_deployed_expiries: bcs.vector(bcs.u64()),
+		last_deployed_expiries: bcs.vector(U64),
 	},
 });
 export interface CadenceTickSizeArguments {
@@ -77,10 +78,14 @@ export interface CadenceTickSizeArguments {
 export interface CadenceTickSizeOptions {
 	package?: string;
 	arguments: CadenceTickSizeArguments | [config: TransactionArgument];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /** Return the raw-price-per-tick factor for SDK and devInspect cadence reads. */
 export function cadenceTickSize(options: CadenceTickSizeOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['config'];
 	return (tx: Transaction) =>
@@ -97,10 +102,14 @@ export interface CadenceAdmissionTickSizeArguments {
 export interface CadenceAdmissionTickSizeOptions {
 	package?: string;
 	arguments: CadenceAdmissionTickSizeArguments | [config: TransactionArgument];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /** Return the admission-grid step for SDK and devInspect cadence reads. */
 export function cadenceAdmissionTickSize(options: CadenceAdmissionTickSizeOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['config'];
 	return (tx: Transaction) =>
@@ -117,10 +126,14 @@ export interface CadenceMaxExpiryAllocationArguments {
 export interface CadenceMaxExpiryAllocationOptions {
 	package?: string;
 	arguments: CadenceMaxExpiryAllocationArguments | [config: TransactionArgument];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /** Return the expiry allocation cap for SDK and devInspect cadence reads. */
 export function cadenceMaxExpiryAllocation(options: CadenceMaxExpiryAllocationOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['config'];
 	return (tx: Transaction) =>
@@ -137,10 +150,14 @@ export interface CadenceInitialExpiryCashArguments {
 export interface CadenceInitialExpiryCashOptions {
 	package?: string;
 	arguments: CadenceInitialExpiryCashArguments | [config: TransactionArgument];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /** Return the initial expiry cash target for SDK and devInspect cadence reads. */
 export function cadenceInitialExpiryCash(options: CadenceInitialExpiryCashOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['config'];
 	return (tx: Transaction) =>
@@ -157,10 +174,14 @@ export interface CadenceWindowSizeArguments {
 export interface CadenceWindowSizeOptions {
 	package?: string;
 	arguments: CadenceWindowSizeArguments | [config: TransactionArgument];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /** Return the rolling deployment horizon for SDK and devInspect cadence reads. */
 export function cadenceWindowSize(options: CadenceWindowSizeOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['config'];
 	return (tx: Transaction) =>
@@ -177,10 +198,14 @@ export interface CadenceEnabledArguments {
 export interface CadenceEnabledOptions {
 	package?: string;
 	arguments: CadenceEnabledArguments | [config: TransactionArgument];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /** Return whether this cadence is enabled for SDK and devInspect discovery. */
 export function cadenceEnabled(options: CadenceEnabledOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['config'];
 	return (tx: Transaction) =>

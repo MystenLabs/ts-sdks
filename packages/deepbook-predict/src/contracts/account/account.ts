@@ -68,10 +68,14 @@ export interface IdArguments {
 export interface IdOptions {
 	package?: string;
 	arguments: IdArguments | [self: RawTransactionArgument<string>];
+	config?: {
+		accountPackageId?: string;
+	};
 }
 /** Returns the wrapper object ID. */
 export function id(options: IdOptions) {
-	const packageAddress = options.package ?? '@local-pkg/account';
+	const packageAddress =
+		options.package ?? options.config?.accountPackageId ?? '@local-pkg/account';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
@@ -88,10 +92,14 @@ export interface LoadAccountArguments {
 export interface LoadAccountOptions {
 	package?: string;
 	arguments: LoadAccountArguments | [self: RawTransactionArgument<string>];
+	config?: {
+		accountPackageId?: string;
+	};
 }
 /** Borrows the wrapped account for read-only composition. */
 export function loadAccount(options: LoadAccountOptions) {
-	const packageAddress = options.package ?? '@local-pkg/account';
+	const packageAddress =
+		options.package ?? options.config?.accountPackageId ?? '@local-pkg/account';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
@@ -104,11 +112,13 @@ export function loadAccount(options: LoadAccountOptions) {
 }
 export interface BalanceArguments {
 	self: TransactionArgument;
-	root: RawTransactionArgument<string>;
 }
 export interface BalanceOptions {
 	package?: string;
-	arguments: BalanceArguments | [self: TransactionArgument, root: RawTransactionArgument<string>];
+	arguments: BalanceArguments | [self: TransactionArgument];
+	config?: {
+		accountPackageId?: string;
+	};
 	typeArguments: [string];
 }
 /**
@@ -116,9 +126,14 @@ export interface BalanceOptions {
  * delivered through the ambient accumulator but not yet settled into the account.
  */
 export function balance(options: BalanceOptions) {
-	const packageAddress = options.package ?? '@local-pkg/account';
-	const argumentsTypes = [null, null, '0x2::clock::Clock'] satisfies (string | null)[];
-	const parameterNames = ['self', 'root'];
+	const packageAddress =
+		options.package ?? options.config?.accountPackageId ?? '@local-pkg/account';
+	const argumentsTypes = [
+		null,
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = ['self'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -134,13 +149,17 @@ export interface OwnerArguments {
 export interface OwnerOptions {
 	package?: string;
 	arguments: OwnerArguments | [self: TransactionArgument];
+	config?: {
+		accountPackageId?: string;
+	};
 }
 /**
  * Returns the account owner address. This may be an EOA address or an
  * object-ID-as-address.
  */
 export function owner(options: OwnerOptions) {
-	const packageAddress = options.package ?? '@local-pkg/account';
+	const packageAddress =
+		options.package ?? options.config?.accountPackageId ?? '@local-pkg/account';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
@@ -157,10 +176,14 @@ export interface AccountIdArguments {
 export interface AccountIdOptions {
 	package?: string;
 	arguments: AccountIdArguments | [self: TransactionArgument];
+	config?: {
+		accountPackageId?: string;
+	};
 }
 /** Returns the canonical account ID. */
 export function accountId(options: AccountIdOptions) {
-	const packageAddress = options.package ?? '@local-pkg/account';
+	const packageAddress =
+		options.package ?? options.config?.accountPackageId ?? '@local-pkg/account';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
@@ -177,13 +200,17 @@ export interface ReferrerAccountIdArguments {
 export interface ReferrerAccountIdOptions {
 	package?: string;
 	arguments: ReferrerAccountIdArguments | [self: TransactionArgument];
+	config?: {
+		accountPackageId?: string;
+	};
 }
 /**
  * Returns the canonical referrer account ID recorded at creation for external Move
  * composition.
  */
 export function referrerAccountId(options: ReferrerAccountIdOptions) {
-	const packageAddress = options.package ?? '@local-pkg/account';
+	const packageAddress =
+		options.package ?? options.config?.accountPackageId ?? '@local-pkg/account';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
@@ -200,10 +227,14 @@ export interface ReceiveAddressArguments {
 export interface ReceiveAddressOptions {
 	package?: string;
 	arguments: ReceiveAddressArguments | [self: TransactionArgument];
+	config?: {
+		accountPackageId?: string;
+	};
 }
 /** Returns the accumulator receive address for this account (the wrapper address). */
 export function receiveAddress(options: ReceiveAddressOptions) {
-	const packageAddress = options.package ?? '@local-pkg/account';
+	const packageAddress =
+		options.package ?? options.config?.accountPackageId ?? '@local-pkg/account';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
@@ -217,10 +248,14 @@ export function receiveAddress(options: ReceiveAddressOptions) {
 export interface GenerateAuthOptions {
 	package?: string;
 	arguments?: [];
+	config?: {
+		accountPackageId?: string;
+	};
 }
 /** Creates owner authority bound to the transaction sender. */
 export function generateAuth(options: GenerateAuthOptions = {}) {
-	const packageAddress = options.package ?? '@local-pkg/account';
+	const packageAddress =
+		options.package ?? options.config?.accountPackageId ?? '@local-pkg/account';
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -234,10 +269,14 @@ export interface GenerateAuthAsObjectArguments {
 export interface GenerateAuthAsObjectOptions {
 	package?: string;
 	arguments: GenerateAuthAsObjectArguments | [uid: RawTransactionArgument<string>];
+	config?: {
+		accountPackageId?: string;
+	};
 }
 /** Creates owner authority bound to an owning object's address. */
 export function generateAuthAsObject(options: GenerateAuthAsObjectOptions) {
-	const packageAddress = options.package ?? '@local-pkg/account';
+	const packageAddress =
+		options.package ?? options.config?.accountPackageId ?? '@local-pkg/account';
 	const argumentsTypes = ['0x2::object::ID'] satisfies (string | null)[];
 	const parameterNames = ['uid'];
 	return (tx: Transaction) =>
@@ -254,10 +293,14 @@ export interface ShareArguments {
 export interface ShareOptions {
 	package?: string;
 	arguments: ShareArguments | [self: RawTransactionArgument<string>];
+	config?: {
+		accountPackageId?: string;
+	};
 }
 /** Shares a newly created account wrapper. */
 export function share(options: ShareOptions) {
-	const packageAddress = options.package ?? '@local-pkg/account';
+	const packageAddress =
+		options.package ?? options.config?.accountPackageId ?? '@local-pkg/account';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
@@ -277,6 +320,9 @@ export interface LoadAccountMutOptions {
 	arguments:
 		| LoadAccountMutArguments
 		| [self: RawTransactionArgument<string>, auth: TransactionArgument];
+	config?: {
+		accountPackageId?: string;
+	};
 }
 /**
  * Consumes owner or app authority and returns the account's full mutable surface.
@@ -284,7 +330,8 @@ export interface LoadAccountMutOptions {
  * after registry authorization and carries no owner or operation restriction.
  */
 export function loadAccountMut(options: LoadAccountMutOptions) {
-	const packageAddress = options.package ?? '@local-pkg/account';
+	const packageAddress =
+		options.package ?? options.config?.accountPackageId ?? '@local-pkg/account';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'auth'];
 	return (tx: Transaction) =>
@@ -297,13 +344,13 @@ export function loadAccountMut(options: LoadAccountMutOptions) {
 }
 export interface SettleArguments {
 	wrapper: RawTransactionArgument<string>;
-	root: RawTransactionArgument<string>;
 }
 export interface SettleOptions {
 	package?: string;
-	arguments:
-		| SettleArguments
-		| [wrapper: RawTransactionArgument<string>, root: RawTransactionArgument<string>];
+	arguments: SettleArguments | [wrapper: RawTransactionArgument<string>];
+	config?: {
+		accountPackageId?: string;
+	};
 	typeArguments: [string];
 }
 /**
@@ -315,9 +362,14 @@ export interface SettleOptions {
  * borrow through `Auth`.
  */
 export function settle(options: SettleOptions) {
-	const packageAddress = options.package ?? '@local-pkg/account';
-	const argumentsTypes = [null, null, '0x2::clock::Clock'] satisfies (string | null)[];
-	const parameterNames = ['wrapper', 'root'];
+	const packageAddress =
+		options.package ?? options.config?.accountPackageId ?? '@local-pkg/account';
+	const argumentsTypes = [
+		null,
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = ['wrapper'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -334,6 +386,9 @@ export interface DepositArguments {
 export interface DepositOptions {
 	package?: string;
 	arguments: DepositArguments | [self: TransactionArgument, coin: RawTransactionArgument<string>];
+	config?: {
+		accountPackageId?: string;
+	};
 	typeArguments: [string];
 }
 /**
@@ -341,7 +396,8 @@ export interface DepositOptions {
  * settle through the wrapper first.
  */
 export function deposit(options: DepositOptions) {
-	const packageAddress = options.package ?? '@local-pkg/account';
+	const packageAddress =
+		options.package ?? options.config?.accountPackageId ?? '@local-pkg/account';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'coin'];
 	return (tx: Transaction) =>
@@ -362,6 +418,9 @@ export interface WithdrawOptions {
 	arguments:
 		| WithdrawArguments
 		| [self: TransactionArgument, amount: RawTransactionArgument<number | bigint>];
+	config?: {
+		accountPackageId?: string;
+	};
 	typeArguments: [string];
 }
 /**
@@ -369,7 +428,8 @@ export interface WithdrawOptions {
  * settle through the wrapper first.
  */
 export function withdraw(options: WithdrawOptions) {
-	const packageAddress = options.package ?? '@local-pkg/account';
+	const packageAddress =
+		options.package ?? options.config?.accountPackageId ?? '@local-pkg/account';
 	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
 	const parameterNames = ['self', 'amount'];
 	return (tx: Transaction) =>
@@ -385,7 +445,6 @@ export interface DepositFundsArguments {
 	wrapper: RawTransactionArgument<string>;
 	auth: TransactionArgument;
 	coin: RawTransactionArgument<string>;
-	root: RawTransactionArgument<string>;
 }
 export interface DepositFundsOptions {
 	package?: string;
@@ -395,8 +454,10 @@ export interface DepositFundsOptions {
 				wrapper: RawTransactionArgument<string>,
 				auth: TransactionArgument,
 				coin: RawTransactionArgument<string>,
-				root: RawTransactionArgument<string>,
 		  ];
+	config?: {
+		accountPackageId?: string;
+	};
 	typeArguments: [string];
 }
 /**
@@ -404,9 +465,16 @@ export interface DepositFundsOptions {
  * into stored balance in one call.
  */
 export function depositFunds(options: DepositFundsOptions) {
-	const packageAddress = options.package ?? '@local-pkg/account';
-	const argumentsTypes = [null, null, null, null, '0x2::clock::Clock'] satisfies (string | null)[];
-	const parameterNames = ['wrapper', 'auth', 'coin', 'root'];
+	const packageAddress =
+		options.package ?? options.config?.accountPackageId ?? '@local-pkg/account';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = ['wrapper', 'auth', 'coin'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -420,7 +488,6 @@ export interface WithdrawFundsArguments {
 	wrapper: RawTransactionArgument<string>;
 	auth: TransactionArgument;
 	amount: RawTransactionArgument<number | bigint>;
-	root: RawTransactionArgument<string>;
 }
 export interface WithdrawFundsOptions {
 	package?: string;
@@ -430,8 +497,10 @@ export interface WithdrawFundsOptions {
 				wrapper: RawTransactionArgument<string>,
 				auth: TransactionArgument,
 				amount: RawTransactionArgument<number | bigint>,
-				root: RawTransactionArgument<string>,
 		  ];
+	config?: {
+		accountPackageId?: string;
+	};
 	typeArguments: [string];
 }
 /**
@@ -439,9 +508,16 @@ export interface WithdrawFundsOptions {
  * from stored balance in one call.
  */
 export function withdrawFunds(options: WithdrawFundsOptions) {
-	const packageAddress = options.package ?? '@local-pkg/account';
-	const argumentsTypes = [null, null, 'u64', null, '0x2::clock::Clock'] satisfies (string | null)[];
-	const parameterNames = ['wrapper', 'auth', 'amount', 'root'];
+	const packageAddress =
+		options.package ?? options.config?.accountPackageId ?? '@local-pkg/account';
+	const argumentsTypes = [
+		null,
+		null,
+		'u64',
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = ['wrapper', 'auth', 'amount'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -461,6 +537,9 @@ export interface AttachOptions<Data extends BcsType<any>> {
 	arguments:
 		| AttachArguments<Data>
 		| [self: TransactionArgument, Permit: TransactionArgument, data: RawTransactionArgument<Data>];
+	config?: {
+		accountPackageId?: string;
+	};
 	typeArguments: [string, string];
 }
 /**
@@ -468,7 +547,8 @@ export interface AttachOptions<Data extends BcsType<any>> {
  * Aborts if `App` already has data attached.
  */
 export function attach<Data extends BcsType<any>>(options: AttachOptions<Data>) {
-	const packageAddress = options.package ?? '@local-pkg/account';
+	const packageAddress =
+		options.package ?? options.config?.accountPackageId ?? '@local-pkg/account';
 	const argumentsTypes = [null, null, `${options.typeArguments[1]}`] satisfies (string | null)[];
 	const parameterNames = ['self', 'Permit', 'data'];
 	return (tx: Transaction) =>
@@ -486,11 +566,15 @@ export interface HasDataArguments {
 export interface HasDataOptions {
 	package?: string;
 	arguments: HasDataArguments | [self: TransactionArgument];
+	config?: {
+		accountPackageId?: string;
+	};
 	typeArguments: [string];
 }
 /** Whether `App` has data attached to this account. */
 export function hasData(options: HasDataOptions) {
-	const packageAddress = options.package ?? '@local-pkg/account';
+	const packageAddress =
+		options.package ?? options.config?.accountPackageId ?? '@local-pkg/account';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
@@ -508,6 +592,9 @@ export interface BorrowDataArguments {
 export interface BorrowDataOptions {
 	package?: string;
 	arguments: BorrowDataArguments | [self: TransactionArgument];
+	config?: {
+		accountPackageId?: string;
+	};
 	typeArguments: [string, string];
 }
 /**
@@ -516,7 +603,8 @@ export interface BorrowDataOptions {
  * nothing is attached.
  */
 export function borrowData(options: BorrowDataOptions) {
-	const packageAddress = options.package ?? '@local-pkg/account';
+	const packageAddress =
+		options.package ?? options.config?.accountPackageId ?? '@local-pkg/account';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['self'];
 	return (tx: Transaction) =>
@@ -535,6 +623,9 @@ export interface BorrowDataMutArguments {
 export interface BorrowDataMutOptions {
 	package?: string;
 	arguments: BorrowDataMutArguments | [self: TransactionArgument, Permit: TransactionArgument];
+	config?: {
+		accountPackageId?: string;
+	};
 	typeArguments: [string, string];
 }
 /**
@@ -542,7 +633,8 @@ export interface BorrowDataMutOptions {
  * nothing is attached.
  */
 export function borrowDataMut(options: BorrowDataMutOptions) {
-	const packageAddress = options.package ?? '@local-pkg/account';
+	const packageAddress =
+		options.package ?? options.config?.accountPackageId ?? '@local-pkg/account';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'Permit'];
 	return (tx: Transaction) =>
@@ -561,6 +653,9 @@ export interface DetachArguments {
 export interface DetachOptions {
 	package?: string;
 	arguments: DetachArguments | [self: TransactionArgument, Permit: TransactionArgument];
+	config?: {
+		accountPackageId?: string;
+	};
 	typeArguments: [string, string];
 }
 /**
@@ -568,7 +663,8 @@ export interface DetachOptions {
  * attached.
  */
 export function detach(options: DetachOptions) {
-	const packageAddress = options.package ?? '@local-pkg/account';
+	const packageAddress =
+		options.package ?? options.config?.accountPackageId ?? '@local-pkg/account';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['self', 'Permit'];
 	return (tx: Transaction) =>
