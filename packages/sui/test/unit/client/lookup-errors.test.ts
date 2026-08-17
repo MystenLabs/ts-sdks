@@ -54,6 +54,7 @@ describe('client lookup errors', () => {
 		expect(error).toBeInstanceOf(SuiClientError);
 		expect(error.reason).toBe('notFound');
 		expect(error.digest).toBe(digest);
+		expect(error.message).toBe(`Transaction ${digest} not found`);
 		expect(error.cause).toBe(cause);
 	});
 });
@@ -108,6 +109,8 @@ describe('getObjects', () => {
 			'deleted',
 		],
 		[{ code: 'unknown' }, 'unknown', 'unknown'],
+		// Codes the SDK doesn't know about yet still map to an ObjectError entry.
+		[{ code: 'futureCode' }, 'futureCode', 'unknown'],
 	] as const)('preserves JSON-RPC code %s and adds reason %s', async (wireError, code, reason) => {
 		const transport: JsonRpcTransport = {
 			request: vi.fn().mockResolvedValue([{ error: wireError }]),

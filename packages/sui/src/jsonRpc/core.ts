@@ -82,6 +82,7 @@ function mapJsonRpcObjectError(
 				objectId: requestedObjectId,
 			});
 		case 'unknown':
+		default:
 			return new ObjectError(
 				response.code,
 				`Unknown error while loading object${requestedObjectId ? ` ${requestedObjectId}` : ''}`,
@@ -91,9 +92,6 @@ function mapJsonRpcObjectError(
 					objectId: requestedObjectId,
 				},
 			);
-		default:
-			response satisfies never;
-			throw new Error('Unknown JSON-RPC object error');
 	}
 }
 

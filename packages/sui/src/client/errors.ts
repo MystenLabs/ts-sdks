@@ -47,6 +47,10 @@ export class ObjectError extends SuiClientError {
 
 export type TransactionErrorReason = 'notFound';
 
+const TRANSACTION_ERROR_MESSAGES: Record<TransactionErrorReason, (digest: string) => string> = {
+	notFound: (digest) => `Transaction ${digest} not found`,
+};
+
 /** An error returned by a transaction lookup. */
 export class TransactionError extends SuiClientError {
 	/** A transport-neutral reason shared by all Core API clients. */
@@ -55,7 +59,7 @@ export class TransactionError extends SuiClientError {
 	readonly digest: string;
 
 	constructor(reason: TransactionErrorReason, digest: string, options?: { cause?: unknown }) {
-		super(`Transaction ${digest} not found`, options);
+		super(TRANSACTION_ERROR_MESSAGES[reason](digest), options);
 		this.reason = reason;
 		this.digest = digest;
 	}
