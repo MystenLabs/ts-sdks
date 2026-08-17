@@ -1,5 +1,14 @@
 # @mysten/hashi
 
+## 0.6.8
+
+### Patch Changes
+
+- c8d3046: Detect missing objects via the transport-neutral `ObjectError.reason` (`'notFound'`)
+  introduced in `@mysten/sui`, restoring `findUsedUtxos`, deposit status, and withdrawal status
+  behavior on the gRPC transport. The legacy JSON-RPC code and gRPC message checks remain as
+  fallbacks for older `@mysten/sui` versions.
+
 ## 0.6.7
 
 ## 0.6.6
