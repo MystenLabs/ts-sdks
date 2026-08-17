@@ -11,6 +11,7 @@ import {
 import { Transaction } from '../../../../src/transactions/index.js';
 import { SUI_TYPE_ARG } from '../../../../src/utils/index.js';
 import { Ed25519Keypair } from '../../../../src/keypairs/ed25519/keypair.js';
+import { TransactionError } from '../../../../src/client/index.js';
 
 describe('Core API - Transactions', () => {
 	let toolbox: TestToolbox;
@@ -97,9 +98,13 @@ describe('Core API - Transactions', () => {
 		});
 
 		testWithAllClients('should throw error for non-existent digest', async (client) => {
-			const fakeDigest = 'ABCDEFabcdef1234567890123456789012345678901234567890123456789012';
+			const fakeDigest = '11111111111111111111111111111111';
+			const error = await client.core
+				.getTransaction({ digest: fakeDigest })
+				.catch((error) => error);
 
-			await expect(client.core.getTransaction({ digest: fakeDigest })).rejects.toThrow();
+			expect(error).toBeInstanceOf(TransactionError);
+			expect(error).toMatchObject({ reason: 'notFound', digest: fakeDigest });
 		});
 
 		testWithAllClients('should throw error for invalid digest format', async (client) => {
