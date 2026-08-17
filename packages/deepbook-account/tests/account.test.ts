@@ -4,7 +4,7 @@ import { Transaction } from '@mysten/sui/transactions';
 import { normalizeSuiAddress } from '@mysten/sui/utils';
 import { describe, expect, test } from 'vitest';
 
-import { AccountContract, ACCUMULATOR_ROOT_ID } from '../src/account.js';
+import { AccountContract } from '../src/account.js';
 
 const PKG = '0x' + '11'.repeat(32);
 const REGISTRY = '0x' + '22'.repeat(32);
@@ -78,7 +78,8 @@ describe('depositFunds', () => {
 		expect(argObjectId(tx, 1, 0)).toBe(normalizeSuiAddress('0x123'));
 		// auth is the hot potato from command 0, consumed here.
 		expect(call(tx, 1).arguments[1]).toMatchObject({ $kind: 'Result', Result: 0 });
-		expect(argObjectId(tx, 1, 3)).toBe(normalizeSuiAddress(ACCUMULATOR_ROOT_ID));
+		// the AccumulatorRoot is auto-injected by the generated move-call layer
+		expect(argObjectId(tx, 1, 3)).toBe(normalizeSuiAddress('0xacc'));
 	});
 });
 
@@ -94,7 +95,8 @@ describe('withdrawFunds', () => {
 		]);
 		expect(call(tx, 1).typeArguments).toEqual([COIN_TYPE]);
 		expect(argObjectId(tx, 1, 0)).toBe(normalizeSuiAddress('0x123'));
-		expect(argObjectId(tx, 1, 3)).toBe(normalizeSuiAddress(ACCUMULATOR_ROOT_ID));
+		// the AccumulatorRoot is auto-injected by the generated move-call layer
+		expect(argObjectId(tx, 1, 3)).toBe(normalizeSuiAddress('0xacc'));
 		// the builder hands back withdraw_funds' result for the caller to compose
 		expect(coin).toBeDefined();
 	});

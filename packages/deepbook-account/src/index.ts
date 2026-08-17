@@ -7,7 +7,7 @@
 // generated BCS structs consumers need to parse account state and receipts.
 
 // === Transaction builders ===
-export { AccountContract, ACCUMULATOR_ROOT_ID } from './account.js';
+export { AccountContract } from './account.js';
 export type { AccountConfig } from './account.js';
 
 // === Generated bindings ===

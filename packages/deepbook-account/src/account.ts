@@ -13,14 +13,6 @@ import * as accountRegistry from './contracts/account/account_registry.js';
 import type { AccountConfig as GeneratedAccountConfig } from './contracts/account/config-arguments.js';
 
 /**
- * The framework's well-known accumulator-root singleton, which settles the address
- * balances an account's custody funds move through. The generated bindings supply it
- * automatically; it stays exported for PTBs that compose accounts with packages this
- * SDK has no bindings for.
- */
-export const ACCUMULATOR_ROOT_ID = '0xacc';
-
-/**
  * The deployed ids of the shared `account` package this contract builds against.
  *
  * Kept deliberately minimal — ids only — so any consumer of the shared account primitive
