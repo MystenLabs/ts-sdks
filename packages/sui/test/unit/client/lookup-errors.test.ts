@@ -61,9 +61,14 @@ describe('client lookup errors', () => {
 
 describe('getObjects', () => {
 	it.each([
-		[GrpcStatusCode.NOT_FOUND, 'notFound'],
-		[GrpcStatusCode.INTERNAL, 'unknown'],
-	] as const)('maps gRPC status %i to ObjectError reason %s', async (status, reason) => {
+		// Missing objects reuse the JSON-RPC `notExists` code so handlers written
+		// against earlier releases keep working on every transport.
+		[GrpcStatusCode.NOT_FOUND, 'notExists', 'notFound'],
+		// Other statuses use stable gRPC status names, never the raw status number.
+		[GrpcStatusCode.INTERNAL, 'INTERNAL', 'unknown'],
+		// Statuses outside the GrpcStatusCode enum never leak a numeric code.
+		[999 as GrpcStatusCode, 'unknown', 'unknown'],
+	] as const)('maps gRPC status %i to ObjectError code %s', async (status, code, reason) => {
 		const client = new SuiGrpcClient({ network: 'testnet', baseUrl: 'http://localhost' });
 		const wireError = { code: status, message: 'object lookup failed', details: [] };
 		client.ledgerService.batchGetObjects = vi.fn().mockResolvedValue({
@@ -77,7 +82,7 @@ describe('getObjects', () => {
 
 		expect(error).toBeInstanceOf(ObjectError);
 		expect(error).toMatchObject({
-			code: String(status),
+			code,
 			reason,
 			objectId: '0x123',
 		});

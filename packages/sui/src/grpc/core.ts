@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { CoreClientOptions, ObjectErrorReason, SuiClientTypes } from '../client/index.js';
+import type { CoreClientOptions, SuiClientTypes } from '../client/index.js';
 import {
 	CoreClient,
 	formatMoveAbortMessage,
@@ -135,11 +135,22 @@ export class GrpcCoreClient extends CoreClient {
 					(object, index): SuiClientTypes.Object<Include> | ObjectError => {
 						if (object.result.oneofKind === 'error') {
 							const error = object.result.error;
-							const reason: ObjectErrorReason =
-								error.code === GrpcStatusCode.NOT_FOUND ? 'notFound' : 'unknown';
-							return new ObjectError(String(error.code), error.message, {
+							if (error.code === GrpcStatusCode.NOT_FOUND) {
+								// Special case for backwards compatibility: missing objects reuse
+								// the long-standing JSON-RPC `notExists` code instead of the gRPC
+								// status name, so handlers written against earlier releases keep
+								// working.
+								return new ObjectError('notExists', error.message, {
+									cause: error,
+									reason: 'notFound',
+									objectId: batch[index],
+								});
+							}
+							// Other statuses use the gRPC status name (for example `INTERNAL`),
+							// never the raw status number.
+							return new ObjectError(GrpcStatusCode[error.code] ?? 'unknown', error.message, {
 								cause: error,
-								reason,
+								reason: 'unknown',
 								objectId: batch[index],
 							});
 						}
