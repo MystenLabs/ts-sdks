@@ -10,6 +10,7 @@ import type {
 	EventId,
 	ExecutionStatus as JsonRpcExecutionStatus,
 	ObjectOwner,
+	ObjectResponseError,
 	SuiMoveAbilitySet,
 	SuiMoveAbort,
 	SuiMoveNormalizedType,
@@ -36,15 +37,74 @@ import { deriveDynamicFieldID } from '../utils/dynamic-fields.js';
 import { SUI_FRAMEWORK_ADDRESS, SUI_SYSTEM_ADDRESS } from '../utils/constants.js';
 import { CoreClient } from '../client/core.js';
 import type { SuiClientTypes } from '../client/types.js';
-import { ObjectError } from '../client/errors.js';
+import { ObjectError, TransactionError } from '../client/errors.js';
 import {
 	formatMoveAbortMessage,
 	parseTransactionBcs,
 	parseTransactionEffectsBcs,
 } from '../client/index.js';
 import type { SuiJsonRpcClient } from './client.js';
+import { JsonRpcError } from './errors.js';
 
 const MAX_GAS = 50_000_000_000;
+
+function mapJsonRpcObjectError(
+	response: ObjectResponseError,
+	requestedObjectId?: string,
+): ObjectError {
+	switch (response.code) {
+		case 'notExists':
+			return new ObjectError(response.code, `Object ${response.object_id} does not exist`, {
+				cause: response,
+				reason: 'notFound',
+				objectId: requestedObjectId ?? response.object_id,
+			});
+		case 'dynamicFieldNotFound':
+			return new ObjectError(
+				response.code,
+				`Dynamic field not found for object ${response.parent_object_id}`,
+				{
+					cause: response,
+					reason: 'notFound',
+					objectId: requestedObjectId ?? response.parent_object_id,
+				},
+			);
+		case 'deleted':
+			return new ObjectError(response.code, `Object ${response.object_id} has been deleted`, {
+				cause: response,
+				reason: 'deleted',
+				objectId: requestedObjectId ?? response.object_id,
+			});
+		case 'displayError':
+			return new ObjectError(response.code, `Display error: ${response.error}`, {
+				cause: response,
+				reason: 'unknown',
+				objectId: requestedObjectId,
+			});
+		case 'unknown':
+			return new ObjectError(
+				response.code,
+				`Unknown error while loading object${requestedObjectId ? ` ${requestedObjectId}` : ''}`,
+				{
+					cause: response,
+					reason: 'unknown',
+					objectId: requestedObjectId,
+				},
+			);
+		default:
+			response satisfies never;
+			throw new Error('Unknown JSON-RPC object error');
+	}
+}
+
+function isJsonRpcTransactionNotFound(error: unknown, digest: string): boolean {
+	if (!(error instanceof JsonRpcError) || error.code !== -32602) return false;
+
+	return (
+		error.message === `Invalid Params: Transaction ${digest} not found` ||
+		error.message === `Could not find the referenced transaction [TransactionDigest(${digest})].`
+	);
+}
 
 function parseJsonRpcExecutionStatus(
 	status: JsonRpcExecutionStatus,
@@ -160,7 +220,7 @@ export class JSONRpcCoreClient extends CoreClient {
 
 			for (const [idx, object] of objects.entries()) {
 				if (object.error) {
-					results.push(ObjectError.fromResponse(object.error, batch[idx]));
+					results.push(mapJsonRpcObjectError(object.error, batch[idx]));
 				} else {
 					results.push(parseObject(object.data!, options.include));
 				}
@@ -211,7 +271,7 @@ export class JSONRpcCoreClient extends CoreClient {
 		return {
 			objects: objects.data.map((result) => {
 				if (result.error) {
-					throw ObjectError.fromResponse(result.error);
+					throw mapJsonRpcObjectError(result.error);
 				}
 
 				return parseObject(result.data!, options.include);
@@ -340,22 +400,29 @@ export class JSONRpcCoreClient extends CoreClient {
 	async getTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 		options: SuiClientTypes.GetTransactionOptions<Include>,
 	): Promise<SuiClientTypes.TransactionResult<Include>> {
-		const transaction = await this.#jsonRpcClient.getTransactionBlock({
-			digest: options.digest,
-			options: {
-				// showRawInput is always needed to extract signatures from SenderSignedData
-				showRawInput: true,
-				// showEffects is always needed to get status
-				showEffects: true,
-				showObjectChanges: options.include?.objectTypes ?? false,
-				showRawEffects: options.include?.effects ?? false,
-				showEvents: options.include?.events ?? false,
-				showBalanceChanges: options.include?.balanceChanges ?? false,
-			},
-			signal: options.signal,
-		});
+		try {
+			const transaction = await this.#jsonRpcClient.getTransactionBlock({
+				digest: options.digest,
+				options: {
+					// showRawInput is always needed to extract signatures from SenderSignedData
+					showRawInput: true,
+					// showEffects is always needed to get status
+					showEffects: true,
+					showObjectChanges: options.include?.objectTypes ?? false,
+					showRawEffects: options.include?.effects ?? false,
+					showEvents: options.include?.events ?? false,
+					showBalanceChanges: options.include?.balanceChanges ?? false,
+				},
+				signal: options.signal,
+			});
 
-		return parseTransaction(transaction, options.include);
+			return parseTransaction(transaction, options.include);
+		} catch (error) {
+			if (isJsonRpcTransactionNotFound(error, options.digest)) {
+				throw new TransactionError('notFound', options.digest, { cause: error });
+			}
+			throw error;
+		}
 	}
 	/**
 	 * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
