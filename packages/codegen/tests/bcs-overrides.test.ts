@@ -391,7 +391,7 @@ describe('rendering with bcsOverrides', () => {
 		expect(output).not.toContain(`from '../../bcs-fixtures/other.js'`);
 	});
 
-	it('does not install a declaration override after an earlier field override', async () => {
+	it('applies an earlier field override before a later declaration fallback', async () => {
 		const output = await renderRegistry(
 			[
 				{
@@ -404,10 +404,29 @@ describe('rendering with bcsOverrides', () => {
 			['Status', 'Entry'],
 		);
 
-		expect(output).toContain('MoveEnum');
+		expect(output).toContain(`import { Status as Status_1 } from '../../bcs-fixtures/units.js'`);
+		expect(output).toContain('export const Status = Status_1');
 		expect(output).toContain(`import { ScaledU64 } from '../../bcs-fixtures/other.js'`);
 		expect(output).toMatch(/status:\s*ScaledU64[,\s]/);
-		expect(output).not.toContain(`from '../../bcs-fixtures/units.js'`);
+	});
+
+	it('ignores a nonmatching field rule before a declaration fallback', async () => {
+		const output = await renderRegistry(
+			[
+				{
+					type: 'registry::Status',
+					fields: 'Missing.value',
+					source: './bcs-fixtures/other.ts#ScaledU64',
+				},
+				{ type: 'registry::Status', source: './bcs-fixtures/units.ts' },
+			],
+			['Status', 'Entry'],
+		);
+
+		expect(output).toContain(`import { Status as Status_1 } from '../../bcs-fixtures/units.js'`);
+		expect(output).toContain('export const Status = Status_1');
+		expect(output).toMatch(/status:\s*Status[,\s]/);
+		expect(output).not.toContain(`from '../../bcs-fixtures/other.js'`);
 	});
 
 	it('imports the named export from a "#ExportName" fragment', async () => {
