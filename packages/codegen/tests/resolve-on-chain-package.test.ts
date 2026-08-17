@@ -145,6 +145,22 @@ describe('resolveOnChainPackageId', () => {
 			}),
 		).toThrow('Invalid source package ID');
 	});
+
+	it('rejects a source package ID that differs from a raw package ID', () => {
+		expect(() =>
+			configSchema.parse({
+				output: './generated',
+				packages: [
+					{
+						package: `0x${'2'.repeat(64)}`,
+						sourcePackageId: `0x${'3'.repeat(64)}`,
+						packageName: 'counter',
+						network: 'testnet',
+					},
+				],
+			}),
+		).toThrow('sourcePackageId must match package when package is a package ID');
+	});
 });
 
 describe('withTemporaryDirectory', () => {

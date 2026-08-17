@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { isValidNamedPackage, isValidSuiObjectId } from '@mysten/sui/utils';
+import { isValidNamedPackage, isValidSuiObjectId, normalizeSuiObjectId } from '@mysten/sui/utils';
 import { cosmiconfig } from 'cosmiconfig';
 import * as z from 'zod/v4';
 
@@ -41,19 +41,33 @@ export const packageGenerateSchema = globalGenerateSchema.extend({
 		.optional(),
 });
 
-export const onChainPackageSchema = z.object({
-	package: z.string().refine((name) => isValidNamedPackage(name) || isValidSuiObjectId(name), {
-		message: 'Invalid package name or package ID',
-	}),
-	sourcePackageId: z
-		.string()
-		.refine((id) => isValidSuiObjectId(id), { message: 'Invalid source package ID' })
-		.optional(),
-	packageName: z.string(),
-	path: z.never().optional(),
-	network: z.enum(['mainnet', 'testnet']),
-	generate: packageGenerateSchema.optional(),
-});
+export const onChainPackageSchema = z
+	.object({
+		package: z.string().refine((name) => isValidNamedPackage(name) || isValidSuiObjectId(name), {
+			message: 'Invalid package name or package ID',
+		}),
+		sourcePackageId: z
+			.string()
+			.refine((id) => isValidSuiObjectId(id), { message: 'Invalid source package ID' })
+			.optional(),
+		packageName: z.string(),
+		path: z.never().optional(),
+		network: z.enum(['mainnet', 'testnet']),
+		generate: packageGenerateSchema.optional(),
+	})
+	.superRefine((config, context) => {
+		if (
+			config.sourcePackageId &&
+			isValidSuiObjectId(config.package) &&
+			normalizeSuiObjectId(config.package) !== normalizeSuiObjectId(config.sourcePackageId)
+		) {
+			context.addIssue({
+				code: 'custom',
+				path: ['sourcePackageId'],
+				message: 'sourcePackageId must match package when package is a package ID',
+			});
+		}
+	});
 
 export const localPackageSchema = z.object({
 	path: z.string(),
