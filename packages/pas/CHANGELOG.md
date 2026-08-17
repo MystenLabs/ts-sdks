@@ -1,5 +1,11 @@
 # @mysten/pas
 
+## 0.2.15
+
+### Patch Changes
+
+- 19e85a3: Regenerate contract bindings with the latest codegen utils template
+
 ## 0.2.14
 
 ## 0.2.13

@@ -1,5 +1,11 @@
 # @mysten/hashi
 
+## 0.6.6
+
+### Patch Changes
+
+- 19e85a3: Regenerate contract bindings with the latest codegen utils template
+
 ## 0.6.5
 
 ### Patch Changes
