@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { isValidNamedPackage, isValidSuiObjectId } from '@mysten/sui/utils';
+import { isValidNamedPackage, isValidSuiObjectId, normalizeSuiObjectId } from '@mysten/sui/utils';
 import { cosmiconfig } from 'cosmiconfig';
 import * as z from 'zod/v4';
 
@@ -41,15 +41,33 @@ export const packageGenerateSchema = globalGenerateSchema.extend({
 		.optional(),
 });
 
-export const onChainPackageSchema = z.object({
-	package: z.string().refine((name) => isValidNamedPackage(name) || isValidSuiObjectId(name), {
-		message: 'Invalid package name or package ID',
-	}),
-	packageName: z.string(),
-	path: z.never().optional(),
-	network: z.enum(['mainnet', 'testnet']),
-	generate: packageGenerateSchema.optional(),
-});
+export const onChainPackageSchema = z
+	.object({
+		package: z.string().refine((name) => isValidNamedPackage(name) || isValidSuiObjectId(name), {
+			message: 'Invalid package name or package ID',
+		}),
+		sourcePackageId: z
+			.string()
+			.refine((id) => isValidSuiObjectId(id), { message: 'Invalid source package ID' })
+			.optional(),
+		packageName: z.string(),
+		path: z.never().optional(),
+		network: z.enum(['mainnet', 'testnet']),
+		generate: packageGenerateSchema.optional(),
+	})
+	.superRefine((config, context) => {
+		if (
+			config.sourcePackageId &&
+			isValidSuiObjectId(config.package) &&
+			normalizeSuiObjectId(config.package) !== normalizeSuiObjectId(config.sourcePackageId)
+		) {
+			context.addIssue({
+				code: 'custom',
+				path: ['sourcePackageId'],
+				message: 'sourcePackageId must match package when package is a package ID',
+			});
+		}
+	});
 
 export const localPackageSchema = z.object({
 	path: z.string(),
@@ -62,6 +80,23 @@ export const packageConfigSchema = z.union([onChainPackageSchema, localPackageSc
 
 export const importExtensionSchema = z.union([z.literal('.js'), z.literal('.ts'), z.literal('')]);
 export type ImportExtension = z.infer<typeof importExtensionSchema>;
+
+export const DEFAULT_FULLNODE_URLS = {
+	mainnet: 'https://fullnode.mainnet.sui.io:443',
+	testnet: 'https://fullnode.testnet.sui.io:443',
+};
+
+const fullnodeUrlSchema = z
+	.string()
+	.url()
+	.refine((url) => ['http:', 'https:'].includes(new URL(url).protocol), {
+		message: 'Fullnode URL must use HTTP or HTTPS',
+	});
+
+export const fullnodeUrlsSchema = z.object({
+	mainnet: fullnodeUrlSchema.default(DEFAULT_FULLNODE_URLS.mainnet),
+	testnet: fullnodeUrlSchema.default(DEFAULT_FULLNODE_URLS.testnet),
+});
 
 export type GenerateBase = z.infer<typeof globalGenerateSchema>;
 export type PackageGenerate = z.infer<typeof packageGenerateSchema>;
@@ -88,6 +123,8 @@ export const configSchema = z.object({
 	privateMethods: z.union([z.literal('none'), z.literal('entry'), z.literal('all')]).optional(),
 	importExtension: importExtensionSchema.optional().default('.js'),
 	includePhantomTypeParameters: z.boolean().optional().default(false),
+	/** Fullnode URLs used to fetch summaries for on-chain packages. */
+	fullnodeUrls: fullnodeUrlsSchema.optional().default(DEFAULT_FULLNODE_URLS),
 	/**
 	 * Custom error class for `normalizeMoveArguments` in the generated `utils/index.ts`.
 	 * Defaults to the built-in `Error`.
@@ -112,6 +149,7 @@ export async function loadConfig(): Promise<ParsedSuiCodegenConfig> {
 			generateSummaries: true,
 			importExtension: '.js',
 			includePhantomTypeParameters: false,
+			fullnodeUrls: DEFAULT_FULLNODE_URLS,
 		};
 	}
 
