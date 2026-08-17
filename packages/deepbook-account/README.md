@@ -2,8 +2,8 @@
 
 TypeScript SDK for the shared DeepBook **account primitive** — the reusable on-chain account
 (`AccountWrapper`, `Auth`, custody balances) that DeepBook's core account wrapper and
-[`@mysten/deepbook-predict`](../deepbook-predict) both build on. Builds ready-to-sign transaction
-commands; it never signs and never touches keys.
+[`@mysten/deepbook-predict`](https://github.com/MystenLabs/ts-sdks/tree/main/packages/deepbook-predict)
+both build on. Builds ready-to-sign transaction commands; it never signs and never touches keys.
 
 ## Install
 
