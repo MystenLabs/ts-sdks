@@ -99,7 +99,8 @@ const getSigner = () => {
 		}),
 	);
 
-	// All 4 mainnet assets with Pyth price feeds
+	// The four assets these pools price against. Seven mainnet coins carry feeds;
+	// this example refreshes only the ones the pools below need.
 	const coinKeys = ['SUI', 'USDC', 'DEEP', 'WAL'];
 
 	// Pools to update current price for

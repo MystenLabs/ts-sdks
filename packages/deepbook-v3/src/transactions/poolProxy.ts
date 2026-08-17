@@ -28,12 +28,6 @@ export class PoolProxyContract {
 	}
 
 	/**
-	 * Order-placing entrypoints that take a `PriceInfoObject`, from the module matching the
-	 * configured Pyth deployment. `pool_proxy_upgraded` carries only these — cancels,
-	 * modifies, settlement withdrawals, staking and governance take no oracle and stay on
-	 * `pool_proxy` in both modes.
-	 */
-	/**
 	 * Oracle-taking entrypoints live in the parallel `_upgraded` module, which takes Pyth's
 	 * upgraded-Core `PriceInfoObject`. Entrypoints with no oracle argument stay on the base
 	 * module, which is the only place they exist.

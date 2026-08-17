@@ -29,12 +29,6 @@ export class MarginTPSLContract {
 	}
 
 	/**
-	 * Conditional-order entrypoints that take a `PriceInfoObject`, from the module matching
-	 * the configured Pyth deployment. Cancels and the trigger getters take no oracle and
-	 * stay on `margin_manager`; `tpsl` itself only builds values, so it is deployment
-	 * independent.
-	 */
-	/**
 	 * Oracle-taking entrypoints live in the parallel `_upgraded` module, which takes Pyth's
 	 * upgraded-Core `PriceInfoObject`. Entrypoints with no oracle argument stay on the base
 	 * module, which is the only place they exist.

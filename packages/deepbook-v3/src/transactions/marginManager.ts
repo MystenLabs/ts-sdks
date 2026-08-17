@@ -24,12 +24,6 @@ export class MarginManagerContract {
 	}
 
 	/**
-	 * The entrypoints that take a `PriceInfoObject`, from the module matching the
-	 * configured Pyth deployment. `margin_manager_upgraded` carries only these — creation,
-	 * repayment, referrals and the getters take no oracle and stay on `margin_manager` in
-	 * both modes.
-	 */
-	/**
 	 * Oracle-taking entrypoints live in the parallel `_upgraded` module, which takes Pyth's
 	 * upgraded-Core `PriceInfoObject`. Entrypoints with no oracle argument stay on the base
 	 * module, which is the only place they exist.

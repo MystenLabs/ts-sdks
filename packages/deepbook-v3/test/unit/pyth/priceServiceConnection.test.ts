@@ -73,7 +73,8 @@ describe('PriceServiceConnection', () => {
 	// Regression: DEEPBOOK_HERMES_PROXY briefly shipped as a literal placeholder host, which
 	// made the default testnet path throw `TypeError: Invalid URL` from inside axios —
 	// naming neither Hermes, nor the config field, nor the coin. Whatever the constant holds,
-	// it must be a resolvable URL or absent, never a placeholder.
+	// it must parse as a URL or be absent. Parseability is all this can check — a placeholder
+	// host parses fine, so reachability is not pinned here.
 	it('the shipped proxy constant is a parseable URL or undefined', () => {
 		const proxy = DEEPBOOK_HERMES_PROXY;
 		if (proxy !== undefined) {
@@ -92,5 +93,43 @@ describe('PriceServiceConnection', () => {
 		await expect(connection().getLatestVaas([FEED])).rejects.toThrow(
 			/expected 'binary.data' array/,
 		);
+	});
+
+	// An axios error carries `config.headers`, and both `JSON.stringify(err)` and
+	// `err.toJSON()` serialize it — so letting the raw error escape would put the bearer
+	// token into any caller that logs a failed request.
+	it('a failed request never carries the access token out to the caller', async () => {
+		const TOKEN = 'super-secret-token-value';
+		// Shaped like a real axios error: response plus the config that carries the header.
+		const axiosError = Object.assign(new Error('Request failed with status code 401'), {
+			isAxiosError: true,
+			response: { status: 401, statusText: 'Unauthorized', data: { error: 'unauthorized' } },
+			config: { headers: { Authorization: `Bearer ${TOKEN}` } },
+			toJSON() {
+				return { message: this.message, config: this.config };
+			},
+		});
+		get.mockRejectedValue(axiosError);
+
+		const conn = connection({ accessToken: TOKEN });
+		const thrown = await conn.getLatestVaas([FEED]).then(
+			() => undefined,
+			(e: unknown) => e,
+		);
+
+		expect(thrown).toBeInstanceOf(Error);
+		// Every channel a caller might reasonably log.
+		const surfaces = [
+			String(thrown),
+			(thrown as Error).message,
+			(thrown as Error).stack ?? '',
+			JSON.stringify(thrown),
+			JSON.stringify(thrown, Object.getOwnPropertyNames(thrown as object)),
+		];
+		for (const surface of surfaces) {
+			expect(surface).not.toContain(TOKEN);
+		}
+		// …while still being diagnosable.
+		expect((thrown as Error).message).toContain('401');
 	});
 });
