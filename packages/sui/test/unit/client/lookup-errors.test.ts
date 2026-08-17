@@ -26,7 +26,7 @@ async function captureError(promise: Promise<unknown>): Promise<Error> {
 }
 
 describe('client lookup errors', () => {
-	it('keeps the deprecated ObjectError constructor without guessing a normalized reason', () => {
+	it('keeps the existing ObjectError constructor without guessing a normalized reason', () => {
 		const error = new ObjectError('notExists', 'Object 0x1 does not exist');
 
 		expect(error).toBeInstanceOf(SuiClientError);
@@ -38,9 +38,8 @@ describe('client lookup errors', () => {
 		expect(error.code).toBe('deleted');
 	});
 
-	it('requires an explicit normalized reason in the new ObjectError constructor', () => {
-		const error = new ObjectError('Object 0x1 does not exist', {
-			code: 'notExists',
+	it('accepts an explicit normalized reason without changing the existing arguments', () => {
+		const error = new ObjectError('notExists', 'Object 0x1 does not exist', {
 			reason: 'notFound',
 			objectId: '0x1',
 		});

@@ -137,8 +137,7 @@ export class GrpcCoreClient extends CoreClient {
 							const error = object.result.error;
 							const reason: ObjectErrorReason =
 								error.code === GrpcStatusCode.NOT_FOUND ? 'notFound' : 'unknown';
-							return new ObjectError(error.message, {
-								code: String(error.code),
+							return new ObjectError(String(error.code), error.message, {
 								cause: error,
 								reason,
 								objectId: batch[index],
@@ -146,7 +145,7 @@ export class GrpcCoreClient extends CoreClient {
 						}
 
 						if (object.result.oneofKind !== 'object') {
-							return new ObjectError('Unexpected result type', {
+							return new ObjectError('unknown', 'Unexpected result type', {
 								reason: 'unknown',
 								objectId: batch[index],
 							});

@@ -54,38 +54,38 @@ function mapJsonRpcObjectError(
 ): ObjectError {
 	switch (response.code) {
 		case 'notExists':
-			return new ObjectError(`Object ${response.object_id} does not exist`, {
-				code: response.code,
+			return new ObjectError(response.code, `Object ${response.object_id} does not exist`, {
 				cause: response,
 				reason: 'notFound',
 				objectId: requestedObjectId ?? response.object_id,
 			});
 		case 'dynamicFieldNotFound':
-			return new ObjectError(`Dynamic field not found for object ${response.parent_object_id}`, {
-				code: response.code,
-				cause: response,
-				reason: 'notFound',
-				objectId: requestedObjectId ?? response.parent_object_id,
-			});
+			return new ObjectError(
+				response.code,
+				`Dynamic field not found for object ${response.parent_object_id}`,
+				{
+					cause: response,
+					reason: 'notFound',
+					objectId: requestedObjectId ?? response.parent_object_id,
+				},
+			);
 		case 'deleted':
-			return new ObjectError(`Object ${response.object_id} has been deleted`, {
-				code: response.code,
+			return new ObjectError(response.code, `Object ${response.object_id} has been deleted`, {
 				cause: response,
 				reason: 'deleted',
 				objectId: requestedObjectId ?? response.object_id,
 			});
 		case 'displayError':
-			return new ObjectError(`Display error: ${response.error}`, {
-				code: response.code,
+			return new ObjectError(response.code, `Display error: ${response.error}`, {
 				cause: response,
 				reason: 'unknown',
 				objectId: requestedObjectId,
 			});
 		case 'unknown':
 			return new ObjectError(
+				response.code,
 				`Unknown error while loading object${requestedObjectId ? ` ${requestedObjectId}` : ''}`,
 				{
-					code: response.code,
 					cause: response,
 					reason: 'unknown',
 					objectId: requestedObjectId,
