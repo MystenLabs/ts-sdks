@@ -2,16 +2,35 @@
 title: BCS - Binary Canonical Serialization
 description: Encode and decode Sui Move types with Binary Canonical Serialization.
 keywords:
-  [
-    BCS,
-    binary canonical serialization,
-    Sui Move,
-    TypeScript,
-    serialization,
-    deserialization,
-    encoding,
-    '@mysten/bcs',
-  ]
+  - BCS
+  - binary canonical serialization
+  - Sui Move
+  - TypeScript
+  - serialization
+  - deserialization
+  - encoding
+  - '@mysten/bcs'
+questions:
+  - What is BCS in the Sui SDK?
+  - How do I serialize Move types in TypeScript?
+  - How do I decode BCS data?
+answer: >-
+  The BCS library (@mysten/bcs) provides Binary Canonical Serialization for encoding and decoding
+  Sui Move types in TypeScript, supporting structs, enums, vectors, and all Move primitive types.
+goal:
+  description: Reader can encode and decode Sui Move types using BCS in TypeScript
+  requires:
+    - has_frontmatter:
+        - title
+        - description
+        - keywords
+      label: Has required frontmatter fields
+    - min_words: 100
+      label: Needs content depth
+    - has_questions: true
+      label: Needs questions for AI search visibility
+    - has_answer: true
+      label: Needs answer summary for AI citation
 ---
 
 This small and lightweight library implements

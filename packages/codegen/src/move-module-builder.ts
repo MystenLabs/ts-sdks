@@ -7,10 +7,23 @@ import { ModuleRegistry } from './module-registry.js';
 import {
 	getSafeName,
 	isSupportedRawTransactionInput,
+	renderResolverTypeTag,
 	renderTypeSignature,
 	SUI_FRAMEWORK_ADDRESS,
 	SUI_SYSTEM_ADDRESS,
 } from './render-types.js';
+import {
+	findConfigArgumentMatch,
+	isContextParameter,
+	normalizeAddress,
+} from './config-arguments.js';
+import type {
+	FunctionConfigArgument,
+	ParsedConfigArgument,
+	TypeConfigArgument,
+} from './config-arguments.js';
+import { findBcsDeclarationRule, resolveBcsOverride } from './bcs-overrides.js';
+import type { BcsOverrideRule } from './bcs-overrides.js';
 import {
 	camelCase,
 	capitalize,
@@ -20,9 +33,9 @@ import {
 	parseTS,
 	withComment,
 } from './utils.js';
-import type { Fields, ModuleSummary, Type, TypeParameter } from './types/summary.js';
+import type { Datatype, Fields, ModuleSummary, Type, TypeParameter } from './types/summary.js';
 import type { FunctionsOption, ImportExtension, TypesOption } from './config.js';
-import { join } from 'node:path';
+import { isAbsolute, join } from 'node:path';
 import { isValidSuiObjectId } from '@mysten/sui/utils';
 
 const IMPORT_MAP = {
@@ -35,6 +48,10 @@ const IMPORT_MAP = {
 	MoveEnum: { module: '~outputRoot/utils/index', isType: false },
 	normalizeMoveArguments: { module: '~outputRoot/utils/index', isType: false },
 	RawTransactionArgument: { module: '~outputRoot/utils/index', isType: true },
+	ConfigValue: { module: '~outputRoot/utils/index', isType: true },
+	ConfigObjectValue: { module: '~outputRoot/utils/index', isType: true },
+	ConfigResolverContext: { module: '~outputRoot/utils/index', isType: true },
+	TransactionObjectArgument: { module: '@mysten/sui/transactions', isType: true },
 } as const;
 
 type ImportName = keyof typeof IMPORT_MAP;
@@ -52,6 +69,19 @@ export class MoveModuleBuilder extends FileBuilder {
 	#importNames: Partial<Record<ImportName, string>> = {};
 	#importExtension: ImportExtension;
 	#includePhantomTypeParameters: boolean;
+	#configArguments: ParsedConfigArgument[] = [];
+	#packageConfigKey?: string;
+	#configMatches: Map<string, Map<number, TypeConfigArgument | FunctionConfigArgument>> | null =
+		null;
+	#packageResolverRequiredKeys?: Set<string>;
+	#packageStringlessConfigKeys?: Set<string>;
+	#bcsOverrides: BcsOverrideRule[] = [];
+	/** Config keys that matched at least one parameter of a rendered function. */
+	readonly usedConfigKeys = new Set<string>();
+	/** Config keys forced to resolver form (matched multiple parameters of one signature). */
+	readonly resolverRequiredKeys = new Set<string>();
+	/** Config keys bound to a parameter that can't be supplied as an object id string. */
+	readonly stringlessConfigKeys = new Set<string>();
 
 	constructor({
 		mvrNameOrAddress,
@@ -106,22 +136,35 @@ export class MoveModuleBuilder extends FileBuilder {
 		return this.registry.resolveAddress(address);
 	}
 
+	#resolveMatcherAddress(address: string) {
+		return this.registry.resolveMatcherAddress(address);
+	}
+
+	#hasNamedPackage() {
+		return Boolean(this.#mvrNameOrAddress && !isValidSuiObjectId(this.#mvrNameOrAddress));
+	}
+
 	#getModuleTypeName() {
 		const resolvedAddress = this.#resolveAddress(this.summary.id.address);
 		if (resolvedAddress === SUI_FRAMEWORK_ADDRESS) {
 			return '0x2';
 		} else if (resolvedAddress === SUI_SYSTEM_ADDRESS) {
 			return '0x3';
+		} else if (this.#hasNamedPackage()) {
+			return this.#mvrNameOrAddress!;
 		} else if (this.#rootPackageId) {
 			return this.#rootPackageId;
-		} else if (this.#mvrNameOrAddress && !isValidSuiObjectId(this.#mvrNameOrAddress)) {
-			return this.#mvrNameOrAddress;
 		} else {
 			return this.summary.id.address;
 		}
 	}
 
 	#getTypePrefix(datatypeName: string): string | null {
+		// MVR resolves named types independently from package call targets, so keep every type owned by
+		// a named package portable across networks and upgrades. Concrete type origins are only emitted
+		// when generation was explicitly pinned to a package ID.
+		if (this.#hasNamedPackage()) return null;
+
 		const originPackageId = this.#typeOrigins?.[datatypeName];
 		if (originPackageId === undefined) return null;
 		if (this.#resolveAddress(originPackageId) === this.#resolveAddress(this.summary.id.address)) {
@@ -142,6 +185,183 @@ export class MoveModuleBuilder extends FileBuilder {
 			this.#importNames[name] = this.addImport(module, importSpec);
 		}
 		return this.#importNames[name]!;
+	}
+
+	/**
+	 * Configure parsed `configArguments` entries for this module's generated functions. Must be
+	 * called before `renderFunctions`. `packageConfigKey` is the config key (if any) that supplies
+	 * this package's call address.
+	 */
+	setConfigArguments(entries: ParsedConfigArgument[], packageConfigKey?: string) {
+		this.#configArguments = entries;
+		this.#packageConfigKey = packageConfigKey;
+	}
+
+	/**
+	 * Resolver requirement and value typing for a config key are package-wide properties: a key
+	 * multi-matched in any one signature must be resolver-typed everywhere it appears, so every
+	 * function's `config` slice stays assignable from one shared config object. These sets are the
+	 * union across all of the package's rendered modules, provided before `renderFunctions`.
+	 */
+	setPackageConfigKeySets(resolverRequiredKeys: Set<string>, stringlessConfigKeys: Set<string>) {
+		this.#packageResolverRequiredKeys = resolverRequiredKeys;
+		this.#packageStringlessConfigKeys = stringlessConfigKeys;
+	}
+
+	/**
+	 * Configure parsed `bcsOverrides` entries for this module. Must be called before types are
+	 * included: an overridden type short-circuits rendering, and the dependency walk uses the same
+	 * renderer, so its dependencies are correctly left out of the inclusion graph.
+	 */
+	setBcsOverrides(rules: BcsOverrideRule[]) {
+		this.#bcsOverrides = rules;
+	}
+
+	#declarationOverrideFor(name: string): BcsOverrideRule | null {
+		return findBcsDeclarationRule(
+			this.#bcsOverrides,
+			normalizeAddress(this.#resolveAddress(this.summary.id.address)),
+			this.summary.id.name,
+			name,
+			this.#resolveMatcherAddress(this.summary.id.address),
+		);
+	}
+
+	/** The path a field-restricted override (`fields`) is matched against. */
+	#sitePath(...parts: string[]): string {
+		return `${this.summary.id.name}::${parts.join('.')}`;
+	}
+
+	/**
+	 * The `resolveBcsOverride` hook handed to the type renderer for one field. The lookup is keyed
+	 * on the type, so the renderer's own recursion applies overrides at any depth; `sitePath` is the
+	 * field being rendered and stays fixed throughout that recursion.
+	 */
+	#bcsOverrideResolver(sitePath: string, { emitImport = true } = {}) {
+		if (this.#bcsOverrides.length === 0) {
+			return undefined;
+		}
+		return (type: Type): string | undefined => {
+			const rule = resolveBcsOverride(
+				this.#bcsOverrides,
+				type,
+				sitePath,
+				(address) => this.#resolveAddress(address),
+				(address) => this.#resolveMatcherAddress(address),
+			);
+			if (!rule) return undefined;
+			// The dependency walk discards the rendered string and only needs the short-circuit;
+			// importing there would add bindings for types that may never be emitted.
+			return emitImport ? this.#bcsOverrideImport(rule) : rule.source.exportName;
+		};
+	}
+
+	/**
+	 * Import a replacement BCS type. Config-relative sources are absolute paths here; their file
+	 * extension is rewritten to the run's `importExtension` so the emitted specifier matches the
+	 * rest of the generated imports (a `./src/bcs/units.ts` source is imported as `units.js` by
+	 * default).
+	 */
+	#bcsOverrideImport({ source }: BcsOverrideRule): string {
+		return this.addImport(
+			isAbsolute(source.module)
+				? source.module.replace(/\.[cm]?ts$/, this.#importExtension)
+				: source.module,
+			source.exportName,
+		);
+	}
+
+	/**
+	 * Match `configArguments` entries against every included function's parameters, populating
+	 * `usedConfigKeys`, `resolverRequiredKeys`, and `stringlessConfigKeys`. Runs as a pre-pass so
+	 * package-wide key sets exist before any module emits code; `renderFunctions` reuses the cached
+	 * matches.
+	 */
+	collectConfigMatches() {
+		if (this.#configMatches) {
+			return;
+		}
+		this.#configMatches = new Map();
+		if (!this.hasFunctions() || this.#configArguments.length === 0) {
+			return;
+		}
+		for (const [name, func] of Object.entries(this.summary.functions)) {
+			if (func.macro_ || !this.#includedFunctions.has(name)) {
+				continue;
+			}
+			const parameters = func.parameters.filter((param) => !this.isContextReference(param.type_));
+			const requiredParameters = parameters.filter(
+				(param) =>
+					!isWellKnownObjectParameter(param.type_, (address) => this.#resolveAddress(address)),
+			);
+			const functionLabel = `${this.summary.id.address}::${this.summary.id.name}::${name}`;
+			const matches = new Map<number, TypeConfigArgument | FunctionConfigArgument>();
+			const matchesByKey = new Map<string, number>();
+			requiredParameters.forEach((param, i) => {
+				const match = findConfigArgumentMatch(param, this.#configArguments, {
+					resolveAddress: (address) => this.#resolveAddress(address),
+					resolveSymbolicAddress: (address) => this.#resolveMatcherAddress(address),
+					functionLabel,
+					functionRef: {
+						moduleAddress: this.summary.id.address,
+						moduleName: this.summary.id.name,
+						functionName: name,
+					},
+					parameterIndex: i,
+				});
+				if (!match) return;
+				matches.set(i, match);
+				matchesByKey.set(match.key, (matchesByKey.get(match.key) ?? 0) + 1);
+				this.usedConfigKeys.add(match.key);
+				if (
+					!isSupportedRawTransactionInput(param.type_, {
+						summary: this.summary,
+						registry: this.registry,
+					})
+				) {
+					this.stringlessConfigKeys.add(match.key);
+				}
+			});
+			// A key matching more than one parameter of one signature must be resolver-typed — a
+			// single static value silently bound to two positions is almost always a bug.
+			for (const [key, count] of matchesByKey) {
+				if (count > 1) {
+					this.resolverRequiredKeys.add(key);
+				}
+			}
+			this.#configMatches.set(name, matches);
+		}
+	}
+
+	/**
+	 * The address this module's generated type tags use for `name`: the MVR name for named packages,
+	 * otherwise the type-origin address when known, then the root package id or resolved summary
+	 * address.
+	 */
+	getTypeTagAddress(name: string): string {
+		if (this.#hasNamedPackage()) {
+			return this.#getModuleTypeName();
+		}
+		const origin = this.#typeOrigins?.[name];
+		if (origin) {
+			return origin;
+		}
+		const moduleTypeName = this.#getModuleTypeName();
+		return moduleTypeName.startsWith('0x') || /[@/]/.test(moduleTypeName)
+			? moduleTypeName
+			: this.#resolveAddress(moduleTypeName);
+	}
+
+	/**
+	 * Address for a datatype appearing in a resolver-context type tag: delegate to the defining
+	 * module's builder so origins and MVR names match generated BCS type names.
+	 */
+	#getResolverTagAddress(datatype: Datatype): string {
+		const builder = this.registry.getBuilder(datatype.module.address, datatype.module.name);
+		if (builder) {
+			return builder.getTypeTagAddress(datatype.name);
+		}
+		return this.#resolveAddress(datatype.module.address);
 	}
 
 	override async getHeader() {
@@ -201,13 +421,26 @@ export class MoveModuleBuilder extends FileBuilder {
 			);
 		}
 
-		const includeFromField = (field: { type_: Type }, typeParameters: TypeParameter[]) => {
+		// A replaced declaration re-exports the custom type, so none of its fields are rendered.
+		if (this.#declarationOverrideFor(name)) {
+			this.#orderedTypes.push(name);
+			return;
+		}
+
+		// Walking dependencies through the same renderer means an overridden type short-circuits
+		// here exactly as it will when emitted, so its dependencies stay out of the graph.
+		const includeFromField = (
+			field: { type_: Type },
+			typeParameters: TypeParameter[],
+			sitePath: string,
+		) => {
 			renderTypeSignature(field.type_, {
 				format: 'bcs',
 				summary: this.summary,
 				typeParameters,
 				includePhantomTypeParameters: false,
 				registry: this.registry,
+				resolveBcsOverride: this.#bcsOverrideResolver(sitePath, { emitImport: false }),
 				onDependency: (address, mod, depName) => {
 					const builder = this.registry.getBuilder(address, mod);
 					if (!builder) {
@@ -220,15 +453,19 @@ export class MoveModuleBuilder extends FileBuilder {
 		};
 
 		if (struct) {
-			Object.values(struct.fields.fields).forEach((field) =>
-				includeFromField(field, struct.type_parameters),
+			Object.entries(struct.fields.fields).forEach(([fieldName, field]) =>
+				includeFromField(field, struct.type_parameters, this.#sitePath(name, fieldName)),
 			);
 		}
 
 		if (enum_) {
-			Object.values(enum_.variants).forEach((variant) =>
-				Object.values(variant.fields.fields).forEach((field) =>
-					includeFromField(field, enum_.type_parameters),
+			Object.entries(enum_.variants).forEach(([variantName, variant]) =>
+				Object.entries(variant.fields.fields).forEach(([fieldName, field]) =>
+					includeFromField(
+						field,
+						enum_.type_parameters,
+						this.#sitePath(name, variantName, fieldName),
+					),
 				),
 			);
 		}
@@ -251,7 +488,10 @@ export class MoveModuleBuilder extends FileBuilder {
 
 	async renderBCSTypes() {
 		const needsModuleName =
-			this.hasBcsTypes() && this.#orderedTypes.some((name) => this.#getTypePrefix(name) === null);
+			this.hasBcsTypes() &&
+			this.#orderedTypes.some(
+				(name) => this.#getTypePrefix(name) === null && !this.#declarationOverrideFor(name),
+			);
 
 		if (needsModuleName) {
 			this.statements.push(
@@ -293,27 +533,44 @@ export class MoveModuleBuilder extends FileBuilder {
 		return undefined;
 	};
 
+	/** The BCS expression for one field. Overrides are applied by the renderer, at any depth. */
+	#renderFieldBcs(
+		field: { type_: Type },
+		typeParameters: TypeParameter[],
+		includePhantomTypeParameters: boolean,
+		sitePath: string,
+	): string {
+		return renderTypeSignature(field.type_, {
+			format: 'bcs',
+			bcsImport: () => this.#getImportName('bcs'),
+			summary: this.summary,
+			typeParameters,
+			includePhantomTypeParameters,
+			registry: this.registry,
+			resolveBcsOverride: this.#bcsOverrideResolver(sitePath),
+			onDependency: this.#importDependency,
+		});
+	}
+
 	async #renderFieldsAsStruct(
 		name: string,
 		{ fields }: Fields,
-		typeParameters: TypeParameter[] = [],
-		includePhantomTypeParameters = false,
+		typeParameters: TypeParameter[],
+		includePhantomTypeParameters: boolean,
+		sitePrefix: string,
 	) {
 		const moveStructName = this.#getImportName('MoveStruct');
 		const fieldObject = await mapToObject({
 			items: Object.entries(fields),
 			getComment: ([_name, field]) => field.doc,
-			mapper: ([name, field]) => [
-				name,
-				renderTypeSignature(field.type_, {
-					format: 'bcs',
-					bcsImport: () => this.#getImportName('bcs'),
-					summary: this.summary,
+			mapper: ([fieldName, field]) => [
+				fieldName,
+				this.#renderFieldBcs(
+					field,
 					typeParameters,
 					includePhantomTypeParameters,
-					registry: this.registry,
-					onDependency: this.#importDependency,
-				}),
+					`${sitePrefix}.${fieldName}`,
+				),
 			],
 		});
 
@@ -323,20 +580,18 @@ export class MoveModuleBuilder extends FileBuilder {
 	async #renderFieldsAsTuple(
 		name: string,
 		{ fields }: Fields,
-		typeParameters: TypeParameter[] = [],
-		includePhantomTypeParameters = false,
+		typeParameters: TypeParameter[],
+		includePhantomTypeParameters: boolean,
+		sitePrefix: string,
 	) {
 		const moveTupleName = this.#getImportName('MoveTuple');
-		const values = Object.values(fields).map((field) =>
-			renderTypeSignature(field.type_, {
-				format: 'bcs',
-				summary: this.summary,
+		const values = Object.entries(fields).map(([fieldName, field]) =>
+			this.#renderFieldBcs(
+				field,
 				typeParameters,
 				includePhantomTypeParameters,
-				bcsImport: () => this.#getImportName('bcs'),
-				registry: this.registry,
-				onDependency: this.#importDependency,
-			}),
+				`${sitePrefix}.${fieldName}`,
+			),
 		);
 
 		return parseTS /* ts */ `new ${moveTupleName}({ name: \`${name}\`, fields: [${values.join(', ')}] })`;
@@ -356,6 +611,17 @@ export class MoveModuleBuilder extends FileBuilder {
 		}
 
 		this.exports.push(name);
+
+		const override = this.#declarationOverrideFor(name);
+		if (override) {
+			this.statements.push(
+				...(await withComment(
+					struct,
+					parseTS /* ts */ `export const ${name} = ${this.#bcsOverrideImport(override)}`,
+				)),
+			);
+			return;
+		}
 
 		const includePhantom = this.#includePhantomTypeParameters;
 		const params = struct.type_parameters
@@ -378,12 +644,14 @@ export class MoveModuleBuilder extends FileBuilder {
 								struct.fields,
 								struct.type_parameters,
 								includePhantom,
+								this.#sitePath(name),
 							)
 						: await this.#renderFieldsAsStruct(
 								`${structName}${phantomPlaceholders}`,
 								struct.fields,
 								struct.type_parameters,
 								includePhantom,
+								this.#sitePath(name),
 							)
 				}`,
 			);
@@ -416,12 +684,14 @@ export class MoveModuleBuilder extends FileBuilder {
 										struct.fields,
 										struct.type_parameters,
 										includePhantom,
+										this.#sitePath(name),
 									)
 								: await this.#renderFieldsAsStruct(
 										`${structName}<${nameGenerics}>`,
 										struct.fields,
 										struct.type_parameters,
 										includePhantom,
+										this.#sitePath(name),
 									)
 						}
 					}`,
@@ -444,8 +714,20 @@ export class MoveModuleBuilder extends FileBuilder {
 		}
 
 		const includePhantom = this.#includePhantomTypeParameters;
-		const moveEnumName = this.#getImportName('MoveEnum');
 		this.exports.push(name);
+
+		const override = this.#declarationOverrideFor(name);
+		if (override) {
+			this.statements.push(
+				...(await withComment(
+					enumDef,
+					parseTS /* ts */ `export const ${name} = ${this.#bcsOverrideImport(override)}`,
+				)),
+			);
+			return;
+		}
+
+		const moveEnumName = this.#getImportName('MoveEnum');
 
 		const prefix = this.#getTypePrefix(name);
 		const enumName = prefix !== null ? `${prefix}::${name}` : `\${$moduleName}::${name}`;
@@ -459,26 +741,25 @@ export class MoveModuleBuilder extends FileBuilder {
 					? 'null'
 					: isPositional(variant.fields)
 						? Object.keys(variant.fields.fields).length === 1
-							? renderTypeSignature(Object.values(variant.fields.fields)[0].type_, {
-									format: 'bcs',
-									summary: this.summary,
-									typeParameters: enumDef.type_parameters,
-									includePhantomTypeParameters: includePhantom,
-									bcsImport: () => this.#getImportName('bcs'),
-									registry: this.registry,
-									onDependency: this.#importDependency,
-								})
+							? this.#renderFieldBcs(
+									Object.values(variant.fields.fields)[0],
+									enumDef.type_parameters,
+									includePhantom,
+									this.#sitePath(name, variantName, Object.keys(variant.fields.fields)[0]),
+								)
 							: await this.#renderFieldsAsTuple(
 									`${name}.${variantName}`,
 									variant.fields,
 									enumDef.type_parameters,
 									includePhantom,
+									this.#sitePath(name, variantName),
 								)
 						: await this.#renderFieldsAsStruct(
 								`${name}.${variantName}`,
 								variant.fields,
 								enumDef.type_parameters,
 								includePhantom,
+								this.#sitePath(name, variantName),
 							),
 			],
 		});
@@ -535,6 +816,8 @@ export class MoveModuleBuilder extends FileBuilder {
 			return;
 		}
 
+		this.collectConfigMatches();
+
 		const transactionTypeName = this.#getImportName('Transaction');
 
 		for (const [name, func] of Object.entries(this.summary.functions)) {
@@ -553,6 +836,17 @@ export class MoveModuleBuilder extends FileBuilder {
 				(param) =>
 					!isWellKnownObjectParameter(param.type_, (address) => this.#resolveAddress(address)),
 			);
+
+			// Parameters (by index into `requiredParameters`) resolved from the runtime config
+			// object instead of being required arguments. Matches were computed by the
+			// `collectConfigMatches` pre-pass; the package-wide key sets default to this module's
+			// own when no orchestrator provided a union.
+			const configMatches =
+				this.#configMatches!.get(name) ??
+				new Map<number, TypeConfigArgument | FunctionConfigArgument>();
+			const resolverRequiredKeys = this.#packageResolverRequiredKeys ?? this.resolverRequiredKeys;
+			const stringlessConfigKeys = this.#packageStringlessConfigKeys ?? this.stringlessConfigKeys;
+			const hasConfigMatches = configMatches.size > 0;
 
 			const normalizeName =
 				parameters.length > 0 ? this.#getImportName('normalizeMoveArguments') : null;
@@ -588,12 +882,31 @@ export class MoveModuleBuilder extends FileBuilder {
 			const wrap = (type: string | null): string =>
 				type === null ? transactionArgName! : `${rawTxArgName}<${type}>`;
 
-			const argumentsTypes = renderedArgTypes
+			// Interface fields: config-matched parameters become optional properties.
+			const argumentFields = renderedArgTypes
 				.map((type, i) =>
 					requiredParameters[i].name
-						? `${camelCase(requiredParameters[i].name)}: ${wrap(type)}`
+						? `${camelCase(requiredParameters[i].name)}${configMatches.has(i) ? '?' : ''}: ${wrap(type)}`
 						: wrap(type),
 				)
+				.join(',\n');
+
+			// Tuple items: a config-matched suffix becomes genuinely optional tuple elements.
+			// Optional elements can't precede required ones, so matched positions followed by a
+			// required one accept an explicit `undefined` instead.
+			const lastUnmatchedIndex = renderedArgTypes.reduce(
+				(last, _, i) => (configMatches.has(i) ? last : i),
+				-1,
+			);
+			const argumentTupleItems = renderedArgTypes
+				.map((type, i) => {
+					const paramName = requiredParameters[i].name;
+					if (configMatches.has(i) && i > lastUnmatchedIndex) {
+						return paramName ? `${camelCase(paramName)}?: ${wrap(type)}` : `${wrap(type)}?`;
+					}
+					const itemType = configMatches.has(i) ? `${wrap(type)} | undefined` : wrap(type);
+					return paramName ? `${camelCase(paramName)}: ${itemType}` : itemType;
+				})
 				.join(',\n');
 
 			const bcsTypeName = usedTypeParameters.size > 0 ? this.#getImportName('BcsType') : null;
@@ -621,24 +934,77 @@ export class MoveModuleBuilder extends FileBuilder {
 			if (hasAllParameterNames) {
 				this.statements.push(
 					...parseTS /* ts */ `export interface ${argumentsInterface}${genericTypes} {
-						${argumentsTypes}
+						${argumentFields}
 					}`,
 				);
 			}
 
 			const optionsInterface = this.getUnusedName(`${capitalize(fnName.replace(/^_/, ''))}Options`);
 			const packageIsRequired = !this.#mvrNameOrAddress;
+			// The package-address config key only applies when a generated default exists —
+			// otherwise `package` stays required and always takes precedence.
+			const packageConfigKey = packageIsRequired ? undefined : this.#packageConfigKey;
 			const requiresOptions =
-				packageIsRequired || argumentsTypes.length > 0 || func.type_parameters.length > 0;
+				packageIsRequired || requiredParameters.length > 0 || func.type_parameters.length > 0;
+
+			// The minimal structural config slice for this function: only the keys whose matchers
+			// hit its parameters, plus this package's own package key if declared.
+			// A key must be a resolver function when it can bind more than one distinct type (or a
+			// generic), anywhere in the package — the slices of every function using a key must
+			// agree with each other and with the generated package config interface, so one shared
+			// config object satisfies them all. Keys bound to a parameter that can't be supplied as
+			// an object id drop the plain-string form.
+			const resolverKeys = new Set<string>();
+			const configSliceFields: string[] = [];
+			const seenConfigKeys = new Set<string>();
+			for (const match of configMatches.values()) {
+				if (seenConfigKeys.has(match.key)) continue;
+				seenConfigKeys.add(match.key);
+				const boundTypes = new Set(
+					this.#configArguments.flatMap((entry) =>
+						entry.kind !== 'package' && entry.key === match.key ? [entry.boundType] : [],
+					),
+				);
+				if (boundTypes.size > 1 || boundTypes.has(null) || resolverRequiredKeys.has(match.key)) {
+					resolverKeys.add(match.key);
+				}
+				// Resolved lazily: naming an import adds it, and the resolver return type is only
+				// emitted for resolver keys.
+				const valueType = () =>
+					stringlessConfigKeys.has(match.key)
+						? this.#getImportName('TransactionObjectArgument')
+						: `string | ${this.#getImportName('TransactionObjectArgument')}`;
+				configSliceFields.push(
+					resolverKeys.has(match.key)
+						? `${match.key}: (ctx: ${this.#getImportName('ConfigResolverContext')}) => ${valueType()}`
+						: stringlessConfigKeys.has(match.key)
+							? `${match.key}: ${this.#getImportName('ConfigObjectValue')}`
+							: `${match.key}: ${this.#getImportName('ConfigValue')}`,
+				);
+			}
+			if (packageConfigKey) {
+				configSliceFields.push(`${packageConfigKey}?: string`);
+			}
+
+			const argumentsOptional = requiredParameters.every((_, i) => configMatches.has(i));
 
 			this.statements.push(
 				...parseTS /* ts */ `export interface ${optionsInterface}${genericTypes} {
 					package${packageIsRequired ? ': string' : '?: string'}
-					${argumentsTypes.length > 0 ? 'arguments: ' : 'arguments?: '}${
+					arguments${argumentsOptional ? '?' : ''}: ${
 						hasAllParameterNames
-							? `${argumentsInterface}${genericTypeArgs} | [${argumentsTypes}]`
-							: `[${argumentsTypes}]`
+							? hasConfigMatches
+								? `${argumentsInterface}${genericTypeArgs}`
+								: `${argumentsInterface}${genericTypeArgs} | [${argumentTupleItems}]`
+							: `[${argumentTupleItems}]`
 					},
+					${
+						configSliceFields.length > 0
+							? `config?: {
+								${configSliceFields.join(',\n')}
+							},`
+							: ''
+					}
 					${
 						func.type_parameters.length
 							? `typeArguments: [${func.type_parameters.map(() => 'string').join(', ')}]`
@@ -647,11 +1013,69 @@ export class MoveModuleBuilder extends FileBuilder {
 			}`,
 			);
 
+			// Config-matched positions resolve inline: an explicitly passed argument wins, then the
+			// config value (resolver keys are invoked with their call-site context).
+			const configExprFor = (
+				i: number,
+				match: typeof configMatches extends Map<number, infer V> ? V : never,
+			) => {
+				if (!resolverKeys.has(match.key)) {
+					return `options.config?.${match.key}`;
+				}
+				const param = requiredParameters[i];
+				let paramType = param.type_;
+				while (typeof paramType !== 'string' && 'Reference' in paramType) {
+					paramType = paramType.Reference[1];
+				}
+				const resolverTypes =
+					typeof paramType !== 'string' && 'Datatype' in paramType
+						? paramType.Datatype.type_arguments.map((arg) => arg.argument)
+						: [paramType];
+				const ctxTags = resolverTypes.map((type) => {
+					const tag = renderResolverTypeTag(type, {
+						summary: this.summary,
+						typeParameters: func.type_parameters,
+						registry: this.registry,
+						getDatatypeTagAddress: (datatype) => this.#getResolverTagAddress(datatype),
+					});
+					return tag.includes('${') ? `\`${tag}\`` : `'${tag}'`;
+				});
+				const ctx = `{ typeArguments: [${ctxTags.join(', ')}], packageAddress, moduleName: '${this.summary.id.name}', functionName: '${name}'${param.name ? `, parameterName: ${JSON.stringify(param.name)}` : ''}, parameterIndex: ${i} }`;
+				return `options.config?.${match.key}?.(${ctx})`;
+			};
+
+			let argumentsExpr = `options.arguments${requiredParameters.length === 0 ? ' ?? []' : ''}`;
+			if (hasConfigMatches) {
+				if (hasAllParameterNames) {
+					const overrides = [...configMatches.entries()]
+						.map(
+							([i, match]) =>
+								`${camelCase(requiredParameters[i].name!)}: options.arguments?.${camelCase(requiredParameters[i].name!)} ?? ${configExprFor(i, match)}`,
+						)
+						.join(',\n');
+					argumentsExpr = `{\n...options.arguments,\n${overrides}\n}`;
+				} else {
+					const elements = requiredParameters
+						.map((_, i) => {
+							const match = configMatches.get(i);
+							return match
+								? `options.arguments${argumentsOptional ? '?.' : ''}[${i}] ?? ${configExprFor(i, match)}`
+								: `options.arguments${argumentsOptional ? '?.' : ''}[${i}]`;
+						})
+						.join(',\n');
+					argumentsExpr = `[\n${elements}\n]`;
+				}
+			}
+
+			const packageAddressExpr = `options.package${
+				packageConfigKey ? ` ?? options.config?.${packageConfigKey}` : ''
+			}${packageIsRequired ? '' : ` ?? '${this.#mvrNameOrAddress}'`}`;
+
 			this.statements.push(
 				...(await withComment(
 					func,
 					parseTS /* ts */ `export function ${fnName}${genericTypes}(options: ${optionsInterface}${genericTypeArgs}${requiresOptions ? '' : ' = {}'}) {
-					const packageAddress = options.package${packageIsRequired ? '' : ` ?? '${this.#mvrNameOrAddress}'`};
+					const packageAddress = ${packageAddressExpr};
 					${
 						parameters.length > 0
 							? `const argumentsTypes = [
@@ -676,7 +1100,7 @@ export class MoveModuleBuilder extends FileBuilder {
 						package: packageAddress,
 						module: '${this.summary.id.name}',
 						function: '${name}',
-						${parameters.length > 0 ? `arguments: ${normalizeName}(options.arguments${argumentsTypes.length > 0 ? '' : ' ?? []'} , argumentsTypes${hasAllParameterNames ? `, parameterNames` : ''}),` : ''}
+						${parameters.length > 0 ? `arguments: ${normalizeName}(${argumentsExpr}, argumentsTypes${hasAllParameterNames ? `, parameterNames` : ''}),` : ''}
 						${func.type_parameters.length ? 'typeArguments: options.typeArguments' : ''}
 					})
 				}`,
@@ -686,23 +1110,7 @@ export class MoveModuleBuilder extends FileBuilder {
 	}
 
 	isContextReference(type: Type): boolean {
-		if (typeof type === 'string') {
-			return false;
-		}
-
-		if ('Reference' in type) {
-			return this.isContextReference(type.Reference[1]);
-		}
-
-		if ('Datatype' in type) {
-			return (
-				this.#resolveAddress(type.Datatype.module.address) === SUI_FRAMEWORK_ADDRESS &&
-				type.Datatype.module.name === 'tx_context' &&
-				type.Datatype.name === 'TxContext'
-			);
-		}
-
-		return false;
+		return isContextParameter(type, (address) => this.#resolveAddress(address));
 	}
 }
 

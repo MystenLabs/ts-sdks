@@ -9,17 +9,17 @@
  */
 
 import { MoveStruct } from '../../../utils/index.js';
-import { bcs } from '@mysten/sui/bcs';
+import { U64 } from '../../../../bcs/integers.js';
 const $moduleName = '0x2::balance';
 export const Balance = new MoveStruct({
 	name: `${$moduleName}::Balance<phantom T>`,
 	fields: {
-		value: bcs.u64(),
+		value: U64,
 	},
 });
 export const Supply = new MoveStruct({
 	name: `${$moduleName}::Supply<phantom T>`,
 	fields: {
-		value: bcs.u64(),
+		value: U64,
 	},
 });

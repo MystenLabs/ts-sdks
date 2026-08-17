@@ -2,7 +2,33 @@
 title: SuiGraphQLClient
 description: Connect to Sui over GraphQL and write type-safe custom queries
 keywords:
-  [SuiGraphQLClient, GraphQL, Sui client, gql.tada, type-safe, custom queries, '@mysten/sui']
+  - SuiGraphQLClient
+  - GraphQL
+  - Sui client
+  - gql.tada
+  - type-safe
+  - custom queries
+  - '@mysten/sui'
+questions:
+  - What is SuiGraphQLClient?
+  - How do I use SuiGraphQLClient?
+  - How does Writing queries work?
+  - How does Reading your own writes work?
+answer: Connect to Sui over GraphQL and write type-safe custom queries
+goal:
+  description: Reader can connect to Sui over GraphQL and write type-safe custom queries
+  requires:
+    - has_frontmatter:
+        - title
+        - description
+        - keywords
+      label: Has required frontmatter fields
+    - min_words: 30
+      label: Needs content depth
+    - has_questions: true
+      label: Needs questions for AI search visibility
+    - has_answer: true
+      label: Needs answer summary for AI citation
 ---
 
 `SuiGraphQLClient` talks to the Sui GraphQL API. It implements the same client API as

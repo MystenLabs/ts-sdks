@@ -14,6 +14,7 @@
  */
 
 import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
+import { U128, U64 } from '../../bcs/integers.js';
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as i64 from './deps/fixed_math/i64.js';
@@ -22,13 +23,13 @@ export const PricingSVI = new MoveStruct({
 	name: `${$moduleName}::PricingSVI`,
 	fields: {
 		/** Rolled-down SVI `a`, magnitude at 1e18, sign in `a_is_negative`. */
-		a_magnitude: bcs.u128(),
+		a_magnitude: U128,
 		a_is_negative: bcs.bool(),
 		/** Rolled-down SVI `b`, at 1e18. */
-		b: bcs.u128(),
+		b: U128,
 		rho: i64.I64,
 		m: i64.I64,
-		sigma: bcs.u64(),
+		sigma: U64,
 	},
 });
 export const Pricer = new MoveStruct({
@@ -36,7 +37,7 @@ export const Pricer = new MoveStruct({
 	fields: {
 		/** Expiry market this snapshot was loaded for. */
 		expiry_market_id: bcs.Address,
-		forward: bcs.u64(),
+		forward: U64,
 		svi: PricingSVI,
 		/**
 		 * Source timestamps of the oracle observations present when this snapshot was
@@ -47,35 +48,35 @@ export const Pricer = new MoveStruct({
 		 * roll-down; the batch envelope time is transport metadata and never reaches the
 		 * `Pricer`.
 		 */
-		pyth_spot_source_timestamp_ms: bcs.u64(),
-		block_scholes_spot_source_timestamp_ms: bcs.u64(),
-		block_scholes_forward_source_timestamp_ms: bcs.u64(),
-		block_scholes_svi_source_timestamp_ms: bcs.u64(),
+		pyth_spot_source_timestamp_ms: U64,
+		block_scholes_spot_source_timestamp_ms: U64,
+		block_scholes_forward_source_timestamp_ms: U64,
+		block_scholes_svi_source_timestamp_ms: U64,
 	},
 });
 export const RawSVI = new MoveStruct({
 	name: `${$moduleName}::RawSVI`,
 	fields: {
 		a: i64.I64,
-		b: bcs.u64(),
+		b: U64,
 		rho: i64.I64,
 		m: i64.I64,
-		sigma: bcs.u64(),
+		sigma: U64,
 	},
 });
 export const ExactSpotRead = new MoveStruct({
 	name: `${$moduleName}::ExactSpotRead`,
 	fields: {
-		spot: bcs.option(bcs.u64()),
+		spot: bcs.option(U64),
 	},
 });
 export const PriceMemo = new MoveStruct({
 	name: `${$moduleName}::PriceMemo`,
 	fields: {
 		/** Finite boundary ticks in ascending order (the in-order walk appends them). */
-		ticks: bcs.vector(bcs.u64()),
+		ticks: bcs.vector(U64),
 		/** `up_price(ticks[i] * tick_size)`, parallel to `ticks`. */
-		prices: bcs.vector(bcs.u64()),
+		prices: bcs.vector(U64),
 	},
 });
 export interface UpPriceArguments {
@@ -85,13 +86,17 @@ export interface UpPriceArguments {
 export interface UpPriceOptions {
 	package?: string;
 	arguments: UpPriceArguments | [pricer: TransactionArgument, strike: TransactionArgument];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /**
  * Return the current UP digital probability for a typed strike. Public PTB and
  * devInspect reads can compose it with a transaction-local `Pricer`.
  */
 export function upPrice(options: UpPriceOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['pricer', 'strike'];
 	return (tx: Transaction) =>
@@ -112,13 +117,17 @@ export interface RangePriceOptions {
 	arguments:
 		| RangePriceArguments
 		| [pricer: TransactionArgument, lower: TransactionArgument, higher: TransactionArgument];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /**
  * Return the current probability for `(lower, higher]`, floored at zero if the two
  * approximated boundary probabilities invert.
  */
 export function rangePrice(options: RangePriceOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, null, null] satisfies (string | null)[];
 	const parameterNames = ['pricer', 'lower', 'higher'];
 	return (tx: Transaction) =>

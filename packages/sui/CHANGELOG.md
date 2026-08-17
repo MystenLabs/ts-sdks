@@ -1,5 +1,85 @@
 # @mysten/sui.js
 
+## 2.26.1
+
+### Patch Changes
+
+- c8d3046: Restore backwards-compatible `ObjectError.code` values for gRPC object lookups. Missing
+  objects now report the long-standing `notExists` code (instead of the raw gRPC status number `'5'`
+  introduced in 2.26.0), so handlers written against earlier releases keep working on every
+  transport. Other gRPC statuses use the status name (for example `'INTERNAL'`) as the code, and
+  unrecognized statuses map to `'unknown'`. The transport-neutral `reason` field is unchanged and
+  remains the preferred way to detect missing objects.
+
+## 2.26.0
+
+### Minor Changes
+
+- 87989d5: Add transport-neutral `ObjectError` and `TransactionError` lookup details across the Core
+  API clients. The existing transport-specific `ObjectError.code` field and `(code, message)`
+  constructor remain supported; the transport-neutral `reason`, resource identity, and `cause`
+  fields are additive.
+
+## 2.25.0
+
+### Minor Changes
+
+- f76883d: Forward the last four Core API methods to the top-level clients. `getCurrentSystemState`,
+  `getProtocolConfig`, `getChainIdentifier`, and `getDynamicObjectField` were reachable only through
+  `client.core`, so `SuiGrpcClient` and `SuiGraphQLClient` now expose the complete Core API surface
+  as top-level methods.
+
+  Also fixes `GraphQLCoreClient.getCurrentSystemState` and `getProtocolConfig`, which declared no
+  parameters and so silently dropped the `signal` option the contract and the gRPC implementation
+  both accept. Both now forward `signal` to the underlying query.
+
+### Patch Changes
+
+- f76883d: Forward `signal` through every GraphQL client method. Twelve methods on
+  `GraphQLCoreClient` accepted an options object carrying `signal` but never passed it to the
+  underlying query, so `AbortSignal` was silently ignored on `getObjects`, `listOwnedObjects`,
+  `listCoins`, `getBalance`, `listBalances`, `getCoinMetadata`, `getTransaction`,
+  `executeTransaction`, `simulateTransaction`, `getMoveFunction`, `verifyZkLoginSignature`, and
+  `SuiGraphQLClient.listDynamicFields`.
+
+  `getReferenceGasPrice` now accepts options on `GraphQLCoreClient` and on both top-level clients;
+  it previously took no arguments at all, so callers had no way to pass a signal.
+
+  `GraphQLCoreClient.getChainIdentifier` now races the caller's signal against its cached read, the
+  same way the gRPC implementation does. The cached request itself stays uncancelled, since it is
+  shared between callers, but each caller can stop waiting independently.
+
+- f76883d: Fix cancellation for signals that were already aborted, and forward the caller's signal
+  into MVR name resolution.
+
+  `raceSignal` registered an `abort` listener without first checking `signal.aborted`. An `abort`
+  event is not replayed for listeners added afterwards, so passing an already-aborted signal
+  resolved normally instead of rejecting. This affected every cached read that races a signal,
+  including `getChainIdentifier` on the gRPC and GraphQL clients.
+
+  Methods that resolve an MVR name before querying now pass the caller's signal into that lookup, so
+  aborting takes effect during name resolution rather than only afterwards. This covers
+  `listOwnedObjects`, `listCoins`, `getBalance`, `getCoinMetadata`, and `getMoveFunction` on the
+  GraphQL client, and `getCoinMetadata` and `getMoveFunction` on the deprecated JSON-RPC client.
+
+- f76883d: Forward the caller's `signal` into MVR name resolution and the remaining request paths.
+  `CoreClient.getDynamicObjectField` now passes it into the type resolution it performs before
+  reading the field, matching the sibling `getDynamicField` path.
+
+  On the deprecated JSON-RPC client, `listDynamicFields`, `verifyZkLoginSignature`, and
+  `getMoveFunction` forward the signal to their underlying requests, `simulateTransaction` forwards
+  it to the reference gas price lookup it performs while building, and `getChainIdentifier` races
+  the signal against its cached read the way the gRPC and GraphQL clients do. Fifteen MVR lookups in
+  `jsonRpc/client.ts` also went unsignalled, including the ones the Core `listCoins`, `getBalance`,
+  and `listOwnedObjects` paths reach, so a stalled resolution delayed cancellation on those methods.
+
+  One MVR call remains unsignalled by design: the named-packages transaction plugin, since
+  `BuildTransactionOptions` carries no signal to forward.
+
+- f76883d: Regenerate the GraphQL schema and `gql.tada` introspection types from upstream, picking
+  up the new `ForwardingAddressRegistryCreateTransaction` system transaction variant on the
+  `EndOfEpochTransactionKind` union. gRPC proto types were also regenerated and are unchanged.
+
 ## 2.24.0
 
 ### Minor Changes

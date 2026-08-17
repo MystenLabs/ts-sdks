@@ -2,7 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { CoreClientOptions, SuiClientTypes } from '../client/index.js';
-import { CoreClient, formatMoveAbortMessage, SimulationError } from '../client/index.js';
+import {
+	CoreClient,
+	formatMoveAbortMessage,
+	ObjectError,
+	SimulationError,
+	TransactionError,
+} from '../client/index.js';
 import { raceSignal } from '../client/mvr.js';
 import type { SuiGrpcClient } from './client.js';
 import type { Owner } from './proto/sui/rpc/v2/owner.js';
@@ -55,6 +61,7 @@ import type { QueryEnd, QueryOptions } from './proto/sui/rpc/v2/query_options.js
 import { Ordering, QueryEndReason } from './proto/sui/rpc/v2/query_options.js';
 import type { ResolvedPagination } from '../client/query-filters.js';
 import { RpcError } from '@protobuf-ts/runtime-rpc';
+import { GrpcStatusCode } from '@protobuf-ts/grpcweb-transport';
 import {
 	resolveEventFilter,
 	resolvePagination,
@@ -69,8 +76,8 @@ export interface GrpcCoreClientOptions extends CoreClientOptions {
 
 function isNameServiceResolutionMiss(error: unknown): boolean {
 	if (!(error instanceof RpcError)) return false;
-	if (error.code === 'NOT_FOUND') return true;
-	if (error.code !== 'RESOURCE_EXHAUSTED') return false;
+	if (error.code === GrpcStatusCode[GrpcStatusCode.NOT_FOUND]) return true;
+	if (error.code !== GrpcStatusCode[GrpcStatusCode.RESOURCE_EXHAUSTED]) return false;
 
 	try {
 		// The gRPC service currently reports expired names as RESOURCE_EXHAUSTED without a
@@ -124,51 +131,73 @@ export class GrpcCoreClient extends CoreClient {
 			);
 
 			results.push(
-				...response.response.objects.map((object): SuiClientTypes.Object<Include> | Error => {
-					if (object.result.oneofKind === 'error') {
-						// TODO: improve error handling
-						return new Error(object.result.error.message);
-					}
+				...response.response.objects.map(
+					(object, index): SuiClientTypes.Object<Include> | ObjectError => {
+						if (object.result.oneofKind === 'error') {
+							const error = object.result.error;
+							if (error.code === GrpcStatusCode.NOT_FOUND) {
+								// Special case for backwards compatibility: missing objects reuse
+								// the long-standing JSON-RPC `notExists` code instead of the gRPC
+								// status name, so handlers written against earlier releases keep
+								// working.
+								return new ObjectError('notExists', error.message, {
+									cause: error,
+									reason: 'notFound',
+									objectId: batch[index],
+								});
+							}
+							// Other statuses use the gRPC status name (for example `INTERNAL`),
+							// never the raw status number.
+							return new ObjectError(GrpcStatusCode[error.code] ?? 'unknown', error.message, {
+								cause: error,
+								reason: 'unknown',
+								objectId: batch[index],
+							});
+						}
 
-					if (object.result.oneofKind !== 'object') {
-						return new Error('Unexpected result type');
-					}
+						if (object.result.oneofKind !== 'object') {
+							return new ObjectError('unknown', 'Unexpected result type', {
+								reason: 'unknown',
+								objectId: batch[index],
+							});
+						}
 
-					const bcsContent = object.result.object.contents?.value ?? undefined;
-					const objectBcs = object.result.object.bcs?.value ?? undefined;
+						const bcsContent = object.result.object.contents?.value ?? undefined;
+						const objectBcs = object.result.object.bcs?.value ?? undefined;
 
-					// Package objects have type "package" which is not a struct tag, so don't normalize it
-					const objectType = object.result.object.objectType;
-					const type =
-						objectType && objectType.includes('::')
-							? normalizeStructTag(objectType)
-							: (objectType ?? '');
+						// Package objects have type "package" which is not a struct tag, so don't normalize it
+						const objectType = object.result.object.objectType;
+						const type =
+							objectType && objectType.includes('::')
+								? normalizeStructTag(objectType)
+								: (objectType ?? '');
 
-					const jsonContent = options.include?.json
-						? object.result.object.json
-							? (Value.toJson(object.result.object.json) as Record<string, unknown>)
-							: null
-						: undefined;
+						const jsonContent = options.include?.json
+							? object.result.object.json
+								? (Value.toJson(object.result.object.json) as Record<string, unknown>)
+								: null
+							: undefined;
 
-					const displayData = mapDisplayProto(
-						options.include?.display,
-						object.result.object.display,
-					);
+						const displayData = mapDisplayProto(
+							options.include?.display,
+							object.result.object.display,
+						);
 
-					return {
-						objectId: object.result.object.objectId!,
-						version: object.result.object.version?.toString()!,
-						digest: object.result.object.digest!,
-						content: bcsContent as SuiClientTypes.Object<Include>['content'],
-						owner: mapOwner(object.result.object.owner)!,
-						type,
-						previousTransaction: (object.result.object.previousTransaction ??
-							undefined) as SuiClientTypes.Object<Include>['previousTransaction'],
-						objectBcs: objectBcs as SuiClientTypes.Object<Include>['objectBcs'],
-						json: jsonContent as SuiClientTypes.Object<Include>['json'],
-						display: displayData as SuiClientTypes.Object<Include>['display'],
-					};
-				}),
+						return {
+							objectId: object.result.object.objectId!,
+							version: object.result.object.version?.toString()!,
+							digest: object.result.object.digest!,
+							content: bcsContent as SuiClientTypes.Object<Include>['content'],
+							owner: mapOwner(object.result.object.owner)!,
+							type,
+							previousTransaction: (object.result.object.previousTransaction ??
+								undefined) as SuiClientTypes.Object<Include>['previousTransaction'],
+							objectBcs: objectBcs as SuiClientTypes.Object<Include>['objectBcs'],
+							json: jsonContent as SuiClientTypes.Object<Include>['json'],
+							display: displayData as SuiClientTypes.Object<Include>['display'],
+						};
+					},
+				),
 			);
 		}
 
@@ -362,25 +391,32 @@ export class GrpcCoreClient extends CoreClient {
 	async getTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 		options: SuiClientTypes.GetTransactionOptions<Include>,
 	): Promise<SuiClientTypes.TransactionResult<Include>> {
-		const { response } = await this.#client.ledgerService.getTransaction(
-			{
-				digest: options.digest,
-				readMask: {
-					paths: transactionReadMaskPaths(options.include),
+		try {
+			const { response } = await this.#client.ledgerService.getTransaction(
+				{
+					digest: options.digest,
+					readMask: {
+						paths: transactionReadMaskPaths(options.include),
+					},
 				},
-			},
-			{ abort: options.signal },
-		);
+				{ abort: options.signal },
+			);
 
-		if (!response.transaction) {
-			throw new Error(`Transaction ${options.digest} not found`);
+			if (!response.transaction) {
+				throw new TransactionError('notFound', options.digest);
+			}
+
+			return withProtoJson(
+				parseGrpcTransactionResponse(response.transaction, { include: options.include }),
+				options.include,
+				() => ExecutedTransaction.toJson(response.transaction!),
+			);
+		} catch (error) {
+			if (error instanceof RpcError && error.code === GrpcStatusCode[GrpcStatusCode.NOT_FOUND]) {
+				throw new TransactionError('notFound', options.digest, { cause: error });
+			}
+			throw error;
 		}
-
-		return withProtoJson(
-			parseGrpcTransactionResponse(response.transaction, { include: options.include }),
-			options.include,
-			() => ExecutedTransaction.toJson(response.transaction!),
-		);
 	}
 	async executeTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 		options: SuiClientTypes.ExecuteTransactionOptions<Include>,

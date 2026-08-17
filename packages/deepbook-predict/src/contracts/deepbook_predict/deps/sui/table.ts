@@ -24,6 +24,7 @@
 
 import { MoveStruct } from '../../../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
+import { U64 } from '../../../../bcs/integers.js';
 const $moduleName = '0x2::table';
 export const Table = new MoveStruct({
 	name: `${$moduleName}::Table<phantom K, phantom V>`,
@@ -31,6 +32,6 @@ export const Table = new MoveStruct({
 		/** the ID of this table */
 		id: bcs.Address,
 		/** the number of key-value pairs in the table */
-		size: bcs.u64(),
+		size: U64,
 	},
 });

@@ -27,6 +27,13 @@ interface RenderTypeSignatureOptions {
 	onTypeParameter?: (typeParameter: number | string) => void;
 	registry?: ModuleRegistry;
 	includePhantomTypeParameters: boolean;
+	/**
+	 * Substitutes a custom BCS expression for a type (`bcsOverrides`). Consulted for every type the
+	 * renderer visits, so an override on `u64` also replaces the `u64` inside `vector<u64>` or
+	 * `Option<u64>`. Returning a value short-circuits rendering, which also stops dependency
+	 * collection from descending into a type the generated code no longer references.
+	 */
+	resolveBcsOverride?: (type: Type) => string | undefined;
 }
 
 function resolveAddress(
@@ -54,6 +61,13 @@ function getFilteredTypeParameterIndex(
 }
 
 export function renderTypeSignature(type: Type, options: RenderTypeSignatureOptions): string {
+	if (options.format === 'bcs') {
+		const override = options.resolveBcsOverride?.(type);
+		if (override !== undefined) {
+			return override;
+		}
+	}
+
 	const bcs =
 		options.format === 'bcs' && options.bcsImport && rendersBcsExpression(type, options)
 			? options.bcsImport()
@@ -185,6 +199,67 @@ export function renderTypeSignature(type: Type, options: RenderTypeSignatureOpti
 	throw new Error(`Unknown type signature: ${JSON.stringify(type, null, 2)}`);
 }
 
+/**
+ * Render a type as a full type-tag string for config resolver contexts. Unlike the `typeTag`
+ * format (which emits `null` for non-pure datatypes because the runtime doesn't need those tags),
+ * this always produces a real tag. Function type parameters are interpolated from the generated
+ * function's `options.typeArguments`, so the result may be a template-literal fragment.
+ */
+export function renderResolverTypeTag(
+	type: Type,
+	options: Pick<RenderTypeSignatureOptions, 'summary' | 'typeParameters' | 'registry'> & {
+		/**
+		 * Overrides the address used for a concrete datatype (e.g. to use type-origin addresses or
+		 * MVR names consistent with generated BCS type names). Falls back to the registry's
+		 * address mapping.
+		 */
+		getDatatypeTagAddress?: (datatype: Datatype) => string;
+	},
+): string {
+	if (typeof type === 'string') {
+		if (type === 'signer' || type === '_') {
+			throw new Error(`${type} is not supported in type arguments`);
+		}
+		return type;
+	}
+
+	if ('Reference' in type) {
+		return renderResolverTypeTag(type.Reference[1], options);
+	}
+
+	if ('vector' in type) {
+		return `vector<${renderResolverTypeTag(type.vector, options)}>`;
+	}
+
+	if ('TypeParameter' in type) {
+		return `\${options.typeArguments[${type.TypeParameter}]}`;
+	}
+
+	if ('NamedTypeParameter' in type) {
+		const originalIndex =
+			options.typeParameters?.findIndex((p) => p.name === type.NamedTypeParameter) ?? -1;
+		if (originalIndex === -1) {
+			throw new Error(`Named type parameter ${type.NamedTypeParameter} not found`);
+		}
+		return `\${options.typeArguments[${originalIndex}]}`;
+	}
+
+	if ('Datatype' in type) {
+		const { Datatype } = type;
+		const address =
+			options.getDatatypeTagAddress?.(Datatype) ?? resolveAddress(options, Datatype.module.address);
+		const base = `${address}::${Datatype.module.name}::${Datatype.name}`;
+		if (Datatype.type_arguments.length === 0) {
+			return base;
+		}
+		return `${base}<${Datatype.type_arguments
+			.map((arg) => renderResolverTypeTag(arg.argument, options))
+			.join(', ')}>`;
+	}
+
+	throw new Error(`Unknown type signature: ${JSON.stringify(type, null, 2)}`);
+}
+
 function getDatatypeAbilities(
 	type: Datatype,
 	options: Pick<RenderTypeSignatureOptions, 'summary' | 'registry'>,
@@ -216,6 +291,28 @@ function isPureDatatype(type: Datatype, options: TypeCheckOptions): boolean {
 		if (type.module.name === 'object' && (type.name === 'ID' || type.name === 'UID')) {
 			return true;
 		}
+	}
+	return false;
+}
+
+/**
+ * Datatypes whose BCS reference sites are always inlined as a `bcs.*` expression rather than a
+ * reference to the generated declaration. Replacing such a declaration has no effect on any layout
+ * that uses the type, so `bcsOverrides` rejects it.
+ */
+export function isBcsInlinedDatatype(
+	resolvedAddress: string,
+	module: string,
+	name: string,
+): boolean {
+	if (resolvedAddress === MOVE_STDLIB_ADDRESS) {
+		return (
+			((module === 'ascii' || module === 'string') && name === 'String') ||
+			(module === 'option' && name === 'Option')
+		);
+	}
+	if (resolvedAddress === SUI_FRAMEWORK_ADDRESS) {
+		return module === 'object' && (name === 'ID' || name === 'UID');
 	}
 	return false;
 }
@@ -260,6 +357,8 @@ function renderDataType(type: Datatype, options: RenderTypeSignatureOptions): st
 			if (type.module.name === 'random' && type.name === 'Random') return '0x2::random::Random';
 			if (type.module.name === 'deny_list' && type.name === 'DenyList')
 				return '0x2::deny_list::DenyList';
+			if (type.module.name === 'accumulator' && type.name === 'AccumulatorRoot')
+				return '0x2::accumulator::AccumulatorRoot';
 			if (type.module.name === 'object' && (type.name === 'ID' || type.name === 'UID'))
 				return '0x2::object::ID';
 		}

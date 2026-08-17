@@ -17,8 +17,14 @@
  * provides account trading benefits and is not part of PLP share value.
  */
 
-import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
+import {
+	MoveStruct,
+	normalizeMoveArguments,
+	type RawTransactionArgument,
+	type ConfigValue,
+} from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
+import { U64 } from '../../bcs/integers.js';
 import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as balance from './deps/sui/balance.js';
 import * as lp_book from './lp_book.js';
@@ -61,19 +67,24 @@ export const PoolValuation = new MoveStruct({
 		/** Markets valued so far this flow; folded against `expected` at finish. */
 		valued_expiry_markets: bcs.vector(bcs.Address),
 		/** Running Σ of each valued market's NAV (settled markets contribute 0). */
-		total_nav: bcs.u64(),
+		total_nav: U64,
 	},
 });
 export interface IdArguments {
-	vault: RawTransactionArgument<string>;
+	vault?: RawTransactionArgument<string>;
 }
 export interface IdOptions {
 	package?: string;
-	arguments: IdArguments | [vault: RawTransactionArgument<string>];
+	arguments?: IdArguments;
+	config?: {
+		poolVault: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /** Return the pool vault object ID for external discovery and PTB construction. */
 export function id(options: IdOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['vault'];
 	return (tx: Transaction) =>
@@ -81,19 +92,31 @@ export function id(options: IdOptions) {
 			package: packageAddress,
 			module: 'plp',
 			function: 'id',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					vault: options.arguments?.vault ?? options.config?.poolVault,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface StakedDeepArguments {
-	vault: RawTransactionArgument<string>;
+	vault?: RawTransactionArgument<string>;
 }
 export interface StakedDeepOptions {
 	package?: string;
-	arguments: StakedDeepArguments | [vault: RawTransactionArgument<string>];
+	arguments?: StakedDeepArguments;
+	config?: {
+		poolVault: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /** Return pooled DEEP custody for SDK and devInspect state reads. */
 export function stakedDeep(options: StakedDeepOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['vault'];
 	return (tx: Transaction) =>
@@ -101,19 +124,31 @@ export function stakedDeep(options: StakedDeepOptions) {
 			package: packageAddress,
 			module: 'plp',
 			function: 'staked_deep',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					vault: options.arguments?.vault ?? options.config?.poolVault,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface IdleBalanceArguments {
-	vault: RawTransactionArgument<string>;
+	vault?: RawTransactionArgument<string>;
 }
 export interface IdleBalanceOptions {
 	package?: string;
-	arguments: IdleBalanceArguments | [vault: RawTransactionArgument<string>];
+	arguments?: IdleBalanceArguments;
+	config?: {
+		poolVault: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /** Return idle DUSDC for SDK and devInspect state reads. */
 export function idleBalance(options: IdleBalanceOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['vault'];
 	return (tx: Transaction) =>
@@ -121,19 +156,31 @@ export function idleBalance(options: IdleBalanceOptions) {
 			package: packageAddress,
 			module: 'plp',
 			function: 'idle_balance',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					vault: options.arguments?.vault ?? options.config?.poolVault,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface ProtocolReserveBalanceArguments {
-	vault: RawTransactionArgument<string>;
+	vault?: RawTransactionArgument<string>;
 }
 export interface ProtocolReserveBalanceOptions {
 	package?: string;
-	arguments: ProtocolReserveBalanceArguments | [vault: RawTransactionArgument<string>];
+	arguments?: ProtocolReserveBalanceArguments;
+	config?: {
+		poolVault: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /** Return protocol-owned DUSDC for SDK and devInspect state reads. */
 export function protocolReserveBalance(options: ProtocolReserveBalanceOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['vault'];
 	return (tx: Transaction) =>
@@ -141,19 +188,31 @@ export function protocolReserveBalance(options: ProtocolReserveBalanceOptions) {
 			package: packageAddress,
 			module: 'plp',
 			function: 'protocol_reserve_balance',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					vault: options.arguments?.vault ?? options.config?.poolVault,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface FeeIncentiveReserveArguments {
-	vault: RawTransactionArgument<string>;
+	vault?: RawTransactionArgument<string>;
 }
 export interface FeeIncentiveReserveOptions {
 	package?: string;
-	arguments: FeeIncentiveReserveArguments | [vault: RawTransactionArgument<string>];
+	arguments?: FeeIncentiveReserveArguments;
+	config?: {
+		poolVault: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /** Return sponsor-funded fee reserves for SDK and devInspect state reads. */
 export function feeIncentiveReserve(options: FeeIncentiveReserveOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['vault'];
 	return (tx: Transaction) =>
@@ -161,19 +220,31 @@ export function feeIncentiveReserve(options: FeeIncentiveReserveOptions) {
 			package: packageAddress,
 			module: 'plp',
 			function: 'fee_incentive_reserve',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					vault: options.arguments?.vault ?? options.config?.poolVault,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface PlpTotalSupplyArguments {
-	vault: RawTransactionArgument<string>;
+	vault?: RawTransactionArgument<string>;
 }
 export interface PlpTotalSupplyOptions {
 	package?: string;
-	arguments: PlpTotalSupplyArguments | [vault: RawTransactionArgument<string>];
+	arguments?: PlpTotalSupplyArguments;
+	config?: {
+		poolVault: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /** Return total PLP supply for SDK and devInspect state reads. */
 export function plpTotalSupply(options: PlpTotalSupplyOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['vault'];
 	return (tx: Transaction) =>
@@ -181,19 +252,31 @@ export function plpTotalSupply(options: PlpTotalSupplyOptions) {
 			package: packageAddress,
 			module: 'plp',
 			function: 'plp_total_supply',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					vault: options.arguments?.vault ?? options.config?.poolVault,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface SupplyRequestsPendingArguments {
-	vault: RawTransactionArgument<string>;
+	vault?: RawTransactionArgument<string>;
 }
 export interface SupplyRequestsPendingOptions {
 	package?: string;
-	arguments: SupplyRequestsPendingArguments | [vault: RawTransactionArgument<string>];
+	arguments?: SupplyRequestsPendingArguments;
+	config?: {
+		poolVault: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /** Return pending LP supply count for SDK and devInspect queue reads. */
 export function supplyRequestsPending(options: SupplyRequestsPendingOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['vault'];
 	return (tx: Transaction) =>
@@ -201,19 +284,31 @@ export function supplyRequestsPending(options: SupplyRequestsPendingOptions) {
 			package: packageAddress,
 			module: 'plp',
 			function: 'supply_requests_pending',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					vault: options.arguments?.vault ?? options.config?.poolVault,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface WithdrawRequestsPendingArguments {
-	vault: RawTransactionArgument<string>;
+	vault?: RawTransactionArgument<string>;
 }
 export interface WithdrawRequestsPendingOptions {
 	package?: string;
-	arguments: WithdrawRequestsPendingArguments | [vault: RawTransactionArgument<string>];
+	arguments?: WithdrawRequestsPendingArguments;
+	config?: {
+		poolVault: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /** Return pending LP withdrawal count for SDK and devInspect queue reads. */
 export function withdrawRequestsPending(options: WithdrawRequestsPendingOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['vault'];
 	return (tx: Transaction) =>
@@ -221,19 +316,31 @@ export function withdrawRequestsPending(options: WithdrawRequestsPendingOptions)
 			package: packageAddress,
 			module: 'plp',
 			function: 'withdraw_requests_pending',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					vault: options.arguments?.vault ?? options.config?.poolVault,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface ActiveExpiryMarketsArguments {
-	vault: RawTransactionArgument<string>;
+	vault?: RawTransactionArgument<string>;
 }
 export interface ActiveExpiryMarketsOptions {
 	package?: string;
-	arguments: ActiveExpiryMarketsArguments | [vault: RawTransactionArgument<string>];
+	arguments?: ActiveExpiryMarketsArguments;
+	config?: {
+		poolVault: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /** Return active expiry IDs for external PTB construction and pool inspection. */
 export function activeExpiryMarkets(options: ActiveExpiryMarketsOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['vault'];
 	return (tx: Transaction) =>
@@ -241,19 +348,31 @@ export function activeExpiryMarkets(options: ActiveExpiryMarketsOptions) {
 			package: packageAddress,
 			module: 'plp',
 			function: 'active_expiry_markets',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					vault: options.arguments?.vault ?? options.config?.poolVault,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface ActiveLiveExpiryCountArguments {
-	vault: RawTransactionArgument<string>;
+	vault?: RawTransactionArgument<string>;
 }
 export interface ActiveLiveExpiryCountOptions {
 	package?: string;
-	arguments: ActiveLiveExpiryCountArguments | [vault: RawTransactionArgument<string>];
+	arguments?: ActiveLiveExpiryCountArguments;
+	config?: {
+		poolVault: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /** Return the pre-expiry active count for SDK and devInspect capacity reads. */
 export function activeLiveExpiryCount(options: ActiveLiveExpiryCountOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['vault'];
 	return (tx: Transaction) =>
@@ -261,19 +380,31 @@ export function activeLiveExpiryCount(options: ActiveLiveExpiryCountOptions) {
 			package: packageAddress,
 			module: 'plp',
 			function: 'active_live_expiry_count',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					vault: options.arguments?.vault ?? options.config?.poolVault,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface ProfitBasisDebitsArguments {
-	vault: RawTransactionArgument<string>;
+	vault?: RawTransactionArgument<string>;
 }
 export interface ProfitBasisDebitsOptions {
 	package?: string;
-	arguments: ProfitBasisDebitsArguments | [vault: RawTransactionArgument<string>];
+	arguments?: ProfitBasisDebitsArguments;
+	config?: {
+		poolVault: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /** Return the profit-basis debits for external accounting observability. */
 export function profitBasisDebits(options: ProfitBasisDebitsOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['vault'];
 	return (tx: Transaction) =>
@@ -281,19 +412,31 @@ export function profitBasisDebits(options: ProfitBasisDebitsOptions) {
 			package: packageAddress,
 			module: 'plp',
 			function: 'profit_basis_debits',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					vault: options.arguments?.vault ?? options.config?.poolVault,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface ProfitBasisCreditsArguments {
-	vault: RawTransactionArgument<string>;
+	vault?: RawTransactionArgument<string>;
 }
 export interface ProfitBasisCreditsOptions {
 	package?: string;
-	arguments: ProfitBasisCreditsArguments | [vault: RawTransactionArgument<string>];
+	arguments?: ProfitBasisCreditsArguments;
+	config?: {
+		poolVault: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /** Return the profit-basis credits for external accounting observability. */
 export function profitBasisCredits(options: ProfitBasisCreditsOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['vault'];
 	return (tx: Transaction) =>
@@ -301,19 +444,31 @@ export function profitBasisCredits(options: ProfitBasisCreditsOptions) {
 			package: packageAddress,
 			module: 'plp',
 			function: 'profit_basis_credits',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					vault: options.arguments?.vault ?? options.config?.poolVault,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface PendingProtocolProfitArguments {
-	vault: RawTransactionArgument<string>;
+	vault?: RawTransactionArgument<string>;
 }
 export interface PendingProtocolProfitOptions {
 	package?: string;
-	arguments: PendingProtocolProfitArguments | [vault: RawTransactionArgument<string>];
+	arguments?: PendingProtocolProfitArguments;
+	config?: {
+		poolVault: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /** Return deferred protocol profit for external accounting observability. */
 export function pendingProtocolProfit(options: PendingProtocolProfitOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['vault'];
 	return (tx: Transaction) =>
@@ -321,23 +476,29 @@ export function pendingProtocolProfit(options: PendingProtocolProfitOptions) {
 			package: packageAddress,
 			module: 'plp',
 			function: 'pending_protocol_profit',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					vault: options.arguments?.vault ?? options.config?.poolVault,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface StartPoolValuationArguments {
-	config: RawTransactionArgument<string>;
-	vault: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
+	vault?: RawTransactionArgument<string>;
 	lifecycleProof: TransactionArgument;
 }
 export interface StartPoolValuationOptions {
 	package?: string;
-	arguments:
-		| StartPoolValuationArguments
-		| [
-				config: RawTransactionArgument<string>,
-				vault: RawTransactionArgument<string>,
-				lifecycleProof: TransactionArgument,
-		  ];
+	arguments: StartPoolValuationArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		poolVault: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /**
  * Begin a full-pool valuation using a registry-issued lifecycle proof. The proof
@@ -346,7 +507,8 @@ export interface StartPoolValuationOptions {
  * expiry that must be included before the queues can drain.
  */
 export function startPoolValuation(options: StartPoolValuationOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, null, null] satisfies (string | null)[];
 	const parameterNames = ['config', 'vault', 'lifecycleProof'];
 	return (tx: Transaction) =>
@@ -354,33 +516,36 @@ export function startPoolValuation(options: StartPoolValuationOptions) {
 			package: packageAddress,
 			module: 'plp',
 			function: 'start_pool_valuation',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+					vault: options.arguments?.vault ?? options.config?.poolVault,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface ValueExpiryArguments {
 	valuation: TransactionArgument;
-	vault: RawTransactionArgument<string>;
+	vault?: RawTransactionArgument<string>;
 	market: RawTransactionArgument<string>;
-	config: RawTransactionArgument<string>;
-	propbookRegistry: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
+	propbookRegistry?: RawTransactionArgument<string>;
 	pyth: RawTransactionArgument<string>;
 	bsValues: RawTransactionArgument<string>;
 	bsSvi: RawTransactionArgument<string>;
 }
 export interface ValueExpiryOptions {
 	package?: string;
-	arguments:
-		| ValueExpiryArguments
-		| [
-				valuation: TransactionArgument,
-				vault: RawTransactionArgument<string>,
-				market: RawTransactionArgument<string>,
-				config: RawTransactionArgument<string>,
-				propbookRegistry: RawTransactionArgument<string>,
-				pyth: RawTransactionArgument<string>,
-				bsValues: RawTransactionArgument<string>,
-				bsSvi: RawTransactionArgument<string>,
-		  ];
+	arguments: ValueExpiryArguments;
+	config?: {
+		poolVault: ConfigValue;
+		protocolConfig: ConfigValue;
+		oracleRegistry: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /**
  * Run the per-market cash flow for one snapshotted market, then fold its NAV into
@@ -393,7 +558,8 @@ export interface ValueExpiryOptions {
  * expired unsettled market cannot produce the live pricer required here.
  */
 export function valueExpiry(options: ValueExpiryOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [
 		null,
 		null,
@@ -420,27 +586,33 @@ export function valueExpiry(options: ValueExpiryOptions) {
 			package: packageAddress,
 			module: 'plp',
 			function: 'value_expiry',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					vault: options.arguments?.vault ?? options.config?.poolVault,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+					propbookRegistry: options.arguments?.propbookRegistry ?? options.config?.oracleRegistry,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface FinishFlushArguments {
 	valuation: TransactionArgument;
-	vault: RawTransactionArgument<string>;
-	config: RawTransactionArgument<string>;
+	vault?: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
 	supplyBudget: RawTransactionArgument<number | bigint | null>;
 	withdrawBudget: RawTransactionArgument<number | bigint | null>;
 }
 export interface FinishFlushOptions {
 	package?: string;
-	arguments:
-		| FinishFlushArguments
-		| [
-				valuation: TransactionArgument,
-				vault: RawTransactionArgument<string>,
-				config: RawTransactionArgument<string>,
-				supplyBudget: RawTransactionArgument<number | bigint | null>,
-				withdrawBudget: RawTransactionArgument<number | bigint | null>,
-		  ];
+	arguments: FinishFlushArguments;
+	config?: {
+		poolVault: ConfigValue;
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /**
  * Finish a full-pool valuation and run the LP flush: prove every snapshotted
@@ -470,7 +642,8 @@ export interface FinishFlushOptions {
  * than rely on queue length staying small — see RP-12.
  */
 export function finishFlush(options: FinishFlushOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [
 		null,
 		null,
@@ -484,29 +657,32 @@ export function finishFlush(options: FinishFlushOptions) {
 			package: packageAddress,
 			module: 'plp',
 			function: 'finish_flush',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					vault: options.arguments?.vault ?? options.config?.poolVault,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface StakeDeepArguments {
-	vault: RawTransactionArgument<string>;
+	vault?: RawTransactionArgument<string>;
 	wrapper: RawTransactionArgument<string>;
 	auth: TransactionArgument;
-	config: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
 	amount: RawTransactionArgument<number | bigint>;
-	root: RawTransactionArgument<string>;
 }
 export interface StakeDeepOptions {
 	package?: string;
-	arguments:
-		| StakeDeepArguments
-		| [
-				vault: RawTransactionArgument<string>,
-				wrapper: RawTransactionArgument<string>,
-				auth: TransactionArgument,
-				config: RawTransactionArgument<string>,
-				amount: RawTransactionArgument<number | bigint>,
-				root: RawTransactionArgument<string>,
-		  ];
+	arguments: StakeDeepArguments;
+	config?: {
+		poolVault: ConfigValue;
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /**
  * Stake DEEP for trading benefits. The DEEP is held in the pool vault; the new
@@ -515,69 +691,91 @@ export interface StakeDeepOptions {
  * `predict_account::roll_active_stake`. Callable anytime, any number of times.
  */
 export function stakeDeep(options: StakeDeepOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, null, null, 'u64', null, '0x2::clock::Clock'] satisfies (
-		| string
-		| null
-	)[];
-	const parameterNames = ['vault', 'wrapper', 'auth', 'config', 'amount', 'root'];
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = ['vault', 'wrapper', 'auth', 'config', 'amount'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'plp',
 			function: 'stake_deep',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					vault: options.arguments?.vault ?? options.config?.poolVault,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface UnstakeDeepArguments {
-	vault: RawTransactionArgument<string>;
+	vault?: RawTransactionArgument<string>;
 	wrapper: RawTransactionArgument<string>;
 	auth: TransactionArgument;
-	config: RawTransactionArgument<string>;
-	root: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
 }
 export interface UnstakeDeepOptions {
 	package?: string;
-	arguments:
-		| UnstakeDeepArguments
-		| [
-				vault: RawTransactionArgument<string>,
-				wrapper: RawTransactionArgument<string>,
-				auth: TransactionArgument,
-				config: RawTransactionArgument<string>,
-				root: RawTransactionArgument<string>,
-		  ];
+	arguments: UnstakeDeepArguments;
+	config?: {
+		poolVault: ConfigValue;
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /** Withdraw all staked DEEP (active and inactive) at any time, no penalty. */
 export function unstakeDeep(options: UnstakeDeepOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, null, null, null, '0x2::clock::Clock'] satisfies (
-		| string
-		| null
-	)[];
-	const parameterNames = ['vault', 'wrapper', 'auth', 'config', 'root'];
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = ['vault', 'wrapper', 'auth', 'config'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'plp',
 			function: 'unstake_deep',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					vault: options.arguments?.vault ?? options.config?.poolVault,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface RebalanceExpiryCashArguments {
-	vault: RawTransactionArgument<string>;
+	vault?: RawTransactionArgument<string>;
 	market: RawTransactionArgument<string>;
-	config: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
 }
 export interface RebalanceExpiryCashOptions {
 	package?: string;
-	arguments:
-		| RebalanceExpiryCashArguments
-		| [
-				vault: RawTransactionArgument<string>,
-				market: RawTransactionArgument<string>,
-				config: RawTransactionArgument<string>,
-		  ];
+	arguments: RebalanceExpiryCashArguments;
+	config?: {
+		poolVault: ConfigValue;
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /**
  * Move cash between pool idle liquidity and one expiry market.
@@ -594,7 +792,8 @@ export interface RebalanceExpiryCashOptions {
  * valuation is in progress.
  */
 export function rebalanceExpiryCash(options: RebalanceExpiryCashOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, null, null, '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['vault', 'market', 'config'];
 	return (tx: Transaction) =>
@@ -602,66 +801,78 @@ export function rebalanceExpiryCash(options: RebalanceExpiryCashOptions) {
 			package: packageAddress,
 			module: 'plp',
 			function: 'rebalance_expiry_cash',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					vault: options.arguments?.vault ?? options.config?.poolVault,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface ClaimTradingLossRebateArguments {
-	vault: RawTransactionArgument<string>;
+	vault?: RawTransactionArgument<string>;
 	market: RawTransactionArgument<string>;
 	wrapper: RawTransactionArgument<string>;
 	auth: TransactionArgument;
-	config: RawTransactionArgument<string>;
-	root: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
 }
 export interface ClaimTradingLossRebateOptions {
 	package?: string;
-	arguments:
-		| ClaimTradingLossRebateArguments
-		| [
-				vault: RawTransactionArgument<string>,
-				market: RawTransactionArgument<string>,
-				wrapper: RawTransactionArgument<string>,
-				auth: TransactionArgument,
-				config: RawTransactionArgument<string>,
-				root: RawTransactionArgument<string>,
-		  ];
+	arguments: ClaimTradingLossRebateArguments;
+	config?: {
+		poolVault: ConfigValue;
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /** Resolve a settled trading-loss rebate using valid account authority. */
 export function claimTradingLossRebate(options: ClaimTradingLossRebateOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, null, null, null, null, '0x2::clock::Clock'] satisfies (
-		| string
-		| null
-	)[];
-	const parameterNames = ['vault', 'market', 'wrapper', 'auth', 'config', 'root'];
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = ['vault', 'market', 'wrapper', 'auth', 'config'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'plp',
 			function: 'claim_trading_loss_rebate',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					vault: options.arguments?.vault ?? options.config?.poolVault,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface ClaimTradingLossRebatePermissionlessArguments {
-	vault: RawTransactionArgument<string>;
+	vault?: RawTransactionArgument<string>;
 	market: RawTransactionArgument<string>;
 	wrapper: RawTransactionArgument<string>;
 	accountRegistry: RawTransactionArgument<string>;
-	config: RawTransactionArgument<string>;
-	root: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
 }
 export interface ClaimTradingLossRebatePermissionlessOptions {
 	package?: string;
-	arguments:
-		| ClaimTradingLossRebatePermissionlessArguments
-		| [
-				vault: RawTransactionArgument<string>,
-				market: RawTransactionArgument<string>,
-				wrapper: RawTransactionArgument<string>,
-				accountRegistry: RawTransactionArgument<string>,
-				config: RawTransactionArgument<string>,
-				root: RawTransactionArgument<string>,
-		  ];
+	arguments: ClaimTradingLossRebatePermissionlessArguments;
+	config?: {
+		poolVault: ConfigValue;
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /**
  * Permissionlessly resolve one account's settled trading-loss rebate using Predict
@@ -671,34 +882,47 @@ export interface ClaimTradingLossRebatePermissionlessOptions {
 export function claimTradingLossRebatePermissionless(
 	options: ClaimTradingLossRebatePermissionlessOptions,
 ) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, null, null, null, null, '0x2::clock::Clock'] satisfies (
-		| string
-		| null
-	)[];
-	const parameterNames = ['vault', 'market', 'wrapper', 'accountRegistry', 'config', 'root'];
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = ['vault', 'market', 'wrapper', 'accountRegistry', 'config'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'plp',
 			function: 'claim_trading_loss_rebate_permissionless',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					vault: options.arguments?.vault ?? options.config?.poolVault,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface SponsorFeeIncentivesArguments {
-	vault: RawTransactionArgument<string>;
-	config: RawTransactionArgument<string>;
+	vault?: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
 	payment: RawTransactionArgument<string>;
 }
 export interface SponsorFeeIncentivesOptions {
 	package?: string;
-	arguments:
-		| SponsorFeeIncentivesArguments
-		| [
-				vault: RawTransactionArgument<string>,
-				config: RawTransactionArgument<string>,
-				payment: RawTransactionArgument<string>,
-		  ];
+	arguments: SponsorFeeIncentivesArguments;
+	config?: {
+		poolVault: ConfigValue;
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /**
  * Sponsor taker fee incentives with DUSDC. Anyone may contribute; the payment
@@ -706,7 +930,8 @@ export interface SponsorFeeIncentivesOptions {
  * expiry markets by the normal rebalance flow.
  */
 export function sponsorFeeIncentives(options: SponsorFeeIncentivesOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, null, null] satisfies (string | null)[];
 	const parameterNames = ['vault', 'config', 'payment'];
 	return (tx: Transaction) =>
@@ -714,25 +939,31 @@ export function sponsorFeeIncentives(options: SponsorFeeIncentivesOptions) {
 			package: packageAddress,
 			module: 'plp',
 			function: 'sponsor_fee_incentives',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					vault: options.arguments?.vault ?? options.config?.poolVault,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface LockCapitalArguments {
-	vault: RawTransactionArgument<string>;
-	config: RawTransactionArgument<string>;
+	vault?: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
 	AdminCap: RawTransactionArgument<string>;
 	payment: RawTransactionArgument<string>;
 }
 export interface LockCapitalOptions {
 	package?: string;
-	arguments:
-		| LockCapitalArguments
-		| [
-				vault: RawTransactionArgument<string>,
-				config: RawTransactionArgument<string>,
-				AdminCap: RawTransactionArgument<string>,
-				payment: RawTransactionArgument<string>,
-		  ];
+	arguments: LockCapitalArguments;
+	config?: {
+		poolVault: ConfigValue;
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /**
  * Bootstrap the pool exactly once: permanently lock `payment` DUSDC of minimum
@@ -744,7 +975,8 @@ export interface LockCapitalOptions {
  * has been created.
  */
 export function lockCapital(options: LockCapitalOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, null, null, null] satisfies (string | null)[];
 	const parameterNames = ['vault', 'config', 'AdminCap', 'payment'];
 	return (tx: Transaction) =>
@@ -752,47 +984,52 @@ export function lockCapital(options: LockCapitalOptions) {
 			package: packageAddress,
 			module: 'plp',
 			function: 'lock_capital',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					vault: options.arguments?.vault ?? options.config?.poolVault,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface RequestSupplyArguments {
-	vault: RawTransactionArgument<string>;
+	vault?: RawTransactionArgument<string>;
 	wrapper: RawTransactionArgument<string>;
 	auth: TransactionArgument;
-	config: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
 	amount: RawTransactionArgument<number | bigint>;
 	minPlpOut: RawTransactionArgument<number | bigint>;
-	root: RawTransactionArgument<string>;
 }
 export interface RequestSupplyOptions {
 	package?: string;
-	arguments:
-		| RequestSupplyArguments
-		| [
-				vault: RawTransactionArgument<string>,
-				wrapper: RawTransactionArgument<string>,
-				auth: TransactionArgument,
-				config: RawTransactionArgument<string>,
-				amount: RawTransactionArgument<number | bigint>,
-				minPlpOut: RawTransactionArgument<number | bigint>,
-				root: RawTransactionArgument<string>,
-		  ];
+	arguments: RequestSupplyArguments;
+	config?: {
+		poolVault: ConfigValue;
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /**
  * Queue a supply request: pull `amount` DUSDC from account custody into queue
  * escrow, recording the account's receive address as the fill recipient. The pull
- * auto-settles any flush-delivered DUSDC first. The account receives minted PLP
- * only at a mark that mints at least `min_plp_out` for the whole `amount` — a
- * **price floor**, not a promise of that many shares: if the pool cap leaves room
- * for only part of the deposit, the fill is proportionally smaller at the same
- * price and the remainder stays queued with its limit rescaled. At the shipped
- * attempt count of one, a flush whose mark quotes less cancels and refunds the
- * request there and then; a higher configured count lets it rest and retry that
- * many flushes first. Returns the queue index, the handle used to cancel before
- * the flush.
+ * auto-settles any flush-delivered DUSDC first. The flush charges the protocol's
+ * supply fee — zero by default — on the DUSDC it takes in and prices shares on the
+ * remainder, so `min_plp_out` is measured after that fee. The account receives
+ * minted PLP only at a mark that mints at least `min_plp_out` for the whole
+ * `amount` — a **price floor**, not a promise of that many shares: if the pool cap
+ * leaves room for only part of the deposit, the fill is proportionally smaller at
+ * the same price and the remainder stays queued with its limit rescaled. At the
+ * shipped attempt count of one, a flush whose mark quotes less cancels and refunds
+ * the request there and then; a higher configured count lets it rest and retry
+ * that many flushes first. Returns the queue index, the handle used to cancel
+ * before the flush.
  */
 export function requestSupply(options: RequestSupplyOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [
 		null,
 		null,
@@ -800,56 +1037,60 @@ export function requestSupply(options: RequestSupplyOptions) {
 		null,
 		'u64',
 		'u64',
-		null,
+		'0x2::accumulator::AccumulatorRoot',
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
-	const parameterNames = ['vault', 'wrapper', 'auth', 'config', 'amount', 'minPlpOut', 'root'];
+	const parameterNames = ['vault', 'wrapper', 'auth', 'config', 'amount', 'minPlpOut'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'plp',
 			function: 'request_supply',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					vault: options.arguments?.vault ?? options.config?.poolVault,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface RequestWithdrawArguments {
-	vault: RawTransactionArgument<string>;
+	vault?: RawTransactionArgument<string>;
 	wrapper: RawTransactionArgument<string>;
 	auth: TransactionArgument;
-	config: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
 	amount: RawTransactionArgument<number | bigint>;
 	minDusdcOut: RawTransactionArgument<number | bigint>;
-	root: RawTransactionArgument<string>;
 }
 export interface RequestWithdrawOptions {
 	package?: string;
-	arguments:
-		| RequestWithdrawArguments
-		| [
-				vault: RawTransactionArgument<string>,
-				wrapper: RawTransactionArgument<string>,
-				auth: TransactionArgument,
-				config: RawTransactionArgument<string>,
-				amount: RawTransactionArgument<number | bigint>,
-				minDusdcOut: RawTransactionArgument<number | bigint>,
-				root: RawTransactionArgument<string>,
-		  ];
+	arguments: RequestWithdrawArguments;
+	config?: {
+		poolVault: ConfigValue;
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /**
  * Queue a withdraw request: pull `amount` PLP shares from account custody into
  * queue escrow, recording the account's receive address as the fill recipient. The
- * pull auto-settles any flush-delivered PLP first. The account is paid only at a
- * mark that quotes at least `min_dusdc_out` for the whole `amount` — a **price
- * floor**, not a promise of that much DUSDC: if idle liquidity covers only part of
- * the payout, only the shares idle affords are burned, the fill is proportionally
- * smaller at the same price, and the remainder stays queued with its limit
- * rescaled. At the shipped attempt count of one, a flush whose mark quotes less
- * cancels and refunds the request there and then; a higher configured count lets
- * it rest and retry that many flushes first. Returns the queue index used to
- * cancel before the flush.
+ * pull auto-settles any flush-delivered PLP first. The flush withholds the
+ * protocol's withdraw fee from the marked payout, so `min_dusdc_out` is measured
+ * after the fee. The account is paid only at a mark that quotes at least
+ * `min_dusdc_out` for the whole `amount` — a **price floor**, not a promise of
+ * that much DUSDC: if idle liquidity covers only part of the payout, only the
+ * shares idle affords are burned, the fill is proportionally smaller at the same
+ * price, and the remainder stays queued with its limit rescaled. At the shipped
+ * attempt count of one, a flush whose mark quotes less cancels and refunds the
+ * request there and then; a higher configured count lets it rest and retry that
+ * many flushes first. Returns the queue index used to cancel before the flush.
  */
 export function requestWithdraw(options: RequestWithdrawOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [
 		null,
 		null,
@@ -857,95 +1098,121 @@ export function requestWithdraw(options: RequestWithdrawOptions) {
 		null,
 		'u64',
 		'u64',
-		null,
+		'0x2::accumulator::AccumulatorRoot',
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
-	const parameterNames = ['vault', 'wrapper', 'auth', 'config', 'amount', 'minDusdcOut', 'root'];
+	const parameterNames = ['vault', 'wrapper', 'auth', 'config', 'amount', 'minDusdcOut'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'plp',
 			function: 'request_withdraw',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					vault: options.arguments?.vault ?? options.config?.poolVault,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface CancelSupplyRequestArguments {
-	vault: RawTransactionArgument<string>;
+	vault?: RawTransactionArgument<string>;
 	wrapper: RawTransactionArgument<string>;
 	auth: TransactionArgument;
-	config: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
 	index: RawTransactionArgument<number | bigint>;
-	root: RawTransactionArgument<string>;
 }
 export interface CancelSupplyRequestOptions {
 	package?: string;
-	arguments:
-		| CancelSupplyRequestArguments
-		| [
-				vault: RawTransactionArgument<string>,
-				wrapper: RawTransactionArgument<string>,
-				auth: TransactionArgument,
-				config: RawTransactionArgument<string>,
-				index: RawTransactionArgument<number | bigint>,
-				root: RawTransactionArgument<string>,
-		  ];
+	arguments: CancelSupplyRequestArguments;
+	config?: {
+		poolVault: ConfigValue;
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /**
  * Cancel a still-pending supply request, refunding its escrowed DUSDC straight
  * into the requesting account. `account` must be the request's recorded recipient.
  */
 export function cancelSupplyRequest(options: CancelSupplyRequestOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, null, null, 'u64', null, '0x2::clock::Clock'] satisfies (
-		| string
-		| null
-	)[];
-	const parameterNames = ['vault', 'wrapper', 'auth', 'config', 'index', 'root'];
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = ['vault', 'wrapper', 'auth', 'config', 'index'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'plp',
 			function: 'cancel_supply_request',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					vault: options.arguments?.vault ?? options.config?.poolVault,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }
 export interface CancelWithdrawRequestArguments {
-	vault: RawTransactionArgument<string>;
+	vault?: RawTransactionArgument<string>;
 	wrapper: RawTransactionArgument<string>;
 	auth: TransactionArgument;
-	config: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
 	index: RawTransactionArgument<number | bigint>;
-	root: RawTransactionArgument<string>;
 }
 export interface CancelWithdrawRequestOptions {
 	package?: string;
-	arguments:
-		| CancelWithdrawRequestArguments
-		| [
-				vault: RawTransactionArgument<string>,
-				wrapper: RawTransactionArgument<string>,
-				auth: TransactionArgument,
-				config: RawTransactionArgument<string>,
-				index: RawTransactionArgument<number | bigint>,
-				root: RawTransactionArgument<string>,
-		  ];
+	arguments: CancelWithdrawRequestArguments;
+	config?: {
+		poolVault: ConfigValue;
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
 }
 /**
  * Cancel a still-pending withdraw request, refunding its escrowed PLP straight
  * into the requesting account. `account` must be the request's recorded recipient.
  */
 export function cancelWithdrawRequest(options: CancelWithdrawRequestOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, null, null, 'u64', null, '0x2::clock::Clock'] satisfies (
-		| string
-		| null
-	)[];
-	const parameterNames = ['vault', 'wrapper', 'auth', 'config', 'index', 'root'];
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = ['vault', 'wrapper', 'auth', 'config', 'index'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'plp',
 			function: 'cancel_withdraw_request',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					vault: options.arguments?.vault ?? options.config?.poolVault,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
 		});
 }

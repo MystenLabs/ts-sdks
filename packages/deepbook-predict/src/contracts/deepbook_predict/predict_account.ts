@@ -23,6 +23,7 @@ import {
 	type RawTransactionArgument,
 } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
+import { U256, U64 } from '../../bcs/integers.js';
 import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as table from './deps/sui/table.js';
 const $moduleName = '@local-pkg/deepbook_predict::predict_account';
@@ -34,37 +35,37 @@ export const PositionKey = new MoveStruct({
 	name: `${$moduleName}::PositionKey`,
 	fields: {
 		expiry_market_id: bcs.Address,
-		order_id: bcs.u256(),
+		order_id: U256,
 	},
 });
 export const Position = new MoveStruct({
 	name: `${$moduleName}::Position`,
 	fields: {
 		/** Root order ID, carried forward unchanged across partial-close replacements. */
-		root_id: bcs.u256(),
+		root_id: U256,
 		/**
 		 * On-chain time (`clock.timestamp_ms()`) the position was opened, carried forward
 		 * unchanged across partial-close replacements. A live redeem in the same timestamp
 		 * is rejected, blocking an atomic mint -> oracle-update -> redeem in one
 		 * transaction.
 		 */
-		opened_at_ms: bcs.u64(),
+		opened_at_ms: U64,
 	},
 });
 export const ExpiryTradingSummary = new MoveStruct({
 	name: `${$moduleName}::ExpiryTradingSummary`,
 	fields: {
-		open_position_count: bcs.u64(),
-		trading_fees_paid: bcs.u64(),
-		gross_paid_to_expiry: bcs.u64(),
-		gross_received_from_expiry: bcs.u64(),
+		open_position_count: U64,
+		trading_fees_paid: U64,
+		gross_paid_to_expiry: U64,
+		gross_received_from_expiry: U64,
 	},
 });
 export const ResolvedExpirySummary = new MoveStruct({
 	name: `${$moduleName}::ResolvedExpirySummary`,
 	fields: {
-		fees_paid: bcs.u64(),
-		gross_profit: bcs.u64(),
+		fees_paid: U64,
+		gross_profit: U64,
 	},
 });
 export const PredictData = new MoveStruct({
@@ -78,14 +79,14 @@ export const PredictData = new MoveStruct({
 		 * DEEP staked and active for trading benefits, in raw units. Custody is pooled in
 		 * `PoolVault`; this is this account's active share.
 		 */
-		active_stake: bcs.u64(),
+		active_stake: U64,
 		/**
 		 * DEEP staked this epoch, not yet active; rolls into `active_stake` on the first
 		 * discount-bearing interaction in a later epoch (`roll_active_stake`).
 		 */
-		inactive_stake: bcs.u64(),
+		inactive_stake: U64,
 		/** Epoch the active/inactive split was last reconciled in. */
-		stake_epoch: bcs.u64(),
+		stake_epoch: U64,
 		/** Sticky builder-code attribution for future trades, if set. */
 		builder_code_id: bcs.option(bcs.Address),
 	},
@@ -104,10 +105,14 @@ export interface HasPositionOptions {
 				expiryMarketId: RawTransactionArgument<string>,
 				orderId: RawTransactionArgument<number | bigint>,
 		  ];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /** Return whether an account holds a position for SDK and devInspect state reads. */
 export function hasPosition(options: HasPositionOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, '0x2::object::ID', 'u256'] satisfies (string | null)[];
 	const parameterNames = ['account', 'expiryMarketId', 'orderId'];
 	return (tx: Transaction) =>
@@ -127,10 +132,14 @@ export interface ExpiryPositionCountOptions {
 	arguments:
 		| ExpiryPositionCountArguments
 		| [account: TransactionArgument, expiryMarketId: RawTransactionArgument<string>];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /** Return an expiry's open-position count for SDK and devInspect state reads. */
 export function expiryPositionCount(options: ExpiryPositionCountOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, '0x2::object::ID'] satisfies (string | null)[];
 	const parameterNames = ['account', 'expiryMarketId'];
 	return (tx: Transaction) =>
@@ -150,10 +159,14 @@ export interface TradingFeesPaidOptions {
 	arguments:
 		| TradingFeesPaidArguments
 		| [account: TransactionArgument, expiryMarketId: RawTransactionArgument<string>];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /** Return an account's aggregate expiry trading fees for SDK and devInspect reads. */
 export function tradingFeesPaid(options: TradingFeesPaidOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, '0x2::object::ID'] satisfies (string | null)[];
 	const parameterNames = ['account', 'expiryMarketId'];
 	return (tx: Transaction) =>
@@ -170,13 +183,17 @@ export interface ActiveStakeArguments {
 export interface ActiveStakeOptions {
 	package?: string;
 	arguments: ActiveStakeArguments | [account: TransactionArgument];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /**
  * Return the stored active-stake split from the account's last epoch
  * reconciliation. This read does not roll newly eligible inactive stake forward.
  */
 export function activeStake(options: ActiveStakeOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['account'];
 	return (tx: Transaction) =>
@@ -193,6 +210,9 @@ export interface InactiveStakeArguments {
 export interface InactiveStakeOptions {
 	package?: string;
 	arguments: InactiveStakeArguments | [account: TransactionArgument];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /**
  * Return the stored inactive-stake split from the account's last epoch
@@ -200,7 +220,8 @@ export interface InactiveStakeOptions {
  * epoch boundary.
  */
 export function inactiveStake(options: InactiveStakeOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['account'];
 	return (tx: Transaction) =>
@@ -217,10 +238,14 @@ export interface BuilderCodeIdArguments {
 export interface BuilderCodeIdOptions {
 	package?: string;
 	arguments: BuilderCodeIdArguments | [account: TransactionArgument];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /** Return the sticky builder-code ID, if set. */
 export function builderCodeId(options: BuilderCodeIdOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['account'];
 	return (tx: Transaction) =>
@@ -245,13 +270,17 @@ export interface SetBuilderCodeOptions {
 				auth: TransactionArgument,
 				code: RawTransactionArgument<string>,
 		  ];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /**
  * Set sticky builder-code attribution for future trades using valid account auth.
  * Owner auth and authorized-app auth both satisfy the account borrow boundary.
  */
 export function setBuilderCode(options: SetBuilderCodeOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, null, null] satisfies (string | null)[];
 	const parameterNames = ['wrapper', 'auth', 'code'];
 	return (tx: Transaction) =>
@@ -271,10 +300,14 @@ export interface UnsetBuilderCodeOptions {
 	arguments:
 		| UnsetBuilderCodeArguments
 		| [wrapper: RawTransactionArgument<string>, auth: TransactionArgument];
+	config?: {
+		predictPackageId?: string;
+	};
 }
 /** Clear sticky builder-code attribution using valid owner or authorized-app auth. */
 export function unsetBuilderCode(options: UnsetBuilderCodeOptions) {
-	const packageAddress = options.package ?? '@local-pkg/deepbook_predict';
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
 	const parameterNames = ['wrapper', 'auth'];
 	return (tx: Transaction) =>

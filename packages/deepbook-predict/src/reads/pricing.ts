@@ -1,5 +1,5 @@
 import { Transaction } from '@mysten/sui/transactions';
-import { type PredictConfig } from '../config/index.js';
+import { type GeneratedConfig } from '../config/generated.js';
 import { Pricer } from '../contracts/deepbook_predict/pricing.js';
 import type { PricerInputs, Svi } from '../pricing.js';
 import { loadLivePricer, type MarketFeeds } from '../tx/trade.js';
@@ -65,12 +65,12 @@ function decodePricer(pricer: ReturnType<typeof Pricer.parse>): PricerSnapshot {
 // itself cannot quote. Callers surface that the same way `read.price` does.
 export async function readPricerSnapshot(
 	client: ReadClient,
-	cfg: PredictConfig,
+	config: GeneratedConfig,
 	marketId: string,
 	feeds: MarketFeeds,
 ): Promise<PricerSnapshot> {
 	const tx = new Transaction();
-	tx.add(loadLivePricer(cfg, { expiryMarketId: marketId, ...feeds }));
+	tx.add(loadLivePricer(config, { expiryMarketId: marketId, ...feeds }));
 	const [cmd0] = await inspectReturns(client, tx);
 	return decodePricer(Pricer.parse(cmd0[0]));
 }

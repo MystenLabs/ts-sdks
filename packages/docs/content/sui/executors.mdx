@@ -2,16 +2,36 @@
 title: Transaction Executors
 description: Manage transaction execution with queuing and parallel strategies
 keywords:
-  [
-    transaction executor,
-    SerialTransactionExecutor,
-    ParallelTransactionExecutor,
-    Sui,
-    gas coins,
-    execution,
-    queuing,
-    TypeScript SDK,
-  ]
+  - transaction executor
+  - SerialTransactionExecutor
+  - ParallelTransactionExecutor
+  - Sui
+  - gas coins
+  - execution
+  - queuing
+  - TypeScript SDK
+questions:
+  - What are executors in the Sui SDK?
+  - How do I retry failed Sui transactions?
+  - How do I execute transactions in parallel on Sui?
+answer: >-
+  Executors manage transaction submission with automatic retry, gas management, and parallel
+  execution support for high-throughput Sui applications.
+goal:
+  description: >-
+    Reader can use executors to manage transaction submission with retry and parallel execution
+  requires:
+    - has_frontmatter:
+        - title
+        - description
+        - keywords
+      label: Has required frontmatter fields
+    - min_words: 30
+      label: Needs content depth
+    - has_questions: true
+      label: Needs questions for AI search visibility
+    - has_answer: true
+      label: Needs answer summary for AI citation
 ---
 
 The TypeScript SDK ships two `Transaction` executor classes that simplify the processes of

@@ -1,7 +1,35 @@
 ---
 title: zkSend SDK
 description: Send Sui assets through shareable claim links using the zkSend SDK.
-keywords: [zkSend, claim links, asset transfer, Sui, TypeScript, '@mysten/zksend', shareable links]
+keywords:
+  - zkSend
+  - claim links
+  - asset transfer
+  - Sui
+  - TypeScript
+  - '@mysten/zksend'
+  - shareable links
+questions:
+  - What is zkSend?
+  - How do I create a claim link for Sui assets?
+  - How do shareable links work in zkSend?
+answer: >-
+  The zkSend SDK (@mysten/zksend) lets you send Sui assets through shareable claim links that
+  recipients can redeem without needing a wallet beforehand.
+goal:
+  description: Reader can create and manage shareable claim links for Sui assets
+  requires:
+    - has_frontmatter:
+        - title
+        - description
+        - keywords
+      label: Has required frontmatter fields
+    - min_words: 50
+      label: Needs content depth
+    - has_questions: true
+      label: Needs questions for AI search visibility
+    - has_answer: true
+      label: Needs answer summary for AI citation
 ---
 
 The zkSend SDK provides tools for interacting with the zkSend primitive. It provides functionality

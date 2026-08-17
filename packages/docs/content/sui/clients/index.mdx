@@ -1,8 +1,40 @@
 ---
 title: Sui Clients
-description: Choose between SuiGrpcClient and SuiGraphQLClient and understand their shared API
+description: >-
+  Choose between SuiGrpcClient and SuiGraphQLClient and understand their shared API
 keywords:
-  [Sui client, gRPC, GraphQL, SuiGrpcClient, SuiGraphQLClient, Core API, transport, '@mysten/sui']
+  - Sui client
+  - gRPC
+  - GraphQL
+  - SuiGrpcClient
+  - SuiGraphQLClient
+  - Core API
+  - transport
+  - '@mysten/sui'
+questions:
+  - Which Sui client should I use?
+  - 'What is the difference between gRPC, GraphQL, and JSON-RPC clients?'
+  - How do I create a Sui client in TypeScript?
+answer: >-
+  The Sui SDK offers three client types: SuiGrpcClient (recommended, fastest), SuiGraphQLClient
+  (flexible queries), and SuiJsonRpcClient (legacy). All share the Core API interface for common
+  operations.
+goal:
+  description: >-
+    Reader can choose and configure the right Sui client (gRPC, GraphQL, or JSON-RPC) for their use
+    case
+  requires:
+    - has_frontmatter:
+        - title
+        - description
+        - keywords
+      label: Has required frontmatter fields
+    - min_words: 100
+      label: Needs content depth
+    - has_questions: true
+      label: Needs questions for AI search visibility
+    - has_answer: true
+      label: Needs answer summary for AI citation
 ---
 
 A client is how your code reads from and writes to the Sui network. There are two to choose from,

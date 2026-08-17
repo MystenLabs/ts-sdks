@@ -35,7 +35,9 @@ export const OracleRegistry = new MoveStruct({
 		source_bindings: table.Table,
 		/**
 		 * Underlying to its canonical Block Scholes store pair. Each store owns the
-		 * immutable Block Scholes base asset that gates its reads and writes.
+		 * immutable Block Scholes base asset that gates its reads and writes. The pair is
+		 * permanent storage: newer signed observations and in-place version migrations
+		 * recover it without an admin source switch.
 		 */
 		block_scholes_stores: table.Table,
 	},
@@ -45,6 +47,7 @@ export const BlockScholesStorePair = new MoveStruct({
 	fields: {
 		value_store_id: bcs.Address,
 		svi_store_id: bcs.Address,
+		block_scholes_base_asset: bcs.string(),
 	},
 });
 export const OracleSourceKey = new MoveStruct({
@@ -277,6 +280,30 @@ export function blockScholesValueStoreId(options: BlockScholesValueStoreIdOption
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface BlockScholesBaseAssetArguments {
+	pair: TransactionArgument;
+}
+export interface BlockScholesBaseAssetOptions {
+	package?: string;
+	arguments: BlockScholesBaseAssetArguments | [pair: TransactionArgument];
+}
+/**
+ * Returns the bound provider base asset for external composition, discovery, or
+ * devInspect confirmation that the binding names the asset the subscription
+ * resolves to.
+ */
+export function blockScholesBaseAsset(options: BlockScholesBaseAssetOptions) {
+	const packageAddress = options.package ?? '@local-pkg/propbook';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['pair'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'registry',
+			function: 'block_scholes_base_asset',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
 export interface BlockScholesSviStoreIdArguments {
 	pair: TransactionArgument;
 }
@@ -475,6 +502,19 @@ export interface CreateAndShareBlockScholesStoresOptions {
  * Create and share this underlying's Block Scholes store partition and bind its
  * source identity. Admin-gated and once per underlying so consumers have one
  * immutable descriptor and store pair.
+ *
+ * `block_scholes_base_asset` is carried into every derived series id exactly as
+ * spelled, and no on-chain fact can say whether it is the asset this underlying is
+ * meant to track: a spelling the provider does not serve makes the underlying
+ * permanently unfeedable, and a spelling naming a _different_ real asset prices
+ * this underlying off that asset with every check passing. Confirm it against the
+ * provider's acknowledged subscription before this call — the emitted
+ * `BlockScholesStoresRegistered` and `block_scholes_base_asset` reader exist so
+ * that confirmation can be made against the chain rather than against the intent.
+ * Bad observations are corrected by newer signed rows, and version changes migrate
+ * in place. A structural replacement — including recovery from a wrong permanent
+ * base-asset binding — belongs in the package upgrade that defines its migration
+ * rather than in a generic pre-deployed rebind.
  */
 export function createAndShareBlockScholesStores(options: CreateAndShareBlockScholesStoresOptions) {
 	const packageAddress = options.package ?? '@local-pkg/propbook';

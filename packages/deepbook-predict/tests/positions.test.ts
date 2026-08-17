@@ -4,11 +4,13 @@ import { deriveDynamicFieldID, normalizeSuiAddress } from '@mysten/sui/utils';
 import { describe, expect, test } from 'vitest';
 import { PredictClient } from '../src/client.js';
 import { TESTNET_CONFIG as cfg } from '../src/config/index.js';
+import { toGeneratedConfig } from '../src/config/generated.js';
 import { positionsFromTable, resolvePositionsTable } from '../src/reads/positions.js';
 import { deriveAccountWrapperId } from '../src/tx/common.js';
 import { AccountWrapper } from '@mysten/deepbook-account';
 import { PositionKey, PredictData } from '../src/contracts/deepbook_predict/predict_account.js';
 
+const config = toGeneratedConfig(cfg);
 const OWNER = '0x' + 'ab'.repeat(32);
 const ACCOUNT_UID = '0x' + '22'.repeat(32);
 const TABLE_ID = '0x' + '33'.repeat(32);
@@ -100,7 +102,7 @@ function mockClient(opts: { pages?: number } = {}) {
 describe('position enumeration', () => {
 	test('resolvePositionsTable walks wrapper → derived data field → table id', async () => {
 		const { client, calls } = mockClient();
-		const handle = await resolvePositionsTable(client, cfg, OWNER);
+		const handle = await resolvePositionsTable(client, config, OWNER);
 		expect(handle).toEqual({
 			accountUid: ACCOUNT_UID,
 			positionsTableId: TABLE_ID,
@@ -120,7 +122,7 @@ describe('position enumeration', () => {
 				},
 			},
 		} as unknown as ClientWithCoreApi;
-		expect(await resolvePositionsTable(client, cfg, OWNER)).toBeNull();
+		expect(await resolvePositionsTable(client, config, OWNER)).toBeNull();
 		const pc = new PredictClient({ network: 'testnet', client: client as never });
 		expect(await pc.read.positions(OWNER)).toEqual([]);
 	});

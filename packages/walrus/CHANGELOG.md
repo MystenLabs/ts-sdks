@@ -1,5 +1,15 @@
 # @mysten/walrus
 
+## 1.2.17
+
+## 1.2.16
+
+## 1.2.15
+
+### Patch Changes
+
+- 19e85a3: Regenerate contract bindings with the latest codegen utils template
+
 ## 1.2.14
 
 ## 1.2.13

@@ -3,7 +3,7 @@
 
 import type ts from 'typescript';
 import { parseTS, printNodes } from './utils.js';
-import { relative, resolve } from 'path';
+import { isAbsolute, relative, resolve } from 'path';
 import { getSafeName } from './render-types.js';
 
 export class FileBuilder {
@@ -12,6 +12,8 @@ export class FileBuilder {
 	imports: Map<string, Set<string>> = new Map();
 	starImports: Map<string, string> = new Map();
 	protected reservedNames: Set<string> = new Set();
+	/** Local name already assigned to each imported `module`/`baseName` pair. */
+	#importedNames = new Map<string, string>();
 
 	addImport(module: string, name: string): string {
 		if (!this.imports.has(module)) {
@@ -20,18 +22,36 @@ export class FileBuilder {
 
 		const isTypeImport = name.startsWith('type ');
 		const baseName = isTypeImport ? name.slice(5) : name;
+		const key = `${module}\0${baseName}`;
 
-		if (this.reservedNames.has(baseName)) {
-			const alias = this.getUnusedName(baseName);
-			const aliasedImport = isTypeImport
-				? `type ${baseName} as ${alias}`
-				: `${baseName} as ${alias}`;
-			this.imports.get(module)!.add(aliasedImport);
-			return alias;
+		// Importing the same binding twice reuses the first local name rather than aliasing it
+		// against itself.
+		const existing = this.#importedNames.get(key);
+		if (existing !== undefined) {
+			if (!isTypeImport) {
+				// A value import of a name previously requested as type-only must widen the spec.
+				const specs = this.imports.get(module)!;
+				const typeSpec =
+					existing === baseName ? `type ${baseName}` : `type ${baseName} as ${existing}`;
+				if (specs.delete(typeSpec)) {
+					specs.add(existing === baseName ? baseName : `${baseName} as ${existing}`);
+				}
+			}
+			return existing;
 		}
 
-		this.imports.get(module)!.add(name);
-		return baseName;
+		// Reserve the local name: two modules exporting the same name, or a later generated
+		// declaration reusing it, would otherwise emit duplicate identifiers.
+		const localName = this.getUnusedName(baseName);
+		const spec =
+			localName === baseName
+				? name
+				: isTypeImport
+					? `type ${baseName} as ${localName}`
+					: `${baseName} as ${localName}`;
+		this.imports.get(module)!.add(spec);
+		this.#importedNames.set(key, localName);
+		return localName;
 	}
 
 	addStarImport(module: string, name: string) {
@@ -77,6 +97,14 @@ export class FileBuilder {
 		return `${await this.getHeader()}${printNodes(...importStatements, ...starImportStatements, ...this.statements)}`;
 
 		function modulePath(mod: string) {
+			// Absolute paths (bcsOverrides sources resolved against the config directory) become
+			// relative imports from the generated file.
+			if (isAbsolute(mod)) {
+				const sourceDirectory = resolve(packageDir, filePath).split('/').slice(0, -1).join('/');
+				const relativePath = relative(sourceDirectory, mod);
+				return relativePath.startsWith('.') ? relativePath : `./${relativePath}`;
+			}
+
 			// `~root/` is anchored at the package's own output directory (where deps/ lives).
 			// `~outputRoot/` is anchored at the codegen output directory (where utils/ lives).
 			// Splitting these matters when packageName contains a slash — `~root/../utils` would

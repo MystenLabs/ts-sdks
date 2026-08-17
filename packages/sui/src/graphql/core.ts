@@ -38,7 +38,7 @@ import {
 	VerifyZkLoginSignatureDocument,
 	ZkLoginIntentScope,
 } from './generated/queries.js';
-import { ObjectError, SimulationError } from '../client/errors.js';
+import { ObjectError, SimulationError, TransactionError } from '../client/errors.js';
 import { chunk, fromBase64, toBase64 } from '@mysten/utils';
 import { normalizeStructTag, normalizeSuiAddress } from '../utils/sui-types.js';
 import {
@@ -86,6 +86,7 @@ export class GraphQLCoreClient extends CoreClient {
 	>(
 		options: GraphQLQueryOptions<Result, Variables>,
 		getData?: (result: Result) => Data,
+		createMissingDataError?: () => Error,
 	): Promise<NonNullable<Data>> {
 		const { data, errors } = await this.#graphqlClient.query(options);
 
@@ -94,7 +95,7 @@ export class GraphQLCoreClient extends CoreClient {
 		const extractedData = data && (getData ? getData(data) : data);
 
 		if (extractedData == null) {
-			throw new Error('Missing response data');
+			throw createMissingDataError?.() ?? new Error('Missing response data');
 		}
 
 		return extractedData as NonNullable<Data>;
@@ -124,11 +125,14 @@ export class GraphQLCoreClient extends CoreClient {
 			);
 			results.push(
 				...batch
-					.map((id) => normalizeSuiAddress(id))
+					.map((objectId) => ({ objectId, normalized: normalizeSuiAddress(objectId) }))
 					.map(
-						(id) =>
-							page.find((obj) => obj?.address === id) ??
-							new ObjectError('notFound', `Object ${id} not found`),
+						({ objectId, normalized }) =>
+							page.find((obj) => obj?.address === normalized) ??
+							new ObjectError('notFound', `Object ${normalized} not found`, {
+								reason: 'notFound',
+								objectId,
+							}),
 					)
 					.map((obj) => {
 						if (obj instanceof ObjectError) {
@@ -385,6 +389,7 @@ export class GraphQLCoreClient extends CoreClient {
 				},
 			},
 			(result) => result.transaction,
+			() => new TransactionError('notFound', options.digest),
 		);
 
 		return parseTransaction(result, options.include);

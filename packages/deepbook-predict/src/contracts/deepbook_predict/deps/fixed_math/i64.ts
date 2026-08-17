@@ -9,12 +9,13 @@
  */
 
 import { MoveStruct } from '../../../utils/index.js';
+import { U64 } from '../../../../bcs/integers.js';
 import { bcs } from '@mysten/sui/bcs';
 const $moduleName = 'fixed_math::i64';
 export const I64 = new MoveStruct({
 	name: `${$moduleName}::I64`,
 	fields: {
-		magnitude: bcs.u64(),
+		magnitude: U64,
 		is_negative: bcs.bool(),
 	},
 });

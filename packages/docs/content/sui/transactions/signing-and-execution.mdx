@@ -1,7 +1,35 @@
 ---
 title: Signing and Execution
 description: Sign transactions and execute them on the Sui network
-keywords: [signing, execution, simulate, sponsored, gas, dapp-kit, keypair]
+keywords:
+  - signing
+  - execution
+  - simulate
+  - sponsored
+  - gas
+  - dapp-kit
+  - keypair
+questions:
+  - How do I sign a Sui transaction in TypeScript?
+  - How do I execute a transaction on Sui?
+  - How do I get transaction results?
+answer: >-
+  Sign transactions with a Keypair or Signer, then execute them via a Sui client. The SDK supports
+  signing and executing in one step or separately for sponsored/multisig flows.
+goal:
+  description: Reader can sign and execute transactions on the Sui network
+  requires:
+    - has_frontmatter:
+        - title
+        - description
+        - keywords
+      label: Has required frontmatter fields
+    - min_words: 30
+      label: Needs content depth
+    - has_questions: true
+      label: Needs questions for AI search visibility
+    - has_answer: true
+      label: Needs answer summary for AI citation
 ---
 
 Once you've built a transaction, you need to sign it and submit it to the network. For background on

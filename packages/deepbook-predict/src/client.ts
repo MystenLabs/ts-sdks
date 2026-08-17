@@ -1,7 +1,8 @@
 import type { ClientWithCoreApi, SuiClientRegistration } from '@mysten/sui/client';
-import { Transaction, coinWithBalance } from '@mysten/sui/transactions';
+import { Transaction, coinWithBalance, type TransactionResult } from '@mysten/sui/transactions';
 import { isValidSuiObjectId } from '@mysten/sui/utils';
-import { getConfig, type PredictConfig } from './config/index.js';
+import { getConfig, type PredictConfig, type UnderlyingConfig } from './config/index.js';
+import { toGeneratedConfig, type GeneratedConfig } from './config/generated.js';
 import {
 	decodeAccountsCreated,
 	decodeBuilderCodeSets,
@@ -38,14 +39,18 @@ import { poolStats } from './reads/pool.js';
 import { readPricerSnapshot, type PricerSnapshot } from './reads/pricing.js';
 import { boardPricer, type BoardPricer } from './pricing.js';
 import { POS_INF_TICK, binaryRangeTicks, type Side } from './ticks.js';
-import { setBuilderCode, unsetBuilderCode } from './tx/builderCode.js';
-import { accountContract, deriveAccountWrapperId } from './tx/common.js';
 import {
 	cancelSupplyRequest,
 	cancelWithdrawRequest,
+	depositFunds,
 	requestSupply,
 	requestWithdraw,
-} from './tx/plp.js';
+	setBuilderCode,
+	unsetBuilderCode,
+	withdrawFunds,
+} from './tx/authed.js';
+
+import { accountContract, deriveAccountWrapperIdFrom } from './tx/common.js';
 import type { MarketFeeds } from './tx/trade.js';
 import { mintExactAmount, mintExactQuantity, redeemLive, redeemSettled } from './tx/trade.js';
 import {
@@ -61,6 +66,13 @@ import {
 // `position_lot_size` — a position quantity must be a whole multiple of this many
 // raw payout units ($0.01 lots). See packages/predict/sources/constants.move.
 export const POSITION_LOT_SIZE = 10_000n;
+
+// Most `tx.*` builders are one builder's worth of commands in a fresh PTB.
+function txOf(command: (tx: Transaction) => TransactionResult | void): Transaction {
+	const tx = new Transaction();
+	tx.add(command);
+	return tx;
+}
 
 /** A live/settled market addressed by its human coordinates: a binary position
  * (single strike + side) or a two-strike range position. */
@@ -229,6 +241,10 @@ export function predict<Name extends string = 'predict'>({
  */
 export class PredictClient {
 	readonly cfg: PredictConfig;
+	// The flat slice every generated call resolves `options.config` against.
+	get #config(): GeneratedConfig {
+		return toGeneratedConfig(this.cfg);
+	}
 	#client: PredictCompatibleClient;
 	// underlying:expiryMs → resolved market. The id and tickSizeRaw — the only
 	// state tx building depends on — are immutable per (underlying, expiry), so
@@ -251,13 +267,20 @@ export class PredictClient {
 
 	/** The deterministic id of an owner's canonical account wrapper — no chain read. */
 	wrapperIdFor(owner: string): string {
-		return deriveAccountWrapperId(this.cfg, owner);
+		return deriveAccountWrapperIdFrom(this.#config, owner);
+	}
+
+	// The deployment's wiring for a symbol; throws a typed error on an unknown symbol.
+	// Per-underlying ids are the one thing the flat config slice does not carry.
+	#underlying(underlying: string): UnderlyingConfig {
+		const u = this.cfg.underlyings[underlying];
+		if (!u) throw new PredictInputError(`unknown underlying: ${underlying}`);
+		return u;
 	}
 
 	// The oracle feed ids for a symbol; throws a typed error on an unknown symbol.
 	#feeds(underlying: string): MarketFeeds {
-		const u = this.cfg.underlyings[underlying];
-		if (!u) throw new PredictInputError(`unknown underlying: ${underlying}`);
+		const u = this.#underlying(underlying);
 		return {
 			pythFeed: u.pythFeed,
 			blockScholesValueStore: u.blockScholesValueStore,
@@ -277,7 +300,7 @@ export class PredictClient {
 			}
 			const resolved: ResolvedMarket = this.#marketCache.get(m.marketId) ?? {
 				id: m.marketId,
-				state: await marketState(this.#client, this.cfg, m.marketId),
+				state: await marketState(this.#client, this.#config, m.marketId),
 			};
 			// The pin must agree with the descriptor's coordinates: catching a stale or
 			// wrong-market id here beats minting against mismatched oracle feeds. (The
@@ -294,9 +317,10 @@ export class PredictClient {
 		const key = `${m.underlying}:${expiryMs}`;
 		const hit = this.#marketCache.get(key);
 		if (hit) return hit;
-		const id = await expiryMarketId(this.#client, this.cfg, m.underlying, expiryMs);
+		const u = this.#underlying(m.underlying);
+		const id = await expiryMarketId(this.#client, this.#config, u, expiryMs);
 		if (!id) throw new PredictInputError(`no market for ${m.underlying} at expiry ${expiryMs}`);
-		const state = await marketState(this.#client, this.cfg, id);
+		const state = await marketState(this.#client, this.#config, id);
 		const resolved: ResolvedMarket = { id, state };
 		this.#marketCache.set(key, resolved);
 		return resolved;
@@ -350,7 +374,7 @@ export class PredictClient {
 		if (m.strike !== 'reference') {
 			return binaryRangeTicks(priceToRaw(m.strike), m.side, state.tickSizeRaw);
 		}
-		const tick = await referenceTick(this.#client, this.cfg, marketId);
+		const tick = await referenceTick(this.#client, this.#config, marketId);
 		if (tick == null) {
 			throw new PredictInputError(
 				`reference price not set yet for ${m.underlying} @ ${m.expiryMs} — retry shortly or pass a numeric strike`,
@@ -379,9 +403,8 @@ export class PredictClient {
 		const quantityRaw = usdcToRaw(opts.quantity);
 		this.#assertLot(quantityRaw);
 		const { lowerTick, higherTick } = await this.#strikeTicks(m, id, state);
-		const tx = new Transaction();
-		tx.add(
-			mintExactQuantity(this.cfg, {
+		return txOf(
+			mintExactQuantity(this.#config, {
 				expiryMarketId: id,
 				wrapperId: this.wrapperIdFor(owner),
 				lowerTick,
@@ -394,7 +417,6 @@ export class PredictClient {
 				...feeds,
 			}),
 		);
-		return tx;
 	}
 
 	// Shared construction for tx.redeem and read.quoteRedeem.
@@ -403,9 +425,8 @@ export class PredictClient {
 		const { id } = await this.#resolveMarket(m);
 		const closeQuantityRaw = usdcToRaw(opts.quantity);
 		this.#assertLot(closeQuantityRaw);
-		const tx = new Transaction();
-		tx.add(
-			redeemLive(this.cfg, {
+		return txOf(
+			redeemLive(this.#config, {
 				expiryMarketId: id,
 				wrapperId: this.wrapperIdFor(owner),
 				orderId: opts.orderId,
@@ -413,7 +434,6 @@ export class PredictClient {
 				...feeds,
 			}),
 		);
-		return tx;
 	}
 
 	// Raw strike for anonymous pricing: numeric strikes validate against the tick
@@ -428,7 +448,7 @@ export class PredictClient {
 			// domain (0 / POS_INF are the ±inf sentinels, not quotable strikes).
 			return this.#gridTick(m.strike, state.tickSizeRaw) * state.tickSizeRaw;
 		}
-		const tick = await referenceTick(this.#client, this.cfg, marketId);
+		const tick = await referenceTick(this.#client, this.#config, marketId);
 		if (tick == null) {
 			throw new PredictInputError(
 				`reference price not set yet for ${m.underlying} @ ${m.expiryMs} — retry shortly or pass a numeric strike`,
@@ -440,11 +460,7 @@ export class PredictClient {
 	// === tx builders ===
 	// Each returns a ready-to-sign Transaction. Market-resolving builders are async.
 	readonly tx = {
-		createManager: (): Transaction => {
-			const tx = new Transaction();
-			tx.add(accountContract(this.cfg).createAccount());
-			return tx;
-		},
+		createManager: (): Transaction => txOf(accountContract(this.cfg).createAccount()),
 
 		// `create: true` composes first-time funding into ONE PTB: create the account
 		// wrapper, deposit into it through the fresh handle, and `share` it LAST (once
@@ -455,6 +471,12 @@ export class PredictClient {
 		// account does not exist yet: `new` ABORTS at the deterministic address if it
 		// already exists — no chain read is done here. Gate on your own existence check
 		// (`wrapperIdFor(owner)` + a getObject), or retry without the flag on that abort.
+		//
+		// Without `create`, the sourced coin goes into the existing account's stored
+		// balance via the PTB-callable `deposit_funds` (folds settle → authorize → load →
+		// deposit; clock auto-injected). Command order is auth → deposit (auth is a hot
+		// potato consumed by the deposit). See
+		// `packages/account/sources/account.move` (`deposit_funds`).
 		deposit: (
 			owner: string,
 			amountUsdc: number | string,
@@ -468,15 +490,19 @@ export class PredictClient {
 					useGasCoin: false,
 				}),
 			);
-			const account = accountContract(this.cfg);
 			if (opts?.create) {
-				tx.add(account.createAccountAndDeposit({ coin, coinType: this.cfg.quoteCoinType }));
-			} else {
 				tx.add(
-					account.depositFunds({
-						wrapperId: this.wrapperIdFor(owner),
+					accountContract(this.cfg).createAccountAndDeposit({
 						coin,
 						coinType: this.cfg.quoteCoinType,
+					}),
+				);
+			} else {
+				tx.add(
+					depositFunds({
+						config: this.#config,
+						arguments: { wrapper: this.wrapperIdFor(owner), coin },
+						typeArguments: [this.cfg.quoteCoinType],
 					}),
 				);
 			}
@@ -488,8 +514,11 @@ export class PredictClient {
 		// `0x2::coin::send_funds` — no coin-object churn, and they merge into the same
 		// balance `deposit` draws from, closing the loop. Pass `{ toCoinObject: true }` to
 		// instead receive a discrete `Coin<T>` object (for wallets/explorers that only
-		// render coin objects, or to compose the coin further in your own PTB). The
-		// low-level `withdrawFunds` builder always returns the raw `Coin<T>` either way.
+		// render coin objects, or to compose the coin further in your own PTB). Either way
+		// the underlying `withdraw_funds` returns the raw `Coin<T>` — the PTB-callable form
+		// that folds settle → authorize → load → withdraw (clock auto-injected, `ctx`
+		// implicit); command order is auth → withdraw. See
+		// `packages/account/sources/account.move` (`withdraw_funds`).
 		withdraw: (
 			owner: string,
 			amountUsdc: number | string,
@@ -497,10 +526,10 @@ export class PredictClient {
 		): Transaction => {
 			const tx = new Transaction();
 			const coin = tx.add(
-				accountContract(this.cfg).withdrawFunds({
-					wrapperId: this.wrapperIdFor(owner),
-					amount: usdcToRaw(amountUsdc),
-					coinType: this.cfg.quoteCoinType,
+				withdrawFunds({
+					config: this.#config,
+					arguments: { wrapper: this.wrapperIdFor(owner), amount: usdcToRaw(amountUsdc) },
+					typeArguments: [this.cfg.quoteCoinType],
 				}),
 			);
 			if (opts?.toCoinObject) {
@@ -534,9 +563,8 @@ export class PredictClient {
 			// already-lot-floored minted quantity, so any floor value is legal.
 			const minQuantityRaw = usdcToRaw(opts.minQuantity);
 			const { lowerTick, higherTick } = await this.#strikeTicks(m, id, state);
-			const tx = new Transaction();
-			tx.add(
-				mintExactAmount(this.cfg, {
+			return txOf(
+				mintExactAmount(this.#config, {
 					expiryMarketId: id,
 					wrapperId: this.wrapperIdFor(owner),
 					lowerTick,
@@ -548,7 +576,6 @@ export class PredictClient {
 					...feeds,
 				}),
 			);
-			return tx;
 		},
 
 		redeem: (owner: string, m: MarketDescriptor, opts: CloseOptions): Promise<Transaction> =>
@@ -562,63 +589,98 @@ export class PredictClient {
 			const { id } = await this.#resolveMarket(m);
 			const closeQuantityRaw = usdcToRaw(opts.quantity);
 			this.#assertLot(closeQuantityRaw);
-			const tx = new Transaction();
-			tx.add(
-				redeemSettled(this.cfg, {
+			return txOf(
+				redeemSettled(this.#config, {
 					expiryMarketId: id,
 					wrapperId: this.wrapperIdFor(owner),
 					orderId: opts.orderId,
 					closeQuantityRaw,
 				}),
 			);
-			return tx;
 		},
 
-		supplyPlp: (owner: string, amountUsdc: number | string): Transaction => {
-			const tx = new Transaction();
-			tx.add(
-				requestSupply(this.cfg, {
-					wrapperId: this.wrapperIdFor(owner),
-					amountRaw: usdcToRaw(amountUsdc),
+		// Queue a supply request pulling `amountUsdc` from the account's existing custody
+		// balance. `request_supply` auto-settles DUSDC then `account.withdraw`s the payment
+		// into queue escrow; the PLP fill is delivered at the next flush, not returned here.
+		// Command order is auth → request (auth is a hot potato consumed by this call). The
+		// `minPlpOut` slot is the per-request floor on PLP minted at flush — pinned to 0
+		// (no floor) here; after three flushes miss the floor the request is cancelled and
+		// refunded.
+		supplyPlp: (owner: string, amountUsdc: number | string): Transaction =>
+			txOf(
+				requestSupply({
+					config: this.#config,
+					arguments: {
+						wrapper: this.wrapperIdFor(owner),
+						amount: usdcToRaw(amountUsdc),
+						minPlpOut: 0n,
+					},
 				}),
-			);
-			return tx;
-		},
+			),
 
-		withdrawPlp: (owner: string, shares: bigint): Transaction => {
-			const tx = new Transaction();
-			tx.add(
-				requestWithdraw(this.cfg, {
-					wrapperId: this.wrapperIdFor(owner),
-					sharesRaw: shares,
+		// Queue a withdraw request pulling `shares` (raw PLP u64) from account custody into
+		// queue escrow — the Move parameter is named `amount`, but on `request_withdraw` it
+		// counts PLP SHARES, not DUSDC. Auto-settles flush-delivered PLP first; the DUSDC
+		// fill lands on the account at the next flush (no `withdraw_settled` entrypoint).
+		// Command order is auth → request. The `minDusdcOut` slot is the per-request floor
+		// on DUSDC paid at flush — pinned to 0 (no floor) here; after three flushes miss the
+		// floor the request is cancelled and refunded.
+		withdrawPlp: (owner: string, shares: bigint): Transaction =>
+			txOf(
+				requestWithdraw({
+					config: this.#config,
+					arguments: {
+						wrapper: this.wrapperIdFor(owner),
+						amount: shares,
+						minDusdcOut: 0n,
+					},
 				}),
-			);
-			return tx;
-		},
+			),
 
-		cancelSupplyPlp: (owner: string, index: bigint): Transaction => {
-			const tx = new Transaction();
-			tx.add(cancelSupplyRequest(this.cfg, { wrapperId: this.wrapperIdFor(owner), index }));
-			return tx;
-		},
+		// Cancel a still-pending supply request by queue `index`, refunding its escrowed
+		// DUSDC straight back into the requesting account. Command order is auth → cancel.
+		cancelSupplyPlp: (owner: string, index: bigint): Transaction =>
+			txOf(
+				cancelSupplyRequest({
+					config: this.#config,
+					arguments: { wrapper: this.wrapperIdFor(owner), index },
+				}),
+			),
 
-		cancelWithdrawPlp: (owner: string, index: bigint): Transaction => {
-			const tx = new Transaction();
-			tx.add(cancelWithdrawRequest(this.cfg, { wrapperId: this.wrapperIdFor(owner), index }));
-			return tx;
-		},
+		// Cancel a still-pending withdraw request by queue `index`, refunding its escrowed
+		// PLP straight back into the requesting account. Command order is auth → cancel.
+		cancelWithdrawPlp: (owner: string, index: bigint): Transaction =>
+			txOf(
+				cancelWithdrawRequest({
+					config: this.#config,
+					arguments: { wrapper: this.wrapperIdFor(owner), index },
+				}),
+			),
 
-		setBuilderCode: (owner: string, builderCodeId: string): Transaction => {
-			const tx = new Transaction();
-			tx.add(setBuilderCode(this.cfg, { wrapperId: this.wrapperIdFor(owner), builderCodeId }));
-			return tx;
-		},
+		// Set the account's sticky builder-code attribution to `builderCodeId`, an existing
+		// `BuilderCode` object borrowed as `&BuilderCode`. Command order is auth → set (auth
+		// is a hot potato consumed by this call). Lives in the PREDICT package's
+		// `predict_account` module, NOT the account package. Deployed sig
+		// `packages/predict/sources/predict_account.move:134` — 3 moveCall args
+		// (wrapper, auth, code; ctx implicit).
+		setBuilderCode: (owner: string, builderCodeId: string): Transaction =>
+			txOf(
+				setBuilderCode({
+					config: this.#config,
+					arguments: { wrapper: this.wrapperIdFor(owner), code: builderCodeId },
+				}),
+			),
 
-		unsetBuilderCode: (owner: string): Transaction => {
-			const tx = new Transaction();
-			tx.add(unsetBuilderCode(this.cfg, { wrapperId: this.wrapperIdFor(owner) }));
-			return tx;
-		},
+		// Clear the account's sticky builder-code attribution. Command order is auth → unset.
+		// Deployed sig `.../predict_account.move:151` — 2 moveCall args (wrapper, auth; ctx
+		// implicit).
+		unsetBuilderCode: (owner: string): Transaction =>
+			txOf(
+				unsetBuilderCode({
+					config: this.#config,
+					arguments: { wrapper: this.wrapperIdFor(owner) },
+				}),
+			),
 	};
 
 	// === reads ===
@@ -626,8 +688,8 @@ export class PredictClient {
 		// All tradeable (active) markets with the state a frontend needs to render
 		// and mint: one chain read for ids + one batched PTB for the states.
 		markets: async (): Promise<ActiveMarket[]> => {
-			const ids = await activeMarketIds(this.#client, this.cfg);
-			const states = await marketStates(this.#client, this.cfg, ids);
+			const ids = await activeMarketIds(this.#client, this.#config);
+			const states = await marketStates(this.#client, this.#config, ids);
 			return ids.map((id, i) => ({
 				id,
 				expiryMs: states[i].expiryMs,
@@ -640,7 +702,7 @@ export class PredictClient {
 		// Validate an app-stored order id against the chain (stale after full
 		// close or partial-close replacement — see RedeemReceipt.replacementOrderId).
 		hasPosition: (owner: string, marketId: string, orderId: bigint): Promise<boolean> =>
-			hasPosition(this.#client, this.cfg, owner, marketId, orderId),
+			hasPosition(this.#client, this.#config, owner, marketId, orderId),
 
 		// All open positions for an owner, enumerated from the chain (the
 		// account's positions Table): 1 call per page warm, +2 resolution calls
@@ -648,7 +710,7 @@ export class PredictClient {
 		positions: async (owner: string): Promise<OpenPosition[]> => {
 			let handle = this.#positionsCache.get(owner);
 			if (!handle?.positionsTableId) {
-				const resolved = await resolvePositionsTable(this.#client, this.cfg, owner);
+				const resolved = await resolvePositionsTable(this.#client, this.#config, owner);
 				if (!resolved) return []; // never onboarded — do not cache
 				if (resolved.positionsTableId) this.#positionsCache.set(owner, resolved);
 				handle = resolved;
@@ -666,7 +728,7 @@ export class PredictClient {
 			const strikeRaw = await this.#strikeRawFor(m, id, state);
 			const { upRaw, downRaw } = await rangePrices(
 				this.#client,
-				this.cfg,
+				this.#config,
 				id,
 				feeds,
 				strikeRaw,
@@ -687,7 +749,7 @@ export class PredictClient {
 		): Promise<BoardPricer & { asOf: PricerSnapshot['sources'] }> => {
 			const feeds = this.#feeds(m.underlying);
 			const { id } = await this.#resolveMarket(m);
-			const snap = await readPricerSnapshot(this.#client, this.cfg, id, feeds);
+			const snap = await readPricerSnapshot(this.#client, this.#config, id, feeds);
 			return { ...boardPricer(snap), asOf: snap.sources };
 		},
 
@@ -756,11 +818,12 @@ export class PredictClient {
 			// Deliberately re-queries and overwrites the cache instead of reading
 			// through it: this read must return live state (nav, mintPaused), and
 			// refreshing the cache on the way keeps later tx builds consistent.
-			const id = await expiryMarketId(this.#client, this.cfg, m.underlying, expiryMs);
+			const u = this.#underlying(m.underlying);
+			const id = await expiryMarketId(this.#client, this.#config, u, expiryMs);
 			if (!id) return null;
-			const state = await marketState(this.#client, this.cfg, id);
+			const state = await marketState(this.#client, this.#config, id);
 			this.#marketCache.set(`${m.underlying}:${expiryMs}`, { id, state });
-			const navRaw = await currentNav(this.#client, this.cfg, id, m.underlying);
+			const navRaw = await currentNav(this.#client, this.#config, id, u);
 			return {
 				id,
 				expiryMs: state.expiryMs,
@@ -772,14 +835,14 @@ export class PredictClient {
 		},
 
 		balance: async (owner: string): Promise<number> =>
-			rawToUsdc(await accountBalance(this.#client, this.cfg, owner)),
+			rawToUsdc(await accountBalance(this.#client, this.#config, owner, this.cfg.quoteCoinType)),
 
 		// PLP shares held in the owner's account custody (raw u64, 6-decimal PLP coin).
 		plpBalance: (owner: string): Promise<bigint> =>
-			accountBalance(this.#client, this.cfg, owner, `${this.cfg.packages.predict}::plp::PLP`),
+			accountBalance(this.#client, this.#config, owner, `${this.cfg.packages.predict}::plp::PLP`),
 
 		pool: async (): Promise<PoolSummary> => {
-			const s = await poolStats(this.#client, this.cfg);
+			const s = await poolStats(this.#client, this.#config);
 			return {
 				plpTotalSupply: s.plpTotalSupply, // shares raw (6-decimal)
 				idleUsdc: rawToUsdc(s.idleBalance),

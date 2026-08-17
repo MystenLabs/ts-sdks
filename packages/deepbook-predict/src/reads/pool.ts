@@ -1,5 +1,5 @@
 import { Transaction } from '@mysten/sui/transactions';
-import { type PredictConfig } from '../config/index.js';
+import { type GeneratedConfig } from '../config/generated.js';
 import * as plp from '../contracts/deepbook_predict/plp.js';
 import { inspectReturns, type ReadClient } from './inspect.js';
 import { parseU64LE } from './parse.js';
@@ -15,7 +15,7 @@ export interface PoolStats {
 // `plp::{plp_total_supply, idle_balance, supply_requests_pending,
 // withdraw_requests_pending}(vault)` — see
 // packages/predict/sources/plp/plp.move:{164,149,169,174}.
-export async function poolStats(client: ReadClient, cfg: PredictConfig): Promise<PoolStats> {
+export async function poolStats(client: ReadClient, config: GeneratedConfig): Promise<PoolStats> {
 	const tx = new Transaction();
 	for (const fn of [
 		plp.plpTotalSupply,
@@ -23,7 +23,7 @@ export async function poolStats(client: ReadClient, cfg: PredictConfig): Promise
 		plp.supplyRequestsPending,
 		plp.withdrawRequestsPending,
 	]) {
-		tx.add(fn({ package: cfg.packages.predict, arguments: { vault: cfg.objects.poolVault } }));
+		tx.add(fn({ config }));
 	}
 	const cmds = await inspectReturns(client, tx);
 	return {

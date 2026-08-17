@@ -2,7 +2,34 @@
 title: State
 description: Access and subscribe to wallet connection state in dApp Kit
 keywords:
-  [state management, nanostores, wallet state, dApp Kit, reactive stores, Sui, framework-agnostic]
+  - state management
+  - nanostores
+  - wallet state
+  - dApp Kit
+  - reactive stores
+  - Sui
+  - framework-agnostic
+questions:
+  - How does dApp Kit manage state?
+  - How do I access the current wallet in dApp Kit?
+  - How do I track network changes in dApp Kit?
+answer: >-
+  DApp Kit manages wallet connection state, current account, and network selection through a
+  centralized store that can be accessed via hooks (React) or direct subscription (core).
+goal:
+  description: 'Reader understands how dApp Kit manages wallet, account, and network state'
+  requires:
+    - has_frontmatter:
+        - title
+        - description
+        - keywords
+      label: Has required frontmatter fields
+    - min_words: 30
+      label: Needs content depth
+    - has_questions: true
+      label: Needs questions for AI search visibility
+    - has_answer: true
+      label: Needs answer summary for AI citation
 ---
 
 The Sui dApp Kit SDK uses [nanostores](https://github.com/nanostores/nanostores) for state

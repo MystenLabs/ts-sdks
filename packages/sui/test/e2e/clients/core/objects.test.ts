@@ -7,6 +7,7 @@ import { Transaction } from '../../../../src/transactions/index.js';
 import { setup, TestToolbox, createTestWithAllClients } from '../../utils/setup.js';
 import { normalizeSuiAddress, SUI_TYPE_ARG } from '../../../../src/utils/index.js';
 import { bcs } from '../../../../src/bcs/index.js';
+import { ObjectError } from '../../../../src/client/index.js';
 
 const SimpleObject = bcs.struct('SimpleObject', {
 	id: bcs.Address,
@@ -106,7 +107,10 @@ describe('Core API - Objects', () => {
 
 		testWithAllClients('should throw error for non-existent object', async (client) => {
 			const fakeObjectId = normalizeSuiAddress('0x9999');
-			await expect(client.core.getObject({ objectId: fakeObjectId })).rejects.toThrow();
+			const error = await client.core.getObject({ objectId: fakeObjectId }).catch((error) => error);
+
+			expect(error).toBeInstanceOf(ObjectError);
+			expect(error).toMatchObject({ reason: 'notFound', objectId: fakeObjectId });
 		});
 
 		testWithAllClients('should verify owner is correct', async (client) => {
@@ -158,7 +162,8 @@ describe('Core API - Objects', () => {
 			expect(objects[0]).not.toBeInstanceOf(Error);
 
 			// Second should be error
-			expect(objects[1]).toBeInstanceOf(Error);
+			expect(objects[1]).toBeInstanceOf(ObjectError);
+			expect(objects[1]).toMatchObject({ reason: 'notFound', objectId: objectIds[1] });
 		});
 
 		testWithAllClients('should handle empty array', async (client) => {
