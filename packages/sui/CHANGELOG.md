@@ -1,5 +1,14 @@
 # @mysten/sui.js
 
+## 2.26.0
+
+### Minor Changes
+
+- 87989d5: Add transport-neutral `ObjectError` and `TransactionError` lookup details across the Core
+  API clients. The existing transport-specific `ObjectError.code` field and `(code, message)`
+  constructor remain supported; the transport-neutral `reason`, resource identity, and `cause`
+  fields are additive.
+
 ## 2.25.0
 
 ### Minor Changes
