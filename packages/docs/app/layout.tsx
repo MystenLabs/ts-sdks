@@ -10,6 +10,9 @@ import Link from 'next/link';
 import Script from 'next/script';
 import CloudFlareAnalytics from '@/components/CloudFlareAnalytics';
 
+// Public, client-side integration ID from the kapa.ai dashboard.
+const KAPA_WEBSITE_ID = 'f40e82ec-5fe9-4776-a287-f889da70eaaa';
+
 export const metadata: Metadata = {
 	title: {
 		template: '%s | Mysten Labs TypeScript SDK Docs',
@@ -49,6 +52,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 				<Script id="plausible-init" strategy="afterInteractive">
 					{`window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};plausible.init()`}
 				</Script>
+				<Script
+					src="https://widget.kapa.ai/kapa-widget.bundle.js"
+					data-website-id={KAPA_WEBSITE_ID}
+					// kapa's default logo points at the defunct via.placeholder.com and renders broken
+					data-project-logo="https://sdk.mystenlabs.com/favicon.ico"
+					strategy="afterInteractive"
+					async
+				/>
 			</head>
 			<body className="flex flex-col min-h-screen">
 				<a
