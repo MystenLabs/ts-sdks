@@ -61,8 +61,10 @@ describe('client lookup errors', () => {
 
 describe('getObjects', () => {
 	it.each([
-		// Codes are stable gRPC status names, never the raw status number.
-		[GrpcStatusCode.NOT_FOUND, 'NOT_FOUND', 'notFound'],
+		// Missing objects reuse the JSON-RPC `notExists` code so handlers written
+		// against earlier releases keep working on every transport.
+		[GrpcStatusCode.NOT_FOUND, 'notExists', 'notFound'],
+		// Other statuses use stable gRPC status names, never the raw status number.
 		[GrpcStatusCode.INTERNAL, 'INTERNAL', 'unknown'],
 		// Statuses outside the GrpcStatusCode enum never leak a numeric code.
 		[999 as GrpcStatusCode, 'unknown', 'unknown'],

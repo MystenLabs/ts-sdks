@@ -135,11 +135,21 @@ export class GrpcCoreClient extends CoreClient {
 					(object, index): SuiClientTypes.Object<Include> | ObjectError => {
 						if (object.result.oneofKind === 'error') {
 							const error = object.result.error;
-							// The code is the gRPC status name (for example `NOT_FOUND`), never
-							// the raw status number. Use `reason` for transport-neutral handling.
+							if (error.code === GrpcStatusCode.NOT_FOUND) {
+								// Reuse the long-standing JSON-RPC `notExists` code so handlers
+								// written against earlier releases keep working. `code` is a stable
+								// identifier, not the raw transport status.
+								return new ObjectError('notExists', error.message, {
+									cause: error,
+									reason: 'notFound',
+									objectId: batch[index],
+								});
+							}
+							// Other statuses use the gRPC status name (for example `INTERNAL`),
+							// never the raw status number.
 							return new ObjectError(GrpcStatusCode[error.code] ?? 'unknown', error.message, {
 								cause: error,
-								reason: error.code === GrpcStatusCode.NOT_FOUND ? 'notFound' : 'unknown',
+								reason: 'unknown',
 								objectId: batch[index],
 							});
 						}

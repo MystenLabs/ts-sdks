@@ -1158,7 +1158,7 @@ describe('HashiClient', () => {
 		it("treats an ObjectError with reason 'notFound' as a miss", async () => {
 			mockFetchBitcoinState();
 			const objectErrorNotFound = () =>
-				new ObjectError('NOT_FOUND', 'Object 0x123 not found', {
+				new ObjectError('notExists', 'Object 0x123 not found', {
 					reason: 'notFound',
 					objectId: '0x123',
 				});
