@@ -3,7 +3,7 @@ import type { ClientWithCoreApi } from '@mysten/sui/client';
 import { deriveDynamicFieldID, normalizeSuiAddress } from '@mysten/sui/utils';
 import { type GeneratedConfig } from '../config/generated.js';
 import { deriveAccountWrapperIdFrom } from '../tx/common.js';
-import { AccountWrapper } from '../contracts/account/account.js';
+import { AccountWrapper } from '@mysten/deepbook-account';
 import { PositionKey, PredictData } from '../contracts/deepbook_predict/predict_account.js';
 
 // ============================================================================

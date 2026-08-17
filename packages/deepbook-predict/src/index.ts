@@ -21,12 +21,13 @@ export type {
 // === Composition with foreign packages === auth + deterministic account addressing
 // for PTBs that compose predict accounts with packages this SDK doesn't know (e.g.
 // `deepbook_core_account` spot trading). `deriveAccountWrapperId` is the pure
-// `(cfg, owner)` form of `wrapperIdFor` for contexts with no client instance;
-// ACCUMULATOR_ROOT_ID is the shared accumulator root those same calls take.
+// `(cfg, owner)` form of `wrapperIdFor` for contexts with no client instance. These are
+// Predict-config-bound conveniences over `@mysten/deepbook-account`, which owns the
+// shared account primitive — reach for its `AccountContract` to drive it directly.
 export { deriveAccountWrapperId, generateAuth } from './tx/common.js';
 
 // === Config ===
-export { ACCUMULATOR_ROOT_ID, TESTNET_CONFIG, getConfig } from './config/index.js';
+export { TESTNET_CONFIG, getConfig } from './config/index.js';
 export type { PredictConfig, PredictPackages, UnderlyingConfig } from './config/index.js';
 
 // === Units (raw ⇄ human conversions) === domain-specific only; the generic `toRaw`/

@@ -47,15 +47,6 @@ const config: SuiCodegenConfig = {
 			bcsOverrides,
 		},
 		{
-			package: '@local-pkg/account',
-			path: '../../../deepbookv3/packages/account',
-			configArguments: {
-				accountPackageId: { package: '@local-pkg/account' },
-				accountRegistry: { type: 'account_registry::AccountRegistry' },
-			},
-			bcsOverrides,
-		},
-		{
 			package: '@local-pkg/propbook',
 			path: '../../../deepbookv3/packages/propbook',
 			bcsOverrides,

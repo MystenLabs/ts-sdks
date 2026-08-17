@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 
-import { ACCUMULATOR_ROOT_ID, TESTNET_CONFIG, getConfig } from '../src/config/index.js';
+import { TESTNET_CONFIG, getConfig } from '../src/config/index.js';
 
 const ID_RE = /^0x[0-9a-f]{1,64}$/;
 
@@ -35,8 +35,4 @@ test('getConfig returns the testnet config', () => {
 
 test('getConfig throws for mainnet', () => {
 	expect(() => getConfig('mainnet')).toThrow(/no deployment for network/);
-});
-
-test('well-known AccumulatorRoot id constant', () => {
-	expect(ACCUMULATOR_ROOT_ID).toBe('0xacc');
 });

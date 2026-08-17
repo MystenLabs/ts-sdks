@@ -1,8 +1,8 @@
 {
-	"name": "@mysten/deepbook-predict",
+	"name": "@mysten/deepbook-account",
 	"author": "Mysten Labs <build@mystenlabs.com>",
-	"description": "Sui DeepBook Predict SDK",
-	"version": "0.1.3",
+	"description": "Sui DeepBook shared account primitive SDK",
+	"version": "0.0.0",
 	"license": "Apache-2.0",
 	"type": "module",
 	"main": "./dist/index.mjs",
@@ -38,12 +38,8 @@
 		"oxlint:check": "oxlint .",
 		"oxlint:fix": "oxlint --fix",
 		"test": "vitest run",
-		"test:e2e": "PREDICT_SDK_TESTNET=1 vitest run tests/testnet",
 		"lint": "pnpm run oxlint:check && pnpm run prettier:check",
 		"lint:fix": "pnpm run oxlint:fix && pnpm run prettier:fix"
-	},
-	"dependencies": {
-		"@mysten/deepbook-account": "workspace:^"
 	},
 	"devDependencies": {
 		"@mysten/codegen": "workspace:^",

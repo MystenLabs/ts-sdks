@@ -49,8 +49,8 @@ import {
 	unsetBuilderCode,
 	withdrawFunds,
 } from './tx/authed.js';
-import { createAccount, createAccountAndDeposit } from './tx/account.js';
-import { deriveAccountWrapperIdFrom } from './tx/common.js';
+
+import { accountContract, deriveAccountWrapperIdFrom } from './tx/common.js';
 import type { MarketFeeds } from './tx/trade.js';
 import { mintExactAmount, mintExactQuantity, redeemLive, redeemSettled } from './tx/trade.js';
 import {
@@ -460,7 +460,7 @@ export class PredictClient {
 	// === tx builders ===
 	// Each returns a ready-to-sign Transaction. Market-resolving builders are async.
 	readonly tx = {
-		createManager: (): Transaction => txOf(createAccount(this.#config)),
+		createManager: (): Transaction => txOf(accountContract(this.cfg).createAccount()),
 
 		// `create: true` composes first-time funding into ONE PTB: create the account
 		// wrapper, deposit into it through the fresh handle, and `share` it LAST (once
@@ -491,7 +491,12 @@ export class PredictClient {
 				}),
 			);
 			if (opts?.create) {
-				tx.add(createAccountAndDeposit(this.#config, { coin, coinType: this.cfg.quoteCoinType }));
+				tx.add(
+					accountContract(this.cfg).createAccountAndDeposit({
+						coin,
+						coinType: this.cfg.quoteCoinType,
+					}),
+				);
 			} else {
 				tx.add(
 					depositFunds({

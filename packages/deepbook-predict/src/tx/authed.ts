@@ -1,4 +1,4 @@
-import * as account from '../contracts/account/account.js';
+import { accountMoveCalls as account } from '@mysten/deepbook-account';
 import * as plp from '../contracts/deepbook_predict/plp.js';
 import * as predictAccount from '../contracts/deepbook_predict/predict_account.js';
 import { withAuth } from './common.js';
