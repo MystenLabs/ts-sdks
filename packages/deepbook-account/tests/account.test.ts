@@ -11,7 +11,7 @@ const REGISTRY = '0x' + '22'.repeat(32);
 const OWNER = '0x' + 'ab'.repeat(32);
 const COIN_TYPE = '0x2::sui::SUI';
 
-const account = new AccountContract({ ACCOUNT_PACKAGE_ID: PKG, ACCOUNT_REGISTRY_ID: REGISTRY });
+const account = new AccountContract({ accountPackageId: PKG, accountRegistry: REGISTRY });
 
 // The move-call targets, in the order the builder emitted them.
 function targets(tx: Transaction): string[] {
@@ -129,8 +129,8 @@ describe('deriveAccountWrapperId', () => {
 
 	test('registry-specific: the same owner derives differently under another registry', () => {
 		const other = new AccountContract({
-			ACCOUNT_PACKAGE_ID: PKG,
-			ACCOUNT_REGISTRY_ID: '0x' + '33'.repeat(32),
+			accountPackageId: PKG,
+			accountRegistry: '0x' + '33'.repeat(32),
 		});
 		expect(other.deriveAccountWrapperId(OWNER)).not.toBe(account.deriveAccountWrapperId(OWNER));
 	});
