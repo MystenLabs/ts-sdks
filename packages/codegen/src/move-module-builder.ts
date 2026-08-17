@@ -106,22 +106,31 @@ export class MoveModuleBuilder extends FileBuilder {
 		return this.registry.resolveAddress(address);
 	}
 
+	#hasNamedPackage() {
+		return Boolean(this.#mvrNameOrAddress && !isValidSuiObjectId(this.#mvrNameOrAddress));
+	}
+
 	#getModuleTypeName() {
 		const resolvedAddress = this.#resolveAddress(this.summary.id.address);
 		if (resolvedAddress === SUI_FRAMEWORK_ADDRESS) {
 			return '0x2';
 		} else if (resolvedAddress === SUI_SYSTEM_ADDRESS) {
 			return '0x3';
+		} else if (this.#hasNamedPackage()) {
+			return this.#mvrNameOrAddress!;
 		} else if (this.#rootPackageId) {
 			return this.#rootPackageId;
-		} else if (this.#mvrNameOrAddress && !isValidSuiObjectId(this.#mvrNameOrAddress)) {
-			return this.#mvrNameOrAddress;
 		} else {
 			return this.summary.id.address;
 		}
 	}
 
 	#getTypePrefix(datatypeName: string): string | null {
+		// MVR resolves named types independently from package call targets, so keep every type owned by
+		// a named package portable across networks and upgrades. Concrete type origins are only emitted
+		// when generation was explicitly pinned to a package ID.
+		if (this.#hasNamedPackage()) return null;
+
 		const originPackageId = this.#typeOrigins?.[datatypeName];
 		if (originPackageId === undefined) return null;
 		if (this.#resolveAddress(originPackageId) === this.#resolveAddress(this.summary.id.address)) {

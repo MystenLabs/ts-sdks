@@ -1118,10 +1118,11 @@ describe('typeOrigins (upgraded packages)', () => {
 		const builder = await MoveModuleBuilder.fromSummaryFile(
 			join(SUMMARIES_DIR, 'testpkg', 'counter.json'),
 			new ModuleRegistry(ADDRESS_MAPPINGS),
-			'@test/testpkg',
+			ORIGIN_V2,
 			'.js',
 			false,
 			{ Counter: ORIGIN_V1, AdminCap: ORIGIN_V1 },
+			ORIGIN_V2,
 		);
 		builder.includeTypes(['Counter', 'AdminCap']);
 		const output = await render(builder, { types: true, functions: false });
@@ -1139,16 +1140,17 @@ describe('typeOrigins (upgraded packages)', () => {
 		const builder = await MoveModuleBuilder.fromSummaryFile(
 			join(SUMMARIES_DIR, 'testpkg', 'counter.json'),
 			new ModuleRegistry(ADDRESS_MAPPINGS),
-			'@test/testpkg',
+			ORIGIN_V2,
 			'.js',
 			false,
 			{ AdminCap: ORIGIN_V1 },
+			ORIGIN_V2,
 		);
 		builder.includeTypes(['Counter', 'AdminCap']);
 		const output = await render(builder, { types: true, functions: false });
 		const body = extractBody(output);
 
-		expect(body).toContain(`const $moduleName = '@test/testpkg::counter';`);
+		expect(body).toContain(`const $moduleName = '${ORIGIN_V2}::counter';`);
 		expect(body).toContain(`name: \`${ORIGIN_V1}::counter::AdminCap\``);
 		expect(body).toContain('name: `${$moduleName}::Counter`');
 	});
@@ -1157,10 +1159,11 @@ describe('typeOrigins (upgraded packages)', () => {
 		const builder = await MoveModuleBuilder.fromSummaryFile(
 			join(SUMMARIES_DIR, 'testpkg', 'counter.json'),
 			new ModuleRegistry(ADDRESS_MAPPINGS),
-			'@test/testpkg',
+			ORIGIN_V2,
 			'.js',
 			false,
 			{ Wrapper: ORIGIN_V2 },
+			ORIGIN_V2,
 		);
 		builder.includeTypes(['Wrapper']);
 		const output = await render(builder, { types: true, functions: false });
@@ -1179,21 +1182,22 @@ describe('typeOrigins (upgraded packages)', () => {
 		const builder = await MoveModuleBuilder.fromSummaryFile(
 			join(SUMMARIES_DIR, 'testpkg', 'counter.json'),
 			new ModuleRegistry(ADDRESS_MAPPINGS),
-			'@test/testpkg',
+			ORIGIN_V2,
 			'.js',
 			false,
 			{ AdminCap: ORIGIN_V1 },
+			ORIGIN_V2,
 		);
 		builder.includeTypes(['AdminCap']);
 		builder.includeTypes(['Counter']);
 		const output = await render(builder, { types: true, functions: false });
 		const body = extractBody(output);
 
-		expect(body).toContain(`const $moduleName = '@test/testpkg::counter';`);
+		expect(body).toContain(`const $moduleName = '${ORIGIN_V2}::counter';`);
 		expect(body).toContain('name: `${$moduleName}::Counter`');
 	});
 
-	it('falls back to rootPackageId for type names (introducing version, not MVR name) when no per-type origin', async () => {
+	it('prefers a named package over rootPackageId for portable type names', async () => {
 		const ROOT_V1 = '0x' + 'b'.repeat(64);
 		const builder = await MoveModuleBuilder.fromSummaryFile(
 			join(SUMMARIES_DIR, 'testpkg', 'counter.json'),
@@ -1201,13 +1205,14 @@ describe('typeOrigins (upgraded packages)', () => {
 			'@upgraded/pkg',
 			'.js',
 			false,
-			undefined,
+			{ Counter: ORIGIN_V1 },
 			ROOT_V1,
 		);
 		builder.includeTypes(['Counter']);
 		const output = await render(builder, { types: true, functions: false });
 		const body = extractBody(output);
 
-		expect(body).toContain(`const $moduleName = '${ROOT_V1}::counter';`);
+		expect(body).toContain(`const $moduleName = '@upgraded/pkg::counter';`);
+		expect(body).not.toContain(ORIGIN_V1);
 	});
 });

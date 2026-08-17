@@ -856,11 +856,17 @@ describe('generate options', () => {
 			expect(counter).toContain(`options.package ?? '${LATEST_ID}'`);
 		});
 
-		it('preserves an unpublished MVR name for runtime client overrides', async () => {
+		it('preserves a named package for runtime package and type resolution', async () => {
 			onChainPath = await buildOnChainFixture({
 				rootPackageId: LATEST_ID,
 				rootPackageOriginalId: V1_ID,
 				dependencies: { [STD_ID]: STD_ID, [SUI_ID]: SUI_ID },
+				typeOrigins: {
+					[V1_ID]: [
+						{ module_name: 'counter', datatype_name: 'Counter', package: V1_ID },
+						{ module_name: 'counter', datatype_name: 'AdminCap', package: LATEST_ID },
+					],
+				},
 			});
 			outputDir = await mkdtemp(join(tmpdir(), 'codegen-test-'));
 
@@ -871,10 +877,13 @@ describe('generate options', () => {
 			});
 
 			const counter = await getFileContent(outputDir, 'testpkg/counter.ts');
-			// MVR names resolve to the latest version at runtime — that wouldn't match on-chain
-			// type tags for upgraded packages. Type names must always use the original id.
-			expect(counter).toContain(`const $moduleName = '${V1_ID}::counter';`);
-			// Function helpers keep the unpublished name so client-side MVR overrides can resolve it.
+			// MVR resolves named types separately from package call targets, preserving the correct
+			// introducing version for every type on the client's network.
+			expect(counter).toContain(`const $moduleName = '@local-pkg/testpkg::counter';`);
+			expect(counter).toContain('name: `${$moduleName}::Counter`');
+			expect(counter).toContain('name: `${$moduleName}::AdminCap`');
+			expect(counter).not.toContain(`name: \`${LATEST_ID}::counter::AdminCap\``);
+			// Function helpers use the same name so client-side package overrides can resolve it.
 			expect(counter).toContain(`options.package ?? '@local-pkg/testpkg'`);
 		});
 

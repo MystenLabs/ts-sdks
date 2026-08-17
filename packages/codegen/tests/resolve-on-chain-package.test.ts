@@ -109,6 +109,42 @@ describe('resolveOnChainPackageId', () => {
 			}),
 		).toThrow('Fullnode URL must use HTTP or HTTPS');
 	});
+
+	it('accepts a separate source package ID for a generated package name', () => {
+		const sourcePackageId = `0x${'3'.repeat(64)}`;
+		const config = configSchema.parse({
+			output: './generated',
+			packages: [
+				{
+					package: '@local-pkg/counter',
+					sourcePackageId,
+					packageName: 'counter',
+					network: 'testnet',
+				},
+			],
+		});
+
+		expect(config.packages[0]).toMatchObject({
+			package: '@local-pkg/counter',
+			sourcePackageId,
+		});
+	});
+
+	it('rejects an invalid source package ID', () => {
+		expect(() =>
+			configSchema.parse({
+				output: './generated',
+				packages: [
+					{
+						package: '@local-pkg/counter',
+						sourcePackageId: 'not-an-object-id',
+						packageName: 'counter',
+						network: 'testnet',
+					},
+				],
+			}),
+		).toThrow('Invalid source package ID');
+	});
 });
 
 describe('withTemporaryDirectory', () => {

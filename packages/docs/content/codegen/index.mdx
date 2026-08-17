@@ -85,15 +85,16 @@ This generates TypeScript code in your configured output directory (for example,
 
 The `SuiCodegenConfig` type supports the following options:
 
-| Option                         | Type                   | Default | Description                                                                                                                                                           |
-| ------------------------------ | ---------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `output`                       | `string`               | -       | The directory where generated code will be written                                                                                                                    |
-| `packages`                     | `PackageConfig[]`      | -       | Array of Move packages to generate code for                                                                                                                           |
-| `prune`                        | `boolean`              | `true`  | When enabled, only generates code for the main package and omits dependency modules (dependency types referenced by included types are still generated under `deps/`) |
-| `generateSummaries`            | `boolean`              | `true`  | Automatically run `sui move summary` before generating code. Creates a `package_summaries` directory in your Move package which can be added to `.gitignore`          |
-| `generate`                     | `GenerateOptions`      | -       | Default [generate options](#the-generate-option) (types, functions) for all packages                                                                                  |
-| `importExtension`              | `'.js' \| '.ts' \| ''` | `'.js'` | File extension used in generated import statements                                                                                                                    |
-| `includePhantomTypeParameters` | `boolean`              | `false` | Include [phantom type parameters](#phantom-types) as function arguments in generated BCS types                                                                        |
+| Option                         | Type                   | Default              | Description                                                                                                                                                           |
+| ------------------------------ | ---------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `output`                       | `string`               | -                    | The directory where generated code will be written                                                                                                                    |
+| `packages`                     | `PackageConfig[]`      | -                    | Array of Move packages to generate code for                                                                                                                           |
+| `prune`                        | `boolean`              | `true`               | When enabled, only generates code for the main package and omits dependency modules (dependency types referenced by included types are still generated under `deps/`) |
+| `generateSummaries`            | `boolean`              | `true`               | Automatically run `sui move summary` before generating code. Creates a `package_summaries` directory in your Move package which can be added to `.gitignore`          |
+| `generate`                     | `GenerateOptions`      | -                    | Default [generate options](#the-generate-option) (types, functions) for all packages                                                                                  |
+| `importExtension`              | `'.js' \| '.ts' \| ''` | `'.js'`              | File extension used in generated import statements                                                                                                                    |
+| `includePhantomTypeParameters` | `boolean`              | `false`              | Include [phantom type parameters](#phantom-types) as function arguments in generated BCS types                                                                        |
+| `fullnodeUrls`                 | network URL map        | Sui public fullnodes | Override the mainnet or testnet fullnode used to fetch onchain package summaries                                                                                      |
 
 ### Package configuration
 
@@ -121,12 +122,13 @@ local (from source) or onchain (fetched from a network).
 For packages already deployed onchain, generate code directly from a package ID or MVR name without
 needing local source code:
 
-| Option        | Type                     | Required | Description                                   |
-| ------------- | ------------------------ | -------- | --------------------------------------------- |
-| `package`     | `string`                 | yes      | Package ID or MVR name                        |
-| `packageName` | `string`                 | yes      | Name for the generated code directory         |
-| `network`     | `'mainnet' \| 'testnet'` | yes      | Network to fetch the package from             |
-| `generate`    | `PackageGenerateOptions` | no       | Control what gets generated from this package |
+| Option            | Type                     | Required | Description                                                     |
+| ----------------- | ------------------------ | -------- | --------------------------------------------------------------- |
+| `package`         | `string`                 | yes      | Package ID or name emitted into generated code                  |
+| `sourcePackageId` | `string`                 | no       | Package ID to fetch when generating an unpublished package name |
+| `packageName`     | `string`                 | yes      | Name for the generated code directory                           |
+| `network`         | `'mainnet' \| 'testnet'` | yes      | Network to resolve and fetch the package from                   |
+| `generate`        | `PackageGenerateOptions` | no       | Control what gets generated from this package                   |
 
 ```typescript
 {
@@ -470,11 +472,15 @@ const balanceType = await Balance.resolveTypeTag({
 
 ### Using with MVR (Move Version Registry)
 
-If your package is registered on MVR, the generated code works without additional configuration.
+If your package is registered on MVR, the generated code works without additional configuration. The
+configured name is preserved in generated function targets and type tags. At runtime MVR resolves
+function packages and type origins independently for the client's network.
 
 ### Local packages
 
-For local packages using `@local-pkg/*` identifiers, configure your client with package overrides:
+For local packages using `@local-pkg/*` identifiers, configure package overrides for Move calls and
+first-level type overrides for each local type used as a transaction type argument or resolved for a
+query:
 
 ```typescript
 import { SuiGrpcClient } from '@mysten/sui/grpc';
@@ -486,6 +492,9 @@ const client = new SuiGrpcClient({
 		overrides: {
 			packages: {
 				'@local-pkg/counter': '0xYOUR_PACKAGE_ID',
+			},
+			types: {
+				'@local-pkg/counter::counter::Counter': '0xTYPE_ORIGIN::counter::Counter',
 			},
 		},
 	},
@@ -507,6 +516,7 @@ const GRPC_URLS = {
 const PACKAGE_IDS = {
 	testnet: {
 		counter: '0xYOUR_PACKAGE_ID',
+		counterType: '0xTYPE_ORIGIN::counter::Counter',
 	},
 };
 
@@ -520,6 +530,9 @@ const dAppKit = createDAppKit({
 				overrides: {
 					packages: {
 						'@local-pkg/counter': PACKAGE_IDS[network].counter,
+					},
+					types: {
+						'@local-pkg/counter::counter::Counter': PACKAGE_IDS[network].counterType,
 					},
 				},
 			},

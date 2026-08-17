@@ -45,6 +45,10 @@ export const onChainPackageSchema = z.object({
 	package: z.string().refine((name) => isValidNamedPackage(name) || isValidSuiObjectId(name), {
 		message: 'Invalid package name or package ID',
 	}),
+	sourcePackageId: z
+		.string()
+		.refine((id) => isValidSuiObjectId(id), { message: 'Invalid source package ID' })
+		.optional(),
 	packageName: z.string(),
 	path: z.never().optional(),
 	network: z.enum(['mainnet', 'testnet']),

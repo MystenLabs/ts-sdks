@@ -115,7 +115,7 @@ export default async function generate(
 							network: flags.network ?? 'testnet',
 							packageName: isValidSuiObjectId(trimmed) ? trimmed : trimmed.split('/')[1],
 							package: trimmed,
-							packageId: isValidSuiObjectId(trimmed) ? trimmed : undefined,
+							sourcePackageId: isValidSuiObjectId(trimmed) ? trimmed : undefined,
 						};
 					} else {
 						return {
@@ -160,8 +160,7 @@ export default async function generate(
 
 	for (const pkg of normalizedPackages) {
 		// Detect on-chain packages: they have 'network' field and no 'path'
-		const isOnChainPackage =
-			('packageId' in pkg && pkg.packageId) || ('network' in pkg && !('path' in pkg));
+		const isOnChainPackage = 'network' in pkg && !('path' in pkg);
 
 		const generatePackage = async (tempDir?: string) => {
 			// Generate summaries for on-chain packages using --package-id
@@ -170,7 +169,8 @@ export default async function generate(
 					throw new Error('Temporary directory is required for on-chain packages');
 				}
 
-				const packageNameOrId = 'packageId' in pkg && pkg.packageId ? pkg.packageId : pkg.package;
+				const packageNameOrId =
+					'sourcePackageId' in pkg && pkg.sourcePackageId ? pkg.sourcePackageId : pkg.package;
 				const fullnodeUrl = config.fullnodeUrls[pkg.network];
 				const packageId = await resolveOnChainPackageId(packageNameOrId, pkg.network, fullnodeUrl);
 				const summaryDir = join(tempDir, 'summary');
