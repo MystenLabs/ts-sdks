@@ -136,9 +136,10 @@ export class GrpcCoreClient extends CoreClient {
 						if (object.result.oneofKind === 'error') {
 							const error = object.result.error;
 							if (error.code === GrpcStatusCode.NOT_FOUND) {
-								// Reuse the long-standing JSON-RPC `notExists` code so handlers
-								// written against earlier releases keep working. `code` is a stable
-								// identifier, not the raw transport status.
+								// Special case for backwards compatibility: missing objects reuse
+								// the long-standing JSON-RPC `notExists` code instead of the gRPC
+								// status name, so handlers written against earlier releases keep
+								// working.
 								return new ObjectError('notExists', error.message, {
 									cause: error,
 									reason: 'notFound',
