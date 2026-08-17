@@ -19,23 +19,46 @@ export class SimulationError extends SuiClientError {
 
 export type ObjectErrorReason = 'notFound' | 'deleted' | 'unknown';
 
+export interface ObjectErrorOptions {
+	/** A transport-neutral reason shared by all Core API clients. */
+	reason: ObjectErrorReason;
+	/** The requested object ID, when the lookup identifies one. */
+	objectId?: string;
+	/**
+	 * The transport's error code, when it supplies one.
+	 *
+	 * @deprecated New callers should not supply transport-specific codes. Preserve the original
+	 * transport error through `cause` instead.
+	 */
+	code?: string;
+	/** The original transport error or response. */
+	cause?: unknown;
+}
+
 /** An error returned for an individual object lookup. */
 export class ObjectError extends SuiClientError {
-	/** The transport's existing error code. Use `reason` for transport-neutral handling. */
-	readonly code: string;
+	/**
+	 * The transport's error code.
+	 *
+	 * @deprecated Use `reason` for transport-neutral handling. Transport-specific detail is
+	 * available through `cause`.
+	 */
+	code: string;
 	/** A transport-neutral reason shared by all Core API clients. */
 	readonly reason: ObjectErrorReason;
 	/** The requested object ID, when the lookup identifies one. */
 	readonly objectId?: string;
 
-	constructor(
-		code: string,
-		message: string,
-		options?: { cause?: unknown; reason?: ObjectErrorReason; objectId?: string },
-	) {
-		super(message, options);
-		this.code = code;
-		this.reason = options?.reason ?? inferObjectErrorReason(code);
+	constructor(message: string, options: ObjectErrorOptions);
+	/** @deprecated Use `new ObjectError(message, { reason, objectId, cause })`. */
+	constructor(code: string, message: string);
+	constructor(messageOrCode: string, optionsOrMessage: ObjectErrorOptions | string) {
+		const options = typeof optionsOrMessage === 'string' ? undefined : optionsOrMessage;
+		const message = typeof optionsOrMessage === 'string' ? optionsOrMessage : messageOrCode;
+
+		super(message, { cause: options?.cause });
+		this.code = options ? (options.code ?? options.reason) : messageOrCode;
+		this.reason = options?.reason ?? 'unknown';
 		this.objectId = options?.objectId;
 	}
 }
@@ -53,20 +76,5 @@ export class TransactionError extends SuiClientError {
 		super(`Transaction ${digest} not found`, options);
 		this.reason = reason;
 		this.digest = digest;
-	}
-}
-
-function inferObjectErrorReason(code: string): ObjectErrorReason {
-	switch (code) {
-		case 'notExists':
-		case 'dynamicFieldNotFound':
-		case 'notFound':
-			return 'notFound';
-		case 'deleted':
-			return 'deleted';
-		case 'displayError':
-		case 'unknown':
-		default:
-			return 'unknown';
 	}
 }

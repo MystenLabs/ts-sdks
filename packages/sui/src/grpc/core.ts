@@ -61,6 +61,7 @@ import type { QueryEnd, QueryOptions } from './proto/sui/rpc/v2/query_options.js
 import { Ordering, QueryEndReason } from './proto/sui/rpc/v2/query_options.js';
 import type { ResolvedPagination } from '../client/query-filters.js';
 import { RpcError } from '@protobuf-ts/runtime-rpc';
+import { GrpcStatusCode } from '@protobuf-ts/grpcweb-transport';
 import {
 	resolveEventFilter,
 	resolvePagination,
@@ -73,12 +74,10 @@ export interface GrpcCoreClientOptions extends CoreClientOptions {
 	client: SuiGrpcClient;
 }
 
-const GRPC_NOT_FOUND_CODE = 5;
-
 function isNameServiceResolutionMiss(error: unknown): boolean {
 	if (!(error instanceof RpcError)) return false;
-	if (error.code === 'NOT_FOUND') return true;
-	if (error.code !== 'RESOURCE_EXHAUSTED') return false;
+	if (error.code === GrpcStatusCode[GrpcStatusCode.NOT_FOUND]) return true;
+	if (error.code !== GrpcStatusCode[GrpcStatusCode.RESOURCE_EXHAUSTED]) return false;
 
 	try {
 		// The gRPC service currently reports expired names as RESOURCE_EXHAUSTED without a
@@ -137,8 +136,9 @@ export class GrpcCoreClient extends CoreClient {
 						if (object.result.oneofKind === 'error') {
 							const error = object.result.error;
 							const reason: ObjectErrorReason =
-								error.code === GRPC_NOT_FOUND_CODE ? 'notFound' : 'unknown';
-							return new ObjectError(String(error.code), error.message, {
+								error.code === GrpcStatusCode.NOT_FOUND ? 'notFound' : 'unknown';
+							return new ObjectError(error.message, {
+								code: String(error.code),
 								cause: error,
 								reason,
 								objectId: batch[index],
@@ -146,7 +146,7 @@ export class GrpcCoreClient extends CoreClient {
 						}
 
 						if (object.result.oneofKind !== 'object') {
-							return new ObjectError('unknown', 'Unexpected result type', {
+							return new ObjectError('Unexpected result type', {
 								reason: 'unknown',
 								objectId: batch[index],
 							});
@@ -402,7 +402,7 @@ export class GrpcCoreClient extends CoreClient {
 				() => ExecutedTransaction.toJson(response.transaction!),
 			);
 		} catch (error) {
-			if (error instanceof RpcError && error.code === 'NOT_FOUND') {
+			if (error instanceof RpcError && error.code === GrpcStatusCode[GrpcStatusCode.NOT_FOUND]) {
 				throw new TransactionError('notFound', options.digest, { cause: error });
 			}
 			throw error;

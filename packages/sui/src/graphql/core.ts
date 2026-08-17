@@ -129,7 +129,7 @@ export class GraphQLCoreClient extends CoreClient {
 					.map(
 						({ objectId, normalized }) =>
 							page.find((obj) => obj?.address === normalized) ??
-							new ObjectError('notFound', `Object ${objectId} not found`, {
+							new ObjectError(`Object ${normalized} not found`, {
 								reason: 'notFound',
 								objectId,
 							}),

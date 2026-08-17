@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { RpcError } from '@protobuf-ts/runtime-rpc';
+import { GrpcStatusCode } from '@protobuf-ts/grpcweb-transport';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ObjectError, SuiClientError, TransactionError } from '../../../src/client/index.js';
@@ -25,13 +26,26 @@ async function captureError(promise: Promise<unknown>): Promise<Error> {
 }
 
 describe('client lookup errors', () => {
-	it('keeps the existing ObjectError constructor and adds a normalized reason', () => {
+	it('keeps the deprecated ObjectError constructor without guessing a normalized reason', () => {
 		const error = new ObjectError('notExists', 'Object 0x1 does not exist');
 
 		expect(error).toBeInstanceOf(SuiClientError);
 		expect(error.code).toBe('notExists');
-		expect(error.reason).toBe('notFound');
+		expect(error.reason).toBe('unknown');
 		expect(error.message).toBe('Object 0x1 does not exist');
+
+		error.code = 'deleted';
+		expect(error.code).toBe('deleted');
+	});
+
+	it('requires an explicit normalized reason in the new ObjectError constructor', () => {
+		const error = new ObjectError('Object 0x1 does not exist', {
+			code: 'notExists',
+			reason: 'notFound',
+			objectId: '0x1',
+		});
+
+		expect(error).toMatchObject({ code: 'notExists', reason: 'notFound', objectId: '0x1' });
 	});
 
 	it('exposes a transport-neutral transaction lookup error', () => {
@@ -47,8 +61,8 @@ describe('client lookup errors', () => {
 
 describe('getObjects', () => {
 	it.each([
-		[5, 'notFound'],
-		[13, 'unknown'],
+		[GrpcStatusCode.NOT_FOUND, 'notFound'],
+		[GrpcStatusCode.INTERNAL, 'unknown'],
 	] as const)('maps gRPC status %i to ObjectError reason %s', async (status, reason) => {
 		const client = new SuiGrpcClient({ network: 'testnet', baseUrl: 'http://localhost' });
 		const wireError = { code: status, message: 'object lookup failed', details: [] };
@@ -113,7 +127,10 @@ describe('getObjects', () => {
 describe('getTransaction', () => {
 	it('maps gRPC NOT_FOUND and preserves the RpcError as cause', async () => {
 		const client = new SuiGrpcClient({ network: 'testnet', baseUrl: 'http://localhost' });
-		const wireError = new RpcError(`Transaction%20${digest}%20not%20found`, 'NOT_FOUND');
+		const wireError = new RpcError(
+			`Transaction%20${digest}%20not%20found`,
+			GrpcStatusCode[GrpcStatusCode.NOT_FOUND],
+		);
 		client.ledgerService.getTransaction = vi.fn().mockRejectedValue(wireError) as never;
 
 		const error = await captureError(client.core.getTransaction({ digest }));
@@ -125,7 +142,10 @@ describe('getTransaction', () => {
 
 	it('preserves unrelated gRPC errors', async () => {
 		const client = new SuiGrpcClient({ network: 'testnet', baseUrl: 'http://localhost' });
-		const wireError = new RpcError('temporarily unavailable', 'UNAVAILABLE');
+		const wireError = new RpcError(
+			'temporarily unavailable',
+			GrpcStatusCode[GrpcStatusCode.UNAVAILABLE],
+		);
 		client.ledgerService.getTransaction = vi.fn().mockRejectedValue(wireError) as never;
 
 		await expect(client.core.getTransaction({ digest })).rejects.toBe(wireError);

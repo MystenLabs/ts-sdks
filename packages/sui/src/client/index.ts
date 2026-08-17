@@ -27,6 +27,7 @@ export {
 	SimulationError,
 	SuiClientError,
 	TransactionError,
+	type ObjectErrorOptions,
 	type ObjectErrorReason,
 	type TransactionErrorReason,
 } from './errors.js';
