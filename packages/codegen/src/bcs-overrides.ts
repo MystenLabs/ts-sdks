@@ -145,9 +145,15 @@ export function parseBcsOverrides(
 	registry: ModuleRegistry,
 	context: BcsOverridesContext,
 ): BcsOverrideRule[] {
+	const currentIdentity = context.packageIdentities?.[context.package.id];
+	const currentAddress =
+		normalizeAddress(context.package.address) === normalizeAddress('0x0') && currentIdentity?.label
+			? currentIdentity.label
+			: normalizeAddress(context.package.address);
+
 	return overrides.map((override) => {
 		const ctx: ParseContext = {
-			scopeAddress: normalizeAddress(context.package.address),
+			scopeAddress: currentAddress,
 			registry,
 			currentPackage: context.package,
 			packageIdentities: context.packageIdentities ?? {},
@@ -186,12 +192,15 @@ export function findBcsDeclarationRule(
 	resolvedAddress: string,
 	module: string,
 	name: string,
+	symbolicAddress?: string,
 ): BcsOverrideRule | null {
 	const address = normalizeAddress(resolvedAddress);
 	return (
 		rules.find(
 			({ declaration }) =>
-				declaration?.address === address &&
+				declaration !== null &&
+				(declaration.address === address ||
+					(symbolicAddress !== undefined && declaration.address === symbolicAddress)) &&
 				declaration.module === module &&
 				declaration.name === name,
 		) ?? null
@@ -202,9 +211,14 @@ function typeMatches(
 	match: BcsOverrideMatch,
 	type: Type,
 	resolveAddress: (address: string) => string,
+	resolveSymbolicAddress?: (address: string) => string,
 ): boolean {
 	if (match.kind === 'identity') {
-		return canonicalTypeIdentity(type, resolveAddress) === match.identity;
+		return (
+			canonicalTypeIdentity(type, resolveAddress) === match.identity ||
+			(resolveSymbolicAddress !== undefined &&
+				canonicalTypeIdentity(type, resolveSymbolicAddress) === match.identity)
+		);
 	}
 
 	let inner = type;
@@ -213,7 +227,10 @@ function typeMatches(
 	}
 	if (typeof inner === 'string' || !('Datatype' in inner)) return false;
 	return (
-		normalizeAddress(resolveAddress(inner.Datatype.module.address)) === match.address &&
+		(normalizeAddress(resolveAddress(inner.Datatype.module.address)) === match.address ||
+			(resolveSymbolicAddress !== undefined &&
+				normalizeAddress(resolveSymbolicAddress(inner.Datatype.module.address)) ===
+					match.address)) &&
 		inner.Datatype.module.name === match.module &&
 		inner.Datatype.name === match.name
 	);
@@ -230,9 +247,10 @@ export function resolveBcsOverride(
 	type: Type,
 	sitePath: string | undefined,
 	resolveAddress: (address: string) => string,
+	resolveSymbolicAddress?: (address: string) => string,
 ): BcsOverrideRule | null {
 	for (const rule of rules) {
-		if (!typeMatches(rule.match, type, resolveAddress)) continue;
+		if (!typeMatches(rule.match, type, resolveAddress, resolveSymbolicAddress)) continue;
 		if (rule.where && (sitePath === undefined || !rule.where.test(sitePath))) continue;
 
 		// Declaration replacements are emitted once, at the declaration, and use sites keep

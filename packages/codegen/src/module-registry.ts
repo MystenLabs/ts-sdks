@@ -23,6 +23,16 @@ export class ModuleRegistry {
 		return this.addressMappings[address] ?? address;
 	}
 
+	/**
+	 * Resolve an address for config matching without collapsing every unpublished named address to
+	 * the shared `0x0` placeholder. Published addresses stay canonical; unpublished labels remain
+	 * symbolic so two local packages with the same module and type names cannot match each other.
+	 */
+	resolveMatcherAddress(address: string): string {
+		const resolved = normalizeAddress(this.resolveAddress(address));
+		return resolved === normalizeAddress('0x0') && !HEX_ADDRESS.test(address) ? address : resolved;
+	}
+
 	register(builder: MoveModuleBuilder): void {
 		this.#builders.set(this.#keyOf(builder.summary.id.address, builder.summary.id.name), builder);
 	}

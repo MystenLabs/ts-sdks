@@ -136,6 +136,10 @@ export class MoveModuleBuilder extends FileBuilder {
 		return this.registry.resolveAddress(address);
 	}
 
+	#resolveMatcherAddress(address: string) {
+		return this.registry.resolveMatcherAddress(address);
+	}
+
 	#hasNamedPackage() {
 		return Boolean(this.#mvrNameOrAddress && !isValidSuiObjectId(this.#mvrNameOrAddress));
 	}
@@ -219,6 +223,7 @@ export class MoveModuleBuilder extends FileBuilder {
 			normalizeAddress(this.#resolveAddress(this.summary.id.address)),
 			this.summary.id.name,
 			name,
+			this.#resolveMatcherAddress(this.summary.id.address),
 		);
 	}
 
@@ -237,8 +242,12 @@ export class MoveModuleBuilder extends FileBuilder {
 			return undefined;
 		}
 		return (type: Type): string | undefined => {
-			const rule = resolveBcsOverride(this.#bcsOverrides, type, sitePath, (address) =>
-				this.#resolveAddress(address),
+			const rule = resolveBcsOverride(
+				this.#bcsOverrides,
+				type,
+				sitePath,
+				(address) => this.#resolveAddress(address),
+				(address) => this.#resolveMatcherAddress(address),
 			);
 			if (!rule) return undefined;
 			// The dependency walk discards the rendered string and only needs the short-circuit;
@@ -291,6 +300,7 @@ export class MoveModuleBuilder extends FileBuilder {
 			requiredParameters.forEach((param, i) => {
 				const match = findConfigArgumentMatch(param, this.#configArguments, {
 					resolveAddress: (address) => this.#resolveAddress(address),
+					resolveSymbolicAddress: (address) => this.#resolveMatcherAddress(address),
 					functionLabel,
 					functionRef: {
 						moduleAddress: this.summary.id.address,
@@ -324,11 +334,14 @@ export class MoveModuleBuilder extends FileBuilder {
 	}
 
 	/**
-	 * The address this module's generated type tags use for `name`: the type-origin address when
-	 * known, otherwise the same address BCS type names use (MVR name / root package id / resolved
-	 * summary address).
+	 * The address this module's generated type tags use for `name`: the MVR name for named packages,
+	 * otherwise the type-origin address when known, then the root package id or resolved summary
+	 * address.
 	 */
 	getTypeTagAddress(name: string): string {
+		if (this.#hasNamedPackage()) {
+			return this.#getModuleTypeName();
+		}
 		const origin = this.#typeOrigins?.[name];
 		if (origin) {
 			return origin;
@@ -1014,12 +1027,12 @@ export class MoveModuleBuilder extends FileBuilder {
 				while (typeof paramType !== 'string' && 'Reference' in paramType) {
 					paramType = paramType.Reference[1];
 				}
-				const paramTypeArguments =
+				const resolverTypes =
 					typeof paramType !== 'string' && 'Datatype' in paramType
-						? paramType.Datatype.type_arguments
-						: [];
-				const ctxTags = paramTypeArguments.map((arg) => {
-					const tag = renderResolverTypeTag(arg.argument, {
+						? paramType.Datatype.type_arguments.map((arg) => arg.argument)
+						: [paramType];
+				const ctxTags = resolverTypes.map((type) => {
+					const tag = renderResolverTypeTag(type, {
 						summary: this.summary,
 						typeParameters: func.type_parameters,
 						registry: this.registry,

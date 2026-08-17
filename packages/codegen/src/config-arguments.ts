@@ -99,9 +99,9 @@ export interface ParseContext {
 	 * codegen-run entries. Used by `bcsOverrides`; `configArguments` matchers keep the stricter
 	 * run-package scoping because their config keys are part of the generated public API.
 	 *
-	 * Labels resolve to the summaries' address mapping, which is `0x0` for every unpublished local
-	 * package — the same ambiguity the run-package label branch below already accepts. Two
-	 * unpublished packages declaring the same module and type name can't be told apart by scope.
+	 * Published labels resolve through the summaries' address mapping. Unpublished labels stay
+	 * symbolic instead of collapsing to the shared `0x0` placeholder, so local packages remain
+	 * distinguishable.
 	 */
 	allowAddressLabels?: boolean;
 }
@@ -125,13 +125,13 @@ function resolveQualifier(packagePart: string | undefined, tag: string, ctx: Par
 	}
 
 	if (packagePart === ctx.currentPackage.id) {
-		return normalizeAddress(ctx.currentPackage.address);
+		return ctx.scopeAddress;
 	}
 
 	const identity = ctx.packageIdentities[packagePart];
 	if (identity === undefined) {
 		if (ctx.allowAddressLabels && ctx.registry.addressMappings[packagePart] !== undefined) {
-			return normalizeAddress(ctx.registry.addressMappings[packagePart]);
+			return ctx.registry.resolveMatcherAddress(packagePart);
 		}
 		throw new Error(
 			`Unknown package "${packagePart}" in matcher "${tag}". Known packages in ` +
@@ -143,7 +143,7 @@ function resolveQualifier(packagePart: string | undefined, tag: string, ctx: Par
 	}
 
 	if (identity.label !== undefined && ctx.registry.addressMappings[identity.label] !== undefined) {
-		const labelAddress = normalizeAddress(ctx.registry.addressMappings[identity.label]);
+		const labelAddress = ctx.registry.resolveMatcherAddress(identity.label);
 		const knownAddress =
 			identity.address !== undefined ? normalizeAddress(identity.address) : undefined;
 		// A published address that contradicts the label means this closure's label belongs to a
@@ -387,7 +387,7 @@ function parseFunctionMatcher(
 		);
 	}
 
-	const resolveAddress = (target: string) => registry.resolveAddress(target);
+	const resolveAddress = (target: string) => registry.resolveMatcherAddress(target);
 	// The same positions the generated arguments use: TxContext and auto-injected well-known
 	// objects are excluded.
 	const parameters = func.parameters.filter(
@@ -467,7 +467,11 @@ export function parseConfigArguments(
 	context: ConfigArgumentsContext,
 ): { entries: ParsedConfigArgument[] } {
 	const entries: ParsedConfigArgument[] = [];
-	const currentAddress = normalizeAddress(context.package.address);
+	const currentIdentity = context.packageIdentities?.[context.package.id];
+	const currentAddress =
+		normalizeAddress(context.package.address) === ZERO_ADDRESS && currentIdentity?.label
+			? currentIdentity.label
+			: normalizeAddress(context.package.address);
 
 	for (const [key, matcher] of Object.entries(configArguments)) {
 		if (!Array.isArray(matcher) && 'package' in matcher) {
@@ -567,11 +571,13 @@ export function findConfigArgumentMatch(
 	entries: ParsedConfigArgument[],
 	{
 		resolveAddress,
+		resolveSymbolicAddress,
 		functionLabel,
 		functionRef,
 		parameterIndex,
 	}: {
 		resolveAddress: (address: string) => string;
+		resolveSymbolicAddress?: (address: string) => string;
 		functionLabel: string;
 		/** The module and function the parameter belongs to, for function matchers. */
 		functionRef: { moduleAddress: string; moduleName: string; functionName: string };
@@ -585,8 +591,20 @@ export function findConfigArgumentMatch(
 	}
 
 	const datatype = typeof type !== 'string' && 'Datatype' in type ? type.Datatype : null;
-	const paramAddress = datatype ? normalizeAddress(resolveAddress(datatype.module.address)) : null;
-	const moduleAddress = normalizeAddress(resolveAddress(functionRef.moduleAddress));
+	const paramAddresses = datatype
+		? new Set([
+				normalizeAddress(resolveAddress(datatype.module.address)),
+				...(resolveSymbolicAddress
+					? [normalizeAddress(resolveSymbolicAddress(datatype.module.address))]
+					: []),
+			])
+		: null;
+	const moduleAddresses = new Set([
+		normalizeAddress(resolveAddress(functionRef.moduleAddress)),
+		...(resolveSymbolicAddress
+			? [normalizeAddress(resolveSymbolicAddress(functionRef.moduleAddress))]
+			: []),
+	]);
 
 	const candidates: {
 		entry: TypeConfigArgument | FunctionConfigArgument;
@@ -597,7 +615,7 @@ export function findConfigArgumentMatch(
 	for (const entry of entries) {
 		if (entry.kind === 'function') {
 			if (
-				entry.address !== moduleAddress ||
+				!moduleAddresses.has(entry.address) ||
 				entry.module !== functionRef.moduleName ||
 				entry.functionName !== functionRef.functionName
 			) {
@@ -619,9 +637,9 @@ export function findConfigArgumentMatch(
 			continue;
 		}
 
-		if (entry.kind !== 'type' || !datatype) continue;
+		if (entry.kind !== 'type' || !datatype || !paramAddresses) continue;
 		if (
-			entry.address !== paramAddress ||
+			!paramAddresses.has(entry.address) ||
 			entry.module !== datatype.module.name ||
 			entry.name !== datatype.name
 		) {
@@ -633,12 +651,24 @@ export function findConfigArgumentMatch(
 		if (entry.typeArguments !== null) {
 			// Fully instantiated matcher: only matches parameters concretely typed with that
 			// exact instantiation in the Move signature.
-			const argIdentities = datatype.type_arguments.map((argument) =>
-				canonicalTypeIdentity(argument.argument, resolveAddress),
-			);
+			const identitySets = [
+				datatype.type_arguments.map((argument) =>
+					canonicalTypeIdentity(argument.argument, resolveAddress),
+				),
+				...(resolveSymbolicAddress
+					? [
+							datatype.type_arguments.map((argument) =>
+								canonicalTypeIdentity(argument.argument, resolveSymbolicAddress),
+							),
+						]
+					: []),
+			];
 			if (
-				argIdentities.length !== entry.typeArguments.length ||
-				argIdentities.some((identity, i) => identity !== entry.typeArguments![i])
+				!identitySets.some(
+					(argIdentities) =>
+						argIdentities.length === entry.typeArguments!.length &&
+						argIdentities.every((identity, i) => identity === entry.typeArguments![i]),
+				)
 			) {
 				continue;
 			}

@@ -95,6 +95,18 @@ function poolsSummary({ parameterNames = true }: { parameterNames?: boolean } = 
 		immediate_dependencies: [],
 		attributes: [],
 		functions: {
+			use_type_parameter: fn(
+				[param('value', { TypeParameter: 0 })],
+				[{ name: 'T', phantom: false, constraints: [] }],
+			),
+			use_type_parameter_ref: fn(
+				[param('value', { Reference: [false, { TypeParameter: 0 }] })],
+				[{ name: 'T', phantom: false, constraints: [] }],
+			),
+			use_type_parameter_vector: fn(
+				[param('value', { vector: { TypeParameter: 0 } })],
+				[{ name: 'T', phantom: false, constraints: [] }],
+			),
 			use_generic: fn(
 				[param('pool', poolType({ TypeParameter: 0 })), param('amount', 'u64')],
 				[{ name: 'T', phantom: false, constraints: [] }],
@@ -143,13 +155,17 @@ function poolsSummary({ parameterNames = true }: { parameterNames?: boolean } = 
 
 function createPoolsBuilder(
 	configArguments: ConfigArguments,
-	options: { parameterNames?: boolean; typeOrigins?: Record<string, string> } = {},
+	options: {
+		parameterNames?: boolean;
+		typeOrigins?: Record<string, string>;
+		package?: string;
+	} = {},
 ) {
 	const registry = new ModuleRegistry(ADDRESS_MAPPINGS);
 	const builder = new MoveModuleBuilder({
 		summary: poolsSummary(options) as any,
 		registry,
-		mvrNameOrAddress: '@test/testpkg',
+		mvrNameOrAddress: options.package ?? '@test/testpkg',
 		importExtension: '.js',
 		typeOrigins: options.typeOrigins,
 	});
@@ -269,6 +285,33 @@ describe('parseConfigArguments', () => {
 		);
 
 		expect(entries).toMatchObject([{ key: 'pool', module: 'pools', name: 'Pool' }]);
+	});
+
+	it('keeps distinct unpublished package labels instead of collapsing them to 0x0', () => {
+		const registry = new ModuleRegistry({
+			alpha: ADDRESS_MAPPINGS.testpkg,
+			beta: ADDRESS_MAPPINGS.testpkg,
+		});
+		for (const address of ['alpha', 'beta']) {
+			new MoveModuleBuilder({
+				summary: { ...poolsSummary(), id: { address, name: 'pools' } } as any,
+				registry,
+			});
+		}
+
+		const { entries } = parseConfigArguments(
+			{ pool: { type: '@other/pkg::pools::Pool' } },
+			registry,
+			{
+				package: { id: '@local/alpha', address: ADDRESS_MAPPINGS.testpkg },
+				packageIdentities: {
+					'@local/alpha': { label: 'alpha', address: ADDRESS_MAPPINGS.testpkg },
+					'@other/pkg': { label: 'beta', address: ADDRESS_MAPPINGS.testpkg },
+				},
+			},
+		);
+
+		expect(entries).toMatchObject([{ key: 'pool', address: 'beta', module: 'pools' }]);
 	});
 
 	it('errors for run packages outside this dependency closure, never using 0x0 identity', async () => {
@@ -520,6 +563,29 @@ describe('config-driven function codegen', () => {
 		`);
 	});
 
+	it('function matchers expose direct, referenced, and vector type parameters to resolvers', async () => {
+		const builder = createPoolsBuilder({
+			direct: { function: 'pools::use_type_parameter' },
+			referenced: { function: 'pools::use_type_parameter_ref' },
+			vector: { function: 'pools::use_type_parameter_vector' },
+		});
+		builder.includeFunctions([
+			'use_type_parameter',
+			'use_type_parameter_ref',
+			'use_type_parameter_vector',
+		]);
+		const output = await render(builder);
+
+		for (const functionName of ['useTypeParameter', 'useTypeParameterRef']) {
+			const body = output.match(
+				new RegExp(`export function ${functionName}[\\s\\S]*?^}`, 'm'),
+			)?.[0];
+			expect(body).toContain('typeArguments: [`${options.typeArguments[0]}`]');
+		}
+		const vectorBody = output.match(/export function useTypeParameterVector[\s\S]*?^}/m)?.[0];
+		expect(vectorBody).toContain('typeArguments: [`vector<${options.typeArguments[0]}>`]');
+	});
+
 	it('instantiated matcher only matches concrete instantiations and wins over the uninstantiated matcher', async () => {
 		const builder = createPoolsBuilder({
 			pool: { type: '@test/testpkg::pools::Pool' },
@@ -612,11 +678,25 @@ describe('config-driven function codegen', () => {
 		expect(fnBody?.[0]).toContain("typeArguments: ['@test/testpkg::pools::Coin']");
 	});
 
-	it('resolver context tags use origin addresses for upgraded packages', async () => {
+	it('resolver context tags keep MVR names for upgraded packages', async () => {
 		const ORIGIN_V1 = '0x000000000000000000000000000000000000000000000000000000000000aaaa';
 		const builder = createPoolsBuilder(
 			{ pool: { type: '@test/testpkg::pools::Pool' } },
 			{ typeOrigins: { Coin: ORIGIN_V1 } },
+		);
+		builder.includeFunctions(['use_own_coin']);
+		const output = await render(builder);
+
+		const fnBody = output.match(/export function useOwnCoin[\s\S]*?^}/m);
+		expect(fnBody?.[0]).toContain("typeArguments: ['@test/testpkg::pools::Coin']");
+	});
+
+	it('resolver context tags use origin addresses when generation is pinned to a package ID', async () => {
+		const ORIGIN_V1 = '0x000000000000000000000000000000000000000000000000000000000000aaaa';
+		const PACKAGE_ID = '0x000000000000000000000000000000000000000000000000000000000000bbbb';
+		const builder = createPoolsBuilder(
+			{ pool: { type: '@test/testpkg::pools::Pool' } },
+			{ typeOrigins: { Coin: ORIGIN_V1 }, package: PACKAGE_ID },
 		);
 		builder.includeFunctions(['use_own_coin']);
 		const output = await render(builder);
@@ -1000,7 +1080,7 @@ describe('config-driven function codegen', () => {
 		);
 	});
 
-	it('keeps origin-addressed type tags while calls use the config-supplied package address', async () => {
+	it('keeps MVR type tags while calls use the config-supplied package address', async () => {
 		const ORIGIN_V1 = '0x000000000000000000000000000000000000000000000000000000000000aaaa';
 		const registry = new ModuleRegistry(ADDRESS_MAPPINGS);
 		const builder = await MoveModuleBuilder.fromSummaryFile(
@@ -1025,8 +1105,9 @@ describe('config-driven function codegen', () => {
 		await builder.renderBCSTypes();
 		const output = await render(builder);
 
-		// BCS type names keep the origin address; the call package comes from the config chain.
-		expect(output).toContain(`name: \`${ORIGIN_V1}::registry::Registry\``);
+		// BCS type names keep the portable MVR name; the call package comes from the config chain.
+		expect(output).toContain("const $moduleName = '@test/testpkg::registry'");
+		expect(output).toContain('name: `${$moduleName}::Registry`');
 		expect(output).toContain(
 			"const packageAddress = options.package ?? options.config?.testpkgAddress ?? '@test/testpkg';",
 		);

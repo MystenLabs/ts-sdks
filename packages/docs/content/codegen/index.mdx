@@ -126,10 +126,10 @@ needing local source code:
 
 | Option            | Type                     | Required | Description                                                                                      |
 | ----------------- | ------------------------ | -------- | ------------------------------------------------------------------------------------------------ |
-| `package`         | `string`                 | yes      | Package ID or name emitted into generated code                                                  |
-| `sourcePackageId` | `string`                 | no       | Package ID to fetch when generating an unpublished package name                                 |
+| `package`         | `string`                 | yes      | Package ID or name emitted into generated code                                                   |
+| `sourcePackageId` | `string`                 | no       | Package ID to fetch when generating an unpublished package name                                  |
 | `packageName`     | `string`                 | yes      | Name for the generated code directory                                                            |
-| `network`         | `'mainnet' \| 'testnet'` | yes      | Network to resolve and fetch the package from                                                   |
+| `network`         | `'mainnet' \| 'testnet'` | yes      | Network to resolve and fetch the package from                                                    |
 | `generate`        | `PackageGenerateOptions` | no       | Control what gets generated from this package                                                    |
 | `configArguments` | `ConfigArguments`        | no       | Map this package's function parameters to a [runtime config object](#the-configarguments-option) |
 | `bcsOverrides`    | `BcsOverrides`           | no       | Replace generated BCS types with [custom types](#the-bcsoverrides-option)                        |
