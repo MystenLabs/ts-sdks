@@ -537,8 +537,9 @@ Entry rules:
   variant fields (positional fields are named `pos0`, `pos1`, …). A glob that names no module —
   `Order.*_price` — is matched against the `Type.field` suffix, so it applies in every module. An
   entry with `fields` never replaces a declaration, since a declaration exists once for every use.
-- Entries are tried in **declaration order and the first match wins**. There is no specificity
-  scoring, so put narrow entries before broad ones.
+- At each use site, matching entries are tried in **declaration order and the first match wins**. An
+  unrestricted datatype declaration remains the fallback for sites not matched by an earlier
+  field-restricted entry. There is no specificity scoring, so put narrow entries before broad ones.
 - `source` is an import specifier, optionally suffixed with `#ExportName`. Relative specifiers
   resolve against the config file's directory and are rewritten into relative imports from each
   generated file, with their extension replaced by the configured `importExtension` (so a
