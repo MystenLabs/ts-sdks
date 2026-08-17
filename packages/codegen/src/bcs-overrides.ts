@@ -195,16 +195,22 @@ export function findBcsDeclarationRule(
 	symbolicAddress?: string,
 ): BcsOverrideRule | null {
 	const address = normalizeAddress(resolvedAddress);
-	return (
-		rules.find(
-			({ declaration }) =>
-				declaration !== null &&
-				(declaration.address === address ||
-					(symbolicAddress !== undefined && declaration.address === symbolicAddress)) &&
-				declaration.module === module &&
-				declaration.name === name,
-		) ?? null
-	);
+	for (const rule of rules) {
+		if (rule.match.kind !== 'datatype') continue;
+		if (
+			(rule.match.address === address ||
+				(symbolicAddress !== undefined && rule.match.address === symbolicAddress)) &&
+			rule.match.module === module &&
+			rule.match.name === name
+		) {
+			// A field-specific rule that appears first owns this datatype's ordering decision. A
+			// later declaration rule cannot be installed globally without making that field use a
+			// different codec from the datatype declaration.
+			return rule.declaration ? rule : null;
+		}
+	}
+
+	return null;
 }
 
 function typeMatches(

@@ -391,6 +391,25 @@ describe('rendering with bcsOverrides', () => {
 		expect(output).not.toContain(`from '../../bcs-fixtures/other.js'`);
 	});
 
+	it('does not install a declaration override after an earlier field override', async () => {
+		const output = await renderRegistry(
+			[
+				{
+					type: 'registry::Status',
+					fields: 'Entry.status',
+					source: './bcs-fixtures/other.ts#ScaledU64',
+				},
+				{ type: 'registry::Status', source: './bcs-fixtures/units.ts' },
+			],
+			['Status', 'Entry'],
+		);
+
+		expect(output).toContain('MoveEnum');
+		expect(output).toContain(`import { ScaledU64 } from '../../bcs-fixtures/other.js'`);
+		expect(output).toMatch(/status:\s*ScaledU64[,\s]/);
+		expect(output).not.toContain(`from '../../bcs-fixtures/units.js'`);
+	});
+
 	it('imports the named export from a "#ExportName" fragment', async () => {
 		// Without a fragment this declaration replacement would import the Move type name, `Result`.
 		const output = await renderRegistry(
