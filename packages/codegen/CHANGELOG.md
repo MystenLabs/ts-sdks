@@ -1,5 +1,42 @@
 # @mysten/codegen
 
+## 0.12.0
+
+### Minor Changes
+
+- 19e85a3: Add a `bcsOverrides` package option that replaces generated BCS types with custom ones
+  (for example, types with `transform`s). Each entry names the Move `type` it replaces and the
+  `source` module the replacement is imported from, optionally narrowed to specific `fields`. A
+  datatype for which codegen emits a declaration has that declaration replaced, so every use picks
+  it up; everything else is substituted wherever the type is rendered, at any depth (an override on
+  `u64` also replaces the `u64` inside `vector<u64>` and `Option<u64>`). `fields` is a glob matched
+  against `module::Type.field` (or `module::Type.variant.field`) where `*` matches any run of
+  characters, and a glob that names no module applies in every module. Entries are tried in
+  declaration order and the first match wins. Replacement sources are imported from paths resolved
+  relative to the config file (or bare package specifiers), with an optional `#ExportName` fragment.
+- 19e85a3: Add a per-package `configArguments` codegen option for mapping function parameters and
+  package addresses to a runtime config object. Matchers reference types as `module::Type` for the
+  package's own types, `@pkg/name::module::Type` for dependency packages from the codegen config, or
+  by explicit address, and support type matchers, per-function matchers
+  (`{ function, parameterName | parameterIndex }`), and multi-matcher keys. Matched parameters
+  become optional in generated `arguments` and resolve from a typed optional `config` object; keys
+  binding multiple distinct types (or generics) are typed as resolver functions receiving the
+  parameter's instantiation and call-site metadata. Each package emits a `config-arguments.ts`
+  convenience interface. Also treat `0x2::accumulator::AccumulatorRoot` as a well-known object that
+  is auto-injected like `Clock`.
+- a217536: Resolve MVR package names, preserve named package and type identifiers in generated code,
+  support separate source package IDs, and add configurable fullnode URLs for on-chain package
+  summaries.
+
+### Patch Changes
+
+- Updated dependencies [f76883d]
+- Updated dependencies [f76883d]
+- Updated dependencies [f76883d]
+- Updated dependencies [f76883d]
+- Updated dependencies [f76883d]
+  - @mysten/sui@2.25.0
+
 ## 0.11.14
 
 ### Patch Changes
