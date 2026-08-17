@@ -23,14 +23,8 @@ export type GeneratedConfig = DeepbookPredictConfig &
 		accountRegistry: string;
 	};
 
-// Configs are long-lived (`TESTNET_CONFIG`, or one object held by a `PredictClient`) while
-// builders are called per transaction, so the projection is memoized per config identity.
-const cache = new WeakMap<PredictConfig, GeneratedConfig>();
-
 export function toGeneratedConfig(cfg: PredictConfig): GeneratedConfig {
-	const cached = cache.get(cfg);
-	if (cached) return cached;
-	const generated: GeneratedConfig = {
+	return {
 		predictPackageId: cfg.packages.predict,
 		accountPackageId: cfg.packages.account,
 		protocolConfig: cfg.objects.protocolConfig,
@@ -39,6 +33,4 @@ export function toGeneratedConfig(cfg: PredictConfig): GeneratedConfig {
 		oracleRegistry: cfg.objects.oracleRegistry,
 		accountRegistry: cfg.objects.accountRegistry,
 	};
-	cache.set(cfg, generated);
-	return generated;
 }

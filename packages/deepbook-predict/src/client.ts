@@ -242,7 +242,9 @@ export function predict<Name extends string = 'predict'>({
 export class PredictClient {
 	readonly cfg: PredictConfig;
 	// The flat slice every generated call resolves `options.config` against.
-	#config: GeneratedConfig;
+	get #config(): GeneratedConfig {
+		return toGeneratedConfig(this.cfg);
+	}
 	#client: PredictCompatibleClient;
 	// underlying:expiryMs → resolved market. The id and tickSizeRaw — the only
 	// state tx building depends on — are immutable per (underlying, expiry), so
@@ -260,7 +262,6 @@ export class PredictClient {
 		config?: PredictConfig;
 	}) {
 		this.cfg = opts.config ?? getConfig(opts.network);
-		this.#config = toGeneratedConfig(this.cfg);
 		this.#client = opts.client;
 	}
 

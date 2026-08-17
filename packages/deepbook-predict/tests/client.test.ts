@@ -10,7 +10,7 @@ import type { ReadClient } from '../src/reads/inspect.js';
 import { POS_INF_TICK } from '../src/ticks.js';
 import { toGeneratedConfig } from '../src/config/generated.js';
 import * as account from '../src/contracts/account/account.js';
-import { generateAuth } from '../src/tx/common.js';
+import { deriveAccountWrapperIdFrom, generateAuth } from '../src/tx/common.js';
 
 const OWNER = '0x' + 'ab'.repeat(32);
 const MARKET_ID = '0x' + 'cd'.repeat(32);
@@ -188,6 +188,31 @@ describe('PredictClient constructor', () => {
 		const id = pc.wrapperIdFor(OWNER);
 		expect(id).toMatch(/^0x[0-9a-f]{64}$/);
 		expect(pc.wrapperIdFor(OWNER)).toBe(id);
+	});
+
+	test('observes package and object config updates after construction', () => {
+		const config = {
+			...cfg,
+			packages: { ...cfg.packages },
+			objects: { ...cfg.objects },
+			underlyings: { ...cfg.underlyings },
+		};
+		const pc = new PredictClient({ network: 'testnet', client: mockClient().client, config });
+		const initialWrapper = pc.wrapperIdFor(OWNER);
+		const accountPackageId = `0x${'11'.repeat(32)}`;
+		const accountRegistry = `0x${'22'.repeat(32)}`;
+
+		config.packages.account = accountPackageId;
+		config.objects.accountRegistry = accountRegistry;
+
+		expect(pc.wrapperIdFor(OWNER)).toBe(
+			deriveAccountWrapperIdFrom({ accountPackageId, accountRegistry }, OWNER),
+		);
+		expect(pc.wrapperIdFor(OWNER)).not.toBe(initialWrapper);
+		expect(targets(pc.tx.createManager())).toEqual([
+			`${accountPackageId}::account_registry::new`,
+			`${accountPackageId}::account::share`,
+		]);
 	});
 });
 
