@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { CoreClientOptions, ObjectErrorReason, SuiClientTypes } from '../client/index.js';
+import type { CoreClientOptions, SuiClientTypes } from '../client/index.js';
 import {
 	CoreClient,
 	formatMoveAbortMessage,
@@ -135,11 +135,11 @@ export class GrpcCoreClient extends CoreClient {
 					(object, index): SuiClientTypes.Object<Include> | ObjectError => {
 						if (object.result.oneofKind === 'error') {
 							const error = object.result.error;
-							const reason: ObjectErrorReason =
-								error.code === GrpcStatusCode.NOT_FOUND ? 'notFound' : 'unknown';
-							return new ObjectError(String(error.code), error.message, {
+							// The code is the gRPC status name (for example `NOT_FOUND`), never
+							// the raw status number. Use `reason` for transport-neutral handling.
+							return new ObjectError(GrpcStatusCode[error.code] ?? 'unknown', error.message, {
 								cause: error,
-								reason,
+								reason: error.code === GrpcStatusCode.NOT_FOUND ? 'notFound' : 'unknown',
 								objectId: batch[index],
 							});
 						}

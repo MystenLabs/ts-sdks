@@ -22,6 +22,7 @@ import {
 import { Bag } from '../../src/contracts/hashi/deps/sui/bag.js';
 import { generateDepositAddress } from '../../src/bitcoin.js';
 import { reverseTxidBytes } from '../../src/util.js';
+import { ObjectError } from '@mysten/sui/client';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { SuiGraphQLClient } from '@mysten/sui/graphql';
 import { bcs } from '@mysten/sui/bcs';
@@ -1152,6 +1153,41 @@ describe('HashiClient', () => {
 				inSpentPool: false,
 				isUsed: false,
 			});
+		});
+
+		it("treats an ObjectError with reason 'notFound' as a miss", async () => {
+			mockFetchBitcoinState();
+			const objectErrorNotFound = () =>
+				new ObjectError('NOT_FOUND', 'Object 0x123 not found', {
+					reason: 'notFound',
+					objectId: '0x123',
+				});
+			vi.spyOn(client.core, 'getObjects').mockResolvedValueOnce({
+				objects: [objectErrorNotFound(), objectErrorNotFound()],
+			} as never);
+
+			const result = await client.hashi.view.findUsedUtxos([
+				{ txid: '0x' + 'ab'.repeat(32), vout: 0 },
+			]);
+			expect(result[0]).toMatchObject({
+				inActivePool: false,
+				inSpentPool: false,
+				isUsed: false,
+			});
+		});
+
+		it("rethrows an ObjectError whose reason isn't 'notFound'", async () => {
+			mockFetchBitcoinState();
+			vi.spyOn(client.core, 'getObjects').mockResolvedValueOnce({
+				objects: [
+					new ObjectError('INTERNAL', 'internal server error', { reason: 'unknown' }),
+					new ObjectError('notExists', 'Object 0x123 not found', { reason: 'notFound' }),
+				],
+			} as never);
+
+			await expect(
+				client.hashi.view.findUsedUtxos([{ txid: '0x' + 'ab'.repeat(32), vout: 0 }]),
+			).rejects.toThrow('internal server error');
 		});
 
 		it("rethrows a plain Error whose message isn't the gRPC not-found pattern", async () => {
