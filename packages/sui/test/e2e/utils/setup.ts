@@ -41,8 +41,7 @@ export const DEFAULT_GAS_BUDGET = 10000000;
 export const DEFAULT_SEND_AMOUNT = 1000;
 
 const prePublishedPackages = inject('prePublishedPackages') as
-	| Record<string, PrePublishedPackage>
-	| undefined;
+	Record<string, PrePublishedPackage> | undefined;
 
 export interface SignerConfig {
 	coins?: bigint[];

@@ -7,16 +7,7 @@ import type { BcsType } from '@mysten/bcs';
 import { Address } from './bcs.js';
 
 export type BasePureType =
-	| 'u8'
-	| 'u16'
-	| 'u32'
-	| 'u64'
-	| 'u128'
-	| 'u256'
-	| 'bool'
-	| 'id'
-	| 'string'
-	| 'address';
+	'u8' | 'u16' | 'u32' | 'u64' | 'u128' | 'u256' | 'bool' | 'id' | 'string' | 'address';
 
 interface PureShapeByType {
 	u8: number;

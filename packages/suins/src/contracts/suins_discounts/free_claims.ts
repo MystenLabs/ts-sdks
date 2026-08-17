@@ -59,8 +59,7 @@ export interface FreeClaimOptions<T extends BcsType<any>> {
 export function freeClaim<T extends BcsType<any>>(options: FreeClaimOptions<T>) {
 	const packageAddress = options.package ?? '@suins/discounts';
 	const argumentsTypes = [null, null, null, `${options.typeArguments[0]}`] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['self', 'suins', 'intent', 'object'];
 	return (tx: Transaction) =>

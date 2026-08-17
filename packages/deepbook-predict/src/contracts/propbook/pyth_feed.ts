@@ -362,8 +362,7 @@ export interface InsertAtArguments {
 export interface InsertAtOptions {
 	package?: string;
 	arguments:
-		| InsertAtArguments
-		| [feed: RawTransactionArgument<string>, update: TransactionArgument];
+		InsertAtArguments | [feed: RawTransactionArgument<string>, update: TransactionArgument];
 }
 /**
  * Insert an exact Pyth Lazer spot observation keyed by its exact millisecond

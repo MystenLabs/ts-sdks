@@ -710,8 +710,7 @@ export interface PublishOptions {
 export function publish(options: PublishOptions) {
 	const packageAddress = options.package ?? '@mysten/ptb';
 	const argumentsTypes = ['vector<vector<u8>>', 'vector<0x2::object::ID>'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['modulesBytes', 'dependencies'];
 	return (tx: Transaction_1) =>
@@ -739,8 +738,7 @@ export interface MakeMoveVecOptions {
 export function makeMoveVec(options: MakeMoveVecOptions) {
 	const packageAddress = options.package ?? '@mysten/ptb';
 	const argumentsTypes = ['0x1::option::Option<0x1::string::String>', 'vector<null>'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['elementType', 'elements'];
 	return (tx: Transaction_1) =>

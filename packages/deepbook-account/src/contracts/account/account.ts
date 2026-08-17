@@ -318,8 +318,7 @@ export interface LoadAccountMutArguments {
 export interface LoadAccountMutOptions {
 	package?: string;
 	arguments:
-		| LoadAccountMutArguments
-		| [self: RawTransactionArgument<string>, auth: TransactionArgument];
+		LoadAccountMutArguments | [self: RawTransactionArgument<string>, auth: TransactionArgument];
 	config?: {
 		accountPackageId?: string;
 	};

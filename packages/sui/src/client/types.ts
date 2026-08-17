@@ -411,8 +411,7 @@ export namespace SuiClientTypes {
 	}
 
 	export type WaitForTransactionOptions<Include extends TransactionInclude = {}> =
-		| WaitForTransactionByDigest<Include>
-		| WaitForTransactionByResult<Include>;
+		WaitForTransactionByDigest<Include> | WaitForTransactionByResult<Include>;
 
 	export interface WaitForTransactionByDigest<
 		Include extends TransactionInclude = {},

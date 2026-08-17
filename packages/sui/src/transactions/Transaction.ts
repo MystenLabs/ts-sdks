@@ -50,8 +50,7 @@ export type TransactionResult = Extract<Argument, { Result: unknown }> &
 	Extract<Argument, { NestedResult: unknown }>[];
 
 export type TransactionResultArgument =
-	| Extract<Argument, { Result: unknown }>
-	| readonly Extract<Argument, { NestedResult: unknown }>[];
+	Extract<Argument, { Result: unknown }> | readonly Extract<Argument, { NestedResult: unknown }>[];
 
 export type AsyncTransactionThunk<
 	T extends TransactionResultArgument | void = TransactionResultArgument | void,

@@ -272,70 +272,66 @@ export function decodeRedeems(
 		'order_events',
 		'LiveOrderRedeemed',
 		orderEvents.LiveOrderRedeemed,
-	).map(
-		(e): RedeemReceipt => ({
-			marketId: normalizeSuiAddress(e.expiry_market_id),
-			accountId: normalizeSuiAddress(e.account_id),
-			owner: normalizeSuiAddress(e.owner),
-			orderId: e.order_id,
-			positionRootId: e.position_root_id,
-			quantityClosed: fromRaw(e.quantity_closed, 6),
-			remaining: fromRaw(e.remaining_quantity, 6),
-			replacementOrderId: e.replacement_order_id,
-			// settle_live_redeem_payment credits redeem_amount minus all three
-			// fee components — the event's redeem_amount is GROSS.
-			proceeds: fromRaw(e.redeem_amount - e.trading_fee - e.builder_fee - e.penalty_fee, 6),
-			gross: fromRaw(e.redeem_amount, 6),
-			liquidated: false,
-			fees: {
-				trading: fromRaw(e.trading_fee, 6),
-				builder: fromRaw(e.builder_fee, 6),
-				penalty: fromRaw(e.penalty_fee, 6),
-			},
-			builderCodeId: optId(e.builder_code_id),
-			raw: {
-				quantityClosed: e.quantity_closed,
-				remaining: e.remaining_quantity,
-				proceeds: e.redeem_amount - e.trading_fee - e.builder_fee - e.penalty_fee,
-				gross: e.redeem_amount,
-				tradingFee: e.trading_fee,
-				builderFee: e.builder_fee,
-				penaltyFee: e.penalty_fee,
-			},
-		}),
-	);
+	).map((e): RedeemReceipt => ({
+		marketId: normalizeSuiAddress(e.expiry_market_id),
+		accountId: normalizeSuiAddress(e.account_id),
+		owner: normalizeSuiAddress(e.owner),
+		orderId: e.order_id,
+		positionRootId: e.position_root_id,
+		quantityClosed: fromRaw(e.quantity_closed, 6),
+		remaining: fromRaw(e.remaining_quantity, 6),
+		replacementOrderId: e.replacement_order_id,
+		// settle_live_redeem_payment credits redeem_amount minus all three
+		// fee components — the event's redeem_amount is GROSS.
+		proceeds: fromRaw(e.redeem_amount - e.trading_fee - e.builder_fee - e.penalty_fee, 6),
+		gross: fromRaw(e.redeem_amount, 6),
+		liquidated: false,
+		fees: {
+			trading: fromRaw(e.trading_fee, 6),
+			builder: fromRaw(e.builder_fee, 6),
+			penalty: fromRaw(e.penalty_fee, 6),
+		},
+		builderCodeId: optId(e.builder_code_id),
+		raw: {
+			quantityClosed: e.quantity_closed,
+			remaining: e.remaining_quantity,
+			proceeds: e.redeem_amount - e.trading_fee - e.builder_fee - e.penalty_fee,
+			gross: e.redeem_amount,
+			tradingFee: e.trading_fee,
+			builderFee: e.builder_fee,
+			penaltyFee: e.penalty_fee,
+		},
+	}));
 	const liquidated = decodeAll(
 		result,
 		pkg,
 		'order_events',
 		'LiquidatedOrderRedeemed',
 		orderEvents.LiquidatedOrderRedeemed,
-	).map(
-		(e): RedeemReceipt => ({
-			marketId: normalizeSuiAddress(e.expiry_market_id),
-			accountId: normalizeSuiAddress(e.account_id),
-			owner: normalizeSuiAddress(e.owner),
-			orderId: e.order_id,
-			positionRootId: e.position_root_id,
-			quantityClosed: fromRaw(e.quantity_closed, 6),
-			remaining: 0,
-			replacementOrderId: null,
-			proceeds: 0,
-			gross: 0,
-			liquidated: true,
-			fees: { trading: 0, builder: 0, penalty: 0 },
-			builderCodeId: null,
-			raw: {
-				quantityClosed: e.quantity_closed,
-				remaining: 0n,
-				proceeds: 0n,
-				gross: 0n,
-				tradingFee: 0n,
-				builderFee: 0n,
-				penaltyFee: 0n,
-			},
-		}),
-	);
+	).map((e): RedeemReceipt => ({
+		marketId: normalizeSuiAddress(e.expiry_market_id),
+		accountId: normalizeSuiAddress(e.account_id),
+		owner: normalizeSuiAddress(e.owner),
+		orderId: e.order_id,
+		positionRootId: e.position_root_id,
+		quantityClosed: fromRaw(e.quantity_closed, 6),
+		remaining: 0,
+		replacementOrderId: null,
+		proceeds: 0,
+		gross: 0,
+		liquidated: true,
+		fees: { trading: 0, builder: 0, penalty: 0 },
+		builderCodeId: null,
+		raw: {
+			quantityClosed: e.quantity_closed,
+			remaining: 0n,
+			proceeds: 0n,
+			gross: 0n,
+			tradingFee: 0n,
+			builderFee: 0n,
+			penaltyFee: 0n,
+		},
+	}));
 	return [...live, ...liquidated];
 }
 

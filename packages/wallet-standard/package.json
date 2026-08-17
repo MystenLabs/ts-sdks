@@ -42,8 +42,8 @@
 		"@wallet-standard/core": "1.1.2"
 	},
 	"devDependencies": {
-		"typescript": "^6.0.3",
-		"typescript-json-schema": "^0.67.4"
+		"typescript": "^7.0.2",
+		"typescript-json-schema": "^0.68.0"
 	},
 	"peerDependencies": {
 		"@mysten/sui": "workspace:^"

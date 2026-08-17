@@ -42,16 +42,16 @@
 	},
 	"homepage": "https://sdk.mystenlabs.com/zksend",
 	"devDependencies": {
-		"@types/node": "^25.9.3",
-		"typescript": "^6.0.3",
-		"vitest": "^4.1.8"
+		"@types/node": "^26.2.0",
+		"typescript": "^7.0.2",
+		"vitest": "^4.1.10"
 	},
 	"dependencies": {
 		"@mysten/utils": "workspace:^",
 		"@mysten/wallet-standard": "workspace:^",
 		"@mysten/window-wallet-core": "workspace:^",
 		"mitt": "^3.0.1",
-		"nanostores": "^1.3.0",
+		"nanostores": "^1.4.2",
 		"valibot": "^1.4.2"
 	},
 	"peerDependencies": {

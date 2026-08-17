@@ -216,8 +216,7 @@ export interface DepositOptions {
 export function deposit(options: DepositOptions) {
 	const packageAddress = options.package ?? '@deepbook/margin';
 	const argumentsTypes = [null, null, null, null, null, '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['self', 'registry', 'baseOracle', 'quoteOracle', 'coin'];
 	return (tx: Transaction) =>
@@ -426,8 +425,7 @@ export interface LiquidateOptions {
 export function liquidate(options: LiquidateOptions) {
 	const packageAddress = options.package ?? '@deepbook/margin';
 	const argumentsTypes = [null, null, null, null, null, null, null, '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = [
 		'self',
@@ -475,8 +473,7 @@ export interface RiskRatioOptions {
 export function riskRatio(options: RiskRatioOptions) {
 	const packageAddress = options.package ?? '@deepbook/margin';
 	const argumentsTypes = [null, null, null, null, null, null, null, '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = [
 		'self',
@@ -524,8 +521,7 @@ export interface RiskRatioUnsafeOptions {
 export function riskRatioUnsafe(options: RiskRatioUnsafeOptions) {
 	const packageAddress = options.package ?? '@deepbook/margin';
 	const argumentsTypes = [null, null, null, null, null, null, null, '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = [
 		'self',
@@ -573,8 +569,7 @@ export interface ManagerStateOptions {
 export function managerState(options: ManagerStateOptions) {
 	const packageAddress = options.package ?? '@deepbook/margin';
 	const argumentsTypes = [null, null, null, null, null, null, null, '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = [
 		'self',

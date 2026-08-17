@@ -115,15 +115,17 @@ export class DAppKitConnectModal
 		return html`<dialog @click=${this.handleDialogClick} @close=${this.#resetSelection}>
 			<div class="content" @click=${this.handleContentClick}>
 				<div class="connect-header">
-					${showBackButton
-						? html`<button
-								class="icon-button back-button"
-								aria-label="Go back"
-								@click=${this.#resetSelection}
-							>
-								${backIcon}
-							</button>`
-						: nothing}
+					${
+						showBackButton
+							? html`<button
+									class="icon-button back-button"
+									aria-label="Go back"
+									@click=${this.#resetSelection}
+								>
+									${backIcon}
+								</button>`
+							: nothing
+					}
 					<h2 class="title">${wallets.length > 0 ? 'Connect a wallet' : 'No wallets installed'}</h2>
 					<button
 						class="icon-button close-button"
@@ -173,9 +175,11 @@ export class DAppKitConnectModal
 
 				return html`<connection-status
 					.title=${wasRequestCancelled ? 'Request canceled' : 'Connection failed'}
-					.copy=${wasRequestCancelled
-						? `You canceled the request`
-						: 'Something went wrong. Please try again'}
+					.copy=${
+						wasRequestCancelled
+							? `You canceled the request`
+							: 'Something went wrong. Please try again'
+					}
 					.wallet=${wallet}
 				>
 					<internal-button

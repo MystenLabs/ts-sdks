@@ -180,8 +180,7 @@ export interface FuseArguments {
 export interface FuseOptions {
 	package?: string;
 	arguments:
-		| FuseArguments
-		| [first: RawTransactionArgument<string>, second: RawTransactionArgument<string>];
+		FuseArguments | [first: RawTransactionArgument<string>, second: RawTransactionArgument<string>];
 }
 /**
  * Fuse two storage objects that either cover the same period or adjacent periods

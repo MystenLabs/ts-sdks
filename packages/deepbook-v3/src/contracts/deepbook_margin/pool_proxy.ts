@@ -333,8 +333,7 @@ export interface ModifyOrderOptions {
 export function modifyOrder(options: ModifyOrderOptions) {
 	const packageAddress = options.package ?? '@deepbook/margin';
 	const argumentsTypes = [null, null, null, 'u128', 'u64', '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['registry', 'marginManager', 'pool', 'orderId', 'newQuantity'];
 	return (tx: Transaction) =>
@@ -368,8 +367,7 @@ export interface CancelOrderOptions {
 export function cancelOrder(options: CancelOrderOptions) {
 	const packageAddress = options.package ?? '@deepbook/margin';
 	const argumentsTypes = [null, null, null, 'u128', '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['registry', 'marginManager', 'pool', 'orderId'];
 	return (tx: Transaction) =>
@@ -403,8 +401,7 @@ export interface CancelOrdersOptions {
 export function cancelOrders(options: CancelOrdersOptions) {
 	const packageAddress = options.package ?? '@deepbook/margin';
 	const argumentsTypes = [null, null, null, 'vector<u128>', '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['registry', 'marginManager', 'pool', 'orderIds'];
 	return (tx: Transaction) =>

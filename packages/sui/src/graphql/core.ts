@@ -215,32 +215,30 @@ export class GraphQLCoreClient extends CoreClient {
 		);
 
 		return {
-			objects: objects.nodes.map(
-				(obj): SuiClientTypes.Object<Include> => ({
-					objectId: obj.address,
-					version: obj.version?.toString()!,
-					digest: obj.digest!,
-					owner: mapOwner(obj.owner!),
-					type: obj.contents?.type?.repr!,
-					content: (obj.contents?.bcs
-						? fromBase64(obj.contents.bcs)
-						: undefined) as SuiClientTypes.Object<Include>['content'],
-					previousTransaction: (obj.previousTransaction?.digest ??
-						undefined) as SuiClientTypes.Object<Include>['previousTransaction'],
-					objectBcs: (obj.objectBcs
-						? fromBase64(obj.objectBcs)
-						: undefined) as SuiClientTypes.Object<Include>['objectBcs'],
-					json: (options.include?.json
-						? obj.contents?.json
-							? (obj.contents.json as Record<string, unknown>)
-							: null
-						: undefined) as SuiClientTypes.Object<Include>['json'],
-					display: mapDisplay(
-						options.include?.display,
-						obj.contents?.display,
-					) as SuiClientTypes.Object<Include>['display'],
-				}),
-			),
+			objects: objects.nodes.map((obj): SuiClientTypes.Object<Include> => ({
+				objectId: obj.address,
+				version: obj.version?.toString()!,
+				digest: obj.digest!,
+				owner: mapOwner(obj.owner!),
+				type: obj.contents?.type?.repr!,
+				content: (obj.contents?.bcs
+					? fromBase64(obj.contents.bcs)
+					: undefined) as SuiClientTypes.Object<Include>['content'],
+				previousTransaction: (obj.previousTransaction?.digest ??
+					undefined) as SuiClientTypes.Object<Include>['previousTransaction'],
+				objectBcs: (obj.objectBcs
+					? fromBase64(obj.objectBcs)
+					: undefined) as SuiClientTypes.Object<Include>['objectBcs'],
+				json: (options.include?.json
+					? obj.contents?.json
+						? (obj.contents.json as Record<string, unknown>)
+						: null
+					: undefined) as SuiClientTypes.Object<Include>['json'],
+				display: mapDisplay(
+					options.include?.display,
+					obj.contents?.display,
+				) as SuiClientTypes.Object<Include>['display'],
+			})),
 			hasNextPage: objects.pageInfo.hasNextPage,
 			cursor: objects.pageInfo.endCursor ?? null,
 		};
@@ -266,16 +264,14 @@ export class GraphQLCoreClient extends CoreClient {
 		return {
 			cursor: coins.pageInfo.endCursor ?? null,
 			hasNextPage: coins.pageInfo.hasNextPage,
-			objects: coins.nodes.map(
-				(coin): SuiClientTypes.Coin => ({
-					objectId: coin.address,
-					version: coin.version?.toString()!,
-					digest: coin.digest!,
-					owner: mapOwner(coin.owner!),
-					type: coin.contents?.type?.repr!,
-					balance: (coin.contents?.json as { balance: string })?.balance,
-				}),
-			),
+			objects: coins.nodes.map((coin): SuiClientTypes.Coin => ({
+				objectId: coin.address,
+				version: coin.version?.toString()!,
+				digest: coin.digest!,
+				owner: mapOwner(coin.owner!),
+				type: coin.contents?.type?.repr!,
+				balance: (coin.contents?.json as { balance: string })?.balance,
+			})),
 		};
 	}
 

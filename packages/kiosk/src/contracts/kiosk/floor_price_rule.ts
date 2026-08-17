@@ -72,8 +72,7 @@ export interface ProveArguments {
 export interface ProveOptions {
 	package?: string;
 	arguments:
-		| ProveArguments
-		| [policy: RawTransactionArgument<string>, request: TransactionArgument];
+		ProveArguments | [policy: RawTransactionArgument<string>, request: TransactionArgument];
 	typeArguments: [string];
 }
 /** Buyer action: Prove that the amount is higher or equal to the floor_price. */

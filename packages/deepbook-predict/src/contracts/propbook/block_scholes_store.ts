@@ -635,8 +635,7 @@ export interface ApplySpotBatchArguments {
 export interface ApplySpotBatchOptions {
 	package?: string;
 	arguments:
-		| ApplySpotBatchArguments
-		| [store: RawTransactionArgument<string>, batch: TransactionArgument];
+		ApplySpotBatchArguments | [store: RawTransactionArgument<string>, batch: TransactionArgument];
 }
 /** Ingest the canonical spot batch for this store's base asset. */
 export function applySpotBatch(options: ApplySpotBatchOptions) {
@@ -674,8 +673,7 @@ export interface ApplyForwardBatchOptions {
 export function applyForwardBatch(options: ApplyForwardBatchOptions) {
 	const packageAddress = options.package ?? '@local-pkg/propbook';
 	const argumentsTypes = [null, null, 'vector<u64>', '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['store', 'batch', 'expiriesMs'];
 	return (tx: Transaction) =>
@@ -705,8 +703,7 @@ export interface ApplySviBatchOptions {
 export function applySviBatch(options: ApplySviBatchOptions) {
 	const packageAddress = options.package ?? '@local-pkg/propbook';
 	const argumentsTypes = [null, null, 'vector<u64>', '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['store', 'batch', 'expiriesMs'];
 	return (tx: Transaction) =>

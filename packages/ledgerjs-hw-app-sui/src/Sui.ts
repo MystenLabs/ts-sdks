@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { DeviceModelId } from '@ledgerhq/devices';
-import { LatestFirmwareVersionRequired, UpdateYourApp } from '@ledgerhq/errors';
 import { loadPKI } from '@ledgerhq/hw-bolos';
 import Transport, { TransportStatusError } from '@ledgerhq/hw-transport';
 import calService from '@ledgerhq/ledger-cal-service';
@@ -11,6 +10,7 @@ import semver from 'semver';
 
 import type { DescriptorInput } from './descriptor.js';
 import { buildDescriptor } from './descriptor.js';
+import { LatestFirmwareVersionRequired, UpdateYourApp } from './errors.js';
 
 export type GetPublicKeyResult = {
 	publicKey: Uint8Array;

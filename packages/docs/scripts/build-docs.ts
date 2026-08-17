@@ -17,7 +17,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-import { EXCLUDED_SUBDIRS, findMdxFiles, generateSectionIndex, processFile } from './docs-utils.ts';
+import { findMdxFiles, generateSectionIndex, processFile } from './docs-utils.ts';
 
 const SCRIPTS_DIR = new URL('.', import.meta.url).pathname;
 const DOCS_PKG_DIR = path.resolve(SCRIPTS_DIR, '..');
@@ -30,26 +30,14 @@ const CONTENT_DIR = path.join(DOCS_PKG_DIR, 'content');
 interface ContentMapping {
 	/** Content section directory name (under content/) */
 	contentSection: string;
-	/** If set, only include content from this subdirectory */
-	subdirectory?: string;
-	/** Subdirectories to exclude (relative to content/) */
-	excludedSubdirs?: string[];
 }
 
 const PACKAGE_CONTENT_MAP: Record<string, ContentMapping> = {
-	// Legacy dapp-kit (packages/dapp-kit/packages/legacy) gets only the legacy subdirectory
-	legacy: {
-		contentSection: 'dapp-kit',
-		subdirectory: 'legacy',
-	},
-	// New dapp-kit packages get everything except legacy
 	'dapp-kit-core': {
 		contentSection: 'dapp-kit',
-		excludedSubdirs: ['dapp-kit/legacy'],
 	},
 	'dapp-kit-react': {
 		contentSection: 'dapp-kit',
-		excludedSubdirs: ['dapp-kit/legacy'],
 	},
 };
 
@@ -59,16 +47,8 @@ const PACKAGE_CONTENT_MAP: Record<string, ContentMapping> = {
  * @param sectionName  Name of the content section (e.g. "sui", "dapp-kit")
  * @param outputDir    Absolute path to write docs into
  */
-async function buildSectionDocs(
-	sectionName: string,
-	outputDir: string,
-	options: { excludedSubdirs?: string[]; subdirectory?: string } = {},
-): Promise<number> {
-	const sectionContentDir = path.join(CONTENT_DIR, sectionName);
-	const excludedSubdirs = options.excludedSubdirs ?? [];
-	const contentRoot = options.subdirectory
-		? path.join(sectionContentDir, options.subdirectory)
-		: sectionContentDir;
+async function buildSectionDocs(sectionName: string, outputDir: string): Promise<number> {
+	const contentRoot = path.join(CONTENT_DIR, sectionName);
 
 	if (!fs.existsSync(contentRoot)) {
 		return 0;
@@ -80,13 +60,7 @@ async function buildSectionDocs(
 	}
 	fs.mkdirSync(outputDir, { recursive: true });
 
-	// Find and process MDX files (respecting exclusions)
-	const mdxFiles = findMdxFiles(contentRoot).filter((f) => {
-		const rel = path.relative(CONTENT_DIR, f);
-		return !excludedSubdirs.some(
-			(dir) => rel.startsWith(dir + path.sep) || rel.startsWith(dir + '/'),
-		);
-	});
+	const mdxFiles = findMdxFiles(contentRoot);
 
 	let processed = 0;
 	let errors = 0;
@@ -108,7 +82,7 @@ async function buildSectionDocs(
 	}
 
 	// Generate per-section index
-	const sectionIndex = generateSectionIndex(contentRoot, '.', '#', excludedSubdirs);
+	const sectionIndex = generateSectionIndex(contentRoot, '.', '#');
 	fs.writeFileSync(path.join(outputDir, 'llms-index.md'), sectionIndex);
 
 	return processed;
@@ -138,9 +112,7 @@ async function buildAll(): Promise<void> {
 	let totalFiles = 0;
 	for (const section of sections) {
 		const outputDir = path.join(distDir, section);
-		const count = await buildSectionDocs(section, outputDir, {
-			excludedSubdirs: EXCLUDED_SUBDIRS,
-		});
+		const count = await buildSectionDocs(section, outputDir);
 		if (count > 0) {
 			console.log(`  ${section}/ — ${count} files`);
 		}
@@ -156,7 +128,7 @@ async function buildAll(): Promise<void> {
 	for (const section of sections) {
 		const sectionDir = path.join(CONTENT_DIR, section);
 		if (!fs.existsSync(sectionDir)) continue;
-		fullIndexLines.push(generateSectionIndex(sectionDir, `./${section}`, '##', EXCLUDED_SUBDIRS));
+		fullIndexLines.push(generateSectionIndex(sectionDir, `./${section}`, '##'));
 	}
 	fs.writeFileSync(path.join(distDir, 'llms-index.md'), fullIndexLines.join('\n'));
 
@@ -178,10 +150,7 @@ async function buildSingle(): Promise<void> {
 	}
 
 	const outputDir = path.join(cwd, 'docs');
-	const count = await buildSectionDocs(contentSection, outputDir, {
-		subdirectory: mapping?.subdirectory,
-		excludedSubdirs: mapping?.excludedSubdirs,
-	});
+	const count = await buildSectionDocs(contentSection, outputDir);
 	console.log(`Generated ${count} docs files in ${packageName}/docs/`);
 }
 

@@ -43,8 +43,7 @@ function resolveClientConfig(): ResolvedClientConfig {
 	const packageId = process.env.HASHI_E2E_PACKAGE_ID ?? fallback?.packageId;
 	const hashiObjectId = process.env.HASHI_E2E_HASHI_OBJECT_ID ?? fallback?.hashiObjectId;
 	const bitcoinNetwork = (process.env.HASHI_E2E_BITCOIN_NETWORK ?? fallback?.bitcoinNetwork) as
-		| BitcoinNetwork
-		| undefined;
+		BitcoinNetwork | undefined;
 	if (!packageId || !hashiObjectId || !bitcoinNetwork) {
 		throw new Error(
 			`Missing integration-test config for network=${network}. ` +

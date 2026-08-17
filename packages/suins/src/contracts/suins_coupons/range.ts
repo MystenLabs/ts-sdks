@@ -21,8 +21,7 @@ export interface NewArguments {
 export interface NewOptions {
 	package?: string;
 	arguments:
-		| NewArguments
-		| [from: RawTransactionArgument<number>, to: RawTransactionArgument<number>];
+		NewArguments | [from: RawTransactionArgument<number>, to: RawTransactionArgument<number>];
 }
 /** a new Range constructor[from, to] */
 export function _new(options: NewOptions) {
@@ -44,8 +43,7 @@ export interface IsInRangeArguments {
 export interface IsInRangeOptions {
 	package?: string;
 	arguments:
-		| IsInRangeArguments
-		| [range: TransactionArgument, number: RawTransactionArgument<number>];
+		IsInRangeArguments | [range: TransactionArgument, number: RawTransactionArgument<number>];
 }
 export function isInRange(options: IsInRangeOptions) {
 	const packageAddress = options.package ?? '@suins/coupons';

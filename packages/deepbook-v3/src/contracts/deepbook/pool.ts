@@ -573,8 +573,7 @@ export interface SwapExactQuantityOptions {
 export function swapExactQuantity(options: SwapExactQuantityOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
 	const argumentsTypes = [null, null, null, null, 'u64', '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['self', 'baseIn', 'quoteIn', 'deepIn', 'minOut'];
 	return (tx: Transaction) =>
@@ -676,8 +675,7 @@ export interface ModifyOrderOptions {
 export function modifyOrder(options: ModifyOrderOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
 	const argumentsTypes = [null, null, null, 'u128', 'u64', '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['self', 'balanceManager', 'tradeProof', 'orderId', 'newQuantity'];
 	return (tx: Transaction) =>
@@ -716,8 +714,7 @@ export interface CancelOrderOptions {
 export function cancelOrder(options: CancelOrderOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
 	const argumentsTypes = [null, null, null, 'u128', '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['self', 'balanceManager', 'tradeProof', 'orderId'];
 	return (tx: Transaction) =>
@@ -756,8 +753,7 @@ export interface CancelOrdersOptions {
 export function cancelOrders(options: CancelOrdersOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
 	const argumentsTypes = [null, null, null, 'vector<u128>', '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['self', 'balanceManager', 'tradeProof', 'orderIds'];
 	return (tx: Transaction) =>
@@ -797,8 +793,7 @@ export interface CancelLiveOrderOptions {
 export function cancelLiveOrder(options: CancelLiveOrderOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
 	const argumentsTypes = [null, null, null, 'u128', '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['self', 'balanceManager', 'tradeProof', 'orderId'];
 	return (tx: Transaction) =>
@@ -839,8 +834,7 @@ export interface CancelLiveOrdersOptions {
 export function cancelLiveOrders(options: CancelLiveOrdersOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
 	const argumentsTypes = [null, null, null, 'vector<u128>', '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['self', 'balanceManager', 'tradeProof', 'orderIds'];
 	return (tx: Transaction) =>
@@ -1495,8 +1489,7 @@ export interface CreatePoolAdminOptions {
 export function createPoolAdmin(options: CreatePoolAdminOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
 	const argumentsTypes = [null, 'u64', 'u64', 'u64', 'bool', 'bool', null] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = [
 		'registry',
@@ -1663,8 +1656,7 @@ export interface AdjustMinLotSizeAdminOptions {
 export function adjustMinLotSizeAdmin(options: AdjustMinLotSizeAdminOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
 	const argumentsTypes = [null, 'u64', 'u64', null, '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['self', 'newLotSize', 'newMinSize', 'Cap'];
 	return (tx: Transaction) =>
@@ -1733,8 +1725,7 @@ export interface SetEwmaParamsOptions {
 export function setEwmaParams(options: SetEwmaParamsOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
 	const argumentsTypes = [null, null, 'u64', 'u64', 'u64', '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['self', 'Cap', 'alpha', 'zScoreThreshold', 'additionalTakerFee'];
 	return (tx: Transaction) =>
@@ -2194,8 +2185,7 @@ export interface GetLevel2RangeOptions {
 export function getLevel2Range(options: GetLevel2RangeOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
 	const argumentsTypes = [null, 'u64', 'u64', 'bool', '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['self', 'priceLow', 'priceHigh', 'isBid'];
 	return (tx: Transaction) =>
@@ -2532,8 +2522,7 @@ export interface CanPlaceMarketOrderOptions {
 export function canPlaceMarketOrder(options: CanPlaceMarketOrderOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
 	const argumentsTypes = [null, null, 'u64', 'bool', 'bool', '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['self', 'balanceManager', 'quantity', 'isBid', 'payWithDeep'];
 	return (tx: Transaction) =>
@@ -2598,8 +2587,7 @@ export interface CheckLimitOrderParamsOptions {
 export function checkLimitOrderParams(options: CheckLimitOrderParamsOptions) {
 	const packageAddress = options.package ?? '@deepbook/core';
 	const argumentsTypes = [null, 'u64', 'u64', 'u64', '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['self', 'price', 'quantity', 'expireTimestamp'];
 	return (tx: Transaction) =>

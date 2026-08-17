@@ -123,5 +123,5 @@ describe('client-side pricer parity (testnet)', () => {
 		// comparison, unless EVERY market was in a tolerated state — oracle stale, reference
 		// tick not yet seeded, or too close to expiry for the two-load timing to be meaningful.
 		expect(compared > 0 || oracleStale > 0 || referenceUnset > 0 || nearExpiry > 0).toBe(true);
-	});
+	}, 30_000);
 });

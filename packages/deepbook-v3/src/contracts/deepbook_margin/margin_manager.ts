@@ -274,8 +274,7 @@ export interface ExecuteConditionalOrdersOptions {
 export function executeConditionalOrders(options: ExecuteConditionalOrdersOptions) {
 	const packageAddress = options.package ?? '@deepbook/margin';
 	const argumentsTypes = [null, null, null, null, null, 'u64', '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = [
 		'Self',
@@ -503,8 +502,7 @@ export interface ShareArguments {
 export interface ShareOptions {
 	package?: string;
 	arguments:
-		| ShareArguments
-		| [manager: RawTransactionArgument<string>, initializer: TransactionArgument];
+		ShareArguments | [manager: RawTransactionArgument<string>, initializer: TransactionArgument];
 	typeArguments: [string, string];
 }
 /** Shares the margin manager. The initializer is dropped in the process. */
@@ -703,8 +701,7 @@ export interface DepositOptions {
 export function deposit(options: DepositOptions) {
 	const packageAddress = options.package ?? '@deepbook/margin';
 	const argumentsTypes = [null, null, null, null, null, '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['self', 'registry', 'baseOracle', 'quoteOracle', 'coin'];
 	return (tx: Transaction) =>
@@ -1006,8 +1003,7 @@ export interface LiquidateOptions {
 export function liquidate(options: LiquidateOptions) {
 	const packageAddress = options.package ?? '@deepbook/margin';
 	const argumentsTypes = [null, null, null, null, null, null, null, '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = [
 		'self',
@@ -1055,8 +1051,7 @@ export interface RiskRatioOptions {
 export function riskRatio(options: RiskRatioOptions) {
 	const packageAddress = options.package ?? '@deepbook/margin';
 	const argumentsTypes = [null, null, null, null, null, null, null, '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = [
 		'self',
@@ -1109,8 +1104,7 @@ export interface RiskRatioUnsafeOptions {
 export function riskRatioUnsafe(options: RiskRatioUnsafeOptions) {
 	const packageAddress = options.package ?? '@deepbook/margin';
 	const argumentsTypes = [null, null, null, null, null, null, null, '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = [
 		'self',
@@ -1298,8 +1292,7 @@ export interface ManagerStateOptions {
 export function managerState(options: ManagerStateOptions) {
 	const packageAddress = options.package ?? '@deepbook/margin';
 	const argumentsTypes = [null, null, null, null, null, null, null, '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = [
 		'self',
@@ -1793,8 +1786,7 @@ export interface AccountArguments {
 export interface AccountOptions {
 	package?: string;
 	arguments:
-		| AccountArguments
-		| [self: RawTransactionArgument<string>, pool: RawTransactionArgument<string>];
+		AccountArguments | [self: RawTransactionArgument<string>, pool: RawTransactionArgument<string>];
 	typeArguments: [string, string];
 }
 export function account(options: AccountOptions) {
@@ -1887,8 +1879,7 @@ export interface CanPlaceMarketOrderOptions {
 export function canPlaceMarketOrder(options: CanPlaceMarketOrderOptions) {
 	const packageAddress = options.package ?? '@deepbook/margin';
 	const argumentsTypes = [null, null, 'u64', 'bool', 'bool', '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['self', 'pool', 'quantity', 'isBid', 'payWithDeep'];
 	return (tx: Transaction) =>

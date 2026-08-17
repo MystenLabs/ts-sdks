@@ -153,8 +153,7 @@ export interface NewPendingLimitOrderOptions {
 export function newPendingLimitOrder(options: NewPendingLimitOrderOptions) {
 	const packageAddress = options.package ?? '@deepbook/margin';
 	const argumentsTypes = ['u64', 'u8', 'u8', 'u64', 'u64', 'bool', 'bool', 'u64'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = [
 		'clientOrderId',

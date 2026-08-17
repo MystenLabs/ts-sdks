@@ -52,8 +52,7 @@ export interface InsertOrUpdateOptions {
 export function insertOrUpdate(options: InsertOrUpdateOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, '0x1::string::String', '0x1::string::String'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['self', 'key', 'value'];
 	return (tx: Transaction) =>
@@ -92,8 +91,7 @@ export interface RemoveIfExistsArguments {
 export interface RemoveIfExistsOptions {
 	package?: string;
 	arguments:
-		| RemoveIfExistsArguments
-		| [self: TransactionArgument, key: RawTransactionArgument<string>];
+		RemoveIfExistsArguments | [self: TransactionArgument, key: RawTransactionArgument<string>];
 }
 /**
  * Removes the metadata associated with the given key, if it exists.

@@ -108,8 +108,7 @@ export interface GrpcWaitForTransactionByResult<
 }
 
 export type GrpcWaitForTransactionOptions<Include extends GrpcTransactionInclude = {}> =
-	| GrpcWaitForTransactionByDigest<Include>
-	| GrpcWaitForTransactionByResult<Include>;
+	GrpcWaitForTransactionByDigest<Include> | GrpcWaitForTransactionByResult<Include>;
 
 export interface GrpcExecuteTransactionOptions<
 	Include extends GrpcTransactionInclude = {},

@@ -59,8 +59,8 @@ export const e2eLiveNetworkDryRunFlow = async (network: 'mainnet' | 'testnet') =
 	const tx = new Transaction();
 	const coinConfig = client.suins.config.coins.SUI; // Specify the coin type used for the transaction
 
-	// Split coins for registration and Pyth fee upfront
-	const [coinInput, pythFeeCoin] = tx.splitCoins(tx.gas, [10n * MIST_PER_SUI, MIST_PER_SUI]);
+	// Keep enough headroom for the USD-denominated registration price as the SUI price fluctuates.
+	const [coinInput, pythFeeCoin] = tx.splitCoins(tx.gas, [100n * MIST_PER_SUI, MIST_PER_SUI]);
 
 	const priceInfoObjectId =
 		coinConfig !== client.suins.config.coins.USDC

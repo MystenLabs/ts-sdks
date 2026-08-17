@@ -49,8 +49,7 @@ export function createPriceFeedsUsingAccumulator(options: CreatePriceFeedsUsingA
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null, 'vector<u8>', null, '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -90,8 +89,7 @@ export function createAuthenticatedPriceInfosUsingAccumulator(
 	const packageAddress =
 		options.package ?? '0xabf837e98c26087cba0883c0a7a28326b1fa3c5e1e2c5abdb486f9e8f594c837';
 	const argumentsTypes = [null, 'vector<u8>', null, '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	return (tx: Transaction) =>
 		tx.moveCall({

@@ -87,21 +87,9 @@ Check the framework-specific guides:
 - [Next.js](/dapp-kit/getting-started/next-js)
 - [Vue](/dapp-kit/getting-started/vue)
 
-## Legacy package
-
-### @mysten/dapp-kit (Legacy)
-
-See the [Legacy dApp Kit documentation](/dapp-kit/legacy).
-
-The original React-focused version of the dApp Kit. This package provides:
-
-- React hooks for wallet connection and blockchain queries
-- Pre-built UI components with Radix UI
-- Integration with TanStack React Query
-- Comprehensive wallet state management
-
 <Callout type="warning">
-	**Deprecated JSON RPC Only**: This legacy package only works with the deprecated JSON RPC API and
-	will not be updated to support gRPC or GraphQL. All new projects should use
-	`@mysten/dapp-kit-core` and `@mysten/dapp-kit-react`.
+	**Deprecated JSON RPC Only**: The legacy `@mysten/dapp-kit` package only works with the deprecated
+	JSON RPC API and will not receive further updates. Follow the [migration
+	guide](/sui/migrations/sui-2.0/dapp-kit) to move to `@mysten/dapp-kit-core` and
+	`@mysten/dapp-kit-react`.
 </Callout>

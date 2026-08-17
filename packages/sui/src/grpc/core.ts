@@ -240,28 +240,26 @@ export class GrpcCoreClient extends CoreClient {
 			{ abort: options.signal },
 		);
 
-		const objects = response.response.objects.map(
-			(object): SuiClientTypes.Object<Include> => ({
-				objectId: object.objectId!,
-				version: object.version?.toString()!,
-				digest: object.digest!,
-				content: object.contents?.value as SuiClientTypes.Object<Include>['content'],
-				owner: mapOwner(object.owner)!,
-				type: object.objectType!,
-				previousTransaction: (object.previousTransaction ??
-					undefined) as SuiClientTypes.Object<Include>['previousTransaction'],
-				objectBcs: object.bcs?.value as SuiClientTypes.Object<Include>['objectBcs'],
-				json: (options.include?.json
-					? object.json
-						? (Value.toJson(object.json) as Record<string, unknown>)
-						: null
-					: undefined) as SuiClientTypes.Object<Include>['json'],
-				display: mapDisplayProto(
-					options.include?.display,
-					object.display,
-				) as SuiClientTypes.Object<Include>['display'],
-			}),
-		);
+		const objects = response.response.objects.map((object): SuiClientTypes.Object<Include> => ({
+			objectId: object.objectId!,
+			version: object.version?.toString()!,
+			digest: object.digest!,
+			content: object.contents?.value as SuiClientTypes.Object<Include>['content'],
+			owner: mapOwner(object.owner)!,
+			type: object.objectType!,
+			previousTransaction: (object.previousTransaction ??
+				undefined) as SuiClientTypes.Object<Include>['previousTransaction'],
+			objectBcs: object.bcs?.value as SuiClientTypes.Object<Include>['objectBcs'],
+			json: (options.include?.json
+				? object.json
+					? (Value.toJson(object.json) as Record<string, unknown>)
+					: null
+				: undefined) as SuiClientTypes.Object<Include>['json'],
+			display: mapDisplayProto(
+				options.include?.display,
+				object.display,
+			) as SuiClientTypes.Object<Include>['display'],
+		}));
 
 		return {
 			objects,
@@ -289,16 +287,14 @@ export class GrpcCoreClient extends CoreClient {
 		);
 
 		return {
-			objects: response.response.objects.map(
-				(object): SuiClientTypes.Coin => ({
-					objectId: object.objectId!,
-					version: object.version?.toString()!,
-					digest: object.digest!,
-					owner: mapOwner(object.owner)!,
-					type: object.objectType!,
-					balance: object.balance?.toString()!,
-				}),
-			),
+			objects: response.response.objects.map((object): SuiClientTypes.Coin => ({
+				objectId: object.objectId!,
+				version: object.version?.toString()!,
+				digest: object.digest!,
+				owner: mapOwner(object.owner)!,
+				type: object.objectType!,
+				balance: object.balance?.toString()!,
+			})),
 			cursor: response.response.nextPageToken ? toBase64(response.response.nextPageToken) : null,
 			hasNextPage: response.response.nextPageToken !== undefined,
 		};

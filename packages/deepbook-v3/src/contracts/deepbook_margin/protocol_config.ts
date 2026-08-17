@@ -112,8 +112,7 @@ export interface NewMarginPoolConfigWithRateLimitOptions {
 export function newMarginPoolConfigWithRateLimit(options: NewMarginPoolConfigWithRateLimitOptions) {
 	const packageAddress = options.package ?? '@deepbook/margin';
 	const argumentsTypes = ['u64', 'u64', 'u64', 'u64', 'u64', 'u64', 'bool'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = [
 		'supplyCap',

@@ -41,8 +41,7 @@ export interface InvalidateBlobIdOptions {
 export function invalidateBlobId(options: InvalidateBlobIdOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, 'vector<u8>', 'vector<u8>', 'vector<u8>'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['system', 'signature', 'membersBitmap', 'message'];
 	return (tx: Transaction) =>
@@ -82,8 +81,7 @@ export interface CertifyEventBlobOptions {
 export function certifyEventBlob(options: CertifyEventBlobOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, 'u256', 'u256', 'u64', 'u8', 'u64', 'u32'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = [
 		'system',
@@ -203,8 +201,7 @@ export interface RegisterBlobOptions {
 export function registerBlob(options: RegisterBlobOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, 'u256', 'u256', 'u64', 'u8', 'bool', null] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = [
 		'self',
@@ -250,8 +247,7 @@ export interface CertifyBlobOptions {
 export function certifyBlob(options: CertifyBlobOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, 'vector<u8>', 'vector<u8>', 'vector<u8>'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['self', 'blob', 'signature', 'signersBitmap', 'message'];
 	return (tx: Transaction) =>
@@ -432,8 +428,7 @@ export interface RegisterPooledBlobOptions {
 export function registerPooledBlob(options: RegisterPooledBlobOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, 'u256', 'u256', 'u64', 'u8', 'bool', null] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = [
 		'self',
@@ -697,8 +692,7 @@ export interface CertifyPooledBlobOptions {
 export function certifyPooledBlob(options: CertifyPooledBlobOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, 'u256', 'vector<u8>', 'vector<u8>', 'vector<u8>'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['self', 'storagePool', 'blobId', 'signature', 'signersBitmap', 'message'];
 	return (tx: Transaction) =>
@@ -790,8 +784,7 @@ export interface UpdateProtocolVersionOptions {
 export function updateProtocolVersion(options: UpdateProtocolVersionOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, 'vector<u8>', 'vector<u8>', 'vector<u8>'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['self', 'cap', 'signature', 'membersBitmap', 'message'];
 	return (tx: Transaction) =>
@@ -855,8 +848,7 @@ export interface UpdateDenyListOptions {
 export function updateDenyList(options: UpdateDenyListOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, 'vector<u8>', 'vector<u8>', 'vector<u8>'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['self', 'cap', 'signature', 'membersBitmap', 'message'];
 	return (tx: Transaction) =>
@@ -888,8 +880,7 @@ export interface DeleteDenyListedBlobOptions {
 export function deleteDenyListedBlob(options: DeleteDenyListedBlobOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, 'vector<u8>', 'vector<u8>', 'vector<u8>'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['self', 'signature', 'membersBitmap', 'message'];
 	return (tx: Transaction) =>

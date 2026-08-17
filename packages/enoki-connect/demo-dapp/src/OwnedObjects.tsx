@@ -1,19 +1,24 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-import { useCurrentAccount, useSuiClientQuery } from "@mysten/dapp-kit";
+import { useCurrentAccount, useCurrentClient } from "@mysten/dapp-kit-react";
 import { Flex, Heading, Text } from "@radix-ui/themes";
+import { useQuery } from "@tanstack/react-query";
 
 export function OwnedObjects() {
   const account = useCurrentAccount();
-  const { data, isPending, error } = useSuiClientQuery(
-    "getOwnedObjects",
-    {
-      owner: account?.address as string,
+  const client = useCurrentClient();
+  const { data, isPending, error } = useQuery({
+    queryKey: ["ownedObjects", account?.address],
+    queryFn: async () => {
+      if (!account) return null;
+
+      const { response } = await client.stateService.listOwnedObjects({
+        owner: account.address,
+      });
+      return response.objects ?? [];
     },
-    {
-      enabled: !!account,
-    },
-  );
+    enabled: !!account,
+  });
 
   if (!account) {
     return;
@@ -29,14 +34,14 @@ export function OwnedObjects() {
 
   return (
     <Flex direction="column" my="2">
-      {data.data.length === 0 ? (
+      {data.length === 0 ? (
         <Text>No objects owned by the connected wallet</Text>
       ) : (
         <Heading size="4">Objects owned by the connected wallet</Heading>
       )}
-      {data.data.map((object) => (
-        <Flex key={object.data?.objectId}>
-          <Text>Object ID: {object.data?.objectId}</Text>
+      {data.map((object) => (
+        <Flex key={object.objectId}>
+          <Text>Object ID: {object.objectId}</Text>
         </Flex>
       ))}
     </Flex>

@@ -303,8 +303,7 @@ export interface PoolBookParams {
 	minSize: number;
 }
 export type PoolDeepPrice =
-	| { asset_is_base: true; deep_per_base: number }
-	| { asset_is_base: false; deep_per_quote: number };
+	{ asset_is_base: true; deep_per_base: number } | { asset_is_base: false; deep_per_quote: number };
 
 // Quantity calculations
 export interface QuoteQuantityOut {
