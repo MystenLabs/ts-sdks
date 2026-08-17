@@ -10,6 +10,7 @@
 
 import { MoveStruct } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
+import { U64 } from '../../bcs/integers.js';
 const $moduleName = '@local-pkg/account::account_events';
 export const AccountCreated = new MoveStruct({
 	name: `${$moduleName}::AccountCreated`,
@@ -39,8 +40,8 @@ export const Deposited = new MoveStruct({
 	fields: {
 		account_id: bcs.Address,
 		coin_type: bcs.string(),
-		amount: bcs.u64(),
-		new_balance: bcs.u64(),
+		amount: U64,
+		new_balance: U64,
 	},
 });
 export const Withdrawn = new MoveStruct({
@@ -48,8 +49,8 @@ export const Withdrawn = new MoveStruct({
 	fields: {
 		account_id: bcs.Address,
 		coin_type: bcs.string(),
-		amount: bcs.u64(),
-		new_balance: bcs.u64(),
+		amount: U64,
+		new_balance: U64,
 	},
 });
 export const FundsSettled = new MoveStruct({
@@ -57,7 +58,7 @@ export const FundsSettled = new MoveStruct({
 	fields: {
 		account_id: bcs.Address,
 		coin_type: bcs.string(),
-		amount: bcs.u64(),
-		new_balance: bcs.u64(),
+		amount: U64,
+		new_balance: U64,
 	},
 });

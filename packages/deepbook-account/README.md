@@ -31,8 +31,8 @@ import { Transaction } from '@mysten/sui/transactions';
 import { AccountContract } from '@mysten/deepbook-account';
 
 const account = new AccountContract({
-	ACCOUNT_PACKAGE_ID: '0x…',
-	ACCOUNT_REGISTRY_ID: '0x…',
+	accountPackageId: '0x…',
+	accountRegistry: '0x…',
 });
 
 // The owner's canonical wrapper id — derived, no chain read.
@@ -47,8 +47,9 @@ tx.add(account.depositFunds({ wrapperId, coin, coinType: USDC }));
 const withdrawn = tx.add(account.withdrawFunds({ wrapperId, amount: 1_000_000n, coinType: USDC }));
 ```
 
-`AccountConfig` is ids-only by design: any config object carrying these two fields satisfies it
-directly. `DeepBookConfig` will once DeepBook's own account wrapper is deployed and ships its ids.
+`AccountConfig` is ids-only by design, and its keys are the codegen-generated config keys — the same
+object drives the generated move-call bindings' `config` option directly. Any config object carrying
+these two fields satisfies it.
 
 ## What's in the box
 

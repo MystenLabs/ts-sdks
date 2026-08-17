@@ -9,8 +9,8 @@ import type { PredictConfig } from '../config/index.js';
 // here in `(cfg) => (tx)` thunk form rather than callers reaching for the contract directly.
 export function accountContract(cfg: PredictConfig): AccountContract {
 	return new AccountContract({
-		ACCOUNT_PACKAGE_ID: cfg.packages.account,
-		ACCOUNT_REGISTRY_ID: cfg.objects.accountRegistry,
+		accountPackageId: cfg.packages.account,
+		accountRegistry: cfg.objects.accountRegistry,
 	});
 }
 

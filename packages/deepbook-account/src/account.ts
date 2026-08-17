@@ -10,10 +10,13 @@ import { deriveObjectID } from '@mysten/sui/utils';
 
 import * as account from './contracts/account/account.js';
 import * as accountRegistry from './contracts/account/account_registry.js';
+import type { AccountConfig as GeneratedAccountConfig } from './contracts/account/config-arguments.js';
 
 /**
  * The framework's well-known accumulator-root singleton, which settles the address
- * balances an account's custody funds move through.
+ * balances an account's custody funds move through. The generated bindings supply it
+ * automatically; it stays exported for PTBs that compose accounts with packages this
+ * SDK has no bindings for.
  */
 export const ACCUMULATOR_ROOT_ID = '0xacc';
 
@@ -22,15 +25,20 @@ export const ACCUMULATOR_ROOT_ID = '0xacc';
  *
  * Kept deliberately minimal — ids only — so any consumer of the shared account primitive
  * (DeepBook core's account wrapper, Predict, …) can drive these builders with its OWN
- * deployment's ids without constructing a full product-SDK config. It is shaped so that a
- * config carrying these two fields satisfies it directly; `DeepBookConfig` will once
- * DeepBook's own account wrapper is deployed and ships its ids.
+ * deployment's ids without constructing a full product-SDK config.
+ *
+ * Extends the codegen-generated config interface so there is exactly one config shape and
+ * casing: the generated bindings resolve `options.config` against these same keys, and if
+ * codegen adds, drops, or renames a key this file stops compiling instead of silently
+ * building a PTB against the wrong object. The ids are narrowed to `string` — codegen types
+ * the package id as optional and the registry as the wider `ConfigValue`, but the
+ * wrapper-address derivation needs plain ids.
  */
-export interface AccountConfig {
+export interface AccountConfig extends GeneratedAccountConfig {
 	/** The `account` Move package id. */
-	ACCOUNT_PACKAGE_ID: string;
+	accountPackageId: string;
 	/** The shared `AccountRegistry` object id. */
-	ACCOUNT_REGISTRY_ID: string;
+	accountRegistry: string;
 }
 
 // `AccountWrapperKey(address)` is a one-field positional struct, so its BCS is just the
@@ -68,8 +76,8 @@ export class AccountContract {
 	deriveAccountWrapperId(owner: string): string {
 		const key = AccountWrapperKey.serialize({ pos0: owner }).toBytes();
 		return deriveObjectID(
-			this.#config.ACCOUNT_REGISTRY_ID,
-			`${this.#config.ACCOUNT_PACKAGE_ID}::account_registry::AccountWrapperKey`,
+			this.#config.accountRegistry,
+			`${this.#config.accountPackageId}::account_registry::AccountWrapperKey`,
 			key,
 		);
 	}
@@ -82,7 +90,7 @@ export class AccountContract {
 	 */
 	generateAuth() {
 		return (tx: Transaction): TransactionResult =>
-			tx.add(account.generateAuth({ package: this.#config.ACCOUNT_PACKAGE_ID }));
+			tx.add(account.generateAuth({ config: this.#config }));
 	}
 
 	/**
@@ -93,18 +101,8 @@ export class AccountContract {
 	 */
 	createAccount() {
 		return (tx: Transaction): void => {
-			const wrapper = tx.add(
-				accountRegistry._new({
-					package: this.#config.ACCOUNT_PACKAGE_ID,
-					arguments: { registry: this.#config.ACCOUNT_REGISTRY_ID },
-				}),
-			);
-			tx.add(
-				account.share({
-					package: this.#config.ACCOUNT_PACKAGE_ID,
-					arguments: { self: wrapper },
-				}),
-			);
+			const wrapper = tx.add(accountRegistry._new({ config: this.#config }));
+			tx.add(account.share({ config: this.#config, arguments: { self: wrapper } }));
 		};
 	}
 
@@ -119,33 +117,23 @@ export class AccountContract {
 	 */
 	createAccountAndDeposit(params: { coin: TransactionObjectArgument; coinType: string }) {
 		return (tx: Transaction): void => {
-			const wrapper = tx.add(
-				accountRegistry._new({
-					package: this.#config.ACCOUNT_PACKAGE_ID,
-					arguments: { registry: this.#config.ACCOUNT_REGISTRY_ID },
-				}),
-			);
+			const wrapper = tx.add(accountRegistry._new({ config: this.#config }));
 			const auth = tx.add(this.generateAuth());
 			tx.add(
 				account.depositFunds({
-					package: this.#config.ACCOUNT_PACKAGE_ID,
-					arguments: { wrapper, auth, coin: params.coin, root: ACCUMULATOR_ROOT_ID },
+					config: this.#config,
+					arguments: { wrapper, auth, coin: params.coin },
 					typeArguments: [params.coinType],
 				}),
 			);
-			tx.add(
-				account.share({
-					package: this.#config.ACCOUNT_PACKAGE_ID,
-					arguments: { self: wrapper },
-				}),
-			);
+			tx.add(account.share({ config: this.#config, arguments: { self: wrapper } }));
 		};
 	}
 
 	/**
 	 * @description Deposit a caller-provided `coin` into the account's stored balance via the
-	 * PTB-callable `deposit_funds` (folds settle → authorize → load → deposit; clock
-	 * auto-injected). The caller owns coin sourcing.
+	 * PTB-callable `deposit_funds` (folds settle → authorize → load → deposit; clock and
+	 * accumulator root auto-injected). The caller owns coin sourcing.
 	 * @param {object} params Wrapper id, coin to deposit, and its coin type
 	 * @returns A function that takes a Transaction object
 	 */
@@ -154,13 +142,8 @@ export class AccountContract {
 			const auth = tx.add(this.generateAuth());
 			tx.add(
 				account.depositFunds({
-					package: this.#config.ACCOUNT_PACKAGE_ID,
-					arguments: {
-						wrapper: params.wrapperId,
-						auth,
-						coin: params.coin,
-						root: ACCUMULATOR_ROOT_ID,
-					},
+					config: this.#config,
+					arguments: { wrapper: params.wrapperId, auth, coin: params.coin },
 					typeArguments: [params.coinType],
 				}),
 			);
@@ -170,7 +153,8 @@ export class AccountContract {
 	/**
 	 * @description Withdraw `amount` (raw u64 units) from the account's stored balance via
 	 * the PTB-callable `withdraw_funds` (folds settle → authorize → load → withdraw; clock
-	 * auto-injected), returning the minted `Coin<T>` for the caller to transfer or compose.
+	 * and accumulator root auto-injected), returning the minted `Coin<T>` for the caller to
+	 * transfer or compose.
 	 * @param {object} params Wrapper id, raw amount, and coin type
 	 * @returns A function that takes a Transaction object and returns the `Coin<T>`
 	 */
@@ -179,13 +163,8 @@ export class AccountContract {
 			const auth = tx.add(this.generateAuth());
 			return tx.add(
 				account.withdrawFunds({
-					package: this.#config.ACCOUNT_PACKAGE_ID,
-					arguments: {
-						wrapper: params.wrapperId,
-						auth,
-						amount: params.amount,
-						root: ACCUMULATOR_ROOT_ID,
-					},
+					config: this.#config,
+					arguments: { wrapper: params.wrapperId, auth, amount: params.amount },
 					typeArguments: [params.coinType],
 				}),
 			);
@@ -200,12 +179,7 @@ export class AccountContract {
 	 */
 	loadAccount(params: { wrapperId: string }) {
 		return (tx: Transaction): TransactionResult =>
-			tx.add(
-				account.loadAccount({
-					package: this.#config.ACCOUNT_PACKAGE_ID,
-					arguments: { self: params.wrapperId },
-				}),
-			);
+			tx.add(account.loadAccount({ config: this.#config, arguments: { self: params.wrapperId } }));
 	}
 
 	/**
@@ -222,9 +196,9 @@ export class AccountContract {
 			);
 			return tx.add(
 				account.balance({
-					package: this.#config.ACCOUNT_PACKAGE_ID,
+					config: this.#config,
 					typeArguments: [params.coinType],
-					arguments: { self: acct, root: ACCUMULATOR_ROOT_ID },
+					arguments: { self: acct },
 				}),
 			);
 		};
