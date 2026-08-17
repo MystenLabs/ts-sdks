@@ -1,6 +1,4 @@
-import { bcs } from '@mysten/sui/bcs';
 import type { Transaction, TransactionArgument, TransactionResult } from '@mysten/sui/transactions';
-import { deriveObjectID } from '@mysten/sui/utils';
 import { toGeneratedConfig, type GeneratedConfig } from '../config/generated.js';
 import type { PredictConfig } from '../config/index.js';
 import { AccountContract, accountMoveCalls as account } from '@mysten/deepbook-account';
@@ -74,25 +72,16 @@ export function withAuth<Options extends AuthCallOptions>(
 	};
 }
 
-// `AccountWrapperKey(address)` is a one-field positional struct, so its BCS is just the
-// owner's 32-byte address. The wrapper is a derived object of the account registry, so
-// its id is `derive_address(accountRegistry, AccountWrapperKey(owner))`. See
-// `packages/account/sources/account_registry.move:39`.
-const AccountWrapperKeyBcs = bcs.struct('AccountWrapperKey', {
-	pos0: bcs.Address,
-});
-
-// The deterministic id of an owner's canonical account wrapper — no chain read needed.
+// The derivation must agree with on-chain `derive_address`, so it is owned in one place:
+// `@mysten/deepbook-account`. This projects Predict's config onto that contract.
 export function deriveAccountWrapperIdFrom(
 	config: Pick<GeneratedConfig, 'accountRegistry' | 'accountPackageId'>,
 	owner: string,
 ): string {
-	const key = AccountWrapperKeyBcs.serialize({ pos0: owner }).toBytes();
-	return deriveObjectID(
-		config.accountRegistry,
-		`${config.accountPackageId}::account_registry::AccountWrapperKey`,
-		key,
-	);
+	return new AccountContract({
+		accountPackageId: config.accountPackageId,
+		accountRegistry: config.accountRegistry,
+	}).deriveAccountWrapperId(owner);
 }
 
 /** The deterministic id of an owner's canonical account wrapper — no chain read needed. */
