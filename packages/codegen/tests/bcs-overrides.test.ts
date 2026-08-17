@@ -372,6 +372,25 @@ describe('rendering with bcsOverrides', () => {
 		expect(second).toMatch(/count:\s*ScaledU64[,\s]/);
 	});
 
+	it('keeps an earlier declaration override at later field use sites', async () => {
+		const output = await renderRegistry(
+			[
+				{ type: 'registry::Status', source: './bcs-fixtures/units.ts' },
+				{
+					type: 'registry::Status',
+					fields: 'Entry.status',
+					source: './bcs-fixtures/other.ts#ScaledU64',
+				},
+			],
+			['Status', 'Entry'],
+		);
+
+		expect(output).toContain(`import { Status as Status_1 } from '../../bcs-fixtures/units.js'`);
+		expect(output).toContain('export const Status = Status_1');
+		expect(output).toMatch(/status:\s*Status[,\s]/);
+		expect(output).not.toContain(`from '../../bcs-fixtures/other.js'`);
+	});
+
 	it('imports the named export from a "#ExportName" fragment', async () => {
 		// Without a fragment this declaration replacement would import the Move type name, `Result`.
 		const output = await renderRegistry(

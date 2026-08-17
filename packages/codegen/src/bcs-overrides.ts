@@ -231,14 +231,15 @@ export function resolveBcsOverride(
 	sitePath: string | undefined,
 	resolveAddress: (address: string) => string,
 ): BcsOverrideRule | null {
-	return (
-		rules.find(
-			(rule) =>
-				// Declaration replacements are emitted once, at the declaration; uses already
-				// reference it, so substituting at the use site would be redundant.
-				!rule.declaration &&
-				(!rule.where || (sitePath !== undefined && rule.where.test(sitePath))) &&
-				typeMatches(rule.match, type, resolveAddress),
-		) ?? null
-	);
+	for (const rule of rules) {
+		if (!typeMatches(rule.match, type, resolveAddress)) continue;
+		if (rule.where && (sitePath === undefined || !rule.where.test(sitePath))) continue;
+
+		// Declaration replacements are emitted once, at the declaration, and use sites keep
+		// referencing that declaration. Stop here so a later field-specific rule cannot override the
+		// earlier declaration rule and give the same Move type two incompatible BCS layouts.
+		return rule.declaration ? null : rule;
+	}
+
+	return null;
 }
