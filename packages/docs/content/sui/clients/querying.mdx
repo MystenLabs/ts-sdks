@@ -1,19 +1,38 @@
 ---
 title: Querying Data
-description: Read objects, coins, balances, dynamic fields, and history with any Sui client
+description: 'Read objects, coins, balances, dynamic fields, and history with any Sui client'
 keywords:
-  [
-    Sui client,
-    getObject,
-    listOwnedObjects,
-    getBalance,
-    listCoins,
-    dynamic fields,
-    listTransactions,
-    listEvents,
-    pagination,
-    '@mysten/sui',
-  ]
+  - Sui client
+  - getObject
+  - listOwnedObjects
+  - getBalance
+  - listCoins
+  - dynamic fields
+  - listTransactions
+  - listEvents
+  - pagination
+  - '@mysten/sui'
+questions:
+  - What is Querying Data?
+  - How do I use Querying Data?
+  - How does Objects work?
+  - How does Include options work?
+answer: 'Read objects, coins, balances, dynamic fields, and history with any Sui client'
+goal:
+  description: >-
+    Reader can read objects, coins, balances, dynamic fields, and history with any Sui client
+  requires:
+    - has_frontmatter:
+        - title
+        - description
+        - keywords
+      label: Has required frontmatter fields
+    - min_words: 30
+      label: Needs content depth
+    - has_questions: true
+      label: Needs questions for AI search visibility
+    - has_answer: true
+      label: Needs answer summary for AI citation
 ---
 
 Every Sui client reads data through the same set of methods. `SuiGrpcClient` and `SuiGraphQLClient`

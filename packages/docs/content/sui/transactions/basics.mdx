@@ -1,7 +1,35 @@
 ---
 title: Building Transactions
 description: Construct programmable transaction blocks with the Transaction API
-keywords: [transactions, ptb, move call, splitCoins, transferObjects, codegen]
+keywords:
+  - transactions
+  - ptb
+  - move call
+  - splitCoins
+  - transferObjects
+  - codegen
+questions:
+  - How do I build a transaction in the Sui SDK?
+  - How do I call a Move function from TypeScript?
+  - How do I split and transfer coins in a transaction?
+answer: >-
+  Use the Transaction class to build programmable transaction blocks: chain commands like
+  splitCoins, mergeCoins, moveCall, and transferObjects into a single atomic transaction.
+goal:
+  description: >-
+    Reader can construct programmable transaction blocks with the Transaction API
+  requires:
+    - has_frontmatter:
+        - title
+        - description
+        - keywords
+      label: Has required frontmatter fields
+    - min_words: 30
+      label: Needs content depth
+    - has_questions: true
+      label: Needs questions for AI search visibility
+    - has_answer: true
+      label: Needs answer summary for AI citation
 ---
 
 Every interaction with the Sui network goes through a transaction. Sui transactions are a sequence
