@@ -38,5 +38,5 @@ fall back to a DeepBook-operated proxy, which is not deployed yet, so that path 
 Testnet package ids move to `deepbook_margin` v16 and `margin_liquidation` v4, and testnet coins
 carry the feed ids its migrated `MarginRegistry` is configured with. DBTC is testnet's wrapped BTC
 and takes Crypto.XBTC/USD, the same feed mainnet XBTC uses, the upgraded deployment carrying no
-distinct DBTC feed. Mainnet XBTC has no upgraded price object
-yet, so pricing it throws until one is created.
+distinct DBTC feed. Mainnet XBTC's upgraded price object was created on
+2026-08-17 and is included, so all six mainnet-configured coins now have one.

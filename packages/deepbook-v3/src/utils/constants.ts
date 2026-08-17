@@ -143,15 +143,11 @@ export const mainnetCoins: CoinMap = {
 		scalar: 100000000,
 		feed: '0xae8f269ed9c4bed616c99a98cf6dfe562bd3202e7f91821a471ff854713851b4',
 		currencyId: '0x907bb173bffab7c57bbd3350a633aa32c8770937b496d7d88874087b59200bcc',
-		// priceInfoObjectId: TO BE CREATED. Pyth's upgraded Core has no XBTC price object on
-		// mainnet yet (checked 2026-08-11), so pricing XBTC throws until one exists. The feed
-		// is live and serves signed updates under the id above — only the object is missing,
-		// and `pyth::create_price_feeds_using_accumulator` is `public fun` with no capability
-		// gate, so creating it needs one ordinary transaction from any funded address rather
-		// than an admin action. Demonstrated on testnet 2026-08-11 (tx `5BMfpRju…nP6eK`).
-		//
-		// XBTC is not singled out: 320 of mainnet's 418 legacy feeds have no upgraded object.
-		// Fill this in with the created object id.
+		// Created 2026-08-17 (tx `3SbNisBM…ePnSx`) — XBTC is absent from Pyth's Sui push-feed
+		// list, so they never maintained an object for it here; ours is kept fresh by our own
+		// price pusher, as on legacy Core. Creation is permissionless, so no admin action was
+		// involved. Verified: registered in the upgraded price table and updatable.
+		priceInfoObjectId: '0x4f7ff4518b4cf33b162d76e70632d8f0a6e04441a058a138959d7a2384cffe60',
 	},
 	USDSUI: {
 		address: `0x44f838219cf67b058f3b37907b655f226153c18e33dfcd0da559a844fea9b1c1`,
