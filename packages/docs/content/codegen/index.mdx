@@ -87,14 +87,14 @@ The `SuiCodegenConfig` type supports the following options:
 
 | Option                         | Type                   | Default              | Description                                                                                                                                                           |
 | ------------------------------ | ---------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `output`                       | `string`               | -                    | The directory where generated code will be written                                                                                                                    |
+| `output`                       | `string`               | -                    | The directory where codegen writes generated code                                                                                                                     |
 | `packages`                     | `PackageConfig[]`      | -                    | Array of Move packages to generate code for                                                                                                                           |
 | `prune`                        | `boolean`              | `true`               | When enabled, only generates code for the main package and omits dependency modules (dependency types referenced by included types are still generated under `deps/`) |
 | `generateSummaries`            | `boolean`              | `true`               | Automatically run `sui move summary` before generating code. Creates a `package_summaries` directory in your Move package which can be added to `.gitignore`          |
 | `generate`                     | `GenerateOptions`      | -                    | Default [generate options](#the-generate-option) (types, functions) for all packages                                                                                  |
 | `importExtension`              | `'.js' \| '.ts' \| ''` | `'.js'`              | File extension used in generated import statements                                                                                                                    |
 | `includePhantomTypeParameters` | `boolean`              | `false`              | Include [phantom type parameters](#phantom-types) as function arguments in generated BCS types                                                                        |
-| `fullnodeUrls`                 | network URL map        | Sui public fullnodes | Override the mainnet or testnet fullnode used to fetch onchain package summaries                                                                                      |
+| `fullnodeUrls`                 | network URL map        | Sui public fullnodes | Override the Mainnet or Testnet fullnode used to fetch onchain package summaries                                                                                      |
 
 ### Package configuration
 
