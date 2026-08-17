@@ -243,7 +243,7 @@ describe('extractStatusFromEffectsBcs', () => {
 			const invalidBytes = new Uint8Array([99, 0, 0, 0]);
 
 			expect(() => extractStatusFromEffectsBcs(invalidBytes)).toThrow(
-				'Unknown value 99 for enum MinimalTransactionEffects',
+				'Invalid variant index 99 for enum MinimalTransactionEffects',
 			);
 		});
 	});
