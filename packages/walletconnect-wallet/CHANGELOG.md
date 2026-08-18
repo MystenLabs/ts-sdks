@@ -1,5 +1,13 @@
 # @mysten/walletconnect-wallet
 
+## 1.1.18
+
+### Patch Changes
+
+- f2f7048: Upgrade workspace dependencies, remove the legacy dapp-kit package, and migrate the
+  remaining consumers to the current gRPC-based dapp-kit. Remove the legacy API reference while
+  retaining the migration guide and deprecation notice.
+
 ## 1.1.17
 
 ## 1.1.16

@@ -1,5 +1,13 @@
 # @mysten/enoki
 
+## 1.2.16
+
+### Patch Changes
+
+- f2f7048: Upgrade workspace dependencies, remove the legacy dapp-kit package, and migrate the
+  remaining consumers to the current gRPC-based dapp-kit. Remove the legacy API reference while
+  retaining the migration guide and deprecation notice.
+
 ## 1.2.15
 
 ## 1.2.14
