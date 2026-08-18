@@ -1,5 +1,11 @@
 # @mysten/deepbook-predict
 
+## 0.2.1
+
+### Patch Changes
+
+- @mysten/deepbook-account@0.0.2
+
 ## 0.2.0
 
 ### Minor Changes

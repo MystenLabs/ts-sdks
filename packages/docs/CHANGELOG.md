@@ -1,5 +1,36 @@
 # @mysten/docs
 
+## 0.1.50
+
+### Patch Changes
+
+- f2f7048: Upgrade workspace dependencies, remove the legacy dapp-kit package, and migrate the
+  remaining consumers to the current gRPC-based dapp-kit. Remove the legacy API reference while
+  retaining the migration guide and deprecation notice.
+- Updated dependencies [f2f7048]
+- Updated dependencies [67386be]
+  - @mysten/aws-kms-signer@0.3.15
+  - @mysten/bcs@2.1.1
+  - @mysten/dapp-kit-core@1.6.18
+  - @mysten/dapp-kit-react@2.1.20
+  - @mysten/deepbook-v3@2.0.1
+  - @mysten/enoki@1.2.16
+  - @mysten/gcp-kms-signer@0.2.18
+  - @mysten/seal@1.4.4
+  - @mysten/sui@2.26.2
+  - @mysten/suins@1.2.18
+  - @mysten/utils@0.4.1
+  - @mysten/webcrypto-signer@0.2.18
+  - @mysten/zksend@1.2.18
+  - @mysten/signers@1.1.18
+  - @mysten/kiosk@1.4.4
+  - @mysten/payment-kit@0.2.18
+  - @mysten/walrus@1.2.18
+  - @mysten/ledger-signer@0.2.18
+  - @mysten/enoki-connect@1.1.18
+  - @mysten/slush-wallet@1.1.18
+  - @mysten/wallet-standard@0.21.18
+
 ## 0.1.49
 
 ### Patch Changes
