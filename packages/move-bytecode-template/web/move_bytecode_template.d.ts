@@ -1,9 +1,16 @@
 /* tslint:disable */
 /* eslint-disable */
 /**
- * Get the version of the crate (useful for testing the package).
+ * Convenience method to analyze the constant pool; returns all constants in order
+ * with their type and BCS value.
+ *
+ * ```javascript
+ * import * as template from '@mysten/move-binary-template';
+ *
+ * let consts = template.get_constants(binary);
+ * ```
  */
-export function version(): string;
+export function get_constants(binary: Uint8Array): any;
 /**
  * Deserialize the `Uint8Array`` bytecode into a JSON object.
  * The JSON object contains the ABI (Application Binary Interface) of the module.
@@ -17,20 +24,9 @@ export function version(): string;
  */
 export function deserialize(binary: Uint8Array): any;
 /**
- * Update the identifiers in the module bytecode, given a map of old -> new identifiers.
- * Returns the updated bytecode.
- *
- * ```javascript
- * import * as template from '@mysten/move-binary-template';
- *
- * const updated = template.update_identifiers( binary, {
- *     'TEMPLATE': 'NEW_VALUE',
- *     'template': 'new_value',
- *     'Name':     'NewName'
- * });
- * ```
+ * Serialize the JSON module into a `Uint8Array` (bytecode).
  */
-export function update_identifiers(binary: Uint8Array, map: any): Uint8Array;
+export function serialize(json_module: any): Uint8Array;
 /**
  * Updates a constant in the constant pool. Because constants don't have names,
  * the only way to identify them is by their type and value.
@@ -53,20 +49,24 @@ export function update_identifiers(binary: Uint8Array, map: any): Uint8Array;
  */
 export function update_constants(binary: Uint8Array, new_value: Uint8Array, expected_value: Uint8Array, expected_type: string): Uint8Array;
 /**
- * Convenience method to analyze the constant pool; returns all constants in order
- * with their type and BCS value.
+ * Get the version of the crate (useful for testing the package).
+ */
+export function version(): string;
+/**
+ * Update the identifiers in the module bytecode, given a map of old -> new identifiers.
+ * Returns the updated bytecode.
  *
  * ```javascript
  * import * as template from '@mysten/move-binary-template';
  *
- * let consts = template.get_constants(binary);
+ * const updated = template.update_identifiers( binary, {
+ *     'TEMPLATE': 'NEW_VALUE',
+ *     'template': 'new_value',
+ *     'Name':     'NewName'
+ * });
  * ```
  */
-export function get_constants(binary: Uint8Array): any;
-/**
- * Serialize the JSON module into a `Uint8Array` (bytecode).
- */
-export function serialize(json_module: any): Uint8Array;
+export function update_identifiers(binary: Uint8Array, map: any): Uint8Array;
 /**
  * A transformed constant from the constant pool.
  */
@@ -79,20 +79,20 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 
 export interface InitOutput {
   readonly memory: WebAssembly.Memory;
-  readonly version: () => [number, number];
-  readonly deserialize: (a: number, b: number) => [number, number, number];
-  readonly update_identifiers: (a: number, b: number, c: any) => [number, number, number, number];
-  readonly update_constants: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => [number, number, number, number];
   readonly __wbg_constant_free: (a: number, b: number) => void;
+  readonly deserialize: (a: number, b: number) => [number, number, number];
   readonly get_constants: (a: number, b: number) => [number, number, number];
   readonly serialize: (a: any) => [number, number, number, number];
+  readonly update_constants: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => [number, number, number, number];
+  readonly update_identifiers: (a: number, b: number, c: any) => [number, number, number, number];
+  readonly version: () => [number, number];
   readonly __wbindgen_malloc: (a: number, b: number) => number;
   readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
   readonly __wbindgen_exn_store: (a: number) => void;
   readonly __externref_table_alloc: () => number;
   readonly __wbindgen_export_4: WebAssembly.Table;
-  readonly __wbindgen_free: (a: number, b: number, c: number) => void;
   readonly __externref_table_dealloc: (a: number) => void;
+  readonly __wbindgen_free: (a: number, b: number, c: number) => void;
   readonly __wbindgen_start: () => void;
 }
 

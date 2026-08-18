@@ -1,9 +1,16 @@
 /* tslint:disable */
 /* eslint-disable */
 /**
- * Get the version of the crate (useful for testing the package).
+ * Convenience method to analyze the constant pool; returns all constants in order
+ * with their type and BCS value.
+ *
+ * ```javascript
+ * import * as template from '@mysten/move-binary-template';
+ *
+ * let consts = template.get_constants(binary);
+ * ```
  */
-export function version(): string;
+export function get_constants(binary: Uint8Array): any;
 /**
  * Deserialize the `Uint8Array`` bytecode into a JSON object.
  * The JSON object contains the ABI (Application Binary Interface) of the module.
@@ -17,20 +24,9 @@ export function version(): string;
  */
 export function deserialize(binary: Uint8Array): any;
 /**
- * Update the identifiers in the module bytecode, given a map of old -> new identifiers.
- * Returns the updated bytecode.
- *
- * ```javascript
- * import * as template from '@mysten/move-binary-template';
- *
- * const updated = template.update_identifiers( binary, {
- *     'TEMPLATE': 'NEW_VALUE',
- *     'template': 'new_value',
- *     'Name':     'NewName'
- * });
- * ```
+ * Serialize the JSON module into a `Uint8Array` (bytecode).
  */
-export function update_identifiers(binary: Uint8Array, map: any): Uint8Array;
+export function serialize(json_module: any): Uint8Array;
 /**
  * Updates a constant in the constant pool. Because constants don't have names,
  * the only way to identify them is by their type and value.
@@ -53,20 +49,24 @@ export function update_identifiers(binary: Uint8Array, map: any): Uint8Array;
  */
 export function update_constants(binary: Uint8Array, new_value: Uint8Array, expected_value: Uint8Array, expected_type: string): Uint8Array;
 /**
- * Convenience method to analyze the constant pool; returns all constants in order
- * with their type and BCS value.
+ * Get the version of the crate (useful for testing the package).
+ */
+export function version(): string;
+/**
+ * Update the identifiers in the module bytecode, given a map of old -> new identifiers.
+ * Returns the updated bytecode.
  *
  * ```javascript
  * import * as template from '@mysten/move-binary-template';
  *
- * let consts = template.get_constants(binary);
+ * const updated = template.update_identifiers( binary, {
+ *     'TEMPLATE': 'NEW_VALUE',
+ *     'template': 'new_value',
+ *     'Name':     'NewName'
+ * });
  * ```
  */
-export function get_constants(binary: Uint8Array): any;
-/**
- * Serialize the JSON module into a `Uint8Array` (bytecode).
- */
-export function serialize(json_module: any): Uint8Array;
+export function update_identifiers(binary: Uint8Array, map: any): Uint8Array;
 /**
  * A transformed constant from the constant pool.
  */
