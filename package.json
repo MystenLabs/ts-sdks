@@ -35,7 +35,7 @@
 	},
 	"devDependencies": {
 		"@arethetypeswrong/cli": "^0.18.5",
-		"@changesets/cli": "^3.0.0",
+		"@changesets/cli": "^2.31.0",
 		"@ianvs/prettier-plugin-sort-imports": "^4.7.0",
 		"@manypkg/cli": "^0.25.1",
 		"@testcontainers/postgresql": "^12.1.0",
