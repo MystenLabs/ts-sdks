@@ -43,10 +43,11 @@ export const mainnetPackageIds = {
 	// `liquidate_base_upgraded` / `liquidate_quote_upgraded`, the pair
 	// `MarginLiquidationsContract` targets. It replaces v4 (`0xf17bff1b…`), which predates
 	// those entrypoints and gave `liquidateBase` / `liquidateQuote` no mainnet target.
-	// NOT YET PUBLISHED: this id is the planned publication and is unverified on chain, so
-	// both builders still have no mainnet target until the upgrade lands. Every other vault
-	// entrypoint (deposit, withdraw, balance, swaps, trader authorization) takes no oracle
-	// and is unaffected either way.
+	// Live on chain as v5, verified 2026-08-18: its `liquidation_vault` exposes both
+	// `_upgraded` entrypoints, and its `LIQUIDATION_VAULT` type is still defined by the
+	// lineage's original `0x73c59388…`, so the deployed vault stays valid across the
+	// upgrade. Every other vault entrypoint (deposit, withdraw, balance, swaps, trader
+	// authorization) takes no oracle and is unaffected either way.
 	LIQUIDATION_PACKAGE_ID: '0xba2b39c026650fef52038c93c526fc5314a4286318a0d2a7054b65815178fb74',
 } satisfies DeepbookPackageIds;
 
