@@ -31,11 +31,11 @@ export const mainPackage: Config = {
 			packageId: '0xb162340524e0697461c307b9dc530c17e837b0f2c6d7f787da40d29d29681e5e',
 		},
 		payments: {
-			packageId: '0xdd0a4a34152a80d7841710e916a407b2a62961eee5b2188dcfdaa24194f66286',
+			packageId: '0xdbbf23390d9fb0dc0cf05c701ee61b02ae648268bff8c7ed4fe3e3128ec90b99',
 			packageIdV1: '0xdd0a4a34152a80d7841710e916a407b2a62961eee5b2188dcfdaa24194f66286',
 		},
 		bbb: {
-			packageId: '0x6268d072063a311f6f0a1db516d06d97c06a3fa6d10e797cad578937a47b3992',
+			packageId: '0xed799c2fb6fc64bedc7df4fddb272af8718b2fe53a20b7c60ea927ad36b5b6ae',
 			vault: '0x869f5100c0ecc0b35c7edad87ba3d488fd291bdba4a7aae84b70d188f440f393',
 		},
 		pyth: {
