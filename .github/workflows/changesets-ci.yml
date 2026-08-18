@@ -38,4 +38,5 @@ jobs:
           if-no-files-found: error
           retention-days: 1
       - name: Attempt to create snapshots.
+        if: steps.has-changesets.outputs.all_changed_files_count != '0'
         run: pnpm changeset version --snapshot test-do-not-publish
