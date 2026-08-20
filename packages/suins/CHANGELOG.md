@@ -1,5 +1,13 @@
 # @mysten/suins
 
+## 2.0.0
+
+### Major Changes
+
+- f88da86: Pyth price fetching now uses the keyed Pyth Pro Hermes endpoint and requires a
+  `pythAccessToken` (via `SuinsClient` or the `suins()` extension) for non-base-currency
+  registrations and renewals.
+
 ## 1.2.18
 
 ### Patch Changes

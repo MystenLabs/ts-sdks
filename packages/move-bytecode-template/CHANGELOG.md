@@ -1,5 +1,11 @@
 # @mysten/move-bytecode-template
 
+## 0.4.1
+
+### Patch Changes
+
+- 4922558: Update `serde_with` to address a denial-of-service vulnerability in map serialization.
+
 ## 0.4.0
 
 ### Minor Changes
