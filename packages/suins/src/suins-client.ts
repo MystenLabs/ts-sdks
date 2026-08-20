@@ -24,6 +24,8 @@ import { PaymentsConfig } from './contracts/suins_payments/payments.js';
 export type SuinsExtensionOptions<Name extends string = 'suins'> = {
 	name?: Name;
 	packageInfo?: PackageInfo;
+	/** Access token for the keyed Pyth Hermes endpoint. Sent as `Authorization: Bearer <token>`. */
+	pythAccessToken?: string;
 };
 
 /**
@@ -45,6 +47,7 @@ export type SuinsExtensionOptions<Name extends string = 'suins'> = {
 export function suins<const Name extends string = 'suins'>({
 	name = 'suins' as Name,
 	packageInfo,
+	pythAccessToken,
 }: SuinsExtensionOptions<Name> = {}) {
 	return {
 		name,
@@ -53,6 +56,7 @@ export function suins<const Name extends string = 'suins'>({
 				client,
 				network: client.network,
 				packageInfo,
+				pythAccessToken,
 			});
 		},
 	};
@@ -62,10 +66,12 @@ export class SuinsClient {
 	client: ClientWithCoreApi;
 	network: SuiClientTypes.Network;
 	config: PackageInfo;
+	readonly pythAccessToken?: string;
 
 	constructor(config: SuinsClientConfig) {
 		this.client = config.client;
 		this.network = config.network || 'mainnet';
+		this.pythAccessToken = config.pythAccessToken;
 
 		if (config.packageInfo) {
 			this.config = config.packageInfo;
@@ -168,7 +174,7 @@ export class SuinsClient {
 		if (!this.config.suins) throw new Error('Suins object ID is not set');
 		if (!this.config.packageId) throw new Error('Price list config not found');
 
-		const configType = `${this.config.packageIdV1}::suins::ConfigKey<${this.config.payments.packageId}::payments::PaymentsConfig>`;
+		const configType = `${this.config.packageIdV1}::suins::ConfigKey<${this.config.payments.packageIdV1}::payments::PaymentsConfig>`;
 
 		const result = await this.client.core.getDynamicField({
 			parentId: this.config.suins,
@@ -285,11 +291,16 @@ export class SuinsClient {
 	}
 
 	async getPriceInfoObject(tx: Transaction, feed: string, feeCoin?: TransactionObjectArgument) {
-		const endpoint =
-			this.network === 'testnet'
-				? 'https://hermes-beta.pyth.network'
-				: 'https://hermes.pyth.network';
-		const connection = new SuiPriceServiceConnection(endpoint);
+		if (!this.pythAccessToken) {
+			throw new Error(
+				'A `pythAccessToken` is required to fetch Pyth price updates from the keyed Pro Hermes endpoint.',
+			);
+		}
+
+		const endpoint = 'https://pyth.dourolabs.app/hermes';
+		const connection = new SuiPriceServiceConnection(endpoint, {
+			accessToken: this.pythAccessToken,
+		});
 		const priceIDs = [feed];
 		const priceUpdateData = await connection.getPriceFeedsUpdateData(priceIDs);
 

@@ -73,6 +73,56 @@ export function handleBasePayment(options: HandleBasePaymentOptions) {
 		});
 }
 export interface HandlePaymentArguments {
+	Suins: RawTransactionArgument<string>;
+	BbbVault: RawTransactionArgument<string>;
+	Intent: TransactionArgument;
+	Payment: RawTransactionArgument<string>;
+	PriceInfoObject: RawTransactionArgument<string>;
+	UserPriceGuard: RawTransactionArgument<number | bigint>;
+}
+export interface HandlePaymentOptions {
+	package?: string;
+	arguments:
+		| HandlePaymentArguments
+		| [
+				Suins: RawTransactionArgument<string>,
+				BbbVault: RawTransactionArgument<string>,
+				Intent: TransactionArgument,
+				Payment: RawTransactionArgument<string>,
+				PriceInfoObject: RawTransactionArgument<string>,
+				UserPriceGuard: RawTransactionArgument<number | bigint>,
+		  ];
+	typeArguments: [string];
+}
+/**
+ * Deprecated after the Pyth Core to Pro cutover: reads the Core feed, which stops
+ * updating. The signature is retained for upgrade compatibility, but the body is
+ * disabled. Use `handle_payment_pro` instead. Callers needing the Core feed can
+ * still target the pre-upgrade package version.
+ */
+export function handlePayment(options: HandlePaymentOptions) {
+	const packageAddress = options.package ?? '@suins/payments';
+	const argumentsTypes = [null, null, null, null, '0x2::clock::Clock', null, 'u64'] satisfies (
+		string | null
+	)[];
+	const parameterNames = [
+		'Suins',
+		'BbbVault',
+		'Intent',
+		'Payment',
+		'PriceInfoObject',
+		'UserPriceGuard',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'payments',
+			function: 'handle_payment',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface HandlePaymentProArguments {
 	suins: RawTransactionArgument<string>;
 	bbbVault: RawTransactionArgument<string>;
 	intent: TransactionArgument;
@@ -80,10 +130,10 @@ export interface HandlePaymentArguments {
 	priceInfoObject: RawTransactionArgument<string>;
 	userPriceGuard: RawTransactionArgument<number | bigint>;
 }
-export interface HandlePaymentOptions {
+export interface HandlePaymentProOptions {
 	package?: string;
 	arguments:
-		| HandlePaymentArguments
+		| HandlePaymentProArguments
 		| [
 				suins: RawTransactionArgument<string>,
 				bbbVault: RawTransactionArgument<string>,
@@ -95,18 +145,11 @@ export interface HandlePaymentOptions {
 	typeArguments: [string];
 }
 /**
- * Handles a payment done for a non-base currency payment. E.g. SUI, NS.
- *
- * The payment amount is derived from the base currency price and the Pyth price
- * feed.
- *
- * The `user_price_guard` is a value that the user expects to pay. If the payment
- * amount is higher than this value, the payment will be rejected. This is to
- * protect the user from paying more than they expected on their FEs. Ideally, this
- * number should be calculated on the FE based on the price that is being displayed
- * to the user (with a buffer determined by the FE).
+ * `handle_payment` variant that reads the Pro-compatible Pyth feed, for use after
+ * the Pyth Core to Pro cutover. Behaviour matches `handle_payment`; only the price
+ * source differs.
  */
-export function handlePayment(options: HandlePaymentOptions) {
+export function handlePaymentPro(options: HandlePaymentProOptions) {
 	const packageAddress = options.package ?? '@suins/payments';
 	const argumentsTypes = [null, null, null, null, '0x2::clock::Clock', null, 'u64'] satisfies (
 		string | null
@@ -123,20 +166,55 @@ export function handlePayment(options: HandlePaymentOptions) {
 		tx.moveCall({
 			package: packageAddress,
 			module: 'payments',
-			function: 'handle_payment',
+			function: 'handle_payment_pro',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 			typeArguments: options.typeArguments,
 		});
 }
 export interface CalculatePriceArguments {
-	suins: RawTransactionArgument<string>;
-	baseAmount: RawTransactionArgument<number | bigint>;
-	priceInfoObject: RawTransactionArgument<string>;
+	Suins: RawTransactionArgument<string>;
+	BaseAmount: RawTransactionArgument<number | bigint>;
+	PriceInfoObject: RawTransactionArgument<string>;
 }
 export interface CalculatePriceOptions {
 	package?: string;
 	arguments:
 		| CalculatePriceArguments
+		| [
+				Suins: RawTransactionArgument<string>,
+				BaseAmount: RawTransactionArgument<number | bigint>,
+				PriceInfoObject: RawTransactionArgument<string>,
+		  ];
+	typeArguments: [string];
+}
+/**
+ * Deprecated after the Pyth Core to Pro cutover: reads the Core feed, which stops
+ * updating. The signature is retained for upgrade compatibility, but the body is
+ * disabled. Use `calculate_price_pro` instead. Callers needing the Core feed can
+ * still target the pre-upgrade package version.
+ */
+export function calculatePrice(options: CalculatePriceOptions) {
+	const packageAddress = options.package ?? '@suins/payments';
+	const argumentsTypes = [null, 'u64', '0x2::clock::Clock', null] satisfies (string | null)[];
+	const parameterNames = ['Suins', 'BaseAmount', 'PriceInfoObject'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'payments',
+			function: 'calculate_price',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface CalculatePriceProArguments {
+	suins: RawTransactionArgument<string>;
+	baseAmount: RawTransactionArgument<number | bigint>;
+	priceInfoObject: RawTransactionArgument<string>;
+}
+export interface CalculatePriceProOptions {
+	package?: string;
+	arguments:
+		| CalculatePriceProArguments
 		| [
 				suins: RawTransactionArgument<string>,
 				baseAmount: RawTransactionArgument<number | bigint>,
@@ -145,16 +223,11 @@ export interface CalculatePriceOptions {
 	typeArguments: [string];
 }
 /**
- * Calculates the amount that has to be paid in the target currency.
- *
- * Can be used to split the payment amount in a single PTB.
- *
- * 1.  const intent = function_to_get_intent();
- * 2.  const price = calculate_price<SUI>(suins, intent, ...);
- * 3.  const coin = txb.splitCoins(baseCoin, [price])
- * 4.  handle_payment<SUI>(suins, intent, coin, ...);
+ * `calculate_price` variant that reads the Pro-compatible Pyth feed, for use after
+ * the Pyth Core to Pro cutover. Behaviour matches `calculate_price`; only the
+ * price source differs.
  */
-export function calculatePrice(options: CalculatePriceOptions) {
+export function calculatePricePro(options: CalculatePriceProOptions) {
 	const packageAddress = options.package ?? '@suins/payments';
 	const argumentsTypes = [null, 'u64', '0x2::clock::Clock', null] satisfies (string | null)[];
 	const parameterNames = ['suins', 'baseAmount', 'priceInfoObject'];
@@ -162,7 +235,7 @@ export function calculatePrice(options: CalculatePriceOptions) {
 		tx.moveCall({
 			package: packageAddress,
 			module: 'payments',
-			function: 'calculate_price',
+			function: 'calculate_price_pro',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 			typeArguments: options.typeArguments,
 		});

@@ -10,7 +10,7 @@ import { ALLOWED_METADATA, SuinsTransaction, suins } from '../src/index.js';
 
 export const e2eLiveNetworkDryRunFlow = async (network: 'mainnet' | 'testnet') => {
 	const client = new SuiGrpcClient({ baseUrl: getJsonRpcFullnodeUrl(network), network }).$extend(
-		suins(),
+		suins({ pythAccessToken: process.env.VITE_PYTH_ACCESS_TOKEN }),
 	);
 
 	const sender = normalizeSuiAddress('0x2');

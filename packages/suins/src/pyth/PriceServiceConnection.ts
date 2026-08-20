@@ -12,6 +12,7 @@ export type PriceFeedRequestConfig = {
 export type PriceServiceConnectionConfig = {
 	timeout?: number;
 	httpRetries?: number;
+	accessToken?: string;
 };
 export class PriceServiceConnection {
 	private httpClient: AxiosInstance;
@@ -25,6 +26,7 @@ export class PriceServiceConnection {
 		this.httpClient = axios.create({
 			baseURL: endpoint,
 			timeout: config?.timeout || 5000,
+			headers: config?.accessToken ? { Authorization: `Bearer ${config.accessToken}` } : undefined,
 		});
 		axiosRetry(this.httpClient, {
 			retries: config?.httpRetries || 3,
@@ -38,11 +40,17 @@ export class PriceServiceConnection {
 	 * @returns Array of base64 encoded VAAs.
 	 */
 	async getLatestVaas(priceIds: HexString[]): Promise<string[]> {
-		const response = await this.httpClient.get('/api/latest_vaas', {
+		const response = await this.httpClient.get('/v2/updates/price/latest', {
 			params: {
-				ids: priceIds,
+				'ids[]': priceIds,
+				encoding: 'base64',
+				parsed: false,
 			},
 		});
-		return response.data;
+		const data = response.data?.binary?.data;
+		if (!Array.isArray(data)) {
+			throw new Error('Unexpected Hermes response: missing `binary.data`.');
+		}
+		return data;
 	}
 }
