@@ -1,5 +1,13 @@
 # @mysten/docs
 
+## 0.1.51
+
+### Patch Changes
+
+- Updated dependencies [f88da86]
+  - @mysten/suins@2.0.0
+  - @mysten/walrus@1.2.19
+
 ## 0.1.50
 
 ### Patch Changes
