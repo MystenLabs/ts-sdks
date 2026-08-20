@@ -1,5 +1,27 @@
 # @mysten/dapp-kit-react
 
+## 2.1.20
+
+### Patch Changes
+
+- f2f7048: Upgrade workspace dependencies, remove the legacy dapp-kit package, and migrate the
+  remaining consumers to the current gRPC-based dapp-kit. Remove the legacy API reference while
+  retaining the migration guide and deprecation notice.
+
+## 2.1.19
+
+## 2.1.18
+
+## 2.1.17
+
+## 2.1.16
+
+## 2.1.15
+
+## 2.1.14
+
+## 2.1.13
+
 ## 2.1.12
 
 ## 2.1.11

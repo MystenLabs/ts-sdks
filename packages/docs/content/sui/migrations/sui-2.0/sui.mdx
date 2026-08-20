@@ -1,63 +1,96 @@
 ---
 title: '@mysten/sui'
-description: Migrate @mysten/sui from 1.x to 2.0 with new client APIs and BCS changes.
+description: >-
+  Migrate @mysten/sui from 1.x to 2.0 with gRPC clients, Core API, and BCS changes
 keywords:
-  [
-    migration,
-    '@mysten/sui',
-    2.0,
-    SuiClient removal,
-    BCS,
-    transaction executors,
-    gRPC,
-    breaking changes,
-  ]
+  - migration
+  - '@mysten/sui'
+  - '2.0'
+  - SuiClient removal
+  - BCS
+  - transaction executors
+  - gRPC
+  - breaking changes
+questions:
+  - What changed in the @mysten/sui migration?
+  - How do I migrate to @mysten/sui?
+  - How does Removal of SuiClient exports work?
+  - How does Network parameter required work?
+answer: >-
+  Migrate @mysten/sui from 1.x to 2.0 with gRPC clients, Core API, and BCS changes
+goal:
+  description: >-
+    Reader can migrate @mysten/sui from 1.x to 2.0 with gRPC clients, Core API, and BCS changes
+  requires:
+    - has_frontmatter:
+        - title
+        - description
+        - keywords
+      label: Has required frontmatter fields
+    - min_words: 30
+      label: Needs content depth
+    - has_questions: true
+      label: Needs questions for AI search visibility
+    - has_answer: true
+      label: Needs answer summary for AI citation
 ---
 
 ## Removal of `SuiClient` exports
 
-The `@mysten/sui/client` export path has been removed. All JSON-RPC client functionality is now
-exported from `@mysten/sui/jsonRpc`.
+The old `SuiClient` export has been removed from `@mysten/sui/client`. For application code, migrate
+to [`SuiGrpcClient`](/sui/clients/grpc) and use top-level methods such as `client.getObject()`,
+`client.listCoins()`, and `client.signAndExecuteTransaction()`.
+
+Legacy JSON-RPC functionality moved to `@mysten/sui/jsonRpc`, but JSON-RPC APIs are deprecated in
+the Sui TypeScript SDK. Use the JSON-RPC exports only when maintaining code that still needs the old
+JSON-RPC method names or response shapes during migration.
 
 **Removed exports:**
 
-- `SuiClient` (use `SuiJsonRpcClient` instead)
-- `SuiClientOptions` (use `SuiJsonRpcClientOptions` instead)
-- `isSuiClient` (use `isSuiJsonRpcClient` instead)
-- `SuiTransport` (use `JsonRpcTransport` instead)
+- `SuiClient` (use `SuiGrpcClient`; legacy JSON-RPC code can use `SuiJsonRpcClient`)
+- `SuiClientOptions` (use `SuiGrpcClientOptions`; legacy JSON-RPC code can use
+  `SuiJsonRpcClientOptions`)
+- `isSuiClient` (use `isSuiGrpcClient`, `isSuiGraphQLClient`, or legacy `isSuiJsonRpcClient`)
+- `SuiTransport` (legacy JSON-RPC code can use `JsonRpcTransport`)
 - `SuiTransportRequestOptions` (use `JsonRpcTransportRequestOptions` instead)
-- `SuiTransportSubscribeOptions` (use `JsonRpcTransportSubscribeOptions` instead)
+- `SuiTransportSubscribeOptions` (removed; use the gRPC subscription service for streaming APIs)
 - `SuiHTTPTransportOptions` (use `JsonRpcHTTPTransportOptions` instead)
 - `SuiHTTPTransport` (use `JsonRpcHTTPTransport` instead)
-- `getFullnodeUrl` (use `getJsonRpcFullnodeUrl` instead)
+- `getFullnodeUrl` (pass the full node URL to `SuiGrpcClient.baseUrl`; legacy JSON-RPC code can use
+  `getJsonRpcFullnodeUrl`)
 - All JSON-RPC types (now exported from `@mysten/sui/jsonRpc`)
 
 **Migration:**
 
 ```diff
 - import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
-+ import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
++ import { SuiGrpcClient } from '@mysten/sui/grpc';
 
 - const client = new SuiClient({
 -   url: getFullnodeUrl('devnet'),
-+ const client = new SuiJsonRpcClient({
-+   url: getJsonRpcFullnodeUrl('devnet'),
++ const client = new SuiGrpcClient({
++   baseUrl: 'https://fullnode.devnet.sui.io:443',
     network: 'devnet',
   });
 ```
 
 ## Network parameter required
 
-When creating a new `SuiGraphQLClient` or `SuiJsonRpcClient`, you must now provide a `network`
-parameter:
+When creating a new `SuiGrpcClient`, `SuiGraphQLClient`, or legacy `SuiJsonRpcClient`, provide a
+`network` parameter:
 
 ```ts
-const client = new SuiGraphQLClient({
+const grpcClient = new SuiGrpcClient({
+	baseUrl: 'https://...',
+	network: 'mainnet', // Required
+});
+
+const graphqlClient = new SuiGraphQLClient({
 	url: 'https://...',
 	network: 'mainnet', // Required
 });
 
-const client = new SuiJsonRpcClient({
+const jsonRpcClient = new SuiJsonRpcClient({
 	url: 'https://...',
 	network: 'mainnet', // Required
 });
@@ -78,11 +111,12 @@ objects.
 + effects.status.Failure.error
 ```
 
-**Core API** (gRPC and GraphQL responses): Uses a simplified structure with a `success` boolean:
+**Core API and top-level client methods** (gRPC and GraphQL responses): Use a simplified structure
+with a `success` boolean:
 
 ```typescript
-// Core API returns this structure
-const result = await client.core.getTransaction({ digest, include: { effects: true } });
+// Top-level gRPC and GraphQL methods return this structure.
+const result = await client.getTransaction({ digest, include: { effects: true } });
 const tx = result.Transaction ?? result.FailedTransaction;
 
 if (tx.effects.status.success) {
@@ -235,7 +269,7 @@ resolution is now built directly into the core client.
 **How it works now:**
 
 MVR name resolution happens automatically during transaction building. The SDK detects `.move` names
-(like `@org/package::module::Type`) and resolves them using the client's MVR resolver.
+like `@org/package::module::Type` and resolves them using the client's MVR resolver.
 
 **Migration:**
 
@@ -250,11 +284,10 @@ MVR name resolution happens automatically during transaction building. The SDK d
 -   })
 - );
 
-+ import { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
-+ import type { NamedPackagesOverrides } from '@mysten/sui/client';
++ import { SuiGrpcClient } from '@mysten/sui/grpc';
 +
-+ const client = new SuiJsonRpcClient({
-+   url: 'https://fullnode.mainnet.sui.io:443',
++ const client = new SuiGrpcClient({
++   baseUrl: 'https://fullnode.mainnet.sui.io:443',
 +   network: 'mainnet',
 +   mvr: {
 +     overrides: myOverrides,
@@ -276,7 +309,8 @@ requiring `SuiJsonRpcClient` specifically.
 **Breaking changes:**
 
 - Constructor `client` parameter type changed from `SuiJsonRpcClient` to `ClientWithCoreApi`
-- Return type of `executeTransaction()`: `data` property renamed to `result`
+- Return type of `executeTransaction()` changed from the legacy `{ digest, effects, data }` wrapper
+  to a Core API `TransactionResult` discriminated union returned directly
 - The second parameter changed from JSON-RPC options to core API include options
 
 **Migration:**
@@ -284,7 +318,12 @@ requiring `SuiJsonRpcClient` specifically.
 ```diff
 import { SerialTransactionExecutor } from '@mysten/sui/transactions';
 - import { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
-+ // Works with any client: SuiJsonRpcClient, SuiGrpcClient, or SuiGraphQLClient
++ import { SuiGrpcClient } from '@mysten/sui/grpc';
+
++ const client = new SuiGrpcClient({
++   baseUrl: 'https://fullnode.devnet.sui.io:443',
++   network: 'devnet',
++ });
 
 const executor = new SerialTransactionExecutor({
 -   client: jsonRpcClient,
@@ -294,10 +333,10 @@ const executor = new SerialTransactionExecutor({
 
 const result = await executor.executeTransaction(tx);
 
-// Accessing the transaction result (changed)
+// Accessing the transaction result now returned directly
 - console.log(result.data.effects?.status.status);
-+ const tx = result.Transaction ?? result.FailedTransaction;
-+ console.log(tx.effects.status.success);
++ const transaction = result.Transaction ?? result.FailedTransaction;
++ console.log(transaction.effects.status.success);
 ```
 
 Include options have also changed:

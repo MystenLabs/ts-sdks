@@ -279,8 +279,7 @@ export interface AddMetadataArguments {
 export interface AddMetadataOptions {
 	package?: string;
 	arguments:
-		| AddMetadataArguments
-		| [self: RawTransactionArgument<string>, metadata: TransactionArgument];
+		AddMetadataArguments | [self: RawTransactionArgument<string>, metadata: TransactionArgument];
 }
 /**
  * Adds the metadata dynamic field to the Blob.
@@ -376,8 +375,7 @@ export interface InsertOrUpdateMetadataPairOptions {
 export function insertOrUpdateMetadataPair(options: InsertOrUpdateMetadataPairOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, '0x1::string::String', '0x1::string::String'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['self', 'key', 'value'];
 	return (tx: Transaction) =>

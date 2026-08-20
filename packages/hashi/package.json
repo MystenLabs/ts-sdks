@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/hashi",
-	"version": "0.6.1",
+	"version": "0.6.9",
 	"private": false,
 	"description": "TypeScript SDK for the Hashi Sui Move smart contracts",
 	"license": "Apache-2.0",
@@ -52,15 +52,15 @@
 		"vitest": "vitest"
 	},
 	"dependencies": {
-		"@noble/curves": "^2.2.0",
-		"@noble/hashes": "^2.2.0",
-		"@scure/base": "^2.2.0"
+		"@noble/curves": "^2.3.0",
+		"@noble/hashes": "^2.3.0",
+		"@scure/base": "^2.3.0"
 	},
 	"devDependencies": {
 		"@mysten/codegen": "workspace:^",
-		"@types/node": "^25.9.3",
-		"typescript": "^6.0.3",
-		"vitest": "^4.1.8"
+		"@types/node": "^26.2.0",
+		"typescript": "^7.0.2",
+		"vitest": "^4.1.10"
 	},
 	"peerDependencies": {
 		"@mysten/sui": "workspace:^"

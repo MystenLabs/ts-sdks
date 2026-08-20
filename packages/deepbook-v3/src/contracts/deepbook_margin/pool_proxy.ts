@@ -23,7 +23,10 @@ export interface UpdateCurrentPriceOptions {
 }
 /**
  * Updates the current price for a pool using safe oracle price calculation. Anyone
- * can call this to update the price oracle used for order validation.
+ * can call this to update the price oracle used for order validation. Updates the
+ * current price for a pool using safe oracle price calculation. Anyone can call
+ * this to update the price oracle used for order validation. Twin:
+ * `pool_proxy_upgraded::update_current_price`. Edit both.
  */
 export function updateCurrentPrice(options: UpdateCurrentPriceOptions) {
 	const packageAddress = options.package ?? '@deepbook/margin';
@@ -306,628 +309,6 @@ export function placeReduceOnlyMarketOrder(options: PlaceReduceOnlyMarketOrderOp
 			typeArguments: options.typeArguments,
 		});
 }
-export interface PlaceLimitOrderV2Arguments {
-	registry: RawTransactionArgument<string>;
-	marginManager: RawTransactionArgument<string>;
-	pool: RawTransactionArgument<string>;
-	baseMarginPool: RawTransactionArgument<string>;
-	quoteMarginPool: RawTransactionArgument<string>;
-	baseOracle: RawTransactionArgument<string>;
-	quoteOracle: RawTransactionArgument<string>;
-	clientOrderId: RawTransactionArgument<number | bigint>;
-	orderType: RawTransactionArgument<number>;
-	selfMatchingOption: RawTransactionArgument<number>;
-	price: RawTransactionArgument<number | bigint>;
-	quantity: RawTransactionArgument<number | bigint>;
-	isBid: RawTransactionArgument<boolean>;
-	payWithDeep: RawTransactionArgument<boolean>;
-	expireTimestamp: RawTransactionArgument<number | bigint>;
-}
-export interface PlaceLimitOrderV2Options {
-	package?: string;
-	arguments:
-		| PlaceLimitOrderV2Arguments
-		| [
-				registry: RawTransactionArgument<string>,
-				marginManager: RawTransactionArgument<string>,
-				pool: RawTransactionArgument<string>,
-				baseMarginPool: RawTransactionArgument<string>,
-				quoteMarginPool: RawTransactionArgument<string>,
-				baseOracle: RawTransactionArgument<string>,
-				quoteOracle: RawTransactionArgument<string>,
-				clientOrderId: RawTransactionArgument<number | bigint>,
-				orderType: RawTransactionArgument<number>,
-				selfMatchingOption: RawTransactionArgument<number>,
-				price: RawTransactionArgument<number | bigint>,
-				quantity: RawTransactionArgument<number | bigint>,
-				isBid: RawTransactionArgument<boolean>,
-				payWithDeep: RawTransactionArgument<boolean>,
-				expireTimestamp: RawTransactionArgument<number | bigint>,
-		  ];
-	typeArguments: [string, string];
-}
-/** Places a limit order in the pool. */
-export function placeLimitOrderV2(options: PlaceLimitOrderV2Options) {
-	const packageAddress = options.package ?? '@deepbook/margin';
-	const argumentsTypes = [
-		null,
-		null,
-		null,
-		null,
-		null,
-		null,
-		null,
-		'u64',
-		'u8',
-		'u8',
-		'u64',
-		'u64',
-		'bool',
-		'bool',
-		'u64',
-		'0x2::clock::Clock',
-	] satisfies (string | null)[];
-	const parameterNames = [
-		'registry',
-		'marginManager',
-		'pool',
-		'baseMarginPool',
-		'quoteMarginPool',
-		'baseOracle',
-		'quoteOracle',
-		'clientOrderId',
-		'orderType',
-		'selfMatchingOption',
-		'price',
-		'quantity',
-		'isBid',
-		'payWithDeep',
-		'expireTimestamp',
-	];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'pool_proxy',
-			function: 'place_limit_order_v2',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-			typeArguments: options.typeArguments,
-		});
-}
-export interface PlaceMarketOrderV2Arguments {
-	registry: RawTransactionArgument<string>;
-	marginManager: RawTransactionArgument<string>;
-	pool: RawTransactionArgument<string>;
-	baseMarginPool: RawTransactionArgument<string>;
-	quoteMarginPool: RawTransactionArgument<string>;
-	baseOracle: RawTransactionArgument<string>;
-	quoteOracle: RawTransactionArgument<string>;
-	clientOrderId: RawTransactionArgument<number | bigint>;
-	selfMatchingOption: RawTransactionArgument<number>;
-	quantity: RawTransactionArgument<number | bigint>;
-	isBid: RawTransactionArgument<boolean>;
-	payWithDeep: RawTransactionArgument<boolean>;
-}
-export interface PlaceMarketOrderV2Options {
-	package?: string;
-	arguments:
-		| PlaceMarketOrderV2Arguments
-		| [
-				registry: RawTransactionArgument<string>,
-				marginManager: RawTransactionArgument<string>,
-				pool: RawTransactionArgument<string>,
-				baseMarginPool: RawTransactionArgument<string>,
-				quoteMarginPool: RawTransactionArgument<string>,
-				baseOracle: RawTransactionArgument<string>,
-				quoteOracle: RawTransactionArgument<string>,
-				clientOrderId: RawTransactionArgument<number | bigint>,
-				selfMatchingOption: RawTransactionArgument<number>,
-				quantity: RawTransactionArgument<number | bigint>,
-				isBid: RawTransactionArgument<boolean>,
-				payWithDeep: RawTransactionArgument<boolean>,
-		  ];
-	typeArguments: [string, string];
-}
-/** Places a market order in the pool. */
-export function placeMarketOrderV2(options: PlaceMarketOrderV2Options) {
-	const packageAddress = options.package ?? '@deepbook/margin';
-	const argumentsTypes = [
-		null,
-		null,
-		null,
-		null,
-		null,
-		null,
-		null,
-		'u64',
-		'u8',
-		'u64',
-		'bool',
-		'bool',
-		'0x2::clock::Clock',
-	] satisfies (string | null)[];
-	const parameterNames = [
-		'registry',
-		'marginManager',
-		'pool',
-		'baseMarginPool',
-		'quoteMarginPool',
-		'baseOracle',
-		'quoteOracle',
-		'clientOrderId',
-		'selfMatchingOption',
-		'quantity',
-		'isBid',
-		'payWithDeep',
-	];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'pool_proxy',
-			function: 'place_market_order_v2',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-			typeArguments: options.typeArguments,
-		});
-}
-export interface PlaceReduceOnlyLimitOrderV2Arguments {
-	registry: RawTransactionArgument<string>;
-	marginManager: RawTransactionArgument<string>;
-	pool: RawTransactionArgument<string>;
-	baseMarginPool: RawTransactionArgument<string>;
-	quoteMarginPool: RawTransactionArgument<string>;
-	baseOracle: RawTransactionArgument<string>;
-	quoteOracle: RawTransactionArgument<string>;
-	clientOrderId: RawTransactionArgument<number | bigint>;
-	orderType: RawTransactionArgument<number>;
-	selfMatchingOption: RawTransactionArgument<number>;
-	price: RawTransactionArgument<number | bigint>;
-	quantity: RawTransactionArgument<number | bigint>;
-	isBid: RawTransactionArgument<boolean>;
-	payWithDeep: RawTransactionArgument<boolean>;
-	expireTimestamp: RawTransactionArgument<number | bigint>;
-}
-export interface PlaceReduceOnlyLimitOrderV2Options {
-	package?: string;
-	arguments:
-		| PlaceReduceOnlyLimitOrderV2Arguments
-		| [
-				registry: RawTransactionArgument<string>,
-				marginManager: RawTransactionArgument<string>,
-				pool: RawTransactionArgument<string>,
-				baseMarginPool: RawTransactionArgument<string>,
-				quoteMarginPool: RawTransactionArgument<string>,
-				baseOracle: RawTransactionArgument<string>,
-				quoteOracle: RawTransactionArgument<string>,
-				clientOrderId: RawTransactionArgument<number | bigint>,
-				orderType: RawTransactionArgument<number>,
-				selfMatchingOption: RawTransactionArgument<number>,
-				price: RawTransactionArgument<number | bigint>,
-				quantity: RawTransactionArgument<number | bigint>,
-				isBid: RawTransactionArgument<boolean>,
-				payWithDeep: RawTransactionArgument<boolean>,
-				expireTimestamp: RawTransactionArgument<number | bigint>,
-		  ];
-	typeArguments: [string, string];
-}
-/** Places a reduce-only order in the pool. Used when margin trading is disabled. */
-export function placeReduceOnlyLimitOrderV2(options: PlaceReduceOnlyLimitOrderV2Options) {
-	const packageAddress = options.package ?? '@deepbook/margin';
-	const argumentsTypes = [
-		null,
-		null,
-		null,
-		null,
-		null,
-		null,
-		null,
-		'u64',
-		'u8',
-		'u8',
-		'u64',
-		'u64',
-		'bool',
-		'bool',
-		'u64',
-		'0x2::clock::Clock',
-	] satisfies (string | null)[];
-	const parameterNames = [
-		'registry',
-		'marginManager',
-		'pool',
-		'baseMarginPool',
-		'quoteMarginPool',
-		'baseOracle',
-		'quoteOracle',
-		'clientOrderId',
-		'orderType',
-		'selfMatchingOption',
-		'price',
-		'quantity',
-		'isBid',
-		'payWithDeep',
-		'expireTimestamp',
-	];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'pool_proxy',
-			function: 'place_reduce_only_limit_order_v2',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-			typeArguments: options.typeArguments,
-		});
-}
-export interface PlaceReduceOnlyMarketOrderV2Arguments {
-	registry: RawTransactionArgument<string>;
-	marginManager: RawTransactionArgument<string>;
-	pool: RawTransactionArgument<string>;
-	baseMarginPool: RawTransactionArgument<string>;
-	quoteMarginPool: RawTransactionArgument<string>;
-	baseOracle: RawTransactionArgument<string>;
-	quoteOracle: RawTransactionArgument<string>;
-	clientOrderId: RawTransactionArgument<number | bigint>;
-	selfMatchingOption: RawTransactionArgument<number>;
-	quantity: RawTransactionArgument<number | bigint>;
-	isBid: RawTransactionArgument<boolean>;
-	payWithDeep: RawTransactionArgument<boolean>;
-}
-export interface PlaceReduceOnlyMarketOrderV2Options {
-	package?: string;
-	arguments:
-		| PlaceReduceOnlyMarketOrderV2Arguments
-		| [
-				registry: RawTransactionArgument<string>,
-				marginManager: RawTransactionArgument<string>,
-				pool: RawTransactionArgument<string>,
-				baseMarginPool: RawTransactionArgument<string>,
-				quoteMarginPool: RawTransactionArgument<string>,
-				baseOracle: RawTransactionArgument<string>,
-				quoteOracle: RawTransactionArgument<string>,
-				clientOrderId: RawTransactionArgument<number | bigint>,
-				selfMatchingOption: RawTransactionArgument<number>,
-				quantity: RawTransactionArgument<number | bigint>,
-				isBid: RawTransactionArgument<boolean>,
-				payWithDeep: RawTransactionArgument<boolean>,
-		  ];
-	typeArguments: [string, string];
-}
-/**
- * Places a reduce-only market order in the pool. Used when margin trading is
- * disabled.
- *
- * Superseded by `place_reduce_only_market_order_and_repay_loan`. A market (taker)
- * fill always pays the spread, which lowers the oracle-valued `risk_ratio` while
- * the debt is unchanged, so the swap-only monotonic check here rejects essentially
- * every taker fill. The `_and_repay` variant deleverages with the proceeds so the
- * net-state ratio actually improves. Kept callable for existing integrators; its
- * reduce-only _direction_ guard matches the other entries — a bid needs base
- * (short-side) debt, the ask needs quote (long-side) debt and sells up to gross
- * base held — with no size cap.
- */
-export function placeReduceOnlyMarketOrderV2(options: PlaceReduceOnlyMarketOrderV2Options) {
-	const packageAddress = options.package ?? '@deepbook/margin';
-	const argumentsTypes = [
-		null,
-		null,
-		null,
-		null,
-		null,
-		null,
-		null,
-		'u64',
-		'u8',
-		'u64',
-		'bool',
-		'bool',
-		'0x2::clock::Clock',
-	] satisfies (string | null)[];
-	const parameterNames = [
-		'registry',
-		'marginManager',
-		'pool',
-		'baseMarginPool',
-		'quoteMarginPool',
-		'baseOracle',
-		'quoteOracle',
-		'clientOrderId',
-		'selfMatchingOption',
-		'quantity',
-		'isBid',
-		'payWithDeep',
-	];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'pool_proxy',
-			function: 'place_reduce_only_market_order_v2',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-			typeArguments: options.typeArguments,
-		});
-}
-export interface PlaceReduceOnlyMarketOrderAndRepayLoanArguments {
-	registry: RawTransactionArgument<string>;
-	marginManager: RawTransactionArgument<string>;
-	pool: RawTransactionArgument<string>;
-	baseMarginPool: RawTransactionArgument<string>;
-	quoteMarginPool: RawTransactionArgument<string>;
-	baseOracle: RawTransactionArgument<string>;
-	quoteOracle: RawTransactionArgument<string>;
-	clientOrderId: RawTransactionArgument<number | bigint>;
-	selfMatchingOption: RawTransactionArgument<number>;
-	quantity: RawTransactionArgument<number | bigint>;
-	isBid: RawTransactionArgument<boolean>;
-	payWithDeep: RawTransactionArgument<boolean>;
-}
-export interface PlaceReduceOnlyMarketOrderAndRepayLoanOptions {
-	package?: string;
-	arguments:
-		| PlaceReduceOnlyMarketOrderAndRepayLoanArguments
-		| [
-				registry: RawTransactionArgument<string>,
-				marginManager: RawTransactionArgument<string>,
-				pool: RawTransactionArgument<string>,
-				baseMarginPool: RawTransactionArgument<string>,
-				quoteMarginPool: RawTransactionArgument<string>,
-				baseOracle: RawTransactionArgument<string>,
-				quoteOracle: RawTransactionArgument<string>,
-				clientOrderId: RawTransactionArgument<number | bigint>,
-				selfMatchingOption: RawTransactionArgument<number>,
-				quantity: RawTransactionArgument<number | bigint>,
-				isBid: RawTransactionArgument<boolean>,
-				payWithDeep: RawTransactionArgument<boolean>,
-		  ];
-	typeArguments: [string, string];
-}
-/**
- * Atomically winds down a leveraged position: places a reduce-only market order,
- * repays the loan with the proceeds, then requires the net (post-repay) risk ratio
- * to be at least the pre-trade ratio.
- *
- * The post-repay check is the point. A market close pays the spread, which alone
- * lowers the oracle-valued ratio (debt is unchanged until repay) and would abort
- * the plain reduce-only path. Repaying first deleverages and absorbs the slippage
- * (still bounded by the `assert_price` band), and lets a manager in the
- * `liquidation..min_borrow` band climb out — it cannot reach the borrow floor in a
- * single swap.
- */
-export function placeReduceOnlyMarketOrderAndRepayLoan(
-	options: PlaceReduceOnlyMarketOrderAndRepayLoanOptions,
-) {
-	const packageAddress = options.package ?? '@deepbook/margin';
-	const argumentsTypes = [
-		null,
-		null,
-		null,
-		null,
-		null,
-		null,
-		null,
-		'u64',
-		'u8',
-		'u64',
-		'bool',
-		'bool',
-		'0x2::clock::Clock',
-	] satisfies (string | null)[];
-	const parameterNames = [
-		'registry',
-		'marginManager',
-		'pool',
-		'baseMarginPool',
-		'quoteMarginPool',
-		'baseOracle',
-		'quoteOracle',
-		'clientOrderId',
-		'selfMatchingOption',
-		'quantity',
-		'isBid',
-		'payWithDeep',
-	];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'pool_proxy',
-			function: 'place_reduce_only_market_order_and_repay_loan',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-			typeArguments: options.typeArguments,
-		});
-}
-export interface PlaceReduceOnlyLimitOrderAndRepayLoanArguments {
-	registry: RawTransactionArgument<string>;
-	marginManager: RawTransactionArgument<string>;
-	pool: RawTransactionArgument<string>;
-	baseMarginPool: RawTransactionArgument<string>;
-	quoteMarginPool: RawTransactionArgument<string>;
-	baseOracle: RawTransactionArgument<string>;
-	quoteOracle: RawTransactionArgument<string>;
-	clientOrderId: RawTransactionArgument<number | bigint>;
-	orderType: RawTransactionArgument<number>;
-	selfMatchingOption: RawTransactionArgument<number>;
-	price: RawTransactionArgument<number | bigint>;
-	quantity: RawTransactionArgument<number | bigint>;
-	isBid: RawTransactionArgument<boolean>;
-	payWithDeep: RawTransactionArgument<boolean>;
-	expireTimestamp: RawTransactionArgument<number | bigint>;
-}
-export interface PlaceReduceOnlyLimitOrderAndRepayLoanOptions {
-	package?: string;
-	arguments:
-		| PlaceReduceOnlyLimitOrderAndRepayLoanArguments
-		| [
-				registry: RawTransactionArgument<string>,
-				marginManager: RawTransactionArgument<string>,
-				pool: RawTransactionArgument<string>,
-				baseMarginPool: RawTransactionArgument<string>,
-				quoteMarginPool: RawTransactionArgument<string>,
-				baseOracle: RawTransactionArgument<string>,
-				quoteOracle: RawTransactionArgument<string>,
-				clientOrderId: RawTransactionArgument<number | bigint>,
-				orderType: RawTransactionArgument<number>,
-				selfMatchingOption: RawTransactionArgument<number>,
-				price: RawTransactionArgument<number | bigint>,
-				quantity: RawTransactionArgument<number | bigint>,
-				isBid: RawTransactionArgument<boolean>,
-				payWithDeep: RawTransactionArgument<boolean>,
-				expireTimestamp: RawTransactionArgument<number | bigint>,
-		  ];
-	typeArguments: [string, string];
-}
-/**
- * Reduce-only **limit** order that atomically repays the loan with the taker
- * fills. It is the limit/maker behaviour of `place_reduce_only_limit_order_v2`
- * plus the repay-then-net-monotonic gate of
- * `place_reduce_only_market_order_and_repay_loan`: the portion that crosses the
- * book fills immediately and settles, the rest rests as a maker, then the settled
- * (taker) proceeds repay the debt before the monotonic check on the net
- * (post-repay) state.
- *
- * This is the danger-band tool for a _price-bounded_ reduce: a crossing
- * reduce-only limit pays the spread on its taker fills, which alone would abort
- * `place_reduce_only_limit_order_v2`'s swap-only monotonic check; repaying first
- * deleverages so the net ratio holds. The resting remainder only locks balance
- * (counted in assets), so it doesn't move the ratio. Unfilled-and-resting behaves
- * exactly like `place_reduce_only_limit_order_v2` (nothing to repay).
- */
-export function placeReduceOnlyLimitOrderAndRepayLoan(
-	options: PlaceReduceOnlyLimitOrderAndRepayLoanOptions,
-) {
-	const packageAddress = options.package ?? '@deepbook/margin';
-	const argumentsTypes = [
-		null,
-		null,
-		null,
-		null,
-		null,
-		null,
-		null,
-		'u64',
-		'u8',
-		'u8',
-		'u64',
-		'u64',
-		'bool',
-		'bool',
-		'u64',
-		'0x2::clock::Clock',
-	] satisfies (string | null)[];
-	const parameterNames = [
-		'registry',
-		'marginManager',
-		'pool',
-		'baseMarginPool',
-		'quoteMarginPool',
-		'baseOracle',
-		'quoteOracle',
-		'clientOrderId',
-		'orderType',
-		'selfMatchingOption',
-		'price',
-		'quantity',
-		'isBid',
-		'payWithDeep',
-		'expireTimestamp',
-	];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'pool_proxy',
-			function: 'place_reduce_only_limit_order_and_repay_loan',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-			typeArguments: options.typeArguments,
-		});
-}
-export interface PlaceMarketOrderAndRepayLoanArguments {
-	registry: RawTransactionArgument<string>;
-	marginManager: RawTransactionArgument<string>;
-	pool: RawTransactionArgument<string>;
-	baseMarginPool: RawTransactionArgument<string>;
-	quoteMarginPool: RawTransactionArgument<string>;
-	baseOracle: RawTransactionArgument<string>;
-	quoteOracle: RawTransactionArgument<string>;
-	clientOrderId: RawTransactionArgument<number | bigint>;
-	selfMatchingOption: RawTransactionArgument<number>;
-	quantity: RawTransactionArgument<number | bigint>;
-	isBid: RawTransactionArgument<boolean>;
-	payWithDeep: RawTransactionArgument<boolean>;
-}
-export interface PlaceMarketOrderAndRepayLoanOptions {
-	package?: string;
-	arguments:
-		| PlaceMarketOrderAndRepayLoanArguments
-		| [
-				registry: RawTransactionArgument<string>,
-				marginManager: RawTransactionArgument<string>,
-				pool: RawTransactionArgument<string>,
-				baseMarginPool: RawTransactionArgument<string>,
-				quoteMarginPool: RawTransactionArgument<string>,
-				baseOracle: RawTransactionArgument<string>,
-				quoteOracle: RawTransactionArgument<string>,
-				clientOrderId: RawTransactionArgument<number | bigint>,
-				selfMatchingOption: RawTransactionArgument<number>,
-				quantity: RawTransactionArgument<number | bigint>,
-				isBid: RawTransactionArgument<boolean>,
-				payWithDeep: RawTransactionArgument<boolean>,
-		  ];
-	typeArguments: [string, string];
-}
-/**
- * Atomically places a market order and repays the loan with the proceeds, gating
- * on a **monotonic** net-state check: if any debt remains after the repay, the
- * post-repay `risk_ratio` must be at least the pre-trade ratio (improve-or-hold).
- * A full close drives debt to 0 (`risk_ratio` MAX), which always passes.
- *
- * This is the everyday close / deleverage tool. The monotonic gate — rather than
- * the `min_open` opening floor used by `place_market_order_v2` — lets a position
- * in the `liquidation..min_borrow` danger band wind down _partially_: a small
- * close that lifts the ratio from, say, 1.12 to 1.15 is allowed even though 1.15
- * is still below `min_open`, which the opening floor would reject.
- *
- * Not reduce-only and uncapped, but the monotonic check makes a quantity cap
- * unnecessary: a market (taker) fill settles immediately, so any genuinely
- * exposure-_increasing_ trade lowers the ratio and aborts here, while any
- * deleveraging trade is allowed at any size — an overshoot past the debt is fine
- * (surplus is the manager's own holding) and `assert_price` still bounds slippage.
- * Requires margin trading enabled; in reduce-only mode use
- * `place_reduce_only_market_order_and_repay_loan`.
- */
-export function placeMarketOrderAndRepayLoan(options: PlaceMarketOrderAndRepayLoanOptions) {
-	const packageAddress = options.package ?? '@deepbook/margin';
-	const argumentsTypes = [
-		null,
-		null,
-		null,
-		null,
-		null,
-		null,
-		null,
-		'u64',
-		'u8',
-		'u64',
-		'bool',
-		'bool',
-		'0x2::clock::Clock',
-	] satisfies (string | null)[];
-	const parameterNames = [
-		'registry',
-		'marginManager',
-		'pool',
-		'baseMarginPool',
-		'quoteMarginPool',
-		'baseOracle',
-		'quoteOracle',
-		'clientOrderId',
-		'selfMatchingOption',
-		'quantity',
-		'isBid',
-		'payWithDeep',
-	];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'pool_proxy',
-			function: 'place_market_order_and_repay_loan',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-			typeArguments: options.typeArguments,
-		});
-}
 export interface ModifyOrderArguments {
 	registry: RawTransactionArgument<string>;
 	marginManager: RawTransactionArgument<string>;
@@ -952,8 +333,7 @@ export interface ModifyOrderOptions {
 export function modifyOrder(options: ModifyOrderOptions) {
 	const packageAddress = options.package ?? '@deepbook/margin';
 	const argumentsTypes = [null, null, null, 'u128', 'u64', '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['registry', 'marginManager', 'pool', 'orderId', 'newQuantity'];
 	return (tx: Transaction) =>
@@ -987,8 +367,7 @@ export interface CancelOrderOptions {
 export function cancelOrder(options: CancelOrderOptions) {
 	const packageAddress = options.package ?? '@deepbook/margin';
 	const argumentsTypes = [null, null, null, 'u128', '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['registry', 'marginManager', 'pool', 'orderId'];
 	return (tx: Transaction) =>
@@ -1022,8 +401,7 @@ export interface CancelOrdersOptions {
 export function cancelOrders(options: CancelOrdersOptions) {
 	const packageAddress = options.package ?? '@deepbook/margin';
 	const argumentsTypes = [null, null, null, 'vector<u128>', '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['registry', 'marginManager', 'pool', 'orderIds'];
 	return (tx: Transaction) =>
@@ -1292,6 +670,641 @@ export function claimRebates(options: ClaimRebatesOptions) {
 			package: packageAddress,
 			module: 'pool_proxy',
 			function: 'claim_rebates',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface PlaceLimitOrderV2Arguments {
+	registry: RawTransactionArgument<string>;
+	marginManager: RawTransactionArgument<string>;
+	pool: RawTransactionArgument<string>;
+	baseMarginPool: RawTransactionArgument<string>;
+	quoteMarginPool: RawTransactionArgument<string>;
+	baseOracle: RawTransactionArgument<string>;
+	quoteOracle: RawTransactionArgument<string>;
+	clientOrderId: RawTransactionArgument<number | bigint>;
+	orderType: RawTransactionArgument<number>;
+	selfMatchingOption: RawTransactionArgument<number>;
+	price: RawTransactionArgument<number | bigint>;
+	quantity: RawTransactionArgument<number | bigint>;
+	isBid: RawTransactionArgument<boolean>;
+	payWithDeep: RawTransactionArgument<boolean>;
+	expireTimestamp: RawTransactionArgument<number | bigint>;
+}
+export interface PlaceLimitOrderV2Options {
+	package?: string;
+	arguments:
+		| PlaceLimitOrderV2Arguments
+		| [
+				registry: RawTransactionArgument<string>,
+				marginManager: RawTransactionArgument<string>,
+				pool: RawTransactionArgument<string>,
+				baseMarginPool: RawTransactionArgument<string>,
+				quoteMarginPool: RawTransactionArgument<string>,
+				baseOracle: RawTransactionArgument<string>,
+				quoteOracle: RawTransactionArgument<string>,
+				clientOrderId: RawTransactionArgument<number | bigint>,
+				orderType: RawTransactionArgument<number>,
+				selfMatchingOption: RawTransactionArgument<number>,
+				price: RawTransactionArgument<number | bigint>,
+				quantity: RawTransactionArgument<number | bigint>,
+				isBid: RawTransactionArgument<boolean>,
+				payWithDeep: RawTransactionArgument<boolean>,
+				expireTimestamp: RawTransactionArgument<number | bigint>,
+		  ];
+	typeArguments: [string, string];
+}
+/**
+ * Places a limit order in the pool. Twin:
+ * `pool_proxy_upgraded::place_limit_order_v2`. Edit both.
+ */
+export function placeLimitOrderV2(options: PlaceLimitOrderV2Options) {
+	const packageAddress = options.package ?? '@deepbook/margin';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'u8',
+		'u8',
+		'u64',
+		'u64',
+		'bool',
+		'bool',
+		'u64',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'registry',
+		'marginManager',
+		'pool',
+		'baseMarginPool',
+		'quoteMarginPool',
+		'baseOracle',
+		'quoteOracle',
+		'clientOrderId',
+		'orderType',
+		'selfMatchingOption',
+		'price',
+		'quantity',
+		'isBid',
+		'payWithDeep',
+		'expireTimestamp',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pool_proxy',
+			function: 'place_limit_order_v2',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface PlaceMarketOrderV2Arguments {
+	registry: RawTransactionArgument<string>;
+	marginManager: RawTransactionArgument<string>;
+	pool: RawTransactionArgument<string>;
+	baseMarginPool: RawTransactionArgument<string>;
+	quoteMarginPool: RawTransactionArgument<string>;
+	baseOracle: RawTransactionArgument<string>;
+	quoteOracle: RawTransactionArgument<string>;
+	clientOrderId: RawTransactionArgument<number | bigint>;
+	selfMatchingOption: RawTransactionArgument<number>;
+	quantity: RawTransactionArgument<number | bigint>;
+	isBid: RawTransactionArgument<boolean>;
+	payWithDeep: RawTransactionArgument<boolean>;
+}
+export interface PlaceMarketOrderV2Options {
+	package?: string;
+	arguments:
+		| PlaceMarketOrderV2Arguments
+		| [
+				registry: RawTransactionArgument<string>,
+				marginManager: RawTransactionArgument<string>,
+				pool: RawTransactionArgument<string>,
+				baseMarginPool: RawTransactionArgument<string>,
+				quoteMarginPool: RawTransactionArgument<string>,
+				baseOracle: RawTransactionArgument<string>,
+				quoteOracle: RawTransactionArgument<string>,
+				clientOrderId: RawTransactionArgument<number | bigint>,
+				selfMatchingOption: RawTransactionArgument<number>,
+				quantity: RawTransactionArgument<number | bigint>,
+				isBid: RawTransactionArgument<boolean>,
+				payWithDeep: RawTransactionArgument<boolean>,
+		  ];
+	typeArguments: [string, string];
+}
+/**
+ * Places a market order in the pool. Twin:
+ * `pool_proxy_upgraded::place_market_order_v2`. Edit both.
+ */
+export function placeMarketOrderV2(options: PlaceMarketOrderV2Options) {
+	const packageAddress = options.package ?? '@deepbook/margin';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'u8',
+		'u64',
+		'bool',
+		'bool',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'registry',
+		'marginManager',
+		'pool',
+		'baseMarginPool',
+		'quoteMarginPool',
+		'baseOracle',
+		'quoteOracle',
+		'clientOrderId',
+		'selfMatchingOption',
+		'quantity',
+		'isBid',
+		'payWithDeep',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pool_proxy',
+			function: 'place_market_order_v2',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface PlaceReduceOnlyLimitOrderV2Arguments {
+	registry: RawTransactionArgument<string>;
+	marginManager: RawTransactionArgument<string>;
+	pool: RawTransactionArgument<string>;
+	baseMarginPool: RawTransactionArgument<string>;
+	quoteMarginPool: RawTransactionArgument<string>;
+	baseOracle: RawTransactionArgument<string>;
+	quoteOracle: RawTransactionArgument<string>;
+	clientOrderId: RawTransactionArgument<number | bigint>;
+	orderType: RawTransactionArgument<number>;
+	selfMatchingOption: RawTransactionArgument<number>;
+	price: RawTransactionArgument<number | bigint>;
+	quantity: RawTransactionArgument<number | bigint>;
+	isBid: RawTransactionArgument<boolean>;
+	payWithDeep: RawTransactionArgument<boolean>;
+	expireTimestamp: RawTransactionArgument<number | bigint>;
+}
+export interface PlaceReduceOnlyLimitOrderV2Options {
+	package?: string;
+	arguments:
+		| PlaceReduceOnlyLimitOrderV2Arguments
+		| [
+				registry: RawTransactionArgument<string>,
+				marginManager: RawTransactionArgument<string>,
+				pool: RawTransactionArgument<string>,
+				baseMarginPool: RawTransactionArgument<string>,
+				quoteMarginPool: RawTransactionArgument<string>,
+				baseOracle: RawTransactionArgument<string>,
+				quoteOracle: RawTransactionArgument<string>,
+				clientOrderId: RawTransactionArgument<number | bigint>,
+				orderType: RawTransactionArgument<number>,
+				selfMatchingOption: RawTransactionArgument<number>,
+				price: RawTransactionArgument<number | bigint>,
+				quantity: RawTransactionArgument<number | bigint>,
+				isBid: RawTransactionArgument<boolean>,
+				payWithDeep: RawTransactionArgument<boolean>,
+				expireTimestamp: RawTransactionArgument<number | bigint>,
+		  ];
+	typeArguments: [string, string];
+}
+/**
+ * Places a reduce-only order in the pool. Used when margin trading is disabled.
+ * Twin: `pool_proxy_upgraded::place_reduce_only_limit_order_v2`. Edit both.
+ */
+export function placeReduceOnlyLimitOrderV2(options: PlaceReduceOnlyLimitOrderV2Options) {
+	const packageAddress = options.package ?? '@deepbook/margin';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'u8',
+		'u8',
+		'u64',
+		'u64',
+		'bool',
+		'bool',
+		'u64',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'registry',
+		'marginManager',
+		'pool',
+		'baseMarginPool',
+		'quoteMarginPool',
+		'baseOracle',
+		'quoteOracle',
+		'clientOrderId',
+		'orderType',
+		'selfMatchingOption',
+		'price',
+		'quantity',
+		'isBid',
+		'payWithDeep',
+		'expireTimestamp',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pool_proxy',
+			function: 'place_reduce_only_limit_order_v2',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface PlaceReduceOnlyMarketOrderV2Arguments {
+	registry: RawTransactionArgument<string>;
+	marginManager: RawTransactionArgument<string>;
+	pool: RawTransactionArgument<string>;
+	baseMarginPool: RawTransactionArgument<string>;
+	quoteMarginPool: RawTransactionArgument<string>;
+	baseOracle: RawTransactionArgument<string>;
+	quoteOracle: RawTransactionArgument<string>;
+	clientOrderId: RawTransactionArgument<number | bigint>;
+	selfMatchingOption: RawTransactionArgument<number>;
+	quantity: RawTransactionArgument<number | bigint>;
+	isBid: RawTransactionArgument<boolean>;
+	payWithDeep: RawTransactionArgument<boolean>;
+}
+export interface PlaceReduceOnlyMarketOrderV2Options {
+	package?: string;
+	arguments:
+		| PlaceReduceOnlyMarketOrderV2Arguments
+		| [
+				registry: RawTransactionArgument<string>,
+				marginManager: RawTransactionArgument<string>,
+				pool: RawTransactionArgument<string>,
+				baseMarginPool: RawTransactionArgument<string>,
+				quoteMarginPool: RawTransactionArgument<string>,
+				baseOracle: RawTransactionArgument<string>,
+				quoteOracle: RawTransactionArgument<string>,
+				clientOrderId: RawTransactionArgument<number | bigint>,
+				selfMatchingOption: RawTransactionArgument<number>,
+				quantity: RawTransactionArgument<number | bigint>,
+				isBid: RawTransactionArgument<boolean>,
+				payWithDeep: RawTransactionArgument<boolean>,
+		  ];
+	typeArguments: [string, string];
+}
+/**
+ * Places a reduce-only market order in the pool. Used when margin trading is
+ * disabled.
+ *
+ * Superseded by `place_reduce_only_market_order_and_repay_loan`. A market (taker)
+ * fill always pays the spread, which lowers the oracle-valued `risk_ratio` while
+ * the debt is unchanged, so the swap-only monotonic check here rejects essentially
+ * every taker fill. The `_and_repay` variant deleverages with the proceeds so the
+ * net-state ratio actually improves. Kept callable for existing integrators; its
+ * reduce-only _direction_ guard matches the other entries — a bid needs base
+ * (short-side) debt, the ask needs quote (long-side) debt and sells up to gross
+ * base held — with no size cap. Twin:
+ * `pool_proxy_upgraded::place_reduce_only_market_order_v2`. Edit both.
+ */
+export function placeReduceOnlyMarketOrderV2(options: PlaceReduceOnlyMarketOrderV2Options) {
+	const packageAddress = options.package ?? '@deepbook/margin';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'u8',
+		'u64',
+		'bool',
+		'bool',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'registry',
+		'marginManager',
+		'pool',
+		'baseMarginPool',
+		'quoteMarginPool',
+		'baseOracle',
+		'quoteOracle',
+		'clientOrderId',
+		'selfMatchingOption',
+		'quantity',
+		'isBid',
+		'payWithDeep',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pool_proxy',
+			function: 'place_reduce_only_market_order_v2',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface PlaceReduceOnlyMarketOrderAndRepayLoanArguments {
+	registry: RawTransactionArgument<string>;
+	marginManager: RawTransactionArgument<string>;
+	pool: RawTransactionArgument<string>;
+	baseMarginPool: RawTransactionArgument<string>;
+	quoteMarginPool: RawTransactionArgument<string>;
+	baseOracle: RawTransactionArgument<string>;
+	quoteOracle: RawTransactionArgument<string>;
+	clientOrderId: RawTransactionArgument<number | bigint>;
+	selfMatchingOption: RawTransactionArgument<number>;
+	quantity: RawTransactionArgument<number | bigint>;
+	isBid: RawTransactionArgument<boolean>;
+	payWithDeep: RawTransactionArgument<boolean>;
+}
+export interface PlaceReduceOnlyMarketOrderAndRepayLoanOptions {
+	package?: string;
+	arguments:
+		| PlaceReduceOnlyMarketOrderAndRepayLoanArguments
+		| [
+				registry: RawTransactionArgument<string>,
+				marginManager: RawTransactionArgument<string>,
+				pool: RawTransactionArgument<string>,
+				baseMarginPool: RawTransactionArgument<string>,
+				quoteMarginPool: RawTransactionArgument<string>,
+				baseOracle: RawTransactionArgument<string>,
+				quoteOracle: RawTransactionArgument<string>,
+				clientOrderId: RawTransactionArgument<number | bigint>,
+				selfMatchingOption: RawTransactionArgument<number>,
+				quantity: RawTransactionArgument<number | bigint>,
+				isBid: RawTransactionArgument<boolean>,
+				payWithDeep: RawTransactionArgument<boolean>,
+		  ];
+	typeArguments: [string, string];
+}
+/**
+ * Atomically winds down a leveraged position: places a reduce-only market order,
+ * repays the loan with the proceeds, then requires the net (post-repay) risk ratio
+ * to be at least the pre-trade ratio.
+ *
+ * The post-repay check is the point. A market close pays the spread, which alone
+ * lowers the oracle-valued ratio (debt is unchanged until repay) and would abort
+ * the plain reduce-only path. Repaying first deleverages and absorbs the slippage
+ * (still bounded by the `assert_price` band), and lets a manager in the
+ * `liquidation..min_borrow` band climb out — it cannot reach the borrow floor in a
+ * single swap. Twin:
+ * `pool_proxy_upgraded::place_reduce_only_market_order_and_repay_loan`. Edit both.
+ */
+export function placeReduceOnlyMarketOrderAndRepayLoan(
+	options: PlaceReduceOnlyMarketOrderAndRepayLoanOptions,
+) {
+	const packageAddress = options.package ?? '@deepbook/margin';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'u8',
+		'u64',
+		'bool',
+		'bool',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'registry',
+		'marginManager',
+		'pool',
+		'baseMarginPool',
+		'quoteMarginPool',
+		'baseOracle',
+		'quoteOracle',
+		'clientOrderId',
+		'selfMatchingOption',
+		'quantity',
+		'isBid',
+		'payWithDeep',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pool_proxy',
+			function: 'place_reduce_only_market_order_and_repay_loan',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface PlaceReduceOnlyLimitOrderAndRepayLoanArguments {
+	registry: RawTransactionArgument<string>;
+	marginManager: RawTransactionArgument<string>;
+	pool: RawTransactionArgument<string>;
+	baseMarginPool: RawTransactionArgument<string>;
+	quoteMarginPool: RawTransactionArgument<string>;
+	baseOracle: RawTransactionArgument<string>;
+	quoteOracle: RawTransactionArgument<string>;
+	clientOrderId: RawTransactionArgument<number | bigint>;
+	orderType: RawTransactionArgument<number>;
+	selfMatchingOption: RawTransactionArgument<number>;
+	price: RawTransactionArgument<number | bigint>;
+	quantity: RawTransactionArgument<number | bigint>;
+	isBid: RawTransactionArgument<boolean>;
+	payWithDeep: RawTransactionArgument<boolean>;
+	expireTimestamp: RawTransactionArgument<number | bigint>;
+}
+export interface PlaceReduceOnlyLimitOrderAndRepayLoanOptions {
+	package?: string;
+	arguments:
+		| PlaceReduceOnlyLimitOrderAndRepayLoanArguments
+		| [
+				registry: RawTransactionArgument<string>,
+				marginManager: RawTransactionArgument<string>,
+				pool: RawTransactionArgument<string>,
+				baseMarginPool: RawTransactionArgument<string>,
+				quoteMarginPool: RawTransactionArgument<string>,
+				baseOracle: RawTransactionArgument<string>,
+				quoteOracle: RawTransactionArgument<string>,
+				clientOrderId: RawTransactionArgument<number | bigint>,
+				orderType: RawTransactionArgument<number>,
+				selfMatchingOption: RawTransactionArgument<number>,
+				price: RawTransactionArgument<number | bigint>,
+				quantity: RawTransactionArgument<number | bigint>,
+				isBid: RawTransactionArgument<boolean>,
+				payWithDeep: RawTransactionArgument<boolean>,
+				expireTimestamp: RawTransactionArgument<number | bigint>,
+		  ];
+	typeArguments: [string, string];
+}
+/**
+ * Reduce-only **limit** order that atomically repays the loan with the taker
+ * fills. It is the limit/maker behaviour of `place_reduce_only_limit_order_v2`
+ * plus the repay-then-net-monotonic gate of
+ * `place_reduce_only_market_order_and_repay_loan`: the portion that crosses the
+ * book fills immediately and settles, the rest rests as a maker, then the settled
+ * (taker) proceeds repay the debt before the monotonic check on the net
+ * (post-repay) state.
+ *
+ * This is the danger-band tool for a _price-bounded_ reduce: a crossing
+ * reduce-only limit pays the spread on its taker fills, which alone would abort
+ * `place_reduce_only_limit_order_v2`'s swap-only monotonic check; repaying first
+ * deleverages so the net ratio holds. The resting remainder only locks balance
+ * (counted in assets), so it doesn't move the ratio. Unfilled-and-resting behaves
+ * exactly like `place_reduce_only_limit_order_v2` (nothing to repay). Twin:
+ * `pool_proxy_upgraded::place_reduce_only_limit_order_and_repay_loan`. Edit both.
+ */
+export function placeReduceOnlyLimitOrderAndRepayLoan(
+	options: PlaceReduceOnlyLimitOrderAndRepayLoanOptions,
+) {
+	const packageAddress = options.package ?? '@deepbook/margin';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'u8',
+		'u8',
+		'u64',
+		'u64',
+		'bool',
+		'bool',
+		'u64',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'registry',
+		'marginManager',
+		'pool',
+		'baseMarginPool',
+		'quoteMarginPool',
+		'baseOracle',
+		'quoteOracle',
+		'clientOrderId',
+		'orderType',
+		'selfMatchingOption',
+		'price',
+		'quantity',
+		'isBid',
+		'payWithDeep',
+		'expireTimestamp',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pool_proxy',
+			function: 'place_reduce_only_limit_order_and_repay_loan',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface PlaceMarketOrderAndRepayLoanArguments {
+	registry: RawTransactionArgument<string>;
+	marginManager: RawTransactionArgument<string>;
+	pool: RawTransactionArgument<string>;
+	baseMarginPool: RawTransactionArgument<string>;
+	quoteMarginPool: RawTransactionArgument<string>;
+	baseOracle: RawTransactionArgument<string>;
+	quoteOracle: RawTransactionArgument<string>;
+	clientOrderId: RawTransactionArgument<number | bigint>;
+	selfMatchingOption: RawTransactionArgument<number>;
+	quantity: RawTransactionArgument<number | bigint>;
+	isBid: RawTransactionArgument<boolean>;
+	payWithDeep: RawTransactionArgument<boolean>;
+}
+export interface PlaceMarketOrderAndRepayLoanOptions {
+	package?: string;
+	arguments:
+		| PlaceMarketOrderAndRepayLoanArguments
+		| [
+				registry: RawTransactionArgument<string>,
+				marginManager: RawTransactionArgument<string>,
+				pool: RawTransactionArgument<string>,
+				baseMarginPool: RawTransactionArgument<string>,
+				quoteMarginPool: RawTransactionArgument<string>,
+				baseOracle: RawTransactionArgument<string>,
+				quoteOracle: RawTransactionArgument<string>,
+				clientOrderId: RawTransactionArgument<number | bigint>,
+				selfMatchingOption: RawTransactionArgument<number>,
+				quantity: RawTransactionArgument<number | bigint>,
+				isBid: RawTransactionArgument<boolean>,
+				payWithDeep: RawTransactionArgument<boolean>,
+		  ];
+	typeArguments: [string, string];
+}
+/**
+ * Atomically places a market order and repays the loan with the proceeds, gating
+ * on a **monotonic** net-state check: if any debt remains after the repay, the
+ * post-repay `risk_ratio` must be at least the pre-trade ratio (improve-or-hold).
+ * A full close drives debt to 0 (`risk_ratio` MAX), which always passes.
+ *
+ * This is the everyday close / deleverage tool. The monotonic gate — rather than
+ * the `min_open` opening floor used by `place_market_order_v2` — lets a position
+ * in the `liquidation..min_borrow` danger band wind down _partially_: a small
+ * close that lifts the ratio from, say, 1.12 to 1.15 is allowed even though 1.15
+ * is still below `min_open`, which the opening floor would reject.
+ *
+ * Not reduce-only and uncapped, but the monotonic check makes a quantity cap
+ * unnecessary: a market (taker) fill settles immediately, so any genuinely
+ * exposure-_increasing_ trade lowers the ratio and aborts here, while any
+ * deleveraging trade is allowed at any size — an overshoot past the debt is fine
+ * (surplus is the manager's own holding) and `assert_price` still bounds slippage.
+ * Requires margin trading enabled; in reduce-only mode use
+ * `place_reduce_only_market_order_and_repay_loan`. Twin:
+ * `pool_proxy_upgraded::place_market_order_and_repay_loan`. Edit both.
+ */
+export function placeMarketOrderAndRepayLoan(options: PlaceMarketOrderAndRepayLoanOptions) {
+	const packageAddress = options.package ?? '@deepbook/margin';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'u8',
+		'u64',
+		'bool',
+		'bool',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'registry',
+		'marginManager',
+		'pool',
+		'baseMarginPool',
+		'quoteMarginPool',
+		'baseOracle',
+		'quoteOracle',
+		'clientOrderId',
+		'selfMatchingOption',
+		'quantity',
+		'isBid',
+		'payWithDeep',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pool_proxy',
+			function: 'place_market_order_and_repay_loan',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 			typeArguments: options.typeArguments,
 		});

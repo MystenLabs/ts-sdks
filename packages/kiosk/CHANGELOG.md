@@ -1,5 +1,30 @@
 # @mysten/kiosk
 
+## 1.4.4
+
+## 1.4.3
+
+## 1.4.2
+
+## 1.4.1
+
+### Patch Changes
+
+- 19e85a3: Regenerate contract bindings with the latest codegen utils template
+
+## 1.4.0
+
+### Minor Changes
+
+- f27cd69: Add support for `SuiGrpcClient` and other `ClientWithCoreApi` implementations to the
+  Kiosk SDK, and query objects and transfer policy events through the shared Core API.
+
+## 1.3.13
+
+## 1.3.12
+
+## 1.3.11
+
 ## 1.3.10
 
 ## 1.3.9

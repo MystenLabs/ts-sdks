@@ -4,7 +4,14 @@ import type { SuiClientTypes } from '@mysten/sui/client';
 import { normalizeSuiAddress } from '@mysten/sui/utils';
 
 import { BalanceManagerContract } from '../transactions/balanceManager.js';
-import type { BalanceManager, MarginManager, Coin, Pool, MarginPool } from '../types/index.js';
+import type {
+	BalanceManager,
+	MarginManager,
+	Coin,
+	Pool,
+	MarginPool,
+	PythConfig,
+} from '../types/index.js';
 import type { CoinMap, PoolMap, MarginPoolMap, DeepbookPackageIds } from './constants.js';
 import { ResourceNotFoundError, ConfigurationError, ErrorMessages } from './errors.js';
 import {
@@ -40,10 +47,7 @@ export class DeepBookConfig {
 	balanceManagers: { [key: string]: BalanceManager };
 	marginManagers: { [key: string]: MarginManager };
 	address: string;
-	pyth: {
-		pythStateId: string;
-		wormholeStateId: string;
-	};
+	pyth: PythConfig;
 
 	DEEPBOOK_PACKAGE_ID: string;
 	REGISTRY_ID: string;
@@ -71,6 +75,7 @@ export class DeepBookConfig {
 		marginPools,
 		packageIds,
 		pyth,
+		pythAccessToken,
 	}: {
 		network: SuiClientTypes.Network;
 		address: string;
@@ -83,7 +88,16 @@ export class DeepBookConfig {
 		pools?: PoolMap;
 		marginPools?: MarginPoolMap;
 		packageIds?: DeepbookPackageIds;
-		pyth?: { pythStateId: string; wormholeStateId: string };
+		pyth?: PythConfig;
+		/**
+		 * Bearer token for the Hermes serving Pyth's upgraded Core, which answers 401
+		 * without one. Set this rather than `pyth` when the built-in state objects are
+		 * correct and only the credential is missing — `pyth` replaces the whole config,
+		 * so setting a token through it means restating the state object ids.
+		 *
+		 * Applied after `pyth`, so if both carry a token this one wins.
+		 */
+		pythAccessToken?: string;
 	}) {
 		this.network = network;
 		this.address = normalizeSuiAddress(address);
@@ -116,7 +130,7 @@ export class DeepBookConfig {
 			this.MARGIN_V1 = mainnetPackageIds.MARGIN_V1;
 			this.MARGIN_REGISTRY_ID = mainnetPackageIds.MARGIN_REGISTRY_ID;
 			this.LIQUIDATION_PACKAGE_ID = mainnetPackageIds.LIQUIDATION_PACKAGE_ID;
-			this.pyth = mainnetPythConfigs;
+			this.pyth = pyth || mainnetPythConfigs;
 		} else if (network === 'testnet') {
 			this.#coins = coins || testnetCoins;
 			this.#pools = pools || testnetPools;
@@ -128,22 +142,68 @@ export class DeepBookConfig {
 			this.MARGIN_V1 = testnetPackageIds.MARGIN_V1;
 			this.MARGIN_REGISTRY_ID = testnetPackageIds.MARGIN_REGISTRY_ID;
 			this.LIQUIDATION_PACKAGE_ID = testnetPackageIds.LIQUIDATION_PACKAGE_ID;
-			this.pyth = testnetPythConfigs;
+			this.pyth = pyth || testnetPythConfigs;
 		} else {
 			throw new Error(
 				`Network '${network}' is not supported by default. Provide custom 'packageIds' for non-standard networks.`,
 			);
 		}
 
+		// Applied after the branches so a token composes with the built-in state objects
+		// instead of forcing the caller to restate them.
+		// Empty is treated as absent rather than as a credential: `PYTH_TOKEN=` exported
+		// blank is the common way this arrives, and a blank bearer header 401s with a
+		// worse message than the configuration error.
+		if (pythAccessToken) {
+			this.pyth = { ...this.pyth, accessToken: pythAccessToken };
+		}
+
 		this.balanceManager = new BalanceManagerContract(this);
 	}
 
 	requirePyth() {
-		if (!this.pyth.pythStateId || !this.pyth.wormholeStateId) {
+		const { pythStateId, wormholeStateId } = this.pyth;
+		if (!pythStateId || !wormholeStateId) {
 			throw new ConfigurationError(
 				"Pyth configuration is required for price feed operations. Provide 'pyth' when using custom packageIds.",
 			);
 		}
+	}
+
+	/**
+	 * The Pyth feed id for a coin under the active deployment.
+	 *
+	 * Pairs with {@link getPriceInfoObjectId}: Hermes is queried by feed id and the Move
+	 * call takes the object, so the two must come from the same deployment or the update
+	 * lands on an object the on-chain feed-id check then rejects.
+	 */
+	getFeedId(coinKey: string): string {
+		const { feed } = this.getCoin(coinKey);
+
+		if (!feed) {
+			throw new ConfigurationError(`Coin '${coinKey}' has no Pyth feed id configured.`);
+		}
+
+		return feed;
+	}
+
+	/**
+	 * The `PriceInfoObject` id for a coin on Pyth's upgraded Core.
+	 *
+	 * Throws rather than passing `undefined` into a move call: a feed may simply have no
+	 * object on the upgraded deployment yet, and the resulting on-chain abort
+	 * (`EPriceFeedIdMismatch`) does not say which coin was at fault.
+	 */
+	getPriceInfoObjectId(coinKey: string): string {
+		const { priceInfoObjectId } = this.getCoin(coinKey);
+
+		if (!priceInfoObjectId) {
+			throw new ConfigurationError(
+				`Coin '${coinKey}' has no priceInfoObjectId. Pyth's upgraded Core has no price feed object for it on ${this.network}, or the id is missing from your coin config.`,
+			);
+		}
+
+		return priceInfoObjectId;
 	}
 
 	// Getters

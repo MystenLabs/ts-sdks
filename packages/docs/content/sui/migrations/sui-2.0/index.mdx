@@ -1,14 +1,42 @@
 ---
 title: Migrate to 2.0
-description: Migration guide for Sui TypeScript SDK 2.0 covering all @mysten packages.
-keywords: [migration, 2.0, upgrade, breaking changes, gRPC, GraphQL, ESM, '@mysten packages']
+description: Migration guide for Sui TypeScript SDK 2.0 covering all @mysten packages
+keywords:
+  - migration
+  - '2.0'
+  - upgrade
+  - breaking changes
+  - gRPC
+  - GraphQL
+  - ESM
+  - '@mysten packages'
+questions:
+  - What changed in the Migrate to 2.0 migration?
+  - How do I migrate to Migrate to 2.0?
+  - How does Quick reference work?
+  - How does Common migration patterns work?
+answer: Migration guide for Sui TypeScript SDK 2.0 covering all @mysten packages
+goal:
+  description: Reader understands what Migrate to 2.0 provides and how to get started
+  requires:
+    - has_frontmatter:
+        - title
+        - description
+        - keywords
+      label: Has required frontmatter fields
+    - min_words: 100
+      label: Needs content depth
+    - has_questions: true
+      label: Needs questions for AI search visibility
+    - has_answer: true
+      label: Needs answer summary for AI citation
 ---
 
 This guide covers the breaking changes across the latest release of all the `@mysten/*` packages.
 
-The primary goal of this release is to support the new GRPC and GraphQL APIs across all the mysten
-SDKs. These releases also include removals of deprecated APIs, some renaming for better consistency,
-and significant internal refactoring to improve maintainability. Starting with this release, Mysten
+The primary goal of this release is to support the gRPC and GraphQL APIs across all Mysten SDKs.
+These releases also include removals of deprecated APIs, some renaming for better consistency, and
+significant internal refactoring to improve maintainability. Starting with this release, Mysten
 packages will now be published as ESM only packages.
 
 ## Quick reference
@@ -67,39 +95,51 @@ updates.
 
 ### Client migration
 
-The most common change across all SDKs is migrating from `SuiClient` to `SuiJsonRpcClient`:
+The recommended app migration is to create one `SuiGrpcClient` and use its top-level methods:
 
 ```diff
 - import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
-+ import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
++ import { SuiGrpcClient } from '@mysten/sui/grpc';
 
 - const client = new SuiClient({ url: getFullnodeUrl('mainnet') });
-+ const client = new SuiJsonRpcClient({
-+   url: getJsonRpcFullnodeUrl('mainnet'),
++ const client = new SuiGrpcClient({
++   baseUrl: 'https://fullnode.mainnet.sui.io:443',
 +   network: 'mainnet',
 + });
 ```
 
-We also recommend moving from the deprecated JSON RPC APIs to the new gRPC API as soon as possible:
+Then migrate old JSON-RPC method names to the gRPC top-level methods:
 
 ```diff
-- import { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
-+ import { SuiGrpcClient } from '@mysten/sui/grpc';
+- const coins = await client.getCoins({ owner });
++ const coins = await client.listCoins({ owner });
 
-- const client = new SuiJsonRpcClient({ url, network: 'mainnet' });
-+ const client = new SuiGrpcClient({ baseUrl, network: 'mainnet' });
+- const txs = await client.queryTransactionBlocks({ filter, options });
++ const txs = await client.listTransactions({ filter, include });
+
+- const events = await client.queryEvents({ query, order: 'descending' });
++ const events = await client.listEvents({ filter, order: 'descending' });
+
+- const transaction = await client.getTransactionBlock({ digest, options });
++ const transaction = await client.getTransaction({ digest, include });
 ```
 
-The gRPC runs on full nodes so in most cases you should be able to use the same URLs when migrating
-to gRPC.
+The gRPC API runs on full nodes, so in most cases you can use the same full node host when migrating
+from JSON-RPC to gRPC. Standard transaction and event queries are top-level methods on both
+`SuiGrpcClient` and `SuiGraphQLClient`. Use custom GraphQL queries for indexed data, historical
+object versions, or selection sets that are not covered by the shared methods.
+
+`SuiJsonRpcClient` still exists under `@mysten/sui/jsonRpc` for legacy code, but JSON-RPC APIs are
+deprecated in the Sui TypeScript SDK. See
+[Migrating from JSON-RPC](/sui/migrations/sui-2.0/json-rpc-migration) for detailed replacements.
 
 ### Network parameter required
 
 All client constructors now require an explicit `network` parameter:
 
 ```ts
-const client = new SuiJsonRpcClient({
-	url: getJsonRpcFullnodeUrl('mainnet'),
+const grpcClient = new SuiGrpcClient({
+	baseUrl: 'https://fullnode.mainnet.sui.io:443',
 	network: 'mainnet', // Required
 });
 
@@ -108,26 +148,34 @@ const graphqlClient = new SuiGraphQLClient({
 	network: 'mainnet', // Required
 });
 
-const grpcClient = new SuiGrpcClient({
-	baseUrl: 'https://fullnode.mainnet.sui.io:443',
+const jsonRpcClient = new SuiJsonRpcClient({
+	url: 'https://fullnode.mainnet.sui.io:443',
 	network: 'mainnet', // Required
 });
 ```
 
 ### `ClientWithCoreApi` Interface
 
-Many SDK methods now accept any client implementing `ClientWithCoreApi`, enabling use with JSON-RPC,
-GraphQL, or gRPC transports:
+Many SDK methods now accept any client implementing `ClientWithCoreApi`. SDKs use
+`client.core.<method>()` so they can work across `SuiGrpcClient`, `SuiGraphQLClient`, and the
+deprecated `SuiJsonRpcClient` while apps keep using the top-level methods on their chosen client:
 
 ```ts
-import { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
-import { SuiGraphQLClient } from '@mysten/sui/graphql';
+import type { ClientWithCoreApi } from '@mysten/sui/client';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
 
-// All of these work with APIs that accept ClientWithCoreApi
-const jsonRpcClient = new SuiJsonRpcClient({ url, network: 'mainnet' });
-const graphqlClient = new SuiGraphQLClient({ url, network: 'mainnet' });
-const grpcClient = new SuiGrpcClient({ baseUrl, network: 'mainnet' });
+const client = new SuiGrpcClient({
+	baseUrl: 'https://fullnode.mainnet.sui.io:443',
+	network: 'mainnet',
+});
+
+// App code: use top-level methods.
+const { balance } = await client.getBalance({ owner });
+
+// SDK code: accept ClientWithCoreApi and use client.core.
+async function readForSdk(client: ClientWithCoreApi, objectId: string) {
+	return client.core.getObject({ objectId });
+}
 ```
 
 ## Package-specific guides

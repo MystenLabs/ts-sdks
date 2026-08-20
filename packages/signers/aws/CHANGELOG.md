@@ -1,5 +1,27 @@
 # @mysten/aws-kms-signer
 
+## 0.3.15
+
+### Patch Changes
+
+- f2f7048: Upgrade workspace dependencies, remove the legacy dapp-kit package, and migrate the
+  remaining consumers to the current gRPC-based dapp-kit. Remove the legacy API reference while
+  retaining the migration guide and deprecation notice.
+
+## 0.3.14
+
+## 0.3.13
+
+## 0.3.12
+
+## 0.3.11
+
+## 0.3.10
+
+## 0.3.9
+
+## 0.3.8
+
 ## 0.3.7
 
 ## 0.3.6

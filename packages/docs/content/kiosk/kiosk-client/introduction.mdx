@@ -1,7 +1,37 @@
 ---
 title: Kiosk Client
-description: Introduction to the KioskClient extension for querying and managing kiosks on Sui.
-keywords: [KioskClient, kiosk extension, $extend, Sui client, setup, mainnet, testnet]
+description: >-
+  Introduction to the KioskClient extension for querying and managing kiosks on Sui
+keywords:
+  - KioskClient
+  - kiosk extension
+  - $extend
+  - Sui client
+  - setup
+  - mainnet
+  - testnet
+questions:
+  - What is Kiosk Client?
+  - How do I use Kiosk Client?
+  - How does Setting up the kiosk extension work?
+answer: >-
+  Introduction to the KioskClient extension for querying and managing kiosks on Sui
+goal:
+  description: >-
+    Reader understands introduction to the KioskClient extension for querying and managing kiosks on
+    Sui
+  requires:
+    - has_frontmatter:
+        - title
+        - description
+        - keywords
+      label: Has required frontmatter fields
+    - min_words: 30
+      label: Needs content depth
+    - has_questions: true
+      label: Needs questions for AI search visibility
+    - has_answer: true
+      label: Needs answer summary for AI citation
 ---
 
 The Kiosk SDK exports a client extension that provides all Kiosk functionality.
@@ -9,8 +39,13 @@ The Kiosk SDK exports a client extension that provides all Kiosk functionality.
 > We recommend you keep only one client instance throughout your app or script. For example, in
 > React, you'd use a context to provide the client.
 
-> The Kiosk SDK requires `SuiJsonRpcClient` or `SuiGraphQLClient`. It does not work with
-> `SuiGrpcClient` because it uses event queries that are not available in gRPC.
+The Kiosk extension accepts any Sui client that implements `ClientWithCoreApi`. Use `SuiGrpcClient`
+for new Kiosk code; `SuiGraphQLClient` and the deprecated `SuiJsonRpcClient` are also compatible.
+
+<Callout type="info">
+	The gRPC object API returns Display v2 metadata. Use GraphQL or JSON-RPC when reading objects
+	whose types still rely on legacy Display metadata.
+</Callout>
 
 ## Setting up the kiosk extension
 
@@ -22,10 +57,10 @@ require constantly changing the package IDs).
 
 ```typescript
 import { kiosk } from '@mysten/kiosk';
-import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 
-const client = new SuiJsonRpcClient({
-	url: getJsonRpcFullnodeUrl('testnet'),
+const client = new SuiGrpcClient({
+	baseUrl: 'https://fullnode.testnet.sui.io:443',
 	network: 'testnet',
 }).$extend(kiosk());
 
@@ -40,10 +75,10 @@ for the rules and extensions you want to use.
 
 ```typescript
 import { kiosk } from '@mysten/kiosk';
-import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 
-const client = new SuiJsonRpcClient({
-	url: getJsonRpcFullnodeUrl('devnet'),
+const client = new SuiGrpcClient({
+	baseUrl: 'https://fullnode.devnet.sui.io:443',
 	network: 'devnet',
 }).$extend(
 	kiosk({

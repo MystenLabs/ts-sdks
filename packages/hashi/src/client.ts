@@ -30,6 +30,7 @@ import {
 	GUARDIAN_BTC_PUBLIC_KEY_LEN,
 	GUARDIAN_PUBLIC_KEY_LEN,
 	NETWORK_CONFIG,
+	WORST_CASE_NETWORK_FEE_CEILING_SATS,
 } from './constants.js';
 import type { AmountViolation } from './errors.js';
 import {
@@ -117,14 +118,16 @@ function defaultGraphqlUrl(network: string): string {
  * unknown) must propagate so other per-object failures can't be silently
  * downgraded to "not used."
  *
- * Two transports, two shapes:
- * - JSON-RPC returns a typed `ObjectError` whose `.code` is `notExists` or
- *   `dynamicFieldNotFound`. `ObjectError` is not re-exported from
- *   `@mysten/sui/client`, so the guard duck-types the field.
- * - gRPC stringifies the per-object error into `new Error(message)` with no
- *   code (see the `TODO: improve error handling` in `@mysten/sui/grpc/core.ts`).
- *   For now the only signal is the message, which the Sui ledger service
- *   returns as exactly `Object <id> not found` for missing objects.
+ * Current `@mysten/sui` versions return a typed `ObjectError` on every
+ * transport with a transport-neutral `.reason` (`notFound` for missing
+ * objects), which is the preferred signal. The guard duck-types `reason` and
+ * `code` instead of using `instanceof` so it keeps working when the app and
+ * this package resolve different copies of `@mysten/sui`.
+ *
+ * Fallbacks for older `@mysten/sui` versions without `reason`:
+ * - JSON-RPC: `ObjectError.code` is `notExists` or `dynamicFieldNotFound`.
+ * - gRPC: a plain `new Error(message)` with no code, where the only signal is
+ *   the ledger service's message, exactly `Object <id> not found`.
  *
  * Transport-level failures don't show up here — they reject the whole
  * `getObjects` promise rather than appearing in the result array.
@@ -132,7 +135,8 @@ function defaultGraphqlUrl(network: string): string {
 const GRPC_NOT_FOUND_MESSAGE_RE = /^Object 0x[0-9a-f]+ not found$/i;
 
 function isObjectNotFoundError(err: Error): boolean {
-	const code = (err as Error & { code?: unknown }).code;
+	const { code, reason } = err as Error & { code?: unknown; reason?: unknown };
+	if (reason === 'notFound') return true;
 	if (code === 'notExists' || code === 'dynamicFieldNotFound') return true;
 	return code === undefined && GRPC_NOT_FOUND_MESSAGE_RE.test(err.message);
 }
@@ -1056,7 +1060,15 @@ export class HashiClient {
 			}
 
 			return {
-				worstCaseNetworkFeeSats: snap.worstCaseNetworkFee,
+				// The raw on-chain budget tracks `bitcoin_withdrawal_minimum`, so it
+				// explodes when governance raises the minimum as a policy throttle
+				// (a 10 BTC minimum implies a ~10 BTC "fee"). Cap it at the ceiling
+				// derived from validator consensus limits so this stays a usable
+				// display bound — see WORST_CASE_NETWORK_FEE_CEILING_SATS.
+				worstCaseNetworkFeeSats:
+					snap.worstCaseNetworkFee < WORST_CASE_NETWORK_FEE_CEILING_SATS
+						? snap.worstCaseNetworkFee
+						: WORST_CASE_NETWORK_FEE_CEILING_SATS,
 				withdrawalMinimumSats: snap.bitcoinWithdrawalMinimum,
 				gasEstimateMist,
 			};

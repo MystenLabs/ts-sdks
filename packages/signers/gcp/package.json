@@ -3,7 +3,7 @@
 	"author": "Mysten Labs <build@mystenlabs.com>",
 	"description": "Sui signer using Google Cloud KMS",
 	"homepage": "https://sdk.mystenlabs.com",
-	"version": "0.2.10",
+	"version": "0.2.18",
 	"license": "Apache-2.0",
 	"type": "module",
 	"sideEffects": false,
@@ -46,17 +46,17 @@
 		"node": ">=22"
 	},
 	"dependencies": {
-		"@google-cloud/kms": "^5.5.1",
-		"@noble/curves": "^2.2.0",
+		"@google-cloud/kms": "^6.0.0",
+		"@noble/curves": "^2.3.0",
 		"asn1-ts": "^11.1.0"
 	},
 	"peerDependencies": {
 		"@mysten/sui": "workspace:^"
 	},
 	"devDependencies": {
-		"@types/node": "^25.9.3",
+		"@types/node": "^26.2.0",
 		"dotenv": "^17.4.2",
-		"typescript": "^6.0.3",
-		"vitest": "^4.1.8"
+		"typescript": "^7.0.2",
+		"vitest": "^4.1.10"
 	}
 }

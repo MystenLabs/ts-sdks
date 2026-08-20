@@ -153,8 +153,7 @@ export interface IsValidTldArguments {
 export interface IsValidTldOptions {
 	package?: string;
 	arguments:
-		| IsValidTldArguments
-		| [config: TransactionArgument, tld: RawTransactionArgument<string>];
+		IsValidTldArguments | [config: TransactionArgument, tld: RawTransactionArgument<string>];
 }
 export function isValidTld(options: IsValidTldOptions) {
 	const packageAddress = options.package ?? '@suins/core';

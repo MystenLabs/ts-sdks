@@ -1,7 +1,6 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { PaginationArguments } from '@mysten/sui/jsonRpc';
 import type { SuiClientTypes } from '@mysten/sui/client';
 
 import {
@@ -24,6 +23,7 @@ import type {
 	KioskClientOptions,
 	KioskCompatibleClient,
 	KioskData,
+	KioskPaginationArguments,
 	OwnedKiosks,
 } from '../types/index.js';
 
@@ -37,11 +37,11 @@ export type KioskExtensionOptions<Name extends string = 'kiosk'> = {
  *
  * @example
  * ```ts
- * import { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+ * import { SuiGrpcClient } from '@mysten/sui/grpc';
  * import { kiosk } from '@mysten/kiosk';
  *
- * const client = new SuiJsonRpcClient({
- *   url: getJsonRpcFullnodeUrl('mainnet'),
+ * const client = new SuiGrpcClient({
+ *   baseUrl: 'https://fullnode.mainnet.sui.io:443',
  *   network: 'mainnet',
  * }).$extend(kiosk());
  *
@@ -100,7 +100,7 @@ export class KioskClient {
 		pagination,
 	}: {
 		address: string;
-		pagination?: PaginationArguments<string>;
+		pagination?: KioskPaginationArguments;
 	}): Promise<OwnedKiosks> {
 		const personalPackageId =
 			this.packageIds?.personalKioskRulePackageId || PERSONAL_KIOSK_RULE_ADDRESS[this.network];

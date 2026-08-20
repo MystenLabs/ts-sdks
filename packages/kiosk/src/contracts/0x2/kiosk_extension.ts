@@ -34,8 +34,7 @@ export function add<T0 extends BcsType<any>>(options: AddOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [`${options.typeArguments[0]}`, null, null, 'u128'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	return (tx: Transaction) =>
 		tx.moveCall({

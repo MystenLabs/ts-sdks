@@ -179,9 +179,10 @@ export async function verifyKeyServer(
 	timeout: number,
 	apiKeyName?: string,
 	apiKey?: string,
+	fetchFn: typeof fetch = globalThis.fetch,
 ): Promise<boolean> {
 	const requestId = crypto.randomUUID();
-	const response = await fetch(server.url! + '/v1/service?service_id=' + server.objectId, {
+	const response = await fetchFn(server.url! + '/v1/service?service_id=' + server.objectId, {
 		method: 'GET',
 		headers: {
 			'Content-Type': 'application/json',
@@ -271,6 +272,8 @@ export interface FetchKeysOptions {
 	apiKey?: string;
 	/** Optional abort signal for cancellation. */
 	signal?: AbortSignal;
+	/** Optional custom fetch implementation. Defaults to the global `fetch`. */
+	fetch?: typeof fetch;
 }
 
 /**
@@ -297,6 +300,7 @@ export async function fetchKeysForAllIds({
 	apiKeyName,
 	apiKey,
 	signal,
+	fetch: fetchFn = globalThis.fetch,
 }: FetchKeysOptions): Promise<{ fullId: string; key: Uint8Array<ArrayBuffer> }[]> {
 	const body = {
 		ptb: toBase64(transactionBytes.slice(1)), // removes the byte of the transaction type version
@@ -310,7 +314,7 @@ export async function fetchKeysForAllIds({
 	const combinedSignal = signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal;
 
 	const requestId = crypto.randomUUID();
-	const response = await fetch(url + '/v1/fetch_key', {
+	const response = await fetchFn(url + '/v1/fetch_key', {
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/json',

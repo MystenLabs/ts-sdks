@@ -332,9 +332,6 @@ export function getPageEntries(
 	return entries;
 }
 
-/** Directories excluded from all generated docs and indices. */
-export const EXCLUDED_SUBDIRS = ['dapp-kit/legacy'];
-
 /**
  * Generate a markdown index for a single content section (e.g. "sui", "dapp-kit").
  *
@@ -346,18 +343,11 @@ export function generateSectionIndex(
 	sectionDir: string,
 	basePath: string,
 	heading: '#' | '##' = '##',
-	excludedSubdirs: string[] = EXCLUDED_SUBDIRS,
 ): string {
 	const meta = readMetaJson(sectionDir);
 	const sectionName = path.basename(sectionDir);
 	const sectionTitle = meta?.title || sectionName;
 	const sectionDesc = meta?.description || '';
-
-	// Compute section-relative exclusions from the provided exclusions list.
-	// e.g. "dapp-kit/legacy" → "legacy" when sectionName is "dapp-kit"
-	const sectionExclusions = excludedSubdirs
-		.filter((dir) => dir.startsWith(sectionName + '/'))
-		.map((dir) => dir.slice(sectionName.length + 1));
 
 	const lines: string[] = [];
 
@@ -380,11 +370,6 @@ export function generateSectionIndex(
 	for (const entry of entries) {
 		// Skip if it's the same as the index we just added
 		if (entry.relativePath === `${basePath}.md`) continue;
-
-		// Skip excluded subdirectories (check relative to basePath)
-		if (sectionExclusions.some((excl) => entry.relativePath.startsWith(`${basePath}/${excl}/`))) {
-			continue;
-		}
 
 		const desc = entry.description ? `: ${entry.description}` : '';
 		lines.push(`- [${entry.title}](${entry.relativePath})${desc}`);

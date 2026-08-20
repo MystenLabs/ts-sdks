@@ -56,6 +56,9 @@ const GRPC_URLS = {
 		deepbook({
 			address: getActiveAddress(),
 			marginManagers,
+			// Margin prices against Pyth's upgraded Core, whose Hermes answers 401 without a
+			// token. Supply PYTH_TOKEN to push price updates.
+			pythAccessToken: process.env.PYTH_TOKEN,
 		}),
 	);
 

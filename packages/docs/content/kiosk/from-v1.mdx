@@ -1,7 +1,35 @@
 ---
 title: Migrating from Kiosk SDK V1
-description: Migrate from Kiosk SDK v1 to the current version with the builder-pattern API.
-keywords: [Kiosk SDK, migration, v1, upgrade, builder pattern, Personal Kiosk, Sui]
+description: Migrate from Kiosk SDK v1 to the current version with the builder-pattern API
+keywords:
+  - Kiosk SDK
+  - migration
+  - v1
+  - upgrade
+  - builder pattern
+  - Personal Kiosk
+  - Sui
+questions:
+  - What is Migrating from Kiosk SDK V1?
+  - How do I use Migrating from Kiosk SDK V1?
+  - How does Placing an item to kiosk and listing it for sale work?
+  - How does Create a new kiosk work?
+answer: Migrate from Kiosk SDK v1 to the current version with the builder-pattern API
+goal:
+  description: >-
+    Reader can migrate from Kiosk SDK v1 to the current version with the builder-pattern API
+  requires:
+    - has_frontmatter:
+        - title
+        - description
+        - keywords
+      label: Has required frontmatter fields
+    - min_words: 30
+      label: Needs content depth
+    - has_questions: true
+      label: Needs questions for AI search visibility
+    - has_answer: true
+      label: Needs answer summary for AI citation
 ---
 
 The original version of Kiosk SDK provided basic experimentation with the Kiosk API. The new version
@@ -49,11 +77,12 @@ Using the new SDK, you can build the same transaction as follows:
 
 ```typescript
 import { kiosk, KioskTransaction } from '@mysten/kiosk';
-import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+import { Transaction } from '@mysten/sui/transactions';
 
 // You need to do this only once and re-use it in the application.
-const client = new SuiJsonRpcClient({
-	url: getJsonRpcFullnodeUrl('mainnet'),
+const client = new SuiGrpcClient({
+	baseUrl: 'https://fullnode.mainnet.sui.io:443',
 	network: 'mainnet',
 }).$extend(kiosk());
 
@@ -105,11 +134,12 @@ Using the new SDK, you can build the same transaction as follows:
 
 ```typescript
 import { kiosk, KioskTransaction } from '@mysten/kiosk';
-import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+import { Transaction } from '@mysten/sui/transactions';
 
 // You need to do this only once and re-use it in the application.
-const client = new SuiJsonRpcClient({
-	url: getJsonRpcFullnodeUrl('mainnet'),
+const client = new SuiGrpcClient({
+	baseUrl: 'https://fullnode.mainnet.sui.io:443',
 	network: 'mainnet',
 }).$extend(kiosk());
 
@@ -138,6 +168,7 @@ import {
 	testnetEnvironment,
 } from '@mysten/kiosk';
 import { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import { Transaction } from '@mysten/sui/transactions';
 
 const client = new SuiJsonRpcClient({
 	url: 'https://fullnode.testnet.sui.io:443',
@@ -208,11 +239,12 @@ Using the new SDK, you can build the same transaction as follows:
 
 ```typescript
 import { kiosk, KioskTransaction } from '@mysten/kiosk';
-import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+import { Transaction } from '@mysten/sui/transactions';
 
 // You need to do this only once and re-use it in the application.
-const client = new SuiJsonRpcClient({
-	url: getJsonRpcFullnodeUrl('mainnet'),
+const client = new SuiGrpcClient({
+	baseUrl: 'https://fullnode.mainnet.sui.io:443',
 	network: 'mainnet',
 }).$extend(kiosk());
 
@@ -309,11 +341,12 @@ On the new SDK, the same transaction can be built as follows:
 
 ```typescript
 import { kiosk, TransferPolicyTransaction, percentageToBasisPoints } from '@mysten/kiosk';
-import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+import { Transaction } from '@mysten/sui/transactions';
 
 // You need to do this only once and re-use it in the application.
-const client = new SuiJsonRpcClient({
-	url: getJsonRpcFullnodeUrl('mainnet'),
+const client = new SuiGrpcClient({
+	baseUrl: 'https://fullnode.mainnet.sui.io:443',
 	network: 'mainnet',
 }).$extend(kiosk());
 

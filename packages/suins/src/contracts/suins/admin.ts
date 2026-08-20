@@ -64,8 +64,7 @@ export interface ReserveDomainOptions {
 export function reserveDomain(options: ReserveDomainOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [null, null, '0x1::string::String', 'u8', '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['_', 'suins', 'domainName', 'noYears'];
 	return (tx: Transaction) =>

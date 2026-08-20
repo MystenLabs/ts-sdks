@@ -1,0 +1,588 @@
+---
+title: Querying Data
+description: 'Read objects, coins, balances, dynamic fields, and history with any Sui client'
+keywords:
+  - Sui client
+  - getObject
+  - listOwnedObjects
+  - getBalance
+  - listCoins
+  - dynamic fields
+  - listTransactions
+  - listEvents
+  - pagination
+  - '@mysten/sui'
+questions:
+  - What is Querying Data?
+  - How do I use Querying Data?
+  - How does Objects work?
+  - How does Include options work?
+answer: 'Read objects, coins, balances, dynamic fields, and history with any Sui client'
+goal:
+  description: >-
+    Reader can read objects, coins, balances, dynamic fields, and history with any Sui client
+  requires:
+    - has_frontmatter:
+        - title
+        - description
+        - keywords
+      label: Has required frontmatter fields
+    - min_words: 30
+      label: Needs content depth
+    - has_questions: true
+      label: Needs questions for AI search visibility
+    - has_answer: true
+      label: Needs answer summary for AI citation
+---
+
+Every Sui client reads data through the same set of methods. `SuiGrpcClient` and `SuiGraphQLClient`
+expose them as top-level methods, and every client also exposes them on `client.core`, so the
+examples on this page work unchanged whichever client you created.
+
+```typescript
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+const client = new SuiGrpcClient({
+	network: 'mainnet',
+	baseUrl: 'https://fullnode.mainnet.sui.io:443',
+});
+
+const { object } = await client.getObject({
+	objectId: '0x123...',
+	include: { content: true },
+});
+```
+
+Application code should call the top-level method, as above. Libraries that accept any client should
+call `client.core.getObject(...)` instead. See the [Core API](/sui/clients/core) for that contract.
+
+## Objects
+
+### `getObject`
+
+Fetch a single object by ID. Throws if the object does not exist or cannot be read.
+
+```typescript
+const { object } = await client.getObject({
+	objectId: '0x123...',
+	include: {
+		content: true,
+		previousTransaction: true,
+	},
+});
+
+console.log(object.objectId);
+console.log(object.version);
+console.log(object.digest);
+console.log(object.type); // e.g., "0x2::coin::Coin<0x2::sui::SUI>"
+console.log(object.owner.$kind); // "AddressOwner" | "ObjectOwner" | "Shared" | ...
+```
+
+### `getObjects`
+
+Fetch multiple objects in a single request. Unlike `getObject`, per-object failures are returned in
+place rather than thrown, so one missing object does not fail the batch.
+
+```typescript
+const { objects } = await client.getObjects({
+	objectIds: ['0x123...', '0x456...'],
+	include: { content: true },
+});
+
+for (const object of objects) {
+	if (object instanceof Error) {
+		console.log('Could not read object:', object.message);
+	} else {
+		console.log(object.objectId, object.type);
+	}
+}
+```
+
+### `listOwnedObjects`
+
+List objects owned by an address, optionally filtered by type. The filter can be as broad or as
+narrow as you need: a package, a module, a type name, or a full instantiation. `0x2::coin::Coin`
+matches every `Coin<T>`, while `0x2::coin::Coin<0x2::sui::SUI>` matches only SUI coins. The `type`
+accepts [MVR](#move-registry-names) names as well as fully qualified types.
+
+```typescript
+const page = await client.listOwnedObjects({
+	owner: '0xabc...',
+	type: '0x2::coin::Coin<0x2::sui::SUI>',
+	limit: 10,
+});
+
+for (const object of page.objects) {
+	console.log(object.objectId, object.type);
+}
+```
+
+See [Pagination](#pagination) for reading the next page.
+
+## Include options
+
+Object methods accept an `include` parameter that controls what extra data is fetched. Every object
+always comes back with `objectId`, `version`, `digest`, `owner`, and `type`. Anything else must be
+requested, and is typed as `undefined` when it was not:
+
+| Option                | Type      | Description                                                               |
+| --------------------- | --------- | ------------------------------------------------------------------------- |
+| `content`             | `boolean` | BCS-encoded Move struct content (pass this to generated BCS type parsers) |
+| `previousTransaction` | `boolean` | Digest of the transaction that last mutated this object                   |
+| `json`                | `boolean` | JSON representation of the object's Move struct content                   |
+| `objectBcs`           | `boolean` | Full BCS-encoded object envelope (rarely needed; see [below](#objectbcs)) |
+| `display`             | `boolean` | [Sui Display Standard](https://docs.sui.io/standards/display) metadata    |
+
+These options work with `getObject`, `getObjects`, `listOwnedObjects`, and `getDynamicObjectField`.
+
+### `content`
+
+`include: { content: true }` returns the BCS-encoded Move struct bytes. Parse them with generated
+types (from [@mysten/codegen](/codegen)) or with manual BCS definitions:
+
+```typescript
+import { MyStruct } from './generated/my-module';
+
+const { object } = await client.getObject({
+	objectId: '0x123...',
+	include: { content: true },
+});
+
+const parsed = MyStruct.parse(object.content);
+```
+
+### `json`
+
+`include: { json: true }` returns a JSON representation of the object's content, or `null` if the
+object has none.
+
+<Callout type="warn">
+	The shape of the `json` field varies between API implementations, and field names and nesting are
+	not guaranteed to match across clients. When the result has to be stable, use `content` and parse
+	the BCS directly.
+</Callout>
+
+### `objectBcs`
+
+The `objectBcs` option returns the full BCS-encoded object envelope: the struct content wrapped in
+metadata (type, `hasPublicTransfer`, version, owner, previous transaction, and storage rebate). Most
+of that metadata is already available as fields on the object response, so `content` is almost
+always what you want. If you do need the envelope, parse it with `bcs.Object` from
+`@mysten/sui/bcs`:
+
+```typescript
+import { bcs } from '@mysten/sui/bcs';
+
+const envelope = bcs.Object.parse(object.objectBcs);
+```
+
+<Callout type="error">
+	Do not pass `objectBcs` to a Move struct parser. It contains wrapping metadata that causes parsing
+	to fail or produce incorrect results. Use `content` for parsing Move struct fields.
+</Callout>
+
+### `display`
+
+The `display` option fetches [Sui Display Standard](https://docs.sui.io/standards/display) metadata,
+which defines how wallets and explorers should present an object.
+
+```typescript
+const { object } = await client.getObject({
+	objectId: '0x123...',
+	include: { display: true },
+});
+
+if (object.display) {
+	// display is null if the object's type has no Display template
+	console.log(object.display.output?.name);
+	console.log(object.display.output?.image_url);
+}
+```
+
+The field is `null` when the object's type has no registered Display template, and `undefined` when
+`display` was not requested. `Display` has two fields:
+
+| Field    | Type                              | Description                                                     |
+| -------- | --------------------------------- | --------------------------------------------------------------- |
+| `output` | `Record<string, unknown> \| null` | Rendered display fields, keyed by field name                    |
+| `errors` | `Record<string, string> \| null`  | Per-field errors if any template variable failed to interpolate |
+
+Most rendered values are strings, but Display v2 templates can produce structured JSON values for
+fields that use the `:json` transform or reference non-string Move types, so `output` values are
+typed as `unknown`.
+
+## Coins and balances
+
+### `getBalance`
+
+Get the balance of one coin type for an owner. `coinType` defaults to `0x2::sui::SUI`.
+
+```typescript
+const { balance } = await client.getBalance({
+	owner: '0xabc...',
+	coinType: '0x2::sui::SUI',
+});
+
+console.log(balance.balance); // Total: coin objects + address balance
+console.log(balance.coinBalance); // From coin objects only
+console.log(balance.addressBalance); // From the address balance only
+```
+
+All three values are decimal strings, not numbers, so use `BigInt` for arithmetic.
+
+### `listBalances`
+
+List balances for every coin type an address holds.
+
+```typescript
+const page = await client.listBalances({ owner: '0xabc...' });
+
+for (const balance of page.balances) {
+	console.log(balance.coinType, balance.balance);
+}
+```
+
+### `listCoins`
+
+List individual coin objects of one type. `coinType` defaults to `0x2::sui::SUI`.
+
+```typescript
+const page = await client.listCoins({
+	owner: '0xabc...',
+	coinType: '0x2::sui::SUI',
+	limit: 10,
+});
+
+for (const coin of page.objects) {
+	console.log(coin.objectId, coin.balance);
+}
+```
+
+<Callout type="info">
+	You rarely need to select coins by hand. The transaction builder resolves gas and coin inputs for
+	you. See [Coins and balances](/sui/transactions/coins-and-balances).
+</Callout>
+
+### `getCoinMetadata`
+
+Get the name, symbol, decimals, description, and icon for a coin type. Returns `null` when the type
+has no registered metadata.
+
+```typescript
+const { coinMetadata } = await client.getCoinMetadata({
+	coinType: '0x2::sui::SUI',
+});
+
+if (coinMetadata) {
+	console.log(coinMetadata.name, coinMetadata.symbol, coinMetadata.decimals);
+	// "Sui" "SUI" 9
+}
+```
+
+## Dynamic fields
+
+### `listDynamicFields`
+
+List the dynamic fields attached to an object.
+
+```typescript
+const page = await client.listDynamicFields({
+	parentId: '0x123...',
+	limit: 10,
+});
+
+for (const field of page.dynamicFields) {
+	console.log(field.$kind); // "DynamicField" | "DynamicObject"
+	console.log(field.fieldId, field.name.type, field.valueType);
+}
+```
+
+On `SuiGrpcClient` and `SuiGraphQLClient` this method also accepts `include: { value: true }` to
+fetch each field's BCS-encoded value in the same request.
+
+### `getDynamicField`
+
+Fetch one dynamic field by name. The name is given as its Move type plus BCS-encoded bytes.
+
+```typescript
+import { bcs } from '@mysten/sui/bcs';
+
+const { dynamicField } = await client.getDynamicField({
+	parentId: '0x123...',
+	name: {
+		type: 'u64',
+		bcs: bcs.u64().serialize(42).toBytes(),
+	},
+});
+
+console.log(dynamicField.value.type);
+console.log(dynamicField.value.bcs); // BCS-encoded value
+```
+
+### `getDynamicObjectField`
+
+Fetch a dynamic _object_ field and return the referenced object itself, with the same
+[include options](#include-options) as `getObject`.
+
+```typescript
+const { object } = await client.getDynamicObjectField({
+	parentId: '0x123...',
+	name: {
+		type: '0x2::object::ID',
+		bcs: bcs.Address.serialize('0x456...').toBytes(),
+	},
+	include: { content: true },
+});
+```
+
+## Transactions and events
+
+Reading transactions back is covered here; running them is covered in
+[Executing transactions](/sui/clients/executing).
+
+### `getTransaction`
+
+Fetch one transaction by digest. The result is the same discriminated union that execution returns,
+and it takes the same [include options](/sui/clients/executing#include-options).
+
+```typescript
+const result = await client.getTransaction({
+	digest: 'ABC123...',
+	include: {
+		effects: true,
+		events: true,
+		transaction: true,
+	},
+});
+
+const transaction = result.Transaction ?? result.FailedTransaction;
+
+console.log(transaction.digest);
+console.log(transaction.status.success);
+console.log(transaction.effects);
+```
+
+A transaction that executed but aborted onchain comes back as `FailedTransaction` rather than
+throwing. See
+[checking success or failure](/sui/transactions/signing-and-execution#checking-success-or-failure).
+
+### `listTransactions`
+
+Page through transactions matching a filter. Results use the same include options as
+`getTransaction`.
+
+```typescript
+const page = await client.listTransactions({
+	filter: { function: '0x2::coin::mint_and_transfer' },
+	limit: 10,
+	include: { effects: true },
+});
+
+for (const result of page.transactions) {
+	const transaction = result.Transaction ?? result.FailedTransaction;
+	console.log(transaction.digest, result.$kind);
+}
+```
+
+Transaction filters take exactly one predicate:
+
+| Predicate  | Description                                                                 |
+| ---------- | --------------------------------------------------------------------------- |
+| `sender`   | Transactions sent by an address                                             |
+| `function` | Transactions calling a Move function (`pkg`, `pkg::mod`, or `pkg::mod::fn`) |
+
+### `listEvents`
+
+Page through events matching a filter. Each event carries its ledger position (`checkpoint`,
+`transactionDigest`, and `eventIndex`) alongside the event data.
+
+```typescript
+const page = await client.listEvents({
+	filter: { eventType: '0xpkg...::my_module::MyEvent' },
+	order: 'descending',
+	limit: 10,
+});
+
+for (const event of page.events) {
+	console.log(event.eventType, event.transactionDigest, event.eventIndex, event.json);
+}
+```
+
+Event filters take exactly one predicate:
+
+| Predicate    | Description                                                                       |
+| ------------ | --------------------------------------------------------------------------------- |
+| `sender`     | Events from transactions sent by an address                                       |
+| `emitModule` | Events emitted by a module (`pkg::mod`)                                           |
+| `eventType`  | Events with types defined in a module (`pkg::mod`) or a fully qualified type name |
+
+Both filters resolve [MVR](#move-registry-names) names automatically, and both methods take a
+`limit` and an `order` and page through history with the cursors described under
+[Pagination](#pagination).
+
+For filters beyond one predicate (combined or negated predicates, affected addresses and objects, or
+checkpoint ranges), use the [raw gRPC list RPCs](/sui/clients/grpc#using-service-clients) or a
+[custom GraphQL query](/sui/clients/graphql#writing-queries). To follow new activity as it happens,
+see [gRPC subscriptions](/sui/clients/grpc#subscriptions).
+
+## Pagination
+
+Collection reads and history queries paginate differently, and both report `hasNextPage`.
+
+### Collection cursors
+
+`listOwnedObjects`, `listCoins`, `listBalances`, and `listDynamicFields` take a `limit` and a
+`cursor`, and return the next `cursor` alongside the results:
+
+```typescript
+let page = await client.listOwnedObjects({ owner: '0xabc...', limit: 50 });
+
+while (true) {
+	for (const object of page.objects) {
+		console.log(object.objectId);
+	}
+
+	if (!page.hasNextPage) {
+		break;
+	}
+
+	page = await client.listOwnedObjects({
+		owner: '0xabc...',
+		cursor: page.cursor,
+		limit: 50,
+	});
+}
+```
+
+<Callout type="info">
+	Carrying the cursor in a separately annotated variable (`let cursor: string | null = null`) makes
+	these methods fail to infer: because they are generic over `include`, the type of the page depends
+	on the argument that holds the cursor, which depends on the page. Reassigning the page itself, as
+	above, avoids the cycle.
+</Callout>
+
+### History cursors
+
+`listTransactions` and `listEvents` read an ordered ledger instead of a collection, so they take
+`after` and `before`, which are exclusive ledger-position bounds. A query takes at most one of them,
+and the bound implies the direction: `after` reads ascending, `before` reads descending. Each page
+reports the position of its first and last item as `startCursor` and `endCursor`, so a feed can page
+in both directions from any point:
+
+```typescript
+// The most recent transactions
+const latest = await client.listTransactions({
+	filter: { sender: '0xabc...' },
+	order: 'descending',
+	limit: 10,
+});
+
+// Older transactions, continuing backwards
+const older = await client.listTransactions({
+	filter: { sender: '0xabc...' },
+	before: latest.endCursor,
+	limit: 10,
+});
+
+// Anything that landed since, continuing forwards
+const newer = await client.listTransactions({
+	filter: { sender: '0xabc...' },
+	after: latest.startCursor,
+});
+```
+
+<Callout type="info">
+	Drive pagination off `hasNextPage` rather than page length. On gRPC, a filtered query is bounded
+	in how much ledger it scans per request, so a page can come back shorter than `limit`, even empty,
+	while `hasNextPage` is still `true`; continuing from `endCursor` always makes progress. Servers
+	also cap page sizes (50 by default); over-large `limit` values are truncated on gRPC and rejected
+	on GraphQL.
+</Callout>
+
+## Move functions
+
+`getMoveFunction` returns a function's normalized signature.
+
+```typescript
+const { function: fn } = await client.getMoveFunction({
+	packageId: '0x2',
+	moduleName: 'coin',
+	name: 'value',
+});
+
+console.log(fn.visibility, fn.isEntry);
+console.log(fn.parameters);
+console.log(fn.typeParameters);
+```
+
+## Name service
+
+### `resolveNameServiceAddress`
+
+Resolve a SuiNS name to its target address. The address is `null` when the name does not exist, has
+expired, or has no target address.
+
+```typescript
+const { address } = await client.resolveNameServiceAddress({
+	name: 'example.sui',
+});
+```
+
+### `defaultNameServiceName`
+
+Resolve an address to its default SuiNS name, or `null` if it has none.
+
+```typescript
+const {
+	data: { name },
+} = await client.defaultNameServiceName({
+	address: '0xabc...',
+});
+```
+
+## Move Registry names
+
+Wherever a method takes a Move type or package, it also accepts a Move Registry (MVR) name, a
+human-readable alias such as `@deepbook/core`, which the client resolves for you. You can also
+resolve them directly through `client.mvr`:
+
+```typescript
+const { package: packageId } = await client.mvr.resolvePackage({
+	package: '@deepbook/core',
+});
+
+const { type } = await client.mvr.resolveType({
+	type: '@deepbook/core::pool::Pool<@deepbook/core::deep::DEEP>',
+});
+```
+
+`client.mvr.resolve({ packages, types })` resolves several names in one call. Resolved names are
+cached on the client.
+
+<Callout type="info">
+	MVR has default endpoints for Mainnet and Testnet only. On other networks, pass an `mvr` option
+	when constructing the client. Names that are not registered are rejected rather than passed
+	through, so only packages actually published to the registry resolve.
+</Callout>
+
+## Cancelling requests
+
+Every method accepts a `signal` to cancel an in-flight request:
+
+```typescript
+const controller = new AbortController();
+
+const { object } = await client.getObject({
+	objectId: '0x123...',
+	signal: controller.signal,
+});
+```
+
+## Error handling
+
+Methods reject when a request fails. The one exception is [`getObjects`](#getobjects), which reports
+per-object failures in its result array so a single bad ID does not fail the batch.
+
+Transaction results have their own convention, where a transaction that executed but failed onchain
+is not an error. See
+[checking success or failure](/sui/transactions/signing-and-execution#checking-success-or-failure).

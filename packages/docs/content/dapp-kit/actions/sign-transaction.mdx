@@ -1,8 +1,37 @@
 ---
 title: Sign Transaction
-description: Sign a Sui transaction without executing it for deferred or multi-signature scenarios.
+description: >-
+  Sign a Sui transaction without executing it for deferred or multi-signature scenarios.
 keywords:
-  [sign transaction, dApp Kit, multi-signature, transaction signing, Sui, wallet, TypeScript]
+  - sign transaction
+  - dApp Kit
+  - multi-signature
+  - transaction signing
+  - Sui
+  - wallet
+  - TypeScript
+questions:
+  - How do I sign transaction with Sui dApp Kit?
+  - What does Sign Transaction do?
+  - How does Parameters work?
+  - How does Return value work?
+answer: >-
+  Sign a Sui transaction without executing it for deferred or multi-signature scenarios.
+goal:
+  description: >-
+    Reader can sign a Sui transaction without executing it for deferred or multi-signature scenarios
+  requires:
+    - has_frontmatter:
+        - title
+        - description
+        - keywords
+      label: Has required frontmatter fields
+    - min_words: 30
+      label: Needs content depth
+    - has_questions: true
+      label: Needs questions for AI search visibility
+    - has_answer: true
+      label: Needs answer summary for AI citation
 ---
 
 The `signTransaction` action prompts the connected wallet to sign a transaction without executing
@@ -15,9 +44,7 @@ scenarios.
 import { createDAppKit } from '@mysten/dapp-kit-core';
 import { Transaction, coinWithBalance } from '@mysten/sui/transactions';
 
-const dAppKit = createDAppKit({
-	/* config */
-});
+const dAppKit = createDAppKit({/* config */});
 
 const tx = new Transaction();
 // No need to manually set sender - it's done automatically

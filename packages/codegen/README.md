@@ -30,6 +30,40 @@ const config: SuiCodegenConfig = {
 export default config;
 ```
 
+To generate from an on-chain package, provide its package ID or published MVR name and network. You
+can also override the default fullnode URL for either supported network:
+
+```ts
+const config: SuiCodegenConfig = {
+	output: './src/generated',
+	fullnodeUrls: {
+		testnet: 'https://your-testnet-fullnode.example.com',
+	},
+	packages: [
+		{
+			package: '@deepbook/core',
+			packageName: 'deepbook',
+			network: 'testnet',
+		},
+	],
+};
+```
+
+`fullnodeUrls` can override the default mainnet or testnet fullnode used to fetch summaries for
+on-chain packages. It does not change the configured `package` value used in generated code.
+
+To generate a portable unpublished name from an on-chain package, configure the generated identity
+and summary source separately:
+
+```ts
+{
+	package: '@local-pkg/your-package',
+	sourcePackageId: YOUR_TESTNET_PACKAGE_ID,
+	packageName: 'your-package',
+	network: 'testnet',
+}
+```
+
 The `package` field should be the MVR name for your move package. If you have not registered your
 package on MVR yet, you can use the `@local-pkg` scope, and set up an override in your
 `SuiGrpcClient` to resolve it to the correct address.
@@ -82,10 +116,18 @@ const client = new SuiGrpcClient({
 			packages: {
 				'@local-pkg/your-package': YOUR_PACKAGE_ID,
 			},
+			types: {
+				'@local-pkg/your-package::module::YourType': '0xTYPE_ORIGIN::module::YourType',
+			},
 		},
 	},
 });
 ```
+
+Package overrides select the package version used for Move calls. Named types are resolved
+separately because their introducing package can differ after an upgrade. Add a first-level `types`
+override for each local type used in transaction type arguments, query filters, or `resolveTypeTag`.
+Registered MVR names resolve both automatically.
 
 If you are using `dapp-kit-core`, you can configure package overrides when creating your dApp Kit
 instance:
@@ -101,6 +143,7 @@ const GRPC_URLS = {
 const PACKAGE_IDS = {
 	testnet: {
 		yourPackage: YOUR_TESTNET_PACKAGE_ID,
+		yourType: '0xTESTNET_TYPE_ORIGIN::module::YourType',
 	},
 };
 
@@ -114,6 +157,9 @@ const dAppKit = createDAppKit({
 				overrides: {
 					packages: {
 						'@local-pkg/your-package': PACKAGE_IDS[network].yourPackage,
+					},
+					types: {
+						'@local-pkg/your-package::module::YourType': PACKAGE_IDS[network].yourType,
 					},
 				},
 			},

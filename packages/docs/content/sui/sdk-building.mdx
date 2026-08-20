@@ -1,25 +1,46 @@
 ---
 title: Building SDKs
-description: Build custom SDKs on top of the Sui TypeScript SDK.
+description: Build custom SDKs on top of the Sui TypeScript SDK
 keywords:
-  [
-    SDK development,
-    ClientWithCoreApi,
-    peer dependencies,
-    Sui TypeScript SDK,
-    client extensions,
-    library authors,
-    transport-agnostic,
-  ]
+  - SDK development
+  - ClientWithCoreApi
+  - peer dependencies
+  - Sui TypeScript SDK
+  - client extensions
+  - library authors
+  - transport-agnostic
+questions:
+  - How do I build a custom SDK on Sui?
+  - How do I extend @mysten/sui?
+  - What patterns should I use for building Sui SDKs?
+answer: >-
+  Build custom SDKs by composing @mysten/sui primitives: extend the client, create typed transaction
+  builders with codegen, and use BCS for serialization.
+goal:
+  description: Reader can build custom SDKs on top of @mysten/sui
+  requires:
+    - has_frontmatter:
+        - title
+        - description
+        - keywords
+      label: Has required frontmatter fields
+    - min_words: 30
+      label: Needs content depth
+    - has_questions: true
+      label: Needs questions for AI search visibility
+    - has_answer: true
+      label: Needs answer summary for AI citation
 ---
 
 This guide covers recommended patterns for building TypeScript SDKs that integrate with the Sui SDK.
-Following these patterns ensures your SDK integrates seamlessly with the ecosystem, works across
-different transports (JSON-RPC, GraphQL, gRPC), and composes well with other SDKs.
+Following these patterns ensures your SDK integrates seamlessly with the ecosystem, works with
+`SuiGrpcClient` and `SuiGraphQLClient` through the shared Core API, and composes well with other
+SDKs. Legacy JSON-RPC clients can also be supported during migration because they implement the same
+Core API contract.
 
 All SDKs should depend on [`ClientWithCoreApi`](./clients/core), which is the transport-agnostic
-interface implemented by all Sui clients. This ensures your SDK works with any client the user
-chooses.
+interface implemented by Sui clients. This lets application code choose one concrete client and use
+top-level methods, while SDK internals use `client.core` for portable reads, writes, and queries.
 
 ## Package setup
 

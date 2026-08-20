@@ -88,8 +88,7 @@ export async function mapToObject<T>({
 
 export async function withComment<T extends ts.Node | ts.Node[]>(
 	options:
-		| { comment?: string | null; doc?: never }
-		| { doc?: string | null | undefined; comment?: never },
+		{ comment?: string | null; doc?: never } | { doc?: string | null | undefined; comment?: never },
 	nodes: T,
 ): Promise<T> {
 	const comment = options.comment ?? options.doc;
@@ -167,6 +166,10 @@ export function isWellKnownObjectParameter(
 
 		if (Datatype.module.name === 'clock') {
 			return Datatype.name === 'Clock';
+		}
+
+		if (Datatype.module.name === 'accumulator') {
+			return Datatype.name === 'AccumulatorRoot';
 		}
 	}
 

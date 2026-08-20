@@ -1,5 +1,34 @@
 # @mysten/seal
 
+## 1.4.4
+
+### Patch Changes
+
+- f2f7048: Upgrade workspace dependencies, remove the legacy dapp-kit package, and migrate the
+  remaining consumers to the current gRPC-based dapp-kit. Remove the legacy API reference while
+  retaining the migration guide and deprecation notice.
+
+## 1.4.3
+
+## 1.4.2
+
+## 1.4.1
+
+## 1.4.0
+
+### Minor Changes
+
+- 5b147a2: Add an optional `fetch` option to `SealClient`, used for all key server requests. This
+  lets callers customize how requests are sent — for example send cookies with
+  `credentials: 'include'` or attach your own headers — mirroring the `fetch` option of
+  `SuiHTTPTransport`.
+
+## 1.3.8
+
+## 1.3.7
+
+## 1.3.6
+
 ## 1.3.5
 
 ## 1.3.4

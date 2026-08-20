@@ -27,11 +27,6 @@ export const SIGNATURE_FLAG_TO_SCHEME = {
 } as const;
 
 export type SignatureScheme =
-	| 'ED25519'
-	| 'Secp256k1'
-	| 'Secp256r1'
-	| 'MultiSig'
-	| 'ZkLogin'
-	| 'Passkey';
+	'ED25519' | 'Secp256k1' | 'Secp256r1' | 'MultiSig' | 'ZkLogin' | 'Passkey';
 
 export type SignatureFlag = keyof typeof SIGNATURE_FLAG_TO_SCHEME;

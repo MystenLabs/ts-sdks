@@ -98,7 +98,12 @@ const getSigner = () => {
 	console.log(`Network: ${network}\n`);
 
 	const client = new SuiGrpcClient({ network, baseUrl: GRPC_URLS[network] }).$extend(
-		deepbook({ address }),
+		deepbook({
+			address,
+			// Margin prices against Pyth's upgraded Core, whose Hermes answers 401 without a
+			// token. Supply PYTH_TOKEN to push price updates.
+			pythAccessToken: process.env.PYTH_TOKEN,
+		}),
 	);
 
 	// Coins to update prices for

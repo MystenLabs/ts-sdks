@@ -5,7 +5,7 @@
 	"scripts": {
 		"test": "turbo run test",
 		"test:e2e": "turbo run test:e2e --concurrency=1",
-		"changeset-version": "pnpm changeset version && pnpm --filter @mysten/* codegen:version",
+		"changeset-version": "pnpm changeset version && pnpm --filter @mysten/* codegen:version && pnpm prettier --write --ignore-path /dev/null \"packages/**/CHANGELOG.md\"",
 		"prettier:check": "prettier -c --ignore-unknown .",
 		"prettier:fix": "prettier -w --ignore-unknown .",
 		"prettier:fix:watch": "onchange '**' -i -f add -f change -j 5 -- prettier -w --ignore-unknown {{file}}",
@@ -20,12 +20,7 @@
 	"pnpm": {
 		"overrides": {
 			"axios": ">=1.18.0",
-			"esbuild@>=0.27.3 <0.28.1": "0.28.1",
-			"js-yaml@>=4.0.0 <4.3.0": "4.3.0",
-			"postcss": ">=8.5.10",
-			"sharp": ">=0.35.0",
-			"shell-quote@>=1.0.0 <1.9.0": "1.9.0",
-			"ws@>=8.0.0": ">=8.21.0"
+			"js-yaml@>=4.0.0 <4.3.1": "4.3.1"
 		}
 	},
 	"engines": {
@@ -39,21 +34,21 @@
 		]
 	},
 	"devDependencies": {
-		"@arethetypeswrong/cli": "^0.18.3",
+		"@arethetypeswrong/cli": "^0.18.5",
 		"@changesets/cli": "^2.31.0",
 		"@ianvs/prettier-plugin-sort-imports": "^4.7.0",
 		"@manypkg/cli": "^0.25.1",
-		"@testcontainers/postgresql": "^12.0.2",
-		"concurrently": "^10.0.3",
+		"@testcontainers/postgresql": "^12.1.0",
+		"concurrently": "^10.0.5",
 		"graphql-config": "^5.1.5",
-		"oxlint": "1.47.0",
-		"oxlint-tsgolint": "^0.23.0",
-		"prettier": "^3.8.4",
-		"prettier-plugin-tailwindcss": "^0.8.0",
-		"testcontainers": "^12.0.2",
-		"tsdown": "0.22.2",
-		"tsx": "^4.22.4",
-		"turbo": "^2.9.18",
-		"typescript": "^6.0.3"
+		"oxlint": "1.78.0",
+		"oxlint-tsgolint": "^7.0.2001",
+		"prettier": "3.9.6",
+		"prettier-plugin-tailwindcss": "^0.8.1",
+		"testcontainers": "^12.1.0",
+		"tsdown": "0.22.14",
+		"tsx": "^4.23.12",
+		"turbo": "^2.10.10",
+		"typescript": "^7.0.2"
 	}
 }

@@ -366,7 +366,12 @@ export namespace SuiClientTypes {
 		balanceChanges?: boolean;
 		/** Include parsed transaction effects (gas used, changed objects, status, etc.). */
 		effects?: boolean;
-		/** Include events emitted by the transaction. */
+		/**
+		 * Include events emitted by the transaction.
+		 *
+		 * On the GraphQL transport, at most the first 50 events of a transaction are returned;
+		 * gRPC and JSON-RPC return the full event list.
+		 */
 		events?: boolean;
 		/** Include a map of object IDs to their types for all changed objects. */
 		objectTypes?: boolean;
@@ -406,8 +411,7 @@ export namespace SuiClientTypes {
 	}
 
 	export type WaitForTransactionOptions<Include extends TransactionInclude = {}> =
-		| WaitForTransactionByDigest<Include>
-		| WaitForTransactionByResult<Include>;
+		WaitForTransactionByDigest<Include> | WaitForTransactionByResult<Include>;
 
 	export interface WaitForTransactionByDigest<
 		Include extends TransactionInclude = {},
@@ -459,6 +463,186 @@ export namespace SuiClientTypes {
 		 * Defaults to `true` (checks enabled).
 		 */
 		checksEnabled?: boolean;
+	}
+
+	/** Query methods */
+	export interface TransportMethods {
+		listTransactions: <Include extends TransactionInclude = {}>(
+			options: ListTransactionsOptions<Include>,
+		) => Promise<ListTransactionsResponse<Include>>;
+		listEvents: (options: ListEventsOptions) => Promise<ListEventsResponse>;
+	}
+
+	/**
+	 * A filter matching transactions. Exactly one predicate must be specified.
+	 *
+	 * All predicates are supported identically by every transport.
+	 */
+	export type TransactionFilter =
+		| {
+				/** Match transactions sent by this address. */
+				sender: string;
+				function?: never;
+		  }
+		| {
+				/**
+				 * Match transactions that called a Move function, specified as a
+				 * `::`-delimited Move path: `package`, `package::module`, or
+				 * `package::module::function`.
+				 */
+				function: string;
+				sender?: never;
+		  };
+
+	/**
+	 * A filter matching events. Exactly one predicate must be specified.
+	 *
+	 * All predicates are supported by every transport, with one caveat: on the deprecated
+	 * JSON-RPC transport, an `eventType` naming a generic type must include type arguments —
+	 * a bare generic name (e.g. `0xpkg::mod::Event` for events of type `0xpkg::mod::Event<T>`)
+	 * matches any instantiation on gRPC and GraphQL, but matches nothing on JSON-RPC, which
+	 * compares the full type for exact equality.
+	 */
+	export type EventFilter =
+		| {
+				/** Match events emitted by transactions sent by this address. */
+				sender: string;
+				emitModule?: never;
+				eventType?: never;
+		  }
+		| {
+				/** Match events emitted by a module, specified as `package::module`. */
+				emitModule: string;
+				sender?: never;
+				eventType?: never;
+		  }
+		| {
+				/**
+				 * Match events by type: either every event whose type is defined in a
+				 * module (`package::module`), or events with a fully qualified type
+				 * name (`package::module::Name` or `package::module::Name<T1, T2>`).
+				 *
+				 * A bare generic name (`package::module::Name` without type arguments) matches
+				 * any instantiation on gRPC and GraphQL, but matches nothing on the deprecated
+				 * JSON-RPC transport, which compares the full type for exact equality.
+				 */
+				eventType: string;
+				sender?: never;
+				emitModule?: never;
+		  };
+
+	export interface ListTransactionsOptions<
+		Include extends TransactionInclude = {},
+	> extends CoreClientMethodOptions {
+		filter?: TransactionFilter;
+		/**
+		 * Maximum number of items to return. Defaults to 50.
+		 *
+		 * Servers cap page sizes (50 by default): values above the server's cap cause the
+		 * GraphQL and JSON-RPC transports to throw, while gRPC servers silently truncate
+		 * the page to their configured maximum.
+		 */
+		limit?: number;
+		/**
+		 * Return items strictly after this cursor in ledger order (usually the `endCursor` of
+		 * an ascending page, or the `startCursor` of a descending page to poll for new items).
+		 * Implies `order: 'ascending'`, and cannot be combined with `before`.
+		 */
+		after?: string | null;
+		/**
+		 * Return items strictly before this cursor in ledger order (usually the `endCursor` of
+		 * a descending page). Implies `order: 'descending'`, and cannot be combined with
+		 * `after`.
+		 */
+		before?: string | null;
+		/** Order of returned results. Defaults to `ascending` (oldest first). */
+		order?: 'ascending' | 'descending';
+		include?: Include & TransactionInclude;
+	}
+
+	export interface ListTransactionsResponse<out Include extends TransactionInclude = {}> {
+		transactions: TransactionResult<Include>[];
+		/**
+		 * Whether more items may be available after this page.
+		 *
+		 * gRPC servers bound how much of the ledger a single request scans, so a scan-limited
+		 * query can return fewer items than `limit` (even none) with `hasNextPage: true`;
+		 * continuing from `endCursor` always makes progress through the scanned range.
+		 */
+		hasNextPage: boolean;
+		/**
+		 * Cursor at the first returned item. After a descending read of the most recent
+		 * items, pass as `after` to poll for items added since.
+		 */
+		startCursor: string | null;
+		/**
+		 * Cursor at the last returned item. Continue the query by passing it as `after`
+		 * (ascending) or `before` (descending).
+		 */
+		endCursor: string | null;
+	}
+
+	export interface ListEventsOptions extends CoreClientMethodOptions {
+		filter?: EventFilter;
+		/**
+		 * Maximum number of items to return. Defaults to 50.
+		 *
+		 * Servers cap page sizes (50 by default): values above the server's cap cause the
+		 * GraphQL and JSON-RPC transports to throw, while gRPC servers silently truncate
+		 * the page to their configured maximum.
+		 */
+		limit?: number;
+		/**
+		 * Return items strictly after this cursor in ledger order (usually the `endCursor` of
+		 * an ascending page, or the `startCursor` of a descending page to poll for new items).
+		 * Implies `order: 'ascending'`, and cannot be combined with `before`.
+		 */
+		after?: string | null;
+		/**
+		 * Return items strictly before this cursor in ledger order (usually the `endCursor` of
+		 * a descending page). Implies `order: 'descending'`, and cannot be combined with
+		 * `after`.
+		 */
+		before?: string | null;
+		/** Order of returned results. Defaults to `ascending` (oldest first). */
+		order?: 'ascending' | 'descending';
+	}
+
+	/** An event returned from a query, along with its position in the ledger. */
+	export interface EventEntry extends Event {
+		/**
+		 * The sequence number of the checkpoint containing the emitting transaction.
+		 *
+		 * `null` on the JSON-RPC transport, which does not expose checkpoint
+		 * information for queried events.
+		 */
+		checkpoint: string | null;
+		/** The digest of the transaction that emitted this event. */
+		transactionDigest: string;
+		/** The index of this event within its transaction's event list. */
+		eventIndex: number;
+	}
+
+	export interface ListEventsResponse {
+		events: EventEntry[];
+		/**
+		 * Whether more items may be available after this page.
+		 *
+		 * gRPC servers bound how much of the ledger a single request scans, so a scan-limited
+		 * query can return fewer items than `limit` (even none) with `hasNextPage: true`;
+		 * continuing from `endCursor` always makes progress through the scanned range.
+		 */
+		hasNextPage: boolean;
+		/**
+		 * Cursor at the first returned item. After a descending read of the most recent
+		 * items, pass as `after` to poll for items added since.
+		 */
+		startCursor: string | null;
+		/**
+		 * Cursor at the last returned item. Continue the query by passing it as `after`
+		 * (ascending) or `before` (descending).
+		 */
+		endCursor: string | null;
 	}
 
 	export interface GetReferenceGasPriceOptions extends CoreClientMethodOptions {}
@@ -572,6 +756,14 @@ export namespace SuiClientTypes {
 	}
 
 	/** Name service methods */
+	export interface ResolveNameServiceAddressOptions extends CoreClientMethodOptions {
+		name: string;
+	}
+
+	export interface ResolveNameServiceAddressResponse {
+		address: string | null;
+	}
+
 	export interface DefaultNameServiceNameOptions extends CoreClientMethodOptions {
 		address: string;
 	}
@@ -583,6 +775,9 @@ export namespace SuiClientTypes {
 	}
 
 	export interface TransportMethods {
+		resolveNameServiceAddress: (
+			options: ResolveNameServiceAddressOptions,
+		) => Promise<ResolveNameServiceAddressResponse>;
 		defaultNameServiceName: (
 			options: DefaultNameServiceNameOptions,
 		) => Promise<DefaultNameServiceNameResponse>;

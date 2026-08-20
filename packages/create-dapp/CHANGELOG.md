@@ -1,5 +1,56 @@
 # @mysten/create-dapp
 
+## 0.7.20
+
+### Patch Changes
+
+- f2f7048: Upgrade workspace dependencies, remove the legacy dapp-kit package, and migrate the
+  remaining consumers to the current gRPC-based dapp-kit. Remove the legacy API reference while
+  retaining the migration guide and deprecation notice.
+
+## 0.7.19
+
+## 0.7.18
+
+### Patch Changes
+
+- Updated dependencies [87989d5]
+  - @mysten/sui@2.26.0
+
+## 0.7.17
+
+### Patch Changes
+
+- Updated dependencies [19e85a3]
+- Updated dependencies [19e85a3]
+- Updated dependencies [f76883d]
+- Updated dependencies [f76883d]
+- Updated dependencies [f76883d]
+- Updated dependencies [a217536]
+- Updated dependencies [f76883d]
+- Updated dependencies [f76883d]
+  - @mysten/codegen@0.12.0
+  - @mysten/sui@2.25.0
+
+## 0.7.16
+
+### Patch Changes
+
+- Updated dependencies [c5f452f]
+  - @mysten/sui@2.24.0
+
+## 0.7.15
+
+## 0.7.14
+
+## 0.7.13
+
+### Patch Changes
+
+- Updated dependencies [f9bfbbf]
+- Updated dependencies [f9bfbbf]
+  - @mysten/sui@2.23.0
+
 ## 0.7.12
 
 ## 0.7.11

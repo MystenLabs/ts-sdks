@@ -1,5 +1,52 @@
 # @mysten/mvr-static
 
+## 0.4.18
+
+### Patch Changes
+
+- f2f7048: Upgrade workspace dependencies, remove the legacy dapp-kit package, and migrate the
+  remaining consumers to the current gRPC-based dapp-kit. Remove the legacy API reference while
+  retaining the migration guide and deprecation notice.
+
+## 0.4.17
+
+## 0.4.16
+
+### Patch Changes
+
+- Updated dependencies [87989d5]
+  - @mysten/sui@2.26.0
+
+## 0.4.15
+
+### Patch Changes
+
+- Updated dependencies [f76883d]
+- Updated dependencies [f76883d]
+- Updated dependencies [f76883d]
+- Updated dependencies [f76883d]
+- Updated dependencies [f76883d]
+  - @mysten/sui@2.25.0
+
+## 0.4.14
+
+### Patch Changes
+
+- Updated dependencies [c5f452f]
+  - @mysten/sui@2.24.0
+
+## 0.4.13
+
+## 0.4.12
+
+## 0.4.11
+
+### Patch Changes
+
+- Updated dependencies [f9bfbbf]
+- Updated dependencies [f9bfbbf]
+  - @mysten/sui@2.23.0
+
 ## 0.4.10
 
 ## 0.4.9

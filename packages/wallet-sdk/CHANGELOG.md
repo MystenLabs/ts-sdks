@@ -1,5 +1,26 @@
 # @mysten/wallet-sdk
 
+## 0.8.14
+
+## 0.8.13
+
+## 0.8.12
+
+## 0.8.11
+
+## 0.8.10
+
+## 0.8.9
+
+## 0.8.8
+
+### Patch Changes
+
+- 8c4b149: Update dependencies to versions that resolve security advisories: hono,
+  @hono/node-server, next, postcss, and valibot
+
+## 0.8.7
+
 ## 0.8.6
 
 ## 0.8.5

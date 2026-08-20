@@ -2,22 +2,41 @@
 title: Payment Kit SDK
 description: Payment Kit SDK API reference and configuration for the PaymentKitClient.
 keywords:
-  [
-    Payment Kit SDK,
-    API reference,
-    PaymentKitClient,
-    configuration,
-    Sui,
-    TypeScript,
-    client extension,
-    processRegistryPayment,
-    processEphemeralPayment,
-    createRegistry,
-    P2P payments,
-    send payment,
-    payment URI,
-    '@mysten/payment-kit',
-  ]
+  - Payment Kit SDK
+  - API reference
+  - PaymentKitClient
+  - configuration
+  - Sui
+  - TypeScript
+  - client extension
+  - processRegistryPayment
+  - processEphemeralPayment
+  - createRegistry
+  - P2P payments
+  - send payment
+  - payment URI
+  - '@mysten/payment-kit'
+questions:
+  - What is Payment Kit SDK?
+  - How do I use Payment Kit SDK?
+  - How does Client setup work?
+  - How does Transaction methods work?
+answer: Payment Kit SDK API reference and configuration for the PaymentKitClient.
+goal:
+  description: >-
+    Reader understands payment Kit SDK API reference and configuration for the PaymentKitClient
+  requires:
+    - has_frontmatter:
+        - title
+        - description
+        - keywords
+      label: Has required frontmatter fields
+    - min_words: 30
+      label: Needs content depth
+    - has_questions: true
+      label: Needs questions for AI search visibility
+    - has_answer: true
+      label: Needs answer summary for AI citation
 ---
 
 <Callout type="info">
@@ -509,9 +528,7 @@ const tx = new Transaction();
 // Add custom logic before payment
 tx.moveCall({
 	target: '0xMyPackage::my_module::pre_payment_check',
-	arguments: [
-		/* ... */
-	],
+	arguments: [/* ... */],
 });
 
 // Add payment command
@@ -528,9 +545,7 @@ tx.add(
 // Add custom logic after payment
 tx.moveCall({
 	target: '0xMyPackage::my_module::post_payment_action',
-	arguments: [
-		/* ... */
-	],
+	arguments: [/* ... */],
 });
 
 await client.signAndExecuteTransaction({

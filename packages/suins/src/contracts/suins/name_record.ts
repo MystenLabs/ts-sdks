@@ -77,8 +77,7 @@ export interface NewLeafOptions {
 export function newLeaf(options: NewLeafOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = ['0x2::object::ID', '0x1::option::Option<address>'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['parentId', 'targetAddress'];
 	return (tx: Transaction) =>

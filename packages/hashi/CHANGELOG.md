@@ -1,5 +1,58 @@
 # @mysten/hashi
 
+## 0.6.9
+
+### Patch Changes
+
+- f2f7048: Upgrade workspace dependencies, remove the legacy dapp-kit package, and migrate the
+  remaining consumers to the current gRPC-based dapp-kit. Remove the legacy API reference while
+  retaining the migration guide and deprecation notice.
+
+## 0.6.8
+
+### Patch Changes
+
+- c8d3046: Detect missing objects via the transport-neutral `ObjectError.reason` (`'notFound'`)
+  introduced in `@mysten/sui`, restoring `findUsedUtxos`, deposit status, and withdrawal status
+  behavior on the gRPC transport. The legacy JSON-RPC code and gRPC message checks remain as
+  fallbacks for older `@mysten/sui` versions.
+
+## 0.6.7
+
+## 0.6.6
+
+### Patch Changes
+
+- 19e85a3: Regenerate contract bindings with the latest codegen utils template
+
+## 0.6.5
+
+### Patch Changes
+
+- 4cee531: Fix `view.withdrawalFees()` reporting an absurd `worstCaseNetworkFeeSats` when governance
+  raises `bitcoin_withdrawal_minimum` as a policy throttle. The value mirrors the on-chain per-user
+  fee budget (`bitcoin_withdrawal_minimum - 546`), so a temporary 10 BTC minimum turned the
+  "worst-case network fee" into ~10 BTC — UIs subtracting it from a 10.84 BTC withdrawal displayed
+  "~0.84 BTC" as the estimated payout. The fee-estimation API now caps the reported bound at 100,000
+  sats, a ceiling derived from validator consensus limits (5x the fleet's 30 sat/vB feerate clamp on
+  a generous per-request weight share), so it stays safe to subtract for net-of-fee display. The raw
+  protocol budget is still available unchanged via `view.all().worstCaseNetworkFee`, now documented
+  as a budget rather than a fee expectation.
+
+## 0.6.4
+
+## 0.6.3
+
+## 0.6.2
+
+### Patch Changes
+
+- ce4b2f2: Point default GraphQL URLs at the dedicated graphql.<network>.sui.io hosts. The
+  fullnode-served /graphql endpoints are being retired — testnet already returns 404, which silently
+  emptied the pending-request portion of `view.transactionHistory`. That failure now also logs a
+  console warning instead of being swallowed. (Re-lands the fix from hashi-ts-sdk#46, which the
+  monorepo migration predated.)
+
 ## 0.6.1
 
 ## 0.6.0

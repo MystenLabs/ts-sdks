@@ -6,6 +6,8 @@ import type { Transaction } from '@mysten/sui/transactions';
 import { PriceInfoObject } from '../contracts/pyth/price_info.js';
 import { SuiPriceServiceConnection, SuiPythClient } from '../pyth/pyth.js';
 import { PRICE_INFO_OBJECT_MAX_AGE_MS } from '../utils/config.js';
+import { DEEPBOOK_HERMES_PROXY, PYTH_UPGRADED_HERMES } from '../utils/constants.js';
+import { ConfigurationError } from '../utils/errors.js';
 import type { QueryContext } from './context.js';
 
 export class PriceFeedQueries {
@@ -13,6 +15,53 @@ export class PriceFeedQueries {
 
 	constructor(ctx: QueryContext) {
 		this.#ctx = ctx;
+	}
+
+	/**
+	 * The Hermes endpoint serving the Pyth deployment margin is configured against.
+	 *
+	 * There are two routes, chosen by whether the caller brought
+	 * credentials. With `accessToken` set, the SDK talks to Pyth directly and no DeepBook
+	 * infrastructure is in the path — the token is sent to Pyth's own host, so a token
+	 * minted for some other endpoint must be paired with an explicit `hermesEndpoint`.
+	 *
+	 * Note the converse too: an explicit `hermesEndpoint` wins over everything, and the
+	 * token is sent to whatever host it names. Point it at a mirror or staging proxy while
+	 * a production token is still configured and the credential goes there.
+	 *
+	 * Without a token it falls back to the DeepBook-operated proxy, which supplies
+	 * credentials server-side; that proxy is not deployed yet, so today this path throws a
+	 * `ConfigurationError` instead. An explicit `hermesEndpoint` overrides both.
+	 */
+	#hermesEndpoint(): string {
+		const { hermesEndpoint, accessToken } = this.#ctx.config.pyth;
+		if (hermesEndpoint) {
+			return hermesEndpoint;
+		}
+
+		if (accessToken) {
+			return PYTH_UPGRADED_HERMES;
+		}
+		if (DEEPBOOK_HERMES_PROXY) {
+			return DEEPBOOK_HERMES_PROXY;
+		}
+
+		throw new ConfigurationError(
+			"Pushing price updates against Pyth's upgraded Core needs credentials: its Hermes answers 401 unauthenticated. Set the client's `pythAccessToken` option (or `pyth.accessToken`), or point `pyth.hermesEndpoint` at an endpoint that supplies credentials itself.",
+		);
+	}
+
+	/**
+	 * A Hermes connection for the active Pyth deployment, carrying any configured auth
+	 * headers. The endpoint serving the upgraded Core requires an `Authorization` header
+	 * and answers 401 without one.
+	 */
+	#connection(): SuiPriceServiceConnection {
+		const { accessToken } = this.#ctx.config.pyth;
+		return new SuiPriceServiceConnection(
+			this.#hermesEndpoint(),
+			accessToken ? { accessToken } : undefined,
+		);
 	}
 
 	async getPriceInfoObject(tx: Transaction, coinKey: string): Promise<string> {
@@ -23,21 +72,16 @@ export class PriceFeedQueries {
 			priceInfoObjectAge &&
 			currentTime - priceInfoObjectAge * 1000 < PRICE_INFO_OBJECT_MAX_AGE_MS
 		) {
-			return await this.#ctx.config.getCoin(coinKey).priceInfoObjectId!;
+			return this.#ctx.config.getPriceInfoObjectId(coinKey);
 		}
 
-		const endpoint =
-			this.#ctx.config.network === 'testnet'
-				? 'https://hermes-beta.pyth.network'
-				: 'https://hermes.pyth.network';
-		const connection = new SuiPriceServiceConnection(endpoint);
+		const connection = this.#connection();
 
-		const priceIDs = [this.#ctx.config.getCoin(coinKey).feed!];
+		const priceIDs = [this.#ctx.config.getFeedId(coinKey)];
 
 		const priceUpdateData = await connection.getPriceFeedsUpdateData(priceIDs);
 
-		const wormholeStateId = this.#ctx.config.pyth.wormholeStateId;
-		const pythStateId = this.#ctx.config.pyth.pythStateId;
+		const { pythStateId, wormholeStateId } = this.#ctx.config.pyth;
 
 		const client = new SuiPythClient(this.#ctx.client, pythStateId, wormholeStateId);
 
@@ -55,7 +99,7 @@ export class PriceFeedQueries {
 		const coinToObjectId: Record<string, string> = {};
 		const objectIds: string[] = [];
 		for (const coinKey of coinKeys) {
-			const priceInfoObjectId = this.#ctx.config.getCoin(coinKey).priceInfoObjectId!;
+			const priceInfoObjectId = this.#ctx.config.getPriceInfoObjectId(coinKey);
 			coinToObjectId[coinKey] = priceInfoObjectId;
 			objectIds.push(priceInfoObjectId);
 		}
@@ -92,38 +136,44 @@ export class PriceFeedQueries {
 			return result;
 		}
 
+		// Distinct coins can share a feed. No shipped map has a collision — every configured
+		// coin is on its own feed — but `coins` is a public constructor option, and coins
+		// tracking the same underlying (a wrapped asset priced off its reference, say) are
+		// the normal reason to supply one. Deduplicate before building the update:
+		// a feed listed twice would emit two `update_single_price_feed` calls against the same
+		// object off one hot-potato vector, and pay two update fees for it. One feed can also
+		// map to several coins, so the reverse index holds a list, not a single key.
 		const staleFeedIds: string[] = [];
-		const feedIdToCoinKey: Record<string, string> = {};
+		const feedIdToCoinKeys: Record<string, string[]> = {};
 		for (const coinKey of staleCoinKeys) {
-			const feedId = this.#ctx.config.getCoin(coinKey).feed!;
-			staleFeedIds.push(feedId);
-			feedIdToCoinKey[feedId] = coinKey;
+			const feedId = this.#ctx.config.getFeedId(coinKey);
+			if (!feedIdToCoinKeys[feedId]) {
+				feedIdToCoinKeys[feedId] = [];
+				staleFeedIds.push(feedId);
+			}
+			feedIdToCoinKeys[feedId].push(coinKey);
 		}
 
-		const endpoint =
-			this.#ctx.config.network === 'testnet'
-				? 'https://hermes-beta.pyth.network'
-				: 'https://hermes.pyth.network';
-		const connection = new SuiPriceServiceConnection(endpoint);
+		const connection = this.#connection();
 
 		const priceUpdateData = await connection.getPriceFeedsUpdateData(staleFeedIds);
 
-		const wormholeStateId = this.#ctx.config.pyth.wormholeStateId;
-		const pythStateId = this.#ctx.config.pyth.pythStateId;
+		const { pythStateId, wormholeStateId } = this.#ctx.config.pyth;
 		const pythClient = new SuiPythClient(this.#ctx.client, pythStateId, wormholeStateId);
 
 		const updatedObjectIds = await pythClient.updatePriceFeeds(tx, priceUpdateData, staleFeedIds);
 
 		for (let i = 0; i < staleFeedIds.length; i++) {
-			const coinKey = feedIdToCoinKey[staleFeedIds[i]];
-			result[coinKey] = updatedObjectIds[i];
+			for (const coinKey of feedIdToCoinKeys[staleFeedIds[i]]) {
+				result[coinKey] = updatedObjectIds[i];
+			}
 		}
 
 		return result;
 	}
 
 	async getPriceInfoObjectAge(coinKey: string): Promise<number> {
-		const priceInfoObjectId = this.#ctx.config.getCoin(coinKey).priceInfoObjectId!;
+		const priceInfoObjectId = this.#ctx.config.getPriceInfoObjectId(coinKey);
 		const res = await this.#ctx.client.core.getObject({
 			objectId: priceInfoObjectId,
 			include: {

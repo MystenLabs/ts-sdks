@@ -183,8 +183,7 @@ export interface EnableDeepbookPoolForLoanOptions {
 export function enableDeepbookPoolForLoan(options: EnableDeepbookPoolForLoanOptions) {
 	const packageAddress = options.package ?? '@deepbook/margin';
 	const argumentsTypes = [null, null, '0x2::object::ID', null, '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['self', 'registry', 'deepbookPoolId', 'marginPoolCap'];
 	return (tx: Transaction) =>
@@ -221,8 +220,7 @@ export interface DisableDeepbookPoolForLoanOptions {
 export function disableDeepbookPoolForLoan(options: DisableDeepbookPoolForLoanOptions) {
 	const packageAddress = options.package ?? '@deepbook/margin';
 	const argumentsTypes = [null, null, '0x2::object::ID', null, '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['self', 'registry', 'deepbookPoolId', 'marginPoolCap'];
 	return (tx: Transaction) =>

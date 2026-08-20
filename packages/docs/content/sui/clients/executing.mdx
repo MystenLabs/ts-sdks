@@ -1,0 +1,143 @@
+---
+title: Executing Transactions
+description: 'Simulate, execute, and wait for transactions with any Sui client'
+keywords:
+  - Sui client
+  - executeTransaction
+  - signAndExecuteTransaction
+  - simulateTransaction
+  - waitForTransaction
+  - transaction results
+  - '@mysten/sui'
+questions:
+  - What is Executing Transactions?
+  - How do I use Executing Transactions?
+  - How does signAndExecuteTransaction work?
+  - How does executeTransaction work?
+answer: 'Simulate, execute, and wait for transactions with any Sui client'
+goal:
+  description: 'Reader can simulate, execute, and wait for transactions with any Sui client'
+  requires:
+    - has_frontmatter:
+        - title
+        - description
+        - keywords
+      label: Has required frontmatter fields
+    - min_words: 30
+      label: Needs content depth
+    - has_questions: true
+      label: Needs questions for AI search visibility
+    - has_answer: true
+      label: Needs answer summary for AI citation
+---
+
+Executing a transaction is a client operation, and every client exposes the same four methods for
+it. Building transactions is covered in [Building transactions](/sui/transactions/basics), and the
+ways to obtain a signature (keypairs, wallets, sponsorship) in
+[Signing and execution](/sui/transactions/signing-and-execution).
+
+## `signAndExecuteTransaction`
+
+Signs with the given signer and executes, in one call:
+
+```typescript
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+const client = new SuiGrpcClient({
+	network: 'mainnet',
+	baseUrl: 'https://fullnode.mainnet.sui.io:443',
+});
+
+const result = await client.signAndExecuteTransaction({
+	transaction: tx,
+	signer: keypair,
+	include: { effects: true },
+});
+```
+
+The signer can be any `Signer`, such as a keypair or a KMS or Ledger signer. Pass
+`additionalSignatures` for transactions needing more than one, such as a sponsored transaction the
+sponsor has already signed.
+
+## `executeTransaction`
+
+When you already have signed bytes, execute them directly:
+
+```typescript
+const result = await client.executeTransaction({
+	transaction: bytes, // Uint8Array
+	signatures: [signature], // string[]
+	include: { effects: true, events: true },
+});
+```
+
+Both methods return a discriminated union rather than throwing on failure: a transaction that
+executed but aborted onchain comes back as `FailedTransaction`.
+
+```typescript
+const transaction = result.Transaction ?? result.FailedTransaction;
+
+console.log(transaction.digest, transaction.status.success);
+```
+
+A resolved promise means the network executed the transaction, which is not the same as it having
+succeeded. See
+[checking success or failure](/sui/transactions/signing-and-execution#checking-success-or-failure)
+for handling both outcomes.
+
+## Include options
+
+Execution, simulation, and [`getTransaction`](/sui/clients/querying#gettransaction) share one set of
+`include` options. Everything is off by default, and a field that you did not request is typed
+`undefined`:
+
+| Option           | Description                                                        |
+| ---------------- | ------------------------------------------------------------------ |
+| `effects`        | Execution effects: created, mutated, and deleted objects, gas used |
+| `events`         | Move events emitted during execution                               |
+| `transaction`    | The full transaction data (sender, gas config, inputs, commands)   |
+| `balanceChanges` | Balance changes for each affected address and coin type            |
+| `objectTypes`    | Map of object ID to type for all changed objects                   |
+| `bcs`            | Raw BCS-encoded transaction bytes                                  |
+
+## `waitForTransaction`
+
+Reads are served from indexed state, which trails execution slightly. Wait before reading a
+transaction's effects back, or before submitting a transaction that depends on objects it touched:
+
+```typescript
+const result = await client.signAndExecuteTransaction({ transaction: tx, signer: keypair });
+
+await client.waitForTransaction({ result });
+
+// Reads now reflect the transaction's effects
+const { balance } = await client.getBalance({ owner: myAddress });
+```
+
+It also accepts a `digest` instead of a result, along with `timeout` and a `pollSchedule` array of
+backoff delays.
+
+## `simulateTransaction`
+
+Dry-run a transaction without executing it, to estimate gas, inspect return values, or validate it
+before asking anyone to sign:
+
+```typescript
+const result = await client.simulateTransaction({
+	transaction: tx,
+	include: {
+		effects: true,
+		balanceChanges: true,
+		commandResults: true,
+	},
+});
+```
+
+Simulation takes the same include options plus `commandResults`, which returns each command's return
+values and mutated references as BCS-encoded bytes for you to decode with the [BCS library](/bcs).
+Two further options change how the node runs the simulation:
+
+| Option           | Effect                                                                                                                 |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `checksEnabled`  | Set `false` to skip transaction validation, so non-public and non-entry functions can be inspected. Defaults to `true` |
+| `doGasSelection` | Overrides whether the server selects gas payment during the simulation                                                 |

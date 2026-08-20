@@ -15,10 +15,7 @@ import { normalizeStructTag } from '../utils/sui-types.js';
 import { deriveDynamicFieldID } from '../utils/dynamic-fields.js';
 import type { TransactionPlugin } from '../transactions/index.js';
 
-export type GraphQLDocument<
-	Result = Record<string, unknown>,
-	Variables = Record<string, unknown>,
-> =
+export type GraphQLDocument<Result = Record<string, unknown>, Variables = Record<string, unknown>> =
 	| string
 	| DocumentNode
 	| TypedDocumentString<Result, Variables>
@@ -68,6 +65,20 @@ export function isSuiGraphQLClient(client: unknown): client is SuiGraphQLClient 
 	return (
 		typeof client === 'object' && client !== null && (client as any)[SUI_CLIENT_BRAND] === true
 	);
+}
+
+export interface GraphQLSimulateTransactionOptions<
+	Include extends SuiClientTypes.SimulateTransactionInclude = {},
+> extends SuiClientTypes.SimulateTransactionOptions<Include> {
+	/**
+	 * Overrides whether the server selects gas payment during simulation.
+	 *
+	 * When not set, gas selection is enabled only when the transaction's gas payment is explicitly
+	 * set to an empty list (`[]`), which indicates gas is paid from the sender's address balance.
+	 * Transactions with gas coins set are simulated as-is, and transactions without a gas payment
+	 * are simulated with a mocked gas coin.
+	 */
+	doGasSelection?: boolean;
 }
 
 export interface DynamicFieldInclude {
@@ -230,13 +241,33 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 	}
 
 	simulateTransaction<Include extends SuiClientTypes.SimulateTransactionInclude = {}>(
-		input: SuiClientTypes.SimulateTransactionOptions<Include>,
+		input: GraphQLSimulateTransactionOptions<Include>,
 	): Promise<SuiClientTypes.SimulateTransactionResult<Include>> {
 		return this.core.simulateTransaction(input);
 	}
 
-	getReferenceGasPrice(): Promise<SuiClientTypes.GetReferenceGasPriceResponse> {
-		return this.core.getReferenceGasPrice();
+	getReferenceGasPrice(
+		input?: SuiClientTypes.GetReferenceGasPriceOptions,
+	): Promise<SuiClientTypes.GetReferenceGasPriceResponse> {
+		return this.core.getReferenceGasPrice(input);
+	}
+
+	getCurrentSystemState(
+		input?: SuiClientTypes.GetCurrentSystemStateOptions,
+	): Promise<SuiClientTypes.GetCurrentSystemStateResponse> {
+		return this.core.getCurrentSystemState(input);
+	}
+
+	getProtocolConfig(
+		input?: SuiClientTypes.GetProtocolConfigOptions,
+	): Promise<SuiClientTypes.GetProtocolConfigResponse> {
+		return this.core.getProtocolConfig(input);
+	}
+
+	getChainIdentifier(
+		input?: SuiClientTypes.GetChainIdentifierOptions,
+	): Promise<SuiClientTypes.GetChainIdentifierResponse> {
+		return this.core.getChainIdentifier(input);
 	}
 
 	async listDynamicFields<Include extends DynamicFieldInclude = {}>(
@@ -246,6 +277,7 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 
 		const { data, errors } = await this.query({
 			query: GetDynamicFieldsDocument,
+			signal: input.signal,
 			variables: {
 				parentId: input.parentId,
 				first: input.limit,
@@ -324,6 +356,22 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 		return this.core.getDynamicField(input);
 	}
 
+	getDynamicObjectField<Include extends SuiClientTypes.ObjectInclude = {}>(
+		input: SuiClientTypes.GetDynamicObjectFieldOptions<Include>,
+	): Promise<SuiClientTypes.GetDynamicObjectFieldResponse<Include>> {
+		return this.core.getDynamicObjectField(input);
+	}
+
+	listTransactions<Include extends SuiClientTypes.TransactionInclude = {}>(
+		input: SuiClientTypes.ListTransactionsOptions<Include>,
+	): Promise<SuiClientTypes.ListTransactionsResponse<Include>> {
+		return this.core.listTransactions(input);
+	}
+
+	listEvents(input: SuiClientTypes.ListEventsOptions): Promise<SuiClientTypes.ListEventsResponse> {
+		return this.core.listEvents(input);
+	}
+
 	getMoveFunction(
 		input: SuiClientTypes.GetMoveFunctionOptions,
 	): Promise<SuiClientTypes.GetMoveFunctionResponse> {
@@ -344,5 +392,11 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 		input: SuiClientTypes.DefaultNameServiceNameOptions,
 	): Promise<SuiClientTypes.DefaultNameServiceNameResponse> {
 		return this.core.defaultNameServiceName(input);
+	}
+
+	resolveNameServiceAddress(
+		input: SuiClientTypes.ResolveNameServiceAddressOptions,
+	): Promise<SuiClientTypes.ResolveNameServiceAddressResponse> {
+		return this.core.resolveNameServiceAddress(input);
 	}
 }

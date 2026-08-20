@@ -197,8 +197,7 @@ export function lock<T0 extends BcsType<any>>(options: LockOptions<T0>) {
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [null, null, null, `${options.typeArguments[0]}`] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -268,8 +267,7 @@ export function placeAndList<T0 extends BcsType<any>>(options: PlaceAndListOptio
 	const packageAddress =
 		options.package ?? '0x0000000000000000000000000000000000000000000000000000000000000002';
 	const argumentsTypes = [null, null, `${options.typeArguments[0]}`, 'u64'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	return (tx: Transaction) =>
 		tx.moveCall({

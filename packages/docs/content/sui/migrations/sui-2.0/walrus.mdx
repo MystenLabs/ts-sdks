@@ -1,17 +1,36 @@
 ---
 title: '@mysten/walrus'
-description: Migrate @mysten/walrus to 2.0 with required client parameter and updated API.
+description: Migrate @mysten/walrus to 2.0 with required client parameter and updated API
 keywords:
-  [
-    migration,
-    '@mysten/walrus',
-    Walrus,
-    2.0,
-    WalrusClient,
-    storage,
-    client extension,
-    breaking changes,
-  ]
+  - migration
+  - '@mysten/walrus'
+  - Walrus
+  - '2.0'
+  - WalrusClient
+  - storage
+  - client extension
+  - breaking changes
+questions:
+  - What changed in the @mysten/walrus migration?
+  - How do I migrate to @mysten/walrus?
+  - How does Breaking changes work?
+  - How does Updated usage work?
+answer: Migrate @mysten/walrus to 2.0 with required client parameter and updated API
+goal:
+  description: >-
+    Reader can migrate @mysten/walrus to 2.0 with required client parameter and updated API
+  requires:
+    - has_frontmatter:
+        - title
+        - description
+        - keywords
+      label: Has required frontmatter fields
+    - min_words: 30
+      label: Needs content depth
+    - has_questions: true
+      label: Needs questions for AI search visibility
+    - has_answer: true
+      label: Needs answer summary for AI citation
 ---
 
 ## Breaking changes
@@ -29,7 +48,7 @@ If you were creating `WalrusClient` directly:
 
 ```diff
 - import { WalrusClient } from '@mysten/walrus';
-+ import { SuiGrpcClient } from '@mysten/sui/grpc'; // or SuiJsonRpcClient, SuiGraphQLClient
++ import { SuiGrpcClient } from '@mysten/sui/grpc';
 + import { walrus } from '@mysten/walrus';
 
 - const walrusClient = new WalrusClient({
@@ -42,7 +61,7 @@ If you were creating `WalrusClient` directly:
 + }).$extend(walrus());
 
 - await walrusClient.getBlob(blobId);
-+ await client.walrus.getBlob(blobId);
++ await client.walrus.getBlob({ blobId });
 ```
 
 If you were passing `network` to `walrus()`, remove it:

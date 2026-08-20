@@ -74,12 +74,10 @@ export function publicKeyFromDER(derBytes: Uint8Array) {
 	derElement.fromBytes(encodedData);
 
 	// Validate the ASN.1 structure of the public key
-	if (
-		!(
-			derElement.tagClass === ASN1TagClass.universal &&
-			derElement.construction === ASN1Construction.constructed
-		)
-	) {
+	if (!(
+		derElement.tagClass === ASN1TagClass.universal &&
+		derElement.construction === ASN1Construction.constructed
+	)) {
 		throw new Error('Unexpected ASN.1 structure');
 	}
 

@@ -1,7 +1,36 @@
 ---
 title: Kiosk SDK
-description: TypeScript SDK for interacting with Sui Kiosk onchain commerce.
-keywords: [Kiosk SDK, Sui, onchain commerce, NFT, marketplace, TypeScript, mysten/kiosk]
+description: TypeScript SDK for interacting with Sui Kiosk onchain commerce
+keywords:
+  - Kiosk SDK
+  - Sui
+  - onchain commerce
+  - NFT
+  - marketplace
+  - TypeScript
+  - mysten/kiosk
+questions:
+  - What is the Sui Kiosk SDK?
+  - How do I list items in a Kiosk?
+  - How do I purchase from a Kiosk?
+answer: >-
+  The Kiosk SDK (@mysten/kiosk) provides TypeScript bindings for Sui Kiosk, enabling onchain
+  commerce with listing, purchasing, transfer policy management, and royalty enforcement.
+goal:
+  description: >-
+    Reader understands the Kiosk SDK and can start building onchain commerce on Sui
+  requires:
+    - has_frontmatter:
+        - title
+        - description
+        - keywords
+      label: Has required frontmatter fields
+    - min_words: 100
+      label: Needs content depth
+    - has_questions: true
+      label: Needs questions for AI search visibility
+    - has_answer: true
+      label: Needs answer summary for AI citation
 ---
 
 Kiosk SDK is a tool to interact with Sui and Mysten Kiosk. You can use it to query kiosk related
@@ -18,7 +47,12 @@ npm i @mysten/kiosk
 The Kiosk SDK exports a client extension that integrates with Sui clients. Add it to your client
 using `$extend(kiosk())` to access kiosk functionality through `client.kiosk`.
 
-> The Kiosk SDK requires `SuiJsonRpcClient` or `SuiGraphQLClient`. It does not work with
-> `SuiGrpcClient` because it uses event queries that are not available in gRPC.
+The Kiosk extension accepts any Sui client that implements `ClientWithCoreApi`. Use `SuiGrpcClient`
+for new Kiosk code; `SuiGraphQLClient` and the deprecated `SuiJsonRpcClient` are also compatible.
+
+<Callout type="info">
+	The gRPC object API returns Display v2 metadata. Use GraphQL or JSON-RPC when reading objects
+	whose types still rely on legacy Display metadata.
+</Callout>
 
 - [Read more about setting up the Kiosk client extension](/kiosk/kiosk-client/introduction)

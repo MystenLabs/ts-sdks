@@ -2,7 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { CoreClientOptions, SuiClientTypes } from '../client/index.js';
-import { CoreClient, formatMoveAbortMessage, SimulationError } from '../client/index.js';
+import {
+	CoreClient,
+	formatMoveAbortMessage,
+	ObjectError,
+	SimulationError,
+	TransactionError,
+} from '../client/index.js';
 import { raceSignal } from '../client/mvr.js';
 import type { SuiGrpcClient } from './client.js';
 import type { Owner } from './proto/sui/rpc/v2/owner.js';
@@ -44,15 +50,43 @@ import {
 	grpcTransactionToTransactionData,
 } from '../client/transaction-resolver.js';
 import { setAddressBalanceTransactionExpirationFromSimulatedEpoch } from '../client/address-balance-transaction-expiration.js';
+import { transactionBytesHaveEmptyGasPayment } from '../client/utils.js';
 import { Value } from './proto/google/protobuf/struct.js';
 import { ExecutedTransaction } from './proto/sui/rpc/v2/executed_transaction.js';
 import {
 	SimulateTransactionRequest_TransactionChecks,
 	SimulateTransactionResponse,
 } from './proto/sui/rpc/v2/transaction_execution_service.js';
+import type { QueryEnd, QueryOptions } from './proto/sui/rpc/v2/query_options.js';
+import { Ordering, QueryEndReason } from './proto/sui/rpc/v2/query_options.js';
+import type { ResolvedPagination } from '../client/query-filters.js';
+import { RpcError } from '@protobuf-ts/runtime-rpc';
+import { GrpcStatusCode } from '@protobuf-ts/grpcweb-transport';
+import {
+	resolveEventFilter,
+	resolvePagination,
+	resolveTransactionFilter,
+	validateTransactionQuery,
+} from '../client/query-filters.js';
+import { toGrpcEventFilter, toGrpcTransactionFilter } from './filters.js';
 
 export interface GrpcCoreClientOptions extends CoreClientOptions {
 	client: SuiGrpcClient;
+}
+
+function isNameServiceResolutionMiss(error: unknown): boolean {
+	if (!(error instanceof RpcError)) return false;
+	if (error.code === GrpcStatusCode[GrpcStatusCode.NOT_FOUND]) return true;
+	if (error.code !== GrpcStatusCode[GrpcStatusCode.RESOURCE_EXHAUSTED]) return false;
+
+	try {
+		// The gRPC service currently reports expired names as RESOURCE_EXHAUSTED without a
+		// structured reason. grpc-web URI-encodes status messages, so decode before matching while
+		// preserving unrelated RESOURCE_EXHAUSTED failures such as capacity limits.
+		return decodeURIComponent(error.message) === 'name has expired';
+	} catch {
+		return false;
+	}
 }
 
 export class GrpcCoreClient extends CoreClient {
@@ -97,51 +131,73 @@ export class GrpcCoreClient extends CoreClient {
 			);
 
 			results.push(
-				...response.response.objects.map((object): SuiClientTypes.Object<Include> | Error => {
-					if (object.result.oneofKind === 'error') {
-						// TODO: improve error handling
-						return new Error(object.result.error.message);
-					}
+				...response.response.objects.map(
+					(object, index): SuiClientTypes.Object<Include> | ObjectError => {
+						if (object.result.oneofKind === 'error') {
+							const error = object.result.error;
+							if (error.code === GrpcStatusCode.NOT_FOUND) {
+								// Special case for backwards compatibility: missing objects reuse
+								// the long-standing JSON-RPC `notExists` code instead of the gRPC
+								// status name, so handlers written against earlier releases keep
+								// working.
+								return new ObjectError('notExists', error.message, {
+									cause: error,
+									reason: 'notFound',
+									objectId: batch[index],
+								});
+							}
+							// Other statuses use the gRPC status name (for example `INTERNAL`),
+							// never the raw status number.
+							return new ObjectError(GrpcStatusCode[error.code] ?? 'unknown', error.message, {
+								cause: error,
+								reason: 'unknown',
+								objectId: batch[index],
+							});
+						}
 
-					if (object.result.oneofKind !== 'object') {
-						return new Error('Unexpected result type');
-					}
+						if (object.result.oneofKind !== 'object') {
+							return new ObjectError('unknown', 'Unexpected result type', {
+								reason: 'unknown',
+								objectId: batch[index],
+							});
+						}
 
-					const bcsContent = object.result.object.contents?.value ?? undefined;
-					const objectBcs = object.result.object.bcs?.value ?? undefined;
+						const bcsContent = object.result.object.contents?.value ?? undefined;
+						const objectBcs = object.result.object.bcs?.value ?? undefined;
 
-					// Package objects have type "package" which is not a struct tag, so don't normalize it
-					const objectType = object.result.object.objectType;
-					const type =
-						objectType && objectType.includes('::')
-							? normalizeStructTag(objectType)
-							: (objectType ?? '');
+						// Package objects have type "package" which is not a struct tag, so don't normalize it
+						const objectType = object.result.object.objectType;
+						const type =
+							objectType && objectType.includes('::')
+								? normalizeStructTag(objectType)
+								: (objectType ?? '');
 
-					const jsonContent = options.include?.json
-						? object.result.object.json
-							? (Value.toJson(object.result.object.json) as Record<string, unknown>)
-							: null
-						: undefined;
+						const jsonContent = options.include?.json
+							? object.result.object.json
+								? (Value.toJson(object.result.object.json) as Record<string, unknown>)
+								: null
+							: undefined;
 
-					const displayData = mapDisplayProto(
-						options.include?.display,
-						object.result.object.display,
-					);
+						const displayData = mapDisplayProto(
+							options.include?.display,
+							object.result.object.display,
+						);
 
-					return {
-						objectId: object.result.object.objectId!,
-						version: object.result.object.version?.toString()!,
-						digest: object.result.object.digest!,
-						content: bcsContent as SuiClientTypes.Object<Include>['content'],
-						owner: mapOwner(object.result.object.owner)!,
-						type,
-						previousTransaction: (object.result.object.previousTransaction ??
-							undefined) as SuiClientTypes.Object<Include>['previousTransaction'],
-						objectBcs: objectBcs as SuiClientTypes.Object<Include>['objectBcs'],
-						json: jsonContent as SuiClientTypes.Object<Include>['json'],
-						display: displayData as SuiClientTypes.Object<Include>['display'],
-					};
-				}),
+						return {
+							objectId: object.result.object.objectId!,
+							version: object.result.object.version?.toString()!,
+							digest: object.result.object.digest!,
+							content: bcsContent as SuiClientTypes.Object<Include>['content'],
+							owner: mapOwner(object.result.object.owner)!,
+							type,
+							previousTransaction: (object.result.object.previousTransaction ??
+								undefined) as SuiClientTypes.Object<Include>['previousTransaction'],
+							objectBcs: objectBcs as SuiClientTypes.Object<Include>['objectBcs'],
+							json: jsonContent as SuiClientTypes.Object<Include>['json'],
+							display: displayData as SuiClientTypes.Object<Include>['display'],
+						};
+					},
+				),
 			);
 		}
 
@@ -184,28 +240,26 @@ export class GrpcCoreClient extends CoreClient {
 			{ abort: options.signal },
 		);
 
-		const objects = response.response.objects.map(
-			(object): SuiClientTypes.Object<Include> => ({
-				objectId: object.objectId!,
-				version: object.version?.toString()!,
-				digest: object.digest!,
-				content: object.contents?.value as SuiClientTypes.Object<Include>['content'],
-				owner: mapOwner(object.owner)!,
-				type: object.objectType!,
-				previousTransaction: (object.previousTransaction ??
-					undefined) as SuiClientTypes.Object<Include>['previousTransaction'],
-				objectBcs: object.bcs?.value as SuiClientTypes.Object<Include>['objectBcs'],
-				json: (options.include?.json
-					? object.json
-						? (Value.toJson(object.json) as Record<string, unknown>)
-						: null
-					: undefined) as SuiClientTypes.Object<Include>['json'],
-				display: mapDisplayProto(
-					options.include?.display,
-					object.display,
-				) as SuiClientTypes.Object<Include>['display'],
-			}),
-		);
+		const objects = response.response.objects.map((object): SuiClientTypes.Object<Include> => ({
+			objectId: object.objectId!,
+			version: object.version?.toString()!,
+			digest: object.digest!,
+			content: object.contents?.value as SuiClientTypes.Object<Include>['content'],
+			owner: mapOwner(object.owner)!,
+			type: object.objectType!,
+			previousTransaction: (object.previousTransaction ??
+				undefined) as SuiClientTypes.Object<Include>['previousTransaction'],
+			objectBcs: object.bcs?.value as SuiClientTypes.Object<Include>['objectBcs'],
+			json: (options.include?.json
+				? object.json
+					? (Value.toJson(object.json) as Record<string, unknown>)
+					: null
+				: undefined) as SuiClientTypes.Object<Include>['json'],
+			display: mapDisplayProto(
+				options.include?.display,
+				object.display,
+			) as SuiClientTypes.Object<Include>['display'],
+		}));
 
 		return {
 			objects,
@@ -233,16 +287,14 @@ export class GrpcCoreClient extends CoreClient {
 		);
 
 		return {
-			objects: response.response.objects.map(
-				(object): SuiClientTypes.Coin => ({
-					objectId: object.objectId!,
-					version: object.version?.toString()!,
-					digest: object.digest!,
-					owner: mapOwner(object.owner)!,
-					type: object.objectType!,
-					balance: object.balance?.toString()!,
-				}),
-			),
+			objects: response.response.objects.map((object): SuiClientTypes.Coin => ({
+				objectId: object.objectId!,
+				version: object.version?.toString()!,
+				digest: object.digest!,
+				owner: mapOwner(object.owner)!,
+				type: object.objectType!,
+				balance: object.balance?.toString()!,
+			})),
 			cursor: response.response.nextPageToken ? toBase64(response.response.nextPageToken) : null,
 			hasNextPage: response.response.nextPageToken !== undefined,
 		};
@@ -335,25 +387,32 @@ export class GrpcCoreClient extends CoreClient {
 	async getTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 		options: SuiClientTypes.GetTransactionOptions<Include>,
 	): Promise<SuiClientTypes.TransactionResult<Include>> {
-		const { response } = await this.#client.ledgerService.getTransaction(
-			{
-				digest: options.digest,
-				readMask: {
-					paths: transactionReadMaskPaths(options.include),
+		try {
+			const { response } = await this.#client.ledgerService.getTransaction(
+				{
+					digest: options.digest,
+					readMask: {
+						paths: transactionReadMaskPaths(options.include),
+					},
 				},
-			},
-			{ abort: options.signal },
-		);
+				{ abort: options.signal },
+			);
 
-		if (!response.transaction) {
-			throw new Error(`Transaction ${options.digest} not found`);
+			if (!response.transaction) {
+				throw new TransactionError('notFound', options.digest);
+			}
+
+			return withProtoJson(
+				parseGrpcTransactionResponse(response.transaction, { include: options.include }),
+				options.include,
+				() => ExecutedTransaction.toJson(response.transaction!),
+			);
+		} catch (error) {
+			if (error instanceof RpcError && error.code === GrpcStatusCode[GrpcStatusCode.NOT_FOUND]) {
+				throw new TransactionError('notFound', options.digest, { cause: error });
+			}
+			throw error;
 		}
-
-		return withProtoJson(
-			parseGrpcTransactionResponse(response.transaction, { include: options.include }),
-			options.include,
-			() => ExecutedTransaction.toJson(response.transaction!),
-		);
 	}
 	async executeTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 		options: SuiClientTypes.ExecuteTransactionOptions<Include>,
@@ -387,8 +446,9 @@ export class GrpcCoreClient extends CoreClient {
 		);
 	}
 	async simulateTransaction<Include extends SuiClientTypes.SimulateTransactionInclude = {}>(
-		options: SuiClientTypes.SimulateTransactionOptions<Include>,
+		options: SuiClientTypes.SimulateTransactionOptions<Include> & { doGasSelection?: boolean },
 	): Promise<SuiClientTypes.SimulateTransactionResult<Include>> {
+		// The simulated transaction is nested one level deeper in the response
 		const paths = transactionReadMaskPaths(options.include, 'transaction.');
 		if (options.include?.commandResults) {
 			paths.push('command_outputs');
@@ -397,6 +457,15 @@ export class GrpcCoreClient extends CoreClient {
 		if (!(options.transaction instanceof Uint8Array)) {
 			await options.transaction.prepareForSerialization({ client: this });
 		}
+
+		// A gas payment explicitly set to an empty list means gas is paid from the sender's
+		// address balance, so the server needs to perform gas selection rather than simulating
+		// with a mocked gas coin.
+		const doGasSelection =
+			options.doGasSelection ??
+			(options.transaction instanceof Uint8Array
+				? transactionBytesHaveEmptyGasPayment(options.transaction)
+				: options.transaction.getData().gasData.payment?.length === 0);
 
 		const { response } = await this.#client.transactionExecutionService.simulateTransaction(
 			{
@@ -411,7 +480,7 @@ export class GrpcCoreClient extends CoreClient {
 				readMask: {
 					paths,
 				},
-				doGasSelection: false,
+				doGasSelection,
 				checks:
 					options.checksEnabled === false
 						? SimulateTransactionRequest_TransactionChecks.DISABLED
@@ -567,6 +636,158 @@ export class GrpcCoreClient extends CoreClient {
 		return this.#client.listDynamicFields(options);
 	}
 
+	async listTransactions<Include extends SuiClientTypes.TransactionInclude = {}>(
+		options: SuiClientTypes.ListTransactionsOptions<Include>,
+	): Promise<SuiClientTypes.ListTransactionsResponse<Include>> {
+		const paths = transactionReadMaskPaths(options.include);
+
+		const filter = options.filter
+			? await resolveTransactionFilter(this.mvr, options.filter, options.signal)
+			: undefined;
+		const pagination = resolvePagination(options);
+		validateTransactionQuery(filter, pagination);
+
+		const call = this.#client.ledgerService.listTransactions(
+			{
+				readMask: { paths },
+				filter: filter && toGrpcTransactionFilter(filter),
+				// Request one extra item as lookahead: the server reports its item limit as reached
+				// without scanning past it, so an exact-limit final page is otherwise
+				// indistinguishable from one with more results
+				options: toGrpcQueryOptions(pagination, pagination.limit + 1),
+			},
+			{ abort: options.signal },
+		);
+
+		const transactions: SuiClientTypes.TransactionResult<Include>[] = [];
+		let startCursor: string | null = null;
+		let endCursor: string | null = null;
+		let frontier: string | null = null;
+		let end: QueryEnd | undefined;
+		let sawLookaheadItem = false;
+
+		for await (const frame of call.responses) {
+			if (frame.watermark?.cursor) {
+				frontier = toBase64(frame.watermark.cursor);
+			}
+			if (frame.transaction) {
+				if (transactions.length >= pagination.limit) {
+					sawLookaheadItem = true;
+				} else {
+					startCursor ??= frontier;
+					endCursor = frontier;
+					transactions.push(
+						parseGrpcTransactionResponse(frame.transaction, { include: options.include }),
+					);
+				}
+			}
+			if (frame.end) {
+				end = frame.end;
+			}
+		}
+
+		// ITEM_LIMIT without the lookahead item means the server clamped the requested limit to
+		// its own maximum, so the filled page is still evidence of a possible next page
+		const hasNextPage =
+			sawLookaheadItem ||
+			end?.reason === QueryEndReason.SCAN_LIMIT ||
+			end?.reason === QueryEndReason.ITEM_LIMIT;
+
+		return {
+			transactions,
+			hasNextPage,
+			startCursor,
+			// Scans that stopped early without filling the page continue from the scan frontier
+			// (so already-scanned positions are not revisited), full pages continue after the last
+			// returned item, and terminal pages have no positions to continue from
+			endCursor: sawLookaheadItem ? endCursor : hasNextPage ? (frontier ?? endCursor) : endCursor,
+		};
+	}
+
+	async listEvents(
+		options: SuiClientTypes.ListEventsOptions,
+	): Promise<SuiClientTypes.ListEventsResponse> {
+		const pagination = resolvePagination(options);
+		const call = this.#client.ledgerService.listEvents(
+			{
+				readMask: {
+					paths: [
+						'package_id',
+						'module',
+						'sender',
+						'event_type',
+						'contents',
+						'json',
+						'checkpoint',
+						'transaction_digest',
+						'event_index',
+					],
+				},
+				filter: options.filter
+					? toGrpcEventFilter(await resolveEventFilter(this.mvr, options.filter, options.signal))
+					: undefined,
+				// Request one extra item as lookahead: the server reports its item limit as reached
+				// without scanning past it, so an exact-limit final page is otherwise
+				// indistinguishable from one with more results
+				options: toGrpcQueryOptions(pagination, pagination.limit + 1),
+			},
+			{ abort: options.signal },
+		);
+
+		const events: SuiClientTypes.EventEntry[] = [];
+		let startCursor: string | null = null;
+		let endCursor: string | null = null;
+		let frontier: string | null = null;
+		let end: QueryEnd | undefined;
+		let sawLookaheadItem = false;
+
+		for await (const frame of call.responses) {
+			if (frame.watermark?.cursor) {
+				frontier = toBase64(frame.watermark.cursor);
+			}
+			if (frame.event) {
+				if (events.length >= pagination.limit) {
+					sawLookaheadItem = true;
+				} else {
+					startCursor ??= frontier;
+					endCursor = frontier;
+					const event = frame.event;
+					events.push({
+						packageId: normalizeSuiAddress(event.packageId!),
+						module: event.module!,
+						sender: normalizeSuiAddress(event.sender!),
+						eventType: normalizeStructTag(event.eventType!),
+						bcs: event.contents?.value ?? new Uint8Array(),
+						json: event.json ? (Value.toJson(event.json) as Record<string, unknown>) : null,
+						checkpoint: event.checkpoint?.toString() ?? null,
+						transactionDigest: event.transactionDigest!,
+						eventIndex: event.eventIndex!,
+					});
+				}
+			}
+			if (frame.end) {
+				end = frame.end;
+			}
+		}
+
+		// ITEM_LIMIT without the lookahead item means the server clamped the requested limit to
+		// its own maximum, so the filled page is still evidence of a possible next page
+		const hasNextPage =
+			sawLookaheadItem ||
+			end?.reason === QueryEndReason.SCAN_LIMIT ||
+			end?.reason === QueryEndReason.ITEM_LIMIT;
+
+		return {
+			events,
+			hasNextPage,
+			startCursor,
+			// Scans that stopped early without filling the page continue from the scan frontier
+			// (so already-scanned positions are not revisited), full pages continue after the last
+			// returned item, and terminal pages have no positions to continue from
+			endCursor: sawLookaheadItem ? endCursor : hasNextPage ? (frontier ?? endCursor) : endCursor,
+		};
+	}
+
 	async verifyZkLoginSignature(
 		options: SuiClientTypes.VerifyZkLoginSignatureOptions,
 	): Promise<SuiClientTypes.ZkLoginVerifyResponse> {
@@ -622,6 +843,25 @@ export class GrpcCoreClient extends CoreClient {
 				name,
 			},
 		};
+	}
+
+	async resolveNameServiceAddress(
+		options: SuiClientTypes.ResolveNameServiceAddressOptions,
+	): Promise<SuiClientTypes.ResolveNameServiceAddressResponse> {
+		try {
+			const { response } = await this.#client.nameService.lookupName(
+				{ name: options.name },
+				{ abort: options.signal },
+			);
+
+			return { address: response.record?.targetAddress ?? null };
+		} catch (error) {
+			if (isNameServiceResolutionMiss(error)) {
+				return { address: null };
+			}
+
+			throw error;
+		}
 	}
 
 	async getMoveFunction(
@@ -787,11 +1027,21 @@ export class GrpcCoreClient extends CoreClient {
 	}
 }
 
+function toGrpcQueryOptions(pagination: ResolvedPagination, limit: number): QueryOptions {
+	return {
+		limit,
+		ordering: pagination.descending ? Ordering.DESCENDING : Ordering.ASCENDING,
+		after: pagination.after ? fromBase64(pagination.after) : undefined,
+		before: pagination.before ? fromBase64(pagination.before) : undefined,
+	};
+}
+
 function transactionReadMaskPaths(
 	include: SuiClientTypes.TransactionInclude | undefined,
 	prefix = '',
-) {
+): string[] {
 	const paths = ['digest', 'transaction.digest', 'signatures', 'effects.status'];
+
 	if (include?.transaction) {
 		paths.push(
 			'transaction.sender',
@@ -813,6 +1063,7 @@ function transactionReadMaskPaths(
 		paths.push('events');
 	}
 	if (include?.objectTypes) {
+		// Use effects.changed_objects to match JSON-RPC behavior (which uses objectChanges)
 		paths.push('effects.changed_objects.object_type');
 		paths.push('effects.changed_objects.object_id');
 	}
@@ -1208,18 +1459,22 @@ export function parseTransactionEffects({
 			nonRefundableStorageFee: effects.gasUsed?.nonRefundableStorageFee?.toString()!,
 		},
 		transactionDigest: effects.transactionDigest!,
-		gasObject: {
-			objectId: effects.gasObject?.objectId!,
-			inputState: mapInputObjectState(effects.gasObject?.inputState)!,
-			inputVersion: effects.gasObject?.inputVersion?.toString() ?? null,
-			inputDigest: effects.gasObject?.inputDigest ?? null,
-			inputOwner: mapOwner(effects.gasObject?.inputOwner),
-			outputState: mapOutputObjectState(effects.gasObject?.outputState)!,
-			outputVersion: effects.gasObject?.outputVersion?.toString() ?? null,
-			outputDigest: effects.gasObject?.outputDigest ?? null,
-			outputOwner: mapOwner(effects.gasObject?.outputOwner),
-			idOperation: mapIdOperation(effects.gasObject?.idOperation)!,
-		},
+		// gas_object is unset when the transaction has no gas object (system
+		// transactions, or gas paid from an address balance)
+		gasObject: effects.gasObject
+			? {
+					objectId: effects.gasObject.objectId!,
+					inputState: mapInputObjectState(effects.gasObject.inputState)!,
+					inputVersion: effects.gasObject.inputVersion?.toString() ?? null,
+					inputDigest: effects.gasObject.inputDigest ?? null,
+					inputOwner: mapOwner(effects.gasObject.inputOwner),
+					outputState: mapOutputObjectState(effects.gasObject.outputState)!,
+					outputVersion: effects.gasObject.outputVersion?.toString() ?? null,
+					outputDigest: effects.gasObject.outputDigest ?? null,
+					outputOwner: mapOwner(effects.gasObject.outputOwner),
+					idOperation: mapIdOperation(effects.gasObject.idOperation)!,
+				}
+			: null,
 		eventsDigest: effects.eventsDigest ?? null,
 		dependencies: effects.dependencies,
 		lamportVersion: effects.lamportVersion?.toString() ?? null,

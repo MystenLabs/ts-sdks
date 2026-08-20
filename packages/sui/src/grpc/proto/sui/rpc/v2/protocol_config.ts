@@ -10,6 +10,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 import { MessageType } from '@protobuf-ts/runtime';
+import { Value } from '../../../google/protobuf/struct.js';
 /**
  * @generated from protobuf message sui.rpc.v2.ProtocolConfig
  */
@@ -19,16 +20,28 @@ export interface ProtocolConfig {
 	 */
 	protocolVersion?: bigint;
 	/**
-	 * @generated from protobuf field: map<string, bool> feature_flags = 2;
+	 * Deprecated in favor of the lossless `configs` field.
+	 *
+	 * @deprecated
+	 * @generated from protobuf field: map<string, bool> feature_flags = 2 [deprecated = true];
 	 */
 	featureFlags: {
 		[key: string]: boolean;
 	};
 	/**
-	 * @generated from protobuf field: map<string, string> attributes = 3;
+	 * Deprecated in favor of the lossless `configs` field.
+	 *
+	 * @deprecated
+	 * @generated from protobuf field: map<string, string> attributes = 3 [deprecated = true];
 	 */
 	attributes: {
 		[key: string]: string;
+	};
+	/**
+	 * @generated from protobuf field: map<string, google.protobuf.Value> configs = 4;
+	 */
+	configs: {
+		[key: string]: Value;
 	};
 }
 // @generated message type with reflection information, may provide speed optimized methods
@@ -56,6 +69,13 @@ class ProtocolConfig$Type extends MessageType<ProtocolConfig> {
 				kind: 'map',
 				K: 9 /*ScalarType.STRING*/,
 				V: { kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+			},
+			{
+				no: 4,
+				name: 'configs',
+				kind: 'map',
+				K: 9 /*ScalarType.STRING*/,
+				V: { kind: 'message', T: () => Value },
 			},
 		]);
 	}

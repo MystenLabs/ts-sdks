@@ -80,6 +80,13 @@ export interface ExecutedTransaction {
 	 * @generated from protobuf field: optional sui.rpc.v2.ObjectSet objects = 9;
 	 */
 	objects?: ObjectSet;
+	/**
+	 * Zero-based position of this transaction within the checkpoint that
+	 * includes it.
+	 *
+	 * @generated from protobuf field: optional uint64 transaction_index = 10;
+	 */
+	transactionIndex?: bigint;
 }
 // @generated message type with reflection information, may provide speed optimized methods
 class ExecutedTransaction$Type extends MessageType<ExecutedTransaction> {
@@ -113,6 +120,14 @@ class ExecutedTransaction$Type extends MessageType<ExecutedTransaction> {
 				T: () => BalanceChange,
 			},
 			{ no: 9, name: 'objects', kind: 'message', T: () => ObjectSet },
+			{
+				no: 10,
+				name: 'transaction_index',
+				kind: 'scalar',
+				opt: true,
+				T: 4 /*ScalarType.UINT64*/,
+				L: 0 /*LongType.BIGINT*/,
+			},
 		]);
 	}
 }

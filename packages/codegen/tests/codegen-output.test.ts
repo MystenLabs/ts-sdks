@@ -586,6 +586,68 @@ describe('function codegen output', () => {
 		expect(fnBody?.[0]).toContain("'0x2::clock::Clock'");
 	});
 
+	it('function with well-known AccumulatorRoot parameter', async () => {
+		const summary = {
+			id: { address: 'testpkg', name: 'settlement' },
+			doc: '',
+			immediate_dependencies: [],
+			attributes: [],
+			functions: {
+				settle: {
+					source_index: 0,
+					index: 0,
+					doc: '',
+					attributes: [],
+					visibility: 'Public',
+					entry: false,
+					macro_: false,
+					type_parameters: [],
+					parameters: [
+						{
+							name: 'root',
+							type_: {
+								Reference: [
+									true,
+									{
+										Datatype: {
+											module: { address: 'sui', name: 'accumulator' },
+											name: 'AccumulatorRoot',
+											type_arguments: [],
+										},
+									},
+								],
+							},
+						},
+						{ name: 'amount', type_: 'u64' },
+					],
+					return_: [],
+				},
+			},
+			structs: {},
+			enums: {},
+		};
+
+		const builder = new MoveModuleBuilder({
+			summary: summary as any,
+			registry: new ModuleRegistry(ADDRESS_MAPPINGS),
+			mvrNameOrAddress: '@test/testpkg',
+			importExtension: '.js',
+		});
+		builder.includeFunctions();
+		const output = await render(builder, { functions: true });
+
+		// AccumulatorRoot should be auto-injected, not in the arguments interface
+		const argInterface = output.match(/export interface SettleArguments[\s\S]*?^}/m);
+		expect(argInterface?.[0]).toMatchInlineSnapshot(`
+			"export interface SettleArguments {
+			    amount: RawTransactionArgument<number | bigint>;
+			}"
+		`);
+
+		const fnBody = output.match(/export function settle[\s\S]*?^}/m);
+		expect(fnBody?.[0]).toContain("'0x2::accumulator::AccumulatorRoot'");
+	});
+
 	it('function with enum parameter (is_active)', async () => {
 		const { registry } = await createBuilders();
 		registry.includeTypes();
@@ -1118,10 +1180,11 @@ describe('typeOrigins (upgraded packages)', () => {
 		const builder = await MoveModuleBuilder.fromSummaryFile(
 			join(SUMMARIES_DIR, 'testpkg', 'counter.json'),
 			new ModuleRegistry(ADDRESS_MAPPINGS),
-			'@test/testpkg',
+			ORIGIN_V2,
 			'.js',
 			false,
 			{ Counter: ORIGIN_V1, AdminCap: ORIGIN_V1 },
+			ORIGIN_V2,
 		);
 		builder.includeTypes(['Counter', 'AdminCap']);
 		const output = await render(builder, { types: true, functions: false });
@@ -1139,16 +1202,17 @@ describe('typeOrigins (upgraded packages)', () => {
 		const builder = await MoveModuleBuilder.fromSummaryFile(
 			join(SUMMARIES_DIR, 'testpkg', 'counter.json'),
 			new ModuleRegistry(ADDRESS_MAPPINGS),
-			'@test/testpkg',
+			ORIGIN_V2,
 			'.js',
 			false,
 			{ AdminCap: ORIGIN_V1 },
+			ORIGIN_V2,
 		);
 		builder.includeTypes(['Counter', 'AdminCap']);
 		const output = await render(builder, { types: true, functions: false });
 		const body = extractBody(output);
 
-		expect(body).toContain(`const $moduleName = '@test/testpkg::counter';`);
+		expect(body).toContain(`const $moduleName = '${ORIGIN_V2}::counter';`);
 		expect(body).toContain(`name: \`${ORIGIN_V1}::counter::AdminCap\``);
 		expect(body).toContain('name: `${$moduleName}::Counter`');
 	});
@@ -1157,10 +1221,11 @@ describe('typeOrigins (upgraded packages)', () => {
 		const builder = await MoveModuleBuilder.fromSummaryFile(
 			join(SUMMARIES_DIR, 'testpkg', 'counter.json'),
 			new ModuleRegistry(ADDRESS_MAPPINGS),
-			'@test/testpkg',
+			ORIGIN_V2,
 			'.js',
 			false,
 			{ Wrapper: ORIGIN_V2 },
+			ORIGIN_V2,
 		);
 		builder.includeTypes(['Wrapper']);
 		const output = await render(builder, { types: true, functions: false });
@@ -1179,21 +1244,22 @@ describe('typeOrigins (upgraded packages)', () => {
 		const builder = await MoveModuleBuilder.fromSummaryFile(
 			join(SUMMARIES_DIR, 'testpkg', 'counter.json'),
 			new ModuleRegistry(ADDRESS_MAPPINGS),
-			'@test/testpkg',
+			ORIGIN_V2,
 			'.js',
 			false,
 			{ AdminCap: ORIGIN_V1 },
+			ORIGIN_V2,
 		);
 		builder.includeTypes(['AdminCap']);
 		builder.includeTypes(['Counter']);
 		const output = await render(builder, { types: true, functions: false });
 		const body = extractBody(output);
 
-		expect(body).toContain(`const $moduleName = '@test/testpkg::counter';`);
+		expect(body).toContain(`const $moduleName = '${ORIGIN_V2}::counter';`);
 		expect(body).toContain('name: `${$moduleName}::Counter`');
 	});
 
-	it('falls back to rootPackageId for type names (introducing version, not MVR name) when no per-type origin', async () => {
+	it('prefers a named package over rootPackageId for portable type names', async () => {
 		const ROOT_V1 = '0x' + 'b'.repeat(64);
 		const builder = await MoveModuleBuilder.fromSummaryFile(
 			join(SUMMARIES_DIR, 'testpkg', 'counter.json'),
@@ -1201,13 +1267,14 @@ describe('typeOrigins (upgraded packages)', () => {
 			'@upgraded/pkg',
 			'.js',
 			false,
-			undefined,
+			{ Counter: ORIGIN_V1 },
 			ROOT_V1,
 		);
 		builder.includeTypes(['Counter']);
 		const output = await render(builder, { types: true, functions: false });
 		const body = extractBody(output);
 
-		expect(body).toContain(`const $moduleName = '${ROOT_V1}::counter';`);
+		expect(body).toContain(`const $moduleName = '@upgraded/pkg::counter';`);
+		expect(body).not.toContain(ORIGIN_V1);
 	});
 });

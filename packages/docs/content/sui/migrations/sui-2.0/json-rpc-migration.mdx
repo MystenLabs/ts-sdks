@@ -1,37 +1,61 @@
 ---
 title: Migrating from JSON-RPC
-description: Migrate from JSON-RPC to the new Core API using SuiGrpcClient or SuiGraphQLClient.
+description: Migrate deprecated JSON-RPC code to shared gRPC and GraphQL top-level methods
 keywords:
-  [
-    migration,
-    JSON-RPC,
-    Core API,
-    SuiGrpcClient,
-    SuiGraphQLClient,
-    deprecated,
-    Sui client,
-    transport,
-  ]
+  - migration
+  - JSON-RPC
+  - Core API
+  - SuiGrpcClient
+  - SuiGraphQLClient
+  - deprecated
+  - Sui client
+  - transport
+questions:
+  - What changed in the Migrating from JSON-RPC migration?
+  - How do I migrate to Migrating from JSON-RPC?
+  - How does Choosing a target client work?
+  - How does Quick migration to gRPC work?
+answer: Migrate deprecated JSON-RPC code to shared gRPC and GraphQL top-level methods
+goal:
+  description: >-
+    Reader can migrate deprecated JSON-RPC code to shared gRPC and GraphQL top-level methods
+  requires:
+    - has_frontmatter:
+        - title
+        - description
+        - keywords
+      label: Has required frontmatter fields
+    - min_words: 30
+      label: Needs content depth
+    - has_questions: true
+      label: Needs questions for AI search visibility
+    - has_answer: true
+      label: Needs answer summary for AI citation
 ---
 
-This guide covers migrating from `SuiJsonRpcClient` to the new client APIs. The JSON-RPC API is
-being deprecated in favor of `SuiGrpcClient` and `SuiGraphQLClient`.
+JSON-RPC APIs are deprecated in the Sui TypeScript SDK. For most application code, migrate from
+`SuiJsonRpcClient` to [`SuiGrpcClient`](/sui/clients/grpc) and call the gRPC client's top-level
+methods. Use [`SuiGraphQLClient`](/sui/clients/graphql) when the code needs custom indexed queries,
+historical object versions, or custom GraphQL selection sets. Standard transaction and event queries
+are available directly on both clients.
 
 <Callout type="info">
-	We recommend using `SuiGrpcClient` for most operations and `SuiGraphQLClient` for complex queries
-	like filtering transactions and events.
+	Create one client for the transport you want to use. Application code should usually call
+	top-level methods like `client.getObject()` and `client.listTransactions()`. SDKs and libraries
+	should accept `ClientWithCoreApi` and call `client.core.<method>()`.
 </Callout>
 
-## Choosing a client
+## Choosing a target client
 
-| Client             | Best For                                                        |
-| ------------------ | --------------------------------------------------------------- |
-| `SuiGrpcClient`    | Most operations, SDK integrations, real-time data               |
-| `SuiGraphQLClient` | Complex queries, filtering transactions/events, historical data |
+| Client             | Use For                                                                            |
+| ------------------ | ---------------------------------------------------------------------------------- |
+| `SuiGrpcClient`    | Standard reads, writes, simulations, transaction/event queries, and streams        |
+| `SuiGraphQLClient` | The same shared methods plus custom indexed queries and historical object versions |
+| `SuiJsonRpcClient` | Maintaining legacy JSON-RPC code while migrating                                   |
 
 ## Quick migration to gRPC
 
-For most use cases, migrate to `SuiGrpcClient`:
+Replace `SuiJsonRpcClient` with `SuiGrpcClient`:
 
 ```diff
 - import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
@@ -47,33 +71,303 @@ For most use cases, migrate to `SuiGrpcClient`:
 + });
 ```
 
-Both clients use the same full node URLs, so you can use the same endpoint when migrating.
+Full node hosts commonly expose both JSON-RPC and gRPC. When migrating, pass the full node endpoint
+as `baseUrl` instead of `url`, and verify the protocol and port used by your node provider.
 
-## Core API methods
+## Use top-level methods in apps
 
-The gRPC client should work with almost all mysten SDKs as a drop in replacement for the JSON-RPC
-client. When using the client directly, the methods and data returned will not be exactly the same
-as what was available in JSON-RPC.
+The gRPC and GraphQL clients expose top-level methods for the common client API. These methods use
+the same options and response shapes as `client.core`, with transport-specific additions where the
+transport can expose more data.
 
-## Methods replaced by core API
+This includes transaction and event methods. Use `getTransaction`, `waitForTransaction`,
+`listTransactions`, and `listEvents` directly instead of dropping down to a raw gRPC service or a
+custom GraphQL query for standard queries.
 
-These JSON-RPC methods have direct replacements in the core API:
+```typescript
+const { object } = await client.getObject({
+	objectId: '0x...',
+	include: { content: true, display: true },
+});
 
-| JSON-RPC Method              | Core API Replacement                              |
-| ---------------------------- | ------------------------------------------------- |
-| `getCoins`                   | `listCoins`                                       |
-| `getAllCoins`                | `listOwnedObjects` with `type: '0x2::coin::Coin'` |
-| `getAllBalances`             | `listBalances`                                    |
-| `getOwnedObjects`            | `listOwnedObjects`                                |
-| `multiGetObjects`            | `getObjects`                                      |
-| `getDynamicFields`           | `listDynamicFields`                               |
-| `getDynamicFieldObject`      | `getDynamicField`                                 |
-| `devInspectTransactionBlock` | `simulateTransaction` with `checksEnabled: false` |
-| `dryRunTransactionBlock`     | `simulateTransaction`                             |
-| `getNormalizedMoveFunction`  | `getMoveFunction`                                 |
-| `getMoveFunctionArgTypes`    | `getMoveFunction`                                 |
+const { balance } = await client.getBalance({
+	owner: '0x...',
+});
 
-### Example: Migrating devInspectTransactionBlock
+const result = await client.signAndExecuteTransaction({
+	transaction,
+	signer,
+	include: { effects: true, balanceChanges: true },
+});
+```
+
+For SDKs and shared libraries, accept `ClientWithCoreApi` and use `client.core` so the caller can
+provide `SuiGrpcClient`, `SuiGraphQLClient`, or a legacy `SuiJsonRpcClient` during migration:
+
+```typescript
+import type { ClientWithCoreApi } from '@mysten/sui/client';
+
+export async function readObject(client: ClientWithCoreApi, objectId: string) {
+	return client.core.getObject({
+		objectId,
+		include: { content: true },
+	});
+}
+```
+
+## Method replacements
+
+Replace legacy JSON-RPC method names with the gRPC top-level method when one exists. In SDK code,
+use the same replacement under `client.core`.
+
+| JSON-RPC Method              | App Code Replacement                                                  |
+| ---------------------------- | --------------------------------------------------------------------- |
+| `getObject`                  | `getObject`                                                           |
+| `multiGetObjects`            | `getObjects`                                                          |
+| `getOwnedObjects`            | `listOwnedObjects` for an exact `StructType` filter                   |
+| `getCoins`                   | `listCoins`                                                           |
+| `getAllBalances`             | Paginate `listBalances` and map its normalized response               |
+| `getBalance`                 | `getBalance`                                                          |
+| `getCoinMetadata`            | `getCoinMetadata`                                                     |
+| `getDynamicFields`           | `listDynamicFields`                                                   |
+| `getDynamicFieldObject`      | `getDynamicField` or `client.core.getDynamicObjectField`              |
+| `getTransactionBlock`        | `getTransaction`                                                      |
+| `multiGetTransactionBlocks`  | Multiple `getTransaction` calls                                       |
+| `executeTransactionBlock`    | `executeTransaction`                                                  |
+| `waitForTransaction`         | `waitForTransaction`                                                  |
+| `dryRunTransactionBlock`     | `simulateTransaction`                                                 |
+| `devInspectTransactionBlock` | `simulateTransaction` with the sender set and `checksEnabled: false`  |
+| `queryTransactionBlocks`     | `listTransactions`                                                    |
+| `queryEvents`                | `listEvents`                                                          |
+| `getNormalizedMoveFunction`  | `getMoveFunction`                                                     |
+| `getMoveFunctionArgTypes`    | No direct equivalent; `getMoveFunction` returns normalized signatures |
+| `resolveNameServiceAddress`  | `resolveNameServiceAddress` (returns `{ address }`)                   |
+| `resolveNameServiceNames`    | No direct equivalent for listing every name assigned to an address    |
+
+`getMoveFunction` exposes normalized parameter signatures, but it does not reproduce the legacy
+`Pure`, `Object`, and object-access classifications from `getMoveFunctionArgTypes`. Likewise,
+`defaultNameServiceName` and raw gRPC `nameService.reverseLookupName` return only the configured
+default name; they do not replace the paginated list returned by `resolveNameServiceNames`. Keep a
+legacy endpoint or use an application indexer when those exact results are required.
+
+```typescript
+const { address } = await client.resolveNameServiceAddress({
+	name: 'example.sui',
+});
+```
+
+Some composed helpers are currently exposed through `client.core` rather than as top-level gRPC or
+GraphQL methods:
+
+```typescript
+const { protocolConfig } = await client.core.getProtocolConfig();
+const { systemState } = await client.core.getCurrentSystemState();
+const { chainIdentifier } = await client.core.getChainIdentifier();
+```
+
+## Object and coin reads
+
+### Migrating `getOwnedObjects`
+
+```diff
+- const { data } = await jsonRpcClient.getOwnedObjects({
+-   owner: '0xabc...',
+-   filter: { StructType: '0x2::coin::Coin<0x2::sui::SUI>' },
+-   options: { showContent: true },
+- });
++ const { objects } = await client.listOwnedObjects({
++   owner: '0xabc...',
++   type: '0x2::coin::Coin<0x2::sui::SUI>',
++   include: { content: true },
++ });
+```
+
+Only the legacy `StructType` filter maps directly to `listOwnedObjects.type`. Legacy package,
+module, owner, object ID, version, and boolean-composition filters do not have top-level Core
+equivalents. A custom GraphQL `ObjectFilter` can cover package, module, and owner-kind cases. For
+the remaining filters, use an indexer or paginate and filter the normalized results in application
+code.
+
+### Migrating `getCoins`
+
+```diff
+- const coins = await jsonRpcClient.getCoins({
+-   owner: '0xabc...',
+-   coinType: '0x2::sui::SUI',
+- });
++ const coins = await client.listCoins({
++   owner: '0xabc...',
++   coinType: '0x2::sui::SUI',
++ });
+```
+
+### Migrating `getAllBalances`
+
+Unlike `getAllBalances`, `listBalances` is paginated. It also returns normalized `balance`,
+`coinBalance`, and `addressBalance` fields instead of the legacy `CoinBalance` shape with
+`coinObjectCount`, `totalBalance`, and `lockedBalance`. Follow `cursor` while `hasNextPage` is true
+and map the result explicitly if existing code depends on the legacy shape.
+
+### Migrating object include options
+
+```diff
+- const object = await jsonRpcClient.getObject({
+-   id: objectId,
+-   options: {
+-     showBcs: true,
+-     showContent: true,
+-     showDisplay: true,
+-   },
+- });
++ const { object } = await client.getObject({
++   objectId,
++   include: {
++     content: true,
++     json: true,
++     display: true,
++   },
++ });
+```
+
+Use `include.content` for BCS-encoded Move struct bytes. It is the most stable cross-transport shape
+for parsing application data.
+
+## Transaction execution and simulation
+
+Legacy JSON-RPC methods accept serialized transaction blocks as base64 strings. `executeTransaction`
+accepts bytes, while `simulateTransaction` accepts bytes or a `Transaction`, so decode existing
+strings before passing them to the new client:
+
+```typescript
+import { Transaction } from '@mysten/sui/transactions';
+import { fromBase64 } from '@mysten/sui/utils';
+```
+
+### Migrating `getTransactionBlock`
+
+```diff
+- const result = await jsonRpcClient.getTransactionBlock({
+-   digest,
+-   options: {
+-     showEffects: true,
+-     showEvents: true,
+-     showInput: true,
+-   },
+- });
++ const result = await client.getTransaction({
++   digest,
++   include: {
++     effects: true,
++     events: true,
++     transaction: true,
++   },
++ });
+```
+
+Both `SuiGrpcClient` and `SuiGraphQLClient` expose `getTransaction`. SDKs can make the same request
+through `client.core.getTransaction`.
+
+For multiple digests, call the same top-level method for each transaction:
+
+```diff
+- const results = await jsonRpcClient.multiGetTransactionBlocks({
+-   digests,
+-   options: { showEffects: true },
+- });
++ const results = await Promise.all(
++   digests.map((digest) =>
++     client.getTransaction({
++       digest,
++       include: { effects: true },
++     }),
++   ),
++ );
+```
+
+The raw gRPC `ledgerService.batchGetTransactions` method remains available when an application
+specifically needs the transport's batch wire API, but it is not required for ordinary client code.
+
+### Migrating `executeTransactionBlock`
+
+```diff
+- const result = await jsonRpcClient.executeTransactionBlock({
+-   transactionBlock: bytes,
+-   signature,
+-   options: {
+-     showEffects: true,
+-     showEvents: true,
+-   },
+- });
++ const result = await client.executeTransaction({
++   transaction: fromBase64(bytes),
++   signatures: [signature],
++   include: {
++     effects: true,
++     events: true,
++   },
++ });
+
+- const status = result.effects?.status.status;
++ const tx = result.Transaction ?? result.FailedTransaction;
++ const success = tx.status.success;
+```
+
+### Migrating `signAndExecuteTransaction`
+
+```diff
+- const result = await jsonRpcClient.signAndExecuteTransaction({
+-   transaction,
+-   signer,
+-   options: { showEffects: true },
+- });
++ const result = await client.signAndExecuteTransaction({
++   transaction,
++   signer,
++   include: { effects: true },
++ });
+
++ if (result.$kind === 'FailedTransaction') {
++   throw new Error(result.FailedTransaction.status.error?.message ?? 'Transaction failed');
++ }
+```
+
+### Migrating `waitForTransaction`
+
+```diff
+- const result = await jsonRpcClient.waitForTransaction({
+-   digest,
+-   options: { showEffects: true },
+-   timeout: 60_000,
+-   pollInterval: 2_000,
+- });
++ const result = await client.waitForTransaction({
++   digest,
++   include: { effects: true },
++   timeout: 60_000,
++   pollSchedule: [0, 2_000],
++ });
+```
+
+`waitForTransaction` is a top-level method on both `SuiGrpcClient` and `SuiGraphQLClient`. It can
+also accept the result of `executeTransaction` or `signAndExecuteTransaction` through its `result`
+option.
+
+### Migrating `dryRunTransactionBlock`
+
+```diff
+- const result = await jsonRpcClient.dryRunTransactionBlock({
+-   transactionBlock: tx,
+- });
++ const result = await client.simulateTransaction({
++   transaction: fromBase64(tx),
++   include: {
++     effects: true,
++     balanceChanges: true,
++   },
++ });
+```
+
+### Migrating `devInspectTransactionBlock`
 
 ```diff
 - const result = await jsonRpcClient.devInspectTransactionBlock({
@@ -81,55 +375,125 @@ These JSON-RPC methods have direct replacements in the core API:
 -   transactionBlock: tx,
 - });
 - const returnValues = result.results?.[0]?.returnValues;
-+ const result = await client.core.simulateTransaction({
-+   transaction: tx,
++ const transaction = Transaction.fromKind(tx);
++ transaction.setSender('0xabc...');
++ const result = await client.simulateTransaction({
++   transaction,
 +   checksEnabled: false,
 +   include: { commandResults: true },
 + });
 + const returnValues = result.commandResults?.[0]?.returnValues;
 ```
 
-### Example: Migrating getOwnedObjects
+## Transaction and event queries
+
+`listTransactions` and `listEvents` are first-class methods on `SuiGrpcClient`, `SuiGraphQLClient`,
+and the Core API. Application code should call the top-level method on its chosen client. Reusable
+SDK code should call the same method through `client.core`.
+
+### Migrating `queryTransactionBlocks`
 
 ```diff
-- const { data } = await jsonRpcClient.getOwnedObjects({
--   owner: '0xabc...',
--   options: { showContent: true },
+- const result = await jsonRpcClient.queryTransactionBlocks({
+-   filter: { FromAddress: '0xabc...' },
+-   options: { showEffects: true },
+-   limit: 10,
 - });
-+ const { objects } = await grpcClient.listOwnedObjects({
-+   owner: '0xabc...',
-+   include: { content: true },
+- const digests = result.data.map((tx) => tx.digest);
++ const page = await client.listTransactions({
++   filter: { sender: '0xabc...' },
++   include: { effects: true },
++   limit: 10,
++   order: 'descending',
 + });
++ const digests = page.transactions.map(
++   (tx) => (tx.Transaction ?? tx.FailedTransaction).digest,
++ );
 ```
 
-## Methods replaced by gRPC services
+Common transaction filter mappings:
 
-These JSON-RPC methods can be replaced by calling gRPC service clients directly:
+| JSON-RPC Filter                                                   | gRPC/GraphQL Top-Level Filter                         |
+| ----------------------------------------------------------------- | ----------------------------------------------------- |
+| `FromAddress`                                                     | `sender`                                              |
+| `MoveFunction`                                                    | `function`                                            |
+| `ToAddress`, `FromOrToAddress`, `ChangedObject`, `AffectedObject` | Use raw gRPC ledger filters or a custom GraphQL query |
 
-| JSON-RPC Method                     | gRPC Service Replacement                                         |
-| ----------------------------------- | ---------------------------------------------------------------- |
-| `getCheckpoint`                     | `ledgerService.getCheckpoint`                                    |
-| `getLatestCheckpointSequenceNumber` | `ledgerService.getServiceInfo` (read `checkpointHeight`)         |
-| `getCurrentEpoch`                   | `ledgerService.getEpoch` (omit `epoch` for the current)          |
-| `getLatestSuiSystemState`           | `ledgerService.getEpoch` with `system_state` in the read mask    |
-| `getCommitteeInfo`                  | `ledgerService.getEpoch` with `committee` in the read mask       |
-| `getProtocolConfig`                 | `ledgerService.getEpoch` with `protocol_config` in the read mask |
-| `getCoinMetadata`                   | `stateService.getCoinInfo` (response includes `metadata`)        |
-| `getTotalSupply`                    | `stateService.getCoinInfo` (response includes `treasury`)        |
-| `getNormalizedMoveModule`           | `movePackageService.getPackage` (response includes all modules)  |
-| `getNormalizedMoveModulesByPackage` | `movePackageService.getPackage`                                  |
-| `getNormalizedMoveStruct`           | `movePackageService.getDatatype`                                 |
-| `resolveNameServiceAddress`         | `nameService.lookupName`                                         |
-| `resolveNameServiceNames`           | `nameService.reverseLookupName`                                  |
+The response contains normalized transaction results plus ledger-position cursors:
 
-<Callout type="warn">
-	`getCheckpoints` and `getEpochs` (paginated listings) have no gRPC equivalent — use the
-	`checkpoints` / `epochs` GraphQL queries instead. `getValidatorsApy` also has no replacement:
-	there is no canonical definition of validator APY, so it must be computed client-side from
-	validator exchange rates (see [Validator APY](#validator-apy) below).
-</Callout>
+```typescript
+for (const result of page.transactions) {
+	const transaction = result.Transaction ?? result.FailedTransaction;
+	console.log(transaction.digest, result.$kind);
+}
 
-### Example: using gRPC service clients
+const nextPage = page.hasNextPage
+	? await client.listTransactions({
+			filter: { sender: '0xabc...' },
+			include: { effects: true },
+			before: page.endCursor,
+			limit: 10,
+		})
+	: null;
+```
+
+The legacy JSON-RPC transaction and event queries default to descending order, while
+`listTransactions` and `listEvents` default to ascending order. Pass `order: 'descending'` when
+preserving the legacy default.
+
+### Migrating `queryEvents`
+
+```diff
+- const result = await jsonRpcClient.queryEvents({
+-   query: { MoveEventType: '0x2::coin::CoinCreated' },
+-   limit: 10,
+-   order: 'descending',
+- });
++ const result = await client.listEvents({
++   filter: { eventType: '0x2::coin::CoinCreated' },
++   limit: 10,
++   order: 'descending',
++ });
++ for (const event of result.events) {
++   console.log(event.eventType, event.transactionDigest, event.json);
++ }
+```
+
+Common event filter mappings:
+
+| JSON-RPC Filter   | gRPC/GraphQL Top-Level Filter         |
+| ----------------- | ------------------------------------- |
+| `Sender`          | `sender`                              |
+| `MoveModule`      | `emitModule: 'package::module'`       |
+| `MoveEventModule` | `eventType: 'package::module'`        |
+| `MoveEventType`   | `eventType: 'package::module::Event'` |
+
+The top-level query methods handle pagination and cursor normalization. For richer filters, such as
+combined predicates, affected addresses, affected objects, or checkpoint ranges, use the raw
+[`ledgerService`](/sui/clients/grpc#using-service-clients) on `SuiGrpcClient` or a custom GraphQL
+query.
+
+Use `after: result.endCursor` to continue an ascending query and `before: result.endCursor` to
+continue a descending query. `startCursor` identifies the first item in a page and can be used with
+`after` to poll for newer transactions or events.
+
+## Native gRPC replacements
+
+Some JSON-RPC methods map to gRPC service clients rather than top-level methods:
+
+| JSON-RPC Method                     | gRPC Replacement                                                |
+| ----------------------------------- | --------------------------------------------------------------- |
+| `getCheckpoint`                     | `ledgerService.getCheckpoint`                                   |
+| `getCheckpoints`                    | `ledgerService.listCheckpoints`                                 |
+| `getLatestCheckpointSequenceNumber` | `ledgerService.getServiceInfo` and read `checkpointHeight`      |
+| `getCurrentEpoch`                   | `ledgerService.getEpoch` with no `epoch` argument               |
+| `getCommitteeInfo`                  | `ledgerService.getEpoch` with `committee` in the read mask      |
+| `getLatestSuiSystemState`           | `client.core.getCurrentSystemState` or `ledgerService.getEpoch` |
+| `getProtocolConfig`                 | `client.core.getProtocolConfig` or `ledgerService.getEpoch`     |
+| `getTotalSupply`                    | `stateService.getCoinInfo` and read `treasury.totalSupply`      |
+| `getNormalizedMoveModule`           | `movePackageService.getPackage`                                 |
+| `getNormalizedMoveModulesByPackage` | `movePackageService.getPackage`                                 |
+| `getNormalizedMoveStruct`           | `movePackageService.getDatatype`                                |
 
 ```typescript
 import { SuiGrpcClient } from '@mysten/sui/grpc';
@@ -139,215 +503,109 @@ const client = new SuiGrpcClient({
 	network: 'mainnet',
 });
 
-// Get the latest checkpoint sequence number (replaces getLatestCheckpointSequenceNumber)
 const { response: info } = await client.ledgerService.getServiceInfo({});
 const latestCheckpoint = info.checkpointHeight;
 
-// Get a specific checkpoint by sequence number. `checkpointId` is required (a oneof);
-// the read mask defaults to `sequence_number,digest`, so request more fields as needed.
+if (latestCheckpoint == null) {
+	throw new Error('The server did not return a checkpoint height');
+}
+
 const { response } = await client.ledgerService.getCheckpoint({
 	checkpointId: { oneofKind: 'sequenceNumber', sequenceNumber: latestCheckpoint },
+	readMask: { paths: ['sequence_number', 'digest', 'summary.timestamp'] },
 });
 
-// Get the current epoch (omit `epoch` for the current one). The system state,
-// committee, and protocol config are NOT returned by default — you must request
-// them via the read mask (the default mask is just `epoch`).
-const { response: epoch } = await client.ledgerService.getEpoch({
-	readMask: { paths: ['epoch', 'system_state', 'committee', 'protocol_config'] },
-});
-const systemState = epoch.epoch?.systemState;
-const committee = epoch.epoch?.committee;
-const protocolConfig = epoch.epoch?.protocolConfig;
-
-// Get coin metadata and total supply in one call
-const { response: coinInfo } = await client.stateService.getCoinInfo({
-	coinType: '0x2::sui::SUI',
-});
-const metadata = coinInfo.metadata;
-const totalSupply = coinInfo.treasury?.totalSupply;
-
-// Get Move package information (includes all modules)
-const { response: pkg } = await client.movePackageService.getPackage({
-	packageId: '0x2',
-});
-
-// Get a specific Move datatype (struct or enum)
-const { response: datatype } = await client.movePackageService.getDatatype({
-	packageId: '0x2',
-	moduleName: 'coin',
-	name: 'Coin',
-});
-
-// Resolve SuiNS name
-const { response: address } = await client.nameService.lookupName({
-	name: 'example.sui',
-});
+console.log(response.checkpoint?.sequenceNumber, response.checkpoint?.summary?.timestamp);
 ```
 
-## Methods requiring GraphQL
+## Subscriptions
 
-Some JSON-RPC methods don't have gRPC equivalents and require using `SuiGraphQLClient` instead:
+Replace deprecated JSON-RPC websocket subscriptions with the gRPC `subscriptionService`:
 
-| JSON-RPC Method             | GraphQL Alternative                                       |
-| --------------------------- | --------------------------------------------------------- |
-| `queryTransactionBlocks`    | `transactions` query                                      |
-| `multiGetTransactionBlocks` | `multiGetTransactionEffects` query                        |
-| `queryEvents`               | `events` query                                            |
-| `getCheckpoints`            | `checkpoints` query                                       |
-| `getEpochs`                 | `epochs` query                                            |
-| `getCoinMetadata`           | `coinMetadata` query (or gRPC `stateService.getCoinInfo`) |
-| `getTotalSupply`            | `coinMetadata` query (or gRPC `stateService.getCoinInfo`) |
-| `getStakes`                 | `address.stakedSuis` query                                |
-| `getStakesByIds`            | `multiGetObjects` query                                   |
-| `tryGetPastObject`          | Historical object queries                                 |
-| `getNetworkMetrics`         | Use indexer                                               |
-| `getAddressMetrics`         | Use indexer                                               |
-| `getMoveCallMetrics`        | Use indexer                                               |
+| JSON-RPC Method        | gRPC Service Replacement                    |
+| ---------------------- | ------------------------------------------- |
+| `subscribeTransaction` | `subscriptionService.subscribeTransactions` |
+| `subscribeEvent`       | `subscriptionService.subscribeEvents`       |
 
-### Setting up GraphQL client
+```typescript
+const stream = client.subscriptionService.subscribeEvents({
+	filter: {
+		terms: [
+			{
+				literals: [
+					{
+						negated: false,
+						predicate: {
+							oneofKind: 'eventType',
+							eventType: { eventType: '0x2::coin::CoinCreated' },
+						},
+					},
+				],
+			},
+		],
+	},
+	readMask: { paths: ['event_type', 'contents', 'json', 'checkpoint', 'transaction_digest'] },
+});
+
+for await (const frame of stream.responses) {
+	if (frame.event) {
+		console.log(frame.event.eventType, frame.event.json);
+	}
+}
+```
+
+Subscriptions begin at the current tip of the chain and do not resume automatically. For gap
+recovery, retain the last `frame.watermark.cursor`, open the new subscription to establish its
+first-frame position, and replay with the paired raw `client.ledgerService.listEvents()` call using
+the same protobuf filter and `options.after` cursor. Repeat the raw list call as the index advances
+until it reaches the new subscription's start position. Do not pass the subscription filter or
+cursor to top-level `client.listEvents()`: its Core filter and base64 cursor are different types.
+
+## When to use GraphQL
+
+Use `SuiGraphQLClient` when the replacement needs a custom indexed query, a historical object
+version, or a custom selection set. Standard transaction and event history does not require a custom
+GraphQL query; call `graphqlClient.listTransactions()` or `graphqlClient.listEvents()` directly.
+
+| JSON-RPC Method      | Alternative                                                    |
+| -------------------- | -------------------------------------------------------------- |
+| `getEpochs`          | GraphQL `epochs` query                                         |
+| `tryGetPastObject`   | GraphQL `object(address:, version:)` query                     |
+| `getStakes`          | No current gRPC/Core/GraphQL equivalent; use a staking indexer |
+| `getStakesByIds`     | No current gRPC/Core/GraphQL equivalent; use a staking indexer |
+| `getNetworkMetrics`  | Use an indexer or analytics-specific GraphQL schema            |
+| `getAddressMetrics`  | Use an indexer or analytics-specific GraphQL schema            |
+| `getMoveCallMetrics` | Use an indexer or analytics-specific GraphQL schema            |
 
 ```typescript
 import { SuiGraphQLClient } from '@mysten/sui/graphql';
+import { graphql } from '@mysten/sui/graphql/schema';
 
 const graphqlClient = new SuiGraphQLClient({
 	url: 'https://sui-mainnet.mystenlabs.com/graphql',
 	network: 'mainnet',
 });
-```
 
-### Querying transactions
+const historicalObjectQuery = graphql(`
+	query GetObjectAtVersion($id: SuiAddress!, $version: UInt53!) {
+		object(address: $id, version: $version) {
+			address
+			version
+			digest
+			asMoveObject {
+				contents {
+					type {
+						repr
+					}
+					bcs
+				}
+			}
+		}
+	}
+`);
 
-Replace `queryTransactionBlocks` with a GraphQL query:
-
-```typescript
 const result = await graphqlClient.query({
-	query: `
-    query QueryTransactions($sender: SuiAddress, $first: Int, $after: String) {
-      transactions(
-        first: $first
-        after: $after
-        filter: { sentAddress: $sender }
-      ) {
-        pageInfo {
-          hasNextPage
-          endCursor
-        }
-        nodes {
-          digest
-          effects {
-            status
-            epoch { epochId }
-          }
-        }
-      }
-    }
-  `,
-	variables: {
-		sender: '0xabc...',
-		first: 10,
-	},
-});
-```
-
-**Available transaction filters:**
-
-- `sentAddress`: Filter by sender address
-- `affectedAddress`: Filter by any address involved in the transaction
-- `affectedObject`: Filter by object ID that was affected
-- `function`: Filter by Move function called (for example, `0x2::coin::transfer`)
-- `kind`: Filter by transaction kind (`SYSTEM` or `PROGRAMMABLE`)
-- `atCheckpoint` / `beforeCheckpoint` / `afterCheckpoint` - Filter by checkpoint
-
-### Querying events
-
-Replace `queryEvents` with a GraphQL query:
-
-```typescript
-const result = await graphqlClient.query({
-	query: `
-    query QueryEvents($type: String, $first: Int, $after: String) {
-      events(
-        first: $first
-        after: $after
-        filter: { type: $type }
-      ) {
-        pageInfo {
-          hasNextPage
-          endCursor
-        }
-        nodes {
-          transactionModule {
-            package { address }
-            name
-          }
-          sender { address }
-          contents {
-            type { repr }
-            bcs
-          }
-        }
-      }
-    }
-  `,
-	variables: {
-		type: '0x2::coin::CoinCreated',
-		first: 10,
-	},
-});
-```
-
-**Available event filters:**
-
-- `type`: Filter by event type (package, package::module, or full type)
-- `module`: Filter by emitting module
-- `sender`: Filter by transaction sender
-- `atCheckpoint` / `beforeCheckpoint` / `afterCheckpoint`: Filter by checkpoint
-
-### Fetching multiple transactions
-
-Replace `multiGetTransactionBlocks` with a GraphQL query:
-
-```typescript
-const result = await graphqlClient.query({
-	query: `
-    query MultiGetTransactions($digests: [String!]!) {
-      multiGetTransactionEffects(keys: $digests) {
-        transaction {
-          digest
-          transactionBcs
-        }
-        status
-        epoch { epochId }
-      }
-    }
-  `,
-	variables: {
-		digests: ['digest1', 'digest2', 'digest3'],
-	},
-});
-```
-
-### Querying historical objects
-
-Replace `tryGetPastObject` with a GraphQL query specifying a version:
-
-```typescript
-const result = await graphqlClient.query({
-	query: `
-    query GetObjectAtVersion($id: SuiAddress!, $version: UInt53!) {
-      object(address: $id, version: $version) {
-        address
-        version
-        digest
-        asMoveObject {
-          contents {
-            type { repr }
-            bcs
-          }
-        }
-      }
-    }
-  `,
+	query: historicalObjectQuery,
 	variables: {
 		id: '0x123...',
 		version: 42,
@@ -355,118 +613,62 @@ const result = await graphqlClient.query({
 });
 ```
 
-### Querying coin metadata
-
-Replace `getCoinMetadata` and `getTotalSupply` with a GraphQL query:
-
-```typescript
-const result = await graphqlClient.query({
-	query: `
-    query GetCoinMetadata($coinType: String!) {
-      coinMetadata(coinType: $coinType) {
-        name
-        symbol
-        description
-        decimals
-        iconUrl
-        supply
-      }
-    }
-  `,
-	variables: {
-		coinType: '0x2::sui::SUI',
-	},
-});
-```
-
-### Querying staked SUI
-
-Replace `getStakes` with a GraphQL query:
-
-```typescript
-const result = await graphqlClient.query({
-	query: `
-    query GetStakes($owner: SuiAddress!) {
-      address(address: $owner) {
-        stakedSuis {
-          nodes {
-            principal
-            stakeActivationEpoch
-            estimatedReward
-            contents {
-              bcs
-            }
-          }
-        }
-      }
-    }
-  `,
-	variables: {
-		owner: '0xabc...',
-	},
-});
-```
-
 ## Validator APY
 
-There is **no replacement** for `getValidatorsApy`, and one will not be added. There is no canonical
-definition of validator APY — no other chain's core/general-purpose RPCs offer this endpoint — so it
-must be computed client-side from validator staking-pool exchange rates.
+There is no direct SDK replacement for `getValidatorsApy`. There is no canonical definition of
+validator APY, so compute the metric from validator staking-pool exchange rates or use an
+application-specific indexer.
 
-The general approach: read each validator's `exchangeRates` (a table of `pool_token_amount` /
-`sui_amount` per epoch) and estimate the annualized rate from the change in exchange rate over the
-trailing epochs. Two concrete reference implementations:
+Two reference implementations:
 
 - The `jsonrpc-alt` implementation in
-  [`sui-indexer-alt-jsonrpc`](https://github.com/MystenLabs/sui/blob/31537d4d9235b9f61dc07a3a71b05ed61a2bda7b/crates/sui-indexer-alt-jsonrpc/src/api/governance.rs#L422-L440),
-  which is compact and readable.
-- [This GraphQL approach](https://github.com/MystenLabs/sui/issues/23832#issuecomment-4437791087),
-  which fetches the precursor exchange-rate information in a single query.
+  [`sui-indexer-alt-jsonrpc`](https://github.com/MystenLabs/sui/blob/31537d4d9235b9f61dc07a3a71b05ed61a2bda7b/crates/sui-indexer-alt-jsonrpc/src/api/governance.rs#L422-L440)
+- [A GraphQL approach](https://github.com/MystenLabs/sui/issues/23832#issuecomment-4437791087)
 
 Treat whichever formula you adopt as _a_ definition of validator APY, not _the_ definition.
 
 ## Response format differences
 
-The gRPC client uses the core API response format, which differs from JSON-RPC responses. See the
-[`@mysten/sui` migration guide](/sui/migrations/sui-2.0/sui#transaction-executors-now-accept-any-client)
-for details on the new response format.
-
-Key differences:
+gRPC and GraphQL top-level methods return the Core API response format, which differs from legacy
+JSON-RPC response shapes.
 
 ```diff
 // Transaction result access
 - const status = result.effects?.status?.status;
 + const tx = result.Transaction ?? result.FailedTransaction;
-+ const status = tx.effects.status.success;
++ const success = tx.status.success;
 
 // Include options
 - { showEffects: true, showEvents: true }
 + { effects: true, events: true }
 ```
 
+See the
+[`@mysten/sui` migration guide](/sui/migrations/sui-2.0/sui#transaction-executors-now-accept-any-client)
+for transaction executor response changes.
+
 ## Client extensions
 
-Client extensions work the same way with both clients:
+Client extensions work with `SuiGrpcClient` and any client that implements `ClientWithCoreApi`:
 
 ```typescript
-import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { deepbook } from '@mysten/deepbook-v3';
 import { suins } from '@mysten/suins';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 
 const client = new SuiGrpcClient({
 	baseUrl: 'https://fullnode.mainnet.sui.io:443',
 	network: 'mainnet',
 }).$extend(deepbook({ address: myAddress }), suins());
 
-// Use extended functionality
 await client.deepbook.checkManagerBalance(manager, asset);
-await client.suins.getName('0xabc...');
+await client.suins.getNameRecord('example.sui');
 ```
 
 ## See also
 
-- [SuiGrpcClient Documentation](/sui/clients/grpc) - Full gRPC client documentation
-- [SuiGraphQLClient Documentation](/sui/clients/graphql) - GraphQL client documentation
-- [Core API](/sui/clients/core) - Transport-agnostic API methods
-- [gRPC Overview](https://docs.sui.io/concepts/data-access/grpc-overview) - Sui gRPC API
-  documentation
+- [SuiGrpcClient](/sui/clients/grpc)
+- [SuiGraphQLClient](/sui/clients/graphql)
+- [Querying data](/sui/clients/querying)
+- [Core API](/sui/clients/core)
+- [Building SDKs](/sui/sdk-building)

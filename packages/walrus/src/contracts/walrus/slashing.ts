@@ -74,8 +74,7 @@ export interface VoteForSlashingOptions {
 export function voteForSlashing(options: VoteForSlashingOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, null, null, '0x2::object::ID', '0x2::object::ID'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['self', 'staking', 'auth', 'voterNodeId', 'candidateNodeId'];
 	return (tx: Transaction) =>

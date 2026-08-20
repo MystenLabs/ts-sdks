@@ -93,8 +93,7 @@ export interface SwapArguments<T extends BcsType<any>> {
 export interface SwapOptions<T extends BcsType<any>> {
 	package?: string;
 	arguments:
-		| SwapArguments<T>
-		| [field: RawTransactionArgument<string>, value: RawTransactionArgument<T>];
+		SwapArguments<T> | [field: RawTransactionArgument<string>, value: RawTransactionArgument<T>];
 	typeArguments: [string];
 }
 /** Swaps the value stored in the extended field with the given value. */

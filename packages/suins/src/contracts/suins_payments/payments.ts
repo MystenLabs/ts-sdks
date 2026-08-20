@@ -153,8 +153,7 @@ export interface HandlePaymentProOptions {
 export function handlePaymentPro(options: HandlePaymentProOptions) {
 	const packageAddress = options.package ?? '@suins/payments';
 	const argumentsTypes = [null, null, null, null, '0x2::clock::Clock', null, 'u64'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = [
 		'suins',

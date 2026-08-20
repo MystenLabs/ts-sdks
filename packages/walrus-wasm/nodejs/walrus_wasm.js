@@ -214,25 +214,6 @@ function passArray8ToWasm0(arg, malloc) {
     return ptr;
 }
 /**
- * Verify an aggregate signature.
- * @param {any} public_keys
- * @param {Uint8Array} msg
- * @param {Uint8Array} signature
- * @returns {boolean}
- */
-exports.bls12381_min_pk_verify_aggregate = function(public_keys, msg, signature) {
-    const ptr0 = passArray8ToWasm0(msg, wasm.__wbindgen_malloc);
-    const len0 = WASM_VECTOR_LEN;
-    const ptr1 = passArray8ToWasm0(signature, wasm.__wbindgen_malloc);
-    const len1 = WASM_VECTOR_LEN;
-    const ret = wasm.bls12381_min_pk_verify_aggregate(public_keys, ptr0, len0, ptr1, len1);
-    if (ret[2]) {
-        throw takeFromExternrefTable0(ret[1]);
-    }
-    return ret[0] !== 0;
-};
-
-/**
  * @param {Uint8Array} signature
  * @param {Uint8Array} public_key
  * @param {Uint8Array} msg
@@ -246,6 +227,25 @@ exports.bls12381_min_pk_verify = function(signature, public_key, msg) {
     const ptr2 = passArray8ToWasm0(msg, wasm.__wbindgen_malloc);
     const len2 = WASM_VECTOR_LEN;
     const ret = wasm.bls12381_min_pk_verify(ptr0, len0, ptr1, len1, ptr2, len2);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return ret[0] !== 0;
+};
+
+/**
+ * Verify an aggregate signature.
+ * @param {any} public_keys
+ * @param {Uint8Array} msg
+ * @param {Uint8Array} signature
+ * @returns {boolean}
+ */
+exports.bls12381_min_pk_verify_aggregate = function(public_keys, msg, signature) {
+    const ptr0 = passArray8ToWasm0(msg, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passArray8ToWasm0(signature, wasm.__wbindgen_malloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.bls12381_min_pk_verify_aggregate(public_keys, ptr0, len0, ptr1, len1);
     if (ret[2]) {
         throw takeFromExternrefTable0(ret[1]);
     }

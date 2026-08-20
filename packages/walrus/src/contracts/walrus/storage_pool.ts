@@ -386,8 +386,7 @@ export interface InsertOrUpdateBlobMetadataPairOptions {
 export function insertOrUpdateBlobMetadataPair(options: InsertOrUpdateBlobMetadataPairOptions) {
 	const packageAddress = options.package ?? '@local-pkg/walrus';
 	const argumentsTypes = [null, 'u256', '0x1::string::String', '0x1::string::String'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['self', 'blobId', 'key', 'value'];
 	return (tx: Transaction) =>

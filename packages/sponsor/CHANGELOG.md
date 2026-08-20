@@ -1,5 +1,26 @@
 # @mysten-incubation/sponsor
 
+## 0.2.15
+
+## 0.2.14
+
+## 0.2.13
+
+## 0.2.12
+
+## 0.2.11
+
+## 0.2.10
+
+## 0.2.9
+
+### Patch Changes
+
+- 8c4b149: Update dependencies to versions that resolve security advisories: hono,
+  @hono/node-server, next, postcss, and valibot
+
+## 0.2.8
+
 ## 0.2.7
 
 ## 0.2.6

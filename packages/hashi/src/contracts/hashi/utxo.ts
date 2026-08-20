@@ -36,8 +36,7 @@ export interface UtxoIdArguments {
 export interface UtxoIdOptions {
 	package?: string;
 	arguments:
-		| UtxoIdArguments
-		| [txid: RawTransactionArgument<string>, vout: RawTransactionArgument<number>];
+		UtxoIdArguments | [txid: RawTransactionArgument<string>, vout: RawTransactionArgument<number>];
 }
 export function utxoId(options: UtxoIdOptions) {
 	const packageAddress = options.package ?? '@local-pkg/hashi';

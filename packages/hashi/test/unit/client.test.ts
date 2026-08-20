@@ -22,6 +22,7 @@ import {
 import { Bag } from '../../src/contracts/hashi/deps/sui/bag.js';
 import { generateDepositAddress } from '../../src/bitcoin.js';
 import { reverseTxidBytes } from '../../src/util.js';
+import { ObjectError } from '@mysten/sui/client';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { SuiGraphQLClient } from '@mysten/sui/graphql';
 import { bcs } from '@mysten/sui/bcs';
@@ -1154,6 +1155,41 @@ describe('HashiClient', () => {
 			});
 		});
 
+		it("treats an ObjectError with reason 'notFound' as a miss", async () => {
+			mockFetchBitcoinState();
+			const objectErrorNotFound = () =>
+				new ObjectError('notExists', 'Object 0x123 not found', {
+					reason: 'notFound',
+					objectId: '0x123',
+				});
+			vi.spyOn(client.core, 'getObjects').mockResolvedValueOnce({
+				objects: [objectErrorNotFound(), objectErrorNotFound()],
+			} as never);
+
+			const result = await client.hashi.view.findUsedUtxos([
+				{ txid: '0x' + 'ab'.repeat(32), vout: 0 },
+			]);
+			expect(result[0]).toMatchObject({
+				inActivePool: false,
+				inSpentPool: false,
+				isUsed: false,
+			});
+		});
+
+		it("rethrows an ObjectError whose reason isn't 'notFound'", async () => {
+			mockFetchBitcoinState();
+			vi.spyOn(client.core, 'getObjects').mockResolvedValueOnce({
+				objects: [
+					new ObjectError('INTERNAL', 'internal server error', { reason: 'unknown' }),
+					new ObjectError('notExists', 'Object 0x123 not found', { reason: 'notFound' }),
+				],
+			} as never);
+
+			await expect(
+				client.hashi.view.findUsedUtxos([{ txid: '0x' + 'ab'.repeat(32), vout: 0 }]),
+			).rejects.toThrow('internal server error');
+		});
+
 		it("rethrows a plain Error whose message isn't the gRPC not-found pattern", async () => {
 			mockFetchBitcoinState();
 			vi.spyOn(client.core, 'getObjects').mockResolvedValueOnce({
@@ -1906,6 +1942,27 @@ describe('HashiClient', () => {
 			expect(result.withdrawalMinimumSats).toBe(30_000n);
 			// (2000 + 1000 - 500) * 120 / 100 = 3000
 			expect(result.gasEstimateMist).toBe(3000n);
+		});
+
+		it('caps the fee bound when the withdrawal minimum is raised as a policy throttle', async () => {
+			// A 10 BTC minimum makes the on-chain fee budget (min - 546)
+			// ~10 BTC — subtracting THAT from a 10.84 BTC withdrawal displayed
+			// "~0.84 BTC" in production. The estimation API must cap it.
+			const throttledConfig = [
+				...WELL_FORMED_CONFIG.filter((e) => e.key !== 'bitcoin_withdrawal_minimum'),
+				{ key: 'bitcoin_withdrawal_minimum', value: { $kind: 'U64', U64: '1000000000' } },
+			];
+			mockHashiWithConfig(throttledConfig);
+
+			const result = await client.hashi.view.withdrawalFees();
+			expect(result.withdrawalMinimumSats).toBe(1_000_000_000n);
+			expect(result.worstCaseNetworkFeeSats).toBe(100_000n);
+
+			// The uncapped protocol budget stays visible on the raw snapshot
+			// (each view call fetches once, so re-arm the single-shot mock).
+			mockHashiWithConfig(throttledConfig);
+			const snap = await client.hashi.view.all();
+			expect(snap.worstCaseNetworkFee).toBe(1_000_000_000n - 546n);
 		});
 	});
 

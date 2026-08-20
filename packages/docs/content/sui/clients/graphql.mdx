@@ -1,52 +1,75 @@
 ---
 title: SuiGraphQLClient
-description: Connect to Sui through GraphQL with SuiGraphQLClient.
+description: Connect to Sui over GraphQL and write type-safe custom queries
 keywords:
-  [
-    SuiGraphQLClient,
-    GraphQL,
-    Sui client,
-    queries,
-    TypeScript SDK,
-    Core API,
-    '@mysten/sui',
-    type-safe,
-  ]
+  - SuiGraphQLClient
+  - GraphQL
+  - Sui client
+  - gql.tada
+  - type-safe
+  - custom queries
+  - '@mysten/sui'
+questions:
+  - What is SuiGraphQLClient?
+  - How do I use SuiGraphQLClient?
+  - How does Writing queries work?
+  - How does Reading your own writes work?
+answer: Connect to Sui over GraphQL and write type-safe custom queries
+goal:
+  description: Reader can connect to Sui over GraphQL and write type-safe custom queries
+  requires:
+    - has_frontmatter:
+        - title
+        - description
+        - keywords
+      label: Has required frontmatter fields
+    - min_words: 30
+      label: Needs content depth
+    - has_questions: true
+      label: Needs questions for AI search visibility
+    - has_answer: true
+      label: Needs answer summary for AI citation
 ---
 
-The `SuiGraphQLClient` enables type-safe GraphQL queries against the Sui GraphQL API.
-
-For more details on the Sui GraphQL API, see the
-[GraphQL reference](https://docs.sui.io/references/sui-graphql).
-
-The `SuiGraphQLClient` implements all the the [Core API](/sui/clients/core) methods:
+`SuiGraphQLClient` talks to the Sui GraphQL API. It implements the same client API as
+`SuiGrpcClient`, so anything on [Querying data](/sui/clients/querying) and
+[Signing and execution](/sui/transactions/signing-and-execution) works here unchanged:
 
 ```typescript
 import { SuiGraphQLClient } from '@mysten/sui/graphql';
 
 const client = new SuiGraphQLClient({
-	url: 'https://sui-mainnet.mystenlabs.com/graphql',
+	url: 'https://graphql.mainnet.sui.io/graphql',
 	network: 'mainnet',
 });
 
-const { object } = await client.getObject({ objectId: '0x...' });
+const { object } = await client.getObject({
+	objectId: '0x...',
+	include: { content: true },
+});
 ```
 
-## Custom GraphQL queries
+Beyond that shared surface, the client can run any query the schema supports, typed from the schema
+itself. The rest of this page covers writing those queries; see the
+[GraphQL reference](https://docs.sui.io/references/sui-graphql) for the schema.
 
-To query anything no in the Core API, you can use the `query` method to execute custom GraphQL
-queries.
+The constructor takes:
 
-We'll start by creating our client, and executing a very basic query:
+| Option    | Description                                                    |
+| --------- | -------------------------------------------------------------- |
+| `url`     | GraphQL endpoint                                               |
+| `network` | Network the endpoint serves, used for caching and MVR defaults |
+| `headers` | Extra headers sent with every request, such as an API key      |
+| `fetch`   | Custom `fetch` implementation                                  |
+| `queries` | Named documents callable through [`execute`](#named-queries)   |
+| `mvr`     | Move Registry overrides                                        |
+
+## Writing queries
+
+Use `query` to run any GraphQL document against the endpoint:
 
 ```typescript
-import { SuiGraphQLClient } from '@mysten/sui/graphql';
 import { graphql } from '@mysten/sui/graphql/schema';
-
-const gqlClient = new SuiGraphQLClient({
-	url: 'https://graphql.testnet.sui.io/graphql',
-	network: 'testnet',
-});
 
 const chainIdentifierQuery = graphql(`
 	query {
@@ -54,54 +77,47 @@ const chainIdentifierQuery = graphql(`
 	}
 `);
 
-async function getChainIdentifier() {
-	const result = await gqlClient.query({
-		query: chainIdentifierQuery,
-	});
+const result = await client.query({ query: chainIdentifierQuery });
 
-	return result.data?.chainIdentifier;
-}
+console.log(result.data?.chainIdentifier);
 ```
 
-## Type-safety for GraphQL queries
+### Type safety
 
-You might have noticed the example above does not include any type definitions for the query. The
-`graphql` function used in the example is powered by [`gql.tada`](https://gql-tada.0no.co/) and will
-automatically provide the required type information to ensure that your queries are properly typed
-when executed through `SuiGraphQLClient`.
-
-The `graphql` function detects variables used by your query, and will ensure that the variables
-passed to your query are properly typed.
+The `graphql` function is powered by [`gql.tada`](https://gql-tada.0no.co/), which types results and
+variables from the schema itself, with no code generation step and no hand-written result types.
+Fields you did not select are not on the result type, and variables are checked against the query:
 
 ```typescript
 const getSuinsName = graphql(`
 	query getSuiName($address: SuiAddress!) {
 		address(address: $address) {
-			defaultSuinsName
+			defaultNameRecord {
+				domain
+			}
 		}
 	}
 `);
 
 async function getDefaultSuinsName(address: string) {
-	const result = await gqlClient.query({
+	const result = await client.query({
 		query: getSuinsName,
-		variables: {
-			address,
-		},
+		variables: { address },
 	});
 
-	return result.data?.address?.defaultSuinsName;
+	return result.data?.address?.defaultNameRecord?.domain;
 }
 ```
 
-## Using typed GraphQL queries with other GraphQL clients
+### Using typed documents with other clients
 
-The `graphql` function returns document nodes that implement the
-[`TypedDocumentNode`](https://github.com/dotansimha/graphql-typed-document-node) standard, and will
-work with the majority of popular GraphQL clients to provide queries that are automatically typed.
+The `graphql` function returns document nodes implementing the
+[`TypedDocumentNode`](https://github.com/dotansimha/graphql-typed-document-node) standard, so the
+same typed documents work with most GraphQL clients:
 
-```typescript
+```tsx
 import { useQuery } from '@apollo/client';
+import { graphql } from '@mysten/sui/graphql/schema';
 
 const chainIdentifierQuery = graphql(`
 	query {
@@ -110,8 +126,54 @@ const chainIdentifierQuery = graphql(`
 `);
 
 function ChainIdentifier() {
-	const { loading, error, data } = useQuery(getPokemonsQuery);
+	// Result types flow through the other client's own hooks and methods
+	const { data } = useQuery(chainIdentifierQuery);
 
-	return <div>{data?.chainIdentifier}</div>;
+	return <span>{data?.chainIdentifier}</span>;
 }
 ```
+
+### Handling errors
+
+`query` returns `{ data, errors }` rather than throwing on GraphQL errors, because a response can be
+partially successful, where some fields resolve and others fail. Check `errors` before trusting
+`data`:
+
+```typescript
+const { data, errors } = await client.query({ query: chainIdentifierQuery });
+
+if (errors?.length) {
+	throw new AggregateError(errors.map((error) => new Error(error.message)));
+}
+```
+
+A transport-level failure (a non-2xx response) throws `SuiGraphQLRequestError` instead.
+
+### Named queries
+
+Pass a `queries` map when constructing the client and call them by name with `execute`. This keeps
+query documents in one place instead of threading them through your call sites:
+
+```typescript
+const client = new SuiGraphQLClient({
+	url: 'https://graphql.mainnet.sui.io/graphql',
+	network: 'mainnet',
+	queries: {
+		getSuinsName,
+		chainIdentifier: chainIdentifierQuery,
+	},
+});
+
+const result = await client.execute('getSuinsName', {
+	variables: { address: '0xabc...' },
+});
+```
+
+Results and variables stay typed from the document the name resolves to.
+
+## Reading your own writes
+
+GraphQL reads an index that trails execution slightly, so a transaction `executeTransaction` has
+already returned might not appear in a query for a moment. Use
+[`waitForTransaction`](/sui/clients/executing#waitfortransaction) before reading back a
+transaction's effects.

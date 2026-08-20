@@ -1,13 +1,42 @@
 ---
 title: App Integration
-description: Connect your app to Slush Wallet using the Slush Wallet SDK and wallet standard.
+description: >-
+  Connect your app to Slush Wallet using the Slush Wallet SDK and wallet standard.
 keywords:
-  [Slush Wallet, app integration, registerSlushWallet, wallet standard, Sui, web wallet, SDK]
+  - Slush Wallet
+  - app integration
+  - registerSlushWallet
+  - wallet standard
+  - Sui
+  - web wallet
+  - SDK
+questions:
+  - What is App Integration?
+  - How do I use App Integration?
+  - How does Setup work?
+  - How does Supported features work?
+answer: >-
+  Connect your app to Slush Wallet using the Slush Wallet SDK and wallet standard.
+goal:
+  description: >-
+    Reader can connect your app to Slush Wallet using the Slush Wallet SDK and wallet standard
+  requires:
+    - has_frontmatter:
+        - title
+        - description
+        - keywords
+      label: Has required frontmatter fields
+    - min_words: 30
+      label: Needs content depth
+    - has_questions: true
+      label: Needs questions for AI search visibility
+    - has_answer: true
+      label: Needs answer summary for AI citation
 ---
 
 <Callout type="info">
 	If you are using `dapp-kit`, you do not need to install any additional packages to integrate with
-	the Slush wallet. [Read how to integrate with dapp-kit.](/dapp-kit/legacy/slush)
+	the Slush wallet. [Read how to integrate with dapp-kit.](/dapp-kit/getting-started/react)
 </Callout>
 
 Using the Slush Wallet SDK, you can allow users to connect to the Slush wallet from your app. The
@@ -58,11 +87,11 @@ For example, if you are using `dapp-kit`, you can use the `useCurrentWallet` hoo
 wallet, and check if it is the Slush wallet.
 
 ```ts
-import { useCurrentWallet } from '@mysten/dapp-kit';
+import { useCurrentWallet } from '@mysten/dapp-kit-react';
 import { SLUSH_WALLET_NAME } from '@mysten/slush-wallet';
 
 function SlushOnly() {
-	const { currentWallet } = useCurrentWallet();
+	const currentWallet = useCurrentWallet();
 	const walletIsSlushWallet = currentWallet?.name === SLUSH_WALLET_NAME;
 
 	// rest of component logic...

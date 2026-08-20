@@ -2,16 +2,35 @@
 title: Sui TypeScript Codegen
 description: Generate type-safe TypeScript bindings from onchain Sui Move packages.
 keywords:
-  [
-    codegen,
-    code generation,
-    TypeScript,
-    Sui Move,
-    type-safe,
-    smart contracts,
-    '@mysten/codegen',
-    BCS,
-  ]
+  - codegen
+  - code generation
+  - TypeScript
+  - Sui Move
+  - type-safe
+  - smart contracts
+  - '@mysten/codegen'
+  - BCS
+questions:
+  - What is Sui codegen?
+  - How do I generate TypeScript types from Move?
+  - How does @mysten/codegen work?
+answer: >-
+  Sui codegen (@mysten/codegen) generates type-safe TypeScript bindings from onchain Sui Move
+  packages, providing typed transaction builders and BCS serialization for your contracts.
+goal:
+  description: Reader can generate type-safe TypeScript bindings from onchain Move packages
+  requires:
+    - has_frontmatter:
+        - title
+        - description
+        - keywords
+      label: Has required frontmatter fields
+    - min_words: 100
+      label: Needs content depth
+    - has_questions: true
+      label: Needs questions for AI search visibility
+    - has_answer: true
+      label: Needs answer summary for AI citation
 ---
 
 The `@mysten/codegen` package automatically generates type-safe TypeScript code from your Move
@@ -85,15 +104,16 @@ This generates TypeScript code in your configured output directory (for example,
 
 The `SuiCodegenConfig` type supports the following options:
 
-| Option                         | Type                   | Default | Description                                                                                                                                                           |
-| ------------------------------ | ---------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `output`                       | `string`               | -       | The directory where generated code will be written                                                                                                                    |
-| `packages`                     | `PackageConfig[]`      | -       | Array of Move packages to generate code for                                                                                                                           |
-| `prune`                        | `boolean`              | `true`  | When enabled, only generates code for the main package and omits dependency modules (dependency types referenced by included types are still generated under `deps/`) |
-| `generateSummaries`            | `boolean`              | `true`  | Automatically run `sui move summary` before generating code. Creates a `package_summaries` directory in your Move package which can be added to `.gitignore`          |
-| `generate`                     | `GenerateOptions`      | -       | Default [generate options](#the-generate-option) (types, functions) for all packages                                                                                  |
-| `importExtension`              | `'.js' \| '.ts' \| ''` | `'.js'` | File extension used in generated import statements                                                                                                                    |
-| `includePhantomTypeParameters` | `boolean`              | `false` | Include [phantom type parameters](#phantom-types) as function arguments in generated BCS types                                                                        |
+| Option                         | Type                   | Default              | Description                                                                                                                                                           |
+| ------------------------------ | ---------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `output`                       | `string`               | -                    | The directory where codegen writes generated code                                                                                                                     |
+| `packages`                     | `PackageConfig[]`      | -                    | Array of Move packages to generate code for                                                                                                                           |
+| `prune`                        | `boolean`              | `true`               | When enabled, only generates code for the main package and omits dependency modules (dependency types referenced by included types are still generated under `deps/`) |
+| `generateSummaries`            | `boolean`              | `true`               | Automatically run `sui move summary` before generating code. Creates a `package_summaries` directory in your Move package which can be added to `.gitignore`          |
+| `generate`                     | `GenerateOptions`      | -                    | Default [generate options](#the-generate-option) (types, functions) for all packages                                                                                  |
+| `importExtension`              | `'.js' \| '.ts' \| ''` | `'.js'`              | File extension used in generated import statements                                                                                                                    |
+| `includePhantomTypeParameters` | `boolean`              | `false`              | Include [phantom type parameters](#phantom-types) as function arguments in generated BCS types                                                                        |
+| `fullnodeUrls`                 | network URL map        | Sui public fullnodes | Override the Mainnet or Testnet fullnode used to fetch onchain package summaries                                                                                      |
 
 ### Package configuration
 
@@ -102,12 +122,14 @@ local (from source) or onchain (fetched from a network).
 
 #### Local packages
 
-| Option        | Type                     | Required | Description                                               |
-| ------------- | ------------------------ | -------- | --------------------------------------------------------- |
-| `package`     | `string`                 | yes      | Package identifier (for example, `@local-pkg/my-package`) |
-| `path`        | `string`                 | yes      | Path to the Move package directory                        |
-| `packageName` | `string`                 | no       | Custom name for generated code directory                  |
-| `generate`    | `PackageGenerateOptions` | no       | Control what gets generated from this package             |
+| Option            | Type                     | Required | Description                                                                                      |
+| ----------------- | ------------------------ | -------- | ------------------------------------------------------------------------------------------------ |
+| `package`         | `string`                 | yes      | Package identifier (for example, `@local-pkg/my-package`)                                        |
+| `path`            | `string`                 | yes      | Path to the Move package directory                                                               |
+| `packageName`     | `string`                 | no       | Custom name for generated code directory                                                         |
+| `generate`        | `PackageGenerateOptions` | no       | Control what gets generated from this package                                                    |
+| `configArguments` | `ConfigArguments`        | no       | Map this package's function parameters to a [runtime config object](#the-configarguments-option) |
+| `bcsOverrides`    | `BcsOverrides`           | no       | Replace generated BCS types with [custom types](#the-bcsoverrides-option)                        |
 
 ```typescript
 {
@@ -121,12 +143,15 @@ local (from source) or onchain (fetched from a network).
 For packages already deployed onchain, generate code directly from a package ID or MVR name without
 needing local source code:
 
-| Option        | Type                     | Required | Description                                   |
-| ------------- | ------------------------ | -------- | --------------------------------------------- |
-| `package`     | `string`                 | yes      | Package ID or MVR name                        |
-| `packageName` | `string`                 | yes      | Name for the generated code directory         |
-| `network`     | `'mainnet' \| 'testnet'` | yes      | Network to fetch the package from             |
-| `generate`    | `PackageGenerateOptions` | no       | Control what gets generated from this package |
+| Option            | Type                     | Required | Description                                                                                      |
+| ----------------- | ------------------------ | -------- | ------------------------------------------------------------------------------------------------ |
+| `package`         | `string`                 | yes      | Package ID or name emitted into generated code                                                   |
+| `sourcePackageId` | `string`                 | no       | Package ID to fetch when generating an unpublished package name                                  |
+| `packageName`     | `string`                 | yes      | Name for the generated code directory                                                            |
+| `network`         | `'mainnet' \| 'testnet'` | yes      | Network to resolve and fetch the package from                                                    |
+| `generate`        | `PackageGenerateOptions` | no       | Control what gets generated from this package                                                    |
+| `configArguments` | `ConfigArguments`        | no       | Map this package's function parameters to a [runtime config object](#the-configarguments-option) |
+| `bcsOverrides`    | `BcsOverrides`           | no       | Replace generated BCS types with [custom types](#the-bcsoverrides-option)                        |
 
 ```typescript
 {
@@ -285,6 +310,274 @@ src/contracts/
 
 Set `prune: false` to generate all dependency modules with their full types and functions.
 
+## The `configArguments` option
+
+SDKs built on generated bindings often spend a lot of wrapper code passing values from a per-network
+config object (package IDs, registry or treasury object IDs, pool addresses) into generated function
+calls. The `configArguments` option moves that mapping into codegen: declare which Move types (or
+package addresses) come from a config object, and the generated functions accept that config object
+directly.
+
+`configArguments` is set on a package entry and maps config keys to matchers. Matchers reference
+types as `module::Type`, optionally qualified with a package identifier from the `packages` config
+or an address:
+
+```typescript
+const config: SuiCodegenConfig = {
+	output: './src/contracts',
+	packages: [
+		{
+			package: '@myapp/core',
+			path: './move/core',
+			configArguments: {
+				// Every parameter of this type resolves from `config.registry`
+				registry: { type: 'registry::Registry' },
+				// Generic type: matches every instantiation, config value must be a resolver function
+				pool: { type: 'pool::Pool' },
+				// Instantiated generic: only matches this exact instantiation
+				suiPool: { type: 'pool::Pool<0x2::sui::SUI>' },
+				// Function matcher: configures a single function's parameter
+				adminCap: { function: 'admin::set_fees', parameterName: 'cap' },
+				// Package entry: adds a config key that overrides the package address used for calls
+				corePackageId: { package: '@myapp/core' },
+			},
+		},
+		{
+			package: '@myapp/vaults',
+			path: './move/vaults',
+			configArguments: {
+				// Types from other packages are referenced by their package identifier
+				vaultPool: { type: '@myapp/core::pool::Pool' },
+			},
+		},
+	],
+};
+```
+
+Matcher rules:
+
+- A bare `module::Type` refers to a type from the package the config is declared on.
+- Types from other packages in the run use their package identifier (for example,
+  `@myapp/core::pool::Pool`) and must be dependencies of the declaring package.
+- Types can also be referenced by an explicit address (for example, `0x2::sui::SUI`). Addresses
+  aren't validated, so only use addresses that are valid on every network your generated code
+  targets.
+- Partially instantiated generics like `Pool<T>` are not supported. Use an uninstantiated matcher
+  with a resolver function instead.
+- Function matchers can target a parameter by `parameterName` or `parameterIndex`. Both can be
+  omitted when the function has a single argument.
+- A key can declare an array of matchers. If they span multiple types, the config value must be a
+  resolver function.
+- Invalid matchers fail at generation time, and keys that never match any generated parameter
+  produce a warning.
+
+### Generated output
+
+For each function with matched parameters, the generated options gain an optional `config` property
+typed with the keys that function uses. Matched parameters become optional in `arguments`, and an
+explicitly passed argument always takes precedence over the config value:
+
+```typescript
+export interface BorrowOptions {
+	package?: string;
+	arguments: BorrowArguments; // `pool` is optional here
+	config?: {
+		pool: (ctx: ConfigResolverContext) => string | TransactionObjectArgument;
+		corePackageId?: string;
+	};
+	typeArguments: [string];
+}
+
+export function borrow(options: BorrowOptions) {
+	const packageAddress = options.package ?? options.config?.corePackageId ?? '@myapp/core';
+	// ...
+	pool: options.arguments?.pool ?? options.config?.pool?.({ ... }),
+}
+```
+
+Keys bound to a single concrete type accept a plain value (an object ID or a transaction argument).
+Keys that match a generic type, or multiple types, must be resolver functions, because a single ID
+can't be correct for every instantiation. A resolver can also return a transaction callback
+(`(ctx) => (tx) => ...`) to build the argument dynamically. Resolvers receive the matched
+parameter's own type arguments plus call-site metadata:
+
+```typescript
+export interface ConfigResolverContext {
+	typeArguments: string[]; // canonical for concrete instantiations; as-provided for generic positions
+	packageAddress: string;
+	moduleName: string;
+	functionName: string;
+	parameterName?: string; // Move parameter name, when the summary includes names
+	parameterIndex: number; // position in the generated function's arguments
+}
+```
+
+This makes resolvers reusable across functions that use the type in different positions:
+
+```typescript
+const myConfig = {
+	registry: '0x123...',
+	pool: (ctx: ConfigResolverContext) => poolsByCoinType[ctx.typeArguments[0]],
+	suiPool: '0x456...',
+	adminCap: '0x789...',
+	corePackageId: '0xabc...',
+} satisfies CoreConfig;
+
+tx.add(
+	borrow({
+		arguments: { amount: 100n },
+		config: myConfig,
+		typeArguments: ['0x2::sui::SUI'],
+	}),
+);
+```
+
+Each package's output also includes a `config-arguments.ts` file with an interface covering the
+package's config keys, named after the package's `packageName` (for example, `packageName: 'core'`
+produces `CoreConfig`). Use it with `satisfies` when defining your config object, as shown above. An
+SDK spanning multiple packages can check one shared config object against the intersection of the
+per-package interfaces:
+
+```typescript
+const myConfig = { ... } satisfies CoreConfig & MarginConfig;
+```
+
+### Name refinement
+
+When a signature has two parameters of the same matched type (for example, `base_pool` and
+`quote_pool`, both `Pool<T>`), a bare type matcher matches both: the key's config value must then be
+a resolver function, which receives each parameter's own context. To give each parameter its own
+config key instead, refine the matchers with the Move parameter names:
+
+```typescript
+configArguments: {
+	basePool: { type: 'pool::Pool', parameterName: 'base_pool' },
+	quotePool: { type: 'pool::Pool', parameterName: 'quote_pool' },
+},
+```
+
+Parameter names are only available in summaries generated from local packages. For onchain packages
+without parameter names, use function matchers with `parameterIndex` to target individual
+parameters.
+
+### Package address precedence
+
+For package entries, the address used for a generated call is resolved in this order:
+
+1. An explicit `options.package` argument
+2. The config key declared by the package entry (for example, `config.corePackageId`)
+3. The generated default (the package's MVR name or address)
+
+On networks where the package's MVR name doesn't resolve, supply the deployed package ID through the
+config object. Package entries only apply to the main package's generated modules, and for packages
+generated without an MVR name or address `package` remains required.
+
+## The `bcsOverrides` option
+
+Generated BCS types mirror the raw Move layout, but the raw layout is often not the shape an SDK
+wants to expose: a `u64` field might be a 1e9 fixed-point price, or a struct like
+`i64::I64 { magnitude: u64, is_negative: bool }` is really a signed integer. The `bcsOverrides`
+option replaces generated BCS types with custom ones — typically built with
+[`transform`](/bcs#transforms) — so parsed values come out in the shape you want and inputs accept
+it.
+
+`bcsOverrides` is set on a package entry as an array. Every entry names the Move `type` it replaces
+and the `source` module the replacement is imported from, and can optionally narrow the entry to
+specific `fields`:
+
+```typescript
+const config: SuiCodegenConfig = {
+	output: './src/contracts',
+	packages: [
+		{
+			package: '@local-pkg/deepbook_predict',
+			path: './move/deepbook_predict',
+			bcsOverrides: [
+				// Replace a datatype's generated declaration: every generated layout that
+				// references it uses the custom type. Imports `I64` from the source module.
+				{ type: 'fixed_math::i64::I64', source: './src/bcs/i64.ts' },
+
+				// `fields` narrows an entry to the field sites matching a glob. Entries are tried
+				// in declaration order and the first match wins, so narrow entries go first.
+				{ type: 'u64', fields: 'order::*.*_price', source: './src/bcs/units.ts#Price9' },
+
+				// A type with no generated declaration is replaced wherever it is rendered —
+				// here, every remaining `u64` parses to a bigint instead of a decimal string.
+				{ type: 'u64', source: './src/bcs/integers.ts#U64' },
+
+				// A whole-type match wins over its elements, so this replaces the vector itself
+				// rather than letting the `u64` rule apply to its items.
+				{ type: 'vector<u64>', source: './src/bcs/units.ts#Payouts' },
+			],
+		},
+	],
+};
+```
+
+The replacement module exports plain BCS types:
+
+```typescript
+// ./src/bcs/units.ts
+import { bcs } from '@mysten/sui/bcs';
+
+/** 1e9 fixed-point u64 exposed as a decimal number. */
+const Price9 = bcs.u64().transform({
+	input: (value: number) => BigInt(Math.round(value * 1e9)).toString(),
+	output: (raw) => Number(raw) / 1e9,
+});
+
+export const Payouts = bcs.vector(Price9);
+```
+
+The custom type's inferred input and output types flow through the generated code, so
+`Node.parse(bytes).levels` is a `number[]` and `Node.serialize` accepts one.
+
+Entry rules:
+
+- `type` uses the same package scoping as `configArguments` matchers (bare `module::Type` for the
+  declaring package, package identifiers, explicit addresses), and additionally accepts
+  named-address labels from the package's summaries (for example, `fixed_math::i64::I64`) so entries
+  can target dependency packages that are not codegen-run entries.
+- A datatype entry written without type arguments or `fields` replaces the type's generated
+  **declaration**: the module exports the custom type under the Move type's name, and every use
+  picks it up because uses already reference the declaration. For a generic type the source must
+  export a function `(...typeParameters: BcsType<any>[]) => BcsType<any>` mirroring the generated
+  call convention.
+- Every other entry replaces the type **wherever it is rendered**. That covers types with no
+  declaration to replace (primitives, `vector`, and the stdlib types generated layouts serialize
+  inline — `String`, `Option`, `ID`/`UID`), a single instantiation of a generic
+  (`pool::Pool<0x2::sui::SUI>`), and any entry narrowed with `fields`.
+- Replacement applies at **any depth**, because the type renderer consults overrides as it recurses.
+  An override on `u64` also replaces the `u64` inside `vector<u64>` and `Option<u64>`. A whole-type
+  match wins over its elements, so an entry for `vector<u64>` replaces the vector rather than its
+  items.
+- `fields` restricts an entry to the field sites matching one glob, where `*` matches any run of
+  characters. Sites are written `module::Type.field`, or `module::Type.variant.field` for enum
+  variant fields (positional fields are named `pos0`, `pos1`, …). A glob that names no module —
+  `Order.*_price` — is matched against the `Type.field` suffix, so it applies in every module. An
+  entry with `fields` never replaces a declaration, since a declaration exists once for every use.
+- At each use site, matching entries are tried in **declaration order and the first match wins**. An
+  unrestricted datatype declaration remains the fallback for sites not matched by an earlier
+  field-restricted entry. There is no specificity scoring, so put narrow entries before broad ones.
+- `source` is an import specifier, optionally suffixed with `#ExportName`. Relative specifiers
+  resolve against the config file's directory and are rewritten into relative imports from each
+  generated file, with their extension replaced by the configured `importExtension` (so a
+  `./src/bcs/units.ts` source is imported as `units.js` by default); bare package specifiers are
+  emitted as-is. Without a fragment, datatype entries import the Move type's name; entries whose
+  `type` is a primitive or `vector` must include one.
+- Replacement modules must be self-contained: a module whose export replaces a declaration can't
+  import generated modules that reference the replaced type, because that would create a circular
+  import. Declare the raw layout inline when building a transform.
+- A replacement built with `.transform()` is a plain `BcsType`, so a type replaced that way loses
+  the `MoveStruct` helpers (`typeTag()`, `resolveTypeTag()`, `get()`, `getMany()`). Extend
+  `MoveStruct` instead if the replaced type needs them.
+- An entry that matches nothing is not an error. A shared set of overrides can be applied to several
+  packages even when only some of them have fields of a given type.
+
+Overrides only affect generated BCS layouts (parsing and serializing structs, enums, and events,
+including `MoveStruct.get()`). Generated transaction-building functions serialize their arguments
+from Move type tags at runtime, so pure function arguments are unaffected.
+
 ## Phantom types
 
 In Move, phantom type parameters are type parameters that only appear at the type level and don't
@@ -396,8 +689,8 @@ async function readCounter(client: ClientWithCoreApi, id: string) {
 
 <Callout type="warn">
 	Always use `content`, not `objectBcs`, when parsing with generated types. The `objectBcs` field
-	contains a full object envelope with additional metadata that will cause parsing to fail. See the
-	[Core API docs](/sui/clients/core#objectbcs) for details.
+	contains a full object envelope with additional metadata that causes parsing to fail. See
+	[Querying data](/sui/clients/querying#objectbcs) for details.
 </Callout>
 
 ### Getting type tags
@@ -470,11 +763,15 @@ const balanceType = await Balance.resolveTypeTag({
 
 ### Using with MVR (Move Version Registry)
 
-If your package is registered on MVR, the generated code works without additional configuration.
+If your package is registered on MVR, the generated code works without additional configuration. The
+configured name is preserved in generated function targets and type tags. At runtime MVR resolves
+function packages and type origins independently for the client's network.
 
 ### Local packages
 
-For local packages using `@local-pkg/*` identifiers, configure your client with package overrides:
+For local packages using `@local-pkg/*` identifiers, configure package overrides for Move calls and
+first-level type overrides for each local type used as a transaction type argument or resolved for a
+query:
 
 ```typescript
 import { SuiGrpcClient } from '@mysten/sui/grpc';
@@ -486,6 +783,9 @@ const client = new SuiGrpcClient({
 		overrides: {
 			packages: {
 				'@local-pkg/counter': '0xYOUR_PACKAGE_ID',
+			},
+			types: {
+				'@local-pkg/counter::counter::Counter': '0xTYPE_ORIGIN::counter::Counter',
 			},
 		},
 	},
@@ -507,6 +807,7 @@ const GRPC_URLS = {
 const PACKAGE_IDS = {
 	testnet: {
 		counter: '0xYOUR_PACKAGE_ID',
+		counterType: '0xTYPE_ORIGIN::counter::Counter',
 	},
 };
 
@@ -520,6 +821,9 @@ const dAppKit = createDAppKit({
 				overrides: {
 					packages: {
 						'@local-pkg/counter': PACKAGE_IDS[network].counter,
+					},
+					types: {
+						'@local-pkg/counter::counter::Counter': PACKAGE_IDS[network].counterType,
 					},
 				},
 			},

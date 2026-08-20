@@ -89,8 +89,8 @@ const client = new SuiGrpcClient({
 	baseUrl: 'https://fullnode.devnet.sui.io:443',
 });
 
-// get coins owned by an address using the Core API
-await client.getCoins({
+// get coins owned by an address
+await client.listCoins({
 	owner: '0xcc2bd176a478baea9a0de7a24cd927661cc6e860d5bacecb9a138ef20dbab231',
 });
 ```
@@ -108,8 +108,8 @@ const client = new SuiGrpcClient({
 	baseUrl: 'http://127.0.0.1:9000',
 });
 
-// get coins owned by an address using the Core API
-await client.getCoins({
+// get coins owned by an address
+await client.listCoins({
 	owner: '0xcc2bd176a478baea9a0de7a24cd927661cc6e860d5bacecb9a138ef20dbab231',
 });
 ```
@@ -125,8 +125,8 @@ const client = new SuiGrpcClient({
 	baseUrl: 'https://your-fullnode.example.com:443',
 });
 
-// get coins owned by an address using the Core API
-await client.getCoins({
+// get coins owned by an address
+await client.listCoins({
 	owner: '0xcc2bd176a478baea9a0de7a24cd927661cc6e860d5bacecb9a138ef20dbab231',
 });
 ```
@@ -421,13 +421,13 @@ const client = new SuiGrpcClient({
 	baseUrl: 'https://fullnode.testnet.sui.io:443',
 });
 
-const coins = await client.getCoins({
+const coins = await client.listCoins({
 	owner: '0xcc2bd176a478baea9a0de7a24cd927661cc6e860d5bacecb9a138ef20dbab231',
 	coinType: '0x65b0553a591d7b13376e03a408e112c706dc0909a79080c810b93b06f922c458::usdc::USDC',
 });
 ```
 
-Fetch all coin objects owned by an address:
+Fetch SUI coin objects owned by an address:
 
 ```typescript
 import { SuiGrpcClient } from '@mysten/sui/grpc';
@@ -437,7 +437,7 @@ const client = new SuiGrpcClient({
 	baseUrl: 'https://fullnode.testnet.sui.io:443',
 });
 
-const allCoins = await client.getAllCoins({
+const suiCoins = await client.listCoins({
 	owner: '0xcc2bd176a478baea9a0de7a24cd927661cc6e860d5bacecb9a138ef20dbab231',
 });
 ```

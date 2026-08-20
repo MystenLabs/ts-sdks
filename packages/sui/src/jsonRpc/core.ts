@@ -1,14 +1,16 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { fromBase64, type InferBcsInput } from '@mysten/bcs';
+import { fromBase58, fromBase64, type InferBcsInput } from '@mysten/bcs';
 
 import { bcs, TypeTagSerializer } from '../bcs/index.js';
 import type {
 	DevInspectResults,
 	DryRunTransactionBlockResponse,
+	EventId,
 	ExecutionStatus as JsonRpcExecutionStatus,
 	ObjectOwner,
+	ObjectResponseError,
 	SuiMoveAbilitySet,
 	SuiMoveAbort,
 	SuiMoveNormalizedType,
@@ -19,6 +21,13 @@ import type {
 	SuiTransactionBlockResponse,
 	TransactionEffects,
 } from './types/index.js';
+import {
+	resolveEventFilter,
+	resolvePagination,
+	resolveTransactionFilter,
+	validateTransactionQuery,
+} from '../client/query-filters.js';
+import { raceSignal } from '../client/mvr.js';
 import { Transaction } from '../transactions/Transaction.js';
 import { computeGasBudget, coreClientResolveTransactionPlugin } from '../client/core-resolver.js';
 import { TransactionDataBuilder } from '../transactions/TransactionData.js';
@@ -28,15 +37,72 @@ import { deriveDynamicFieldID } from '../utils/dynamic-fields.js';
 import { SUI_FRAMEWORK_ADDRESS, SUI_SYSTEM_ADDRESS } from '../utils/constants.js';
 import { CoreClient } from '../client/core.js';
 import type { SuiClientTypes } from '../client/types.js';
-import { ObjectError } from '../client/errors.js';
+import { ObjectError, TransactionError } from '../client/errors.js';
 import {
 	formatMoveAbortMessage,
 	parseTransactionBcs,
 	parseTransactionEffectsBcs,
 } from '../client/index.js';
 import type { SuiJsonRpcClient } from './client.js';
+import { JsonRpcError } from './errors.js';
 
 const MAX_GAS = 50_000_000_000;
+
+function mapJsonRpcObjectError(
+	response: ObjectResponseError,
+	requestedObjectId?: string,
+): ObjectError {
+	switch (response.code) {
+		case 'notExists':
+			return new ObjectError(response.code, `Object ${response.object_id} does not exist`, {
+				cause: response,
+				reason: 'notFound',
+				objectId: requestedObjectId ?? response.object_id,
+			});
+		case 'dynamicFieldNotFound':
+			return new ObjectError(
+				response.code,
+				`Dynamic field not found for object ${response.parent_object_id}`,
+				{
+					cause: response,
+					reason: 'notFound',
+					objectId: requestedObjectId ?? response.parent_object_id,
+				},
+			);
+		case 'deleted':
+			return new ObjectError(response.code, `Object ${response.object_id} has been deleted`, {
+				cause: response,
+				reason: 'deleted',
+				objectId: requestedObjectId ?? response.object_id,
+			});
+		case 'displayError':
+			return new ObjectError(response.code, `Display error: ${response.error}`, {
+				cause: response,
+				reason: 'unknown',
+				objectId: requestedObjectId,
+			});
+		case 'unknown':
+		default:
+			return new ObjectError(
+				response.code,
+				`Unknown error while loading object${requestedObjectId ? ` ${requestedObjectId}` : ''}`,
+				{
+					cause: response,
+					reason: 'unknown',
+					objectId: requestedObjectId,
+				},
+			);
+	}
+}
+
+function isJsonRpcTransactionNotFound(error: unknown, digest: string): boolean {
+	if (!(error instanceof JsonRpcError) || error.code !== -32602) return false;
+
+	return (
+		error.message === `Invalid Params: Transaction ${digest} not found` ||
+		error.message === `Could not find the referenced transaction [TransactionDigest(${digest})].`
+	);
+}
 
 function parseJsonRpcExecutionStatus(
 	status: JsonRpcExecutionStatus,
@@ -152,7 +218,7 @@ export class JSONRpcCoreClient extends CoreClient {
 
 			for (const [idx, object] of objects.entries()) {
 				if (object.error) {
-					results.push(ObjectError.fromResponse(object.error, batch[idx]));
+					results.push(mapJsonRpcObjectError(object.error, batch[idx]));
 				} else {
 					results.push(parseObject(object.data!, options.include));
 				}
@@ -203,7 +269,7 @@ export class JSONRpcCoreClient extends CoreClient {
 		return {
 			objects: objects.data.map((result) => {
 				if (result.error) {
-					throw ObjectError.fromResponse(result.error);
+					throw mapJsonRpcObjectError(result.error);
 				}
 
 				return parseObject(result.data!, options.include);
@@ -227,19 +293,17 @@ export class JSONRpcCoreClient extends CoreClient {
 		});
 
 		return {
-			objects: coins.data.map(
-				(coin): SuiClientTypes.Coin => ({
-					objectId: coin.coinObjectId,
-					version: coin.version,
-					digest: coin.digest,
-					balance: coin.balance,
-					type: normalizeStructTag(`0x2::coin::Coin<${coin.coinType}>`),
-					owner: {
-						$kind: 'AddressOwner' as const,
-						AddressOwner: options.owner,
-					},
-				}),
-			),
+			objects: coins.data.map((coin): SuiClientTypes.Coin => ({
+				objectId: coin.coinObjectId,
+				version: coin.version,
+				digest: coin.digest,
+				balance: coin.balance,
+				type: normalizeStructTag(`0x2::coin::Coin<${coin.coinType}>`),
+				owner: {
+					$kind: 'AddressOwner' as const,
+					AddressOwner: options.owner,
+				},
+			})),
 			hasNextPage: coins.hasNextPage,
 			cursor: coins.nextCursor ?? null,
 		};
@@ -275,7 +339,9 @@ export class JSONRpcCoreClient extends CoreClient {
 	async getCoinMetadata(
 		options: SuiClientTypes.GetCoinMetadataOptions,
 	): Promise<SuiClientTypes.GetCoinMetadataResponse> {
-		const coinType = (await this.mvr.resolveType({ type: options.coinType })).type;
+		const coinType = (
+			await this.mvr.resolveType({ type: options.coinType, signal: options.signal })
+		).type;
 
 		const result = await this.#jsonRpcClient.getCoinMetadata({
 			coinType,
@@ -330,22 +396,29 @@ export class JSONRpcCoreClient extends CoreClient {
 	async getTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 		options: SuiClientTypes.GetTransactionOptions<Include>,
 	): Promise<SuiClientTypes.TransactionResult<Include>> {
-		const transaction = await this.#jsonRpcClient.getTransactionBlock({
-			digest: options.digest,
-			options: {
-				// showRawInput is always needed to extract signatures from SenderSignedData
-				showRawInput: true,
-				// showEffects is always needed to get status
-				showEffects: true,
-				showObjectChanges: options.include?.objectTypes ?? false,
-				showRawEffects: options.include?.effects ?? false,
-				showEvents: options.include?.events ?? false,
-				showBalanceChanges: options.include?.balanceChanges ?? false,
-			},
-			signal: options.signal,
-		});
+		try {
+			const transaction = await this.#jsonRpcClient.getTransactionBlock({
+				digest: options.digest,
+				options: {
+					// showRawInput is always needed to extract signatures from SenderSignedData
+					showRawInput: true,
+					// showEffects is always needed to get status
+					showEffects: true,
+					showObjectChanges: options.include?.objectTypes ?? false,
+					showRawEffects: options.include?.effects ?? false,
+					showEvents: options.include?.events ?? false,
+					showBalanceChanges: options.include?.balanceChanges ?? false,
+				},
+				signal: options.signal,
+			});
 
-		return parseTransaction(transaction, options.include);
+			return parseTransaction(transaction, options.include);
+		} catch (error) {
+			if (isJsonRpcTransactionNotFound(error, options.digest)) {
+				throw new TransactionError('notFound', options.digest, { cause: error });
+			}
+			throw error;
+		}
 	}
 	/**
 	 * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
@@ -395,7 +468,9 @@ export class JSONRpcCoreClient extends CoreClient {
 					overrides: {
 						gasData: {
 							budget: data.gasData.budget ?? String(MAX_GAS),
-							price: data.gasData.price ?? String(await this.#jsonRpcClient.getReferenceGasPrice()),
+							price:
+								data.gasData.price ??
+								String(await this.#jsonRpcClient.getReferenceGasPrice({ signal: options.signal })),
 							payment: data.gasData.payment ?? [],
 						},
 					},
@@ -620,6 +695,7 @@ export class JSONRpcCoreClient extends CoreClient {
 			parentId: options.parentId,
 			limit: options.limit,
 			cursor: options.cursor,
+			signal: options.signal,
 		});
 
 		return {
@@ -654,8 +730,119 @@ export class JSONRpcCoreClient extends CoreClient {
 	 * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
 	 * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
 	 */
+	async listTransactions<Include extends SuiClientTypes.TransactionInclude = {}>(
+		options: SuiClientTypes.ListTransactionsOptions<Include>,
+	): Promise<SuiClientTypes.ListTransactionsResponse<Include>> {
+		const filter = options.filter
+			? await resolveTransactionFilter(this.mvr, options.filter, options.signal)
+			: undefined;
+
+		// Transaction cursors are digests, and bounds are interpreted relative to the
+		// traversal direction
+		const pagination = resolvePagination(options);
+		const { descending, after, before } = pagination;
+		validateTransactionQuery(filter, pagination);
+
+		const page = await this.#jsonRpcClient.queryTransactionBlocks({
+			filter:
+				filter &&
+				(filter.$kind === 'sender'
+					? { FromAddress: filter.sender }
+					: {
+							MoveFunction: {
+								package: filter.package,
+								module: filter.module ?? null,
+								function: filter.function ?? null,
+							},
+						}),
+			cursor: after ?? before,
+			limit: pagination.limit,
+			order: descending ? 'descending' : 'ascending',
+			options: {
+				// showRawInput is always needed to extract signatures from SenderSignedData
+				showRawInput: true,
+				// showEffects is always needed to get status
+				showEffects: true,
+				showObjectChanges: options.include?.objectTypes ?? false,
+				showRawEffects: options.include?.effects ?? false,
+				showEvents: options.include?.events ?? false,
+				showBalanceChanges: options.include?.balanceChanges ?? false,
+			},
+			signal: options.signal,
+		});
+
+		return {
+			transactions: page.data.map((transaction) => parseTransaction(transaction, options.include)),
+			hasNextPage: page.hasNextPage,
+			startCursor: page.data[0]?.digest ?? null,
+			endCursor: page.data.length
+				? (page.nextCursor ?? page.data[page.data.length - 1].digest)
+				: null,
+		};
+	}
+
+	/**
+	 * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+	 * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+	 */
+	async listEvents(
+		options: SuiClientTypes.ListEventsOptions,
+	): Promise<SuiClientTypes.ListEventsResponse> {
+		const filter = options.filter
+			? await resolveEventFilter(this.mvr, options.filter, options.signal)
+			: undefined;
+		// Event cursors are event ids, and bounds are interpreted relative to the
+		// traversal direction
+		const { descending, after, before, limit } = resolvePagination(options);
+		const cursor = after ?? before;
+
+		const page = await this.#jsonRpcClient.queryEvents({
+			query: !filter
+				? { All: [] }
+				: filter.$kind === 'sender'
+					? { Sender: filter.sender }
+					: filter.$kind === 'emitModule'
+						? { MoveModule: { package: filter.package, module: filter.module } }
+						: filter.$kind === 'eventTypeModule'
+							? { MoveEventModule: { package: filter.package, module: filter.module } }
+							: { MoveEventType: filter.eventType },
+			cursor: cursor ? parseEventCursor(cursor) : undefined,
+			limit,
+			order: descending ? 'descending' : 'ascending',
+			signal: options.signal,
+		});
+
+		return {
+			events: page.data.map((event): SuiClientTypes.EventEntry => ({
+				packageId: normalizeSuiAddress(event.packageId),
+				module: event.transactionModule,
+				sender: normalizeSuiAddress(event.sender),
+				eventType: normalizeStructTag(event.type),
+				bcs: event.bcsEncoding === 'base58' ? fromBase58(event.bcs) : fromBase64(event.bcs),
+				json: (event.parsedJson as Record<string, unknown>) ?? null,
+				// queryEvents responses do not include checkpoint information
+				checkpoint: null,
+				transactionDigest: event.id.txDigest,
+				eventIndex: Number(event.id.eventSeq),
+			})),
+			hasNextPage: page.hasNextPage,
+			startCursor: page.data.length ? JSON.stringify(page.data[0].id) : null,
+			endCursor:
+				page.data.length && page.nextCursor
+					? JSON.stringify(page.nextCursor)
+					: page.data.length
+						? JSON.stringify(page.data[page.data.length - 1].id)
+						: null,
+		};
+	}
+
+	/**
+	 * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+	 * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+	 */
 	async verifyZkLoginSignature(options: SuiClientTypes.VerifyZkLoginSignatureOptions) {
 		const result = await this.#jsonRpcClient.verifyZkLoginSignature({
+			signal: options.signal,
 			bytes: options.bytes,
 			signature: options.signature,
 			intentScope: options.intentScope,
@@ -687,6 +874,18 @@ export class JSONRpcCoreClient extends CoreClient {
 	 * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
 	 * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
 	 */
+	async resolveNameServiceAddress(
+		options: SuiClientTypes.ResolveNameServiceAddressOptions,
+	): Promise<SuiClientTypes.ResolveNameServiceAddressResponse> {
+		return {
+			address: await this.#jsonRpcClient.resolveNameServiceAddress(options),
+		};
+	}
+
+	/**
+	 * @deprecated JSON-RPC APIs are deprecated in the Sui TypeScript SDK. Use `SuiGrpcClient`
+	 * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
+	 */
 	resolveTransactionPlugin() {
 		return coreClientResolveTransactionPlugin;
 	}
@@ -698,12 +897,14 @@ export class JSONRpcCoreClient extends CoreClient {
 	async getMoveFunction(
 		options: SuiClientTypes.GetMoveFunctionOptions,
 	): Promise<SuiClientTypes.GetMoveFunctionResponse> {
-		const resolvedPackageId = (await this.mvr.resolvePackage({ package: options.packageId }))
-			.package;
+		const resolvedPackageId = (
+			await this.mvr.resolvePackage({ package: options.packageId, signal: options.signal })
+		).package;
 		const result = await this.#jsonRpcClient.getNormalizedMoveFunction({
 			package: resolvedPackageId,
 			module: options.moduleName,
 			function: options.name,
+			signal: options.signal,
 		});
 
 		return {
@@ -728,14 +929,18 @@ export class JSONRpcCoreClient extends CoreClient {
 	 * from `@mysten/sui/grpc` or `SuiGraphQLClient` from `@mysten/sui/graphql` instead.
 	 */
 	async getChainIdentifier(
-		_options?: SuiClientTypes.GetChainIdentifierOptions,
+		options?: SuiClientTypes.GetChainIdentifierOptions,
 	): Promise<SuiClientTypes.GetChainIdentifierResponse> {
-		return this.cache.read(['chainIdentifier'], async () => {
+		// The result is cached and shared across callers, so the underlying request must
+		// not carry any single caller's signal. Isolate cancellation per-caller instead.
+		const cached = this.cache.read(['chainIdentifier'], async () => {
 			const checkpoint = await this.#jsonRpcClient.getCheckpoint({ id: '0' });
 			return {
 				chainIdentifier: checkpoint.digest,
 			};
 		});
+
+		return raceSignal(Promise.resolve(cached), options?.signal);
 	}
 }
 
@@ -948,6 +1153,18 @@ function parseOwnerAddress(owner: ObjectOwner): string | null {
 	throw new Error(`Unknown owner type: ${JSON.stringify(owner)}`);
 }
 
+function parseEventCursor(cursor: string): EventId {
+	try {
+		const parsed = JSON.parse(cursor) as EventId;
+		if (typeof parsed?.txDigest !== 'string' || typeof parsed?.eventSeq !== 'string') {
+			throw new Error('malformed event cursor');
+		}
+		return parsed;
+	} catch {
+		throw new Error(`Invalid event cursor: ${cursor}`);
+	}
+}
+
 function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 	transaction: SuiTransactionBlockResponse,
 	include?: Include,
@@ -968,7 +1185,10 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}
 
 	if (transaction.rawTransaction) {
 		const parsedTx = bcs.SenderSignedData.parse(fromBase64(transaction.rawTransaction))[0];
-		signatures = parsedTx.txSignatures;
+		// The genesis transaction's raw data carries a placeholder signature that
+		// other transports do not report
+		signatures =
+			parsedTx.intentMessage.value.V1.kind.$kind === 'Genesis' ? [] : parsedTx.txSignatures;
 
 		if (include?.transaction || include?.bcs) {
 			const bytes = bcs.TransactionData.serialize(parsedTx.intentMessage.value).toBytes();
@@ -1048,7 +1268,7 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}
 			};
 }
 
-function parseTransactionEffectsJson({
+export function parseTransactionEffectsJson({
 	bytes,
 	effects,
 	objectChanges,
@@ -1168,6 +1388,28 @@ function parseTransactionEffectsJson({
 		}
 	});
 
+	// When the transaction has no gas object (system transactions, or gas paid
+	// from an address balance), the RPC substitutes a placeholder ref with the
+	// 0x0 object id rather than omitting the field.
+	const hasGasObject =
+		normalizeSuiAddress(effects.gasObject.reference.objectId) !== normalizeSuiAddress('0x0');
+
+	let lamportVersion: string | null = null;
+	if (hasGasObject) {
+		lamportVersion = effects.gasObject.reference.version;
+	} else {
+		// Written objects are all assigned the lamport version, so recover it
+		// from the changed objects when the gas object can't provide it.
+		for (const change of changedObjects) {
+			if (
+				change.outputVersion &&
+				(lamportVersion === null || BigInt(change.outputVersion) > BigInt(lamportVersion))
+			) {
+				lamportVersion = change.outputVersion;
+			}
+		}
+	}
+
 	return {
 		objectTypes,
 		effects: {
@@ -1176,21 +1418,23 @@ function parseTransactionEffectsJson({
 			status: parseJsonRpcExecutionStatus(effects.status, effects.abortError),
 			gasUsed: effects.gasUsed,
 			transactionDigest: effects.transactionDigest,
-			gasObject: {
-				objectId: effects.gasObject?.reference.objectId,
-				inputState: 'Exists',
-				inputVersion: null,
-				inputDigest: null,
-				inputOwner: null,
-				outputState: 'ObjectWrite',
-				outputVersion: effects.gasObject.reference.version,
-				outputDigest: effects.gasObject.reference.digest,
-				outputOwner: parseOwner(effects.gasObject.owner),
-				idOperation: 'None',
-			},
+			gasObject: hasGasObject
+				? {
+						objectId: effects.gasObject.reference.objectId,
+						inputState: 'Exists',
+						inputVersion: null,
+						inputDigest: null,
+						inputOwner: null,
+						outputState: 'ObjectWrite',
+						outputVersion: effects.gasObject.reference.version,
+						outputDigest: effects.gasObject.reference.digest,
+						outputOwner: parseOwner(effects.gasObject.owner),
+						idOperation: 'None',
+					}
+				: null,
 			eventsDigest: effects.eventsDigest ?? null,
 			dependencies: effects.dependencies ?? [],
-			lamportVersion: effects.gasObject.reference.version,
+			lamportVersion,
 			changedObjects,
 			unchangedConsensusObjects,
 			auxiliaryDataDigest: null,

@@ -108,8 +108,7 @@ export interface GrpcWaitForTransactionByResult<
 }
 
 export type GrpcWaitForTransactionOptions<Include extends GrpcTransactionInclude = {}> =
-	| GrpcWaitForTransactionByDigest<Include>
-	| GrpcWaitForTransactionByResult<Include>;
+	GrpcWaitForTransactionByDigest<Include> | GrpcWaitForTransactionByResult<Include>;
 
 export interface GrpcExecuteTransactionOptions<
 	Include extends GrpcTransactionInclude = {},
@@ -127,6 +126,15 @@ export interface GrpcSimulateTransactionOptions<
 	Include extends GrpcSimulateTransactionInclude = {},
 > extends SuiClientTypes.SimulateTransactionOptions<Include> {
 	include?: Include & GrpcSimulateTransactionInclude;
+	/**
+	 * Overrides whether the server selects gas payment during simulation.
+	 *
+	 * When not set, gas selection is enabled only when the transaction's gas payment is explicitly
+	 * set to an empty list (`[]`), which indicates gas is paid from the sender's address balance.
+	 * Transactions with gas coins set are simulated as-is, and transactions without a gas payment
+	 * are simulated with a mocked gas coin.
+	 */
+	doGasSelection?: boolean;
 }
 
 export class SuiGrpcClient extends BaseClient implements SuiClientTypes.TransportMethods {
@@ -237,8 +245,28 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 		return this.core.simulateTransaction(input) as Promise<GrpcSimulateTransactionResult<Include>>;
 	}
 
-	getReferenceGasPrice(): Promise<SuiClientTypes.GetReferenceGasPriceResponse> {
-		return this.core.getReferenceGasPrice();
+	getReferenceGasPrice(
+		input?: SuiClientTypes.GetReferenceGasPriceOptions,
+	): Promise<SuiClientTypes.GetReferenceGasPriceResponse> {
+		return this.core.getReferenceGasPrice(input);
+	}
+
+	getCurrentSystemState(
+		input?: SuiClientTypes.GetCurrentSystemStateOptions,
+	): Promise<SuiClientTypes.GetCurrentSystemStateResponse> {
+		return this.core.getCurrentSystemState(input);
+	}
+
+	getProtocolConfig(
+		input?: SuiClientTypes.GetProtocolConfigOptions,
+	): Promise<SuiClientTypes.GetProtocolConfigResponse> {
+		return this.core.getProtocolConfig(input);
+	}
+
+	getChainIdentifier(
+		input?: SuiClientTypes.GetChainIdentifierOptions,
+	): Promise<SuiClientTypes.GetChainIdentifierResponse> {
+		return this.core.getChainIdentifier(input);
 	}
 
 	async listDynamicFields<Include extends DynamicFieldInclude = {}>(
@@ -296,6 +324,22 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 		return this.core.getDynamicField(input);
 	}
 
+	getDynamicObjectField<Include extends SuiClientTypes.ObjectInclude = {}>(
+		input: SuiClientTypes.GetDynamicObjectFieldOptions<Include>,
+	): Promise<SuiClientTypes.GetDynamicObjectFieldResponse<Include>> {
+		return this.core.getDynamicObjectField(input);
+	}
+
+	listTransactions<Include extends SuiClientTypes.TransactionInclude = {}>(
+		input: SuiClientTypes.ListTransactionsOptions<Include>,
+	): Promise<SuiClientTypes.ListTransactionsResponse<Include>> {
+		return this.core.listTransactions(input);
+	}
+
+	listEvents(input: SuiClientTypes.ListEventsOptions): Promise<SuiClientTypes.ListEventsResponse> {
+		return this.core.listEvents(input);
+	}
+
 	getMoveFunction(
 		input: SuiClientTypes.GetMoveFunctionOptions,
 	): Promise<SuiClientTypes.GetMoveFunctionResponse> {
@@ -316,5 +360,11 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 		input: SuiClientTypes.DefaultNameServiceNameOptions,
 	): Promise<SuiClientTypes.DefaultNameServiceNameResponse> {
 		return this.core.defaultNameServiceName(input);
+	}
+
+	resolveNameServiceAddress(
+		input: SuiClientTypes.ResolveNameServiceAddressOptions,
+	): Promise<SuiClientTypes.ResolveNameServiceAddressResponse> {
+		return this.core.resolveNameServiceAddress(input);
 	}
 }

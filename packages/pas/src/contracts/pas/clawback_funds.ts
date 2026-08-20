@@ -88,8 +88,7 @@ export interface ResolveArguments {
 export interface ResolveOptions {
 	package?: string;
 	arguments:
-		| ResolveArguments
-		| [request: TransactionArgument, policy: RawTransactionArgument<string>];
+		ResolveArguments | [request: TransactionArgument, policy: RawTransactionArgument<string>];
 	typeArguments: [string];
 }
 /**

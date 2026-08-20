@@ -126,8 +126,7 @@ export interface SetObjectReverseLookupOptions {
 export function setObjectReverseLookup(options: SetObjectReverseLookupOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [null, '0x2::object::ID', '0x1::string::String'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['suins', 'obj', 'domainName'];
 	return (tx: Transaction) =>
@@ -219,8 +218,7 @@ export interface UnsetUserDataOptions {
 export function unsetUserData(options: UnsetUserDataOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [null, null, '0x1::string::String', '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['suins', 'nft', 'key'];
 	return (tx: Transaction) =>
@@ -303,8 +301,7 @@ export interface PruneExpiredSubnameOptions {
 export function pruneExpiredSubname(options: PruneExpiredSubnameOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [null, null, '0x1::string::String', '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['suins', 'parent', 'subdomainName'];
 	return (tx: Transaction) =>

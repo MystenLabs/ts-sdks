@@ -254,6 +254,23 @@ const introspection = {
             "isDeprecated": false
           },
           {
+            "name": "asTransactionObject",
+            "type": {
+              "kind": "UNION",
+              "name": "TransactionObject"
+            },
+            "args": [
+              {
+                "name": "transactionDigest",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String"
+                }
+              }
+            ],
+            "isDeprecated": false
+          },
+          {
             "name": "balance",
             "type": {
               "kind": "OBJECT",
@@ -1740,6 +1757,23 @@ const introspection = {
             "isDeprecated": false
           },
           {
+            "name": "asTransactionObject",
+            "type": {
+              "kind": "UNION",
+              "name": "TransactionObject"
+            },
+            "args": [
+              {
+                "name": "transactionDigest",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String"
+                }
+              }
+            ],
+            "isDeprecated": false
+          },
+          {
             "name": "balance",
             "type": {
               "kind": "OBJECT",
@@ -2806,6 +2840,23 @@ const introspection = {
             "isDeprecated": false
           },
           {
+            "name": "asTransactionObject",
+            "type": {
+              "kind": "UNION",
+              "name": "TransactionObject"
+            },
+            "args": [
+              {
+                "name": "transactionDigest",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String"
+                }
+              }
+            ],
+            "isDeprecated": false
+          },
+          {
             "name": "balance",
             "type": {
               "kind": "OBJECT",
@@ -3645,6 +3696,10 @@ const introspection = {
           {
             "kind": "OBJECT",
             "name": "DisplayRegistryCreateTransaction"
+          },
+          {
+            "kind": "OBJECT",
+            "name": "ForwardingAddressRegistryCreateTransaction"
           },
           {
             "kind": "OBJECT",
@@ -4502,6 +4557,22 @@ const introspection = {
       },
       {
         "kind": "OBJECT",
+        "name": "ForwardingAddressRegistryCreateTransaction",
+        "fields": [
+          {
+            "name": "_",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Boolean"
+            },
+            "args": [],
+            "isDeprecated": false
+          }
+        ],
+        "interfaces": []
+      },
+      {
+        "kind": "OBJECT",
         "name": "GasCoin",
         "fields": [
           {
@@ -4736,6 +4807,23 @@ const introspection = {
                 "type": {
                   "kind": "SCALAR",
                   "name": "UInt53"
+                }
+              }
+            ],
+            "isDeprecated": false
+          },
+          {
+            "name": "asTransactionObject",
+            "type": {
+              "kind": "UNION",
+              "name": "TransactionObject"
+            },
+            "args": [
+              {
+                "name": "transactionDigest",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String"
                 }
               }
             ],
@@ -6809,6 +6897,23 @@ const introspection = {
             "isDeprecated": false
           },
           {
+            "name": "asTransactionObject",
+            "type": {
+              "kind": "UNION",
+              "name": "TransactionObject"
+            },
+            "args": [
+              {
+                "name": "transactionDigest",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String"
+                }
+              }
+            ],
+            "isDeprecated": false
+          },
+          {
             "name": "balance",
             "type": {
               "kind": "OBJECT",
@@ -7494,6 +7599,23 @@ const introspection = {
                 "type": {
                   "kind": "SCALAR",
                   "name": "UInt53"
+                }
+              }
+            ],
+            "isDeprecated": false
+          },
+          {
+            "name": "asTransactionObject",
+            "type": {
+              "kind": "UNION",
+              "name": "TransactionObject"
+            },
+            "args": [
+              {
+                "name": "transactionDigest",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String"
                 }
               }
             ],
@@ -9039,6 +9161,23 @@ const introspection = {
               "name": "MovePackage"
             },
             "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "asTransactionObject",
+            "type": {
+              "kind": "UNION",
+              "name": "TransactionObject"
+            },
+            "args": [
+              {
+                "name": "transactionDigest",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String"
+                }
+              }
+            ],
             "isDeprecated": false
           },
           {
@@ -13050,6 +13189,20 @@ const introspection = {
           {
             "name": "PROGRAMMABLE_TX",
             "isDeprecated": false
+          }
+        ]
+      },
+      {
+        "kind": "UNION",
+        "name": "TransactionObject",
+        "possibleTypes": [
+          {
+            "kind": "OBJECT",
+            "name": "ConsensusObjectRead"
+          },
+          {
+            "kind": "OBJECT",
+            "name": "ObjectChange"
           }
         ]
       },

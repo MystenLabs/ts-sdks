@@ -31,6 +31,28 @@ export const NUMS_KEY = new Uint8Array([
 export const DUST_RELAY_MIN_VALUE = 546n;
 
 /**
+ * Ceiling on the per-withdrawal network fee reported by
+ * `view.withdrawalFees()`, in satoshis.
+ *
+ * The protocol's own per-user fee budget (`worst_case_network_fee` in
+ * `hashi::btc_config`) is defined as `bitcoin_withdrawal_minimum - 546`, so it
+ * tracks the withdrawal minimum. That makes it a sound on-chain bound but a
+ * meaningless fee *estimate* whenever governance raises the minimum as a
+ * policy throttle (e.g. a 10 BTC minimum implies a "worst-case fee" of
+ * ~10 BTC, and UIs subtracting it display nonsense).
+ *
+ * What the committee can actually deduct is governed by validator consensus
+ * rules: the leader clamps the feerate to 30 sat/vB
+ * (`DEFAULT_HIGH_FEE_RATE_THRESHOLD` in the validator's `utxo_pool`), and
+ * validators reject any transaction whose total fee exceeds 5x the estimate
+ * at that clamped rate. 100,000 sats is 5x the clamp applied to a ~666 vB
+ * per-request weight share — several times anything the fleet's coin
+ * selection produces in practice, while five orders of magnitude tighter
+ * than the degenerate on-chain budget.
+ */
+export const WORST_CASE_NETWORK_FEE_CEILING_SATS = 100_000n;
+
+/**
  * Length of the Guardian's Ed25519 attestation public key, in bytes. Matches
  * `GUARDIAN_PUBLIC_KEY_LEN` in `hashi::config`.
  */

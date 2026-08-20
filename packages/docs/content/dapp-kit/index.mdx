@@ -1,7 +1,38 @@
 ---
 title: Sui dApp Kit
 description: Build Sui apps with framework-agnostic core and React bindings.
-keywords: [dApp Kit, Sui SDK, React, wallet connection, TypeScript, blockchain, web components]
+keywords:
+  - dApp Kit
+  - Sui SDK
+  - React
+  - wallet connection
+  - TypeScript
+  - blockchain
+  - web components
+questions:
+  - What is Sui dApp Kit?
+  - How do I build a Sui dApp with React?
+  - Does dApp Kit work with Vue or other frameworks?
+answer: >-
+  Sui dApp Kit provides wallet connection, transaction signing, and network management for Sui
+  dApps, with a framework-agnostic core (@mysten/dapp-kit-core) and React bindings
+  (@mysten/dapp-kit-react).
+goal:
+  description: >-
+    Reader understands what Sui dApp Kit provides and can choose between React bindings and the
+    framework-agnostic core
+  requires:
+    - has_frontmatter:
+        - title
+        - description
+        - keywords
+      label: Has required frontmatter fields
+    - min_words: 100
+      label: Needs content depth
+    - has_questions: true
+      label: Needs questions for AI search visibility
+    - has_answer: true
+      label: Needs answer summary for AI citation
 ---
 
 <Callout type="info">
@@ -56,21 +87,9 @@ Check the framework-specific guides:
 - [Next.js](/dapp-kit/getting-started/next-js)
 - [Vue](/dapp-kit/getting-started/vue)
 
-## Legacy package
-
-### @mysten/dapp-kit (Legacy)
-
-See the [Legacy dApp Kit documentation](/dapp-kit/legacy).
-
-The original React-focused version of the dApp Kit. This package provides:
-
-- React hooks for wallet connection and blockchain queries
-- Pre-built UI components with Radix UI
-- Integration with TanStack React Query
-- Comprehensive wallet state management
-
 <Callout type="warning">
-	**Deprecated JSON RPC Only**: This legacy package only works with the deprecated JSON RPC API and
-	will not be updated to support gRPC or GraphQL. All new projects should use
-	`@mysten/dapp-kit-core` and `@mysten/dapp-kit-react`.
+	**Deprecated JSON RPC Only**: The legacy `@mysten/dapp-kit` package only works with the deprecated
+	JSON RPC API and will not receive further updates. Follow the [migration
+	guide](/sui/migrations/sui-2.0/dapp-kit) to move to `@mysten/dapp-kit-core` and
+	`@mysten/dapp-kit-react`.
 </Callout>

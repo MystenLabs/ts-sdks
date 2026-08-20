@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/bcs",
-	"version": "2.1.0",
+	"version": "2.1.1",
 	"description": "BCS - Canonical Binary Serialization implementation for JavaScript",
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",
@@ -57,13 +57,13 @@
 	],
 	"homepage": "https://sdk.mystenlabs.com/bcs",
 	"devDependencies": {
-		"@size-limit/preset-small-lib": "^12.1.0",
-		"size-limit": "^12.1.0",
-		"typescript": "^6.0.3",
-		"vitest": "^4.1.8"
+		"@size-limit/preset-small-lib": "^13.0.3",
+		"size-limit": "^13.0.3",
+		"typescript": "^7.0.2",
+		"vitest": "^4.1.10"
 	},
 	"dependencies": {
 		"@mysten/utils": "workspace:^",
-		"@scure/base": "^2.2.0"
+		"@scure/base": "^2.3.0"
 	}
 }

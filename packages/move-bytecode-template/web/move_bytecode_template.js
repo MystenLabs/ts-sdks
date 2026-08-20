@@ -166,22 +166,6 @@ function getStringFromWasm0(ptr, len) {
     ptr = ptr >>> 0;
     return cachedTextDecoder.decode(getUint8ArrayMemory0().subarray(ptr, ptr + len));
 }
-/**
- * Get the version of the crate (useful for testing the package).
- * @returns {string}
- */
-export function version() {
-    let deferred1_0;
-    let deferred1_1;
-    try {
-        const ret = wasm.version();
-        deferred1_0 = ret[0];
-        deferred1_1 = ret[1];
-        return getStringFromWasm0(ret[0], ret[1]);
-    } finally {
-        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
-    }
-}
 
 function passArray8ToWasm0(arg, malloc) {
     const ptr = malloc(arg.length * 1, 1) >>> 0;
@@ -195,6 +179,28 @@ function takeFromExternrefTable0(idx) {
     wasm.__externref_table_dealloc(idx);
     return value;
 }
+/**
+ * Convenience method to analyze the constant pool; returns all constants in order
+ * with their type and BCS value.
+ *
+ * ```javascript
+ * import * as template from '@mysten/move-binary-template';
+ *
+ * let consts = template.get_constants(binary);
+ * ```
+ * @param {Uint8Array} binary
+ * @returns {any}
+ */
+export function get_constants(binary) {
+    const ptr0 = passArray8ToWasm0(binary, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.get_constants(ptr0, len0);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
 /**
  * Deserialize the `Uint8Array`` bytecode into a JSON object.
  * The JSON object contains the ABI (Application Binary Interface) of the module.
@@ -223,32 +229,18 @@ function getArrayU8FromWasm0(ptr, len) {
     return getUint8ArrayMemory0().subarray(ptr / 1, ptr / 1 + len);
 }
 /**
- * Update the identifiers in the module bytecode, given a map of old -> new identifiers.
- * Returns the updated bytecode.
- *
- * ```javascript
- * import * as template from '@mysten/move-binary-template';
- *
- * const updated = template.update_identifiers( binary, {
- *     'TEMPLATE': 'NEW_VALUE',
- *     'template': 'new_value',
- *     'Name':     'NewName'
- * });
- * ```
- * @param {Uint8Array} binary
- * @param {any} map
+ * Serialize the JSON module into a `Uint8Array` (bytecode).
+ * @param {any} json_module
  * @returns {Uint8Array}
  */
-export function update_identifiers(binary, map) {
-    const ptr0 = passArray8ToWasm0(binary, wasm.__wbindgen_malloc);
-    const len0 = WASM_VECTOR_LEN;
-    const ret = wasm.update_identifiers(ptr0, len0, map);
+export function serialize(json_module) {
+    const ret = wasm.serialize(json_module);
     if (ret[3]) {
         throw takeFromExternrefTable0(ret[2]);
     }
-    var v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+    var v1 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
     wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
-    return v2;
+    return v1;
 }
 
 /**
@@ -295,40 +287,49 @@ export function update_constants(binary, new_value, expected_value, expected_typ
 }
 
 /**
- * Convenience method to analyze the constant pool; returns all constants in order
- * with their type and BCS value.
+ * Get the version of the crate (useful for testing the package).
+ * @returns {string}
+ */
+export function version() {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.version();
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
+ * Update the identifiers in the module bytecode, given a map of old -> new identifiers.
+ * Returns the updated bytecode.
  *
  * ```javascript
  * import * as template from '@mysten/move-binary-template';
  *
- * let consts = template.get_constants(binary);
+ * const updated = template.update_identifiers( binary, {
+ *     'TEMPLATE': 'NEW_VALUE',
+ *     'template': 'new_value',
+ *     'Name':     'NewName'
+ * });
  * ```
  * @param {Uint8Array} binary
- * @returns {any}
- */
-export function get_constants(binary) {
-    const ptr0 = passArray8ToWasm0(binary, wasm.__wbindgen_malloc);
-    const len0 = WASM_VECTOR_LEN;
-    const ret = wasm.get_constants(ptr0, len0);
-    if (ret[2]) {
-        throw takeFromExternrefTable0(ret[1]);
-    }
-    return takeFromExternrefTable0(ret[0]);
-}
-
-/**
- * Serialize the JSON module into a `Uint8Array` (bytecode).
- * @param {any} json_module
+ * @param {any} map
  * @returns {Uint8Array}
  */
-export function serialize(json_module) {
-    const ret = wasm.serialize(json_module);
+export function update_identifiers(binary, map) {
+    const ptr0 = passArray8ToWasm0(binary, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.update_identifiers(ptr0, len0, map);
     if (ret[3]) {
         throw takeFromExternrefTable0(ret[2]);
     }
-    var v1 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+    var v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
     wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
-    return v1;
+    return v2;
 }
 
 const ConstantFinalization = (typeof FinalizationRegistry === 'undefined')

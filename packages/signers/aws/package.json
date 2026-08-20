@@ -3,7 +3,7 @@
 	"author": "Mysten Labs <build@mystenlabs.com>",
 	"description": "Sui signer using AWS KMS",
 	"homepage": "https://sdk.mystenlabs.com",
-	"version": "0.3.7",
+	"version": "0.3.15",
 	"license": "Apache-2.0",
 	"type": "module",
 	"sideEffects": false,
@@ -46,16 +46,16 @@
 		"node": ">=22"
 	},
 	"dependencies": {
-		"@noble/curves": "^2.2.0",
+		"@noble/curves": "^2.3.0",
 		"asn1-ts": "^11.1.0"
 	},
 	"peerDependencies": {
 		"@mysten/sui": "workspace:^"
 	},
 	"devDependencies": {
-		"@types/node": "^25.9.3",
+		"@types/node": "^26.2.0",
 		"dotenv": "^17.4.2",
-		"typescript": "^6.0.3",
-		"vitest": "^4.1.8"
+		"typescript": "^7.0.2",
+		"vitest": "^4.1.10"
 	}
 }

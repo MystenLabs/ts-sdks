@@ -98,8 +98,7 @@ export interface SubmitNonceCertOptions {
 export function submitNonceCert(options: SubmitNonceCertOptions) {
 	const packageAddress = options.package ?? '@local-pkg/hashi';
 	const argumentsTypes = [null, 'u64', 'u32', 'address', 'vector<u8>', null] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['hashi', 'epoch', 'batchIndex', 'dealer', 'messagesHash', 'cert'];
 	return (tx: Transaction) =>
@@ -135,8 +134,7 @@ export interface DestroyAllCertsOptions {
 export function destroyAllCerts(options: DestroyAllCertsOptions) {
 	const packageAddress = options.package ?? '@local-pkg/hashi';
 	const argumentsTypes = [null, 'u64', '0x1::option::Option<u32>', null] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['hashi', 'epoch', 'batchIndex', 'protocolType'];
 	return (tx: Transaction) =>

@@ -1,17 +1,37 @@
 ---
 title: Transaction Executors
-description: Manage transaction execution with queuing and parallel strategies.
+description: Manage transaction execution with queuing and parallel strategies
 keywords:
-  [
-    transaction executor,
-    SerialTransactionExecutor,
-    ParallelTransactionExecutor,
-    Sui,
-    gas coins,
-    execution,
-    queuing,
-    TypeScript SDK,
-  ]
+  - transaction executor
+  - SerialTransactionExecutor
+  - ParallelTransactionExecutor
+  - Sui
+  - gas coins
+  - execution
+  - queuing
+  - TypeScript SDK
+questions:
+  - What are executors in the Sui SDK?
+  - How do I retry failed Sui transactions?
+  - How do I execute transactions in parallel on Sui?
+answer: >-
+  Executors manage transaction submission with automatic retry, gas management, and parallel
+  execution support for high-throughput Sui applications.
+goal:
+  description: >-
+    Reader can use executors to manage transaction submission with retry and parallel execution
+  requires:
+    - has_frontmatter:
+        - title
+        - description
+        - keywords
+      label: Has required frontmatter fields
+    - min_words: 30
+      label: Needs content depth
+    - has_questions: true
+      label: Needs questions for AI search visibility
+    - has_answer: true
+      label: Needs answer summary for AI citation
 ---
 
 The TypeScript SDK ships two `Transaction` executor classes that simplify the processes of
@@ -42,14 +62,14 @@ transactions to finish before sending the next one.
 
 - `client`: An instance of a Sui client (such as `SuiGrpcClient`) used to execute transactions.
 - `signer`: The signer/keypair used for signed transactions.
-- `defaultBudget`: The default budget for transactions, which will be used if the transaction does
-  not specify a budget (default `50_000_000n`).
+- `defaultGasBudget`: The default budget for transactions, which will be used if the transaction
+  does not specify a budget (default `50_000_000n`).
 - `gasMode`: Either `'coins'` (default) to use owned coins for gas, or `'addressBalance'` to pay gas
   from the sender's address balance.
 
 ```ts
 import { SuiGrpcClient } from '@mysten/sui/grpc';
-import { SerialTransactionExecutor } from '@mysten/sui/transactions';
+import { SerialTransactionExecutor, Transaction } from '@mysten/sui/transactions';
 
 const client = new SuiGrpcClient({
 	network: 'devnet',
@@ -68,10 +88,18 @@ const tx2 = new Transaction();
 const [coin2] = tx2.splitCoins(tx2.gas, [1]);
 tx2.transferObjects([coin2], address2);
 
-const [{ digest: digest1 }, { digest: digest2 }] = await Promise.all([
+const results = await Promise.all([
 	executor.executeTransaction(tx1),
 	executor.executeTransaction(tx2),
 ]);
+
+const [digest1, digest2] = results.map((result) => {
+	if (result.$kind === 'FailedTransaction') {
+		throw new Error(`Transaction failed: ${result.FailedTransaction.status.error.message}`);
+	}
+
+	return result.Transaction.digest;
+});
 ```
 
 ## `ParallelTransactionExecutor`
@@ -102,7 +130,7 @@ way that avoids conflicts between transactions using the same object ids.
 
 `ParallelTransactionExecutor` can be configured with a number of options:
 
-- `client`: An instance of `SuiJsonRpcClient` used to execute transactions.
+- `client`: A client implementing `ClientWithCoreApi`. `SuiGrpcClient` is the recommended default.
 - `signer`: The signer/keypair used for signed transactions.
 - `gasMode`: Either `'coins'` (default) to use owned coins for gas, or `'addressBalance'` to pay gas
   from the sender's address balance. When using `'addressBalance'`, coin-specific options like
@@ -113,22 +141,21 @@ way that avoids conflicts between transactions using the same object ids.
   `200_000_000n`),
 - `minimumCoinBalance`: After executing a transaction, the gasCoin will be reused unless it's
   balance is below this value (default `50_000_000n`),
-- `defaultBudget`: The default budget for transactions, which will be used if the transaction does
-  not specify a budget (default `minimumCoinBalance`),
+- `defaultGasBudget`: The default budget for transactions, which will be used if the transaction
+  does not specify a budget (default `minimumCoinBalance`),
 - `maxPoolSize`: The maximum number of gas coins to keep in the gas pool, which also limits the
   maximum number of concurrent transactions (default 50),
 - `sourceCoins`: An array of coins to use to create the gas pool, defaults to using all coins owned
   by the signer.
-- `epochBoundaryWindow`: Time to wait before or after the expected epoch boundary before re-fetching
-  the gas pool (in milliseconds). Building transactions will be paused for up to 2x this duration
-  around each epoch boundary to ensure the gas price is up-to-date for the next epoch. (default
-  `1000`)
 
 ```ts
-import { getJsonRpcFullnodeUrl, SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
-import { ParallelTransactionExecutor } from '@mysten/sui/transactions';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+import { ParallelTransactionExecutor, Transaction } from '@mysten/sui/transactions';
 
-const client = new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl('devnet'), network: 'devnet' });
+const client = new SuiGrpcClient({
+	baseUrl: 'https://fullnode.devnet.sui.io:443',
+	network: 'devnet',
+});
 
 const executor = new ParallelTransactionExecutor({
 	client,
@@ -142,10 +169,18 @@ const tx2 = new Transaction();
 const [coin2] = tx2.splitCoins(tx2.gas, [1]);
 tx2.transferObjects([coin2], address2);
 
-const [{ digest: digest1 }, { digest: digest2 }] = await Promise.all([
+const results = await Promise.all([
 	executor.executeTransaction(tx1),
 	executor.executeTransaction(tx2),
 ]);
+
+const [digest1, digest2] = results.map((result) => {
+	if (result.$kind === 'FailedTransaction') {
+		throw new Error(`Transaction failed: ${result.FailedTransaction.status.error.message}`);
+	}
+
+	return result.Transaction.digest;
+});
 ```
 
 ## Building and executing transactions with executors

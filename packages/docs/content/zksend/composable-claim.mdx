@@ -1,6 +1,32 @@
 ---
 title: Composable Claims
 description: Claim a zkSend link and use the assets in the same transaction
+questions:
+  - What is Composable Claims?
+  - How do I use Composable Claims?
+  - How it works?
+  - How does Sponsorship work?
+keywords:
+  - zkSend
+  - composable claim
+  - claim links
+  - Sui
+  - asset transfer
+answer: Claim a zkSend link and use the assets in the same transaction
+goal:
+  description: Reader can claim a zkSend link and use the assets in the same transaction
+  requires:
+    - has_frontmatter:
+        - title
+        - description
+        - keywords
+      label: Has required frontmatter fields
+    - min_words: 30
+      label: Needs content depth
+    - has_questions: true
+      label: Needs questions for AI search visibility
+    - has_answer: true
+      label: Needs answer summary for AI citation
 ---
 
 By default, `link.claimAssets(address)` builds a claim transaction that transfers every asset to the

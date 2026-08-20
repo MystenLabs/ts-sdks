@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/enoki-connect",
-	"version": "1.1.10",
+	"version": "1.1.18",
 	"description": "Enoki Connect Wallet-Standard implementation",
 	"license": "Apache-2.0",
 	"author": "Mysten Labs <build@mystenlabs.com>",
@@ -38,9 +38,9 @@
 	},
 	"homepage": "https://github.com/MystenLabs/ts-sdks/tree/main/packages/enoki-connect#readme",
 	"devDependencies": {
-		"@types/node": "^25.9.3",
-		"typescript": "^6.0.3",
-		"vitest": "^4.1.8"
+		"@types/node": "^26.2.0",
+		"typescript": "^7.0.2",
+		"vitest": "^4.1.10"
 	},
 	"dependencies": {
 		"@mysten/utils": "workspace:^",

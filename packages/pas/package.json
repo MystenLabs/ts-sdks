@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/pas",
-	"version": "0.2.10",
+	"version": "0.2.18",
 	"private": false,
 	"description": "Permissioned Assets Standard SDK",
 	"license": "Apache-2.0",
@@ -48,11 +48,11 @@
 	},
 	"devDependencies": {
 		"@mysten/codegen": "workspace:^",
-		"@types/node": "^25.9.3",
+		"@types/node": "^26.2.0",
 		"ts-retry-promise": "^0.8.1",
-		"tsdown": "0.22.2",
-		"typescript": "^6.0.3",
-		"vitest": "^4.1.8"
+		"tsdown": "0.22.14",
+		"typescript": "^7.0.2",
+		"vitest": "^4.1.10"
 	},
 	"peerDependencies": {
 		"@mysten/sui": "workspace:^"

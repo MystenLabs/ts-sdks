@@ -94,8 +94,7 @@ export interface StartAuctionAndPlaceBidOptions {
 export function startAuctionAndPlaceBid(options: StartAuctionAndPlaceBidOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [null, null, '0x1::string::String', null, '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['self', 'suins', 'domainName', 'bid'];
 	return (tx: Transaction) =>
@@ -132,8 +131,7 @@ export interface PlaceBidOptions {
 export function placeBid(options: PlaceBidOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [null, '0x1::string::String', null, '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['self', 'domainName', 'bid'];
 	return (tx: Transaction) =>
@@ -164,8 +162,7 @@ export interface ClaimOptions {
 export function claim(options: ClaimOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [null, '0x1::string::String', '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['self', 'domainName'];
 	return (tx: Transaction) =>
@@ -224,8 +221,7 @@ export interface CollectWinningAuctionFundOptions {
 export function collectWinningAuctionFund(options: CollectWinningAuctionFundOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [null, '0x1::string::String', '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['self', 'domainName'];
 	return (tx: Transaction) =>
@@ -293,8 +289,7 @@ export interface AdminFinalizeAuctionOptions {
 export function adminFinalizeAuction(options: AdminFinalizeAuctionOptions) {
 	const packageAddress = options.package ?? '@suins/core';
 	const argumentsTypes = [null, null, '0x1::string::String', '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['admin', 'self', 'domain'];
 	return (tx: Transaction) =>

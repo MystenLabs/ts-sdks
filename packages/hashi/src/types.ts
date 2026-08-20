@@ -34,8 +34,13 @@ export interface HashiClientOptions<Name = string> {
  * by `HashiClient.view.all()`. Fields are `readonly` because the snapshot is
  * a point-in-time read from chain — mutating it locally cannot change on-chain
  * state. `depositMinimum` is a Move-side alias of `bitcoinDepositMinimum`;
- * `worstCaseNetworkFee` is derived as `bitcoinWithdrawalMinimum - 546` (the
- * dust relay floor) and is always ≥ 1.
+ * `worstCaseNetworkFee` mirrors the on-chain `worst_case_network_fee()`
+ * function: `bitcoinWithdrawalMinimum - 546` (the dust relay floor), always
+ * ≥ 1. It is the protocol's per-user miner-fee *budget* (the bound the batch
+ * verifier enforces), NOT a realistic fee expectation — because it tracks the
+ * withdrawal minimum, it balloons whenever governance raises the minimum as a
+ * policy throttle. For display, prefer `view.withdrawalFees()`, which caps
+ * this at a ceiling derived from validator consensus limits.
  *
  * The three `guardian*` fields are `null` on deployments where the guardian
  * config hasn't been written yet (pre-feature chains or in-flight rollouts).
@@ -254,7 +259,14 @@ export interface DepositFees {
 }
 
 export interface WithdrawalFees {
-	/** Worst-case BTC network fee in satoshis. */
+	/**
+	 * Worst-case BTC network fee in satoshis: the protocol's per-user fee
+	 * budget (`worst_case_network_fee` on-chain), capped at
+	 * `WORST_CASE_NETWORK_FEE_CEILING_SATS` so it remains a usable display
+	 * bound when governance raises the withdrawal minimum as a policy
+	 * throttle. Safe to subtract from a withdrawal amount for a net-of-fee
+	 * estimate.
+	 */
 	readonly worstCaseNetworkFeeSats: bigint;
 	/** Minimum withdrawal amount in satoshis. */
 	readonly withdrawalMinimumSats: bigint;

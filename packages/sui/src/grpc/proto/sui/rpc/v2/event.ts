@@ -81,6 +81,37 @@ export interface Event {
 	 * @generated from protobuf field: optional google.protobuf.Value json = 6;
 	 */
 	json?: Value;
+	/**
+	 * The sequence number of the checkpoint that includes the transaction
+	 * that emitted this event. Populated when the event is delivered on its
+	 * own (for example via `LedgerService.ListEvents`); left unset when the
+	 * event is carried inside its transaction's `events` list, where the
+	 * enclosing `ExecutedTransaction` already provides this context.
+	 *
+	 * @generated from protobuf field: optional uint64 checkpoint = 7;
+	 */
+	checkpoint?: bigint;
+	/**
+	 * The digest of the transaction that emitted this event.
+	 *
+	 * @generated from protobuf field: optional string transaction_digest = 8;
+	 */
+	transactionDigest?: string;
+	/**
+	 * Zero-based position of the emitting transaction within its containing
+	 * checkpoint. For clients verifying authenticated event streams this
+	 * index is part of the BCS-encoded `EventCommitment` leaf used to
+	 * construct the per-checkpoint merkle root.
+	 *
+	 * @generated from protobuf field: optional uint64 transaction_index = 9;
+	 */
+	transactionIndex?: bigint;
+	/**
+	 * Zero-based index of this event within its transaction's event list.
+	 *
+	 * @generated from protobuf field: optional uint32 event_index = 10;
+	 */
+	eventIndex?: number;
 }
 // @generated message type with reflection information, may provide speed optimized methods
 class TransactionEvents$Type extends MessageType<TransactionEvents> {
@@ -106,6 +137,24 @@ class Event$Type extends MessageType<Event> {
 			{ no: 4, name: 'event_type', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
 			{ no: 5, name: 'contents', kind: 'message', T: () => Bcs },
 			{ no: 6, name: 'json', kind: 'message', T: () => Value },
+			{
+				no: 7,
+				name: 'checkpoint',
+				kind: 'scalar',
+				opt: true,
+				T: 4 /*ScalarType.UINT64*/,
+				L: 0 /*LongType.BIGINT*/,
+			},
+			{ no: 8, name: 'transaction_digest', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
+			{
+				no: 9,
+				name: 'transaction_index',
+				kind: 'scalar',
+				opt: true,
+				T: 4 /*ScalarType.UINT64*/,
+				L: 0 /*LongType.BIGINT*/,
+			},
+			{ no: 10, name: 'event_index', kind: 'scalar', opt: true, T: 13 /*ScalarType.UINT32*/ },
 		]);
 	}
 }

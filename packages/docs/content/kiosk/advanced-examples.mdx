@@ -1,7 +1,35 @@
 ---
 title: Advanced Examples
-description: Advanced Kiosk SDK usage patterns and code examples for complex scenarios.
-keywords: [Kiosk SDK, advanced examples, transfer policy, purchase, listing, Sui, TypeScript]
+description: Advanced Kiosk SDK usage patterns and code examples for complex scenarios
+keywords:
+  - Kiosk SDK
+  - advanced examples
+  - transfer policy
+  - purchase
+  - listing
+  - Sui
+  - TypeScript
+questions:
+  - What is Advanced Examples?
+  - How do I use Advanced Examples?
+  - How does Minting a SuiFren work?
+  - How does Mixing two Suifrens work?
+answer: Advanced Kiosk SDK usage patterns and code examples for complex scenarios
+goal:
+  description: >-
+    Reader understands advanced Kiosk SDK usage patterns and code examples for complex scenarios
+  requires:
+    - has_frontmatter:
+        - title
+        - description
+        - keywords
+      label: Has required frontmatter fields
+    - min_words: 30
+      label: Needs content depth
+    - has_questions: true
+      label: Needs questions for AI search visibility
+    - has_answer: true
+      label: Needs answer summary for AI citation
 ---
 
 # Some extended examples
@@ -9,8 +37,9 @@ keywords: [Kiosk SDK, advanced examples, transfer policy, purchase, listing, Sui
 For these examples, assume you have the following data and functions available:
 
 ```typescript
-import { kiosk, KioskTransaction } from '@mysten/kiosk';
-import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+import { kiosk, KioskTransaction, type KioskOwnerCap } from '@mysten/kiosk';
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+import { Transaction } from '@mysten/sui/transactions';
 
 // a constant for bullshark's type.
 const bullsharkType = `${packageId}::suifrens::SuiFren<${packageId}::bullshark::Bullshark>`;
@@ -18,8 +47,8 @@ const bullsharkType = `${packageId}::suifrens::SuiFren<${packageId}::bullshark::
 const capyType = `${packageId}::suifrens::SuiFren<${packageId}::capy::Capy>`;
 
 // initialize the client with the kiosk extension.
-const client = new SuiJsonRpcClient({
-	url: getJsonRpcFullnodeUrl('mainnet'),
+const client = new SuiGrpcClient({
+	baseUrl: 'https://fullnode.mainnet.sui.io:443',
 	network: 'mainnet',
 }).$extend(kiosk());
 ```

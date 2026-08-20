@@ -51,8 +51,7 @@ export interface ParallelTransactionExecutorAddressBalanceOptions extends Parall
 
 /** Options for ParallelTransactionExecutor - discriminated union based on gasMode */
 export type ParallelTransactionExecutorOptions =
-	| ParallelTransactionExecutorCoinOptions
-	| ParallelTransactionExecutorAddressBalanceOptions;
+	ParallelTransactionExecutorCoinOptions | ParallelTransactionExecutorAddressBalanceOptions;
 
 interface CoinWithBalance {
 	id: string;

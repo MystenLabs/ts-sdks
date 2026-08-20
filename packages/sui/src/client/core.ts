@@ -112,6 +112,14 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 		options: SuiClientTypes.ListDynamicFieldsOptions,
 	): Promise<SuiClientTypes.ListDynamicFieldsResponse>;
 
+	abstract listTransactions<Include extends SuiClientTypes.TransactionInclude = {}>(
+		options: SuiClientTypes.ListTransactionsOptions<Include>,
+	): Promise<SuiClientTypes.ListTransactionsResponse<Include>>;
+
+	abstract listEvents(
+		options: SuiClientTypes.ListEventsOptions,
+	): Promise<SuiClientTypes.ListEventsResponse>;
+
 	abstract resolveTransactionPlugin(): TransactionPlugin;
 
 	abstract verifyZkLoginSignature(
@@ -125,6 +133,10 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 	abstract defaultNameServiceName(
 		options: SuiClientTypes.DefaultNameServiceNameOptions,
 	): Promise<SuiClientTypes.DefaultNameServiceNameResponse>;
+
+	abstract resolveNameServiceAddress(
+		options: SuiClientTypes.ResolveNameServiceAddressOptions,
+	): Promise<SuiClientTypes.ResolveNameServiceAddressResponse>;
 
 	async getDynamicField(
 		options: SuiClientTypes.GetDynamicFieldOptions,
@@ -197,6 +209,7 @@ export abstract class CoreClient extends BaseClient implements SuiClientTypes.Tr
 		const resolvedNameType = (
 			await this.core.mvr.resolveType({
 				type: options.name.type,
+				signal: options.signal,
 			})
 		).type;
 		const wrappedType = `0x2::dynamic_object_field::Wrapper<${resolvedNameType}>`;

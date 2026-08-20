@@ -245,8 +245,7 @@ export interface RevokeMaintainerCapOptions {
 export function revokeMaintainerCap(options: RevokeMaintainerCapOptions) {
 	const packageAddress = options.package ?? '@deepbook/margin';
 	const argumentsTypes = [null, null, '0x2::object::ID', '0x2::clock::Clock'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['self', 'AdminCap', 'maintainerCapId'];
 	return (tx: Transaction) =>
@@ -580,8 +579,7 @@ export interface RevokePauseCapOptions {
 export function revokePauseCap(options: RevokePauseCapOptions) {
 	const packageAddress = options.package ?? '@deepbook/margin';
 	const argumentsTypes = [null, null, '0x2::clock::Clock', '0x2::object::ID'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = ['self', 'AdminCap', 'pauseCapId'];
 	return (tx: Transaction) =>
@@ -771,8 +769,7 @@ export interface NewPoolConfigOptions {
 export function newPoolConfig(options: NewPoolConfigOptions) {
 	const packageAddress = options.package ?? '@deepbook/margin';
 	const argumentsTypes = [null, 'u64', 'u64', 'u64', 'u64', 'u64', 'u64'] satisfies (
-		| string
-		| null
+		string | null
 	)[];
 	const parameterNames = [
 		'self',

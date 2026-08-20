@@ -1,26 +1,43 @@
 ---
 title: '@mysten/dapp-kit'
-description: Migrate @mysten/dapp-kit to the new dapp-kit-react package in 2.0.
+description: Migrate @mysten/dapp-kit to the new dapp-kit-react package in 2.0
 keywords:
-  [
-    migration,
-    '@mysten/dapp-kit',
-    dapp-kit-react,
-    2.0,
-    React,
-    framework-agnostic,
-    hooks,
-    breaking changes,
-  ]
+  - migration
+  - '@mysten/dapp-kit'
+  - dapp-kit-react
+  - '2.0'
+  - React
+  - framework-agnostic
+  - hooks
+  - breaking changes
+questions:
+  - What changed in the @mysten/dapp-kit migration?
+  - How do I migrate to @mysten/dapp-kit?
+  - How does Step-by-step migration work?
+  - How does CSS and theming changes work?
+answer: Migrate @mysten/dapp-kit to the new dapp-kit-react package in 2.0
+goal:
+  description: Reader can migrate @mysten/dapp-kit to the new dapp-kit-react package in 2.0
+  requires:
+    - has_frontmatter:
+        - title
+        - description
+        - keywords
+      label: Has required frontmatter fields
+    - min_words: 30
+      label: Needs content depth
+    - has_questions: true
+      label: Needs questions for AI search visibility
+    - has_answer: true
+      label: Needs answer summary for AI citation
 ---
 
 This guide helps you migrate from the original `@mysten/dapp-kit` (legacy) to the new
 `@mysten/dapp-kit-react` package.
 
 <Callout type="info">
-	The legacy `@mysten/dapp-kit` package will continue to work with the latest SDK, but it only
-	supports JSON-RPC and will not receive further updates. We recommend migrating to
-	`@mysten/dapp-kit-react` for new features and gRPC support.
+	The legacy `@mysten/dapp-kit` package only supports the deprecated JSON RPC API and will not
+	receive further updates. Migrate to `@mysten/dapp-kit-react` for gRPC support and new features.
 </Callout>
 
 ## Overview
@@ -291,7 +308,7 @@ The built-in data fetching hooks have been removed. Use TanStack Query's `useQue
 - 	});
 + 	const { data, isLoading, error } = useQuery({
 + 		queryKey: ['object', objectId],
-+ 		queryFn: () => client.core.getObject({ objectId }),
++ 		queryFn: () => client.getObject({ objectId }),
 + 	});
   	// ...
   }
@@ -312,7 +329,7 @@ export function ExampleComponent({ objectId }: { objectId: string }) {
 	const [error, setError] = useState<string | null>(null);
 
 	useEffect(() => {
-		client.core
+		client
 			.getObject({ objectId })
 			.then((result) => setData(result.object ?? null))
 			.catch((err) => setError(err.message))

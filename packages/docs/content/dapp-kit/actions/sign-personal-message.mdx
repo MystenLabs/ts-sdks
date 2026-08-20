@@ -1,9 +1,38 @@
 ---
 title: Sign Personal Message
-description:
+description: >-
   Sign an arbitrary message with the connected wallet for authentication or proof of ownership.
 keywords:
-  [sign message, personal message, dApp Kit, authentication, wallet, Sui, cryptographic signature]
+  - sign message
+  - personal message
+  - dApp Kit
+  - authentication
+  - wallet
+  - Sui
+  - cryptographic signature
+questions:
+  - How do I sign personal message with Sui dApp Kit?
+  - What does Sign Personal Message do?
+  - How does Parameters work?
+  - How does Return value work?
+answer: >-
+  Sign an arbitrary message with the connected wallet for authentication or proof of ownership.
+goal:
+  description: >-
+    Reader can sign an arbitrary message with the connected wallet for authentication or proof of
+    ownership
+  requires:
+    - has_frontmatter:
+        - title
+        - description
+        - keywords
+      label: Has required frontmatter fields
+    - min_words: 30
+      label: Needs content depth
+    - has_questions: true
+      label: Needs questions for AI search visibility
+    - has_answer: true
+      label: Needs answer summary for AI citation
 ---
 
 The `signPersonalMessage` action prompts the connected wallet to sign a personal message. This is
@@ -15,9 +44,7 @@ that a user controls a specific account.
 ```typescript
 import { createDAppKit } from '@mysten/dapp-kit-core';
 
-const dAppKit = createDAppKit({
-	/* config */
-});
+const dAppKit = createDAppKit({/* config */});
 
 const message = new TextEncoder().encode('Please sign this message');
 const result = await dAppKit.signPersonalMessage({

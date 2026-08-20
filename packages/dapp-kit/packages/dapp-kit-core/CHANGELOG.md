@@ -1,5 +1,27 @@
 # @mysten/dapp-kit-core
 
+## 1.6.18
+
+### Patch Changes
+
+- f2f7048: Upgrade workspace dependencies, remove the legacy dapp-kit package, and migrate the
+  remaining consumers to the current gRPC-based dapp-kit. Remove the legacy API reference while
+  retaining the migration guide and deprecation notice.
+
+## 1.6.17
+
+## 1.6.16
+
+## 1.6.15
+
+## 1.6.14
+
+## 1.6.13
+
+## 1.6.12
+
+## 1.6.11
+
 ## 1.6.10
 
 ## 1.6.9

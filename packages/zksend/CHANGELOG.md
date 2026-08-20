@@ -1,5 +1,32 @@
 # @mysten/zksend
 
+## 1.2.18
+
+### Patch Changes
+
+- f2f7048: Upgrade workspace dependencies, remove the legacy dapp-kit package, and migrate the
+  remaining consumers to the current gRPC-based dapp-kit. Remove the legacy API reference while
+  retaining the migration guide and deprecation notice.
+
+## 1.2.17
+
+## 1.2.16
+
+## 1.2.15
+
+## 1.2.14
+
+## 1.2.13
+
+## 1.2.12
+
+### Patch Changes
+
+- 8c4b149: Update dependencies to versions that resolve security advisories: hono,
+  @hono/node-server, next, postcss, and valibot
+
+## 1.2.11
+
 ## 1.2.10
 
 ## 1.2.9

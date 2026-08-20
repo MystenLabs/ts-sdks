@@ -11,6 +11,12 @@
 //
 import { ServiceType } from '@protobuf-ts/runtime-rpc';
 import { MessageType } from '@protobuf-ts/runtime';
+import { Event } from './event.js';
+import { EventFilter } from './filter.js';
+import { QueryEnd } from './query_options.js';
+import { Watermark } from './query_options.js';
+import { QueryOptions } from './query_options.js';
+import { TransactionFilter } from './filter.js';
 import { Epoch } from './epoch.js';
 import { Checkpoint } from './checkpoint.js';
 import { ExecutedTransaction } from './executed_transaction.js';
@@ -320,6 +326,253 @@ export interface GetEpochResponse {
 	 */
 	epoch?: Epoch;
 }
+/**
+ * Request message for LedgerService.ListCheckpoints.
+ *
+ * @generated from protobuf message sui.rpc.v2.ListCheckpointsRequest
+ */
+export interface ListCheckpointsRequest {
+	/**
+	 * Optional. Mask for specifying which parts of the Checkpoint should be
+	 * returned (e.g. summary, contents, signatures).
+	 *
+	 * @generated from protobuf field: optional google.protobuf.FieldMask read_mask = 1;
+	 */
+	readMask?: FieldMask;
+	/**
+	 * Optional. Start of the checkpoint range to query (inclusive). Defaults to
+	 * genesis.
+	 *
+	 * @generated from protobuf field: optional uint64 start_checkpoint = 2;
+	 */
+	startCheckpoint?: bigint;
+	/**
+	 * Optional. End of the checkpoint range to query (exclusive). Defaults to the
+	 * current indexed ledger tip.
+	 *
+	 * @generated from protobuf field: optional uint64 end_checkpoint = 3;
+	 */
+	endCheckpoint?: bigint;
+	/**
+	 * Optional. DNF filter over indexed transaction dimensions. A checkpoint
+	 * matches if any transaction it contains satisfies the filter. If absent,
+	 * all checkpoints in the range are returned.
+	 *
+	 * @generated from protobuf field: optional sui.rpc.v2.TransactionFilter filter = 4;
+	 */
+	filter?: TransactionFilter;
+	/**
+	 * Optional cursor-bounded query options. If unspecified, reads in ascending
+	 * order with the default item limit. The server enforces a maximum item
+	 * limit and silently coerces larger values down to it. To paginate, pass
+	 * the last received `Watermark.cursor` as `options.after` (ascending) or
+	 * `options.before` (descending) on the next request.
+	 *
+	 * @generated from protobuf field: optional sui.rpc.v2.QueryOptions options = 5;
+	 */
+	options?: QueryOptions;
+}
+/**
+ * Response message for LedgerService.ListCheckpoints.
+ *
+ * Every frame carries a `watermark` with a safe resume cursor. A frame
+ * with `checkpoint` set delivers one matching item; a frame without it reports
+ * scan progress or terminal completion. Watermarks never regress in the
+ * requested ordering but may repeat.
+ *
+ * `end` is set exactly once, on the final frame of a successful stream. For
+ * `QUERY_END_REASON_ITEM_LIMIT`, that frame also carries the final item. For
+ * every other end reason, the final frame has no `checkpoint` payload.
+ *
+ * @generated from protobuf message sui.rpc.v2.ListCheckpointsResponse
+ */
+export interface ListCheckpointsResponse {
+	/**
+	 * One matching checkpoint.
+	 *
+	 * @generated from protobuf field: optional sui.rpc.v2.Checkpoint checkpoint = 1;
+	 */
+	checkpoint?: Checkpoint;
+	/**
+	 * Progress watermark as of this frame. Present on every frame. A
+	 * ScanLimit terminal watermark may repeat the previous frame's cursor when
+	 * its authoritative scan frontier was already emitted.
+	 *
+	 * @generated from protobuf field: optional sui.rpc.v2.Watermark watermark = 2;
+	 */
+	watermark?: Watermark;
+	/**
+	 * Set exactly once, on the final frame of a successful query stream.
+	 *
+	 * @generated from protobuf field: optional sui.rpc.v2.QueryEnd end = 3;
+	 */
+	end?: QueryEnd;
+}
+/**
+ * Request message for LedgerService.ListTransactions.
+ *
+ * @generated from protobuf message sui.rpc.v2.ListTransactionsRequest
+ */
+export interface ListTransactionsRequest {
+	/**
+	 * Optional. Mask for specifying which parts of the ExecutedTransaction
+	 * should be returned.
+	 *
+	 * @generated from protobuf field: optional google.protobuf.FieldMask read_mask = 1;
+	 */
+	readMask?: FieldMask;
+	/**
+	 * Optional. Start of the checkpoint range to query (inclusive). Defaults to
+	 * genesis.
+	 *
+	 * @generated from protobuf field: optional uint64 start_checkpoint = 2;
+	 */
+	startCheckpoint?: bigint;
+	/**
+	 * Optional. End of the checkpoint range to query (exclusive). Defaults to the
+	 * current indexed ledger tip.
+	 *
+	 * @generated from protobuf field: optional uint64 end_checkpoint = 3;
+	 */
+	endCheckpoint?: bigint;
+	/**
+	 * Optional. DNF filter over indexed dimensions.
+	 * If absent, all transactions in the range are returned.
+	 *
+	 * @generated from protobuf field: optional sui.rpc.v2.TransactionFilter filter = 4;
+	 */
+	filter?: TransactionFilter;
+	/**
+	 * Optional cursor-bounded query options. If unspecified, reads in ascending
+	 * order with the default item limit. The server enforces a maximum item
+	 * limit and silently coerces larger values down to it. To paginate, pass
+	 * the last received `Watermark.cursor` as `options.after` (ascending) or
+	 * `options.before` (descending) on the next request.
+	 *
+	 * @generated from protobuf field: optional sui.rpc.v2.QueryOptions options = 5;
+	 */
+	options?: QueryOptions;
+}
+/**
+ * Response message for LedgerService.ListTransactions.
+ *
+ * Every frame carries a `watermark` with a safe resume cursor. A frame
+ * with `transaction` set delivers one matching item; a frame without it reports
+ * scan progress or terminal completion. Watermarks never regress in the
+ * requested ordering but may repeat.
+ *
+ * `end` is set exactly once, on the final frame of a successful stream. For
+ * `QUERY_END_REASON_ITEM_LIMIT`, that frame also carries the final item. For
+ * every other end reason, the final frame has no `transaction` payload.
+ *
+ * @generated from protobuf message sui.rpc.v2.ListTransactionsResponse
+ */
+export interface ListTransactionsResponse {
+	/**
+	 * One matching transaction. Its position within the containing checkpoint
+	 * is reported by `ExecutedTransaction.transaction_index`.
+	 *
+	 * @generated from protobuf field: optional sui.rpc.v2.ExecutedTransaction transaction = 1;
+	 */
+	transaction?: ExecutedTransaction;
+	/**
+	 * Progress watermark as of this frame. Present on every frame. A
+	 * ScanLimit terminal watermark may repeat the previous frame's cursor when
+	 * its authoritative scan frontier was already emitted.
+	 *
+	 * @generated from protobuf field: optional sui.rpc.v2.Watermark watermark = 2;
+	 */
+	watermark?: Watermark;
+	/**
+	 * Set exactly once, on the final frame of a successful query stream.
+	 *
+	 * @generated from protobuf field: optional sui.rpc.v2.QueryEnd end = 3;
+	 */
+	end?: QueryEnd;
+}
+/**
+ * Request message for LedgerService.ListEvents.
+ *
+ * @generated from protobuf message sui.rpc.v2.ListEventsRequest
+ */
+export interface ListEventsRequest {
+	/**
+	 * Optional. Mask for specifying which parts of the Event should be returned.
+	 *
+	 * @generated from protobuf field: optional google.protobuf.FieldMask read_mask = 1;
+	 */
+	readMask?: FieldMask;
+	/**
+	 * Optional. Start of the checkpoint range to query (inclusive). Defaults to
+	 * genesis.
+	 *
+	 * @generated from protobuf field: optional uint64 start_checkpoint = 2;
+	 */
+	startCheckpoint?: bigint;
+	/**
+	 * Optional. End of the checkpoint range to query (exclusive). Defaults to the
+	 * current indexed ledger tip.
+	 *
+	 * @generated from protobuf field: optional uint64 end_checkpoint = 3;
+	 */
+	endCheckpoint?: bigint;
+	/**
+	 * Optional. DNF filter over indexed dimensions.
+	 * If absent, all events in the range are returned.
+	 *
+	 * @generated from protobuf field: optional sui.rpc.v2.EventFilter filter = 4;
+	 */
+	filter?: EventFilter;
+	/**
+	 * Optional cursor-bounded query options. If unspecified, reads in ascending
+	 * order with the default item limit. The server enforces a maximum item
+	 * limit and silently coerces larger values down to it. To paginate, pass
+	 * the last received `Watermark.cursor` as `options.after` (ascending) or
+	 * `options.before` (descending) on the next request.
+	 *
+	 * @generated from protobuf field: optional sui.rpc.v2.QueryOptions options = 5;
+	 */
+	options?: QueryOptions;
+}
+/**
+ * Response message for LedgerService.ListEvents.
+ *
+ * Every frame carries a `watermark` with a safe resume cursor. A frame
+ * with `event` set delivers one matching item; a frame without it reports scan
+ * progress or terminal completion. Watermarks never regress in the requested
+ * ordering but may repeat.
+ *
+ * `end` is set exactly once, on the final frame of a successful stream. For
+ * `QUERY_END_REASON_ITEM_LIMIT`, that frame also carries the final item. For
+ * every other end reason, the final frame has no `event` payload.
+ *
+ * @generated from protobuf message sui.rpc.v2.ListEventsResponse
+ */
+export interface ListEventsResponse {
+	/**
+	 * One matching event. Its ledger position -- containing checkpoint,
+	 * emitting transaction digest and offset, and index within that
+	 * transaction's event list -- is reported by the corresponding fields on
+	 * `Event`.
+	 *
+	 * @generated from protobuf field: optional sui.rpc.v2.Event event = 1;
+	 */
+	event?: Event;
+	/**
+	 * Progress watermark as of this frame. Present on every frame. A
+	 * ScanLimit terminal watermark may repeat the previous frame's cursor when
+	 * its authoritative scan frontier was already emitted.
+	 *
+	 * @generated from protobuf field: optional sui.rpc.v2.Watermark watermark = 2;
+	 */
+	watermark?: Watermark;
+	/**
+	 * Set exactly once, on the final frame of a successful query stream.
+	 *
+	 * @generated from protobuf field: optional sui.rpc.v2.QueryEnd end = 3;
+	 */
+	end?: QueryEnd;
+}
 // @generated message type with reflection information, may provide speed optimized methods
 class GetServiceInfoRequest$Type extends MessageType<GetServiceInfoRequest> {
 	constructor() {
@@ -606,6 +859,138 @@ class GetEpochResponse$Type extends MessageType<GetEpochResponse> {
  * @generated MessageType for protobuf message sui.rpc.v2.GetEpochResponse
  */
 export const GetEpochResponse = new GetEpochResponse$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class ListCheckpointsRequest$Type extends MessageType<ListCheckpointsRequest> {
+	constructor() {
+		super('sui.rpc.v2.ListCheckpointsRequest', [
+			{ no: 1, name: 'read_mask', kind: 'message', T: () => FieldMask },
+			{
+				no: 2,
+				name: 'start_checkpoint',
+				kind: 'scalar',
+				opt: true,
+				T: 4 /*ScalarType.UINT64*/,
+				L: 0 /*LongType.BIGINT*/,
+			},
+			{
+				no: 3,
+				name: 'end_checkpoint',
+				kind: 'scalar',
+				opt: true,
+				T: 4 /*ScalarType.UINT64*/,
+				L: 0 /*LongType.BIGINT*/,
+			},
+			{ no: 4, name: 'filter', kind: 'message', T: () => TransactionFilter },
+			{ no: 5, name: 'options', kind: 'message', T: () => QueryOptions },
+		]);
+	}
+}
+/**
+ * @generated MessageType for protobuf message sui.rpc.v2.ListCheckpointsRequest
+ */
+export const ListCheckpointsRequest = new ListCheckpointsRequest$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class ListCheckpointsResponse$Type extends MessageType<ListCheckpointsResponse> {
+	constructor() {
+		super('sui.rpc.v2.ListCheckpointsResponse', [
+			{ no: 1, name: 'checkpoint', kind: 'message', T: () => Checkpoint },
+			{ no: 2, name: 'watermark', kind: 'message', T: () => Watermark },
+			{ no: 3, name: 'end', kind: 'message', T: () => QueryEnd },
+		]);
+	}
+}
+/**
+ * @generated MessageType for protobuf message sui.rpc.v2.ListCheckpointsResponse
+ */
+export const ListCheckpointsResponse = new ListCheckpointsResponse$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class ListTransactionsRequest$Type extends MessageType<ListTransactionsRequest> {
+	constructor() {
+		super('sui.rpc.v2.ListTransactionsRequest', [
+			{ no: 1, name: 'read_mask', kind: 'message', T: () => FieldMask },
+			{
+				no: 2,
+				name: 'start_checkpoint',
+				kind: 'scalar',
+				opt: true,
+				T: 4 /*ScalarType.UINT64*/,
+				L: 0 /*LongType.BIGINT*/,
+			},
+			{
+				no: 3,
+				name: 'end_checkpoint',
+				kind: 'scalar',
+				opt: true,
+				T: 4 /*ScalarType.UINT64*/,
+				L: 0 /*LongType.BIGINT*/,
+			},
+			{ no: 4, name: 'filter', kind: 'message', T: () => TransactionFilter },
+			{ no: 5, name: 'options', kind: 'message', T: () => QueryOptions },
+		]);
+	}
+}
+/**
+ * @generated MessageType for protobuf message sui.rpc.v2.ListTransactionsRequest
+ */
+export const ListTransactionsRequest = new ListTransactionsRequest$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class ListTransactionsResponse$Type extends MessageType<ListTransactionsResponse> {
+	constructor() {
+		super('sui.rpc.v2.ListTransactionsResponse', [
+			{ no: 1, name: 'transaction', kind: 'message', T: () => ExecutedTransaction },
+			{ no: 2, name: 'watermark', kind: 'message', T: () => Watermark },
+			{ no: 3, name: 'end', kind: 'message', T: () => QueryEnd },
+		]);
+	}
+}
+/**
+ * @generated MessageType for protobuf message sui.rpc.v2.ListTransactionsResponse
+ */
+export const ListTransactionsResponse = new ListTransactionsResponse$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class ListEventsRequest$Type extends MessageType<ListEventsRequest> {
+	constructor() {
+		super('sui.rpc.v2.ListEventsRequest', [
+			{ no: 1, name: 'read_mask', kind: 'message', T: () => FieldMask },
+			{
+				no: 2,
+				name: 'start_checkpoint',
+				kind: 'scalar',
+				opt: true,
+				T: 4 /*ScalarType.UINT64*/,
+				L: 0 /*LongType.BIGINT*/,
+			},
+			{
+				no: 3,
+				name: 'end_checkpoint',
+				kind: 'scalar',
+				opt: true,
+				T: 4 /*ScalarType.UINT64*/,
+				L: 0 /*LongType.BIGINT*/,
+			},
+			{ no: 4, name: 'filter', kind: 'message', T: () => EventFilter },
+			{ no: 5, name: 'options', kind: 'message', T: () => QueryOptions },
+		]);
+	}
+}
+/**
+ * @generated MessageType for protobuf message sui.rpc.v2.ListEventsRequest
+ */
+export const ListEventsRequest = new ListEventsRequest$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class ListEventsResponse$Type extends MessageType<ListEventsResponse> {
+	constructor() {
+		super('sui.rpc.v2.ListEventsResponse', [
+			{ no: 1, name: 'event', kind: 'message', T: () => Event },
+			{ no: 2, name: 'watermark', kind: 'message', T: () => Watermark },
+			{ no: 3, name: 'end', kind: 'message', T: () => QueryEnd },
+		]);
+	}
+}
+/**
+ * @generated MessageType for protobuf message sui.rpc.v2.ListEventsResponse
+ */
+export const ListEventsResponse = new ListEventsResponse$Type();
 /**
  * @generated ServiceType for protobuf service sui.rpc.v2.LedgerService
  */
@@ -622,4 +1007,25 @@ export const LedgerService = new ServiceType('sui.rpc.v2.LedgerService', [
 	},
 	{ name: 'GetCheckpoint', options: {}, I: GetCheckpointRequest, O: GetCheckpointResponse },
 	{ name: 'GetEpoch', options: {}, I: GetEpochRequest, O: GetEpochResponse },
+	{
+		name: 'ListCheckpoints',
+		serverStreaming: true,
+		options: {},
+		I: ListCheckpointsRequest,
+		O: ListCheckpointsResponse,
+	},
+	{
+		name: 'ListTransactions',
+		serverStreaming: true,
+		options: {},
+		I: ListTransactionsRequest,
+		O: ListTransactionsResponse,
+	},
+	{
+		name: 'ListEvents',
+		serverStreaming: true,
+		options: {},
+		I: ListEventsRequest,
+		O: ListEventsResponse,
+	},
 ]);

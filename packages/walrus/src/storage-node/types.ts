@@ -36,10 +36,7 @@ export type RawGetBlobStatusResponse = {
 };
 
 export type RawBlobStatus =
-	| 'nonexistent'
-	| InvalidBlobStatus
-	| PermanentBlobStatus
-	| DeletableBlobStatus;
+	'nonexistent' | InvalidBlobStatus | PermanentBlobStatus | DeletableBlobStatus;
 
 export type InvalidBlobStatus = {
 	invalid: {
