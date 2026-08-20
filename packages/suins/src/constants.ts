@@ -16,7 +16,7 @@ export const ALLOWED_METADATA = {
 
 export const mainPackage: Config = {
 	mainnet: {
-		packageId: '0x71af035413ed499710980ed8adb010bbf2cc5cacf4ab37c7710a4bb87eb58ba5',
+		packageId: '0x55800f20ca5ac11f2d8ef41e3900e8d4e338efd3cb263b62e73fd8be75be2003',
 		packageIdV1: '0xd22b24490e0bae52676651b4f56660a5ff8022a2576e0089f79b3c88d44e08f0',
 		packageIdPricing: '0x71af035413ed499710980ed8adb010bbf2cc5cacf4ab37c7710a4bb87eb58ba5',
 		suins: '0x6e0ddefc0ad98889c04bab9639e512c21766c5e6366f89e696956d9be6952871',
