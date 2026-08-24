@@ -5,16 +5,15 @@
 /**
  * PLP token and pool vault.
  *
- * PoolVault owns the PLP treasury cap, the pooled DEEP staked by accounts, idle
- * DUSDC, the protocol reserve, sponsor-funded fee incentives, per-expiry cash
- * accounting, and the queued LP supply/withdraw requests. It coordinates the
- * full-pool NAV valuation (a hot-potato aggregation over every active market) and
- * the unified per-market cash flow (initial funding, live rebalance/sweep, and
- * settled-market sweep with terminal profit materialization). LPs queue
- * supply/withdraw requests routed through a loaded Account; each flush
- * (`finish_flush`) drains them at the frozen pool NAV, minting/burning PLP and
- * delivering fills to each account via the balance accumulator. DEEP held here
- * provides account trading benefits and is not part of PLP share value.
+ * PoolVault owns the PLP treasury cap, idle DUSDC, the protocol reserve,
+ * sponsor-funded fee incentives, per-expiry cash accounting, and the queued LP
+ * supply/withdraw requests. It coordinates the full-pool NAV valuation (a
+ * hot-potato aggregation over every active market) and the unified per-market cash
+ * flow (initial funding, live rebalance/sweep, and settled-market sweep with
+ * terminal profit materialization). LPs queue supply/withdraw requests routed
+ * through a loaded Account; each flush (`finish_flush`) drains them at the frozen
+ * pool NAV, minting/burning PLP and delivering fills to each account via the
+ * balance accumulator.
  */
 
 import {
@@ -47,11 +46,6 @@ export const PoolVault = new MoveStruct({
 		protocol_reserve_balance: balance.Balance,
 		/** Sponsor-funded DUSDC reserved for taker fee sponsorship, excluded from PLP NAV. */
 		fee_incentive_reserve: balance.Balance,
-		/**
-		 * Pooled DEEP staked by all accounts for trading benefits. Per-account
-		 * active/inactive amounts are mirrored in Predict account data.
-		 */
-		staked_deep: balance.Balance,
 		/** PLP share issuance plus queued supply/withdraw escrow. */
 		lp: lp_book.LpBook,
 		/** Idle DUSDC custody, registered expiries, and per-expiry cash-flow rows. */
@@ -92,38 +86,6 @@ export function id(options: IdOptions) {
 			package: packageAddress,
 			module: 'plp',
 			function: 'id',
-			arguments: normalizeMoveArguments(
-				{
-					...options.arguments,
-					vault: options.arguments?.vault ?? options.config?.poolVault,
-				},
-				argumentsTypes,
-				parameterNames,
-			),
-		});
-}
-export interface StakedDeepArguments {
-	vault?: RawTransactionArgument<string>;
-}
-export interface StakedDeepOptions {
-	package?: string;
-	arguments?: StakedDeepArguments;
-	config?: {
-		poolVault: ConfigValue;
-		predictPackageId?: string;
-	};
-}
-/** Return pooled DEEP custody for SDK and devInspect state reads. */
-export function stakedDeep(options: StakedDeepOptions) {
-	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null] satisfies (string | null)[];
-	const parameterNames = ['vault'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'plp',
-			function: 'staked_deep',
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,
@@ -668,101 +630,6 @@ export function finishFlush(options: FinishFlushOptions) {
 			),
 		});
 }
-export interface StakeDeepArguments {
-	vault?: RawTransactionArgument<string>;
-	wrapper: RawTransactionArgument<string>;
-	auth: TransactionArgument;
-	config?: RawTransactionArgument<string>;
-	amount: RawTransactionArgument<number | bigint>;
-}
-export interface StakeDeepOptions {
-	package?: string;
-	arguments: StakeDeepArguments;
-	config?: {
-		poolVault: ConfigValue;
-		protocolConfig: ConfigValue;
-		predictPackageId?: string;
-	};
-}
-/**
- * Stake DEEP for trading benefits. The DEEP is held in the pool vault; the new
- * amount is recorded as inactive and becomes eligible after the next epoch
- * boundary. It moves to active only when a later stake, trade, or claim flow calls
- * `predict_account::roll_active_stake`. Callable anytime, any number of times.
- */
-export function stakeDeep(options: StakeDeepOptions) {
-	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [
-		null,
-		null,
-		null,
-		null,
-		'u64',
-		'0x2::accumulator::AccumulatorRoot',
-		'0x2::clock::Clock',
-	] satisfies (string | null)[];
-	const parameterNames = ['vault', 'wrapper', 'auth', 'config', 'amount'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'plp',
-			function: 'stake_deep',
-			arguments: normalizeMoveArguments(
-				{
-					...options.arguments,
-					vault: options.arguments?.vault ?? options.config?.poolVault,
-					config: options.arguments?.config ?? options.config?.protocolConfig,
-				},
-				argumentsTypes,
-				parameterNames,
-			),
-		});
-}
-export interface UnstakeDeepArguments {
-	vault?: RawTransactionArgument<string>;
-	wrapper: RawTransactionArgument<string>;
-	auth: TransactionArgument;
-	config?: RawTransactionArgument<string>;
-}
-export interface UnstakeDeepOptions {
-	package?: string;
-	arguments: UnstakeDeepArguments;
-	config?: {
-		poolVault: ConfigValue;
-		protocolConfig: ConfigValue;
-		predictPackageId?: string;
-	};
-}
-/** Withdraw all staked DEEP (active and inactive) at any time, no penalty. */
-export function unstakeDeep(options: UnstakeDeepOptions) {
-	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [
-		null,
-		null,
-		null,
-		null,
-		'0x2::accumulator::AccumulatorRoot',
-		'0x2::clock::Clock',
-	] satisfies (string | null)[];
-	const parameterNames = ['vault', 'wrapper', 'auth', 'config'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'plp',
-			function: 'unstake_deep',
-			arguments: normalizeMoveArguments(
-				{
-					...options.arguments,
-					vault: options.arguments?.vault ?? options.config?.poolVault,
-					config: options.arguments?.config ?? options.config?.protocolConfig,
-				},
-				argumentsTypes,
-				parameterNames,
-			),
-		});
-}
 export interface RebalanceExpiryCashArguments {
 	vault?: RawTransactionArgument<string>;
 	market: RawTransactionArgument<string>;
@@ -801,104 +668,6 @@ export function rebalanceExpiryCash(options: RebalanceExpiryCashOptions) {
 			package: packageAddress,
 			module: 'plp',
 			function: 'rebalance_expiry_cash',
-			arguments: normalizeMoveArguments(
-				{
-					...options.arguments,
-					vault: options.arguments?.vault ?? options.config?.poolVault,
-					config: options.arguments?.config ?? options.config?.protocolConfig,
-				},
-				argumentsTypes,
-				parameterNames,
-			),
-		});
-}
-export interface ClaimTradingLossRebateArguments {
-	vault?: RawTransactionArgument<string>;
-	market: RawTransactionArgument<string>;
-	wrapper: RawTransactionArgument<string>;
-	auth: TransactionArgument;
-	config?: RawTransactionArgument<string>;
-}
-export interface ClaimTradingLossRebateOptions {
-	package?: string;
-	arguments: ClaimTradingLossRebateArguments;
-	config?: {
-		poolVault: ConfigValue;
-		protocolConfig: ConfigValue;
-		predictPackageId?: string;
-	};
-}
-/** Resolve a settled trading-loss rebate using valid account authority. */
-export function claimTradingLossRebate(options: ClaimTradingLossRebateOptions) {
-	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [
-		null,
-		null,
-		null,
-		null,
-		null,
-		'0x2::accumulator::AccumulatorRoot',
-		'0x2::clock::Clock',
-	] satisfies (string | null)[];
-	const parameterNames = ['vault', 'market', 'wrapper', 'auth', 'config'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'plp',
-			function: 'claim_trading_loss_rebate',
-			arguments: normalizeMoveArguments(
-				{
-					...options.arguments,
-					vault: options.arguments?.vault ?? options.config?.poolVault,
-					config: options.arguments?.config ?? options.config?.protocolConfig,
-				},
-				argumentsTypes,
-				parameterNames,
-			),
-		});
-}
-export interface ClaimTradingLossRebatePermissionlessArguments {
-	vault?: RawTransactionArgument<string>;
-	market: RawTransactionArgument<string>;
-	wrapper: RawTransactionArgument<string>;
-	accountRegistry: RawTransactionArgument<string>;
-	config?: RawTransactionArgument<string>;
-}
-export interface ClaimTradingLossRebatePermissionlessOptions {
-	package?: string;
-	arguments: ClaimTradingLossRebatePermissionlessArguments;
-	config?: {
-		poolVault: ConfigValue;
-		protocolConfig: ConfigValue;
-		predictPackageId?: string;
-	};
-}
-/**
- * Permissionlessly resolve one account's settled trading-loss rebate using Predict
- * app auth. `deauthorize_app<PredictApp>` disables this automation; owners can
- * still use `claim_trading_loss_rebate` with owner auth.
- */
-export function claimTradingLossRebatePermissionless(
-	options: ClaimTradingLossRebatePermissionlessOptions,
-) {
-	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [
-		null,
-		null,
-		null,
-		null,
-		null,
-		'0x2::accumulator::AccumulatorRoot',
-		'0x2::clock::Clock',
-	] satisfies (string | null)[];
-	const parameterNames = ['vault', 'market', 'wrapper', 'accountRegistry', 'config'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'plp',
-			function: 'claim_trading_loss_rebate_permissionless',
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,

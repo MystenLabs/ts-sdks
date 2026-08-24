@@ -40,13 +40,12 @@ export const Pricer = new MoveStruct({
 		forward: U64,
 		svi: PricingSVI,
 		/**
-		 * Source timestamps of the oracle observations present when this snapshot was
-		 * loaded. Pyth is `0` only when no usable normalized observation exists. The Block
-		 * Scholes ones are the provider's model times — when each series' data is "as of",
-		 * held fixed across retransmissions of an unchanged value. They are the economic
-		 * clocks: freshness is asserted against them and the SVI one anchors the
-		 * roll-down; the batch envelope time is transport metadata and never reaches the
-		 * `Pricer`.
+		 * Timestamps of the oracle observations this snapshot validated, as trade events
+		 * report them — each observation's own economic clock. Pyth carries its source
+		 * timestamp (`0` only when no usable normalized observation exists); the Block
+		 * Scholes reads carry their batch envelope time (`source_timestamp_ms`), the clock
+		 * freshness gated and the SVI roll-down anchored on. The provider's calibration
+		 * (model) times stay on the stored observations and their ingestion events.
 		 */
 		pyth_spot_source_timestamp_ms: U64,
 		block_scholes_spot_source_timestamp_ms: U64,
@@ -62,21 +61,6 @@ export const RawSVI = new MoveStruct({
 		rho: i64.I64,
 		m: i64.I64,
 		sigma: U64,
-	},
-});
-export const ExactSpotRead = new MoveStruct({
-	name: `${$moduleName}::ExactSpotRead`,
-	fields: {
-		spot: bcs.option(U64),
-	},
-});
-export const PriceMemo = new MoveStruct({
-	name: `${$moduleName}::PriceMemo`,
-	fields: {
-		/** Finite boundary ticks in ascending order (the in-order walk appends them). */
-		ticks: bcs.vector(U64),
-		/** `up_price(ticks[i] * tick_size)`, parallel to `ticks`. */
-		prices: bcs.vector(U64),
 	},
 });
 export interface UpPriceArguments {

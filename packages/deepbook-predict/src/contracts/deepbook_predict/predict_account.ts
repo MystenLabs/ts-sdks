@@ -6,14 +6,13 @@
  * Predict's per-account state, stored as an app-data slot on a shared `Account`
  * (the `account` package).
  *
- * This is Predict's account-local state: open positions, per-expiry trading
- * summaries, DEEP stake, and sticky builder-code attribution. DUSDC/PLP/DEEP
- * custody lives in `Account`. The `PredictApp` witness namespaces this slot, so
- * only Predict writes it.
+ * This is Predict's account-local state: open positions and sticky builder-code
+ * attribution. DUSDC/PLP custody lives in `Account`. The `PredictApp` witness
+ * namespaces this slot, so only Predict writes it.
  *
- * Position, summary, and stake mutations are package-internal. Builder-code
- * configuration accepts an account `Auth`; the account package decides which owner
- * or authorized application may obtain that mutable borrow.
+ * Position mutations are package-internal. Builder-code configuration accepts an
+ * account `Auth`; the account package decides which owner or authorized
+ * application may obtain that mutable borrow.
  */
 
 import {
@@ -52,41 +51,11 @@ export const Position = new MoveStruct({
 		opened_at_ms: U64,
 	},
 });
-export const ExpiryTradingSummary = new MoveStruct({
-	name: `${$moduleName}::ExpiryTradingSummary`,
-	fields: {
-		open_position_count: U64,
-		trading_fees_paid: U64,
-		gross_paid_to_expiry: U64,
-		gross_received_from_expiry: U64,
-	},
-});
-export const ResolvedExpirySummary = new MoveStruct({
-	name: `${$moduleName}::ResolvedExpirySummary`,
-	fields: {
-		fees_paid: U64,
-		gross_profit: U64,
-	},
-});
 export const PredictData = new MoveStruct({
 	name: `${$moduleName}::PredictData`,
 	fields: {
 		/** Open positions scoped by expiry market. */
 		positions: table.Table,
-		/** Per-expiry aggregate trading cash flows and open position count. */
-		expiry_summaries: table.Table,
-		/**
-		 * DEEP staked and active for trading benefits, in raw units. Custody is pooled in
-		 * `PoolVault`; this is this account's active share.
-		 */
-		active_stake: U64,
-		/**
-		 * DEEP staked this epoch, not yet active; rolls into `active_stake` on the first
-		 * discount-bearing interaction in a later epoch (`roll_active_stake`).
-		 */
-		inactive_stake: U64,
-		/** Epoch the active/inactive split was last reconciled in. */
-		stake_epoch: U64,
 		/** Sticky builder-code attribution for future trades, if set. */
 		builder_code_id: bcs.option(bcs.Address),
 	},
@@ -120,115 +89,6 @@ export function hasPosition(options: HasPositionOptions) {
 			package: packageAddress,
 			module: 'predict_account',
 			function: 'has_position',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
-}
-export interface ExpiryPositionCountArguments {
-	account: TransactionArgument;
-	expiryMarketId: RawTransactionArgument<string>;
-}
-export interface ExpiryPositionCountOptions {
-	package?: string;
-	arguments:
-		| ExpiryPositionCountArguments
-		| [account: TransactionArgument, expiryMarketId: RawTransactionArgument<string>];
-	config?: {
-		predictPackageId?: string;
-	};
-}
-/** Return an expiry's open-position count for SDK and devInspect state reads. */
-export function expiryPositionCount(options: ExpiryPositionCountOptions) {
-	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, '0x2::object::ID'] satisfies (string | null)[];
-	const parameterNames = ['account', 'expiryMarketId'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'predict_account',
-			function: 'expiry_position_count',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
-}
-export interface TradingFeesPaidArguments {
-	account: TransactionArgument;
-	expiryMarketId: RawTransactionArgument<string>;
-}
-export interface TradingFeesPaidOptions {
-	package?: string;
-	arguments:
-		| TradingFeesPaidArguments
-		| [account: TransactionArgument, expiryMarketId: RawTransactionArgument<string>];
-	config?: {
-		predictPackageId?: string;
-	};
-}
-/** Return an account's aggregate expiry trading fees for SDK and devInspect reads. */
-export function tradingFeesPaid(options: TradingFeesPaidOptions) {
-	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, '0x2::object::ID'] satisfies (string | null)[];
-	const parameterNames = ['account', 'expiryMarketId'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'predict_account',
-			function: 'trading_fees_paid',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
-}
-export interface ActiveStakeArguments {
-	account: TransactionArgument;
-}
-export interface ActiveStakeOptions {
-	package?: string;
-	arguments: ActiveStakeArguments | [account: TransactionArgument];
-	config?: {
-		predictPackageId?: string;
-	};
-}
-/**
- * Return the stored active-stake split from the account's last epoch
- * reconciliation. This read does not roll newly eligible inactive stake forward.
- */
-export function activeStake(options: ActiveStakeOptions) {
-	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null] satisfies (string | null)[];
-	const parameterNames = ['account'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'predict_account',
-			function: 'active_stake',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
-}
-export interface InactiveStakeArguments {
-	account: TransactionArgument;
-}
-export interface InactiveStakeOptions {
-	package?: string;
-	arguments: InactiveStakeArguments | [account: TransactionArgument];
-	config?: {
-		predictPackageId?: string;
-	};
-}
-/**
- * Return the stored inactive-stake split from the account's last epoch
- * reconciliation. This read does not roll stake that became eligible after an
- * epoch boundary.
- */
-export function inactiveStake(options: InactiveStakeOptions) {
-	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null] satisfies (string | null)[];
-	const parameterNames = ['account'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'predict_account',
-			function: 'inactive_stake',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }

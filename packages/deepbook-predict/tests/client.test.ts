@@ -53,16 +53,18 @@ const MINTED_EVENT = {
 		owner: OWNER,
 		lower_tick: 10_500_000n,
 		higher_tick: (1n << 30n) - 1n,
-		leverage: 1_000_000_000n,
 		entry_probability: 340_000_000n, // 0.34
 		quantity: 50_000_000n, // $50
-		net_premium: 17_000_000n, // $17
+		premium: 17_000_000n, // $17
 		trading_fee: 100_000n, // $0.10
 		fee_incentive_subsidy: 20_000n, // $0.02 sponsor-paid
 		builder_fee: 30_000n, // $0.03
 		penalty_fee: 5_000n, // $0.005
+		referral_fee: 0n,
+		inventory_impact_charge: 0n,
 		builder_code_id: null,
-		minted_at_ms: 0n,
+		referrer_account_id: null,
+		onchain_timestamp_ms: 0n,
 		pyth_spot_source_timestamp_ms: 0n,
 		block_scholes_spot_source_timestamp_ms: 0n,
 		block_scholes_forward_source_timestamp_ms: 0n,
@@ -84,8 +86,9 @@ const REDEEMED_EVENT = {
 		trading_fee: 50_000n,
 		builder_fee: 0n,
 		penalty_fee: 0n,
+		inventory_impact_rebate: 0n,
 		builder_code_id: null,
-		redeemed_at_ms: 0n,
+		onchain_timestamp_ms: 0n,
 		pyth_spot_source_timestamp_ms: 0n,
 		block_scholes_spot_source_timestamp_ms: 0n,
 		block_scholes_forward_source_timestamp_ms: 0n,
@@ -348,24 +351,23 @@ describe('tx.deposit / tx.withdraw', () => {
 });
 
 describe('tx.mint (market resolution + unit conversion)', () => {
-	test('converts quantity, leverage, ticks against a resolved market', async () => {
+	test('converts quantity and ticks against a resolved market', async () => {
 		const { client } = mockClient();
 		const pc = new PredictClient({ network: 'testnet', client });
 		const tx = await pc.tx.mint(
 			OWNER,
 			{ underlying: 'BTC', expiryMs: EXPIRY, strike: 105_000, side: 'up' },
-			{ quantity: 50, leverage: 2 },
+			{ quantity: 50 },
 		);
 		expect(targets(tx)).toEqual([
 			`${cfg.packages.predict}::expiry_market::load_live_pricer`,
 			`${cfg.packages.account}::account::generate_auth`,
 			`${cfg.packages.predict}::expiry_market::mint_exact_quantity`,
 		]);
-		// mint args: [market, wrapper, auth, config, pricer, lower, higher, quantity, leverage, ...]
+		// mint args: [market, wrapper, auth, config, pricer, lower, higher, quantity, maxCost, ...]
 		expect(argPureBytes(tx, 2, 5)).toBe(b64(10_500_000n)); // lower tick = strike/tickSize
 		expect(argPureBytes(tx, 2, 6)).toBe(b64(POS_INF_TICK)); // higher tick (up)
 		expect(argPureBytes(tx, 2, 7)).toBe(b64(50_000_000n)); // quantity 50 → 1e6
-		expect(argPureBytes(tx, 2, 8)).toBe(b64(2_000_000_000n)); // leverage 2 → 1e9
 	});
 
 	test('unknown market → PredictInputError /no market/', async () => {
@@ -395,11 +397,7 @@ describe('tx.mint (market resolution + unit conversion)', () => {
 		// claimSettled resolves a market without ever asking for oracle feeds, so this
 		// pins the lookup the market-id ladder itself performs.
 		await expect(
-			pc.tx.claimSettled(
-				OWNER,
-				{ underlying: 'DOGE', expiryMs: EXPIRY },
-				{ orderId: 1n, quantity: 1 },
-			),
+			pc.tx.claimSettled(OWNER, { underlying: 'DOGE', expiryMs: EXPIRY }, { orderId: 1n }),
 		).rejects.toBeInstanceOf(PredictInputError);
 	});
 
@@ -419,13 +417,10 @@ describe('tx.mint (market resolution + unit conversion)', () => {
 		).rejects.toThrow(/lot/);
 	});
 
-	test('sub-lot close quantity throws /lot/ on redeem and claimSettled', async () => {
+	test('sub-lot close quantity throws /lot/ on redeem', async () => {
 		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
 		const m = { underlying: 'BTC', expiryMs: EXPIRY, strike: 105_000, side: 'up' } as const;
 		await expect(pc.tx.redeem(OWNER, m, { orderId: 1n, quantity: 0.001 })).rejects.toThrow(/lot/);
-		await expect(pc.tx.claimSettled(OWNER, m, { orderId: 1n, quantity: 0.001 })).rejects.toThrow(
-			/lot/,
-		);
 	});
 
 	test('mintAmount minQuantity is a floor — sub-lot values are accepted', async () => {
@@ -569,7 +564,6 @@ describe('tx.mint (market resolution + unit conversion)', () => {
 		);
 		expect(q.gross).toBe(6);
 		expect(q.proceeds).toBe(5.95);
-		expect(q.wouldLiquidate).toBe(false);
 		expect(q.remaining).toBe(30);
 		expect(q.feesExact).toBe(true);
 	});

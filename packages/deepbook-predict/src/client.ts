@@ -54,7 +54,6 @@ import { accountContract, deriveAccountWrapperIdFrom } from './tx/common.js';
 import type { MarketFeeds } from './tx/trade.js';
 import { mintExactAmount, mintExactQuantity, redeemLive, redeemSettled } from './tx/trade.js';
 import {
-	leverageToRaw,
 	priceToRaw,
 	probabilityToRaw,
 	rawToProbability,
@@ -109,7 +108,6 @@ export type MarketDescriptor = {
 /** Options for the friendly `mint` (exact payout quantity). */
 export interface MintOptions {
 	quantity: number;
-	leverage?: number;
 	maxCost?: number;
 	maxProbability?: number;
 }
@@ -119,7 +117,6 @@ export interface MintAmountOptions {
 	/** Premium budget in quote units — the max premium paid (chain also caps it at the account balance). */
 	spend: number;
 	minQuantity: number;
-	leverage?: number;
 	/** All-in cost ceiling in quote units (premium + fees). Omitted → uncapped. */
 	maxCost?: number;
 }
@@ -191,8 +188,6 @@ export interface RedeemQuote {
 	fees: { trading: number; builder: number; penalty: number };
 	quantityClosed: number;
 	remaining: number;
-	/** True when the position would close as a liquidated tombstone (zero payout). */
-	wouldLiquidate: boolean;
 	raw: { proceeds: bigint; gross: bigint; quantityClosed: bigint };
 	feesExact: true;
 }
@@ -410,7 +405,6 @@ export class PredictClient {
 				lowerTick,
 				higherTick,
 				quantityRaw,
-				leverageRaw: leverageToRaw(opts.leverage ?? 1),
 				maxCostRaw: opts.maxCost != null ? usdcToRaw(opts.maxCost) : undefined,
 				maxProbabilityRaw:
 					opts.maxProbability != null ? probabilityToRaw(opts.maxProbability) : undefined,
@@ -571,7 +565,6 @@ export class PredictClient {
 					higherTick,
 					maxPremiumRaw: usdcToRaw(opts.spend),
 					minQuantityRaw,
-					leverageRaw: leverageToRaw(opts.leverage ?? 1),
 					maxCostRaw: opts.maxCost != null ? usdcToRaw(opts.maxCost) : undefined,
 					...feeds,
 				}),
@@ -584,17 +577,14 @@ export class PredictClient {
 		claimSettled: async (
 			owner: string,
 			m: Pick<MarketDescriptor, 'underlying' | 'expiryMs' | 'marketId'>,
-			opts: CloseOptions,
+			opts: Pick<CloseOptions, 'orderId'>,
 		): Promise<Transaction> => {
 			const { id } = await this.#resolveMarket(m);
-			const closeQuantityRaw = usdcToRaw(opts.quantity);
-			this.#assertLot(closeQuantityRaw);
 			return txOf(
 				redeemSettled(this.#config, {
 					expiryMarketId: id,
 					wrapperId: this.wrapperIdFor(owner),
 					orderId: opts.orderId,
-					closeQuantityRaw,
 				}),
 			);
 		},
@@ -759,24 +749,24 @@ export class PredictClient {
 		quoteMint: async (
 			owner: string,
 			m: MarketDescriptor,
-			opts: Pick<MintOptions, 'quantity' | 'leverage'>,
+			opts: Pick<MintOptions, 'quantity'>,
 		): Promise<MintQuote> => {
 			const tx = await this.#buildMint(owner, m, opts);
 			const events = await simulateWithEvents(this.#client, tx, owner);
 			const r = exactlyOne(decodeMints(this.cfg, { events }), 'OrderMinted');
 			const costRaw =
-				r.raw.netPremium +
+				r.raw.premium +
 				(r.raw.tradingFee - r.raw.feeIncentiveSubsidy) +
 				r.raw.builderFee +
 				r.raw.penaltyFee;
 			return {
 				entryProbability: r.entryProbability,
-				premium: r.netPremium,
+				premium: r.premium,
 				fees: r.fees,
 				cost: rawToUsdc(costRaw),
 				quantity: r.quantity,
 				raw: {
-					premium: r.raw.netPremium,
+					premium: r.raw.premium,
 					cost: costRaw,
 					quantity: r.raw.quantity,
 					entryProbability: r.raw.entryProbability,
@@ -801,7 +791,6 @@ export class PredictClient {
 				fees: { trading: r.fees.trading, builder: r.fees.builder, penalty: r.fees.penalty },
 				quantityClosed: r.quantityClosed,
 				remaining: r.remaining,
-				wouldLiquidate: r.liquidated,
 				raw: {
 					proceeds: r.raw.proceeds,
 					gross: r.raw.gross,

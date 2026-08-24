@@ -8,18 +8,15 @@
  * This module interprets `Order` terms against the expiry's `tick_size`,
  * recovering raw strikes from order ticks only at the pricing/settlement boundary.
  * It owns the payout-liability view of the active contracts used for cash backing.
- * The order floor is a static dollar amount (`floor_shares`), so order accounting
- * needs no clock. It stores the parent market identity so market-scoped
- * liquidation events can be emitted atomically with exposure removal.
- * Expiry-market cash custody, rebate accounting, account positions, and payout
- * movement stay outside this module.
+ * Order accounting is static and needs no clock: a winning order pays its full
+ * quantity. Expiry-market cash custody, account positions, and payout movement
+ * stay outside this module.
  */
 
-import { MoveStruct, MoveEnum } from '../utils/index.js';
+import { MoveStruct } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { U64 } from '../../bcs/integers.js';
 import * as strike_exposure_config from './strike_exposure_config.js';
-import * as liquidation_book from './liquidation_book.js';
 import * as strike_payout_tree from './strike_payout_tree.js';
 import * as order from './order.js';
 const $moduleName = '@local-pkg/deepbook_predict::strike_exposure';
@@ -28,8 +25,6 @@ export const StrikeExposure = new MoveStruct({
 	fields: {
 		/** Expiry market that owns this exposure book. */
 		expiry_market_id: bcs.Address,
-		/** Terminal timestamp used by fee and settlement math. */
-		expiry_ms: U64,
 		/** Raw-price-per-tick conversion factor; `raw_strike = tick * tick_size`. */
 		tick_size: U64,
 		/** Coarser raw-price step that new finite mint boundaries must align to. */
@@ -40,12 +35,17 @@ export const StrikeExposure = new MoveStruct({
 		reference_tick: bcs.option(U64),
 		/** Snapshotted exposure and fee policy for this expiry. */
 		config: strike_exposure_config.StrikeExposureConfig,
+		/**
+		 * Immutable DUSDC scale for the inventory-impact curve. This is the expiry's
+		 * snapshotted maximum pool allocation: a risk-capacity parameter, not live pool
+		 * equity, so LP flows cannot reprice an existing book.
+		 */
+		inventory_impact_scale: U64,
 		next_order_sequence: U64,
 		/** Terminal settlement price once the exposure has entered its settled phase. */
 		settlement_price: bcs.option(U64),
 		/** Remaining payout liability in the settled phase. */
 		settled_payout_liability: U64,
-		liquidation: liquidation_book.LiquidationBook,
 		/** Sparse payout tree for live cash backing and settled liability. */
 		payout: strike_payout_tree.StrikePayoutTree,
 	},
@@ -57,55 +57,21 @@ export const MintTerms = new MoveStruct({
 		lower_tick: U64,
 		higher_tick: U64,
 		quantity: U64,
-		leverage: U64,
 		entry_probability: U64,
-		net_premium: U64,
-		floor_shares: U64,
+		premium: U64,
+		/** Separate inventory-impact charge, sampled against the pre-mint book. */
+		inventory_impact_charge: U64,
 	},
 });
 export const LiveCloseTerms = new MoveStruct({
 	name: `${$moduleName}::LiveCloseTerms`,
 	fields: {
+		expiry_market_id: bcs.Address,
+		order: order.Order,
 		close_quantity: U64,
-		/** Floor shares leaving the book with the closed slice. */
-		remove_floor_shares: U64,
 		redeem_amount: U64,
 		range_probability: U64,
-	},
-});
-/**
- * Every outcome of one prospective close: an already-liquidated order whose book
- * state is gone (only the holder's position clear remains), a liquidatable order
- * due its knock-out at the current price, a priced live close, or the settled
- * terminal payout (zero for a loss). Enums match only inside their defining
- * module, so flows branch via the `is_*` accessors and `process_close` owns the
- * dispatch.
- */
-export const CloseOutcome = new MoveEnum({
-	name: `${$moduleName}::CloseOutcome`,
-	fields: {
-		Liquidated: null,
-		Liquidatable: new MoveStruct({
-			name: `CloseOutcome.Liquidatable`,
-			fields: {
-				gross_value: U64,
-			},
-		}),
-		Live: LiveCloseTerms,
-		Settled: new MoveStruct({
-			name: `CloseOutcome.Settled`,
-			fields: {
-				payout: U64,
-			},
-		}),
-	},
-});
-export const CloseTerms = new MoveStruct({
-	name: `${$moduleName}::CloseTerms`,
-	fields: {
-		expiry_market_id: bcs.Address,
-		/** Which book entry the close removes. */
-		order: order.Order,
-		outcome: CloseOutcome,
+		/** Separate inventory-impact rebate, sampled against the pre-close book. */
+		inventory_impact_rebate: U64,
 	},
 });

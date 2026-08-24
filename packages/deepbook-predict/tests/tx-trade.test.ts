@@ -90,7 +90,7 @@ test('loadLivePricer: 6 feed args + auto clock = 7, oracleRegistry as propbook_r
 	for (let i = 0; i < 7; i++) expect(argPureBytes(tx, 0, i)).toBeUndefined();
 });
 
-test('mintExactQuantity: pricer → auth → mint, 13 args', () => {
+test('mintExactQuantity: pricer → auth → mint, 12 args', () => {
 	const tx = new Transaction();
 	tx.add(
 		mintExactQuantity(config, {
@@ -99,7 +99,6 @@ test('mintExactQuantity: pricer → auth → mint, 13 args', () => {
 			lowerTick: 10n,
 			higherTick: 20n,
 			quantityRaw: 1_000_000n,
-			leverageRaw: 1_000_000_000n,
 			...feeds,
 		}),
 	);
@@ -110,13 +109,13 @@ test('mintExactQuantity: pricer → auth → mint, 13 args', () => {
 	]);
 	const mint = call(tx, 2);
 	// arg order: [market, wrapper, auth(Result), config, pricer(Result), lower, higher,
-	//             quantity, leverage, maxCost, maxProbability, root, clock] → 13 args
-	expect(mint.arguments).toHaveLength(13);
+	//             quantity, maxCost, maxProbability, root, clock] → 12 args
+	expect(mint.arguments).toHaveLength(12);
 	expect(mint.arguments[2].$kind).toBe('Result'); // auth
 	expect(mint.arguments[4].$kind).toBe('Result'); // pricer
-	// defaults: maxCost (idx 9) and maxProbability (idx 10) = U64_MAX
+	// defaults: maxCost (idx 8) and maxProbability (idx 9) = U64_MAX
+	expect(argPureBytes(tx, 2, 8)).toBe(U64_MAX_B64);
 	expect(argPureBytes(tx, 2, 9)).toBe(U64_MAX_B64);
-	expect(argPureBytes(tx, 2, 10)).toBe(U64_MAX_B64);
 });
 
 test('mintExactQuantity: explicit maxCost/maxProbability override defaults', () => {
@@ -128,18 +127,17 @@ test('mintExactQuantity: explicit maxCost/maxProbability override defaults', () 
 			lowerTick: 10n,
 			higherTick: 20n,
 			quantityRaw: 1_000_000n,
-			leverageRaw: 1_000_000_000n,
 			maxCostRaw: 5_000_000n,
 			maxProbabilityRaw: 900_000_000n,
 			...feeds,
 		}),
 	);
-	expect(argPureBytes(tx, 2, 9)).toBe(u64B64(5_000_000n));
-	expect(argPureBytes(tx, 2, 10)).toBe(u64B64(900_000_000n));
-	expect(argPureBytes(tx, 2, 9)).not.toBe(U64_MAX_B64);
+	expect(argPureBytes(tx, 2, 8)).toBe(u64B64(5_000_000n));
+	expect(argPureBytes(tx, 2, 9)).toBe(u64B64(900_000_000n));
+	expect(argPureBytes(tx, 2, 8)).not.toBe(U64_MAX_B64);
 });
 
-test('mintExactAmount: pricer → auth → mint, 13 args, budget/min-quantity slots', () => {
+test('mintExactAmount: pricer → auth → mint, 12 args, budget/min-quantity slots', () => {
 	const tx = new Transaction();
 	tx.add(
 		mintExactAmount(config, {
@@ -149,7 +147,6 @@ test('mintExactAmount: pricer → auth → mint, 13 args, budget/min-quantity sl
 			higherTick: 20n,
 			maxPremiumRaw: 5_000_000n,
 			minQuantityRaw: 1_000_000n,
-			leverageRaw: 1_000_000_000n,
 			...feeds,
 		}),
 	);
@@ -160,16 +157,15 @@ test('mintExactAmount: pricer → auth → mint, 13 args, budget/min-quantity sl
 	]);
 	const mint = call(tx, 2);
 	// arg order: [market, wrapper, auth(Result), config, pricer(Result), lower, higher,
-	//             maxPremium, minQuantity, leverage, maxCost, root, clock] → 13 args
-	expect(mint.arguments).toHaveLength(13);
+	//             maxPremium, minQuantity, maxCost, root, clock] → 12 args
+	expect(mint.arguments).toHaveLength(12);
 	expect(mint.arguments[2].$kind).toBe('Result'); // auth
 	expect(mint.arguments[4].$kind).toBe('Result'); // pricer
-	// maxPremium (idx 7), minQuantity (idx 8), leverage (idx 9) are the passed raw values
+	// maxPremium (idx 7), minQuantity (idx 8) are the passed raw values
 	expect(argPureBytes(tx, 2, 7)).toBe(u64B64(5_000_000n));
 	expect(argPureBytes(tx, 2, 8)).toBe(u64B64(1_000_000n));
-	expect(argPureBytes(tx, 2, 9)).toBe(u64B64(1_000_000_000n));
-	// maxCost (idx 10) defaults to U64_MAX when maxCostRaw is omitted
-	expect(argPureBytes(tx, 2, 10)).toBe(U64_MAX_B64);
+	// maxCost (idx 9) defaults to U64_MAX when maxCostRaw is omitted
+	expect(argPureBytes(tx, 2, 9)).toBe(U64_MAX_B64);
 });
 
 test('redeemLive: pricer → auth → redeem, 11 args, min-probability/min-proceeds floors', () => {
@@ -221,14 +217,13 @@ test('redeemLive: explicit min-probability/min-proceeds override the 0 defaults'
 	expect(argPureBytes(tx, 2, 8)).toBe(u64B64(400_000n)); // min_proceeds
 });
 
-test('redeemSettled: auth → redeem_settled, 8 args, owner-auth hot potato', () => {
+test('redeemSettled: auth → redeem_settled, 7 args, owner-auth hot potato', () => {
 	const tx = new Transaction();
 	tx.add(
 		redeemSettled(config, {
 			expiryMarketId: '0xabc',
 			wrapperId: '0xdef',
 			orderId: 42n,
-			closeQuantityRaw: 500_000n,
 		}),
 	);
 	// owner-auth form now mints an Auth hot potato first (no accountRegistry/oracle/pyth)
@@ -237,15 +232,15 @@ test('redeemSettled: auth → redeem_settled, 8 args, owner-auth hot potato', ()
 		`${cfg.packages.predict}::expiry_market::redeem_settled`,
 	]);
 	const redeem = call(tx, 1);
-	// deployed: market, wrapper, auth, config, order_id u256, close_quantity u64, root, clock
-	// → 8 moveCall args (no live pricer: settlement price is fixed)
-	expect(redeem.arguments).toHaveLength(8);
+	// deployed: market, wrapper, auth, config, order_id u256, root, clock
+	// → 7 moveCall args (no live pricer: settlement price is fixed; a settled claim
+	// closes the order in full, so the entrypoint takes no quantity)
+	expect(redeem.arguments).toHaveLength(7);
 	expectObject(tx, 1, 0, '0xabc'); // market
 	expectObject(tx, 1, 1, '0xdef'); // wrapper
 	expect(redeem.arguments[2].$kind).toBe('Result'); // auth (owner-auth hot potato)
 	expectObject(tx, 1, 3, cfg.objects.protocolConfig); // config
 	expect(argPureBytes(tx, 1, 4)).toBe(u256B64(42n)); // order_id (u256)
-	expect(argPureBytes(tx, 1, 5)).toBe(u64B64(500_000n)); // close_quantity
-	expectObject(tx, 1, 6, '0xacc'); // root
-	expectObject(tx, 1, 7, '0x6'); // clock
+	expectObject(tx, 1, 5, '0xacc'); // root
+	expectObject(tx, 1, 6, '0x6'); // clock
 });

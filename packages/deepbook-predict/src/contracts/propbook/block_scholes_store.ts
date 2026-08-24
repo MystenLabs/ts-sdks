@@ -3,14 +3,17 @@
  **************************************************************/
 
 /**
- * Stores the latest verifier-authenticated Block Scholes observations for one
- * immutable base asset. Propbook derives every accepted series id from that
- * identity through the upstream SID package, so a valid observation for another
- * asset cannot enter this store. Values are held exactly as the verifier produced
+ * Stores verifier-authenticated Block Scholes observations for one immutable base
+ * asset, including the latest values and canonical spot observations at exact
+ * minute boundaries. Propbook derives every accepted series id from that identity
+ * through the upstream SID package, so a valid observation for another asset
+ * cannot enter this store. Stored values are held exactly as the verifier produced
  * them; scaling and signed-value interpretation belong to the reading package.
- * Value and SVI observations use separate stores because the verifier exposes
- * distinct batch and value types. The registry creates and binds both stores
- * atomically from one base-asset input.
+ * Exact spot history additionally admits only positive `u64`-representable values
+ * so an unusable observation cannot claim a permanent key. Value and SVI
+ * observations use separate stores because the verifier exposes distinct batch and
+ * value types. The registry creates and binds both stores atomically from one
+ * base-asset input.
  */
 
 import { type BcsType, bcs } from '@mysten/sui/bcs';
@@ -21,28 +24,32 @@ import * as table from './deps/sui/table.js';
 const $moduleName = '@local-pkg/propbook::block_scholes_store';
 /**
  * One accepted observation and the three clocks that describe it. The clocks
- * answer different questions and are not interchangeable: a series that has not
- * moved is retransmitted with its original model time, so only `published_at_ms`
- * distinguishes a quiet feed from a stopped one.
+ * answer different questions and are not interchangeable: a calibration that has
+ * not changed republishes under its original model time, so only
+ * `source_timestamp_ms` distinguishes a quiet feed from a stopped one.
  */
 export function BsRead<Value extends BcsType<any>>(...typeParameters: [Value]) {
 	return new MoveStruct({
 		name: `${$moduleName}::BsRead<${typeParameters[0].name as Value['name']}>`,
 		fields: {
 			/**
-			 * Provider time the series data is "as of", held fixed across retransmissions of a
-			 * value that has not changed. The provider's per-series replay key: ordering keys
-			 * on this first.
+			 * Provider calibration time — when the series was last re-derived, held fixed
+			 * across republishes of that calibration. The provider's per-series replay key:
+			 * ordering keys on this first. The published VALUES are as-of the envelope time:
+			 * per the provider contract, an SVI publish whose model time is unchanged carries
+			 * the same calibration already rolled down to its new publish time, never
+			 * duplicate data.
 			 */
 			model_timestamp_ms: U64,
 			/**
 			 * Envelope time of the batch this observation arrived in, advancing on every
-			 * provider flush. Transport metadata: ordering falls back to it only between equal
-			 * model times, and consumers price from the model time, never from this.
+			 * provider flush and never regressing once stored (see `apply`). The economic
+			 * clock: consumers gate freshness on it and the SVI roll-down anchors on it, so a
+			 * republished unchanged value is re-asserted as current at its new envelope time.
 			 */
-			published_at_ms: U64,
+			source_timestamp_ms: U64,
 			/** Sui clock time when the accepting transaction executed. */
-			recorded_at_ms: U64,
+			onchain_timestamp_ms: U64,
 			/** Digest of the transaction that accepted this observation. */
 			writer_digest: bcs.vector(bcs.u8()),
 			value: typeParameters[0],
@@ -66,6 +73,7 @@ export const BlockScholesValueStore = new MoveStruct({
 	name: `${$moduleName}::BlockScholesValueStore`,
 	fields: {
 		id: bcs.Address,
+		propbook_underlying_id: bcs.u32(),
 		block_scholes_base_asset: bcs.string(),
 		/**
 		 * Package version this store runs at; writes require an exact match and `migrate`
@@ -73,12 +81,15 @@ export const BlockScholesValueStore = new MoveStruct({
 		 */
 		version: U64,
 		values: table.Table,
+		/** First positive `u64`-representable canonical spot at each exact minute boundary. */
+		exact_spot_reads: table.Table,
 	},
 });
 export const BlockScholesSVIStore = new MoveStruct({
 	name: `${$moduleName}::BlockScholesSVIStore`,
 	fields: {
 		id: bcs.Address,
+		propbook_underlying_id: bcs.u32(),
 		block_scholes_base_asset: bcs.string(),
 		version: U64,
 		svis: table.Table,
@@ -94,6 +105,7 @@ export function BlockScholesObservationRecorded<Observation extends BcsType<any>
 	return new MoveStruct({
 		name: `${$moduleName}::BlockScholesObservationRecorded<${typeParameters[0].name as Observation['name']}>`,
 		fields: {
+			propbook_underlying_id: bcs.u32(),
 			propbook_oracle_id: bcs.Address,
 			sid: U256,
 			/** `0` = spot, `1` = forward, and `2` = SVI. */
@@ -104,13 +116,28 @@ export function BlockScholesObservationRecorded<Observation extends BcsType<any>
 		},
 	});
 }
+/** Emitted when the canonical spot is inserted into exact minute-boundary history. */
+export function BlockScholesObservationInserted<Observation extends BcsType<any>>(
+	...typeParameters: [Observation]
+) {
+	return new MoveStruct({
+		name: `${$moduleName}::BlockScholesObservationInserted<${typeParameters[0].name as Observation['name']}>`,
+		fields: {
+			propbook_oracle_id: bcs.Address,
+			observation: typeParameters[0],
+		},
+	});
+}
 export const BlockScholesBatchIngested = new MoveStruct({
 	name: `${$moduleName}::BlockScholesBatchIngested`,
 	fields: {
+		propbook_underlying_id: bcs.u32(),
 		propbook_oracle_id: bcs.Address,
 		/** `0` = spot, `1` = forward, and `2` = SVI. */
 		series_kind: bcs.u8(),
-		published_at_ms: U64,
+		source_timestamp_ms: U64,
+		/** Sui clock time when the batch ingestion transaction executed. */
+		onchain_timestamp_ms: U64,
 		/** Verified observations carried by the batch. */
 		update_count: U64,
 		/** Observations that became their series' latest. */
@@ -325,6 +352,35 @@ export function spot(options: SpotOptions) {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface SpotAtArguments {
+	store: RawTransactionArgument<string>;
+	sourceTimestampMs: RawTransactionArgument<number | bigint>;
+}
+export interface SpotAtOptions {
+	package?: string;
+	arguments:
+		| SpotAtArguments
+		| [
+				store: RawTransactionArgument<string>,
+				sourceTimestampMs: RawTransactionArgument<number | bigint>,
+		  ];
+}
+/**
+ * Returns the canonical spot observation published at exactly
+ * `source_timestamp_ms`.
+ */
+export function spotAt(options: SpotAtOptions) {
+	const packageAddress = options.package ?? '@local-pkg/propbook';
+	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
+	const parameterNames = ['store', 'sourceTimestampMs'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'block_scholes_store',
+			function: 'spot_at',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
 export interface ForwardArguments {
 	store: RawTransactionArgument<string>;
 	expiryMs: RawTransactionArgument<number | bigint>;
@@ -392,15 +448,15 @@ export function readModelTimestampMs(options: ReadModelTimestampMsOptions) {
 			typeArguments: options.typeArguments,
 		});
 }
-export interface ReadPublishedAtMsArguments {
+export interface ReadSourceTimestampMsArguments {
 	read: TransactionArgument;
 }
-export interface ReadPublishedAtMsOptions {
+export interface ReadSourceTimestampMsOptions {
 	package?: string;
-	arguments: ReadPublishedAtMsArguments | [read: TransactionArgument];
+	arguments: ReadSourceTimestampMsArguments | [read: TransactionArgument];
 	typeArguments: [string];
 }
-export function readPublishedAtMs(options: ReadPublishedAtMsOptions) {
+export function readSourceTimestampMs(options: ReadSourceTimestampMsOptions) {
 	const packageAddress = options.package ?? '@local-pkg/propbook';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['read'];
@@ -408,20 +464,20 @@ export function readPublishedAtMs(options: ReadPublishedAtMsOptions) {
 		tx.moveCall({
 			package: packageAddress,
 			module: 'block_scholes_store',
-			function: 'read_published_at_ms',
+			function: 'read_source_timestamp_ms',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 			typeArguments: options.typeArguments,
 		});
 }
-export interface ReadRecordedAtMsArguments {
+export interface ReadOnchainTimestampMsArguments {
 	read: TransactionArgument;
 }
-export interface ReadRecordedAtMsOptions {
+export interface ReadOnchainTimestampMsOptions {
 	package?: string;
-	arguments: ReadRecordedAtMsArguments | [read: TransactionArgument];
+	arguments: ReadOnchainTimestampMsArguments | [read: TransactionArgument];
 	typeArguments: [string];
 }
-export function readRecordedAtMs(options: ReadRecordedAtMsOptions) {
+export function readOnchainTimestampMs(options: ReadOnchainTimestampMsOptions) {
 	const packageAddress = options.package ?? '@local-pkg/propbook';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['read'];
@@ -429,7 +485,7 @@ export function readRecordedAtMs(options: ReadRecordedAtMsOptions) {
 		tx.moveCall({
 			package: packageAddress,
 			module: 'block_scholes_store',
-			function: 'read_recorded_at_ms',
+			function: 'read_onchain_timestamp_ms',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 			typeArguments: options.typeArguments,
 		});
@@ -647,6 +703,34 @@ export function applySpotBatch(options: ApplySpotBatchOptions) {
 			package: packageAddress,
 			module: 'block_scholes_store',
 			function: 'apply_spot_batch',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface InsertAtArguments {
+	store: RawTransactionArgument<string>;
+	batch: TransactionArgument;
+}
+export interface InsertAtOptions {
+	package?: string;
+	arguments:
+		InsertAtArguments | [store: RawTransactionArgument<string>, batch: TransactionArgument];
+}
+/**
+ * Insert the canonical spot batch into exact minute-boundary history without
+ * changing `latest`. A valid batch whose signed `source_timestamp_ms` is not a
+ * minute boundary, or whose spot is zero or wider than `u64`, is ignored without
+ * aborting. The first admissible observation at a boundary owns the key and cannot
+ * be replaced.
+ */
+export function insertAt(options: InsertAtOptions) {
+	const packageAddress = options.package ?? '@local-pkg/propbook';
+	const argumentsTypes = [null, null, '0x2::clock::Clock'] satisfies (string | null)[];
+	const parameterNames = ['store', 'batch'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'block_scholes_store',
+			function: 'insert_at',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }

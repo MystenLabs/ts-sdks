@@ -18,26 +18,13 @@ export const StrikeExposureConfig = new MoveStruct({
 	name: `${$moduleName}::StrikeExposureConfig`,
 	fields: {
 		/**
-		 * 1e9-scaled floor-to-live-value threshold for liquidation. `850_000_000` means
-		 * liquidate at 85% LTV. With a static floor the trigger is
-		 * `qty·P <= floor_shares / liquidation_ltv`; the buffer is the anti-arbitrage
-		 * enforcement margin (knock out a hair before zero equity), not a solvency margin
-		 * — the reserve already backs the full `Q - F`.
-		 */
-		liquidation_ltv: U64,
-		/**
-		 * Global max leverage for mint admission, before the low-probability curve scales
-		 * it down. Actual liquidation still uses `liquidation_ltv`.
-		 */
-		max_admission_leverage: U64,
-		/**
 		 * Fraction of the disjoint-book backing gap reserved for early exits. A value of
 		 * 1.0 reserves the full gap.
 		 */
 		backing_buffer_lambda: U64,
 		/**
-		 * Base fee multiplier for Bernoulli scaling. Effective base fee = base_fee _
-		 * sqrt(price _ (1 - price)).
+		 * Base fee multiplier for Bernoulli scaling. Effective base fee = base_fee *
+		 * sqrt(price * (1 - price)).
 		 */
 		base_fee: U64,
 		/** Minimum per-unit fee floor; live trade fees never go below this value. */
@@ -51,16 +38,9 @@ export const StrikeExposureConfig = new MoveStruct({
 		/** Fee multiplier reached at expiry, in FLOAT_SCALING; 1x disables the ramp. */
 		expiry_fee_max_multiplier: U64,
 		/**
-		 * Window before expiry within which mint admission caps leverage at 1x, in ms. `0`
-		 * disables the block.
+		 * Maximum marginal rate of the path-independent inventory-impact curve, in
+		 * FLOAT_SCALING. `0` disables both charges and rebates.
 		 */
-		no_leverage_window_ms: U64,
-	},
-});
-export const MintAdmission = new MoveStruct({
-	name: `${$moduleName}::MintAdmission`,
-	fields: {
-		net_premium: U64,
-		floor_shares: U64,
+		inventory_impact_max_rate: U64,
 	},
 });

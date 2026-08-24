@@ -39,11 +39,11 @@ const depositTx = client.predict.tx.deposit(myAddress, 250); // $250
 // Pass { toCoinObject: true } if you need a discrete Coin<T> instead.
 const withdrawTx = client.predict.tx.withdraw(myAddress, 100); // $100
 
-// Trade: BTC above $105,000 at this hour's expiry, $50 max payout, 2x leverage.
+// Trade: BTC above $105,000 at this hour's expiry, $50 max payout.
 const mintTx = await client.predict.tx.mint(
 	myAddress,
 	{ underlying: 'BTC', expiryMs: 1767225600000, strike: 105_000, side: 'up' },
-	{ quantity: 50, leverage: 2, maxCost: 12.5 },
+	{ quantity: 50, maxCost: 12.5 },
 );
 // -> sign & execute any of these with your wallet / dapp-kit / signer
 
@@ -63,7 +63,7 @@ const { up, down } = await client.predict.read.price({
 const receipt = client.predict.decode.mint(mintResult);
 receipt.orderId; // PERSIST THIS — needed to redeem/claim later
 receipt.entryProbability; // your fill price (0..1 per $1 payout)
-receipt.netPremium; // exact cost breakdown
+receipt.premium; // exact cost breakdown
 receipt.fees;
 
 // Read: tradeable markets and pool state.
@@ -96,7 +96,6 @@ reads use the primitives layer, which returns raw `bigint`s (`accountBalance`, `
 | Amounts (deposit, spend, maxCost, balances) | USD decimal number or string (`12.5`, `"12.5"`)                | ×1e6 (DUSDC)                         |
 | `quantity`                                  | **max payout** in USD; positions pay $1 per contract at expiry | ×1e6, in $0.01 lots                  |
 | `strike`                                    | USD (`105_000`)                                                | ×1e9, must land on the market's tick |
-| `leverage`                                  | number ≥ 1 (default 1)                                         | ×1e9                                 |
 | `maxProbability`                            | 0..1 (`0.35` = 35¢ per $1 contract)                            | ×1e9                                 |
 | PLP shares (`withdrawPlp`, `plpBalance`)    | raw `bigint` shares                                            | 6-decimal coin                       |
 

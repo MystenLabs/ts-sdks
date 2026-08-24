@@ -71,7 +71,6 @@ export function mintExactQuantity(
 		lowerTick: bigint;
 		higherTick: bigint;
 		quantityRaw: bigint;
-		leverageRaw: bigint;
 		maxCostRaw?: bigint;
 		maxProbabilityRaw?: bigint;
 	} & MarketFeeds,
@@ -86,7 +85,6 @@ export function mintExactQuantity(
 				lowerTick: args.lowerTick,
 				higherTick: args.higherTick,
 				quantity: args.quantityRaw,
-				leverage: args.leverageRaw,
 				maxCost: args.maxCostRaw ?? U64_MAX,
 				maxProbability: args.maxProbabilityRaw ?? U64_MAX,
 			},
@@ -94,10 +92,10 @@ export function mintExactQuantity(
 	);
 }
 
-// Mint by spending up to `maxPremiumRaw` (raw quote units) at leverage, enforcing a
-// `minQuantityRaw` floor on the position received and a `maxCostRaw` all-in ceiling,
-// returning the new order id (u256). Command order is pricer → auth → mint. Deployed
-// sig `mint_exact_amount`: …, max_premium, min_quantity, leverage, max_cost, root.
+// Mint by spending up to `maxPremiumRaw` (raw quote units), enforcing a `minQuantityRaw`
+// floor on the position received and a `maxCostRaw` all-in ceiling, returning the new
+// order id (u256). Command order is pricer → auth → mint. Deployed sig
+// `mint_exact_amount`: …, max_premium, min_quantity, max_cost, root.
 export function mintExactAmount(
 	config: GeneratedConfig,
 	args: {
@@ -107,7 +105,6 @@ export function mintExactAmount(
 		higherTick: bigint;
 		maxPremiumRaw: bigint;
 		minQuantityRaw: bigint;
-		leverageRaw: bigint;
 		maxCostRaw?: bigint;
 	} & MarketFeeds,
 ): (tx: Transaction) => TransactionResult {
@@ -122,7 +119,6 @@ export function mintExactAmount(
 				higherTick: args.higherTick,
 				maxPremium: args.maxPremiumRaw,
 				minQuantity: args.minQuantityRaw,
-				leverage: args.leverageRaw,
 				maxCost: args.maxCostRaw ?? U64_MAX,
 			},
 		}),
@@ -161,10 +157,10 @@ export function redeemLive(
 	);
 }
 
-// Owner-authorized redeem of a settled position: close `closeQuantityRaw` of `orderId`
-// against the recorded settlement price. Returns (closed order id u256, Option<replacement
-// order id>). No live pricer (settlement price is fixed); auth is consumed by the call.
-// Deployed sig `redeem_settled` (owner-auth form). The keeper-facing
+// Owner-authorized redeem of a settled position: closes `orderId` IN FULL against the
+// recorded settlement price (the deployed entrypoint takes no quantity — a settled claim
+// is all-or-nothing). No live pricer (settlement price is fixed); auth is consumed by the
+// call. Deployed sig `redeem_settled` (owner-auth form). The keeper-facing
 // `redeem_settled_permissionless` is a separate entrypoint, out of scope for this SDK.
 export function redeemSettled(
 	config: GeneratedConfig,
@@ -172,7 +168,6 @@ export function redeemSettled(
 		expiryMarketId: string;
 		wrapperId: string;
 		orderId: bigint;
-		closeQuantityRaw: bigint;
 	},
 ): (tx: Transaction) => TransactionResult {
 	return authed.redeemSettled({
@@ -181,7 +176,6 @@ export function redeemSettled(
 			market: args.expiryMarketId,
 			wrapper: args.wrapperId,
 			orderId: args.orderId,
-			closeQuantity: args.closeQuantityRaw,
 		},
 	});
 }

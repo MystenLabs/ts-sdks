@@ -39,17 +39,19 @@ function mintedEvent(orderId: bigint, overrides: Record<string, unknown> = {}): 
 			owner: OWNER,
 			lower_tick: 10_500_000n,
 			higher_tick: (1n << 30n) - 1n,
-			leverage: 2_000_000_000n,
 			entry_probability: 300_000_000n,
 			quantity: 50_000_000n,
-			net_premium: 12_500_000n,
+			premium: 12_500_000n,
 			trading_fee: 100_000n,
 			fee_incentive_subsidy: 20_000n,
 			builder_fee: 30_000n,
 			penalty_fee: 5_000n,
+			referral_fee: 7_000n,
+			inventory_impact_charge: 4_000n,
 			builder_code_id: CODE,
+			referrer_account_id: null,
 			// Trailing fields decode.ts parses but the mint receipt does not surface.
-			minted_at_ms: 0n,
+			onchain_timestamp_ms: 0n,
 			pyth_spot_source_timestamp_ms: 0n,
 			block_scholes_spot_source_timestamp_ms: 0n,
 			block_scholes_forward_source_timestamp_ms: 0n,
@@ -66,13 +68,19 @@ describe('decodeMints', () => {
 		expect(r.positionRootId).toBe(7n);
 		expect(r.marketId).toBe(MARKET);
 		expect(r.quantity).toBe(50); // $50 payout
-		expect(r.netPremium).toBe(12.5);
+		expect(r.premium).toBe(12.5);
 		expect(r.entryProbability).toBeCloseTo(0.3);
-		expect(r.leverage).toBe(2);
-		expect(r.fees).toEqual({ trading: 0.1, subsidy: 0.02, builder: 0.03, penalty: 0.005 });
+		expect(r.fees).toEqual({
+			trading: 0.1,
+			subsidy: 0.02,
+			builder: 0.03,
+			penalty: 0.005,
+			referral: 0.007,
+			inventoryImpact: 0.004,
+		});
 		expect(r.builderCodeId).toBe(CODE);
 		expect(r.raw.quantity).toBe(50_000_000n);
-		expect(r.raw.netPremium).toBe(12_500_000n);
+		expect(r.raw.premium).toBe(12_500_000n);
 	});
 
 	test('batched PTB: N mints → N receipts, in order', () => {
@@ -133,9 +141,10 @@ describe('decodeRedeems', () => {
 				trading_fee: 50_000n,
 				builder_fee: 0n,
 				penalty_fee: 0n,
+				inventory_impact_rebate: 3_000n,
 				builder_code_id: null,
 				// Trailing fields decode.ts parses but the redeem receipt does not surface.
-				redeemed_at_ms: 0n,
+				onchain_timestamp_ms: 0n,
 				pyth_spot_source_timestamp_ms: 0n,
 				block_scholes_spot_source_timestamp_ms: 0n,
 				block_scholes_forward_source_timestamp_ms: 0n,
@@ -152,35 +161,13 @@ describe('decodeRedeems', () => {
 		expect(r.gross).toBe(6);
 		expect(r.proceeds).toBe(5.95);
 		expect(r.raw.proceeds).toBe(5_950_000n);
-		expect(r.liquidated).toBe(false);
+		expect(r.fees.inventoryImpactRebate).toBe(0.003);
 	});
 
 	test('full close → replacement null', () => {
 		const [r] = decodeRedeems(cfg, { events: [liveRedeem(null)] });
 		expect(r.replacementOrderId).toBeNull();
 		expect(r.remaining).toBe(0);
-	});
-
-	test('liquidated tombstone → zero payout, liquidated flag', () => {
-		const [r] = decodeRedeems(cfg, {
-			events: [
-				{
-					eventType: `${cfg.packages.predict}::order_events::LiquidatedOrderRedeemed`,
-					bcs: orderEvents.LiquidatedOrderRedeemed.serialize({
-						expiry_market_id: MARKET,
-						account_id: ACCOUNT,
-						order_id: 7n,
-						position_root_id: 7n,
-						owner: OWNER,
-						quantity_closed: 50_000_000n,
-						redeemed_at_ms: 0n,
-					}).toBytes(),
-				},
-			],
-		});
-		expect(r.liquidated).toBe(true);
-		expect(r.proceeds).toBe(0);
-		expect(r.quantityClosed).toBe(50);
 	});
 });
 
@@ -196,15 +183,12 @@ describe('other decoders', () => {
 						order_id: 7n,
 						position_root_id: 7n,
 						owner: OWNER,
-						quantity_closed: 50_000_000n,
-						settlement_price: 106_000_000_000_000n,
 						payout_amount: 50_000_000n,
-						redeemed_at_ms: 0n,
+						onchain_timestamp_ms: 0n,
 					}).toBytes(),
 				},
 			],
 		});
-		expect(r.settlementPrice).toBe(106_000);
 		expect(r.payout).toBe(50);
 	});
 

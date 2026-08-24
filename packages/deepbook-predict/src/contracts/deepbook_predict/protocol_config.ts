@@ -21,9 +21,7 @@ import { bcs } from '@mysten/sui/bcs';
 import { U64 } from '../../bcs/integers.js';
 import { type Transaction } from '@mysten/sui/transactions';
 import * as pricing_config from './pricing_config.js';
-import * as expiry_cash_config from './expiry_cash_config.js';
 import * as strike_exposure_config from './strike_exposure_config.js';
-import * as stake_config from './stake_config.js';
 import * as ewma_config from './ewma_config.js';
 const $moduleName = '@local-pkg/deepbook_predict::protocol_config';
 export const ProtocolConfig = new MoveStruct({
@@ -36,6 +34,11 @@ export const ProtocolConfig = new MoveStruct({
 		 * FLOAT_SCALING. The complement accrues to LPs.
 		 */
 		protocol_reserve_profit_share: U64,
+		/**
+		 * Portion of a referred mint's trader-paid trading fee and congestion surcharge
+		 * routed to the referrer, in FLOAT_SCALING.
+		 */
+		referral_fee_rate: U64,
 		/**
 		 * Fee charged on an executed PLP supply fill, in FLOAT_SCALING, deducted from the
 		 * DUSDC taken in before shares are priced. Ships at zero — a deposit dilutes the
@@ -50,8 +53,6 @@ export const ProtocolConfig = new MoveStruct({
 		 * flush is charged the same pair.
 		 */
 		plp_withdraw_fee_rate: U64,
-		/** Total liquidation candidates checked before mint and redeem flows. */
-		trade_liquidation_budget: U64,
 		/**
 		 * Frozen-mark attempts a queued LP supply/withdraw request gets before the
 		 * protocol cancels and refunds it. `1` (the default) is fill-or-kill; above that a
@@ -65,9 +66,7 @@ export const ProtocolConfig = new MoveStruct({
 		 * the pool is uncapped until an operator sets a figure (RP-23).
 		 */
 		max_lp_pool_value: U64,
-		expiry_cash_template_config: expiry_cash_config.ExpiryCashConfig,
 		strike_exposure_template_config: strike_exposure_config.StrikeExposureConfig,
-		stake_config: stake_config.StakeConfig,
 		ewma_config: ewma_config.EwmaConfig,
 		/**
 		 * Minimum package version permitted to run version-gated flows. Monotonic;
@@ -194,6 +193,38 @@ export function frozen(options: FrozenOptions) {
 			),
 		});
 }
+export interface ReferralFeeRateArguments {
+	config?: RawTransactionArgument<string>;
+}
+export interface ReferralFeeRateOptions {
+	package?: string;
+	arguments?: ReferralFeeRateArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/** Return the live referral fee rate for SDK and devInspect reads. */
+export function referralFeeRate(options: ReferralFeeRateOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['config'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'protocol_config',
+			function: 'referral_fee_rate',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
 export interface SetTemplateBaseFeeArguments {
 	config?: RawTransactionArgument<string>;
 	AdminCap: RawTransactionArgument<string>;
@@ -211,7 +242,7 @@ export interface SetTemplateBaseFeeOptions {
 export function setTemplateBaseFee(options: SetTemplateBaseFeeOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
+	const argumentsTypes = [null, null, 'u64', '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['config', 'AdminCap', 'fee'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -245,7 +276,7 @@ export interface SetTemplateMinFeeOptions {
 export function setTemplateMinFee(options: SetTemplateMinFeeOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
+	const argumentsTypes = [null, null, 'u64', '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['config', 'AdminCap', 'fee'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -279,7 +310,7 @@ export interface SetTemplateExpiryFeeWindowMsOptions {
 export function setTemplateExpiryFeeWindowMs(options: SetTemplateExpiryFeeWindowMsOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
+	const argumentsTypes = [null, null, 'u64', '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['config', 'AdminCap', 'value'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -315,118 +346,13 @@ export function setTemplateExpiryFeeMaxMultiplier(
 ) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
+	const argumentsTypes = [null, null, 'u64', '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['config', 'AdminCap', 'value'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'protocol_config',
 			function: 'set_template_expiry_fee_max_multiplier',
-			arguments: normalizeMoveArguments(
-				{
-					...options.arguments,
-					config: options.arguments?.config ?? options.config?.protocolConfig,
-				},
-				argumentsTypes,
-				parameterNames,
-			),
-		});
-}
-export interface SetTemplateNoLeverageWindowMsArguments {
-	config?: RawTransactionArgument<string>;
-	AdminCap: RawTransactionArgument<string>;
-	windowMs: RawTransactionArgument<number | bigint>;
-}
-export interface SetTemplateNoLeverageWindowMsOptions {
-	package?: string;
-	arguments: SetTemplateNoLeverageWindowMsArguments;
-	config?: {
-		protocolConfig: ConfigValue;
-		predictPackageId?: string;
-	};
-}
-/**
- * Set the near-expiry no-leverage window snapshotted by newly created expiry
- * markets.
- */
-export function setTemplateNoLeverageWindowMs(options: SetTemplateNoLeverageWindowMsOptions) {
-	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
-	const parameterNames = ['config', 'AdminCap', 'windowMs'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'protocol_config',
-			function: 'set_template_no_leverage_window_ms',
-			arguments: normalizeMoveArguments(
-				{
-					...options.arguments,
-					config: options.arguments?.config ?? options.config?.protocolConfig,
-				},
-				argumentsTypes,
-				parameterNames,
-			),
-		});
-}
-export interface SetTemplateLiquidationLtvArguments {
-	config?: RawTransactionArgument<string>;
-	AdminCap: RawTransactionArgument<string>;
-	value: RawTransactionArgument<number | bigint>;
-}
-export interface SetTemplateLiquidationLtvOptions {
-	package?: string;
-	arguments: SetTemplateLiquidationLtvArguments;
-	config?: {
-		protocolConfig: ConfigValue;
-		predictPackageId?: string;
-	};
-}
-/** Set the liquidation LTV snapshotted by newly created expiry markets. */
-export function setTemplateLiquidationLtv(options: SetTemplateLiquidationLtvOptions) {
-	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
-	const parameterNames = ['config', 'AdminCap', 'value'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'protocol_config',
-			function: 'set_template_liquidation_ltv',
-			arguments: normalizeMoveArguments(
-				{
-					...options.arguments,
-					config: options.arguments?.config ?? options.config?.protocolConfig,
-				},
-				argumentsTypes,
-				parameterNames,
-			),
-		});
-}
-export interface SetTemplateMaxAdmissionLeverageArguments {
-	config?: RawTransactionArgument<string>;
-	AdminCap: RawTransactionArgument<string>;
-	value: RawTransactionArgument<number | bigint>;
-}
-export interface SetTemplateMaxAdmissionLeverageOptions {
-	package?: string;
-	arguments: SetTemplateMaxAdmissionLeverageArguments;
-	config?: {
-		protocolConfig: ConfigValue;
-		predictPackageId?: string;
-	};
-}
-/** Set the max admission leverage snapshotted by newly created expiry markets. */
-export function setTemplateMaxAdmissionLeverage(options: SetTemplateMaxAdmissionLeverageOptions) {
-	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
-	const parameterNames = ['config', 'AdminCap', 'value'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'protocol_config',
-			function: 'set_template_max_admission_leverage',
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,
@@ -454,7 +380,7 @@ export interface SetTemplateBackingBufferLambdaOptions {
 export function setTemplateBackingBufferLambda(options: SetTemplateBackingBufferLambdaOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
+	const argumentsTypes = [null, null, 'u64', '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['config', 'AdminCap', 'value'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -471,74 +397,35 @@ export function setTemplateBackingBufferLambda(options: SetTemplateBackingBuffer
 			),
 		});
 }
-export interface SetTemplateMaxBenefitRatioArguments {
+export interface SetTemplateInventoryImpactMaxRateArguments {
 	config?: RawTransactionArgument<string>;
 	AdminCap: RawTransactionArgument<string>;
 	value: RawTransactionArgument<number | bigint>;
 }
-export interface SetTemplateMaxBenefitRatioOptions {
+export interface SetTemplateInventoryImpactMaxRateOptions {
 	package?: string;
-	arguments: SetTemplateMaxBenefitRatioArguments;
+	arguments: SetTemplateInventoryImpactMaxRateArguments;
 	config?: {
 		protocolConfig: ConfigValue;
 		predictPackageId?: string;
 	};
 }
 /**
- * Set how much of the DEEP-stake benefit programme newly created expiry markets
- * run, from `0` (nothing) to `float_scaling` (full strength). Ships at 0, so
- * markets charge undiscounted fees and pay no stake-scaled loss rebate until this
- * is raised. Existing markets keep the value they snapshotted.
+ * Set the maximum marginal inventory-impact rate snapshotted by newly created
+ * expiry markets. `0` (the default) disables both charges and rebates.
  */
-export function setTemplateMaxBenefitRatio(options: SetTemplateMaxBenefitRatioOptions) {
+export function setTemplateInventoryImpactMaxRate(
+	options: SetTemplateInventoryImpactMaxRateOptions,
+) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
+	const argumentsTypes = [null, null, 'u64', '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['config', 'AdminCap', 'value'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'protocol_config',
-			function: 'set_template_max_benefit_ratio',
-			arguments: normalizeMoveArguments(
-				{
-					...options.arguments,
-					config: options.arguments?.config ?? options.config?.protocolConfig,
-				},
-				argumentsTypes,
-				parameterNames,
-			),
-		});
-}
-export interface SetTemplateBenefitPowersArguments {
-	config?: RawTransactionArgument<string>;
-	AdminCap: RawTransactionArgument<string>;
-	lower: RawTransactionArgument<number | bigint>;
-	upper: RawTransactionArgument<number | bigint>;
-}
-export interface SetTemplateBenefitPowersOptions {
-	package?: string;
-	arguments: SetTemplateBenefitPowersArguments;
-	config?: {
-		protocolConfig: ConfigValue;
-		predictPackageId?: string;
-	};
-}
-/**
- * Set the staking benefit thresholds snapshotted by newly created expiry markets:
- * `lower` (half of max benefits) and `upper` (full benefits). Validated as a pair
- * (`upper > 2 * lower`). Existing markets keep the curve they snapshotted.
- */
-export function setTemplateBenefitPowers(options: SetTemplateBenefitPowersOptions) {
-	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, 'u64', 'u64'] satisfies (string | null)[];
-	const parameterNames = ['config', 'AdminCap', 'lower', 'upper'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'protocol_config',
-			function: 'set_template_benefit_powers',
+			function: 'set_template_inventory_impact_max_rate',
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,
@@ -569,7 +456,7 @@ export interface SetTemplateMinEntryProbabilityOptions {
 export function setTemplateMinEntryProbability(options: SetTemplateMinEntryProbabilityOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
+	const argumentsTypes = [null, null, 'u64', '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['config', 'AdminCap', 'value'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -606,7 +493,7 @@ export interface SetTemplateMaxEntryProbabilityOptions {
 export function setTemplateMaxEntryProbability(options: SetTemplateMaxEntryProbabilityOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
+	const argumentsTypes = [null, null, 'u64', '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['config', 'AdminCap', 'value'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -645,7 +532,7 @@ export interface SetUsePythSpotForForwardOptions {
 export function setUsePythSpotForForward(options: SetUsePythSpotForForwardOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, 'bool'] satisfies (string | null)[];
+	const argumentsTypes = [null, null, 'bool', '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['config', 'AdminCap', 'enabled'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -679,7 +566,7 @@ export interface SetPythSpotFreshnessMsOptions {
 export function setPythSpotFreshnessMs(options: SetPythSpotFreshnessMsOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
+	const argumentsTypes = [null, null, 'u64', '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['config', 'AdminCap', 'value'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -713,7 +600,7 @@ export interface SetBlockScholesPriceFreshnessMsOptions {
 export function setBlockScholesPriceFreshnessMs(options: SetBlockScholesPriceFreshnessMsOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
+	const argumentsTypes = [null, null, 'u64', '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['config', 'AdminCap', 'value'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -747,81 +634,13 @@ export interface SetBlockScholesSviFreshnessMsOptions {
 export function setBlockScholesSviFreshnessMs(options: SetBlockScholesSviFreshnessMsOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
+	const argumentsTypes = [null, null, 'u64', '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['config', 'AdminCap', 'value'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'protocol_config',
 			function: 'set_block_scholes_svi_freshness_ms',
-			arguments: normalizeMoveArguments(
-				{
-					...options.arguments,
-					config: options.arguments?.config ?? options.config?.protocolConfig,
-				},
-				argumentsTypes,
-				parameterNames,
-			),
-		});
-}
-export interface SetTemplateTradingLossRebateRateArguments {
-	config?: RawTransactionArgument<string>;
-	AdminCap: RawTransactionArgument<string>;
-	value: RawTransactionArgument<number | bigint>;
-}
-export interface SetTemplateTradingLossRebateRateOptions {
-	package?: string;
-	arguments: SetTemplateTradingLossRebateRateArguments;
-	config?: {
-		protocolConfig: ConfigValue;
-		predictPackageId?: string;
-	};
-}
-/** Set the trading loss rebate rate snapshotted by newly created expiry markets. */
-export function setTemplateTradingLossRebateRate(options: SetTemplateTradingLossRebateRateOptions) {
-	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
-	const parameterNames = ['config', 'AdminCap', 'value'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'protocol_config',
-			function: 'set_template_trading_loss_rebate_rate',
-			arguments: normalizeMoveArguments(
-				{
-					...options.arguments,
-					config: options.arguments?.config ?? options.config?.protocolConfig,
-				},
-				argumentsTypes,
-				parameterNames,
-			),
-		});
-}
-export interface SetTradeLiquidationBudgetArguments {
-	config?: RawTransactionArgument<string>;
-	AdminCap: RawTransactionArgument<string>;
-	budget: RawTransactionArgument<number | bigint>;
-}
-export interface SetTradeLiquidationBudgetOptions {
-	package?: string;
-	arguments: SetTradeLiquidationBudgetArguments;
-	config?: {
-		protocolConfig: ConfigValue;
-		predictPackageId?: string;
-	};
-}
-/** Set the total liquidation candidate budget used before mint and redeem flows. */
-export function setTradeLiquidationBudget(options: SetTradeLiquidationBudgetOptions) {
-	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
-	const parameterNames = ['config', 'AdminCap', 'budget'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'protocol_config',
-			function: 'set_trade_liquidation_budget',
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,
@@ -930,7 +749,9 @@ export interface SetEwmaParamsOptions {
 export function setEwmaParams(options: SetEwmaParamsOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, 'u64', 'u64', 'u64'] satisfies (string | null)[];
+	const argumentsTypes = [null, null, 'u64', 'u64', 'u64', '0x2::clock::Clock'] satisfies (
+		string | null
+	)[];
 	const parameterNames = ['config', 'AdminCap', 'alpha', 'zScoreThreshold', 'penaltyRate'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -964,7 +785,7 @@ export interface SetEwmaEnabledOptions {
 export function setEwmaEnabled(options: SetEwmaEnabledOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, 'bool'] satisfies (string | null)[];
+	const argumentsTypes = [null, null, 'bool', '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['config', 'AdminCap', 'enabled'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -1131,6 +952,43 @@ export function setProtocolReserveProfitShare(options: SetProtocolReserveProfitS
 			),
 		});
 }
+export interface SetReferralFeeRateArguments {
+	config?: RawTransactionArgument<string>;
+	AdminCap: RawTransactionArgument<string>;
+	rate: RawTransactionArgument<number | bigint>;
+}
+export interface SetReferralFeeRateOptions {
+	package?: string;
+	arguments: SetReferralFeeRateArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/**
+ * Set the portion of referred mint fees routed to the referrer. The new rate
+ * applies to subsequent mints without changing their all-in account withdrawal.
+ */
+export function setReferralFeeRate(options: SetReferralFeeRateOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
+	const parameterNames = ['config', 'AdminCap', 'rate'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'protocol_config',
+			function: 'set_referral_fee_rate',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
 export interface SetPlpSupplyFeeRateArguments {
 	config?: RawTransactionArgument<string>;
 	AdminCap: RawTransactionArgument<string>;
@@ -1152,7 +1010,7 @@ export interface SetPlpSupplyFeeRateOptions {
 export function setPlpSupplyFeeRate(options: SetPlpSupplyFeeRateOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
+	const argumentsTypes = [null, null, 'u64', '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['config', 'AdminCap', 'rate'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -1189,7 +1047,7 @@ export interface SetPlpWithdrawFeeRateOptions {
 export function setPlpWithdrawFeeRate(options: SetPlpWithdrawFeeRateOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
+	const argumentsTypes = [null, null, 'u64', '0x2::clock::Clock'] satisfies (string | null)[];
 	const parameterNames = ['config', 'AdminCap', 'rate'];
 	return (tx: Transaction) =>
 		tx.moveCall({

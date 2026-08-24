@@ -15,14 +15,13 @@
  * anything the caller supplies: rotations are driven by measured subtree height,
  * which bounds depth at `O(log n)` for _every_ tick set rather than in expectation
  * over a random one. Depth is the cost model that matters — each node is a
- * dynamic-field child, and `apply_at` and `settlement_prefix_net_payout` touch one
- * per level against a per-transaction cached-object ceiling.
+ * dynamic-field child, and `apply_at` and `settlement_prefix_payout` touch one per
+ * level against a per-transaction cached-object ceiling.
  *
- * It tracks each order's quantity and its net payout (`Q - F`), converting the
- * packed static floor once at the write boundary so no aggregate read re-derives
- * it. Live cash backing is the max-point net payout plus a buffer over the
- * disjoint-book gap; the tree's max-point term is the floor anchor of that
- * enforced reserve.
+ * It tracks each order's quantity, which is also its settled payout: a winning
+ * order pays its full quantity. Live cash backing is the max-point payout plus a
+ * buffer over the disjoint-book gap; the tree's max-point term is the floor anchor
+ * of that enforced reserve.
  *
  * Shape carries no value for a consistent index: `combine_summaries` is
  * associative over the in-order sequence, so any arrangement of the same
@@ -30,54 +29,42 @@
  * totals. That holds only while every prefix is non-negative, which a consistent
  * book guarantees. Under a caller/index desync the settlement walk's underflow
  * abort depends on which prefixes a given shape happens to visit, so it is not a
- * desync detector — `apply_terms_delta`'s per-boundary assert is the authority.
+ * desync detector — the per-boundary underflow in `apply_net_delta` is the
+ * authority.
  */
 
 import { MoveStruct } from '../utils/index.js';
-import { U64 } from '../../bcs/integers.js';
 import { bcs } from '@mysten/sui/bcs';
+import { U64 } from '../../bcs/integers.js';
 import * as table from './deps/sui/table.js';
 const $moduleName = '@local-pkg/deepbook_predict::strike_payout_tree';
-export const PayoutTerms = new MoveStruct({
-	name: `${$moduleName}::PayoutTerms`,
-	fields: {
-		/**
-		 * Aggregate order quantity over the prefix. Read by the NAV linear walk
-		 * (`walk_linear`), which prices each boundary's start/end quantity.
-		 */
-		quantity: U64,
-		/**
-		 * Aggregate net payout (`Q - F`) over the prefix — the basis for settled liability
-		 * and max-point reserve reads. Stored rather than derived so a negative aggregate
-		 * net payout is unrepresentable instead of relying on the per-order `F <= Q`
-		 * invariant surviving every summation.
-		 */
-		net_payout: U64,
-	},
-});
 export const StrikePayoutTree = new MoveStruct({
 	name: `${$moduleName}::StrikePayoutTree`,
 	fields: {
 		root: bcs.option(U64),
 		nodes: table.Table,
 		node_count: U64,
-		base: PayoutTerms,
+		/**
+		 * Aggregate order quantity over the open-lower prefix, which is also its aggregate
+		 * settled payout.
+		 */
+		base: U64,
 	},
 });
 export const PayoutSummary = new MoveStruct({
 	name: `${$moduleName}::PayoutSummary`,
 	fields: {
-		net_start: U64,
-		net_end: U64,
+		start: U64,
+		end: U64,
 		/**
-		 * Never exceeds `net_start`, by construction in `boundary_summary` and
+		 * Never exceeds `start`, by construction in `boundary_summary` and
 		 * `combine_summaries`. That bound is what makes `combine_summaries` associative at
 		 * u64 scale — and therefore what makes the tree's shape irrelevant to every value
-		 * it reports. A summary term that could outgrow `net_start` would break
+		 * it reports. A summary term that could outgrow `start` would break
 		 * shape-independence with no test to catch it, and would also abort
 		 * `strike_exposure`'s plain `total - max` subtraction.
 		 */
-		max_net_payout_prefix_gain: U64,
+		max_payout_prefix_gain: U64,
 	},
 });
 export const PayoutNode = new MoveStruct({
@@ -95,8 +82,8 @@ export const PayoutNode = new MoveStruct({
 		 * This node's own boundary terms, stored so the subtree `summary` can be
 		 * recomputed without deriving locals by subtracting child summaries.
 		 */
-		local_start: PayoutTerms,
-		local_end: PayoutTerms,
+		local_start: U64,
+		local_end: U64,
 		summary: PayoutSummary,
 	},
 });
