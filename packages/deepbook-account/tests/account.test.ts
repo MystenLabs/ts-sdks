@@ -5,6 +5,7 @@ import { normalizeSuiAddress } from '@mysten/sui/utils';
 import { describe, expect, test } from 'vitest';
 
 import { AccountContract } from '../src/account.js';
+import { Account, AccountWrapper } from '../src/index.js';
 
 const PKG = '0x' + '11'.repeat(32);
 const REGISTRY = '0x' + '22'.repeat(32);
@@ -135,5 +136,46 @@ describe('deriveAccountWrapperId', () => {
 			accountRegistry: '0x' + '33'.repeat(32),
 		});
 		expect(other.deriveAccountWrapperId(OWNER)).not.toBe(account.deriveAccountWrapperId(OWNER));
+	});
+});
+
+describe('generated layout', () => {
+	// BCS is positional: a field inserted or reordered mid-struct silently corrupts
+	// every field after it, and these structs are parsed straight off chain
+	// (`AccountWrapper` -> `account.account_id` drives Predict's position enumeration).
+	// Round-trip a fully specified value so a regeneration that drops, adds or reorders
+	// a field fails here rather than in a consumer's decoded output.
+	const ADDR = (b: string) => normalizeSuiAddress('0x' + b.repeat(32));
+	const account = {
+		account_id: ADDR('aa'),
+		owner: ADDR('bb'),
+		receive_address: ADDR('cc'),
+		balances: { id: ADDR('dd'), size: 1n },
+		settlements: { id: ADDR('ee'), size: 2n },
+		referrer_account_id: ADDR('ff'),
+		referrer_receive_address: ADDR('12'),
+	};
+
+	test('Account round-trips with the deployed field set, in order', () => {
+		const parsed = Account.parse(Account.serialize(account).toBytes());
+		expect(Object.keys(parsed)).toEqual([
+			'account_id',
+			'owner',
+			'receive_address',
+			'balances',
+			'settlements',
+			'referrer_account_id',
+			'referrer_receive_address',
+		]);
+		expect(parsed.account_id).toBe(account.account_id);
+		expect(parsed.referrer_receive_address).toBe(account.referrer_receive_address);
+	});
+
+	test('AccountWrapper wraps Account as its trailing field', () => {
+		const parsed = AccountWrapper.parse(
+			AccountWrapper.serialize({ id: ADDR('99'), account }).toBytes(),
+		);
+		expect(Object.keys(parsed)).toEqual(['id', 'account']);
+		expect(parsed.account.account_id).toBe(account.account_id);
 	});
 });
