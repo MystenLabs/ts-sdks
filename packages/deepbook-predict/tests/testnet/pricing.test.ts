@@ -19,7 +19,7 @@ const predict = new PredictClient({ network: 'testnet', client });
 
 // Same tolerance basis as smoke.test.ts: a stale/unavailable oracle surfaces as a typed
 // `pricing`-module abort, by small code (pre-clever-error) or by clever-error name.
-const ORACLE_CODES = new Set([4n, 5n, 6n, 9n, 10n, 13n, 14n]);
+const ORACLE_CODES = new Set([4n, 5n, 6n, 9n, 10n, 12n, 13n]);
 const ORACLE_NAMES = new Set([
 	'EBlockScholesPriceStale', // 4
 	'EBlockScholesInputsInvalid', // 5

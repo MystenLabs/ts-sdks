@@ -111,15 +111,15 @@ function expectSemanticOrSuccess(outcome: unknown, label: string): void {
 // as plain small codes with a null name (verified live: code=4n, abortName=null), so the
 // numeric set is what fires today; the name set future-proofs against the module being
 // compiled with clever errors (which would pack the code and populate abortName).
-const ORACLE_UNAVAILABLE_CODES = new Set([4n, 5n, 6n, 9n, 10n, 13n, 14n]);
+const ORACLE_UNAVAILABLE_CODES = new Set([4n, 5n, 6n, 9n, 10n, 12n, 13n]);
 const ORACLE_UNAVAILABLE_NAMES = new Set([
 	'EBlockScholesPriceStale', // 4
 	'EBlockScholesInputsInvalid', // 5
 	'EPythSpotInvalid', // 6
 	'ELivePricingExpired', // 9
 	'EBlockScholesSVIStale', // 10
-	'EBlockScholesPriceUnavailable', // 13
-	'EBlockScholesSVIUnavailable', // 14
+	'EBlockScholesPriceUnavailable', // 12
+	'EBlockScholesSVIUnavailable', // 13
 ]);
 function isOracleUnavailable(e: unknown): boolean {
 	if (!(e instanceof PredictMoveError) || e.module !== 'pricing') return false;
