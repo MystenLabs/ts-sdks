@@ -152,10 +152,11 @@ describe('markets reads', () => {
 		expect(await expiryMarketId(client, config, BTC, 1n)).toBeNull();
 	});
 
-	test('marketState: one PTB with 4 reads, dispatched per command index', async () => {
+	test('marketState: one PTB with 5 reads, dispatched per command index', async () => {
 		const { client, captured } = mockClient([
 			[bcs.u64().serialize(1_700_000_000_000n).toBytes()], // expiry
 			[bcs.u64().serialize(10_000_000n).toBytes()], // tick_size
+			[bcs.u64().serialize(1_000_000_000n).toBytes()], // admission_tick_size ($1)
 			[bcs.bool().serialize(true).toBytes()], // mint_paused
 			[bcs.option(bcs.u64()).serialize(10_500_000n).toBytes()], // reference_tick
 		]);
@@ -163,12 +164,14 @@ describe('markets reads', () => {
 		expect(targets(captured.tx!)).toEqual([
 			`${cfg.packages.predict}::expiry_market::expiry`,
 			`${cfg.packages.predict}::expiry_market::tick_size`,
+			`${cfg.packages.predict}::expiry_market::admission_tick_size`,
 			`${cfg.packages.predict}::expiry_market::mint_paused`,
 			`${cfg.packages.predict}::expiry_market::reference_tick`,
 		]);
 		expect(s).toEqual({
 			expiryMs: 1_700_000_000_000n,
 			tickSizeRaw: 10_000_000n,
+			admissionTickSizeRaw: 1_000_000_000n,
 			mintPaused: true,
 			referenceTickRaw: 10_500_000n,
 		});
@@ -231,18 +234,32 @@ describe('markets reads', () => {
 		const { client, captured } = mockClient([
 			[bcs.u64().serialize(1_000n).toBytes()], // m0 expiry
 			[bcs.u64().serialize(10_000_000n).toBytes()], // m0 tick
+			[bcs.u64().serialize(100_000_000n).toBytes()], // m0 admission tick
 			[bcs.bool().serialize(false).toBytes()], // m0 paused
 			[bcs.option(bcs.u64()).serialize(7n).toBytes()], // m0 reference
 			[bcs.u64().serialize(2_000n).toBytes()], // m1 expiry
 			[bcs.u64().serialize(20_000_000n).toBytes()], // m1 tick
+			[bcs.u64().serialize(200_000_000n).toBytes()], // m1 admission tick
 			[bcs.bool().serialize(true).toBytes()], // m1 paused
 			[bcs.option(bcs.u64()).serialize(null).toBytes()], // m1 reference (unset)
 		]);
 		const states = await marketStates(client, config, [ADDR_A, ADDR_B]);
-		expect(targets(captured.tx!).length).toBe(8);
+		expect(targets(captured.tx!).length).toBe(10);
 		expect(states).toEqual([
-			{ expiryMs: 1_000n, tickSizeRaw: 10_000_000n, mintPaused: false, referenceTickRaw: 7n },
-			{ expiryMs: 2_000n, tickSizeRaw: 20_000_000n, mintPaused: true, referenceTickRaw: null },
+			{
+				expiryMs: 1_000n,
+				tickSizeRaw: 10_000_000n,
+				admissionTickSizeRaw: 100_000_000n,
+				mintPaused: false,
+				referenceTickRaw: 7n,
+			},
+			{
+				expiryMs: 2_000n,
+				tickSizeRaw: 20_000_000n,
+				admissionTickSizeRaw: 200_000_000n,
+				mintPaused: true,
+				referenceTickRaw: null,
+			},
 		]);
 	});
 

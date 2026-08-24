@@ -91,13 +91,13 @@ Everything human-facing is decimal; everything on-chain is scaled integers. The 
 `number` are display values: above 2^53 raw they lose low-digit precision — for accounting-exact
 reads use the primitives layer, which returns raw `bigint`s (`accountBalance`, `poolStats`, …).
 
-| Concept                                     | You pass / receive                                             | On-chain raw                         |
-| ------------------------------------------- | -------------------------------------------------------------- | ------------------------------------ |
-| Amounts (deposit, spend, maxCost, balances) | USD decimal number or string (`12.5`, `"12.5"`)                | ×1e6 (DUSDC)                         |
-| `quantity`                                  | **max payout** in USD; positions pay $1 per contract at expiry | ×1e6, in $0.01 lots                  |
-| `strike`                                    | USD (`105_000`)                                                | ×1e9, must land on the market's tick |
-| `maxProbability`                            | 0..1 (`0.35` = 35¢ per $1 contract)                            | ×1e9                                 |
-| PLP shares (`withdrawPlp`, `plpBalance`)    | raw `bigint` shares                                            | 6-decimal coin                       |
+| Concept                                     | You pass / receive                                             | On-chain raw                          |
+| ------------------------------------------- | -------------------------------------------------------------- | ------------------------------------- |
+| Amounts (deposit, spend, maxCost, balances) | USD decimal number or string (`12.5`, `"12.5"`)                | ×1e6 (DUSDC)                          |
+| `quantity`                                  | **max payout** in USD; positions pay $1 per contract at expiry | ×1e6, in $0.01 lots                   |
+| `strike`                                    | USD (`105_000`)                                                | ×1e9, must land on the admission grid |
+| `maxProbability`                            | 0..1 (`0.35` = 35¢ per $1 contract)                            | ×1e9                                  |
+| PLP shares (`withdrawPlp`, `plpBalance`)    | raw `bigint` shares                                            | 6-decimal coin                        |
 
 `side: "up"` wins if the settlement price is above the strike; `"down"` below.
 
@@ -122,6 +122,22 @@ const tx = await client.predict.tx.mint(
 The reference tick is read fresh at build time (it is unset briefly at the start of a window until
 the keeper seeds it — you get a clean `PredictInputError` rather than a chain abort). Numeric
 strikes away from the reference remain fully supported.
+
+### Numeric strikes must sit on the admission grid
+
+New mint strikes must be a whole multiple of the market's **`admissionTickSize`** — a step
+deliberately coarser than `tickSize` (on the current testnet deployment it is `$100` against a
+`$0.01` tick). The market's `referencePrice` is the one finite strike the chain admits off-grid.
+`read.markets()` and `read.market()` both report `admissionTickSize`, so a board can be built from
+it directly:
+
+```ts
+const m = (await client.predict.read.markets())[0];
+const strike = Math.round(target / m.admissionTickSize) * m.admissionTickSize;
+```
+
+An off-grid numeric strike throws `PredictInputError` at build time rather than aborting on chain
+with `EInvalidAdmissionTick`.
 
 ## What's in the box
 

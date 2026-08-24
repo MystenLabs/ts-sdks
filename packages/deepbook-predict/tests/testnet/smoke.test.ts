@@ -237,10 +237,17 @@ describe('testnet smoke (live deployment)', () => {
 		// while a funded-but-broke owner would surface a typed Move abort. Either
 		// way the quote fails EXACTLY like the real trade would (preflight), and
 		// this proves the build → simulate-with-events → error path live.
+		//
+		// The strike must sit on the market's ADMISSION grid, or the SDK rejects it
+		// locally and we would never reach the chain — which is a different code path
+		// than the one this test exists to pin (that rejection has its own unit test).
+		const strike =
+			m.referencePrice ??
+			Math.round((m.admissionTickSize * 1_000) / m.admissionTickSize) * m.admissionTickSize;
 		await expect(
 			predict.read.quoteMint(
 				SMOKE_SENDER,
-				{ underlying: 'BTC', expiryMs: m.expiryMs, strike: m.tickSize * 1_000, side: 'up' },
+				{ underlying: 'BTC', expiryMs: m.expiryMs, strike, side: 'up' },
 				{ quantity: 1 },
 			),
 		).rejects.toThrow(/Object|Move abort|aborted|not found|no market/i);

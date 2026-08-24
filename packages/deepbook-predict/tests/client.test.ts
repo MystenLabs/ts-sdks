@@ -98,7 +98,7 @@ const REDEEMED_EVENT = {
 
 // A mock ReadClient that dispatches canned return values by the first command's
 // move-call function, and counts how many times each function was simulated.
-function mockClient() {
+function mockClient(overrides: { admissionTickSizeRaw?: bigint } = {}) {
 	const counts: Record<string, number> = {};
 	const client = {
 		core: {
@@ -132,10 +132,18 @@ function mockClient() {
 				} else if (fn === 'expiry_market_id') {
 					results = [[bcs.option(bcs.Address).serialize(MARKET_ID).toBytes()]];
 				} else if (fn === 'expiry') {
-					// marketState PTB: expiry, tick_size, mint_paused, reference_tick
+					// marketState PTB: expiry, tick_size, admission_tick_size, mint_paused,
+					// reference_tick. admission_tick_size is $0.01 here so existing fixtures'
+					// strikes stay admitted; the admission-grid rejection has its own test.
 					results = [
 						[bcs.u64().serialize(BigInt(EXPIRY)).toBytes()],
 						[bcs.u64().serialize(10_000_000n).toBytes()],
+						[
+							bcs
+								.u64()
+								.serialize(overrides.admissionTickSizeRaw ?? 10_000_000n)
+								.toBytes(),
+						],
 						[bcs.bool().serialize(false).toBytes()],
 						[bcs.option(bcs.u64()).serialize(10_500_000n).toBytes()],
 					];
@@ -406,6 +414,30 @@ describe('tx.mint (market resolution + unit conversion)', () => {
 		await expect(pc.read.market({ underlying: 'DOGE', expiryMs: EXPIRY })).rejects.toThrow(/DOGE/);
 	});
 
+	test('strike off the coarser ADMISSION grid throws before the chain sees it', async () => {
+		// The mock market reports tick_size $0.01 and admission_tick_size $0.01, so
+		// override the admission step to $100 the way the live deployment does: a strike
+		// on the fine grid but not the admission grid must be rejected locally rather
+		// than aborting on chain with EInvalidAdmissionTick.
+		const { client } = mockClient({ admissionTickSizeRaw: 100_000_000_000n });
+		const pc = new PredictClient({ network: 'testnet', client });
+		await expect(
+			pc.tx.mint(
+				OWNER,
+				{ underlying: 'BTC', expiryMs: EXPIRY, strike: 105_000.01, side: 'up' },
+				{ quantity: 50 },
+			),
+		).rejects.toThrow(/admission grid/);
+		// a strike ON the $100 admission grid passes the check
+		await expect(
+			pc.tx.mint(
+				OWNER,
+				{ underlying: 'BTC', expiryMs: EXPIRY, strike: 105_000, side: 'up' },
+				{ quantity: 50 },
+			),
+		).resolves.toBeDefined();
+	});
+
 	test('sub-lot quantity throws /lot/', async () => {
 		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
 		await expect(
@@ -441,6 +473,7 @@ describe('tx.mint (market resolution + unit conversion)', () => {
 				id: MARKET_ID,
 				expiryMs: BigInt(EXPIRY),
 				tickSize: 0.01,
+				admissionTickSize: 0.01,
 				mintPaused: false,
 				referencePrice: 105_000, // tick 10_500_000 × $0.01
 			},

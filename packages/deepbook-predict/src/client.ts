@@ -133,6 +133,12 @@ export interface ActiveMarket {
 	expiryMs: bigint;
 	/** Strike granularity in USD (e.g. 0.01). */
 	tickSize: number;
+	/**
+	 * Coarser step new mint strikes must align to. A numeric strike must be a whole
+	 * multiple of this (the market's `referencePrice` is the one exception the chain
+	 * admits off-grid); otherwise the mint aborts `EInvalidAdmissionTick`.
+	 */
+	admissionTickSize: number;
 	mintPaused: boolean;
 	/** The window's anchor strike in USD, or null until the keeper seeds it. */
 	referencePrice: number | null;
@@ -143,6 +149,12 @@ export interface MarketSummary {
 	id: string;
 	expiryMs: bigint;
 	tickSize: number;
+	/**
+	 * Coarser step new mint strikes must align to. A numeric strike must be a whole
+	 * multiple of this (the market's `referencePrice` is the one exception the chain
+	 * admits off-grid); otherwise the mint aborts `EInvalidAdmissionTick`.
+	 */
+	admissionTickSize: number;
 	mintPaused: boolean;
 	nav: number;
 	/** The window's anchor strike in USD, or null until the keeper seeds it. */
@@ -185,7 +197,9 @@ export interface RedeemQuote {
 	proceeds: number;
 	/** Gross close value before fees. */
 	gross: number;
-	fees: { trading: number; builder: number; penalty: number };
+	/** `inventoryImpactRebate` is credited back on the close, so `proceeds` is
+	 * gross + rebate − trading − builder − penalty. */
+	fees: { trading: number; builder: number; penalty: number; inventoryImpactRebate: number };
 	quantityClosed: number;
 	remaining: number;
 	raw: { proceeds: bigint; gross: bigint; quantityClosed: bigint };
@@ -346,6 +360,25 @@ export class PredictClient {
 		return tick;
 	}
 
+	// New finite MINT boundaries must land on the market's coarser ADMISSION grid,
+	// not merely the fine tick grid — the chain asserts exactly this
+	// (`assert_admitted_mint_ticks`, `EInvalidAdmissionTick`). The ±inf sentinels are
+	// exempt, and the market's reference tick is the one finite boundary allowed to
+	// bypass the grid, so an off-grid tick is only rejected after confirming it is not
+	// the reference (one extra read, and only on the failing path).
+	async #assertAdmittedTick(tick: bigint, marketId: string, state: MarketState): Promise<void> {
+		if (tick === 0n || tick === POS_INF_TICK) return;
+		const multiple = state.admissionTickSizeRaw / state.tickSizeRaw;
+		if (multiple > 0n && tick % multiple === 0n) return;
+		const reference = await referenceTick(this.#client, this.#config, marketId);
+		if (reference != null && reference === tick) return;
+		const admission = fromRaw(state.admissionTickSizeRaw, 9);
+		throw new PredictInputError(
+			`strike ${fromRaw(tick * state.tickSizeRaw, 9)} is not on the ${admission} admission grid ` +
+				`(mint boundaries must be a multiple of ${admission}, or the market's reference strike)`,
+		);
+	}
+
 	// Resolve a descriptor's strike(s) to the (lower, higher) tick pair. A binary
 	// numeric strike converts and validates against the tick grid; "reference"
 	// reads the market's reference tick FRESH (never cached — it is unset early in
@@ -361,13 +394,17 @@ export class PredictClient {
 			if (!(m.lower < m.upper)) {
 				throw new PredictInputError(`range lower ${m.lower} must be below upper ${m.upper}`);
 			}
-			return {
-				lowerTick: this.#gridTick(m.lower, state.tickSizeRaw),
-				higherTick: this.#gridTick(m.upper, state.tickSizeRaw),
-			};
+			const lowerTick = this.#gridTick(m.lower, state.tickSizeRaw);
+			const higherTick = this.#gridTick(m.upper, state.tickSizeRaw);
+			await this.#assertAdmittedTick(lowerTick, marketId, state);
+			await this.#assertAdmittedTick(higherTick, marketId, state);
+			return { lowerTick, higherTick };
 		}
 		if (m.strike !== 'reference') {
-			return binaryRangeTicks(priceToRaw(m.strike), m.side, state.tickSizeRaw);
+			const ticks = binaryRangeTicks(priceToRaw(m.strike), m.side, state.tickSizeRaw);
+			await this.#assertAdmittedTick(ticks.lowerTick, marketId, state);
+			await this.#assertAdmittedTick(ticks.higherTick, marketId, state);
+			return ticks;
 		}
 		const tick = await referenceTick(this.#client, this.#config, marketId);
 		if (tick == null) {
@@ -684,6 +721,7 @@ export class PredictClient {
 				id,
 				expiryMs: states[i].expiryMs,
 				tickSize: fromRaw(states[i].tickSizeRaw, 9),
+				admissionTickSize: fromRaw(states[i].admissionTickSizeRaw, 9),
 				mintPaused: states[i].mintPaused,
 				referencePrice: PredictClient.#referencePriceOf(states[i]),
 			}));
@@ -793,7 +831,7 @@ export class PredictClient {
 			return {
 				proceeds: r.proceeds,
 				gross: r.gross,
-				fees: { trading: r.fees.trading, builder: r.fees.builder, penalty: r.fees.penalty },
+				fees: r.fees,
 				quantityClosed: r.quantityClosed,
 				remaining: r.remaining,
 				raw: {
@@ -822,6 +860,7 @@ export class PredictClient {
 				id,
 				expiryMs: state.expiryMs,
 				tickSize: fromRaw(state.tickSizeRaw, 9), // strike/price scale
+				admissionTickSize: fromRaw(state.admissionTickSizeRaw, 9),
 				mintPaused: state.mintPaused,
 				nav: rawToUsdc(navRaw),
 				referencePrice: PredictClient.#referencePriceOf(state),
