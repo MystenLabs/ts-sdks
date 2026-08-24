@@ -146,7 +146,7 @@ describe('generated layout', () => {
 	// Round-trip a fully specified value so a regeneration that drops, adds or reorders
 	// a field fails here rather than in a consumer's decoded output.
 	const ADDR = (b: string) => normalizeSuiAddress('0x' + b.repeat(32));
-	const account = {
+	const accountValue = {
 		account_id: ADDR('aa'),
 		owner: ADDR('bb'),
 		receive_address: ADDR('cc'),
@@ -157,7 +157,7 @@ describe('generated layout', () => {
 	};
 
 	test('Account round-trips with the deployed field set, in order', () => {
-		const parsed = Account.parse(Account.serialize(account).toBytes());
+		const parsed = Account.parse(Account.serialize(accountValue).toBytes());
 		expect(Object.keys(parsed)).toEqual([
 			'account_id',
 			'owner',
@@ -167,15 +167,37 @@ describe('generated layout', () => {
 			'referrer_account_id',
 			'referrer_receive_address',
 		]);
-		expect(parsed.account_id).toBe(account.account_id);
-		expect(parsed.referrer_receive_address).toBe(account.referrer_receive_address);
+		expect(parsed.account_id).toBe(accountValue.account_id);
+		expect(parsed.referrer_receive_address).toBe(accountValue.referrer_receive_address);
+	});
+
+	// The key-order round trip above cannot see a TYPE change: narrowing `Bag.size`
+	// u64 -> u32, or widening `referrer_account_id` from Option<ID> to ID, round-trips
+	// happily through the same schema on both sides while shifting every following
+	// field on the wire. Pin the encoding itself.
+	test('Account encodes to the exact deployed wire layout', () => {
+		const bytes = Account.serialize(accountValue).toBytes();
+		expect(bytes.length).toBe(242);
+		expect(Buffer.from(bytes).toString('hex')).toBe(
+			'aa'.repeat(32) + // account_id
+				'bb'.repeat(32) + // owner
+				'cc'.repeat(32) + // receive_address
+				'dd'.repeat(32) +
+				'0100000000000000' + // balances: Bag { id, size: u64 }
+				'ee'.repeat(32) +
+				'0200000000000000' + // settlements: Bag { id, size: u64 }
+				'01' +
+				'ff'.repeat(32) + // referrer_account_id: Option<ID> = Some
+				'01' +
+				'12'.repeat(32), // referrer_receive_address: Option<address> = Some
+		);
 	});
 
 	test('AccountWrapper wraps Account as its trailing field', () => {
 		const parsed = AccountWrapper.parse(
-			AccountWrapper.serialize({ id: ADDR('99'), account }).toBytes(),
+			AccountWrapper.serialize({ id: ADDR('99'), account: accountValue }).toBytes(),
 		);
 		expect(Object.keys(parsed)).toEqual(['id', 'account']);
-		expect(parsed.account.account_id).toBe(account.account_id);
+		expect(parsed.account.account_id).toBe(accountValue.account_id);
 	});
 });
