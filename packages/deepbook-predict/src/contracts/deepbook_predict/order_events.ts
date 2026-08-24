@@ -3,7 +3,7 @@
  **************************************************************/
 
 /**
- * Order-lifecycle and liquidation events for Predict.
+ * Order-lifecycle events for Predict.
  *
  * Events carry transition identities and deltas rather than account or market
  * balances. Partial closes link an old order ID to its replacement; the position
@@ -33,29 +33,37 @@ export const OrderMinted = new MoveStruct({
 		 */
 		lower_tick: U64,
 		higher_tick: U64,
-		leverage: U64,
 		/** 1e9-scaled range probability quoted at entry. */
 		entry_probability: U64,
 		quantity: U64,
-		/** Net premium the user paid into LP backing, in DUSDC base units. */
-		net_premium: U64,
-		/** Full trading fee collected by the expiry, including any sponsor-paid subsidy. */
+		/** Premium the user paid into LP backing, in DUSDC base units. */
+		premium: U64,
+		/** Full trading fee assessed for the mint, including any sponsor-paid subsidy. */
 		trading_fee: U64,
 		/** Portion of `trading_fee` paid from expiry-local fee incentives. */
 		fee_incentive_subsidy: U64,
 		builder_fee: U64,
-		/** EWMA gas-price congestion surcharge retained by the pool, in DUSDC base units. */
+		/** EWMA gas-price congestion surcharge assessed for the mint, in DUSDC base units. */
 		penalty_fee: U64,
+		/**
+		 * Portion of the trader-paid trading fee and congestion surcharge delivered to the
+		 * referrer.
+		 */
+		referral_fee: U64,
+		/** Separate inventory-impact charge escrowed for live-close rebates. */
+		inventory_impact_charge: U64,
 		/**
 		 * Builder credited for `builder_fee`; `none` when no builder fee was paid
 		 * (attribution follows the fee — applied once, in the emit helper).
 		 */
 		builder_code_id: bcs.option(bcs.Address),
-		minted_at_ms: U64,
+		/** Referrer recorded on the minting account, independent of the fee paid. */
+		referrer_account_id: bcs.option(bcs.Address),
+		onchain_timestamp_ms: U64,
 		/**
-		 * Oracle source timestamps present when this mint was priced: the provider model
-		 * times the data is "as of" (the SVI one is also the roll-down anchor). Pyth is
-		 * `0` only when unusable.
+		 * Oracle source timestamps present when this mint was priced: Pyth's canonical
+		 * source time and the Block Scholes batch-envelope times used for freshness. The
+		 * SVI one is also the roll-down anchor. Pyth is `0` only when unusable.
 		 */
 		pyth_spot_source_timestamp_ms: U64,
 		block_scholes_spot_source_timestamp_ms: U64,
@@ -80,22 +88,25 @@ export const LiveOrderRedeemed = new MoveStruct({
 		remaining_quantity: U64,
 		/** New order ID minted to carry the remainder on a partial live close. */
 		replacement_order_id: bcs.option(U256),
-		/** Redeem value before fees, after any floor deduction. */
+		/** Redeem value before fees. */
 		redeem_amount: U64,
 		trading_fee: U64,
 		builder_fee: U64,
 		/** EWMA gas-price congestion surcharge retained by the pool, in DUSDC base units. */
 		penalty_fee: U64,
+		/** Separate inventory-impact rebate paid from its isolated escrow. */
+		inventory_impact_rebate: U64,
 		/**
 		 * Builder credited for `builder_fee`; `none` when no builder fee was paid
 		 * (attribution follows the fee — applied once, in the emit helper).
 		 */
 		builder_code_id: bcs.option(bcs.Address),
-		redeemed_at_ms: U64,
+		onchain_timestamp_ms: U64,
 		/**
-		 * Oracle source timestamps present when this redemption was priced: the provider
-		 * model times the data is "as of" (the SVI one is also the roll-down anchor). Pyth
-		 * is `0` only when unusable.
+		 * Oracle source timestamps present when this redemption was priced: Pyth's
+		 * canonical source time and the Block Scholes batch-envelope times used for
+		 * freshness. The SVI one is also the roll-down anchor. Pyth is `0` only when
+		 * unusable.
 		 */
 		pyth_spot_source_timestamp_ms: U64,
 		block_scholes_spot_source_timestamp_ms: U64,
@@ -112,46 +123,7 @@ export const SettledOrderRedeemed = new MoveStruct({
 		/** Stable economic-position handle, constant across the replacement chain. */
 		position_root_id: U256,
 		owner: bcs.Address,
-		quantity_closed: U64,
-		settlement_price: U64,
 		payout_amount: U64,
-		redeemed_at_ms: U64,
-	},
-});
-export const LiquidatedOrderRedeemed = new MoveStruct({
-	name: `${$moduleName}::LiquidatedOrderRedeemed`,
-	fields: {
-		expiry_market_id: bcs.Address,
-		account_id: bcs.Address,
-		order_id: U256,
-		/** Stable economic-position handle, constant across the replacement chain. */
-		position_root_id: U256,
-		owner: bcs.Address,
-		quantity_closed: U64,
-		redeemed_at_ms: U64,
-	},
-});
-export const OrderLiquidated = new MoveStruct({
-	name: `${$moduleName}::OrderLiquidated`,
-	fields: {
-		expiry_market_id: bcs.Address,
-		order_id: U256,
-		quantity: U64,
-		/** Probability-weighted value checked against the liquidation threshold. */
-		gross_value: U64,
-		/** Current contract floor in DUSDC base units. */
-		floor_amount: U64,
-		/** 1e9-scaled floor-to-live-value threshold used for this expiry. */
-		liquidation_ltv: U64,
-		liquidated_at_ms: U64,
-		/**
-		 * Oracle source timestamps present when this liquidation was priced: the provider
-		 * model times the data is "as of" (the SVI one is also the roll-down anchor). Pyth
-		 * is `0` only when unusable.
-		 */
-		pyth_spot_source_timestamp_ms: U64,
-		block_scholes_spot_source_timestamp_ms: U64,
-		block_scholes_forward_source_timestamp_ms: U64,
-		block_scholes_svi_source_timestamp_ms: U64,
+		onchain_timestamp_ms: U64,
 	},
 });

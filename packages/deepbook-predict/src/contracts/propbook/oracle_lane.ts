@@ -31,7 +31,7 @@ export function OracleRead<Value extends BcsType<any>>(...typeParameters: [Value
 			/** Source publication time in Unix milliseconds and the key used for exact reads. */
 			source_timestamp_ms: U64,
 			/** Sui clock time in Unix milliseconds when the update transaction executed. */
-			update_timestamp_ms: U64,
+			onchain_timestamp_ms: U64,
 			/** Digest of the transaction that wrote this observation. */
 			writer_digest: bcs.vector(bcs.u8()),
 			value: typeParameters[0],
@@ -63,6 +63,8 @@ export function ObservationRecorded<Observation extends BcsType<any>>(
 	return new MoveStruct({
 		name: `${$moduleName}::ObservationRecorded<${typeParameters[0].name as Observation['name']}>`,
 		fields: {
+			/** Canonical Propbook underlying when this source wrapper has been bound. */
+			propbook_underlying_id: bcs.option(bcs.u32()),
 			propbook_oracle_id: bcs.Address,
 			observation: typeParameters[0],
 		},
@@ -75,6 +77,8 @@ export function ObservationInserted<Observation extends BcsType<any>>(
 	return new MoveStruct({
 		name: `${$moduleName}::ObservationInserted<${typeParameters[0].name as Observation['name']}>`,
 		fields: {
+			/** Canonical Propbook underlying when this source wrapper has been bound. */
+			propbook_underlying_id: bcs.option(bcs.u32()),
 			propbook_oracle_id: bcs.Address,
 			observation: typeParameters[0],
 		},
@@ -101,15 +105,15 @@ export function readSourceTimestampMs(options: ReadSourceTimestampMsOptions) {
 			typeArguments: options.typeArguments,
 		});
 }
-export interface ReadUpdateTimestampMsArguments {
+export interface ReadOnchainTimestampMsArguments {
 	read: TransactionArgument;
 }
-export interface ReadUpdateTimestampMsOptions {
+export interface ReadOnchainTimestampMsOptions {
 	package?: string;
-	arguments: ReadUpdateTimestampMsArguments | [read: TransactionArgument];
+	arguments: ReadOnchainTimestampMsArguments | [read: TransactionArgument];
 	typeArguments: [string];
 }
-export function readUpdateTimestampMs(options: ReadUpdateTimestampMsOptions) {
+export function readOnchainTimestampMs(options: ReadOnchainTimestampMsOptions) {
 	const packageAddress = options.package ?? '@local-pkg/propbook';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['read'];
@@ -117,7 +121,7 @@ export function readUpdateTimestampMs(options: ReadUpdateTimestampMsOptions) {
 		tx.moveCall({
 			package: packageAddress,
 			module: 'oracle_lane',
-			function: 'read_update_timestamp_ms',
+			function: 'read_onchain_timestamp_ms',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 			typeArguments: options.typeArguments,
 		});

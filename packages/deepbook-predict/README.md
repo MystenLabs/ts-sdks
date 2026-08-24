@@ -39,11 +39,11 @@ const depositTx = client.predict.tx.deposit(myAddress, 250); // $250
 // Pass { toCoinObject: true } if you need a discrete Coin<T> instead.
 const withdrawTx = client.predict.tx.withdraw(myAddress, 100); // $100
 
-// Trade: BTC above $105,000 at this hour's expiry, $50 max payout, 2x leverage.
+// Trade: BTC above $105,000 at this hour's expiry, $50 max payout.
 const mintTx = await client.predict.tx.mint(
 	myAddress,
 	{ underlying: 'BTC', expiryMs: 1767225600000, strike: 105_000, side: 'up' },
-	{ quantity: 50, leverage: 2, maxCost: 12.5 },
+	{ quantity: 50, maxCost: 12.5 },
 );
 // -> sign & execute any of these with your wallet / dapp-kit / signer
 
@@ -63,12 +63,12 @@ const { up, down } = await client.predict.read.price({
 const receipt = client.predict.decode.mint(mintResult);
 receipt.orderId; // PERSIST THIS — needed to redeem/claim later
 receipt.entryProbability; // your fill price (0..1 per $1 payout)
-receipt.netPremium; // exact cost breakdown
+receipt.premium; // exact cost breakdown
 receipt.fees;
 
 // Read: tradeable markets and pool state.
 const markets = await client.predict.read.markets();
-// -> [{ id, expiryMs, tickSize, mintPaused, referencePrice }, ...]
+// -> [{ id, expiryMs, tickSize, admissionTickSize, mintPaused, referencePrice }, ...]
 const market = await client.predict.read.market({
 	underlying: 'BTC',
 	expiryMs: markets[0].expiryMs,
@@ -81,8 +81,9 @@ console.log(market?.nav, market?.tickSize, market?.mintPaused);
 `mint` mirrors the chain's semantics: when you omit `maxCost` and `maxProbability`, the mint is
 **uncapped** — if the price moves between your quote and execution, the position can cost up to your
 full account balance. **Call `read.quoteMint` and pass its `cost` (plus your buffer) as `maxCost`.**
-The same applies to `redeem`, which has no slippage floor on the current deployment —
-`read.quoteRedeem` first, close fast.
+The same applies to `redeem`: the deployed `redeem_live` DOES take `min_probability` /
+`min_proceeds` floors, but the facade does not surface them yet and always sends `0` (uncapped).
+`read.quoteRedeem` first, close fast — or drive `redeemLive` from the tx layer to set the floors.
 
 ## Units
 
@@ -91,14 +92,13 @@ Everything human-facing is decimal; everything on-chain is scaled integers. The 
 `number` are display values: above 2^53 raw they lose low-digit precision — for accounting-exact
 reads use the primitives layer, which returns raw `bigint`s (`accountBalance`, `poolStats`, …).
 
-| Concept                                     | You pass / receive                                             | On-chain raw                         |
-| ------------------------------------------- | -------------------------------------------------------------- | ------------------------------------ |
-| Amounts (deposit, spend, maxCost, balances) | USD decimal number or string (`12.5`, `"12.5"`)                | ×1e6 (DUSDC)                         |
-| `quantity`                                  | **max payout** in USD; positions pay $1 per contract at expiry | ×1e6, in $0.01 lots                  |
-| `strike`                                    | USD (`105_000`)                                                | ×1e9, must land on the market's tick |
-| `leverage`                                  | number ≥ 1 (default 1)                                         | ×1e9                                 |
-| `maxProbability`                            | 0..1 (`0.35` = 35¢ per $1 contract)                            | ×1e9                                 |
-| PLP shares (`withdrawPlp`, `plpBalance`)    | raw `bigint` shares                                            | 6-decimal coin                       |
+| Concept                                     | You pass / receive                                             | On-chain raw                          |
+| ------------------------------------------- | -------------------------------------------------------------- | ------------------------------------- |
+| Amounts (deposit, spend, maxCost, balances) | USD decimal number or string (`12.5`, `"12.5"`)                | ×1e6 (DUSDC)                          |
+| `quantity`                                  | **max payout** in USD; positions pay $1 per contract at expiry | ×1e6, in $0.01 lots                   |
+| `strike`                                    | USD (`105_000`)                                                | ×1e9, must land on the admission grid |
+| `maxProbability`                            | 0..1 (`0.35` = 35¢ per $1 contract)                            | ×1e9                                  |
+| PLP shares (`withdrawPlp`, `plpBalance`)    | raw `bigint` shares                                            | 6-decimal coin                        |
 
 `side: "up"` wins if the settlement price is above the strike; `"down"` below.
 
@@ -123,6 +123,23 @@ const tx = await client.predict.tx.mint(
 The reference tick is read fresh at build time (it is unset briefly at the start of a window until
 the keeper seeds it — you get a clean `PredictInputError` rather than a chain abort). Numeric
 strikes away from the reference remain fully supported.
+
+### Numeric strikes must sit on the admission grid
+
+New mint strikes must be a whole multiple of the market's **`admissionTickSize`** — a step
+deliberately coarser than `tickSize`, and it varies by cadence (on the current testnet deployment
+the 1m/5m/1h markets use `$1` and the 1d/1w markets `$100`, against a `$0.01` tick). Always read it
+off the market rather than assuming a value. The market's `referencePrice` is the one finite strike
+the chain admits off-grid. `read.markets()` and `read.market()` both report `admissionTickSize`, so
+a board can be built from it directly:
+
+```ts
+const m = (await client.predict.read.markets())[0];
+const strike = Math.round(target / m.admissionTickSize) * m.admissionTickSize;
+```
+
+An off-grid numeric strike throws `PredictInputError` at build time rather than aborting on chain
+with `EInvalidAdmissionTick`.
 
 ## What's in the box
 
@@ -172,10 +189,11 @@ on-chain; the client only evaluates the digital. It throws the same typed stale-
 `PredictMoveError` that `read.price` would when the chain itself cannot quote.
 
 The math is a faithful float port of the deployed `pricing::compute_nd2` (SVI with the skew
-correction, signed params, and the remaining-time roll-down). It agrees with the chain to ~1e-7 in
-probability (`tests/testnet/pricing-parity` bounds it live). The pure functions are exported under a
-`pricing` namespace for callers who already hold their own oracle inputs (e.g. a live feed) and want
-zero chain calls:
+correction, signed params, and the remaining-time roll-down). It agrees with the chain closely —
+within ~1e-4 in probability, up to ~1e-4 near ATM where the chain's fixed-point truncation dominates
+(`tests/testnet/pricing.test.ts` bounds it live). The pure functions are exported under a `pricing`
+namespace for callers who already hold their own oracle inputs (e.g. a live feed) and want zero
+chain calls:
 
 ```ts
 import { pricing } from '@mysten/deepbook-predict';
@@ -208,7 +226,7 @@ stop requiring an SDK release for target resolution.
   as the cheap validator.
 - PLP supply/withdraw are queued and fill at the next pool flush; cancels take the queue `index` —
   get it from `decode.plpRequest(result).index`.
-- `claimSettled` requires a full close of the order (contract rule).
+- `claimSettled` closes the order in full — the deployed entrypoint takes no quantity.
 - **`withdraw` lands in your address balance by default** (`0x2::coin::send_funds`), not a coin
   object — it merges into the versionless accumulator `deposit` already draws from, so the round
   trip never accretes stray `Coin<DUSDC>` objects. `read.balance(owner)` reflects the account's

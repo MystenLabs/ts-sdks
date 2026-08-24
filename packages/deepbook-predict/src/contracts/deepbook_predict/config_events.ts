@@ -5,9 +5,51 @@
 /** Admin and configuration events for Predict. */
 
 import { MoveStruct } from '../utils/index.js';
-import { bcs } from '@mysten/sui/bcs';
 import { U64 } from '../../bcs/integers.js';
+import { bcs } from '@mysten/sui/bcs';
 const $moduleName = '@local-pkg/deepbook_predict::config_events';
+export const StrikeExposureTemplateConfigUpdated = new MoveStruct({
+	name: `${$moduleName}::StrikeExposureTemplateConfigUpdated`,
+	fields: {
+		backing_buffer_lambda: U64,
+		base_fee: U64,
+		min_fee: U64,
+		min_entry_probability: U64,
+		max_entry_probability: U64,
+		expiry_fee_window_ms: U64,
+		expiry_fee_max_multiplier: U64,
+		inventory_impact_max_rate: U64,
+		onchain_timestamp_ms: U64,
+	},
+});
+export const PricingConfigUpdated = new MoveStruct({
+	name: `${$moduleName}::PricingConfigUpdated`,
+	fields: {
+		use_pyth_spot_for_forward: bcs.bool(),
+		pyth_spot_freshness_ms: U64,
+		block_scholes_price_freshness_ms: U64,
+		block_scholes_svi_freshness_ms: U64,
+		onchain_timestamp_ms: U64,
+	},
+});
+export const EwmaConfigUpdated = new MoveStruct({
+	name: `${$moduleName}::EwmaConfigUpdated`,
+	fields: {
+		alpha: U64,
+		z_score_threshold: U64,
+		penalty_rate: U64,
+		enabled: bcs.bool(),
+		onchain_timestamp_ms: U64,
+	},
+});
+export const PlpFeeRatesUpdated = new MoveStruct({
+	name: `${$moduleName}::PlpFeeRatesUpdated`,
+	fields: {
+		plp_supply_fee_rate: U64,
+		plp_withdraw_fee_rate: U64,
+		onchain_timestamp_ms: U64,
+	},
+});
 export const TradingPausedUpdated = new MoveStruct({
 	name: `${$moduleName}::TradingPausedUpdated`,
 	fields: {
@@ -41,8 +83,6 @@ export const MarketCreated = new MoveStruct({
 		max_expiry_allocation: U64,
 		/** Minimum DUSDC cash target snapshotted for this expiry. */
 		initial_expiry_cash: U64,
-		liquidation_ltv: U64,
-		max_admission_leverage: U64,
 		backing_buffer_lambda: U64,
 		base_fee: U64,
 		min_fee: U64,
@@ -50,19 +90,8 @@ export const MarketCreated = new MoveStruct({
 		max_entry_probability: U64,
 		expiry_fee_window_ms: U64,
 		expiry_fee_max_multiplier: U64,
-		/** Window before expiry within which this market admits no leverage above 1x. */
-		no_leverage_window_ms: U64,
-		trading_loss_rebate_rate: U64,
-		/**
-		 * Share of the DEEP-stake benefit curve this market pays out, snapshotted at
-		 * creation. `0` means staking earns nothing here, whatever the template later
-		 * becomes, so an indexer must read this per market rather than protocol-wide.
-		 */
-		max_benefit_ratio: U64,
-		/** Active stake at this market's benefit-curve kink (half benefits), raw DEEP. */
-		lower_benefit_power: U64,
-		/** Active stake for this market's full benefits, raw DEEP. */
-		upper_benefit_power: U64,
+		/** Maximum marginal inventory-impact rate snapshotted by this market. */
+		inventory_impact_max_rate: U64,
 	},
 });
 export const CadenceConfigUpdated = new MoveStruct({
@@ -93,7 +122,7 @@ export const ReferenceTickSet = new MoveStruct({
 		source_timestamp_ms: U64,
 		spot: U64,
 		tick: U64,
-		recorded_at_ms: U64,
+		onchain_timestamp_ms: U64,
 	},
 });
 export const MarketSettled = new MoveStruct({
@@ -103,7 +132,9 @@ export const MarketSettled = new MoveStruct({
 		propbook_underlying_id: bcs.u32(),
 		expiry: U64,
 		settlement_price: U64,
+		/** `0` = Pyth and `1` = Block Scholes. */
+		settlement_source: bcs.u8(),
 		/** On-chain landing time of the settlement, `clock.timestamp_ms()`. */
-		settled_at_ms: U64,
+		onchain_timestamp_ms: U64,
 	},
 });

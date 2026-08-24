@@ -47,6 +47,14 @@ export async function expiryMarketId(
 export interface MarketState {
 	expiryMs: bigint;
 	tickSizeRaw: bigint;
+	/**
+	 * The COARSER raw-price step new finite mint boundaries must align to
+	 * (`expiry_market::admission_tick_size`). A numeric strike must be a whole
+	 * multiple of this — the fine `tickSizeRaw` grid alone is not sufficient — or
+	 * the chain aborts `EInvalidAdmissionTick`. The market's reference tick is the
+	 * one finite boundary allowed to bypass it.
+	 */
+	admissionTickSizeRaw: bigint;
 	mintPaused: boolean;
 	/**
 	 * The reference fine-grid tick (Polymarket-style anchor strike: derived
@@ -64,6 +72,7 @@ export interface MarketState {
 const STATE_FNS = [
 	expiryMarket.expiry,
 	expiryMarket.tickSize,
+	expiryMarket.admissionTickSize,
 	expiryMarket.mintPaused,
 	expiryMarket.referenceTick,
 ] as const;
@@ -72,8 +81,9 @@ function parseStateAt(cmds: Uint8Array[][], base: number): MarketState {
 	return {
 		expiryMs: parseU64LE(cmds[base][0]),
 		tickSizeRaw: parseU64LE(cmds[base + 1][0]),
-		mintPaused: (cmds[base + 2][0][0] ?? 0) !== 0, // BCS bool: 1 byte
-		referenceTickRaw: parseOptionalU64(cmds[base + 3][0]),
+		admissionTickSizeRaw: parseU64LE(cmds[base + 2][0]),
+		mintPaused: (cmds[base + 3][0][0] ?? 0) !== 0, // BCS bool: 1 byte
+		referenceTickRaw: parseOptionalU64(cmds[base + 4][0]),
 	};
 }
 
@@ -108,9 +118,8 @@ export async function marketStates(
 // (strike, +inf] and (-inf, strike]. Deployed `pricing::range_price` takes typed
 // `range_codec::Strike`s (NOT raw u64) — each boundary is built via
 // `range_codec::strike_from_tick(tick, tick_size)`, which maps tick 0 → -inf,
-// POS_INF_TICK → +inf, and any finite tick → tick*tick_size. `range_price` is
-// public(package) on the deployed package, reachable here only because simulate
-// runs with checksEnabled:false. Both sides read the SAME pricer in one PTB, so
+// POS_INF_TICK → +inf, and any finite tick → tick*tick_size. `range_price` is a
+// public fun on the deployed package. Both sides read the SAME pricer in one PTB, so
 // `down` is the chain's number, not 1 − up.
 export async function rangePrices(
 	client: ReadClient,

@@ -53,16 +53,18 @@ const MINTED_EVENT = {
 		owner: OWNER,
 		lower_tick: 10_500_000n,
 		higher_tick: (1n << 30n) - 1n,
-		leverage: 1_000_000_000n,
 		entry_probability: 340_000_000n, // 0.34
 		quantity: 50_000_000n, // $50
-		net_premium: 17_000_000n, // $17
+		premium: 17_000_000n, // $17
 		trading_fee: 100_000n, // $0.10
 		fee_incentive_subsidy: 20_000n, // $0.02 sponsor-paid
 		builder_fee: 30_000n, // $0.03
 		penalty_fee: 5_000n, // $0.005
+		referral_fee: 11_000n, // $0.011 — a PORTION of trading+penalty, never an extra debit
+		inventory_impact_charge: 40_000n, // $0.04 — a SEPARATE charge, part of the all-in cost
 		builder_code_id: null,
-		minted_at_ms: 0n,
+		referrer_account_id: null,
+		onchain_timestamp_ms: 0n,
 		pyth_spot_source_timestamp_ms: 0n,
 		block_scholes_spot_source_timestamp_ms: 0n,
 		block_scholes_forward_source_timestamp_ms: 0n,
@@ -84,8 +86,9 @@ const REDEEMED_EVENT = {
 		trading_fee: 50_000n,
 		builder_fee: 0n,
 		penalty_fee: 0n,
+		inventory_impact_rebate: 25_000n, // $0.025 credited back on the close
 		builder_code_id: null,
-		redeemed_at_ms: 0n,
+		onchain_timestamp_ms: 0n,
 		pyth_spot_source_timestamp_ms: 0n,
 		block_scholes_spot_source_timestamp_ms: 0n,
 		block_scholes_forward_source_timestamp_ms: 0n,
@@ -95,7 +98,7 @@ const REDEEMED_EVENT = {
 
 // A mock ReadClient that dispatches canned return values by the first command's
 // move-call function, and counts how many times each function was simulated.
-function mockClient() {
+function mockClient(overrides: { admissionTickSizeRaw?: bigint } = {}) {
 	const counts: Record<string, number> = {};
 	const client = {
 		core: {
@@ -129,10 +132,18 @@ function mockClient() {
 				} else if (fn === 'expiry_market_id') {
 					results = [[bcs.option(bcs.Address).serialize(MARKET_ID).toBytes()]];
 				} else if (fn === 'expiry') {
-					// marketState PTB: expiry, tick_size, mint_paused, reference_tick
+					// marketState PTB: expiry, tick_size, admission_tick_size, mint_paused,
+					// reference_tick. admission_tick_size is $0.01 here so existing fixtures'
+					// strikes stay admitted; the admission-grid rejection has its own test.
 					results = [
 						[bcs.u64().serialize(BigInt(EXPIRY)).toBytes()],
 						[bcs.u64().serialize(10_000_000n).toBytes()],
+						[
+							bcs
+								.u64()
+								.serialize(overrides.admissionTickSizeRaw ?? 10_000_000n)
+								.toBytes(),
+						],
 						[bcs.bool().serialize(false).toBytes()],
 						[bcs.option(bcs.u64()).serialize(10_500_000n).toBytes()],
 					];
@@ -348,24 +359,23 @@ describe('tx.deposit / tx.withdraw', () => {
 });
 
 describe('tx.mint (market resolution + unit conversion)', () => {
-	test('converts quantity, leverage, ticks against a resolved market', async () => {
+	test('converts quantity and ticks against a resolved market', async () => {
 		const { client } = mockClient();
 		const pc = new PredictClient({ network: 'testnet', client });
 		const tx = await pc.tx.mint(
 			OWNER,
 			{ underlying: 'BTC', expiryMs: EXPIRY, strike: 105_000, side: 'up' },
-			{ quantity: 50, leverage: 2 },
+			{ quantity: 50 },
 		);
 		expect(targets(tx)).toEqual([
 			`${cfg.packages.predict}::expiry_market::load_live_pricer`,
 			`${cfg.packages.account}::account::generate_auth`,
 			`${cfg.packages.predict}::expiry_market::mint_exact_quantity`,
 		]);
-		// mint args: [market, wrapper, auth, config, pricer, lower, higher, quantity, leverage, ...]
+		// mint args: [market, wrapper, auth, config, pricer, lower, higher, quantity, maxCost, ...]
 		expect(argPureBytes(tx, 2, 5)).toBe(b64(10_500_000n)); // lower tick = strike/tickSize
 		expect(argPureBytes(tx, 2, 6)).toBe(b64(POS_INF_TICK)); // higher tick (up)
 		expect(argPureBytes(tx, 2, 7)).toBe(b64(50_000_000n)); // quantity 50 → 1e6
-		expect(argPureBytes(tx, 2, 8)).toBe(b64(2_000_000_000n)); // leverage 2 → 1e9
 	});
 
 	test('unknown market → PredictInputError /no market/', async () => {
@@ -395,17 +405,37 @@ describe('tx.mint (market resolution + unit conversion)', () => {
 		// claimSettled resolves a market without ever asking for oracle feeds, so this
 		// pins the lookup the market-id ladder itself performs.
 		await expect(
-			pc.tx.claimSettled(
-				OWNER,
-				{ underlying: 'DOGE', expiryMs: EXPIRY },
-				{ orderId: 1n, quantity: 1 },
-			),
+			pc.tx.claimSettled(OWNER, { underlying: 'DOGE', expiryMs: EXPIRY }, { orderId: 1n }),
 		).rejects.toBeInstanceOf(PredictInputError);
 	});
 
 	test('read.market: unknown underlying → PredictInputError', async () => {
 		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
 		await expect(pc.read.market({ underlying: 'DOGE', expiryMs: EXPIRY })).rejects.toThrow(/DOGE/);
+	});
+
+	test('strike off the coarser ADMISSION grid throws before the chain sees it', async () => {
+		// The mock market reports tick_size $0.01 and admission_tick_size $0.01, so
+		// override the admission step to $100 the way the live deployment does: a strike
+		// on the fine grid but not the admission grid must be rejected locally rather
+		// than aborting on chain with EInvalidAdmissionTick.
+		const { client } = mockClient({ admissionTickSizeRaw: 100_000_000_000n });
+		const pc = new PredictClient({ network: 'testnet', client });
+		await expect(
+			pc.tx.mint(
+				OWNER,
+				{ underlying: 'BTC', expiryMs: EXPIRY, strike: 105_000.01, side: 'up' },
+				{ quantity: 50 },
+			),
+		).rejects.toThrow(/admission grid/);
+		// a strike ON the $100 admission grid passes the check
+		await expect(
+			pc.tx.mint(
+				OWNER,
+				{ underlying: 'BTC', expiryMs: EXPIRY, strike: 105_000, side: 'up' },
+				{ quantity: 50 },
+			),
+		).resolves.toBeDefined();
 	});
 
 	test('sub-lot quantity throws /lot/', async () => {
@@ -419,13 +449,10 @@ describe('tx.mint (market resolution + unit conversion)', () => {
 		).rejects.toThrow(/lot/);
 	});
 
-	test('sub-lot close quantity throws /lot/ on redeem and claimSettled', async () => {
+	test('sub-lot close quantity throws /lot/ on redeem', async () => {
 		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
 		const m = { underlying: 'BTC', expiryMs: EXPIRY, strike: 105_000, side: 'up' } as const;
 		await expect(pc.tx.redeem(OWNER, m, { orderId: 1n, quantity: 0.001 })).rejects.toThrow(/lot/);
-		await expect(pc.tx.claimSettled(OWNER, m, { orderId: 1n, quantity: 0.001 })).rejects.toThrow(
-			/lot/,
-		);
 	});
 
 	test('mintAmount minQuantity is a floor — sub-lot values are accepted', async () => {
@@ -446,6 +473,7 @@ describe('tx.mint (market resolution + unit conversion)', () => {
 				id: MARKET_ID,
 				expiryMs: BigInt(EXPIRY),
 				tickSize: 0.01,
+				admissionTickSize: 0.01,
 				mintPaused: false,
 				referencePrice: 105_000, // tick 10_500_000 × $0.01
 			},
@@ -553,9 +581,14 @@ describe('tx.mint (market resolution + unit conversion)', () => {
 		expect(counts.quote_mint_sim).toBe(1);
 		expect(q.entryProbability).toBeCloseTo(0.34);
 		expect(q.premium).toBe(17);
-		// cost = premium + (trading − subsidy) + builder + penalty
-		expect(q.raw.cost).toBe(17_000_000n + 80_000n + 30_000n + 5_000n);
-		expect(q.cost).toBeCloseTo(17.115);
+		// Mirrors the deployed all_in_cost: premium + (trading − subsidy) + builder +
+		// penalty + inventoryImpact. `referral_fee` is a PORTION of the trader-paid fees
+		// and must NOT appear here — the non-zero fixture values make both halves of that
+		// statement falsifiable.
+		expect(q.raw.cost).toBe(17_000_000n + 80_000n + 30_000n + 5_000n + 40_000n);
+		expect(q.cost).toBeCloseTo(17.155);
+		expect(q.fees.inventoryImpact).toBeCloseTo(0.04);
+		expect(q.fees.referral).toBeCloseTo(0.011);
 		expect(q.quantity).toBe(50);
 		expect(q.feesExact).toBe(true);
 	});
@@ -568,8 +601,10 @@ describe('tx.mint (market resolution + unit conversion)', () => {
 			{ orderId: 7n, quantity: 0.02 },
 		);
 		expect(q.gross).toBe(6);
-		expect(q.proceeds).toBe(5.95);
-		expect(q.wouldLiquidate).toBe(false);
+		// gross + rebate − trading − builder − penalty (the expression the chain asserts
+		// `min_proceeds` against); the non-zero rebate makes the term falsifiable.
+		expect(q.proceeds).toBe(5.975);
+		expect(q.fees.inventoryImpactRebate).toBeCloseTo(0.025);
 		expect(q.remaining).toBe(30);
 		expect(q.feesExact).toBe(true);
 	});

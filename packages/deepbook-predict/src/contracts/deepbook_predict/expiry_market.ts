@@ -26,7 +26,6 @@ import * as expiry_cash from './expiry_cash.js';
 import * as balance from './deps/sui/balance.js';
 import * as strike_exposure from './strike_exposure.js';
 import * as ewma from './ewma.js';
-import * as stake_config from './stake_config.js';
 const $moduleName = '@local-pkg/deepbook_predict::expiry_market';
 export const ExpiryMarket = new MoveStruct({
 	name: `${$moduleName}::ExpiryMarket`,
@@ -35,7 +34,7 @@ export const ExpiryMarket = new MoveStruct({
 		/** Propbook underlying this market was created for. */
 		propbook_underlying_id: bcs.u32(),
 		expiry: U64,
-		/** DUSDC custody, payout backing, and unresolved rebate reserve basis. */
+		/** DUSDC custody and payout backing. */
 		cash: expiry_cash.ExpiryCash,
 		/** Sponsor-funded DUSDC available to subsidize this market's taker fees. */
 		fee_incentive_balance: balance.Balance,
@@ -49,15 +48,6 @@ export const ExpiryMarket = new MoveStruct({
 		 * through the registry (ungated kill switch).
 		 */
 		mint_paused: bcs.bool(),
-		/**
-		 * DEEP-stake benefit policy for this market, snapshotted at creation from the
-		 * protocol template and immutable thereafter. Frozen because both benefits resolve
-		 * after the trade that earned them — the fee discount at mint, the loss rebate at
-		 * a post-settlement claim — so reading live policy would let an admin reprice
-		 * contracts already written, and shrink or erase a rebate already earned (the
-		 * claim is one-shot).
-		 */
-		stake_config: stake_config.StakeConfig,
 	},
 });
 export const MintQuote = new MoveStruct({
@@ -65,11 +55,12 @@ export const MintQuote = new MoveStruct({
 	fields: {
 		quantity: U64,
 		entry_probability: U64,
-		net_premium: U64,
+		premium: U64,
 		trading_fee: U64,
 		fee_incentive_subsidy: U64,
 		builder_fee: U64,
 		penalty_fee: U64,
+		inventory_impact_charge: U64,
 		all_in_cost: U64,
 	},
 });
@@ -247,18 +238,18 @@ export function cashBalance(options: CashBalanceOptions) {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export interface RebateReserveArguments {
+export interface InventoryImpactReserveArguments {
 	market: RawTransactionArgument<string>;
 }
-export interface RebateReserveOptions {
+export interface InventoryImpactReserveOptions {
 	package?: string;
-	arguments: RebateReserveArguments | [market: RawTransactionArgument<string>];
+	arguments: InventoryImpactReserveArguments | [market: RawTransactionArgument<string>];
 	config?: {
 		predictPackageId?: string;
 	};
 }
-/** Return unresolved rebate reserve for SDK and devInspect state reads. */
-export function rebateReserve(options: RebateReserveOptions) {
+/** Return the isolated inventory-impact escrow for SDK and devInspect state reads. */
+export function inventoryImpactReserve(options: InventoryImpactReserveOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -267,7 +258,7 @@ export function rebateReserve(options: RebateReserveOptions) {
 		tx.moveCall({
 			package: packageAddress,
 			module: 'expiry_market',
-			function: 'rebate_reserve',
+			function: 'inventory_impact_reserve',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
@@ -292,78 +283,6 @@ export function feeIncentiveBalance(options: FeeIncentiveBalanceOptions) {
 			package: packageAddress,
 			module: 'expiry_market',
 			function: 'fee_incentive_balance',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
-}
-export interface TradingLossRebateRateArguments {
-	market: RawTransactionArgument<string>;
-}
-export interface TradingLossRebateRateOptions {
-	package?: string;
-	arguments: TradingLossRebateRateArguments | [market: RawTransactionArgument<string>];
-	config?: {
-		predictPackageId?: string;
-	};
-}
-/** Return the snapshotted loss-rebate rate for SDK and devInspect reads. */
-export function tradingLossRebateRate(options: TradingLossRebateRateOptions) {
-	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null] satisfies (string | null)[];
-	const parameterNames = ['market'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'expiry_market',
-			function: 'trading_loss_rebate_rate',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
-}
-export interface LiquidationLtvArguments {
-	market: RawTransactionArgument<string>;
-}
-export interface LiquidationLtvOptions {
-	package?: string;
-	arguments: LiquidationLtvArguments | [market: RawTransactionArgument<string>];
-	config?: {
-		predictPackageId?: string;
-	};
-}
-/** Return the snapshotted liquidation LTV for SDK and devInspect reads. */
-export function liquidationLtv(options: LiquidationLtvOptions) {
-	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null] satisfies (string | null)[];
-	const parameterNames = ['market'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'expiry_market',
-			function: 'liquidation_ltv',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
-}
-export interface MaxAdmissionLeverageArguments {
-	market: RawTransactionArgument<string>;
-}
-export interface MaxAdmissionLeverageOptions {
-	package?: string;
-	arguments: MaxAdmissionLeverageArguments | [market: RawTransactionArgument<string>];
-	config?: {
-		predictPackageId?: string;
-	};
-}
-/** Return the snapshotted admission-leverage cap for SDK and devInspect reads. */
-export function maxAdmissionLeverage(options: MaxAdmissionLeverageOptions) {
-	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null] satisfies (string | null)[];
-	const parameterNames = ['market'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'expiry_market',
-			function: 'max_admission_leverage',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
@@ -439,23 +358,21 @@ export function expiryFeeMaxMultiplier(options: ExpiryFeeMaxMultiplierOptions) {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export interface NoLeverageWindowMsArguments {
+export interface InventoryImpactMaxRateArguments {
 	market: RawTransactionArgument<string>;
 }
-export interface NoLeverageWindowMsOptions {
+export interface InventoryImpactMaxRateOptions {
 	package?: string;
-	arguments: NoLeverageWindowMsArguments | [market: RawTransactionArgument<string>];
+	arguments: InventoryImpactMaxRateArguments | [market: RawTransactionArgument<string>];
 	config?: {
 		predictPackageId?: string;
 	};
 }
 /**
- * Return the near-expiry no-leverage window snapshotted for this expiry, in ms.
- * Within this much time of expiry the market admits no leverage above 1x; `0`
- * disables the block. Read by devInspect (SDK/UI) to size a leverage selector
- * against the market's own snapshotted terms rather than the live template.
+ * Return this market's immutable maximum marginal inventory-impact rate for SDK
+ * and devInspect state reads.
  */
-export function noLeverageWindowMs(options: NoLeverageWindowMsOptions) {
+export function inventoryImpactMaxRate(options: InventoryImpactMaxRateOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -464,7 +381,34 @@ export function noLeverageWindowMs(options: NoLeverageWindowMsOptions) {
 		tx.moveCall({
 			package: packageAddress,
 			module: 'expiry_market',
-			function: 'no_leverage_window_ms',
+			function: 'inventory_impact_max_rate',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface InventoryImpactScaleArguments {
+	market: RawTransactionArgument<string>;
+}
+export interface InventoryImpactScaleOptions {
+	package?: string;
+	arguments: InventoryImpactScaleArguments | [market: RawTransactionArgument<string>];
+	config?: {
+		predictPackageId?: string;
+	};
+}
+/**
+ * Return the immutable DUSDC scale of this market's inventory-impact curve for SDK
+ * and devInspect state reads.
+ */
+export function inventoryImpactScale(options: InventoryImpactScaleOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['market'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'expiry_market',
+			function: 'inventory_impact_scale',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
@@ -639,7 +583,7 @@ export interface LoadLivePricerOptions {
  * Load a PTB-local live pricing snapshot for this market.
  *
  * The returned `Pricer` is bound to `market.id()` and can be passed into live
- * mint, redeem, liquidation, and NAV functions in the same transaction.
+ * mint, redeem, and NAV functions in the same transaction.
  *
  * Aborts `pricing::EOracleWrittenInThisTransaction` when any observation that
  * feeds the returned forward or SVI was written in this transaction (RP-24).
@@ -701,15 +645,15 @@ export function currentNav(options: CurrentNavOptions) {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export interface OrderValueArguments {
+export interface LiveOrderValueArguments {
 	market: RawTransactionArgument<string>;
 	pricer: TransactionArgument;
 	orderId: RawTransactionArgument<number | bigint>;
 }
-export interface OrderValueOptions {
+export interface LiveOrderValueOptions {
 	package?: string;
 	arguments:
-		| OrderValueArguments
+		| LiveOrderValueArguments
 		| [
 				market: RawTransactionArgument<string>,
 				pricer: TransactionArgument,
@@ -720,13 +664,11 @@ export interface OrderValueOptions {
 	};
 }
 /**
- * Return one order's close value before fees. Liquidated or currently liquidatable
- * orders return zero, live orders return their full-close range value net of
- * static floor, and settled orders return terminal payout. Live reads require a
- * market-bound `Pricer`; this function does not prove account ownership of
- * `order_id`. Public for SDK and devInspect position valuation.
+ * Return one live order's full-close range value before fees. Requires a
+ * market-bound `Pricer` and does not prove account ownership of `order_id`. Public
+ * for SDK, PTB, and devInspect position valuation.
  */
-export function orderValue(options: OrderValueOptions) {
+export function liveOrderValue(options: LiveOrderValueOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, null, 'u256'] satisfies (string | null)[];
@@ -735,7 +677,37 @@ export function orderValue(options: OrderValueOptions) {
 		tx.moveCall({
 			package: packageAddress,
 			module: 'expiry_market',
-			function: 'order_value',
+			function: 'live_order_value',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface SettledOrderPayoutArguments {
+	market: RawTransactionArgument<string>;
+	orderId: RawTransactionArgument<number | bigint>;
+}
+export interface SettledOrderPayoutOptions {
+	package?: string;
+	arguments:
+		| SettledOrderPayoutArguments
+		| [market: RawTransactionArgument<string>, orderId: RawTransactionArgument<number | bigint>];
+	config?: {
+		predictPackageId?: string;
+	};
+}
+/**
+ * Return one settled order's terminal payout. This function does not prove account
+ * ownership of `order_id`. Public for SDK, PTB, and devInspect position valuation.
+ */
+export function settledOrderPayout(options: SettledOrderPayoutOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null, 'u256'] satisfies (string | null)[];
+	const parameterNames = ['market', 'orderId'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'expiry_market',
+			function: 'settled_order_payout',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
@@ -772,7 +744,6 @@ export interface QuoteMintArguments {
 	maxPremium: RawTransactionArgument<number | bigint>;
 	minQuantity: RawTransactionArgument<number | bigint>;
 	exactQuantity: RawTransactionArgument<boolean>;
-	leverage: RawTransactionArgument<number | bigint>;
 }
 export interface QuoteMintOptions {
 	package?: string;
@@ -783,13 +754,12 @@ export interface QuoteMintOptions {
 	};
 }
 /**
- * Quote the all-in cost of a mint request for an anonymous taker (no stake
- * discount, no builder code) without mutating any market state. Exact-quantity
- * mode uses `min_quantity`; budget mode conservatively sizes a lot-rounded fill
- * under `max_premium`. The quote applies live-mint and admission gates but does
- * not preflight account balance, slippage caps, or exposure-index capacity. Its
- * penalty uses the current pre-update EWMA state. Public for SDK and devInspect
- * pre-trade pricing.
+ * Quote the all-in cost of a mint request for an anonymous taker (no builder code)
+ * without mutating any market state. Exact-quantity mode uses `min_quantity`;
+ * budget mode conservatively sizes a lot-rounded fill under `max_premium`. The
+ * quote applies live-mint and admission gates but does not preflight account
+ * balance, slippage caps, or exposure-index capacity. Its penalty uses the current
+ * pre-update EWMA state. Public for SDK and devInspect pre-trade pricing.
  */
 export function quoteMint(options: QuoteMintOptions) {
 	const packageAddress =
@@ -803,7 +773,6 @@ export function quoteMint(options: QuoteMintOptions) {
 		'u64',
 		'u64',
 		'bool',
-		'u64',
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
 	const parameterNames = [
@@ -815,7 +784,6 @@ export function quoteMint(options: QuoteMintOptions) {
 		'maxPremium',
 		'minQuantity',
 		'exactQuantity',
-		'leverage',
 	];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -842,7 +810,6 @@ export interface QuoteMintForAccountArguments {
 	maxPremium: RawTransactionArgument<number | bigint>;
 	minQuantity: RawTransactionArgument<number | bigint>;
 	exactQuantity: RawTransactionArgument<boolean>;
-	leverage: RawTransactionArgument<number | bigint>;
 }
 export interface QuoteMintForAccountOptions {
 	package?: string;
@@ -853,12 +820,9 @@ export interface QuoteMintForAccountOptions {
 	};
 }
 /**
- * Quote the all-in cost of a mint request for one account, reading the account's
- * builder code and current `active_stake` without rolling epochs. If inactive
- * stake is eligible to roll, the executing mint receives a larger discount than
- * this quote reflects. Budget mode caps premium by total account balance,
- * including unsettled accumulator funds. Public for SDK and devInspect pre-trade
- * pricing.
+ * Quote the all-in cost of a mint request for one account, reading its builder
+ * code. Budget mode caps premium by total account balance, including unsettled
+ * accumulator funds. Public for SDK and devInspect pre-trade pricing.
  */
 export function quoteMintForAccount(options: QuoteMintForAccountOptions) {
 	const packageAddress =
@@ -873,7 +837,6 @@ export function quoteMintForAccount(options: QuoteMintForAccountOptions) {
 		'u64',
 		'u64',
 		'bool',
-		'u64',
 		'0x2::accumulator::AccumulatorRoot',
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
@@ -887,7 +850,6 @@ export function quoteMintForAccount(options: QuoteMintForAccountOptions) {
 		'maxPremium',
 		'minQuantity',
 		'exactQuantity',
-		'leverage',
 	];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -952,18 +914,18 @@ export function entryProbability(options: EntryProbabilityOptions) {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export interface NetPremiumArguments {
+export interface PremiumArguments {
 	quote: TransactionArgument;
 }
-export interface NetPremiumOptions {
+export interface PremiumOptions {
 	package?: string;
-	arguments: NetPremiumArguments | [quote: TransactionArgument];
+	arguments: PremiumArguments | [quote: TransactionArgument];
 	config?: {
 		predictPackageId?: string;
 	};
 }
-/** Return the quoted net premium for SDK and devInspect consumers. */
-export function netPremium(options: NetPremiumOptions) {
+/** Return the quoted premium for SDK and devInspect consumers. */
+export function premium(options: PremiumOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -972,7 +934,7 @@ export function netPremium(options: NetPremiumOptions) {
 		tx.moveCall({
 			package: packageAddress,
 			module: 'expiry_market',
-			function: 'net_premium',
+			function: 'premium',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
@@ -986,10 +948,7 @@ export interface TradingFeeOptions {
 		predictPackageId?: string;
 	};
 }
-/**
- * Return the quoted post-stake trading fee before subsidy for SDK and devInspect
- * consumers.
- */
+/** Return the quoted trading fee before subsidy for SDK and devInspect consumers. */
 export function tradingFee(options: TradingFeeOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
@@ -1078,6 +1037,33 @@ export function penaltyFee(options: PenaltyFeeOptions) {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface InventoryImpactChargeArguments {
+	quote: TransactionArgument;
+}
+export interface InventoryImpactChargeOptions {
+	package?: string;
+	arguments: InventoryImpactChargeArguments | [quote: TransactionArgument];
+	config?: {
+		predictPackageId?: string;
+	};
+}
+/**
+ * Return the separate inventory-impact charge for SDK and devInspect quote
+ * consumers.
+ */
+export function inventoryImpactCharge(options: InventoryImpactChargeOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['quote'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'expiry_market',
+			function: 'inventory_impact_charge',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
 export interface AllInCostArguments {
 	quote: TransactionArgument;
 }
@@ -1111,7 +1097,6 @@ export interface MintExactQuantityArguments {
 	lowerTick: RawTransactionArgument<number | bigint>;
 	higherTick: RawTransactionArgument<number | bigint>;
 	quantity: RawTransactionArgument<number | bigint>;
-	leverage: RawTransactionArgument<number | bigint>;
 	maxCost: RawTransactionArgument<number | bigint>;
 	maxProbability: RawTransactionArgument<number | bigint>;
 }
@@ -1129,12 +1114,9 @@ export interface MintExactQuantityOptions {
  * Requires the running package version to be at or above the protocol version
  * watermark, per-market mint pause to be off, trading globally enabled, valid
  * owner or authorized-app account auth, a market-bound live `Pricer`, and enough
- * expiry cash to back the post-mint max payout and rebate reserve. Leverage is
- * continuous (any `L >= 1`); the derived static barrier
- * `b = floor_shares/quantity` must sit below the at-entry liquidation threshold so
- * the order is not instantly knockable. Mint fees are paid by routing a withdraw
- * through the loaded account. The position's strike range is the tick pair
- * `(lower_tick, higher_tick]` (`lower_tick = 0` is `-inf`,
+ * expiry cash to back the post-mint max payout. Mint fees are paid by routing a
+ * withdraw through the loaded account. The position's strike range is the tick
+ * pair `(lower_tick, higher_tick]` (`lower_tick = 0` is `-inf`,
  * `higher_tick = pos_inf_tick` is `+inf`); the SDK converts raw strikes to ticks.
  * `max_cost` caps the all-in DUSDC withdrawal, while `max_probability` caps the
  * quoted per-contract probability before fees. Callers can pass
@@ -1155,7 +1137,6 @@ export function mintExactQuantity(options: MintExactQuantityOptions) {
 		'u64',
 		'u64',
 		'u64',
-		'u64',
 		'0x2::accumulator::AccumulatorRoot',
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
@@ -1168,7 +1149,6 @@ export function mintExactQuantity(options: MintExactQuantityOptions) {
 		'lowerTick',
 		'higherTick',
 		'quantity',
-		'leverage',
 		'maxCost',
 		'maxProbability',
 	];
@@ -1197,7 +1177,6 @@ export interface MintExactAmountArguments {
 	higherTick: RawTransactionArgument<number | bigint>;
 	maxPremium: RawTransactionArgument<number | bigint>;
 	minQuantity: RawTransactionArgument<number | bigint>;
-	leverage: RawTransactionArgument<number | bigint>;
 	maxCost: RawTransactionArgument<number | bigint>;
 }
 export interface MintExactAmountOptions {
@@ -1209,13 +1188,13 @@ export interface MintExactAmountOptions {
 	};
 }
 /**
- * Mint a conservatively sized lot-rounded position whose net premium does not
- * exceed `max_premium`. The result may be one lot below the largest fitting
- * quantity and must meet `min_quantity`.
+ * Mint a conservatively sized lot-rounded position whose premium does not exceed
+ * `max_premium`. The result may be one lot below the largest fitting quantity and
+ * must meet `min_quantity`.
  *
  * Fees, builder fees, and EWMA congestion penalties are charged on top of
  * `max_premium`, so `max_cost` — not `max_premium` — bounds the all-in DUSDC
- * withdrawal (`net_premium + trader-paid fee + builder_fee + EWMA penalty`).
+ * withdrawal (`premium + trader-paid fee + builder_fee + EWMA penalty`).
  * `max_cost` is required: unlike `mint_exact_quantity`'s guards there is no value
  * that disables it, because the budget shape exists to bound spend. The sizing
  * budget is first capped to the account's available DUSDC after settlement; fees
@@ -1237,7 +1216,6 @@ export function mintExactAmount(options: MintExactAmountOptions) {
 		'u64',
 		'u64',
 		'u64',
-		'u64',
 		'0x2::accumulator::AccumulatorRoot',
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
@@ -1251,7 +1229,6 @@ export function mintExactAmount(options: MintExactAmountOptions) {
 		'higherTick',
 		'maxPremium',
 		'minQuantity',
-		'leverage',
 		'maxCost',
 	];
 	return (tx: Transaction) =>
@@ -1291,20 +1268,16 @@ export interface RedeemLiveOptions {
 /**
  * Redeem a live order you hold account authority over.
  *
- * A live order is priced and closed (partial or full), unless it is currently
- * liquidatable, in which case it is knocked out and fully closed with zero payout.
- * An already-liquidated order is fully closed with zero payout. Settled orders
- * must use `redeem_settled`. Returns `(closed_order_id, replacement_order_id)`; a
- * replacement is present only when a live partial close leaves quantity open.
+ * A live order is priced and closed (partial or full). Settled orders must use
+ * `redeem_settled`. Returns a replacement order ID only when a partial close
+ * leaves quantity open.
  *
  * Two close-side slippage floors, the mirror of mint's `max_probability` /
  * `max_cost` pair; pass `0` to disable either. `min_probability` floors the quoted
  * per-contract range probability (same units as mint's `max_probability`).
  * `min_proceeds` floors the all-in net DUSDC credited to the account
  * (`redeem_amount` minus trading fee, builder fee, and EWMA penalty), the mirror
- * of mint's all-in `max_cost`. Both only gate the live-priced path — a liquidated
- * order closes at zero payout regardless, since its value is deterministic, not
- * market-quoted.
+ * of mint's all-in `max_cost`.
  */
 export function redeemLive(options: RedeemLiveOptions) {
 	const packageAddress =
@@ -1354,7 +1327,6 @@ export interface RedeemSettledArguments {
 	auth: TransactionArgument;
 	config?: RawTransactionArgument<string>;
 	orderId: RawTransactionArgument<number | bigint>;
-	closeQuantity: RawTransactionArgument<number | bigint>;
 }
 export interface RedeemSettledOptions {
 	package?: string;
@@ -1367,8 +1339,7 @@ export interface RedeemSettledOptions {
 /**
  * Redeem a settled order you hold account authority over.
  *
- * The market must be settled already; this flow does not run live pricing or new
- * liquidation. Liquidated orders clear with zero payout. Requires a full close.
+ * The market must be settled already; this flow does not run live pricing.
  * Explicit owner auth remains available when Predict app automation is
  * deauthorized; another authorized app may also supply valid account auth.
  */
@@ -1381,11 +1352,10 @@ export function redeemSettled(options: RedeemSettledOptions) {
 		null,
 		null,
 		'u256',
-		'u64',
 		'0x2::accumulator::AccumulatorRoot',
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
-	const parameterNames = ['market', 'wrapper', 'auth', 'config', 'orderId', 'closeQuantity'];
+	const parameterNames = ['market', 'wrapper', 'auth', 'config', 'orderId'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -1407,7 +1377,6 @@ export interface RedeemSettledPermissionlessArguments {
 	wrapper: RawTransactionArgument<string>;
 	config?: RawTransactionArgument<string>;
 	orderId: RawTransactionArgument<number | bigint>;
-	closeQuantity: RawTransactionArgument<number | bigint>;
 }
 export interface RedeemSettledPermissionlessOptions {
 	package?: string;
@@ -1433,105 +1402,15 @@ export function redeemSettledPermissionless(options: RedeemSettledPermissionless
 		null,
 		null,
 		'u256',
-		'u64',
 		'0x2::accumulator::AccumulatorRoot',
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
-	const parameterNames = [
-		'market',
-		'accountRegistry',
-		'wrapper',
-		'config',
-		'orderId',
-		'closeQuantity',
-	];
+	const parameterNames = ['market', 'accountRegistry', 'wrapper', 'config', 'orderId'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'expiry_market',
 			function: 'redeem_settled_permissionless',
-			arguments: normalizeMoveArguments(
-				{
-					...options.arguments,
-					config: options.arguments?.config ?? options.config?.protocolConfig,
-				},
-				argumentsTypes,
-				parameterNames,
-			),
-		});
-}
-export interface LiquidateArguments {
-	market: RawTransactionArgument<string>;
-	config?: RawTransactionArgument<string>;
-	pricer: TransactionArgument;
-	budget: RawTransactionArgument<number | bigint>;
-}
-export interface LiquidateOptions {
-	package?: string;
-	arguments: LiquidateArguments;
-	config?: {
-		protocolConfig: ConfigValue;
-		predictPackageId?: string;
-	};
-}
-/**
- * Run one bounded liquidation pass over active leveraged orders.
- *
- * The liquidation book selects up to `budget` candidates and returns the number of
- * orders liquidated. It does not touch accounts; users clear their liquidated
- * position later through `redeem_live` or `redeem_settled`, receiving no payout.
- */
-export function liquidate(options: LiquidateOptions) {
-	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, null, 'u64', '0x2::clock::Clock'] satisfies (string | null)[];
-	const parameterNames = ['market', 'config', 'pricer', 'budget'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'expiry_market',
-			function: 'liquidate',
-			arguments: normalizeMoveArguments(
-				{
-					...options.arguments,
-					config: options.arguments?.config ?? options.config?.protocolConfig,
-				},
-				argumentsTypes,
-				parameterNames,
-			),
-		});
-}
-export interface LiquidateOrderArguments {
-	market: RawTransactionArgument<string>;
-	config?: RawTransactionArgument<string>;
-	pricer: TransactionArgument;
-	orderId: RawTransactionArgument<number | bigint>;
-}
-export interface LiquidateOrderOptions {
-	package?: string;
-	arguments: LiquidateOrderArguments;
-	config?: {
-		protocolConfig: ConfigValue;
-		predictPackageId?: string;
-	};
-}
-/**
- * Try to liquidate one active leveraged order by ID, through the close flow: quote
- * the order's state, and apply the keeper liquidation only on a liquidatable
- * outcome. Returns whether the order was liquidated.
- */
-export function liquidateOrder(options: LiquidateOrderOptions) {
-	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, null, 'u256', '0x2::clock::Clock'] satisfies (
-		string | null
-	)[];
-	const parameterNames = ['market', 'config', 'pricer', 'orderId'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'expiry_market',
-			function: 'liquidate_order',
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,
@@ -1628,6 +1507,7 @@ export interface TrySettleArguments {
 	config?: RawTransactionArgument<string>;
 	propbookRegistry?: RawTransactionArgument<string>;
 	pyth: RawTransactionArgument<string>;
+	bsValues: RawTransactionArgument<string>;
 }
 export interface TrySettleOptions {
 	package?: string;
@@ -1639,15 +1519,18 @@ export interface TrySettleOptions {
 	};
 }
 /**
- * Settle from Propbook's exact positive normalized Pyth spot at expiry and
- * materialize terminal payout liability. Permissionless and idempotent; a missing
- * or non-normalizable observation leaves the market unsettled.
+ * Settle from Propbook's exact positive Pyth spot at expiry, or from the exact
+ * Block Scholes minute-boundary spot when Pyth remains unavailable after the
+ * compiled grace period. Permissionless and idempotent; missing or unusable
+ * observations leave the market unsettled.
  */
 export function trySettle(options: TrySettleOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, null, null, '0x2::clock::Clock'] satisfies (string | null)[];
-	const parameterNames = ['market', 'config', 'propbookRegistry', 'pyth'];
+	const argumentsTypes = [null, null, null, null, null, '0x2::clock::Clock'] satisfies (
+		string | null
+	)[];
+	const parameterNames = ['market', 'config', 'propbookRegistry', 'pyth', 'bsValues'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,

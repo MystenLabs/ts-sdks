@@ -107,23 +107,35 @@ export interface MintReceipt {
 	positionRootId: bigint;
 	lowerTick: bigint;
 	higherTick: bigint;
-	leverage: number;
 	/** 0..1 range probability quoted at entry (your fill price per $1 payout). */
 	entryProbability: number;
 	/** Max payout actually minted, in quote units (mintAmount: chain-floored). */
 	quantity: number;
-	/** Net premium paid into LP backing, in quote units. */
-	netPremium: number;
-	fees: { trading: number; subsidy: number; builder: number; penalty: number };
+	/** Premium paid into LP backing, in quote units. */
+	premium: number;
+	/**
+	 * Fee breakdown. `referral` is the slice of the trader-paid trading fee and
+	 * congestion surcharge delivered to the referrer; `inventoryImpact` is the
+	 * path-independent inventory-impact charge assessed on the mint.
+	 */
+	fees: {
+		trading: number;
+		subsidy: number;
+		builder: number;
+		penalty: number;
+		referral: number;
+		inventoryImpact: number;
+	};
 	builderCodeId: string | null;
 	raw: {
 		quantity: bigint;
-		netPremium: bigint;
+		premium: bigint;
 		tradingFee: bigint;
 		feeIncentiveSubsidy: bigint;
 		builderFee: bigint;
 		penaltyFee: bigint;
-		leverage: bigint;
+		referralFee: bigint;
+		inventoryImpactCharge: bigint;
 		entryProbability: bigint;
 	};
 }
@@ -141,13 +153,17 @@ export interface RedeemReceipt {
 	 * the remaining quantity — update your stored id or it goes silently stale.
 	 */
 	replacementOrderId: bigint | null;
-	/** NET quote credited to the account: gross − trading − builder − penalty
-	 * (verified against the deployed settle path; 0 for a liquidated tombstone). */
+	/** NET quote credited to the account: gross + inventoryImpactRebate − trading −
+	 * builder − penalty — the same expression the chain asserts `min_proceeds`
+	 * against, and what `settle_live_redeem_payment` actually deposits. */
 	proceeds: number;
 	/** Gross close value before fees (the event's redeem_amount). */
 	gross: number;
-	liquidated: boolean;
-	fees: { trading: number; builder: number; penalty: number };
+	/**
+	 * Fee breakdown. `inventoryImpactRebate` is the path-independent
+	 * inventory-impact rebate credited back on the close.
+	 */
+	fees: { trading: number; builder: number; penalty: number; inventoryImpactRebate: number };
 	builderCodeId: string | null;
 	raw: {
 		quantityClosed: bigint;
@@ -157,6 +173,7 @@ export interface RedeemReceipt {
 		tradingFee: bigint;
 		builderFee: bigint;
 		penaltyFee: bigint;
+		inventoryImpactRebate: bigint;
 	};
 }
 
@@ -166,12 +183,9 @@ export interface ClaimReceipt {
 	owner: string;
 	orderId: bigint;
 	positionRootId: bigint;
-	quantityClosed: number;
-	/** Settlement price in USD. */
-	settlementPrice: number;
-	/** Quote units paid out. */
+	/** Quote units paid out. A settled claim closes the order in full. */
 	payout: number;
-	raw: { quantityClosed: bigint; settlementPrice: bigint; payout: bigint };
+	raw: { payout: bigint };
 }
 
 export interface CreateManagerReceipt {
@@ -237,25 +251,27 @@ export function decodeMints(cfg: PredictConfig, result: DecodableTransactionResu
 		positionRootId: e.position_root_id,
 		lowerTick: e.lower_tick,
 		higherTick: e.higher_tick,
-		leverage: fromRaw(e.leverage, 9),
 		entryProbability: fromRaw(e.entry_probability, 9),
 		quantity: fromRaw(e.quantity, 6),
-		netPremium: fromRaw(e.net_premium, 6),
+		premium: fromRaw(e.premium, 6),
 		fees: {
 			trading: fromRaw(e.trading_fee, 6),
 			subsidy: fromRaw(e.fee_incentive_subsidy, 6),
 			builder: fromRaw(e.builder_fee, 6),
 			penalty: fromRaw(e.penalty_fee, 6),
+			referral: fromRaw(e.referral_fee, 6),
+			inventoryImpact: fromRaw(e.inventory_impact_charge, 6),
 		},
 		builderCodeId: optId(e.builder_code_id),
 		raw: {
 			quantity: e.quantity,
-			netPremium: e.net_premium,
+			premium: e.premium,
 			tradingFee: e.trading_fee,
 			feeIncentiveSubsidy: e.fee_incentive_subsidy,
 			builderFee: e.builder_fee,
 			penaltyFee: e.penalty_fee,
-			leverage: e.leverage,
+			referralFee: e.referral_fee,
+			inventoryImpactCharge: e.inventory_impact_charge,
 			entryProbability: e.entry_probability,
 		},
 	}));
@@ -281,58 +297,35 @@ export function decodeRedeems(
 		quantityClosed: fromRaw(e.quantity_closed, 6),
 		remaining: fromRaw(e.remaining_quantity, 6),
 		replacementOrderId: e.replacement_order_id,
-		// settle_live_redeem_payment credits redeem_amount minus all three
-		// fee components — the event's redeem_amount is GROSS.
-		proceeds: fromRaw(e.redeem_amount - e.trading_fee - e.builder_fee - e.penalty_fee, 6),
+		// Mirrors the deployed close-side accounting exactly (the same expression
+		// `min_proceeds` is asserted against): the net credited to the account is
+		// redeem_amount PLUS the inventory-impact rebate, minus trading, builder and
+		// penalty fees. The event's redeem_amount is GROSS.
+		proceeds: fromRaw(
+			e.redeem_amount + e.inventory_impact_rebate - e.trading_fee - e.builder_fee - e.penalty_fee,
+			6,
+		),
 		gross: fromRaw(e.redeem_amount, 6),
-		liquidated: false,
 		fees: {
 			trading: fromRaw(e.trading_fee, 6),
 			builder: fromRaw(e.builder_fee, 6),
 			penalty: fromRaw(e.penalty_fee, 6),
+			inventoryImpactRebate: fromRaw(e.inventory_impact_rebate, 6),
 		},
 		builderCodeId: optId(e.builder_code_id),
 		raw: {
 			quantityClosed: e.quantity_closed,
 			remaining: e.remaining_quantity,
-			proceeds: e.redeem_amount - e.trading_fee - e.builder_fee - e.penalty_fee,
+			proceeds:
+				e.redeem_amount + e.inventory_impact_rebate - e.trading_fee - e.builder_fee - e.penalty_fee,
 			gross: e.redeem_amount,
 			tradingFee: e.trading_fee,
 			builderFee: e.builder_fee,
 			penaltyFee: e.penalty_fee,
+			inventoryImpactRebate: e.inventory_impact_rebate,
 		},
 	}));
-	const liquidated = decodeAll(
-		result,
-		pkg,
-		'order_events',
-		'LiquidatedOrderRedeemed',
-		orderEvents.LiquidatedOrderRedeemed,
-	).map((e): RedeemReceipt => ({
-		marketId: normalizeSuiAddress(e.expiry_market_id),
-		accountId: normalizeSuiAddress(e.account_id),
-		owner: normalizeSuiAddress(e.owner),
-		orderId: e.order_id,
-		positionRootId: e.position_root_id,
-		quantityClosed: fromRaw(e.quantity_closed, 6),
-		remaining: 0,
-		replacementOrderId: null,
-		proceeds: 0,
-		gross: 0,
-		liquidated: true,
-		fees: { trading: 0, builder: 0, penalty: 0 },
-		builderCodeId: null,
-		raw: {
-			quantityClosed: e.quantity_closed,
-			remaining: 0n,
-			proceeds: 0n,
-			gross: 0n,
-			tradingFee: 0n,
-			builderFee: 0n,
-			penaltyFee: 0n,
-		},
-	}));
-	return [...live, ...liquidated];
+	return live;
 }
 
 export function decodeClaims(
@@ -351,14 +344,8 @@ export function decodeClaims(
 		owner: normalizeSuiAddress(e.owner),
 		orderId: e.order_id,
 		positionRootId: e.position_root_id,
-		quantityClosed: fromRaw(e.quantity_closed, 6),
-		settlementPrice: fromRaw(e.settlement_price, 9),
 		payout: fromRaw(e.payout_amount, 6),
-		raw: {
-			quantityClosed: e.quantity_closed,
-			settlementPrice: e.settlement_price,
-			payout: e.payout_amount,
-		},
+		raw: { payout: e.payout_amount },
 	}));
 }
 

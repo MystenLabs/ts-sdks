@@ -111,15 +111,15 @@ function expectSemanticOrSuccess(outcome: unknown, label: string): void {
 // as plain small codes with a null name (verified live: code=4n, abortName=null), so the
 // numeric set is what fires today; the name set future-proofs against the module being
 // compiled with clever errors (which would pack the code and populate abortName).
-const ORACLE_UNAVAILABLE_CODES = new Set([4n, 5n, 6n, 9n, 10n, 13n, 14n]);
+const ORACLE_UNAVAILABLE_CODES = new Set([4n, 5n, 6n, 9n, 10n, 12n, 13n]);
 const ORACLE_UNAVAILABLE_NAMES = new Set([
 	'EBlockScholesPriceStale', // 4
 	'EBlockScholesInputsInvalid', // 5
 	'EPythSpotInvalid', // 6
 	'ELivePricingExpired', // 9
 	'EBlockScholesSVIStale', // 10
-	'EBlockScholesPriceUnavailable', // 13
-	'EBlockScholesSVIUnavailable', // 14
+	'EBlockScholesPriceUnavailable', // 12
+	'EBlockScholesSVIUnavailable', // 13
 ]);
 function isOracleUnavailable(e: unknown): boolean {
 	if (!(e instanceof PredictMoveError) || e.module !== 'pricing') return false;
@@ -184,7 +184,6 @@ describe('testnet smoke (live deployment)', () => {
 				lowerTick: 1_000n,
 				higherTick: 1_001n,
 				quantityRaw: 1_000_000n, // $1 payout, 100 lots
-				leverageRaw: 1_000_000_000n, // 1x
 				...predictFeeds(),
 			}),
 		);
@@ -237,10 +236,17 @@ describe('testnet smoke (live deployment)', () => {
 		// while a funded-but-broke owner would surface a typed Move abort. Either
 		// way the quote fails EXACTLY like the real trade would (preflight), and
 		// this proves the build → simulate-with-events → error path live.
+		//
+		// The strike must sit on the market's ADMISSION grid, or the SDK rejects it
+		// locally and we would never reach the chain — which is a different code path
+		// than the one this test exists to pin (that rejection has its own unit test).
+		const strike =
+			m.referencePrice ??
+			Math.round((m.admissionTickSize * 1_000) / m.admissionTickSize) * m.admissionTickSize;
 		await expect(
 			predict.read.quoteMint(
 				SMOKE_SENDER,
-				{ underlying: 'BTC', expiryMs: m.expiryMs, strike: m.tickSize * 1_000, side: 'up' },
+				{ underlying: 'BTC', expiryMs: m.expiryMs, strike, side: 'up' },
 				{ quantity: 1 },
 			),
 		).rejects.toThrow(/Object|Move abort|aborted|not found|no market/i);

@@ -54,7 +54,6 @@ import { accountContract, deriveAccountWrapperIdFrom } from './tx/common.js';
 import type { MarketFeeds } from './tx/trade.js';
 import { mintExactAmount, mintExactQuantity, redeemLive, redeemSettled } from './tx/trade.js';
 import {
-	leverageToRaw,
 	priceToRaw,
 	probabilityToRaw,
 	rawToProbability,
@@ -109,7 +108,6 @@ export type MarketDescriptor = {
 /** Options for the friendly `mint` (exact payout quantity). */
 export interface MintOptions {
 	quantity: number;
-	leverage?: number;
 	maxCost?: number;
 	maxProbability?: number;
 }
@@ -119,12 +117,12 @@ export interface MintAmountOptions {
 	/** Premium budget in quote units — the max premium paid (chain also caps it at the account balance). */
 	spend: number;
 	minQuantity: number;
-	leverage?: number;
 	/** All-in cost ceiling in quote units (premium + fees). Omitted → uncapped. */
 	maxCost?: number;
 }
 
-/** Options for `redeem` / `claimSettled`: which order and how much to close. */
+/** Options for `redeem`: which order and how much to close. `claimSettled` takes only
+ * `orderId` — a settled claim closes the order in full. */
 export interface CloseOptions {
 	orderId: bigint;
 	quantity: number;
@@ -136,6 +134,12 @@ export interface ActiveMarket {
 	expiryMs: bigint;
 	/** Strike granularity in USD (e.g. 0.01). */
 	tickSize: number;
+	/**
+	 * Coarser step new mint strikes must align to. A numeric strike must be a whole
+	 * multiple of this (the market's `referencePrice` is the one exception the chain
+	 * admits off-grid); otherwise the mint aborts `EInvalidAdmissionTick`.
+	 */
+	admissionTickSize: number;
 	mintPaused: boolean;
 	/** The window's anchor strike in USD, or null until the keeper seeds it. */
 	referencePrice: number | null;
@@ -146,6 +150,12 @@ export interface MarketSummary {
 	id: string;
 	expiryMs: bigint;
 	tickSize: number;
+	/**
+	 * Coarser step new mint strikes must align to. A numeric strike must be a whole
+	 * multiple of this (the market's `referencePrice` is the one exception the chain
+	 * admits off-grid); otherwise the mint aborts `EInvalidAdmissionTick`.
+	 */
+	admissionTickSize: number;
 	mintPaused: boolean;
 	nav: number;
 	/** The window's anchor strike in USD, or null until the keeper seeds it. */
@@ -168,12 +178,26 @@ export interface PoolSummary {
 export interface MintQuote {
 	/** Fill price, 0..1 per $1 payout. */
 	entryProbability: number;
-	/** Net premium into LP backing (quote units). */
+	/** Premium paid into LP backing (quote units). */
 	premium: number;
-	fees: { trading: number; subsidy: number; builder: number; penalty: number };
 	/**
-	 * All-in account debit: premium + (trading − subsidy) + builder + penalty —
-	 * exactly what the chain withdraws; pass this (plus your buffer) as maxCost.
+	 * Fee breakdown. `referral` is a PORTION of the trader-paid trading fee and
+	 * congestion surcharge routed to the referrer — it is already inside those
+	 * numbers and is NOT an extra debit. `inventoryImpact` is a separate charge and
+	 * IS part of `cost`.
+	 */
+	fees: {
+		trading: number;
+		subsidy: number;
+		builder: number;
+		penalty: number;
+		referral: number;
+		inventoryImpact: number;
+	};
+	/**
+	 * All-in account debit: premium + (trading − subsidy) + builder + penalty +
+	 * inventoryImpact — exactly what the chain withdraws (the deployed
+	 * `compute_mint_quote`'s `all_in_cost`); pass this (plus your buffer) as maxCost.
 	 */
 	cost: number;
 	quantity: number;
@@ -188,11 +212,11 @@ export interface RedeemQuote {
 	proceeds: number;
 	/** Gross close value before fees. */
 	gross: number;
-	fees: { trading: number; builder: number; penalty: number };
+	/** `inventoryImpactRebate` is credited back on the close, so `proceeds` is
+	 * gross + rebate − trading − builder − penalty. */
+	fees: { trading: number; builder: number; penalty: number; inventoryImpactRebate: number };
 	quantityClosed: number;
 	remaining: number;
-	/** True when the position would close as a liquidated tombstone (zero payout). */
-	wouldLiquidate: boolean;
 	raw: { proceeds: bigint; gross: bigint; quantityClosed: bigint };
 	feesExact: true;
 }
@@ -351,6 +375,25 @@ export class PredictClient {
 		return tick;
 	}
 
+	// New finite MINT boundaries must land on the market's coarser ADMISSION grid,
+	// not merely the fine tick grid — the chain asserts exactly this
+	// (`assert_admitted_mint_ticks`, `EInvalidAdmissionTick`). The ±inf sentinels are
+	// exempt, and the market's reference tick is the one finite boundary allowed to
+	// bypass the grid, so an off-grid tick is only rejected after confirming it is not
+	// the reference (one extra read, and only on the failing path).
+	async #assertAdmittedTick(tick: bigint, marketId: string, state: MarketState): Promise<void> {
+		if (tick === 0n || tick === POS_INF_TICK) return;
+		const multiple = state.admissionTickSizeRaw / state.tickSizeRaw;
+		if (multiple > 0n && tick % multiple === 0n) return;
+		const reference = await referenceTick(this.#client, this.#config, marketId);
+		if (reference != null && reference === tick) return;
+		const admission = fromRaw(state.admissionTickSizeRaw, 9);
+		throw new PredictInputError(
+			`strike ${fromRaw(tick * state.tickSizeRaw, 9)} is not on the ${admission} admission grid ` +
+				`(mint boundaries must be a multiple of ${admission}, or the market's reference strike)`,
+		);
+	}
+
 	// Resolve a descriptor's strike(s) to the (lower, higher) tick pair. A binary
 	// numeric strike converts and validates against the tick grid; "reference"
 	// reads the market's reference tick FRESH (never cached — it is unset early in
@@ -366,13 +409,17 @@ export class PredictClient {
 			if (!(m.lower < m.upper)) {
 				throw new PredictInputError(`range lower ${m.lower} must be below upper ${m.upper}`);
 			}
-			return {
-				lowerTick: this.#gridTick(m.lower, state.tickSizeRaw),
-				higherTick: this.#gridTick(m.upper, state.tickSizeRaw),
-			};
+			const lowerTick = this.#gridTick(m.lower, state.tickSizeRaw);
+			const higherTick = this.#gridTick(m.upper, state.tickSizeRaw);
+			await this.#assertAdmittedTick(lowerTick, marketId, state);
+			await this.#assertAdmittedTick(higherTick, marketId, state);
+			return { lowerTick, higherTick };
 		}
 		if (m.strike !== 'reference') {
-			return binaryRangeTicks(priceToRaw(m.strike), m.side, state.tickSizeRaw);
+			const ticks = binaryRangeTicks(priceToRaw(m.strike), m.side, state.tickSizeRaw);
+			await this.#assertAdmittedTick(ticks.lowerTick, marketId, state);
+			await this.#assertAdmittedTick(ticks.higherTick, marketId, state);
+			return ticks;
 		}
 		const tick = await referenceTick(this.#client, this.#config, marketId);
 		if (tick == null) {
@@ -410,7 +457,6 @@ export class PredictClient {
 				lowerTick,
 				higherTick,
 				quantityRaw,
-				leverageRaw: leverageToRaw(opts.leverage ?? 1),
 				maxCostRaw: opts.maxCost != null ? usdcToRaw(opts.maxCost) : undefined,
 				maxProbabilityRaw:
 					opts.maxProbability != null ? probabilityToRaw(opts.maxProbability) : undefined,
@@ -571,7 +617,6 @@ export class PredictClient {
 					higherTick,
 					maxPremiumRaw: usdcToRaw(opts.spend),
 					minQuantityRaw,
-					leverageRaw: leverageToRaw(opts.leverage ?? 1),
 					maxCostRaw: opts.maxCost != null ? usdcToRaw(opts.maxCost) : undefined,
 					...feeds,
 				}),
@@ -584,17 +629,14 @@ export class PredictClient {
 		claimSettled: async (
 			owner: string,
 			m: Pick<MarketDescriptor, 'underlying' | 'expiryMs' | 'marketId'>,
-			opts: CloseOptions,
+			opts: Pick<CloseOptions, 'orderId'>,
 		): Promise<Transaction> => {
 			const { id } = await this.#resolveMarket(m);
-			const closeQuantityRaw = usdcToRaw(opts.quantity);
-			this.#assertLot(closeQuantityRaw);
 			return txOf(
 				redeemSettled(this.#config, {
 					expiryMarketId: id,
 					wrapperId: this.wrapperIdFor(owner),
 					orderId: opts.orderId,
-					closeQuantityRaw,
 				}),
 			);
 		},
@@ -694,6 +736,7 @@ export class PredictClient {
 				id,
 				expiryMs: states[i].expiryMs,
 				tickSize: fromRaw(states[i].tickSizeRaw, 9),
+				admissionTickSize: fromRaw(states[i].admissionTickSizeRaw, 9),
 				mintPaused: states[i].mintPaused,
 				referencePrice: PredictClient.#referencePriceOf(states[i]),
 			}));
@@ -759,24 +802,29 @@ export class PredictClient {
 		quoteMint: async (
 			owner: string,
 			m: MarketDescriptor,
-			opts: Pick<MintOptions, 'quantity' | 'leverage'>,
+			opts: Pick<MintOptions, 'quantity'>,
 		): Promise<MintQuote> => {
 			const tx = await this.#buildMint(owner, m, opts);
 			const events = await simulateWithEvents(this.#client, tx, owner);
 			const r = exactlyOne(decodeMints(this.cfg, { events }), 'OrderMinted');
+			// Mirrors the deployed `compute_mint_quote`'s all_in_cost exactly:
+			// premium + (trading − subsidy) + builder + penalty + inventory-impact.
+			// `referral_fee` is deliberately NOT added — it is a portion OF the
+			// trader-paid trading fee and congestion surcharge, not an extra debit.
 			const costRaw =
-				r.raw.netPremium +
+				r.raw.premium +
 				(r.raw.tradingFee - r.raw.feeIncentiveSubsidy) +
 				r.raw.builderFee +
-				r.raw.penaltyFee;
+				r.raw.penaltyFee +
+				r.raw.inventoryImpactCharge;
 			return {
 				entryProbability: r.entryProbability,
-				premium: r.netPremium,
+				premium: r.premium,
 				fees: r.fees,
 				cost: rawToUsdc(costRaw),
 				quantity: r.quantity,
 				raw: {
-					premium: r.raw.netPremium,
+					premium: r.raw.premium,
 					cost: costRaw,
 					quantity: r.raw.quantity,
 					entryProbability: r.raw.entryProbability,
@@ -798,10 +846,9 @@ export class PredictClient {
 			return {
 				proceeds: r.proceeds,
 				gross: r.gross,
-				fees: { trading: r.fees.trading, builder: r.fees.builder, penalty: r.fees.penalty },
+				fees: r.fees,
 				quantityClosed: r.quantityClosed,
 				remaining: r.remaining,
-				wouldLiquidate: r.liquidated,
 				raw: {
 					proceeds: r.raw.proceeds,
 					gross: r.raw.gross,
@@ -828,6 +875,7 @@ export class PredictClient {
 				id,
 				expiryMs: state.expiryMs,
 				tickSize: fromRaw(state.tickSizeRaw, 9), // strike/price scale
+				admissionTickSize: fromRaw(state.admissionTickSizeRaw, 9),
 				mintPaused: state.mintPaused,
 				nav: rawToUsdc(navRaw),
 				referencePrice: PredictClient.#referencePriceOf(state),

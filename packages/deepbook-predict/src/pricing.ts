@@ -1,5 +1,5 @@
 // Faithful float port of the deployed `deepbook_predict::pricing::compute_nd2`
-// (testnet `predict-testnet-7-29`, sourceCommit a92ceb01) — the SVI-adjusted digital
+// (testnet `predict-testnet-8-21`, sourceCommit 1f79fe87) — the SVI-adjusted digital
 // probability, WITH the skew-correction term. It operates on the pricer's
 // ALREADY-RESOLVED forward and ALREADY-ROLLED-DOWN SVI, exactly as `load_live_pricer`
 // returns them (decoded by `reads/pricing.ts`). So the two on-chain steps that pick the
@@ -9,11 +9,12 @@
 //
 // This is the fast client-side board pricer: read one `Pricer` snapshot, then price every
 // strike locally with no further chain calls. `read.price` / `read.quoteMint` (a chain
-// dry-run) stay the authoritative quote at trade time. Divergence vs the chain is ~1e-7 in
-// probability — std-lib `erf` here vs the chain's Cody/Taylor fixed-point `normal_cdf`/
-// `normal_pdf` — negligible for display; `tests/testnet/pricing-parity` bounds it live.
+// dry-run) stay the authoritative quote at trade time. Divergence vs the chain is up to
+// ~1e-4 in probability, dominated by the chain's fixed-point truncation near ATM when sigma
+// sits at its floor (float64 here is the more precise side, not the less); negligible for
+// display. `tests/testnet/pricing.test.ts` bounds it live against the deployment.
 //
-// The on-chain formula (pricing.move `compute_nd2`, a92ceb01):
+// The on-chain formula (pricing.move `compute_nd2`, 1f79fe87):
 //   k  = ln(strike / forward)
 //   x  = k - m
 //   w  = a + b·(ρ·x + √(x² + σ²))            // a, b already rolled down
@@ -143,8 +144,11 @@ export function strikeAtProbability(inputs: PricerInputs, p: number): number | n
 
 /** Roll `a` and `b` down by the fraction of anchored time remaining, matching the chain's
  * `roll_down_svi` (variance decays toward expiry). `remainingMs` = expiry − now;
- * `anchorTteMs` = expiry − the SVI observation's source timestamp. `rho`, `m`, `sigma` are
- * unchanged. Feed an UNrolled provider surface; the result is what {@link upProbability}
+ * `anchorTteMs` = expiry − the SVI observation's **batch envelope time** — the same clock the
+ * freshness gate uses, and what the chain anchors on. It is NOT the provider's calibration
+ * (model) time, which stays on the stored observation: using that rolls by the wrong
+ * fraction. `read.pricer` avoids the question entirely (the chain has already rolled).
+ * `rho`, `m`, `sigma` are unchanged. Feed an UNrolled provider surface; the result is what {@link upProbability}
  * expects. */
 export function rollDown(svi: Svi, remainingMs: number, anchorTteMs: number): Svi {
 	const frac = anchorTteMs > 0 ? remainingMs / anchorTteMs : 0;

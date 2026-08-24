@@ -34,7 +34,6 @@ export type { PredictConfig, PredictPackages, UnderlyingConfig } from './config/
 // `fromRaw` primitives stay internal to avoid colliding with consumers' own helpers.
 export {
 	U64_MAX,
-	leverageToRaw,
 	priceToRaw,
 	probabilityToRaw,
 	rawToPrice,

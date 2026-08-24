@@ -3,8 +3,8 @@
  **************************************************************/
 
 /**
- * Pool-vault events for staking, expiry cash and profit, fee incentives, and the
- * queued LP request lifecycle. A flush records the frozen pool mark used by fills.
+ * Pool-vault events for expiry cash and profit, fee incentives, and the queued LP
+ * request lifecycle. A flush records the frozen pool mark used by fills.
  */
 
 import { MoveStruct } from '../utils/index.js';
@@ -41,40 +41,6 @@ export const ExpiryProfitMaterialized = new MoveStruct({
 		protocol_reserve_balance_after: U64,
 		profit_basis_after: U64,
 		pending_protocol_profit_after: U64,
-	},
-});
-export const TradingLossRebateClaimed = new MoveStruct({
-	name: `${$moduleName}::TradingLossRebateClaimed`,
-	fields: {
-		pool_vault_id: bcs.Address,
-		expiry_market_id: bcs.Address,
-		account_id: bcs.Address,
-		rebate_amount: U64,
-		residual_returned: U64,
-		trading_fees_paid: U64,
-		gross_profit: U64,
-	},
-});
-export const DeepStaked = new MoveStruct({
-	name: `${$moduleName}::DeepStaked`,
-	fields: {
-		pool_vault_id: bcs.Address,
-		account_id: bcs.Address,
-		amount: U64,
-		/**
-		 * Account active/inactive stake after the deposit. Freshly staked DEEP is inactive
-		 * until it rolls active in a later epoch, so both are reported.
-		 */
-		active_stake_after: U64,
-		inactive_stake_after: U64,
-	},
-});
-export const DeepUnstaked = new MoveStruct({
-	name: `${$moduleName}::DeepUnstaked`,
-	fields: {
-		pool_vault_id: bcs.Address,
-		account_id: bcs.Address,
-		amount: U64,
 	},
 });
 export const SupplyRequested = new MoveStruct({

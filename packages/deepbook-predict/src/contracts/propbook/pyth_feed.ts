@@ -41,6 +41,11 @@ export const PythFeed = new MoveStruct({
 		id: bcs.Address,
 		pyth_source_id: bcs.u32(),
 		/**
+		 * Assigned by the registry's canonical binding flow; absent before the feed is
+		 * first bound.
+		 */
+		propbook_underlying_id: bcs.option(bcs.u32()),
+		/**
 		 * Package version this feed runs at; updates require an exact match and `migrate`
 		 * advances it forward-only after a package upgrade.
 		 */
