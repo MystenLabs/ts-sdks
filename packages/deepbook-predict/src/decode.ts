@@ -296,9 +296,14 @@ export function decodeRedeems(
 		quantityClosed: fromRaw(e.quantity_closed, 6),
 		remaining: fromRaw(e.remaining_quantity, 6),
 		replacementOrderId: e.replacement_order_id,
-		// settle_live_redeem_payment credits redeem_amount minus all three
-		// fee components — the event's redeem_amount is GROSS.
-		proceeds: fromRaw(e.redeem_amount - e.trading_fee - e.builder_fee - e.penalty_fee, 6),
+		// Mirrors the deployed close-side accounting exactly (the same expression
+		// `min_proceeds` is asserted against): the net credited to the account is
+		// redeem_amount PLUS the inventory-impact rebate, minus trading, builder and
+		// penalty fees. The event's redeem_amount is GROSS.
+		proceeds: fromRaw(
+			e.redeem_amount + e.inventory_impact_rebate - e.trading_fee - e.builder_fee - e.penalty_fee,
+			6,
+		),
 		gross: fromRaw(e.redeem_amount, 6),
 		fees: {
 			trading: fromRaw(e.trading_fee, 6),
@@ -310,7 +315,8 @@ export function decodeRedeems(
 		raw: {
 			quantityClosed: e.quantity_closed,
 			remaining: e.remaining_quantity,
-			proceeds: e.redeem_amount - e.trading_fee - e.builder_fee - e.penalty_fee,
+			proceeds:
+				e.redeem_amount + e.inventory_impact_rebate - e.trading_fee - e.builder_fee - e.penalty_fee,
 			gross: e.redeem_amount,
 			tradingFee: e.trading_fee,
 			builderFee: e.builder_fee,

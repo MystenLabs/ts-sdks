@@ -754,11 +754,16 @@ export class PredictClient {
 			const tx = await this.#buildMint(owner, m, opts);
 			const events = await simulateWithEvents(this.#client, tx, owner);
 			const r = exactlyOne(decodeMints(this.cfg, { events }), 'OrderMinted');
+			// Mirrors the deployed `compute_mint_quote`'s all_in_cost exactly:
+			// premium + (trading − subsidy) + builder + penalty + inventory-impact.
+			// `referral_fee` is deliberately NOT added — it is a portion OF the
+			// trader-paid trading fee and congestion surcharge, not an extra debit.
 			const costRaw =
 				r.raw.premium +
 				(r.raw.tradingFee - r.raw.feeIncentiveSubsidy) +
 				r.raw.builderFee +
-				r.raw.penaltyFee;
+				r.raw.penaltyFee +
+				r.raw.inventoryImpactCharge;
 			return {
 				entryProbability: r.entryProbability,
 				premium: r.premium,

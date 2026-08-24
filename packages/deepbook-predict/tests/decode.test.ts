@@ -159,8 +159,8 @@ describe('decodeRedeems', () => {
 		expect(r.remaining).toBe(30);
 		// redeem_amount 6.0 is GROSS; net = gross − trading (0.05) − builder − penalty
 		expect(r.gross).toBe(6);
-		expect(r.proceeds).toBe(5.95);
-		expect(r.raw.proceeds).toBe(5_950_000n);
+		expect(r.proceeds).toBe(5.953); // gross 6 + rebate 0.003 − trading 0.05
+		expect(r.raw.proceeds).toBe(5_953_000n);
 		expect(r.fees.inventoryImpactRebate).toBe(0.003);
 	});
 
