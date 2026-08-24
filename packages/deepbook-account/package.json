@@ -2,7 +2,7 @@
 	"name": "@mysten/deepbook-account",
 	"author": "Mysten Labs <build@mystenlabs.com>",
 	"description": "Sui DeepBook shared account primitive SDK",
-	"version": "0.0.2",
+	"version": "0.1.0",
 	"license": "Apache-2.0",
 	"type": "module",
 	"main": "./dist/index.mjs",
