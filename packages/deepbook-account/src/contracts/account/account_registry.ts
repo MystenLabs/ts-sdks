@@ -231,7 +231,7 @@ export interface NewWithReferrerOptions {
 }
 /**
  * Creates the sender's canonical account and permanently records the supplied
- * wrapper's account as its referrer.
+ * wrapper's account identity and receive address as its referrer.
  */
 export function newWithReferrer(options: NewWithReferrerOptions) {
 	const packageAddress =
