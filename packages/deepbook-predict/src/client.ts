@@ -121,7 +121,8 @@ export interface MintAmountOptions {
 	maxCost?: number;
 }
 
-/** Options for `redeem` / `claimSettled`: which order and how much to close. */
+/** Options for `redeem`: which order and how much to close. `claimSettled` takes only
+ * `orderId` — a settled claim closes the order in full. */
 export interface CloseOptions {
 	orderId: bigint;
 	quantity: number;
@@ -177,12 +178,26 @@ export interface PoolSummary {
 export interface MintQuote {
 	/** Fill price, 0..1 per $1 payout. */
 	entryProbability: number;
-	/** Net premium into LP backing (quote units). */
+	/** Premium paid into LP backing (quote units). */
 	premium: number;
-	fees: { trading: number; subsidy: number; builder: number; penalty: number };
 	/**
-	 * All-in account debit: premium + (trading − subsidy) + builder + penalty —
-	 * exactly what the chain withdraws; pass this (plus your buffer) as maxCost.
+	 * Fee breakdown. `referral` is a PORTION of the trader-paid trading fee and
+	 * congestion surcharge routed to the referrer — it is already inside those
+	 * numbers and is NOT an extra debit. `inventoryImpact` is a separate charge and
+	 * IS part of `cost`.
+	 */
+	fees: {
+		trading: number;
+		subsidy: number;
+		builder: number;
+		penalty: number;
+		referral: number;
+		inventoryImpact: number;
+	};
+	/**
+	 * All-in account debit: premium + (trading − subsidy) + builder + penalty +
+	 * inventoryImpact — exactly what the chain withdraws (the deployed
+	 * `compute_mint_quote`'s `all_in_cost`); pass this (plus your buffer) as maxCost.
 	 */
 	cost: number;
 	quantity: number;

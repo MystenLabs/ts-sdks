@@ -20,7 +20,8 @@ const i64 = (v: { magnitude: string | number | bigint; is_negative: boolean }): 
 
 /** A resolved pricer snapshot read from the chain: the decimal forward + rolled SVI the
  * client-side math consumes, plus the oracle source timestamps behind it (ms; for
- * staleness display — Pyth is 0 when no usable spot existed). */
+ * staleness display — Pyth is 0 when no usable spot existed). The Block-Scholes entries are
+ * batch ENVELOPE times (what freshness and the SVI roll-down anchor on), not model times. */
 export interface PricerSnapshot extends PricerInputs {
 	sources: {
 		pythSpotMs: number;

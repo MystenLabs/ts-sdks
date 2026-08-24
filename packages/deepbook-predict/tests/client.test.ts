@@ -60,8 +60,8 @@ const MINTED_EVENT = {
 		fee_incentive_subsidy: 20_000n, // $0.02 sponsor-paid
 		builder_fee: 30_000n, // $0.03
 		penalty_fee: 5_000n, // $0.005
-		referral_fee: 0n,
-		inventory_impact_charge: 0n,
+		referral_fee: 11_000n, // $0.011 — a PORTION of trading+penalty, never an extra debit
+		inventory_impact_charge: 40_000n, // $0.04 — a SEPARATE charge, part of the all-in cost
 		builder_code_id: null,
 		referrer_account_id: null,
 		onchain_timestamp_ms: 0n,
@@ -86,7 +86,7 @@ const REDEEMED_EVENT = {
 		trading_fee: 50_000n,
 		builder_fee: 0n,
 		penalty_fee: 0n,
-		inventory_impact_rebate: 0n,
+		inventory_impact_rebate: 25_000n, // $0.025 credited back on the close
 		builder_code_id: null,
 		onchain_timestamp_ms: 0n,
 		pyth_spot_source_timestamp_ms: 0n,
@@ -581,9 +581,14 @@ describe('tx.mint (market resolution + unit conversion)', () => {
 		expect(counts.quote_mint_sim).toBe(1);
 		expect(q.entryProbability).toBeCloseTo(0.34);
 		expect(q.premium).toBe(17);
-		// cost = premium + (trading − subsidy) + builder + penalty
-		expect(q.raw.cost).toBe(17_000_000n + 80_000n + 30_000n + 5_000n);
-		expect(q.cost).toBeCloseTo(17.115);
+		// Mirrors the deployed all_in_cost: premium + (trading − subsidy) + builder +
+		// penalty + inventoryImpact. `referral_fee` is a PORTION of the trader-paid fees
+		// and must NOT appear here — the non-zero fixture values make both halves of that
+		// statement falsifiable.
+		expect(q.raw.cost).toBe(17_000_000n + 80_000n + 30_000n + 5_000n + 40_000n);
+		expect(q.cost).toBeCloseTo(17.155);
+		expect(q.fees.inventoryImpact).toBeCloseTo(0.04);
+		expect(q.fees.referral).toBeCloseTo(0.011);
 		expect(q.quantity).toBe(50);
 		expect(q.feesExact).toBe(true);
 	});
@@ -596,7 +601,10 @@ describe('tx.mint (market resolution + unit conversion)', () => {
 			{ orderId: 7n, quantity: 0.02 },
 		);
 		expect(q.gross).toBe(6);
-		expect(q.proceeds).toBe(5.95);
+		// gross + rebate − trading − builder − penalty (the expression the chain asserts
+		// `min_proceeds` against); the non-zero rebate makes the term falsifiable.
+		expect(q.proceeds).toBe(5.975);
+		expect(q.fees.inventoryImpactRebate).toBeCloseTo(0.025);
 		expect(q.remaining).toBe(30);
 		expect(q.feesExact).toBe(true);
 	});

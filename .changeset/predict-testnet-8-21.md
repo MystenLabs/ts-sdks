@@ -13,3 +13,10 @@ Breaking, following the contracts:
 - **A settled claim closes the order in full.** `tx.claimSettled(owner, market, { orderId })` no longer takes a `quantity` — the deployed `redeem_settled` has no quantity argument — and `ClaimReceipt` drops `quantityClosed` / `settlementPrice`, which the settled event no longer emits (it reports `payout` only).
 - **Numeric mint strikes must sit on the market's coarser admission grid.** `read.markets()` / `read.market()` now report `admissionTickSize` (`$100` against a `$0.01` tick on the current testnet deployment), and an off-grid strike throws `PredictInputError` at build time instead of aborting on chain with `EInvalidAdmissionTick`. The market's `referencePrice` remains admissible off-grid.
 - `read.quoteMint`'s `cost` now includes the inventory-impact charge, and `decode.redeem` / `read.quoteRedeem` account for the inventory-impact rebate, matching the deployed all-in cost and payout exactly.
+
+Value-semantics changes — these move NUMBERS, not just types, so re-check any code that pins them:
+
+- **`MintQuote.cost` / `raw.cost` now include the inventory-impact charge**, matching the deployed `all_in_cost`. The value is larger than in the previous release. The README tells integrators to pass `cost` as `maxCost`; the old value now under-budgets and the chain rejects it with `EMintCostAboveMax`.
+- **`RedeemReceipt.proceeds` / `raw.proceeds` (and `RedeemQuote.proceeds`) now add the inventory-impact rebate**, matching what `settle_live_redeem_payment` actually credits and the expression `min_proceeds` is asserted against.
+- **`PredictMoveError.code` renumbered for the `pricing` module.** `EBlockScholesPriceUnavailable` 13→12, `EBlockScholesSVIUnavailable` 14→13, `EBlockScholesMinVarianceInvalid` 15→14, `EOracleWrittenInThisTransaction` 17→15; `ETickNotInPriceMemo` and `ENonMonotonePriceMemo` are gone; `EBlockScholesInputTooWide` is new at 16. Code switching on numeric pricing codes breaks silently — match on `abortName` where possible.
+

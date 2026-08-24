@@ -68,7 +68,7 @@ receipt.fees;
 
 // Read: tradeable markets and pool state.
 const markets = await client.predict.read.markets();
-// -> [{ id, expiryMs, tickSize, mintPaused, referencePrice }, ...]
+// -> [{ id, expiryMs, tickSize, admissionTickSize, mintPaused, referencePrice }, ...]
 const market = await client.predict.read.market({
 	underlying: 'BTC',
 	expiryMs: markets[0].expiryMs,
@@ -81,8 +81,9 @@ console.log(market?.nav, market?.tickSize, market?.mintPaused);
 `mint` mirrors the chain's semantics: when you omit `maxCost` and `maxProbability`, the mint is
 **uncapped** — if the price moves between your quote and execution, the position can cost up to your
 full account balance. **Call `read.quoteMint` and pass its `cost` (plus your buffer) as `maxCost`.**
-The same applies to `redeem`, which has no slippage floor on the current deployment —
-`read.quoteRedeem` first, close fast.
+The same applies to `redeem`: the deployed `redeem_live` DOES take `min_probability` /
+`min_proceeds` floors, but the facade does not surface them yet and always sends `0` (uncapped).
+`read.quoteRedeem` first, close fast — or drive `redeemLive` from the tx layer to set the floors.
 
 ## Units
 
@@ -126,10 +127,11 @@ strikes away from the reference remain fully supported.
 ### Numeric strikes must sit on the admission grid
 
 New mint strikes must be a whole multiple of the market's **`admissionTickSize`** — a step
-deliberately coarser than `tickSize` (on the current testnet deployment it is `$100` against a
-`$0.01` tick). The market's `referencePrice` is the one finite strike the chain admits off-grid.
-`read.markets()` and `read.market()` both report `admissionTickSize`, so a board can be built from
-it directly:
+deliberately coarser than `tickSize`, and it varies by cadence (on the current testnet deployment
+the 1m/5m/1h markets use `$1` and the 1d/1w markets `$100`, against a `$0.01` tick). Always read it
+off the market rather than assuming a value. The market's `referencePrice` is the one finite strike
+the chain admits off-grid. `read.markets()` and `read.market()` both report `admissionTickSize`, so
+a board can be built from it directly:
 
 ```ts
 const m = (await client.predict.read.markets())[0];
@@ -187,10 +189,11 @@ on-chain; the client only evaluates the digital. It throws the same typed stale-
 `PredictMoveError` that `read.price` would when the chain itself cannot quote.
 
 The math is a faithful float port of the deployed `pricing::compute_nd2` (SVI with the skew
-correction, signed params, and the remaining-time roll-down). It agrees with the chain to ~1e-7 in
-probability (`tests/testnet/pricing-parity` bounds it live). The pure functions are exported under a
-`pricing` namespace for callers who already hold their own oracle inputs (e.g. a live feed) and want
-zero chain calls:
+correction, signed params, and the remaining-time roll-down). It agrees with the chain closely —
+within ~1e-4 in probability, up to ~1e-4 near ATM where the chain's fixed-point truncation dominates
+(`tests/testnet/pricing.test.ts` bounds it live). The pure functions are exported under a `pricing`
+namespace for callers who already hold their own oracle inputs (e.g. a live feed) and want zero
+chain calls:
 
 ```ts
 import { pricing } from '@mysten/deepbook-predict';
@@ -223,7 +226,7 @@ stop requiring an SDK release for target resolution.
   as the cheap validator.
 - PLP supply/withdraw are queued and fill at the next pool flush; cancels take the queue `index` —
   get it from `decode.plpRequest(result).index`.
-- `claimSettled` requires a full close of the order (contract rule).
+- `claimSettled` closes the order in full — the deployed entrypoint takes no quantity.
 - **`withdraw` lands in your address balance by default** (`0x2::coin::send_funds`), not a coin
   object — it merges into the versionless accumulator `deposit` already draws from, so the round
   trip never accretes stray `Coin<DUSDC>` objects. `read.balance(owner)` reflects the account's

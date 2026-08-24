@@ -153,8 +153,9 @@ export interface RedeemReceipt {
 	 * the remaining quantity — update your stored id or it goes silently stale.
 	 */
 	replacementOrderId: bigint | null;
-	/** NET quote credited to the account: gross − trading − builder − penalty
-	 * (verified against the deployed settle path). */
+	/** NET quote credited to the account: gross + inventoryImpactRebate − trading −
+	 * builder − penalty — the same expression the chain asserts `min_proceeds`
+	 * against, and what `settle_live_redeem_payment` actually deposits. */
 	proceeds: number;
 	/** Gross close value before fees (the event's redeem_amount). */
 	gross: number;

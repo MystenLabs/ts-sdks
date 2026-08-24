@@ -127,9 +127,9 @@ export function mintExactAmount(
 
 // Owner-authorized redeem of a live (not-yet-settled) position: close `closeQuantityRaw`
 // of `orderId` at the live pricer's mark, enforcing close-side slippage floors
-// (`minProbabilityRaw`/`minProceedsRaw`, default 0 = uncapped). Returns (closed order id
-// u256, Option<replacement order id>). Command order is pricer → auth → redeem. Deployed
-// sig `redeem_live`.
+// (`minProbabilityRaw`/`minProceedsRaw`, default 0 = uncapped). Returns `Option<u256>`:
+// the replacement order id when a partial close leaves quantity open, else none. Command
+// order is pricer → auth → redeem. Deployed sig `redeem_live`.
 export function redeemLive(
 	config: GeneratedConfig,
 	args: {

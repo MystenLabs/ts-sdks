@@ -118,9 +118,8 @@ export async function marketStates(
 // (strike, +inf] and (-inf, strike]. Deployed `pricing::range_price` takes typed
 // `range_codec::Strike`s (NOT raw u64) — each boundary is built via
 // `range_codec::strike_from_tick(tick, tick_size)`, which maps tick 0 → -inf,
-// POS_INF_TICK → +inf, and any finite tick → tick*tick_size. `range_price` is
-// public(package) on the deployed package, reachable here only because simulate
-// runs with checksEnabled:false. Both sides read the SAME pricer in one PTB, so
+// POS_INF_TICK → +inf, and any finite tick → tick*tick_size. `range_price` is a
+// public fun on the deployed package. Both sides read the SAME pricer in one PTB, so
 // `down` is the chain's number, not 1 − up.
 export async function rangePrices(
 	client: ReadClient,

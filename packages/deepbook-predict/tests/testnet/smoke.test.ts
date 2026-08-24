@@ -184,7 +184,6 @@ describe('testnet smoke (live deployment)', () => {
 				lowerTick: 1_000n,
 				higherTick: 1_001n,
 				quantityRaw: 1_000_000n, // $1 payout, 100 lots
-				leverageRaw: 1_000_000_000n, // 1x
 				...predictFeeds(),
 			}),
 		);

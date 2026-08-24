@@ -26,8 +26,8 @@ const ORACLE_NAMES = new Set([
 	'EPythSpotInvalid', // 6
 	'ELivePricingExpired', // 9
 	'EBlockScholesSVIStale', // 10
-	'EBlockScholesPriceUnavailable', // 13
-	'EBlockScholesSVIUnavailable', // 14
+	'EBlockScholesPriceUnavailable', // 12 // 13
+	'EBlockScholesSVIUnavailable', // 13 // 14
 ]);
 function isOracleUnavailable(e: unknown): boolean {
 	return (

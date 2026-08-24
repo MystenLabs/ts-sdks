@@ -113,6 +113,9 @@ test('mintExactQuantity: pricer → auth → mint, 12 args', () => {
 	expect(mint.arguments).toHaveLength(12);
 	expect(mint.arguments[2].$kind).toBe('Result'); // auth
 	expect(mint.arguments[4].$kind).toBe('Result'); // pricer
+	// lower/higher are distinct, so this pins their ORDER (a swap would pass otherwise)
+	expect(argPureBytes(tx, 2, 5)).toBe(u64B64(10n));
+	expect(argPureBytes(tx, 2, 6)).toBe(u64B64(20n));
 	// defaults: maxCost (idx 8) and maxProbability (idx 9) = U64_MAX
 	expect(argPureBytes(tx, 2, 8)).toBe(U64_MAX_B64);
 	expect(argPureBytes(tx, 2, 9)).toBe(U64_MAX_B64);
@@ -161,6 +164,8 @@ test('mintExactAmount: pricer → auth → mint, 12 args, budget/min-quantity sl
 	expect(mint.arguments).toHaveLength(12);
 	expect(mint.arguments[2].$kind).toBe('Result'); // auth
 	expect(mint.arguments[4].$kind).toBe('Result'); // pricer
+	expect(argPureBytes(tx, 2, 5)).toBe(u64B64(10n)); // lower tick
+	expect(argPureBytes(tx, 2, 6)).toBe(u64B64(20n)); // higher tick — pins the pair's order
 	// maxPremium (idx 7), minQuantity (idx 8) are the passed raw values
 	expect(argPureBytes(tx, 2, 7)).toBe(u64B64(5_000_000n));
 	expect(argPureBytes(tx, 2, 8)).toBe(u64B64(1_000_000n));

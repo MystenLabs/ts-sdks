@@ -46,10 +46,6 @@ const dataFieldContent = bcs
 		name: false,
 		value: {
 			positions: { id: TABLE_ID, size: 2n },
-			expiry_summaries: { id: '0x6', size: 1n },
-			active_stake: 0n,
-			inactive_stake: 0n,
-			stake_epoch: 1n,
 			builder_code_id: null,
 		},
 	})
