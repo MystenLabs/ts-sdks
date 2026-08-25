@@ -236,9 +236,14 @@ stop requiring an SDK release for target resolution.
 
 ## Development
 
+These commands run against the whole `@mysten/deepbook-v3` package, not just Predict — the offline
+lane covers spot, margin, `/account`, `/sessions` and `/predict` together.
+
 ```sh
 pnpm install
-pnpm test      # offline unit suite (tx construction, parsing, facade)
-pnpm test:e2e  # live-testnet smoke: reads + deployed-surface arity guards
-pnpm build     # ESM + d.ts via tsdown
+pnpm --filter @mysten/deepbook-v3 test      # offline suite, every subpath — what CI runs
+pnpm --filter @mysten/deepbook-v3 test:e2e  # live-testnet smoke: reads + deployed-surface arity guards
+pnpm --filter @mysten/deepbook-v3 build     # ESM + d.ts via tsdown
 ```
+
+To run only the Predict tests: `pnpm --filter @mysten/deepbook-v3 vitest run test/predict`.
