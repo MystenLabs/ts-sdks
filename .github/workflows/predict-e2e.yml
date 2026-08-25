@@ -29,7 +29,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build DeepBook Predict dependencies
-        run: pnpm turbo build --filter @mysten/deepbook-predict
+        run: pnpm turbo build --filter @mysten/deepbook-v3
 
       - name: Run live-testnet smoke tests
-        run: pnpm --filter @mysten/deepbook-predict test:e2e
+        run: pnpm --filter @mysten/deepbook-v3 test:e2e

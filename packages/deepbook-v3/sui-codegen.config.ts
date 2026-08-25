@@ -17,6 +17,28 @@ const config: SuiCodegenConfig = {
 	output: './src/contracts',
 	packages: [
 		{
+			package: '@local-pkg/deepbook_predict',
+			path: '../../../deepbookv3/packages/predict',
+			// Per-network shared singletons and the package address. Every one of these was
+			// threaded through by hand on each call site; they now come from the config object
+			// the SDK already carries. `PredictConfig` is checked against the generated
+			// `DeepbookPredictConfig` interface, so a deployment id that stops matching the
+			// deployed signature is a compile error rather than a runtime abort.
+			configArguments: {
+				predictPackageId: { package: '@local-pkg/deepbook_predict' },
+				protocolConfig: { type: 'protocol_config::ProtocolConfig' },
+				poolVault: { type: 'plp::PoolVault' },
+				registry: { type: 'registry::Registry' },
+				oracleRegistry: { type: '@local-pkg/propbook::registry::OracleRegistry' },
+			},
+			bcsOverrides,
+		},
+		{
+			package: '@local-pkg/propbook',
+			path: '../../../deepbookv3/packages/propbook',
+			bcsOverrides,
+		},
+		{
 			// Time-limited trading sessions: an Account owner authorizes an ephemeral address
 			// to submit a bounded set of transactions on the Account's behalf until a fixed
 			// expiry. Only the lifecycle and the Predict wrappers are surfaced by the SDK;
