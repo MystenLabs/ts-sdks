@@ -6,6 +6,8 @@ Add the `@mysten/deepbook-v3/account` subpath, which now hosts the shared on-cha
 
 The package root's export surface is unchanged: `@mysten/deepbook-v3` exports exactly what it did before, and subpaths are separate module graphs, so importing `/account` does not load spot or margin code. Note that `Account` exported from the root remains `@deepbook/core::account::Account`; the account primitive's `Account` is a different type and is reachable only from `/account`.
 
+Documenting a second entry point changes the generated API-reference layout: TypeDoc now emits an `index` module alongside `account`, so existing deepbook-v3 doc pages gain an `index.` segment in their names. External links into the published reference will need updating; nothing in this repo links to them.
+
 This release also marks the package `sideEffects: false`. No module in `src` has an import side effect, so the only emitted-output change is that pure re-export modules are now tree-shaken out of the bundle rather than imported for effect.
 
 `@mysten/deepbook-account` is superseded. Its final release, `0.1.0`, is self-contained and keeps working, but it will not be updated — import from `@mysten/deepbook-v3/account` instead.
