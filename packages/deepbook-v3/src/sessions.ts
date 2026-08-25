@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 import { bcs } from '@mysten/sui/bcs';
 import type { Transaction, TransactionArgument, TransactionResult } from '@mysten/sui/transactions';
+import { deriveObjectID } from '@mysten/sui/utils';
 
 import { AccountContract } from './account.js';
+import type { DeepbookSessionsConfig } from './contracts/deepbook_sessions/config-arguments.js';
 import * as sessions from './contracts/deepbook_sessions/sessions.js';
 import { SessionsData } from './contracts/deepbook_sessions/sessions.js';
 
@@ -14,7 +16,7 @@ import { SessionsData } from './contracts/deepbook_sessions/sessions.js';
  * {@link AccountContract} takes — sessions is an Account app, so it addresses the same
  * registry. `sessionsPackageId` and `sessionsConfig` come from the sessions deployment.
  */
-export interface SessionsConfig {
+export interface SessionsConfig extends DeepbookSessionsConfig {
 	/** The `deepbook_sessions` Move package id. */
 	sessionsPackageId: string;
 	/** The shared `SessionsConfig` object id. */
@@ -30,6 +32,21 @@ export const MAX_SESSION_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
 
 /** The maximum number of distinct session addresses one Account may store. */
 export const MAX_SESSIONS_PER_ACCOUNT = 20;
+
+// `sui::dynamic_field::Field<DataKey<SessionsApp>, SessionsData>` — what a `getObject`
+// on the grant field actually returns. `DataKey` is source-empty, but Move inserts a
+// hidden `dummy_field: bool` into empty structs, so the name occupies ONE zero byte
+// between the id and the value. Decoding the value alone would read the field id's first
+// byte as the VecMap length: garbage grants, or a silent empty list.
+const SessionsDataField = bcs.struct('Field<DataKey,SessionsData>', {
+	id: bcs.Address,
+	name: bcs.bool(), // DataKey's hidden dummy_field
+	value: SessionsData,
+});
+
+// `AccountKey(owner)` — the canonical ACCOUNT identity, a different derived object from
+// the wrapper. Grant data hangs off this one.
+const AccountKey = bcs.struct('AccountKey', { pos0: bcs.Address });
 
 /** One stored session grant. */
 export interface SessionGrant {
@@ -49,10 +66,15 @@ export interface SessionGrant {
  * entrypoint. Revoking, and reading expirations, keep working even if the sessions
  * package is later version-gated.
  *
- * This surface covers the session lifecycle and the **Predict** wrappers. The DeepBook
- * spot wrappers exist on chain but are not exposed here: driving them usefully also
- * requires `deepbook_core_account`'s read surface (resting orders, locked balances),
- * which this SDK does not model yet.
+ * Operational precondition: an admin must have authorized `SessionsApp` on the account
+ * registry. Until then — or after a `deauthorize_app` — EVERY wrapper here aborts with
+ * `EAppNotAuthorized`, and deauthorizing kills all live sessions at once.
+ *
+ * This class wraps the session lifecycle and the **Predict** entrypoints. The DeepBook
+ * spot session wrappers are generated (see `sessionsMoveCalls`) but are not wrapped here:
+ * the surrounding spot-over-Account workflow — discovering the embedded balance manager,
+ * reading resting orders and locked balances — is not modelled yet, so a wrapped builder
+ * would be hard to use well. They are reachable from the generated bindings meanwhile.
  */
 export class SessionsContract {
 	#config: SessionsConfig;
@@ -80,6 +102,33 @@ export class SessionsContract {
 			accountPackageId: this.#config.accountPackageId,
 			accountRegistry: this.#config.accountRegistry,
 		}).deriveAccountWrapperId(owner);
+	}
+
+	/**
+	 * @description The owner's canonical ACCOUNT id — a different derived object from the
+	 * wrapper. The session grants hang off this one, so this is what
+	 * {@link deriveSessionsFieldId} and {@link decodeSessions} work from.
+	 */
+	deriveAccountId(owner: string): string {
+		return deriveObjectID(
+			this.#config.accountRegistry,
+			`${this.#config.accountPackageId}::account_registry::AccountKey`,
+			AccountKey.serialize({ pos0: owner }).toBytes(),
+		);
+	}
+
+	/**
+	 * @description The object id of the owner's `DataKey<SessionsApp>` dynamic field —
+	 * fetch this object and pass its BCS contents to {@link decodeSessions}. There is no
+	 * bulk on-chain read, so this is the route to enumerating grants.
+	 */
+	deriveSessionsFieldId(owner: string): string {
+		return deriveObjectID(
+			this.deriveAccountId(owner),
+			`${this.#config.accountPackageId}::account::DataKey<${this.#config.sessionsPackageId}::sessions::SessionsApp>`,
+			// DataKey is source-empty; Move's hidden `dummy_field: bool` is the key's one byte.
+			new Uint8Array([0]),
+		);
 	}
 
 	/**
@@ -149,7 +198,9 @@ export class SessionsContract {
 	// still performs all parameter validation.
 
 	/**
-	 * @description Mint a position of an exact payout quantity, as `session`.
+	 * @description Mint a position of an exact payout quantity, as `session`. Pass
+	 * `u64::MAX` for `maxCost` / `maxProbability` to disable either slippage cap — the
+	 * deployed entrypoint treats the max value as "no cap", it is not optional.
 	 * @returns A function that takes a Transaction object and returns the new order id (u256)
 	 */
 	mintExactQuantity(params: {
@@ -282,8 +333,10 @@ export class SessionsContract {
 	}
 
 	/**
-	 * @description Decode an Account's stored grants from the raw BCS of its
-	 * `DataKey<SessionsApp>` dynamic field.
+	 * @description Decode an Account's stored grants from the raw BCS content of its
+	 * `DataKey<SessionsApp>` dynamic FIELD object — the whole
+	 * `Field<DataKey<SessionsApp>, SessionsData>`, as `getObject` returns it, not the
+	 * inner `SessionsData`. Get the id from {@link deriveSessionsFieldId}.
 	 *
 	 * There is no bulk on-chain read — `sessionExpirationMs` answers one address at a time —
 	 * so listing grants means fetching that field and decoding it here. Note the field hangs
@@ -294,8 +347,8 @@ export class SessionsContract {
 	 * expired, and revoke before granting again.
 	 */
 	static decodeSessions(contents: Uint8Array): SessionGrant[] {
-		const data = SessionsData.parse(contents);
-		return data.sessions.contents.map((entry) => ({
+		const field = SessionsDataField.parse(contents);
+		return field.value.sessions.contents.map((entry) => ({
 			session: entry.key,
 			expiresAtMs: BigInt(entry.value),
 		}));
@@ -310,6 +363,9 @@ export class SessionsContract {
 }
 
 // === Generated bindings ===
+// NOTE: this namespace carries the DeepBook spot session calls too
+// (`placeLimitOrder`, `placeMarketOrder`, `cancelLiveOrder(s)`, `withdrawSettledAmounts`).
+// They are generated and callable; they are simply not wrapped on `SessionsContract`.
 export * as sessionsMoveCalls from './contracts/deepbook_sessions/sessions.js';
 export * as sessionConfigMoveCalls from './contracts/deepbook_sessions/session_config.js';
 export {
@@ -318,7 +374,3 @@ export {
 	SessionAuthorized,
 	SessionRevoked,
 } from './contracts/deepbook_sessions/sessions.js';
-
-// Re-exported so consumers can build the `bcs` shapes the decoders take without a
-// second import of `@mysten/sui/bcs`.
-export { bcs };

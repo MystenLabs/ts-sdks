@@ -24,6 +24,14 @@ const config: SuiCodegenConfig = {
 			// surface, which is not modelled yet.
 			package: '@local-pkg/deepbook_sessions',
 			path: '../../../deepbookv3/packages/sessions',
+			// The package address and the shared `SessionsConfig` singleton come from a config
+			// object rather than being threaded through every call site — same pattern as the
+			// account entry. Without this the generated thunks lose their `config` option and
+			// `src/sessions.ts` stops compiling.
+			configArguments: {
+				sessionsPackageId: { package: '@local-pkg/deepbook_sessions' },
+				sessionsConfig: { type: 'session_config::SessionsConfig' },
+			},
 			bcsOverrides: [
 				{ type: 'u64', source: './src/bcs/integers.ts#U64' },
 				{ type: 'u128', source: './src/bcs/integers.ts#U128' },

@@ -88,7 +88,12 @@ Notes that bite in practice:
 - Revocation and expiry reads are deliberately **not** version-gated, so they keep working even
   after the sessions package is retired.
 - The session address is the transaction sender, so it pays its own gas.
+- An admin must have authorized `SessionsApp` on the account registry. Until then — or after a
+  `deauthorize_app` — every wrapper aborts with `EAppNotAuthorized`, and deauthorizing kills all
+  live sessions at once.
+- Listing grants goes through `deriveSessionsFieldId(owner)` → `getObject` → `decodeSessions`. Pass
+  the whole field object's contents, not the inner value.
 
-The DeepBook **spot** session wrappers exist on chain but are not surfaced here: driving them
-usefully also requires `deepbook_core_account`'s read surface (resting orders, locked balances),
-which this SDK does not model yet.
+The DeepBook **spot** session wrappers are generated and reachable from `sessionsMoveCalls`, but
+they are not wrapped on `SessionsContract`: the surrounding spot-over-Account workflow — finding the
+embedded balance manager, reading resting orders and locked balances — is not modelled yet.

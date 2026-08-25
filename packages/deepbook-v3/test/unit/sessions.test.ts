@@ -154,36 +154,64 @@ describe('Predict wrappers', () => {
 });
 
 describe('grant listing helpers', () => {
-	// `SessionsData { sessions: VecMap<address, u64> }` as it lands in the Account's
-	// `DataKey<SessionsApp>` dynamic field. There is no bulk on-chain read, so this decode
-	// is the only way to enumerate grants and manage the slot cap.
+	// What `getObject` on the grant field actually returns:
+	// `Field<DataKey<SessionsApp>, SessionsData>` — a 32-byte field id, DataKey's hidden
+	// `dummy_field` byte, then the value. Hand-written from the deployed Move rather than
+	// round-tripped through the SDK's own schema, so it validates layout and not just itself.
 	const SessionsDataBcs = bcs.struct('SessionsData', {
 		sessions: bcs.struct('VecMap', {
 			contents: bcs.vector(bcs.struct('Entry', { key: bcs.Address, value: bcs.u64() })),
 		}),
 	});
+	const FieldBcs = bcs.struct('Field', {
+		id: bcs.Address,
+		name: bcs.bool(),
+		value: SessionsDataBcs,
+	});
 
 	const A = '0x' + 'a1'.repeat(32);
 	const B = '0x' + 'b2'.repeat(32);
-	const bytes = SessionsDataBcs.serialize({
+	const value = {
 		sessions: {
 			contents: [
 				{ key: A, value: 1_000n },
 				{ key: B, value: 5_000n },
 			],
 		},
+	};
+	// A field id whose FIRST byte is 0x02 — the byte a naive decoder would read as the
+	// VecMap length, which is how this used to "succeed" with fabricated grants.
+	const fieldBytes = FieldBcs.serialize({
+		id: '0x02' + 'cd'.repeat(31),
+		name: false,
+		value,
 	}).toBytes();
 
-	test('decodeSessions yields each grant with its absolute expiry', () => {
-		const grants = SessionsContract.decodeSessions(bytes);
-		expect(grants).toEqual([
+	test('decodeSessions reads the dynamic FIELD, not the bare value', () => {
+		expect(SessionsContract.decodeSessions(fieldBytes)).toEqual([
+			{ session: normalizeSuiAddress(A), expiresAtMs: 1_000n },
+			{ session: normalizeSuiAddress(B), expiresAtMs: 5_000n },
+		]);
+	});
+
+	test('bare SessionsData bytes are not silently mis-parsed as grants', () => {
+		// The old shape. Decoding it as a field must NOT yield the two real grants —
+		// this is the regression that returned garbage or an empty list.
+		const bare = SessionsDataBcs.serialize(value).toBytes();
+		let decoded: unknown;
+		try {
+			decoded = SessionsContract.decodeSessions(bare);
+		} catch {
+			decoded = 'threw';
+		}
+		expect(decoded).not.toEqual([
 			{ session: normalizeSuiAddress(A), expiresAtMs: 1_000n },
 			{ session: normalizeSuiAddress(B), expiresAtMs: 5_000n },
 		]);
 	});
 
 	test('activeSessions drops grants at or past expiry — the chain asserts now < expiry', () => {
-		const grants = SessionsContract.decodeSessions(bytes);
+		const grants = SessionsContract.decodeSessions(fieldBytes);
 		expect(SessionsContract.activeSessions(grants, 999).map((g) => g.expiresAtMs)).toEqual([
 			1_000n,
 			5_000n,
@@ -193,6 +221,15 @@ describe('grant listing helpers', () => {
 			5_000n,
 		]);
 		expect(SessionsContract.activeSessions(grants, 5_000)).toEqual([]);
+	});
+
+	test('derived account id and grant-field id are distinct from the wrapper id', () => {
+		const wrapper = contract.deriveAccountWrapperId(OWNER);
+		const account = contract.deriveAccountId(OWNER);
+		const field = contract.deriveSessionsFieldId(OWNER);
+		for (const id of [wrapper, account, field]) expect(id).toMatch(/^0x[0-9a-f]{64}$/);
+		expect(new Set([wrapper, account, field]).size).toBe(3);
+		expect(contract.deriveSessionsFieldId(OWNER)).toBe(field);
 	});
 });
 
