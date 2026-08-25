@@ -1,0 +1,324 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+import { bcs } from '@mysten/sui/bcs';
+import type { Transaction, TransactionArgument, TransactionResult } from '@mysten/sui/transactions';
+
+import { AccountContract } from './account.js';
+import * as sessions from './contracts/deepbook_sessions/sessions.js';
+import { SessionsData } from './contracts/deepbook_sessions/sessions.js';
+
+/**
+ * Deployed ids the sessions builders address.
+ *
+ * `accountPackageId` / `accountRegistry` are the same shared-account ids
+ * {@link AccountContract} takes — sessions is an Account app, so it addresses the same
+ * registry. `sessionsPackageId` and `sessionsConfig` come from the sessions deployment.
+ */
+export interface SessionsConfig {
+	/** The `deepbook_sessions` Move package id. */
+	sessionsPackageId: string;
+	/** The shared `SessionsConfig` object id. */
+	sessionsConfig: string;
+	/** The shared `account` Move package id. */
+	accountPackageId: string;
+	/** The shared `AccountRegistry` object id. */
+	accountRegistry: string;
+}
+
+/** The maximum session duration the contract accepts: 30 days, in milliseconds. */
+export const MAX_SESSION_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** The maximum number of distinct session addresses one Account may store. */
+export const MAX_SESSIONS_PER_ACCOUNT = 20;
+
+/** One stored session grant. */
+export interface SessionGrant {
+	/** The authorized ephemeral address. */
+	session: string;
+	/** Absolute expiry, ms since epoch. The grant is dead AT this timestamp (strict `<`). */
+	expiresAtMs: bigint;
+}
+
+/**
+ * SessionsContract — time-limited trading sessions over a canonical Account.
+ *
+ * An Account owner authorizes an ephemeral address to submit a bounded set of
+ * transactions on the Account's behalf until a fixed expiry. The session key never
+ * receives a reusable `Auth`: each wrapper mints app authorization internally and
+ * consumes it in the same call, and there is no withdrawal or arbitrary-mutation
+ * entrypoint. Revoking, and reading expirations, keep working even if the sessions
+ * package is later version-gated.
+ *
+ * This surface covers the session lifecycle and the **Predict** wrappers. The DeepBook
+ * spot wrappers exist on chain but are not exposed here: driving them usefully also
+ * requires `deepbook_core_account`'s read surface (resting orders, locked balances),
+ * which this SDK does not model yet.
+ */
+export class SessionsContract {
+	#config: SessionsConfig;
+
+	constructor(config: SessionsConfig) {
+		this.#config = config;
+	}
+
+	// The generated thunks resolve the package address and auto-inject the shared
+	// `SessionsConfig` from this object. `accountRegistry` stays an explicit argument —
+	// it belongs to the account package, which is a separate codegen entry.
+	get #generatedConfig() {
+		return {
+			sessionsPackageId: this.#config.sessionsPackageId,
+			sessionsConfig: this.#config.sessionsConfig,
+		};
+	}
+
+	/**
+	 * @description The owner's canonical `AccountWrapper` id — derived off-chain, no read.
+	 * Every builder here takes that id.
+	 */
+	deriveAccountWrapperId(owner: string): string {
+		return new AccountContract({
+			accountPackageId: this.#config.accountPackageId,
+			accountRegistry: this.#config.accountRegistry,
+		}).deriveAccountWrapperId(owner);
+	}
+
+	/**
+	 * @description Grant `session` authority over the Account until `now + durationMs`.
+	 * Authority is derived from the transaction SENDER, so the owner must sign this.
+	 * `durationMs` must be > 0 and <= {@link MAX_SESSION_DURATION_MS}; an Account holds at
+	 * most {@link MAX_SESSIONS_PER_ACCOUNT} distinct addresses. Re-authorizing an address
+	 * replaces its expiry in place and consumes no additional slot.
+	 * @returns A function that takes a Transaction object
+	 */
+	authorizeSession(params: { wrapperId: string; session: string; durationMs: number | bigint }) {
+		return (tx: Transaction): void => {
+			tx.add(
+				sessions.authorizeSession({
+					config: this.#generatedConfig,
+					arguments: {
+						wrapper: params.wrapperId,
+						session: params.session,
+						durationMs: params.durationMs,
+					},
+				}),
+			);
+		};
+	}
+
+	/**
+	 * @description Remove `session`'s grant. Owner-signed, like `authorizeSession`.
+	 * Deliberately takes no `SessionsConfig`: revocation is not version-gated, so it keeps
+	 * working after the package is retired. Revoking an address that holds no grant is a
+	 * silent no-op — it neither aborts nor emits, so read before and after if you need to
+	 * distinguish "revoked" from "was never granted".
+	 * @returns A function that takes a Transaction object
+	 */
+	revokeSession(params: { wrapperId: string; session: string }) {
+		return (tx: Transaction): void => {
+			tx.add(
+				sessions.revokeSession({
+					config: this.#generatedConfig,
+					arguments: { wrapper: params.wrapperId, session: params.session },
+				}),
+			);
+		};
+	}
+
+	/**
+	 * @description Read one session's absolute expiry as `Option<u64>`. Compose in a
+	 * dev-inspect/simulate PTB and decode the returned BCS. Not version-gated.
+	 * @returns A function that takes a Transaction object
+	 */
+	sessionExpirationMs(params: { wrapperId: string; session: string }) {
+		return (tx: Transaction): TransactionResult =>
+			tx.add(
+				sessions.sessionExpirationMs({
+					config: this.#generatedConfig,
+					arguments: { wrapper: params.wrapperId, session: params.session },
+				}),
+			);
+	}
+
+	// === Predict wrappers ===
+	//
+	// Each mirrors the Predict entrypoint of the same name, with two differences: the
+	// caller supplies NO `Auth` (the wrapper mints and consumes app authorization
+	// internally), and `accountRegistry` + `sessionsConfig` are threaded in. `pricer` is a
+	// PTB RESULT, not an object — it comes from a preceding `expiry_market::load_live_pricer`
+	// command in the same transaction. Everything else matches Predict exactly, and Predict
+	// still performs all parameter validation.
+
+	/**
+	 * @description Mint a position of an exact payout quantity, as `session`.
+	 * @returns A function that takes a Transaction object and returns the new order id (u256)
+	 */
+	mintExactQuantity(params: {
+		expiryMarketId: string;
+		wrapperId: string;
+		protocolConfig: string;
+		pricer: TransactionArgument;
+		lowerTick: number | bigint;
+		higherTick: number | bigint;
+		quantity: number | bigint;
+		maxCost: number | bigint;
+		maxProbability: number | bigint;
+	}) {
+		return (tx: Transaction): TransactionResult =>
+			tx.add(
+				sessions.mintExactQuantity({
+					config: this.#generatedConfig,
+					arguments: {
+						market: params.expiryMarketId,
+						accountRegistry: this.#config.accountRegistry,
+						wrapper: params.wrapperId,
+						config: params.protocolConfig,
+						pricer: params.pricer,
+						lowerTick: params.lowerTick,
+						higherTick: params.higherTick,
+						quantity: params.quantity,
+						maxCost: params.maxCost,
+						maxProbability: params.maxProbability,
+					},
+				}),
+			);
+	}
+
+	/**
+	 * @description Mint by spending up to a premium budget, flooring the quantity received.
+	 * The chain requires `maxCost > 0`.
+	 * @returns A function that takes a Transaction object and returns the new order id (u256)
+	 */
+	mintExactAmount(params: {
+		expiryMarketId: string;
+		wrapperId: string;
+		protocolConfig: string;
+		pricer: TransactionArgument;
+		lowerTick: number | bigint;
+		higherTick: number | bigint;
+		maxPremium: number | bigint;
+		minQuantity: number | bigint;
+		maxCost: number | bigint;
+	}) {
+		return (tx: Transaction): TransactionResult =>
+			tx.add(
+				sessions.mintExactAmount({
+					config: this.#generatedConfig,
+					arguments: {
+						market: params.expiryMarketId,
+						accountRegistry: this.#config.accountRegistry,
+						wrapper: params.wrapperId,
+						config: params.protocolConfig,
+						pricer: params.pricer,
+						lowerTick: params.lowerTick,
+						higherTick: params.higherTick,
+						maxPremium: params.maxPremium,
+						minQuantity: params.minQuantity,
+						maxCost: params.maxCost,
+					},
+				}),
+			);
+	}
+
+	/**
+	 * @description Close part or all of a live position at the pricer's mark, as `session`.
+	 * `minProbability` / `minProceeds` are close-side slippage floors; `0` disables either.
+	 * @returns A function that takes a Transaction object and returns `Option<u256>` — the
+	 * replacement order id when a partial close leaves quantity open
+	 */
+	redeemLive(params: {
+		expiryMarketId: string;
+		wrapperId: string;
+		protocolConfig: string;
+		pricer: TransactionArgument;
+		orderId: number | bigint;
+		closeQuantity: number | bigint;
+		minProbability?: number | bigint;
+		minProceeds?: number | bigint;
+	}) {
+		return (tx: Transaction): TransactionResult =>
+			tx.add(
+				sessions.redeemLive({
+					config: this.#generatedConfig,
+					arguments: {
+						market: params.expiryMarketId,
+						accountRegistry: this.#config.accountRegistry,
+						wrapper: params.wrapperId,
+						config: params.protocolConfig,
+						pricer: params.pricer,
+						orderId: params.orderId,
+						closeQuantity: params.closeQuantity,
+						minProbability: params.minProbability ?? 0,
+						minProceeds: params.minProceeds ?? 0,
+					},
+				}),
+			);
+	}
+
+	/**
+	 * @description Claim a settled position in full, as `session`. Takes no pricer — the
+	 * settlement price is fixed — and no quantity: a settled claim is all-or-nothing.
+	 * @returns A function that takes a Transaction object
+	 */
+	redeemSettled(params: {
+		expiryMarketId: string;
+		wrapperId: string;
+		protocolConfig: string;
+		orderId: number | bigint;
+	}) {
+		return (tx: Transaction): void => {
+			tx.add(
+				sessions.redeemSettled({
+					config: this.#generatedConfig,
+					arguments: {
+						market: params.expiryMarketId,
+						accountRegistry: this.#config.accountRegistry,
+						wrapper: params.wrapperId,
+						config: params.protocolConfig,
+						orderId: params.orderId,
+					},
+				}),
+			);
+		};
+	}
+
+	/**
+	 * @description Decode an Account's stored grants from the raw BCS of its
+	 * `DataKey<SessionsApp>` dynamic field.
+	 *
+	 * There is no bulk on-chain read — `sessionExpirationMs` answers one address at a time —
+	 * so listing grants means fetching that field and decoding it here. Note the field hangs
+	 * off the DERIVED ACCOUNT address, not the wrapper address; they are different objects.
+	 *
+	 * Expired grants are never pruned automatically and keep occupying slots, so callers
+	 * managing the {@link MAX_SESSIONS_PER_ACCOUNT} cap should list, drop anything already
+	 * expired, and revoke before granting again.
+	 */
+	static decodeSessions(contents: Uint8Array): SessionGrant[] {
+		const data = SessionsData.parse(contents);
+		return data.sessions.contents.map((entry) => ({
+			session: entry.key,
+			expiresAtMs: BigInt(entry.value),
+		}));
+	}
+
+	/** Grants from {@link decodeSessions} that are still live at `nowMs`. */
+	static activeSessions(grants: readonly SessionGrant[], nowMs: number | bigint): SessionGrant[] {
+		const now = BigInt(nowMs);
+		// The chain asserts `now < expiresAtMs`, so a grant is dead AT its expiry.
+		return grants.filter((g) => now < g.expiresAtMs);
+	}
+}
+
+// === Generated bindings ===
+export * as sessionsMoveCalls from './contracts/deepbook_sessions/sessions.js';
+export * as sessionConfigMoveCalls from './contracts/deepbook_sessions/session_config.js';
+export {
+	SessionsApp,
+	SessionsData,
+	SessionAuthorized,
+	SessionRevoked,
+} from './contracts/deepbook_sessions/sessions.js';
+
+// Re-exported so consumers can build the `bcs` shapes the decoders take without a
+// second import of `@mysten/sui/bcs`.
+export { bcs };

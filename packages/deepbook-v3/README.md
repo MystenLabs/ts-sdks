@@ -2,10 +2,11 @@
 
 ## Entry points
 
-| Import                        | Contents                                                                                                                                                                                             |
-| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@mysten/deepbook-v3`         | DeepBook spot and margin — pools, orders, balance managers, flash loans, governance, margin managers/pools, TPSL.                                                                                    |
-| `@mysten/deepbook-v3/account` | The shared on-chain **account primitive** (`AccountContract`): the canonical `AccountWrapper`, `Auth`, and custody balances that DeepBook's core account wrapper and DeepBook Predict both build on. |
+| Import                         | Contents                                                                                                                                                                                                            |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@mysten/deepbook-v3`          | DeepBook spot and margin — pools, orders, balance managers, flash loans, governance, margin managers/pools, TPSL.                                                                                                   |
+| `@mysten/deepbook-v3/account`  | The shared on-chain **account primitive** (`AccountContract`): the canonical `AccountWrapper`, `Auth`, and custody balances that DeepBook's core account wrapper and DeepBook Predict both build on.                |
+| `@mysten/deepbook-v3/sessions` | **Time-limited trading sessions** over a canonical Account (`SessionsContract`): grant an ephemeral address bounded authority until a fixed expiry. Covers the session lifecycle and the DeepBook Predict wrappers. |
 
 Subpaths are separate module graphs — importing `@mysten/deepbook-v3/account` does not load any spot
 or margin code.
@@ -48,3 +49,46 @@ tx.add(account.depositFunds({ wrapperId, coin, coinType: USDC }));
 > `bigint`; the root's BCS structs (`Balances`, `Order`, `OrderDeepPrice`) yield decimal
 > **strings**. Both are raw on-chain units — neither is scaled — so a value crossing between them
 > needs a cast, not a conversion.
+
+### `@mysten/deepbook-v3/sessions`
+
+An Account owner authorizes an ephemeral address to submit a bounded set of transactions on the
+Account's behalf until a fixed expiry. The session key never receives a reusable `Auth` — each
+wrapper mints app authorization internally and consumes it in the same call — and there is no
+withdrawal or arbitrary-mutation entrypoint.
+
+```ts
+import { SessionsContract } from '@mysten/deepbook-v3/sessions';
+
+const sessions = new SessionsContract({
+	sessionsPackageId: '0x…',
+	sessionsConfig: '0x…',
+	accountPackageId: '0x…',
+	accountRegistry: '0x…',
+});
+
+const wrapperId = sessions.deriveAccountWrapperId(owner);
+
+// Owner-signed: grant an ephemeral key one hour of authority.
+tx.add(sessions.authorizeSession({ wrapperId, session: ephemeral, durationMs: 3_600_000 }));
+
+// Signed by the session key: a Predict mint. `pricer` is the result of a preceding
+// `expiry_market::load_live_pricer` command in the same transaction.
+tx.add(sessions.mintExactQuantity({ expiryMarketId, wrapperId, protocolConfig, pricer, ... }));
+```
+
+Notes that bite in practice:
+
+- A grant is dead **at** its expiry — the chain asserts `now < expiresAtMs`.
+- Expired grants are never pruned and keep occupying slots, and an Account holds at most **20**
+  distinct addresses. Use `SessionsContract.decodeSessions` / `activeSessions` to list and prune
+  before granting. There is no bulk on-chain read, and the data hangs off the **derived account
+  address**, not the wrapper address.
+- `revokeSession` on an address that holds no grant is a silent no-op — no abort, no event.
+- Revocation and expiry reads are deliberately **not** version-gated, so they keep working even
+  after the sessions package is retired.
+- The session address is the transaction sender, so it pays its own gas.
+
+The DeepBook **spot** session wrappers exist on chain but are not surfaced here: driving them
+usefully also requires `deepbook_core_account`'s read surface (resting orders, locked balances),
+which this SDK does not model yet.

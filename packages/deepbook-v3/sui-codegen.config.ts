@@ -17,6 +17,20 @@ const config: SuiCodegenConfig = {
 	output: './src/contracts',
 	packages: [
 		{
+			// Time-limited trading sessions: an Account owner authorizes an ephemeral address
+			// to submit a bounded set of transactions on the Account's behalf until a fixed
+			// expiry. Only the lifecycle and the Predict wrappers are surfaced by the SDK;
+			// the DeepBook spot wrappers additionally require `deepbook_core_account`'s read
+			// surface, which is not modelled yet.
+			package: '@local-pkg/deepbook_sessions',
+			path: '../../../deepbookv3/packages/sessions',
+			bcsOverrides: [
+				{ type: 'u64', source: './src/bcs/integers.ts#U64' },
+				{ type: 'u128', source: './src/bcs/integers.ts#U128' },
+				{ type: 'u256', source: './src/bcs/integers.ts#U256' },
+			],
+		},
+		{
 			// The shared on-chain account primitive. Both DeepBook's core account wrapper and
 			// DeepBook Predict build on it, so its bindings live here and are exposed on the
 			// `@mysten/deepbook-v3/account` subpath rather than in either consumer.

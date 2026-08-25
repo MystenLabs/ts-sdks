@@ -18,6 +18,11 @@
 			"types": "./dist/account.d.mts",
 			"import": "./dist/account.mjs",
 			"default": "./dist/account.mjs"
+		},
+		"./sessions": {
+			"types": "./dist/sessions.d.mts",
+			"import": "./dist/sessions.mjs",
+			"default": "./dist/sessions.mjs"
 		}
 	},
 	"files": [
