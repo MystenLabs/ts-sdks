@@ -18,6 +18,31 @@ permissions:
   contents: read
 
 jobs:
+  # Ordering gate. This package now depends on `@mysten/deepbook-v3`, and the two release
+  # workflows are independent dispatches with no ordering between them — the orchestrator
+  # loops over packages in path order, where `deepbook-predict` sorts first. Publishing
+  # this package before deepbook-v3 ships the version it requires leaves every fresh
+  # install failing to resolve. Fail loudly here instead.
+  dependency-published:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # pin@v4.1.1
+        with:
+          ref: ${{ inputs.ref }}
+      - name: Require @mysten/deepbook-v3 to be on npm already
+        run: |
+          required=$(node -p "require('./packages/deepbook-v3/package.json').version")
+          echo "deepbook-predict will depend on @mysten/deepbook-v3@^$required"
+          if npm view "@mysten/deepbook-v3@$required" version >/dev/null 2>&1; then
+            echo "OK: @mysten/deepbook-v3@$required is published"
+          else
+            echo "::error::@mysten/deepbook-v3@$required is not on npm yet."
+            echo "::error::Run the 'Release @mysten/deepbook-v3' workflow first, then re-run this one."
+            exit 1
+          fi
+
   # Drift gate: the SDK's bindings are generated against (and pinned to) a deployed
   # package set, so publishing a build that no longer matches the live surface is the
   # failure mode that actually reaches integrators. The smoke suite's arity
@@ -44,8 +69,8 @@ jobs:
         run: pnpm --filter @mysten/deepbook-predict test:e2e
 
   release:
-    if: github.ref == 'refs/heads/main'
-    needs: smoke
+    if: github.ref == 'refs/heads/main' && needs.dependency-published.result == 'success' && needs.smoke.result == 'success'
+    needs: [dependency-published, smoke]
     permissions:
       contents: read
       id-token: write # OIDC trusted publishing
