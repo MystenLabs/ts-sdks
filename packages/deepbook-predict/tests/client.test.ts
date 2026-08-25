@@ -3,13 +3,13 @@ import { Transaction, coinWithBalance } from '@mysten/sui/transactions';
 import { describe, expect, test } from 'vitest';
 import { PredictClient } from '../src/client.js';
 import { TESTNET_CONFIG as cfg } from '../src/config/index.js';
-import { accountEvents } from '@mysten/deepbook-account';
+import { accountEvents } from '@mysten/deepbook-v3/account';
 import * as orderEvents from '../src/contracts/deepbook_predict/order_events.js';
 import { PredictInputError } from '../src/errors.js';
 import type { ReadClient } from '../src/reads/inspect.js';
 import { POS_INF_TICK } from '../src/ticks.js';
 import { toGeneratedConfig } from '../src/config/generated.js';
-import { accountMoveCalls as account } from '@mysten/deepbook-account';
+import { accountMoveCalls as account } from '@mysten/deepbook-v3/account';
 import { deriveAccountWrapperIdFrom, generateAuth } from '../src/tx/common.js';
 
 const OWNER = '0x' + 'ab'.repeat(32);

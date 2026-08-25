@@ -1,7 +1,7 @@
 import { Transaction } from '@mysten/sui/transactions';
 import type { GeneratedConfig } from '../config/generated.js';
 import { deriveAccountWrapperIdFrom } from '../tx/common.js';
-import { accountMoveCalls as account } from '@mysten/deepbook-account';
+import { accountMoveCalls as account } from '@mysten/deepbook-v3/account';
 import * as predictAccount from '../contracts/deepbook_predict/predict_account.js';
 import { inspectReturns, type ReadClient } from './inspect.js';
 import { parseU64LE } from './parse.js';

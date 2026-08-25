@@ -3,7 +3,7 @@ import { expect, test } from 'vitest';
 import { TESTNET_CONFIG as cfg } from '../src/config/index.js';
 import { accountContract, deriveAccountWrapperId, generateAuth } from '../src/tx/common.js';
 
-// The shared account primitive itself is tested in `@mysten/deepbook-account`; what
+// The shared account primitive itself is tested in `@mysten/deepbook-v3/account`; what
 // Predict owns is the adapter — that its config's ids are the ones driving those builders.
 function targets(tx: Transaction): string[] {
 	return tx

@@ -196,3 +196,17 @@ export class AccountContract {
 		};
 	}
 }
+
+// === Generated bindings ===
+// The move-call thunks and BCS structs, for consumers composing their own PTBs or
+// parsing account objects/events (e.g. `AccountWrapper.parse`, the event layouts).
+//
+// NOTE: `Account` here is the shared account primitive's custody account
+// (`account::account::Account`). It is deliberately NOT re-exported from this
+// package's root — the root already exports a different `Account`
+// (`@deepbook/core::account::Account`, the per-pool trading account) and the two
+// have unrelated layouts. Keep them separated by subpath.
+export * as accountMoveCalls from './contracts/account/account.js';
+export * as accountRegistryMoveCalls from './contracts/account/account_registry.js';
+export * as accountEvents from './contracts/account/account_events.js';
+export { Account, AccountWrapper } from './contracts/account/account.js';

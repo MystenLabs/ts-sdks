@@ -1,4 +1,4 @@
-import type { AccountConfig } from '@mysten/deepbook-account';
+import type { AccountConfig } from '@mysten/deepbook-v3/account';
 import type { DeepbookPredictConfig } from '../contracts/deepbook_predict/config-arguments.js';
 import type { PredictConfig } from './types.js';
 

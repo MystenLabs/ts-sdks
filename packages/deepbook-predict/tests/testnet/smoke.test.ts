@@ -22,9 +22,9 @@ import { mintExactQuantity, redeemLive } from '../../src/tx/trade.js';
 // the oracle is stale (NAV/price reads abort in that state — see isOracleUnavailable).
 import { expiryMarketId } from '../../src/reads/markets.js';
 // Generated move-calls: build the fresh wrapper (`account_registry::new`) and share it
-// (`account::share`) the same way `@mysten/deepbook-account`'s `AccountContract` does, no hand-rolled targets.
-import { accountMoveCalls as account } from '@mysten/deepbook-account';
-import { accountRegistryMoveCalls as accountRegistry } from '@mysten/deepbook-account';
+// (`account::share`) the same way `@mysten/deepbook-v3/account`'s `AccountContract` does, no hand-rolled targets.
+import { accountMoveCalls as account } from '@mysten/deepbook-v3/account';
+import { accountRegistryMoveCalls as accountRegistry } from '@mysten/deepbook-v3/account';
 
 const TESTNET_GRPC_URL = 'https://fullnode.testnet.sui.io:443';
 

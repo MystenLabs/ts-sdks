@@ -11,7 +11,7 @@ import {
 	decodeRedeems,
 	type DecodableEvent,
 } from '../src/decode.js';
-import { accountEvents } from '@mysten/deepbook-account';
+import { accountEvents } from '@mysten/deepbook-v3/account';
 import * as orderEvents from '../src/contracts/deepbook_predict/order_events.js';
 import * as vaultEvents from '../src/contracts/deepbook_predict/vault_events.js';
 import { PredictClient } from '../src/client.js';

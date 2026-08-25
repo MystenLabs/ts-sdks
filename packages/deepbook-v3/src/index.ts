@@ -26,6 +26,11 @@ export { SuiPythClient, SuiPriceServiceConnection } from './pyth/pyth.js';
 export type { PriceServiceConnectionConfig } from './pyth/PriceServiceConnection.js';
 
 // BCS types for parsing on-chain data
+// NOTE: `Account` here is `@deepbook/core::account::Account` — the per-pool trading
+// account. The shared account primitive exports a DIFFERENT `Account` with an
+// unrelated layout; it is reachable only via the `/account` subpath and must never be
+// re-exported here, or `import { Account } from '@mysten/deepbook-v3'` silently changes
+// meaning for every existing consumer.
 export { Account, Balances, Order, OrderDeepPrice, VecSet } from './types/bcs.js';
 
 // TypeScript interfaces and types

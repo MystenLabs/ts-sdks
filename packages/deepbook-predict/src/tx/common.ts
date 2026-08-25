@@ -1,10 +1,10 @@
 import type { Transaction, TransactionArgument, TransactionResult } from '@mysten/sui/transactions';
 import { toGeneratedConfig, type GeneratedConfig } from '../config/generated.js';
 import type { PredictConfig } from '../config/index.js';
-import { AccountContract, accountMoveCalls as account } from '@mysten/deepbook-account';
+import { AccountContract, accountMoveCalls as account } from '@mysten/deepbook-v3/account';
 
 // Predict's accounts ARE the shared on-chain account primitive (`packages/account`), so the
-// builders live in `@mysten/deepbook-account` and this is the thin adapter that drives them with
+// builders live in `@mysten/deepbook-v3/account` and this is the thin adapter that drives them with
 // Predict's deployed ids. The generated thunks are still used directly by `withAuth` below, which
 // wraps Predict's own entrypoints too — those take the same `Auth` hot potato.
 export function accountContract(cfg: PredictConfig): AccountContract {
@@ -73,7 +73,7 @@ export function withAuth<Options extends AuthCallOptions>(
 }
 
 // The derivation must agree with on-chain `derive_address`, so it is owned in one place:
-// `@mysten/deepbook-account`. This projects Predict's config onto that contract.
+// `@mysten/deepbook-v3/account`. This projects Predict's config onto that contract.
 export function deriveAccountWrapperIdFrom(
 	config: Pick<GeneratedConfig, 'accountRegistry' | 'accountPackageId'>,
 	owner: string,

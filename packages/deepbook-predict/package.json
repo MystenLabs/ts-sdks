@@ -43,7 +43,7 @@
 		"lint:fix": "pnpm run oxlint:fix && pnpm run prettier:fix"
 	},
 	"dependencies": {
-		"@mysten/deepbook-account": "workspace:^"
+		"@mysten/deepbook-v3": "workspace:^"
 	},
 	"devDependencies": {
 		"@mysten/codegen": "workspace:^",

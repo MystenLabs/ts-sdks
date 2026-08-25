@@ -4,8 +4,8 @@ import { Transaction } from '@mysten/sui/transactions';
 import { normalizeSuiAddress } from '@mysten/sui/utils';
 import { describe, expect, test } from 'vitest';
 
-import { AccountContract } from '../src/account.js';
-import { Account, AccountWrapper } from '../src/index.js';
+import { AccountContract } from '../../src/account.js';
+import { Account, AccountWrapper } from '../../src/account.js';
 
 const PKG = '0x' + '11'.repeat(32);
 const REGISTRY = '0x' + '22'.repeat(32);
