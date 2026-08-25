@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { bcs } from '@mysten/sui/bcs';
 import type { Transaction, TransactionArgument, TransactionResult } from '@mysten/sui/transactions';
-import { deriveObjectID } from '@mysten/sui/utils';
+import { deriveDynamicFieldID, deriveObjectID } from '@mysten/sui/utils';
 
 import { AccountContract } from './account.js';
 import type { DeepbookSessionsConfig } from './contracts/deepbook_sessions/config-arguments.js';
@@ -62,16 +62,29 @@ export interface SessionGrant {
  * An Account owner authorizes an ephemeral address to submit a bounded set of
  * transactions on the Account's behalf until a fixed expiry. The session key never
  * receives a reusable `Auth`: each wrapper mints app authorization internally and
- * consumes it in the same call, and there is no withdrawal or arbitrary-mutation
- * entrypoint. Revoking, and reading expirations, keep working even if the sessions
- * package is later version-gated.
+ * consumes it in the same call.
+ *
+ * WHAT A SESSION KEY CAN DO. It cannot withdraw to an address, cannot grant or revoke
+ * sessions, and cannot outlive its expiry — those all require owner auth. It CAN trade
+ * the Account's full balance: the spot wrappers take a caller-chosen `Pool` and, through
+ * `deepbook_core_account`, pull the account's entire Base, Quote and DEEP balance
+ * (stored plus unsettled) into the embedded manager for the duration of the call, with
+ * `price_limit` supplied by the caller. Nothing caps notional, restricts which pools are
+ * reachable, or bounds loss to adverse pricing. Treat a session key as authority over
+ * everything the Account holds, and fund an ephemeral-session Account accordingly.
  *
  * Operational precondition: an admin must have authorized `SessionsApp` on the account
- * registry. Until then — or after a `deauthorize_app` — EVERY wrapper here aborts with
- * `EAppNotAuthorized`, and deauthorizing kills all live sessions at once.
+ * registry. Until then — or after a `deauthorize_app` — the TRADING wrappers abort with
+ * `EAppNotAuthorized`; `authorizeSession`, `revokeSession` and `sessionExpirationMs` use
+ * owner auth or no auth and keep working. Note that `deauthorize_app` does not clear
+ * `SessionsData`, so re-authorizing makes every still-unexpired grant live again at once
+ * — it is a pause, not a kill switch. Revoking, and reading expirations, also keep
+ * working if the sessions package is later version-gated.
  *
  * This class wraps the session lifecycle and the **Predict** entrypoints. The DeepBook
- * spot session wrappers are generated (see `sessionsMoveCalls`) but are not wrapped here:
+ * spot session wrappers are generated (see `sessionsMoveCalls`) but are not wrapped here
+ * — note they place `accountRegistry` at index 2 and `sessionsConfig` at 4, not 1 and 3,
+ * because `deepbookRegistry` sits between them:
  * the surrounding spot-over-Account workflow — discovering the embedded balance manager,
  * reading resting orders and locked balances — is not modelled yet, so a wrapped builder
  * would be hard to use well. They are reachable from the generated bindings meanwhile.
@@ -123,7 +136,11 @@ export class SessionsContract {
 	 * bulk on-chain read, so this is the route to enumerating grants.
 	 */
 	deriveSessionsFieldId(owner: string): string {
-		return deriveObjectID(
+		// A PLAIN dynamic field, not a derived object: `account::attach` writes it with
+		// `df::add` (`use fun df::add as UID.add`), whereas the account and wrapper ids are
+		// claimed through `derived_object::claim`. `deriveObjectID` would wrap the tag in
+		// `0x2::derived_object::DerivedObjectKey<..>` and yield an id that points at nothing.
+		return deriveDynamicFieldID(
 			this.deriveAccountId(owner),
 			`${this.#config.accountPackageId}::account::DataKey<${this.#config.sessionsPackageId}::sessions::SessionsApp>`,
 			// DataKey is source-empty; Move's hidden `dummy_field: bool` is the key's one byte.
@@ -199,8 +216,9 @@ export class SessionsContract {
 
 	/**
 	 * @description Mint a position of an exact payout quantity, as `session`. Pass
-	 * `u64::MAX` for `maxCost` / `maxProbability` to disable either slippage cap — the
-	 * deployed entrypoint treats the max value as "no cap", it is not optional.
+	 * `u64::MAX` for `maxCost` / `maxProbability` to leave either slippage cap
+	 * effectively unbounded — the chain asserts `value <= cap`, so the max value can never
+	 * trip. Both are required; there is no default.
 	 * @returns A function that takes a Transaction object and returns the new order id (u256)
 	 */
 	mintExactQuantity(params: {
@@ -272,7 +290,10 @@ export class SessionsContract {
 
 	/**
 	 * @description Close part or all of a live position at the pricer's mark, as `session`.
-	 * `minProbability` / `minProceeds` are close-side slippage floors; `0` disables either.
+	 * `minProbability` / `minProceeds` are close-side slippage floors; `0` disables either,
+	 * and OMITTING them is `0` — unlike the mint caps, which are required. On a delegated
+	 * key this is the direction that closes a position at any price, so pass real floors
+	 * unless you mean to accept whatever the mark gives you.
 	 * @returns A function that takes a Transaction object and returns `Option<u256>` — the
 	 * replacement order id when a partial close leaves quantity open
 	 */
@@ -281,7 +302,7 @@ export class SessionsContract {
 		wrapperId: string;
 		protocolConfig: string;
 		pricer: TransactionArgument;
-		orderId: number | bigint;
+		orderId: bigint;
 		closeQuantity: number | bigint;
 		minProbability?: number | bigint;
 		minProceeds?: number | bigint;
@@ -314,7 +335,7 @@ export class SessionsContract {
 		expiryMarketId: string;
 		wrapperId: string;
 		protocolConfig: string;
-		orderId: number | bigint;
+		orderId: bigint;
 	}) {
 		return (tx: Transaction): void => {
 			tx.add(
@@ -359,6 +380,17 @@ export class SessionsContract {
 		const now = BigInt(nowMs);
 		// The chain asserts `now < expiresAtMs`, so a grant is dead AT its expiry.
 		return grants.filter((g) => now < g.expiresAtMs);
+	}
+
+	/**
+	 * @description Grants that are already dead at `nowMs` — the complement of
+	 * {@link activeSessions}, and the list to revoke when reclaiming slots. Use this rather
+	 * than filtering by hand: `nowMs > expiresAtMs` looks equivalent but leaves the grant
+	 * expiring exactly at `nowMs` occupying a slot forever.
+	 */
+	static expiredSessions(grants: readonly SessionGrant[], nowMs: number | bigint): SessionGrant[] {
+		const now = BigInt(nowMs);
+		return grants.filter((g) => now >= g.expiresAtMs);
 	}
 }
 

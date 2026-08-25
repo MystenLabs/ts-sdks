@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { bcs } from '@mysten/sui/bcs';
 import { Transaction } from '@mysten/sui/transactions';
-import { normalizeSuiAddress } from '@mysten/sui/utils';
+import { deriveDynamicFieldID, deriveObjectID, normalizeSuiAddress } from '@mysten/sui/utils';
 import { describe, expect, test } from 'vitest';
 
 import {
@@ -237,5 +237,213 @@ describe('contract limits mirror the deployed constants', () => {
 	test('30 day max duration, 20 session slots', () => {
 		expect(MAX_SESSION_DURATION_MS).toBe(2_592_000_000);
 		expect(MAX_SESSIONS_PER_ACCOUNT).toBe(20);
+	});
+});
+
+describe('id derivation pinned to observed testnet state', () => {
+	// These vectors were read off testnet, not computed by this SDK. The account and its
+	// `DataKey<App>` field below were observed on the `predict-testnet-8-21` deployment:
+	// the registry lists the account as a claimed derived object, and the account carries
+	// exactly one dynamic field whose id is DATA_FIELD_ID.
+	//
+	// They pin the rule that got this wrong once: the account and wrapper ids are
+	// `derived_object::claim`ed, but the app-data slot is a PLAIN dynamic field written by
+	// `account::attach` via `df::add`. The two derivations produce different ids, and only
+	// the plain-dynamic-field one exists on chain.
+	const ACCOUNT_PKG_T = '0xa94ec89b6cbb3e2609c7ca65bd77885b7513f852922ebdf8e766851fb6f85259';
+	const PREDICT_PKG_T = '0x421041754244cf0e985fb9c9f5e1f49428caf3df4cde3a7b266d8e18ea63597b';
+	const REGISTRY_T = '0x5682c73d657de1546374e632369a25c82744c8a20e9b4f47e6558e3d4bde88d3';
+	const OWNER_T = '0xb3d277c50f7b846a5f609a8d13428ae482b5826bb98437997373f3a0d60d280e';
+	const ACCOUNT_ID_T = '0x9c13309443ddccd2d59b59e6d470109c016ae6e6e9b83fbd93d930cbba742d5b';
+	const DATA_FIELD_ID_T = '0x707114dcc1ca48b47771e4ea4e6bc696c9e0fbb25c8df520068860a64cd99d8e';
+
+	const AccountKeyBcs = bcs.struct('AccountKey', { pos0: bcs.Address });
+
+	test('deriveAccountId reproduces an account claimed on testnet', () => {
+		const contract = new SessionsContract({
+			sessionsPackageId: SESSIONS_PKG,
+			sessionsConfig: SESSIONS_CONFIG,
+			accountPackageId: ACCOUNT_PKG_T,
+			accountRegistry: REGISTRY_T,
+		});
+		expect(contract.deriveAccountId(OWNER_T)).toBe(ACCOUNT_ID_T);
+	});
+
+	test('the app-data slot uses plain dynamic-field derivation, not derived-object', () => {
+		const tag = `${ACCOUNT_PKG_T}::account::DataKey<${PREDICT_PKG_T}::predict_account::PredictApp>`;
+		const key = new Uint8Array([0]);
+		// The id that actually exists on chain.
+		expect(deriveDynamicFieldID(ACCOUNT_ID_T, tag, key)).toBe(DATA_FIELD_ID_T);
+		// The id `deriveObjectID` would produce — points at nothing.
+		expect(deriveObjectID(ACCOUNT_ID_T, tag, key)).not.toBe(DATA_FIELD_ID_T);
+	});
+
+	test('deriveSessionsFieldId follows the plain dynamic-field rule', () => {
+		const contract = new SessionsContract({
+			sessionsPackageId: SESSIONS_PKG,
+			sessionsConfig: SESSIONS_CONFIG,
+			accountPackageId: ACCOUNT_PKG_T,
+			accountRegistry: REGISTRY_T,
+		});
+		const expected = deriveDynamicFieldID(
+			contract.deriveAccountId(OWNER_T),
+			`${ACCOUNT_PKG_T}::account::DataKey<${SESSIONS_PKG}::sessions::SessionsApp>`,
+			new Uint8Array([0]),
+		);
+		expect(contract.deriveSessionsFieldId(OWNER_T)).toBe(expected);
+		// Guard the exact regression: the derived-object form must not be what we return.
+		expect(contract.deriveSessionsFieldId(OWNER_T)).not.toBe(
+			deriveObjectID(
+				contract.deriveAccountId(OWNER_T),
+				`${ACCOUNT_PKG_T}::account::DataKey<${SESSIONS_PKG}::sessions::SessionsApp>`,
+				new Uint8Array([0]),
+			),
+		);
+	});
+
+	// AccountKeyBcs documents the key shape the derivation feeds; unused elsewhere.
+	test('AccountKey serializes as a bare 32-byte address', () => {
+		expect(AccountKeyBcs.serialize({ pos0: OWNER_T }).toBytes()).toHaveLength(32);
+	});
+});
+
+describe('same-typed argument slots are pinned, not merely counted', () => {
+	// Every numeric parameter gets a DISTINCT sentinel, so transposing any two of them —
+	// the failure a slot-count or "two zeros are present" assertion cannot see — breaks a
+	// specific expectation. Slot indices come from the deployed signature: five `u64`s at
+	// 6..10 on both mints, and `u256` + three `u64`s at 6..9 on redeemLive.
+	const pricerArg = { $kind: 'Result', Result: 0 } as never;
+
+	/** Decode the pure input a given argument slot points at. */
+	function pureAt(tx: Transaction, argIdx: number, type: 'u64' | 'u256'): bigint {
+		const arg = call(tx, 0).arguments[argIdx] as { $kind: string; Input?: number };
+		expect(arg.$kind).toBe('Input');
+		const input = tx.getData().inputs[arg.Input!];
+		const bytes = ('Pure' in input && input.Pure ? input.Pure.bytes : undefined)!;
+		const raw = Uint8Array.from(Buffer.from(bytes, 'base64'));
+		// `@mysten/sui/bcs` yields decimal strings here — the bigint overrides apply only to
+		// the generated bindings, not to this raw schema.
+		return BigInt(type === 'u64' ? bcs.u64().parse(raw) : bcs.u256().parse(raw));
+	}
+
+	test('mintExactQuantity: lowerTick, higherTick, quantity, maxCost, maxProbability in order', () => {
+		const tx = new Transaction();
+		tx.add(
+			contract.mintExactQuantity({
+				expiryMarketId: MARKET,
+				wrapperId: WRAPPER,
+				protocolConfig: PROTOCOL_CONFIG,
+				pricer: pricerArg,
+				lowerTick: 1001n,
+				higherTick: 1002n,
+				quantity: 1003n,
+				maxCost: 1004n,
+				maxProbability: 1005n,
+			}),
+		);
+		expect([6, 7, 8, 9, 10].map((i) => pureAt(tx, i, 'u64'))).toEqual([
+			1001n,
+			1002n,
+			1003n,
+			1004n,
+			1005n,
+		]);
+	});
+
+	test('mintExactAmount: lowerTick, higherTick, maxPremium, minQuantity, maxCost in order', () => {
+		const tx = new Transaction();
+		tx.add(
+			contract.mintExactAmount({
+				expiryMarketId: MARKET,
+				wrapperId: WRAPPER,
+				protocolConfig: PROTOCOL_CONFIG,
+				pricer: pricerArg,
+				lowerTick: 2001n,
+				higherTick: 2002n,
+				maxPremium: 2003n,
+				minQuantity: 2004n,
+				maxCost: 2005n,
+			}),
+		);
+		expect([6, 7, 8, 9, 10].map((i) => pureAt(tx, i, 'u64'))).toEqual([
+			2001n,
+			2002n,
+			2003n,
+			2004n,
+			2005n,
+		]);
+	});
+
+	test('redeemLive: orderId is u256, then closeQuantity, minProbability, minProceeds', () => {
+		const tx = new Transaction();
+		tx.add(
+			contract.redeemLive({
+				expiryMarketId: MARKET,
+				wrapperId: WRAPPER,
+				protocolConfig: PROTOCOL_CONFIG,
+				pricer: pricerArg,
+				orderId: 3001n,
+				closeQuantity: 3002n,
+				minProbability: 3003n,
+				minProceeds: 3004n,
+			}),
+		);
+		expect(pureAt(tx, 6, 'u256')).toBe(3001n);
+		expect([7, 8, 9].map((i) => pureAt(tx, i, 'u64'))).toEqual([3002n, 3003n, 3004n]);
+	});
+
+	test('redeemLive: an order id above 2**53 survives the builder exactly', () => {
+		// u256 order ids are full-width; a `number` hop here would round.
+		const big = 2n ** 200n + 12345n;
+		const tx = new Transaction();
+		tx.add(
+			contract.redeemLive({
+				expiryMarketId: MARKET,
+				wrapperId: WRAPPER,
+				protocolConfig: PROTOCOL_CONFIG,
+				pricer: pricerArg,
+				orderId: big,
+				closeQuantity: 1n,
+			}),
+		);
+		expect(pureAt(tx, 6, 'u256')).toBe(big);
+	});
+
+	test('redeemSettled: orderId is the only pure argument', () => {
+		const tx = new Transaction();
+		tx.add(
+			contract.redeemSettled({
+				expiryMarketId: MARKET,
+				wrapperId: WRAPPER,
+				protocolConfig: PROTOCOL_CONFIG,
+				orderId: 4001n,
+			}),
+		);
+		expect(pureAt(tx, 5, 'u256')).toBe(4001n);
+	});
+});
+
+describe('expiredSessions is the exact complement of activeSessions', () => {
+	const grants = [
+		{ session: normalizeSuiAddress('0x' + 'a1'.repeat(32)), expiresAtMs: 1_000n },
+		{ session: normalizeSuiAddress('0x' + 'b2'.repeat(32)), expiresAtMs: 5_000n },
+	];
+
+	test('a grant AT its expiry counts as expired, not active', () => {
+		expect(SessionsContract.activeSessions(grants, 1_000).map((g) => g.expiresAtMs)).toEqual([
+			5_000n,
+		]);
+		expect(SessionsContract.expiredSessions(grants, 1_000).map((g) => g.expiresAtMs)).toEqual([
+			1_000n,
+		]);
+	});
+
+	test('the two partitions are disjoint and cover everything at any instant', () => {
+		for (const now of [0, 999, 1_000, 1_001, 5_000, 9_999]) {
+			const active = SessionsContract.activeSessions(grants, now);
+			const expired = SessionsContract.expiredSessions(grants, now);
+			expect(active.length + expired.length).toBe(grants.length);
+			expect(active.filter((a) => expired.includes(a))).toEqual([]);
+		}
 	});
 });

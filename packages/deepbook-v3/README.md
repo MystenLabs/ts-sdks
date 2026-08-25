@@ -81,18 +81,27 @@ Notes that bite in practice:
 
 - A grant is dead **at** its expiry — the chain asserts `now < expiresAtMs`.
 - Expired grants are never pruned and keep occupying slots, and an Account holds at most **20**
-  distinct addresses. Use `SessionsContract.decodeSessions` / `activeSessions` to list and prune
-  before granting. There is no bulk on-chain read, and the data hangs off the **derived account
-  address**, not the wrapper address.
+  distinct addresses. Use `SessionsContract.decodeSessions` with `activeSessions` /
+  `expiredSessions` to list and prune before granting. There is no bulk on-chain read, and the data
+  hangs off the **derived account address**, not the wrapper address.
 - `revokeSession` on an address that holds no grant is a silent no-op — no abort, no event.
 - Revocation and expiry reads are deliberately **not** version-gated, so they keep working even
   after the sessions package is retired.
 - The session address is the transaction sender, so it pays its own gas.
 - An admin must have authorized `SessionsApp` on the account registry. Until then — or after a
-  `deauthorize_app` — every wrapper aborts with `EAppNotAuthorized`, and deauthorizing kills all
-  live sessions at once.
+  `deauthorize_app` — the **trading** wrappers abort with `EAppNotAuthorized`; `authorizeSession`,
+  `revokeSession` and `sessionExpirationMs` use owner auth or no auth and keep working.
+  `deauthorize_app` does not clear `SessionsData`, so re-authorizing makes every still-unexpired
+  grant live again at once — it pauses sessions, it does not kill them.
 - Listing grants goes through `deriveSessionsFieldId(owner)` → `getObject` → `decodeSessions`. Pass
   the whole field object's contents, not the inner value.
+
+**What a session key can do.** It cannot withdraw to an address, cannot grant or revoke sessions,
+and cannot outlive its expiry. It _can_ trade the Account's full balance: the spot wrappers take a
+caller-chosen `Pool` and pull the account's entire Base, Quote and DEEP balance into the embedded
+manager for the call, with `price_limit` supplied by the caller. Nothing caps notional or restricts
+which pools are reachable, so value can leave through adverse pricing. Fund an ephemeral-session
+Account with only what you would accept losing to that key.
 
 The DeepBook **spot** session wrappers are generated and reachable from `sessionsMoveCalls`, but
 they are not wrapped on `SessionsContract`: the surrounding spot-over-Account workflow — finding the
