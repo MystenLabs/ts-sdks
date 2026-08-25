@@ -3,6 +3,11 @@
 
 import type { SuiCodegenConfig } from '@mysten/codegen';
 
+// `bcsOverrides` is per-entry: the entries below that omit it keep codegen's default
+// decimal-string integers. Any entry whose Move closure includes the `account` package must
+// carry the SAME three overrides as the `@local-pkg/account` entry — otherwise codegen emits a
+// second copy of the account types under `<output>/<pkg>/deps/account/**` with string `u64`s,
+// sitting beside the bigint copy in one package.
 const config: SuiCodegenConfig = {
 	output: './src/contracts',
 	packages: [

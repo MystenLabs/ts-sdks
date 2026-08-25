@@ -34,3 +34,8 @@ tx.add(account.depositFunds({ wrapperId, coin, coinType: USDC }));
 > `Account` exported from the package root is `@deepbook/core::account::Account` (the per-pool
 > trading account). The account primitive's `Account` is a different type with an unrelated layout
 > and is exported only from the `/account` subpath.
+>
+> The two surfaces also decode integers differently. `/account` parses `u64`/`u128`/`u256` to
+> `bigint`; the root's BCS structs (`Balances`, `Order`, `OrderDeepPrice`) yield decimal
+> **strings**. Both are raw on-chain units — neither is scaled — so a value crossing between them
+> needs a cast, not a conversion.
