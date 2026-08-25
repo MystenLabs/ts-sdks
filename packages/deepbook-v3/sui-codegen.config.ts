@@ -3,11 +3,16 @@
 
 import type { SuiCodegenConfig } from '@mysten/codegen';
 
-// `bcsOverrides` is per-entry: the entries below that omit it keep codegen's default
-// decimal-string integers. Any entry whose Move closure includes the `account` package must
-// carry the SAME three overrides as the `@local-pkg/account` entry — otherwise codegen emits a
-// second copy of the account types under `<output>/<pkg>/deps/account/**` with string `u64`s,
-// sitting beside the bigint copy in one package.
+// `bcsOverrides` is per-entry and applies to every BCS struct that entry renders, its own
+// dependency modules included — `deepbook_predict/deps/fixed_math/i64.ts` is bigint while
+// `pyth/i64.ts` is a decimal string, from the same Move type. Entries that omit it keep
+// codegen's default strings.
+//
+// So the rule for a new entry is about what it RENDERS, not what it depends on: if its
+// generated structs carry integers that the hand-written layer reads as bigint, it needs
+// these overrides. Depending on `account` does not by itself pull in account's structs —
+// predict and sessions both depend on it and render none of its types, because
+// `account::Account` only ever appears as a function parameter.
 const config: SuiCodegenConfig = {
 	output: './src/contracts',
 	packages: [
