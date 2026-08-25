@@ -6,4 +6,4 @@ Add the `@mysten/deepbook-v3/predict` subpath, completing the consolidation of t
 
 The package root is unchanged, and subpaths remain separate module graphs: importing `/predict` loads no spot or margin code.
 
-`@mysten/deepbook-account` and `@mysten/deepbook-predict` are both superseded. Their final published releases keep working for anyone already on them, but they will not be updated — import from `@mysten/deepbook-v3/account` and `@mysten/deepbook-v3/predict` instead.
+`@mysten/deepbook-predict` is superseded. Its final release, `0.3.0`, is self-contained and keeps working, but it will not be updated — import from `@mysten/deepbook-v3/predict` instead.

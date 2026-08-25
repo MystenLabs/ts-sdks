@@ -28,7 +28,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build DeepBook Predict dependencies
+      - name: Build DeepBook SDK
         run: pnpm turbo build --filter @mysten/deepbook-v3
 
       - name: Run live-testnet smoke tests

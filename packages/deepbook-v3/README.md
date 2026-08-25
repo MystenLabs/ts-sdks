@@ -7,7 +7,7 @@
 | `@mysten/deepbook-v3`          | DeepBook spot and margin — pools, orders, balance managers, flash loans, governance, margin managers/pools, TPSL.                                                                                                   |
 | `@mysten/deepbook-v3/account`  | The shared on-chain **account primitive** (`AccountContract`): the canonical `AccountWrapper`, `Auth`, and custody balances that DeepBook's core account wrapper and DeepBook Predict both build on.                |
 | `@mysten/deepbook-v3/sessions` | **Time-limited trading sessions** over a canonical Account (`SessionsContract`): grant an ephemeral address bounded authority until a fixed expiry. Covers the session lifecycle and the DeepBook Predict wrappers. |
-| `@mysten/deepbook-v3/predict`  | **DeepBook Predict** — binary markets: market discovery, quotes, mint/redeem/claim, PLP, typed receipts and a client-side board pricer. See [docs/predict.md](./docs/predict.md).                                   |
+| `@mysten/deepbook-v3/predict`  | **DeepBook Predict** — binary markets: market discovery, quotes, mint/redeem/claim, PLP, typed receipts and a client-side board pricer. See [PREDICT.md](./PREDICT.md).                                             |
 
 Subpaths are separate module graphs — importing `@mysten/deepbook-v3/account` does not load any spot
 or margin code.

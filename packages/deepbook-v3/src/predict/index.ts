@@ -1,4 +1,4 @@
-// Public API for `@mysten/deepbook-predict`. The curated surface is the `PredictClient`
+// Public API for `@mysten/deepbook-v3/predict`. The curated surface is the `PredictClient`
 // facade plus the value types, unit conversions, tick helpers, typed errors, and typed
 // execution-result decoders — and the few primitives below that compose predict
 // accounts into PTBs on FOREIGN packages, which no facade shape can cover.
