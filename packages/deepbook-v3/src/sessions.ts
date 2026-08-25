@@ -33,7 +33,7 @@ export const MAX_SESSION_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
 /** The maximum number of distinct session addresses one Account may store. */
 export const MAX_SESSIONS_PER_ACCOUNT = 20;
 
-// `sui::dynamic_field::Field<DataKey<SessionsApp>, SessionsData>` — what a `getObject`
+// `sui::dynamic_field::Field<DataKey<SessionsApp>, SessionsData>` — what a core `getObject`
 // on the grant field actually returns. `DataKey` is source-empty, but Move inserts a
 // hidden `dummy_field: bool` into empty structs, so the name occupies ONE zero byte
 // between the id and the value. Decoding the value alone would read the field id's first
@@ -356,7 +356,7 @@ export class SessionsContract {
 	/**
 	 * @description Decode an Account's stored grants from the raw BCS content of its
 	 * `DataKey<SessionsApp>` dynamic FIELD object — the whole
-	 * `Field<DataKey<SessionsApp>, SessionsData>`, as `getObject` returns it, not the
+	 * `Field<DataKey<SessionsApp>, SessionsData>`, as the core API returns it, not the
 	 * inner `SessionsData`. Get the id from {@link deriveSessionsFieldId}.
 	 *
 	 * There is no bulk on-chain read — `sessionExpirationMs` answers one address at a time —
@@ -368,7 +368,19 @@ export class SessionsContract {
 	 * expired, and revoke before granting again.
 	 */
 	static decodeSessions(contents: Uint8Array): SessionGrant[] {
+		// Assert full consumption. `@mysten/bcs`'s ULEB reader indexes the underlying
+		// ArrayBuffer rather than the view, so a truncated SUBARRAY — which is exactly what a
+		// gRPC `content` field is — can read past its bound and decode to `[]` with no error.
+		// Re-serializing and comparing lengths turns both truncation and trailing junk into a
+		// throw, so "no grants" can only ever mean no grants.
 		const field = SessionsDataField.parse(contents);
+		const reencoded = SessionsDataField.serialize(field).toBytes();
+		if (reencoded.length !== contents.length) {
+			throw new Error(
+				`sessions field is ${contents.length} bytes but its contents encode to ${reencoded.length}; ` +
+					'the bytes are truncated or carry trailing data',
+			);
+		}
 		return field.value.sessions.contents.map((entry) => ({
 			session: entry.key,
 			expiresAtMs: BigInt(entry.value),

@@ -93,8 +93,20 @@ Notes that bite in practice:
   `revokeSession` and `sessionExpirationMs` use owner auth or no auth and keep working.
   `deauthorize_app` does not clear `SessionsData`, so re-authorizing makes every still-unexpired
   grant live again at once — it pauses sessions, it does not kill them.
-- Listing grants goes through `deriveSessionsFieldId(owner)` → `getObject` → `decodeSessions`. Pass
-  the whole field object's contents, not the inner value.
+- Listing grants goes through `deriveSessionsFieldId(owner)` → fetch → `decodeSessions`. Pass the
+  whole field object's contents, not the inner value. Fetch it through the core API, and ask for
+  content explicitly — JSON-RPC is gone from public fullnodes, and without `include` the response
+  carries no bytes:
+
+  ```ts
+  const { object } = await client.core.getObject({ objectId, include: { content: true } });
+  const grants = SessionsContract.decodeSessions(object.content);
+  ```
+
+- The field does not exist until the owner's **first** `authorizeSession` — the Move attaches it
+  lazily — so the fetch returns not-found for an owner who has never granted. That is distinct from
+  a field that exists holding an empty map, which means every grant was revoked. Treat not-found as
+  "no grants", but only not-found: a transport failure must not be collapsed into the same answer.
 
 **What a session key can do.** It cannot withdraw to an address, cannot grant or revoke sessions,
 and cannot outlive its expiry. It _can_ trade the Account's full balance: the spot wrappers take a

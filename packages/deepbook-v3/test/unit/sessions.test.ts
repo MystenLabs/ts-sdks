@@ -447,3 +447,45 @@ describe('expiredSessions is the exact complement of activeSessions', () => {
 		}
 	});
 });
+
+describe('decodeSessions rejects bytes it cannot fully account for', () => {
+	const Data = bcs.struct('SessionsData', {
+		sessions: bcs.struct('VecMap', {
+			contents: bcs.vector(bcs.struct('Entry', { key: bcs.Address, value: bcs.u64() })),
+		}),
+	});
+	const Field = bcs.struct('Field', { id: bcs.Address, name: bcs.bool(), value: Data });
+	const good = Field.serialize({
+		id: '0x' + '77'.repeat(32),
+		name: false,
+		value: { sessions: { contents: [{ key: '0x' + 'a1'.repeat(32), value: 42n }] } },
+	}).toBytes();
+
+	test('the well-formed field still decodes', () => {
+		expect(SessionsContract.decodeSessions(good)).toEqual([
+			{ session: normalizeSuiAddress('0x' + 'a1'.repeat(32)), expiresAtMs: 42n },
+		]);
+	});
+
+	test('trailing bytes throw instead of being ignored', () => {
+		const padded = new Uint8Array(good.length + 8);
+		padded.set(good);
+		expect(() => SessionsContract.decodeSessions(padded)).toThrow(/trailing data|truncated/);
+	});
+
+	test('a truncated SUBARRAY of a larger buffer throws, not decodes to []', () => {
+		// The shape that actually reaches this code: gRPC returns `content` as a view into a
+		// bigger buffer, and the BCS ULEB reader indexes the buffer, not the view. Here the
+		// byte just past the view is 0x00, which a length read would happily take as "empty".
+		const backing = new Uint8Array(good.length + 16);
+		backing.set(good);
+		const truncated = backing.subarray(0, 33); // id + name only
+		let outcome: unknown;
+		try {
+			outcome = SessionsContract.decodeSessions(truncated);
+		} catch {
+			outcome = 'threw';
+		}
+		expect(outcome).toBe('threw');
+	});
+});
