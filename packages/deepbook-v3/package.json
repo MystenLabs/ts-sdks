@@ -45,7 +45,8 @@
 		"oxlint:fix": "oxlint --fix",
 		"test": "vitest run",
 		"lint": "pnpm run oxlint:check && pnpm run prettier:check",
-		"lint:fix": "pnpm run oxlint:fix && pnpm run prettier:fix"
+		"lint:fix": "pnpm run oxlint:fix && pnpm run prettier:fix",
+		"sync-deployment": "tsx scripts/sync-deployment.ts"
 	},
 	"dependencies": {
 		"@mysten/bcs": "workspace:^",

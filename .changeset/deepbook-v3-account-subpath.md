@@ -8,6 +8,8 @@ The package root's export surface is unchanged: `@mysten/deepbook-v3` exports ex
 
 Documenting a second entry point changes the generated API-reference layout: TypeDoc now emits an `index` module alongside `account`, so existing deepbook-v3 doc pages gain an `index.` segment in their names. External links into the published reference will need updating; nothing in this repo links to them.
 
+`/account` also exports `getAccountConfig(network)`, the deployed ids for the shared account package, so consumers do not transcribe them. It reads a record generated from the deploy tooling's own manifest, which every subpath shares — `getDeployment(network)` reports which deployment and source commit those ids came from. Testnet only for now; other networks throw rather than returning placeholder ids.
+
 This release also marks the package `sideEffects: false`. No module in `src` has an import side effect, so the only emitted-output change is that pure re-export modules are now tree-shaken out of the bundle rather than imported for effect.
 
 `@mysten/deepbook-account` is superseded. Its final release, `0.1.0`, is self-contained and keeps working, but it will not be updated — import from `@mysten/deepbook-v3/account` instead.

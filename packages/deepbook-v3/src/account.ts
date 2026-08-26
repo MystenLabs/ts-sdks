@@ -11,6 +11,12 @@ import { deriveObjectID } from '@mysten/sui/utils';
 import * as account from './contracts/account/account.js';
 import * as accountRegistry from './contracts/account/account_registry.js';
 import type { AccountConfig as GeneratedAccountConfig } from './contracts/account/config-arguments.js';
+import { TESTNET_ACCOUNT } from './deployments/testnet.js';
+
+// Provenance: which on-chain deployment the ids above came from. Re-exported so a consumer
+// can answer "which deploy is this build pinned to?" without reaching for another subpath.
+export { getDeployment, TESTNET_DEPLOYMENT } from './deployments/index.js';
+export type { DeployedNetwork } from './deployments/index.js';
 
 /**
  * The deployed ids of the shared `account` package this contract builds against.
@@ -31,6 +37,21 @@ export interface AccountConfig extends GeneratedAccountConfig {
 	accountPackageId: string;
 	/** The shared `AccountRegistry` object id. */
 	accountRegistry: string;
+}
+
+/**
+ * @description The deployed `account` ids for `network`, so a caller does not transcribe
+ * them. Generated from the deploy manifest — see `src/deployments/`.
+ * @throws if the network has no recorded deployment, rather than returning placeholder ids
+ * that would fail as a confusing on-chain abort.
+ *
+ * ```ts
+ * const account = new AccountContract(getAccountConfig('testnet'));
+ * ```
+ */
+export function getAccountConfig(network: 'testnet' | 'mainnet'): AccountConfig {
+	if (network === 'testnet') return { ...TESTNET_ACCOUNT };
+	throw new Error(`no account deployment for network: ${network}`);
 }
 
 // `AccountWrapperKey(address)` is a one-field positional struct, so its BCS is just the

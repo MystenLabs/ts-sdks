@@ -10,6 +10,14 @@
 Subpaths are separate module graphs — importing `@mysten/deepbook-v3/account` does not load any spot
 or margin code.
 
+Each subpath also exports the **deployed ids** for its own surface, so a caller never transcribes
+them: `getAccountConfig(network)` on `/account`, `getSessionsConfig(network)` on `/sessions`,
+`getConfig(network)` on `/predict`. All three read one generated record (`src/deployments/`), so a
+redeploy updates every subpath at once and they cannot end up addressing different deployments.
+`getDeployment(network)` names the deployment and the deepbookv3 commit those ids came from.
+Predict, sessions and the account primitive are testnet-only today; an unrecorded network throws
+rather than returning placeholder ids.
+
 ### `@mysten/deepbook-v3/account`
 
 An owner has one canonical `AccountWrapper`, a **derived object** of the account registry, so its id
@@ -18,12 +26,13 @@ is computable off-chain with no chain read. `AccountContract` takes only the dep
 
 ```ts
 import { Transaction } from '@mysten/sui/transactions';
-import { AccountContract } from '@mysten/deepbook-v3/account';
+import { AccountContract, getAccountConfig } from '@mysten/deepbook-v3/account';
 
-const account = new AccountContract({
-	accountPackageId: '0x…',
-	accountRegistry: '0x…',
-});
+// Deployed ids ship with the package — no transcription.
+const account = new AccountContract(getAccountConfig('testnet'));
+
+// …or drive a deployment of your own:
+const custom = new AccountContract({ accountPackageId: '0x…', accountRegistry: '0x…' });
 
 const wrapperId = account.deriveAccountWrapperId(owner);
 
