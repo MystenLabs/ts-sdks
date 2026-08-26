@@ -6,6 +6,11 @@ import { deriveDynamicFieldID, deriveObjectID } from '@mysten/sui/utils';
 
 import { TESTNET_SESSIONS } from './deployments/testnet.js';
 
+// Provenance and scale constants, so a sessions-only consumer can answer "which deployment
+// is this pinned to?" and format a custody balance without importing another subpath.
+export { getDeployment, getUnits, TESTNET_DEPLOYMENT, TESTNET_UNITS } from './deployments/index.js';
+export type { DeployedNetwork } from './deployments/index.js';
+
 import { AccountContract } from './account.js';
 import type { DeepbookSessionsConfig } from './contracts/deepbook_sessions/config-arguments.js';
 import * as sessions from './contracts/deepbook_sessions/sessions.js';
