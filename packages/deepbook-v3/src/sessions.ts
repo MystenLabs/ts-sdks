@@ -5,11 +5,12 @@ import type { Transaction, TransactionArgument, TransactionResult } from '@myste
 import { deriveDynamicFieldID, deriveObjectID } from '@mysten/sui/utils';
 
 import { TESTNET_SESSIONS } from './deployments/testnet.js';
+import type { NetworkArg } from './deployments/index.js';
 
 // Provenance and scale constants, so a sessions-only consumer can answer "which deployment
 // is this pinned to?" and format a custody balance without importing another subpath.
 export { getDeployment, getUnits, TESTNET_DEPLOYMENT, TESTNET_UNITS } from './deployments/index.js';
-export type { DeployedNetwork } from './deployments/index.js';
+export type { DeployedNetwork, NetworkArg } from './deployments/index.js';
 
 import { AccountContract } from './account.js';
 import type { DeepbookSessionsConfig } from './contracts/deepbook_sessions/config-arguments.js';
@@ -63,10 +64,16 @@ export interface SessionsPredictIds {
  * ```
  */
 export function getSessionsConfig(
-	network: 'testnet' | 'mainnet',
+	network: NetworkArg,
 ): SessionsConfig & SessionsSpotIds & SessionsPredictIds {
-	if (network === 'testnet') return { ...TESTNET_SESSIONS };
-	throw new Error(`no sessions deployment for network: ${network}`);
+	// The frozen record itself, matching `/account` — returning a spread here would have
+	// quietly exempted this subpath from the immutability the others guarantee.
+	if (network === 'testnet') return TESTNET_SESSIONS;
+	throw new Error(
+		`@mysten/deepbook-v3/sessions: no sessions deployment recorded for network '${network}'. ` +
+			'Sessions is testnet-only today; for your own deployment construct a `SessionsConfig` ' +
+			'and pass it to SessionsContract directly.',
+	);
 }
 
 /** The maximum session duration the contract accepts: 30 days, in milliseconds. */

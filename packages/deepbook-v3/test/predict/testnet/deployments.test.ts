@@ -1,3 +1,5 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
 // Live-testnet check that the generated deployment record still describes reality.
 // Network-gated: runs only under `pnpm test:e2e` (PREDICT_SDK_TESTNET=1).
 //

@@ -27,7 +27,6 @@
 				"tsconfig.json"
 			],
 			"env": [
-				"PREDICT_SDK_TESTNET",
 				"AWS_ACCESS_KEY_ID",
 				"AWS_SECRET_ACCESS_KEY",
 				"AWS_REGION",
@@ -43,6 +42,9 @@
 			]
 		},
 		// Avoid running CPU intensive tests in parallel
+		"@mysten/deepbook-v3#test": {
+			"env": ["PREDICT_SDK_TESTNET"]
+		},
 		"@mysten/walrus#test": {
 			"dependsOn": ["^build", "build", "@mysten/walrus-wasm#test"]
 		},

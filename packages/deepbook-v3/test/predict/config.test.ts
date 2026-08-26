@@ -33,6 +33,7 @@ test('getConfig returns the testnet config', () => {
 	expect(getConfig('testnet')).toBe(TESTNET_CONFIG);
 });
 
-test('getConfig throws for mainnet', () => {
-	expect(() => getConfig('mainnet')).toThrow(/no deployment for network/);
+test('getConfig throws for mainnet, naming the package and the override', () => {
+	expect(() => getConfig('mainnet')).toThrow(/no Predict deployment recorded for network/);
+	expect(() => getConfig('mainnet')).toThrow(/pass `config` to PredictClient/);
 });

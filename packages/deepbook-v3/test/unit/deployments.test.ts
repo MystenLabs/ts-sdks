@@ -199,7 +199,16 @@ describe('sessions deployment ids', () => {
 	});
 
 	test('an unrecorded network throws rather than returning placeholder ids', () => {
-		expect(() => getSessionsConfig('mainnet')).toThrow(/no sessions deployment/);
+		expect(() => getSessionsConfig('mainnet')).toThrow(/no sessions deployment recorded/);
+		expect(() => getSessionsConfig('mainnet')).toThrow(/SessionsContract directly/);
+	});
+
+	test('the returned config is frozen, same contract as /account', () => {
+		const cfg = getSessionsConfig('testnet');
+		expect(Object.isFrozen(cfg)).toBe(true);
+		expect(() => {
+			(cfg as { sessionsConfig: string }).sessionsConfig = '0x' + '00'.repeat(32);
+		}).toThrow(TypeError);
 	});
 
 	test('a SessionsContract built from it derives the same ids as an explicit config', () => {
