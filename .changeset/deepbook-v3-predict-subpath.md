@@ -7,3 +7,5 @@ Add the `@mysten/deepbook-v3/predict` subpath, completing the consolidation of t
 The package root is unchanged, and subpaths remain separate module graphs: importing `/predict` loads no spot or margin code.
 
 `@mysten/deepbook-predict` is superseded. Its last published release keeps working for anyone already on it, but it will not be updated — import from `@mysten/deepbook-v3/predict` instead.
+
+Predict's testnet ids now come from the shared generated deployment record instead of a hand-written literal, so `/account`, `/sessions` and `/predict` cannot drift apart across a redeploy. `TESTNET_CONFIG` and `getConfig(network)` are unchanged in shape and value; `getDeployment(network)` reports which deployment and source commit they came from.

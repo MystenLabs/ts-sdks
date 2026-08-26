@@ -27,7 +27,7 @@ export type {
 export { deriveAccountWrapperId, generateAuth } from './tx/common.js';
 
 // === Config ===
-export { TESTNET_CONFIG, getConfig } from './config/index.js';
+export { TESTNET_CONFIG, getConfig, getDeployment, TESTNET_DEPLOYMENT } from './config/index.js';
 export type { PredictConfig, PredictPackages, UnderlyingConfig } from './config/index.js';
 
 // === Units (raw ⇄ human conversions) === domain-specific only; the generic `toRaw`/
