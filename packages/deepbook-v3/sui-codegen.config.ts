@@ -3,19 +3,71 @@
 
 import type { SuiCodegenConfig } from '@mysten/codegen';
 
-// `bcsOverrides` is per-entry and applies to every BCS struct that entry renders, its own
-// dependency modules included — `deepbook_predict/deps/fixed_math/i64.ts` is bigint while
-// `pyth/i64.ts` is a decimal string, from the same Move type. Entries that omit it keep
-// codegen's default strings.
+// The `@local-pkg/*` entries are not registered on MVR, so they generate from the local Move
+// source in the sibling `deepbookv3` checkout (same pattern the `@deepbook/*` entries use).
+// Generate against the COMMIT THAT GETS DEPLOYED — deployed truth beats repo truth; the generated
+// bindings are the signature authority the hand-written facades build on.
 //
-// So the rule for a new entry is about what it RENDERS, not what it depends on: if its
-// generated structs carry integers that the hand-written layer reads as bigint, it needs
-// these overrides. Depending on `account` does not by itself pull in account's structs —
-// predict and sessions both depend on it and render none of its types, because
-// `account::Account` only ever appears as a function parameter.
+// One `pnpm codegen` run regenerates EVERY entry below from whatever commit that checkout is on,
+// so check it out to the intended anchor first and diff the result — a regeneration meant for one
+// entry rewrites the rest. Check out the deployment BRANCH (`predict-testnet-8-21`), not its
+// `sourceCommit`: the Move sources are identical — the trailing commit adds only `Published.toml`
+// files and the deployment manifest — and the branch is the only ref where `pnpm sync-deployment`
+// can find that manifest, so one checkout serves both. Every entry here reproduces byte-for-byte
+// from it. Nothing enforces the anchor: no CI job runs codegen, and it is recorded only here.
+//
+// `src/contracts/wormhole/**` is the exception — no entry generates it, so it is frozen at whatever
+// commit produced it. `src/pyth/pyth.ts` imports it.
+//
+// Oracle is read-only for this SDK: trade entrypoints read feeds by reference, so we deliberately
+// do NOT generate the oracle-construction packages (`block_scholes_oracle` / `pyth_lazer`) — they
+// are only needed to *produce* oracle updates, which is out of scope.
+
+// Parse `u64`/`u128`/`u256` straight to bigint rather than the decimal strings `@mysten/sui/bcs`
+// yields, which every consumer immediately wrapped in `BigInt(...)`.
+//
+// Representation only — no scaling. Scale is not inferable from a field's type
+// (`order_events::OrderMinted.trading_fee` is a 1e6 amount while
+// `config_events::MarketCreated.base_fee` is a rate), and the receipts deliberately expose exact
+// bigints alongside their display numbers.
+//
+// Applied PER ENTRY, to every struct that entry renders including its own dependency modules —
+// `deepbook_predict/deps/fixed_math/i64.ts` is bigint while `pyth/i64.ts` is a decimal string, from
+// the same Move type. So the rule for a new entry is about what it RENDERS, not what it depends on.
+// Depending on `account` does not by itself pull in account's structs: predict and sessions both
+// depend on it and render none of its types, because `account::Account` only ever appears as a
+// function parameter.
+const bcsOverrides = [
+	{ type: 'u64', source: './src/bcs/integers.ts#U64' },
+	{ type: 'u128', source: './src/bcs/integers.ts#U128' },
+	{ type: 'u256', source: './src/bcs/integers.ts#U256' },
+];
+
 const config: SuiCodegenConfig = {
 	output: './src/contracts',
 	packages: [
+		{
+			package: '@local-pkg/deepbook_predict',
+			path: '../../../deepbookv3/packages/predict',
+			// Per-network shared singletons and the package address. Every one of these was
+			// threaded through by hand on each call site; they now come from the config object
+			// the SDK already carries. `PredictConfig` is checked against the generated
+			// `DeepbookPredictConfig` interface, so a deployment id that stops matching the
+			// deployed signature is a compile error rather than a runtime abort.
+			configArguments: {
+				predictPackageId: { package: '@local-pkg/deepbook_predict' },
+				protocolConfig: { type: 'protocol_config::ProtocolConfig' },
+				poolVault: { type: 'plp::PoolVault' },
+				registry: { type: 'registry::Registry' },
+				oracleRegistry: { type: '@local-pkg/propbook::registry::OracleRegistry' },
+			},
+			bcsOverrides,
+		},
+		{
+			package: '@local-pkg/propbook',
+			path: '../../../deepbookv3/packages/propbook',
+			bcsOverrides,
+		},
 		{
 			// Time-limited trading sessions: an Account owner authorizes an ephemeral address
 			// to submit a bounded set of transactions on the Account's behalf until a fixed
@@ -32,11 +84,7 @@ const config: SuiCodegenConfig = {
 				sessionsPackageId: { package: '@local-pkg/deepbook_sessions' },
 				sessionsConfig: { type: 'session_config::SessionsConfig' },
 			},
-			bcsOverrides: [
-				{ type: 'u64', source: './src/bcs/integers.ts#U64' },
-				{ type: 'u128', source: './src/bcs/integers.ts#U128' },
-				{ type: 'u256', source: './src/bcs/integers.ts#U256' },
-			],
+			bcsOverrides,
 		},
 		{
 			// The shared on-chain account primitive. Both DeepBook's core account wrapper and
@@ -52,14 +100,7 @@ const config: SuiCodegenConfig = {
 				accountPackageId: { package: '@local-pkg/account' },
 				accountRegistry: { type: 'account_registry::AccountRegistry' },
 			},
-			// Parse `u64`/`u128`/`u256` straight to bigint rather than the decimal strings
-			// `@mysten/sui/bcs` yields. Representation only — no scaling is applied. Scoped to
-			// this entry: the DeepBook/margin/pyth bindings below keep decimal strings.
-			bcsOverrides: [
-				{ type: 'u64', source: './src/bcs/integers.ts#U64' },
-				{ type: 'u128', source: './src/bcs/integers.ts#U128' },
-				{ type: 'u256', source: './src/bcs/integers.ts#U256' },
-			],
+			bcsOverrides,
 		},
 		{
 			package: '@deepbook/core',

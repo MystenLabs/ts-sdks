@@ -4,7 +4,7 @@
 import { defineConfig } from 'tsdown';
 
 export default defineConfig({
-	entry: ['src/index.ts', 'src/account.ts', 'src/sessions.ts'],
+	entry: ['src/index.ts', 'src/account.ts', 'src/sessions.ts', 'src/predict/index.ts'],
 	format: 'esm',
 	dts: true,
 	outDir: 'dist',

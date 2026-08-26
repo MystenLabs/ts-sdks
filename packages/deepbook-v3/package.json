@@ -23,10 +23,16 @@
 			"types": "./dist/sessions.d.mts",
 			"import": "./dist/sessions.mjs",
 			"default": "./dist/sessions.mjs"
+		},
+		"./predict": {
+			"types": "./dist/predict/index.d.mts",
+			"import": "./dist/predict/index.mjs",
+			"default": "./dist/predict/index.mjs"
 		}
 	},
 	"files": [
 		"CHANGELOG.md",
+		"PREDICT.md",
 		"dist",
 		"src"
 	],
@@ -52,7 +58,8 @@
 		"lint": "pnpm run oxlint:check && pnpm run prettier:check",
 		"lint:fix": "pnpm run oxlint:fix && pnpm run prettier:fix",
 		"sync-deployment": "tsx scripts/sync-deployment.ts",
-		"sync-deployment:format": "prettier --write src/deployments"
+		"sync-deployment:format": "prettier --write src/deployments",
+		"test:e2e": "PREDICT_SDK_TESTNET=1 vitest run test/predict/testnet"
 	},
 	"dependencies": {
 		"@mysten/bcs": "workspace:^",
