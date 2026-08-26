@@ -58,14 +58,10 @@ wrapper mints app authorization internally and consumes it in the same call — 
 withdrawal or arbitrary-mutation entrypoint.
 
 ```ts
-import { SessionsContract } from '@mysten/deepbook-v3/sessions';
+import { SessionsContract, getSessionsConfig } from '@mysten/deepbook-v3/sessions';
 
-const sessions = new SessionsContract({
-	sessionsPackageId: '0x…',
-	sessionsConfig: '0x…',
-	accountPackageId: '0x…',
-	accountRegistry: '0x…',
-});
+// Deployed ids ship with the package — no transcription.
+const sessions = new SessionsContract(getSessionsConfig('testnet'));
 
 const wrapperId = sessions.deriveAccountWrapperId(owner);
 

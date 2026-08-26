@@ -4,6 +4,8 @@ import { bcs } from '@mysten/sui/bcs';
 import type { Transaction, TransactionArgument, TransactionResult } from '@mysten/sui/transactions';
 import { deriveDynamicFieldID, deriveObjectID } from '@mysten/sui/utils';
 
+import { TESTNET_SESSIONS } from './deployments/testnet.js';
+
 import { AccountContract } from './account.js';
 import type { DeepbookSessionsConfig } from './contracts/deepbook_sessions/config-arguments.js';
 import * as sessions from './contracts/deepbook_sessions/sessions.js';
@@ -25,6 +27,35 @@ export interface SessionsConfig extends DeepbookSessionsConfig {
 	accountPackageId: string;
 	/** The shared `AccountRegistry` object id. */
 	accountRegistry: string;
+}
+
+/**
+ * Ids the DeepBook **spot** session wrappers need on top of {@link SessionsConfig}. The
+ * Predict wrappers never take these, so they are kept off the main config rather than made
+ * optional there.
+ */
+export interface SessionsSpotIds {
+	/** DeepBook's shared `Registry` — `deepbook_registry` on the spot entrypoints. */
+	deepbookRegistry: string;
+	/** The `deepbook_core_account` Move package id. */
+	deepbookCoreAccountPackageId: string;
+}
+
+/**
+ * @description The deployed sessions ids for `network`, so a caller does not transcribe
+ * them. Generated from the deploy manifest — see `src/deployments/`. The returned object
+ * also carries {@link SessionsSpotIds} for the generated spot wrappers.
+ * @throws if the network has no recorded deployment, rather than returning placeholder ids.
+ *
+ * ```ts
+ * const sessions = new SessionsContract(getSessionsConfig('testnet'));
+ * ```
+ */
+export function getSessionsConfig(
+	network: 'testnet' | 'mainnet',
+): SessionsConfig & SessionsSpotIds {
+	if (network === 'testnet') return { ...TESTNET_SESSIONS };
+	throw new Error(`no sessions deployment for network: ${network}`);
 }
 
 /** The maximum session duration the contract accepts: 30 days, in milliseconds. */
