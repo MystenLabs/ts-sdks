@@ -181,10 +181,14 @@ pnpm --filter @mysten/deepbook-v3 test
 # Live-testnet suite; hits a real deployment, so it is dispatch/cron only
 pnpm --filter @mysten/deepbook-v3 test:e2e
 
-# Regenerate bindings (requires ../deepbookv3 sibling repo).
-# NOTE: this rewrites EVERY entry in sui-codegen.config.ts from whatever commit that
-# checkout is on. Check it out to the intended deploy anchor first, then diff the result.
+# Regenerate bindings, and refresh the deployed ids. Both read the sibling ../deepbookv3
+# checkout, and both want it on the deployment BRANCH (e.g. predict-testnet-8-21) — not on
+# the manifest's sourceCommit, where the manifest does not yet exist.
+#
+# codegen rewrites EVERY entry in sui-codegen.config.ts from whatever commit that checkout
+# is on, so diff the result: a regeneration meant for one entry rewrites the rest.
 pnpm --filter @mysten/deepbook-v3 codegen
+pnpm --filter @mysten/deepbook-v3 sync-deployment
 ```
 
 ### Codegen gotchas (fresh checkout / worktree)

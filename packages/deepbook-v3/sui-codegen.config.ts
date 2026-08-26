@@ -10,9 +10,11 @@ import type { SuiCodegenConfig } from '@mysten/codegen';
 //
 // One `pnpm codegen` run regenerates EVERY entry below from whatever commit that checkout is on,
 // so check it out to the intended anchor first and diff the result — a regeneration meant for one
-// entry rewrites the rest. Every entry here reproduces byte-for-byte from `1f79fe87`, the
-// `predict-testnet-8-21` deployment. Nothing enforces that: no CI job runs codegen, and the anchor
-// is recorded only in this comment.
+// entry rewrites the rest. Check out the deployment BRANCH (`predict-testnet-8-21`), not its
+// `sourceCommit`: the Move sources are identical — the trailing commit adds only `Published.toml`
+// files and the deployment manifest — and the branch is the only ref where `pnpm sync-deployment`
+// can find that manifest, so one checkout serves both. Every entry here reproduces byte-for-byte
+// from it. Nothing enforces the anchor: no CI job runs codegen, and it is recorded only here.
 //
 // `src/contracts/wormhole/**` is the exception — no entry generates it, so it is frozen at whatever
 // commit produced it. `src/pyth/pyth.ts` imports it.
