@@ -15,7 +15,9 @@ import type { PredictConfig } from './types.js';
  * deepbookv3 commit these ids came from.
  */
 export const TESTNET_CONFIG: PredictConfig = {
-	network: TESTNET_PREDICT.network,
+	// The record widens `network` to `string` so the published types don't pin a literal;
+	// this file is the testnet config by construction.
+	network: 'testnet',
 	packages: { ...TESTNET_PREDICT.packages },
 	objects: { ...TESTNET_PREDICT.objects },
 	quoteCoinType: TESTNET_PREDICT.quoteCoinType,

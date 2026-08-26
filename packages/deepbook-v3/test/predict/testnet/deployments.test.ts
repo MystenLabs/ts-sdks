@@ -49,23 +49,53 @@ describe('the deployment record matches the live chain', () => {
 		// Note this does NOT discriminate the live package from the retired one — both are
 		// still authorized on the registry. The SessionsConfig-type check above is what does.
 		const cfg = getSessionsConfig('testnet');
-		const { dynamicFields } = await client.core.listDynamicFields({
-			parentId: cfg.accountRegistry,
-			limit: 50,
-		});
-		const apps = dynamicFields
-			.map((f) => String(f.name?.type ?? ''))
-			.filter((t) => t.includes('AppKey'));
+		// Page: the AppKey entries sort last, and every new account adds two `Claimed` entries
+		// ahead of them, so a fixed limit starts missing them as the registry grows.
+		const apps: string[] = [];
+		let cursor: string | undefined;
+		do {
+			const page = await client.core.listDynamicFields({
+				parentId: cfg.accountRegistry,
+				limit: 50,
+				cursor,
+			});
+			apps.push(...page.dynamicFields.map((f) => String(f.name?.type ?? '')));
+			cursor = page.hasNextPage ? page.cursor : undefined;
+		} while (cursor);
 		expect(apps.some((t) => t.includes(`${cfg.sessionsPackageId}::sessions::SessionsApp`))).toBe(
 			true,
 		);
 	});
 
-	test('every Predict object id resolves on chain', async () => {
-		const ids = Object.entries(TESTNET_PREDICT.objects);
-		const resolved = await Promise.all(
-			ids.map(async ([name, id]) => [name, (await typeOf(id)) !== ''] as const),
+	// Existence is not enough, and asserting it was the bug: a RETIRED deployment's objects
+	// all still exist on chain, so `typeOf(id) !== ''` passed with the record pointing at the
+	// wrong package — which is precisely the failure a stale regeneration produces. Tie each
+	// object to the package id the record itself ships.
+	test('every Predict object is owned by the recorded package', async () => {
+		const { packages, objects } = TESTNET_PREDICT;
+		const expected: Record<string, string> = {
+			registry: `${packages.predict}::registry::Registry`,
+			protocolConfig: `${packages.predict}::protocol_config::ProtocolConfig`,
+			poolVault: `${packages.predict}::plp::PoolVault`,
+			oracleRegistry: `${packages.propbook}::registry::OracleRegistry`,
+			accountRegistry: `${packages.account}::account_registry::AccountRegistry`,
+		};
+		// Every object must be covered, so adding one to the record fails here until it is.
+		expect(Object.keys(expected).sort()).toEqual(Object.keys(objects).sort());
+		const actual = Object.fromEntries(
+			await Promise.all(
+				Object.entries(objects).map(async ([name, id]) => [name, await typeOf(id)] as const),
+			),
 		);
-		expect(resolved.filter(([, ok]) => !ok).map(([name]) => name)).toEqual([]);
+		expect(actual).toEqual(expected);
+	});
+
+	test('the oracle feeds belong to the recorded propbook package', async () => {
+		const { packages, underlyings } = TESTNET_PREDICT;
+		for (const u of Object.values(underlyings)) {
+			for (const id of [u.pythFeed, u.blockScholesValueStore, u.blockScholesSviStore]) {
+				expect(await typeOf(id)).toMatch(new RegExp(`^${packages.propbook}::`));
+			}
+		}
 	});
 });
