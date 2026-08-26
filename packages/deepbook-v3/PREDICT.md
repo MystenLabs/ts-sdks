@@ -39,18 +39,25 @@ const depositTx = client.predict.tx.deposit(myAddress, 250); // $250
 // Pass { toCoinObject: true } if you need a discrete Coin<T> instead.
 const withdrawTx = client.predict.tx.withdraw(myAddress, 100); // $100
 
-// Trade: BTC above $105,000 at this hour's expiry, $50 max payout.
-const mintTx = await client.predict.tx.mint(
-	myAddress,
-	{ underlying: 'BTC', expiryMs: 1767225600000, strike: 105_000, side: 'up' },
-	{ quantity: 50, maxCost: 12.5 },
-);
-// -> sign & execute any of these with your wallet / dapp-kit / signer
+// Pick a live market. Expiries are absolute timestamps, so never hardcode one.
+const markets = await client.predict.read.markets();
+const expiryMs = markets[0].expiryMs;
+
+// Describe the position once and reuse it — quoting and minting take the same descriptor.
+const desc = { underlying: 'BTC', expiryMs, strike: 'reference', side: 'up' } as const;
 
 // Quote before you trade: dry-runs your exact mint, real fees, real account.
-const q = await client.predict.read.quoteMint(myAddress, market, { quantity: 50 });
+const q = await client.predict.read.quoteMint(myAddress, desc, { quantity: 50 });
 q.entryProbability; // your fill (0..1 per $1 payout)
-q.cost; // exact all-in debit — pass as maxCost (+ your buffer)
+q.cost; // exact all-in debit
+
+// Trade. `maxCost` is your ceiling on the all-in debit — pass the quote plus a buffer,
+// rounded to 6 decimals, since raw amounts are integers at that scale.
+const mintTx = await client.predict.tx.mint(myAddress, desc, {
+	quantity: 50,
+	maxCost: Math.ceil(q.cost * 1.01 * 1e6) / 1e6,
+});
+// -> sign & execute any of these with your wallet / dapp-kit / signer
 
 // Anonymous board price (no account needed): both sides of any strike.
 const { up, down } = await client.predict.read.price({

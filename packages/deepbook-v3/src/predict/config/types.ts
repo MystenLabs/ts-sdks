@@ -1,3 +1,5 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
 /** The three published Move packages a Predict deployment spans. */
 export interface PredictPackages {
 	predict: string;

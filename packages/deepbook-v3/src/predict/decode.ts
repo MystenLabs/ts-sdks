@@ -1,3 +1,5 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
 import { fromBase64, normalizeSuiAddress } from '@mysten/sui/utils';
 import type { PredictConfig } from './config/index.js';
 import { accountEvents } from '../account.js';
@@ -29,6 +31,8 @@ export interface DecodableEvent {
 	type?: string;
 	packageId?: string;
 	module?: string;
+	/** Struct name, when the transport supplies it separately from a full type tag. */
+	name?: string;
 	/** Canonical BCS payload; some transports deliver it base64-encoded. */
 	bcs?: Uint8Array | string;
 }
@@ -59,9 +63,12 @@ function matches(e: DecodableEvent, pkg: string, module: string, name: string): 
 			parts[2] === name
 		);
 	}
-	return e.module === module && e.packageId != null
-		? normalizeSuiAddress(e.packageId) === normalizeSuiAddress(pkg)
-		: false;
+	// No type tag. Match on what the transport did give us — and on `name` when it is
+	// present, because module+package alone matches EVERY struct in the module, so one
+	// decoder would happily take another's event and fail deep inside BCS.
+	if (e.module !== module || e.packageId == null) return false;
+	if (normalizeSuiAddress(e.packageId) !== normalizeSuiAddress(pkg)) return false;
+	return e.name == null || e.name === name;
 }
 
 function decodeAll<T>(

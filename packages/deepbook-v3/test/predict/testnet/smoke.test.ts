@@ -1,3 +1,5 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
 // Live-testnet smoke suite — the SDK's first contact with the real deployment.
 // Network-gated: runs only under `pnpm test:e2e` (PREDICT_SDK_TESTNET=1).
 //

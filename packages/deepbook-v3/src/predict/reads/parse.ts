@@ -1,3 +1,5 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
 // BCS decoders for the return values of on-chain reads, built on the
 // `@mysten/sui/bcs` codec so the read layer decodes exactly the on-chain Move ABI
 // (u64 LE, vector<ID>, Option) with no hand-rolled byte walking. Round-tripped

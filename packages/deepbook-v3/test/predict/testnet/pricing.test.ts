@@ -1,3 +1,5 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
 // Live-testnet parity for the client-side board pricer. Network-gated (`pnpm test:e2e`,
 // PREDICT_SDK_TESTNET=1). What this proves that the offline math tests cannot:
 //  1. `read.pricer` decodes the REAL on-chain `Pricer` BCS (forward + rolled PricingSVI)

@@ -14,16 +14,14 @@ import type { PredictConfig } from './types.js';
  * `scripts/sync-deployment.ts`. `getDeployment('testnet')` names the deployment and the
  * deepbookv3 commit these ids came from.
  */
-export const TESTNET_CONFIG: PredictConfig = {
+export const TESTNET_CONFIG: PredictConfig = Object.freeze({
 	// The record widens `network` to `string` so the published types don't pin a literal;
 	// this file is the testnet config by construction.
 	network: 'testnet',
-	packages: { ...TESTNET_PREDICT.packages },
-	objects: { ...TESTNET_PREDICT.objects },
+	packages: TESTNET_PREDICT.packages,
+	objects: TESTNET_PREDICT.objects,
 	quoteCoinType: TESTNET_PREDICT.quoteCoinType,
-	coinTypes: { ...TESTNET_PREDICT.coinTypes },
-	units: { ...TESTNET_PREDICT.units },
-	underlyings: Object.fromEntries(
-		Object.entries(TESTNET_PREDICT.underlyings).map(([symbol, u]) => [symbol, { ...u }]),
-	),
-};
+	coinTypes: TESTNET_PREDICT.coinTypes,
+	units: TESTNET_PREDICT.units,
+	underlyings: TESTNET_PREDICT.underlyings,
+});

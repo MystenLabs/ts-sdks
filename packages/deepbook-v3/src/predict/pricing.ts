@@ -1,3 +1,5 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
 // Faithful float port of the deployed `deepbook_predict::pricing::compute_nd2`
 // (testnet `predict-testnet-8-21`, sourceCommit 1f79fe87) — the SVI-adjusted digital
 // probability, WITH the skew-correction term. It operates on the pricer's

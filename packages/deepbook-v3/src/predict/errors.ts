@@ -1,3 +1,5 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
 // Typed errors for the Predict SDK.
 //
 // Two failure kinds cross the SDK boundary:

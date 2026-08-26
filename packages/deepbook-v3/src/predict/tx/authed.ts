@@ -1,3 +1,5 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
 import { accountMoveCalls as account } from '../../account.js';
 import * as plp from '../../contracts/deepbook_predict/plp.js';
 import * as predictAccount from '../../contracts/deepbook_predict/predict_account.js';

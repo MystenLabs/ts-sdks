@@ -132,8 +132,10 @@ export interface SessionGrant {
  *
  * This class wraps the session lifecycle and the **Predict** entrypoints. The DeepBook
  * spot session wrappers are generated (see `sessionsMoveCalls`) but are not wrapped here
- * — note they place `accountRegistry` at index 2 and `sessionsConfig` at 4, not 1 and 3,
- * because `deepbookRegistry` sits between them:
+ * — note `placeLimitOrder` and `placeMarketOrder` put `accountRegistry` at index 2 and
+ * `sessionsConfig` at 4, because `deepbookRegistry` sits between them; the other three
+ * (`cancelLiveOrder`, `cancelLiveOrders`, `withdrawSettledAmounts`) take no
+ * `deepbookRegistry` and so keep 1 and 3 like the Predict wrappers:
  * the surrounding spot-over-Account workflow — discovering the embedded balance manager,
  * reading resting orders and locked balances — is not modelled yet, so a wrapped builder
  * would be hard to use well. They are reachable from the generated bindings meanwhile.

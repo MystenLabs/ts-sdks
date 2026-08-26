@@ -1,3 +1,5 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
 // Public API for `@mysten/deepbook-v3/predict`. The curated surface is the `PredictClient`
 // facade plus the value types, unit conversions, tick helpers, typed errors, and typed
 // execution-result decoders — and the few primitives below that compose predict
@@ -87,3 +89,6 @@ export type {
 // The `/sessions` Predict wrappers take `pricer` as a PTB result of this call, so it has to
 // be reachable from the published surface for those builders to be composable at all.
 export { loadLivePricer, type MarketFeeds } from './tx/trade.js';
+// `loadLivePricer` takes the projected config, so the projection and its type have to be
+// reachable too — without them the `/sessions` Predict wrappers cannot be composed at all.
+export { toGeneratedConfig, type GeneratedConfig } from './config/generated.js';

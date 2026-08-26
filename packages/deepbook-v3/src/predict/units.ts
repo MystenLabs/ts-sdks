@@ -1,3 +1,6 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+import { PredictInputError } from './errors.js';
 export const U64_MAX = (1n << 64n) - 1n;
 
 // Expand exponential notation to a plain decimal string, exactly (string math).
@@ -18,9 +21,10 @@ function expandExponential(s: string): string {
 /** Exact decimal→raw conversion via string math. Throws on negatives and excess precision. */
 export function toRaw(value: number | string, decimals: number): bigint {
 	const s = expandExponential(typeof value === 'number' ? value.toString() : value.trim());
-	if (!/^\d+(\.\d+)?$/.test(s)) throw new Error(`invalid or negative decimal value: ${s}`);
+	if (!/^\d+(\.\d+)?$/.test(s))
+		throw new PredictInputError(`invalid or negative decimal value: ${s}`);
 	const [whole, frac = ''] = s.split('.');
-	if (frac.length > decimals) throw new Error(`${s} exceeds ${decimals} decimals`);
+	if (frac.length > decimals) throw new PredictInputError(`${s} exceeds ${decimals} decimals`);
 	return BigInt(whole) * 10n ** BigInt(decimals) + BigInt(frac.padEnd(decimals, '0') || '0');
 }
 
@@ -39,7 +43,7 @@ export const rawToUsdc = (raw: bigint) => fromRaw(raw, 6);
 export const priceToRaw = (v: number | string) => toRaw(v, 9);
 export const rawToPrice = (raw: bigint) => fromRaw(raw, 9);
 export function probabilityToRaw(p: number): bigint {
-	if (p < 0 || p > 1) throw new Error(`probability must be in [0,1], got ${p}`);
+	if (p < 0 || p > 1) throw new PredictInputError(`probability must be in [0,1], got ${p}`);
 	return toRaw(p, 9);
 }
 export const rawToProbability = (raw: bigint) => fromRaw(raw, 9);

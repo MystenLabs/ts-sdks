@@ -1,3 +1,5 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
 import { describe, expect, test } from 'vitest';
 import { toGeneratedConfig } from '../../src/predict/config/generated.js';
 import { TESTNET_CONFIG } from '../../src/predict/config/index.js';

@@ -1,3 +1,5 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
 import { bcs } from '@mysten/sui/bcs';
 import { Transaction, coinWithBalance } from '@mysten/sui/transactions';
 import { describe, expect, test } from 'vitest';

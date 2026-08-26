@@ -194,8 +194,12 @@ describe('sessions deployment ids', () => {
 
 	test('it can address every Predict wrapper it ships', () => {
 		// All four take `config: &ProtocolConfig`; without it the subpath ships builders a
-		// caller cannot drive without reaching into /predict.
-		expect(getSessionsConfig('testnet').protocolConfig).toMatch(ADDRESS);
+		// caller cannot drive without reaching into /predict. Equality with the Predict
+		// slice, not just address shape — a wrong-but-well-formed id passed the shape check
+		// and the live check alike.
+		expect(getSessionsConfig('testnet').protocolConfig).toBe(
+			TESTNET_PREDICT.objects.protocolConfig,
+		);
 	});
 
 	test('an unrecorded network throws rather than returning placeholder ids', () => {

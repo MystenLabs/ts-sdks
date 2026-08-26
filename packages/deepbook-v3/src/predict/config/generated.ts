@@ -1,3 +1,5 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
 import type { AccountConfig } from '../../account.js';
 import type { DeepbookPredictConfig } from '../../contracts/deepbook_predict/config-arguments.js';
 import type { PredictConfig } from './types.js';

@@ -1,3 +1,5 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
 import type { Transaction, TransactionResult } from '@mysten/sui/transactions';
 import type { GeneratedConfig } from '../config/generated.js';
 import { U64_MAX } from '../units.js';

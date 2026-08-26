@@ -1,3 +1,5 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
 import type { ClientWithCoreApi, SuiClientRegistration } from '@mysten/sui/client';
 import { Transaction, coinWithBalance, type TransactionResult } from '@mysten/sui/transactions';
 import { isValidSuiObjectId } from '@mysten/sui/utils';

@@ -1,3 +1,5 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
 import { expect, test } from 'vitest';
 
 import { POS_INF_TICK, binaryRangeTicks } from '../../src/predict/ticks.js';

@@ -1,3 +1,5 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
 import { Transaction } from '@mysten/sui/transactions';
 import { describe, expect, test } from 'vitest';
 import { PredictInputError, PredictMoveError, decodeMoveAbort } from '../../src/predict/errors.js';
