@@ -5,6 +5,7 @@
 	"version": "2.0.1",
 	"license": "Apache-2.0",
 	"type": "module",
+	"sideEffects": false,
 	"main": "./dist/index.mjs",
 	"types": "./dist/index.d.mts",
 	"exports": {
@@ -12,10 +13,26 @@
 			"types": "./dist/index.d.mts",
 			"import": "./dist/index.mjs",
 			"default": "./dist/index.mjs"
+		},
+		"./account": {
+			"types": "./dist/account.d.mts",
+			"import": "./dist/account.mjs",
+			"default": "./dist/account.mjs"
+		},
+		"./sessions": {
+			"types": "./dist/sessions.d.mts",
+			"import": "./dist/sessions.mjs",
+			"default": "./dist/sessions.mjs"
+		},
+		"./predict": {
+			"types": "./dist/predict/index.d.mts",
+			"import": "./dist/predict/index.mjs",
+			"default": "./dist/predict/index.mjs"
 		}
 	},
 	"files": [
 		"CHANGELOG.md",
+		"PREDICT.md",
 		"dist",
 		"src"
 	],
@@ -39,7 +56,10 @@
 		"oxlint:fix": "oxlint --fix",
 		"test": "vitest run",
 		"lint": "pnpm run oxlint:check && pnpm run prettier:check",
-		"lint:fix": "pnpm run oxlint:fix && pnpm run prettier:fix"
+		"lint:fix": "pnpm run oxlint:fix && pnpm run prettier:fix",
+		"sync-deployment": "tsx scripts/sync-deployment.ts",
+		"sync-deployment:format": "prettier --write src/deployments",
+		"test:e2e": "PREDICT_SDK_TESTNET=1 vitest run test/predict/testnet"
 	},
 	"dependencies": {
 		"@mysten/bcs": "workspace:^",

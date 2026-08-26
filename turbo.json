@@ -42,6 +42,9 @@
 			]
 		},
 		// Avoid running CPU intensive tests in parallel
+		"@mysten/deepbook-v3#test": {
+			"env": ["PREDICT_SDK_TESTNET"]
+		},
 		"@mysten/walrus#test": {
 			"dependsOn": ["^build", "build", "@mysten/walrus-wasm#test"]
 		},
