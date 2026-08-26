@@ -10,9 +10,14 @@
  * subpath addressing a retired package while its siblings move on — the reason this script
  * exists rather than a hand-maintained constants file.
  *
- * Check the sibling checkout out to the deploy anchor first, exactly as `pnpm codegen`
- * requires:
+ * Check the sibling checkout out to the DEPLOYMENT BRANCH — not the manifest's own
+ * `sourceCommit`. The deploy tooling writes the manifest in a commit that lands *after* the
+ * sources it deployed, so the manifest does not exist at `sourceCommit`. For
+ * `predict-testnet-8-21` that trailing commit adds only `Published.toml` files and the
+ * manifest itself, no Move sources — so the branch tip is also the right ref for
+ * `pnpm codegen`, and one checkout serves both.
  *
+ *   git -C ../../../deepbookv3 checkout predict-testnet-8-21
  *   pnpm --filter @mysten/deepbook-v3 sync-deployment
  *   pnpm --filter @mysten/deepbook-v3 sync-deployment -- --manifest /path/to/deployment.testnet.json
  */
@@ -55,7 +60,10 @@ try {
 } catch (cause) {
 	throw new Error(
 		`could not read the deployment manifest at ${manifestPath}. ` +
-			'Check the sibling deepbookv3 checkout out to the deploy anchor, or pass --manifest.',
+			'Check the sibling deepbookv3 checkout out to the deployment BRANCH (e.g. ' +
+			"`predict-testnet-8-21`), not to the manifest's sourceCommit — the deploy tooling " +
+			'writes the manifest in a later commit, so it does not exist at that commit. ' +
+			'Or pass --manifest with an explicit path.',
 		{ cause },
 	);
 }
