@@ -42,6 +42,8 @@ export const TESTNET_SESSIONS = {
 	deepbookRegistry: '0x7c256edbda983a2cd6f946655f4bf3f00a41043993781f8674a7046e8c0e11d1',
 	deepbookCoreAccountPackageId:
 		'0xcc9cf1029127e7bda6da4c2ab90164d7bef751783ff13c21c2bb804cec69ebec',
+	/** Required by every Predict session wrapper — they all take `config: &ProtocolConfig`. */
+	protocolConfig: '0x7ef1ac99c2f0a77e7aa2602b5ea7bff68750cff0d80f09bdf827bfb345128f33',
 } as const;
 
 /** Ids for DeepBook Predict — the `/predict` subpath's slice. */
@@ -60,6 +62,22 @@ export const TESTNET_PREDICT = {
 		accountRegistry: '0x5682c73d657de1546374e632369a25c82744c8a20e9b4f47e6558e3d4bde88d3',
 	},
 	quoteCoinType: '0xe95040085976bfd54a1a07225cd46c8a2b4e8e2b6732f140a0fc49850ba73e1a::dusdc::DUSDC',
+	/**
+	 * `plp` is the LP share coin type. It is NOT derivable from `packages.predict`: a Move
+	 * type tag keeps the ORIGINAL package id across an upgrade, while `packages.predict`
+	 * moves to the latest. They agree only while predict is at v1.
+	 */
+	coinTypes: {
+		plp: '0x421041754244cf0e985fb9c9f5e1f49428caf3df4cde3a7b266d8e18ea63597b::plp::PLP',
+		deep: '0x36dbef866a1d62bf7328989a10fb2f07d769f4ee587c0de4a0a256e57e0a58a8::deep::DEEP',
+	},
+	/** Scale constants the deploy owns; the SDK otherwise hardcodes these. */
+	units: {
+		positionLotSize: 10000,
+		fixedPointScale: 1000000000,
+		quoteCoinDecimals: 6,
+		positionQuantityDecimals: 6,
+	},
 	underlyings: {
 		BTC: {
 			symbol: 'BTC',

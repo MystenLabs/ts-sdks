@@ -42,6 +42,7 @@ interface Manifest {
 	coinTypes: Record<string, string>;
 	objects: Record<string, string>;
 	underlyings: Record<string, Record<string, unknown>>;
+	initialConfiguration: { units: Record<string, number> };
 }
 
 function arg(name: string): string | undefined {
@@ -83,16 +84,28 @@ if (manifest.schemaVersion !== SUPPORTED_SCHEMA) {
 
 const { packages: p, objects: o, coinTypes: c } = manifest;
 
+// Validated the same way as everything else. Interpolating these raw is how a renamed or
+// missing manifest key becomes the literal string 'undefined' in a shipped id — which
+// compiles, passes every test, and only surfaces as "Object undefined not found" at
+// simulate time.
 const underlyings = Object.entries(manifest.underlyings ?? {})
-	.map(
-		([symbol, u]) => `		${symbol}: {
-			symbol: '${u.symbol}',
-			propbookUnderlyingId: ${u.propbookUnderlyingId},
-			pythFeed: '${u.pythFeed}',
-			blockScholesValueStore: '${u.blockScholesValueStore}',
-			blockScholesSviStore: '${u.blockScholesSviStore}',
-		},`,
-	)
+	.map(([symbol, u]) => {
+		const where = `underlyings.${symbol}`;
+		const num = (key: string): number => {
+			const v = u?.[key];
+			if (typeof v !== 'number' || !Number.isFinite(v)) {
+				throw new Error(`manifest is missing a numeric ${where}.${key}`);
+			}
+			return v;
+		};
+		return `		${symbol}: {
+			symbol: '${req(u as Record<string, string>, 'symbol', where)}',
+			propbookUnderlyingId: ${num('propbookUnderlyingId')},
+			pythFeed: '${req(u as Record<string, string>, 'pythFeed', where)}',
+			blockScholesValueStore: '${req(u as Record<string, string>, 'blockScholesValueStore', where)}',
+			blockScholesSviStore: '${req(u as Record<string, string>, 'blockScholesSviStore', where)}',
+		},`;
+	})
 	.join('\n');
 
 const out = `// Copyright (c) Mysten Labs, Inc.
@@ -138,6 +151,8 @@ export const ${manifest.network.toUpperCase()}_SESSIONS = {
 	accountRegistry: '${req(o, 'accountRegistry', 'objects')}',
 	deepbookRegistry: '${req(o, 'deepbookRegistry', 'objects')}',
 	deepbookCoreAccountPackageId: '${req(p, 'deepbookCoreAccount', 'packages')}',
+	/** Required by every Predict session wrapper — they all take \`config: &ProtocolConfig\`. */
+	protocolConfig: '${req(o, 'protocolConfig', 'objects')}',
 } as const;
 
 /** Ids for DeepBook Predict — the \`/predict\` subpath's slice. */
@@ -156,6 +171,22 @@ export const ${manifest.network.toUpperCase()}_PREDICT = {
 		accountRegistry: '${req(o, 'accountRegistry', 'objects')}',
 	},
 	quoteCoinType: '${req(c, 'dusdc', 'coinTypes')}',
+	/**
+	 * \`plp\` is the LP share coin type. It is NOT derivable from \`packages.predict\`: a Move
+	 * type tag keeps the ORIGINAL package id across an upgrade, while \`packages.predict\`
+	 * moves to the latest. They agree only while predict is at v1.
+	 */
+	coinTypes: {
+		plp: '${req(c, 'plp', 'coinTypes')}',
+		deep: '${req(c, 'deep', 'coinTypes')}',
+	},
+	/** Scale constants the deploy owns; the SDK otherwise hardcodes these. */
+	units: {
+		positionLotSize: ${manifest.initialConfiguration.units.positionLotSize},
+		fixedPointScale: ${manifest.initialConfiguration.units.fixedPointScale},
+		quoteCoinDecimals: ${manifest.initialConfiguration.units.quoteCoinDecimals},
+		positionQuantityDecimals: ${manifest.initialConfiguration.units.positionQuantityDecimals},
+	},
 	underlyings: {
 ${underlyings}
 	},

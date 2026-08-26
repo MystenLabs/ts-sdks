@@ -26,6 +26,47 @@ describe('the generated deployment record is well formed', () => {
 		for (const id of ids) expect(id).toMatch(ADDRESS);
 	});
 
+	// `underlyings` is generated per entry rather than from a fixed key list, so it is the
+	// part that can grow. An id here that came through as the string 'undefined' would once
+	// have compiled and passed everything else.
+	test('every underlying carries real feed ids and a numeric propbook id', () => {
+		const entries = Object.entries(TESTNET_PREDICT.underlyings);
+		expect(entries.length).toBeGreaterThan(0);
+		for (const [symbol, u] of entries) {
+			expect(u.symbol).toBe(symbol);
+			expect(typeof u.propbookUnderlyingId).toBe('number');
+			expect(u.pythFeed).toMatch(ADDRESS);
+			expect(u.blockScholesValueStore).toMatch(ADDRESS);
+			expect(u.blockScholesSviStore).toMatch(ADDRESS);
+		}
+	});
+
+	test('no field anywhere in the record is the string "undefined"', () => {
+		const walk = (v: unknown): string[] =>
+			typeof v === 'string'
+				? [v]
+				: typeof v === 'object' && v !== null
+					? Object.values(v).flatMap(walk)
+					: [];
+		const all = [TESTNET_ACCOUNT, TESTNET_SESSIONS, TESTNET_PREDICT].flatMap(walk);
+		expect(all.filter((x) => x === 'undefined' || x.includes('undefined'))).toEqual([]);
+	});
+
+	test('coin types are fully qualified, and PLP is not assumed to equal the package id', () => {
+		// A Move type tag keeps the ORIGINAL package id across an upgrade while
+		// `packages.predict` moves on, so PLP must be shipped, not derived.
+		for (const t of Object.values(TESTNET_PREDICT.coinTypes)) {
+			expect(t).toMatch(/^0x[0-9a-f]{64}::\w+::\w+$/);
+		}
+		expect(TESTNET_PREDICT.quoteCoinType).toMatch(/^0x[0-9a-f]{64}::\w+::\w+$/);
+	});
+
+	test('scale constants come from the deploy, not from literals', () => {
+		expect(TESTNET_PREDICT.units.positionLotSize).toBeGreaterThan(0);
+		expect(TESTNET_PREDICT.units.fixedPointScale).toBe(1_000_000_000);
+		expect(TESTNET_PREDICT.units.quoteCoinDecimals).toBe(6);
+	});
+
 	test('it records which deployment it came from', () => {
 		expect(TESTNET_DEPLOYMENT.deployment).toBeTruthy();
 		expect(TESTNET_DEPLOYMENT.sourceCommit).toMatch(/^[0-9a-f]{40}$/);
