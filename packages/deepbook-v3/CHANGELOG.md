@@ -1,5 +1,82 @@
 # @mysten/deepbook-v3
 
+## 2.1.0
+
+### Minor Changes
+
+- 31f4bf1: Add the `@mysten/deepbook-v3/account` subpath, which now hosts the shared on-chain
+  account primitive (`AccountContract`, the generated `account` bindings, and the `Account` /
+  `AccountWrapper` BCS structs). The primitive is shared infrastructure — DeepBook's core account
+  wrapper and DeepBook Predict both build on the same Move package — so it lives alongside spot and
+  margin rather than in either consumer.
+
+  The package root's export surface is unchanged: `@mysten/deepbook-v3` exports exactly what it did
+  before, and subpaths are separate module graphs, so importing `/account` does not load spot or
+  margin code. Note that `Account` exported from the root remains
+  `@deepbook/core::account::Account`; the account primitive's `Account` is a different type and is
+  reachable only from `/account`.
+
+  Documenting a second entry point changes the generated API-reference layout: TypeDoc now emits an
+  `index` module alongside `account`, so existing deepbook-v3 doc pages gain an `index.` segment in
+  their names. External links into the published reference will need updating; nothing in this repo
+  links to them.
+
+  `/account` also exports `getAccountConfig(network)`, the deployed ids for the shared account
+  package, so consumers do not transcribe them. It reads a record generated from the deploy
+  tooling's own manifest, which every subpath shares — `getDeployment(network)` reports which
+  deployment and source commit those ids came from. Testnet only for now; other networks throw
+  rather than returning placeholder ids.
+
+  This release also marks the package `sideEffects: false`. No module in `src` has an import side
+  effect, so the only emitted-output change is that pure re-export modules are now tree-shaken out
+  of the bundle rather than imported for effect.
+
+  `@mysten/deepbook-account` is superseded. Its final release, `0.1.0`, is self-contained and keeps
+  working, but it will not be updated — import from `@mysten/deepbook-v3/account` instead.
+
+- 31f4bf1: Add the `@mysten/deepbook-v3/predict` subpath, completing the consolidation of the
+  DeepBook SDKs behind one package. DeepBook Predict — market discovery, quotes, mint/redeem/claim,
+  PLP, typed receipts, and the client-side board pricer — now ships from here rather than from a
+  separate package.
+
+  The package root is unchanged, and subpaths remain separate module graphs: importing `/predict`
+  loads no spot or margin code.
+
+  `@mysten/deepbook-predict` is superseded. Its last published release keeps working for anyone
+  already on it, but it will not be updated — import from `@mysten/deepbook-v3/predict` instead.
+
+  Predict's testnet ids now come from the shared generated deployment record instead of a
+  hand-written literal, so `/account`, `/sessions` and `/predict` cannot drift apart across a
+  redeploy. `getConfig(network)` and `TESTNET_CONFIG` keep their values, but `PredictConfig` gains
+  two required fields — `coinTypes` (`plp`, `deep`) and `units` (`positionLotSize`,
+  `fixedPointScale`, `quoteCoinDecimals`, `positionQuantityDecimals`). Consumers using the shipped
+  config are unaffected; anyone hand-building a config for their own deployment must add both;
+  `getDeployment(network)` reports which deployment and source commit they came from.
+
+- 31f4bf1: Add the `@mysten/deepbook-v3/sessions` subpath: time-limited trading sessions over a
+  canonical Account. An owner authorizes an ephemeral address to act for the Account until a fixed
+  expiry, and the session key never holds a reusable `Auth` — each wrapper mints app authorization
+  internally and consumes it in the same call.
+
+  `SessionsContract` covers the session lifecycle (`authorizeSession`, `revokeSession`,
+  `sessionExpirationMs`) and the DeepBook Predict wrappers (`mintExactQuantity`, `mintExactAmount`,
+  `redeemLive`, `redeemSettled`), plus `deriveAccountId` / `deriveSessionsFieldId` /
+  `decodeSessions` / `activeSessions` for enumerating an Account's grants — there is no bulk
+  on-chain read, and expired grants keep occupying slots against a 20-address cap.
+
+  The DeepBook spot session wrappers are generated and reachable from `sessionsMoveCalls`, but are
+  not wrapped on `SessionsContract` yet — the surrounding spot-over-Account workflow is not
+  modelled.
+
+  The package root is unchanged, and subpaths are separate module graphs — importing `/sessions`
+  loads no spot or margin code.
+
+  `getSessionsConfig(network)` returns the deployed sessions ids — package, `SessionsConfig` object,
+  and the account ids sessions shares — plus `deepbookRegistry` and the `deepbook_core_account`
+  package id for the generated spot wrappers. It reads the same generated deployment record
+  `/account` and `/predict` use, so a redeploy moves every subpath together. Testnet only for now;
+  other networks throw.
+
 ## 2.0.1
 
 ### Patch Changes
