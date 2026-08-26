@@ -3,6 +3,7 @@
 import { describe, expect, test } from 'vitest';
 
 import { getAccountConfig } from '../../src/account.js';
+import { testnetPackageIds } from '../../src/utils/constants.js';
 import {
 	getDeployment,
 	TESTNET_ACCOUNT,
@@ -60,5 +61,16 @@ describe('per-network accessors', () => {
 		const cfg = getAccountConfig('testnet');
 		cfg.accountRegistry = '0x' + '00'.repeat(32);
 		expect(getAccountConfig('testnet').accountRegistry).toBe(TESTNET_ACCOUNT.accountRegistry);
+	});
+});
+
+describe('the record agrees with the package root about shared objects', () => {
+	// DeepBook's `Registry` is authored twice on different cadences: the root's spot/margin
+	// constants track DeepBook core's own releases, while the sessions slice comes from the
+	// Predict deploy manifest. They address the same object, so they must not diverge — if
+	// core redeploys its registry and the Predict manifest lags, the sessions spot wrappers
+	// would silently drive a stale registry. Failing here forces that to be a decision.
+	test('deepbookRegistry matches the root REGISTRY_ID', () => {
+		expect(TESTNET_SESSIONS.deepbookRegistry).toBe(testnetPackageIds.REGISTRY_ID);
 	});
 });
