@@ -49,8 +49,10 @@ describe('the generated deployment record is well formed', () => {
 				: typeof v === 'object' && v !== null
 					? Object.values(v).flatMap(walk)
 					: [];
-		const all = [TESTNET_ACCOUNT, TESTNET_SESSIONS, TESTNET_PREDICT].flatMap(walk);
-		expect(all.filter((x) => x === 'undefined' || x.includes('undefined'))).toEqual([]);
+		const all = [TESTNET_ACCOUNT, TESTNET_SESSIONS, TESTNET_PREDICT, TESTNET_DEPLOYMENT].flatMap(
+			walk,
+		);
+		expect(all.filter((x) => x.includes('undefined') || x.includes('[object'))).toEqual([]);
 	});
 
 	test('coin types are fully qualified, and PLP is not assumed to equal the package id', () => {
@@ -63,7 +65,9 @@ describe('the generated deployment record is well formed', () => {
 	});
 
 	test('scale constants come from the deploy, not from literals', () => {
-		expect(TESTNET_PREDICT.units.positionLotSize).toBeGreaterThan(0);
+		// Equality, not `> 0`: a lot size of 1_000_000 passed the whole suite while
+		// `#assertLot` rejected every legal order below a $1 payout, before any chain contact.
+		expect(TESTNET_PREDICT.units.positionLotSize).toBe(10_000);
 		expect(TESTNET_PREDICT.units.fixedPointScale).toBe(1_000_000_000);
 		expect(TESTNET_PREDICT.units.quoteCoinDecimals).toBe(6);
 	});
@@ -95,13 +99,38 @@ describe('per-network accessors', () => {
 	});
 
 	test('an unrecorded network throws rather than returning placeholder ids', () => {
-		expect(() => getAccountConfig('mainnet')).toThrow(/no account deployment/);
-		expect(() => getDeployment('mainnet')).toThrow(/no deployment recorded/);
+		expect(() => getAccountConfig('mainnet')).toThrow(/no account deployment recorded/);
+		expect(() => getDeployment('mainnet')).toThrow(/no deployment recorded for network 'mainnet'/);
 	});
 
-	test('the returned config is a copy, so a caller cannot mutate the record', () => {
+	test('the returned config is frozen, so one caller cannot poison another', () => {
+		// These are shared module singletons. Returning them unfrozen meant a caller who
+		// customised a deployment in place changed what every other caller saw — including
+		// across subpaths, since they read one record.
 		const cfg = getAccountConfig('testnet');
-		cfg.accountRegistry = '0x' + '00'.repeat(32);
+		expect(Object.isFrozen(cfg)).toBe(true);
+		expect(() => {
+			(cfg as { accountRegistry: string }).accountRegistry = '0x' + '00'.repeat(32);
+		}).toThrow(TypeError);
+		expect(getAccountConfig('testnet').accountRegistry).toBe(TESTNET_ACCOUNT.accountRegistry);
+	});
+
+	test('nested records are frozen too, not just the top level', () => {
+		for (const nested of [
+			TESTNET_PREDICT.packages,
+			TESTNET_PREDICT.objects,
+			TESTNET_PREDICT.coinTypes,
+			TESTNET_PREDICT.units,
+			TESTNET_PREDICT.underlyings,
+			...Object.values(TESTNET_PREDICT.underlyings),
+		]) {
+			expect(Object.isFrozen(nested)).toBe(true);
+		}
+	});
+
+	test('spreading to customise still works on a frozen record', () => {
+		const custom = { ...getAccountConfig('testnet'), accountRegistry: '0x' + '11'.repeat(32) };
+		expect(custom.accountRegistry).toBe('0x' + '11'.repeat(32));
 		expect(getAccountConfig('testnet').accountRegistry).toBe(TESTNET_ACCOUNT.accountRegistry);
 	});
 });
@@ -122,14 +151,15 @@ describe('units are reachable from every subpath, not just Predict', () => {
 		const u = getUnits('testnet');
 		expect(u.quoteCoinDecimals).toBe(6);
 		expect(u.fixedPointScale).toBe(1_000_000_000);
-		expect(u.positionLotSize).toBeGreaterThan(0);
+		expect(u.positionLotSize).toBe(10_000);
 	});
 
 	test('the Predict slice references the same object, so they cannot diverge', () => {
 		expect(TESTNET_PREDICT.units).toBe(getUnits('testnet'));
 	});
 
-	test('an unrecorded network throws', () => {
-		expect(() => getUnits('mainnet')).toThrow(/no deployment recorded/);
+	test('an unrecorded network throws, and the message names the way out', () => {
+		expect(() => getUnits('mainnet')).toThrow(/no deployment recorded for network 'mainnet'/);
+		expect(() => getUnits('mainnet')).toThrow(/your own deploy manifest/);
 	});
 });

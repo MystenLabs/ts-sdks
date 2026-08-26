@@ -12,10 +12,12 @@ import * as account from './contracts/account/account.js';
 import * as accountRegistry from './contracts/account/account_registry.js';
 import type { AccountConfig as GeneratedAccountConfig } from './contracts/account/config-arguments.js';
 import { TESTNET_ACCOUNT } from './deployments/testnet.js';
+import type { NetworkArg } from './deployments/index.js';
 
 // Provenance: which on-chain deployment the ids above came from. Re-exported so a consumer
 // can answer "which deploy is this build pinned to?" without reaching for another subpath.
 export { getDeployment, getUnits, TESTNET_DEPLOYMENT, TESTNET_UNITS } from './deployments/index.js';
+export type { NetworkArg } from './deployments/index.js';
 export type { DeployedNetwork } from './deployments/index.js';
 
 /**
@@ -49,9 +51,13 @@ export interface AccountConfig extends GeneratedAccountConfig {
  * const account = new AccountContract(getAccountConfig('testnet'));
  * ```
  */
-export function getAccountConfig(network: 'testnet' | 'mainnet'): AccountConfig {
-	if (network === 'testnet') return { ...TESTNET_ACCOUNT };
-	throw new Error(`no account deployment for network: ${network}`);
+export function getAccountConfig(network: NetworkArg): AccountConfig {
+	if (network === 'testnet') return TESTNET_ACCOUNT;
+	throw new Error(
+		`@mysten/deepbook-v3/account: no account deployment recorded for network '${network}'. ` +
+			'The account primitive is testnet-only today; for your own deployment pass ' +
+			'`{ accountPackageId, accountRegistry }` to AccountContract directly.',
+	);
 }
 
 // `AccountWrapperKey(address)` is a one-field positional struct, so its BCS is just the
