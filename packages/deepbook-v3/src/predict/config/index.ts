@@ -10,4 +10,9 @@ export function getConfig(network: 'testnet' | 'mainnet'): PredictConfig {
 }
 
 // Provenance: which on-chain deployment these ids came from.
-export { getDeployment, TESTNET_DEPLOYMENT } from '../../deployments/index.js';
+export {
+	getDeployment,
+	getUnits,
+	TESTNET_DEPLOYMENT,
+	TESTNET_UNITS,
+} from '../../deployments/index.js';
