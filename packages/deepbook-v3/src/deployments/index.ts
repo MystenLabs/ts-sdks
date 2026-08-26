@@ -15,9 +15,10 @@ import {
 	TESTNET_DEPLOYMENT,
 	TESTNET_PREDICT,
 	TESTNET_SESSIONS,
+	TESTNET_UNITS,
 } from './testnet.js';
 
-export { TESTNET_ACCOUNT, TESTNET_DEPLOYMENT, TESTNET_PREDICT, TESTNET_SESSIONS };
+export { TESTNET_ACCOUNT, TESTNET_DEPLOYMENT, TESTNET_PREDICT, TESTNET_SESSIONS, TESTNET_UNITS };
 
 /** Networks this package carries ids for. Predict and sessions are testnet-only so far. */
 export type DeployedNetwork = 'testnet';
@@ -34,4 +35,15 @@ export function getDeployment(network: DeployedNetwork | 'mainnet') {
 		`no deployment recorded for network: ${network}. ` +
 			'Predict, sessions and the account primitive are testnet-only.',
 	);
+}
+
+/**
+ * @description Scale constants for `network` — lot size, fixed-point scale, and coin
+ * decimals. Deployment-wide, so any subpath formatting a custody balance can read them
+ * rather than hardcoding 6.
+ * @throws if the network has no recorded deployment.
+ */
+export function getUnits(network: DeployedNetwork | 'mainnet') {
+	if (network === 'testnet') return TESTNET_UNITS;
+	throw new Error(`no deployment recorded for network: ${network}`);
 }

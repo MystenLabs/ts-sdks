@@ -6,6 +6,7 @@ import { getAccountConfig } from '../../src/account.js';
 import { testnetPackageIds } from '../../src/utils/constants.js';
 import {
 	getDeployment,
+	getUnits,
 	TESTNET_ACCOUNT,
 	TESTNET_DEPLOYMENT,
 	TESTNET_PREDICT,
@@ -113,5 +114,22 @@ describe('the record agrees with the package root about shared objects', () => {
 	// would silently drive a stale registry. Failing here forces that to be a decision.
 	test('deepbookRegistry matches the root REGISTRY_ID', () => {
 		expect(TESTNET_SESSIONS.deepbookRegistry).toBe(testnetPackageIds.REGISTRY_ID);
+	});
+});
+
+describe('units are reachable from every subpath, not just Predict', () => {
+	test('getUnits returns the deployment-wide scale constants', () => {
+		const u = getUnits('testnet');
+		expect(u.quoteCoinDecimals).toBe(6);
+		expect(u.fixedPointScale).toBe(1_000_000_000);
+		expect(u.positionLotSize).toBeGreaterThan(0);
+	});
+
+	test('the Predict slice references the same object, so they cannot diverge', () => {
+		expect(TESTNET_PREDICT.units).toBe(getUnits('testnet'));
+	});
+
+	test('an unrecorded network throws', () => {
+		expect(() => getUnits('mainnet')).toThrow(/no deployment recorded/);
 	});
 });

@@ -155,6 +155,18 @@ export const ${manifest.network.toUpperCase()}_SESSIONS = {
 	protocolConfig: '${req(o, 'protocolConfig', 'objects')}',
 } as const;
 
+/**
+ * Scale constants the deployment owns rather than the SDK. Deployment-wide:
+ * \`quoteCoinDecimals\` and \`fixedPointScale\` apply to any subpath formatting a custody
+ * balance, not just Predict.
+ */
+export const ${manifest.network.toUpperCase()}_UNITS = {
+	positionLotSize: ${manifest.initialConfiguration.units.positionLotSize},
+	fixedPointScale: ${manifest.initialConfiguration.units.fixedPointScale},
+	quoteCoinDecimals: ${manifest.initialConfiguration.units.quoteCoinDecimals},
+	positionQuantityDecimals: ${manifest.initialConfiguration.units.positionQuantityDecimals},
+} as const;
+
 /** Ids for DeepBook Predict — the \`/predict\` subpath's slice. */
 export const ${manifest.network.toUpperCase()}_PREDICT = {
 	network: '${manifest.network}',
@@ -180,13 +192,7 @@ export const ${manifest.network.toUpperCase()}_PREDICT = {
 		plp: '${req(c, 'plp', 'coinTypes')}',
 		deep: '${req(c, 'deep', 'coinTypes')}',
 	},
-	/** Scale constants the deploy owns; the SDK otherwise hardcodes these. */
-	units: {
-		positionLotSize: ${manifest.initialConfiguration.units.positionLotSize},
-		fixedPointScale: ${manifest.initialConfiguration.units.fixedPointScale},
-		quoteCoinDecimals: ${manifest.initialConfiguration.units.quoteCoinDecimals},
-		positionQuantityDecimals: ${manifest.initialConfiguration.units.positionQuantityDecimals},
-	},
+	units: ${manifest.network.toUpperCase()}_UNITS,
 	underlyings: {
 ${underlyings}
 	},

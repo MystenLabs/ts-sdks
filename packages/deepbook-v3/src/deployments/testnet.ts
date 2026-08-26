@@ -46,6 +46,18 @@ export const TESTNET_SESSIONS = {
 	protocolConfig: '0x7ef1ac99c2f0a77e7aa2602b5ea7bff68750cff0d80f09bdf827bfb345128f33',
 } as const;
 
+/**
+ * Scale constants the deployment owns rather than the SDK. Deployment-wide:
+ * `quoteCoinDecimals` and `fixedPointScale` apply to any subpath formatting a custody
+ * balance, not just Predict.
+ */
+export const TESTNET_UNITS = {
+	positionLotSize: 10000,
+	fixedPointScale: 1000000000,
+	quoteCoinDecimals: 6,
+	positionQuantityDecimals: 6,
+} as const;
+
 /** Ids for DeepBook Predict — the `/predict` subpath's slice. */
 export const TESTNET_PREDICT = {
 	network: 'testnet',
@@ -71,13 +83,7 @@ export const TESTNET_PREDICT = {
 		plp: '0x421041754244cf0e985fb9c9f5e1f49428caf3df4cde3a7b266d8e18ea63597b::plp::PLP',
 		deep: '0x36dbef866a1d62bf7328989a10fb2f07d769f4ee587c0de4a0a256e57e0a58a8::deep::DEEP',
 	},
-	/** Scale constants the deploy owns; the SDK otherwise hardcodes these. */
-	units: {
-		positionLotSize: 10000,
-		fixedPointScale: 1000000000,
-		quoteCoinDecimals: 6,
-		positionQuantityDecimals: 6,
-	},
+	units: TESTNET_UNITS,
 	underlyings: {
 		BTC: {
 			symbol: 'BTC',

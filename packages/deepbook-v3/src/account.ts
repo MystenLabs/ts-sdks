@@ -15,7 +15,7 @@ import { TESTNET_ACCOUNT } from './deployments/testnet.js';
 
 // Provenance: which on-chain deployment the ids above came from. Re-exported so a consumer
 // can answer "which deploy is this build pinned to?" without reaching for another subpath.
-export { getDeployment, TESTNET_DEPLOYMENT } from './deployments/index.js';
+export { getDeployment, getUnits, TESTNET_DEPLOYMENT, TESTNET_UNITS } from './deployments/index.js';
 export type { DeployedNetwork } from './deployments/index.js';
 
 /**
