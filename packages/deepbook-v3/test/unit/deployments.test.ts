@@ -192,6 +192,12 @@ describe('sessions deployment ids', () => {
 		expect(cfg.deepbookCoreAccountPackageId).toMatch(ADDRESS);
 	});
 
+	test('it can address every Predict wrapper it ships', () => {
+		// All four take `config: &ProtocolConfig`; without it the subpath ships builders a
+		// caller cannot drive without reaching into /predict.
+		expect(getSessionsConfig('testnet').protocolConfig).toMatch(ADDRESS);
+	});
+
 	test('an unrecorded network throws rather than returning placeholder ids', () => {
 		expect(() => getSessionsConfig('mainnet')).toThrow(/no sessions deployment/);
 	});

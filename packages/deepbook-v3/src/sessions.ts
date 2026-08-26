@@ -41,6 +41,12 @@ export interface SessionsSpotIds {
 	deepbookCoreAccountPackageId: string;
 }
 
+/** Ids the Predict session wrappers need beyond {@link SessionsConfig}. */
+export interface SessionsPredictIds {
+	/** Every Predict wrapper takes `config: &ProtocolConfig`. */
+	protocolConfig: string;
+}
+
 /**
  * @description The deployed sessions ids for `network`, so a caller does not transcribe
  * them. Generated from the deploy manifest — see `src/deployments/`. The returned object
@@ -53,7 +59,7 @@ export interface SessionsSpotIds {
  */
 export function getSessionsConfig(
 	network: 'testnet' | 'mainnet',
-): SessionsConfig & SessionsSpotIds {
+): SessionsConfig & SessionsSpotIds & SessionsPredictIds {
 	if (network === 'testnet') return { ...TESTNET_SESSIONS };
 	throw new Error(`no sessions deployment for network: ${network}`);
 }
