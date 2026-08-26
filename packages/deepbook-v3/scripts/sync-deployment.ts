@@ -17,6 +17,10 @@
  * manifest itself, no Move sources — so the branch tip is also the right ref for
  * `pnpm codegen`, and one checkout serves both.
  *
+ * The npm script chains `prettier --write` over the output, the way `codegen` chains
+ * `lint:fix` — the emitted file is not formatted, so without it a fresh regeneration leaves
+ * the repo failing `prettier:check`.
+ *
  *   git -C ../../../deepbookv3 checkout predict-testnet-8-21
  *   pnpm --filter @mysten/deepbook-v3 sync-deployment
  *   pnpm --filter @mysten/deepbook-v3 sync-deployment -- --manifest /path/to/deployment.testnet.json
