@@ -4,6 +4,7 @@ import { describe, expect, test } from 'vitest';
 
 import { getAccountConfig } from '../../src/account.js';
 import { testnetPackageIds } from '../../src/utils/constants.js';
+import { getSessionsConfig, SessionsContract } from '../../src/sessions.js';
 import {
 	getDeployment,
 	getUnits,
@@ -161,5 +162,57 @@ describe('units are reachable from every subpath, not just Predict', () => {
 	test('an unrecorded network throws, and the message names the way out', () => {
 		expect(() => getUnits('mainnet')).toThrow(/no deployment recorded for network 'mainnet'/);
 		expect(() => getUnits('mainnet')).toThrow(/your own deploy manifest/);
+	});
+});
+
+describe('sessions deployment ids', () => {
+	// Pinned to what is live on testnet: the `SessionsConfig` object at this id reports type
+	// `<sessionsPackageId>::session_config::SessionsConfig`, which is how the current sessions
+	// package was told apart from the version retired by DBU-746.
+	test('the sessions slice matches the deployment the SDK is pinned to', () => {
+		const cfg = getSessionsConfig('testnet');
+		expect(cfg.sessionsPackageId).toBe(
+			'0xb74170443d6d2d37cbe95c7e530dd4a1605ef714ff4f9e88e27a7ac1455451db',
+		);
+		expect(cfg.sessionsConfig).toBe(
+			'0xdfb8e23246678649cfdd6f3f6610057d5cadd6a8911a21dbe8e34788abbfab93',
+		);
+	});
+
+	test('it carries the account ids sessions shares, identically', () => {
+		const sessions = getSessionsConfig('testnet');
+		const account = getAccountConfig('testnet');
+		expect(sessions.accountPackageId).toBe(account.accountPackageId);
+		expect(sessions.accountRegistry).toBe(account.accountRegistry);
+	});
+
+	test('it carries the spot-only ids the Predict wrappers never take', () => {
+		const cfg = getSessionsConfig('testnet');
+		expect(cfg.deepbookRegistry).toMatch(ADDRESS);
+		expect(cfg.deepbookCoreAccountPackageId).toMatch(ADDRESS);
+	});
+
+	test('it can address every Predict wrapper it ships', () => {
+		// All four take `config: &ProtocolConfig`; without it the subpath ships builders a
+		// caller cannot drive without reaching into /predict.
+		expect(getSessionsConfig('testnet').protocolConfig).toMatch(ADDRESS);
+	});
+
+	test('an unrecorded network throws rather than returning placeholder ids', () => {
+		expect(() => getSessionsConfig('mainnet')).toThrow(/no sessions deployment/);
+	});
+
+	test('a SessionsContract built from it derives the same ids as an explicit config', () => {
+		const cfg = getSessionsConfig('testnet');
+		const fromRecord = new SessionsContract(cfg);
+		const explicit = new SessionsContract({
+			sessionsPackageId: cfg.sessionsPackageId,
+			sessionsConfig: cfg.sessionsConfig,
+			accountPackageId: cfg.accountPackageId,
+			accountRegistry: cfg.accountRegistry,
+		});
+		const owner = '0x' + 'cd'.repeat(32);
+		expect(fromRecord.deriveAccountId(owner)).toBe(explicit.deriveAccountId(owner));
+		expect(fromRecord.deriveSessionsFieldId(owner)).toBe(explicit.deriveSessionsFieldId(owner));
 	});
 });
