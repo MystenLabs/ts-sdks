@@ -1,6 +1,7 @@
 import type { ClientWithCoreApi, SuiClientRegistration } from '@mysten/sui/client';
 import { Transaction, coinWithBalance, type TransactionResult } from '@mysten/sui/transactions';
 import { isValidSuiObjectId } from '@mysten/sui/utils';
+import { TESTNET_PREDICT } from '../deployments/testnet.js';
 import { getConfig, type PredictConfig, type UnderlyingConfig } from './config/index.js';
 import { toGeneratedConfig, type GeneratedConfig } from './config/generated.js';
 import {
@@ -64,7 +65,11 @@ import {
 
 // `position_lot_size` — a position quantity must be a whole multiple of this many
 // raw payout units ($0.01 lots). See packages/predict/sources/constants.move.
-export const POSITION_LOT_SIZE = 10_000n;
+/**
+ * Testnet's `position_lot_size`, read from the deployment record. Validation uses the lot
+ * size of the config actually in play; this is the convenience constant for testnet callers.
+ */
+export const POSITION_LOT_SIZE = BigInt(TESTNET_PREDICT.units.positionLotSize);
 
 // Most `tx.*` builders are one builder's worth of commands in a fresh PTB.
 function txOf(command: (tx: Transaction) => TransactionResult | void): Transaction {
@@ -434,9 +439,12 @@ export class PredictClient {
 
 	// Raw payout quantity must land on a lot boundary — the chain rejects otherwise.
 	#assertLot(quantityRaw: bigint): void {
-		if (quantityRaw % POSITION_LOT_SIZE !== 0n) {
+		// From the config in play, not the exported testnet constant — a deployment with a
+		// different `position_lot_size` must not be validated against testnet's.
+		const lot = BigInt(this.cfg.units.positionLotSize);
+		if (quantityRaw % lot !== 0n) {
 			throw new PredictInputError(
-				`quantity ${quantityRaw} raw is not a whole ${POSITION_LOT_SIZE}-unit lot (position_lot_size)`,
+				`quantity ${quantityRaw} raw is not a whole ${lot}-unit lot (position_lot_size)`,
 			);
 		}
 	}
@@ -887,7 +895,7 @@ export class PredictClient {
 
 		// PLP shares held in the owner's account custody (raw u64, 6-decimal PLP coin).
 		plpBalance: (owner: string): Promise<bigint> =>
-			accountBalance(this.#client, this.#config, owner, `${this.cfg.packages.predict}::plp::PLP`),
+			accountBalance(this.#client, this.#config, owner, this.cfg.coinTypes.plp),
 
 		pool: async (): Promise<PoolSummary> => {
 			const s = await poolStats(this.#client, this.#config);

@@ -19,6 +19,8 @@ export const TESTNET_CONFIG: PredictConfig = {
 	packages: { ...TESTNET_PREDICT.packages },
 	objects: { ...TESTNET_PREDICT.objects },
 	quoteCoinType: TESTNET_PREDICT.quoteCoinType,
+	coinTypes: { ...TESTNET_PREDICT.coinTypes },
+	units: { ...TESTNET_PREDICT.units },
 	underlyings: Object.fromEntries(
 		Object.entries(TESTNET_PREDICT.underlyings).map(([symbol, u]) => [symbol, { ...u }]),
 	),

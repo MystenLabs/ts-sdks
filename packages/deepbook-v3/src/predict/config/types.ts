@@ -33,5 +33,18 @@ export interface PredictConfig {
 		accountRegistry: string;
 	};
 	quoteCoinType: string; // DUSDC on testnet
+	/**
+	 * Coin types the deployment owns. `plp` is NOT derivable from `packages.predict`: a Move
+	 * type tag keeps the ORIGINAL package id across an upgrade, while `packages.predict`
+	 * moves to the latest.
+	 */
+	coinTypes: { plp: string; deep: string };
+	/** Scale constants the deploy owns rather than the SDK. */
+	units: {
+		positionLotSize: number;
+		fixedPointScale: number;
+		quoteCoinDecimals: number;
+		positionQuantityDecimals: number;
+	};
 	underlyings: Record<string, UnderlyingConfig>; // keyed by symbol, e.g. "BTC"
 }

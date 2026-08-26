@@ -76,3 +76,7 @@ export type {
 	PlpRequestReceipt,
 	RedeemReceipt,
 } from './decode.js';
+
+// The `/sessions` Predict wrappers take `pricer` as a PTB result of this call, so it has to
+// be reachable from the published surface for those builders to be composable at all.
+export { loadLivePricer, type MarketFeeds } from './tx/trade.js';

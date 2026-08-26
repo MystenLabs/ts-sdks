@@ -37,8 +37,8 @@ describe('the deployment record matches the live chain', () => {
 	});
 
 	test('the SessionsConfig exists and belongs to the recorded sessions package', async () => {
-		// This is what distinguishes the live sessions package from the retired one: both
-		// are still authorized on the registry, but only one owns this object.
+		// This is the check that distinguishes the live sessions package from the retired one:
+		// both remain authorized on the registry, but only one owns this config object.
 		const cfg = getSessionsConfig('testnet');
 		expect(await typeOf(cfg.sessionsConfig)).toBe(
 			`${cfg.sessionsPackageId}::session_config::SessionsConfig`,
@@ -46,6 +46,8 @@ describe('the deployment record matches the live chain', () => {
 	});
 
 	test('the sessions app is authorized on the recorded account registry', async () => {
+		// Note this does NOT discriminate the live package from the retired one — both are
+		// still authorized on the registry. The SessionsConfig-type check above is what does.
 		const cfg = getSessionsConfig('testnet');
 		const { dynamicFields } = await client.core.listDynamicFields({
 			parentId: cfg.accountRegistry,
