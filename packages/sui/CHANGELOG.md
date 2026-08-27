@@ -1,5 +1,12 @@
 # @mysten/sui.js
 
+## 2.27.0
+
+### Minor Changes
+
+- 7c696dc: Add transaction checkpoint and timestamp metadata to the Core API, and support parsing V1
+  transaction effects.
+
 ## 2.26.2
 
 ### Patch Changes

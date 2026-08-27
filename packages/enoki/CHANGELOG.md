@@ -1,5 +1,7 @@
 # @mysten/enoki
 
+## 1.2.17
+
 ## 1.2.16
 
 ### Patch Changes

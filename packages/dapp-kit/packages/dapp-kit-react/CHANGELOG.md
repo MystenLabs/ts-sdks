@@ -1,5 +1,7 @@
 # @mysten/dapp-kit-react
 
+## 2.1.21
+
 ## 2.1.20
 
 ### Patch Changes
