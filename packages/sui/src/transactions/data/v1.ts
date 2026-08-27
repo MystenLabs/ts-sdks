@@ -201,6 +201,15 @@ export type SerializedTransactionDataV1 = InferOutput<typeof SerializedTransacti
 export function serializeV1TransactionData(
 	transactionData: TransactionData,
 ): SerializedTransactionDataV1 {
+	if (
+		transactionData.expiration?.$kind === 'ValidDuring' ||
+		transactionData.expiration?.$kind === 'Validity'
+	) {
+		throw new Error(
+			`${transactionData.expiration.$kind} expiration cannot be represented by the deprecated V1 transaction JSON format. Use Transaction.toJSON() instead.`,
+		);
+	}
+
 	const inputs: InferOutput<typeof TransactionInput>[] = transactionData.inputs.map(
 		(input, index) => {
 			if (input.Object) {

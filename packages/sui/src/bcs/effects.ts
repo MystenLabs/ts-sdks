@@ -55,6 +55,7 @@ const CommandArgumentError = bcs.enum('CommandArgumentError', {
 	CannotMoveBorrowedValue: null,
 	CannotWriteToExtendedReference: null,
 	InvalidReferenceArgument: null,
+	InvalidTxContext: null,
 });
 
 // Rust: crates/sui-types/src/execution_status.rs
@@ -139,7 +140,7 @@ const ExecutionFailureStatus = bcs.enum('ExecutionFailureStatus', {
 		maxScaledSize: bcs.u64(),
 	}),
 	InvalidLinkage: null,
-	InsufficientBalanceForWithdraw: null,
+	InsufficientFundsForWithdraw: null,
 	NonExclusiveWriteInputObjectModified: bcs.struct('NonExclusiveWriteInputObjectModified', {
 		id: Address,
 	}),

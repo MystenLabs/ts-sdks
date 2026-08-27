@@ -145,6 +145,13 @@ export interface TransactionExpiration {
 	 * @generated from protobuf field: optional uint32 nonce = 7;
 	 */
 	nonce?: number;
+	/**
+	 * The validators allowed to propose this transaction in consensus. Only set when `kind`
+	 * is `VALIDITY`. Leave unset to let any validator propose the transaction.
+	 *
+	 * @generated from protobuf field: optional sui.rpc.v2.AllowedProposers allowed_proposers = 8;
+	 */
+	allowedProposers?: AllowedProposers;
 }
 /**
  * @generated from protobuf enum sui.rpc.v2.TransactionExpiration.TransactionExpirationKind
@@ -181,6 +188,40 @@ export enum TransactionExpiration_TransactionExpirationKind {
 	 * @generated from protobuf enum value: VALID_DURING = 3;
 	 */
 	VALID_DURING = 3,
+	/**
+	 * Everything in VALID_DURING, plus a restriction on which validators may
+	 * propose the transaction in consensus.
+	 *
+	 * @generated from protobuf enum value: VALIDITY = 4;
+	 */
+	VALIDITY = 4,
+}
+/**
+ * The validators allowed to propose a transaction in consensus.
+ *
+ * Proposal by any other validator is byzantine behavior and invalidates the whole block.
+ *
+ * @generated from protobuf message sui.rpc.v2.AllowedProposers
+ */
+export interface AllowedProposers {
+	/**
+	 * The epoch whose committee `proposers` indexes into.
+	 *
+	 * Committee indices are only meaningful against one committee, so a set recorded for any
+	 * other epoch is ignored and the transaction is treated as naming no proposers.
+	 *
+	 * @generated from protobuf field: optional uint64 epoch = 1;
+	 */
+	epoch?: bigint;
+	/**
+	 * Committee indices of the allowed proposers, strictly increasing and non-empty.
+	 *
+	 * An empty list names no validator and is rejected; omit `allowed_proposers` entirely to
+	 * let any validator propose the transaction.
+	 *
+	 * @generated from protobuf field: repeated uint32 proposers = 2;
+	 */
+	proposers: number[];
 }
 /**
  * Transaction type.
@@ -1314,6 +1355,7 @@ class TransactionExpiration$Type extends MessageType<TransactionExpiration> {
 			{ no: 5, name: 'max_timestamp', kind: 'message', T: () => Timestamp },
 			{ no: 6, name: 'chain', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
 			{ no: 7, name: 'nonce', kind: 'scalar', opt: true, T: 13 /*ScalarType.UINT32*/ },
+			{ no: 8, name: 'allowed_proposers', kind: 'message', T: () => AllowedProposers },
 		]);
 	}
 }
@@ -1321,6 +1363,32 @@ class TransactionExpiration$Type extends MessageType<TransactionExpiration> {
  * @generated MessageType for protobuf message sui.rpc.v2.TransactionExpiration
  */
 export const TransactionExpiration = new TransactionExpiration$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class AllowedProposers$Type extends MessageType<AllowedProposers> {
+	constructor() {
+		super('sui.rpc.v2.AllowedProposers', [
+			{
+				no: 1,
+				name: 'epoch',
+				kind: 'scalar',
+				opt: true,
+				T: 4 /*ScalarType.UINT64*/,
+				L: 0 /*LongType.BIGINT*/,
+			},
+			{
+				no: 2,
+				name: 'proposers',
+				kind: 'scalar',
+				repeat: 1 /*RepeatType.PACKED*/,
+				T: 13 /*ScalarType.UINT32*/,
+			},
+		]);
+	}
+}
+/**
+ * @generated MessageType for protobuf message sui.rpc.v2.AllowedProposers
+ */
+export const AllowedProposers = new AllowedProposers$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class TransactionKind$Type extends MessageType<TransactionKind> {
 	constructor() {

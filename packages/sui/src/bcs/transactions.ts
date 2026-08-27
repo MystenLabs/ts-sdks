@@ -188,6 +188,7 @@ export const EndOfEpochTransactionKind = bcs.enum('EndOfEpochTransactionKind', {
 	DisplayRegistryCreate: null,
 	AddressAliasStateCreate: null,
 	WriteAccumulatorStorageCost: WriteAccumulatorStorageCost,
+	ForwardingAddressRegistryCreate: null,
 });
 
 // Rust: crates/sui-types/src/transaction.rs

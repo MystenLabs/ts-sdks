@@ -7,6 +7,26 @@ import { describe, expect, it } from 'vitest';
 import { Inputs, Transaction } from '../../../src/transactions/index.js';
 
 describe('V1 JSON serialization', () => {
+	it('does not silently remove Validity expiration', async () => {
+		const tx = new Transaction();
+		tx.setExpiration({
+			Validity: {
+				minEpoch: '42',
+				maxEpoch: '43',
+				minTimestamp: null,
+				maxTimestamp: null,
+				chain: toBase58(new Uint8Array(32).fill(7)),
+				nonce: 0xc0ffee,
+				allowedProposers: { epoch: '42', proposers: [0, 2, 5] },
+			},
+		});
+
+		expect(() => tx.serialize()).toThrow(/cannot be represented/);
+
+		const restored = Transaction.from(await tx.toJSON());
+		expect(restored.getData().expiration).toEqual(tx.getData().expiration);
+	});
+
 	it('can serialize and deserialize transactions', async () => {
 		const tx = new Transaction();
 

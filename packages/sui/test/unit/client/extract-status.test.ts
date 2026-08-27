@@ -172,6 +172,39 @@ describe('extractStatusFromEffectsBcs', () => {
 		}).toBytes();
 	}
 
+	function createInvalidTxContextEffectsV2(): Uint8Array {
+		return bcs.TransactionEffects.serialize({
+			V2: {
+				status: {
+					Failure: {
+						error: {
+							CommandArgumentError: {
+								argIdx: 1,
+								kind: { InvalidTxContext: true },
+							},
+						},
+						command: 2,
+					},
+				},
+				executedEpoch: 1n,
+				gasUsed: {
+					computationCost: 1000n,
+					storageCost: 500n,
+					storageRebate: 100n,
+					nonRefundableStorageFee: 0n,
+				},
+				transactionDigest: ZERO_DIGEST,
+				gasObjectIndex: null,
+				eventsDigest: null,
+				dependencies: [],
+				lamportVersion: 1n,
+				changedObjects: [],
+				unchangedConsensusObjects: [],
+				auxDataDigest: null,
+			},
+		}).toBytes();
+	}
+
 	describe('V2 effects', () => {
 		it('should extract success status from V2 effects', () => {
 			const effectsBytes = createSuccessEffectsV2();
@@ -208,6 +241,21 @@ describe('extractStatusFromEffectsBcs', () => {
 					name: 'ObjectTooBig',
 					size: 1000000,
 					maxSize: 500000,
+				},
+			});
+		});
+
+		it('should extract InvalidTxContext command argument errors', () => {
+			const status = extractStatusFromEffectsBcs(createInvalidTxContextEffectsV2());
+
+			expect(status.error).toEqual({
+				$kind: 'CommandArgumentError',
+				message:
+					'CommandArgumentError({"argIdx":1,"kind":{"InvalidTxContext":true,"$kind":"InvalidTxContext"}})',
+				command: 2,
+				CommandArgumentError: {
+					argument: 1,
+					name: 'InvalidTxContext',
 				},
 			});
 		});

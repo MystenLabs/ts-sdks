@@ -4,7 +4,10 @@
 import { describe, it, expect } from 'vitest';
 import { toBase58 } from '@mysten/bcs';
 import { Transaction } from '../../../src/transactions/Transaction.js';
-import { transactionDataToGrpcTransaction } from '../../../src/client/transaction-resolver.js';
+import {
+	grpcTransactionToTransactionData,
+	transactionDataToGrpcTransaction,
+} from '../../../src/client/transaction-resolver.js';
 import { Input_InputKind } from '../../../src/grpc/proto/sui/rpc/v2/input.js';
 import { Argument_ArgumentKind } from '../../../src/grpc/proto/sui/rpc/v2/argument.js';
 import type { Transaction as GrpcTransaction } from '../../../src/grpc/proto/sui/rpc/v2/transaction.js';
@@ -480,5 +483,62 @@ describe('Transaction Resolver - TypeScript to gRPC Conversion', () => {
 			const grpcTx = transactionDataToGrpcTransaction(tx.getData());
 			expect(grpcTx.expiration?.kind).toBe(1); // NONE = 1
 		});
+
+		it('should round-trip ValidDuring timestamps through gRPC', () => {
+			const tx = new Transaction();
+			tx.setExpiration({
+				ValidDuring: {
+					minEpoch: '42',
+					maxEpoch: '43',
+					minTimestamp: '1700000000123',
+					maxTimestamp: '1700000999456',
+					chain: toBase58(new Uint8Array(32).fill(7)),
+					nonce: 0xc0ffee,
+				},
+			});
+			tx.moveCall({ target: '0x2::foo::bar' });
+
+			const grpcTx = transactionDataToGrpcTransaction(tx.getData());
+
+			expect(grpcTx.expiration?.minTimestamp).toEqual({
+				seconds: 1_700_000_000n,
+				nanos: 123_000_000,
+			});
+			expect(grpcTransactionToTransactionData(grpcTx).expiration).toEqual(tx.getData().expiration);
+		});
+
+		it.each([{ epoch: '42', proposers: [0, 2, 5] }, null])(
+			'should round-trip Validity through gRPC with allowed proposers %j',
+			(allowedProposers) => {
+				const tx = new Transaction();
+				tx.setExpiration({
+					Validity: {
+						minEpoch: '42',
+						maxEpoch: '43',
+						minTimestamp: '1700000000123',
+						maxTimestamp: '1700000999456',
+						chain: toBase58(new Uint8Array(32).fill(7)),
+						nonce: 0xc0ffee,
+						allowedProposers,
+					},
+				});
+				tx.moveCall({ target: '0x2::foo::bar' });
+
+				const grpcTx = transactionDataToGrpcTransaction(tx.getData());
+
+				expect(grpcTx.expiration?.kind).toBe(4); // VALIDITY = 4
+				expect(grpcTx.expiration?.allowedProposers).toEqual(
+					allowedProposers
+						? {
+								epoch: 42n,
+								proposers: [0, 2, 5],
+							}
+						: undefined,
+				);
+				expect(grpcTransactionToTransactionData(grpcTx).expiration).toEqual(
+					tx.getData().expiration,
+				);
+			},
+		);
 	});
 });

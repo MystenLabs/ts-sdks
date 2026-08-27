@@ -5,6 +5,7 @@ import { toBase58 } from '@mysten/bcs';
 import { expect, it } from 'vitest';
 
 import { bcs } from '../../../src/bcs/index.js';
+import { EndOfEpochTransactionKind } from '../../../src/bcs/transactions.js';
 import { normalizeStructTag, normalizeSuiAddress } from '../../../src/utils/sui-types.js';
 
 // Oooh-weeee we nailed it!
@@ -59,6 +60,48 @@ function ref(): { objectId: string; version: string; digest: string } {
 		),
 	};
 }
+
+it.each([{ epoch: '42', proposers: [0, 2, 5] }, null])(
+	'round-trips a Validity expiration with allowed proposers %j',
+	(allowedProposers) => {
+		const expiration = {
+			Validity: {
+				minEpoch: '42',
+				maxEpoch: '43',
+				minTimestamp: '1700000000123',
+				maxTimestamp: '1700000999456',
+				chain: toBase58(new Uint8Array(32).fill(7)),
+				nonce: 0xc0ffee,
+				allowedProposers,
+			},
+		} satisfies typeof bcs.TransactionExpiration.$inferInput;
+
+		const bytes = bcs.TransactionExpiration.serialize(expiration).toBytes();
+		expect(bcs.TransactionExpiration.parse(bytes)).toEqual({ $kind: 'Validity', ...expiration });
+	},
+);
+
+it.each([[[]], [[2, 2]], [[2, 1]]])('rejects invalid allowed proposer indices %j', (proposers) => {
+	const expiration = {
+		Validity: {
+			minEpoch: null,
+			maxEpoch: null,
+			minTimestamp: null,
+			maxTimestamp: null,
+			chain: toBase58(new Uint8Array(32).fill(7)),
+			nonce: 0,
+			allowedProposers: { epoch: '42', proposers },
+		},
+	} satisfies typeof bcs.TransactionExpiration.$inferInput;
+
+	expect(() => bcs.TransactionExpiration.serialize(expiration)).toThrow(/Allowed proposers/);
+});
+
+it('serializes ForwardingAddressRegistryCreate with its upstream enum index', () => {
+	expect(
+		EndOfEpochTransactionKind.serialize({ ForwardingAddressRegistryCreate: true }).toBytes(),
+	).toEqual(new Uint8Array([13]));
+});
 
 it('can serialize transaction data with a programmable transaction', () => {
 	const sui = normalizeSuiAddress('0x2');

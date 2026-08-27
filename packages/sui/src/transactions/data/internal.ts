@@ -343,10 +343,31 @@ export const ValidDuringSchema = object({
 });
 export type ValidDuring = InferOutput<typeof ValidDuringSchema>;
 
+export const AllowedProposersSchema = object({
+	epoch: JsonU64,
+	proposers: pipe(
+		array(U32),
+		check(
+			(proposers) =>
+				proposers.length > 0 &&
+				proposers.every((proposer, i) => i === 0 || proposer > proposers[i - 1]),
+			'Allowed proposers must be strictly increasing and non-empty',
+		),
+	),
+});
+export type AllowedProposers = InferOutput<typeof AllowedProposersSchema>;
+
+export const ValiditySchema = object({
+	...ValidDuringSchema.entries,
+	allowedProposers: nullable(AllowedProposersSchema),
+});
+export type Validity = InferOutput<typeof ValiditySchema>;
+
 export const TransactionExpiration = safeEnum({
 	None: literal(true),
 	Epoch: JsonU64,
 	ValidDuring: ValidDuringSchema,
+	Validity: ValiditySchema,
 });
 
 export type TransactionExpiration = InferOutput<typeof TransactionExpiration>;

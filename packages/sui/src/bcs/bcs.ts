@@ -238,10 +238,45 @@ export const ValidDuring = bcs.struct('ValidDuring', {
 	nonce: bcs.u32(),
 });
 
+function validateAllowedProposerIndices(proposers: number[]) {
+	if (proposers.length === 0) {
+		throw new Error('Allowed proposers must not be empty');
+	}
+
+	for (let i = 1; i < proposers.length; i++) {
+		if (proposers[i] <= proposers[i - 1]) {
+			throw new Error('Allowed proposers must be strictly increasing');
+		}
+	}
+
+	return proposers;
+}
+
+const AllowedProposerIndices = bcs.vector(bcs.u32()).transform({
+	input: validateAllowedProposerIndices,
+	output: validateAllowedProposerIndices,
+});
+
+export const AllowedProposers = bcs.struct('AllowedProposers', {
+	epoch: bcs.u64(),
+	proposers: AllowedProposerIndices,
+});
+
+export const Validity = bcs.struct('Validity', {
+	minEpoch: bcs.option(bcs.u64()),
+	maxEpoch: bcs.option(bcs.u64()),
+	minTimestamp: bcs.option(bcs.u64()),
+	maxTimestamp: bcs.option(bcs.u64()),
+	chain: ObjectDigest,
+	nonce: bcs.u32(),
+	allowedProposers: bcs.option(AllowedProposers),
+});
+
 export const TransactionExpiration = bcs.enum('TransactionExpiration', {
 	None: null,
 	Epoch: unsafe_u64(),
 	ValidDuring: ValidDuring,
+	Validity,
 });
 
 export const StructTag = bcs.struct('StructTag', {

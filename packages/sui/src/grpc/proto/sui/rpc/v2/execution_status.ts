@@ -727,6 +727,14 @@ export enum CommandArgumentError_CommandArgumentErrorKind {
 	 * @generated from protobuf enum value: INVALID_REFERENCE_ARGUMENT = 19;
 	 */
 	INVALID_REFERENCE_ARGUMENT = 19,
+	/**
+	 * Invalid usage of TxContext in the function signature. TxContext can only be used by
+	 * reference, `&TxContext` or `&mut TxContext`. If used mutably, it must be the only
+	 * TxContext parameter, and TxContext can never be returned from a Move call.
+	 *
+	 * @generated from protobuf enum value: INVALID_TX_CONTEXT = 20;
+	 */
+	INVALID_TX_CONTEXT = 20,
 }
 /**
  * An error with upgrading a package.
