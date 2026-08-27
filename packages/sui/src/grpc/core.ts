@@ -1040,7 +1040,14 @@ function transactionReadMaskPaths(
 	include: SuiClientTypes.TransactionInclude | undefined,
 	prefix = '',
 ): string[] {
-	const paths = ['digest', 'transaction.digest', 'signatures', 'effects.status'];
+	const paths = [
+		'digest',
+		'transaction.digest',
+		'signatures',
+		'effects.status',
+		'timestamp',
+		'checkpoint',
+	];
 
 	if (include?.transaction) {
 		paths.push(
@@ -1442,7 +1449,7 @@ export function parseTransactionEffects({
 	return {
 		bcs: effects.bcs?.value!,
 
-		version: 2,
+		version: effects.version ?? 2,
 		status: effects.status?.success
 			? {
 					success: true,
@@ -1555,6 +1562,11 @@ export function parseGrpcTransactionResponse<
 	const result: SuiClientTypes.Transaction<Include> = {
 		digest: transaction.digest!,
 		epoch: transaction.effects?.epoch?.toString() ?? null,
+		timestampMs: transaction.timestamp
+			? Number(transaction.timestamp.seconds) * 1000 +
+				Math.floor(transaction.timestamp.nanos / 1_000_000)
+			: null,
+		checkpoint: transaction.checkpoint?.toString() ?? null,
 		status,
 		effects: effects as SuiClientTypes.Transaction<Include>['effects'],
 		objectTypes: (include?.objectTypes

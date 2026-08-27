@@ -35,6 +35,8 @@ export function buildTransactionResult(
 		digest,
 		signatures: [signature],
 		epoch: null,
+		timestampMs: null,
+		checkpoint: null,
 		status,
 		effects: effects as SuiClientTypes.TransactionEffects,
 		transaction: parseTransactionBcs(transactionBytes),

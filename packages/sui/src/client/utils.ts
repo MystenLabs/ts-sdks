@@ -478,11 +478,108 @@ export function parseTransactionEffectsBcs(effects: Uint8Array): SuiClientTypes.
 	}
 }
 
-function parseTransactionEffectsV1(_: {
+function parseTransactionEffectsV1({
+	bytes,
+	effects,
+}: {
 	bytes: Uint8Array;
 	effects: NonNullable<(typeof bcs.TransactionEffects.$inferType)['V1']>;
 }): SuiClientTypes.TransactionEffects {
-	throw new Error('V1 effects are not supported yet');
+	const modifiedAtVersions = new Map(effects.modifiedAtVersions);
+	const sharedObjects = new Map(effects.sharedObjects.map((object) => [object.objectId, object]));
+	const mapChangedObject = (
+		reference: (typeof effects.deleted)[number],
+		change: Pick<
+			SuiClientTypes.ChangedObject,
+			'inputState' | 'outputState' | 'outputOwner' | 'idOperation'
+		>,
+	): SuiClientTypes.ChangedObject => {
+		const sharedInput = sharedObjects.get(reference.objectId);
+		return {
+			objectId: reference.objectId,
+			inputState: change.inputState,
+			inputVersion:
+				change.inputState === 'Exists'
+					? (sharedInput?.version ?? modifiedAtVersions.get(reference.objectId) ?? null)
+					: null,
+			inputDigest: change.inputState === 'Exists' ? (sharedInput?.digest ?? null) : null,
+			inputOwner: null,
+			outputState: change.outputState,
+			outputVersion: change.outputState === 'DoesNotExist' ? null : reference.version,
+			outputDigest: change.outputState === 'DoesNotExist' ? null : reference.digest,
+			outputOwner: change.outputOwner,
+			idOperation: change.idOperation,
+		};
+	};
+
+	const written = (
+		changes: typeof effects.created,
+		inputState: 'DoesNotExist' | 'Exists',
+		idOperation: 'Created' | 'None',
+	): SuiClientTypes.ChangedObject[] =>
+		changes.map(([reference, owner]) =>
+			mapChangedObject(reference, {
+				inputState,
+				outputState: 'ObjectWrite',
+				outputOwner: owner,
+				idOperation,
+			}),
+		);
+
+	const removed = (
+		changes: typeof effects.deleted,
+		inputState: 'DoesNotExist' | 'Exists',
+		idOperation: 'Deleted' | 'None',
+	): SuiClientTypes.ChangedObject[] =>
+		changes.map((reference) =>
+			mapChangedObject(reference, {
+				inputState,
+				outputState: 'DoesNotExist',
+				outputOwner: null,
+				idOperation,
+			}),
+		);
+
+	const changedObjects = [
+		...written(effects.created, 'DoesNotExist', 'Created'),
+		...written(effects.mutated, 'Exists', 'None'),
+		...written(effects.unwrapped, 'DoesNotExist', 'None'),
+		...removed(effects.deleted, 'Exists', 'Deleted'),
+		...removed(effects.unwrappedThenDeleted, 'DoesNotExist', 'Deleted'),
+		...removed(effects.wrapped, 'Exists', 'None'),
+	];
+	const gasObjectId = effects.gasObject[0].objectId;
+	const gasObject = changedObjects.find((object) => object.objectId === gasObjectId) ?? null;
+	const changedObjectIds = new Set(changedObjects.map((object) => object.objectId));
+	const lamportVersion = effects.modifiedAtVersions.reduce(
+		(max, [, version]) => (BigInt(version) > max ? BigInt(version) : max),
+		0n,
+	);
+
+	return {
+		bcs: bytes,
+		version: 1,
+		status:
+			effects.status.$kind === 'Success'
+				? { success: true, error: null }
+				: { success: false, error: parseBcsExecutionError(effects.status.Failure) },
+		gasUsed: effects.gasUsed,
+		transactionDigest: effects.transactionDigest,
+		gasObject,
+		eventsDigest: effects.eventsDigest,
+		dependencies: effects.dependencies,
+		lamportVersion: (lamportVersion + 1n).toString(),
+		changedObjects,
+		unchangedConsensusObjects: effects.sharedObjects
+			.filter((object) => !changedObjectIds.has(object.objectId))
+			.map((object) => ({
+				kind: 'ReadOnlyRoot',
+				objectId: object.objectId,
+				version: object.version,
+				digest: object.digest,
+			})),
+		auxiliaryDataDigest: null,
+	};
 }
 
 function parseTransactionEffectsV2({

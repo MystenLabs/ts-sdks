@@ -68,6 +68,8 @@ describe('Core API - Transactions', () => {
 			});
 
 			expect(result.Transaction!.digest).toBe(executedTxDigest);
+			expect(result.Transaction!.timestampMs).not.toBeNull();
+			expect(result.Transaction!.checkpoint).not.toBeNull();
 			expect(result.Transaction!.effects).toBeDefined();
 			expect(result.Transaction!.effects?.status).toBeDefined();
 			if (result.Transaction!.effects && 'success' in result.Transaction!.effects.status) {
@@ -170,6 +172,8 @@ describe('Core API - Transactions', () => {
 			});
 
 			expect(result.Transaction!.digest).toBeDefined();
+			expect(result.Transaction!.timestampMs).toBeNull();
+			expect(result.Transaction!.checkpoint).toBeNull();
 			expect(result.Transaction!.effects).toBeDefined();
 			expect(result.Transaction!.effects?.status).toBeDefined();
 			if (result.Transaction!.effects && 'success' in result.Transaction!.effects.status) {
@@ -253,6 +257,8 @@ describe('Core API - Transactions', () => {
 			});
 
 			expect(result.Transaction!.effects).toBeDefined();
+			expect(result.Transaction!.timestampMs).toBeNull();
+			expect(result.Transaction!.checkpoint).toBeNull();
 			expect(result.Transaction!.effects?.status).toBeDefined();
 			if (result.Transaction!.effects && 'success' in result.Transaction!.effects.status) {
 				expect(result.Transaction!.effects.status.success).toBe(true);

@@ -164,6 +164,48 @@ describe('gRPC transaction response parsers', () => {
 		});
 	});
 
+	it('maps checkpoint and timestamp from executed transactions', () => {
+		const transaction = GrpcTypes.ExecutedTransaction.create({
+			digest: 'transaction-digest',
+			checkpoint: 15_000_000n,
+			timestamp: {
+				seconds: 1_696_734_547n,
+				nanos: 28_000_000,
+			},
+			effects: { status: { success: true } },
+		});
+
+		const result = parseGrpcTransactionResponse(transaction);
+
+		expect(result.Transaction).toMatchObject({
+			checkpoint: '15000000',
+			timestampMs: 1_696_734_547_028,
+		});
+
+		const uncheckpointed = parseGrpcTransactionResponse(
+			GrpcTypes.ExecutedTransaction.create({
+				digest: 'uncheckpointed-transaction',
+				effects: { status: { success: true } },
+			}),
+		);
+		expect(uncheckpointed.Transaction).toMatchObject({ timestampMs: null, checkpoint: null });
+	});
+
+	it('maps the transaction effects wire version', () => {
+		const result = parseGrpcTransactionResponse(
+			GrpcTypes.ExecutedTransaction.create({
+				digest: 'v1-transaction',
+				effects: { version: 1, status: { success: true } },
+			}),
+			{ include: { effects: true } },
+		);
+
+		if (result.$kind !== 'Transaction') {
+			throw new Error('Expected Transaction result');
+		}
+		expect(result.Transaction.effects.version).toBe(1);
+	});
+
 	it('includes protobuf JSON from top-level gRPC transaction methods', async () => {
 		const transaction = GrpcTypes.ExecutedTransaction.create({
 			digest: 'top-level-transaction-digest',
@@ -182,11 +224,15 @@ describe('gRPC transaction response parsers', () => {
 			network: 'testnet',
 		});
 
-		client.ledgerService.getTransaction = (async () => ({
-			response: {
-				transaction,
-			},
-		})) as never;
+		let getTransactionRequest: { readMask?: { paths: string[] } } | undefined;
+		client.ledgerService.getTransaction = (async (request: GrpcTypes.GetTransactionRequest) => {
+			getTransactionRequest = request;
+			return {
+				response: {
+					transaction,
+				},
+			};
+		}) as never;
 		client.transactionExecutionService.executeTransaction = (async () => ({
 			response: {
 				transaction,
@@ -207,6 +253,9 @@ describe('gRPC transaction response parsers', () => {
 		>();
 		expect(GrpcTypes.ExecutedTransaction.fromJson(getResult.protoJson).digest).toBe(
 			'top-level-transaction-digest',
+		);
+		expect(getTransactionRequest?.readMask?.paths).toEqual(
+			expect.arrayContaining(['timestamp', 'checkpoint']),
 		);
 
 		const defaultResult = await client.getTransaction({

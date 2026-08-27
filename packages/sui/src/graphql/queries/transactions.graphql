@@ -106,6 +106,10 @@ fragment TRANSACTION_FIELDS on Transaction {
 	}
 	effects {
 		status
+		timestamp
+		checkpoint {
+			sequenceNumber
+		}
 		executionError {
 			message
 			abortCode
