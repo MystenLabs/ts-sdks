@@ -326,6 +326,16 @@ export namespace SuiClientTypes {
 		digest: string;
 		signatures: string[];
 		epoch: string | null;
+		/**
+		 * Timestamp of the checkpoint containing this transaction, in milliseconds since Unix epoch.
+		 * `null` for transactions that have not been checkpointed, including execution and simulation results.
+		 */
+		timestampMs: number | null;
+		/**
+		 * Sequence number of the checkpoint containing this transaction.
+		 * `null` for transactions that have not been checkpointed, including execution and simulation results.
+		 */
+		checkpoint: string | null;
 		status: ExecutionStatus;
 		balanceChanges: Include extends { balanceChanges: true } ? BalanceChange[] : undefined;
 		effects: Include extends { effects: true } ? TransactionEffects : undefined;

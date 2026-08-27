@@ -467,6 +467,8 @@ export class JSONRpcCoreClient extends CoreClient {
 		const transactionData: SuiClientTypes.Transaction<Include> = {
 			digest: TransactionDataBuilder.getDigestFromBytes(transactionBytes),
 			epoch: null,
+			timestampMs: null,
+			checkpoint: null,
 			status: effects.status,
 			effects: (options.include?.effects
 				? effects
@@ -1167,6 +1169,8 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}
 	const result: SuiClientTypes.Transaction<Include> = {
 		digest: transaction.digest,
 		epoch: transaction.effects?.executedEpoch ?? null,
+		timestampMs: transaction.timestampMs == null ? null : Number(transaction.timestampMs),
+		checkpoint: transaction.checkpoint ?? null,
 		status,
 		effects: (include?.effects && effectsBytes
 			? parseTransactionEffectsBcs(effectsBytes)

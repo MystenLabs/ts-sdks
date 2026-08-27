@@ -1121,6 +1121,9 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}
 
 	const bcsBytes =
 		include?.bcs && transaction.transactionBcs ? fromBase64(transaction.transactionBcs) : undefined;
+	const timestampMs = transaction.effects?.timestamp
+		? Date.parse(transaction.effects.timestamp)
+		: null;
 
 	const result: SuiClientTypes.Transaction<Include> = {
 		digest: transaction.digest!,
@@ -1129,6 +1132,8 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}
 			? parseTransactionEffectsBcs(fromBase64(transaction.effects?.effectsBcs!))
 			: undefined) as SuiClientTypes.Transaction<Include>['effects'],
 		epoch: transaction.effects?.epoch?.epochId?.toString() ?? null,
+		timestampMs: timestampMs !== null && !Number.isNaN(timestampMs) ? timestampMs : null,
+		checkpoint: transaction.effects?.checkpoint?.sequenceNumber?.toString() ?? null,
 		objectTypes: (include?.objectTypes
 			? objectTypes
 			: undefined) as SuiClientTypes.Transaction<Include>['objectTypes'],
