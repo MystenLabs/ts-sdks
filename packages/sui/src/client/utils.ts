@@ -371,7 +371,7 @@ function parseBcsExecutionError(failure: {
 		case 'SharedObjectOperationNotAllowed':
 		case 'ExecutionCancelledDueToRandomnessUnavailable':
 		case 'InvalidLinkage':
-		case 'InsufficientFundsForWithdraw':
+		case 'InsufficientBalanceForWithdraw':
 			return {
 				$kind: 'Unknown',
 				message: error.$kind,
