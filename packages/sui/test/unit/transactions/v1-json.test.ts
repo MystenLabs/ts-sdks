@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { Inputs, Transaction } from '../../../src/transactions/index.js';
 
 describe('V1 JSON serialization', () => {
-	it('does not silently remove Validity expiration', async () => {
+	it('preserves Validity in v2 JSON while maintaining the legacy v1 representation', async () => {
 		const tx = new Transaction();
 		tx.setExpiration({
 			Validity: {
@@ -21,7 +21,7 @@ describe('V1 JSON serialization', () => {
 			},
 		});
 
-		expect(() => tx.serialize()).toThrow(/cannot be represented/);
+		expect(JSON.parse(tx.serialize()).expiration).toEqual({ None: true });
 
 		const restored = Transaction.from(await tx.toJSON());
 		expect(restored.getData().expiration).toEqual(tx.getData().expiration);
