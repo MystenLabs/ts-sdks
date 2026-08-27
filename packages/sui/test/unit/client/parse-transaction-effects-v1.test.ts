@@ -132,8 +132,18 @@ describe('parseTransactionEffectsBcs V1', () => {
 				objectId: expect.stringMatching(/07$/),
 				inputState: 'Exists',
 				outputState: 'DoesNotExist',
-				idOperation: 'Deleted',
+				idOperation: 'None',
 			},
+		]);
+		expect(
+			effects.changedObjects.slice(4).map(({ outputVersion, outputDigest }) => ({
+				outputVersion,
+				outputDigest,
+			})),
+		).toEqual([
+			{ outputVersion: null, outputDigest: null },
+			{ outputVersion: null, outputDigest: null },
+			{ outputVersion: null, outputDigest: null },
 		]);
 		expect(effects.gasObject).toBe(effects.changedObjects[1]);
 		expect(effects.lamportVersion).toBe('71');

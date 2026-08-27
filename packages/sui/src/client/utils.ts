@@ -505,8 +505,8 @@ function parseTransactionEffectsV1({
 			inputDigest: change.inputState === 'Exists' ? (sharedInput?.digest ?? null) : null,
 			inputOwner: null,
 			outputState: change.outputState,
-			outputVersion: reference.version,
-			outputDigest: reference.digest,
+			outputVersion: change.outputState === 'DoesNotExist' ? null : reference.version,
+			outputDigest: change.outputState === 'DoesNotExist' ? null : reference.digest,
 			outputOwner: change.outputOwner,
 			idOperation: change.idOperation,
 		};
@@ -529,13 +529,14 @@ function parseTransactionEffectsV1({
 	const removed = (
 		changes: typeof effects.deleted,
 		inputState: 'DoesNotExist' | 'Exists',
+		idOperation: 'Deleted' | 'None',
 	): SuiClientTypes.ChangedObject[] =>
 		changes.map((reference) =>
 			mapChangedObject(reference, {
 				inputState,
 				outputState: 'DoesNotExist',
 				outputOwner: null,
-				idOperation: 'Deleted',
+				idOperation,
 			}),
 		);
 
@@ -543,9 +544,9 @@ function parseTransactionEffectsV1({
 		...written(effects.created, 'DoesNotExist', 'Created'),
 		...written(effects.mutated, 'Exists', 'None'),
 		...written(effects.unwrapped, 'DoesNotExist', 'None'),
-		...removed(effects.deleted, 'Exists'),
-		...removed(effects.unwrappedThenDeleted, 'DoesNotExist'),
-		...removed(effects.wrapped, 'Exists'),
+		...removed(effects.deleted, 'Exists', 'Deleted'),
+		...removed(effects.unwrappedThenDeleted, 'DoesNotExist', 'Deleted'),
+		...removed(effects.wrapped, 'Exists', 'None'),
 	];
 	const gasObjectId = effects.gasObject[0].objectId;
 	const gasObject = changedObjects.find((object) => object.objectId === gasObjectId) ?? null;
