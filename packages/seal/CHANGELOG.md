@@ -1,5 +1,7 @@
 # @mysten/seal
 
+## 1.4.5
+
 ## 1.4.4
 
 ### Patch Changes

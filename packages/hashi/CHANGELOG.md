@@ -1,5 +1,7 @@
 # @mysten/hashi
 
+## 0.6.10
+
 ## 0.6.9
 
 ### Patch Changes
