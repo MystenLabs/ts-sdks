@@ -191,6 +191,21 @@ describe('gRPC transaction response parsers', () => {
 		expect(uncheckpointed.Transaction).toMatchObject({ timestampMs: null, checkpoint: null });
 	});
 
+	it('maps the transaction effects wire version', () => {
+		const result = parseGrpcTransactionResponse(
+			GrpcTypes.ExecutedTransaction.create({
+				digest: 'v1-transaction',
+				effects: { version: 1, status: { success: true } },
+			}),
+			{ include: { effects: true } },
+		);
+
+		if (result.$kind !== 'Transaction') {
+			throw new Error('Expected Transaction result');
+		}
+		expect(result.Transaction.effects.version).toBe(1);
+	});
+
 	it('includes protobuf JSON from top-level gRPC transaction methods', async () => {
 		const transaction = GrpcTypes.ExecutedTransaction.create({
 			digest: 'top-level-transaction-digest',

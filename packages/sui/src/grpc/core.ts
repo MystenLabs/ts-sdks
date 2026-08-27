@@ -1417,7 +1417,7 @@ export function parseTransactionEffects({
 	return {
 		bcs: effects.bcs?.value!,
 
-		version: 2,
+		version: effects.version ?? 2,
 		status: effects.status?.success
 			? {
 					success: true,
