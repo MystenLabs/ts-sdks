@@ -170,6 +170,17 @@ describe('Core API - Objects', () => {
 			const { objects } = await client.core.getObjects({ objectIds: [] });
 			expect(objects).toEqual([]);
 		});
+
+		it('batches requests that exceed the GraphQL payload limit', async () => {
+			const objectIds = Array.from({ length: 46 }, () => testObjectId);
+			const { objects } = await toolbox.graphqlClient.core.getObjects({
+				objectIds,
+				include: { display: true, objectBcs: true },
+			});
+
+			expect(objects).toHaveLength(objectIds.length);
+			expect(objects.every((object) => !(object instanceof Error))).toBe(true);
+		});
 	});
 
 	describe('listOwnedObjects', () => {

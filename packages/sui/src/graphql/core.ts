@@ -65,6 +65,8 @@ import {
 	validateTransactionQuery,
 } from '../client/query-filters.js';
 
+const GRAPHQL_OBJECT_BATCH_SIZE = 40;
+
 export class GraphQLCoreClient extends CoreClient {
 	#graphqlClient: SuiGraphQLClient;
 
@@ -104,7 +106,7 @@ export class GraphQLCoreClient extends CoreClient {
 	async getObjects<Include extends SuiClientTypes.ObjectInclude = {}>(
 		options: SuiClientTypes.GetObjectsOptions<Include>,
 	): Promise<SuiClientTypes.GetObjectsResponse<Include>> {
-		const batches = chunk(options.objectIds, 50);
+		const batches = chunk(options.objectIds, GRAPHQL_OBJECT_BATCH_SIZE);
 		const results: SuiClientTypes.GetObjectsResponse<Include>['objects'] = [];
 
 		for (const batch of batches) {
