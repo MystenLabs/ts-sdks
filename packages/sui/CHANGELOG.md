@@ -1,5 +1,11 @@
 # @mysten/sui.js
 
+## 2.27.1
+
+### Patch Changes
+
+- 52d0c93: Reduce GraphQL object batch sizes to stay below the service request payload limit.
+
 ## 2.27.0
 
 ### Minor Changes
