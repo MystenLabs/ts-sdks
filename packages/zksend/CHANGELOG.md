@@ -1,5 +1,11 @@
 # @mysten/zksend
 
+## 1.2.21
+
+### Patch Changes
+
+- f30619b: Source claimable balances from address balances as well as coin objects.
+
 ## 1.2.20
 
 ## 1.2.19
