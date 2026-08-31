@@ -10,7 +10,7 @@ import { normalizeStructTag, normalizeSuiAddress, SUI_TYPE_ARG, toBase64 } from 
 
 import type { ZkBagContractOptions } from './zk-bag.js';
 import { getContractIds, ZkBag } from './zk-bag.js';
-import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
+import type { ClientWithCoreApi } from '@mysten/sui/client';
 
 export interface ZkSendLinkBuilderOptions {
 	host?: string;
@@ -47,7 +47,6 @@ export class ZkSendLinkBuilder {
 	#path: string;
 	keypair: Keypair;
 	#client: ClientWithCoreApi;
-	#coinsByType = new Map<string, SuiClientTypes.Coin[]>();
 	#contract: ZkBag<ZkBagContractOptions>;
 
 	constructor({
@@ -178,42 +177,13 @@ export class ZkSendLinkBuilder {
 		);
 
 		for (const [coinType, amount] of this.balances) {
-			if (coinType === SUI_COIN_TYPE) {
-				const [sui] = tx.splitCoins(tx.gas, [amount]);
-				refsWithType.push({
-					ref: sui,
-					type: `0x2::coin::Coin<${coinType}>`,
-				} as never);
-			} else {
-				const coins = (await this.#getCoinsByType(coinType)).map((coin) => coin.objectId);
-
-				if (coins.length > 1) {
-					tx.mergeCoins(coins[0], coins.slice(1));
-				}
-				const [split] = tx.splitCoins(coins[0], [amount]);
-				refsWithType.push({
-					ref: split,
-					type: `0x2::coin::Coin<${coinType}>`,
-				});
-			}
+			refsWithType.push({
+				ref: tx.coin({ type: coinType, balance: amount }),
+				type: `0x2::coin::Coin<${coinType}>`,
+			});
 		}
 
 		return refsWithType;
-	}
-
-	async #getCoinsByType(coinType: string) {
-		if (this.#coinsByType.has(coinType)) {
-			return this.#coinsByType.get(coinType)!;
-		}
-
-		const coins = await this.#client.core.listCoins({
-			coinType,
-			owner: this.sender,
-		});
-
-		this.#coinsByType.set(coinType, coins.objects);
-
-		return coins.objects;
 	}
 
 	static async createLinks({
@@ -233,24 +203,9 @@ export class ZkSendLinkBuilder {
 		const contract = new ZkBag(resolvedContractIds.packageId, resolvedContractIds);
 		const store = transaction.object(contract.ids.bagStoreId);
 
-		const coinsByType = new Map<string, SuiClientTypes.Coin[]>();
 		const allIds = links.flatMap((link) => [...link.objectIds]);
 		const sender = links[0].sender;
 		transaction.setSenderIfNotSet(sender);
-
-		await Promise.all(
-			[...new Set(links.flatMap((link) => [...link.balances.keys()]))].map(async (coinType) => {
-				const coins = await client.core.listCoins({
-					coinType,
-					owner: sender,
-				});
-
-				coinsByType.set(
-					coinType,
-					coins.objects.filter((coin) => !allIds.includes(coin.objectId)),
-				);
-			}),
-		);
 
 		const objectRefs = new Map<
 			string,
@@ -286,28 +241,6 @@ export class ZkSendLinkBuilder {
 			}
 		}
 
-		const mergedCoins = new Map<string, TransactionObjectArgument>([
-			[SUI_COIN_TYPE, transaction.gas],
-		]);
-
-		for (const [coinType, coins] of coinsByType) {
-			if (coinType === SUI_COIN_TYPE) {
-				continue;
-			}
-
-			const [first, ...rest] = coins.map((coin) =>
-				transaction.objectRef({
-					objectId: coin.objectId,
-					version: coin.version,
-					digest: coin.digest,
-				}),
-			);
-			if (rest.length > 0) {
-				transaction.mergeCoins(first, rest);
-			}
-			mergedCoins.set(coinType, transaction.object(first));
-		}
-
 		for (const link of links) {
 			const receiver = link.keypair.toSuiAddress();
 			transaction.add(contract.new({ arguments: [store, receiver] }));
@@ -333,20 +266,11 @@ export class ZkSendLinkBuilder {
 					}),
 				);
 			});
-		}
 
-		for (const [coinType, merged] of mergedCoins) {
-			const linksWithCoin = links.filter((link) => link.balances.has(coinType));
-			if (linksWithCoin.length === 0) {
-				continue;
-			}
-
-			const balances = linksWithCoin.map((link) => link.balances.get(coinType)!);
-			const splits = transaction.splitCoins(merged, balances);
-			for (const [i, link] of linksWithCoin.entries()) {
+			for (const [coinType, balance] of link.balances) {
 				transaction.add(
 					contract.add({
-						arguments: [store, link.keypair.toSuiAddress(), splits[i]],
+						arguments: [store, receiver, transaction.coin({ type: coinType, balance })],
 						typeArguments: [`0x2::coin::Coin<${coinType}>`],
 					}),
 				);
