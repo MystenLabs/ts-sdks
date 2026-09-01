@@ -7,25 +7,54 @@ import { describe, expect, it } from 'vitest';
 import { Inputs, Transaction } from '../../../src/transactions/index.js';
 
 describe('V1 JSON serialization', () => {
-	it('preserves Validity in v2 JSON while maintaining the legacy v1 representation', async () => {
-		const tx = new Transaction();
-		tx.setExpiration({
-			Validity: {
-				minEpoch: '42',
-				maxEpoch: '43',
-				minTimestamp: null,
-				maxTimestamp: null,
-				chain: toBase58(new Uint8Array(32).fill(7)),
-				nonce: 0xc0ffee,
-				allowedProposers: { epoch: '42', proposers: [0, 2, 5] },
-			},
-		});
+	const validity = {
+		minEpoch: '42',
+		maxEpoch: '43',
+		minTimestamp: null,
+		maxTimestamp: null,
+		chain: toBase58(new Uint8Array(32).fill(7)),
+		nonce: 0xc0ffee,
+		allowedProposers: { epoch: '42', proposers: [0, 2, 5] },
+	};
 
-		expect(JSON.parse(tx.serialize()).expiration).toEqual({ None: true });
+	it('preserves Validity through both v1 and v2 JSON', async () => {
+		const tx = new Transaction();
+		tx.setExpiration({ Validity: validity });
+
+		// v1 used to collapse this to `{ None: true }`, silently dropping the expiration and the
+		// allowed proposers, so a `serialize()` -> `from()` round trip signed broader bytes.
+		expect(JSON.parse(tx.serialize()).expiration).toEqual({ Validity: validity });
+		expect(Transaction.from(tx.serialize()).getData().expiration).toEqual(tx.getData().expiration);
 
 		const restored = Transaction.from(await tx.toJSON());
 		expect(restored.getData().expiration).toEqual(tx.getData().expiration);
 	});
+
+	it('preserves ValidDuring through v1 JSON', () => {
+		const tx = new Transaction();
+		const { allowedProposers, ...validDuring } = validity;
+		tx.setExpiration({ ValidDuring: validDuring });
+
+		expect(JSON.parse(tx.serialize()).expiration).toEqual({ ValidDuring: validDuring });
+		expect(Transaction.from(tx.serialize()).getData().expiration).toEqual(tx.getData().expiration);
+	});
+
+	it('refuses to silently drop an expiration it does not understand', () => {
+		const json = JSON.parse(new Transaction().serialize());
+		json.expiration = { SomeFutureVariant: { maxEpoch: '43' } };
+
+		expect(() => Transaction.from(JSON.stringify(json))).toThrow(/Unknown transaction expiration/);
+	});
+
+	it.each([{ Epoch: 42 }, { None: true }, null])(
+		'round-trips the legacy v1 expiration %j unchanged',
+		(expiration) => {
+			const tx = new Transaction();
+			if (expiration) tx.setExpiration(expiration as never);
+
+			expect(JSON.parse(tx.serialize()).expiration).toEqual(expiration ?? null);
+		},
+	);
 
 	it('can serialize and deserialize transactions', async () => {
 		const tx = new Transaction();
