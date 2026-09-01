@@ -272,6 +272,21 @@ export function transactionDataToGrpcTransaction(data: TransactionData): GrpcTra
 				chain: validDuring.chain,
 				nonce: validDuring.nonce,
 			};
+		} else if (data.expiration.$kind === 'Validity') {
+			const validity = data.expiration.Validity;
+			transaction.expiration = {
+				kind: TransactionExpiration_TransactionExpirationKind.VALIDITY,
+				minEpoch: validity.minEpoch != null ? BigInt(validity.minEpoch) : undefined,
+				epoch: validity.maxEpoch != null ? BigInt(validity.maxEpoch) : undefined,
+				chain: validity.chain,
+				nonce: validity.nonce,
+				allowedProposers: validity.allowedProposers
+					? {
+							epoch: BigInt(validity.allowedProposers.epoch),
+							proposers: validity.allowedProposers.proposers,
+						}
+					: undefined,
+			};
 		}
 	}
 
@@ -533,6 +548,25 @@ export function grpcTransactionToTransactionData(grpcTx: GrpcTransaction): Trans
 						maxTimestamp: null,
 						chain: grpcTx.expiration.chain ?? '',
 						nonce: grpcTx.expiration.nonce ?? 0,
+					},
+				};
+				break;
+			case TransactionExpiration_TransactionExpirationKind.VALIDITY:
+				expiration = {
+					$kind: 'Validity',
+					Validity: {
+						minEpoch: grpcTx.expiration.minEpoch?.toString() ?? null,
+						maxEpoch: grpcTx.expiration.epoch?.toString() ?? null,
+						minTimestamp: null,
+						maxTimestamp: null,
+						chain: grpcTx.expiration.chain ?? '',
+						nonce: grpcTx.expiration.nonce ?? 0,
+						allowedProposers: grpcTx.expiration.allowedProposers
+							? {
+									epoch: grpcTx.expiration.allowedProposers.epoch?.toString() ?? '0',
+									proposers: grpcTx.expiration.allowedProposers.proposers ?? [],
+								}
+							: null,
 					},
 				};
 				break;

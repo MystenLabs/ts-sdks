@@ -343,10 +343,30 @@ export const ValidDuringSchema = object({
 });
 export type ValidDuring = InferOutput<typeof ValidDuringSchema>;
 
+// Rust: crates/sui-types/src/transaction.rs
+export const AllowedProposersSchema = object({
+	epoch: JsonU64,
+	proposers: array(U32),
+});
+export type AllowedProposers = InferOutput<typeof AllowedProposersSchema>;
+
+// Rust: crates/sui-types/src/transaction.rs
+export const ValiditySchema = object({
+	minEpoch: nullable(JsonU64),
+	maxEpoch: nullable(JsonU64),
+	minTimestamp: nullable(JsonU64),
+	maxTimestamp: nullable(JsonU64),
+	chain: string(),
+	nonce: U32,
+	allowedProposers: nullable(AllowedProposersSchema),
+});
+export type Validity = InferOutput<typeof ValiditySchema>;
+
 export const TransactionExpiration = safeEnum({
 	None: literal(true),
 	Epoch: JsonU64,
 	ValidDuring: ValidDuringSchema,
+	Validity: ValiditySchema,
 });
 
 export type TransactionExpiration = InferOutput<typeof TransactionExpiration>;
