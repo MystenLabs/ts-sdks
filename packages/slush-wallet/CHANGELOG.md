@@ -1,5 +1,11 @@
 # @mysten/slush-wallet
 
+## 1.1.22
+
+### Patch Changes
+
+- 331eb20: Default personal message signing requests without a chain to Sui mainnet.
+
 ## 1.1.21
 
 ## 1.1.20
