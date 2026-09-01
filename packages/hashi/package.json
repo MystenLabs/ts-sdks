@@ -1,6 +1,6 @@
 {
 	"name": "@mysten/hashi",
-	"version": "0.6.11",
+	"version": "0.6.12",
 	"private": false,
 	"description": "TypeScript SDK for the Hashi Sui Move smart contracts",
 	"license": "Apache-2.0",

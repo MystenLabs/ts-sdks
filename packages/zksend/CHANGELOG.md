@@ -1,5 +1,7 @@
 # @mysten/zksend
 
+## 1.2.22
+
 ## 1.2.21
 
 ### Patch Changes
