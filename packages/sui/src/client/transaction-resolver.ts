@@ -603,6 +603,9 @@ export function grpcTransactionToTransactionData(grpcTx: GrpcTransaction): Trans
 					},
 				};
 				break;
+			default:
+				// Leaving `expiration` null here would drop a restriction the server did send.
+				throw new Error(`Unknown transaction expiration kind: ${grpcTx.expiration.kind}`);
 		}
 	}
 

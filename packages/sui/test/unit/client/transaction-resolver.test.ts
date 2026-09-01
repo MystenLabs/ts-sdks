@@ -562,6 +562,22 @@ describe('Transaction Resolver - TypeScript to gRPC Conversion', () => {
 			);
 		});
 
+		it.each([0, 99])('rejects the unsupported grpc expiration kind %i', (kind) => {
+			const grpcTx = {
+				kind: {
+					data: {
+						oneofKind: 'programmableTransaction',
+						programmableTransaction: { inputs: [], commands: [] },
+					},
+				},
+				expiration: { kind, epoch: 43n },
+			} as unknown as GrpcTransaction;
+
+			expect(() => grpcTransactionToTransactionData(grpcTx)).toThrow(
+				/Unknown transaction expiration kind/,
+			);
+		});
+
 		it('rejects an empty allowed proposer set when decoding a grpc transaction', () => {
 			const grpcTx = {
 				kind: {
