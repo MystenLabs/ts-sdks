@@ -4,6 +4,10 @@
 import { fromBase64, toBase64 } from '@mysten/bcs';
 
 import type { bcs } from '../bcs/index.js';
+import {
+	assertAllowedProposersNotEmpty,
+	assertAllowedProposersStrictlyIncreasing,
+} from '../bcs/bcs.js';
 import { TransactionDataBuilder } from '../transactions/TransactionData.js';
 import type {
 	CallArg,
@@ -22,6 +26,18 @@ import type { Command } from '../grpc/proto/sui/rpc/v2/transaction.js';
 import type { Argument } from '../grpc/proto/sui/rpc/v2/argument.js';
 import { Argument_ArgumentKind } from '../grpc/proto/sui/rpc/v2/argument.js';
 import { Transaction } from '../transactions/Transaction.js';
+
+function millisecondsToGrpcTimestamp(value: string | number) {
+	const milliseconds = BigInt(value);
+	return {
+		seconds: milliseconds / 1000n,
+		nanos: Number(milliseconds % 1000n) * 1_000_000,
+	};
+}
+
+function grpcTimestampToMilliseconds(timestamp: { seconds: bigint; nanos: number }) {
+	return (timestamp.seconds * 1000n + BigInt(Math.floor(timestamp.nanos / 1_000_000))).toString();
+}
 
 /**
  * Converts CallArg (TypeScript internal format) to gRPC Input format
@@ -263,14 +279,36 @@ export function transactionDataToGrpcTransaction(data: TransactionData): GrpcTra
 				kind: TransactionExpiration_TransactionExpirationKind.EPOCH,
 				epoch: BigInt(data.expiration.Epoch),
 			};
-		} else if (data.expiration.$kind === 'ValidDuring') {
-			const validDuring = data.expiration.ValidDuring;
+		} else if (data.expiration.$kind === 'ValidDuring' || data.expiration.$kind === 'Validity') {
+			const validity =
+				data.expiration.$kind === 'ValidDuring'
+					? data.expiration.ValidDuring
+					: data.expiration.Validity;
+			const allowedProposers =
+				data.expiration.$kind === 'Validity' ? data.expiration.Validity.allowedProposers : null;
 			transaction.expiration = {
-				kind: TransactionExpiration_TransactionExpirationKind.VALID_DURING,
-				minEpoch: validDuring.minEpoch != null ? BigInt(validDuring.minEpoch) : undefined,
-				epoch: validDuring.maxEpoch != null ? BigInt(validDuring.maxEpoch) : undefined,
-				chain: validDuring.chain,
-				nonce: validDuring.nonce,
+				kind:
+					data.expiration.$kind === 'ValidDuring'
+						? TransactionExpiration_TransactionExpirationKind.VALID_DURING
+						: TransactionExpiration_TransactionExpirationKind.VALIDITY,
+				minEpoch: validity.minEpoch != null ? BigInt(validity.minEpoch) : undefined,
+				epoch: validity.maxEpoch != null ? BigInt(validity.maxEpoch) : undefined,
+				minTimestamp:
+					validity.minTimestamp != null
+						? millisecondsToGrpcTimestamp(validity.minTimestamp)
+						: undefined,
+				maxTimestamp:
+					validity.maxTimestamp != null
+						? millisecondsToGrpcTimestamp(validity.maxTimestamp)
+						: undefined,
+				chain: validity.chain,
+				nonce: validity.nonce,
+				allowedProposers: allowedProposers
+					? {
+							epoch: BigInt(allowedProposers.epoch),
+							proposers: assertAllowedProposersStrictlyIncreasing(allowedProposers.proposers),
+						}
+					: undefined,
 			};
 		}
 	}
@@ -529,13 +567,45 @@ export function grpcTransactionToTransactionData(grpcTx: GrpcTransaction): Trans
 					ValidDuring: {
 						minEpoch: grpcTx.expiration.minEpoch?.toString() ?? null,
 						maxEpoch: grpcTx.expiration.epoch?.toString() ?? null,
-						minTimestamp: null,
-						maxTimestamp: null,
+						minTimestamp: grpcTx.expiration.minTimestamp
+							? grpcTimestampToMilliseconds(grpcTx.expiration.minTimestamp)
+							: null,
+						maxTimestamp: grpcTx.expiration.maxTimestamp
+							? grpcTimestampToMilliseconds(grpcTx.expiration.maxTimestamp)
+							: null,
 						chain: grpcTx.expiration.chain ?? '',
 						nonce: grpcTx.expiration.nonce ?? 0,
 					},
 				};
 				break;
+			case TransactionExpiration_TransactionExpirationKind.VALIDITY:
+				expiration = {
+					$kind: 'Validity',
+					Validity: {
+						minEpoch: grpcTx.expiration.minEpoch?.toString() ?? null,
+						maxEpoch: grpcTx.expiration.epoch?.toString() ?? null,
+						minTimestamp: grpcTx.expiration.minTimestamp
+							? grpcTimestampToMilliseconds(grpcTx.expiration.minTimestamp)
+							: null,
+						maxTimestamp: grpcTx.expiration.maxTimestamp
+							? grpcTimestampToMilliseconds(grpcTx.expiration.maxTimestamp)
+							: null,
+						chain: grpcTx.expiration.chain ?? '',
+						nonce: grpcTx.expiration.nonce ?? 0,
+						allowedProposers: grpcTx.expiration.allowedProposers
+							? {
+									epoch: grpcTx.expiration.allowedProposers.epoch?.toString() ?? '0',
+									proposers: assertAllowedProposersNotEmpty(
+										grpcTx.expiration.allowedProposers.proposers,
+									),
+								}
+							: null,
+					},
+				};
+				break;
+			default:
+				// Leaving `expiration` null here would drop a restriction the server did send.
+				throw new Error(`Unknown transaction expiration kind: ${grpcTx.expiration.kind}`);
 		}
 	}
 

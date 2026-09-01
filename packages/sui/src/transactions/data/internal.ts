@@ -343,10 +343,29 @@ export const ValidDuringSchema = object({
 });
 export type ValidDuring = InferOutput<typeof ValidDuringSchema>;
 
+// Rust: crates/sui-types/src/transaction.rs
+export const AllowedProposersSchema = object({
+	epoch: JsonU64,
+	// Shared by `setExpiration` and `restore`, so this can only carry the invariant true on both.
+	proposers: pipe(
+		array(U32),
+		check((proposers) => proposers.length > 0, 'Allowed proposers must not be empty'),
+	),
+});
+export type AllowedProposers = InferOutput<typeof AllowedProposersSchema>;
+
+// Rust: crates/sui-types/src/transaction.rs
+export const ValiditySchema = object({
+	...ValidDuringSchema.entries,
+	allowedProposers: nullable(AllowedProposersSchema),
+});
+export type Validity = InferOutput<typeof ValiditySchema>;
+
 export const TransactionExpiration = safeEnum({
 	None: literal(true),
 	Epoch: JsonU64,
 	ValidDuring: ValidDuringSchema,
+	Validity: ValiditySchema,
 });
 
 export type TransactionExpiration = InferOutput<typeof TransactionExpiration>;

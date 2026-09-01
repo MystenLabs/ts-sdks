@@ -26,7 +26,14 @@ import {
 
 import { TypeTagSerializer } from '../../bcs/index.js';
 import type { StructTag as StructTagType, TypeTag as TypeTagType } from '../../bcs/types.js';
-import { JsonU64, ObjectID, safeEnum, TransactionDataSchema } from './internal.js';
+import {
+	JsonU64,
+	ObjectID,
+	safeEnum,
+	TransactionDataSchema,
+	ValidDuringSchema,
+	ValiditySchema,
+} from './internal.js';
 import type { Argument, ArgumentSchema, TransactionData } from './internal.js';
 
 export const ObjectRef = object({
@@ -65,10 +72,51 @@ const TransactionInput = union([
 	}),
 ]);
 
+// Carried here rather than collapsed to `{ None: true }`, which silently dropped the expiration
+// (and its allowed proposers) from a `serialize()` -> `from()` round trip before signing.
 const TransactionExpiration = union([
 	object({ Epoch: pipe(number(), integer()) }),
 	object({ None: nullable(literal(true)) }),
+	object({ ValidDuring: ValidDuringSchema }),
+	object({ Validity: ValiditySchema }),
 ]);
+
+function expirationToV1(
+	expiration: TransactionData['expiration'],
+): InferOutput<typeof TransactionExpiration> | null {
+	if (!expiration) return null;
+
+	switch (expiration.$kind) {
+		case 'Epoch':
+			return { Epoch: Number(expiration.Epoch) };
+		case 'ValidDuring':
+			return { ValidDuring: expiration.ValidDuring };
+		case 'Validity':
+			return { Validity: expiration.Validity };
+		case 'None':
+			return { None: true };
+		default:
+			// Representing a new variant here is not optional: this fails to compile without it.
+			expiration satisfies never;
+			throw new Error(`Unknown transaction expiration: ${JSON.stringify(expiration)}`);
+	}
+}
+
+function expirationFromV1(
+	expiration: SerializedTransactionDataV1['expiration'],
+): InferInput<typeof TransactionDataSchema>['expiration'] {
+	if (!expiration) return null;
+	if ('Epoch' in expiration) return { Epoch: expiration.Epoch };
+	if ('ValidDuring' in expiration) return { ValidDuring: expiration.ValidDuring };
+	if ('Validity' in expiration) return { Validity: expiration.Validity };
+	if ('None' in expiration) return { None: true };
+
+	// `restore` does not validate v1 payloads against the schema, so this is the only place an
+	// unrecognised expiration can be caught rather than silently becoming `{ None: true }`.
+	throw new Error(
+		`Unknown transaction expiration in v1 transaction data: ${Object.keys(expiration).join(', ')}`,
+	);
+}
 
 const StringEncodedBigint = pipe(
 	union([number(), string(), bigint()]),
@@ -267,12 +315,7 @@ export function serializeV1TransactionData(
 	return {
 		version: 1,
 		sender: transactionData.sender ?? undefined,
-		expiration:
-			transactionData.expiration?.$kind === 'Epoch'
-				? { Epoch: Number(transactionData.expiration.Epoch) }
-				: transactionData.expiration
-					? { None: true }
-					: null,
+		expiration: expirationToV1(transactionData.expiration),
 		gasConfig: {
 			owner: transactionData.gasData.owner ?? undefined,
 			budget: transactionData.gasData.budget ?? undefined,
@@ -373,11 +416,7 @@ export function transactionDataFromV1(data: SerializedTransactionDataV1): Transa
 	return parse(TransactionDataSchema, {
 		version: 2,
 		sender: data.sender ?? null,
-		expiration: data.expiration
-			? 'Epoch' in data.expiration
-				? { Epoch: data.expiration.Epoch }
-				: { None: true }
-			: null,
+		expiration: expirationFromV1(data.expiration),
 		gasData: {
 			owner: data.gasConfig.owner ?? null,
 			budget: data.gasConfig.budget?.toString() ?? null,
