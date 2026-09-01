@@ -421,7 +421,10 @@ export function simulationSucceeds(): Validator {
 function expirationMaxEpoch(expiration: TransactionData['expiration']): bigint | null {
 	if (!expiration || expiration.$kind === 'None') return null;
 	if (expiration.$kind === 'Epoch') return BigInt(expiration.Epoch);
-	const max = expiration.ValidDuring.maxEpoch;
+	const max =
+		expiration.$kind === 'Validity'
+			? expiration.Validity.maxEpoch
+			: expiration.ValidDuring.maxEpoch;
 	return max == null ? null : BigInt(max);
 }
 
