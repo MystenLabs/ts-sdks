@@ -343,6 +343,7 @@ export const ValidDuringSchema = object({
 });
 export type ValidDuring = InferOutput<typeof ValidDuringSchema>;
 
+// Rust: crates/sui-types/src/transaction.rs
 export const AllowedProposersSchema = object({
 	epoch: JsonU64,
 	proposers: pipe(
@@ -357,6 +358,7 @@ export const AllowedProposersSchema = object({
 });
 export type AllowedProposers = InferOutput<typeof AllowedProposersSchema>;
 
+// Rust: crates/sui-types/src/transaction.rs
 export const ValiditySchema = object({
 	...ValidDuringSchema.entries,
 	allowedProposers: nullable(AllowedProposersSchema),

@@ -257,11 +257,13 @@ const AllowedProposerIndices = bcs.vector(bcs.u32()).transform({
 	output: validateAllowedProposerIndices,
 });
 
+// Rust: crates/sui-types/src/transaction.rs
 export const AllowedProposers = bcs.struct('AllowedProposers', {
 	epoch: bcs.u64(),
 	proposers: AllowedProposerIndices,
 });
 
+// Rust: crates/sui-types/src/transaction.rs
 export const Validity = bcs.struct('Validity', {
 	minEpoch: bcs.option(bcs.u64()),
 	maxEpoch: bcs.option(bcs.u64()),
