@@ -4,6 +4,7 @@
 import { fromBase64, toBase64 } from '@mysten/bcs';
 
 import type { bcs } from '../bcs/index.js';
+import { assertAllowedProposersNotEmpty } from '../bcs/bcs.js';
 import { TransactionDataBuilder } from '../transactions/TransactionData.js';
 import type {
 	CallArg,
@@ -591,7 +592,9 @@ export function grpcTransactionToTransactionData(grpcTx: GrpcTransaction): Trans
 						allowedProposers: grpcTx.expiration.allowedProposers
 							? {
 									epoch: grpcTx.expiration.allowedProposers.epoch?.toString() ?? '0',
-									proposers: grpcTx.expiration.allowedProposers.proposers,
+									proposers: assertAllowedProposersNotEmpty(
+										grpcTx.expiration.allowedProposers.proposers,
+									),
 								}
 							: null,
 					},

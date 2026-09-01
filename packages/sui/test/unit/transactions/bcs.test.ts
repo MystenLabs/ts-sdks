@@ -81,8 +81,8 @@ it.each([{ epoch: '42', proposers: [0, 2, 5] }, null])(
 	},
 );
 
-it.each([[[]], [[2, 2]], [[2, 1]]])('rejects invalid allowed proposer indices %j', (proposers) => {
-	const expiration = {
+function validityBytes(proposers: number[]) {
+	return bcs.TransactionExpiration.serialize({
 		Validity: {
 			minEpoch: null,
 			maxEpoch: null,
@@ -92,9 +92,35 @@ it.each([[[]], [[2, 2]], [[2, 1]]])('rejects invalid allowed proposer indices %j
 			nonce: 0,
 			allowedProposers: { epoch: '42', proposers },
 		},
-	} satisfies typeof bcs.TransactionExpiration.$inferInput;
+	}).toBytes();
+}
 
-	expect(() => bcs.TransactionExpiration.serialize(expiration)).toThrow(/Allowed proposers/);
+it.each([[[]], [[2, 2]], [[2, 1]]])(
+	'rejects invalid allowed proposer indices when encoding %j',
+	(proposers) => {
+		expect(() => validityBytes(proposers)).toThrow(/Allowed proposers/);
+	},
+);
+
+// Sortedness is a submission-time rule upstream, not a deserialization one, so bytes carrying an
+// unsorted set must still decode -- they can represent a transaction the network accepted.
+it('decodes an unsorted allowed proposer set', () => {
+	const bytes = validityBytes([2, 5]);
+	// Swap the two trailing u32s so the encoded set reads [5, 2].
+	bytes.set([...bytes.slice(-4), ...bytes.slice(-8, -4)], bytes.length - 8);
+
+	expect(bcs.TransactionExpiration.parse(bytes).Validity?.allowedProposers?.proposers).toEqual([
+		5, 2,
+	]);
+});
+
+it('rejects an empty allowed proposer set when decoding', () => {
+	// Drop the trailing u32 and rewrite the vector length as 0.
+	const bytes = new Uint8Array([...validityBytes([2]).slice(0, -5), 0]);
+
+	expect(() => bcs.TransactionExpiration.parse(bytes)).toThrow(
+		/Allowed proposers must not be empty/,
+	);
 });
 
 it('serializes ForwardingAddressRegistryCreate with its upstream enum index', () => {

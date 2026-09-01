@@ -11,6 +11,7 @@ import {
 import { Input_InputKind } from '../../../src/grpc/proto/sui/rpc/v2/input.js';
 import { Argument_ArgumentKind } from '../../../src/grpc/proto/sui/rpc/v2/argument.js';
 import type { Transaction as GrpcTransaction } from '../../../src/grpc/proto/sui/rpc/v2/transaction.js';
+import { TransactionExpiration_TransactionExpirationKind } from '../../../src/grpc/proto/sui/rpc/v2/transaction.js';
 
 // Helper to get programmable transaction from gRPC transaction
 function getProgrammableTx(grpcTx: GrpcTransaction) {
@@ -540,5 +541,28 @@ describe('Transaction Resolver - TypeScript to gRPC Conversion', () => {
 				);
 			},
 		);
+
+		it('rejects an empty allowed proposer set when decoding a grpc transaction', () => {
+			const grpcTx = {
+				kind: {
+					data: {
+						oneofKind: 'programmableTransaction',
+						programmableTransaction: { inputs: [], commands: [] },
+					},
+				},
+				expiration: {
+					kind: TransactionExpiration_TransactionExpirationKind.VALIDITY,
+					minEpoch: 42n,
+					epoch: 43n,
+					chain: toBase58(new Uint8Array(32).fill(7)),
+					nonce: 0,
+					allowedProposers: { epoch: 42n, proposers: [] },
+				},
+			} as unknown as GrpcTransaction;
+
+			expect(() => grpcTransactionToTransactionData(grpcTx)).toThrow(
+				/Allowed proposers must not be empty/,
+			);
+		});
 	});
 });

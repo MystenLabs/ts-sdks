@@ -346,14 +346,12 @@ export type ValidDuring = InferOutput<typeof ValidDuringSchema>;
 // Rust: crates/sui-types/src/transaction.rs
 export const AllowedProposersSchema = object({
 	epoch: JsonU64,
+	// This schema is shared by `setExpiration` and by `TransactionDataBuilder.restore`, so it can
+	// only carry the invariant that holds on both paths. Sortedness is enforced when encoding to
+	// BCS; see `assertAllowedProposersNotEmpty` in ../../bcs/bcs.ts.
 	proposers: pipe(
 		array(U32),
-		check(
-			(proposers) =>
-				proposers.length > 0 &&
-				proposers.every((proposer, i) => i === 0 || proposer > proposers[i - 1]),
-			'Allowed proposers must be strictly increasing and non-empty',
-		),
+		check((proposers) => proposers.length > 0, 'Allowed proposers must not be empty'),
 	),
 });
 export type AllowedProposers = InferOutput<typeof AllowedProposersSchema>;

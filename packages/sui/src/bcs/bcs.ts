@@ -238,10 +238,20 @@ export const ValidDuring = bcs.struct('ValidDuring', {
 	nonce: bcs.u32(),
 });
 
-function validateAllowedProposerIndices(proposers: number[]) {
+/**
+ * Upstream rejects an empty proposer set while deserializing, because the field is `NonEmpty`.
+ * Reject it everywhere we decode, so all transports agree on what is readable.
+ */
+export function assertAllowedProposersNotEmpty(proposers: number[]) {
 	if (proposers.length === 0) {
 		throw new Error('Allowed proposers must not be empty');
 	}
+
+	return proposers;
+}
+
+function assertAllowedProposersStrictlyIncreasing(proposers: number[]) {
+	assertAllowedProposersNotEmpty(proposers);
 
 	for (let i = 1; i < proposers.length; i++) {
 		if (proposers[i] <= proposers[i - 1]) {
@@ -252,9 +262,12 @@ function validateAllowedProposerIndices(proposers: number[]) {
 	return proposers;
 }
 
+// Sortedness is only checked when encoding. Upstream enforces it in `validity_check`, on
+// submission, and `is_allowed_proposer` documents reading an unsorted set as a deterministic
+// miss -- so decoding one must succeed, or we fail to read transactions the network accepted.
 const AllowedProposerIndices = bcs.vector(bcs.u32()).transform({
-	input: validateAllowedProposerIndices,
-	output: validateAllowedProposerIndices,
+	input: assertAllowedProposersStrictlyIncreasing,
+	output: assertAllowedProposersNotEmpty,
 });
 
 // Rust: crates/sui-types/src/transaction.rs
