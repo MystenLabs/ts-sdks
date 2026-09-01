@@ -22,7 +22,12 @@ import type {
 	Wallet,
 	WalletIcon,
 } from '@mysten/wallet-standard';
-import { getWallets, ReadonlyWalletAccount, SUI_CHAINS } from '@mysten/wallet-standard';
+import {
+	getWallets,
+	ReadonlyWalletAccount,
+	SUI_CHAINS,
+	SUI_MAINNET_CHAIN,
+} from '@mysten/wallet-standard';
 import { mitt, type Emitter } from '@mysten/utils';
 import type { InferOutput } from 'valibot';
 import { boolean, object, parse, string } from 'valibot';
@@ -258,7 +263,7 @@ export class SlushWallet implements Wallet {
 			type: 'sign-personal-message',
 			message: toBase64(message),
 			address: account.address,
-			chain: chain ?? account.chains[0],
+			chain: chain ?? SUI_MAINNET_CHAIN,
 			session: getSessionFromStorage(),
 		});
 
