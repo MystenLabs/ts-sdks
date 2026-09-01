@@ -21,8 +21,6 @@ describe('V1 JSON serialization', () => {
 		const tx = new Transaction();
 		tx.setExpiration({ Validity: validity });
 
-		// v1 used to collapse this to `{ None: true }`, silently dropping the expiration and the
-		// allowed proposers, so a `serialize()` -> `from()` round trip signed broader bytes.
 		expect(JSON.parse(tx.serialize()).expiration).toEqual({ Validity: validity });
 		expect(Transaction.from(tx.serialize()).getData().expiration).toEqual(tx.getData().expiration);
 

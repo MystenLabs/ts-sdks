@@ -4,7 +4,10 @@
 import { fromBase64, toBase64 } from '@mysten/bcs';
 
 import type { bcs } from '../bcs/index.js';
-import { assertAllowedProposersNotEmpty } from '../bcs/bcs.js';
+import {
+	assertAllowedProposersNotEmpty,
+	assertAllowedProposersStrictlyIncreasing,
+} from '../bcs/bcs.js';
 import { TransactionDataBuilder } from '../transactions/TransactionData.js';
 import type {
 	CallArg,
@@ -303,7 +306,7 @@ export function transactionDataToGrpcTransaction(data: TransactionData): GrpcTra
 				allowedProposers: allowedProposers
 					? {
 							epoch: BigInt(allowedProposers.epoch),
-							proposers: allowedProposers.proposers,
+							proposers: assertAllowedProposersStrictlyIncreasing(allowedProposers.proposers),
 						}
 					: undefined,
 			};

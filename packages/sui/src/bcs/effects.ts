@@ -140,9 +140,8 @@ const ExecutionFailureStatus = bcs.enum('ExecutionFailureStatus', {
 		maxScaledSize: bcs.u64(),
 	}),
 	InvalidLinkage: null,
-	// Upstream renamed this variant to `InsufficientFundsForWithdraw`. Keep the existing SDK name
-	// because changing the parsed BCS `$kind` would be a breaking API change. The BCS enum index and
-	// wire representation are unchanged.
+	// Upstream renamed this to `InsufficientFundsForWithdraw`; renaming the parsed `$kind` would
+	// break the public API, and the wire representation is unchanged either way.
 	InsufficientBalanceForWithdraw: null,
 	NonExclusiveWriteInputObjectModified: bcs.struct('NonExclusiveWriteInputObjectModified', {
 		id: Address,

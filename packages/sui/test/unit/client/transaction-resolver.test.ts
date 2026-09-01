@@ -542,6 +542,26 @@ describe('Transaction Resolver - TypeScript to gRPC Conversion', () => {
 			},
 		);
 
+		it('rejects unsorted allowed proposers when encoding a grpc transaction', () => {
+			const tx = new Transaction();
+			tx.setExpiration({
+				Validity: {
+					minEpoch: '42',
+					maxEpoch: '43',
+					minTimestamp: null,
+					maxTimestamp: null,
+					chain: toBase58(new Uint8Array(32).fill(7)),
+					nonce: 0,
+					allowedProposers: { epoch: '42', proposers: [5, 2] },
+				},
+			});
+			tx.moveCall({ target: '0x2::foo::bar' });
+
+			expect(() => transactionDataToGrpcTransaction(tx.getData())).toThrow(
+				/Allowed proposers must be strictly increasing/,
+			);
+		});
+
 		it('rejects an empty allowed proposer set when decoding a grpc transaction', () => {
 			const grpcTx = {
 				kind: {

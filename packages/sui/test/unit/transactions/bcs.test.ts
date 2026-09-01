@@ -102,8 +102,6 @@ it.each([[[]], [[2, 2]], [[2, 1]]])(
 	},
 );
 
-// Sortedness is a submission-time rule upstream, not a deserialization one, so bytes carrying an
-// unsorted set must still decode -- they can represent a transaction the network accepted.
 it('decodes an unsorted allowed proposer set', () => {
 	const bytes = validityBytes([2, 5]);
 	// Swap the two trailing u32s so the encoded set reads [5, 2].

@@ -72,11 +72,8 @@ const TransactionInput = union([
 	}),
 ]);
 
-// `ValidDuring` and `Validity` were added after v1 was otherwise frozen. Representing them here
-// rather than collapsing them to `{ None: true }` keeps a `serialize()` -> `from()` round trip
-// lossless: the old behaviour dropped the expiration -- and, for `Validity`, the set of validators
-// allowed to propose the transaction -- so the rebuilt transaction signed materially broader bytes.
-// An older SDK reading these throws on a union mismatch instead, which is the safe failure.
+// Carried here rather than collapsed to `{ None: true }`, which silently dropped the expiration
+// (and its allowed proposers) from a `serialize()` -> `from()` round trip before signing.
 const TransactionExpiration = union([
 	object({ Epoch: pipe(number(), integer()) }),
 	object({ None: nullable(literal(true)) }),
@@ -98,14 +95,11 @@ function expirationToV1(
 			return { Validity: expiration.Validity };
 		case 'None':
 			return { None: true };
+		default:
+			// Representing a new variant here is not optional: this fails to compile without it.
+			expiration satisfies never;
+			throw new Error(`Unknown transaction expiration: ${JSON.stringify(expiration)}`);
 	}
-
-	// Adding a variant to `TransactionExpiration` without representing it here is a compile error:
-	// the switch above narrows `expiration` to `never`, so this assignment stops typechecking.
-	// Without it a new variant would serialize as no expiration at all, which is the silent
-	// downgrade this function exists to avoid.
-	const unhandled: never = expiration;
-	throw new Error(`Unknown transaction expiration: ${(unhandled as { $kind: string }).$kind}`);
 }
 
 function expirationFromV1(
@@ -117,10 +111,8 @@ function expirationFromV1(
 	if ('Validity' in expiration) return { Validity: expiration.Validity };
 	if ('None' in expiration) return { None: true };
 
-	// `restore` hands v1 payloads straight here without validating them against
-	// `SerializedTransactionDataV1`, so this is the only place an unrecognised expiration can be
-	// caught. Falling through to `{ None: true }` -- as this did before -- silently discards an
-	// expiration we failed to understand and rebuilds a transaction that signs broader bytes.
+	// `restore` does not validate v1 payloads against the schema, so this is the only place an
+	// unrecognised expiration can be caught rather than silently becoming `{ None: true }`.
 	throw new Error(
 		`Unknown transaction expiration in v1 transaction data: ${Object.keys(expiration).join(', ')}`,
 	);
