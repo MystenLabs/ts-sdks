@@ -1,5 +1,16 @@
 # @mysten/docs
 
+## 0.1.57
+
+### Patch Changes
+
+- Updated dependencies [331eb20]
+  - @mysten/slush-wallet@1.1.22
+  - @mysten/dapp-kit-core@1.6.22
+  - @mysten/dapp-kit-react@2.1.24
+  - @mysten/walrus@1.2.22
+  - @mysten/enoki@1.2.19
+
 ## 0.1.56
 
 ### Patch Changes
