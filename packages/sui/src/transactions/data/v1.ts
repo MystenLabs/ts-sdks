@@ -87,7 +87,9 @@ const TransactionExpiration = union([
 function expirationToV1(
 	expiration: TransactionData['expiration'],
 ): InferOutput<typeof TransactionExpiration> | null {
-	switch (expiration?.$kind) {
+	if (!expiration) return null;
+
+	switch (expiration.$kind) {
 		case 'Epoch':
 			return { Epoch: Number(expiration.Epoch) };
 		case 'ValidDuring':
@@ -96,9 +98,14 @@ function expirationToV1(
 			return { Validity: expiration.Validity };
 		case 'None':
 			return { None: true };
-		default:
-			return null;
 	}
+
+	// Adding a variant to `TransactionExpiration` without representing it here is a compile error:
+	// the switch above narrows `expiration` to `never`, so this assignment stops typechecking.
+	// Without it a new variant would serialize as no expiration at all, which is the silent
+	// downgrade this function exists to avoid.
+	const unhandled: never = expiration;
+	throw new Error(`Unknown transaction expiration: ${(unhandled as { $kind: string }).$kind}`);
 }
 
 function expirationFromV1(
