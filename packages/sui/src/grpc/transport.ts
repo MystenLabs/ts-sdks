@@ -28,10 +28,11 @@ const MESSAGE_DECODED = Symbol('@mysten/sui/grpc/decoded-status-message');
  * https://github.com/timostamm/protobuf-ts/issues/631), so status text otherwise reaches callers as
  * `Object%20not%20found%3A%200x1` — or, for a non-ASCII message, as raw UTF-8 escapes.
  *
- * A node is a correct percent-encoder — it escapes a literal `%` as `%25` — so decoding exactly
- * once is right: `gas budget 100%25 consumed` is readable text, and `read_mask path: a%2520b`
- * really does end in `a%20b`. A message that fails to decode was not written by a percent-encoder,
- * so it is kept verbatim rather than failing a call over its status text.
+ * Decoding exactly once is right, because the server escapes a literal `%` as `%25`: tonic 0.14 —
+ * what a Sui node serves gRPC with — percent-encodes control bytes plus ``  " # % < > ` ? { }  ``,
+ * so `gas budget 100%25 consumed` is readable text and `read_mask path: a%2520b` really does end in
+ * `a%20b`. Not every encoder is that careful (tonic 0.12 left `%` unescaped), so a message that
+ * fails to decode is kept verbatim rather than failing a call over its status text.
  */
 function decodeGrpcStatusMessage(message: string): string {
 	if (!message.includes('%')) return message;

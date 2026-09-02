@@ -155,10 +155,12 @@ For local development without TLS, use `ChannelCredentials.createInsecure()` and
 `host: '127.0.0.1:9000'`.
 
 This transport reports errors the way `@grpc/grpc-js` does, which differs from the gRPC-web
-transport above in one way worth knowing: grpc-js decodes a status message with `decodeURI`, which
-leaves escapes for reserved characters in place, so a message reaches you as
-`Object not found%3A 0x1`. Status codes are unaffected — grpc-js handles deadlines and cancellation
-natively.
+transport above in two small ways. grpc-js decodes status messages with `decodeURI`, which leaves
+escapes for reserved characters in place: of the characters a Sui node escapes, `#` and `?` reach
+you as `%23` and `%3F`, while spaces, non-ASCII text and a literal `%` decode correctly. And an
+aborted call is `CANCELLED` whatever the abort reason, so an `AbortSignal.timeout` reads `CANCELLED`
+rather than `DEADLINE_EXCEEDED`; set `timeout` on the call options instead, which grpc-js enforces
+as a deadline.
 
 ## Read masks
 
