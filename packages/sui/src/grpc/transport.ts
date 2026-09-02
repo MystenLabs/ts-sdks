@@ -85,33 +85,72 @@ interface CallState {
 }
 
 /**
- * Wraps `fetch` so a request that never returned a response is known as such, and so is an abort
- * that ended it. Read here rather than inferred from the error afterwards: a status the server
- * answered with arrives as a resolved response, so it can never be taken for a cancellation.
+ * Records that the request, rather than the server, is what failed — and whether the abort is what
+ * did it. Spec fetch rejects with the signal's reason itself; node-fetch substitutes its own
+ * `AbortError`.
+ */
+function markLocalFailure(error: unknown, signal: AbortSignal | undefined, state: CallState): void {
+	state.failedLocally = true;
+
+	if (
+		signal?.aborted &&
+		(error === signal.reason || (error as { name?: unknown } | null)?.name === 'AbortError')
+	) {
+		state.abortCode = abortStatus(signal.reason);
+	}
+}
+
+/**
+ * Wraps `fetch` so a failure of the request itself is known as such, whether it happened before the
+ * response arrived or while its body was being read. Read here rather than inferred from the error
+ * afterwards: a status the server answered with is parsed from a body that arrived intact, so it
+ * can never be taken for a cancellation, nor its text for a local diagnostic.
  *
- * A failure after the response arrives, such as an abort while a stream is being read or a body
- * that stops mid-frame, is not covered: it keeps whatever status the upstream transport gives it,
- * and its message is decoded as though it came off the wire. Covering those means wrapping the
- * response body as well, which costs a stream copy on every call.
+ * Errors raised while parsing that body — a truncated frame, a message that will not decode — are
+ * upstream's own, and still read as wire text.
  */
 function observingFetch(
 	base: typeof globalThis.fetch,
 	signal: AbortSignal | undefined,
 	state: CallState,
 ): typeof globalThis.fetch {
-	return (input, init) =>
-		base(input, init).catch((error: unknown) => {
-			state.failedLocally = true;
-			// Spec fetch rejects with the reason itself; node-fetch substitutes its own `AbortError`.
-			if (
-				signal?.aborted &&
-				(error === signal.reason || (error as { name?: unknown } | null)?.name === 'AbortError')
-			) {
-				state.abortCode = abortStatus(signal.reason);
-			}
+	return async (input, init) => {
+		let response: Response;
+
+		try {
+			response = await base(input, init);
+		} catch (error) {
+			markLocalFailure(error, signal, state);
 
 			throw error;
+		}
+
+		if (!response.body) return response;
+
+		const reader = response.body.getReader();
+		const body = new ReadableStream<Uint8Array>({
+			async pull(controller) {
+				try {
+					const { done, value } = await reader.read();
+
+					if (done) controller.close();
+					else controller.enqueue(value);
+				} catch (error) {
+					markLocalFailure(error, signal, state);
+					controller.error(error);
+				}
+			},
+			cancel(reason) {
+				return reader.cancel(reason);
+			},
 		});
+
+		return new Response(body, {
+			status: response.status,
+			statusText: response.statusText,
+			headers: response.headers,
+		});
+	};
 }
 
 /**
@@ -151,7 +190,7 @@ function prepareCall(options: RpcOptions): { options: RpcOptions; state: CallSta
 
 /**
  * `GrpcWebFetchTransport` from `@protobuf-ts/grpcweb-transport`, subclassed to fix two defects it
- * has as of 2.11.1: status messages are left percent-encoded, and a request ended by a timeout or a
+ * has as of 2.11.1: status messages are left percent-encoded, and a call ended by a timeout or a
  * custom abort reason is coded `INTERNAL`. Fixing them here covers every consumer of a call.
  *
  * `SuiGrpcClient` builds one by default. Construct it directly to share a transport between clients

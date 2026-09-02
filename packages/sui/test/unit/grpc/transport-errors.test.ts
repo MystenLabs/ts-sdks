@@ -372,6 +372,50 @@ describe('gRPC transport error normalization', () => {
 		expect(error.code).toBe('INTERNAL');
 	});
 
+	it('codes an abort that lands while the body is being read', async () => {
+		const controller = new AbortController();
+		const client = clientRespondingWith(() =>
+			Promise.resolve(
+				new Response(
+					new ReadableStream({
+						start(streamController) {
+							setTimeout(() => {
+								controller.abort();
+								streamController.error(controller.signal.reason);
+							}, 2);
+						},
+					}),
+					{ status: 200, headers: { 'content-type': 'application/grpc-web+proto' } },
+				),
+			),
+		);
+
+		const error = await captureError(
+			client.ledgerService.getObject({ objectId: '0x1' }, { abort: controller.signal }).response,
+		);
+
+		expect(error.code).toBe('CANCELLED');
+	});
+
+	it('does not decode the text of a body that failed mid-read', async () => {
+		const client = clientRespondingWith(() =>
+			Promise.resolve(
+				new Response(
+					new ReadableStream({
+						start(streamController) {
+							setTimeout(() => streamController.error(new Error('read /objects/a%2Fb failed')), 2);
+						},
+					}),
+					{ status: 200, headers: { 'content-type': 'application/grpc-web+proto' } },
+				),
+			),
+		);
+
+		const error = await captureError(client.ledgerService.getObject({ objectId: '0x1' }).response);
+
+		expect(error.message).toBe('read /objects/a%2Fb failed');
+	});
+
 	it('leaves a server failure that raced an abort with the status the server gave it', async () => {
 		// Headers resolve before a later failure propagates, so a caller that aborts once it has
 		// them must not have that failure relabelled as a cancellation.

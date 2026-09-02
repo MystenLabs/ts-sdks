@@ -101,10 +101,9 @@ That class extends the transport of the same name from
 [protobuf-ts](https://github.com/timostamm/protobuf-ts) and fixes two defects in it:
 
 - It decodes status messages, rather than delivering them as `Object%20not%20found:%200x1`.
-- It codes a request that an abort ended from the reason the abort carried: `DEADLINE_EXCEEDED` for
-  an `AbortSignal.timeout`, the status on a reason carrying one, and `CANCELLED` otherwise. Upstream
-  reports all but a standard `AbortError` cancellation as `INTERNAL`. An abort once the response has
-  started arriving, such as one cancelling a stream mid-read, keeps upstream's status.
+- It codes a call that an abort ended from the reason the abort carried: `DEADLINE_EXCEEDED` for an
+  `AbortSignal.timeout`, the status on a reason carrying one, and `CANCELLED` otherwise. Upstream
+  reports all but a standard `AbortError` cancellation as `INTERNAL`.
 
 Build custom transports from this class. `SuiGrpcClient` uses a transport you pass it as given.
 
