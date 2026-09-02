@@ -27,8 +27,11 @@ export type { GrpcCoreClientOptions } from './core.js';
 // here instead of re-exporting that package's, so a custom transport gets the fixes too.
 export { GrpcWebFetchTransport } from './transport.js';
 
-// Re-exported so users can configure a transport without adding @protobuf-ts/* as a dependency.
+// Re-exported so users can configure a transport, and narrow and code the errors it produces,
+// without adding @protobuf-ts/* as a dependency.
+export { GrpcStatusCode } from '@protobuf-ts/grpcweb-transport';
 export type { GrpcWebOptions } from '@protobuf-ts/grpcweb-transport';
+export { RpcError } from '@protobuf-ts/runtime-rpc';
 export type { RpcTransport } from '@protobuf-ts/runtime-rpc';
 
 // Export all gRPC proto types as a namespace

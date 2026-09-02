@@ -93,7 +93,8 @@ console.log(transaction.digest, result.protoJson);
 
 By default, `SuiGrpcClient` uses `GrpcWebFetchTransport`, which works in browsers and Node.js
 through the Fetch API. `@mysten/sui/grpc` exports it alongside the `GrpcWebOptions` and
-`RpcTransport` types, so you can configure a transport without adding `@protobuf-ts/*` as a direct
+`RpcTransport` types, and the `RpcError` class and `GrpcStatusCode` enum that gRPC failures use, so
+you can configure a transport and handle its errors without adding `@protobuf-ts/*` as a direct
 dependency.
 
 That class extends the transport of the same name from
@@ -282,6 +283,7 @@ const result = parseGrpcTransactionResponse(response.transaction!, {
 | `parseGrpcTransactionResponse`                            | Raw `ExecutedTransaction` to the unified result shape |
 | `parseGrpcSimulateTransactionResponse`                    | Raw simulation response to the unified result shape   |
 | `GrpcWebFetchTransport`, `GrpcWebOptions`, `RpcTransport` | Configuring a [transport](#transport-options)         |
+| `RpcError`, `GrpcStatusCode`                              | Narrowing and coding gRPC failures                    |
 | `SuiGrpcClientOptions`, `GrpcTransactionInclude`, …       | Typing your own wrappers around the client            |
 | `isSuiGrpcClient`                                         | Type guard for narrowing an unknown client            |
 

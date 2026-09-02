@@ -1,5 +1,5 @@
 ---
-'@mysten/sui': patch
+'@mysten/sui': minor
 ---
 
 `GrpcWebFetchTransport` exported from `@mysten/sui/grpc` is now a subclass of the transport of the
@@ -10,6 +10,9 @@ and only recognises a standard `AbortError`; an abort reason that already carrie
 keeps it. `timeout` is enforced
 as a deadline instead of only being sent as the `grpc-timeout` header, so a stalled connection fails
 instead of hanging.
+
+`@mysten/sui/grpc` also exports the `RpcError` class and the `GrpcStatusCode` enum, so the errors
+gRPC calls produce can be narrowed and coded without a direct `@protobuf-ts/*` dependency.
 
 `SuiGrpcClient` builds one of these by default and now forwards the rest of `GrpcWebOptions`
 (`fetch`, `format`, `meta`, `timeout`, `interceptors`, `jsonOptions`, `binaryOptions`) to it, which
