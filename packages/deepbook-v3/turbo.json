@@ -3,6 +3,10 @@
 	"tasks": {
 		"build": {
 			"dependsOn": ["^build", "build:docs", "@mysten/sui#build"]
+		},
+		"test": {
+			"dependsOn": ["^build", "build"],
+			"env": ["PREDICT_SDK_TESTNET"]
 		}
 	}
 }
