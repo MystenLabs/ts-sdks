@@ -5,7 +5,7 @@ import type { RpcTransport } from '@protobuf-ts/runtime-rpc';
 import { RpcError, UnaryCall } from '@protobuf-ts/runtime-rpc';
 import { describe, expect, it } from 'vitest';
 
-import { SuiGrpcClient, SuiGrpcWebTransport } from '../../../src/grpc/index.js';
+import { GrpcWebFetchTransport, SuiGrpcClient } from '../../../src/grpc/index.js';
 
 /**
  * A grpc-web response that carries its status in the headers, which is how a fullnode answers a
@@ -36,8 +36,8 @@ function clientRespondingWith(response: Response | (() => Promise<Response>)) {
 }
 
 /**
- * A transport of the caller's own, standing in for one imported straight from
- * `@protobuf-ts/grpcweb-transport`. Whatever it does with errors is its own contract.
+ * A transport of the caller's own, standing in for one built without this package's
+ * `GrpcWebFetchTransport`. Whatever it does with errors is its own contract.
  */
 function transportRejectingWith(error: RpcError): RpcTransport {
 	return {
@@ -219,11 +219,11 @@ describe('a caller-supplied transport', () => {
 		expect(caught.code).toBe('INTERNAL');
 	});
 
-	it('normalizes when it is a SuiGrpcWebTransport the caller built', async () => {
+	it('normalizes when it is a GrpcWebFetchTransport the caller built from this package', async () => {
 		// The path an app takes when it needs interceptors: build the transport itself, from ours.
 		const client = new SuiGrpcClient({
 			network: 'testnet',
-			transport: new SuiGrpcWebTransport({
+			transport: new GrpcWebFetchTransport({
 				baseUrl: 'http://localhost',
 				fetch: (async () => statusResponse(5, 'Object%20not%20found%3A%200x1')) as typeof fetch,
 			}),

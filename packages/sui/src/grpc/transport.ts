@@ -1,7 +1,8 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { GrpcStatusCode, GrpcWebFetchTransport } from '@protobuf-ts/grpcweb-transport';
+import { GrpcStatusCode } from '@protobuf-ts/grpcweb-transport';
+import { GrpcWebFetchTransport as UpstreamGrpcWebFetchTransport } from '@protobuf-ts/grpcweb-transport';
 import type {
 	MethodInfo,
 	RpcOptions,
@@ -104,20 +105,20 @@ function normalizeRejections(promises: Promise<unknown>[], abort: AbortSignal | 
 }
 
 /**
- * `GrpcWebFetchTransport` with the two error defects it has as of `@protobuf-ts/grpcweb-transport`
- * 2.11.1 repaired: status text arrives decoded, and a call cut short by its own signal is coded
- * `DEADLINE_EXCEEDED` or `CANCELLED` rather than `INTERNAL`.
+ * The grpc-web transport `@mysten/sui` ships: `@protobuf-ts/grpcweb-transport`'s, subclassed to
+ * repair the two error defects it has as of 2.11.1 — status text arrives decoded, and a call cut
+ * short by its own signal is coded `DEADLINE_EXCEEDED` or `CANCELLED` rather than `INTERNAL`.
  *
  * Both belong to the transport — it is the layer that reads the wire — so this is where
  * `SuiGrpcClient` applies them, and every consumer of a call is served by one pass: `client.core`,
  * the generated service clients, a response stream and any interceptor the caller installed.
  *
- * `SuiGrpcClient` builds one of these by default. Construct it directly when you need transport
- * options the client does not take, or pass it as `transport`. A plain `GrpcWebFetchTransport`
- * imported from `@protobuf-ts/grpcweb-transport` still behaves the way that package behaves; the
- * client does not reach into a transport it was handed.
+ * This is what `@mysten/sui/grpc` exports under this name and what `SuiGrpcClient` builds by
+ * default. Construct it directly when you need transport options the client does not take, and
+ * pass it as `transport`. A transport imported from `@protobuf-ts/grpcweb-transport` itself still
+ * behaves the way that package behaves; the client does not reach into a transport it was handed.
  */
-export class SuiGrpcWebTransport extends GrpcWebFetchTransport {
+export class GrpcWebFetchTransport extends UpstreamGrpcWebFetchTransport {
 	override unary<I extends object, O extends object>(
 		method: MethodInfo<I, O>,
 		input: I,

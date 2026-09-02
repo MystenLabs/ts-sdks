@@ -91,11 +91,19 @@ console.log(transaction.digest, result.protoJson);
 
 ## Transport options
 
-By default, `SuiGrpcClient` uses `GrpcWebFetchTransport` from
-[protobuf-ts](https://github.com/timostamm/protobuf-ts), which works in browsers and Node.js through
-the Fetch API. The `GrpcWebFetchTransport` class, `GrpcWebOptions` type, and `RpcTransport` type are
-re-exported from `@mysten/sui/grpc`, so you can configure a transport without adding
-`@protobuf-ts/*` as a direct dependency.
+By default, `SuiGrpcClient` uses `GrpcWebFetchTransport`, which works in browsers and Node.js
+through the Fetch API. `@mysten/sui/grpc` exports it alongside the `GrpcWebOptions` and
+`RpcTransport` types, so you can configure a transport without adding `@protobuf-ts/*` as a direct
+dependency.
+
+That class extends the transport of the same name from
+[protobuf-ts](https://github.com/timostamm/protobuf-ts) and repairs two defects in how it reports
+errors: gRPC status messages arrive decoded rather than percent-encoded (`Object not found: 0x1`,
+not `Object%20not%20found%3A%200x1`), and a call cut short by its own `signal` is coded
+`DEADLINE_EXCEEDED` for an `AbortSignal.timeout` or `CANCELLED` for any other abort, rather than
+`INTERNAL`. Build custom transports from this class rather than importing one from
+`@protobuf-ts/grpcweb-transport` directly — a transport passed to `SuiGrpcClient` is used exactly as
+given.
 
 ### gRPC-web transport (default)
 
@@ -145,6 +153,12 @@ const client = new SuiGrpcClient({
 
 For local development without TLS, use `ChannelCredentials.createInsecure()` and a plain
 `host: '127.0.0.1:9000'`.
+
+This transport reports errors the way `@grpc/grpc-js` does, which differs from the gRPC-web
+transport above in one way worth knowing: grpc-js decodes a status message with `decodeURI`, which
+leaves escapes for reserved characters in place, so a message reaches you as
+`Object not found%3A 0x1`. Status codes are unaffected — grpc-js handles deadlines and cancellation
+natively.
 
 ## Read masks
 

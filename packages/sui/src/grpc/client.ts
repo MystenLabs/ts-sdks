@@ -18,7 +18,7 @@ import { fromBase64, toBase64 } from '@mysten/utils';
 import { NameServiceClient } from './proto/sui/rpc/v2/name_service.client.js';
 import { ForkingServiceClient } from './proto/sui/forking/v1alpha/forking_service.client.js';
 import type { TransactionPlugin } from '../transactions/index.js';
-import { SuiGrpcWebTransport } from './transport.js';
+import { GrpcWebFetchTransport } from './transport.js';
 
 interface SuiGrpcTransportOptions extends GrpcWebOptions {
 	transport?: never;
@@ -165,9 +165,9 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 		} = options as SuiGrpcClientOptions & SuiGrpcTransportOptions & { transport?: RpcTransport };
 
 		// A transport the caller supplied is used exactly as given: whatever it does with errors is
-		// that transport's contract, not ours to reach into. The default fixes the two error defects
-		// `GrpcWebFetchTransport` has — see `SuiGrpcWebTransport`.
-		const transport = providedTransport ?? new SuiGrpcWebTransport(transportOptions);
+		// that transport's contract, not ours to reach into. The default is our `GrpcWebFetchTransport`,
+		// which repairs upstream's two error defects — see `./transport.ts`.
+		const transport = providedTransport ?? new GrpcWebFetchTransport(transportOptions);
 		this.transactionExecutionService = new TransactionExecutionServiceClient(transport);
 		this.ledgerService = new LedgerServiceClient(transport);
 		this.stateService = new StateServiceClient(transport);
