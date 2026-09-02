@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { GrpcWebOptions } from '@protobuf-ts/grpcweb-transport';
-import { GrpcWebFetchTransport } from '@protobuf-ts/grpcweb-transport';
 import { TransactionExecutionServiceClient } from './proto/sui/rpc/v2/transaction_execution_service.client.js';
 import { LedgerServiceClient } from './proto/sui/rpc/v2/ledger_service.client.js';
 import { MovePackageServiceClient } from './proto/sui/rpc/v2/move_package_service.client.js';
@@ -19,7 +18,7 @@ import { fromBase64, toBase64 } from '@mysten/utils';
 import { NameServiceClient } from './proto/sui/rpc/v2/name_service.client.js';
 import { ForkingServiceClient } from './proto/sui/forking/v1alpha/forking_service.client.js';
 import type { TransactionPlugin } from '../transactions/index.js';
-import { withNormalizedErrors } from './transport.js';
+import { SuiGrpcWebTransport } from './transport.js';
 
 interface SuiGrpcTransportOptions extends GrpcWebOptions {
 	transport?: never;
@@ -165,15 +164,10 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 			...transportOptions
 		} = options as SuiGrpcClientOptions & SuiGrpcTransportOptions & { transport?: RpcTransport };
 
-		const baseTransport = providedTransport ?? new GrpcWebFetchTransport(transportOptions);
-
-		// Wrapped whether the transport is ours or the caller's, so status codes read the same
-		// everywhere. Only grpc-web leaves `grpc-message` in its percent-encoded wire form, though:
-		// other transports (`@protobuf-ts/grpc-transport`, say) decode it themselves, and decoding
-		// again would rewrite a status that really does contain `%20`. See `./transport.ts`.
-		const transport = withNormalizedErrors(baseTransport, {
-			decodeMessages: baseTransport instanceof GrpcWebFetchTransport,
-		});
+		// A transport the caller supplied is used exactly as given: whatever it does with errors is
+		// that transport's contract, not ours to reach into. The default fixes the two error defects
+		// `GrpcWebFetchTransport` has — see `SuiGrpcWebTransport`.
+		const transport = providedTransport ?? new SuiGrpcWebTransport(transportOptions);
 		this.transactionExecutionService = new TransactionExecutionServiceClient(transport);
 		this.ledgerService = new LedgerServiceClient(transport);
 		this.stateService = new StateServiceClient(transport);

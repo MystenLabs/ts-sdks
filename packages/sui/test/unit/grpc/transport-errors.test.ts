@@ -5,7 +5,7 @@ import type { RpcTransport } from '@protobuf-ts/runtime-rpc';
 import { RpcError, UnaryCall } from '@protobuf-ts/runtime-rpc';
 import { describe, expect, it } from 'vitest';
 
-import { SuiGrpcClient } from '../../../src/grpc/index.js';
+import { SuiGrpcClient, SuiGrpcWebTransport } from '../../../src/grpc/index.js';
 
 /**
  * A grpc-web response that carries its status in the headers, which is how a fullnode answers a
@@ -36,23 +36,23 @@ function clientRespondingWith(response: Response | (() => Promise<Response>)) {
 }
 
 /**
- * A transport that is not grpc-web — standing in for `@protobuf-ts/grpc-transport`, which decodes
- * `grpc-message` itself. Rejects every call with the *same* error instance, which is also what makes
- * it a probe for call-specific state being recorded on a shared error.
+ * A transport of the caller's own, standing in for one imported straight from
+ * `@protobuf-ts/grpcweb-transport`. Whatever it does with errors is its own contract.
  */
 function transportRejectingWith(error: RpcError): RpcTransport {
 	return {
 		mergeOptions: (options) => options ?? {},
 		unary(method, input, _options) {
-			return new UnaryCall(
-				method,
-				{},
-				input,
-				Promise.reject(error),
-				Promise.reject(error),
-				Promise.reject(error),
-				Promise.reject(error),
-			);
+			// Handled here so the promises a test does not await are not reported as unhandled: nothing
+			// wraps this transport now, so nothing else attaches to them.
+			const rejected = () => {
+				const promise = Promise.reject(error);
+				promise.catch(() => {});
+
+				return promise;
+			};
+
+			return new UnaryCall(method, {}, input, rejected(), rejected(), rejected(), rejected());
 		},
 		serverStreaming: () => {
 			throw new Error('unused');
@@ -64,14 +64,6 @@ function transportRejectingWith(error: RpcError): RpcTransport {
 			throw new Error('unused');
 		},
 	};
-}
-
-/** A timeout signal that has already fired, so a call can be normalized against a settled abort. */
-async function firedTimeoutSignal() {
-	const signal = AbortSignal.timeout(0);
-	await new Promise((resolve) => setTimeout(resolve, 2));
-
-	return signal;
 }
 
 async function captureError(promise: Promise<unknown>) {
@@ -207,56 +199,38 @@ describe('gRPC transport error normalization', () => {
 	});
 });
 
-describe('gRPC transport error normalization on a non-grpc-web transport', () => {
-	it('leaves status text alone, since such a transport has already decoded it', async () => {
-		// `read_mask path: a%20b` is the decoded message: a second decode would collapse it to `a b`.
-		const error = new RpcError('read_mask path: a%20b', 'INVALID_ARGUMENT');
-		const client = new SuiGrpcClient({
-			network: 'testnet',
-			transport: transportRejectingWith(error),
-		});
-
-		const caught = await captureError(client.ledgerService.getObject({ objectId: '0x1' }).response);
-
-		expect(caught.message).toBe('read_mask path: a%20b');
-	});
-
-	it('still codes an aborted call from the signal', async () => {
-		const error = new RpcError('connection closed', 'INTERNAL');
+describe('a caller-supplied transport', () => {
+	it('is used exactly as given, errors and all', async () => {
+		// Upstream's transport leaves `grpc-message` encoded and codes an aborted call INTERNAL. That
+		// is upstream's behaviour to change; the client does not reach into a transport it was handed.
+		const error = new RpcError('Object%20not%20found', 'INTERNAL');
+		const controller = new AbortController();
+		controller.abort();
 		const client = new SuiGrpcClient({
 			network: 'testnet',
 			transport: transportRejectingWith(error),
 		});
 
 		const caught = await captureError(
-			client.ledgerService.getObject({ objectId: '0x1' }, { abort: await firedTimeoutSignal() })
-				.response,
+			client.ledgerService.getObject({ objectId: '0x1' }, { abort: controller.signal }).response,
 		);
 
-		expect(caught.code).toBe('DEADLINE_EXCEEDED');
+		expect(caught.message).toBe('Object%20not%20found');
+		expect(caught.code).toBe('INTERNAL');
 	});
 
-	it('codes each call from its own signal when a transport reuses one error instance', async () => {
-		// Recording the mapping on the error would let whichever call normalized first decide the code
-		// every later call observes.
-		const shared = new RpcError('connection closed', 'INTERNAL');
+	it('normalizes when it is a SuiGrpcWebTransport the caller built', async () => {
+		// The path an app takes when it needs interceptors: build the transport itself, from ours.
 		const client = new SuiGrpcClient({
 			network: 'testnet',
-			transport: transportRejectingWith(shared),
+			transport: new SuiGrpcWebTransport({
+				baseUrl: 'http://localhost',
+				fetch: (async () => statusResponse(5, 'Object%20not%20found%3A%200x1')) as typeof fetch,
+			}),
 		});
 
-		const timedOut = await captureError(
-			client.ledgerService.getObject({ objectId: '0x1' }, { abort: await firedTimeoutSignal() })
-				.response,
-		);
-		expect(timedOut.code).toBe('DEADLINE_EXCEEDED');
+		const caught = await captureError(client.ledgerService.getObject({ objectId: '0x1' }).response);
 
-		const controller = new AbortController();
-		controller.abort();
-		const cancelled = await captureError(
-			client.ledgerService.getObject({ objectId: '0x2' }, { abort: controller.signal }).response,
-		);
-
-		expect(cancelled.code).toBe('CANCELLED');
+		expect(caught.message).toBe('Object not found: 0x1');
 	});
 });
