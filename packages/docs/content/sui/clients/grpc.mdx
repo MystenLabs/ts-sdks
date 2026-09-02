@@ -161,10 +161,6 @@ const client = new SuiGrpcClient({
 For local development without TLS, use `ChannelCredentials.createInsecure()` and a plain
 `host: '127.0.0.1:9000'`.
 
-Errors on this transport come from `@grpc/grpc-js`, so status text and codes can differ slightly
-from the gRPC-web transport above. Set deadlines with `timeout`, which both transports enforce and
-report as `DEADLINE_EXCEEDED`.
-
 ## Read masks
 
 gRPC responses are opt-in. A request names the fields it wants in a `readMask`, and the server
