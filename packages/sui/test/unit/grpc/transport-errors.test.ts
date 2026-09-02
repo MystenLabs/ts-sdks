@@ -114,7 +114,7 @@ describe('gRPC transport error normalization', () => {
 			captureError(call.trailers),
 		]);
 
-		// One decode only: `%2520` is a literal `%20` in the message, not a second escape.
+		// `%2520` is a literal `%20` in the message, not a second escape.
 		expect(fromResponse.message).toBe('invalid read_mask path: a%20b');
 		expect(fromStatus).toBe(fromResponse);
 		expect(fromTrailers).toBe(fromResponse);
@@ -156,8 +156,7 @@ describe('gRPC transport error normalization', () => {
 	});
 
 	it('codes an abort with a caller-supplied reason CANCELLED, not INTERNAL', async () => {
-		// Only an `AbortError` reaches the transport's cancellation branch. Any other reason lands as
-		// INTERNAL, which callers retry as a server failure.
+		// Only an `AbortError` reaches the transport's cancellation branch; the rest land as INTERNAL.
 		const controller = new AbortController();
 		const client = makeClient(
 			hangingFetch(() => setTimeout(() => controller.abort(new Error('caller gave up')), 1)),
@@ -171,9 +170,7 @@ describe('gRPC transport error normalization', () => {
 	});
 
 	it('reads a reason named TimeoutError as a deadline, whatever built it', async () => {
-		// The reason is the caller's own data. Requiring a `DOMException` would lose a genuine timeout
-		// from another realm, and a caller naming their reason `TimeoutError` is declaring the same
-		// thing either way.
+		// Requiring a `DOMException` would lose a genuine timeout from another realm.
 		const controller = new AbortController();
 		const client = makeClient(
 			hangingFetch(() =>
@@ -192,8 +189,7 @@ describe('gRPC transport error normalization', () => {
 	});
 
 	it('ignores a reason whose code is a numeric key or a prototype member', async () => {
-		// The enum's reverse mapping and `Object.prototype` both answer `in`; a status name is the one
-		// that maps to a number.
+		// The enum's reverse mapping and `Object.prototype` both answer `in`.
 		const controller = new AbortController();
 		const client = makeClient(
 			hangingFetch(() =>
@@ -392,8 +388,7 @@ describe('gRPC transport error normalization', () => {
 
 describe('a caller-supplied transport', () => {
 	it('is used exactly as given, errors and all', async () => {
-		// Upstream leaves `grpc-message` encoded and codes an aborted call INTERNAL. The client does
-		// not reach into a transport it was handed.
+		// Upstream leaves `grpc-message` encoded; the client does not reach into a transport.
 		const error = new RpcError('Object%20not%20found', 'INTERNAL');
 		const controller = new AbortController();
 		controller.abort();
@@ -427,8 +422,7 @@ describe('a caller-supplied transport', () => {
 	});
 
 	it('still resolves an expired name through an upstream transport', async () => {
-		// The node reports an expired name as RESOURCE_EXHAUSTED with prose, which upstream leaves
-		// encoded. Whether the name resolves must not depend on the transport.
+		// The node reports an expired name as RESOURCE_EXHAUSTED with prose, left encoded upstream.
 		const client = new SuiGrpcClient({
 			network: 'mainnet',
 			transport: new UpstreamGrpcWebFetchTransport({
@@ -443,8 +437,7 @@ describe('a caller-supplied transport', () => {
 	});
 
 	it('honours the decoded marker set by another copy of this package', async () => {
-		// A transport from a duplicate install decodes with the same registered symbol, so its errors
-		// are not decoded again, and their text is not read as a wire form.
+		// The marker is registered globally, so a duplicate install's transport sets the same one.
 		const decoded = new RpcError('name%20has%20expired', 'RESOURCE_EXHAUSTED');
 		Object.defineProperty(decoded, Symbol.for('@mysten/sui/grpc/decoded-status-message'), {
 			value: true,
@@ -492,8 +485,7 @@ describe('gRPC transport call options', () => {
 		await captureError(client.ledgerService.getObject({ objectId: '0x1' }).response);
 		await captureError(client.ledgerService.getObject({ objectId: '0x2' }).response);
 
-		// `mergeRpcOptions` hands these options to a call that passes none of its own, so writing the
-		// observing fetch onto them would install one call's state on every later call.
+		// `mergeRpcOptions` hands these to a call that passes no options of its own.
 		const defaults = (transport as unknown as { defaultOptions: { fetch?: unknown } })
 			.defaultOptions;
 

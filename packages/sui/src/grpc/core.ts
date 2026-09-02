@@ -76,8 +76,7 @@ export interface GrpcCoreClientOptions extends CoreClientOptions {
 }
 
 function isNameServiceResolutionMiss(error: unknown): boolean {
-	// Read by shape rather than `instanceof`, so an error from another installed copy of
-	// `@protobuf-ts/runtime-rpc` is still recognised.
+	// Read by shape, so an error from another copy of runtime-rpc is still recognised.
 	if (typeof error !== 'object' || error === null) return false;
 
 	const { code, message } = error as { code?: unknown; message?: unknown };
@@ -87,13 +86,10 @@ function isNameServiceResolutionMiss(error: unknown): boolean {
 	if (code !== GrpcStatusCode[GrpcStatusCode.RESOURCE_EXHAUSTED]) return false;
 
 	// The service reports an expired name as RESOURCE_EXHAUSTED with no structured reason, so match
-	// the status text and leave unrelated RESOURCE_EXHAUSTED failures alone.
+	// the status text and leave other RESOURCE_EXHAUSTED failures alone. A transport this package did
+	// not build leaves `grpc-message` encoded, hence the second form.
 	if (message === 'name has expired') return true;
 
-	// A transport this package did not build may leave `grpc-message` in its wire form, so match that
-	// too. Decoding the message instead would be a guess about what the transport already did, and
-	// would rewrite text that decodes to something else entirely. Our own transport has decoded by
-	// this point, so the wire form is only ever accepted from a transport that has not.
 	return !hasDecodedStatusMessage(error) && message === 'name%20has%20expired';
 }
 
@@ -995,9 +991,7 @@ export class GrpcCoreClient extends CoreClient {
 				});
 				response = result.response;
 			} catch (error) {
-				// The transport owns the status text: ours decodes it, and one supplied by the caller
-				// reports it however that transport does. Decoding here would corrupt a message another
-				// transport had already decoded. See ./transport.ts.
+				// The transport owns the status text. See ./transport.ts.
 				if (error instanceof Error && error.message) {
 					throw new SimulationError(error.message, { cause: error });
 				}

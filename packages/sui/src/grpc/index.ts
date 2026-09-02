@@ -23,8 +23,7 @@ export type {
 } from './client.js';
 export type { GrpcCoreClientOptions } from './core.js';
 
-// `@protobuf-ts/grpcweb-transport`'s transport, subclassed to fix its error handling. Exported
-// here instead of re-exporting that package's, so a custom transport gets the fixes too.
+// Subclasses `@protobuf-ts/grpcweb-transport`'s transport to fix its error handling.
 export { GrpcWebFetchTransport } from './transport.js';
 
 // Re-exported so users can configure a transport, and narrow and code the errors it produces,

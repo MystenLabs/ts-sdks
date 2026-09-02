@@ -160,15 +160,13 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 		const {
 			network: _network,
 			mvr: _mvr,
-			// Every Core API call passes its own `signal`, which would overwrite a client-level default
-			// with `undefined`, so a transport-wide one is not forwarded.
+			// Not forwarded: every Core API call passes its own `signal`, which would overwrite it.
 			abort: _abort,
 			transport: providedTransport,
 			...transportOptions
 		} = options as SuiGrpcClientOptions & SuiGrpcTransportOptions & { transport?: RpcTransport };
 
-		// A caller-supplied transport is used as given. The default is our `GrpcWebFetchTransport`,
-		// which fixes upstream's error handling. See `./transport.ts`.
+		// A caller-supplied transport is used as given. See ./transport.ts for the default.
 		const transport = providedTransport ?? new GrpcWebFetchTransport(transportOptions);
 		this.transactionExecutionService = new TransactionExecutionServiceClient(transport);
 		this.ledgerService = new LedgerServiceClient(transport);
