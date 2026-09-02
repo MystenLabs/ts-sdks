@@ -69,7 +69,7 @@ import {
 	validateTransactionQuery,
 } from '../client/query-filters.js';
 import { toGrpcEventFilter, toGrpcTransactionFilter } from './filters.js';
-import { grpcStatusMessage } from './transport.js';
+import { hasDecodedStatusMessage } from './transport.js';
 
 export interface GrpcCoreClientOptions extends CoreClientOptions {
 	client: SuiGrpcClient;
@@ -81,9 +81,14 @@ function isNameServiceResolutionMiss(error: unknown): boolean {
 	if (error.code !== GrpcStatusCode[GrpcStatusCode.RESOURCE_EXHAUSTED]) return false;
 
 	// The service reports an expired name as RESOURCE_EXHAUSTED with no structured reason, so match
-	// the status text and leave unrelated RESOURCE_EXHAUSTED failures alone. A caller-supplied
-	// transport leaves `grpc-message` percent-encoded, hence the decode.
-	return grpcStatusMessage(error) === 'name has expired';
+	// the status text and leave unrelated RESOURCE_EXHAUSTED failures alone.
+	if (error.message === 'name has expired') return true;
+
+	// A transport this package did not build may leave `grpc-message` in its wire form, so match that
+	// too. Decoding the message instead would be a guess about what the transport already did, and
+	// would rewrite text that decodes to something else entirely. Our own transport has decoded by
+	// this point, so the wire form is only ever accepted from a transport that has not.
+	return !hasDecodedStatusMessage(error) && error.message === 'name%20has%20expired';
 }
 
 export class GrpcCoreClient extends CoreClient {
@@ -984,11 +989,9 @@ export class GrpcCoreClient extends CoreClient {
 				});
 				response = result.response;
 			} catch (error) {
-				// Decoded here only if the transport has not already done it. See ./transport.ts.
-				if (error instanceof RpcError && error.message) {
-					throw new SimulationError(grpcStatusMessage(error), { cause: error });
-				}
-
+				// The transport owns the status text: ours decodes it, and one supplied by the caller
+				// reports it however that transport does. Decoding here would corrupt a message another
+				// transport had already decoded. See ./transport.ts.
 				if (error instanceof Error && error.message) {
 					throw new SimulationError(error.message, { cause: error });
 				}

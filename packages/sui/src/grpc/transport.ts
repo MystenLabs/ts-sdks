@@ -19,7 +19,7 @@ const MESSAGE_DECODED = Symbol('@mysten/sui/grpc/decoded-status-message');
  * does not decode (https://github.com/timostamm/protobuf-ts/pull/739). The server escapes a literal
  * `%` as `%25`, so one decode is correct. Text that fails to decode is returned unchanged.
  */
-export function decodeGrpcStatusMessage(message: string): string {
+function decodeGrpcStatusMessage(message: string): string {
 	if (!message.includes('%')) return message;
 
 	try {
@@ -37,12 +37,12 @@ function decodeStatusMessageOnce(error: RpcError): void {
 }
 
 /**
- * The status text of an error, decoded if nothing has decoded it yet. An error from a transport
- * this package did not build still holds the wire form, while one that has been decoded may hold a
- * literal `%20` that must not be decoded a second time.
+ * Whether this package's transport has decoded the error's status text. False says nothing about
+ * the text itself: a transport this package did not build may hold the wire form, or may have
+ * decoded it already.
  */
-export function grpcStatusMessage(error: RpcError): string {
-	return MESSAGE_DECODED in error ? error.message : decodeGrpcStatusMessage(error.message);
+export function hasDecodedStatusMessage(error: RpcError): boolean {
+	return MESSAGE_DECODED in error;
 }
 
 interface CallAbort {
@@ -150,8 +150,9 @@ function withDeadline(options: RpcOptions): { options: RpcOptions; abort: CallAb
 
 /**
  * `GrpcWebFetchTransport` from `@protobuf-ts/grpcweb-transport`, subclassed to fix three defects it
- * has as of 2.11.1: status messages are left percent-encoded, an aborted call is coded `INTERNAL`,
- * and `timeout` is only advertised to the server. Fixing them here covers every consumer of a call.
+ * has as of 2.11.1: status messages are left percent-encoded, a timeout or a custom abort reason is
+ * coded `INTERNAL`, and `timeout` is only advertised to the server. Fixing them here covers every
+ * consumer of a call.
  *
  * `SuiGrpcClient` builds one by default. Construct it directly to share a transport between clients
  * or to subclass it further, then pass it as `transport`. A transport imported from
