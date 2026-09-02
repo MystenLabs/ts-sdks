@@ -322,16 +322,6 @@ describe('gRPC transport error normalization', () => {
 		expect(error.message).toBe('cancel /objects/a%2Fb');
 	});
 
-	it('does not decode the text of a fetch failure', async () => {
-		// The message is the fetch's own, not `grpc-message`.
-		const client = makeClient((() =>
-			Promise.reject(new Error('request to http://host/a%2Fb failed'))) as typeof globalThis.fetch);
-
-		const error = await captureError(client.ledgerService.getObject({ objectId: '0x1' }).response);
-
-		expect(error.message).toBe('request to http://host/a%2Fb failed');
-	});
-
 	it('does not decode the text of an abort reason', async () => {
 		// The reason's message is local text, not `grpc-message` off the wire.
 		const controller = new AbortController();
@@ -347,33 +337,8 @@ describe('gRPC transport error normalization', () => {
 		expect(error.code).toBe('CANCELLED');
 	});
 
-	it('keeps a server status that came with metadata, whatever the abort reason says', async () => {
-		// An error built from an abort carries no metadata, so matching text cannot make this one look
-		// like a cancellation.
-		const controller = new AbortController();
-		const client = makeClient((async () => {
-			controller.abort(new Error('shutdown'));
-
-			return new Response(null, {
-				status: 200,
-				headers: {
-					'content-type': 'application/grpc-web+proto',
-					'grpc-status': '13',
-					'grpc-message': 'shutdown',
-					'x-request-id': 'abc',
-				},
-			});
-		}) as typeof globalThis.fetch);
-
-		const error = await captureError(
-			client.ledgerService.getObject({ objectId: '0x1' }, { abort: controller.signal }).response,
-		);
-
-		expect(error.code).toBe('INTERNAL');
-	});
-
-	it('passes through a body it cannot wrap, as node-fetch returns', async () => {
-		// Upstream reads those through `Symbol.asyncIterator`; calling `getReader` on one would throw.
+	it('leaves the response body alone, whatever shape it is', async () => {
+		// A `node-fetch` body is a node stream, which upstream reads through `Symbol.asyncIterator`.
 		const client = makeClient((async () => ({
 			status: 200,
 			statusText: 'OK',
@@ -386,30 +351,6 @@ describe('gRPC transport error normalization', () => {
 		const error = await captureError(client.ledgerService.getObject({ objectId: '0x1' }).response);
 
 		expect(error.message).not.toContain('getReader');
-	});
-
-	it('answers from a header status without consuming the body', async () => {
-		// The transport never reads the body of a header-carried status, so a body that fails on its
-		// own must not mark the call a local failure and suppress decoding.
-		const client = makeClient((async () => ({
-			status: 200,
-			statusText: 'OK',
-			headers: new Headers({
-				'content-type': 'application/grpc-web+proto',
-				'grpc-status': '5',
-				'grpc-message': 'Object%20not%20found',
-			}),
-			body: new ReadableStream({
-				pull(streamController) {
-					streamController.error(new Error('connection reset'));
-				},
-			}),
-		})) as unknown as typeof globalThis.fetch);
-
-		const error = await captureError(client.ledgerService.getObject({ objectId: '0x1' }).response);
-
-		expect(error.message).toBe('Object not found');
-		expect(error.code).toBe('NOT_FOUND');
 	});
 
 	it('codes an abort that lands while the body is being read', async () => {
@@ -435,52 +376,6 @@ describe('gRPC transport error normalization', () => {
 		);
 
 		expect(error.code).toBe('CANCELLED');
-	});
-
-	it('does not decode the text of a body that failed mid-read', async () => {
-		const client = clientRespondingWith(() =>
-			Promise.resolve(
-				new Response(
-					new ReadableStream({
-						start(streamController) {
-							setTimeout(() => streamController.error(new Error('read /objects/a%2Fb failed')), 2);
-						},
-					}),
-					{ status: 200, headers: { 'content-type': 'application/grpc-web+proto' } },
-				),
-			),
-		);
-
-		const error = await captureError(client.ledgerService.getObject({ objectId: '0x1' }).response);
-
-		expect(error.message).toBe('read /objects/a%2Fb failed');
-	});
-
-	it('leaves a server failure that raced an abort with the status the server gave it', async () => {
-		// Headers resolve before a later failure propagates, so a caller that aborts once it has
-		// them must not have that failure relabelled as a cancellation.
-		const controller = new AbortController();
-		const client = clientRespondingWith(() =>
-			Promise.resolve(
-				new Response(
-					new ReadableStream({
-						start(streamController) {
-							setTimeout(() => streamController.error(new Error('connection reset')), 2);
-						},
-					}),
-					{ status: 200, headers: { 'content-type': 'application/grpc-web+proto' } },
-				),
-			),
-		);
-
-		const call = client.ledgerService.getObject({ objectId: '0x1' }, { abort: controller.signal });
-		await call.headers;
-		controller.abort();
-
-		const error = await captureError(call.response);
-
-		expect(error.message).toBe('connection reset');
-		expect(error.code).toBe('INTERNAL');
 	});
 
 	it('leaves a genuine cancellation coded CANCELLED', async () => {

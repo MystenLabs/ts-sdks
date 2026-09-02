@@ -76,131 +76,37 @@ function abortStatus(reason: unknown): string {
 		: GrpcStatusCode[GrpcStatusCode.CANCELLED];
 }
 
-/** What one call learned from its own request, rather than guessed at from the error afterwards. */
-interface CallState {
-	/** Set when no response arrived, so the failure holds local text rather than `grpc-message`. */
-	failedLocally: boolean;
-	/** The status to give a call the abort ended. */
-	abortCode: string | undefined;
-}
-
-/**
- * Records that the request, rather than the server, is what failed — and whether the abort is what
- * did it. Spec fetch rejects with the signal's reason itself; node-fetch substitutes its own
- * `AbortError`.
- */
-function markLocalFailure(error: unknown, signal: AbortSignal | undefined, state: CallState): void {
-	state.failedLocally = true;
-
-	if (
-		signal?.aborted &&
-		(error === signal.reason || (error as { name?: unknown } | null)?.name === 'AbortError')
-	) {
-		state.abortCode = abortStatus(signal.reason);
-	}
-}
-
-/**
- * Wraps `fetch` so a failure of the request itself is known as such, whether it happened before the
- * response arrived or while its body was being read. Read here rather than inferred from the error
- * afterwards: a status the server answered with is parsed from a body that arrived intact, so it
- * can never be taken for a cancellation, nor its text for a local diagnostic.
- *
- * Errors raised while parsing that body — a truncated frame, a message that will not decode — are
- * upstream's own, and still read as wire text, as is a failure in a body this cannot wrap.
- */
-function observingFetch(
-	base: typeof globalThis.fetch,
-	signal: AbortSignal | undefined,
-	state: CallState,
-): typeof globalThis.fetch {
-	return async (input, init) => {
-		let response: Response;
-
-		try {
-			response = await base(input, init);
-		} catch (error) {
-			markLocalFailure(error, signal, state);
-
-			throw error;
-		}
-
-		// Upstream reads a `node-fetch` body through `Symbol.asyncIterator` rather than `getReader`.
-		// Those are passed through untouched: a body failure there reads as it did before.
-		if (typeof response.body?.getReader !== 'function') return response;
-
-		const source = response.body;
-		let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
-		const body = new ReadableStream<Uint8Array>(
-			{
-				async pull(controller) {
-					try {
-						// Acquired on the first read, since taking a reader starts the source.
-						reader ??= source.getReader();
-
-						const { done, value } = await reader.read();
-
-						if (done) controller.close();
-						else controller.enqueue(value);
-					} catch (error) {
-						markLocalFailure(error, signal, state);
-						controller.error(error);
-					}
-				},
-				cancel(reason) {
-					return reader ? reader.cancel(reason) : source.cancel(reason);
-				},
-			},
-			// Nothing is read until the transport asks for it, so a body that fails on its own cannot
-			// mark the call local while upstream is answering from a header status.
-			{ highWaterMark: 0 },
-		);
-
-		// Handed back as a plain object rather than a `Response`: constructing one from a stream starts
-		// draining it immediately, which would read a body the transport may never ask for and buffer
-		// a subscription's stream without bound. Upstream reads only these four properties.
-		return {
-			status: response.status,
-			statusText: response.statusText,
-			headers: response.headers,
-			body,
-		} as unknown as Response;
-	};
-}
-
 /**
  * Rewrites the error in place, which keeps `instanceof RpcError`, the trailers and the stack, and
  * gives the same result on every promise the call rejects.
+ *
+ * An aborted call takes its status from the reason, and its message is left alone: what it holds is
+ * the reason's own text, not `grpc-message`. A failure that merely raced the abort is relabelled
+ * with it, which is the price of reading the signal rather than tracking where the failure came
+ * from; the alternative is wrapping every request and response body to watch them.
  */
-function normalizeGrpcError(error: unknown, state: CallState): void {
+function normalizeGrpcError(error: unknown, signal: AbortSignal | undefined): void {
 	if (!(error instanceof RpcError)) return;
 
-	if (state.abortCode) error.code = state.abortCode;
+	if (
+		signal?.aborted &&
+		(error.code === GrpcStatusCode[GrpcStatusCode.INTERNAL] ||
+			error.code === GrpcStatusCode[GrpcStatusCode.CANCELLED])
+	) {
+		error.code = abortStatus(signal.reason);
 
-	// Local text — an abort reason, or something like `request to http://host/a%2Fb failed` — is not
-	// `grpc-message`, and holds nothing to decode.
-	if (!state.failedLocally) decodeStatusMessageOnce(error);
+		return;
+	}
+
+	decodeStatusMessageOnce(error);
 }
 
-function normalizeRejections(promises: Promise<unknown>[], state: CallState) {
+function normalizeRejections(promises: Promise<unknown>[], signal: AbortSignal | undefined) {
 	for (const promise of promises) {
 		// Registered before the call is returned, so it runs before the consumer's own await. The
 		// original promise still rejects; this only changes the error it rejects with.
-		promise.then(undefined, (error: unknown) => normalizeGrpcError(error, state));
+		promise.then(undefined, (error: unknown) => normalizeGrpcError(error, signal));
 	}
-}
-
-/**
- * The options one call runs with, copied rather than written to: `mergeRpcOptions` returns the
- * transport's `defaultOptions` by reference for a call that passes none of its own, so assigning to
- * them would leak one call's `fetch` into every later call.
- */
-function prepareCall(options: RpcOptions): { options: RpcOptions; state: CallState } {
-	const { fetch: callerFetch } = options as RpcOptions & { fetch?: typeof globalThis.fetch };
-	const state: CallState = { failedLocally: false, abortCode: undefined };
-	const fetch = observingFetch(callerFetch ?? globalThis.fetch, options.abort, state);
-
-	return { options: { ...options, fetch } as RpcOptions, state };
 }
 
 /**
@@ -218,10 +124,9 @@ export class GrpcWebFetchTransport extends UpstreamGrpcWebFetchTransport {
 		input: I,
 		options: RpcOptions,
 	): UnaryCall<I, O> {
-		const { options: callOptions, state } = prepareCall(options);
-		const call = super.unary(method, input, callOptions);
+		const call = super.unary(method, input, options);
 
-		normalizeRejections([call.headers, call.response, call.status, call.trailers], state);
+		normalizeRejections([call.headers, call.response, call.status, call.trailers], options.abort);
 
 		return call;
 	}
@@ -231,13 +136,12 @@ export class GrpcWebFetchTransport extends UpstreamGrpcWebFetchTransport {
 		input: I,
 		options: RpcOptions,
 	): ServerStreamingCall<I, O> {
-		const { options: callOptions, state } = prepareCall(options);
-		const call = super.serverStreaming(method, input, callOptions);
+		const call = super.serverStreaming(method, input, options);
 
 		// A finite stream is often read through `responses` without awaiting `status`. Listeners run
 		// synchronously on error, so this lands before a `for await` resumes.
-		call.responses.onError((error) => normalizeGrpcError(error, state));
-		normalizeRejections([call.headers, call.status, call.trailers], state);
+		call.responses.onError((error) => normalizeGrpcError(error, options.abort));
+		normalizeRejections([call.headers, call.status, call.trailers], options.abort);
 
 		return call;
 	}
