@@ -318,6 +318,32 @@ describe('gRPC transport error normalization', () => {
 		expect(error.message).toBe('cancel /objects/a%2Fb');
 	});
 
+	it('gives every promise of an aborted call the same message and code', async () => {
+		// Re-coding to a status outside the abort branch would leave later handlers decoding the
+		// reason's own text.
+		const controller = new AbortController();
+		const client = makeClient(
+			hangingFetch(() =>
+				setTimeout(
+					() => controller.abort(Object.assign(new Error('retry /a%2Fb'), { code: 'UNAVAILABLE' })),
+					1,
+				),
+			),
+		);
+
+		const call = client.ledgerService.getObject({ objectId: '0x1' }, { abort: controller.signal });
+		const [fromResponse, fromStatus, fromTrailers] = await Promise.all([
+			captureError(call.response),
+			captureError(call.status),
+			captureError(call.trailers),
+		]);
+
+		for (const error of [fromResponse, fromStatus, fromTrailers]) {
+			expect(error.message).toBe('retry /a%2Fb');
+			expect(error.code).toBe('UNAVAILABLE');
+		}
+	});
+
 	it('does not decode the text of an abort reason', async () => {
 		// The reason's message is local text, not `grpc-message` off the wire.
 		const controller = new AbortController();

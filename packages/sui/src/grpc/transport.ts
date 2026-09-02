@@ -27,11 +27,15 @@ function decodeGrpcStatusMessage(message: string): string {
 	}
 }
 
-function decodeStatusMessageOnce(error: RpcError): void {
-	if (MESSAGE_DECODED in error) return;
+function markStatusMessageRead(error: RpcError): boolean {
+	if (MESSAGE_DECODED in error) return false;
 	Object.defineProperty(error, MESSAGE_DECODED, { value: true, configurable: true });
 
-	error.message = decodeGrpcStatusMessage(error.message);
+	return true;
+}
+
+function decodeStatusMessageOnce(error: RpcError): void {
+	if (markStatusMessageRead(error)) error.message = decodeGrpcStatusMessage(error.message);
 }
 
 /** Whether this package's transport decoded the error's status text. */
@@ -67,6 +71,9 @@ function normalizeGrpcError(error: unknown, signal: AbortSignal | undefined): vo
 		(error.code === GrpcStatusCode[GrpcStatusCode.INTERNAL] ||
 			error.code === GrpcStatusCode[GrpcStatusCode.CANCELLED])
 	) {
+		// The message is the abort reason's, so it is marked read without decoding. This also settles
+		// it for the other promises the call rejects, which no longer match the codes above.
+		markStatusMessageRead(error);
 		error.code = abortStatus(signal.reason);
 
 		return;
