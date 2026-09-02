@@ -1,7 +1,8 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { RpcError } from '@protobuf-ts/runtime-rpc';
+import type { RpcTransport } from '@protobuf-ts/runtime-rpc';
+import { RpcError, UnaryCall } from '@protobuf-ts/runtime-rpc';
 import { describe, expect, it } from 'vitest';
 
 import { SuiGrpcClient } from '../../../src/grpc/index.js';
@@ -32,6 +33,45 @@ function makeClient(fetch: typeof globalThis.fetch) {
 function clientRespondingWith(response: Response | (() => Promise<Response>)) {
 	return makeClient((async () =>
 		typeof response === 'function' ? response() : response) as typeof globalThis.fetch);
+}
+
+/**
+ * A transport that is not grpc-web — standing in for `@protobuf-ts/grpc-transport`, which decodes
+ * `grpc-message` itself. Rejects every call with the *same* error instance, which is also what makes
+ * it a probe for call-specific state being recorded on a shared error.
+ */
+function transportRejectingWith(error: RpcError): RpcTransport {
+	return {
+		mergeOptions: (options) => options ?? {},
+		unary(method, input, _options) {
+			return new UnaryCall(
+				method,
+				{},
+				input,
+				Promise.reject(error),
+				Promise.reject(error),
+				Promise.reject(error),
+				Promise.reject(error),
+			);
+		},
+		serverStreaming: () => {
+			throw new Error('unused');
+		},
+		clientStreaming: () => {
+			throw new Error('unused');
+		},
+		duplex: () => {
+			throw new Error('unused');
+		},
+	};
+}
+
+/** A timeout signal that has already fired, so a call can be normalized against a settled abort. */
+async function firedTimeoutSignal() {
+	const signal = AbortSignal.timeout(0);
+	await new Promise((resolve) => setTimeout(resolve, 2));
+
+	return signal;
 }
 
 async function captureError(promise: Promise<unknown>) {
@@ -125,6 +165,28 @@ describe('gRPC transport error normalization', () => {
 		expect(error.code).toBe('DEADLINE_EXCEEDED');
 	});
 
+	it('codes an abort with a caller-supplied reason CANCELLED, not INTERNAL', async () => {
+		// `AbortController.abort(reason)` takes an arbitrary reason, and fetch rejects with it. Only an
+		// `AbortError` reaches the transport's cancellation branch; anything else lands as INTERNAL and
+		// would be retried as a server failure.
+		const controller = new AbortController();
+		const client = clientRespondingWith(
+			() =>
+				new Promise<Response>((_, reject) => {
+					setTimeout(() => {
+						controller.abort(new Error('caller gave up'));
+						reject(new Error('caller gave up'));
+					}, 1);
+				}),
+		);
+
+		const error = await captureError(
+			client.ledgerService.getObject({ objectId: '0x1' }, { abort: controller.signal }).response,
+		);
+
+		expect(error.code).toBe('CANCELLED');
+	});
+
 	it('leaves a genuine cancellation coded CANCELLED', async () => {
 		const controller = new AbortController();
 		const client = clientRespondingWith(
@@ -142,5 +204,59 @@ describe('gRPC transport error normalization', () => {
 		);
 
 		expect(error.code).toBe('CANCELLED');
+	});
+});
+
+describe('gRPC transport error normalization on a non-grpc-web transport', () => {
+	it('leaves status text alone, since such a transport has already decoded it', async () => {
+		// `read_mask path: a%20b` is the decoded message: a second decode would collapse it to `a b`.
+		const error = new RpcError('read_mask path: a%20b', 'INVALID_ARGUMENT');
+		const client = new SuiGrpcClient({
+			network: 'testnet',
+			transport: transportRejectingWith(error),
+		});
+
+		const caught = await captureError(client.ledgerService.getObject({ objectId: '0x1' }).response);
+
+		expect(caught.message).toBe('read_mask path: a%20b');
+	});
+
+	it('still codes an aborted call from the signal', async () => {
+		const error = new RpcError('connection closed', 'INTERNAL');
+		const client = new SuiGrpcClient({
+			network: 'testnet',
+			transport: transportRejectingWith(error),
+		});
+
+		const caught = await captureError(
+			client.ledgerService.getObject({ objectId: '0x1' }, { abort: await firedTimeoutSignal() })
+				.response,
+		);
+
+		expect(caught.code).toBe('DEADLINE_EXCEEDED');
+	});
+
+	it('codes each call from its own signal when a transport reuses one error instance', async () => {
+		// Recording the mapping on the error would let whichever call normalized first decide the code
+		// every later call observes.
+		const shared = new RpcError('connection closed', 'INTERNAL');
+		const client = new SuiGrpcClient({
+			network: 'testnet',
+			transport: transportRejectingWith(shared),
+		});
+
+		const timedOut = await captureError(
+			client.ledgerService.getObject({ objectId: '0x1' }, { abort: await firedTimeoutSignal() })
+				.response,
+		);
+		expect(timedOut.code).toBe('DEADLINE_EXCEEDED');
+
+		const controller = new AbortController();
+		controller.abort();
+		const cancelled = await captureError(
+			client.ledgerService.getObject({ objectId: '0x2' }, { abort: controller.signal }).response,
+		);
+
+		expect(cancelled.code).toBe('CANCELLED');
 	});
 });

@@ -165,11 +165,15 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 			...transportOptions
 		} = options as SuiGrpcClientOptions & SuiGrpcTransportOptions & { transport?: RpcTransport };
 
-		// Wrapped whether the transport is ours or the caller's, so status text and status codes read
-		// the same everywhere. See `./transport.ts`.
-		const transport = withNormalizedErrors(
-			providedTransport ?? new GrpcWebFetchTransport(transportOptions),
-		);
+		const baseTransport = providedTransport ?? new GrpcWebFetchTransport(transportOptions);
+
+		// Wrapped whether the transport is ours or the caller's, so status codes read the same
+		// everywhere. Only grpc-web leaves `grpc-message` in its percent-encoded wire form, though:
+		// other transports (`@protobuf-ts/grpc-transport`, say) decode it themselves, and decoding
+		// again would rewrite a status that really does contain `%20`. See `./transport.ts`.
+		const transport = withNormalizedErrors(baseTransport, {
+			decodeMessages: baseTransport instanceof GrpcWebFetchTransport,
+		});
 		this.transactionExecutionService = new TransactionExecutionServiceClient(transport);
 		this.ledgerService = new LedgerServiceClient(transport);
 		this.stateService = new StateServiceClient(transport);
