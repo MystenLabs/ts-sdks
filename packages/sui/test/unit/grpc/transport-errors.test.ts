@@ -372,6 +372,46 @@ describe('gRPC transport error normalization', () => {
 		expect(error.code).toBe('INTERNAL');
 	});
 
+	it('passes through a body it cannot wrap, as node-fetch returns', async () => {
+		// Upstream reads those through `Symbol.asyncIterator`; calling `getReader` on one would throw.
+		const client = makeClient((async () => ({
+			status: 200,
+			statusText: 'OK',
+			headers: new Headers({ 'content-type': 'application/grpc-web+proto' }),
+			body: (async function* () {
+				yield new Uint8Array();
+			})(),
+		})) as unknown as typeof globalThis.fetch);
+
+		const error = await captureError(client.ledgerService.getObject({ objectId: '0x1' }).response);
+
+		expect(error.message).not.toContain('getReader');
+	});
+
+	it('answers from a header status without consuming the body', async () => {
+		// The transport never reads the body of a header-carried status, so a body that fails on its
+		// own must not mark the call a local failure and suppress decoding.
+		const client = makeClient((async () => ({
+			status: 200,
+			statusText: 'OK',
+			headers: new Headers({
+				'content-type': 'application/grpc-web+proto',
+				'grpc-status': '5',
+				'grpc-message': 'Object%20not%20found',
+			}),
+			body: new ReadableStream({
+				pull(streamController) {
+					streamController.error(new Error('connection reset'));
+				},
+			}),
+		})) as unknown as typeof globalThis.fetch);
+
+		const error = await captureError(client.ledgerService.getObject({ objectId: '0x1' }).response);
+
+		expect(error.message).toBe('Object not found');
+		expect(error.code).toBe('NOT_FOUND');
+	});
+
 	it('codes an abort that lands while the body is being read', async () => {
 		const controller = new AbortController();
 		const client = clientRespondingWith(() =>

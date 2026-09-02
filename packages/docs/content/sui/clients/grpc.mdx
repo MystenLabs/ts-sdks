@@ -109,8 +109,21 @@ Build custom transports from this class. `SuiGrpcClient` uses a transport you pa
 
 ### gRPC-web transport (default)
 
-The default transport uses the gRPC-web protocol over HTTP/1.1 or HTTP/2. Pass
-`GrpcWebFetchTransport` options to customize it:
+The default transport uses the gRPC-web protocol over HTTP/1.1 or HTTP/2. `SuiGrpcClient` passes any
+`GrpcWebOptions` it is given to the transport it builds, so most configuration needs no transport of
+your own:
+
+```typescript
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+const client = new SuiGrpcClient({
+	network: 'testnet',
+	baseUrl: 'https://your-custom-grpc-endpoint.com',
+	format: 'binary', // default is 'text' (base64-encoded)
+});
+```
+
+Build the transport yourself to share one between clients, or to subclass it:
 
 ```typescript
 import { SuiGrpcClient, GrpcWebFetchTransport } from '@mysten/sui/grpc';

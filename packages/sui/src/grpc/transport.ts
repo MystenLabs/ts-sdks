@@ -107,7 +107,7 @@ function markLocalFailure(error: unknown, signal: AbortSignal | undefined, state
  * can never be taken for a cancellation, nor its text for a local diagnostic.
  *
  * Errors raised while parsing that body — a truncated frame, a message that will not decode — are
- * upstream's own, and still read as wire text.
+ * upstream's own, and still read as wire text, as is a failure in a body this cannot wrap.
  */
 function observingFetch(
 	base: typeof globalThis.fetch,
@@ -125,31 +125,46 @@ function observingFetch(
 			throw error;
 		}
 
-		if (!response.body) return response;
+		// Upstream reads a `node-fetch` body through `Symbol.asyncIterator` rather than `getReader`.
+		// Those are passed through untouched: a body failure there reads as it did before.
+		if (typeof response.body?.getReader !== 'function') return response;
 
-		const reader = response.body.getReader();
-		const body = new ReadableStream<Uint8Array>({
-			async pull(controller) {
-				try {
-					const { done, value } = await reader.read();
+		const source = response.body;
+		let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+		const body = new ReadableStream<Uint8Array>(
+			{
+				async pull(controller) {
+					try {
+						// Acquired on the first read, since taking a reader starts the source.
+						reader ??= source.getReader();
 
-					if (done) controller.close();
-					else controller.enqueue(value);
-				} catch (error) {
-					markLocalFailure(error, signal, state);
-					controller.error(error);
-				}
+						const { done, value } = await reader.read();
+
+						if (done) controller.close();
+						else controller.enqueue(value);
+					} catch (error) {
+						markLocalFailure(error, signal, state);
+						controller.error(error);
+					}
+				},
+				cancel(reason) {
+					return reader ? reader.cancel(reason) : source.cancel(reason);
+				},
 			},
-			cancel(reason) {
-				return reader.cancel(reason);
-			},
-		});
+			// Nothing is read until the transport asks for it, so a body that fails on its own cannot
+			// mark the call local while upstream is answering from a header status.
+			{ highWaterMark: 0 },
+		);
 
-		return new Response(body, {
+		// Handed back as a plain object rather than a `Response`: constructing one from a stream starts
+		// draining it immediately, which would read a body the transport may never ask for and buffer
+		// a subscription's stream without bound. Upstream reads only these four properties.
+		return {
 			status: response.status,
 			statusText: response.statusText,
 			headers: response.headers,
-		});
+			body,
+		} as unknown as Response;
 	};
 }
 
