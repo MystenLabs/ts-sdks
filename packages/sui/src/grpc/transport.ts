@@ -61,6 +61,14 @@ function abortStatus(reason: unknown): string {
 		: GrpcStatusCode[GrpcStatusCode.CANCELLED];
 }
 
+// The transport reuses the abort reason's message, so matching it says the text is local. A fetch
+// that substitutes its own error (node-fetch) gives text of its own, which holds nothing to decode.
+function isAbortReasonText(message: string, reason: unknown): boolean {
+	const reasonMessage = (reason as { message?: unknown } | null)?.message;
+
+	return message === (typeof reasonMessage === 'string' ? reasonMessage : `${reason}`);
+}
+
 // Rewritten in place, so every promise a call rejects surfaces the same error. Only the two codes
 // upstream uses for an abort are re-coded; a failure that raced the abort is relabelled with it.
 function normalizeGrpcError(error: unknown, signal: AbortSignal | undefined): void {
@@ -71,10 +79,13 @@ function normalizeGrpcError(error: unknown, signal: AbortSignal | undefined): vo
 		(error.code === GrpcStatusCode[GrpcStatusCode.INTERNAL] ||
 			error.code === GrpcStatusCode[GrpcStatusCode.CANCELLED])
 	) {
-		// The message is the abort reason's, so it is marked read without decoding. This also settles
-		// it for the other promises the call rejects, which no longer match the codes above.
-		markStatusMessageRead(error);
 		error.code = abortStatus(signal.reason);
+
+		// Text the abort reason supplied is local and holds nothing to decode; anything else came off
+		// the wire, even though the abort is what the caller sees. Settled here for the other promises
+		// the call rejects, which no longer match the codes above.
+		if (isAbortReasonText(error.message, signal.reason)) markStatusMessageRead(error);
+		else decodeStatusMessageOnce(error);
 
 		return;
 	}

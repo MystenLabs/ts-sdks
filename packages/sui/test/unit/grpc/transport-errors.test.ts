@@ -344,6 +344,22 @@ describe('gRPC transport error normalization', () => {
 		}
 	});
 
+	it('decodes a server status that arrives while the call is aborted', async () => {
+		// The abort takes the code, but the text came off the wire and still has to be readable.
+		const controller = new AbortController();
+		const client = makeClient((async () => {
+			controller.abort();
+
+			return statusResponse(13, 'Object%20not%20found');
+		}) as typeof globalThis.fetch);
+
+		const error = await captureError(
+			client.ledgerService.getObject({ objectId: '0x1' }, { abort: controller.signal }).response,
+		);
+
+		expect(error.message).toBe('Object not found');
+	});
+
 	it('does not decode the text of an abort reason', async () => {
 		// The reason's message is local text, not `grpc-message` off the wire.
 		const controller = new AbortController();
