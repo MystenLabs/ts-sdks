@@ -69,24 +69,28 @@ import {
 	validateTransactionQuery,
 } from '../client/query-filters.js';
 import { toGrpcEventFilter, toGrpcTransactionFilter } from './filters.js';
+import { hasDecodedStatusMessage } from './transport.js';
 
 export interface GrpcCoreClientOptions extends CoreClientOptions {
 	client: SuiGrpcClient;
 }
 
 function isNameServiceResolutionMiss(error: unknown): boolean {
-	if (!(error instanceof RpcError)) return false;
-	if (error.code === GrpcStatusCode[GrpcStatusCode.NOT_FOUND]) return true;
-	if (error.code !== GrpcStatusCode[GrpcStatusCode.RESOURCE_EXHAUSTED]) return false;
+	// Read by shape, so an error from another copy of runtime-rpc is still recognised.
+	if (typeof error !== 'object' || error === null) return false;
 
-	try {
-		// The gRPC service currently reports expired names as RESOURCE_EXHAUSTED without a
-		// structured reason. grpc-web URI-encodes status messages, so decode before matching while
-		// preserving unrelated RESOURCE_EXHAUSTED failures such as capacity limits.
-		return decodeURIComponent(error.message) === 'name has expired';
-	} catch {
-		return false;
-	}
+	const { code, message } = error as { code?: unknown; message?: unknown };
+	if (typeof code !== 'string' || typeof message !== 'string') return false;
+
+	if (code === GrpcStatusCode[GrpcStatusCode.NOT_FOUND]) return true;
+	if (code !== GrpcStatusCode[GrpcStatusCode.RESOURCE_EXHAUSTED]) return false;
+
+	// The service reports an expired name as RESOURCE_EXHAUSTED with no structured reason, so match
+	// the status text and leave other RESOURCE_EXHAUSTED failures alone. A transport this package did
+	// not build leaves `grpc-message` encoded, hence the second form.
+	if (message === 'name has expired') return true;
+
+	return !hasDecodedStatusMessage(error) && message === 'name%20has%20expired';
 }
 
 export class GrpcCoreClient extends CoreClient {
@@ -987,9 +991,9 @@ export class GrpcCoreClient extends CoreClient {
 				});
 				response = result.response;
 			} catch (error) {
-				// https://github.com/timostamm/protobuf-ts/pull/739
+				// The transport owns the status text. See ./transport.ts.
 				if (error instanceof Error && error.message) {
-					throw new SimulationError(decodeURIComponent(error.message), { cause: error });
+					throw new SimulationError(error.message, { cause: error });
 				}
 				throw error;
 			}

@@ -91,16 +91,40 @@ console.log(transaction.digest, result.protoJson);
 
 ## Transport options
 
-By default, `SuiGrpcClient` uses `GrpcWebFetchTransport` from
-[protobuf-ts](https://github.com/timostamm/protobuf-ts), which works in browsers and Node.js through
-the Fetch API. The `GrpcWebFetchTransport` class, `GrpcWebOptions` type, and `RpcTransport` type are
-re-exported from `@mysten/sui/grpc`, so you can configure a transport without adding
-`@protobuf-ts/*` as a direct dependency.
+By default, `SuiGrpcClient` uses `GrpcWebFetchTransport`, which works in browsers and Node.js
+through the Fetch API. `@mysten/sui/grpc` exports it alongside the `GrpcWebOptions` and
+`RpcTransport` types, and the `RpcError` class and `GrpcStatusCode` enum that gRPC failures use, so
+you can configure a transport and handle its errors without adding `@protobuf-ts/*` as a direct
+dependency.
+
+That class extends the transport of the same name from
+[protobuf-ts](https://github.com/timostamm/protobuf-ts) and fixes two defects in it:
+
+- It decodes status messages, rather than delivering them as `Object%20not%20found:%200x1`.
+- It codes a call that an abort ended from the reason the abort carried: `DEADLINE_EXCEEDED` for an
+  `AbortSignal.timeout`, the status on a reason carrying one, and `CANCELLED` otherwise. Upstream
+  reports all but a standard `AbortError` cancellation as `INTERNAL`.
+
+Build custom transports from this class. `SuiGrpcClient` uses a transport you pass it as given.
 
 ### gRPC-web transport (default)
 
-The default transport uses the gRPC-web protocol over HTTP/1.1 or HTTP/2. Pass
-`GrpcWebFetchTransport` options to customize it:
+The default transport uses the gRPC-web protocol over HTTP/1.1 or HTTP/2. `SuiGrpcClient` passes the
+`GrpcWebOptions` it is given to the transport it builds, so most configuration needs no transport of
+your own. The one exception is `abort`: Core API calls each carry their own signal, so a client-wide
+one is not forwarded.
+
+```typescript
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+const client = new SuiGrpcClient({
+	network: 'testnet',
+	baseUrl: 'https://your-custom-grpc-endpoint.com',
+	format: 'binary', // default is 'text' (base64-encoded)
+});
+```
+
+Build the transport yourself to share one between clients, or to subclass it:
 
 ```typescript
 import { SuiGrpcClient, GrpcWebFetchTransport } from '@mysten/sui/grpc';
@@ -270,6 +294,7 @@ const result = parseGrpcTransactionResponse(response.transaction!, {
 | `parseGrpcTransactionResponse`                            | Raw `ExecutedTransaction` to the unified result shape |
 | `parseGrpcSimulateTransactionResponse`                    | Raw simulation response to the unified result shape   |
 | `GrpcWebFetchTransport`, `GrpcWebOptions`, `RpcTransport` | Configuring a [transport](#transport-options)         |
+| `RpcError`, `GrpcStatusCode`                              | Narrowing and coding gRPC failures                    |
 | `SuiGrpcClientOptions`, `GrpcTransactionInclude`, …       | Typing your own wrappers around the client            |
 | `isSuiGrpcClient`                                         | Type guard for narrowing an unknown client            |
 
