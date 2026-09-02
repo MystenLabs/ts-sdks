@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { GrpcWebFetchTransport as UpstreamGrpcWebFetchTransport } from '@protobuf-ts/grpcweb-transport';
-import type { RpcOptions, RpcTransport } from '@protobuf-ts/runtime-rpc';
+import type { RpcTransport } from '@protobuf-ts/runtime-rpc';
 import { RpcError, UnaryCall } from '@protobuf-ts/runtime-rpc';
 import { describe, expect, it } from 'vitest';
 
@@ -190,8 +190,7 @@ describe('gRPC transport error normalization', () => {
 	});
 
 	it('codes a deadline as DEADLINE_EXCEEDED when the fetch substitutes its own AbortError', async () => {
-		// node-fetch rejects with a generic AbortError rather than the signal's reason, so the reason's
-		// text is not there to match on.
+		// node-fetch rejects with a generic AbortError rather than the signal's reason.
 		const client = makeClient(
 			((_input: unknown, init: RequestInit) =>
 				new Promise((_, reject) => {
@@ -202,12 +201,12 @@ describe('gRPC transport error normalization', () => {
 		);
 
 		const error = await captureError(
-			client.ledgerService.getObject({ objectId: '0x1' }, { timeout: 5 }).response,
+			client.ledgerService.getObject({ objectId: '0x1' }, { abort: AbortSignal.timeout(1) })
+				.response,
 		);
 
 		expect(error.code).toBe('DEADLINE_EXCEEDED');
 	});
-
 	it('codes an abort with a primitive reason CANCELLED', async () => {
 		// `abort('stop')` takes a string, which the transport stringifies into an INTERNAL error.
 		const controller = new AbortController();
@@ -423,86 +422,20 @@ describe('a caller-supplied transport', () => {
 	});
 });
 
-describe('gRPC transport deadlines', () => {
-	it('enforces a timeout the base transport only advertises', async () => {
-		// The header asks the node to give up. It does nothing when the connection stalls.
-		const client = makeClient(hangingFetch());
-
-		const error = await captureError(
-			client.ledgerService.getObject({ objectId: '0x1' }, { timeout: 5 }).response,
-		);
-
-		expect(error.code).toBe('DEADLINE_EXCEEDED');
-	});
-
-	it('leaves a deadline past the timer ceiling to the server, in a unit it will accept', async () => {
-		// `setTimeout` overflows beyond 2^31-1 ms and fires on the next tick, so a 30-day deadline
-		// would end the call immediately. `grpc-timeout` takes eight digits, so it cannot be sent in
-		// milliseconds either.
-		let sent: RequestInit | undefined;
-		const client = makeClient(hangingFetch((init) => (sent = init)));
-
-		client.ledgerService.getObject({ objectId: '0x1' }, { timeout: 30 * 24 * 60 * 60 * 1000 });
-		await new Promise((resolve) => setTimeout(resolve, 5));
-
-		expect(sent?.signal ?? null).toBeNull();
-		expect((sent!.headers as Headers).get('grpc-timeout')).toBe('2592000S');
-	});
-
-	it('sends a deadline the header cannot hold in milliseconds while still enforcing it', async () => {
-		// Two days fits a timer but not eight digits of milliseconds.
-		let sent: RequestInit | undefined;
-		const client = makeClient(hangingFetch((init) => (sent = init)));
-
-		client.ledgerService.getObject({ objectId: '0x1' }, { timeout: 2 * 24 * 60 * 60 * 1000 });
-		await new Promise((resolve) => setTimeout(resolve, 5));
-
-		expect((sent!.headers as Headers).get('grpc-timeout')).toBe('172800S');
-		expect(sent?.signal?.aborted).toBe(false);
-	});
-
-	it('still sends the grpc-timeout header', async () => {
-		let sent: RequestInit | undefined;
-		const client = makeClient(hangingFetch((init) => (sent = init)));
-
-		await captureError(
-			client.ledgerService.getObject({ objectId: '0x1' }, { timeout: 50 }).response,
-		);
-
-		expect((sent!.headers as Headers).get('grpc-timeout')).toBe('50m');
-	});
-
-	it('lets a caller cancellation win over a deadline that has not arrived', async () => {
-		const controller = new AbortController();
-		const client = makeClient(hangingFetch(() => setTimeout(() => controller.abort(), 1)));
-
-		const error = await captureError(
-			client.ledgerService.getObject(
-				{ objectId: '0x1' },
-				{ timeout: 10_000, abort: controller.signal },
-			).response,
-		);
-
-		expect(error.code).toBe('CANCELLED');
-	});
-
-	it('gives every call its own deadline when the timeout comes from the transport options', async () => {
-		const transport = new GrpcWebFetchTransport({
-			baseUrl: 'http://localhost',
-			fetch: hangingFetch(),
-			timeout: 5,
-		});
+describe('gRPC transport call options', () => {
+	it("gives every call its own options rather than writing to the transport's", async () => {
+		const fetch = (async () => statusResponse(5, 'gone')) as typeof globalThis.fetch;
+		const transport = new GrpcWebFetchTransport({ baseUrl: 'http://localhost', fetch });
 		const client = new SuiGrpcClient({ network: 'testnet', transport });
 
-		const first = await captureError(client.ledgerService.getObject({ objectId: '0x1' }).response);
-		const second = await captureError(client.ledgerService.getObject({ objectId: '0x2' }).response);
-
-		expect(first.code).toBe('DEADLINE_EXCEEDED');
-		expect(second.code).toBe('DEADLINE_EXCEEDED');
+		await captureError(client.ledgerService.getObject({ objectId: '0x1' }).response);
+		await captureError(client.ledgerService.getObject({ objectId: '0x2' }).response);
 
 		// `mergeRpcOptions` hands these options to a call that passes none of its own, so writing the
-		// composed signal onto them would leave every later call already aborted.
-		const defaults = (transport as unknown as { defaultOptions: RpcOptions }).defaultOptions;
-		expect(defaults.abort).toBeUndefined();
+		// observing fetch onto them would install one call's state on every later call.
+		const defaults = (transport as unknown as { defaultOptions: { fetch?: unknown } })
+			.defaultOptions;
+
+		expect(defaults.fetch).toBe(fetch);
 	});
 });

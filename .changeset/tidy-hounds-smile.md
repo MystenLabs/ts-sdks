@@ -3,13 +3,11 @@
 ---
 
 `GrpcWebFetchTransport` exported from `@mysten/sui/grpc` is now a subclass of the transport of the
-same name from `@protobuf-ts/grpcweb-transport`, fixing three defects in it. Status messages are
-decoded instead of arriving percent-encoded as `Object%20not%20found:%200x1`. A timeout is coded
-`DEADLINE_EXCEEDED` and a custom abort reason `CANCELLED`, where upstream reports both as `INTERNAL`
-and only recognises a standard `AbortError`; an abort reason that already carries a gRPC status
-keeps it. `timeout` is enforced as a deadline instead of only being sent as the `grpc-timeout`
-header, so a stalled connection fails instead of hanging, and that header goes out in a unit the
-server accepts rather than in milliseconds that overflow its eight-digit limit.
+same name from `@protobuf-ts/grpcweb-transport`, fixing two defects in it. Status messages are
+decoded instead of arriving percent-encoded as `Object%20not%20found:%200x1`. A call ended by an
+abort takes its status from the reason: `DEADLINE_EXCEEDED` for an `AbortSignal.timeout`, the status
+an `RpcError` reason carries, and `CANCELLED` for anything else, where upstream reports all but a
+standard `AbortError` as `INTERNAL`.
 
 `@mysten/sui/grpc` also exports the `RpcError` class and the `GrpcStatusCode` enum, so the errors
 gRPC calls produce can be narrowed and coded without a direct `@protobuf-ts/*` dependency.

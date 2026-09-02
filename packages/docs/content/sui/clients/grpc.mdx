@@ -98,14 +98,12 @@ you can configure a transport and handle its errors without adding `@protobuf-ts
 dependency.
 
 That class extends the transport of the same name from
-[protobuf-ts](https://github.com/timostamm/protobuf-ts) and fixes three defects in it:
+[protobuf-ts](https://github.com/timostamm/protobuf-ts) and fixes two defects in it:
 
 - It decodes status messages, rather than delivering them as `Object%20not%20found:%200x1`.
-- It codes a timeout as `DEADLINE_EXCEEDED` and a custom abort reason as `CANCELLED`, except that a
-  reason which is already an `RpcError` keeps the status it carries. Upstream reports the first two
-  as `INTERNAL`, recognising only a standard `AbortError` cancellation.
-- It enforces `timeout` as a deadline. Upstream only sends it as the `grpc-timeout` header, so a
-  stalled connection hangs for as long as the underlying `fetch` does.
+- It codes a call that an abort ended from the reason the abort carried: `DEADLINE_EXCEEDED` for an
+  `AbortSignal.timeout`, the status on an `RpcError` reason, and `CANCELLED` otherwise. Upstream
+  reports all but a standard `AbortError` cancellation as `INTERNAL`.
 
 Build custom transports from this class. `SuiGrpcClient` uses a transport you pass it as given.
 
@@ -120,7 +118,6 @@ import { SuiGrpcClient, GrpcWebFetchTransport } from '@mysten/sui/grpc';
 const transport = new GrpcWebFetchTransport({
 	baseUrl: 'https://your-custom-grpc-endpoint.com',
 	format: 'binary', // default is 'text' (base64-encoded)
-	timeout: 15_000, // deadline per call, in milliseconds
 	// Additional transport options like fetchInit
 });
 
