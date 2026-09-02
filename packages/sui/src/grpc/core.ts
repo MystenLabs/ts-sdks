@@ -80,12 +80,9 @@ function isNameServiceResolutionMiss(error: unknown): boolean {
 	if (error.code === GrpcStatusCode[GrpcStatusCode.NOT_FOUND]) return true;
 	if (error.code !== GrpcStatusCode[GrpcStatusCode.RESOURCE_EXHAUSTED]) return false;
 
-	// The gRPC service currently reports expired names as RESOURCE_EXHAUSTED without a structured
-	// reason, so match on the status text while preserving unrelated RESOURCE_EXHAUSTED failures
-	// such as capacity limits. Decoded for the comparison only: a transport this package did not
-	// build leaves `grpc-message` percent-encoded, and whether a name resolved must not depend on
-	// which transport the client was given. Decoding text already decoded is a no-op here, because
-	// what it is compared against holds no escapes.
+	// The service reports an expired name as RESOURCE_EXHAUSTED with no structured reason, so match
+	// the status text and leave unrelated RESOURCE_EXHAUSTED failures alone. Decoded for the
+	// comparison only, since a caller-supplied transport leaves `grpc-message` percent-encoded.
 	return decodeGrpcStatusMessage(error.message) === 'name has expired';
 }
 
@@ -987,7 +984,7 @@ export class GrpcCoreClient extends CoreClient {
 				});
 				response = result.response;
 			} catch (error) {
-				// Status text arrives already decoded — see `withNormalizedErrors` in ./transport.ts.
+				// Status text is decoded by the transport. See ./transport.ts.
 				if (error instanceof Error && error.message) {
 					throw new SimulationError(error.message, { cause: error });
 				}

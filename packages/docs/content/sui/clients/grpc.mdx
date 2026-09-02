@@ -97,19 +97,15 @@ through the Fetch API. `@mysten/sui/grpc` exports it alongside the `GrpcWebOptio
 dependency.
 
 That class extends the transport of the same name from
-[protobuf-ts](https://github.com/timostamm/protobuf-ts) and repairs three of its defects:
+[protobuf-ts](https://github.com/timostamm/protobuf-ts) and fixes three defects in it:
 
-- gRPC status messages arrive decoded rather than percent-encoded — `Object not found: 0x1`, not
-  `Object%20not%20found:%200x1`.
-- A call cut short by its own `signal` is coded `DEADLINE_EXCEEDED` for an `AbortSignal.timeout` or
-  `CANCELLED` for any other abort, rather than `INTERNAL`.
-- `timeout` is a deadline the client enforces, not just one it advertises to the server in the
-  `grpc-timeout` header. Upstream sends the header and nothing else, so a stalled connection hangs
-  however long the underlying `fetch` does.
+- Status messages are decoded, rather than arriving as `Object%20not%20found:%200x1`.
+- A call ended by its own `signal` is coded `DEADLINE_EXCEEDED` for a timeout and `CANCELLED` for
+  any other abort, rather than `INTERNAL`.
+- `timeout` is enforced as a deadline. Upstream only sends it as the `grpc-timeout` header, so a
+  stalled connection hangs for as long as the underlying `fetch` does.
 
-Build custom transports from this class rather than importing one from
-`@protobuf-ts/grpcweb-transport` directly — a transport passed to `SuiGrpcClient` is used exactly as
-given.
+Build custom transports from this class. A transport passed to `SuiGrpcClient` is used as given.
 
 ### gRPC-web transport (default)
 

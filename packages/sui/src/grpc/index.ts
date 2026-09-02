@@ -23,13 +23,11 @@ export type {
 } from './client.js';
 export type { GrpcCoreClientOptions } from './core.js';
 
-// The transport `SuiGrpcClient` builds by default, and the one to construct for a custom transport:
-// `@protobuf-ts/grpcweb-transport`'s, subclassed to repair its error defects. Exported here rather
-// than re-exported from that package so a caller following these types gets the fixes.
+// `@protobuf-ts/grpcweb-transport`'s transport, subclassed to fix its error handling. Exported
+// here instead of re-exporting that package's, so a custom transport gets the fixes too.
 export { GrpcWebFetchTransport } from './transport.js';
 
-// Re-export transport types so users can configure custom transports
-// without adding @protobuf-ts/* as direct dependencies.
+// Re-exported so users can configure a transport without adding @protobuf-ts/* as a dependency.
 export type { GrpcWebOptions } from '@protobuf-ts/grpcweb-transport';
 export type { RpcTransport } from '@protobuf-ts/runtime-rpc';
 

@@ -8,10 +8,7 @@ import { describe, expect, it } from 'vitest';
 
 import { GrpcWebFetchTransport, SuiGrpcClient } from '../../../src/grpc/index.js';
 
-/**
- * A grpc-web response that carries its status in the headers, which is how a fullnode answers a
- * request it rejected outright. `grpc-message` is percent-encoded, per the protocol.
- */
+/** A grpc-web response carrying its status in the headers, with `grpc-message` percent-encoded. */
 function statusResponse(status: number, message: string) {
 	return new Response(null, {
 		status: 200,
@@ -36,16 +33,12 @@ function clientRespondingWith(response: Response | (() => Promise<Response>)) {
 		typeof response === 'function' ? response() : response) as typeof globalThis.fetch);
 }
 
-/**
- * A transport of the caller's own, standing in for one built without this package's
- * `GrpcWebFetchTransport`. Whatever it does with errors is its own contract.
- */
+/** A transport of the caller's own, built without this package's `GrpcWebFetchTransport`. */
 function transportRejectingWith(error: RpcError): RpcTransport {
 	return {
 		mergeOptions: (options) => options ?? {},
 		unary(method, input, _options) {
-			// Handled here so the promises a test does not await are not reported as unhandled: nothing
-			// wraps this transport now, so nothing else attaches to them.
+			// Handled here so promises a test does not await are not reported as unhandled.
 			const rejected = () => {
 				const promise = Promise.reject(error);
 				promise.catch(() => {});
@@ -67,7 +60,7 @@ function transportRejectingWith(error: RpcError): RpcTransport {
 	};
 }
 
-/** A server that accepts the request and then never answers, until the call's signal aborts. */
+/** A server that accepts the request and never answers, until the call's signal aborts. */
 function hangingFetch(onRequest?: (init: RequestInit) => void): typeof globalThis.fetch {
 	return ((_input: unknown, init: RequestInit) => {
 		onRequest?.(init);
@@ -121,14 +114,14 @@ describe('gRPC transport error normalization', () => {
 			captureError(call.trailers),
 		]);
 
-		// A single decode: `%2520` is a literal `%20` in the message, not a second escape to unwrap.
+		// One decode only: `%2520` is a literal `%20` in the message, not a second escape.
 		expect(fromResponse.message).toBe('invalid read_mask path: a%20b');
 		expect(fromStatus).toBe(fromResponse);
 		expect(fromTrailers).toBe(fromResponse);
 	});
 
 	it('keeps a message that is not percent-encoded verbatim', async () => {
-		// A bare `%` is not a valid escape; decoding would throw and lose the status text entirely.
+		// A bare `%` is not a valid escape, and decoding it would throw.
 		const client = clientRespondingWith(statusResponse(8, 'rate limit: 100% of quota used'));
 
 		const error = await captureError(client.ledgerService.getObject({ objectId: '0x1' }).response);
@@ -163,9 +156,8 @@ describe('gRPC transport error normalization', () => {
 	});
 
 	it('codes an abort with a caller-supplied reason CANCELLED, not INTERNAL', async () => {
-		// `AbortController.abort(reason)` takes an arbitrary reason, and fetch rejects with it. Only an
-		// `AbortError` reaches the transport's cancellation branch; anything else lands as INTERNAL and
-		// would be retried as a server failure.
+		// Only an `AbortError` reaches the transport's cancellation branch. Any other reason lands as
+		// INTERNAL, which callers retry as a server failure.
 		const controller = new AbortController();
 		const client = makeClient(
 			hangingFetch(() => setTimeout(() => controller.abort(new Error('caller gave up')), 1)),
@@ -179,8 +171,7 @@ describe('gRPC transport error normalization', () => {
 	});
 
 	it('does not read a fabricated TimeoutError name as a deadline', async () => {
-		// Only `AbortSignal.timeout` — or a deadline this transport imposed — is a deadline. A reason
-		// dressed up to look like one is still a cancellation.
+		// Only `AbortSignal.timeout`, or a deadline this transport imposed, counts as a deadline.
 		const controller = new AbortController();
 		const client = makeClient(
 			hangingFetch(() =>
@@ -199,8 +190,8 @@ describe('gRPC transport error normalization', () => {
 	});
 
 	it('leaves a server failure that raced an abort with the status the server gave it', async () => {
-		// Headers resolve before a later failure propagates, so a caller that aborts once it has them
-		// — or simply races a truncated connection — must not have that failure relabelled.
+		// Headers resolve before a later failure propagates, so a caller that aborts once it has
+		// them must not have that failure relabelled as a cancellation.
 		const controller = new AbortController();
 		const client = clientRespondingWith(() =>
 			Promise.resolve(
@@ -239,8 +230,8 @@ describe('gRPC transport error normalization', () => {
 
 describe('a caller-supplied transport', () => {
 	it('is used exactly as given, errors and all', async () => {
-		// Upstream's transport leaves `grpc-message` encoded and codes an aborted call INTERNAL. That
-		// is upstream's behaviour to change; the client does not reach into a transport it was handed.
+		// Upstream leaves `grpc-message` encoded and codes an aborted call INTERNAL. The client does
+		// not reach into a transport it was handed.
 		const error = new RpcError('Object%20not%20found', 'INTERNAL');
 		const controller = new AbortController();
 		controller.abort();
@@ -258,8 +249,8 @@ describe('a caller-supplied transport', () => {
 	});
 
 	it('still resolves an expired name through an upstream transport', async () => {
-		// Core policy must not depend on which transport the client was given: the node reports an
-		// expired name as RESOURCE_EXHAUSTED with prose, and upstream leaves that prose encoded.
+		// The node reports an expired name as RESOURCE_EXHAUSTED with prose, which upstream leaves
+		// encoded. Whether the name resolves must not depend on the transport.
 		const client = new SuiGrpcClient({
 			network: 'mainnet',
 			transport: new UpstreamGrpcWebFetchTransport({
@@ -274,7 +265,7 @@ describe('a caller-supplied transport', () => {
 	});
 
 	it('normalizes when it is a GrpcWebFetchTransport the caller built from this package', async () => {
-		// The path an app takes when it needs interceptors: build the transport itself, from ours.
+		// What an app does when it needs interceptors: build the transport itself, from ours.
 		const client = new SuiGrpcClient({
 			network: 'testnet',
 			transport: new GrpcWebFetchTransport({
@@ -291,7 +282,7 @@ describe('a caller-supplied transport', () => {
 
 describe('gRPC transport deadlines', () => {
 	it('enforces a timeout the base transport only advertises', async () => {
-		// `grpc-timeout` asks the node to give up; it does nothing when the connection itself stalls.
+		// The header asks the node to give up. It does nothing when the connection stalls.
 		const client = makeClient(hangingFetch());
 
 		const error = await captureError(
@@ -340,8 +331,8 @@ describe('gRPC transport deadlines', () => {
 		expect(first.code).toBe('DEADLINE_EXCEEDED');
 		expect(second.code).toBe('DEADLINE_EXCEEDED');
 
-		// `mergeRpcOptions` hands these very options to a call that passes none of its own, so writing
-		// the composed signal onto them would leave every later call born already aborted.
+		// `mergeRpcOptions` hands these options to a call that passes none of its own, so writing the
+		// composed signal onto them would leave every later call already aborted.
 		const defaults = (transport as unknown as { defaultOptions: RpcOptions }).defaultOptions;
 		expect(defaults.abort).toBeUndefined();
 	});

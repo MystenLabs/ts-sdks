@@ -164,9 +164,8 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 			...transportOptions
 		} = options as SuiGrpcClientOptions & SuiGrpcTransportOptions & { transport?: RpcTransport };
 
-		// A transport the caller supplied is used exactly as given: whatever it does with errors is
-		// that transport's contract, not ours to reach into. The default is our `GrpcWebFetchTransport`,
-		// which repairs upstream's two error defects — see `./transport.ts`.
+		// A caller-supplied transport is used as given. The default is our `GrpcWebFetchTransport`,
+		// which fixes upstream's error handling. See `./transport.ts`.
 		const transport = providedTransport ?? new GrpcWebFetchTransport(transportOptions);
 		this.transactionExecutionService = new TransactionExecutionServiceClient(transport);
 		this.ledgerService = new LedgerServiceClient(transport);

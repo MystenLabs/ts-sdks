@@ -28,8 +28,8 @@ describe('resolveNameServiceAddress', () => {
 		expect(lookupName).toHaveBeenCalledWith({ name }, { abort: signal });
 	});
 
-	// The encoded form still has to match: a caller-supplied transport is passed through untouched,
-	// so `grpc-message` reaches this layer in its wire form (see test/unit/grpc/transport-errors.test.ts).
+	// The encoded form still has to match: a caller-supplied transport is used as given, so
+	// `grpc-message` reaches this layer in its wire form.
 	it.each([
 		new RpcError('not found', 'NOT_FOUND'),
 		new RpcError('name has expired', 'RESOURCE_EXHAUSTED'),
