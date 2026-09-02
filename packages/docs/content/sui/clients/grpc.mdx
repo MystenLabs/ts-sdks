@@ -161,13 +161,9 @@ const client = new SuiGrpcClient({
 For local development without TLS, use `ChannelCredentials.createInsecure()` and a plain
 `host: '127.0.0.1:9000'`.
 
-This transport reports errors the way `@grpc/grpc-js` does, which differs from the gRPC-web
-transport above in two small ways. grpc-js decodes status messages with `decodeURI`, which leaves
-escapes for reserved characters in place: of the characters a Sui node escapes, `#` and `?` reach
-you as `%23` and `%3F`, while spaces, non-ASCII text and a literal `%` decode correctly. And an
-aborted call is `CANCELLED` whatever the abort reason, so an `AbortSignal.timeout` reads `CANCELLED`
-rather than `DEADLINE_EXCEEDED`. Set `timeout` to express a deadline: both transports enforce it and
-report `DEADLINE_EXCEEDED`, so it is the spelling that behaves the same either way.
+Errors on this transport come from `@grpc/grpc-js`, so status text and codes can differ slightly
+from the gRPC-web transport above. Set deadlines with `timeout`, which both transports enforce and
+report as `DEADLINE_EXCEEDED`.
 
 ## Read masks
 
