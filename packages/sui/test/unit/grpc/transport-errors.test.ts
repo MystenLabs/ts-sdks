@@ -220,6 +220,31 @@ describe('gRPC transport error normalization', () => {
 		expect(error.code).toBe('CANCELLED');
 	});
 
+	it('keeps a server status that came with metadata, whatever the abort reason says', async () => {
+		// An error built from an abort carries no metadata, so matching text cannot make this one look
+		// like a cancellation.
+		const controller = new AbortController();
+		const client = makeClient((async () => {
+			controller.abort(new Error('shutdown'));
+
+			return new Response(null, {
+				status: 200,
+				headers: {
+					'content-type': 'application/grpc-web+proto',
+					'grpc-status': '13',
+					'grpc-message': 'shutdown',
+					'x-request-id': 'abc',
+				},
+			});
+		}) as typeof globalThis.fetch);
+
+		const error = await captureError(
+			client.ledgerService.getObject({ objectId: '0x1' }, { abort: controller.signal }).response,
+		);
+
+		expect(error.code).toBe('INTERNAL');
+	});
+
 	it('leaves a server failure that raced an abort with the status the server gave it', async () => {
 		// Headers resolve before a later failure propagates, so a caller that aborts once it has
 		// them must not have that failure relabelled as a cancellation.

@@ -57,11 +57,14 @@ interface CallAbort {
  * resolve before a later server failure propagates, so a call can be aborted while failing for an
  * unrelated reason.
  *
- * The transport turns an abort into either `CANCELLED`, for a reason named `AbortError`, or an
- * `INTERNAL` carrying the reason's own text. Some fetch implementations (node-fetch) substitute a
- * generic `AbortError` for the reason, which is why the code is checked as well as the text.
+ * An error built from an abort carries no metadata, so anything holding response metadata is a
+ * status the server answered with. Past that, the transport turns an abort into either `CANCELLED`,
+ * for a reason named `AbortError`, or an `INTERNAL` carrying the reason's own text; some fetch
+ * implementations (node-fetch) substitute a generic `AbortError` for the reason, which is why the
+ * code is checked as well as the text.
  */
 function isAbortFailure(error: RpcError, signal: AbortSignal): boolean {
+	if (Object.keys(error.meta).length > 0) return false;
 	if (error.code === GrpcStatusCode[GrpcStatusCode.CANCELLED]) return true;
 
 	const reason = signal.reason;
