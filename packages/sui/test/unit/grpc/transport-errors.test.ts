@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { RpcTransport } from '@protobuf-ts/runtime-rpc';
+import type { RpcOptions, RpcTransport } from '@protobuf-ts/runtime-rpc';
 import { RpcError, UnaryCall } from '@protobuf-ts/runtime-rpc';
 import { describe, expect, it } from 'vitest';
 
@@ -64,6 +64,17 @@ function transportRejectingWith(error: RpcError): RpcTransport {
 			throw new Error('unused');
 		},
 	};
+}
+
+/** A server that accepts the request and then never answers, until the call's signal aborts. */
+function hangingFetch(onRequest?: (init: RequestInit) => void): typeof globalThis.fetch {
+	return ((_input: unknown, init: RequestInit) => {
+		onRequest?.(init);
+
+		return new Promise<Response>((_, reject) => {
+			init.signal?.addEventListener('abort', () => reject(init.signal!.reason));
+		});
+	}) as unknown as typeof globalThis.fetch;
 }
 
 async function captureError(promise: Promise<unknown>) {
@@ -232,5 +243,63 @@ describe('a caller-supplied transport', () => {
 		const caught = await captureError(client.ledgerService.getObject({ objectId: '0x1' }).response);
 
 		expect(caught.message).toBe('Object not found: 0x1');
+	});
+});
+
+describe('gRPC transport deadlines', () => {
+	it('enforces a timeout the base transport only advertises', async () => {
+		// `grpc-timeout` asks the node to give up; it does nothing when the connection itself stalls.
+		const client = makeClient(hangingFetch());
+
+		const error = await captureError(
+			client.ledgerService.getObject({ objectId: '0x1' }, { timeout: 5 }).response,
+		);
+
+		expect(error.code).toBe('DEADLINE_EXCEEDED');
+	});
+
+	it('still sends the grpc-timeout header', async () => {
+		let sent: RequestInit | undefined;
+		const client = makeClient(hangingFetch((init) => (sent = init)));
+
+		await captureError(
+			client.ledgerService.getObject({ objectId: '0x1' }, { timeout: 50 }).response,
+		);
+
+		expect((sent!.headers as Headers).get('grpc-timeout')).toBe('50m');
+	});
+
+	it('lets a caller cancellation win over a deadline that has not arrived', async () => {
+		const controller = new AbortController();
+		const client = makeClient(hangingFetch(() => setTimeout(() => controller.abort(), 1)));
+
+		const error = await captureError(
+			client.ledgerService.getObject(
+				{ objectId: '0x1' },
+				{ timeout: 10_000, abort: controller.signal },
+			).response,
+		);
+
+		expect(error.code).toBe('CANCELLED');
+	});
+
+	it('gives every call its own deadline when the timeout comes from the transport options', async () => {
+		const transport = new GrpcWebFetchTransport({
+			baseUrl: 'http://localhost',
+			fetch: hangingFetch(),
+			timeout: 5,
+		});
+		const client = new SuiGrpcClient({ network: 'testnet', transport });
+
+		const first = await captureError(client.ledgerService.getObject({ objectId: '0x1' }).response);
+		const second = await captureError(client.ledgerService.getObject({ objectId: '0x2' }).response);
+
+		expect(first.code).toBe('DEADLINE_EXCEEDED');
+		expect(second.code).toBe('DEADLINE_EXCEEDED');
+
+		// `mergeRpcOptions` hands these very options to a call that passes none of its own, so writing
+		// the composed signal onto them would leave every later call born already aborted.
+		const defaults = (transport as unknown as { defaultOptions: RpcOptions }).defaultOptions;
+		expect(defaults.abort).toBeUndefined();
 	});
 });

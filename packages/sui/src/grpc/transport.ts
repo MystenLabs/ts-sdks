@@ -106,9 +106,40 @@ function normalizeRejections(promises: Promise<unknown>[], abort: AbortSignal | 
 }
 
 /**
+ * Turns `options.timeout` into a deadline this client enforces, by composing one into the signal
+ * the call aborts on.
+ *
+ * The base transport only puts `timeout` in the `grpc-timeout` header, which a node honours but
+ * which does nothing when the connection itself stalls: the call then hangs for as long as the
+ * fetch does. Sending the header as well is still right — the server should stop working on a
+ * request nobody is waiting for.
+ *
+ * Nothing is written to the options passed in. `mergeRpcOptions` returns the transport's own
+ * `defaultOptions` *by reference* when a generated method is called without call options, so
+ * assigning `abort` here would pin one call's deadline to every later call the client makes.
+ */
+function withDeadline(options: RpcOptions): RpcOptions {
+	if (options.timeout == null) return options;
+
+	const durationMs =
+		typeof options.timeout === 'number' ? options.timeout : options.timeout.getTime() - Date.now();
+
+	// An expired deadline is the base transport's to reject, which it does before sending anything.
+	if (durationMs <= 0) return options;
+
+	const deadline = AbortSignal.timeout(durationMs);
+
+	return {
+		...options,
+		abort: options.abort ? AbortSignal.any([options.abort, deadline]) : deadline,
+	};
+}
+
+/**
  * The grpc-web transport `@mysten/sui` ships: `@protobuf-ts/grpcweb-transport`'s, subclassed to
- * repair the two error defects it has as of 2.11.1 — status text arrives decoded, and a call cut
- * short by its own signal is coded `DEADLINE_EXCEEDED` or `CANCELLED` rather than `INTERNAL`.
+ * repair three defects it has as of 2.11.1 — status text arrives decoded, a call cut short by its
+ * own signal is coded `DEADLINE_EXCEEDED` or `CANCELLED` rather than `INTERNAL`, and `timeout` is a
+ * deadline this client enforces rather than one it only advertises to the server.
  *
  * Both belong to the transport — it is the layer that reads the wire — so this is where
  * `SuiGrpcClient` applies them, and every consumer of a call is served by one pass: `client.core`,
@@ -125,9 +156,13 @@ export class GrpcWebFetchTransport extends UpstreamGrpcWebFetchTransport {
 		input: I,
 		options: RpcOptions,
 	): UnaryCall<I, O> {
-		const call = super.unary(method, input, options);
+		const callOptions = withDeadline(options);
+		const call = super.unary(method, input, callOptions);
 
-		normalizeRejections([call.headers, call.response, call.status, call.trailers], options.abort);
+		normalizeRejections(
+			[call.headers, call.response, call.status, call.trailers],
+			callOptions.abort,
+		);
 
 		return call;
 	}
@@ -137,13 +172,16 @@ export class GrpcWebFetchTransport extends UpstreamGrpcWebFetchTransport {
 		input: I,
 		options: RpcOptions,
 	): ServerStreamingCall<I, O> {
-		const call = super.serverStreaming(method, input, options);
+		// A stream is bounded only if the caller asked for it to be: nothing here invents a deadline,
+		// so a subscription left without a `timeout` runs until it or the node ends it.
+		const callOptions = withDeadline(options);
+		const call = super.serverStreaming(method, input, callOptions);
 
 		// grpc-web pushes a failure into the response stream, and a finite stream is often consumed
 		// through `responses` alone, without awaiting `status`. Listeners run synchronously when the
 		// stream errors, so this rewrites the error before a `for await` resumes on it.
-		call.responses.onError((error) => normalizeGrpcError(error, options.abort));
-		normalizeRejections([call.headers, call.status, call.trailers], options.abort);
+		call.responses.onError((error) => normalizeGrpcError(error, callOptions.abort));
+		normalizeRejections([call.headers, call.status, call.trailers], callOptions.abort);
 
 		return call;
 	}

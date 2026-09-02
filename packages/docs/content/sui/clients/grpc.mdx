@@ -97,11 +97,17 @@ through the Fetch API. `@mysten/sui/grpc` exports it alongside the `GrpcWebOptio
 dependency.
 
 That class extends the transport of the same name from
-[protobuf-ts](https://github.com/timostamm/protobuf-ts) and repairs two defects in how it reports
-errors: gRPC status messages arrive decoded rather than percent-encoded (`Object not found: 0x1`,
-not `Object%20not%20found%3A%200x1`), and a call cut short by its own `signal` is coded
-`DEADLINE_EXCEEDED` for an `AbortSignal.timeout` or `CANCELLED` for any other abort, rather than
-`INTERNAL`. Build custom transports from this class rather than importing one from
+[protobuf-ts](https://github.com/timostamm/protobuf-ts) and repairs three of its defects:
+
+- gRPC status messages arrive decoded rather than percent-encoded — `Object not found: 0x1`, not
+  `Object%20not%20found:%200x1`.
+- A call cut short by its own `signal` is coded `DEADLINE_EXCEEDED` for an `AbortSignal.timeout` or
+  `CANCELLED` for any other abort, rather than `INTERNAL`.
+- `timeout` is a deadline the client enforces, not just one it advertises to the server in the
+  `grpc-timeout` header. Upstream sends the header and nothing else, so a stalled connection hangs
+  however long the underlying `fetch` does.
+
+Build custom transports from this class rather than importing one from
 `@protobuf-ts/grpcweb-transport` directly — a transport passed to `SuiGrpcClient` is used exactly as
 given.
 
@@ -116,6 +122,7 @@ import { SuiGrpcClient, GrpcWebFetchTransport } from '@mysten/sui/grpc';
 const transport = new GrpcWebFetchTransport({
 	baseUrl: 'https://your-custom-grpc-endpoint.com',
 	format: 'binary', // default is 'text' (base64-encoded)
+	timeout: 15_000, // deadline per call, in milliseconds
 	// Additional transport options like fetchInit
 });
 
@@ -159,8 +166,8 @@ transport above in two small ways. grpc-js decodes status messages with `decodeU
 escapes for reserved characters in place: of the characters a Sui node escapes, `#` and `?` reach
 you as `%23` and `%3F`, while spaces, non-ASCII text and a literal `%` decode correctly. And an
 aborted call is `CANCELLED` whatever the abort reason, so an `AbortSignal.timeout` reads `CANCELLED`
-rather than `DEADLINE_EXCEEDED`; set `timeout` on the call options instead, which grpc-js enforces
-as a deadline.
+rather than `DEADLINE_EXCEEDED`. Set `timeout` to express a deadline: both transports enforce it and
+report `DEADLINE_EXCEEDED`, so it is the spelling that behaves the same either way.
 
 ## Read masks
 
