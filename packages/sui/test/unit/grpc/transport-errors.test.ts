@@ -170,13 +170,34 @@ describe('gRPC transport error normalization', () => {
 		expect(error.code).toBe('CANCELLED');
 	});
 
-	it('does not read a fabricated TimeoutError name as a deadline', async () => {
-		// Only `AbortSignal.timeout`, or a deadline this transport imposed, counts as a deadline.
+	it('reads a reason named TimeoutError as a deadline, whatever built it', async () => {
+		// The reason is the caller's own data. Requiring a `DOMException` would lose a genuine timeout
+		// from another realm, and a caller naming their reason `TimeoutError` is declaring the same
+		// thing either way.
 		const controller = new AbortController();
 		const client = makeClient(
 			hangingFetch(() =>
 				setTimeout(
 					() => controller.abort(Object.assign(new Error('stop'), { name: 'TimeoutError' })),
+					1,
+				),
+			),
+		);
+
+		const error = await captureError(
+			client.ledgerService.getObject({ objectId: '0x1' }, { abort: controller.signal }).response,
+		);
+
+		expect(error.code).toBe('DEADLINE_EXCEEDED');
+	});
+
+	it('ignores a reason whose code is not a gRPC status', async () => {
+		// A Node system error carries `code`, which must not be mistaken for a status.
+		const controller = new AbortController();
+		const client = makeClient(
+			hangingFetch(() =>
+				setTimeout(
+					() => controller.abort(Object.assign(new Error('dns'), { code: 'ENOTFOUND' })),
 					1,
 				),
 			),
@@ -217,6 +238,19 @@ describe('gRPC transport error normalization', () => {
 		);
 
 		expect(error.code).toBe('CANCELLED');
+	});
+
+	it('keeps the status of a coded reason from another copy of runtime-rpc', async () => {
+		// A duplicate install, or another realm, fails `instanceof` while carrying the same shape.
+		const controller = new AbortController();
+		const foreign = Object.assign(new Error('retry'), { code: 'UNAVAILABLE', meta: {} });
+		const client = makeClient(hangingFetch(() => setTimeout(() => controller.abort(foreign), 1)));
+
+		const error = await captureError(
+			client.ledgerService.getObject({ objectId: '0x1' }, { abort: controller.signal }).response,
+		);
+
+		expect(error.code).toBe('UNAVAILABLE');
 	});
 
 	it('keeps the status a caller put on an RpcError abort reason', async () => {

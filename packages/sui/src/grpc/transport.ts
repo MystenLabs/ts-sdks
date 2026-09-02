@@ -48,13 +48,19 @@ export function hasDecodedStatusMessage(error: RpcError): boolean {
 /**
  * The status an abort should carry. The upstream transport uses `CANCELLED` only for an
  * `AbortError`, so a timeout or a reason of the caller's own arrives as `INTERNAL` and gets retried
- * as a server failure. A reason that is already an `RpcError` says what it is, and a `DOMException`
- * named `TimeoutError` is what `AbortSignal.timeout` aborts with.
+ * as a server failure.
+ *
+ * The reason is caller-supplied data, read by shape rather than by `instanceof`: a second copy of
+ * `@protobuf-ts/runtime-rpc`, or a signal from another realm, would fail an identity check and lose
+ * the status. A reason carrying a gRPC status says what it is, and one named `TimeoutError` — which
+ * is what `AbortSignal.timeout` aborts with — declares a deadline.
  */
 function abortStatus(reason: unknown): string {
-	if (reason instanceof RpcError) return reason.code;
+	const { code, name } = (reason ?? {}) as { code?: unknown; name?: unknown };
 
-	return reason instanceof DOMException && reason.name === 'TimeoutError'
+	if (typeof code === 'string' && code in GrpcStatusCode) return code;
+
+	return name === 'TimeoutError'
 		? GrpcStatusCode[GrpcStatusCode.DEADLINE_EXCEEDED]
 		: GrpcStatusCode[GrpcStatusCode.CANCELLED];
 }
@@ -86,7 +92,7 @@ function observingFetch(
 			// Spec fetch rejects with the reason itself; node-fetch substitutes its own `AbortError`.
 			if (
 				signal?.aborted &&
-				(error === signal.reason || (error instanceof Error && error.name === 'AbortError'))
+				(error === signal.reason || (error as { name?: unknown } | null)?.name === 'AbortError')
 			) {
 				state.abortCode = abortStatus(signal.reason);
 			}
@@ -132,7 +138,7 @@ function prepareCall(options: RpcOptions): { options: RpcOptions; state: CallSta
 
 /**
  * `GrpcWebFetchTransport` from `@protobuf-ts/grpcweb-transport`, subclassed to fix two defects it
- * has as of 2.11.1: status messages are left percent-encoded, and a call ended by a timeout or a
+ * has as of 2.11.1: status messages are left percent-encoded, and a request ended by a timeout or a
  * custom abort reason is coded `INTERNAL`. Fixing them here covers every consumer of a call.
  *
  * `SuiGrpcClient` builds one by default. Construct it directly to share a transport between clients
