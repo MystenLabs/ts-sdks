@@ -76,19 +76,25 @@ export interface GrpcCoreClientOptions extends CoreClientOptions {
 }
 
 function isNameServiceResolutionMiss(error: unknown): boolean {
-	if (!(error instanceof RpcError)) return false;
-	if (error.code === GrpcStatusCode[GrpcStatusCode.NOT_FOUND]) return true;
-	if (error.code !== GrpcStatusCode[GrpcStatusCode.RESOURCE_EXHAUSTED]) return false;
+	// Read by shape rather than `instanceof`, so an error from another installed copy of
+	// `@protobuf-ts/runtime-rpc` is still recognised.
+	if (typeof error !== 'object' || error === null) return false;
+
+	const { code, message } = error as { code?: unknown; message?: unknown };
+	if (typeof code !== 'string' || typeof message !== 'string') return false;
+
+	if (code === GrpcStatusCode[GrpcStatusCode.NOT_FOUND]) return true;
+	if (code !== GrpcStatusCode[GrpcStatusCode.RESOURCE_EXHAUSTED]) return false;
 
 	// The service reports an expired name as RESOURCE_EXHAUSTED with no structured reason, so match
 	// the status text and leave unrelated RESOURCE_EXHAUSTED failures alone.
-	if (error.message === 'name has expired') return true;
+	if (message === 'name has expired') return true;
 
 	// A transport this package did not build may leave `grpc-message` in its wire form, so match that
 	// too. Decoding the message instead would be a guess about what the transport already did, and
 	// would rewrite text that decodes to something else entirely. Our own transport has decoded by
 	// this point, so the wire form is only ever accepted from a transport that has not.
-	return !hasDecodedStatusMessage(error) && error.message === 'name%20has%20expired';
+	return !hasDecodedStatusMessage(error) && message === 'name%20has%20expired';
 }
 
 export class GrpcCoreClient extends CoreClient {

@@ -45,7 +45,7 @@ function decodeStatusMessageOnce(error: RpcError): void {
  * copy. False says nothing about the text itself: a transport this package did not build may hold
  * the wire form, or may have decoded it already.
  */
-export function hasDecodedStatusMessage(error: RpcError): boolean {
+export function hasDecodedStatusMessage(error: object): boolean {
 	return MESSAGE_DECODED in error;
 }
 
@@ -62,7 +62,14 @@ export function hasDecodedStatusMessage(error: RpcError): boolean {
 function abortStatus(reason: unknown): string {
 	const { code, name } = (reason ?? {}) as { code?: unknown; name?: unknown };
 
-	if (typeof code === 'string' && code in GrpcStatusCode) return code;
+	// `in` would also accept a numeric key of the enum's reverse mapping, or anything on the object
+	// prototype; a status name is the one that maps to a number.
+	if (
+		typeof code === 'string' &&
+		typeof GrpcStatusCode[code as keyof typeof GrpcStatusCode] === 'number'
+	) {
+		return code;
+	}
 
 	return name === 'TimeoutError'
 		? GrpcStatusCode[GrpcStatusCode.DEADLINE_EXCEEDED]
@@ -82,8 +89,10 @@ interface CallState {
  * that ended it. Read here rather than inferred from the error afterwards: a status the server
  * answered with arrives as a resolved response, so it can never be taken for a cancellation.
  *
- * A failure after the response arrives, such as an abort while a stream is being read, is not
- * covered, and keeps whatever status the upstream transport gives it.
+ * A failure after the response arrives, such as an abort while a stream is being read or a body
+ * that stops mid-frame, is not covered: it keeps whatever status the upstream transport gives it,
+ * and its message is decoded as though it came off the wire. Covering those means wrapping the
+ * response body as well, which costs a stream copy on every call.
  */
 function observingFetch(
 	base: typeof globalThis.fetch,

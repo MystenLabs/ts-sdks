@@ -14,6 +14,6 @@ upstream's status.
 gRPC calls produce can be narrowed and coded without a direct `@protobuf-ts/*` dependency.
 
 `SuiGrpcClient` builds one of these by default and now forwards the rest of `GrpcWebOptions`
-(`fetch`, `format`, `meta`, `timeout`, `abort`, `interceptors`, `jsonOptions`, `binaryOptions`) to
+(`fetch`, `format`, `meta`, `timeout`, `interceptors`, `jsonOptions`, `binaryOptions`) to
 it, which were previously accepted and ignored. A transport passed in by the caller is used as
 given.

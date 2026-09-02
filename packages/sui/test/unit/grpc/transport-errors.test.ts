@@ -191,6 +191,23 @@ describe('gRPC transport error normalization', () => {
 		expect(error.code).toBe('DEADLINE_EXCEEDED');
 	});
 
+	it('ignores a reason whose code is a numeric key or a prototype member', async () => {
+		// The enum's reverse mapping and `Object.prototype` both answer `in`; a status name is the one
+		// that maps to a number.
+		const controller = new AbortController();
+		const client = makeClient(
+			hangingFetch(() =>
+				setTimeout(() => controller.abort(Object.assign(new Error('x'), { code: '0' })), 1),
+			),
+		);
+
+		const error = await captureError(
+			client.ledgerService.getObject({ objectId: '0x1' }, { abort: controller.signal }).response,
+		);
+
+		expect(error.code).toBe('CANCELLED');
+	});
+
 	it('ignores a reason whose code is not a gRPC status', async () => {
 		// A Node system error carries `code`, which must not be mistaken for a status.
 		const controller = new AbortController();
@@ -412,6 +429,22 @@ describe('a caller-supplied transport', () => {
 
 		expect(caught.message).toBe('Object%20not%20found');
 		expect(caught.code).toBe('INTERNAL');
+	});
+
+	it('resolves an expired name reported by another copy of runtime-rpc', async () => {
+		// A duplicate install fails `instanceof RpcError`, but carries the same shape.
+		const foreign = Object.assign(new Error('name has expired'), {
+			code: 'RESOURCE_EXHAUSTED',
+			meta: {},
+		});
+		const client = new SuiGrpcClient({
+			network: 'mainnet',
+			transport: transportRejectingWith(foreign as never),
+		});
+
+		await expect(client.core.resolveNameServiceAddress({ name: '@mysten' })).resolves.toEqual({
+			address: null,
+		});
 	});
 
 	it('still resolves an expired name through an upstream transport', async () => {

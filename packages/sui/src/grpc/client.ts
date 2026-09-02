@@ -160,6 +160,9 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 		const {
 			network: _network,
 			mvr: _mvr,
+			// Every Core API call passes its own `signal`, which would overwrite a client-level default
+			// with `undefined`, so a transport-wide one is not forwarded.
+			abort: _abort,
 			transport: providedTransport,
 			...transportOptions
 		} = options as SuiGrpcClientOptions & SuiGrpcTransportOptions & { transport?: RpcTransport };
