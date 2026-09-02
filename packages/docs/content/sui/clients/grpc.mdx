@@ -100,8 +100,9 @@ That class extends the transport of the same name from
 [protobuf-ts](https://github.com/timostamm/protobuf-ts) and fixes three defects in it:
 
 - It decodes status messages, rather than delivering them as `Object%20not%20found:%200x1`.
-- It codes a timeout as `DEADLINE_EXCEEDED` and a custom abort reason as `CANCELLED`. Upstream
-  reports both as `INTERNAL`, recognising only a standard `AbortError` cancellation.
+- It codes a timeout as `DEADLINE_EXCEEDED` and a custom abort reason as `CANCELLED`, except that a
+  reason which is already an `RpcError` keeps the status it carries. Upstream reports the first two
+  as `INTERNAL`, recognising only a standard `AbortError` cancellation.
 - It enforces `timeout` as a deadline. Upstream only sends it as the `grpc-timeout` header, so a
   stalled connection hangs for as long as the underlying `fetch` does.
 
