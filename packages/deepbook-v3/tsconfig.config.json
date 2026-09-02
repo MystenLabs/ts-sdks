@@ -1,6 +1,6 @@
 {
 	"extends": "../../tsconfig.shared.json",
-	"include": ["src"],
+	"include": ["*.config.ts", "*.config.mts", "scripts"],
 	"compilerOptions": {
 		"noEmit": true
 	}

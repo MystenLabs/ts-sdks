@@ -54,12 +54,13 @@
 		"prettier:fix": "prettier -w --ignore-unknown .",
 		"oxlint:check": "oxlint  .",
 		"oxlint:fix": "oxlint --fix",
-		"test": "vitest run",
+		"test": "pnpm run config:typecheck && vitest run",
 		"lint": "pnpm run oxlint:check && pnpm run prettier:check",
 		"lint:fix": "pnpm run oxlint:fix && pnpm run prettier:fix",
 		"sync-deployment": "tsx scripts/sync-deployment.ts",
 		"sync-deployment:format": "prettier --write src/deployments",
-		"test:e2e": "PREDICT_SDK_TESTNET=1 vitest run test/predict/testnet"
+		"test:e2e": "PREDICT_SDK_TESTNET=1 vitest run test/predict/testnet",
+		"config:typecheck": "tsc --noEmit -p tsconfig.config.json"
 	},
 	"dependencies": {
 		"@mysten/bcs": "workspace:^",
