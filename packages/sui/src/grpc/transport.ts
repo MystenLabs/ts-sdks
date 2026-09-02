@@ -88,20 +88,26 @@ function isDeadlineAbort({ signal, deadline }: CallAbort): boolean {
  * Codes an aborted call. The upstream transport uses `CANCELLED` only for an `AbortError`, so a
  * timeout or a custom abort reason arrives as `INTERNAL` and gets retried as a server failure.
  */
-function applyAbortStatus(error: RpcError, abort: CallAbort): void {
-	if (!abort.signal?.aborted || !isAbortFailure(error, abort.signal)) return;
+function applyAbortStatus(error: RpcError, abort: CallAbort): boolean {
+	if (!abort.signal?.aborted || !isAbortFailure(error, abort.signal)) return false;
 
-	// Any other code came from the server, or from an abort reason the caller coded themselves.
+	// The transport passes an `RpcError` reason through as the failure itself, so the caller has
+	// already said what the status is.
+	if (abort.signal.reason instanceof RpcError) return true;
+
+	// Any other code came from the server.
 	if (
 		error.code !== GrpcStatusCode[GrpcStatusCode.INTERNAL] &&
 		error.code !== GrpcStatusCode[GrpcStatusCode.CANCELLED]
 	) {
-		return;
+		return false;
 	}
 
 	error.code = isDeadlineAbort(abort)
 		? GrpcStatusCode[GrpcStatusCode.DEADLINE_EXCEEDED]
 		: GrpcStatusCode[GrpcStatusCode.CANCELLED];
+
+	return true;
 }
 
 /**
@@ -111,8 +117,11 @@ function applyAbortStatus(error: RpcError, abort: CallAbort): void {
 function normalizeGrpcError(error: unknown, abort: CallAbort): void {
 	if (!(error instanceof RpcError)) return;
 
-	// Coded first, because decoding rewrites the message `isAbortFailure` compares.
-	applyAbortStatus(error, abort);
+	// An error the abort produced carries the reason's own text, not `grpc-message`, so it is coded
+	// and left as it reads. Coding runs first either way, since decoding would rewrite the message
+	// `isAbortFailure` compares.
+	if (applyAbortStatus(error, abort)) return;
+
 	decodeStatusMessageOnce(error);
 }
 

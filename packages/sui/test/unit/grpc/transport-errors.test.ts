@@ -220,6 +220,34 @@ describe('gRPC transport error normalization', () => {
 		expect(error.code).toBe('CANCELLED');
 	});
 
+	it('keeps the status a caller put on an RpcError abort reason', async () => {
+		const controller = new AbortController();
+		const client = makeClient(
+			hangingFetch(() => setTimeout(() => controller.abort(new RpcError('gone', 'INTERNAL')), 1)),
+		);
+
+		const error = await captureError(
+			client.ledgerService.getObject({ objectId: '0x1' }, { abort: controller.signal }).response,
+		);
+
+		expect(error.code).toBe('INTERNAL');
+	});
+
+	it('does not decode the text of an abort reason', async () => {
+		// The reason's message is local text, not `grpc-message` off the wire.
+		const controller = new AbortController();
+		const client = makeClient(
+			hangingFetch(() => setTimeout(() => controller.abort(new Error('cancel /objects/a%2Fb')), 1)),
+		);
+
+		const error = await captureError(
+			client.ledgerService.getObject({ objectId: '0x1' }, { abort: controller.signal }).response,
+		);
+
+		expect(error.message).toBe('cancel /objects/a%2Fb');
+		expect(error.code).toBe('CANCELLED');
+	});
+
 	it('keeps a server status that came with metadata, whatever the abort reason says', async () => {
 		// An error built from an abort carries no metadata, so matching text cannot make this one look
 		// like a cancellation.
