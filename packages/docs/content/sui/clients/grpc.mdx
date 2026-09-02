@@ -111,8 +111,8 @@ Build custom transports from this class. `SuiGrpcClient` uses a transport you pa
 
 The default transport uses the gRPC-web protocol over HTTP/1.1 or HTTP/2. `SuiGrpcClient` passes the
 `GrpcWebOptions` it is given to the transport it builds, so most configuration needs no transport of
-your own. The one exception is `abort`: every call carries its own signal, so a client-wide one is
-not forwarded.
+your own. The one exception is `abort`: Core API calls each carry their own signal, so a client-wide
+one is not forwarded.
 
 ```typescript
 import { SuiGrpcClient } from '@mysten/sui/grpc';
