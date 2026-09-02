@@ -241,6 +241,24 @@ describe('gRPC transport error normalization', () => {
 
 		expect(error.code).toBe('DEADLINE_EXCEEDED');
 	});
+	it('survives a reason whose properties throw when read', async () => {
+		// `abort()` takes anything. Reading one must not throw out of a rejection handler, which would
+		// surface as an unhandled rejection.
+		const controller = new AbortController();
+		const reason = {
+			get message(): string {
+				throw new Error('nope');
+			},
+		};
+		const client = makeClient(hangingFetch(() => setTimeout(() => controller.abort(reason), 1)));
+
+		const error = await captureError(
+			client.ledgerService.getObject({ objectId: '0x1' }, { abort: controller.signal }).response,
+		);
+
+		expect(error.code).toBe('CANCELLED');
+	});
+
 	it('codes an abort with a primitive reason CANCELLED', async () => {
 		// `abort('stop')` takes a string, which the transport stringifies into an INTERNAL error.
 		const controller = new AbortController();

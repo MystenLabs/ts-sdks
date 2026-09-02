@@ -63,15 +63,27 @@ function abortStatus(reason: unknown): string {
 
 // The transport reuses the abort reason's message, so matching it says the text is local. A fetch
 // that substitutes its own error (node-fetch) gives text of its own, which holds nothing to decode.
+// The reason is arbitrary, so it is never coerced: a symbol or a throwing hook would throw here.
 function isAbortReasonText(message: string, reason: unknown): boolean {
+	if (typeof reason === 'string') return message === reason;
+
 	const reasonMessage = (reason as { message?: unknown } | null)?.message;
 
-	return message === (typeof reasonMessage === 'string' ? reasonMessage : `${reason}`);
+	return typeof reasonMessage === 'string' && message === reasonMessage;
 }
 
 // Rewritten in place, so every promise a call rejects surfaces the same error. Only the two codes
 // upstream uses for an abort are re-coded; a failure that raced the abort is relabelled with it.
 function normalizeGrpcError(error: unknown, signal: AbortSignal | undefined): void {
+	try {
+		normalize(error, signal);
+	} catch {
+		// Reading an abort reason runs code the caller supplied. A call reports whatever it was going
+		// to report rather than this, and never an unhandled rejection from a discarded handler.
+	}
+}
+
+function normalize(error: unknown, signal: AbortSignal | undefined): void {
 	if (!(error instanceof RpcError)) return;
 
 	if (
