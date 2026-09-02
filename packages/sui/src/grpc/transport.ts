@@ -51,23 +51,60 @@ function decodeStatusMessageOnce(error: RpcError): void {
 	error.message = decodeGrpcStatusMessage(error.message);
 }
 
+/** What one call was aborted by, as opposed to what happened to be aborted when it failed. */
+interface CallAbort {
+	/** The signal the call runs against: the caller's, the deadline below, or both composed. */
+	signal: AbortSignal | undefined;
+	/** The deadline this transport imposed for `options.timeout`, if it imposed one. */
+	deadline: AbortSignal | undefined;
+}
+
+/**
+ * Whether this error *is* the abort, rather than a failure that arrived while the call happened to
+ * be aborted.
+ *
+ * `signal.aborted` alone does not establish that. A call's headers resolve before a later
+ * server-side failure propagates, so a caller that aborts in a headers continuation — or simply
+ * races a truncated connection — would otherwise have a real `INTERNAL` rewritten as a
+ * cancellation. The transport rethrows the abort reason's own message verbatim, so carrying that
+ * message is what ties the failure to the abort.
+ */
+function isAbortFailure(error: RpcError, signal: AbortSignal): boolean {
+	const reason = signal.reason as { message?: unknown } | null | undefined;
+
+	return typeof reason?.message === 'string' && error.message === reason.message;
+}
+
+/**
+ * Whether the abort was a deadline expiring rather than someone cancelling.
+ *
+ * The deadline this transport composed is known by identity, not inferred: `AbortSignal.any`
+ * forwards the reason of whichever source fired, so comparing against it says which one did. A
+ * caller's own `AbortSignal.timeout` is a deadline too, and is recognised by its platform
+ * `DOMException` — which `Object.assign(new Error(), { name: 'TimeoutError' })` is not.
+ */
+function isDeadlineAbort({ signal, deadline }: CallAbort): boolean {
+	if (deadline?.aborted && signal?.reason === deadline.reason) return true;
+
+	return signal?.reason instanceof DOMException && signal.reason.name === 'TimeoutError';
+}
+
 /**
  * Codes a call that ended because its own signal aborted.
  *
  * The transport codes an aborted call `CANCELLED` only when the abort reason is an `AbortError`.
  * `AbortSignal.timeout` aborts with a `TimeoutError`, and `AbortController.abort(reason)` takes an
  * arbitrary reason, so both fall through to `INTERNAL` — indistinguishable from a server-side
- * failure, and retried as one. A deadline the caller set is a deadline exceeded; every other abort
- * is a cancellation.
+ * failure, and retried as one. A deadline is a deadline exceeded; every other abort is a
+ * cancellation.
  *
- * Idempotent without recording anything: re-running against the same signal reaches the same
- * answer, and a code outside the two the transport uses for an abort is left alone.
+ * Idempotent without recording anything: the same call and signal always reach the same answer.
  */
-function applyAbortStatus(error: RpcError, abort: AbortSignal | undefined): void {
-	if (!abort?.aborted) return;
+function applyAbortStatus(error: RpcError, abort: CallAbort): void {
+	if (!abort.signal?.aborted || !isAbortFailure(error, abort.signal)) return;
 
-	// A status the server actually answered with outranks the abort: it describes why the call
-	// failed, where the abort only says the caller stopped waiting.
+	// An abort reason that was itself an `RpcError` reaches the caller with the code they gave it,
+	// and a status the server answered with describes the failure better than the abort does.
 	if (
 		error.code !== GrpcStatusCode[GrpcStatusCode.INTERNAL] &&
 		error.code !== GrpcStatusCode[GrpcStatusCode.CANCELLED]
@@ -75,9 +112,7 @@ function applyAbortStatus(error: RpcError, abort: AbortSignal | undefined): void
 		return;
 	}
 
-	const timedOut = (abort.reason as { name?: unknown } | null | undefined)?.name === 'TimeoutError';
-
-	error.code = timedOut
+	error.code = isDeadlineAbort(abort)
 		? GrpcStatusCode[GrpcStatusCode.DEADLINE_EXCEEDED]
 		: GrpcStatusCode[GrpcStatusCode.CANCELLED];
 }
@@ -89,14 +124,16 @@ function applyAbortStatus(error: RpcError, abort: AbortSignal | undefined): void
  * method names and the original stack, and means every promise a call rejects — plus its response
  * stream — surfaces the same normalized error.
  */
-function normalizeGrpcError(error: unknown, abort: AbortSignal | undefined): void {
+function normalizeGrpcError(error: unknown, abort: CallAbort): void {
 	if (!(error instanceof RpcError)) return;
 
-	decodeStatusMessageOnce(error);
+	// Coded before decoding, because provenance is established by comparing against the abort
+	// reason's message, and decoding rewrites the message being compared.
 	applyAbortStatus(error, abort);
+	decodeStatusMessageOnce(error);
 }
 
-function normalizeRejections(promises: Promise<unknown>[], abort: AbortSignal | undefined) {
+function normalizeRejections(promises: Promise<unknown>[], abort: CallAbort) {
 	for (const promise of promises) {
 		// Registered before the call is handed back, so this runs ahead of any consumer's continuation
 		// and the consumer's own `await` sees the rewritten error. Swallowing here is what the handler
@@ -118,21 +155,23 @@ function normalizeRejections(promises: Promise<unknown>[], abort: AbortSignal | 
  * `defaultOptions` *by reference* when a generated method is called without call options, so
  * assigning `abort` here would pin one call's deadline to every later call the client makes.
  */
-function withDeadline(options: RpcOptions): RpcOptions {
-	if (options.timeout == null) return options;
+function withDeadline(options: RpcOptions): { options: RpcOptions; abort: CallAbort } {
+	if (options.timeout == null) {
+		return { options, abort: { signal: options.abort, deadline: undefined } };
+	}
 
 	const durationMs =
 		typeof options.timeout === 'number' ? options.timeout : options.timeout.getTime() - Date.now();
 
 	// An expired deadline is the base transport's to reject, which it does before sending anything.
-	if (durationMs <= 0) return options;
+	if (durationMs <= 0) {
+		return { options, abort: { signal: options.abort, deadline: undefined } };
+	}
 
 	const deadline = AbortSignal.timeout(durationMs);
+	const signal = options.abort ? AbortSignal.any([options.abort, deadline]) : deadline;
 
-	return {
-		...options,
-		abort: options.abort ? AbortSignal.any([options.abort, deadline]) : deadline,
-	};
+	return { options: { ...options, abort: signal }, abort: { signal, deadline } };
 }
 
 /**
@@ -146,9 +185,10 @@ function withDeadline(options: RpcOptions): RpcOptions {
  * the generated service clients, a response stream and any interceptor the caller installed.
  *
  * This is what `@mysten/sui/grpc` exports under this name and what `SuiGrpcClient` builds by
- * default. Construct it directly when you need transport options the client does not take, and
- * pass it as `transport`. A transport imported from `@protobuf-ts/grpcweb-transport` itself still
- * behaves the way that package behaves; the client does not reach into a transport it was handed.
+ * default from the options it is given. Construct it directly to share one transport between
+ * clients, or to subclass it further, and pass it as `transport`. A transport imported from
+ * `@protobuf-ts/grpcweb-transport` itself still behaves the way that package behaves; the client
+ * does not reach into a transport it was handed.
  */
 export class GrpcWebFetchTransport extends UpstreamGrpcWebFetchTransport {
 	override unary<I extends object, O extends object>(
@@ -156,13 +196,10 @@ export class GrpcWebFetchTransport extends UpstreamGrpcWebFetchTransport {
 		input: I,
 		options: RpcOptions,
 	): UnaryCall<I, O> {
-		const callOptions = withDeadline(options);
+		const { options: callOptions, abort } = withDeadline(options);
 		const call = super.unary(method, input, callOptions);
 
-		normalizeRejections(
-			[call.headers, call.response, call.status, call.trailers],
-			callOptions.abort,
-		);
+		normalizeRejections([call.headers, call.response, call.status, call.trailers], abort);
 
 		return call;
 	}
@@ -174,14 +211,14 @@ export class GrpcWebFetchTransport extends UpstreamGrpcWebFetchTransport {
 	): ServerStreamingCall<I, O> {
 		// A stream is bounded only if the caller asked for it to be: nothing here invents a deadline,
 		// so a subscription left without a `timeout` runs until it or the node ends it.
-		const callOptions = withDeadline(options);
+		const { options: callOptions, abort } = withDeadline(options);
 		const call = super.serverStreaming(method, input, callOptions);
 
 		// grpc-web pushes a failure into the response stream, and a finite stream is often consumed
 		// through `responses` alone, without awaiting `status`. Listeners run synchronously when the
 		// stream errors, so this rewrites the error before a `for await` resumes on it.
-		call.responses.onError((error) => normalizeGrpcError(error, callOptions.abort));
-		normalizeRejections([call.headers, call.status, call.trailers], callOptions.abort);
+		call.responses.onError((error) => normalizeGrpcError(error, abort));
+		normalizeRejections([call.headers, call.status, call.trailers], abort);
 
 		return call;
 	}

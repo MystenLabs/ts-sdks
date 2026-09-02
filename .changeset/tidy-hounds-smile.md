@@ -1,5 +1,5 @@
 ---
-'@mysten/sui': minor
+'@mysten/sui': patch
 ---
 
 `GrpcWebFetchTransport` exported from `@mysten/sui/grpc` is now a subclass of the
@@ -9,8 +9,9 @@ as of 2.11.1, and `SuiGrpcClient` builds one by default:
 - Percent-encoded `grpc-message` status text is decoded at the wire boundary, so `client.core`, the
   generated service clients and any interceptors all see readable messages rather than
   `Object%20not%20found:%200x1`.
-- A call cut short by its own signal is coded `DEADLINE_EXCEEDED` for an `AbortSignal.timeout` or
-  `CANCELLED` for any other abort reason, rather than `INTERNAL`.
+- A call cut short by its own signal is coded `DEADLINE_EXCEEDED` for a deadline or `CANCELLED` for
+  any other abort reason, rather than `INTERNAL`. A failure that merely raced an abort keeps the
+  status the server gave it.
 - `timeout` is enforced as a client-side deadline instead of only being advertised in the
   `grpc-timeout` header, so a stalled connection fails as `DEADLINE_EXCEEDED` rather than hanging.
   No deadline is applied unless one is asked for.

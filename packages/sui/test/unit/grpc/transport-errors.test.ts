@@ -151,14 +151,7 @@ describe('gRPC transport error normalization', () => {
 	});
 
 	it('codes a caller deadline as DEADLINE_EXCEEDED rather than INTERNAL', async () => {
-		const client = clientRespondingWith(
-			() =>
-				new Promise<Response>((_, reject) => {
-					setTimeout(() => {
-						reject(Object.assign(new Error('The operation was aborted'), { name: 'TimeoutError' }));
-					}, 1);
-				}),
-		);
+		const client = makeClient(hangingFetch());
 
 		const error = await captureError(
 			client.ledgerService.getObject({ objectId: '0x1' }, { abort: AbortSignal.timeout(1) })
@@ -173,14 +166,8 @@ describe('gRPC transport error normalization', () => {
 		// `AbortError` reaches the transport's cancellation branch; anything else lands as INTERNAL and
 		// would be retried as a server failure.
 		const controller = new AbortController();
-		const client = clientRespondingWith(
-			() =>
-				new Promise<Response>((_, reject) => {
-					setTimeout(() => {
-						controller.abort(new Error('caller gave up'));
-						reject(new Error('caller gave up'));
-					}, 1);
-				}),
+		const client = makeClient(
+			hangingFetch(() => setTimeout(() => controller.abort(new Error('caller gave up')), 1)),
 		);
 
 		const error = await captureError(
@@ -190,17 +177,56 @@ describe('gRPC transport error normalization', () => {
 		expect(error.code).toBe('CANCELLED');
 	});
 
+	it('does not read a fabricated TimeoutError name as a deadline', async () => {
+		// Only `AbortSignal.timeout` — or a deadline this transport imposed — is a deadline. A reason
+		// dressed up to look like one is still a cancellation.
+		const controller = new AbortController();
+		const client = makeClient(
+			hangingFetch(() =>
+				setTimeout(
+					() => controller.abort(Object.assign(new Error('stop'), { name: 'TimeoutError' })),
+					1,
+				),
+			),
+		);
+
+		const error = await captureError(
+			client.ledgerService.getObject({ objectId: '0x1' }, { abort: controller.signal }).response,
+		);
+
+		expect(error.code).toBe('CANCELLED');
+	});
+
+	it('leaves a server failure that raced an abort with the status the server gave it', async () => {
+		// Headers resolve before a later failure propagates, so a caller that aborts once it has them
+		// — or simply races a truncated connection — must not have that failure relabelled.
+		const controller = new AbortController();
+		const client = clientRespondingWith(() =>
+			Promise.resolve(
+				new Response(
+					new ReadableStream({
+						start(streamController) {
+							setTimeout(() => streamController.error(new Error('connection reset')), 2);
+						},
+					}),
+					{ status: 200, headers: { 'content-type': 'application/grpc-web+proto' } },
+				),
+			),
+		);
+
+		const call = client.ledgerService.getObject({ objectId: '0x1' }, { abort: controller.signal });
+		await call.headers;
+		controller.abort();
+
+		const error = await captureError(call.response);
+
+		expect(error.message).toBe('connection reset');
+		expect(error.code).toBe('INTERNAL');
+	});
+
 	it('leaves a genuine cancellation coded CANCELLED', async () => {
 		const controller = new AbortController();
-		const client = clientRespondingWith(
-			() =>
-				new Promise<Response>((_, reject) => {
-					setTimeout(() => {
-						controller.abort();
-						reject(Object.assign(new Error('The operation was aborted'), { name: 'AbortError' }));
-					}, 1);
-				}),
-		);
+		const client = makeClient(hangingFetch(() => setTimeout(() => controller.abort(), 1)));
 
 		const error = await captureError(
 			client.ledgerService.getObject({ objectId: '0x1' }, { abort: controller.signal }).response,
