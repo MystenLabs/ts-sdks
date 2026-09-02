@@ -5,7 +5,8 @@
 `GrpcWebFetchTransport` exported from `@mysten/sui/grpc` is now a subclass of the transport of the
 same name from `@protobuf-ts/grpcweb-transport`, fixing three defects in it. Status messages are
 decoded instead of arriving percent-encoded as `Object%20not%20found:%200x1`. A call ended by its
-own signal is coded `DEADLINE_EXCEEDED` or `CANCELLED` instead of `INTERNAL`. `timeout` is enforced
+own signal is coded `DEADLINE_EXCEEDED` for a deadline and `CANCELLED` for other aborts, instead of
+`INTERNAL`; an abort reason that already carries a gRPC status keeps it. `timeout` is enforced
 as a deadline instead of only being sent as the `grpc-timeout` header, so a stalled connection fails
 instead of hanging.
 

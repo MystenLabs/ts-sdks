@@ -36,6 +36,15 @@ function decodeStatusMessageOnce(error: RpcError): void {
 	error.message = decodeGrpcStatusMessage(error.message);
 }
 
+/**
+ * The status text of an error, decoded if nothing has decoded it yet. An error from a transport
+ * this package did not build still holds the wire form, while one that has been decoded may hold a
+ * literal `%20` that must not be decoded a second time.
+ */
+export function grpcStatusMessage(error: RpcError): string {
+	return MESSAGE_DECODED in error ? error.message : decodeGrpcStatusMessage(error.message);
+}
+
 interface CallAbort {
 	/** What the call runs against: the caller's signal, the deadline below, or both composed. */
 	signal: AbortSignal | undefined;
@@ -46,19 +55,25 @@ interface CallAbort {
 /**
  * Whether the abort is what failed the call. `signal.aborted` is not enough, because headers
  * resolve before a later server failure propagates, so a call can be aborted while failing for an
- * unrelated reason. The transport reuses the abort reason's message, so matching it identifies the
- * abort.
+ * unrelated reason.
+ *
+ * The transport turns an abort into either `CANCELLED`, for a reason named `AbortError`, or an
+ * `INTERNAL` carrying the reason's own text. Some fetch implementations (node-fetch) substitute a
+ * generic `AbortError` for the reason, which is why the code is checked as well as the text.
  */
 function isAbortFailure(error: RpcError, signal: AbortSignal): boolean {
-	const reason = signal.reason as { message?: unknown } | null | undefined;
+	if (error.code === GrpcStatusCode[GrpcStatusCode.CANCELLED]) return true;
 
-	return typeof reason?.message === 'string' && error.message === reason.message;
+	const reason = signal.reason;
+
+	return error.message === (reason instanceof Error ? reason.message : `${reason}`);
 }
 
 /**
- * Whether the abort was a deadline. `AbortSignal.any` forwards the reason of the signal that fired,
- * so the deadline below is matched by identity. A caller's `AbortSignal.timeout` aborts with a
- * `DOMException` named `TimeoutError`; a plain `Error` given that name does not count.
+ * Whether the abort was a deadline. A deadline this transport imposed is matched by identity, since
+ * `AbortSignal.any` forwards the reason of the signal that fired. Otherwise the caller's reason
+ * decides: a `DOMException` named `TimeoutError`, which is what `AbortSignal.timeout` aborts with,
+ * counts as a deadline they declared.
  */
 function isDeadlineAbort({ signal, deadline }: CallAbort): boolean {
 	if (deadline?.aborted && signal?.reason === deadline.reason) return true;

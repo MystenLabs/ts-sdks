@@ -189,6 +189,37 @@ describe('gRPC transport error normalization', () => {
 		expect(error.code).toBe('CANCELLED');
 	});
 
+	it('codes a deadline as DEADLINE_EXCEEDED when the fetch substitutes its own AbortError', async () => {
+		// node-fetch rejects with a generic AbortError rather than the signal's reason, so the reason's
+		// text is not there to match on.
+		const client = makeClient(
+			((_input: unknown, init: RequestInit) =>
+				new Promise((_, reject) => {
+					init.signal?.addEventListener('abort', () =>
+						reject(Object.assign(new Error('The operation was aborted.'), { name: 'AbortError' })),
+					);
+				})) as unknown as typeof globalThis.fetch,
+		);
+
+		const error = await captureError(
+			client.ledgerService.getObject({ objectId: '0x1' }, { timeout: 5 }).response,
+		);
+
+		expect(error.code).toBe('DEADLINE_EXCEEDED');
+	});
+
+	it('codes an abort with a primitive reason CANCELLED', async () => {
+		// `abort('stop')` takes a string, which the transport stringifies into an INTERNAL error.
+		const controller = new AbortController();
+		const client = makeClient(hangingFetch(() => setTimeout(() => controller.abort('stop'), 1)));
+
+		const error = await captureError(
+			client.ledgerService.getObject({ objectId: '0x1' }, { abort: controller.signal }).response,
+		);
+
+		expect(error.code).toBe('CANCELLED');
+	});
+
 	it('leaves a server failure that raced an abort with the status the server gave it', async () => {
 		// Headers resolve before a later failure propagates, so a caller that aborts once it has
 		// them must not have that failure relabelled as a cancellation.
@@ -262,6 +293,16 @@ describe('a caller-supplied transport', () => {
 		await expect(client.core.resolveNameServiceAddress({ name: '@mysten' })).resolves.toEqual({
 			address: null,
 		});
+	});
+
+	it('does not decode a status the transport already decoded', async () => {
+		// The wire form of a message that literally reads `name%20has%20expired`. Decoding it twice
+		// would turn an unrelated failure into a resolved-to-null name.
+		const client = clientRespondingWith(statusResponse(8, 'name%2520has%2520expired'));
+
+		const error = await captureError(client.core.resolveNameServiceAddress({ name: '@mysten' }));
+
+		expect(error.message).toBe('name%20has%20expired');
 	});
 
 	it('normalizes when it is a GrpcWebFetchTransport the caller built from this package', async () => {

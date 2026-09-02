@@ -69,7 +69,7 @@ import {
 	validateTransactionQuery,
 } from '../client/query-filters.js';
 import { toGrpcEventFilter, toGrpcTransactionFilter } from './filters.js';
-import { decodeGrpcStatusMessage } from './transport.js';
+import { grpcStatusMessage } from './transport.js';
 
 export interface GrpcCoreClientOptions extends CoreClientOptions {
 	client: SuiGrpcClient;
@@ -81,9 +81,9 @@ function isNameServiceResolutionMiss(error: unknown): boolean {
 	if (error.code !== GrpcStatusCode[GrpcStatusCode.RESOURCE_EXHAUSTED]) return false;
 
 	// The service reports an expired name as RESOURCE_EXHAUSTED with no structured reason, so match
-	// the status text and leave unrelated RESOURCE_EXHAUSTED failures alone. Decoded for the
-	// comparison only, since a caller-supplied transport leaves `grpc-message` percent-encoded.
-	return decodeGrpcStatusMessage(error.message) === 'name has expired';
+	// the status text and leave unrelated RESOURCE_EXHAUSTED failures alone. A caller-supplied
+	// transport leaves `grpc-message` percent-encoded, hence the decode.
+	return grpcStatusMessage(error) === 'name has expired';
 }
 
 export class GrpcCoreClient extends CoreClient {
@@ -984,7 +984,11 @@ export class GrpcCoreClient extends CoreClient {
 				});
 				response = result.response;
 			} catch (error) {
-				// Status text is decoded by the transport. See ./transport.ts.
+				// Decoded here only if the transport has not already done it. See ./transport.ts.
+				if (error instanceof RpcError && error.message) {
+					throw new SimulationError(grpcStatusMessage(error), { cause: error });
+				}
+
 				if (error instanceof Error && error.message) {
 					throw new SimulationError(error.message, { cause: error });
 				}
