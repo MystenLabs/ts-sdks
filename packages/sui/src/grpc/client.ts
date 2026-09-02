@@ -19,6 +19,7 @@ import { fromBase64, toBase64 } from '@mysten/utils';
 import { NameServiceClient } from './proto/sui/rpc/v2/name_service.client.js';
 import { ForkingServiceClient } from './proto/sui/forking/v1alpha/forking_service.client.js';
 import type { TransactionPlugin } from '../transactions/index.js';
+import { withNormalizedErrors } from './transport.js';
 
 interface SuiGrpcTransportOptions extends GrpcWebOptions {
 	transport?: never;
@@ -157,9 +158,18 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 
 	constructor(options: SuiGrpcClientOptions) {
 		super({ network: options.network });
-		const transport =
-			options.transport ??
-			new GrpcWebFetchTransport({ baseUrl: options.baseUrl, fetchInit: options.fetchInit });
+		const {
+			network: _network,
+			mvr: _mvr,
+			transport: providedTransport,
+			...transportOptions
+		} = options as SuiGrpcClientOptions & SuiGrpcTransportOptions & { transport?: RpcTransport };
+
+		// Wrapped whether the transport is ours or the caller's, so status text and status codes read
+		// the same everywhere. See `./transport.ts`.
+		const transport = withNormalizedErrors(
+			providedTransport ?? new GrpcWebFetchTransport(transportOptions),
+		);
 		this.transactionExecutionService = new TransactionExecutionServiceClient(transport);
 		this.ledgerService = new LedgerServiceClient(transport);
 		this.stateService = new StateServiceClient(transport);

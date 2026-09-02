@@ -79,14 +79,10 @@ function isNameServiceResolutionMiss(error: unknown): boolean {
 	if (error.code === GrpcStatusCode[GrpcStatusCode.NOT_FOUND]) return true;
 	if (error.code !== GrpcStatusCode[GrpcStatusCode.RESOURCE_EXHAUSTED]) return false;
 
-	try {
-		// The gRPC service currently reports expired names as RESOURCE_EXHAUSTED without a
-		// structured reason. grpc-web URI-encodes status messages, so decode before matching while
-		// preserving unrelated RESOURCE_EXHAUSTED failures such as capacity limits.
-		return decodeURIComponent(error.message) === 'name has expired';
-	} catch {
-		return false;
-	}
+	// The gRPC service currently reports expired names as RESOURCE_EXHAUSTED without a structured
+	// reason, so match on the status text while preserving unrelated RESOURCE_EXHAUSTED failures
+	// such as capacity limits. The transport wrapper has already decoded it (see ./transport.ts).
+	return error.message === 'name has expired';
 }
 
 export class GrpcCoreClient extends CoreClient {
@@ -987,9 +983,9 @@ export class GrpcCoreClient extends CoreClient {
 				});
 				response = result.response;
 			} catch (error) {
-				// https://github.com/timostamm/protobuf-ts/pull/739
+				// Status text arrives already decoded — see `withNormalizedErrors` in ./transport.ts.
 				if (error instanceof Error && error.message) {
-					throw new SimulationError(decodeURIComponent(error.message), { cause: error });
+					throw new SimulationError(error.message, { cause: error });
 				}
 				throw error;
 			}
