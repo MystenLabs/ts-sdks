@@ -34,7 +34,7 @@ const MESSAGE_DECODED = Symbol('@mysten/sui/grpc/decoded-status-message');
  * `a%20b`. Not every encoder is that careful (tonic 0.12 left `%` unescaped), so a message that
  * fails to decode is kept verbatim rather than failing a call over its status text.
  */
-function decodeGrpcStatusMessage(message: string): string {
+export function decodeGrpcStatusMessage(message: string): string {
 	if (!message.includes('%')) return message;
 
 	try {

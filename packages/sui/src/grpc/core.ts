@@ -69,6 +69,7 @@ import {
 	validateTransactionQuery,
 } from '../client/query-filters.js';
 import { toGrpcEventFilter, toGrpcTransactionFilter } from './filters.js';
+import { decodeGrpcStatusMessage } from './transport.js';
 
 export interface GrpcCoreClientOptions extends CoreClientOptions {
 	client: SuiGrpcClient;
@@ -81,8 +82,11 @@ function isNameServiceResolutionMiss(error: unknown): boolean {
 
 	// The gRPC service currently reports expired names as RESOURCE_EXHAUSTED without a structured
 	// reason, so match on the status text while preserving unrelated RESOURCE_EXHAUSTED failures
-	// such as capacity limits. The transport wrapper has already decoded it (see ./transport.ts).
-	return error.message === 'name has expired';
+	// such as capacity limits. Decoded for the comparison only: a transport this package did not
+	// build leaves `grpc-message` percent-encoded, and whether a name resolved must not depend on
+	// which transport the client was given. Decoding text already decoded is a no-op here, because
+	// what it is compared against holds no escapes.
+	return decodeGrpcStatusMessage(error.message) === 'name has expired';
 }
 
 export class GrpcCoreClient extends CoreClient {

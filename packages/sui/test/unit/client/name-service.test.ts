@@ -28,11 +28,12 @@ describe('resolveNameServiceAddress', () => {
 		expect(lookupName).toHaveBeenCalledWith({ name }, { abort: signal });
 	});
 
-	// Status text arrives decoded: the transport wrapper percent-decodes `grpc-message` before any
-	// consumer sees it (see test/unit/grpc/transport-errors.test.ts).
+	// The encoded form still has to match: a caller-supplied transport is passed through untouched,
+	// so `grpc-message` reaches this layer in its wire form (see test/unit/grpc/transport-errors.test.ts).
 	it.each([
 		new RpcError('not found', 'NOT_FOUND'),
 		new RpcError('name has expired', 'RESOURCE_EXHAUSTED'),
+		new RpcError('name%20has%20expired', 'RESOURCE_EXHAUSTED'),
 	])('maps absent gRPC names to null ($code)', async (error) => {
 		const client = new SuiGrpcClient({ baseUrl: 'http://localhost', network: 'mainnet' });
 		client.nameService.lookupName = (() => Promise.reject(error)) as never;

@@ -1,6 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { GrpcWebFetchTransport as UpstreamGrpcWebFetchTransport } from '@protobuf-ts/grpcweb-transport';
 import type { RpcOptions, RpcTransport } from '@protobuf-ts/runtime-rpc';
 import { RpcError, UnaryCall } from '@protobuf-ts/runtime-rpc';
 import { describe, expect, it } from 'vitest';
@@ -254,6 +255,22 @@ describe('a caller-supplied transport', () => {
 
 		expect(caught.message).toBe('Object%20not%20found');
 		expect(caught.code).toBe('INTERNAL');
+	});
+
+	it('still resolves an expired name through an upstream transport', async () => {
+		// Core policy must not depend on which transport the client was given: the node reports an
+		// expired name as RESOURCE_EXHAUSTED with prose, and upstream leaves that prose encoded.
+		const client = new SuiGrpcClient({
+			network: 'mainnet',
+			transport: new UpstreamGrpcWebFetchTransport({
+				baseUrl: 'http://localhost',
+				fetch: (async () => statusResponse(8, 'name%20has%20expired')) as typeof fetch,
+			}),
+		});
+
+		await expect(client.core.resolveNameServiceAddress({ name: '@mysten' })).resolves.toEqual({
+			address: null,
+		});
 	});
 
 	it('normalizes when it is a GrpcWebFetchTransport the caller built from this package', async () => {
