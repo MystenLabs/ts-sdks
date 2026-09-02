@@ -43,10 +43,22 @@ export function hasDecodedStatusMessage(error: object): boolean {
 	return MESSAGE_DECODED in error;
 }
 
+// An abort reason is arbitrary, and reading a property on it runs code the caller wrote. A read
+// that throws counts as absent, so one bad accessor does not decide the status.
+function readProperty(value: unknown, key: 'code' | 'name' | 'message'): unknown {
+	if (typeof value !== 'object' || value === null) return undefined;
+
+	try {
+		return (value as Record<string, unknown>)[key];
+	} catch {
+		return undefined;
+	}
+}
+
 // The reason is read by shape, since another copy of runtime-rpc or another realm fails
 // `instanceof`. `AbortSignal.timeout` aborts with a `TimeoutError`.
 function abortStatus(reason: unknown): string {
-	const { code, name } = (reason ?? {}) as { code?: unknown; name?: unknown };
+	const code = readProperty(reason, 'code');
 
 	// A status name maps to a number; `in` would also match the enum's reverse mapping.
 	if (
@@ -56,18 +68,18 @@ function abortStatus(reason: unknown): string {
 		return code;
 	}
 
-	return name === 'TimeoutError'
+	return readProperty(reason, 'name') === 'TimeoutError'
 		? GrpcStatusCode[GrpcStatusCode.DEADLINE_EXCEEDED]
 		: GrpcStatusCode[GrpcStatusCode.CANCELLED];
 }
 
 // The transport reuses the abort reason's message, so matching it says the text is local. A fetch
 // that substitutes its own error (node-fetch) gives text of its own, which holds nothing to decode.
-// The reason is arbitrary, so it is never coerced: a symbol or a throwing hook would throw here.
+// The reason is never coerced: a symbol or a throwing hook would throw here.
 function isAbortReasonText(message: string, reason: unknown): boolean {
 	if (typeof reason === 'string') return message === reason;
 
-	const reasonMessage = (reason as { message?: unknown } | null)?.message;
+	const reasonMessage = readProperty(reason, 'message');
 
 	return typeof reasonMessage === 'string' && message === reasonMessage;
 }
@@ -78,8 +90,8 @@ function normalizeGrpcError(error: unknown, signal: AbortSignal | undefined): vo
 	try {
 		normalize(error, signal);
 	} catch {
-		// Reading an abort reason runs code the caller supplied. A call reports whatever it was going
-		// to report rather than this, and never an unhandled rejection from a discarded handler.
+		// Never an unhandled rejection from a discarded handler: the call reports what it was going
+		// to report.
 	}
 }
 

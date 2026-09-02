@@ -241,11 +241,15 @@ describe('gRPC transport error normalization', () => {
 
 		expect(error.code).toBe('DEADLINE_EXCEEDED');
 	});
+
 	it('survives a reason whose properties throw when read', async () => {
 		// `abort()` takes anything. Reading one must not throw out of a rejection handler, which would
-		// surface as an unhandled rejection.
+		// surface as an unhandled rejection, and a throwing accessor must not leave the call INTERNAL.
 		const controller = new AbortController();
 		const reason = {
+			get code(): string {
+				throw new Error('nope');
+			},
 			get message(): string {
 				throw new Error('nope');
 			},
@@ -257,6 +261,24 @@ describe('gRPC transport error normalization', () => {
 		);
 
 		expect(error.code).toBe('CANCELLED');
+	});
+
+	it('still reads a deadline when only the code accessor throws', async () => {
+		// Each property is read on its own, so one bad accessor does not hide the others.
+		const controller = new AbortController();
+		const reason = Object.defineProperty(new Error('stop'), 'code', {
+			get() {
+				throw new Error('nope');
+			},
+		});
+		reason.name = 'TimeoutError';
+		const client = makeClient(hangingFetch(() => setTimeout(() => controller.abort(reason), 1)));
+
+		const error = await captureError(
+			client.ledgerService.getObject({ objectId: '0x1' }, { abort: controller.signal }).response,
+		);
+
+		expect(error.code).toBe('DEADLINE_EXCEEDED');
 	});
 
 	it('codes an abort with a primitive reason CANCELLED', async () => {
