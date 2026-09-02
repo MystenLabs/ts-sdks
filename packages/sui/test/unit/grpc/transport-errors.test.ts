@@ -430,6 +430,21 @@ describe('a caller-supplied transport', () => {
 		});
 	});
 
+	it('honours the decoded marker set by another copy of this package', async () => {
+		// A transport from a duplicate install decodes with the same registered symbol, so its errors
+		// are not decoded again, and their text is not read as a wire form.
+		const decoded = new RpcError('name%20has%20expired', 'RESOURCE_EXHAUSTED');
+		Object.defineProperty(decoded, Symbol.for('@mysten/sui/grpc/decoded-status-message'), {
+			value: true,
+		});
+		const client = new SuiGrpcClient({
+			network: 'mainnet',
+			transport: transportRejectingWith(decoded),
+		});
+
+		await expect(client.core.resolveNameServiceAddress({ name: '@mysten' })).rejects.toBe(decoded);
+	});
+
 	it('does not decode a status the transport already decoded', async () => {
 		// The wire form of a message that literally reads `name%20has%20expired`. Decoding it twice
 		// would turn an unrelated failure into a resolved-to-null name.

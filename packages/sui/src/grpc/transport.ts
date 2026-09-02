@@ -11,8 +11,12 @@ import type {
 } from '@protobuf-ts/runtime-rpc';
 import { RpcError } from '@protobuf-ts/runtime-rpc';
 
-/** A failed call rejects four promises with the same error object, so only decode it once. */
-const MESSAGE_DECODED = Symbol('@mysten/sui/grpc/decoded-status-message');
+/**
+ * A failed call rejects four promises with the same error object, so only decode it once. Registered
+ * globally rather than module-local, so a transport from another installed copy of this package is
+ * still recognised as having decoded.
+ */
+const MESSAGE_DECODED = Symbol.for('@mysten/sui/grpc/decoded-status-message');
 
 /**
  * Decodes `grpc-message`, which is percent-encoded on the wire and which the upstream transport
@@ -37,9 +41,9 @@ function decodeStatusMessageOnce(error: RpcError): void {
 }
 
 /**
- * Whether this package's transport has decoded the error's status text. False says nothing about
- * the text itself: a transport this package did not build may hold the wire form, or may have
- * decoded it already.
+ * Whether one of this package's transports has decoded the error's status text, in any installed
+ * copy. False says nothing about the text itself: a transport this package did not build may hold
+ * the wire form, or may have decoded it already.
  */
 export function hasDecodedStatusMessage(error: RpcError): boolean {
 	return MESSAGE_DECODED in error;
