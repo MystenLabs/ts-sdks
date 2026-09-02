@@ -48,11 +48,45 @@ export function hasDecodedStatusMessage(error: RpcError): boolean {
 	return MESSAGE_DECODED in error;
 }
 
-interface CallAbort {
+interface CallState {
 	/** What the call runs against: the caller's signal, the deadline below, or both composed. */
 	signal: AbortSignal | undefined;
 	/** The deadline imposed for `options.timeout`, if there was one. */
 	deadline: AbortSignal | undefined;
+	/**
+	 * Set when the fetch rejected, so the failure was built from a local error rather than read off
+	 * the wire and holds no percent-encoded text.
+	 */
+	fetchFailed: boolean;
+}
+
+/** Reports a fetch that never delivered a response. The request itself is untouched. */
+function observingFetch(base: typeof globalThis.fetch, state: CallState): typeof globalThis.fetch {
+	return (input, init) =>
+		base(input, init).catch((error: unknown) => {
+			state.fetchFailed = true;
+
+			throw error;
+		});
+}
+
+/**
+ * A `grpc-timeout` value the server will accept. The header takes at most eight digits, and the
+ * upstream transport always writes milliseconds, so anything above about 27 hours goes out
+ * malformed. Rounded up, so the deadline sent is never shorter than the one asked for.
+ */
+function grpcTimeoutHeader(durationMs: number): string | undefined {
+	for (const [scale, unit] of [
+		[1, 'm'],
+		[1000, 'S'],
+		[60_000, 'M'],
+		[3_600_000, 'H'],
+	] as const) {
+		const value = Math.ceil(durationMs / scale);
+		if (value <= 99_999_999) return `${value}${unit}`;
+	}
+
+	return undefined;
 }
 
 /**
@@ -84,7 +118,7 @@ function isAbortFailure(error: RpcError, signal: AbortSignal): boolean {
  * decides: a `DOMException` named `TimeoutError`, which is what `AbortSignal.timeout` aborts with,
  * counts as a deadline they declared.
  */
-function isDeadlineAbort({ signal, deadline }: CallAbort): boolean {
+function isDeadlineAbort({ signal, deadline }: CallState): boolean {
 	if (deadline?.aborted && signal?.reason === deadline.reason) return true;
 
 	return signal?.reason instanceof DOMException && signal.reason.name === 'TimeoutError';
@@ -94,7 +128,7 @@ function isDeadlineAbort({ signal, deadline }: CallAbort): boolean {
  * Codes an aborted call. The upstream transport uses `CANCELLED` only for an `AbortError`, so a
  * timeout or a custom abort reason arrives as `INTERNAL` and gets retried as a server failure.
  */
-function applyAbortStatus(error: RpcError, abort: CallAbort): boolean {
+function applyAbortStatus(error: RpcError, abort: CallState): boolean {
 	if (!abort.signal?.aborted || !isAbortFailure(error, abort.signal)) return false;
 
 	// The caller has already said what the status is. Copied rather than left alone, because a fetch
@@ -124,49 +158,78 @@ function applyAbortStatus(error: RpcError, abort: CallAbort): boolean {
  * Rewrites the error in place, which keeps `instanceof RpcError`, the trailers and the stack, and
  * gives the same result on every promise the call rejects.
  */
-function normalizeGrpcError(error: unknown, abort: CallAbort): void {
+function normalizeGrpcError(error: unknown, state: CallState): void {
 	if (!(error instanceof RpcError)) return;
 
 	// An error the abort produced carries the reason's own text, not `grpc-message`, so it is coded
 	// and left as it reads. Coding runs first either way, since decoding would rewrite the message
 	// `isAbortFailure` compares.
-	if (applyAbortStatus(error, abort)) return;
+	if (applyAbortStatus(error, state)) return;
+
+	// A fetch that never delivered a response failed with a local message, such as `request to
+	// http://host/a%2Fb failed`, which is not wire text to decode.
+	if (state.fetchFailed) return;
 
 	decodeStatusMessageOnce(error);
 }
 
-function normalizeRejections(promises: Promise<unknown>[], abort: CallAbort) {
+function normalizeRejections(promises: Promise<unknown>[], state: CallState) {
 	for (const promise of promises) {
 		// Registered before the call is returned, so it runs before the consumer's own await. The
 		// original promise still rejects; this only changes the error it rejects with.
-		promise.then(undefined, (error: unknown) => normalizeGrpcError(error, abort));
+		promise.then(undefined, (error: unknown) => normalizeGrpcError(error, state));
 	}
 }
 
 /**
- * Enforces `options.timeout` locally. The upstream transport only sends the `grpc-timeout` header,
- * which does not help when the connection stalls.
+ * Builds the options one call runs with: a deadline for `options.timeout`, a `grpc-timeout` header
+ * the server will accept, and a `fetch` that reports a request which never delivered a response.
+ *
+ * The upstream transport only sends the header, which does not help when the connection stalls, and
+ * always writes it in milliseconds, which is malformed above eight digits.
  *
  * The options are copied rather than written to. `mergeRpcOptions` returns the transport's
- * `defaultOptions` by reference for a call that passes no options of its own, so assigning `abort`
- * would apply one call's deadline to every later call.
+ * `defaultOptions` by reference for a call that passes no options of its own, so assigning to them
+ * would leak one call's deadline and fetch into every later call.
  */
-function withDeadline(options: RpcOptions): { options: RpcOptions; abort: CallAbort } {
-	const unbounded = { options, abort: { signal: options.abort, deadline: undefined } };
-	if (options.timeout == null) return unbounded;
+function prepareCall(options: RpcOptions): { options: RpcOptions; state: CallState } {
+	const { fetch: callerFetch, meta } = options as RpcOptions & { fetch?: typeof globalThis.fetch };
+	const durationMs = timeoutDurationMs(options);
 
-	const durationMs =
-		typeof options.timeout === 'number' ? options.timeout : options.timeout.getTime() - Date.now();
+	// Past the timer ceiling `setTimeout` fires on the next tick, which would end the call at once,
+	// so those deadlines are left to the server. The upstream transport rejects an expired one
+	// itself, before sending anything.
+	const deadline =
+		durationMs !== undefined && durationMs > 0 && durationMs <= MAX_TIMER_DELAY_MS
+			? AbortSignal.timeout(durationMs)
+			: undefined;
+	const signal =
+		deadline && options.abort
+			? AbortSignal.any([options.abort, deadline])
+			: (deadline ?? options.abort);
+	const state: CallState = { signal, deadline, fetchFailed: false };
 
-	// The upstream transport rejects an expired deadline itself, before sending anything. A delay past
-	// the timer ceiling is left to the `grpc-timeout` header alone, since a timer given one fires on
-	// the next tick and would end the call immediately.
-	if (durationMs <= 0 || durationMs > MAX_TIMER_DELAY_MS) return unbounded;
+	// Written here only when the transport would write it malformed, so the common path is untouched.
+	const header =
+		durationMs !== undefined && durationMs > 99_999_999 ? grpcTimeoutHeader(durationMs) : undefined;
 
-	const deadline = AbortSignal.timeout(durationMs);
-	const signal = options.abort ? AbortSignal.any([options.abort, deadline]) : deadline;
+	return {
+		options: {
+			...options,
+			abort: signal,
+			fetch: observingFetch(callerFetch ?? globalThis.fetch, state),
+			...(header && { timeout: undefined, meta: { ...meta, 'grpc-timeout': header } }),
+		} as RpcOptions,
+		state,
+	};
+}
 
-	return { options: { ...options, abort: signal }, abort: { signal, deadline } };
+function timeoutDurationMs(options: RpcOptions): number | undefined {
+	if (options.timeout == null) return undefined;
+
+	return typeof options.timeout === 'number'
+		? options.timeout
+		: options.timeout.getTime() - Date.now();
 }
 
 /**
@@ -185,10 +248,10 @@ export class GrpcWebFetchTransport extends UpstreamGrpcWebFetchTransport {
 		input: I,
 		options: RpcOptions,
 	): UnaryCall<I, O> {
-		const { options: callOptions, abort } = withDeadline(options);
+		const { options: callOptions, state } = prepareCall(options);
 		const call = super.unary(method, input, callOptions);
 
-		normalizeRejections([call.headers, call.response, call.status, call.trailers], abort);
+		normalizeRejections([call.headers, call.response, call.status, call.trailers], state);
 
 		return call;
 	}
@@ -199,13 +262,13 @@ export class GrpcWebFetchTransport extends UpstreamGrpcWebFetchTransport {
 		options: RpcOptions,
 	): ServerStreamingCall<I, O> {
 		// No deadline is imposed, so a subscription without a `timeout` stays unbounded.
-		const { options: callOptions, abort } = withDeadline(options);
+		const { options: callOptions, state } = prepareCall(options);
 		const call = super.serverStreaming(method, input, callOptions);
 
 		// A finite stream is often read through `responses` without awaiting `status`. Listeners run
 		// synchronously on error, so this lands before a `for await` resumes.
-		call.responses.onError((error) => normalizeGrpcError(error, abort));
-		normalizeRejections([call.headers, call.status, call.trailers], abort);
+		call.responses.onError((error) => normalizeGrpcError(error, state));
+		normalizeRejections([call.headers, call.status, call.trailers], state);
 
 		return call;
 	}

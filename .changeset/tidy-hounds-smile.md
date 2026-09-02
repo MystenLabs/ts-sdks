@@ -7,13 +7,14 @@ same name from `@protobuf-ts/grpcweb-transport`, fixing three defects in it. Sta
 decoded instead of arriving percent-encoded as `Object%20not%20found:%200x1`. A timeout is coded
 `DEADLINE_EXCEEDED` and a custom abort reason `CANCELLED`, where upstream reports both as `INTERNAL`
 and only recognises a standard `AbortError`; an abort reason that already carries a gRPC status
-keeps it. `timeout` is enforced
-as a deadline instead of only being sent as the `grpc-timeout` header, so a stalled connection fails
-instead of hanging.
+keeps it. `timeout` is enforced as a deadline instead of only being sent as the `grpc-timeout`
+header, so a stalled connection fails instead of hanging, and that header goes out in a unit the
+server accepts rather than in milliseconds that overflow its eight-digit limit.
 
 `@mysten/sui/grpc` also exports the `RpcError` class and the `GrpcStatusCode` enum, so the errors
 gRPC calls produce can be narrowed and coded without a direct `@protobuf-ts/*` dependency.
 
 `SuiGrpcClient` builds one of these by default and now forwards the rest of `GrpcWebOptions`
-(`fetch`, `format`, `meta`, `timeout`, `interceptors`, `jsonOptions`, `binaryOptions`) to it, which
-were previously accepted and ignored. A transport passed in by the caller is used as given.
+(`fetch`, `format`, `meta`, `timeout`, `abort`, `interceptors`, `jsonOptions`, `binaryOptions`) to
+it, which were previously accepted and ignored. A transport passed in by the caller is used as
+given.

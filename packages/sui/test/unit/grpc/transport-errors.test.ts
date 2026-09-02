@@ -272,6 +272,16 @@ describe('gRPC transport error normalization', () => {
 		expect(error.message).toBe('cancel /objects/a%2Fb');
 	});
 
+	it('does not decode the text of a fetch failure', async () => {
+		// The message is the fetch's own, not `grpc-message`.
+		const client = makeClient((() =>
+			Promise.reject(new Error('request to http://host/a%2Fb failed'))) as typeof globalThis.fetch);
+
+		const error = await captureError(client.ledgerService.getObject({ objectId: '0x1' }).response);
+
+		expect(error.message).toBe('request to http://host/a%2Fb failed');
+	});
+
 	it('does not decode the text of an abort reason', async () => {
 		// The reason's message is local text, not `grpc-message` off the wire.
 		const controller = new AbortController();
@@ -425,18 +435,30 @@ describe('gRPC transport deadlines', () => {
 		expect(error.code).toBe('DEADLINE_EXCEEDED');
 	});
 
-	it('leaves a deadline past the timer ceiling to the header', async () => {
+	it('leaves a deadline past the timer ceiling to the server, in a unit it will accept', async () => {
 		// `setTimeout` overflows beyond 2^31-1 ms and fires on the next tick, so a 30-day deadline
-		// would end the call immediately.
+		// would end the call immediately. `grpc-timeout` takes eight digits, so it cannot be sent in
+		// milliseconds either.
 		let sent: RequestInit | undefined;
 		const client = makeClient(hangingFetch((init) => (sent = init)));
-		const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
 
-		client.ledgerService.getObject({ objectId: '0x1' }, { timeout: thirtyDaysMs });
+		client.ledgerService.getObject({ objectId: '0x1' }, { timeout: 30 * 24 * 60 * 60 * 1000 });
 		await new Promise((resolve) => setTimeout(resolve, 5));
 
 		expect(sent?.signal ?? null).toBeNull();
-		expect((sent!.headers as Headers).get('grpc-timeout')).toBe(`${thirtyDaysMs}m`);
+		expect((sent!.headers as Headers).get('grpc-timeout')).toBe('2592000S');
+	});
+
+	it('sends a deadline the header cannot hold in milliseconds while still enforcing it', async () => {
+		// Two days fits a timer but not eight digits of milliseconds.
+		let sent: RequestInit | undefined;
+		const client = makeClient(hangingFetch((init) => (sent = init)));
+
+		client.ledgerService.getObject({ objectId: '0x1' }, { timeout: 2 * 24 * 60 * 60 * 1000 });
+		await new Promise((resolve) => setTimeout(resolve, 5));
+
+		expect((sent!.headers as Headers).get('grpc-timeout')).toBe('172800S');
+		expect(sent?.signal?.aborted).toBe(false);
 	});
 
 	it('still sends the grpc-timeout header', async () => {
