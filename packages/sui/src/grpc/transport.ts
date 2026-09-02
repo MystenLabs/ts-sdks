@@ -11,6 +11,9 @@ import type {
 } from '@protobuf-ts/runtime-rpc';
 import { RpcError } from '@protobuf-ts/runtime-rpc';
 
+/** What `setTimeout` takes before it overflows and fires on the next tick instead. */
+const MAX_TIMER_DELAY_MS = 2_147_483_647;
+
 /** A failed call rejects four promises with the same error object, so only decode it once. */
 const MESSAGE_DECODED = Symbol('@mysten/sui/grpc/decoded-status-message');
 
@@ -64,6 +67,9 @@ interface CallAbort {
  * code is checked as well as the text.
  */
 function isAbortFailure(error: RpcError, signal: AbortSignal): boolean {
+	// The reason itself, which the transport passes through when it is already an `RpcError`.
+	if ((error as unknown) === signal.reason) return true;
+
 	if (Object.keys(error.meta).length > 0) return false;
 	if (error.code === GrpcStatusCode[GrpcStatusCode.CANCELLED]) return true;
 
@@ -91,9 +97,13 @@ function isDeadlineAbort({ signal, deadline }: CallAbort): boolean {
 function applyAbortStatus(error: RpcError, abort: CallAbort): boolean {
 	if (!abort.signal?.aborted || !isAbortFailure(error, abort.signal)) return false;
 
-	// The transport passes an `RpcError` reason through as the failure itself, so the caller has
-	// already said what the status is.
-	if (abort.signal.reason instanceof RpcError) return true;
+	// The caller has already said what the status is. Copied rather than left alone, because a fetch
+	// that substitutes its own `AbortError` for the reason (node-fetch) never propagates theirs.
+	if (abort.signal.reason instanceof RpcError) {
+		error.code = abort.signal.reason.code;
+
+		return true;
+	}
 
 	// Any other code came from the server.
 	if (
@@ -148,8 +158,10 @@ function withDeadline(options: RpcOptions): { options: RpcOptions; abort: CallAb
 	const durationMs =
 		typeof options.timeout === 'number' ? options.timeout : options.timeout.getTime() - Date.now();
 
-	// The upstream transport rejects an expired deadline itself, before sending anything.
-	if (durationMs <= 0) return unbounded;
+	// The upstream transport rejects an expired deadline itself, before sending anything. A delay past
+	// the timer ceiling is left to the `grpc-timeout` header alone, since a timer given one fires on
+	// the next tick and would end the call immediately.
+	if (durationMs <= 0 || durationMs > MAX_TIMER_DELAY_MS) return unbounded;
 
 	const deadline = AbortSignal.timeout(durationMs);
 	const signal = options.abort ? AbortSignal.any([options.abort, deadline]) : deadline;

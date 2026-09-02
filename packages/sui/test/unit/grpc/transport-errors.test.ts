@@ -233,6 +233,45 @@ describe('gRPC transport error normalization', () => {
 		expect(error.code).toBe('INTERNAL');
 	});
 
+	it('keeps a coded reason when the fetch substitutes its own AbortError', async () => {
+		// node-fetch never propagates the reason, so the caller's status has to be carried across.
+		const controller = new AbortController();
+		const client = makeClient(
+			((_input: unknown, init: RequestInit) =>
+				new Promise((_, reject) => {
+					setTimeout(() => controller.abort(new RpcError('gone', 'INTERNAL')), 1);
+					init.signal?.addEventListener('abort', () =>
+						reject(Object.assign(new Error('The operation was aborted.'), { name: 'AbortError' })),
+					);
+				})) as unknown as typeof globalThis.fetch,
+		);
+
+		const error = await captureError(
+			client.ledgerService.getObject({ objectId: '0x1' }, { abort: controller.signal }).response,
+		);
+
+		expect(error.code).toBe('INTERNAL');
+	});
+
+	it('leaves a coded reason carrying metadata alone, text and all', async () => {
+		const controller = new AbortController();
+		const client = makeClient(
+			hangingFetch(() =>
+				setTimeout(
+					() => controller.abort(new RpcError('cancel /objects/a%2Fb', 'INTERNAL', { k: 'v' })),
+					1,
+				),
+			),
+		);
+
+		const error = await captureError(
+			client.ledgerService.getObject({ objectId: '0x1' }, { abort: controller.signal }).response,
+		);
+
+		expect(error.code).toBe('INTERNAL');
+		expect(error.message).toBe('cancel /objects/a%2Fb');
+	});
+
 	it('does not decode the text of an abort reason', async () => {
 		// The reason's message is local text, not `grpc-message` off the wire.
 		const controller = new AbortController();
@@ -384,6 +423,20 @@ describe('gRPC transport deadlines', () => {
 		);
 
 		expect(error.code).toBe('DEADLINE_EXCEEDED');
+	});
+
+	it('leaves a deadline past the timer ceiling to the header', async () => {
+		// `setTimeout` overflows beyond 2^31-1 ms and fires on the next tick, so a 30-day deadline
+		// would end the call immediately.
+		let sent: RequestInit | undefined;
+		const client = makeClient(hangingFetch((init) => (sent = init)));
+		const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+
+		client.ledgerService.getObject({ objectId: '0x1' }, { timeout: thirtyDaysMs });
+		await new Promise((resolve) => setTimeout(resolve, 5));
+
+		expect(sent?.signal ?? null).toBeNull();
+		expect((sent!.headers as Headers).get('grpc-timeout')).toBe(`${thirtyDaysMs}m`);
 	});
 
 	it('still sends the grpc-timeout header', async () => {
