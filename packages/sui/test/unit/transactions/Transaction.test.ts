@@ -164,6 +164,7 @@ describe('offline build', () => {
 		await expect(tx.build({ assumeSufficientAddressBalances: true })).rejects.toThrow(
 			'No sui client passed to Transaction#build',
 		);
+		expect(tx.getData().gasData.payment).toBeNull();
 	});
 
 	it('does not use address balance gas when the gas coin is referenced', async () => {

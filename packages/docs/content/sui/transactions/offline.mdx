@@ -95,6 +95,8 @@ const sender = '0xSenderAddress';
 const referenceGasPrice = 1_000n;
 const currentEpoch = 100;
 const chainIdentifier = 'Base58ChainIdentifier';
+// Load and increment a durable u32 counter so a value is never reused after a restart.
+const nonce = await durableNonceStore.next();
 
 const tx = new Transaction();
 
@@ -118,12 +120,15 @@ tx.setExpiration({
 		minTimestamp: null,
 		maxTimestamp: null,
 		chain: chainIdentifier,
-		nonce: 0,
+		nonce,
 	},
 });
 
 const bytes = await tx.build();
 ```
+
+Here, `durableNonceStore` represents application-managed storage. Allocate each nonce atomically and
+do not reuse it within the validity window, including after process restarts.
 
 The address balance must cover the gas budget in addition to any explicit SUI withdrawals. Do not
 add the gas budget to a `tx.withdrawal()` amount; the protocol accounts for gas separately.

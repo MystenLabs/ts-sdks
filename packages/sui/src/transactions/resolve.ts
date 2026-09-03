@@ -9,7 +9,7 @@ import type { BcsType } from '@mysten/bcs';
 import { Inputs } from './Inputs.js';
 import { bcs } from '../bcs/index.js';
 import { coreClientResolveTransactionPlugin } from '../client/core-resolver.js';
-import { hasPotentialReplayProtection, transactionUsesGasCoin } from './resolution-utils.js';
+import { hasPotentialReplayProtection, setAssumedGasPayment } from './resolution-utils.js';
 
 export interface BuildTransactionOptions {
 	client?: ClientWithCoreApi;
@@ -55,7 +55,11 @@ export function needsTransactionResolution(
 		if (
 			data.gasData.payment.length === 0 &&
 			!data.expiration &&
-			!(options.assumeSufficientAddressBalances && hasPotentialReplayProtection(data))
+			!(
+				!options.client &&
+				options.assumeSufficientAddressBalances &&
+				hasPotentialReplayProtection(data)
+			)
 		) {
 			return true;
 		}
@@ -71,27 +75,27 @@ export async function resolveTransactionPlugin(
 ) {
 	normalizeRawArguments(transactionData);
 
-	if (
-		!options.onlyTransactionKind &&
-		options.assumeSufficientAddressBalances &&
-		transactionData.gasData.payment == null &&
-		!transactionUsesGasCoin(transactionData)
-	) {
-		transactionData.gasData.payment = [];
+	const inferredGasPayment = setAssumedGasPayment(transactionData, options);
+
+	try {
+		if (!needsTransactionResolution(transactionData, options)) {
+			await validate(transactionData);
+			return next();
+		}
+
+		const client = getClient(options);
+		const plugin = client.core?.resolveTransactionPlugin() ?? coreClientResolveTransactionPlugin;
+
+		return await plugin(transactionData, options, async () => {
+			await validate(transactionData);
+			await next();
+		});
+	} catch (error) {
+		if (inferredGasPayment) {
+			transactionData.gasData.payment = null;
+		}
+		throw error;
 	}
-
-	if (!needsTransactionResolution(transactionData, options)) {
-		await validate(transactionData);
-		return next();
-	}
-
-	const client = getClient(options);
-	const plugin = client.core?.resolveTransactionPlugin() ?? coreClientResolveTransactionPlugin;
-
-	return plugin(transactionData, options, async () => {
-		await validate(transactionData);
-		await next();
-	});
 }
 
 function validate(transactionData: TransactionDataBuilder) {
