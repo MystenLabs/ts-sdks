@@ -22,6 +22,7 @@ import { TransactionCommands } from '../Commands.js';
 import type { Argument } from '../data/internal.js';
 import { Inputs } from '../Inputs.js';
 import type { BuildTransactionOptions } from '../resolve.js';
+import { transactionUsesGasCoin } from '../resolution-utils.js';
 import type { Transaction, TransactionResult } from '../Transaction.js';
 import type { TransactionDataBuilder } from '../TransactionData.js';
 import type { ClientWithCoreApi, SuiClientTypes } from '../../client/index.js';
@@ -192,7 +193,9 @@ export async function resolveCoinBalance(
 
 	if (assumeSufficientAddressBalances) {
 		for (const [coinType, balance] of totalByType) {
-			addressBalanceByType.set(coinType, balance);
+			if (coinType !== 'gas' || !transactionUsesGasCoin(transactionData)) {
+				addressBalanceByType.set(coinType, balance);
+			}
 		}
 	} else {
 		await Promise.all([
