@@ -294,21 +294,52 @@ libraries.
 
 ## Serializing transactions
 
-Serialize a transaction to JSON for storage, transmission, or later reconstruction:
+There are two useful transaction representations:
+
+- `toJSON()` produces an editable SDK representation for storage, transport, or later
+  reconstruction.
+- `build()` produces BCS bytes for signing or execution.
+
+Building performs more work than JSON serialization. With a client, `build()` can resolve object IDs
+to object references, fetch gas information, estimate the gas budget, choose gas payment, and
+resolve transaction intents such as `tx.coin()` and `tx.balance()`. If all of that information is
+already present, `build()` does not need a client.
 
 ```typescript
-// Serialize to JSON — with a client, resolves any unresolved data first
-const json = await tx.toJSON({ client: grpcClient });
+// Resolve missing onchain data and build executable transaction bytes.
+const bytes = await tx.build({ client: grpcClient });
 
-// Serialize without a client — intents like tx.coin() are preserved as-is
-const json = await tx.toJSON();
-
-// Reconstruct from JSON
-const tx = Transaction.from(json);
+// Build only the programmable transaction kind. Sender and gas data are omitted,
+// but unresolved inputs and intents still need to be resolved.
+const kindBytes = await tx.build({ client: grpcClient, onlyTransactionKind: true });
 ```
 
-This is useful for passing transactions between a frontend and backend, or for storing pre-built
-transactions.
+See [Building Offline](./offline) for the data needed to build without a client.
+
+Use JSON when another system needs to inspect or extend the transaction before it is built:
+
+```typescript
+import { Transaction } from '@mysten/sui/transactions';
+
+// Resolve async thunks and built-in intents before serialization.
+const json = await tx.toJSON({ client: grpcClient });
+
+// Reconstruct from JSON
+const restoredTx = Transaction.from(json);
+```
+
+`toJSON()` prepares the transaction for serialization, but it does not fill in sender and gas data
+or run the complete build-time resolution process. To deliberately preserve an intent for another
+system to resolve, list it in `supportedIntents`:
+
+```typescript
+const jsonWithIntents = await tx.toJSON({
+	supportedIntents: ['CoinWithBalance'],
+});
+```
+
+The receiving system must support and resolve every preserved intent before building the
+transaction.
 
 ## Executing transactions
 
