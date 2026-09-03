@@ -123,7 +123,7 @@ export async function resolveCoinBalance(
 	const totalByType = new Map<string, bigint>();
 	const intentsByType = new Map<string, IntentInfo[]>();
 
-	if (!transactionData.sender && !buildOptions.assumeSufficientAddressBalances) {
+	if (!transactionData.sender) {
 		throw new Error('Sender must be set to resolve CoinWithBalance');
 	}
 
@@ -406,18 +406,9 @@ export async function resolveCoinBalance(
 				// -- no remainder handling is needed.
 				if (type !== 'gas' || usedAddressBalance.has(type)) {
 					const hasBalanceIntent = intents.some((intent) => intent.outputKind === 'balance');
-					const sourcedFromAddressBalance = usedAddressBalance.has(type);
+					const sourcedFromAB = usedAddressBalance.has(type);
 
-					if (sourcedFromAddressBalance && assumeSufficientAddressBalances) {
-						// The withdrawal is exactly the requested total, so there is no remainder to return
-						commands.push(
-							TransactionCommands.MoveCall({
-								target: '0x2::coin::destroy_zero',
-								typeArguments: [coinType],
-								arguments: [baseCoin],
-							}),
-						);
-					} else if (hasBalanceIntent || sourcedFromAddressBalance) {
+					if (hasBalanceIntent || sourcedFromAB) {
 						// Sourced from AB or balance intents exist: send remainder back to sender's address
 						// balance. `coin::send_funds` is gasless-eligible and handles zero amounts.
 						commands.push(

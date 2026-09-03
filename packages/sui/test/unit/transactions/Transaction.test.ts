@@ -82,6 +82,7 @@ describe('offline build', () => {
 
 	it('builds a transaction kind with CoinWithBalance using assumed address balances', async () => {
 		const tx = new Transaction();
+		tx.setSender('0x2');
 		tx.transferObjects([tx.coin({ type: '0x123::test::TOKEN', balance: 100 })], '0x3');
 
 		await tx.build({

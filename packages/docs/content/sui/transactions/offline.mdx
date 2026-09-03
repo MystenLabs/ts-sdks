@@ -251,6 +251,9 @@ tx.moveCall({
 	],
 });
 
+// The sender is still required, since the withdrawal comes from its address balance
+tx.setSender('0xSenderAddress');
+
 const kindBytes = await tx.build({
 	onlyTransactionKind: true,
 	assumeSufficientAddressBalances: true,
