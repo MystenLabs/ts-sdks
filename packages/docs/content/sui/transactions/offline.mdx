@@ -101,12 +101,11 @@ const nonce = await durableNonceStore.next();
 const tx = new Transaction();
 
 // A FundsWithdrawal contains the amount and type, so it needs no object lookup.
-const [coin] = tx.moveCall({
-	target: '0x2::coin::redeem_funds',
+tx.moveCall({
+	target: '0x2::balance::send_funds',
 	typeArguments: ['0x2::sui::SUI'],
-	arguments: [tx.withdrawal({ amount: 1_000_000_000 })],
+	arguments: [tx.withdrawal({ amount: 1_000_000_000 }), tx.pure.address('0xRecipientAddress')],
 });
-tx.transferObjects([coin], '0xRecipientAddress');
 
 tx.setSender(sender);
 tx.setGasPrice(referenceGasPrice);
@@ -138,15 +137,21 @@ when the transaction has no versioned, address-owned input. Use `ValidDuring` in
 
 ### Pay gas with coin objects
 
-To pay with coin objects, provide their exact versions and digests. The transaction can still source
-coins created with `tx.coin()` from address balance:
+To pay with coin objects, provide their exact versions and digests. Other SUI transfers can still
+come from address balance:
 
 ```typescript
 import { Transaction } from '@mysten/sui/transactions';
 
 const tx = new Transaction();
-const coin = tx.coin({ balance: 1_000_000, useGasCoin: false });
-tx.transferObjects([coin], '0xRecipientAddress');
+tx.moveCall({
+	target: '0x2::balance::send_funds',
+	typeArguments: ['0x2::sui::SUI'],
+	arguments: [
+		tx.balance({ balance: 1_000_000, useGasCoin: false }),
+		tx.pure.address('0xRecipientAddress'),
+	],
+});
 
 tx.setSender('0xSenderAddress');
 tx.setGasPrice(1_000);
@@ -282,8 +287,8 @@ not satisfy this requirement.
 ## Resolve coin and balance intents
 
 `tx.coin()` and `tx.balance()` normally inspect the sender's address balance and coin objects during
-intent resolution. For predictable offline construction, use `tx.withdrawal()` with
-`coin::redeem_funds` or `balance::redeem_funds`, as shown above.
+intent resolution. For predictable offline construction, use `tx.withdrawal()` directly with a
+function that accepts a balance, as shown above.
 
 When the builder can assume that the sender has enough address balance, the
 `assumeSufficientAddressBalances` option resolves these intents without balance or coin lookups:
@@ -292,10 +297,14 @@ When the builder can assume that the sender has enough address balance, the
 import { Transaction } from '@mysten/sui/transactions';
 
 const tx = new Transaction();
-tx.transferObjects(
-	[tx.coin({ type: '0xPackageId::module::TOKEN', balance: 1_000_000 })],
-	'0xRecipientAddress',
-);
+tx.moveCall({
+	target: '0x2::balance::send_funds',
+	typeArguments: ['0xPackageId::module::TOKEN'],
+	arguments: [
+		tx.balance({ type: '0xPackageId::module::TOKEN', balance: 1_000_000 }),
+		tx.pure.address('0xRecipientAddress'),
+	],
+});
 
 const kindBytes = await tx.build({
 	onlyTransactionKind: true,
