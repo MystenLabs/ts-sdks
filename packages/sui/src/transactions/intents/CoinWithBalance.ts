@@ -409,8 +409,7 @@ export async function resolveCoinBalance(
 					const sourcedFromAddressBalance = usedAddressBalance.has(type);
 
 					if (sourcedFromAddressBalance && assumeSufficientAddressBalances) {
-						// The assumed address-balance withdrawal is exactly the requested total, so the
-						// remainder is known to be zero without looking up the sender or its balance.
+						// The withdrawal is exactly the requested total, so there is no remainder to return
 						commands.push(
 							TransactionCommands.MoveCall({
 								target: '0x2::coin::destroy_zero',

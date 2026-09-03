@@ -30,7 +30,6 @@ import { createObjectMethods } from './object.js';
 import { createPure } from './pure.js';
 import { TransactionDataBuilder } from './TransactionData.js';
 import { getIdFromCallArg } from './utils.js';
-import { clearAssumedGasPayment } from './resolution-utils.js';
 import { namedPackagesPlugin } from './plugins/NamedPackagesPlugin.js';
 import {
 	COIN_WITH_BALANCE,
@@ -286,9 +285,7 @@ export class Transaction {
 		this.#data.gasData.owner = owner;
 	}
 	setGasPayment(payments: ObjectRef[]) {
-		const parsedPayments = payments.map((payment) => parse(ObjectRefSchema, payment));
-		clearAssumedGasPayment(this.#data);
-		this.#data.gasData.payment = parsedPayments;
+		this.#data.gasData.payment = payments.map((payment) => parse(ObjectRefSchema, payment));
 	}
 
 	#data: TransactionDataBuilder;

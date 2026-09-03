@@ -2,5 +2,5 @@
 '@mysten/sui': minor
 ---
 
-Add an `assumeSufficientAddressBalances` transaction build option for resolving `CoinWithBalance`
-without balance or coin lookups and selecting address-balance gas when the gas coin is not used.
+Add `assumeSufficientAddressBalances` build option to resolve `tx.coin()` and `tx.balance()` from
+address balance without a client, and to pay gas from address balance when the gas coin isn't used
