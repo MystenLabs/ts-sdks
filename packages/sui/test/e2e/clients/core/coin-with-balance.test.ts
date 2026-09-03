@@ -890,6 +890,127 @@ describe('coinWithBalance', () => {
 	});
 
 	describe('with address balance', () => {
+		it('builds and executes offline with assumed address balances', async () => {
+			const client = toolbox.jsonRpcClient;
+			const { keypair, address } = await toolbox.getSigner({
+				coins: [1_000_000_000n, 1_000_000_000n],
+			});
+			const depositAmount = 100_000_000n;
+			const depositTx = new Transaction();
+			const [coinToDeposit] = depositTx.splitCoins(depositTx.gas, [depositAmount]);
+			depositTx.moveCall({
+				target: '0x2::coin::send_funds',
+				typeArguments: ['0x2::sui::SUI'],
+				arguments: [coinToDeposit, depositTx.pure.address(address)],
+			});
+
+			const depositResult = await client.core.signAndExecuteTransaction({
+				transaction: depositTx,
+				signer: keypair,
+			});
+			await toolbox.waitForTransaction({ result: depositResult });
+
+			// Fetch all state before constructing the transaction. The build itself has no client.
+			const [{ objects: coins }, { systemState }] = await Promise.all([
+				client.core.listCoins({ owner: address, coinType: '0x2::sui::SUI' }),
+				client.core.getCurrentSystemState(),
+			]);
+			const ownedCoin = coins[0];
+			if (!ownedCoin) throw new Error('Expected an owned coin for replay protection');
+
+			const receiver = new Ed25519Keypair().toSuiAddress();
+			const tx = new Transaction();
+			tx.setSender(address);
+			tx.setGasPrice(systemState.referenceGasPrice);
+			tx.setGasBudget(10_000_000);
+			tx.transferObjects(
+				[
+					tx.objectRef({
+						objectId: ownedCoin.objectId,
+						version: ownedCoin.version,
+						digest: ownedCoin.digest,
+					}),
+				],
+				address,
+			);
+			tx.transferObjects([tx.coin({ balance: 1_000n })], receiver);
+
+			const bytes = await tx.build({ assumeSufficientAddressBalances: true });
+			expect(tx.getData().gasData.payment).toEqual([]);
+			expect(tx.getData().expiration).toBeNull();
+
+			const signature = await keypair.signTransaction(bytes);
+			const result = await client.core.executeTransaction({
+				transaction: bytes,
+				signatures: [signature.signature],
+				include: { effects: true },
+			});
+			await toolbox.waitForTransaction({ result });
+
+			if (result.$kind !== 'Transaction') {
+				throw new Error(JSON.stringify(result));
+			}
+			expect(result.Transaction.effects?.status.success).toBe(true);
+		});
+
+		it('uses an explicit gas coin when building offline with a gas reference', async () => {
+			const client = toolbox.jsonRpcClient;
+			const { keypair, address } = await toolbox.getSigner({ coins: [1_000_000_000n] });
+			const depositTx = new Transaction();
+			const [coinToDeposit] = depositTx.splitCoins(depositTx.gas, [100_000n]);
+			depositTx.moveCall({
+				target: '0x2::coin::send_funds',
+				typeArguments: ['0x2::sui::SUI'],
+				arguments: [coinToDeposit, depositTx.pure.address(address)],
+			});
+			const depositResult = await client.core.signAndExecuteTransaction({
+				transaction: depositTx,
+				signer: keypair,
+			});
+			await toolbox.waitForTransaction({ result: depositResult });
+
+			const [{ objects: coins }, { systemState }] = await Promise.all([
+				client.core.listCoins({ owner: address, coinType: '0x2::sui::SUI' }),
+				client.core.getCurrentSystemState(),
+			]);
+			const gasCoin = coins[0];
+			if (!gasCoin) throw new Error('Expected a gas coin');
+
+			const tx = new Transaction();
+			tx.setSender(address);
+			tx.setGasPrice(systemState.referenceGasPrice);
+			tx.setGasBudget(10_000_000);
+			tx.setGasPayment([
+				{
+					objectId: gasCoin.objectId,
+					version: gasCoin.version,
+					digest: gasCoin.digest,
+				},
+			]);
+			const gasSplit = tx.splitCoins(tx.gas, [1]);
+			tx.transferObjects(
+				[gasSplit, tx.coin({ balance: 1_000n })],
+				new Ed25519Keypair().toSuiAddress(),
+			);
+
+			const bytes = await tx.build({ assumeSufficientAddressBalances: true });
+			expect(tx.getData().gasData.payment).toHaveLength(1);
+			expect(tx.getData().inputs.some((input) => input.$kind === 'FundsWithdrawal')).toBe(true);
+
+			const signature = await keypair.signTransaction(bytes);
+			const result = await client.core.executeTransaction({
+				transaction: bytes,
+				signatures: [signature.signature],
+				include: { effects: true },
+			});
+			await toolbox.waitForTransaction({ result });
+
+			if (result.$kind !== 'Transaction') {
+				throw new Error(JSON.stringify(result));
+			}
+			expect(result.Transaction.effects?.status.success).toBe(true);
+		});
+
 		testWithAllClients('uses address balance for SUI when available', async (client) => {
 			const depositAmount = 100_000_000n;
 			const depositTx = new Transaction();

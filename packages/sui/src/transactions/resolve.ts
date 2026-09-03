@@ -9,10 +9,20 @@ import type { BcsType } from '@mysten/bcs';
 import { Inputs } from './Inputs.js';
 import { bcs } from '../bcs/index.js';
 import { coreClientResolveTransactionPlugin } from '../client/core-resolver.js';
+import { hasPotentialReplayProtection, transactionUsesGasCoin } from './resolution-utils.js';
 
 export interface BuildTransactionOptions {
 	client?: ClientWithCoreApi;
 	onlyTransactionKind?: boolean;
+	/**
+	 * Assume that address balances are sufficient when resolving `CoinWithBalance` intents.
+	 *
+	 * This resolves `CoinWithBalance` without fetching balances or coin objects. When the transaction
+	 * does not use `GasCoin`, it also selects address-balance gas payment without a balance lookup.
+	 * Other unresolved inputs and gas-coin selection may still require a client. The transaction may
+	 * fail during execution if the required address balances are not available.
+	 */
+	assumeSufficientAddressBalances?: boolean;
 }
 
 export interface SerializeTransactionOptions extends BuildTransactionOptions {
@@ -42,7 +52,11 @@ export function needsTransactionResolution(
 			return true;
 		}
 
-		if (data.gasData.payment.length === 0 && !data.expiration) {
+		if (
+			data.gasData.payment.length === 0 &&
+			!data.expiration &&
+			!(options.assumeSufficientAddressBalances && hasPotentialReplayProtection(data))
+		) {
 			return true;
 		}
 	}
@@ -56,6 +70,16 @@ export async function resolveTransactionPlugin(
 	next: () => Promise<void>,
 ) {
 	normalizeRawArguments(transactionData);
+
+	if (
+		!options.onlyTransactionKind &&
+		options.assumeSufficientAddressBalances &&
+		transactionData.gasData.payment == null &&
+		!transactionUsesGasCoin(transactionData)
+	) {
+		transactionData.gasData.payment = [];
+	}
+
 	if (!needsTransactionResolution(transactionData, options)) {
 		await validate(transactionData);
 		return next();

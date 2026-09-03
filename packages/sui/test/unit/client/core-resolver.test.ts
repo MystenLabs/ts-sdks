@@ -212,6 +212,24 @@ describe('ValidDuring expiration auto-setting', () => {
 });
 
 describe('Gas payment resolution', () => {
+	it('assumes address balance gas without fetching balances or coins', async () => {
+		const tx = new Transaction();
+		tx.setSender('0x' + '2'.repeat(64));
+		tx.setGasPrice(1000);
+		tx.setGasBudget(1000000);
+
+		const client = createMockClient();
+		await tx.build({
+			client: client as any,
+			assumeSufficientAddressBalances: true,
+		});
+
+		expect(tx.getData().gasData.payment).toEqual([]);
+		expect(client.core.getBalance).not.toHaveBeenCalled();
+		expect(client.core.listCoins).not.toHaveBeenCalled();
+		expect(client.core.getChainIdentifier).toHaveBeenCalledOnce();
+	});
+
 	it('uses empty payment when address balance covers budget', async () => {
 		const tx = new Transaction();
 		tx.setSender('0x' + '2'.repeat(64));

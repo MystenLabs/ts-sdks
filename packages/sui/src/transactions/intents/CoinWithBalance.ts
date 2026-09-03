@@ -122,7 +122,7 @@ export async function resolveCoinBalance(
 	const totalByType = new Map<string, bigint>();
 	const intentsByType = new Map<string, IntentInfo[]>();
 
-	if (!transactionData.sender) {
+	if (!transactionData.sender && !buildOptions.assumeSufficientAddressBalances) {
 		throw new Error('Sender must be set to resolve CoinWithBalance');
 	}
 
@@ -158,7 +158,11 @@ export async function resolveCoinBalance(
 		intentsByType.get(type)!.push({ balance, outputKind: outputKind ?? 'coin' });
 	}
 
-	if (totalByType.has('gas') && totalByType.has(SUI_TYPE)) {
+	if (
+		totalByType.has('gas') &&
+		totalByType.has(SUI_TYPE) &&
+		!buildOptions.assumeSufficientAddressBalances
+	) {
 		throw new Error(
 			'Cannot mix SUI CoinWithBalance intents that use the gas coin with ones that do not (useGasCoin: false). Use one or the other.',
 		);
@@ -178,37 +182,44 @@ export async function resolveCoinBalance(
 	const coinsByType = new Map<string, SuiClientTypes.Coin[]>();
 	const addressBalanceByType = new Map<string, bigint>();
 	const client = buildOptions.client;
+	const assumeSufficientAddressBalances = buildOptions.assumeSufficientAddressBalances;
 
-	if (!client) {
+	if (!client && !assumeSufficientAddressBalances) {
 		throw new Error(
 			'Client must be provided to build or serialize transactions with CoinWithBalance intents',
 		);
 	}
 
-	await Promise.all([
-		...[...coinTypes].map(async (coinType) => {
-			const { coins, addressBalance } = await getCoinsAndBalanceOfType({
-				coinType,
-				balance: totalByType.get(coinType)!,
-				client,
-				owner: transactionData.sender!,
-				usedIds,
-			});
+	if (assumeSufficientAddressBalances) {
+		for (const [coinType, balance] of totalByType) {
+			addressBalanceByType.set(coinType, balance);
+		}
+	} else {
+		await Promise.all([
+			...[...coinTypes].map(async (coinType) => {
+				const { coins, addressBalance } = await getCoinsAndBalanceOfType({
+					coinType,
+					balance: totalByType.get(coinType)!,
+					client: client!,
+					owner: transactionData.sender!,
+					usedIds,
+				});
 
-			coinsByType.set(coinType, coins);
-			addressBalanceByType.set(coinType, addressBalance);
-		}),
-		totalByType.has('gas')
-			? await client.core
-					.getBalance({
-						owner: transactionData.sender!,
-						coinType: SUI_TYPE,
-					})
-					.then(({ balance }) => {
-						addressBalanceByType.set('gas', BigInt(balance.addressBalance));
-					})
-			: null,
-	]);
+				coinsByType.set(coinType, coins);
+				addressBalanceByType.set(coinType, addressBalance);
+			}),
+			totalByType.has('gas')
+				? await client!.core
+						.getBalance({
+							owner: transactionData.sender!,
+							coinType: SUI_TYPE,
+						})
+						.then(({ balance }) => {
+							addressBalanceByType.set('gas', BigInt(balance.addressBalance));
+						})
+				: null,
+		]);
+	}
 
 	const exactBalanceByType = new Map<string, boolean>();
 	const usedAddressBalance = new Set<string>();
@@ -396,9 +407,19 @@ export async function resolveCoinBalance(
 				// -- no remainder handling is needed.
 				if (type !== 'gas' || usedAddressBalance.has(type)) {
 					const hasBalanceIntent = intents.some((intent) => intent.outputKind === 'balance');
-					const sourcedFromAB = usedAddressBalance.has(type);
+					const sourcedFromAddressBalance = usedAddressBalance.has(type);
 
-					if (hasBalanceIntent || sourcedFromAB) {
+					if (sourcedFromAddressBalance && assumeSufficientAddressBalances) {
+						// The assumed address-balance withdrawal is exactly the requested total, so the
+						// remainder is known to be zero without looking up the sender or its balance.
+						commands.push(
+							TransactionCommands.MoveCall({
+								target: '0x2::coin::destroy_zero',
+								typeArguments: [coinType],
+								arguments: [baseCoin],
+							}),
+						);
+					} else if (hasBalanceIntent || sourcedFromAddressBalance) {
 						// Sourced from AB or balance intents exist: send remainder back to sender's address
 						// balance. `coin::send_funds` is gasless-eligible and handles zero amounts.
 						commands.push(

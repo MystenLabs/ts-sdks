@@ -9,6 +9,7 @@ import { TransactionCommands, Transaction } from '../../../src/transactions/inde
 import { Inputs } from '../../../src/transactions/Inputs.js';
 import type { BuildTransactionOptions } from '../../../src/transactions/resolve.js';
 import type { TransactionDataBuilder } from '../../../src/transactions/TransactionData.js';
+import { normalizeSuiAddress } from '../../../src/utils/index.js';
 
 it('can construct and serialize an empty tranaction', () => {
 	const tx = new Transaction();
@@ -77,6 +78,159 @@ describe('offline build', () => {
 		const tx = setup();
 		tx.add(TransactionCommands.SplitCoins(tx.gas, [tx.pure.u64(100)]));
 		await tx.build();
+	});
+
+	it('builds a transaction kind with CoinWithBalance using assumed address balances', async () => {
+		const tx = new Transaction();
+		tx.transferObjects([tx.coin({ type: '0x123::test::TOKEN', balance: 100 })], '0x3');
+
+		await tx.build({
+			onlyTransactionKind: true,
+			assumeSufficientAddressBalances: true,
+		});
+	});
+
+	it('builds a full transaction using address balance gas with an expiration', async () => {
+		const tx = new Transaction();
+		tx.setSender('0x2');
+		tx.setGasPrice(1);
+		tx.setGasBudget(1_000_000);
+		tx.setExpiration({
+			ValidDuring: {
+				minEpoch: 100,
+				maxEpoch: 101,
+				minTimestamp: null,
+				maxTimestamp: null,
+				chain: toBase58(new Uint8Array(32)),
+				nonce: 0,
+			},
+		});
+		tx.transferObjects([tx.coin({ type: '0x123::test::TOKEN', balance: 100 })], '0x3');
+
+		await tx.build({ assumeSufficientAddressBalances: true });
+
+		expect(tx.getData().gasData.payment).toEqual([]);
+	});
+
+	it('gets a digest offline using assumed address balances', async () => {
+		const tx = new Transaction();
+		tx.setSender('0x2');
+		tx.setGasPrice(1);
+		tx.setGasBudget(1_000_000);
+		tx.setExpiration({
+			ValidDuring: {
+				minEpoch: 100,
+				maxEpoch: 101,
+				minTimestamp: null,
+				maxTimestamp: null,
+				chain: toBase58(new Uint8Array(32)),
+				nonce: 0,
+			},
+		});
+		tx.transferObjects([tx.coin({ type: '0x123::test::TOKEN', balance: 100 })], '0x3');
+
+		await expect(tx.getDigest({ assumeSufficientAddressBalances: true })).resolves.toBeTypeOf(
+			'string',
+		);
+	});
+
+	it('builds a full transaction using a versioned object for replay protection', async () => {
+		const tx = new Transaction();
+		tx.setSender('0x2');
+		tx.setGasPrice(1);
+		tx.setGasBudget(1_000_000);
+		tx.transferObjects([tx.objectRef(ref())], '0x3');
+		tx.transferObjects([tx.coin({ type: '0x123::test::TOKEN', balance: 100 })], '0x3');
+
+		await tx.build({ assumeSufficientAddressBalances: true });
+
+		expect(tx.getData().gasData.payment).toEqual([]);
+		expect(tx.getData().expiration).toBeNull();
+	});
+
+	it('does not treat a shared object as offline replay protection', async () => {
+		const tx = new Transaction();
+		tx.setSender('0x2');
+		tx.setGasPrice(1);
+		tx.setGasBudget(1_000_000);
+		tx.object(
+			Inputs.SharedObjectRef({
+				objectId: '0x3',
+				initialSharedVersion: 1,
+				mutable: true,
+			}),
+		);
+
+		await expect(tx.build({ assumeSufficientAddressBalances: true })).rejects.toThrow(
+			'No sui client passed to Transaction#build',
+		);
+	});
+
+	it('does not use address balance gas when the gas coin is referenced', async () => {
+		const tx = new Transaction();
+		tx.setSender('0x2');
+		tx.setGasPrice(1);
+		tx.setGasBudget(1_000_000);
+		tx.setExpiration({
+			ValidDuring: {
+				minEpoch: 100,
+				maxEpoch: 101,
+				minTimestamp: null,
+				maxTimestamp: null,
+				chain: toBase58(new Uint8Array(32)),
+				nonce: 0,
+			},
+		});
+		tx.splitCoins(tx.gas, [100]);
+
+		await expect(tx.build({ assumeSufficientAddressBalances: true })).rejects.toThrow(
+			'No sui client passed to Transaction#build',
+		);
+	});
+
+	it('does not use address balance gas when a build plugin adds a gas coin reference', async () => {
+		const tx = new Transaction();
+		tx.setSender('0x2');
+		tx.setGasPrice(1);
+		tx.setGasBudget(1_000_000);
+		tx.setExpiration({
+			ValidDuring: {
+				minEpoch: 100,
+				maxEpoch: 101,
+				minTimestamp: null,
+				maxTimestamp: null,
+				chain: toBase58(new Uint8Array(32)),
+				nonce: 0,
+			},
+		});
+		tx.addBuildPlugin(async (transactionData, _options, next) => {
+			transactionData.commands.push(
+				TransactionCommands.SplitCoins({ $kind: 'GasCoin', GasCoin: true }, [
+					transactionData.addInput('pure', Inputs.Pure(bcs.U64.serialize(1))),
+				]),
+			);
+			await next();
+		});
+
+		await expect(tx.build({ assumeSufficientAddressBalances: true })).rejects.toThrow(
+			'No sui client passed to Transaction#build',
+		);
+		expect(tx.getData().gasData.payment).toBeNull();
+	});
+
+	it('preserves an explicitly configured gas payment', async () => {
+		const tx = new Transaction();
+		tx.setSender('0x2');
+		tx.setGasPrice(1);
+		tx.setGasBudget(1_000_000);
+		const payment = ref();
+		tx.setGasPayment([payment]);
+
+		await tx.build({ assumeSufficientAddressBalances: true });
+
+		expect(tx.getData().gasData.payment).toEqual([
+			expect.objectContaining({ objectId: normalizeSuiAddress(payment.objectId) }),
+		]);
 	});
 
 	it('breaks reference equality', () => {
