@@ -133,13 +133,16 @@ when the transaction has no versioned, address-owned input. Use `ValidDuring` in
 
 ### Pay gas with coin objects
 
-To pay with coin objects, provide their exact versions and digests. This is also required when a
-command refers to `tx.gas`:
+To pay with coin objects, provide their exact versions and digests. The transaction can still source
+coins created with `tx.coin()` from address balance:
 
 ```typescript
 import { Transaction } from '@mysten/sui/transactions';
 
 const tx = new Transaction();
+const coin = tx.coin({ balance: 1_000_000, useGasCoin: false });
+tx.transferObjects([coin], '0xRecipientAddress');
+
 tx.setSender('0xSenderAddress');
 tx.setGasPrice(1_000);
 tx.setGasBudget(50_000_000);
@@ -151,10 +154,7 @@ tx.setGasPayment([
 	},
 ]);
 
-const [coin] = tx.splitCoins(tx.gas, [1_000_000]);
-tx.transferObjects([coin], '0xRecipientAddress');
-
-const bytes = await tx.build();
+const bytes = await tx.build({ assumeSufficientAddressBalances: true });
 ```
 
 An explicit gas payment is preserved by `build()`.

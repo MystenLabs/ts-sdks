@@ -161,14 +161,13 @@ incorrect target strings. See the [codegen documentation](/codegen) for setup in
 
 ### Return values
 
-Commands return results that you can use as input to subsequent commands. For example, `splitCoins`
-returns the new coins it creates:
+Helpers and commands return results that you can use as input to subsequent commands. For example,
+`tx.coin()` creates a coin with the requested balance:
 
 ```typescript
 const tx = new Transaction();
 
-// splitCoins returns one result per amount
-const [coin] = tx.splitCoins(tx.gas, [1_000_000]);
+const coin = tx.coin({ balance: 1_000_000 });
 
 // Use that result as input to another command
 tx.transferObjects([coin], '0xRecipientAddress');
