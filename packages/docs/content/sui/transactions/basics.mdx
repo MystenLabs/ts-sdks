@@ -315,7 +315,7 @@ const kindBytes = await tx.build({ client: grpcClient, onlyTransactionKind: true
 
 See [Building Offline](./offline) for the data needed to build without a client.
 
-Use JSON when another system needs to inspect or extend the transaction before it is built:
+Use JSON when another system needs to inspect or extend the transaction before building it:
 
 ```typescript
 import { Transaction } from '@mysten/sui/transactions';

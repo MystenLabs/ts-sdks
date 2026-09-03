@@ -78,8 +78,8 @@ A full offline build requires the sender and complete gas data:
 | `setGasOwner()`   | Gas owner for a sponsored transaction; defaults to the transaction sender |
 
 These values determine the signed transaction, so gather them for the same network and recent state
-that will execute the transaction. Gas budget estimation requires simulation and therefore a client;
-an offline builder must set the budget explicitly.
+where execution occurs. Gas budget estimation requires simulation and therefore a client; an offline
+builder must set the budget explicitly.
 
 ### Pay gas from address balance
 
