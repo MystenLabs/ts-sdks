@@ -90,7 +90,7 @@ describe('offline build', () => {
 		});
 	});
 
-	it('builds a full transaction using address balance gas with an expiration', async () => {
+	it('repeatedly builds a full transaction using address balance gas with an expiration', async () => {
 		const tx = new Transaction();
 		tx.setSender('0x2');
 		tx.setGasPrice(1);
@@ -107,6 +107,7 @@ describe('offline build', () => {
 		});
 		tx.transferObjects([tx.coin({ type: '0x123::test::TOKEN', balance: 100 })], '0x3');
 
+		await tx.build({ assumeSufficientAddressBalances: true });
 		await tx.build({ assumeSufficientAddressBalances: true });
 
 		expect(tx.getData().gasData.payment).toEqual([]);
@@ -143,10 +144,27 @@ describe('offline build', () => {
 		tx.transferObjects([tx.coin({ type: '0x123::test::TOKEN', balance: 100 })], '0x3');
 
 		await tx.build({ assumeSufficientAddressBalances: true });
+		await tx.build({ assumeSufficientAddressBalances: true });
 
 		expect(tx.getData().gasData.payment).toEqual([]);
 		expect(tx.getData().expiration).toBeNull();
 	});
+
+	it.each([{ Epoch: 100 } as const, { None: true } as const])(
+		'does not treat %o expiration as address balance replay protection',
+		async (expiration) => {
+			const tx = new Transaction();
+			tx.setSender('0x2');
+			tx.setGasPrice(1);
+			tx.setGasBudget(1_000_000);
+			tx.setExpiration(expiration);
+
+			await expect(tx.build({ assumeSufficientAddressBalances: true })).rejects.toThrow(
+				'No sui client passed to Transaction#build',
+			);
+			expect(tx.getData().gasData.payment).toBeNull();
+		},
+	);
 
 	it('preserves resolution behavior for an explicitly empty gas payment', async () => {
 		const tx = new Transaction();
@@ -160,6 +178,78 @@ describe('offline build', () => {
 			'No sui client passed to Transaction#build',
 		);
 		expect(tx.getData().gasData.payment).toEqual([]);
+	});
+
+	it('clears inferred gas payment provenance when gas payment is explicitly set', async () => {
+		const tx = new Transaction();
+		tx.setSender('0x2');
+		tx.setGasPrice(1);
+		tx.setGasBudget(1_000_000);
+		tx.transferObjects([tx.objectRef(ref())], '0x3');
+
+		await tx.build({ assumeSufficientAddressBalances: true });
+		tx.setGasPayment([]);
+
+		await expect(tx.build({ assumeSufficientAddressBalances: true })).rejects.toThrow(
+			'No sui client passed to Transaction#build',
+		);
+	});
+
+	it('retains inferred gas payment provenance when explicit payment validation fails', async () => {
+		const tx = new Transaction();
+		tx.setSender('0x2');
+		tx.setGasPrice(1);
+		tx.setGasBudget(1_000_000);
+		tx.transferObjects([tx.objectRef(ref())], '0x3');
+
+		await tx.build({ assumeSufficientAddressBalances: true });
+		expect(() => tx.setGasPayment([{} as any])).toThrow();
+		await tx.build({ assumeSufficientAddressBalances: true });
+	});
+
+	it('does not reuse inferred gas payment without the assumption', async () => {
+		const tx = new Transaction();
+		tx.setSender('0x2');
+		tx.setGasPrice(1);
+		tx.setGasBudget(1_000_000);
+		tx.transferObjects([tx.objectRef(ref())], '0x3');
+		tx.setExpiration({
+			ValidDuring: {
+				minEpoch: 100,
+				maxEpoch: 101,
+				minTimestamp: null,
+				maxTimestamp: null,
+				chain: toBase58(new Uint8Array(32)),
+				nonce: 0,
+			},
+		});
+
+		await tx.build({ assumeSufficientAddressBalances: true });
+		await expect(tx.build()).rejects.toThrow('No sui client passed to Transaction#build');
+	});
+
+	it('does not reuse inferred gas payment after adding a gas coin reference', async () => {
+		const tx = new Transaction();
+		tx.setSender('0x2');
+		tx.setGasPrice(1);
+		tx.setGasBudget(1_000_000);
+		tx.setExpiration({
+			ValidDuring: {
+				minEpoch: 100,
+				maxEpoch: 101,
+				minTimestamp: null,
+				maxTimestamp: null,
+				chain: toBase58(new Uint8Array(32)),
+				nonce: 0,
+			},
+		});
+
+		await tx.build({ assumeSufficientAddressBalances: true });
+		tx.splitCoins(tx.gas, [100]);
+
+		await expect(tx.build({ assumeSufficientAddressBalances: true })).rejects.toThrow(
+			'No sui client passed to Transaction#build',
+		);
 	});
 
 	it('does not apply the gas assumption when transaction resolution is needed', async () => {

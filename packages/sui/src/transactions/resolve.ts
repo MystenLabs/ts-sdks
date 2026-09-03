@@ -10,6 +10,8 @@ import { Inputs } from './Inputs.js';
 import { bcs } from '../bcs/index.js';
 import { coreClientResolveTransactionPlugin } from '../client/core-resolver.js';
 import {
+	clearAssumedGasPayment,
+	hasAssumedGasPayment,
 	hasPotentialReplayProtection,
 	setAssumedGasPayment,
 	transactionUsesGasCoin,
@@ -53,24 +55,30 @@ export function needsTransactionResolution(
 	}
 
 	if (!options.onlyTransactionKind) {
+		const hasInferredGasPayment = hasAssumedGasPayment(data);
 		const assumesAddressBalanceGas =
 			options.assumeSufficientAddressBalances &&
-			data.gasData.payment == null &&
+			(data.gasData.payment == null || hasInferredGasPayment) &&
 			!transactionUsesGasCoin(data);
 
 		if (
 			!data.gasData.price ||
 			!data.gasData.budget ||
-			(data.gasData.payment == null && !assumesAddressBalanceGas)
+			((data.gasData.payment == null || hasInferredGasPayment) && !assumesAddressBalanceGas)
 		) {
 			return true;
 		}
 
-		if (data.gasData.payment?.length === 0 && !data.expiration) {
+		if (data.gasData.payment?.length === 0 && !data.expiration && !assumesAddressBalanceGas) {
 			return true;
 		}
 
-		if (assumesAddressBalanceGas && !data.expiration && !hasPotentialReplayProtection(data)) {
+		if (
+			assumesAddressBalanceGas &&
+			data.expiration?.$kind !== 'ValidDuring' &&
+			data.expiration?.$kind !== 'Validity' &&
+			!hasPotentialReplayProtection(data)
+		) {
 			return true;
 		}
 	}
@@ -92,6 +100,10 @@ export async function resolveTransactionPlugin(
 	}
 
 	const client = getClient(options);
+	if (hasAssumedGasPayment(transactionData)) {
+		clearAssumedGasPayment(transactionData);
+		transactionData.gasData.payment = null;
+	}
 	const plugin = client.core?.resolveTransactionPlugin() ?? coreClientResolveTransactionPlugin;
 
 	return plugin(transactionData, options, async () => {
