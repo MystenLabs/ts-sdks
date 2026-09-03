@@ -49,7 +49,7 @@ function createTransactionData({
 }
 
 describe('setAddressBalanceTransactionExpirationFromSimulatedEpoch', () => {
-	it('sets ValidDuring when the original gas payment is empty', async () => {
+	it('sets ValidDuring when gas selection was disabled and the original transaction had no expiration', async () => {
 		const transactionData = createTransactionData({ expiration: { $kind: 'None', None: true } });
 		const originalTransactionData = createTransactionData({ expiration: null }).snapshot();
 		const client = createClient();
@@ -60,6 +60,7 @@ describe('setAddressBalanceTransactionExpirationFromSimulatedEpoch', () => {
 			epoch: '12',
 			originalTransactionData,
 			isTransactionKindOnly: false,
+			doGasSelection: false,
 		});
 
 		expect(transactionData.expiration?.$kind).toBe('ValidDuring');
@@ -72,12 +73,9 @@ describe('setAddressBalanceTransactionExpirationFromSimulatedEpoch', () => {
 		expect(client.core.getCurrentSystemState).not.toHaveBeenCalled();
 	});
 
-	it('does not synthesize expiration when gas payment was originally unset', async () => {
+	it('does not set ValidDuring when gas selection was enabled', async () => {
 		const transactionData = createTransactionData({ expiration: { $kind: 'None', None: true } });
-		const originalTransactionData = createTransactionData({
-			expiration: null,
-			payment: null,
-		}).snapshot();
+		const originalTransactionData = createTransactionData({ expiration: null }).snapshot();
 		const client = createClient();
 
 		await setAddressBalanceTransactionExpirationFromSimulatedEpoch({
@@ -86,6 +84,7 @@ describe('setAddressBalanceTransactionExpirationFromSimulatedEpoch', () => {
 			epoch: '12',
 			originalTransactionData,
 			isTransactionKindOnly: false,
+			doGasSelection: true,
 		});
 
 		expect(transactionData.expiration?.$kind).toBe('None');
@@ -103,6 +102,7 @@ describe('setAddressBalanceTransactionExpirationFromSimulatedEpoch', () => {
 			epoch: '12',
 			originalTransactionData,
 			isTransactionKindOnly: true,
+			doGasSelection: false,
 		});
 
 		expect(transactionData.expiration?.$kind).toBe('None');
@@ -120,6 +120,7 @@ describe('setAddressBalanceTransactionExpirationFromSimulatedEpoch', () => {
 			epoch: null,
 			originalTransactionData,
 			isTransactionKindOnly: false,
+			doGasSelection: false,
 		});
 
 		expect(transactionData.expiration?.$kind).toBe('ValidDuring');
@@ -145,6 +146,7 @@ describe('setAddressBalanceTransactionExpirationFromSimulatedEpoch', () => {
 			epoch: '12',
 			originalTransactionData,
 			isTransactionKindOnly: false,
+			doGasSelection: false,
 		});
 
 		expect(transactionData.expiration?.$kind).toBe('None');

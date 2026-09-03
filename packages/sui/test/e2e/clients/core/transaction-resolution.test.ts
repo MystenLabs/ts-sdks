@@ -301,13 +301,33 @@ describe('Core API - Transaction Resolution', () => {
 		);
 
 		testWithAllClients(
-			'should synthesize ValidDuring for assumed address balance gas while resolving the budget',
+			'should not synthesize ValidDuring when address balance gas request uses backend gas selection',
 			async (client) => {
-				const { address } = await toolbox.getSigner({ addressBalance: 1_000_000_000n });
+				const { address } = await toolbox.getSigner({ coins: [200_000_000n] });
 
 				const tx = new Transaction();
+				addClockRead(tx);
 				tx.setSender(address);
-				tx.transferObjects([tx.coin({ balance: 1_000n })], address);
+				tx.setGasPayment([]);
+
+				const bytes = await tx.build({ client });
+				const parsed = bcs.TransactionData.parse(bytes);
+
+				expect(Number(parsed.V1?.gasData.budget)).toBeGreaterThan(0);
+				expect(Number(parsed.V1?.gasData.price)).toBeGreaterThan(0);
+				expect(parsed.V1?.expiration.ValidDuring).toBeUndefined();
+			},
+			{ skip: ['jsonrpc'] },
+		);
+
+		testWithAllClients(
+			'should use resolved gas data when an assumed transaction still needs resolution',
+			async (client) => {
+				const { address } = await toolbox.getSigner({ coins: [1_000_000_000n] });
+
+				const tx = new Transaction();
+				addClockRead(tx);
+				tx.setSender(address);
 
 				const bytes = await tx.build({
 					client,
@@ -317,8 +337,7 @@ describe('Core API - Transaction Resolution', () => {
 
 				expect(Number(parsed.V1?.gasData.budget)).toBeGreaterThan(0);
 				expect(Number(parsed.V1?.gasData.price)).toBeGreaterThan(0);
-				expect(parsed.V1?.gasData.payment).toEqual([]);
-				expect(parsed.V1?.expiration.ValidDuring).toBeDefined();
+				expect(parsed.V1?.gasData.payment.length).toBeGreaterThan(0);
 			},
 		);
 

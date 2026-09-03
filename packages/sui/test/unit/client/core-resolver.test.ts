@@ -213,11 +213,21 @@ describe('ValidDuring expiration auto-setting', () => {
 });
 
 describe('Gas payment resolution', () => {
-	it('assumes address balance gas without fetching balances or coins', async () => {
+	it('keeps assumed address balance gas when no transaction resolution is needed', async () => {
 		const tx = new Transaction();
 		tx.setSender('0x' + '2'.repeat(64));
 		tx.setGasPrice(1000);
 		tx.setGasBudget(1000000);
+		tx.setExpiration({
+			ValidDuring: {
+				minEpoch: 100,
+				maxEpoch: 101,
+				minTimestamp: null,
+				maxTimestamp: null,
+				chain: MOCK_CHAIN_IDENTIFIER,
+				nonce: 0,
+			},
+		});
 
 		const client = createMockClient();
 		await tx.build({
@@ -228,15 +238,13 @@ describe('Gas payment resolution', () => {
 		expect(tx.getData().gasData.payment).toEqual([]);
 		expect(client.core.getBalance).not.toHaveBeenCalled();
 		expect(client.core.listCoins).not.toHaveBeenCalled();
-		expect(client.core.getChainIdentifier).toHaveBeenCalledOnce();
+		expect(client.core.getChainIdentifier).not.toHaveBeenCalled();
 	});
 
-	it('still resolves expiration online when a resolved object may be immutable', async () => {
+	it('uses normal gas resolution when transaction resolution is needed', async () => {
 		const tx = new Transaction();
 		tx.setSender('0x' + '2'.repeat(64));
 		tx.setGasPrice(1000);
-		tx.setGasBudget(1000000);
-		tx.object(Inputs.ObjectRef(ref()));
 
 		const client = createMockClient();
 		await tx.build({
@@ -244,14 +252,13 @@ describe('Gas payment resolution', () => {
 			assumeSufficientAddressBalances: true,
 		});
 
-		expect(tx.getData().gasData.payment).toEqual([]);
-		expect(tx.getData().expiration?.$kind).toBe('ValidDuring');
-		expect(client.core.getBalance).not.toHaveBeenCalled();
-		expect(client.core.listCoins).not.toHaveBeenCalled();
-		expect(client.core.getChainIdentifier).toHaveBeenCalledOnce();
+		expect(tx.getData().gasData.payment).toHaveLength(1);
+		expect(tx.getData().expiration).toBeNull();
+		expect(client.core.getBalance).toHaveBeenCalledOnce();
+		expect(client.core.listCoins).toHaveBeenCalledOnce();
 	});
 
-	it('honors assumed address balances in CachingTransactionExecutor', async () => {
+	it('uses normal gas resolution in CachingTransactionExecutor', async () => {
 		const tx = new Transaction();
 		tx.setSender('0x' + '2'.repeat(64));
 		tx.setGasPrice(1000);
@@ -273,9 +280,9 @@ describe('Gas payment resolution', () => {
 			assumeSufficientAddressBalances: true,
 		});
 
-		expect(tx.getData().gasData.payment).toEqual([]);
-		expect(client.core.getBalance).not.toHaveBeenCalled();
-		expect(client.core.listCoins).not.toHaveBeenCalled();
+		expect(tx.getData().gasData.payment).toHaveLength(1);
+		expect(client.core.getBalance).toHaveBeenCalledOnce();
+		expect(client.core.listCoins).toHaveBeenCalledOnce();
 	});
 
 	it('uses empty payment when address balance covers budget', async () => {

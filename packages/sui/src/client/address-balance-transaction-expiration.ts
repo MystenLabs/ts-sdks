@@ -11,15 +11,18 @@ export async function setAddressBalanceTransactionExpirationFromSimulatedEpoch({
 	epoch,
 	originalTransactionData,
 	isTransactionKindOnly,
+	doGasSelection,
 }: {
 	transactionData: TransactionDataBuilder;
 	client: ClientWithCoreApi;
 	epoch: string | number | bigint | null | undefined;
 	originalTransactionData: TransactionData;
 	isTransactionKindOnly: boolean;
+	doGasSelection: boolean;
 }) {
 	if (
 		isTransactionKindOnly ||
+		doGasSelection ||
 		originalTransactionData.expiration ||
 		originalTransactionData.gasData.payment?.length !== 0
 	) {

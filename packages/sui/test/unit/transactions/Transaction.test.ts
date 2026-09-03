@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { toBase58 } from '@mysten/bcs';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { bcs } from '../../../src/bcs/index.js';
 import { TransactionCommands, Transaction } from '../../../src/transactions/index.js';
@@ -146,6 +146,38 @@ describe('offline build', () => {
 
 		expect(tx.getData().gasData.payment).toEqual([]);
 		expect(tx.getData().expiration).toBeNull();
+	});
+
+	it('does not apply the gas assumption when transaction resolution is needed', async () => {
+		const tx = new Transaction();
+		tx.setSender('0x2');
+		tx.setGasPrice(1);
+		tx.setGasBudget(1_000_000);
+		const payment = ref();
+		const resolver = vi.fn(
+			async (
+				transactionData: TransactionDataBuilder,
+				options: BuildTransactionOptions,
+				next: () => Promise<void>,
+			) => {
+				expect(transactionData.gasData.payment).toBeNull();
+				expect(options.assumeSufficientAddressBalances).toBe(false);
+				transactionData.gasData.payment = [payment];
+				await next();
+			},
+		);
+
+		await tx.build({
+			client: {
+				core: {
+					resolveTransactionPlugin: () => resolver,
+				},
+			} as any,
+			assumeSufficientAddressBalances: true,
+		});
+
+		expect(resolver).toHaveBeenCalledOnce();
+		expect(tx.getData().gasData.payment).toHaveLength(1);
 	});
 
 	it('does not treat a shared object as offline replay protection', async () => {

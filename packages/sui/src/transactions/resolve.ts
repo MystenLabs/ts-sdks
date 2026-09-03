@@ -9,7 +9,11 @@ import type { BcsType } from '@mysten/bcs';
 import { Inputs } from './Inputs.js';
 import { bcs } from '../bcs/index.js';
 import { coreClientResolveTransactionPlugin } from '../client/core-resolver.js';
-import { hasPotentialReplayProtection, setAssumedGasPayment } from './resolution-utils.js';
+import {
+	hasPotentialReplayProtection,
+	setAssumedGasPayment,
+	transactionUsesGasCoin,
+} from './resolution-utils.js';
 
 export interface BuildTransactionOptions {
 	client?: ClientWithCoreApi;
@@ -17,10 +21,11 @@ export interface BuildTransactionOptions {
 	/**
 	 * Assume that address balances are sufficient when resolving `CoinWithBalance` intents.
 	 *
-	 * This resolves `CoinWithBalance` without fetching balances or coin objects. When the transaction
-	 * does not use `GasCoin`, it also selects address-balance gas payment without a balance lookup.
-	 * Other unresolved inputs and gas-coin selection may still require a client. The transaction may
-	 * fail during execution if the required address balances are not available.
+	 * This resolves `CoinWithBalance` without fetching balances or coin objects. For a transaction that
+	 * otherwise needs no resolution and does not use `GasCoin`, it also selects address-balance gas
+	 * payment without a balance lookup. If any other transaction data needs resolution, the resolver
+	 * determines the gas data normally. The transaction may fail during execution if the required
+	 * address balances are not available.
 	 */
 	assumeSufficientAddressBalances?: boolean;
 }
@@ -48,18 +53,23 @@ export function needsTransactionResolution(
 	}
 
 	if (!options.onlyTransactionKind) {
-		if (!data.gasData.price || !data.gasData.budget || !data.gasData.payment) {
+		const assumesAddressBalanceGas =
+			options.assumeSufficientAddressBalances &&
+			data.gasData.payment == null &&
+			!transactionUsesGasCoin(data);
+
+		if (
+			!data.gasData.price ||
+			!data.gasData.budget ||
+			(data.gasData.payment == null && !assumesAddressBalanceGas)
+		) {
 			return true;
 		}
 
 		if (
-			data.gasData.payment.length === 0 &&
+			(data.gasData.payment?.length === 0 || assumesAddressBalanceGas) &&
 			!data.expiration &&
-			!(
-				!options.client &&
-				options.assumeSufficientAddressBalances &&
-				hasPotentialReplayProtection(data)
-			)
+			!(options.assumeSufficientAddressBalances && hasPotentialReplayProtection(data))
 		) {
 			return true;
 		}
@@ -75,27 +85,22 @@ export async function resolveTransactionPlugin(
 ) {
 	normalizeRawArguments(transactionData);
 
-	const inferredGasPayment = setAssumedGasPayment(transactionData, options);
-
-	try {
-		if (!needsTransactionResolution(transactionData, options)) {
-			await validate(transactionData);
-			return next();
-		}
-
-		const client = getClient(options);
-		const plugin = client.core?.resolveTransactionPlugin() ?? coreClientResolveTransactionPlugin;
-
-		return await plugin(transactionData, options, async () => {
-			await validate(transactionData);
-			await next();
-		});
-	} catch (error) {
-		if (inferredGasPayment) {
-			transactionData.gasData.payment = null;
-		}
-		throw error;
+	if (!needsTransactionResolution(transactionData, options)) {
+		setAssumedGasPayment(transactionData, options);
+		await validate(transactionData);
+		return next();
 	}
+
+	const client = getClient(options);
+	const plugin = client.core?.resolveTransactionPlugin() ?? coreClientResolveTransactionPlugin;
+	const resolutionOptions = options.assumeSufficientAddressBalances
+		? { ...options, assumeSufficientAddressBalances: false }
+		: options;
+
+	return await plugin(transactionData, resolutionOptions, async () => {
+		await validate(transactionData);
+		await next();
+	});
 }
 
 function validate(transactionData: TransactionDataBuilder) {
