@@ -349,4 +349,10 @@ const bytes = await restoredTx.build();
 transaction can remain partially resolved. Clone it with `Transaction.from()` before preparation
 when a retry or fallback must start from unchanged transaction data.
 
+Use `Transaction.from()` only when the transaction is already serializable. It cannot copy
+unresolved async thunks, does not copy registered serialization or build plugins, and requires
+custom intent resolvers in its `intentResolvers` option. For transactions that depend on these
+features, use a factory that constructs a fresh transaction and registers the same plugins and
+resolvers for each attempt.
+
 `Transaction.from()` accepts JSON, BCS byte arrays, and base64-encoded BCS strings.
