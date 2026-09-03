@@ -175,7 +175,7 @@ describe('offline build', () => {
 				next: () => Promise<void>,
 			) => {
 				expect(transactionData.gasData.payment).toBeNull();
-				expect(options.assumeSufficientAddressBalances).toBe(false);
+				expect(options.assumeSufficientAddressBalances).toBe(true);
 				transactionData.gasData.payment = [payment];
 				await next();
 			},

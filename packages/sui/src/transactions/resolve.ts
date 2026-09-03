@@ -93,11 +93,8 @@ export async function resolveTransactionPlugin(
 
 	const client = getClient(options);
 	const plugin = client.core?.resolveTransactionPlugin() ?? coreClientResolveTransactionPlugin;
-	const resolutionOptions = options.assumeSufficientAddressBalances
-		? { ...options, assumeSufficientAddressBalances: false }
-		: options;
 
-	return plugin(transactionData, resolutionOptions, async () => {
+	return plugin(transactionData, options, async () => {
 		await validate(transactionData);
 		await next();
 	});
