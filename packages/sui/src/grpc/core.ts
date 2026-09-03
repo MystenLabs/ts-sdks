@@ -1019,7 +1019,6 @@ export class GrpcCoreClient extends CoreClient {
 				epoch: response.transaction.effects?.epoch,
 				originalTransactionData: snapshot,
 				isTransactionKindOnly: !!options.onlyTransactionKind,
-				doGasSelection,
 			});
 
 			return await next();

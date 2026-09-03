@@ -345,4 +345,8 @@ Build BCS bytes only when the transaction is ready for signing or execution:
 const bytes = await restoredTx.build();
 ```
 
+`toJSON()`, `build()`, and `getDigest()` prepare the transaction in place. If preparation fails, the
+transaction can remain partially resolved. Clone it with `Transaction.from()` before preparation
+when a retry or fallback must start from unchanged transaction data.
+
 `Transaction.from()` accepts JSON, BCS byte arrays, and base64-encoded BCS strings.

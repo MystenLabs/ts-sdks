@@ -978,7 +978,6 @@ export class GraphQLCoreClient extends CoreClient {
 				epoch: transactionEffects?.epoch?.epochId,
 				originalTransactionData: snapshot,
 				isTransactionKindOnly: !!options.onlyTransactionKind,
-				doGasSelection,
 			});
 
 			return await next();
