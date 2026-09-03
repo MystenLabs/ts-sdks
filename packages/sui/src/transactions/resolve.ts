@@ -66,11 +66,11 @@ export function needsTransactionResolution(
 			return true;
 		}
 
-		if (
-			(data.gasData.payment?.length === 0 || assumesAddressBalanceGas) &&
-			!data.expiration &&
-			!(options.assumeSufficientAddressBalances && hasPotentialReplayProtection(data))
-		) {
+		if (data.gasData.payment?.length === 0 && !data.expiration) {
+			return true;
+		}
+
+		if (assumesAddressBalanceGas && !data.expiration && !hasPotentialReplayProtection(data)) {
 			return true;
 		}
 	}

@@ -148,6 +148,20 @@ describe('offline build', () => {
 		expect(tx.getData().expiration).toBeNull();
 	});
 
+	it('preserves resolution behavior for an explicitly empty gas payment', async () => {
+		const tx = new Transaction();
+		tx.setSender('0x2');
+		tx.setGasPrice(1);
+		tx.setGasBudget(1_000_000);
+		tx.setGasPayment([]);
+		tx.transferObjects([tx.objectRef(ref())], '0x3');
+
+		await expect(tx.build({ assumeSufficientAddressBalances: true })).rejects.toThrow(
+			'No sui client passed to Transaction#build',
+		);
+		expect(tx.getData().gasData.payment).toEqual([]);
+	});
+
 	it('does not apply the gas assumption when transaction resolution is needed', async () => {
 		const tx = new Transaction();
 		tx.setSender('0x2');

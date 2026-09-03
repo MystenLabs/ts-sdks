@@ -274,7 +274,6 @@ tx.transferObjects(
 tx.setSender('0xSenderAddress');
 tx.setGasPrice(1_000);
 tx.setGasBudget(50_000_000);
-tx.setGasPayment([]);
 
 const bytes = await tx.build({ assumeSufficientAddressBalances: true });
 ```
