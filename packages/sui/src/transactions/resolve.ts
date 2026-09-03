@@ -97,7 +97,7 @@ export async function resolveTransactionPlugin(
 		? { ...options, assumeSufficientAddressBalances: false }
 		: options;
 
-	return await plugin(transactionData, resolutionOptions, async () => {
+	return plugin(transactionData, resolutionOptions, async () => {
 		await validate(transactionData);
 		await next();
 	});
