@@ -159,11 +159,7 @@ export async function resolveCoinBalance(
 		intentsByType.get(type)!.push({ balance, outputKind: outputKind ?? 'coin' });
 	}
 
-	if (
-		totalByType.has('gas') &&
-		totalByType.has(SUI_TYPE) &&
-		!buildOptions.assumeSufficientAddressBalances
-	) {
+	if (totalByType.has('gas') && totalByType.has(SUI_TYPE)) {
 		throw new Error(
 			'Cannot mix SUI CoinWithBalance intents that use the gas coin with ones that do not (useGasCoin: false). Use one or the other.',
 		);

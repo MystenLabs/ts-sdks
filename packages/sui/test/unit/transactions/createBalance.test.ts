@@ -116,7 +116,7 @@ describe('assumeSufficientAddressBalances', () => {
 		).toHaveLength(1);
 	});
 
-	it('supports mixed SUI source preferences when balances are assumed', async () => {
+	it('rejects mixed SUI source preferences when balances are assumed', async () => {
 		const tx = new Transaction();
 		tx.setSender(SENDER);
 		tx.splitCoins(tx.gas, [1]);
@@ -125,14 +125,9 @@ describe('assumeSufficientAddressBalances', () => {
 			RECEIVER,
 		);
 
-		const result = await resolvedData(tx, undefined, {
-			assumeSufficientAddressBalances: true,
-		});
-
-		expect(result.inputs.some((input: any) => input.FundsWithdrawal)).toBe(true);
-		expect(
-			result.commands.filter((command: any) => command.SplitCoins?.coin?.GasCoin),
-		).toHaveLength(2);
+		await expect(
+			resolvedData(tx, undefined, { assumeSufficientAddressBalances: true }),
+		).rejects.toThrow('Cannot mix SUI CoinWithBalance intents');
 	});
 });
 
