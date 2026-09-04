@@ -130,7 +130,7 @@ use the same replacement under `client.core`.
 | `getBalance`                 | `getBalance`                                                          |
 | `getCoinMetadata`            | `getCoinMetadata`                                                     |
 | `getDynamicFields`           | `listDynamicFields`                                                   |
-| `getDynamicFieldObject`      | `getDynamicField` or `client.core.getDynamicObjectField`              |
+| `getDynamicFieldObject`      | `getDynamicField` or `getDynamicObjectField`, depending on field kind |
 | `getTransactionBlock`        | `getTransaction`                                                      |
 | `multiGetTransactionBlocks`  | Multiple `getTransaction` calls                                       |
 | `executeTransactionBlock`    | `executeTransaction`                                                  |
@@ -143,6 +143,55 @@ use the same replacement under `client.core`.
 | `getMoveFunctionArgTypes`    | No direct equivalent; `getMoveFunction` returns normalized signatures |
 | `resolveNameServiceAddress`  | `resolveNameServiceAddress` (returns `{ address }`)                   |
 | `resolveNameServiceNames`    | No direct equivalent for listing every name assigned to an address    |
+
+The JSON-RPC `getDynamicFieldObject` method returned an object for both field kinds. For a regular
+dynamic field, it returned the `0x2::dynamic_field::Field<Name, Value>` object. For a dynamic object
+field, it derived the wrapper field, extracted its child ID, and returned the referenced child
+object instead of the wrapper.
+
+The replacement APIs expose these operations separately. `getDynamicField` returns a normalized
+field entry and its BCS-encoded value. `getDynamicObjectField` derives the wrapper, extracts the
+child ID, and loads the referenced object. If the field kind is not known in advance, call
+`listDynamicFields` and check whether its `$kind` is `DynamicField` or `DynamicObject`. SDKs can
+call the same methods through `client.core`.
+
+```typescript
+const page = await client.listDynamicFields({ parentId });
+
+for (const field of page.dynamicFields) {
+	if (field.$kind === 'DynamicObject') {
+		const { object } = await client.getDynamicObjectField({
+			parentId,
+			name: field.name,
+			include: { content: true },
+		});
+
+		console.log(object.objectId, object.content);
+	} else {
+		const { dynamicField } = await client.getDynamicField({
+			parentId,
+			name: field.name,
+		});
+
+		console.log(dynamicField.value.type, dynamicField.value.bcs);
+	}
+}
+```
+
+The dynamic object field wrapper remains accessible through `getDynamicField`. Wrap the name type
+explicitly and pass the original name BCS bytes:
+
+```typescript
+const { dynamicField } = await client.getDynamicField({
+	parentId,
+	name: {
+		type: `0x2::dynamic_object_field::Wrapper<${fieldName.type}>`,
+		bcs: fieldName.bcs,
+	},
+});
+
+console.log(dynamicField.fieldId, dynamicField.childId);
+```
 
 `getMoveFunction` exposes normalized parameter signatures, but it does not reproduce the legacy
 `Pure`, `Object`, and object-access classifications from `getMoveFunctionArgTypes`. Likewise,
