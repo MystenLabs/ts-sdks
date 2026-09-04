@@ -321,6 +321,27 @@ describe('Core API - Transaction Resolution', () => {
 		);
 
 		testWithAllClients(
+			'should use resolved gas data when an assumed transaction still needs resolution',
+			async (client) => {
+				const { address } = await toolbox.getSigner({ coins: [1_000_000_000n] });
+
+				const tx = new Transaction();
+				addClockRead(tx);
+				tx.setSender(address);
+
+				const bytes = await tx.build({
+					client,
+					assumeSufficientAddressBalances: true,
+				});
+				const parsed = bcs.TransactionData.parse(bytes);
+
+				expect(Number(parsed.V1?.gasData.budget)).toBeGreaterThan(0);
+				expect(Number(parsed.V1?.gasData.price)).toBeGreaterThan(0);
+				expect(parsed.V1?.gasData.payment.length).toBeGreaterThan(0);
+			},
+		);
+
+		testWithAllClients(
 			'should execute resolved address balance gas transactions without gas coins',
 			async (client) => {
 				const { keypair, address } = await toolbox.getSigner({ addressBalance: 200_000_000n });

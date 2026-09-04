@@ -17,6 +17,7 @@ import { getPureBcsSchema, isTxContext } from '../transactions/serializer.js';
 import type { TransactionDataBuilder } from '../transactions/TransactionData.js';
 import { chunk } from '@mysten/utils';
 import type { BuildTransactionOptions } from '../transactions/index.js';
+import { transactionUsesGasCoin } from '../transactions/resolution-utils.js';
 
 // The maximum objects that can be fetched at once using multiGetObjects.
 const MAX_OBJECTS_PER_FETCH = 50;
@@ -54,18 +55,12 @@ export async function coreClientResolveTransactionPlugin(
 	next: () => Promise<void>,
 ) {
 	const client = getClient(options);
-
 	const needsGasPrice = !options.onlyTransactionKind && !transactionData.gasData.price;
 	const needsPayment = !options.onlyTransactionKind && !transactionData.gasData.payment;
 	const gasPayer = transactionData.gasData.owner ?? transactionData.sender;
 
-	let usesGasCoin = false;
+	const usesGasCoin = transactionUsesGasCoin(transactionData);
 	let withdrawals = 0n;
-
-	transactionData.mapArguments((arg) => {
-		if (arg.$kind === 'GasCoin') usesGasCoin = true;
-		return arg;
-	});
 
 	const normalizedGasPayer = gasPayer ? normalizeSuiAddress(gasPayer) : null;
 	for (const input of transactionData.inputs) {

@@ -37,7 +37,6 @@ import {
 	coinWithBalance,
 	createBalance,
 } from './intents/CoinWithBalance.js';
-import type { ClientWithCoreApi } from '../client/core.js';
 
 export type TransactionObjectArgument =
 	| Exclude<InferInput<typeof ArgumentSchema>, { Input: unknown; type?: 'pure' }>
@@ -802,9 +801,7 @@ export class Transaction {
 
 	/** Derive transaction digest */
 	async getDigest(
-		options: {
-			client?: ClientWithCoreApi;
-		} = {},
+		options: Pick<BuildTransactionOptions, 'client' | 'assumeSufficientAddressBalances'> = {},
 	): Promise<string> {
 		await this.prepareForSerialization(options);
 		await this.#prepareBuild(options);

@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { Transaction } from '../../../src/transactions/index.js';
 import { Inputs } from '../../../src/transactions/Inputs.js';
 import { coreClientResolveTransactionPlugin } from '../../../src/client/core-resolver.js';
+import { CachingTransactionExecutor } from '../../../src/transactions/executor/caching.js';
 import {
 	isCoinReservationDigest,
 	parseCoinReservationBalance,
@@ -212,6 +213,78 @@ describe('ValidDuring expiration auto-setting', () => {
 });
 
 describe('Gas payment resolution', () => {
+	it('keeps assumed address balance gas when no transaction resolution is needed', async () => {
+		const tx = new Transaction();
+		tx.setSender('0x' + '2'.repeat(64));
+		tx.setGasPrice(1000);
+		tx.setGasBudget(1000000);
+		tx.setExpiration({
+			ValidDuring: {
+				minEpoch: 100,
+				maxEpoch: 101,
+				minTimestamp: null,
+				maxTimestamp: null,
+				chain: MOCK_CHAIN_IDENTIFIER,
+				nonce: 0,
+			},
+		});
+
+		const client = createMockClient();
+		await tx.build({
+			client: client as any,
+			assumeSufficientAddressBalances: true,
+		});
+
+		expect(tx.getData().gasData.payment).toEqual([]);
+		expect(client.core.getBalance).not.toHaveBeenCalled();
+		expect(client.core.listCoins).not.toHaveBeenCalled();
+		expect(client.core.getChainIdentifier).not.toHaveBeenCalled();
+	});
+
+	it('uses normal gas resolution when transaction resolution is needed', async () => {
+		const tx = new Transaction();
+		tx.setSender('0x' + '2'.repeat(64));
+		tx.setGasPrice(1000);
+
+		const client = createMockClient();
+		await tx.build({
+			client: client as any,
+			assumeSufficientAddressBalances: true,
+		});
+
+		expect(tx.getData().gasData.payment).toHaveLength(1);
+		expect(tx.getData().expiration).toBeNull();
+		expect(client.core.getBalance).toHaveBeenCalledOnce();
+		expect(client.core.listCoins).toHaveBeenCalledOnce();
+	});
+
+	it('uses normal gas resolution in CachingTransactionExecutor', async () => {
+		const tx = new Transaction();
+		tx.setSender('0x' + '2'.repeat(64));
+		tx.setGasPrice(1000);
+		tx.setGasBudget(1000000);
+		tx.setExpiration({
+			ValidDuring: {
+				minEpoch: 100,
+				maxEpoch: 101,
+				minTimestamp: null,
+				maxTimestamp: null,
+				chain: MOCK_CHAIN_IDENTIFIER,
+				nonce: 0,
+			},
+		});
+		const client = createMockClient();
+		const executor = new CachingTransactionExecutor({ client: client as any });
+		await executor.buildTransaction({
+			transaction: tx,
+			assumeSufficientAddressBalances: true,
+		});
+
+		expect(tx.getData().gasData.payment).toHaveLength(1);
+		expect(client.core.getBalance).toHaveBeenCalledOnce();
+		expect(client.core.listCoins).toHaveBeenCalledOnce();
+	});
+
 	it('uses empty payment when address balance covers budget', async () => {
 		const tx = new Transaction();
 		tx.setSender('0x' + '2'.repeat(64));

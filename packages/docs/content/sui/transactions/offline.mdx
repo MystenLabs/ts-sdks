@@ -9,10 +9,9 @@ keywords:
   - gas payment
   - party objects
 questions:
-  - How do I building offline with Sui dApp Kit?
-  - What does Building Offline do?
-  - How does Transactions without owned object inputs work?
-  - How does Party objects work?
+  - How do I build a Sui transaction offline?
+  - How do I pay gas from an address balance when building offline?
+  - How do I use tx.coin() without a client?
 answer: Build transactions without a network connection
 goal:
   description: Reader can build transactions without a network connection
@@ -30,70 +29,135 @@ goal:
       label: Needs answer summary for AI citation
 ---
 
-Normally the SDK resolves object versions, estimates gas, and fills in other details by querying the
-network. For offline building of backend services, air-gapped signing, or pre-built transactions,
-you must provide this information yourself. See also the Sui documentation on
+Normally `build()` queries the network to resolve object versions, resolve intents like `tx.coin()`,
+fetch the gas price, estimate the gas budget, pick gas coins, and set an expiration when gas is paid
+from address balance. To build without a client, provide that information yourself. See also the Sui
+documentation on
 [offline signing](https://docs.sui.io/guides/developer/transactions/transaction-auth/offline-signing)
 for the protocol-level details.
 
-## Transactions without owned object inputs
+## Building only the transaction kind
 
-When your transaction only uses shared objects, party objects, and/or address balance withdrawals,
-there are no owned object versions to look up. Use `tx.withdrawal()` directly instead of `tx.coin()`
-or `coinWithBalance` because they require a client to resolve coin objects at build time.
+If the next step only needs the inputs and commands (for example, a sponsor or a backend that fills
+in gas), build with `onlyTransactionKind`. Sender, gas data, and expiration are left out:
 
 ```typescript
 import { Transaction } from '@mysten/sui/transactions';
 
 const tx = new Transaction();
-
-// Use tx.withdrawal() + coin::redeem_funds to withdraw from address balance.
-// No coin object lookups needed — fully offline.
-const [coin] = tx.moveCall({
-	target: '0x2::coin::redeem_funds',
-	typeArguments: ['0x2::sui::SUI'],
-	arguments: [tx.withdrawal({ amount: 1_000_000_000 })],
-});
-tx.transferObjects([coin], '0xRecipientAddress');
-
-// Shared/party objects only need objectId + initialSharedVersion (both stable)
 tx.moveCall({
 	target: '0xPackage::module::function',
-	arguments: [
-		tx.sharedObjectRef({
-			objectId: '0xSharedObjectId',
-			initialSharedVersion: '1',
-			mutable: true,
-		}),
-	],
+	arguments: [tx.pure.u64(100)],
 });
 
-// Required configuration for all offline builds
-tx.setSender('0xSenderAddress');
-tx.setGasPrice(1000); // query getReferenceGasPrice() beforehand, or use a known value
-tx.setGasBudget(50_000_000);
-tx.setGasPayment([]); // empty array = pay gas from address balance
+const kindBytes = await tx.build({ onlyTransactionKind: true });
+```
 
-// Expiration is required when there are no owned objects for gas or inputs
+Inputs and intents still need to be resolved. Use full object references, `tx.withdrawal()`, or
+[`assumeSufficientAddressBalances`](#coin-and-balance-intents) so nothing needs a lookup.
+
+## Building full transaction bytes
+
+A full offline build needs the sender and all gas data:
+
+| Method            | Description                                                     |
+| ----------------- | --------------------------------------------------------------- |
+| `setSender()`     | The address executing the transaction                           |
+| `setGasPrice()`   | Reference gas price (query `getReferenceGasPrice()` beforehand) |
+| `setGasBudget()`  | Maximum gas to spend (in MIST). Estimating it requires a client |
+| `setGasPayment()` | Coin object references, or `[]` to pay gas from address balance |
+| `setGasOwner()`   | Only for sponsored transactions. Defaults to the sender         |
+
+### Paying gas from address balance
+
+With `setGasPayment([])`, gas is paid from the gas owner's SUI address balance. Nothing ties the
+transaction to a specific object version, so it also needs a `ValidDuring` expiration for replay
+protection:
+
+```typescript
+import { Transaction } from '@mysten/sui/transactions';
+
+// Look these up before going offline
+const referenceGasPrice = 1000n;
+const currentEpoch = 100;
+const chainIdentifier = 'Base58ChainIdentifier'; // from getChainIdentifier()
+
+const tx = new Transaction();
+
+// FundsWithdrawal inputs contain the amount and type, so no object lookup is needed
+tx.moveCall({
+	target: '0x2::balance::send_funds',
+	typeArguments: ['0x2::sui::SUI'],
+	arguments: [tx.withdrawal({ amount: 1_000_000_000 }), tx.pure.address('0xRecipientAddress')],
+});
+
+tx.setSender('0xSenderAddress');
+tx.setGasPrice(referenceGasPrice);
+tx.setGasBudget(50_000_000);
+tx.setGasPayment([]);
+
 tx.setExpiration({
 	ValidDuring: {
-		minEpoch: 100, // current epoch
-		maxEpoch: 101, // current epoch + 1
+		minEpoch: currentEpoch,
+		maxEpoch: currentEpoch + 1,
 		minTimestamp: null,
 		maxTimestamp: null,
-		chain: 'mainnet', // or 'testnet', 'devnet'
-		nonce: 0,
+		chain: chainIdentifier,
+		// Must be unique for each transaction in the validity window, including across restarts
+		nonce: await nonceStore.next(),
 	},
 });
 
-// Build without a client
 const bytes = await tx.build();
 ```
 
-This enables fully stateless construction. You only need the sender address, reference gas price,
-epoch, and chain identifier.
+Two otherwise-identical transactions with the same nonce have the same digest, and the second one is
+rejected as a duplicate. Use a counter that survives restarts, not a hard-coded value.
 
-## Party objects
+The address balance needs to cover the gas budget on top of any withdrawals. Don't add the budget to
+the withdrawal amount.
+
+`{ Epoch: n }` expiration does not provide replay protection. Use `ValidDuring`.
+
+### Paying gas with coin objects
+
+Gas coins need an exact version and digest. Other SUI can still come from address balance:
+
+```typescript
+import { Transaction } from '@mysten/sui/transactions';
+
+const tx = new Transaction();
+tx.moveCall({
+	target: '0x2::balance::send_funds',
+	typeArguments: ['0x2::sui::SUI'],
+	arguments: [
+		tx.balance({ balance: 1_000_000, useGasCoin: false }),
+		tx.pure.address('0xRecipientAddress'),
+	],
+});
+
+tx.setSender('0xSenderAddress');
+tx.setGasPrice(1000);
+tx.setGasBudget(50_000_000);
+tx.setGasPayment([{ objectId: '0xGasCoinId', version: '3', digest: 'Base58GasCoinDigest' }]);
+
+// assumeSufficientAddressBalances resolves tx.balance() without a client (see below)
+const bytes = await tx.build({ assumeSufficientAddressBalances: true });
+```
+
+## Object inputs
+
+### Shared and party objects
+
+Shared objects only need `objectId` and `initialSharedVersion`, both of which are stable:
+
+```typescript
+tx.sharedObjectRef({
+	objectId: '0xSharedObjectId',
+	initialSharedVersion: '1',
+	mutable: true,
+});
+```
 
 Party objects are address-owned but consensus-versioned, with per-address permissions. They are
 referenced the same way as shared objects:
@@ -112,12 +176,11 @@ Key properties for offline building:
   becomes a party object
 - **Enable pipelining**: Submit multiple transactions on the same party object without waiting for
   each one to finalize
-- **Cannot be used for gas**: Use address balance for gas payment (`setGasPayment([])`)
+- **Cannot be used for gas**: Pay gas from address balance or with a SUI coin object
 
-## Transactions with owned object inputs
+### Owned and immutable objects
 
-When your transaction uses owned or immutable objects, you must provide the exact version and digest
-for each one:
+Owned and immutable objects need the exact version and digest:
 
 ```typescript
 import { Transaction } from '@mysten/sui/transactions';
@@ -152,73 +215,61 @@ tx.moveCall({
 		}),
 	],
 });
-
-// Gas payment with specific coin objects
-tx.setGasPayment([{ objectId: '0xGasCoinId', version: '3', digest: 'jkl012...' }]);
-
-tx.setSender('0xSenderAddress');
-tx.setGasPrice(1000);
-tx.setGasBudget(50_000_000);
-
-const bytes = await tx.build();
 ```
 
-## Required configuration for all offline builds
+## Coin and balance intents
 
-Every offline-built transaction must have the following:
-
-| Method            | Description                                                     |
-| ----------------- | --------------------------------------------------------------- |
-| `setSender()`     | The address executing the transaction                           |
-| `setGasPrice()`   | Reference gas price (query `getReferenceGasPrice()` beforehand) |
-| `setGasBudget()`  | Maximum gas to spend (in MIST)                                  |
-| `setGasPayment()` | Coin object references, or `[]` for address balance             |
-
-### Expiration
-
-Set an expiration when your transaction uses no owned objects for gas or inputs. This applies when
-you use address balances for gas (`setGasPayment([])`) with only shared and party object inputs:
+`tx.coin()` and `tx.balance()` normally look up the sender's address balance and coin objects. Pass
+`assumeSufficientAddressBalances` to skip the lookups and withdraw from address balance instead:
 
 ```typescript
-tx.setExpiration({
-	ValidDuring: {
-		minEpoch: 100, // current epoch
-		maxEpoch: 101, // typically current epoch + 1
-		minTimestamp: null,
-		maxTimestamp: null,
-		chain: 'mainnet',
-		nonce: 0, // increment for multiple transactions in the same epoch
-	},
+import { Transaction } from '@mysten/sui/transactions';
+
+const tx = new Transaction();
+tx.moveCall({
+	target: '0x2::balance::send_funds',
+	typeArguments: ['0xPackage::module::TOKEN'],
+	arguments: [
+		tx.balance({ type: '0xPackage::module::TOKEN', balance: 1_000_000 }),
+		tx.pure.address('0xRecipientAddress'),
+	],
+});
+
+// The sender is still required, since the withdrawal comes from its address balance
+tx.setSender('0xSenderAddress');
+
+const kindBytes = await tx.build({
+	onlyTransactionKind: true,
+	assumeSufficientAddressBalances: true,
 });
 ```
 
-You can also use epoch-based expiration:
-
-```typescript
-tx.setExpiration({ Epoch: 100 });
-```
-
-<Callout type="info">
-	When building with a client, the SDK sets expiration automatically. You only need the manual
-	configuration above for fully offline builds.
+<Callout type="warn">
+	Nothing is checked. The transaction builds, then fails at execution if the address balance doesn't
+	cover it.
 </Callout>
+
+SUI intents withdraw from address balance too, whether or not the transaction also uses `tx.gas`.
+This matches an online build when the address balance is sufficient. Mixing default and
+`useGasCoin: false` SUI intents in one transaction is still an error.
+
+On a full build, the option also sets an unset gas payment to `[]`, but only when nothing else needs
+a client, the transaction doesn't use `tx.gas`, and a `ValidDuring` or `Validity` expiration is
+already set. Sender, gas price, and gas budget still need to be provided. Once set, the empty
+payment is part of the transaction, the same as calling `setGasPayment([])`.
 
 ## Serialization
 
-### Building to bytes
+`toJSON()` resolves async thunks and intents but does not fill in gas or object versions. Pass
+`supportedIntents` to keep an intent for another system to resolve:
 
 ```typescript
-// Build to BCS bytes (Uint8Array) — fully offline, all data must be provided
-const bytes = await tx.build();
+// Intents are resolved, so tx.coin() needs a client or assumeSufficientAddressBalances
+const json = await tx.toJSON({ assumeSufficientAddressBalances: true });
+const restored = Transaction.from(json);
 
-// Build with a client — only makes network requests when there is unresolved data to look up
-const bytes = await tx.build({ client: grpcClient });
+// Or keep tx.coin() intents for the receiver to resolve
+const jsonWithIntents = await tx.toJSON({ supportedIntents: ['CoinWithBalance'] });
 ```
 
-### Converting bytes back to a Transaction
-
-```typescript
-const tx = Transaction.from(bytes);
-```
-
-This works with BCS byte arrays, base64-encoded strings, and JSON strings (from `toJSON()`).
+`Transaction.from()` accepts JSON strings, BCS bytes, and base64-encoded BCS.

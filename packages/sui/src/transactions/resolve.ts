@@ -9,10 +9,19 @@ import type { BcsType } from '@mysten/bcs';
 import { Inputs } from './Inputs.js';
 import { bcs } from '../bcs/index.js';
 import { coreClientResolveTransactionPlugin } from '../client/core-resolver.js';
+import { transactionUsesGasCoin } from './resolution-utils.js';
 
 export interface BuildTransactionOptions {
 	client?: ClientWithCoreApi;
 	onlyTransactionKind?: boolean;
+	/**
+	 * Resolve `CoinWithBalance` intents from address balance without looking up balances or coins.
+	 *
+	 * If nothing else needs resolution, the transaction doesn't use `GasCoin`, and it already has a
+	 * `ValidDuring` or `Validity` expiration, an unset gas payment is also set to `[]` (pay gas from
+	 * address balance). Execution fails if the balances aren't there.
+	 */
+	assumeSufficientAddressBalances?: boolean;
 }
 
 export interface SerializeTransactionOptions extends BuildTransactionOptions {
@@ -38,11 +47,23 @@ export function needsTransactionResolution(
 	}
 
 	if (!options.onlyTransactionKind) {
-		if (!data.gasData.price || !data.gasData.budget || !data.gasData.payment) {
+		if (!data.gasData.price || !data.gasData.budget) {
 			return true;
 		}
 
-		if (data.gasData.payment.length === 0 && !data.expiration) {
+		if (!data.gasData.payment) {
+			const assumesAddressBalanceGas =
+				options.assumeSufficientAddressBalances && !transactionUsesGasCoin(data);
+
+			// Address balance gas has no object version to protect against replay, so an offline build
+			// needs a ValidDuring expiration. Epoch expiration doesn't count.
+			if (
+				!assumesAddressBalanceGas ||
+				(data.expiration?.$kind !== 'ValidDuring' && data.expiration?.$kind !== 'Validity')
+			) {
+				return true;
+			}
+		} else if (data.gasData.payment.length === 0 && !data.expiration) {
 			return true;
 		}
 	}
@@ -56,7 +77,13 @@ export async function resolveTransactionPlugin(
 	next: () => Promise<void>,
 ) {
 	normalizeRawArguments(transactionData);
+
 	if (!needsTransactionResolution(transactionData, options)) {
+		// Payment can only be unset here when assumeSufficientAddressBalances applies
+		if (!options.onlyTransactionKind && !transactionData.gasData.payment) {
+			transactionData.gasData.payment = [];
+		}
+
 		await validate(transactionData);
 		return next();
 	}
