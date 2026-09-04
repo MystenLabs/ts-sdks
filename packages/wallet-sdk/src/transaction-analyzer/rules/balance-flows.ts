@@ -224,6 +224,9 @@ export const balanceFlows = createAnalyzer({
 					let ownerRaw: string | null;
 					if (arg.withdrawFrom === 'Sender') {
 						ownerRaw = sender ?? null;
+					} else if (arg.withdrawFrom === 'SenderAllowance') {
+						// The allowance's funder is debited, not the sender or the gas owner.
+						ownerRaw = arg.funder ?? null;
 					} else if (data.gasData.owner) {
 						ownerRaw = gasOwner;
 					} else {

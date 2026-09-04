@@ -96,6 +96,10 @@ export const WithdrawalType = bcs.enum('WithdrawalType', {
 export const WithdrawFrom = bcs.enum('WithdrawFrom', {
 	Sender: null,
 	Sponsor: null,
+	SenderAllowance: bcs.struct('SenderAllowance', {
+		funder: Address,
+		allowance: Address,
+	}),
 });
 
 // Rust: crates/sui-types/src/transaction.rs

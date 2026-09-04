@@ -161,6 +161,19 @@ export interface FundsWithdrawal {
 	 * @generated from protobuf field: optional sui.rpc.v2.FundsWithdrawal.Source source = 3;
 	 */
 	source?: FundsWithdrawal_Source;
+	/**
+	 * The address whose balance is debited if `source` is `SENDER_ALLOWANCE`.
+	 *
+	 * @generated from protobuf field: optional string funder = 4;
+	 */
+	funder?: string;
+	/**
+	 * `ObjectId` of the allowance object authorizing the withdrawal if `source`
+	 * is `SENDER_ALLOWANCE`.
+	 *
+	 * @generated from protobuf field: optional string allowance = 5;
+	 */
+	allowance?: string;
 }
 /**
  * @generated from protobuf enum sui.rpc.v2.FundsWithdrawal.Source
@@ -178,6 +191,13 @@ export enum FundsWithdrawal_Source {
 	 * @generated from protobuf enum value: SPONSOR = 2;
 	 */
 	SPONSOR = 2,
+	/**
+	 * Withdraw from `funder`'s balance under the `allowance` object, granted
+	 * to the sender of the transaction.
+	 *
+	 * @generated from protobuf enum value: SENDER_ALLOWANCE = 3;
+	 */
+	SENDER_ALLOWANCE = 3,
 }
 // @generated message type with reflection information, may provide speed optimized methods
 class Input$Type extends MessageType<Input> {
@@ -238,6 +258,8 @@ class FundsWithdrawal$Type extends MessageType<FundsWithdrawal> {
 				opt: true,
 				T: () => ['sui.rpc.v2.FundsWithdrawal.Source', FundsWithdrawal_Source],
 			},
+			{ no: 4, name: 'funder', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
+			{ no: 5, name: 'allowance', kind: 'scalar', opt: true, T: 9 /*ScalarType.STRING*/ },
 		]);
 	}
 }

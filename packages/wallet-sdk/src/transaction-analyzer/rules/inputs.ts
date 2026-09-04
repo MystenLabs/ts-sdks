@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { SuiClientTypes } from '@mysten/sui/client';
-import { normalizeStructTag } from '@mysten/sui/utils';
+import { normalizeStructTag, normalizeSuiAddress } from '@mysten/sui/utils';
 import { createAnalyzer } from '../analyzer.js';
 import { data } from './core.js';
 import { objectsById } from './objects.js';
@@ -26,7 +26,11 @@ export type AnalyzedCommandInput =
 			index: number;
 			amount: bigint;
 			coinType: string;
-			withdrawFrom: 'Sender' | 'Sponsor';
+			withdrawFrom: 'Sender' | 'Sponsor' | 'SenderAllowance';
+			/** The address whose balance is debited when `withdrawFrom` is `SenderAllowance`. */
+			funder?: string;
+			/** The allowance object authorizing the withdrawal when `withdrawFrom` is `SenderAllowance`. */
+			allowance?: string;
 			accessLevel: 'read' | 'mutate' | 'transfer';
 	  };
 
@@ -78,25 +82,33 @@ export const inputs = createAnalyzer({
 										`Unsupported FundsWithdrawal typeArg: ${JSON.stringify(typeArg)}`,
 									);
 							}
-							let withdrawFromKind: 'Sender' | 'Sponsor';
 							switch (withdrawFrom.$kind) {
 								case 'Sender':
 								case 'Sponsor':
-									withdrawFromKind = withdrawFrom.$kind;
-									break;
+									return {
+										$kind: 'Withdrawal',
+										index,
+										amount: BigInt(reservation.MaxAmountU64),
+										coinType,
+										withdrawFrom: withdrawFrom.$kind,
+										accessLevel: 'transfer',
+									};
+								case 'SenderAllowance':
+									return {
+										$kind: 'Withdrawal',
+										index,
+										amount: BigInt(reservation.MaxAmountU64),
+										coinType,
+										withdrawFrom: 'SenderAllowance',
+										funder: normalizeSuiAddress(withdrawFrom.SenderAllowance.funder),
+										allowance: normalizeSuiAddress(withdrawFrom.SenderAllowance.allowance),
+										accessLevel: 'transfer',
+									};
 								default:
 									throw new Error(
 										`Unsupported FundsWithdrawal source: ${JSON.stringify(withdrawFrom)}`,
 									);
 							}
-							return {
-								$kind: 'Withdrawal',
-								index,
-								amount: BigInt(reservation.MaxAmountU64),
-								coinType,
-								withdrawFrom: withdrawFromKind,
-								accessLevel: 'transfer',
-							};
 						}
 						default:
 							throw new Error(`Unknown input type: ${JSON.stringify(input)}`);

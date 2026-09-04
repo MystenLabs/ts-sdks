@@ -66,6 +66,8 @@ export async function coreClientResolveTransactionPlugin(
 	for (const input of transactionData.inputs) {
 		if (input.$kind !== 'FundsWithdrawal' || !normalizedGasPayer) continue;
 		if (normalizeStructTag(input.FundsWithdrawal.typeArg.Balance) !== SUI_TYPE_ARG) continue;
+		// Allowance withdrawals debit the funder's balance, never the gas payer's.
+		if (input.FundsWithdrawal.withdrawFrom.$kind === 'SenderAllowance') continue;
 
 		const withdrawalOwner = input.FundsWithdrawal.withdrawFrom.Sender
 			? transactionData.sender
