@@ -85,11 +85,11 @@ test('supplyPlp: auth → request_supply, 8 args, min-plp-out floor slot', () =>
 	expectObject(tx, 1, 7, '0x6');
 });
 
-test('withdrawPlp: auth → request_withdraw, 8 args, shares + min-dusdc-out floor', () => {
+test('withdrawPlp: auth → request_withdraw, 8 args, shares + min-usdc-out floor', () => {
 	const tx = pc.tx.withdrawPlp(OWNER, 1_234n);
 	expect(targets(tx)).toEqual([AUTH, `${cfg.packages.predict}::plp::request_withdraw`]);
 	const c = call(tx, 1);
-	// deployed sig: (vault, wrapper, auth, config, amount u64, min_dusdc_out u64, root, clock, ctx)
+	// deployed sig: (vault, wrapper, auth, config, amount u64, min_usdc_out u64, root, clock, ctx)
 	// → 8 moveCall args
 	expect(c.arguments).toHaveLength(8);
 	expectObject(tx, 1, 0, cfg.objects.poolVault);
@@ -98,7 +98,7 @@ test('withdrawPlp: auth → request_withdraw, 8 args, shares + min-dusdc-out flo
 	expectObject(tx, 1, 3, cfg.objects.protocolConfig);
 	// slot 4: pure u64 — the Move param is `amount` but it counts PLP SHARES, passed raw
 	expect(argPureBytes(tx, 1, 4)).toBe(b64(1_234n));
-	// slot 5: pure u64 min_dusdc_out slippage floor, pinned to 0 (no floor)
+	// slot 5: pure u64 min_usdc_out slippage floor, pinned to 0 (no floor)
 	expect(argPureBytes(tx, 1, 5)).toBe(b64(0n));
 	expectObject(tx, 1, 6, '0xacc');
 	expectObject(tx, 1, 7, '0x6');

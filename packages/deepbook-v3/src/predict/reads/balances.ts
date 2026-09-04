@@ -9,7 +9,7 @@ import { inspectReturns, type ReadClient } from './inspect.js';
 import { parseU64LE } from './parse.js';
 
 // An owner's stored account balance for `coinType` (the deployment's quote coin,
-// DUSDC on testnet, unless the caller asks for another). Chains `account::load_account(wrapper)` →
+// USDC on testnet, unless the caller asks for another). Chains `account::load_account(wrapper)` →
 // `account::balance<T>(account, root, clock)`; the u64 is command 1's return —
 // see packages/account/sources/account.move:{80,86}. The clock is auto-injected by
 // the generated `balance` wrapper; the wrapper id is derived off-chain (no read).

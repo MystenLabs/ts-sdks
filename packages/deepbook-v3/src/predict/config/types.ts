@@ -34,7 +34,7 @@ export interface PredictConfig {
 		oracleRegistry: string;
 		accountRegistry: string;
 	};
-	quoteCoinType: string; // DUSDC on testnet
+	quoteCoinType: string; // USDC on testnet
 	/**
 	 * Coin types the deployment owns. `plp` is NOT derivable from `packages.predict`: a Move
 	 * type tag keeps the ORIGINAL package id across an upgrade, while `packages.predict`
