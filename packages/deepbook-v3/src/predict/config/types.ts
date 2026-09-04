@@ -34,7 +34,13 @@ export interface PredictConfig {
 		oracleRegistry: string;
 		accountRegistry: string;
 	};
-	quoteCoinType: string; // USDC on testnet
+	/**
+	 * The deployment's settlement coin type. Always read this rather than assuming a type:
+	 * the contracts renamed the collateral to `usdc::usdc::USDC`, but a deployment published
+	 * before that rename still serves its original coin type, and this field is what the
+	 * deployment record actually carries.
+	 */
+	quoteCoinType: string;
 	/**
 	 * Coin types the deployment owns. `plp` is NOT derivable from `packages.predict`: a Move
 	 * type tag keeps the ORIGINAL package id across an upgrade, while `packages.predict`

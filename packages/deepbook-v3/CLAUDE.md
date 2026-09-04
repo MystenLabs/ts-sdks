@@ -182,11 +182,20 @@ pnpm --filter @mysten/deepbook-v3 test
 pnpm --filter @mysten/deepbook-v3 test:e2e
 
 # Regenerate bindings, and refresh the deployed ids. Both read the sibling ../deepbookv3
-# checkout, and both want it on the deployment BRANCH (e.g. predict-testnet-8-21) — not on
-# the manifest's sourceCommit, where the manifest does not yet exist.
+# checkout, but they now want DIFFERENT refs, so they are two separate checkouts:
+#
+#   codegen          -> deepbookv3 `main`. Reversed from the old "check out the deployment
+#                       branch" rule: Predict is being republished from main, so main is the
+#                       commit that gets deployed. sui-codegen.config.ts owns this and records
+#                       the exact anchor; move it forward again at deploy time.
+#   sync-deployment  -> the deployment BRANCH (e.g. predict-testnet-8-21), which is the only
+#                       ref carrying the manifest — not the manifest's sourceCommit, where it
+#                       does not yet exist.
 #
 # codegen rewrites EVERY entry in sui-codegen.config.ts from whatever commit that checkout
-# is on, so diff the result: a regeneration meant for one entry rewrites the rest.
+# is on, so diff the result: a regeneration meant for one entry rewrites the rest. In
+# particular it rewrites the @deepbook/* margin bindings, which are deliberately NOT on main
+# — revert those unless you intend to re-pin a live mainnet surface.
 pnpm --filter @mysten/deepbook-v3 codegen
 pnpm --filter @mysten/deepbook-v3 sync-deployment
 ```

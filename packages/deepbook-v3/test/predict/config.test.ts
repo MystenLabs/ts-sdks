@@ -18,8 +18,10 @@ test('all shared object IDs are well-formed', () => {
 	}
 });
 
-test('quoteCoinType is a DUSDC coin type', () => {
-	expect(TESTNET_CONFIG.quoteCoinType).toMatch(/^0x[0-9a-f]+::dusdc::DUSDC$/);
+test('quoteCoinType is a well-formed coin type', () => {
+	// Shape, not identity: the deployment record owns which coin it serves, and it changes
+	// with the republish that carries the USDC collateral rename.
+	expect(TESTNET_CONFIG.quoteCoinType).toMatch(/^0x[0-9a-f]+::[a-z_]+::[A-Za-z0-9_]+$/);
 });
 
 test('BTC underlying is present and well-formed', () => {

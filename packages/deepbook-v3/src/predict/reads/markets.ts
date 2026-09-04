@@ -28,7 +28,7 @@ export async function activeMarketIds(
 
 // The expiry market id for one underlying at one expiry, or null if none exists.
 // `registry::expiry_market_id(registry, propbook_underlying_id: u32, expiry: u64):
-// Option<ID>` — see packages/predict/sources/registry/registry.move:53.
+// Option<ID>` — see packages/predict/sources/registry/registry.move:58.
 export async function expiryMarketId(
 	client: ReadClient,
 	config: GeneratedConfig,

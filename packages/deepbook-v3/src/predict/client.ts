@@ -656,8 +656,9 @@ export class PredictClient {
 		// into queue escrow; the PLP fill is delivered at the next flush, not returned here.
 		// Command order is auth → request (auth is a hot potato consumed by this call). The
 		// `minPlpOut` slot is the per-request floor on PLP minted at flush — pinned to 0
-		// (no floor) here; after three flushes miss the floor the request is cancelled and
-		// refunded.
+		// (no floor) here. At the shipped attempt count of one, the first flush whose mark
+		// quotes less cancels and refunds the request; three is the configurable maximum,
+		// not the default.
 		supplyPlp: (owner: string, amountUsdc: number | string): Transaction =>
 			txOf(
 				requestSupply({
@@ -675,8 +676,9 @@ export class PredictClient {
 		// counts PLP SHARES, not USDC. Auto-settles flush-delivered PLP first; the USDC
 		// fill lands on the account at the next flush (no `withdraw_settled` entrypoint).
 		// Command order is auth → request. The `minUsdcOut` slot is the per-request floor
-		// on USDC paid at flush — pinned to 0 (no floor) here; after three flushes miss the
-		// floor the request is cancelled and refunded.
+		// on USDC paid at flush — pinned to 0 (no floor) here. At the shipped attempt count
+		// of one, the first flush whose mark quotes less cancels and refunds the request;
+		// three is the configurable maximum, not the default.
 		withdrawPlp: (owner: string, shares: bigint): Transaction =>
 			txOf(
 				requestWithdraw({

@@ -1,7 +1,8 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-// Faithful float port of the deployed `deepbook_predict::pricing::compute_nd2`
-// (testnet `predict-testnet-8-21`, sourceCommit 1f79fe87) — the SVI-adjusted digital
+// Faithful float port of `deepbook_predict::pricing::compute_nd2` as of deepbookv3 main
+// `5a1d80c0`, the anchor the generated bindings are pinned to (`sui-codegen.config.ts`).
+// The formula is unchanged from the deployed `predict-testnet-8-21` — the SVI-adjusted digital
 // probability, WITH the skew-correction term. It operates on the pricer's
 // ALREADY-RESOLVED forward and ALREADY-ROLLED-DOWN SVI, exactly as `load_live_pricer`
 // returns them (decoded by `reads/pricing.ts`). So the two on-chain steps that pick the
@@ -16,7 +17,7 @@
 // sits at its floor (float64 here is the more precise side, not the less); negligible for
 // display. `tests/testnet/pricing.test.ts` bounds it live against the deployment.
 //
-// The on-chain formula (pricing.move `compute_nd2`, 1f79fe87):
+// The on-chain formula (pricing/pricing.move `compute_nd2`, 5a1d80c0):
 //   k  = ln(strike / forward)
 //   x  = k - m
 //   w  = a + b·(ρ·x + √(x² + σ²))            // a, b already rolled down
@@ -146,10 +147,10 @@ export function strikeAtProbability(inputs: PricerInputs, p: number): number | n
 
 /** Roll `a` and `b` down by the fraction of anchored time remaining, matching the chain's
  * `roll_down_svi` (variance decays toward expiry). `remainingMs` = expiry − now;
- * `anchorTteMs` = expiry − the SVI observation's **batch envelope time** — the same clock the
- * freshness gate uses, and what the chain anchors on. It is NOT the provider's calibration
- * (model) time, which stays on the stored observation: using that rolls by the wrong
- * fraction. `read.pricer` avoids the question entirely (the chain has already rolled).
+ * `anchorTteMs` = expiry − the SVI observation's **provider `svi_timestamp`** (its per-update
+ * source timestamp) — the same clock the freshness gate accepts, and what the chain anchors on
+ * (`pricing.move`: "One clock serves every job"). Anchoring on the batch's ingestion time
+ * instead rolls by the wrong fraction. `read.pricer` avoids the question entirely (the chain has already rolled).
  * `rho`, `m`, `sigma` are unchanged. Feed an UNrolled provider surface; the result is what {@link upProbability}
  * expects. */
 export function rollDown(svi: Svi, remainingMs: number, anchorTteMs: number): Svi {
