@@ -952,7 +952,22 @@ describe('coinWithBalance', () => {
 
 		it('uses an explicit gas coin when building offline with a gas reference', async () => {
 			const client = toolbox.jsonRpcClient;
-			const { keypair, address } = await toolbox.getSigner({ coins: [1_000_000_000n] });
+			const { keypair, address } = await toolbox.getSigner({
+				coins: [1_000_000_000n, 1_000_000_000n],
+			});
+			const depositTx = new Transaction();
+			const [coinToDeposit] = depositTx.splitCoins(depositTx.gas, [100_000_000n]);
+			depositTx.moveCall({
+				target: '0x2::coin::send_funds',
+				typeArguments: ['0x2::sui::SUI'],
+				arguments: [coinToDeposit, depositTx.pure.address(address)],
+			});
+			const depositResult = await client.core.signAndExecuteTransaction({
+				transaction: depositTx,
+				signer: keypair,
+			});
+			await toolbox.waitForTransaction({ result: depositResult });
+
 			const [{ objects: coins }, { systemState }] = await Promise.all([
 				client.core.listCoins({ owner: address, coinType: '0x2::sui::SUI' }),
 				client.core.getCurrentSystemState(),
@@ -979,7 +994,7 @@ describe('coinWithBalance', () => {
 
 			const bytes = await tx.build({ assumeSufficientAddressBalances: true });
 			expect(tx.getData().gasData.payment).toHaveLength(1);
-			expect(tx.getData().inputs.some((input) => input.$kind === 'FundsWithdrawal')).toBe(false);
+			expect(tx.getData().inputs.some((input) => input.$kind === 'FundsWithdrawal')).toBe(true);
 
 			const signature = await keypair.signTransaction(bytes);
 			const result = await client.core.executeTransaction({

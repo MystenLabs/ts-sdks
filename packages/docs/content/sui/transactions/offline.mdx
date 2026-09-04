@@ -249,10 +249,9 @@ const kindBytes = await tx.build({
 	cover it.
 </Callout>
 
-For SUI, intents with the default `useGasCoin` still use the gas coin if anything else references
-`tx.gas` when the intent is resolved. Otherwise they withdraw from address balance.
-`useGasCoin: false` always withdraws from address balance. Mixing the two in one transaction is
-still an error.
+SUI intents withdraw from address balance too, whether or not the transaction also uses `tx.gas`.
+This matches an online build when the address balance is sufficient. Mixing default and
+`useGasCoin: false` SUI intents in one transaction is still an error.
 
 On a full build, the option also sets an unset gas payment to `[]`, but only when nothing else needs
 a client, the transaction doesn't use `tx.gas`, and a `ValidDuring` expiration is already set.

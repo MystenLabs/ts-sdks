@@ -84,7 +84,7 @@ describe('assumeSufficientAddressBalances', () => {
 		);
 	});
 
-	it('uses the gas coin for SUI when it is otherwise referenced', async () => {
+	it('uses address balance for SUI even when the gas coin is otherwise referenced', async () => {
 		const tx = new Transaction();
 		tx.setSender(SENDER);
 		tx.splitCoins(tx.gas, [1]);
@@ -94,10 +94,10 @@ describe('assumeSufficientAddressBalances', () => {
 			assumeSufficientAddressBalances: true,
 		});
 
-		expect(result.inputs.some((input: any) => input.FundsWithdrawal)).toBe(false);
+		expect(result.inputs.some((input: any) => input.FundsWithdrawal)).toBe(true);
 		expect(
 			result.commands.filter((command: any) => command.SplitCoins?.coin?.GasCoin),
-		).toHaveLength(2);
+		).toHaveLength(1);
 	});
 
 	it('honors useGasCoin false when the gas coin is otherwise referenced', async () => {
