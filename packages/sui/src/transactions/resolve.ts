@@ -17,8 +17,9 @@ export interface BuildTransactionOptions {
 	/**
 	 * Resolve `CoinWithBalance` intents from address balance without looking up balances or coins.
 	 *
-	 * If nothing else needs resolution and the transaction doesn't use `GasCoin`, an unset gas payment
-	 * is also set to `[]` (pay gas from address balance). Execution fails if the balances aren't there.
+	 * If nothing else needs resolution, the transaction doesn't use `GasCoin`, and it already has a
+	 * `ValidDuring` or `Validity` expiration, an unset gas payment is also set to `[]` (pay gas from
+	 * address balance). Execution fails if the balances aren't there.
 	 */
 	assumeSufficientAddressBalances?: boolean;
 }

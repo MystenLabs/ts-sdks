@@ -254,9 +254,9 @@ This matches an online build when the address balance is sufficient. Mixing defa
 `useGasCoin: false` SUI intents in one transaction is still an error.
 
 On a full build, the option also sets an unset gas payment to `[]`, but only when nothing else needs
-a client, the transaction doesn't use `tx.gas`, and a `ValidDuring` expiration is already set.
-Sender, gas price, and gas budget still need to be provided. Once set, the empty payment is part of
-the transaction, the same as calling `setGasPayment([])`.
+a client, the transaction doesn't use `tx.gas`, and a `ValidDuring` or `Validity` expiration is
+already set. Sender, gas price, and gas budget still need to be provided. Once set, the empty
+payment is part of the transaction, the same as calling `setGasPayment([])`.
 
 ## Serialization
 
