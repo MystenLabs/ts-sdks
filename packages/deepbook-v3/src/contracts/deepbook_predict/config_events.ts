@@ -79,9 +79,9 @@ export const MarketCreated = new MoveStruct({
 		tick_size: U64,
 		/** Coarser raw-price step that new finite mint boundaries must align to. */
 		admission_tick_size: U64,
-		/** DUSDC pool allocation cap snapshotted for this expiry. */
+		/** USDC pool allocation cap snapshotted for this expiry. */
 		max_expiry_allocation: U64,
-		/** Minimum DUSDC cash target snapshotted for this expiry. */
+		/** Minimum USDC cash target snapshotted for this expiry. */
 		initial_expiry_cash: U64,
 		backing_buffer_lambda: U64,
 		base_fee: U64,

@@ -684,7 +684,7 @@ export class PredictClient {
 					arguments: {
 						wrapper: this.wrapperIdFor(owner),
 						amount: shares,
-						minDusdcOut: 0n,
+						minUsdcOut: 0n,
 					},
 				}),
 			),
