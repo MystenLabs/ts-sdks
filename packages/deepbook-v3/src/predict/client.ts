@@ -674,7 +674,7 @@ export class PredictClient {
 		// queue escrow — the Move parameter is named `amount`, but on `request_withdraw` it
 		// counts PLP SHARES, not USDC. Auto-settles flush-delivered PLP first; the USDC
 		// fill lands on the account at the next flush (no `withdraw_settled` entrypoint).
-		// Command order is auth → request. The `minDusdcOut` slot is the per-request floor
+		// Command order is auth → request. The `minUsdcOut` slot is the per-request floor
 		// on USDC paid at flush — pinned to 0 (no floor) here; after three flushes miss the
 		// floor the request is cancelled and refunded.
 		withdrawPlp: (owner: string, shares: bigint): Transaction =>
