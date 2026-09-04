@@ -1101,9 +1101,54 @@ const introspection = {
         "interfaces": []
       },
       {
+        "kind": "INPUT_OBJECT",
+        "name": "BalanceKey",
+        "inputFields": [
+          {
+            "name": "address",
+            "type": {
+              "kind": "NON_NULL",
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "SuiAddress"
+              }
+            }
+          },
+          {
+            "name": "coinType",
+            "type": {
+              "kind": "NON_NULL",
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String"
+              }
+            }
+          }
+        ],
+        "isOneOf": false
+      },
+      {
         "kind": "OBJECT",
         "name": "BalanceWithdraw",
         "fields": [
+          {
+            "name": "allowance",
+            "type": {
+              "kind": "OBJECT",
+              "name": "Address"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "funder",
+            "type": {
+              "kind": "OBJECT",
+              "name": "Address"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
           {
             "name": "reservation",
             "type": {
@@ -10923,6 +10968,41 @@ const introspection = {
             "isDeprecated": false
           },
           {
+            "name": "multiGetBalances",
+            "type": {
+              "kind": "NON_NULL",
+              "ofType": {
+                "kind": "LIST",
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "ofType": {
+                    "kind": "OBJECT",
+                    "name": "Balance"
+                  }
+                }
+              }
+            },
+            "args": [
+              {
+                "name": "keys",
+                "type": {
+                  "kind": "NON_NULL",
+                  "ofType": {
+                    "kind": "LIST",
+                    "ofType": {
+                      "kind": "NON_NULL",
+                      "ofType": {
+                        "kind": "INPUT_OBJECT",
+                        "name": "BalanceKey"
+                      }
+                    }
+                  }
+                }
+              }
+            ],
+            "isDeprecated": false
+          },
+          {
             "name": "multiGetCheckpoints",
             "type": {
               "kind": "NON_NULL",
@@ -13772,6 +13852,10 @@ const introspection = {
           },
           {
             "name": "SPONSOR",
+            "isDeprecated": false
+          },
+          {
+            "name": "SENDER_ALLOWANCE",
             "isDeprecated": false
           }
         ]

@@ -44,7 +44,8 @@ export function isPureArg(arg: any): arg is PureArg {
 
 type Reservation = { MaxAmountU64: number | string };
 type WithdrawalTypeArg = { Balance: TypeTag };
-type WithdrawFrom = { Sender: null } | { Sponsor: null };
+type WithdrawFrom =
+	{ Sender: null } | { Sponsor: null } | { SenderAllowance: { funder: string; allowance: string } };
 type FundsWithdrawalArg = {
 	reservation: Reservation;
 	typeArg: WithdrawalTypeArg;

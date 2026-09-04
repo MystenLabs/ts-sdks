@@ -20,6 +20,9 @@ const USDC = '0x0000000000000000000000000000000000000000000000000000000000000a0b
 
 // A distinct sponsor address used by sponsored tests.
 const SPONSOR = '0x00000000000000000000000000000000000000000000000000000000000005b0';
+// The funder and allowance of an allowance withdrawal.
+const FUNDER = '0x000000000000000000000000000000000000000000000000000000000000f00d';
+const ALLOWANCE_ID = '0x000000000000000000000000000000000000000000000000000000000000a110';
 
 /**
  * Flip FundsWithdrawal inputs to sponsor-funded and patch gas data so the
@@ -140,6 +143,42 @@ describe('Coin Flows - Framework MoveCall Tests', () => {
 		// Sponsored withdrawal should not count as sender outflow
 		const usdcFlow = results.coinFlows.result?.outflows.find((f) => f.coinType === USDC);
 		expect(usdcFlow).toBeUndefined();
+	});
+
+	it('attributes an allowance withdrawal to the funder, not the sender', async () => {
+		const client = new MockSuiClient();
+		const tx = new Transaction();
+		tx.setSender(DEFAULT_SENDER);
+
+		const redeemed = tx.moveCall({
+			target: '0x2::coin::redeem_funds',
+			typeArguments: ['0xa0b::usdc::USDC'],
+			arguments: [
+				tx.withdrawal({
+					amount: 500_000_000n,
+					type: '0xa0b::usdc::USDC',
+					withdrawFrom: {
+						$kind: 'SenderAllowance',
+						SenderAllowance: { funder: FUNDER, allowance: ALLOWANCE_ID },
+					},
+				}),
+			],
+		});
+		tx.transferObjects([redeemed], tx.pure.address('0x456'));
+
+		const results = await analyze(
+			{ coinFlows, balanceFlows },
+			{ client, transaction: await tx.toJSON() },
+		);
+
+		// The sender never holds the withdrawn funds, so nothing leaves the sender.
+		expect(results.coinFlows.result?.outflows.find((f) => f.coinType === USDC)).toBeUndefined();
+		// The allowance's funder is debited, and the transaction is not sponsored.
+		const funderFlow = results.balanceFlows.result?.byAddress[FUNDER]?.find(
+			(f) => f.coinType === USDC,
+		);
+		expect(funderFlow?.amount).toBe(-500_000_000n);
+		expect(results.balanceFlows.result?.sponsor).toBeNull();
 	});
 
 	it('emits an issue when a Sponsor withdrawal lacks a gas owner', async () => {
