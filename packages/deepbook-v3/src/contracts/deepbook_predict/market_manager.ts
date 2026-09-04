@@ -40,12 +40,12 @@ export const CadenceConfig = new MoveStruct({
 		/** Coarser raw-price step that new finite mint boundaries must align to. */
 		admission_tick_size: U64,
 		/**
-		 * DUSDC pool allocation cap snapshotted into pool accounting for each created
+		 * USDC pool allocation cap snapshotted into pool accounting for each created
 		 * expiry.
 		 */
 		max_expiry_allocation: U64,
 		/**
-		 * Minimum DUSDC cash target snapshotted into pool accounting for each created
+		 * Minimum USDC cash target snapshotted into pool accounting for each created
 		 * expiry.
 		 */
 		initial_expiry_cash: U64,

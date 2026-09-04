@@ -32,10 +32,10 @@ const client = new SuiGrpcClient({
 // One-time: create your Predict account (a shared AccountWrapper).
 const createTx = client.predict.tx.createManager();
 
-// Fund it: pulls DUSDC from your address (coin objects and/or address balance).
+// Fund it: pulls USDC from your address (coin objects and/or address balance).
 const depositTx = client.predict.tx.deposit(myAddress, 250); // $250
 
-// Cash out: lands in your DUSDC address balance by default (no coin-object churn).
+// Cash out: lands in your USDC address balance by default (no coin-object churn).
 // Pass { toCoinObject: true } if you need a discrete Coin<T> instead.
 const withdrawTx = client.predict.tx.withdraw(myAddress, 100); // $100
 
@@ -101,7 +101,7 @@ reads use the primitives layer, which returns raw `bigint`s (`accountBalance`, `
 
 | Concept                                     | You pass / receive                                             | On-chain raw                          |
 | ------------------------------------------- | -------------------------------------------------------------- | ------------------------------------- |
-| Amounts (deposit, spend, maxCost, balances) | USD decimal number or string (`12.5`, `"12.5"`)                | ×1e6 (DUSDC)                          |
+| Amounts (deposit, spend, maxCost, balances) | USD decimal number or string (`12.5`, `"12.5"`)                | ×1e6 (USDC)                           |
 | `quantity`                                  | **max payout** in USD; positions pay $1 per contract at expiry | ×1e6, in $0.01 lots                   |
 | `strike`                                    | USD (`105_000`)                                                | ×1e9, must land on the admission grid |
 | `maxProbability`                            | 0..1 (`0.35` = 35¢ per $1 contract)                            | ×1e9                                  |
@@ -236,8 +236,8 @@ stop requiring an SDK release for target resolution.
 - `claimSettled` closes the order in full — the deployed entrypoint takes no quantity.
 - **`withdraw` lands in your address balance by default** (`0x2::coin::send_funds`), not a coin
   object — it merges into the versionless accumulator `deposit` already draws from, so the round
-  trip never accretes stray `Coin<DUSDC>` objects. `read.balance(owner)` reflects the account's
-  internal custody balance; use the client's `getBalance(owner)` for the wallet-side DUSDC total
+  trip never accretes stray `Coin<USDC>` objects. `read.balance(owner)` reflects the account's
+  internal custody balance; use the client's `getBalance(owner)` for the wallet-side USDC total
   (coin objects + address balance). Pass `withdraw(owner, amt, { toCoinObject: true })` for a
   discrete coin (wallets/explorers that only render coin objects, or same-PTB composition).
 

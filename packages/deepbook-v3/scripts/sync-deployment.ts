@@ -280,7 +280,7 @@ export const ${manifest.network.toUpperCase()}_PREDICT: PredictIds = Object.free
 		oracleRegistry: ${lit(reqId(o, 'oracleRegistry', 'objects'))},
 		accountRegistry: ${lit(reqId(o, 'accountRegistry', 'objects'))},
 	}),
-	quoteCoinType: ${lit(reqType(c, 'dusdc', 'coinTypes'))},
+	quoteCoinType: ${lit(reqType(c, 'usdc', 'coinTypes'))},
 	/**
 	 * \`plp\` is the LP share coin type. It is NOT derivable from \`packages.predict\`: a Move
 	 * type tag keeps the ORIGINAL package id across an upgrade, while \`packages.predict\`

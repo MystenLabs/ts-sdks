@@ -3,7 +3,7 @@
  **************************************************************/
 
 /**
- * Owns deterministic builder referral codes and the DUSDC fees delivered to their
+ * Owns deterministic builder referral codes and the USDC fees delivered to their
  * object addresses through the funds accumulator. Codes are derived per owner and
  * index, and only the immutable owner may withdraw accumulated fees.
  */
@@ -112,7 +112,7 @@ export interface ClaimableBuilderFeesOptions {
 		predictPackageId?: string;
 	};
 }
-/** Return visible DUSDC builder fees for SDK and devInspect reads. */
+/** Return visible USDC builder fees for SDK and devInspect reads. */
 export function claimableBuilderFees(options: ClaimableBuilderFeesOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
@@ -137,7 +137,7 @@ export interface ClaimAllBuilderFeesOptions {
 	};
 }
 /**
- * Claims all settled DUSDC builder fees for the immutable owner; an empty
+ * Claims all settled USDC builder fees for the immutable owner; an empty
  * accumulator returns a zero coin.
  */
 export function claimAllBuilderFees(options: ClaimAllBuilderFeesOptions) {

@@ -171,7 +171,7 @@ export interface MarketSummary {
 
 /** Aggregate pool figures. Balances in human units (shares raw); the pending fields
  * are request COUNTS, not amounts — the on-chain getters expose queue lengths, and
- * the escrowed DUSDC/PLP behind them is tracked separately. */
+ * the escrowed USDC/PLP behind them is tracked separately. */
 export interface PoolSummary {
 	plpTotalSupply: bigint;
 	idleUsdc: number;
@@ -566,7 +566,7 @@ export class PredictClient {
 		},
 
 		// Withdraw `amountUsdc` from the account back to `owner`. By default the funds land
-		// in the owner's DUSDC *address balance* (the versionless accumulator) via
+		// in the owner's USDC *address balance* (the versionless accumulator) via
 		// `0x2::coin::send_funds` — no coin-object churn, and they merge into the same
 		// balance `deposit` draws from, closing the loop. Pass `{ toCoinObject: true }` to
 		// instead receive a discrete `Coin<T>` object (for wallets/explorers that only
@@ -652,12 +652,13 @@ export class PredictClient {
 		},
 
 		// Queue a supply request pulling `amountUsdc` from the account's existing custody
-		// balance. `request_supply` auto-settles DUSDC then `account.withdraw`s the payment
+		// balance. `request_supply` auto-settles USDC then `account.withdraw`s the payment
 		// into queue escrow; the PLP fill is delivered at the next flush, not returned here.
 		// Command order is auth → request (auth is a hot potato consumed by this call). The
 		// `minPlpOut` slot is the per-request floor on PLP minted at flush — pinned to 0
-		// (no floor) here; after three flushes miss the floor the request is cancelled and
-		// refunded.
+		// (no floor) here. At the shipped attempt count of one, the first flush whose mark
+		// quotes less cancels and refunds the request; three is the configurable maximum,
+		// not the default.
 		supplyPlp: (owner: string, amountUsdc: number | string): Transaction =>
 			txOf(
 				requestSupply({
@@ -672,11 +673,12 @@ export class PredictClient {
 
 		// Queue a withdraw request pulling `shares` (raw PLP u64) from account custody into
 		// queue escrow — the Move parameter is named `amount`, but on `request_withdraw` it
-		// counts PLP SHARES, not DUSDC. Auto-settles flush-delivered PLP first; the DUSDC
+		// counts PLP SHARES, not USDC. Auto-settles flush-delivered PLP first; the USDC
 		// fill lands on the account at the next flush (no `withdraw_settled` entrypoint).
-		// Command order is auth → request. The `minDusdcOut` slot is the per-request floor
-		// on DUSDC paid at flush — pinned to 0 (no floor) here; after three flushes miss the
-		// floor the request is cancelled and refunded.
+		// Command order is auth → request. The `minUsdcOut` slot is the per-request floor
+		// on USDC paid at flush — pinned to 0 (no floor) here. At the shipped attempt count
+		// of one, the first flush whose mark quotes less cancels and refunds the request;
+		// three is the configurable maximum, not the default.
 		withdrawPlp: (owner: string, shares: bigint): Transaction =>
 			txOf(
 				requestWithdraw({
@@ -684,13 +686,13 @@ export class PredictClient {
 					arguments: {
 						wrapper: this.wrapperIdFor(owner),
 						amount: shares,
-						minDusdcOut: 0n,
+						minUsdcOut: 0n,
 					},
 				}),
 			),
 
 		// Cancel a still-pending supply request by queue `index`, refunding its escrowed
-		// DUSDC straight back into the requesting account. Command order is auth → cancel.
+		// USDC straight back into the requesting account. Command order is auth → cancel.
 		cancelSupplyPlp: (owner: string, index: bigint): Transaction =>
 			txOf(
 				cancelSupplyRequest({

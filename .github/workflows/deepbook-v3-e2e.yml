@@ -1,11 +1,15 @@
 ---
 name: DeepBook live-testnet tests
 
-# The `/predict` and `/sessions` bindings are generated against (and pinned to) a specific
-# deployed package set, so this suite runs against LIVE testnet rather than localnet:
-# localnet publishes deepbookv3 `main`, which has drifted from the deployed surface and
-# is therefore the wrong parity oracle. Kept off the `pull_request` lane so a network
-# blip never fails unrelated PRs; the offline suite (`test`) covers those.
+# This suite runs against LIVE testnet rather than localnet, because it is the deployed
+# surface it is meant to check the SDK against. Kept off the `pull_request` lane so a
+# network blip never fails unrelated PRs; the offline suite (`test`) covers those.
+#
+# EXPECTED RED until the Predict republish: the `/predict` and `/sessions` bindings are
+# now generated against deepbookv3 `main` rather than the deployed package set (see
+# `packages/deepbook-v3/sui-codegen.config.ts`), so they describe a surface live testnet
+# does not serve yet. This goes green again when the republish lands and the deployment
+# manifest is synced.
 on:
   workflow_dispatch:
   schedule:

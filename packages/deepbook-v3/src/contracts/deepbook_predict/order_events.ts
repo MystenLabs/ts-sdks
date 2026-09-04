@@ -36,14 +36,14 @@ export const OrderMinted = new MoveStruct({
 		/** 1e9-scaled range probability quoted at entry. */
 		entry_probability: U64,
 		quantity: U64,
-		/** Premium the user paid into LP backing, in DUSDC base units. */
+		/** Premium the user paid into LP backing, in USDC base units. */
 		premium: U64,
 		/** Full trading fee assessed for the mint, including any sponsor-paid subsidy. */
 		trading_fee: U64,
 		/** Portion of `trading_fee` paid from expiry-local fee incentives. */
 		fee_incentive_subsidy: U64,
 		builder_fee: U64,
-		/** EWMA gas-price congestion surcharge assessed for the mint, in DUSDC base units. */
+		/** EWMA gas-price congestion surcharge assessed for the mint, in USDC base units. */
 		penalty_fee: U64,
 		/**
 		 * Portion of the trader-paid trading fee and congestion surcharge delivered to the
@@ -62,8 +62,8 @@ export const OrderMinted = new MoveStruct({
 		onchain_timestamp_ms: U64,
 		/**
 		 * Oracle source timestamps present when this mint was priced: Pyth's canonical
-		 * source time and the Block Scholes batch-envelope times used for freshness. The
-		 * SVI one is also the roll-down anchor. Pyth is `0` only when unusable.
+		 * source time and the Block Scholes per-update source times used for freshness.
+		 * The SVI one is also the roll-down anchor. Pyth is `0` only when unusable.
 		 */
 		pyth_spot_source_timestamp_ms: U64,
 		block_scholes_spot_source_timestamp_ms: U64,
@@ -92,7 +92,7 @@ export const LiveOrderRedeemed = new MoveStruct({
 		redeem_amount: U64,
 		trading_fee: U64,
 		builder_fee: U64,
-		/** EWMA gas-price congestion surcharge retained by the pool, in DUSDC base units. */
+		/** EWMA gas-price congestion surcharge retained by the pool, in USDC base units. */
 		penalty_fee: U64,
 		/** Separate inventory-impact rebate paid from its isolated escrow. */
 		inventory_impact_rebate: U64,
@@ -104,7 +104,7 @@ export const LiveOrderRedeemed = new MoveStruct({
 		onchain_timestamp_ms: U64,
 		/**
 		 * Oracle source timestamps present when this redemption was priced: Pyth's
-		 * canonical source time and the Block Scholes batch-envelope times used for
+		 * canonical source time and the Block Scholes per-update source times used for
 		 * freshness. The SVI one is also the roll-down anchor. Pyth is `0` only when
 		 * unusable.
 		 */

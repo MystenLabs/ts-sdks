@@ -32,6 +32,18 @@ export const PricingSVI = new MoveStruct({
 		sigma: U64,
 	},
 });
+export const FrozenPricer = new MoveStruct({
+	name: `${$moduleName}::FrozenPricer`,
+	fields: {
+		expiry_market_id: bcs.Address,
+		forward: U64,
+		svi: PricingSVI,
+		pyth_spot_source_timestamp_ms: U64,
+		block_scholes_spot_source_timestamp_ms: U64,
+		block_scholes_forward_source_timestamp_ms: U64,
+		block_scholes_svi_source_timestamp_ms: U64,
+	},
+});
 export const Pricer = new MoveStruct({
 	name: `${$moduleName}::Pricer`,
 	fields: {
@@ -42,10 +54,10 @@ export const Pricer = new MoveStruct({
 		/**
 		 * Timestamps of the oracle observations this snapshot validated, as trade events
 		 * report them — each observation's own economic clock. Pyth carries its source
-		 * timestamp (`0` only when no usable normalized observation exists); the Block
-		 * Scholes reads carry their batch envelope time (`source_timestamp_ms`), the clock
-		 * freshness gated and the SVI roll-down anchored on. The provider's calibration
-		 * (model) times stay on the stored observations and their ingestion events.
+		 * timestamp (`0` only when no usable normalized observation exists); Block Scholes
+		 * spot and forward carry the provider `value_timestamp`, and SVI carries the
+		 * provider `svi_timestamp`. Those timestamps are the clocks freshness gates and
+		 * SVI roll-down use.
 		 */
 		pyth_spot_source_timestamp_ms: U64,
 		block_scholes_spot_source_timestamp_ms: U64,

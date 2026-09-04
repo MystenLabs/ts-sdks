@@ -5,16 +5,21 @@ import type { SuiCodegenConfig } from '@mysten/codegen';
 
 // The `@local-pkg/*` entries are not registered on MVR, so they generate from the local Move
 // source in the sibling `deepbookv3` checkout (same pattern the `@deepbook/*` entries use).
-// Generate against the COMMIT THAT GETS DEPLOYED — deployed truth beats repo truth; the generated
-// bindings are the signature authority the hand-written facades build on.
+// The `@local-pkg/*` entries generate against deepbookv3 `main`, currently `5a1d80c0`. This is a
+// deliberate reversal of the older rule ("generate against the commit that gets deployed"): the
+// Predict cluster is being republished from `main` for testnet and mainnet, so `main` is the
+// commit that gets deployed. The trade is explicit — between now and that republish the bindings
+// describe a surface no live deployment serves, so `deepbook-v3-e2e` (live testnet, scheduled) is
+// expected to disagree until the republish lands. Move the anchor forward again at deploy time to
+// the exact deployment ref, which is also the only ref where `pnpm sync-deployment` finds the
+// manifest.
 //
 // One `pnpm codegen` run regenerates EVERY entry below from whatever commit that checkout is on,
 // so check it out to the intended anchor first and diff the result — a regeneration meant for one
-// entry rewrites the rest. Check out the deployment BRANCH (`predict-testnet-8-21`), not its
-// `sourceCommit`: the Move sources are identical — the trailing commit adds only `Published.toml`
-// files and the deployment manifest — and the branch is the only ref where `pnpm sync-deployment`
-// can find that manifest, so one checkout serves both. Every entry here reproduces byte-for-byte
-// from it. Nothing enforces the anchor: no CI job runs codegen, and it is recorded only here.
+// entry rewrites the rest. The `@deepbook/*` margin entries are NOT on `main`: they stay pinned to
+// the deployed margin surface, because margin is live on mainnet and moving it is its own change.
+// Revert them if a Predict regeneration rewrites them. Nothing enforces any of this: no CI job runs
+// codegen, and it is recorded only here.
 //
 // `src/contracts/wormhole/**` is the exception — no entry generates it, so it is frozen at whatever
 // commit produced it. `src/pyth/pyth.ts` imports it.

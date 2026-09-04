@@ -19,14 +19,24 @@ import {
 	type RawTransactionArgument,
 	type ConfigValue,
 } from '../utils/index.js';
-import { bcs } from '@mysten/sui/bcs';
 import { U64 } from '../../bcs/integers.js';
+import { bcs } from '@mysten/sui/bcs';
 import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as expiry_cash from './expiry_cash.js';
 import * as balance from './deps/sui/balance.js';
 import * as strike_exposure from './strike_exposure.js';
 import * as ewma from './ewma.js';
 const $moduleName = '@local-pkg/deepbook_predict::expiry_market';
+export const ValuationStamp = new MoveStruct({
+	name: `${$moduleName}::ValuationStamp`,
+	fields: {
+		flush_seq: U64,
+		/** `cash.balance()` at the snapshot instant. */
+		snapshot_cash: U64,
+		/** `cash.inventory_impact_reserve()` at the snapshot instant. */
+		snapshot_impact_reserve: U64,
+	},
+});
 export const ExpiryMarket = new MoveStruct({
 	name: `${$moduleName}::ExpiryMarket`,
 	fields: {
@@ -34,9 +44,9 @@ export const ExpiryMarket = new MoveStruct({
 		/** Propbook underlying this market was created for. */
 		propbook_underlying_id: bcs.u32(),
 		expiry: U64,
-		/** DUSDC custody and payout backing. */
+		/** USDC custody and payout backing. */
 		cash: expiry_cash.ExpiryCash,
-		/** Sponsor-funded DUSDC available to subsidize this market's taker fees. */
+		/** Sponsor-funded USDC available to subsidize this market's taker fees. */
 		fee_incentive_balance: balance.Balance,
 		/** Exposure lifecycle state for this expiry's strike ticks. */
 		strike_exposure: strike_exposure.StrikeExposure,
@@ -48,6 +58,14 @@ export const ExpiryMarket = new MoveStruct({
 		 * through the registry (ungated kill switch).
 		 */
 		mint_paused: bcs.bool(),
+		/**
+		 * `Some` from the flush's snapshot stage until this market's `value_expiry` (or
+		 * lazily discarded once the stamp goes stale — see `ValuationStamp`). Trading is
+		 * never gated on it and never touches it: the cash rows are captured eagerly here
+		 * at the snapshot instant, and the payout tree captures its own boundary shadows
+		 * as trades first touch each node.
+		 */
+		valuation_stamp: bcs.option(ValuationStamp),
 	},
 });
 export const MintQuote = new MoveStruct({
@@ -224,7 +242,7 @@ export interface CashBalanceOptions {
 		predictPackageId?: string;
 	};
 }
-/** Return expiry DUSDC custody for SDK and devInspect state reads. */
+/** Return expiry USDC custody for SDK and devInspect state reads. */
 export function cashBalance(options: CashBalanceOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
@@ -396,7 +414,7 @@ export interface InventoryImpactScaleOptions {
 	};
 }
 /**
- * Return the immutable DUSDC scale of this market's inventory-impact curve for SDK
+ * Return the immutable USDC scale of this market's inventory-impact curve for SDK
  * and devInspect state reads.
  */
 export function inventoryImpactScale(options: InventoryImpactScaleOptions) {
@@ -608,6 +626,45 @@ export function loadLivePricer(options: LoadLivePricerOptions) {
 					...options.arguments,
 					config: options.arguments?.config ?? options.config?.protocolConfig,
 					propbookRegistry: options.arguments?.propbookRegistry ?? options.config?.oracleRegistry,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface IsPendingValuationArguments {
+	market: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
+}
+export interface IsPendingValuationOptions {
+	package?: string;
+	arguments: IsPendingValuationArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/**
+ * Return whether this market is snapshotted into the in-flight flush and still
+ * awaiting its `value_expiry`. For SDK, keeper, and devInspect reads. It gates
+ * nothing: settlement and trading both run regardless — the frozen mark is
+ * settlement-invariant, so a stamped market settles the instant it expires. Do not
+ * defer a settlement attempt on this read.
+ */
+export function isPendingValuation(options: IsPendingValuationOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null, null] satisfies (string | null)[];
+	const parameterNames = ['market', 'config'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'expiry_market',
+			function: 'is_pending_valuation',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
 				},
 				argumentsTypes,
 				parameterNames,
@@ -1118,7 +1175,7 @@ export interface MintExactQuantityOptions {
  * withdraw through the loaded account. The position's strike range is the tick
  * pair `(lower_tick, higher_tick]` (`lower_tick = 0` is `-inf`,
  * `higher_tick = pos_inf_tick` is `+inf`); the SDK converts raw strikes to ticks.
- * `max_cost` caps the all-in DUSDC withdrawal, while `max_probability` caps the
+ * `max_cost` caps the all-in USDC withdrawal, while `max_probability` caps the
  * quoted per-contract probability before fees. Callers can pass
  * `std::u64::max_value!()` for either uncapped guard. Returns the minted order ID
  * for future order-scoped flows.
@@ -1193,12 +1250,12 @@ export interface MintExactAmountOptions {
  * must meet `min_quantity`.
  *
  * Fees, builder fees, and EWMA congestion penalties are charged on top of
- * `max_premium`, so `max_cost` — not `max_premium` — bounds the all-in DUSDC
+ * `max_premium`, so `max_cost` — not `max_premium` — bounds the all-in USDC
  * withdrawal (`premium + trader-paid fee + builder_fee + EWMA penalty`).
  * `max_cost` is required: unlike `mint_exact_quantity`'s guards there is no value
  * that disables it, because the budget shape exists to bound spend. The sizing
- * budget is first capped to the account's available DUSDC after settlement; fees
- * still require additional available DUSDC at payment time. Any unspent premium
+ * budget is first capped to the account's available USDC after settlement; fees
+ * still require additional available USDC at payment time. Any unspent premium
  * dust remains in the account because order quantity must be an integer number of
  * `position_lot_size` lots.
  */
@@ -1275,7 +1332,7 @@ export interface RedeemLiveOptions {
  * Two close-side slippage floors, the mirror of mint's `max_probability` /
  * `max_cost` pair; pass `0` to disable either. `min_probability` floors the quoted
  * per-contract range probability (same units as mint's `max_probability`).
- * `min_proceeds` floors the all-in net DUSDC credited to the account
+ * `min_proceeds` floors the all-in net USDC credited to the account
  * (`redeem_amount` minus trading fee, builder fee, and EWMA penalty), the mirror
  * of mint's all-in `max_cost`.
  */
@@ -1440,7 +1497,9 @@ export interface SetReferenceTickOptions {
  * Set this expiry's reference fine-grid tick from the exact previous-window
  * Propbook Pyth observation. The source observation must be inserted into the feed
  * at `reference_tick_source_timestamp_ms` before this call, and the normalized
- * spot is floored to the market's `tick_size`.
+ * spot is floored to the market's `tick_size`. Not gated on the valuation lock:
+ * the reference tick shapes mint admission only, and a mint it admits mid-flush is
+ * invisible to the captured snapshot like any other.
  */
 export function setReferenceTick(options: SetReferenceTickOptions) {
 	const packageAddress =
