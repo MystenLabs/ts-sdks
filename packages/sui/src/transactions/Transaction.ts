@@ -10,7 +10,7 @@ import type { SignatureWithBytes, Signer } from '../cryptography/index.js';
 import { normalizeSuiAddress } from '../utils/sui-types.js';
 import type { TransactionArgument } from './Commands.js';
 import { TransactionCommands } from './Commands.js';
-import type { CallArg, Command, Argument, ObjectRef } from './data/internal.js';
+import type { CallArg, Command, Argument, ObjectRef, WithdrawFrom } from './data/internal.js';
 import {
 	ArgumentSchema,
 	NormalizedCallArg,
@@ -682,8 +682,19 @@ export class Transaction {
 	 *
 	 * @param options.amount - The Amount to withdraw (u64).
 	 * @param options.type - The balance type (e.g., "0x2::sui::SUI"). Defaults to SUI.
+	 * @param options.withdrawFrom - The account the funds are withdrawn from. Defaults to the
+	 * transaction sender. Use `SenderAllowance` to withdraw from a funder's balance under an
+	 * `0x2::allowance::Allowance` granted to the sender.
 	 */
-	withdrawal({ amount, type }: { amount: number | bigint | string; type?: string | null }): {
+	withdrawal({
+		amount,
+		type,
+		withdrawFrom,
+	}: {
+		amount: number | bigint | string;
+		type?: string | null;
+		withdrawFrom?: WithdrawFrom;
+	}): {
 		$kind: 'Input';
 		Input: number;
 		type?: 'object';
@@ -695,10 +706,15 @@ export class Transaction {
 				reservation: { $kind: 'MaxAmountU64', MaxAmountU64: String(amount) },
 				typeArg: { $kind: 'Balance', Balance: type ?? '0x2::sui::SUI' },
 				withdrawFrom:
-					// fromSponsor === true
-					// 	? { $kind: 'Sponsor', Sponsor: true } :
-					// TODO: currently only supporting withdrawals from sender
-					{ $kind: 'Sender', Sender: true },
+					withdrawFrom?.$kind === 'SenderAllowance'
+						? {
+								$kind: 'SenderAllowance',
+								SenderAllowance: {
+									funder: normalizeSuiAddress(withdrawFrom.SenderAllowance.funder),
+									allowance: normalizeSuiAddress(withdrawFrom.SenderAllowance.allowance),
+								},
+							}
+						: (withdrawFrom ?? { $kind: 'Sender', Sender: true }),
 			},
 		};
 
