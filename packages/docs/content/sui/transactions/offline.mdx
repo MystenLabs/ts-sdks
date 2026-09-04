@@ -30,8 +30,9 @@ goal:
 ---
 
 Normally `build()` queries the network to resolve object versions, resolve intents like `tx.coin()`,
-fetch the gas price, estimate the gas budget, pick gas coins, and set an expiration. To build
-without a client, provide that information yourself. See also the Sui documentation on
+fetch the gas price, estimate the gas budget, pick gas coins, and set an expiration when gas is paid
+from address balance. To build without a client, provide that information yourself. See also the Sui
+documentation on
 [offline signing](https://docs.sui.io/guides/developer/transactions/transaction-auth/offline-signing)
 for the protocol-level details.
 
@@ -248,14 +249,15 @@ const kindBytes = await tx.build({
 	cover it.
 </Callout>
 
-For SUI, intents with the default `useGasCoin` still use the gas coin if anything else in the
-transaction references `tx.gas`. Otherwise they withdraw from address balance. `useGasCoin: false`
-always withdraws from address balance. Mixing the two in one transaction is still an error.
+For SUI, intents with the default `useGasCoin` still use the gas coin if anything else references
+`tx.gas` when the intent is resolved. Otherwise they withdraw from address balance.
+`useGasCoin: false` always withdraws from address balance. Mixing the two in one transaction is
+still an error.
 
-On a full build, the option also sets the gas payment to `[]` if none was set and the transaction
-doesn't use `tx.gas`. Sender, gas price, gas budget, and a `ValidDuring` expiration still need to be
-provided. Once set, the empty payment is part of the transaction, the same as calling
-`setGasPayment([])`.
+On a full build, the option also sets an unset gas payment to `[]`, but only when nothing else needs
+a client, the transaction doesn't use `tx.gas`, and a `ValidDuring` expiration is already set.
+Sender, gas price, and gas budget still need to be provided. Once set, the empty payment is part of
+the transaction, the same as calling `setGasPayment([])`.
 
 ## Serialization
 
@@ -265,11 +267,10 @@ provided. Once set, the empty payment is part of the transaction, the same as ca
 ```typescript
 // Intents are resolved, so tx.coin() needs a client or assumeSufficientAddressBalances
 const json = await tx.toJSON({ assumeSufficientAddressBalances: true });
+const restored = Transaction.from(json);
 
 // Or keep tx.coin() intents for the receiver to resolve
-const json = await tx.toJSON({ supportedIntents: ['CoinWithBalance'] });
-
-const tx = Transaction.from(json);
+const jsonWithIntents = await tx.toJSON({ supportedIntents: ['CoinWithBalance'] });
 ```
 
 `Transaction.from()` accepts JSON strings, BCS bytes, and base64-encoded BCS.

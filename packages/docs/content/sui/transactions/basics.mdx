@@ -309,11 +309,10 @@ backend. It resolves intents like `tx.coin()` but leaves sender and gas data as 
 
 ```typescript
 const json = await tx.toJSON({ client: grpcClient });
+const restored = Transaction.from(json);
 
 // Or keep tx.coin() intents for the receiver to resolve
-const json = await tx.toJSON({ supportedIntents: ['CoinWithBalance'] });
-
-const tx = Transaction.from(json);
+const jsonWithIntents = await tx.toJSON({ supportedIntents: ['CoinWithBalance'] });
 ```
 
 ## Executing transactions
