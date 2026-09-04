@@ -16,9 +16,3 @@ export function transactionUsesGasCoin(transactionData: TransactionDataBuilder) 
 
 	return usesGasCoin;
 }
-
-export function hasPotentialReplayProtection(transactionData: TransactionDataBuilder) {
-	// ImmOrOwnedObject refs don't say whether the object is owned or immutable, so this is a best
-	// guess. Execution rejects the transaction if none of them turn out to be owned.
-	return transactionData.inputs.some((input) => input.Object?.ImmOrOwnedObject);
-}

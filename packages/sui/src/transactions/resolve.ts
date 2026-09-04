@@ -9,7 +9,7 @@ import type { BcsType } from '@mysten/bcs';
 import { Inputs } from './Inputs.js';
 import { bcs } from '../bcs/index.js';
 import { coreClientResolveTransactionPlugin } from '../client/core-resolver.js';
-import { hasPotentialReplayProtection, transactionUsesGasCoin } from './resolution-utils.js';
+import { transactionUsesGasCoin } from './resolution-utils.js';
 
 export interface BuildTransactionOptions {
 	client?: ClientWithCoreApi;
@@ -50,29 +50,19 @@ export function needsTransactionResolution(
 			return true;
 		}
 
-		const { payment } = data.gasData;
-		const canAssumeAddressBalanceGas =
-			!!options.assumeSufficientAddressBalances && !transactionUsesGasCoin(data);
+		if (!data.gasData.payment) {
+			const assumesAddressBalanceGas =
+				options.assumeSufficientAddressBalances && !transactionUsesGasCoin(data);
 
-		if (!payment) {
-			if (!canAssumeAddressBalanceGas) {
-				return true;
-			}
-
-			// Address balance gas has no object version to protect against replay, so the transaction
-			// needs a ValidDuring expiration or an owned object input. Epoch expiration doesn't count.
+			// Address balance gas has no object version to protect against replay, so an offline build
+			// needs a ValidDuring expiration. Epoch expiration doesn't count.
 			if (
-				data.expiration?.$kind !== 'ValidDuring' &&
-				data.expiration?.$kind !== 'Validity' &&
-				!hasPotentialReplayProtection(data)
+				!assumesAddressBalanceGas ||
+				(data.expiration?.$kind !== 'ValidDuring' && data.expiration?.$kind !== 'Validity')
 			) {
 				return true;
 			}
-		} else if (
-			payment.length === 0 &&
-			!data.expiration &&
-			!(canAssumeAddressBalanceGas && hasPotentialReplayProtection(data))
-		) {
+		} else if (data.gasData.payment.length === 0 && !data.expiration) {
 			return true;
 		}
 	}

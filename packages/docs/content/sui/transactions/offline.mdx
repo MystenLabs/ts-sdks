@@ -69,9 +69,9 @@ A full offline build needs the sender and all gas data:
 
 ### Paying gas from address balance
 
-With `setGasPayment([])`, gas is paid from the gas owner's SUI address balance. If the transaction
-has no owned object inputs, nothing ties it to a specific object version, so it also needs a
-`ValidDuring` expiration for replay protection:
+With `setGasPayment([])`, gas is paid from the gas owner's SUI address balance. Nothing ties the
+transaction to a specific object version, so it also needs a `ValidDuring` expiration for replay
+protection:
 
 ```typescript
 import { Transaction } from '@mysten/sui/transactions';
@@ -116,8 +116,7 @@ rejected as a duplicate. Use a counter that survives restarts, not a hard-coded 
 The address balance needs to cover the gas budget on top of any withdrawals. Don't add the budget to
 the withdrawal amount.
 
-`{ Epoch: n }` expiration does not provide replay protection. Use `ValidDuring` unless the
-transaction has an owned object input.
+`{ Epoch: n }` expiration does not provide replay protection. Use `ValidDuring`.
 
 ### Paying gas with coin objects
 
@@ -217,22 +216,6 @@ tx.moveCall({
 });
 ```
 
-An owned object input already provides replay protection, so a transaction that has one can pay gas
-from address balance without an expiration:
-
-```typescript
-tx.setSender('0xSenderAddress');
-tx.setGasPrice(1000);
-tx.setGasBudget(50_000_000);
-
-// Sets gas payment to [] because the transaction doesn't use tx.gas
-const bytes = await tx.build({ assumeSufficientAddressBalances: true });
-```
-
-The SDK can't tell an owned object reference from an immutable one, so it lets this build. If every
-object turns out to be immutable, execution rejects the transaction. Shared and party objects don't
-count as replay protection.
-
 ## Coin and balance intents
 
 `tx.coin()` and `tx.balance()` normally look up the sender's address balance and coin objects. Pass
@@ -270,7 +253,7 @@ transaction references `tx.gas`. Otherwise they withdraw from address balance. `
 always withdraws from address balance. Mixing the two in one transaction is still an error.
 
 On a full build, the option also sets the gas payment to `[]` if none was set and the transaction
-doesn't use `tx.gas`. Sender, gas price, gas budget, and replay protection still need to be
+doesn't use `tx.gas`. Sender, gas price, gas budget, and a `ValidDuring` expiration still need to be
 provided. Once set, the empty payment is part of the transaction, the same as calling
 `setGasPayment([])`.
 

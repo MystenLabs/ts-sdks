@@ -911,33 +911,30 @@ describe('coinWithBalance', () => {
 			await toolbox.waitForTransaction({ result: depositResult });
 
 			// Fetch all state before constructing the transaction. The build itself has no client.
-			const [{ objects: coins }, { systemState }] = await Promise.all([
-				client.core.listCoins({ owner: address, coinType: '0x2::sui::SUI' }),
+			const [{ systemState }, { chainIdentifier }] = await Promise.all([
 				client.core.getCurrentSystemState(),
+				client.core.getChainIdentifier(),
 			]);
-			const ownedCoin = coins[0];
-			if (!ownedCoin) throw new Error('Expected an owned coin for replay protection');
 
 			const receiver = new Ed25519Keypair().toSuiAddress();
 			const tx = new Transaction();
 			tx.setSender(address);
 			tx.setGasPrice(systemState.referenceGasPrice);
 			tx.setGasBudget(10_000_000);
-			tx.transferObjects(
-				[
-					tx.objectRef({
-						objectId: ownedCoin.objectId,
-						version: ownedCoin.version,
-						digest: ownedCoin.digest,
-					}),
-				],
-				address,
-			);
+			tx.setExpiration({
+				ValidDuring: {
+					minEpoch: Number(systemState.epoch),
+					maxEpoch: Number(systemState.epoch) + 1,
+					minTimestamp: null,
+					maxTimestamp: null,
+					chain: chainIdentifier,
+					nonce: 1,
+				},
+			});
 			tx.transferObjects([tx.coin({ balance: 1_000n })], receiver);
 
 			const bytes = await tx.build({ assumeSufficientAddressBalances: true });
 			expect(tx.getData().gasData.payment).toEqual([]);
-			expect(tx.getData().expiration).toBeNull();
 
 			const signature = await keypair.signTransaction(bytes);
 			const result = await client.core.executeTransaction({

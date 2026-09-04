@@ -136,19 +136,17 @@ describe('offline build', () => {
 		);
 	});
 
-	it('builds a full transaction using a versioned object for replay protection', async () => {
+	it('does not treat an owned object input as replay protection', async () => {
 		const tx = new Transaction();
 		tx.setSender('0x2');
 		tx.setGasPrice(1);
 		tx.setGasBudget(1_000_000);
 		tx.transferObjects([tx.objectRef(ref())], '0x3');
-		tx.transferObjects([tx.coin({ type: '0x123::test::TOKEN', balance: 100 })], '0x3');
 
-		await tx.build({ assumeSufficientAddressBalances: true });
-		await tx.build({ assumeSufficientAddressBalances: true });
-
-		expect(tx.getData().gasData.payment).toEqual([]);
-		expect(tx.getData().expiration).toBeNull();
+		await expect(tx.build({ assumeSufficientAddressBalances: true })).rejects.toThrow(
+			'No sui client passed to Transaction#build',
+		);
+		expect(tx.getData().gasData.payment).toBeNull();
 	});
 
 	it.each([{ Epoch: 100 } as const, { None: true } as const])(
@@ -176,9 +174,10 @@ describe('offline build', () => {
 		tx.transferObjects([tx.objectRef(ref())], '0x3');
 
 		await expect(tx.build()).rejects.toThrow('No sui client passed to Transaction#build');
+		await expect(tx.build({ assumeSufficientAddressBalances: true })).rejects.toThrow(
+			'No sui client passed to Transaction#build',
+		);
 		expect(tx.getData().gasData.payment).toEqual([]);
-
-		await tx.build({ assumeSufficientAddressBalances: true });
 	});
 
 	it('keeps address balance gas payment for later builds without the assumption', async () => {
@@ -235,25 +234,6 @@ describe('offline build', () => {
 
 		expect(resolver).toHaveBeenCalledOnce();
 		expect(tx.getData().gasData.payment).toHaveLength(1);
-	});
-
-	it('does not treat a shared object as offline replay protection', async () => {
-		const tx = new Transaction();
-		tx.setSender('0x2');
-		tx.setGasPrice(1);
-		tx.setGasBudget(1_000_000);
-		tx.object(
-			Inputs.SharedObjectRef({
-				objectId: '0x3',
-				initialSharedVersion: 1,
-				mutable: true,
-			}),
-		);
-
-		await expect(tx.build({ assumeSufficientAddressBalances: true })).rejects.toThrow(
-			'No sui client passed to Transaction#build',
-		);
-		expect(tx.getData().gasData.payment).toBeNull();
 	});
 
 	it('does not use address balance gas when the gas coin is referenced', async () => {
