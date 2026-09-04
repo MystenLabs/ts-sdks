@@ -1187,10 +1187,9 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}
 
 	if (transaction.rawTransaction) {
 		const parsedTx = bcs.SenderSignedData.parse(fromBase64(transaction.rawTransaction))[0];
-		// The genesis transaction's raw data carries a placeholder signature that
-		// other transports do not report
-		signatures =
-			parsedTx.intentMessage.value.V1.kind.$kind === 'Genesis' ? [] : parsedTx.txSignatures;
+		// System transactions, including genesis, carry a placeholder signature that gRPC and
+		// GraphQL report as-is.
+		signatures = parsedTx.txSignatures;
 
 		if (include?.transaction || include?.bcs) {
 			const bytes = bcs.TransactionData.serialize(parsedTx.intentMessage.value).toBytes();

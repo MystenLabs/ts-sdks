@@ -19,10 +19,12 @@ describe('Core API - Protocol Config', () => {
 				(client) => client.core.getProtocolConfig(),
 				(data) => {
 					// Normalize attributes: filter out null values since some transports
-					// include keys with null values and others omit them entirely
+					// include keys with null values and others omit them entirely. Also drop
+					// list-valued attributes (e.g. `gasless_allowed_token_types`): gRPC reports
+					// them stringified, while JSON-RPC and GraphQL only expose scalar attributes.
 					const filteredAttributes: Record<string, string | null> = {};
 					for (const [key, value] of Object.entries(data.protocolConfig.attributes)) {
-						if (value !== null) {
+						if (value !== null && !value.startsWith('[')) {
 							filteredAttributes[key] = value;
 						}
 					}
