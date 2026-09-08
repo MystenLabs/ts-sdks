@@ -4,15 +4,13 @@
 import type { SuiCodegenConfig } from '@mysten/codegen';
 
 // The `@local-pkg/*` entries are not registered on MVR, so they generate from the local Move
-// source in the sibling `deepbookv3` checkout (same pattern the `@deepbook/*` entries use).
-// The `@local-pkg/*` entries generate against deepbookv3 `main`, currently `5a1d80c0`. This is a
-// deliberate reversal of the older rule ("generate against the commit that gets deployed"): the
-// Predict cluster is being republished from `main` for testnet and mainnet, so `main` is the
-// commit that gets deployed. The trade is explicit — between now and that republish the bindings
-// describe a surface no live deployment serves, so `deepbook-v3-e2e` (live testnet, scheduled) is
-// expected to disagree until the republish lands. Move the anchor forward again at deploy time to
-// the exact deployment ref, which is also the only ref where `pnpm sync-deployment` finds the
-// manifest.
+// source in the sibling `deepbookv3` checkout (same pattern the `@deepbook/*` entries use), on
+// the `deepbook-predict-testnet` deployment branch — what is live on testnet. Its predict/account/propbook Move sources are byte-identical
+// to deepbookv3 `main` — the deployment's trailing commits add only `Published.toml` files and the
+// manifest — so "generate against the commit that gets deployed" and "generate against main" name
+// the same sources here, and the branch tip is also the only ref where `pnpm sync-deployment`
+// finds the manifest. One checkout serves both. Re-verify that identity before assuming it at the
+// next deploy: if main has moved past the deployment, the deployment wins.
 //
 // One `pnpm codegen` run regenerates EVERY entry below from whatever commit that checkout is on,
 // so check it out to the intended anchor first and diff the result — a regeneration meant for one

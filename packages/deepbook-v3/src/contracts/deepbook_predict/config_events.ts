@@ -50,6 +50,13 @@ export const PlpFeeRatesUpdated = new MoveStruct({
 		onchain_timestamp_ms: U64,
 	},
 });
+export const NoTradeWindowUpdated = new MoveStruct({
+	name: `${$moduleName}::NoTradeWindowUpdated`,
+	fields: {
+		no_trade_window_ms: U64,
+		onchain_timestamp_ms: U64,
+	},
+});
 export const TradingPausedUpdated = new MoveStruct({
 	name: `${$moduleName}::TradingPausedUpdated`,
 	fields: {

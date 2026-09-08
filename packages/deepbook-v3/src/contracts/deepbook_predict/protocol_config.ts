@@ -64,8 +64,8 @@ export const ProtocolConfig = new MoveStruct({
 		lp_request_limit_flush_attempts: U64,
 		/**
 		 * Ceiling on LP-attributable pool value that queued supplies may raise the pool
-		 * to, enforced at the flush against the frozen mark. Defaults to `u64::MAX`, so
-		 * the pool is uncapped until an operator sets a figure (RP-23).
+		 * to, enforced at the flush against the frozen mark. Defaults to 500,000 USDC
+		 * (RP-23).
 		 */
 		max_lp_pool_value: U64,
 		/**
@@ -77,6 +77,12 @@ export const ProtocolConfig = new MoveStruct({
 		 * cadence (RP-29).
 		 */
 		max_valuation_window_ms: U64,
+		/**
+		 * Window before a market's expiry in which live quotes, mints, and live redeems
+		 * abort. Read live at trade time rather than snapshotted per market, so it can be
+		 * widened on markets already trading. `0` disables.
+		 */
+		no_trade_window_ms: U64,
 		strike_exposure_template_config: strike_exposure_config.StrikeExposureConfig,
 		ewma_config: ewma_config.EwmaConfig,
 		/**
@@ -283,6 +289,43 @@ export function referralFeeRate(options: ReferralFeeRateOptions) {
 			package: packageAddress,
 			module: 'protocol_config',
 			function: 'referral_fee_rate',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface NoTradeWindowMsArguments {
+	config?: RawTransactionArgument<string>;
+}
+export interface NoTradeWindowMsOptions {
+	package?: string;
+	arguments?: NoTradeWindowMsArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/**
+ * Window before expiry in which live quotes, mints, and live redeems abort.
+ * `public` for SDK and devInspect reads: a client that cannot see this value can
+ * only learn the window closed by decoding `ETradeWindowClosed` from a failed
+ * quote.
+ */
+export function noTradeWindowMs(options: NoTradeWindowMsOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['config'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'protocol_config',
+			function: 'no_trade_window_ms',
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,
@@ -901,6 +944,49 @@ export function setEwmaEnabled(options: SetEwmaEnabledOptions) {
 			package: packageAddress,
 			module: 'protocol_config',
 			function: 'set_ewma_enabled',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface SetNoTradeWindowMsArguments {
+	config?: RawTransactionArgument<string>;
+	AdminCap: RawTransactionArgument<string>;
+	value: RawTransactionArgument<number | bigint>;
+}
+export interface SetNoTradeWindowMsOptions {
+	package?: string;
+	arguments: SetNoTradeWindowMsArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/**
+ * Set the window before expiry in which live quotes, mints, and live redeems
+ * abort. `0` disables the block. Read live at trade time, so a change applies to
+ * markets already trading and stays available as an incident control.
+ *
+ * Deliberately not gated on `assert_not_valuation_in_progress`, matching
+ * `set_trading_paused`: a stalled flush must not be able to trap a safety control.
+ * Nothing in the flush reads this value, so a mid-valuation change cannot skew a
+ * frozen mark.
+ */
+export function setNoTradeWindowMs(options: SetNoTradeWindowMsOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null, null, 'u64', '0x2::clock::Clock'] satisfies (string | null)[];
+	const parameterNames = ['config', 'AdminCap', 'value'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'protocol_config',
+			function: 'set_no_trade_window_ms',
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,

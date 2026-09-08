@@ -7,8 +7,8 @@
 // file exists to prevent. To move to a new deployment, check the sibling deepbookv3
 // checkout out to the new anchor and re-run the script.
 //
-// Deployment: predict-testnet-8-21
-// sourceCommit: 1f79fe87ab2f6b9df40cfdc2e647c93f45e6d737
+// Deployment: deepbook-predict-testnet
+// sourceCommit: a928bd2da4b71abf7c4ea6f66abec2763308331e
 //
 // Runtime-dependency-free — every subpath reads a slice of this, so a value import here
 // would pull that module into all of their graphs. The type import below is erased.
@@ -26,16 +26,16 @@ import type {
 
 /** Which on-chain deployment the ids below came from. */
 export const TESTNET_DEPLOYMENT: DeploymentInfo = Object.freeze({
-	deployment: 'predict-testnet-8-21',
+	deployment: 'deepbook-predict-testnet',
 	network: 'testnet',
 	chainId: '4c78adac',
-	sourceCommit: '1f79fe87ab2f6b9df40cfdc2e647c93f45e6d737',
+	sourceCommit: 'a928bd2da4b71abf7c4ea6f66abec2763308331e',
 });
 
 /** Ids for the shared `account` primitive — the `/account` subpath's slice. */
 export const TESTNET_ACCOUNT: AccountIds = Object.freeze({
-	accountPackageId: '0xa94ec89b6cbb3e2609c7ca65bd77885b7513f852922ebdf8e766851fb6f85259',
-	accountRegistry: '0x5682c73d657de1546374e632369a25c82744c8a20e9b4f47e6558e3d4bde88d3',
+	accountPackageId: '0x543139156cb90d1a73df33b5dca37d7c8bdce62506c7874ebc854afd319b98f1',
+	accountRegistry: '0xb889caefe327cbdea58e529e3b9e10dc93f1e661ddef32824d28527edf8d6385',
 });
 
 /**
@@ -46,15 +46,15 @@ export const TESTNET_ACCOUNT: AccountIds = Object.freeze({
  * the package root for one id.
  */
 export const TESTNET_SESSIONS: SessionsIds = Object.freeze({
-	sessionsPackageId: '0xb74170443d6d2d37cbe95c7e530dd4a1605ef714ff4f9e88e27a7ac1455451db',
-	sessionsConfig: '0xdfb8e23246678649cfdd6f3f6610057d5cadd6a8911a21dbe8e34788abbfab93',
-	accountPackageId: '0xa94ec89b6cbb3e2609c7ca65bd77885b7513f852922ebdf8e766851fb6f85259',
-	accountRegistry: '0x5682c73d657de1546374e632369a25c82744c8a20e9b4f47e6558e3d4bde88d3',
+	sessionsPackageId: '0x10c91d168dc4a04357f9d23795a204092ca46e5b97f8b9ef26fea95664d5bb38',
+	sessionsConfig: '0x63cde7c7d846f15c51802ec3d44ba44918658e3155b0d2e0cb26d6fc1b4dadd8',
+	accountPackageId: '0x543139156cb90d1a73df33b5dca37d7c8bdce62506c7874ebc854afd319b98f1',
+	accountRegistry: '0xb889caefe327cbdea58e529e3b9e10dc93f1e661ddef32824d28527edf8d6385',
 	deepbookRegistry: '0x7c256edbda983a2cd6f946655f4bf3f00a41043993781f8674a7046e8c0e11d1',
 	deepbookCoreAccountPackageId:
-		'0xcc9cf1029127e7bda6da4c2ab90164d7bef751783ff13c21c2bb804cec69ebec',
+		'0x2dbb8e6a5b9a8ac6201c7aeff6de0c7e7bca5dcd8d6c16538cb1a7447a298071',
 	/** Required by every Predict session wrapper — they all take `config: &ProtocolConfig`. */
-	protocolConfig: '0x7ef1ac99c2f0a77e7aa2602b5ea7bff68750cff0d80f09bdf827bfb345128f33',
+	protocolConfig: '0xfeda745dfdef2cd9721c2ff1e1de538d103bc6012469d0eec10ea5de67f636d0',
 });
 
 /**
@@ -73,25 +73,25 @@ export const TESTNET_UNITS: DeploymentUnits = Object.freeze({
 export const TESTNET_PREDICT: PredictIds = Object.freeze({
 	network: 'testnet',
 	packages: Object.freeze({
-		predict: '0x421041754244cf0e985fb9c9f5e1f49428caf3df4cde3a7b266d8e18ea63597b',
-		account: '0xa94ec89b6cbb3e2609c7ca65bd77885b7513f852922ebdf8e766851fb6f85259',
-		propbook: '0xd8b402609b1728f60cf20bfaaec5255701df54350ec13e93aac39463b00bf97b',
+		predict: '0x25d075d2de915feda7ab9b8f855afe59cbcd4b2ce96f75324940c810f84da018',
+		account: '0x543139156cb90d1a73df33b5dca37d7c8bdce62506c7874ebc854afd319b98f1',
+		propbook: '0xa04a43dbbfb123feec96691a22809d8a87e9ac37ae9356079c439750145aa92b',
 	}),
 	objects: Object.freeze({
-		registry: '0x3d486bd50bb5bb5450ddbcb4f74776b6135f416c09024a6674ac266e77e1870a',
-		protocolConfig: '0x7ef1ac99c2f0a77e7aa2602b5ea7bff68750cff0d80f09bdf827bfb345128f33',
-		poolVault: '0x2a31f592d8fd3d0781e2233770d02d67797890ac82c3d18796d7eb0997896602',
-		oracleRegistry: '0x715f5ae4aac0078f4d0c6bf9ea2815614e799e909a90b577aeb8de9ad8bab142',
-		accountRegistry: '0x5682c73d657de1546374e632369a25c82744c8a20e9b4f47e6558e3d4bde88d3',
+		registry: '0xd21fab5444128eb65c5f6299564f583db72ad84d17581a4febe68878127100d5',
+		protocolConfig: '0xfeda745dfdef2cd9721c2ff1e1de538d103bc6012469d0eec10ea5de67f636d0',
+		poolVault: '0xd6b96a77d5acfd4f4a660cbd1098ed62abf2317e85a01274d1a4eeef19603767',
+		oracleRegistry: '0xda71af88a8b9d01b6913937a84c5a63bb4e1015a7a2142185ec9ef73f675615f',
+		accountRegistry: '0xb889caefe327cbdea58e529e3b9e10dc93f1e661ddef32824d28527edf8d6385',
 	}),
-	quoteCoinType: '0xe95040085976bfd54a1a07225cd46c8a2b4e8e2b6732f140a0fc49850ba73e1a::dusdc::DUSDC',
+	quoteCoinType: '0xc028557a1ed49e42ed091e115aedefd70a442b184c18fbec5c48d5b6c0b8c184::usdc::USDC',
 	/**
 	 * `plp` is the LP share coin type. It is NOT derivable from `packages.predict`: a Move
 	 * type tag keeps the ORIGINAL package id across an upgrade, while `packages.predict`
 	 * moves to the latest. They agree only while predict is at v1.
 	 */
 	coinTypes: Object.freeze({
-		plp: '0x421041754244cf0e985fb9c9f5e1f49428caf3df4cde3a7b266d8e18ea63597b::plp::PLP',
+		plp: '0x25d075d2de915feda7ab9b8f855afe59cbcd4b2ce96f75324940c810f84da018::plp::PLP',
 		deep: '0x36dbef866a1d62bf7328989a10fb2f07d769f4ee587c0de4a0a256e57e0a58a8::deep::DEEP',
 	}),
 	units: TESTNET_UNITS,
@@ -99,9 +99,9 @@ export const TESTNET_PREDICT: PredictIds = Object.freeze({
 		BTC: Object.freeze({
 			symbol: 'BTC',
 			propbookUnderlyingId: 1,
-			pythFeed: '0xea8fd4624002516b28b495051c838b2c9a34a4f22ae281d328e1bec47f54cd24',
-			blockScholesValueStore: '0x9b64cc860ac09e6dcd675fc579c1048792ddce51cc018f2ca16aeb4a1a5684a3',
-			blockScholesSviStore: '0xd5bc586e99c8d595e0ba5e0a2ef2295e652db8934ffbeda630d60e207bedab8f',
+			pythFeed: '0x7179188b3a27758c53668a4ec09a81be114dea5ffabcf367f4e720a26db8ee59',
+			blockScholesValueStore: '0x77dee47fb870753c740439f436e0c30c00c60f13f171c901125b3d60f89518e5',
+			blockScholesSviStore: '0xe8aa80965d201e2cb18359c3aa315e3abc5bbf807a10a59d6e011ef41be5db7a',
 		}),
 	}),
 });
