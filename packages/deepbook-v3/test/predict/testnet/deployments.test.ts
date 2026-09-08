@@ -27,7 +27,7 @@ async function typeOf(objectId: string): Promise<string> {
 describe('the deployment record matches the live chain', () => {
 	test('it names the deployment and commit it was generated from', () => {
 		const d = getDeployment('testnet');
-		expect(d.deployment).toBe('predict-testnet-8-21');
+		expect(d.deployment).toBe('deepbook-predict-testnet');
 		expect(d.sourceCommit).toMatch(/^[0-9a-f]{40}$/);
 	});
 

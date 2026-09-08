@@ -25,7 +25,7 @@ export interface DeploymentInfo {
  *
  * Only `positionLotSize` is currently read by the SDK (`PredictClient#assertLot`); the other
  * three are shipped as the deployment's own record of its scales. `units.ts` still hardcodes
- * the DUSDC and fixed-point decimals, so do not read this as "the SDK derives its scaling
+ * the USDC and fixed-point decimals, so do not read this as "the SDK derives its scaling
  * from here" — wiring that up is separate work.
  */
 export interface DeploymentUnits {

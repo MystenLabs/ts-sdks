@@ -31,6 +31,12 @@
  * abort depends on which prefixes a given shape happens to visit, so it is not a
  * desync detector — the per-boundary underflow in `apply_net_delta` is the
  * authority.
+ *
+ * The module also owns the valuation snapshot for the resumable flush: while a
+ * flush generation is active, each node lazily captures its boundary quantities
+ * immediately before its first mutation under that generation (an untouched node
+ * is its own snapshot), and `walk_linear_frozen` prices the tree exactly as it
+ * stood at the snapshot instant through the same walk the live read uses.
  */
 
 import { MoveStruct } from '../utils/index.js';
@@ -49,6 +55,19 @@ export const StrikePayoutTree = new MoveStruct({
 		 * settled payout.
 		 */
 		base: U64,
+		/**
+		 * Flush generation whose snapshot this tree holds. Node shadows are valid only
+		 * against this value; monotonically increasing, 0 = never snapshotted.
+		 */
+		snapshot_seq: U64,
+		/**
+		 * True from `activate_snapshot` until `release_snapshot`/`deactivate_snapshot`.
+		 * While set, mutations capture shadows and emptied nodes with shadow quantities
+		 * are retained for the frozen walk instead of removed.
+		 */
+		snapshot_active: bcs.bool(),
+		/** `base` as of the snapshot instant, captured eagerly at activation. */
+		snapshot_base: U64,
 	},
 });
 export const PayoutSummary = new MoveStruct({
@@ -84,6 +103,14 @@ export const PayoutNode = new MoveStruct({
 		 */
 		local_start: U64,
 		local_end: U64,
+		/**
+		 * Boundary terms at generation `snapshot_seq`'s instant, captured before the first
+		 * mutation under it. Active generation + zero shadows = created post-snapshot;
+		 * older generation = untouched, live terms ARE the shadow.
+		 */
+		snapshot_local_start: U64,
+		snapshot_local_end: U64,
+		snapshot_seq: U64,
 		summary: PayoutSummary,
 	},
 });

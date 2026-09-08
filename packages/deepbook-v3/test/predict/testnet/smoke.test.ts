@@ -7,7 +7,7 @@
 //  1. The real gRPC SimulateTransactionResult shape matches what reads/inspect.ts
 //     codes against (commandResults[i].returnValues[j].bcs).
 //  2. Every config object id resolves on chain (a read returning data uses the
-//     registry, pool vault, feeds, protocol config, and the DUSDC coin type).
+//     registry, pool vault, feeds, protocol config, and the USDC coin type).
 //  3. The arity guard: our mint/redeem builders execute against the DEPLOYED
 //     entrypoints far enough that any failure is a semantic Move abort — never a
 //     VM verification / argument-arity error. This detects deployed-surface

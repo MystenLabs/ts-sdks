@@ -63,7 +63,7 @@ export const WithdrawRequested = new MoveStruct({
 		recipient: bcs.Address,
 		index: U64,
 		amount: U64,
-		min_dusdc_out: U64,
+		min_usdc_out: U64,
 		requests_pending_after: U64,
 	},
 });
@@ -107,20 +107,20 @@ export const SupplyFilled = new MoveStruct({
 		recipient: bcs.Address,
 		index: U64,
 		/**
-		 * DUSDC actually taken into the pool, which is less than the request's escrow when
+		 * USDC actually taken into the pool, which is less than the request's escrow when
 		 * the supply cap left only part of it room. Shares were priced on
-		 * `dusdc_amount - fee_dusdc`.
+		 * `usdc_amount - fee_usdc`.
 		 */
-		dusdc_amount: U64,
+		usdc_amount: U64,
 		shares_minted: U64,
-		/** Supply fee withheld from `dusdc_amount` and retained by the pool. */
-		fee_dusdc: U64,
+		/** Supply fee withheld from `usdc_amount` and retained by the pool. */
+		fee_usdc: U64,
 		/**
 		 * Escrow still queued at the head after a partial fill; `0` on a full fill, in
-		 * which case the request is gone. `dusdc_amount + dusdc_remaining` is the amount
-		 * the request carried into this flush.
+		 * which case the request is gone. `usdc_amount + usdc_remaining` is the amount the
+		 * request carried into this flush.
 		 */
-		dusdc_remaining: U64,
+		usdc_remaining: U64,
 		requests_pending_after: U64,
 	},
 });
@@ -133,12 +133,12 @@ export const WithdrawFilled = new MoveStruct({
 		index: U64,
 		shares_burned: U64,
 		/**
-		 * Net DUSDC delivered to `recipient`. The gross marked value of `shares_burned`
-		 * was `dusdc_amount + fee_dusdc`.
+		 * Net USDC delivered to `recipient`. The gross marked value of `shares_burned` was
+		 * `usdc_amount + fee_usdc`.
 		 */
-		dusdc_amount: U64,
+		usdc_amount: U64,
 		/** Withdraw fee withheld from the payout and retained by the pool. */
-		fee_dusdc: U64,
+		fee_usdc: U64,
 		/**
 		 * Escrowed PLP still queued at the head after a partial fill; `0` on a full fill,
 		 * in which case the request is gone. `shares_burned + shares_remaining` is the
@@ -174,14 +174,45 @@ export const FlushExecuted = new MoveStruct({
 		active_market_nav: U64,
 		/** Number of active markets valued for this flush. */
 		market_count: U64,
-		/** Idle DUSDC held by the pool at valuation time, before the drain. */
+		/**
+		 * LIVE idle USDC read at finish time, immediately before the drain — NOT a mark
+		 * input. It brackets the drain with `idle_balance_after`; because maintenance,
+		 * settlement sweeps, and trading run mid-window, it can differ from
+		 * `frozen_idle_balance` below. Drain telemetry, not the mark.
+		 */
 		idle_balance_before: U64,
+		/**
+		 * The mark's idle component: idle USDC FROZEN at the seal. `frozen_idle_balance
+		 *
+		 * - active_market_nav`reconstructs the priced mark's gross; every fill in the  flush is priced from this, never from`idle_balance_before`.
+		 */
+		frozen_idle_balance: U64,
 		supplies_filled: U64,
 		withdrawals_filled: U64,
 		requests_processed: U64,
 		idle_balance_after: U64,
 		/** PLP supply after the drain's completed mints and burns. */
 		total_supply_after: U64,
+		/**
+		 * Each queue's `next_index` at this flush's snapshot instant; the drain filled
+		 * only requests indexed strictly below these.
+		 */
+		supply_request_cutoff: U64,
+		withdraw_request_cutoff: U64,
+		/**
+		 * Clock instant the snapshot stage froze every market's pricer — the moment the
+		 * mark prices the pool at. Fills execute later in the same flush; this is the
+		 * timestamp they were priced as of.
+		 */
+		snapshot_timestamp_ms: U64,
+	},
+});
+export const FlushRestarted = new MoveStruct({
+	name: `${$moduleName}::FlushRestarted`,
+	fields: {
+		pool_vault_id: bcs.Address,
+		expected_market_count: U64,
+		valued_market_count: U64,
 	},
 });
 export const CapitalLocked = new MoveStruct({

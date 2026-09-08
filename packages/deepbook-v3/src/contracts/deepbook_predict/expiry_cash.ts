@@ -3,7 +3,7 @@
  **************************************************************/
 
 /**
- * Expiry-local DUSDC custody and isolated reserve accounting.
+ * Expiry-local USDC custody and isolated reserve accounting.
  *
  * This leaf owns cash balance arithmetic and the inventory-impact escrow used only
  * for live-close rebates. It does not decide payment eligibility, pool allocation,

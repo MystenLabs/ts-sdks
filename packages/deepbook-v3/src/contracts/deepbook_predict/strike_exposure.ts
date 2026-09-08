@@ -36,7 +36,7 @@ export const StrikeExposure = new MoveStruct({
 		/** Snapshotted exposure and fee policy for this expiry. */
 		config: strike_exposure_config.StrikeExposureConfig,
 		/**
-		 * Immutable DUSDC scale for the inventory-impact curve. This is the expiry's
+		 * Immutable USDC scale for the inventory-impact curve. This is the expiry's
 		 * snapshotted maximum pool allocation: a risk-capacity parameter, not live pool
 		 * equity, so LP flows cannot reprice an existing book.
 		 */

@@ -18,8 +18,11 @@ test('all shared object IDs are well-formed', () => {
 	}
 });
 
-test('quoteCoinType is a DUSDC coin type', () => {
-	expect(TESTNET_CONFIG.quoteCoinType).toMatch(/^0x[0-9a-f]+::dusdc::DUSDC$/);
+test('quoteCoinType is the renamed USDC collateral', () => {
+	// The module path is the assertion: the collateral rename means every deployment from
+	// here on serves `usdc::usdc::USDC`. The package id is deliberately not pinned — that is
+	// the deployment record's to own, and it moves with each republish.
+	expect(TESTNET_CONFIG.quoteCoinType).toMatch(/^0x[0-9a-f]{64}::usdc::USDC$/);
 });
 
 test('BTC underlying is present and well-formed', () => {

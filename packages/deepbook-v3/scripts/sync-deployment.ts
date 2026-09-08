@@ -13,8 +13,9 @@
  * Check the sibling checkout out to the DEPLOYMENT BRANCH — not the manifest's own
  * `sourceCommit`. The deploy tooling writes the manifest in a commit that lands *after* the
  * sources it deployed, so the manifest does not exist at `sourceCommit`. For
- * `predict-testnet-8-21` that trailing commit adds only `Published.toml` files and the
- * manifest itself, no Move sources — so the branch tip is also the right ref for
+ * `deepbook-predict-testnet` those trailing commits add no Move sources — only publication
+ * metadata, the manifest, and deploy tooling. Verified: the branch's predict/account/propbook
+ * sources are byte-identical to `main`, so the branch tip is also the right ref for
  * `pnpm codegen`, and one checkout serves both.
  *
  * The emitted file is not prettier-formatted, so follow with `sync-deployment:format`. They
@@ -22,7 +23,7 @@
  * chain: `sync-deployment -- --manifest <path>` sent the flag to prettier, which reformatted
  * the manifest in place, while the generator silently used the default path.
  *
- *   git -C ../../../deepbookv3 checkout predict-testnet-8-21
+ *   git -C ../../../deepbookv3 checkout deepbook-predict-testnet
  *   pnpm --filter @mysten/deepbook-v3 sync-deployment
  *   pnpm --filter @mysten/deepbook-v3 sync-deployment -- --manifest /path/to/deployment.testnet.json
  *   pnpm --filter @mysten/deepbook-v3 sync-deployment:format
@@ -32,7 +33,13 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const DEFAULT_MANIFEST = '../../../deepbookv3/packages/predict/deployment/deployment.testnet.json';
-const SUPPORTED_SCHEMA = 6;
+// Bumped 6 -> 8 for the `deepbook-predict-testnet` deployment. Verified every field this
+// script reads still exists and still means the same thing: v8 re-keyed `writers.*` to
+// `oracleDependencies.*` and dropped `writers.keeper.lifecycleCap` (the pool-valuation cap
+// split), but this script consumes none of those — it reads only `packages`, `objects`,
+// `coinTypes`, `underlyings`, `initialConfiguration.units` and `sourceCommit`. The one
+// change that does reach it is the collateral's `coinTypes` key, now `usdc`, read below.
+const SUPPORTED_SCHEMA = 8;
 
 interface Manifest {
 	schemaVersion: number;
@@ -136,7 +143,7 @@ try {
 	throw new Error(
 		`could not read the deployment manifest at ${manifestPath}. ` +
 			'Check the sibling deepbookv3 checkout out to the deployment BRANCH (e.g. ' +
-			"`predict-testnet-8-21`), not to the manifest's sourceCommit — the deploy tooling " +
+			"`deepbook-predict-testnet`), not to the manifest's sourceCommit — the deploy tooling " +
 			'writes the manifest in a later commit, so it does not exist at that commit. ' +
 			'Or pass --manifest with an explicit path.',
 		{ cause },
@@ -280,7 +287,7 @@ export const ${manifest.network.toUpperCase()}_PREDICT: PredictIds = Object.free
 		oracleRegistry: ${lit(reqId(o, 'oracleRegistry', 'objects'))},
 		accountRegistry: ${lit(reqId(o, 'accountRegistry', 'objects'))},
 	}),
-	quoteCoinType: ${lit(reqType(c, 'dusdc', 'coinTypes'))},
+	quoteCoinType: ${lit(reqType(c, 'usdc', 'coinTypes'))},
 	/**
 	 * \`plp\` is the LP share coin type. It is NOT derivable from \`packages.predict\`: a Move
 	 * type tag keeps the ORIGINAL package id across an upgrade, while \`packages.predict\`

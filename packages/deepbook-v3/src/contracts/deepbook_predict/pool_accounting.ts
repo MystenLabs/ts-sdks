@@ -5,13 +5,13 @@
 /**
  * Pool-owned expiry registration and cash-flow accounting.
  *
- * This module owns pool idle DUSDC custody, the durable set of expiries registered
- * to a pool, the active expiry index used for valuation, DUSDC sent from the main
- * pool into each expiry, DUSDC received back from each expiry, snapshotted
- * lifetime fee-incentive caps and allocations, terminal cash watermarks, and
- * per-expiry cap checks. It does not classify expiry-local liabilities or apply
- * PLP reserve policy; PoolVault uses the aggregate profit basis to price PLP and
- * decide protocol reserve transfers.
+ * This module owns pool idle USDC custody, the durable set of expiries registered
+ * to a pool, the active expiry index used for valuation, USDC sent from the main
+ * pool into each expiry, USDC received back from each expiry, snapshotted lifetime
+ * fee-incentive caps and allocations, terminal cash watermarks, and per-expiry cap
+ * checks. It does not classify expiry-local liabilities or apply PLP reserve
+ * policy; PoolVault uses the aggregate profit basis to price PLP and decide
+ * protocol reserve transfers.
  */
 
 import { MoveStruct } from '../utils/index.js';
@@ -30,7 +30,7 @@ export const ActiveExpiry = new MoveStruct({
 export const Ledger = new MoveStruct({
 	name: `${$moduleName}::Ledger`,
 	fields: {
-		/** Idle LP-owned DUSDC available for withdrawals and expiry funding. */
+		/** Idle LP-owned USDC available for withdrawals and expiry funding. */
 		idle_balance: balance.Balance,
 		/** Expiry markets that still contribute active pool valuation/risk. */
 		active_expiry_markets: bcs.vector(ActiveExpiry),
@@ -39,9 +39,9 @@ export const Ledger = new MoveStruct({
 		 * pool.
 		 */
 		registered_expiries: table.Table,
-		/** Pricing debit basis: DUSDC sent to expiries plus materialized terminal profit. */
+		/** Pricing debit basis: USDC sent to expiries plus materialized terminal profit. */
 		profit_basis_debits: U64,
-		/** Pricing credit basis: all DUSDC received back from expiries. */
+		/** Pricing credit basis: all USDC received back from expiries. */
 		profit_basis_credits: U64,
 		/**
 		 * Aggregate terminal losses that later terminal profits must recover first; losses
@@ -59,13 +59,13 @@ export const Ledger = new MoveStruct({
 export const RegisteredExpiry = new MoveStruct({
 	name: `${$moduleName}::RegisteredExpiry`,
 	fields: {
-		/** DUSDC pool allocation cap snapshotted when this expiry was created. */
+		/** USDC pool allocation cap snapshotted when this expiry was created. */
 		max_expiry_allocation: U64,
-		/** Minimum DUSDC cash target snapshotted when this expiry was created. */
+		/** Minimum USDC cash target snapshotted when this expiry was created. */
 		initial_expiry_cash: U64,
-		/** DUSDC sent from the main pool into this expiry. */
+		/** USDC sent from the main pool into this expiry. */
 		sent_to_expiry: U64,
-		/** DUSDC returned from this expiry to the main pool. */
+		/** USDC returned from this expiry to the main pool. */
 		received_from_expiry: U64,
 		/** Absolute lifetime fee-incentive cap snapshotted when this expiry was registered. */
 		fee_incentive_lifetime_cap: U64,

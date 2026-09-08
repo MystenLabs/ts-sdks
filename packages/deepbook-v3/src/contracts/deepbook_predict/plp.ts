@@ -5,15 +5,16 @@
 /**
  * PLP token and pool vault.
  *
- * PoolVault owns the PLP treasury cap, idle DUSDC, the protocol reserve,
+ * PoolVault owns the PLP treasury cap, idle USDC, the protocol reserve,
  * sponsor-funded fee incentives, per-expiry cash accounting, and the queued LP
- * supply/withdraw requests. It coordinates the full-pool NAV valuation (a
- * hot-potato aggregation over every active market) and the unified per-market cash
+ * supply/withdraw requests. It coordinates the full-pool NAV valuation — an atomic
+ * oracle snapshot followed by resumable per-market valuation transactions, with
+ * trading live throughout (see `PoolValuation`) — and the unified per-market cash
  * flow (initial funding, live rebalance/sweep, and settled-market sweep with
  * terminal profit materialization). LPs queue supply/withdraw requests routed
- * through a loaded Account; each flush (`finish_flush`) drains them at the frozen
- * pool NAV, minting/burning PLP and delivering fills to each account via the
- * balance accumulator.
+ * through a loaded Account; each flush (`finish_flush`) drains the requests that
+ * predate its snapshot at the frozen pool NAV, minting/burning PLP and delivering
+ * fills to each account via the balance accumulator.
  */
 
 import {
@@ -25,6 +26,8 @@ import {
 import { bcs } from '@mysten/sui/bcs';
 import { U64 } from '../../bcs/integers.js';
 import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
+import * as vec_map from './deps/sui/vec_map.js';
+import * as pricing from './pricing.js';
 import * as balance from './deps/sui/balance.js';
 import * as lp_book from './lp_book.js';
 import * as pool_accounting from './pool_accounting.js';
@@ -35,33 +38,93 @@ export const PLP = new MoveStruct({
 		dummy_field: bcs.bool(),
 	},
 });
-export const PoolVault = new MoveStruct({
-	name: `${$moduleName}::PoolVault`,
+export const PoolValuationProof = new MoveStruct({
+	name: `${$moduleName}::PoolValuationProof`,
 	fields: {
-		id: bcs.Address,
-		/**
-		 * Protocol-owned DUSDC excluded from PLP redemption. No package entrypoint
-		 * withdraws this balance.
-		 */
-		protocol_reserve_balance: balance.Balance,
-		/** Sponsor-funded DUSDC reserved for taker fee sponsorship, excluded from PLP NAV. */
-		fee_incentive_reserve: balance.Balance,
-		/** PLP share issuance plus queued supply/withdraw escrow. */
-		lp: lp_book.LpBook,
-		/** Idle DUSDC custody, registered expiries, and per-expiry cash-flow rows. */
-		expiry_accounting: pool_accounting.Ledger,
+		dummy_field: bcs.bool(),
+	},
+});
+export const SnapshotStage = new MoveStruct({
+	name: `${$moduleName}::SnapshotStage`,
+	fields: {
+		dummy_field: bcs.bool(),
 	},
 });
 export const PoolValuation = new MoveStruct({
 	name: `${$moduleName}::PoolValuation`,
 	fields: {
-		pool_vault_id: bcs.Address,
 		/** Active expiry markets snapshotted at start; every one must be valued. */
 		expected_expiry_markets: bcs.vector(bcs.Address),
-		/** Markets valued so far this flow; folded against `expected` at finish. */
+		/** Markets valued so far this flush; folded against `expected` at finish. */
 		valued_expiry_markets: bcs.vector(bcs.Address),
-		/** Running Σ of each valued market's NAV (settled markets contribute 0). */
+		/** Running Σ of each valued market's snapshot NAV (settled markets contribute 0). */
 		total_nav: U64,
+		/**
+		 * Oracle state frozen during the snapshot stage, one entry per expected market.
+		 * Keyed by market id so a `Pricer` can never be applied to the wrong market.
+		 * `none` marks a market that was already settled at snapshot time and therefore
+		 * contributes 0. This map is what makes the valuation stage deterministic: it
+		 * decides both the mark AND the sweep-vs-value branch, so no later transaction's
+		 * clock or oracle state can change a market's contribution.
+		 */
+		frozen_pricers: vec_map.VecMap(bcs.Address, bcs.option(pricing.FrozenPricer)),
+		/**
+		 * Set by `seal_valuation_snapshot`; no market may be valued before it. Nothing may
+		 * be snapshotted after it because sealing consumes the `SnapshotStage`.
+		 */
+		sealed: bcs.bool(),
+		/** Clock time the flush was started, for the stuck-flush deadline. */
+		started_at_ms: U64,
+		/**
+		 * Drain budgets committed at start (the cap owner's choice), bounding how many
+		 * requests each queue processes at finish. Committing them here — not at finish —
+		 * is what lets `finish_flush` run permissionless: a stranger may complete a flush
+		 * but only ever drains at these budgets, so completion can help LPs, never starve
+		 * them by finishing with a zero budget.
+		 */
+		supply_budget: bcs.option(U64),
+		withdraw_budget: bcs.option(U64),
+		/**
+		 * Each LP queue's `next_index` at the snapshot instant: the drain fills only
+		 * requests indexed strictly below these, so nobody can watch the frozen mark form
+		 * and then submit against a price they already know is stale.
+		 */
+		supply_request_cutoff: U64,
+		withdraw_request_cutoff: U64,
+		/**
+		 * Vault-side figures captured by `seal_valuation_snapshot`. With every market's
+		 * cash frozen in its stamp and these frozen here, the mark is a pure function of
+		 * the snapshot instant: no in-window cash move — maintenance, settled sweep,
+		 * market funding, reserve realization — can reach it. Settled members are swept
+		 * during the snapshot stage, so their recoverable cash sits inside
+		 * `frozen_idle_balance`.
+		 */
+		frozen_idle_balance: U64,
+		frozen_profit_basis_credits: U64,
+		frozen_profit_basis_debits: U64,
+		frozen_pending_protocol_profit: U64,
+	},
+});
+export const PoolVault = new MoveStruct({
+	name: `${$moduleName}::PoolVault`,
+	fields: {
+		id: bcs.Address,
+		/**
+		 * Protocol-owned USDC excluded from PLP redemption. No package entrypoint
+		 * withdraws this balance.
+		 */
+		protocol_reserve_balance: balance.Balance,
+		/** Sponsor-funded USDC reserved for taker fee sponsorship, excluded from PLP NAV. */
+		fee_incentive_reserve: balance.Balance,
+		/** PLP share issuance plus queued supply/withdraw escrow. */
+		lp: lp_book.LpBook,
+		/** Idle USDC custody, registered expiries, and per-expiry cash-flow rows. */
+		expiry_accounting: pool_accounting.Ledger,
+		/**
+		 * In-flight full-pool valuation, held across transactions. `Some` exactly while
+		 * the `ProtocolConfig` valuation flag is engaged.
+		 */
+		valuation: bcs.option(PoolValuation),
 	},
 });
 export interface IdArguments {
@@ -107,7 +170,7 @@ export interface IdleBalanceOptions {
 		predictPackageId?: string;
 	};
 }
-/** Return idle DUSDC for SDK and devInspect state reads. */
+/** Return idle USDC for SDK and devInspect state reads. */
 export function idleBalance(options: IdleBalanceOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
@@ -139,7 +202,7 @@ export interface ProtocolReserveBalanceOptions {
 		predictPackageId?: string;
 	};
 }
-/** Return protocol-owned DUSDC for SDK and devInspect state reads. */
+/** Return protocol-owned USDC for SDK and devInspect state reads. */
 export function protocolReserveBalance(options: ProtocolReserveBalanceOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
@@ -451,7 +514,9 @@ export function pendingProtocolProfit(options: PendingProtocolProfitOptions) {
 export interface StartPoolValuationArguments {
 	config?: RawTransactionArgument<string>;
 	vault?: RawTransactionArgument<string>;
-	lifecycleProof: TransactionArgument;
+	valuationProof: TransactionArgument;
+	supplyBudget: RawTransactionArgument<number | bigint | null>;
+	withdrawBudget: RawTransactionArgument<number | bigint | null>;
 }
 export interface StartPoolValuationOptions {
 	package?: string;
@@ -463,16 +528,25 @@ export interface StartPoolValuationOptions {
 	};
 }
 /**
- * Begin a full-pool valuation using a registry-issued lifecycle proof. The proof
- * grants control over when current oracle state is frozen for queued LP fills.
- * Starting engages the transaction-local valuation lock and snapshots every active
- * expiry that must be included before the queues can drain.
+ * Begin a full-pool valuation using a registry-issued pool-valuation proof. The
+ * proof grants control over when current oracle state is frozen for queued LP
+ * fills. Starting engages the cross-transaction valuation flag, snapshots the
+ * active expiry set and each LP queue's eligibility cutoff, and opens the atomic
+ * snapshot stage: freeze every active market's pricer under the returned
+ * `SnapshotStage`, then seal it in the same transaction.
  */
 export function startPoolValuation(options: StartPoolValuationOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, null] satisfies (string | null)[];
-	const parameterNames = ['config', 'vault', 'lifecycleProof'];
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		'0x1::option::Option<u64>',
+		'0x1::option::Option<u64>',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = ['config', 'vault', 'valuationProof', 'supplyBudget', 'withdrawBudget'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -489,9 +563,9 @@ export function startPoolValuation(options: StartPoolValuationOptions) {
 			),
 		});
 }
-export interface ValueExpiryArguments {
-	valuation: TransactionArgument;
+export interface SnapshotExpiryPricerArguments {
 	vault?: RawTransactionArgument<string>;
+	Stage: TransactionArgument;
 	market: RawTransactionArgument<string>;
 	config?: RawTransactionArgument<string>;
 	propbookRegistry?: RawTransactionArgument<string>;
@@ -499,9 +573,9 @@ export interface ValueExpiryArguments {
 	bsValues: RawTransactionArgument<string>;
 	bsSvi: RawTransactionArgument<string>;
 }
-export interface ValueExpiryOptions {
+export interface SnapshotExpiryPricerOptions {
 	package?: string;
-	arguments: ValueExpiryArguments;
+	arguments: SnapshotExpiryPricerArguments;
 	config?: {
 		poolVault: ConfigValue;
 		protocolConfig: ConfigValue;
@@ -510,16 +584,28 @@ export interface ValueExpiryOptions {
 	};
 }
 /**
- * Run the per-market cash flow for one snapshotted market, then fold its NAV into
- * the running total. The market must be in the snapshot and not already valued. A
- * settled market is swept (deactivated, cash returned, profit materialized) and
- * contributes 0; a live market is rebalanced to target and valued on its current
- * cash.
+ * Freeze one snapshotted market's oracle state for this flush and stamp the
+ * market, capturing its cash rows and activating its payout-tree snapshot at this
+ * instant.
  *
- * Settlement is a separate PTB step through `expiry_market::try_settle`. An
- * expired unsettled market cannot produce the live pricer required here.
+ * Holding `SnapshotStage` is what admits this call, and that potato cannot leave
+ * the transaction `start_pool_valuation` minted it in — so every `Pricer` here is
+ * loaded at one instant, which is what lets the valuation stage span transactions
+ * without mixing marks (audit L10). This stage reads oracles only — it never walks
+ * a payout tree — so all markets fit one PTB regardless of book size.
+ *
+ * The oracle feeding this stage must have been written in an EARLIER transaction:
+ * `pricing::resolve_live_pricer` refuses a read stamped with the current
+ * transaction digest (RP-24), so a keeper cannot refresh and snapshot in one PTB.
+ *
+ * A market already settled at snapshot time is recorded with no pricer, gets no
+ * stamp (settled flows never touch live NAV), and contributes 0. An
+ * expired-but-unsettled market aborts: it has no well-defined mark, and because
+ * this stage is atomic the abort reverts the whole snapshot transaction, so the
+ * flag is never left engaged. Settle it first, then start the flush; settlement is
+ * never blocked by a flush, so that ordering is always available.
  */
-export function valueExpiry(options: ValueExpiryOptions) {
+export function snapshotExpiryPricer(options: SnapshotExpiryPricerOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [
@@ -534,8 +620,8 @@ export function valueExpiry(options: ValueExpiryOptions) {
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
 	const parameterNames = [
-		'valuation',
 		'vault',
+		'Stage',
 		'market',
 		'config',
 		'propbookRegistry',
@@ -547,7 +633,7 @@ export function valueExpiry(options: ValueExpiryOptions) {
 		tx.moveCall({
 			package: packageAddress,
 			module: 'plp',
-			function: 'value_expiry',
+			function: 'snapshot_expiry_pricer',
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,
@@ -560,16 +646,111 @@ export function valueExpiry(options: ValueExpiryOptions) {
 			),
 		});
 }
+export interface SealValuationSnapshotArguments {
+	vault?: RawTransactionArgument<string>;
+	stage: TransactionArgument;
+	config?: RawTransactionArgument<string>;
+}
+export interface SealValuationSnapshotOptions {
+	package?: string;
+	arguments: SealValuationSnapshotArguments;
+	config?: {
+		poolVault: ConfigValue;
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/**
+ * Close the snapshot stage once every expected market has a frozen pricer, and
+ * freeze the vault-side figures — idle, the profit basis, the pending protocol cut
+ * — completing the snapshot.
+ *
+ * Consuming `SnapshotStage` is the simultaneity proof: the potato dies here, so no
+ * later transaction can add oracle state to this flush, and every market is marked
+ * at the instant the snapshot transaction executed. The vault capture is
+ * consistent with the per-market stamps because `rebalance_expiry_cash` refuses to
+ * run while the stage is open (`ESnapshotStageOpen`), so no idle↔market move can
+ * land between a stamp and this capture. Valuation may then resume across as many
+ * transactions as it needs.
+ */
+export function sealValuationSnapshot(options: SealValuationSnapshotOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null, null, null] satisfies (string | null)[];
+	const parameterNames = ['vault', 'stage', 'config'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'plp',
+			function: 'seal_valuation_snapshot',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					vault: options.arguments?.vault ?? options.config?.poolVault,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface ValueExpiryArguments {
+	vault?: RawTransactionArgument<string>;
+	market: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
+}
+export interface ValueExpiryOptions {
+	package?: string;
+	arguments: ValueExpiryArguments;
+	config?: {
+		poolVault: ConfigValue;
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/**
+ * Fold one snapshotted market's SNAPSHOT-INSTANT NAV into the running total. A
+ * market frozen as settled is swept and contributes 0; one frozen with a pricer is
+ * valued via `expiry_market::snapshot_nav` over its captured cash and tree
+ * shadows, then has its stamp cleared (releasing the tree snapshot), so later
+ * trades and the next flush start clean.
+ *
+ * The resumable stage: any transaction after the seal, one market per transaction
+ * (`constants::max_payout_tree_nodes`), reading no oracle and no clock.
+ * MEASUREMENT-ONLY for every member — settled members were swept during the
+ * snapshot stage and every frozen figure was captured there, so this call moves no
+ * cash and `rebalance_expiry_cash` runs at any time. A market that expired
+ * mid-window is valued at its frozen pre-expiry mark; its settlement does not wait
+ * for this call, because settlement is never blocked by a flush.
+ */
+export function valueExpiry(options: ValueExpiryOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null, null, null] satisfies (string | null)[];
+	const parameterNames = ['vault', 'market', 'config'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'plp',
+			function: 'value_expiry',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					vault: options.arguments?.vault ?? options.config?.poolVault,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
 export interface FinishFlushArguments {
-	valuation: TransactionArgument;
 	vault?: RawTransactionArgument<string>;
 	config?: RawTransactionArgument<string>;
-	supplyBudget: RawTransactionArgument<number | bigint | null>;
-	withdrawBudget: RawTransactionArgument<number | bigint | null>;
 }
 export interface FinishFlushOptions {
 	package?: string;
-	arguments: FinishFlushArguments;
+	arguments?: FinishFlushArguments;
 	config?: {
 		poolVault: ConfigValue;
 		protocolConfig: ConfigValue;
@@ -580,9 +761,12 @@ export interface FinishFlushOptions {
  * Finish a full-pool valuation and run the LP flush: prove every snapshotted
  * market was valued exactly once, price the pool NAV, then drain the
  * supply/withdraw queues at that frozen mark (mint PLP for supplies, burn PLP and
- * pay DUSDC for withdrawals), release the valuation lock, consume the potato, and
- * return the LP-attributable pool-wide DUSDC NAV (idle + Σ active NAV, net of the
- * pending-protocol-profit exclusion priced from the aggregate profit basis).
+ * pay USDC for withdrawals), release the valuation flag, retire the in-flight
+ * valuation, and return the LP-attributable pool-wide USDC NAV (frozen idle + Σ
+ * active NAV, net of the pending-protocol-profit exclusion priced from the frozen
+ * profit basis — every term as of the snapshot instant). Each drain fills only
+ * requests submitted before the flush's snapshot instant (the recorded queue
+ * cutoffs); younger requests wait for the next mark.
  *
  * `supply_budget` and `withdraw_budget` bound how many requests each queue may
  * process this flush (`None` = unbounded). Fills — whole or partial — and
@@ -606,14 +790,8 @@ export interface FinishFlushOptions {
 export function finishFlush(options: FinishFlushOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [
-		null,
-		null,
-		null,
-		'0x1::option::Option<u64>',
-		'0x1::option::Option<u64>',
-	] satisfies (string | null)[];
-	const parameterNames = ['valuation', 'vault', 'config', 'supplyBudget', 'withdrawBudget'];
+	const argumentsTypes = [null, null, '0x2::clock::Clock'] satisfies (string | null)[];
+	const parameterNames = ['vault', 'config'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -655,8 +833,12 @@ export interface RebalanceExpiryCashOptions {
  * due. An expired unsettled market is a no-op until that transition succeeds. Mint
  * asserts backing but never pulls pool cash, so this is what makes a market
  * mintable. The market must already be registered to this vault
- * (`registry::create_and_share_expiry_market`). Blocked while a full-pool
- * valuation is in progress.
+ * (`registry::create_and_share_expiry_market`). Runs at any time, including while
+ * a flush is in flight — every figure the mark reads was frozen at the snapshot
+ * instant, so no move here can reach it. The one refusal is the still-open
+ * snapshot stage (start → seal, a single transaction): a cross-move landing
+ * between a market's stamp and the seal's vault capture would skew the frozen
+ * figures, so it is structurally rejected rather than corrected for.
  */
 export function rebalanceExpiryCash(options: RebalanceExpiryCashOptions) {
 	const packageAddress =
@@ -694,9 +876,9 @@ export interface SponsorFeeIncentivesOptions {
 	};
 }
 /**
- * Sponsor taker fee incentives with DUSDC. Anyone may contribute; the payment
- * joins a pool-level reserve that is excluded from PLP NAV and later allocated to
- * expiry markets by the normal rebalance flow.
+ * Sponsor taker fee incentives with USDC. Anyone may contribute; the payment joins
+ * a pool-level reserve that is excluded from PLP NAV and later allocated to expiry
+ * markets by the normal rebalance flow.
  */
 export function sponsorFeeIncentives(options: SponsorFeeIncentivesOptions) {
 	const packageAddress =
@@ -735,9 +917,9 @@ export interface LockCapitalOptions {
 	};
 }
 /**
- * Bootstrap the pool exactly once: permanently lock `payment` DUSDC of minimum
+ * Bootstrap the pool exactly once: permanently lock `payment` USDC of minimum
  * liquidity. Mints matching PLP (1:1) into the book's locked balance — never
- * withdrawable, so the caller receives no shares — and joins the DUSDC into idle.
+ * withdrawable, so the caller receives no shares — and joins the USDC into idle.
  * This keeps `total_supply > 0` while the vault exists and gives rounding dust a
  * non-withdrawable PLP holder. Requires root authority and zero existing supply.
  * Supply, withdrawal, and flush flows remain disabled until the locked liquidity
@@ -782,10 +964,10 @@ export interface RequestSupplyOptions {
 	};
 }
 /**
- * Queue a supply request: pull `amount` DUSDC from account custody into queue
+ * Queue a supply request: pull `amount` USDC from account custody into queue
  * escrow, recording the account's receive address as the fill recipient. The pull
- * auto-settles any flush-delivered DUSDC first. The flush charges the protocol's
- * supply fee — zero by default — on the DUSDC it takes in and prices shares on the
+ * auto-settles any flush-delivered USDC first. The flush charges the protocol's
+ * supply fee — zero by default — on the USDC it takes in and prices shares on the
  * remainder, so `min_plp_out` is measured after that fee. The account receives
  * minted PLP only at a mark that mints at least `min_plp_out` for the whole
  * `amount` — a **price floor**, not a promise of that many shares: if the pool cap
@@ -832,7 +1014,7 @@ export interface RequestWithdrawArguments {
 	auth: TransactionArgument;
 	config?: RawTransactionArgument<string>;
 	amount: RawTransactionArgument<number | bigint>;
-	minDusdcOut: RawTransactionArgument<number | bigint>;
+	minUsdcOut: RawTransactionArgument<number | bigint>;
 }
 export interface RequestWithdrawOptions {
 	package?: string;
@@ -847,15 +1029,15 @@ export interface RequestWithdrawOptions {
  * Queue a withdraw request: pull `amount` PLP shares from account custody into
  * queue escrow, recording the account's receive address as the fill recipient. The
  * pull auto-settles any flush-delivered PLP first. The flush withholds the
- * protocol's withdraw fee from the marked payout, so `min_dusdc_out` is measured
+ * protocol's withdraw fee from the marked payout, so `min_usdc_out` is measured
  * after the fee. The account is paid only at a mark that quotes at least
- * `min_dusdc_out` for the whole `amount` — a **price floor**, not a promise of
- * that much DUSDC: if idle liquidity covers only part of the payout, only the
- * shares idle affords are burned, the fill is proportionally smaller at the same
- * price, and the remainder stays queued with its limit rescaled. At the shipped
- * attempt count of one, a flush whose mark quotes less cancels and refunds the
- * request there and then; a higher configured count lets it rest and retry that
- * many flushes first. Returns the queue index used to cancel before the flush.
+ * `min_usdc_out` for the whole `amount` — a **price floor**, not a promise of that
+ * much USDC: if idle liquidity covers only part of the payout, only the shares
+ * idle affords are burned, the fill is proportionally smaller at the same price,
+ * and the remainder stays queued with its limit rescaled. At the shipped attempt
+ * count of one, a flush whose mark quotes less cancels and refunds the request
+ * there and then; a higher configured count lets it rest and retry that many
+ * flushes first. Returns the queue index used to cancel before the flush.
  */
 export function requestWithdraw(options: RequestWithdrawOptions) {
 	const packageAddress =
@@ -870,7 +1052,7 @@ export function requestWithdraw(options: RequestWithdrawOptions) {
 		'0x2::accumulator::AccumulatorRoot',
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
-	const parameterNames = ['vault', 'wrapper', 'auth', 'config', 'amount', 'minDusdcOut'];
+	const parameterNames = ['vault', 'wrapper', 'auth', 'config', 'amount', 'minUsdcOut'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -904,8 +1086,8 @@ export interface CancelSupplyRequestOptions {
 	};
 }
 /**
- * Cancel a still-pending supply request, refunding its escrowed DUSDC straight
- * into the requesting account. `account` must be the request's recorded recipient.
+ * Cancel a still-pending supply request, refunding its escrowed USDC straight into
+ * the requesting account. `account` must be the request's recorded recipient.
  */
 export function cancelSupplyRequest(options: CancelSupplyRequestOptions) {
 	const packageAddress =

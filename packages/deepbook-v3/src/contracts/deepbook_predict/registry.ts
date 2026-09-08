@@ -38,11 +38,15 @@ export const Registry = new MoveStruct({
 		 */
 		allowed_pause_caps: vec_set.VecSet(bcs.Address),
 		/**
-		 * IDs of `MarketLifecycleCap` objects currently authorized for privileged
-		 * lifecycle entries such as market creation and full-pool valuation. Admin mints
-		 * into this set and revokes from it.
+		 * IDs of `MarketLifecycleCap` objects currently authorized to create expiry
+		 * markets. Admin mints into this set and revokes from it.
 		 */
 		allowed_lifecycle_caps: vec_set.VecSet(bcs.Address),
+		/**
+		 * IDs of `PoolValuationCap` objects currently authorized to start the full-pool
+		 * valuation. Admin mints into this set and revokes from it.
+		 */
+		allowed_pool_valuation_caps: vec_set.VecSet(bcs.Address),
 	},
 });
 export interface IdArguments {
@@ -269,10 +273,7 @@ export interface MintLifecycleCapOptions {
 		predictPackageId?: string;
 	};
 }
-/**
- * Mint a version-gated `MarketLifecycleCap` with market-creation and valuation
- * authority.
- */
+/** Mint a version-gated `MarketLifecycleCap` with market-creation authority. */
 export function mintLifecycleCap(options: MintLifecycleCapOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
@@ -328,33 +329,106 @@ export function revokeLifecycleCap(options: RevokeLifecycleCapOptions) {
 			),
 		});
 }
-export interface GenerateLifecycleProofArguments {
+export interface MintPoolValuationCapArguments {
 	registry?: RawTransactionArgument<string>;
-	lifecycleCap: RawTransactionArgument<string>;
+	AdminCap: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
 }
-export interface GenerateLifecycleProofOptions {
+export interface MintPoolValuationCapOptions {
 	package?: string;
-	arguments: GenerateLifecycleProofArguments;
+	arguments: MintPoolValuationCapArguments;
+	config?: {
+		registry: ConfigValue;
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/**
+ * Mint a version-gated `PoolValuationCap` with authority to start the full-pool
+ * valuation.
+ */
+export function mintPoolValuationCap(options: MintPoolValuationCapOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null, null, null] satisfies (string | null)[];
+	const parameterNames = ['registry', 'AdminCap', 'config'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'registry',
+			function: 'mint_pool_valuation_cap',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					registry: options.arguments?.registry ?? options.config?.registry,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface RevokePoolValuationCapArguments {
+	registry?: RawTransactionArgument<string>;
+	AdminCap: RawTransactionArgument<string>;
+	poolValuationCapId: RawTransactionArgument<string>;
+}
+export interface RevokePoolValuationCapOptions {
+	package?: string;
+	arguments: RevokePoolValuationCapArguments;
+	config?: {
+		registry: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/** Revoke a `PoolValuationCap` by ID without applying the version gate. */
+export function revokePoolValuationCap(options: RevokePoolValuationCapOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null, null, '0x2::object::ID'] satisfies (string | null)[];
+	const parameterNames = ['registry', 'AdminCap', 'poolValuationCapId'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'registry',
+			function: 'revoke_pool_valuation_cap',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					registry: options.arguments?.registry ?? options.config?.registry,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface GeneratePoolValuationProofArguments {
+	registry?: RawTransactionArgument<string>;
+	poolValuationCap: RawTransactionArgument<string>;
+}
+export interface GeneratePoolValuationProofOptions {
+	package?: string;
+	arguments: GeneratePoolValuationProofArguments;
 	config?: {
 		registry: ConfigValue;
 		predictPackageId?: string;
 	};
 }
 /**
- * Generate a transaction-local proof that `lifecycle_cap` is currently
- * allowlisted. Consumers take the proof by value so a revoked lifecycle cap cannot
- * authorize cross-module lifecycle actions.
+ * Generate a transaction-local proof that `pool_valuation_cap` is currently
+ * allowlisted. `plp::start_pool_valuation` takes the proof by value so a revoked
+ * cap cannot start a valuation.
  */
-export function generateLifecycleProof(options: GenerateLifecycleProofOptions) {
+export function generatePoolValuationProof(options: GeneratePoolValuationProofOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, null] satisfies (string | null)[];
-	const parameterNames = ['registry', 'lifecycleCap'];
+	const parameterNames = ['registry', 'poolValuationCap'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'registry',
-			function: 'generate_lifecycle_proof',
+			function: 'generate_pool_valuation_proof',
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,

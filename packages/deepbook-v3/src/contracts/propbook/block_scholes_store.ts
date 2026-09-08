@@ -23,29 +23,16 @@ import { type Transaction, type TransactionArgument } from '@mysten/sui/transact
 import * as table from './deps/sui/table.js';
 const $moduleName = '@local-pkg/propbook::block_scholes_store';
 /**
- * One accepted observation and the three clocks that describe it. The clocks
- * answer different questions and are not interchangeable: a calibration that has
- * not changed republishes under its original model time, so only
- * `source_timestamp_ms` distinguishes a quiet feed from a stopped one.
+ * One accepted observation paired with its signed source time and on-chain
+ * recording time.
  */
 export function BsRead<Value extends BcsType<any>>(...typeParameters: [Value]) {
 	return new MoveStruct({
 		name: `${$moduleName}::BsRead<${typeParameters[0].name as Value['name']}>`,
 		fields: {
 			/**
-			 * Provider calibration time — when the series was last re-derived, held fixed
-			 * across republishes of that calibration. The provider's per-series replay key:
-			 * ordering keys on this first. The published VALUES are as-of the envelope time:
-			 * per the provider contract, an SVI publish whose model time is unchanged carries
-			 * the same calibration already rolled down to its new publish time, never
-			 * duplicate data.
-			 */
-			model_timestamp_ms: U64,
-			/**
-			 * Envelope time of the batch this observation arrived in, advancing on every
-			 * provider flush and never regressing once stored (see `apply`). The economic
-			 * clock: consumers gate freshness on it and the SVI roll-down anchors on it, so a
-			 * republished unchanged value is re-asserted as current at its new envelope time.
+			 * Provider value/SVI time in Unix milliseconds. Latest ordering, exact history,
+			 * freshness, and SVI roll-down all key on this clock.
 			 */
 			source_timestamp_ms: U64,
 			/** Sui clock time when the accepting transaction executed. */
@@ -135,7 +122,7 @@ export const BlockScholesBatchIngested = new MoveStruct({
 		propbook_oracle_id: bcs.Address,
 		/** `0` = spot, `1` = forward, and `2` = SVI. */
 		series_kind: bcs.u8(),
-		source_timestamp_ms: U64,
+		batch_timestamp_ms: U64,
 		/** Sui clock time when the batch ingestion transaction executed. */
 		onchain_timestamp_ms: U64,
 		/** Verified observations carried by the batch. */
@@ -366,8 +353,8 @@ export interface SpotAtOptions {
 		  ];
 }
 /**
- * Returns the canonical spot observation published at exactly
- * `source_timestamp_ms`.
+ * Returns the canonical spot observation whose provider source timestamp is
+ * exactly `source_timestamp_ms`.
  */
 export function spotAt(options: SpotAtOptions) {
 	const packageAddress = options.package ?? '@local-pkg/propbook';
@@ -425,27 +412,6 @@ export function svi(options: SviOptions) {
 			module: 'block_scholes_store',
 			function: 'svi',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
-}
-export interface ReadModelTimestampMsArguments {
-	read: TransactionArgument;
-}
-export interface ReadModelTimestampMsOptions {
-	package?: string;
-	arguments: ReadModelTimestampMsArguments | [read: TransactionArgument];
-	typeArguments: [string];
-}
-export function readModelTimestampMs(options: ReadModelTimestampMsOptions) {
-	const packageAddress = options.package ?? '@local-pkg/propbook';
-	const argumentsTypes = [null] satisfies (string | null)[];
-	const parameterNames = ['read'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'block_scholes_store',
-			function: 'read_model_timestamp_ms',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-			typeArguments: options.typeArguments,
 		});
 }
 export interface ReadSourceTimestampMsArguments {
@@ -717,7 +683,7 @@ export interface InsertAtOptions {
 }
 /**
  * Insert the canonical spot batch into exact minute-boundary history without
- * changing `latest`. A valid batch whose signed `source_timestamp_ms` is not a
+ * changing `latest`. A valid batch whose spot update source timestamp is not a
  * minute boundary, or whose spot is zero or wider than `u64`, is ignored without
  * aborting. The first admissible observation at a boundary owns the key and cannot
  * be replaced.

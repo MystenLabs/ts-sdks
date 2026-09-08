@@ -6,8 +6,10 @@
  * Protocol-wide configuration and flow gates for Predict.
  *
  * This shared object owns the admin-tunable config structs, the trading pause
- * gate, the protocol-wide emergency freeze, and the transaction-local full-pool
- * valuation lock. Flow modules decide which gates apply before they mutate expiry,
+ * gate, the protocol-wide emergency freeze, and the full-pool valuation in-flight
+ * state (flag + flush ordinal, held across the transactions a flush spans;
+ * keeper/config flows gate on it, trading flows read it only to discard stale
+ * stamps lazily). Flow modules decide which gates apply before they mutate expiry,
  * oracle, pool, or account state.
  */
 
@@ -41,7 +43,7 @@ export const ProtocolConfig = new MoveStruct({
 		referral_fee_rate: U64,
 		/**
 		 * Fee charged on an executed PLP supply fill, in FLOAT_SCALING, deducted from the
-		 * DUSDC taken in before shares are priced. Ships at zero — a deposit dilutes the
+		 * USDC taken in before shares are priced. Ships at zero — a deposit dilutes the
 		 * pool's risk per dollar rather than concentrating it, so it is not taxed; the
 		 * knob exists to keep that reversible.
 		 */
@@ -62,10 +64,25 @@ export const ProtocolConfig = new MoveStruct({
 		lp_request_limit_flush_attempts: U64,
 		/**
 		 * Ceiling on LP-attributable pool value that queued supplies may raise the pool
-		 * to, enforced at the flush against the frozen mark. Defaults to `u64::MAX`, so
-		 * the pool is uncapped until an operator sets a figure (RP-23).
+		 * to, enforced at the flush against the frozen mark. Defaults to 500,000 USDC
+		 * (RP-23).
 		 */
 		max_lp_pool_value: U64,
+		/**
+		 * Hard staleness bound: `finish_flush` refuses to complete a flush in flight
+		 * longer than this, so no LP request fills at a mark older than the window; past
+		 * it the operator starts a fresh flush (which discards the stale one). A stalled
+		 * flush blocks only LP queue fills and the flush-set markets' settlement — trading
+		 * continues — so this also bounds LP-fill latency and is tuned alongside flush
+		 * cadence (RP-29).
+		 */
+		max_valuation_window_ms: U64,
+		/**
+		 * Window before a market's expiry in which live quotes, mints, and live redeems
+		 * abort. Read live at trade time rather than snapshotted per market, so it can be
+		 * widened on markets already trading. `0` disables.
+		 */
+		no_trade_window_ms: U64,
 		strike_exposure_template_config: strike_exposure_config.StrikeExposureConfig,
 		ewma_config: ewma_config.EwmaConfig,
 		/**
@@ -88,10 +105,30 @@ export const ProtocolConfig = new MoveStruct({
 		 */
 		frozen: bcs.bool(),
 		/**
-		 * Transaction-local lock held while a full-pool valuation is assembled, so no
-		 * NAV-changing op can interleave between per-market value steps in the PTB.
+		 * True for the whole duration of a full-pool valuation, across every transaction
+		 * it spans. Keeper cash flows, market lifecycle, and config mutations gate on it;
+		 * trading flows do NOT — they read it (with `flush_seq`) only to discard a stale
+		 * valuation stamp lazily; a pending market's snapshot state is captured, never
+		 * recorded per trade (see `plp`).
 		 */
 		valuation_in_progress: bcs.bool(),
+		/**
+		 * True ONLY while the atomic snapshot stage is open — set by `begin_snapshot` at
+		 * `start_pool_valuation` and cleared by `end_snapshot` at
+		 * `seal_valuation_snapshot`. Both live in one PTB (the `SnapshotStage` hot potato
+		 * forces it), so this can never be observed across transactions: it blocks only a
+		 * trade the keeper composes INTO its own snapshot PTB, where a mid-stamp cash move
+		 * would skew the figures the seal freezes. The resumable valuation stage after the
+		 * seal leaves it false, so trading stays live.
+		 */
+		snapshot_in_progress: bcs.bool(),
+		/**
+		 * Monotonic flush ordinal, bumped by `begin_valuation`. A market's valuation stamp
+		 * names the flush that made it; a stamp whose ordinal is not the current one — or
+		 * held while no valuation is in flight — is stale and is lazily discarded by the
+		 * next trade, so aborting a flush never has to visit its stamped markets.
+		 */
+		flush_seq: U64,
 	},
 });
 export interface IdArguments {
@@ -193,6 +230,43 @@ export function frozen(options: FrozenOptions) {
 			),
 		});
 }
+export interface ValuationInProgressArguments {
+	config?: RawTransactionArgument<string>;
+}
+export interface ValuationInProgressOptions {
+	package?: string;
+	arguments?: ValuationInProgressArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/**
+ * Return whether a full-pool valuation is in flight, for SDK and devInspect reads.
+ * The flush spans transactions, so "in flight" is an observable state: a keeper
+ * reads it to notice a flush it must finish or discard, and an integrator reads it
+ * to explain a gated keeper/config transaction. Trading is not gated on it.
+ */
+export function valuationInProgress(options: ValuationInProgressOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['config'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'protocol_config',
+			function: 'valuation_in_progress',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
 export interface ReferralFeeRateArguments {
 	config?: RawTransactionArgument<string>;
 }
@@ -215,6 +289,43 @@ export function referralFeeRate(options: ReferralFeeRateOptions) {
 			package: packageAddress,
 			module: 'protocol_config',
 			function: 'referral_fee_rate',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface NoTradeWindowMsArguments {
+	config?: RawTransactionArgument<string>;
+}
+export interface NoTradeWindowMsOptions {
+	package?: string;
+	arguments?: NoTradeWindowMsArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/**
+ * Window before expiry in which live quotes, mints, and live redeems abort.
+ * `public` for SDK and devInspect reads: a client that cannot see this value can
+ * only learn the window closed by decoding `ETradeWindowClosed` from a failed
+ * quote.
+ */
+export function noTradeWindowMs(options: NoTradeWindowMsOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['config'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'protocol_config',
+			function: 'no_trade_window_ms',
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,
@@ -690,6 +801,47 @@ export function setLpRequestLimitFlushAttempts(options: SetLpRequestLimitFlushAt
 			),
 		});
 }
+export interface SetMaxValuationWindowMsArguments {
+	config?: RawTransactionArgument<string>;
+	AdminCap: RawTransactionArgument<string>;
+	windowMs: RawTransactionArgument<number | bigint>;
+}
+export interface SetMaxValuationWindowMsOptions {
+	package?: string;
+	arguments: SetMaxValuationWindowMsArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/**
+ * Set how long a started full-pool valuation may stay in flight before anyone may
+ * discard it. A stalled flush costs LP-fill latency (and settlement latency for
+ * its own market set), not a trading pause, so this is an operator liveness knob:
+ * too short and a legitimate long flush can be discarded from under the keeper,
+ * too long and an abandoned one delays queued LP fills for that duration. See
+ * RP-29.
+ */
+export function setMaxValuationWindowMs(options: SetMaxValuationWindowMsOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null, null, 'u64'] satisfies (string | null)[];
+	const parameterNames = ['config', 'AdminCap', 'windowMs'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'protocol_config',
+			function: 'set_max_valuation_window_ms',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
 export interface SetMaxLpPoolValueArguments {
 	config?: RawTransactionArgument<string>;
 	AdminCap: RawTransactionArgument<string>;
@@ -792,6 +944,49 @@ export function setEwmaEnabled(options: SetEwmaEnabledOptions) {
 			package: packageAddress,
 			module: 'protocol_config',
 			function: 'set_ewma_enabled',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface SetNoTradeWindowMsArguments {
+	config?: RawTransactionArgument<string>;
+	AdminCap: RawTransactionArgument<string>;
+	value: RawTransactionArgument<number | bigint>;
+}
+export interface SetNoTradeWindowMsOptions {
+	package?: string;
+	arguments: SetNoTradeWindowMsArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/**
+ * Set the window before expiry in which live quotes, mints, and live redeems
+ * abort. `0` disables the block. Read live at trade time, so a change applies to
+ * markets already trading and stays available as an incident control.
+ *
+ * Deliberately not gated on `assert_not_valuation_in_progress`, matching
+ * `set_trading_paused`: a stalled flush must not be able to trap a safety control.
+ * Nothing in the flush reads this value, so a mid-valuation change cannot skew a
+ * frozen mark.
+ */
+export function setNoTradeWindowMs(options: SetNoTradeWindowMsOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null, null, 'u64', '0x2::clock::Clock'] satisfies (string | null)[];
+	const parameterNames = ['config', 'AdminCap', 'value'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'protocol_config',
+			function: 'set_no_trade_window_ms',
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,

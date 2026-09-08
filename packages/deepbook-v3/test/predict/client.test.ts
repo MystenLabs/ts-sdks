@@ -258,14 +258,14 @@ describe('tx.deposit / tx.withdraw', () => {
 	test('withdraw defaults to depositing into the owner address balance (coin::send_funds)', () => {
 		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
 		const tx = pc.tx.withdraw(OWNER, '5');
-		// auth → withdraw_funds<DUSDC>, amount converted to raw in the u64 slot
+		// auth → withdraw_funds<USDC>, amount converted to raw in the u64 slot
 		expect(targets(tx).slice(0, 2)).toEqual([
 			`${cfg.packages.account}::account::generate_auth`,
 			`${cfg.packages.account}::account::withdraw_funds`,
 		]);
 		expect(call(tx, 1).typeArguments).toEqual([cfg.quoteCoinType]);
 		expect(argPureBytes(tx, 1, 2)).toBe(b64(5_000_000n));
-		// send_funds<DUSDC> deposits the withdrawn coin into the owner's address balance
+		// send_funds<USDC> deposits the withdrawn coin into the owner's address balance
 		const sf = sendFundsCmd(tx);
 		expect(sf).toBeDefined();
 		expect(sf && 'MoveCall' in sf && sf.MoveCall?.typeArguments).toEqual([cfg.quoteCoinType]);
