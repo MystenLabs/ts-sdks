@@ -1,5 +1,14 @@
 # @mysten/sui.js
 
+## 2.30.0
+
+### Minor Changes
+
+- cc2aec1: Add `assumeSufficientAddressBalances` build option to resolve `tx.coin()` and
+  `tx.balance()` from address balance without a client. On a full build that needs no other
+  resolution, doesn't use `tx.gas`, and already has a `ValidDuring` or `Validity` expiration, it
+  also sets an unset gas payment to `[]`
+
 ## 2.29.0
 
 ### Minor Changes
