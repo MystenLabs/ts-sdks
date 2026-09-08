@@ -109,6 +109,11 @@ reads use the primitives layer, which returns raw `bigint`s (`accountBalance`, `
 
 `side: "up"` wins if the settlement price is above the strike; `"down"` below.
 
+Trading closes slightly before expiry: the protocol enforces a short pre-expiry no-trade window
+(`no_trade_window_ms` on the live `ProtocolConfig`, 2s on the current testnet deployment), so a mint
+or redeem submitted inside it aborts `ETradeWindowClosed` rather than filling. Treat the last
+seconds of a window as untradeable rather than retrying.
+
 ## Reference-price markets (Polymarket-style windows)
 
 Each market carries an on-chain **reference price** — derived from the exact previous-window oracle

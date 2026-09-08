@@ -18,10 +18,11 @@ test('all shared object IDs are well-formed', () => {
 	}
 });
 
-test('quoteCoinType is a well-formed coin type', () => {
-	// Shape, not identity: the deployment record owns which coin it serves, and it changes
-	// with the republish that carries the USDC collateral rename.
-	expect(TESTNET_CONFIG.quoteCoinType).toMatch(/^0x[0-9a-f]+::[a-z_]+::[A-Za-z0-9_]+$/);
+test('quoteCoinType is the renamed USDC collateral', () => {
+	// The module path is the assertion: the collateral rename means every deployment from
+	// here on serves `usdc::usdc::USDC`. The package id is deliberately not pinned — that is
+	// the deployment record's to own, and it moves with each republish.
+	expect(TESTNET_CONFIG.quoteCoinType).toMatch(/^0x[0-9a-f]{64}::usdc::USDC$/);
 });
 
 test('BTC underlying is present and well-formed', () => {

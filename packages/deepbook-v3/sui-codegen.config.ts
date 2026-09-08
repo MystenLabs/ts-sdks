@@ -4,10 +4,11 @@
 import type { SuiCodegenConfig } from '@mysten/codegen';
 
 // The `@local-pkg/*` entries are not registered on MVR, so they generate from the local Move
-// source in the sibling `deepbookv3` checkout (same pattern the `@deepbook/*` entries use), on
-// the `deepbook-predict-testnet` deployment branch — what is live on testnet. Its predict/account/propbook Move sources are byte-identical
-// to deepbookv3 `main` — the deployment's trailing commits add only `Published.toml` files and the
-// manifest — so "generate against the commit that gets deployed" and "generate against main" name
+// source in the sibling `deepbookv3` checkout (same pattern the `@deepbook/*` entries use),
+// on the `deepbook-predict-testnet` deployment branch — what is live on testnet. Its
+// predict/account/propbook Move sources are byte-identical to deepbookv3 `main` — the
+// deployment's trailing commits add no Move sources, only publication metadata and deploy
+// tooling — so "generate against the commit that gets deployed" and "against main" name
 // the same sources here, and the branch tip is also the only ref where `pnpm sync-deployment`
 // finds the manifest. One checkout serves both. Re-verify that identity before assuming it at the
 // next deploy: if main has moved past the deployment, the deployment wins.

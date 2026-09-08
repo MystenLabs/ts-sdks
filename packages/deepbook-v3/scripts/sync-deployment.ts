@@ -13,10 +13,10 @@
  * Check the sibling checkout out to the DEPLOYMENT BRANCH — not the manifest's own
  * `sourceCommit`. The deploy tooling writes the manifest in a commit that lands *after* the
  * sources it deployed, so the manifest does not exist at `sourceCommit`. For
- * `deepbook-predict-testnet` that trailing commit adds only `Published.toml` files and the
- * manifest itself, no Move sources — verified: the branch's predict/account/propbook sources
- * are byte-identical to the `main` the bindings are pinned to — so the branch tip is also the
- * right ref for `pnpm codegen`, and one checkout serves both.
+ * `deepbook-predict-testnet` those trailing commits add no Move sources — only publication
+ * metadata, the manifest, and deploy tooling. Verified: the branch's predict/account/propbook
+ * sources are byte-identical to `main`, so the branch tip is also the right ref for
+ * `pnpm codegen`, and one checkout serves both.
  *
  * The emitted file is not prettier-formatted, so follow with `sync-deployment:format`. They
  * are two scripts rather than one `&&` chain because pnpm appends `-- <args>` after the whole
