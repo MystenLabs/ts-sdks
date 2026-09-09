@@ -1,27 +1,12 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { bcs, type BcsType } from '@mysten/bcs';
+import { bcs, type BcsType, type InferBcsType, type InferBcsInput } from '@mysten/bcs';
 import { fromBase64, toBase64 } from '@mysten/utils';
 import { check, minLength, parse, pipe, string } from 'valibot';
 
-import type { StreamBound, StreamPosition } from './stream.js';
+import type { StoredRange, StreamPosition } from './stream.js';
 import type { SuiClientTypes } from './types.js';
-
-export interface StreamToken {
-	transport: 'grpc' | 'graphql';
-	family: 'checkpoints' | 'transactions' | 'events';
-	chain: string;
-	filter: string;
-	order: SuiClientTypes.Order;
-	position: StreamPosition;
-	range: {
-		end?: StreamBound;
-		capturedTip?: string;
-		follow: boolean;
-		reason: SuiClientTypes.StreamCompletion['reason'];
-	};
-}
 
 const TOKEN_PREFIX = 'sui-stream:';
 const NonemptyString = bcs.string().transform({
@@ -114,6 +99,8 @@ const GraphQLPosition = bcs
 		output: (value): StreamPosition => value,
 	});
 
+const Family = bcs.enum('StreamFamily', { checkpoints: null, transactions: null, events: null });
+
 function tokenPayload(position: BcsType<StreamPosition, StreamPosition>) {
 	const range = bcs
 		.struct('StreamRange', {
@@ -127,7 +114,7 @@ function tokenPayload(position: BcsType<StreamPosition, StreamPosition>) {
 			}),
 		})
 		.transform({
-			input: (value: StreamToken['range']) => ({
+			input: (value: Omit<StoredRange, 'start'>) => ({
 				capturedTip: value.capturedTip,
 				end: value.follow
 					? { Follow: true }
@@ -139,7 +126,7 @@ function tokenPayload(position: BcsType<StreamPosition, StreamPosition>) {
 								? { Checkpoint: value.end.checkpoint }
 								: { Cursor: (value.end as { position: StreamPosition }).position },
 			}),
-			output: (value): StreamToken['range'] => {
+			output: (value): Omit<StoredRange, 'start'> => {
 				const shared = { capturedTip: value.capturedTip, follow: false };
 				switch (value.end.$kind) {
 					case 'Follow':
@@ -165,13 +152,11 @@ function tokenPayload(position: BcsType<StreamPosition, StreamPosition>) {
 			},
 		});
 	return bcs.struct('StreamTokenPayload', {
-		family: bcs
-			.enum('StreamFamily', { checkpoints: null, transactions: null, events: null })
-			.transform({
-				input: (value: StreamToken['family']) =>
-					({ [value]: true }) as { checkpoints: true } | { transactions: true } | { events: true },
-				output: (value) => value.$kind,
-			}),
+		family: Family.transform({
+			input: (value: InferBcsType<typeof Family>['$kind']) =>
+				({ [value]: true }) as InferBcsInput<typeof Family>,
+			output: (value) => value.$kind,
+		}),
 		chain: NonemptyString,
 		filter: bcs
 			.bytes(32)
@@ -191,6 +176,13 @@ const Token = bcs.enum('StreamToken', {
 		graphql: tokenPayload(GraphQLPosition),
 	}),
 });
+
+type TokenPayload = InferBcsType<typeof Token>['V1'];
+export type StreamToken = {
+	[Transport in TokenPayload['$kind']]: { transport: Transport } & NonNullable<
+		TokenPayload[Transport]
+	>;
+}[TokenPayload['$kind']];
 
 export function encodeToken(token: StreamToken): string {
 	return (

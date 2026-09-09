@@ -74,7 +74,7 @@ export interface LedgerStreamAdapter<Frame extends object> {
 	live(request: LedgerStreamRequest): AsyncIterable<LedgerStreamEvent<Frame>>;
 }
 
-interface StoredRange {
+export interface StoredRange {
 	start?: StreamBound;
 	end?: StreamBound;
 	capturedTip?: string;
