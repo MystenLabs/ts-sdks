@@ -95,10 +95,54 @@ Execution, simulation, and [`getTransaction`](/sui/clients/querying#gettransacti
 | ---------------- | ------------------------------------------------------------------ |
 | `effects`        | Execution effects: created, mutated, and deleted objects, gas used |
 | `events`         | Move events emitted during execution                               |
-| `transaction`    | The full transaction data (sender, gas config, inputs, commands)   |
+| `transaction`    | Ledger data: sender, gas config, expiration, and transaction kind  |
 | `balanceChanges` | Balance changes for each affected address and coin type            |
 | `objectTypes`    | Map of object ID to type for all changed objects                   |
 | `bcs`            | Raw BCS-encoded transaction bytes                                  |
+
+### Transaction data
+
+`include: { transaction: true }` returns `SuiClientTypes.TransactionData`: the decoded ledger
+envelope with `sender`, `gasData`, `expiration`, and `kind`. The same model is used by reads,
+execution, simulation, lists, and streams. It represents both programmable and system transactions.
+
+```typescript
+const result = await client.getTransaction({
+	digest,
+	include: { transaction: true },
+});
+const { transaction: data } = result.Transaction ?? result.FailedTransaction;
+
+switch (data.kind.$kind) {
+	case 'ProgrammableTransaction':
+		console.log(data.kind.ProgrammableTransaction.inputs);
+		console.log(data.kind.ProgrammableTransaction.commands);
+		break;
+	case 'Genesis':
+		console.log(data.kind.Genesis.objects.length);
+		break;
+	default:
+		console.log('System transaction:', data.kind.$kind);
+}
+```
+
+Other variants include `ProgrammableSystemTransaction`, `ChangeEpoch`, `EndOfEpochTransaction`,
+`AuthenticatorStateUpdate`, `RandomnessStateUpdate`, and the four consensus-commit prologue
+versions. Their payloads use the same resolved shapes as `bcs.TransactionData.parse(bytes).V1`. A
+system transaction is returned as data; it is not skipped or replaced with `null`. Invalid
+transaction bytes still produce an error.
+
+#### Migrating from the programmable-only read model
+
+Previously, `SuiClientTypes.TransactionData` used the transaction builder's version-2 snapshot
+shape. Read data now has `kind` instead of top-level `inputs` and `commands`, and no builder
+`version` field. Narrow `data.kind.$kind` before accessing the payload as shown above. `sender`,
+`gasData`, and `expiration` remain on the envelope.
+
+The transaction builder's `getData()`, `SerializedTransactionDataV2`, and `parseTransactionBcs`
+programmable-transaction utility retain their existing formats. To reconstruct a programmable
+transaction for the builder, request `include: { bcs: true }` and use `Transaction.from(bytes)`.
+Requesting parsed transaction data alone does not expose the optional `bcs` response field.
 
 ## `waitForTransaction`
 

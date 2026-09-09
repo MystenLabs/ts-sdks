@@ -51,7 +51,6 @@ fragment STREAM_EVENT on Event {
 }
 fragment STREAM_TRANSACTION on Transaction {
 	digest
-	transactionJson @include(if: $includeTransaction)
 	transactionBcs @include(if: $includeBcs)
 	signatures {
 		signatureBytes
@@ -190,7 +189,6 @@ query scanTransactions(
 	$after: String
 	$last: Int
 	$before: String
-	$includeTransaction: Boolean = false
 	$includeEffects: Boolean = false
 	$includeEvents: Boolean = false
 	$includeBalanceChanges: Boolean = false
@@ -215,7 +213,6 @@ query scanTransactions(
 subscription subscribeTransactions(
 	$after: String
 	$filter: TransactionFilter
-	$includeTransaction: Boolean = false
 	$includeEffects: Boolean = false
 	$includeEvents: Boolean = false
 	$includeBalanceChanges: Boolean = false

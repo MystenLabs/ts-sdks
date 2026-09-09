@@ -88,12 +88,11 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 	let filter: TransactionFilter | EventFilter | CheckpointFilter = {};
 	const include = options.include as SuiClientTypes.StreamTransactionInclude | undefined;
 	const selections = {
-		includeTransaction: include?.transaction ?? false,
 		includeEffects: include?.effects ?? false,
 		includeEvents: include?.events ?? false,
 		includeBalanceChanges: include?.balanceChanges ?? false,
 		includeObjectTypes: include?.objectTypes ?? false,
-		includeBcs: include?.bcs ?? false,
+		includeBcs: !!(include?.transaction || include?.bcs),
 	};
 	const state = async (signal: AbortSignal) => {
 		const data = unwrap(

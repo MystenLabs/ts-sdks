@@ -30,9 +30,10 @@ pending request, or `break` out of the loop to close the stream.
 These methods are currently on the gRPC and GraphQL clients, not `client.core` or the JSON-RPC
 client. Shared options and results are defined in `SuiClientTypes` from `@mysten/sui/client`.
 
-`include: { transaction: true }` uses the existing Core transaction-data model, which supports
-programmable transactions. Requesting that field for system transactions, including genesis, throws
-an error. Other selections can be used when following unfiltered ledger activity.
+`include: { transaction: true }` returns the full ledger transaction data, including system
+transactions such as genesis and consensus updates. Inspect `frame.transaction.Transaction` or
+`frame.transaction.FailedTransaction`, then narrow `transaction.kind.$kind` to access that kind's
+payload. See [transaction data](./executing.mdx#transaction-data) for the shared read model.
 
 ## Save and resume progress
 

@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { EnumOutputShape } from '@mysten/bcs';
+import type { bcs } from '../bcs/index.js';
 import type {
-	SerializedTransactionDataV2,
 	TransactionPlugin,
 	Transaction as TransactionInstance,
 } from '../transactions/index.js';
@@ -550,7 +550,38 @@ export namespace SuiClientTypes {
 		amount: string;
 	}
 
-	export interface TransactionData extends SerializedTransactionDataV2 {}
+	/**
+	 * Complete ledger transaction data, including system transactions.
+	 * This is the resolved BCS read model, not the transaction builder's serialized state.
+	 * To reconstruct a builder, request `include.bcs` and use `Transaction.from(bytes)`.
+	 */
+	export interface TransactionData {
+		sender: string;
+		gasData: TransactionGasData;
+		expiration: TransactionExpiration;
+		kind: TransactionKind;
+	}
+
+	export type TransactionGasData = typeof bcs.GasData.$inferType;
+	export type TransactionExpiration = typeof bcs.TransactionExpiration.$inferType;
+	/** Discriminate ledger transaction kinds using `kind.$kind`. */
+	export type TransactionKind = typeof bcs.TransactionKind.$inferType;
+	export type ProgrammableTransaction = typeof bcs.ProgrammableTransaction.$inferType;
+	export type TransactionInput = typeof bcs.CallArg.$inferType;
+	export type TransactionCommand = typeof bcs.Command.$inferType;
+	export type TransactionArgument = typeof bcs.Argument.$inferType;
+	export type ChangeEpochTransaction = NonNullable<TransactionKind['ChangeEpoch']>;
+	export type GenesisTransaction = NonNullable<TransactionKind['Genesis']>;
+	export type GenesisObject = GenesisTransaction['objects'][number];
+	export type ConsensusCommitPrologue = NonNullable<TransactionKind['ConsensusCommitPrologue']>;
+	export type ConsensusCommitPrologueV2 = NonNullable<TransactionKind['ConsensusCommitPrologueV2']>;
+	export type ConsensusCommitPrologueV3 = NonNullable<TransactionKind['ConsensusCommitPrologueV3']>;
+	export type ConsensusCommitPrologueV4 = NonNullable<TransactionKind['ConsensusCommitPrologueV4']>;
+	export type AuthenticatorStateUpdate = NonNullable<TransactionKind['AuthenticatorStateUpdate']>;
+	export type ActiveJwk = AuthenticatorStateUpdate['newActiveJwks'][number];
+	export type RandomnessStateUpdate = NonNullable<TransactionKind['RandomnessStateUpdate']>;
+	export type EndOfEpochTransaction = NonNullable<TransactionKind['EndOfEpochTransaction']>;
+	export type EndOfEpochTransactionKind = EndOfEpochTransaction[number];
 
 	export interface GetTransactionOptions<
 		Include extends TransactionInclude = {},

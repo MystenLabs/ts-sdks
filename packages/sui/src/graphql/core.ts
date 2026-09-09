@@ -4,6 +4,7 @@
 import { CoreClient } from '../client/core.js';
 import { raceSignal } from '../client/mvr.js';
 import type { SuiClientTypes } from '../client/types.js';
+import { parseTransactionDataBcs } from '../client/transaction-data.js';
 import { SUI_TYPE_ARG } from '../utils/constants.js';
 import type { GraphQLQueryOptions, SuiGraphQLClient } from './client.js';
 import type {
@@ -50,7 +51,6 @@ import type { OpenMoveTypeSignatureBody, OpenMoveTypeSignature } from './types.j
 import {
 	transactionDataToGrpcTransaction,
 	transactionToGrpcJson,
-	grpcTransactionToTransactionData,
 } from '../client/transaction-resolver.js';
 import { setAddressBalanceTransactionExpirationFromSimulatedEpoch } from '../client/address-balance-transaction-expiration.js';
 import { BalanceChange as BalanceChangeType } from '../grpc/proto/sui/rpc/v2/balance_change.js';
@@ -378,12 +378,11 @@ export class GraphQLCoreClient extends CoreClient {
 				signal: options.signal,
 				variables: {
 					digest: options.digest,
-					includeTransaction: options.include?.transaction ?? false,
 					includeEffects: options.include?.effects ?? false,
 					includeEvents: options.include?.events ?? false,
 					includeBalanceChanges: options.include?.balanceChanges ?? false,
 					includeObjectTypes: options.include?.objectTypes ?? false,
-					includeBcs: options.include?.bcs ?? false,
+					includeBcs: !!(options.include?.transaction || options.include?.bcs),
 				},
 			},
 			(result) => result.transaction,
@@ -402,12 +401,11 @@ export class GraphQLCoreClient extends CoreClient {
 				variables: {
 					transactionDataBcs: toBase64(options.transaction),
 					signatures: options.signatures,
-					includeTransaction: options.include?.transaction ?? false,
 					includeEffects: options.include?.effects ?? false,
 					includeEvents: options.include?.events ?? false,
 					includeBalanceChanges: options.include?.balanceChanges ?? false,
 					includeObjectTypes: options.include?.objectTypes ?? false,
-					includeBcs: options.include?.bcs ?? false,
+					includeBcs: !!(options.include?.transaction || options.include?.bcs),
 				},
 			},
 			(result) => result.executeTransaction,
@@ -444,13 +442,12 @@ export class GraphQLCoreClient extends CoreClient {
 									},
 								}
 							: transactionToGrpcJson(options.transaction),
-					includeTransaction: options.include?.transaction ?? false,
 					includeEffects: options.include?.effects ?? false,
 					includeEvents: options.include?.events ?? false,
 					includeBalanceChanges: options.include?.balanceChanges ?? false,
 					includeObjectTypes: options.include?.objectTypes ?? false,
 					includeCommandResults: options.include?.commandResults ?? false,
-					includeBcs: options.include?.bcs ?? false,
+					includeBcs: !!(options.include?.transaction || options.include?.bcs),
 					doGasSelection,
 					checksEnabled: options.checksEnabled ?? true,
 				},
@@ -669,12 +666,11 @@ export class GraphQLCoreClient extends CoreClient {
 					after,
 					last: descending ? limit : undefined,
 					before,
-					includeTransaction: options.include?.transaction ?? false,
 					includeEffects: options.include?.effects ?? false,
 					includeEvents: options.include?.events ?? false,
 					includeBalanceChanges: options.include?.balanceChanges ?? false,
 					includeObjectTypes: options.include?.objectTypes ?? false,
-					includeBcs: options.include?.bcs ?? false,
+					includeBcs: !!(options.include?.transaction || options.include?.bcs),
 				},
 			},
 			(result) => result.transactions,
@@ -1121,19 +1117,11 @@ export function parseTransaction<Include extends SuiClientTypes.TransactionInclu
 				};
 
 	let transactionData: SuiClientTypes.TransactionData | undefined;
-	if (include?.transaction && transaction.transactionJson) {
-		const grpcTx = GrpcTransactionType.fromJson(
-			transaction.transactionJson as Parameters<typeof GrpcTransactionType.fromJson>[0],
-		);
-		const resolved = grpcTransactionToTransactionData(grpcTx);
-		transactionData = {
-			gasData: resolved.gasData,
-			sender: resolved.sender,
-			expiration: resolved.expiration,
-			commands: resolved.commands,
-			inputs: resolved.inputs,
-			version: resolved.version,
-		};
+	if (include?.transaction) {
+		if (!transaction.transactionBcs) {
+			throw new Error('Transaction BCS is required but missing from GraphQL response');
+		}
+		transactionData = parseTransactionDataBcs(fromBase64(transaction.transactionBcs));
 	}
 
 	const bcsBytes =

@@ -4,6 +4,7 @@
 import { BinaryWriter, WireType } from '@protobuf-ts/runtime';
 import { toBase64 } from '@mysten/utils';
 import { describe, expect, it, vi } from 'vitest';
+import { bcs } from '../../../src/bcs/index.js';
 import { SuiGraphQLClient } from '../../../src/graphql/index.js';
 import { compareLedgerCursors, decodeLedgerCursor } from '../../../src/client/stream-cursor.js';
 
@@ -490,7 +491,7 @@ describe('GraphQL ledger streams', () => {
 		).rejects.toThrow('UInt53');
 	});
 
-	it('preserves the existing programmable-transaction restriction for include.transaction', async () => {
+	it('returns genesis data when transaction details are requested', async () => {
 		const { client } = mockClient(() =>
 			Response.json({
 				data: {
@@ -500,7 +501,14 @@ describe('GraphQL ledger streams', () => {
 							node: {
 								digest: 'genesis',
 								signatures: [],
-								transactionJson: { kind: { genesis: {} } },
+								transactionBcs: bcs.TransactionData.serialize({
+									V1: {
+										sender: '0x0',
+										gasData: { owner: '0x0', payment: [], price: 1, budget: 0 },
+										expiration: { None: true },
+										kind: { Genesis: { objects: [] } },
+									},
+								}).toBase64(),
 								effects: { status: 'SUCCESS', checkpoint: null },
 							},
 						},
@@ -508,15 +516,18 @@ describe('GraphQL ledger streams', () => {
 				},
 			}),
 		);
-		await expect(
-			collect(
-				client.streamTransactions({
-					start: { checkpoint: '0' },
-					end: { checkpoint: '1' },
-					include: { transaction: true },
-				}),
-			),
-		).rejects.toThrow('Only programmable transactions are supported');
+		const items = await collect(
+			client.streamTransactions({
+				start: { checkpoint: '0' },
+				end: { checkpoint: '1' },
+				include: { transaction: true },
+			}),
+		);
+		expect(items[0].transaction.Transaction?.transaction.kind).toEqual({
+			$kind: 'Genesis',
+			Genesis: { objects: [] },
+		});
+		expect(items[0].transaction.Transaction?.bcs).toBeUndefined();
 	});
 
 	it('loads every nested event and object-change page before delivering a transaction token', async () => {

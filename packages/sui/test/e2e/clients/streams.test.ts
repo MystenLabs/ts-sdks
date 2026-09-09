@@ -4,6 +4,7 @@
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import type { SuiClientTypes } from '../../../src/client/types.js';
+import { bcs } from '../../../src/bcs/index.js';
 import { Transaction } from '../../../src/transactions/index.js';
 import { setup, type TestToolbox } from '../utils/setup.js';
 
@@ -168,6 +169,80 @@ describe('resumable ledger streams', () => {
 				descending.map((frame) => frame.transaction),
 				name,
 			).toEqual([...ascending[0]].reverse());
+		}
+	});
+
+	it('streams unfiltered system transactions from genesis in both directions and resumes', async () => {
+		const histories = [];
+		for (const [, client] of clients()) {
+			const options = {
+				start: { checkpoint: '0' },
+				end: { checkpoint: '3' },
+				include: { transaction: true, bcs: true } as const,
+				signal: signal(),
+			};
+			const ascending = await collect(client.streamTransactions(options));
+			const transactions = ascending.map(
+				(frame) => frame.transaction.Transaction ?? frame.transaction.FailedTransaction,
+			);
+			expect(transactions[0].transaction.kind.$kind).toBe('Genesis');
+			expect(
+				transactions.slice(1).some((tx) => tx.transaction.kind.$kind !== 'ProgrammableTransaction'),
+			).toBe(true);
+			for (const tx of transactions)
+				expect(tx.transaction).toEqual(bcs.TransactionData.parse(tx.bcs).V1);
+			const descending = await collect(
+				client.streamTransactions({
+					order: 'descending',
+					start: { checkpoint: '2' },
+					include: options.include,
+					signal: signal(),
+				}),
+			);
+			expect(
+				descending.map(
+					(frame) => frame.transaction.Transaction ?? frame.transaction.FailedTransaction,
+				),
+			).toEqual([...transactions].reverse());
+			const resumed = await collect(
+				client.streamTransactions({
+					start: { resumeToken: ascending[0].resumeToken },
+					include: options.include,
+					signal: signal(),
+				}),
+			);
+			expect(resumed.map((frame) => frame.transaction)).toEqual(
+				ascending.slice(1).map((frame) => frame.transaction),
+			);
+			histories.push(transactions);
+		}
+		expect(histories[0]).toEqual(histories[1]);
+	});
+
+	it('continues unfiltered transaction-data delivery from history into live system transactions', async () => {
+		for (const [, client] of clients()) {
+			const checkpoint = await toolbox.jsonRpcClient.getLatestCheckpointSequenceNumber();
+			let sawHistory = false;
+			let sawLiveSystem = false;
+			for await (const frame of client.streamTransactions({
+				start: { checkpoint },
+				include: { transaction: true },
+				signal: signal(),
+			})) {
+				const tx = frame.transaction.Transaction ?? frame.transaction.FailedTransaction;
+				expect(tx.transaction.kind.$kind).toBeTypeOf('string');
+				expect(tx.bcs).toBeUndefined();
+				if (tx.checkpoint === checkpoint) sawHistory = true;
+				if (
+					BigInt(tx.checkpoint!) > BigInt(checkpoint) &&
+					tx.transaction.kind.$kind !== 'ProgrammableTransaction'
+				) {
+					sawLiveSystem = true;
+					break;
+				}
+			}
+			expect(sawHistory).toBe(true);
+			expect(sawLiveSystem).toBe(true);
 		}
 	});
 
