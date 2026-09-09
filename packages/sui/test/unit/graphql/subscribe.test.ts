@@ -37,6 +37,35 @@ async function collect<T>(source: AsyncIterable<T>) {
 }
 
 describe('GraphQL subscribe', () => {
+	it('reports a retryable body-read failure without reconnecting native subscriptions', async () => {
+		const cause = new TypeError('socket closed');
+		const { client, fetch } = clientFor(
+			new Response(
+				new ReadableStream({
+					start(controller) {
+						controller.error(cause);
+					},
+				}),
+				{ headers: { 'content-type': 'text/event-stream' } },
+			),
+		);
+		await expect(
+			client.subscribe({ query: 'subscription { value }' }).next(),
+		).rejects.toMatchObject({ name: 'SuiGraphQLSubscriptionError', retryable: true, cause });
+		expect(fetch).toHaveBeenCalledOnce();
+	});
+
+	it('keeps serialization failures outside the retryable fetch boundary', async () => {
+		const { client, fetch } = clientFor(sse(['event: complete\n\n']).response);
+		const variables: Record<string, unknown> = {};
+		variables.self = variables;
+		await expect(client.query({ query: '{ value }', variables })).rejects.toBeInstanceOf(TypeError);
+		await expect(
+			client.subscribe({ query: 'subscription { value }', variables }).next(),
+		).rejects.toBeInstanceOf(TypeError);
+		expect(fetch).not.toHaveBeenCalled();
+	});
+
 	it('parses UTF-8, split CRLF, multiline data, comments, and complete', async () => {
 		const bytes = encoder.encode(
 			': keepalive\r\nevent: next\r\ndata: {"data":\r\ndata: {"name":"é"}}\r\n\r\nevent: complete\r\n\r\n',

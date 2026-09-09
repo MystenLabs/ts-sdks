@@ -613,3 +613,220 @@ it('fails unavailable history during repair without retrying it', async () => {
 	expect(calls).toBe(1);
 	expect(cancelled).toBe(true);
 });
+
+it.each([false, true])(
+	'resumes a completed checkpoint range from safe terminal progress (empty=%s)',
+	async (empty) => {
+		const c = client();
+		lists(c, [empty ? [end(2)] : [item(1), end(2)]]);
+		const frames = await collect(
+			c.streamEvents({
+				start: { checkpoint: '1' },
+				end: { checkpoint: '2' },
+				include: { progress: true, completion: true },
+			}),
+		);
+		const progress = frames.find((frame) => frame.$kind === 'Progress');
+		const complete = frames.find((frame) => frame.$kind === 'Complete');
+		if (!progress || !complete) throw new Error('missing terminal progress');
+		expect(complete.completion.resumeToken).toBe(progress.resumeToken);
+		const resumedRequests = lists(c, []);
+		for (const resumeToken of [progress.resumeToken, complete.completion.resumeToken!]) {
+			const resumed = await collect(
+				c.streamEvents({ start: { resumeToken }, include: { completion: true } }),
+			);
+			expect(resumed).toMatchObject([
+				{ $kind: 'Complete', completion: { reason: 'checkpointBound' } },
+			]);
+		}
+		expect(resumedRequests).toHaveLength(0);
+		// The excluded checkpoint is still owned by the following explicit interval.
+		lists(c, [[item(2), end(3)]]);
+		const adjacent = await collect(
+			c.streamEvents({ start: { checkpoint: '2' }, end: { checkpoint: '3' } }),
+		);
+		expect(adjacent.map((frame) => frame.event.checkpoint)).toEqual(['2']);
+	},
+);
+
+it('resumes a captured-tip completion without discovering a new tip or replaying the boundary', async () => {
+	const c = client();
+	let tipReads = 0;
+	c.ledgerService.listCheckpoints = ((_request: object, options: RpcOptions) => {
+		tipReads++;
+		return script(
+			[
+				{
+					checkpoint: { sequenceNumber: 2n },
+					watermark: { cursor: cursor(2, 0, 1, 6), checkpoint: 2n },
+					end: { reason: End.ITEM_LIMIT },
+				},
+			],
+			options.abort,
+		);
+	}) as never;
+	lists(c, [[item(1), end(3, End.LEDGER_TIP)]]);
+	const frames = await collect(
+		c.streamEvents({ start: { checkpoint: '1' }, follow: false, include: { completion: true } }),
+	);
+	const complete = frames.at(-1);
+	if (complete?.$kind !== 'Complete') throw new Error('missing completion');
+	const requests = lists(c, []);
+	const resumed = await collect(
+		c.streamEvents({
+			start: { resumeToken: complete.completion.resumeToken! },
+			include: { completion: true },
+		}),
+	);
+	expect(resumed).toMatchObject([
+		{ $kind: 'Complete', completion: { reason: 'indexedTip', range: { capturedCheckpoint: '2' } } },
+	]);
+	expect(tipReads).toBe(1);
+	expect(requests).toHaveLength(0);
+});
+
+it('keeps live item tokens inside an excluded checkpoint invalid as reversed ranges', async () => {
+	const c = client();
+	c.subscriptionService.subscribeEvents = ((_request: object, options: RpcOptions) =>
+		script([item(2)], options.abort, undefined, true)) as never;
+	const live = c.streamEvents();
+	const saved = await live.next();
+	await live.return?.();
+	const requests = lists(c, []);
+	await expect(
+		collect(
+			c.streamEvents({ start: { resumeToken: saved.value.resumeToken }, end: { checkpoint: '2' } }),
+		),
+	).rejects.toThrow('reversed');
+	expect(requests).toHaveLength(0);
+});
+
+it('waits for a resumed descending position to be indexed before delivering older items', async () => {
+	const c = client();
+	let tip = 100;
+	c.ledgerService.listCheckpoints = ((_request: object, options: RpcOptions) =>
+		script(
+			[
+				{
+					checkpoint: { sequenceNumber: BigInt(tip) },
+					watermark: { cursor: cursor(tip, 0, 1, 6), checkpoint: BigInt(tip) },
+					end: { reason: End.ITEM_LIMIT },
+				},
+			],
+			options.abort,
+		)) as never;
+	lists(c, [[item(100), end(99)]]);
+	const initial = c.streamEvents({
+		start: { checkpoint: '100' },
+		end: { checkpoint: '98' },
+		order: 'descending',
+	});
+	const saved = await initial.next();
+	await initial.return?.();
+	tip = 90;
+	let tipReads = 0;
+	c.ledgerService.listCheckpoints = ((_request: object, options: RpcOptions) => {
+		const current = ++tipReads === 1 ? 90 : 100;
+		return script(
+			[
+				{
+					checkpoint: { sequenceNumber: BigInt(current) },
+					watermark: { cursor: cursor(current, 0, 1, 6), checkpoint: BigInt(current) },
+					end: { reason: End.ITEM_LIMIT },
+				},
+			],
+			options.abort,
+		);
+	}) as never;
+	const requests = lists(c, [[item(99), end(99)]]);
+	const resumed = await collect(
+		c.streamEvents({ start: { resumeToken: saved.value.resumeToken }, pollInterval: 1 }),
+	);
+	expect(tipReads).toBe(2);
+	expect(requests).toHaveLength(1);
+	expect(resumed.map((frame) => frame.event.checkpoint)).toEqual(['99']);
+});
+
+it('rejects an impossible checkpoint-local offset above its global transaction position', async () => {
+	const c = client();
+	const malformed = item(1);
+	malformed.event!.transactionIndex = 999n;
+	lists(c, [[malformed, end(2)]]);
+	await expect(
+		collect(c.streamEvents({ start: { checkpoint: '1' }, end: { checkpoint: '2' } })),
+	).rejects.toThrow('Checkpoint-local transaction index exceeds');
+});
+
+it('resumes a descending checkpoint-bound terminal token as an empty completed range', async () => {
+	const c = client();
+	c.ledgerService.listCheckpoints = ((_request: object, options: RpcOptions) =>
+		script(
+			[
+				{
+					checkpoint: { sequenceNumber: 4n },
+					watermark: { cursor: cursor(4, 0, 1, 6), checkpoint: 4n },
+					end: { reason: End.ITEM_LIMIT },
+				},
+			],
+			options.abort,
+		)) as never;
+	lists(c, [
+		[
+			item(3),
+			{
+				watermark: { cursor: cursor(3, 0, 2), checkpoint: 3n },
+				end: { reason: End.CHECKPOINT_BOUND },
+			},
+		],
+	]);
+	const frames = await collect(
+		c.streamEvents({
+			start: { checkpoint: '3' },
+			end: { checkpoint: '2' },
+			order: 'descending',
+			include: { completion: true, progress: true },
+		}),
+	);
+	const complete = frames.at(-1);
+	if (complete?.$kind !== 'Complete') throw new Error('missing completion');
+	const requests = lists(c, []);
+	const resumed = await collect(
+		c.streamEvents({
+			start: { resumeToken: complete.completion.resumeToken! },
+			include: { completion: true },
+		}),
+	);
+	expect(resumed).toMatchObject([{ $kind: 'Complete', completion: { order: 'descending' } }]);
+	expect(requests).toHaveLength(0);
+});
+
+it('accepts different checkpoint-local and global transaction indexes and resumes using the global cursor', async () => {
+	const c = client();
+	const first = item(1, 0);
+	first.event!.transactionIndex = 5n;
+	lists(c, [[first, item(1, 1), end(2)]]);
+	const stream = c.streamEvents({
+		start: { checkpoint: '1' },
+		end: { checkpoint: '2' },
+		include: { proto: true },
+	});
+	const saved = await stream.next();
+	expect(saved.value.proto.transactionIndex).toBe(5n);
+	await stream.return?.();
+	const requests = lists(c, [[item(1, 1), end(2)]]);
+	const resumed = await collect(
+		c.streamEvents({ start: { resumeToken: saved.value.resumeToken } }),
+	);
+	expect(requests[0].options?.after).toEqual(cursor(1, 0));
+	expect(resumed.map((frame) => frame.event.eventIndex)).toEqual([1]);
+});
+
+it('rejects a scan-boundary cursor attached to a ledger item', async () => {
+	const c = client();
+	const malformed = item(1);
+	malformed.watermark!.cursor = cursor(1, 0, 2);
+	lists(c, [[malformed, end(2)]]);
+	await expect(
+		collect(c.streamEvents({ start: { checkpoint: '1' }, end: { checkpoint: '2' } })),
+	).rejects.toThrow('requires an item watermark');
+});

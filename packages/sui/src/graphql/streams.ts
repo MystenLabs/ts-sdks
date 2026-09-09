@@ -163,6 +163,11 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 		validatePosition(position) {
 			const native = decodeLedgerCursor(position.cursor, family);
 			scalar(native.checkpoint);
+			if (
+				position.checkpointBoundary !== undefined &&
+				(native.kind !== 'boundary' || position.checkpointBoundary !== native.checkpoint)
+			)
+				throw new Error('Stream checkpoint boundary does not match its GraphQL cursor');
 			for (const key of [
 				'checkpoint',
 				'transactionIndex',
@@ -177,8 +182,11 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 			error instanceof SuiGraphQLSubscriptionError
 				? error.retryable
 				: error instanceof SuiGraphQLRequestError
-					? error.status === 408 || error.status === 429 || (error.status ?? 0) >= 500
-					: error instanceof TypeError,
+					? error.retryable ||
+						error.status === 408 ||
+						error.status === 429 ||
+						(error.status ?? 0) >= 500
+					: false,
 		async *scan(request) {
 			const indexed = await state(request.signal);
 			const tip = BigInt(indexed.tip);
@@ -202,15 +210,16 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 				if (!bound) return;
 				if ('position' in bound) {
 					const cursor = decodeLedgerCursor(bound.position.cursor, family);
-					if (start !== descending) after = cursor.cursor;
-					else before = cursor.cursor;
+					if (start !== descending) {
+						after = cursor.cursor;
+						// Cursor bounds can retain part of their checkpoint. Only checkpoint
+						// item cursors exclude the entire checkpoint at the lower endpoint.
+						lower =
+							BigInt(cursor.checkpoint) +
+							(family === 'checkpoints' && cursor.kind === 'item' ? 1n : 0n);
+					} else before = cursor.cursor;
 					if (!start && !descending) target = BigInt(cursor.checkpoint);
-					if (
-						start &&
-						!descending &&
-						indexed.first != null &&
-						BigInt(cursor.checkpoint) < BigInt(indexed.first)
-					)
+					if (start && !descending && indexed.first != null && lower < BigInt(indexed.first))
 						throw new Error('Ledger history required for resumption has been pruned');
 				} else {
 					const cp = BigInt(bound.checkpoint);

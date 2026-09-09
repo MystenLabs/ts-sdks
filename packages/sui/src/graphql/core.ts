@@ -1156,7 +1156,11 @@ export function parseTransaction<Include extends SuiClientTypes.TransactionInclu
 			: undefined) as SuiClientTypes.Transaction<Include>['objectTypes'],
 		transaction: transactionData as SuiClientTypes.Transaction<Include>['transaction'],
 		bcs: bcsBytes as SuiClientTypes.Transaction<Include>['bcs'],
-		signatures: transaction.signatures.map((sig) => sig.signatureBytes!),
+		// Genesis has no sender signatures; the ledger may return a synthetic placeholder.
+		signatures:
+			transaction.effects?.checkpoint?.sequenceNumber === 0
+				? []
+				: transaction.signatures.map((sig) => sig.signatureBytes!),
 		balanceChanges: balanceChanges as SuiClientTypes.Transaction<Include>['balanceChanges'],
 		events: (include?.events
 			? (transaction.effects?.events?.nodes.map((event) => {

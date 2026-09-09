@@ -59,7 +59,16 @@ export async function* readGraphQLSSE<Result>(
 	try {
 		while (true) {
 			signal.throwIfAborted();
-			const chunk = await reader.read();
+			let chunk: ReadableStreamReadResult<Uint8Array>;
+			try {
+				chunk = await reader.read();
+			} catch (cause) {
+				signal.throwIfAborted();
+				throw new SuiGraphQLSubscriptionError('GraphQL subscription body could not be read', {
+					retryable: true,
+					cause,
+				});
+			}
 			signal.throwIfAborted();
 			buffer += decoder.decode(chunk.value, { stream: !chunk.done });
 			let end: number;

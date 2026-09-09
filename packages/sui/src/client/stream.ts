@@ -10,6 +10,8 @@ export interface StreamPosition {
 	cursor: string;
 	checkpoint?: string;
 	coveredCheckpoint?: string;
+	/** Canonical boundary immediately before this checkpoint, proven by a terminal scan. */
+	checkpointBoundary?: string;
 	transactionIndex?: string;
 	eventIndex?: number;
 }
@@ -107,6 +109,8 @@ function validatePosition(value: unknown): asserts value is StreamPosition {
 	const position = value as StreamPosition;
 	if (position.checkpoint !== undefined) checkpoint(position.checkpoint);
 	if (position.coveredCheckpoint !== undefined) checkpoint(position.coveredCheckpoint);
+	if (position.checkpointBoundary !== undefined)
+		checkpoint(position.checkpointBoundary, MAX_CHECKPOINT + 1n);
 	if (position.transactionIndex !== undefined) checkpoint(position.transactionIndex);
 	if (
 		position.eventIndex !== undefined &&
@@ -242,13 +246,21 @@ function compareBounds<Frame extends object>(
 		if (start.position.cursor === end.position.cursor) return 0;
 		if (adapter.comparePositions) return adapter.comparePositions(start.position, end.position);
 	}
-	const a = 'checkpoint' in start ? start.checkpoint : start.position.checkpoint;
-	const b = 'checkpoint' in end ? end.checkpoint : end.position.checkpoint;
+	const aBoundary = 'checkpoint' in start || start.position.checkpointBoundary !== undefined;
+	const bBoundary = 'checkpoint' in end || end.position.checkpointBoundary !== undefined;
+	const a =
+		'checkpoint' in start
+			? (BigInt(start.checkpoint) + (order === 'descending' ? 1n : 0n)).toString()
+			: (start.position.checkpointBoundary ?? start.position.checkpoint);
+	const b =
+		'checkpoint' in end
+			? (BigInt(end.checkpoint) + (order === 'descending' ? 1n : 0n)).toString()
+			: (end.position.checkpointBoundary ?? end.position.checkpoint);
 	if (a === undefined || b === undefined) throw new Error('Cannot compare stream range positions');
 	if (BigInt(a) !== BigInt(b)) return BigInt(a) < BigInt(b) ? -1 : 1;
-	if ('checkpoint' in start && 'checkpoint' in end) return 0;
-	if ('checkpoint' in start) return order === 'ascending' ? -1 : 1;
-	if ('checkpoint' in end) return order === 'ascending' ? 1 : -1;
+	if (aBoundary && bBoundary) return 0;
+	if (aBoundary) return -1;
+	if (bBoundary) return 1;
 	throw new Error('Transport cannot compare positions within the same checkpoint');
 }
 

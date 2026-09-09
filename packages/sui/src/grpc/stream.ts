@@ -105,6 +105,16 @@ function position(frame: RawFrame, family: Family, live: boolean): StreamPositio
 		throw protocol('Ledger item is missing its checkpoint');
 	if (payload && payload.transactionIndex === undefined)
 		throw protocol('Ledger item is missing its transaction index');
+	// Payload transactionIndex is checkpoint-local; the cursor's transactionIndex
+	// is ledger-global (tx_seq). They can differ by every earlier checkpoint's size.
+	if (
+		payload &&
+		(payload.transactionIndex! < 0n ||
+			payload.transactionIndex! > BigInt(decoded.transactionIndex!))
+	)
+		throw protocol('Checkpoint-local transaction index exceeds the global cursor index');
+	if (hasItem(frame) && decoded.kind !== 'item')
+		throw protocol('Ledger item requires an item watermark cursor');
 	if (frame.event && frame.event.eventIndex === undefined)
 		throw protocol('Event is missing its event index');
 	return {
@@ -302,12 +312,19 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 	): AsyncGenerator<LedgerStreamEvent<Frame>> {
 		// Do not deliver lower records before a requested descending start is indexed:
 		// doing so would advance the continuation past the as-yet unavailable interval.
+		const requestedStart =
+			request.start &&
+			('checkpoint' in request.start
+				? request.start.checkpoint
+				: request.start.position.cursor === 'genesis'
+					? '0'
+					: request.start.position.cursor.startsWith('checkpoint:')
+						? request.start.position.cursor.slice(11)
+						: decodeLedgerCursor(request.start.position.cursor, family).checkpoint);
 		if (
 			request.order === 'descending' &&
-			request.capturedTip === undefined &&
-			request.start &&
-			'checkpoint' in request.start &&
-			BigInt(await adapter.getIndexedTip(request.signal)) < BigInt(request.start.checkpoint)
+			requestedStart !== undefined &&
+			BigInt(await adapter.getIndexedTip(request.signal)) < BigInt(requestedStart)
 		) {
 			while (pendingMetadata.length) yield pendingMetadata.shift()!;
 			yield { kind: 'end', complete: false };
@@ -363,6 +380,17 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 							throw protocol('Unexpected item on terminal query frame');
 					}
 					const next = event(frame, false, stage);
+					// Natural terminal cursors are scan boundaries, not items inside the
+					// excluded checkpoint. Preserve that distinction when this progress is saved.
+					if (
+						next.kind === 'progress' &&
+						frame.end &&
+						(frame.end.reason === QueryEndReason.CHECKPOINT_BOUND ||
+							frame.end.reason === QueryEndReason.LEDGER_TIP) &&
+						decodeLedgerCursor(next.position.cursor, family).kind === 'boundary'
+					) {
+						next.position.checkpointBoundary = next.position.checkpoint;
+					}
 					if (next.kind !== 'metadata' || include?.queryEnd) yield next;
 					if (
 						include?.queryEnd &&
@@ -509,6 +537,7 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 				if (
 					(value.checkpoint !== undefined && value.checkpoint !== '0') ||
 					value.coveredCheckpoint !== undefined ||
+					value.checkpointBoundary !== undefined ||
 					value.transactionIndex !== undefined ||
 					value.eventIndex !== undefined
 				)
@@ -523,12 +552,18 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 					(value.checkpoint !== undefined && value.checkpoint !== cp) ||
 					(value.coveredCheckpoint !== undefined && value.coveredCheckpoint !== cp) ||
 					value.transactionIndex !== undefined ||
-					value.eventIndex !== undefined
+					value.eventIndex !== undefined ||
+					value.checkpointBoundary !== undefined
 				)
 					throw protocol('Invalid checkpoint continuation');
 				return;
 			}
 			const decoded = decodeLedgerCursor(value.cursor, family);
+			if (
+				value.checkpointBoundary !== undefined &&
+				(decoded.kind !== 'boundary' || value.checkpointBoundary !== decoded.checkpoint)
+			)
+				throw protocol('Checkpoint boundary does not match its native cursor');
 			for (const key of ['checkpoint', 'transactionIndex', 'eventIndex'] as const) {
 				if (value[key] !== undefined && value[key] !== decoded[key])
 					throw protocol('Resume position does not match its native cursor');

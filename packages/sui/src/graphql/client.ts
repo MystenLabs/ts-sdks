@@ -77,9 +77,14 @@ export interface SuiGraphQLClientOptions<Queries extends Record<string, GraphQLD
 
 export class SuiGraphQLRequestError extends Error {
 	readonly status?: number;
-	constructor(message: string, options: { status?: number } = {}) {
-		super(message);
+	readonly retryable: boolean;
+	constructor(
+		message: string,
+		options: { status?: number; retryable?: boolean; cause?: unknown } = {},
+	) {
+		super(message, { cause: options.cause });
 		this.status = options.status;
+		this.retryable = options.retryable ?? false;
 	}
 }
 
@@ -167,7 +172,7 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 	async query<Result = Record<string, unknown>, Variables = Record<string, unknown>>(
 		options: GraphQLQueryOptions<Result, Variables>,
 	): Promise<GraphQLQueryResult<Result>> {
-		const res = await this.#fetch(this.#url, {
+		const res = await this.#fetchResponse(this.#url, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
@@ -192,7 +197,32 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 			);
 		}
 
-		return await res.json();
+		let body: string;
+		try {
+			body = await res.text();
+		} catch (cause) {
+			options.signal?.throwIfAborted();
+			throw new SuiGraphQLRequestError('GraphQL response body could not be read', {
+				retryable: true,
+				cause,
+			});
+		}
+		// JSON syntax and subsequent response mapping failures are protocol errors, not
+		// transport failures. Keep them outside the retryable body-read boundary.
+		return JSON.parse(body);
+	}
+
+	async #fetchResponse(url: string, init: RequestInit): Promise<Response> {
+		try {
+			return await this.#fetch(url, init);
+		} catch (cause) {
+			init.signal?.throwIfAborted();
+			if (!(cause instanceof TypeError)) throw cause;
+			throw new SuiGraphQLRequestError('GraphQL network request failed', {
+				retryable: true,
+				cause,
+			});
+		}
 	}
 
 	/** Subscribe to an arbitrary GraphQL document over HTTP SSE. GraphQL errors remain in each response. */
@@ -211,7 +241,7 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 				const maxMessageSize = options.maxMessageSize ?? 16 * 1024 * 1024;
 				if (!Number.isSafeInteger(maxMessageSize) || maxMessageSize <= 0)
 					throw new Error('maxMessageSize must be a positive integer');
-				const response = await client.#fetch(client.#subscriptionUrl, {
+				const response = await client.#fetchResponse(client.#subscriptionUrl, {
 					method: 'POST',
 					headers: {
 						'Content-Type': 'application/json',

@@ -83,6 +83,7 @@ type Request = { query: string; variables: Record<string, any> };
 function mockClient(
 	handler: (request: Request) => Response | Promise<Response>,
 	tip: () => number = () => 10,
+	first: () => number = () => 0,
 ) {
 	const requests: Request[] = [];
 	const fetch = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
@@ -93,7 +94,7 @@ function mockClient(
 				data: {
 					chainIdentifier: 'chain',
 					serviceConfig: {
-						availableRange: { first: { sequenceNumber: 0 }, last: { sequenceNumber: tip() } },
+						availableRange: { first: { sequenceNumber: first() }, last: { sequenceNumber: tip() } },
 					},
 				},
 			});
@@ -111,6 +112,88 @@ async function collect<T>(source: AsyncIterable<T>) {
 }
 
 describe('GraphQL ledger streams', () => {
+	it.each(['mapping', 'json'])(
+		'does not retry malformed successful responses (%s)',
+		async (failure) => {
+			const { client, requests } = mockClient(() =>
+				failure === 'mapping'
+					? Response.json({ data: { checkpoints: { edges: [], pageInfo: null } } })
+					: new Response('{', { headers: { 'content-type': 'application/json' } }),
+			);
+			await expect(
+				collect(
+					client.streamCheckpoints({
+						start: { checkpoint: '1' },
+						end: { checkpoint: '2' },
+						retry: { initialDelay: 0, jitter: 0, maxAttempts: 2 },
+					}),
+				),
+			).rejects.toBeInstanceOf(failure === 'mapping' ? TypeError : SyntaxError);
+			expect(
+				requests.filter((request) => request.query.includes('query scanCheckpoints')),
+			).toHaveLength(1);
+		},
+	);
+
+	it.each(['fetch', 'body'])(
+		'retries network failures at the query %s boundary',
+		async (failure) => {
+			let calls = 0;
+			const { client, requests } = mockClient(() => {
+				if (++calls === 1) {
+					if (failure === 'fetch') throw new TypeError('fetch failed');
+					return new Response(
+						new ReadableStream({
+							start(controller) {
+								controller.error(new TypeError('socket closed'));
+							},
+						}),
+					);
+				}
+				return Response.json({ data: { checkpoints: connection([checkpoint(1)]) } });
+			});
+			expect(
+				await collect(
+					client.streamCheckpoints({
+						start: { checkpoint: '1' },
+						end: { checkpoint: '2' },
+						retry: { initialDelay: 0, jitter: 0, maxAttempts: 1 },
+					}),
+				),
+			).toHaveLength(1);
+			expect(
+				requests.filter((request) => request.query.includes('query scanCheckpoints')),
+			).toHaveLength(2);
+		},
+	);
+
+	it('retries subscription body failures from the same anchored start', async () => {
+		let calls = 0;
+		const { client, requests } = mockClient(() => {
+			if (++calls === 1)
+				return new Response(
+					new ReadableStream({
+						start(controller) {
+							controller.error(new TypeError('socket closed'));
+						},
+					}),
+					{ headers: { 'content-type': 'text/event-stream' } },
+				);
+			return subscription('events', [event(2)]);
+		});
+		const stream = client.streamEvents({
+			start: { checkpoint: '2' },
+			retry: { initialDelay: 0, jitter: 0, maxAttempts: 1 },
+		});
+		expect((await stream.next()).value?.event.checkpoint).toBe('2');
+		await stream.return(undefined);
+		expect(
+			requests
+				.filter((request) => request.query.includes('subscription subscribeEvents'))
+				.map((request) => request.variables.filter.afterCheckpoint),
+		).toEqual([1, 1]);
+	});
+
 	it('captures the indexed cutoff once, pages descending, and preserves the lower bound', async () => {
 		let calls = 0;
 		const { client, requests } = mockClient(() =>
@@ -144,6 +227,53 @@ describe('GraphQL ledger streams', () => {
 			filter: { afterCheckpoint: 6, beforeCheckpoint: 11 },
 			before: cursor('checkpoints', 9),
 		});
+	});
+
+	it('reads descending cursor intervals entirely within retained history', async () => {
+		let first = 0;
+		const { client } = mockClient(
+			() => Response.json({ data: { checkpoints: connection([checkpoint(10)]) } }),
+			() => 20,
+			() => first,
+		);
+		const anchorStream = client.streamCheckpoints({ start: { checkpoint: '10' }, follow: false });
+		const anchor = (await anchorStream.next()).value!;
+		await anchorStream.return?.(undefined);
+		// The anchor itself may be pruned: it is an excluded checkpoint item.
+		first = 11;
+		const retained = mockClient(
+			() => Response.json({ data: { checkpoints: connection([checkpoint(11), checkpoint(12)]) } }),
+			() => 20,
+			() => first,
+		);
+		const frames = await collect(
+			retained.client.streamCheckpoints({
+				order: 'descending',
+				start: { checkpoint: '12' },
+				end: { resumeToken: anchor.resumeToken },
+			}),
+		);
+		expect(frames.map((frame) => frame.checkpoint.sequenceNumber)).toEqual(['12', '11']);
+		expect(retained.requests.at(-1)?.variables.filter.afterCheckpoint).toBe(10);
+	});
+
+	it('resumes after an excluded checkpoint anchor that has since been pruned', async () => {
+		const source = mockClient(() => subscription('checkpoints', [checkpoint(10)]));
+		const stream = source.client.streamCheckpoints({ start: { checkpoint: '10' } });
+		const anchor = (await stream.next()).value!;
+		await stream.return?.(undefined);
+		const retained = mockClient(
+			() => Response.json({ data: { checkpoints: connection([checkpoint(11)]) } }),
+			() => 20,
+			() => 11,
+		);
+		const frames = await collect(
+			retained.client.streamCheckpoints({
+				start: { resumeToken: anchor.resumeToken },
+				end: { checkpoint: '12' },
+			}),
+		);
+		expect(frames.map((frame) => frame.checkpoint.sequenceNumber)).toEqual(['11']);
 	});
 
 	it('persists finite cutoff when resuming while the indexed tip grows', async () => {

@@ -181,6 +181,23 @@ retried. Polling may trail live subscriptions. Finite reads always use historica
 `onStatus` is synchronous diagnostic reporting. Its result is not awaited; throwing terminates the
 stream. Store resume tokens from processed frames, not from status notifications.
 
+GraphQL does not report how far a quiet subscription has scanned. Silence can mean either that no
+records match or that historical recovery is waiting for unavailable data. The SDK cannot diagnose
+retention from silence. `retry.maxAttempts` bounds failed requests, not a request that keeps
+waiting. Use a caller-selected deadline when a job must finish within a fixed time:
+
+```typescript
+client.streamEvents({
+	start: { checkpoint: '1000' },
+	end: { checkpoint: '2000' },
+	signal: AbortSignal.timeout(60_000),
+});
+```
+
+The deadline cancels the whole traversal, including retry waits, and does not produce a completion
+frame. For long-running filtered subscriptions, choose cancellation based on application policy; an
+idle timeout alone cannot establish that ledger data is missing.
+
 ## gRPC extensions
 
 The gRPC client adds progress, native payloads, native filters, and per-request terminal metadata to
