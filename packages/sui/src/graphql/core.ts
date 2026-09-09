@@ -682,16 +682,23 @@ export class GraphQLCoreClient extends CoreClient {
 
 		// Backwards pagination returns nodes in ascending order, so reverse them for descending reads
 		const nodes = descending ? [...transactions.nodes].reverse() : transactions.nodes;
+		const hasNextPage = descending
+			? transactions.pageInfo.hasPreviousPage
+			: transactions.pageInfo.hasNextPage;
 
 		return {
 			transactions: nodes.map((transaction) => parseTransaction(transaction, options.include)),
-			hasNextPage: descending
-				? transactions.pageInfo.hasPreviousPage
-				: transactions.pageInfo.hasNextPage,
+			hasNextPage,
 			startCursor:
-				(descending ? transactions.pageInfo.endCursor : transactions.pageInfo.startCursor) ?? null,
+				nodes.length || hasNextPage
+					? ((descending ? transactions.pageInfo.endCursor : transactions.pageInfo.startCursor) ??
+						null)
+					: null,
 			endCursor:
-				(descending ? transactions.pageInfo.startCursor : transactions.pageInfo.endCursor) ?? null,
+				nodes.length || hasNextPage
+					? ((descending ? transactions.pageInfo.startCursor : transactions.pageInfo.endCursor) ??
+						null)
+					: null,
 		};
 	}
 
@@ -730,6 +737,7 @@ export class GraphQLCoreClient extends CoreClient {
 
 		// Backwards pagination returns nodes in ascending order, so reverse them for descending reads
 		const nodes = descending ? [...events.nodes].reverse() : events.nodes;
+		const hasNextPage = descending ? events.pageInfo.hasPreviousPage : events.pageInfo.hasNextPage;
 
 		return {
 			events: nodes.map((event): SuiClientTypes.EventEntry => {
@@ -755,9 +763,15 @@ export class GraphQLCoreClient extends CoreClient {
 					eventIndex: event.sequenceNumber,
 				};
 			}),
-			hasNextPage: descending ? events.pageInfo.hasPreviousPage : events.pageInfo.hasNextPage,
-			startCursor: (descending ? events.pageInfo.endCursor : events.pageInfo.startCursor) ?? null,
-			endCursor: (descending ? events.pageInfo.startCursor : events.pageInfo.endCursor) ?? null,
+			hasNextPage,
+			startCursor:
+				nodes.length || hasNextPage
+					? ((descending ? events.pageInfo.endCursor : events.pageInfo.startCursor) ?? null)
+					: null,
+			endCursor:
+				nodes.length || hasNextPage
+					? ((descending ? events.pageInfo.startCursor : events.pageInfo.endCursor) ?? null)
+					: null,
 		};
 	}
 
@@ -1048,7 +1062,7 @@ function mapOwner(owner: Object_Owner_FieldsFragment): SuiClientTypes.ObjectOwne
 	}
 }
 
-function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
+export function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 	transaction: Transaction_FieldsFragment,
 	include?: Include,
 ): SuiClientTypes.TransactionResult<Include> {

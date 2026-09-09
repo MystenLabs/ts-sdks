@@ -4,6 +4,7 @@
 export {
 	type GraphQLDocument,
 	type GraphQLQueryOptions,
+	type GraphQLSubscriptionOptions,
 	type GraphQLQueryResult,
 	type GraphQLResponseErrors,
 	type GraphQLSimulateTransactionOptions,
@@ -12,3 +13,5 @@ export {
 	SuiGraphQLRequestError,
 	isSuiGraphQLClient,
 } from './client.js';
+
+export { SuiGraphQLSubscriptionError } from './subscribe.js';

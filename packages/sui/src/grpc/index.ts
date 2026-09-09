@@ -36,3 +36,18 @@ export type { RpcTransport } from '@protobuf-ts/runtime-rpc';
 // Export all gRPC proto types as a namespace
 import * as GrpcTypes from './proto/types.js';
 export { GrpcTypes };
+
+export type {
+	GrpcStreamInclude,
+	GrpcStreamTransactionInclude,
+	GrpcStreamStage,
+	GrpcStreamQueryEnd,
+	GrpcStreamProgressFrame,
+	GrpcStreamQueryEndFrame,
+	GrpcStreamCheckpointsOptions,
+	GrpcStreamTransactionsOptions,
+	GrpcStreamEventsOptions,
+	GrpcStreamCheckpointResult,
+	GrpcStreamTransactionResult,
+	GrpcStreamEventResult,
+} from './stream-types.js';

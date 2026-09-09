@@ -1040,7 +1040,7 @@ function toGrpcQueryOptions(pagination: ResolvedPagination, limit: number): Quer
 	};
 }
 
-function transactionReadMaskPaths(
+export function transactionReadMaskPaths(
 	include: SuiClientTypes.TransactionInclude | undefined,
 	prefix = '',
 ): string[] {
@@ -1049,6 +1049,7 @@ function transactionReadMaskPaths(
 		'transaction.digest',
 		'signatures',
 		'effects.status',
+		'effects.epoch',
 		'timestamp',
 		'checkpoint',
 	];
@@ -1578,7 +1579,11 @@ export function parseGrpcTransactionResponse<
 			: undefined) as SuiClientTypes.Transaction<Include>['objectTypes'],
 		transaction: transactionData as SuiClientTypes.Transaction<Include>['transaction'],
 		bcs: bcsBytes as SuiClientTypes.Transaction<Include>['bcs'],
-		signatures: transaction.signatures?.map((sig) => toBase64(sig.bcs?.value!)) ?? [],
+		// Genesis has no sender signatures; the fullnode may return a synthetic placeholder.
+		signatures:
+			transaction.checkpoint === 0n
+				? []
+				: (transaction.signatures?.map((sig) => toBase64(sig.bcs?.value!)) ?? []),
 		balanceChanges: (include?.balanceChanges
 			? (transaction.balanceChanges?.map((change) => ({
 					coinType: change.coinType!,

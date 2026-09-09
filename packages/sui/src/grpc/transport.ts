@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { GrpcStatusCode } from '@protobuf-ts/grpcweb-transport';
+import type { GrpcWebOptions } from '@protobuf-ts/grpcweb-transport';
 import { GrpcWebFetchTransport as UpstreamGrpcWebFetchTransport } from '@protobuf-ts/grpcweb-transport';
 import type {
 	MethodInfo,
@@ -124,6 +125,48 @@ function normalizeRejections(promises: Promise<unknown>[], signal: AbortSignal |
 	}
 }
 
+// Upstream erases fetch/read failures into INTERNAL, the same status as a server failure or
+// protobuf decode error. Preserve the transport boundary so resumable streams can retry only
+// network failures. Aborts retain the existing signal-aware normalization below.
+function streamFetch(fetch: typeof globalThis.fetch): typeof globalThis.fetch {
+	return async (input, init) => {
+		const networkError = (error: unknown) => {
+			if (init?.signal?.aborted || error instanceof RpcError) return error;
+			return new RpcError(
+				error instanceof Error ? error.message : 'Network stream failed',
+				'UNAVAILABLE',
+			);
+		};
+		let response: Response;
+		try {
+			response = await fetch(input, init);
+		} catch (error) {
+			throw networkError(error);
+		}
+		if (!response.body) return response;
+		const reader = response.body.getReader();
+		const body = new ReadableStream<Uint8Array>({
+			async pull(controller) {
+				try {
+					const next = await reader.read();
+					if (next.done) controller.close();
+					else controller.enqueue(next.value);
+				} catch (error) {
+					controller.error(networkError(error));
+				}
+			},
+			cancel(reason) {
+				return reader.cancel(reason);
+			},
+		});
+		return new Response(body, {
+			status: response.status,
+			statusText: response.statusText,
+			headers: response.headers,
+		});
+	};
+}
+
 /**
  * `GrpcWebFetchTransport` from `@protobuf-ts/grpcweb-transport`, subclassed to decode status
  * messages and to code an aborted call from its reason rather than as `INTERNAL`.
@@ -149,7 +192,10 @@ export class GrpcWebFetchTransport extends UpstreamGrpcWebFetchTransport {
 		input: I,
 		options: RpcOptions,
 	): ServerStreamingCall<I, O> {
-		const call = super.serverStreaming(method, input, options);
+		const call = super.serverStreaming(method, input, {
+			...options,
+			fetch: streamFetch((options as GrpcWebOptions).fetch ?? globalThis.fetch),
+		} as GrpcWebOptions);
 
 		// A finite stream is often read through `responses` without awaiting `status`.
 		call.responses.onError((error) => normalizeGrpcError(error, options.abort));

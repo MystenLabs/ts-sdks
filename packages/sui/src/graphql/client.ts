@@ -14,6 +14,8 @@ import { fromBase64 } from '@mysten/utils';
 import { normalizeStructTag } from '../utils/sui-types.js';
 import { deriveDynamicFieldID } from '../utils/dynamic-fields.js';
 import type { TransactionPlugin } from '../transactions/index.js';
+import { readGraphQLSSE } from './subscribe.js';
+import { graphQLLedgerStream } from './streams.js';
 
 export type GraphQLDocument<Result = Record<string, unknown>, Variables = Record<string, unknown>> =
 	| string
@@ -36,6 +38,19 @@ export type GraphQLQueryOptions<
 			variables: Variables;
 		});
 
+export type GraphQLSubscriptionOptions<
+	Result = Record<string, unknown>,
+	Variables = Record<string, unknown>,
+> = Omit<GraphQLQueryOptions<Result, Variables>, 'variables'> &
+	(Record<string, unknown> extends Variables
+		? { variables?: Variables }
+		: Variables extends { [key: string]: never }
+			? { variables?: Variables }
+			: { variables: Variables }) & {
+		/** Maximum buffered SSE message length in characters. Defaults to 16 Mi characters. */
+		maxMessageSize?: number;
+	};
+
 export type GraphQLQueryResult<Result = Record<string, unknown>> = {
 	data?: Result;
 	errors?: GraphQLResponseErrors;
@@ -46,10 +61,13 @@ export type GraphQLResponseErrors = Array<{
 	message: string;
 	locations?: { line: number; column: number }[];
 	path?: (string | number)[];
+	extensions?: Record<string, unknown>;
 }>;
 
 export interface SuiGraphQLClientOptions<Queries extends Record<string, GraphQLDocument>> {
 	url: string;
+	/** SSE endpoint; defaults to the query URL with `/subscriptions` appended. */
+	subscriptionUrl?: string;
 	fetch?: typeof fetch;
 	headers?: Record<string, string>;
 	queries?: Queries;
@@ -57,7 +75,13 @@ export interface SuiGraphQLClientOptions<Queries extends Record<string, GraphQLD
 	mvr?: SuiClientTypes.MvrOptions;
 }
 
-export class SuiGraphQLRequestError extends Error {}
+export class SuiGraphQLRequestError extends Error {
+	readonly status?: number;
+	constructor(message: string, options: { status?: number } = {}) {
+		super(message);
+		this.status = options.status;
+	}
+}
 
 const SUI_CLIENT_BRAND = Symbol.for('@mysten/SuiGraphQLClient') as never;
 
@@ -101,6 +125,7 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 	implements SuiClientTypes.TransportMethods
 {
 	#url: string;
+	#subscriptionUrl: string;
 	#queries: Queries;
 	#headers: Record<string, string>;
 	#fetch: typeof fetch;
@@ -115,6 +140,7 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 
 	constructor({
 		url,
+		subscriptionUrl,
 		fetch: fetchFn = fetch,
 		headers = {},
 		queries = {} as Queries,
@@ -125,6 +151,10 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 			network,
 		});
 		this.#url = url;
+		const suffixIndex = url.search(/[?#]/);
+		const path = suffixIndex === -1 ? url : url.slice(0, suffixIndex);
+		const suffix = suffixIndex === -1 ? '' : url.slice(suffixIndex);
+		this.#subscriptionUrl = subscriptionUrl ?? `${path.replace(/\/$/, '')}/subscriptions${suffix}`;
 		this.#queries = queries;
 		this.#headers = headers;
 		this.#fetch = (...args) => fetchFn(...args);
@@ -156,10 +186,94 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 		});
 
 		if (!res.ok) {
-			throw new SuiGraphQLRequestError(`GraphQL request failed: ${res.statusText} (${res.status})`);
+			throw new SuiGraphQLRequestError(
+				`GraphQL request failed: ${res.statusText} (${res.status})`,
+				{ status: res.status },
+			);
 		}
 
 		return await res.json();
+	}
+
+	/** Subscribe to an arbitrary GraphQL document over HTTP SSE. GraphQL errors remain in each response. */
+	subscribe<Result = Record<string, unknown>, Variables = Record<string, unknown>>(
+		options: GraphQLSubscriptionOptions<Result, Variables>,
+	): AsyncGenerator<GraphQLQueryResult<Result>> {
+		const controller = new AbortController();
+		const abort = () => controller.abort(options.signal?.reason);
+		const run = async function* (
+			client: SuiGraphQLClient,
+		): AsyncGenerator<GraphQLQueryResult<Result>> {
+			if (options.signal?.aborted) abort();
+			else options.signal?.addEventListener('abort', abort, { once: true });
+			try {
+				controller.signal.throwIfAborted();
+				const maxMessageSize = options.maxMessageSize ?? 16 * 1024 * 1024;
+				if (!Number.isSafeInteger(maxMessageSize) || maxMessageSize <= 0)
+					throw new Error('maxMessageSize must be a positive integer');
+				const response = await client.#fetch(client.#subscriptionUrl, {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						Accept: 'text/event-stream',
+						...client.#headers,
+					},
+					body: JSON.stringify({
+						query:
+							typeof options.query === 'string' || options.query instanceof String
+								? String(options.query)
+								: print(options.query),
+						variables: options.variables,
+						operationName: options.operationName,
+						extensions: options.extensions,
+					}),
+					signal: controller.signal,
+				});
+				yield* readGraphQLSSE<Result>(response, controller.signal, maxMessageSize);
+			} catch (error) {
+				controller.signal.throwIfAborted();
+				throw error;
+			} finally {
+				controller.abort();
+				options.signal?.removeEventListener('abort', abort);
+			}
+		};
+		const iterator = run(this);
+		const originalReturn = iterator.return.bind(iterator);
+		iterator.return = (value) => {
+			controller.abort();
+			return originalReturn(value);
+		};
+		const originalThrow = iterator.throw.bind(iterator);
+		iterator.throw = (error) => {
+			controller.abort(error);
+			return originalThrow(error);
+		};
+		return iterator;
+	}
+
+	streamCheckpoints<Include extends SuiClientTypes.StreamInclude = {}>(
+		options: SuiClientTypes.StreamCheckpointsOptions<Include> = {},
+	): AsyncGenerator<SuiClientTypes.StreamCheckpointResult<Include>> {
+		return graphQLLedgerStream(this, 'checkpoints', options) as AsyncGenerator<
+			SuiClientTypes.StreamCheckpointResult<Include>
+		>;
+	}
+
+	streamTransactions<Include extends SuiClientTypes.StreamTransactionInclude = {}>(
+		options: SuiClientTypes.StreamTransactionsOptions<Include> = {},
+	): AsyncGenerator<SuiClientTypes.StreamTransactionResult<Include>> {
+		return graphQLLedgerStream(this, 'transactions', options) as AsyncGenerator<
+			SuiClientTypes.StreamTransactionResult<Include>
+		>;
+	}
+
+	streamEvents<Include extends SuiClientTypes.StreamInclude = {}>(
+		options: SuiClientTypes.StreamEventsOptions<Include> = {},
+	): AsyncGenerator<SuiClientTypes.StreamEventResult<Include>> {
+		return graphQLLedgerStream(this, 'events', options) as AsyncGenerator<
+			SuiClientTypes.StreamEventResult<Include>
+		>;
 	}
 
 	async execute<

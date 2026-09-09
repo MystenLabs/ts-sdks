@@ -19,6 +19,17 @@ import { NameServiceClient } from './proto/sui/rpc/v2/name_service.client.js';
 import { ForkingServiceClient } from './proto/sui/forking/v1alpha/forking_service.client.js';
 import type { TransactionPlugin } from '../transactions/index.js';
 import { GrpcWebFetchTransport } from './transport.js';
+import { grpcLedgerStream } from './stream.js';
+import type {
+	GrpcStreamInclude,
+	GrpcStreamTransactionInclude,
+	GrpcStreamCheckpointsOptions,
+	GrpcStreamTransactionsOptions,
+	GrpcStreamEventsOptions,
+	GrpcStreamCheckpointResult,
+	GrpcStreamTransactionResult,
+	GrpcStreamEventResult,
+} from './stream-types.js';
 
 interface SuiGrpcTransportOptions extends GrpcWebOptions {
 	transport?: never;
@@ -346,6 +357,42 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 
 	listEvents(input: SuiClientTypes.ListEventsOptions): Promise<SuiClientTypes.ListEventsResponse> {
 		return this.core.listEvents(input);
+	}
+
+	streamCheckpoints<Include extends GrpcStreamInclude = {}>(
+		options?: GrpcStreamCheckpointsOptions<Include>,
+	): AsyncIterableIterator<GrpcStreamCheckpointResult<Include>>;
+	streamCheckpoints<Include extends SuiClientTypes.StreamInclude = {}>(
+		options?: SuiClientTypes.StreamCheckpointsOptions<Include>,
+	): AsyncIterableIterator<SuiClientTypes.StreamCheckpointResult<Include>>;
+	streamCheckpoints(
+		options: GrpcStreamCheckpointsOptions<GrpcStreamInclude> = {},
+	): AsyncIterableIterator<unknown> {
+		return grpcLedgerStream(this, 'checkpoints', options);
+	}
+
+	streamTransactions<Include extends GrpcStreamTransactionInclude = {}>(
+		options?: GrpcStreamTransactionsOptions<Include>,
+	): AsyncIterableIterator<GrpcStreamTransactionResult<Include>>;
+	streamTransactions<Include extends SuiClientTypes.StreamTransactionInclude = {}>(
+		options?: SuiClientTypes.StreamTransactionsOptions<Include>,
+	): AsyncIterableIterator<SuiClientTypes.StreamTransactionResult<Include>>;
+	streamTransactions(
+		options: GrpcStreamTransactionsOptions<GrpcStreamTransactionInclude> = {},
+	): AsyncIterableIterator<unknown> {
+		return grpcLedgerStream(this, 'transactions', options);
+	}
+
+	streamEvents<Include extends GrpcStreamInclude = {}>(
+		options?: GrpcStreamEventsOptions<Include>,
+	): AsyncIterableIterator<GrpcStreamEventResult<Include>>;
+	streamEvents<Include extends SuiClientTypes.StreamInclude = {}>(
+		options?: SuiClientTypes.StreamEventsOptions<Include>,
+	): AsyncIterableIterator<SuiClientTypes.StreamEventResult<Include>>;
+	streamEvents(
+		options: GrpcStreamEventsOptions<GrpcStreamInclude> = {},
+	): AsyncIterableIterator<unknown> {
+		return grpcLedgerStream(this, 'events', options);
 	}
 
 	getMoveFunction(
