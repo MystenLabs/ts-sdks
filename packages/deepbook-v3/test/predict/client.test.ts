@@ -192,8 +192,8 @@ function mockNoMarket() {
 }
 
 describe('PredictClient constructor', () => {
-	test('mainnet without config throws (no deployment)', () => {
-		expect(() => new PredictClient({ network: 'mainnet', client: mockClient().client })).toThrow();
+	test('an unrecorded network without config throws (no deployment)', () => {
+		expect(() => new PredictClient({ network: 'devnet', client: mockClient().client })).toThrow();
 	});
 
 	test('testnet resolves the bundled config; wrapperIdFor is deterministic', () => {

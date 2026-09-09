@@ -13,6 +13,13 @@
 import type { SuiClientTypes } from '@mysten/sui/client';
 
 import {
+	MAINNET_ACCOUNT,
+	MAINNET_DEPLOYMENT,
+	MAINNET_PREDICT,
+	MAINNET_SESSIONS,
+	MAINNET_UNITS,
+} from './mainnet.js';
+import {
 	TESTNET_ACCOUNT,
 	TESTNET_DEPLOYMENT,
 	TESTNET_PREDICT,
@@ -30,9 +37,10 @@ export type {
 } from './types.js';
 
 export { TESTNET_ACCOUNT, TESTNET_DEPLOYMENT, TESTNET_PREDICT, TESTNET_SESSIONS, TESTNET_UNITS };
+export { MAINNET_ACCOUNT, MAINNET_DEPLOYMENT, MAINNET_PREDICT, MAINNET_SESSIONS, MAINNET_UNITS };
 
-/** Networks this package carries ids for. Predict and sessions are testnet-only so far. */
-export type DeployedNetwork = 'testnet';
+/** Networks this package carries ids for. */
+export type DeployedNetwork = 'testnet' | 'mainnet';
 
 /**
  * Accepts the same wide network type the Sui client exposes, so `getUnits(client.network)`
@@ -45,7 +53,7 @@ export type NetworkArg = SuiClientTypes.Network;
 function unrecorded(network: string, override: string): Error {
 	return new Error(
 		`@mysten/deepbook-v3: no deployment recorded for network '${network}'. ` +
-			'Predict, sessions and the account primitive are testnet-only today. ' +
+			'Predict, sessions and the account primitive are recorded for testnet and mainnet. ' +
 			`For your own deployment, ${override}`,
 	);
 }
@@ -58,6 +66,7 @@ function unrecorded(network: string, override: string): Error {
  */
 export function getDeployment(network: NetworkArg): DeploymentInfo {
 	if (network === 'testnet') return TESTNET_DEPLOYMENT;
+	if (network === 'mainnet') return MAINNET_DEPLOYMENT;
 	throw unrecorded(network, 'read the deployment name and commit from your own deploy manifest.');
 }
 
@@ -69,5 +78,6 @@ export function getDeployment(network: NetworkArg): DeploymentInfo {
  */
 export function getUnits(network: NetworkArg): DeploymentUnits {
 	if (network === 'testnet') return TESTNET_UNITS;
+	if (network === 'mainnet') return MAINNET_UNITS;
 	throw unrecorded(network, 'read these scale constants from your own deploy manifest.');
 }

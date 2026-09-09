@@ -4,6 +4,7 @@ import { bcs } from '@mysten/sui/bcs';
 import type { Transaction, TransactionArgument, TransactionResult } from '@mysten/sui/transactions';
 import { deriveDynamicFieldID, deriveObjectID } from '@mysten/sui/utils';
 
+import { MAINNET_SESSIONS } from './deployments/mainnet.js';
 import { TESTNET_SESSIONS } from './deployments/testnet.js';
 import type { NetworkArg } from './deployments/index.js';
 
@@ -69,9 +70,11 @@ export function getSessionsConfig(
 	// The frozen record itself, matching `/account` — returning a spread here would have
 	// quietly exempted this subpath from the immutability the others guarantee.
 	if (network === 'testnet') return TESTNET_SESSIONS;
+	if (network === 'mainnet') return MAINNET_SESSIONS;
 	throw new Error(
 		`@mysten/deepbook-v3/sessions: no sessions deployment recorded for network '${network}'. ` +
-			'Sessions is testnet-only today; for your own deployment construct a `SessionsConfig` ' +
+			'Sessions is recorded for testnet and mainnet; for your own deployment construct a ' +
+			'`SessionsConfig` ' +
 			'and pass it to SessionsContract directly.',
 	);
 }
