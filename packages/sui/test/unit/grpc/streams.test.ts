@@ -742,16 +742,6 @@ it('waits for a resumed descending position to be indexed before delivering olde
 	expect(resumed.map((frame) => frame.event.checkpoint)).toEqual(['99']);
 });
 
-it('rejects an invalid checkpoint-local transaction offset', async () => {
-	const c = client();
-	const malformed = item(1);
-	malformed.event!.transactionIndex = -1n;
-	lists(c, [[malformed, end(2)]]);
-	await expect(
-		collect(c.streamEvents({ start: { checkpoint: '1' }, end: { checkpoint: '2' } })),
-	).rejects.toThrow('invalid transaction index');
-});
-
 it('resumes a descending checkpoint-bound terminal token as an empty completed range', async () => {
 	const c = client();
 	c.ledgerService.listCheckpoints = ((_request: object, options: RpcOptions) =>

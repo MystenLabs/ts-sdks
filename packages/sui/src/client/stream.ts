@@ -3,6 +3,26 @@
 
 import { fromBase64, toBase64 } from '@mysten/utils';
 
+import {
+	boolean,
+	check,
+	finite,
+	literal,
+	minLength,
+	minValue,
+	never,
+	number,
+	object,
+	optional,
+	parse,
+	picklist,
+	pipe,
+	regex,
+	safeInteger,
+	string,
+	union,
+} from 'valibot';
+
 import type { SuiClientTypes } from './types.js';
 
 /** Opaque server cursor with separately reported ledger position and coverage. */
@@ -94,72 +114,52 @@ function canonical(value: unknown): string {
 	return JSON.stringify(value);
 }
 
-function checkpoint(value: unknown, maximum = MAX_CHECKPOINT): string {
-	if (typeof value !== 'string' || !/^(0|[1-9]\d*)$/.test(value) || BigInt(value) > maximum) {
-		throw new Error('Stream checkpoint must be an unsigned decimal integer within range');
-	}
-	return value;
-}
-
-function validatePosition(value: unknown): asserts value is StreamPosition {
-	if (
-		!value ||
-		typeof value !== 'object' ||
-		!('cursor' in value) ||
-		typeof value.cursor !== 'string' ||
-		!value.cursor
-	) {
-		throw new Error('Invalid stream cursor position');
-	}
-	const position = value as StreamPosition;
-	if (position.checkpoint !== undefined) checkpoint(position.checkpoint);
-	if (position.coveredCheckpoint !== undefined) checkpoint(position.coveredCheckpoint);
-	if (position.indexedCheckpoint !== undefined) checkpoint(position.indexedCheckpoint);
-	if (position.itemId !== undefined && (typeof position.itemId !== 'string' || !position.itemId))
-		throw new Error('Stream item identity must be a nonempty string');
-	if (position.checkpointBoundary !== undefined)
-		checkpoint(position.checkpointBoundary, MAX_CHECKPOINT + 1n);
-	if (position.transactionIndex !== undefined) checkpoint(position.transactionIndex);
-	if (
-		position.eventIndex !== undefined &&
-		(!Number.isSafeInteger(position.eventIndex) || position.eventIndex < 0)
-	) {
-		throw new Error('Invalid stream event index');
-	}
-}
-
-function validateBound(value: unknown): asserts value is StreamBound {
-	if (!value || typeof value !== 'object' || 'checkpoint' in value === 'position' in value) {
-		throw new Error('Invalid stream range bound');
-	}
-	if ('checkpoint' in value) checkpoint(value.checkpoint, MAX_CHECKPOINT + 1n);
-	else validatePosition((value as { position: unknown }).position);
-}
+const checkpointSchema = (maximum = MAX_CHECKPOINT) =>
+	pipe(
+		string(),
+		regex(/^(0|[1-9]\d*)$/),
+		check((value) => BigInt(value) <= maximum),
+	);
+const Checkpoint = checkpointSchema();
+const CheckpointBoundary = checkpointSchema(MAX_CHECKPOINT + 1n);
+const Position = object({
+	cursor: pipe(string(), minLength(1)),
+	checkpoint: optional(Checkpoint),
+	coveredCheckpoint: optional(Checkpoint),
+	indexedCheckpoint: optional(Checkpoint),
+	checkpointBoundary: optional(CheckpointBoundary),
+	transactionIndex: optional(Checkpoint),
+	eventIndex: optional(pipe(number(), safeInteger(), minValue(0))),
+	itemId: optional(pipe(string(), minLength(1))),
+});
+const Bound = union([
+	object({ checkpoint: CheckpointBoundary, position: optional(never()) }),
+	object({ position: Position, checkpoint: optional(never()) }),
+]);
+const Token = object({
+	version: literal(1),
+	transport: picklist(['grpc', 'graphql']),
+	family: picklist(['checkpoints', 'transactions', 'events']),
+	chain: pipe(string(), minLength(1)),
+	filter: string(),
+	order: picklist(['ascending', 'descending']),
+	position: Position,
+	range: object({
+		start: optional(Bound),
+		end: optional(Bound),
+		capturedTip: optional(Checkpoint),
+		follow: boolean(),
+		reason: picklist(['checkpointBound', 'cursorBound', 'indexedTip', 'genesis']),
+	}),
+});
 
 function decodeToken(value: string): StreamToken {
 	try {
 		if (!value.startsWith(TOKEN_PREFIX) || value.length > 100_000) throw new Error();
-		const token = JSON.parse(
-			new TextDecoder().decode(fromBase64(value.slice(TOKEN_PREFIX.length))),
-		) as StreamToken;
-		if (
-			token.version !== 1 ||
-			!['grpc', 'graphql'].includes(token.transport) ||
-			!['checkpoints', 'transactions', 'events'].includes(token.family) ||
-			typeof token.chain !== 'string' ||
-			!token.chain ||
-			typeof token.filter !== 'string' ||
-			!['ascending', 'descending'].includes(token.order) ||
-			!token.range ||
-			typeof token.range.follow !== 'boolean' ||
-			!['checkpointBound', 'cursorBound', 'indexedTip', 'genesis'].includes(token.range.reason)
-		) {
-			throw new Error();
-		}
-		validatePosition(token.position);
-		if (token.range.start !== undefined) validateBound(token.range.start);
-		if (token.range.end !== undefined) validateBound(token.range.end);
-		if (token.range.capturedTip !== undefined) checkpoint(token.range.capturedTip);
+		const token = parse(
+			Token,
+			JSON.parse(new TextDecoder().decode(fromBase64(value.slice(TOKEN_PREFIX.length)))),
+		);
 		if (token.range.follow && (token.order === 'descending' || token.range.end)) throw new Error();
 		return token;
 	} catch {
@@ -171,40 +171,19 @@ function encodeToken(token: StreamToken): string {
 	return TOKEN_PREFIX + toBase64(new TextEncoder().encode(JSON.stringify(token)));
 }
 
-function validateInputBound(value: SuiClientTypes.StreamStart | undefined): void {
-	if (value === undefined) return;
-	if (!value || typeof value !== 'object' || 'checkpoint' in value === 'resumeToken' in value) {
-		throw new Error('Stream bounds require exactly one of checkpoint or resumeToken');
-	}
-	if ('checkpoint' in value) checkpoint(value.checkpoint);
-	else if (typeof value.resumeToken !== 'string' || !value.resumeToken) {
-		throw new Error('Stream resumeToken must be a nonempty string');
-	}
-}
-
-function validateOptions(
+function streamRetryOptions(
 	options: SuiClientTypes.StreamOptions,
 ): Required<SuiClientTypes.StreamRetryOptions> {
-	validateInputBound(options.start);
-	validateInputBound(options.end);
-	if (
-		options.order !== undefined &&
-		options.order !== 'ascending' &&
-		options.order !== 'descending'
-	) {
-		throw new Error('Invalid stream order');
-	}
-	if (options.follow !== undefined && typeof options.follow !== 'boolean')
-		throw new Error('Invalid stream follow option');
-	if (
-		options.delivery !== undefined &&
-		options.delivery !== 'poll' &&
-		options.delivery !== 'subscribe'
-	) {
-		throw new Error('Invalid stream delivery mode');
-	}
-	if (!Number.isFinite(options.pollInterval ?? 1000) || (options.pollInterval ?? 1000) <= 0) {
-		throw new Error('Stream pollInterval must be positive');
+	parse(
+		pipe(
+			number(),
+			finite(),
+			check((value) => value > 0, 'Stream pollInterval must be positive'),
+		),
+		options.pollInterval ?? 1000,
+	);
+	for (const bound of [options.start, options.end]) {
+		if (bound?.checkpoint !== undefined) parse(Checkpoint, bound.checkpoint);
 	}
 	const retry = {
 		initialDelay: options.retry?.initialDelay ?? 250,
@@ -212,18 +191,15 @@ function validateOptions(
 		jitter: options.retry?.jitter ?? 500,
 		maxAttempts: options.retry?.maxAttempts ?? Infinity,
 	};
-	for (const name of ['initialDelay', 'maxDelay', 'jitter'] as const) {
-		if (!Number.isFinite(retry[name]) || retry[name] < 0)
-			throw new Error(`Invalid stream retry ${name}`);
-	}
-	if (retry.maxDelay < retry.initialDelay)
-		throw new Error('Stream retry maxDelay must be at least initialDelay');
-	if (
-		retry.maxAttempts !== Infinity &&
-		(!Number.isSafeInteger(retry.maxAttempts) || retry.maxAttempts < 0)
-	) {
-		throw new Error('Stream retry maxAttempts must be a nonnegative integer');
-	}
+	parse(
+		object({
+			initialDelay: pipe(number(), finite(), minValue(0)),
+			maxDelay: pipe(number(), finite(), minValue(0)),
+			jitter: pipe(number(), finite(), minValue(0)),
+			maxAttempts: union([literal(Infinity), pipe(number(), safeInteger(), minValue(0))]),
+		}),
+		retry,
+	);
 	return retry;
 }
 
@@ -300,7 +276,7 @@ export function createLedgerStream<Frame extends object>(
 		let attempts = 0;
 		try {
 			signal.throwIfAborted();
-			const retry = validateOptions(options);
+			const retry = streamRetryOptions(options);
 			const startToken = options.start?.resumeToken
 				? decodeToken(options.start.resumeToken)
 				: undefined;
@@ -403,7 +379,7 @@ export function createLedgerStream<Frame extends object>(
 			) {
 				const tip =
 					range.capturedTip ??
-					checkpoint(await retryOperation(() => adapter.getIndexedTip(signal)));
+					parse(Checkpoint, await retryOperation(() => adapter.getIndexedTip(signal)));
 				if (!follow) range.capturedTip = tip;
 				if (!start)
 					start = { checkpoint: order === 'descending' ? tip : (BigInt(tip) + 1n).toString() };
@@ -469,8 +445,6 @@ export function createLedgerStream<Frame extends object>(
 						switch (event.$kind) {
 							case 'item':
 							case 'progress': {
-								validatePosition(event.position);
-								adapter.validatePosition?.(event.position);
 								if (
 									!start ||
 									!('position' in start) ||

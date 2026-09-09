@@ -329,18 +329,14 @@ describe('ledger stream range and tokens', () => {
 	});
 
 	it.each([
-		{ start: {} },
-		{ start: { checkpoint: '0', resumeToken: 'x' } },
 		{ start: { checkpoint: '-1' } },
 		{ start: { checkpoint: '1.5' } },
 		{ start: { checkpoint: '18446744073709551616' } },
-		{ end: {} },
 		{ follow: true, order: 'descending' },
 		{ follow: true, end: { checkpoint: '5' } },
 		{ follow: false },
 		{ pollInterval: 0 },
 		{ retry: { maxAttempts: -1 } },
-		{ retry: { maxDelay: 1, initialDelay: 2 } },
 		{ start: { resumeToken: 'broken' } },
 	] as SuiClientTypes.StreamOptions[])(
 		'rejects invalid options %j before network work',

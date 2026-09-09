@@ -1,6 +1,8 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { maxValue, minValue, number, parse, pipe, safeInteger } from 'valibot';
+
 import { fromBase64, toBase64 } from '@mysten/utils';
 import { RpcError } from '@protobuf-ts/runtime-rpc';
 import type { ServerStreamingCall } from '@protobuf-ts/runtime-rpc';
@@ -112,8 +114,6 @@ function position(frame: RawFrame, family: Family, live: boolean): StreamPositio
 		throw protocol('Ledger item is missing its checkpoint');
 	if (payload && payload.transactionIndex === undefined)
 		throw protocol('Ledger item is missing its transaction index');
-	if (payload && (payload.transactionIndex! < 0n || payload.transactionIndex! > U64_MAX))
-		throw protocol('Ledger item has an invalid transaction index');
 	if (frame.event && frame.event.eventIndex === undefined)
 		throw protocol('Event is missing its event index');
 	return {
@@ -661,15 +661,8 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 		},
 		liveFromTip: true,
 		async initialize(signal) {
-			if (input.filter !== undefined && input.grpcFilter !== undefined)
-				throw new TypeError('filter and grpcFilter are mutually exclusive');
-			for (const [name, value] of [
-				['pageSize', pageSize],
-				['maxBufferedItems', limit],
-			] as const) {
-				if (!Number.isSafeInteger(value) || value <= 0 || value > 0xffffffff)
-					throw new TypeError(`${name} must be a positive uint32`);
-			}
+			parse(pipe(number(), safeInteger(), minValue(1), maxValue(0xffffffff)), pageSize);
+			parse(pipe(number(), safeInteger(), minValue(1)), limit);
 			if (input.grpcFilter) filter = input.grpcFilter;
 			else if (input.filter)
 				filter =

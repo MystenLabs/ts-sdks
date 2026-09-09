@@ -91,8 +91,6 @@ export async function* readGraphQLSSE<Result>(
 						let result: GraphQLQueryResult<Result>;
 						try {
 							result = JSON.parse(data.join('\n'));
-							if (!result || typeof result !== 'object' || Array.isArray(result))
-								throw new Error('Expected a GraphQL response object');
 						} catch (cause) {
 							throw new SuiGraphQLSubscriptionError('Invalid GraphQL subscription response', {
 								cause,
