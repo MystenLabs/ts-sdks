@@ -103,9 +103,9 @@ Execution, simulation, and [`getTransaction`](/sui/clients/querying#gettransacti
 ### Transaction data
 
 `include: { transaction: true }` returns `SuiClientTypes.TransactionData`: the decoded ledger data
-with `sender`, `gasData`, `expiration`, `version: 2`, `inputs`, `commands`, and `kind`. The same
-model is used by reads, execution, simulation, lists, and streams. It represents both programmable
-and system transactions.
+with `sender`, `gasData`, `expiration`, `inputs`, `commands`, and `kind`. The same model is used by
+reads, execution, simulation, lists, and streams. It represents both programmable and system
+transactions.
 
 ```typescript
 const result = await client.getTransaction({
@@ -137,11 +137,6 @@ Other variants include `ChangeEpoch`, `EndOfEpochTransaction`, `AuthenticatorSta
 transactions have empty top-level `inputs` and `commands`; their actual payload is in `kind`. Empty
 arrays describe the absence of a programmable body, not the absence of transaction activity. System
 payloads use the decoded BCS shapes.
-
-The `version: 2` field retains the SDK's existing serialization convention. It does not identify the
-ledger transaction kind or make non-programmable transactions usable by the transaction builder.
-Inspect `kind.$kind` to distinguish transaction kinds. The builder's `getData()`,
-`SerializedTransactionDataV2`, and `parseTransactionBcs` utility retain their existing formats.
 
 System transactions are returned as data, not skipped or replaced with `null`. Invalid transaction
 bytes still produce an error. Requesting parsed transaction data alone does not expose the optional
