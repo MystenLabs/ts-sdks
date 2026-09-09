@@ -13,11 +13,11 @@ import type { SuiClientTypes } from '../../../src/client/types.js';
 
 type Frame = { $kind: 'Item'; value: number; resumeToken: string };
 const item = (value: number, cp = String(value)): LedgerStreamEvent<Frame> => ({
-	kind: 'item',
+	$kind: 'item',
 	frame: { $kind: 'Item', value, resumeToken: '' },
 	position: { cursor: String(value), checkpoint: cp },
 });
-const end = { kind: 'end', complete: true } as const;
+const end = { $kind: 'end', complete: true } as const;
 const retry = { initialDelay: 0, maxDelay: 0, jitter: 0, maxAttempts: 2 };
 function adapter(overrides: Partial<LedgerStreamAdapter<Frame>> = {}): LedgerStreamAdapter<Frame> {
 	return {
@@ -325,7 +325,7 @@ describe('ledger stream delivery and cleanup', () => {
 		let scans = 0;
 		const source = adapter({
 			scan: vi.fn(async function* (): AsyncGenerator<LedgerStreamEvent<Frame>> {
-				if (++scans === 1) yield { kind: 'end', complete: false };
+				if (++scans === 1) yield { $kind: 'end', complete: false };
 				else {
 					yield item(12);
 					yield end;
@@ -355,8 +355,8 @@ describe('ledger stream delivery and cleanup', () => {
 		const source = adapter({
 			scan: vi.fn(async function* (): AsyncGenerator<LedgerStreamEvent<Frame>> {
 				if (++scans === 1) {
-					yield { kind: 'progress', position: { cursor: '15', checkpoint: '15' } };
-					yield { kind: 'end', complete: false };
+					yield { $kind: 'progress', position: { cursor: '15', checkpoint: '15' } };
+					yield { $kind: 'end', complete: false };
 				} else {
 					yield item(16);
 					yield end;
@@ -476,7 +476,7 @@ describe('ledger stream delivery and cleanup', () => {
 		const source = adapter({
 			scan: async function* (): AsyncGenerator<LedgerStreamEvent<Frame>> {
 				yield item(1);
-				yield { kind: 'metadata', frame: { $kind: 'Item', value: 99 } as Frame };
+				yield { $kind: 'metadata', frame: { $kind: 'Item', value: 99 } as Frame };
 				yield end;
 			},
 		});
@@ -521,7 +521,7 @@ describe('ledger stream delivery and cleanup', () => {
 			liveFromTip: true,
 			live: vi.fn(async function* (): AsyncGenerator<LedgerStreamEvent<Frame>> {
 				yield {
-					kind: 'progress',
+					$kind: 'progress',
 					position: { cursor: '10', coveredCheckpoint: '10' },
 					frame: { $kind: 'Item', value: 0, resumeToken: '' },
 				};

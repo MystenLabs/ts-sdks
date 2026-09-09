@@ -28,10 +28,10 @@ export interface LedgerStreamRequest {
 }
 
 export type LedgerStreamEvent<Frame extends object> =
-	| { kind: 'item'; frame: Frame; position: StreamPosition }
-	| { kind: 'progress'; position: StreamPosition; frame?: Frame }
-	| { kind: 'metadata'; frame: Frame }
-	| { kind: 'end'; complete: boolean };
+	| { $kind: 'item'; frame: Frame; position: StreamPosition }
+	| { $kind: 'progress'; position: StreamPosition; frame?: Frame }
+	| { $kind: 'metadata'; frame: Frame }
+	| { $kind: 'end'; complete: boolean };
 
 export interface LedgerStreamAdapter<Frame extends object> {
 	transport: 'grpc' | 'graphql';
@@ -456,7 +456,7 @@ export function createLedgerStream<Frame extends object>(
 					for await (const event of live ? adapter.live(request) : adapter.scan(request)) {
 						signal.throwIfAborted();
 						if (ended) throw new Error('Stream adapter emitted data after its end');
-						switch (event.kind) {
+						switch (event.$kind) {
 							case 'item':
 							case 'progress': {
 								validatePosition(event.position);

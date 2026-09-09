@@ -195,7 +195,7 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 						? BigInt(request.start.checkpoint)
 						: BigInt(decodeLedgerCursor(request.start.position.cursor, family).checkpoint);
 				if (required > tip) {
-					yield { kind: 'end', complete: false };
+					yield { $kind: 'end', complete: false };
 					return;
 				}
 			}
@@ -236,7 +236,7 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 			if (descending && indexed.first != null && lower < BigInt(indexed.first))
 				throw new Error('Ledger history required for the range has been pruned');
 			if (lower >= upper) {
-				yield { kind: 'end', complete: target == null || tip >= target };
+				yield { $kind: 'end', complete: target == null || tip >= target };
 				return;
 			}
 			const boundedFilter = {
@@ -289,7 +289,7 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 					}
 					previous = edge.cursor;
 					yield {
-						kind: 'item',
+						$kind: 'item',
 						frame: await mapNode(edge.node, position.checkpoint, request.signal),
 						position,
 					};
@@ -307,20 +307,21 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 					'position' in request.end &&
 					compareLedgerCursors(cursor, request.end.position.cursor) * (descending ? -1 : 1) >= 0
 				) {
-					yield { kind: 'end', complete: true };
+					yield { $kind: 'end', complete: true };
 					return;
 				}
 				if (!more) {
 					// Only unbounded polling can advance to a terminal scan boundary. A finite end
 					// cursor is an excluded item, not a safe resume-after-that-item position.
 					if (!request.end && cursor && !edges.length)
-						yield { kind: 'progress', position: decodeLedgerCursor(cursor, family) };
-					yield { kind: 'end', complete: target == null || tip >= target };
+						yield { $kind: 'progress', position: decodeLedgerCursor(cursor, family) };
+					yield { $kind: 'end', complete: target == null || tip >= target };
 					return;
 				}
 				if (!cursor || cursor === (descending ? before : after))
 					throw new Error('GraphQL ledger pagination did not advance');
-				if (!edges.length) yield { kind: 'progress', position: decodeLedgerCursor(cursor, family) };
+				if (!edges.length)
+					yield { $kind: 'progress', position: decodeLedgerCursor(cursor, family) };
 				if (descending) before = cursor;
 				else after = cursor;
 			}
@@ -336,7 +337,7 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 					// GraphQL has no afterCheckpoint=-1. Read genesis explicitly, then let the
 					// server backfill after checkpoint zero before joining its live stream.
 					for await (const event of adapter.scan({ ...request, end: { checkpoint: '1' } })) {
-						if (event.kind !== 'end') yield event;
+						if (event.$kind !== 'end') yield event;
 					}
 					afterCheckpoint = 0;
 				} else afterCheckpoint = scalar((cp - 1n).toString());
@@ -378,7 +379,7 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 				}
 				previous = edge.cursor;
 				yield {
-					kind: 'item',
+					$kind: 'item',
 					frame: await mapNode(edge.node, position.checkpoint, request.signal),
 					position,
 				};

@@ -295,7 +295,7 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 		const p = position(frame, family, live);
 		if (hasItem(frame)) {
 			return {
-				kind: 'item',
+				$kind: 'item',
 				position: p,
 				frame: {
 					...mapItem(frame, include),
@@ -308,7 +308,7 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 			return;
 		}
 		return {
-			kind: 'progress',
+			$kind: 'progress',
 			position: p,
 			frame: include?.progress
 				? { $kind: 'Progress', coveredCheckpoint: p.coveredCheckpoint }
@@ -336,7 +336,7 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 			requestedStart !== undefined &&
 			BigInt(await adapter.getIndexedTip(request.signal)) < BigInt(requestedStart)
 		) {
-			yield { kind: 'end', complete: false };
+			yield { $kind: 'end', complete: false };
 			return;
 		}
 		const range = bounds(request);
@@ -392,7 +392,7 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 					// Natural terminal cursors are scan boundaries, not items inside the
 					// excluded checkpoint. Preserve that distinction when this progress is saved.
 					if (
-						next?.kind === 'progress' &&
+						next?.$kind === 'progress' &&
 						frame.end &&
 						(frame.end.reason === QueryEndReason.CHECKPOINT_BOUND ||
 							frame.end.reason === QueryEndReason.LEDGER_TIP) &&
@@ -423,7 +423,7 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 					((target !== undefined && BigInt(final.coveredCheckpoint) + 1n >= target) ||
 						(request.capturedTip === U64_MAX.toString() &&
 							BigInt(final.coveredCheckpoint) === U64_MAX)));
-			yield { kind: 'end', complete };
+			yield { $kind: 'end', complete };
 			return;
 		}
 	}
@@ -465,11 +465,11 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 					for (;;) {
 						let complete = false;
 						for await (const next of scan({ ...request, start, end }, 'recovery')) {
-							if (next.kind === 'end') {
+							if (next.$kind === 'end') {
 								complete = next.complete;
 								continue;
 							}
-							if (next.kind === 'item' || next.kind === 'progress') {
+							if (next.$kind === 'item' || next.$kind === 'progress') {
 								safe = next.position;
 								start = { position: safe };
 							}
@@ -489,7 +489,7 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 							? { cursor: 'genesis', checkpoint: '0' }
 							: checkpointPosition(BigInt(cp) - 1n);
 					yield {
-						kind: 'progress',
+						$kind: 'progress',
 						position: baseline,
 						frame: include?.progress
 							? { $kind: 'Progress', coveredCheckpoint: baseline.coveredCheckpoint }
