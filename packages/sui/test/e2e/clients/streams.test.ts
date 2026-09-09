@@ -487,6 +487,18 @@ describe('resumable ledger streams', () => {
 		});
 	});
 
+	it('finishes a raw GraphQL operation when Sui closes the SSE response', async () => {
+		const results = await collect(
+			toolbox.graphqlClient.subscribe<{ chainIdentifier: string }>({
+				query: 'query { chainIdentifier }',
+				signal: signal(),
+			}),
+		);
+		expect(results).toHaveLength(1);
+		expect(results[0].errors).toBeUndefined();
+		expect(results[0].data?.chainIdentifier).toBeTypeOf('string');
+	});
+
 	it('cancels native GraphQL while waiting for a matching event', async () => {
 		const controller = new AbortController();
 		const stream = toolbox.graphqlClient.subscribe({

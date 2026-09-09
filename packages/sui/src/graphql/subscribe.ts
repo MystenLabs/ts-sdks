@@ -1,6 +1,9 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { createParser } from './vendor/eventsource-parser/parse.js';
+import type { EventSourceMessage } from './vendor/eventsource-parser/types.js';
+
 import type { GraphQLQueryResult } from './client.js';
 
 /** A transport/protocol failure, distinct from GraphQL errors delivered in a response. */
@@ -38,7 +41,8 @@ export async function* readGraphQLSSE<Result>(
 		);
 	}
 	if (
-		!response.headers.get('content-type')?.toLowerCase().startsWith('text/event-stream') ||
+		response.headers.get('content-type')?.split(';', 1)[0].trim().toLowerCase() !==
+			'text/event-stream' ||
 		!response.body
 	) {
 		await response.body?.cancel();
@@ -48,10 +52,25 @@ export async function* readGraphQLSSE<Result>(
 	}
 	const reader = response.body.getReader();
 	const decoder = new TextDecoder();
-	let buffer = '';
-	let event = '';
-	let data: string[] = [];
-	let size = 0;
+	const pending: (EventSourceMessage | SuiGraphQLSubscriptionError)[] = [];
+	const parser = createParser({
+		maxBufferSize: maxMessageSize,
+		dispatchEmptyData: true,
+		onEvent(message) {
+			pending.push(
+				message.data.length > maxMessageSize
+					? new SuiGraphQLSubscriptionError('GraphQL SSE message exceeds maxMessageSize')
+					: message,
+			);
+		},
+		onError(cause) {
+			if (cause.type === 'max-buffer-size-exceeded') {
+				pending.push(
+					new SuiGraphQLSubscriptionError('GraphQL SSE message exceeds maxMessageSize', { cause }),
+				);
+			}
+		},
+	});
 	const abort = () => {
 		void reader.cancel(signal.reason).catch(() => {});
 	};
@@ -70,56 +89,27 @@ export async function* readGraphQLSSE<Result>(
 				});
 			}
 			signal.throwIfAborted();
-			buffer += decoder.decode(chunk.value, { stream: !chunk.done });
-			let end: number;
-			while ((end = buffer.search(/[\r\n]/)) !== -1) {
-				// A trailing CR may be the first byte of CRLF in the next network chunk.
-				if (buffer[end] === '\r' && end + 1 === buffer.length && !chunk.done) break;
-				const line = buffer.slice(0, end);
-				if (size + line.length > maxMessageSize)
-					throw new SuiGraphQLSubscriptionError('GraphQL SSE message exceeds maxMessageSize');
-				buffer = buffer.slice(end + (buffer[end] === '\r' && buffer[end + 1] === '\n' ? 2 : 1));
-				if (line === '') {
-					if (event === 'complete') return;
-					if (data.length) {
-						if (event === 'error')
-							throw new SuiGraphQLSubscriptionError(
-								`GraphQL subscription error: ${data.join('\n')}`,
-							);
-						if (event !== 'next' && event !== '' && event !== 'message')
-							throw new SuiGraphQLSubscriptionError(`Unexpected GraphQL SSE event: ${event}`);
-						let result: GraphQLQueryResult<Result>;
-						try {
-							result = JSON.parse(data.join('\n'));
-						} catch (cause) {
-							throw new SuiGraphQLSubscriptionError('Invalid GraphQL subscription response', {
-								cause,
-							});
-						}
-						yield result;
-					}
-					event = '';
-					data = [];
-					size = 0;
-				} else if (!line.startsWith(':')) {
-					const colon = line.indexOf(':');
-					const field = colon < 0 ? line : line.slice(0, colon);
-					let value = colon < 0 ? '' : line.slice(colon + 1);
-					if (value.startsWith(' ')) value = value.slice(1);
-					if (field === 'event') event = value;
-					if (field === 'data') {
-						data.push(value);
-						size += value.length + 1;
-					}
+			parser.feed(decoder.decode(chunk.value, { stream: !chunk.done }));
+			for (const message of pending) {
+				signal.throwIfAborted();
+				if (message instanceof SuiGraphQLSubscriptionError) throw message;
+				if (message.event === 'complete') return;
+				if (message.event === 'error')
+					throw new SuiGraphQLSubscriptionError(`GraphQL subscription error: ${message.data}`);
+				if (message.event && message.event !== 'next' && message.event !== 'message')
+					throw new SuiGraphQLSubscriptionError(`Unexpected GraphQL SSE event: ${message.event}`);
+				let result: GraphQLQueryResult<Result>;
+				try {
+					result = JSON.parse(message.data);
+				} catch (cause) {
+					throw new SuiGraphQLSubscriptionError('Invalid GraphQL subscription response', { cause });
 				}
+				yield result;
 			}
-			if (size + buffer.length > maxMessageSize)
-				throw new SuiGraphQLSubscriptionError('GraphQL SSE message exceeds maxMessageSize');
-			if (chunk.done)
-				throw new SuiGraphQLSubscriptionError(
-					'GraphQL subscription ended without a complete event',
-					{ retryable: true },
-				);
+			pending.length = 0;
+			// Sui closes completed subscriptions without sending a GraphQL complete event.
+			// Ledger streams reconnect at their own layer when a live subscription ends.
+			if (chunk.done) return;
 		}
 	} finally {
 		signal.removeEventListener('abort', abort);

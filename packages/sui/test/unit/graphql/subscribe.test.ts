@@ -153,6 +153,22 @@ describe('GraphQL subscribe', () => {
 		expect(init.signal?.aborted).toBe(true);
 	});
 
+	it('stops before delivering another buffered result after abort', async () => {
+		const controller = new AbortController();
+		const { response } = sse(
+			['event: next\ndata: {"data":1}\n\nevent: next\ndata: {"data":2}\n\n'],
+			false,
+		);
+		const { client } = clientFor(response);
+		const iterator = client.subscribe({
+			query: 'subscription { value }',
+			signal: controller.signal,
+		});
+		expect(await iterator.next()).toMatchObject({ value: { data: 1 } });
+		controller.abort(new Error('stop'));
+		await expect(iterator.next()).rejects.toThrow('stop');
+	});
+
 	it('return cancels an outstanding next on a quiet subscription', async () => {
 		const { response, cancel } = sse([], false);
 		const { client } = clientFor(response);
@@ -180,8 +196,30 @@ describe('GraphQL subscribe', () => {
 		expect(cancel).toHaveBeenCalledOnce();
 	});
 
+	it('completes raw subscriptions when the server closes after its results', async () => {
+		const { client } = clientFor(sse(['event: next\ndata: {"data":{"value":1}}\n\n']).response);
+		expect(await collect(client.subscribe({ query: 'subscription { value }' }))).toEqual([
+			{ data: { value: 1 } },
+		]);
+	});
+
+	it('honors a data-free complete event without waiting for EOF', async () => {
+		const { response, cancel } = sse(['event: complete\n\n'], false);
+		const { client } = clientFor(response);
+		expect(await collect(client.subscribe({ query: 'subscription { value }' }))).toEqual([]);
+		expect(cancel).toHaveBeenCalledOnce();
+	});
+
+	it('yields earlier results before a later malformed message in the same chunk', async () => {
+		const { client } = clientFor(
+			sse(['event: next\ndata: {"data":1}\n\nevent: next\ndata: {\n\n']).response,
+		);
+		const iterator = client.subscribe({ query: 'subscription { value }' });
+		expect(await iterator.next()).toMatchObject({ value: { data: 1 }, done: false });
+		await expect(iterator.next()).rejects.toThrow('Invalid GraphQL subscription response');
+	});
+
 	it.each([
-		['EOF', 'event: next\ndata: {"data":1}\n\n', true],
 		['malformed JSON', 'event: next\ndata: {\n\n', false],
 		['error event', 'event: error\ndata: failed\n\n', false],
 	])('reports %s distinctly from normal completion', async (_, body, retryable) => {

@@ -220,8 +220,9 @@ provider serves subscriptions at a different URL. `operationName`, `variables`, 
 supported as for queries.
 
 GraphQL errors remain in each response, including responses with partial data. HTTP failures,
-malformed SSE responses, and unexpected connection closure throw a `SuiGraphQLSubscriptionError` or
-the underlying transport error. An explicit SSE completion ends iteration normally.
+malformed responses, and connection read failures throw a `SuiGraphQLSubscriptionError` or the
+underlying transport error. Iteration ends when the server closes the response or sends an SSE
+completion event.
 
 Requests begin when iteration starts. Use `break` to leave the `for await...of` loop and close the
 subscription, or call `controller.abort()` to stop while waiting for the next result. `subscribe`
