@@ -5,8 +5,8 @@ description:
 ---
 
 Use `streamCheckpoints`, `streamTransactions`, or `streamEvents` on `SuiGrpcClient` or
-`SuiGraphQLClient` to read history and follow new records. The methods return async iterables and
-start their requests when iteration begins.
+`SuiGraphQLClient` to read history and follow new records. The methods return async iterators:
+`for await...of` waits for each new frame, and requests start when iteration begins.
 
 ```typescript
 import { SuiGrpcClient } from '@mysten/sui/grpc';
@@ -16,16 +16,20 @@ const client = new SuiGrpcClient({
 	baseUrl: 'https://fullnode.devnet.sui.io:443',
 });
 const controller = new AbortController();
+let count = 0;
 
 for await (const frame of client.streamCheckpoints({ signal: controller.signal })) {
 	console.log(frame.checkpoint.sequenceNumber, frame.resumeToken);
+	if (++count === 10) break;
 }
 ```
 
+Use `break` to end iteration and close the stream, as above after ten checkpoints. To stop while
+waiting for the next frame, call `controller.abort()`.
+
 Omitting `start` follows from the current tip. Provide `start: { checkpoint: '1000' }` to replay
 from checkpoint 1000, including that checkpoint, and then follow live data. The SDK handles
-historical pagination and recovery after transient disconnects. Call `controller.abort()` to stop a
-pending request, or `break` out of the loop to close the stream.
+historical pagination and recovery after transient disconnects.
 
 Call these methods directly on the gRPC or GraphQL client. Their shared options and results are in
 `SuiClientTypes` from `@mysten/sui/client`.

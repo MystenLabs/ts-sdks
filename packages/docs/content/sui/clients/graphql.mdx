@@ -223,9 +223,10 @@ GraphQL errors remain in each response, including responses with partial data. H
 malformed SSE responses, and unexpected connection closure throw a `SuiGraphQLSubscriptionError` or
 the underlying transport error. An explicit SSE completion ends iteration normally.
 
-Requests begin when iteration starts. Aborting the signal or leaving the loop closes the request.
-`subscribe` does not reconnect automatically. Use [resumable ledger streams](./streaming.mdx) for
-historical replay and automatic reconnect recovery.
+Requests begin when iteration starts. Use `break` to leave the `for await...of` loop and close the
+subscription, or call `controller.abort()` to stop while waiting for the next result. `subscribe`
+does not reconnect automatically. Use [resumable ledger streams](./streaming.mdx) for historical
+replay and automatic reconnect recovery.
 
 Native subscriptions bound each buffered SSE message to 16 Mi characters by default. Set
 `maxMessageSize` on `subscribe()` to change this limit for larger selections. Exceeding the limit
