@@ -82,18 +82,29 @@ type TokenRange<Position extends StreamPosition = StreamPosition> = InferBcsType
 function rangeEnd<Position extends StreamPosition>(
 	range: TokenRange<Position>,
 ): StreamBound<Position> | undefined {
-	switch (range.end.$kind) {
+	if (range.$kind === 'Follow') return;
+	const end = range.Finite.end;
+	switch (end.$kind) {
 		case 'Checkpoint':
-			return { checkpoint: range.end.Checkpoint };
+			return { checkpoint: end.Checkpoint };
 		case 'Cursor':
-			return { position: range.end.Cursor };
+			return { position: end.Cursor };
 		case 'IndexedTip':
-			return range.capturedTip === null
-				? undefined
-				: { checkpoint: (BigInt(range.capturedTip) + 1n).toString() };
+			return { checkpoint: (BigInt(end.IndexedTip) + 1n).toString() };
 		default:
 			return undefined;
 	}
+}
+
+function rangeTip(range: TokenRange): string | null {
+	if (range.$kind === 'Follow') return null;
+	return range.Finite.end.$kind === 'IndexedTip'
+		? range.Finite.end.IndexedTip
+		: range.Finite.capturedTip;
+}
+
+function rangeOrder(range: TokenRange): SuiClientTypes.Order {
+	return range.$kind === 'Follow' ? 'ascending' : range.Finite.order.$kind;
 }
 
 const MAX_CHECKPOINT = (1n << 64n) - 1n;
@@ -240,20 +251,20 @@ export function createLedgerStream<Frame extends object, Position extends Stream
 				: undefined;
 			const startToken = startEnvelope?.[startEnvelope.$kind];
 			const endToken = endEnvelope?.[endEnvelope.$kind];
-			const order = options.order ?? startToken?.order.$kind ?? 'ascending';
-			if (startToken && order !== startToken.order.$kind)
+			const order = options.order ?? (startToken ? rangeOrder(startToken.range) : 'ascending');
+			if (startToken && order !== rangeOrder(startToken.range))
 				throw new Error('Resume token traversal order cannot change');
 			const follow =
 				options.follow ??
 				(options.end
 					? false
 					: startToken
-						? startToken.range.end.$kind === 'Follow'
+						? startToken.range.$kind === 'Follow'
 						: order === 'ascending');
 			if (follow && (order === 'descending' || options.end)) {
 				throw new Error('Following requires ascending order without an end bound');
 			}
-			if (startToken && startToken.range.end.$kind !== 'Follow' && follow)
+			if (startToken && startToken.range.$kind === 'Finite' && follow)
 				throw new Error('Cannot expand a finite resume token range');
 			if (!follow && order === 'ascending' && !options.start)
 				throw new Error('Ascending finite streams require an explicit start');
@@ -297,8 +308,8 @@ export function createLedgerStream<Frame extends object, Position extends Stream
 				}
 				if (token) {
 					adapter.validatePosition?.(token.position as Position);
-					if (token.range.end.$kind === 'Cursor')
-						adapter.validatePosition?.(token.range.end.Cursor as Position);
+					if (token.range.$kind === 'Finite' && token.range.Finite.end.$kind === 'Cursor')
+						adapter.validatePosition?.(token.range.Finite.end.Cursor as Position);
 				}
 			}
 			const inputStart: StreamBound<Position> | undefined = startToken
@@ -313,37 +324,51 @@ export function createLedgerStream<Frame extends object, Position extends Stream
 					: undefined;
 			if (
 				startToken &&
-				startToken.range.end.$kind !== 'Follow' &&
+				startToken.range.$kind === 'Finite' &&
 				inputEnd &&
 				canonical(inputEnd) !== canonical(rangeEnd<StreamPosition>(startToken.range))
 			) {
 				throw new Error('Resume token end bound cannot change');
 			}
-			let range: TokenRange<Position>;
-			if (startToken && startToken.range.end.$kind !== 'Follow') {
-				range = startToken.range as TokenRange<Position>;
-			} else {
-				let end: TokenRange<Position>['end'];
-				if (follow) end = { $kind: 'Follow', Follow: true };
-				else if (inputEnd && 'checkpoint' in inputEnd)
-					end = { $kind: 'Checkpoint', Checkpoint: inputEnd.checkpoint };
-				else if (inputEnd) end = { $kind: 'Cursor', Cursor: inputEnd.position };
-				else if (order === 'descending') end = { $kind: 'Genesis', Genesis: true };
-				else end = { $kind: 'IndexedTip', IndexedTip: true };
-				range = { capturedTip: null, end };
-			}
 			let start = inputStart;
+			let capturedTip = startToken ? rangeTip(startToken.range) : null;
+			const resumesFiniteRange = startToken?.range.$kind === 'Finite';
+			const needsFiniteTip = !follow && !inputEnd && !resumesFiniteRange && order === 'ascending';
 			if (
 				(!start &&
 					!(follow && (options.delivery ?? 'subscribe') === 'subscribe' && adapter.liveFromTip)) ||
-				(!follow && !rangeEnd(range) && order === 'ascending')
+				needsFiniteTip
 			) {
 				const tip =
-					range.capturedTip ??
+					capturedTip ??
 					parse(Checkpoint, await retryOperation(() => adapter.getIndexedTip(signal)));
-				if (!follow) range.capturedTip = tip;
+				if (!follow) capturedTip = tip;
 				if (!start)
 					start = { checkpoint: order === 'descending' ? tip : (BigInt(tip) + 1n).toString() };
+			}
+			let range: TokenRange<Position>;
+			if (resumesFiniteRange) {
+				range = startToken.range as TokenRange<Position>;
+			} else if (follow) {
+				range = { $kind: 'Follow', Follow: true };
+			} else {
+				let end: NonNullable<TokenRange<Position>['Finite']>['end'];
+				if (inputEnd && 'checkpoint' in inputEnd)
+					end = { $kind: 'Checkpoint', Checkpoint: inputEnd.checkpoint };
+				else if (inputEnd) end = { $kind: 'Cursor', Cursor: inputEnd.position };
+				else if (order === 'descending') end = { $kind: 'Genesis', Genesis: true };
+				else end = { $kind: 'IndexedTip', IndexedTip: capturedTip! };
+				range = {
+					$kind: 'Finite',
+					Finite: {
+						order:
+							order === 'ascending'
+								? { $kind: 'ascending', ascending: true }
+								: { $kind: 'descending', descending: true },
+						capturedTip: end.$kind === 'IndexedTip' ? null : capturedTip,
+						end,
+					},
+				};
 			}
 			const invocationStart = start;
 			const end = rangeEnd(range);
@@ -354,8 +379,6 @@ export function createLedgerStream<Frame extends object, Position extends Stream
 						{ checkpoints: true } | { transactions: true } | { events: true },
 					chain: identity.chain,
 					filter,
-					order:
-						order === 'ascending' ? { ascending: true as const } : { descending: true as const },
 					position,
 					range,
 				};
@@ -372,18 +395,18 @@ export function createLedgerStream<Frame extends object, Position extends Stream
 				completion: {
 					order,
 					reason:
-						range.end.$kind === 'Checkpoint'
+						range.$kind === 'Finite' && range.Finite.end.$kind === 'Checkpoint'
 							? 'checkpointBound'
-							: range.end.$kind === 'Cursor'
+							: range.$kind === 'Finite' && range.Finite.end.$kind === 'Cursor'
 								? 'cursorBound'
-								: range.end.$kind === 'Genesis'
+								: range.$kind === 'Finite' && range.Finite.end.$kind === 'Genesis'
 									? 'genesis'
 									: 'indexedTip',
 					resumeToken: lastToken,
 					range: {
 						start: invocationStart && publicBound(invocationStart),
 						end: end && publicBound(end),
-						capturedCheckpoint: range.capturedTip ?? undefined,
+						capturedCheckpoint: rangeTip(range) ?? undefined,
 					},
 				},
 			});
@@ -405,7 +428,7 @@ export function createLedgerStream<Frame extends object, Position extends Stream
 						start,
 						end,
 						order,
-						capturedTip: range.capturedTip ?? undefined,
+						capturedTip: rangeTip(range) ?? undefined,
 						signal,
 						onStatus,
 					};

@@ -3,10 +3,9 @@
 
 import { bcs, type BcsType, type InferBcsType, type InferBcsInput } from '@mysten/bcs';
 import { fromBase64, toBase64 } from '@mysten/utils';
-import { check, minLength, parse, pipe, string } from 'valibot';
+import { check, parse, pipe, string } from 'valibot';
 
 const TOKEN_PREFIX = 'sui-stream:';
-const NonemptyString = pipe(string(), minLength(1));
 const BoundaryValue = pipe(
 	string(),
 	check((value) => BigInt(value) <= 1n << 64n),
@@ -68,16 +67,18 @@ export function tokenPayload<Position, Input>(position: BcsType<Position, Input>
 		family: bcs.enum('StreamFamily', { checkpoints: null, transactions: null, events: null }),
 		chain: bcs.string(),
 		filter: bcs.bytes(32),
-		order: bcs.enum('StreamOrder', { ascending: null, descending: null }),
 		position,
-		range: bcs.struct('StreamRange', {
-			capturedTip: bcs.option(bcs.u64()),
-			end: bcs.enum('StreamEnd', {
-				Follow: null,
-				Checkpoint: Boundary,
-				Cursor: position,
-				IndexedTip: null,
-				Genesis: null,
+		range: bcs.enum('StreamRange', {
+			Follow: null,
+			Finite: bcs.struct('FiniteStreamRange', {
+				order: bcs.enum('StreamOrder', { ascending: null, descending: null }),
+				capturedTip: bcs.option(bcs.u64()),
+				end: bcs.enum('StreamEnd', {
+					Checkpoint: Boundary,
+					Cursor: position,
+					IndexedTip: bcs.u64(),
+					Genesis: null,
+				}),
 			}),
 		}),
 	});
@@ -101,26 +102,8 @@ export function encodeToken(token: InferBcsInput<typeof Token>): string {
 
 export function decodeToken(value: string): StreamToken {
 	try {
-		if (!value.startsWith(TOKEN_PREFIX) || value.length > 100_000) throw new Error();
-		const bytes = fromBase64(value.slice(TOKEN_PREFIX.length));
-		const decoded = Token.parse(bytes);
-		// BCS readers can leave trailing bytes unread; require one canonical, complete value.
-		const encoded = Token.serialize(decoded).toBytes();
-		if (encoded.length !== bytes.length || encoded.some((byte, index) => byte !== bytes[index]))
-			throw new Error();
-		const token = decoded.V1.$kind === 'grpc' ? decoded.V1.grpc : decoded.V1.graphql;
-		parse(NonemptyString, token.chain);
-		parse(NonemptyString, token.position.cursor);
-		if (token.range.end.$kind === 'Cursor') {
-			parse(NonemptyString, token.range.end.Cursor.cursor);
-		}
-		if (token.range.end.$kind === 'Follow' && token.order.$kind === 'descending') {
-			throw new Error();
-		}
-		if (token.range.end.$kind === 'IndexedTip' && token.range.capturedTip === null) {
-			throw new Error();
-		}
-		return decoded;
+		if (!value.startsWith(TOKEN_PREFIX)) throw new Error();
+		return Token.parse(fromBase64(value.slice(TOKEN_PREFIX.length)));
 	} catch {
 		throw new Error('Invalid or unsupported stream resume token');
 	}
