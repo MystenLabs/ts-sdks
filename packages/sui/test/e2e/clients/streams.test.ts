@@ -68,7 +68,7 @@ describe('resumable ledger streams', () => {
 		];
 	}
 
-	function range(order: SuiClientTypes.StreamOrder = 'ascending') {
+	function range(order: SuiClientTypes.Order = 'ascending') {
 		return {
 			order,
 			start: { checkpoint: order === 'ascending' ? firstCheckpoint : lastCheckpoint },

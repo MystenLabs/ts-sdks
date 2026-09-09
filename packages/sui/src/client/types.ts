@@ -46,6 +46,8 @@ export namespace SuiClientTypes {
 		signal?: AbortSignal;
 	}
 
+	export type Order = 'ascending' | 'descending';
+
 	/** A serializable, transport-specific continuation. Treat its contents as opaque. */
 	export type StreamResumeToken = string;
 
@@ -55,7 +57,6 @@ export namespace SuiClientTypes {
 		| { resumeToken: StreamResumeToken; checkpoint?: never };
 
 	export type StreamEnd = StreamStart;
-	export type StreamOrder = 'ascending' | 'descending';
 
 	export interface StreamRetryOptions {
 		/** Initial retry delay in milliseconds. Defaults to 250. */
@@ -86,7 +87,7 @@ export namespace SuiClientTypes {
 	export interface StreamOptions extends CoreClientMethodOptions {
 		start?: StreamStart;
 		end?: StreamEnd;
-		order?: StreamOrder;
+		order?: Order;
 		/** Defaults to true for ascending streams without an end. */
 		follow?: boolean;
 		/** Live delivery mode. Finite reads always use historical queries. */
@@ -152,7 +153,7 @@ export namespace SuiClientTypes {
 
 	export interface StreamCompletion {
 		range: StreamRange;
-		order: StreamOrder;
+		order: Order;
 		reason: 'checkpointBound' | 'cursorBound' | 'indexedTip' | 'genesis';
 		/** Last safe continuation, if the transport proved one. */
 		resumeToken?: StreamResumeToken;
@@ -752,7 +753,7 @@ export namespace SuiClientTypes {
 		 */
 		before?: string | null;
 		/** Order of returned results. Defaults to `ascending` (oldest first). */
-		order?: 'ascending' | 'descending';
+		order?: Order;
 		include?: Include & TransactionInclude;
 	}
 
@@ -801,7 +802,7 @@ export namespace SuiClientTypes {
 		 */
 		before?: string | null;
 		/** Order of returned results. Defaults to `ascending` (oldest first). */
-		order?: 'ascending' | 'descending';
+		order?: Order;
 	}
 
 	/** An event returned from a query, along with its position in the ledger. */

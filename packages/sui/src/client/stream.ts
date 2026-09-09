@@ -21,7 +21,7 @@ export type StreamBound = { checkpoint: string } | { position: StreamPosition };
 export interface LedgerStreamRequest {
 	start?: StreamBound;
 	end?: StreamBound;
-	order: SuiClientTypes.StreamOrder;
+	order: SuiClientTypes.Order;
 	capturedTip?: string;
 	signal: AbortSignal;
 	onStatus: (status: SuiClientTypes.StreamStatus) => void;
@@ -66,7 +66,7 @@ interface StreamToken {
 	family: LedgerStreamAdapter<object>['family'];
 	chain: string;
 	filter: string;
-	order: SuiClientTypes.StreamOrder;
+	order: SuiClientTypes.Order;
 	position: StreamPosition;
 	range: StoredRange;
 }
@@ -239,7 +239,7 @@ export function waitForStream(delay: number, signal: AbortSignal): Promise<void>
 function compareBounds<Frame extends object>(
 	start: StreamBound,
 	end: StreamBound,
-	order: SuiClientTypes.StreamOrder,
+	order: SuiClientTypes.Order,
 	adapter: LedgerStreamAdapter<Frame>,
 ): number {
 	if ('position' in start && 'position' in end) {
