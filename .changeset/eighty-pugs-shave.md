@@ -1,5 +1,5 @@
 ---
-'@mysten/deepbook-v3': patch
+'@mysten/deepbook-v3': minor
 ---
 
 Predict: let `supplyPlp` and `withdrawPlp` set a price floor. Both hard-pinned the request's
