@@ -78,11 +78,23 @@ test('supplyPlp: auth → request_supply, 8 args, min-plp-out floor slot', () =>
 	expectObject(tx, 1, 3, cfg.objects.protocolConfig);
 	// slot 4: pure u64 amount — 5 USDC → 5_000_000 raw
 	expect(argPureBytes(tx, 1, 4)).toBe(b64(5_000_000n));
-	// slot 5: pure u64 min_plp_out slippage floor, pinned to 0 (no floor)
+	// slot 5: pure u64 min_plp_out slippage floor, 0 when no floor is supplied
 	expect(argPureBytes(tx, 1, 5)).toBe(b64(0n));
 	// slot 6: root = 0xacc, slot 7: clock = 0x6
 	expectObject(tx, 1, 6, '0xacc');
 	expectObject(tx, 1, 7, '0x6');
+});
+
+test('supplyPlp: minPlpOut reaches the floor slot as raw shares, amount untouched', () => {
+	const tx = pc.tx.supplyPlp(OWNER, 5, { minPlpOut: 4_900_000n });
+	// The floor is raw PLP shares, so it is NOT scaled the way the USDC amount is.
+	expect(argPureBytes(tx, 1, 4)).toBe(b64(5_000_000n));
+	expect(argPureBytes(tx, 1, 5)).toBe(b64(4_900_000n));
+});
+
+test('supplyPlp: a zero minPlpOut is passed through, not treated as absent', () => {
+	const tx = pc.tx.supplyPlp(OWNER, 5, { minPlpOut: 0n });
+	expect(argPureBytes(tx, 1, 5)).toBe(b64(0n));
 });
 
 test('withdrawPlp: auth → request_withdraw, 8 args, shares + min-usdc-out floor', () => {
@@ -98,10 +110,17 @@ test('withdrawPlp: auth → request_withdraw, 8 args, shares + min-usdc-out floo
 	expectObject(tx, 1, 3, cfg.objects.protocolConfig);
 	// slot 4: pure u64 — the Move param is `amount` but it counts PLP SHARES, passed raw
 	expect(argPureBytes(tx, 1, 4)).toBe(b64(1_234n));
-	// slot 5: pure u64 min_usdc_out slippage floor, pinned to 0 (no floor)
+	// slot 5: pure u64 min_usdc_out slippage floor, 0 when no floor is supplied
 	expect(argPureBytes(tx, 1, 5)).toBe(b64(0n));
 	expectObject(tx, 1, 6, '0xacc');
 	expectObject(tx, 1, 7, '0x6');
+});
+
+test('withdrawPlp: minUsdcOut is scaled to raw USDC, shares stay raw', () => {
+	const tx = pc.tx.withdrawPlp(OWNER, 1_234n, { minUsdcOut: 1.2 });
+	// shares are raw, the floor is USD decimals — the two slots scale differently.
+	expect(argPureBytes(tx, 1, 4)).toBe(b64(1_234n));
+	expect(argPureBytes(tx, 1, 5)).toBe(b64(1_200_000n));
 });
 
 test('cancelSupplyPlp: auth → cancel_supply_request, 7 args, index in u64 slot', () => {

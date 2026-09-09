@@ -16,6 +16,8 @@ export type {
 	MintAmountOptions,
 	MintOptions,
 	MintQuote,
+	PlpSupplyOptions,
+	PlpWithdrawOptions,
 	PoolSummary,
 	RedeemQuote,
 } from './client.js';
