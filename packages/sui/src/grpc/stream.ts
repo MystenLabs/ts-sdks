@@ -20,7 +20,7 @@ import type { SuiGrpcClient } from './client.js';
 import { parseGrpcTransactionResponse, transactionReadMaskPaths } from './core.js';
 import { toGrpcEventFilter, toGrpcTransactionFilter } from './filters.js';
 import { bufferedGrpcCall } from './stream-buffer.js';
-import type { GrpcStreamInclude, GrpcStreamStage } from './stream-types.js';
+import type { GrpcStreamInclude, GrpcStreamStage, GrpcStreamQueryEnd } from './stream-types.js';
 import type { Checkpoint } from './proto/sui/rpc/v2/checkpoint.js';
 import type { Event } from './proto/sui/rpc/v2/event.js';
 import type { ExecutedTransaction } from './proto/sui/rpc/v2/executed_transaction.js';
@@ -38,6 +38,7 @@ type Options = SuiClientTypes.StreamOptions & {
 	readMask?: string[];
 	pageSize?: number;
 	maxBufferedItems?: number;
+	onQueryEnd?: (metadata: GrpcStreamQueryEnd) => void;
 };
 interface RawFrame {
 	checkpoint?: Checkpoint;
@@ -192,7 +193,21 @@ function mapItem(frame: RawFrame, include: Options['include']): Frame {
 export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: Options) {
 	let filter: TransactionFilter | EventFilter | undefined;
 	const include = input.include;
-	const pendingMetadata: LedgerStreamEvent<Frame>[] = [];
+	let callbackFailed = false;
+	function onQueryEnd(frame: RawFrame, stage: GrpcStreamStage) {
+		if (!frame.end) return;
+		try {
+			input.onQueryEnd?.({
+				queryEnd: frame.end,
+				watermark: frame.watermark!,
+				stage,
+				lastItem: frame.checkpoint ?? frame.transaction ?? frame.event,
+			});
+		} catch (error) {
+			callbackFailed = true;
+			throw error;
+		}
+	}
 	const paths =
 		family === 'checkpoints'
 			? ['sequence_number', 'digest', 'summary.epoch', 'summary.timestamp']
@@ -276,12 +291,8 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 		return { startCheckpoint, endCheckpoint, options: query };
 	}
 
-	function event(frame: RawFrame, live: boolean, stage: GrpcStreamStage): LedgerStreamEvent<Frame> {
+	function event(frame: RawFrame, live: boolean): LedgerStreamEvent<Frame> | undefined {
 		const p = position(frame, family, live);
-		const metadata =
-			include?.queryEnd && frame.end
-				? { queryEnd: frame.end, watermark: frame.watermark!, stage }
-				: {};
 		if (hasItem(frame)) {
 			return {
 				kind: 'item',
@@ -289,19 +300,18 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 				frame: {
 					...mapItem(frame, include),
 					...(include?.progress ? { coveredCheckpoint: p.coveredCheckpoint } : {}),
-					...metadata,
 				},
 			};
 		}
 		// Cursor-bound watermarks denote the excluded endpoint, not consumed progress.
 		if (frame.end?.reason === QueryEndReason.CURSOR_BOUND) {
-			return { kind: 'metadata', frame: { $kind: 'QueryEnd', ...metadata } };
+			return;
 		}
 		return {
 			kind: 'progress',
 			position: p,
 			frame: include?.progress
-				? { $kind: 'Progress', coveredCheckpoint: p.coveredCheckpoint, ...metadata }
+				? { $kind: 'Progress', coveredCheckpoint: p.coveredCheckpoint }
 				: undefined,
 		};
 	}
@@ -326,11 +336,9 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 			requestedStart !== undefined &&
 			BigInt(await adapter.getIndexedTip(request.signal)) < BigInt(requestedStart)
 		) {
-			while (pendingMetadata.length) yield pendingMetadata.shift()!;
 			yield { kind: 'end', complete: false };
 			return;
 		}
-		while (pendingMetadata.length) yield pendingMetadata.shift()!;
 		const range = bounds(request);
 		let previousCursor =
 			request.start && 'position' in request.start ? request.start.position.cursor : undefined;
@@ -379,11 +387,12 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 						if (end.reason !== QueryEndReason.ITEM_LIMIT && hasItem(frame))
 							throw protocol('Unexpected item on terminal query frame');
 					}
-					const next = event(frame, false, stage);
+					onQueryEnd(frame, stage);
+					const next = event(frame, false);
 					// Natural terminal cursors are scan boundaries, not items inside the
 					// excluded checkpoint. Preserve that distinction when this progress is saved.
 					if (
-						next.kind === 'progress' &&
+						next?.kind === 'progress' &&
 						frame.end &&
 						(frame.end.reason === QueryEndReason.CHECKPOINT_BOUND ||
 							frame.end.reason === QueryEndReason.LEDGER_TIP) &&
@@ -391,19 +400,7 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 					) {
 						next.position.checkpointBoundary = next.position.checkpoint;
 					}
-					if (next.kind !== 'metadata' || include?.queryEnd) yield next;
-					if (
-						include?.queryEnd &&
-						frame.end &&
-						!hasItem(frame) &&
-						!include.progress &&
-						next.kind !== 'metadata'
-					) {
-						yield {
-							kind: 'metadata',
-							frame: { $kind: 'QueryEnd', queryEnd: frame.end, watermark: frame.watermark!, stage },
-						};
-					}
+					if (next) yield next;
 				}
 			} finally {
 				await rpc.close();
@@ -432,7 +429,6 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 	}
 
 	async function* live(request: LedgerStreamRequest): AsyncGenerator<LedgerStreamEvent<Frame>> {
-		while (pendingMetadata.length) yield pendingMetadata.shift()!;
 		const rpc = open({ filter, readMask }, request.signal, true);
 		try {
 			let first = await rpc.buffer.next();
@@ -518,7 +514,7 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 						decodeLedgerCursor(safe.cursor).kind === 'boundary' &&
 						decodeLedgerCursor(p.cursor).kind === 'item')
 				) {
-					yield event(current.value, true, 'historical');
+					yield event(current.value, true)!;
 					safe = p;
 				}
 				current = await rpc.buffer.next();
@@ -627,17 +623,7 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 						)
 							throw protocol('Invalid indexed tip QueryEnd');
 						terminal = true;
-						if (include?.queryEnd)
-							pendingMetadata.push({
-								kind: 'metadata',
-								frame: {
-									$kind: 'QueryEnd',
-									queryEnd: frame.end,
-									watermark: frame.watermark,
-									stage: 'tip',
-									lastItem: frame.checkpoint,
-								},
-							});
+						onQueryEnd(frame, 'tip');
 					}
 				}
 				if (!terminal || tip === undefined) throw protocol('Indexed checkpoint tip is unavailable');
@@ -648,6 +634,7 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 		},
 		isRetryable(error) {
 			return (
+				!callbackFailed &&
 				error instanceof RpcError &&
 				[
 					'UNAVAILABLE',

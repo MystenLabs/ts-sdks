@@ -93,19 +93,27 @@ async function collect<T>(stream: AsyncIterable<T>) {
 
 it('paginates sparse scans and preserves terminal item association and safe cursor completion', async () => {
 	const c = client();
+	const terminals: import('../../../src/grpc/stream-types.js').GrpcStreamQueryEnd[] = [];
 	const requests = lists(c, [[end(2, End.SCAN_LIMIT)], [item(2, 0, End.ITEM_LIMIT)], [end(3)]]);
 	const frames = await collect(
 		c.streamEvents({
 			start: { checkpoint: '1' },
 			end: { checkpoint: '3' },
-			include: { queryEnd: true, completion: true },
+			include: { completion: true },
+			onQueryEnd: (metadata) => terminals.push(metadata),
 		}),
 	);
 	expect(requests).toHaveLength(3);
-	expect(frames.map((f) => f.$kind)).toEqual(['QueryEnd', 'Event', 'QueryEnd', 'Complete']);
-	const transaction = frames[1];
+	expect(frames.map((f) => f.$kind)).toEqual(['Event', 'Complete']);
+	const transaction = frames[0];
 	if (transaction.$kind !== 'Event') throw new Error('missing event');
-	expect(transaction.queryEnd?.reason).toBe(End.ITEM_LIMIT);
+	expect(transaction).not.toHaveProperty('queryEnd');
+	expect(terminals.map((metadata) => metadata.queryEnd.reason)).toEqual([
+		End.SCAN_LIMIT,
+		End.ITEM_LIMIT,
+		End.CHECKPOINT_BOUND,
+	]);
+	expect(terminals[1].lastItem).toEqual(item(2, 0, End.ITEM_LIMIT).event);
 	expect(requests[2].options?.after).toEqual(cursor(2));
 });
 
@@ -151,13 +159,19 @@ it('repairs through the first live checkpoint before exposing buffered items', a
 		return script([item(2, 1), item(3)], options.abort, undefined, true);
 	}) as never;
 	const received: string[] = [];
-	for await (const frame of c.streamEvents({ start: { checkpoint: '1' }, pollInterval: 1 })) {
+	const stages: string[] = [];
+	for await (const frame of c.streamEvents({
+		start: { checkpoint: '1' },
+		pollInterval: 1,
+		onQueryEnd: ({ stage }) => stages.push(stage),
+	})) {
 		received.push(`${frame.event.checkpoint}:${frame.event.eventIndex}`);
 		if (received.length === 4) break;
 	}
 	expect(received).toEqual(['1:0', '2:0', '2:1', '3:0']);
 	expect(requests).toHaveLength(2);
 	expect(aborted).toBe(true);
+	expect(stages).toEqual(['recovery', 'recovery']);
 });
 
 it('reconnects within the same checkpoint without dropping its remaining events', async () => {
@@ -257,11 +271,11 @@ it('preserves shared method signatures and narrows all include combinations', ()
 	expectTypeOf(normal).toEqualTypeOf<AsyncIterableIterator<SuiClientTypes.StreamEventResult>>();
 	const enabled: boolean = Math.random() > 0.5;
 	const variants = c.streamEvents({
-		include: { completion: enabled, progress: enabled, queryEnd: enabled, proto: enabled },
+		include: { completion: enabled, progress: enabled, proto: enabled },
 	});
 	type Frame = typeof variants extends AsyncIterable<infer T> ? T : never;
 	expectTypeOf<Exclude<Frame, undefined>['$kind']>().toEqualTypeOf<
-		'Event' | 'Progress' | 'QueryEnd' | 'Complete'
+		'Event' | 'Progress' | 'Complete'
 	>();
 	// @ts-expect-error Native masks require protobuf payload selection.
 	c.streamEvents({ readMask: ['*'] });
@@ -303,20 +317,20 @@ it('does not promote an excluded cursor-bound terminal watermark into a resume t
 		c.streamEvents({
 			start: { resumeToken: tokens[0] },
 			end: { resumeToken: tokens[2] },
-			include: { completion: true, progress: true, queryEnd: true },
+			include: { completion: true, progress: true },
 		}),
 	);
-	expect(frames.map((f) => f.$kind)).toEqual(['Event', 'QueryEnd', 'Complete']);
+	expect(frames.map((f) => f.$kind)).toEqual(['Event', 'Complete']);
 	expect(requests[0].options?.after).toEqual(cursor(1));
 	expect(requests[0].options?.before).toEqual(cursor(3));
-	expect(frames[1]).not.toHaveProperty('resumeToken');
-	if (frames[0].$kind !== 'Event' || frames[2].$kind !== 'Complete')
+	if (frames[0].$kind !== 'Event' || frames[1].$kind !== 'Complete')
 		throw new Error('unexpected frames');
-	expect(frames[2].completion.resumeToken).toBe(frames[0].resumeToken);
+	expect(frames[1].completion.resumeToken).toBe(frames[0].resumeToken);
 });
 
 it('keeps a captured indexed tip fixed across historical pages', async () => {
 	const c = client();
+	const terminals: import('../../../src/grpc/stream-types.js').GrpcStreamQueryEnd[] = [];
 	let tips = 0;
 	c.ledgerService.listCheckpoints = ((_request: object, options: RpcOptions) => {
 		tips++;
@@ -336,13 +350,13 @@ it('keeps a captured indexed tip fixed across historical pages', async () => {
 		c.streamEvents({
 			start: { checkpoint: '1' },
 			follow: false,
-			include: { completion: true, queryEnd: true },
+			include: { completion: true },
+			onQueryEnd: (metadata) => terminals.push(metadata),
 		}),
 	);
 	expect(tips).toBe(1);
 	expect(requests.map((request) => request.endCheckpoint)).toEqual([5n, 5n]);
-	expect(frames[0]).toMatchObject({
-		$kind: 'QueryEnd',
+	expect(terminals[0]).toMatchObject({
 		stage: 'tip',
 		lastItem: { sequenceNumber: 4n },
 	});
@@ -826,3 +840,40 @@ it('rejects a scan-boundary cursor attached to a ledger item', async () => {
 		collect(c.streamEvents({ start: { checkpoint: '1' }, end: { checkpoint: '2' } })),
 	).rejects.toThrow('requires an item watermark');
 });
+
+it.each(['historical', 'tip'] as const)(
+	'does not retry errors thrown by the %s query-end callback',
+	async (stage) => {
+		const c = client();
+		c.ledgerService.listCheckpoints = ((_request: object, options: RpcOptions) =>
+			script(
+				[
+					{
+						checkpoint: { sequenceNumber: 1n },
+						watermark: { cursor: cursor(1, 0, 1, 6) },
+						end: { reason: End.ITEM_LIMIT },
+					},
+				],
+				options.abort,
+			)) as never;
+		const requests = lists(c, [[end(2)], [end(2)]]);
+		const failure = new RpcError('callback failed', 'UNAVAILABLE');
+		let callbacks = 0;
+		await expect(
+			collect(
+				c.streamEvents({
+					start: { checkpoint: '1' },
+					...(stage === 'historical' ? { end: { checkpoint: '2' } } : { follow: false }),
+					retry: { initialDelay: 0 },
+					onQueryEnd(metadata) {
+						expect(metadata.stage).toBe(stage);
+						callbacks++;
+						throw failure;
+					},
+				}),
+			),
+		).rejects.toBe(failure);
+		expect(callbacks).toBe(1);
+		expect(requests).toHaveLength(stage === 'historical' ? 1 : 0);
+	},
+);

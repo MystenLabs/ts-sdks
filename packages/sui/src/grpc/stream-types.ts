@@ -13,8 +13,6 @@ export interface GrpcStreamInclude extends SuiClientTypes.StreamInclude {
 	progress?: boolean;
 	/** Include the generated protobuf payload on matching items. */
 	proto?: boolean;
-	/** Include the terminal metadata for every successful underlying List RPC. */
-	queryEnd?: boolean;
 }
 
 export interface GrpcStreamTransactionInclude
@@ -36,10 +34,6 @@ export interface GrpcStreamProgressFrame {
 	coveredCheckpoint?: string;
 }
 
-export interface GrpcStreamQueryEndFrame extends GrpcStreamQueryEnd {
-	$kind: 'QueryEnd';
-}
-
 type Enabled<Include, Key extends PropertyKey, Value> = Key extends keyof Include
 	? true extends Include[Key]
 		? Value
@@ -57,19 +51,18 @@ type Extras<Include, Proto> = ('proto' extends keyof Include
 		? true extends Include['progress']
 			? { coveredCheckpoint?: string }
 			: {}
-		: {}) &
-	('queryEnd' extends keyof Include
-		? true extends Include['queryEnd']
-			? Partial<GrpcStreamQueryEnd>
-			: {}
 		: {});
 
 type GrpcResult<Frame, Include, Proto> =
 	| (Frame extends SuiClientTypes.StreamCompletionFrame ? Frame : Frame & Extras<Include, Proto>)
-	| Enabled<Include, 'progress', GrpcStreamProgressFrame & Partial<GrpcStreamQueryEnd>>
-	| Enabled<Include, 'queryEnd', GrpcStreamQueryEndFrame>;
+	| Enabled<Include, 'progress', GrpcStreamProgressFrame>;
 
 interface GrpcStreamControls {
+	/**
+	 * Observe terminal metadata from underlying List RPCs synchronously.
+	 * This is diagnostic, not resumable progress. Throwing terminates the stream without retrying.
+	 */
+	onQueryEnd?: (metadata: GrpcStreamQueryEnd) => void;
 	/** Maximum matching items per historical RPC. */
 	pageSize?: number;
 	/** Maximum buffered live items (not bytes). Defaults to 1,024. */

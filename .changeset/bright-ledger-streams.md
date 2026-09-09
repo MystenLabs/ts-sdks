@@ -1,7 +1,7 @@
 ---
-'@mysten/sui': major
+'@mysten/sui': minor
 ---
 
-Add resumable checkpoint, transaction, and event streams to the gRPC and GraphQL clients, with historical ranges, reverse traversal, polling, completion records, and automatic reconnect recovery. Add native typed GraphQL subscriptions over SSE and gRPC stream extensions for progress, native payloads and filters, and query-end metadata.
+Add resumable checkpoint, transaction, and event streams to the gRPC and GraphQL clients, with historical ranges, reverse traversal, polling, completion records, and automatic reconnect recovery. Add native typed GraphQL subscriptions over SSE and gRPC stream extensions for progress, native payloads and filters, and diagnostic query-end callbacks.
 
-Replace the programmable-only Core transaction-data read model with the full decoded ledger envelope `{ sender, gasData, expiration, kind }`. `kind` is a discriminated union covering programmable and system transactions, so `include: { transaction: true }` works for unfiltered reads and streams. Consumers must narrow `transaction.kind.$kind` and read programmable `inputs` and `commands` from its payload; the builder's version-2 snapshot API remains unchanged.
+Add a transaction `kind` discriminated union covering programmable and system transactions, so `include: { transaction: true }` works for unfiltered reads and streams. Preserve the existing version-2 fields and programmable input/command representation. Both programmable kinds mirror their inputs and commands at the top level and in the kind payload; non-programmable kinds have empty top-level arrays and expose their data in `kind`.

@@ -75,7 +75,12 @@ describe('ledger transaction data across transports', () => {
 				digest: 'genesis',
 				include: { transaction: true },
 			});
-			expect(result.Transaction?.transaction).toEqual(bcs.TransactionData.parse(bytes).V1);
+			expect(result.Transaction?.transaction).toMatchObject({
+				version: 2,
+				inputs: [],
+				commands: [],
+				kind: bcs.TransactionData.parse(bytes).V1.kind,
+			});
 			expect(result.Transaction?.bcs).toBeUndefined();
 		}
 		expect(grpcRequest).toHaveBeenCalledWith(

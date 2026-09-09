@@ -5,6 +5,7 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import type { SuiClientTypes } from '../../../src/client/types.js';
 import { bcs } from '../../../src/bcs/index.js';
+import { GrpcTypes, type GrpcStreamQueryEnd } from '../../../src/grpc/index.js';
 import { Transaction } from '../../../src/transactions/index.js';
 import { setup, type TestToolbox } from '../utils/setup.js';
 
@@ -120,6 +121,30 @@ describe('resumable ledger streams', () => {
 		for (const controller of controllers.splice(0)) controller.abort();
 	});
 
+	it('reports gRPC query diagnostics separately while paginating event data', async () => {
+		const diagnostics: GrpcStreamQueryEnd[] = [];
+		const frames = await collect(
+			toolbox.grpcClient.streamEvents({
+				...range(),
+				filter: { sender: signer.address },
+				pageSize: 1,
+				onQueryEnd(metadata) {
+					diagnostics.push(metadata);
+				},
+			}),
+		);
+		expect(frames.length).toBeGreaterThan(1);
+		expect(frames.every((frame) => frame.$kind === 'Event')).toBe(true);
+		expect(
+			diagnostics.some(({ queryEnd }) => queryEnd.reason === GrpcTypes.QueryEndReason.ITEM_LIMIT),
+		).toBe(true);
+		expect(
+			diagnostics.every(
+				({ stage, watermark }) => stage === 'historical' && watermark !== undefined,
+			),
+		).toBe(true);
+	});
+
 	it('returns identical checkpoint headers in both traversal directions', async () => {
 		const ascending = await Promise.all(
 			clients().map(async ([, client]) =>
@@ -189,8 +214,20 @@ describe('resumable ledger streams', () => {
 			expect(
 				transactions.slice(1).some((tx) => tx.transaction.kind.$kind !== 'ProgrammableTransaction'),
 			).toBe(true);
-			for (const tx of transactions)
-				expect(tx.transaction).toEqual(bcs.TransactionData.parse(tx.bcs).V1);
+			for (const tx of transactions) {
+				expect(tx.transaction.sender).toBe(bcs.TransactionData.parse(tx.bcs).V1.sender);
+				const body =
+					tx.transaction.kind.ProgrammableTransaction ??
+					tx.transaction.kind.ProgrammableSystemTransaction;
+				if (body) {
+					expect(tx.transaction.inputs).toEqual(body.inputs);
+					expect(tx.transaction.commands).toEqual(body.commands);
+				} else {
+					expect(tx.transaction.kind).toEqual(bcs.TransactionData.parse(tx.bcs).V1.kind);
+					expect(tx.transaction.inputs).toEqual([]);
+					expect(tx.transaction.commands).toEqual([]);
+				}
+			}
 			const descending = await collect(
 				client.streamTransactions({
 					order: 'descending',

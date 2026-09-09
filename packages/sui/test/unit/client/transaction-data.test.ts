@@ -129,13 +129,27 @@ describe('ledger transaction data', () => {
 			expect(result.kind.$kind).toBe(name);
 			expect(result.sender).toBe(address);
 			expect(result.gasData.price).toBe('9007199254740994');
-			expect(result.gasData.payment[0].version).toBe('9007199254740993');
+			expect(result.gasData.payment![0].version).toBe('9007199254740993');
 			expect(result.expiration).toEqual({ $kind: 'None', None: true });
-			// Every payload must survive, including system packages, JWKs and epoch operations.
-			expect(bcs.TransactionData.serialize({ V1: result }).toBytes()).toEqual(bytes);
-			expect(result).not.toHaveProperty('version');
-			expect(result).not.toHaveProperty('inputs');
-			expect(result).not.toHaveProperty('commands');
+			expect(result.version).toBe(2);
+			if (
+				result.kind.$kind === 'ProgrammableTransaction' ||
+				result.kind.$kind === 'ProgrammableSystemTransaction'
+			) {
+				const body =
+					result.kind.ProgrammableTransaction ?? result.kind.ProgrammableSystemTransaction;
+				expect(result.inputs).toBe(body.inputs);
+				expect(result.commands).toBe(body.commands);
+				const { kind: _, ...snapshot } = result;
+				expect(snapshot).toEqual(
+					Transaction.from(serialize(kinds.ProgrammableTransaction)).getData(),
+				);
+			} else {
+				expect(result.inputs).toEqual([]);
+				expect(result.commands).toEqual([]);
+				// Every system payload survives without conversion through the builder.
+				expect(result.kind).toEqual(bcs.TransactionData.parse(bytes).V1.kind);
+			}
 		},
 	);
 
@@ -148,11 +162,60 @@ describe('ledger transaction data', () => {
 		expect(kind.ProgrammableTransaction.inputs).toEqual([
 			{ $kind: 'Pure', Pure: { bytes: 'AQ==' } },
 		]);
-		expect(kind.ProgrammableTransaction.commands[0].MoveCall?.typeArguments).toEqual(['u64']);
-		expect(kind.ProgrammableTransaction.commands[0].MoveCall?.arguments).toEqual([
-			{ $kind: 'Input', Input: 0 },
-		]);
+		const command = kind.ProgrammableTransaction.commands[0];
+		if (!('MoveCall' in command)) throw new Error('Expected MoveCall');
+		expect(command.MoveCall.typeArguments).toEqual(['u64']);
+		expect(command.MoveCall.arguments).toEqual([{ $kind: 'Input', Input: 0 }]);
 	});
+
+	it.each(['ProgrammableTransaction', 'ProgrammableSystemTransaction'] as const)(
+		'preserves builder normalization for %s',
+		(name) => {
+			const body = {
+				inputs: [
+					{
+						Object: {
+							SharedObject: {
+								objectId: '0x2',
+								initialSharedVersion: '9007199254740993',
+								mutable: true,
+							},
+						},
+					},
+					{ Pure: { bytes: 'AQ==' } },
+				],
+				commands: [
+					{
+						MoveCall: {
+							package: '0x2',
+							module: 'example',
+							function: 'run',
+							typeArguments: ['0x2::example::Value<u64>'],
+							arguments: [{ Input: 0 }, { GasCoin: true }],
+						},
+					},
+					{ MakeMoveVec: { type: null, elements: [{ NestedResult: [0, 1] }] } },
+					{ Publish: { modules: ['AQID'], dependencies: ['0x2'] } },
+				],
+			} satisfies typeof bcs.ProgrammableTransaction.$inferInput;
+			const expected = Transaction.from(serialize({ ProgrammableTransaction: body })).getData();
+			const result = parseTransactionDataBcs(
+				serialize(
+					name === 'ProgrammableTransaction'
+						? { ProgrammableTransaction: body }
+						: { ProgrammableSystemTransaction: body },
+				),
+			);
+			const { kind, ...snapshot } = result;
+			expect(snapshot).toEqual(expected);
+			expect(kind.ProgrammableTransaction ?? kind.ProgrammableSystemTransaction).toEqual({
+				inputs: expected.inputs,
+				commands: expected.commands,
+			});
+			expect(result.commands[1]).toMatchObject({ MakeMoveVec: { type: null } });
+			expect(result.commands[2]).toMatchObject({ Publish: { modules: ['AQID'] } });
+		},
+	);
 
 	it('preserves all nested end-of-epoch variants', () => {
 		const { kind } = parseTransactionDataBcs(serialize(kinds.EndOfEpochTransaction));

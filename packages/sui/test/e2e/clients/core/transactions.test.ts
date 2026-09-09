@@ -150,8 +150,19 @@ describe('Core API - Transactions', () => {
 						include: { transaction: true, bcs: true },
 					});
 					const tx = result.Transaction ?? result.FailedTransaction;
-					expect(tx.transaction).toEqual(bcs.TransactionData.parse(tx.bcs).V1);
-					expect(tx.transaction).not.toHaveProperty('version');
+					expect(tx.transaction.sender).toBe(bcs.TransactionData.parse(tx.bcs).V1.sender);
+					const body =
+						tx.transaction.kind.ProgrammableTransaction ??
+						tx.transaction.kind.ProgrammableSystemTransaction;
+					if (body) {
+						expect(tx.transaction.inputs).toEqual(body.inputs);
+						expect(tx.transaction.commands).toEqual(body.commands);
+					} else {
+						expect(tx.transaction.kind).toEqual(bcs.TransactionData.parse(tx.bcs).V1.kind);
+						expect(tx.transaction.inputs).toEqual([]);
+						expect(tx.transaction.commands).toEqual([]);
+					}
+					expect(tx.transaction.version).toBe(2);
 					kinds.push(tx.transaction.kind.$kind);
 					const parsedOnly = await client.core.getTransaction({
 						digest,

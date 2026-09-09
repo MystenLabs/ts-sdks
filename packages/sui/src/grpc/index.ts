@@ -43,7 +43,6 @@ export type {
 	GrpcStreamStage,
 	GrpcStreamQueryEnd,
 	GrpcStreamProgressFrame,
-	GrpcStreamQueryEndFrame,
 	GrpcStreamCheckpointsOptions,
 	GrpcStreamTransactionsOptions,
 	GrpcStreamEventsOptions,

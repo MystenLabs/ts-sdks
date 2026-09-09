@@ -5,6 +5,8 @@ import type { EnumOutputShape } from '@mysten/bcs';
 import type { bcs } from '../bcs/index.js';
 import type {
 	TransactionPlugin,
+	SerializedTransactionDataV2,
+	Argument,
 	Transaction as TransactionInstance,
 } from '../transactions/index.js';
 import type { Signer } from '../cryptography/keypair.js';
@@ -551,25 +553,27 @@ export namespace SuiClientTypes {
 	}
 
 	/**
-	 * Complete ledger transaction data, including system transactions.
-	 * This is the resolved BCS read model, not the transaction builder's serialized state.
-	 * To reconstruct a builder, request `include.bcs` and use `Transaction.from(bytes)`.
+	 * Complete ledger transaction data with a builder-compatible programmable view.
+	 * `inputs` and `commands` mirror the programmable kind's body, and are empty for
+	 * non-programmable kinds. Inspect `kind` for the complete transaction payload.
 	 */
-	export interface TransactionData {
-		sender: string;
-		gasData: TransactionGasData;
-		expiration: TransactionExpiration;
+	export interface TransactionData extends SerializedTransactionDataV2 {
 		kind: TransactionKind;
 	}
 
-	export type TransactionGasData = typeof bcs.GasData.$inferType;
-	export type TransactionExpiration = typeof bcs.TransactionExpiration.$inferType;
+	export type TransactionGasData = TransactionData['gasData'];
+	export type TransactionExpiration = TransactionData['expiration'];
 	/** Discriminate ledger transaction kinds using `kind.$kind`. */
-	export type TransactionKind = typeof bcs.TransactionKind.$inferType;
-	export type ProgrammableTransaction = typeof bcs.ProgrammableTransaction.$inferType;
-	export type TransactionInput = typeof bcs.CallArg.$inferType;
-	export type TransactionCommand = typeof bcs.Command.$inferType;
-	export type TransactionArgument = typeof bcs.Argument.$inferType;
+	export type TransactionKind = EnumOutputShape<{
+		[Kind in (typeof bcs.TransactionKind.$inferType)['$kind']]: Kind extends
+			'ProgrammableTransaction' | 'ProgrammableSystemTransaction'
+			? ProgrammableTransaction
+			: NonNullable<(typeof bcs.TransactionKind.$inferType)[Kind]>;
+	}>;
+	export type ProgrammableTransaction = Pick<SerializedTransactionDataV2, 'inputs' | 'commands'>;
+	export type TransactionInput = ProgrammableTransaction['inputs'][number];
+	export type TransactionCommand = ProgrammableTransaction['commands'][number];
+	export type TransactionArgument = Argument;
 	export type ChangeEpochTransaction = NonNullable<TransactionKind['ChangeEpoch']>;
 	export type GenesisTransaction = NonNullable<TransactionKind['Genesis']>;
 	export type GenesisObject = GenesisTransaction['objects'][number];

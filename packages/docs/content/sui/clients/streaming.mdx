@@ -154,8 +154,10 @@ for await (const frame of client.streamEvents({
 ```
 
 The completion record includes the range, direction, reason, and a safe resume token when one is
-available. A cursor-bound completion does not mean its excluded boundary item was processed.
-Cancellation, failure, or leaving the loop early does not produce a successful completion record.
+available, including when no items matched. Completion confirms traversal, not that application
+writes have committed. A cursor-bound completion does not mean its excluded boundary item was
+processed. Cancellation, failure, or leaving the loop early does not produce a successful completion
+record.
 
 ## Polling and retries
 
@@ -207,7 +209,10 @@ the same methods. Shared options retain the same behavior and types as GraphQL.
 ```typescript
 for await (const frame of client.streamEvents({
 	start: { checkpoint: '1000' },
-	include: { progress: true, proto: true, queryEnd: true },
+	include: { progress: true, proto: true },
+	onQueryEnd({ queryEnd, watermark, stage }) {
+		console.log(queryEnd, watermark, stage);
+	},
 	pageSize: 50,
 	maxBufferedItems: 1024,
 	signal: controller.signal,
@@ -219,9 +224,6 @@ for await (const frame of client.streamEvents({
 		case 'Progress':
 			console.log(frame.coveredCheckpoint, frame.resumeToken);
 			break;
-		case 'QueryEnd':
-			console.log(frame.queryEnd, frame.watermark);
-			break;
 	}
 }
 ```
@@ -229,15 +231,19 @@ for await (const frame of client.streamEvents({
 Progress frames let sparse filters save scan progress even when no item matches. They include a safe
 resume token and checkpoint coverage when known. Starting at the live tip with progress enabled also
 provides an initial progress frame. GraphQL does not currently expose equivalent progress-only
-frames.
+frames. Process progress frames in order with preceding items before persisting their tokens. If you
+process items concurrently, wait for all preceding work to finish before advancing the saved
+position.
 
 `include.proto` adds the generated protobuf payload to matching frames. `readMask` can request
 additional native fields; it requires `include.proto` and cannot remove fields needed for the shared
 payload or recovery. Use `grpcFilter` instead of `filter` for generated gRPC filter expressions.
 
-`include.queryEnd` exposes each underlying List RPC's terminal metadata. Item and scan limits end
-one request while pagination continues; they do not complete the logical stream. Raw recovery
-watermarks are diagnostic information and must not be persisted as application acknowledgments.
+`onQueryEnd` reports each underlying List RPC's terminal metadata through a synchronous callback.
+Its result is not awaited; throwing terminates the stream without retrying the callback error. Item
+and scan limits end one request while pagination continues; they do not complete the logical stream.
+Raw recovery watermarks are diagnostic information and must not be persisted as application
+acknowledgments.
 
 `maxBufferedItems` bounds queued live items during replay, not their byte size. When the limit is
 reached, the SDK closes the live request and recovers through historical reads.
