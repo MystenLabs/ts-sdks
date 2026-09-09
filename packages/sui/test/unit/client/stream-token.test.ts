@@ -6,12 +6,14 @@ import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import { decodeToken, encodeToken, type StreamToken } from '../../../src/client/stream-token.js';
 
-const token: StreamToken = {
-	transport: 'grpc',
-	family: 'events',
+type GrpcToken = Extract<StreamToken['V1'], { $kind: 'grpc' }>['grpc'];
+type GraphQLToken = Extract<StreamToken['V1'], { $kind: 'graphql' }>['graphql'];
+
+const payload: GrpcToken = {
+	family: { $kind: 'events', events: true },
 	chain: 'test-chain',
-	filter: toBase64(new Uint8Array(32)),
-	order: 'ascending',
+	filter: new Uint8Array(32),
+	order: { $kind: 'ascending', ascending: true },
 	position: {
 		cursor: toBase64(new Uint8Array([255, 0, 128, 1])),
 		checkpoint: '123',
@@ -20,17 +22,21 @@ const token: StreamToken = {
 		transactionIndex: '18446744073709551615',
 		eventIndex: 4294967295,
 	},
-	range: { follow: true, reason: 'indexedTip' },
+	range: { capturedTip: null, end: { $kind: 'Follow', Follow: true } },
 };
+
+function grpcToken(value: GrpcToken): StreamToken {
+	return { $kind: 'V1', V1: { $kind: 'grpc', grpc: value } };
+}
+
+const token = grpcToken(payload);
 
 describe('stream resume token codec', () => {
 	it('preserves opaque gRPC cursor bytes and recovery coordinates', () => {
-		type GrpcToken = Extract<StreamToken, { transport: 'grpc' }>;
-		type GraphQLToken = Extract<StreamToken, { transport: 'graphql' }>;
-		type CursorEnd<Token extends StreamToken> = Extract<
-			NonNullable<Token['range']['end']>,
-			{ position: unknown }
-		>['position'];
+		type CursorEnd<T extends GrpcToken | GraphQLToken> = Extract<
+			T['range']['end'],
+			{ $kind: 'Cursor' }
+		>['Cursor'];
 		expectTypeOf<CursorEnd<GrpcToken>>().toEqualTypeOf<GrpcToken['position']>();
 		expectTypeOf<CursorEnd<GraphQLToken>>().toEqualTypeOf<GraphQLToken['position']>();
 		expectTypeOf<Extract<keyof GrpcToken['position'], 'itemId'>>().toEqualTypeOf<never>();
@@ -44,41 +50,64 @@ describe('stream resume token codec', () => {
 	it.each(['genesis', 'checkpoint:18446744073709551615'])(
 		'preserves the SDK-owned %s cursor',
 		(cursor) => {
-			const input = { ...token, position: { cursor } };
+			const input = grpcToken({
+				...payload,
+				position: {
+					cursor,
+					checkpoint: null,
+					coveredCheckpoint: null,
+					checkpointBoundary: null,
+					transactionIndex: null,
+					eventIndex: null,
+				},
+			});
 			expect(decodeToken(encodeToken(input))).toEqual(input);
 		},
 	);
 
 	it('preserves arbitrary GraphQL cursors and public recovery metadata', () => {
 		const input: StreamToken = {
-			...token,
-			transport: 'graphql',
-			position: {
-				cursor: 'cursor:v5/opaque?value=λ',
-				checkpoint: '123',
-				indexedCheckpoint: '120',
-				itemId: 'digest:7',
-			},
-			range: {
-				follow: false,
-				reason: 'cursorBound',
-				end: { position: { cursor: 'end/opaque', checkpoint: '124', itemId: 'digest:9' } },
+			$kind: 'V1',
+			V1: {
+				$kind: 'graphql',
+				graphql: {
+					...payload,
+					position: {
+						cursor: 'cursor:v5/opaque?value=λ',
+						checkpoint: '123',
+						indexedCheckpoint: '120',
+						itemId: 'digest:7',
+					},
+					range: {
+						capturedTip: null,
+						end: {
+							$kind: 'Cursor',
+							Cursor: {
+								cursor: 'end/opaque',
+								checkpoint: '124',
+								itemId: 'digest:9',
+								indexedCheckpoint: null,
+							},
+						},
+					},
+				},
 			},
 		};
 		expect(decodeToken(encodeToken(input))).toEqual(input);
 	});
 
-	it.each<StreamToken['range']>([
-		{ follow: false, reason: 'checkpointBound', end: { checkpoint: '18446744073709551616' } },
-		{ follow: false, reason: 'genesis', capturedTip: '500' },
+	it.each<GrpcToken['range']>([
 		{
-			follow: false,
-			reason: 'indexedTip',
-			capturedTip: '18446744073709551615',
-			end: { checkpoint: '18446744073709551616' },
+			capturedTip: null,
+			end: { $kind: 'Checkpoint', Checkpoint: '18446744073709551616' },
 		},
-	])('preserves finite range $reason', (range) => {
-		const input = { ...token, range };
+		{ capturedTip: '500', end: { $kind: 'Genesis', Genesis: true } },
+		{
+			capturedTip: '18446744073709551615',
+			end: { $kind: 'IndexedTip', IndexedTip: true },
+		},
+	])('preserves finite range $end.$kind', (range) => {
+		const input = grpcToken({ ...payload, range });
 		expect(decodeToken(encodeToken(input))).toEqual(input);
 	});
 
@@ -95,10 +124,12 @@ describe('stream resume token codec', () => {
 
 	it('rejects boundaries outside the supported checkpoint range', () => {
 		expect(() =>
-			encodeToken({
-				...token,
-				position: { ...token.position, checkpointBoundary: '18446744073709551617' },
-			}),
+			encodeToken(
+				grpcToken({
+					...payload,
+					position: { ...payload.position, checkpointBoundary: '18446744073709551617' },
+				}),
+			),
 		).toThrow();
 	});
 });

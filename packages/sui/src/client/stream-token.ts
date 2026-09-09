@@ -5,14 +5,8 @@ import { bcs, type BcsType, type InferBcsType, type InferBcsInput } from '@myste
 import { fromBase64, toBase64 } from '@mysten/utils';
 import { check, minLength, parse, pipe, string } from 'valibot';
 
-import type { StoredRange, StreamPosition } from './stream.js';
-import type { SuiClientTypes } from './types.js';
-
 const TOKEN_PREFIX = 'sui-stream:';
-const NonemptyString = bcs.string().transform({
-	input: (value: string) => parse(pipe(string(), minLength(1)), value),
-	output: (value) => parse(pipe(string(), minLength(1)), value),
-});
+const NonemptyString = pipe(string(), minLength(1));
 const BoundaryValue = pipe(
 	string(),
 	check((value) => BigInt(value) <= 1n << 64n),
@@ -21,10 +15,6 @@ const BoundaryValue = pipe(
 const Boundary = bcs.u128().transform({
 	input: (value: string) => parse(BoundaryValue, value),
 	output: (value) => parse(BoundaryValue, value),
-});
-const Checkpoint = bcs.u64().transform({
-	input: (value: string) => value,
-	output: (value) => value,
 });
 const CursorBytes = bcs.byteVector().transform({
 	input: (value: string) => fromBase64(value),
@@ -55,50 +45,33 @@ const GrpcCursor = bcs
 		},
 	});
 
-function optional<T, Input>(type: BcsType<T, Input>) {
-	return bcs.option(type).transform({
-		input: (value: Input | undefined) => value ?? null,
-		output: (value) => value ?? undefined,
-	});
-}
+export const GrpcPosition = bcs.struct('GrpcStreamPosition', {
+	cursor: GrpcCursor,
+	checkpoint: bcs.option(bcs.u64()),
+	coveredCheckpoint: bcs.option(bcs.u64()),
+	/** Boundary immediately before this checkpoint, proven by a terminal scan. */
+	checkpointBoundary: bcs.option(Boundary),
+	transactionIndex: bcs.option(bcs.u64()),
+	eventIndex: bcs.option(bcs.u32()),
+});
+export const GraphQLPosition = bcs.struct('GraphQLStreamPosition', {
+	cursor: bcs.string(),
+	checkpoint: bcs.option(bcs.u64()),
+	/** Public item identity used to verify an exclusive endpoint. */
+	itemId: bcs.option(bcs.string()),
+	/** Checkpoint known to be indexed when this cursor was received. */
+	indexedCheckpoint: bcs.option(bcs.u64()),
+});
 
-type OptionalPosition<Position extends StreamPosition> = Pick<Position, 'cursor'> &
-	Partial<Omit<Position, 'cursor'>>;
-
-function positionSchema<Position extends StreamPosition>(schema: BcsType<Position, Position>) {
-	return schema.transform({
-		input: (value: OptionalPosition<Position>) => value as Position,
-		output: (value): OptionalPosition<Position> => value,
-	});
-}
-
-const GrpcPosition = positionSchema(
-	bcs.struct('GrpcStreamPosition', {
-		cursor: GrpcCursor,
-		checkpoint: optional(Checkpoint),
-		coveredCheckpoint: optional(Checkpoint),
-		checkpointBoundary: optional(Boundary),
-		transactionIndex: optional(Checkpoint),
-		eventIndex: optional(bcs.u32()),
-	}),
-);
-const GraphQLPosition = positionSchema(
-	bcs.struct('GraphQLStreamPosition', {
-		cursor: NonemptyString,
-		checkpoint: optional(Checkpoint),
-		itemId: optional(NonemptyString),
-		indexedCheckpoint: optional(Checkpoint),
-	}),
-);
-
-const Family = bcs.enum('StreamFamily', { checkpoints: null, transactions: null, events: null });
-
-function tokenPayload<Position extends StreamPosition, Input extends StreamPosition>(
-	position: BcsType<Position, Input>,
-) {
-	const range = bcs
-		.struct('StreamRange', {
-			capturedTip: optional(Checkpoint),
+export function tokenPayload<Position, Input>(position: BcsType<Position, Input>) {
+	return bcs.struct('StreamTokenPayload', {
+		family: bcs.enum('StreamFamily', { checkpoints: null, transactions: null, events: null }),
+		chain: bcs.string(),
+		filter: bcs.bytes(32),
+		order: bcs.enum('StreamOrder', { ascending: null, descending: null }),
+		position,
+		range: bcs.struct('StreamRange', {
+			capturedTip: bcs.option(bcs.u64()),
 			end: bcs.enum('StreamEnd', {
 				Follow: null,
 				Checkpoint: Boundary,
@@ -106,85 +79,24 @@ function tokenPayload<Position extends StreamPosition, Input extends StreamPosit
 				IndexedTip: null,
 				Genesis: null,
 			}),
-		})
-		.transform({
-			input: (value: Omit<StoredRange<Input>, 'start'>) => ({
-				capturedTip: value.capturedTip,
-				end: value.follow
-					? { Follow: true }
-					: value.reason === 'indexedTip'
-						? { IndexedTip: true }
-						: value.reason === 'genesis'
-							? { Genesis: true }
-							: value.end && 'checkpoint' in value.end
-								? { Checkpoint: value.end.checkpoint }
-								: { Cursor: (value.end as { position: Input }).position },
-			}),
-			output: (value): Omit<StoredRange<Position>, 'start'> => {
-				const shared = { capturedTip: value.capturedTip, follow: false };
-				switch (value.end.$kind) {
-					case 'Follow':
-						return { ...shared, follow: true, reason: 'indexedTip' };
-					case 'Checkpoint':
-						return {
-							...shared,
-							end: { checkpoint: value.end.Checkpoint },
-							reason: 'checkpointBound',
-						};
-					case 'Cursor':
-						return { ...shared, end: { position: value.end.Cursor }, reason: 'cursorBound' };
-					case 'IndexedTip':
-						if (value.capturedTip === undefined) throw new Error('Missing captured tip');
-						return {
-							...shared,
-							end: { checkpoint: (BigInt(value.capturedTip) + 1n).toString() },
-							reason: 'indexedTip',
-						};
-					case 'Genesis':
-						return { ...shared, reason: 'genesis' };
-				}
-			},
-		});
-	return bcs.struct('StreamTokenPayload', {
-		family: Family.transform({
-			input: (value: InferBcsType<typeof Family>['$kind']) =>
-				({ [value]: true }) as InferBcsInput<typeof Family>,
-			output: (value) => value.$kind,
 		}),
-		chain: NonemptyString,
-		filter: bcs
-			.bytes(32)
-			.transform({ input: (value: string) => fromBase64(value), output: toBase64 }),
-		order: bcs.bool().transform({
-			input: (value: SuiClientTypes.Order) => value === 'descending',
-			output: (value): SuiClientTypes.Order => (value ? 'descending' : 'ascending'),
-		}),
-		position,
-		range,
 	});
 }
 
-const Token = bcs.enum('StreamToken', {
+export const Token = bcs.enum('StreamToken', {
 	V1: bcs.enum('StreamTransport', {
 		grpc: tokenPayload(GrpcPosition),
 		graphql: tokenPayload(GraphQLPosition),
 	}),
 });
 
-type TokenPayload = InferBcsType<typeof Token>['V1'];
-export type StreamToken = {
-	[Transport in TokenPayload['$kind']]: { transport: Transport } & NonNullable<
-		TokenPayload[Transport]
-	>;
-}[TokenPayload['$kind']];
+export type GrpcStreamPosition = InferBcsType<typeof GrpcPosition>;
+export type GraphQLStreamPosition = InferBcsType<typeof GraphQLPosition>;
 
-export function encodeToken(token: StreamToken): string {
-	return (
-		TOKEN_PREFIX +
-		Token.serialize({
-			V1: token.transport === 'grpc' ? { grpc: token } : { graphql: token },
-		}).toBase64()
-	);
+export type StreamToken = InferBcsType<typeof Token>;
+
+export function encodeToken(token: InferBcsInput<typeof Token>): string {
+	return TOKEN_PREFIX + Token.serialize(token).toBase64();
 }
 
 export function decodeToken(value: string): StreamToken {
@@ -196,12 +108,19 @@ export function decodeToken(value: string): StreamToken {
 		const encoded = Token.serialize(decoded).toBytes();
 		if (encoded.length !== bytes.length || encoded.some((byte, index) => byte !== bytes[index]))
 			throw new Error();
-		const token: StreamToken =
-			decoded.V1.$kind === 'grpc'
-				? { transport: 'grpc', ...decoded.V1.grpc }
-				: { transport: 'graphql', ...decoded.V1.graphql };
-		if (token.range.follow && token.order === 'descending') throw new Error();
-		return token;
+		const token = decoded.V1.$kind === 'grpc' ? decoded.V1.grpc : decoded.V1.graphql;
+		parse(NonemptyString, token.chain);
+		parse(NonemptyString, token.position.cursor);
+		if (token.range.end.$kind === 'Cursor') {
+			parse(NonemptyString, token.range.end.Cursor.cursor);
+		}
+		if (token.range.end.$kind === 'Follow' && token.order.$kind === 'descending') {
+			throw new Error();
+		}
+		if (token.range.end.$kind === 'IndexedTip' && token.range.capturedTip === null) {
+			throw new Error();
+		}
+		return decoded;
 	} catch {
 		throw new Error('Invalid or unsupported stream resume token');
 	}

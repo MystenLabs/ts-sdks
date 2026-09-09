@@ -7,8 +7,8 @@ import {
 	createLedgerStream,
 	type LedgerStreamAdapter,
 	type StreamBound,
-	type StreamPosition,
 } from '../client/stream.js';
+import type { GraphQLStreamPosition as StreamPosition } from '../client/stream-token.js';
 import { resolveEventFilter, resolveTransactionFilter } from '../client/query-filters.js';
 import { normalizeStructTag, normalizeSuiAddress } from '../utils/sui-types.js';
 import type { GraphQLDocument, GraphQLQueryResult, SuiGraphQLClient } from './client.js';
@@ -114,7 +114,7 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 			tip: range.last.sequenceNumber.toString(),
 		};
 	};
-	const adapter: LedgerStreamAdapter<Frame> = {
+	const adapter: LedgerStreamAdapter<Frame, StreamPosition> = {
 		transport: 'graphql',
 		family,
 		async initialize(signal) {
@@ -161,7 +161,7 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 		},
 		comparePositions(a, b) {
 			if (a.cursor === b.cursor) return 0;
-			if (a.checkpoint !== undefined && b.checkpoint !== undefined && a.checkpoint !== b.checkpoint)
+			if (a.checkpoint != null && b.checkpoint != null && a.checkpoint !== b.checkpoint)
 				return BigInt(a.checkpoint) < BigInt(b.checkpoint) ? -1 : 1;
 			return undefined;
 		},
@@ -180,14 +180,9 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 			if (request.start && (request.order === 'descending' || 'position' in request.start)) {
 				const required =
 					'checkpoint' in request.start
-						? BigInt(request.start.checkpoint)
-						: (request.start.position.checkpoint ?? request.start.position.indexedCheckpoint) ===
-							  undefined
-							? undefined
-							: BigInt(
-									(request.start.position.checkpoint ?? request.start.position.indexedCheckpoint)!,
-								);
-				if (required !== undefined && required > tip) {
+						? request.start.checkpoint
+						: (request.start.position.checkpoint ?? request.start.position.indexedCheckpoint);
+				if (required != null && BigInt(required) > tip) {
 					yield { $kind: 'end', complete: false };
 					return;
 				}
@@ -198,23 +193,23 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 			let before: string | undefined;
 			let target: bigint | undefined;
 			const descending = request.order === 'descending';
-			const apply = (bound: StreamBound | undefined, start: boolean) => {
+			const apply = (bound: StreamBound<StreamPosition> | undefined, start: boolean) => {
 				if (!bound) return;
 				if ('position' in bound) {
 					const position = bound.position;
 					if (start !== descending) {
 						after = position.cursor;
-						if (position.checkpoint !== undefined)
+						if (position.checkpoint != null)
 							lower = BigInt(position.checkpoint) + (family === 'checkpoints' ? 1n : 0n);
 					} else before = position.cursor;
 					if (!start && !descending) {
 						const horizon = position.checkpoint ?? position.indexedCheckpoint;
-						if (horizon !== undefined) target = BigInt(horizon);
+						if (horizon != null) target = BigInt(horizon);
 					}
 					if (
 						start &&
 						!descending &&
-						position.checkpoint !== undefined &&
+						position.checkpoint != null &&
 						indexed.first != null &&
 						lower < BigInt(indexed.first)
 					)
@@ -234,11 +229,7 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 			apply(request.end, false);
 			if (
 				descending &&
-				!(
-					request.end &&
-					'position' in request.end &&
-					request.end.position.checkpoint === undefined
-				) &&
+				!(request.end && 'position' in request.end && request.end.position.checkpoint == null) &&
 				indexed.first != null &&
 				lower < BigInt(indexed.first)
 			)
@@ -287,6 +278,7 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 						cursor: edge.cursor,
 						checkpoint,
 						itemId: nodeIdentity(edge.node),
+						indexedCheckpoint: null,
 					};
 					yield {
 						$kind: 'item',
@@ -315,7 +307,12 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 					if (!request.end && cursor && !edges.length)
 						yield {
 							$kind: 'progress',
-							position: { cursor, indexedCheckpoint: (upper - 1n).toString() },
+							position: {
+								cursor,
+								checkpoint: null,
+								itemId: null,
+								indexedCheckpoint: (upper - 1n).toString(),
+							},
 						};
 					yield { $kind: 'end', complete: target == null || tip >= target };
 					return;
@@ -369,7 +366,12 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 				if (!edges.length && !request.end)
 					yield {
 						$kind: 'progress',
-						position: { cursor, indexedCheckpoint: (upper - 1n).toString() },
+						position: {
+							cursor,
+							checkpoint: null,
+							itemId: null,
+							indexedCheckpoint: (upper - 1n).toString(),
+						},
 					};
 				if (descending) before = cursor;
 				else after = cursor;
@@ -420,6 +422,7 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 					cursor: edge.cursor,
 					checkpoint,
 					itemId: nodeIdentity(edge.node),
+					indexedCheckpoint: null,
 				};
 				yield {
 					$kind: 'item',

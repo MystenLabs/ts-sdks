@@ -12,9 +12,9 @@ import type {
 	LedgerStreamAdapter,
 	LedgerStreamEvent,
 	LedgerStreamRequest,
-	StreamPosition,
 	StreamBound,
 } from '../client/stream.js';
+import type { GrpcStreamPosition as StreamPosition } from '../client/stream-token.js';
 import { resolveEventFilter, resolveTransactionFilter } from '../client/query-filters.js';
 import { normalizeStructTag, normalizeSuiAddress } from '../utils/sui-types.js';
 import type { SuiGrpcClient } from './client.js';
@@ -66,6 +66,9 @@ function checkpointPosition(checkpoint: bigint): StreamPosition {
 		cursor: `checkpoint:${checkpoint}`,
 		checkpoint: checkpoint.toString(),
 		coveredCheckpoint: checkpoint.toString(),
+		checkpointBoundary: null,
+		transactionIndex: null,
+		eventIndex: null,
 	};
 }
 
@@ -76,12 +79,12 @@ function comparePositions(a: StreamPosition, b: StreamPosition): number | undefi
 	if (b.cursor === 'genesis') return 1;
 	// Item coordinates and scan coverage are different domains. A watermark can
 	// advance inside a checkpoint without having finished that checkpoint.
-	if (a.checkpoint === undefined || b.checkpoint === undefined) {
+	if (a.checkpoint == null || b.checkpoint == null) {
 		if (
-			a.checkpoint !== undefined ||
-			b.checkpoint !== undefined ||
-			a.coveredCheckpoint === undefined ||
-			b.coveredCheckpoint === undefined
+			a.checkpoint != null ||
+			b.checkpoint != null ||
+			a.coveredCheckpoint == null ||
+			b.coveredCheckpoint == null
 		)
 			return undefined;
 		const ac = BigInt(a.coveredCheckpoint);
@@ -92,7 +95,7 @@ function comparePositions(a: StreamPosition, b: StreamPosition): number | undefi
 	const bc = BigInt(b.checkpoint);
 	if (ac !== bc) return ac < bc ? -1 : 1;
 	for (const field of ['transactionIndex', 'eventIndex'] as const) {
-		if (a[field] === undefined || b[field] === undefined) {
+		if (a[field] == null || b[field] == null) {
 			if (a[field] !== b[field]) return undefined;
 			continue;
 		}
@@ -118,10 +121,11 @@ function position(frame: RawFrame, family: Family, live: boolean): StreamPositio
 		throw protocol('Event is missing its event index');
 	return {
 		cursor: toBase64(watermark.cursor),
-		checkpoint: checkpoint?.toString(),
-		coveredCheckpoint: watermark.checkpoint?.toString(),
-		transactionIndex: payload?.transactionIndex?.toString(),
-		eventIndex: frame.event?.eventIndex,
+		checkpoint: checkpoint?.toString() ?? null,
+		coveredCheckpoint: watermark.checkpoint?.toString() ?? null,
+		checkpointBoundary: null,
+		transactionIndex: payload?.transactionIndex?.toString() ?? null,
+		eventIndex: frame.event?.eventIndex ?? null,
 	};
 }
 
@@ -251,14 +255,14 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 		};
 	}
 
-	function bounds(request: LedgerStreamRequest) {
+	function bounds(request: LedgerStreamRequest<StreamPosition>) {
 		const query: QueryOptions = {
 			limit: pageSize,
 			ordering: request.order === 'descending' ? Ordering.DESCENDING : Ordering.ASCENDING,
 		};
 		let startCheckpoint: bigint | undefined;
 		let endCheckpoint: bigint | undefined;
-		function set(bound: StreamBound | undefined, start: boolean) {
+		function set(bound: StreamBound<StreamPosition> | undefined, start: boolean) {
 			if (!bound) return;
 			const lower = start === (request.order === 'ascending');
 			if ('checkpoint' in bound) {
@@ -292,7 +296,7 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 		frame: RawFrame,
 		live: boolean,
 		knownPosition?: StreamPosition,
-	): LedgerStreamEvent<Frame> | undefined {
+	): LedgerStreamEvent<Frame, StreamPosition> | undefined {
 		// A cursor bound is an excluded endpoint, never committed progress.
 		if (!hasItem(frame) && frame.end?.reason === QueryEndReason.CURSOR_BOUND) return;
 		const p = knownPosition ?? position(frame, family, live);
@@ -302,7 +306,7 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 				position: p,
 				frame: {
 					...mapItem(frame, include),
-					...(include?.progress ? { coveredCheckpoint: p.coveredCheckpoint } : {}),
+					...(include?.progress ? { coveredCheckpoint: p.coveredCheckpoint ?? undefined } : {}),
 				},
 			};
 		}
@@ -314,15 +318,15 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 			$kind: 'progress',
 			position: p,
 			frame: include?.progress
-				? { $kind: 'Progress', coveredCheckpoint: p.coveredCheckpoint }
+				? { $kind: 'Progress', coveredCheckpoint: p.coveredCheckpoint ?? undefined }
 				: undefined,
 		};
 	}
 
 	async function* scan(
-		request: LedgerStreamRequest,
+		request: LedgerStreamRequest<StreamPosition>,
 		stage: GrpcStreamStage = 'historical',
-	): AsyncGenerator<LedgerStreamEvent<Frame>> {
+	): AsyncGenerator<LedgerStreamEvent<Frame, StreamPosition>> {
 		// Do not deliver lower records before a requested descending start is indexed:
 		// doing so would advance the continuation past the as-yet unavailable interval.
 		const requestedStart =
@@ -336,7 +340,7 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 						: (request.start.position.checkpoint ?? request.start.position.coveredCheckpoint));
 		if (
 			request.order === 'descending' &&
-			requestedStart !== undefined &&
+			requestedStart != null &&
 			BigInt(await adapter.getIndexedTip(request.signal)) < BigInt(requestedStart)
 		) {
 			yield { $kind: 'end', complete: false };
@@ -348,7 +352,7 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 		let covered =
 			request.start &&
 			'position' in request.start &&
-			request.start.position.coveredCheckpoint !== undefined
+			request.start.position.coveredCheckpoint != null
 				? BigInt(request.start.position.coveredCheckpoint)
 				: undefined;
 		let previousPosition: StreamPosition | undefined;
@@ -371,8 +375,8 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 					}
 					final = position(frame, family, false);
 					if (
-						previousPosition?.checkpoint !== undefined &&
-						final.checkpoint !== undefined &&
+						previousPosition?.checkpoint != null &&
+						final.checkpoint != null &&
 						(comparePositions(final, previousPosition) ?? 0) *
 							(request.order === 'ascending' ? 1 : -1) <
 							0
@@ -381,8 +385,9 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 					if (hasItem(frame) && previousPosition?.cursor === final.cursor)
 						throw protocol('Ledger response repeated an item cursor');
 					previousPosition = final;
-					if (final.coveredCheckpoint === undefined) final.coveredCheckpoint = covered?.toString();
-					if (final.coveredCheckpoint !== undefined) {
+					if (final.coveredCheckpoint == null)
+						final.coveredCheckpoint = covered?.toString() ?? null;
+					if (final.coveredCheckpoint != null) {
 						const cp = BigInt(final.coveredCheckpoint);
 						if (
 							covered !== undefined &&
@@ -408,13 +413,15 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 					const next = event(frame, false, final);
 					if (next?.$kind === 'progress' && frame.end) {
 						if (frame.end.reason === QueryEndReason.CHECKPOINT_BOUND) {
-							next.position.checkpointBoundary = (
-								request.order === 'ascending' ? range.endCheckpoint : range.startCheckpoint
-							)?.toString();
+							next.position.checkpointBoundary =
+								(request.order === 'ascending'
+									? range.endCheckpoint
+									: range.startCheckpoint
+								)?.toString() ?? null;
 						} else if (
 							frame.end.reason === QueryEndReason.LEDGER_TIP &&
 							request.order === 'ascending' &&
-							next.position.coveredCheckpoint !== undefined &&
+							next.position.coveredCheckpoint != null &&
 							BigInt(next.position.coveredCheckpoint) < U64_MAX
 						) {
 							next.position.checkpointBoundary = (
@@ -447,7 +454,7 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 				end.reason !== QueryEndReason.LEDGER_TIP ||
 				!request.end ||
 				(request.order === 'ascending' &&
-					final.coveredCheckpoint !== undefined &&
+					final.coveredCheckpoint != null &&
 					((target !== undefined && BigInt(final.coveredCheckpoint) + 1n >= target) ||
 						(request.capturedTip === U64_MAX.toString() &&
 							BigInt(final.coveredCheckpoint) === U64_MAX)));
@@ -456,7 +463,9 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 		}
 	}
 
-	async function* live(request: LedgerStreamRequest): AsyncGenerator<LedgerStreamEvent<Frame>> {
+	async function* live(
+		request: LedgerStreamRequest<StreamPosition>,
+	): AsyncGenerator<LedgerStreamEvent<Frame, StreamPosition>> {
 		const rpc = open({ filter, readMask }, request.signal, true);
 		let previousLive: StreamPosition | undefined;
 		async function read() {
@@ -465,8 +474,8 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 			const p = position(current.value, family, true);
 			if (previousLive) {
 				if (
-					previousLive.coveredCheckpoint !== undefined &&
-					(p.coveredCheckpoint === undefined ||
+					previousLive.coveredCheckpoint != null &&
+					(p.coveredCheckpoint == null ||
 						BigInt(p.coveredCheckpoint) < BigInt(previousLive.coveredCheckpoint))
 				)
 					throw protocol('Subscription checkpoint coverage regressed or became unavailable');
@@ -489,13 +498,13 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 						? '0'
 						: undefined;
 			let replayItem =
-				safe?.transactionIndex !== undefined || family === 'checkpoints' ? safe : undefined;
+				safe?.transactionIndex != null || family === 'checkpoints' ? safe : undefined;
 			let replayCoverage: string | undefined;
-			let end: StreamBound | undefined;
+			let end: StreamBound<StreamPosition> | undefined;
 			if (requestedCheckpoint !== undefined) {
 				for (;;) {
 					const cp = current.position.checkpoint ?? current.position.coveredCheckpoint;
-					if (cp !== undefined && BigInt(cp) >= BigInt(requestedCheckpoint)) {
+					if (cp != null && BigInt(cp) >= BigInt(requestedCheckpoint)) {
 						if (BigInt(cp) === U64_MAX) throw protocol('Subscription handoff overflows uint64');
 						end = { checkpoint: (BigInt(cp) + 1n).toString() };
 						break;
@@ -510,15 +519,15 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 					if (
 						incoming.cursor === safe.cursor &&
 						!(
-							committedCoverage !== undefined &&
-							incomingCoverage !== undefined &&
+							committedCoverage != null &&
+							incomingCoverage != null &&
 							BigInt(incomingCoverage) < BigInt(committedCoverage)
 						)
 					)
 						break;
 					if (
-						committedCoverage !== undefined &&
-						incomingCoverage !== undefined &&
+						committedCoverage != null &&
+						incomingCoverage != null &&
 						BigInt(incomingCoverage) >= BigInt(committedCoverage)
 					) {
 						if (BigInt(incomingCoverage) > BigInt(committedCoverage) && family !== 'checkpoints') {
@@ -528,8 +537,8 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 							// lets recovery include that checkpoint without interpreting its cursor.
 							if (
 								family !== 'checkpoints' &&
-								safe.checkpoint === undefined &&
-								incoming.checkpoint === undefined
+								safe.checkpoint == null &&
+								incoming.checkpoint == null
 							) {
 								current = await read();
 								continue;
@@ -539,7 +548,7 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 								safe.checkpoint,
 								incoming.checkpoint,
 							].reduce<bigint>(
-								(maximum, cp) => (cp !== undefined && BigInt(cp) > maximum ? BigInt(cp) : maximum),
+								(maximum, cp) => (cp != null && BigInt(cp) > maximum ? BigInt(cp) : maximum),
 								BigInt(incomingCoverage),
 							);
 							if (upper === U64_MAX) throw protocol('Subscription handoff overflows uint64');
@@ -565,7 +574,7 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 						if (next.$kind === 'item' || next.$kind === 'progress') {
 							safe = next.position;
 							start = { position: safe };
-							if (safe.coveredCheckpoint !== undefined) replayCoverage = safe.coveredCheckpoint;
+							if (safe.coveredCheckpoint != null) replayCoverage = safe.coveredCheckpoint;
 							if (next.$kind === 'item') {
 								if (replayItem && (comparePositions(safe, replayItem) ?? 1) <= 0) continue;
 								replayItem = safe;
@@ -580,14 +589,21 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 				const cp = current.position.checkpoint!;
 				const baseline: StreamPosition =
 					BigInt(cp) === 0n
-						? { cursor: 'genesis', checkpoint: '0' }
+						? {
+								cursor: 'genesis',
+								checkpoint: '0',
+								coveredCheckpoint: null,
+								checkpointBoundary: null,
+								transactionIndex: null,
+								eventIndex: null,
+							}
 						: checkpointPosition(BigInt(cp) - 1n);
 				safe = baseline;
 				yield {
 					$kind: 'progress',
 					position: baseline,
 					frame: include?.progress
-						? { $kind: 'Progress', coveredCheckpoint: baseline.coveredCheckpoint }
+						? { $kind: 'Progress', coveredCheckpoint: baseline.coveredCheckpoint ?? undefined }
 						: undefined,
 				};
 			}
@@ -596,25 +612,24 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 				const item = hasItem(current.frame);
 				const sameCursorAdvancedCoverage =
 					!item &&
-					p.coveredCheckpoint !== undefined &&
-					(safe?.coveredCheckpoint === undefined ||
+					p.coveredCheckpoint != null &&
+					(safe?.coveredCheckpoint == null ||
 						BigInt(p.coveredCheckpoint) > BigInt(safe.coveredCheckpoint));
 				const overlaps =
 					(p.cursor === safe?.cursor && !sameCursorAdvancedCoverage) ||
 					(item &&
 						((replayItem !== undefined && (comparePositions(p, replayItem) ?? 1) <= 0) ||
 							(replayCoverage !== undefined &&
-								p.checkpoint !== undefined &&
+								p.checkpoint != null &&
 								BigInt(p.checkpoint) <= BigInt(replayCoverage))));
 				const progressBehindReplay =
 					!item &&
 					replayCoverage !== undefined &&
-					(p.coveredCheckpoint === undefined ||
-						BigInt(p.coveredCheckpoint) <= BigInt(replayCoverage));
+					(p.coveredCheckpoint == null || BigInt(p.coveredCheckpoint) <= BigInt(replayCoverage));
 				if (!overlaps && !progressBehindReplay) {
 					const committed = {
 						...p,
-						coveredCheckpoint: p.coveredCheckpoint ?? safe?.coveredCheckpoint,
+						coveredCheckpoint: p.coveredCheckpoint ?? safe?.coveredCheckpoint ?? null,
 					};
 					yield event(current.frame, true, committed)!;
 					safe = committed;
@@ -626,18 +641,18 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 		}
 	}
 
-	const adapter: LedgerStreamAdapter<Frame> = {
+	const adapter: LedgerStreamAdapter<Frame, StreamPosition> = {
 		transport: 'grpc',
 		family,
 		comparePositions,
 		validatePosition(value) {
 			if (value.cursor === 'genesis') {
 				if (
-					(value.checkpoint !== undefined && value.checkpoint !== '0') ||
-					value.coveredCheckpoint !== undefined ||
-					value.checkpointBoundary !== undefined ||
-					value.transactionIndex !== undefined ||
-					value.eventIndex !== undefined
+					(value.checkpoint != null && value.checkpoint !== '0') ||
+					value.coveredCheckpoint != null ||
+					value.checkpointBoundary != null ||
+					value.transactionIndex != null ||
+					value.eventIndex != null
 				)
 					throw protocol('Invalid genesis continuation');
 				return;
@@ -647,11 +662,11 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 				if (
 					!/^(0|[1-9]\d*)$/.test(cp) ||
 					BigInt(cp) > U64_MAX ||
-					(value.checkpoint !== undefined && value.checkpoint !== cp) ||
-					(value.coveredCheckpoint !== undefined && value.coveredCheckpoint !== cp) ||
-					value.transactionIndex !== undefined ||
-					value.eventIndex !== undefined ||
-					value.checkpointBoundary !== undefined
+					(value.checkpoint != null && value.checkpoint !== cp) ||
+					(value.coveredCheckpoint != null && value.coveredCheckpoint !== cp) ||
+					value.transactionIndex != null ||
+					value.eventIndex != null ||
+					value.checkpointBoundary != null
 				)
 					throw protocol('Invalid checkpoint continuation');
 				return;
@@ -735,5 +750,5 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 		scan,
 		live,
 	};
-	return createLedgerStream<Frame>(input, adapter);
+	return createLedgerStream(input, adapter);
 }

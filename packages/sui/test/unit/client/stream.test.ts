@@ -15,7 +15,7 @@ type Frame = { $kind: 'Item'; value: number; resumeToken: string };
 const item = (value: number, cp = String(value)): LedgerStreamEvent<Frame> => ({
 	$kind: 'item',
 	frame: { $kind: 'Item', value, resumeToken: '' },
-	position: { cursor: String(value), checkpoint: cp },
+	position: { cursor: String(value), checkpoint: cp, itemId: null, indexedCheckpoint: null },
 });
 const end = { $kind: 'end', complete: true } as const;
 const retry = { initialDelay: 0, maxDelay: 0, jitter: 0, maxAttempts: 2 };
@@ -26,7 +26,7 @@ function adapter(overrides: Partial<LedgerStreamAdapter<Frame>> = {}): LedgerStr
 		initialize: vi.fn(async () => ({ chain: 'chain-a', filter: { package: 'resolved-package' } })),
 		getIndexedTip: vi.fn(async () => '10'),
 		comparePositions: (a, b) =>
-			a.checkpoint !== undefined && b.checkpoint !== undefined
+			a.checkpoint !== null && b.checkpoint !== null
 				? Number(a.checkpoint) - Number(b.checkpoint)
 				: undefined,
 		isRetryable: (error) => error instanceof TypeError,
@@ -100,7 +100,9 @@ describe('ledger stream range and tokens', () => {
 			expect.objectContaining({
 				order: 'descending',
 				capturedTip: '10',
-				start: { position: { cursor: '1', checkpoint: '1' } },
+				start: {
+					position: { cursor: '1', checkpoint: '1', itemId: null, indexedCheckpoint: null },
+				},
 			}),
 		);
 	});
@@ -126,7 +128,9 @@ describe('ledger stream range and tokens', () => {
 		await collect(createLedgerStream({ start, end: { checkpoint: '10' } }, resumed));
 		expect(resumed.scan).toHaveBeenCalledWith(
 			expect.objectContaining({
-				start: { position: { cursor: '2', checkpoint: '2' } },
+				start: {
+					position: { cursor: '2', checkpoint: '2', itemId: null, indexedCheckpoint: null },
+				},
 			}),
 		);
 	});
@@ -289,8 +293,10 @@ describe('ledger stream range and tokens', () => {
 		expect(source.scan).toHaveBeenCalledWith(
 			expect.objectContaining({
 				order: 'ascending',
-				start: { position: { cursor: '2', checkpoint: '2' } },
-				end: { position: { cursor: '5', checkpoint: '5' } },
+				start: {
+					position: { cursor: '2', checkpoint: '2', itemId: null, indexedCheckpoint: null },
+				},
+				end: { position: { cursor: '5', checkpoint: '5', itemId: null, indexedCheckpoint: null } },
 			}),
 		);
 	});
@@ -315,7 +321,15 @@ describe('ledger stream range and tokens', () => {
 				const source = adapter({
 					comparePositions: undefined,
 					live: async function* () {
-						yield { ...item(1), position: { cursor, checkpoint } };
+						yield {
+							...item(1),
+							position: {
+								cursor,
+								checkpoint: checkpoint ?? null,
+								itemId: null,
+								indexedCheckpoint: null,
+							},
+						};
 					},
 				});
 				const stream = createLedgerStream({ start: { checkpoint: '0' } }, source);
@@ -331,8 +345,22 @@ describe('ledger stream range and tokens', () => {
 			);
 			expect(source.scan).toHaveBeenCalledWith(
 				expect.objectContaining({
-					start: { position: { cursor: 'future-format:z', ...(checkpoint ? { checkpoint } : {}) } },
-					end: { position: { cursor: 'future-format:a', ...(checkpoint ? { checkpoint } : {}) } },
+					start: {
+						position: {
+							cursor: 'future-format:z',
+							checkpoint: checkpoint ?? null,
+							itemId: null,
+							indexedCheckpoint: null,
+						},
+					},
+					end: {
+						position: {
+							cursor: 'future-format:a',
+							checkpoint: checkpoint ?? null,
+							itemId: null,
+							indexedCheckpoint: null,
+						},
+					},
 				}),
 			);
 		},
@@ -443,7 +471,10 @@ describe('ledger stream delivery and cleanup', () => {
 		const source = adapter({
 			scan: vi.fn(async function* (): AsyncGenerator<LedgerStreamEvent<Frame>> {
 				if (++scans === 1) {
-					yield { $kind: 'progress', position: { cursor: '15', checkpoint: '15' } };
+					yield {
+						$kind: 'progress',
+						position: { cursor: '15', checkpoint: '15', itemId: null, indexedCheckpoint: null },
+					};
 					yield { $kind: 'end', complete: false };
 				} else {
 					yield item(16);
@@ -456,7 +487,11 @@ describe('ledger stream delivery and cleanup', () => {
 		await vi.advanceTimersByTimeAsync(10);
 		expect((await next).value).toMatchObject({ $kind: 'Item', value: 16 });
 		expect(source.scan).toHaveBeenLastCalledWith(
-			expect.objectContaining({ start: { position: { cursor: '15', checkpoint: '15' } } }),
+			expect.objectContaining({
+				start: {
+					position: { cursor: '15', checkpoint: '15', itemId: null, indexedCheckpoint: null },
+				},
+			}),
 		);
 		expect(source.live).not.toHaveBeenCalled();
 		await stream.return(undefined);
@@ -481,7 +516,11 @@ describe('ledger stream delivery and cleanup', () => {
 		const continuation = createLedgerStream({ start: { resumeToken: first.resumeToken } }, resumed);
 		await continuation.next();
 		expect(resumed.live).toHaveBeenCalledWith(
-			expect.objectContaining({ start: { position: { cursor: '1', checkpoint: '1' } } }),
+			expect.objectContaining({
+				start: {
+					position: { cursor: '1', checkpoint: '1', itemId: null, indexedCheckpoint: null },
+				},
+			}),
 		);
 		await continuation.return(undefined);
 	});
@@ -504,7 +543,9 @@ describe('ledger stream delivery and cleanup', () => {
 		expect(frames).toMatchObject([{ value: 1 }, { value: 2 }]);
 		expect(source.scan).toHaveBeenLastCalledWith(
 			expect.objectContaining({
-				start: { position: { cursor: '1', checkpoint: '1' } },
+				start: {
+					position: { cursor: '1', checkpoint: '1', itemId: null, indexedCheckpoint: null },
+				},
 				end: { checkpoint: '11' },
 			}),
 		);
@@ -610,7 +651,7 @@ describe('ledger stream delivery and cleanup', () => {
 			live: vi.fn(async function* (): AsyncGenerator<LedgerStreamEvent<Frame>> {
 				yield {
 					$kind: 'progress',
-					position: { cursor: '10', coveredCheckpoint: '10' },
+					position: { cursor: '10', checkpoint: null, itemId: null, indexedCheckpoint: '10' },
 					frame: { $kind: 'Item', value: 0, resumeToken: '' },
 				};
 				yield item(11);

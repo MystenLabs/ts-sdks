@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { toBase64 } from '@mysten/utils';
+import type { InferBcsType } from '@mysten/bcs';
 import { blake2b } from '@noble/hashes/blake2.js';
 
 import {
@@ -20,43 +20,43 @@ import {
 } from 'valibot';
 
 import type { SuiClientTypes } from './types.js';
-import { decodeToken, encodeToken } from './stream-token.js';
+import {
+	type tokenPayload,
+	decodeToken,
+	encodeToken,
+	type GrpcStreamPosition,
+	type GraphQLStreamPosition,
+} from './stream-token.js';
 
 /** Opaque server cursor with separately reported ledger position and coverage. */
-export interface StreamPosition {
-	cursor: string;
-	checkpoint?: string;
-	coveredCheckpoint?: string;
-	/** Canonical boundary immediately before this checkpoint, proven by a terminal scan. */
-	checkpointBoundary?: string;
-	transactionIndex?: string;
-	eventIndex?: number;
-	/** Stable item identity from the response, independent of its cursor encoding. */
-	itemId?: string;
-	/** Checkpoint known to be indexed when the scan cursor was received. */
-	indexedCheckpoint?: string;
-}
+export type StreamPosition = GrpcStreamPosition | GraphQLStreamPosition;
 
 export type StreamBound<Position extends StreamPosition = StreamPosition> =
 	{ checkpoint: string } | { position: Position };
 
-export interface LedgerStreamRequest {
-	start?: StreamBound;
-	end?: StreamBound;
+export interface LedgerStreamRequest<Position extends StreamPosition = StreamPosition> {
+	start?: StreamBound<Position>;
+	end?: StreamBound<Position>;
 	order: SuiClientTypes.Order;
 	capturedTip?: string;
 	signal: AbortSignal;
 	onStatus: (status: SuiClientTypes.StreamStatus) => void;
 }
 
-export type LedgerStreamEvent<Frame extends object> =
-	| { $kind: 'item'; frame: Frame; position: StreamPosition }
-	| { $kind: 'progress'; position: StreamPosition; frame?: Frame }
+export type LedgerStreamEvent<
+	Frame extends object,
+	Position extends StreamPosition = StreamPosition,
+> =
+	| { $kind: 'item'; frame: Frame; position: Position }
+	| { $kind: 'progress'; position: Position; frame?: Frame }
 	| { $kind: 'metadata'; frame: Frame }
 	| { $kind: 'end'; complete: boolean };
 
-export interface LedgerStreamAdapter<Frame extends object> {
-	transport: 'grpc' | 'graphql';
+export interface LedgerStreamAdapter<
+	Frame extends object,
+	Position extends StreamPosition = StreamPosition,
+> {
+	transport: Position extends GrpcStreamPosition ? 'grpc' : 'graphql';
 	family: 'checkpoints' | 'transactions' | 'events';
 	/** Native live delivery publishes its own initial safe progress before subsequent items. */
 	liveFromTip?: boolean;
@@ -65,22 +65,35 @@ export interface LedgerStreamAdapter<Frame extends object> {
 	/** Discover the readable indexed boundary, not the most recently executed checkpoint. */
 	getIndexedTip(signal: AbortSignal): Promise<string>;
 	/** Compare reported positions; return undefined when their order is unknown. */
-	comparePositions?(a: StreamPosition, b: StreamPosition): number | undefined;
+	comparePositions?(a: Position, b: Position): number | undefined;
 	/** Validate SDK position metadata without interpreting the native cursor. */
-	validatePosition?(position: StreamPosition): void;
+	validatePosition?(position: Position): void;
 	isRetryable(error: unknown): boolean;
 	/** Paginate to the requested bound or indexed tip; always emit an explicit end event. */
-	scan(request: LedgerStreamRequest): AsyncIterable<LedgerStreamEvent<Frame>>;
+	scan(request: LedgerStreamRequest<Position>): AsyncIterable<LedgerStreamEvent<Frame, Position>>;
 	/** Own native handoff, overlap removal, and bounded buffering. EOF is not completion. */
-	live(request: LedgerStreamRequest): AsyncIterable<LedgerStreamEvent<Frame>>;
+	live(request: LedgerStreamRequest<Position>): AsyncIterable<LedgerStreamEvent<Frame, Position>>;
 }
 
-export interface StoredRange<Position extends StreamPosition = StreamPosition> {
-	start?: StreamBound<Position>;
-	end?: StreamBound<Position>;
-	capturedTip?: string;
-	follow: boolean;
-	reason: SuiClientTypes.StreamCompletion['reason'];
+type TokenRange<Position extends StreamPosition = StreamPosition> = InferBcsType<
+	ReturnType<typeof tokenPayload<Position, Position>>
+>['range'];
+
+function rangeEnd<Position extends StreamPosition>(
+	range: TokenRange<Position>,
+): StreamBound<Position> | undefined {
+	switch (range.end.$kind) {
+		case 'Checkpoint':
+			return { checkpoint: range.end.Checkpoint };
+		case 'Cursor':
+			return { position: range.end.Cursor };
+		case 'IndexedTip':
+			return range.capturedTip === null
+				? undefined
+				: { checkpoint: (BigInt(range.capturedTip) + 1n).toString() };
+		default:
+			return undefined;
+	}
 }
 
 const MAX_CHECKPOINT = (1n << 64n) - 1n;
@@ -119,7 +132,7 @@ function streamRetryOptions(
 		options.pollInterval ?? 1000,
 	);
 	for (const bound of [options.start, options.end]) {
-		if (bound?.checkpoint !== undefined) parse(Checkpoint, bound.checkpoint);
+		if (bound?.checkpoint != null) parse(Checkpoint, bound.checkpoint);
 	}
 	const retry = {
 		initialDelay: options.retry?.initialDelay ?? 250,
@@ -156,28 +169,34 @@ export function waitForStream(delay: number, signal: AbortSignal): Promise<void>
 	});
 }
 
-function compareBounds<Frame extends object>(
-	start: StreamBound,
-	end: StreamBound,
+function compareBounds<Frame extends object, Position extends StreamPosition>(
+	start: StreamBound<Position>,
+	end: StreamBound<Position>,
 	order: SuiClientTypes.Order,
-	adapter: LedgerStreamAdapter<Frame>,
+	adapter: LedgerStreamAdapter<Frame, Position>,
 ): number | undefined {
 	if ('position' in start && 'position' in end) {
 		if (start.position.cursor === end.position.cursor) return 0;
 		const comparison = adapter.comparePositions?.(start.position, end.position);
-		if (comparison !== undefined) return comparison;
+		if (comparison != null) return comparison;
 	}
-	const aBoundary = 'checkpoint' in start || start.position.checkpointBoundary !== undefined;
-	const bBoundary = 'checkpoint' in end || end.position.checkpointBoundary !== undefined;
+	const aBoundary =
+		'checkpoint' in start ||
+		('checkpointBoundary' in start.position && start.position.checkpointBoundary !== null);
+	const bBoundary =
+		'checkpoint' in end ||
+		('checkpointBoundary' in end.position && end.position.checkpointBoundary !== null);
 	const a =
 		'checkpoint' in start
 			? (BigInt(start.checkpoint) + (order === 'descending' ? 1n : 0n)).toString()
-			: (start.position.checkpointBoundary ?? start.position.checkpoint);
+			: (('checkpointBoundary' in start.position ? start.position.checkpointBoundary : null) ??
+				start.position.checkpoint);
 	const b =
 		'checkpoint' in end
 			? (BigInt(end.checkpoint) + (order === 'descending' ? 1n : 0n)).toString()
-			: (end.position.checkpointBoundary ?? end.position.checkpoint);
-	if (a === undefined || b === undefined) return;
+			: (('checkpointBoundary' in end.position ? end.position.checkpointBoundary : null) ??
+				end.position.checkpoint);
+	if (a == null || b == null) return;
 	if (BigInt(a) !== BigInt(b)) return BigInt(a) < BigInt(b) ? -1 : 1;
 	if (aBoundary && bBoundary) return 0;
 	if (aBoundary) return -1;
@@ -190,9 +209,9 @@ function compareBounds<Frame extends object>(
  * Shared continuation/control loop. Adapters only publish positions once every preceding
  * matching item has been yielded. Projection choices do not change token compatibility.
  */
-export function createLedgerStream<Frame extends object>(
+export function createLedgerStream<Frame extends object, Position extends StreamPosition>(
 	options: SuiClientTypes.StreamOptions,
-	adapter: LedgerStreamAdapter<Frame>,
+	adapter: LedgerStreamAdapter<Frame, Position>,
 ): AsyncGenerator<Frame | SuiClientTypes.StreamCompletionFrame> {
 	const controller = new AbortController();
 	const signal = controller.signal;
@@ -213,20 +232,28 @@ export function createLedgerStream<Frame extends object>(
 		try {
 			signal.throwIfAborted();
 			const retry = streamRetryOptions(options);
-			const startToken = options.start?.resumeToken
-				? decodeToken(options.start.resumeToken)
+			const startEnvelope = options.start?.resumeToken
+				? decodeToken(options.start.resumeToken).V1
 				: undefined;
-			const endToken = options.end?.resumeToken ? decodeToken(options.end.resumeToken) : undefined;
-			const order = options.order ?? startToken?.order ?? 'ascending';
-			if (startToken && order !== startToken.order)
+			const endEnvelope = options.end?.resumeToken
+				? decodeToken(options.end.resumeToken).V1
+				: undefined;
+			const startToken = startEnvelope?.[startEnvelope.$kind];
+			const endToken = endEnvelope?.[endEnvelope.$kind];
+			const order = options.order ?? startToken?.order.$kind ?? 'ascending';
+			if (startToken && order !== startToken.order.$kind)
 				throw new Error('Resume token traversal order cannot change');
 			const follow =
 				options.follow ??
-				(options.end ? false : (startToken?.range.follow ?? order === 'ascending'));
+				(options.end
+					? false
+					: startToken
+						? startToken.range.end.$kind === 'Follow'
+						: order === 'ascending');
 			if (follow && (order === 'descending' || options.end)) {
 				throw new Error('Following requires ascending order without an end bound');
 			}
-			if (startToken && !startToken.range.follow && follow)
+			if (startToken && startToken.range.end.$kind !== 'Follow' && follow)
 				throw new Error('Cannot expand a finite resume token range');
 			if (!follow && order === 'ascending' && !options.start)
 				throw new Error('Ascending finite streams require an explicit start');
@@ -254,65 +281,62 @@ export function createLedgerStream<Frame extends object>(
 			};
 			const identity = await retryOperation(() => adapter.initialize(signal));
 			if (!identity.chain) throw new Error('Stream chain identity is missing');
-			const filter = toBase64(
-				blake2b(new TextEncoder().encode(canonical(identity.filter)), { dkLen: 32 }),
-			);
-			for (const token of [startToken, endToken]) {
+			const filter = blake2b(new TextEncoder().encode(canonical(identity.filter)), { dkLen: 32 });
+			for (const envelope of [startEnvelope, endEnvelope]) {
+				const token = envelope?.[envelope.$kind];
 				if (
 					token &&
-					(token.transport !== adapter.transport ||
-						token.family !== adapter.family ||
+					(envelope!.$kind !== adapter.transport ||
+						token.family.$kind !== adapter.family ||
 						token.chain !== identity.chain ||
-						token.filter !== filter)
+						token.filter.some((byte, index) => byte !== filter[index]))
 				) {
 					throw new Error(
 						'Resume token is incompatible with the stream transport, chain, family, or resolved filter',
 					);
 				}
 				if (token) {
-					adapter.validatePosition?.(token.position);
-					if (token.range.end && 'position' in token.range.end)
-						adapter.validatePosition?.(token.range.end.position);
+					adapter.validatePosition?.(token.position as Position);
+					if (token.range.end.$kind === 'Cursor')
+						adapter.validatePosition?.(token.range.end.Cursor as Position);
 				}
 			}
-			const inputStart: StreamBound | undefined = startToken
-				? { position: startToken.position }
-				: options.start?.checkpoint !== undefined
+			const inputStart: StreamBound<Position> | undefined = startToken
+				? { position: startToken.position as Position }
+				: options.start?.checkpoint != null
 					? { checkpoint: options.start.checkpoint }
 					: undefined;
-			const inputEnd: StreamBound | undefined = endToken
-				? { position: endToken.position }
-				: options.end?.checkpoint !== undefined
+			const inputEnd: StreamBound<Position> | undefined = endToken
+				? { position: endToken.position as Position }
+				: options.end?.checkpoint != null
 					? { checkpoint: options.end.checkpoint }
 					: undefined;
 			if (
 				startToken &&
-				!startToken.range.follow &&
+				startToken.range.end.$kind !== 'Follow' &&
 				inputEnd &&
-				canonical(inputEnd) !== canonical(startToken.range.end)
+				canonical(inputEnd) !== canonical(rangeEnd<StreamPosition>(startToken.range))
 			) {
 				throw new Error('Resume token end bound cannot change');
 			}
-			const range: StoredRange =
-				startToken && !startToken.range.follow
-					? { ...startToken.range, start: inputStart }
-					: {
-							start: inputStart,
-							end: inputEnd,
-							follow,
-							reason: inputEnd
-								? 'checkpoint' in inputEnd
-									? 'checkpointBound'
-									: 'cursorBound'
-								: order === 'descending'
-									? 'genesis'
-									: 'indexedTip',
-						};
+			let range: TokenRange<Position>;
+			if (startToken && startToken.range.end.$kind !== 'Follow') {
+				range = startToken.range as TokenRange<Position>;
+			} else {
+				let end: TokenRange<Position>['end'];
+				if (follow) end = { $kind: 'Follow', Follow: true };
+				else if (inputEnd && 'checkpoint' in inputEnd)
+					end = { $kind: 'Checkpoint', Checkpoint: inputEnd.checkpoint };
+				else if (inputEnd) end = { $kind: 'Cursor', Cursor: inputEnd.position };
+				else if (order === 'descending') end = { $kind: 'Genesis', Genesis: true };
+				else end = { $kind: 'IndexedTip', IndexedTip: true };
+				range = { capturedTip: null, end };
+			}
 			let start = inputStart;
 			if (
 				(!start &&
 					!(follow && (options.delivery ?? 'subscribe') === 'subscribe' && adapter.liveFromTip)) ||
-				(!follow && !range.end && order === 'ascending')
+				(!follow && !rangeEnd(range) && order === 'ascending')
 			) {
 				const tip =
 					range.capturedTip ??
@@ -320,40 +344,52 @@ export function createLedgerStream<Frame extends object>(
 				if (!follow) range.capturedTip = tip;
 				if (!start)
 					start = { checkpoint: order === 'descending' ? tip : (BigInt(tip) + 1n).toString() };
-				if (!follow && order === 'ascending' && !range.end)
-					range.end = { checkpoint: (BigInt(tip) + 1n).toString() };
 			}
-			range.start ??= start;
+			const invocationStart = start;
+			const end = rangeEnd(range);
 			let lastToken: string | undefined;
-			const tokenFor = (position: StreamPosition): string =>
-				encodeToken({
-					transport: adapter.transport,
-					family: adapter.family,
+			const tokenFor = (position: Position): string => {
+				const payload = {
+					family: { [adapter.family]: true } as
+						{ checkpoints: true } | { transactions: true } | { events: true },
 					chain: identity.chain,
 					filter,
-					order,
+					order:
+						order === 'ascending' ? { ascending: true as const } : { descending: true as const },
 					position,
 					range,
-				});
-			if (startToken) lastToken = tokenFor(startToken.position);
-			const publicBound = (bound: StreamBound): SuiClientTypes.StreamStart =>
+				};
+				// The adapter's transport determines Position and the matching BCS variant.
+				return encodeToken({
+					V1: adapter.transport === 'grpc' ? { grpc: payload } : { graphql: payload },
+				} as Parameters<typeof encodeToken>[0]);
+			};
+			if (startToken) lastToken = tokenFor(startToken.position as Position);
+			const publicBound = (bound: StreamBound<Position>): SuiClientTypes.StreamStart =>
 				'checkpoint' in bound ? bound : { resumeToken: tokenFor(bound.position) };
 			const complete = (): SuiClientTypes.StreamCompletionFrame => ({
 				$kind: 'Complete',
 				completion: {
 					order,
-					reason: range.reason,
+					reason:
+						range.end.$kind === 'Checkpoint'
+							? 'checkpointBound'
+							: range.end.$kind === 'Cursor'
+								? 'cursorBound'
+								: range.end.$kind === 'Genesis'
+									? 'genesis'
+									: 'indexedTip',
 					resumeToken: lastToken,
 					range: {
-						start: range.start && publicBound(range.start),
-						end: range.end && publicBound(range.end),
-						capturedCheckpoint: range.capturedTip,
+						start: invocationStart && publicBound(invocationStart),
+						end: end && publicBound(end),
+						capturedCheckpoint: range.capturedTip ?? undefined,
 					},
 				},
 			});
-			if (start && range.end) {
-				const comparison = compareBounds(start, range.end, order, adapter);
-				if (comparison !== undefined && comparison * (order === 'ascending' ? 1 : -1) > 0)
+			if (start && end) {
+				const comparison = compareBounds(start, end, order, adapter);
+				if (comparison != null && comparison * (order === 'ascending' ? 1 : -1) > 0)
 					throw new Error('Stream start and end bounds are reversed');
 				if (comparison === 0) {
 					if (options.include?.completion) yield complete();
@@ -365,11 +401,11 @@ export function createLedgerStream<Frame extends object>(
 				const live = follow && (options.delivery ?? 'subscribe') === 'subscribe';
 				try {
 					onStatus({ $kind: 'Connecting', attempt: attempts });
-					const request: LedgerStreamRequest = {
+					const request: LedgerStreamRequest<Position> = {
 						start,
-						end: range.end,
+						end,
 						order,
-						capturedTip: range.capturedTip,
+						capturedTip: range.capturedTip ?? undefined,
 						signal,
 						onStatus,
 					};
