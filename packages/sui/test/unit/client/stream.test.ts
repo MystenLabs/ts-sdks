@@ -105,6 +105,47 @@ describe('ledger stream range and tokens', () => {
 		);
 	});
 
+	it('reports the resumed invocation start without retaining earlier starts in its token', async () => {
+		const saved = await token();
+		const frames = await collect(
+			createLedgerStream(
+				{
+					start: { resumeToken: saved },
+					end: { checkpoint: '10' },
+					include: { completion: true },
+				},
+				adapter(),
+			),
+		);
+		const completion = frames.at(-1);
+		expect(completion?.$kind).toBe('Complete');
+		if (completion?.$kind !== 'Complete') throw new Error('Expected completion');
+		const start = completion.completion.range.start;
+		expect(start).toHaveProperty('resumeToken');
+		const resumed = adapter();
+		await collect(createLedgerStream({ start, end: { checkpoint: '10' } }, resumed));
+		expect(resumed.scan).toHaveBeenCalledWith(
+			expect.objectContaining({
+				start: { position: { cursor: '2', checkpoint: '2' } },
+			}),
+		);
+	});
+
+	it('keeps token size independent of filter size', async () => {
+		const small = await token(
+			2,
+			{},
+			adapter({ initialize: async () => ({ chain: 'a', filter: 'x' }) }),
+		);
+		const large = await token(
+			2,
+			{},
+			adapter({ initialize: async () => ({ chain: 'a', filter: 'x'.repeat(10_000) }) }),
+		);
+		expect(large.length).toBe(small.length);
+		expect(large.length).toBeLessThan(250);
+	});
+
 	it('rejects replacing an implicit genesis bound when resuming descending history', async () => {
 		const stream = createLedgerStream({ order: 'descending' }, adapter());
 		const saved = (await stream.next()).value as Frame;
@@ -321,8 +362,26 @@ describe('ledger stream range and tokens', () => {
 
 	it('supports the uint64 maximum without overflowing a captured exclusive end', async () => {
 		const max = ((1n << 64n) - 1n).toString();
-		const source = adapter({ getIndexedTip: async () => max });
-		await collect(createLedgerStream({ start: { checkpoint: max }, follow: false }, source));
+		const source = adapter({
+			getIndexedTip: async () => max,
+			scan: vi.fn(async function* () {
+				yield item(1, max);
+				yield end;
+			}),
+		});
+		const frames = await collect(
+			createLedgerStream({ start: { checkpoint: max }, follow: false }, source),
+		);
+		const saved = (frames[0] as Frame).resumeToken;
+		const resumed = adapter({ getIndexedTip: vi.fn() });
+		await collect(createLedgerStream({ start: { resumeToken: saved } }, resumed));
+		expect(resumed.getIndexedTip).not.toHaveBeenCalled();
+		expect(resumed.scan).toHaveBeenCalledWith(
+			expect.objectContaining({
+				end: { checkpoint: (1n << 64n).toString() },
+				capturedTip: max,
+			}),
+		);
 		expect(source.scan).toHaveBeenCalledWith(
 			expect.objectContaining({ end: { checkpoint: (1n << 64n).toString() }, capturedTip: max }),
 		);
@@ -559,7 +618,7 @@ describe('ledger stream delivery and cleanup', () => {
 		});
 		const stream = createLedgerStream({}, source);
 		const first = (await stream.next()).value as Frame;
-		expect(first.resumeToken).toMatch(/^sui-stream-v1:/);
+		expect(first.resumeToken).toMatch(/^sui-stream:/);
 		expect(source.getIndexedTip).not.toHaveBeenCalled();
 		expect(source.live).toHaveBeenCalledWith(expect.objectContaining({ start: undefined }));
 		await stream.return(undefined);

@@ -1,21 +1,17 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { fromBase64, toBase64 } from '@mysten/utils';
+import { toBase64 } from '@mysten/utils';
+import { blake2b } from '@noble/hashes/blake2.js';
 
 import {
-	boolean,
 	check,
 	finite,
 	literal,
-	minLength,
 	minValue,
-	never,
 	number,
 	object,
-	optional,
 	parse,
-	picklist,
 	pipe,
 	regex,
 	safeInteger,
@@ -24,6 +20,7 @@ import {
 } from 'valibot';
 
 import type { SuiClientTypes } from './types.js';
+import { decodeToken, encodeToken } from './stream-token.js';
 
 /** Opaque server cursor with separately reported ledger position and coverage. */
 export interface StreamPosition {
@@ -85,18 +82,6 @@ interface StoredRange {
 	reason: SuiClientTypes.StreamCompletion['reason'];
 }
 
-interface StreamToken {
-	version: 1;
-	transport: LedgerStreamAdapter<object>['transport'];
-	family: LedgerStreamAdapter<object>['family'];
-	chain: string;
-	filter: string;
-	order: SuiClientTypes.Order;
-	position: StreamPosition;
-	range: StoredRange;
-}
-
-const TOKEN_PREFIX = 'sui-stream-v1:';
 const MAX_CHECKPOINT = (1n << 64n) - 1n;
 
 /** Sorted keys bind semantically identical resolved filters regardless of property order. */
@@ -121,56 +106,6 @@ const checkpointSchema = (maximum = MAX_CHECKPOINT) =>
 		check((value) => BigInt(value) <= maximum),
 	);
 const Checkpoint = checkpointSchema();
-const CheckpointBoundary = checkpointSchema(MAX_CHECKPOINT + 1n);
-const Position = object({
-	cursor: pipe(string(), minLength(1)),
-	checkpoint: optional(Checkpoint),
-	coveredCheckpoint: optional(Checkpoint),
-	indexedCheckpoint: optional(Checkpoint),
-	checkpointBoundary: optional(CheckpointBoundary),
-	transactionIndex: optional(Checkpoint),
-	eventIndex: optional(pipe(number(), safeInteger(), minValue(0))),
-	itemId: optional(pipe(string(), minLength(1))),
-});
-const Bound = union([
-	object({ checkpoint: CheckpointBoundary, position: optional(never()) }),
-	object({ position: Position, checkpoint: optional(never()) }),
-]);
-const Token = object({
-	version: literal(1),
-	transport: picklist(['grpc', 'graphql']),
-	family: picklist(['checkpoints', 'transactions', 'events']),
-	chain: pipe(string(), minLength(1)),
-	filter: string(),
-	order: picklist(['ascending', 'descending']),
-	position: Position,
-	range: object({
-		start: optional(Bound),
-		end: optional(Bound),
-		capturedTip: optional(Checkpoint),
-		follow: boolean(),
-		reason: picklist(['checkpointBound', 'cursorBound', 'indexedTip', 'genesis']),
-	}),
-});
-
-function decodeToken(value: string): StreamToken {
-	try {
-		if (!value.startsWith(TOKEN_PREFIX) || value.length > 100_000) throw new Error();
-		const token = parse(
-			Token,
-			JSON.parse(new TextDecoder().decode(fromBase64(value.slice(TOKEN_PREFIX.length)))),
-		);
-		if (token.range.follow && (token.order === 'descending' || token.range.end)) throw new Error();
-		return token;
-	} catch {
-		throw new Error('Invalid or unsupported stream resume token');
-	}
-}
-
-function encodeToken(token: StreamToken): string {
-	return TOKEN_PREFIX + toBase64(new TextEncoder().encode(JSON.stringify(token)));
-}
-
 function streamRetryOptions(
 	options: SuiClientTypes.StreamOptions,
 ): Required<SuiClientTypes.StreamRetryOptions> {
@@ -318,7 +253,9 @@ export function createLedgerStream<Frame extends object>(
 			};
 			const identity = await retryOperation(() => adapter.initialize(signal));
 			if (!identity.chain) throw new Error('Stream chain identity is missing');
-			const filter = canonical(identity.filter);
+			const filter = toBase64(
+				blake2b(new TextEncoder().encode(canonical(identity.filter)), { dkLen: 32 }),
+			);
 			for (const token of [startToken, endToken]) {
 				if (
 					token &&
@@ -333,9 +270,8 @@ export function createLedgerStream<Frame extends object>(
 				}
 				if (token) {
 					adapter.validatePosition?.(token.position);
-					for (const bound of [token.range.start, token.range.end]) {
-						if (bound && 'position' in bound) adapter.validatePosition?.(bound.position);
-					}
+					if (token.range.end && 'position' in token.range.end)
+						adapter.validatePosition?.(token.range.end.position);
 				}
 			}
 			const inputStart: StreamBound | undefined = startToken
@@ -358,7 +294,7 @@ export function createLedgerStream<Frame extends object>(
 			}
 			const range: StoredRange =
 				startToken && !startToken.range.follow
-					? { ...startToken.range }
+					? { ...startToken.range, start: inputStart }
 					: {
 							start: inputStart,
 							end: inputEnd,
@@ -390,7 +326,6 @@ export function createLedgerStream<Frame extends object>(
 			let lastToken: string | undefined;
 			const tokenFor = (position: StreamPosition): string =>
 				encodeToken({
-					version: 1,
 					transport: adapter.transport,
 					family: adapter.family,
 					chain: identity.chain,

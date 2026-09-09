@@ -145,6 +145,7 @@ export namespace SuiClientTypes {
 	}
 
 	export interface StreamRange {
+		/** Start of this invocation, including when resuming an earlier stream. */
 		start?: StreamStart;
 		end?: StreamEnd;
 		/** Indexed checkpoint captured once when establishing a finite range. */
