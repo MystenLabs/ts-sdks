@@ -56,6 +56,6 @@
 		"@types/node": "^26.2.0",
 		"dotenv": "^17.4.2",
 		"typescript": "^7.0.2",
-		"vitest": "^4.1.10"
+		"vitest": "^4.1.11"
 	}
 }
