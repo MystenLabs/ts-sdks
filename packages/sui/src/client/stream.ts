@@ -5,7 +5,7 @@ import { fromBase64, toBase64 } from '@mysten/utils';
 
 import type { SuiClientTypes } from './types.js';
 
-/** Native cursor details remain owned by the transport that issued them. */
+/** Opaque server cursor with separately reported ledger position and coverage. */
 export interface StreamPosition {
 	cursor: string;
 	checkpoint?: string;
@@ -14,6 +14,10 @@ export interface StreamPosition {
 	checkpointBoundary?: string;
 	transactionIndex?: string;
 	eventIndex?: number;
+	/** Stable item identity from the response, independent of its cursor encoding. */
+	itemId?: string;
+	/** Checkpoint known to be indexed when the scan cursor was received. */
+	indexedCheckpoint?: string;
 }
 
 export type StreamBound = { checkpoint: string } | { position: StreamPosition };
@@ -42,8 +46,9 @@ export interface LedgerStreamAdapter<Frame extends object> {
 	initialize(signal: AbortSignal): Promise<{ chain: string; filter: unknown }>;
 	/** Discover the readable indexed boundary, not the most recently executed checkpoint. */
 	getIndexedTip(signal: AbortSignal): Promise<string>;
-	comparePositions?(a: StreamPosition, b: StreamPosition): number;
-	/** Reject native cursor kinds or metadata that disagree with this transport's encoding. */
+	/** Compare reported positions; return undefined when their order is unknown. */
+	comparePositions?(a: StreamPosition, b: StreamPosition): number | undefined;
+	/** Validate SDK position metadata without interpreting the native cursor. */
 	validatePosition?(position: StreamPosition): void;
 	isRetryable(error: unknown): boolean;
 	/** Paginate to the requested bound or indexed tip; always emit an explicit end event. */
@@ -109,6 +114,9 @@ function validatePosition(value: unknown): asserts value is StreamPosition {
 	const position = value as StreamPosition;
 	if (position.checkpoint !== undefined) checkpoint(position.checkpoint);
 	if (position.coveredCheckpoint !== undefined) checkpoint(position.coveredCheckpoint);
+	if (position.indexedCheckpoint !== undefined) checkpoint(position.indexedCheckpoint);
+	if (position.itemId !== undefined && (typeof position.itemId !== 'string' || !position.itemId))
+		throw new Error('Stream item identity must be a nonempty string');
 	if (position.checkpointBoundary !== undefined)
 		checkpoint(position.checkpointBoundary, MAX_CHECKPOINT + 1n);
 	if (position.transactionIndex !== undefined) checkpoint(position.transactionIndex);
@@ -241,10 +249,11 @@ function compareBounds<Frame extends object>(
 	end: StreamBound,
 	order: SuiClientTypes.Order,
 	adapter: LedgerStreamAdapter<Frame>,
-): number {
+): number | undefined {
 	if ('position' in start && 'position' in end) {
 		if (start.position.cursor === end.position.cursor) return 0;
-		if (adapter.comparePositions) return adapter.comparePositions(start.position, end.position);
+		const comparison = adapter.comparePositions?.(start.position, end.position);
+		if (comparison !== undefined) return comparison;
 	}
 	const aBoundary = 'checkpoint' in start || start.position.checkpointBoundary !== undefined;
 	const bBoundary = 'checkpoint' in end || end.position.checkpointBoundary !== undefined;
@@ -256,12 +265,13 @@ function compareBounds<Frame extends object>(
 		'checkpoint' in end
 			? (BigInt(end.checkpoint) + (order === 'descending' ? 1n : 0n)).toString()
 			: (end.position.checkpointBoundary ?? end.position.checkpoint);
-	if (a === undefined || b === undefined) throw new Error('Cannot compare stream range positions');
+	if (a === undefined || b === undefined) return;
 	if (BigInt(a) !== BigInt(b)) return BigInt(a) < BigInt(b) ? -1 : 1;
 	if (aBoundary && bBoundary) return 0;
 	if (aBoundary) return -1;
 	if (bBoundary) return 1;
-	throw new Error('Transport cannot compare positions within the same checkpoint');
+	// The server resolves bounds whose relative order is not available in response metadata.
+	return;
 }
 
 /**
@@ -430,9 +440,9 @@ export function createLedgerStream<Frame extends object>(
 				},
 			});
 			if (start && range.end) {
-				const comparison =
-					compareBounds(start, range.end, order, adapter) * (order === 'ascending' ? 1 : -1);
-				if (comparison > 0) throw new Error('Stream start and end bounds are reversed');
+				const comparison = compareBounds(start, range.end, order, adapter);
+				if (comparison !== undefined && comparison * (order === 'ascending' ? 1 : -1) > 0)
+					throw new Error('Stream start and end bounds are reversed');
 				if (comparison === 0) {
 					if (options.include?.completion) yield complete();
 					return;

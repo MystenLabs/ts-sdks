@@ -468,6 +468,13 @@ export type StreamTransactionDetailsQueryVariables = Exact<{
 
 export type StreamTransactionDetailsQuery = { transaction: { effects: { events?: { pageInfo: { hasNextPage: boolean, endCursor: string | null }, nodes: Array<{ transactionModule: { name: string, package: { address: string } | null } | null, sender: { address: string } | null, contents: { bcs: string | null, json: unknown, type: { repr: string } | null } | null }> } | null, objectChanges?: { pageInfo: { hasNextPage: boolean, endCursor: string | null }, nodes: Array<{ address: string, outputState: { asMoveObject: { contents: { type: { repr: string } | null } | null } | null } | null }> } | null } | null } | null };
 
+export type StreamTransactionCheckpointQueryVariables = Exact<{
+  digest: string;
+}>;
+
+
+export type StreamTransactionCheckpointQuery = { transaction: { effects: { checkpoint: { sequenceNumber: number } | null } | null } | null };
+
 export type SimulateTransactionQueryVariables = Exact<{
   transaction: unknown;
   includeEffects?: boolean | null | undefined;
@@ -1643,6 +1650,17 @@ export const StreamTransactionDetailsDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<StreamTransactionDetailsQuery, StreamTransactionDetailsQueryVariables>;
+export const StreamTransactionCheckpointDocument = new TypedDocumentString(`
+    query streamTransactionCheckpoint($digest: String!) {
+  transaction(digest: $digest) {
+    effects {
+      checkpoint {
+        sequenceNumber
+      }
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<StreamTransactionCheckpointQuery, StreamTransactionCheckpointQueryVariables>;
 export const SimulateTransactionDocument = new TypedDocumentString(`
     query simulateTransaction($transaction: JSON!, $includeEffects: Boolean = false, $includeEvents: Boolean = false, $includeBalanceChanges: Boolean = false, $includeObjectTypes: Boolean = false, $includeCommandResults: Boolean = false, $includeBcs: Boolean = false, $doGasSelection: Boolean = false, $checksEnabled: Boolean = true) {
   simulateTransaction(

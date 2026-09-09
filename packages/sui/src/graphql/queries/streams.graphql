@@ -280,3 +280,13 @@ query streamTransactionDetails(
 		}
 	}
 }
+
+query streamTransactionCheckpoint($digest: String!) {
+	transaction(digest: $digest) {
+		effects {
+			checkpoint {
+				sequenceNumber
+			}
+		}
+	}
+}

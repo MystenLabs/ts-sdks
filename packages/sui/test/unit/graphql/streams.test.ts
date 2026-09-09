@@ -1,12 +1,9 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { BinaryWriter, WireType } from '@protobuf-ts/runtime';
-import { toBase64 } from '@mysten/utils';
 import { describe, expect, it, vi } from 'vitest';
 import { bcs } from '../../../src/bcs/index.js';
 import { SuiGraphQLClient } from '../../../src/graphql/index.js';
-import { compareLedgerCursors, decodeLedgerCursor } from '../../../src/client/stream-cursor.js';
 
 function cursor(
 	family: 'checkpoints' | 'transactions' | 'events',
@@ -15,20 +12,7 @@ function cursor(
 	event = 0,
 	boundary = false,
 ) {
-	const position = new BinaryWriter().tag(1, WireType.Varint).uint64(cp);
-	if (family !== 'checkpoints') position.tag(2, WireType.Varint).uint64(tx);
-	if (family === 'events') position.tag(3, WireType.Varint).uint32(event);
-	return toBase64(
-		new BinaryWriter()
-			.tag(5, WireType.Varint)
-			.uint32(boundary ? 2 : 1)
-			.tag(
-				family === 'checkpoints' ? 6 : family === 'transactions' ? 7 : 8,
-				WireType.LengthDelimited,
-			)
-			.bytes(position.finish())
-			.finish(),
-	);
+	return `opaque/${family}/${cp}/${tx}/${event}/${boundary ? 'frontier' : 'item'}`;
 }
 function checkpoint(cp: number) {
 	return {
@@ -334,18 +318,52 @@ describe('GraphQL ledger streams', () => {
 		]);
 	});
 
-	it('uses the edge cursor checkpoint when subscription backfill nodes omit it', async () => {
+	it('looks up the public checkpoint when subscription backfill nodes omit it', async () => {
 		const node = {
 			digest: 'tx1',
 			signatures: [],
 			effects: { status: 'SUCCESS', checkpoint: null },
 		};
-		const { client } = mockClient(() =>
-			subscription('transactions', [{ cursor: cursor('transactions', 1), node }]),
+		const { client } = mockClient((request) =>
+			request.query.includes('query streamTransactionCheckpoint')
+				? Response.json({
+						data: { transaction: { effects: { checkpoint: { sequenceNumber: 1 } } } },
+					})
+				: subscription('transactions', [{ cursor: cursor('transactions', 1), node }]),
 		);
 		const stream = client.streamTransactions({ start: { checkpoint: '1' } });
 		expect((await stream.next()).value?.transaction.Transaction?.checkpoint).toBe('1');
 		await stream.return(undefined);
+	});
+
+	it('retries missing checkpoint metadata without advancing the subscription cursor', async () => {
+		const node = {
+			digest: 'tx1',
+			signatures: [],
+			effects: { status: 'SUCCESS', checkpoint: null },
+		};
+		let lookups = 0;
+		const { client, requests } = mockClient((request) =>
+			request.query.includes('query streamTransactionCheckpoint')
+				? Response.json({
+						data: {
+							transaction:
+								lookups++ === 0 ? null : { effects: { checkpoint: { sequenceNumber: 1 } } },
+						},
+					})
+				: subscription('transactions', [{ cursor: 'a-new-opaque-format', node }]),
+		);
+		const stream = client.streamTransactions({
+			start: { checkpoint: '1' },
+			retry: { initialDelay: 0, jitter: 0, maxAttempts: 1 },
+		});
+		expect((await stream.next()).value?.transaction.Transaction?.checkpoint).toBe('1');
+		await stream.return(undefined);
+		const subscriptions = requests.filter((request) =>
+			request.query.includes('subscription subscribeTransactions'),
+		);
+		expect(subscriptions).toHaveLength(2);
+		expect(subscriptions.map((request) => request.variables.after)).toEqual([undefined, undefined]);
 	});
 
 	it('reconnects after the delivered item cursor and permits progress-boundary equality', async () => {
@@ -412,15 +430,18 @@ describe('GraphQL ledger streams', () => {
 		expect(scans[1].variables).toMatchObject({ after: frontier, before: cursor('events', 5) });
 	});
 
-	it('completes at an excluded cursor frontier even when GraphQL reports another page', async () => {
+	it('follows a distinct frontier until the server confirms the excluded interval is complete', async () => {
 		const seed = mockClient(() => subscription('events', [event(1, 0), event(1, 2)]));
 		const source = seed.client.streamEvents({ start: { checkpoint: '1' } });
 		const older = (await source.next()).value!;
 		const newer = (await source.next()).value!;
 		await source.return(undefined);
-		const frontier = cursor('events', 1, 1, 2, true);
+		const frontier = 'future-cursor-format:terminal-boundary';
+		let page = 0;
 		const { client, requests } = mockClient(() =>
-			Response.json({ data: { events: connection([event(1, 1)], true, frontier) } }),
+			Response.json({
+				data: { events: page++ === 0 ? connection([event(1, 1)], true, frontier) : connection([]) },
+			}),
 		);
 		const items = await collect(
 			client.streamEvents({
@@ -436,8 +457,102 @@ describe('GraphQL ledger streams', () => {
 			completion: { resumeToken: items[0].$kind === 'Event' ? items[0].resumeToken : '' },
 		});
 		expect(requests.filter((request) => request.query.includes('query scanEvents'))).toHaveLength(
-			1,
+			2,
 		);
+	});
+
+	it.each(['ascending', 'descending'] as const)(
+		'probes an excluded item identity at a stalled %s frontier',
+		async (order) => {
+			const descending = order === 'descending';
+			const seed = mockClient(() =>
+				Response.json({ data: { events: connection([event(1, 0), event(1, 2)]) } }),
+			);
+			const source = seed.client.streamEvents({ start: { checkpoint: '1' }, order, follow: false });
+			await source.next();
+			const second = (await source.next()).value!;
+			await source.return(undefined);
+			const endpoint = descending ? event(1, 0) : event(1, 2);
+			const frontier = 'opaque-unrecognized-boundary';
+			let page = 0;
+			const { client, requests } = mockClient(() =>
+				Response.json({
+					data: {
+						events:
+							page++ === 0
+								? connection([event(1, 1)], true, frontier)
+								: page === 2
+									? connection([], true, frontier)
+									: connection([endpoint]),
+					},
+				}),
+			);
+			const items = await collect(
+				client.streamEvents({
+					start: { checkpoint: '1' },
+					end: { resumeToken: second.resumeToken },
+					order,
+					include: { completion: true },
+				}),
+			);
+			expect(items).toHaveLength(2);
+			expect(items[0]).toMatchObject({ event: { eventIndex: 1 } });
+			expect(items[1].$kind).toBe('Complete');
+			const probes = requests.filter((request) => request.query.includes('query scanEvents'));
+			expect(probes).toHaveLength(3);
+			expect(probes[2].variables[descending ? 'before' : 'after']).toBe(event(1, 1).cursor);
+			expect(probes[2].variables[descending ? 'after' : 'before']).toBeUndefined();
+		},
+	);
+
+	it('does not complete when the probe returns a different transaction with the same event index', async () => {
+		const seed = mockClient(() => subscription('events', [event(1, 2)]));
+		const source = seed.client.streamEvents({ start: { checkpoint: '1' } });
+		const endpoint = (await source.next()).value!;
+		await source.return(undefined);
+		let calls = 0;
+		const { client } = mockClient(() =>
+			Response.json({
+				data: {
+					events:
+						++calls < 3
+							? connection([], true, 'opaque-stalled-frontier')
+							: connection([event(2, 2)]),
+				},
+			}),
+		);
+		await expect(
+			collect(
+				client.streamEvents({
+					start: { checkpoint: '1' },
+					end: { resumeToken: endpoint.resumeToken },
+				}),
+			),
+		).rejects.toThrow('pagination did not advance');
+	});
+
+	it('waits for the saved indexed horizon before resuming an opaque polling frontier', async () => {
+		let states = 0;
+		let scans = 0;
+		const { client } = mockClient(
+			() =>
+				Response.json({
+					data: {
+						events:
+							++scans === 1 ? connection([], false, 'opaque-progress') : connection([event(10)]),
+					},
+				}),
+			() => (++states === 3 ? 2 : 10),
+		);
+		const stream = client.streamEvents({
+			start: { checkpoint: '1' },
+			delivery: 'poll',
+			pollInterval: 1,
+		});
+		expect((await stream.next()).value?.event.checkpoint).toBe('10');
+		await stream.return(undefined);
+		expect(states).toBe(4);
+		expect(scans).toBe(2);
 	});
 
 	it('waits for a future descending start before emitting the requested interval', async () => {
@@ -509,7 +624,7 @@ describe('GraphQL ledger streams', () => {
 										kind: { Genesis: { objects: [] } },
 									},
 								}).toBase64(),
-								effects: { status: 'SUCCESS', checkpoint: null },
+								effects: { status: 'SUCCESS', checkpoint: { sequenceNumber: 0 } },
 							},
 						},
 					]),
@@ -594,44 +709,5 @@ describe('GraphQL ledger streams', () => {
 		expect(details).toBe(1);
 		expect(items[0].transaction.Transaction?.events).toHaveLength(2);
 		expect(items[0].transaction.Transaction?.objectTypes).toEqual({ '0x3': '0x2::test::Object' });
-	});
-});
-
-describe('ledger cursor coordinates', () => {
-	it('decodes all scopes, boundaries and legacy event positions', () => {
-		expect(decodeLedgerCursor(cursor('checkpoints', 0))).toMatchObject({
-			family: 'checkpoints',
-			checkpoint: '0',
-			kind: 'item',
-		});
-		expect(decodeLedgerCursor(cursor('transactions', 4, 12, 0, true))).toMatchObject({
-			transactionIndex: '12',
-			coveredCheckpoint: '3',
-			kind: 'boundary',
-		});
-		const legacy = new BinaryWriter()
-			.tag(1, WireType.Varint)
-			.uint32(3)
-			.tag(2, WireType.Varint)
-			.uint32(1)
-			.tag(3, WireType.Varint)
-			.uint64(4)
-			.tag(4, WireType.Varint)
-			.uint64((12n << 16n) | 2n)
-			.finish();
-		expect(decodeLedgerCursor(legacy)).toMatchObject({
-			family: 'events',
-			checkpoint: '4',
-			transactionIndex: '12',
-			eventIndex: 2,
-		});
-	});
-	it('compares ledger positions, not encoded cursor strings, and rejects scope confusion', () => {
-		expect(compareLedgerCursors(cursor('events', 1, 5, 2), cursor('events', 1, 5, 10))).toBe(-1);
-		expect(compareLedgerCursors(cursor('events', 1, 5, 2, true), cursor('events', 1, 5, 2))).toBe(
-			0,
-		);
-		expect(() => decodeLedgerCursor(cursor('checkpoints', 1), 'events')).toThrow();
-		expect(() => decodeLedgerCursor(new Uint8Array())).toThrow();
 	});
 });

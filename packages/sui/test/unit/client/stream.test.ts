@@ -25,7 +25,10 @@ function adapter(overrides: Partial<LedgerStreamAdapter<Frame>> = {}): LedgerStr
 		family: 'events',
 		initialize: vi.fn(async () => ({ chain: 'chain-a', filter: { package: 'resolved-package' } })),
 		getIndexedTip: vi.fn(async () => '10'),
-		comparePositions: (a, b) => Number(a.cursor) - Number(b.cursor),
+		comparePositions: (a, b) =>
+			a.checkpoint !== undefined && b.checkpoint !== undefined
+				? Number(a.checkpoint) - Number(b.checkpoint)
+				: undefined,
 		isRetryable: (error) => error instanceof TypeError,
 		scan: vi.fn(async function* (): AsyncGenerator<LedgerStreamEvent<Frame>> {
 			yield item(1);
@@ -173,11 +176,11 @@ describe('ledger stream range and tokens', () => {
 		},
 	);
 
-	it('validates native token metadata before a mixed-bound empty completion', async () => {
+	it('validates token metadata before a mixed-bound empty completion', async () => {
 		const saved = await token(2);
 		const source = adapter({
 			validatePosition: () => {
-				throw new Error('native metadata mismatch');
+				throw new Error('invalid position metadata');
 			},
 		});
 		await expect(
@@ -191,11 +194,11 @@ describe('ledger stream range and tokens', () => {
 					source,
 				),
 			),
-		).rejects.toThrow('native metadata mismatch');
+		).rejects.toThrow('invalid position metadata');
 		expect(source.scan).not.toHaveBeenCalled();
 	});
 
-	it('validates end-token native positions even for an empty interval', async () => {
+	it('validates end-token position metadata even for an empty interval', async () => {
 		const saved = await token(2);
 		const source = adapter({
 			validatePosition: () => {
@@ -251,7 +254,7 @@ describe('ledger stream range and tokens', () => {
 		);
 	});
 
-	it('compares exact positions numerically instead of encoded token strings', async () => {
+	it('compares reported checkpoints without interpreting cursor bytes', async () => {
 		const later = await token(10);
 		const earlier = await token(2);
 		await expect(
@@ -263,6 +266,36 @@ describe('ledger stream range and tokens', () => {
 			),
 		).rejects.toThrow('reversed');
 	});
+
+	it.each([undefined, '7'])(
+		'delegates opaque cursor bounds with checkpoint %s to the server',
+		async (checkpoint) => {
+			async function capture(cursor: string) {
+				const source = adapter({
+					comparePositions: undefined,
+					live: async function* () {
+						yield { ...item(1), position: { cursor, checkpoint } };
+					},
+				});
+				const stream = createLedgerStream({ start: { checkpoint: '0' } }, source);
+				const frame = await stream.next();
+				await stream.return(undefined);
+				return (frame.value as Frame).resumeToken;
+			}
+			const start = await capture('future-format:z');
+			const finish = await capture('future-format:a');
+			const source = adapter({ comparePositions: undefined });
+			await collect(
+				createLedgerStream({ start: { resumeToken: start }, end: { resumeToken: finish } }, source),
+			);
+			expect(source.scan).toHaveBeenCalledWith(
+				expect.objectContaining({
+					start: { position: { cursor: 'future-format:z', ...(checkpoint ? { checkpoint } : {}) } },
+					end: { position: { cursor: 'future-format:a', ...(checkpoint ? { checkpoint } : {}) } },
+				}),
+			);
+		},
+	);
 
 	it.each(['ascending', 'descending'] as const)(
 		'completes equal %s bounds without a scan',

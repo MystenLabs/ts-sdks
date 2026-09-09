@@ -367,6 +367,25 @@ describe('resumable ledger streams', () => {
 					expect(frames[1].completion.resumeToken).toBe(
 						frames[0].$kind === 'Event' ? frames[0].resumeToken : undefined,
 					);
+				const descending = await collect(
+					client().streamEvents({
+						order: 'descending',
+						start: { checkpoint: firstCheckpoint },
+						end: { resumeToken: anchors[0].resumeToken },
+						filter: { sender: signer.address },
+						include: { completion: true },
+						signal: signal(),
+					}),
+				);
+				expect(
+					descending
+						.filter((frame) => frame.$kind === 'Event')
+						.map((frame) => frame.event.eventIndex),
+				).toEqual([2, 1]);
+				expect(descending.at(-1)).toMatchObject({
+					$kind: 'Complete',
+					completion: { reason: 'cursorBound' },
+				});
 			});
 
 			it('completes empty filtered ranges without manufacturing an event', async () => {

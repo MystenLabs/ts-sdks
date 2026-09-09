@@ -1,7 +1,6 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { BinaryWriter, WireType } from '@protobuf-ts/runtime';
 import { RpcError, RpcOutputStreamController } from '@protobuf-ts/runtime-rpc';
 import type { RpcOptions } from '@protobuf-ts/runtime-rpc';
 import { expect, expectTypeOf, it } from 'vitest';
@@ -10,16 +9,9 @@ import type { SuiClientTypes } from '../../../src/client/types.js';
 import { bufferedGrpcCall } from '../../../src/grpc/stream-buffer.js';
 
 const { QueryEndReason: End } = GrpcTypes;
+// Deliberately unrelated to any server cursor schema.
 function cursor(cp: number, index = 0, kind = 1, family = 8) {
-	const inner = new BinaryWriter().tag(1, WireType.Varint).uint64(cp);
-	if (family >= 7) inner.tag(2, WireType.Varint).uint64(cp * 100);
-	if (family === 8) inner.tag(3, WireType.Varint).uint32(index);
-	return new BinaryWriter()
-		.tag(5, WireType.Varint)
-		.uint32(kind)
-		.tag(family, WireType.LengthDelimited)
-		.bytes(inner.finish())
-		.finish();
+	return new TextEncoder().encode(`opaque/v9/${family}/${kind}/${cp}/${index}`);
 }
 function item(
 	cp: number,
@@ -37,7 +29,7 @@ function item(
 			eventIndex: index,
 			transactionDigest: `tx-${cp}`,
 		},
-		watermark: { cursor: cursor(cp, index) },
+		watermark: { cursor: cursor(cp, index), checkpoint: BigInt(cp - 1) },
 		end: reason ? { reason } : undefined,
 	});
 }
@@ -750,14 +742,14 @@ it('waits for a resumed descending position to be indexed before delivering olde
 	expect(resumed.map((frame) => frame.event.checkpoint)).toEqual(['99']);
 });
 
-it('rejects an impossible checkpoint-local offset above its global transaction position', async () => {
+it('rejects an invalid checkpoint-local transaction offset', async () => {
 	const c = client();
 	const malformed = item(1);
-	malformed.event!.transactionIndex = 999n;
+	malformed.event!.transactionIndex = -1n;
 	lists(c, [[malformed, end(2)]]);
 	await expect(
 		collect(c.streamEvents({ start: { checkpoint: '1' }, end: { checkpoint: '2' } })),
-	).rejects.toThrow('Checkpoint-local transaction index exceeds');
+	).rejects.toThrow('invalid transaction index');
 });
 
 it('resumes a descending checkpoint-bound terminal token as an empty completed range', async () => {
@@ -775,7 +767,7 @@ it('resumes a descending checkpoint-bound terminal token as an empty completed r
 		)) as never;
 	lists(c, [
 		[
-			item(3),
+			{ ...item(3), watermark: { cursor: cursor(3), checkpoint: 3n } },
 			{
 				watermark: { cursor: cursor(3, 0, 2), checkpoint: 3n },
 				end: { reason: End.CHECKPOINT_BOUND },
@@ -803,7 +795,7 @@ it('resumes a descending checkpoint-bound terminal token as an empty completed r
 	expect(requests).toHaveLength(0);
 });
 
-it('accepts different checkpoint-local and global transaction indexes and resumes using the global cursor', async () => {
+it('resumes using unchanged opaque bytes independently of checkpoint-local indexes', async () => {
 	const c = client();
 	const first = item(1, 0);
 	first.event!.transactionIndex = 5n;
@@ -823,14 +815,15 @@ it('accepts different checkpoint-local and global transaction indexes and resume
 	expect(resumed.map((frame) => frame.event.eventIndex)).toEqual([1]);
 });
 
-it('rejects a scan-boundary cursor attached to a ledger item', async () => {
+it('accepts arbitrary opaque cursor bytes attached to a ledger item', async () => {
 	const c = client();
 	const malformed = item(1);
 	malformed.watermark!.cursor = cursor(1, 0, 2);
 	lists(c, [[malformed, end(2)]]);
-	await expect(
-		collect(c.streamEvents({ start: { checkpoint: '1' }, end: { checkpoint: '2' } })),
-	).rejects.toThrow('requires an item watermark');
+	const result = await collect(
+		c.streamEvents({ start: { checkpoint: '1' }, end: { checkpoint: '2' } }),
+	);
+	expect(result).toHaveLength(1);
 });
 
 it.each(['historical', 'tip'] as const)(
@@ -869,3 +862,156 @@ it.each(['historical', 'tip'] as const)(
 		expect(requests).toHaveLength(stage === 'historical' ? 1 : 0);
 	},
 );
+
+it('passes a higher-coverage recovery interval to the server as opaque cursor bounds', async () => {
+	const c = client();
+	const requests = lists(c, [[item(3), { watermark: {}, end: { reason: End.CURSOR_BOUND } }]]);
+	let connections = 0;
+	c.subscriptionService.subscribeEvents = ((_request: object, options: RpcOptions) =>
+		++connections === 1
+			? script([item(2)], options.abort, new RpcError('lost', 'UNAVAILABLE'))
+			: script([item(4)], options.abort, undefined, true)) as never;
+	const seen: string[] = [];
+	for await (const frame of c.streamEvents({ retry: { initialDelay: 0, jitter: 0 } })) {
+		seen.push(frame.event.checkpoint!);
+		if (seen.length === 3) break;
+	}
+	expect(seen).toEqual(['2', '3', '4']);
+	expect(requests[0].options?.after).toEqual(cursor(2));
+	expect(requests[0].options?.before).toEqual(cursor(4));
+	expect(requests[0].endCheckpoint).toBeUndefined();
+});
+
+it('mutes reconnect frames when committed coverage is unavailable until the exact cursor returns', async () => {
+	const c = client();
+	const requests = lists(c, []);
+	const opaque = new Uint8Array([255, 42, 0]);
+	const older = item(1);
+	older.watermark!.checkpoint = undefined;
+	let connections = 0;
+	c.subscriptionService.subscribeEvents = ((_request: object, options: RpcOptions) =>
+		++connections === 1
+			? script(
+					[{ watermark: { cursor: opaque } }],
+					options.abort,
+					new RpcError('lost', 'UNAVAILABLE'),
+				)
+			: script(
+					[older, { watermark: { cursor: opaque, checkpoint: 1n } }, item(3)],
+					options.abort,
+					undefined,
+					true,
+				)) as never;
+	const stream = c.streamEvents({ retry: { initialDelay: 0, jitter: 0 } });
+	expect((await stream.next()).value.event.checkpoint).toBe('3');
+	await stream.return?.();
+	expect(requests).toHaveLength(0);
+});
+
+it('accepts progress within an unfinished item checkpoint without treating coverage as an item position', async () => {
+	const c = client();
+	c.subscriptionService.subscribeEvents = ((_request: object, options: RpcOptions) =>
+		script(
+			[
+				item(10),
+				{ watermark: { cursor: new Uint8Array([255, 0, 253]), checkpoint: 9n } },
+				item(10, 1),
+			],
+			options.abort,
+			undefined,
+			true,
+		)) as never;
+	const seen: number[] = [];
+	for await (const frame of c.streamEvents()) {
+		seen.push(frame.event.eventIndex);
+		if (seen.length === 2) break;
+	}
+	expect(seen).toEqual([0, 1]);
+});
+
+it('completes an empty cursor interval whose terminal frame has no cursor', async () => {
+	const c = client();
+	c.subscriptionService.subscribeEvents = ((_request: object, options: RpcOptions) =>
+		script([item(1), item(2)], options.abort, undefined, true)) as never;
+	const tokens: string[] = [];
+	for await (const frame of c.streamEvents()) {
+		tokens.push(frame.resumeToken);
+		if (tokens.length === 2) break;
+	}
+	const requests = lists(c, [[{ end: { reason: End.CURSOR_BOUND } }]]);
+	const watermarks: GrpcTypes.Watermark[] = [];
+	const frames = await collect(
+		c.streamEvents({
+			start: { resumeToken: tokens[0] },
+			end: { resumeToken: tokens[1] },
+			include: { completion: true },
+			onQueryEnd: ({ watermark }) => watermarks.push(watermark),
+		}),
+	);
+	expect(watermarks).toEqual([{}]);
+	expect(frames.map((frame) => frame.$kind)).toEqual(['Complete']);
+	expect(requests).toHaveLength(1);
+});
+
+it('waits for an item checkpoint before repairing two partial-checkpoint progress cursors', async () => {
+	const c = client();
+	const requests = lists(c, [[item(2, 1), item(2, 2), end(3)]]);
+	let connections = 0;
+	c.subscriptionService.subscribeEvents = ((_request: object, options: RpcOptions) =>
+		++connections === 1
+			? script(
+					[{ watermark: { cursor: cursor(2, 0, 2), checkpoint: 1n } }],
+					options.abort,
+					new RpcError('lost', 'UNAVAILABLE'),
+				)
+			: script(
+					[{ watermark: { cursor: cursor(2, 0, 3), checkpoint: 1n } }, item(2, 2), item(3)],
+					options.abort,
+					undefined,
+					true,
+				)) as never;
+	const seen: string[] = [];
+	for await (const frame of c.streamEvents({ retry: { initialDelay: 0, jitter: 0 } })) {
+		seen.push(`${frame.event.checkpoint}:${frame.event.eventIndex}`);
+		if (seen.length === 3) break;
+	}
+	expect(seen).toEqual(['2:1', '2:2', '3:0']);
+	expect(requests[0].endCheckpoint).toBe(3n);
+	expect(requests[0].options?.after).toEqual(cursor(2, 0, 2));
+});
+
+it('publishes advancing checkpoint coverage even when the opaque cursor is unchanged', async () => {
+	const c = client();
+	const opaque = new Uint8Array([255, 254, 253]);
+	let responses: RpcOutputStreamController<GrpcTypes.SubscribeEventsResponse>;
+	c.subscriptionService.subscribeEvents = ((_request: object, options: RpcOptions) => {
+		const call = script<GrpcTypes.SubscribeEventsResponse>(
+			[{ watermark: { cursor: opaque, checkpoint: 1n } }],
+			options.abort,
+			undefined,
+			true,
+		);
+		responses = call.responses;
+		return call;
+	}) as never;
+	const stream = c.streamEvents({ include: { progress: true } });
+	expect((await stream.next()).value).toMatchObject({ $kind: 'Progress', coveredCheckpoint: '1' });
+	responses!.notifyMessage({ watermark: { cursor: opaque, checkpoint: 2n } });
+	expect((await stream.next()).value).toMatchObject({ $kind: 'Progress', coveredCheckpoint: '2' });
+	await stream.return?.();
+});
+
+it('preserves reported coverage when a later list page starts inside a checkpoint', async () => {
+	const c = client();
+	const partial = item(2);
+	partial.watermark!.checkpoint = undefined;
+	lists(c, [[end(2, End.SCAN_LIMIT)], [partial, end(3)]]);
+	const frames = await collect(
+		c.streamEvents({
+			start: { checkpoint: '1' },
+			end: { checkpoint: '3' },
+			include: { progress: true },
+		}),
+	);
+	expect(frames.find((frame) => frame.$kind === 'Event')).toMatchObject({ coveredCheckpoint: '1' });
+});

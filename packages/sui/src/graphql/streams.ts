@@ -7,8 +7,8 @@ import {
 	createLedgerStream,
 	type LedgerStreamAdapter,
 	type StreamBound,
+	type StreamPosition,
 } from '../client/stream.js';
-import { compareLedgerCursors, decodeLedgerCursor } from '../client/stream-cursor.js';
 import { resolveEventFilter, resolveTransactionFilter } from '../client/query-filters.js';
 import { normalizeStructTag, normalizeSuiAddress } from '../utils/sui-types.js';
 import type { GraphQLDocument, GraphQLQueryResult, SuiGraphQLClient } from './client.js';
@@ -17,6 +17,7 @@ import { SuiGraphQLRequestError } from './client.js';
 import { parseTransaction } from './core.js';
 import {
 	LedgerStreamStateDocument,
+	StreamTransactionCheckpointDocument,
 	ScanCheckpointsDocument,
 	ScanEventsDocument,
 	ScanTransactionsDocument,
@@ -158,24 +159,11 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 		async getIndexedTip(signal) {
 			return (await state(signal)).tip;
 		},
-		comparePositions: (a, b) => compareLedgerCursors(a.cursor, b.cursor),
-		validatePosition(position) {
-			const native = decodeLedgerCursor(position.cursor, family);
-			scalar(native.checkpoint);
-			if (
-				position.checkpointBoundary !== undefined &&
-				(native.kind !== 'boundary' || position.checkpointBoundary !== native.checkpoint)
-			)
-				throw new Error('Stream checkpoint boundary does not match its GraphQL cursor');
-			for (const key of [
-				'checkpoint',
-				'transactionIndex',
-				'eventIndex',
-				'coveredCheckpoint',
-			] as const) {
-				if (position[key] !== undefined && position[key] !== native[key])
-					throw new Error('Stream position metadata does not match its GraphQL cursor');
-			}
+		comparePositions(a, b) {
+			if (a.cursor === b.cursor) return 0;
+			if (a.checkpoint !== undefined && b.checkpoint !== undefined && a.checkpoint !== b.checkpoint)
+				return BigInt(a.checkpoint) < BigInt(b.checkpoint) ? -1 : 1;
+			return undefined;
 		},
 		isRetryable: (error) =>
 			error instanceof SuiGraphQLSubscriptionError
@@ -189,12 +177,17 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 		async *scan(request) {
 			const indexed = await state(request.signal);
 			const tip = BigInt(indexed.tip);
-			if (request.order === 'descending' && request.start) {
+			if (request.start && (request.order === 'descending' || 'position' in request.start)) {
 				const required =
 					'checkpoint' in request.start
 						? BigInt(request.start.checkpoint)
-						: BigInt(decodeLedgerCursor(request.start.position.cursor, family).checkpoint);
-				if (required > tip) {
+						: (request.start.position.checkpoint ?? request.start.position.indexedCheckpoint) ===
+							  undefined
+							? undefined
+							: BigInt(
+									(request.start.position.checkpoint ?? request.start.position.indexedCheckpoint)!,
+								);
+				if (required !== undefined && required > tip) {
 					yield { $kind: 'end', complete: false };
 					return;
 				}
@@ -208,17 +201,23 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 			const apply = (bound: StreamBound | undefined, start: boolean) => {
 				if (!bound) return;
 				if ('position' in bound) {
-					const cursor = decodeLedgerCursor(bound.position.cursor, family);
+					const position = bound.position;
 					if (start !== descending) {
-						after = cursor.cursor;
-						// Cursor bounds can retain part of their checkpoint. Only checkpoint
-						// item cursors exclude the entire checkpoint at the lower endpoint.
-						lower =
-							BigInt(cursor.checkpoint) +
-							(family === 'checkpoints' && cursor.kind === 'item' ? 1n : 0n);
-					} else before = cursor.cursor;
-					if (!start && !descending) target = BigInt(cursor.checkpoint);
-					if (start && !descending && indexed.first != null && lower < BigInt(indexed.first))
+						after = position.cursor;
+						if (position.checkpoint !== undefined)
+							lower = BigInt(position.checkpoint) + (family === 'checkpoints' ? 1n : 0n);
+					} else before = position.cursor;
+					if (!start && !descending) {
+						const horizon = position.checkpoint ?? position.indexedCheckpoint;
+						if (horizon !== undefined) target = BigInt(horizon);
+					}
+					if (
+						start &&
+						!descending &&
+						position.checkpoint !== undefined &&
+						indexed.first != null &&
+						lower < BigInt(indexed.first)
+					)
 						throw new Error('Ledger history required for resumption has been pruned');
 				} else {
 					const cp = BigInt(bound.checkpoint);
@@ -233,7 +232,16 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 			};
 			apply(request.start, true);
 			apply(request.end, false);
-			if (descending && indexed.first != null && lower < BigInt(indexed.first))
+			if (
+				descending &&
+				!(
+					request.end &&
+					'position' in request.end &&
+					request.end.position.checkpoint === undefined
+				) &&
+				indexed.first != null &&
+				lower < BigInt(indexed.first)
+			)
 				throw new Error('Ledger history required for the range has been pruned');
 			if (lower >= upper) {
 				yield { $kind: 'end', complete: target == null || tip >= target };
@@ -250,6 +258,8 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 					: family === 'events'
 						? ScanEventsDocument
 						: ScanTransactionsDocument;
+			let lastItemCursor =
+				request.start && 'position' in request.start ? request.start.position.cursor : undefined;
 			for (;;) {
 				const data = unwrap(
 					await client.query({
@@ -270,27 +280,17 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 				if (!connection)
 					throw new SuiGraphQLSubscriptionError('GraphQL ledger connection is missing');
 				const edges = descending ? [...connection.edges].reverse() : connection.edges;
-				let previous = descending ? before : after;
 				for (const edge of edges) {
-					const position = decodeLedgerCursor(edge.cursor, family);
-					if (position.kind !== 'item')
-						throw new Error('GraphQL ledger edge must carry an item cursor');
-					if (
-						previous &&
-						compareLedgerCursors(previous, edge.cursor) * (descending ? -1 : 1) >= 0
-					) {
-						// Boundary cursors are inclusive for ascending reads.
-						if (!(
-							compareLedgerCursors(previous, edge.cursor) === 0 &&
-							!descending &&
-							decodeLedgerCursor(previous).kind === 'boundary'
-						))
-							throw new Error('GraphQL ledger items are not ordered');
-					}
-					previous = edge.cursor;
+					lastItemCursor = edge.cursor;
+					const checkpoint = await nodeCheckpoint(edge.node, request.signal);
+					const position: StreamPosition = {
+						cursor: edge.cursor,
+						checkpoint,
+						itemId: nodeIdentity(edge.node),
+					};
 					yield {
 						$kind: 'item',
-						frame: await mapNode(edge.node, position.checkpoint, request.signal),
+						frame: await mapNode(edge.node, checkpoint, request.signal),
 						position,
 					};
 				}
@@ -298,14 +298,13 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 					? connection.pageInfo.hasPreviousPage
 					: connection.pageInfo.hasNextPage;
 				const cursor = descending ? connection.pageInfo.startCursor : connection.pageInfo.endCursor;
-				// GraphQL conservatively reports hasNextPage at a gRPC CursorBound when a
-				// watermark exists. The frontier proves this exact interval is covered;
-				// never resume after the excluded endpoint or publish it as progress.
+				// A returned endpoint cursor completes the exclusive interval. Keep the
+				// last delivered position so resuming does not skip the excluded item.
 				if (
 					cursor &&
 					request.end &&
 					'position' in request.end &&
-					compareLedgerCursors(cursor, request.end.position.cursor) * (descending ? -1 : 1) >= 0
+					cursor === request.end.position.cursor
 				) {
 					yield { $kind: 'end', complete: true };
 					return;
@@ -314,14 +313,64 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 					// Only unbounded polling can advance to a terminal scan boundary. A finite end
 					// cursor is an excluded item, not a safe resume-after-that-item position.
 					if (!request.end && cursor && !edges.length)
-						yield { $kind: 'progress', position: decodeLedgerCursor(cursor, family) };
+						yield {
+							$kind: 'progress',
+							position: { cursor, indexedCheckpoint: (upper - 1n).toString() },
+						};
 					yield { $kind: 'end', complete: target == null || tip >= target };
 					return;
 				}
-				if (!cursor || cursor === (descending ? before : after))
+				if (!cursor || cursor === (descending ? before : after)) {
+					// Some servers return a different opaque cursor for the excluded endpoint
+					// and keep hasNextPage/hasPreviousPage set. Read from the last item without
+					// the endpoint bound; the next item's public identity can establish completion.
+					const endpoint =
+						request.end && 'position' in request.end ? request.end.position : undefined;
+					if (cursor && !edges.length && endpoint?.itemId) {
+						let probeCursor = lastItemCursor;
+						for (;;) {
+							const probe = unwrap(
+								await client.query({
+									query: document as GraphQLDocument<Record<Family, Connection>>,
+									variables: {
+										filter: {
+											...boundedFilter,
+											...(descending ? { afterCheckpoint: undefined } : {}),
+										},
+										first: descending ? undefined : 1,
+										last: descending ? 1 : undefined,
+										after: descending ? undefined : probeCursor,
+										before: descending ? probeCursor : undefined,
+										...selections,
+									},
+									signal: request.signal,
+								}),
+							)[family];
+							const next = descending ? probe?.edges.at(-1) : probe?.edges[0];
+							if (next) {
+								if (nodeIdentity(next.node) === endpoint.itemId) {
+									yield { $kind: 'end', complete: true };
+									return;
+								}
+								break;
+							}
+							const more = descending
+								? probe?.pageInfo.hasPreviousPage
+								: probe?.pageInfo.hasNextPage;
+							const nextCursor = descending
+								? probe?.pageInfo.startCursor
+								: probe?.pageInfo.endCursor;
+							if (!more || !nextCursor || nextCursor === probeCursor) break;
+							probeCursor = nextCursor;
+						}
+					}
 					throw new Error('GraphQL ledger pagination did not advance');
-				if (!edges.length)
-					yield { $kind: 'progress', position: decodeLedgerCursor(cursor, family) };
+				}
+				if (!edges.length && !request.end)
+					yield {
+						$kind: 'progress',
+						position: { cursor, indexedCheckpoint: (upper - 1n).toString() },
+					};
 				if (descending) before = cursor;
 				else after = cursor;
 			}
@@ -330,7 +379,7 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 			let after: string | undefined;
 			let afterCheckpoint: number | undefined;
 			if (request.start && 'position' in request.start) {
-				after = decodeLedgerCursor(request.start.position.cursor, family).cursor;
+				after = request.start.position.cursor;
 			} else if (request.start) {
 				const cp = BigInt(request.start.checkpoint);
 				if (cp === 0n) {
@@ -348,7 +397,6 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 					: family === 'events'
 						? SubscribeEventsDocument
 						: SubscribeTransactionsDocument;
-			let previous = after;
 			let connected = false;
 			for await (const result of client.subscribe({
 				query: document as GraphQLDocument<Record<Family, Edge>>,
@@ -367,20 +415,15 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 				const edge = unwrap(result)[family];
 				if (!edge)
 					throw new SuiGraphQLSubscriptionError('GraphQL ledger subscription edge is missing');
-				const position = decodeLedgerCursor(edge.cursor, family);
-				if (position.kind !== 'item')
-					throw new Error('GraphQL subscription edge must carry an item cursor');
-				if (previous && compareLedgerCursors(previous, edge.cursor) >= 0) {
-					if (!(
-						compareLedgerCursors(previous, edge.cursor) === 0 &&
-						decodeLedgerCursor(previous).kind === 'boundary'
-					))
-						throw new Error('GraphQL subscription items are not ordered');
-				}
-				previous = edge.cursor;
+				const checkpoint = await nodeCheckpoint(edge.node, request.signal);
+				const position: StreamPosition = {
+					cursor: edge.cursor,
+					checkpoint,
+					itemId: nodeIdentity(edge.node),
+				};
 				yield {
 					$kind: 'item',
-					frame: await mapNode(edge.node, position.checkpoint, request.signal),
+					frame: await mapNode(edge.node, checkpoint, request.signal),
 					position,
 				};
 			}
@@ -390,6 +433,43 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 			);
 		},
 	};
+	function nodeIdentity(node: Node): string {
+		if (family === 'checkpoints')
+			return (node as Stream_CheckpointFragment).sequenceNumber.toString();
+		if (family === 'events') {
+			const event = node as Stream_EventFragment;
+			if (!event.transaction?.digest)
+				throw new Error('GraphQL event is missing its transaction digest');
+			return `${event.transaction.digest}:${event.sequenceNumber}`;
+		}
+		const digest = (node as Stream_TransactionFragment).digest;
+		if (!digest) throw new Error('GraphQL transaction is missing its digest');
+		return digest;
+	}
+	async function nodeCheckpoint(node: Node, signal: AbortSignal): Promise<string> {
+		if (family === 'checkpoints')
+			return (node as Stream_CheckpointFragment).sequenceNumber.toString();
+		const transaction =
+			family === 'events'
+				? (node as Stream_EventFragment).transaction
+				: (node as Stream_TransactionFragment);
+		const checkpoint = transaction?.effects?.checkpoint?.sequenceNumber;
+		if (checkpoint != null) return checkpoint.toString();
+		if (!transaction?.digest) throw new Error('GraphQL transaction is missing its digest');
+		const indexed = unwrap(
+			await client.query({
+				query: StreamTransactionCheckpointDocument,
+				variables: { digest: transaction.digest },
+				signal,
+			}),
+		).transaction?.effects?.checkpoint?.sequenceNumber;
+		if (indexed == null)
+			throw new SuiGraphQLSubscriptionError(
+				'Transaction checkpoint has not reached the GraphQL index',
+				{ retryable: true },
+			);
+		return indexed.toString();
+	}
 	async function mapNode(node: Node, checkpoint: string, signal: AbortSignal): Promise<Frame> {
 		if (family === 'checkpoints') {
 			const value = node as Stream_CheckpointFragment;
@@ -435,8 +515,7 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 			};
 		}
 		const source = node as Stream_TransactionFragment;
-		// Subscription backfill nodes can omit effects.checkpoint even though their native
-		// edge cursor contains the authoritative checkpoint position.
+		// Subscription nodes may need a separate indexed lookup for their checkpoint.
 		const value = {
 			...source,
 			effects: source.effects && {

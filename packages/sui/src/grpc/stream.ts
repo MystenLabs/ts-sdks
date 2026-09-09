@@ -5,7 +5,6 @@ import { fromBase64, toBase64 } from '@mysten/utils';
 import { RpcError } from '@protobuf-ts/runtime-rpc';
 import type { ServerStreamingCall } from '@protobuf-ts/runtime-rpc';
 import type { SuiClientTypes } from '../client/types.js';
-import { compareLedgerCursors, decodeLedgerCursor } from '../client/stream-cursor.js';
 import { createLedgerStream, waitForStream } from '../client/stream.js';
 import type {
 	LedgerStreamAdapter,
@@ -69,25 +68,34 @@ function checkpointPosition(checkpoint: bigint): StreamPosition {
 }
 
 /** Native cursor values remain opaque. Only separately reported ledger positions are ordered. */
-function comparePositions(a: StreamPosition, b: StreamPosition): number {
+function comparePositions(a: StreamPosition, b: StreamPosition): number | undefined {
 	if (a.cursor === b.cursor) return 0;
 	if (a.cursor === 'genesis') return -1;
 	if (b.cursor === 'genesis') return 1;
-	if (!a.cursor.startsWith('checkpoint:') && !b.cursor.startsWith('checkpoint:'))
-		return compareLedgerCursors(a.cursor, b.cursor);
-	const ac = a.checkpoint ?? a.coveredCheckpoint;
-	const bc = b.checkpoint ?? b.coveredCheckpoint;
-	if (ac === undefined || bc === undefined)
-		throw protocol('Cannot compare ledger positions without checkpoints');
-	if (BigInt(ac) !== BigInt(bc)) return BigInt(ac) < BigInt(bc) ? -1 : 1;
-	for (const field of ['transactionIndex', 'eventIndex'] as const) {
-		if (a[field] !== undefined && b[field] !== undefined && a[field] !== b[field]) {
-			return BigInt(a[field]) < BigInt(b[field]) ? -1 : 1;
-		}
+	// Item coordinates and scan coverage are different domains. A watermark can
+	// advance inside a checkpoint without having finished that checkpoint.
+	if (a.checkpoint === undefined || b.checkpoint === undefined) {
+		if (
+			a.checkpoint !== undefined ||
+			b.checkpoint !== undefined ||
+			a.coveredCheckpoint === undefined ||
+			b.coveredCheckpoint === undefined
+		)
+			return undefined;
+		const ac = BigInt(a.coveredCheckpoint);
+		const bc = BigInt(b.coveredCheckpoint);
+		return ac === bc ? undefined : ac < bc ? -1 : 1;
 	}
-	// A fully covered checkpoint sorts after every item in that checkpoint.
-	if (a.coveredCheckpoint === ac && b.coveredCheckpoint !== bc) return 1;
-	if (b.coveredCheckpoint === bc && a.coveredCheckpoint !== ac) return -1;
+	const ac = BigInt(a.checkpoint);
+	const bc = BigInt(b.checkpoint);
+	if (ac !== bc) return ac < bc ? -1 : 1;
+	for (const field of ['transactionIndex', 'eventIndex'] as const) {
+		if (a[field] === undefined || b[field] === undefined) {
+			if (a[field] !== b[field]) return undefined;
+			continue;
+		}
+		if (a[field] !== b[field]) return BigInt(a[field]) < BigInt(b[field]) ? -1 : 1;
+	}
 	return 0;
 }
 
@@ -99,29 +107,20 @@ function position(frame: RawFrame, family: Family, live: boolean): StreamPositio
 	const watermark = frame.watermark;
 	if (!watermark?.cursor?.length) throw protocol('Ledger response is missing its watermark cursor');
 	const payload = frame.transaction ?? frame.event;
-	const decoded = decodeLedgerCursor(watermark.cursor, family);
 	const checkpoint = frame.checkpoint?.sequenceNumber ?? payload?.checkpoint;
 	if (hasItem(frame) && checkpoint === undefined)
 		throw protocol('Ledger item is missing its checkpoint');
 	if (payload && payload.transactionIndex === undefined)
 		throw protocol('Ledger item is missing its transaction index');
-	// Payload transactionIndex is checkpoint-local; the cursor's transactionIndex
-	// is ledger-global (tx_seq). They can differ by every earlier checkpoint's size.
-	if (
-		payload &&
-		(payload.transactionIndex! < 0n ||
-			payload.transactionIndex! > BigInt(decoded.transactionIndex!))
-	)
-		throw protocol('Checkpoint-local transaction index exceeds the global cursor index');
-	if (hasItem(frame) && decoded.kind !== 'item')
-		throw protocol('Ledger item requires an item watermark cursor');
+	if (payload && (payload.transactionIndex! < 0n || payload.transactionIndex! > U64_MAX))
+		throw protocol('Ledger item has an invalid transaction index');
 	if (frame.event && frame.event.eventIndex === undefined)
 		throw protocol('Event is missing its event index');
 	return {
 		cursor: toBase64(watermark.cursor),
-		checkpoint: checkpoint?.toString() ?? decoded.checkpoint,
+		checkpoint: checkpoint?.toString(),
 		coveredCheckpoint: watermark.checkpoint?.toString(),
-		transactionIndex: decoded.transactionIndex,
+		transactionIndex: payload?.transactionIndex?.toString(),
 		eventIndex: frame.event?.eventIndex,
 	};
 }
@@ -197,7 +196,7 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 		try {
 			input.onQueryEnd?.({
 				queryEnd: frame.end,
-				watermark: frame.watermark!,
+				watermark: frame.watermark ?? {},
 				stage,
 				lastItem: frame.checkpoint ?? frame.transaction ?? frame.event,
 			});
@@ -289,8 +288,14 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 		return { startCheckpoint, endCheckpoint, options: query };
 	}
 
-	function event(frame: RawFrame, live: boolean): LedgerStreamEvent<Frame> | undefined {
-		const p = position(frame, family, live);
+	function event(
+		frame: RawFrame,
+		live: boolean,
+		knownPosition?: StreamPosition,
+	): LedgerStreamEvent<Frame> | undefined {
+		// A cursor bound is an excluded endpoint, never committed progress.
+		if (!hasItem(frame) && frame.end?.reason === QueryEndReason.CURSOR_BOUND) return;
+		const p = knownPosition ?? position(frame, family, live);
 		if (hasItem(frame)) {
 			return {
 				$kind: 'item',
@@ -328,7 +333,7 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 					? '0'
 					: request.start.position.cursor.startsWith('checkpoint:')
 						? request.start.position.cursor.slice(11)
-						: decodeLedgerCursor(request.start.position.cursor, family).checkpoint);
+						: (request.start.position.checkpoint ?? request.start.position.coveredCheckpoint));
 		if (
 			request.order === 'descending' &&
 			requestedStart !== undefined &&
@@ -340,7 +345,12 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 		const range = bounds(request);
 		let previousCursor =
 			request.start && 'position' in request.start ? request.start.position.cursor : undefined;
-		let covered: bigint | undefined;
+		let covered =
+			request.start &&
+			'position' in request.start &&
+			request.start.position.coveredCheckpoint !== undefined
+				? BigInt(request.start.position.coveredCheckpoint)
+				: undefined;
 		let previousPosition: StreamPosition | undefined;
 		for (;;) {
 			const rpc = open({ ...range, filter, readMask }, request.signal, false);
@@ -354,15 +364,24 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 						connected = true;
 					}
 					if (end) throw protocol('Received a frame after QueryEnd');
+					if (!hasItem(frame) && frame.end?.reason === QueryEndReason.CURSOR_BOUND) {
+						end = frame.end;
+						onQueryEnd(frame, stage);
+						continue;
+					}
 					final = position(frame, family, false);
 					if (
-						previousPosition &&
-						comparePositions(final, previousPosition) * (request.order === 'ascending' ? 1 : -1) < 0
+						previousPosition?.checkpoint !== undefined &&
+						final.checkpoint !== undefined &&
+						(comparePositions(final, previousPosition) ?? 0) *
+							(request.order === 'ascending' ? 1 : -1) <
+							0
 					)
 						throw protocol('Ledger cursor regressed');
 					if (hasItem(frame) && previousPosition?.cursor === final.cursor)
 						throw protocol('Ledger response repeated an item cursor');
 					previousPosition = final;
+					if (final.coveredCheckpoint === undefined) final.coveredCheckpoint = covered?.toString();
 					if (final.coveredCheckpoint !== undefined) {
 						const cp = BigInt(final.coveredCheckpoint);
 						if (
@@ -386,24 +405,35 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 							throw protocol('Unexpected item on terminal query frame');
 					}
 					onQueryEnd(frame, stage);
-					const next = event(frame, false);
-					// Natural terminal cursors are scan boundaries, not items inside the
-					// excluded checkpoint. Preserve that distinction when this progress is saved.
-					if (
-						next?.$kind === 'progress' &&
-						frame.end &&
-						(frame.end.reason === QueryEndReason.CHECKPOINT_BOUND ||
-							frame.end.reason === QueryEndReason.LEDGER_TIP) &&
-						decodeLedgerCursor(next.position.cursor, family).kind === 'boundary'
-					) {
-						next.position.checkpointBoundary = next.position.checkpoint;
+					const next = event(frame, false, final);
+					if (next?.$kind === 'progress' && frame.end) {
+						if (frame.end.reason === QueryEndReason.CHECKPOINT_BOUND) {
+							next.position.checkpointBoundary = (
+								request.order === 'ascending' ? range.endCheckpoint : range.startCheckpoint
+							)?.toString();
+						} else if (
+							frame.end.reason === QueryEndReason.LEDGER_TIP &&
+							request.order === 'ascending' &&
+							next.position.coveredCheckpoint !== undefined &&
+							BigInt(next.position.coveredCheckpoint) < U64_MAX
+						) {
+							next.position.checkpointBoundary = (
+								BigInt(next.position.coveredCheckpoint) + 1n
+							).toString();
+						}
 					}
 					if (next) yield next;
 				}
 			} finally {
 				await rpc.close();
 			}
-			if (!end || !final) throw protocol('List RPC completed without QueryEnd');
+			if (!end || (!final && end.reason !== QueryEndReason.CURSOR_BOUND))
+				throw protocol('List RPC completed without QueryEnd');
+			if (end.reason === QueryEndReason.CURSOR_BOUND) {
+				yield { $kind: 'end', complete: true };
+				return;
+			}
+			if (!final) throw protocol('List RPC completed without a watermark');
 			if (end.reason === QueryEndReason.ITEM_LIMIT || end.reason === QueryEndReason.SCAN_LIMIT) {
 				if (final.cursor === previousCursor) throw protocol('List pagination did not advance');
 				previousCursor = final.cursor;
@@ -428,94 +458,168 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 
 	async function* live(request: LedgerStreamRequest): AsyncGenerator<LedgerStreamEvent<Frame>> {
 		const rpc = open({ filter, readMask }, request.signal, true);
-		try {
-			let first = await rpc.buffer.next();
-			if (!first.done) request.onStatus({ $kind: 'Connected' });
-			while (!first.done && request.start && 'checkpoint' in request.start) {
-				const firstPosition = position(first.value, family, true);
-				const checkpoint = hasItem(first.value)
-					? firstPosition.checkpoint
-					: firstPosition.coveredCheckpoint;
-				if (checkpoint !== undefined && BigInt(checkpoint) >= BigInt(request.start.checkpoint))
-					break;
-				first = await rpc.buffer.next();
+		let previousLive: StreamPosition | undefined;
+		async function read() {
+			const current = await rpc.buffer.next();
+			if (current.done) throw new RpcError('Ledger subscription disconnected', 'UNAVAILABLE');
+			const p = position(current.value, family, true);
+			if (previousLive) {
+				if (
+					previousLive.coveredCheckpoint !== undefined &&
+					(p.coveredCheckpoint === undefined ||
+						BigInt(p.coveredCheckpoint) < BigInt(previousLive.coveredCheckpoint))
+				)
+					throw protocol('Subscription checkpoint coverage regressed or became unavailable');
+				if (hasItem(current.value) && previousLive.cursor === p.cursor)
+					throw protocol('Subscription item repeated its cursor');
+				if ((comparePositions(p, previousLive) ?? 0) < 0)
+					throw protocol('Subscription item position regressed');
 			}
-			if (first.done)
-				throw new RpcError('Subscription ended before its first frame', 'UNAVAILABLE');
-			const frontier = position(first.value, family, true);
+			previousLive = p;
+			return { frame: current.value, position: p };
+		}
+		try {
+			let current = await read();
+			request.onStatus({ $kind: 'Connected' });
 			let safe = request.start && 'position' in request.start ? request.start.position : undefined;
-			if (request.start) {
-				const target =
-					first.value.checkpoint?.sequenceNumber ??
-					first.value.transaction?.checkpoint ??
-					first.value.event?.checkpoint ??
-					(frontier.coveredCheckpoint !== undefined
-						? BigInt(frontier.coveredCheckpoint)
-						: undefined);
-				if (target === undefined) throw protocol('Subscription handoff has no checkpoint position');
-				if (target === U64_MAX) throw protocol('Subscription handoff overflows uint64');
-				// Replay through the entire entry checkpoint. This resolves same-checkpoint
-				// reconnects without ordering opaque cursor bytes or losing late indexed items.
-				const end = { checkpoint: (target + 1n).toString() };
-				let start = request.start;
-				if (!safe || comparePositions(frontier, safe) >= 0) {
-					request.onStatus?.({ $kind: 'Recovering' });
-					for (;;) {
-						let complete = false;
-						for await (const next of scan({ ...request, start, end }, 'recovery')) {
-							if (next.$kind === 'end') {
-								complete = next.complete;
+			const requestedCheckpoint =
+				request.start && 'checkpoint' in request.start
+					? request.start.checkpoint
+					: safe?.cursor === 'genesis'
+						? '0'
+						: undefined;
+			let replayItem =
+				safe?.transactionIndex !== undefined || family === 'checkpoints' ? safe : undefined;
+			let replayCoverage: string | undefined;
+			let end: StreamBound | undefined;
+			if (requestedCheckpoint !== undefined) {
+				for (;;) {
+					const cp = current.position.checkpoint ?? current.position.coveredCheckpoint;
+					if (cp !== undefined && BigInt(cp) >= BigInt(requestedCheckpoint)) {
+						if (BigInt(cp) === U64_MAX) throw protocol('Subscription handoff overflows uint64');
+						end = { checkpoint: (BigInt(cp) + 1n).toString() };
+						break;
+					}
+					current = await read();
+				}
+			} else if (safe) {
+				for (;;) {
+					const incoming = current.position;
+					const committedCoverage = safe.coveredCheckpoint;
+					const incomingCoverage = incoming.coveredCheckpoint;
+					if (
+						incoming.cursor === safe.cursor &&
+						!(
+							committedCoverage !== undefined &&
+							incomingCoverage !== undefined &&
+							BigInt(incomingCoverage) < BigInt(committedCoverage)
+						)
+					)
+						break;
+					if (
+						committedCoverage !== undefined &&
+						incomingCoverage !== undefined &&
+						BigInt(incomingCoverage) >= BigInt(committedCoverage)
+					) {
+						if (BigInt(incomingCoverage) > BigInt(committedCoverage) && family !== 'checkpoints') {
+							end = { position: incoming };
+						} else {
+							// A cursor can be inside the next checkpoint. Explicit item metadata
+							// lets recovery include that checkpoint without interpreting its cursor.
+							if (
+								family !== 'checkpoints' &&
+								safe.checkpoint === undefined &&
+								incoming.checkpoint === undefined
+							) {
+								current = await read();
 								continue;
 							}
-							if (next.$kind === 'item' || next.$kind === 'progress') {
-								safe = next.position;
-								start = { position: safe };
-							}
-							yield next;
+							const upper = [
+								committedCoverage,
+								safe.checkpoint,
+								incoming.checkpoint,
+							].reduce<bigint>(
+								(maximum, cp) => (cp !== undefined && BigInt(cp) > maximum ? BigInt(cp) : maximum),
+								BigInt(incomingCoverage),
+							);
+							if (upper === U64_MAX) throw protocol('Subscription handoff overflows uint64');
+							end = { checkpoint: (upper + 1n).toString() };
 						}
-						if (complete) break;
-						await waitForStream(input.pollInterval ?? 1000, request.signal);
+						break;
 					}
-				}
-			} else {
-				// The subscription establishes the live start. When its first frame is an
-				// item, the preceding checkpoint is the safe baseline before delivering it.
-				const cp = frontier.checkpoint ?? frontier.coveredCheckpoint;
-				if (cp !== undefined && hasItem(first.value)) {
-					const baseline: StreamPosition =
-						BigInt(cp) === 0n
-							? { cursor: 'genesis', checkpoint: '0' }
-							: checkpointPosition(BigInt(cp) - 1n);
-					yield {
-						$kind: 'progress',
-						position: baseline,
-						frame: include?.progress
-							? { $kind: 'Progress', coveredCheckpoint: baseline.coveredCheckpoint }
-							: undefined,
-					};
+					// Different subscriptions have no cursor ordering guarantee. Wait until
+					// equality or reported coverage establishes a recoverable interval.
+					current = await read();
 				}
 			}
-			let current: IteratorResult<RawFrame> = first;
-			let previousLive: StreamPosition | undefined;
-			for (;;) {
-				if (current.done) throw new RpcError('Ledger subscription disconnected', 'UNAVAILABLE');
-				const p = position(current.value, family, true);
-				if (previousLive && comparePositions(p, previousLive) < 0)
-					throw protocol('Subscription watermark regressed');
-				previousLive = p;
-				if (
-					!safe ||
-					comparePositions(p, safe) > 0 ||
-					(comparePositions(p, safe) === 0 &&
-						!p.cursor.startsWith('checkpoint:') &&
-						!safe.cursor.startsWith('checkpoint:') &&
-						decodeLedgerCursor(safe.cursor).kind === 'boundary' &&
-						decodeLedgerCursor(p.cursor).kind === 'item')
-				) {
-					yield event(current.value, true)!;
-					safe = p;
+			if (end) {
+				request.onStatus({ $kind: 'Recovering' });
+				let start = request.start;
+				for (;;) {
+					let complete = false;
+					for await (const next of scan({ ...request, start, end }, 'recovery')) {
+						if (next.$kind === 'end') {
+							complete = next.complete;
+							continue;
+						}
+						if (next.$kind === 'item' || next.$kind === 'progress') {
+							safe = next.position;
+							start = { position: safe };
+							if (safe.coveredCheckpoint !== undefined) replayCoverage = safe.coveredCheckpoint;
+							if (next.$kind === 'item') {
+								if (replayItem && (comparePositions(safe, replayItem) ?? 1) <= 0) continue;
+								replayItem = safe;
+							}
+						}
+						yield next;
+					}
+					if (complete) break;
+					await waitForStream(input.pollInterval ?? 1000, request.signal);
 				}
-				current = await rpc.buffer.next();
+			} else if (!request.start && hasItem(current.frame)) {
+				const cp = current.position.checkpoint!;
+				const baseline: StreamPosition =
+					BigInt(cp) === 0n
+						? { cursor: 'genesis', checkpoint: '0' }
+						: checkpointPosition(BigInt(cp) - 1n);
+				safe = baseline;
+				yield {
+					$kind: 'progress',
+					position: baseline,
+					frame: include?.progress
+						? { $kind: 'Progress', coveredCheckpoint: baseline.coveredCheckpoint }
+						: undefined,
+				};
+			}
+			for (;;) {
+				const p = current.position;
+				const item = hasItem(current.frame);
+				const sameCursorAdvancedCoverage =
+					!item &&
+					p.coveredCheckpoint !== undefined &&
+					(safe?.coveredCheckpoint === undefined ||
+						BigInt(p.coveredCheckpoint) > BigInt(safe.coveredCheckpoint));
+				const overlaps =
+					(p.cursor === safe?.cursor && !sameCursorAdvancedCoverage) ||
+					(item &&
+						((replayItem !== undefined && (comparePositions(p, replayItem) ?? 1) <= 0) ||
+							(replayCoverage !== undefined &&
+								p.checkpoint !== undefined &&
+								BigInt(p.checkpoint) <= BigInt(replayCoverage))));
+				const progressBehindReplay =
+					!item &&
+					replayCoverage !== undefined &&
+					(p.coveredCheckpoint === undefined ||
+						BigInt(p.coveredCheckpoint) <= BigInt(replayCoverage));
+				if (!overlaps && !progressBehindReplay) {
+					const committed = {
+						...p,
+						coveredCheckpoint: p.coveredCheckpoint ?? safe?.coveredCheckpoint,
+					};
+					yield event(current.frame, true, committed)!;
+					safe = committed;
+				}
+				current = await read();
 			}
 		} finally {
 			await rpc.close();
@@ -552,16 +656,8 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 					throw protocol('Invalid checkpoint continuation');
 				return;
 			}
-			const decoded = decodeLedgerCursor(value.cursor, family);
-			if (
-				value.checkpointBoundary !== undefined &&
-				(decoded.kind !== 'boundary' || value.checkpointBoundary !== decoded.checkpoint)
-			)
-				throw protocol('Checkpoint boundary does not match its native cursor');
-			for (const key of ['checkpoint', 'transactionIndex', 'eventIndex'] as const) {
-				if (value[key] !== undefined && value[key] !== decoded[key])
-					throw protocol('Resume position does not match its native cursor');
-			}
+			// Resume tokens own their metadata; the server owns native cursor validation.
+			if (fromBase64(value.cursor).length === 0) throw protocol('Empty ledger cursor');
 		},
 		liveFromTip: true,
 		async initialize(signal) {
