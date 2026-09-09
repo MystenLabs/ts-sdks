@@ -35,7 +35,6 @@ type Options = SuiClientTypes.StreamOptions & {
 	filter?: SuiClientTypes.TransactionFilter | SuiClientTypes.EventFilter;
 	grpcFilter?: TransactionFilter | EventFilter;
 	include?: GrpcStreamInclude & SuiClientTypes.TransactionInclude;
-	readMask?: string[];
 	pageSize?: number;
 	maxBufferedItems?: number;
 	onQueryEnd?: (metadata: GrpcStreamQueryEnd) => void;
@@ -186,7 +185,6 @@ function mapItem(frame: RawFrame, include: Options['include']): Frame {
 			} satisfies SuiClientTypes.EventEntry,
 		};
 	} else throw protocol('Expected a ledger item');
-	if (include?.proto) result.proto = frame.checkpoint ?? frame.transaction ?? frame.event;
 	return result;
 }
 
@@ -225,7 +223,7 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 						'transaction_index',
 						'event_index',
 					];
-	const readMask = { paths: [...new Set([...paths, ...(input.readMask ?? [])])] };
+	const readMask = { paths };
 	const limit = input.maxBufferedItems ?? 1024;
 	const pageSize = input.pageSize ?? 1000;
 
@@ -569,7 +567,6 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 		async initialize(signal) {
 			if (input.filter !== undefined && input.grpcFilter !== undefined)
 				throw new TypeError('filter and grpcFilter are mutually exclusive');
-			if (input.readMask && !include?.proto) throw new TypeError('readMask requires include.proto');
 			for (const [name, value] of [
 				['pageSize', pageSize],
 				['maxBufferedItems', limit],

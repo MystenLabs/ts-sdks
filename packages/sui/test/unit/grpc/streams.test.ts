@@ -271,13 +271,13 @@ it('preserves shared method signatures and narrows all include combinations', ()
 	expectTypeOf(normal).toEqualTypeOf<AsyncIterableIterator<SuiClientTypes.StreamEventResult>>();
 	const enabled: boolean = Math.random() > 0.5;
 	const variants = c.streamEvents({
-		include: { completion: enabled, progress: enabled, proto: enabled },
+		include: { completion: enabled, progress: enabled },
 	});
 	type Frame = typeof variants extends AsyncIterable<infer T> ? T : never;
 	expectTypeOf<Exclude<Frame, undefined>['$kind']>().toEqualTypeOf<
 		'Event' | 'Progress' | 'Complete'
 	>();
-	// @ts-expect-error Native masks require protobuf payload selection.
+	// @ts-expect-error Custom read masks are only supported by the raw client.
 	c.streamEvents({ readMask: ['*'] });
 	// @ts-expect-error Native and shared filters are exclusive.
 	c.streamEvents({ filter: { sender: '0x1' }, grpcFilter: { terms: [] } });
@@ -378,7 +378,7 @@ it('waits for a future checkpoint start without delivering older subscription fr
 	await stream.return?.();
 });
 
-it('applies native filters and additional masks identically during repair and subscription', async () => {
+it('applies native filters and shared field selection during repair and subscription', async () => {
 	const c = client();
 	const native = { terms: [] };
 	const requests = lists(c, [[item(2), end(3)]]);
@@ -393,16 +393,14 @@ it('applies native filters and additional masks identically during repair and su
 	const stream = c.streamEvents({
 		start: { checkpoint: '2' },
 		grpcFilter: native,
-		include: { proto: true },
-		readMask: ['*'],
 	});
 	const next = await stream.next();
-	expect(next.value.proto).toMatchObject({ eventIndex: 0 });
+	expect(next.value.event).toMatchObject({ eventIndex: 0 });
 	expect(liveRequest?.filter).toEqual(native);
 	expect(requests[0].filter).toEqual(native);
 	expect(requests[0].readMask?.paths).toEqual(liveRequest?.readMask?.paths);
 	expect(liveRequest?.readMask?.paths).toEqual(
-		expect.arrayContaining(['*', 'transaction_index', 'event_index', 'checkpoint']),
+		expect.arrayContaining(['transaction_index', 'event_index', 'checkpoint']),
 	);
 	await stream.return?.();
 });
@@ -419,18 +417,13 @@ it('rejects nonadvancing pagination and regressing progress', async () => {
 	).rejects.toThrow('regressed');
 });
 
-it('completes with protobuf selection without requiring native fields on completion', () => {
+it('preserves completion and shared method types', () => {
 	const c = client();
-	const stream = c.streamEvents({ include: { completion: true, proto: true } });
+	const stream = c.streamEvents({ include: { completion: true } });
 	type Frame = typeof stream extends AsyncIterable<infer T> ? T : never;
 	expectTypeOf<
 		Extract<Frame, { $kind: 'Complete' }>
 	>().toEqualTypeOf<SuiClientTypes.StreamCompletionFrame>();
-	expectTypeOf<Extract<Frame, { $kind: 'Event' }>['proto']>().toEqualTypeOf<GrpcTypes.Event>();
-	const enabled: boolean = Math.random() > 0.5;
-	const optional = c.streamEvents({ include: { proto: enabled } });
-	type OptionalFrame = typeof optional extends AsyncIterable<infer T> ? T : never;
-	expectTypeOf<OptionalFrame['proto']>().toEqualTypeOf<GrpcTypes.Event | undefined>();
 	const checkpoints: <I extends SuiClientTypes.StreamInclude = {}>(
 		options?: SuiClientTypes.StreamCheckpointsOptions<I>,
 	) => AsyncIterableIterator<SuiClientTypes.StreamCheckpointResult<I>> = c.streamCheckpoints;
@@ -818,10 +811,9 @@ it('accepts different checkpoint-local and global transaction indexes and resume
 	const stream = c.streamEvents({
 		start: { checkpoint: '1' },
 		end: { checkpoint: '2' },
-		include: { proto: true },
 	});
 	const saved = await stream.next();
-	expect(saved.value.proto.transactionIndex).toBe(5n);
+	expect(saved.value.event.eventIndex).toBe(0);
 	await stream.return?.();
 	const requests = lists(c, [[item(1, 1), end(2)]]);
 	const resumed = await collect(

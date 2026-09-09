@@ -198,13 +198,12 @@ historical data is unavailable or the filter had no matches.
 
 ## gRPC extensions
 
-The gRPC client supports progress frames, protobuf payloads, native filters, and per-request
-diagnostics.
+The gRPC client supports progress frames, native filters, and per-request diagnostics.
 
 ```typescript
 for await (const frame of client.streamEvents({
 	start: { checkpoint: '1000' },
-	include: { progress: true, proto: true },
+	include: { progress: true },
 	onQueryEnd({ queryEnd, watermark, stage }) {
 		console.log(queryEnd, watermark, stage);
 	},
@@ -214,7 +213,7 @@ for await (const frame of client.streamEvents({
 })) {
 	switch (frame.$kind) {
 		case 'Event':
-			console.log(frame.event, frame.proto);
+			console.log(frame.event);
 			break;
 		case 'Progress':
 			console.log(frame.coveredCheckpoint, frame.resumeToken);
@@ -228,9 +227,7 @@ resume token and checkpoint coverage when known. Starting at the live tip with p
 provides an initial progress frame. GraphQL does not currently expose equivalent progress-only
 frames. Persist a progress token only after all preceding items have finished processing.
 
-`include.proto` adds the generated protobuf payload to matching frames. `readMask` can request
-additional native fields; it requires `include.proto` and cannot remove fields needed for the shared
-payload or recovery. Use `grpcFilter` instead of `filter` for generated gRPC filter expressions.
+Use `grpcFilter` instead of `filter` for generated gRPC filter expressions.
 
 `onQueryEnd` reports each underlying List RPC's terminal metadata through a synchronous callback.
 Its result is not awaited; throwing terminates the stream without retrying the callback error. Item

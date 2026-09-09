@@ -11,8 +11,6 @@ import type { QueryEnd, Watermark } from './proto/sui/rpc/v2/query_options.js';
 export interface GrpcStreamInclude extends SuiClientTypes.StreamInclude {
 	/** Emit safe scan progress even when no item matches. */
 	progress?: boolean;
-	/** Include the generated protobuf payload on matching items. */
-	proto?: boolean;
 }
 
 export interface GrpcStreamTransactionInclude
@@ -40,21 +38,14 @@ type Enabled<Include, Key extends PropertyKey, Value> = Key extends keyof Includ
 		: never
 	: never;
 
-type Extras<Include, Proto> = ('proto' extends keyof Include
-	? Include['proto'] extends true
-		? { proto: Proto }
-		: true extends Include['proto']
-			? { proto?: Proto }
-			: {}
-	: {}) &
-	('progress' extends keyof Include
-		? true extends Include['progress']
-			? { coveredCheckpoint?: string }
-			: {}
-		: {});
+type Extras<Include> = 'progress' extends keyof Include
+	? true extends Include['progress']
+		? { coveredCheckpoint?: string }
+		: {}
+	: {};
 
-type GrpcResult<Frame, Include, Proto> =
-	| (Frame extends SuiClientTypes.StreamCompletionFrame ? Frame : Frame & Extras<Include, Proto>)
+type GrpcResult<Frame, Include> =
+	| (Frame extends SuiClientTypes.StreamCompletionFrame ? Frame : Frame & Extras<Include>)
 	| Enabled<Include, 'progress', GrpcStreamProgressFrame>;
 
 interface GrpcStreamControls {
@@ -69,16 +60,9 @@ interface GrpcStreamControls {
 	maxBufferedItems?: number;
 }
 
-type NativeSelection<Include> = 'proto' extends keyof Include
-	? true extends Include['proto']
-		? { readMask?: string[] }
-		: { readMask?: never }
-	: { readMask?: never };
-
 export type GrpcStreamCheckpointsOptions<Include extends GrpcStreamInclude = {}> =
 	SuiClientTypes.StreamCheckpointsOptions<Include> &
-		GrpcStreamControls &
-		NativeSelection<Include> & {
+		GrpcStreamControls & {
 			grpcFilter?: TransactionFilter;
 			include?: Include & GrpcStreamInclude;
 		};
@@ -87,8 +71,7 @@ export type GrpcStreamTransactionsOptions<Include extends GrpcStreamTransactionI
 	SuiClientTypes.StreamTransactionsOptions<Include>,
 	'filter'
 > &
-	GrpcStreamControls &
-	NativeSelection<Include> & {
+	GrpcStreamControls & {
 		include?: Include & GrpcStreamTransactionInclude;
 	} & (
 		| { filter?: SuiClientTypes.TransactionFilter; grpcFilter?: never }
@@ -99,8 +82,7 @@ export type GrpcStreamEventsOptions<Include extends GrpcStreamInclude = {}> = Om
 	SuiClientTypes.StreamEventsOptions<Include>,
 	'filter'
 > &
-	GrpcStreamControls &
-	NativeSelection<Include> & {
+	GrpcStreamControls & {
 		include?: Include & GrpcStreamInclude;
 	} & (
 		| { filter?: SuiClientTypes.EventFilter; grpcFilter?: never }
@@ -109,13 +91,11 @@ export type GrpcStreamEventsOptions<Include extends GrpcStreamInclude = {}> = Om
 
 export type GrpcStreamCheckpointResult<Include extends GrpcStreamInclude = {}> = GrpcResult<
 	SuiClientTypes.StreamCheckpointResult<Include>,
-	Include,
-	Checkpoint
+	Include
 >;
 export type GrpcStreamTransactionResult<Include extends GrpcStreamTransactionInclude = {}> =
-	GrpcResult<SuiClientTypes.StreamTransactionResult<Include>, Include, ExecutedTransaction>;
+	GrpcResult<SuiClientTypes.StreamTransactionResult<Include>, Include>;
 export type GrpcStreamEventResult<Include extends GrpcStreamInclude = {}> = GrpcResult<
 	SuiClientTypes.StreamEventResult<Include>,
-	Include,
-	Event
+	Include
 >;
