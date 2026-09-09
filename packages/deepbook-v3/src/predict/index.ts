@@ -30,10 +30,13 @@ export { deriveAccountWrapperId, generateAuth } from './tx/common.js';
 
 // === Config ===
 export {
+	MAINNET_CONFIG,
 	TESTNET_CONFIG,
 	getConfig,
 	getDeployment,
 	getUnits,
+	MAINNET_DEPLOYMENT,
+	MAINNET_UNITS,
 	TESTNET_DEPLOYMENT,
 	TESTNET_UNITS,
 } from './config/index.js';

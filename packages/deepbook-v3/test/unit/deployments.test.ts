@@ -100,8 +100,8 @@ describe('per-network accessors', () => {
 	});
 
 	test('an unrecorded network throws rather than returning placeholder ids', () => {
-		expect(() => getAccountConfig('mainnet')).toThrow(/no account deployment recorded/);
-		expect(() => getDeployment('mainnet')).toThrow(/no deployment recorded for network 'mainnet'/);
+		expect(() => getAccountConfig('devnet')).toThrow(/no account deployment recorded/);
+		expect(() => getDeployment('devnet')).toThrow(/no deployment recorded for network 'devnet'/);
 	});
 
 	test('the returned config is frozen, so one caller cannot poison another', () => {
@@ -160,8 +160,8 @@ describe('units are reachable from every subpath, not just Predict', () => {
 	});
 
 	test('an unrecorded network throws, and the message names the way out', () => {
-		expect(() => getUnits('mainnet')).toThrow(/no deployment recorded for network 'mainnet'/);
-		expect(() => getUnits('mainnet')).toThrow(/your own deploy manifest/);
+		expect(() => getUnits('devnet')).toThrow(/no deployment recorded for network 'devnet'/);
+		expect(() => getUnits('devnet')).toThrow(/your own deploy manifest/);
 	});
 });
 
@@ -203,8 +203,8 @@ describe('sessions deployment ids', () => {
 	});
 
 	test('an unrecorded network throws rather than returning placeholder ids', () => {
-		expect(() => getSessionsConfig('mainnet')).toThrow(/no sessions deployment recorded/);
-		expect(() => getSessionsConfig('mainnet')).toThrow(/SessionsContract directly/);
+		expect(() => getSessionsConfig('devnet')).toThrow(/no sessions deployment recorded/);
+		expect(() => getSessionsConfig('devnet')).toThrow(/SessionsContract directly/);
 	});
 
 	test('the returned config is frozen, same contract as /account', () => {

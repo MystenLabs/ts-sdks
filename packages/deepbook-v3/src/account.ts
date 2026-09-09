@@ -11,6 +11,7 @@ import { deriveObjectID } from '@mysten/sui/utils';
 import * as account from './contracts/account/account.js';
 import * as accountRegistry from './contracts/account/account_registry.js';
 import type { AccountConfig as GeneratedAccountConfig } from './contracts/account/config-arguments.js';
+import { MAINNET_ACCOUNT } from './deployments/mainnet.js';
 import { TESTNET_ACCOUNT } from './deployments/testnet.js';
 import type { NetworkArg } from './deployments/index.js';
 
@@ -53,9 +54,10 @@ export interface AccountConfig extends GeneratedAccountConfig {
  */
 export function getAccountConfig(network: NetworkArg): AccountConfig {
 	if (network === 'testnet') return TESTNET_ACCOUNT;
+	if (network === 'mainnet') return MAINNET_ACCOUNT;
 	throw new Error(
 		`@mysten/deepbook-v3/account: no account deployment recorded for network '${network}'. ` +
-			'The account primitive is testnet-only today; for your own deployment pass ' +
+			'The account primitive is recorded for testnet and mainnet; for your own deployment pass ' +
 			'`{ accountPackageId, accountRegistry }` to AccountContract directly.',
 	);
 }

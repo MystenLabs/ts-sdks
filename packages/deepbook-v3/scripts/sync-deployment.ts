@@ -33,13 +33,17 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const DEFAULT_MANIFEST = '../../../deepbookv3/packages/predict/deployment/deployment.testnet.json';
-// Bumped 6 -> 8 for the `deepbook-predict-testnet` deployment. Verified every field this
-// script reads still exists and still means the same thing: v8 re-keyed `writers.*` to
-// `oracleDependencies.*` and dropped `writers.keeper.lifecycleCap` (the pool-valuation cap
-// split), but this script consumes none of those — it reads only `packages`, `objects`,
-// `coinTypes`, `underlyings`, `initialConfiguration.units` and `sourceCommit`. The one
-// change that does reach it is the collateral's `coinTypes` key, now `usdc`, read below.
-const SUPPORTED_SCHEMA = 8;
+// The two live deployments carry different schema versions — testnet v8, mainnet v9 — so this
+// is a set, not a high-water mark: a manifest is only safe to read if its shape was checked,
+// and silently accepting anything newer is exactly what this guard exists to prevent.
+//
+// v6 -> v8 re-keyed `writers.*` to `oracleDependencies.*`, dropped `writers.keeper.lifecycleCap`
+// (the pool-valuation cap split), and renamed the collateral's `coinTypes` key to `usdc`. Of
+// those only the `coinTypes` key is read here. v8 -> v9 adds and removes no keys at all: the two
+// manifests' key sets are identical, and their `initialConfiguration.units` agree field for
+// field. This script reads only `packages`, `objects`, `coinTypes`, `underlyings`,
+// `initialConfiguration.units` and `sourceCommit`, all present in both.
+const SUPPORTED_SCHEMA = [8, 9];
 
 interface Manifest {
 	schemaVersion: number;
@@ -152,10 +156,11 @@ try {
 
 // A schema bump can move or re-key ids. Failing here beats emitting a file whose ids are
 // silently `undefined`.
-if (manifest.schemaVersion !== SUPPORTED_SCHEMA) {
+if (!SUPPORTED_SCHEMA.includes(manifest.schemaVersion)) {
 	throw new Error(
-		`manifest schemaVersion ${manifest.schemaVersion} is not supported (expected ${SUPPORTED_SCHEMA}). ` +
-			'Re-read the manifest and update this script before regenerating.',
+		`manifest schemaVersion ${manifest.schemaVersion} is not supported (expected one of ` +
+			`${SUPPORTED_SCHEMA.join(', ')}). Re-read the manifest and update this script before ` +
+			'regenerating.',
 	);
 }
 
@@ -171,7 +176,7 @@ if (!/^[a-z][a-z0-9]*$/.test(manifest.network ?? '')) {
 // A record for a network the accessors do not know would be written and then imported by
 // nothing — `getDeployment('mainnet')` would still throw. Wiring it is a deliberate edit to
 // src/deployments/index.ts, so fail here rather than leave an orphan file behind.
-const WIRED_NETWORKS = ['testnet'];
+const WIRED_NETWORKS = ['testnet', 'mainnet'];
 if (!WIRED_NETWORKS.includes(manifest.network)) {
 	throw new Error(
 		`network '${manifest.network}' has no accessor wiring. Add it to src/deployments/index.ts ` +
