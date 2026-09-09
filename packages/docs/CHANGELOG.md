@@ -1,5 +1,16 @@
 # @mysten/docs
 
+## 0.1.60
+
+### Patch Changes
+
+- 28c23f5: Move the `next` dependency from `^16.3.1` to `^16.3.4`, which carries the fix for a
+  critical advisory against `next` <16.3.3 and for a high advisory against the `sharp` it pulls in.
+  No API or behavior change.
+- Updated dependencies [7b47a9a]
+- Updated dependencies [1e2f728]
+  - @mysten/deepbook-v3@2.3.0
+
 ## 0.1.59
 
 ### Patch Changes
