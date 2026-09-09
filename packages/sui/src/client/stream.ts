@@ -37,7 +37,8 @@ export interface StreamPosition {
 	indexedCheckpoint?: string;
 }
 
-export type StreamBound = { checkpoint: string } | { position: StreamPosition };
+export type StreamBound<Position extends StreamPosition = StreamPosition> =
+	{ checkpoint: string } | { position: Position };
 
 export interface LedgerStreamRequest {
 	start?: StreamBound;
@@ -74,9 +75,9 @@ export interface LedgerStreamAdapter<Frame extends object> {
 	live(request: LedgerStreamRequest): AsyncIterable<LedgerStreamEvent<Frame>>;
 }
 
-export interface StoredRange {
-	start?: StreamBound;
-	end?: StreamBound;
+export interface StoredRange<Position extends StreamPosition = StreamPosition> {
+	start?: StreamBound<Position>;
+	end?: StreamBound<Position>;
 	capturedTip?: string;
 	follow: boolean;
 	reason: SuiClientTypes.StreamCompletion['reason'];

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { fromBase64, toBase64 } from '@mysten/utils';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import { decodeToken, encodeToken, type StreamToken } from '../../../src/client/stream-token.js';
 
@@ -25,6 +25,19 @@ const token: StreamToken = {
 
 describe('stream resume token codec', () => {
 	it('preserves opaque gRPC cursor bytes and recovery coordinates', () => {
+		type GrpcToken = Extract<StreamToken, { transport: 'grpc' }>;
+		type GraphQLToken = Extract<StreamToken, { transport: 'graphql' }>;
+		type CursorEnd<Token extends StreamToken> = Extract<
+			NonNullable<Token['range']['end']>,
+			{ position: unknown }
+		>['position'];
+		expectTypeOf<CursorEnd<GrpcToken>>().toEqualTypeOf<GrpcToken['position']>();
+		expectTypeOf<CursorEnd<GraphQLToken>>().toEqualTypeOf<GraphQLToken['position']>();
+		expectTypeOf<Extract<keyof GrpcToken['position'], 'itemId'>>().toEqualTypeOf<never>();
+		expectTypeOf<
+			Extract<keyof GraphQLToken['position'], 'transactionIndex'>
+		>().toEqualTypeOf<never>();
+
 		expect(decodeToken(encodeToken(token))).toEqual(token);
 	});
 
