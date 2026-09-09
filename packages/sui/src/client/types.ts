@@ -558,6 +558,18 @@ export namespace SuiClientTypes {
 	 * non-programmable kinds. Inspect `kind` for the complete transaction payload.
 	 */
 	export interface TransactionData extends SerializedTransactionDataV2 {
+		/**
+		 * @deprecated Narrow `kind.$kind` and read `kind.ProgrammableTransaction.inputs` or
+		 * `kind.ProgrammableSystemTransaction.inputs` instead. This compatibility field is
+		 * empty for non-programmable transactions; use `kind` to inspect their actual payload.
+		 */
+		inputs: SerializedTransactionDataV2['inputs'];
+		/**
+		 * @deprecated Narrow `kind.$kind` and read `kind.ProgrammableTransaction.commands` or
+		 * `kind.ProgrammableSystemTransaction.commands` instead. This compatibility field is
+		 * empty for non-programmable transactions; use `kind` to inspect their actual payload.
+		 */
+		commands: SerializedTransactionDataV2['commands'];
 		kind: TransactionKind;
 	}
 
