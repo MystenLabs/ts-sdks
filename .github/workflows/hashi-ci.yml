@@ -79,12 +79,30 @@ jobs:
           # makes the relationship unambiguous in cache hit/miss logs.
           shared-key: hashi-${{ env.HASHI_PIN }}
 
+      # Pinned rather than calling hashi's `install-sui.sh`, which installs whatever
+      # the newest `testnet-*` release happens to be. That floated us onto
+      # testnet-v1.79.0 on 2026-09-02 and broke every run since: the pinned hashi
+      # revision cannot deserialize a value it introduced, failing localnet bootstrap
+      # with `invalid value: integer 3, expected variant index 0 <= i < 3`. Nothing in
+      # this repo changed — the last green run (2026-09-01) installed testnet-v1.78.1
+      # and the first red one installed testnet-v1.79.0.
+      #
+      # Same reasoning as the pinned bitcoind below: a floating dependency must not be
+      # able to change what these tests run against with no PR, and it can't be
+      # checksum-verified. Bump this in step with HASHI_PIN — a hashi revision that
+      # understands a newer Sui is what unpins it.
       - name: Install Sui binary
-        # install-sui.sh queries the GitHub releases API with GITHUB_TOKEN
-        # (set -u, so it must be set) — mirrors the env in hashi's own ci.yml.
         env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: bash hashi/.github/scripts/install-sui.sh
+          SUI_VERSION: 'testnet-v1.78.1'
+          SUI_SHA256: '892bb34c3719b7609baed451dec4d6110254791f69315e7b63fe51804822027e'
+        run: |
+          echo "Installing Sui binary ${SUI_VERSION}..."
+          wget -q "https://sui-releases.s3-accelerate.amazonaws.com/${SUI_VERSION}/sui"
+          echo "${SUI_SHA256}  sui" | sha256sum -c -
+          sudo chmod +x sui
+          sudo mv sui /usr/local/bin/
+          sui --version
+          echo "SUI_BINARY=/usr/local/bin/sui" >> "$GITHUB_ENV"
 
       # Mirrors the "Install Bitcoin Core" step in
       # hashi/.github/workflows/ci.yml, but pinned rather than tracking the
