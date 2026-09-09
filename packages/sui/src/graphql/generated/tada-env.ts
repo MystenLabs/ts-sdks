@@ -1137,6 +1137,24 @@ const introspection = {
         "name": "BalanceWithdraw",
         "fields": [
           {
+            "name": "allowance",
+            "type": {
+              "kind": "OBJECT",
+              "name": "Address"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "funder",
+            "type": {
+              "kind": "OBJECT",
+              "name": "Address"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
             "name": "reservation",
             "type": {
               "kind": "UNION",
@@ -13927,6 +13945,10 @@ const introspection = {
           },
           {
             "name": "SPONSOR",
+            "isDeprecated": false
+          },
+          {
+            "name": "SENDER_ALLOWANCE",
             "isDeprecated": false
           }
         ]
