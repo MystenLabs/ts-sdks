@@ -238,6 +238,13 @@ stop requiring an SDK release for target resolution.
   as the cheap validator.
 - PLP supply/withdraw are queued and fill at the next pool flush; cancels take the queue `index` —
   get it from `decode.plpRequest(result).index`.
+- **Both take an optional price floor**, and default to none:
+  `supplyPlp(owner, amount, { minPlpOut })` (raw `bigint` shares) and
+  `withdrawPlp(owner, shares, { minUsdcOut })` (USD decimals). Each floors the flush's MARK for the
+  whole request rather than naming a quantity — a flush quoting less declines instead of filling
+  smaller. What a miss costs is the deployment's `lp_request_limit_flush_attempts`: at the shipped
+  count of one, the first flush below the floor cancels the request and refunds it, so re-queueing
+  is a fresh transaction. Leave the floor off and the request takes whatever mark the flush quotes.
 - `claimSettled` closes the order in full — the deployed entrypoint takes no quantity.
 - **`withdraw` lands in your address balance by default** (`0x2::coin::send_funds`), not a coin
   object — it merges into the versionless accumulator `deposit` already draws from, so the round
