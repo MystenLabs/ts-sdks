@@ -5,7 +5,7 @@ import { bcs } from '../bcs/index.js';
 import { TransactionDataBuilder } from '../transactions/TransactionData.js';
 import type { SuiClientTypes } from './types.js';
 
-/** Decode every ledger kind while preserving the existing programmable read model. */
+/** Decode ledger data and normalize programmable inputs and commands. */
 export function parseTransactionDataBcs(bytes: Uint8Array): SuiClientTypes.TransactionData {
 	const data = bcs.TransactionData.parse(bytes).V1;
 	const programmable = data.kind.ProgrammableTransaction ?? data.kind.ProgrammableSystemTransaction;

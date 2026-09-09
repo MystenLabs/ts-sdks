@@ -27,8 +27,8 @@ from checkpoint 1000, including that checkpoint, and then follow live data. The 
 historical pagination and recovery after transient disconnects. Call `controller.abort()` to stop a
 pending request, or `break` out of the loop to close the stream.
 
-These methods are currently on the gRPC and GraphQL clients, not `client.core` or the JSON-RPC
-client. Shared options and results are defined in `SuiClientTypes` from `@mysten/sui/client`.
+Call these methods directly on the gRPC or GraphQL client. Their shared options and results are in
+`SuiClientTypes` from `@mysten/sui/client`.
 
 `include: { transaction: true }` returns the full ledger transaction data, including system
 transactions such as genesis and consensus updates. Inspect `frame.transaction.Transaction` or
@@ -57,15 +57,13 @@ async function processEvents(savedToken?: SuiClientTypes.StreamResumeToken) {
 }
 ```
 
-The database methods in this example represent application code. Committing work and its token
-atomically avoids replaying already committed work after a crash. Otherwise make processing
-idempotent: a crash after processing but before saving the token can replay the item.
+Commit each item's work and resume token in the same database transaction. If they are saved
+separately, make processing idempotent to handle replay after a crash.
 
 Tokens are opaque and tied to their chain, transport, stream kind, resolved filter, direction, and
-original traversal. Resume with the same filter and direction. A resumed finite read retains its
-original cutoff; it does not expand into a new live subscription. Payload selection can change. Do
-not decode tokens, move them between transports, or treat a diagnostic callback as committed
-progress.
+original traversal. Resume with the same filter and direction. Finite reads retain their original
+cutoff across resumes. Payload selection can change. Pass tokens back unchanged to the same
+transport.
 
 ## Read a finite range
 
@@ -83,8 +81,7 @@ for await (const frame of client.streamEvents({
 
 Checkpoint starts are inclusive; checkpoint ends are exclusive. This reads checkpoints 1000
 through 1999. If the endpoint has not indexed the end yet, the stream waits and retries until it can
-finish or is cancelled. Successful completion means the range was covered, not merely that the
-current index was exhausted.
+cover the range or is cancelled.
 
 To read available history and stop at a fixed indexed cutoff, set `follow: false`:
 
@@ -96,8 +93,8 @@ client.streamTransactions({
 });
 ```
 
-The SDK captures the indexed cutoff once and retains it across retries and resumes. This bounds the
-amount of history requested, not the time required to read it. Indexing may trail execution.
+The SDK captures the indexed cutoff once and retains it across retries and resumes. Indexing may
+trail execution. Use an abort signal to limit how long a read can take.
 
 ### Newest first
 
@@ -124,9 +121,8 @@ client.streamEvents({
 });
 ```
 
-Both cursor endpoints are exclusive. This returns the interior without redelivering either anchor,
-even if they belong to the same checkpoint. Two ranges excluding a shared boundary item do not form
-a complete export unless the application processes that boundary separately.
+Both cursor endpoints are exclusive, even within the same checkpoint. When splitting an export into
+cursor-bounded ranges, process each shared boundary item separately.
 
 For descending traversal, `start` is the newer boundary and `end` is the older boundary. A token in
 `start` continues its original direction and preserves any finite cutoff. Use an ascending following
@@ -154,10 +150,8 @@ for await (const frame of client.streamEvents({
 ```
 
 The completion record includes the range, direction, reason, and a safe resume token when one is
-available, including when no items matched. Completion confirms traversal, not that application
-writes have committed. A cursor-bound completion does not mean its excluded boundary item was
-processed. Cancellation, failure, or leaving the loop early does not produce a successful completion
-record.
+available. Empty ranges also produce a completion record. Wait for any concurrent application writes
+before saving completion. Cancellation, failure, or leaving the loop early omits the record.
 
 ## Polling and retries
 
@@ -184,10 +178,8 @@ retried. Polling may trail live subscriptions. Finite reads always use historica
 `onStatus` is synchronous diagnostic reporting. Its result is not awaited; throwing terminates the
 stream. Store resume tokens from processed frames, not from status notifications.
 
-GraphQL does not report how far a quiet subscription has scanned. Silence can mean either that no
-records match or that historical recovery is waiting for unavailable data. The SDK cannot diagnose
-retention from silence. `retry.maxAttempts` bounds failed requests, not a request that keeps
-waiting. Use a caller-selected deadline when a job must finish within a fixed time:
+GraphQL subscriptions can remain open without yielding data while waiting for matches or historical
+recovery. `retry.maxAttempts` only limits failed requests. Set a deadline to bound the total wait:
 
 ```typescript
 client.streamEvents({
@@ -197,14 +189,13 @@ client.streamEvents({
 });
 ```
 
-The deadline cancels the whole traversal, including retry waits, and does not produce a completion
-frame. For long-running filtered subscriptions, choose cancellation based on application policy; an
-idle timeout alone cannot establish that ledger data is missing.
+The deadline cancels the traversal, including retry waits. A timeout alone cannot tell you whether
+historical data is unavailable or the filter had no matches.
 
 ## gRPC extensions
 
-The gRPC client adds progress, native payloads, native filters, and per-request terminal metadata to
-the same methods. Shared options retain the same behavior and types as GraphQL.
+The gRPC client supports progress frames, protobuf payloads, native filters, and per-request
+diagnostics.
 
 ```typescript
 for await (const frame of client.streamEvents({
@@ -231,9 +222,7 @@ for await (const frame of client.streamEvents({
 Progress frames let sparse filters save scan progress even when no item matches. They include a safe
 resume token and checkpoint coverage when known. Starting at the live tip with progress enabled also
 provides an initial progress frame. GraphQL does not currently expose equivalent progress-only
-frames. Process progress frames in order with preceding items before persisting their tokens. If you
-process items concurrently, wait for all preceding work to finish before advancing the saved
-position.
+frames. Persist a progress token only after all preceding items have finished processing.
 
 `include.proto` adds the generated protobuf payload to matching frames. `readMask` can request
 additional native fields; it requires `include.proto` and cannot remove fields needed for the shared
@@ -241,9 +230,8 @@ payload or recovery. Use `grpcFilter` instead of `filter` for generated gRPC fil
 
 `onQueryEnd` reports each underlying List RPC's terminal metadata through a synchronous callback.
 Its result is not awaited; throwing terminates the stream without retrying the callback error. Item
-and scan limits end one request while pagination continues; they do not complete the logical stream.
-Raw recovery watermarks are diagnostic information and must not be persisted as application
-acknowledgments.
+and scan limits end one request while pagination continues. Persist resume tokens from processed
+frames; callback watermarks are for diagnostics.
 
 `maxBufferedItems` bounds queued live items during replay, not their byte size. When the limit is
 reached, the SDK closes the live request and recovers through historical reads.

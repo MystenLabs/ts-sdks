@@ -33,7 +33,7 @@ const SUI_TOOLS_TAG =
 		: '0804d277859dfe2a2ab3fdbf23b75870d8f0ce6f');
 
 // The preview build includes GraphQL subscriptions; `sui start --with-graphql` does not
-// configure the checkpoint stream. Keep this separate so both paths are tested locally.
+// configure the checkpoint stream required by subscriptions.
 const GRAPHQL_IMAGE =
 	process.env.SUI_GRAPHQL_IMAGE ||
 	'mysten/sui-indexer-alt-graphql-preview:102843cdc9b87afebefbf90541f8a4aacb990a04';

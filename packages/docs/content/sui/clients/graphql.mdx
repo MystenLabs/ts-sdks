@@ -224,9 +224,8 @@ malformed SSE responses, and unexpected connection closure throw a `SuiGraphQLSu
 the underlying transport error. An explicit SSE completion ends iteration normally.
 
 Requests begin when iteration starts. Aborting the signal or leaving the loop closes the request.
-The native method does not automatically reconnect: an arbitrary document has no standard place for
-the client to find or inject a resume cursor. For automatic historical replay and reconnect
-recovery, use [resumable ledger streams](./streaming.mdx).
+`subscribe` does not reconnect automatically. Use [resumable ledger streams](./streaming.mdx) for
+historical replay and automatic reconnect recovery.
 
 Native subscriptions bound each buffered SSE message to 16 Mi characters by default. Set
 `maxMessageSize` on `subscribe()` to change this limit for larger selections. Exceeding the limit

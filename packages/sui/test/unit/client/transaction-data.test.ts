@@ -147,7 +147,6 @@ describe('ledger transaction data', () => {
 			} else {
 				expect(result.inputs).toEqual([]);
 				expect(result.commands).toEqual([]);
-				// Every system payload survives without conversion through the builder.
 				expect(result.kind).toEqual(bcs.TransactionData.parse(bytes).V1.kind);
 			}
 		},

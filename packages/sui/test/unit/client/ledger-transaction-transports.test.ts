@@ -106,7 +106,6 @@ describe('ledger transaction data across transports', () => {
 
 	it('rejects missing requested transaction data', async () => {
 		const { grpc, graphql, jsonRpc } = clients();
-		// Replace the valid fixture with absent wire data.
 		grpc.ledgerService.getTransaction = (async () => ({
 			response: { transaction: GrpcTypes.ExecutedTransaction.create({ digest: 'genesis' }) },
 		})) as never;

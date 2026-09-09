@@ -553,7 +553,7 @@ export namespace SuiClientTypes {
 	}
 
 	/**
-	 * Complete ledger transaction data with a builder-compatible programmable view.
+	 * Ledger transaction data, including programmable and system kinds.
 	 * `inputs` and `commands` mirror the programmable kind's body, and are empty for
 	 * non-programmable kinds. Inspect `kind` for the complete transaction payload.
 	 */
