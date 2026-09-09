@@ -102,10 +102,9 @@ Execution, simulation, and [`getTransaction`](/sui/clients/querying#gettransacti
 
 ### Transaction data
 
-`include: { transaction: true }` returns `SuiClientTypes.TransactionData`: the decoded ledger data
-with `sender`, `gasData`, `expiration`, `inputs`, `commands`, and `kind`. The same model is used by
-reads, execution, simulation, lists, and streams. It represents both programmable and system
-transactions.
+`include: { transaction: true }` returns transaction data with `sender`, `gasData`, `expiration`,
+`inputs`, `commands`, and `kind`. Use `kind.$kind` to identify the transaction type and access its
+payload:
 
 ```typescript
 const result = await client.getTransaction({
@@ -127,20 +126,11 @@ switch (data.kind.$kind) {
 }
 ```
 
-Both `ProgrammableTransaction` and `ProgrammableSystemTransaction` populate top-level `inputs` and
-`commands`. Their `kind` payload mirrors those arrays using the same existing programmable
-representation. Existing programmable-transaction consumers can continue reading the top-level
-fields without changes.
+`ProgrammableTransaction` and `ProgrammableSystemTransaction` contain `inputs` and `commands`. Other
+kinds, such as `Genesis`, `ChangeEpoch`, and `RandomnessStateUpdate`, have their own payloads.
 
-Other variants include `ChangeEpoch`, `EndOfEpochTransaction`, `AuthenticatorStateUpdate`,
-`RandomnessStateUpdate`, and the four consensus-commit prologue versions. Non-programmable
-transactions have empty top-level `inputs` and `commands`; their actual payload is in `kind`. Empty
-arrays describe the absence of a programmable body, not the absence of transaction activity. System
-payloads use the decoded BCS shapes.
-
-System transactions are returned as data, not skipped or replaced with `null`. Invalid transaction
-bytes still produce an error. Requesting parsed transaction data alone does not expose the optional
-`bcs` response field.
+The deprecated top-level `inputs` and `commands` mirror the programmable payload and are empty for
+non-programmable transactions. Use the fields under `kind` in new code.
 
 ## `waitForTransaction`
 
