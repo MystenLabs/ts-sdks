@@ -2,12 +2,12 @@
 
 ## Entry points
 
-| Import                         | Contents                                                                                                                                                                                                            |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@mysten/deepbook-v3`          | DeepBook spot and margin — pools, orders, balance managers, flash loans, governance, margin managers/pools, TPSL.                                                                                                   |
-| `@mysten/deepbook-v3/account`  | The shared on-chain **account primitive** (`AccountContract`): the canonical `AccountWrapper`, `Auth`, and custody balances that DeepBook's core account wrapper and DeepBook Predict both build on.                |
-| `@mysten/deepbook-v3/sessions` | **Time-limited trading sessions** over a canonical Account (`SessionsContract`): grant an ephemeral address bounded authority until a fixed expiry. Covers the session lifecycle and the DeepBook Predict wrappers. |
-| `@mysten/deepbook-v3/predict`  | **DeepBook Predict** — binary markets: market discovery, quotes, mint/redeem/claim, PLP, typed receipts and a client-side board pricer. See [PREDICT.md](./PREDICT.md).                                             |
+| Import                         | Contents                                                                                                                                                                                                                     |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@mysten/deepbook-v3`          | DeepBook spot and margin — pools, orders, balance managers, flash loans, governance, margin managers/pools, TPSL.                                                                                                            |
+| `@mysten/deepbook-v3/account`  | The shared on-chain **account primitive** (`AccountContract`): the canonical `AccountWrapper`, `Auth`, and custody balances that DeepBook's core account wrapper and DeepBook Predict both build on.                         |
+| `@mysten/deepbook-v3/sessions` | **Time-limited trading sessions** over a canonical Account (`SessionsContract`): grant an ephemeral address bounded authority until a fixed expiry. Covers the session lifecycle and the DeepBook Predict wrappers.          |
+| `@mysten/deepbook-v3/predict`  | **DeepBook Predict** — binary and range markets: market discovery, quotes, mint/redeem/claim, PLP, typed receipts and a client-side board pricer, with deployed ids for testnet and mainnet. See [PREDICT.md](./PREDICT.md). |
 
 Subpaths are separate module graphs — importing `@mysten/deepbook-v3/account` does not load any spot
 or margin code.
@@ -15,10 +15,13 @@ or margin code.
 Each subpath also exports the **deployed ids** for its own surface, so a caller never transcribes
 them: `getAccountConfig(network)` on `/account`, `getSessionsConfig(network)` on `/sessions`,
 `getConfig(network)` on `/predict`. All three read one generated record (`src/deployments/`), so a
-redeploy updates every subpath at once and they cannot end up addressing different deployments.
-`getDeployment(network)` names the deployment and the deepbookv3 commit those ids came from.
-Predict, sessions and the account primitive are testnet-only today; an unrecorded network throws
-rather than returning placeholder ids.
+redeploy updates every subpath at once and they cannot end up addressing different deployments. Two
+networks are recorded, `testnet` (`deepbook-predict-testnet`) and `mainnet`
+(`deepbook-predict-mainnet`); `getDeployment(network)` names the deployment and the deepbookv3
+commit those ids came from, and an unrecorded network throws rather than returning placeholder ids.
+The two deployments settle in different coins that share one Move module path — Circle native USDC
+on mainnet, a mintable test coin (displayed as `DUSDC`) on testnet — so take the coin type from
+`getConfig(network).quoteCoinType` on `/predict` rather than assuming either.
 
 ### `@mysten/deepbook-v3/account`
 
@@ -30,7 +33,7 @@ is computable off-chain with no chain read. `AccountContract` takes only the dep
 import { Transaction } from '@mysten/sui/transactions';
 import { AccountContract, getAccountConfig } from '@mysten/deepbook-v3/account';
 
-// Deployed ids ship with the package — no transcription.
+// Deployed ids ship with the package — no transcription. 'testnet' | 'mainnet'.
 const account = new AccountContract(getAccountConfig('testnet'));
 
 // …or drive a deployment of your own:
@@ -38,8 +41,10 @@ const custom = new AccountContract({ accountPackageId: '0x…', accountRegistry:
 
 const wrapperId = account.deriveAccountWrapperId(owner);
 
+// `quoteCoinType` is the deployment's settlement coin — `getConfig(network).quoteCoinType`
+// from `/predict` — not a symbol you assume.
 const tx = new Transaction();
-tx.add(account.depositFunds({ wrapperId, coin, coinType: USDC }));
+tx.add(account.depositFunds({ wrapperId, coin, coinType: quoteCoinType }));
 ```
 
 > `Account` exported from the package root is `@deepbook/core::account::Account` (the per-pool
@@ -61,7 +66,7 @@ withdrawal or arbitrary-mutation entrypoint.
 ```ts
 import { SessionsContract, getSessionsConfig } from '@mysten/deepbook-v3/sessions';
 
-// Deployed ids ship with the package — no transcription.
+// Deployed ids ship with the package — no transcription. 'testnet' | 'mainnet'.
 const sessions = new SessionsContract(getSessionsConfig('testnet'));
 
 const wrapperId = sessions.deriveAccountWrapperId(owner);
