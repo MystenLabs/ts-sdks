@@ -90,7 +90,9 @@ function getAccountsFromSession(session: string) {
 	return payload.accounts.map((account) => {
 		return new ReadonlyWalletAccount({
 			address: account.address,
-			chains: SUI_CHAINS,
+			chains: account.chains
+				? SUI_CHAINS.filter((chain) => account.chains?.includes(chain))
+				: SUI_CHAINS,
 			// Older wallet sessions omit capabilities; an explicit empty list is watch-only.
 			features: account.features
 				? walletAccountFeatures.filter((feature) => account.features?.includes(feature))
