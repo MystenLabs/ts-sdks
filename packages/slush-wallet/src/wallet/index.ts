@@ -83,7 +83,6 @@ const walletAccountFeatures = [
 	'sui:signAndExecuteTransaction',
 	'sui:signPersonalMessage',
 	'sui:signTransactionBlock',
-	'sui:signAndExecuteTransactionBlock',
 ] as const;
 
 function getAccountsFromSession(session: string) {
@@ -191,6 +190,16 @@ export class SlushWallet implements Wallet {
 		this.#name = name;
 		this.#walletName = metadata.walletName;
 		this.#icon = metadata.icon as WalletIcon;
+		if (typeof window !== 'undefined') {
+			window.addEventListener('storage', (event) => {
+				if (
+					event.storageArea !== localStorage ||
+					(event.key !== SLUSH_SESSION_KEY && event.key !== null)
+				)
+					return;
+				this.#setAccounts(this.#getPreviouslyAuthorizedAccounts());
+			});
+		}
 	}
 
 	#signTransactionBlock: SuiSignTransactionBlockMethod = async ({

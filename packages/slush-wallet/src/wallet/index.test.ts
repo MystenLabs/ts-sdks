@@ -38,3 +38,32 @@ it('preserves the advertised feature subset', () => {
 it('keeps existing sessions compatible when no feature field was supplied', () => {
 	expect(wallet().accounts[0].features).toContain('sui:signTransaction');
 });
+
+it('only advertises features implemented by the wallet', () => {
+	const instance = wallet(['sui:signAndExecuteTransactionBlock', 'sui:signTransaction']);
+	expect(instance.accounts[0].features.every((feature) => feature in instance.features)).toBe(true);
+});
+
+it('refreshes accounts when another tab replaces or clears the session', () => {
+	let stored: string | null = session(['sui:signTransaction']);
+	const browser = new EventTarget();
+	vi.stubGlobal('window', browser);
+	vi.stubGlobal('localStorage', { getItem: () => stored });
+	const instance = new SlushWallet({
+		name: 'test',
+		metadata: { id: 'slush', walletName: 'Slush', icon: 'data:image/png;base64,', enabled: true },
+	});
+	const change = vi.fn();
+	instance.features['standard:events'].on('change', change);
+	stored = session([]);
+	browser.dispatchEvent(
+		Object.assign(new Event('storage'), { key: 'slush:session', storageArea: localStorage }),
+	);
+	expect(instance.accounts[0].features).toEqual([]);
+	expect(change).toHaveBeenCalledTimes(1);
+	stored = null;
+	browser.dispatchEvent(
+		Object.assign(new Event('storage'), { key: null, storageArea: localStorage }),
+	);
+	expect(instance.accounts).toEqual([]);
+});

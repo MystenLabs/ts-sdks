@@ -22,6 +22,7 @@
 		"experimental"
 	],
 	"scripts": {
+		"test": "vitest run",
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
 		"build": "rm -rf dist && tsc --noEmit && tsdown",
 		"build:docs": "node ../docs/scripts/build-docs.ts",
