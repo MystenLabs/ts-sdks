@@ -92,7 +92,10 @@ function getAccountsFromSession(session: string) {
 		return new ReadonlyWalletAccount({
 			address: account.address,
 			chains: SUI_CHAINS,
-			features: walletAccountFeatures,
+			// Older wallet sessions omit capabilities; an explicit empty list is watch-only.
+			features: account.features
+				? walletAccountFeatures.filter((feature) => account.features?.includes(feature))
+				: walletAccountFeatures,
 			publicKey: fromBase64(account.publicKey),
 		});
 	});
