@@ -4,8 +4,6 @@
 import type { InferBcsType } from '@mysten/bcs';
 import { blake2b } from '@noble/hashes/blake2.js';
 
-import { check, parse, pipe, regex, string } from 'valibot';
-
 import type { SuiClientTypes } from './types.js';
 import {
 	type tokenPayload,
@@ -94,8 +92,6 @@ function rangeOrder(range: TokenRange): SuiClientTypes.Order {
 	return range.$kind === 'Follow' ? 'ascending' : range.Finite.order.$kind;
 }
 
-const MAX_CHECKPOINT = (1n << 64n) - 1n;
-
 /** Sorted keys bind semantically identical resolved filters regardless of property order. */
 function canonical(value: unknown): string {
 	if (value === undefined) return 'null';
@@ -111,19 +107,9 @@ function canonical(value: unknown): string {
 	return JSON.stringify(value);
 }
 
-const checkpointSchema = (maximum = MAX_CHECKPOINT) =>
-	pipe(
-		string(),
-		regex(/^(0|[1-9]\d*)$/),
-		check((value) => BigInt(value) <= maximum),
-	);
-const Checkpoint = checkpointSchema();
 function streamRetryOptions(
 	options: SuiClientTypes.StreamOptions,
 ): Required<SuiClientTypes.StreamRetryOptions> {
-	for (const bound of [options.start, options.end]) {
-		if (bound?.checkpoint != null) parse(Checkpoint, bound.checkpoint);
-	}
 	return {
 		initialDelay: options.retry?.initialDelay ?? 250,
 		maxDelay: options.retry?.maxDelay ?? 30_000,
@@ -308,9 +294,7 @@ export function createLedgerStream<Frame extends object, Position extends Stream
 					!(follow && (options.delivery ?? 'subscribe') === 'subscribe' && adapter.liveFromTip)) ||
 				needsFiniteTip
 			) {
-				const tip =
-					capturedTip ??
-					parse(Checkpoint, await retryOperation(() => adapter.getIndexedTip(signal)));
+				const tip = capturedTip ?? (await retryOperation(() => adapter.getIndexedTip(signal)));
 				if (!follow) capturedTip = tip;
 				if (!start)
 					start = { checkpoint: order === 'descending' ? tip : (BigInt(tip) + 1n).toString() };

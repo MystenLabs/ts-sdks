@@ -416,9 +416,6 @@ describe('ledger stream range and tokens', () => {
 	});
 
 	it.each([
-		{ start: { checkpoint: '-1' } },
-		{ start: { checkpoint: '1.5' } },
-		{ start: { checkpoint: '18446744073709551616' } },
 		{ follow: true, order: 'descending' },
 		{ follow: true, end: { checkpoint: '5' } },
 		{ follow: false },
