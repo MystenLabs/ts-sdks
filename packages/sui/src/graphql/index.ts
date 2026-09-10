@@ -15,3 +15,5 @@ export {
 } from './client.js';
 
 export { SuiGraphQLSubscriptionError } from './subscribe.js';
+
+export { SuiGraphQLStreamError } from './streams.js';

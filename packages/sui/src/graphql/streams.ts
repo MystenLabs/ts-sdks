@@ -65,6 +65,16 @@ function scalar(value: string): number {
 	return Number(number);
 }
 
+export class SuiGraphQLStreamError extends Error {
+	readonly retryable: boolean;
+
+	constructor(message: string, options: { retryable?: boolean; cause?: unknown } = {}) {
+		super(message, { cause: options.cause });
+		this.name = 'SuiGraphQLStreamError';
+		this.retryable = options.retryable ?? false;
+	}
+}
+
 function unwrap<Result>(result: GraphQLQueryResult<Result>): Result {
 	if (result.errors?.length) {
 		const retryable = result.errors.every((error) =>
@@ -75,13 +85,12 @@ function unwrap<Result>(result: GraphQLQueryResult<Result>): Result {
 				'SERVICE_UNAVAILABLE',
 			].includes(String(error.extensions?.code)),
 		);
-		throw new SuiGraphQLSubscriptionError(result.errors.map((error) => error.message).join('\n'), {
+		throw new SuiGraphQLStreamError(result.errors.map((error) => error.message).join('\n'), {
 			cause: result.errors,
 			retryable,
 		});
 	}
-	if (!result.data)
-		throw new SuiGraphQLSubscriptionError('GraphQL ledger response is missing data');
+	if (!result.data) throw new SuiGraphQLStreamError('GraphQL ledger response is missing data');
 	return result.data;
 }
 
@@ -105,9 +114,12 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 		);
 		const range = data.serviceConfig.availableRange;
 		if (!range.last)
-			throw new SuiGraphQLSubscriptionError('GraphQL ledger is not indexed yet', {
-				retryable: true,
-			});
+			throw new SuiGraphQLStreamError(
+				'No indexed checkpoint is available for this GraphQL ledger stream',
+				{
+					retryable: true,
+				},
+			);
 		return {
 			chain: data.chainIdentifier,
 			first: range.first?.sequenceNumber,
@@ -176,7 +188,7 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 			return undefined;
 		},
 		isRetryable: (error) =>
-			error instanceof SuiGraphQLSubscriptionError
+			error instanceof SuiGraphQLStreamError || error instanceof SuiGraphQLSubscriptionError
 				? error.retryable
 				: error instanceof SuiGraphQLRequestError
 					? error.retryable ||
@@ -278,8 +290,7 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 				);
 				request.onStatus({ $kind: 'Connected' });
 				const connection = data[family];
-				if (!connection)
-					throw new SuiGraphQLSubscriptionError('GraphQL ledger connection is missing');
+				if (!connection) throw new SuiGraphQLStreamError('GraphQL ledger connection is missing');
 				const edges = descending ? [...connection.edges].reverse() : connection.edges;
 				for (const edge of edges) {
 					lastItemCursor = edge.cursor;
@@ -425,8 +436,7 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 					connected = true;
 				}
 				const edge = unwrap(result)[family];
-				if (!edge)
-					throw new SuiGraphQLSubscriptionError('GraphQL ledger subscription edge is missing');
+				if (!edge) throw new SuiGraphQLStreamError('GraphQL ledger subscription edge is missing');
 				const checkpoint = await nodeCheckpoint(edge.node, request.signal);
 				const position: StreamPosition = {
 					cursor: edge.cursor,
@@ -440,7 +450,7 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 					position,
 				};
 			}
-			throw new SuiGraphQLSubscriptionError(
+			throw new SuiGraphQLStreamError(
 				'GraphQL ledger subscription completed; reconnecting from saved progress',
 				{ retryable: true },
 			);
@@ -477,10 +487,9 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 			}),
 		).transaction?.effects?.checkpoint?.sequenceNumber;
 		if (indexed == null)
-			throw new SuiGraphQLSubscriptionError(
-				'Transaction checkpoint has not reached the GraphQL index',
-				{ retryable: true },
-			);
+			throw new SuiGraphQLStreamError('Transaction checkpoint has not reached the GraphQL index', {
+				retryable: true,
+			});
 		return indexed.toString();
 	}
 	async function mapNode(node: Node, checkpoint: string, signal: AbortSignal): Promise<Frame> {
@@ -568,10 +577,9 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 				}),
 			).transaction?.effects;
 			if (!next)
-				throw new SuiGraphQLSubscriptionError(
-					'Transaction details have not reached the GraphQL index',
-					{ retryable: true },
-				);
+				throw new SuiGraphQLStreamError('Transaction details have not reached the GraphQL index', {
+					retryable: true,
+				});
 			if (wantEvents) {
 				if (
 					!next.events ||
