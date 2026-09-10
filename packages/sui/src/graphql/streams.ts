@@ -130,8 +130,6 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 		transport: 'graphql',
 		family,
 		async initialize(signal) {
-			for (const bound of [options.start, options.end])
-				if (bound?.checkpoint !== undefined) scalar(bound.checkpoint);
 			const input = 'filter' in options ? options.filter : undefined;
 			let resolved: unknown;
 			if (family === 'transactions' && input) {

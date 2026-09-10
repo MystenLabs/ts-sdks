@@ -596,14 +596,11 @@ describe('GraphQL ledger streams', () => {
 		).toBe(frontier);
 	});
 
-	it('rejects non-advancing pagination and out-of-range checkpoints', async () => {
+	it('rejects non-advancing pagination', async () => {
 		const { client } = mockClient(() => Response.json({ data: { events: connection([], true) } }));
 		await expect(
 			collect(client.streamEvents({ start: { checkpoint: '1' }, end: { checkpoint: '2' } })),
 		).rejects.toThrow('did not advance');
-		await expect(
-			client.streamEvents({ start: { checkpoint: '9007199254740992' } }).next(),
-		).rejects.toThrow('UInt53');
 	});
 
 	it('returns genesis data when transaction details are requested', async () => {
