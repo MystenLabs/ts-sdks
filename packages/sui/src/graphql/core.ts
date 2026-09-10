@@ -4,6 +4,7 @@
 import { CoreClient } from '../client/core.js';
 import { raceSignal } from '../client/mvr.js';
 import type { SuiClientTypes } from '../client/types.js';
+import { parseTransactionDataBcs } from '../client/transaction-data.js';
 import { SUI_TYPE_ARG } from '../utils/constants.js';
 import type { GraphQLQueryOptions, SuiGraphQLClient } from './client.js';
 import type {
@@ -50,7 +51,6 @@ import type { OpenMoveTypeSignatureBody, OpenMoveTypeSignature } from './types.j
 import {
 	transactionDataToGrpcTransaction,
 	transactionToGrpcJson,
-	grpcTransactionToTransactionData,
 } from '../client/transaction-resolver.js';
 import { setAddressBalanceTransactionExpirationFromSimulatedEpoch } from '../client/address-balance-transaction-expiration.js';
 import { BalanceChange as BalanceChangeType } from '../grpc/proto/sui/rpc/v2/balance_change.js';
@@ -378,12 +378,11 @@ export class GraphQLCoreClient extends CoreClient {
 				signal: options.signal,
 				variables: {
 					digest: options.digest,
-					includeTransaction: options.include?.transaction ?? false,
 					includeEffects: options.include?.effects ?? false,
 					includeEvents: options.include?.events ?? false,
 					includeBalanceChanges: options.include?.balanceChanges ?? false,
 					includeObjectTypes: options.include?.objectTypes ?? false,
-					includeBcs: options.include?.bcs ?? false,
+					includeBcs: !!(options.include?.transaction || options.include?.bcs),
 				},
 			},
 			(result) => result.transaction,
@@ -402,12 +401,11 @@ export class GraphQLCoreClient extends CoreClient {
 				variables: {
 					transactionDataBcs: toBase64(options.transaction),
 					signatures: options.signatures,
-					includeTransaction: options.include?.transaction ?? false,
 					includeEffects: options.include?.effects ?? false,
 					includeEvents: options.include?.events ?? false,
 					includeBalanceChanges: options.include?.balanceChanges ?? false,
 					includeObjectTypes: options.include?.objectTypes ?? false,
-					includeBcs: options.include?.bcs ?? false,
+					includeBcs: !!(options.include?.transaction || options.include?.bcs),
 				},
 			},
 			(result) => result.executeTransaction,
@@ -444,13 +442,12 @@ export class GraphQLCoreClient extends CoreClient {
 									},
 								}
 							: transactionToGrpcJson(options.transaction),
-					includeTransaction: options.include?.transaction ?? false,
 					includeEffects: options.include?.effects ?? false,
 					includeEvents: options.include?.events ?? false,
 					includeBalanceChanges: options.include?.balanceChanges ?? false,
 					includeObjectTypes: options.include?.objectTypes ?? false,
 					includeCommandResults: options.include?.commandResults ?? false,
-					includeBcs: options.include?.bcs ?? false,
+					includeBcs: !!(options.include?.transaction || options.include?.bcs),
 					doGasSelection,
 					checksEnabled: options.checksEnabled ?? true,
 				},
@@ -669,12 +666,11 @@ export class GraphQLCoreClient extends CoreClient {
 					after,
 					last: descending ? limit : undefined,
 					before,
-					includeTransaction: options.include?.transaction ?? false,
 					includeEffects: options.include?.effects ?? false,
 					includeEvents: options.include?.events ?? false,
 					includeBalanceChanges: options.include?.balanceChanges ?? false,
 					includeObjectTypes: options.include?.objectTypes ?? false,
-					includeBcs: options.include?.bcs ?? false,
+					includeBcs: !!(options.include?.transaction || options.include?.bcs),
 				},
 			},
 			(result) => result.transactions,
@@ -682,16 +678,23 @@ export class GraphQLCoreClient extends CoreClient {
 
 		// Backwards pagination returns nodes in ascending order, so reverse them for descending reads
 		const nodes = descending ? [...transactions.nodes].reverse() : transactions.nodes;
+		const hasNextPage = descending
+			? transactions.pageInfo.hasPreviousPage
+			: transactions.pageInfo.hasNextPage;
 
 		return {
 			transactions: nodes.map((transaction) => parseTransaction(transaction, options.include)),
-			hasNextPage: descending
-				? transactions.pageInfo.hasPreviousPage
-				: transactions.pageInfo.hasNextPage,
+			hasNextPage,
 			startCursor:
-				(descending ? transactions.pageInfo.endCursor : transactions.pageInfo.startCursor) ?? null,
+				nodes.length || hasNextPage
+					? ((descending ? transactions.pageInfo.endCursor : transactions.pageInfo.startCursor) ??
+						null)
+					: null,
 			endCursor:
-				(descending ? transactions.pageInfo.startCursor : transactions.pageInfo.endCursor) ?? null,
+				nodes.length || hasNextPage
+					? ((descending ? transactions.pageInfo.startCursor : transactions.pageInfo.endCursor) ??
+						null)
+					: null,
 		};
 	}
 
@@ -730,6 +733,7 @@ export class GraphQLCoreClient extends CoreClient {
 
 		// Backwards pagination returns nodes in ascending order, so reverse them for descending reads
 		const nodes = descending ? [...events.nodes].reverse() : events.nodes;
+		const hasNextPage = descending ? events.pageInfo.hasPreviousPage : events.pageInfo.hasNextPage;
 
 		return {
 			events: nodes.map((event): SuiClientTypes.EventEntry => {
@@ -755,9 +759,15 @@ export class GraphQLCoreClient extends CoreClient {
 					eventIndex: event.sequenceNumber,
 				};
 			}),
-			hasNextPage: descending ? events.pageInfo.hasPreviousPage : events.pageInfo.hasNextPage,
-			startCursor: (descending ? events.pageInfo.endCursor : events.pageInfo.startCursor) ?? null,
-			endCursor: (descending ? events.pageInfo.startCursor : events.pageInfo.endCursor) ?? null,
+			hasNextPage,
+			startCursor:
+				nodes.length || hasNextPage
+					? ((descending ? events.pageInfo.endCursor : events.pageInfo.startCursor) ?? null)
+					: null,
+			endCursor:
+				nodes.length || hasNextPage
+					? ((descending ? events.pageInfo.startCursor : events.pageInfo.endCursor) ?? null)
+					: null,
 		};
 	}
 
@@ -1048,7 +1058,7 @@ function mapOwner(owner: Object_Owner_FieldsFragment): SuiClientTypes.ObjectOwne
 	}
 }
 
-function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
+export function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 	transaction: Transaction_FieldsFragment,
 	include?: Include,
 ): SuiClientTypes.TransactionResult<Include> {
@@ -1107,19 +1117,11 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}
 				};
 
 	let transactionData: SuiClientTypes.TransactionData | undefined;
-	if (include?.transaction && transaction.transactionJson) {
-		const grpcTx = GrpcTransactionType.fromJson(
-			transaction.transactionJson as Parameters<typeof GrpcTransactionType.fromJson>[0],
-		);
-		const resolved = grpcTransactionToTransactionData(grpcTx);
-		transactionData = {
-			gasData: resolved.gasData,
-			sender: resolved.sender,
-			expiration: resolved.expiration,
-			commands: resolved.commands,
-			inputs: resolved.inputs,
-			version: resolved.version,
-		};
+	if (include?.transaction) {
+		if (!transaction.transactionBcs) {
+			throw new Error('Transaction BCS is required but missing from GraphQL response');
+		}
+		transactionData = parseTransactionDataBcs(fromBase64(transaction.transactionBcs));
 	}
 
 	const bcsBytes =
@@ -1142,7 +1144,11 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}
 			: undefined) as SuiClientTypes.Transaction<Include>['objectTypes'],
 		transaction: transactionData as SuiClientTypes.Transaction<Include>['transaction'],
 		bcs: bcsBytes as SuiClientTypes.Transaction<Include>['bcs'],
-		signatures: transaction.signatures.map((sig) => sig.signatureBytes!),
+		// Genesis has no sender signatures; the ledger may return a synthetic placeholder.
+		signatures:
+			transaction.effects?.checkpoint?.sequenceNumber === 0
+				? []
+				: transaction.signatures.map((sig) => sig.signatureBytes!),
 		balanceChanges: balanceChanges as SuiClientTypes.Transaction<Include>['balanceChanges'],
 		events: (include?.events
 			? (transaction.effects?.events?.nodes.map((event) => {

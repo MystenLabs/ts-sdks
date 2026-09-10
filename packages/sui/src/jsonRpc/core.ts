@@ -37,12 +37,9 @@ import { deriveDynamicFieldID } from '../utils/dynamic-fields.js';
 import { SUI_FRAMEWORK_ADDRESS, SUI_SYSTEM_ADDRESS } from '../utils/constants.js';
 import { CoreClient } from '../client/core.js';
 import type { SuiClientTypes } from '../client/types.js';
+import { parseTransactionDataBcs } from '../client/transaction-data.js';
 import { ObjectError, TransactionError } from '../client/errors.js';
-import {
-	formatMoveAbortMessage,
-	parseTransactionBcs,
-	parseTransactionEffectsBcs,
-} from '../client/index.js';
+import { formatMoveAbortMessage, parseTransactionEffectsBcs } from '../client/index.js';
 import type { SuiJsonRpcClient } from './client.js';
 import { JsonRpcError } from './errors.js';
 
@@ -519,7 +516,7 @@ export class JSONRpcCoreClient extends CoreClient {
 
 		let parsedTransaction: SuiClientTypes.TransactionData | undefined;
 		if (options.include?.transaction) {
-			parsedTransaction = parseTransactionBcs(transactionBytes);
+			parsedTransaction = parseTransactionDataBcs(transactionBytes);
 			if (data && !dryRunFailed && effects.gasUsed) {
 				if (!data.gasData.budget) {
 					parsedTransaction.gasData.budget = computeGasBudget(effects.gasUsed);
@@ -1200,17 +1197,13 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}
 			}
 
 			if (include?.transaction) {
-				const data = TransactionDataBuilder.restore({
-					version: 2,
-					sender: parsedTx.intentMessage.value.V1.sender,
-					expiration: parsedTx.intentMessage.value.V1.expiration,
-					gasData: parsedTx.intentMessage.value.V1.gasData,
-					inputs: parsedTx.intentMessage.value.V1.kind.ProgrammableTransaction!.inputs,
-					commands: parsedTx.intentMessage.value.V1.kind.ProgrammableTransaction!.commands,
-				});
-				transactionData = { ...data };
+				transactionData = parseTransactionDataBcs(bytes);
 			}
 		}
+	}
+
+	if (include?.transaction && !transactionData) {
+		throw new Error('Transaction BCS is required but missing from JSON-RPC response');
 	}
 
 	// Get status from JSON-RPC response

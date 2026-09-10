@@ -29,7 +29,7 @@ const DEFAULT_PAGE_SIZE = 50;
 export function resolvePagination(options: {
 	after?: string | null;
 	before?: string | null;
-	order?: 'ascending' | 'descending';
+	order?: SuiClientTypes.Order;
 	limit?: number;
 }): ResolvedPagination {
 	if (options.after != null && options.before != null) {

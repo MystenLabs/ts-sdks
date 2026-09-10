@@ -95,10 +95,42 @@ Execution, simulation, and [`getTransaction`](/sui/clients/querying#gettransacti
 | ---------------- | ------------------------------------------------------------------ |
 | `effects`        | Execution effects: created, mutated, and deleted objects, gas used |
 | `events`         | Move events emitted during execution                               |
-| `transaction`    | The full transaction data (sender, gas config, inputs, commands)   |
+| `transaction`    | Ledger data: sender, gas config, expiration, and transaction kind  |
 | `balanceChanges` | Balance changes for each affected address and coin type            |
 | `objectTypes`    | Map of object ID to type for all changed objects                   |
 | `bcs`            | Raw BCS-encoded transaction bytes                                  |
+
+### Transaction data
+
+`include: { transaction: true }` returns transaction data with `sender`, `gasData`, `expiration`,
+`inputs`, `commands`, and `kind`. Use `kind.$kind` to identify the transaction type and access its
+payload:
+
+```typescript
+const result = await client.getTransaction({
+	digest,
+	include: { transaction: true },
+});
+const { transaction: data } = result.Transaction ?? result.FailedTransaction;
+
+switch (data.kind.$kind) {
+	case 'ProgrammableTransaction':
+		console.log(data.kind.ProgrammableTransaction.inputs);
+		console.log(data.kind.ProgrammableTransaction.commands);
+		break;
+	case 'Genesis':
+		console.log(data.kind.Genesis.objects.length);
+		break;
+	default:
+		console.log('System transaction:', data.kind.$kind);
+}
+```
+
+`ProgrammableTransaction` and `ProgrammableSystemTransaction` contain `inputs` and `commands`. Other
+kinds, such as `Genesis`, `ChangeEpoch`, and `RandomnessStateUpdate`, have their own payloads.
+
+The deprecated top-level `inputs` and `commands` mirror the programmable payload and are empty for
+non-programmable transactions. Use the fields under `kind` in new code.
 
 ## `waitForTransaction`
 

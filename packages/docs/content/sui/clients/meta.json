@@ -1,4 +1,4 @@
 {
 	"title": "Clients",
-	"pages": ["index", "querying", "executing", "grpc", "graphql", "core"]
+	"pages": ["index", "querying", "executing", "streaming", "grpc", "graphql", "core"]
 }

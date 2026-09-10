@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { EnumOutputShape } from '@mysten/bcs';
+import type { bcs } from '../bcs/index.js';
 import type {
-	SerializedTransactionDataV2,
 	TransactionPlugin,
+	SerializedTransactionDataV2,
+	Argument,
 	Transaction as TransactionInstance,
 } from '../transactions/index.js';
 import type { Signer } from '../cryptography/keypair.js';
@@ -43,6 +45,147 @@ export namespace SuiClientTypes {
 	export interface CoreClientMethodOptions {
 		signal?: AbortSignal;
 	}
+
+	export type Order = 'ascending' | 'descending';
+
+	/** A serializable, transport-specific continuation. Treat its contents as opaque. */
+	export type StreamResumeToken = string;
+
+	/** Checkpoint bounds are inclusive at the start and exclusive at the end. */
+	export type StreamStart =
+		| { checkpoint: string; resumeToken?: never }
+		| { resumeToken: StreamResumeToken; checkpoint?: never };
+
+	export type StreamEnd = StreamStart;
+
+	export interface StreamRetryOptions {
+		/** Initial retry delay in milliseconds. Defaults to 250. */
+		initialDelay?: number;
+		/** Maximum exponential delay in milliseconds. Defaults to 30,000. */
+		maxDelay?: number;
+		/** Maximum additive random delay in milliseconds. Defaults to 500. */
+		jitter?: number;
+		/** Consecutive transient retries; zero disables retries. Defaults to unlimited. */
+		maxAttempts?: number;
+	}
+
+	/** Diagnostics are not application acknowledgments or persistable progress. */
+	export type StreamStatus =
+		| { $kind: 'Connecting'; attempt: number }
+		| { $kind: 'Connected' }
+		| { $kind: 'Recovering' }
+		| { $kind: 'Retrying'; attempt: number; delay: number; error: unknown }
+		| { $kind: 'Error'; error: unknown };
+
+	export interface StreamInclude {
+		/** Emit a final Complete frame after a successful finite traversal. */
+		completion?: boolean;
+	}
+
+	export interface StreamTransactionInclude extends TransactionInclude, StreamInclude {}
+
+	export interface StreamOptions extends CoreClientMethodOptions {
+		start?: StreamStart;
+		end?: StreamEnd;
+		order?: Order;
+		/** Defaults to true for ascending streams without an end. */
+		follow?: boolean;
+		/** Live delivery mode. Finite reads always use historical queries. */
+		delivery?: 'subscribe' | 'poll';
+		/** Positive polling interval in milliseconds. Defaults to 1,000. */
+		pollInterval?: number;
+		retry?: StreamRetryOptions;
+		/** Called synchronously without awaiting its result. Throwing terminates the stream. */
+		onStatus?: (status: StreamStatus) => void;
+		include?: StreamInclude;
+	}
+
+	export interface StreamCheckpointsOptions<
+		Include extends StreamInclude = {},
+	> extends StreamOptions {
+		include?: Include & StreamInclude;
+	}
+
+	export interface StreamTransactionsOptions<
+		Include extends StreamTransactionInclude = {},
+	> extends StreamOptions {
+		filter?: TransactionFilter;
+		include?: Include & StreamTransactionInclude;
+	}
+
+	export interface StreamEventsOptions<Include extends StreamInclude = {}> extends StreamOptions {
+		filter?: EventFilter;
+		include?: Include & StreamInclude;
+	}
+
+	/** The immutable checkpoint header, with ledger numbers represented as decimal strings. */
+	export interface Checkpoint {
+		sequenceNumber: string;
+		digest: string;
+		epoch: string;
+		timestamp: string;
+	}
+
+	export interface StreamCheckpointFrame {
+		$kind: 'Checkpoint';
+		checkpoint: Checkpoint;
+		resumeToken: StreamResumeToken;
+	}
+
+	export interface StreamTransactionFrame<Include extends TransactionInclude = {}> {
+		$kind: 'Transaction';
+		transaction: TransactionResult<Include>;
+		resumeToken: StreamResumeToken;
+	}
+
+	export interface StreamEventFrame {
+		$kind: 'Event';
+		event: EventEntry;
+		resumeToken: StreamResumeToken;
+	}
+
+	export interface StreamRange {
+		/** Start of this invocation, including when resuming an earlier stream. */
+		start?: StreamStart;
+		end?: StreamEnd;
+		/** Indexed checkpoint captured once when establishing a finite range. */
+		capturedCheckpoint?: string;
+	}
+
+	export interface StreamCompletion {
+		range: StreamRange;
+		order: Order;
+		reason: 'checkpointBound' | 'cursorBound' | 'indexedTip' | 'genesis';
+		/** Last safe continuation, if the transport proved one. */
+		resumeToken?: StreamResumeToken;
+	}
+
+	export interface StreamCompletionFrame {
+		$kind: 'Complete';
+		completion: StreamCompletion;
+	}
+
+	/** Includes non-literal booleans without widening ordinary item-only calls. */
+	export type StreamResult<Frame, Include extends StreamInclude = {}> =
+		| Frame
+		| ('completion' extends keyof Include
+				? true extends Include['completion']
+					? StreamCompletionFrame
+					: never
+				: never);
+
+	export type StreamCheckpointResult<Include extends StreamInclude = {}> = StreamResult<
+		StreamCheckpointFrame,
+		Include
+	>;
+	export type StreamTransactionResult<Include extends StreamTransactionInclude = {}> = StreamResult<
+		StreamTransactionFrame<Include>,
+		Include
+	>;
+	export type StreamEventResult<Include extends StreamInclude = {}> = StreamResult<
+		StreamEventFrame,
+		Include
+	>;
 
 	/** Object methods */
 	export interface TransportMethods {
@@ -411,7 +554,52 @@ export namespace SuiClientTypes {
 		amount: string;
 	}
 
-	export interface TransactionData extends SerializedTransactionDataV2 {}
+	/**
+	 * Ledger transaction data, including programmable and system kinds.
+	 * `inputs` and `commands` mirror the programmable kind's body, and are empty for
+	 * non-programmable kinds. Inspect `kind` for the complete transaction payload.
+	 */
+	export interface TransactionData extends SerializedTransactionDataV2 {
+		/**
+		 * @deprecated Narrow `kind.$kind` and read `kind.ProgrammableTransaction.inputs` or
+		 * `kind.ProgrammableSystemTransaction.inputs` instead. This compatibility field is
+		 * empty for non-programmable transactions; use `kind` to inspect their actual payload.
+		 */
+		inputs: SerializedTransactionDataV2['inputs'];
+		/**
+		 * @deprecated Narrow `kind.$kind` and read `kind.ProgrammableTransaction.commands` or
+		 * `kind.ProgrammableSystemTransaction.commands` instead. This compatibility field is
+		 * empty for non-programmable transactions; use `kind` to inspect their actual payload.
+		 */
+		commands: SerializedTransactionDataV2['commands'];
+		kind: TransactionKind;
+	}
+
+	export type TransactionGasData = TransactionData['gasData'];
+	export type TransactionExpiration = TransactionData['expiration'];
+	/** Discriminate ledger transaction kinds using `kind.$kind`. */
+	export type TransactionKind = EnumOutputShape<{
+		[Kind in (typeof bcs.TransactionKind.$inferType)['$kind']]: Kind extends
+			'ProgrammableTransaction' | 'ProgrammableSystemTransaction'
+			? ProgrammableTransaction
+			: NonNullable<(typeof bcs.TransactionKind.$inferType)[Kind]>;
+	}>;
+	export type ProgrammableTransaction = Pick<SerializedTransactionDataV2, 'inputs' | 'commands'>;
+	export type TransactionInput = ProgrammableTransaction['inputs'][number];
+	export type TransactionCommand = ProgrammableTransaction['commands'][number];
+	export type TransactionArgument = Argument;
+	export type ChangeEpochTransaction = NonNullable<TransactionKind['ChangeEpoch']>;
+	export type GenesisTransaction = NonNullable<TransactionKind['Genesis']>;
+	export type GenesisObject = GenesisTransaction['objects'][number];
+	export type ConsensusCommitPrologue = NonNullable<TransactionKind['ConsensusCommitPrologue']>;
+	export type ConsensusCommitPrologueV2 = NonNullable<TransactionKind['ConsensusCommitPrologueV2']>;
+	export type ConsensusCommitPrologueV3 = NonNullable<TransactionKind['ConsensusCommitPrologueV3']>;
+	export type ConsensusCommitPrologueV4 = NonNullable<TransactionKind['ConsensusCommitPrologueV4']>;
+	export type AuthenticatorStateUpdate = NonNullable<TransactionKind['AuthenticatorStateUpdate']>;
+	export type ActiveJwk = AuthenticatorStateUpdate['newActiveJwks'][number];
+	export type RandomnessStateUpdate = NonNullable<TransactionKind['RandomnessStateUpdate']>;
+	export type EndOfEpochTransaction = NonNullable<TransactionKind['EndOfEpochTransaction']>;
+	export type EndOfEpochTransactionKind = EndOfEpochTransaction[number];
 
 	export interface GetTransactionOptions<
 		Include extends TransactionInclude = {},
@@ -566,7 +754,7 @@ export namespace SuiClientTypes {
 		 */
 		before?: string | null;
 		/** Order of returned results. Defaults to `ascending` (oldest first). */
-		order?: 'ascending' | 'descending';
+		order?: Order;
 		include?: Include & TransactionInclude;
 	}
 
@@ -615,7 +803,7 @@ export namespace SuiClientTypes {
 		 */
 		before?: string | null;
 		/** Order of returned results. Defaults to `ascending` (oldest first). */
-		order?: 'ascending' | 'descending';
+		order?: Order;
 	}
 
 	/** An event returned from a query, along with its position in the ledger. */

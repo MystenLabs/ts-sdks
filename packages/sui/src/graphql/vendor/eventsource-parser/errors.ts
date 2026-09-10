@@ -1,0 +1,46 @@
+// Vendored from rexxars/eventsource-parser, commit 6519a0f70dfeb22f829e5c696da2cb4988d64c6a.
+// Copyright (c) Espen Hovlandsdal. MIT license; see LICENSE and README.md.
+/**
+ * The type of error that occurred.
+ * @public
+ */
+export type ErrorType = 'invalid-retry' | 'unknown-field' | 'max-buffer-size-exceeded';
+
+/**
+ * Error thrown when encountering an issue during parsing.
+ *
+ * @public
+ */
+export class ParseError extends Error {
+	/**
+	 * The type of error that occurred.
+	 */
+	type: ErrorType;
+
+	/**
+	 * In the case of a completed unknown field encountered in the stream, this will be the field name.
+	 */
+	field?: string | undefined;
+
+	/**
+	 * In the case of a completed unknown field encountered in the stream, this will be the value of the field.
+	 */
+	value?: string | undefined;
+
+	/**
+	 * The line that caused the error, if available.
+	 */
+	line?: string | undefined;
+
+	constructor(
+		message: string,
+		options: { type: ErrorType; field?: string; value?: string; line?: string },
+	) {
+		super(message);
+		this.name = 'ParseError';
+		this.type = options.type;
+		this.field = options.field;
+		this.value = options.value;
+		this.line = options.line;
+	}
+}

@@ -3,7 +3,6 @@
 
 query simulateTransaction(
 	$transaction: JSON!
-	$includeTransaction: Boolean = false
 	$includeEffects: Boolean = false
 	$includeEvents: Boolean = false
 	$includeBalanceChanges: Boolean = false
@@ -41,7 +40,6 @@ query simulateTransaction(
 mutation executeTransaction(
 	$transactionDataBcs: Base64!
 	$signatures: [Base64!]!
-	$includeTransaction: Boolean = false
 	$includeEffects: Boolean = false
 	$includeEvents: Boolean = false
 	$includeBalanceChanges: Boolean = false
@@ -59,7 +57,6 @@ mutation executeTransaction(
 
 query getTransactionBlock(
 	$digest: String!
-	$includeTransaction: Boolean = false
 	$includeEffects: Boolean = false
 	$includeEvents: Boolean = false
 	$includeBalanceChanges: Boolean = false
@@ -77,7 +74,6 @@ query listTransactions(
 	$after: String
 	$last: Int
 	$before: String
-	$includeTransaction: Boolean = false
 	$includeEffects: Boolean = false
 	$includeEvents: Boolean = false
 	$includeBalanceChanges: Boolean = false
@@ -99,7 +95,6 @@ query listTransactions(
 
 fragment TRANSACTION_FIELDS on Transaction {
 	digest
-	transactionJson @include(if: $includeTransaction)
 	transactionBcs @include(if: $includeBcs)
 	signatures {
 		signatureBytes

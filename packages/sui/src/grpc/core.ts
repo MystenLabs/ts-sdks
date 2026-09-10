@@ -34,6 +34,7 @@ import {
 import type { BuildTransactionOptions } from '../transactions/index.js';
 import { TransactionDataBuilder } from '../transactions/index.js';
 import { bcs } from '../bcs/index.js';
+import { parseTransactionDataBcs } from '../client/transaction-data.js';
 import { normalizeStructTag, normalizeSuiAddress } from '../utils/sui-types.js';
 import { SUI_TYPE_ARG } from '../utils/constants.js';
 import type { OpenSignature, OpenSignatureBody } from './proto/sui/rpc/v2/move_package.js';
@@ -47,7 +48,6 @@ import {
 	applyGrpcResolvedTransaction,
 	transactionDataToGrpcTransaction,
 	transactionToGrpcTransaction,
-	grpcTransactionToTransactionData,
 } from '../client/transaction-resolver.js';
 import { setAddressBalanceTransactionExpirationFromSimulatedEpoch } from '../client/address-balance-transaction-expiration.js';
 import { transactionBytesHaveEmptyGasPayment } from '../client/utils.js';
@@ -1040,7 +1040,7 @@ function toGrpcQueryOptions(pagination: ResolvedPagination, limit: number): Quer
 	};
 }
 
-function transactionReadMaskPaths(
+export function transactionReadMaskPaths(
 	include: SuiClientTypes.TransactionInclude | undefined,
 	prefix = '',
 ): string[] {
@@ -1049,19 +1049,12 @@ function transactionReadMaskPaths(
 		'transaction.digest',
 		'signatures',
 		'effects.status',
+		'effects.epoch',
 		'timestamp',
 		'checkpoint',
 	];
 
-	if (include?.transaction) {
-		paths.push(
-			'transaction.sender',
-			'transaction.gas_payment',
-			'transaction.expiration',
-			'transaction.kind',
-		);
-	}
-	if (include?.bcs) {
+	if (include?.transaction || include?.bcs) {
 		paths.push('transaction.bcs');
 	}
 	if (include?.balanceChanges) {
@@ -1525,21 +1518,11 @@ export function parseGrpcTransactionResponse<
 
 	let transactionData: SuiClientTypes.TransactionData | undefined;
 	if (include?.transaction) {
-		const tx = transaction.transaction;
-
-		if (!tx) {
-			throw new Error('Transaction data is required but missing from gRPC response');
+		const bytes = transaction.transaction?.bcs?.value;
+		if (!bytes) {
+			throw new Error('Transaction BCS is required but missing from gRPC response');
 		}
-
-		const resolved = grpcTransactionToTransactionData(tx);
-		transactionData = {
-			gasData: resolved.gasData,
-			sender: resolved.sender,
-			expiration: resolved.expiration,
-			commands: resolved.commands,
-			inputs: resolved.inputs,
-			version: resolved.version,
-		};
+		transactionData = parseTransactionDataBcs(bytes);
 	}
 
 	const bcsBytes = include?.bcs ? transaction.transaction?.bcs?.value : undefined;
@@ -1578,7 +1561,11 @@ export function parseGrpcTransactionResponse<
 			: undefined) as SuiClientTypes.Transaction<Include>['objectTypes'],
 		transaction: transactionData as SuiClientTypes.Transaction<Include>['transaction'],
 		bcs: bcsBytes as SuiClientTypes.Transaction<Include>['bcs'],
-		signatures: transaction.signatures?.map((sig) => toBase64(sig.bcs?.value!)) ?? [],
+		// Genesis has no sender signatures; the fullnode may return a synthetic placeholder.
+		signatures:
+			transaction.checkpoint === 0n
+				? []
+				: (transaction.signatures?.map((sig) => toBase64(sig.bcs?.value!)) ?? []),
 		balanceChanges: (include?.balanceChanges
 			? (transaction.balanceChanges?.map((change) => ({
 					coinType: change.coinType!,

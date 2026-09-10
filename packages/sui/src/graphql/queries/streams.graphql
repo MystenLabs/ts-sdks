@@ -1,0 +1,292 @@
+# Copyright (c) Mysten Labs, Inc.
+# SPDX-License-Identifier: Apache-2.0
+
+query ledgerStreamState($field: String!) {
+	chainIdentifier
+	serviceConfig {
+		availableRange(type: "Query", field: $field) {
+			first {
+				sequenceNumber
+			}
+			last {
+				sequenceNumber
+			}
+		}
+	}
+}
+fragment STREAM_CHECKPOINT on Checkpoint {
+	sequenceNumber
+	digest
+	epoch {
+		epochId
+	}
+	timestamp
+}
+fragment STREAM_EVENT on Event {
+	sequenceNumber
+	transaction {
+		digest
+		effects {
+			checkpoint {
+				sequenceNumber
+			}
+		}
+	}
+	transactionModule {
+		package {
+			address
+		}
+		name
+	}
+	sender {
+		address
+	}
+	contents {
+		type {
+			repr
+		}
+		bcs
+		json
+	}
+}
+fragment STREAM_TRANSACTION on Transaction {
+	digest
+	transactionBcs @include(if: $includeBcs)
+	signatures {
+		signatureBytes
+	}
+	effects {
+		status
+		timestamp
+		checkpoint {
+			sequenceNumber
+		}
+		executionError {
+			message
+			abortCode
+			identifier
+			constant
+			sourceLineNumber
+			instructionOffset
+			module {
+				name
+				package {
+					address
+				}
+			}
+			function {
+				name
+			}
+		}
+		epoch {
+			epochId
+		}
+		effectsBcs @include(if: $includeEffects)
+		effectsJson @include(if: $includeObjectTypes)
+		objectChanges(first: 50) @include(if: $includeObjectTypes) {
+			pageInfo {
+				hasNextPage
+				endCursor
+			}
+			nodes {
+				address
+				outputState {
+					asMoveObject {
+						contents {
+							type {
+								repr
+							}
+						}
+					}
+				}
+			}
+		}
+		balanceChangesJson @include(if: $includeBalanceChanges)
+		events(first: 50) @include(if: $includeEvents) {
+			pageInfo {
+				hasNextPage
+				endCursor
+			}
+			nodes {
+				transactionModule {
+					package {
+						address
+					}
+					name
+				}
+				sender {
+					address
+				}
+				contents {
+					type {
+						repr
+					}
+					bcs
+					json
+				}
+			}
+		}
+	}
+}
+
+query scanCheckpoints(
+	$filter: CheckpointFilter
+	$first: Int
+	$after: String
+	$last: Int
+	$before: String
+) {
+	checkpoints(filter: $filter, first: $first, after: $after, last: $last, before: $before) {
+		pageInfo {
+			hasNextPage
+			hasPreviousPage
+			startCursor
+			endCursor
+		}
+		edges {
+			cursor
+			node {
+				...STREAM_CHECKPOINT
+			}
+		}
+	}
+}
+subscription subscribeCheckpoints($after: String, $afterCheckpoint: UInt53) {
+	checkpoints(after: $after, afterCheckpoint: $afterCheckpoint) {
+		cursor
+		node {
+			...STREAM_CHECKPOINT
+		}
+	}
+}
+query scanEvents($filter: EventFilter, $first: Int, $after: String, $last: Int, $before: String) {
+	events(filter: $filter, first: $first, after: $after, last: $last, before: $before) {
+		pageInfo {
+			hasNextPage
+			hasPreviousPage
+			startCursor
+			endCursor
+		}
+		edges {
+			cursor
+			node {
+				...STREAM_EVENT
+			}
+		}
+	}
+}
+subscription subscribeEvents($after: String, $filter: EventFilter) {
+	events(after: $after, filter: $filter) {
+		cursor
+		node {
+			...STREAM_EVENT
+		}
+	}
+}
+query scanTransactions(
+	$filter: TransactionFilter
+	$first: Int
+	$after: String
+	$last: Int
+	$before: String
+	$includeEffects: Boolean = false
+	$includeEvents: Boolean = false
+	$includeBalanceChanges: Boolean = false
+	$includeObjectTypes: Boolean = false
+	$includeBcs: Boolean = false
+) {
+	transactions(filter: $filter, first: $first, after: $after, last: $last, before: $before) {
+		pageInfo {
+			hasNextPage
+			hasPreviousPage
+			startCursor
+			endCursor
+		}
+		edges {
+			cursor
+			node {
+				...STREAM_TRANSACTION
+			}
+		}
+	}
+}
+subscription subscribeTransactions(
+	$after: String
+	$filter: TransactionFilter
+	$includeEffects: Boolean = false
+	$includeEvents: Boolean = false
+	$includeBalanceChanges: Boolean = false
+	$includeObjectTypes: Boolean = false
+	$includeBcs: Boolean = false
+) {
+	transactions(after: $after, filter: $filter) {
+		cursor
+		node {
+			...STREAM_TRANSACTION
+		}
+	}
+}
+query streamTransactionDetails(
+	$digest: String!
+	$eventsAfter: String
+	$objectsAfter: String
+	$events: Boolean!
+	$objects: Boolean!
+) {
+	transaction(digest: $digest) {
+		effects {
+			events(first: 50, after: $eventsAfter) @include(if: $events) {
+				pageInfo {
+					hasNextPage
+					endCursor
+				}
+				nodes {
+					transactionModule {
+						package {
+							address
+						}
+						name
+					}
+					sender {
+						address
+					}
+					contents {
+						type {
+							repr
+						}
+						bcs
+						json
+					}
+				}
+			}
+			objectChanges(first: 50, after: $objectsAfter) @include(if: $objects) {
+				pageInfo {
+					hasNextPage
+					endCursor
+				}
+				nodes {
+					address
+					outputState {
+						asMoveObject {
+							contents {
+								type {
+									repr
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+query streamTransactionCheckpoint($digest: String!) {
+	transaction(digest: $digest) {
+		effects {
+			checkpoint {
+				sequenceNumber
+			}
+		}
+	}
+}

@@ -1,6 +1,6 @@
 ---
 title: SuiGraphQLClient
-description: Connect to Sui over GraphQL and write type-safe custom queries
+description: Connect to Sui over GraphQL with type-safe queries and subscriptions
 keywords:
   - SuiGraphQLClient
   - GraphQL
@@ -14,7 +14,7 @@ questions:
   - How do I use SuiGraphQLClient?
   - How does Writing queries work?
   - How does Reading your own writes work?
-answer: Connect to Sui over GraphQL and write type-safe custom queries
+answer: Connect to Sui over GraphQL with type-safe queries and subscriptions
 goal:
   description: Reader can connect to Sui over GraphQL and write type-safe custom queries
   requires:
@@ -55,14 +55,15 @@ itself. The rest of this page covers writing those queries; see the
 
 The constructor takes:
 
-| Option    | Description                                                    |
-| --------- | -------------------------------------------------------------- |
-| `url`     | GraphQL endpoint                                               |
-| `network` | Network the endpoint serves, used for caching and MVR defaults |
-| `headers` | Extra headers sent with every request, such as an API key      |
-| `fetch`   | Custom `fetch` implementation                                  |
-| `queries` | Named documents callable through [`execute`](#named-queries)   |
-| `mvr`     | Move Registry overrides                                        |
+| Option            | Description                                                             |
+| ----------------- | ----------------------------------------------------------------------- |
+| `url`             | GraphQL endpoint                                                        |
+| `subscriptionUrl` | Subscription endpoint; defaults to `url` with `/subscriptions` appended |
+| `network`         | Network the endpoint serves, used for caching and MVR defaults          |
+| `headers`         | Extra headers sent with every request, such as an API key               |
+| `fetch`           | Custom `fetch` implementation                                           |
+| `queries`         | Named documents callable through [`execute`](#named-queries)            |
+| `mvr`             | Move Registry overrides                                                 |
 
 ## Writing queries
 
@@ -177,3 +178,57 @@ GraphQL reads an index that trails execution slightly, so a transaction `execute
 already returned might not appear in a query for a moment. Use
 [`waitForTransaction`](/sui/clients/executing#waitfortransaction) before reading back a
 transaction's effects.
+
+## Subscriptions
+
+Use `subscribe` for any subscription document the endpoint supports. Results and variables are
+inferred from typed documents, just as with `query`:
+
+```typescript
+import { SuiGraphQLClient } from '@mysten/sui/graphql';
+import { graphql } from '@mysten/sui/graphql/schema';
+
+const client = new SuiGraphQLClient({
+	url: 'https://graphql.devnet.sui.io/graphql',
+	network: 'devnet',
+});
+const controller = new AbortController();
+const checkpoints = graphql(`
+	subscription Checkpoints {
+		checkpoints {
+			cursor
+			node {
+				sequenceNumber
+				digest
+			}
+		}
+	}
+`);
+
+for await (const result of client.subscribe({ query: checkpoints, signal: controller.signal })) {
+	if (result.errors?.length) {
+		console.error(result.errors);
+		continue;
+	}
+	console.log(result.data?.checkpoints);
+}
+```
+
+Subscriptions use streaming HTTP POST with server-sent events (SSE). The client sends configured
+headers and uses the constructor's custom `fetch` implementation. Set `subscriptionUrl` when a
+provider serves subscriptions at a different URL. `operationName`, `variables`, and `extensions` are
+supported as for queries.
+
+GraphQL errors remain in each response, including responses with partial data. HTTP failures,
+malformed responses, and connection read failures throw a `SuiGraphQLSubscriptionError` or the
+underlying transport error. Iteration ends when the server closes the response or sends an SSE
+completion event.
+
+Requests begin when iteration starts. Use `break` to leave the `for await...of` loop and close the
+subscription, or call `controller.abort()` to stop while waiting for the next result. `subscribe`
+does not reconnect automatically. Use [resumable ledger streams](./streaming.mdx) for historical
+replay and automatic reconnect recovery.
+
+Native subscriptions bound each buffered SSE message to 16 Mi characters by default. Set
+`maxMessageSize` on `subscribe()` to change this limit for larger selections. Exceeding the limit
+terminates the subscription with `SuiGraphQLSubscriptionError`.
