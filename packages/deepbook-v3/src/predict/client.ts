@@ -290,8 +290,9 @@ export function predict<Name extends string = 'predict'>({
  * The one object an app constructs. Wraps the config, a client for reads, and
  * a derived-account model so callers pass owner addresses, decimal amounts, and
  * human market coordinates — the facade converts to raw units, resolves markets
- * (cached), and delegates to the internal tx primitives / reads. Callers who need
- * to compose their own PTBs can use the generated bindings under `contracts/`.
+ * (cached), and delegates to the internal tx primitives / reads. Each `tx.*` builder
+ * returns a finished `Transaction`; callers composing their own PTBs use the generated
+ * move-call bindings this subpath exports (`plpMoveCalls`, `expiryMarketMoveCalls`, …).
  */
 export class PredictClient {
 	readonly cfg: PredictConfig;

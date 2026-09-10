@@ -210,14 +210,41 @@ const tx = await client.predict.tx.mint(
   plural). Execute transactions with events included and pass the result; receipts come back in SDK
   units with raw bigints alongside. Decoding uses the events' canonical BCS bytes, so it is
   transport-independent.
-- **PTB composition** — the generated Move bindings under `src/contracts/` ship in the package but
-  are not an exported subpath (`package.json` exports only `.`, `/account`, `/sessions`,
-  `/predict`), so do not import them. What `/predict` exports for composing your own PTBs:
+- **PTB composition** — each `client.predict.tx.*` builder returns a finished `Transaction`, so to
+  put a Predict call into a PTB you are building, use the generated move-call bindings `/predict`
+  exports: one namespace of transaction thunks per Predict module (`plpMoveCalls`,
+  `expiryMarketMoveCalls`, `predictAccountMoveCalls`, `protocolConfigMoveCalls`,
+  `registryMoveCalls`, `builderCodeMoveCalls`, `marketManagerMoveCalls`, `pricingMoveCalls`,
+  `rangeCodecMoveCalls`, `adminMoveCalls` and the cap modules) plus the event layouts
+  (`vaultEvents`, `orderEvents`, `configEvents`, `builderCodeEvents`). Pass
+  `config: toGeneratedConfig(cfg)` — the flat config slice the bindings resolve the shared objects
+  against — and give owner-authorized calls `auth: tx.add(generateAuth(cfg))`, the hot-potato `Auth`
+  the account calls consume. The account itself (create, deposit, share) is
+  `@mysten/deepbook-v3/account`'s `accountRegistryMoveCalls` / `accountMoveCalls`. Also exported:
   `loadLivePricer(toGeneratedConfig(cfg), { expiryMarketId, ...cfg.underlyings[sym] })` — the
   `pricer` every live trade call borrows, which the `/sessions` Predict wrappers take as a PTB
-  result; `generateAuth(cfg)` — the hot-potato `Auth` the account calls consume;
-  `toGeneratedConfig(cfg)` — the flat config slice the bindings resolve against; and
-  `deriveAccountWrapperId(cfg, owner)`.
+  result — and `deriveAccountWrapperId(cfg, owner)`.
+
+  ```ts
+  // Create an account, fund it, and queue a PLP supply — one PTB, one signature.
+  const config = toGeneratedConfig(cfg);
+  const wrapper = tx.add(accountRegistryMoveCalls._new({ config }));
+  tx.add(
+  	accountMoveCalls.depositFunds({
+  		config,
+  		arguments: { wrapper, auth: tx.add(generateAuth(cfg)), coin },
+  		typeArguments: [cfg.quoteCoinType],
+  	}),
+  );
+  tx.add(
+  	plpMoveCalls.requestSupply({
+  		config,
+  		arguments: { wrapper, auth: tx.add(generateAuth(cfg)), amount, minPlpOut },
+  	}),
+  );
+  tx.add(accountMoveCalls.share({ config, arguments: { self: wrapper } }));
+  ```
+
 - **Typed errors** — invalid inputs throw `PredictInputError` before the chain sees them; failed
   simulations throw `PredictMoveError` with the decoded Move abort (`module`, `code`, `abortName`).
 
