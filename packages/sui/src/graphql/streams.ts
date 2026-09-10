@@ -159,6 +159,16 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 		async getIndexedTip(signal) {
 			return (await state(signal)).tip;
 		},
+		samePosition: (a, b) =>
+			a === b ||
+			(a.cursor === b.cursor &&
+				a.checkpoint === b.checkpoint &&
+				a.itemId === b.itemId &&
+				a.indexedCheckpoint === b.indexedCheckpoint),
+		getPositionCheckpoint: (position) => ({
+			checkpoint: position.checkpoint,
+			boundary: false,
+		}),
 		comparePositions(a, b) {
 			if (a.cursor === b.cursor) return 0;
 			if (a.checkpoint != null && b.checkpoint != null && a.checkpoint !== b.checkpoint)

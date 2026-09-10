@@ -51,6 +51,10 @@ export interface LedgerStreamAdapter<
 	initialize(signal: AbortSignal): Promise<{ chain: string; filter: unknown }>;
 	/** Discover the readable indexed boundary, not the most recently executed checkpoint. */
 	getIndexedTip(signal: AbortSignal): Promise<string>;
+	/** Equality includes coverage metadata, even when the cursor has not changed. */
+	samePosition(a: Position, b: Position): boolean;
+	/** Locate a position relative to checkpoint boundaries. */
+	getPositionCheckpoint(position: Position): { checkpoint: string | null; boundary: boolean };
 	/** Compare reported positions; return undefined when their order is unknown. */
 	comparePositions?(a: Position, b: Position): number | undefined;
 	/** Validate SDK position metadata without interpreting the native cursor. */
@@ -137,26 +141,15 @@ export function waitForStream(delay: number, signal: AbortSignal): Promise<void>
 	});
 }
 
-function samePosition(a: StreamPosition, b: StreamPosition): boolean {
-	if (a === b) return true;
-	if (a.cursor !== b.cursor || a.checkpoint !== b.checkpoint) return false;
-	if ('coveredCheckpoint' in a) {
-		return (
-			'coveredCheckpoint' in b &&
-			a.coveredCheckpoint === b.coveredCheckpoint &&
-			a.checkpointBoundary === b.checkpointBoundary &&
-			a.transactionIndex === b.transactionIndex &&
-			a.eventIndex === b.eventIndex
-		);
-	}
-	return 'itemId' in b && a.itemId === b.itemId && a.indexedCheckpoint === b.indexedCheckpoint;
-}
-
-function sameBound(a: StreamBound, b: StreamBound | undefined): boolean {
+function sameBound<Frame extends object, Position extends StreamPosition>(
+	a: StreamBound<Position>,
+	b: StreamBound<Position> | undefined,
+	adapter: LedgerStreamAdapter<Frame, Position>,
+): boolean {
 	if (!b) return false;
 	return 'checkpoint' in a
 		? 'checkpoint' in b && a.checkpoint === b.checkpoint
-		: 'position' in b && samePosition(a.position, b.position);
+		: 'position' in b && adapter.samePosition(a.position, b.position);
 }
 
 function compareBounds<Frame extends object, Position extends StreamPosition>(
@@ -170,22 +163,15 @@ function compareBounds<Frame extends object, Position extends StreamPosition>(
 		const comparison = adapter.comparePositions?.(start.position, end.position);
 		if (comparison != null) return comparison;
 	}
-	const aBoundary =
-		'checkpoint' in start ||
-		('checkpointBoundary' in start.position && start.position.checkpointBoundary !== null);
-	const bBoundary =
-		'checkpoint' in end ||
-		('checkpointBoundary' in end.position && end.position.checkpointBoundary !== null);
-	const a =
-		'checkpoint' in start
-			? (BigInt(start.checkpoint) + (order === 'descending' ? 1n : 0n)).toString()
-			: (('checkpointBoundary' in start.position ? start.position.checkpointBoundary : null) ??
-				start.position.checkpoint);
-	const b =
-		'checkpoint' in end
-			? (BigInt(end.checkpoint) + (order === 'descending' ? 1n : 0n)).toString()
-			: (('checkpointBoundary' in end.position ? end.position.checkpointBoundary : null) ??
-				end.position.checkpoint);
+	const checkpointBound = (bound: StreamBound<Position>) =>
+		'checkpoint' in bound
+			? {
+					checkpoint: (BigInt(bound.checkpoint) + (order === 'descending' ? 1n : 0n)).toString(),
+					boundary: true,
+				}
+			: adapter.getPositionCheckpoint(bound.position);
+	const { checkpoint: a, boundary: aBoundary } = checkpointBound(start);
+	const { checkpoint: b, boundary: bBoundary } = checkpointBound(end);
 	if (a == null || b == null) return;
 	if (BigInt(a) !== BigInt(b)) return BigInt(a) < BigInt(b) ? -1 : 1;
 	if (aBoundary && bBoundary) return 0;
@@ -301,7 +287,7 @@ export function createLedgerStream<Frame extends object, Position extends Stream
 				startToken &&
 				startToken.range.$kind === 'Finite' &&
 				inputEnd &&
-				!sameBound(inputEnd, rangeEnd<StreamPosition>(startToken.range))
+				!sameBound(inputEnd, rangeEnd<Position>(startToken.range as TokenRange<Position>), adapter)
 			) {
 				throw new Error('Resume token end bound cannot change');
 			}
@@ -417,7 +403,7 @@ export function createLedgerStream<Frame extends object, Position extends Stream
 									attempts > 0 &&
 									(!start ||
 										!('position' in start) ||
-										!samePosition(start.position, event.position))
+										!adapter.samePosition(start.position, event.position))
 								)
 									attempts = 0;
 								start = { position: event.position };

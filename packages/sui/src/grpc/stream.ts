@@ -636,6 +636,18 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 		transport: 'grpc',
 		family,
 		comparePositions,
+		samePosition: (a, b) =>
+			a === b ||
+			(a.cursor === b.cursor &&
+				a.checkpoint === b.checkpoint &&
+				a.coveredCheckpoint === b.coveredCheckpoint &&
+				a.checkpointBoundary === b.checkpointBoundary &&
+				a.transactionIndex === b.transactionIndex &&
+				a.eventIndex === b.eventIndex),
+		getPositionCheckpoint: (position) => ({
+			checkpoint: position.checkpointBoundary ?? position.checkpoint,
+			boundary: position.checkpointBoundary !== null,
+		}),
 		validatePosition(value) {
 			if (value.cursor === 'genesis') {
 				if (

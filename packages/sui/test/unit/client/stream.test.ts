@@ -25,6 +25,14 @@ function adapter(overrides: Partial<LedgerStreamAdapter<Frame>> = {}): LedgerStr
 		family: 'events',
 		initialize: vi.fn(async () => ({ chain: 'chain-a', filter: { package: 'resolved-package' } })),
 		getIndexedTip: vi.fn(async () => '10'),
+		samePosition: (a, b) => JSON.stringify(a) === JSON.stringify(b),
+		getPositionCheckpoint: (position) => ({
+			checkpoint:
+				'checkpointBoundary' in position
+					? (position.checkpointBoundary ?? position.checkpoint)
+					: position.checkpoint,
+			boundary: 'checkpointBoundary' in position && position.checkpointBoundary !== null,
+		}),
 		comparePositions: (a, b) =>
 			a.checkpoint !== null && b.checkpoint !== null
 				? Number(a.checkpoint) - Number(b.checkpoint)
