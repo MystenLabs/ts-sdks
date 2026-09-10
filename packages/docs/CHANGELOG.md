@@ -1,5 +1,18 @@
 # @mysten/docs
 
+## 0.1.62
+
+### Patch Changes
+
+- Updated dependencies [a1f4087]
+  - @mysten/slush-wallet@1.2.0
+  - @mysten/enoki-connect@1.1.24
+  - @mysten/zksend@1.2.25
+  - @mysten/dapp-kit-core@1.6.25
+  - @mysten/dapp-kit-react@2.1.27
+  - @mysten/walrus@1.2.24
+  - @mysten/enoki@1.2.21
+
 ## 0.1.61
 
 ### Patch Changes

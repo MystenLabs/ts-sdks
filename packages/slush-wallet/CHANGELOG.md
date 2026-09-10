@@ -1,5 +1,25 @@
 # @mysten/slush-wallet
 
+## 1.2.0
+
+### Minor Changes
+
+- a1f4087: Preserve per-account signing features in web wallet sessions. Slush now honors an
+  explicit empty or restricted feature list, while older sessions without the field retain their
+  existing capabilities.
+
+  Enforce signed account capabilities during wallet-side request verification, advertise only
+  implemented features, and refresh account capabilities when another tab replaces the hosted
+  session.
+
+  Dispose cross-tab session listeners when unregistering the wallet. Directly constructed wallets
+  can release their listener with `dispose()`.
+
+### Patch Changes
+
+- Updated dependencies [a1f4087]
+  - @mysten/window-wallet-core@0.3.0
+
 ## 1.1.24
 
 ## 1.1.23
