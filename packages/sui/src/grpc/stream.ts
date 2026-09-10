@@ -347,7 +347,7 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 				? BigInt(request.start.position.coveredCheckpoint)
 				: undefined;
 		let previousPosition: StreamPosition | undefined;
-		for (;;) {
+		while (true) {
 			const rpc = open({ ...range, filter, readMask }, request.signal, false);
 			let end: QueryEnd | undefined;
 			let final: StreamPosition | undefined;
@@ -493,7 +493,7 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 			let replayCoverage: string | undefined;
 			let end: StreamBound<StreamPosition> | undefined;
 			if (requestedCheckpoint !== undefined) {
-				for (;;) {
+				while (true) {
 					const cp = current.position.checkpoint ?? current.position.coveredCheckpoint;
 					if (cp != null && BigInt(cp) >= BigInt(requestedCheckpoint)) {
 						if (BigInt(cp) === U64_MAX) throw protocol('Subscription handoff overflows uint64');
@@ -503,7 +503,7 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 					current = await read();
 				}
 			} else if (safe) {
-				for (;;) {
+				while (true) {
 					const incoming = current.position;
 					const committedCoverage = safe.coveredCheckpoint;
 					const incomingCoverage = incoming.coveredCheckpoint;
@@ -555,7 +555,7 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 			if (end) {
 				request.onStatus({ $kind: 'Recovering' });
 				let start = request.start;
-				for (;;) {
+				while (true) {
 					let complete = false;
 					for await (const next of scan({ ...request, start, end }, 'recovery')) {
 						if (next.$kind === 'end') {
@@ -598,7 +598,7 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 						: undefined,
 				};
 			}
-			for (;;) {
+			while (true) {
 				const p = current.position;
 				const item = hasItem(current.frame);
 				const sameCursorAdvancedCoverage =

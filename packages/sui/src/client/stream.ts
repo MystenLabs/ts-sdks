@@ -195,7 +195,6 @@ export function createLedgerStream<Frame extends object, Position extends Stream
 	): AsyncGenerator<Frame | SuiClientTypes.StreamCompletionFrame> {
 		let attempts = 0;
 		try {
-			signal.throwIfAborted();
 			const retry = streamRetryOptions(options);
 			const startEnvelope = options.start?.resumeToken
 				? decodeToken(options.start.resumeToken).V1
@@ -224,7 +223,7 @@ export function createLedgerStream<Frame extends object, Position extends Stream
 				throw new Error('Ascending finite streams require an explicit start');
 
 			const retryOperation = async <T>(operation: () => Promise<T>): Promise<T> => {
-				for (;;) {
+				while (true) {
 					signal.throwIfAborted();
 					try {
 						return await operation();
@@ -371,7 +370,7 @@ export function createLedgerStream<Frame extends object, Position extends Stream
 					return;
 				}
 			}
-			for (;;) {
+			while (true) {
 				signal.throwIfAborted();
 				const live = follow && (options.delivery ?? 'subscribe') === 'subscribe';
 				try {

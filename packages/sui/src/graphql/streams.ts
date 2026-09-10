@@ -251,7 +251,7 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 						: ScanTransactionsDocument;
 			let lastItemCursor =
 				request.start && 'position' in request.start ? request.start.position.cursor : undefined;
-			for (;;) {
+			while (true) {
 				const data = unwrap(
 					await client.query({
 						query: document as GraphQLDocument<Record<Family, Connection>>,
@@ -325,7 +325,7 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 						request.end && 'position' in request.end ? request.end.position : undefined;
 					if (cursor && !edges.length && endpoint?.itemId) {
 						let probeCursor = lastItemCursor;
-						for (;;) {
+						while (true) {
 							const probe = unwrap(
 								await client.query({
 									query: document as GraphQLDocument<Record<Family, Connection>>,

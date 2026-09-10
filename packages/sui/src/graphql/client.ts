@@ -234,32 +234,26 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 			client: SuiGraphQLClient,
 			signal: AbortSignal,
 		): AsyncGenerator<GraphQLQueryResult<Result>> {
-			try {
-				signal.throwIfAborted();
-				const maxMessageSize = options.maxMessageSize ?? 16 * 1024 * 1024;
-				const response = await client.#fetchResponse(client.#subscriptionUrl, {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json',
-						Accept: 'text/event-stream',
-						...client.#headers,
-					},
-					body: JSON.stringify({
-						query:
-							typeof options.query === 'string' || options.query instanceof String
-								? String(options.query)
-								: print(options.query),
-						variables: options.variables,
-						operationName: options.operationName,
-						extensions: options.extensions,
-					}),
-					signal,
-				});
-				yield* readGraphQLSSE<Result>(response, signal, maxMessageSize);
-			} catch (error) {
-				signal.throwIfAborted();
-				throw error;
-			}
+			const maxMessageSize = options.maxMessageSize ?? 16 * 1024 * 1024;
+			const response = await client.#fetchResponse(client.#subscriptionUrl, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					Accept: 'text/event-stream',
+					...client.#headers,
+				},
+				body: JSON.stringify({
+					query:
+						typeof options.query === 'string' || options.query instanceof String
+							? String(options.query)
+							: print(options.query),
+					variables: options.variables,
+					operationName: options.operationName,
+					extensions: options.extensions,
+				}),
+				signal,
+			});
+			yield* readGraphQLSSE<Result>(response, signal, maxMessageSize);
 		};
 		return abortableAsyncGenerator((signal) => run(this, signal), options.signal);
 	}
