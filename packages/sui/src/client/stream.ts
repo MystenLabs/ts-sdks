@@ -137,6 +137,28 @@ export function waitForStream(delay: number, signal: AbortSignal): Promise<void>
 	});
 }
 
+function samePosition(a: StreamPosition, b: StreamPosition): boolean {
+	if (a === b) return true;
+	if (a.cursor !== b.cursor || a.checkpoint !== b.checkpoint) return false;
+	if ('coveredCheckpoint' in a) {
+		return (
+			'coveredCheckpoint' in b &&
+			a.coveredCheckpoint === b.coveredCheckpoint &&
+			a.checkpointBoundary === b.checkpointBoundary &&
+			a.transactionIndex === b.transactionIndex &&
+			a.eventIndex === b.eventIndex
+		);
+	}
+	return 'itemId' in b && a.itemId === b.itemId && a.indexedCheckpoint === b.indexedCheckpoint;
+}
+
+function sameBound(a: StreamBound, b: StreamBound | undefined): boolean {
+	if (!b) return false;
+	return 'checkpoint' in a
+		? 'checkpoint' in b && a.checkpoint === b.checkpoint
+		: 'position' in b && samePosition(a.position, b.position);
+}
+
 function compareBounds<Frame extends object, Position extends StreamPosition>(
 	start: StreamBound<Position>,
 	end: StreamBound<Position>,
@@ -279,7 +301,7 @@ export function createLedgerStream<Frame extends object, Position extends Stream
 				startToken &&
 				startToken.range.$kind === 'Finite' &&
 				inputEnd &&
-				canonical(inputEnd) !== canonical(rangeEnd<StreamPosition>(startToken.range))
+				!sameBound(inputEnd, rangeEnd<StreamPosition>(startToken.range))
 			) {
 				throw new Error('Resume token end bound cannot change');
 			}
@@ -392,9 +414,10 @@ export function createLedgerStream<Frame extends object, Position extends Stream
 							case 'item':
 							case 'progress': {
 								if (
-									!start ||
-									!('position' in start) ||
-									canonical(start.position) !== canonical(event.position)
+									attempts > 0 &&
+									(!start ||
+										!('position' in start) ||
+										!samePosition(start.position, event.position))
 								)
 									attempts = 0;
 								start = { position: event.position };
