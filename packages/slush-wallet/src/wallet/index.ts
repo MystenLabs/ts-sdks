@@ -109,6 +109,7 @@ export class SlushWallet implements Wallet {
 	#walletName: string;
 	#icon: WalletIcon;
 	#name: string;
+	#removeStorageListener: (() => void) | null = null;
 
 	get name() {
 		return this.#walletName;
@@ -191,15 +192,24 @@ export class SlushWallet implements Wallet {
 		this.#walletName = metadata.walletName;
 		this.#icon = metadata.icon as WalletIcon;
 		if (typeof window !== 'undefined') {
-			window.addEventListener('storage', (event) => {
+			const target = window;
+			const onStorage = (event: StorageEvent) => {
 				if (
 					event.storageArea !== localStorage ||
 					(event.key !== SLUSH_SESSION_KEY && event.key !== null)
 				)
 					return;
 				this.#setAccounts(this.#getPreviouslyAuthorizedAccounts());
-			});
+			};
+			target.addEventListener('storage', onStorage);
+			this.#removeStorageListener = () => target.removeEventListener('storage', onStorage);
 		}
+	}
+
+	/** Stop observing cross-tab session changes. Registered wallets dispose on unregister. */
+	dispose() {
+		this.#removeStorageListener?.();
+		this.#removeStorageListener = null;
 	}
 
 	#signTransactionBlock: SuiSignTransactionBlockMethod = async ({
@@ -359,17 +369,7 @@ export function registerSlushWallet(
 ) {
 	const wallets = getWallets();
 
-	let unregister: (() => void) | null = null;
-
-	// listen for wallet registration
-	wallets.on('register', (wallet) => {
-		if (wallet.id === SUI_WALLET_EXTENSION_ID) {
-			unregister?.();
-		}
-	});
-
-	const extension = wallets.get().find((wallet) => wallet.id === SUI_WALLET_EXTENSION_ID);
-	if (extension) {
+	if (wallets.get().some((wallet) => wallet.id === SUI_WALLET_EXTENSION_ID)) {
 		return;
 	}
 
@@ -378,13 +378,27 @@ export function registerSlushWallet(
 		origin,
 		metadata: FALLBACK_METADATA,
 	});
-	unregister = wallets.register(slushWalletInstance);
+	const unregisterWallet = wallets.register(slushWalletInstance);
+	let unregistered = false;
+	const unregister = () => {
+		if (unregistered) return;
+		unregistered = true;
+		slushWalletInstance.dispose();
+		stopRegistrationListener();
+		unregisterWallet();
+	};
+	const stopRegistrationListener = wallets.on('register', (wallet) => {
+		if (wallet.id === SUI_WALLET_EXTENSION_ID) unregister();
+	});
+	// Another registration listener may have installed the extension synchronously.
+	if (wallets.get().some((wallet) => wallet.id === SUI_WALLET_EXTENSION_ID)) unregister();
 
 	fetchMetadata(metadataApiUrl)
 		.then((metadata) => {
+			if (unregistered) return;
 			if (!metadata.enabled) {
 				console.log('Slush wallet is not currently enabled.');
-				unregister?.();
+				unregister();
 				return;
 			}
 			slushWalletInstance.updateMetadata(metadata);
