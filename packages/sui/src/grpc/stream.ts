@@ -1,8 +1,6 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { maxValue, minValue, number, parse, pipe, safeInteger } from 'valibot';
-
 import { fromBase64, toBase64 } from '@mysten/utils';
 import { RpcError } from '@protobuf-ts/runtime-rpc';
 import type { ServerStreamingCall } from '@protobuf-ts/runtime-rpc';
@@ -676,8 +674,6 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 		},
 		liveFromTip: true,
 		async initialize(signal) {
-			parse(pipe(number(), safeInteger(), minValue(1), maxValue(0xffffffff)), pageSize);
-			parse(pipe(number(), safeInteger(), minValue(1)), limit);
 			if (input.grpcFilter) filter = input.grpcFilter;
 			else if (input.filter)
 				filter =

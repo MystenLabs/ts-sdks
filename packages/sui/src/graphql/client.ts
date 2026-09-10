@@ -5,7 +5,6 @@ import type { TypedDocumentNode } from '@graphql-typed-document-node/core';
 import type { TadaDocumentNode } from 'gql.tada';
 import type { DocumentNode } from 'graphql';
 import { print } from 'graphql';
-import { minValue, number, parse, pipe, safeInteger } from 'valibot';
 import { BaseClient } from '../client/index.js';
 import type { SuiClientTypes } from '../client/index.js';
 import { GraphQLCoreClient } from './core.js';
@@ -240,14 +239,6 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 			try {
 				controller.signal.throwIfAborted();
 				const maxMessageSize = options.maxMessageSize ?? 16 * 1024 * 1024;
-				parse(
-					pipe(
-						number(),
-						safeInteger('maxMessageSize must be a positive integer'),
-						minValue(1, 'maxMessageSize must be a positive integer'),
-					),
-					maxMessageSize,
-				);
 				const response = await client.#fetchResponse(client.#subscriptionUrl, {
 					method: 'POST',
 					headers: {

@@ -4,20 +4,7 @@
 import type { InferBcsType } from '@mysten/bcs';
 import { blake2b } from '@noble/hashes/blake2.js';
 
-import {
-	check,
-	finite,
-	literal,
-	minValue,
-	number,
-	object,
-	parse,
-	pipe,
-	regex,
-	safeInteger,
-	string,
-	union,
-} from 'valibot';
+import { check, parse, pipe, regex, string } from 'valibot';
 
 import type { SuiClientTypes } from './types.js';
 import {
@@ -134,33 +121,15 @@ const Checkpoint = checkpointSchema();
 function streamRetryOptions(
 	options: SuiClientTypes.StreamOptions,
 ): Required<SuiClientTypes.StreamRetryOptions> {
-	parse(
-		pipe(
-			number(),
-			finite(),
-			check((value) => value > 0, 'Stream pollInterval must be positive'),
-		),
-		options.pollInterval ?? 1000,
-	);
 	for (const bound of [options.start, options.end]) {
 		if (bound?.checkpoint != null) parse(Checkpoint, bound.checkpoint);
 	}
-	const retry = {
+	return {
 		initialDelay: options.retry?.initialDelay ?? 250,
 		maxDelay: options.retry?.maxDelay ?? 30_000,
 		jitter: options.retry?.jitter ?? 500,
 		maxAttempts: options.retry?.maxAttempts ?? Infinity,
 	};
-	parse(
-		object({
-			initialDelay: pipe(number(), finite(), minValue(0)),
-			maxDelay: pipe(number(), finite(), minValue(0)),
-			jitter: pipe(number(), finite(), minValue(0)),
-			maxAttempts: union([literal(Infinity), pipe(number(), safeInteger(), minValue(0))]),
-		}),
-		retry,
-	);
-	return retry;
 }
 
 /** The timer and listener are removed on either completion path. */

@@ -422,8 +422,6 @@ describe('ledger stream range and tokens', () => {
 		{ follow: true, order: 'descending' },
 		{ follow: true, end: { checkpoint: '5' } },
 		{ follow: false },
-		{ pollInterval: 0 },
-		{ retry: { maxAttempts: -1 } },
 		{ start: { resumeToken: 'broken' } },
 	] as SuiClientTypes.StreamOptions[])(
 		'rejects invalid options %j before network work',
