@@ -18,6 +18,7 @@ import { normalizeStructTag, normalizeSuiAddress } from '../utils/sui-types.js';
 import type { SuiGrpcClient } from './client.js';
 import { parseGrpcTransactionResponse, transactionReadMaskPaths } from './core.js';
 import { toGrpcEventFilter, toGrpcTransactionFilter } from './filters.js';
+import { linkedAbortController } from '../utils/abort.js';
 import { bufferedGrpcCall } from './stream-buffer.js';
 import type { GrpcStreamInclude, GrpcStreamStage, GrpcStreamQueryEnd } from './stream-types.js';
 import type { Checkpoint } from './proto/sui/rpc/v2/checkpoint.js';
@@ -50,14 +51,6 @@ interface RawFrame {
 const U64_MAX = (1n << 64n) - 1n;
 const hasItem = (frame: RawFrame) => !!(frame.checkpoint || frame.transaction || frame.event);
 const protocol = (message: string) => new RpcError(message, 'DATA_LOSS');
-
-function linkedController(signal: AbortSignal) {
-	const controller = new AbortController();
-	const abort = () => controller.abort(signal.reason);
-	if (signal.aborted) abort();
-	else signal.addEventListener('abort', abort, { once: true });
-	return { controller, dispose: () => signal.removeEventListener('abort', abort) };
-}
 
 function checkpointPosition(checkpoint: bigint): StreamPosition {
 	return {
@@ -229,7 +222,7 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 	const pageSize = input.pageSize ?? 1000;
 
 	function open(request: object, signal: AbortSignal, live: boolean, streamFamily = family) {
-		const linked = linkedController(signal);
+		const linked = linkedAbortController(signal);
 		const service = live ? client.subscriptionService : client.ledgerService;
 		const method =
 			`${live ? 'subscribe' : 'list'}${streamFamily[0].toUpperCase()}${streamFamily.slice(1)}` as 'listEvents';

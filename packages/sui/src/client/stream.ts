@@ -4,6 +4,8 @@
 import type { InferBcsType } from '@mysten/bcs';
 import { blake2b } from '@noble/hashes/blake2.js';
 
+import { abortableAsyncGenerator } from '../utils/abort.js';
+
 import type { SuiClientTypes } from './types.js';
 import {
 	type tokenPayload,
@@ -179,9 +181,6 @@ export function createLedgerStream<Frame extends object, Position extends Stream
 	options: SuiClientTypes.StreamOptions,
 	adapter: LedgerStreamAdapter<Frame, Position>,
 ): AsyncGenerator<Frame | SuiClientTypes.StreamCompletionFrame> {
-	const controller = new AbortController();
-	const signal = controller.signal;
-	const onAbort = () => controller.abort(options.signal?.reason);
 	let callbackFailed = false;
 	const onStatus = (status: SuiClientTypes.StreamStatus) => {
 		try {
@@ -191,9 +190,9 @@ export function createLedgerStream<Frame extends object, Position extends Stream
 			throw error;
 		}
 	};
-	async function* run(): AsyncGenerator<Frame | SuiClientTypes.StreamCompletionFrame> {
-		if (options.signal?.aborted) onAbort();
-		options.signal?.addEventListener('abort', onAbort, { once: true });
+	async function* run(
+		signal: AbortSignal,
+	): AsyncGenerator<Frame | SuiClientTypes.StreamCompletionFrame> {
 		let attempts = 0;
 		try {
 			signal.throwIfAborted();
@@ -427,23 +426,7 @@ export function createLedgerStream<Frame extends object, Position extends Stream
 		} catch (error) {
 			if (!signal.aborted && !callbackFailed) onStatus({ $kind: 'Error', error });
 			throw error;
-		} finally {
-			controller.abort();
-			options.signal?.removeEventListener('abort', onAbort);
 		}
 	}
-	const iterator = run();
-	// Async generators queue return behind a pending next. Abort first so a quiet
-	// subscription or retry timer can finish that next and release its resources.
-	const originalReturn = iterator.return.bind(iterator);
-	iterator.return = (value) => {
-		controller.abort();
-		return originalReturn(value);
-	};
-	const originalThrow = iterator.throw.bind(iterator);
-	iterator.throw = (error) => {
-		controller.abort(error);
-		return originalThrow(error);
-	};
-	return iterator;
+	return abortableAsyncGenerator(run, options.signal);
 }

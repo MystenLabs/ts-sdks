@@ -14,6 +14,7 @@ import { fromBase64 } from '@mysten/utils';
 import { normalizeStructTag } from '../utils/sui-types.js';
 import { deriveDynamicFieldID } from '../utils/dynamic-fields.js';
 import type { TransactionPlugin } from '../transactions/index.js';
+import { abortableAsyncGenerator } from '../utils/abort.js';
 import { readGraphQLSSE } from './subscribe.js';
 import { graphQLLedgerStream } from './streams.js';
 
@@ -229,15 +230,12 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 	subscribe<Result = Record<string, unknown>, Variables = Record<string, unknown>>(
 		options: GraphQLSubscriptionOptions<Result, Variables>,
 	): AsyncGenerator<GraphQLQueryResult<Result>> {
-		const controller = new AbortController();
-		const abort = () => controller.abort(options.signal?.reason);
 		const run = async function* (
 			client: SuiGraphQLClient,
+			signal: AbortSignal,
 		): AsyncGenerator<GraphQLQueryResult<Result>> {
-			if (options.signal?.aborted) abort();
-			else options.signal?.addEventListener('abort', abort, { once: true });
 			try {
-				controller.signal.throwIfAborted();
+				signal.throwIfAborted();
 				const maxMessageSize = options.maxMessageSize ?? 16 * 1024 * 1024;
 				const response = await client.#fetchResponse(client.#subscriptionUrl, {
 					method: 'POST',
@@ -255,29 +253,15 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 						operationName: options.operationName,
 						extensions: options.extensions,
 					}),
-					signal: controller.signal,
+					signal,
 				});
-				yield* readGraphQLSSE<Result>(response, controller.signal, maxMessageSize);
+				yield* readGraphQLSSE<Result>(response, signal, maxMessageSize);
 			} catch (error) {
-				controller.signal.throwIfAborted();
+				signal.throwIfAborted();
 				throw error;
-			} finally {
-				controller.abort();
-				options.signal?.removeEventListener('abort', abort);
 			}
 		};
-		const iterator = run(this);
-		const originalReturn = iterator.return.bind(iterator);
-		iterator.return = (value) => {
-			controller.abort();
-			return originalReturn(value);
-		};
-		const originalThrow = iterator.throw.bind(iterator);
-		iterator.throw = (error) => {
-			controller.abort(error);
-			return originalThrow(error);
-		};
-		return iterator;
+		return abortableAsyncGenerator((signal) => run(this, signal), options.signal);
 	}
 
 	streamCheckpoints<Include extends SuiClientTypes.StreamInclude = {}>(
