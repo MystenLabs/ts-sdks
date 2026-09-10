@@ -1,5 +1,12 @@
 # @mysten/slush-wallet
 
+## 1.2.1
+
+### Patch Changes
+
+- 3175d33: Exclude unit tests from the production TypeScript build so releases do not require
+  Vitest.
+
 ## 1.2.0
 
 ### Minor Changes
