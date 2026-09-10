@@ -331,6 +331,7 @@ export function createLedgerStream<Frame extends object, Position extends Stream
 			}
 			const invocationStart = start;
 			const end = rangeEnd(range);
+			let lastPosition = startToken?.position as Position | undefined;
 			let lastToken: string | undefined;
 			const tokenFor = (position: Position): string => {
 				const payload = {
@@ -346,7 +347,7 @@ export function createLedgerStream<Frame extends object, Position extends Stream
 					V1: adapter.transport === 'grpc' ? { grpc: payload } : { graphql: payload },
 				} as Parameters<typeof encodeToken>[0]);
 			};
-			if (startToken) lastToken = tokenFor(startToken.position as Position);
+			const resumeToken = () => (lastToken ??= lastPosition && tokenFor(lastPosition));
 			const publicBound = (bound: StreamBound<Position>): SuiClientTypes.StreamStart =>
 				'checkpoint' in bound ? bound : { resumeToken: tokenFor(bound.position) };
 			const complete = (): SuiClientTypes.StreamCompletionFrame => ({
@@ -361,7 +362,7 @@ export function createLedgerStream<Frame extends object, Position extends Stream
 								: range.$kind === 'Finite' && range.Finite.end.$kind === 'Genesis'
 									? 'genesis'
 									: 'indexedTip',
-					resumeToken: lastToken,
+					resumeToken: resumeToken(),
 					range: {
 						start: invocationStart && publicBound(invocationStart),
 						end: end && publicBound(end),
@@ -407,8 +408,10 @@ export function createLedgerStream<Frame extends object, Position extends Stream
 								)
 									attempts = 0;
 								start = { position: event.position };
-								lastToken = tokenFor(event.position);
-								if (event.frame) yield { ...event.frame, resumeToken: lastToken } as Awaited<Frame>;
+								lastPosition = event.position;
+								lastToken = undefined;
+								if (event.frame)
+									yield { ...event.frame, resumeToken: resumeToken() } as Awaited<Frame>;
 								break;
 							}
 							case 'metadata':

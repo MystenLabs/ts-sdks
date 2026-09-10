@@ -538,8 +538,14 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 		};
 		if (!value.digest || !value.effects?.status || value.effects.checkpoint?.sequenceNumber == null)
 			throw new Error('GraphQL transaction is missing required fields');
-		let events = value.effects.events;
-		let objects = value.effects.objectChanges;
+		let events = value.effects.events && {
+			...value.effects.events,
+			nodes: [...value.effects.events.nodes],
+		};
+		let objects = value.effects.objectChanges && {
+			...value.effects.objectChanges,
+			nodes: [...value.effects.objectChanges.nodes],
+		};
 		while (events?.pageInfo.hasNextPage || objects?.pageInfo.hasNextPage) {
 			const wantEvents = events?.pageInfo.hasNextPage ?? false;
 			const wantObjects = objects?.pageInfo.hasNextPage ?? false;
@@ -573,7 +579,8 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 						next.events.pageInfo.endCursor === events!.pageInfo.endCursor)
 				)
 					throw new Error('GraphQL event pagination did not advance');
-				events = { ...next.events, nodes: [...events!.nodes, ...next.events.nodes] };
+				events!.nodes.push(...next.events.nodes);
+				events!.pageInfo = next.events.pageInfo;
 			}
 			if (wantObjects) {
 				if (
@@ -582,10 +589,8 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 						next.objectChanges.pageInfo.endCursor === objects!.pageInfo.endCursor)
 				)
 					throw new Error('GraphQL object-change pagination did not advance');
-				objects = {
-					...next.objectChanges,
-					nodes: [...objects!.nodes, ...next.objectChanges.nodes],
-				};
+				objects!.nodes.push(...next.objectChanges.nodes);
+				objects!.pageInfo = next.objectChanges.pageInfo;
 			}
 		}
 		return {

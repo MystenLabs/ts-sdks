@@ -11,7 +11,6 @@ export function bufferedGrpcCall<T extends object>(
 	options: {
 		limit: number;
 		isItem(frame: T): boolean;
-		onLimit?(): void;
 		coalesceProgress?: boolean;
 	},
 ): AsyncIterableIterator<T> {
@@ -37,11 +36,6 @@ export function bufferedGrpcCall<T extends object>(
 			) {
 				ended = true;
 				failure = new RpcError('Ledger stream buffer limit reached', 'RESOURCE_EXHAUSTED');
-				try {
-					options.onLimit?.();
-				} catch (error) {
-					failure = error;
-				}
 				controller.abort(failure);
 			} else {
 				if (

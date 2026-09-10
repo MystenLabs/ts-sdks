@@ -53,10 +53,11 @@ const hasItem = (frame: RawFrame) => !!(frame.checkpoint || frame.transaction ||
 const protocol = (message: string) => new RpcError(message, 'DATA_LOSS');
 
 function checkpointPosition(checkpoint: bigint): StreamPosition {
+	const sequenceNumber = checkpoint.toString();
 	return {
-		cursor: `checkpoint:${checkpoint}`,
-		checkpoint: checkpoint.toString(),
-		coveredCheckpoint: checkpoint.toString(),
+		cursor: `checkpoint:${sequenceNumber}`,
+		checkpoint: sequenceNumber,
+		coveredCheckpoint: sequenceNumber,
 		checkpointBoundary: null,
 		transactionIndex: null,
 		eventIndex: null,
