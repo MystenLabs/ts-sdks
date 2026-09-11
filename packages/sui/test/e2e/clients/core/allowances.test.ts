@@ -11,7 +11,7 @@ import { createTestWithAllClients, setup, TestToolbox } from '../../utils/setup.
 const SUI = '0x2::sui::SUI';
 const ALLOWANCE_TYPE = '0x2::balance::Balance<0x2::sui::SUI>';
 const LIFETIME_CAP = 1_000_000_000n; // 1 SUI
-const SPEND_AMOUNT = 100_000_000n; // 0.1 SUI
+const SPEND_AMOUNT = 10_000_000n; // 0.01 SUI
 const U64_MAX = 18446744073709551615n;
 
 describe('Allowance withdrawals', () => {
@@ -26,19 +26,7 @@ describe('Allowance withdrawals', () => {
 	function buildSpend() {
 		const tx = new Transaction();
 		tx.setSender(spender.address);
-		const withdrawal = tx.withdrawal({
-			amount: SPEND_AMOUNT,
-			type: SUI,
-			withdrawFrom: {
-				$kind: 'SenderAllowance',
-				SenderAllowance: { funder: funder.address, allowance: allowanceId },
-			},
-		});
-		const balance = tx.moveCall({
-			target: '0x2::allowance::balance_spend',
-			typeArguments: [SUI],
-			arguments: [tx.object(allowanceId), withdrawal, tx.object.clock()],
-		});
+		const balance = tx.balance({ allowance: allowanceId, amount: SPEND_AMOUNT, type: SUI });
 		const coin = tx.moveCall({
 			target: '0x2::coin::from_balance',
 			typeArguments: [SUI],
@@ -165,4 +153,29 @@ describe('Allowance withdrawals', () => {
 			SPEND_AMOUNT,
 		);
 	});
+	for (const knownFunder of [false, true]) {
+		testWithAllClients(
+			`spends a coin with ${knownFunder ? 'a known funder' : 'automatic funder resolution'}`,
+			async (client) => {
+				const tx = new Transaction();
+				const coin = tx.coin({
+					allowance: knownFunder ? { objectId: allowanceId, funder: funder.address } : allowanceId,
+					amount: SPEND_AMOUNT.toString(),
+					type: SUI,
+				});
+				tx.transferObjects([coin], spender.address);
+				const before = await client.core.getBalance({ owner: funder.address, coinType: SUI });
+				const result = await client.core.signAndExecuteTransaction({
+					transaction: tx,
+					signer: spender.keypair,
+				});
+				expect(result.$kind).toBe('Transaction');
+				await toolbox.waitForTransaction({ digest: result.Transaction!.digest });
+				const after = await client.core.getBalance({ owner: funder.address, coinType: SUI });
+				expect(BigInt(before.balance.addressBalance) - BigInt(after.balance.addressBalance)).toBe(
+					SPEND_AMOUNT,
+				);
+			},
+		);
+	}
 });

@@ -32,6 +32,13 @@ import { TransactionDataBuilder } from './TransactionData.js';
 import { getIdFromCallArg } from './utils.js';
 import { namedPackagesPlugin } from './plugins/NamedPackagesPlugin.js';
 import {
+	ALLOWANCE_BALANCE,
+	allowanceBalance,
+	resolveAllowanceBalance,
+} from './intents/AllowanceBalance.js';
+import type { BalanceOptions } from './intents/BalanceOptions.js';
+import { getBalanceAmount } from './intents/BalanceOptions.js';
+import {
 	COIN_WITH_BALANCE,
 	resolveCoinBalance,
 	coinWithBalance,
@@ -215,6 +222,7 @@ export class Transaction {
 		// and take precedence so a built-in resolver can be overridden if needed.
 		const intentResolvers = new Map<string, TransactionPlugin>([
 			[COIN_WITH_BALANCE, resolveCoinBalance],
+			[ALLOWANCE_BALANCE, resolveAllowanceBalance],
 			...Object.entries(options.intentResolvers ?? {}),
 		]);
 
@@ -342,35 +350,33 @@ export class Transaction {
 	}
 
 	/**
-	 * Creates a coin of the specified type and balance.
+	 * Creates a coin of the specified type and amount (defaults to SUI).
 	 * Sourced from address balance when available, falling back to owned coins.
+	 * With `allowance`, spends only from that allowance and never falls back to the sender.
+	 * Allowance IDs are resolved using the build client; app-bound allowances require a custom spend.
 	 */
-	coin({
-		type,
-		balance,
-		useGasCoin,
-	}: {
-		balance: bigint | number;
-		type?: string;
-		useGasCoin?: boolean;
-	}): TransactionResult {
-		return this.add(coinWithBalance({ type, balance, useGasCoin }));
+	coin(options: BalanceOptions): TransactionResult {
+		const amount = getBalanceAmount(options);
+		return this.add(
+			options.allowance !== undefined
+				? allowanceBalance({ ...options, amount, outputKind: 'coin' })
+				: coinWithBalance({ ...options, balance: amount }),
+		);
 	}
 
 	/**
-	 * Creates a Balance object of the specified type and balance.
+	 * Creates a Balance<T> of the specified type and amount (defaults to SUI).
 	 * Sourced from address balance when available, falling back to owned coins.
+	 * With `allowance`, spends only from that allowance and never falls back to the sender.
+	 * Allowance IDs are resolved using the build client; app-bound allowances require a custom spend.
 	 */
-	balance({
-		type,
-		balance,
-		useGasCoin,
-	}: {
-		balance: bigint | number;
-		type?: string;
-		useGasCoin?: boolean;
-	}): TransactionResult {
-		return this.add(createBalance({ type, balance, useGasCoin }));
+	balance(options: BalanceOptions): TransactionResult {
+		const amount = getBalanceAmount(options);
+		return this.add(
+			options.allowance !== undefined
+				? allowanceBalance({ ...options, amount, outputKind: 'balance' })
+				: createBalance({ ...options, balance: amount }),
+		);
 	}
 
 	/**

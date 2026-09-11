@@ -48,7 +48,8 @@ invalidated by other transactions from the same address executing concurrently.
 ## `tx.coin` and `tx.balance`
 
 `tx.coin()` and `tx.balance()` are the recommended ways to get tokens in a transaction. They
-automatically draw from both coin objects and address balances.
+automatically draw from both coin objects and address balances, or spend from an explicitly selected
+allowance.
 
 ### Getting a `Coin`
 
@@ -105,11 +106,13 @@ tx.moveCall({
 
 ### Options
 
-| Option       | Type               | Default    | Description                                                              |
-| ------------ | ------------------ | ---------- | ------------------------------------------------------------------------ |
-| `balance`    | `bigint \| number` | _required_ | Amount in base units (MIST for SUI)                                      |
-| `type`       | `string`           | SUI        | Coin type. Defaults to `0x2::sui::SUI`                                   |
-| `useGasCoin` | `boolean`          | `true`     | For SUI, split from the gas coin. Set `false` for sponsored transactions |
+| Option       | Type                           | Default                           | Description                                                                              |
+| ------------ | ------------------------------ | --------------------------------- | ---------------------------------------------------------------------------------------- |
+| `amount`     | `bigint \| number \| string`   | _required unless using `balance`_ | Amount in base units (MIST for SUI); use safe integer numbers or bigint/decimal strings  |
+| `balance`    | `bigint \| number`             | —                                 | Existing name for `amount`; provide exactly one of these options                         |
+| `type`       | `string`                       | SUI                               | Coin type T, not Balance&lt;T&gt;. Defaults to `0x2::sui::SUI`                           |
+| `allowance`  | `string \| AllowanceReference` | —                                 | Plain allowance ID, or `{ objectId, funder }` to skip the metadata lookup                |
+| `useGasCoin` | `boolean`                      | `true`                            | For sender-funded SUI, allow splitting the gas coin. Cannot be combined with `allowance` |
 
 For SUI, `tx.coin()` splits from the gas coin by default. For sponsored transactions where the gas
 coin belongs to the sponsor, set `useGasCoin: false`:
@@ -120,7 +123,8 @@ tx.transferObjects([tx.coin({ balance: 100n, useGasCoin: false })], recipient);
 
 ### `coinWithBalance`
 
-`coinWithBalance()` is a standalone alias for `tx.coin()`:
+`coinWithBalance()` is a standalone helper for sender-funded coins. It uses the existing `balance`
+option and does not accept `amount` or `allowance`:
 
 ```tsx
 import { coinWithBalance, Transaction } from '@mysten/sui/transactions';
@@ -129,10 +133,95 @@ const tx = new Transaction();
 tx.transferObjects([coinWithBalance({ balance: 1_000_000_000 })], recipient);
 ```
 
+## Spending from an allowance
+
+On networks with allowance support (protocol v137 or later), pass an existing plain allowance ID to
+spend from its funder's address balance. The funder provides the shared allowance ID after issuing
+an `0x2::allowance::Allowance<0x2::balance::Balance<T>>` to the spender. Sign with that spender's
+key.
+
+```tsx
+import { Transaction } from '@mysten/sui/transactions';
+
+const tx = new Transaction();
+const balance = tx.balance({
+	allowance: '0xAllowanceId',
+	amount: 100_000_000n,
+	type: '0x2::sui::SUI',
+});
+
+tx.moveCall({
+	target: '0xPackage::pool::deposit',
+	typeArguments: ['0x2::sui::SUI'],
+	arguments: [tx.object('0xPoolId'), balance],
+});
+
+await client.core.signAndExecuteTransaction({ transaction: tx, signer: spender });
+```
+
+Use `tx.coin({ allowance, amount, type })` when the receiving function or `transferObjects` expects
+a `Coin<T>`. `type` defaults to SUI in both helpers; it is not inferred from the allowance.
+
+The build client fetches the allowance to resolve the funder, check the token type and reject
+app-bound allowances. The SDK adds the withdrawal input, the mutable allowance object and Clock,
+then calls `allowance::balance_spend`. For `tx.coin()`, it also calls `coin::from_balance`. Repeated
+spends share one metadata lookup but redeem at their own positions in the transaction.
+
+Allowance spends draw only from the funder's **address balance**, not its coin objects. They never
+fall back to the sender's funds. Amounts must fit in a `u64`; a zero amount still follows the
+allowance spending path. Limits, expiry, spender authorization and sufficient funds are enforced
+on-chain. The transaction still needs gas funding from the sender or a sponsor; this option does not
+pay transaction gas from the allowance. Do not combine `allowance` with `useGasCoin`.
+
+When the funder is already known, skip the metadata lookup:
+
+```tsx
+import { Transaction } from '@mysten/sui/transactions';
+
+const tx = new Transaction();
+const coin = tx.coin({
+	allowance: { objectId: '0xAllowanceId', funder: '0xFunderAddress' },
+	amount: '100000000',
+});
+tx.transferObjects([coin], '0xRecipientAddress');
+```
+
+This reference is trusted metadata for a plain allowance. It skips the SDK's type and app checks;
+incorrect references still fail on-chain. Building may still need a client to resolve shared object
+versions and gas. It does not guarantee an offline build.
+
+### App-bound allowances
+
+App-bound allowances require a `SpendPermit<A>` from the app. Use the lower-level withdrawal input
+and the app's spending flow instead of `tx.balance()` or `tx.coin()`:
+
+```tsx
+import { Transaction } from '@mysten/sui/transactions';
+
+const tx = new Transaction();
+// Obtain this permit through the app's own authorization flow.
+const permit = tx.moveCall({ target: '0xAppPackage::app::authorize_spend', arguments: [] });
+const withdrawal = tx.withdrawal({
+	amount: 100n,
+	type: '0x2::sui::SUI',
+	withdrawFrom: {
+		$kind: 'SenderAllowance',
+		SenderAllowance: { funder: '0xFunderAddress', allowance: '0xAllowanceId' },
+	},
+});
+const balance = tx.moveCall({
+	target: '0x2::allowance::app_balance_spend',
+	typeArguments: ['0x2::sui::SUI', '0xAppPackage::app::APP'],
+	arguments: [tx.object('0xAllowanceId'), permit, withdrawal, tx.object.clock()],
+});
+// Pass balance to the app's next operation.
+```
+
 ## How resolution works
 
 When you call `tx.coin()` or `tx.balance()`, the SDK adds a placeholder intent to the transaction.
-At build time, the resolver replaces it with concrete commands based on the sender's funds:
+Without `allowance`, the resolver replaces it at build time with concrete commands based on the
+sender's funds:
 
 - **`tx.balance()` with sufficient address balance:** Uses a direct `FundsWithdrawal` through
   `balance::redeem_funds`. No coin objects are used, so the transaction has no versioned object
@@ -147,7 +236,8 @@ At build time, the resolver replaces it with concrete commands based on the send
 The resolver prefers address balances when possible to avoid introducing versioned object
 dependencies.
 
-Zero-balance requests resolve to `balance::zero` or `coin::zero` with no network lookups.
+Without `allowance`, zero-balance requests resolve to `balance::zero` or `coin::zero` with no
+network lookups.
 
 ## Checking balances
 

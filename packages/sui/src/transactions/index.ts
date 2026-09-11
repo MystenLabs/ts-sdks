@@ -48,3 +48,5 @@ export type {
 export { Arguments } from './Arguments.js';
 
 export { isArgument } from './utils.js';
+
+export type { BalanceOptions, AllowanceReference } from './intents/BalanceOptions.js';
