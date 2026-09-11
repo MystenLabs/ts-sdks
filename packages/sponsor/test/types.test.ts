@@ -5,7 +5,13 @@ import type { ClientWithCoreApi, SuiClientTypes } from '@mysten/sui/client';
 import type { Signer } from '@mysten/sui/cryptography';
 import { describe, expect, it } from 'vitest';
 
-import { analyzers, createAnalyzer, createSponsor } from '../src/index.js';
+import {
+	analyze,
+	analyzers,
+	createAnalyzer,
+	createSponsor,
+	validationPolicy,
+} from '../src/index.js';
 
 declare const client: ClientWithCoreApi;
 declare const signer: Signer;
@@ -26,6 +32,22 @@ const optionalTenant = createAnalyzer({
 // Compile-only — never called (the values are `declare`d, so this would throw at
 // runtime). `validationOptions` is required iff a validator requires an option.
 function _assertions() {
+	const policy = validationPolicy([requiresToken]);
+	void analyze({ policy }, { transaction: bytes, authToken: 'ok' });
+	// @ts-expect-error a standalone policy still requires custom validator options
+	void analyze({ policy }, { transaction: bytes });
+
+	const standalone = validationPolicy([
+		createAnalyzer({
+			analyze: (_options: { client: ClientWithCoreApi; userSignatures: string[] }) => () => ({
+				result: null,
+			}),
+		}),
+	]);
+	void analyze({ standalone }, { transaction: bytes, client, userSignatures: [] });
+	// @ts-expect-error standalone validation does not supply a client or signatures
+	void analyze({ standalone }, { transaction: bytes });
+
 	const reqSponsor = createSponsor({ signer, client, validate: [requiresToken] });
 	const optSponsor = createSponsor({ signer, client, validate: [optionalTenant] });
 	const plainSponsor = createSponsor({ signer, client });

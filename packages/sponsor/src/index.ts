@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-export { createSponsor, Sponsor } from './sponsor.js';
+export { createSponsor, Sponsor, validationPolicy } from './sponsor.js';
 export type {
 	CreateSponsorOptions,
 	SponsorOptions,
