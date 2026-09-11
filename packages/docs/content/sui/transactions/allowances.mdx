@@ -14,9 +14,9 @@ answer:
   Create a shared allowance with allowance::new, then spend with tx.balance or tx.coin using its ID
 ---
 
-An allowance lets a **spender** use a **funder's** address balance, subject to spending limits. The
-funder creates it; the spender signs transactions that use it. The network must have allowance
-support enabled (protocol v137 or later).
+An [allowance](https://docs.sui.io/references/framework/sui_sui/allowance) lets a **spender** use a
+**funder's** address balance, subject to spending limits. The funder creates it; the spender signs
+transactions that use it. The network must have allowance support enabled (protocol v137 or later).
 
 ## Creating an allowance
 
@@ -76,8 +76,8 @@ await client.core.waitForTransaction({ digest: result.Transaction.digest });
 Creation also sends the funder an `AllowanceCap`, which can revoke the allowance.
 
 Creating an allowance does not reserve or deposit funds. The funder must have enough USDC in its
-[address balance](./coins-and-balances.mdx#depositing-into-address-balances) when the spender
-withdraws.
+[address balance](https://docs.sui.io/onchain-finance/asset-custody/address-balances/using-address-balances#sending-funds)
+when the spender withdraws.
 
 ### Limits and expiration
 
