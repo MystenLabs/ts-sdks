@@ -1,5 +1,14 @@
 # @mysten/hashi
 
+## 0.6.15
+
+### Patch Changes
+
+- 7ae0621: Fix deposits and withdrawals aborting with `EVersionDisabled` after the Hashi package is
+  upgraded. Hashi Move calls now target the latest enabled package, read from the Hashi object's
+  upgrade cap when the transaction is serialized. `packageId` stays the original package, so coin,
+  object and event types are unchanged.
+
 ## 0.6.14
 
 ## 0.6.13
