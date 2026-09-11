@@ -23,16 +23,17 @@ For ordinary spending from your own coins or address balance, see
 
 ## Creating a plain allowance
 
-This example gives a spender permission to spend up to 1 SUI in total, expiring 24 hours after
+This example gives a spender permission to spend up to 100 USDC in total, expiring 24 hours after
 creation. Use a client connected to an allowance-enabled network, a signer for the funder, and the
 spender's address. The funder needs gas for creation and sufficient address balance when the spender
-withdraws.
+withdraws. USDC uses six decimal places, so 1 USDC is 1,000,000 base units. Replace
+`0xUsdcPackage::usdc::USDC` with the USDC type on your network.
 
 ```tsx
 import { Transaction } from '@mysten/sui/transactions';
 
-const coinType = '0x2::sui::SUI';
-const balanceType = `0x2::balance::Balance<${coinType}>`;
+const USDC = '0xUsdcPackage::usdc::USDC';
+const balanceType = `0x2::balance::Balance<${USDC}>`;
 const expirationMs = BigInt(Date.now() + 24 * 60 * 60 * 1000);
 const tx = new Transaction();
 
@@ -48,7 +49,7 @@ tx.moveCall({
 	arguments: [
 		tx.pure.string('App spending allowance'),
 		tx.pure.address(spenderAddress),
-		tx.pure.option('u256', 1_000_000_000n), // Lifetime cap: 1 SUI in MIST
+		tx.pure.option('u256', 100_000_000n), // Lifetime cap: 100 USDC
 		tx.pure.option('u64', null), // No delayed start
 		tx.pure.option('u64', expirationMs),
 		noRateLimit,
@@ -77,8 +78,8 @@ await client.core.waitForTransaction({ digest: result.Transaction.digest });
 ```
 
 `allowance::new` takes `Balance<T>` as its type argument. The spending helpers take the coin type
-`T` instead. For example, creation uses `0x2::balance::Balance<0x2::sui::SUI>`, while `tx.balance()`
-and `tx.coin()` use `0x2::sui::SUI`.
+`T` instead. In these examples, creation uses `balanceType`, while `tx.balance()` and `tx.coin()`
+use `type: USDC`.
 
 Creation shares an `Allowance<Balance<T>>` and sends an `AllowanceCap<Balance<T>>` to the funder.
 The shared object's ID is the ID to pass as `allowance`; the cap lets the funder revoke it. Creation
@@ -112,16 +113,17 @@ key.
 ```tsx
 import { Transaction } from '@mysten/sui/transactions';
 
+const USDC = '0xUsdcPackage::usdc::USDC';
 const tx = new Transaction();
 const balance = tx.balance({
 	allowance: '0xAllowanceId',
-	amount: 100_000_000n,
-	type: '0x2::sui::SUI',
+	amount: 10_000_000n, // 10 USDC
+	type: USDC,
 });
 
 tx.moveCall({
 	target: '0xPackage::pool::deposit',
-	typeArguments: ['0x2::sui::SUI'],
+	typeArguments: [USDC],
 	arguments: [tx.object('0xPoolId'), balance],
 });
 
@@ -129,7 +131,8 @@ await client.core.signAndExecuteTransaction({ transaction: tx, signer: spender }
 ```
 
 Use `tx.coin({ allowance, amount, type })` when the receiving function or `transferObjects` expects
-a `Coin<T>`. `type` defaults to SUI in both helpers; it is not inferred from the allowance.
+a `Coin<T>`. Always pass `type: USDC` for a USDC allowance: `type` defaults to SUI in both helpers
+and is not inferred from the allowance.
 
 ### Resolution and funding
 
@@ -157,10 +160,12 @@ When the funder is already known, skip the metadata lookup:
 ```tsx
 import { Transaction } from '@mysten/sui/transactions';
 
+const USDC = '0xUsdcPackage::usdc::USDC';
 const tx = new Transaction();
 const coin = tx.coin({
 	allowance: { objectId: '0xAllowanceId', funder: '0xFunderAddress' },
-	amount: '100000000',
+	amount: '10000000', // 10 USDC
+	type: USDC,
 });
 tx.transferObjects([coin], '0xRecipientAddress');
 ```
@@ -177,12 +182,13 @@ and the app's spending flow instead of `tx.balance()` or `tx.coin()`:
 ```tsx
 import { Transaction } from '@mysten/sui/transactions';
 
+const USDC = '0xUsdcPackage::usdc::USDC';
 const tx = new Transaction();
 // Obtain this permit through the app's own authorization flow.
 const permit = tx.moveCall({ target: '0xAppPackage::app::authorize_spend', arguments: [] });
 const withdrawal = tx.withdrawal({
-	amount: 100n,
-	type: '0x2::sui::SUI',
+	amount: 10_000_000n, // 10 USDC
+	type: USDC,
 	withdrawFrom: {
 		$kind: 'SenderAllowance',
 		SenderAllowance: { funder: '0xFunderAddress', allowance: '0xAllowanceId' },
@@ -190,7 +196,7 @@ const withdrawal = tx.withdrawal({
 });
 const balance = tx.moveCall({
 	target: '0x2::allowance::app_balance_spend',
-	typeArguments: ['0x2::sui::SUI', '0xAppPackage::app::APP'],
+	typeArguments: [USDC, '0xAppPackage::app::APP'],
 	arguments: [tx.object('0xAllowanceId'), permit, withdrawal, tx.object.clock()],
 });
 // Pass balance to the app's next operation.
