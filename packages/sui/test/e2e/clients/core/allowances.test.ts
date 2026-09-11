@@ -6,7 +6,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import type { ClientWithCoreApi } from '../../../../src/client/index.js';
 import type { Ed25519Keypair } from '../../../../src/keypairs/ed25519/index.js';
 import { Transaction } from '../../../../src/transactions/index.js';
-import { createTestWithAllClients, setup, TestToolbox } from '../../utils/setup.js';
+import { createTestWithAllClients, publishPackage, setup, TestToolbox } from '../../utils/setup.js';
 
 const SUI = '0x2::sui::SUI';
 const ALLOWANCE_TYPE = '0x2::balance::Balance<0x2::sui::SUI>';
@@ -20,6 +20,8 @@ describe('Allowance withdrawals', () => {
 	let spender: { keypair: Ed25519Keypair; address: string };
 	let allowanceId: string;
 	let spendDigest: string;
+	let appAllowanceId: string;
+	let appPackage: string;
 	const testWithAllClients = createTestWithAllClients(() => toolbox);
 
 	/** A spend of `SPEND_AMOUNT` from the allowance, with the allowance left for the resolver. */
@@ -51,16 +53,18 @@ describe('Allowance withdrawals', () => {
 		return result.Transaction;
 	}
 
-	async function issueAllowance(issuer: Ed25519Keypair, spenderAddress: string) {
-		// The funder issues a plain allowance over its SUI address balance to the spender.
+	async function issueAllowance(issuer: Ed25519Keypair, spenderAddress: string, app = false) {
+		// The funder issues an allowance over its SUI address balance to the spender.
 		const tx = new Transaction();
 		const noRateLimit = tx.moveCall({
 			target: '0x1::option::none',
 			typeArguments: ['0x2::allowance::RateLimit'],
 		});
-		tx.moveCall({
-			target: '0x2::allowance::new',
-			typeArguments: [ALLOWANCE_TYPE],
+		const proposal = tx.moveCall({
+			target: app ? '0x2::allowance::propose_for_app' : '0x2::allowance::new',
+			typeArguments: app
+				? [ALLOWANCE_TYPE, `${appPackage}::test_allowance::App`]
+				: [ALLOWANCE_TYPE],
 			arguments: [
 				tx.pure.string('ts-sdk e2e'),
 				tx.pure.address(spenderAddress),
@@ -70,6 +74,13 @@ describe('Allowance withdrawals', () => {
 				noRateLimit,
 			],
 		});
+		if (app) {
+			tx.moveCall({
+				target: `${appPackage}::test_allowance::issue`,
+				typeArguments: [ALLOWANCE_TYPE],
+				arguments: [proposal],
+			});
+		}
 		const issued = await toolbox.signAndExecuteTransaction({
 			transaction: tx,
 			signer: issuer,
@@ -91,14 +102,84 @@ describe('Allowance withdrawals', () => {
 
 	beforeAll(async () => {
 		toolbox = await setup();
+		({ packageId: appPackage } = await publishPackage('allowance', toolbox));
 		[funder, spender] = await Promise.all([
 			toolbox.getSigner({ coins: [200_000_000n], addressBalance: 2_000_000_000n }),
 			toolbox.getSigner({ coins: [200_000_000n, 200_000_000n, 200_000_000n, 200_000_000n] }),
 		]);
 
 		allowanceId = await issueAllowance(funder.keypair, spender.address);
+		appAllowanceId = await issueAllowance(funder.keypair, spender.address, true);
 
 		spendDigest = (await executeSpend(toolbox.grpcClient)).digest;
+	});
+
+	for (const output of ['coin', 'balance'] as const) {
+		for (const knownFunder of [false, true]) {
+			testWithAllClients(
+				`spends app-bound ${output} (known funder: ${knownFunder})`,
+				async (client) => {
+					const tx = new Transaction();
+					const permit = tx.moveCall({
+						target: `${appPackage}::test_allowance::authorize`,
+						arguments: [tx.pure.address(spender.address), tx.pure.bool(true)],
+					});
+					const value = tx[output]({
+						balance: SPEND_AMOUNT,
+						type: SUI,
+						allowance: {
+							objectId: appAllowanceId,
+							funder: knownFunder ? funder.address : undefined,
+							app: { type: `${appPackage}::test_allowance::App`, permit },
+						},
+					});
+					const coin =
+						output === 'coin'
+							? value
+							: tx.moveCall({
+									target: '0x2::coin::from_balance',
+									typeArguments: [SUI],
+									arguments: [value],
+								});
+					tx.transferObjects([coin], spender.address);
+					const before = await client.core.getBalance({ owner: funder.address, coinType: SUI });
+					const result = await client.core.signAndExecuteTransaction({
+						transaction: tx,
+						signer: spender.keypair,
+					});
+					expect(result.$kind).toBe('Transaction');
+					await toolbox.waitForTransaction({ digest: result.Transaction!.digest });
+					const after = await client.core.getBalance({ owner: funder.address, coinType: SUI });
+					expect(BigInt(before.balance.addressBalance) - BigInt(after.balance.addressBalance)).toBe(
+						SPEND_AMOUNT,
+					);
+				},
+			);
+		}
+	}
+
+	testWithAllClients('enforces custom app authorization before spending', async (client) => {
+		const tx = new Transaction();
+		tx.setSender(spender.address);
+		const permit = tx.moveCall({
+			target: `${appPackage}::test_allowance::authorize`,
+			arguments: [tx.pure.address(spender.address), tx.pure.bool(false)],
+		});
+		tx.transferObjects(
+			[
+				tx.coin({
+					balance: SPEND_AMOUNT,
+					allowance: {
+						objectId: appAllowanceId,
+						app: { type: `${appPackage}::test_allowance::App`, permit },
+					},
+				}),
+			],
+			spender.address,
+		);
+		const result = await client.core.simulateTransaction({ transaction: tx });
+		expect(result.$kind).toBe('FailedTransaction');
+		expect(result.FailedTransaction!.status.error?.message).toContain('test_allowance');
 	});
 
 	it('all clients return same data: transaction with an allowance withdrawal', async () => {

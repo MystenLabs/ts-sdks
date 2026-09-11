@@ -19,6 +19,7 @@ export const ALLOWANCE_BALANCE = 'AllowanceBalance';
 const AllowanceBalanceData = object({
 	objectId: string(),
 	funder: optional(string()),
+	appType: optional(string()),
 	type: string(),
 	amount: string(),
 	outputKind: picklist(['coin', 'balance']),
@@ -48,15 +49,21 @@ export function allowanceBalance({
 	const objectId = normalizeSuiAddress(
 		typeof allowance === 'string' ? allowance : allowance.objectId,
 	);
+	const reference = typeof allowance === 'string' ? { objectId } : allowance;
 	return (tx: Transaction) => {
 		tx.addIntentResolver(ALLOWANCE_BALANCE, resolveAllowanceBalance);
 		return tx.add(
 			TransactionCommands.Intent({
 				name: ALLOWANCE_BALANCE,
-				inputs: { allowance: tx.object(objectId), clock: tx.object.clock() },
+				inputs: {
+					allowance: tx.object(objectId),
+					clock: tx.object.clock(),
+					...(reference.app ? { permit: tx.object(reference.app.permit) } : {}),
+				},
 				data: {
 					objectId,
-					funder: typeof allowance === 'string' ? undefined : normalizeSuiAddress(allowance.funder),
+					funder: reference.funder ? normalizeSuiAddress(reference.funder) : undefined,
+					appType: reference.app ? normalizeStructTag(reference.app.type) : undefined,
 					type: normalizeStructTag(type),
 					amount: String(amount),
 					outputKind,
@@ -104,10 +111,16 @@ export const resolveAllowanceBalance: TransactionPlugin = async (
 				throw new Error(`Expected a shared ${expectedType} allowance at ${data.objectId}`);
 			}
 			const metadata = AllowanceMetadata.parse(allowance.content);
-			if (metadata.app !== null) {
+			if (metadata.app !== null && !data.appType) {
 				throw new Error(
-					`Allowance ${data.objectId} is app-bound; use a withdrawal with allowance::app_balance_spend and the app's SpendPermit`,
+					`Allowance ${data.objectId} is app-bound; pass allowance.app with the app type and SpendPermit`,
 				);
+			}
+			if (
+				data.appType &&
+				(metadata.app === null || normalizeStructTag(metadata.app) !== data.appType)
+			) {
+				throw new Error(`Allowance ${data.objectId} does not belong to app ${data.appType}`);
 			}
 			funder = metadata.funder;
 			const input = command.$Intent.inputs.allowance as Argument;
@@ -132,10 +145,13 @@ export const resolveAllowanceBalance: TransactionPlugin = async (
 		);
 		const commands = [
 			TransactionCommands.MoveCall({
-				target: '0x2::allowance::balance_spend',
-				typeArguments: [data.type],
+				target: data.appType
+					? '0x2::allowance::app_balance_spend'
+					: '0x2::allowance::balance_spend',
+				typeArguments: data.appType ? [data.type, data.appType] : [data.type],
 				arguments: [
 					command.$Intent.inputs.allowance as Argument,
+					...(data.appType ? [command.$Intent.inputs.permit as Argument] : []),
 					withdrawal,
 					command.$Intent.inputs.clock as Argument,
 				],

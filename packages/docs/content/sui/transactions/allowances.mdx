@@ -143,28 +143,32 @@ still need a client to resolve object versions and gas.
 
 ## App-bound allowances
 
-`tx.balance()` and `tx.coin()` support plain allowances. App-bound allowances also require a
-`SpendPermit<A>` from the app. Use `tx.withdrawal()` with `app_balance_spend`:
+App-bound allowances require a `SpendPermit<A>` from the app. Pass the permit and app type to
+`tx.balance()` or `tx.coin()`:
 
 ```tsx
 import { Transaction } from '@mysten/sui/transactions';
 
 const USDC = '0xUsdcPackage::usdc::USDC';
 const tx = new Transaction();
-// Obtain this permit through the app's own authorization flow.
-const permit = tx.moveCall({ target: '0xAppPackage::app::authorize_spend', arguments: [] });
-const withdrawal = tx.withdrawal({
-	amount: 10_000_000n, // 10 USDC
-	type: USDC,
-	withdrawFrom: {
-		$kind: 'SenderAllowance',
-		SenderAllowance: { funder: '0xFunderAddress', allowance: '0xAllowanceId' },
-	},
+const permit = tx.moveCall({
+	target: '0xAppPackage::subscriptions::authorize_payment',
+	arguments: [tx.object('0xSubscriptionId')],
 });
-const balance = tx.moveCall({
-	target: '0x2::allowance::app_balance_spend',
-	typeArguments: [USDC, '0xAppPackage::app::APP'],
-	arguments: [tx.object('0xAllowanceId'), permit, withdrawal, tx.object.clock()],
+const balance = tx.balance({
+	balance: 10_000_000n, // 10 USDC
+	type: USDC,
+	allowance: {
+		objectId: '0xAllowanceId',
+		app: { type: '0xAppPackage::subscriptions::APP', permit },
+	},
 });
 // Pass balance to the app's next operation.
 ```
+
+The authorization function and its arguments are defined by the app. The SDK handles the framework's
+`app_balance_spend` call. Add `funder` to the allowance reference to skip the metadata lookup.
+
+A permit authorizes a spend but does not bind its amount or recipient. Apps that need to enforce
+those must redeem the withdrawal inside their own Move function, using `tx.withdrawal()` as the
+input.

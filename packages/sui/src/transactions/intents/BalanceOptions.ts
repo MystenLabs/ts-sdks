@@ -1,10 +1,20 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-/** A plain allowance whose funder is already known, avoiding a metadata lookup. */
+import type { TransactionObjectArgument } from '../Transaction.js';
+
+/** An allowance with optional funder metadata and app authorization. */
 export interface AllowanceReference {
 	objectId: string;
-	funder: string;
+	/** Skip the metadata lookup when the funder is already known. */
+	funder?: string;
+	/** Authorization for an app-bound allowance. */
+	app?: {
+		/** The app type A in SpendPermit<A>. */
+		type: string;
+		/** A SpendPermit<A> returned by the app's authorization call. */
+		permit: TransactionObjectArgument;
+	};
 }
 
 export type BalanceOptions = {
@@ -14,7 +24,7 @@ export type BalanceOptions = {
 } & (
 	| { allowance?: never; useGasCoin?: boolean }
 	| {
-			/** A plain allowance ID or a reference with a known funder. Never falls back to sender funds. */
+			/** An allowance ID or reference with optional app authorization. Never falls back to sender funds. */
 			allowance: string | AllowanceReference;
 			useGasCoin?: never;
 	  }

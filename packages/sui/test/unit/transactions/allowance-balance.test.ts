@@ -13,6 +13,7 @@ const ID = normalizeSuiAddress('0xa11');
 const FUNDER = normalizeSuiAddress('0xf00d');
 const SENDER = normalizeSuiAddress('0x123');
 const SUI = normalizeStructTag('0x2::sui::SUI');
+const APP = normalizeStructTag('0xa::app::APP');
 const TYPE = normalizeStructTag(`0x2::allowance::Allowance<0x2::balance::Balance<${SUI}>>`);
 
 // A complete allowance with no rate limit, matching the Move layout.
@@ -45,7 +46,7 @@ function mockClient({ app = false, type = TYPE, missing = false, funder = FUNDER
 							settings: {
 								funder,
 								spender: SENDER,
-								app: app ? { name: 'example::app::APP' } : null,
+								app: app ? { name: APP.slice(2) } : null,
 								lifetimeCap: 1000,
 								start: null,
 								expiration: null,
@@ -119,6 +120,96 @@ describe('allowance balances', () => {
 			function: 'balance_spend',
 		});
 		expect(data.commands[4].MoveCall?.arguments[0]).toMatchObject({ NestedResult: [3, 0] });
+	});
+
+	it.each([false, true])(
+		'preserves app permits and consumers through expansion and serialization (known funder: %s)',
+		async (knownFunder) => {
+			const tx = new Transaction();
+			tx.setSender(SENDER);
+			tx.sharedObjectRef({ objectId: ID, initialSharedVersion: '5', mutable: true });
+			for (const output of ['coin', 'balance'] as const) {
+				const permit = tx.moveCall({ target: '0xa::app::authorize', arguments: [tx.pure.u64(42)] });
+				const value = tx[output]({
+					balance: 10n,
+					allowance: {
+						objectId: ID,
+						funder: knownFunder ? FUNDER : undefined,
+						app: { type: APP, permit },
+					},
+				});
+				if (output === 'coin') tx.transferObjects([value], SENDER);
+				else
+					tx.moveCall({
+						target: '0x2::balance::send_funds',
+						typeArguments: [SUI],
+						arguments: [value, tx.pure.address(SENDER)],
+					});
+			}
+			const restored = Transaction.from(
+				await Transaction.from(tx).toJSON({ supportedIntents: ['AllowanceBalance'] }),
+			);
+			const { client, getObjects, getBalance, listCoins } = mockClient({ app: true });
+			const bytes = await restored.build({ client, onlyTransactionKind: true });
+			const commands = bcs.TransactionKind.parse(bytes).ProgrammableTransaction!.commands;
+			expect(commands[1].MoveCall).toMatchObject({
+				function: 'app_balance_spend',
+				arguments: [{ Input: 0 }, { Result: 0 }, { Input: 6 }, { Input: 2 }],
+			});
+			expect(commands[3].TransferObjects?.objects).toMatchObject([{ NestedResult: [2, 0] }]);
+			expect(commands[5].MoveCall).toMatchObject({
+				function: 'app_balance_spend',
+				arguments: [{ Input: 0 }, { Result: 4 }, { Input: 7 }, { Input: 2 }],
+			});
+			expect(commands[6].MoveCall?.arguments[0]).toMatchObject({ NestedResult: [5, 0] });
+			expect(getObjects).toHaveBeenCalledTimes(knownFunder ? 0 : 1);
+			expect(getBalance).not.toHaveBeenCalled();
+			expect(listCoins).not.toHaveBeenCalled();
+		},
+	);
+
+	it('remaps app authorization arguments when an ordinary coin intent resolves later', async () => {
+		const tx = new Transaction();
+		tx.setSender(SENDER);
+		tx.sharedObjectRef({ objectId: ID, initialSharedVersion: '5', mutable: true });
+		const authorizationFee = tx.coin({ balance: 2n });
+		const [, permit] = tx.moveCall({
+			target: '0xa::app::authorize',
+			arguments: [authorizationFee],
+		});
+		const coin = tx.coin({
+			balance: 10n,
+			allowance: { objectId: ID, funder: FUNDER, app: { type: APP, permit } },
+		});
+		tx.transferObjects([coin], SENDER);
+		await tx.build({ onlyTransactionKind: true, assumeSufficientAddressBalances: true });
+		const commands = tx.getData().commands;
+		const authorizeIndex = commands.findIndex(
+			(command) => command.MoveCall?.function === 'authorize',
+		);
+		const spend = commands.find(
+			(command) => command.MoveCall?.function === 'app_balance_spend',
+		)!.MoveCall!;
+		expect(spend.arguments[1]).toMatchObject({ NestedResult: [authorizeIndex, 1] });
+		const fee = commands[authorizeIndex].MoveCall!.arguments[0];
+		expect(fee.$kind).toBe('NestedResult');
+		if (fee.$kind !== 'NestedResult') throw new Error('Expected a resolved coin result');
+		expect(fee.NestedResult[0]).toBeLessThan(authorizeIndex);
+		expect(commands[fee.NestedResult[0]].$kind).toBe('SplitCoins');
+		expect(commands.at(-1)?.TransferObjects?.objects[0]).toMatchObject({
+			NestedResult: [commands.length - 2, 0],
+		});
+	});
+
+	it.each([false, true])('rejects an app mismatch (app-bound: %s)', async (app) => {
+		const tx = new Transaction();
+		const permit = tx.moveCall({ target: '0xb::app::authorize' });
+		tx.balance({
+			balance: 1n,
+			allowance: { objectId: ID, app: { type: '0xb::app::APP', permit } },
+		});
+		const { client } = mockClient({ app });
+		await expect(tx.toJSON({ client })).rejects.toThrow(/does not belong to app/);
 	});
 
 	it.each([

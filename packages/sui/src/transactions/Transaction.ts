@@ -353,7 +353,7 @@ export class Transaction {
 	 * Creates a coin of the specified type and amount (defaults to SUI).
 	 * Sourced from address balance when available, falling back to owned coins.
 	 * With `allowance`, spends only from that allowance and never falls back to the sender.
-	 * Allowance IDs are resolved using the build client; app-bound allowances require a custom spend.
+	 * Allowance IDs are resolved using the build client; app-bound allowances also require an app type and SpendPermit.
 	 */
 	coin(options: BalanceOptions): TransactionResult {
 		const amount = normalizeBalance(options);
@@ -368,7 +368,7 @@ export class Transaction {
 	 * Creates a Balance<T> of the specified type and amount (defaults to SUI).
 	 * Sourced from address balance when available, falling back to owned coins.
 	 * With `allowance`, spends only from that allowance and never falls back to the sender.
-	 * Allowance IDs are resolved using the build client; app-bound allowances require a custom spend.
+	 * Allowance IDs are resolved using the build client; app-bound allowances also require an app type and SpendPermit.
 	 */
 	balance(options: BalanceOptions): TransactionResult {
 		const amount = normalizeBalance(options);

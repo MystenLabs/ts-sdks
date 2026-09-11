@@ -195,18 +195,9 @@ describe('Coin Flows - Framework MoveCall Tests', () => {
 					],
 				});
 				const permit = tx.moveCall({ target: '0xa::app::authorize' });
-				const withdrawal = tx.withdrawal({
-					amount: options.balance,
-					type: USDC,
-					withdrawFrom: {
-						$kind: 'SenderAllowance',
-						SenderAllowance: { funder: FUNDER, allowance: ALLOWANCE_ID },
-					},
-				});
-				output = tx.moveCall({
-					target: '0x2::allowance::app_balance_spend',
-					typeArguments: [USDC, '0xa::app::APP'],
-					arguments: [tx.object(ALLOWANCE_ID), permit, withdrawal, tx.object.clock()],
+				output = tx.balance({
+					...options,
+					allowance: { ...options.allowance, app: { type: '0xa::app::APP', permit } },
 				});
 			} else {
 				output = kind === 'coin' ? tx.coin(options) : tx.balance(options);
