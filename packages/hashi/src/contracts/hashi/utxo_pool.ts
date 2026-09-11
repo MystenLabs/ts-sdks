@@ -13,15 +13,13 @@
 import { MoveStruct } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import * as bag from './deps/sui/bag.js';
-import * as bag_1 from './deps/sui/bag.js';
 import * as utxo from './utxo.js';
-import * as utxo_1 from './utxo.js';
 const $moduleName = '@local-pkg/hashi::utxo_pool';
 export const UtxoPool = new MoveStruct({
 	name: `${$moduleName}::UtxoPool`,
 	fields: {
 		utxo_records: bag.Bag,
-		spent_utxos: bag_1.Bag,
+		spent_utxos: bag.Bag,
 	},
 });
 export const UtxoRecord = new MoveStruct({
@@ -36,7 +34,7 @@ export const UtxoRecord = new MoveStruct({
 export const UtxoSpent = new MoveStruct({
 	name: `${$moduleName}::UtxoSpent`,
 	fields: {
-		utxo_id: utxo_1.UtxoId,
+		utxo_id: utxo.UtxoId,
 		spent_epoch: bcs.u64(),
 	},
 });

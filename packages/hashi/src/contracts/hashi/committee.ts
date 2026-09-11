@@ -63,8 +63,8 @@ export function CertifiedMessage<T extends BcsType<any>>(...typeParameters: [T])
 }
 export interface NewCommitteeSignatureArguments {
 	epoch: RawTransactionArgument<number | bigint>;
-	signature: RawTransactionArgument<number[]>;
-	signersBitmap: RawTransactionArgument<number[]>;
+	signature: RawTransactionArgument<Array<number>>;
+	signersBitmap: RawTransactionArgument<Array<number>>;
 }
 export interface NewCommitteeSignatureOptions {
 	package?: string;
@@ -72,8 +72,8 @@ export interface NewCommitteeSignatureOptions {
 		| NewCommitteeSignatureArguments
 		| [
 				epoch: RawTransactionArgument<number | bigint>,
-				signature: RawTransactionArgument<number[]>,
-				signersBitmap: RawTransactionArgument<number[]>,
+				signature: RawTransactionArgument<Array<number>>,
+				signersBitmap: RawTransactionArgument<Array<number>>,
 		  ];
 }
 export function newCommitteeSignature(options: NewCommitteeSignatureOptions) {
