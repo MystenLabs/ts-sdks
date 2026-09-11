@@ -79,12 +79,19 @@ jobs:
           # makes the relationship unambiguous in cache hit/miss logs.
           shared-key: hashi-${{ env.HASHI_PIN }}
 
+      # Pinned instead of hashi's install-sui.sh, which installs the newest testnet release:
+      # HASHI_PIN can't bootstrap a localnet on testnet-v1.79.0. Bump alongside HASHI_PIN.
       - name: Install Sui binary
-        # install-sui.sh queries the GitHub releases API with GITHUB_TOKEN
-        # (set -u, so it must be set) — mirrors the env in hashi's own ci.yml.
         env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: bash hashi/.github/scripts/install-sui.sh
+          SUI_VERSION: 'testnet-v1.78.1'
+          SUI_SHA256: '892bb34c3719b7609baed451dec4d6110254791f69315e7b63fe51804822027e'
+        run: |
+          wget -q "https://sui-releases.s3-accelerate.amazonaws.com/${SUI_VERSION}/sui"
+          echo "${SUI_SHA256}  sui" | sha256sum -c -
+          chmod +x sui
+          sudo mv sui /usr/local/bin/
+          sui --version
+          echo "SUI_BINARY=/usr/local/bin/sui" >> "$GITHUB_ENV"
 
       # Mirrors the "Install Bitcoin Core" step in
       # hashi/.github/workflows/ci.yml, but pinned rather than tracking the
