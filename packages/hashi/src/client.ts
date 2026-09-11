@@ -602,33 +602,77 @@ export class HashiClient {
 	// operator/committee calls are intentionally not part of this surface.
 	call = {
 		deposit: (options: { utxo: RawTransactionArgument<string> }) =>
-			depositModule.deposit({
-				package: this.#packageId,
-				arguments: { hashi: this.#hashiObjectId, utxo: options.utxo },
-			}),
+			this.#retarget(
+				depositModule.deposit({
+					package: this.#packageId,
+					arguments: { hashi: this.#hashiObjectId, utxo: options.utxo },
+				}),
+			),
 		requestWithdrawal: (options: {
 			btc: RawTransactionArgument<string>;
 			bitcoinAddress: RawTransactionArgument<number[]>;
 		}) =>
-			withdrawModule.requestWithdrawal({
-				package: this.#packageId,
-				arguments: {
-					hashi: this.#hashiObjectId,
-					btc: options.btc,
-					bitcoinAddress: options.bitcoinAddress,
-				},
-			}),
+			this.#retarget(
+				withdrawModule.requestWithdrawal({
+					package: this.#packageId,
+					arguments: {
+						hashi: this.#hashiObjectId,
+						btc: options.btc,
+						bitcoinAddress: options.bitcoinAddress,
+					},
+				}),
+			),
 		/**
 		 * Cancel a pending withdrawal request. Returns a `Balance<BTC>` hot potato
 		 * that must be consumed in the same PTB (e.g. wrapped into a Coin and
 		 * transferred back to the sender).
 		 */
 		cancelWithdrawal: (options: { requestId: RawTransactionArgument<string> }) =>
-			withdrawModule.cancelWithdrawal({
-				package: this.#packageId,
-				arguments: { hashi: this.#hashiObjectId, requestId: options.requestId },
-			}),
+			this.#retarget(
+				withdrawModule.cancelWithdrawal({
+					package: this.#packageId,
+					arguments: { hashi: this.#hashiObjectId, requestId: options.requestId },
+				}),
+			),
 	};
+
+	/** Wraps a call thunk so its transaction's Hashi calls target the latest enabled package. */
+	#retarget<T>(call: (tx: Transaction) => T) {
+		return (tx: Transaction) => {
+			tx.add(this.#addRetargetPlugin);
+			return call(tx);
+		};
+	}
+
+	// `tx.add` runs a given thunk once per transaction (forks included), so this registers once.
+	// Serialization plugins run for `toJSON`, `build` and `getDigest` alike.
+	#addRetargetPlugin = (tx: Transaction) => {
+		tx.addSerializationPlugin(async (data, _options, next) => {
+			const packageId = normalizeSuiAddress(this.#packageId);
+			const calls = data.commands.flatMap((command) =>
+				command.MoveCall && normalizeSuiAddress(command.MoveCall.package) === packageId
+					? [command.MoveCall]
+					: [],
+			);
+			if (calls.length > 0) {
+				const target = await this.#resolveCallPackageId();
+				for (const call of calls) call.package = target;
+			}
+			await next();
+		});
+	};
+
+	/**
+	 * `assert_version_enabled` gates on the called package's version, so call the upgrade cap's
+	 * package once its version is enabled, and the configured (original) package otherwise.
+	 */
+	async #resolveCallPackageId(): Promise<string> {
+		const { json } = await this.#fetchHashiObject();
+		const { enabled_versions, upgrade_cap: cap } = json.versioning;
+		return cap && enabled_versions.contents.some((v) => BigInt(v) === BigInt(cap.version))
+			? cap.package
+			: this.#packageId;
+	}
 
 	/**
 	 * Parses the `Hashi.config.config` VecMap contents into a typed snapshot,
