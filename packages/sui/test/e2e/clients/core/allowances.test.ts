@@ -26,7 +26,7 @@ describe('Allowance withdrawals', () => {
 	function buildSpend() {
 		const tx = new Transaction();
 		tx.setSender(spender.address);
-		const balance = tx.balance({ allowance: allowanceId, amount: SPEND_AMOUNT, type: SUI });
+		const balance = tx.balance({ allowance: allowanceId, balance: SPEND_AMOUNT, type: SUI });
 		const coin = tx.moveCall({
 			target: '0x2::coin::from_balance',
 			typeArguments: [SUI],
@@ -164,7 +164,7 @@ describe('Allowance withdrawals', () => {
 				const tx = new Transaction();
 				const coin = tx.coin({
 					allowance: knownFunder ? { objectId: allowanceId, funder: funder.address } : allowanceId,
-					amount: SPEND_AMOUNT.toString(),
+					balance: SPEND_AMOUNT.toString(),
 					type: SUI,
 				});
 				tx.transferObjects([coin], spender.address);
@@ -196,7 +196,7 @@ describe('Allowance withdrawals', () => {
 			tx.setSender(spender.address);
 			tx.setGasOwner(sponsor.address);
 			tx.setGasBudget(40_000_000n);
-			tx.transferObjects([tx.coin({ allowance: id, amount })], spender.address);
+			tx.transferObjects([tx.coin({ allowance: id, balance: amount })], spender.address);
 			const bytes = await tx.build({ client });
 			expect(tx.getData().gasData.payment!.length).toBeGreaterThan(0);
 			const signatures = await Promise.all([
@@ -228,8 +228,8 @@ describe('Allowance withdrawals', () => {
 				const before = await client.core.getBalance({ owner: self.address });
 				const amount = BigInt(before.balance.addressBalance) - 20_000_000n;
 				const tx = new Transaction();
-				const allowance = () => tx.coin({ allowance: id, amount });
-				const ordinary = () => tx.coin({ amount, useGasCoin: false });
+				const allowance = () => tx.coin({ allowance: id, balance: amount });
+				const ordinary = () => tx.coin({ balance: amount, useGasCoin: false });
 				const first = allowanceFirst ? allowance() : ordinary();
 				const second = allowanceFirst ? ordinary() : allowance();
 				tx.transferObjects([first, second], spender.address);

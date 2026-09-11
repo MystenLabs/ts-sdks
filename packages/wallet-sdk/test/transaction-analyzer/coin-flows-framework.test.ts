@@ -164,7 +164,7 @@ describe('Coin Flows - Framework MoveCall Tests', () => {
 			tx.sharedObjectRef({ objectId: ALLOWANCE_ID, initialSharedVersion: '1', mutable: true });
 			const options = {
 				allowance: { objectId: ALLOWANCE_ID, funder: FUNDER },
-				amount: 500_000_000n,
+				balance: 500_000_000n,
 				type: USDC,
 			};
 			let output;
@@ -196,7 +196,7 @@ describe('Coin Flows - Framework MoveCall Tests', () => {
 				});
 				const permit = tx.moveCall({ target: '0xa::app::authorize' });
 				const withdrawal = tx.withdrawal({
-					amount: options.amount,
+					amount: options.balance,
 					type: USDC,
 					withdrawFrom: {
 						$kind: 'SenderAllowance',

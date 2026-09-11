@@ -71,7 +71,7 @@ describe('allowance balances', () => {
 	it('resolves repeated coin and balance spends once and preserves their consumers through copying and JSON', async () => {
 		const tx = new Transaction();
 		tx.setSender(SENDER);
-		const [coin] = tx.coin({ allowance: ID, amount: '100' });
+		const [coin] = tx.coin({ allowance: ID, balance: '100' });
 		tx.transferObjects([coin], SENDER);
 		const balance = tx.balance({ allowance: ID, balance: 50n });
 		tx.moveCall({
@@ -132,8 +132,8 @@ describe('allowance balances', () => {
 		async ({ allowanceFirst, useGasCoin, type }) => {
 			const tx = new Transaction();
 			tx.setSender(SENDER);
-			const allowance = () => tx.coin({ allowance: ID, amount: 80n, type });
-			const ordinary = () => tx.coin({ amount: 80n, type, useGasCoin });
+			const allowance = () => tx.coin({ allowance: ID, balance: 80n, type });
+			const ordinary = () => tx.coin({ balance: 80n, type, useGasCoin });
 			const first = allowanceFirst ? allowance() : ordinary();
 			const second = allowanceFirst ? ordinary() : allowance();
 			tx.transferObjects([first, second], SENDER);
@@ -171,8 +171,8 @@ describe('allowance balances', () => {
 	it('requires dependent intents to be resolved together', async () => {
 		const tx = new Transaction();
 		tx.setSender(SENDER);
-		tx.coin({ amount: 1n });
-		tx.coin({ allowance: { objectId: ID, funder: SENDER }, amount: 1n });
+		tx.coin({ balance: 1n });
+		tx.coin({ allowance: { objectId: ID, funder: SENDER }, balance: 1n });
 		await expect(
 			tx.toJSON({ supportedIntents: ['AllowanceBalance'], assumeSufficientAddressBalances: true }),
 		).rejects.toThrow(/preserve both intents/);
@@ -180,7 +180,7 @@ describe('allowance balances', () => {
 
 	it('keeps zero spends on the allowance path and never selects sender funds', async () => {
 		const tx = new Transaction();
-		tx.balance({ allowance: ID, amount: 0 });
+		tx.balance({ allowance: ID, balance: 0 });
 		const { client, getBalance } = mockClient();
 		await tx.toJSON({ client });
 		expect(tx.getData().commands[0].MoveCall?.function).toBe('balance_spend');
@@ -192,10 +192,10 @@ describe('allowance balances', () => {
 		tx.setSender(SENDER);
 		tx.sharedObjectRef({ objectId: ID, initialSharedVersion: '5', mutable: true });
 		tx.transferObjects(
-			[tx.coin({ allowance: { objectId: ID, funder: FUNDER }, amount: 5n })],
+			[tx.coin({ allowance: { objectId: ID, funder: FUNDER }, balance: 5n })],
 			SENDER,
 		);
-		tx.transferObjects([tx.coin({ amount: 10n })], SENDER);
+		tx.transferObjects([tx.coin({ balance: 10n })], SENDER);
 		await tx.build({ onlyTransactionKind: true, assumeSufficientAddressBalances: true });
 		const sources = tx
 			.getData()
@@ -211,7 +211,7 @@ describe('allowance balances', () => {
 		[{ missing: true }, /Allowance not found/],
 	] as const)('rejects unsupported allowances without falling back: %j', async (options, error) => {
 		const tx = new Transaction();
-		tx.coin({ allowance: ID, amount: 1 });
+		tx.coin({ allowance: ID, balance: 1 });
 		const { client, getBalance, listCoins } = mockClient(options);
 		await expect(tx.toJSON({ client })).rejects.toThrow(error);
 		expect(getBalance).not.toHaveBeenCalled();
@@ -221,17 +221,15 @@ describe('allowance balances', () => {
 	it.each([-1n, 2n ** 64n, Number.MAX_SAFE_INTEGER + 1, 0.5])(
 		'rejects invalid amounts: %s',
 		(amount) => {
-			expect(() => new Transaction().balance({ allowance: ID, amount })).toThrow();
+			expect(() => new Transaction().balance({ allowance: ID, balance: amount })).toThrow();
 		},
 	);
 
 	it('rejects ambiguous options at the type and runtime levels', () => {
 		const tx = new Transaction();
-		// @ts-expect-error amount and balance are mutually exclusive
-		expect(() => tx.balance({ amount: 1, balance: 1 })).toThrow(/exactly one/);
 		// @ts-expect-error gas selection does not apply to allowance funding
-		expect(() => tx.coin({ amount: 1, allowance: ID, useGasCoin: false })).toThrow(/useGasCoin/);
-		// @ts-expect-error an amount is required
-		expect(() => tx.balance({ allowance: ID })).toThrow(/exactly one/);
+		expect(() => tx.coin({ balance: 1, allowance: ID, useGasCoin: false })).toThrow(/useGasCoin/);
+		// @ts-expect-error a balance is required
+		expect(() => tx.balance({ allowance: ID })).toThrow();
 	});
 });

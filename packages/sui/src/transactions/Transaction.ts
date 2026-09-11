@@ -37,7 +37,7 @@ import {
 	resolveAllowanceBalance,
 } from './intents/AllowanceBalance.js';
 import type { BalanceOptions } from './intents/BalanceOptions.js';
-import { getBalanceAmount } from './intents/BalanceOptions.js';
+import { normalizeBalance } from './intents/BalanceOptions.js';
 import {
 	COIN_WITH_BALANCE,
 	resolveCoinBalance,
@@ -356,7 +356,7 @@ export class Transaction {
 	 * Allowance IDs are resolved using the build client; app-bound allowances require a custom spend.
 	 */
 	coin(options: BalanceOptions): TransactionResult {
-		const amount = getBalanceAmount(options);
+		const amount = normalizeBalance(options);
 		return this.add(
 			options.allowance !== undefined
 				? allowanceBalance({ ...options, amount, outputKind: 'coin' })
@@ -371,7 +371,7 @@ export class Transaction {
 	 * Allowance IDs are resolved using the build client; app-bound allowances require a custom spend.
 	 */
 	balance(options: BalanceOptions): TransactionResult {
-		const amount = getBalanceAmount(options);
+		const amount = normalizeBalance(options);
 		return this.add(
 			options.allowance !== undefined
 				? allowanceBalance({ ...options, amount, outputKind: 'balance' })

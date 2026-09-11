@@ -106,12 +106,11 @@ tx.moveCall({
 
 ### Options
 
-| Option       | Type                         | Default                           | Description                                                                             |
-| ------------ | ---------------------------- | --------------------------------- | --------------------------------------------------------------------------------------- |
-| `amount`     | `bigint \| number \| string` | _required unless using `balance`_ | Amount in base units (MIST for SUI); use safe integer numbers or bigint/decimal strings |
-| `balance`    | `bigint \| number`           | —                                 | Existing name for `amount`; provide exactly one of these options                        |
-| `type`       | `string`                     | SUI                               | Coin type T, not Balance&lt;T&gt;. Defaults to `0x2::sui::SUI`                          |
-| `useGasCoin` | `boolean`                    | `true`                            | For SUI, allow splitting the gas coin. Set `false` for sponsored transactions           |
+| Option       | Type                         | Default    | Description                                                                             |
+| ------------ | ---------------------------- | ---------- | --------------------------------------------------------------------------------------- |
+| `balance`    | `bigint \| number \| string` | _required_ | Amount in base units (MIST for SUI); use safe integer numbers or bigint/decimal strings |
+| `type`       | `string`                     | SUI        | Coin type T, not Balance&lt;T&gt;. Defaults to `0x2::sui::SUI`                          |
+| `useGasCoin` | `boolean`                    | `true`     | For SUI, allow splitting the gas coin. Set `false` for sponsored transactions           |
 
 For SUI, `tx.coin()` splits from the gas coin by default. For sponsored transactions where the gas
 coin belongs to the sponsor, set `useGasCoin: false`:
@@ -122,8 +121,7 @@ tx.transferObjects([tx.coin({ balance: 100n, useGasCoin: false })], recipient);
 
 ### `coinWithBalance`
 
-`coinWithBalance()` is a standalone helper for sender-funded coins. It uses the existing `balance`
-option rather than `amount`:
+`coinWithBalance()` is a standalone helper for sender-funded coins:
 
 ```tsx
 import { coinWithBalance, Transaction } from '@mysten/sui/transactions';

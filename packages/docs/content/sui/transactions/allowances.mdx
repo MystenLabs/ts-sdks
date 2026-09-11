@@ -101,7 +101,7 @@ const USDC = '0xUsdcPackage::usdc::USDC';
 const tx = new Transaction();
 const balance = tx.balance({
 	allowance: '0xAllowanceId',
-	amount: 10_000_000n, // 10 USDC
+	balance: 10_000_000n, // 10 USDC
 	type: USDC,
 });
 
@@ -132,7 +132,7 @@ const USDC = '0xUsdcPackage::usdc::USDC';
 const tx = new Transaction();
 const coin = tx.coin({
 	allowance: { objectId: '0xAllowanceId', funder: '0xFunderAddress' },
-	amount: 10_000_000n, // 10 USDC
+	balance: 10_000_000n, // 10 USDC
 	type: USDC,
 });
 tx.transferObjects([coin], '0xRecipientAddress');
