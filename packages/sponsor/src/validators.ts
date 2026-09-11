@@ -339,8 +339,8 @@ export function gasCoinNotUsed(): Validator {
 }
 
 /**
- * Allow sender withdrawals and sender-authorized allowances funded by someone
- * other than the gas sponsor. Sponsor withdrawals and unknown sources are rejected.
+ * Allow sender withdrawals and withdrawals under allowances granted to the sender
+ * and funded by someone other than the gas sponsor. Sponsor withdrawals and unknown sources are rejected.
  * Allowance authorization is enforced on-chain; pair this with simulationSucceeds.
  * Part of defaults. Reads only data.
  */

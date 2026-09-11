@@ -120,7 +120,7 @@ export const resolveAllowanceBalance: TransactionPlugin = async (
 				data.appType &&
 				(metadata.app === null || normalizeStructTag(metadata.app) !== data.appType)
 			) {
-				throw new Error(`Allowance ${data.objectId} does not belong to app ${data.appType}`);
+				throw new Error(`Allowance ${data.objectId} is not bound to app ${data.appType}`);
 			}
 			funder = metadata.funder;
 			const input = command.$Intent.inputs.allowance as Argument;

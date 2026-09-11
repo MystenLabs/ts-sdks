@@ -12,7 +12,7 @@ export interface AllowanceReference {
 	app?: {
 		/** The app type A in SpendPermit<A>. */
 		type: string;
-		/** A SpendPermit<A> returned by the app's authorization call. */
+		/** A SpendPermit<A> from the app, consumed by this spend. */
 		permit: TransactionObjectArgument;
 	};
 }

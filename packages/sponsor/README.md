@@ -77,12 +77,12 @@ createSponsor({ signer, client, validate: [defaults(), allowedPackages(['0xabc']
 Each default guards something real: `validSender()` requires a sender and stops a caller from
 sponsoring their own transaction; `onlyAddressBalanceGas()` and `gasCoinNotUsed()` stop a caller
 from spending the sponsor's gas (its address balance pays, and the gas coin is the sponsor's);
-`onlySenderWithdrawals()` allows sender withdrawals and sender-authorized allowances funded by
-someone other than the sponsor. It rejects unknown sources, allowances with an unset gas owner, and
-withdrawals from the sponsor's **address balance** (the same balance that pays gas — a direct drain
-the gas-coin check can't see, since the withdrawal is an _input_, not a command argument);
-`simulationSucceeds()` avoids paying for a transaction that aborts; and `boundedExpiration()` caps
-how long the signed transaction stays valid.
+`onlySenderWithdrawals()` allows sender withdrawals and withdrawals under allowances granted to the
+sender and funded by someone other than the sponsor. It rejects unknown sources, allowances with an
+unset gas owner, and withdrawals from the sponsor's **address balance** (the same balance that pays
+gas — a direct drain the gas-coin check can't see, since the withdrawal is an _input_, not a command
+argument); `simulationSucceeds()` avoids paying for a transaction that aborts; and
+`boundedExpiration()` caps how long the signed transaction stays valid.
 
 Two things the defaults **don't** do, by design — handle them at your service boundary:
 

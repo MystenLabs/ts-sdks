@@ -209,7 +209,7 @@ describe('allowance balances', () => {
 			allowance: { objectId: ID, app: { type: '0xb::app::APP', permit } },
 		});
 		const { client } = mockClient({ app });
-		await expect(tx.toJSON({ client })).rejects.toThrow(/does not belong to app/);
+		await expect(tx.toJSON({ client })).rejects.toThrow(/is not bound to app/);
 	});
 
 	it.each([

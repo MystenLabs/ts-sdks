@@ -12,7 +12,7 @@ Add `tx.balance({ allowance, balance, type })` and `tx.coin({ allowance, balance
 allowance IDs and redeem their withdrawals automatically. A known `{ objectId, funder }`
 reference skips metadata lookup. Allowance spends never fall back to the sender's funds.
 Both helpers accept decimal strings for `balance`. App-bound allowances accept
-`{ objectId, app: { type, permit }, funder? }` with a `SpendPermit` from an app authorization call.
+`{ objectId, app: { type, permit }, funder? }` with a `SpendPermit<A>` from an app authorization call.
 
 Account for allowance reservations when selecting ordinary coins and gas, including transactions
 where the sender or gas sponsor is also the allowance's funder.

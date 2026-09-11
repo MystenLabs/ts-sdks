@@ -350,9 +350,9 @@ export class Transaction {
 	}
 
 	/**
-	 * Creates a coin of the specified type and amount (defaults to SUI).
+	 * Creates a Coin<T> of the specified type and amount (defaults to SUI).
 	 * Sourced from address balance when available, falling back to owned coins.
-	 * With `allowance`, spends only from that allowance and never falls back to the sender.
+	 * With `allowance`, spends only from the funder's address balance under that allowance.
 	 * Allowance IDs are resolved using the build client; app-bound allowances also require an app type and SpendPermit.
 	 */
 	coin(options: BalanceOptions): TransactionResult {
@@ -367,7 +367,7 @@ export class Transaction {
 	/**
 	 * Creates a Balance<T> of the specified type and amount (defaults to SUI).
 	 * Sourced from address balance when available, falling back to owned coins.
-	 * With `allowance`, spends only from that allowance and never falls back to the sender.
+	 * With `allowance`, spends only from the funder's address balance under that allowance.
 	 * Allowance IDs are resolved using the build client; app-bound allowances also require an app type and SpendPermit.
 	 */
 	balance(options: BalanceOptions): TransactionResult {
@@ -683,13 +683,12 @@ export class Transaction {
 	}
 
 	/**
-	 * Create a FundsWithdrawal input for withdrawing Balance<T> from an address balance accumulator.
-	 * This is used for gas payments from address balances.
+	 * Creates a FundsWithdrawal input for withdrawing Balance<T> from an address balance.
 	 *
-	 * @param options.amount - The Amount to withdraw (u64).
-	 * @param options.type - The balance type (e.g., "0x2::sui::SUI"). Defaults to SUI.
+	 * @param options.amount - The amount to withdraw (u64).
+	 * @param options.type - The coin type T (e.g., "0x2::sui::SUI"), not Balance<T>. Defaults to SUI.
 	 * @param options.withdrawFrom - The account the funds are withdrawn from. Defaults to the
-	 * transaction sender. Use `SenderAllowance` to withdraw from a funder's balance under an
+	 * transaction sender. Use `SenderAllowance` to withdraw from a funder's address balance under an
 	 * `0x2::allowance::Allowance` granted to the sender.
 	 */
 	withdrawal({

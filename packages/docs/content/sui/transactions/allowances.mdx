@@ -15,14 +15,14 @@ answer:
 ---
 
 An [allowance](https://docs.sui.io/references/framework/sui_sui/allowance) lets a **spender** use a
-**funder's** address balance, subject to spending limits. The funder creates it; the spender signs
-transactions that use it. The network must have allowance support enabled (protocol v137 or later).
+**funder's** address balance, subject to spending limits. The spender signs transactions that use
+it. The network must have allowance support enabled (protocol v137 or later).
 
 ## Creating an allowance
 
-This allowance permits up to 100 USDC of spending over 24 hours. `funder` is the signer creating the
-allowance. Replace `0xUsdcPackage::usdc::USDC` with your network's USDC type; amounts use its six
-decimal places.
+This non-app allowance permits up to 100 USDC of spending over 24 hours. `funder` is the signer
+creating the allowance. Replace `0xUsdcPackage::usdc::USDC` with your network's USDC type; amounts
+use its six decimal places.
 
 ```tsx
 import { Transaction } from '@mysten/sui/transactions';
@@ -42,7 +42,7 @@ tx.moveCall({
 	target: '0x2::allowance::new',
 	typeArguments: [balanceType],
 	arguments: [
-		tx.pure.string('App spending allowance'),
+		tx.pure.string('USDC spending allowance'),
 		tx.pure.address(spenderAddress),
 		tx.pure.option('u256', 100_000_000n), // Lifetime cap: 100 USDC
 		tx.pure.option('u64', null), // No delayed start
@@ -81,7 +81,7 @@ when the spender withdraws.
 
 ### Limits and expiration
 
-An allowance requires both a spending limit and an expiration, unless it has a recurring rate limit.
+An allowance requires both a lifetime cap and an expiration, unless it has a recurring rate limit.
 Lifetime caps must be positive `u256` amounts. Start and expiration times use Unix milliseconds; if
 both are set, the start must be earlier. Names can be at most 128 bytes.
 
@@ -138,13 +138,13 @@ const coin = tx.coin({
 tx.transferObjects([coin], '0xRecipientAddress');
 ```
 
-This skips the SDK's token type and app checks; incorrect references fail on-chain. Building may
-still need a client to resolve object versions and gas.
+This skips the SDK's coin type and app binding checks; incorrect references fail on-chain. Building
+may still need a client to resolve object versions and gas.
 
 ## App-bound allowances
 
-App-bound allowances require a `SpendPermit<A>` from the app. Pass the permit and app type to
-`tx.balance()` or `tx.coin()`:
+App-bound allowances require a `SpendPermit<A>` from the app as well as the spender's signature.
+Pass the permit and app type to `tx.balance()` or `tx.coin()`:
 
 ```tsx
 import { Transaction } from '@mysten/sui/transactions';
@@ -166,9 +166,12 @@ const balance = tx.balance({
 // Pass balance to the app's next operation.
 ```
 
+To create an app-bound allowance, the funder calls `allowance::propose_for_app`. The app accepts the
+proposal through `allowance::issue` with a `SettingsPermit<A>`.
+
 The authorization function and its arguments are defined by the app. The SDK handles the framework's
 `app_balance_spend` call. Add `funder` to the allowance reference to skip the metadata lookup.
 
-A permit authorizes a spend but does not bind its amount or recipient. Apps that need to enforce
+A permit authorizes one spend but does not bind its amount or recipient. Apps that need to enforce
 those must redeem the withdrawal inside their own Move function, using `tx.withdrawal()` as the
 input.
