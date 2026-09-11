@@ -14,20 +14,15 @@ answer:
   Create a shared allowance with allowance::new, then spend with tx.balance or tx.coin using its ID
 ---
 
-An allowance authorizes a **spender** to withdraw from a **funder's** address balance within
-configured limits. The funder creates the allowance; the spender signs transactions that use it.
-Allowances require a network with allowance support enabled (protocol v137 or later).
+An allowance lets a **spender** use a **funder's** address balance, subject to spending limits. The
+funder creates it; the spender signs transactions that use it. The network must have allowance
+support enabled (protocol v137 or later).
 
-For ordinary spending from your own coins or address balance, see
-[Coins and Balances](./coins-and-balances.mdx).
+## Creating an allowance
 
-## Creating a plain allowance
-
-This example gives a spender permission to spend up to 100 USDC in total, expiring 24 hours after
-creation. Use a client connected to an allowance-enabled network, a signer for the funder, and the
-spender's address. The funder needs gas for creation and sufficient address balance when the spender
-withdraws. USDC uses six decimal places, so 1 USDC is 1,000,000 base units. Replace
-`0xUsdcPackage::usdc::USDC` with the USDC type on your network.
+This allowance permits up to 100 USDC of spending over 24 hours. `funder` is the signer creating the
+allowance. Replace `0xUsdcPackage::usdc::USDC` with your network's USDC type; amounts use its six
+decimal places.
 
 ```tsx
 import { Transaction } from '@mysten/sui/transactions';
@@ -74,41 +69,30 @@ if (!allowance) throw new Error('No allowance was created');
 
 const allowanceId = allowance.objectId;
 await client.core.waitForTransaction({ digest: result.Transaction.digest });
-// Give allowanceId to the spender for subsequent transactions.
+// Give allowanceId to the spender.
 ```
 
-`allowance::new` takes `Balance<T>` as its type argument. The spending helpers take the coin type
-`T` instead. In these examples, creation uses `balanceType`, while `tx.balance()` and `tx.coin()`
-use `type: USDC`.
+`allowance::new` takes `Balance<USDC>` as its type argument; the spending helpers take `USDC`.
+Creation also sends the funder an `AllowanceCap`, which can revoke the allowance.
 
-Creation shares an `Allowance<Balance<T>>` and sends an `AllowanceCap<Balance<T>>` to the funder.
-The shared object's ID is the ID to pass as `allowance`; the cap lets the funder revoke it. Creation
-does not deposit or reserve tokens. The funder can deposit coin objects into its address balance
-using [coin::send_funds](./coins-and-balances.mdx#depositing-into-address-balances).
+Creating an allowance does not reserve or deposit funds. The funder must have enough USDC in its
+[address balance](./coins-and-balances.mdx#depositing-into-address-balances) when the spender
+withdraws.
 
-### Limits and timing
+### Limits and expiration
 
-| Argument                  | Meaning                                                                 |
-| ------------------------- | ----------------------------------------------------------------------- |
-| `name`                    | A label of at most 128 bytes                                            |
-| `spender`                 | The address that must sign allowance spends                             |
-| `lifetime_cap`            | Optional positive `u256` total spending limit in the token's base units |
-| `start_timestamp_ms`      | Optional `u64` activation time in Unix milliseconds                     |
-| `expiration_timestamp_ms` | Optional `u64` expiration time in Unix milliseconds                     |
-| `rate_limit`              | Optional `RateLimit` restricting spending per time window               |
+An allowance requires both a spending limit and an expiration, unless it has a recurring rate limit.
+Lifetime caps must be positive `u256` amounts. Start and expiration times use Unix milliseconds; if
+both are set, the start must be earlier. Names can be at most 128 bytes.
 
-Provide a lifetime cap or a rate limit, and an expiration or a rate limit. If both start and
-expiration are set, the start must be earlier. The example supplies a lifetime cap and expiration,
-so it does not need a rate limit. Individual withdrawals still must fit in a `u64`.
-
-For recurring spending, build a limit with `allowance::periodic_rate_limit(period_ms, limit)` or
-`allowance::monthly_rate_limit(limit)`, wrap the returned value with `0x1::option::some<RateLimit>`,
-and pass that option as the final explicit argument to `allowance::new`.
+For recurring spending, use `allowance::periodic_rate_limit(period_ms, limit)` or
+`allowance::monthly_rate_limit(limit)`. Wrap the result in `0x1::option::some<RateLimit>` and pass
+it as the last argument to `allowance::new`. A rate limit can replace the lifetime cap and
+expiration, or apply alongside them.
 
 ## Spending from an allowance
 
-Pass the shared allowance ID to spend from the funder's address balance. Sign with the spender's
-key.
+Pass the shared allowance ID and sign with the spender's key:
 
 ```tsx
 import { Transaction } from '@mysten/sui/transactions';
@@ -130,32 +114,16 @@ tx.moveCall({
 await client.core.signAndExecuteTransaction({ transaction: tx, signer: spender });
 ```
 
-Use `tx.coin({ allowance, amount, type })` when the receiving function or `transferObjects` expects
-a `Coin<T>`. Always pass `type: USDC` for a USDC allowance: `type` defaults to SUI in both helpers
-and is not inferred from the allowance.
+Use `tx.coin()` instead when the next operation expects a `Coin<T>`. Both helpers default to SUI, so
+pass `type: USDC` explicitly. Each amount must fit in a `u64`.
 
-### Resolution and funding
-
-The build client fetches the allowance to resolve the funder, check the token type and reject
-app-bound allowances. The SDK adds the withdrawal input, the mutable allowance object and Clock,
-then calls `allowance::balance_spend`. For `tx.coin()`, it also calls `coin::from_balance`. Repeated
-spends share one metadata lookup but redeem at their own positions in the transaction. Allowance
-withdrawals are reserved before ordinary coin selection, including when the sender is also the
-funder.
-
-When using `toJSON({ supportedIntents })` to preserve unresolved intents in a mixed transaction,
-preserve both `AllowanceBalance` and `CoinWithBalance`, or resolve the allowance first. Ordinary
-coin selection needs the allowance's reservations before it can choose funds safely.
-
-Allowance spends draw only from the funder's **address balance**, not its coin objects. They never
-fall back to the sender's funds. Amounts must fit in a `u64`; a zero amount still follows the
-allowance spending path. Limits, expiry, spender authorization and sufficient funds are enforced
-on-chain. The transaction still needs gas funding from the sender or a sponsor; this option does not
-pay transaction gas from the allowance. Do not combine `allowance` with `useGasCoin`.
+The SDK looks up the funder from the allowance ID. Spending draws only from that funder's address
+balance and must satisfy the allowance's limits and expiration. The sender or a sponsor must pay gas
+separately; do not combine `allowance` with `useGasCoin`.
 
 ### Using a known funder
 
-When the funder is already known, skip the metadata lookup:
+Pass the funder alongside the ID to skip the allowance lookup:
 
 ```tsx
 import { Transaction } from '@mysten/sui/transactions';
@@ -164,20 +132,19 @@ const USDC = '0xUsdcPackage::usdc::USDC';
 const tx = new Transaction();
 const coin = tx.coin({
 	allowance: { objectId: '0xAllowanceId', funder: '0xFunderAddress' },
-	amount: '10000000', // 10 USDC
+	amount: 10_000_000n, // 10 USDC
 	type: USDC,
 });
 tx.transferObjects([coin], '0xRecipientAddress');
 ```
 
-This reference is trusted metadata for a plain allowance. It skips the SDK's type and app checks;
-incorrect references still fail on-chain. Building may still need a client to resolve shared object
-versions and gas. It does not guarantee an offline build.
+This skips the SDK's token type and app checks; incorrect references fail on-chain. Building may
+still need a client to resolve object versions and gas.
 
 ## App-bound allowances
 
-App-bound allowances require a `SpendPermit<A>` from the app. Use the lower-level withdrawal input
-and the app's spending flow instead of `tx.balance()` or `tx.coin()`:
+`tx.balance()` and `tx.coin()` support plain allowances. App-bound allowances also require a
+`SpendPermit<A>` from the app. Use `tx.withdrawal()` with `app_balance_spend`:
 
 ```tsx
 import { Transaction } from '@mysten/sui/transactions';
