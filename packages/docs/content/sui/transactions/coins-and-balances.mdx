@@ -165,7 +165,13 @@ a `Coin<T>`. `type` defaults to SUI in both helpers; it is not inferred from the
 The build client fetches the allowance to resolve the funder, check the token type and reject
 app-bound allowances. The SDK adds the withdrawal input, the mutable allowance object and Clock,
 then calls `allowance::balance_spend`. For `tx.coin()`, it also calls `coin::from_balance`. Repeated
-spends share one metadata lookup but redeem at their own positions in the transaction.
+spends share one metadata lookup but redeem at their own positions in the transaction. Allowance
+withdrawals are reserved before ordinary coin selection, including when the sender is also the
+funder.
+
+When using `toJSON({ supportedIntents })` to preserve unresolved intents in a mixed transaction,
+preserve both `AllowanceBalance` and `CoinWithBalance`, or resolve the allowance first. Ordinary
+coin selection needs the allowance's reservations before it can choose funds safely.
 
 Allowance spends draw only from the funder's **address balance**, not its coin objects. They never
 fall back to the sender's funds. Amounts must fit in a `u64`; a zero amount still follows the
