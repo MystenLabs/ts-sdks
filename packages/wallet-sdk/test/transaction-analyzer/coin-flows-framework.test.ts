@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { Transaction } from '@mysten/sui/transactions';
-import { normalizeStructTag } from '@mysten/sui/utils';
+import { normalizeStructTag, normalizeSuiAddress } from '@mysten/sui/utils';
 import { analyze } from '../../src/transaction-analyzer/analyzer.js';
 import { balanceFlows } from '../../src/transaction-analyzer/rules/balance-flows.js';
 import { coinFlows } from '../../src/transaction-analyzer/rules/coin-flows.js';
@@ -145,41 +145,98 @@ describe('Coin Flows - Framework MoveCall Tests', () => {
 		expect(usdcFlow).toBeUndefined();
 	});
 
-	it('attributes an allowance withdrawal to the funder, not the sender', async () => {
-		const client = new MockSuiClient();
-		const tx = new Transaction();
-		tx.setSender(DEFAULT_SENDER);
-
-		const redeemed = tx.moveCall({
-			target: '0x2::coin::redeem_funds',
-			typeArguments: ['0xa0b::usdc::USDC'],
-			arguments: [
-				tx.withdrawal({
-					amount: 500_000_000n,
-					type: '0xa0b::usdc::USDC',
+	it.each(['coin', 'balance', 'app'] as const)(
+		'attributes %s allowance spends to the funder and recipient',
+		async (kind) => {
+			const client = new MockSuiClient();
+			const tx = new Transaction();
+			tx.setSender(DEFAULT_SENDER);
+			client.addObject({
+				objectId: ALLOWANCE_ID,
+				objectType: `0x2::allowance::Allowance<0x2::balance::Balance<${USDC}>>`,
+				owner: { $kind: 'Shared', Shared: { initialSharedVersion: '1' } },
+			});
+			client.addObject({
+				objectId: '0x6',
+				objectType: '0x2::clock::Clock',
+				owner: { $kind: 'Shared', Shared: { initialSharedVersion: '1' } },
+			});
+			tx.sharedObjectRef({ objectId: ALLOWANCE_ID, initialSharedVersion: '1', mutable: true });
+			const options = {
+				allowance: { objectId: ALLOWANCE_ID, funder: FUNDER },
+				amount: 500_000_000n,
+				type: USDC,
+			};
+			let output;
+			if (kind === 'app') {
+				client.addMoveFunction({
+					packageId: '0xa',
+					moduleName: 'app',
+					name: 'authorize',
+					visibility: 'public',
+					isEntry: false,
+					parameters: [],
+					returns: [
+						{
+							reference: null,
+							body: {
+								$kind: 'datatype',
+								datatype: {
+									typeName: '0x2::allowance::SpendPermit',
+									typeParameters: [
+										{
+											$kind: 'datatype',
+											datatype: { typeName: '0xa::app::APP', typeParameters: [] },
+										},
+									],
+								},
+							},
+						},
+					],
+				});
+				const permit = tx.moveCall({ target: '0xa::app::authorize' });
+				const withdrawal = tx.withdrawal({
+					amount: options.amount,
+					type: USDC,
 					withdrawFrom: {
 						$kind: 'SenderAllowance',
 						SenderAllowance: { funder: FUNDER, allowance: ALLOWANCE_ID },
 					},
-				}),
-			],
-		});
-		tx.transferObjects([redeemed], tx.pure.address('0x456'));
-
-		const results = await analyze(
-			{ coinFlows, balanceFlows },
-			{ client, transaction: await tx.toJSON() },
-		);
-
-		// The sender never holds the withdrawn funds, so nothing leaves the sender.
-		expect(results.coinFlows.result?.outflows.find((f) => f.coinType === USDC)).toBeUndefined();
-		// The allowance's funder is debited, and the transaction is not sponsored.
-		const funderFlow = results.balanceFlows.result?.byAddress[FUNDER]?.find(
-			(f) => f.coinType === USDC,
-		);
-		expect(funderFlow?.amount).toBe(-500_000_000n);
-		expect(results.balanceFlows.result?.sponsor).toBeNull();
-	});
+				});
+				output = tx.moveCall({
+					target: '0x2::allowance::app_balance_spend',
+					typeArguments: [USDC, '0xa::app::APP'],
+					arguments: [tx.object(ALLOWANCE_ID), permit, withdrawal, tx.object.clock()],
+				});
+			} else {
+				output = kind === 'coin' ? tx.coin(options) : tx.balance(options);
+			}
+			if (kind === 'coin') {
+				tx.transferObjects([output], '0x456');
+			} else {
+				tx.moveCall({
+					target: '0x2::balance::send_funds',
+					typeArguments: [USDC],
+					arguments: [output, tx.pure.address('0x456')],
+				});
+			}
+			const results = await analyze(
+				{ coinFlows, balanceFlows },
+				{ client, transaction: await tx.toJSON() },
+			);
+			expect(results.balanceFlows.issues).toBeUndefined();
+			expect(results.coinFlows.result?.outflows.find((f) => f.coinType === USDC)).toBeUndefined();
+			expect(
+				results.balanceFlows.result?.byAddress[FUNDER]?.find((f) => f.coinType === USDC)?.amount,
+			).toBe(-500_000_000n);
+			expect(
+				results.balanceFlows.result?.byAddress[normalizeSuiAddress('0x456')]?.find(
+					(f) => f.coinType === USDC,
+				)?.amount,
+			).toBe(500_000_000n);
+			expect(results.balanceFlows.result?.sponsor).toBeNull();
+		},
+	);
 
 	it('emits an issue when a Sponsor withdrawal lacks a gas owner', async () => {
 		const client = new MockSuiClient();

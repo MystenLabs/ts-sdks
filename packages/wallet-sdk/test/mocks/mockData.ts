@@ -478,6 +478,70 @@ const balanceDatatype = {
 };
 
 export const FRAMEWORK_MOVE_FUNCTIONS: SuiClientTypes.FunctionResponse[] = [
+	...['balance_spend', 'app_balance_spend'].map((name) =>
+		createMockMoveFunction({
+			packageId: '0x2',
+			moduleName: 'allowance',
+			name,
+			visibility: 'public',
+			isEntry: false,
+			typeParameters:
+				name === 'app_balance_spend'
+					? [
+							{ constraints: [], isPhantom: false },
+							{ constraints: [], isPhantom: false },
+						]
+					: [{ constraints: [], isPhantom: false }],
+			parameters: [
+				{
+					reference: 'mutable',
+					body: {
+						$kind: 'datatype',
+						datatype: { typeName: '0x2::allowance::Allowance', typeParameters: [balanceDatatype] },
+					},
+				},
+				...(name === 'app_balance_spend'
+					? [
+							{
+								reference: null,
+								body: {
+									$kind: 'datatype' as const,
+									datatype: {
+										typeName: '0x2::allowance::SpendPermit',
+										typeParameters: [{ $kind: 'typeParameter' as const, index: 1 }],
+									},
+								},
+							},
+						]
+					: []),
+				{
+					reference: null,
+					body: {
+						$kind: 'datatype',
+						datatype: {
+							typeName: '0x2::allowance::AllowanceWithdrawal',
+							typeParameters: [balanceDatatype],
+						},
+					},
+				},
+				{
+					reference: 'immutable',
+					body: {
+						$kind: 'datatype',
+						datatype: { typeName: '0x2::clock::Clock', typeParameters: [] },
+					},
+				},
+				{
+					reference: 'mutable',
+					body: {
+						$kind: 'datatype',
+						datatype: { typeName: '0x2::tx_context::TxContext', typeParameters: [] },
+					},
+				},
+			],
+			returns: [{ reference: null, body: balanceDatatype }],
+		}),
+	),
 	// balance::redeem_funds<T>(Withdrawal<Balance<T>>) -> Balance<T>
 	createMockMoveFunction({
 		packageId: '0x2',

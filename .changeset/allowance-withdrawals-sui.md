@@ -13,3 +13,6 @@ plain allowance IDs and redeem their withdrawals automatically. A known `{ objec
 reference skips metadata lookup. Allowance spends never fall back to the sender's funds.
 Both helpers accept `amount` (including decimal strings) while preserving `balance` as a mutually
 exclusive alternative. App-bound allowances remain supported through the low-level withdrawal API.
+
+Account for allowance reservations when selecting ordinary coins and gas, including transactions
+where the sender or gas sponsor is also the allowance's funder.

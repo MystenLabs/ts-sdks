@@ -21,18 +21,22 @@ export type AnalyzedCommandInput =
 			object: SuiClientTypes.Object<{ content: true }>;
 			accessLevel: 'read' | 'mutate' | 'transfer';
 	  }
-	| {
+	| ({
 			$kind: 'Withdrawal';
 			index: number;
 			amount: bigint;
 			coinType: string;
-			withdrawFrom: 'Sender' | 'Sponsor' | 'SenderAllowance';
-			/** The address whose balance is debited when `withdrawFrom` is `SenderAllowance`. */
-			funder?: string;
-			/** The allowance object authorizing the withdrawal when `withdrawFrom` is `SenderAllowance`. */
-			allowance?: string;
 			accessLevel: 'read' | 'mutate' | 'transfer';
-	  };
+	  } & (
+			| { withdrawFrom: 'Sender' | 'Sponsor' }
+			| {
+					withdrawFrom: 'SenderAllowance';
+					/** The address whose balance is debited. */
+					funder: string;
+					/** The allowance object authorizing the withdrawal. */
+					allowance: string;
+			  }
+	  ));
 
 export const inputs = createAnalyzer({
 	dependencies: { data, objectsById },

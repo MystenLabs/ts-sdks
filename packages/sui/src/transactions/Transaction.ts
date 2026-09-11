@@ -986,7 +986,12 @@ export class Transaction {
 
 		const steps = [...this.#serializationPlugins];
 
-		for (const intent of intents) {
+		// Allowances must reserve their withdrawals before ordinary coin selection,
+		// including when the sender is also the allowance's funder.
+		const orderedIntents = intents.has(ALLOWANCE_BALANCE)
+			? [ALLOWANCE_BALANCE, ...[...intents].filter((intent) => intent !== ALLOWANCE_BALANCE)]
+			: [...intents];
+		for (const intent of orderedIntents) {
 			if (options.supportedIntents?.includes(intent)) {
 				continue;
 			}

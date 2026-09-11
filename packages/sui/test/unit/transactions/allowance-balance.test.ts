@@ -31,7 +31,7 @@ const Allowance = bcs.struct('Allowance', {
 	currentSpend: bcs.u256(),
 });
 
-function mockClient({ app = false, type = TYPE, missing = false } = {}) {
+function mockClient({ app = false, type = TYPE, missing = false, funder = FUNDER } = {}) {
 	const getObjects = vi.fn().mockResolvedValue({
 		objects: [
 			missing
@@ -43,7 +43,7 @@ function mockClient({ app = false, type = TYPE, missing = false } = {}) {
 						content: Allowance.serialize({
 							id: ID,
 							settings: {
-								funder: FUNDER,
+								funder,
 								spender: SENDER,
 								app: app ? { name: 'example::app::APP' } : null,
 								lifetimeCap: 1000,
@@ -119,6 +119,63 @@ describe('allowance balances', () => {
 			function: 'balance_spend',
 		});
 		expect(data.commands[4].MoveCall?.arguments[0]).toMatchObject({ NestedResult: [3, 0] });
+	});
+
+	it.each([
+		{ allowanceFirst: true, useGasCoin: true, type: SUI },
+		{ allowanceFirst: false, useGasCoin: true, type: SUI },
+		{ allowanceFirst: true, useGasCoin: false, type: SUI },
+		{ allowanceFirst: false, useGasCoin: false, type: SUI },
+		{ allowanceFirst: false, useGasCoin: false, type: normalizeStructTag('0xa::coin::COIN') },
+	])(
+		'reserves self-funded allowance spends before ordinary selection: %j',
+		async ({ allowanceFirst, useGasCoin, type }) => {
+			const tx = new Transaction();
+			tx.setSender(SENDER);
+			const allowance = () => tx.coin({ allowance: ID, amount: 80n, type });
+			const ordinary = () => tx.coin({ amount: 80n, type, useGasCoin });
+			const first = allowanceFirst ? allowance() : ordinary();
+			const second = allowanceFirst ? ordinary() : allowance();
+			tx.transferObjects([first, second], SENDER);
+			const { client, getBalance, listCoins } = mockClient({
+				funder: SENDER,
+				type: normalizeStructTag(`0x2::allowance::Allowance<0x2::balance::Balance<${type}>>`),
+			});
+			getBalance.mockResolvedValue({
+				balance: { balance: '1100', addressBalance: '100', coinBalance: '1000' },
+			});
+			listCoins.mockResolvedValue({
+				objects: [
+					{
+						objectId: normalizeSuiAddress('0xc01'),
+						version: '1',
+						digest: '11111111111111111111111111111111',
+						balance: '1000',
+						coinType: type,
+					},
+				],
+				hasNextPage: false,
+				cursor: null,
+			});
+			await tx.toJSON({ client });
+			const withdrawals = tx
+				.getData()
+				.inputs.flatMap((input) => (input.FundsWithdrawal ? [input.FundsWithdrawal] : []));
+			expect(withdrawals).toHaveLength(1);
+			expect(withdrawals[0].withdrawFrom).toMatchObject({ SenderAllowance: { funder: SENDER } });
+			expect(withdrawals[0].reservation.MaxAmountU64).toBe('80');
+			expect(tx.getData().commands.some((command) => command.SplitCoins)).toBe(true);
+		},
+	);
+
+	it('requires dependent intents to be resolved together', async () => {
+		const tx = new Transaction();
+		tx.setSender(SENDER);
+		tx.coin({ amount: 1n });
+		tx.coin({ allowance: { objectId: ID, funder: SENDER }, amount: 1n });
+		await expect(
+			tx.toJSON({ supportedIntents: ['AllowanceBalance'], assumeSufficientAddressBalances: true }),
+		).rejects.toThrow(/preserve both intents/);
 	});
 
 	it('keeps zero spends on the allowance path and never selects sender funds', async () => {

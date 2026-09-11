@@ -51,13 +51,7 @@ describe('Allowance withdrawals', () => {
 		return result.Transaction;
 	}
 
-	beforeAll(async () => {
-		toolbox = await setup();
-		[funder, spender] = await Promise.all([
-			toolbox.getSigner({ coins: [200_000_000n], addressBalance: 2_000_000_000n }),
-			toolbox.getSigner({ coins: [200_000_000n, 200_000_000n, 200_000_000n, 200_000_000n] }),
-		]);
-
+	async function issueAllowance(issuer: Ed25519Keypair, spenderAddress: string) {
 		// The funder issues a plain allowance over its SUI address balance to the spender.
 		const tx = new Transaction();
 		const noRateLimit = tx.moveCall({
@@ -69,7 +63,7 @@ describe('Allowance withdrawals', () => {
 			typeArguments: [ALLOWANCE_TYPE],
 			arguments: [
 				tx.pure.string('ts-sdk e2e'),
-				tx.pure.address(spender.address),
+				tx.pure.address(spenderAddress),
 				tx.pure.option('u256', LIFETIME_CAP),
 				tx.pure.option('u64', null),
 				tx.pure.option('u64', U64_MAX),
@@ -78,7 +72,7 @@ describe('Allowance withdrawals', () => {
 		});
 		const issued = await toolbox.signAndExecuteTransaction({
 			transaction: tx,
-			signer: funder.keypair,
+			signer: issuer,
 			include: { effects: true },
 		});
 		if (issued.$kind !== 'Transaction') {
@@ -92,7 +86,17 @@ describe('Allowance withdrawals', () => {
 		if (!allowance) {
 			throw new Error('The allowance was not created as a shared object');
 		}
-		allowanceId = allowance.objectId;
+		return allowance.objectId;
+	}
+
+	beforeAll(async () => {
+		toolbox = await setup();
+		[funder, spender] = await Promise.all([
+			toolbox.getSigner({ coins: [200_000_000n], addressBalance: 2_000_000_000n }),
+			toolbox.getSigner({ coins: [200_000_000n, 200_000_000n, 200_000_000n, 200_000_000n] }),
+		]);
+
+		allowanceId = await issueAllowance(funder.keypair, spender.address);
 
 		spendDigest = (await executeSpend(toolbox.grpcClient)).digest;
 	});
@@ -175,6 +179,66 @@ describe('Allowance withdrawals', () => {
 				expect(BigInt(before.balance.addressBalance) - BigInt(after.balance.addressBalance)).toBe(
 					SPEND_AMOUNT,
 				);
+			},
+		);
+	}
+	testWithAllClients(
+		'reserves allowance funds separately when the funder sponsors gas',
+		async (client) => {
+			const sponsor = await toolbox.getSigner({
+				coins: [200_000_000n],
+				addressBalance: 100_000_000n,
+			});
+			const id = await issueAllowance(sponsor.keypair, spender.address);
+			const before = await client.core.getBalance({ owner: sponsor.address });
+			const amount = BigInt(before.balance.addressBalance) - 20_000_000n;
+			const tx = new Transaction();
+			tx.setSender(spender.address);
+			tx.setGasOwner(sponsor.address);
+			tx.setGasBudget(40_000_000n);
+			tx.transferObjects([tx.coin({ allowance: id, amount })], spender.address);
+			const bytes = await tx.build({ client });
+			expect(tx.getData().gasData.payment!.length).toBeGreaterThan(0);
+			const signatures = await Promise.all([
+				spender.keypair.signTransaction(bytes),
+				sponsor.keypair.signTransaction(bytes),
+			]);
+			const result = await client.core.executeTransaction({
+				transaction: bytes,
+				signatures: signatures.map((signature) => signature.signature),
+			});
+			expect(result.$kind).toBe('Transaction');
+			await toolbox.waitForTransaction({ digest: result.Transaction!.digest });
+			const after = await client.core.getBalance({ owner: sponsor.address });
+			expect(BigInt(before.balance.addressBalance) - BigInt(after.balance.addressBalance)).toBe(
+				amount,
+			);
+		},
+	);
+
+	for (const allowanceFirst of [false, true]) {
+		testWithAllClients(
+			`mixes self-funded allowance and ordinary coins (allowance first: ${allowanceFirst})`,
+			async (client) => {
+				const self = await toolbox.getSigner({
+					coins: [200_000_000n, 200_000_000n],
+					addressBalance: 100_000_000n,
+				});
+				const id = await issueAllowance(self.keypair, self.address);
+				const before = await client.core.getBalance({ owner: self.address });
+				const amount = BigInt(before.balance.addressBalance) - 20_000_000n;
+				const tx = new Transaction();
+				const allowance = () => tx.coin({ allowance: id, amount });
+				const ordinary = () => tx.coin({ amount, useGasCoin: false });
+				const first = allowanceFirst ? allowance() : ordinary();
+				const second = allowanceFirst ? ordinary() : allowance();
+				tx.transferObjects([first, second], spender.address);
+				const result = await client.core.signAndExecuteTransaction({
+					transaction: tx,
+					signer: self.keypair,
+				});
+				expect(result.$kind).toBe('Transaction');
+				await toolbox.waitForTransaction({ digest: result.Transaction!.digest });
 			},
 		);
 	}
