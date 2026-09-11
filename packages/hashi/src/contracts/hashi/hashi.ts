@@ -31,7 +31,10 @@ export const Hashi = new MoveStruct({
 		versioning: versioning.Versioning,
 		treasury: treasury.Treasury,
 		proposals: proposals.Proposals,
-		/** TOB certificates by (epoch, batch_index) -> EpochCertsV1 */
+		/**
+		 * TOB certificates by (epoch, batch_index, protocol_type). Values are bare
+		 * `EpochCertsV1` buckets or, for nonce certs, `StampedEpochCertsV1`.
+		 */
 		tob: bag.Bag,
 		/**
 		 * Number of presignatures consumed in the current epoch. Used by recovering nodes
@@ -45,7 +48,7 @@ export interface FinishPublishArguments {
 	upgradeCap: RawTransactionArgument<string>;
 	bitcoinChainId: RawTransactionArgument<string>;
 	guardianUrl: RawTransactionArgument<string>;
-	guardianBtcPublicKey: RawTransactionArgument<number[]>;
+	guardianBtcPublicKey: RawTransactionArgument<Array<number>>;
 	bitcoinConfirmationThreshold: RawTransactionArgument<number | bigint | null>;
 	bitcoinDepositTimeDelayMs: RawTransactionArgument<number | bigint | null>;
 	coinRegistry: RawTransactionArgument<string>;
@@ -59,7 +62,7 @@ export interface FinishPublishOptions {
 				upgradeCap: RawTransactionArgument<string>,
 				bitcoinChainId: RawTransactionArgument<string>,
 				guardianUrl: RawTransactionArgument<string>,
-				guardianBtcPublicKey: RawTransactionArgument<number[]>,
+				guardianBtcPublicKey: RawTransactionArgument<Array<number>>,
 				bitcoinConfirmationThreshold: RawTransactionArgument<number | bigint | null>,
 				bitcoinDepositTimeDelayMs: RawTransactionArgument<number | bigint | null>,
 				coinRegistry: RawTransactionArgument<string>,

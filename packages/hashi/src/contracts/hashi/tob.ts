@@ -1,16 +1,6 @@
 /**************************************************************
  * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
  **************************************************************/
-
-/**
- * Totally Ordered Broadcast (TOB) certificate storage for MPC ceremonies. Dealer
- * submissions — a dealer-messages hash plus its committee signature — are bucketed
- * per (epoch, optional batch, protocol type) in `EpochCertsV1`,
- * first-submission-wins per dealer. Signature verification is deferred to
- * off-chain readers, and a bucket may be destroyed once the current epoch is at
- * least two past the bucket's epoch.
- */
-
 import { MoveEnum, MoveStruct } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import * as linked_table from './deps/sui/linked_table.js';
@@ -53,5 +43,21 @@ export const DealerSubmissionV1 = new MoveStruct({
 	fields: {
 		message: DealerMessagesHashV1,
 		signature: committee.CommitteeSignature,
+	},
+});
+export const StampedDealerSubmissionV1 = new MoveStruct({
+	name: `${$moduleName}::StampedDealerSubmissionV1`,
+	fields: {
+		submission: DealerSubmissionV1,
+		timestamp_ms: bcs.u64(),
+	},
+});
+export const StampedEpochCertsV1 = new MoveStruct({
+	name: `${$moduleName}::StampedEpochCertsV1`,
+	fields: {
+		epoch: bcs.u64(),
+		protocol_type: ProtocolType,
+		/** Stamped nonce submissions indexed by dealer address (first-submission-wins). */
+		certs: linked_table.LinkedTable(bcs.Address),
 	},
 });

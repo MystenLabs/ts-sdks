@@ -13,7 +13,6 @@
 import { MoveStruct } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import * as object_bag from './deps/sui/object_bag.js';
-import * as object_bag_1 from './deps/sui/object_bag.js';
 import * as utxo from './utxo.js';
 import * as committee from './committee.js';
 const $moduleName = '@local-pkg/hashi::deposit_queue';
@@ -26,7 +25,7 @@ export const DepositRequestQueue = new MoveStruct({
 		 */
 		requests: object_bag.ObjectBag,
 		/** Completed deposits (confirmed or expired). */
-		processed: object_bag_1.ObjectBag,
+		processed: object_bag.ObjectBag,
 	},
 });
 export const DepositRequest = new MoveStruct({

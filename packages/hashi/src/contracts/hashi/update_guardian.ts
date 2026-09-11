@@ -12,7 +12,7 @@
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 const $moduleName = '@local-pkg/hashi::update_guardian';
 export const UpdateGuardian = new MoveStruct({
 	name: `${$moduleName}::UpdateGuardian`,
@@ -24,7 +24,7 @@ export interface ProposeArguments {
 	hashi: RawTransactionArgument<string>;
 	validatorAddress: RawTransactionArgument<string>;
 	url: RawTransactionArgument<string>;
-	metadata: RawTransactionArgument<string>;
+	metadata: TransactionArgument;
 }
 export interface ProposeOptions {
 	package?: string;
@@ -34,7 +34,7 @@ export interface ProposeOptions {
 				hashi: RawTransactionArgument<string>,
 				validatorAddress: RawTransactionArgument<string>,
 				url: RawTransactionArgument<string>,
-				metadata: RawTransactionArgument<string>,
+				metadata: TransactionArgument,
 		  ];
 }
 export function propose(options: ProposeOptions) {
