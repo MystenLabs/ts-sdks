@@ -15,7 +15,7 @@ export interface HashiClientOptions<Name = string> {
 	name?: Name;
 	/** Override the auto-resolved Hashi shared object ID (for custom/local deployments). */
 	hashiObjectId?: string;
-	/** Override the auto-resolved Hashi package ID (for custom/local deployments). */
+	/** Override the original (type-defining) Hashi package ID; Move calls route to the latest enabled version. */
 	packageId?: string;
 	/** Override the auto-resolved Bitcoin network for address encoding. */
 	bitcoinNetwork?: BitcoinNetwork;

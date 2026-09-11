@@ -6,6 +6,7 @@ import { HashiClient, hashi } from '../../src/client.js';
 import {
 	AmountBelowMinimumError,
 	HashiConfigError,
+	HashiFetchError,
 	HashiGuardianError,
 	HashiPausedError,
 	InvalidBitcoinAddressError,
@@ -82,12 +83,16 @@ function guardianBtcConfigEntry(bytes: Uint8Array = TEST_GUARDIAN_BTC_X_ONLY) {
 }
 
 /**
- * Build a mocked `Hashi.get()` response with a custom config `contents` array.
- * Other fields carry minimal-but-valid placeholders so the BCS-decoded json
- * shape matches what the SDK expects.
+ * Build a mocked `Hashi.get()` response with a custom config `contents` array
+ * and optional `versioning`. Other fields carry minimal-but-valid placeholders
+ * so the BCS-decoded json shape matches what the SDK expects.
  */
 function mockHashiWithConfig(
 	contents: Array<{ key: string; value: { $kind: string; [k: string]: unknown } }>,
+	versioning: {
+		enabled_versions: { contents: string[] };
+		upgrade_cap: { id: string; package: string; version: string; policy: number } | null;
+	} = { enabled_versions: { contents: [] }, upgrade_cap: null },
 ) {
 	vi.spyOn(Hashi, 'get').mockResolvedValueOnce({
 		json: {
@@ -99,11 +104,8 @@ function mockHashiWithConfig(
 				pending_epoch_change: null,
 				mpc_public_key: [],
 			},
-			config: {
-				config: { contents },
-				enabled_versions: { contents: [] },
-				upgrade_cap: null,
-			},
+			config: { config: { contents } },
+			versioning,
 			treasury: { objects: HASHI_OBJECT_ID },
 			proposals: HASHI_OBJECT_ID,
 			tob: HASHI_OBJECT_ID,
@@ -2175,6 +2177,128 @@ describe('HashiClient', () => {
 
 				const moveCalls = commands.filter((c) => c.$kind === 'MoveCall');
 				expect(moveCalls.some((c) => c.MoveCall?.function === 'request_withdrawal')).toBe(true);
+			});
+		});
+
+		describe('call package routing', () => {
+			// Not PACKAGE_ID: it is 0x2, so it would also match the framework's `0x2::coin` calls.
+			const ORIGINAL = '0x00000000000000000000000000000000000000000000000000000000000000f1';
+			const V2 = '0x00000000000000000000000000000000000000000000000000000000000000f2';
+			const BTC = `${ORIGINAL}::btc::BTC`;
+			let hashiClient: HashiClient;
+
+			beforeEach(() => {
+				hashiClient = new HashiClient({
+					client,
+					hashiObjectId: HASHI_OBJECT_ID,
+					packageId: ORIGINAL,
+				});
+			});
+
+			function mockVersioning(cap: { package: string; version: string } | null, enabled: string[]) {
+				mockHashiWithConfig(WELL_FORMED_CONFIG, {
+					enabled_versions: { contents: enabled },
+					upgrade_cap: cap && { id: REQUEST_ID, policy: 0, ...cap },
+				});
+			}
+
+			/** Runs the serialization plugins (no network) and returns the resulting Move calls. */
+			async function serializedMoveCalls(tx: Transaction) {
+				await tx.prepareForSerialization({ supportedIntents: ['CoinWithBalance'] });
+				return tx.getData().commands.flatMap((c) => (c.MoveCall ? [c.MoveCall] : []));
+			}
+
+			it('calls the upgraded package from every builder, keeping types on the original', async () => {
+				mockVersioning({ package: V2, version: '2' }, ['2']);
+				const deposit = hashiClient.tx.deposit({
+					txid: '0x' + 'ab'.repeat(32),
+					utxos: [{ vout: 0, amountSats: 100_000n }],
+					recipient: TEST_SUI_ADDRESS,
+				});
+				expect((await serializedMoveCalls(deposit)).map((c) => [c.function, c.package])).toEqual([
+					['utxo_id', V2],
+					['utxo', V2],
+					['deposit', V2],
+				]);
+
+				mockVersioning({ package: V2, version: '2' }, ['2']);
+				const withdrawal = hashiClient.tx.requestWithdrawal({
+					amount: 50_000n,
+					bitcoinAddress: new Uint8Array(32),
+				});
+				expect(await serializedMoveCalls(withdrawal)).toMatchObject([
+					{ function: 'request_withdrawal', package: V2 },
+				]);
+				const intent = withdrawal.getData().commands.find((c) => c.$kind === '$Intent');
+				expect(intent?.$Intent?.data).toMatchObject({ type: BTC });
+
+				mockVersioning({ package: V2, version: '2' }, ['2']);
+				const cancel = hashiClient.tx.cancelWithdrawal({
+					requestId: REQUEST_ID,
+					recipient: TEST_SUI_ADDRESS,
+				});
+				expect(await serializedMoveCalls(cancel)).toMatchObject([
+					{ function: 'cancel_withdrawal', package: V2 },
+					{ function: 'from_balance', package: normalizeSuiAddress('0x2'), typeArguments: [BTC] },
+				]);
+			});
+
+			it('keeps the configured package when the upgrade cap still points at it', async () => {
+				mockVersioning({ package: ORIGINAL, version: '1' }, ['1']);
+				const tx = hashiClient.tx.requestWithdrawal({
+					amount: 50_000n,
+					bitcoinAddress: new Uint8Array(32),
+				});
+				expect(await serializedMoveCalls(tx)).toMatchObject([{ package: ORIGINAL }]);
+			});
+
+			it('keeps the configured package, reading Hashi once, when no upgrade cap is set', async () => {
+				const getSpy = vi.spyOn(Hashi, 'get');
+				mockVersioning(null, ['1']);
+				const tx = hashiClient.tx.deposit({
+					txid: '0x' + 'cd'.repeat(32),
+					utxos: [
+						{ vout: 0, amountSats: 100_000n },
+						{ vout: 2, amountSats: 50_000n },
+					],
+					recipient: TEST_SUI_ADDRESS,
+				});
+				const packages = (await serializedMoveCalls(tx)).map((c) => c.package);
+				expect(packages).toEqual(Array(6).fill(ORIGINAL));
+				expect(getSpy).toHaveBeenCalledTimes(1);
+			});
+
+			it('keeps the configured package when the cap version is not enabled', async () => {
+				mockVersioning({ package: V2, version: '2' }, ['1']);
+				const tx = hashiClient.tx.cancelWithdrawal({
+					requestId: REQUEST_ID,
+					recipient: TEST_SUI_ADDRESS,
+				});
+				expect((await serializedMoveCalls(tx))[0]).toMatchObject({ package: ORIGINAL });
+			});
+
+			it('retargets call thunks added to a caller-built transaction', async () => {
+				mockVersioning({ package: V2, version: '2' }, ['2']);
+				const tx = new Transaction();
+				const btc = tx.add(hashiClient.call.cancelWithdrawal({ requestId: REQUEST_ID }));
+				tx.moveCall({
+					target: '0x2::balance::destroy_zero',
+					typeArguments: [BTC],
+					arguments: [btc],
+				});
+
+				// Wallets sign what `toJSON` serializes.
+				const { commands } = JSON.parse(await tx.toJSON());
+				expect(commands[0].MoveCall.package).toBe(V2);
+			});
+
+			it('rejects serialization when the Hashi object cannot be read', async () => {
+				vi.spyOn(Hashi, 'get').mockRejectedValueOnce(new Error('fullnode unavailable'));
+				const tx = hashiClient.tx.cancelWithdrawal({
+					requestId: REQUEST_ID,
+					recipient: TEST_SUI_ADDRESS,
+				});
+				await expect(serializedMoveCalls(tx)).rejects.toBeInstanceOf(HashiFetchError);
 			});
 		});
 	});
