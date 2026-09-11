@@ -1,0 +1,197 @@
+---
+title: Allowances
+description: Create allowances and spend from another account's address balance
+keywords:
+  - allowances
+  - address balance
+  - spending limits
+  - funder
+  - spender
+questions:
+  - How do I create an allowance on Sui?
+  - How do I spend from an allowance with the TypeScript SDK?
+answer:
+  Create a shared allowance with allowance::new, then spend with tx.balance or tx.coin using its ID
+---
+
+An allowance authorizes a **spender** to withdraw from a **funder's** address balance within
+configured limits. The funder creates the allowance; the spender signs transactions that use it.
+Allowances require a network with allowance support enabled (protocol v137 or later).
+
+For ordinary spending from your own coins or address balance, see
+[Coins and Balances](./coins-and-balances.mdx).
+
+## Creating a plain allowance
+
+This example gives a spender permission to spend up to 1 SUI in total, expiring 24 hours after
+creation. Use a client connected to an allowance-enabled network, a signer for the funder, and the
+spender's address. The funder needs gas for creation and sufficient address balance when the spender
+withdraws.
+
+```tsx
+import { Transaction } from '@mysten/sui/transactions';
+
+const coinType = '0x2::sui::SUI';
+const balanceType = `0x2::balance::Balance<${coinType}>`;
+const expirationMs = BigInt(Date.now() + 24 * 60 * 60 * 1000);
+const tx = new Transaction();
+
+// RateLimit is a Move type, so construct its empty option with a Move call.
+const noRateLimit = tx.moveCall({
+	target: '0x1::option::none',
+	typeArguments: ['0x2::allowance::RateLimit'],
+});
+
+tx.moveCall({
+	target: '0x2::allowance::new',
+	typeArguments: [balanceType],
+	arguments: [
+		tx.pure.string('App spending allowance'),
+		tx.pure.address(spenderAddress),
+		tx.pure.option('u256', 1_000_000_000n), // Lifetime cap: 1 SUI in MIST
+		tx.pure.option('u64', null), // No delayed start
+		tx.pure.option('u64', expirationMs),
+		noRateLimit,
+	],
+});
+
+const result = await client.core.signAndExecuteTransaction({
+	transaction: tx,
+	signer: funder,
+	include: { effects: true },
+});
+
+if (result.$kind === 'FailedTransaction') {
+	throw new Error(result.FailedTransaction.status.error?.message ?? 'Allowance creation failed');
+}
+
+// This transaction creates one shared object: the allowance.
+const allowance = result.Transaction.effects!.changedObjects.find(
+	(change) => change.idOperation === 'Created' && change.outputOwner?.$kind === 'Shared',
+);
+if (!allowance) throw new Error('No allowance was created');
+
+const allowanceId = allowance.objectId;
+await client.core.waitForTransaction({ digest: result.Transaction.digest });
+// Give allowanceId to the spender for subsequent transactions.
+```
+
+`allowance::new` takes `Balance<T>` as its type argument. The spending helpers take the coin type
+`T` instead. For example, creation uses `0x2::balance::Balance<0x2::sui::SUI>`, while `tx.balance()`
+and `tx.coin()` use `0x2::sui::SUI`.
+
+Creation shares an `Allowance<Balance<T>>` and sends an `AllowanceCap<Balance<T>>` to the funder.
+The shared object's ID is the ID to pass as `allowance`; the cap lets the funder revoke it. Creation
+does not deposit or reserve tokens. The funder can deposit coin objects into its address balance
+using [coin::send_funds](./coins-and-balances.mdx#depositing-into-address-balances).
+
+### Limits and timing
+
+| Argument                  | Meaning                                                                 |
+| ------------------------- | ----------------------------------------------------------------------- |
+| `name`                    | A label of at most 128 bytes                                            |
+| `spender`                 | The address that must sign allowance spends                             |
+| `lifetime_cap`            | Optional positive `u256` total spending limit in the token's base units |
+| `start_timestamp_ms`      | Optional `u64` activation time in Unix milliseconds                     |
+| `expiration_timestamp_ms` | Optional `u64` expiration time in Unix milliseconds                     |
+| `rate_limit`              | Optional `RateLimit` restricting spending per time window               |
+
+Provide a lifetime cap or a rate limit, and an expiration or a rate limit. If both start and
+expiration are set, the start must be earlier. The example supplies a lifetime cap and expiration,
+so it does not need a rate limit. Individual withdrawals still must fit in a `u64`.
+
+For recurring spending, build a limit with `allowance::periodic_rate_limit(period_ms, limit)` or
+`allowance::monthly_rate_limit(limit)`, wrap the returned value with `0x1::option::some<RateLimit>`,
+and pass that option as the final explicit argument to `allowance::new`.
+
+## Spending from an allowance
+
+Pass the shared allowance ID to spend from the funder's address balance. Sign with the spender's
+key.
+
+```tsx
+import { Transaction } from '@mysten/sui/transactions';
+
+const tx = new Transaction();
+const balance = tx.balance({
+	allowance: '0xAllowanceId',
+	amount: 100_000_000n,
+	type: '0x2::sui::SUI',
+});
+
+tx.moveCall({
+	target: '0xPackage::pool::deposit',
+	typeArguments: ['0x2::sui::SUI'],
+	arguments: [tx.object('0xPoolId'), balance],
+});
+
+await client.core.signAndExecuteTransaction({ transaction: tx, signer: spender });
+```
+
+Use `tx.coin({ allowance, amount, type })` when the receiving function or `transferObjects` expects
+a `Coin<T>`. `type` defaults to SUI in both helpers; it is not inferred from the allowance.
+
+### Resolution and funding
+
+The build client fetches the allowance to resolve the funder, check the token type and reject
+app-bound allowances. The SDK adds the withdrawal input, the mutable allowance object and Clock,
+then calls `allowance::balance_spend`. For `tx.coin()`, it also calls `coin::from_balance`. Repeated
+spends share one metadata lookup but redeem at their own positions in the transaction. Allowance
+withdrawals are reserved before ordinary coin selection, including when the sender is also the
+funder.
+
+When using `toJSON({ supportedIntents })` to preserve unresolved intents in a mixed transaction,
+preserve both `AllowanceBalance` and `CoinWithBalance`, or resolve the allowance first. Ordinary
+coin selection needs the allowance's reservations before it can choose funds safely.
+
+Allowance spends draw only from the funder's **address balance**, not its coin objects. They never
+fall back to the sender's funds. Amounts must fit in a `u64`; a zero amount still follows the
+allowance spending path. Limits, expiry, spender authorization and sufficient funds are enforced
+on-chain. The transaction still needs gas funding from the sender or a sponsor; this option does not
+pay transaction gas from the allowance. Do not combine `allowance` with `useGasCoin`.
+
+### Using a known funder
+
+When the funder is already known, skip the metadata lookup:
+
+```tsx
+import { Transaction } from '@mysten/sui/transactions';
+
+const tx = new Transaction();
+const coin = tx.coin({
+	allowance: { objectId: '0xAllowanceId', funder: '0xFunderAddress' },
+	amount: '100000000',
+});
+tx.transferObjects([coin], '0xRecipientAddress');
+```
+
+This reference is trusted metadata for a plain allowance. It skips the SDK's type and app checks;
+incorrect references still fail on-chain. Building may still need a client to resolve shared object
+versions and gas. It does not guarantee an offline build.
+
+## App-bound allowances
+
+App-bound allowances require a `SpendPermit<A>` from the app. Use the lower-level withdrawal input
+and the app's spending flow instead of `tx.balance()` or `tx.coin()`:
+
+```tsx
+import { Transaction } from '@mysten/sui/transactions';
+
+const tx = new Transaction();
+// Obtain this permit through the app's own authorization flow.
+const permit = tx.moveCall({ target: '0xAppPackage::app::authorize_spend', arguments: [] });
+const withdrawal = tx.withdrawal({
+	amount: 100n,
+	type: '0x2::sui::SUI',
+	withdrawFrom: {
+		$kind: 'SenderAllowance',
+		SenderAllowance: { funder: '0xFunderAddress', allowance: '0xAllowanceId' },
+	},
+});
+const balance = tx.moveCall({
+	target: '0x2::allowance::app_balance_spend',
+	typeArguments: ['0x2::sui::SUI', '0xAppPackage::app::APP'],
+	arguments: [tx.object('0xAllowanceId'), permit, withdrawal, tx.object.clock()],
+});
+// Pass balance to the app's next operation.
+```
