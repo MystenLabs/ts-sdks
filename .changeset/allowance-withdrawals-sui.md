@@ -11,6 +11,8 @@ resolving transactions.
 Add `tx.balance({ allowance, balance, type })` and `tx.coin({ allowance, balance, type })` to resolve
 allowance IDs and redeem their withdrawals automatically. A known `{ objectId, funder }`
 reference skips metadata lookup. Allowance spends never fall back to the sender's funds.
+A shared resolver handles the separate allowance and coin intents, reserving allowance withdrawals
+before ordinary coin selection.
 Both helpers accept decimal strings for `balance`. App-bound allowances accept
 `{ objectId, app: { type, permit }, funder? }` with a `SpendPermit<A>` from an app authorization call.
 

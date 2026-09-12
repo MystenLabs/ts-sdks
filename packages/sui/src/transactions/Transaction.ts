@@ -31,19 +31,11 @@ import { createPure } from './pure.js';
 import { TransactionDataBuilder } from './TransactionData.js';
 import { getIdFromCallArg } from './utils.js';
 import { namedPackagesPlugin } from './plugins/NamedPackagesPlugin.js';
-import {
-	ALLOWANCE_BALANCE,
-	allowanceBalance,
-	resolveAllowanceBalance,
-} from './intents/AllowanceBalance.js';
+import { ALLOWANCE_BALANCE, allowanceBalance } from './intents/AllowanceBalance.js';
+import { resolveBalances } from './intents/ResolveBalances.js';
 import type { BalanceOptions } from './intents/BalanceOptions.js';
 import { normalizeBalance } from './intents/BalanceOptions.js';
-import {
-	COIN_WITH_BALANCE,
-	resolveCoinBalance,
-	coinWithBalance,
-	createBalance,
-} from './intents/CoinWithBalance.js';
+import { COIN_WITH_BALANCE, coinWithBalance, createBalance } from './intents/CoinWithBalance.js';
 
 export type TransactionObjectArgument =
 	| Exclude<InferInput<typeof ArgumentSchema>, { Input: unknown; type?: 'pure' }>
@@ -221,8 +213,8 @@ export class Transaction {
 		// Built-in intents are resolvable by default. Caller-supplied resolvers cover custom intents,
 		// and take precedence so a built-in resolver can be overridden if needed.
 		const intentResolvers = new Map<string, TransactionPlugin>([
-			[COIN_WITH_BALANCE, resolveCoinBalance],
-			[ALLOWANCE_BALANCE, resolveAllowanceBalance],
+			[COIN_WITH_BALANCE, resolveBalances],
+			[ALLOWANCE_BALANCE, resolveBalances],
 			...Object.entries(options.intentResolvers ?? {}),
 		]);
 
@@ -985,21 +977,21 @@ export class Transaction {
 
 		const steps = [...this.#serializationPlugins];
 
-		// Allowances must reserve their withdrawals before ordinary coin selection,
-		// including when the sender is also the allowance's funder.
-		const orderedIntents = intents.has(ALLOWANCE_BALANCE)
-			? [ALLOWANCE_BALANCE, ...[...intents].filter((intent) => intent !== ALLOWANCE_BALANCE)]
-			: [...intents];
-		for (const intent of orderedIntents) {
-			if (options.supportedIntents?.includes(intent)) {
-				continue;
-			}
-
-			if (!this.#intentResolvers.has(intent)) {
-				throw new Error(`Missing intent resolver for ${intent}`);
-			}
-
-			steps.push(this.#intentResolvers.get(intent)!);
+		// A resolver may handle several intent names; run it once with its assigned intents.
+		const resolverIntents = new Map<TransactionPlugin, string[]>();
+		for (const intent of intents) {
+			if (options.supportedIntents?.includes(intent)) continue;
+			const resolver = this.#intentResolvers.get(intent);
+			if (!resolver) throw new Error(`Missing intent resolver for ${intent}`);
+			const names = resolverIntents.get(resolver) ?? [];
+			names.push(intent);
+			resolverIntents.set(resolver, names);
+		}
+		for (const [resolver, intentNames] of resolverIntents) {
+			steps.push((data, buildOptions, next) => {
+				const resolverOptions = { ...buildOptions, intentNames };
+				return resolver(data, resolverOptions, next);
+			});
 		}
 
 		steps.push(namedPackagesPlugin());

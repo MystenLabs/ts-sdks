@@ -7,7 +7,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { bcs } from '../../../src/bcs/index.js';
 import { TransactionCommands, Transaction } from '../../../src/transactions/index.js';
 import { Inputs } from '../../../src/transactions/Inputs.js';
-import type { BuildTransactionOptions } from '../../../src/transactions/resolve.js';
+import type {
+	BuildTransactionOptions,
+	IntentResolverOptions,
+} from '../../../src/transactions/resolve.js';
 import type { TransactionDataBuilder } from '../../../src/transactions/TransactionData.js';
 import { normalizeSuiAddress } from '../../../src/utils/index.js';
 
@@ -388,6 +391,31 @@ describe('offline build', () => {
 });
 
 describe('Transaction.from with custom intents', () => {
+	it('calls a shared resolver once with only the intents assigned to it', async () => {
+		const tx = new Transaction();
+		const resolver = vi.fn(
+			async (
+				data: TransactionDataBuilder,
+				options: IntentResolverOptions,
+				next: () => Promise<void>,
+			) => {
+				expect(options.intentNames).toEqual(['First', 'Second']);
+				for (let index = data.commands.length - 1; index >= 0; index--) {
+					const name = data.commands[index].$Intent?.name;
+					if (name && options.intentNames!.includes(name)) data.replaceCommand(index, []);
+				}
+				await next();
+			},
+		);
+		for (const name of ['First', 'Preserved', 'Second']) {
+			tx.addIntentResolver(name, resolver);
+			tx.add(TransactionCommands.Intent({ name, inputs: {}, data: {} }));
+		}
+		await tx.toJSON({ supportedIntents: ['Preserved'] });
+		expect(resolver).toHaveBeenCalledTimes(1);
+		expect(tx.getData().commands.map((command) => command.$Intent?.name)).toEqual(['Preserved']);
+	});
+
 	const TEST_INTENT = 'TestIntent';
 
 	function testIntent() {

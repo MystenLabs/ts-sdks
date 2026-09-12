@@ -16,6 +16,8 @@ import {
 	union,
 } from 'valibot';
 
+import { resolveBalances } from './ResolveBalances.js';
+
 import { bcs } from '../../bcs/index.js';
 import { normalizeStructTag, normalizeSuiAddress } from '../../utils/sui-types.js';
 import { TransactionCommands } from '../Commands.js';
@@ -46,7 +48,7 @@ export function coinWithBalance({
 			return coinResult;
 		}
 
-		tx.addIntentResolver(COIN_WITH_BALANCE, resolveCoinBalance);
+		tx.addIntentResolver(COIN_WITH_BALANCE, resolveBalances);
 		const coinType = type === 'gas' ? type : normalizeStructTag(type);
 
 		coinResult = tx.add(
@@ -81,7 +83,7 @@ export function createBalance({
 			return balanceResult;
 		}
 
-		tx.addIntentResolver(COIN_WITH_BALANCE, resolveCoinBalance);
+		tx.addIntentResolver(COIN_WITH_BALANCE, resolveBalances);
 		const coinType = type === 'gas' ? type : normalizeStructTag(type);
 
 		balanceResult = tx.add(

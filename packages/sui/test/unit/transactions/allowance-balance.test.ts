@@ -259,6 +259,60 @@ describe('allowance balances', () => {
 		},
 	);
 
+	it.each([true, false])(
+		'resolves allowances while preserving coin intents (allowance first: %s)',
+		async (allowanceFirst) => {
+			const tx = new Transaction();
+			tx.setSender(SENDER);
+			const allowance = () => tx.coin({ allowance: ID, balance: 80n });
+			const ordinary = () => tx.coin({ balance: 80n });
+			const first = allowanceFirst ? allowance() : ordinary();
+			const second = allowanceFirst ? ordinary() : allowance();
+			tx.transferObjects([first, second], SENDER);
+			const { client, getObjects, getBalance } = mockClient({ funder: SENDER });
+			const preserved = await tx.toJSON({ client, supportedIntents: ['CoinWithBalance'] });
+			expect(tx.getData().commands.filter((command) => command.$Intent)).toHaveLength(1);
+			expect(tx.getData().commands.find((command) => command.$Intent)?.$Intent?.name).toBe(
+				'CoinWithBalance',
+			);
+			expect(getObjects).toHaveBeenCalledTimes(1);
+			expect(getBalance).not.toHaveBeenCalled();
+			const restored = Transaction.from(preserved);
+			await restored.toJSON({ assumeSufficientAddressBalances: true });
+			expect(restored.getData().commands.some((command) => command.$Intent)).toBe(false);
+		},
+	);
+
+	it('preserves both funding intents without looking up funds or allowances', async () => {
+		const tx = new Transaction();
+		tx.coin({ balance: 1n });
+		tx.balance({ allowance: ID, balance: 1n });
+		const restored = Transaction.from(
+			await tx.toJSON({ supportedIntents: ['CoinWithBalance', 'AllowanceBalance'] }),
+		);
+		expect(restored.getData().commands.map((command) => command.$Intent?.name)).toEqual([
+			'CoinWithBalance',
+			'AllowanceBalance',
+		]);
+	});
+
+	it('leaves a custom coin resolver in charge of its intent', async () => {
+		const tx = new Transaction();
+		tx.coin({ allowance: ID, balance: 1n });
+		tx.coin({ balance: 1n });
+		const custom = vi.fn(async (data, _options, next) => {
+			const index = data.commands.findIndex(
+				(command: { $Intent?: { name: string } }) => command.$Intent?.name === 'CoinWithBalance',
+			);
+			expect(index).toBeGreaterThanOrEqual(0);
+			data.replaceCommand(index, []);
+			await next();
+		});
+		const restored = Transaction.from(tx, { intentResolvers: { CoinWithBalance: custom } });
+		await restored.toJSON({ client: mockClient().client });
+		expect(custom).toHaveBeenCalledTimes(1);
+	});
+
 	it('requires dependent intents to be resolved together', async () => {
 		const tx = new Transaction();
 		tx.setSender(SENDER);

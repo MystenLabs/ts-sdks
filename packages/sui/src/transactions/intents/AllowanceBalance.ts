@@ -3,6 +3,8 @@
 
 import { object, optional, parse, picklist, string } from 'valibot';
 
+import { resolveBalances } from './ResolveBalances.js';
+
 import { bcs } from '../../bcs/index.js';
 import type { SuiClientTypes } from '../../client/index.js';
 import { normalizeStructTag, normalizeSuiAddress } from '../../utils/sui-types.js';
@@ -51,7 +53,7 @@ export function allowanceBalance({
 	);
 	const reference = typeof allowance === 'string' ? { objectId } : allowance;
 	return (tx: Transaction) => {
-		tx.addIntentResolver(ALLOWANCE_BALANCE, resolveAllowanceBalance);
+		tx.addIntentResolver(ALLOWANCE_BALANCE, resolveBalances);
 		return tx.add(
 			TransactionCommands.Intent({
 				name: ALLOWANCE_BALANCE,
