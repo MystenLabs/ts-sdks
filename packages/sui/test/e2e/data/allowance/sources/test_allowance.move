@@ -17,3 +17,15 @@ public fun authorize(approved_sender: address, enabled: bool, ctx: &TxContext): 
     assert!(enabled && ctx.sender() == approved_sender, 0);
     allowance::spend_permit(internal::permit<App>())
 }
+
+// Models an opaque app call that spends a withdrawal without returning its balance to the PTB.
+public fun spend_and_send<C>(
+    allowance: &mut allowance::Allowance<sui::balance::Balance<C>>,
+    withdrawal: allowance::AllowanceWithdrawal<sui::balance::Balance<C>>,
+    clock: &sui::clock::Clock,
+    recipient: address,
+    ctx: &TxContext,
+) {
+    let balance = allowance::balance_spend(allowance, withdrawal, clock, ctx);
+    sui::balance::send_funds(balance, recipient);
+}

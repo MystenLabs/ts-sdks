@@ -16,6 +16,7 @@ import {
 	union,
 } from 'valibot';
 
+import { ALLOWANCE_BALANCE, COIN_WITH_BALANCE } from './BalanceIntentNames.js';
 import { resolveBalances } from './ResolveBalances.js';
 
 import { bcs } from '../../bcs/index.js';
@@ -26,10 +27,9 @@ import { Inputs } from '../Inputs.js';
 import type { BuildTransactionOptions } from '../resolve.js';
 import type { Transaction, TransactionResult } from '../Transaction.js';
 import type { TransactionDataBuilder } from '../TransactionData.js';
-import { ALLOWANCE_BALANCE } from './AllowanceBalance.js';
 import type { ClientWithCoreApi, SuiClientTypes } from '../../client/index.js';
 
-export const COIN_WITH_BALANCE = 'CoinWithBalance';
+export { COIN_WITH_BALANCE } from './BalanceIntentNames.js';
 const SUI_TYPE = normalizeStructTag('0x2::sui::SUI');
 
 export function coinWithBalance({

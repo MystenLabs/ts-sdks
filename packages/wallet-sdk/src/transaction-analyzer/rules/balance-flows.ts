@@ -92,6 +92,7 @@ export const balanceFlows = createAnalyzer({
 			const { excludeGasBudget = false, moveCallHandlers = [] } = opts;
 			const issues: TransactionAnalysisIssue[] = [];
 			const trackedBalances = new Map<string, TrackedBalance>();
+			const redeemedWithdrawals = new Set<number>();
 			const deltas = new Map<string, Map<string, bigint>>();
 
 			const sender = data.sender ? normalizeSuiAddress(data.sender) : null;
@@ -238,6 +239,7 @@ export const balanceFlows = createAnalyzer({
 						});
 						return true;
 					}
+					redeemedWithdrawals.add(arg.index);
 					const owner = normalizeAddress(ownerRaw);
 					track(
 						`result:${command.index},0`,
@@ -439,6 +441,14 @@ export const balanceFlows = createAnalyzer({
 						issues.push({
 							message: `Unsupported command type: ${(command as { $kind: string }).$kind}`,
 						});
+				}
+			}
+
+			// Opaque Move calls can redeem withdrawals internally. Do not report zero
+			// outflow when the reservation's spend could not be accounted for.
+			for (const input of inputs) {
+				if (input.$kind === 'Withdrawal' && !redeemedWithdrawals.has(input.index)) {
+					issues.push({ message: `Cannot track redemption of withdrawal input ${input.index}` });
 				}
 			}
 

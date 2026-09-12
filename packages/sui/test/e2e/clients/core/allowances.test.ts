@@ -100,6 +100,20 @@ describe('Allowance withdrawals', () => {
 		return allowance.objectId;
 	}
 
+	async function addReadOnlyAllowance(
+		tx: Transaction,
+		client: ClientWithCoreApi,
+		objectId: string,
+	) {
+		const { object } = await client.core.getObject({ objectId });
+		if (object.owner.$kind !== 'Shared') throw new Error('Expected a shared allowance');
+		tx.sharedObjectRef({
+			objectId,
+			initialSharedVersion: object.owner.Shared.initialSharedVersion,
+			mutable: false,
+		});
+	}
+
 	beforeAll(async () => {
 		toolbox = await setup();
 		({ packageId: appPackage } = await publishPackage('allowance', toolbox));
@@ -120,6 +134,7 @@ describe('Allowance withdrawals', () => {
 				`spends app-bound ${output} (known funder: ${knownFunder})`,
 				async (client) => {
 					const tx = new Transaction();
+					if (knownFunder) await addReadOnlyAllowance(tx, client, appAllowanceId);
 					const permit = tx.moveCall({
 						target: `${appPackage}::test_allowance::authorize`,
 						arguments: [tx.pure.address(spender.address), tx.pure.bool(true)],
@@ -180,6 +195,35 @@ describe('Allowance withdrawals', () => {
 		const result = await client.core.simulateTransaction({ transaction: tx });
 		expect(result.$kind).toBe('FailedTransaction');
 		expect(result.FailedTransaction!.status.error?.message).toContain('test_allowance');
+	});
+
+	testWithAllClients('executes an opaque self-funded allowance spend', async (client) => {
+		const self = await toolbox.getSigner({ coins: [200_000_000n], addressBalance: 100_000_000n });
+		const id = await issueAllowance(self.keypair, self.address);
+		const tx = new Transaction();
+		const withdrawal = tx.withdrawal({
+			amount: SPEND_AMOUNT,
+			type: SUI,
+			withdrawFrom: {
+				$kind: 'SenderAllowance',
+				SenderAllowance: { funder: self.address, allowance: id },
+			},
+		});
+		tx.moveCall({
+			target: `${appPackage}::test_allowance::spend_and_send`,
+			typeArguments: [SUI],
+			arguments: [tx.object(id), withdrawal, tx.object.clock(), tx.pure.address(spender.address)],
+		});
+		const result = await client.core.signAndExecuteTransaction({
+			transaction: tx,
+			signer: self.keypair,
+			include: { balanceChanges: true },
+		});
+		expect(result.$kind).toBe('Transaction');
+		expect(result.Transaction!.balanceChanges).toContainEqual(
+			expect.objectContaining({ address: spender.address, amount: String(SPEND_AMOUNT) }),
+		);
+		await toolbox.waitForTransaction({ digest: result.Transaction!.digest });
 	});
 
 	it('all clients return same data: transaction with an allowance withdrawal', async () => {
@@ -243,6 +287,7 @@ describe('Allowance withdrawals', () => {
 			`spends a coin with ${knownFunder ? 'a known funder' : 'automatic funder resolution'}`,
 			async (client) => {
 				const tx = new Transaction();
+				if (knownFunder) await addReadOnlyAllowance(tx, client, allowanceId);
 				const coin = tx.coin({
 					allowance: knownFunder ? { objectId: allowanceId, funder: funder.address } : allowanceId,
 					balance: SPEND_AMOUNT.toString(),

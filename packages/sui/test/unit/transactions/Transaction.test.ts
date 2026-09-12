@@ -416,6 +416,25 @@ describe('Transaction.from with custom intents', () => {
 		expect(tx.getData().commands.map((command) => command.$Intent?.name)).toEqual(['Preserved']);
 	});
 
+	it('rejects cycles between intent resolvers before executing them', async () => {
+		const tx = new Transaction();
+		const first = Object.assign(
+			vi.fn(async () => {}),
+			{ intentDependencies: ['Second'] },
+		);
+		const second = Object.assign(
+			vi.fn(async () => {}),
+			{ intentDependencies: ['First'] },
+		);
+		tx.addIntentResolver('First', first);
+		tx.addIntentResolver('Second', second);
+		for (const name of ['First', 'Second'])
+			tx.add(TransactionCommands.Intent({ name, inputs: {}, data: {} }));
+		await expect(tx.toJSON()).rejects.toThrow('Circular intent resolver dependency');
+		expect(first).not.toHaveBeenCalled();
+		expect(second).not.toHaveBeenCalled();
+	});
+
 	const TEST_INTENT = 'TestIntent';
 
 	function testIntent() {

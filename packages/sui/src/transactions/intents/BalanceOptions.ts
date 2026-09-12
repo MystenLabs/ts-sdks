@@ -35,6 +35,9 @@ export function normalizeBalance(options: BalanceOptions): bigint {
 		throw new Error('useGasCoin cannot be combined with allowance');
 	}
 	const amount = options.balance;
+	if (typeof amount === 'string' && !/^[0-9]+$/.test(amount)) {
+		throw new Error('Amount must be a non-empty string of decimal digits');
+	}
 	if (typeof amount === 'number' && !Number.isSafeInteger(amount)) {
 		throw new Error('Amount must be a safe integer; use bigint or a string for larger amounts');
 	}

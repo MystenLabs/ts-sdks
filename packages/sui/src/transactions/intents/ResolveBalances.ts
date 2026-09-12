@@ -3,8 +3,9 @@
 
 import type { IntentResolverOptions } from '../resolve.js';
 import type { TransactionDataBuilder } from '../TransactionData.js';
-import { ALLOWANCE_BALANCE, resolveAllowanceBalance } from './AllowanceBalance.js';
-import { COIN_WITH_BALANCE, resolveCoinBalance } from './CoinWithBalance.js';
+import { ALLOWANCE_BALANCE, COIN_WITH_BALANCE } from './BalanceIntentNames.js';
+import { resolveAllowanceBalance } from './AllowanceBalance.js';
+import { resolveCoinBalance } from './CoinWithBalance.js';
 
 export async function resolveBalances(
 	transactionData: TransactionDataBuilder,
@@ -27,3 +28,7 @@ export async function resolveBalances(
 	}
 	await next();
 }
+
+// If the allowance intent has a custom resolver, its withdrawals must still be
+// materialized before this resolver selects ordinary coins.
+resolveBalances.intentDependencies = [ALLOWANCE_BALANCE];

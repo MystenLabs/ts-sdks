@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { bcs } from '../../../src/bcs/index.js';
 import type { ClientWithCoreApi } from '../../../src/client/index.js';
 import { ObjectError } from '../../../src/client/index.js';
+import { resolveAllowanceBalance } from '../../../src/transactions/intents/AllowanceBalance.js';
 import { Transaction } from '../../../src/transactions/index.js';
 import { normalizeStructTag, normalizeSuiAddress } from '../../../src/utils/index.js';
 
@@ -313,6 +314,97 @@ describe('allowance balances', () => {
 		expect(custom).toHaveBeenCalledTimes(1);
 	});
 
+	it.each([false, true])(
+		'runs a custom allowance resolver before coin selection (allowance first: %s)',
+		async (allowanceFirst) => {
+			const tx = new Transaction();
+			tx.setSender(SENDER);
+			const allowance = () => tx.coin({ allowance: ID, balance: 80n });
+			const ordinary = () => tx.coin({ balance: 80n });
+			const first = allowanceFirst ? allowance() : ordinary();
+			const second = allowanceFirst ? ordinary() : allowance();
+			tx.transferObjects([first, second], SENDER);
+			const custom = vi.fn(resolveAllowanceBalance);
+			const restored = Transaction.from(tx, { intentResolvers: { AllowanceBalance: custom } });
+			const { client, getBalance } = mockClient({ funder: SENDER });
+			getBalance.mockResolvedValue({
+				balance: { balance: '100', addressBalance: '100', coinBalance: '0' },
+			});
+			await restored.toJSON({ client });
+			expect(restored.getData().inputs.filter((input) => input.FundsWithdrawal)).toHaveLength(1);
+			expect(restored.getData().commands.some((command) => command.SplitCoins)).toBe(true);
+			expect(custom).toHaveBeenCalledTimes(1);
+			expect(restored.getData().commands.some((command) => command.$Intent)).toBe(false);
+		},
+	);
+
+	it.each(['', ' ', '\t\n', '0x10', '1.5', '-1', '+1'])(
+		'rejects non-decimal amount strings: %j',
+		(balance) => {
+			expect(() => new Transaction().coin({ balance })).toThrow(/decimal/);
+		},
+	);
+
+	it.each([false, true])(
+		'resolves MVR coin and app types before metadata checks (known funder: %s)',
+		async (knownFunder) => {
+			const tx = new Transaction();
+			const permit = tx.moveCall({ target: '0xa::app::authorize' });
+			const { client } = mockClient({ app: true });
+			const resolve = vi.fn(async ({ types }: { types: string[] }) => ({
+				packages: {},
+				types: Object.fromEntries(
+					types.map((type) => [type, { type: type.includes('::sui::') ? SUI : APP }]),
+				),
+			}));
+			Object.assign(client.core, { mvr: { resolve } });
+			tx.balance({
+				balance: 1n,
+				type: '@test/coins::sui::SUI',
+				allowance: {
+					objectId: ID,
+					funder: knownFunder ? FUNDER : undefined,
+					app: { type: '@test/apps::app::APP', permit },
+				},
+			});
+			await tx.toJSON({ client });
+			expect(resolve).toHaveBeenCalledTimes(1);
+			expect(
+				tx.getData().inputs.find((input) => input.FundsWithdrawal)?.FundsWithdrawal?.typeArg
+					.Balance,
+			).toBe(SUI);
+			expect(
+				tx.getData().commands.find((command) => command.MoveCall?.function === 'app_balance_spend')
+					?.MoveCall?.typeArguments,
+			).toEqual([SUI, APP]);
+		},
+	);
+
+	it('starts metadata requests in parallel within every transport batch limit', async () => {
+		const tx = new Transaction();
+		for (let index = 1; index <= 100; index++)
+			tx.balance({ allowance: `0x${index.toString(16)}`, balance: 1n });
+		let release!: () => void;
+		const gate = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		const getObjects = vi.fn(async (_options: { objectIds: string[] }) => {
+			await gate;
+			return { objects: [] };
+		});
+		const client = { core: { getObjects } } as unknown as ClientWithCoreApi;
+		const build = tx.toJSON({ client });
+		const failure = expect(build).rejects.toThrow(/Expected a shared/);
+		await vi.waitFor(() => expect(getObjects).toHaveBeenCalled());
+		const requests = getObjects.mock.calls.length;
+		release();
+		await failure;
+		expect(requests).toBe(3);
+		expect(getObjects.mock.calls.map(([options]) => options.objectIds.length)).toEqual([
+			40, 40, 20,
+		]);
+	});
+
 	it('requires dependent intents to be resolved together', async () => {
 		const tx = new Transaction();
 		tx.setSender(SENDER);
@@ -331,6 +423,32 @@ describe('allowance balances', () => {
 		expect(tx.getData().commands[0].MoveCall?.function).toBe('balance_spend');
 		expect(getBalance).not.toHaveBeenCalled();
 	});
+
+	it.each([false, true])(
+		'upgrades a read-only allowance input with a known funder (app: %s)',
+		async (app) => {
+			const tx = new Transaction();
+			tx.sharedObjectRef({ objectId: ID, initialSharedVersion: '5', mutable: false });
+			const permit = app ? tx.moveCall({ target: '0xa::app::authorize' }) : undefined;
+			tx.balance({
+				balance: 1n,
+				allowance: {
+					objectId: ID,
+					funder: FUNDER,
+					app: permit ? { type: APP, permit } : undefined,
+				},
+			});
+			await tx.toJSON();
+			expect(tx.getData().inputs[0].Object?.SharedObject).toEqual({
+				objectId: ID,
+				initialSharedVersion: '5',
+				mutable: true,
+			});
+			expect(
+				tx.getData().inputs.filter((input) => input.Object?.SharedObject?.objectId === ID),
+			).toHaveLength(1);
+		},
+	);
 
 	it('supports known funders without a metadata lookup, alongside ordinary funding', async () => {
 		const tx = new Transaction();

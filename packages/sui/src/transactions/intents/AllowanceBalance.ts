@@ -3,6 +3,10 @@
 
 import { object, optional, parse, picklist, string } from 'valibot';
 
+import { chunk } from '@mysten/utils';
+import { hasMvrName } from '../../client/mvr.js';
+
+import { ALLOWANCE_BALANCE } from './BalanceIntentNames.js';
 import { resolveBalances } from './ResolveBalances.js';
 
 import { bcs } from '../../bcs/index.js';
@@ -16,7 +20,7 @@ import type { TransactionPlugin } from '../resolve.js';
 import type { Transaction } from '../Transaction.js';
 import type { AllowanceReference } from './BalanceOptions.js';
 
-export const ALLOWANCE_BALANCE = 'AllowanceBalance';
+export { ALLOWANCE_BALANCE } from './BalanceIntentNames.js';
 
 const AllowanceBalanceData = object({
 	objectId: string(),
@@ -81,28 +85,46 @@ export const resolveAllowanceBalance: TransactionPlugin = async (
 	next,
 ) => {
 	const ids = new Set<string>();
+	const namedTypes = new Set<string>();
 	for (const command of transactionData.commands) {
 		if (command.$kind !== '$Intent' || command.$Intent.name !== ALLOWANCE_BALANCE) continue;
 		const data = parse(AllowanceBalanceData, command.$Intent.data);
 		if (!data.funder) ids.add(data.objectId);
+		for (const type of [data.type, data.appType]) {
+			if (type && hasMvrName(type)) namedTypes.add(type);
+		}
 	}
 
+	const [resolvedTypes, objects] = await Promise.all([
+		namedTypes.size ? getClient(options).core.mvr.resolve({ types: [...namedTypes] }) : undefined,
+		// GraphQL accepts 40 objects per request; the other transports accept 50.
+		// Stay within every transport's batch size so batches can run in parallel.
+		Promise.all(
+			chunk([...ids], 40).map((objectIds) =>
+				getClient(options).core.getObjects({ objectIds, include: { content: true } }),
+			),
+		).then((batches) => batches.flatMap((batch) => batch.objects)),
+	]);
 	const allowances = new Map<string, SuiClientTypes.Object<{ content: true }>>();
-	if (ids.size) {
-		const { objects } = await getClient(options).core.getObjects({
-			objectIds: [...ids],
-			include: { content: true },
-		});
-		for (const object of objects) {
-			if (object instanceof Error) throw object;
-			allowances.set(object.objectId, object);
-		}
+	for (const object of objects) {
+		if (object instanceof Error) throw object;
+		allowances.set(object.objectId, object);
 	}
 
 	for (let index = 0; index < transactionData.commands.length; index++) {
 		const command = transactionData.commands[index];
 		if (command.$kind !== '$Intent' || command.$Intent.name !== ALLOWANCE_BALANCE) continue;
 		const data = parse(AllowanceBalanceData, command.$Intent.data);
+		if (hasMvrName(data.type)) {
+			const resolved = resolvedTypes?.types[data.type];
+			if (!resolved) throw new Error(`No resolution found for type: ${data.type}`);
+			data.type = normalizeStructTag(resolved.type);
+		}
+		if (data.appType && hasMvrName(data.appType)) {
+			const resolved = resolvedTypes?.types[data.appType];
+			if (!resolved) throw new Error(`No resolution found for type: ${data.appType}`);
+			data.appType = normalizeStructTag(resolved.type);
+		}
 		let funder = data.funder;
 		if (!funder) {
 			const allowance = allowances.get(data.objectId);
@@ -133,6 +155,14 @@ export const resolveAllowanceBalance: TransactionPlugin = async (
 					mutable: true,
 				});
 			}
+		}
+		// Spending mutates the allowance even when the caller supplied the funder
+		// and we did not fetch metadata. Reuse and upgrade its existing input.
+		const allowanceArgument = command.$Intent.inputs.allowance as Argument;
+		if (allowanceArgument.$kind === 'Input') {
+			const input = transactionData.inputs[allowanceArgument.Input];
+			if (input.Object?.SharedObject) input.Object.SharedObject.mutable = true;
+			if (input.UnresolvedObject) input.UnresolvedObject.mutable = true;
 		}
 		const withdrawal = transactionData.addInput(
 			'withdrawal',
