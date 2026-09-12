@@ -380,31 +380,6 @@ describe('allowance balances', () => {
 		},
 	);
 
-	it('starts metadata requests in parallel within every transport batch limit', async () => {
-		const tx = new Transaction();
-		for (let index = 1; index <= 100; index++)
-			tx.balance({ allowance: `0x${index.toString(16)}`, balance: 1n });
-		let release!: () => void;
-		const gate = new Promise<void>((resolve) => {
-			release = resolve;
-		});
-		const getObjects = vi.fn(async (_options: { objectIds: string[] }) => {
-			await gate;
-			return { objects: [] };
-		});
-		const client = { core: { getObjects } } as unknown as ClientWithCoreApi;
-		const build = tx.toJSON({ client });
-		const failure = expect(build).rejects.toThrow(/Expected a shared/);
-		await vi.waitFor(() => expect(getObjects).toHaveBeenCalled());
-		const requests = getObjects.mock.calls.length;
-		release();
-		await failure;
-		expect(requests).toBe(3);
-		expect(getObjects.mock.calls.map(([options]) => options.objectIds.length)).toEqual([
-			40, 40, 20,
-		]);
-	});
-
 	it('requires dependent intents to be resolved together', async () => {
 		const tx = new Transaction();
 		tx.setSender(SENDER);

@@ -3,7 +3,6 @@
 
 import { object, optional, parse, picklist, string } from 'valibot';
 
-import { chunk } from '@mysten/utils';
 import { hasMvrName } from '../../client/mvr.js';
 
 import { ALLOWANCE_BALANCE } from './BalanceIntentNames.js';
@@ -97,13 +96,11 @@ export const resolveAllowanceBalance: TransactionPlugin = async (
 
 	const [resolvedTypes, objects] = await Promise.all([
 		namedTypes.size ? getClient(options).core.mvr.resolve({ types: [...namedTypes] }) : undefined,
-		// GraphQL accepts 40 objects per request; the other transports accept 50.
-		// Stay within every transport's batch size so batches can run in parallel.
-		Promise.all(
-			chunk([...ids], 40).map((objectIds) =>
-				getClient(options).core.getObjects({ objectIds, include: { content: true } }),
-			),
-		).then((batches) => batches.flatMap((batch) => batch.objects)),
+		ids.size
+			? getClient(options)
+					.core.getObjects({ objectIds: [...ids], include: { content: true } })
+					.then((result) => result.objects)
+			: [],
 	]);
 	const allowances = new Map<string, SuiClientTypes.Object<{ content: true }>>();
 	for (const object of objects) {
