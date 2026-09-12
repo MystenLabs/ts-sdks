@@ -1,5 +1,17 @@
 # @mysten-incubation/sponsor
 
+## 0.3.0
+
+### Minor Changes
+
+- 15eb25e: Support sender allowance withdrawals while rejecting allowances funded by the gas
+  sponsor. Expose `validationPolicy` to run the sponsor's validation engine without a local signer.
+
+### Patch Changes
+
+- Updated dependencies [15eb25e]
+  - @mysten/wallet-sdk@0.9.0
+
 ## 0.2.20
 
 ## 0.2.19

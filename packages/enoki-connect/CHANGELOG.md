@@ -1,5 +1,7 @@
 # @mysten/enoki-connect
 
+## 1.1.25
+
 ## 1.1.24
 
 ### Patch Changes
