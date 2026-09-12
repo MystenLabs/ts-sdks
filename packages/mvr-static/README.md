@@ -24,7 +24,7 @@ Available options:
 - `--url-testnet <url>`: The URL to the testnet MVR (defaults to
   `https://testnet.mvr.mystenlabs.com`)
 - `--include <dir_patterns>`: The directory patterns to include in the search (defaults to
-  `**/*.{js,ts,jsx,tsx,mjs,cjs}`)
+  `**/*.{js,ts,jsx,tsx,mjs,cjs,mts,cts}`)
 - `--exclude <dir_patterns>`: The directory patterns to exclude in the search (defaults to
   `'node_modules/**', '**/.*'`)
 - `--force`: Force overwrite the existing MVR file (useful in CI) (defaults to `false`)
@@ -50,3 +50,17 @@ const client = new SuiGrpcClient({
 
 The client will now use your pre-resolved MVR names instead of making API calls, which improves
 performance and security.
+
+## Static extraction
+
+The scanner retains its content-wide MVR pattern matching and also resolves bounded, same-file local
+constant strings. Supported constant forms include string and template literals, template
+interpolation, string `+` concatenation, references to local `const` declarations (including
+transitive and forward references), parentheses, and transparent TypeScript wrappers such as
+`as const`, non-null assertions, type assertions, and `satisfies`. Local references respect lexical
+scope and shadowing.
+
+The scanner does not execute code or resolve imports. Imported values, helper or other function
+calls, mutable bindings, parameters, member access, and other dynamic expressions remain
+unsupported. AST parsing and evaluation use file-size, concurrency, and work limits; files that
+cannot be parsed or exceed those limits still use the original content-wide matching.
