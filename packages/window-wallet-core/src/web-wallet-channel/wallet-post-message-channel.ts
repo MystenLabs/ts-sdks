@@ -58,6 +58,13 @@ export class WalletPostMessageChannel {
 			throw new Error('Requested account not found in session');
 		}
 
+		if (
+			addressInSession.chains !== undefined &&
+			!addressInSession.chains.includes(this.#request.payload.chain)
+		) {
+			throw new Error('Requested chain not authorized by session');
+		}
+
 		const requiredFeatures = {
 			'sign-transaction': ['sui:signTransaction', 'sui:signTransactionBlock'],
 			'sign-and-execute-transaction': ['sui:signAndExecuteTransaction'],

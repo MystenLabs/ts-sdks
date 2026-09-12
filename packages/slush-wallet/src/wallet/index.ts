@@ -90,7 +90,9 @@ function getAccountsFromSession(session: string) {
 	return payload.accounts.map((account) => {
 		return new ReadonlyWalletAccount({
 			address: account.address,
-			chains: SUI_CHAINS,
+			chains: account.chains
+				? SUI_CHAINS.filter((chain) => account.chains?.includes(chain))
+				: SUI_CHAINS,
 			// Older wallet sessions omit capabilities; an explicit empty list is watch-only.
 			features: account.features
 				? walletAccountFeatures.filter((feature) => account.features?.includes(feature))
@@ -279,13 +281,19 @@ export class SlushWallet implements Wallet {
 	};
 
 	#signPersonalMessage: SuiSignPersonalMessageMethod = async ({ message, account, chain }) => {
+		const selectedChain =
+			chain ??
+			(account.chains.includes(SUI_MAINNET_CHAIN)
+				? SUI_MAINNET_CHAIN
+				: SUI_CHAINS.find((supported) => account.chains.includes(supported)));
+		if (!selectedChain) throw new Error('Account has no supported chain');
 		const popup = this.#getNewPopupChannel();
 
 		const response = await popup.send({
 			type: 'sign-personal-message',
 			message: toBase64(message),
 			address: account.address,
-			chain: chain ?? SUI_MAINNET_CHAIN,
+			chain: selectedChain,
 			session: getSessionFromStorage(),
 		});
 

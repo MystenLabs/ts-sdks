@@ -8,10 +8,11 @@ afterEach(() => vi.unstubAllGlobals());
 async function request(
 	type: 'sign-transaction' | 'sign-and-execute-transaction' | 'sign-personal-message',
 	features?: string[],
+	chains?: string[],
 ) {
 	vi.stubGlobal('window', { opener: {} });
 	const session = await createJwtSession(
-		{ accounts: [{ address: '0xx', publicKey: 'AQID', features }] },
+		{ accounts: [{ address: '0xx', publicKey: 'AQID', features, chains }] },
 		{ secretKey: key, expirationTime: '1h', issuer: 'wallet', audience: 'https://dapp.example' },
 	);
 	return WalletPostMessageChannel.fromPayload({
@@ -50,3 +51,18 @@ it('does not widen a restricted session to a different request type', async () =
 		(await request('sign-transaction', ['sui:signTransactionBlock'])).verifyJwtSession(key),
 	).resolves.toBeTruthy();
 });
+
+it.each(['sign-transaction', 'sign-and-execute-transaction', 'sign-personal-message'] as const)(
+	'rejects %s on chains excluded by the signed session',
+	async (type) => {
+		await expect(
+			(await request(type, undefined, ['sui:testnet'])).verifyJwtSession(key),
+		).rejects.toThrow('chain');
+		await expect((await request(type, undefined, [])).verifyJwtSession(key)).rejects.toThrow(
+			'chain',
+		);
+		await expect(
+			(await request(type, undefined, ['sui:devnet'])).verifyJwtSession(key),
+		).resolves.toBeTruthy();
+	},
+);
