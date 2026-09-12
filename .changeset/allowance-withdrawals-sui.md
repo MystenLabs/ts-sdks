@@ -19,7 +19,6 @@ Both helpers accept decimal strings for `balance`. App-bound allowances accept
 Account for allowance reservations when selecting ordinary coins and gas, including transactions
 where the sender or gas sponsor is also the allowance's funder.
 
-Resolve MVR coin and app types before allowance metadata checks. Honor custom allowance resolver
-dependencies regardless of command order.
+Resolve MVR coin and app types before allowance metadata checks.
 Require decimal digits in string amounts, rejecting empty or whitespace-only values.
 Upgrade read-only allowance inputs to mutable when spending, including with a known funder.

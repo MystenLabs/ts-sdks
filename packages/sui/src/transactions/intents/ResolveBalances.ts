@@ -28,7 +28,3 @@ export async function resolveBalances(
 	}
 	await next();
 }
-
-// If the allowance intent has a custom resolver, its withdrawals must still be
-// materialized before this resolver selects ordinary coins.
-resolveBalances.intentDependencies = [ALLOWANCE_BALANCE];

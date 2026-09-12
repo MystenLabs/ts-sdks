@@ -314,29 +314,26 @@ describe('allowance balances', () => {
 		expect(custom).toHaveBeenCalledTimes(1);
 	});
 
-	it.each([false, true])(
-		'runs a custom allowance resolver before coin selection (allowance first: %s)',
-		async (allowanceFirst) => {
-			const tx = new Transaction();
-			tx.setSender(SENDER);
-			const allowance = () => tx.coin({ allowance: ID, balance: 80n });
-			const ordinary = () => tx.coin({ balance: 80n });
-			const first = allowanceFirst ? allowance() : ordinary();
-			const second = allowanceFirst ? ordinary() : allowance();
-			tx.transferObjects([first, second], SENDER);
-			const custom = vi.fn(resolveAllowanceBalance);
-			const restored = Transaction.from(tx, { intentResolvers: { AllowanceBalance: custom } });
-			const { client, getBalance } = mockClient({ funder: SENDER });
-			getBalance.mockResolvedValue({
-				balance: { balance: '100', addressBalance: '100', coinBalance: '0' },
-			});
-			await restored.toJSON({ client });
-			expect(restored.getData().inputs.filter((input) => input.FundsWithdrawal)).toHaveLength(1);
-			expect(restored.getData().commands.some((command) => command.SplitCoins)).toBe(true);
-			expect(custom).toHaveBeenCalledTimes(1);
-			expect(restored.getData().commands.some((command) => command.$Intent)).toBe(false);
-		},
-	);
+	it('uses a custom allowance resolver when it precedes coin selection', async () => {
+		const tx = new Transaction();
+		tx.setSender(SENDER);
+		const allowance = () => tx.coin({ allowance: ID, balance: 80n });
+		const ordinary = () => tx.coin({ balance: 80n });
+		const first = allowance();
+		const second = ordinary();
+		tx.transferObjects([first, second], SENDER);
+		const custom = vi.fn(resolveAllowanceBalance);
+		const restored = Transaction.from(tx, { intentResolvers: { AllowanceBalance: custom } });
+		const { client, getBalance } = mockClient({ funder: SENDER });
+		getBalance.mockResolvedValue({
+			balance: { balance: '100', addressBalance: '100', coinBalance: '0' },
+		});
+		await restored.toJSON({ client });
+		expect(restored.getData().inputs.filter((input) => input.FundsWithdrawal)).toHaveLength(1);
+		expect(restored.getData().commands.some((command) => command.SplitCoins)).toBe(true);
+		expect(custom).toHaveBeenCalledTimes(1);
+		expect(restored.getData().commands.some((command) => command.$Intent)).toBe(false);
+	});
 
 	it.each(['', ' ', '\t\n', '0x10', '1.5', '-1', '+1'])(
 		'rejects non-decimal amount strings: %j',

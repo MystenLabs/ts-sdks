@@ -987,27 +987,12 @@ export class Transaction {
 			names.push(intent);
 			resolverIntents.set(resolver, names);
 		}
-		const scheduled = new Set<TransactionPlugin>();
-		const visiting = new Set<TransactionPlugin>();
-		const schedule = (resolver: TransactionPlugin) => {
-			if (scheduled.has(resolver)) return;
-			if (visiting.has(resolver)) throw new Error('Circular intent resolver dependency');
-			visiting.add(resolver);
-			for (const name of resolver.intentDependencies ?? []) {
-				const dependency = this.#intentResolvers.get(name);
-				if (dependency && dependency !== resolver && resolverIntents.has(dependency)) {
-					schedule(dependency);
-				}
-			}
-			visiting.delete(resolver);
-			scheduled.add(resolver);
-			const intentNames = resolverIntents.get(resolver)!;
+		for (const [resolver, intentNames] of resolverIntents) {
 			steps.push((data, buildOptions, next) => {
 				const resolverOptions = { ...buildOptions, intentNames };
 				return resolver(data, resolverOptions, next);
 			});
-		};
-		for (const resolver of resolverIntents.keys()) schedule(resolver);
+		}
 
 		steps.push(namedPackagesPlugin());
 

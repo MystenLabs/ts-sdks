@@ -34,14 +34,11 @@ export interface IntentResolverOptions extends SerializeTransactionOptions {
 	intentNames?: readonly string[];
 }
 
-export type TransactionPlugin = ((
+export type TransactionPlugin = (
 	transactionData: TransactionDataBuilder,
 	options: BuildTransactionOptions,
 	next: () => Promise<void>,
-) => Promise<void>) & {
-	/** Intent names whose registered resolvers must run before this resolver. */
-	intentDependencies?: readonly string[];
-};
+) => Promise<void>;
 
 export function needsTransactionResolution(
 	data: TransactionDataBuilder,
