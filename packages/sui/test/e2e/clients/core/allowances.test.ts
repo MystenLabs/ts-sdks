@@ -204,10 +204,9 @@ describe('Allowance withdrawals', () => {
 		const withdrawal = tx.withdrawal({
 			amount: SPEND_AMOUNT,
 			type: SUI,
-			withdrawFrom: {
-				$kind: 'SenderAllowance',
-				SenderAllowance: { funder: self.address, allowance: id },
-			},
+			from: 'allowance',
+			funder: self.address,
+			allowance: id,
 		});
 		tx.moveCall({
 			target: `${appPackage}::test_allowance::spend_and_send`,

@@ -530,7 +530,9 @@ describe('allowance gas funding', () => {
 			tx.setGasBudget(60);
 			tx.withdrawal({
 				amount: 70,
-				withdrawFrom: { $kind: 'SenderAllowance', SenderAllowance: { funder, allowance: '0xa11' } },
+				from: 'allowance',
+				funder,
+				allowance: '0xa11',
 			});
 			if (usesGasCoin) tx.splitCoins(tx.gas, [1]);
 			const client = createMockClient({ addressBalance: '100' });

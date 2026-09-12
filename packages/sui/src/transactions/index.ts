@@ -18,6 +18,7 @@ export {
 	type TransactionObjectArgument,
 	type TransactionResult,
 	type TransactionCopyOptions,
+	type WithdrawalOptions,
 } from './Transaction.js';
 
 export { type SerializedTransactionDataV2 } from './data/v2.js';

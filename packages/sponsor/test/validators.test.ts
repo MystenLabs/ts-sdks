@@ -80,10 +80,9 @@ describe('onlySenderWithdrawals', () => {
 		if (owner) tx.setGasOwner(owner);
 		tx.withdrawal({
 			amount: 1n,
-			withdrawFrom: {
-				$kind: 'SenderAllowance',
-				SenderAllowance: { funder, allowance: '0x4' },
-			},
+			from: 'allowance',
+			funder,
+			allowance: '0x4',
 		});
 		const issues = await run(onlySenderWithdrawals(), { data: tx.getData() });
 		expect(issues.map((issue) => issue.code)).toEqual(allowed ? [] : ['NON_SENDER_WITHDRAWAL']);

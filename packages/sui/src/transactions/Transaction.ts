@@ -10,7 +10,7 @@ import type { SignatureWithBytes, Signer } from '../cryptography/index.js';
 import { normalizeSuiAddress } from '../utils/sui-types.js';
 import type { TransactionArgument } from './Commands.js';
 import { TransactionCommands } from './Commands.js';
-import type { CallArg, Command, Argument, ObjectRef, WithdrawFrom } from './data/internal.js';
+import type { CallArg, Command, Argument, ObjectRef } from './data/internal.js';
 import {
 	ArgumentSchema,
 	NormalizedCallArg,
@@ -36,6 +36,15 @@ import { resolveBalances } from './intents/ResolveBalances.js';
 import type { BalanceOptions } from './intents/BalanceOptions.js';
 import { normalizeBalance } from './intents/BalanceOptions.js';
 import { COIN_WITH_BALANCE, coinWithBalance, createBalance } from './intents/CoinWithBalance.js';
+
+export type WithdrawalOptions = {
+	amount: number | bigint | string;
+	type?: string | null;
+} & (
+	| { from?: 'sender'; allowance?: never; funder?: never }
+	| { from: 'sponsor'; allowance?: never; funder?: never }
+	| { from: 'allowance'; allowance: string; funder: string }
+);
 
 export type TransactionObjectArgument =
 	| Exclude<InferInput<typeof ArgumentSchema>, { Input: unknown; type?: 'pure' }>
@@ -679,19 +688,11 @@ export class Transaction {
 	 *
 	 * @param options.amount - The amount to withdraw (u64).
 	 * @param options.type - The coin type T (e.g., "0x2::sui::SUI"), not Balance<T>. Defaults to SUI.
-	 * @param options.withdrawFrom - The account the funds are withdrawn from. Defaults to the
-	 * transaction sender. Use `SenderAllowance` to withdraw from a funder's address balance under an
-	 * `0x2::allowance::Allowance` granted to the sender.
+	 * @param options.from - The withdrawal source. Defaults to the transaction sender.
+	 * @param options.allowance - The allowance ID, required when from is 'allowance'.
+	 * @param options.funder - The funder's address, required when from is 'allowance'.
 	 */
-	withdrawal({
-		amount,
-		type,
-		withdrawFrom,
-	}: {
-		amount: number | bigint | string;
-		type?: string | null;
-		withdrawFrom?: WithdrawFrom;
-	}): {
+	withdrawal(options: WithdrawalOptions): {
 		$kind: 'Input';
 		Input: number;
 		type?: 'object';
@@ -700,18 +701,20 @@ export class Transaction {
 			$kind: 'FundsWithdrawal',
 			FundsWithdrawal: {
 				// TODO: support entire balance withdrawals once supported
-				reservation: { $kind: 'MaxAmountU64', MaxAmountU64: String(amount) },
-				typeArg: { $kind: 'Balance', Balance: type ?? '0x2::sui::SUI' },
+				reservation: { $kind: 'MaxAmountU64', MaxAmountU64: String(options.amount) },
+				typeArg: { $kind: 'Balance', Balance: options.type ?? '0x2::sui::SUI' },
 				withdrawFrom:
-					withdrawFrom?.$kind === 'SenderAllowance'
+					options.from === 'allowance'
 						? {
 								$kind: 'SenderAllowance',
 								SenderAllowance: {
-									funder: normalizeSuiAddress(withdrawFrom.SenderAllowance.funder),
-									allowance: normalizeSuiAddress(withdrawFrom.SenderAllowance.allowance),
+									funder: normalizeSuiAddress(options.funder),
+									allowance: normalizeSuiAddress(options.allowance),
 								},
 							}
-						: (withdrawFrom ?? { $kind: 'Sender', Sender: true }),
+						: options.from === 'sponsor'
+							? { $kind: 'Sponsor', Sponsor: true }
+							: { $kind: 'Sender', Sender: true },
 			},
 		};
 

@@ -542,10 +542,7 @@ describe('offline-only validation (no client calls)', () => {
 	const sender = new Ed25519Keypair().toSuiAddress();
 
 	// A fully-resolved transaction carrying one `FundsWithdrawal` input, built
-	// entirely offline (`client: {}` would throw on any RPC). The public builder
-	// only emits `withdrawFrom: Sender`; for the `Sponsor` case we rewrite the
-	// serialized bytes directly — modelling hand-crafted bytes from an untrusted
-	// client, the only way a sponsor withdrawal can actually reach the validator.
+	// entirely offline (`client: {}` would throw on any RPC).
 	async function withdrawalBytes(from: 'Sender' | 'Sponsor'): Promise<Uint8Array> {
 		const tx = new Transaction();
 		tx.setSender(sender);
@@ -554,16 +551,10 @@ describe('offline-only validation (no client calls)', () => {
 		tx.setGasPrice(1000n);
 		tx.setGasPayment(fakeGasPayment);
 		tx.setExpiration({ Epoch: 100 });
-		const w = tx.withdrawal({ amount: 1000n });
+		const w = tx.withdrawal({ amount: 1000n, from: from === 'Sender' ? 'sender' : 'sponsor' });
 		tx.moveCall({ target: '0x2::foo::bar', arguments: [w] });
 
-		const bytes = await tx.build({ client: {} as ClientWithCoreApi });
-		if (from === 'Sender') return bytes;
-
-		const data = TransactionDataBuilder.fromBytes(bytes);
-		const withdrawal = data.inputs.find((input) => input.$kind === 'FundsWithdrawal');
-		withdrawal!.FundsWithdrawal.withdrawFrom = { $kind: 'Sponsor', Sponsor: true };
-		return data.build();
+		return tx.build({ client: {} as ClientWithCoreApi });
 	}
 
 	function offlineSponsor() {

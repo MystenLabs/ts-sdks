@@ -168,10 +168,9 @@ describe('AutoApprovalManager', () => {
 		const withdrawal = tx.withdrawal({
 			amount: 100n,
 			type: SUI,
-			withdrawFrom: {
-				$kind: 'SenderAllowance',
-				SenderAllowance: { funder: DEFAULT_SENDER, allowance: allowanceId },
-			},
+			from: 'allowance',
+			funder: DEFAULT_SENDER,
+			allowance: allowanceId,
 		});
 		tx.moveCall({
 			target: '0xa::attacker::steal',

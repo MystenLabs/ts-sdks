@@ -3,7 +3,7 @@
 ---
 
 Add wire-level support for `SenderAllowance` funds withdrawals (`sui::allowance`, protocol v137).
-`bcs.WithdrawFrom`, the transaction input schema, `Inputs.FundsWithdrawal`, and `tx.withdrawal()`
+`bcs.WithdrawFrom`, the transaction input schema, and `Inputs.FundsWithdrawal`
 accept `{ $kind: 'SenderAllowance', SenderAllowance: { funder, allowance } }`, and the gRPC,
 GraphQL, and JSON-RPC clients decode and encode the new source when reading, simulating, and
 resolving transactions.
@@ -22,3 +22,7 @@ where the sender or gas sponsor is also the allowance's funder.
 Resolve MVR coin and app types before allowance metadata checks.
 Require decimal digits in string amounts, rejecting empty or whitespace-only values.
 Upgrade read-only allowance inputs to mutable when spending, including with a known funder.
+
+Add `tx.withdrawal({ amount, type, from: 'allowance', allowance, funder })` and
+`from: 'sponsor'`. Omitting `from` defaults to the sender. Export `WithdrawalOptions` with
+required allowance and funder fields only for allowance withdrawals.

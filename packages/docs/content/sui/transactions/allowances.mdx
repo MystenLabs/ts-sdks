@@ -175,3 +175,19 @@ The authorization function and its arguments are defined by the app. The SDK han
 A permit authorizes one spend but does not bind its amount or recipient. Apps that need to enforce
 those must redeem the withdrawal inside their own Move function, using `tx.withdrawal()` as the
 input.
+
+```tsx
+import { Transaction } from '@mysten/sui/transactions';
+
+const tx = new Transaction();
+const withdrawal = tx.withdrawal({
+	amount: 10_000_000n,
+	type: '0xUsdcPackage::usdc::USDC',
+	from: 'allowance',
+	allowance: '0xAllowanceId',
+	funder: '0xFunderAddress',
+});
+// Pass withdrawal to the app's Move function that redeems it.
+```
+
+`from: 'allowance'` requires both `allowance` and `funder`; this helper does not look them up.

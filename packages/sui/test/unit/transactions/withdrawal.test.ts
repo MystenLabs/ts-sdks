@@ -1,10 +1,10 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import { bcs } from '../../../src/bcs/index.js';
-import { Transaction } from '../../../src/transactions/Transaction.js';
+import { Transaction, type WithdrawalOptions } from '../../../src/transactions/index.js';
 import { normalizeStructTag, normalizeSuiAddress } from '../../../src/utils/index.js';
 
 const SUI = '0x2::sui::SUI';
@@ -27,14 +27,52 @@ describe('tx.withdrawal()', () => {
 		});
 	});
 
+	it.each(['sender', 'sponsor'] as const)('serializes an explicit %s source', async (from) => {
+		const tx = new Transaction();
+		tx.withdrawal({ amount: 100n, from });
+		const restored = Transaction.fromKind(await tx.build({ onlyTransactionKind: true }));
+		expect(restored.getData().inputs[0].FundsWithdrawal?.withdrawFrom).toEqual(
+			from === 'sender' ? { $kind: 'Sender', Sender: true } : { $kind: 'Sponsor', Sponsor: true },
+		);
+	});
+
+	it('requires allowance fields only for the allowance source', () => {
+		expectTypeOf<{
+			amount: bigint;
+			from: 'allowance';
+			allowance: string;
+		}>().not.toMatchTypeOf<WithdrawalOptions>();
+		expectTypeOf<{
+			amount: bigint;
+			from: 'allowance';
+			funder: string;
+		}>().not.toMatchTypeOf<WithdrawalOptions>();
+		expectTypeOf<{
+			amount: bigint;
+			from: 'sender' | 'sponsor';
+			funder: string;
+			allowance: string;
+		}>().not.toMatchTypeOf<WithdrawalOptions>();
+		expectTypeOf<{
+			amount: bigint;
+			funder: string;
+			allowance: string;
+		}>().not.toMatchTypeOf<WithdrawalOptions>();
+		expectTypeOf<{
+			amount: bigint;
+			from: 'allowance';
+			funder: string;
+			allowance: string;
+		}>().toMatchTypeOf<WithdrawalOptions>();
+	});
+
 	it('creates a SenderAllowance withdrawal with normalized addresses', () => {
 		const tx = new Transaction();
 		tx.withdrawal({
 			amount: 100n,
-			withdrawFrom: {
-				$kind: 'SenderAllowance',
-				SenderAllowance: { funder: '0xf00d', allowance: '0xa110' },
-			},
+			from: 'allowance',
+			funder: '0xf00d',
+			allowance: '0xa110',
 		});
 
 		expect(tx.getData().inputs[0]).toEqual({
@@ -55,10 +93,9 @@ describe('tx.withdrawal()', () => {
 		tx.setSender(SPENDER);
 		const withdrawal = tx.withdrawal({
 			amount: 100n,
-			withdrawFrom: {
-				$kind: 'SenderAllowance',
-				SenderAllowance: { funder: FUNDER, allowance: ALLOWANCE },
-			},
+			from: 'allowance',
+			funder: FUNDER,
+			allowance: ALLOWANCE,
 		});
 		const balance = tx.moveCall({
 			target: '0x2::allowance::balance_spend',
