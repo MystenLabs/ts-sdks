@@ -20,7 +20,7 @@ import {
 	TransactionExpiration_TransactionExpirationKind,
 } from '../grpc/proto/sui/rpc/v2/transaction.js';
 import type { ObjectReference } from '../grpc/proto/sui/rpc/v2/object_reference.js';
-import type { Input } from '../grpc/proto/sui/rpc/v2/input.js';
+import type { FundsWithdrawal, Input } from '../grpc/proto/sui/rpc/v2/input.js';
 import { FundsWithdrawal_Source, Input_InputKind } from '../grpc/proto/sui/rpc/v2/input.js';
 import type { Command } from '../grpc/proto/sui/rpc/v2/transaction.js';
 import type { Argument } from '../grpc/proto/sui/rpc/v2/argument.js';
@@ -102,16 +102,53 @@ function callArgToGrpcInput(arg: CallArg): Input {
 							? BigInt(withdrawal.reservation.MaxAmountU64)
 							: undefined,
 					coinType: withdrawal.typeArg.$kind === 'Balance' ? withdrawal.typeArg.Balance : undefined,
-					source:
-						withdrawal.withdrawFrom.$kind === 'Sponsor'
-							? FundsWithdrawal_Source.SPONSOR
-							: FundsWithdrawal_Source.SENDER,
+					...tsWithdrawFromToGrpc(withdrawal.withdrawFrom),
 				},
 			};
 		}
 
 		default:
 			throw new Error(`Unknown CallArg kind: ${JSON.stringify(arg)}`);
+	}
+}
+
+function tsWithdrawFromToGrpc(
+	withdrawFrom: Extract<CallArg, { FundsWithdrawal: unknown }>['FundsWithdrawal']['withdrawFrom'],
+): Pick<FundsWithdrawal, 'source' | 'funder' | 'allowance'> {
+	switch (withdrawFrom.$kind) {
+		case 'Sender':
+			return { source: FundsWithdrawal_Source.SENDER };
+		case 'Sponsor':
+			return { source: FundsWithdrawal_Source.SPONSOR };
+		case 'SenderAllowance':
+			return {
+				source: FundsWithdrawal_Source.SENDER_ALLOWANCE,
+				funder: withdrawFrom.SenderAllowance.funder,
+				allowance: withdrawFrom.SenderAllowance.allowance,
+			};
+		default:
+			throw new Error(`Unknown WithdrawFrom kind: ${JSON.stringify(withdrawFrom)}`);
+	}
+}
+
+function grpcWithdrawFromToTs(
+	withdrawal: FundsWithdrawal | undefined,
+): Extract<CallArg, { FundsWithdrawal: unknown }>['FundsWithdrawal']['withdrawFrom'] {
+	switch (withdrawal?.source) {
+		case FundsWithdrawal_Source.SPONSOR:
+			return { $kind: 'Sponsor', Sponsor: true };
+		case FundsWithdrawal_Source.SENDER_ALLOWANCE:
+			if (!withdrawal.funder || !withdrawal.allowance) {
+				throw new Error(
+					`SENDER_ALLOWANCE withdrawal is missing funder or allowance: ${JSON.stringify(withdrawal)}`,
+				);
+			}
+			return {
+				$kind: 'SenderAllowance',
+				SenderAllowance: { funder: withdrawal.funder, allowance: withdrawal.allowance },
+			};
+		default:
+			return { $kind: 'Sender', Sender: true };
 	}
 }
 
@@ -429,10 +466,7 @@ function grpcInputToCallArg(input: Input): CallArg {
 						$kind: 'Balance' as const,
 						Balance: input.fundsWithdrawal?.coinType ?? '0x2::sui::SUI',
 					},
-					withdrawFrom:
-						input.fundsWithdrawal?.source === FundsWithdrawal_Source.SPONSOR
-							? { $kind: 'Sponsor' as const, Sponsor: true as const }
-							: { $kind: 'Sender' as const, Sender: true as const },
+					withdrawFrom: grpcWithdrawFromToTs(input.fundsWithdrawal),
 				},
 			};
 

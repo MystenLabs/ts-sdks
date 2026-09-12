@@ -339,12 +339,10 @@ export function gasCoinNotUsed(): Validator {
 }
 
 /**
- * Allow **only the sender** to withdraw from an address balance — reject any
- * `FundsWithdrawal` input whose `withdrawFrom` isn't `Sender` (today that's the
- * sponsor; an allowlist also fails closed on any future withdrawal source). The
- * sponsor pays gas from its address balance, so a sponsor withdrawal drains it
- * directly — and because the withdrawal is an *input*, not a command argument,
- * {@link gasCoinNotUsed} doesn't catch it. Part of {@link defaults}. Reads only `data`.
+ * Allow sender withdrawals and withdrawals under allowances granted to the sender
+ * and funded by someone other than the gas sponsor. Sponsor withdrawals and unknown sources are rejected.
+ * Allowance authorization is enforced on-chain; pair this with simulationSucceeds.
+ * Part of defaults. Reads only data.
  */
 export function onlySenderWithdrawals(): Validator {
 	return createAnalyzer({
@@ -353,15 +351,20 @@ export function onlySenderWithdrawals(): Validator {
 			() =>
 			({ data }) => {
 				for (const input of data.inputs) {
+					if (input.$kind !== 'FundsWithdrawal') continue;
+					const source = input.FundsWithdrawal.withdrawFrom;
+					if (source.$kind === 'Sender') continue;
 					if (
-						input.$kind === 'FundsWithdrawal' &&
-						input.FundsWithdrawal.withdrawFrom.$kind !== 'Sender'
-					) {
-						return reject({
-							code: 'NON_SENDER_WITHDRAWAL',
-							message: 'Only the sender may withdraw from an address balance.',
-						});
-					}
+						source.$kind === 'SenderAllowance' &&
+						data.gasData.owner &&
+						normalizeSuiAddress(source.SenderAllowance.funder) !==
+							normalizeSuiAddress(data.gasData.owner)
+					)
+						continue;
+					return reject({
+						code: 'NON_SENDER_WITHDRAWAL',
+						message: 'Withdrawals must use sender funds or an allowance not funded by the sponsor.',
+					});
 				}
 				return pass;
 			},

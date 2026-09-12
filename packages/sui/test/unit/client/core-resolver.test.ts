@@ -513,3 +513,37 @@ describe('Chain identifier fetch gating', () => {
 		expect(client.core.getChainIdentifier).not.toHaveBeenCalled();
 	});
 });
+
+describe('allowance gas funding', () => {
+	it.each([
+		{ funder: '0x2', gasOwner: '0x2', usesGasCoin: false, expectedPayment: true },
+		{ funder: '0x3', gasOwner: '0x2', usesGasCoin: false, expectedPayment: false },
+		{ funder: '0x1', gasOwner: '0x1', usesGasCoin: false, expectedPayment: true },
+		{ funder: '0x2', gasOwner: '0x2', usesGasCoin: true, expectedPayment: true },
+	])(
+		'reserves gas separately from allowance debits: %j',
+		async ({ funder, gasOwner, usesGasCoin, expectedPayment }) => {
+			const tx = new Transaction();
+			tx.setSender('0x1');
+			tx.setGasOwner(gasOwner);
+			tx.setGasPrice(1);
+			tx.setGasBudget(60);
+			tx.withdrawal({
+				amount: 70,
+				from: 'allowance',
+				funder,
+				allowance: '0xa11',
+			});
+			if (usesGasCoin) tx.splitCoins(tx.gas, [1]);
+			const client = createMockClient({ addressBalance: '100' });
+			await tx.build({ client: client as any });
+			const payment = tx.getData().gasData.payment!;
+			expect(payment.length > 0).toBe(expectedPayment);
+			for (const coin of payment) {
+				if (isCoinReservationDigest(coin.digest)) {
+					expect(parseCoinReservationBalance(coin.digest)).toBe(30n);
+				}
+			}
+		},
+	);
+});

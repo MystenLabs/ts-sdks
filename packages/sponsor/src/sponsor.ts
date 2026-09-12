@@ -77,14 +77,16 @@ const RESERVED_OPTION_KEYS = new Set<string>([
 
 /**
  * The request-scoped options one validator requires (recursing its analyzer
- * deps), minus the options the sponsor provides itself ({@link SponsorProvidedOptions}).
+ * deps), minus the options provided by the surrounding runner.
  * Each remaining option keeps its optionality.
  */
-type OptionsOf<V> = V extends Validator
-	? Omit<Parameters<typeof analyze<{ v: V }>>[1], keyof SponsorProvidedOptions>
+type OptionsOf<V, Provided extends PropertyKey> = V extends Validator
+	? Omit<Parameters<typeof analyze<{ v: V }>>[1], Provided>
 	: object;
 
-type ItemOptions<I> = I extends readonly (infer Inner)[] ? OptionsOf<Inner> : OptionsOf<I>;
+type ItemOptions<I, Provided extends PropertyKey> = I extends readonly (infer Inner)[]
+	? OptionsOf<Inner, Provided>
+	: OptionsOf<I, Provided>;
 
 /**
  * The merged request-scoped options every validator in a `validate` array
@@ -92,8 +94,13 @@ type ItemOptions<I> = I extends readonly (infer Inner)[] ? OptionsOf<Inner> : Op
  * validator that reads `options.authToken` makes `authToken` a typed, required
  * argument. `{}` when no validator declares extra options.
  */
-export type SponsorOptions<T extends readonly ValidateItem[]> =
-	UnionToIntersection<{ [K in keyof T]: ItemOptions<T[K]> }[number]> extends infer O
+export type SponsorOptions<T extends readonly ValidateItem[]> = PolicyOptions<
+	T,
+	keyof SponsorProvidedOptions
+>;
+
+type PolicyOptions<T extends readonly ValidateItem[], Provided extends PropertyKey> =
+	UnionToIntersection<{ [K in keyof T]: ItemOptions<T[K], Provided> }[number]> extends infer O
 		? O extends object
 			? O
 			: object
@@ -413,62 +420,10 @@ export class Sponsor<TOptions extends object = object> {
 		// on, so dropping `sponsor.analyzer` into a host `analyze()` graph (even more
 		// than once) shares its analyzers rather than re-resolving them.
 		if (!this.#analyzer) {
-			const dependencies: Record<
-				string,
-				Dependency<ValidationIssue[] | null, AnalyzerResult<ValidationIssue[] | null>, any, any>
-			> = Object.fromEntries(
-				this.#validators.map((validator, index) => [`v${index}`, optional(validator)]),
-			);
-			this.#analyzer = createAnalyzer({
-				dependencies,
-				analyze: (_options, _transaction) => (results) => {
-					const validatorResults = Object.values(results) as AnalyzerResult<
-						ValidationIssue[] | null
-					>[];
-					const policyIssues: ValidationIssue[] = [];
-					const analysisIssues: ValidationIssue[] = [];
-
-					for (const result of validatorResults) {
-						// Fail closed: any validator that could not run (`failed`/`skipped`)
-						// must reject, even when it surfaced no message. Key this off `status`,
-						// NOT the presence of issues — a validator that returns `{ issues: [] }`
-						// or is skipped by an empty-issues required dep would otherwise contribute
-						// nothing to either bucket and let the sponsor sign.
-						if (result.status === 'failed' || result.status === 'skipped') {
-							const messages = (result.issues ?? []).map((issue) => ({
-								code: 'ANALYSIS_FAILED',
-								message: issue.message,
-							}));
-							analysisIssues.push(
-								...(messages.length
-									? messages
-									: [{ code: 'ANALYSIS_FAILED', message: 'Validator could not run' }]),
-							);
-							continue;
-						}
-
-						// `success`/`partial`: the validator ran. Its policy findings are the
-						// result; any issues alongside a `partial` result are analysis failures.
-						policyIssues.push(...(result.result ?? []));
-
-						if (result.issues) {
-							analysisIssues.push(
-								...result.issues.map((issue) => ({
-									code: 'ANALYSIS_FAILED',
-									message: issue.message,
-								})),
-							);
-						}
-					}
-
-					return {
-						result:
-							policyIssues.length || analysisIssues.length
-								? createSponsorRejection({ policyIssues, analysisIssues })
-								: null,
-					};
-				},
-			}) as Analyzer<SponsorRejection | null, TOptions & { client: ClientWithCoreApi }>;
+			this.#analyzer = validationPolicy(this.#validators) as Analyzer<
+				SponsorRejection | null,
+				TOptions & { client: ClientWithCoreApi }
+			>;
 		}
 		return this.#analyzer;
 	}
@@ -519,4 +474,64 @@ export class Sponsor<TOptions extends object = object> {
 		const ms = typeof spec === 'number' ? spec : spec.min + random() * (spec.max - spec.min);
 		return ms > 0 ? new Promise((resolve) => setTimeout(resolve, ms)) : Promise.resolve();
 	}
+}
+
+/** Compose validators without a signer, using the same rejection handling as Sponsor. */
+export function validationPolicy<const T extends readonly ValidateItem[]>(
+	validators: T,
+): Analyzer<SponsorRejection | null, PolicyOptions<T, 'transaction'>> {
+	const dependencies: Record<
+		string,
+		Dependency<ValidationIssue[] | null, AnalyzerResult<ValidationIssue[] | null>, any, any>
+	> = Object.fromEntries(
+		validators.flat().map((validator, index) => [`v${index}`, optional(validator)]),
+	);
+	return createAnalyzer({
+		dependencies,
+		analyze: (_options, _transaction) => (results) => {
+			const validatorResults = Object.values(results) as AnalyzerResult<ValidationIssue[] | null>[];
+			const policyIssues: ValidationIssue[] = [];
+			const analysisIssues: ValidationIssue[] = [];
+
+			for (const result of validatorResults) {
+				// Fail closed: any validator that could not run (`failed`/`skipped`)
+				// must reject, even when it surfaced no message. Key this off `status`,
+				// NOT the presence of issues — a validator that returns `{ issues: [] }`
+				// or is skipped by an empty-issues required dep would otherwise contribute
+				// nothing to either bucket and let the sponsor sign.
+				if (result.status === 'failed' || result.status === 'skipped') {
+					const messages = (result.issues ?? []).map((issue) => ({
+						code: 'ANALYSIS_FAILED',
+						message: issue.message,
+					}));
+					analysisIssues.push(
+						...(messages.length
+							? messages
+							: [{ code: 'ANALYSIS_FAILED', message: 'Validator could not run' }]),
+					);
+					continue;
+				}
+
+				// `success`/`partial`: the validator ran. Its policy findings are the
+				// result; any issues alongside a `partial` result are analysis failures.
+				policyIssues.push(...(result.result ?? []));
+
+				if (result.issues) {
+					analysisIssues.push(
+						...result.issues.map((issue) => ({
+							code: 'ANALYSIS_FAILED',
+							message: issue.message,
+						})),
+					);
+				}
+			}
+
+			return {
+				result:
+					policyIssues.length || analysisIssues.length
+						? createSponsorRejection({ policyIssues, analysisIssues })
+						: null,
+			};
+		},
+	}) as Analyzer<SponsorRejection | null, PolicyOptions<T, 'transaction'>>;
 }

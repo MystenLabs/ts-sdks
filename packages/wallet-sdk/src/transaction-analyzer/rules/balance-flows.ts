@@ -92,6 +92,7 @@ export const balanceFlows = createAnalyzer({
 			const { excludeGasBudget = false, moveCallHandlers = [] } = opts;
 			const issues: TransactionAnalysisIssue[] = [];
 			const trackedBalances = new Map<string, TrackedBalance>();
+			const redeemedWithdrawals = new Set<number>();
 			const deltas = new Map<string, Map<string, bigint>>();
 
 			const sender = data.sender ? normalizeSuiAddress(data.sender) : null;
@@ -213,8 +214,11 @@ export const balanceFlows = createAnalyzer({
 				const fn = command.command.function;
 				const coinType = getCoinTypeFromTypeArgs(command);
 
-				if (fn === 'redeem_funds' && (mod === 'coin' || mod === 'balance')) {
-					const arg = command.arguments[0];
+				const allowanceSpend =
+					mod === 'allowance' && (fn === 'balance_spend' || fn === 'app_balance_spend');
+				if (allowanceSpend || (fn === 'redeem_funds' && (mod === 'coin' || mod === 'balance'))) {
+					const withdrawalIndex = allowanceSpend ? (fn === 'app_balance_spend' ? 2 : 1) : 0;
+					const arg = command.arguments[withdrawalIndex];
 					if (arg?.$kind !== 'Withdrawal') {
 						issues.push({
 							message: `${mod}::${fn} at command ${command.index} expects a FundsWithdrawal input but got ${arg?.$kind ?? 'none'}`,
@@ -224,6 +228,9 @@ export const balanceFlows = createAnalyzer({
 					let ownerRaw: string | null;
 					if (arg.withdrawFrom === 'Sender') {
 						ownerRaw = sender ?? null;
+					} else if (arg.withdrawFrom === 'SenderAllowance') {
+						// The allowance's funder is debited, not the sender or the gas owner.
+						ownerRaw = arg.funder;
 					} else if (data.gasData.owner) {
 						ownerRaw = gasOwner;
 					} else {
@@ -232,10 +239,16 @@ export const balanceFlows = createAnalyzer({
 						});
 						return true;
 					}
+					redeemedWithdrawals.add(arg.index);
 					const owner = normalizeAddress(ownerRaw);
 					track(
 						`result:${command.index},0`,
-						new TrackedBalance(mod, arg.coinType, arg.amount, owner),
+						new TrackedBalance(
+							mod === 'coin' ? 'coin' : 'balance',
+							arg.coinType,
+							arg.amount,
+							owner,
+						),
 					);
 					recordFlow(owner, arg.coinType, -arg.amount);
 					return true;
@@ -428,6 +441,14 @@ export const balanceFlows = createAnalyzer({
 						issues.push({
 							message: `Unsupported command type: ${(command as { $kind: string }).$kind}`,
 						});
+				}
+			}
+
+			// Opaque Move calls can redeem withdrawals internally. Do not report zero
+			// outflow when the reservation's spend could not be accounted for.
+			for (const input of inputs) {
+				if (input.$kind === 'Withdrawal' && !redeemedWithdrawals.has(input.index)) {
+					issues.push({ message: `Cannot track redemption of withdrawal input ${input.index}` });
 				}
 			}
 

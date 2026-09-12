@@ -28,6 +28,12 @@ export interface SerializeTransactionOptions extends BuildTransactionOptions {
 	supportedIntents?: string[];
 }
 
+/** Options supplied when a registered intent resolver runs. */
+export interface IntentResolverOptions extends SerializeTransactionOptions {
+	/** Intent names assigned to this resolver for this serialization pass. */
+	intentNames?: readonly string[];
+}
+
 export type TransactionPlugin = (
 	transactionData: TransactionDataBuilder,
 	options: BuildTransactionOptions,

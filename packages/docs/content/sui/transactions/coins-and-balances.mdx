@@ -48,7 +48,8 @@ invalidated by other transactions from the same address executing concurrently.
 ## `tx.coin` and `tx.balance`
 
 `tx.coin()` and `tx.balance()` are the recommended ways to get tokens in a transaction. They
-automatically draw from both coin objects and address balances.
+automatically draw from both coin objects and address balances. To spend funds authorized by another
+account, see [Allowances](./allowances.mdx).
 
 ### Getting a `Coin`
 
@@ -105,11 +106,11 @@ tx.moveCall({
 
 ### Options
 
-| Option       | Type               | Default    | Description                                                              |
-| ------------ | ------------------ | ---------- | ------------------------------------------------------------------------ |
-| `balance`    | `bigint \| number` | _required_ | Amount in base units (MIST for SUI)                                      |
-| `type`       | `string`           | SUI        | Coin type. Defaults to `0x2::sui::SUI`                                   |
-| `useGasCoin` | `boolean`          | `true`     | For SUI, split from the gas coin. Set `false` for sponsored transactions |
+| Option       | Type                         | Default    | Description                                                                             |
+| ------------ | ---------------------------- | ---------- | --------------------------------------------------------------------------------------- |
+| `balance`    | `bigint \| number \| string` | _required_ | Amount in base units (MIST for SUI); use safe integer numbers or bigint/decimal strings |
+| `type`       | `string`                     | SUI        | Coin type T, not Balance&lt;T&gt;. Defaults to `0x2::sui::SUI`                          |
+| `useGasCoin` | `boolean`                    | `true`     | For SUI, allow splitting the gas coin. Set `false` for sponsored transactions           |
 
 For SUI, `tx.coin()` splits from the gas coin by default. For sponsored transactions where the gas
 coin belongs to the sponsor, set `useGasCoin: false`:
@@ -120,7 +121,7 @@ tx.transferObjects([tx.coin({ balance: 100n, useGasCoin: false })], recipient);
 
 ### `coinWithBalance`
 
-`coinWithBalance()` is a standalone alias for `tx.coin()`:
+`coinWithBalance()` is a standalone helper for sender-funded coins:
 
 ```tsx
 import { coinWithBalance, Transaction } from '@mysten/sui/transactions';
@@ -132,7 +133,8 @@ tx.transferObjects([coinWithBalance({ balance: 1_000_000_000 })], recipient);
 ## How resolution works
 
 When you call `tx.coin()` or `tx.balance()`, the SDK adds a placeholder intent to the transaction.
-At build time, the resolver replaces it with concrete commands based on the sender's funds:
+For sender-funded requests, the resolver replaces it at build time with concrete commands based on
+the sender's funds:
 
 - **`tx.balance()` with sufficient address balance:** Uses a direct `FundsWithdrawal` through
   `balance::redeem_funds`. No coin objects are used, so the transaction has no versioned object
@@ -147,7 +149,8 @@ At build time, the resolver replaces it with concrete commands based on the send
 The resolver prefers address balances when possible to avoid introducing versioned object
 dependencies.
 
-Zero-balance requests resolve to `balance::zero` or `coin::zero` with no network lookups.
+Sender-funded zero-balance requests resolve to `balance::zero` or `coin::zero` with no network
+lookups.
 
 ## Checking balances
 

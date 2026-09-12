@@ -68,6 +68,37 @@ describe('onlySenderWithdrawals', () => {
 		expect(await run(onlySenderWithdrawals(), { data })).toEqual([]);
 	});
 
+	it.each([
+		['third-party funder', '0x3', '0x2', true],
+		['sender funder', '0x1', '0x2', true],
+		['sponsor funder', '0x2', '0x2', false],
+		['normalized sponsor funder', normalizeSuiAddress('0x2'), '0x2', false],
+		['unknown sponsor', '0x3', null, false],
+	] as const)('checks an allowance with %s', async (_name, funder, owner, allowed) => {
+		const tx = new Transaction();
+		tx.setSender('0x1');
+		if (owner) tx.setGasOwner(owner);
+		tx.withdrawal({
+			amount: 1n,
+			from: 'allowance',
+			funder,
+			allowance: '0x4',
+		});
+		const issues = await run(onlySenderWithdrawals(), { data: tx.getData() });
+		expect(issues.map((issue) => issue.code)).toEqual(allowed ? [] : ['NON_SENDER_WITHDRAWAL']);
+	});
+
+	it('rejects unknown withdrawal sources', async () => {
+		const data = {
+			inputs: [
+				{ $kind: 'FundsWithdrawal', FundsWithdrawal: { withdrawFrom: { $kind: 'FutureSource' } } },
+			],
+		};
+		expect((await run(onlySenderWithdrawals(), { data })).map((issue) => issue.code)).toEqual([
+			'NON_SENDER_WITHDRAWAL',
+		]);
+	});
+
 	it('allows a transaction with no withdrawal inputs', async () => {
 		const data = dataFor((tx) =>
 			tx.moveCall({ target: '0x2::foo::bar', arguments: [tx.pure.u64(1n)] }),

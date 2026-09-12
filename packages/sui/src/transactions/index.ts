@@ -18,6 +18,7 @@ export {
 	type TransactionObjectArgument,
 	type TransactionResult,
 	type TransactionCopyOptions,
+	type WithdrawalOptions,
 } from './Transaction.js';
 
 export { type SerializedTransactionDataV2 } from './data/v2.js';
@@ -48,3 +49,5 @@ export type {
 export { Arguments } from './Arguments.js';
 
 export { isArgument } from './utils.js';
+
+export type { BalanceOptions, AllowanceReference } from './intents/BalanceOptions.js';

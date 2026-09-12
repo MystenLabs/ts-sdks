@@ -16,8 +16,11 @@ import {
 	union,
 } from 'valibot';
 
+import { ALLOWANCE_BALANCE, COIN_WITH_BALANCE } from './BalanceIntentNames.js';
+import { resolveBalances } from './ResolveBalances.js';
+
 import { bcs } from '../../bcs/index.js';
-import { normalizeStructTag } from '../../utils/sui-types.js';
+import { normalizeStructTag, normalizeSuiAddress } from '../../utils/sui-types.js';
 import { TransactionCommands } from '../Commands.js';
 import type { Argument } from '../data/internal.js';
 import { Inputs } from '../Inputs.js';
@@ -26,7 +29,7 @@ import type { Transaction, TransactionResult } from '../Transaction.js';
 import type { TransactionDataBuilder } from '../TransactionData.js';
 import type { ClientWithCoreApi, SuiClientTypes } from '../../client/index.js';
 
-export const COIN_WITH_BALANCE = 'CoinWithBalance';
+export { COIN_WITH_BALANCE } from './BalanceIntentNames.js';
 const SUI_TYPE = normalizeStructTag('0x2::sui::SUI');
 
 export function coinWithBalance({
@@ -45,7 +48,7 @@ export function coinWithBalance({
 			return coinResult;
 		}
 
-		tx.addIntentResolver(COIN_WITH_BALANCE, resolveCoinBalance);
+		tx.addIntentResolver(COIN_WITH_BALANCE, resolveBalances);
 		const coinType = type === 'gas' ? type : normalizeStructTag(type);
 
 		coinResult = tx.add(
@@ -80,7 +83,7 @@ export function createBalance({
 			return balanceResult;
 		}
 
-		tx.addIntentResolver(COIN_WITH_BALANCE, resolveCoinBalance);
+		tx.addIntentResolver(COIN_WITH_BALANCE, resolveBalances);
 		const coinType = type === 'gas' ? type : normalizeStructTag(type);
 
 		balanceResult = tx.add(
@@ -124,6 +127,25 @@ export async function resolveCoinBalance(
 
 	if (!transactionData.sender) {
 		throw new Error('Sender must be set to resolve CoinWithBalance');
+	}
+
+	if (transactionData.commands.some((command) => command.$Intent?.name === ALLOWANCE_BALANCE)) {
+		throw new Error(
+			'Resolve AllowanceBalance together with CoinWithBalance, or preserve both intents',
+		);
+	}
+	const reservedByType = new Map<string, bigint>();
+	for (const input of transactionData.inputs) {
+		if (!input.FundsWithdrawal) continue;
+		const { withdrawFrom, typeArg, reservation } = input.FundsWithdrawal;
+		const owner =
+			withdrawFrom.SenderAllowance?.funder ??
+			(withdrawFrom.Sender
+				? transactionData.sender
+				: (transactionData.gasData.owner ?? transactionData.sender));
+		if (normalizeSuiAddress(owner) !== normalizeSuiAddress(transactionData.sender)) continue;
+		const type = normalizeStructTag(typeArg.Balance);
+		reservedByType.set(type, (reservedByType.get(type) ?? 0n) + BigInt(reservation.MaxAmountU64));
 	}
 
 	// First pass: scan intents, collect per-type data, and resolve zero-balance intents in place.
@@ -199,6 +221,7 @@ export async function resolveCoinBalance(
 					client: client!,
 					owner: transactionData.sender!,
 					usedIds,
+					reserved: reservedByType.get(coinType) ?? 0n,
 				});
 
 				coinsByType.set(coinType, coins);
@@ -211,7 +234,10 @@ export async function resolveCoinBalance(
 							coinType: SUI_TYPE,
 						})
 						.then(({ balance }) => {
-							addressBalanceByType.set('gas', BigInt(balance.addressBalance));
+							addressBalanceByType.set(
+								'gas',
+								availableAddressBalance(balance.addressBalance, reservedByType.get(SUI_TYPE) ?? 0n),
+							);
 						})
 				: null,
 		]);
@@ -462,12 +488,14 @@ async function getCoinsAndBalanceOfType({
 	client,
 	owner,
 	usedIds,
+	reserved,
 }: {
 	coinType: string;
 	balance: bigint;
 	client: ClientWithCoreApi;
 	owner: string;
 	usedIds: Set<string>;
+	reserved: bigint;
 }): Promise<{
 	coins: SuiClientTypes.Coin[];
 	balance: bigint;
@@ -477,9 +505,14 @@ async function getCoinsAndBalanceOfType({
 	let remainingBalance = balance;
 	const coins: SuiClientTypes.Coin[] = [];
 	const balanceRequest = client.core.getBalance({ owner, coinType }).then(({ balance }) => {
-		remainingBalance -= BigInt(balance.addressBalance);
+		const addressBalance = availableAddressBalance(balance.addressBalance, reserved);
+		remainingBalance -= addressBalance;
 
-		return balance;
+		return {
+			...balance,
+			addressBalance: String(addressBalance),
+			balance: String(BigInt(balance.balance) - reserved),
+		};
 	});
 
 	const [allCoins, balanceResponse] = await Promise.all([loadMoreCoins(), balanceRequest]);
@@ -530,4 +563,14 @@ async function getCoinsAndBalanceOfType({
 
 		return coins;
 	}
+}
+
+function availableAddressBalance(balance: string, reserved: bigint): bigint {
+	const available = BigInt(balance) - reserved;
+	if (available < 0n) {
+		throw new Error(
+			`Insufficient address balance for existing withdrawals. Required: ${reserved}, Available: ${balance}`,
+		);
+	}
+	return available;
 }

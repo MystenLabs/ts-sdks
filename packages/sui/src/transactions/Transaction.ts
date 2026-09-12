@@ -31,12 +31,20 @@ import { createPure } from './pure.js';
 import { TransactionDataBuilder } from './TransactionData.js';
 import { getIdFromCallArg } from './utils.js';
 import { namedPackagesPlugin } from './plugins/NamedPackagesPlugin.js';
-import {
-	COIN_WITH_BALANCE,
-	resolveCoinBalance,
-	coinWithBalance,
-	createBalance,
-} from './intents/CoinWithBalance.js';
+import { ALLOWANCE_BALANCE, allowanceBalance } from './intents/AllowanceBalance.js';
+import { resolveBalances } from './intents/ResolveBalances.js';
+import type { BalanceOptions } from './intents/BalanceOptions.js';
+import { normalizeBalance } from './intents/BalanceOptions.js';
+import { COIN_WITH_BALANCE, coinWithBalance, createBalance } from './intents/CoinWithBalance.js';
+
+export type WithdrawalOptions = {
+	amount: number | bigint | string;
+	type?: string | null;
+} & (
+	| { from?: 'sender'; allowance?: never; funder?: never }
+	| { from: 'sponsor'; allowance?: never; funder?: never }
+	| { from: 'allowance'; allowance: string; funder: string }
+);
 
 export type TransactionObjectArgument =
 	| Exclude<InferInput<typeof ArgumentSchema>, { Input: unknown; type?: 'pure' }>
@@ -214,7 +222,8 @@ export class Transaction {
 		// Built-in intents are resolvable by default. Caller-supplied resolvers cover custom intents,
 		// and take precedence so a built-in resolver can be overridden if needed.
 		const intentResolvers = new Map<string, TransactionPlugin>([
-			[COIN_WITH_BALANCE, resolveCoinBalance],
+			[COIN_WITH_BALANCE, resolveBalances],
+			[ALLOWANCE_BALANCE, resolveBalances],
 			...Object.entries(options.intentResolvers ?? {}),
 		]);
 
@@ -342,35 +351,33 @@ export class Transaction {
 	}
 
 	/**
-	 * Creates a coin of the specified type and balance.
+	 * Creates a Coin<T> of the specified type and amount (defaults to SUI).
 	 * Sourced from address balance when available, falling back to owned coins.
+	 * With `allowance`, spends only from the funder's address balance under that allowance.
+	 * Allowance IDs are resolved using the build client; app-bound allowances also require an app type and SpendPermit.
 	 */
-	coin({
-		type,
-		balance,
-		useGasCoin,
-	}: {
-		balance: bigint | number;
-		type?: string;
-		useGasCoin?: boolean;
-	}): TransactionResult {
-		return this.add(coinWithBalance({ type, balance, useGasCoin }));
+	coin(options: BalanceOptions): TransactionResult {
+		const amount = normalizeBalance(options);
+		return this.add(
+			options.allowance !== undefined
+				? allowanceBalance({ ...options, amount, outputKind: 'coin' })
+				: coinWithBalance({ ...options, balance: amount }),
+		);
 	}
 
 	/**
-	 * Creates a Balance object of the specified type and balance.
+	 * Creates a Balance<T> of the specified type and amount (defaults to SUI).
 	 * Sourced from address balance when available, falling back to owned coins.
+	 * With `allowance`, spends only from the funder's address balance under that allowance.
+	 * Allowance IDs are resolved using the build client; app-bound allowances also require an app type and SpendPermit.
 	 */
-	balance({
-		type,
-		balance,
-		useGasCoin,
-	}: {
-		balance: bigint | number;
-		type?: string;
-		useGasCoin?: boolean;
-	}): TransactionResult {
-		return this.add(createBalance({ type, balance, useGasCoin }));
+	balance(options: BalanceOptions): TransactionResult {
+		const amount = normalizeBalance(options);
+		return this.add(
+			options.allowance !== undefined
+				? allowanceBalance({ ...options, amount, outputKind: 'balance' })
+				: createBalance({ ...options, balance: amount }),
+		);
 	}
 
 	/**
@@ -677,13 +684,15 @@ export class Transaction {
 	}
 
 	/**
-	 * Create a FundsWithdrawal input for withdrawing Balance<T> from an address balance accumulator.
-	 * This is used for gas payments from address balances.
+	 * Creates a FundsWithdrawal input for withdrawing Balance<T> from an address balance.
 	 *
-	 * @param options.amount - The Amount to withdraw (u64).
-	 * @param options.type - The balance type (e.g., "0x2::sui::SUI"). Defaults to SUI.
+	 * @param options.amount - The amount to withdraw (u64).
+	 * @param options.type - The coin type T (e.g., "0x2::sui::SUI"), not Balance<T>. Defaults to SUI.
+	 * @param options.from - The withdrawal source. Defaults to the transaction sender.
+	 * @param options.allowance - The allowance ID, required when from is 'allowance'.
+	 * @param options.funder - The funder's address, required when from is 'allowance'.
 	 */
-	withdrawal({ amount, type }: { amount: number | bigint | string; type?: string | null }): {
+	withdrawal(options: WithdrawalOptions): {
 		$kind: 'Input';
 		Input: number;
 		type?: 'object';
@@ -692,13 +701,20 @@ export class Transaction {
 			$kind: 'FundsWithdrawal',
 			FundsWithdrawal: {
 				// TODO: support entire balance withdrawals once supported
-				reservation: { $kind: 'MaxAmountU64', MaxAmountU64: String(amount) },
-				typeArg: { $kind: 'Balance', Balance: type ?? '0x2::sui::SUI' },
+				reservation: { $kind: 'MaxAmountU64', MaxAmountU64: String(options.amount) },
+				typeArg: { $kind: 'Balance', Balance: options.type ?? '0x2::sui::SUI' },
 				withdrawFrom:
-					// fromSponsor === true
-					// 	? { $kind: 'Sponsor', Sponsor: true } :
-					// TODO: currently only supporting withdrawals from sender
-					{ $kind: 'Sender', Sender: true },
+					options.from === 'allowance'
+						? {
+								$kind: 'SenderAllowance',
+								SenderAllowance: {
+									funder: normalizeSuiAddress(options.funder),
+									allowance: normalizeSuiAddress(options.allowance),
+								},
+							}
+						: options.from === 'sponsor'
+							? { $kind: 'Sponsor', Sponsor: true }
+							: { $kind: 'Sender', Sender: true },
 			},
 		};
 
@@ -964,16 +980,21 @@ export class Transaction {
 
 		const steps = [...this.#serializationPlugins];
 
+		// A resolver may handle several intent names; run it once with its assigned intents.
+		const resolverIntents = new Map<TransactionPlugin, string[]>();
 		for (const intent of intents) {
-			if (options.supportedIntents?.includes(intent)) {
-				continue;
-			}
-
-			if (!this.#intentResolvers.has(intent)) {
-				throw new Error(`Missing intent resolver for ${intent}`);
-			}
-
-			steps.push(this.#intentResolvers.get(intent)!);
+			if (options.supportedIntents?.includes(intent)) continue;
+			const resolver = this.#intentResolvers.get(intent);
+			if (!resolver) throw new Error(`Missing intent resolver for ${intent}`);
+			const names = resolverIntents.get(resolver) ?? [];
+			names.push(intent);
+			resolverIntents.set(resolver, names);
+		}
+		for (const [resolver, intentNames] of resolverIntents) {
+			steps.push((data, buildOptions, next) => {
+				const resolverOptions = { ...buildOptions, intentNames };
+				return resolver(data, resolverOptions, next);
+			});
 		}
 
 		steps.push(namedPackagesPlugin());

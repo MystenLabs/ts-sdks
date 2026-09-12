@@ -77,11 +77,12 @@ createSponsor({ signer, client, validate: [defaults(), allowedPackages(['0xabc']
 Each default guards something real: `validSender()` requires a sender and stops a caller from
 sponsoring their own transaction; `onlyAddressBalanceGas()` and `gasCoinNotUsed()` stop a caller
 from spending the sponsor's gas (its address balance pays, and the gas coin is the sponsor's);
-`onlySenderWithdrawals()` rejects any `FundsWithdrawal` input that isn't the sender's — including
-one from the sponsor's **address balance** (the same balance that pays gas — a direct drain the
-gas-coin check can't see, since the withdrawal is an _input_, not a command argument);
-`simulationSucceeds()` avoids paying for a transaction that aborts; and `boundedExpiration()` caps
-how long the signed transaction stays valid.
+`onlySenderWithdrawals()` allows sender withdrawals and withdrawals under allowances granted to the
+sender and funded by someone other than the sponsor. It rejects unknown sources, allowances with an
+unset gas owner, and withdrawals from the sponsor's **address balance** (the same balance that pays
+gas — a direct drain the gas-coin check can't see, since the withdrawal is an _input_, not a command
+argument); `simulationSucceeds()` avoids paying for a transaction that aborts; and
+`boundedExpiration()` caps how long the signed transaction stays valid.
 
 Two things the defaults **don't** do, by design — handle them at your service boundary:
 
@@ -416,18 +417,18 @@ it contributes `SponsorRejection | null`, deduping its analyzers with that graph
 
 ## Built-in validators
 
-| Validator                      | Reads                  | Rejects when…                                             |
-| ------------------------------ | ---------------------- | --------------------------------------------------------- |
-| `validSender()`                | `data`                 | the sender is unset, or is the gas owner (sponsor)        |
-| `onlyAddressBalanceGas()`      | `data`                 | the gas payment isn't empty (`[]`)†                       |
-| `gasCoinNotUsed()`             | `data`                 | a command uses the gas coin (`tx.gas`)                    |
-| `onlySenderWithdrawals()`      | `data`                 | a `FundsWithdrawal` input isn't the sender's              |
-| `userSignatureMatchesSender()` | `bytes`, `data`        | a supplied user signature isn't a valid sender signature‡ |
-| `gasBudget({ min?, max? })`    | `data`                 | the gas budget is unset or outside the range              |
-| `allowedPackages([...])`       | `data`                 | a MoveCall targets a package outside the allowlist        |
-| `allowedFunctions([...])`      | `data`                 | a MoveCall targets a function outside the allowlist       |
-| `simulationSucceeds()`         | `transactionResponse`  | the dry-run succeeds but the transaction would abort\*    |
-| `boundedExpiration()`          | `data`, `currentEpoch` | the expiration is missing or beyond the next epoch        |
+| Validator                      | Reads                  | Rejects when…                                                                         |
+| ------------------------------ | ---------------------- | ------------------------------------------------------------------------------------- |
+| `validSender()`                | `data`                 | the sender is unset, or is the gas owner (sponsor)                                    |
+| `onlyAddressBalanceGas()`      | `data`                 | the gas payment isn't empty (`[]`)†                                                   |
+| `gasCoinNotUsed()`             | `data`                 | a command uses the gas coin (`tx.gas`)                                                |
+| `onlySenderWithdrawals()`      | `data`                 | a withdrawal uses sponsor funds, an unknown source, or an allowance with no gas owner |
+| `userSignatureMatchesSender()` | `bytes`, `data`        | a supplied user signature isn't a valid sender signature‡                             |
+| `gasBudget({ min?, max? })`    | `data`                 | the gas budget is unset or outside the range                                          |
+| `allowedPackages([...])`       | `data`                 | a MoveCall targets a package outside the allowlist                                    |
+| `allowedFunctions([...])`      | `data`                 | a MoveCall targets a function outside the allowlist                                   |
+| `simulationSucceeds()`         | `transactionResponse`  | the dry-run succeeds but the transaction would abort\*                                |
+| `boundedExpiration()`          | `data`, `currentEpoch` | the expiration is missing or beyond the next epoch                                    |
 
 \* The dry-run itself _succeeding_ but reporting an aborting transaction is a **policy** rejection
 (`TRANSACTION_WOULD_FAIL`) — the bytes are executable and would still cost the sponsor gas (landing
@@ -473,3 +474,27 @@ createSponsor({
 
 This is mitigation, not prevention. `beforeSimulate` runs once before the analysis resolves (where
 simulation, if any, happens). Default is off.
+
+### Validation without a local signer
+
+Remote gas pools can use the same policy engine through `validationPolicy`:
+
+```ts
+import {
+	analyze,
+	validationPolicy,
+	validSender,
+	gasCoinNotUsed,
+	onlySenderWithdrawals,
+} from '@mysten-incubation/sponsor';
+
+const { check } = await analyze(
+	{ check: validationPolicy([validSender(), gasCoinNotUsed(), onlySenderWithdrawals()]) },
+	{ transaction, client },
+);
+// check.result is SponsorRejection | null. Analysis failures also reject.
+```
+
+The caller chooses the validators for its funding model and must check the result before signing.
+Set the final gas owner before validating allowance withdrawals so sponsor-funded allowances can be
+rejected.

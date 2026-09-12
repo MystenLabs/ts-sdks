@@ -294,6 +294,10 @@ export type WithdrawalTypeArg = InferOutput<typeof WithdrawalTypeArgSchema>;
 export const WithdrawFromSchema = safeEnum({
 	Sender: literal(true),
 	Sponsor: literal(true),
+	SenderAllowance: object({
+		funder: SuiAddress,
+		allowance: ObjectID,
+	}),
 });
 export type WithdrawFrom = InferOutput<typeof WithdrawFromSchema>;
 
