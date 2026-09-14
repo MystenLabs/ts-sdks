@@ -1,5 +1,7 @@
 # @mysten/create-dapp
 
+## 0.7.30
+
 ## 0.7.29
 
 ### Patch Changes
