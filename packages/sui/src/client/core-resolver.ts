@@ -7,9 +7,7 @@ import {
 	normalizeStructTag,
 	SUI_TYPE_ARG,
 } from '../utils/index.js';
-import { createCoinReservationRef, isCoinReservationDigest } from '../utils/coin-reservation.js';
-import { TypeTagSerializer } from '../bcs/type-tag-serializer.js';
-import { getIdFromCallArg } from '../transactions/utils.js';
+import { createCoinReservationRef } from '../utils/coin-reservation.js';
 import type { ClientWithCoreApi } from './core.js';
 import type { CallArg, Command } from '../transactions/data/internal.js';
 import type { SuiClientTypes } from './types.js';
@@ -24,10 +22,8 @@ import { transactionUsesGasCoin } from '../transactions/resolution-utils.js';
 // The maximum objects that can be fetched at once using multiGetObjects.
 const MAX_OBJECTS_PER_FETCH = 50;
 
-// Protocol limits for automatic gas selection. The gas payment limit is inclusive
-// as of protocol version 96.
+// The gas payment limit is inclusive as of protocol version 96.
 const MAX_GAS_PAYMENT_OBJECTS = 256;
-const MAX_INPUT_OBJECTS = 2048;
 
 // An amount of gas (in gas units) that is added to transactions as an overhead to ensure transactions do not fail.
 const GAS_SAFE_OVERHEAD = 1000n;
@@ -221,90 +217,37 @@ function setGasPayment({
 		return;
 	}
 
+	const filteredCoins = coins.objects.filter((coin) => {
+		const matchingInput = transactionData.inputs.find((input) => {
+			if (input.Object?.ImmOrOwnedObject) {
+				return coin.objectId === input.Object.ImmOrOwnedObject.objectId;
+			}
+
+			return false;
+		});
+
+		return !matchingInput;
+	});
+
+	const paymentCoins = filteredCoins.map((coin) => ({
+		objectId: coin.objectId,
+		digest: coin.digest,
+		version: coin.version,
+	}));
+
 	const reservationAmount = addressBalance - withdrawals;
-	const reservation =
-		usesGasCoin && reservationAmount > 0n && chainIdentifier && epoch
-			? createCoinReservationRef(reservationAmount, gasPayer, chainIdentifier, epoch)
-			: null;
-	const inputObjectCount = getInputObjectCount(transactionData);
-	// Conservatively leave input-object headroom for gas coins. A reservation
-	// uses a gas payment slot, but is not a real input object.
-	const maxCoins = Math.min(
-		MAX_GAS_PAYMENT_OBJECTS - (reservation ? 1 : 0),
-		Math.max(0, MAX_INPUT_OBJECTS - inputObjectCount),
-	);
 
-	if (inputObjectCount > MAX_INPUT_OBJECTS || (maxCoins === 0 && !reservation)) {
-		throw new Error(
-			`No gas coin slots available within the limit of ${MAX_INPUT_OBJECTS} input objects.`,
-		);
-	}
-
-	const usedIds = new Set(transactionData.inputs.map(getIdFromCallArg));
-	// Keep the existing single-page fetch and server order; truncate only after
-	// excluding transaction inputs and duplicate coins.
-	const paymentCoins = coins.objects
-		.filter((coin) => {
-			const objectId = normalizeSuiObjectId(coin.objectId);
-			if (usedIds.has(objectId)) return false;
-			usedIds.add(objectId);
-			return true;
-		})
-		.slice(0, maxCoins)
-		.map((coin) => ({
-			objectId: normalizeSuiObjectId(coin.objectId),
-			digest: coin.digest,
-			version: coin.version,
-		}));
-
-	if (reservation) {
-		transactionData.gasData.payment = [reservation, ...paymentCoins];
-	} else if (!paymentCoins.length) {
+	if (usesGasCoin && reservationAmount > 0n && chainIdentifier && epoch) {
+		transactionData.gasData.payment = [
+			createCoinReservationRef(reservationAmount, gasPayer, chainIdentifier, epoch),
+			// The reservation occupies one entry in the gas payment limit.
+			...paymentCoins.slice(0, MAX_GAS_PAYMENT_OBJECTS - 1),
+		];
+	} else if (!filteredCoins.length) {
 		throw new Error('No valid gas coins found for the transaction.');
 	} else {
-		transactionData.gasData.payment = paymentCoins;
+		transactionData.gasData.payment = paymentCoins.slice(0, MAX_GAS_PAYMENT_OBJECTS);
 	}
-}
-
-function getInputObjectCount(transactionData: TransactionDataBuilder) {
-	// Match ProgrammableTransaction::input_objects + receiving_objects: only
-	// command packages are deduplicated; pure values and withdrawals do not count.
-	const objectCount = transactionData.inputs.filter(
-		(input) =>
-			input.Object &&
-			!(
-				input.Object.ImmOrOwnedObject &&
-				isCoinReservationDigest(input.Object.ImmOrOwnedObject.digest)
-			),
-	).length;
-	const packages = new Set<string>();
-	function addTypePackages(type: string) {
-		const stack = [TypeTagSerializer.parseFromStr(type)];
-		while (stack.length) {
-			const tag = stack.pop()!;
-			if ('vector' in tag) {
-				stack.push(tag.vector);
-			} else if ('struct' in tag) {
-				packages.add(normalizeSuiObjectId(tag.struct.address));
-				stack.push(...tag.struct.typeParams);
-			}
-		}
-	}
-
-	for (const command of transactionData.commands) {
-		if (command.MoveCall) {
-			packages.add(normalizeSuiObjectId(command.MoveCall.package));
-			command.MoveCall.typeArguments.forEach(addTypePackages);
-		} else if (command.MakeMoveVec?.type) {
-			addTypePackages(command.MakeMoveVec.type);
-		} else if (command.Publish || command.Upgrade) {
-			const { dependencies } = command.Publish ?? command.Upgrade!;
-			dependencies.forEach((id) => packages.add(normalizeSuiObjectId(id)));
-			if (command.Upgrade) packages.add(normalizeSuiObjectId(command.Upgrade.package));
-		}
-	}
-
-	return objectCount + packages.size;
 }
 
 interface SystemStateData {
