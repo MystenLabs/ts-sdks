@@ -101,7 +101,7 @@ function addObjects(tx: Transaction, count: number) {
 }
 
 describe('bounded automatic gas selection', () => {
-	it.each([0, 256, 257, 1000])(
+	it.each([0, 50, 256, 257, 1000])(
 		'selects up to 256 coins in server order from %i candidates',
 		async (count) => {
 			const candidates = coins(count);
@@ -116,7 +116,6 @@ describe('bounded automatic gas selection', () => {
 			expect(client.core.listCoins).toHaveBeenCalledExactlyOnceWith({
 				owner: SENDER,
 				coinType: SUI_TYPE_ARG,
-				limit: 256,
 			});
 			expect(client.core.getProtocolConfig).not.toHaveBeenCalled();
 		},
@@ -294,56 +293,54 @@ describe('bounded automatic gas selection', () => {
 		expect(tx.getData().gasData.payment).toEqual([]);
 	});
 
-	it('fetches additional pages only until remaining headroom is filled after exclusions', async () => {
+	it('uses only the original page after exclusions even when more pages are available', async () => {
 		const tx = transaction();
 		tx.objectRef(ref(1));
 		tx.receivingRef(ref(2));
 		const client = createClient();
-		vi.mocked(client.core.listCoins)
-			.mockResolvedValueOnce({ objects: coins(2), hasNextPage: true, cursor: 'first' })
-			.mockResolvedValueOnce({ objects: coins(200, 3), hasNextPage: true, cursor: 'second' })
-			.mockResolvedValueOnce({ objects: coins(100, 203), hasNextPage: true, cursor: 'third' });
-		await tx.build({ client });
-		expect(tx.getData().gasData.payment).toEqual(paymentRefs(coins(256, 3)));
-		expect(client.core.listCoins).toHaveBeenCalledTimes(3);
-		expect(client.core.listCoins).toHaveBeenNthCalledWith(2, {
-			owner: SENDER,
-			coinType: SUI_TYPE_ARG,
-			cursor: 'first',
-			limit: 256,
+		vi.mocked(client.core.listCoins).mockResolvedValueOnce({
+			objects: coins(50),
+			hasNextPage: true,
+			cursor: 'next',
 		});
-		expect(client.core.listCoins).toHaveBeenNthCalledWith(3, {
+		await tx.build({ client });
+		expect(tx.getData().gasData.payment).toEqual(paymentRefs(coins(48, 3)));
+		expect(client.core.listCoins).toHaveBeenCalledExactlyOnceWith({
 			owner: SENDER,
 			coinType: SUI_TYPE_ARG,
-			cursor: 'second',
-			limit: 56,
 		});
 	});
 
-	it('stops paging when exhausted even with spare capacity', async () => {
+	it('does not fetch another page when every fetched coin is already an input', async () => {
 		const tx = transaction();
+		tx.objectRef(ref(1));
+		tx.receivingRef(ref(2));
 		const client = createClient();
-		vi.mocked(client.core.listCoins)
-			.mockResolvedValueOnce({ objects: coins(1), hasNextPage: true, cursor: 'first' })
-			.mockResolvedValueOnce({ objects: coins(2, 2), hasNextPage: false, cursor: null });
-		await tx.build({ client });
-		expect(tx.getData().gasData.payment).toEqual(paymentRefs(coins(3)));
-		expect(client.core.listCoins).toHaveBeenCalledTimes(2);
+		vi.mocked(client.core.listCoins).mockResolvedValueOnce({
+			objects: coins(2),
+			hasNextPage: true,
+			cursor: 'next',
+		});
+		await expect(tx.build({ client })).rejects.toThrow('No valid gas coins found');
+		expect(client.core.listCoins).toHaveBeenCalledExactlyOnceWith({
+			owner: SENDER,
+			coinType: SUI_TYPE_ARG,
+		});
 	});
 
-	it('deduplicates normalized gas coins across pages without consuming extra slots', async () => {
+	it('deduplicates normalized gas coins within the fetched page before truncation', async () => {
 		const tx = transaction();
-		const client = createClient();
-		vi.mocked(client.core.listCoins)
-			.mockResolvedValueOnce({ objects: coins(100), hasNextPage: true, cursor: 'first' })
-			.mockResolvedValueOnce({
-				objects: [{ ...coins(1)[0], objectId: '0x01' }, ...coins(200, 101)],
-				hasNextPage: false,
-				cursor: null,
-			});
+		const client = createClient([
+			...coins(100),
+			{ ...coins(1)[0], objectId: '0x01' },
+			...coins(200, 101),
+		]);
 		await tx.build({ client });
 		expect(tx.getData().gasData.payment).toEqual(paymentRefs(coins(256)));
-		expect(client.core.listCoins).toHaveBeenCalledTimes(2);
+		expect(client.core.listCoins).toHaveBeenCalledExactlyOnceWith({
+			owner: SENDER,
+			coinType: SUI_TYPE_ARG,
+		});
 	});
 
 	it('does not fetch more pages when the object limit is tighter than the gas payment limit', async () => {

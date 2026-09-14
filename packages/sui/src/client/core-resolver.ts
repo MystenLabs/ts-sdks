@@ -105,11 +105,7 @@ export async function coreClientResolveTransactionPlugin(
 		needsSystemState ? client.core.getCurrentSystemState() : null,
 		needsPayment && gasPayer ? client.core.getBalance({ owner: gasPayer }) : null,
 		needsPayment && gasPayer
-			? client.core.listCoins({
-					owner: gasPayer,
-					coinType: SUI_TYPE_ARG,
-					limit: MAX_GAS_PAYMENT_OBJECTS,
-				})
+			? client.core.listCoins({ owner: gasPayer, coinType: SUI_TYPE_ARG })
 			: null,
 		needsChainId ? client.core.getChainIdentifier() : null,
 	]);
@@ -137,9 +133,8 @@ export async function coreClientResolveTransactionPlugin(
 					'Could not resolve gas payment: a gas owner or sender must be set to fetch balance and coins.',
 				);
 			}
-			await setGasPayment({
+			setGasPayment({
 				transactionData,
-				client,
 				balance: balanceResult,
 				coins: coinsResult,
 				usesGasCoin,
@@ -199,9 +194,8 @@ async function setGasBudget(
 	);
 }
 
-async function setGasPayment({
+function setGasPayment({
 	transactionData,
-	client,
 	balance,
 	coins,
 	usesGasCoin,
@@ -211,7 +205,6 @@ async function setGasPayment({
 	epoch,
 }: {
 	transactionData: TransactionDataBuilder;
-	client: ClientWithCoreApi;
 	balance: SuiClientTypes.GetBalanceResponse;
 	coins: SuiClientTypes.ListCoinsResponse;
 	usesGasCoin: boolean;
@@ -248,27 +241,21 @@ async function setGasPayment({
 	}
 
 	const usedIds = new Set(transactionData.inputs.map(getIdFromCallArg));
-	const paymentCoins: NonNullable<TransactionDataBuilder['gasData']['payment']> = [];
-	let page = coins;
-	// Preserve server order and select as many coins as fit, even if fewer cover
-	// the budget. Only fetch another page if exclusions or pagination leave room.
-	while (paymentCoins.length < maxCoins) {
-		for (const coin of page.objects) {
+	// Keep the existing single-page fetch and server order; truncate only after
+	// excluding transaction inputs and duplicate coins.
+	const paymentCoins = coins.objects
+		.filter((coin) => {
 			const objectId = normalizeSuiObjectId(coin.objectId);
-			if (usedIds.has(objectId)) continue;
+			if (usedIds.has(objectId)) return false;
 			usedIds.add(objectId);
-			paymentCoins.push({ objectId, digest: coin.digest, version: coin.version });
-			if (paymentCoins.length === maxCoins) break;
-		}
-
-		if (paymentCoins.length === maxCoins || !page.hasNextPage || !page.cursor) break;
-		page = await client.core.listCoins({
-			owner: gasPayer,
-			coinType: SUI_TYPE_ARG,
-			cursor: page.cursor,
-			limit: maxCoins - paymentCoins.length,
-		});
-	}
+			return true;
+		})
+		.slice(0, maxCoins)
+		.map((coin) => ({
+			objectId: normalizeSuiObjectId(coin.objectId),
+			digest: coin.digest,
+			version: coin.version,
+		}));
 
 	if (reservation) {
 		transactionData.gasData.payment = [reservation, ...paymentCoins];
