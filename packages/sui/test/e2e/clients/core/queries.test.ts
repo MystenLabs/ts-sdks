@@ -83,10 +83,115 @@ describe('Core API - Queries', () => {
 	});
 
 	describe('listTransactions', () => {
-		it('all clients return same data: no filter', async () => {
+		testWithAllClients(
+			'should paginate unfiltered transactions and preserve cross-client payload parity',
+			async (client) => {
+				// JSON-RPC uses the fullnode's execution order, whereas GraphQL and gRPC
+				// use checkpoint order. Even the first few system transactions can differ
+				// across page boundaries, so compare payloads by digest, not page position.
+				const firstPage = await client.core.listTransactions({ limit: 3 });
+				expect(firstPage.transactions).toHaveLength(3);
+				expect(firstPage.hasNextPage).toBe(true);
+				expect(firstPage.startCursor).not.toBeNull();
+				expect(firstPage.endCursor).not.toBeNull();
+
+				const nextPage = await client.core.listTransactions({
+					limit: 3,
+					after: firstPage.endCursor,
+				});
+				expect(nextPage.transactions).toHaveLength(3);
+				expect(nextPage.startCursor).not.toBeNull();
+				expect(nextPage.endCursor).not.toBe(firstPage.endCursor);
+
+				const combined = await client.core.listTransactions({ limit: 6 });
+				expect([...firstPage.transactions, ...nextPage.transactions]).toEqual(
+					combined.transactions,
+				);
+				expect(combined.startCursor).toBe(firstPage.startCursor);
+				expect(combined.endCursor).toBe(nextPage.endCursor);
+				expect(
+					new Set(
+						combined.transactions.map((tx) => (tx.Transaction ?? tx.FailedTransaction).digest),
+					).size,
+				).toBe(6);
+
+				const previousPage = await client.core.listTransactions({
+					limit: 3,
+					before: nextPage.startCursor,
+				});
+				expect(previousPage.transactions).toEqual([...firstPage.transactions].reverse());
+				expect(previousPage.hasNextPage).toBe(false);
+				expect(previousPage.startCursor).toBe(firstPage.endCursor);
+				expect(previousPage.endCursor).toBe(firstPage.startCursor);
+
+				await toolbox.expectAllClientsReturnSameData(
+					async (otherClient) => {
+						const transactions = await Promise.all(
+							combined.transactions.map((tx) =>
+								otherClient.core.getTransaction({
+									digest: (tx.Transaction ?? tx.FailedTransaction).digest,
+								}),
+							),
+						);
+						expect(transactions).toEqual(combined.transactions);
+						return transactions;
+					},
+					undefined,
+					{ exclude: EXCLUDE },
+				);
+			},
+			{ skip: EXCLUDE },
+		);
+
+		it('all clients return same data: known transactions from unfiltered pages', async () => {
 			await toolbox.expectAllClientsReturnSameData(
-				(client) => client.core.listTransactions({ limit: 3 }),
-				stripCursors,
+				async (client) => {
+					// Locate the fixture's beginning without scanning the entire busy localnet.
+					// Cursors identify transaction positions and can also bound unfiltered reads.
+					const anchor = await client.core.listTransactions({
+						filter: { sender: senderAddress },
+						limit: 1,
+					});
+					expect(anchor.startCursor).not.toBeNull();
+					const previous = await client.core.listTransactions({
+						before: anchor.startCursor,
+						limit: 1,
+					});
+					expect(previous.transactions).toHaveLength(1);
+					expect(previous.startCursor).not.toBeNull();
+
+					const transactions: SuiClientTypes.TransactionResult[] = [];
+					const seen = new Set<string>();
+					let after = previous.startCursor;
+
+					// The fixture transactions are sequential and causally dependent. Their
+					// relative order and payloads must agree even though unrelated transactions
+					// can land on different pages in each transport. Scan without a filter so
+					// omissions and broken continuation cursors cannot be hidden by sender queries.
+					for (;;) {
+						const page: SuiClientTypes.ListTransactionsResponse =
+							await client.core.listTransactions({
+								limit: 50,
+								after,
+							});
+						for (const tx of page.transactions) {
+							const digest = (tx.Transaction ?? tx.FailedTransaction).digest;
+							expect(seen.has(digest)).toBe(false);
+							seen.add(digest);
+							if (digests.includes(digest)) transactions.push(tx);
+						}
+						if (seen.has(digests[digests.length - 1]) || !page.hasNextPage) break;
+						expect(page.endCursor).not.toBeNull();
+						expect(page.endCursor).not.toBe(after);
+						after = page.endCursor;
+					}
+
+					expect(transactions.map((tx) => (tx.Transaction ?? tx.FailedTransaction).digest)).toEqual(
+						digests,
+					);
+					return transactions;
+				},
+				undefined,
 				{ exclude: EXCLUDE },
 			);
 		});
