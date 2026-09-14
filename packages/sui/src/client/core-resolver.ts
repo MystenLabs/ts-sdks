@@ -7,7 +7,9 @@ import {
 	normalizeStructTag,
 	SUI_TYPE_ARG,
 } from '../utils/index.js';
-import { createCoinReservationRef } from '../utils/coin-reservation.js';
+import { createCoinReservationRef, isCoinReservationDigest } from '../utils/coin-reservation.js';
+import { TypeTagSerializer } from '../bcs/type-tag-serializer.js';
+import { getIdFromCallArg } from '../transactions/utils.js';
 import type { ClientWithCoreApi } from './core.js';
 import type { CallArg, Command } from '../transactions/data/internal.js';
 import type { SuiClientTypes } from './types.js';
@@ -21,6 +23,11 @@ import { transactionUsesGasCoin } from '../transactions/resolution-utils.js';
 
 // The maximum objects that can be fetched at once using multiGetObjects.
 const MAX_OBJECTS_PER_FETCH = 50;
+
+// Protocol limits for automatic gas selection. The gas payment limit is inclusive
+// as of protocol version 96.
+const MAX_GAS_PAYMENT_OBJECTS = 256;
+const MAX_INPUT_OBJECTS = 2048;
 
 // An amount of gas (in gas units) that is added to transactions as an overhead to ensure transactions do not fail.
 const GAS_SAFE_OVERHEAD = 1000n;
@@ -98,7 +105,11 @@ export async function coreClientResolveTransactionPlugin(
 		needsSystemState ? client.core.getCurrentSystemState() : null,
 		needsPayment && gasPayer ? client.core.getBalance({ owner: gasPayer }) : null,
 		needsPayment && gasPayer
-			? client.core.listCoins({ owner: gasPayer, coinType: SUI_TYPE_ARG })
+			? client.core.listCoins({
+					owner: gasPayer,
+					coinType: SUI_TYPE_ARG,
+					limit: MAX_GAS_PAYMENT_OBJECTS,
+				})
 			: null,
 		needsChainId ? client.core.getChainIdentifier() : null,
 	]);
@@ -126,8 +137,9 @@ export async function coreClientResolveTransactionPlugin(
 					'Could not resolve gas payment: a gas owner or sender must be set to fetch balance and coins.',
 				);
 			}
-			setGasPayment({
+			await setGasPayment({
 				transactionData,
+				client,
 				balance: balanceResult,
 				coins: coinsResult,
 				usesGasCoin,
@@ -187,8 +199,9 @@ async function setGasBudget(
 	);
 }
 
-function setGasPayment({
+async function setGasPayment({
 	transactionData,
+	client,
 	balance,
 	coins,
 	usesGasCoin,
@@ -198,6 +211,7 @@ function setGasPayment({
 	epoch,
 }: {
 	transactionData: TransactionDataBuilder;
+	client: ClientWithCoreApi;
 	balance: SuiClientTypes.GetBalanceResponse;
 	coins: SuiClientTypes.ListCoinsResponse;
 	usesGasCoin: boolean;
@@ -214,36 +228,96 @@ function setGasPayment({
 		return;
 	}
 
-	const filteredCoins = coins.objects.filter((coin) => {
-		const matchingInput = transactionData.inputs.find((input) => {
-			if (input.Object?.ImmOrOwnedObject) {
-				return coin.objectId === input.Object.ImmOrOwnedObject.objectId;
-			}
-
-			return false;
-		});
-
-		return !matchingInput;
-	});
-
-	const paymentCoins = filteredCoins.map((coin) => ({
-		objectId: coin.objectId,
-		digest: coin.digest,
-		version: coin.version,
-	}));
-
 	const reservationAmount = addressBalance - withdrawals;
+	const reservation =
+		usesGasCoin && reservationAmount > 0n && chainIdentifier && epoch
+			? createCoinReservationRef(reservationAmount, gasPayer, chainIdentifier, epoch)
+			: null;
+	const inputObjectCount = getInputObjectCount(transactionData);
+	// Conservatively leave input-object headroom for gas coins. A reservation
+	// uses a gas payment slot, but is not a real input object.
+	const maxCoins = Math.min(
+		MAX_GAS_PAYMENT_OBJECTS - (reservation ? 1 : 0),
+		Math.max(0, MAX_INPUT_OBJECTS - inputObjectCount),
+	);
 
-	if (usesGasCoin && reservationAmount > 0n && chainIdentifier && epoch) {
-		transactionData.gasData.payment = [
-			createCoinReservationRef(reservationAmount, gasPayer, chainIdentifier, epoch),
-			...paymentCoins,
-		];
-	} else if (!filteredCoins.length) {
+	if (inputObjectCount > MAX_INPUT_OBJECTS || (maxCoins === 0 && !reservation)) {
+		throw new Error(
+			`No gas coin slots available within the limit of ${MAX_INPUT_OBJECTS} input objects.`,
+		);
+	}
+
+	const usedIds = new Set(transactionData.inputs.map(getIdFromCallArg));
+	const paymentCoins: NonNullable<TransactionDataBuilder['gasData']['payment']> = [];
+	let page = coins;
+	// Preserve server order and select as many coins as fit, even if fewer cover
+	// the budget. Only fetch another page if exclusions or pagination leave room.
+	while (paymentCoins.length < maxCoins) {
+		for (const coin of page.objects) {
+			const objectId = normalizeSuiObjectId(coin.objectId);
+			if (usedIds.has(objectId)) continue;
+			usedIds.add(objectId);
+			paymentCoins.push({ objectId, digest: coin.digest, version: coin.version });
+			if (paymentCoins.length === maxCoins) break;
+		}
+
+		if (paymentCoins.length === maxCoins || !page.hasNextPage || !page.cursor) break;
+		page = await client.core.listCoins({
+			owner: gasPayer,
+			coinType: SUI_TYPE_ARG,
+			cursor: page.cursor,
+			limit: maxCoins - paymentCoins.length,
+		});
+	}
+
+	if (reservation) {
+		transactionData.gasData.payment = [reservation, ...paymentCoins];
+	} else if (!paymentCoins.length) {
 		throw new Error('No valid gas coins found for the transaction.');
 	} else {
 		transactionData.gasData.payment = paymentCoins;
 	}
+}
+
+function getInputObjectCount(transactionData: TransactionDataBuilder) {
+	// Match ProgrammableTransaction::input_objects + receiving_objects: only
+	// command packages are deduplicated; pure values and withdrawals do not count.
+	const objectCount = transactionData.inputs.filter(
+		(input) =>
+			input.Object &&
+			!(
+				input.Object.ImmOrOwnedObject &&
+				isCoinReservationDigest(input.Object.ImmOrOwnedObject.digest)
+			),
+	).length;
+	const packages = new Set<string>();
+	function addTypePackages(type: string) {
+		const stack = [TypeTagSerializer.parseFromStr(type)];
+		while (stack.length) {
+			const tag = stack.pop()!;
+			if ('vector' in tag) {
+				stack.push(tag.vector);
+			} else if ('struct' in tag) {
+				packages.add(normalizeSuiObjectId(tag.struct.address));
+				stack.push(...tag.struct.typeParams);
+			}
+		}
+	}
+
+	for (const command of transactionData.commands) {
+		if (command.MoveCall) {
+			packages.add(normalizeSuiObjectId(command.MoveCall.package));
+			command.MoveCall.typeArguments.forEach(addTypePackages);
+		} else if (command.MakeMoveVec?.type) {
+			addTypePackages(command.MakeMoveVec.type);
+		} else if (command.Publish || command.Upgrade) {
+			const { dependencies } = command.Publish ?? command.Upgrade!;
+			dependencies.forEach((id) => packages.add(normalizeSuiObjectId(id)));
+			if (command.Upgrade) packages.add(normalizeSuiObjectId(command.Upgrade.package));
+		}
+	}
+
+	return objectCount + packages.size;
 }
 
 interface SystemStateData {
