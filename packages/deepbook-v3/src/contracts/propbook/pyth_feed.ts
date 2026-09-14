@@ -15,7 +15,9 @@
  * time so a carried price ages by its true age, while the exact-history key stays
  * on the envelope so a settlement tick resolves to the canonical price as of that
  * tick. This module normalizes positive prices to 1e9 scale but leaves freshness
- * and market-use policy to consumers.
+ * and market-use policy to consumers. Both deployed Pyth lineages support this
+ * Update type. The legacy Testnet package has no update_v2, so retain the common
+ * ABI when linking Mainnet v2.
  */
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';

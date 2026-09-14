@@ -172,10 +172,10 @@ describe('sessions deployment ids', () => {
 	test('the sessions slice matches the deployment the SDK is pinned to', () => {
 		const cfg = getSessionsConfig('testnet');
 		expect(cfg.sessionsPackageId).toBe(
-			'0x10c91d168dc4a04357f9d23795a204092ca46e5b97f8b9ef26fea95664d5bb38',
+			'0x1908eee49d7a08d74a537d7f23766b363a145517fe0d3e0d85635d1682831ffd',
 		);
 		expect(cfg.sessionsConfig).toBe(
-			'0x63cde7c7d846f15c51802ec3d44ba44918658e3155b0d2e0cb26d6fc1b4dadd8',
+			'0xc096b97289821b27badfdf758d614bbbfa386f93d3faa409ecc1fcc6075d1186',
 		);
 	});
 

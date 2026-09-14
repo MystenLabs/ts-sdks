@@ -123,6 +123,12 @@ export async function marketStates(
 // POS_INF_TICK → +inf, and any finite tick → tick*tick_size. `range_price` is a
 // public fun on the deployed package. Both sides read the SAME pricer in one PTB, so
 // `down` is the chain's number, not 1 − up.
+//
+// `range_price` now returns a `RangePrice` carrying both boundary probabilities so the
+// fee can charge each leg separately; `probability()` is the combined range number this
+// function has always returned (`lower_up.saturating_sub(higher_up)`, unchanged). The
+// extra call per side is what keeps the u64 parse below reading a u64 rather than the
+// struct's BCS.
 export async function rangePrices(
 	client: ReadClient,
 	config: GeneratedConfig,
@@ -141,9 +147,16 @@ export async function rangePrices(
 	const strike = mkStrike(strikeTick);
 	const posInf = mkStrike(POS_INF_TICK);
 	const negInf = mkStrike(0n);
-	// UP: (strike, +inf], then DOWN: (-inf, strike] — the last two commands.
-	tx.add(pricing.rangePrice({ config, arguments: { pricer, lower: strike, higher: posInf } }));
-	tx.add(pricing.rangePrice({ config, arguments: { pricer, lower: negInf, higher: strike } }));
+	// UP: (strike, +inf], then DOWN: (-inf, strike]. The two `probability` reductions are
+	// the last two commands, which is what the tail-relative parse below indexes.
+	const up = tx.add(
+		pricing.rangePrice({ config, arguments: { pricer, lower: strike, higher: posInf } }),
+	);
+	const down = tx.add(
+		pricing.rangePrice({ config, arguments: { pricer, lower: negInf, higher: strike } }),
+	);
+	tx.add(pricing.probability({ config, arguments: { price: up } }));
+	tx.add(pricing.probability({ config, arguments: { price: down } }));
 	const cmds = await inspectReturns(client, tx);
 	return {
 		upRaw: parseU64LE(cmds[cmds.length - 2][0]),

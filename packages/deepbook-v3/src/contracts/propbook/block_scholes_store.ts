@@ -67,6 +67,10 @@ export const BlockScholesValueStore = new MoveStruct({
 		 * advances it forward-only after a package upgrade.
 		 */
 		version: U64,
+		spot_reads: bcs.vector(BsRead(U128)),
+		/** Next slot to overwrite; also the next append position until the buffer fills. */
+		next_spot_write: U64,
+		/** Latest forward by canonical SID; spot observations live only in `spot_reads`. */
 		values: table.Table,
 		/** First positive `u64`-representable canonical spot at each exact minute boundary. */
 		exact_spot_reads: table.Table,
@@ -336,6 +340,36 @@ export function spot(options: SpotOptions) {
 			package: packageAddress,
 			module: 'block_scholes_store',
 			function: 'spot',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface RecentSpotAtArguments {
+	store: RawTransactionArgument<string>;
+	sourceTimestampMs: RawTransactionArgument<number | bigint>;
+}
+export interface RecentSpotAtOptions {
+	package?: string;
+	arguments:
+		| RecentSpotAtArguments
+		| [
+				store: RawTransactionArgument<string>,
+				sourceTimestampMs: RawTransactionArgument<number | bigint>,
+		  ];
+}
+/**
+ * Returns an exact source-time match from the ten recent spot observations for
+ * live pricing. This bounded buffer is independent of the permanent
+ * minute-boundary settlement history.
+ */
+export function recentSpotAt(options: RecentSpotAtOptions) {
+	const packageAddress = options.package ?? '@local-pkg/propbook';
+	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
+	const parameterNames = ['store', 'sourceTimestampMs'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'block_scholes_store',
+			function: 'recent_spot_at',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }

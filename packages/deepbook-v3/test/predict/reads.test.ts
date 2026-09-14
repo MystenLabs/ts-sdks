@@ -182,14 +182,18 @@ describe('markets reads', () => {
 	test('rangePrices: one pricer, three Strike codecs, both sides read', async () => {
 		// Command layout the migrated read emits: load_live_pricer, then three
 		// range_codec::strike_from_tick (finite strike, +inf, -inf), then two
-		// pricing::range_price. UP = commands[len-2], DOWN = commands[len-1].
+		// pricing::range_price, then the two pricing::probability reductions.
+		// `range_price` returns a `RangePrice` struct, so the u64 the caller wants is the
+		// probability() output: UP = commands[len-2], DOWN = commands[len-1].
 		const { client, captured } = mockClient([
 			[new Uint8Array(0)], // 0: load_live_pricer (&Pricer reference, unused)
 			[new Uint8Array(0)], // 1: strike_from_tick — finite strike
 			[new Uint8Array(0)], // 2: strike_from_tick — +inf sentinel
 			[new Uint8Array(0)], // 3: strike_from_tick — -inf sentinel
-			[bcs.u64().serialize(340_000_000n).toBytes()], // 4: range_price UP
-			[bcs.u64().serialize(660_000_000n).toBytes()], // 5: range_price DOWN
+			[new Uint8Array(0)], // 4: range_price UP (RangePrice struct, not parsed here)
+			[new Uint8Array(0)], // 5: range_price DOWN (RangePrice struct, not parsed here)
+			[bcs.u64().serialize(340_000_000n).toBytes()], // 6: probability UP
+			[bcs.u64().serialize(660_000_000n).toBytes()], // 7: probability DOWN
 		]);
 		const feeds = {
 			pythFeed: cfg.underlyings.BTC.pythFeed,
@@ -207,6 +211,8 @@ describe('markets reads', () => {
 			`${cfg.packages.predict}::range_codec::strike_from_tick`,
 			`${cfg.packages.predict}::pricing::range_price`,
 			`${cfg.packages.predict}::pricing::range_price`,
+			`${cfg.packages.predict}::pricing::probability`,
+			`${cfg.packages.predict}::pricing::probability`,
 		]);
 		// Each Strike is strike_from_tick(tick, tickSize): the finite boundary tick is
 		// strikeRaw / tickSizeRaw, and the open ends are the POS_INF_TICK (+inf) and 0
