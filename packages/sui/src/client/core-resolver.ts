@@ -22,6 +22,9 @@ import { transactionUsesGasCoin } from '../transactions/resolution-utils.js';
 // The maximum objects that can be fetched at once using multiGetObjects.
 const MAX_OBJECTS_PER_FETCH = 50;
 
+// The gas payment limit is inclusive as of protocol version 96.
+const MAX_GAS_PAYMENT_OBJECTS = 256;
+
 // An amount of gas (in gas units) that is added to transactions as an overhead to ensure transactions do not fail.
 const GAS_SAFE_OVERHEAD = 1000n;
 const MAX_GAS = 50_000_000_000;
@@ -237,12 +240,13 @@ function setGasPayment({
 	if (usesGasCoin && reservationAmount > 0n && chainIdentifier && epoch) {
 		transactionData.gasData.payment = [
 			createCoinReservationRef(reservationAmount, gasPayer, chainIdentifier, epoch),
-			...paymentCoins,
+			// The reservation occupies one entry in the gas payment limit.
+			...paymentCoins.slice(0, MAX_GAS_PAYMENT_OBJECTS - 1),
 		];
 	} else if (!filteredCoins.length) {
 		throw new Error('No valid gas coins found for the transaction.');
 	} else {
-		transactionData.gasData.payment = paymentCoins;
+		transactionData.gasData.payment = paymentCoins.slice(0, MAX_GAS_PAYMENT_OBJECTS);
 	}
 }
 
