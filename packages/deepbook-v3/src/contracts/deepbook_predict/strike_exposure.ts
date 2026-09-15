@@ -18,6 +18,7 @@ import { bcs } from '@mysten/sui/bcs';
 import { U64 } from '../../bcs/integers.js';
 import * as strike_exposure_config from './strike_exposure_config.js';
 import * as strike_payout_tree from './strike_payout_tree.js';
+import * as pricing from './pricing.js';
 import * as order from './order.js';
 const $moduleName = '@local-pkg/deepbook_predict::strike_exposure';
 export const StrikeExposure = new MoveStruct({
@@ -57,7 +58,7 @@ export const MintTerms = new MoveStruct({
 		lower_tick: U64,
 		higher_tick: U64,
 		quantity: U64,
-		entry_probability: U64,
+		price: pricing.RangePrice,
 		premium: U64,
 		/** Separate inventory-impact charge, sampled against the pre-mint book. */
 		inventory_impact_charge: U64,
@@ -70,7 +71,7 @@ export const LiveCloseTerms = new MoveStruct({
 		order: order.Order,
 		close_quantity: U64,
 		redeem_amount: U64,
-		range_probability: U64,
+		price: pricing.RangePrice,
 		/** Separate inventory-impact rebate, sampled against the pre-close book. */
 		inventory_impact_rebate: U64,
 	},

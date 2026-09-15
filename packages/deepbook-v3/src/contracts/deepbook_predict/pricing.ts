@@ -7,10 +7,12 @@
  *
  * This module reads canonical Propbook Pyth and Block Scholes feeds and computes
  * SVI-adjusted digital probabilities. Live reads require fresh, pricing-safe Block
- * Scholes spot, forward, and SVI observations. The live forward comes from one of
- * two admin-selected sources (`PricingConfig.use_pyth_spot_for_forward`): a fresh
- * positive Pyth spot carrying the Block Scholes basis, or the Block Scholes
- * forward directly. Exact-history reads do not apply live freshness policy.
+ * Scholes spot, forward, and SVI observations. The latest forward is paired with
+ * an exact source-timestamp spot from Propbook's bounded recent history. The live
+ * forward comes from one of two admin-selected sources
+ * (`PricingConfig.use_pyth_spot_for_forward`): a fresh positive Pyth spot carrying
+ * the Block Scholes basis, or the Block Scholes forward directly. Exact-history
+ * reads do not apply live freshness policy.
  */
 
 import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
@@ -63,6 +65,13 @@ export const Pricer = new MoveStruct({
 		block_scholes_spot_source_timestamp_ms: U64,
 		block_scholes_forward_source_timestamp_ms: U64,
 		block_scholes_svi_source_timestamp_ms: U64,
+	},
+});
+export const RangePrice = new MoveStruct({
+	name: `${$moduleName}::RangePrice`,
+	fields: {
+		lower_up: bcs.option(U64),
+		higher_up: bcs.option(U64),
 	},
 });
 export const RawSVI = new MoveStruct({
@@ -118,8 +127,8 @@ export interface RangePriceOptions {
 	};
 }
 /**
- * Return the current probability for `(lower, higher]`, floored at zero if the two
- * approximated boundary probabilities invert.
+ * Return both boundary probabilities for `(lower, higher]`. Use `probability()`
+ * for the combined range probability; absent boundaries are infinite sentinels.
  */
 export function rangePrice(options: RangePriceOptions) {
 	const packageAddress =
@@ -131,6 +140,79 @@ export function rangePrice(options: RangePriceOptions) {
 			package: packageAddress,
 			module: 'pricing',
 			function: 'range_price',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface LowerUpArguments {
+	price: TransactionArgument;
+}
+export interface LowerUpOptions {
+	package?: string;
+	arguments: LowerUpArguments | [price: TransactionArgument];
+	config?: {
+		predictPackageId?: string;
+	};
+}
+export function lowerUp(options: LowerUpOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['price'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pricing',
+			function: 'lower_up',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface HigherUpArguments {
+	price: TransactionArgument;
+}
+export interface HigherUpOptions {
+	package?: string;
+	arguments: HigherUpArguments | [price: TransactionArgument];
+	config?: {
+		predictPackageId?: string;
+	};
+}
+export function higherUp(options: HigherUpOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['price'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pricing',
+			function: 'higher_up',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface ProbabilityArguments {
+	price: TransactionArgument;
+}
+export interface ProbabilityOptions {
+	package?: string;
+	arguments: ProbabilityArguments | [price: TransactionArgument];
+	config?: {
+		predictPackageId?: string;
+	};
+}
+/**
+ * Return the combined probability, floored at zero if approximated boundary prices
+ * invert.
+ */
+export function probability(options: ProbabilityOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['price'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pricing',
+			function: 'probability',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
