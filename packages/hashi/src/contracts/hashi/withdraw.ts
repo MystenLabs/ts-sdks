@@ -14,7 +14,7 @@
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as utxo from './utxo.js';
 import * as withdrawal_queue from './withdrawal_queue.js';
 const $moduleName = '@local-pkg/hashi::withdraw';
@@ -59,7 +59,7 @@ export const WithdrawalConfirmationMessage = new MoveStruct({
 export interface ApproveRequestArguments {
 	hashi: RawTransactionArgument<string>;
 	requestId: RawTransactionArgument<string>;
-	cert: RawTransactionArgument<string>;
+	cert: TransactionArgument;
 }
 export interface ApproveRequestOptions {
 	package?: string;
@@ -68,7 +68,7 @@ export interface ApproveRequestOptions {
 		| [
 				hashi: RawTransactionArgument<string>,
 				requestId: RawTransactionArgument<string>,
-				cert: RawTransactionArgument<string>,
+				cert: TransactionArgument,
 		  ];
 }
 export function approveRequest(options: ApproveRequestOptions) {
@@ -85,11 +85,11 @@ export function approveRequest(options: ApproveRequestOptions) {
 }
 export interface CommitWithdrawalTxArguments {
 	hashi: RawTransactionArgument<string>;
-	requestIds: RawTransactionArgument<string[]>;
-	selectedUtxos: RawTransactionArgument<string[]>;
-	outputs: RawTransactionArgument<string[]>;
+	requestIds: RawTransactionArgument<Array<string>>;
+	selectedUtxos: TransactionArgument;
+	outputs: TransactionArgument;
 	txid: RawTransactionArgument<string>;
-	cert: RawTransactionArgument<string>;
+	cert: TransactionArgument;
 }
 export interface CommitWithdrawalTxOptions {
 	package?: string;
@@ -97,11 +97,11 @@ export interface CommitWithdrawalTxOptions {
 		| CommitWithdrawalTxArguments
 		| [
 				hashi: RawTransactionArgument<string>,
-				requestIds: RawTransactionArgument<string[]>,
-				selectedUtxos: RawTransactionArgument<string[]>,
-				outputs: RawTransactionArgument<string[]>,
+				requestIds: RawTransactionArgument<Array<string>>,
+				selectedUtxos: TransactionArgument,
+				outputs: TransactionArgument,
 				txid: RawTransactionArgument<string>,
-				cert: RawTransactionArgument<string>,
+				cert: TransactionArgument,
 		  ];
 }
 export function commitWithdrawalTx(options: CommitWithdrawalTxOptions) {
@@ -128,9 +128,9 @@ export function commitWithdrawalTx(options: CommitWithdrawalTxOptions) {
 export interface CommitInputSignaturesArguments {
 	hashi: RawTransactionArgument<string>;
 	withdrawalId: RawTransactionArgument<string>;
-	indices: RawTransactionArgument<number | bigint[]>;
-	signatures: RawTransactionArgument<number[][]>;
-	cert: RawTransactionArgument<string>;
+	indices: RawTransactionArgument<Array<number | bigint>>;
+	signatures: RawTransactionArgument<Array<Array<number>>>;
+	cert: TransactionArgument;
 }
 export interface CommitInputSignaturesOptions {
 	package?: string;
@@ -139,9 +139,9 @@ export interface CommitInputSignaturesOptions {
 		| [
 				hashi: RawTransactionArgument<string>,
 				withdrawalId: RawTransactionArgument<string>,
-				indices: RawTransactionArgument<number | bigint[]>,
-				signatures: RawTransactionArgument<number[][]>,
-				cert: RawTransactionArgument<string>,
+				indices: RawTransactionArgument<Array<number | bigint>>,
+				signatures: RawTransactionArgument<Array<Array<number>>>,
+				cert: TransactionArgument,
 		  ];
 }
 /**
@@ -168,9 +168,9 @@ export function commitInputSignatures(options: CommitInputSignaturesOptions) {
 export interface FinalizeWithdrawalArguments {
 	hashi: RawTransactionArgument<string>;
 	withdrawalId: RawTransactionArgument<string>;
-	requestIds: RawTransactionArgument<string[]>;
-	guardianSignatures: RawTransactionArgument<number[][]>;
-	cert: RawTransactionArgument<string>;
+	requestIds: RawTransactionArgument<Array<string>>;
+	guardianSignatures: RawTransactionArgument<Array<Array<number>>>;
+	cert: TransactionArgument;
 }
 export interface FinalizeWithdrawalOptions {
 	package?: string;
@@ -179,9 +179,9 @@ export interface FinalizeWithdrawalOptions {
 		| [
 				hashi: RawTransactionArgument<string>,
 				withdrawalId: RawTransactionArgument<string>,
-				requestIds: RawTransactionArgument<string[]>,
-				guardianSignatures: RawTransactionArgument<number[][]>,
-				cert: RawTransactionArgument<string>,
+				requestIds: RawTransactionArgument<Array<string>>,
+				guardianSignatures: RawTransactionArgument<Array<Array<number>>>,
+				cert: TransactionArgument,
 		  ];
 }
 /**
@@ -212,7 +212,7 @@ export function finalizeWithdrawal(options: FinalizeWithdrawalOptions) {
 export interface ConfirmWithdrawalArguments {
 	hashi: RawTransactionArgument<string>;
 	withdrawalId: RawTransactionArgument<string>;
-	cert: RawTransactionArgument<string>;
+	cert: TransactionArgument;
 }
 export interface ConfirmWithdrawalOptions {
 	package?: string;
@@ -221,7 +221,7 @@ export interface ConfirmWithdrawalOptions {
 		| [
 				hashi: RawTransactionArgument<string>,
 				withdrawalId: RawTransactionArgument<string>,
-				cert: RawTransactionArgument<string>,
+				cert: TransactionArgument,
 		  ];
 }
 export function confirmWithdrawal(options: ConfirmWithdrawalOptions) {
@@ -233,6 +233,111 @@ export function confirmWithdrawal(options: ConfirmWithdrawalOptions) {
 			package: packageAddress,
 			module: 'withdraw',
 			function: 'confirm_withdrawal',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface ArchiveConfirmedWithdrawalsArguments {
+	hashi: RawTransactionArgument<string>;
+	withdrawalIds: RawTransactionArgument<Array<string>>;
+}
+export interface ArchiveConfirmedWithdrawalsOptions {
+	package?: string;
+	arguments:
+		| ArchiveConfirmedWithdrawalsArguments
+		| [hashi: RawTransactionArgument<string>, withdrawalIds: RawTransactionArgument<Array<string>>];
+}
+/**
+ * Deferred archival for confirmed withdrawals: move each transaction from
+ * `withdrawal_txns` to `confirmed_txns` and its requests from `requests` to
+ * `processed` (setting status Confirmed). Idempotent per id, so callers may batch
+ * and retry freely.
+ *
+ * Carries no committee cert: every write is derivable from already-certified state
+ * (`confirmed_timestamp_ms` is only ever set under a confirmation cert, the
+ * request list was bound by the commitment cert, and no funds move) — an
+ * adversarial caller can only archive earlier than the operator would, which is a
+ * semantic no-op.
+ *
+ * Garbage collection: deliberately NOT gated on pause/reconfig — it moves no funds
+ * and must stay callable during an emergency pause.
+ */
+export function archiveConfirmedWithdrawals(options: ArchiveConfirmedWithdrawalsOptions) {
+	const packageAddress = options.package ?? '@local-pkg/hashi';
+	const argumentsTypes = [null, 'vector<address>'] satisfies (string | null)[];
+	const parameterNames = ['hashi', 'withdrawalIds'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'withdraw',
+			function: 'archive_confirmed_withdrawals',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface ArchiveWithdrawalRequestsArguments {
+	hashi: RawTransactionArgument<string>;
+	withdrawalId: RawTransactionArgument<string>;
+	requestIds: RawTransactionArgument<Array<string>>;
+}
+export interface ArchiveWithdrawalRequestsOptions {
+	package?: string;
+	arguments:
+		| ArchiveWithdrawalRequestsArguments
+		| [
+				hashi: RawTransactionArgument<string>,
+				withdrawalId: RawTransactionArgument<string>,
+				requestIds: RawTransactionArgument<Array<string>>,
+		  ];
+}
+/**
+ * Chunked archival for a withdrawal whose request count exceeds one Sui
+ * transaction's runtime-object budget: archive the listed requests only, leaving
+ * the txn in the hot bag for `finish_archive_withdrawal_txns`. Every listed
+ * request is cross-checked against the withdrawal id, so a caller can only archive
+ * requests the confirmation cert already covers.
+ *
+ * Garbage collection: deliberately NOT gated on pause/reconfig — it moves no funds
+ * and must stay callable during an emergency pause.
+ */
+export function archiveWithdrawalRequests(options: ArchiveWithdrawalRequestsOptions) {
+	const packageAddress = options.package ?? '@local-pkg/hashi';
+	const argumentsTypes = [null, 'address', 'vector<address>'] satisfies (string | null)[];
+	const parameterNames = ['hashi', 'withdrawalId', 'requestIds'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'withdraw',
+			function: 'archive_withdrawal_requests',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface FinishArchiveWithdrawalTxnsArguments {
+	hashi: RawTransactionArgument<string>;
+	withdrawalIds: RawTransactionArgument<Array<string>>;
+}
+export interface FinishArchiveWithdrawalTxnsOptions {
+	package?: string;
+	arguments:
+		| FinishArchiveWithdrawalTxnsArguments
+		| [hashi: RawTransactionArgument<string>, withdrawalIds: RawTransactionArgument<Array<string>>];
+}
+/**
+ * Finish chunked archivals: move each listed txn to `confirmed_txns` once all of
+ * its requests are archived. Ids whose archival is incomplete (or already
+ * finished) are silently skipped, so batches survive races with in-flight chunk
+ * transactions.
+ *
+ * Garbage collection: deliberately NOT gated on pause/reconfig — it moves no funds
+ * and must stay callable during an emergency pause.
+ */
+export function finishArchiveWithdrawalTxns(options: FinishArchiveWithdrawalTxnsOptions) {
+	const packageAddress = options.package ?? '@local-pkg/hashi';
+	const argumentsTypes = [null, 'vector<address>'] satisfies (string | null)[];
+	const parameterNames = ['hashi', 'withdrawalIds'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'withdraw',
+			function: 'finish_archive_withdrawal_txns',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
@@ -271,13 +376,13 @@ export function reallocatePresigs(options: ReallocatePresigsOptions) {
 }
 export interface CleanupSpentUtxosArguments {
 	hashi: RawTransactionArgument<string>;
-	utxoIds: RawTransactionArgument<string[]>;
+	utxoIds: TransactionArgument;
 }
 export interface CleanupSpentUtxosOptions {
 	package?: string;
 	arguments:
 		| CleanupSpentUtxosArguments
-		| [hashi: RawTransactionArgument<string>, utxoIds: RawTransactionArgument<string[]>];
+		| [hashi: RawTransactionArgument<string>, utxoIds: TransactionArgument];
 }
 /**
  * Finalize the on-chain bookkeeping for spent UTXOs. Moves each UTXO's record from
@@ -302,8 +407,8 @@ export function cleanupSpentUtxos(options: CleanupSpentUtxosOptions) {
 }
 export interface RequestWithdrawalArguments {
 	hashi: RawTransactionArgument<string>;
-	btc: RawTransactionArgument<string>;
-	bitcoinAddress: RawTransactionArgument<number[]>;
+	btc: TransactionArgument;
+	bitcoinAddress: RawTransactionArgument<Array<number>>;
 }
 export interface RequestWithdrawalOptions {
 	package?: string;
@@ -311,8 +416,8 @@ export interface RequestWithdrawalOptions {
 		| RequestWithdrawalArguments
 		| [
 				hashi: RawTransactionArgument<string>,
-				btc: RawTransactionArgument<string>,
-				bitcoinAddress: RawTransactionArgument<number[]>,
+				btc: TransactionArgument,
+				bitcoinAddress: RawTransactionArgument<Array<number>>,
 		  ];
 }
 /**

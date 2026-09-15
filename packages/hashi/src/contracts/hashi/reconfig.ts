@@ -15,7 +15,7 @@
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as committee from './committee.js';
 const $moduleName = '@local-pkg/hashi::reconfig';
 export const ReconfigCompletionMessage = new MoveStruct({
@@ -69,8 +69,8 @@ export function startReconfig(options: StartReconfigOptions) {
 }
 export interface EndReconfigArguments {
 	self: RawTransactionArgument<string>;
-	mpcPublicKey: RawTransactionArgument<number[]>;
-	mpcCert: RawTransactionArgument<string>;
+	mpcPublicKey: RawTransactionArgument<Array<number>>;
+	mpcCert: TransactionArgument;
 }
 export interface EndReconfigOptions {
 	package?: string;
@@ -78,8 +78,8 @@ export interface EndReconfigOptions {
 		| EndReconfigArguments
 		| [
 				self: RawTransactionArgument<string>,
-				mpcPublicKey: RawTransactionArgument<number[]>,
-				mpcCert: RawTransactionArgument<string>,
+				mpcPublicKey: RawTransactionArgument<Array<number>>,
+				mpcCert: TransactionArgument,
 		  ];
 }
 export function endReconfig(options: EndReconfigOptions) {
@@ -96,13 +96,13 @@ export function endReconfig(options: EndReconfigOptions) {
 }
 export interface SubmitCommitteeHandoffArguments {
 	self: RawTransactionArgument<string>;
-	committeeHandoffCert: RawTransactionArgument<string>;
+	committeeHandoffCert: TransactionArgument;
 }
 export interface SubmitCommitteeHandoffOptions {
 	package?: string;
 	arguments:
 		| SubmitCommitteeHandoffArguments
-		| [self: RawTransactionArgument<string>, committeeHandoffCert: RawTransactionArgument<string>];
+		| [self: RawTransactionArgument<string>, committeeHandoffCert: TransactionArgument];
 }
 export function submitCommitteeHandoff(options: SubmitCommitteeHandoffOptions) {
 	const packageAddress = options.package ?? '@local-pkg/hashi';
