@@ -3,7 +3,7 @@
 
 import { fromBase58, splitGenericParameters } from '@mysten/bcs';
 
-import { isValidNamedPackage } from './move-registry.js';
+import { isValidNamedPackage } from './named-packages.js';
 
 const TX_DIGEST_LENGTH = 32;
 
