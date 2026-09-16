@@ -1,7 +1,8 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { ulebDecode } from './uleb.js';
+import { createDecoder } from './bcs-decode.js';
+import type { Decoder } from './bcs-decode.js';
 
 /**
  * Class used for reading BCS data chunk by chunk. Meant to be used
@@ -34,23 +35,38 @@ import { ulebDecode } from './uleb.js';
  * @param {String} data HEX-encoded data (serialized BCS)
  */
 export class BcsReader {
-	private dataView: DataView;
-	private bytePosition: number = 0;
+	#dec: Decoder;
 
 	/**
 	 * @param {Uint8Array} data Data to use as a buffer.
+	 * @param decoder Optional: use an existing decoder instead of creating one.
 	 */
-	constructor(data: Uint8Array) {
-		this.dataView = new DataView(data.buffer, data.byteOffset, data.byteLength);
+	constructor(data?: Uint8Array, decoder?: Decoder) {
+		this.#dec = decoder ?? createDecoder();
+		if (data) this.#dec.init(data);
 	}
+
+	get bytes(): Uint8Array {
+		return this.#dec.data;
+	}
+	get bytePosition(): number {
+		return this.#dec.offset;
+	}
+	set bytePosition(value: number) {
+		this.#dec.offset = value;
+	}
+	get position(): number {
+		return this.#dec.offset;
+	}
+
 	/**
 	 * Shift current cursor position by `bytes`.
 	 *
 	 * @param {Number} bytes Number of bytes to
 	 * @returns {this} Self for possible chaining.
 	 */
-	shift(bytes: number) {
-		this.bytePosition += bytes;
+	shift(bytes: number): this {
+		this.#dec.offset += bytes;
 		return this;
 	}
 	/**
@@ -58,72 +74,48 @@ export class BcsReader {
 	 * @returns
 	 */
 	read8(): number {
-		const value = this.dataView.getUint8(this.bytePosition);
-		this.shift(1);
-		return value;
+		return this.#dec.decodeU8();
 	}
 	/**
 	 * Read U16 value from the buffer and shift cursor by 2.
 	 * @returns
 	 */
 	read16(): number {
-		const value = this.dataView.getUint16(this.bytePosition, true);
-		this.shift(2);
-		return value;
+		return this.#dec.decodeU16();
 	}
 	/**
 	 * Read U32 value from the buffer and shift cursor by 4.
 	 * @returns
 	 */
 	read32(): number {
-		const value = this.dataView.getUint32(this.bytePosition, true);
-		this.shift(4);
-		return value;
+		return this.#dec.decodeU32();
 	}
 	/**
 	 * Read U64 value from the buffer and shift cursor by 8.
 	 * @returns
 	 */
 	read64(): string {
-		const value1 = this.read32();
-		const value2 = this.read32();
-
-		const result = value2.toString(16) + value1.toString(16).padStart(8, '0');
-
-		return BigInt('0x' + result).toString(10);
+		return this.#dec.decodeU64();
 	}
 	/**
 	 * Read U128 value from the buffer and shift cursor by 16.
 	 */
 	read128(): string {
-		const value1 = BigInt(this.read64());
-		const value2 = BigInt(this.read64());
-		const result = value2.toString(16) + value1.toString(16).padStart(16, '0');
-
-		return BigInt('0x' + result).toString(10);
+		return this.#dec.decodeU128();
 	}
 	/**
-	 * Read U128 value from the buffer and shift cursor by 32.
+	 * Read U256 value from the buffer and shift cursor by 32.
 	 * @returns
 	 */
 	read256(): string {
-		const value1 = BigInt(this.read128());
-		const value2 = BigInt(this.read128());
-		const result = value2.toString(16) + value1.toString(16).padStart(32, '0');
-
-		return BigInt('0x' + result).toString(10);
+		return this.#dec.decodeU256();
 	}
 	/**
 	 * Read `num` number of bytes from the buffer and shift cursor by `num`.
 	 * @param num Number of bytes to read.
 	 */
 	readBytes(num: number): Uint8Array {
-		const start = this.bytePosition + this.dataView.byteOffset;
-		const value = new Uint8Array(this.dataView.buffer, start, num);
-
-		this.shift(num);
-
-		return value;
+		return this.#dec.decodeFixedBytes(num);
 	}
 	/**
 	 * Read ULEB value - an integer of varying size. Used for enum indexes and
@@ -131,13 +123,7 @@ export class BcsReader {
 	 * @returns {Number} The ULEB value.
 	 */
 	readULEB(): number {
-		const start = this.bytePosition + this.dataView.byteOffset;
-		const buffer = new Uint8Array(this.dataView.buffer, start);
-		const { value, length } = ulebDecode(buffer);
-
-		this.shift(length);
-
-		return value;
+		return this.#dec.readUleb();
 	}
 	/**
 	 * Read a BCS vector: read a length and then apply function `cb` X times
@@ -146,11 +132,9 @@ export class BcsReader {
 	 * @returns {Array<Any>} Array of the resulting values, returned by callback.
 	 */
 	readVec(cb: (reader: BcsReader, i: number, length: number) => any): any[] {
-		const length = this.readULEB();
-		const result = [];
-		for (let i = 0; i < length; i++) {
-			result.push(cb(this, i, length));
-		}
+		const length = this.#dec.readUleb();
+		const result = new Array(length);
+		for (let i = 0; i < length; i++) result[i] = cb(this, i, length);
 		return result;
 	}
 }
