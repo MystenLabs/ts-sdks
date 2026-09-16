@@ -22,6 +22,7 @@ import {
 	tuple,
 	union,
 	unknown,
+	variant,
 } from 'valibot';
 
 import { isValidSuiAddress, normalizeSuiAddress } from '../../utils/sui-types.js';
@@ -46,17 +47,49 @@ type EnumSchema<T extends Record<string, GenericSchema<any>>> = GenericSchema<
 >;
 
 export function safeEnum<T extends Record<string, GenericSchema<any>>>(options: T): EnumSchema<T> {
-	return union(
-		Object.keys(options).map(
-			(key) =>
-				withKind(
-					key,
-					object({
-						[key]: options[key],
-					}),
-				) as GenericSchema<EnumOutputShape<T>>,
+	const schemas = Object.keys(options).map((key) =>
+		object({
+			[key]: options[key],
+			$kind: literal(key),
+		}),
+	);
+
+	return pipe(
+		unknown(),
+		check(
+			(input) => unsupportedEnumVariantMessage(input, options) === undefined,
+			({ input, message }) => unsupportedEnumVariantMessage(input, options) ?? message,
 		),
-	) as EnumSchema<T>;
+		transform(addMissingEnumKind),
+		variant('$kind', schemas),
+	) as unknown as EnumSchema<T>;
+}
+
+function getEnumKind(input: unknown) {
+	if (typeof input !== 'object' || input === null) return null;
+	if ('$kind' in input && typeof input.$kind === 'string') return input.$kind;
+
+	return Object.keys(input).find((key) => key !== '$kind') ?? null;
+}
+
+function addMissingEnumKind(input: unknown) {
+	if (typeof input !== 'object' || input === null || '$kind' in input) return input;
+
+	const kind = getEnumKind(input);
+	return kind === null ? input : { ...input, $kind: kind };
+}
+
+function unsupportedEnumVariantMessage(
+	input: unknown,
+	options: Record<string, GenericSchema<any>>,
+) {
+	const kind = getEnumKind(input);
+	if (kind === null || Object.hasOwn(options, kind)) return undefined;
+
+	const expected = Object.keys(options)
+		.map((key) => `"${key}"`)
+		.join(', ');
+	return `Unsupported enum variant "${kind}". Expected one of: ${expected}.`;
 }
 
 function withKind<K extends string, TEntries extends ObjectEntries>(
