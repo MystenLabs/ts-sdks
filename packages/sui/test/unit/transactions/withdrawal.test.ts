@@ -125,6 +125,17 @@ describe('tx.withdrawal()', () => {
 			},
 		});
 	});
+
+	it('reports unsupported withdrawal source enum variants', async () => {
+		const tx = new Transaction();
+		tx.withdrawal({ amount: 100n });
+		const json = JSON.parse(await tx.toJSON());
+		json.inputs[0].FundsWithdrawal.withdrawFrom = { FutureSource: true };
+
+		expect(() => Transaction.from(JSON.stringify(json))).toThrow(
+			'Unsupported enum variant "FutureSource". Expected one of: "Sender", "Sponsor", "SenderAllowance".',
+		);
+	});
 });
 
 describe('bcs.CallArg', () => {
