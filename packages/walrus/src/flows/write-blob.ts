@@ -246,8 +246,7 @@ export function createWriteBlobFlow(
 		signer,
 		...options
 	}: WriteBlobFlowRegisterOptions & { signer: Signer }): Promise<WriteBlobStepRegistered> => {
-		const transaction = register(options);
-		const { digest } = await ctx.executeTransaction(transaction, signer, 'register blob');
+		const { digest } = await ctx.executeTransaction(register(options), signer, 'register blob');
 
 		return {
 			step: 'registered' as const,
