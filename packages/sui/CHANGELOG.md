@@ -1,5 +1,12 @@
 # @mysten/sui.js
 
+## 2.31.2
+
+### Patch Changes
+
+- 8508156: Break the circular dependency between struct-tag and named-package utilities to prevent
+  initialization errors in Next.js Turbopack production builds.
+
 ## 2.31.1
 
 ### Patch Changes
