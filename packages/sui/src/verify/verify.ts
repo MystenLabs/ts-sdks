@@ -6,6 +6,7 @@ import { fromBase64 } from '@mysten/bcs';
 import type { PublicKey, SignatureFlag, SignatureScheme } from '../cryptography/index.js';
 import { parseSerializedSignature, SIGNATURE_FLAG_TO_SCHEME } from '../cryptography/index.js';
 import { Ed25519PublicKey } from '../keypairs/ed25519/publickey.js';
+import { MLDSA65PublicKey } from '../keypairs/mldsa65/publickey.js';
 import { PasskeyPublicKey } from '../keypairs/passkey/publickey.js';
 import { Secp256k1PublicKey } from '../keypairs/secp256k1/publickey.js';
 import { Secp256r1PublicKey } from '../keypairs/secp256r1/publickey.js';
@@ -158,6 +159,9 @@ export function publicKeyFromRawBytes(
 			break;
 		case 'Passkey':
 			publicKey = new PasskeyPublicKey(bytes);
+			break;
+		case 'MLDSA65':
+			publicKey = new MLDSA65PublicKey(bytes);
 			break;
 		default:
 			throw new Error(`Unsupported signature scheme ${signatureScheme}`);
