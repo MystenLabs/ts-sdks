@@ -66,8 +66,8 @@ export const GUARDIAN_BTC_PUBLIC_KEY_LEN = 32;
 
 export const NETWORK_CONFIG: Partial<Record<SuiNetwork, NetworkConfig>> = {
 	devnet: {
-		hashiObjectId: '0x84081242ebb05eac5e09ab2a930a60b1357d3d8bc6f927380979f72de991ccca',
-		packageId: '0xa877d4d97b6a8bae1da982a84980c502c5ad2ead4b24e6c8e50c57cd6ddc3771',
+		hashiObjectId: '0xecc2075f4836f2a318a32ddc7c6fe6c91232d842ba9bc7ac3d5aa95b4761136e',
+		packageId: '0x8069ba279e28607e361fa674a2fc9e78cc600940428d238d13dae4b33cfd9aad',
 		bitcoinNetwork: 'signet',
 	},
 	testnet: {
