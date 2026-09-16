@@ -55,6 +55,17 @@ describe('mldsa65-keypair', () => {
 		).toThrow('Expected a MLDSA65 keypair, got ED25519');
 	});
 
+	it('exported secret key survives the caller wiping the import buffer', () => {
+		const seed = new Uint8Array(32).fill(2);
+		const keypair = MLDSA65Keypair.fromSecretKey(seed);
+		seed.fill(0);
+
+		expect(keypair.getSecretKey()).toEqual(SUI_PRIVATE_KEY);
+		expect(MLDSA65Keypair.fromSecretKey(keypair.getSecretKey()).toSuiAddress()).toEqual(
+			SUI_ADDRESS,
+		);
+	});
+
 	it('signature of data is valid and hedged', async () => {
 		const keypair = MLDSA65Keypair.fromSecretKey(SEED);
 		const data = new TextEncoder().encode('hello world');

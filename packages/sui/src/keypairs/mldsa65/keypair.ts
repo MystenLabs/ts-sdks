@@ -60,9 +60,7 @@ export class MLDSA65Keypair extends Keypair {
 	}
 
 	/**
-	 * Create an ML-DSA-65 keypair from its 32-byte seed. FIPS 204 fixes the
-	 * seed to key expansion, so the same seed yields the same keypair in every
-	 * compliant implementation, including the Sui CLI.
+	 * Create an ML-DSA-65 keypair from its 32-byte seed.
 	 *
 	 * @param secretKey the 32-byte seed as a byte array or Bech32 secret key string
 	 */
@@ -121,7 +119,10 @@ export class MLDSA65Keypair extends Keypair {
 	}
 }
 
-function expand(seed: Uint8Array): MLDSA65KeypairData {
+function expand(input: Uint8Array): MLDSA65KeypairData {
+	// Own the seed: the caller may wipe or reuse its buffer, and the exported
+	// secret key must keep matching the signing key.
+	const seed = Uint8Array.from(input);
 	const { publicKey, secretKey } = ml_dsa65.keygen(seed);
 	return { seed, secretKey, publicKey };
 }
