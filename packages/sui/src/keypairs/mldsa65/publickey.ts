@@ -67,8 +67,7 @@ export class MLDSA65PublicKey extends PublicKey {
 
 	/**
 	 * Verifies that the signature is valid for for the provided message.
-	 *
-	 * Pure ML-DSA-65 with an empty context string, which is what Sui validators check.
+	 * Pure ML-DSA-65 with an empty context string.
 	 */
 	async verify(message: Uint8Array, signature: Uint8Array | string): Promise<boolean> {
 		let bytes;

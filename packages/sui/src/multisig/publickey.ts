@@ -306,8 +306,7 @@ export class MultiSigPublicKey extends PublicKey {
 			bitmap,
 			multisig_pk: this.multisigPublicKey,
 		};
-		// Ten ML-DSA-65 members are ~53 KB of signatures and public keys, well past
-		// the 8 KB that fit the classical schemes.
+		// Ten ML-DSA-65 members are ~53 KB of signatures and public keys.
 		const bytes = bcs.MultiSig.serialize(multisig, { maxSize: 65536 }).toBytes();
 		const tmp = new Uint8Array(bytes.length + 1);
 		tmp.set([SIGNATURE_SCHEME_TO_FLAG['MultiSig']]);
