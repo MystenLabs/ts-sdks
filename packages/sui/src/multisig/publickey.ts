@@ -25,14 +25,17 @@ type CompressedSignature =
 	| { Secp256k1: Uint8Array }
 	| { Secp256r1: Uint8Array }
 	| { ZkLogin: Uint8Array }
-	| { Passkey: Uint8Array };
+	| { Passkey: Uint8Array }
+	| { MLDSA65: Uint8Array };
 
 type PublicKeyEnum =
 	| { ED25519: Uint8Array }
 	| { Secp256k1: Uint8Array }
 	| { Secp256r1: Uint8Array }
 	| { ZkLogin: Uint8Array }
-	| { Passkey: Uint8Array };
+	| { Passkey: Uint8Array }
+	| { ZkLoginV2: Uint8Array }
+	| { MLDSA65: Uint8Array };
 
 type PubkeyEnumWeightPair = {
 	pubKey: PublicKeyEnum;
@@ -188,21 +191,22 @@ export class MultiSigPublicKey extends PublicKey {
 	 * Return the Sui address associated with this MultiSig public key
 	 */
 	override toSuiAddress(): string {
-		// max length = 1 flag byte + (max pk size + max weight size (u8)) * max signer size + 2 threshold bytes (u16)
-		const maxLength = 1 + (64 + 1) * MAX_SIGNER_IN_MULTISIG + 2;
-		const tmp = new Uint8Array(maxLength);
+		const suiBytes = this.publicKeys.map(({ publicKey }) => publicKey.toSuiBytes());
+		// 1 flag byte + 2 threshold bytes (u16) + per member: flagged public key + 1 weight byte (u8)
+		const length = 3 + suiBytes.reduce((sum, bytes) => sum + bytes.length + 1, 0);
+		const tmp = new Uint8Array(length);
 		tmp.set([SIGNATURE_SCHEME_TO_FLAG['MultiSig']]);
 
 		tmp.set(bcs.u16().serialize(this.multisigPublicKey.threshold).toBytes(), 1);
 		// The initial value 3 ensures that following data will be after the flag byte and threshold bytes
 		let i = 3;
-		for (const { publicKey, weight } of this.publicKeys) {
-			const bytes = publicKey.toSuiBytes();
+		for (const [j, { weight }] of this.publicKeys.entries()) {
+			const bytes = suiBytes[j];
 			tmp.set(bytes, i);
 			i += bytes.length;
 			tmp.set([weight], i++);
 		}
-		return normalizeSuiAddress(bytesToHex(blake2b(tmp.slice(0, i), { dkLen: 32 })));
+		return normalizeSuiAddress(bytesToHex(blake2b(tmp, { dkLen: 32 })));
 	}
 
 	/**
@@ -302,7 +306,9 @@ export class MultiSigPublicKey extends PublicKey {
 			bitmap,
 			multisig_pk: this.multisigPublicKey,
 		};
-		const bytes = bcs.MultiSig.serialize(multisig, { maxSize: 8192 }).toBytes();
+		// Ten ML-DSA-65 members are ~53 KB of signatures and public keys, well past
+		// the 8 KB that fit the classical schemes.
+		const bytes = bcs.MultiSig.serialize(multisig, { maxSize: 65536 }).toBytes();
 		const tmp = new Uint8Array(bytes.length + 1);
 		tmp.set([SIGNATURE_SCHEME_TO_FLAG['MultiSig']]);
 		tmp.set(bytes, 1);

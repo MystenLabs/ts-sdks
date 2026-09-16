@@ -17,6 +17,7 @@ export default defineConfig({
 		'src/keypairs/secp256k1/index.ts',
 		'src/keypairs/secp256r1/index.ts',
 		'src/keypairs/passkey/index.ts',
+		'src/keypairs/mldsa65/index.ts',
 		'src/multisig/index.ts',
 		'src/transactions/index.ts',
 		'src/utils/index.ts',
