@@ -301,6 +301,36 @@ describe('budget sizing', () => {
 		expect(budgetOf({ budget }).raw.cost).toBe(budget);
 	});
 
+	test('steps down from a fill that would cost more than it could pay out', () => {
+		// p = 0.5 with a 0.5000001 fee floor: every lot costs its own payout plus a thousandth
+		// of a raw unit, so the rounding carries a unit only once the fill reaches 1_000 lots.
+		// The budget fill breaches `cost <= quantity` there; the largest admissible fill is the
+		// lot below, and the bound must be consulted on the budget fill rather than searched.
+		const fees = { ...FLOORED, minFee: 500_000_100n };
+		const probabilities: cost.Boundaries = { lowerUp: 500_000_000n, higherUp: null };
+		// 1_000 lots costs 10_000_001 against a 10_000_000 payout, which `mintCost` rejects
+		// outright — the budget search has to find the fill below it instead.
+		expect(() => mint({ fees, probabilities, quantity: 10_000_000n })).toThrow(
+			/EMintCostAboveMaxPayout/,
+		);
+
+		const sized = budgetOf({ fees, probabilities, budget: 10_000_001n });
+		expect(sized.raw.quantity).toBe(9_990_000n);
+		expect(sized.raw.cost).toBe(9_990_000n);
+		expect(sized.raw.cost).toBeLessThanOrEqual(sized.raw.quantity);
+	});
+
+	test('aborts when no fill inside the budget can pay for itself', () => {
+		// A 60% fee floor on a 50% contract: unit cost is 1.1 at every size.
+		expect(() =>
+			budgetOf({
+				fees: { ...FLOORED, minFee: 600_000_000n },
+				probabilities: { lowerUp: 500_000_000n, higherUp: null },
+				budget: 100_000_000n,
+			}),
+		).toThrow(/EMintCostAboveMaxPayout/);
+	});
+
 	test('caps the budget at the account balance', () => {
 		const balance = mint().raw.cost;
 		const sized = budgetOf({ budget: (1n << 64n) - 1n, accountBalance: balance });

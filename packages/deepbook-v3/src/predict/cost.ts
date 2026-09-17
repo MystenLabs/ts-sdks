@@ -648,9 +648,11 @@ export function mintCost(inputs: MintCostInputs): MintCost {
  * through `mint_exact_amount` with `premium` as the budget (or through `mint_exact_cost`
  * itself once a deployment carries it).
  *
- * The remainder below the budget is bounded by one more lot's all-in cost — quantity is
- * lot-quantised, not continuous. Sizing saturates at the 32-bit lot cap, and the chain caps
- * the budget at the account's settled balance first ({@link MintBudgetInputs.accountBalance}).
+ * When the budget is what limits the fill, the remainder below it is less than one more lot's
+ * all-in cost — quantity is lot-quantised, not continuous. A fill limited by something else
+ * leaves more: sizing steps down from a fill that would cost more than its own maximum payout,
+ * and saturates at the 32-bit lot cap. The chain caps the budget at the account's settled
+ * balance before sizing ({@link MintBudgetInputs.accountBalance}).
  */
 export function mintCostForBudget(inputs: MintBudgetInputs): MintCost {
 	const { boundaries, exact } = resolveBoundaries(inputs.probabilities);
@@ -673,20 +675,41 @@ export function mintCostForBudget(inputs: MintBudgetInputs): MintCost {
 		else hi = mid - 1n;
 	}
 
-	// `expiry_market::quote_exact_cost_terms` — binary search on the all-in cost, bounded by
-	// the budget AND by the fill's own maximum payout (the impact rate rises with liability,
-	// so the largest budget-fitting fill can be one that costs more than it could pay out).
+	// `expiry_market::quote_exact_cost_terms`, first half: the budget search proper. Exact,
+	// because every all-in term is nondecreasing in quantity for fixed pre-trade state.
+	const allInCostAt = (quantity: bigint) => mintQuoteAt(inputs, boundaries, quantity, ttl).cost;
 	hi = lo;
 	lo = 0n;
 	while (lo < hi) {
 		const mid = (lo + hi + 1n) / 2n;
-		const quantity = mid * lotSize;
-		const { cost } = mintQuoteAt(inputs, boundaries, quantity, ttl);
-		if (cost <= min(budget, quantity)) lo = mid;
+		if (allInCostAt(mid * lotSize) <= budget) lo = mid;
 		else hi = mid - 1n;
 	}
+	const budgetLots = lo;
+	const budgetQuantity = budgetLots * lotSize;
 
-	const quantity = lo * lotSize;
+	// Second half: the maximum-payout bound (`cost <= quantity`) is deliberately NOT part of
+	// that search. It is not monotone — cost and quantity both rise, and the independent floors
+	// in each cost term let `cost(q) <= q` flip back to true at a larger lot wherever unit cost
+	// sits within rounding of one — so binary-searching it would discard admissible fills. It is
+	// consulted only when the budget fill breaches it, and the step-down runs strictly below
+	// that fill, so every candidate already fits the budget.
+	let lots = budgetLots;
+	if (budgetLots > 0n && allInCostAt(budgetQuantity) > budgetQuantity) {
+		let stepLo = 0n;
+		let stepHi = budgetLots - 1n;
+		while (stepLo < stepHi) {
+			const mid = (stepLo + stepHi + 1n) / 2n;
+			const candidate = mid * lotSize;
+			if (allInCostAt(candidate) <= candidate) stepLo = mid;
+			else stepHi = mid - 1n;
+		}
+		// No admissible smaller fill: fall back to the budget fill, which then fails the
+		// maximum-payout bound below exactly as the chain's own quote aborts on it.
+		lots = stepLo === 0n ? budgetLots : stepLo;
+	}
+
+	const quantity = lots * lotSize;
 	if (quantity < minQuantity) {
 		throw new PredictInputError(
 			`budget ${budget} sizes ${quantity}, below the ${minQuantity} minimum ` +
@@ -701,7 +724,14 @@ export function mintCostForBudget(inputs: MintBudgetInputs): MintCost {
 		);
 	}
 	assertValidQuantity(quantity, lotSize);
-	return mintCostFrom(inputs, boundaries, exact, quantity, ttl);
+	const quote = mintCostFrom(inputs, boundaries, exact, quantity, ttl);
+	if (quote.raw.cost > quantity) {
+		throw new PredictInputError(
+			`no fill inside budget ${budget} costs less than it can pay out: ${quote.raw.cost} ` +
+				`exceeds ${quantity} (EMintCostAboveMaxPayout)`,
+		);
+	}
+	return quote;
 }
 
 // === Live redeem ===

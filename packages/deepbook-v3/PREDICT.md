@@ -330,8 +330,10 @@ on premium alone — so "spend exactly $X" means quoting, subtracting an estimat
 it so the mint does not abort, and systematically underspending. `mintCostForBudget` runs the same
 lot search the contract's `mint_exact_cost` runs, over the same cost function, so it returns the
 fill that entrypoint would size. Send it through `mintAmount` with `sized.premium` as the budget (or
-straight through `mint_exact_cost` on a deployment that carries it). The unspent remainder is
-bounded by one more lot's all-in cost — quantity is lot-quantised, not continuous.
+straight through `mint_exact_cost` on a deployment that carries it). When the budget is what limits
+the fill, the unspent remainder is below one more lot's all-in cost — quantity is lot-quantised, not
+continuous; a fill limited by something else (a size that would cost more than its own maximum
+payout, or the lot cap) leaves more.
 
 **What is exact, and what you must supply.** The fee arithmetic carries no approximation; the one
 approximate input is the probability, when it comes from the local float pricer (~1e-4). Pass
