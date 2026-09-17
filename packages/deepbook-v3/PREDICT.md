@@ -245,6 +245,11 @@ const tx = await client.predict.tx.mint(
   tx.add(accountMoveCalls.share({ config, arguments: { self: wrapper } }));
   ```
 
+- **`cost`** — the deployed FEE math as an exact integer port, so an all-in quote costs no chain
+  call: `mintCost` (what a mint debits), `mintCostForBudget` (the `mint_exact_cost` budget search),
+  `redeemLiveProceeds` (what a live close credits), plus the components they are built from. See
+  below.
+
 - **Typed errors** — invalid inputs throw `PredictInputError` before the chain sees them; failed
   simulations throw `PredictMoveError` with the decoded Move abort (`module`, `code`, `abortName`).
 
@@ -288,6 +293,67 @@ pricing.boardPricer(inputs); // same shape as read.pricer's return
 const fwd = pricing.forward(pythSpot, bsSpot, bsForward); // Pyth re-anchored by the BS basis
 const rolled = pricing.rollDown(rawSvi, remainingMs, anchorTteMs); // decay a, b toward expiry
 ```
+
+## Client-side cost (`cost`)
+
+`pricing` gives the contract's probability; `cost` turns it into what the chain actually debits and
+credits, with no chain call at all — no `devInspect`, no dry run. It is an exact integer port of the
+deployed fee path: the per-boundary Bernoulli trading fee and its expiry ramp, the builder cut, the
+sponsor subsidy, the congestion surcharge, and the inventory-impact charge and rebate, each rounded
+the way the contract rounds it.
+
+```ts
+import { cost } from '@mysten/deepbook-v3/predict';
+
+const pricer = await client.predict.read.pricer({ underlying: 'BTC', expiryMs });
+const shape = {
+	fees: cost.SHIPPED_FEE_POLICY, // or the market's own MarketCreated snapshot
+	expiryMs,
+	probabilities: { pricer, lower: 105_000, upper: null }, // an UP order at $105k
+};
+
+// 1. What does 100 USDC of payout cost me, all in?
+cost.mintCost({ ...shape, quantity: 100 }).cost; // premium + fees, in USDC
+cost.mintCost({ ...shape, quantity: 100 }).costPerContract; // all-in price, 0..1
+
+// 2. I want to spend exactly $50 — how much payout is that? (`mint_exact_cost`, client-side)
+const sized = cost.mintCostForBudget({ ...shape, budget: 50 });
+sized.quantity; // the largest lot-rounded fill whose ALL-IN cost fits $50
+sized.cost; // ≤ 50, and one more lot would not fit
+
+// 3. What would closing this position credit me?
+cost.redeemLiveProceeds({ ...shape, closeQuantity: 100 }).proceeds; // net of fees
+```
+
+**Why the budget form exists.** Every fee is charged _on top of_ the premium, and `mintAmount` sizes
+on premium alone — so "spend exactly $X" means quoting, subtracting an estimated fee load, padding
+it so the mint does not abort, and systematically underspending. `mintCostForBudget` runs the same
+lot search the contract's `mint_exact_cost` runs, over the same cost function, so it returns the
+fill that entrypoint would size. Send it through `mintAmount` with `sized.premium` as the budget (or
+straight through `mint_exact_cost` on a deployment that carries it). The unspent remainder is
+bounded by one more lot's all-in cost — quantity is lot-quantised, not continuous.
+
+**What is exact, and what you must supply.** The fee arithmetic carries no approximation; the one
+approximate input is the probability, when it comes from the local float pricer (~1e-4). Pass
+chain-read probabilities instead — `{ lowerUp, higherUp }` as raw 1e9 bigints, e.g. from
+`read.price` — and the quote is exact to the raw unit; `exactProbabilities` on every result says
+which you got. Two terms default to zero because they _are_ zero at the shipped configuration and
+cannot be derived from a price: the congestion surcharge (pass `penaltyRate`, from
+`cost.congestionPenaltyRate` if you hold the market's gas-price EWMA) and the inventory-impact
+charge (pass `book`, the payout-tree terms). The fee **policy** is a per-market snapshot taken at
+creation, and the chain exposes no getter for `base_fee`/`min_fee` — take it from the market's
+`MarketCreated` event, or use `cost.SHIPPED_FEE_POLICY` for the shipped template.
+
+Admission is enforced locally too: the entry-probability band, the `min_premium` floor, the lot
+grid, and the "a contract may never cost more than it can pay out" bound each throw the
+`PredictInputError` naming the abort the chain would have raised. `read.quoteMint` /
+`read.quoteRedeem` remain the authoritative pre-trade quote — they run the real code path against
+real account state; `cost` is what you reach for when you cannot afford a round trip per keystroke.
+
+The components are exported too (`tradingFee`, `builderFee`, `feeIncentiveSubsidy`,
+`congestionPenaltyRate`, `mintInventoryImpact`, `closeInventoryImpact`, `expiryFeeMultiplier`,
+`bernoulliFeeRate`), along with `decodeOrderRange` / `orderStrikes` for feeding a position from
+`read.positions` straight into `redeemLiveProceeds`.
 
 ## Networks & deployments
 

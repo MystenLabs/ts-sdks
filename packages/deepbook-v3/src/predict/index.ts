@@ -92,6 +92,14 @@ export type { Side } from './ticks.js';
 export * as pricing from './pricing.js';
 export type { PricerSnapshot } from './reads/pricing.js';
 
+// === Client-side cost === the deployed FEE math as an exact integer port, so a quote needs no
+// chain call: `cost.mintCost` (all-in debit for a quantity), `cost.mintCostForBudget` (the
+// `mint_exact_cost` budget search), `cost.redeemLiveProceeds` (net credited by a live close),
+// plus the components they are built from. Probabilities come from `pricing.*` or from the
+// chain (`read.price`); the fee policy is the market's `MarketCreated` snapshot, with
+// `cost.SHIPPED_FEE_POLICY` as the shipped template.
+export * as cost from './cost.js';
+
 // === Errors ===
 export { PredictInputError, PredictMoveError, decodeMoveAbort } from './errors.js';
 export type { MoveAbortError } from './errors.js';
