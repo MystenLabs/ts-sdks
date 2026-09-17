@@ -188,8 +188,7 @@ export interface Boundaries {
  * e.g. `probabilityToRaw((await read.price(...)).up)`) or a local pricer snapshot plus
  * the range's strikes in USD (`null` for an infinite side). */
 export type ProbabilitySource =
-	| Boundaries
-	| { pricer: PricerInputs; lower: number | null; upper: number | null };
+	Boundaries | { pricer: PricerInputs; lower: number | null; upper: number | null };
 
 /** The market's gas-price EWMA (`ewma::EwmaState`), both fields 1e9-scaled. */
 export interface CongestionState {

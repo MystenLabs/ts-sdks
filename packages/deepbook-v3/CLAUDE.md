@@ -234,6 +234,9 @@ After making changes, always run prettier to format the code:
 pnpm exec prettier --write .
 ```
 
+Use the formatter version pinned by this checkout's lockfile. Reusing another checkout's
+`node_modules` can pass local formatting checks while producing code that fails CI.
+
 ## Common Errors
 
 1. **`UnusedValueWithoutDrop { result_idx: 0, secondary_idx: 0 }`**: Simulation returned a
