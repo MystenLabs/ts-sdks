@@ -331,6 +331,20 @@ describe('budget sizing', () => {
 		).toThrow(/EMintCostAboveMaxPayout/);
 	});
 
+	test('preserves the contract fallback even when rounding hides a larger admissible fill', () => {
+		const fees = { ...FLOORED, minFee: 500_006_750n };
+		const probabilities = { lowerUp: 499_993_500n, higherUp: null };
+		// At q=4_600_000, premium=2_299_970 and fee=2_300_031: cost breaches payout.
+		// The fallback returns q=4_440_000 (2_219_971 + 2_220_029), although
+		// q=4_590_000 also fits (2_294_970 + 2_295_030). It is not a maximality search.
+		const inputs = { fees, probabilities, budget: 4_600_001n };
+		const sized = budgetOf(inputs);
+		expect(sized.raw.quantity).toBe(4_440_000n);
+		expect(sized.raw.cost).toBe(4_440_000n);
+		expect(mint({ fees, probabilities, quantity: 4_590_000n }).raw.cost).toBe(4_590_000n);
+		expect(() => budgetOf({ ...inputs, minQuantity: 4_590_000n })).toThrow(/EMintQuantityBelowMin/);
+	});
+
 	test('caps the budget at the account balance', () => {
 		const balance = mint().raw.cost;
 		const sized = budgetOf({ budget: (1n << 64n) - 1n, accountBalance: balance });

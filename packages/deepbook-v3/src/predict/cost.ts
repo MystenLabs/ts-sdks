@@ -733,7 +733,7 @@ export function mintCost(inputs: MintCostInputs): MintCost {
 }
 
 /**
- * The largest fill whose ALL-IN cost fits a budget — `expiry_market::mint_exact_cost` computed
+ * A fill whose ALL-IN cost fits a budget — `expiry_market::mint_exact_cost` computed
  * client-side, with the same lot search over the same cost function, so the answer is the
  * quantity that entrypoint would size and the cost it would debit.
  *
@@ -745,6 +745,8 @@ export function mintCost(inputs: MintCostInputs): MintCost {
  *
  * Sizing also respects the fill's maximum payout and the 32-bit lot cap; either can leave
  * substantial budget unspent. When only the budget binds, one more lot would exceed it.
+ * If the budget fill exceeds its maximum payout, the contract's step-down is best effort:
+ * rounding can make it miss a larger admissible fill, including one meeting `minQuantity`.
  * The chain caps the budget at the account balance first ({@link MintBudgetInputs.accountBalance}).
  */
 export function mintCostForBudget(inputs: MintBudgetInputs): MintCost {
@@ -788,6 +790,8 @@ export function mintCostForBudget(inputs: MintBudgetInputs): MintCost {
 	// sits within rounding of one — so binary-searching it would discard admissible fills. It is
 	// consulted only when the budget fill breaches it, and the step-down runs strictly below
 	// that fill, so every candidate already fits the budget.
+	// This fallback mirrors Move's best-effort search; its nonmonotone predicate means it
+	// can miss larger admissible fills, including one satisfying minQuantity.
 	let lots = budgetLots;
 	if (budgetLots > 0n && allInCostAt(budgetQuantity) > budgetQuantity) {
 		let stepLo = 0n;
@@ -821,7 +825,7 @@ export function mintCostForBudget(inputs: MintBudgetInputs): MintCost {
 	const quote = mintCostFrom(inputs, boundaries, exact, quantity, ttl);
 	if (quote.raw.cost > quantity) {
 		throw new PredictInputError(
-			`no fill inside budget ${budget} costs less than it can pay out: ${quote.raw.cost} ` +
+			`sized fill inside budget ${budget} costs more than it can pay out: ${quote.raw.cost} ` +
 				`exceeds ${quantity} (EMintCostAboveMaxPayout)`,
 		);
 	}

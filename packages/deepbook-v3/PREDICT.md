@@ -318,7 +318,7 @@ cost.mintCost({ ...shape, quantity: 100 }).costPerContract; // all-in price, 0..
 
 // 2. I want to spend exactly $50 — how much payout is that? (`mint_exact_cost`, client-side)
 const sized = cost.mintCostForBudget({ ...shape, budget: 50 });
-sized.quantity; // the largest lot-rounded fill whose ALL-IN cost fits $50
+sized.quantity; // a lot-rounded fill whose ALL-IN cost fits $50
 sized.cost; // ≤ 50, also subject to the maximum-payout bound and lot cap
 
 // 3. What would closing this position credit me?
@@ -348,7 +348,10 @@ it so the mint does not abort, and systematically underspending. `mintCostForBud
 lot search the contract's `mint_exact_cost` runs, over the same cost function, so it returns the
 fill that entrypoint would size. Send it through `mintAmount` with `sized.premium` as the budget (or
 straight through `mint_exact_cost` on a deployment that carries it). When only the budget binds, one
-more lot would exceed it. The maximum-payout bound or the lot cap can leave a larger remainder.
+more lot would exceed it. The maximum-payout bound or the lot cap can leave a larger remainder. If
+the budget fill costs more than its payout, the contract uses a best-effort step-down search.
+Integer rounding makes that condition nonmonotone: the fallback can miss a larger admissible fill or
+throw for `minQuantity` even when another fill would satisfy it. The SDK preserves that behavior.
 
 **What is exact, and what you must supply.** The integer arithmetic matches the contract when all
 inputs match: probabilities, fee policy, builder attribution, sponsor balance, congestion, book
