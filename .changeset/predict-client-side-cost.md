@@ -10,5 +10,8 @@ whose all-in cost fits a budget — the `expiry_market::mint_exact_cost` lot sea
 (`tradingFee`, `builderFee`, `feeIncentiveSubsidy`, `congestionPenaltyRate`, `mintInventoryImpact`,
 `closeInventoryImpact`, `expiryFeeMultiplier`, `bernoulliFeeRate`) and the order-ID helpers
 (`decodeOrderRange`, `orderStrikes`) are exported alongside. The arithmetic is an exact integer port
-of the deployed fee path, so given chain-sourced probabilities the quote matches the chain to the
-raw unit; `read.quoteMint` / `read.quoteRedeem` remain the authoritative dry-run quotes.
+of the deployed fee path: matching every execution input yields the same raw amounts.
+Invalid unsigned inputs are rejected, and enabled inventory impact requires book data.
+`exactProbabilities` identifies raw probability inputs, without certifying their source or state
+freshness. These helpers provide local previews; `read.quoteMint` / `read.quoteRedeem` simulate
+the actual transaction against account and market state before submission.

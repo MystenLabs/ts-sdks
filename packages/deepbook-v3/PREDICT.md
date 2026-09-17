@@ -319,32 +319,56 @@ cost.mintCost({ ...shape, quantity: 100 }).costPerContract; // all-in price, 0..
 // 2. I want to spend exactly $50 — how much payout is that? (`mint_exact_cost`, client-side)
 const sized = cost.mintCostForBudget({ ...shape, budget: 50 });
 sized.quantity; // the largest lot-rounded fill whose ALL-IN cost fits $50
-sized.cost; // ≤ 50, and one more lot would not fit
+sized.cost; // ≤ 50, also subject to the maximum-payout bound and lot cap
 
 // 3. What would closing this position credit me?
 cost.redeemLiveProceeds({ ...shape, closeQuantity: 100 }).proceeds; // net of fees
 ```
+
+**Local preview or simulation?** If you already call `read.quoteRedeem`, you do not need a second
+quote for the same close. Use the local helper when a changing input needs an immediate preview; use
+the simulation to check the actual trade before submission.
+
+| API                                   | Returns                                                      | Reads the chain?                                                             |
+| ------------------------------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| `cost.mintCost`                       | Cost and fee breakdown for an exact payout quantity          | No; uses the supplied snapshot                                               |
+| `cost.mintCostForBudget`              | The same result, with quantity sized within an all-in budget | No; uses the supplied snapshot                                               |
+| `cost.redeemLiveProceeds`             | Net proceeds, gross value, closed quantity and fee breakdown | No; uses the supplied snapshot                                               |
+| `read.quoteMint` / `read.quoteRedeem` | A simulated trade receipt, including cost or proceeds        | Yes; executes the transaction in simulation against account and market state |
+
+The `cost` functions return synchronously. Their top-level amounts are human-readable numbers; `raw`
+carries integer amounts as bigints. They do not check account ownership, remaining position size,
+pauses, the no-trade window, oracle freshness or available cash backing. A simulation checks the
+execution path, but its quote can still change before submission; keep the transaction's `maxCost` /
+`minProceeds` slippage bounds.
 
 **Why the budget form exists.** Every fee is charged _on top of_ the premium, and `mintAmount` sizes
 on premium alone — so "spend exactly $X" means quoting, subtracting an estimated fee load, padding
 it so the mint does not abort, and systematically underspending. `mintCostForBudget` runs the same
 lot search the contract's `mint_exact_cost` runs, over the same cost function, so it returns the
 fill that entrypoint would size. Send it through `mintAmount` with `sized.premium` as the budget (or
-straight through `mint_exact_cost` on a deployment that carries it). When the budget is what limits
-the fill, the unspent remainder is below one more lot's all-in cost — quantity is lot-quantised, not
-continuous; a fill limited by something else (a size that would cost more than its own maximum
-payout, or the lot cap) leaves more.
+straight through `mint_exact_cost` on a deployment that carries it). When only the budget binds, one
+more lot would exceed it. The maximum-payout bound or the lot cap can leave a larger remainder.
 
-**What is exact, and what you must supply.** The fee arithmetic carries no approximation; the one
-approximate input is the probability, when it comes from the local float pricer (~1e-4). Pass
-chain-read probabilities instead — `{ lowerUp, higherUp }` as raw 1e9 bigints, e.g. from
-`read.price` — and the quote is exact to the raw unit; `exactProbabilities` on every result says
-which you got. Two terms default to zero because they _are_ zero at the shipped configuration and
-cannot be derived from a price: the congestion surcharge (pass `penaltyRate`, from
-`cost.congestionPenaltyRate` if you hold the market's gas-price EWMA) and the inventory-impact
-charge (pass `book`, the payout-tree terms). The fee **policy** is a per-market snapshot taken at
-creation, and the chain exposes no getter for `base_fee`/`min_fee` — take it from the market's
-`MarketCreated` event, or use `cost.SHIPPED_FEE_POLICY` for the shipped template.
+**What is exact, and what you must supply.** The integer arithmetic matches the contract when all
+inputs match: probabilities, fee policy, builder attribution, sponsor balance, congestion, book
+state and timestamp. The local float pricer introduces an approximation (~1e-4). You can instead
+pass `{ lowerUp, higherUp }` as raw 1e9 bigints; `read.price` returns decimal numbers, so convert
+its `up` value with the exported `probabilityToRaw` helper first. `exactProbabilities: true` only
+means raw probabilities were supplied. It does not verify their source or certify current chain
+state.
+
+When `inventoryImpactMaxRate` is nonzero, `book` is required; omitting it throws instead of quoting
+a zero charge or rebate. The congestion rate defaults to zero (disabled in the shipped template);
+when enabled, supply `penaltyRate`, calculated by `cost.congestionPenaltyRate` from the market's
+gas-price EWMA and the transaction's gas price. Supply `builderCode`, `feeIncentiveBalance` and, for
+account-capped budget sizing, `accountBalance` to reflect the account being quoted. The fee
+**policy** is a per-market snapshot taken at creation — use the market's `MarketCreated` event, or
+`cost.SHIPPED_FEE_POLICY` only for a market created under that template.
+
+Invalid raw domains (including negative amounts/rates, probabilities outside `[0, 1e9]`, and invalid
+lot sizes) throw `PredictInputError` before arithmetic. Supplied book totals must also be
+consistent, and enabled inventory impact requires a positive scale.
 
 Admission is enforced locally too: the entry-probability band, the `min_premium` floor, the lot
 grid, and the "a contract may never cost more than it can pay out" bound each throw the

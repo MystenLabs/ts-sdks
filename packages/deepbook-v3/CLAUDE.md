@@ -353,6 +353,14 @@ All read-only query methods use named return types (e.g., `VaultBalances`, `Quot
 `AccountInfo`). When adding new query methods, define a named return type interface rather than
 returning anonymous objects.
 
+### Predict cost previews (`src/predict/cost.ts`)
+
+Keep the local preview and simulation responsibilities explicit;
+[PREDICT.md](PREDICT.md#client-side-cost-cost) owns their public usage guidance. Validate raw bigint
+inputs before arithmetic, since TypeScript does not enforce Move's unsigned domains. Require book
+data when the supplied policy enables inventory impact. Cover both requirements in
+`test/predict/cost.test.ts` when changing cost math.
+
 ## Dependencies
 
 - `@mysten/sui` - Core Sui SDK

@@ -22,13 +22,14 @@
 // inputs the chain uses, these return the chain's numbers to the raw unit — the fee layer
 // carries no approximation of its own.
 //
-// The ONE approximate input is the probability, when you source it from the local float
-// pricer (`pricing.upProbability`, ~1e-4). Pass chain-read probabilities (`read.price`, raw
-// 1e9) instead and the quote is exact; `exactProbabilities` on every result says which you
-// got. Two terms default to zero because they are zero at the shipped configuration and are
-// not derivable from a price alone — the congestion surcharge (needs the market's gas-price
-// EWMA) and the inventory-impact charge (needs the payout tree). Both are inputs here, so a
-// caller holding that state prices them too.
+// Local float probabilities (`pricing.upProbability`, ~1e-4) introduce approximation.
+// With raw probabilities AND the same fee, account, book and clock inputs as execution,
+// the arithmetic matches the chain. `exactProbabilities` only identifies the probability
+// input format; it does not certify the source or freshness of any state. A nonzero
+// inventory-impact policy requires book data. Congestion defaults to a zero rate; supply
+// the actual rate when enabled. Use `read.quoteMint` / `read.quoteRedeem` for a simulation
+// against current account and market state, including the execution gates these previews
+// do not check (ownership, pauses, trade window, oracle freshness and cash backing).
 //
 // The fee POLICY is a per-market snapshot taken at creation (`StrikeExposureConfig`), and the
 // chain exposes no getter for `base_fee`/`min_fee` — take it from the market's `MarketCreated`
@@ -38,7 +39,7 @@ import { PredictInputError } from './errors.js';
 import type { PricerInputs } from './pricing.js';
 import { upProbability } from './pricing.js';
 import { POS_INF_TICK } from './ticks.js';
-import { fromRaw, usdcToRaw } from './units.js';
+import { fromRaw, U64_MAX, usdcToRaw } from './units.js';
 
 // === Protocol constants (mirrors of `deepbook_predict::constants` / `fixed_math::math`) ===
 
@@ -64,6 +65,15 @@ const divDown = (x: bigint, y: bigint): bigint => (x * FLOAT_SCALING) / y;
 const mulDivDown = (x: bigint, y: bigint, denominator: bigint): bigint => (x * y) / denominator;
 const min = (a: bigint, b: bigint): bigint => (a < b ? a : b);
 const max = (a: bigint, b: bigint): bigint => (a > b ? a : b);
+
+// Move's unsigned types enforce these domains before arithmetic. JS bigint does not.
+function assertUint(value: bigint, name: string, maximum = U64_MAX, minimum = 0n): void {
+	if (typeof value !== 'bigint' || value < minimum || value > maximum) {
+		throw new PredictInputError(
+			`${name} must be an integer in [${minimum}, ${maximum}], got ${value}`,
+		);
+	}
+}
 
 // `math::sqrt_initial_guess_u128` — power-of-two seed for the Newton iteration.
 function sqrtInitialGuess(x: bigint): bigint {
@@ -111,6 +121,7 @@ function sqrtU128Down(x: bigint): bigint {
 
 /** `math::sqrt_down` — square root of a 1e9-scaled value, 1e9-scaled, rounded down. */
 export function sqrtDown(x: bigint): bigint {
+	assertUint(x, 'sqrt input');
 	return sqrtU128Down(x * FLOAT_SCALING);
 }
 
@@ -174,10 +185,11 @@ export interface Boundaries {
 }
 
 /** Where a quote's probabilities come from: boundary probabilities you already hold (raw 1e9,
- * e.g. from `read.price`, which is the chain's own `up_price`) or a local pricer snapshot plus
+ * e.g. `probabilityToRaw((await read.price(...)).up)`) or a local pricer snapshot plus
  * the range's strikes in USD (`null` for an infinite side). */
 export type ProbabilitySource =
-	Boundaries | { pricer: PricerInputs; lower: number | null; upper: number | null };
+	| Boundaries
+	| { pricer: PricerInputs; lower: number | null; upper: number | null };
 
 /** The market's gas-price EWMA (`ewma::EwmaState`), both fields 1e9-scaled. */
 export interface CongestionState {
@@ -212,14 +224,61 @@ export interface CloseBookTerms extends MintBookTerms {
 	complementMaxPayout: bigint;
 }
 
+function assertFeePolicy(policy: FeePolicy): void {
+	assertUint(policy.baseFee, 'baseFee', FLOAT_SCALING);
+	assertUint(policy.minFee, 'minFee', FLOAT_SCALING);
+	assertUint(policy.expiryFeeWindowMs, 'expiryFeeWindowMs', U64_MAX, 1n);
+	assertUint(
+		policy.expiryFeeMaxMultiplier,
+		'expiryFeeMaxMultiplier',
+		10n * FLOAT_SCALING,
+		FLOAT_SCALING,
+	);
+	assertUint(policy.minEntryProbability, 'minEntryProbability', FLOAT_SCALING);
+	assertUint(policy.maxEntryProbability, 'maxEntryProbability', FLOAT_SCALING);
+	if (policy.minEntryProbability >= policy.maxEntryProbability) {
+		throw new PredictInputError('minEntryProbability must be below maxEntryProbability');
+	}
+	assertUint(policy.inventoryImpactMaxRate, 'inventoryImpactMaxRate', FLOAT_SCALING);
+	assertUint(policy.backingBufferLambda, 'backingBufferLambda', FLOAT_SCALING);
+	assertUint(
+		policy.inventoryImpactScale,
+		'inventoryImpactScale',
+		U64_MAX,
+		policy.inventoryImpactMaxRate === 0n ? 0n : 1n,
+	);
+}
+
+function assertBoundaries(boundaries: Boundaries): void {
+	if (boundaries.lowerUp !== null) assertUint(boundaries.lowerUp, 'lowerUp', FLOAT_SCALING);
+	if (boundaries.higherUp !== null) assertUint(boundaries.higherUp, 'higherUp', FLOAT_SCALING);
+}
+
+function assertBook(book: MintBookTerms): void {
+	assertUint(book.totalPayout, 'totalPayout');
+	assertUint(book.maxPayout, 'maxPayout', book.totalPayout);
+	assertUint(book.rangeMaxPayout, 'rangeMaxPayout', book.maxPayout);
+}
+
+function assertCostInputs(
+	inputs: Pick<MintInputsBase, 'fees' | 'book' | 'penaltyRate' | 'lotSize'>,
+): void {
+	assertFeePolicy(inputs.fees);
+	assertUint(inputs.penaltyRate ?? 0n, 'penaltyRate', FLOAT_SCALING);
+	assertUint(inputs.lotSize ?? POSITION_LOT_SIZE, 'lotSize', U64_MAX / MAX_QUANTITY_LOTS, 1n);
+	if (inputs.fees.inventoryImpactMaxRate > 0n && !inputs.book) {
+		throw new PredictInputError('book is required when inventory impact is enabled');
+	}
+	if (inputs.book) assertBook(inputs.book);
+}
+
 // === Fee components ===
 
 /** `strike_exposure_config::raw_bernoulli_fee_rate` — `base_fee · sqrt(p·(1−p))`, the fee rate
  * before the `min_fee` floor and the expiry ramp. Zero at the certain ends. */
 export function bernoulliFeeRate(baseFee: bigint, probability: bigint): bigint {
-	if (probability > FLOAT_SCALING) {
-		throw new PredictInputError(`probability ${probability} exceeds 1e9 (EInvalidFeeProbability)`);
-	}
+	assertUint(baseFee, 'baseFee', FLOAT_SCALING);
+	assertUint(probability, 'probability (EInvalidFeeProbability)', FLOAT_SCALING);
 	if (probability === 0n || probability === FLOAT_SCALING) return 0n;
 	return mulDown(baseFee, sqrtDown(mulDown(probability, FLOAT_SCALING - probability)));
 }
@@ -227,6 +286,8 @@ export function bernoulliFeeRate(baseFee: bigint, probability: bigint): bigint {
 /** `strike_exposure_config::expiry_fee_multiplier` — 1.0 outside the window, rising linearly
  * to `expiry_fee_max_multiplier` at expiry. */
 export function expiryFeeMultiplier(policy: FeePolicy, timeToExpiryMs: bigint): bigint {
+	assertFeePolicy(policy);
+	assertUint(timeToExpiryMs, 'timeToExpiryMs');
 	if (timeToExpiryMs >= policy.expiryFeeWindowMs) return FLOAT_SCALING;
 	return (
 		FLOAT_SCALING +
@@ -262,6 +323,10 @@ export function tradingFee(
 	quantity: bigint,
 	timeToExpiryMs: bigint,
 ): bigint {
+	assertFeePolicy(policy);
+	assertBoundaries(boundaries);
+	assertUint(quantity, 'quantity');
+	assertUint(timeToExpiryMs, 'timeToExpiryMs');
 	const lower =
 		boundaries.lowerUp === null
 			? 0n
@@ -276,6 +341,8 @@ export function tradingFee(
 /** `expiry_market::builder_fee_amount` — an account carrying a builder code pays the builder a
  * multiple of its trading fee, capped as a share of quantity. */
 export function builderFee(fee: bigint, quantity: bigint, hasBuilderCode: boolean): bigint {
+	assertUint(fee, 'fee');
+	assertUint(quantity, 'quantity');
 	if (!hasBuilderCode) return 0n;
 	return min(mulDown(fee, BUILDER_FEE_MULTIPLIER), mulDown(quantity, MAX_BUILDER_FEE_RATE));
 }
@@ -283,6 +350,8 @@ export function builderFee(fee: bigint, quantity: bigint, hasBuilderCode: boolea
 /** `expiry_market::fee_incentive_subsidy_amount` — a sponsor pays part of the trader's MINT
  * fee, bounded by the expiry's remaining sponsored balance. Mints only; redeems pay in full. */
 export function feeIncentiveSubsidy(fee: bigint, feeIncentiveBalance: bigint): bigint {
+	assertUint(fee, 'fee');
+	assertUint(feeIncentiveBalance, 'feeIncentiveBalance');
 	return min(mulDown(fee, FEE_INCENTIVE_SUBSIDY_RATE), feeIncentiveBalance);
 }
 
@@ -298,6 +367,11 @@ export function congestionPenaltyRate(
 	state: CongestionState,
 	gasPrice: bigint,
 ): bigint {
+	assertUint(policy.penaltyRate, 'penaltyRate', FLOAT_SCALING);
+	assertUint(policy.zScoreThreshold, 'zScoreThreshold');
+	assertUint(state.mean, 'mean');
+	assertUint(state.variance, 'variance');
+	assertUint(gasPrice, 'gasPrice', U64_MAX / FLOAT_SCALING);
 	if (!policy.enabled || state.variance === 0n) return 0n;
 	const scaled = gasPrice * FLOAT_SCALING;
 	if (scaled <= state.mean) return 0n;
@@ -318,6 +392,8 @@ function payoutLiability(policy: FeePolicy, maxPayout: bigint, totalPayout: bigi
  * what makes inventory cycles telescope to zero.
  */
 export function inventoryImpactPotential(policy: FeePolicy, liability: bigint): bigint {
+	assertFeePolicy(policy);
+	assertUint(liability, 'liability');
 	if (policy.inventoryImpactMaxRate === 0n || liability === 0n) return 0n;
 	const scale = policy.inventoryImpactScale;
 	const capped = min(liability, scale);
@@ -335,6 +411,9 @@ export function mintInventoryImpact(
 	book: MintBookTerms,
 	quantity: bigint,
 ): bigint {
+	assertFeePolicy(policy);
+	assertBook(book);
+	assertUint(quantity, 'quantity', U64_MAX - book.totalPayout);
 	if (policy.inventoryImpactMaxRate === 0n || quantity === 0n) return 0n;
 	const before = payoutLiability(policy, book.maxPayout, book.totalPayout);
 	const after = payoutLiability(
@@ -352,6 +431,13 @@ export function closeInventoryImpact(
 	book: CloseBookTerms,
 	payout: bigint,
 ): bigint {
+	assertFeePolicy(policy);
+	assertBook(book);
+	assertUint(book.complementMaxPayout, 'complementMaxPayout', book.maxPayout);
+	if (max(book.rangeMaxPayout, book.complementMaxPayout) !== book.maxPayout) {
+		throw new PredictInputError('maxPayout must equal the larger range or complement payout');
+	}
+	assertUint(payout, 'close payout', book.rangeMaxPayout);
 	if (policy.inventoryImpactMaxRate === 0n || payout === 0n) return 0n;
 	const before = payoutLiability(policy, book.maxPayout, book.totalPayout);
 	const after = payoutLiability(
@@ -367,6 +453,7 @@ export function closeInventoryImpact(
 /** `pricing::probability` — the range's own probability, `up(lower) − up(higher)` with the
  * chain's saturating subtraction and its infinite-boundary defaults. */
 export function rangeProbability(boundaries: Boundaries): bigint {
+	assertBoundaries(boundaries);
 	const lower = boundaries.lowerUp ?? FLOAT_SCALING;
 	const higher = boundaries.higherUp ?? 0n;
 	return lower > higher ? lower - higher : 0n;
@@ -407,6 +494,7 @@ function resolveBoundaries(source: ProbabilitySource): { boundaries: Boundaries;
 		boundaries = source;
 		exact = true;
 	}
+	assertBoundaries(boundaries);
 	// `(-inf, +inf]` is the whole outcome space; `order::assert_valid_order_shape` rejects it.
 	if (boundaries.lowerUp === null && boundaries.higherUp === null) {
 		throw new PredictInputError('a range cannot be infinite on both sides (EInvalidRange)');
@@ -417,11 +505,18 @@ function resolveBoundaries(source: ProbabilitySource): { boundaries: Boundaries;
 // `number` is a human amount in USDC decimals, `bigint` is already raw — the SDK-wide
 // convention for every financial parameter.
 function rawAmount(value: number | bigint): bigint {
-	return typeof value === 'bigint' ? value : usdcToRaw(value);
+	const raw = typeof value === 'bigint' ? value : usdcToRaw(value);
+	assertUint(raw, 'amount');
+	return raw;
 }
 
 function rawMs(value: number | bigint): bigint {
-	return typeof value === 'bigint' ? value : BigInt(Math.trunc(value));
+	if (typeof value === 'number' && !Number.isSafeInteger(value)) {
+		throw new PredictInputError(`timestamp must be a safe integer in milliseconds, got ${value}`);
+	}
+	const raw = typeof value === 'bigint' ? value : BigInt(value);
+	assertUint(raw, 'timestamp');
+	return raw;
 }
 
 // === Mint ===
@@ -442,7 +537,7 @@ interface MintInputsBase {
 	feeIncentiveBalance?: number | bigint;
 	/** Per-unit congestion surcharge rate — see {@link congestionPenaltyRate}. Default `0n`. */
 	penaltyRate?: bigint;
-	/** Pre-trade payout-tree terms. Only needed when inventory impact is enabled. */
+	/** Pre-trade payout-tree terms. Required when inventory impact is enabled. */
 	book?: MintBookTerms;
 	/** The deployment's `position_lot_size`. Defaults to the Move constant, `10_000n`. */
 	lotSize?: bigint;
@@ -491,8 +586,8 @@ export interface MintCost {
 		impactCharge: bigint;
 		cost: bigint;
 	};
-	/** True when the boundary probabilities were supplied raw (chain-sourced) rather than
-	 * priced locally in float. The fee arithmetic is exact either way. */
+	/** True when boundary probabilities were supplied as raw integers rather than priced
+	 * locally in float. Does not verify their source, freshness or the other quote inputs. */
 	exactProbabilities: boolean;
 }
 
@@ -613,6 +708,7 @@ function mintCostFrom(
  * have raised.
  */
 export function mintCost(inputs: MintCostInputs): MintCost {
+	assertCostInputs(inputs);
 	const { boundaries, exact } = resolveBoundaries(inputs.probabilities);
 	const lotSize = inputs.lotSize ?? POSITION_LOT_SIZE;
 	const quantity = rawAmount(inputs.quantity);
@@ -648,13 +744,12 @@ export function mintCost(inputs: MintCostInputs): MintCost {
  * through `mint_exact_amount` with `premium` as the budget (or through `mint_exact_cost`
  * itself once a deployment carries it).
  *
- * When the budget is what limits the fill, the remainder below it is less than one more lot's
- * all-in cost — quantity is lot-quantised, not continuous. A fill limited by something else
- * leaves more: sizing steps down from a fill that would cost more than its own maximum payout,
- * and saturates at the 32-bit lot cap. The chain caps the budget at the account's settled
- * balance before sizing ({@link MintBudgetInputs.accountBalance}).
+ * Sizing also respects the fill's maximum payout and the 32-bit lot cap; either can leave
+ * substantial budget unspent. When only the budget binds, one more lot would exceed it.
+ * The chain caps the budget at the account balance first ({@link MintBudgetInputs.accountBalance}).
  */
 export function mintCostForBudget(inputs: MintBudgetInputs): MintCost {
+	assertCostInputs(inputs);
 	const { boundaries, exact } = resolveBoundaries(inputs.probabilities);
 	const lotSize = inputs.lotSize ?? POSITION_LOT_SIZE;
 	const ttl = timeToExpiry(rawMs(inputs.expiryMs), rawMs(inputs.nowMs ?? Date.now()));
@@ -748,6 +843,7 @@ export interface RedeemLiveInputs {
 	closeQuantity: number | bigint;
 	builderCode?: boolean;
 	penaltyRate?: bigint;
+	/** Pre-trade payout-tree terms. Required when inventory impact is enabled. */
 	book?: CloseBookTerms;
 	lotSize?: bigint;
 }
@@ -771,6 +867,7 @@ export interface RedeemLiveProceeds {
 		impactRebate: bigint;
 		quantityClosed: bigint;
 	};
+	/** Identifies raw probability inputs; does not verify their source or state freshness. */
 	exactProbabilities: boolean;
 }
 
@@ -782,9 +879,13 @@ export interface RedeemLiveProceeds {
  * mints only), and each deduction is clamped at the payout remaining after the ones before it,
  * exactly as the contract clamps them, so a close can never cost more than it releases.
  *
- * `proceeds` is what `min_proceeds` is compared against on the real call.
+ * Use this for a local UI preview from a supplied snapshot. `read.quoteRedeem` simulates
+ * the actual close and remains the pre-trade check for ownership, remaining position size,
+ * live-market gates and current fees. `proceeds` is what `min_proceeds` is compared against
+ * on the real call; this preview does not guarantee execution at that amount.
  */
 export function redeemLiveProceeds(inputs: RedeemLiveInputs): RedeemLiveProceeds {
+	assertCostInputs(inputs);
 	const { boundaries, exact } = resolveBoundaries(inputs.probabilities);
 	const lotSize = inputs.lotSize ?? POSITION_LOT_SIZE;
 	const quantity = rawAmount(inputs.closeQuantity);

@@ -211,7 +211,7 @@ describe('inventory impact', () => {
 	test('the charge is part of the all-in cost', () => {
 		const quote = mint({ fees: impact, book: emptyBook });
 		expect(quote.raw.impactCharge).toBe(100_000n);
-		expect(quote.raw.cost).toBe(mint({ fees: impact }).raw.cost + 100_000n);
+		expect(quote.raw.cost).toBe(mint().raw.cost + 100_000n);
 	});
 });
 
@@ -493,5 +493,176 @@ describe('probability plumbing', () => {
 		expect(() => mint({ probabilities: { pricer: inputs, lower: 130, upper: 60 } })).toThrow(
 			/EInvalidRange/,
 		);
+	});
+});
+
+describe('quote input validation', () => {
+	const base = { fees: FLOORED, expiryMs: FAR_EXPIRY, nowMs: NOW, probabilities: UP_AT_60 };
+	const impactFees = {
+		...FLOORED,
+		inventoryImpactMaxRate: 200_000_000n,
+		inventoryImpactScale: 10_000_000_000n,
+	};
+	const emptyBook: cost.MintBookTerms = { maxPayout: 0n, totalPayout: 0n, rangeMaxPayout: 0n };
+	const closeBook: cost.CloseBookTerms = {
+		maxPayout: TEN_THOUSAND_LOTS,
+		totalPayout: TEN_THOUSAND_LOTS,
+		rangeMaxPayout: TEN_THOUSAND_LOTS,
+		complementMaxPayout: 0n,
+	};
+
+	test('requires book data for every quote when impact is enabled', () => {
+		expect(() => mint({ fees: impactFees })).toThrow(/book is required/);
+		expect(() => cost.mintCostForBudget({ ...base, fees: impactFees, budget: 60.5 })).toThrow(
+			/book is required/,
+		);
+		expect(() =>
+			cost.redeemLiveProceeds({ ...base, fees: impactFees, closeQuantity: 100 }),
+		).toThrow(/book is required/);
+	});
+
+	test('sizes below the formerly underquoted fill when impact is included', () => {
+		// At p=.6, q=100 costs $60 premium + $.50 fee + $.10 impact on an empty book.
+		expect(mint({ fees: impactFees, book: emptyBook }).raw.cost).toBe(60_600_000n);
+		const sized = cost.mintCostForBudget({
+			...base,
+			fees: impactFees,
+			book: emptyBook,
+			budget: 60.5,
+		});
+		// q=99.83: premium=59_898_000, fee=499_150, impact=99_660. One more lot costs
+		// 59_904_000 + 499_200 + 99_680 = 60_502_880, above the 60_500_000 budget.
+		expect(sized.raw.quantity).toBe(99_830_000n);
+		expect(sized.raw.cost).toBe(60_496_810n);
+	});
+
+	test('includes the live rebate with book data and allows omitted book when disabled', () => {
+		const quote = cost.redeemLiveProceeds({
+			...base,
+			fees: impactFees,
+			book: closeBook,
+			closeQuantity: 100,
+		});
+		expect(quote.raw.proceeds).toBe(59_600_000n); // $60 gross - $.50 fee + $.10 rebate
+		expect(cost.redeemLiveProceeds({ ...base, closeQuantity: 100 }).raw.proceeds).toBe(59_500_000n);
+		expect(mint().raw.cost).toBe(60_500_000n);
+	});
+
+	test.each([-100_000_000n, FLOAT_SCALING + 1n])('rejects out-of-domain boundary %s', (p) => {
+		for (const probabilities of [
+			{ lowerUp: p, higherUp: null },
+			{ lowerUp: null, higherUp: p },
+		]) {
+			expect(() => mint({ probabilities })).toThrow(PredictInputError);
+			expect(() => cost.mintCostForBudget({ ...base, probabilities, budget: 100 })).toThrow(
+				PredictInputError,
+			);
+			expect(() => cost.redeemLiveProceeds({ ...base, probabilities, closeQuantity: 100 })).toThrow(
+				PredictInputError,
+			);
+		}
+		expect(() => cost.bernoulliFeeRate(FLOORED.baseFee, p)).toThrow(/EInvalidFeeProbability/);
+		expect(() => cost.rangeProbability({ lowerUp: null, higherUp: p })).toThrow(PredictInputError);
+	});
+
+	test('still allows live exits at the certain ends outside the mint admission band', () => {
+		for (const p of [0n, FLOAT_SCALING]) {
+			const quote = cost.redeemLiveProceeds({
+				...base,
+				probabilities: { lowerUp: p, higherUp: null },
+				closeQuantity: 100,
+			});
+			expect(quote.raw.proceeds).toBe(p === 0n ? 0n : 99_500_000n);
+		}
+	});
+
+	test.each([-FLOAT_SCALING, FLOAT_SCALING + 1n])(
+		'rejects invalid penalty rate %s in every quote',
+		(penaltyRate) => {
+			expect(() => mint({ penaltyRate })).toThrow(/penaltyRate/);
+			expect(() => cost.mintCostForBudget({ ...base, penaltyRate, budget: 100 })).toThrow(
+				/penaltyRate/,
+			);
+			expect(() => cost.redeemLiveProceeds({ ...base, penaltyRate, closeQuantity: 100 })).toThrow(
+				/penaltyRate/,
+			);
+		},
+	);
+
+	test.each([-1n, 1n << 64n])('rejects non-u64 amounts %s', (amount) => {
+		expect(() => mint({ quantity: amount })).toThrow(PredictInputError);
+		expect(() => mint({ feeIncentiveBalance: amount })).toThrow(PredictInputError);
+		expect(() => cost.mintCostForBudget({ ...base, budget: amount })).toThrow(PredictInputError);
+		expect(() => cost.mintCostForBudget({ ...base, budget: 100, accountBalance: amount })).toThrow(
+			PredictInputError,
+		);
+		expect(() => cost.mintCostForBudget({ ...base, budget: 100, minQuantity: amount })).toThrow(
+			PredictInputError,
+		);
+		expect(() => cost.redeemLiveProceeds({ ...base, closeQuantity: amount })).toThrow(
+			PredictInputError,
+		);
+	});
+
+	test.each([0n, -1n, 1n << 64n])('rejects invalid lot size %s before arithmetic', (lotSize) => {
+		expect(() => mint({ lotSize })).toThrow(/lotSize/);
+		expect(() => cost.mintCostForBudget({ ...base, lotSize, budget: 100 })).toThrow(/lotSize/);
+		expect(() => cost.redeemLiveProceeds({ ...base, lotSize, closeQuantity: 100 })).toThrow(
+			/lotSize/,
+		);
+	});
+
+	test.each([
+		{ baseFee: -1n },
+		{ minFee: -1n },
+		{ minFee: FLOAT_SCALING + 1n },
+		{ expiryFeeWindowMs: 0n },
+		{ expiryFeeMaxMultiplier: FLOAT_SCALING - 1n },
+		{ minEntryProbability: -1n },
+		{ maxEntryProbability: FLOAT_SCALING + 1n },
+		{ minEntryProbability: FLOORED.maxEntryProbability },
+		{ inventoryImpactMaxRate: -1n },
+		{ inventoryImpactMaxRate: 1n, inventoryImpactScale: 0n },
+		{ backingBufferLambda: FLOAT_SCALING + 1n },
+	])('rejects an invalid fee policy %o', (overrides) => {
+		expect(() => mint({ fees: { ...FLOORED, ...overrides } })).toThrow(PredictInputError);
+	});
+
+	test('rejects inconsistent book state and impossible closes', () => {
+		expect(() => mint({ fees: impactFees, book: { ...emptyBook, totalPayout: -1n } })).toThrow(
+			PredictInputError,
+		);
+		expect(() => mint({ fees: impactFees, book: { ...emptyBook, maxPayout: 1n } })).toThrow(
+			PredictInputError,
+		);
+		expect(() => mint({ fees: impactFees, book: { ...emptyBook, rangeMaxPayout: 1n } })).toThrow(
+			PredictInputError,
+		);
+		expect(() =>
+			cost.redeemLiveProceeds({ ...base, fees: impactFees, book: closeBook, closeQuantity: 101 }),
+		).toThrow(/close payout/);
+		expect(() =>
+			cost.closeInventoryImpact(impactFees, { ...closeBook, rangeMaxPayout: 0n }, 1n),
+		).toThrow(/maxPayout/);
+	});
+
+	test.each([NaN, Infinity, 1.5, -1n])('rejects invalid timestamp %s', (nowMs) => {
+		expect(() => mint({ nowMs })).toThrow(PredictInputError);
+	});
+
+	test('exported fee components reject signed inputs too', () => {
+		expect(() => cost.sqrtDown(-1n)).toThrow(PredictInputError);
+		expect(() => cost.builderFee(-1n, TEN_THOUSAND_LOTS, true)).toThrow(PredictInputError);
+		expect(() => cost.feeIncentiveSubsidy(100n, -1n)).toThrow(PredictInputError);
+		expect(() => cost.tradingFee(FLOORED, UP_AT_60, -1n, DAY_MS)).toThrow(PredictInputError);
+		expect(() => cost.expiryFeeMultiplier(FLOORED, -1n)).toThrow(PredictInputError);
+		expect(() => cost.inventoryImpactPotential(impactFees, -1n)).toThrow(PredictInputError);
+		expect(() =>
+			cost.congestionPenaltyRate(
+				{ enabled: true, penaltyRate: -1n, zScoreThreshold: 0n },
+				{ mean: 0n, variance: 1n },
+				1n,
+			),
+		).toThrow(PredictInputError);
 	});
 });
