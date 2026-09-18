@@ -58,7 +58,7 @@ const keyBcs = (orderId: bigint) =>
 
 const DATA_FIELD_ID = deriveDynamicFieldID(
 	ACCOUNT_UID,
-	`${cfg.packages.account}::account::DataKey<${cfg.packages.predict}::predict_account::PredictApp>`,
+	`${cfg.packages.account}::account::DataKey<${cfg.packages.predictV1}::predict_account::PredictApp>`,
 	new Uint8Array([0]),
 );
 

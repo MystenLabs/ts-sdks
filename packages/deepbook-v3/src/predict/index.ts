@@ -14,6 +14,7 @@ export type {
 	MarketDescriptor,
 	MarketSummary,
 	MintAmountOptions,
+	MintCostOptions,
 	MintOptions,
 	MintQuote,
 	PlpSupplyOptions,

@@ -83,7 +83,7 @@ export async function resolvePositionsTable(
 	// The PredictData field id is derivable — no listing needed for this hop.
 	const dataFieldId = deriveDynamicFieldID(
 		accountUid,
-		`${config.accountPackageId}::account::DataKey<${config.predictPackageId}::predict_account::PredictApp>`,
+		`${config.accountPackageId}::account::DataKey<${config.predictPackageIdV1}::predict_account::PredictApp>`,
 		new Uint8Array([0]), // DataKey's hidden dummy_field: bool = false
 	);
 	const fieldContent = await contentOf(client, dataFieldId);

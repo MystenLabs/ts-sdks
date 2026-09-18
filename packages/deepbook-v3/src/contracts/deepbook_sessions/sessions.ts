@@ -543,6 +543,74 @@ export function mintExactAmount(options: MintExactAmountOptions) {
 			),
 		});
 }
+export interface MintExactCostArguments {
+	market: RawTransactionArgument<string>;
+	accountRegistry: RawTransactionArgument<string>;
+	wrapper: RawTransactionArgument<string>;
+	sessionsConfig?: RawTransactionArgument<string>;
+	config: RawTransactionArgument<string>;
+	pricer: TransactionArgument;
+	lowerTick: RawTransactionArgument<number | bigint>;
+	higherTick: RawTransactionArgument<number | bigint>;
+	maxCost: RawTransactionArgument<number | bigint>;
+	minQuantity: RawTransactionArgument<number | bigint>;
+}
+export interface MintExactCostOptions {
+	package?: string;
+	arguments: MintExactCostArguments;
+	config?: {
+		sessionsConfig: ConfigValue;
+		sessionsPackageId?: string;
+	};
+}
+/**
+ * Mint a Predict position sized to an all-in cost for an Account with an active
+ * session.
+ */
+export function mintExactCost(options: MintExactCostOptions) {
+	const packageAddress =
+		options.package ?? options.config?.sessionsPackageId ?? '@local-pkg/deepbook_sessions';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'market',
+		'accountRegistry',
+		'wrapper',
+		'sessionsConfig',
+		'config',
+		'pricer',
+		'lowerTick',
+		'higherTick',
+		'maxCost',
+		'minQuantity',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'sessions',
+			function: 'mint_exact_cost',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					sessionsConfig: options.arguments?.sessionsConfig ?? options.config?.sessionsConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
 export interface RedeemLiveArguments {
 	market: RawTransactionArgument<string>;
 	accountRegistry: RawTransactionArgument<string>;

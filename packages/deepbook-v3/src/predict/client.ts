@@ -55,7 +55,13 @@ import {
 
 import { accountContract, deriveAccountWrapperIdFrom } from './tx/common.js';
 import type { MarketFeeds } from './tx/trade.js';
-import { mintExactAmount, mintExactQuantity, redeemLive, redeemSettled } from './tx/trade.js';
+import {
+	mintExactAmount,
+	mintExactCost,
+	mintExactQuantity,
+	redeemLive,
+	redeemSettled,
+} from './tx/trade.js';
 import {
 	priceToRaw,
 	probabilityToRaw,
@@ -126,6 +132,14 @@ export interface MintAmountOptions {
 	minQuantity: number;
 	/** All-in cost ceiling in quote units (premium + fees). Omitted → uncapped. */
 	maxCost?: number;
+}
+
+/** Options for `mintCost`: all-in budget. Requires Predict v2 (currently Testnet only). */
+export interface MintCostOptions {
+	/** All-in USDC budget; the chain also caps it at the account balance. */
+	spend: number;
+	/** Minimum payout received. Zero disables this slippage floor. */
+	minQuantity: number;
 }
 
 /** Options for `redeem`: which order and how much to close. `claimSettled` takes only
@@ -499,6 +513,58 @@ export class PredictClient {
 		);
 	}
 
+	async #buildMintCost(
+		owner: string,
+		m: MarketDescriptor,
+		opts: MintCostOptions,
+	): Promise<Transaction> {
+		const feeds = this.#feeds(m.underlying);
+		const maxCostRaw = usdcToRaw(opts.spend);
+		const minQuantityRaw = usdcToRaw(opts.minQuantity);
+		const { id, state } = await this.#resolveMarket(m);
+		const { lowerTick, higherTick } = await this.#strikeTicks(m, id, state);
+		return txOf(
+			mintExactCost(this.#config, {
+				expiryMarketId: id,
+				wrapperId: this.wrapperIdFor(owner),
+				lowerTick,
+				higherTick,
+				maxCostRaw,
+				minQuantityRaw,
+				...feeds,
+			}),
+		);
+	}
+
+	async #quoteMintTransaction(owner: string, tx: Transaction): Promise<MintQuote> {
+		const events = await simulateWithEvents(this.#client, tx, owner);
+		const r = exactlyOne(decodeMints(this.cfg, { events }), 'OrderMinted');
+		// Mirrors the deployed `compute_mint_quote`'s all_in_cost exactly:
+		// premium + (trading − subsidy) + builder + penalty + inventory-impact.
+		// `referral_fee` is deliberately NOT added — it is a portion OF the
+		// trader-paid trading fee and congestion surcharge, not an extra debit.
+		const costRaw =
+			r.raw.premium +
+			(r.raw.tradingFee - r.raw.feeIncentiveSubsidy) +
+			r.raw.builderFee +
+			r.raw.penaltyFee +
+			r.raw.inventoryImpactCharge;
+		return {
+			entryProbability: r.entryProbability,
+			premium: r.premium,
+			fees: r.fees,
+			cost: rawToUsdc(costRaw),
+			quantity: r.quantity,
+			raw: {
+				premium: r.raw.premium,
+				cost: costRaw,
+				quantity: r.raw.quantity,
+				entryProbability: r.raw.entryProbability,
+			},
+			feesExact: true,
+		};
+	}
+
 	// Shared construction for tx.redeem and read.quoteRedeem.
 	async #buildRedeem(owner: string, m: MarketDescriptor, opts: CloseOptions): Promise<Transaction> {
 		const feeds = this.#feeds(m.underlying);
@@ -626,6 +692,10 @@ export class PredictClient {
 
 		mint: (owner: string, m: MarketDescriptor, opts: MintOptions): Promise<Transaction> =>
 			this.#buildMint(owner, m, opts),
+
+		/** V2 all-in budget mint; use minQuantity to protect the fill against slippage. */
+		mintCost: (owner: string, m: MarketDescriptor, opts: MintCostOptions): Promise<Transaction> =>
+			this.#buildMintCost(owner, m, opts),
 
 		mintAmount: async (
 			owner: string,
@@ -846,33 +916,16 @@ export class PredictClient {
 			opts: Pick<MintOptions, 'quantity'>,
 		): Promise<MintQuote> => {
 			const tx = await this.#buildMint(owner, m, opts);
-			const events = await simulateWithEvents(this.#client, tx, owner);
-			const r = exactlyOne(decodeMints(this.cfg, { events }), 'OrderMinted');
-			// Mirrors the deployed `compute_mint_quote`'s all_in_cost exactly:
-			// premium + (trading − subsidy) + builder + penalty + inventory-impact.
-			// `referral_fee` is deliberately NOT added — it is a portion OF the
-			// trader-paid trading fee and congestion surcharge, not an extra debit.
-			const costRaw =
-				r.raw.premium +
-				(r.raw.tradingFee - r.raw.feeIncentiveSubsidy) +
-				r.raw.builderFee +
-				r.raw.penaltyFee +
-				r.raw.inventoryImpactCharge;
-			return {
-				entryProbability: r.entryProbability,
-				premium: r.premium,
-				fees: r.fees,
-				cost: rawToUsdc(costRaw),
-				quantity: r.quantity,
-				raw: {
-					premium: r.raw.premium,
-					cost: costRaw,
-					quantity: r.raw.quantity,
-					entryProbability: r.raw.entryProbability,
-				},
-				feesExact: true,
-			};
+			return this.#quoteMintTransaction(owner, tx);
 		},
+
+		/** Simulate the v2 all-in budget mint against current account and market state. */
+		quoteMintCost: async (
+			owner: string,
+			m: MarketDescriptor,
+			opts: MintCostOptions,
+		): Promise<MintQuote> =>
+			this.#quoteMintTransaction(owner, await this.#buildMintCost(owner, m, opts)),
 
 		// Exact pre-close quote: dry-runs the caller's own redeem and decodes
 		// the receipt — the informed close against the floor-less deployed redeem.

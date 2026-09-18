@@ -167,11 +167,14 @@ describe('units are reachable from every subpath, not just Predict', () => {
 
 describe('sessions deployment ids', () => {
 	// Pinned to what is live on testnet: the `SessionsConfig` object at this id reports type
-	// `<sessionsPackageId>::session_config::SessionsConfig`, which is how the current sessions
+	// `<sessionsPackageIdV1>::session_config::SessionsConfig`, which is how the current sessions
 	// package was told apart from the version retired by DBU-746.
 	test('the sessions slice matches the deployment the SDK is pinned to', () => {
 		const cfg = getSessionsConfig('testnet');
 		expect(cfg.sessionsPackageId).toBe(
+			'0xe9daa1e3f98659f45f0e589c0367c7c13877af9a6a1bf1eda40e33e944816b40',
+		);
+		expect(cfg.sessionsPackageIdV1).toBe(
 			'0x1908eee49d7a08d74a537d7f23766b363a145517fe0d3e0d85635d1682831ffd',
 		);
 		expect(cfg.sessionsConfig).toBe(
@@ -220,6 +223,7 @@ describe('sessions deployment ids', () => {
 		const fromRecord = new SessionsContract(cfg);
 		const explicit = new SessionsContract({
 			sessionsPackageId: cfg.sessionsPackageId,
+			sessionsPackageIdV1: cfg.sessionsPackageIdV1,
 			sessionsConfig: cfg.sessionsConfig,
 			accountPackageId: cfg.accountPackageId,
 			accountRegistry: cfg.accountRegistry,

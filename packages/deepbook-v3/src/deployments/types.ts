@@ -16,7 +16,7 @@ export interface DeploymentInfo {
 	deployment: string;
 	network: string;
 	chainId: string;
-	/** The deepbookv3 commit the deployed Move sources were built from. */
+	/** The initial deployment's source commit; later package IDs come from Published.toml. */
 	sourceCommit: string;
 }
 
@@ -45,6 +45,8 @@ export interface AccountIds {
 /** Ids for time-limited sessions, including the spot- and Predict-only extras. */
 export interface SessionsIds extends AccountIds {
 	sessionsPackageId: string;
+	/** Original package ID for existing structs and dynamic-field keys. */
+	sessionsPackageIdV1: string;
 	sessionsConfig: string;
 	/** Spot wrappers only. */
 	deepbookRegistry: string;
@@ -66,7 +68,7 @@ export interface UnderlyingIds {
 /** Ids for DeepBook Predict. */
 export interface PredictIds {
 	network: string;
-	packages: { predict: string; account: string; propbook: string };
+	packages: { predict: string; predictV1: string; account: string; propbook: string };
 	objects: {
 		registry: string;
 		protocolConfig: string;

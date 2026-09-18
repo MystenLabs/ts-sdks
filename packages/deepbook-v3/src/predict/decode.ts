@@ -246,7 +246,7 @@ export interface BuilderCodeReceipt {
 export function decodeMints(cfg: PredictConfig, result: DecodableTransactionResult): MintReceipt[] {
 	return decodeAll(
 		result,
-		cfg.packages.predict,
+		cfg.packages.predictV1 ?? cfg.packages.predict,
 		'order_events',
 		'OrderMinted',
 		orderEvents.OrderMinted,
@@ -288,7 +288,7 @@ export function decodeRedeems(
 	cfg: PredictConfig,
 	result: DecodableTransactionResult,
 ): RedeemReceipt[] {
-	const pkg = cfg.packages.predict;
+	const pkg = cfg.packages.predictV1 ?? cfg.packages.predict;
 	const live = decodeAll(
 		result,
 		pkg,
@@ -341,7 +341,7 @@ export function decodeClaims(
 ): ClaimReceipt[] {
 	return decodeAll(
 		result,
-		cfg.packages.predict,
+		cfg.packages.predictV1 ?? cfg.packages.predict,
 		'order_events',
 		'SettledOrderRedeemed',
 		orderEvents.SettledOrderRedeemed,
@@ -403,7 +403,7 @@ export function decodePlpRequests(
 	cfg: PredictConfig,
 	result: DecodableTransactionResult,
 ): PlpRequestReceipt[] {
-	const pkg = cfg.packages.predict;
+	const pkg = cfg.packages.predictV1 ?? cfg.packages.predict;
 	// Supply/WithdrawRequested differ only in their min-out field (unused here);
 	// pick the fields both share so either generated struct's parse feeds `make`.
 	type RequestedCommon = Pick<
@@ -441,7 +441,7 @@ export function decodePlpCancels(
 ): PlpCancelReceipt[] {
 	return decodeAll(
 		result,
-		cfg.packages.predict,
+		cfg.packages.predictV1 ?? cfg.packages.predict,
 		'vault_events',
 		'RequestCancelled',
 		vaultEvents.RequestCancelled,
@@ -462,7 +462,7 @@ export function decodeBuilderCodeSets(
 ): BuilderCodeReceipt[] {
 	return decodeAll(
 		result,
-		cfg.packages.predict,
+		cfg.packages.predictV1 ?? cfg.packages.predict,
 		'builder_code_events',
 		'BuilderCodeSet',
 		builderCodeEvents.BuilderCodeSet,

@@ -17,3 +17,8 @@ admissible fill or reject a quantity floor that another fill could meet.
 `exactProbabilities` identifies raw probability inputs, without certifying their source or state
 freshness. These helpers provide local previews; `read.quoteMint` / `read.quoteRedeem` simulate
 the actual transaction against account and market state before submission.
+
+Update Testnet Predict/Sessions to v2 and preserve `predictV1` / `sessionsPackageIdV1` for existing
+structs, events and dynamic-field keys. Generate call targets and type origins from Published.toml
+alongside the initial deployment manifest; Mainnet remains v1. Add `tx.mintCost`,
+`read.quoteMintCost`, `SessionsContract.mintExactCost` and regenerated v2 Move bindings.

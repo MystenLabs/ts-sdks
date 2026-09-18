@@ -6,11 +6,12 @@ import { U64_MAX } from '../units.js';
 import * as expiryMarket from '../../contracts/deepbook_predict/expiry_market.js';
 import { withAuth } from './common.js';
 
-// The four trade calls with their `auth` argument already supplied (see `withAuth`): each
+// The trade calls with their `auth` argument already supplied (see `withAuth`): each
 // takes its generated options minus that slot and expands to auth → call.
 const authed = {
 	mintExactQuantity: withAuth(expiryMarket.mintExactQuantity),
 	mintExactAmount: withAuth(expiryMarket.mintExactAmount),
+	mintExactCost: withAuth(expiryMarket.mintExactCost),
 	redeemLive: withAuth(expiryMarket.redeemLive),
 	redeemSettled: withAuth(expiryMarket.redeemSettled),
 };
@@ -122,6 +123,34 @@ export function mintExactAmount(
 				maxPremium: args.maxPremiumRaw,
 				minQuantity: args.minQuantityRaw,
 				maxCost: args.maxCostRaw ?? U64_MAX,
+			},
+		}),
+	);
+}
+
+/** Mint within an all-in budget, including fees, using the v2 entrypoint. */
+export function mintExactCost(
+	config: GeneratedConfig,
+	args: {
+		expiryMarketId: string;
+		wrapperId: string;
+		lowerTick: bigint;
+		higherTick: bigint;
+		maxCostRaw: bigint;
+		minQuantityRaw: bigint;
+	} & MarketFeeds,
+): (tx: Transaction) => TransactionResult {
+	return liveTrade(config, args, (pricer) =>
+		authed.mintExactCost({
+			config,
+			arguments: {
+				market: args.expiryMarketId,
+				wrapper: args.wrapperId,
+				pricer,
+				lowerTick: args.lowerTick,
+				higherTick: args.higherTick,
+				maxCost: args.maxCostRaw,
+				minQuantity: args.minQuantityRaw,
 			},
 		}),
 	);
