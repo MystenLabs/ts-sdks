@@ -574,6 +574,8 @@ export interface MintCost {
 	cost: number;
 	/** All-in price per $1 of payout — `cost / quantity`, the number to compare across venues. */
 	costPerContract: number;
+	/** Maximum payout divided by the all-in debit, including fees. */
+	payoutMultiple: number;
 	raw: {
 		quantity: bigint;
 		entryProbability: bigint;
@@ -588,6 +590,21 @@ export interface MintCost {
 	/** True when boundary probabilities were supplied as raw integers rather than priced
 	 * locally in float. Does not verify their source, freshness or the other quote inputs. */
 	exactProbabilities: boolean;
+}
+
+/** Budget-sized mint plus the budget information needed to render an order preview. */
+export interface MintBudgetCost extends Omit<MintCost, 'raw'> {
+	/** Requested all-in budget, before the optional account-balance cap. */
+	budget: number;
+	/** Budget after the optional account-balance cap. */
+	effectiveBudget: number;
+	/** Requested budget minus actual cost, including any balance-cap shortfall. */
+	unspentBudget: number;
+	raw: MintCost['raw'] & {
+		budget: bigint;
+		effectiveBudget: bigint;
+		unspentBudget: bigint;
+	};
 }
 
 // `strike_exposure_config::assert_mint_probability_policy`, applied where
@@ -683,6 +700,7 @@ function mintCostFrom(
 		},
 		cost: fromRaw(q.cost, 6),
 		costPerContract: quantity === 0n ? 0 : Number(q.cost) / Number(quantity),
+		payoutMultiple: Number(quantity) / Number(q.cost),
 		raw: {
 			quantity,
 			entryProbability: probability,
@@ -739,9 +757,8 @@ export function mintCost(inputs: MintCostInputs): MintCost {
  *
  * Without it a "spend exactly $X" flow has to guess: every fee is charged ON TOP of the
  * premium, so the caller subtracts an estimated fee load, pads it against an abort, and
- * systematically underspends. Here the whole search runs locally, then the fill is sent
- * through `mint_exact_amount` with `premium` as the budget (or through `mint_exact_cost`
- * itself once a deployment carries it).
+ * systematically underspends. Here the whole search runs locally; submit the all-in budget
+ * through `tx.mintCost` on deployments carrying `mint_exact_cost`.
  *
  * Sizing also respects the fill's maximum payout and the 32-bit lot cap; either can leave
  * substantial budget unspent. When only the budget binds, one more lot would exceed it.
@@ -749,13 +766,14 @@ export function mintCost(inputs: MintCostInputs): MintCost {
  * rounding can make it miss a larger admissible fill, including one meeting `minQuantity`.
  * The chain caps the budget at the account balance first ({@link MintBudgetInputs.accountBalance}).
  */
-export function mintCostForBudget(inputs: MintBudgetInputs): MintCost {
+export function mintCostForBudget(inputs: MintBudgetInputs): MintBudgetCost {
 	assertCostInputs(inputs);
 	const { boundaries, exact } = resolveBoundaries(inputs.probabilities);
 	const lotSize = inputs.lotSize ?? POSITION_LOT_SIZE;
 	const ttl = timeToExpiry(rawMs(inputs.expiryMs), rawMs(inputs.nowMs ?? Date.now()));
 	const minQuantity = inputs.minQuantity === undefined ? lotSize : rawAmount(inputs.minQuantity);
-	let budget = rawAmount(inputs.budget);
+	const requestedBudget = rawAmount(inputs.budget);
+	let budget = requestedBudget;
 	if (inputs.accountBalance !== undefined) budget = min(budget, rawAmount(inputs.accountBalance));
 
 	assertRangeMintPolicy(inputs.fees, boundaries);
@@ -829,7 +847,18 @@ export function mintCostForBudget(inputs: MintBudgetInputs): MintCost {
 				`exceeds ${quantity} (EMintCostAboveMaxPayout)`,
 		);
 	}
-	return quote;
+	return {
+		...quote,
+		budget: fromRaw(requestedBudget, 6),
+		effectiveBudget: fromRaw(budget, 6),
+		unspentBudget: fromRaw(requestedBudget - quote.raw.cost, 6),
+		raw: {
+			...quote.raw,
+			budget: requestedBudget,
+			effectiveBudget: budget,
+			unspentBudget: requestedBudget - quote.raw.cost,
+		},
+	};
 }
 
 // === Live redeem ===
@@ -844,6 +873,8 @@ export interface RedeemLiveInputs {
 	probabilities: ProbabilitySource;
 	/** Payout being closed — the whole order, or part of it. */
 	closeQuantity: number | bigint;
+	/** Current position payout quantity, when known. Validates the close and returns the remainder. */
+	positionQuantity?: number | bigint;
 	builderCode?: boolean;
 	penaltyRate?: bigint;
 	/** Pre-trade payout-tree terms. Required when inventory impact is enabled. */
@@ -859,7 +890,11 @@ export interface RedeemLiveProceeds {
 	gross: number;
 	fees: { trading: number; builder: number; penalty: number; impactRebate: number };
 	quantityClosed: number;
-	/** Current per-contract value, 0..1 — `gross / quantityClosed`, before fees. */
+	/** Unclosed payout quantity, or null when positionQuantity was not supplied. */
+	remainingQuantity: number | null;
+	/** Net credited per $1 of closed payout; includes fees and the inventory rebate. */
+	proceedsPerContract: number;
+	/** Current range probability, 0..1, before amount rounding and fees. */
 	probability: number;
 	raw: {
 		proceeds: bigint;
@@ -869,6 +904,9 @@ export interface RedeemLiveProceeds {
 		penaltyFee: bigint;
 		impactRebate: bigint;
 		quantityClosed: bigint;
+		remainingQuantity: bigint | null;
+		/** 1e9-scaled range probability; locally priced inputs remain approximate. */
+		probability: bigint;
 	};
 	/** Identifies raw probability inputs; does not verify their source or state freshness. */
 	exactProbabilities: boolean;
@@ -895,6 +933,14 @@ export function redeemLiveProceeds(inputs: RedeemLiveInputs): RedeemLiveProceeds
 	const ttl = timeToExpiry(rawMs(inputs.expiryMs), rawMs(inputs.nowMs ?? Date.now()));
 	assertValidQuantity(quantity, lotSize);
 
+	const positionQuantity =
+		inputs.positionQuantity === undefined ? null : rawAmount(inputs.positionQuantity);
+	if (positionQuantity !== null) {
+		assertValidQuantity(positionQuantity, lotSize);
+		if (quantity > positionQuantity)
+			throw new PredictInputError('closeQuantity exceeds positionQuantity');
+	}
+	const remainingQuantity = positionQuantity === null ? null : positionQuantity - quantity;
 	const probability = rangeProbability(boundaries);
 	const gross = mulDown(probability, quantity);
 	const fee = min(tradingFee(inputs.fees, boundaries, quantity, ttl), gross);
@@ -913,6 +959,8 @@ export function redeemLiveProceeds(inputs: RedeemLiveInputs): RedeemLiveProceeds
 			impactRebate: fromRaw(rebate, 6),
 		},
 		quantityClosed: fromRaw(quantity, 6),
+		remainingQuantity: remainingQuantity === null ? null : fromRaw(remainingQuantity, 6),
+		proceedsPerContract: Number(proceeds) / Number(quantity),
 		probability: fromRaw(probability, 9),
 		raw: {
 			proceeds,
@@ -922,6 +970,8 @@ export function redeemLiveProceeds(inputs: RedeemLiveInputs): RedeemLiveProceeds
 			penaltyFee: penalty,
 			impactRebate: rebate,
 			quantityClosed: quantity,
+			remainingQuantity,
+			probability,
 		},
 		exactProbabilities: exact,
 	};

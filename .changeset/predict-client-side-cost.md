@@ -22,3 +22,6 @@ Update Testnet Predict/Sessions to v2 and preserve `predictV1` / `sessionsPackag
 structs, events and dynamic-field keys. Generate call targets and type origins from Published.toml
 alongside the initial deployment manifest; Mainnet remains v1. Add `tx.mintCost`,
 `read.quoteMintCost`, `SessionsContract.mintExactCost` and regenerated v2 Move bindings.
+
+Expose payout multiple and budget/cap/unspent amounts for mint previews, plus net proceeds per
+contract, raw range probability, and optional validated remaining quantity for live-redeem previews.

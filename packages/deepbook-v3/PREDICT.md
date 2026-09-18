@@ -320,10 +320,26 @@ cost.mintCost({ ...shape, quantity: 100 }).costPerContract; // all-in price, 0..
 // 2. I want to spend exactly $50 — how much payout is that? (`mint_exact_cost`, client-side)
 const sized = cost.mintCostForBudget({ ...shape, budget: 50 });
 sized.quantity; // a lot-rounded fill whose ALL-IN cost fits $50
-sized.cost; // ≤ 50, also subject to the maximum-payout bound and lot cap
+sized.cost; // actual all-in debit, ≤ 50
+sized.costPerContract; // all-in price per $1 payout
+sized.payoutMultiple; // maximum payout / actual all-in cost
+sized.effectiveBudget; // min(budget, accountBalance), if balance was supplied
+sized.unspentBudget; // requested budget - actual cost, including any balance-cap shortfall
+sized.fees; // trading, subsidy, builder, penalty, impact
 
 // 3. What would closing this position credit me?
-cost.redeemLiveProceeds({ ...shape, closeQuantity: 100 }).proceeds; // net of fees
+const close = cost.redeemLiveProceeds({
+	...shape,
+	closeQuantity: 40,
+	positionQuantity: 100, // optional; validates the close and reports the remaining payout
+});
+close.proceeds; // net credit, including any inventory rebate
+close.gross; // value before fees and rebate
+close.proceedsPerContract; // net credit / closed payout
+close.remainingQuantity; // 60; null if positionQuantity was omitted
+close.fees; // trading, builder, penalty, impactRebate
+close.raw.proceeds; // exact integer amount for min_proceeds (before your slippage buffer)
+close.raw.probability; // raw 1e9 probability for min_probability
 ```
 
 **Local preview or simulation?** If you already call `read.quoteRedeem`, you do not need a second
@@ -338,10 +354,15 @@ the simulation to check the actual trade before submission.
 | `read.quoteMint` / `read.quoteMintCost` / `read.quoteRedeem` | A simulated trade receipt, including cost or proceeds        | Yes; executes the transaction in simulation against account and market state |
 
 The `cost` functions return synchronously. Their top-level amounts are human-readable numbers; `raw`
-carries integer amounts as bigints. They do not check account ownership, remaining position size,
-pauses, the no-trade window, oracle freshness or available cash backing. A simulation checks the
-execution path, but its quote can still change before submission; keep the transaction's `maxCost` /
-`minProceeds` slippage bounds.
+carries integer amounts as bigints. `quantity` is the mint's maximum potential payout; it is not
+profit. `payoutMultiple` uses the all-in cost, so it includes fee drag. Ratios and human-readable
+numbers are for display; use raw bigints for amount bounds. `remainingQuantity` uses the supplied
+`positionQuantity`, and a partial close's replacement order ID comes from the execution receipt.
+
+These calculations do not check account ownership or the on-chain position size (they can validate a
+supplied `positionQuantity`), pauses, the no-trade window, oracle freshness or available cash
+backing. A simulation checks the execution path, but its quote can still change before submission;
+keep the transaction's `maxCost` / `minProceeds` slippage bounds.
 
 **Why the budget form exists.** Every fee is charged _on top of_ the premium, and `mintAmount` sizes
 on premium alone — so "spend exactly $X" means quoting, subtracting an estimated fee load, padding

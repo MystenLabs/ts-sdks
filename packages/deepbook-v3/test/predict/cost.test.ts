@@ -680,3 +680,198 @@ describe('quote input validation', () => {
 		).toThrow(PredictInputError);
 	});
 });
+
+// Independent accounting reference shared with the executed Move flow in
+// deepbookv3 #1311: tests/flows/mint_exact_cost_accounting_tests.move.
+// Its ATM raw probability lies in an interval whose rounded premiums agree with
+// 499_993_500 below. No expected amount here is calculated using the SDK under test.
+describe('Move accounting reference: repeated budget mints and live closes', () => {
+	const fees: cost.FeePolicy = {
+		...FLOORED,
+		inventoryImpactMaxRate: 200_000_000n,
+		inventoryImpactScale: 10_000_000_000n,
+		backingBufferLambda: 500_000_000n,
+	};
+	const common = {
+		fees,
+		expiryMs: FAR_EXPIRY,
+		nowMs: NOW,
+		probabilities: { lowerUp: 499_993_500n, higherUp: null },
+		builderCode: true,
+	};
+	test('the same budget buys less after the first inventory charge changes the book', () => {
+		const first = cost.mintCostForBudget({
+			...common,
+			budget: 2_018_134n,
+			feeIncentiveBalance: 1_000_000_000n,
+			book: { maxPayout: 0n, totalPayout: 0n, rangeMaxPayout: 0n },
+		});
+		expect(first.raw).toMatchObject({
+			quantity: 4_000_000n,
+			premium: 1_999_974n,
+			tradingFee: 20_000n,
+			subsidy: 4_000n,
+			builderFee: 2_000n,
+			penaltyFee: 0n,
+			impactCharge: 160n,
+			cost: 2_018_134n,
+		});
+		const second = cost.mintCostForBudget({
+			...common,
+			budget: 2_018_134n,
+			feeIncentiveBalance: 999_996_000n,
+			book: { maxPayout: 4_000_000n, totalPayout: 4_000_000n, rangeMaxPayout: 4_000_000n },
+		});
+		expect(second.raw).toMatchObject({
+			quantity: 3_990_000n,
+			premium: 1_994_974n,
+			tradingFee: 19_950n,
+			subsidy: 3_990n,
+			builderFee: 1_995n,
+			penaltyFee: 0n,
+			impactCharge: 478n,
+			cost: 2_013_407n,
+			unspentBudget: 4_727n,
+		});
+	});
+	test('live closes return the current book rebate, not the order’s original charge', () => {
+		const first = cost.redeemLiveProceeds({
+			...common,
+			closeQuantity: 4_000_000n,
+			book: {
+				maxPayout: 7_990_000n,
+				totalPayout: 7_990_000n,
+				rangeMaxPayout: 7_990_000n,
+				complementMaxPayout: 0n,
+			},
+		});
+		expect(first.raw).toMatchObject({
+			gross: 1_999_974n,
+			tradingFee: 20_000n,
+			builderFee: 2_000n,
+			penaltyFee: 0n,
+			impactRebate: 479n,
+			proceeds: 1_978_453n,
+		});
+		const second = cost.redeemLiveProceeds({
+			...common,
+			closeQuantity: 3_990_000n,
+			book: {
+				maxPayout: 3_990_000n,
+				totalPayout: 3_990_000n,
+				rangeMaxPayout: 3_990_000n,
+				complementMaxPayout: 0n,
+			},
+		});
+		expect(second.raw).toMatchObject({
+			gross: 1_994_974n,
+			tradingFee: 19_950n,
+			builderFee: 1_995n,
+			penaltyFee: 0n,
+			impactRebate: 159n,
+			proceeds: 1_973_188n,
+		});
+		// The Move accounting flow independently asserts this exact total round-trip loss.
+		expect(2_018_134n + 2_013_407n - first.raw.proceeds - second.raw.proceeds).toBe(79_900n);
+	});
+});
+
+describe('frontend preview fields', () => {
+	test('budget, balance cap, actual spend, unspent amount and payout multiple', () => {
+		const result = cost.mintCostForBudget({
+			fees: FLOORED,
+			expiryMs: FAR_EXPIRY,
+			nowMs: NOW,
+			probabilities: UP_AT_60,
+			budget: 10,
+			accountBalance: 8,
+		});
+		expect(result.raw).toMatchObject({
+			budget: 10_000_000n,
+			effectiveBudget: 8_000_000n,
+			quantity: 13_220_000n,
+			cost: 7_998_100n,
+			unspentBudget: 2_001_900n,
+		});
+		expect(result.budget).toBe(10);
+		expect(result.effectiveBudget).toBe(8);
+		expect(result.unspentBudget).toBe(2.0019);
+		expect(result.quantity).toBe(13.22);
+		expect(result.costPerContract).toBeCloseTo(0.605, 12);
+		expect(result.payoutMultiple).toBeCloseTo(1 / 0.605, 12);
+	});
+	test('partial redeem returns exact probability, net price and remaining quantity', () => {
+		const result = cost.redeemLiveProceeds({
+			fees: FLOORED,
+			expiryMs: FAR_EXPIRY,
+			nowMs: NOW,
+			probabilities: UP_AT_60,
+			closeQuantity: 40,
+			positionQuantity: 100,
+			builderCode: true,
+			penaltyRate: 1_000_000n,
+		});
+		expect(result.raw).toMatchObject({
+			probability: 600_000_000n,
+			quantityClosed: 40_000_000n,
+			remainingQuantity: 60_000_000n,
+			gross: 24_000_000n,
+			tradingFee: 200_000n,
+			builderFee: 20_000n,
+			penaltyFee: 40_000n,
+			impactRebate: 0n,
+			proceeds: 23_740_000n,
+		});
+		expect(result.remainingQuantity).toBe(60);
+		expect(result.proceedsPerContract).toBe(0.5935);
+		expect(result.proceeds).toBe(23.74);
+	});
+	test('unknown position size remains unknown; full close returns zero', () => {
+		const inputs = {
+			fees: FLOORED,
+			expiryMs: FAR_EXPIRY,
+			nowMs: NOW,
+			probabilities: UP_AT_60,
+			closeQuantity: 40,
+		};
+		expect(cost.redeemLiveProceeds(inputs).remainingQuantity).toBeNull();
+		expect(cost.redeemLiveProceeds(inputs).raw.remainingQuantity).toBeNull();
+		expect(cost.redeemLiveProceeds({ ...inputs, positionQuantity: 40 }).remainingQuantity).toBe(0);
+		expect(() => cost.redeemLiveProceeds({ ...inputs, positionQuantity: 20 })).toThrow(
+			/exceeds positionQuantity/,
+		);
+		expect(() => cost.redeemLiveProceeds({ ...inputs, positionQuantity: 40.001 })).toThrow(
+			/EInvalidQuantity/,
+		);
+	});
+	test('deductions cannot consume the inventory rebate when gross is exhausted', () => {
+		const result = cost.redeemLiveProceeds({
+			fees: {
+				...FLOORED,
+				inventoryImpactMaxRate: 200_000_000n,
+				inventoryImpactScale: 10_000_000_000n,
+			},
+			expiryMs: FAR_EXPIRY,
+			nowMs: NOW,
+			probabilities: { lowerUp: 1n, higherUp: null },
+			closeQuantity: 100,
+			builderCode: true,
+			penaltyRate: 500_000_000n,
+			book: {
+				maxPayout: 100_000_000n,
+				totalPayout: 100_000_000n,
+				rangeMaxPayout: 100_000_000n,
+				complementMaxPayout: 0n,
+			},
+		});
+		expect(result.raw).toMatchObject({
+			gross: 0n,
+			tradingFee: 0n,
+			builderFee: 0n,
+			penaltyFee: 0n,
+			impactRebate: 100_000n,
+			proceeds: 100_000n,
+			probability: 1n,
+		});
+	});
+});

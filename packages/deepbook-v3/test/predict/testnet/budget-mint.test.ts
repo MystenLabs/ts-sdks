@@ -2,11 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 // Read-only simulation: no keys, signatures or transactions are submitted. Opt in with
 // an existing Testnet account whose owner holds at least 10 quote coins in their wallet.
+import { bcs } from '@mysten/sui/bcs';
+import { accountMoveCalls } from '../../../src/account.js';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { expect, test } from 'vitest';
 import { deriveDynamicFieldID, normalizeStructTag } from '@mysten/sui/utils';
 import {
 	PredictClient,
+	cost,
+	predictAccountMoveCalls,
+	protocolConfigMoveCalls,
 	expiryMarketMoveCalls,
 	generateAuth,
 	toGeneratedConfig,
@@ -32,6 +37,21 @@ test.skipIf(!owner).each(['owner', 'session'] as const)(
 		);
 		const market = markets.sort((a, b) => Number(b.expiryMs - a.expiryMs))[0];
 		expect(market, 'a live market with at least 30 seconds remaining is required').toBeDefined();
+		const { object: marketObject } = await client.core.getObject({
+			objectId: market.id,
+			include: { content: true },
+		});
+		const state = expiryMarketMoveCalls.ExpiryMarket.parse(marketObject.content!);
+		const policy = state.strike_exposure.config;
+		const { object: configObject } = await client.core.getObject({
+			objectId: pc.cfg.objects.protocolConfig,
+			include: { content: true },
+		});
+		const protocol = protocolConfigMoveCalls.ProtocolConfig.parse(configObject.content!);
+		// Nonzero impact and congestion are covered by deterministic accounting tests.
+		// Fail explicitly if this live fixture starts needing an evolving payout-tree/EWMA snapshot.
+		expect(policy.inventory_impact_max_rate).toBe(0n);
+		expect(protocol.ewma_config.enabled).toBe(false);
 		const price = await pc.read.pricer({ underlying: 'BTC', expiryMs: market.expiryMs });
 		const strike = Math.round(price.forward / market.admissionTickSize) * market.admissionTickSize;
 		const lowerTick = BigInt(Math.round(strike / market.tickSize));
@@ -60,6 +80,19 @@ test.skipIf(!owner).each(['owner', 'session'] as const)(
 			maxCost: 10_000_000n,
 			minQuantity: 1n,
 		};
+		const sponsorResult = tx.add(
+			expiryMarketMoveCalls.feeIncentiveBalance({ config: cfg, arguments: { market: market.id } }),
+		);
+		const account = tx.add(
+			accountMoveCalls.loadAccount({ config: cfg, arguments: { self: wrapperId } }),
+		);
+		const builderResult = tx.add(
+			predictAccountMoveCalls.builderCodeId({ config: cfg, arguments: { account } }),
+		);
+		const timeResult = tx.moveCall({
+			target: '0x2::clock::timestamp_ms',
+			arguments: [tx.object('0x6')],
+		});
 		const quoteResult = tx.add(
 			expiryMarketMoveCalls.quoteMintExactCostForAccount({ config: cfg, arguments: args }),
 		);
@@ -98,6 +131,39 @@ test.skipIf(!owner).each(['owner', 'session'] as const)(
 		const quote = expiryMarketMoveCalls.MintQuote.parse(
 			result.commandResults![quoteResult.Result].returnValues[0].bcs,
 		);
+		const rawReturn = (index: number) => result.commandResults![index].returnValues[0].bcs;
+		const local = cost.mintCostForBudget({
+			fees: {
+				baseFee: policy.base_fee,
+				minFee: policy.min_fee,
+				expiryFeeWindowMs: policy.expiry_fee_window_ms,
+				expiryFeeMaxMultiplier: policy.expiry_fee_max_multiplier,
+				minEntryProbability: policy.min_entry_probability,
+				maxEntryProbability: policy.max_entry_probability,
+				inventoryImpactMaxRate: policy.inventory_impact_max_rate,
+				inventoryImpactScale: state.strike_exposure.inventory_impact_scale,
+				backingBufferLambda: policy.backing_buffer_lambda,
+			},
+			expiryMs: state.expiry,
+			nowMs: BigInt(bcs.u64().parse(rawReturn(timeResult.Result))),
+			// This is an UP order. Its raw range probability is its single finite boundary.
+			probabilities: { lowerUp: quote.entry_probability, higherUp: null },
+			builderCode: bcs.option(bcs.Address).parse(rawReturn(builderResult.Result)) !== null,
+			feeIncentiveBalance: BigInt(bcs.u64().parse(rawReturn(sponsorResult.Result))),
+			budget: 10_000_000n,
+			minQuantity: 1n,
+		});
+		expect(local.raw).toMatchObject({
+			quantity: quote.quantity,
+			premium: quote.premium,
+			entryProbability: quote.entry_probability,
+			tradingFee: quote.trading_fee,
+			subsidy: quote.fee_incentive_subsidy,
+			builderFee: quote.builder_fee,
+			penaltyFee: quote.penalty_fee,
+			impactCharge: quote.inventory_impact_charge,
+			cost: quote.all_in_cost,
+		});
 		const receipt = pc.decode.mint({ events: result.Transaction!.events! });
 
 		// Prove identities against actual VM output, not values calculated solely from SDK config.
