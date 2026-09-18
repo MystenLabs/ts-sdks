@@ -4,6 +4,7 @@
 // an existing Testnet account whose owner holds at least 10 quote coins in their wallet.
 import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { expect, test } from 'vitest';
+import { deriveDynamicFieldID, normalizeStructTag } from '@mysten/sui/utils';
 import {
 	PredictClient,
 	expiryMarketMoveCalls,
@@ -86,7 +87,7 @@ test.skipIf(!owner).each(['owner', 'session'] as const)(
 		const result = await client.core.simulateTransaction({
 			transaction: tx,
 			checksEnabled: false,
-			include: { events: true, commandResults: true },
+			include: { events: true, commandResults: true, objectTypes: true },
 		});
 		expect(
 			result.$kind,
@@ -98,6 +99,53 @@ test.skipIf(!owner).each(['owner', 'session'] as const)(
 			result.commandResults![quoteResult.Result].returnValues[0].bcs,
 		);
 		const receipt = pc.decode.mint({ events: result.Transaction!.events! });
+
+		// Prove identities against actual VM output, not values calculated solely from SDK config.
+		const types = result.Transaction!.objectTypes!;
+		const events = result.Transaction!.events!;
+		const original = pc.cfg.packages.predictV1!;
+		expect(
+			events
+				.filter((event) => event.eventType.endsWith('::order_events::OrderMinted'))
+				.map((event) => event.eventType),
+		).toEqual([`${original}::order_events::OrderMinted`]);
+		const dataKey = (pkg: string) =>
+			`${pc.cfg.packages.account}::account::DataKey<${pkg}::predict_account::PredictApp>`;
+		const accountId = sessions.deriveAccountId(owner!);
+		const fieldId = deriveDynamicFieldID(accountId, dataKey(original), new Uint8Array([0]));
+		const wrongFieldId = deriveDynamicFieldID(
+			accountId,
+			dataKey(pc.cfg.packages.predict),
+			new Uint8Array([0]),
+		);
+		expect(fieldId).not.toBe(wrongFieldId);
+		expect(types[fieldId]).toBeDefined();
+		expect(normalizeStructTag(types[fieldId])).toBe(
+			normalizeStructTag(
+				`0x2::dynamic_field::Field<${dataKey(original)}, ${original}::predict_account::PredictData>`,
+			),
+		);
+		expect(types[wrongFieldId]).toBeUndefined();
+		if (mode === 'session') {
+			const sessionCfg = getSessionsConfig('testnet');
+			const sessionFieldId = sessions.deriveSessionsFieldId(owner!);
+			const wrongSessions = new SessionsContract({
+				...sessionCfg,
+				sessionsPackageIdV1: sessionCfg.sessionsPackageId,
+			});
+			expect(types[sessionFieldId]).toBeDefined();
+			expect(normalizeStructTag(types[sessionFieldId])).toBe(
+				normalizeStructTag(
+					`0x2::dynamic_field::Field<${pc.cfg.packages.account}::account::DataKey<${sessionCfg.sessionsPackageIdV1}::sessions::SessionsApp>, ${sessionCfg.sessionsPackageIdV1}::sessions::SessionsData>`,
+				),
+			);
+			expect(types[wrongSessions.deriveSessionsFieldId(owner!)]).toBeUndefined();
+			expect(
+				events
+					.filter((event) => event.eventType.endsWith('::sessions::SessionAuthorized'))
+					.map((event) => event.eventType),
+			).toEqual([`${sessionCfg.sessionsPackageIdV1}::sessions::SessionAuthorized`]);
+		}
 		expect(receipt.raw.quantity).toBe(quote.quantity);
 		expect(receipt.raw.quantity % 10_000n).toBe(0n);
 		expect(quote.all_in_cost).toBeGreaterThan(0n);

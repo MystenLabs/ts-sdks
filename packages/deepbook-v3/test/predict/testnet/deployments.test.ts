@@ -170,3 +170,17 @@ describe('v2 package publication and type origins', () => {
 		},
 	);
 });
+
+test.each([
+	[TESTNET_PREDICT.packages.predictV1, 'expiry_market'],
+	[getSessionsConfig('testnet').sessionsPackageIdV1!, 'sessions'],
+])('v1 %s still exists but does not expose the new budget mint', async (packageId, moduleName) => {
+	const { response } = await client.movePackageService.getPackage({ packageId });
+	expect(response.package?.version).toBe(1n);
+	const functions = response.package?.modules
+		.find((module) => module.name === moduleName)
+		?.functions.map((fn) => fn.name);
+	expect(functions).toContain('mint_exact_quantity');
+	expect(functions).not.toContain('mint_exact_cost');
+	expect(functions).not.toContain('quote_mint_exact_cost_for_account');
+});

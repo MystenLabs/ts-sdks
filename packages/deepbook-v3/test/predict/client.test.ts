@@ -764,3 +764,20 @@ describe('v2 all-in budget mint', () => {
 		await expect(pc.tx.mintCost(OWNER, market, opts)).rejects.toThrow();
 	});
 });
+
+test('custom latest call target and original event ID remain independent through the facade', async () => {
+	const latest = '0x' + 'ec'.repeat(32);
+	const config = { ...cfg, packages: { ...cfg.packages, predict: latest } };
+	const pc = new PredictClient({ network: 'testnet', client: mockClient().client, config });
+	const market = { underlying: 'BTC', expiryMs: EXPIRY, strike: 105_000, side: 'up' } as const;
+	const tx = await pc.tx.mintCost(OWNER, market, { spend: 20, minQuantity: 0 });
+	expect(targets(tx)).toEqual([
+		`${latest}::expiry_market::load_live_pricer`,
+		`${cfg.packages.account}::account::generate_auth`,
+		`${latest}::expiry_market::mint_exact_cost`,
+	]);
+	// The mock returns an event with the original type ID, not the custom call target.
+	expect((await pc.read.quoteMintCost(OWNER, market, { spend: 20, minQuantity: 0 })).raw.cost).toBe(
+		17_155_000n,
+	);
+});

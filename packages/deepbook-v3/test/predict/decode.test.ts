@@ -296,3 +296,38 @@ test('a v2 call target does not change the v1 event identity', () => {
 		}),
 	).toHaveLength(0);
 });
+
+test.each(['eventType', 'type'] as const)(
+	'v1 %s takes precedence over emitting-package metadata',
+	(tagKey) => {
+		const { eventType, ...event } = mintedEvent(7n);
+		expect(
+			decodeMints(cfg, {
+				events: [
+					{
+						...event,
+						[tagKey]: eventType,
+						packageId: cfg.packages.predict,
+						module: 'expiry_market',
+					},
+				],
+			})[0].orderId,
+		).toBe(7n);
+	},
+);
+
+test('an explicit custom v1 origin decodes events independently of the call target', () => {
+	const origin = '0x' + 'aa'.repeat(32);
+	const custom = { ...cfg, packages: { ...cfg.packages, predictV1: origin } };
+	const event = { ...mintedEvent(7n), eventType: `${origin}::order_events::OrderMinted` };
+	expect(decodeMints(custom, { events: [event] })).toHaveLength(1);
+	expect(decodeMints(cfg, { events: [event] })).toHaveLength(0);
+});
+
+test('unupgraded custom configs retain the legacy single-ID behavior', () => {
+	const custom = {
+		...cfg,
+		packages: { ...cfg.packages, predict: cfg.packages.predictV1!, predictV1: undefined },
+	};
+	expect(decodeMints(custom, { events: [mintedEvent(7n)] })).toHaveLength(1);
+});

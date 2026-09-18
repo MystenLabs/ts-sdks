@@ -157,3 +157,24 @@ describe('position enumeration', () => {
 		expect(calls.listDynamicFields).toBe(afterFirst.listDynamicFields + 1);
 	});
 });
+
+test('changing only the call target preserves the v1 positions table', async () => {
+	const { client } = mockClient();
+	const moved = { ...config, predictPackageId: '0x' + 'ef'.repeat(32) };
+	expect(await resolvePositionsTable(client, moved, OWNER)).toEqual({
+		accountUid: ACCOUNT_UID,
+		positionsTableId: TABLE_ID,
+		positionCount: 2n,
+	});
+});
+
+test('using the latest ID as a type origin loses the positions table (negative control)', async () => {
+	const { client } = mockClient();
+	expect(config.predictPackageId).not.toBe(config.predictPackageIdV1);
+	const wrong = { ...config, predictPackageIdV1: config.predictPackageId };
+	expect(await resolvePositionsTable(client, wrong, OWNER)).toEqual({
+		accountUid: ACCOUNT_UID,
+		positionsTableId: null,
+		positionCount: 0n,
+	});
+});

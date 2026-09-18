@@ -50,8 +50,8 @@ function eventBytes(e: DecodableEvent): Uint8Array | null {
 }
 
 // Match by defining package + module + struct name. Events are typed by the
-// ORIGINAL package id; for the current v1 deployments that equals the config
-// package id.
+// package version that introduced their struct, not the latest Move-call target.
+// All events decoded here were introduced in v1.
 function matches(e: DecodableEvent, pkg: string, module: string, name: string): boolean {
 	const tag = e.eventType ?? e.type;
 	if (tag) {
