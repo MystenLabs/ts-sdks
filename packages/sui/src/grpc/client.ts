@@ -19,6 +19,7 @@ import { NameServiceClient } from './proto/sui/rpc/v2/name_service.client.js';
 import { ForkingServiceClient } from './proto/sui/forking/v1alpha/forking_service.client.js';
 import type { TransactionPlugin } from '../transactions/index.js';
 import { GrpcWebFetchTransport } from './transport.js';
+import { CLIENT_VERSION_HEADERS } from '../client/version-headers.js';
 
 interface SuiGrpcTransportOptions extends GrpcWebOptions {
 	transport?: never;
@@ -167,7 +168,15 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 		} = options as SuiGrpcClientOptions & SuiGrpcTransportOptions & { transport?: RpcTransport };
 
 		// A caller-supplied transport is used as given. See ./transport.ts for the default.
-		const transport = providedTransport ?? new GrpcWebFetchTransport(transportOptions);
+		const transport =
+			providedTransport ??
+			new GrpcWebFetchTransport({
+				...transportOptions,
+				meta: {
+					...transportOptions.meta,
+					...CLIENT_VERSION_HEADERS,
+				},
+			});
 		this.transactionExecutionService = new TransactionExecutionServiceClient(transport);
 		this.ledgerService = new LedgerServiceClient(transport);
 		this.stateService = new StateServiceClient(transport);
