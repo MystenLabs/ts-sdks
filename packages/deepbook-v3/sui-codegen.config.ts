@@ -4,14 +4,12 @@
 import type { SuiCodegenConfig } from '@mysten/codegen';
 
 // The `@local-pkg/*` entries are not registered on MVR, so they generate from the local Move
-// source in the sibling `deepbookv3` checkout (same pattern the `@deepbook/*` entries use),
-// on the `deepbook-predict-testnet` deployment branch — what is live on testnet. Its
-// predict/account/propbook Move sources are byte-identical to deepbookv3 `main` — the
-// deployment's trailing commits add no Move sources, only publication metadata and deploy
-// tooling — so "generate against the commit that gets deployed" and "against main" name
-// the same sources here, and the branch tip is also the only ref where `pnpm sync-deployment`
-// finds the manifest. One checkout serves both. Re-verify that identity before assuming it at the
-// next deploy: if main has moved past the deployment, the deployment wins.
+// source in the sibling `deepbookv3` checkout (same pattern the `@deepbook/*` entries use).
+// Predict and Sessions bindings were regenerated from PR #1311's published v2 sources
+// (a6da5b5d1ef9092949753f7693f2de515e015eb6). Use the matching deployment manifest and
+// Published.toml records when running sync-deployment; those separate current call targets
+// from the original IDs of existing types. Mainnet is still v1, so v2-only entrypoints are
+// currently available on Testnet only.
 //
 // One `pnpm codegen` run regenerates EVERY entry below from whatever commit that checkout is on,
 // so check it out to the intended anchor first and diff the result — a regeneration meant for one

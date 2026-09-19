@@ -187,22 +187,23 @@ const tx = await client.predict.tx.mint(
 
 ## What's in the box
 
-- **`client.predict.tx`** — `createManager`, `deposit`, `withdraw`, `mint`, `mintAmount`, `redeem`,
-  `claimSettled`, `supplyPlp`, `withdrawPlp`, `cancelSupplyPlp`, `cancelWithdrawPlp`,
-  `setBuilderCode`, `unsetBuilderCode`. Market-resolving builders
-  (`mint`/`mintAmount`/`redeem`/`claimSettled`) are async: they resolve the market object from
-  `{ underlying, expiryMs, strike, side }` via the on-chain registry (cached per client).
+- **`client.predict.tx`** — `createManager`, `deposit`, `withdraw`, `mint`, `mintAmount`,
+  `mintCost`, `redeem`, `claimSettled`, `supplyPlp`, `withdrawPlp`, `cancelSupplyPlp`,
+  `cancelWithdrawPlp`, `setBuilderCode`, `unsetBuilderCode`. Market-resolving builders
+  (`mint`/`mintAmount`/`mintCost`/`redeem`/`claimSettled`) are async: they resolve the market object
+  from `{ underlying, expiryMs, strike, side }` via the on-chain registry (cached per client).
 - **`client.predict.read`** — `markets()` (summaries of the pool's **active** markets — live and not
   yet settled, so a market past expiry that nobody has settled is still listed and quoting against
   it aborts; filter on `expiryMs` and `mintPaused` before trading: id, expiry, tick size, admission
   tick size, mint-paused, reference price), `market(desc)` (state + live NAV), `price(m)` (anonymous
   both-sides pricing for any strike, one chain call per strike), `pricer(m)` (a **client-side board
   pricer** — one chain read of the resolved pricer, then price every strike locally; see below),
-  `quoteMint(owner, m, opts)` / `quoteRedeem(owner, m, opts)` (exact dry-run quotes: real fees from
-  the real code path — and they throw the same typed errors the real trade would, so a quote doubles
-  as preflight), `balance(owner)`, `plpBalance(owner)`, `pool()`, `positions(owner)` (chain-only
-  enumeration of open positions), `hasPosition(owner, marketId, orderId)`. All reads run over the
-  client's `simulateTransaction`; no indexer required.
+  `quoteMint(owner, m, opts)` / `quoteMintCost(owner, m, opts)` / `quoteRedeem(owner, m, opts)`
+  (exact dry-run quotes: real fees from the real code path — and they throw the same typed errors
+  the real trade would, so a quote doubles as preflight), `balance(owner)`, `plpBalance(owner)`,
+  `pool()`, `positions(owner)` (chain-only enumeration of open positions),
+  `hasPosition(owner, marketId, orderId)`. All reads run over the client's `simulateTransaction`; no
+  indexer required.
 - **`client.predict.decode`** — pure execution-result decoders (no network): `mint`, `redeem`,
   `claim`, `createManager`, `deposit`, `withdraw`, `plpRequest`, `plpCancel`, `builderCode`. Each
   singular form throws unless exactly one matching event is present; `mints`, `redeems` and `claims`
@@ -244,6 +245,11 @@ const tx = await client.predict.tx.mint(
   );
   tx.add(accountMoveCalls.share({ config, arguments: { self: wrapper } }));
   ```
+
+- **`cost`** — the deployed FEE math as an exact integer port, so an all-in quote costs no chain
+  call: `mintCost` (what a mint debits), `mintCostForBudget` (the `mint_exact_cost` budget search),
+  `redeemLiveProceeds` (what a live close credits), plus the components they are built from. See
+  below.
 
 - **Typed errors** — invalid inputs throw `PredictInputError` before the chain sees them; failed
   simulations throw `PredictMoveError` with the decoded Move abort (`module`, `code`, `abortName`).
@@ -289,10 +295,122 @@ const fwd = pricing.forward(pythSpot, bsSpot, bsForward); // Pyth re-anchored by
 const rolled = pricing.rollDown(rawSvi, remainingMs, anchorTteMs); // decay a, b toward expiry
 ```
 
+## Client-side cost (`cost`)
+
+`pricing` gives the contract's probability; `cost` turns it into what the chain actually debits and
+credits, with no chain call at all — no `devInspect`, no dry run. It is an exact integer port of the
+deployed fee path: the per-boundary Bernoulli trading fee and its expiry ramp, the builder cut, the
+sponsor subsidy, the congestion surcharge, and the inventory-impact charge and rebate, each rounded
+the way the contract rounds it.
+
+```ts
+import { cost } from '@mysten/deepbook-v3/predict';
+
+const pricer = await client.predict.read.pricer({ underlying: 'BTC', expiryMs });
+const shape = {
+	fees: cost.SHIPPED_FEE_POLICY, // or the market's own MarketCreated snapshot
+	expiryMs,
+	probabilities: { pricer, lower: 105_000, upper: null }, // an UP order at $105k
+};
+
+// 1. What does 100 USDC of payout cost me, all in?
+cost.mintCost({ ...shape, quantity: 100 }).cost; // premium + fees, in USDC
+cost.mintCost({ ...shape, quantity: 100 }).costPerContract; // all-in price, 0..1
+
+// 2. I want to spend exactly $50 — how much payout is that? (`mint_exact_cost`, client-side)
+const sized = cost.mintCostForBudget({ ...shape, budget: 50 });
+sized.quantity; // a lot-rounded fill whose ALL-IN cost fits $50
+sized.cost; // actual all-in debit, ≤ 50
+sized.costPerContract; // all-in price per $1 payout
+sized.payoutMultiple; // maximum payout / actual all-in cost
+sized.effectiveBudget; // min(budget, accountBalance), if balance was supplied
+sized.unspentBudget; // requested budget - actual cost, including any balance-cap shortfall
+sized.fees; // trading, subsidy, builder, penalty, impact
+
+// 3. What would closing this position credit me?
+const close = cost.redeemLiveProceeds({
+	...shape,
+	closeQuantity: 40,
+	positionQuantity: 100, // optional; validates the close and reports the remaining payout
+});
+close.proceeds; // net credit, including any inventory rebate
+close.gross; // value before fees and rebate
+close.proceedsPerContract; // net credit / closed payout
+close.remainingQuantity; // 60; null if positionQuantity was omitted
+close.fees; // trading, builder, penalty, impactRebate
+close.raw.proceeds; // exact integer amount for min_proceeds (before your slippage buffer)
+close.raw.probability; // raw 1e9 probability for min_probability
+```
+
+**Local preview or simulation?** If you already call `read.quoteRedeem`, you do not need a second
+quote for the same close. Use the local helper when a changing input needs an immediate preview; use
+the simulation to check the actual trade before submission.
+
+| API                                                          | Returns                                                      | Reads the chain?                                                             |
+| ------------------------------------------------------------ | ------------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| `cost.mintCost`                                              | Cost and fee breakdown for an exact payout quantity          | No; uses the supplied snapshot                                               |
+| `cost.mintCostForBudget`                                     | The same result, with quantity sized within an all-in budget | No; uses the supplied snapshot                                               |
+| `cost.redeemLiveProceeds`                                    | Net proceeds, gross value, closed quantity and fee breakdown | No; uses the supplied snapshot                                               |
+| `read.quoteMint` / `read.quoteMintCost` / `read.quoteRedeem` | A simulated trade receipt, including cost or proceeds        | Yes; executes the transaction in simulation against account and market state |
+
+The `cost` functions return synchronously. Their top-level amounts are human-readable numbers; `raw`
+carries integer amounts as bigints. `quantity` is the mint's maximum potential payout; it is not
+profit. `payoutMultiple` uses the all-in cost, so it includes fee drag. Ratios and human-readable
+numbers are for display; use raw bigints for amount bounds. `remainingQuantity` uses the supplied
+`positionQuantity`, and a partial close's replacement order ID comes from the execution receipt.
+
+These calculations do not check account ownership or the on-chain position size (they can validate a
+supplied `positionQuantity`), pauses, the no-trade window, oracle freshness or available cash
+backing. A simulation checks the execution path, but its quote can still change before submission;
+keep the transaction's `maxCost` / `minProceeds` slippage bounds.
+
+**Why the budget form exists.** Every fee is charged _on top of_ the premium, and `mintAmount` sizes
+on premium alone — so "spend exactly $X" means quoting, subtracting an estimated fee load, padding
+it so the mint does not abort, and systematically underspending. `mintCostForBudget` runs the same
+lot search the contract's `mint_exact_cost` runs, over the same cost function, so it returns the
+fill that entrypoint would size. On v2 deployments, use
+`tx.mintCost(owner, market, { spend: 50, minQuantity })` to let the chain size the fill against the
+same all-in budget. When only the budget binds, one more lot would exceed it. The maximum-payout
+bound or the lot cap can leave a larger remainder. If the budget fill costs more than its payout,
+the contract uses a best-effort step-down search. Integer rounding makes that condition nonmonotone:
+the fallback can miss a larger admissible fill or throw for `minQuantity` even when another fill
+would satisfy it. The SDK preserves that behavior.
+
+**What is exact, and what you must supply.** The integer arithmetic matches the contract when all
+inputs match: probabilities, fee policy, builder attribution, sponsor balance, congestion, book
+state and timestamp. The local float pricer introduces an approximation (~1e-4). You can instead
+pass `{ lowerUp, higherUp }` as raw 1e9 bigints; `read.price` returns decimal numbers, so convert
+its `up` value with the exported `probabilityToRaw` helper first. `exactProbabilities: true` only
+means raw probabilities were supplied. It does not verify their source or certify current chain
+state.
+
+When `inventoryImpactMaxRate` is nonzero, `book` is required; omitting it throws instead of quoting
+a zero charge or rebate. The congestion rate defaults to zero (disabled in the shipped template);
+when enabled, supply `penaltyRate`, calculated by `cost.congestionPenaltyRate` from the market's
+gas-price EWMA and the transaction's gas price. Supply `builderCode`, `feeIncentiveBalance` and, for
+account-capped budget sizing, `accountBalance` to reflect the account being quoted. The fee
+**policy** is a per-market snapshot taken at creation — use the market's `MarketCreated` event, or
+`cost.SHIPPED_FEE_POLICY` only for a market created under that template.
+
+Invalid raw domains (including negative amounts/rates, probabilities outside `[0, 1e9]`, and invalid
+lot sizes) throw `PredictInputError` before arithmetic. Supplied book totals must also be
+consistent, and enabled inventory impact requires a positive scale.
+
+Admission is enforced locally too: the entry-probability band, the `min_premium` floor, the lot
+grid, and the "a contract may never cost more than it can pay out" bound each throw the
+`PredictInputError` naming the abort the chain would have raised. `read.quoteMint` /
+`read.quoteRedeem` remain the authoritative pre-trade quote — they run the real code path against
+real account state; `cost` is what you reach for when you cannot afford a round trip per keystroke.
+
+The components are exported too (`tradingFee`, `builderFee`, `feeIncentiveSubsidy`,
+`congestionPenaltyRate`, `mintInventoryImpact`, `closeInventoryImpact`, `expiryFeeMultiplier`,
+`bernoulliFeeRate`), along with `decodeOrderRange` / `orderStrikes` for feeding a position from
+`read.positions` straight into `redeemLiveProceeds`.
+
 ## Networks & deployments
 
-Two deployments are recorded. `getDeployment(network)` names each one and the deepbookv3 commit its
-ids were generated at:
+Two deployments are recorded. `getDeployment(network)` names each one and the source commit of its
+initial deployment; subsequent package upgrades come from `Published.toml`:
 
 | Network   | Deployment                 | Chain id   | Source commit | `quoteCoinType`                                                                                                            |
 | --------- | -------------------------- | ---------- | ------------- | -------------------------------------------------------------------------------------------------------------------------- |
@@ -310,6 +428,36 @@ cannot address different deployments. Units are identical on both (`$0.01` lots,
 Move-call targets resolve from the config's package ids, so a deployment of your own is addressed by
 passing `config` — `predict({ network, config })` or
 `new PredictClient({ client, network, config })` — and `network` is then not consulted.
+
+Testnet uses Predict and Sessions **v2** from deepbookv3 PR #1311. Mainnet remains **v1**.
+`packages.predict` and `sessionsPackageId` are the current Move-call targets; `packages.predictV1`
+and `sessionsPackageIdV1` retain the original IDs for existing struct types, events and
+dynamic-field keys. Custom upgraded configs must supply both IDs. The v1 fallback is only for custom
+deployments that have never been upgraded. A type first introduced in a later version uses that
+version's defining ID (for example, `MintRange` was introduced in v2).
+
+**All-in budget mint (v2 only):** `spend` caps the debit including all trade fees, and `minQuantity`
+is the minimum payout quantity accepted. It may spend less than the budget because of lot rounding,
+balance limits or the contract's sizing constraints. Network gas is separate. `mintAmount` retains
+its existing premium-only budget semantics.
+
+```ts
+const quote = await client.predict.read.quoteMintCost(myAddress, desc, {
+	spend: 100,
+	minQuantity: 0,
+});
+// Render quote.cost, quote.quantity, and quote.fees (including inventoryImpact).
+const tx = await client.predict.tx.mintCost(myAddress, desc, {
+	spend: 100,
+	minQuantity: Number((quote.quantity * 0.99).toFixed(6)), // 1% payout slippage
+});
+```
+
+`read.quoteMintCost` simulates the actual budget mint with the owner's current balance and fees; it
+requires an existing funded account. Sessions callers can compose `SessionsContract.mintExactCost`
+with a live pricer using raw Move units. The generated `expiryMarketMoveCalls` also exposes
+`quoteMintExactCostForAccount` for lower-level PTBs. These new entrypoints require the v2 packages;
+do not use them with the recorded v1 Mainnet deployment.
 
 An expired market stays in `read.markets()` until someone settles it — the list is the pool's
 live-and-not-yet-settled set, not a tradeable set. On either network, check `expiryMs` against the

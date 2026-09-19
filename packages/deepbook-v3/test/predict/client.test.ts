@@ -46,7 +46,7 @@ const b64 = (v: bigint) => Buffer.from(bcs.u64().serialize(v).toBytes()).toStrin
 // Canned trade events for quote dry-runs, serialized with the generated event structs
 // so the layout matches what src/decode.ts parses (incl. the trailing timestamp fields).
 const MINTED_EVENT = {
-	eventType: `${cfg.packages.predict}::order_events::OrderMinted`,
+	eventType: `${cfg.packages.predictV1}::order_events::OrderMinted`,
 	bcs: orderEvents.OrderMinted.serialize({
 		expiry_market_id: MARKET_ID,
 		account_id: MARKET_ID,
@@ -74,7 +74,7 @@ const MINTED_EVENT = {
 	}).toBytes(),
 };
 const REDEEMED_EVENT = {
-	eventType: `${cfg.packages.predict}::order_events::LiveOrderRedeemed`,
+	eventType: `${cfg.packages.predictV1}::order_events::LiveOrderRedeemed`,
 	bcs: orderEvents.LiveOrderRedeemed.serialize({
 		expiry_market_id: MARKET_ID,
 		account_id: MARKET_ID,
@@ -110,7 +110,7 @@ function mockClient(overrides: { admissionTickSizeRaw?: bigint } = {}) {
 				const fn = fns[0];
 				counts[fn] = (counts[fn] ?? 0) + 1;
 				// Quote dry-runs: a simulated trade returns its emitted events.
-				if (fns.includes('mint_exact_quantity')) {
+				if (fns.includes('mint_exact_quantity') || fns.includes('mint_exact_cost')) {
 					counts.quote_mint_sim = (counts.quote_mint_sim ?? 0) + 1;
 					return { $kind: 'Transaction', Transaction: { events: [MINTED_EVENT] } };
 				}
@@ -729,4 +729,55 @@ describe('read facade', () => {
 		});
 		expect(none).toBeNull();
 	});
+});
+
+describe('v2 all-in budget mint', () => {
+	const market = { underlying: 'BTC', expiryMs: EXPIRY, strike: 105_000, side: 'up' } as const;
+	test('targets v2 and scales the budget and sub-lot minimum independently', async () => {
+		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
+		const tx = await pc.tx.mintCost(OWNER, market, { spend: 25.125, minQuantity: 0.015 });
+		expect(targets(tx)).toEqual([
+			`${cfg.packages.predict}::expiry_market::load_live_pricer`,
+			`${cfg.packages.account}::account::generate_auth`,
+			`${cfg.packages.predict}::expiry_market::mint_exact_cost`,
+		]);
+		expect(argPureBytes(tx, 2, 7)).toBe(b64(25_125_000n));
+		expect(argPureBytes(tx, 2, 8)).toBe(b64(15_000n));
+	});
+	test('quote simulates the budget mint and decodes v1 events with all fees', async () => {
+		const { client, counts } = mockClient();
+		const pc = new PredictClient({ network: 'testnet', client });
+		const quote = await pc.read.quoteMintCost(OWNER, market, { spend: 20, minQuantity: 0 });
+		expect(counts.quote_mint_sim).toBe(1);
+		expect(quote.raw.cost).toBe(17_155_000n);
+		expect(quote.quantity).toBe(50);
+		expect(quote.fees.inventoryImpact).toBeCloseTo(0.04);
+		expect(quote.feesExact).toBe(true);
+	});
+	test.each([
+		{ spend: -1, minQuantity: 0 },
+		{ spend: 1, minQuantity: -1 },
+		{ spend: NaN, minQuantity: 0 },
+		{ spend: 1, minQuantity: Infinity },
+	])('rejects invalid amounts %j', async (opts) => {
+		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
+		await expect(pc.tx.mintCost(OWNER, market, opts)).rejects.toThrow();
+	});
+});
+
+test('custom latest call target and original event ID remain independent through the facade', async () => {
+	const latest = '0x' + 'ec'.repeat(32);
+	const config = { ...cfg, packages: { ...cfg.packages, predict: latest } };
+	const pc = new PredictClient({ network: 'testnet', client: mockClient().client, config });
+	const market = { underlying: 'BTC', expiryMs: EXPIRY, strike: 105_000, side: 'up' } as const;
+	const tx = await pc.tx.mintCost(OWNER, market, { spend: 20, minQuantity: 0 });
+	expect(targets(tx)).toEqual([
+		`${latest}::expiry_market::load_live_pricer`,
+		`${cfg.packages.account}::account::generate_auth`,
+		`${latest}::expiry_market::mint_exact_cost`,
+	]);
+	// The mock returns an event with the original type ID, not the custom call target.
+	expect((await pc.read.quoteMintCost(OWNER, market, { spend: 20, minQuantity: 0 })).raw.cost).toBe(
+		17_155_000n,
+	);
 });

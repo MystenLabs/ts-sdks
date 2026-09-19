@@ -26,8 +26,10 @@ import { SessionsData } from './contracts/deepbook_sessions/sessions.js';
  * registry. `sessionsPackageId` and `sessionsConfig` come from the sessions deployment.
  */
 export interface SessionsConfig extends DeepbookSessionsConfig {
-	/** The `deepbook_sessions` Move package id. */
+	/** The latest `deepbook_sessions` Move-call package id. */
 	sessionsPackageId: string;
+	/** Original ID for v1 structs. Omit only for an unupgraded custom deployment. */
+	sessionsPackageIdV1?: string;
 	/** The shared `SessionsConfig` object id. */
 	sessionsConfig: string;
 	/** The shared `account` Move package id. */
@@ -196,7 +198,7 @@ export class SessionsContract {
 		// `0x2::derived_object::DerivedObjectKey<..>` and yield an id that points at nothing.
 		return deriveDynamicFieldID(
 			this.deriveAccountId(owner),
-			`${this.#config.accountPackageId}::account::DataKey<${this.#config.sessionsPackageId}::sessions::SessionsApp>`,
+			`${this.#config.accountPackageId}::account::DataKey<${this.#config.sessionsPackageIdV1 ?? this.#config.sessionsPackageId}::sessions::SessionsApp>`,
 			// DataKey is source-empty; Move's hidden `dummy_field: bool` is the key's one byte.
 			new Uint8Array([0]),
 		);
@@ -337,6 +339,39 @@ export class SessionsContract {
 						maxPremium: params.maxPremium,
 						minQuantity: params.minQuantity,
 						maxCost: params.maxCost,
+					},
+				}),
+			);
+	}
+
+	/**
+	 * Mint within an all-in budget as a session. Amounts are raw Move units.
+	 * Requires Sessions/Predict v2 (currently Testnet; Mainnet is still v1).
+	 */
+	mintExactCost(params: {
+		expiryMarketId: string;
+		wrapperId: string;
+		protocolConfig: string;
+		pricer: TransactionArgument;
+		lowerTick: number | bigint;
+		higherTick: number | bigint;
+		maxCost: number | bigint;
+		minQuantity: number | bigint;
+	}) {
+		return (tx: Transaction): TransactionResult =>
+			tx.add(
+				sessions.mintExactCost({
+					config: this.#generatedConfig,
+					arguments: {
+						market: params.expiryMarketId,
+						accountRegistry: this.#config.accountRegistry,
+						wrapper: params.wrapperId,
+						config: params.protocolConfig,
+						pricer: params.pricer,
+						lowerTick: params.lowerTick,
+						higherTick: params.higherTick,
+						maxCost: params.maxCost,
+						minQuantity: params.minQuantity,
 					},
 				}),
 			);

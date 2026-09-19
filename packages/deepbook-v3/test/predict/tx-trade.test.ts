@@ -10,6 +10,7 @@ import { U64_MAX } from '../../src/predict/units.js';
 import {
 	loadLivePricer,
 	mintExactAmount,
+	mintExactCost,
 	mintExactQuantity,
 	redeemLive,
 	redeemSettled,
@@ -250,4 +251,33 @@ test('redeemSettled: auth → redeem_settled, 7 args, owner-auth hot potato', ()
 	expect(argPureBytes(tx, 1, 4)).toBe(u256B64(42n)); // order_id (u256)
 	expectObject(tx, 1, 5, '0xacc'); // root
 	expectObject(tx, 1, 6, '0x6'); // clock
+});
+
+test('mintExactCost: v2 target, all-in budget and quantity floor occupy distinct slots', () => {
+	const tx = new Transaction();
+	tx.add(
+		mintExactCost(config, {
+			expiryMarketId: '0xabc',
+			wrapperId: '0xdef',
+			lowerTick: 10n,
+			higherTick: 20n,
+			maxCostRaw: 50_000_000n,
+			minQuantityRaw: 75_000_001n,
+			...feeds,
+		}),
+	);
+	expect(targets(tx)).toEqual([
+		`${cfg.packages.predict}::expiry_market::load_live_pricer`,
+		`${cfg.packages.account}::account::generate_auth`,
+		`${cfg.packages.predict}::expiry_market::mint_exact_cost`,
+	]);
+	expect(call(tx, 2).arguments).toHaveLength(11);
+	expect(call(tx, 2).arguments[2]).toMatchObject({ Result: 1 });
+	expect(call(tx, 2).arguments[4]).toMatchObject({ Result: 0 });
+	expect(argPureBytes(tx, 2, 5)).toBe(u64B64(10n));
+	expect(argPureBytes(tx, 2, 6)).toBe(u64B64(20n));
+	expect(argPureBytes(tx, 2, 7)).toBe(u64B64(50_000_000n));
+	expect(argPureBytes(tx, 2, 8)).toBe(u64B64(75_000_001n));
+	expectObject(tx, 2, 9, '0xacc');
+	expectObject(tx, 2, 10, '0x6');
 });

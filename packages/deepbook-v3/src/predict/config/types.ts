@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 /** The three published Move packages a Predict deployment spans. */
 export interface PredictPackages {
+	/** Latest published package ID, used for Move calls. */
 	predict: string;
+	/** Original ID for v1 structs/events. Omit only for an unupgraded custom deployment. */
+	predictV1?: string;
 	account: string;
 	propbook: string;
 }

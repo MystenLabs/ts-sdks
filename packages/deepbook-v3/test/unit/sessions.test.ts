@@ -47,7 +47,12 @@ function argObjectId(tx: Transaction, cmdIdx: number, argIdx: number): string | 
 	const arg = call(tx, cmdIdx).arguments[argIdx] as { $kind: string; Input?: number };
 	if (arg.$kind !== 'Input' || arg.Input === undefined) return undefined;
 	const input = tx.getData().inputs[arg.Input];
-	return 'UnresolvedObject' in input ? input.UnresolvedObject?.objectId : undefined;
+	return input.UnresolvedObject?.objectId ?? input.Object?.SharedObject?.objectId;
+}
+
+function argPureBytes(tx: Transaction, cmdIdx: number, argIdx: number): string | undefined {
+	const arg = call(tx, cmdIdx).arguments[argIdx];
+	return arg.$kind === 'Input' ? tx.getData().inputs[arg.Input].Pure?.bytes : undefined;
 }
 
 describe('session lifecycle', () => {
@@ -488,4 +493,41 @@ describe('decodeSessions rejects bytes it cannot fully account for', () => {
 		}
 		expect(outcome).toBe('threw');
 	});
+});
+
+test('upgraded sessions keep the v1 grant field and call the v2 budget mint', () => {
+	const upgraded = new SessionsContract({
+		sessionsPackageId: '0x' + '99'.repeat(32),
+		sessionsPackageIdV1: SESSIONS_PKG,
+		sessionsConfig: SESSIONS_CONFIG,
+		accountPackageId: ACCOUNT_PKG,
+		accountRegistry: ACCOUNT_REGISTRY,
+	});
+	expect(upgraded.deriveSessionsFieldId(OWNER)).toBe(contract.deriveSessionsFieldId(OWNER));
+	const tx = new Transaction();
+	tx.add(
+		upgraded.mintExactCost({
+			expiryMarketId: MARKET,
+			wrapperId: WRAPPER,
+			protocolConfig: PROTOCOL_CONFIG,
+			pricer: { $kind: 'Result', Result: 0 } as never,
+			lowerTick: 10n,
+			higherTick: 20n,
+			maxCost: 50_000_000n,
+			minQuantity: 75_000_001n,
+		}),
+	);
+	expect(targets(tx)).toEqual([`${'0x' + '99'.repeat(32)}::sessions::mint_exact_cost`]);
+	expect(call(tx, 0).arguments).toHaveLength(12);
+	expect(argObjectId(tx, 0, 1)).toBe(ACCOUNT_REGISTRY);
+	expect(argObjectId(tx, 0, 3)).toBe(SESSIONS_CONFIG);
+	expect(argObjectId(tx, 0, 4)).toBe(PROTOCOL_CONFIG);
+	expect(argPureBytes(tx, 0, 8)).toBe(
+		Buffer.from(bcs.u64().serialize(50_000_000n).toBytes()).toString('base64'),
+	);
+	expect(argPureBytes(tx, 0, 9)).toBe(
+		Buffer.from(bcs.u64().serialize(75_000_001n).toBytes()).toString('base64'),
+	);
+	expect(argObjectId(tx, 0, 10)).toBe(normalizeSuiAddress('0xacc'));
+	expect(argObjectId(tx, 0, 11)).toBe(normalizeSuiAddress('0x6'));
 });

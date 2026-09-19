@@ -234,6 +234,9 @@ After making changes, always run prettier to format the code:
 pnpm exec prettier --write .
 ```
 
+Use the formatter version pinned by this checkout's lockfile. Reusing another checkout's
+`node_modules` can pass local formatting checks while producing code that fails CI.
+
 ## Common Errors
 
 1. **`UnusedValueWithoutDrop { result_idx: 0, secondary_idx: 0 }`**: Simulation returned a
@@ -352,6 +355,14 @@ helpers instead of inline `Math.round(value * scalar)`.
 All read-only query methods use named return types (e.g., `VaultBalances`, `QuoteQuantityOut`,
 `AccountInfo`). When adding new query methods, define a named return type interface rather than
 returning anonymous objects.
+
+### Predict cost previews (`src/predict/cost.ts`)
+
+Keep the local preview and simulation responsibilities explicit;
+[PREDICT.md](PREDICT.md#client-side-cost-cost) owns their public usage guidance. Validate raw bigint
+inputs before arithmetic, since TypeScript does not enforce Move's unsigned domains. Require book
+data when the supplied policy enables inventory impact. Cover both requirements in
+`test/predict/cost.test.ts` when changing cost math.
 
 ## Dependencies
 

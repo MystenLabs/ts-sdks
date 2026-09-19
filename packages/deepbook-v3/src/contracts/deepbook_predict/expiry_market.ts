@@ -923,6 +923,73 @@ export function quoteMintForAccount(options: QuoteMintForAccountOptions) {
 			),
 		});
 }
+export interface QuoteMintExactCostForAccountArguments {
+	market: RawTransactionArgument<string>;
+	wrapper: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
+	pricer: TransactionArgument;
+	lowerTick: RawTransactionArgument<number | bigint>;
+	higherTick: RawTransactionArgument<number | bigint>;
+	maxCost: RawTransactionArgument<number | bigint>;
+	minQuantity: RawTransactionArgument<number | bigint>;
+}
+export interface QuoteMintExactCostForAccountOptions {
+	package?: string;
+	arguments: QuoteMintExactCostForAccountArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/**
+ * Quote `mint_exact_cost` for one account: the fill that mint would size for
+ * `max_cost`, capped by total account balance including unsettled accumulator
+ * funds, with that fill's cost decomposition. Applies the mint's live-mint gates,
+ * sizing, `min_quantity` floor, and admission, but does not preflight
+ * exposure-index capacity or cash backing. `quantity` is the figure to derive a
+ * `min_quantity` slippage floor from. Public for SDK and devInspect pre-trade
+ * pricing.
+ */
+export function quoteMintExactCostForAccount(options: QuoteMintExactCostForAccountOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'market',
+		'wrapper',
+		'config',
+		'pricer',
+		'lowerTick',
+		'higherTick',
+		'maxCost',
+		'minQuantity',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'expiry_market',
+			function: 'quote_mint_exact_cost_for_account',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
 export interface QuantityArguments {
 	quote: TransactionArgument;
 }
@@ -1293,6 +1360,99 @@ export function mintExactAmount(options: MintExactAmountOptions) {
 			package: packageAddress,
 			module: 'expiry_market',
 			function: 'mint_exact_amount',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface MintExactCostArguments {
+	market: RawTransactionArgument<string>;
+	wrapper: RawTransactionArgument<string>;
+	auth: TransactionArgument;
+	config?: RawTransactionArgument<string>;
+	pricer: TransactionArgument;
+	lowerTick: RawTransactionArgument<number | bigint>;
+	higherTick: RawTransactionArgument<number | bigint>;
+	maxCost: RawTransactionArgument<number | bigint>;
+	minQuantity: RawTransactionArgument<number | bigint>;
+}
+export interface MintExactCostOptions {
+	package?: string;
+	arguments: MintExactCostArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/**
+ * Mint a lot-rounded position within an all-in `max_cost` budget.
+ *
+ * Unlike `mint_exact_amount`, fees are sized inside the budget: the quantity
+ * search evaluates the all-in withdrawal the mint charges
+ * (`premium +  trader-paid fee + builder_fee + EWMA penalty + inventory_impact_charge`)
+ * against the fee-incentive, congestion, and book state at execution, so the debit
+ * never exceeds `max_cost`. `max_cost` is first capped to the account's available
+ * USDC after settlement, so `std::u64::max_value!()` sizes against the whole
+ * balance.
+ *
+ * The budget search finds the largest fitting quantity. If that quantity costs
+ * more than its maximum payout, a conservative search tries a smaller fill;
+ * rounding can make that fallback miss a larger admissible fill. Only when the
+ * budget is the limiting constraint is the remainder less than the incremental
+ * all-in cost of one more lot. Payout-limited fills and lot-cap saturation can
+ * leave more. Insufficient expiry cash backing aborts the mint; sizing does not
+ * shrink the fill to available backing, and the quote does not preflight it.
+ *
+ * `min_quantity` is this entrypoint's slippage guard. The budget is fixed, so
+ * every adverse move between building the transaction and executing it — the
+ * price, the congestion surcharge, the sponsor subsidy, the inventory-impact
+ * charge — shows up as fewer contracts, and a fill below `min_quantity` aborts
+ * `EMintQuantityBelowMin`. It bounds the all-in price per contract at
+ * `max_cost / min_quantity`, which is why the shape carries no separate
+ * probability cap; passing `0` accepts any fill the budget buys. A budget too
+ * small to admit `constants::min_premium` aborts `EPremiumBelowMinimum` rather
+ * than minting nothing, and zero is such a budget: unlike `mint_exact_amount`
+ * there is no `max_cost` cap to require, because here the budget IS the sizing
+ * input. Other requirements match `mint_exact_quantity`. Returns the minted order
+ * ID.
+ */
+export function mintExactCost(options: MintExactCostOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'market',
+		'wrapper',
+		'auth',
+		'config',
+		'pricer',
+		'lowerTick',
+		'higherTick',
+		'maxCost',
+		'minQuantity',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'expiry_market',
+			function: 'mint_exact_cost',
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,

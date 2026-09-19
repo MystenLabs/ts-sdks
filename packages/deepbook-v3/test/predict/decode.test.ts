@@ -32,7 +32,7 @@ const CODE = '0x' + '55'.repeat(32);
 
 function mintedEvent(orderId: bigint, overrides: Record<string, unknown> = {}): DecodableEvent {
 	return {
-		eventType: `${cfg.packages.predict}::order_events::OrderMinted`,
+		eventType: `${cfg.packages.predictV1}::order_events::OrderMinted`,
 		bcs: orderEvents.OrderMinted.serialize({
 			expiry_market_id: MARKET,
 			account_id: ACCOUNT,
@@ -110,7 +110,7 @@ describe('decodeMints', () => {
 		};
 		const wrongName = {
 			...mintedEvent(1n),
-			eventType: `${cfg.packages.predict}::order_events::SomethingElse`,
+			eventType: `${cfg.packages.predictV1}::order_events::SomethingElse`,
 		};
 		expect(decodeMints(cfg, { events: [wrongPkg, wrongName] })).toEqual([]);
 	});
@@ -129,7 +129,7 @@ describe('decodeMints', () => {
 describe('decodeRedeems', () => {
 	function liveRedeem(replacement: bigint | null): DecodableEvent {
 		return {
-			eventType: `${cfg.packages.predict}::order_events::LiveOrderRedeemed`,
+			eventType: `${cfg.packages.predictV1}::order_events::LiveOrderRedeemed`,
 			bcs: orderEvents.LiveOrderRedeemed.serialize({
 				expiry_market_id: MARKET,
 				account_id: ACCOUNT,
@@ -178,7 +178,7 @@ describe('other decoders', () => {
 		const [r] = decodeClaims(cfg, {
 			events: [
 				{
-					eventType: `${cfg.packages.predict}::order_events::SettledOrderRedeemed`,
+					eventType: `${cfg.packages.predictV1}::order_events::SettledOrderRedeemed`,
 					bcs: orderEvents.SettledOrderRedeemed.serialize({
 						expiry_market_id: MARKET,
 						account_id: ACCOUNT,
@@ -235,7 +235,7 @@ describe('other decoders', () => {
 		const [r] = decodePlpRequests(cfg, {
 			events: [
 				{
-					eventType: `${cfg.packages.predict}::vault_events::SupplyRequested`,
+					eventType: `${cfg.packages.predictV1}::vault_events::SupplyRequested`,
 					bcs: vaultEvents.SupplyRequested.serialize({
 						pool_vault_id: VAULT,
 						account_id: ACCOUNT,
@@ -258,7 +258,7 @@ describe('other decoders', () => {
 		const [r] = decodePlpCancels(cfg, {
 			events: [
 				{
-					eventType: `${cfg.packages.predict}::vault_events::RequestCancelled`,
+					eventType: `${cfg.packages.predictV1}::vault_events::RequestCancelled`,
 					bcs: vaultEvents.RequestCancelled.serialize({
 						pool_vault_id: VAULT,
 						account_id: ACCOUNT,
@@ -280,8 +280,54 @@ describe('other decoders', () => {
 	test('missing bcs payload → descriptive error', () => {
 		expect(() =>
 			decodeMints(cfg, {
-				events: [{ eventType: `${cfg.packages.predict}::order_events::OrderMinted` }],
+				events: [{ eventType: `${cfg.packages.predictV1}::order_events::OrderMinted` }],
 			}),
 		).toThrow(/events included/);
 	});
+});
+
+test('a v2 call target does not change the v1 event identity', () => {
+	const event = mintedEvent(7n);
+	expect(cfg.packages.predict).not.toBe(cfg.packages.predictV1);
+	expect(decodeMints(cfg, { events: [event] })).toHaveLength(1);
+	expect(
+		decodeMints(cfg, {
+			events: [{ ...event, eventType: `${cfg.packages.predict}::order_events::OrderMinted` }],
+		}),
+	).toHaveLength(0);
+});
+
+test.each(['eventType', 'type'] as const)(
+	'v1 %s takes precedence over emitting-package metadata',
+	(tagKey) => {
+		const { eventType, ...event } = mintedEvent(7n);
+		expect(
+			decodeMints(cfg, {
+				events: [
+					{
+						...event,
+						[tagKey]: eventType,
+						packageId: cfg.packages.predict,
+						module: 'expiry_market',
+					},
+				],
+			})[0].orderId,
+		).toBe(7n);
+	},
+);
+
+test('an explicit custom v1 origin decodes events independently of the call target', () => {
+	const origin = '0x' + 'aa'.repeat(32);
+	const custom = { ...cfg, packages: { ...cfg.packages, predictV1: origin } };
+	const event = { ...mintedEvent(7n), eventType: `${origin}::order_events::OrderMinted` };
+	expect(decodeMints(custom, { events: [event] })).toHaveLength(1);
+	expect(decodeMints(cfg, { events: [event] })).toHaveLength(0);
+});
+
+test('unupgraded custom configs retain the legacy single-ID behavior', () => {
+	const custom = {
+		...cfg,
+		packages: { ...cfg.packages, predict: cfg.packages.predictV1!, predictV1: undefined },
+	};
+	expect(decodeMints(custom, { events: [mintedEvent(7n)] })).toHaveLength(1);
 });

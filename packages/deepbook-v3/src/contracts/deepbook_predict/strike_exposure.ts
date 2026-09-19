@@ -51,6 +51,20 @@ export const StrikeExposure = new MoveStruct({
 		payout: strike_payout_tree.StrikePayoutTree,
 	},
 });
+export const MintRange = new MoveStruct({
+	name: `${$moduleName}::MintRange`,
+	fields: {
+		expiry_market_id: bcs.Address,
+		lower_tick: U64,
+		higher_tick: U64,
+		price: pricing.RangePrice,
+		/** Pre-mint point-max and total live payout. */
+		max_payout: U64,
+		total_payout: U64,
+		/** Pre-mint payout peak inside `(lower_tick, higher_tick]`. */
+		range_max_payout: U64,
+	},
+});
 export const MintTerms = new MoveStruct({
 	name: `${$moduleName}::MintTerms`,
 	fields: {
