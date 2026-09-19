@@ -17,8 +17,8 @@ questions:
   - How do I sign transactions in TypeScript?
   - What is the Signer interface in the Sui SDK?
 answer: >-
-  The Sui SDK supports Ed25519, Secp256k1, and Secp256r1 keypairs, plus external signers (AWS KMS,
-  GCP KMS, Ledger, WebCrypto, Passkey) through a unified Signer interface.
+  The Sui SDK supports Ed25519, Secp256k1, Secp256r1, and ML-DSA-65 keypairs, plus external signers
+  (AWS KMS, GCP KMS, Ledger, WebCrypto, Passkey) through a unified Signer interface.
 goal:
   description: >-
     Reader understands the cryptographic primitives available in the Sui SDK for signing and
@@ -46,13 +46,14 @@ implementation in detail.
 ## Signing schemes
 
 A signer always produces a signature under a signature scheme, which determines the curve and
-signature format. Sui supports three schemes, each with a corresponding `Keypair` class:
+signature format. Sui supports four schemes, each with a corresponding `Keypair` class:
 
 | Scheme          | Class              | Import                           |
 | --------------- | ------------------ | -------------------------------- |
 | Ed25519         | `Ed25519Keypair`   | `@mysten/sui/keypairs/ed25519`   |
 | ECDSA Secp256k1 | `Secp256k1Keypair` | `@mysten/sui/keypairs/secp256k1` |
 | ECDSA Secp256r1 | `Secp256r1Keypair` | `@mysten/sui/keypairs/secp256r1` |
+| ML-DSA-65       | `MLDSA65Keypair`   | `@mysten/sui/keypairs/mldsa65`   |
 
 For background on the schemes themselves, see the
 [Signatures](https://docs.sui.io/concepts/cryptography/transaction-auth/signatures) concept topic. A
@@ -66,11 +67,11 @@ so the rest of your code doesn't need to know where the key lives.
 
 Implementations provide three primitives:
 
-| Method           | Description                                                        |
-| ---------------- | ------------------------------------------------------------------ |
-| `getPublicKey()` | Returns the `PublicKey` for deriving the address and verifying     |
-| `getKeyScheme()` | Returns the signature scheme (`ED25519`, `Secp256k1`, `Secp256r1`) |
-| `sign(bytes)`    | Signs raw bytes and returns the signature                          |
+| Method           | Description                                                                   |
+| ---------------- | ----------------------------------------------------------------------------- |
+| `getPublicKey()` | Returns the `PublicKey` for deriving the address and verifying                |
+| `getKeyScheme()` | Returns the signature scheme (`ED25519`, `Secp256k1`, `Secp256r1`, `MLDSA65`) |
+| `sign(bytes)`    | Signs raw bytes and returns the signature                                     |
 
 On top of those, `Signer` provides the methods you typically call:
 
