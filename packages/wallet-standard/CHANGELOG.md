@@ -1,5 +1,7 @@
 # @mysten/wallet-standard
 
+## 0.21.27
+
 ## 0.21.26
 
 ## 0.21.25
