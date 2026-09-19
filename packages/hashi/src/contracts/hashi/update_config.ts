@@ -6,13 +6,15 @@
  * Governance proposal for updating entries in the global config. A proposal
  * carries a map of key/value entries; on execution every entry must refer to an
  * existing key with a matching value type (and pass MPC-config range validation)
- * before being upserted, so governance can tune parameters but never introduce
- * unknown keys or change an entry's type.
+ * and must not be one of the keys the package pins for the deployment's lifetime
+ * (the guardian BTC public key and the Bitcoin chain id) before being upserted, so
+ * governance can tune parameters but never introduce unknown keys, change an
+ * entry's type, or rewrite a pinned key.
  */
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as vec_map from './deps/sui/vec_map.js';
 import * as config_value from './config_value.js';
 const $moduleName = '@local-pkg/hashi::update_config';
@@ -25,8 +27,8 @@ export const UpdateConfig = new MoveStruct({
 export interface ProposeArguments {
 	hashi: RawTransactionArgument<string>;
 	validatorAddress: RawTransactionArgument<string>;
-	entries: RawTransactionArgument<string>;
-	metadata: RawTransactionArgument<string>;
+	entries: TransactionArgument;
+	metadata: TransactionArgument;
 }
 export interface ProposeOptions {
 	package?: string;
@@ -35,8 +37,8 @@ export interface ProposeOptions {
 		| [
 				hashi: RawTransactionArgument<string>,
 				validatorAddress: RawTransactionArgument<string>,
-				entries: RawTransactionArgument<string>,
-				metadata: RawTransactionArgument<string>,
+				entries: TransactionArgument,
+				metadata: TransactionArgument,
 		  ];
 }
 export function propose(options: ProposeOptions) {
