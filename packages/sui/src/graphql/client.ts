@@ -14,6 +14,7 @@ import { fromBase64 } from '@mysten/utils';
 import { normalizeStructTag } from '../utils/sui-types.js';
 import { deriveDynamicFieldID } from '../utils/dynamic-fields.js';
 import type { TransactionPlugin } from '../transactions/index.js';
+import { CLIENT_VERSION_HEADERS } from '../client/version-headers.js';
 
 export type GraphQLDocument<Result = Record<string, unknown>, Variables = Record<string, unknown>> =
 	| string
@@ -142,6 +143,7 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 			headers: {
 				'Content-Type': 'application/json',
 				...this.#headers,
+				...CLIENT_VERSION_HEADERS,
 			},
 			body: JSON.stringify({
 				query:

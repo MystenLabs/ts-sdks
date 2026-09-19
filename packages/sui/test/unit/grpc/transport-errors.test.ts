@@ -6,6 +6,7 @@ import type { RpcTransport } from '@protobuf-ts/runtime-rpc';
 import { RpcError, UnaryCall } from '@protobuf-ts/runtime-rpc';
 import { describe, expect, it } from 'vitest';
 
+import { CLIENT_VERSION_HEADERS } from '../../../src/client/version-headers.js';
 import { GrpcWebFetchTransport, SuiGrpcClient } from '../../../src/grpc/index.js';
 
 /** A grpc-web response carrying its status in the headers, with `grpc-message` percent-encoded. */
@@ -559,6 +560,28 @@ describe('a caller-supplied transport', () => {
 });
 
 describe('gRPC transport call options', () => {
+	it('sends authoritative SDK and schema version headers', async () => {
+		let headers: Headers | undefined;
+		const client = new SuiGrpcClient({
+			baseUrl: 'http://localhost',
+			network: 'testnet',
+			meta: {
+				'client-sdk-type': 'spoofed',
+				'client-rpc-schema-date': '1970-01-01',
+			},
+			fetch: (async (_input, init) => {
+				headers = new Headers(init?.headers);
+				return statusResponse(5, 'gone');
+			}) as typeof globalThis.fetch,
+		});
+
+		await captureError(client.ledgerService.getObject({ objectId: '0x1' }).response);
+
+		for (const [name, value] of Object.entries(CLIENT_VERSION_HEADERS)) {
+			expect(headers?.get(name)).toBe(value);
+		}
+	});
+
 	it("gives every call its own options rather than writing to the transport's", async () => {
 		const fetch = (async () => statusResponse(5, 'gone')) as typeof globalThis.fetch;
 		const transport = new GrpcWebFetchTransport({ baseUrl: 'http://localhost', fetch });

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { PACKAGE_VERSION } from '../version.js';
+import { RPC_SCHEMA_DATE } from '../client/version-headers.js';
 import { JsonRpcError, SuiHTTPStatusError } from './errors.js';
 
 /**
@@ -86,10 +87,11 @@ export class JsonRpcHTTPTransport implements JsonRpcTransport {
 			signal: input.signal,
 			headers: {
 				'Content-Type': 'application/json',
+				...this.#options.rpc?.headers,
 				'Client-Sdk-Type': 'typescript',
 				'Client-Sdk-Version': PACKAGE_VERSION,
+				'Client-Rpc-Schema-Date': RPC_SCHEMA_DATE,
 				'Client-Request-Method': input.method,
-				...this.#options.rpc?.headers,
 			},
 			body: JSON.stringify({
 				jsonrpc: '2.0',

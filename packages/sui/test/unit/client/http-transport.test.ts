@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { JsonRpcHTTPTransport } from '../../../src/jsonRpc/index.js';
 import { PACKAGE_VERSION } from '../../../src/version.js';
+import { RPC_SCHEMA_DATE } from '../../../src/client/version-headers.js';
 
 describe('JsonRpcHTTPTransport', () => {
 	describe('rpc requests', () => {
@@ -60,6 +61,7 @@ describe('JsonRpcHTTPTransport', () => {
 					'Content-Type': 'application/json',
 					'Client-Sdk-Type': 'typescript',
 					'Client-Sdk-Version': PACKAGE_VERSION,
+					'Client-Rpc-Schema-Date': RPC_SCHEMA_DATE,
 					'Client-Request-Method': 'getAllBalances',
 				},
 				method: 'POST',
