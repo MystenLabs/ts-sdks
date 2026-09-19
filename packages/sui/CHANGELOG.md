@@ -1,5 +1,11 @@
 # @mysten/sui.js
 
+## 2.31.3
+
+### Patch Changes
+
+- 59dedfe: Report unsupported enum variants and their expected values when parsing transaction data.
+
 ## 2.31.2
 
 ### Patch Changes
