@@ -47,7 +47,7 @@ export const MAINNET_ACCOUNT: AccountIds = Object.freeze({
  * the package root for one id.
  */
 export const MAINNET_SESSIONS: SessionsIds = Object.freeze({
-	sessionsPackageId: '0x9a068beffa019ae756f4a6d2611e9899d3c6dd888812dd9eca87535d2ac55e2a',
+	sessionsPackageId: '0xec678aee98cd161bdce62ff3dcf4893574df29d927dc8b573f6b4563ec960a1a',
 	sessionsPackageIdV1: '0x9a068beffa019ae756f4a6d2611e9899d3c6dd888812dd9eca87535d2ac55e2a',
 	sessionsConfig: '0xb2fba483748aac7508676020d4e691d68239b66f8bf7c5e7634dd1a76a329317',
 	accountPackageId: '0x4e1dd01465713c9d832313fed5f45c222a4d5c62a533d6da96764c8b2a245d58',
