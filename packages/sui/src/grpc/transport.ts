@@ -1,6 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import type { GrpcWebOptions } from '@protobuf-ts/grpcweb-transport';
 import { GrpcStatusCode } from '@protobuf-ts/grpcweb-transport';
 import { GrpcWebFetchTransport as UpstreamGrpcWebFetchTransport } from '@protobuf-ts/grpcweb-transport';
 import type {
@@ -10,6 +11,15 @@ import type {
 	UnaryCall,
 } from '@protobuf-ts/runtime-rpc';
 import { RpcError } from '@protobuf-ts/runtime-rpc';
+
+/** Request header carrying the highest protocol version whose types the client can decode. */
+export const CLIENT_PROTOCOL_VERSION_HEADER = 'x-sui-client-protocol-version';
+
+/**
+ * Highest Sui protocol version whose on-chain types this SDK can decode. Bump this when the SDK
+ * gains support for types introduced in a newer protocol version.
+ */
+export const MAX_PROTOCOL_VERSION = 138;
 
 // A failed call rejects four promises with the same error, so it is only decoded once. Registered
 // globally so another installed copy of this package sees the same marker.
@@ -126,12 +136,24 @@ function normalizeRejections(promises: Promise<unknown>[], signal: AbortSignal |
 
 /**
  * `GrpcWebFetchTransport` from `@protobuf-ts/grpcweb-transport`, subclassed to decode status
- * messages and to code an aborted call from its reason rather than as `INTERNAL`.
+ * messages, to code an aborted call from its reason rather than as `INTERNAL`, and to send the
+ * `x-sui-client-protocol-version` header.
  *
  * `SuiGrpcClient` builds one by default. A transport imported from `@protobuf-ts/grpcweb-transport`
  * keeps that package's behaviour.
  */
 export class GrpcWebFetchTransport extends UpstreamGrpcWebFetchTransport {
+	constructor(options: GrpcWebOptions) {
+		// Lets the server avoid sending types this SDK cannot decode. Caller-supplied `meta` wins.
+		super({
+			...options,
+			meta: {
+				[CLIENT_PROTOCOL_VERSION_HEADER]: String(MAX_PROTOCOL_VERSION),
+				...options.meta,
+			},
+		});
+	}
+
 	override unary<I extends object, O extends object>(
 		method: MethodInfo<I, O>,
 		input: I,
