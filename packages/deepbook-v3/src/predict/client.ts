@@ -134,7 +134,7 @@ export interface MintAmountOptions {
 	maxCost?: number;
 }
 
-/** Options for `mintCost`: all-in budget. Requires Predict v2 (currently Testnet only). */
+/** Options for `mintCost`: all-in budget. Requires Predict v2 or later. */
 export interface MintCostOptions {
 	/** All-in USDC budget; the chain also caps it at the account balance. */
 	spend: number;
