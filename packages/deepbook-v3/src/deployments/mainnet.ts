@@ -75,7 +75,7 @@ export const MAINNET_UNITS: DeploymentUnits = Object.freeze({
 export const MAINNET_PREDICT: PredictIds = Object.freeze({
 	network: 'mainnet',
 	packages: Object.freeze({
-		predict: '0x1cacb9bf963b1b62139d0ad94cc8ce0d9e5792011932df9925ce07aa3c70a837',
+		predict: '0x08fa3ef1b047d87b0b4ce1c7e5f8b42d8bfdea9a70547efe3cce5d8d6e47ee53',
 		predictV1: '0x89aea622e7bb3bdd598bde87dde40ee31c9eed4971b9546e23ec83de3c48bbba',
 		account: '0x4e1dd01465713c9d832313fed5f45c222a4d5c62a533d6da96764c8b2a245d58',
 		propbook: '0xa6c8f32015b5b41d34ee09995a2e9d7a21cdecf0e1910a50b264fd252cd33831',

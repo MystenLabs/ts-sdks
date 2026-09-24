@@ -75,7 +75,7 @@ export const TESTNET_UNITS: DeploymentUnits = Object.freeze({
 export const TESTNET_PREDICT: PredictIds = Object.freeze({
 	network: 'testnet',
 	packages: Object.freeze({
-		predict: '0x30a03c33eab1e79e0f891540dc00d4e213101b1efb6890f2232e77e36ddd25ce',
+		predict: '0x6c2c2d3c2394cf282f4b8462a99c2e814bda0c223796de10b47b36d35fd878f5',
 		predictV1: '0x59d71119e990573a738dd3ff9c4c7d28d6893af69c87c1a7f3a2e90e280ce2f4',
 		account: '0x1e57d6554b99e4ca68330322c3e5c409ba1b681642726b603bf1be92c1840ca9',
 		propbook: '0xa83f9d7651de09672a40cea371c387bf954e0f3092947670d71428d4fbc9edd9',
