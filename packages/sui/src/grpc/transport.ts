@@ -12,14 +12,10 @@ import type {
 } from '@protobuf-ts/runtime-rpc';
 import { RpcError } from '@protobuf-ts/runtime-rpc';
 
-/** Request header carrying the highest protocol version whose types the client can decode. */
-export const CLIENT_PROTOCOL_VERSION_HEADER = 'x-sui-client-protocol-version';
-
-/**
- * Highest Sui protocol version whose on-chain types this SDK can decode. Bump this when the SDK
- * gains support for types introduced in a newer protocol version.
- */
-export const MAX_PROTOCOL_VERSION = 138;
+import {
+	CLIENT_PROTOCOL_VERSION_HEADER,
+	MAX_PROTOCOL_VERSION,
+} from '../client/protocol-version.js';
 
 // A failed call rejects four promises with the same error, so it is only decoded once. Registered
 // globally so another installed copy of this package sees the same marker.

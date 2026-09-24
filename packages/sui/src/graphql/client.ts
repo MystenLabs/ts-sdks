@@ -5,6 +5,10 @@ import type { TypedDocumentNode } from '@graphql-typed-document-node/core';
 import type { TadaDocumentNode } from 'gql.tada';
 import type { DocumentNode } from 'graphql';
 import { print } from 'graphql';
+import {
+	CLIENT_PROTOCOL_VERSION_HEADER,
+	MAX_PROTOCOL_VERSION,
+} from '../client/protocol-version.js';
 import { BaseClient } from '../client/index.js';
 import type { SuiClientTypes } from '../client/index.js';
 import { GraphQLCoreClient } from './core.js';
@@ -137,12 +141,17 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 	async query<Result = Record<string, unknown>, Variables = Record<string, unknown>>(
 		options: GraphQLQueryOptions<Result, Variables>,
 	): Promise<GraphQLQueryResult<Result>> {
+		const headers = new Headers({
+			'Content-Type': 'application/json',
+			...this.#headers,
+		});
+		if (!headers.has(CLIENT_PROTOCOL_VERSION_HEADER)) {
+			headers.set(CLIENT_PROTOCOL_VERSION_HEADER, String(MAX_PROTOCOL_VERSION));
+		}
+
 		const res = await this.#fetch(this.#url, {
 			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				...this.#headers,
-			},
+			headers,
 			body: JSON.stringify({
 				query:
 					typeof options.query === 'string' || options.query instanceof String

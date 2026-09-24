@@ -7,7 +7,7 @@ import { SuiGrpcClient } from '../../../src/grpc/index.js';
 import {
 	CLIENT_PROTOCOL_VERSION_HEADER,
 	MAX_PROTOCOL_VERSION,
-} from '../../../src/grpc/transport.js';
+} from '../../../src/client/protocol-version.js';
 
 async function sentHeaders(meta?: Record<string, string>) {
 	let headers: Headers | undefined;
