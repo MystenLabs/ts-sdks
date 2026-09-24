@@ -5,11 +5,11 @@ import type { SuiCodegenConfig } from '@mysten/codegen';
 
 // The `@local-pkg/*` entries are not registered on MVR, so they generate from the local Move
 // source in the sibling `deepbookv3` checkout (same pattern the `@deepbook/*` entries use).
-// Predict and Sessions bindings were regenerated from PR #1311's published v2 sources
-// (a6da5b5d1ef9092949753f7693f2de515e015eb6). Use the matching deployment manifest and
-// Published.toml records when running sync-deployment; those separate current call targets
-// from the original IDs of existing types. Mainnet is still v1, so v2-only entrypoints are
-// currently available on Testnet only.
+// Predict and Sessions bindings were regenerated from deepbookv3 main at PR #1321
+// (abb4cfd93b2e51f7925941fe5d53b3fe70fc140c), the sources of Predict Mainnet v3 / Testnet v4
+// and Sessions v2 on both networks. Use the matching deployment manifest and Published.toml
+// records when running sync-deployment; those separate current call targets from the original
+// IDs of existing types.
 //
 // One `pnpm codegen` run regenerates EVERY entry below from whatever commit that checkout is on,
 // so check it out to the intended anchor first and diff the result — a regeneration meant for one

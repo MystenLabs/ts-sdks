@@ -222,6 +222,14 @@ export const CapitalLocked = new MoveStruct({
 		amount: U64,
 	},
 });
+export const UsdcAddedToPlp = new MoveStruct({
+	name: `${$moduleName}::UsdcAddedToPlp`,
+	fields: {
+		pool_vault_id: bcs.Address,
+		contributor: bcs.Address,
+		amount: U64,
+	},
+});
 export const FeeIncentivesSponsored = new MoveStruct({
 	name: `${$moduleName}::FeeIncentivesSponsored`,
 	fields: {
