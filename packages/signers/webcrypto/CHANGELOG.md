@@ -1,5 +1,7 @@
 # @mysten/webcrypto-signer
 
+## 0.2.28
+
 ## 0.2.27
 
 ## 0.2.26
