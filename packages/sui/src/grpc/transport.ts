@@ -1,15 +1,22 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import type { GrpcWebOptions } from '@protobuf-ts/grpcweb-transport';
 import { GrpcStatusCode } from '@protobuf-ts/grpcweb-transport';
 import { GrpcWebFetchTransport as UpstreamGrpcWebFetchTransport } from '@protobuf-ts/grpcweb-transport';
 import type {
 	MethodInfo,
 	RpcOptions,
+	RpcTransport,
 	ServerStreamingCall,
 	UnaryCall,
 } from '@protobuf-ts/runtime-rpc';
 import { RpcError } from '@protobuf-ts/runtime-rpc';
+
+import {
+	CLIENT_PROTOCOL_VERSION_HEADER,
+	MAX_PROTOCOL_VERSION,
+} from '../client/protocol-version.js';
 
 // A failed call rejects four promises with the same error, so it is only decoded once. Registered
 // globally so another installed copy of this package sees the same marker.
@@ -126,12 +133,24 @@ function normalizeRejections(promises: Promise<unknown>[], signal: AbortSignal |
 
 /**
  * `GrpcWebFetchTransport` from `@protobuf-ts/grpcweb-transport`, subclassed to decode status
- * messages and to code an aborted call from its reason rather than as `INTERNAL`.
+ * messages, to code an aborted call from its reason rather than as `INTERNAL`, and to send the
+ * `x-sui-client-protocol-version` header.
  *
  * `SuiGrpcClient` builds one by default. A transport imported from `@protobuf-ts/grpcweb-transport`
  * keeps that package's behaviour.
  */
 export class GrpcWebFetchTransport extends UpstreamGrpcWebFetchTransport {
+	constructor(options: GrpcWebOptions) {
+		// Lets the server avoid sending types this SDK cannot decode. Caller-supplied `meta` wins.
+		super({
+			...options,
+			meta: {
+				[CLIENT_PROTOCOL_VERSION_HEADER]: String(MAX_PROTOCOL_VERSION),
+				...options.meta,
+			},
+		});
+	}
+
 	override unary<I extends object, O extends object>(
 		method: MethodInfo<I, O>,
 		input: I,
@@ -157,4 +176,24 @@ export class GrpcWebFetchTransport extends UpstreamGrpcWebFetchTransport {
 
 		return call;
 	}
+}
+
+/** Adds SDK metadata without mutating the caller's transport or its default options. */
+export function withClientProtocolVersion(transport: RpcTransport): RpcTransport {
+	return {
+		mergeOptions(options) {
+			const merged = transport.mergeOptions(options);
+			return {
+				...merged,
+				meta: {
+					[CLIENT_PROTOCOL_VERSION_HEADER]: String(MAX_PROTOCOL_VERSION),
+					...merged.meta,
+				},
+			};
+		},
+		unary: transport.unary.bind(transport),
+		serverStreaming: transport.serverStreaming.bind(transport),
+		clientStreaming: transport.clientStreaming.bind(transport),
+		duplex: transport.duplex.bind(transport),
+	};
 }
