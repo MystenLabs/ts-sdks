@@ -105,7 +105,13 @@ That class extends the transport of the same name from
   `AbortSignal.timeout`, the status on a reason carrying one, and `CANCELLED` otherwise. Upstream
   reports all but a standard `AbortError` cancellation as `INTERNAL`.
 
-Build custom transports from this class. `SuiGrpcClient` uses a transport you pass it as given.
+Build custom gRPC-web transports from this class to retain these error-handling fixes.
+
+`SuiGrpcClient` adds an `x-sui-client-protocol-version` request header with the highest Sui protocol
+version whose types the SDK can decode. This applies to all transports, including native gRPC, and
+to unary and streaming requests. Explicit values in the transport's `meta` options or an individual
+service call's `meta` override the default. The client does not mutate a supplied transport or
+change its error handling.
 
 ### gRPC-web transport (default)
 

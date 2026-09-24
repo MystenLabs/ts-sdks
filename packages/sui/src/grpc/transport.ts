@@ -7,6 +7,7 @@ import { GrpcWebFetchTransport as UpstreamGrpcWebFetchTransport } from '@protobu
 import type {
 	MethodInfo,
 	RpcOptions,
+	RpcTransport,
 	ServerStreamingCall,
 	UnaryCall,
 } from '@protobuf-ts/runtime-rpc';
@@ -175,4 +176,24 @@ export class GrpcWebFetchTransport extends UpstreamGrpcWebFetchTransport {
 
 		return call;
 	}
+}
+
+/** Adds SDK metadata without mutating the caller's transport or its default options. */
+export function withClientProtocolVersion(transport: RpcTransport): RpcTransport {
+	return {
+		mergeOptions(options) {
+			const merged = transport.mergeOptions(options);
+			return {
+				...merged,
+				meta: {
+					[CLIENT_PROTOCOL_VERSION_HEADER]: String(MAX_PROTOCOL_VERSION),
+					...merged.meta,
+				},
+			};
+		},
+		unary: transport.unary.bind(transport),
+		serverStreaming: transport.serverStreaming.bind(transport),
+		clientStreaming: transport.clientStreaming.bind(transport),
+		duplex: transport.duplex.bind(transport),
+	};
 }
