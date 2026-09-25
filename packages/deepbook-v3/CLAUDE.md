@@ -182,10 +182,14 @@ pnpm --filter @mysten/deepbook-v3 test
 pnpm --filter @mysten/deepbook-v3 test:e2e
 
 # Regenerate bindings, and refresh the deployed ids. Both read the sibling ../deepbookv3
-# checkout on the deployment BRANCH (currently `deepbook-predict-testnet`) — not the
-# manifest's sourceCommit, where the manifest does not yet exist. That branch's Move sources
-# are identical to `main`, so one checkout serves both; if a future deployment lags main,
-# the deployment is what the bindings must describe.
+# checkout at `main`, which carries both deployment manifests and the Predict/Sessions
+# Published.toml records (the old `deepbook-predict-testnet` branch is gone). Not the
+# manifest's sourceCommit, where the manifest does not yet exist. If a future deployment lags
+# main, the deployment is what the bindings must describe.
+#
+# sync-deployment takes --manifest, so it can read a detached `git worktree` of main instead
+# of the sibling (the Published.toml root follows the manifest). codegen's paths are fixed to
+# the sibling, so that one needs the sibling itself on main.
 #
 # codegen rewrites EVERY entry in sui-codegen.config.ts from whatever commit that checkout
 # is on, so diff the result: a regeneration meant for one entry rewrites the rest. In

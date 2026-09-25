@@ -346,7 +346,7 @@ export class SessionsContract {
 
 	/**
 	 * Mint within an all-in budget as a session. Amounts are raw Move units.
-	 * Requires Sessions/Predict v2 (currently Testnet; Mainnet is still v1).
+	 * Requires Sessions/Predict v2 or later.
 	 */
 	mintExactCost(params: {
 		expiryMarketId: string;

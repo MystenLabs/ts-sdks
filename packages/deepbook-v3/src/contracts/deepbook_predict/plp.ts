@@ -901,6 +901,84 @@ export function sponsorFeeIncentives(options: SponsorFeeIncentivesOptions) {
 			),
 		});
 }
+export interface AddUsdcToPlpArguments {
+	vault?: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
+	payment: RawTransactionArgument<string>;
+}
+export interface AddUsdcToPlpOptions {
+	package?: string;
+	arguments: AddUsdcToPlpArguments;
+	config?: {
+		poolVault: ConfigValue;
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/**
+ * Add USDC straight to pool idle liquidity without minting any PLP. Anyone may
+ * call it; the payment is an outright gift to the existing share base, so the
+ * caller receives nothing back and no share of it is recoverable.
+ *
+ * This is the incentive/top-up path: because no shares are issued, the whole
+ * `payment` lands inside the value the next flush's mark divides by an unchanged
+ * `total_supply`, which raises NAV per PLP for every current holder. It
+ * deliberately does not touch the profit basis — the basis tracks cash sent to and
+ * returned from expiries, so an outside contribution is neither a debit nor a
+ * credit, and the protocol reserve therefore takes no cut of it (`lp_pool_value`
+ * leaves `exclusion` unchanged while `gross_pool_value` grows). Sending the same
+ * USDC through `request_supply` instead mints shares against it, so only the
+ * supply fee would reach existing holders — zero as shipped.
+ *
+ * Three gates, each closing a state this entrypoint would otherwise manufacture:
+ *
+ * - **Bootstrapped pool.** At `total_supply == 0` there is no share base to
+ *   credit; the USDC would only inflate the genesis lock's non-withdrawable stake.
+ * - **Contribution price ceiling.** Pool cash after the contribution — idle plus
+ *   the net cash deployed into active expiries — may price at most
+ *   `contribution_price_ceiling_factor` USDC per PLP, a tenth of the band a flush
+ *   mark needs to be fillable. Above the band every supply and withdraw head is
+ *   refunded (RP-2) and `total_supply` grows only through a supply fill, so
+ *   nothing brings the price back down — a terminal state that an unbounded
+ *   contribution against a small share base would otherwise reach for the price of
+ *   the contribution. The ceiling sits well inside the band because later fills
+ *   only push the price up (rounding and retained fees stay in the pool), so a
+ *   pool left exactly at the band would leave it on the next uneven or fee-charged
+ *   fill. The test is one-sided because a contribution can only move the price up.
+ *   It reads pool cash rather than pool NAV — NAV needs a flush — and counts
+ *   deployed cash because the mark does: `rebalance_expiry_cash` is
+ *   permissionless, so an idle-only test could be emptied into a market and passed
+ *   again. Cash is exactly the protocol-controlled share: the guard forbids this
+ *   entrypoint from _manufacturing_ the degenerate ratio and leaves market-driven
+ *   NAV moves (trader premiums and P&L) to RP-1/RP-2, which own them.
+ * - **No flush in flight.** The seal freezes idle mid-flush, so an ungated
+ *   contribution would land on one side or the other of that capture depending
+ *   only on when the contributor's transaction executed — either paying that
+ *   flush's queued withdrawals or not. `sponsor_fee_incentives` takes the same
+ *   gate. `rebalance_expiry_cash` may run mid-window because it only moves cash
+ *   between two figures the seal already froze; new value is different.
+ */
+export function addUsdcToPlp(options: AddUsdcToPlpOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null, null, null] satisfies (string | null)[];
+	const parameterNames = ['vault', 'config', 'payment'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'plp',
+			function: 'add_usdc_to_plp',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					vault: options.arguments?.vault ?? options.config?.poolVault,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
 export interface LockCapitalArguments {
 	vault?: RawTransactionArgument<string>;
 	config?: RawTransactionArgument<string>;

@@ -9,7 +9,7 @@
  * matching Predict/Sessions Published.toml records for the latest call targets and original
  * type IDs. Both sources must come from the same deployment lineage and chain.
  *
- * Use a checkout containing the latest publication metadata (currently PR #1311), not the
+ * Use a checkout containing the latest publication metadata (currently PR #1321), not the
  * manifest's sourceCommit, which predates its creation and subsequent package upgrades.
  * --published-root can point to that deepbookv3 checkout when the manifest is stored elsewhere.
  *

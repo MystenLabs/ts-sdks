@@ -414,8 +414,8 @@ initial deployment; subsequent package upgrades come from `Published.toml`:
 
 | Network   | Deployment                 | Chain id   | Source commit | `quoteCoinType`                                                                                                            |
 | --------- | -------------------------- | ---------- | ------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `mainnet` | `deepbook-predict-mainnet` | `35834a8a` | `14a7e8f8`    | Circle native USDC — `0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC`                      |
-| `testnet` | `deepbook-predict-testnet` | `4c78adac` | `a928bd2d`    | mintable test coin, displays as `DUSDC` — `0xc028557a1ed49e42ed091e115aedefd70a442b184c18fbec5c48d5b6c0b8c184::usdc::USDC` |
+| `mainnet` | `deepbook-predict-mainnet` | `35834a8a` | `7b169bde`    | Circle native USDC — `0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC`                      |
+| `testnet` | `deepbook-predict-testnet` | `4c78adac` | `4d752fb8`    | mintable test coin, displays as `DUSDC` — `0xc028557a1ed49e42ed091e115aedefd70a442b184c18fbec5c48d5b6c0b8c184::usdc::USDC` |
 
 Object ids for both are baked into the SDK — `MAINNET_CONFIG` / `TESTNET_CONFIG`, with
 `MAINNET_DEPLOYMENT` / `TESTNET_DEPLOYMENT` and `MAINNET_UNITS` / `TESTNET_UNITS` alongside — and
@@ -429,17 +429,29 @@ Move-call targets resolve from the config's package ids, so a deployment of your
 passing `config` — `predict({ network, config })` or
 `new PredictClient({ client, network, config })` — and `network` is then not consulted.
 
-Testnet uses Predict and Sessions **v2** from deepbookv3 PR #1311. Mainnet remains **v1**.
-`packages.predict` and `sessionsPackageId` are the current Move-call targets; `packages.predictV1`
-and `sessionsPackageIdV1` retain the original IDs for existing struct types, events and
-dynamic-field keys. Custom upgraded configs must supply both IDs. The v1 fallback is only for custom
-deployments that have never been upgraded. A type first introduced in a later version uses that
-version's defining ID (for example, `MintRange` was introduced in v2).
+Mainnet runs Predict **v3** and Testnet Predict **v4**, both built from the same sources; Sessions
+is **v2** on both. The Published.toml records are in deepbookv3 through PR #1321. `packages.predict`
+and `sessionsPackageId` are the current Move-call targets; `packages.predictV1` and
+`sessionsPackageIdV1` retain the original IDs for existing struct types, events and dynamic-field
+keys. Custom upgraded configs must supply both IDs. The v1 fallback is only for custom deployments
+that have never been upgraded. A type first introduced in a later version uses that version's
+defining ID, and version numbers do not line up across networks, so check the defining ID on each
+one. For example, `MintRange` was introduced in v2 on both networks, and
+`vault_events::UsdcAddedToPlp` is defined by Mainnet v3 (`0x08fa3ef1…`) and Testnet v3
+(`0xb5155d4c…`). The Testnet ID is one version behind that network's current call target.
 
-**All-in budget mint (v2 only):** `spend` caps the debit including all trade fees, and `minQuantity`
-is the minimum payout quantity accepted. It may spend less than the budget because of lot rounding,
-balance limits or the contract's sizing constraints. Network gas is separate. `mintAmount` retains
-its existing premium-only budget semantics.
+**Adding USDC to the pool without minting PLP:** `plpMoveCalls.addUsdcToPlp` wraps
+`add_usdc_to_plp`, which pays a `Coin<USDC>` into the pool's idle cash and mints nothing in return.
+Any caller can use it, and the whole amount accrues to existing PLP holders. The chain rejects the
+contribution when the pool has no PLP supply yet, the payment is under 10 USDC, a flush is in
+flight, or pool cash after the contribution would exceed 10 USDC per PLP. `client.predict` has no
+builder or decoder for this entrypoint. Match `UsdcAddedToPlp` against its defining ID, not
+`predictV1`.
+
+**All-in budget mint (v2 and later):** `spend` caps the debit including all trade fees, and
+`minQuantity` is the minimum payout quantity accepted. It may spend less than the budget because of
+lot rounding, balance limits or the contract's sizing constraints. Network gas is separate.
+`mintAmount` retains its existing premium-only budget semantics.
 
 ```ts
 const quote = await client.predict.read.quoteMintCost(myAddress, desc, {
@@ -456,8 +468,8 @@ const tx = await client.predict.tx.mintCost(myAddress, desc, {
 `read.quoteMintCost` simulates the actual budget mint with the owner's current balance and fees; it
 requires an existing funded account. Sessions callers can compose `SessionsContract.mintExactCost`
 with a live pricer using raw Move units. The generated `expiryMarketMoveCalls` also exposes
-`quoteMintExactCostForAccount` for lower-level PTBs. These new entrypoints require the v2 packages;
-do not use them with the recorded v1 Mainnet deployment.
+`quoteMintExactCostForAccount` for lower-level PTBs. These entrypoints require v2 or later. Both
+recorded deployments qualify, but a custom deployment still on v1 does not.
 
 An expired market stays in `read.markets()` until someone settles it — the list is the pool's
 live-and-not-yet-settled set, not a tradeable set. On either network, check `expiryMs` against the
