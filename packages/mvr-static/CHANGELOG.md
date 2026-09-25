@@ -1,5 +1,7 @@
 # @mysten/mvr-static
 
+## 0.4.30
+
 ## 0.4.29
 
 ### Patch Changes
