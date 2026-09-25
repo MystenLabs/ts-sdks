@@ -11,7 +11,7 @@ import type {
 	BuildTransactionOptions,
 	IntentResolverOptions,
 } from '../../../src/transactions/resolve.js';
-import type { TransactionDataBuilder } from '../../../src/transactions/TransactionData.js';
+import { TransactionDataBuilder } from '../../../src/transactions/TransactionData.js';
 import { normalizeSuiAddress } from '../../../src/utils/index.js';
 
 it('can construct and serialize an empty tranaction', () => {
@@ -320,6 +320,21 @@ describe('offline build', () => {
 		expect(tx.getData().gasData).not.toBe(tx.getData().gasData);
 		expect(tx.getData().commands).not.toBe(tx.getData().commands);
 		expect(tx.getData().inputs).not.toBe(tx.getData().inputs);
+	});
+
+	it('can be created from a TransactionDataBuilder', () => {
+		const tx = setup();
+		const builder = TransactionDataBuilder.restore(tx.getData());
+		expect(builder.getData()).toEqual(tx.getData());
+
+		const tx2 = Transaction.from(builder);
+
+		expect(tx2.getData()).toEqual(tx.getData());
+
+		// Changes to the new transaction do not affect the builder:
+		tx2.setGasBudget(999);
+		expect(builder.gasData.budget).not.toEqual('999');
+		expect(tx2.getData().gasData.budget).toEqual('999');
 	});
 
 	it('can determine the type of inputs for built-in Commands', async () => {
