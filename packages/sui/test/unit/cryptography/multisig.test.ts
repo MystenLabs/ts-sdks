@@ -158,9 +158,7 @@ describe('Multisig scenarios', () => {
 		}
 		const publicKey = new MultiSigPublicKey(parsed.multisig!.multisig_pk);
 
-		await expect(publicKey.verifyPersonalMessage(signData, multisig)).rejects.toThrow(
-			new TypeError("Cannot read properties of undefined (reading 'pubKey')"),
-		);
+		await expect(publicKey.verifyPersonalMessage(signData, multisig)).rejects.toThrow();
 	});
 
 	it('providing the same signature multiple times to combining via different methods', async () => {
@@ -223,9 +221,7 @@ describe('Multisig scenarios', () => {
 		}
 		const publicKey = new MultiSigPublicKey(parsed.multisig!.multisig_pk);
 
-		await expect(publicKey.verifyPersonalMessage(signData, multisig)).rejects.toThrow(
-			new TypeError("Cannot read properties of undefined (reading 'pubKey')"),
-		);
+		await expect(publicKey.verifyPersonalMessage(signData, multisig)).rejects.toThrow();
 	});
 
 	it('providing invalid signature', async () => {

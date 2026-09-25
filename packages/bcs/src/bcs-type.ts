@@ -2,11 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { fromBase58, fromBase64, toBase58, toBase64, fromHex, toHex } from '@mysten/utils';
+import { encoder } from './bcs-encode.js';
+import { decoder } from './bcs-decode.js';
 import { BcsReader } from './reader.js';
-import { ulebEncode } from './uleb.js';
 import type { BcsWriterOptions } from './writer.js';
 import { BcsWriter } from './writer.js';
 import type { EnumInputShape, EnumOutputShape, JoinString } from './types.js';
+
+const { init: initDecode, buildTupleDecoder } = decoder;
+const { fastSerialize, buildTupleEncoder } = encoder;
+
+// Singleton reader/writer backed by the singleton decoder/encoder.
+// Custom types that expect BcsReader/BcsWriter args get these.
+// Standalone `new BcsReader(data)` / `new BcsWriter()` are independent.
+const _reader = new BcsReader(undefined, decoder);
+const _writer = new BcsWriter(undefined, encoder);
 
 export interface BcsTypeOptions<T, Input = T, Name extends string = string> {
 	name?: Name;
@@ -17,65 +27,140 @@ export class BcsType<T, Input = T, const Name extends string = string> {
 	$inferType!: T;
 	$inferInput!: Input;
 	name: Name;
-	read: (reader: BcsReader) => T;
 	serializedSize: (value: Input, options?: BcsWriterOptions) => number | null;
 	validate: (value: Input) => void;
-	#write: (value: Input, writer: BcsWriter) => void;
-	#serialize: (value: Input, options?: BcsWriterOptions) => Uint8Array<ArrayBuffer>;
+	_codec: { read: () => T; write: (value: Input) => void; kind?: string };
+	_validatedWrite: (value: Input) => void;
+
+	toBytes: (value: Input, options?: BcsWriterOptions) => Uint8Array<ArrayBuffer>;
 
 	constructor(
 		options: {
 			name: Name;
-			read: (reader: BcsReader) => T;
-			write: (value: Input, writer: BcsWriter) => void;
+			read: ((reader: BcsReader) => T) | (() => T);
+			write: ((value: Input, writer: BcsWriter) => void) | ((value: Input) => void);
 			serialize?: (value: Input, options?: BcsWriterOptions) => Uint8Array<ArrayBuffer>;
 			serializedSize?: (value: Input) => number | null;
 			validate?: (value: Input) => void;
+			kind?: string;
 		} & BcsTypeOptions<T, Input, Name>,
 	) {
 		this.name = options.name;
-		this.read = options.read;
 		this.serializedSize = options.serializedSize ?? (() => null);
-		this.#write = options.write;
-		this.#serialize =
-			options.serialize ??
-			((value, options) => {
-				const writer = new BcsWriter({
-					initialSize: this.serializedSize(value) ?? undefined,
-					...options,
-				});
-				this.#write(value, writer);
-				return writer.toBytes();
-			});
-
 		this.validate = options.validate ?? (() => {});
+
+		// For internal types (0-arg read/write), assign directly — preserves the
+		// function's unique identity (critical for codegen SFI isolation).
+		// For legacy custom types (1+ args), wrap to pass the singleton reader/writer.
+		let readValue: () => T;
+		let writeValue: (value: Input) => void;
+		if (options.read.length === 0) {
+			readValue = options.read as () => T;
+		} else {
+			const readFn = options.read as (reader: BcsReader) => T;
+			readValue = (() => readFn(_reader)) as () => T;
+		}
+		if (options.write.length <= 1) {
+			writeValue = options.write as (value: Input) => void;
+		} else {
+			const rawWriteFn = options.write as (value: Input, writer: BcsWriter) => void;
+			writeValue = ((value: Input) => rawWriteFn(value, _writer)) as (value: Input) => void;
+		}
+		// _codec.write is the raw write — no validation.
+		// _validatedWrite is validate + write, used by compound builders for per-field checks.
+		this._codec = { read: readValue, write: writeValue, kind: options.kind };
+		const validateFn = this.validate;
+		this._validatedWrite = options.validate
+			? (value: Input) => {
+					validateFn(value);
+					writeValue(value);
+				}
+			: writeValue;
+
+		const writeFn = writeValue;
+		const serializeFn = options.serialize ?? null;
+
+		this.toBytes = serializeFn
+			? (value: Input, options?: BcsWriterOptions) => {
+					validateFn(value);
+					return serializeFn(value, options);
+				}
+			: (value: Input, options?: BcsWriterOptions) => {
+					validateFn(value);
+					return fastSerialize(
+						writeFn as (value: unknown) => void,
+						value,
+						options?.maxSize ?? undefined,
+					);
+				};
 	}
 
-	write(value: Input, writer: BcsWriter) {
-		this.validate(value);
-		this.#write(value, writer);
-	}
-
-	serialize(value: Input, options?: BcsWriterOptions) {
-		this.validate(value);
-		return new SerializedBcs(this, this.#serialize(value, options));
+	/** @deprecated Use {@link parse} instead. */
+	read(reader: BcsReader): T {
+		const saved = decoder.save();
+		try {
+			decoder.init(reader.bytes);
+			decoder.offset = reader.bytePosition;
+			const result = this._codec.read();
+			if (!(decoder.offset <= reader.bytes.length)) {
+				throw new RangeError(
+					`BCS deserialization failed: expected at least ${decoder.offset} bytes, got ${reader.bytes.length}`,
+				);
+			}
+			reader.bytePosition = decoder.offset;
+			return result;
+		} finally {
+			decoder.restore(saved);
+		}
 	}
 
 	parse(bytes: Uint8Array): T {
-		const reader = new BcsReader(bytes);
-		return this.read(reader);
+		const saved = decoder.save();
+		try {
+			initDecode(bytes);
+			const result = this._codec.read();
+			if (!(decoder.offset <= bytes.length)) {
+				throw new RangeError(
+					`BCS deserialization failed: expected at least ${decoder.offset} bytes, got ${bytes.length}`,
+				);
+			}
+			return result;
+		} finally {
+			decoder.restore(saved);
+		}
+	}
+
+	/** @deprecated Use {@link toBytes} or {@link serialize} instead. */
+	write(value: Input, _writer?: BcsWriter) {
+		this._validatedWrite(value);
 	}
 
 	fromHex(hex: string) {
 		return this.parse(fromHex(hex));
 	}
 
-	fromBase58(b64: string) {
-		return this.parse(fromBase58(b64));
+	fromBase58(b58: string) {
+		return this.parse(fromBase58(b58));
 	}
 
 	fromBase64(b64: string) {
 		return this.parse(fromBase64(b64));
+	}
+
+	serialize(value: Input, options?: BcsWriterOptions): SerializedBcs<T, Input> {
+		return new SerializedBcs(this, this.toBytes(value, options));
+	}
+
+	toHex(value: Input): string {
+		return toHex(this.toBytes(value));
+	}
+
+	toBase64(value: Input): string {
+		return toBase64(this.toBytes(value));
+	}
+
+	toBase58(value: Input): string {
+		return toBase58(this.toBytes(value));
 	}
 
 	transform<T2 = T, Input2 = Input, NewName extends string = Name>({
@@ -87,16 +172,19 @@ export class BcsType<T, Input = T, const Name extends string = string> {
 		input?: (val: Input2) => Input;
 		output?: (value: T) => T2;
 	} & BcsTypeOptions<T2, Input2, NewName>) {
+		const parentRead = this._codec.read;
+		const parentRawWrite = this._codec.write;
+		const parentSerializedSize = this.serializedSize;
+		const parentValidate = this.validate;
+
 		return new BcsType<T2, Input2, NewName>({
 			name: (name ?? this.name) as NewName,
-			read: (reader) => (output ? output(this.read(reader)) : (this.read(reader) as never)),
-			write: (value, writer) => this.#write(input ? input(value) : (value as never), writer),
-			serializedSize: (value) => this.serializedSize(input ? input(value) : (value as never)),
-			serialize: (value, options) =>
-				this.#serialize(input ? input(value) : (value as never), options),
+			read: output ? () => output(parentRead()) : (parentRead as never),
+			write: input ? (value: Input2) => parentRawWrite(input(value)) : (parentRawWrite as never),
+			serializedSize: (value) => parentSerializedSize(input ? input(value) : (value as never)),
 			validate: (value) => {
 				validate?.(value);
-				this.validate(input ? input(value) : (value as never));
+				parentValidate(input ? input(value) : (value as never));
 			},
 		});
 	}
@@ -149,8 +237,9 @@ export function fixedSizeBcsType<T, Input = T, const Name extends string = strin
 }: {
 	name: Name;
 	size: number;
-	read: (reader: BcsReader) => T;
-	write: (value: Input, writer: BcsWriter) => void;
+	read: () => T;
+	write: (value: Input) => void;
+	kind?: string;
 } & BcsTypeOptions<T, Input, Name>) {
 	return new BcsType<T, Input, Name>({
 		...options,
@@ -159,20 +248,17 @@ export function fixedSizeBcsType<T, Input = T, const Name extends string = strin
 }
 
 export function uIntBcsType<const Name extends string = string>({
-	readMethod,
-	writeMethod,
 	...options
 }: {
 	name: Name;
 	size: number;
-	readMethod: `read${8 | 16 | 32}`;
-	writeMethod: `write${8 | 16 | 32}`;
 	maxValue: number;
+	read: () => number;
+	write: (value: number) => void;
+	kind?: string;
 } & BcsTypeOptions<number, number, Name>) {
 	return fixedSizeBcsType<number, number, Name>({
 		...options,
-		read: (reader) => reader[readMethod](),
-		write: (value, writer) => writer[writeMethod](value),
 		validate: (value) => {
 			if (value < 0 || value > options.maxValue) {
 				throw new TypeError(
@@ -185,90 +271,23 @@ export function uIntBcsType<const Name extends string = string>({
 }
 
 export function bigUIntBcsType<const Name extends string = string>({
-	readMethod,
-	writeMethod,
 	...options
 }: {
 	name: Name;
 	size: number;
-	readMethod: `read${64 | 128 | 256}`;
-	writeMethod: `write${64 | 128 | 256}`;
 	maxValue: bigint;
+	read: () => string;
+	write: (value: string | number | bigint) => void;
+	kind?: string;
 } & BcsTypeOptions<string, string | number | bigint>) {
 	return fixedSizeBcsType<string, string | number | bigint, Name>({
 		...options,
-		read: (reader) => reader[readMethod](),
-		write: (value, writer) => writer[writeMethod](BigInt(value)),
 		validate: (val) => {
 			const value = BigInt(val);
 			if (value < 0 || value > options.maxValue) {
 				throw new TypeError(
 					`Invalid ${options.name} value: ${value}. Expected value in range 0-${options.maxValue}`,
 				);
-			}
-			options.validate?.(value);
-		},
-	});
-}
-
-export function dynamicSizeBcsType<T, Input = T, const Name extends string = string>({
-	serialize,
-	...options
-}: {
-	name: Name;
-	read: (reader: BcsReader) => T;
-	serialize: (value: Input, options?: BcsWriterOptions) => Uint8Array<ArrayBuffer>;
-} & BcsTypeOptions<T, Input>) {
-	const type = new BcsType<T, Input>({
-		...options,
-		serialize,
-		write: (value, writer) => {
-			for (const byte of type.serialize(value).toBytes()) {
-				writer.write8(byte);
-			}
-		},
-	});
-
-	return type;
-}
-
-export function stringLikeBcsType<const Name extends string = string>({
-	toBytes,
-	fromBytes,
-	...options
-}: {
-	name: Name;
-	toBytes: (value: string) => Uint8Array;
-	fromBytes: (bytes: Uint8Array) => string;
-	serializedSize?: (value: string) => number | null;
-} & BcsTypeOptions<string, string, Name>) {
-	return new BcsType<string, string, Name>({
-		...options,
-		read: (reader) => {
-			const length = reader.readULEB();
-			const bytes = reader.readBytes(length);
-
-			return fromBytes(bytes);
-		},
-		write: (hex, writer) => {
-			const bytes = toBytes(hex);
-			writer.writeULEB(bytes.length);
-			for (let i = 0; i < bytes.length; i++) {
-				writer.write8(bytes[i]);
-			}
-		},
-		serialize: (value) => {
-			const bytes = toBytes(value);
-			const size = ulebEncode(bytes.length);
-			const result = new Uint8Array(size.length + bytes.length);
-			result.set(size, 0);
-			result.set(bytes, size.length);
-
-			return result;
-		},
-		validate: (value) => {
-			if (typeof value !== 'string') {
-				throw new TypeError(`Invalid ${options.name} value: ${value}. Expected string`);
 			}
 			options.validate?.(value);
 		},
@@ -286,10 +305,10 @@ export function lazyBcsType<T, Input>(cb: () => BcsType<T, Input>) {
 
 	return new BcsType<T, Input>({
 		name: 'lazy' as never,
-		read: (data) => getType().read(data),
+		read: () => getType()._codec.read(),
 		serializedSize: (value) => getType().serializedSize(value),
-		write: (value, writer) => getType().write(value, writer),
-		serialize: (value, options) => getType().serialize(value, options).toBytes(),
+		write: (value: Input) => getType()._validatedWrite(value),
+		serialize: (value, options) => getType().toBytes(value, options),
 	});
 }
 
@@ -324,37 +343,42 @@ export class BcsStruct<
 	},
 	Name
 > {
-	constructor({ name, fields, ...options }: BcsStructOptions<T, Name>) {
+	constructor({
+		name,
+		fields,
+		decoder: customDecoder,
+		encoder: customEncoder,
+		...options
+	}: BcsStructOptions<T, Name> & { decoder?: typeof decoder; encoder?: typeof encoder }) {
 		const canonicalOrder = Object.entries(fields);
+		const keys = canonicalOrder.map(([key]) => key);
+		const types = canonicalOrder.map(([, type]) => type);
 
+		const encode = (customEncoder ?? encoder).buildStructEncoder(
+			keys,
+			types.map((t) => t._validatedWrite),
+		);
+		const decode = (customDecoder ?? decoder).buildStructDecoder(
+			keys,
+			types.map((t) => t._codec.read),
+		);
+
+		// Compound builders return type-erased closures (() => unknown / (v: unknown) => void).
+		// Cast via `as never` to bridge to BcsType's typed constructor — safe because the
+		// runtime values flowing through are always the correct types per the BCS schema.
 		super({
 			name,
 			serializedSize: (values) => {
 				let total = 0;
 				for (const [field, type] of canonicalOrder) {
 					const size = type.serializedSize(values[field]);
-					if (size == null) {
-						return null;
-					}
-
+					if (size == null) return null;
 					total += size;
 				}
-
 				return total;
 			},
-			read: (reader) => {
-				const result: Record<string, unknown> = {};
-				for (const [field, type] of canonicalOrder) {
-					result[field] = type.read(reader);
-				}
-
-				return result as never;
-			},
-			write: (value, writer) => {
-				for (const [field, type] of canonicalOrder) {
-					type.write(value[field], writer);
-				}
-			},
+			read: decode as never,
+			write: encode as never,
 			...options,
 			validate: (value) => {
 				options?.validate?.(value);
@@ -397,38 +421,29 @@ export class BcsEnum<
 	}>,
 	Name
 > {
-	constructor({ fields, ...options }: BcsEnumOptions<T, Name>) {
+	constructor({
+		fields,
+		decoder: customDecoder,
+		encoder: customEncoder,
+		...options
+	}: BcsEnumOptions<T, Name> & { decoder?: typeof decoder; encoder?: typeof encoder }) {
 		const canonicalOrder = Object.entries(fields as object);
+		const variantKeys = canonicalOrder.map(([key]) => key);
+		const variantTypes = canonicalOrder.map(([, type]) => type as BcsType<any> | null);
+
+		const encode = (customEncoder ?? encoder).buildEnumEncoder(
+			variantKeys,
+			variantTypes.map((t) => (t ? t._validatedWrite : null)),
+		);
+		const decode = (customDecoder ?? decoder).buildEnumDecoder(
+			variantKeys,
+			variantTypes.map((t) => (t ? t._codec.read : null)),
+			options.name,
+		);
+
 		super({
-			read: (reader) => {
-				const index = reader.readULEB();
-
-				const enumEntry = canonicalOrder[index];
-				if (!enumEntry) {
-					throw new TypeError(`Unknown value ${index} for enum ${options.name}`);
-				}
-
-				const [kind, type] = enumEntry;
-
-				return {
-					[kind]: type?.read(reader) ?? true,
-					$kind: kind,
-				} as never;
-			},
-			write: (value, writer) => {
-				const [name, val] = Object.entries(value).filter(([name]) =>
-					Object.hasOwn(fields, name),
-				)[0];
-
-				for (let i = 0; i < canonicalOrder.length; i++) {
-					const [optionName, optionType] = canonicalOrder[i];
-					if (optionName === name) {
-						writer.writeULEB(i);
-						optionType?.write(val, writer);
-						return;
-					}
-				}
-			},
+			read: decode as never,
+			write: encode as never,
 			...options,
 			validate: (value) => {
 				options?.validate?.(value);
@@ -489,33 +504,22 @@ export class BcsTuple<
 	Name
 > {
 	constructor({ fields, name, ...options }: BcsTupleOptions<T, Name>) {
+		const encode = buildTupleEncoder(fields.map((type) => type._validatedWrite));
+		const decode = buildTupleDecoder(fields.map((type) => type._codec.read));
+
 		super({
 			name: name ?? (`(${fields.map((t) => t.name).join(', ')})` as never),
 			serializedSize: (values) => {
 				let total = 0;
 				for (let i = 0; i < fields.length; i++) {
 					const size = fields[i].serializedSize(values[i]);
-					if (size == null) {
-						return null;
-					}
-
+					if (size == null) return null;
 					total += size;
 				}
-
 				return total;
 			},
-			read: (reader) => {
-				const result: unknown[] = [];
-				for (const field of fields) {
-					result.push(field.read(reader));
-				}
-				return result as never;
-			},
-			write: (value, writer) => {
-				for (let i = 0; i < fields.length; i++) {
-					fields[i].write(value[i], writer);
-				}
-			},
+			read: decode as never,
+			write: encode as never,
 			...options,
 			validate: (value) => {
 				options?.validate?.(value);
