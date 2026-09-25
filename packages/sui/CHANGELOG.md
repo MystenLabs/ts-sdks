@@ -1,5 +1,7 @@
 # @mysten/sui.js
 
+## 2.33.1
+
 ## 2.33.0
 
 ### Minor Changes
