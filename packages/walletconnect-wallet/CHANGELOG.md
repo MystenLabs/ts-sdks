@@ -1,5 +1,7 @@
 # @mysten/walletconnect-wallet
 
+## 1.1.28
+
 ## 1.1.27
 
 ## 1.1.26

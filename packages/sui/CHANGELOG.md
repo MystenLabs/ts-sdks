@@ -1,5 +1,14 @@
 # @mysten/sui.js
 
+## 2.32.0
+
+### Minor Changes
+
+- 4394023: `SuiGrpcClient`, `GrpcWebFetchTransport`, and `SuiGraphQLClient` now send an
+  `x-sui-client-protocol-version` header with the highest protocol version whose types the SDK can
+  decode. `SuiGrpcClient` adds the header for custom transports too, including native gRPC, while
+  preserving explicit transport and per-call metadata overrides.
+
 ## 2.31.3
 
 ### Patch Changes
