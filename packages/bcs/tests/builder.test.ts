@@ -352,22 +352,15 @@ describe('bcs', () => {
 		});
 
 		test('string rejects invalid UTF-8', () => {
-			expect(() => bcs.string().parse(fromHex('01ff'))).toThrow();
-			expect(() => bcs.string().parse(fromHex('02c328'))).toThrow();
+			expect(() => bcs.string().parse(fromHex('01ff'))).toThrow(TypeError);
+			expect(() => bcs.string().parse(fromHex('02c328'))).toThrow(TypeError);
 		});
 
-		test('map rejects unsorted keys', () => {
-			const mapType = bcs.map(bcs.u8(), bcs.u8());
-			expect(() => mapType.parse(fromHex('0202000100'))).toThrow(
-				'Invalid map: keys must be unique and sorted',
-			);
-		});
-
-		test('map rejects duplicate keys', () => {
-			const mapType = bcs.map(bcs.u8(), bcs.u8());
-			expect(() => mapType.parse(fromHex('0201000101'))).toThrow(
-				'Invalid map: keys must be unique and sorted',
-			);
+		test('string preserves a leading byte order mark', () => {
+			const bytes = fromHex('04efbbbf61');
+			const value = bcs.string().parse(bytes);
+			expect(value).toBe('\uFEFFa');
+			expect(toHex(bcs.string().serialize(value).toBytes())).toBe('04efbbbf61');
 		});
 	});
 

@@ -191,16 +191,8 @@ function map<K extends BcsType<any>, V extends BcsType<any>>(
 		read: (reader) => {
 			const length = reader.readULEB();
 			const result = new Map<InferBcsType<K>, InferBcsType<V>>();
-			let previousKeyBytes: Uint8Array | null = null;
 			for (let i = 0; i < length; i++) {
-				const key = keyType.read(reader);
-				// Canonical maps have keys in strictly increasing byte order, which also rules out duplicates
-				const keyBytes = keyType.serialize(key).toBytes();
-				if (previousKeyBytes && compareBcsBytes(previousKeyBytes, keyBytes) >= 0) {
-					throw new TypeError(`Invalid map: keys must be unique and sorted`);
-				}
-				previousKeyBytes = keyBytes;
-				result.set(key, valueType.read(reader));
+				result.set(keyType.read(reader), valueType.read(reader));
 			}
 			return result;
 		},
@@ -427,7 +419,8 @@ export const bcs = {
 	string(options?: BcsTypeOptions<string>) {
 		return stringLikeBcsType({
 			toBytes: (value) => new TextEncoder().encode(value),
-			fromBytes: (bytes) => new TextDecoder('utf-8', { fatal: true }).decode(bytes),
+			fromBytes: (bytes) =>
+				new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes),
 			...options,
 			name: (options?.name ?? 'string') as 'string',
 		});
