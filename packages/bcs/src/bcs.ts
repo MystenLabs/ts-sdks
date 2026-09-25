@@ -191,8 +191,16 @@ function map<K extends BcsType<any>, V extends BcsType<any>>(
 		read: (reader) => {
 			const length = reader.readULEB();
 			const result = new Map<InferBcsType<K>, InferBcsType<V>>();
+			let previousKeyBytes: Uint8Array | null = null;
 			for (let i = 0; i < length; i++) {
-				result.set(keyType.read(reader), valueType.read(reader));
+				const key = keyType.read(reader);
+				// Canonical maps have keys in strictly increasing byte order, which also rules out duplicates
+				const keyBytes = keyType.serialize(key).toBytes();
+				if (previousKeyBytes && compareBcsBytes(previousKeyBytes, keyBytes) >= 0) {
+					throw new TypeError(`Invalid map: keys must be unique and sorted`);
+				}
+				previousKeyBytes = keyBytes;
+				result.set(key, valueType.read(reader));
 			}
 			return result;
 		},
@@ -316,7 +324,13 @@ export const bcs = {
 	bool(options?: BcsTypeOptions<boolean>) {
 		return fixedSizeBcsType({
 			size: 1,
-			read: (reader) => reader.read8() === 1,
+			read: (reader) => {
+				const value = reader.read8();
+				if (value > 1) {
+					throw new TypeError(`Invalid bool value: expected 0 or 1, found ${value}`);
+				}
+				return value === 1;
+			},
 			write: (value, writer) => writer.write8(value ? 1 : 0),
 			...options,
 			name: (options?.name ?? 'bool') as 'bool',
@@ -413,7 +427,7 @@ export const bcs = {
 	string(options?: BcsTypeOptions<string>) {
 		return stringLikeBcsType({
 			toBytes: (value) => new TextEncoder().encode(value),
-			fromBytes: (bytes) => new TextDecoder().decode(bytes),
+			fromBytes: (bytes) => new TextDecoder('utf-8', { fatal: true }).decode(bytes),
 			...options,
 			name: (options?.name ?? 'string') as 'string',
 		});

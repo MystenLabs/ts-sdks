@@ -176,10 +176,6 @@ describe('ULEB Encoding and Decoding', () => {
 		});
 
 		it('should decode valid multi-byte sequences from issue reproduction', () => {
-			const result1 = ulebDecode([0x80, 0x00]);
-			expect(result1.value).toBe(0);
-			expect(result1.length).toBe(2);
-
 			const result2 = ulebDecode([0xff, 0xff, 0xff, 0xff, 0x07]);
 			expect(result2.value).toBe(2147483647);
 			expect(result2.length).toBe(5);
@@ -245,6 +241,18 @@ describe('ULEB Encoding and Decoding', () => {
 			expect(() => ulebDecode([0x81])).toThrow('ULEB decode error: buffer overflow');
 			expect(() => ulebDecode([0xff])).toThrow('ULEB decode error: buffer overflow');
 			expect(() => ulebDecode([0x80, 0x80])).toThrow('ULEB decode error: buffer overflow');
+		});
+
+		it('should throw on non-minimal encodings', () => {
+			expect(() => ulebDecode([0x80, 0x00])).toThrow('ULEB decode error: non-canonical encoding');
+			expect(() => ulebDecode([0x81, 0x00])).toThrow('ULEB decode error: non-canonical encoding');
+			expect(() => ulebDecode([0xff, 0x00])).toThrow('ULEB decode error: non-canonical encoding');
+			expect(() => ulebDecode([0x80, 0x80, 0x00])).toThrow(
+				'ULEB decode error: non-canonical encoding',
+			);
+			expect(() => ulebDecode([0x81, 0x80, 0x80, 0x00])).toThrow(
+				'ULEB decode error: non-canonical encoding',
+			);
 		});
 	});
 });

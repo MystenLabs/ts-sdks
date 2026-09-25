@@ -43,6 +43,10 @@ export function ulebDecode(arr: number[] | Uint8Array): {
 		len += 1;
 		total += BigInt(byte & 0x7f) << shift;
 		if ((byte & 0x80) === 0) {
+			// A trailing zero group adds no value, so the encoding is not minimal
+			if (byte === 0 && len > 1) {
+				throw new Error('ULEB decode error: non-canonical encoding');
+			}
 			break;
 		}
 		shift += 7n;
