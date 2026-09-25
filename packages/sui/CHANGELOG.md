@@ -1,5 +1,12 @@
 # @mysten/sui.js
 
+## 2.33.0
+
+### Minor Changes
+
+- 2e9856f: Add `getData()` to `TransactionDataBuilder` so `Transaction.from` can create a
+  `Transaction` from a `TransactionDataBuilder` instance
+
 ## 2.32.0
 
 ### Minor Changes
