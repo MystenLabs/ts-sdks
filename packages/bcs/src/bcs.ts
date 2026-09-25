@@ -316,7 +316,13 @@ export const bcs = {
 	bool(options?: BcsTypeOptions<boolean>) {
 		return fixedSizeBcsType({
 			size: 1,
-			read: (reader) => reader.read8() === 1,
+			read: (reader) => {
+				const value = reader.read8();
+				if (value > 1) {
+					throw new TypeError(`Invalid bool value: expected 0 or 1, found ${value}`);
+				}
+				return value === 1;
+			},
 			write: (value, writer) => writer.write8(value ? 1 : 0),
 			...options,
 			name: (options?.name ?? 'bool') as 'bool',
@@ -413,7 +419,8 @@ export const bcs = {
 	string(options?: BcsTypeOptions<string>) {
 		return stringLikeBcsType({
 			toBytes: (value) => new TextEncoder().encode(value),
-			fromBytes: (bytes) => new TextDecoder().decode(bytes),
+			fromBytes: (bytes) =>
+				new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes),
 			...options,
 			name: (options?.name ?? 'string') as 'string',
 		});

@@ -3,7 +3,7 @@
 
 import { describe, expect, test } from 'vitest';
 
-import { BcsReader, BcsWriter, toBase58, toBase64, toHex } from '../src/index.js';
+import { BcsReader, BcsWriter, fromHex, toBase58, toBase64, toHex } from '../src/index.js';
 import { BcsType } from '../src/bcs-type.js';
 import { bcs } from '../src/bcs.js';
 
@@ -327,6 +327,40 @@ describe('bcs', () => {
 
 			expect(parsed.get('key1')).toBe('value1');
 			expect(parsed.get('key2')).toBe('value2');
+		});
+	});
+
+	describe('non-canonical input', () => {
+		test('bool rejects bytes other than 0 and 1', () => {
+			expect(bcs.bool().parse(fromHex('00'))).toBe(false);
+			expect(bcs.bool().parse(fromHex('01'))).toBe(true);
+			expect(() => bcs.bool().parse(fromHex('02'))).toThrow('Invalid bool value');
+			expect(() => bcs.bool().parse(fromHex('ff'))).toThrow('Invalid bool value');
+			expect(() => bcs.vector(bcs.bool()).parse(fromHex('020201'))).toThrow('Invalid bool value');
+		});
+
+		test('vector length rejects non-minimal ULEB encodings', () => {
+			expect(() => bcs.vector(bcs.u8()).parse(fromHex('8000'))).toThrow(
+				'ULEB decode error: non-canonical encoding',
+			);
+		});
+
+		test('enum variant index rejects non-minimal ULEB encodings', () => {
+			expect(() => bcs.option(bcs.u8()).parse(fromHex('810005'))).toThrow(
+				'ULEB decode error: non-canonical encoding',
+			);
+		});
+
+		test('string rejects invalid UTF-8', () => {
+			expect(() => bcs.string().parse(fromHex('01ff'))).toThrow(TypeError);
+			expect(() => bcs.string().parse(fromHex('02c328'))).toThrow(TypeError);
+		});
+
+		test('string preserves a leading byte order mark', () => {
+			const bytes = fromHex('04efbbbf61');
+			const value = bcs.string().parse(bytes);
+			expect(value).toBe('\uFEFFa');
+			expect(toHex(bcs.string().serialize(value).toBytes())).toBe('04efbbbf61');
 		});
 	});
 
