@@ -434,6 +434,10 @@ export class TransactionDataBuilder implements TransactionData {
 		return parse(TransactionDataSchema, this);
 	}
 
+	getData(): TransactionData {
+		return this.snapshot();
+	}
+
 	shallowClone() {
 		return new TransactionDataBuilder({
 			version: this.version,

@@ -193,6 +193,9 @@ export class Transaction {
 	 * - A string returned from `Transaction#serialize`. The serialized format must be compatible, or it will throw an error.
 	 * - A byte array (or base64-encoded bytes) containing BCS transaction data.
 	 *
+	 * It can also copy an existing `Transaction` or `TransactionDataBuilder` instance. The data is
+	 * copied, so changes to the new transaction do not affect the original.
+	 *
 	 * When copying an in-memory transaction that uses custom intents, pass resolvers for those intents
 	 * via `options.intentResolvers` so the copy can be created synchronously without first awaiting
 	 * `prepareForSerialization`. Built-in intents (such as `CoinWithBalance`) are handled automatically.
@@ -203,7 +206,7 @@ export class Transaction {
 	) {
 		const newTransaction = new Transaction();
 
-		if (isTransaction(transaction)) {
+		if (typeof transaction === 'object' && 'getData' in transaction) {
 			newTransaction.#data = TransactionDataBuilder.restore(
 				transaction.getData() as InferInput<typeof SerializedTransactionDataV2Schema>,
 			);
