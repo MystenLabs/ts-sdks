@@ -104,11 +104,11 @@ export function newBool(options: NewBoolOptions) {
 		});
 }
 export interface NewBytesArguments {
-	value: RawTransactionArgument<number[]>;
+	value: RawTransactionArgument<Array<number>>;
 }
 export interface NewBytesOptions {
 	package?: string;
-	arguments: NewBytesArguments | [value: RawTransactionArgument<number[]>];
+	arguments: NewBytesArguments | [value: RawTransactionArgument<Array<number>>];
 }
 export function newBytes(options: NewBytesOptions) {
 	const packageAddress = options.package ?? '@local-pkg/hashi';
