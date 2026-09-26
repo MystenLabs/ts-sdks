@@ -10,14 +10,17 @@ import { prompt } from 'enquirer';
 import { glob } from 'glob';
 import { format } from 'prettier';
 
+import { extractLocalConstantStrings } from './local-constants.js';
+
 const TYPES_AND_TARGET_MATCHES = /[@a-zA-Z0-9/.-]+::[a-zA-Z0-9_]+::[a-zA-Z0-9_]+/g;
 const MVR_NAME_MATCHES = /[@a-zA-Z0-9/.-]+::/g;
 
-const DEFAULT_INCLUDE_PATTERNS = ['**/*.{js,ts,jsx,tsx,mjs,cjs}'];
+const DEFAULT_INCLUDE_PATTERNS = ['**/*.{js,ts,jsx,tsx,mjs,cjs,mts,cts}'];
 const DEFAULT_EXCLUDE_PATTERNS = ['node_modules/**', '**/.*'];
 const DEFAULT_FILE_NAME = `mvr.ts`;
 
-const MAX_BATCH_SIZE = 25; // files to process per batch.
+const MAX_BATCH_SIZE = 25; // files to read per batch.
+export const MAX_AST_PARSER_CONCURRENCY = 1;
 const MAINNET_API_URL = 'https://mainnet.mvr.mystenlabs.com';
 const TESTNET_API_URL = 'https://testnet.mvr.mystenlabs.com';
 
@@ -268,17 +271,55 @@ export async function findNames({
  * Finds all the MVR names in the given files.
  */
 async function processFilesBatch(files: string[], detectedNames: Set<string>) {
-	await Promise.all(
-		files.map(async (file) => {
-			const content = await readFile(file, 'utf8');
-			extractMvrNames(content).forEach((name) => detectedNames.add(name));
-		}),
-	);
+	await runWithConcurrency(files, MAX_AST_PARSER_CONCURRENCY, async (file) => {
+		// Keep each file's read, regex scan, and optional AST work in one callback so its source can be
+		// released before the next file is read.
+		const content = await readFile(file, 'utf8');
+		extractMvrNames(content).forEach((name) => detectedNames.add(name));
+
+		try {
+			const localStrings = await extractLocalConstantStrings(content, file);
+			for (const value of localStrings) {
+				extractMvrNames(value).forEach((name) => detectedNames.add(name));
+			}
+		} catch {
+			// Parsing or budget exhaustion must not discard the regex results above.
+		}
+	});
+}
+
+export async function runWithConcurrency<T>(
+	values: T[],
+	concurrency: number,
+	callback: (value: T) => Promise<void>,
+) {
+	for (const valuesBatch of batch(values, concurrency)) {
+		await Promise.all(valuesBatch.map(callback));
+	}
 }
 
 /**
  * Extracts all the MVR names from the given file's data (content).
+ *
+ * The content-wide regex pass is intentionally retained for backward compatibility, including
+ * malformed files and names that appear in comments. AST parsing only adds strings represented by
+ * safe, statically resolvable local expressions.
  */
+export async function extractMvrNamesFromContent(content: string, filepath = 'source.ts') {
+	const relevantNames = extractMvrNames(content);
+
+	try {
+		const localStrings = await extractLocalConstantStrings(content, filepath);
+		for (const value of localStrings) {
+			extractMvrNames(value).forEach((name) => relevantNames.add(name));
+		}
+	} catch {
+		// Parsing or evaluation must never prevent the regex fallback above from succeeding.
+	}
+
+	return relevantNames;
+}
+
 function extractMvrNames(content: string) {
 	const relevantNames = new Set<string>();
 	// find all "fully qualified" matches.
