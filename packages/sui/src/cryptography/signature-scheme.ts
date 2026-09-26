@@ -8,6 +8,7 @@ export const SIGNATURE_SCHEME_TO_FLAG = {
 	MultiSig: 0x03,
 	ZkLogin: 0x05,
 	Passkey: 0x06,
+	MLDSA65: 0x08,
 } as const;
 
 export const SIGNATURE_SCHEME_TO_SIZE = {
@@ -15,6 +16,7 @@ export const SIGNATURE_SCHEME_TO_SIZE = {
 	Secp256k1: 33,
 	Secp256r1: 33,
 	Passkey: 33,
+	MLDSA65: 1952,
 };
 
 export const SIGNATURE_FLAG_TO_SCHEME = {
@@ -24,9 +26,10 @@ export const SIGNATURE_FLAG_TO_SCHEME = {
 	0x03: 'MultiSig',
 	0x05: 'ZkLogin',
 	0x06: 'Passkey',
+	0x08: 'MLDSA65',
 } as const;
 
 export type SignatureScheme =
-	'ED25519' | 'Secp256k1' | 'Secp256r1' | 'MultiSig' | 'ZkLogin' | 'Passkey';
+	'ED25519' | 'Secp256k1' | 'Secp256r1' | 'MultiSig' | 'ZkLogin' | 'Passkey' | 'MLDSA65';
 
 export type SignatureFlag = keyof typeof SIGNATURE_FLAG_TO_SCHEME;

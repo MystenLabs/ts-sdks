@@ -1,7 +1,8 @@
 ---
 title: Key pairs
 description: >-
-  Create Ed25519, Secp256k1, and Secp256r1 keypairs and derive them from mnemonics and secret keys
+  Create Ed25519, Secp256k1, Secp256r1, and ML-DSA-65 keypairs and derive them from mnemonics and
+  secret keys
 keywords:
   - keypairs
   - Ed25519
@@ -49,6 +50,7 @@ Each signing scheme has a corresponding `Keypair` class:
 | Ed25519         | `Ed25519Keypair`   | `@mysten/sui/keypairs/ed25519`   |
 | ECDSA Secp256k1 | `Secp256k1Keypair` | `@mysten/sui/keypairs/secp256k1` |
 | ECDSA Secp256r1 | `Secp256r1Keypair` | `@mysten/sui/keypairs/secp256r1` |
+| ML-DSA-65       | `MLDSA65Keypair`   | `@mysten/sui/keypairs/mldsa65`   |
 
 To use, import the key pair class your project uses from the `@mysten/sui/keypairs` folder. For
 example, to use the Ed25519 scheme, import the `Ed25519Keypair` class from
@@ -56,6 +58,18 @@ example, to use the Ed25519 scheme, import the `Ed25519Keypair` class from
 
 ```typescript
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
+```
+
+ML-DSA-65 is the post-quantum scheme from FIPS 204. Its secret key is a 32-byte seed, so it imports
+and exports like the other schemes, but its public keys (1952 bytes) and signatures (3309 bytes) are
+much larger, and every signature is randomized. Deriving an ML-DSA-65 keypair from a mnemonic is not
+supported yet, and the scheme is only accepted by networks where it has been enabled.
+
+```typescript
+import { MLDSA65Keypair } from '@mysten/sui/keypairs/mldsa65';
+
+const keypair = MLDSA65Keypair.generate();
+const restored = MLDSA65Keypair.fromSecretKey(keypair.getSecretKey());
 ```
 
 ## Creating a key pair
