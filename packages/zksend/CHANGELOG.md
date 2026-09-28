@@ -1,5 +1,12 @@
 # @mysten/zksend
 
+## 1.2.33
+
+### Patch Changes
+
+- Updated dependencies [00740a0]
+  - @mysten/window-wallet-core@0.4.0
+
 ## 1.2.32
 
 ## 1.2.31

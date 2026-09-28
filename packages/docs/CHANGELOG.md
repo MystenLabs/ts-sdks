@@ -1,5 +1,20 @@
 # @mysten/docs
 
+## 0.1.73
+
+### Patch Changes
+
+- Updated dependencies [d5d8f63]
+- Updated dependencies [00740a0]
+  - @mysten/deepbook-v3@2.6.5
+  - @mysten/slush-wallet@1.3.0
+  - @mysten/enoki-connect@1.1.32
+  - @mysten/zksend@1.2.33
+  - @mysten/dapp-kit-core@1.6.34
+  - @mysten/dapp-kit-react@2.1.36
+  - @mysten/walrus@1.2.31
+  - @mysten/enoki@1.2.28
+
 ## 0.1.72
 
 ### Patch Changes

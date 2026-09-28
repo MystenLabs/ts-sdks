@@ -1,5 +1,12 @@
 # @mysten/dapp-kit-core
 
+## 1.6.34
+
+### Patch Changes
+
+- Updated dependencies [00740a0]
+  - @mysten/slush-wallet@1.3.0
+
 ## 1.6.33
 
 ## 1.6.32

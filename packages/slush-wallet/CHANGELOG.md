@@ -1,5 +1,18 @@
 # @mysten/slush-wallet
 
+## 1.3.0
+
+### Minor Changes
+
+- 00740a0: Preserve optional per-account chains in hosted wallet sessions and advertise only
+  supported chains included in that list. Reject signing requests for chains excluded by the signed
+  session. Older sessions that omit chains retain their existing behavior.
+
+### Patch Changes
+
+- Updated dependencies [00740a0]
+  - @mysten/window-wallet-core@0.4.0
+
 ## 1.2.8
 
 ## 1.2.7

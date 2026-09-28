@@ -1,5 +1,12 @@
 # @mysten/enoki-connect
 
+## 1.1.32
+
+### Patch Changes
+
+- Updated dependencies [00740a0]
+  - @mysten/window-wallet-core@0.4.0
+
 ## 1.1.31
 
 ## 1.1.30
