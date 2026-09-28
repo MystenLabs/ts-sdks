@@ -1,5 +1,13 @@
 # @mysten/window-wallet-core
 
+## 0.4.0
+
+### Minor Changes
+
+- 00740a0: Preserve optional per-account chains in hosted wallet sessions and advertise only
+  supported chains included in that list. Reject signing requests for chains excluded by the signed
+  session. Older sessions that omit chains retain their existing behavior.
+
 ## 0.3.0
 
 ### Minor Changes
