@@ -98,3 +98,83 @@ describe('resolveNameServiceAddress', () => {
 		});
 	});
 });
+
+describe('defaultNameServiceName', () => {
+	it('maps the gRPC reverse lookup record name', async () => {
+		const client = new SuiGrpcClient({ baseUrl: 'http://localhost', network: 'mainnet' });
+		const signal = AbortSignal.timeout(1_000);
+		const reverseLookupName = vi.fn(() =>
+			Promise.resolve({ response: { record: { name: 'mysten.sui' } } }),
+		);
+		client.nameService.reverseLookupName = reverseLookupName as never;
+
+		await expect(client.core.defaultNameServiceName({ address, signal })).resolves.toEqual({
+			data: { name: 'mysten.sui' },
+		});
+		expect(reverseLookupName).toHaveBeenCalledWith({ address }, { abort: signal });
+	});
+
+	it.each([
+		new RpcError('not found', 'NOT_FOUND'),
+		new RpcError('name has expired', 'RESOURCE_EXHAUSTED'),
+		new RpcError('name%20has%20expired', 'RESOURCE_EXHAUSTED'),
+	])('maps addresses without a gRPC name to null ($code)', async (error) => {
+		const client = new SuiGrpcClient({ baseUrl: 'http://localhost', network: 'mainnet' });
+		client.nameService.reverseLookupName = (() => Promise.reject(error)) as never;
+
+		await expect(client.core.defaultNameServiceName({ address })).resolves.toEqual({
+			data: { name: null },
+		});
+	});
+
+	it.each([
+		new RpcError('invalid address', 'INVALID_ARGUMENT'),
+		new RpcError('SuiNS not configured for this network', 'UNIMPLEMENTED'),
+		new RpcError('quota exceeded', 'RESOURCE_EXHAUSTED'),
+	])('preserves other gRPC errors ($code)', async (error) => {
+		const client = new SuiGrpcClient({ baseUrl: 'http://localhost', network: 'mainnet' });
+		client.nameService.reverseLookupName = (() => Promise.reject(error)) as never;
+
+		await expect(client.core.defaultNameServiceName({ address })).rejects.toBe(error);
+	});
+
+	it.each([
+		['mysten.sui', { address: { defaultNameRecord: { domain: 'mysten.sui' } } }],
+		[null, { address: { defaultNameRecord: null } }],
+		[null, { address: null }],
+	])('maps GraphQL default name results (%s)', async (expectedName, data) => {
+		let requestInit: RequestInit | undefined;
+		const fetch: typeof globalThis.fetch = async (_input, init) => {
+			requestInit = init;
+			return Response.json({ data });
+		};
+		const client = new SuiGraphQLClient({
+			url: 'http://localhost/graphql',
+			network: 'mainnet',
+			fetch,
+		});
+
+		await expect(client.core.defaultNameServiceName({ address })).resolves.toEqual({
+			data: { name: expectedName },
+		});
+		expect(JSON.parse(String(requestInit?.body))).toMatchObject({
+			variables: { address },
+		});
+	});
+
+	it.each([
+		['mysten.sui', ['mysten.sui']],
+		[null, []],
+	])('maps JSON-RPC default name results (%s)', async (expectedName, names) => {
+		const transport: JsonRpcTransport = {
+			async request<T>() {
+				return { data: names, hasNextPage: false, nextCursor: null } as T;
+			},
+		};
+		const client = new SuiJsonRpcClient({ network: 'mainnet', transport });
+
+		await expect(client.core.defaultNameServiceName({ address })).resolves.toEqual({
+			data: { name: expectedName },
+		});
+	});
+});

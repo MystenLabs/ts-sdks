@@ -833,20 +833,22 @@ export class GrpcCoreClient extends CoreClient {
 	async defaultNameServiceName(
 		options: SuiClientTypes.DefaultNameServiceNameOptions,
 	): Promise<SuiClientTypes.DefaultNameServiceNameResponse> {
-		const name =
-			(
-				await this.#client.nameService.reverseLookupName(
-					{
-						address: options.address,
-					},
-					{ abort: options.signal },
-				)
-			).response.record?.name ?? null;
-		return {
-			data: {
-				name,
-			},
-		};
+		try {
+			const { response } = await this.#client.nameService.reverseLookupName(
+				{ address: options.address },
+				{ abort: options.signal },
+			);
+
+			return { data: { name: response.record?.name ?? null } };
+		} catch (error) {
+			// The reverse lookup reports an address without a default name (or whose default name
+			// has expired) the same way a forward lookup reports a missing name.
+			if (isNameServiceResolutionMiss(error)) {
+				return { data: { name: null } };
+			}
+
+			throw error;
+		}
 	}
 
 	async resolveNameServiceAddress(
