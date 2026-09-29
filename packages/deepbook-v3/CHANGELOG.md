@@ -1,5 +1,7 @@
 # @mysten/deepbook-v3
 
+## 2.6.6
+
 ## 2.6.5
 
 ### Patch Changes

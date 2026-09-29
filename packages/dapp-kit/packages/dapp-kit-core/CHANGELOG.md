@@ -1,5 +1,7 @@
 # @mysten/dapp-kit-core
 
+## 1.6.35
+
 ## 1.6.34
 
 ### Patch Changes
