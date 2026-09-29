@@ -36,8 +36,8 @@
  * The end-to-end helper {@link generateDepositAddress} combines steps 2–3.
  *
  * Mirrors `taproot_address` in `crates/hashi-types/src/bitcoin/taproot.rs`.
- * Both are tested against the cross-language vectors in
- * `test/unit/deposit-address-vectors.json`, which hashi generates.
+ * The unit tests check it against vectors generated there, copied into
+ * `test/unit/deposit-address-vectors.json`.
  *
  * @see https://mystenlabs.github.io/hashi/design/address-scheme.html
  */

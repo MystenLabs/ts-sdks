@@ -26,7 +26,7 @@ const TEST_COMPRESSED_KEY = secp256k1.getPublicKey(TEST_SECRET_KEY, true);
 
 const ZERO_ADDRESS = new Uint8Array(32); // 0x000…000
 
-const TEST_GUARDIAN_X_ONLY = secp256k1.getPublicKey(new Uint8Array(32).fill(1), true).slice(1);
+const TEST_GUARDIAN_BTC_X_ONLY = secp256k1.getPublicKey(new Uint8Array(32).fill(1), true).slice(1);
 
 describe('deriveChildPubkey', () => {
 	it('returns a 32-byte x-only key', () => {
@@ -106,7 +106,7 @@ describe('arkworksToSec1Compressed', () => {
 });
 
 describe('twoOfTwoTaprootScriptPathAddress', () => {
-	const guardian = TEST_GUARDIAN_X_ONLY;
+	const guardian = TEST_GUARDIAN_BTC_X_ONLY;
 	const childKey = deriveChildPubkey(TEST_COMPRESSED_KEY, ZERO_ADDRESS);
 
 	it('returns a bech32m address with correct prefix per network', () => {
@@ -149,7 +149,7 @@ describe('generateDepositAddress', () => {
 
 		const btcAddress = generateDepositAddress({
 			mpcMasterCompressed: TEST_COMPRESSED_KEY,
-			guardianBtcXOnly: TEST_GUARDIAN_X_ONLY,
+			guardianBtcXOnly: TEST_GUARDIAN_BTC_X_ONLY,
 			suiAddress: suiAddr,
 			network: 'regtest',
 		});
@@ -164,13 +164,13 @@ describe('generateDepositAddress', () => {
 
 		const composed = generateDepositAddress({
 			mpcMasterCompressed: TEST_COMPRESSED_KEY,
-			guardianBtcXOnly: TEST_GUARDIAN_X_ONLY,
+			guardianBtcXOnly: TEST_GUARDIAN_BTC_X_ONLY,
 			suiAddress: suiAddr,
 			network: 'testnet',
 		});
 
 		const child = deriveChildPubkey(TEST_COMPRESSED_KEY, suiAddr);
-		const manual = twoOfTwoTaprootScriptPathAddress(TEST_GUARDIAN_X_ONLY, child, 'testnet');
+		const manual = twoOfTwoTaprootScriptPathAddress(TEST_GUARDIAN_BTC_X_ONLY, child, 'testnet');
 
 		expect(composed).toBe(manual);
 	});
