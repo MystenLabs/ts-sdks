@@ -789,19 +789,16 @@ export class GraphQLCoreClient extends CoreClient {
 	async defaultNameServiceName(
 		options: SuiClientTypes.DefaultNameServiceNameOptions,
 	): Promise<SuiClientTypes.DefaultNameServiceNameResponse> {
-		const name = await this.#graphqlQuery(
-			{
-				query: DefaultSuinsNameDocument,
-				signal: options.signal,
-				variables: {
-					address: options.address,
-				},
-			},
-			(result) => result.address?.defaultNameRecord?.domain ?? null,
-		);
+		const { data, errors } = await this.#graphqlClient.query({
+			query: DefaultSuinsNameDocument,
+			signal: options.signal,
+			variables: { address: options.address },
+		});
+
+		handleGraphQLErrors(errors);
 
 		return {
-			data: { name: name },
+			data: { name: data?.address?.defaultNameRecord?.domain ?? null },
 		};
 	}
 
