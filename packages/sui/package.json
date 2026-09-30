@@ -89,6 +89,11 @@
 			"import": "./dist/keypairs/passkey/index.mjs",
 			"default": "./dist/keypairs/passkey/index.mjs"
 		},
+		"./keypairs/mldsa65": {
+			"types": "./dist/keypairs/mldsa65/index.d.mts",
+			"import": "./dist/keypairs/mldsa65/index.mjs",
+			"default": "./dist/keypairs/mldsa65/index.mjs"
+		},
 		"./multisig": {
 			"types": "./dist/multisig/index.d.mts",
 			"import": "./dist/multisig/index.mjs",
@@ -185,8 +190,9 @@
 		"@graphql-typed-document-node/core": "^3.2.0",
 		"@mysten/bcs": "workspace:^",
 		"@mysten/utils": "workspace:^",
-		"@noble/curves": "^2.3.0",
-		"@noble/hashes": "^2.3.0",
+		"@noble/curves": "^2.4.0",
+		"@noble/hashes": "^2.4.0",
+		"@noble/post-quantum": "^0.7.1",
 		"@protobuf-ts/grpcweb-transport": "^2.11.1",
 		"@protobuf-ts/runtime": "^2.11.1",
 		"@protobuf-ts/runtime-rpc": "^2.11.1",
