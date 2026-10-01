@@ -3,7 +3,7 @@
 
 import { SuiGrpcClient } from '@mysten/sui/grpc';
 import type { Keypair } from '@mysten/sui/cryptography';
-import { getFaucetHost, requestSuiFromFaucetV2 } from '@mysten/sui/faucet';
+import { getFaucetHost, requestSuiFromFaucetV3 } from '@mysten/sui/faucet';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { Transaction } from '@mysten/sui/transactions';
 import { MIST_PER_SUI } from '@mysten/sui/utils';
@@ -26,8 +26,6 @@ const keypair = Ed25519Keypair.fromSecretKey(
 	'suiprivkey1qz3v0pjxalg3z3p9p6lp4x84y74g0qt2y2q36amvkgfh9zzmm4q66y6ccdz',
 );
 
-// Automatically get gas from testnet is not working reliably, manually request gas via discord,
-// or uncomment the beforeAll and gas function below
 beforeAll(async () => {
 	const balance = await client.getBalance({
 		owner: keypair.toSuiAddress(),
@@ -36,14 +34,15 @@ beforeAll(async () => {
 	if (Number(balance.balance.balance) < Number(MIST_PER_SUI) * 0.02) {
 		await getSuiFromFaucet(keypair);
 	}
-}, 30_000);
+}, 200_000);
 
 async function getSuiFromFaucet(keypair: Keypair) {
 	const faucetHost = getFaucetHost('testnet');
-	await requestSuiFromFaucetV2({
+	const { digest } = await requestSuiFromFaucetV3({
 		host: faucetHost,
 		recipient: keypair.toSuiAddress(),
 	});
+	await client.waitForTransaction({ digest });
 }
 
 describe('Contract links', () => {

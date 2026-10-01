@@ -133,17 +133,26 @@ await client.listCoins({
 
 ## Getting coins from the faucet
 
-You can request sui from the faucet when running against devnet or localnet. For testnet, visit
-faucet.sui.io.
+Use `requestSuiFromFaucetV3` on devnet and testnet. It fetches a challenge, computes proof-of-work,
+and submits the proof to `/v3/gas`. The payout credits the recipient's address balance.
 
 ```typescript
-import { getFaucetHost, requestSuiFromFaucetV2 } from '@mysten/sui/faucet';
+import { getFaucetHost, requestSuiFromFaucetV3 } from '@mysten/sui/faucet';
 
-await requestSuiFromFaucetV2({
+const result = await requestSuiFromFaucetV3({
 	host: getFaucetHost('devnet'),
 	recipient: '0xcc2bd176a478baea9a0de7a24cd927661cc6e860d5bacecb9a138ef20dbab231',
 });
+console.log(result.digest, result.amountMist);
 ```
+
+For localnet, use `requestSuiFromFaucetV2` with `getFaucetHost('localnet')` for a no-PoW faucet
+(`/v2/gas`). Use `requestSuiFromFaucetV3` with the local PoW faucet's host for `/v3/gas`.
+
+V3 returns `digest`, `recipient`, `amountMist`, and `difficulty`, not `coins_sent`. It accepts
+optional `headers`, an abort `signal`, and a `timeout` in milliseconds (default: 180,000). Payout
+submissions are not retried. If a `FaucetError` includes a `digest`, resolve that transaction before
+requesting another payout.
 
 ## Writing APIs
 
