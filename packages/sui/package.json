@@ -165,7 +165,7 @@
 		"@graphql-codegen/typescript": "6.1.0",
 		"@graphql-codegen/typescript-document-nodes": "6.1.0",
 		"@graphql-codegen/typescript-operations": "^6.1.6",
-		"@grpc/grpc-js": ">=1.14.4",
+		"@grpc/grpc-js": ">=1.14.5",
 		"@parcel/watcher": "^2.6.0",
 		"@protobuf-ts/grpc-transport": "^2.11.1",
 		"@types/node": "^26.2.0",
