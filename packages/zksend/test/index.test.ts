@@ -34,7 +34,7 @@ beforeAll(async () => {
 	if (Number(balance.balance.balance) < Number(MIST_PER_SUI) * 0.02) {
 		await getSuiFromFaucet(keypair);
 	}
-}, 200_000);
+}, 300_000);
 
 async function getSuiFromFaucet(keypair: Keypair) {
 	const faucetHost = getFaucetHost('testnet');
