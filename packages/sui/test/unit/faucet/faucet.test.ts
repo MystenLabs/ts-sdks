@@ -127,6 +127,16 @@ describe('requestSuiFromFaucetV3', () => {
 		},
 	);
 
+	it.each(['', '0x', '0X'])(
+		'rejects recipient %j before normalization or network requests',
+		async (recipient) => {
+			await expect(
+				requestSuiFromFaucetV3({ host: getFaucetHost('testnet'), recipient }),
+			).rejects.toThrow('Invalid faucet recipient');
+			expect(fetchMock).not.toHaveBeenCalled();
+		},
+	);
+
 	it('normalizes a short recipient before requesting and hashing', async () => {
 		const recipient = `0x${'0'.repeat(63)}2`;
 		fetchMock.mockResolvedValueOnce(Response.json({ ...challenge, recipient }));
@@ -183,6 +193,44 @@ describe('requestSuiFromFaucetV3', () => {
 			expect(fetchMock).toHaveBeenCalledTimes(2);
 		},
 	);
+
+	describe.each(['challenge', 'payout'])('%s HTTP errors', (stage) => {
+		it.each(['upstream unavailable', '', '<html>Service unavailable</html>'])(
+			'preserves status and parse cause for a non-JSON body: %j',
+			async (body) => {
+				if (stage === 'payout') fetchMock.mockResolvedValueOnce(Response.json(challenge));
+				fetchMock.mockResolvedValueOnce(new Response(body, { status: 503 }));
+
+				const error = await requestSuiFromFaucetV3({
+					host: getFaucetHost('testnet'),
+					recipient: challenge.recipient,
+				}).catch((error: unknown) => error);
+
+				expect(error).toBeInstanceOf(FaucetError);
+				expect(error).toMatchObject({
+					status: 503,
+					message: 'Faucet request failed (HTTP 503)',
+					cause: expect.any(SyntaxError),
+				});
+				expect(fetchMock).toHaveBeenCalledTimes(stage === 'payout' ? 2 : 1);
+			},
+		);
+	});
+
+	it('rejects a non-JSON success response with its parse cause', async () => {
+		fetchMock.mockResolvedValueOnce(new Response('not JSON', { status: 200 }));
+		const error = await requestSuiFromFaucetV3({
+			host: getFaucetHost('testnet'),
+			recipient: challenge.recipient,
+		}).catch((error: unknown) => error);
+
+		expect(error).toBeInstanceOf(Error);
+		expect(error).not.toBeInstanceOf(FaucetError);
+		expect(error).toMatchObject({
+			message: 'Invalid faucet response (HTTP 200)',
+			cause: expect.any(SyntaxError),
+		});
+	});
 
 	it('preserves rate-limit errors', async () => {
 		fetchMock.mockResolvedValueOnce(new Response('Too many requests', { status: 429 }));

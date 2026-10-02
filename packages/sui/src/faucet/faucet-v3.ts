@@ -28,8 +28,11 @@ export class FaucetError extends Error {
 	readonly code?: string;
 	readonly digest?: string;
 
-	constructor(message: string, options: { status: number; code?: string; digest?: string }) {
-		super(message);
+	constructor(
+		message: string,
+		options: { status: number; code?: string; digest?: string; cause?: unknown },
+	) {
+		super(message, { cause: options.cause });
 		this.name = 'FaucetError';
 		this.status = options.status;
 		this.code = options.code;
@@ -57,6 +60,7 @@ export async function requestSuiFromFaucetV3(input: {
 	/** Maximum time for fetching, solving, and submitting, in milliseconds. Defaults to 180000. */
 	timeout?: number;
 }): Promise<FaucetResponseV3> {
+	if (!input.recipient.replace(/^0x/i, '')) throw new Error('Invalid faucet recipient');
 	const recipient = normalizeSuiAddress(input.recipient);
 	if (!isValidSuiAddress(recipient)) throw new Error('Invalid faucet recipient');
 	const timeout = AbortSignal.timeout(input.timeout ?? 180_000);
@@ -75,9 +79,13 @@ export async function requestSuiFromFaucetV3(input: {
 		if (response.status === 429) {
 			throw new FaucetRateLimitError('Too many requests to the faucet. Please retry later.');
 		}
+		let parseError: unknown;
 		const result = await response.json().catch((cause: unknown) => {
 			signal.throwIfAborted();
-			throw new Error(`Invalid faucet response (HTTP ${response.status})`, { cause });
+			if (response.ok) {
+				throw new Error(`Invalid faucet response (HTTP ${response.status})`, { cause });
+			}
+			parseError = cause;
 		});
 		if (!response.ok) {
 			throw new FaucetError(
@@ -86,6 +94,7 @@ export async function requestSuiFromFaucetV3(input: {
 					: `Faucet request failed (HTTP ${response.status})`,
 				{
 					status: response.status,
+					cause: parseError,
 					code: typeof result?.code === 'string' ? result.code : undefined,
 					digest: typeof result?.digest === 'string' ? result.digest : undefined,
 				},
@@ -94,7 +103,7 @@ export async function requestSuiFromFaucetV3(input: {
 		return result;
 	}
 
-	for (;;) {
+	while (true) {
 		const startedAt = Date.now();
 		const challenge = parse(
 			FaucetChallenge,
