@@ -31,6 +31,25 @@ describe('readBlobAttributes', () => {
 		expect(await client.readBlobAttributes({ blobObjectId: BLOB_OBJECT_ID })).toBeNull();
 	});
 
+	it('returns null when the metadata dynamic field was deleted', async () => {
+		const client = clientWith(async () => {
+			throw new ObjectError('deleted', 'Metadata dynamic field has been deleted', {
+				reason: 'deleted',
+			});
+		});
+
+		expect(await client.readBlobAttributes({ blobObjectId: BLOB_OBJECT_ID })).toBeNull();
+	});
+
+	it('propagates object errors with an unknown reason', async () => {
+		const error = new ObjectError('INTERNAL', 'Lookup failed', { reason: 'unknown' });
+		const client = clientWith(async () => {
+			throw error;
+		});
+
+		await expect(client.readBlobAttributes({ blobObjectId: BLOB_OBJECT_ID })).rejects.toBe(error);
+	});
+
 	it('still throws other errors', async () => {
 		const client = clientWith(async () => {
 			throw new Error('network down');

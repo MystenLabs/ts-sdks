@@ -1449,8 +1449,11 @@ export class WalrusClient {
 				},
 			});
 		} catch (error) {
-			// A blob only has a metadata field once attributes have been written to it
-			if (error instanceof ObjectError && error.reason === 'notFound') {
+			// The metadata field may never have been created or may have been removed.
+			if (
+				error instanceof ObjectError &&
+				(error.reason === 'notFound' || error.reason === 'deleted')
+			) {
 				return null;
 			}
 			throw error;
