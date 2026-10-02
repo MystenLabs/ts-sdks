@@ -82,8 +82,8 @@ The following table lists the locations for Sui networks.
 | Network | Full node                             | faucet                                   |
 | ------- | ------------------------------------- | ---------------------------------------- |
 | local   | `http://127.0.0.1:9000` (default)     | `http://127.0.0.1:9123/v2/gas` (default) |
-| Devnet  | `https://fullnode.devnet.sui.io:443`  | `https://faucet.devnet.sui.io/v2/gas`    |
-| Testnet | `https://fullnode.testnet.sui.io:443` | `https://faucet.testnet.sui.io/v2/gas`   |
+| Devnet  | `https://fullnode.devnet.sui.io:443`  | `https://faucet.devnet.sui.io/v3/gas`    |
+| Testnet | `https://fullnode.testnet.sui.io:443` | `https://faucet.testnet.sui.io/v3/gas`   |
 | Mainnet | `https://fullnode.mainnet.sui.io:443` | `null`                                   |
 
 <Callout type="warn">
@@ -121,7 +121,7 @@ secret key for later use:
 
 ```typescript
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
-import { getFaucetHost, requestSuiFromFaucetV2 } from '@mysten/sui/faucet';
+import { getFaucetHost, requestSuiFromFaucetV3 } from '@mysten/sui/faucet';
 
 // Generate a new keypair
 const keypair = new Ed25519Keypair();
@@ -130,7 +130,7 @@ console.log('Address:', keypair.toSuiAddress());
 console.log('Secret key:', keypair.getSecretKey());
 
 // Request SUI from the devnet faucet
-await requestSuiFromFaucetV2({
+await requestSuiFromFaucetV3({
 	host: getFaucetHost('devnet'),
 	recipient: keypair.toSuiAddress(),
 });
@@ -230,17 +230,58 @@ node transfer.ts
 
 ### Faucet
 
-Devnet, Testnet, and local networks include faucets that mint SUI. Use `requestSuiFromFaucetV2` to
-request SUI programmatically:
+Use `requestSuiFromFaucetV3` on Devnet and Testnet. It fetches a challenge from `/v3/challenge`,
+computes Argon2d proof-of-work, and submits the proof to `/v3/gas`:
+
+```typescript
+import { getFaucetHost, requestSuiFromFaucetV3 } from '@mysten/sui/faucet';
+
+const result = await requestSuiFromFaucetV3({
+	host: getFaucetHost('testnet'),
+	recipient: '0xYourAddress', // Replace with your Sui address.
+	timeout: 180_000,
+});
+
+console.log(result.digest, result.amountMist);
+```
+
+V3 credits the recipient's address balance, not a coin object. Its response contains `digest`,
+`recipient`, `amountMist`, and `difficulty`; it does not contain V2's `coins_sent`. Amounts are
+returned as decimal strings to preserve precision. The faucet sets the payout amount.
+
+Set `host` to the faucet's origin (scheme, hostname, and optional port), such as
+`https://faucet.testnet.sui.io`. The API must serve `/v3/challenge` and `/v3/gas` at the origin
+root. Path prefixes such as `/faucet` are not supported; any path in `host` is discarded.
+
+Optional `headers` apply to both requests. The `timeout` covers fetching, solving, and submission,
+and defaults to 180,000 milliseconds. Pass an `AbortSignal` as `signal` to cancel earlier.
+
+The helper uses Node's asynchronous native Argon2d when available (Node 24.7 or newer), with Noble
+as the fallback for Node 22 and browsers. Native hashing does not require an addon. Browser apps can
+run the helper in a Web Worker to keep proof-of-work off the UI thread.
+
+For a local **no-PoW faucet**, keep using V2:
 
 ```typescript
 import { getFaucetHost, requestSuiFromFaucetV2 } from '@mysten/sui/faucet';
 
 await requestSuiFromFaucetV2({
-	host: getFaucetHost('testnet'),
-	recipient: '0xYourAddress',
+	host: getFaucetHost('localnet'),
+	recipient: '0xYourAddress', // Replace with your Sui address.
 });
 ```
+
+For a local **PoW faucet**, use `requestSuiFromFaucetV3` and set `host` to its origin, with
+`/v3/challenge` and `/v3/gas` served at the origin root. If it listens on the default local faucet
+port, use `getFaucetHost('localnet')`. The helper does not infer the protocol from the host or fall
+back to V2.
+
+V3 refreshes expired challenges before submission but never automatically retries a payout. HTTP 429
+throws `FaucetRateLimitError`. Other HTTP errors throw `FaucetError`, which exposes `status` and,
+when provided by the server, `code` and a transaction `digest`. Non-JSON error responses use a
+fallback message and preserve the parse error as `cause`. If a digest is present, resolve that
+transaction before requesting another payout. A timeout or connection loss during submission does
+not prove the payout failed; do not blindly retry it.
 
 <Callout type="info">
 	Faucets on Devnet and Testnet are rate limited. If you hit the limit, wait before trying again.
