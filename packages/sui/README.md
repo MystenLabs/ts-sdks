@@ -149,11 +149,6 @@ console.log(result.digest, result.amountMist);
 For localnet, use `requestSuiFromFaucetV2` with `getFaucetHost('localnet')` for a no-PoW faucet
 (`/v2/gas`). Use `requestSuiFromFaucetV3` with the local PoW faucet's host for `/v3/gas`.
 
-V3 returns `digest`, `recipient`, `amountMist`, and `difficulty`, not `coins_sent`. It accepts
-optional `headers`, an abort `signal`, and a `timeout` in milliseconds (default: 180,000). Payout
-submissions are not retried. If a `FaucetError` includes a `digest`, resolve that transaction before
-requesting another payout.
-
 ## Writing APIs
 
 For a primer for building transactions, refer to

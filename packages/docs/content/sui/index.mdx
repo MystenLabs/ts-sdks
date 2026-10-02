@@ -249,10 +249,16 @@ V3 credits the recipient's address balance, not a coin object. Its response cont
 `recipient`, `amountMist`, and `difficulty`; it does not contain V2's `coins_sent`. Amounts are
 returned as decimal strings to preserve precision. The faucet sets the payout amount.
 
-The `host` is the faucet's base URL, without `/v3/gas`. Optional `headers` apply to both requests.
-The `timeout` covers fetching, solving, and submission, and defaults to 180,000 milliseconds. Pass
-an `AbortSignal` as `signal` to cancel earlier. Proof-of-work consumes CPU; browser apps can run the
-helper in a Web Worker to keep it off the UI thread.
+Set `host` to the faucet's origin (scheme, hostname, and optional port), such as
+`https://faucet.testnet.sui.io`. The API must serve `/v3/challenge` and `/v3/gas` at the origin
+root. Path prefixes such as `/faucet` are not supported; any path in `host` is discarded.
+
+Optional `headers` apply to both requests. The `timeout` covers fetching, solving, and submission,
+and defaults to 180,000 milliseconds. Pass an `AbortSignal` as `signal` to cancel earlier.
+
+The helper uses Node's asynchronous native Argon2d when available (Node 24.7 or newer), with Noble
+as the fallback for Node 22 and browsers. Native hashing does not require an addon. Browser apps can
+run the helper in a Web Worker to keep proof-of-work off the UI thread.
 
 For a local **no-PoW faucet**, keep using V2:
 
@@ -265,15 +271,17 @@ await requestSuiFromFaucetV2({
 });
 ```
 
-For a local **PoW faucet**, use `requestSuiFromFaucetV3` and set `host` to its base URL. If it
-listens on the default local faucet port, use `getFaucetHost('localnet')`. The helper does not infer
-the protocol from the host or fall back to V2.
+For a local **PoW faucet**, use `requestSuiFromFaucetV3` and set `host` to its origin, with
+`/v3/challenge` and `/v3/gas` served at the origin root. If it listens on the default local faucet
+port, use `getFaucetHost('localnet')`. The helper does not infer the protocol from the host or fall
+back to V2.
 
 V3 refreshes expired challenges before submission but never automatically retries a payout. HTTP 429
-throws `FaucetRateLimitError`. Other JSON HTTP errors throw `FaucetError`, which exposes `status`,
-`code`, and an optional transaction `digest`. If a digest is present, resolve that transaction
-before requesting another payout. A timeout or connection loss during submission does not prove the
-payout failed; do not blindly retry it.
+throws `FaucetRateLimitError`. Other HTTP errors throw `FaucetError`, which exposes `status` and,
+when provided by the server, `code` and a transaction `digest`. Non-JSON error responses use a
+fallback message and preserve the parse error as `cause`. If a digest is present, resolve that
+transaction before requesting another payout. A timeout or connection loss during submission does
+not prove the payout failed; do not blindly retry it.
 
 <Callout type="info">
 	Faucets on Devnet and Testnet are rate limited. If you hit the limit, wait before trying again.
