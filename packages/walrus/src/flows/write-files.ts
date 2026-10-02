@@ -73,7 +73,7 @@ export function createWriteFilesFlow(
 			throw new Error('encode must be executed before calling listFiles');
 		}
 
-		const certResult = await blobFlow.getBlob();
+		const certResult = resume?.step === 'certified' ? resume : await blobFlow.getBlob();
 		return quiltIndex.patches.map((patch) => ({
 			id: encodeQuiltPatchId({
 				quiltId: certResult.blobId,
@@ -90,10 +90,6 @@ export function createWriteFilesFlow(
 
 	/** @yields {WriteBlobStep} */
 	async function* run(options: WriteFilesFlowRunOptions): AsyncGenerator<WriteBlobStep> {
-		if (resume?.step === 'certified') {
-			return;
-		}
-
 		// The quilt index is needed by listFiles() even when resuming after the upload, where the blob
 		// flow itself doesn't need to encode again
 		await encodeQuilt();
