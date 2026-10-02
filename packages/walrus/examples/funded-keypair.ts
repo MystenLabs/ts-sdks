@@ -25,10 +25,19 @@ export async function getFundedKeypair() {
 	});
 
 	if (BigInt(balance.balance) < MIST_PER_SUI) {
-		await requestSuiFromFaucetV2({
-			host: getFaucetHost('testnet'),
-			recipient: keypair.toSuiAddress(),
-		});
+		try {
+			await requestSuiFromFaucetV2({
+				host: getFaucetHost('testnet'),
+				recipient: keypair.toSuiAddress(),
+			});
+		} catch (error) {
+			// The faucet is only topping up the balance, so a rate limited request can be
+			// ignored as long as there is still enough SUI to pay for gas.
+			if (BigInt(balance.balance) < MIST_PER_SUI / 10n) {
+				throw error;
+			}
+			console.warn('faucet request failed, continuing with current balance:', balance.balance);
+		}
 	}
 
 	const walBalance = await suiClient.getBalance({
