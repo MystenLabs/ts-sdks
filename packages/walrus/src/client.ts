@@ -5,6 +5,7 @@ import type { InferBcsType } from '@mysten/bcs';
 import { bcs } from '@mysten/bcs';
 import type { Signer } from '@mysten/sui/cryptography';
 import type { ClientCache, ClientWithCoreApi } from '@mysten/sui/client';
+import { ObjectError } from '@mysten/sui/client';
 import type { TransactionObjectArgument, TransactionResult } from '@mysten/sui/transactions';
 import { coinWithBalance, Transaction } from '@mysten/sui/transactions';
 import { normalizeStructTag, parseStructTag } from '@mysten/sui/utils';
@@ -1438,13 +1439,22 @@ export class WalrusClient {
 	}: {
 		blobObjectId: string;
 	}): Promise<Record<string, string> | null> {
-		const response = await this.#suiClient.core.getDynamicField({
-			parentId: blobObjectId,
-			name: {
-				type: 'vector<u8>',
-				bcs: bcs.string().serialize('metadata').toBytes(),
-			},
-		});
+		let response;
+		try {
+			response = await this.#suiClient.core.getDynamicField({
+				parentId: blobObjectId,
+				name: {
+					type: 'vector<u8>',
+					bcs: bcs.string().serialize('metadata').toBytes(),
+				},
+			});
+		} catch (error) {
+			// A blob only has a metadata field once attributes have been written to it
+			if (error instanceof ObjectError && error.reason === 'notFound') {
+				return null;
+			}
+			throw error;
+		}
 
 		const parsedMetadata = metadata.Metadata.parse(response.dynamicField.value.bcs);
 
