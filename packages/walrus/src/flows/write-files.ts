@@ -33,7 +33,7 @@ export function createWriteFilesFlow(
 		resume,
 	} as WriteBlobFlowOptions); // Cast needed: blob is a lazy getter populated by encode()
 
-	const encode = async (): Promise<WriteBlobStepEncoded> => {
+	const encodeQuilt = async () => {
 		if (!quiltBytes) {
 			const { quilt, index } = await client.encodeQuilt({
 				blobs: await Promise.all(
@@ -47,7 +47,10 @@ export function createWriteFilesFlow(
 			quiltBytes = quilt;
 			quiltIndex = index;
 		}
+	};
 
+	const encode = async (): Promise<WriteBlobStepEncoded> => {
+		await encodeQuilt();
 		return blobFlow.encode();
 	};
 
@@ -87,48 +90,23 @@ export function createWriteFilesFlow(
 
 	/** @yields {WriteBlobStep} */
 	async function* run(options: WriteFilesFlowRunOptions): AsyncGenerator<WriteBlobStep> {
-		const resumeStep = resume?.step;
-		const stepOrder = ['encoded', 'registered', 'uploaded', 'certified'] as const;
-		const resumeIndex = resumeStep ? stepOrder.indexOf(resumeStep) : -1;
-
-		if (resumeIndex >= stepOrder.indexOf('certified')) {
+		if (resume?.step === 'certified') {
 			return;
 		}
 
-		if (resumeIndex < stepOrder.indexOf('encoded')) {
-			yield await encode();
-		} else if (resumeIndex < stepOrder.indexOf('uploaded')) {
-			await encode();
-		}
+		// The quilt index is needed by listFiles() even when resuming after the upload, where the blob
+		// flow itself doesn't need to encode again
+		await encodeQuilt();
 
-		const resumeBlobObjectId = resume && 'blobObjectId' in resume ? resume.blobObjectId : undefined;
-		let registerDigest: string | undefined;
-		if (!resumeBlobObjectId) {
-			const regResult = await blobFlow.executeRegister({
-				signer: options.signer,
-				epochs: options.epochs,
-				deletable: options.deletable,
-				owner: options.owner ?? options.signer.toSuiAddress(),
-				attributes: {
-					_walrusBlobType: 'quilt',
-					...options.attributes,
-				},
-			});
-			registerDigest = regResult.txDigest;
-			yield regResult;
-		}
-
-		if (resumeIndex < stepOrder.indexOf('uploaded')) {
-			yield await blobFlow.upload({
-				digest: registerDigest,
-				deletable: options.deletable,
-				signal: options.signal,
-			});
-		}
-
-		if (resumeIndex < stepOrder.indexOf('certified')) {
-			yield await blobFlow.executeCertify({ signer: options.signer });
-		}
+		// The blob flow's run() handles every resume point, including restoring the upload certificate
+		// when resuming from the 'uploaded' step
+		yield* blobFlow.run({
+			...options,
+			attributes: {
+				_walrusBlobType: 'quilt',
+				...options.attributes,
+			},
+		});
 	}
 
 	return {
