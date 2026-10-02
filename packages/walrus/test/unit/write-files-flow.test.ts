@@ -4,7 +4,7 @@
 import { toBase64 } from '@mysten/bcs';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { Transaction } from '@mysten/sui/transactions';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { WalrusClient } from '../../src/client.js';
 import type { Blob } from '../../src/contracts/walrus/blob.js';
@@ -14,6 +14,7 @@ import type { WriteBlobFlowContext } from '../../src/flows/write-blob.js';
 import { createWriteFilesFlow } from '../../src/flows/write-files.js';
 import type { WriteBlobFlowOptions, WriteBlobStep } from '../../src/types.js';
 import { CertificateBcs } from '../../src/utils/bcs.js';
+import { getWasmBindings } from '../../src/wasm.js';
 import { encodeQuilt, encodeQuiltPatchId } from '../../src/utils/quilts.js';
 
 const BLOB_ID = 'g6q_-DZG0i7saDXXWfinoFh43VdHbfcXg9CKeCZv7zc';
@@ -57,7 +58,7 @@ function setup(hasUploadRelay = false, deletable = true) {
 			metadata: {},
 			sliversByNode: [],
 		})),
-		computeBlobMetadata: vi.fn(async ({ nonce }: { nonce?: Uint8Array }) => ({
+		computeBlobMetadata: vi.fn<WalrusClient['computeBlobMetadata']>(async ({ nonce }) => ({
 			blobId: BLOB_ID,
 			rootHash: new Uint8Array(32),
 			metadata: { encodingType: 'RS2', unencodedLength: 34n },
@@ -187,7 +188,11 @@ for (const hasUploadRelay of [false, true]) {
 					}
 					expect(client.encodeBlob).toHaveBeenCalledTimes(Number(needsUpload && !hasUploadRelay));
 					expect(client.computeBlobMetadata).toHaveBeenCalledTimes(
-						Number(needsUpload && hasUploadRelay),
+						Number(
+							(needsUpload && hasUploadRelay) ||
+								resumeStep === 'uploaded' ||
+								resumeStep === 'certified',
+						),
 					);
 					expect(client.writeBlobToUploadRelay).toHaveBeenCalledTimes(
 						Number(needsUpload && hasUploadRelay),
@@ -264,3 +269,88 @@ for (const hasUploadRelay of [false, true]) {
 		);
 	});
 }
+
+describe('resumed quilt content validation', () => {
+	let wasm: Awaited<ReturnType<typeof getWasmBindings>>;
+	let blobId: string;
+	beforeAll(async () => {
+		wasm = await getWasmBindings();
+		const { quilt } = encodeQuilt({
+			blobs: [
+				{ contents: new TextEncoder().encode('first'), identifier: 'one.txt' },
+				{ contents: new TextEncoder().encode('second'), identifier: 'two.txt' },
+			],
+			numShards: 1000,
+		});
+		blobId = wasm.computeMetadata(1000, quilt).blobId;
+	});
+
+	for (const hasUploadRelay of [false, true]) {
+		for (const step of ['uploaded', 'certified'] as const) {
+			it.each(['unchanged', 'size', 'contents', 'identifier', 'tags'] as const)(
+				`validates %s inputs from ${step} with uploadRelay=${hasUploadRelay}`,
+				async (change) => {
+					const { client, walrus, ctx, certifiedBlobObject } = setup(hasUploadRelay);
+					client.computeBlobMetadata.mockImplementation(async ({ bytes, nonce }) => {
+						const metadata = wasm.computeMetadata(1000, bytes);
+						return {
+							blobId: metadata.blobId,
+							rootHash: metadata.rootHash,
+							metadata: {
+								encodingType: metadata.encodingType,
+								unencodedLength: metadata.unencodedLength,
+							},
+							nonce: nonce ?? NONCE,
+							blobDigest: async () => new Uint8Array(32),
+						};
+					});
+					const resume: WriteBlobStep =
+						step === 'uploaded'
+							? {
+									step,
+									blobId,
+									blobObjectId: BLOB_OBJECT_ID,
+									certificate: CertificateBcs.serialize(CERTIFICATE).toBase64(),
+								}
+							: { step, blobId, blobObjectId: BLOB_OBJECT_ID, blobObject: certifiedBlobObject };
+					const changedFiles = [
+						WalrusFile.from({
+							contents: new TextEncoder().encode(
+								change === 'size' ? 'a'.repeat(700) : change === 'contents' ? 'other' : 'first',
+							),
+							identifier: change === 'identifier' ? 'renamed.txt' : 'one.txt',
+							tags: change === 'tags' ? { updated: 'true' } : undefined,
+						}),
+						files()[1],
+					];
+					const result = walrus.writeFiles({
+						files: changedFiles,
+						resume,
+						signer,
+						epochs: 1,
+						deletable: true,
+					});
+					if (change === 'unchanged') {
+						const listed = await result;
+						expect(listed).toHaveLength(2);
+						expect(listed.every((file) => file.blobId === blobId)).toBe(true);
+						expect(client.computeBlobMetadata).toHaveBeenCalledTimes(1);
+						expect(client.registerBlob).not.toHaveBeenCalled();
+						expect(client.encodeBlob).not.toHaveBeenCalled();
+						expect(client.writeBlobToUploadRelay).not.toHaveBeenCalled();
+						expect(client.writeEncodedBlobToNodes).not.toHaveBeenCalled();
+						expect(client.certifyBlobTransaction).toHaveBeenCalledTimes(
+							Number(step === 'uploaded'),
+						);
+						return;
+					}
+					await expect(result).rejects.toThrow('Resume blobId mismatch');
+					expect(ctx.executeTransaction).not.toHaveBeenCalled();
+					expect(client.certifyBlobTransaction).not.toHaveBeenCalled();
+					expect(client.writeBlobToUploadRelay).not.toHaveBeenCalled();
+					expect(client.writeEncodedBlobToNodes).not.toHaveBeenCalled();
+				},
+			);
+		}
+	}
+});

@@ -4,6 +4,7 @@
 import type { Signer } from '@mysten/sui/cryptography';
 import type { Transaction } from '@mysten/sui/transactions';
 
+import { WalrusClientError } from '../error.js';
 import type {
 	WriteBlobFlowOptions,
 	WriteBlobStep,
@@ -44,6 +45,14 @@ export function createWriteFilesFlow(
 					})),
 				),
 			});
+			if (resume?.step === 'uploaded' || resume?.step === 'certified') {
+				const { blobId } = await client.computeBlobMetadata({ bytes: quilt });
+				if (blobId !== resume.blobId) {
+					throw new WalrusClientError(
+						`Resume blobId mismatch: expected ${resume.blobId}, got ${blobId}. The blob content may have changed.`,
+					);
+				}
+			}
 			quiltBytes = quilt;
 			quiltIndex = index;
 		}
