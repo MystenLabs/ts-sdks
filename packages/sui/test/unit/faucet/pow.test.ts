@@ -37,6 +37,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+	vi.useRealTimers();
 	vi.unstubAllGlobals();
 	vi.restoreAllMocks();
 	vi.resetAllMocks();
@@ -95,21 +96,57 @@ describe('faucet PoW version 1', () => {
 		expect(argon2.argon2dAsync).not.toHaveBeenCalled();
 	});
 
-	it('honors cancellation while a native hash is in flight', async () => {
-		const controller = new AbortController();
-		const native = vi.fn<typeof nativeArgon2>((_algorithm, _parameters, callback) => {
-			setTimeout(() => {
-				controller.abort();
-				callback(null, Buffer.alloc(32));
-			}, 0);
-		});
-		getBuiltinModule.mockReturnValue({ argon2: native });
-		await expect(
-			solveFaucetChallenge(challenge, Date.now() + 1000, controller.signal),
-		).rejects.toMatchObject({ name: 'AbortError' });
-		expect(native).toHaveBeenCalledOnce();
-		expect(argon2.argon2dAsync).not.toHaveBeenCalled();
-	});
+	it.each([null, new Error('Late native failure')])(
+		'rejects cancellation before the native callback settles with %j',
+		async (lateError) => {
+			vi.useFakeTimers();
+			const controller = new AbortController();
+			const reason = new Error('Cancelled while hashing');
+			const removeListener = vi.spyOn(controller.signal, 'removeEventListener');
+			let complete!: Parameters<typeof nativeArgon2>[2];
+			const native = vi.fn<typeof nativeArgon2>((_algorithm, _parameters, callback) => {
+				complete = callback;
+			});
+			getBuiltinModule.mockReturnValue({ argon2: native });
+			const rejected = vi.fn();
+			const proof = solveFaucetChallenge(challenge, Date.now() + 1000, controller.signal).catch(
+				rejected,
+			);
+
+			controller.abort(reason);
+			await vi.advanceTimersByTimeAsync(0);
+			try {
+				expect(rejected).toHaveBeenCalledExactlyOnceWith(reason);
+				expect(removeListener).toHaveBeenCalledWith('abort', expect.any(Function));
+				expect(native).toHaveBeenCalledOnce();
+				expect(argon2.argon2dAsync).not.toHaveBeenCalled();
+			} finally {
+				complete(lateError, Buffer.alloc(32));
+				await vi.runAllTimersAsync();
+				await proof;
+			}
+			expect(rejected).toHaveBeenCalledOnce();
+		},
+	);
+
+	it.each([null, new Error('Native failure')])(
+		'removes the abort listener when native hashing settles with %j',
+		async (error) => {
+			const controller = new AbortController();
+			const addListener = vi.spyOn(controller.signal, 'addEventListener');
+			const removeListener = vi.spyOn(controller.signal, 'removeEventListener');
+			getBuiltinModule.mockReturnValue({
+				argon2: vi.fn<typeof nativeArgon2>((_algorithm, _parameters, callback) => {
+					callback(error, Buffer.from(vectors.cases[0].hash, 'hex'));
+				}),
+			});
+			const proof = solveFaucetChallenge(challenge, Date.now() + 1000, controller.signal);
+			if (error) await expect(proof).rejects.toBe(error);
+			else await expect(proof).resolves.toMatchObject({ hashHex: vectors.cases[0].hash });
+			expect(addListener).toHaveBeenCalledOnce();
+			expect(removeListener).toHaveBeenCalledExactlyOnceWith('abort', addListener.mock.calls[0][1]);
+		},
+	);
 
 	it.each(Object.entries(vectors.thresholds).filter(([difficulty]) => difficulty !== '$comment'))(
 		'validates integer threshold division for difficulty %s',

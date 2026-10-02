@@ -142,7 +142,20 @@ export async function solveFaucetChallenge(
 	const threshold = BigInt(challenge.threshold);
 	while (Date.now() < deadline) {
 		signal.throwIfAborted();
-		const hash = await hashFaucetProof(challenge, nonce);
+		let onAbort!: () => void;
+		let hash: Uint8Array;
+		try {
+			// Stop waiting even if native hashing is still queued in the worker pool.
+			hash = await Promise.race([
+				new Promise<never>((_, reject) => {
+					onAbort = () => reject(signal.reason);
+					signal.addEventListener('abort', onAbort, { once: true });
+				}),
+				hashFaucetProof(challenge, nonce),
+			]);
+		} finally {
+			signal.removeEventListener('abort', onAbort);
+		}
 		// Yield to timers and cancellation, even when the hash implementation only yields microtasks.
 		await new Promise((resolve) => setTimeout(resolve, 0));
 		signal.throwIfAborted();
