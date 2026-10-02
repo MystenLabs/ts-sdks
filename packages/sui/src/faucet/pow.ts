@@ -31,7 +31,10 @@ export const FaucetAmount = pipe(
 	check((value) => BigInt(value) > 0n),
 );
 export const FaucetAddress = pipe(string(), regex(/^0x[0-9a-f]{64}$/));
-export const FaucetDigest = pipe(string(), maxLength(44), check(isValidTransactionDigest));
+export const FaucetDigest = pipe(
+	string(),
+	check((value) => value.length <= 44 && isValidTransactionDigest(value)),
+);
 export const FaucetDifficulty = pipe(
 	FaucetU64,
 	check((value) => BigInt(value) >= 2n && BigInt(value) <= 1n << 48n),

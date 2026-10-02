@@ -6,10 +6,17 @@ import * as argon2 from '@noble/hashes/argon2.js';
 import { parse } from 'valibot';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { FaucetChallenge, hashFaucetProof, solveFaucetChallenge } from '../../../src/faucet/pow.js';
+import {
+	FaucetChallenge,
+	FaucetDigest,
+	hashFaucetProof,
+	solveFaucetChallenge,
+} from '../../../src/faucet/pow.js';
+import { isValidTransactionDigest } from '../../../src/utils/sui-types.js';
 import vectors from './pow-vectors.json' with { type: 'json' };
 
 vi.mock('@noble/hashes/argon2.js', { spy: true });
+vi.mock('../../../src/utils/sui-types.js', { spy: true });
 
 const nativeArgon2 = process.getBuiltinModule?.('node:crypto')?.argon2;
 const getBuiltinModule = vi.fn<typeof process.getBuiltinModule>();
@@ -32,6 +39,7 @@ const challenge = parse(FaucetChallenge, {
 });
 
 beforeEach(() => {
+	vi.clearAllMocks();
 	vi.stubGlobal('process', { ...process, getBuiltinModule });
 	getBuiltinModule.mockReturnValue(undefined);
 });
@@ -41,6 +49,30 @@ afterEach(() => {
 	vi.unstubAllGlobals();
 	vi.restoreAllMocks();
 	vi.resetAllMocks();
+});
+
+describe('faucet digest validation', () => {
+	it.each([45, 65535])('rejects a %i-character digest before Base58 validation', (length) => {
+		expect(() => parse(FaucetDigest, 'z'.repeat(length))).toThrow();
+		expect(vi.mocked(isValidTransactionDigest).mock.calls.length).toBe(0);
+	});
+
+	it.each(['chainId', 'checkpointDigest'])(
+		'rejects an oversized %s without decoding it',
+		(field) => {
+			expect(() => parse(FaucetChallenge, { ...challenge, [field]: 'z'.repeat(65535) })).toThrow();
+			expect(
+				vi.mocked(isValidTransactionDigest).mock.calls.map(([value]) => value.length),
+			).not.toContain(65535);
+		},
+	);
+
+	it('still validates the decoded digest length', () => {
+		expect(parse(FaucetDigest, vectors.inputs.checkpointDigest)).toBe(
+			vectors.inputs.checkpointDigest,
+		);
+		expect(() => parse(FaucetDigest, 'z')).toThrow();
+	});
 });
 
 describe('faucet PoW version 1', () => {
