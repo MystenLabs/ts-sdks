@@ -108,6 +108,7 @@ export async function requestSuiFromFaucetV3(input: {
 		const challenge = parse(
 			FaucetChallenge,
 			await request(`/v3/challenge?${new URLSearchParams({ recipient })}`),
+			{ abortPipeEarly: true },
 		);
 		if (challenge.recipient !== recipient) throw new Error('Faucet challenge recipient mismatch');
 		// Reserve part of the window for submission; refresh only before a payout has been attempted.
@@ -124,6 +125,7 @@ export async function requestSuiFromFaucetV3(input: {
 				checkpointSeq: challenge.checkpointSeq,
 				...proof,
 			}),
+			{ abortPipeEarly: true },
 		);
 		if (result.recipient !== recipient) throw new Error('Faucet response recipient mismatch');
 		return result;

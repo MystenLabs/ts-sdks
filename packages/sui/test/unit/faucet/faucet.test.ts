@@ -170,6 +170,54 @@ describe('requestSuiFromFaucetV3', () => {
 		expect(fetchMock).toHaveBeenCalledTimes(1);
 	});
 
+	it.each([
+		['challenge', 'checkpointSeq'],
+		['challenge', 'amountMist'],
+		['challenge', 'difficulty'],
+		['challenge', 'threshold'],
+		['payout', 'amountMist'],
+		['payout', 'difficulty'],
+	])('rejects oversized %s.%s before BigInt conversion', async (stage, field) => {
+		const oversized = '9'.repeat(65_535);
+		let oversizedConversions = 0;
+		vi.stubGlobal(
+			'BigInt',
+			new Proxy(BigInt, {
+				apply(target, thisArg, args) {
+					if (args[0] === oversized) {
+						oversizedConversions++;
+						throw new Error('Oversized value reached BigInt');
+					}
+					return Reflect.apply(target, thisArg, args);
+				},
+			}),
+		);
+		if (stage === 'payout') fetchMock.mockResolvedValueOnce(Response.json(challenge));
+		fetchMock.mockResolvedValueOnce(
+			Response.json({ ...(stage === 'payout' ? payout : challenge), [field]: oversized }),
+		);
+
+		await expect(
+			requestSuiFromFaucetV3({
+				host: getFaucetHost('testnet'),
+				recipient: challenge.recipient,
+			}),
+		).rejects.toMatchObject({ name: 'ValiError' });
+		expect(oversizedConversions).toBe(0);
+		expect(fetchMock).toHaveBeenCalledTimes(stage === 'payout' ? 2 : 1);
+	});
+
+	it('rejects zero difficulty before the root threshold division', async () => {
+		fetchMock.mockResolvedValueOnce(Response.json({ ...challenge, difficulty: '0' }));
+		await expect(
+			requestSuiFromFaucetV3({
+				host: getFaucetHost('testnet'),
+				recipient: challenge.recipient,
+			}),
+		).rejects.toMatchObject({ name: 'ValiError' });
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+	});
+
 	it.each(['payout_status_unknown', 'already_used', 'stale_checkpoint', 'invalid_proof'])(
 		'preserves %s errors and never retries a payout',
 		async (code) => {
