@@ -69,6 +69,25 @@ export const FaucetChallenge = pipe(
 
 type Challenge = InferOutput<typeof FaucetChallenge>;
 
+type NativeArgon2 = (
+	algorithm: 'argon2d',
+	parameters: {
+		message: string;
+		nonce: string;
+		parallelism: number;
+		tagLength: number;
+		memory: number;
+		passes: number;
+	},
+	callback: (error: Error | null, hash: Uint8Array) => void,
+) => void;
+
+type NodeRuntime = {
+	process?: {
+		getBuiltinModule?: (id: 'node:crypto') => { argon2?: NativeArgon2 } | undefined;
+	};
+};
+
 export function hashFaucetProof(challenge: Challenge, nonce: bigint): Promise<Uint8Array> {
 	const preimage = [
 		challenge.domain,
@@ -82,7 +101,9 @@ export function hashFaucetProof(challenge: Challenge, nonce: bigint): Promise<Ui
 	].join('\n');
 
 	// Avoid Node imports so browser bundles can use the Noble fallback without polyfills.
-	const nativeArgon2 = globalThis.process?.getBuiltinModule?.('node:crypto')?.argon2;
+	const nativeArgon2 = (globalThis as NodeRuntime).process?.getBuiltinModule?.(
+		'node:crypto',
+	)?.argon2;
 	if (nativeArgon2) {
 		return new Promise((resolve, reject) => {
 			nativeArgon2(
