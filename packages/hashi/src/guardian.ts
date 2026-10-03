@@ -52,6 +52,8 @@ interface GuardianInfoJson {
 	committeeEpoch?: string | null;
 	btcPubkey?: string | null;
 	signingPubKey?: string;
+	timestampMs?: string | null;
+	/** Sent instead of `timestampMs` by guardian proxies built before hashi#1311. */
 	signedAtMs?: string | null;
 }
 
@@ -149,12 +151,15 @@ export async function fetchGuardianInfo(origin: string): Promise<RawGuardianInfo
 					},
 				};
 
+	const timestampField = body.timestampMs != null ? 'timestampMs' : 'signedAtMs';
+	const timestamp = body[timestampField];
+
 	return {
 		limiter,
 		gitRevision: body.gitRevision ?? '',
 		committeeEpoch: body.committeeEpoch == null ? null : u64(body.committeeEpoch, 'committeeEpoch'),
 		btcPubkey: body.btcPubkey ?? null,
 		signingPubKey: body.signingPubKey ?? '',
-		signedAtMs: body.signedAtMs == null ? null : u64(body.signedAtMs, 'signedAtMs'),
+		signedAtMs: timestamp == null ? null : u64(timestamp, timestampField),
 	};
 }

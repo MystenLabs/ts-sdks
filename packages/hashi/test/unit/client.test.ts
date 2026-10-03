@@ -2321,7 +2321,7 @@ describe('HashiClient guardian', () => {
 		committeeEpoch: '3',
 		btcPubkey: 'deadbeef',
 		signingPubKey: 'feedface',
-		signedAtMs: '1720000000123',
+		timestampMs: '1720000000123',
 	};
 
 	/** The parsed limiter matching INFO_BODY, for provider-based tests. */

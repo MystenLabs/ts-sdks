@@ -336,7 +336,7 @@ export interface RawGuardianInfo {
 	readonly btcPubkey: string | null;
 	/** Guardian ed25519 32-byte signing pubkey (hex). */
 	readonly signingPubKey: string;
-	/** `GuardianInfo` signing timestamp (ms since epoch); `null` if absent. */
+	/** When the guardian produced this info (ms since epoch); `null` if absent. */
 	readonly signedAtMs: bigint | null;
 }
 
