@@ -1,5 +1,12 @@
 # @mysten/deepbook-v3
 
+## 2.6.7
+
+### Patch Changes
+
+- 2ba222a: Upgrade axios to require version 1.20.0 or later, fixing reported security
+  vulnerabilities.
+
 ## 2.6.6
 
 ## 2.6.5

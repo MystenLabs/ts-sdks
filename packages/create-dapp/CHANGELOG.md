@@ -1,5 +1,12 @@
 # @mysten/create-dapp
 
+## 0.7.38
+
+### Patch Changes
+
+- Updated dependencies [953e584]
+  - @mysten/sui@2.34.0
+
 ## 0.7.37
 
 ## 0.7.36

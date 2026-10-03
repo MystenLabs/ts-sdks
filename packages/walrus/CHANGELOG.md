@@ -1,5 +1,21 @@
 # @mysten/walrus
 
+## 1.2.33
+
+### Patch Changes
+
+- 10772ce: Fix `readBlobAttributes` throwing for a blob whose attributes are absent or whose
+  metadata field was removed: it now returns `null`, as its type says. This also fixes
+  `writeBlobAttributes({ blobObjectId })` failing to add attributes on blobs with absent or removed
+  metadata.
+- 10772ce: Fix resuming `writeFiles` / `writeFilesFlow().run()` from an `uploaded` step, which
+  failed with "upload must be executed before calling certify". Certified checkpoints also rebuild
+  the quilt index and return file references without repeating completed steps. The files flow now
+  hands its steps to the blob flow's `run()`, which restores the saved upload certificate.
+
+  Validate the rebuilt quilt against the saved blob ID before resuming from uploaded or certified
+  checkpoints, rejecting changed input files instead of returning incorrect file references.
+
 ## 1.2.32
 
 ## 1.2.31
