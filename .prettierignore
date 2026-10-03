@@ -25,6 +25,7 @@ packages/docs/public/typedoc
 packages/walrus-wasm
 packages/move-bytecode-template
 packages/walrus/src/client
+packages/hashi/test/unit/deposit-address-vectors.json
 package.json
 pnpm-lock.yaml
 package_summaries/

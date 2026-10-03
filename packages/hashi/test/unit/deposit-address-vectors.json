@@ -1,0 +1,178 @@
+[
+  {
+    "mpc_public_key": "66074d25a751c4743342c90ad8ead9454daa00d9b9aed29bca321036d16c4b4d00",
+    "guardian_btc_public_key": "1b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f",
+    "derivation_path": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "child_pubkey": "80583e4abd7e73b0868a44e24dd05379375f1c3a85c4c1329bb0572df8577985",
+    "address": {
+      "mainnet": "bc1p674xfkudr0myzu3jpschmc4wx9xjllf5wyqt4x8y48jnd099dchs4ljue5",
+      "signet": "tb1p674xfkudr0myzu3jpschmc4wx9xjllf5wyqt4x8y48jnd099dchszhynrm",
+      "regtest": "bcrt1p674xfkudr0myzu3jpschmc4wx9xjllf5wyqt4x8y48jnd099dchs0ww4kp"
+    }
+  },
+  {
+    "mpc_public_key": "66074d25a751c4743342c90ad8ead9454daa00d9b9aed29bca321036d16c4b4d00",
+    "guardian_btc_public_key": "1b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f",
+    "derivation_path": "0x0101010101010101010101010101010101010101010101010101010101010101",
+    "child_pubkey": "1b79f716fb1f7beba697f012edcf7b81a96ceac2920b181bd217c9cc017ac7fb",
+    "address": {
+      "mainnet": "bc1plf0jem4745f5yhu4x3q226q4f34jw6nxysyqvyxjxem0gugqrxnsft8mjv",
+      "signet": "tb1plf0jem4745f5yhu4x3q226q4f34jw6nxysyqvyxjxem0gugqrxns7r35gr",
+      "regtest": "bcrt1plf0jem4745f5yhu4x3q226q4f34jw6nxysyqvyxjxem0gugqrxnsn6mjae"
+    }
+  },
+  {
+    "mpc_public_key": "66074d25a751c4743342c90ad8ead9454daa00d9b9aed29bca321036d16c4b4d00",
+    "guardian_btc_public_key": "1b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f",
+    "derivation_path": "0xab000000000000000000000000000000000000000000000000000000000000cd",
+    "child_pubkey": "1403322badfd7823bebf81e9c5ff74f32f856348ac0f5abe33130cc4b6a14c84",
+    "address": {
+      "mainnet": "bc1p2zdq5arv2k7cec0jwstrt3twsnvrze66q4eaqujr4aykuzzu7wwqa5d3cg",
+      "signet": "tb1p2zdq5arv2k7cec0jwstrt3twsnvrze66q4eaqujr4aykuzzu7wwq2um7z8",
+      "regtest": "bcrt1p2zdq5arv2k7cec0jwstrt3twsnvrze66q4eaqujr4aykuzzu7wwq893cha"
+    }
+  },
+  {
+    "mpc_public_key": "66074d25a751c4743342c90ad8ead9454daa00d9b9aed29bca321036d16c4b4d00",
+    "guardian_btc_public_key": "1b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f",
+    "derivation_path": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "child_pubkey": "dbe24a40f8b21a1d1b9280f7805d21520f91342bb9cac72f9cca9e9943199a1b",
+    "address": {
+      "mainnet": "bc1p95m33u90jqdwkxjln3zmk7y2rx4hrqpzqrka37tp20hppvaq7klsrs6lht",
+      "signet": "tb1p95m33u90jqdwkxjln3zmk7y2rx4hrqpzqrka37tp20hppvaq7kls5cvsdy",
+      "regtest": "bcrt1p95m33u90jqdwkxjln3zmk7y2rx4hrqpzqrka37tp20hppvaq7klsepxkc7"
+    }
+  },
+  {
+    "mpc_public_key": "66074d25a751c4743342c90ad8ead9454daa00d9b9aed29bca321036d16c4b4d80",
+    "guardian_btc_public_key": "1b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f",
+    "derivation_path": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "child_pubkey": "928f891818ca0cdd27be0932e65cbf51f4aca38802f4daa0800be9b5ce7151b1",
+    "address": {
+      "mainnet": "bc1prl32qtmapa69fswheafm0j6yp8vtwq2muxslung8eqajm0vxfk3qqvwgf5",
+      "signet": "tb1prl32qtmapa69fswheafm0j6yp8vtwq2muxslung8eqajm0vxfk3qhyc8nm",
+      "regtest": "bcrt1prl32qtmapa69fswheafm0j6yp8vtwq2muxslung8eqajm0vxfk3q6ajpxp"
+    }
+  },
+  {
+    "mpc_public_key": "66074d25a751c4743342c90ad8ead9454daa00d9b9aed29bca321036d16c4b4d80",
+    "guardian_btc_public_key": "1b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f",
+    "derivation_path": "0x0101010101010101010101010101010101010101010101010101010101010101",
+    "child_pubkey": "1f0faa213f24ec0f4c41865fb1bc68012bbabd0cda9c6064c93c64a5f4349cdb",
+    "address": {
+      "mainnet": "bc1pw5zd8ffjjms52dcymkp4qj4xfmuzxz9zscgq8qn8dwac23t5wcvqr8apkh",
+      "signet": "tb1pw5zd8ffjjms52dcymkp4qj4xfmuzxz9zscgq8qn8dwac23t5wcvq50twvc",
+      "regtest": "bcrt1pw5zd8ffjjms52dcymkp4qj4xfmuzxz9zscgq8qn8dwac23t5wcvqekpgez"
+    }
+  },
+  {
+    "mpc_public_key": "66074d25a751c4743342c90ad8ead9454daa00d9b9aed29bca321036d16c4b4d80",
+    "guardian_btc_public_key": "1b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f",
+    "derivation_path": "0xab000000000000000000000000000000000000000000000000000000000000cd",
+    "child_pubkey": "760c448b98d8281394592adf368433f0f1cfb2b265c221dc4a0245145559cc3e",
+    "address": {
+      "mainnet": "bc1pns58handmmdjvmqawnhgncmx5pvlusm3cwsnqvd2kj2gl0plfdmstl6zv2",
+      "signet": "tb1pns58handmmdjvmqawnhgncmx5pvlusm3cwsnqvd2kj2gl0plfdmsuhvdk9",
+      "regtest": "bcrt1pns58handmmdjvmqawnhgncmx5pvlusm3cwsnqvd2kj2gl0plfdms3wxtrl"
+    }
+  },
+  {
+    "mpc_public_key": "66074d25a751c4743342c90ad8ead9454daa00d9b9aed29bca321036d16c4b4d80",
+    "guardian_btc_public_key": "1b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f",
+    "derivation_path": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "child_pubkey": "538b77c53fcf67208e8959f69af6c31be60949330535ef3ba323862daae4902d",
+    "address": {
+      "mainnet": "bc1p5z4d0qa2j4z7e2n3fupzt9tf8aex4pejhqnxglzjgrxmxltfn9eqtjj87k",
+      "signet": "tb1p5z4d0qa2j4z7e2n3fupzt9tf8aex4pejhqnxglzjgrxmxltfn9equ6ygye",
+      "regtest": "bcrt1p5z4d0qa2j4z7e2n3fupzt9tf8aex4pejhqnxglzjgrxmxltfn9eq3rww3r"
+    }
+  },
+  {
+    "mpc_public_key": "0b5be51c72b8b5ef30e0e493a5c7e1102f5f08711a7514465139ad4aad79274600",
+    "guardian_btc_public_key": "1b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f",
+    "derivation_path": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "child_pubkey": "9e584ffca29b0b44f704d5f749671291a7abc2d267463a208929970148d79759",
+    "address": {
+      "mainnet": "bc1phghst4g5dza4kxke9s0jmtzdsfa8xtfgkfq5rrctkyjwanrevvsskvr78c",
+      "signet": "tb1phghst4g5dza4kxke9s0jmtzdsfa8xtfgkfq5rrctkyjwanrevvsspy43ah",
+      "regtest": "bcrt1phghst4g5dza4kxke9s0jmtzdsfa8xtfgkfq5rrctkyjwanrevvssvalhgd"
+    }
+  },
+  {
+    "mpc_public_key": "0b5be51c72b8b5ef30e0e493a5c7e1102f5f08711a7514465139ad4aad79274600",
+    "guardian_btc_public_key": "1b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f",
+    "derivation_path": "0x0101010101010101010101010101010101010101010101010101010101010101",
+    "child_pubkey": "d6305db510d6cb87554c942aaaffa3ff277366c2a04b8e64f633cceebd05f937",
+    "address": {
+      "mainnet": "bc1p09kjf0dz6a4qmdvwqydp902zxz4tr0rp60pe4nl7y4y8vfakf7zskt8tej",
+      "signet": "tb1p09kjf0dz6a4qmdvwqydp902zxz4tr0rp60pe4nl7y4y8vfakf7zspr3yra",
+      "regtest": "bcrt1p09kjf0dz6a4qmdvwqydp902zxz4tr0rp60pe4nl7y4y8vfakf7zsv6mzk8"
+    }
+  },
+  {
+    "mpc_public_key": "0b5be51c72b8b5ef30e0e493a5c7e1102f5f08711a7514465139ad4aad79274600",
+    "guardian_btc_public_key": "1b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f",
+    "derivation_path": "0xab000000000000000000000000000000000000000000000000000000000000cd",
+    "child_pubkey": "f5b869d5ee9a2ae00d471df1f44ecd75c16e3c607301e8903b80835f62660930",
+    "address": {
+      "mainnet": "bc1p5w5v06kqjqqrgmtvqpgzrt34s3zx523r2dsqa9exqvdu3hzyk3vstrzgrw",
+      "signet": "tb1p5w5v06kqjqqrgmtvqpgzrt34s3zx523r2dsqa9exqvdu3hzyk3vsut58ep",
+      "regtest": "bcrt1p5w5v06kqjqqrgmtvqpgzrt34s3zx523r2dsqa9exqvdu3hzyk3vs3j7pvm"
+    }
+  },
+  {
+    "mpc_public_key": "0b5be51c72b8b5ef30e0e493a5c7e1102f5f08711a7514465139ad4aad79274600",
+    "guardian_btc_public_key": "1b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f",
+    "derivation_path": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "child_pubkey": "1b38e310d7d49d967d91c87a2c860d8891868c04affd1f546588c3a7ab5bbf3b",
+    "address": {
+      "mainnet": "bc1p0z47lswu9zdc2u226zaydrk3czk29cl7lz6k77j6kswttxxzxxase9d2g4",
+      "signet": "tb1p0z47lswu9zdc2u226zaydrk3czk29cl7lz6k77j6kswttxxzxxaswdm9j6",
+      "regtest": "bcrt1p0z47lswu9zdc2u226zaydrk3czk29cl7lz6k77j6kswttxxzxxasr53r8q"
+    }
+  },
+  {
+    "mpc_public_key": "0b5be51c72b8b5ef30e0e493a5c7e1102f5f08711a7514465139ad4aad79274680",
+    "guardian_btc_public_key": "1b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f",
+    "derivation_path": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "child_pubkey": "7103452c7183d2bef4c29f09810baca05ab5fcbe82681a89836e817e06f9647f",
+    "address": {
+      "mainnet": "bc1p6yufmw902eghqszvkt3j56yjn5wrtvx48t9vavr7l5que2ruunaq0uxekh",
+      "signet": "tb1p6yufmw902eghqszvkt3j56yjn5wrtvx48t9vavr7l5que2ruunaqc5skvc",
+      "regtest": "bcrt1p6yufmw902eghqszvkt3j56yjn5wrtvx48t9vavr7l5que2ruunaq4d6sez"
+    }
+  },
+  {
+    "mpc_public_key": "0b5be51c72b8b5ef30e0e493a5c7e1102f5f08711a7514465139ad4aad79274680",
+    "guardian_btc_public_key": "1b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f",
+    "derivation_path": "0x0101010101010101010101010101010101010101010101010101010101010101",
+    "child_pubkey": "d1560c5da7d790ee493b5e9aad59be2804454be4bd72836a526e32b658fb7e27",
+    "address": {
+      "mainnet": "bc1pqp30xqdq36g72vwq7hrqj6drl6f9rydarzhppajq77yd7fc8qvpquaupuw",
+      "signet": "tb1pqp30xqdq36g72vwq7hrqj6drl6f9rydarzhppajq77yd7fc8qvpqt42wxp",
+      "regtest": "bcrt1pqp30xqdq36g72vwq7hrqj6drl6f9rydarzhppajq77yd7fc8qvpqxvqgnm"
+    }
+  },
+  {
+    "mpc_public_key": "0b5be51c72b8b5ef30e0e493a5c7e1102f5f08711a7514465139ad4aad79274680",
+    "guardian_btc_public_key": "1b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f",
+    "derivation_path": "0xab000000000000000000000000000000000000000000000000000000000000cd",
+    "child_pubkey": "ac2bb77d3610d09d46599b8452ebba92da17695925eb6ce6b61d00b0d19bc858",
+    "address": {
+      "mainnet": "bc1pgujwnuymfafpw8385v43hx2zuls6kfz9sj0nm90sy2hhqgpstlkq8s8z73",
+      "signet": "tb1pgujwnuymfafpw8385v43hx2zuls6kfz9sj0nm90sy2hhqgpstlkqsc3dy7",
+      "regtest": "bcrt1pgujwnuymfafpw8385v43hx2zuls6kfz9sj0nm90sy2hhqgpstlkqapmt3y"
+    }
+  },
+  {
+    "mpc_public_key": "0b5be51c72b8b5ef30e0e493a5c7e1102f5f08711a7514465139ad4aad79274680",
+    "guardian_btc_public_key": "1b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f",
+    "derivation_path": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "child_pubkey": "0b360cd7ede34cf85e6a7923e83451413db8aad01337c36c5869b4c6d5d88606",
+    "address": {
+      "mainnet": "bc1pa243qlkpqajmf2rumsx0h6tl9jfcz9w2vvj0v4c3v45fs86clxzsea2n8f",
+      "signet": "tb1pa243qlkpqajmf2rumsx0h6tl9jfcz9w2vvj0v4c3v45fs86clxzsw4uuax",
+      "regtest": "bcrt1pa243qlkpqajmf2rumsx0h6tl9jfcz9w2vvj0v4c3v45fs86clxzsrvk6gu"
+    }
+  }
+]
