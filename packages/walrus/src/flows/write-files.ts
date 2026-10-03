@@ -4,6 +4,7 @@
 import type { Signer } from '@mysten/sui/cryptography';
 import type { Transaction } from '@mysten/sui/transactions';
 
+import { WalrusClientError } from '../error.js';
 import type {
 	WriteBlobFlowOptions,
 	WriteBlobStep,
@@ -33,7 +34,7 @@ export function createWriteFilesFlow(
 		resume,
 	} as WriteBlobFlowOptions); // Cast needed: blob is a lazy getter populated by encode()
 
-	const encode = async (): Promise<WriteBlobStepEncoded> => {
+	const encodeQuilt = async () => {
 		if (!quiltBytes) {
 			const { quilt, index } = await client.encodeQuilt({
 				blobs: await Promise.all(
@@ -44,10 +45,21 @@ export function createWriteFilesFlow(
 					})),
 				),
 			});
+			if (resume?.step === 'uploaded' || resume?.step === 'certified') {
+				const { blobId } = await client.computeBlobMetadata({ bytes: quilt });
+				if (blobId !== resume.blobId) {
+					throw new WalrusClientError(
+						`Resume blobId mismatch: expected ${resume.blobId}, got ${blobId}. The blob content may have changed.`,
+					);
+				}
+			}
 			quiltBytes = quilt;
 			quiltIndex = index;
 		}
+	};
 
+	const encode = async (): Promise<WriteBlobStepEncoded> => {
+		await encodeQuilt();
 		return blobFlow.encode();
 	};
 
@@ -70,7 +82,7 @@ export function createWriteFilesFlow(
 			throw new Error('encode must be executed before calling listFiles');
 		}
 
-		const certResult = await blobFlow.getBlob();
+		const certResult = resume?.step === 'certified' ? resume : await blobFlow.getBlob();
 		return quiltIndex.patches.map((patch) => ({
 			id: encodeQuiltPatchId({
 				quiltId: certResult.blobId,
@@ -87,48 +99,19 @@ export function createWriteFilesFlow(
 
 	/** @yields {WriteBlobStep} */
 	async function* run(options: WriteFilesFlowRunOptions): AsyncGenerator<WriteBlobStep> {
-		const resumeStep = resume?.step;
-		const stepOrder = ['encoded', 'registered', 'uploaded', 'certified'] as const;
-		const resumeIndex = resumeStep ? stepOrder.indexOf(resumeStep) : -1;
+		// The quilt index is needed by listFiles() even when resuming after the upload, where the blob
+		// flow itself doesn't need to encode again
+		await encodeQuilt();
 
-		if (resumeIndex >= stepOrder.indexOf('certified')) {
-			return;
-		}
-
-		if (resumeIndex < stepOrder.indexOf('encoded')) {
-			yield await encode();
-		} else if (resumeIndex < stepOrder.indexOf('uploaded')) {
-			await encode();
-		}
-
-		const resumeBlobObjectId = resume && 'blobObjectId' in resume ? resume.blobObjectId : undefined;
-		let registerDigest: string | undefined;
-		if (!resumeBlobObjectId) {
-			const regResult = await blobFlow.executeRegister({
-				signer: options.signer,
-				epochs: options.epochs,
-				deletable: options.deletable,
-				owner: options.owner ?? options.signer.toSuiAddress(),
-				attributes: {
-					_walrusBlobType: 'quilt',
-					...options.attributes,
-				},
-			});
-			registerDigest = regResult.txDigest;
-			yield regResult;
-		}
-
-		if (resumeIndex < stepOrder.indexOf('uploaded')) {
-			yield await blobFlow.upload({
-				digest: registerDigest,
-				deletable: options.deletable,
-				signal: options.signal,
-			});
-		}
-
-		if (resumeIndex < stepOrder.indexOf('certified')) {
-			yield await blobFlow.executeCertify({ signer: options.signer });
-		}
+		// The blob flow's run() handles every resume point, including restoring the upload certificate
+		// when resuming from the 'uploaded' step
+		yield* blobFlow.run({
+			...options,
+			attributes: {
+				_walrusBlobType: 'quilt',
+				...options.attributes,
+			},
+		});
 	}
 
 	return {
