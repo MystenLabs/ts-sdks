@@ -541,6 +541,12 @@ export namespace SuiClientTypes {
 				emitModule?: never;
 		  };
 
+	/**
+	 * List transactions in checkpoint order on gRPC and GraphQL. The deprecated
+	 * JSON-RPC transport uses the fullnode's local execution order instead, which
+	 * can differ both within and across checkpoints. Page contents and cursor
+	 * positions are therefore transport-specific, even without a filter.
+	 */
 	export interface ListTransactionsOptions<
 		Include extends TransactionInclude = {},
 	> extends CoreClientMethodOptions {
@@ -554,18 +560,22 @@ export namespace SuiClientTypes {
 		 */
 		limit?: number;
 		/**
-		 * Return items strictly after this cursor in ledger order (usually the `endCursor` of
-		 * an ascending page, or the `startCursor` of a descending page to poll for new items).
+		 * Return items strictly after this cursor in the transport's transaction order
+		 * (usually the `endCursor` of an ascending page, or the `startCursor` of a descending
+		 * page to poll for new items).
 		 * Implies `order: 'ascending'`, and cannot be combined with `before`.
 		 */
 		after?: string | null;
 		/**
-		 * Return items strictly before this cursor in ledger order (usually the `endCursor` of
-		 * a descending page). Implies `order: 'descending'`, and cannot be combined with
-		 * `after`.
+		 * Return items strictly before this cursor in the transport's transaction order
+		 * (usually the `endCursor` of a descending page). Implies `order: 'descending'`,
+		 * and cannot be combined with `after`.
 		 */
 		before?: string | null;
-		/** Order of returned results. Defaults to `ascending` (oldest first). */
+		/**
+		 * Order of returned results. Defaults to `ascending` (oldest first), using
+		 * checkpoint order on gRPC/GraphQL and local execution order on JSON-RPC.
+		 */
 		order?: 'ascending' | 'descending';
 		include?: Include & TransactionInclude;
 	}

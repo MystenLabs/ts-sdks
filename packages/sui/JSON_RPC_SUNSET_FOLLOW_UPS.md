@@ -1,12 +1,12 @@
 # Core query API follow-ups gated on the JSON-RPC sunset
 
 The core query APIs (`listTransactions`, `listEvents`) are intentionally restricted to what all
-three transports (gRPC, GraphQL, JSON-RPC) can support with identical behavior, verified by the
-parity tests in `test/e2e/clients/core/queries.test.ts` (gRPC is covered by the unit tests in
-`test/unit/grpc/list-queries.test.ts` until the pinned localnet image serves the List RPCs, at which
-point it should be added to the parity matrix). Several capabilities were left out of the core API
-only because JSON-RPC cannot express them. Once JSON-RPC is fully deprecated and removed, they can
-be promoted into the core API.
+three transports (gRPC, GraphQL, JSON-RPC) can support, with the transport gaps documented below.
+Shared behavior is verified by the parity tests in `test/e2e/clients/core/queries.test.ts` (gRPC is
+covered by the unit tests in `test/unit/grpc/list-queries.test.ts` until the pinned localnet image
+serves the List RPCs, at which point it should be added to the parity matrix). Several capabilities
+were left out of the core API only because JSON-RPC cannot express them. Once JSON-RPC is fully
+deprecated and removed, they can be promoted into the core API.
 
 Until then, advanced filtering is available through the raw gRPC ledger service
 (`client.ledgerService.listTransactions` and friends take full DNF filters), and through raw GraphQL
@@ -25,6 +25,13 @@ implementing the gRPC/GraphQL mappings, and extending the parity tests.
 
 ## Blocked only by JSON-RPC
 
+- **Canonical transaction ordering** — the fullnode's JSON-RPC transaction index assigns sequence
+  numbers in local execution order. GraphQL and gRPC enumerate checkpoint order (including the
+  transaction position within each checkpoint). These orders can differ within and across
+  checkpoints, including for system transactions. Unfiltered pages need not contain the same
+  digests; sorting a page cannot fix transactions falling on different pages. The parity tests
+  verify unfiltered pagination within each transport, payload equality by digest, and enumeration of
+  known causally ordered user transactions rather than assuming identical unfiltered prefixes.
 - **`affectedAddress` transaction predicate** — no JSON-RPC equivalent: `FromOrToAddress` is
   rejected server-side ("CURRENTLY NOT SUPPORTED"), and emulating it with `FromAddress` +
   `ToAddress` queries silently misses sponsored transactions and address-balance deposits, and
