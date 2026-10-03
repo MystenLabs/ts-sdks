@@ -29,8 +29,9 @@ jobs:
       # `packages/hashi/src/contracts` were generated from. Unlike the
       # standalone hashi-ts-sdk repo, ts-sdks does NOT vendor hashi as a
       # submodule, so we clone it explicitly below. Keep this in sync with
-      # the codegen revision when the bindings are regenerated.
-      HASHI_PIN: cd2b81f9a208f5077032110652f1e8bba297278c
+      # the codegen revision when the bindings are regenerated. Track hashi's
+      # `testnet` branch so the bindings match the deployed testnet package.
+      HASHI_PIN: eb9c77bdd58532a5140eaa9254f7741217e99e49
       LOCALNET_DATA_DIR: ${{ github.workspace }}/.hashi/localnet
       LOCALNET_LOG: ${{ github.workspace }}/localnet.log
     steps:
@@ -64,12 +65,12 @@ jobs:
           node-version: '24'
           cache: 'pnpm'
 
-      # `hashi/rust-toolchain.toml` pins 1.91 — match it so cargo doesn't
+      # `hashi/rust-toolchain.toml` pins 1.96 — match it so cargo doesn't
       # auto-install a second toolchain inside the build step (slower and
       # uncached).
       - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # pin@stable
         with:
-          toolchain: '1.91'
+          toolchain: '1.96'
 
       - uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc # pin@v2.9.1
         with:

@@ -25,6 +25,24 @@ export const ValidatorUpdated = new MoveStruct({
 		validator: bcs.Address,
 	},
 });
+export const ValidatorResigned = new MoveStruct({
+	name: `${$moduleName}::ValidatorResigned`,
+	fields: {
+		validator: bcs.Address,
+	},
+});
+export const ValidatorResignationWithdrawn = new MoveStruct({
+	name: `${$moduleName}::ValidatorResignationWithdrawn`,
+	fields: {
+		validator: bcs.Address,
+	},
+});
+export const ValidatorDeregistered = new MoveStruct({
+	name: `${$moduleName}::ValidatorDeregistered`,
+	fields: {
+		validator: bcs.Address,
+	},
+});
 export interface RegisterArguments {
 	self: RawTransactionArgument<string>;
 }
@@ -53,8 +71,8 @@ export function register(options: RegisterOptions) {
 export interface UpdateNextEpochPublicKeyArguments {
 	self: RawTransactionArgument<string>;
 	validator: RawTransactionArgument<string>;
-	nextEpochPublicKey: RawTransactionArgument<number[]>;
-	proofOfPossessionSignature: RawTransactionArgument<number[]>;
+	nextEpochPublicKey: RawTransactionArgument<Array<number>>;
+	proofOfPossessionSignature: RawTransactionArgument<Array<number>>;
 }
 export interface UpdateNextEpochPublicKeyOptions {
 	package?: string;
@@ -63,8 +81,8 @@ export interface UpdateNextEpochPublicKeyOptions {
 		| [
 				self: RawTransactionArgument<string>,
 				validator: RawTransactionArgument<string>,
-				nextEpochPublicKey: RawTransactionArgument<number[]>,
-				proofOfPossessionSignature: RawTransactionArgument<number[]>,
+				nextEpochPublicKey: RawTransactionArgument<Array<number>>,
+				proofOfPossessionSignature: RawTransactionArgument<Array<number>>,
 		  ];
 }
 export function updateNextEpochPublicKey(options: UpdateNextEpochPublicKeyOptions) {
@@ -136,7 +154,7 @@ export function updateEndpointUrl(options: UpdateEndpointUrlOptions) {
 export interface UpdateTlsPublicKeyArguments {
 	self: RawTransactionArgument<string>;
 	validator: RawTransactionArgument<string>;
-	tlsPublicKey: RawTransactionArgument<number[]>;
+	tlsPublicKey: RawTransactionArgument<Array<number>>;
 }
 export interface UpdateTlsPublicKeyOptions {
 	package?: string;
@@ -145,7 +163,7 @@ export interface UpdateTlsPublicKeyOptions {
 		| [
 				self: RawTransactionArgument<string>,
 				validator: RawTransactionArgument<string>,
-				tlsPublicKey: RawTransactionArgument<number[]>,
+				tlsPublicKey: RawTransactionArgument<Array<number>>,
 		  ];
 }
 export function updateTlsPublicKey(options: UpdateTlsPublicKeyOptions) {
@@ -160,10 +178,104 @@ export function updateTlsPublicKey(options: UpdateTlsPublicKeyOptions) {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
+export interface ResignArguments {
+	self: RawTransactionArgument<string>;
+	validator: RawTransactionArgument<string>;
+}
+export interface ResignOptions {
+	package?: string;
+	arguments:
+		| ResignArguments
+		| [self: RawTransactionArgument<string>, validator: RawTransactionArgument<string>];
+}
+/**
+ * Voluntarily resign from the committee, authorized for the validator's own key or
+ * its delegated operator key.
+ *
+ * Only sets the resignation flag: the member keeps serving the current epoch (and
+ * a pending epoch mid-reconfiguration), the next committee formation skips them,
+ * and the registration is deleted separately by the permissionless
+ * `remove_inactive_member` once they hold no epoch duties — after which re-joining
+ * requires a full re-registration. Revocable via `withdraw_resignation` until the
+ * registration is removed.
+ */
+export function resign(options: ResignOptions) {
+	const packageAddress = options.package ?? '@local-pkg/hashi';
+	const argumentsTypes = [null, 'address'] satisfies (string | null)[];
+	const parameterNames = ['self', 'validator'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'validator',
+			function: 'resign',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface RemoveInactiveMemberArguments {
+	self: RawTransactionArgument<string>;
+	validator: RawTransactionArgument<string>;
+}
+export interface RemoveInactiveMemberOptions {
+	package?: string;
+	arguments:
+		| RemoveInactiveMemberArguments
+		| [self: RawTransactionArgument<string>, validator: RawTransactionArgument<string>];
+}
+/**
+ * Permissionless registry cleanup: delete the registration of a member with no
+ * epoch duties (not in the current committee, nor in a pending one
+ * mid-reconfiguration) who either voluntarily resigned or is no longer in Sui's
+ * active validator set. Deliberately independent of the reconfiguration flow,
+ * which never touches the registry.
+ *
+ * Governance-ignored members are not removable — deleting the registration would
+ * delete the flag with it, letting them shed the exclusion by simply
+ * re-registering.
+ */
+export function removeInactiveMember(options: RemoveInactiveMemberOptions) {
+	const packageAddress = options.package ?? '@local-pkg/hashi';
+	const argumentsTypes = [null, '0x3::sui_system::SuiSystemState', 'address'] satisfies (
+		string | null
+	)[];
+	const parameterNames = ['self', 'validator'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'validator',
+			function: 'remove_inactive_member',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface WithdrawResignationArguments {
+	self: RawTransactionArgument<string>;
+	validator: RawTransactionArgument<string>;
+}
+export interface WithdrawResignationOptions {
+	package?: string;
+	arguments:
+		| WithdrawResignationArguments
+		| [self: RawTransactionArgument<string>, validator: RawTransactionArgument<string>];
+}
+/**
+ * Withdraw a pending resignation. If the next committee already formed without the
+ * member, they keep their registration but sit out that one epoch.
+ */
+export function withdrawResignation(options: WithdrawResignationOptions) {
+	const packageAddress = options.package ?? '@local-pkg/hashi';
+	const argumentsTypes = [null, 'address'] satisfies (string | null)[];
+	const parameterNames = ['self', 'validator'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'validator',
+			function: 'withdraw_resignation',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
 export interface UpdateNextEpochEncryptionPublicKeyArguments {
 	self: RawTransactionArgument<string>;
 	validator: RawTransactionArgument<string>;
-	nextEpochEncryptionPublicKey: RawTransactionArgument<number[]>;
+	nextEpochEncryptionPublicKey: RawTransactionArgument<Array<number>>;
 }
 export interface UpdateNextEpochEncryptionPublicKeyOptions {
 	package?: string;
@@ -172,7 +284,7 @@ export interface UpdateNextEpochEncryptionPublicKeyOptions {
 		| [
 				self: RawTransactionArgument<string>,
 				validator: RawTransactionArgument<string>,
-				nextEpochEncryptionPublicKey: RawTransactionArgument<number[]>,
+				nextEpochEncryptionPublicKey: RawTransactionArgument<Array<number>>,
 		  ];
 }
 export function updateNextEpochEncryptionPublicKey(
