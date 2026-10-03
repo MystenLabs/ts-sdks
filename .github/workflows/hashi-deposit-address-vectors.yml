@@ -1,0 +1,35 @@
+name: Hashi Deposit Address Vectors
+
+# Compares against hashi main, not a pinned commit, and runs daily because a fixture change on
+# hashi main triggers nothing in this repo.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 9 * * *'
+  pull_request:
+    paths:
+      - 'packages/hashi/**'
+      - '.github/workflows/hashi-deposit-address-vectors.yml'
+
+jobs:
+  deposit-address-vectors:
+    name: Deposit Address Vectors
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout ts-sdks
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # pin@v4
+
+      - name: Checkout hashi main
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # pin@v4
+        with:
+          repository: MystenLabs/hashi
+          ref: main
+          path: hashi
+          sparse-checkout: crates/hashi-types/src/bitcoin/fixtures/deposit-address-vectors.json
+          sparse-checkout-cone-mode: false
+
+      - name: Compare with the generated vectors
+        run: |
+          diff -u hashi/crates/hashi-types/src/bitcoin/fixtures/deposit-address-vectors.json \
+            packages/hashi/test/unit/deposit-address-vectors.json

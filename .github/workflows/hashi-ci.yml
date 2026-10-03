@@ -20,30 +20,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deposit-address-vectors:
-    name: Deposit Address Vectors
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Checkout ts-sdks
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # pin@v4
-
-      # Reads hashi main rather than HASHI_PIN, so the next run after a Rust
-      # derivation change fails instead of waiting for a pin bump.
-      - name: Checkout hashi main
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # pin@v4
-        with:
-          repository: MystenLabs/hashi
-          ref: main
-          path: hashi
-          sparse-checkout: crates/hashi-types/src/bitcoin/fixtures/deposit-address-vectors.json
-          sparse-checkout-cone-mode: false
-
-      - name: Compare with the generated vectors
-        run: |
-          diff -u hashi/crates/hashi-types/src/bitcoin/fixtures/deposit-address-vectors.json \
-            packages/hashi/test/unit/deposit-address-vectors.json
-
   localnet-integration:
     name: Localnet Integration
     runs-on: ubuntu-latest
