@@ -173,6 +173,18 @@ describe('fetchGuardianInfo', () => {
 		expect(info.gitRevision).toBe('abc123');
 	});
 
+	it('returns an empty gitRevision before the operator initializes the guardian', async () => {
+		mockFetch({
+			...INFO_BODY,
+			limiter: null,
+			gitRevision: null,
+			committeeEpoch: null,
+			btcPubkey: null,
+		});
+		const info = await fetchGuardianInfo('https://g.example');
+		expect(info.gitRevision).toBe('');
+	});
+
 	it('throws http-error on a non-2xx status', async () => {
 		mockFetch(null, { ok: false, status: 503 });
 		const err = await fetchGuardianInfo('https://g.example').catch((e) => e);

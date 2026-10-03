@@ -291,11 +291,6 @@ namespace reads the guardian's public, read-only `/info` endpoint to surface tha
 headroom.
 
 ```ts
-const client = new SuiGrpcClient({
-	network: 'devnet',
-	baseUrl: 'https://fullnode.devnet.sui.io:443',
-}).$extend(hashi({ guardianUrl: 'https://hashi-guardian-devnet.mystenlabs.com' }));
-
 // Guardian identity + limiter. `limiter` is null before the guardian is provisioned.
 const info = await client.hashi.guardian.info();
 

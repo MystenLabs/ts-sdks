@@ -52,10 +52,7 @@ export const DUST_RELAY_MIN_VALUE = 546n;
  */
 export const WORST_CASE_NETWORK_FEE_CEILING_SATS = 100_000n;
 
-/**
- * Length of the Guardian's Ed25519 attestation public key, in bytes. Matches
- * `GUARDIAN_PUBLIC_KEY_LEN` in `hashi::config`.
- */
+/** Length of the Guardian's Ed25519 attestation public key, in bytes. */
 export const GUARDIAN_PUBLIC_KEY_LEN = 32;
 
 /**
