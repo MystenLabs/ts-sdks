@@ -200,4 +200,56 @@ describe('WalletConnectWallet connect', () => {
 		const wallet = createWallet();
 		await expect(connect(wallet, { silent: true })).rejects.toThrow('init failed');
 	});
+
+	it('connects after a successful initialization retry', async () => {
+		const connector = makeConnector({
+			sessionProperties: {
+				sui_getAccounts: JSON.stringify([{ address, pubkey }]),
+			},
+		});
+		initMock
+			.mockRejectedValueOnce(new Error('init failed'))
+			.mockResolvedValueOnce(connector as unknown as UniversalConnector);
+
+		const wallet = createWallet();
+		await expect(connect(wallet, { silent: true })).rejects.toThrow('init failed');
+		await wallet.init();
+
+		const { accounts } = await connect(wallet, { silent: true });
+		expect(accounts).toHaveLength(1);
+		expect(accounts[0].address).toBe(address);
+		expect(wallet.accounts).toEqual(accounts);
+		expect(initMock).toHaveBeenCalledTimes(2);
+		expect(connector.connect).not.toHaveBeenCalled();
+		expect(connector.request).not.toHaveBeenCalled();
+	});
+
+	it('waits for reinitialization before connecting even after an earlier successful initialization', async () => {
+		const connector = makeConnector({
+			sessionProperties: {
+				sui_getAccounts: JSON.stringify([{ address, pubkey }]),
+			},
+		});
+		const initialization = Promise.withResolvers<UniversalConnector>();
+		initMock
+			.mockResolvedValueOnce(connector as unknown as UniversalConnector)
+			.mockReturnValueOnce(initialization.promise);
+		const wallet = createWallet();
+		await connect(wallet, { silent: true });
+
+		const retryPromise = wallet.init();
+		const connectPromise = connect(wallet, { silent: true });
+		const settled = vi.fn();
+		void connectPromise.then(settled, settled);
+		await setImmediate();
+		const settledBeforeInitialization = settled.mock.calls.length;
+		initialization.resolve(connector as unknown as UniversalConnector);
+
+		expect(settledBeforeInitialization).toBe(0);
+		await retryPromise;
+		const { accounts } = await connectPromise;
+		expect(accounts).toHaveLength(1);
+		expect(accounts[0].address).toBe(address);
+		expect(initMock).toHaveBeenCalledTimes(2);
+	});
 });

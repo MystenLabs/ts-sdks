@@ -179,13 +179,18 @@ export class WalletConnectWallet implements Wallet {
 		this.#projectId = projectId;
 		this.#getClient = getClient;
 		this.#initialization = this.init();
+	}
+
+	init() {
+		this.#initialization = this.#initialize();
 		// Initialization failures are surfaced to callers that await
 		// `#initialization` (e.g. `connect`); this catch only prevents an
 		// unhandled rejection when the wallet is never used.
 		this.#initialization.catch(() => {});
+		return this.#initialization;
 	}
 
-	async init() {
+	async #initialize() {
 		this.#connector = await UniversalConnector.init({
 			projectId: this.#projectId,
 
