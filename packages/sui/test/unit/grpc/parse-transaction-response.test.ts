@@ -41,6 +41,9 @@ describe('gRPC transaction response parsers', () => {
 							success: true,
 						},
 						epoch: '42',
+						gasObject: {
+							objectId: '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff',
+						},
 						changedObjects: [
 							{
 								objectId: '0x2',
@@ -104,6 +107,7 @@ describe('gRPC transaction response parsers', () => {
 
 		expect(result.Transaction.digest).toBe('transaction-digest');
 		expect(result.Transaction.epoch).toBe('42');
+		expect(result.gasPaymentMocked).toBe(true);
 		expectTypeOf(result.Transaction.bcs).toEqualTypeOf<Uint8Array>();
 		expectTypeOf(result.Transaction.events).toEqualTypeOf<SuiClientTypes.Event[]>();
 		expectTypeOf(result.Transaction.objectTypes).toEqualTypeOf<Record<string, string>>();
@@ -134,6 +138,27 @@ describe('gRPC transaction response parsers', () => {
 			).toEqualTypeOf<SuiClientTypes.TransactionEffects>();
 			expectTypeOf(transactionResult.Transaction.bcs).toEqualTypeOf<undefined>();
 		}
+	});
+
+	it('reports a real gas payment when the gas object is not the mocked coin', () => {
+		const withGasCoin = GrpcTypes.SimulateTransactionResponse.fromJsonString(
+			JSON.stringify({
+				transaction: {
+					digest: 'transaction-digest',
+					effects: { status: { success: false }, gasObject: { objectId: '0x5' } },
+				},
+			}),
+		);
+		const withGasCoinResult = parseGrpcSimulateTransactionResponse(withGasCoin);
+		expect(withGasCoinResult.$kind).toBe('FailedTransaction');
+		expect(withGasCoinResult.gasPaymentMocked).toBe(false);
+
+		const withoutGasObject = GrpcTypes.SimulateTransactionResponse.fromJsonString(
+			JSON.stringify({
+				transaction: { digest: 'transaction-digest', effects: { status: { success: true } } },
+			}),
+		);
+		expect(parseGrpcSimulateTransactionResponse(withoutGasObject).gasPaymentMocked).toBe(false);
 	});
 
 	it('returns FailedTransaction for unsuccessful executed transactions', () => {

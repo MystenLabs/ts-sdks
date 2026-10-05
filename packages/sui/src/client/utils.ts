@@ -6,6 +6,8 @@ import { toBase64 } from '@mysten/utils';
 import { bcs } from '../bcs/index.js';
 import { ExecutionStatus } from '../bcs/effects.js';
 import { TransactionDataBuilder } from '../transactions/TransactionData.js';
+import { MOCKED_GAS_OBJECT_ID } from '../utils/constants.js';
+import { normalizeSuiAddress } from '../utils/sui-types.js';
 import type { SuiClientTypes } from './types.js';
 
 const ordinalRules = new Intl.PluralRules('en-US', { type: 'ordinal' });
@@ -412,6 +414,14 @@ export function transactionBytesHaveEmptyGasPayment(bytes: Uint8Array): boolean 
 	} catch {
 		return false;
 	}
+}
+
+/**
+ * Checks whether a gas object ID is the mocked gas coin the node substitutes when a transaction
+ * is simulated without a gas payment.
+ */
+export function isMockedGasObjectId(objectId: string | null | undefined): boolean {
+	return objectId != null && normalizeSuiAddress(objectId) === MOCKED_GAS_OBJECT_ID;
 }
 
 /**

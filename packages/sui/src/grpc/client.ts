@@ -130,9 +130,10 @@ export interface GrpcSimulateTransactionOptions<
 	 * Overrides whether the server selects gas payment during simulation.
 	 *
 	 * When not set, gas selection is enabled only when the transaction's gas payment is explicitly
-	 * set to an empty list (`[]`), which indicates gas is paid from the sender's address balance.
-	 * Transactions with gas coins set are simulated as-is, and transactions without a gas payment
-	 * are simulated with a mocked gas coin.
+	 * set to an empty list (`[]`); the server then pays gas from the sender's address balance or
+	 * coin objects. Transactions with gas coins set are simulated as-is, and transactions without a
+	 * gas payment are simulated with a mocked gas coin (reported as `gasPaymentMocked` on the
+	 * result).
 	 */
 	doGasSelection?: boolean;
 }

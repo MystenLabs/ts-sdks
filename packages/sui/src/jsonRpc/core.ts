@@ -43,6 +43,7 @@ import {
 	parseTransactionBcs,
 	parseTransactionEffectsBcs,
 } from '../client/index.js';
+import { isMockedGasObjectId } from '../client/utils.js';
 import type { SuiJsonRpcClient } from './client.js';
 import { JsonRpcError } from './errors.js';
 
@@ -576,18 +577,22 @@ export class JSONRpcCoreClient extends CoreClient {
 			}));
 		}
 
+		const gasPaymentMocked = isMockedGasObjectId(effects.gasObject?.objectId);
+
 		return effects.status.success
 			? {
 					$kind: 'Transaction',
 					Transaction: transactionData,
 					commandResults:
 						commandResults as SuiClientTypes.SimulateTransactionResult<Include>['commandResults'],
+					gasPaymentMocked,
 				}
 			: {
 					$kind: 'FailedTransaction',
 					FailedTransaction: transactionData,
 					commandResults:
 						commandResults as SuiClientTypes.SimulateTransactionResult<Include>['commandResults'],
+					gasPaymentMocked,
 				};
 	}
 	/**

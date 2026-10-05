@@ -21,6 +21,13 @@ query simulateTransaction(
 		effects {
 			transaction {
 				...TRANSACTION_FIELDS
+				effects {
+					gasEffects {
+						gasObject {
+							address
+						}
+					}
+				}
 			}
 		}
 		outputs @include(if: $includeCommandResults) {

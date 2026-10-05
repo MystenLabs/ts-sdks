@@ -30,6 +30,7 @@ export {
 	SUI_RANDOM_OBJECT_ID,
 	SUI_COIN_REGISTRY_OBJECT_ID,
 	SUI_DENY_LIST_OBJECT_ID,
+	MOCKED_GAS_OBJECT_ID,
 } from './constants.js';
 
 export { isValidNamedPackage, isValidNamedType } from './move-registry.js';

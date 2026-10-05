@@ -72,6 +72,11 @@ if (result.$kind === 'FailedTransaction') {
 rest of the `include` options, and the two flags that change how the node runs a simulation, see
 [Executing transactions](/sui/clients/executing#simulatetransaction).
 
+A simulation of an unbuilt transaction pays gas with a mocked coin, which also funds anything drawn
+from `tx.gas`. Check `result.gasPaymentMocked`, and see
+[Gas during simulation](/sui/clients/executing#gas-during-simulation), before treating balance
+changes as a preview of what the sender would spend.
+
 ## With a keypair (backend or scripts)
 
 The simplest approach. The keypair signs the transaction and submits it to the network in one call:
