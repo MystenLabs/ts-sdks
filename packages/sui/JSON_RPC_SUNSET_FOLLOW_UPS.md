@@ -1,12 +1,12 @@
-# Core query API follow-ups gated on the JSON-RPC sunset
+# Core API follow-ups gated on the JSON-RPC sunset
 
-The core query APIs (`listTransactions`, `listEvents`) are intentionally restricted to what all
-three transports (gRPC, GraphQL, JSON-RPC) can support with identical behavior, verified by the
-parity tests in `test/e2e/clients/core/queries.test.ts` (gRPC is covered by the unit tests in
-`test/unit/grpc/list-queries.test.ts` until the pinned localnet image serves the List RPCs, at which
-point it should be added to the parity matrix). Several capabilities were left out of the core API
-only because JSON-RPC cannot express them. Once JSON-RPC is fully deprecated and removed, they can
-be promoted into the core API.
+The core APIs, notably the query APIs (`listTransactions`, `listEvents`), are intentionally
+restricted to what all three transports (gRPC, GraphQL, JSON-RPC) can support with identical
+behavior, verified by the parity tests in `test/e2e/clients/core/queries.test.ts` (gRPC is covered
+by the unit tests in `test/unit/grpc/list-queries.test.ts` until the pinned localnet image serves
+the List RPCs, at which point it should be added to the parity matrix). Several capabilities were
+left out of the core API only because JSON-RPC cannot express them. Once JSON-RPC is fully
+deprecated and removed, they can be promoted into the core API.
 
 Until then, advanced filtering is available through the raw gRPC ledger service
 (`client.ledgerService.listTransactions` and friends take full DNF filters), and through raw GraphQL
@@ -62,6 +62,16 @@ implementing the gRPC/GraphQL mappings, and extending the parity tests.
   require a module name. GraphQL and gRPC both support package-only prefixes.
 - **Non-nullable `EventEntry.checkpoint`** — JSON-RPC `queryEvents` responses carry no checkpoint
   information, so the field is `string | null` and `null` on JSON-RPC.
+- **`doGasSelection` on `simulateTransaction`** — the JSON-RPC dry run has no gas-selection option
+  and always substitutes a mocked gas coin when the gas payment is empty, so it can neither select
+  coins server-side nor pay from an address balance. The option lives on
+  `GrpcSimulateTransactionOptions` and `GraphQLSimulateTransactionOptions` only, and the default
+  (`true` when the gas payment is `[]`) is applied by those two transports. Promoting it means
+  adding `doGasSelection` to `SuiClientTypes.SimulateTransactionOptions`, implementing it in the
+  remaining transports, dropping the "gRPC and GraphQL only" qualifier and the JSON-RPC note from
+  the `simulateTransaction` section of `packages/docs/content/sui/clients/executing.mdx`, and
+  removing the JSON-RPC branch from the address-balance `gasPaymentMocked` parity test in
+  `test/e2e/clients/core/transactions.test.ts`.
 
 ## Blocked by GraphQL as well
 
