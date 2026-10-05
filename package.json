@@ -21,6 +21,9 @@
 		"overrides": {
 			"axios": ">=1.20.0",
 			"js-yaml@>=4.0.0 <4.3.2": "4.3.2"
+		},
+		"patchedDependencies": {
+			"braces@3.0.3": "patches/braces@3.0.3.patch"
 		}
 	},
 	"engines": {
