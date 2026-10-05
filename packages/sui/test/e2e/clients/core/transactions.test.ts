@@ -9,7 +9,7 @@ import {
 	getRandomAddresses,
 } from '../../utils/setup.js';
 import { Transaction } from '../../../../src/transactions/index.js';
-import { SUI_TYPE_ARG } from '../../../../src/utils/index.js';
+import { MOCKED_GAS_OBJECT_ID, SUI_TYPE_ARG } from '../../../../src/utils/index.js';
 import { Ed25519Keypair } from '../../../../src/keypairs/ed25519/keypair.js';
 import { TransactionError } from '../../../../src/client/index.js';
 
@@ -498,6 +498,92 @@ describe('Core API - Transactions', () => {
 				expect(unserializedResult.Transaction!.effects?.gasUsed?.storageCost).toBe(
 					serializedResult.Transaction!.effects?.gasUsed?.storageCost,
 				);
+			},
+		);
+
+		testWithAllClients(
+			'should report a mocked gas payment for unbuilt transactions without gas payment',
+			async (client) => {
+				const tx = new Transaction();
+				tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
+				tx.setSender(testAddress);
+
+				const result = await client.core.simulateTransaction({ transaction: tx });
+				expect(result.$kind).toBe('Transaction');
+				expect(result.gasPaymentMocked).toBe(true);
+
+				const withEffects = await client.core.simulateTransaction({
+					transaction: tx,
+					include: { effects: true },
+				});
+				expect(withEffects.gasPaymentMocked).toBe(true);
+				expect(withEffects.Transaction?.effects?.gasObject?.objectId).toBe(MOCKED_GAS_OBJECT_ID);
+			},
+		);
+
+		testWithAllClients(
+			'should report a real gas payment for transactions with gas coins',
+			async (client) => {
+				const tx = new Transaction();
+				tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
+				tx.setSender(testAddress);
+				const bytes = await tx.build({ client: toolbox.jsonRpcClient });
+
+				const result = await client.core.simulateTransaction({
+					transaction: bytes,
+					include: { effects: true, transaction: true },
+				});
+				expect(result.$kind).toBe('Transaction');
+				expect(result.gasPaymentMocked).toBe(false);
+				expect(result.Transaction?.effects?.gasObject?.objectId).toBe(
+					result.Transaction?.transaction?.gasData.payment?.[0]?.objectId,
+				);
+			},
+		);
+
+		testWithAllClients(
+			'should report a real gas payment when gas is selected from address balance',
+			async (client, kind) => {
+				const { address } = await toolbox.getSigner({ addressBalance: 200_000_000n });
+				const tx = new Transaction();
+				const [obj] = tx.moveCall({
+					target: `${packageId}::test_objects::create_simple_object`,
+					arguments: [tx.pure.u64(42)],
+				});
+				tx.transferObjects([obj], tx.pure.address(address));
+				tx.setSender(address);
+				tx.setGasPayment([]);
+				tx.setGasBudget(50_000_000n);
+				const bytes = await tx.build({ client });
+
+				const result = await client.core.simulateTransaction({
+					transaction: bytes,
+					include: { effects: true },
+				});
+				expect(result.$kind).toBe('Transaction');
+
+				if (kind === 'jsonrpc') {
+					// JSON-RPC dry runs never select gas, so an empty gas payment is still simulated
+					// with the mocked gas coin
+					expect(result.gasPaymentMocked).toBe(true);
+					expect(result.Transaction?.effects?.gasObject?.objectId).toBe(MOCKED_GAS_OBJECT_ID);
+				} else {
+					expect(result.gasPaymentMocked).toBe(false);
+					expect(result.Transaction?.effects?.gasObject).toBeNull();
+				}
+			},
+		);
+
+		testWithAllClients(
+			'should report a mocked gas payment for failed simulations',
+			async (client) => {
+				const tx = new Transaction();
+				tx.moveCall({ target: `${packageId}::test_objects::abort_always`, arguments: [] });
+				tx.setSender(testAddress);
+
+				const result = await client.core.simulateTransaction({ transaction: tx });
+				expect(result.$kind).toBe('FailedTransaction');
+				expect(result.gasPaymentMocked).toBe(true);
 			},
 		);
 	});

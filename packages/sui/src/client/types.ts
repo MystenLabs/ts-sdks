@@ -363,12 +363,28 @@ export namespace SuiClientTypes {
 				Transaction: Transaction<Include>;
 				FailedTransaction?: never;
 				commandResults: Include extends { commandResults: true } ? CommandResult[] : undefined;
+				/**
+				 * `true` when the transaction had no gas payment, so the node simulated it with a mocked gas
+				 * coin instead of the sender's funds. Gas costs and transaction logic are still exercised,
+				 * but anything drawn from the gas coin (`tx.gas`, including SUI from `tx.coin()`) was funded
+				 * by the mocked coin rather than the sender. `false` when gas was paid with real coins or
+				 * from the sender's address balance.
+				 */
+				gasPaymentMocked: boolean;
 		  }
 		| {
 				$kind: 'FailedTransaction';
 				Transaction?: never;
 				FailedTransaction: Transaction<Include>;
 				commandResults: Include extends { commandResults: true } ? CommandResult[] : undefined;
+				/**
+				 * `true` when the transaction had no gas payment, so the node simulated it with a mocked gas
+				 * coin instead of the sender's funds. Gas costs and transaction logic are still exercised,
+				 * but anything drawn from the gas coin (`tx.gas`, including SUI from `tx.coin()`) was funded
+				 * by the mocked coin rather than the sender. `false` when gas was paid with real coins or
+				 * from the sender's address balance.
+				 */
+				gasPaymentMocked: boolean;
 		  };
 
 	export interface TransactionInclude {
@@ -468,7 +484,8 @@ export namespace SuiClientTypes {
 		/**
 		 * When set to `false`, disables transaction validation checks during simulation.
 		 * This allows inspecting non-public/non-entry Move functions and other transactions
-		 * that would normally fail validation.
+		 * that would normally fail validation. Disabling checks also disables gas selection, so a
+		 * transaction with an empty gas payment is simulated with a mocked gas coin.
 		 *
 		 * Defaults to `true` (checks enabled).
 		 */

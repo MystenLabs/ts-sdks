@@ -43,6 +43,7 @@ import { chunk, fromBase64, toBase64 } from '@mysten/utils';
 import { normalizeStructTag, normalizeSuiAddress } from '../utils/sui-types.js';
 import {
 	formatMoveAbortMessage,
+	isMockedGasObjectId,
 	parseTransactionEffectsBcs,
 	transactionBytesHaveEmptyGasPayment,
 } from '../client/utils.js';
@@ -422,9 +423,9 @@ export class GraphQLCoreClient extends CoreClient {
 			await options.transaction.prepareForSerialization({ client: this });
 		}
 
-		// A gas payment explicitly set to an empty list means gas is paid from the sender's
-		// address balance, so the server needs to perform gas selection rather than simulating
-		// with a mocked gas coin.
+		// A gas payment explicitly set to an empty list means the server should select real gas
+		// (from the sender's address balance or coin objects) rather than simulating with a
+		// mocked gas coin.
 		const doGasSelection =
 			options.doGasSelection ??
 			(options.transaction instanceof Uint8Array
@@ -459,6 +460,9 @@ export class GraphQLCoreClient extends CoreClient {
 		);
 
 		const transactionResult = parseTransaction(result.effects?.transaction!, options.include);
+		const gasPaymentMocked = isMockedGasObjectId(
+			result.effects?.transaction?.effects?.gasEffects?.gasObject?.address,
+		);
 
 		const commandResults =
 			options.include?.commandResults && result.outputs
@@ -478,6 +482,7 @@ export class GraphQLCoreClient extends CoreClient {
 				Transaction: transactionResult.Transaction,
 				commandResults:
 					commandResults as SuiClientTypes.SimulateTransactionResult<Include>['commandResults'],
+				gasPaymentMocked,
 			};
 		} else {
 			return {
@@ -485,6 +490,7 @@ export class GraphQLCoreClient extends CoreClient {
 				FailedTransaction: transactionResult.FailedTransaction,
 				commandResults:
 					commandResults as SuiClientTypes.SimulateTransactionResult<Include>['commandResults'],
+				gasPaymentMocked,
 			};
 		}
 	}

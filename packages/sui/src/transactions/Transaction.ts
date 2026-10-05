@@ -355,7 +355,8 @@ export class Transaction {
 
 	/**
 	 * Creates a Coin<T> of the specified type and amount (defaults to SUI).
-	 * Sourced from address balance when available, falling back to owned coins.
+	 * Sourced from address balance when available, falling back to owned coins. For SUI, falls back
+	 * to the gas coin instead unless `useGasCoin` is `false`.
 	 * With `allowance`, spends only from the funder's address balance under that allowance.
 	 * Allowance IDs are resolved using the build client; app-bound allowances also require an app type and SpendPermit.
 	 */
@@ -370,7 +371,8 @@ export class Transaction {
 
 	/**
 	 * Creates a Balance<T> of the specified type and amount (defaults to SUI).
-	 * Sourced from address balance when available, falling back to owned coins.
+	 * Sourced from address balance when available, falling back to owned coins. For SUI, falls back
+	 * to the gas coin instead unless `useGasCoin` is `false`.
 	 * With `allowance`, spends only from the funder's address balance under that allowance.
 	 * Allowance IDs are resolved using the build client; app-bound allowances also require an app type and SpendPermit.
 	 */
