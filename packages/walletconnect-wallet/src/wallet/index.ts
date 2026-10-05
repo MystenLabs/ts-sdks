@@ -100,6 +100,7 @@ export class WalletConnectWallet implements Wallet {
 	#walletName: string;
 	#icon: WalletIcon;
 	#connector?: UniversalConnector;
+	#initialization: Promise<void>;
 	#projectId: string;
 	#getClient: GetClient;
 
@@ -177,7 +178,11 @@ export class WalletConnectWallet implements Wallet {
 		this.#icon = icon;
 		this.#projectId = projectId;
 		this.#getClient = getClient;
-		this.init();
+		this.#initialization = this.init();
+		// Initialization failures are surfaced to callers that await
+		// `#initialization` (e.g. `connect`); this catch only prevents an
+		// unhandled rejection when the wallet is never used.
+		this.#initialization.catch(() => {});
 	}
 
 	async init() {
@@ -304,22 +309,37 @@ export class WalletConnectWallet implements Wallet {
 		);
 
 		if (!accounts?.length) {
-			accounts = (await this.#connector?.request({ method: 'sui_getAccounts' }, 'sui:mainnet')) as {
-				address: string;
-				pubkey: string;
-			}[];
+			accounts = (await this.#connector?.request({ method: 'sui_getAccounts' }, 'sui:mainnet')) as
+				| {
+						address: string;
+						pubkey: string;
+				  }[]
+				| undefined;
 		}
 
-		return toStandardAccounts(accounts, this.chains);
+		return toStandardAccounts(accounts ?? [], this.chains);
 	};
 
 	#connect: StandardConnectMethod = async (input) => {
+		// The wallet is registered (and can be asked to reconnect) before the
+		// connector has finished initializing, so wait for initialization to
+		// complete before touching the connector.
+		await this.#initialization;
+
 		if (input?.silent) {
 			const accounts = await this.#getPreviouslyAuthorizedAccounts();
 			if (accounts.length > 0) {
 				this.#setAccounts(accounts);
 				return { accounts };
 			}
+
+			if (!this.#connector?.provider?.session?.namespaces?.sui) {
+				// A silent reconnect must not start a new connection when
+				// there is no existing Sui session to restore.
+				return { accounts: [] };
+			}
+			// A session exists but carries no cached account metadata:
+			// fall through to `#getAccounts()` to look the accounts up.
 		}
 
 		if (!this.#connector?.provider?.session?.namespaces?.sui) {
