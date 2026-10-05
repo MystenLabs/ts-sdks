@@ -57,3 +57,15 @@ publicHoistPattern:
 # Prompt before running scripts when node_modules is out of sync with the
 # lockfile, to catch drift or tampering between `pnpm install` and `pnpm run`.
 verifyDepsBeforeRun: 'prompt'
+
+# braces has no published fix for this advisory. patches/braces@3.0.3.patch
+# bounds parser nesting. Audit only sees the original version. Remove the patch
+# and exception when an upstream release fixes
+# https://github.com/advisories/GHSA-vfj7-8cjw-p6xm.
+auditConfig:
+  # pnpm 10 (local development)
+  ignoreCves:
+    - CVE-2026-93687
+  # pnpm 11 (the audit CI job)
+  ignoreGhsas:
+    - GHSA-vfj7-8cjw-p6xm
