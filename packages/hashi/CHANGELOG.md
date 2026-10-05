@@ -1,5 +1,17 @@
 # @mysten/hashi
 
+## 0.6.25
+
+### Patch Changes
+
+- e7708a4: Correct the guardian docs: the README's limiter example reads the on-chain `guardian_url`
+  instead of a retired devnet hostname, `GovernanceConfig.guardianPublicKey` is deprecated because
+  hashi no longer has that config, and `RawGuardianInfo.gitRevision` is documented as `''` until the
+  operator initializes the guardian.
+- 15d48d8: Read the guardian `/info` timestamp from `timestampMs`, its name in current guardian
+  proxies, and fall back to `signedAtMs` for older ones. Against a current proxy,
+  `RawGuardianInfo.signedAtMs` was always `null`.
+
 ## 0.6.24
 
 ## 0.6.23

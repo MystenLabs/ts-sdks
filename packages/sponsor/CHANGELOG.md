@@ -1,5 +1,7 @@
 # @mysten-incubation/sponsor
 
+## 0.3.9
+
 ## 0.3.8
 
 ## 0.3.7

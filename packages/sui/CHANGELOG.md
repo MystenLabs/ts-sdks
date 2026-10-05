@@ -1,5 +1,13 @@
 # @mysten/sui.js
 
+## 2.35.0
+
+### Minor Changes
+
+- 55b1d3f: Add `gasPaymentMocked` to `simulateTransaction` results, which is `true` when the node
+  simulated with a mocked gas coin because the transaction had no gas payment, and export
+  `MOCKED_GAS_OBJECT_ID` from `@mysten/sui/utils`
+
 ## 2.34.0
 
 ### Minor Changes
