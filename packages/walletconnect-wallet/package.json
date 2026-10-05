@@ -20,6 +20,7 @@
 		"dist"
 	],
 	"scripts": {
+		"test": "vitest run",
 		"clean": "rm -rf tsconfig.tsbuildinfo ./dist",
 		"build": "rm -rf dist && tsc --noEmit && tsdown",
 		"prettier:check": "prettier -c --ignore-unknown .",
