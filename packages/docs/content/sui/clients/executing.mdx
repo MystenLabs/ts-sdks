@@ -9,14 +9,12 @@ keywords:
   - waitForTransaction
   - transaction results
   - gasPaymentMocked
-  - mocked gas coin
   - '@mysten/sui'
 questions:
   - What is Executing Transactions?
   - How do I use Executing Transactions?
   - How does signAndExecuteTransaction work?
   - How does executeTransaction work?
-  - Why does a simulation succeed when the sender has no SUI?
 answer: 'Simulate, execute, and wait for transactions with any Sui client'
 goal:
   description: 'Reader can simulate, execute, and wait for transactions with any Sui client'
@@ -145,37 +143,7 @@ Two further options change how the node runs the simulation:
 | `checksEnabled`  | Set `false` to skip transaction validation, so non-public and non-entry functions can be inspected. Defaults to `true` |
 | `doGasSelection` | gRPC and GraphQL only. Overrides whether the node selects real gas. Defaults to `true` only when gas payment is `[]`   |
 
-### Gas during simulation
-
-A simulation pays for gas like a real execution, and the transaction's gas payment decides where
-that gas comes from:
-
-| Gas payment                          | What the simulation pays with                                                   |
-| ------------------------------------ | ------------------------------------------------------------------------------- |
-| Not set                              | A mocked gas coin with a very large balance, owned by the gas owner             |
-| Empty list, `tx.setGasPayment([])`   | Real gas selected by the node from the sender's address balance or coin objects |
-| Gas coins, `tx.setGasPayment([...])` | Those coins                                                                     |
-
-An unbuilt `Transaction` has no gas payment unless you set one, while a built transaction always has
-one of the last two. The mocked coin lets you simulate before gas is resolved, and before the sender
-holds any SUI, which is what you want for estimating a budget, inspecting return values, or checking
-that a transaction is valid. It is also what `tx.gas` points at, so commands that draw SUI from the
-gas coin, including `tx.coin()` for SUI, are funded by the mocked coin rather than the sender. To
-preview what the sender would actually spend, set a gas payment first or build the transaction.
-
-Each result reports which case ran in `gasPaymentMocked`:
-
-```typescript
-const result = await client.simulateTransaction({
-	transaction: tx,
-	include: { balanceChanges: true },
-});
-
-if (result.gasPaymentMocked) {
-	// Gas, and anything drawn from the gas coin, was paid by the mocked coin,
-	// so the balance changes are not a preview of what the sender would spend.
-}
-```
-
-The JSON-RPC client never selects gas, so it simulates with the mocked coin whenever the gas payment
-is unset or empty.
+A transaction with no gas payment is simulated with a mocked gas coin, which also funds anything
+drawn from `tx.gas`, so the result validates the transaction and estimates gas but is not a preview
+of what the sender would spend. Set a gas payment, or build the transaction first, to simulate with
+the sender's real gas. The result's `gasPaymentMocked` field reports which case ran.
