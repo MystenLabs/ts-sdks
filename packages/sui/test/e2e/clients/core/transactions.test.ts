@@ -536,7 +536,7 @@ describe('Core API - Transactions', () => {
 				expect(result.$kind).toBe('Transaction');
 				expect(result.gasPaymentMocked).toBe(false);
 				expect(result.Transaction?.effects?.gasObject?.objectId).toBe(
-					result.Transaction?.transaction?.gasData.payment[0]?.objectId,
+					result.Transaction?.transaction?.gasData.payment?.[0]?.objectId,
 				);
 			},
 		);

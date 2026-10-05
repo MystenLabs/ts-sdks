@@ -145,5 +145,6 @@ Two further options change how the node runs the simulation:
 
 A transaction with no gas payment is simulated with a mocked gas coin, which also funds anything
 drawn from `tx.gas`, so the result validates the transaction and estimates gas but is not a preview
-of what the sender would spend. Set a gas payment, or build the transaction first, to simulate with
-the sender's real gas. The result's `gasPaymentMocked` field reports which case ran.
+of what the sender would spend. To simulate with the sender's real gas, set gas coins on the
+transaction, or on gRPC and GraphQL set an empty gas payment and let the node select gas. The
+result's `gasPaymentMocked` field reports which case ran.
