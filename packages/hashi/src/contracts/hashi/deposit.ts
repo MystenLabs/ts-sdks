@@ -14,12 +14,9 @@
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as utxo from './utxo.js';
-import * as utxo_1 from './utxo.js';
-import * as utxo_2 from './utxo.js';
 import * as committee from './committee.js';
-import * as utxo_3 from './utxo.js';
 const $moduleName = '@local-pkg/hashi::deposit';
 export const DepositConfirmationMessage = new MoveStruct({
 	name: `${$moduleName}::DepositConfirmationMessage`,
@@ -32,7 +29,7 @@ export const DepositRequested = new MoveStruct({
 	name: `${$moduleName}::DepositRequested`,
 	fields: {
 		request_id: bcs.Address,
-		utxo_id: utxo_1.UtxoId,
+		utxo_id: utxo.UtxoId,
 		amount: bcs.u64(),
 		derivation_path: bcs.option(bcs.Address),
 		timestamp_ms: bcs.u64(),
@@ -44,7 +41,7 @@ export const DepositApproved = new MoveStruct({
 	name: `${$moduleName}::DepositApproved`,
 	fields: {
 		request_id: bcs.Address,
-		utxo: utxo_2.Utxo,
+		utxo: utxo.Utxo,
 		cert: committee.CommitteeSignature,
 		approval_timestamp_ms: bcs.u64(),
 	},
@@ -53,7 +50,7 @@ export const DepositConfirmed = new MoveStruct({
 	name: `${$moduleName}::DepositConfirmed`,
 	fields: {
 		request_id: bcs.Address,
-		utxo: utxo_3.Utxo,
+		utxo: utxo.Utxo,
 	},
 });
 export const ExpiredDepositDeleted = new MoveStruct({
@@ -64,13 +61,11 @@ export const ExpiredDepositDeleted = new MoveStruct({
 });
 export interface DepositArguments {
 	hashi: RawTransactionArgument<string>;
-	utxo: RawTransactionArgument<string>;
+	utxo: TransactionArgument;
 }
 export interface DepositOptions {
 	package?: string;
-	arguments:
-		| DepositArguments
-		| [hashi: RawTransactionArgument<string>, utxo: RawTransactionArgument<string>];
+	arguments: DepositArguments | [hashi: RawTransactionArgument<string>, utxo: TransactionArgument];
 }
 export function deposit(options: DepositOptions) {
 	const packageAddress = options.package ?? '@local-pkg/hashi';
@@ -87,7 +82,7 @@ export function deposit(options: DepositOptions) {
 export interface ApproveDepositArguments {
 	hashi: RawTransactionArgument<string>;
 	requestId: RawTransactionArgument<string>;
-	cert: RawTransactionArgument<string>;
+	cert: TransactionArgument;
 }
 export interface ApproveDepositOptions {
 	package?: string;
@@ -96,7 +91,7 @@ export interface ApproveDepositOptions {
 		| [
 				hashi: RawTransactionArgument<string>,
 				requestId: RawTransactionArgument<string>,
-				cert: RawTransactionArgument<string>,
+				cert: TransactionArgument,
 		  ];
 }
 /**

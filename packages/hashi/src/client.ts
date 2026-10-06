@@ -9,7 +9,7 @@ import type { Signer } from '@mysten/sui/cryptography';
 import { bcs, TypeTagSerializer } from '@mysten/sui/bcs';
 import { fromHex, deriveDynamicFieldID, normalizeSuiAddress } from '@mysten/sui/utils';
 import { base58 } from '@scure/base';
-import { Transaction } from '@mysten/sui/transactions';
+import { Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import { Hashi } from './contracts/hashi/hashi.js';
 import { BitcoinState, BitcoinStateKey } from './contracts/hashi/bitcoin_state.js';
 import { DepositRequest } from './contracts/hashi/deposit_queue.js';
@@ -601,7 +601,7 @@ export class HashiClient {
 	// suitable for `tx.add(...)`. Only user-facing Hashi calls are exposed here;
 	// operator/committee calls are intentionally not part of this surface.
 	call = {
-		deposit: (options: { utxo: RawTransactionArgument<string> }) =>
+		deposit: (options: { utxo: TransactionArgument }) =>
 			this.#retarget(
 				depositModule.deposit({
 					package: this.#packageId,
@@ -609,7 +609,7 @@ export class HashiClient {
 				}),
 			),
 		requestWithdrawal: (options: {
-			btc: RawTransactionArgument<string>;
+			btc: TransactionArgument;
 			bitcoinAddress: RawTransactionArgument<number[]>;
 		}) =>
 			this.#retarget(
