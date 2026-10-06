@@ -42,7 +42,8 @@ export class QuiltReader {
 
 		let bytesRead = 0;
 
-		const nSlivers = Math.ceil(length / columnSize);
+		// The content can start part way into its first column: count those bytes too
+		const nSlivers = Math.ceil((remainingOffset + length) / columnSize);
 		const slivers = new Array(nSlivers)
 			.fill(0)
 			.map((_, i) => this.#blob.getSecondarySliver({ sliverIndex: sliver + columnOffset + i }));
@@ -53,7 +54,8 @@ export class QuiltReader {
 		for (const sliverPromise of slivers) {
 			const sliver = await sliverPromise;
 			let chunk = remainingOffset > 0 ? sliver.subarray(remainingOffset) : sliver;
-			remainingOffset -= chunk.length;
+			// Only the first column is entered part way: every later one is read from its start
+			remainingOffset = 0;
 			if (chunk.length > length - bytesRead) {
 				chunk = chunk.subarray(0, length - bytesRead);
 			}

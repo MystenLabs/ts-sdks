@@ -722,6 +722,39 @@ describe('encodeQuilt', () => {
 			expect(calls.readBlob).toBeGreaterThan(0);
 		});
 
+		it('reads blobs whose content starts part way into a column and crosses into the next', async () => {
+			// The content starts after the patch header and identifier, so a blob near one column's size runs into the
+			// next column; a long identifier also starts it past the middle of its first column
+			const probe = encodeQuilt({
+				blobs: [{ contents: createTestBlob(10, 0), identifier: 'x' }],
+				numShards,
+			});
+			const columnSize = await createBlobReader(
+				probe.quilt,
+				numShards,
+				blobIdFromInt(1n),
+			).getColumnSize();
+
+			for (const identifier of ['a', 'i'.repeat(Math.floor(columnSize * 0.7))]) {
+				for (const delta of [-40, -1, 0, 1, 40, columnSize]) {
+					const contents = createTestBlob(columnSize + delta, 7);
+					const { quilt, index } = encodeQuilt({ blobs: [{ contents, identifier }], numShards });
+					const { reader, calls } = createTrackedBlobReader(
+						quilt,
+						numShards,
+						blobIdFromInt(44444n),
+						'success',
+					);
+
+					const decoded = await reader.getQuiltReader().readBlob(index.patches[0].startIndex);
+
+					expect(calls.readBlob).toBe(0);
+					expect(decoded.blobContents.length).toBe(contents.length);
+					expect(hashBytes(decoded.blobContents)).toBe(hashBytes(contents));
+				}
+			}
+		});
+
 		it('should request correct sliver indices', async () => {
 			const blobs = [
 				{ contents: createTestBlob(500, 1), identifier: 'first' },
