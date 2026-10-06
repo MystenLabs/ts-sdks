@@ -17,7 +17,7 @@ import { publicKeyFromRawBytes, publicKeyFromSuiBytes } from '../../../src/verif
 const VALID_PUBLIC_KEY = MLDSA65Keypair.fromSecretKey(new Uint8Array(32).fill(2))
 	.getPublicKey()
 	.toRawBytes();
-const SUI_ADDRESS = '0x687afa13b5510548e8ab9c57b34544c8ade5507559cfb944db0453fae2a68d4c';
+const SUI_ADDRESS = '0xa44576e02f83a9e1bddac6fd742a77931d1689d9a61122eb3125dee425f6dd36';
 
 describe('MLDSA65PublicKey', () => {
 	it('invalid', () => {
@@ -50,11 +50,11 @@ describe('MLDSA65PublicKey', () => {
 	it('flag, toSuiBytes and toSuiAddress match Sui', () => {
 		const key = new MLDSA65PublicKey(VALID_PUBLIC_KEY);
 		expect(key.flag()).toBe(SIGNATURE_SCHEME_TO_FLAG.MLDSA65);
-		expect(key.flag()).toBe(0x08);
+		expect(key.flag()).toBe(0x07);
 
 		const suiBytes = key.toSuiBytes();
 		expect(suiBytes.length).toBe(1 + MLDSA65_PUBLIC_KEY_SIZE);
-		expect(suiBytes[0]).toBe(0x08);
+		expect(suiBytes[0]).toBe(0x07);
 		expect(key.toSuiPublicKey()).toEqual(toBase64(suiBytes));
 
 		expect(key.toSuiAddress()).toEqual(SUI_ADDRESS);

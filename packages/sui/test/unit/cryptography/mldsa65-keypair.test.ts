@@ -20,8 +20,8 @@ import {
 const SEED = new Uint8Array(32).fill(2);
 
 // Test case generated against the Sui keytool for the seed above.
-const SUI_ADDRESS = '0x687afa13b5510548e8ab9c57b34544c8ade5507559cfb944db0453fae2a68d4c';
-const SUI_PRIVATE_KEY = 'suiprivkey1pqpqyqszqgpqyqszqgpqyqszqgpqyqszqgpqyqszqgpqyqszqgpqyrndku7';
+const SUI_ADDRESS = '0xa44576e02f83a9e1bddac6fd742a77931d1689d9a61122eb3125dee425f6dd36';
+const SUI_PRIVATE_KEY = 'suiprivkey1qupqyqszqgpqyqszqgpqyqszqgpqyqszqgpqyqszqgpqyqszqgpqyghdug7';
 
 describe('mldsa65-keypair', () => {
 	it('new keypair', () => {
@@ -92,7 +92,7 @@ describe('mldsa65-keypair', () => {
 		if (parsed.signatureScheme !== 'MLDSA65') {
 			throw new Error(`expected an MLDSA65 signature, got ${parsed.signatureScheme}`);
 		}
-		expect(parsed.bytes[0]).toBe(0x08);
+		expect(parsed.bytes[0]).toBe(0x07);
 		expect(parsed.signature.length).toBe(MLDSA65_SIGNATURE_SIZE);
 		expect(parsed.publicKey).toEqual(keypair.getPublicKey().toRawBytes());
 

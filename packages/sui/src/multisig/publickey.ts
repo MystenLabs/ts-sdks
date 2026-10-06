@@ -34,7 +34,6 @@ type PublicKeyEnum =
 	| { Secp256r1: Uint8Array }
 	| { ZkLogin: Uint8Array }
 	| { Passkey: Uint8Array }
-	| { ZkLoginV2: Uint8Array }
 	| { MLDSA65: Uint8Array };
 
 type PubkeyEnumWeightPair = {

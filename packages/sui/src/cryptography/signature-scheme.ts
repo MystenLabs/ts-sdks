@@ -8,7 +8,7 @@ export const SIGNATURE_SCHEME_TO_FLAG = {
 	MultiSig: 0x03,
 	ZkLogin: 0x05,
 	Passkey: 0x06,
-	MLDSA65: 0x08,
+	MLDSA65: 0x07,
 } as const;
 
 export const SIGNATURE_SCHEME_TO_SIZE = {
@@ -26,7 +26,7 @@ export const SIGNATURE_FLAG_TO_SCHEME = {
 	0x03: 'MultiSig',
 	0x05: 'ZkLogin',
 	0x06: 'Passkey',
-	0x08: 'MLDSA65',
+	0x07: 'MLDSA65',
 } as const;
 
 export type SignatureScheme =
