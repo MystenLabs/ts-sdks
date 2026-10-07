@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { toBase58 } from '@mysten/bcs';
+import { fromHex } from '@mysten/bcs';
 import { describe, expect, it } from 'vitest';
 
 import { parseSerializedSignature } from '../../../src/cryptography/index.js';
@@ -11,11 +11,8 @@ import {
 	MLDSA65_SIGNATURE_SIZE,
 	MLDSA65Keypair,
 } from '../../../src/keypairs/mldsa65/index.js';
-import { Transaction } from '../../../src/transactions/index.js';
-import {
-	verifyPersonalMessageSignature,
-	verifyTransactionSignature,
-} from '../../../src/verify/index.js';
+import { verifyPersonalMessageSignature } from '../../../src/verify/index.js';
+import vector from './mldsa65-vectors.json' with { type: 'json' };
 
 const SEED = new Uint8Array(32).fill(2);
 
@@ -102,44 +99,21 @@ describe('mldsa65-keypair', () => {
 		expect(recovered.toSuiAddress()).toEqual(SUI_ADDRESS);
 	});
 
-	it('signs Transactions', async () => {
-		const keypair = new MLDSA65Keypair();
-		const tx = new Transaction();
-		tx.setSender(keypair.getPublicKey().toSuiAddress());
-		tx.setGasPrice(5);
-		tx.setGasBudget(100);
-		tx.setGasPayment([
-			{
-				objectId: (Math.random() * 100000).toFixed(0).padEnd(64, '0'),
-				version: String((Math.random() * 10000).toFixed(0)),
-				digest: toBase58(
-					new Uint8Array([
-						0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8,
-						9, 1, 2,
-					]),
-				),
-			},
-		]);
+	it('verifies a signature produced by the Rust signer', async () => {
+		const keypair = MLDSA65Keypair.fromSecretKey(fromHex(vector.seed));
+		expect(keypair.toSuiAddress()).toEqual(vector.address);
+		expect(keypair.getSecretKey()).toEqual(vector.suiprivkey);
 
-		const bytes = await tx.build();
-
-		const serializedSignature = (await keypair.signTransaction(bytes)).signature;
-
-		expect(await keypair.getPublicKey().verifyTransaction(bytes, serializedSignature)).toEqual(
+		const message = new TextEncoder().encode(vector.personalMessage);
+		const parsed = parseSerializedSignature(vector.signature);
+		if (parsed.signatureScheme !== 'MLDSA65') {
+			throw new Error(`expected an MLDSA65 signature, got ${parsed.signatureScheme}`);
+		}
+		expect(parsed.publicKey).toEqual(keypair.getPublicKey().toRawBytes());
+		expect(await keypair.getPublicKey().verifyPersonalMessage(message, vector.signature)).toBe(
 			true,
 		);
-		expect(!!(await verifyTransactionSignature(bytes, serializedSignature))).toEqual(true);
-	});
-
-	it('signs PersonalMessages', async () => {
-		const keypair = new MLDSA65Keypair();
-		const message = new TextEncoder().encode('hello world');
-
-		const serializedSignature = (await keypair.signPersonalMessage(message)).signature;
-
-		expect(
-			await keypair.getPublicKey().verifyPersonalMessage(message, serializedSignature),
-		).toEqual(true);
-		expect(!!(await verifyPersonalMessageSignature(message, serializedSignature))).toEqual(true);
+		const recovered = await verifyPersonalMessageSignature(message, vector.signature);
+		expect(recovered.toSuiAddress()).toEqual(vector.address);
 	});
 });

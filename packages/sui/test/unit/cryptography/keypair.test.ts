@@ -6,7 +6,9 @@ import { beforeAll, describe, expect, it } from 'vitest';
 
 import { bcs } from '../../../src/bcs/index.js';
 import { PublicKey } from '../../../src/cryptography/publickey.js';
+import { parseSerializedSignature } from '../../../src/cryptography/signature.js';
 import { Ed25519Keypair, Ed25519PublicKey } from '../../../src/keypairs/ed25519/index.js';
+import { MLDSA65Keypair } from '../../../src/keypairs/mldsa65/index.js';
 import { Secp256k1Keypair } from '../../../src/keypairs/secp256k1/index.js';
 import { Secp256r1Keypair } from '../../../src/keypairs/secp256r1/index.js';
 
@@ -16,7 +18,9 @@ describe('Keypair', () => {
 		k2: Secp256k1Keypair,
 		pk2: PublicKey,
 		k3: Secp256r1Keypair,
-		pk3: PublicKey;
+		pk3: PublicKey,
+		k4: MLDSA65Keypair,
+		pk4: PublicKey;
 
 	beforeAll(() => {
 		const VALID_SECP256K1_SECRET_KEY = [
@@ -40,6 +44,9 @@ describe('Keypair', () => {
 
 		k3 = Secp256r1Keypair.fromSecretKey(secret_key_r1);
 		pk3 = k3.getPublicKey();
+
+		k4 = MLDSA65Keypair.fromSecretKey(new Uint8Array(32).fill(2));
+		pk4 = k4.getPublicKey();
 	});
 
 	it('`signWithIntent()` should return the correct signature', async () => {
@@ -67,6 +74,12 @@ describe('Keypair', () => {
 		expect(sig3.signature).toEqual(
 			'Apd48/4qVHSja5u2i7ZxobPL6iTLulNIuCxbd5GhfWVvcd69k9BtIqpFGMYXYyn7zapyvnJbtUZsF2ILc7Rp/X0CJzIrOokaCigNa8H7LLsj0o9UkG/WQH9fdB9t71diYJo=',
 		);
+
+		// ML-DSA-65 signatures are hedged, so check the envelope and verify instead of pinning bytes.
+		const sig4 = await k4.signWithIntent(bytes, 'PersonalMessage');
+		expect(sig4.bytes).toEqual('CQAAAAVIZWxsbw==');
+		expect(parseSerializedSignature(sig4.signature).signatureScheme).toEqual('MLDSA65');
+		expect(await pk4.verifyWithIntent(bytes, sig4.signature, 'PersonalMessage')).toEqual(true);
 	});
 
 	it('`signTransaction()` should correctly sign a transaction block', async () => {
@@ -93,6 +106,10 @@ describe('Keypair', () => {
 		expect(sig3.signature).toEqual(
 			'AvKS25z99kTnsHe70qf2Dd9+Lz0DHTzM7cKFrMF47Z2RNy6qSFzOV87thExeKqug6VvEFiaqYhplx3fsT/rgk9kCJzIrOokaCigNa8H7LLsj0o9UkG/WQH9fdB9t71diYJo=',
 		);
+
+		const sig4 = await k4.signTransaction(data);
+		expect(sig4.bytes).toEqual('AAAABUhlbGxv');
+		expect(await pk4.verifyTransaction(data, sig4.signature)).toEqual(true);
 	});
 
 	it('`signPersonalMessage()` should correctly sign a personal message', async () => {
@@ -119,6 +136,10 @@ describe('Keypair', () => {
 		expect(sig3.signature).toEqual(
 			'Apd48/4qVHSja5u2i7ZxobPL6iTLulNIuCxbd5GhfWVvcd69k9BtIqpFGMYXYyn7zapyvnJbtUZsF2ILc7Rp/X0CJzIrOokaCigNa8H7LLsj0o9UkG/WQH9fdB9t71diYJo=',
 		);
+
+		const sig4 = await k4.signPersonalMessage(data);
+		expect(sig4.bytes).toEqual('AAAABUhlbGxv');
+		expect(await pk4.verifyPersonalMessage(data, sig4.signature)).toEqual(true);
 	});
 
 	it('`toSuiAddress()` should return a valid sui address', async () => {
@@ -135,6 +156,11 @@ describe('Keypair', () => {
 		expect(k3.toSuiAddress()).toEqual(pk3.toSuiAddress());
 		expect(k3.toSuiAddress()).toEqual(
 			'0x318f591092f10b67a81963954fb9539ea3919444417726be4e1b95ce44fe2fc0',
+		);
+
+		expect(k4.toSuiAddress()).toEqual(pk4.toSuiAddress());
+		expect(k4.toSuiAddress()).toEqual(
+			'0xa44576e02f83a9e1bddac6fd742a77931d1689d9a61122eb3125dee425f6dd36',
 		);
 	});
 });

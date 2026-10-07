@@ -12,6 +12,7 @@ import {
 	toSerializedSignature,
 } from '../../../src/cryptography/signature.js';
 import { Ed25519Keypair, Ed25519PublicKey } from '../../../src/keypairs/ed25519/index.js';
+import { MLDSA65Keypair } from '../../../src/keypairs/mldsa65/index.js';
 import { Secp256k1Keypair } from '../../../src/keypairs/secp256k1/index.js';
 import { Secp256r1Keypair } from '../../../src/keypairs/secp256r1/index.js';
 import { MultiSigPublicKey, parsePartialSignatures } from '../../../src/multisig/index.js';
@@ -22,7 +23,9 @@ describe('Signature', () => {
 		k2: Secp256k1Keypair,
 		pk2: PublicKey,
 		k3: Secp256r1Keypair,
-		pk3: PublicKey;
+		pk3: PublicKey,
+		k4: MLDSA65Keypair,
+		pk4: PublicKey;
 
 	beforeAll(() => {
 		const VALID_SECP256K1_SECRET_KEY = [
@@ -46,6 +49,9 @@ describe('Signature', () => {
 
 		k3 = Secp256r1Keypair.fromSecretKey(secret_key_r1);
 		pk3 = k3.getPublicKey();
+
+		k4 = MLDSA65Keypair.fromSecretKey(new Uint8Array(32).fill(2));
+		pk4 = k4.getPublicKey();
 	});
 
 	it('`toSerializedSignature()` should correctly serialize signature', async () => {
@@ -63,6 +69,10 @@ describe('Signature', () => {
 					publicKey: pk3,
 					weight: 3,
 				},
+				{
+					publicKey: pk4,
+					weight: 4,
+				},
 			],
 			threshold: 3,
 		});
@@ -72,11 +82,13 @@ describe('Signature', () => {
 		const sig1 = await k1.signPersonalMessage(data);
 		const sig2 = await k2.signPersonalMessage(data);
 		const sig3 = await k3.signPersonalMessage(data);
+		const sig4 = await k4.signPersonalMessage(data);
 
 		const multisig = publicKey.combinePartialSignatures([
 			sig1.signature,
 			sig2.signature,
 			sig3.signature,
+			sig4.signature,
 		]);
 
 		const decoded = parsePartialSignatures(bcs.MultiSig.parse(fromBase64(multisig).slice(1)));
@@ -97,15 +109,22 @@ describe('Signature', () => {
 				signature: decoded[2].signature,
 				publicKey: decoded[2].publicKey,
 			},
+			{
+				signatureScheme: decoded[3].signatureScheme,
+				signature: decoded[3].signature,
+				publicKey: decoded[3].publicKey,
+			},
 		];
 
 		const serializedSignature1 = toSerializedSignature(SerializeSignatureInput[0]);
 		const serializedSignature2 = toSerializedSignature(SerializeSignatureInput[1]);
 		const serializedSignature3 = toSerializedSignature(SerializeSignatureInput[2]);
+		const serializedSignature4 = toSerializedSignature(SerializeSignatureInput[3]);
 
 		expect(serializedSignature1).toEqual(sig1.signature);
 		expect(serializedSignature2).toEqual(sig2.signature);
 		expect(serializedSignature3).toEqual(sig3.signature);
+		expect(serializedSignature4).toEqual(sig4.signature);
 	});
 
 	it('`toSerializedSignature()` should handle invalid parameters', async () => {
@@ -154,6 +173,10 @@ describe('Signature', () => {
 					publicKey: pk3,
 					weight: 3,
 				},
+				{
+					publicKey: pk4,
+					weight: 4,
+				},
 			],
 			threshold: 3,
 		});
@@ -163,16 +186,22 @@ describe('Signature', () => {
 		const sig1 = await k1.signPersonalMessage(data);
 		const sig2 = await k2.signPersonalMessage(data);
 		const sig3 = await k3.signPersonalMessage(data);
+		const sig4 = await k4.signPersonalMessage(data);
 
 		const multisig = publicKey.combinePartialSignatures([
 			sig1.signature,
 			sig2.signature,
 			sig3.signature,
+			sig4.signature,
 		]);
 
 		const parsedSignature = parseSerializedSignature(sig1.signature);
 		expect(parsedSignature.serializedSignature).toEqual(sig1.signature);
 		expect(parsedSignature.signatureScheme).toEqual(k1.getKeyScheme());
+
+		const parsedMldsaSignature = parseSerializedSignature(sig4.signature);
+		expect(parsedMldsaSignature.serializedSignature).toEqual(sig4.signature);
+		expect(parsedMldsaSignature.signatureScheme).toEqual(k4.getKeyScheme());
 
 		const parsedMultisigSignature = parseSerializedSignature(multisig);
 		expect(parsedMultisigSignature.serializedSignature).toEqual(multisig);
