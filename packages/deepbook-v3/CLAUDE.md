@@ -229,6 +229,23 @@ pnpm --filter @mysten/deepbook-v3 sync-deployment
    (~5k lines instead of ~300).
 3. **Codegen writes `package_summaries/` into the deepbookv3 checkout.** It is untracked there —
    delete it when done so the sibling repo is left clean.
+4. **`DEEPBOOKV3_ROOT` points codegen at another checkout.** Use it to generate from an unpublished
+   commit without moving the sibling:
+   `git -C ../deepbookv3 worktree add --detach <scratch>/dbv3 <commit>`, then
+   `DEEPBOOKV3_ROOT=<scratch>/dbv3 pnpm --filter @mysten/deepbook-v3 codegen`, revert
+   `src/contracts/{deepbook,deepbook_margin,margin_liquidation}` (and `pyth` if it changed), run
+   `pnpm lint:fix`, and `git worktree remove` the scratch tree. Never pass a positional path to
+   `sui-ts-codegen generate`: that route drops `configArguments` and `bcsOverrides`.
+
+### Predict delayed execution (`src/predict/{queue,tx/queue,reads/queue}.ts`)
+
+- The v4 types and events are defined by `packages.predictDelayedExecution`, not `predictV1` or the
+  latest package. Decoders match against it and the queue facade throws `PredictInputError` while it
+  is unset (the network records stay unset until each publication is synced).
+- `queue.ts` ports `order_queue`'s cash-need formulas 1:1, and `test/predict/queue.test.ts` pins
+  them with the Move unit-test vectors. Re-copy the vectors when the Move rounding changes.
+- `read.executionMode()` reads `ProtocolConfig.version_watermark` from the object's BCS, because the
+  getter only exists from v4.
 
 ## Formatting
 
@@ -441,3 +458,4 @@ Track significant updates to this file:
 - **2026-03**: Documented query module pattern, conversion helpers, and named return types
 - **2026-07**: Added codegen gotchas (build workspace deps + re-install before `pnpm codegen`;
   broken pyth config entry; `package_summaries/` cleanup)
+- **2026-10**: `DEEPBOOKV3_ROOT` codegen override and Predict delayed-execution notes (DBU-885)

@@ -87,6 +87,95 @@ console.log(market?.nav, market?.tickSize, market?.mintPaused);
 const pool = await client.predict.read.pool();
 ```
 
+> **Immediate trades retire with delayed execution.** `mint`, `mintAmount`, `mintCost` and `redeem`
+> work until the protocol's version watermark reaches 4, then abort `EDelayedExecutionRequired`.
+> From then on orders are queued: see [Queued orders](#queued-orders-delayed-execution). Branch on
+> `read.executionMode()` rather than a release date.
+
+## Queued orders (delayed execution)
+
+With delayed execution (Predict v4, DBU-885) an order is placed now and filled later, at Pyth's
+signed price for its τ: the Pyth Lazer channel tick at or before placement + the policy delay (800
+ms on the 200 ms channel at launch). A keeper, or anyone running the open filler, commits the price
+and resolves the order: a fill, or a refund with a reason code. A filled mint stays in the market as
+an **Open record**, not in the account. Sell it early with `enqueueSell`, or let `try_settle` pay it
+at settlement.
+
+> The Testnet and Mainnet configs don't record delayed execution until those publications are
+> synced. Until then the queued surface throws `PredictInputError` on them. Pass a `config` with
+> `packages.predictDelayedExecution` set (a localnet publish) to use it earlier.
+
+```ts
+// Which path is live? 'immediate' | 'awaiting-cutover' | 'delayed' | 'unsupported'.
+const mode = await client.predict.read.executionMode();
+
+// The market's queue: the "pricing delayed" gate, τ / deadline / cutoff preview, the order fee,
+// and the largest mint the market's spare cash takes now.
+const queue = await client.predict.read.queue(desc, myAddress);
+queue.stuck; // show "pricing delayed" and stop offering orders
+queue.acceptingOrders;
+queue.maxMint?.budget.maxRaw; // "Max right now" for a budget mint, raw USDC
+
+// Quote, then queue. The quote previews a queued fill: no congestion penalty, and the flat order
+// fee reported apart, once per order.
+const q = await client.predict.read.quoteMint(myAddress, desc, { quantity: 50 });
+const { transaction, preview } = await client.predict.tx.enqueueMint(myAddress, desc, {
+	quantity: 50,
+	maxCost: Math.ceil(q.cost * 1.02 * 1e6) / 1e6, // required: there is no "unlimited" cap
+	maxProbability: Math.min(1, Math.round((q.entryProbability + 0.02) * 1e9) / 1e9), // required
+});
+preview.timing.tauMs; // when it prices
+preview.totalDebit; // budget + order fee, debited at enqueue. Unused budget comes back at the fill
+
+// After execution: the record ID is the handle for everything else. Persist it.
+const { recordId } = client.predict.decode.enqueue(result);
+const outcome = await client.predict.read.waitForOutcome(desc, recordId);
+outcome.order?.view; // 'filled' (an Open record holding the position) or 'refunded' (with a reason)
+
+// Sell an Open record early: quote it, then queue the sell. Floors are required, pass 0 on purpose.
+const sq = await client.predict.read.quoteSell(myAddress, desc, { recordId, quantity: 50 });
+const sell = await client.predict.tx.enqueueSell(myAddress, desc, {
+	recordId,
+	quantity: 50,
+	minProbability: Math.floor(sq.probability * 0.97 * 1e9) / 1e9,
+	minProceeds: Math.floor(sq.proceeds * 0.97 * 1e6) / 1e6,
+});
+```
+
+- **Preflight, typed.** Each `enqueue*` builder reads the market once and refuses, with a
+  `PredictPreflightError` and a `code`, an order the chain would abort: `not-live`, `paused`,
+  `stuck`, `past-cutoff`, `queue-full`, `account-cap`, `fee` (prompt a top-up: a mint needs a
+  balance above the order fee, a sell at least the fee), `market-cash`, `min-premium`,
+  `below-min-sell`, `record-not-open`, `not-record-owner`. A refused order never fails the rest of a
+  transaction. The preview runs on the local clock, so near the cutoff the chain can still refuse:
+  decode that with `describePredictError`.
+- **Order states.** `read.order(s)` returns each record with `queue.orderView`: `placed` (with
+  `awaitingPrice` once τ passes), `priced` (the committed price and a countdown to the deadline),
+  then `filled` or `refunded`. Report "Filled" only from the record or the `QueuedOrderFilled`
+  event. For an indexer or event feed, `decode.queueEvents` + `queue.reduceOrderEvents` build the
+  same states.
+- **Refunds.** Keepers refund an unfinished order at its deadline (τ + 5 s). Offer "Refund my order"
+  (`tx.refund(m)`) only when `view.canRequestRefund` is true, 5 s past the deadline. It needs no
+  account or Pyth key and works during a freeze. Never prepend it to other transactions.
+  `queue.REFUND_REASONS` maps each reason to its text and fee treatment: reasons 1 and 2 keep the
+  order fee, the rest return it, and 8 means the market couldn't pay at the fill.
+- **Big sells.** A sell's cash need above spare cash sets `preview.needsFunding`. By default the
+  builder adds `rebalance_expiry_cash` after the enqueue so the market is funded at once
+  (`fundMarket: 'auto' | 'always' | 'never'`). A sell still uncovered at the fill is refunded in
+  full and its position returns to an Open record.
+- **Positions.** The SDK has no indexer client, so the app supplies record IDs from its enqueue
+  receipts or its indexer. `claimSettled` still pays positions minted into the account before
+  delayed execution. Pending refunds and proceeds sent to the account show in
+  `read.pendingFunds(owner)` (already counted in `read.balance`).
+- **The open filler.** `tx.fill(m, { payloads })` verifies signed Lazer payloads with the current
+  Lazer package (read from Lazer's `State` per call), commits them and resolves up to `maxOrders`
+  records. Anyone with Lazer access can run one.
+- **Pure helpers** in the `queue` namespace: the cash-need formulas (ported 1:1 from `order_queue`),
+  `maxMintNow`, `previewTiming`, `orderCutoffMs`, and `slippageBand`, a heuristic
+  `Δp ≈ k · φ(Φ⁻¹(p)) · √(h / T)` for sizing `maxProbability` / `minProbability` that still needs
+  product sign-off. `queueTx` has the thunks for composing an enqueue into your own PTB, and
+  `SessionsContract` has the `enqueue*` session wrappers.
+
 ## ⚠ Slippage defaults are UNCAPPED
 
 `mint` mirrors the chain's semantics: when you omit `maxCost` and `maxProbability`, the mint is
@@ -189,7 +278,9 @@ const tx = await client.predict.tx.mint(
 
 - **`client.predict.tx`** — `createManager`, `deposit`, `withdraw`, `mint`, `mintAmount`,
   `mintCost`, `redeem`, `claimSettled`, `supplyPlp`, `withdrawPlp`, `cancelSupplyPlp`,
-  `cancelWithdrawPlp`, `setBuilderCode`, `unsetBuilderCode`. Market-resolving builders
+  `cancelWithdrawPlp`, `setBuilderCode`, `unsetBuilderCode`, and for queued orders `enqueueMint`,
+  `enqueueMintAmount`, `enqueueMintCost`, `enqueueSell`, `refund`, `fill` (see
+  [Queued orders](#queued-orders-delayed-execution)). Market-resolving builders
   (`mint`/`mintAmount`/`mintCost`/`redeem`/`claimSettled`) are async: they resolve the market object
   from `{ underlying, expiryMs, strike, side }` via the on-chain registry (cached per client).
 - **`client.predict.read`** — `markets()` (summaries of the pool's **active** markets — live and not
@@ -202,15 +293,20 @@ const tx = await client.predict.tx.mint(
   (exact dry-run quotes: real fees from the real code path — and they throw the same typed errors
   the real trade would, so a quote doubles as preflight), `balance(owner)`, `plpBalance(owner)`,
   `pool()`, `positions(owner)` (chain-only enumeration of open positions),
-  `hasPosition(owner, marketId, orderId)`. All reads run over the client's `simulateTransaction`; no
-  indexer required.
+  `hasPosition(owner, marketId, orderId)`, and for queued orders `executionMode()`, `queue(m)`,
+  `order(m, id)`, `orders(m, ids)`, `waitForOutcome(m, id)`, `quoteSell(owner, m, opts)`,
+  `pendingFunds(owner)`, `lazerPackages()`. All reads run over the client's `simulateTransaction`;
+  no indexer required.
 - **`client.predict.decode`** — pure execution-result decoders (no network): `mint`, `redeem`,
   `claim`, `createManager`, `deposit`, `withdraw`, `plpRequest`, `plpCancel`, `builderCode`. Each
   singular form throws unless exactly one matching event is present; `mints`, `redeems` and `claims`
   are the plural forms for batched PTBs and return every receipt (the other decoders have no
   plural). Execute transactions with events included and pass the result; receipts come back in SDK
   units with raw bigints alongside. Decoding uses the events' canonical BCS bytes, so it is
-  transport-independent.
+  transport-independent. The queue decoders (`enqueue`, `queueEvents`, `cohortCommits`,
+  `queuedFills`, `queuedRefunds`, `openRecordPayouts`, `marketPayoutsCompleted`, `queueOps`,
+  `policyUpdates`) match the events against `packages.predictDelayedExecution`, the package that
+  introduced them.
 - **PTB composition** — each `client.predict.tx.*` builder returns a finished `Transaction`, so to
   put a Predict call into a PTB you are building, use the generated move-call bindings `/predict`
   exports: one namespace of transaction thunks per Predict module (`plpMoveCalls`,
