@@ -1,5 +1,18 @@
 # @mysten/sui.js
 
+## 2.36.0
+
+### Minor Changes
+
+- ad42dd8: Add ML-DSA-65 (FIPS 204) support: `MLDSA65Keypair` and `MLDSA65PublicKey` under
+  `@mysten/sui/keypairs/mldsa65`, signature scheme flag `0x07`, and ML-DSA-65 members in multisig
+  and the verify helpers.
+
+### Patch Changes
+
+- 7a9b3e5: Avoid initializing Poseidon when importing keypairs or parsing signatures by separating
+  zkLogin public-key encoding helpers from address-seed hashing.
+
 ## 2.35.0
 
 ### Minor Changes
