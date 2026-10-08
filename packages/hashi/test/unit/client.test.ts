@@ -1351,7 +1351,10 @@ describe('HashiClient', () => {
 			};
 		}
 
-		function mockWithdrawalRequestObject(opts?: { withdrawalTxnId?: string | null }) {
+		function mockWithdrawalRequestObject(opts?: {
+			withdrawalTxnId?: string | null;
+			approved?: boolean;
+		}) {
 			return {
 				objectId: WITHDRAWAL_REQUEST_ID,
 				version: '1',
@@ -1364,12 +1367,45 @@ describe('HashiClient', () => {
 					btc_amount: '30000',
 					bitcoin_address: Array.from(new Uint8Array(32).fill(0xcc)),
 					created_timestamp_ms: '2000',
-					status: { Requested: true },
-					approval_cert: null,
-					approved_timestamp_ms: null,
+					approval_cert: opts?.approved ? { epoch: '1', signature: [], signers_bitmap: [] } : null,
+					approved_timestamp_ms: opts?.approved ? '2500' : null,
 					withdrawal_txn_id: opts?.withdrawalTxnId ?? null,
 					sui_tx_digest: Array.from(new Uint8Array(32).fill(0xee)),
 					btc: { value: '30000' },
+				}).toBytes(),
+				previousTransaction: undefined,
+				objectBcs: undefined,
+				json: undefined,
+				display: undefined,
+			};
+		}
+
+		const BTC_TXID_INTERNAL = '0x' + '99'.repeat(32);
+		const BTC_TXID_DISPLAY = reverseTxidBytes(BTC_TXID_INTERNAL);
+
+		function mockWithdrawalTxnObject(opts?: {
+			signedTimestampMs?: string | null;
+			confirmedTimestampMs?: string | null;
+		}) {
+			return {
+				objectId: WITHDRAWAL_TXN_ID,
+				version: '1',
+				digest: 'mock',
+				owner: { $kind: 'ObjectOwner', ObjectOwner: '0x00' },
+				type: `${PACKAGE_ID}::withdrawal_queue::WithdrawalTransaction`,
+				content: WithdrawalTransaction.serialize({
+					id: WITHDRAWAL_TXN_ID,
+					txid: BTC_TXID_INTERNAL,
+					request_ids: [WITHDRAWAL_REQUEST_ID],
+					inputs: [],
+					withdrawal_outputs: [],
+					change_outputs: [],
+					created_timestamp_ms: '3000',
+					signed_timestamp_ms: opts?.signedTimestampMs ?? null,
+					confirmed_timestamp_ms: opts?.confirmedTimestampMs ?? null,
+					randomness: [],
+					signing: { signatures: [], epoch: '1' },
+					guardian_signatures: null,
 				}).toBytes(),
 				previousTransaction: undefined,
 				objectBcs: undefined,
@@ -1438,62 +1474,85 @@ describe('HashiClient', () => {
 			expect(wd.withdrawalTxnId).toBeNull();
 		});
 
-		it('fetches WithdrawalTransaction to populate btcTxid when withdrawal_txn_id is set', async () => {
+		it('reports Approved once the request carries an approval cert', async () => {
 			mockFetchBitcoinState();
 			mockUserBagLookup();
 			mockListDynamicFields([WITHDRAWAL_REQUEST_ID]);
-
-			const BTC_TXID_INTERNAL = '0x' + '99'.repeat(32);
-			const BTC_TXID_DISPLAY = reverseTxidBytes(BTC_TXID_INTERNAL);
-
-			const getObjectsSpy = vi.spyOn(client.core, 'getObjects');
-
-			// First call: fetch request objects
-			getObjectsSpy.mockResolvedValueOnce({
-				objects: [mockWithdrawalRequestObject({ withdrawalTxnId: WITHDRAWAL_TXN_ID })],
+			vi.spyOn(client.core, 'getObjects').mockResolvedValueOnce({
+				objects: [mockWithdrawalRequestObject({ approved: true })],
 			} as never);
-
-			// Second call: fetch WithdrawalTransaction objects
-			getObjectsSpy.mockResolvedValueOnce({
-				objects: [
-					{
-						objectId: WITHDRAWAL_TXN_ID,
-						version: '1',
-						digest: 'mock',
-						owner: { $kind: 'ObjectOwner', ObjectOwner: '0x00' },
-						type: `${PACKAGE_ID}::withdrawal_queue::WithdrawalTransaction`,
-						content: WithdrawalTransaction.serialize({
-							id: WITHDRAWAL_TXN_ID,
-							txid: BTC_TXID_INTERNAL,
-							request_ids: [WITHDRAWAL_REQUEST_ID],
-							inputs: [],
-							withdrawal_outputs: [],
-							change_outputs: [],
-							created_timestamp_ms: '3000',
-							signed_timestamp_ms: null,
-							confirmed_timestamp_ms: null,
-							randomness: [],
-							signing: { signatures: [], epoch: '1' },
-							guardian_signatures: null,
-						}).toBytes(),
-						previousTransaction: undefined,
-						objectBcs: undefined,
-						json: undefined,
-						display: undefined,
-					},
-				],
-			} as never);
-
 			mockGraphQLDepositEvents([]);
 
 			const items = await client.hashi.view.transactionHistory(TEST_SUI_ADDRESS);
 
-			expect(items).toHaveLength(1);
 			const wd = items[0];
 			if (wd.kind !== 'withdrawal') throw new Error('expected withdrawal');
-			expect(wd.btcTxid).toBe(BTC_TXID_DISPLAY);
+			expect(wd.status).toBe('Approved');
+			expect(wd.btcTxid).toBeNull();
+		});
+
+		// The chain stores no status: a committed request's state lives on its
+		// `WithdrawalTransaction`, so the linked txn is what tells these apart.
+		it.each([
+			{ status: 'Processing', signedTimestampMs: null, confirmedTimestampMs: null },
+			{ status: 'Signed', signedTimestampMs: '4000', confirmedTimestampMs: null },
+			{ status: 'Confirmed', signedTimestampMs: '4000', confirmedTimestampMs: '5000' },
+		])(
+			'reads btcTxid and $status from the linked WithdrawalTransaction',
+			async ({ status, signedTimestampMs, confirmedTimestampMs }) => {
+				mockFetchBitcoinState();
+				mockUserBagLookup();
+				mockListDynamicFields([WITHDRAWAL_REQUEST_ID]);
+
+				const getObjectsSpy = vi.spyOn(client.core, 'getObjects');
+
+				// First call: fetch request objects
+				getObjectsSpy.mockResolvedValueOnce({
+					objects: [
+						mockWithdrawalRequestObject({ approved: true, withdrawalTxnId: WITHDRAWAL_TXN_ID }),
+					],
+				} as never);
+
+				// Second call: fetch WithdrawalTransaction objects
+				getObjectsSpy.mockResolvedValueOnce({
+					objects: [mockWithdrawalTxnObject({ signedTimestampMs, confirmedTimestampMs })],
+				} as never);
+
+				mockGraphQLDepositEvents([]);
+
+				const items = await client.hashi.view.transactionHistory(TEST_SUI_ADDRESS);
+
+				expect(items).toHaveLength(1);
+				const wd = items[0];
+				if (wd.kind !== 'withdrawal') throw new Error('expected withdrawal');
+				expect(wd.status).toBe(status);
+				expect(wd.btcTxid).toBe(BTC_TXID_DISPLAY);
+				expect(wd.withdrawalTxnId).toBe(WITHDRAWAL_TXN_ID);
+				expect(getObjectsSpy).toHaveBeenCalledTimes(2);
+			},
+		);
+
+		it('reports Processing with null btcTxid when the linked WithdrawalTransaction cannot be read', async () => {
+			mockFetchBitcoinState();
+			mockUserBagLookup();
+			mockListDynamicFields([WITHDRAWAL_REQUEST_ID]);
+
+			const getObjectsSpy = vi.spyOn(client.core, 'getObjects');
+			getObjectsSpy.mockResolvedValueOnce({
+				objects: [
+					mockWithdrawalRequestObject({ approved: true, withdrawalTxnId: WITHDRAWAL_TXN_ID }),
+				],
+			} as never);
+			getObjectsSpy.mockResolvedValueOnce({ objects: [new Error('unavailable')] } as never);
+			mockGraphQLDepositEvents([]);
+
+			const items = await client.hashi.view.transactionHistory(TEST_SUI_ADDRESS);
+
+			const wd = items[0];
+			if (wd.kind !== 'withdrawal') throw new Error('expected withdrawal');
+			expect(wd.status).toBe('Processing');
+			expect(wd.btcTxid).toBeNull();
 			expect(wd.withdrawalTxnId).toBe(WITHDRAWAL_TXN_ID);
-			expect(getObjectsSpy).toHaveBeenCalledTimes(2);
 		});
 
 		it('returns mixed deposit and withdrawal items sorted by timestamp descending', async () => {
@@ -1814,42 +1873,7 @@ describe('HashiClient', () => {
 			expect(result!.btcTxid).toBeNull();
 		});
 
-		it('returns Requested status with null btcTxid when no withdrawal txn linked', async () => {
-			vi.spyOn(client.core, 'getTransaction').mockResolvedValueOnce({
-				Transaction: {
-					events: [
-						{
-							eventType: `${PACKAGE_ID}::withdrawal_queue::WithdrawalRequested`,
-							json: {
-								request_id: REQUEST_ID,
-								btc_amount: '30000',
-								bitcoin_address: Array.from(new Uint8Array(20).fill(0xaa)),
-								timestamp_ms: '2000',
-								requester_address: TEST_SUI_ADDRESS,
-							},
-						},
-					],
-				},
-			} as never);
-
-			vi.spyOn(WithdrawalRequest, 'get').mockResolvedValueOnce({
-				json: {
-					status: { $kind: 'Requested' },
-					withdrawal_txn_id: null,
-				},
-			} as never);
-
-			const result = await client.hashi.view.withdrawalStatus('test-digest');
-			expect(result).not.toBeNull();
-			expect(result!.status).toBe('Requested');
-			expect(result!.btcTxid).toBeNull();
-			expect(result!.btcAmountSats).toBe(30_000n);
-		});
-
-		it('returns current status with btcTxid when withdrawal transaction exists', async () => {
-			const BTC_TXID_INTERNAL = '0x' + '99'.repeat(32);
-			const BTC_TXID_DISPLAY = reverseTxidBytes(BTC_TXID_INTERNAL);
-
+		function mockWithdrawalRequestedEvent() {
 			vi.spyOn(client.core, 'getTransaction').mockResolvedValueOnce({
 				Transaction: {
 					events: [
@@ -1866,22 +1890,73 @@ describe('HashiClient', () => {
 					],
 				},
 			} as never);
+		}
 
+		const APPROVAL_CERT = { epoch: '1', signature: [], signers_bitmap: [] };
+		const LINKED_TXN_ID = '0x' + 'f0'.repeat(32);
+		const BTC_TXID_INTERNAL = '0x' + '99'.repeat(32);
+		const BTC_TXID_DISPLAY = reverseTxidBytes(BTC_TXID_INTERNAL);
+
+		it('returns Requested status with null btcTxid when no withdrawal txn linked', async () => {
+			mockWithdrawalRequestedEvent();
 			vi.spyOn(WithdrawalRequest, 'get').mockResolvedValueOnce({
-				json: {
-					status: { $kind: 'Signed' },
-					withdrawal_txn_id: '0x' + 'f0'.repeat(32),
-				},
-			} as never);
-
-			vi.spyOn(WithdrawalTransaction, 'get').mockResolvedValueOnce({
-				json: { txid: BTC_TXID_INTERNAL },
+				json: { approval_cert: null, withdrawal_txn_id: null },
 			} as never);
 
 			const result = await client.hashi.view.withdrawalStatus('test-digest');
 			expect(result).not.toBeNull();
-			expect(result!.status).toBe('Signed');
-			expect(result!.btcTxid).toBe(BTC_TXID_DISPLAY);
+			expect(result!.status).toBe('Requested');
+			expect(result!.btcTxid).toBeNull();
+			expect(result!.btcAmountSats).toBe(30_000n);
+		});
+
+		it('returns Approved status once the request carries an approval cert', async () => {
+			mockWithdrawalRequestedEvent();
+			vi.spyOn(WithdrawalRequest, 'get').mockResolvedValueOnce({
+				json: { approval_cert: APPROVAL_CERT, withdrawal_txn_id: null },
+			} as never);
+			const txnGetSpy = vi.spyOn(WithdrawalTransaction, 'get');
+
+			const result = await client.hashi.view.withdrawalStatus('test-digest');
+			expect(result!.status).toBe('Approved');
+			expect(result!.btcTxid).toBeNull();
+			expect(txnGetSpy).not.toHaveBeenCalled();
+		});
+
+		// The chain stores no status: a committed request's state lives on its
+		// `WithdrawalTransaction`, so the linked txn is what tells these apart.
+		it.each([
+			{ status: 'Processing', signed_timestamp_ms: null, confirmed_timestamp_ms: null },
+			{ status: 'Signed', signed_timestamp_ms: '4000', confirmed_timestamp_ms: null },
+			{ status: 'Confirmed', signed_timestamp_ms: '4000', confirmed_timestamp_ms: '5000' },
+		])(
+			'derives $status with btcTxid from the linked withdrawal transaction',
+			async ({ status, signed_timestamp_ms, confirmed_timestamp_ms }) => {
+				mockWithdrawalRequestedEvent();
+				vi.spyOn(WithdrawalRequest, 'get').mockResolvedValueOnce({
+					json: { approval_cert: APPROVAL_CERT, withdrawal_txn_id: LINKED_TXN_ID },
+				} as never);
+				vi.spyOn(WithdrawalTransaction, 'get').mockResolvedValueOnce({
+					json: { txid: BTC_TXID_INTERNAL, signed_timestamp_ms, confirmed_timestamp_ms },
+				} as never);
+
+				const result = await client.hashi.view.withdrawalStatus('test-digest');
+				expect(result).not.toBeNull();
+				expect(result!.status).toBe(status);
+				expect(result!.btcTxid).toBe(BTC_TXID_DISPLAY);
+			},
+		);
+
+		it('returns Processing with null btcTxid when the linked withdrawal transaction cannot be read', async () => {
+			mockWithdrawalRequestedEvent();
+			vi.spyOn(WithdrawalRequest, 'get').mockResolvedValueOnce({
+				json: { approval_cert: APPROVAL_CERT, withdrawal_txn_id: LINKED_TXN_ID },
+			} as never);
+			vi.spyOn(WithdrawalTransaction, 'get').mockRejectedValueOnce(new Error('unavailable'));
+
+			const result = await client.hashi.view.withdrawalStatus('test-digest');
+			expect(result!.status).toBe('Processing');
+			expect(result!.btcTxid).toBeNull();
 		});
 	});
 

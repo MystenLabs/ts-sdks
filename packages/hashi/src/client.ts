@@ -9,6 +9,7 @@ import type { Signer } from '@mysten/sui/cryptography';
 import { bcs, TypeTagSerializer } from '@mysten/sui/bcs';
 import { fromHex, deriveDynamicFieldID, normalizeSuiAddress } from '@mysten/sui/utils';
 import { base58 } from '@scure/base';
+import type { TransactionArgument } from '@mysten/sui/transactions';
 import { Transaction } from '@mysten/sui/transactions';
 import { Hashi } from './contracts/hashi/hashi.js';
 import { BitcoinState, BitcoinStateKey } from './contracts/hashi/bitcoin_state.js';
@@ -601,7 +602,7 @@ export class HashiClient {
 	// suitable for `tx.add(...)`. Only user-facing Hashi calls are exposed here;
 	// operator/committee calls are intentionally not part of this surface.
 	call = {
-		deposit: (options: { utxo: RawTransactionArgument<string> }) =>
+		deposit: (options: { utxo: TransactionArgument }) =>
 			this.#retarget(
 				depositModule.deposit({
 					package: this.#packageId,
@@ -609,7 +610,7 @@ export class HashiClient {
 				}),
 			),
 		requestWithdrawal: (options: {
-			btc: RawTransactionArgument<string>;
+			btc: TransactionArgument;
 			bitcoinAddress: RawTransactionArgument<number[]>;
 		}) =>
 			this.#retarget(
@@ -993,9 +994,15 @@ export class HashiClient {
 		 * Get the status and details of a withdrawal by its Sui transaction digest.
 		 *
 		 * Fetches the `WithdrawalRequested` event from the transaction, extracts the
-		 * request ID, then reads the `WithdrawalRequest` object to determine the
-		 * current lifecycle state. If a `WithdrawalTransaction` is linked, its
-		 * Bitcoin txid is populated.
+		 * request ID, then reads the `WithdrawalRequest` object. The chain stores no
+		 * status field, so the lifecycle state is derived: the request's
+		 * `approval_cert` and `withdrawal_txn_id` cover `Requested`, `Approved` and
+		 * `Processing`, and the linked `WithdrawalTransaction` covers `Signed` and
+		 * `Confirmed` and supplies the Bitcoin txid.
+		 *
+		 * If the linked `WithdrawalTransaction` can't be read, a committed request
+		 * reports `Processing` with a `null` `btcTxid`: the earliest state it can be
+		 * in, never a later one than the chain confirms.
 		 */
 		withdrawalStatus: async (suiTxDigest: string): Promise<WithdrawalInfo | null> => {
 			const txResult = await this.#client.core.getTransaction({
@@ -1027,23 +1034,21 @@ export class HashiClient {
 					client: this.#client,
 					objectId: parsed.request_id,
 				});
-				status = reqObj.json.status.$kind as WithdrawalStatus;
-
 				const withdrawalTxnId = reqObj.json.withdrawal_txn_id;
-				if (
-					withdrawalTxnId &&
-					(status === 'Processing' || status === 'Signed' || status === 'Confirmed')
-				) {
+				let txn: WithdrawalTxnTimestamps | null = null;
+				if (withdrawalTxnId) {
 					try {
 						const txnObj = await WithdrawalTransaction.get({
 							client: this.#client,
 							objectId: withdrawalTxnId,
 						});
+						txn = txnObj.json;
 						btcTxid = reverseTxidBytes(txnObj.json.txid);
 					} catch {
 						// best effort
 					}
 				}
+				status = withdrawalRequestStatus(reqObj.json, txn);
 			} catch (err) {
 				if (err instanceof Error && isObjectNotFoundError(err)) {
 					status = 'cancelled';
@@ -1147,7 +1152,7 @@ export class HashiClient {
 					});
 					const classified = this.#classifyRequestObjects(objects, timeDelayMs);
 					items.push(...classified.items);
-					await this.#populateWithdrawalBtcTxids(items, classified.withdrawalTxnLookups);
+					await this.#populateWithdrawalTxnState(items, classified.withdrawalTxnLookups);
 					for (const id of requestIds) confirmedIds.add(id);
 				}
 			}
@@ -1533,7 +1538,8 @@ export class HashiClient {
 	 * items. Errors in the batch are skipped (the request object may have
 	 * been deleted between the bag enumeration and the fetch). Returns the
 	 * items plus the indices that need a follow-up `WithdrawalTransaction`
-	 * fetch to populate `btcTxid`.
+	 * fetch to populate `btcTxid` and to tell `Processing`, `Signed` and
+	 * `Confirmed` apart.
 	 */
 	#classifyRequestObjects(
 		objects: readonly (SuiClientTypes.Object<{ content: true }> | Error)[],
@@ -1568,10 +1574,11 @@ export class HashiClient {
 
 	/**
 	 * Batch-fetch `WithdrawalTransaction` objects for the withdrawal items
-	 * that have a linked txn and overwrite their `btcTxid` in place. Errors
-	 * in the batch leave `btcTxid` at the initial `null`.
+	 * that have a linked txn and replace each item with its `btcTxid` and its
+	 * status as of that txn. Errors in the batch leave the item as classified:
+	 * `btcTxid` `null` and status `Processing`.
 	 */
-	async #populateWithdrawalBtcTxids(
+	async #populateWithdrawalTxnState(
 		items: TransactionHistoryItem[],
 		lookups: readonly { itemIndex: number; txnId: string }[],
 	): Promise<void> {
@@ -1584,8 +1591,12 @@ export class HashiClient {
 			const txnObj = txnObjects[i];
 			if (txnObj instanceof Error) continue;
 			const parsed = WithdrawalTransaction.parse(txnObj.content);
-			const item = items[lookups[i].itemIndex] as WithdrawalHistoryItem;
-			(item as { btcTxid: string | null }).btcTxid = reverseTxidBytes(parsed.txid);
+			const { itemIndex } = lookups[i];
+			items[itemIndex] = {
+				...(items[itemIndex] as WithdrawalHistoryItem),
+				status: committedWithdrawalStatus(parsed),
+				btcTxid: reverseTxidBytes(parsed.txid),
+			};
 		}
 	}
 }
@@ -1601,6 +1612,40 @@ function parseMpcPublicKey(raw: ArrayLike<number>): Uint8Array {
 		throw HashiConfigError.missing('committee_set.mpc_public_key', 'Bytes');
 	}
 	return arkworksToSec1Compressed(mpcKey);
+}
+
+/** The `WithdrawalTransaction` fields that carry a committed request's lifecycle. */
+type WithdrawalTxnTimestamps = Pick<
+	(typeof WithdrawalTransaction)['$inferType'],
+	'signed_timestamp_ms' | 'confirmed_timestamp_ms'
+>;
+
+/**
+ * Status of a request committed into a `WithdrawalTransaction`. `finalize_withdrawal`
+ * stamps `signed_timestamp_ms` and `confirm_withdrawal` stamps
+ * `confirmed_timestamp_ms`. `null` means the transaction could not be read, which
+ * leaves `Processing`: the earliest state a committed request can be in.
+ */
+function committedWithdrawalStatus(txn: WithdrawalTxnTimestamps | null): WithdrawalStatus {
+	if (txn?.confirmed_timestamp_ms != null) return 'Confirmed';
+	if (txn?.signed_timestamp_ms != null) return 'Signed';
+	return 'Processing';
+}
+
+/**
+ * Derive a `WithdrawalRequest`'s lifecycle status. The Move side stores none:
+ * `approval_cert` marks approval and `withdrawal_txn_id` marks commitment into a
+ * `WithdrawalTransaction`, whose own fields carry the rest (see
+ * `committedWithdrawalStatus`).
+ */
+function withdrawalRequestStatus(
+	request: Pick<(typeof WithdrawalRequest)['$inferType'], 'approval_cert' | 'withdrawal_txn_id'>,
+	txn: WithdrawalTxnTimestamps | null,
+): WithdrawalStatus {
+	if (request.withdrawal_txn_id == null) {
+		return request.approval_cert == null ? 'Requested' : 'Approved';
+	}
+	return committedWithdrawalStatus(txn);
 }
 
 function parseDepositHistoryItem(
@@ -1638,7 +1683,7 @@ function parseWithdrawalHistoryItem(content: Uint8Array): WithdrawalHistoryItem 
 		bitcoinAddress: new Uint8Array(parsed.bitcoin_address),
 		timestampMs: BigInt(parsed.created_timestamp_ms),
 		suiTxDigest: base58.encode(new Uint8Array(parsed.sui_tx_digest)),
-		status: parsed.status.$kind as WithdrawalStatus,
+		status: withdrawalRequestStatus(parsed, null),
 		withdrawalTxnId: parsed.withdrawal_txn_id ?? null,
 		btcTxid: null,
 	};

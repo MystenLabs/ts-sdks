@@ -1,16 +1,6 @@
 /**************************************************************
  * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
  **************************************************************/
-
-/**
- * Totally Ordered Broadcast (TOB) certificate storage for MPC ceremonies. Dealer
- * submissions — a dealer-messages hash plus its committee signature — are bucketed
- * per (epoch, optional batch, protocol type) in `EpochCertsV1`,
- * first-submission-wins per dealer. Signature verification is deferred to
- * off-chain readers, and a bucket may be destroyed once the current epoch is at
- * least two past the bucket's epoch.
- */
-
 import { MoveEnum, MoveStruct } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import * as linked_table from './deps/sui/linked_table.js';
@@ -32,6 +22,13 @@ export const TobKey = new MoveStruct({
 		protocol_type: ProtocolType,
 	},
 });
+export const PresigSealV1 = new MoveStruct({
+	name: `${$moduleName}::PresigSealV1`,
+	fields: {
+		randomness: bcs.vector(bcs.u8()),
+		dealer_set_digest: bcs.vector(bcs.u8()),
+	},
+});
 export const EpochCertsV1 = new MoveStruct({
 	name: `${$moduleName}::EpochCertsV1`,
 	fields: {
@@ -39,6 +36,7 @@ export const EpochCertsV1 = new MoveStruct({
 		protocol_type: ProtocolType,
 		/** Dealer submissions indexed by dealer address (first-submission-wins). */
 		certs: linked_table.LinkedTable(bcs.Address),
+		seal: bcs.option(PresigSealV1),
 	},
 });
 export const DealerMessagesHashV1 = new MoveStruct({
@@ -53,5 +51,7 @@ export const DealerSubmissionV1 = new MoveStruct({
 	fields: {
 		message: DealerMessagesHashV1,
 		signature: committee.CommitteeSignature,
+		/** Clock timestamp of the transaction that recorded the submission. */
+		timestamp_ms: bcs.u64(),
 	},
 });

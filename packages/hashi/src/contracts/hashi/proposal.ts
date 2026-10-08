@@ -10,6 +10,18 @@
  * executed exactly once, releasing the payload to the executing module and
  * archiving the proposal. Proposals expire after seven days, after which
  * unexecuted ones may be deleted.
+ *
+ * Visibility note: every proposal-type module exposes `propose` and `execute` as
+ * private `entry` functions, as are `vote`, `remove_vote` and `delete_expired`
+ * here. A `public` signature is frozen at publish by Sui's compatible-upgrade
+ * check, an `entry` one may change in any later upgrade, and no other Move package
+ * has a use for these: proposals are authorized by the sender's registration, not
+ * by a calling package. PTBs still build the `VecMap` and `Value` arguments with
+ * public calls, whose results have `drop` and `store` and are therefore never hot
+ * arguments under the private-entry rules. `upgrade::execute` hands back an
+ * `UpgradeTicket` and a hot potato that the same PTB's `Upgrade` command and
+ * `finalize_upgrade` consume; until then no other private entry may take `Hashi`
+ * in that PTB, which the upgrade PTB never does.
  */
 
 import { type BcsType, bcs } from '@mysten/sui/bcs';
@@ -146,6 +158,12 @@ export interface DeleteExpiredOptions {
 		| [hashi: RawTransactionArgument<string>, proposalId: RawTransactionArgument<string>];
 	typeArguments: [string];
 }
+/**
+ * Delete an expired, unexecuted proposal. Permissionless: an expired proposal can
+ * be neither voted nor executed, so nothing is lost. The payload is returned for
+ * the caller to discard; the `drop` bound states what every proposal payload
+ * already has (`execute` requires it too).
+ */
 export function deleteExpired(options: DeleteExpiredOptions) {
 	const packageAddress = options.package ?? '@local-pkg/hashi';
 	const argumentsTypes = [null, '0x2::object::ID', '0x2::clock::Clock'] satisfies (string | null)[];

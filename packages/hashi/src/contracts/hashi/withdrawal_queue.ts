@@ -4,52 +4,43 @@
 
 /**
  * Storage and state machine for Bitcoin withdrawals. Holds `WithdrawalRequest`
- * objects as they move from Requested through Approved, Processing, Signed, and
- * Confirmed, plus the `WithdrawalTransaction` objects that batch them: each
- * transaction tracks its input UTXOs, withdrawal and change outputs, and the
- * incrementally collected MPC and guardian signatures. Certificate verification
- * and funds movement are driven by `hashi::withdraw`.
+ * objects as they move from requested through approved and committed to archived,
+ * plus the `WithdrawalTransaction` objects that batch them: each transaction
+ * tracks its input UTXOs, withdrawal and change outputs, and the incrementally
+ * collected MPC and guardian signatures. Certificate verification and funds
+ * movement are driven by `hashi::withdraw`.
  */
 
-import {
-	MoveStruct,
-	MoveEnum,
-	normalizeMoveArguments,
-	type RawTransactionArgument,
-} from '../utils/index.js';
+import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction } from '@mysten/sui/transactions';
 import * as object_bag from './deps/sui/object_bag.js';
-import * as object_bag_1 from './deps/sui/object_bag.js';
-import * as object_bag_2 from './deps/sui/object_bag.js';
-import * as object_bag_3 from './deps/sui/object_bag.js';
 import * as committee from './committee.js';
 import * as balance from './deps/sui/balance.js';
 import * as utxo from './utxo.js';
 import * as mpc_signing from './mpc_signing.js';
-import * as utxo_1 from './utxo.js';
-import * as utxo_2 from './utxo.js';
 const $moduleName = '@local-pkg/hashi::withdrawal_queue';
 export const WithdrawalRequestQueue = new MoveStruct({
 	name: `${$moduleName}::WithdrawalRequestQueue`,
 	fields: {
 		/**
-		 * Active requests awaiting action (Requested, Approved). ObjectBag so
-		 * WithdrawalRequest UIDs are directly accessible via getObject.
+		 * Live requests: awaiting approval or commitment, plus requests committed in place
+		 * and awaiting the archival GC. ObjectBag so WithdrawalRequest UIDs are directly
+		 * accessible via getObject.
 		 */
 		requests: object_bag.ObjectBag,
 		/**
-		 * Processed requests — BTC consumed, lifecycle continuing or complete (Processing,
-		 * Signed, Confirmed).
+		 * Archived requests: BTC consumed and their withdrawal transaction confirmed. A
+		 * request arrives here only through the archival GC.
 		 */
-		processed: object_bag_1.ObjectBag,
+		processed: object_bag.ObjectBag,
 		/**
 		 * In-flight withdrawal transactions (unsigned, signed but unconfirmed). ObjectBag
 		 * so WithdrawalTransaction UIDs are directly accessible via getObject.
 		 */
-		withdrawal_txns: object_bag_2.ObjectBag,
+		withdrawal_txns: object_bag.ObjectBag,
 		/** Confirmed withdrawal transactions (historical record). */
-		confirmed_txns: object_bag_3.ObjectBag,
+		confirmed_txns: object_bag.ObjectBag,
 	},
 });
 export const OutputUtxo = new MoveStruct({
@@ -57,16 +48,6 @@ export const OutputUtxo = new MoveStruct({
 	fields: {
 		amount: bcs.u64(),
 		bitcoin_address: bcs.vector(bcs.u8()),
-	},
-});
-export const WithdrawalStatus = new MoveEnum({
-	name: `${$moduleName}::WithdrawalStatus`,
-	fields: {
-		Requested: null,
-		Approved: null,
-		Processing: null,
-		Signed: null,
-		Confirmed: null,
 	},
 });
 export const WithdrawalRequest = new MoveStruct({
@@ -77,7 +58,6 @@ export const WithdrawalRequest = new MoveStruct({
 		btc_amount: bcs.u64(),
 		bitcoin_address: bcs.vector(bcs.u8()),
 		created_timestamp_ms: bcs.u64(),
-		status: WithdrawalStatus,
 		/**
 		 * Committee certificate recorded at approval time. `None` until `approve_request`
 		 * has been called.
@@ -88,6 +68,11 @@ export const WithdrawalRequest = new MoveStruct({
 		 * been called.
 		 */
 		approved_timestamp_ms: bcs.option(bcs.u64()),
+		/**
+		 * The `WithdrawalTransaction` this request was committed into. `None` until
+		 * `commit_requests`; once set, the BTC is drained and the request can no longer be
+		 * approved or cancelled.
+		 */
 		withdrawal_txn_id: bcs.option(bcs.Address),
 		sui_tx_digest: bcs.vector(bcs.u8()),
 		btc: balance.Balance,
@@ -168,7 +153,7 @@ export const WithdrawalPickedForProcessing = new MoveStruct({
 		withdrawal_txn_id: bcs.Address,
 		txid: bcs.Address,
 		request_ids: bcs.vector(bcs.Address),
-		inputs: bcs.vector(utxo_1.Utxo),
+		inputs: bcs.vector(utxo.Utxo),
 		withdrawal_outputs: bcs.vector(OutputUtxo),
 		change_outputs: bcs.vector(OutputUtxo),
 		timestamp_ms: bcs.u64(),
@@ -203,7 +188,6 @@ export const WithdrawalPresigsReassigned = new MoveStruct({
 	fields: {
 		withdrawal_txn_id: bcs.Address,
 		epoch: bcs.u64(),
-		presig_start_index: bcs.u64(),
 	},
 });
 export const WithdrawalConfirmed = new MoveStruct({
@@ -211,7 +195,7 @@ export const WithdrawalConfirmed = new MoveStruct({
 	fields: {
 		withdrawal_txn_id: bcs.Address,
 		txid: bcs.Address,
-		change_utxo_ids: bcs.vector(utxo_2.UtxoId),
+		change_utxo_ids: bcs.vector(utxo.UtxoId),
 		request_ids: bcs.vector(bcs.Address),
 		change_utxo_amounts: bcs.vector(bcs.u64()),
 	},
@@ -224,9 +208,16 @@ export const WithdrawalCancelled = new MoveStruct({
 		btc_amount: bcs.u64(),
 	},
 });
+export const WithdrawalArchived = new MoveStruct({
+	name: `${$moduleName}::WithdrawalArchived`,
+	fields: {
+		withdrawal_txn_id: bcs.Address,
+		request_ids: bcs.vector(bcs.Address),
+	},
+});
 export interface OutputUtxoArguments {
 	amount: RawTransactionArgument<number | bigint>;
-	bitcoinAddress: RawTransactionArgument<number[]>;
+	bitcoinAddress: RawTransactionArgument<Array<number>>;
 }
 export interface OutputUtxoOptions {
 	package?: string;
@@ -234,7 +225,7 @@ export interface OutputUtxoOptions {
 		| OutputUtxoArguments
 		| [
 				amount: RawTransactionArgument<number | bigint>,
-				bitcoinAddress: RawTransactionArgument<number[]>,
+				bitcoinAddress: RawTransactionArgument<Array<number>>,
 		  ];
 }
 export function outputUtxo(options: OutputUtxoOptions) {
