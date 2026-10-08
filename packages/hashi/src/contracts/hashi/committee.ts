@@ -5,7 +5,7 @@
 /**
  * BLS signing committees and certificate verification. A `Committee` pins an
  * epoch's members (validator addresses, BLS public keys, encryption keys, voting
- * weights) together with the MPC parameters snapshotted at reconfig time.
+ * weights) together with the epoch config snapshotted at reconfig time.
  * `verify_certificate` checks an aggregate BLS12-381 min-pk signature against a
  * signers bitmap, enforces the stake threshold, and wraps the payload in a
  * `CertifiedMessage` as proof of committee approval.
@@ -24,6 +24,13 @@ export const CommitteeMember = new MoveStruct({
 		public_key: group_ops.Element,
 		encryption_public_key: bcs.vector(bcs.u8()),
 		weight: bcs.u64(),
+		/**
+		 * Open-ended per-member extension slot; lets a future upgrade pin new per-epoch
+		 * member data (e.g. a key registered through `MemberInfo.extra_fields`) onto the
+		 * committee without a `CommitteeV2` migration once the layout freezes at mainnet.
+		 * Always empty today: committee formation copies nothing into it.
+		 */
+		extra_fields: config.Config,
 	},
 });
 export const Committee = new MoveStruct({
@@ -36,11 +43,11 @@ export const Committee = new MoveStruct({
 		/** Total voting weight of the committee. */
 		total_weight: bcs.u64(),
 		/**
-		 * The config pinned for this epoch (the MPC parameters: threshold,
-		 * weight-reduction delta, max-faulty bound, nonce-generation protocol),
-		 * snapshotted from the governed config at reconfig time.
+		 * The epoch config for this epoch (the MPC parameters plus any epoch-scoped keys
+		 * governance added), copied verbatim from the governed epoch config when the
+		 * committee is formed.
 		 */
-		config: config.Config,
+		epoch_config: config.Config,
 	},
 });
 export const CommitteeSignature = new MoveStruct({
@@ -63,8 +70,8 @@ export function CertifiedMessage<T extends BcsType<any>>(...typeParameters: [T])
 }
 export interface NewCommitteeSignatureArguments {
 	epoch: RawTransactionArgument<number | bigint>;
-	signature: RawTransactionArgument<number[]>;
-	signersBitmap: RawTransactionArgument<number[]>;
+	signature: RawTransactionArgument<Array<number>>;
+	signersBitmap: RawTransactionArgument<Array<number>>;
 }
 export interface NewCommitteeSignatureOptions {
 	package?: string;
@@ -72,10 +79,17 @@ export interface NewCommitteeSignatureOptions {
 		| NewCommitteeSignatureArguments
 		| [
 				epoch: RawTransactionArgument<number | bigint>,
-				signature: RawTransactionArgument<number[]>,
-				signersBitmap: RawTransactionArgument<number[]>,
+				signature: RawTransactionArgument<Array<number>>,
+				signersBitmap: RawTransactionArgument<Array<number>>,
 		  ];
 }
+/**
+ * Build a `CommitteeSignature` inside a PTB: a struct cannot be a pure transaction
+ * input, so certificates reach the entry functions as the result of this call.
+ * Private `entry` rather than `public` so the signature stays upgradeable; the
+ * result has `drop` and `store` and is therefore never a hot argument to the entry
+ * function that consumes it.
+ */
 export function newCommitteeSignature(options: NewCommitteeSignatureOptions) {
 	const packageAddress = options.package ?? '@local-pkg/hashi';
 	const argumentsTypes = ['u64', 'vector<u8>', 'vector<u8>'] satisfies (string | null)[];

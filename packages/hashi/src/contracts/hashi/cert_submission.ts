@@ -1,23 +1,24 @@
 /**************************************************************
  * THIS FILE IS GENERATED AND SHOULD NOT BE MANUALLY MODIFIED *
  **************************************************************/
-
-/**
- * Entry points for submitting TOB dealer certificates. Committee members (or their
- * delegated operators) post certified dealer-messages hashes for the DKG,
- * key-rotation, and nonce-generation MPC ceremonies into per-(epoch, batch,
- * protocol) buckets stored on `Hashi`, and garbage-collect buckets once they are
- * old enough.
- */
-
-import { type Transaction } from '@mysten/sui/transactions';
-import { normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
+import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
+import { bcs } from '@mysten/sui/bcs';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
+const $moduleName = '@local-pkg/hashi::cert_submission';
+export const PresigDealerSetMessage = new MoveStruct({
+	name: `${$moduleName}::PresigDealerSetMessage`,
+	fields: {
+		epoch: bcs.u64(),
+		batch_index: bcs.u32(),
+		dealer_set_digest: bcs.vector(bcs.u8()),
+	},
+});
 export interface SubmitDkgCertArguments {
 	hashi: RawTransactionArgument<string>;
 	epoch: RawTransactionArgument<number | bigint>;
 	dealer: RawTransactionArgument<string>;
-	messagesHash: RawTransactionArgument<number[]>;
-	cert: RawTransactionArgument<string>;
+	messagesHash: RawTransactionArgument<Array<number>>;
+	cert: TransactionArgument;
 }
 export interface SubmitDkgCertOptions {
 	package?: string;
@@ -27,13 +28,20 @@ export interface SubmitDkgCertOptions {
 				hashi: RawTransactionArgument<string>,
 				epoch: RawTransactionArgument<number | bigint>,
 				dealer: RawTransactionArgument<string>,
-				messagesHash: RawTransactionArgument<number[]>,
-				cert: RawTransactionArgument<string>,
+				messagesHash: RawTransactionArgument<Array<number>>,
+				cert: TransactionArgument,
 		  ];
 }
 export function submitDkgCert(options: SubmitDkgCertOptions) {
 	const packageAddress = options.package ?? '@local-pkg/hashi';
-	const argumentsTypes = [null, 'u64', 'address', 'vector<u8>', null] satisfies (string | null)[];
+	const argumentsTypes = [
+		null,
+		'u64',
+		'address',
+		'vector<u8>',
+		null,
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
 	const parameterNames = ['hashi', 'epoch', 'dealer', 'messagesHash', 'cert'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -47,8 +55,8 @@ export interface SubmitRotationCertArguments {
 	hashi: RawTransactionArgument<string>;
 	epoch: RawTransactionArgument<number | bigint>;
 	dealer: RawTransactionArgument<string>;
-	messagesHash: RawTransactionArgument<number[]>;
-	cert: RawTransactionArgument<string>;
+	messagesHash: RawTransactionArgument<Array<number>>;
+	cert: TransactionArgument;
 }
 export interface SubmitRotationCertOptions {
 	package?: string;
@@ -58,13 +66,20 @@ export interface SubmitRotationCertOptions {
 				hashi: RawTransactionArgument<string>,
 				epoch: RawTransactionArgument<number | bigint>,
 				dealer: RawTransactionArgument<string>,
-				messagesHash: RawTransactionArgument<number[]>,
-				cert: RawTransactionArgument<string>,
+				messagesHash: RawTransactionArgument<Array<number>>,
+				cert: TransactionArgument,
 		  ];
 }
 export function submitRotationCert(options: SubmitRotationCertOptions) {
 	const packageAddress = options.package ?? '@local-pkg/hashi';
-	const argumentsTypes = [null, 'u64', 'address', 'vector<u8>', null] satisfies (string | null)[];
+	const argumentsTypes = [
+		null,
+		'u64',
+		'address',
+		'vector<u8>',
+		null,
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
 	const parameterNames = ['hashi', 'epoch', 'dealer', 'messagesHash', 'cert'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -79,8 +94,8 @@ export interface SubmitNonceCertArguments {
 	epoch: RawTransactionArgument<number | bigint>;
 	batchIndex: RawTransactionArgument<number>;
 	dealer: RawTransactionArgument<string>;
-	messagesHash: RawTransactionArgument<number[]>;
-	cert: RawTransactionArgument<string>;
+	messagesHash: RawTransactionArgument<Array<number>>;
+	cert: TransactionArgument;
 }
 export interface SubmitNonceCertOptions {
 	package?: string;
@@ -91,15 +106,21 @@ export interface SubmitNonceCertOptions {
 				epoch: RawTransactionArgument<number | bigint>,
 				batchIndex: RawTransactionArgument<number>,
 				dealer: RawTransactionArgument<string>,
-				messagesHash: RawTransactionArgument<number[]>,
-				cert: RawTransactionArgument<string>,
+				messagesHash: RawTransactionArgument<Array<number>>,
+				cert: TransactionArgument,
 		  ];
 }
 export function submitNonceCert(options: SubmitNonceCertOptions) {
 	const packageAddress = options.package ?? '@local-pkg/hashi';
-	const argumentsTypes = [null, 'u64', 'u32', 'address', 'vector<u8>', null] satisfies (
-		string | null
-	)[];
+	const argumentsTypes = [
+		null,
+		'u64',
+		'u32',
+		'address',
+		'vector<u8>',
+		null,
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
 	const parameterNames = ['hashi', 'epoch', 'batchIndex', 'dealer', 'messagesHash', 'cert'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -109,39 +130,103 @@ export function submitNonceCert(options: SubmitNonceCertOptions) {
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export interface DestroyAllCertsArguments {
+export interface SubmitPresigDealerSetArguments {
 	hashi: RawTransactionArgument<string>;
-	epoch: RawTransactionArgument<number | bigint>;
-	batchIndex: RawTransactionArgument<number | null>;
-	protocolType: RawTransactionArgument<string>;
+	batchIndex: RawTransactionArgument<number>;
+	dealerSetDigest: RawTransactionArgument<Array<number>>;
+	cert: TransactionArgument;
 }
-export interface DestroyAllCertsOptions {
+export interface SubmitPresigDealerSetOptions {
 	package?: string;
 	arguments:
-		| DestroyAllCertsArguments
+		| SubmitPresigDealerSetArguments
 		| [
 				hashi: RawTransactionArgument<string>,
-				epoch: RawTransactionArgument<number | bigint>,
-				batchIndex: RawTransactionArgument<number | null>,
-				protocolType: RawTransactionArgument<string>,
+				batchIndex: RawTransactionArgument<number>,
+				dealerSetDigest: RawTransactionArgument<Array<number>>,
+				cert: TransactionArgument,
 		  ];
 }
-/**
- * Garbage collection: deliberately NOT gated on pause/reconfig — cert buckets old
- * enough to destroy (see `tob::destroy_all`) carry no live state, and GC must stay
- * callable during an emergency pause.
- */
-export function destroyAllCerts(options: DestroyAllCertsOptions) {
+export function submitPresigDealerSet(options: SubmitPresigDealerSetOptions) {
 	const packageAddress = options.package ?? '@local-pkg/hashi';
-	const argumentsTypes = [null, 'u64', '0x1::option::Option<u32>', null] satisfies (
+	const argumentsTypes = [null, 'u32', 'vector<u8>', null, '0x2::random::Random'] satisfies (
 		string | null
 	)[];
-	const parameterNames = ['hashi', 'epoch', 'batchIndex', 'protocolType'];
+	const parameterNames = ['hashi', 'batchIndex', 'dealerSetDigest', 'cert'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'cert_submission',
-			function: 'destroy_all_certs',
+			function: 'submit_presig_dealer_set',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface DestroyKeyGenCertsArguments {
+	hashi: RawTransactionArgument<string>;
+	epoch: RawTransactionArgument<number | bigint>;
+}
+export interface DestroyKeyGenCertsOptions {
+	package?: string;
+	arguments:
+		| DestroyKeyGenCertsArguments
+		| [hashi: RawTransactionArgument<string>, epoch: RawTransactionArgument<number | bigint>];
+}
+/**
+ * Destroy the key-generation (DKG or rotation) cert buckets of `epoch`. Garbage
+ * collection: permissionless and deliberately NOT gated on pause/reconfig. It
+ * moves no funds and must stay callable during a pause or a reconfiguration.
+ *
+ * A key-generation bucket stays live longer than its certs' epoch: the NEXT
+ * rotation reads the PREVIOUS committee's bucket to seed the handoff, and
+ * committee epochs can gap, so an age floor alone cannot identify the previous
+ * committee's bucket. Both floors are asserted unconditionally (premature calls
+ * abort even when the bucket is absent); an eligible-but-absent bucket is a no-op
+ * so batched GC transactions and permissionless racers cannot poison each other.
+ */
+export function destroyKeyGenCerts(options: DestroyKeyGenCertsOptions) {
+	const packageAddress = options.package ?? '@local-pkg/hashi';
+	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
+	const parameterNames = ['hashi', 'epoch'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'cert_submission',
+			function: 'destroy_key_gen_certs',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface DestroyNonceCertsArguments {
+	hashi: RawTransactionArgument<string>;
+	epoch: RawTransactionArgument<number | bigint>;
+	batchIndex: RawTransactionArgument<number>;
+}
+export interface DestroyNonceCertsOptions {
+	package?: string;
+	arguments:
+		| DestroyNonceCertsArguments
+		| [
+				hashi: RawTransactionArgument<string>,
+				epoch: RawTransactionArgument<number | bigint>,
+				batchIndex: RawTransactionArgument<number>,
+		  ];
+}
+/**
+ * Destroy the nonce-generation cert bucket of `(epoch, batch_index)`. Garbage
+ * collection: permissionless and deliberately NOT gated on pause/reconfig. It
+ * moves no funds and must stay callable during a pause or a reconfiguration. Nonce
+ * buckets are only ever read during their own epoch, so no committee-awareness is
+ * needed. The floor is asserted unconditionally; an eligible-but-absent bucket is
+ * a no-op (see `destroy_key_gen_certs`).
+ */
+export function destroyNonceCerts(options: DestroyNonceCertsOptions) {
+	const packageAddress = options.package ?? '@local-pkg/hashi';
+	const argumentsTypes = [null, 'u64', 'u32'] satisfies (string | null)[];
+	const parameterNames = ['hashi', 'epoch', 'batchIndex'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'cert_submission',
+			function: 'destroy_nonce_certs',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }

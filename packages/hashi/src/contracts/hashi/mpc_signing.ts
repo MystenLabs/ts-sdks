@@ -11,8 +11,8 @@
  *
  * Each input occupies one slot that is either:
  *
- * - `Pending(presig_index)` — awaiting its signature; carries the presignature
- *   index it will consume (valid within `epoch`), or
+ * - `Pending(presig)` — awaiting its signature; carries the presignature it will
+ *   consume (valid within `epoch`), or
  * - `Signed(bytes)` — the completed per-input MPC signature.
  *
  * Signatures are filled in any order (`record`), survive leader timeouts /
@@ -23,28 +23,40 @@
  *
  * NONCE SAFETY (a violation leaks the group secret share):
  *
- * - every `Pending` index is unique within (batch, epoch) — `new` / `reallocate`
- *   assign distinct offsets from a freshly allocated block;
- * - indices are globally disjoint within an epoch — the allocator is monotonic
- *   (see `hashi::allocate_presigs`);
+ * - every `Pending` index is unique within an epoch — a `Presig` can only be
+ *   minted by the monotonic `PresigAllocator` (reset only at reconfig) and is not
+ *   `copy`, so each minted index lands in at most one slot;
  * - a stale-epoch index is never used after a reconfig — `reallocate` overwrites
  *   EVERY `Pending` slot before any signing happens in the new epoch, and the
  *   caller must `reallocate` whenever `epoch` is stale;
  * - a `Signed` slot holds no index, so there is nothing stale to reuse.
  */
 
-import { MoveEnum, MoveStruct } from '../utils/index.js';
+import { MoveStruct, MoveEnum } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 const $moduleName = '@local-pkg/hashi::mpc_signing';
+export const PresigAllocator = new MoveStruct({
+	name: `${$moduleName}::PresigAllocator`,
+	fields: {
+		/** Number of presignatures consumed in the current epoch. */
+		num_consumed: bcs.u64(),
+	},
+});
+export const Presig = new MoveStruct({
+	name: `${$moduleName}::Presig`,
+	fields: {
+		index: bcs.u64(),
+	},
+});
 /** Per-input signing slot. */
 export const MpcSig = new MoveEnum({
 	name: `${$moduleName}::MpcSig`,
 	fields: {
 		/**
-		 * Awaiting signature; holds the presignature index this input will consume, valid
-		 * within the owning batch's `epoch`.
+		 * Awaiting signature; holds the presignature this input will consume, valid within
+		 * the owning batch's `epoch`.
 		 */
-		Pending: bcs.u64(),
+		Pending: Presig,
 		/** Completed per-input MPC Schnorr signature bytes. */
 		Signed: bcs.vector(bcs.u8()),
 	},

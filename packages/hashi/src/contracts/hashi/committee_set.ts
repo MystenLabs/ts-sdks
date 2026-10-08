@@ -15,8 +15,7 @@ import { MoveStruct } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
 import * as committee from './committee.js';
 import * as bag from './deps/sui/bag.js';
-import * as bag_1 from './deps/sui/bag.js';
-import * as committee_1 from './committee.js';
+import * as table from './deps/sui/table.js';
 import * as group_ops from './deps/sui/group_ops.js';
 import * as config from './config.js';
 const $moduleName = '@local-pkg/hashi::committee_set';
@@ -31,9 +30,16 @@ export const CommitteeSet = new MoveStruct({
 	name: `${$moduleName}::CommitteeSet`,
 	fields: {
 		members: bag.Bag,
+		/**
+		 * Reverse index from each registered TLS public key to the validator address of
+		 * the member holding it. Kept in lockstep with `MemberInfo.tls_public_key` so that
+		 * registration can reject a key already held by another member without scanning
+		 * every member.
+		 */
+		tls_public_keys: table.Table,
 		/** The current epoch. */
 		epoch: bcs.u64(),
-		committees: bag_1.Bag,
+		committees: bag.Bag,
 		pending_epoch_change: bcs.option(PendingEpochChange),
 		/** The MPC committee's threshold public key. */
 		mpc_public_key: bcs.vector(bcs.u8()),
@@ -49,7 +55,7 @@ export const CommitteeHandoff = new MoveStruct({
 	name: `${$moduleName}::CommitteeHandoff`,
 	fields: {
 		next_epoch: bcs.u64(),
-		cert: committee_1.CommitteeSignature,
+		cert: committee.CommitteeSignature,
 	},
 });
 export const MemberInfo = new MoveStruct({
@@ -93,8 +99,22 @@ export const MemberInfo = new MoveStruct({
 		 */
 		next_epoch_encryption_public_key: bcs.vector(bcs.u8()),
 		/**
-		 * Open-ended per-member extension slot. Empty today; lets future upgrades attach
-		 * new member data (e.g. per-protocol keys) without a MemberInfoV2 migration.
+		 * Governance "ignored" flag, set and cleared only through the quorum-gated
+		 * `ignore_member` proposal. Read at committee formation: the next formation skips
+		 * the member; the current epoch's committee is never altered.
+		 */
+		ignored: bcs.bool(),
+		/**
+		 * Voluntary "resigned" flag. Set by `request_resignation`, cleared by
+		 * `clear_resignation`, honored by committee formation (skip); the registration
+		 * itself is deleted by the permissionless `remove_inactive_member` once the member
+		 * holds no epoch duties.
+		 */
+		resigned: bcs.bool(),
+		/**
+		 * Open-ended per-member extension slot; lets future upgrades attach new member
+		 * data (e.g. per-protocol keys) without a MemberInfoV2 migration once the layout
+		 * freezes at mainnet. Empty today.
 		 */
 		extra_fields: config.Config,
 	},

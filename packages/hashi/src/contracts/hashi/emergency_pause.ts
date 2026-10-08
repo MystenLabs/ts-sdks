@@ -11,7 +11,7 @@
 
 import { MoveStruct, normalizeMoveArguments, type RawTransactionArgument } from '../utils/index.js';
 import { bcs } from '@mysten/sui/bcs';
-import { type Transaction } from '@mysten/sui/transactions';
+import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 const $moduleName = '@local-pkg/hashi::emergency_pause';
 export const EmergencyPause = new MoveStruct({
 	name: `${$moduleName}::EmergencyPause`,
@@ -23,7 +23,7 @@ export interface ProposeArguments {
 	hashi: RawTransactionArgument<string>;
 	validatorAddress: RawTransactionArgument<string>;
 	pause: RawTransactionArgument<boolean>;
-	metadata: RawTransactionArgument<string>;
+	metadata: TransactionArgument;
 }
 export interface ProposeOptions {
 	package?: string;
@@ -33,9 +33,10 @@ export interface ProposeOptions {
 				hashi: RawTransactionArgument<string>,
 				validatorAddress: RawTransactionArgument<string>,
 				pause: RawTransactionArgument<boolean>,
-				metadata: RawTransactionArgument<string>,
+				metadata: TransactionArgument,
 		  ];
 }
+/** Private `entry`: see the visibility note in `hashi::proposal`. */
 export function propose(options: ProposeOptions) {
 	const packageAddress = options.package ?? '@local-pkg/hashi';
 	const argumentsTypes = [null, 'address', 'bool', null, '0x2::clock::Clock'] satisfies (
@@ -60,6 +61,7 @@ export interface ExecuteOptions {
 		| ExecuteArguments
 		| [hashi: RawTransactionArgument<string>, proposalId: RawTransactionArgument<string>];
 }
+/** Private `entry`: see the visibility note in `hashi::proposal`. */
 export function execute(options: ExecuteOptions) {
 	const packageAddress = options.package ?? '@local-pkg/hashi';
 	const argumentsTypes = [null, '0x2::object::ID', '0x2::clock::Clock'] satisfies (string | null)[];
