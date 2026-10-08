@@ -341,14 +341,18 @@ export const CompressedSignature = bcs.enum('CompressedSignature', {
 	Secp256r1: bcs.bytes(64),
 	ZkLogin: bcs.byteVector(),
 	Passkey: bcs.byteVector(),
+	MLDSA65: bcs.bytes(3309),
 });
 
+// Variant order must match Sui's `PublicKey` enum, which validators hash to
+// derive a multisig address.
 export const PublicKey = bcs.enum('PublicKey', {
 	ED25519: bcs.bytes(32),
 	Secp256k1: bcs.bytes(33),
 	Secp256r1: bcs.bytes(33),
 	ZkLogin: bcs.byteVector(),
 	Passkey: bcs.bytes(33),
+	MLDSA65: bcs.bytes(1952),
 });
 
 export const MultiSigPkMap = bcs.struct('MultiSigPkMap', {

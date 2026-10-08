@@ -69,6 +69,7 @@ export function parseSerializedSignature(serializedSignature: string) {
 		case 'ED25519':
 		case 'Secp256k1':
 		case 'Secp256r1':
+		case 'MLDSA65':
 			return parseSerializedKeypairSignature(serializedSignature);
 		default:
 			throw new Error('Unsupported signature scheme');
