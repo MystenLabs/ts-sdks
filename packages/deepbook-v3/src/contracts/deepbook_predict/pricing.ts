@@ -11,16 +11,52 @@
  * an exact source-timestamp spot from Propbook's bounded recent history. The live
  * forward comes from one of two admin-selected sources
  * (`PricingConfig.use_pyth_spot_for_forward`): a fresh positive Pyth spot carrying
- * the Block Scholes basis, or the Block Scholes forward directly. Exact-history
- * reads do not apply live freshness policy.
+ * the Block Scholes basis, or the Block Scholes forward directly. A load falls
+ * back to the Block Scholes forward when the selected Pyth spot is stale or
+ * unavailable; valuation prices on that fallback, while every live trade (mints,
+ * mint quotes, and live redeems) refuses it through `assert_pyth_spot_fresh`.
+ * Exact-history reads do not apply live freshness policy.
+ *
+ * Delayed execution splits that read in two. `load_vol_snapshot` validates the
+ * same live inputs when an order is queued and returns the raw Block Scholes basis
+ * and SVI it stores; `pricer_at` later rebuilds a `Pricer` from them at the
+ * order's committed Pyth tick. The `try_*` reads price exactly as `up_price` and
+ * `range_price` do, and return `none` where those abort, so resolving a queue
+ * never aborts on a surface.
  */
 
 import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
-import { U128, U64 } from '../../bcs/integers.js';
 import { bcs } from '@mysten/sui/bcs';
+import { U64, U128 } from '../../bcs/integers.js';
 import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as i64 from './deps/fixed_math/i64.js';
 const $moduleName = '@local-pkg/deepbook_predict::pricing';
+export const VolSnapshot = new MoveStruct({
+	name: `${$moduleName}::VolSnapshot`,
+	fields: {
+		/**
+		 * Canonical Propbook Pyth source for the market's underlying; commit finds this
+		 * feed in each Lazer update.
+		 */
+		pyth_source_id: bcs.u32(),
+		/** The matched Block Scholes spot and forward, narrowed to Predict's width. */
+		bs_spot: U64,
+		bs_forward: U64,
+		/** Raw SVI parameters before roll-down, at 1e9. */
+		svi_a: i64.I64,
+		svi_b: U64,
+		svi_rho: i64.I64,
+		svi_m: i64.I64,
+		svi_sigma: U64,
+		/**
+		 * Provider source timestamps of the three reads. The SVI one is also the roll-down
+		 * anchor.
+		 */
+		bs_spot_source_timestamp_ms: U64,
+		bs_forward_source_timestamp_ms: U64,
+		svi_source_timestamp_ms: U64,
+	},
+});
 export const PricingSVI = new MoveStruct({
 	name: `${$moduleName}::PricingSVI`,
 	fields: {
@@ -56,10 +92,13 @@ export const Pricer = new MoveStruct({
 		/**
 		 * Timestamps of the oracle observations this snapshot validated, as trade events
 		 * report them — each observation's own economic clock. Pyth carries its source
-		 * timestamp (`0` only when no usable normalized observation exists); Block Scholes
-		 * spot and forward carry the provider `value_timestamp`, and SVI carries the
-		 * provider `svi_timestamp`. Those timestamps are the clocks freshness gates and
-		 * SVI roll-down use.
+		 * timestamp (`0` only when no usable normalized observation exists; a `pricer_at`
+		 * Pricer carries the committed update's generation time); Block Scholes spot and
+		 * forward carry the provider `value_timestamp`, and SVI carries the provider
+		 * `svi_timestamp`. Those timestamps are the clocks freshness gates and SVI
+		 * roll-down use. The Pyth timestamp, including its `0` sentinel, is also what
+		 * `assert_pyth_spot_fresh` gates live trades on, so it must stay the value the
+		 * load's forward selection read.
 		 */
 		pyth_spot_source_timestamp_ms: U64,
 		block_scholes_spot_source_timestamp_ms: U64,
@@ -213,6 +252,259 @@ export function probability(options: ProbabilityOptions) {
 			package: packageAddress,
 			module: 'pricing',
 			function: 'probability',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface PythSourceIdArguments {
+	snapshot: TransactionArgument;
+}
+export interface PythSourceIdOptions {
+	package?: string;
+	arguments: PythSourceIdArguments | [snapshot: TransactionArgument];
+	config?: {
+		predictPackageId?: string;
+	};
+}
+export function pythSourceId(options: PythSourceIdOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['snapshot'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pricing',
+			function: 'pyth_source_id',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface BsSpotArguments {
+	snapshot: TransactionArgument;
+}
+export interface BsSpotOptions {
+	package?: string;
+	arguments: BsSpotArguments | [snapshot: TransactionArgument];
+	config?: {
+		predictPackageId?: string;
+	};
+}
+export function bsSpot(options: BsSpotOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['snapshot'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pricing',
+			function: 'bs_spot',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface BsForwardArguments {
+	snapshot: TransactionArgument;
+}
+export interface BsForwardOptions {
+	package?: string;
+	arguments: BsForwardArguments | [snapshot: TransactionArgument];
+	config?: {
+		predictPackageId?: string;
+	};
+}
+export function bsForward(options: BsForwardOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['snapshot'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pricing',
+			function: 'bs_forward',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface SviAArguments {
+	snapshot: TransactionArgument;
+}
+export interface SviAOptions {
+	package?: string;
+	arguments: SviAArguments | [snapshot: TransactionArgument];
+	config?: {
+		predictPackageId?: string;
+	};
+}
+export function sviA(options: SviAOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['snapshot'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pricing',
+			function: 'svi_a',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface SviBArguments {
+	snapshot: TransactionArgument;
+}
+export interface SviBOptions {
+	package?: string;
+	arguments: SviBArguments | [snapshot: TransactionArgument];
+	config?: {
+		predictPackageId?: string;
+	};
+}
+export function sviB(options: SviBOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['snapshot'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pricing',
+			function: 'svi_b',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface SviRhoArguments {
+	snapshot: TransactionArgument;
+}
+export interface SviRhoOptions {
+	package?: string;
+	arguments: SviRhoArguments | [snapshot: TransactionArgument];
+	config?: {
+		predictPackageId?: string;
+	};
+}
+export function sviRho(options: SviRhoOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['snapshot'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pricing',
+			function: 'svi_rho',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface SviMArguments {
+	snapshot: TransactionArgument;
+}
+export interface SviMOptions {
+	package?: string;
+	arguments: SviMArguments | [snapshot: TransactionArgument];
+	config?: {
+		predictPackageId?: string;
+	};
+}
+export function sviM(options: SviMOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['snapshot'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pricing',
+			function: 'svi_m',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface SviSigmaArguments {
+	snapshot: TransactionArgument;
+}
+export interface SviSigmaOptions {
+	package?: string;
+	arguments: SviSigmaArguments | [snapshot: TransactionArgument];
+	config?: {
+		predictPackageId?: string;
+	};
+}
+export function sviSigma(options: SviSigmaOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['snapshot'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pricing',
+			function: 'svi_sigma',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface BsSpotSourceTimestampMsArguments {
+	snapshot: TransactionArgument;
+}
+export interface BsSpotSourceTimestampMsOptions {
+	package?: string;
+	arguments: BsSpotSourceTimestampMsArguments | [snapshot: TransactionArgument];
+	config?: {
+		predictPackageId?: string;
+	};
+}
+export function bsSpotSourceTimestampMs(options: BsSpotSourceTimestampMsOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['snapshot'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pricing',
+			function: 'bs_spot_source_timestamp_ms',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface BsForwardSourceTimestampMsArguments {
+	snapshot: TransactionArgument;
+}
+export interface BsForwardSourceTimestampMsOptions {
+	package?: string;
+	arguments: BsForwardSourceTimestampMsArguments | [snapshot: TransactionArgument];
+	config?: {
+		predictPackageId?: string;
+	};
+}
+export function bsForwardSourceTimestampMs(options: BsForwardSourceTimestampMsOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['snapshot'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pricing',
+			function: 'bs_forward_source_timestamp_ms',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface SviSourceTimestampMsArguments {
+	snapshot: TransactionArgument;
+}
+export interface SviSourceTimestampMsOptions {
+	package?: string;
+	arguments: SviSourceTimestampMsArguments | [snapshot: TransactionArgument];
+	config?: {
+		predictPackageId?: string;
+	};
+}
+export function sviSourceTimestampMs(options: SviSourceTimestampMsOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['snapshot'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'pricing',
+			function: 'svi_source_timestamp_ms',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }

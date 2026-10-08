@@ -39,9 +39,11 @@ export { deriveAccountWrapperId, generateAuth } from './tx/common.js';
 // structs; the `*Events` namespaces are event layouts only.
 export * as adminMoveCalls from '../contracts/deepbook_predict/admin.js';
 export * as builderCodeMoveCalls from '../contracts/deepbook_predict/builder_code.js';
+export * as delayedExecutionConfigMoveCalls from '../contracts/deepbook_predict/delayed_execution_config.js';
 export * as expiryMarketMoveCalls from '../contracts/deepbook_predict/expiry_market.js';
 export * as marketLifecycleCapMoveCalls from '../contracts/deepbook_predict/market_lifecycle_cap.js';
 export * as marketManagerMoveCalls from '../contracts/deepbook_predict/market_manager.js';
+export * as orderQueueMoveCalls from '../contracts/deepbook_predict/order_queue.js';
 export * as pauseCapMoveCalls from '../contracts/deepbook_predict/pause_cap.js';
 export * as plpMoveCalls from '../contracts/deepbook_predict/plp.js';
 export * as poolValuationCapMoveCalls from '../contracts/deepbook_predict/pool_valuation_cap.js';

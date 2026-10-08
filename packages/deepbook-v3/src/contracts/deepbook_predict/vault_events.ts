@@ -43,6 +43,30 @@ export const ExpiryProfitMaterialized = new MoveStruct({
 		pending_protocol_profit_after: U64,
 	},
 });
+export const ExpiryPnl = new MoveStruct({
+	name: `${$moduleName}::ExpiryPnl`,
+	fields: {
+		pool_vault_id: bcs.Address,
+		expiry_market_id: bcs.Address,
+		propbook_underlying_id: bcs.u32(),
+		/**
+		 * Start of the market's cadence period (`expiry` minus the cadence period), in
+		 * milliseconds. The market's creation transaction may land before it.
+		 */
+		period_start_ms: U64,
+		expiry: U64,
+		settlement_price: U64,
+		sent_to_expiry: U64,
+		received_from_expiry: U64,
+		/**
+		 * True when `received_from_expiry >= sent_to_expiry`; break-even reports a zero
+		 * profit.
+		 */
+		in_profit: bcs.bool(),
+		/** Absolute difference between `received_from_expiry` and `sent_to_expiry`. */
+		amount: U64,
+	},
+});
 export const SupplyRequested = new MoveStruct({
 	name: `${$moduleName}::SupplyRequested`,
 	fields: {
@@ -237,6 +261,22 @@ export const FeeIncentivesSponsored = new MoveStruct({
 		sponsor: bcs.Address,
 		amount: U64,
 		reserve_after: U64,
+	},
+});
+export const FeeIncentivesWithdrawn = new MoveStruct({
+	name: `${$moduleName}::FeeIncentivesWithdrawn`,
+	fields: {
+		pool_vault_id: bcs.Address,
+		amount: U64,
+		reserve_after: U64,
+	},
+});
+export const FeeIncentiveLifetimeCapSnapshotted = new MoveStruct({
+	name: `${$moduleName}::FeeIncentiveLifetimeCapSnapshotted`,
+	fields: {
+		pool_vault_id: bcs.Address,
+		expiry_market_id: bcs.Address,
+		fee_incentive_lifetime_cap: U64,
 	},
 });
 export const FeeIncentivesAllocated = new MoveStruct({

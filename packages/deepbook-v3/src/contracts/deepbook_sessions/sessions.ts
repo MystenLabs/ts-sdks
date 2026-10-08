@@ -428,7 +428,11 @@ export interface MintExactQuantityOptions {
 		sessionsPackageId?: string;
 	};
 }
-/** Mint an exact Predict position quantity for an Account with an active session. */
+/**
+ * Mint an exact Predict position quantity for an Account with an active session.
+ * Aborts through Predict once its delayed-execution cutover is reached; use
+ * `enqueue_exact_quantity` after it.
+ */
 export function mintExactQuantity(options: MintExactQuantityOptions) {
 	const packageAddress =
 		options.package ?? options.config?.sessionsPackageId ?? '@local-pkg/deepbook_sessions';
@@ -496,7 +500,11 @@ export interface MintExactAmountOptions {
 		sessionsPackageId?: string;
 	};
 }
-/** Mint a budget-sized Predict position for an Account with an active session. */
+/**
+ * Mint a budget-sized Predict position for an Account with an active session.
+ * Aborts through Predict once its delayed-execution cutover is reached; use
+ * `enqueue_exact_amount` after it.
+ */
 export function mintExactAmount(options: MintExactAmountOptions) {
 	const packageAddress =
 		options.package ?? options.config?.sessionsPackageId ?? '@local-pkg/deepbook_sessions';
@@ -565,7 +573,8 @@ export interface MintExactCostOptions {
 }
 /**
  * Mint a Predict position sized to an all-in cost for an Account with an active
- * session.
+ * session. Aborts through Predict once its delayed-execution cutover is reached;
+ * use `enqueue_exact_cost` after it.
  */
 export function mintExactCost(options: MintExactCostOptions) {
 	const packageAddress =
@@ -631,7 +640,11 @@ export interface RedeemLiveOptions {
 		sessionsPackageId?: string;
 	};
 }
-/** Redeem a live Predict order for an Account with an active session. */
+/**
+ * Redeem a live Predict order for an Account with an active session. Aborts
+ * through Predict once its delayed-execution cutover is reached. Early sells then
+ * go through `enqueue_redeem_open`.
+ */
 export function redeemLive(options: RedeemLiveOptions) {
 	const packageAddress =
 		options.package ?? options.config?.sessionsPackageId ?? '@local-pkg/deepbook_sessions';
@@ -719,6 +732,320 @@ export function redeemSettled(options: RedeemSettledOptions) {
 			package: packageAddress,
 			module: 'sessions',
 			function: 'redeem_settled',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					sessionsConfig: options.arguments?.sessionsConfig ?? options.config?.sessionsConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface EnqueueExactQuantityArguments {
+	market: RawTransactionArgument<string>;
+	accountRegistry: RawTransactionArgument<string>;
+	wrapper: RawTransactionArgument<string>;
+	sessionsConfig?: RawTransactionArgument<string>;
+	config: RawTransactionArgument<string>;
+	propbookRegistry: RawTransactionArgument<string>;
+	pyth: RawTransactionArgument<string>;
+	bsValues: RawTransactionArgument<string>;
+	bsSvi: RawTransactionArgument<string>;
+	lowerTick: RawTransactionArgument<number | bigint>;
+	higherTick: RawTransactionArgument<number | bigint>;
+	quantity: RawTransactionArgument<number | bigint>;
+	maxCost: RawTransactionArgument<number | bigint>;
+	maxProbability: RawTransactionArgument<number | bigint>;
+}
+export interface EnqueueExactQuantityOptions {
+	package?: string;
+	arguments: EnqueueExactQuantityArguments;
+	config?: {
+		sessionsConfig: ConfigValue;
+		sessionsPackageId?: string;
+	};
+}
+/**
+ * Queue an exact-quantity Predict mint for an Account with an active session.
+ * Returns the queue record ID.
+ */
+export function enqueueExactQuantity(options: EnqueueExactQuantityOptions) {
+	const packageAddress =
+		options.package ?? options.config?.sessionsPackageId ?? '@local-pkg/deepbook_sessions';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'market',
+		'accountRegistry',
+		'wrapper',
+		'sessionsConfig',
+		'config',
+		'propbookRegistry',
+		'pyth',
+		'bsValues',
+		'bsSvi',
+		'lowerTick',
+		'higherTick',
+		'quantity',
+		'maxCost',
+		'maxProbability',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'sessions',
+			function: 'enqueue_exact_quantity',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					sessionsConfig: options.arguments?.sessionsConfig ?? options.config?.sessionsConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface EnqueueExactAmountArguments {
+	market: RawTransactionArgument<string>;
+	accountRegistry: RawTransactionArgument<string>;
+	wrapper: RawTransactionArgument<string>;
+	sessionsConfig?: RawTransactionArgument<string>;
+	config: RawTransactionArgument<string>;
+	propbookRegistry: RawTransactionArgument<string>;
+	pyth: RawTransactionArgument<string>;
+	bsValues: RawTransactionArgument<string>;
+	bsSvi: RawTransactionArgument<string>;
+	lowerTick: RawTransactionArgument<number | bigint>;
+	higherTick: RawTransactionArgument<number | bigint>;
+	maxPremium: RawTransactionArgument<number | bigint>;
+	minQuantity: RawTransactionArgument<number | bigint>;
+	maxCost: RawTransactionArgument<number | bigint>;
+}
+export interface EnqueueExactAmountOptions {
+	package?: string;
+	arguments: EnqueueExactAmountArguments;
+	config?: {
+		sessionsConfig: ConfigValue;
+		sessionsPackageId?: string;
+	};
+}
+/**
+ * Queue a premium-budget Predict mint for an Account with an active session.
+ * Returns the queue record ID.
+ */
+export function enqueueExactAmount(options: EnqueueExactAmountOptions) {
+	const packageAddress =
+		options.package ?? options.config?.sessionsPackageId ?? '@local-pkg/deepbook_sessions';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'market',
+		'accountRegistry',
+		'wrapper',
+		'sessionsConfig',
+		'config',
+		'propbookRegistry',
+		'pyth',
+		'bsValues',
+		'bsSvi',
+		'lowerTick',
+		'higherTick',
+		'maxPremium',
+		'minQuantity',
+		'maxCost',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'sessions',
+			function: 'enqueue_exact_amount',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					sessionsConfig: options.arguments?.sessionsConfig ?? options.config?.sessionsConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface EnqueueExactCostArguments {
+	market: RawTransactionArgument<string>;
+	accountRegistry: RawTransactionArgument<string>;
+	wrapper: RawTransactionArgument<string>;
+	sessionsConfig?: RawTransactionArgument<string>;
+	config: RawTransactionArgument<string>;
+	propbookRegistry: RawTransactionArgument<string>;
+	pyth: RawTransactionArgument<string>;
+	bsValues: RawTransactionArgument<string>;
+	bsSvi: RawTransactionArgument<string>;
+	lowerTick: RawTransactionArgument<number | bigint>;
+	higherTick: RawTransactionArgument<number | bigint>;
+	maxCost: RawTransactionArgument<number | bigint>;
+	minQuantity: RawTransactionArgument<number | bigint>;
+}
+export interface EnqueueExactCostOptions {
+	package?: string;
+	arguments: EnqueueExactCostArguments;
+	config?: {
+		sessionsConfig: ConfigValue;
+		sessionsPackageId?: string;
+	};
+}
+/**
+ * Queue an all-in-budget Predict mint for an Account with an active session.
+ * Returns the queue record ID.
+ */
+export function enqueueExactCost(options: EnqueueExactCostOptions) {
+	const packageAddress =
+		options.package ?? options.config?.sessionsPackageId ?? '@local-pkg/deepbook_sessions';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'market',
+		'accountRegistry',
+		'wrapper',
+		'sessionsConfig',
+		'config',
+		'propbookRegistry',
+		'pyth',
+		'bsValues',
+		'bsSvi',
+		'lowerTick',
+		'higherTick',
+		'maxCost',
+		'minQuantity',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'sessions',
+			function: 'enqueue_exact_cost',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					sessionsConfig: options.arguments?.sessionsConfig ?? options.config?.sessionsConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface EnqueueRedeemOpenArguments {
+	market: RawTransactionArgument<string>;
+	accountRegistry: RawTransactionArgument<string>;
+	wrapper: RawTransactionArgument<string>;
+	sessionsConfig?: RawTransactionArgument<string>;
+	config: RawTransactionArgument<string>;
+	propbookRegistry: RawTransactionArgument<string>;
+	pyth: RawTransactionArgument<string>;
+	bsValues: RawTransactionArgument<string>;
+	bsSvi: RawTransactionArgument<string>;
+	recordId: RawTransactionArgument<number | bigint>;
+	closeQuantity: RawTransactionArgument<number | bigint>;
+	minProbability: RawTransactionArgument<number | bigint>;
+	minProceeds: RawTransactionArgument<number | bigint>;
+}
+export interface EnqueueRedeemOpenOptions {
+	package?: string;
+	arguments: EnqueueRedeemOpenArguments;
+	config?: {
+		sessionsConfig: ConfigValue;
+		sessionsPackageId?: string;
+	};
+}
+/**
+ * Queue an early sell of an Open Predict queue record for an Account with an
+ * active session. Returns the new queue record ID.
+ */
+export function enqueueRedeemOpen(options: EnqueueRedeemOpenOptions) {
+	const packageAddress =
+		options.package ?? options.config?.sessionsPackageId ?? '@local-pkg/deepbook_sessions';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'0x2::accumulator::AccumulatorRoot',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = [
+		'market',
+		'accountRegistry',
+		'wrapper',
+		'sessionsConfig',
+		'config',
+		'propbookRegistry',
+		'pyth',
+		'bsValues',
+		'bsSvi',
+		'recordId',
+		'closeQuantity',
+		'minProbability',
+		'minProceeds',
+	];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'sessions',
+			function: 'enqueue_redeem_open',
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,

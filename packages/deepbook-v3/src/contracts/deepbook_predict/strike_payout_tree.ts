@@ -37,6 +37,12 @@
  * immediately before its first mutation under that generation (an untouched node
  * is its own snapshot), and `walk_linear_frozen` prices the tree exactly as it
  * stood at the snapshot instant through the same walk the live read uses.
+ *
+ * Delayed execution adds pins: a waiting order's boundary ticks, passed in as
+ * `pins` (tick -> count of waiting orders; a key is present only while its count
+ * is positive). Enqueue creates the nodes up front (`ensure_node`), no deletion
+ * path removes a pinned node, and a resolve fill inserts over existing nodes only
+ * (`insert_range_existing`), so the keeper never creates a node.
  */
 
 import { MoveStruct } from '../utils/index.js';
