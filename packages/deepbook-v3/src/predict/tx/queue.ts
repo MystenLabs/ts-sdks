@@ -8,6 +8,7 @@
 // retired immediate trades there is no `load_live_pricer` command before them.
 import type { Transaction, TransactionResult } from '@mysten/sui/transactions';
 import type { GeneratedConfig } from '../config/generated.js';
+import { MIN_PREMIUM } from '../cost.js';
 import { PredictInputError } from '../errors.js';
 import { U64_MAX } from '../units.js';
 import * as expiryMarket from '../../contracts/deepbook_predict/expiry_market.js';
@@ -95,6 +96,8 @@ export function enqueueExactQuantity(
  * Queue a premium-budget mint: sized at τ under `maxPremiumRaw`, at least `minQuantityRaw`, with
  * the all-in withdrawal capped by the required `maxCostRaw`. Escrows `min(max_cost, available −
  * fee)` plus the order fee. Returns the record ID. Command order is auth → enqueue.
+ * `maxPremiumRaw` below the minimum premium (1 USDC) is refused: the fill could never buy enough
+ * premium, so the chain's placement dry run would abort `EOrderFailsLimits`.
  */
 export function enqueueExactAmount(
 	config: GeneratedConfig,
@@ -109,6 +112,11 @@ export function enqueueExactAmount(
 	assertMaxCost(args.maxCostRaw);
 	assertU64(args.maxPremiumRaw, 'maxPremiumRaw');
 	assertU64(args.minQuantityRaw, 'minQuantityRaw');
+	if (args.maxPremiumRaw < MIN_PREMIUM) {
+		throw new PredictInputError(
+			`maxPremiumRaw ${args.maxPremiumRaw} is below the ${MIN_PREMIUM} minimum premium (EOrderFailsLimits)`,
+		);
+	}
 	return authed.enqueueExactAmount({
 		config,
 		arguments: {

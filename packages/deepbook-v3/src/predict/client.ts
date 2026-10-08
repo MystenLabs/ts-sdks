@@ -1313,6 +1313,14 @@ export class PredictClient {
 			const maxPremiumRaw = usdcToRaw(opts.spend);
 			const minQuantityRaw = usdcToRaw(opts.minQuantity);
 			const maxCostRaw = usdcToRaw(opts.maxCost);
+			// The fill buys at most `spend` of premium, so a spend below the minimum premium fails
+			// the chain's placement dry run whatever the budget. Refused before any read.
+			if (maxPremiumRaw < MIN_PREMIUM) {
+				throw new PredictPreflightError(
+					'min-premium',
+					`spend ${rawToUsdc(maxPremiumRaw)} is below the ${rawToUsdc(MIN_PREMIUM)} minimum premium`,
+				);
+			}
 			return this.#planMint(
 				owner,
 				m,

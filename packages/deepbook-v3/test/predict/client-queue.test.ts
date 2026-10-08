@@ -122,6 +122,22 @@ describe('queued mints', () => {
 		expect(preview.cashNeedRaw).toBe(cashNeedBudget(2_000_000n, s.minEntryProbability));
 	});
 
+	test('enqueueMintAmount refuses a spend below the minimum premium before any read', async () => {
+		const s = scenario({ spareCash: 10_000_000_000n });
+		const { pc, simulated } = client(s);
+		expect(
+			await preflightCode(
+				pc.tx.enqueueMintAmount(OWNER, market(s), { spend: 0.5, maxCost: 5, minQuantity: 0 }),
+			),
+		).toBe('min-premium');
+		expect(simulated).toHaveLength(0);
+		expect(
+			await preflightCode(
+				pc.tx.enqueueMintAmount(OWNER, market(s), { spend: 1, maxCost: 5, minQuantity: 0 }),
+			),
+		).toBe('none');
+	});
+
 	test.each([
 		['not-live', { watermark: 3n }],
 		['not-live', { policy: null }],

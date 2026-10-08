@@ -141,7 +141,7 @@ describe('queued mints', () => {
 					...target,
 					lowerTick: 1n,
 					higherTick: 2n,
-					maxPremiumRaw: 1n,
+					maxPremiumRaw: 1_000_000n,
 					minQuantityRaw: 0n,
 					maxCostRaw,
 				}),
@@ -156,6 +156,20 @@ describe('queued mints', () => {
 				minQuantityRaw: 0n,
 			}),
 		).not.toThrow();
+	});
+
+	test('exact amount refuses a premium cap below the minimum premium', () => {
+		const base = {
+			...target,
+			lowerTick: 1n,
+			higherTick: 2n,
+			minQuantityRaw: 0n,
+			maxCostRaw: 5_000_000n,
+		};
+		expect(() => enqueueExactAmount(config, { ...base, maxPremiumRaw: 999_999n })).toThrow(
+			/minimum premium/,
+		);
+		expect(() => enqueueExactAmount(config, { ...base, maxPremiumRaw: 1_000_000n })).not.toThrow();
 	});
 
 	test('exact quantity requires a probability cap in (0, 1e9]', () => {

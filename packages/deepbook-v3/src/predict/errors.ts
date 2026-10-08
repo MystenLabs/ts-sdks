@@ -106,7 +106,10 @@ export type PredictPreflightCode =
 	| 'fee'
 	/** A mint's cash need is above the market's spare cash (`EInsufficientMarketCash`). */
 	| 'market-cash'
-	/** The escrowed budget can't buy the minimum premium, so the order fails its limits. */
+	/**
+	 * The escrowed budget, or an exact-amount mint's premium cap, can't buy the minimum premium,
+	 * so the order fails its limits.
+	 */
 	| 'min-premium'
 	/** A sell is below the policy minimum, or leaves a remainder below it (`EBelowMinSell`). */
 	| 'below-min-sell'
