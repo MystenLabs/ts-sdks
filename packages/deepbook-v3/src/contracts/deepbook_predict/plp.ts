@@ -596,8 +596,8 @@ export interface SnapshotExpiryPricerOptions {
  * a payout tree — so all markets fit one PTB regardless of book size.
  *
  * The oracle feeding this stage must have been written in an EARLIER transaction:
- * `pricing::resolve_live_pricer` refuses a read stamped with the current
- * transaction digest (RP-24), so a keeper cannot refresh and snapshot in one PTB.
+ * `pricing::resolve_live` refuses a read stamped with the current transaction
+ * digest (RP-24), so a keeper cannot refresh and snapshot in one PTB.
  *
  * A market already settled at snapshot time is recorded with no pricer, gets no
  * stamp (settled flows never touch live NAV), and contributes 0. An
@@ -835,8 +835,8 @@ export interface RebalanceExpiryCashOptions {
  * three per-market cases — initial funding of a freshly registered (unfunded)
  * market, ongoing live rebalance/surplus-sweep toward target, and the
  * settled-market sweep (deactivate, return all free cash, materialize profit). The
- * live target covers the market's queued orders' cash need
- * (`expiry_market::waiting_cash_need`), so the keeper calls this after each
+ * live target covers the market's queued orders' cash need (the waiting cash need
+ * in `expiry_market::order_flow_state`), so the keeper calls this after each
  * enqueue to fund those orders' fills, and a sweep never takes that cash back.
  * Call `expiry_market::try_settle` first in the same PTB when settlement may be
  * due. An expired unsettled market is a no-op until that transition succeeds. Mint
@@ -988,7 +988,7 @@ export interface AddUsdcToPlpOptions {
  * `total_supply`, which raises NAV per PLP for every current holder. It
  * deliberately does not touch the profit basis — the basis tracks cash sent to and
  * returned from expiries, so an outside contribution is neither a debit nor a
- * credit, and the protocol reserve therefore takes no cut of it (`lp_pool_value`
+ * credit, and the protocol reserve therefore takes no cut of it (`pool_value`
  * leaves `exclusion` unchanged while `gross_pool_value` grows). Sending the same
  * USDC through `request_supply` instead mints shares against it, so only the
  * supply fee would reach existing holders — zero as shipped.

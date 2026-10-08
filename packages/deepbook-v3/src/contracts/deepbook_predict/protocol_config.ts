@@ -6,15 +6,16 @@
  * Protocol-wide configuration and flow gates for Predict.
  *
  * This shared object owns the admin-tunable config structs, the fee-incentive
- * subsidy, live-target, and lifetime-cap rates, the delayed-execution policy, the
- * trading pause gate, the protocol-wide emergency freeze, the version watermark
- * (reaching `current_version!()` is also the delayed-execution cutover), the
- * allowlists of keepers that may redeem settled orders without owner auth and of
- * operators that may finish an LP flush, and the full-pool valuation in-flight
- * state (flag + flush ordinal, held across the transactions a flush spans;
- * keeper/config flows gate on it, trading flows read it only to discard stale
- * stamps lazily). Flow modules decide which gates apply before they mutate expiry,
- * oracle, pool, or account state.
+ * subsidy, live-target, and lifetime-cap rates, the trading pause gate, the
+ * protocol-wide emergency freeze, the version watermark (reaching
+ * `current_version!()` is also the delayed-execution cutover), the allowlists of
+ * keepers that may redeem settled orders without owner auth, of operators that may
+ * finish an LP flush, and of the order-flow companion witness types that may drive
+ * the order-flow primitives, and the full-pool valuation in-flight state (flag +
+ * flush ordinal, held across the transactions a flush spans; keeper/config flows
+ * gate on it, trading flows read it only to discard stale stamps lazily). Flow
+ * modules decide which gates apply before they mutate expiry, oracle, pool, or
+ * account state.
  */
 
 import {
@@ -94,14 +95,14 @@ export const ProtocolConfig = new MoveStruct({
 		 * Minimum package version permitted to run version-gated flows. Monotonic;
 		 * `bump_version_watermark` advances it to the running `current_version!()`,
 		 * retiring older versions. A running version below this floor is dead
-		 * (`assert_version`). `current_version!()` stays the upgrade-required code
-		 * constant; this is the runtime floor.
+		 * (`chk_version`). `current_version!()` stays the upgrade-required code constant;
+		 * this is the runtime floor.
 		 */
 		version_watermark: U64,
 		/** Blocks new risk creation while true. */
 		trading_paused: bcs.bool(),
 		/**
-		 * Emergency hard stop. While true, `assert_version` aborts, halting every
+		 * Emergency hard stop. While true, `chk_version` aborts, halting every
 		 * version-gated flow (mint, redeem, settlement, valuation, LP supply/withdraw,
 		 * admin config) — the same blast radius as a version-disable, but reversible
 		 * without a package upgrade. Force-on via `PauseCap`; cleared by `AdminCap`.
@@ -118,7 +119,7 @@ export const ProtocolConfig = new MoveStruct({
 		 */
 		valuation_in_progress: bcs.bool(),
 		/**
-		 * True ONLY while the atomic snapshot stage is open — set by `begin_snapshot` at
+		 * True ONLY while the atomic snapshot stage is open — set by `open_snap` at
 		 * `start_pool_valuation` and cleared by `end_snapshot` at
 		 * `seal_valuation_snapshot`. Both live in one PTB (the `SnapshotStage` hot potato
 		 * forces it), so this can never be observed across transactions: it blocks only a
@@ -128,10 +129,10 @@ export const ProtocolConfig = new MoveStruct({
 		 */
 		snapshot_in_progress: bcs.bool(),
 		/**
-		 * Monotonic flush ordinal, bumped by `begin_valuation`. A market's valuation stamp
-		 * names the flush that made it; a stamp whose ordinal is not the current one — or
-		 * held while no valuation is in flight — is stale and is lazily discarded by the
-		 * next trade, so aborting a flush never has to visit its stamped markets.
+		 * Monotonic flush ordinal, bumped by `begin_val`. A market's valuation stamp names
+		 * the flush that made it; a stamp whose ordinal is not the current one — or held
+		 * while no valuation is in flight — is stale and is lazily discarded by the next
+		 * trade, so aborting a flush never has to visit its stamped markets.
 		 */
 		flush_seq: U64,
 	},
@@ -152,12 +153,12 @@ export const FeeIncentiveLifetimeCapRateKey = new MoveTuple({
 	name: `${$moduleName}::FeeIncentiveLifetimeCapRateKey`,
 	fields: [bcs.bool()],
 });
-export const DelayedExecutionPolicyKey = new MoveTuple({
-	name: `${$moduleName}::DelayedExecutionPolicyKey`,
-	fields: [bcs.bool()],
-});
 export const FlushOperatorsKey = new MoveTuple({
 	name: `${$moduleName}::FlushOperatorsKey`,
+	fields: [bcs.bool()],
+});
+export const OrderFlowKey = new MoveTuple({
+	name: `${$moduleName}::OrderFlowKey<phantom W>`,
 	fields: [bcs.bool()],
 });
 export interface IdArguments {
@@ -476,41 +477,6 @@ export function noTradeWindowMs(options: NoTradeWindowMsOptions) {
 			),
 		});
 }
-export interface DelayedExecutionPolicyArguments {
-	config?: RawTransactionArgument<string>;
-}
-export interface DelayedExecutionPolicyOptions {
-	package?: string;
-	arguments?: DelayedExecutionPolicyArguments;
-	config?: {
-		protocolConfig: ConfigValue;
-		predictPackageId?: string;
-	};
-}
-/**
- * Return the delayed-execution policy, or `none` before
- * `init_delayed_execution_policy` runs. For SDK and devInspect reads.
- */
-export function delayedExecutionPolicy(options: DelayedExecutionPolicyOptions) {
-	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null] satisfies (string | null)[];
-	const parameterNames = ['config'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'protocol_config',
-			function: 'delayed_execution_policy',
-			arguments: normalizeMoveArguments(
-				{
-					...options.arguments,
-					config: options.arguments?.config ?? options.config?.protocolConfig,
-				},
-				argumentsTypes,
-				parameterNames,
-			),
-		});
-}
 export interface IsFlushOperatorArguments {
 	config?: RawTransactionArgument<string>;
 	operator: RawTransactionArgument<string>;
@@ -525,7 +491,7 @@ export interface IsFlushOperatorOptions {
 }
 /**
  * Whether `operator` may call `plp::finish_flush`. For SDK, keeper, and devInspect
- * reads; `finish_flush` gates through `assert_flush_operator`.
+ * reads; `finish_flush` gates through `chk_operator`.
  */
 export function isFlushOperator(options: IsFlushOperatorOptions) {
 	const packageAddress =
@@ -545,6 +511,44 @@ export function isFlushOperator(options: IsFlushOperatorOptions) {
 				argumentsTypes,
 				parameterNames,
 			),
+		});
+}
+export interface IsOrderFlowArguments {
+	config?: RawTransactionArgument<string>;
+}
+export interface IsOrderFlowOptions {
+	package?: string;
+	arguments?: IsOrderFlowArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+	typeArguments: [string];
+}
+/**
+ * Whether the witness type `W` may drive Predict's order-flow primitives
+ * (admission, commit, and fill). For SDK, keeper, and devInspect reads and the
+ * companion's setup checks; the primitives gate through `chk_flow`.
+ */
+export function isOrderFlow(options: IsOrderFlowOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['config'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'protocol_config',
+			function: 'is_order_flow',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+			typeArguments: options.typeArguments,
 		});
 }
 export interface VersionWatermarkArguments {
@@ -1139,11 +1143,11 @@ export function setMaxLpPoolValue(options: SetMaxLpPoolValueOptions) {
 		});
 }
 export interface SetEwmaParamsArguments {
-	config?: RawTransactionArgument<string>;
+	Config?: RawTransactionArgument<string>;
 	AdminCap: RawTransactionArgument<string>;
-	alpha: RawTransactionArgument<number | bigint>;
-	zScoreThreshold: RawTransactionArgument<number | bigint>;
-	penaltyRate: RawTransactionArgument<number | bigint>;
+	Alpha: RawTransactionArgument<number | bigint>;
+	ZScoreThreshold: RawTransactionArgument<number | bigint>;
+	PenaltyRate: RawTransactionArgument<number | bigint>;
 }
 export interface SetEwmaParamsOptions {
 	package?: string;
@@ -1153,14 +1157,17 @@ export interface SetEwmaParamsOptions {
 		predictPackageId?: string;
 	};
 }
-/** Set the EWMA gas-price penalty parameters. */
+/**
+ * Retired with instant trading: the congestion penalty only priced instant trades,
+ * and queued fills charge none. Always aborts `EEwmaRetired`.
+ */
 export function setEwmaParams(options: SetEwmaParamsOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, null, 'u64', 'u64', 'u64', '0x2::clock::Clock'] satisfies (
 		string | null
 	)[];
-	const parameterNames = ['config', 'AdminCap', 'alpha', 'zScoreThreshold', 'penaltyRate'];
+	const parameterNames = ['Config', 'AdminCap', 'Alpha', 'ZScoreThreshold', 'PenaltyRate'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -1169,7 +1176,7 @@ export function setEwmaParams(options: SetEwmaParamsOptions) {
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,
-					config: options.arguments?.config ?? options.config?.protocolConfig,
+					Config: options.arguments?.Config ?? options.config?.protocolConfig,
 				},
 				argumentsTypes,
 				parameterNames,
@@ -1177,9 +1184,9 @@ export function setEwmaParams(options: SetEwmaParamsOptions) {
 		});
 }
 export interface SetEwmaEnabledArguments {
-	config?: RawTransactionArgument<string>;
+	Config?: RawTransactionArgument<string>;
 	AdminCap: RawTransactionArgument<string>;
-	enabled: RawTransactionArgument<boolean>;
+	Enabled: RawTransactionArgument<boolean>;
 }
 export interface SetEwmaEnabledOptions {
 	package?: string;
@@ -1189,12 +1196,15 @@ export interface SetEwmaEnabledOptions {
 		predictPackageId?: string;
 	};
 }
-/** Enable or disable the EWMA gas-price penalty. */
+/**
+ * Retired with instant trading: the congestion penalty only priced instant trades,
+ * and queued fills charge none. Always aborts `EEwmaRetired`.
+ */
 export function setEwmaEnabled(options: SetEwmaEnabledOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, null, 'bool', '0x2::clock::Clock'] satisfies (string | null)[];
-	const parameterNames = ['config', 'AdminCap', 'enabled'];
+	const parameterNames = ['Config', 'AdminCap', 'Enabled'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -1203,7 +1213,7 @@ export function setEwmaEnabled(options: SetEwmaEnabledOptions) {
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,
-					config: options.arguments?.config ?? options.config?.protocolConfig,
+					Config: options.arguments?.Config ?? options.config?.protocolConfig,
 				},
 				argumentsTypes,
 				parameterNames,
@@ -1228,10 +1238,9 @@ export interface SetNoTradeWindowMsOptions {
  * abort. `0` disables the block. Read live at trade time, so a change applies to
  * markets already trading and stays available as an incident control.
  *
- * Deliberately not gated on `assert_not_valuation_in_progress`, matching
- * `set_trading_paused`: a stalled flush must not be able to trap a safety control.
- * Nothing in the flush reads this value, so a mid-valuation change cannot skew a
- * frozen mark.
+ * Deliberately not gated on `chk_no_val`, matching `set_trading_paused`: a stalled
+ * flush must not be able to trap a safety control. Nothing in the flush reads this
+ * value, so a mid-valuation change cannot skew a frozen mark.
  */
 export function setNoTradeWindowMs(options: SetNoTradeWindowMsOptions) {
 	const packageAddress =
@@ -1304,7 +1313,7 @@ export interface SetFrozenOptions {
  * Set the protocol-wide emergency freeze.
  *
  * Intentionally NOT version-gated, unlike every other admin setter: the freeze
- * gate lives inside `assert_version`, so routing this through it would make an
+ * gate lives inside `chk_version`, so routing this through it would make an
  * engaged freeze unclearable without a package upgrade — defeating the point.
  */
 export function setFrozen(options: SetFrozenOptions) {
@@ -1403,223 +1412,6 @@ export function removeSettledRedeemKeeper(options: RemoveSettledRedeemKeeperOpti
 			),
 		});
 }
-export interface InitDelayedExecutionPolicyArguments {
-	config?: RawTransactionArgument<string>;
-	AdminCap: RawTransactionArgument<string>;
-}
-export interface InitDelayedExecutionPolicyOptions {
-	package?: string;
-	arguments: InitDelayedExecutionPolicyArguments;
-	config?: {
-		protocolConfig: ConfigValue;
-		predictPackageId?: string;
-	};
-}
-/**
- * Write the delayed-execution policy with its compiled defaults. Admin-only and
- * version-gated; aborts if the policy already exists. Not gated on an open LP
- * valuation, so a stalled flush cannot block it. Until it runs, enqueue, commit,
- * and resolve abort `EPolicyNotInitialized`.
- */
-export function initDelayedExecutionPolicy(options: InitDelayedExecutionPolicyOptions) {
-	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, '0x2::clock::Clock'] satisfies (string | null)[];
-	const parameterNames = ['config', 'AdminCap'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'protocol_config',
-			function: 'init_delayed_execution_policy',
-			arguments: normalizeMoveArguments(
-				{
-					...options.arguments,
-					config: options.arguments?.config ?? options.config?.protocolConfig,
-				},
-				argumentsTypes,
-				parameterNames,
-			),
-		});
-}
-export interface SetDelayedExecutionTimingArguments {
-	config?: RawTransactionArgument<string>;
-	AdminCap: RawTransactionArgument<string>;
-	delayMs: RawTransactionArgument<number | bigint>;
-	stallTimeoutMs: RawTransactionArgument<number | bigint>;
-	stuckThresholdMs: RawTransactionArgument<number | bigint>;
-	gapWaitMs: RawTransactionArgument<number | bigint>;
-	pythPriceBufferMs: RawTransactionArgument<number | bigint>;
-	pythChannel: RawTransactionArgument<number>;
-	sviMaxAgeMs: RawTransactionArgument<number | bigint>;
-}
-export interface SetDelayedExecutionTimingOptions {
-	package?: string;
-	arguments: SetDelayedExecutionTimingArguments;
-	config?: {
-		protocolConfig: ConfigValue;
-		predictPackageId?: string;
-	};
-}
-/**
- * Set every delayed-execution timing field and the Pyth channel in one call, so
- * the relational order
- * `pyth_price_buffer_ms < stuck_threshold_ms <=  gap_wait_ms < stall_timeout_ms`
- * is checked on the final state and an admin never passes through an invalid
- * intermediate one. Each value must also sit in its `config_constants` bound, the
- * channel must be a fixed-rate Lazer channel (`EUnsupportedPythChannel`), the
- * buffer must be `0` or exactly one tick of it, and the stuck threshold at least
- * one tick (`EInvalidDelayedExecutionTiming`).
- *
- * Waiting orders keep the τ, deadline, and channel stored at enqueue, so a new
- * delay, stall timeout, or channel only reaches new orders. Commit reads the
- * buffer and gap wait when it runs, so they also apply to waiting cohorts.
- * Admin-only and version-gated; not gated on an open LP valuation.
- */
-export function setDelayedExecutionTiming(options: SetDelayedExecutionTimingOptions) {
-	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [
-		null,
-		null,
-		'u64',
-		'u64',
-		'u64',
-		'u64',
-		'u64',
-		'u8',
-		'u64',
-		'0x2::clock::Clock',
-	] satisfies (string | null)[];
-	const parameterNames = [
-		'config',
-		'AdminCap',
-		'delayMs',
-		'stallTimeoutMs',
-		'stuckThresholdMs',
-		'gapWaitMs',
-		'pythPriceBufferMs',
-		'pythChannel',
-		'sviMaxAgeMs',
-	];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'protocol_config',
-			function: 'set_delayed_execution_timing',
-			arguments: normalizeMoveArguments(
-				{
-					...options.arguments,
-					config: options.arguments?.config ?? options.config?.protocolConfig,
-				},
-				argumentsTypes,
-				parameterNames,
-			),
-		});
-}
-export interface SetDelayedExecutionLimitsArguments {
-	config?: RawTransactionArgument<string>;
-	AdminCap: RawTransactionArgument<string>;
-	mintCapacity: RawTransactionArgument<number | bigint>;
-	sellCapacity: RawTransactionArgument<number | bigint>;
-	perAccountCap: RawTransactionArgument<number | bigint>;
-	minSellQuantity: RawTransactionArgument<number | bigint>;
-	settleRefundBatch: RawTransactionArgument<number | bigint>;
-	settlePayoutBatch: RawTransactionArgument<number | bigint>;
-}
-export interface SetDelayedExecutionLimitsOptions {
-	package?: string;
-	arguments: SetDelayedExecutionLimitsArguments;
-	config?: {
-		protocolConfig: ConfigValue;
-		predictPackageId?: string;
-	};
-}
-/**
- * Set the queue capacities, the per-account cap, the minimum early sell, and the
- * two `try_settle` batch sizes. Each value must sit in its `config_constants`
- * bound, and the per-account cap may not exceed the smaller capacity
- * (`EInvalidDelayedExecutionLimits`). Lowering a capacity below the current
- * pending count only blocks new orders. Admin-only and version-gated; not gated on
- * an open LP valuation.
- */
-export function setDelayedExecutionLimits(options: SetDelayedExecutionLimitsOptions) {
-	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [
-		null,
-		null,
-		'u64',
-		'u64',
-		'u64',
-		'u64',
-		'u64',
-		'u64',
-		'0x2::clock::Clock',
-	] satisfies (string | null)[];
-	const parameterNames = [
-		'config',
-		'AdminCap',
-		'mintCapacity',
-		'sellCapacity',
-		'perAccountCap',
-		'minSellQuantity',
-		'settleRefundBatch',
-		'settlePayoutBatch',
-	];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'protocol_config',
-			function: 'set_delayed_execution_limits',
-			arguments: normalizeMoveArguments(
-				{
-					...options.arguments,
-					config: options.arguments?.config ?? options.config?.protocolConfig,
-				},
-				argumentsTypes,
-				parameterNames,
-			),
-		});
-}
-export interface SetOrderFeeArguments {
-	config?: RawTransactionArgument<string>;
-	AdminCap: RawTransactionArgument<string>;
-	orderFee: RawTransactionArgument<number | bigint>;
-}
-export interface SetOrderFeeOptions {
-	package?: string;
-	arguments: SetOrderFeeArguments;
-	config?: {
-		protocolConfig: ConfigValue;
-		predictPackageId?: string;
-	};
-}
-/**
- * Set the flat fee charged per queued order, in USDC base units, up to the
- * `config_constants` cap of 1 USDC. Applies to orders placed after the call;
- * waiting orders keep the fee they paid. Admin-only and version-gated; not gated
- * on an open LP valuation.
- */
-export function setOrderFee(options: SetOrderFeeOptions) {
-	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, 'u64', '0x2::clock::Clock'] satisfies (string | null)[];
-	const parameterNames = ['config', 'AdminCap', 'orderFee'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'protocol_config',
-			function: 'set_order_fee',
-			arguments: normalizeMoveArguments(
-				{
-					...options.arguments,
-					config: options.arguments?.config ?? options.config?.protocolConfig,
-				},
-				argumentsTypes,
-				parameterNames,
-			),
-		});
-}
 export interface AddFlushOperatorArguments {
 	config?: RawTransactionArgument<string>;
 	AdminCap: RawTransactionArgument<string>;
@@ -1695,6 +1487,51 @@ export function removeFlushOperator(options: RemoveFlushOperatorOptions) {
 				argumentsTypes,
 				parameterNames,
 			),
+		});
+}
+export interface SetOrderFlowArguments {
+	config?: RawTransactionArgument<string>;
+	AdminCap: RawTransactionArgument<string>;
+	enabled: RawTransactionArgument<boolean>;
+}
+export interface SetOrderFlowOptions {
+	package?: string;
+	arguments: SetOrderFlowArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+	typeArguments: [string];
+}
+/**
+ * Allowlist (`enabled = true`) or remove the witness type `W` of an order-flow
+ * companion for Predict's order-flow primitives. Removing it stops admissions,
+ * commits, and fills only: `release` and `try_pay_settled` need a receipt, not the
+ * allowlist, so waiting orders still drain and queue-held positions are still
+ * paid. Admin-only. Enabling is version-gated, since it grants authority; removing
+ * is ungated, like `remove_flush_operator`, so it works under the emergency freeze
+ * and from a package version below the runtime floor. Setting the state `W`
+ * already has changes nothing but still emits `OrderFlowUpdated`.
+ */
+export function setOrderFlow(options: SetOrderFlowOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null, null, 'bool', '0x2::clock::Clock'] satisfies (string | null)[];
+	const parameterNames = ['config', 'AdminCap', 'enabled'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'protocol_config',
+			function: 'set_order_flow',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+			typeArguments: options.typeArguments,
 		});
 }
 export interface BumpVersionWatermarkArguments {

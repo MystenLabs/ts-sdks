@@ -430,8 +430,8 @@ export interface MintExactQuantityOptions {
 }
 /**
  * Mint an exact Predict position quantity for an Account with an active session.
- * Aborts through Predict once its delayed-execution cutover is reached; use
- * `enqueue_exact_quantity` after it.
+ * Always aborts through Predict, whose immediate mints are retired; use
+ * `enqueue_exact_quantity`.
  */
 export function mintExactQuantity(options: MintExactQuantityOptions) {
 	const packageAddress =
@@ -502,8 +502,8 @@ export interface MintExactAmountOptions {
 }
 /**
  * Mint a budget-sized Predict position for an Account with an active session.
- * Aborts through Predict once its delayed-execution cutover is reached; use
- * `enqueue_exact_amount` after it.
+ * Always aborts through Predict, whose immediate mints are retired; use
+ * `enqueue_exact_amount`.
  */
 export function mintExactAmount(options: MintExactAmountOptions) {
 	const packageAddress =
@@ -573,8 +573,8 @@ export interface MintExactCostOptions {
 }
 /**
  * Mint a Predict position sized to an all-in cost for an Account with an active
- * session. Aborts through Predict once its delayed-execution cutover is reached;
- * use `enqueue_exact_cost` after it.
+ * session. Always aborts through Predict, whose immediate mints are retired; use
+ * `enqueue_exact_cost`.
  */
 export function mintExactCost(options: MintExactCostOptions) {
 	const packageAddress =
@@ -641,8 +641,8 @@ export interface RedeemLiveOptions {
 	};
 }
 /**
- * Redeem a live Predict order for an Account with an active session. Aborts
- * through Predict once its delayed-execution cutover is reached. Early sells then
+ * Redeem a live Predict order for an Account with an active session. Always aborts
+ * through Predict, whose live redeem is retired. Early sells of queued positions
  * go through `enqueue_redeem_open`.
  */
 export function redeemLive(options: RedeemLiveOptions) {
@@ -743,10 +743,12 @@ export function redeemSettled(options: RedeemSettledOptions) {
 		});
 }
 export interface EnqueueExactQuantityArguments {
+	queue: RawTransactionArgument<string>;
 	market: RawTransactionArgument<string>;
 	accountRegistry: RawTransactionArgument<string>;
 	wrapper: RawTransactionArgument<string>;
 	sessionsConfig?: RawTransactionArgument<string>;
+	desk: RawTransactionArgument<string>;
 	config: RawTransactionArgument<string>;
 	propbookRegistry: RawTransactionArgument<string>;
 	pyth: RawTransactionArgument<string>;
@@ -767,13 +769,15 @@ export interface EnqueueExactQuantityOptions {
 	};
 }
 /**
- * Queue an exact-quantity Predict mint for an Account with an active session.
- * Returns the queue record ID.
+ * Queue an exact-quantity Predict mint in `market`'s order-flow queue for an
+ * Account with an active session. Returns the queue record ID.
  */
 export function enqueueExactQuantity(options: EnqueueExactQuantityOptions) {
 	const packageAddress =
 		options.package ?? options.config?.sessionsPackageId ?? '@local-pkg/deepbook_sessions';
 	const argumentsTypes = [
+		null,
+		null,
 		null,
 		null,
 		null,
@@ -792,10 +796,12 @@ export function enqueueExactQuantity(options: EnqueueExactQuantityOptions) {
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
 	const parameterNames = [
+		'queue',
 		'market',
 		'accountRegistry',
 		'wrapper',
 		'sessionsConfig',
+		'desk',
 		'config',
 		'propbookRegistry',
 		'pyth',
@@ -823,10 +829,12 @@ export function enqueueExactQuantity(options: EnqueueExactQuantityOptions) {
 		});
 }
 export interface EnqueueExactAmountArguments {
+	queue: RawTransactionArgument<string>;
 	market: RawTransactionArgument<string>;
 	accountRegistry: RawTransactionArgument<string>;
 	wrapper: RawTransactionArgument<string>;
 	sessionsConfig?: RawTransactionArgument<string>;
+	desk: RawTransactionArgument<string>;
 	config: RawTransactionArgument<string>;
 	propbookRegistry: RawTransactionArgument<string>;
 	pyth: RawTransactionArgument<string>;
@@ -847,13 +855,15 @@ export interface EnqueueExactAmountOptions {
 	};
 }
 /**
- * Queue a premium-budget Predict mint for an Account with an active session.
- * Returns the queue record ID.
+ * Queue a premium-budget Predict mint in `market`'s order-flow queue for an
+ * Account with an active session. Returns the queue record ID.
  */
 export function enqueueExactAmount(options: EnqueueExactAmountOptions) {
 	const packageAddress =
 		options.package ?? options.config?.sessionsPackageId ?? '@local-pkg/deepbook_sessions';
 	const argumentsTypes = [
+		null,
+		null,
 		null,
 		null,
 		null,
@@ -872,10 +882,12 @@ export function enqueueExactAmount(options: EnqueueExactAmountOptions) {
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
 	const parameterNames = [
+		'queue',
 		'market',
 		'accountRegistry',
 		'wrapper',
 		'sessionsConfig',
+		'desk',
 		'config',
 		'propbookRegistry',
 		'pyth',
@@ -903,10 +915,12 @@ export function enqueueExactAmount(options: EnqueueExactAmountOptions) {
 		});
 }
 export interface EnqueueExactCostArguments {
+	queue: RawTransactionArgument<string>;
 	market: RawTransactionArgument<string>;
 	accountRegistry: RawTransactionArgument<string>;
 	wrapper: RawTransactionArgument<string>;
 	sessionsConfig?: RawTransactionArgument<string>;
+	desk: RawTransactionArgument<string>;
 	config: RawTransactionArgument<string>;
 	propbookRegistry: RawTransactionArgument<string>;
 	pyth: RawTransactionArgument<string>;
@@ -926,13 +940,15 @@ export interface EnqueueExactCostOptions {
 	};
 }
 /**
- * Queue an all-in-budget Predict mint for an Account with an active session.
- * Returns the queue record ID.
+ * Queue an all-in-budget Predict mint in `market`'s order-flow queue for an
+ * Account with an active session. Returns the queue record ID.
  */
 export function enqueueExactCost(options: EnqueueExactCostOptions) {
 	const packageAddress =
 		options.package ?? options.config?.sessionsPackageId ?? '@local-pkg/deepbook_sessions';
 	const argumentsTypes = [
+		null,
+		null,
 		null,
 		null,
 		null,
@@ -950,10 +966,12 @@ export function enqueueExactCost(options: EnqueueExactCostOptions) {
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
 	const parameterNames = [
+		'queue',
 		'market',
 		'accountRegistry',
 		'wrapper',
 		'sessionsConfig',
+		'desk',
 		'config',
 		'propbookRegistry',
 		'pyth',
@@ -980,10 +998,12 @@ export function enqueueExactCost(options: EnqueueExactCostOptions) {
 		});
 }
 export interface EnqueueRedeemOpenArguments {
+	queue: RawTransactionArgument<string>;
 	market: RawTransactionArgument<string>;
 	accountRegistry: RawTransactionArgument<string>;
 	wrapper: RawTransactionArgument<string>;
 	sessionsConfig?: RawTransactionArgument<string>;
+	desk: RawTransactionArgument<string>;
 	config: RawTransactionArgument<string>;
 	propbookRegistry: RawTransactionArgument<string>;
 	pyth: RawTransactionArgument<string>;
@@ -1003,13 +1023,15 @@ export interface EnqueueRedeemOpenOptions {
 	};
 }
 /**
- * Queue an early sell of an Open Predict queue record for an Account with an
+ * Queue an early sell of an Open order-flow queue record for an Account with an
  * active session. Returns the new queue record ID.
  */
 export function enqueueRedeemOpen(options: EnqueueRedeemOpenOptions) {
 	const packageAddress =
 		options.package ?? options.config?.sessionsPackageId ?? '@local-pkg/deepbook_sessions';
 	const argumentsTypes = [
+		null,
+		null,
 		null,
 		null,
 		null,
@@ -1027,10 +1049,12 @@ export function enqueueRedeemOpen(options: EnqueueRedeemOpenOptions) {
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
 	const parameterNames = [
+		'queue',
 		'market',
 		'accountRegistry',
 		'wrapper',
 		'sessionsConfig',
+		'desk',
 		'config',
 		'propbookRegistry',
 		'pyth',

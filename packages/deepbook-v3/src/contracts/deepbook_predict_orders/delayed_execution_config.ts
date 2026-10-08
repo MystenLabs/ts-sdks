@@ -6,18 +6,19 @@
  * Admin-tunable policy for delayed execution: the timing, capacity, fee, and
  * settlement-batch settings that queued mints and early sells run under.
  *
- * A leaf module, so `config_events` can embed the policy and `protocol_config` can
- * store it under its own UID without an import cycle. It owns the struct, its
- * defaults, the field getters, the package setters with their single-value bounds,
- * and the Pyth Lazer channel helpers. Relational checks between fields live in the
- * `protocol_config` setters, which see every field at once.
+ * A leaf module, so `queue_events` can embed the policy and `desk` can store it.
+ * It owns the struct, its launch defaults, the field getters, and the package
+ * setters with every bound: each field's own range, the relational timing rules,
+ * and the per-account cap against the capacities. Predict caps what admission
+ * accepts on its side (`constants::max_svi_max_age_ms` and the deadline margin),
+ * and these bounds stay inside it.
  */
 
 import { MoveStruct, normalizeMoveArguments } from '../utils/index.js';
 import { U64 } from '../../bcs/integers.js';
 import { bcs } from '@mysten/sui/bcs';
 import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
-const $moduleName = '@local-pkg/deepbook_predict::delayed_execution_config';
+const $moduleName = '@local-pkg/deepbook_predict_orders::delayed_execution_config';
 export const DelayedExecutionPolicy = new MoveStruct({
 	name: `${$moduleName}::DelayedExecutionPolicy`,
 	fields: {
@@ -33,7 +34,7 @@ export const DelayedExecutionPolicy = new MoveStruct({
 		 */
 		stall_timeout_ms: U64,
 		/**
-		 * Enqueue refuses new orders while an uncommitted cohort is this far past its τ
+		 * Placement refuses new orders while an uncommitted cohort is this far past its τ
 		 * with nothing newer committed, or while two or more uncommitted cohorts are each
 		 * this far past their τ.
 		 */
@@ -44,7 +45,7 @@ export const DelayedExecutionPolicy = new MoveStruct({
 		 * Switches the backup tick on or off. `0` accepts only the update stamped exactly
 		 * τ. Above `0`, once now is `gap_wait_ms` past τ, a cohort also accepts its single
 		 * backup: the update stamped one tick of its own stored channel after τ. The value
-		 * is not a window. The setter keeps it at `0` or one tick of the policy channel.
+		 * is not a window: the setter keeps it at `0` or one tick of the policy channel.
 		 */
 		pyth_price_buffer_ms: U64,
 		/**
@@ -53,7 +54,10 @@ export const DelayedExecutionPolicy = new MoveStruct({
 		 * it was placed under.
 		 */
 		pyth_channel: bcs.u8(),
-		/** Oldest Block Scholes SVI an enqueue accepts into an order's volatility snapshot. */
+		/**
+		 * Oldest Block Scholes SVI a placement accepts into an order's volatility
+		 * snapshot.
+		 */
 		svi_max_age_ms: U64,
 		/** Most unfinished queued mints per market. */
 		mint_capacity: U64,
@@ -62,15 +66,15 @@ export const DelayedExecutionPolicy = new MoveStruct({
 		/** Most unfinished queued orders per account per market. */
 		per_account_cap: U64,
 		/**
-		 * Flat fee charged at enqueue. Kept on a fill and on limit or admission refunds;
+		 * Flat fee charged at placement. Kept on a fill and on limit or admission refunds;
 		 * returned on every other refund.
 		 */
 		order_fee: U64,
 		/** Smallest early-sell close quantity. */
 		min_sell_quantity: U64,
-		/** Most records one `try_settle` call visits while refunding leftover orders. */
+		/** Most records one `settle_step` call visits while refunding leftover orders. */
 		settle_refund_batch: U64,
-		/** Most records one `try_settle` call visits while paying Open records. */
+		/** Most records one `settle_step` call visits while paying Open records. */
 		settle_payout_batch: U64,
 	},
 });
@@ -81,12 +85,14 @@ export interface DelayMsOptions {
 	package?: string;
 	arguments: DelayMsArguments | [policy: TransactionArgument];
 	config?: {
-		predictPackageId?: string;
+		predictOrdersPackageId?: string;
 	};
 }
 export function delayMs(options: DelayMsOptions) {
 	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+		options.package ??
+		options.config?.predictOrdersPackageId ??
+		'@local-pkg/deepbook_predict_orders';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['policy'];
 	return (tx: Transaction) =>
@@ -104,12 +110,14 @@ export interface StallTimeoutMsOptions {
 	package?: string;
 	arguments: StallTimeoutMsArguments | [policy: TransactionArgument];
 	config?: {
-		predictPackageId?: string;
+		predictOrdersPackageId?: string;
 	};
 }
 export function stallTimeoutMs(options: StallTimeoutMsOptions) {
 	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+		options.package ??
+		options.config?.predictOrdersPackageId ??
+		'@local-pkg/deepbook_predict_orders';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['policy'];
 	return (tx: Transaction) =>
@@ -127,12 +135,14 @@ export interface StuckThresholdMsOptions {
 	package?: string;
 	arguments: StuckThresholdMsArguments | [policy: TransactionArgument];
 	config?: {
-		predictPackageId?: string;
+		predictOrdersPackageId?: string;
 	};
 }
 export function stuckThresholdMs(options: StuckThresholdMsOptions) {
 	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+		options.package ??
+		options.config?.predictOrdersPackageId ??
+		'@local-pkg/deepbook_predict_orders';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['policy'];
 	return (tx: Transaction) =>
@@ -150,12 +160,14 @@ export interface GapWaitMsOptions {
 	package?: string;
 	arguments: GapWaitMsArguments | [policy: TransactionArgument];
 	config?: {
-		predictPackageId?: string;
+		predictOrdersPackageId?: string;
 	};
 }
 export function gapWaitMs(options: GapWaitMsOptions) {
 	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+		options.package ??
+		options.config?.predictOrdersPackageId ??
+		'@local-pkg/deepbook_predict_orders';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['policy'];
 	return (tx: Transaction) =>
@@ -173,12 +185,14 @@ export interface PythPriceBufferMsOptions {
 	package?: string;
 	arguments: PythPriceBufferMsArguments | [policy: TransactionArgument];
 	config?: {
-		predictPackageId?: string;
+		predictOrdersPackageId?: string;
 	};
 }
 export function pythPriceBufferMs(options: PythPriceBufferMsOptions) {
 	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+		options.package ??
+		options.config?.predictOrdersPackageId ??
+		'@local-pkg/deepbook_predict_orders';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['policy'];
 	return (tx: Transaction) =>
@@ -196,12 +210,14 @@ export interface PythChannelOptions {
 	package?: string;
 	arguments: PythChannelArguments | [policy: TransactionArgument];
 	config?: {
-		predictPackageId?: string;
+		predictOrdersPackageId?: string;
 	};
 }
 export function pythChannel(options: PythChannelOptions) {
 	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+		options.package ??
+		options.config?.predictOrdersPackageId ??
+		'@local-pkg/deepbook_predict_orders';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['policy'];
 	return (tx: Transaction) =>
@@ -219,12 +235,14 @@ export interface SviMaxAgeMsOptions {
 	package?: string;
 	arguments: SviMaxAgeMsArguments | [policy: TransactionArgument];
 	config?: {
-		predictPackageId?: string;
+		predictOrdersPackageId?: string;
 	};
 }
 export function sviMaxAgeMs(options: SviMaxAgeMsOptions) {
 	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+		options.package ??
+		options.config?.predictOrdersPackageId ??
+		'@local-pkg/deepbook_predict_orders';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['policy'];
 	return (tx: Transaction) =>
@@ -242,12 +260,14 @@ export interface MintCapacityOptions {
 	package?: string;
 	arguments: MintCapacityArguments | [policy: TransactionArgument];
 	config?: {
-		predictPackageId?: string;
+		predictOrdersPackageId?: string;
 	};
 }
 export function mintCapacity(options: MintCapacityOptions) {
 	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+		options.package ??
+		options.config?.predictOrdersPackageId ??
+		'@local-pkg/deepbook_predict_orders';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['policy'];
 	return (tx: Transaction) =>
@@ -265,12 +285,14 @@ export interface SellCapacityOptions {
 	package?: string;
 	arguments: SellCapacityArguments | [policy: TransactionArgument];
 	config?: {
-		predictPackageId?: string;
+		predictOrdersPackageId?: string;
 	};
 }
 export function sellCapacity(options: SellCapacityOptions) {
 	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+		options.package ??
+		options.config?.predictOrdersPackageId ??
+		'@local-pkg/deepbook_predict_orders';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['policy'];
 	return (tx: Transaction) =>
@@ -288,12 +310,14 @@ export interface PerAccountCapOptions {
 	package?: string;
 	arguments: PerAccountCapArguments | [policy: TransactionArgument];
 	config?: {
-		predictPackageId?: string;
+		predictOrdersPackageId?: string;
 	};
 }
 export function perAccountCap(options: PerAccountCapOptions) {
 	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+		options.package ??
+		options.config?.predictOrdersPackageId ??
+		'@local-pkg/deepbook_predict_orders';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['policy'];
 	return (tx: Transaction) =>
@@ -311,12 +335,14 @@ export interface OrderFeeOptions {
 	package?: string;
 	arguments: OrderFeeArguments | [policy: TransactionArgument];
 	config?: {
-		predictPackageId?: string;
+		predictOrdersPackageId?: string;
 	};
 }
 export function orderFee(options: OrderFeeOptions) {
 	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+		options.package ??
+		options.config?.predictOrdersPackageId ??
+		'@local-pkg/deepbook_predict_orders';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['policy'];
 	return (tx: Transaction) =>
@@ -334,12 +360,14 @@ export interface MinSellQuantityOptions {
 	package?: string;
 	arguments: MinSellQuantityArguments | [policy: TransactionArgument];
 	config?: {
-		predictPackageId?: string;
+		predictOrdersPackageId?: string;
 	};
 }
 export function minSellQuantity(options: MinSellQuantityOptions) {
 	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+		options.package ??
+		options.config?.predictOrdersPackageId ??
+		'@local-pkg/deepbook_predict_orders';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['policy'];
 	return (tx: Transaction) =>
@@ -357,12 +385,14 @@ export interface SettleRefundBatchOptions {
 	package?: string;
 	arguments: SettleRefundBatchArguments | [policy: TransactionArgument];
 	config?: {
-		predictPackageId?: string;
+		predictOrdersPackageId?: string;
 	};
 }
 export function settleRefundBatch(options: SettleRefundBatchOptions) {
 	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+		options.package ??
+		options.config?.predictOrdersPackageId ??
+		'@local-pkg/deepbook_predict_orders';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['policy'];
 	return (tx: Transaction) =>
@@ -380,12 +410,14 @@ export interface SettlePayoutBatchOptions {
 	package?: string;
 	arguments: SettlePayoutBatchArguments | [policy: TransactionArgument];
 	config?: {
-		predictPackageId?: string;
+		predictOrdersPackageId?: string;
 	};
 }
 export function settlePayoutBatch(options: SettlePayoutBatchOptions) {
 	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+		options.package ??
+		options.config?.predictOrdersPackageId ??
+		'@local-pkg/deepbook_predict_orders';
 	const argumentsTypes = [null] satisfies (string | null)[];
 	const parameterNames = ['policy'];
 	return (tx: Transaction) =>

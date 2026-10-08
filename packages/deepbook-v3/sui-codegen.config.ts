@@ -9,12 +9,13 @@ import type { SuiCodegenConfig } from '@mysten/codegen';
 // `git worktree` of an unpublished commit, so the sibling can stay on whatever branch it is on:
 // `DEEPBOOKV3_ROOT=/path/to/worktree pnpm codegen`.
 //
-// Predict and Sessions bindings were regenerated from deepbookv3 6e042ca9 (DBU-885), the
-// delayed-execution source of Predict Mainnet v4 / Testnet v5 and Sessions v3. That commit is
-// not published yet, so re-run codegen from the published commit before the Testnet and Mainnet
-// syncs and diff the result. Use the matching
-// deployment manifest and Published.toml records when running sync-deployment; those separate
-// current call targets from the original IDs of existing types.
+// The Predict, Sessions, order-flow companion (`deepbook_predict_orders`) and math library
+// (`deepbook_predict_math`) bindings were generated from deepbookv3 f840a28d (DBU-885,
+// MystenLabs/deepbookv3#1351): delayed execution split across Predict Mainnet v4 / Testnet v5,
+// the two fresh packages, and Sessions v3. That commit is not published yet, so re-run codegen
+// from the published commit before the Testnet and Mainnet syncs and diff the result. Use the
+// matching deployment manifest and Published.toml records when running sync-deployment; those
+// separate current call targets from the original IDs of existing types.
 //
 // One `pnpm codegen` run regenerates EVERY entry below from whatever commit that checkout is on,
 // so check it out to the intended anchor first and diff the result — a regeneration meant for one
@@ -73,6 +74,34 @@ const config: SuiCodegenConfig = {
 				poolVault: { type: 'plp::PoolVault' },
 				registry: { type: 'registry::Registry' },
 				oracleRegistry: { type: '@local-pkg/propbook::registry::OracleRegistry' },
+			},
+			bcsOverrides,
+		},
+		{
+			// Predict's order-flow companion: the per-market `MarketQueue`, the shared `OrderDesk`
+			// (the delayed-execution policy and the companion's version floor), every queued-order
+			// entry point, the queue reads and the queue events. It calls into Predict, so the
+			// Predict singletons it takes come from the same config object. The per-market queue is
+			// NOT a config argument: its ID is derived from the desk and the market
+			// (`queue::queue_id`), so each call names it.
+			package: '@local-pkg/deepbook_predict_orders',
+			path: `${DEEPBOOKV3}/packages/predict_orders`,
+			configArguments: {
+				predictOrdersPackageId: { package: '@local-pkg/deepbook_predict_orders' },
+				orderDesk: { type: 'desk::OrderDesk' },
+				protocolConfig: { type: '@local-pkg/deepbook_predict::protocol_config::ProtocolConfig' },
+				oracleRegistry: { type: '@local-pkg/propbook::registry::OracleRegistry' },
+			},
+			bcsOverrides,
+		},
+		{
+			// Predict's pure math library: `math::order_terms` and the `lazer_price::LazerPrice`
+			// a verified Pyth Lazer update decodes to. Rendered for its layouts and pure calls;
+			// the order flow builds a `LazerPrice` on chain, so no SDK path passes one in.
+			package: '@local-pkg/deepbook_predict_math',
+			path: `${DEEPBOOKV3}/packages/predict_math`,
+			configArguments: {
+				predictMathPackageId: { package: '@local-pkg/deepbook_predict_math' },
 			},
 			bcsOverrides,
 		},

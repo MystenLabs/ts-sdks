@@ -12,30 +12,34 @@
  * loaded `Pricer` snapshots into exposure business logic. Pool-wide PLP accounting
  * and profit accounting remain outside this module.
  *
- * It also owns the delayed-execution flows over the market's `OrderBook` (a
- * dynamic field created by the first queued order): queued placement, commit of
- * signed Pyth Lazer prices, resolve at the committed tick, refunds, cleanup, and
- * the settlement refund and payout phases. A queued fill never enters the account:
- * it stays an Open record until `enqueue_redeem_open` sells it or `try_settle`
- * pays it. `order_queue` owns the book's state and records; this module owns the
- * flow gates, the pricing, and every queue event.
+ * It also owns the order-flow primitives an order-flow companion package drives.
+ * `admit_mint` and `admit_sell` admit one queued order, pin a mint's boundary
+ * nodes, record the order's cash need in the market's `OrderFlowLedger`, and issue
+ * or advance its `OrderReceipt`. `commit` stores the bounded Pyth price the order
+ * fills at, `try_fill` fills or refunds it, `release` takes it out without
+ * filling, and `try_pay_settled` pays a queue-held position after settlement. A
+ * queued fill never enters the account: its position stays in the receipt.
+ * Admission, commit, and fill need an allowlisted companion witness; release and
+ * the settled payout need only the receipt. The queue itself, its escrow, its
+ * policy, and its events live in the companion.
  */
 
 import {
 	MoveStruct,
+	MoveTuple,
 	normalizeMoveArguments,
 	type RawTransactionArgument,
 	type ConfigValue,
 } from '../utils/index.js';
-import { U64 } from '../../bcs/integers.js';
-import { bcs } from '@mysten/sui/bcs';
+import { U64, U256 } from '../../bcs/integers.js';
+import { bcs, type BcsType } from '@mysten/sui/bcs';
 import { type Transaction, type TransactionArgument } from '@mysten/sui/transactions';
 import * as expiry_cash from './expiry_cash.js';
 import * as balance from './deps/sui/balance.js';
 import * as strike_exposure from './strike_exposure.js';
 import * as ewma from './ewma.js';
-import * as i64 from './deps/pyth_lazer/i64.js';
-import * as i16 from './deps/pyth_lazer/i16.js';
+import * as pricing from './pricing.js';
+import * as vec_map from './deps/sui/vec_map.js';
 const $moduleName = '@local-pkg/deepbook_predict::expiry_market';
 export const ValuationStamp = new MoveStruct({
 	name: `${$moduleName}::ValuationStamp`,
@@ -103,24 +107,93 @@ export const RedeemQuote = new MoveStruct({
 		inventory_impact_rebate: U64,
 	},
 });
-export const LazerTickFeed = new MoveStruct({
-	name: `${$moduleName}::LazerTickFeed`,
+export const OrderParties = new MoveStruct({
+	name: `${$moduleName}::OrderParties`,
 	fields: {
-		feed_id: bcs.u32(),
-		price: bcs.option(bcs.option(i64.I64)),
-		exponent: bcs.option(i16.I16),
-		/** The feed's own update time, in µs. */
-		feed_update_timestamp_us: bcs.option(bcs.option(U64)),
+		account_id: bcs.Address,
+		owner: bcs.Address,
+		/** Sell proceeds and the settled payout go only here. */
+		receive_address: bcs.Address,
+		referrer_account_id: bcs.option(bcs.Address),
+		referrer_receive_address: bcs.option(bcs.Address),
+		builder_code_id: bcs.option(bcs.Address),
 	},
 });
-export const LazerTick = new MoveStruct({
-	name: `${$moduleName}::LazerTick`,
+export const OrderReceipt = new MoveStruct({
+	name: `${$moduleName}::OrderReceipt`,
 	fields: {
-		/** `update.timestamp()`, in µs. */
-		envelope_us: U64,
-		/** Lazer channel id: `2` is `fixed_rate@50ms`, `3` is `fixed_rate@200ms`. */
+		expiry_market_id: bcs.Address,
+		stage: bcs.u8(),
+		/** A `constants` mint kind, or `order_kind_sell` once a sell is admitted. */
+		kind: bcs.u8(),
+		/** The account's snapshot at the last admission. */
+		parties: OrderParties,
+		lower_tick: U64,
+		higher_tick: U64,
+		/** The exact mint quantity, or the sell's close quantity. */
+		quantity: U64,
+		max_premium: U64,
+		min_quantity: U64,
+		max_probability: U64,
+		min_probability: U64,
+		min_proceeds: U64,
+		/** Earliest Pyth generation time the order may price at. */
+		tau_ms: U64,
+		/** At or past it the order is refunded, never filled. */
+		deadline_ms: U64,
+		/** The Lazer channel τ was planned on; the committed price must come from it. */
 		channel: bcs.u8(),
-		feeds: bcs.vector(LazerTickFeed),
+		vol: pricing.VolSnapshot,
+		budget: U64,
+		order_fee: U64,
+		/**
+		 * Worst-case market cash the fill can consume. Counted in the ledger's
+		 * `waiting_cash_need` while the order is admitted.
+		 */
+		cash_need: U64,
+		/**
+		 * The t₀ quote's pre-subsidy trading fee, capped at `budget`. Bounds the subsidy
+		 * `commit` reserves.
+		 */
+		subsidy_bound: U64,
+		subsidy_rate: U64,
+		subsidy_reserved: U64,
+		/** The committed Pyth price, 1e9-normalized; `0` until `commit`. */
+		spot: U64,
+		/** The committed update's envelope, in ms. The fill prices at it. */
+		tick_ms: U64,
+		/** The committed feed's own update time, in µs. */
+		generation_us: U64,
+		/** The open position's order ID; `0` until the mint fills. */
+		order_id: U256,
+		/** Stable economic-position handle, constant across partial closes. */
+		root_id: U256,
+		opened_at_ms: U64,
+		/**
+		 * The open position's size, the quantity `order_id` names. The request's
+		 * `quantity` is the mint or close quantity, so a sell admission never overwrites
+		 * the size it closes.
+		 */
+		held_quantity: U64,
+	},
+});
+export const OrderFlowLedgerKey = new MoveTuple({
+	name: `${$moduleName}::OrderFlowLedgerKey`,
+	fields: [bcs.bool()],
+});
+export const OrderFlowLedger = new MoveStruct({
+	name: `${$moduleName}::OrderFlowLedger`,
+	fields: {
+		/**
+		 * Admitted mints per payout-tree tick (tick -> count). A pinned node is never
+		 * pruned, so a fill never creates one.
+		 */
+		pins: vec_map.VecMap(U64, U64),
+		/**
+		 * Sum of the admitted orders' cash needs. `rebalance_expiry_cash` funds a live
+		 * market to at least required cash plus this.
+		 */
+		waiting_cash_need: U64,
 	},
 });
 export interface IdArguments {
@@ -852,12 +925,14 @@ export interface QuoteMintOptions {
 	};
 }
 /**
- * Quote the all-in cost of a mint request for an anonymous taker (no builder code)
- * without mutating any market state. Exact-quantity mode uses `min_quantity`;
- * budget mode conservatively sizes a lot-rounded fill under `max_premium`. The
- * quote applies live-mint and admission gates but does not preflight account
- * balance, slippage caps, or exposure-index capacity. Its penalty uses the current
- * pre-update EWMA state. Public for SDK and devInspect pre-trade pricing.
+ * Quote a prospective mint at a market-bound `Pricer`, priced like a queued fill
+ * at the clock, for SDK and devInspect previews. `exact_quantity` quotes
+ * `min_quantity` exactly; otherwise the largest quantity whose premium fits
+ * `max_premium`, at least `min_quantity`. No builder fee. The fee subsidy is the
+ * configured rate capped by the market's incentive balance, and `penalty_fee` is
+ * always 0. Gated only on the pricer binding (`EWrongPricer`) and `now < expiry`
+ * (`EInvalidOrderTiming`). Aborts `EOrderFailsLimits` when the mint would be
+ * refused at the clock.
  */
 export function quoteMint(options: QuoteMintOptions) {
 	const packageAddress =
@@ -918,9 +993,8 @@ export interface QuoteMintForAccountOptions {
 	};
 }
 /**
- * Quote the all-in cost of a mint request for one account, reading its builder
- * code. Budget mode caps premium by total account balance, including unsettled
- * accumulator funds. Public for SDK and devInspect pre-trade pricing.
+ * `quote_mint` for the wrapper's account: `max_premium` is capped at the account's
+ * balance and the account's builder fee is charged.
  */
 export function quoteMintForAccount(options: QuoteMintForAccountOptions) {
 	const packageAddress =
@@ -983,13 +1057,10 @@ export interface QuoteMintExactCostForAccountOptions {
 	};
 }
 /**
- * Quote `mint_exact_cost` for one account: the fill that mint would size for
- * `max_cost`, capped by total account balance including unsettled accumulator
- * funds, with that fill's cost decomposition. Applies the mint's live-mint gates,
- * sizing, `min_quantity` floor, and admission, but does not preflight
- * exposure-index capacity or cash backing. `quantity` is the figure to derive a
- * `min_quantity` slippage floor from. Public for SDK and devInspect pre-trade
- * pricing.
+ * Quote the largest mint whose all-in cost fits `min(max_cost, account  balance)`,
+ * at least `min_quantity`, for the wrapper's account, priced like a queued
+ * exact-cost fill at the clock. Charges the account's builder fee, and otherwise
+ * prices and gates like `quote_mint`.
  */
 export function quoteMintExactCostForAccount(options: QuoteMintExactCostForAccountOptions) {
 	const packageAddress =
@@ -1031,48 +1102,25 @@ export function quoteMintExactCostForAccount(options: QuoteMintExactCostForAccou
 			),
 		});
 }
-export interface QueuedOrderArguments {
-	market: RawTransactionArgument<string>;
-	recordId: RawTransactionArgument<number | bigint>;
-}
-export interface QueuedOrderOptions {
-	package?: string;
-	arguments:
-		| QueuedOrderArguments
-		| [market: RawTransactionArgument<string>, recordId: RawTransactionArgument<number | bigint>];
-	config?: {
-		predictPackageId?: string;
-	};
-}
-/** Return one queue record, or `none` for a missing or deleted record ID. */
-export function queuedOrder(options: QueuedOrderOptions) {
-	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, 'u64'] satisfies (string | null)[];
-	const parameterNames = ['market', 'recordId'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'expiry_market',
-			function: 'queued_order',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
-}
-export interface QueueHeadsArguments {
+export interface OrderFlowStateArguments {
 	market: RawTransactionArgument<string>;
 }
-export interface QueueHeadsOptions {
+export interface OrderFlowStateOptions {
 	package?: string;
-	arguments: QueueHeadsArguments | [market: RawTransactionArgument<string>];
+	arguments: OrderFlowStateArguments | [market: RawTransactionArgument<string>];
 	config?: {
 		predictPackageId?: string;
 	};
 }
 /**
- * Return `(resolve_head, next_id, last_tau_ms, last_committed_tau_ms)`.
- * `resolve_head` is a lower bound on the first unfinished record.
+ * Return `(waiting_cash_need, payout_tree_node_count, min_entry_probability)`: the
+ * summed cash need of the market's admitted orders, above required cash, that
+ * `rebalance_expiry_cash` keeps a live market funded with; the payout tree's node
+ * count, pinned zero nodes included, which sizes the keeper's fill batches; and
+ * the snapshotted minimum entry probability the SDK computes a queued mint's cash
+ * need from. For SDK, keeper, and devInspect reads.
  */
-export function queueHeads(options: QueueHeadsOptions) {
+export function orderFlowState(options: OrderFlowStateOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
@@ -1081,335 +1129,37 @@ export function queueHeads(options: QueueHeadsOptions) {
 		tx.moveCall({
 			package: packageAddress,
 			module: 'expiry_market',
-			function: 'queue_heads',
+			function: 'order_flow_state',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export interface PayoutProgressArguments {
-	market: RawTransactionArgument<string>;
+export interface ReceiptInfoArguments {
+	receipt: TransactionArgument;
 }
-export interface PayoutProgressOptions {
+export interface ReceiptInfoOptions {
 	package?: string;
-	arguments: PayoutProgressArguments | [market: RawTransactionArgument<string>];
+	arguments: ReceiptInfoArguments | [receipt: TransactionArgument];
 	config?: {
 		predictPackageId?: string;
 	};
 }
 /**
- * Return `(payout_cursor, next_id)`. The settlement payout walk is finished once
- * the two are equal.
+ * Return a receipt's
+ * `(expiry_market_id, stage, account_id, order_id,  pyth_source_id, cash_need, subsidy_bound, vol)`.
+ * For the order-flow companion's queue events and Lazer decoding, and devInspect
+ * reads of queue records.
  */
-export function payoutProgress(options: PayoutProgressOptions) {
+export function receiptInfo(options: ReceiptInfoOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null] satisfies (string | null)[];
-	const parameterNames = ['market'];
+	const parameterNames = ['receipt'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'expiry_market',
-			function: 'payout_progress',
+			function: 'receipt_info',
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
-}
-export interface WaitingCohortsArguments {
-	market: RawTransactionArgument<string>;
-}
-export interface WaitingCohortsOptions {
-	package?: string;
-	arguments: WaitingCohortsArguments | [market: RawTransactionArgument<string>];
-	config?: {
-		predictPackageId?: string;
-	};
-}
-/**
- * Return
- * `(cohort count, oldest uncommitted τ, oldest uncommitted τ above  last_committed_tau_ms)`.
- * The third value is the cohort the stuck gate's first rule watches.
- */
-export function waitingCohorts(options: WaitingCohortsOptions) {
-	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null] satisfies (string | null)[];
-	const parameterNames = ['market'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'expiry_market',
-			function: 'waiting_cohorts',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
-}
-export interface QueueStuckArguments {
-	market: RawTransactionArgument<string>;
-	config?: RawTransactionArgument<string>;
-}
-export interface QueueStuckOptions {
-	package?: string;
-	arguments: QueueStuckArguments;
-	config?: {
-		protocolConfig: ConfigValue;
-		predictPackageId?: string;
-	};
-}
-/**
- * Whether enqueue would refuse a new order as stuck right now (both rules of the
- * stuck gate). Drives the app's "pricing delayed" banner. Aborts
- * `protocol_config::EPolicyNotInitialized` for a market with a queue before the
- * policy exists.
- */
-export function queueStuck(options: QueueStuckOptions) {
-	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, '0x2::clock::Clock'] satisfies (string | null)[];
-	const parameterNames = ['market', 'config'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'expiry_market',
-			function: 'queue_stuck',
-			arguments: normalizeMoveArguments(
-				{
-					...options.arguments,
-					config: options.arguments?.config ?? options.config?.protocolConfig,
-				},
-				argumentsTypes,
-				parameterNames,
-			),
-		});
-}
-export interface PendingCountsArguments {
-	market: RawTransactionArgument<string>;
-}
-export interface PendingCountsOptions {
-	package?: string;
-	arguments: PendingCountsArguments | [market: RawTransactionArgument<string>];
-	config?: {
-		predictPackageId?: string;
-	};
-}
-/**
- * Return `(pending_mints, pending_sells)`, the unfinished orders counted against
- * the policy capacities.
- */
-export function pendingCounts(options: PendingCountsOptions) {
-	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null] satisfies (string | null)[];
-	const parameterNames = ['market'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'expiry_market',
-			function: 'pending_counts',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
-}
-export interface WaitingOrdersArguments {
-	market: RawTransactionArgument<string>;
-	accountId: RawTransactionArgument<string>;
-}
-export interface WaitingOrdersOptions {
-	package?: string;
-	arguments:
-		| WaitingOrdersArguments
-		| [market: RawTransactionArgument<string>, accountId: RawTransactionArgument<string>];
-	config?: {
-		predictPackageId?: string;
-	};
-}
-/** Return the unfinished queued orders `account_id` holds in this market. */
-export function waitingOrders(options: WaitingOrdersOptions) {
-	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, '0x2::object::ID'] satisfies (string | null)[];
-	const parameterNames = ['market', 'accountId'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'expiry_market',
-			function: 'waiting_orders',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
-}
-export interface OldestUnfinishedTauMsArguments {
-	market: RawTransactionArgument<string>;
-}
-export interface OldestUnfinishedTauMsOptions {
-	package?: string;
-	arguments: OldestUnfinishedTauMsArguments | [market: RawTransactionArgument<string>];
-	config?: {
-		predictPackageId?: string;
-	};
-}
-/** Return τ of the oldest cohort with an unfinished order, for monitoring. */
-export function oldestUnfinishedTauMs(options: OldestUnfinishedTauMsOptions) {
-	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null] satisfies (string | null)[];
-	const parameterNames = ['market'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'expiry_market',
-			function: 'oldest_unfinished_tau_ms',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
-}
-export interface SpareCashArguments {
-	market: RawTransactionArgument<string>;
-}
-export interface SpareCashOptions {
-	package?: string;
-	arguments: SpareCashArguments | [market: RawTransactionArgument<string>];
-	config?: {
-		predictPackageId?: string;
-	};
-}
-/**
- * Return market cash above required cash: the largest cash need a new queued mint
- * may have right now. Cash backing keeps cash at or above required cash.
- */
-export function spareCash(options: SpareCashOptions) {
-	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null] satisfies (string | null)[];
-	const parameterNames = ['market'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'expiry_market',
-			function: 'spare_cash',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
-}
-export interface WaitingCashNeedArguments {
-	market: RawTransactionArgument<string>;
-}
-export interface WaitingCashNeedOptions {
-	package?: string;
-	arguments: WaitingCashNeedArguments | [market: RawTransactionArgument<string>];
-	config?: {
-		predictPackageId?: string;
-	};
-}
-/**
- * Return the summed cash need of the market's unfinished queued orders.
- * `rebalance_expiry_cash` keeps a live market at required cash plus this.
- */
-export function waitingCashNeed(options: WaitingCashNeedOptions) {
-	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null] satisfies (string | null)[];
-	const parameterNames = ['market'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'expiry_market',
-			function: 'waiting_cash_need',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
-}
-export interface PayoutTreeNodeCountArguments {
-	market: RawTransactionArgument<string>;
-}
-export interface PayoutTreeNodeCountOptions {
-	package?: string;
-	arguments: PayoutTreeNodeCountArguments | [market: RawTransactionArgument<string>];
-	config?: {
-		predictPackageId?: string;
-	};
-}
-/**
- * Return the payout tree's node count, pinned zero nodes included. The keeper
- * sizes its resolve batches from it.
- */
-export function payoutTreeNodeCount(options: PayoutTreeNodeCountOptions) {
-	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null] satisfies (string | null)[];
-	const parameterNames = ['market'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'expiry_market',
-			function: 'payout_tree_node_count',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
-}
-export interface MinEntryProbabilityArguments {
-	market: RawTransactionArgument<string>;
-}
-export interface MinEntryProbabilityOptions {
-	package?: string;
-	arguments: MinEntryProbabilityArguments | [market: RawTransactionArgument<string>];
-	config?: {
-		predictPackageId?: string;
-	};
-}
-/**
- * Return the market's snapshotted minimum entry probability. The SDK computes a
- * queued mint's cash need from it.
- */
-export function minEntryProbability(options: MinEntryProbabilityOptions) {
-	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null] satisfies (string | null)[];
-	const parameterNames = ['market'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'expiry_market',
-			function: 'min_entry_probability',
-			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
-		});
-}
-export interface QuoteRedeemOpenArguments {
-	market: RawTransactionArgument<string>;
-	wrapper: RawTransactionArgument<string>;
-	Config?: RawTransactionArgument<string>;
-	pricer: TransactionArgument;
-	recordId: RawTransactionArgument<number | bigint>;
-	closeQuantity: RawTransactionArgument<number | bigint>;
-}
-export interface QuoteRedeemOpenOptions {
-	package?: string;
-	arguments: QuoteRedeemOpenArguments;
-	config?: {
-		protocolConfig: ConfigValue;
-		predictPackageId?: string;
-	};
-}
-/**
- * Quote an early sell of `close_quantity` from the Open record `record_id` at a
- * live `Pricer`, with the wrapper account's builder code. Prices the close the way
- * a queued sell fills, with the trading fee at the clock instead of a committed
- * tick. `proceeds` is before the order fee. Changes nothing. It has no version,
- * freeze, trade-window, or Pyth-freshness gate, only the pricer binding
- * (`EWrongPricer`). Aborts `ERecordNotOpen` for a missing or non-Open record, and
- * otherwise like the live close math. Does not check that the account owns the
- * record. Public for SDK and devInspect pricing before `enqueue_redeem_open`.
- */
-export function quoteRedeemOpen(options: QuoteRedeemOpenOptions) {
-	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, null, null, 'u64', 'u64', '0x2::clock::Clock'] satisfies (
-		string | null
-	)[];
-	const parameterNames = ['market', 'wrapper', 'Config', 'pricer', 'recordId', 'closeQuantity'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'expiry_market',
-			function: 'quote_redeem_open',
-			arguments: normalizeMoveArguments(
-				{
-					...options.arguments,
-					Config: options.arguments?.Config ?? options.config?.protocolConfig,
-				},
-				argumentsTypes,
-				parameterNames,
-			),
 		});
 }
 export interface QuantityArguments {
@@ -1772,17 +1522,69 @@ export function redeemInventoryImpactRebate(options: RedeemInventoryImpactRebate
 			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
 		});
 }
-export interface MintExactQuantityArguments {
+export interface QuoteCloseArguments {
 	market: RawTransactionArgument<string>;
-	wrapper: RawTransactionArgument<string>;
-	auth: TransactionArgument;
-	config?: RawTransactionArgument<string>;
 	pricer: TransactionArgument;
-	lowerTick: RawTransactionArgument<number | bigint>;
-	higherTick: RawTransactionArgument<number | bigint>;
-	quantity: RawTransactionArgument<number | bigint>;
-	maxCost: RawTransactionArgument<number | bigint>;
-	maxProbability: RawTransactionArgument<number | bigint>;
+	receipt: TransactionArgument;
+	closeQuantity: RawTransactionArgument<number | bigint>;
+	builderCodeId: RawTransactionArgument<string | null>;
+}
+export interface QuoteCloseOptions {
+	package?: string;
+	arguments:
+		| QuoteCloseArguments
+		| [
+				market: RawTransactionArgument<string>,
+				pricer: TransactionArgument,
+				receipt: TransactionArgument,
+				closeQuantity: RawTransactionArgument<number | bigint>,
+				builderCodeId: RawTransactionArgument<string | null>,
+		  ];
+	config?: {
+		predictPackageId?: string;
+	};
+}
+/**
+ * Quote an early sell of `close_quantity` of an open receipt's position at a
+ * market-bound `Pricer` and the clock, charging `builder_code_id`'s builder fee:
+ * the close a sell fill prices, without the trader's floors. `proceeds` is before
+ * the order fee. Changes nothing. Aborts on the pricer binding (`EWrongPricer`),
+ * another market's receipt (`EWrongMarket`), a receipt that is not open
+ * (`EWrongStage`), `now >= expiry` (`EInvalidOrderTiming`), or a close that cannot
+ * be priced (`EOrderFailsLimits`). Public for the order-flow companion's sell
+ * preview and SDK reads.
+ */
+export function quoteClose(options: QuoteCloseOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		'u64',
+		'0x1::option::Option<0x2::object::ID>',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = ['market', 'pricer', 'receipt', 'closeQuantity', 'builderCodeId'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'expiry_market',
+			function: 'quote_close',
+			arguments: normalizeMoveArguments(options.arguments, argumentsTypes, parameterNames),
+		});
+}
+export interface MintExactQuantityArguments {
+	Market: RawTransactionArgument<string>;
+	Wrapper: RawTransactionArgument<string>;
+	Auth: TransactionArgument;
+	Config?: RawTransactionArgument<string>;
+	Pricer: TransactionArgument;
+	LowerTick: RawTransactionArgument<number | bigint>;
+	HigherTick: RawTransactionArgument<number | bigint>;
+	Quantity: RawTransactionArgument<number | bigint>;
+	MaxCost: RawTransactionArgument<number | bigint>;
+	MaxProbability: RawTransactionArgument<number | bigint>;
 }
 export interface MintExactQuantityOptions {
 	package?: string;
@@ -1793,26 +1595,8 @@ export interface MintExactQuantityOptions {
 	};
 }
 /**
- * Mint an exact live position quantity against this expiry market.
- *
- * Requires the running package version to be at or above the protocol version
- * watermark, per-market mint pause to be off, trading globally enabled, valid
- * owner or authorized-app account auth, a market-bound live `Pricer`, and enough
- * expiry cash to back the post-mint max payout. While `use_pyth_spot_for_forward`
- * is set, the `Pricer` must also have loaded a usable, fresh Pyth spot: a mint
- * aborts `pricing::EPythSpotUnavailable` or `pricing::EPythSpotStale` rather than
- * execute on the Block Scholes-forward fallback, and the same holds for every
- * mint, mint quote, and `redeem_live`. Mint fees are paid by routing a withdraw
- * through the loaded account. The position's strike range is the tick pair
- * `(lower_tick, higher_tick]` (`lower_tick = 0` is `-inf`,
- * `higher_tick = pos_inf_tick` is `+inf`); the SDK converts raw strikes to ticks.
- * `max_cost` caps the all-in USDC withdrawal, while `max_probability` caps the
- * quoted per-contract probability before fees. Callers can pass
- * `std::u64::max_value!()` for either uncapped guard. Returns the minted order ID
- * for future order-scoped flows.
- *
- * Retired by delayed execution: aborts `EDelayedExecutionRequired` once the
- * version watermark reaches `current_version`. Use `enqueue_exact_quantity`.
+ * Retired by delayed execution: always aborts `EDelayedExecutionRequired`. Mints
+ * are queued through the order-flow companion.
  */
 export function mintExactQuantity(options: MintExactQuantityOptions) {
 	const packageAddress =
@@ -1832,16 +1616,16 @@ export function mintExactQuantity(options: MintExactQuantityOptions) {
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
 	const parameterNames = [
-		'market',
-		'wrapper',
-		'auth',
-		'config',
-		'pricer',
-		'lowerTick',
-		'higherTick',
-		'quantity',
-		'maxCost',
-		'maxProbability',
+		'Market',
+		'Wrapper',
+		'Auth',
+		'Config',
+		'Pricer',
+		'LowerTick',
+		'HigherTick',
+		'Quantity',
+		'MaxCost',
+		'MaxProbability',
 	];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -1851,7 +1635,7 @@ export function mintExactQuantity(options: MintExactQuantityOptions) {
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,
-					config: options.arguments?.config ?? options.config?.protocolConfig,
+					Config: options.arguments?.Config ?? options.config?.protocolConfig,
 				},
 				argumentsTypes,
 				parameterNames,
@@ -1859,16 +1643,16 @@ export function mintExactQuantity(options: MintExactQuantityOptions) {
 		});
 }
 export interface MintExactAmountArguments {
-	market: RawTransactionArgument<string>;
-	wrapper: RawTransactionArgument<string>;
-	auth: TransactionArgument;
-	config?: RawTransactionArgument<string>;
-	pricer: TransactionArgument;
-	lowerTick: RawTransactionArgument<number | bigint>;
-	higherTick: RawTransactionArgument<number | bigint>;
-	maxPremium: RawTransactionArgument<number | bigint>;
-	minQuantity: RawTransactionArgument<number | bigint>;
-	maxCost: RawTransactionArgument<number | bigint>;
+	Market: RawTransactionArgument<string>;
+	Wrapper: RawTransactionArgument<string>;
+	Auth: TransactionArgument;
+	Config?: RawTransactionArgument<string>;
+	Pricer: TransactionArgument;
+	LowerTick: RawTransactionArgument<number | bigint>;
+	HigherTick: RawTransactionArgument<number | bigint>;
+	MaxPremium: RawTransactionArgument<number | bigint>;
+	MinQuantity: RawTransactionArgument<number | bigint>;
+	MaxCost: RawTransactionArgument<number | bigint>;
 }
 export interface MintExactAmountOptions {
 	package?: string;
@@ -1879,22 +1663,8 @@ export interface MintExactAmountOptions {
 	};
 }
 /**
- * Mint a conservatively sized lot-rounded position whose premium does not exceed
- * `max_premium`. The result may be one lot below the largest fitting quantity and
- * must meet `min_quantity`.
- *
- * Fees, builder fees, and EWMA congestion penalties are charged on top of
- * `max_premium`, so `max_cost` — not `max_premium` — bounds the all-in USDC
- * withdrawal (`premium + trader-paid fee + builder_fee + EWMA penalty`).
- * `max_cost` is required: unlike `mint_exact_quantity`'s guards there is no value
- * that disables it, because the budget shape exists to bound spend. The sizing
- * budget is first capped to the account's available USDC after settlement; fees
- * still require additional available USDC at payment time. Any unspent premium
- * dust remains in the account because order quantity must be an integer number of
- * `position_lot_size` lots.
- *
- * Retired by delayed execution: aborts `EDelayedExecutionRequired` once the
- * version watermark reaches `current_version`. Use `enqueue_exact_amount`.
+ * Retired by delayed execution: always aborts `EDelayedExecutionRequired`. Mints
+ * are queued through the order-flow companion.
  */
 export function mintExactAmount(options: MintExactAmountOptions) {
 	const packageAddress =
@@ -1914,16 +1684,16 @@ export function mintExactAmount(options: MintExactAmountOptions) {
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
 	const parameterNames = [
-		'market',
-		'wrapper',
-		'auth',
-		'config',
-		'pricer',
-		'lowerTick',
-		'higherTick',
-		'maxPremium',
-		'minQuantity',
-		'maxCost',
+		'Market',
+		'Wrapper',
+		'Auth',
+		'Config',
+		'Pricer',
+		'LowerTick',
+		'HigherTick',
+		'MaxPremium',
+		'MinQuantity',
+		'MaxCost',
 	];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -1933,7 +1703,7 @@ export function mintExactAmount(options: MintExactAmountOptions) {
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,
-					config: options.arguments?.config ?? options.config?.protocolConfig,
+					Config: options.arguments?.Config ?? options.config?.protocolConfig,
 				},
 				argumentsTypes,
 				parameterNames,
@@ -1941,15 +1711,15 @@ export function mintExactAmount(options: MintExactAmountOptions) {
 		});
 }
 export interface MintExactCostArguments {
-	market: RawTransactionArgument<string>;
-	wrapper: RawTransactionArgument<string>;
-	auth: TransactionArgument;
-	config?: RawTransactionArgument<string>;
-	pricer: TransactionArgument;
-	lowerTick: RawTransactionArgument<number | bigint>;
-	higherTick: RawTransactionArgument<number | bigint>;
-	maxCost: RawTransactionArgument<number | bigint>;
-	minQuantity: RawTransactionArgument<number | bigint>;
+	Market: RawTransactionArgument<string>;
+	Wrapper: RawTransactionArgument<string>;
+	Auth: TransactionArgument;
+	Config?: RawTransactionArgument<string>;
+	Pricer: TransactionArgument;
+	LowerTick: RawTransactionArgument<number | bigint>;
+	HigherTick: RawTransactionArgument<number | bigint>;
+	MaxCost: RawTransactionArgument<number | bigint>;
+	MinQuantity: RawTransactionArgument<number | bigint>;
 }
 export interface MintExactCostOptions {
 	package?: string;
@@ -1960,39 +1730,8 @@ export interface MintExactCostOptions {
 	};
 }
 /**
- * Mint a lot-rounded position within an all-in `max_cost` budget.
- *
- * Unlike `mint_exact_amount`, fees are sized inside the budget: the quantity
- * search evaluates the all-in withdrawal the mint charges
- * (`premium +  trader-paid fee + builder_fee + EWMA penalty + inventory_impact_charge`)
- * against the fee-incentive, congestion, and book state at execution, so the debit
- * never exceeds `max_cost`. `max_cost` is first capped to the account's available
- * USDC after settlement, so `std::u64::max_value!()` sizes against the whole
- * balance.
- *
- * The budget search finds the largest fitting quantity. If that quantity costs
- * more than its maximum payout, a conservative search tries a smaller fill;
- * rounding can make that fallback miss a larger admissible fill. Only when the
- * budget is the limiting constraint is the remainder less than the incremental
- * all-in cost of one more lot. Payout-limited fills and lot-cap saturation can
- * leave more. Insufficient expiry cash backing aborts the mint; sizing does not
- * shrink the fill to available backing, and the quote does not preflight it.
- *
- * `min_quantity` is this entrypoint's slippage guard. The budget is fixed, so
- * every adverse move between building the transaction and executing it — the
- * price, the congestion surcharge, the sponsor subsidy, the inventory-impact
- * charge — shows up as fewer contracts, and a fill below `min_quantity` aborts
- * `EMintQuantityBelowMin`. It bounds the all-in price per contract at
- * `max_cost / min_quantity`, which is why the shape carries no separate
- * probability cap; passing `0` accepts any fill the budget buys. A budget too
- * small to admit `constants::min_premium` aborts `EPremiumBelowMinimum` rather
- * than minting nothing, and zero is such a budget: unlike `mint_exact_amount`
- * there is no `max_cost` cap to require, because here the budget IS the sizing
- * input. Other requirements match `mint_exact_quantity`. Returns the minted order
- * ID.
- *
- * Retired by delayed execution: aborts `EDelayedExecutionRequired` once the
- * version watermark reaches `current_version`. Use `enqueue_exact_cost`.
+ * Retired by delayed execution: always aborts `EDelayedExecutionRequired`. Mints
+ * are queued through the order-flow companion.
  */
 export function mintExactCost(options: MintExactCostOptions) {
 	const packageAddress =
@@ -2011,15 +1750,15 @@ export function mintExactCost(options: MintExactCostOptions) {
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
 	const parameterNames = [
-		'market',
-		'wrapper',
-		'auth',
-		'config',
-		'pricer',
-		'lowerTick',
-		'higherTick',
-		'maxCost',
-		'minQuantity',
+		'Market',
+		'Wrapper',
+		'Auth',
+		'Config',
+		'Pricer',
+		'LowerTick',
+		'HigherTick',
+		'MaxCost',
+		'MinQuantity',
 	];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -2029,7 +1768,7 @@ export function mintExactCost(options: MintExactCostOptions) {
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,
-					config: options.arguments?.config ?? options.config?.protocolConfig,
+					Config: options.arguments?.Config ?? options.config?.protocolConfig,
 				},
 				argumentsTypes,
 				parameterNames,
@@ -2037,15 +1776,15 @@ export function mintExactCost(options: MintExactCostOptions) {
 		});
 }
 export interface RedeemLiveArguments {
-	market: RawTransactionArgument<string>;
-	wrapper: RawTransactionArgument<string>;
-	auth: TransactionArgument;
-	config?: RawTransactionArgument<string>;
-	pricer: TransactionArgument;
-	orderId: RawTransactionArgument<number | bigint>;
-	closeQuantity: RawTransactionArgument<number | bigint>;
-	minProbability: RawTransactionArgument<number | bigint>;
-	minProceeds: RawTransactionArgument<number | bigint>;
+	Market: RawTransactionArgument<string>;
+	Wrapper: RawTransactionArgument<string>;
+	Auth: TransactionArgument;
+	Config?: RawTransactionArgument<string>;
+	Pricer: TransactionArgument;
+	OrderId: RawTransactionArgument<number | bigint>;
+	CloseQuantity: RawTransactionArgument<number | bigint>;
+	MinProbability: RawTransactionArgument<number | bigint>;
+	MinProceeds: RawTransactionArgument<number | bigint>;
 }
 export interface RedeemLiveOptions {
 	package?: string;
@@ -2056,32 +1795,9 @@ export interface RedeemLiveOptions {
 	};
 }
 /**
- * Redeem a live order you hold account authority over.
- *
- * A live order is priced and closed (partial or full). Settled orders must use
- * `redeem_settled`. Returns a replacement order ID only when a partial close
- * leaves quantity open.
- *
- * Requires a market-bound live `Pricer` and, while `use_pyth_spot_for_forward` is
- * set, a usable, fresh Pyth spot in it, the same Pyth requirement every mint
- * carries: the close aborts `pricing::EPythSpotUnavailable` or
- * `pricing::EPythSpotStale` rather than execute on the Block Scholes-forward
- * fallback. Trading and mint pauses do not apply. Through a gap in Pyth updates
- * the position stays open until Pyth recovers, an admin deselects Pyth or widens
- * `pyth_spot_freshness_ms` past the gap, or the market settles and
- * `redeem_settled` pays it.
- *
- * Two close-side slippage floors, the mirror of mint's `max_probability` /
- * `max_cost` pair; pass `0` to disable either. `min_probability` floors the quoted
- * per-contract range probability (same units as mint's `max_probability`).
- * `min_proceeds` floors the all-in net USDC credited to the account
- * (`redeem_amount` minus trading fee, builder fee, and EWMA penalty), the mirror
- * of mint's all-in `max_cost`.
- *
- * Retired by delayed execution: aborts `EDelayedExecutionRequired` once the
- * version watermark reaches `current_version`. Early sells then go through
- * `enqueue_redeem_open`, which sells Open queue records only, so a position held
- * in the account has no early exit after the cutover.
+ * Retired by delayed execution: always aborts `EDelayedExecutionRequired`. Early
+ * sells of queue-held positions go through the order-flow companion; account-held
+ * positions exit through `redeem_settled` after settlement.
  */
 export function redeemLive(options: RedeemLiveOptions) {
 	const packageAddress =
@@ -2100,15 +1816,15 @@ export function redeemLive(options: RedeemLiveOptions) {
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
 	const parameterNames = [
-		'market',
-		'wrapper',
-		'auth',
-		'config',
-		'pricer',
-		'orderId',
-		'closeQuantity',
-		'minProbability',
-		'minProceeds',
+		'Market',
+		'Wrapper',
+		'Auth',
+		'Config',
+		'Pricer',
+		'OrderId',
+		'CloseQuantity',
+		'MinProbability',
+		'MinProceeds',
 	];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -2118,7 +1834,7 @@ export function redeemLive(options: RedeemLiveOptions) {
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,
-					config: options.arguments?.config ?? options.config?.protocolConfig,
+					Config: options.arguments?.Config ?? options.config?.protocolConfig,
 				},
 				argumentsTypes,
 				parameterNames,
@@ -2329,30 +2045,16 @@ export interface TrySettleOptions {
 	};
 }
 /**
- * Settle an expired market and pay its Open queue records, one phase per call.
- * Permissionless, and never aborts because of a queued order.
+ * Settle from Propbook's exact positive Pyth spot at expiry, or from the exact
+ * Block Scholes minute-boundary spot when Pyth remains unavailable after the
+ * compiled grace period. Permissionless and idempotent; missing or unusable
+ * observations leave the market unsettled.
  *
- * 1.  Refund phase: while queued orders are still waiting, refund them (reason 5;
- *     a RefundDue order keeps its stored reason) visiting at most the policy's
- *     `settle_refund_batch` records, refunded or not, and return false. These
- *     refunds skip node pruning and report `sender` `@0x0`.
- * 2.  Settle phase: settle from Propbook's exact positive Pyth spot at expiry, or
- *     from the exact Block Scholes minute-boundary spot when Pyth remains
- *     unavailable after the compiled grace period; missing or unusable
- *     observations leave the market unsettled. Then close the queue and move any
- *     leftover queue escrow into market cash (`QueueEscrowSwept`). This call pays
- *     nothing.
- * 3.  Payout phase: from the payout cursor, visit at most the policy's
- *     `settle_payout_batch` records. Each Open record is paid its settled payout
- *     from market cash (zero for a loser), marked Closed, and reported with
- *     `OpenRecordSettled`. A record the market cannot pay stays Open with
- *     `OpenRecordPayoutSkipped`. Other records and deleted IDs count as visited.
- *
- * Before the policy exists the compiled default batch sizes apply. Emits
- * `MarketPayoutsCompleted` once: from the call that moves the payout cursor to the
- * last record, or from the settling call of a market without a queue. Returns true
- * once the market is settled and the payout walk is complete; keepers stop on that
- * event or `payout_progress`.
+ * Settlement reads nothing from the order-flow queue. Every admission's deadline
+ * is at least `constants::deadline_expiry_margin_ms!()` before expiry, so at
+ * expiry a waiting order can only be released, and the settled liability already
+ * covers every queue-held position, which lives in the payout tree. The companion
+ * drains and pays its queue afterwards.
  */
 export function trySettle(options: TrySettleOptions) {
 	const packageAddress =
@@ -2377,50 +2079,68 @@ export function trySettle(options: TrySettleOptions) {
 			),
 		});
 }
-export interface EnqueueExactQuantityArguments {
+export interface AdmitMintArguments<W extends BcsType<any>> {
+	W: RawTransactionArgument<W>;
 	market: RawTransactionArgument<string>;
-	wrapper: RawTransactionArgument<string>;
-	auth: TransactionArgument;
 	config?: RawTransactionArgument<string>;
+	account: TransactionArgument;
 	propbookRegistry?: RawTransactionArgument<string>;
 	pyth: RawTransactionArgument<string>;
 	bsValues: RawTransactionArgument<string>;
 	bsSvi: RawTransactionArgument<string>;
+	kind: RawTransactionArgument<number>;
 	lowerTick: RawTransactionArgument<number | bigint>;
 	higherTick: RawTransactionArgument<number | bigint>;
 	quantity: RawTransactionArgument<number | bigint>;
-	maxCost: RawTransactionArgument<number | bigint>;
+	maxPremium: RawTransactionArgument<number | bigint>;
+	minQuantity: RawTransactionArgument<number | bigint>;
 	maxProbability: RawTransactionArgument<number | bigint>;
+	budget: RawTransactionArgument<number | bigint>;
+	orderFee: RawTransactionArgument<number | bigint>;
+	sviMaxAgeMs: RawTransactionArgument<number | bigint>;
+	channel: RawTransactionArgument<number>;
+	tauMs: RawTransactionArgument<number | bigint>;
+	deadlineMs: RawTransactionArgument<number | bigint>;
 }
-export interface EnqueueExactQuantityOptions {
+export interface AdmitMintOptions<W extends BcsType<any>> {
 	package?: string;
-	arguments: EnqueueExactQuantityArguments;
+	arguments: AdmitMintArguments<W>;
 	config?: {
 		protocolConfig: ConfigValue;
 		oracleRegistry: ConfigValue;
 		predictPackageId?: string;
 	};
+	typeArguments: [string];
 }
 /**
- * Place a queued mint for an exact quantity, priced later at Pyth's signed price
- * for its τ. Replaces `mint_exact_quantity` once the cutover is reached.
- * `max_cost` caps the all-in withdrawal and is mandatory; `max_probability` caps
- * the entry probability at τ. Escrows the budget,
- * `min(max_cost, quantity,  available - order_fee)`, and the order fee, and
- * returns the new record ID.
+ * Admit one queued mint for the order-flow companion and return its receipt.
  *
- * Aborts, charging nothing, when a gate or check refuses the order: the version
- * and cutover gates, the trading and mint pauses, the snapshot stage, a stuck or
- * full queue (`EQueueStuck`, `EQueueFull`, `EAccountOrderCap`), τ at or past the
- * cutoff (`EPastCutoff`), the volatility snapshot, an unlimited or zero `max_cost`
- * (`EMintCostCapRequired`), a balance not above the order fee (`EFeeNotCovered`),
- * an order that already fails its own limits at t₀ (`EOrderFailsLimits`), or a
- * cash need above the market's spare cash (`EInsufficientMarketCash`).
+ * `kind` is a `constants` mint kind. The companion has already taken
+ * `budget +  order_fee` from the account and escrows it. `budget` caps the fill's
+ * all-in cost; the companion sets it to `min(max_cost, balance - order_fee)`, and
+ * to at most `quantity` for an exact-quantity mint. The order prices at a Pyth
+ * price on Lazer channel `channel`, generated at or after `tau_ms`, and must fill
+ * before `deadline_ms`.
+ *
+ * Aborts unless `W` is allowlisted, the version and cutover gates pass, trading
+ * and this market's mints are unpaused, and the snapshot stage is closed. The
+ * timing must fit (`EInvalidOrderTiming`): `channel` a supported fixed-rate
+ * channel (`lazer_price::channel_fixed_rate_*`), `tau_ms` on its grid, at most one
+ * of its ticks before now, and before `deadline_ms`, τ before the no-trade window,
+ * and the deadline at least `constants::deadline_expiry_margin_ms!()` before
+ * expiry. Then `svi_max_age_ms` must be within `constants::max_svi_max_age_ms!()`
+ * and `kind` a mint kind (`EInvalidOrderTerms`), the volatility snapshot must
+ * load, `budget` must be positive (`EMintCostCapRequired`), the order must pass
+ * its own limits at the clock without subsidy (`EOrderFailsLimits`), and its cash
+ * need must fit the market's spare cash (`EInsufficientMarketCash`). Admission
+ * then pins both boundary nodes, creating them under the node cap, and adds the
+ * cash need to the ledger.
  */
-export function enqueueExactQuantity(options: EnqueueExactQuantityOptions) {
+export function admitMint<W extends BcsType<any>>(options: AdmitMintOptions<W>) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [
+		`${options.typeArguments[0]}`,
 		null,
 		null,
 		null,
@@ -2428,116 +2148,49 @@ export function enqueueExactQuantity(options: EnqueueExactQuantityOptions) {
 		null,
 		null,
 		null,
-		null,
+		'u8',
 		'u64',
 		'u64',
 		'u64',
 		'u64',
 		'u64',
-		'0x2::accumulator::AccumulatorRoot',
+		'u64',
+		'u64',
+		'u64',
+		'u64',
+		'u8',
+		'u64',
+		'u64',
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
 	const parameterNames = [
+		'W',
 		'market',
-		'wrapper',
-		'auth',
 		'config',
+		'account',
 		'propbookRegistry',
 		'pyth',
 		'bsValues',
 		'bsSvi',
+		'kind',
 		'lowerTick',
 		'higherTick',
 		'quantity',
-		'maxCost',
-		'maxProbability',
-	];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'expiry_market',
-			function: 'enqueue_exact_quantity',
-			arguments: normalizeMoveArguments(
-				{
-					...options.arguments,
-					config: options.arguments?.config ?? options.config?.protocolConfig,
-					propbookRegistry: options.arguments?.propbookRegistry ?? options.config?.oracleRegistry,
-				},
-				argumentsTypes,
-				parameterNames,
-			),
-		});
-}
-export interface EnqueueExactAmountArguments {
-	market: RawTransactionArgument<string>;
-	wrapper: RawTransactionArgument<string>;
-	auth: TransactionArgument;
-	config?: RawTransactionArgument<string>;
-	propbookRegistry?: RawTransactionArgument<string>;
-	pyth: RawTransactionArgument<string>;
-	bsValues: RawTransactionArgument<string>;
-	bsSvi: RawTransactionArgument<string>;
-	lowerTick: RawTransactionArgument<number | bigint>;
-	higherTick: RawTransactionArgument<number | bigint>;
-	maxPremium: RawTransactionArgument<number | bigint>;
-	minQuantity: RawTransactionArgument<number | bigint>;
-	maxCost: RawTransactionArgument<number | bigint>;
-}
-export interface EnqueueExactAmountOptions {
-	package?: string;
-	arguments: EnqueueExactAmountArguments;
-	config?: {
-		protocolConfig: ConfigValue;
-		oracleRegistry: ConfigValue;
-		predictPackageId?: string;
-	};
-}
-/**
- * Place a queued premium-budget mint: sized at τ under `max_premium`, at least
- * `min_quantity`, with the all-in withdrawal capped by the mandatory `max_cost`.
- * Escrows `min(max_cost, available - order_fee)` and the order fee. Refuses orders
- * like `enqueue_exact_quantity`. Returns the new record ID.
- */
-export function enqueueExactAmount(options: EnqueueExactAmountOptions) {
-	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [
-		null,
-		null,
-		null,
-		null,
-		null,
-		null,
-		null,
-		null,
-		'u64',
-		'u64',
-		'u64',
-		'u64',
-		'u64',
-		'0x2::accumulator::AccumulatorRoot',
-		'0x2::clock::Clock',
-	] satisfies (string | null)[];
-	const parameterNames = [
-		'market',
-		'wrapper',
-		'auth',
-		'config',
-		'propbookRegistry',
-		'pyth',
-		'bsValues',
-		'bsSvi',
-		'lowerTick',
-		'higherTick',
 		'maxPremium',
 		'minQuantity',
-		'maxCost',
+		'maxProbability',
+		'budget',
+		'orderFee',
+		'sviMaxAgeMs',
+		'channel',
+		'tauMs',
+		'deadlineMs',
 	];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'expiry_market',
-			function: 'enqueue_exact_amount',
+			function: 'admit_mint',
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,
@@ -2547,129 +2200,61 @@ export function enqueueExactAmount(options: EnqueueExactAmountOptions) {
 				argumentsTypes,
 				parameterNames,
 			),
+			typeArguments: options.typeArguments,
 		});
 }
-export interface EnqueueExactCostArguments {
+export interface AdmitSellArguments<W extends BcsType<any>> {
+	W: RawTransactionArgument<W>;
 	market: RawTransactionArgument<string>;
-	wrapper: RawTransactionArgument<string>;
-	auth: TransactionArgument;
 	config?: RawTransactionArgument<string>;
+	account: TransactionArgument;
+	receipt: TransactionArgument;
 	propbookRegistry?: RawTransactionArgument<string>;
 	pyth: RawTransactionArgument<string>;
 	bsValues: RawTransactionArgument<string>;
 	bsSvi: RawTransactionArgument<string>;
-	lowerTick: RawTransactionArgument<number | bigint>;
-	higherTick: RawTransactionArgument<number | bigint>;
-	maxCost: RawTransactionArgument<number | bigint>;
-	minQuantity: RawTransactionArgument<number | bigint>;
-}
-export interface EnqueueExactCostOptions {
-	package?: string;
-	arguments: EnqueueExactCostArguments;
-	config?: {
-		protocolConfig: ConfigValue;
-		oracleRegistry: ConfigValue;
-		predictPackageId?: string;
-	};
-}
-/**
- * Place a queued all-in-budget mint: sized at τ so the all-in cost fits
- * `max_cost`, at least `min_quantity`. Escrows
- * `min(max_cost, available -  order_fee)` and the order fee. `max_cost` is
- * mandatory here too: the unlimited value is refused. Refuses orders like
- * `enqueue_exact_quantity`. Returns the new record ID.
- */
-export function enqueueExactCost(options: EnqueueExactCostOptions) {
-	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [
-		null,
-		null,
-		null,
-		null,
-		null,
-		null,
-		null,
-		null,
-		'u64',
-		'u64',
-		'u64',
-		'u64',
-		'0x2::accumulator::AccumulatorRoot',
-		'0x2::clock::Clock',
-	] satisfies (string | null)[];
-	const parameterNames = [
-		'market',
-		'wrapper',
-		'auth',
-		'config',
-		'propbookRegistry',
-		'pyth',
-		'bsValues',
-		'bsSvi',
-		'lowerTick',
-		'higherTick',
-		'maxCost',
-		'minQuantity',
-	];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'expiry_market',
-			function: 'enqueue_exact_cost',
-			arguments: normalizeMoveArguments(
-				{
-					...options.arguments,
-					config: options.arguments?.config ?? options.config?.protocolConfig,
-					propbookRegistry: options.arguments?.propbookRegistry ?? options.config?.oracleRegistry,
-				},
-				argumentsTypes,
-				parameterNames,
-			),
-		});
-}
-export interface EnqueueRedeemOpenArguments {
-	market: RawTransactionArgument<string>;
-	wrapper: RawTransactionArgument<string>;
-	auth: TransactionArgument;
-	config?: RawTransactionArgument<string>;
-	propbookRegistry?: RawTransactionArgument<string>;
-	pyth: RawTransactionArgument<string>;
-	bsValues: RawTransactionArgument<string>;
-	bsSvi: RawTransactionArgument<string>;
-	recordId: RawTransactionArgument<number | bigint>;
 	closeQuantity: RawTransactionArgument<number | bigint>;
 	minProbability: RawTransactionArgument<number | bigint>;
 	minProceeds: RawTransactionArgument<number | bigint>;
+	orderFee: RawTransactionArgument<number | bigint>;
+	sviMaxAgeMs: RawTransactionArgument<number | bigint>;
+	channel: RawTransactionArgument<number>;
+	tauMs: RawTransactionArgument<number | bigint>;
+	deadlineMs: RawTransactionArgument<number | bigint>;
 }
-export interface EnqueueRedeemOpenOptions {
+export interface AdmitSellOptions<W extends BcsType<any>> {
 	package?: string;
-	arguments: EnqueueRedeemOpenArguments;
+	arguments: AdmitSellArguments<W>;
 	config?: {
 		protocolConfig: ConfigValue;
 		oracleRegistry: ConfigValue;
 		predictPackageId?: string;
 	};
+	typeArguments: [string];
 }
 /**
- * Place a queued early sell of `close_quantity` of an Open record's position.
- * `record_id` is the record's queue ID, not the position's order ID. The source
- * record must belong to this account (`ENotRecordOwner`) and be Open
- * (`ERecordNotOpen`, also for a missing ID). It is marked Closed and its whole
- * position moves into the new record until the sell fills or refunds.
- * `min_probability` and `min_proceeds` are the close-side floors at τ. Returns the
- * new record ID.
+ * Admit an early sell of `close_quantity` of an open receipt's position: the
+ * receipt moves to the sell stage in place, with the sell's request, the account's
+ * current owner and builder code, a fresh volatility snapshot, τ, the deadline,
+ * and no price. The companion escrows `order_fee` and owns the minimum-sell
+ * checks.
  *
- * Open during the trading pause and a market mint pause. Escrows only the order
- * fee, so a balance equal to it is enough. Refuses a sell below
- * `min_sell_quantity` or one leaving a remainder below it (`EBelowMinSell`). There
- * is no spare-cash check: the keeper funds the market before τ, and resolve
- * refunds a sell the market still cannot cover.
+ * Open during the trading pause and a market mint pause. Aborts unless `W` is
+ * allowlisted, the version, cutover, and snapshot-stage gates and `admit_mint`'s
+ * timing and SVI-age checks pass, the receipt is this market's (`EWrongMarket`),
+ * open (`EWrongStage`), and `account`'s (`ENotRecordOwner`), the volatility
+ * snapshot loads, and the close passes its own floors at the clock
+ * (`EOrderFailsLimits`). Then adds the sell's cash need,
+ * `ceil(close_quantity * (1 - backing_buffer_lambda)) + 1`, to the ledger: a close
+ * lowers payout liability by at least `lambda * close_quantity` and pays at most
+ * `close_quantity`. There is no spare-cash check. The keeper funds the market
+ * before τ, and the fill refunds a sell the market cannot cover.
  */
-export function enqueueRedeemOpen(options: EnqueueRedeemOpenOptions) {
+export function admitSell<W extends BcsType<any>>(options: AdmitSellOptions<W>) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [
+		`${options.typeArguments[0]}`,
 		null,
 		null,
 		null,
@@ -2682,28 +2267,36 @@ export function enqueueRedeemOpen(options: EnqueueRedeemOpenOptions) {
 		'u64',
 		'u64',
 		'u64',
-		'0x2::accumulator::AccumulatorRoot',
+		'u64',
+		'u8',
+		'u64',
+		'u64',
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
 	const parameterNames = [
+		'W',
 		'market',
-		'wrapper',
-		'auth',
 		'config',
+		'account',
+		'receipt',
 		'propbookRegistry',
 		'pyth',
 		'bsValues',
 		'bsSvi',
-		'recordId',
 		'closeQuantity',
 		'minProbability',
 		'minProceeds',
+		'orderFee',
+		'sviMaxAgeMs',
+		'channel',
+		'tauMs',
+		'deadlineMs',
 	];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'expiry_market',
-			function: 'enqueue_redeem_open',
+			function: 'admit_sell',
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,
@@ -2713,37 +2306,53 @@ export function enqueueRedeemOpen(options: EnqueueRedeemOpenOptions) {
 				argumentsTypes,
 				parameterNames,
 			),
+			typeArguments: options.typeArguments,
 		});
 }
-export interface CommitArguments {
+export interface CommitArguments<W extends BcsType<any>> {
+	W: RawTransactionArgument<W>;
 	market: RawTransactionArgument<string>;
 	config?: RawTransactionArgument<string>;
-	updates: TransactionArgument;
+	receipt: TransactionArgument;
+	price: TransactionArgument;
 }
-export interface CommitOptions {
+export interface CommitOptions<W extends BcsType<any>> {
 	package?: string;
-	arguments: CommitArguments;
+	arguments: CommitArguments<W>;
 	config?: {
 		protocolConfig: ConfigValue;
 		predictPackageId?: string;
 	};
+	typeArguments: [string];
 }
 /**
- * Attach verified Pyth Lazer prices to the waiting cohorts whose τ they match.
- * Permissionless. Each update must come from the current Pyth Lazer package's
- * verifier earlier in the same PTB; their order in `updates` does not matter. An
- * update that matches no waiting cohort is skipped.
+ * Commit the Pyth price an admitted order fills at: a `LazerPrice`, which only the
+ * `deepbook_predict_math` library builds, from a Pyth-verified Lazer update.
+ * Stores the spot, the envelope time (the tick the fill prices at), and the feed's
+ * generation time. For a mint it also reserves the fee subsidy,
+ * `min(subsidy_bound * fee_incentive_subsidy_rate, incentives left)`, records the
+ * rate and amount, and returns the reservation for the companion to escrow with
+ * the order. A sell returns a zero balance.
  *
- * Uses Lazer's v1 `Update`, which Pyth marked deprecated on Mainnet but still
- * serves; v2 arrives with a later upgrade.
+ * The price must be the receipt's: its Pyth feed and channel, an envelope at
+ * exactly τ or one tick of that channel later (the backup tick), a generation time
+ * between τ and the envelope, an envelope at or before now, and a pricing-safe
+ * spot (`EWrongPrice`). Aborts unless `W` is allowlisted, the version gate passes,
+ * the receipt is this market's (`EWrongMarket`), admitted with no price yet
+ * (`EWrongStage`), and before its deadline (`EInvalidOrderTiming`).
  */
-export function commit(options: CommitOptions) {
+export function commit<W extends BcsType<any>>(options: CommitOptions<W>) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, 'vector<null>', '0x2::clock::Clock'] satisfies (
-		string | null
-	)[];
-	const parameterNames = ['market', 'config', 'updates'];
+	const argumentsTypes = [
+		`${options.typeArguments[0]}`,
+		null,
+		null,
+		null,
+		null,
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = ['W', 'market', 'config', 'receipt', 'price'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -2757,43 +2366,131 @@ export function commit(options: CommitOptions) {
 				argumentsTypes,
 				parameterNames,
 			),
+			typeArguments: options.typeArguments,
 		});
 }
-export interface ResolveArguments {
+export interface TryFillArguments<W extends BcsType<any>> {
+	W: RawTransactionArgument<W>;
 	market: RawTransactionArgument<string>;
 	config?: RawTransactionArgument<string>;
-	maxOrders: RawTransactionArgument<number | bigint>;
+	receipt: TransactionArgument;
+	escrow: TransactionArgument;
 }
-export interface ResolveOptions {
+export interface TryFillOptions<W extends BcsType<any>> {
 	package?: string;
-	arguments: ResolveArguments;
+	arguments: TryFillArguments<W>;
 	config?: {
 		protocolConfig: ConfigValue;
 		predictPackageId?: string;
 	};
+	typeArguments: [string];
 }
 /**
- * Fill or refund committed orders in τ order from the market's own cash, visiting
- * at most `max_orders` records. Permissionless. An order the market's cash cannot
- * cover is refunded with reason 8. Returns how many orders it finished.
+ * Fill or refund one committed order at its committed price and consume or return
+ * its receipt. `escrow` is the order's escrowed budget, order fee, and reserved
+ * subsidy. Returns
+ * `(reason, receipt to keep, escrow left over,  quantity, amount, trading_fee, builder_fee, referral_fee, subsidy_used,  inventory_impact)`.
+ * The amounts are zero on a refund. For a mint `amount` is the all-in cost and
+ * `inventory_impact` the charge; for a sell `amount` is the proceeds and
+ * `inventory_impact` the rebate.
  *
- * Walks the cohorts in τ order and loads only committed or overdue ones; a cohort
- * still waiting for its price is skipped without loading a record. Every record
- * visited counts against `max_orders`, finished or missing ones included, so one
- * call stays inside Sui's per-transaction object limit. An order at or past its
- * deadline is refunded (reason 5), never filled. Returns 0 on a settled market,
- * whose waiting orders `try_settle` refunds.
+ * Aborts only on a companion bookkeeping error: `W` not allowlisted, the version,
+ * freeze, or snapshot-stage gate, another market's receipt (`EWrongMarket`), a
+ * receipt not admitted or without a price (`EWrongStage`), or `escrow` below
+ * `budget + order_fee + subsidy_reserved` (`EEscrowMismatch`). Every market
+ * condition returns a refund reason instead, `0` for a fill: 5 at or past the
+ * deadline, which also covers expiry and settlement; 2 when no `Pricer` exists at
+ * the tick; then the fill's own 1 (the order's limits), 2 (admission), 4 (a pinned
+ * node is missing, a backstop), and 8 (the market's cash after the fill would not
+ * cover its required cash).
+ *
+ * A mint fill pays the premium, the trading fee net of the referral share, the
+ * used subsidy, the order fee, and the inventory-impact charge into market cash,
+ * sends the builder and referral fees, returns unused subsidy to the incentive
+ * balance, emits `OrderMinted` with no congestion penalty, and returns the receipt
+ * open. A sell fill pays the proceeds (redeem value plus inventory-impact rebate,
+ * less the trading and builder fees) to the receipt's receive address, keeps the
+ * trading and order fees in market cash, emits `LiveOrderRedeemed`, and returns
+ * the receipt open with the replacement position of a partial close, or consumes
+ * it on a full close. A refund keeps the order fee in market cash for reasons 1
+ * and 2, returns the reserved subsidy to the incentive balance, prunes a mint's
+ * emptied unpinned nodes, returns the rest of the escrow, and returns a sell's
+ * receipt open or consumes a mint's. Every outcome takes the order out of the
+ * ledger.
  */
-export function resolve(options: ResolveOptions) {
+export function tryFill<W extends BcsType<any>>(options: TryFillOptions<W>) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, 'u64', '0x2::clock::Clock'] satisfies (string | null)[];
-	const parameterNames = ['market', 'config', 'maxOrders'];
+	const argumentsTypes = [
+		`${options.typeArguments[0]}`,
+		null,
+		null,
+		null,
+		null,
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = ['W', 'market', 'config', 'receipt', 'escrow'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'expiry_market',
-			function: 'resolve',
+			function: 'try_fill',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface ReleaseArguments {
+	market: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
+	receipt: TransactionArgument;
+	escrow: TransactionArgument;
+	reason: RawTransactionArgument<number>;
+	prune: RawTransactionArgument<boolean>;
+}
+export interface ReleaseOptions {
+	package?: string;
+	arguments: ReleaseArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/**
+ * Take an admitted order out without filling it: the companion's deadline, admin,
+ * and settlement-drain refunds release their receipt here. `escrow` is the order's
+ * escrowed budget, order fee, and reserved subsidy, and `reason` the refund's
+ * `constants::fill_reason_*` code. The order fee follows `try_fill`'s refund rule:
+ * reasons 1 and 2 keep it in market cash, and every other reason leaves it in the
+ * escrow returned. Returns the reservation to the incentive balance, subtracts the
+ * exact cash need from the ledger, and unpins a mint's boundary ticks, pruning
+ * emptied, unpinned, unretained nodes only when `prune` and the market is
+ * unsettled. Returns a sell's receipt open, still holding its position, or `none`
+ * for a mint's, which it consumes, and the rest of the escrow.
+ *
+ * Needs no allowlisting and checks only the version floor, so the drain works
+ * while the protocol is frozen and after the witness is removed. Keeping an order
+ * fee moves market cash, so like a fill it aborts inside the keeper's snapshot
+ * stage (`ESnapshotInProgress`). Aborts on another market's receipt
+ * (`EWrongMarket`), a receipt not admitted (`EWrongStage`), or `escrow` below
+ * `budget + order_fee + subsidy_reserved` (`EEscrowMismatch`).
+ */
+export function release(options: ReleaseOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null, null, null, null, 'u8', 'bool'] satisfies (string | null)[];
+	const parameterNames = ['market', 'config', 'receipt', 'escrow', 'reason', 'prune'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'expiry_market',
+			function: 'release',
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,
@@ -2804,119 +2501,38 @@ export function resolve(options: ResolveOptions) {
 			),
 		});
 }
-export interface RefundArguments {
+export interface TryPaySettledArguments {
 	market: RawTransactionArgument<string>;
 	config?: RawTransactionArgument<string>;
-	maxOrders: RawTransactionArgument<number | bigint>;
+	receipt: TransactionArgument;
 }
-export interface RefundOptions {
+export interface TryPaySettledOptions {
 	package?: string;
-	arguments: RefundArguments;
+	arguments: TryPaySettledArguments;
 	config?: {
 		protocolConfig: ConfigValue;
 		predictPackageId?: string;
 	};
 }
 /**
- * Refund waiting orders at or past their deadline (reason 5), visiting at most
- * `max_orders` records, refunded or not. It walks the cohorts in τ order and stops
- * at the first one not yet due, since deadlines never decrease along the queue. A
- * RefundDue order keeps its stored reason. Permissionless, and available under the
- * emergency freeze. Returns how many orders it refunded: `0`, without aborting,
- * when none is due.
+ * Pay an open receipt's settled payout, zero for a loser, to its receive address
+ * and consume the receipt. Returns the payout and `none`. When the payout is above
+ * market cash or above the settled liability left, changes nothing and returns
+ * that payout with the receipt, so the companion's payout walk moves on and a
+ * later upgrade can pay it. Needs no allowlisting and checks only the version
+ * floor. Aborts on another market's receipt (`EWrongMarket`), a receipt that is
+ * not open (`EWrongStage`), or an unsettled market (`EMarketNotSettled`).
  */
-export function refund(options: RefundOptions) {
+export function tryPaySettled(options: TryPaySettledOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, 'u64', '0x2::clock::Clock'] satisfies (string | null)[];
-	const parameterNames = ['market', 'config', 'maxOrders'];
+	const argumentsTypes = [null, null, null] satisfies (string | null)[];
+	const parameterNames = ['market', 'config', 'receipt'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
 			module: 'expiry_market',
-			function: 'refund',
-			arguments: normalizeMoveArguments(
-				{
-					...options.arguments,
-					config: options.arguments?.config ?? options.config?.protocolConfig,
-				},
-				argumentsTypes,
-				parameterNames,
-			),
-		});
-}
-export interface AdminRefundArguments {
-	market: RawTransactionArgument<string>;
-	config?: RawTransactionArgument<string>;
-	AdminCap: RawTransactionArgument<string>;
-	recordIds: RawTransactionArgument<Array<number | bigint>>;
-}
-export interface AdminRefundOptions {
-	package?: string;
-	arguments: AdminRefundArguments;
-	config?: {
-		protocolConfig: ConfigValue;
-		predictPackageId?: string;
-	};
-}
-/**
- * Refund the listed waiting orders at once (reason 7; a RefundDue order keeps its
- * stored reason), wherever they sit in the queue. Admin-only, and available under
- * the emergency freeze. Missing and finished IDs are skipped.
- */
-export function adminRefund(options: AdminRefundOptions) {
-	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, null, 'vector<u64>', '0x2::clock::Clock'] satisfies (
-		string | null
-	)[];
-	const parameterNames = ['market', 'config', 'AdminCap', 'recordIds'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'expiry_market',
-			function: 'admin_refund',
-			arguments: normalizeMoveArguments(
-				{
-					...options.arguments,
-					config: options.arguments?.config ?? options.config?.protocolConfig,
-				},
-				argumentsTypes,
-				parameterNames,
-			),
-		});
-}
-export interface CleanupArguments {
-	market: RawTransactionArgument<string>;
-	config?: RawTransactionArgument<string>;
-	recordIds: RawTransactionArgument<Array<number | bigint>>;
-}
-export interface CleanupOptions {
-	package?: string;
-	arguments: CleanupArguments;
-	config?: {
-		protocolConfig: ConfigValue;
-		predictPackageId?: string;
-	};
-}
-/**
- * Delete Refunded and Closed records of a settled market. Permissionless; the
- * storage rebate goes to the caller. Missing IDs and other statuses are skipped;
- * `QueuedOrdersCleaned` is emitted only when a record was deleted. Takes `&Clock`
- * only to stamp the event.
- */
-export function cleanup(options: CleanupOptions) {
-	const packageAddress =
-		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, 'vector<u64>', '0x2::clock::Clock'] satisfies (
-		string | null
-	)[];
-	const parameterNames = ['market', 'config', 'recordIds'];
-	return (tx: Transaction) =>
-		tx.moveCall({
-			package: packageAddress,
-			module: 'expiry_market',
-			function: 'cleanup',
+			function: 'try_pay_settled',
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,

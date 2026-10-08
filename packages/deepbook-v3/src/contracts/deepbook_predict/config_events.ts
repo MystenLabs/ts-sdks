@@ -7,7 +7,7 @@
 import { MoveStruct } from '../utils/index.js';
 import { U64 } from '../../bcs/integers.js';
 import { bcs } from '@mysten/sui/bcs';
-import * as delayed_execution_config from './delayed_execution_config.js';
+import * as type_name from './deps/std/type_name.js';
 const $moduleName = '@local-pkg/deepbook_predict::config_events';
 export const StrikeExposureTemplateConfigUpdated = new MoveStruct({
 	name: `${$moduleName}::StrikeExposureTemplateConfigUpdated`,
@@ -94,18 +94,19 @@ export const SettledRedeemKeeperUpdated = new MoveStruct({
 		allowed: bcs.bool(),
 	},
 });
-export const DelayedExecutionPolicyUpdated = new MoveStruct({
-	name: `${$moduleName}::DelayedExecutionPolicyUpdated`,
-	fields: {
-		policy: delayed_execution_config.DelayedExecutionPolicy,
-		onchain_timestamp_ms: U64,
-	},
-});
 export const FlushOperatorUpdated = new MoveStruct({
 	name: `${$moduleName}::FlushOperatorUpdated`,
 	fields: {
 		operator: bcs.Address,
 		added: bcs.bool(),
+		onchain_timestamp_ms: U64,
+	},
+});
+export const OrderFlowUpdated = new MoveStruct({
+	name: `${$moduleName}::OrderFlowUpdated`,
+	fields: {
+		order_flow: type_name.TypeName,
+		enabled: bcs.bool(),
 		onchain_timestamp_ms: U64,
 	},
 });
