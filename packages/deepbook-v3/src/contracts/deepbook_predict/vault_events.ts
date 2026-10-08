@@ -67,6 +67,23 @@ export const ExpiryPnl = new MoveStruct({
 		amount: U64,
 	},
 });
+export const ExpiryPnlRealized = new MoveStruct({
+	name: `${$moduleName}::ExpiryPnlRealized`,
+	fields: {
+		pool_vault_id: bcs.Address,
+		expiry_market_id: bcs.Address,
+		propbook_underlying_id: bcs.u32(),
+		expiry: U64,
+		settlement_price: U64,
+		/** False only for a loss, which only an expiry's first emission can report. */
+		in_profit: bcs.bool(),
+		/**
+		 * Magnitude of the change in the gross realized result since the previous
+		 * emission.
+		 */
+		amount: U64,
+	},
+});
 export const SupplyRequested = new MoveStruct({
 	name: `${$moduleName}::SupplyRequested`,
 	fields: {

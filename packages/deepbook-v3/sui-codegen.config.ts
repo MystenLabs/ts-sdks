@@ -9,10 +9,10 @@ import type { SuiCodegenConfig } from '@mysten/codegen';
 // `git worktree` of an unpublished commit, so the sibling can stay on whatever branch it is on:
 // `DEEPBOOKV3_ROOT=/path/to/worktree pnpm codegen`.
 //
-// Predict and Sessions bindings were regenerated from deepbookv3 0795ad1c (DBU-885), the
+// Predict and Sessions bindings were regenerated from deepbookv3 6e042ca9 (DBU-885), the
 // delayed-execution source of Predict Mainnet v4 / Testnet v5 and Sessions v3. That commit is
-// not published yet, so event and struct layouts can still move before the publish: re-run
-// codegen from the published commit before the Testnet and Mainnet syncs. Use the matching
+// not published yet, so re-run codegen from the published commit before the Testnet and Mainnet
+// syncs and diff the result. Use the matching
 // deployment manifest and Published.toml records when running sync-deployment; those separate
 // current call targets from the original IDs of existing types.
 //
