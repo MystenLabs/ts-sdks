@@ -30,7 +30,7 @@ import {
 	exactlyOne,
 	type DecodableTransactionResult,
 } from './decode.js';
-import { PredictInputError, PredictPreflightError } from './errors.js';
+import { PredictInputError, PredictPreflightError, type PredictPreflightCode } from './errors.js';
 import {
 	ORDER_KIND,
 	ORDER_STATUS,
@@ -419,8 +419,19 @@ export interface MarketQueueView extends MarketQueueState {
 	mode: ExecutionMode;
 	/** τ, deadline and cutoff for an order placed now; null before the policy exists. */
 	timing: TimingPreview | null;
-	/** Whether a new order would pass the queue gates (not the account or cash checks). */
-	acceptingOrders: boolean;
+	/**
+	 * Whether a new mint would pass the queue gates now: the same gates `enqueueMint*` checks
+	 * before its fee and cash checks (cutover, policy, pauses, stuck, mint capacity, the cutoff,
+	 * and the account cap when an owner was given). One side can be full while the other is open.
+	 */
+	acceptingMints: boolean;
+	/** Whether a new sell would pass the queue gates now (sells skip the mint pauses). */
+	acceptingSells: boolean;
+	/**
+	 * Why each side refuses now, or null: the `PredictPreflightError` code the builder would
+	 * throw for the queue gates.
+	 */
+	refusal: { mint: PredictPreflightCode | null; sell: PredictPreflightCode | null };
 	/** The largest mint the market's spare cash admits now; null before the policy exists. */
 	maxMint: { exactQuantity: MaxMintNow; budget: MaxMintNow } | null;
 }
@@ -1711,16 +1722,24 @@ export class PredictClient {
 						noTradeWindowMs: state.protocol.noTradeWindowMs,
 					})
 				: null;
+			// The builders' own gate, so the flags can never disagree with their preflight.
+			const refusalFor = (side: 'mint' | 'sell'): PredictPreflightCode | null => {
+				try {
+					this.#assertQueueOpen(state, side, nowMs);
+					return null;
+				} catch (e) {
+					if (e instanceof PredictPreflightError) return e.code;
+					throw e;
+				}
+			};
+			const refusal = { mint: refusalFor('mint'), sell: refusalFor('sell') };
 			return {
 				...state,
 				mode,
 				timing,
-				acceptingOrders:
-					mode === 'delayed' &&
-					timing != null &&
-					timing.beforeCutoff &&
-					!state.stuck &&
-					!state.protocol.frozen,
+				acceptingMints: refusal.mint == null,
+				acceptingSells: refusal.sell == null,
+				refusal,
 				maxMint: policy
 					? {
 							exactQuantity: maxMintNow({

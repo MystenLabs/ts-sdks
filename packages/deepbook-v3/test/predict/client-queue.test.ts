@@ -264,17 +264,51 @@ describe('reads', () => {
 		// p_min 0.5: spare cash admits a ~495 USDC budget, so the 10 USDC balance binds.
 		const s = scenario({ available: 10_020_000n, minEntryProbability: 500_000_000n });
 		const view = await client(s).pc.read.queue(market(s), OWNER);
-		expect(view).toMatchObject({ mode: 'delayed', acceptingOrders: true });
+		expect(view).toMatchObject({
+			mode: 'delayed',
+			acceptingMints: true,
+			acceptingSells: true,
+			refusal: { mint: null, sell: null },
+		});
 		expect(view.timing!.tickMs).toBe(200n);
 		expect(view.maxMint!.budget).toMatchObject({ limitedBy: 'balance', maxRaw: 10_000_000n });
 		expect(view.maxMint!.exactQuantity.limitedBy).toBe('cash');
-		const stuck = scenario({ stuck: true });
-		expect((await client(stuck).pc.read.queue(market(stuck))).acceptingOrders).toBe(false);
 		const unset = scenario({ policy: null });
 		expect(await client(unset).pc.read.queue(market(unset))).toMatchObject({
 			timing: null,
 			maxMint: null,
-			acceptingOrders: false,
+			acceptingMints: false,
+			acceptingSells: false,
+			refusal: { mint: 'not-live', sell: 'not-live' },
+		});
+	});
+
+	test.each([
+		['mints full, sells open', { pending: [100n, 0n] }, 'queue-full', null],
+		['sells full, mints open', { pending: [0n, 100n] }, null, 'queue-full'],
+		['both sides full', { pending: [100n, 100n] }, 'queue-full', 'queue-full'],
+		['minting paused, sells open', { mintPaused: true }, 'paused', null],
+		['trading paused, sells open', { tradingPaused: true }, 'paused', null],
+		['pricing delayed', { stuck: true }, 'stuck', 'stuck'],
+		['frozen', { frozen: true }, 'paused', 'paused'],
+		['watermark not raised', { watermark: 3n }, 'not-live', 'not-live'],
+		['the account at its cap', { waitingOrders: 5n }, 'account-cap', 'account-cap'],
+	] as [string, Partial<QueueScenario>, string | null, string | null][])(
+		'read.queue acceptance matches the builder gates: %s',
+		async (_name, overrides, mint, sell) => {
+			const s = scenario(overrides);
+			const view = await client(s).pc.read.queue(market(s), OWNER);
+			expect(view.refusal).toEqual({ mint, sell });
+			expect(view.acceptingMints).toBe(mint == null);
+			expect(view.acceptingSells).toBe(sell == null);
+		},
+	);
+
+	test('read.queue acceptance past the cutoff', async () => {
+		const late = scenario({ expiryMs: BigInt(Date.now()) + 10_500n });
+		expect((await client(late).pc.read.queue(market(late))).refusal).toEqual({
+			mint: 'past-cutoff',
+			sell: 'past-cutoff',
 		});
 	});
 
