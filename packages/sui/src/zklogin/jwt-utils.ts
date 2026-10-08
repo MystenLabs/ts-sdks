@@ -3,7 +3,7 @@
 
 import type { JwtPayload } from './jwt-decode.js';
 import { jwtDecode } from './jwt-decode.js';
-import { normalizeZkLoginIssuer } from './utils.js';
+import { normalizeZkLoginIssuer } from './publickey-utils.js';
 
 function base64UrlCharTo6Bits(base64UrlChar: string): number[] {
 	if (base64UrlChar.length !== 1) {
