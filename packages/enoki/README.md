@@ -51,8 +51,12 @@ function LoginButton() {
 
 ### Low-level client usage
 
+Use the client-only entry point to call the Enoki API without loading wallet helpers or local
+zkLogin cryptography. This is useful in environments that do not tree-shake unused exports, such as
+React Native. The existing exports from `@mysten/enoki` remain available.
+
 ```ts
-import { EnokiClient } from '@mysten/enoki';
+import { EnokiClient } from '@mysten/enoki/client';
 
 const client = new EnokiClient({
 	apiKey: 'your-enoki-api-key',
