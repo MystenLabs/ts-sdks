@@ -3,16 +3,13 @@
 import type { Transaction, TransactionResult } from '@mysten/sui/transactions';
 import type { GeneratedConfig } from '../config/generated.js';
 import { U64_MAX } from '../units.js';
+import { accountMoveCalls as account } from '../../account.js';
 import * as expiryMarket from '../../contracts/deepbook_predict/expiry_market.js';
 import { withAuth } from './common.js';
 
 // The trade calls with their `auth` argument already supplied (see `withAuth`): each
 // takes its generated options minus that slot and expands to auth → call.
 const authed = {
-	mintExactQuantity: withAuth(expiryMarket.mintExactQuantity),
-	mintExactAmount: withAuth(expiryMarket.mintExactAmount),
-	mintExactCost: withAuth(expiryMarket.mintExactCost),
-	redeemLive: withAuth(expiryMarket.redeemLive),
 	redeemSettled: withAuth(expiryMarket.redeemSettled),
 };
 
@@ -26,7 +23,7 @@ export interface MarketFeeds {
 }
 
 // Load a fresh `Pricer` from the live oracle feeds. Every live-flow trade call
-// (`mint_*`, `redeem_live`) and every live quote (`quote_mint*`, `quote_redeem_open`) borrows
+// (`mint_*`, `redeem_live`) and every live quote (`quote_mint*`, the queue's `quote_redeem_open`) borrows
 // this `&Pricer` and it must be loaded first in the PTB. Queued orders (`enqueue_*`) don't take
 // one: they read the oracle objects directly. Deployed sig `load_live_pricer` (expiry_market.move): market, config,
 // propbook_registry (&OracleRegistry), pyth, bs_values, bs_svi, clock (auto-injected).
@@ -50,16 +47,24 @@ export function loadLivePricer(
 }
 
 // The three commands every live-flow trade is: load a fresh market-bound `Pricer`, mint
-// owner auth, then the one `expiry_market::*` call that consumes both. Only the pricer is
-// composed here — `build` returns an `authed.*` call, which is the other two commands.
+// owner auth, then the one `expiry_market::*` call that consumes both.
+//
+// The live trades are retired: Predict v4 keeps their published signatures but names every
+// parameter with a leading underscore, which codegen renders as a capitalized key (`_market` →
+// `Market`). So the auth is minted here and passed as `Auth`, rather than through `withAuth`.
+// The emitted commands are unchanged, and still reach a pre-v4 package.
 function liveTrade(
 	config: GeneratedConfig,
 	args: { expiryMarketId: string } & MarketFeeds,
-	build: (pricer: TransactionResult) => (tx: Transaction) => TransactionResult,
+	build: (
+		pricer: TransactionResult,
+		auth: TransactionResult,
+	) => (tx: Transaction) => TransactionResult,
 ): (tx: Transaction) => TransactionResult {
 	return (tx) => {
 		const pricer = tx.add(loadLivePricer(config, args));
-		return tx.add(build(pricer));
+		const auth = tx.add(account.generateAuth({ config }));
+		return tx.add(build(pricer, auth));
 	};
 }
 
@@ -68,9 +73,9 @@ function liveTrade(
 // hot potato consumed by this call). `maxCostRaw`/`maxProbabilityRaw` default to
 // `U64_MAX` (no slippage cap). Deployed sig `mint_exact_quantity`.
 /**
- * @deprecated Retired by delayed execution (DBU-885): `mint_exact_quantity` aborts
- * `EDelayedExecutionRequired` once the version watermark reaches 4. Use `enqueueExactQuantity`
- * from `tx/queue.ts`.
+ * @deprecated Retired by delayed execution (DBU-885): Predict v4's `mint_exact_quantity` always
+ * aborts `EDelayedExecutionRequired`, so this works only while the config's call target is a
+ * pre-v4 package. Use `enqueueExactQuantity` from `tx/queue.ts`.
  */
 export function mintExactQuantity(
 	config: GeneratedConfig,
@@ -84,18 +89,19 @@ export function mintExactQuantity(
 		maxProbabilityRaw?: bigint;
 	} & MarketFeeds,
 ): (tx: Transaction) => TransactionResult {
-	return liveTrade(config, args, (pricer) =>
-		authed.mintExactQuantity({
+	return liveTrade(config, args, (pricer, auth) =>
+		expiryMarket.mintExactQuantity({
 			config,
 			arguments: {
-				market: args.expiryMarketId,
-				wrapper: args.wrapperId,
-				pricer,
-				lowerTick: args.lowerTick,
-				higherTick: args.higherTick,
-				quantity: args.quantityRaw,
-				maxCost: args.maxCostRaw ?? U64_MAX,
-				maxProbability: args.maxProbabilityRaw ?? U64_MAX,
+				Market: args.expiryMarketId,
+				Wrapper: args.wrapperId,
+				Auth: auth,
+				Pricer: pricer,
+				LowerTick: args.lowerTick,
+				HigherTick: args.higherTick,
+				Quantity: args.quantityRaw,
+				MaxCost: args.maxCostRaw ?? U64_MAX,
+				MaxProbability: args.maxProbabilityRaw ?? U64_MAX,
 			},
 		}),
 	);
@@ -106,8 +112,8 @@ export function mintExactQuantity(
 // order id (u256). Command order is pricer → auth → mint. Deployed sig
 // `mint_exact_amount`: …, max_premium, min_quantity, max_cost, root.
 /**
- * @deprecated Retired by delayed execution (DBU-885): aborts `EDelayedExecutionRequired` once the
- * version watermark reaches 4. Use `enqueueExactAmount`.
+ * @deprecated Retired by delayed execution (DBU-885): Predict v4 always aborts it
+ * (`EDelayedExecutionRequired`). Use `enqueueExactAmount`.
  */
 export function mintExactAmount(
 	config: GeneratedConfig,
@@ -121,18 +127,19 @@ export function mintExactAmount(
 		maxCostRaw?: bigint;
 	} & MarketFeeds,
 ): (tx: Transaction) => TransactionResult {
-	return liveTrade(config, args, (pricer) =>
-		authed.mintExactAmount({
+	return liveTrade(config, args, (pricer, auth) =>
+		expiryMarket.mintExactAmount({
 			config,
 			arguments: {
-				market: args.expiryMarketId,
-				wrapper: args.wrapperId,
-				pricer,
-				lowerTick: args.lowerTick,
-				higherTick: args.higherTick,
-				maxPremium: args.maxPremiumRaw,
-				minQuantity: args.minQuantityRaw,
-				maxCost: args.maxCostRaw ?? U64_MAX,
+				Market: args.expiryMarketId,
+				Wrapper: args.wrapperId,
+				Auth: auth,
+				Pricer: pricer,
+				LowerTick: args.lowerTick,
+				HigherTick: args.higherTick,
+				MaxPremium: args.maxPremiumRaw,
+				MinQuantity: args.minQuantityRaw,
+				MaxCost: args.maxCostRaw ?? U64_MAX,
 			},
 		}),
 	);
@@ -140,8 +147,8 @@ export function mintExactAmount(
 
 /**
  * Mint within an all-in budget, including fees, using the v2 entrypoint.
- * @deprecated Retired by delayed execution (DBU-885): aborts `EDelayedExecutionRequired` once the
- * version watermark reaches 4. Use `enqueueExactCost`.
+ * @deprecated Retired by delayed execution (DBU-885): Predict v4 always aborts it
+ * (`EDelayedExecutionRequired`). Use `enqueueExactCost`.
  */
 export function mintExactCost(
 	config: GeneratedConfig,
@@ -154,17 +161,18 @@ export function mintExactCost(
 		minQuantityRaw: bigint;
 	} & MarketFeeds,
 ): (tx: Transaction) => TransactionResult {
-	return liveTrade(config, args, (pricer) =>
-		authed.mintExactCost({
+	return liveTrade(config, args, (pricer, auth) =>
+		expiryMarket.mintExactCost({
 			config,
 			arguments: {
-				market: args.expiryMarketId,
-				wrapper: args.wrapperId,
-				pricer,
-				lowerTick: args.lowerTick,
-				higherTick: args.higherTick,
-				maxCost: args.maxCostRaw,
-				minQuantity: args.minQuantityRaw,
+				Market: args.expiryMarketId,
+				Wrapper: args.wrapperId,
+				Auth: auth,
+				Pricer: pricer,
+				LowerTick: args.lowerTick,
+				HigherTick: args.higherTick,
+				MaxCost: args.maxCostRaw,
+				MinQuantity: args.minQuantityRaw,
 			},
 		}),
 	);
@@ -176,8 +184,8 @@ export function mintExactCost(
 // the replacement order id when a partial close leaves quantity open, else none. Command
 // order is pricer → auth → redeem. Deployed sig `redeem_live`.
 /**
- * @deprecated Retired by delayed execution (DBU-885): aborts `EDelayedExecutionRequired` once the
- * version watermark reaches 4. Account positions then have no early exit; queued fills are Open
+ * @deprecated Retired by delayed execution (DBU-885): Predict v4 always aborts it
+ * (`EDelayedExecutionRequired`). Account positions then have no early exit; queued fills are Open
  * records sold with `enqueueRedeemOpen`.
  */
 export function redeemLive(
@@ -191,24 +199,25 @@ export function redeemLive(
 		minProceedsRaw?: bigint;
 	} & MarketFeeds,
 ): (tx: Transaction) => TransactionResult {
-	return liveTrade(config, args, (pricer) =>
-		authed.redeemLive({
+	return liveTrade(config, args, (pricer, auth) =>
+		expiryMarket.redeemLive({
 			config,
 			arguments: {
-				market: args.expiryMarketId,
-				wrapper: args.wrapperId,
-				pricer,
-				orderId: args.orderId,
-				closeQuantity: args.closeQuantityRaw,
-				minProbability: args.minProbabilityRaw ?? 0n,
-				minProceeds: args.minProceedsRaw ?? 0n,
+				Market: args.expiryMarketId,
+				Wrapper: args.wrapperId,
+				Auth: auth,
+				Pricer: pricer,
+				OrderId: args.orderId,
+				CloseQuantity: args.closeQuantityRaw,
+				MinProbability: args.minProbabilityRaw ?? 0n,
+				MinProceeds: args.minProceedsRaw ?? 0n,
 			},
 		}),
 	);
 }
 
 // Unchanged by delayed execution: still pays settled positions held in the account. It doesn't
-// pay Open queue records, which `try_settle` pays at settlement.
+// pay Open queue records, which the queue's `settle_step` pays at settlement.
 //
 // Owner-authorized redeem of a settled position: closes `orderId` IN FULL against the
 // recorded settlement price (the deployed entrypoint takes no quantity — a settled claim

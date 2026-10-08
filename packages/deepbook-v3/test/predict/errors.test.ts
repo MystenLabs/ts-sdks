@@ -8,7 +8,6 @@ import {
 	PredictPreflightError,
 	decodeMoveAbort,
 	describePredictError,
-	isPreviewUnavailable,
 } from '../../src/predict/errors.js';
 import type { MoveAbortError } from '../../src/predict/errors.js';
 import type { ReadClient } from '../../src/predict/reads/inspect.js';
@@ -153,15 +152,42 @@ describe('describePredictError', () => {
 			describePredictError(new PredictMoveError('protocol_config', 17n, 'ECutoverNotReached')),
 		).toMatch(/watermark/);
 		expect(
+			describePredictError(new PredictMoveError('protocol_config', 15n, 'EOrderFlowNotAllowed')),
+		).toMatch(/order-flow/);
+		expect(
 			describePredictError(new PredictMoveError('protocol_config', 3n, 'EPackageVersionDisabled')),
 		).toMatch(/retired/);
+		expect(
+			describePredictError(new PredictMoveError('desk', 0n, 'EPackageVersionDisabled')),
+		).toMatch(/order-flow package version is retired/);
+		expect(
+			describePredictError(new PredictMoveError('expiry_market', 13n, 'EDelayedExecutionRequired')),
+		).toMatch(/queued order/);
+	});
+
+	test("the queue's own checks are named by the companion's queue module", () => {
 		for (const name of [
 			'ERecordNotOpen',
 			'ENotRecordOwner',
 			'EQueueStuck',
-			'EDelayedExecutionRequired',
+			'EQueueFull',
+			'EAccountOrderCap',
+			'EPastCutoff',
+			'EFeeNotCovered',
+			'EBelowMinSell',
+			'EMintCostCapRequired',
+			'EWrongDesk',
+			'EWrongMarket',
+			'EMarketNotExpired',
 		]) {
-			expect(describePredictError(new PredictMoveError('expiry_market', 0n, name))).not.toBeNull();
+			expect(describePredictError(new PredictMoveError('queue', 0n, name))).not.toBeNull();
+		}
+		// They no longer abort from Predict's expiry_market.
+		for (const name of ['EQueueStuck', 'ERecordNotOpen', 'EPastCutoff']) {
+			expect(describePredictError(new PredictMoveError('expiry_market', 0n, name))).toBeNull();
+		}
+		for (const name of ['EFeedMissing', 'EPropertyNotRequested', 'EGenerationAfterEnvelope']) {
+			expect(describePredictError(new PredictMoveError('lazer_price', 0n, name))).not.toBeNull();
 		}
 	});
 
@@ -173,17 +199,6 @@ describe('describePredictError', () => {
 		expect(
 			describePredictError(new PredictMoveError('plp', 20n, 'EInsufficientMarketCash')),
 		).toBeNull();
-	});
-
-	test('a stale or missing on-chain Pyth spot means no preview, not an error', () => {
-		expect(isPreviewUnavailable(new PredictMoveError('pricing', 17n, 'EPythSpotUnavailable'))).toBe(
-			true,
-		);
-		expect(isPreviewUnavailable(new PredictMoveError('pricing', 18n, 'EPythSpotStale'))).toBe(true);
-		expect(
-			isPreviewUnavailable(new PredictMoveError('pricing', 4n, 'EBlockScholesPriceStale')),
-		).toBe(false);
-		expect(isPreviewUnavailable(new Error('x'))).toBe(false);
 	});
 
 	test('PredictPreflightError carries its code', () => {

@@ -5,6 +5,7 @@ import { Transaction } from '@mysten/sui/transactions';
 import { deriveDynamicFieldID, deriveObjectID, normalizeSuiAddress } from '@mysten/sui/utils';
 import { describe, expect, test } from 'vitest';
 
+import { deriveQueueId } from '../../src/predict/queue-id.js';
 import {
 	MAX_SESSION_DURATION_MS,
 	MAX_SESSIONS_PER_ACCOUNT,
@@ -533,15 +534,19 @@ test('upgraded sessions keep the v1 grant field and call the v2 budget mint', ()
 });
 
 // Delayed execution (DBU-885): the queued Predict wrappers (Sessions v3). No Auth, no pricer:
-// placement reads the oracle objects directly, after the propbook registry.
+// placement reads the oracle objects directly, after the propbook registry. Each wrapper names the
+// market's `MarketQueue` first and the order-flow companion's `OrderDesk` after the sessions config.
 describe('queued Predict wrappers', () => {
 	const ORACLE_REGISTRY = '0x' + '88'.repeat(32);
 	const PYTH = '0x' + '91'.repeat(32);
 	const BS_VALUES = '0x' + '92'.repeat(32);
 	const BS_SVI = '0x' + '93'.repeat(32);
+	const DESK = '0x' + 'd5'.repeat(32);
+	const QUEUE = deriveQueueId(DESK, MARKET);
 	const target = {
 		expiryMarketId: MARKET,
 		wrapperId: WRAPPER,
+		orderDesk: DESK,
 		protocolConfig: PROTOCOL_CONFIG,
 		oracleRegistry: ORACLE_REGISTRY,
 		pythFeed: PYTH,
@@ -550,13 +555,15 @@ describe('queued Predict wrappers', () => {
 	};
 	const u64 = (v: bigint) => Buffer.from(bcs.u64().serialize(v).toBytes()).toString('base64');
 
-	function expectLeadingObjects(tx: Transaction) {
-		expect([0, 1, 2, 3, 4, 5, 6, 7, 8].map((i) => argObjectId(tx, 0, i))).toEqual(
+	function expectLeadingObjects(tx: Transaction, queue = QUEUE) {
+		expect([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => argObjectId(tx, 0, i))).toEqual(
 			[
+				queue,
 				MARKET,
 				ACCOUNT_REGISTRY,
 				WRAPPER,
 				SESSIONS_CONFIG,
+				DESK,
 				PROTOCOL_CONFIG,
 				ORACLE_REGISTRY,
 				PYTH,
@@ -580,9 +587,25 @@ describe('queued Predict wrappers', () => {
 		);
 		expect(targets(tx)).toEqual([`${SESSIONS_PKG}::sessions::enqueue_exact_quantity`]);
 		expectLeadingObjects(tx);
-		expect([9, 10, 11, 12, 13].map((i) => argPureBytes(tx, 0, i))).toEqual(
+		expect([11, 12, 13, 14, 15].map((i) => argPureBytes(tx, 0, i))).toEqual(
 			[10n, 20n, 1_000_000n, 600_000n, 600_000_000n].map(u64),
 		);
+	});
+
+	test('an explicit queueId overrides the queue derived from the desk', () => {
+		const other = '0x' + '99'.repeat(32);
+		const tx = new Transaction();
+		tx.add(
+			contract.enqueueExactCost({
+				...target,
+				queueId: other,
+				lowerTick: 1n,
+				higherTick: 2n,
+				maxCost: 7n,
+				minQuantity: 8n,
+			}),
+		);
+		expectLeadingObjects(tx, other);
 	});
 
 	test('enqueueExactAmount and enqueueExactCost keep their limits in Move order', () => {
@@ -599,7 +622,7 @@ describe('queued Predict wrappers', () => {
 		);
 		expect(targets(amount)).toEqual([`${SESSIONS_PKG}::sessions::enqueue_exact_amount`]);
 		expectLeadingObjects(amount);
-		expect([11, 12, 13].map((i) => argPureBytes(amount, 0, i))).toEqual([3n, 4n, 5n].map(u64));
+		expect([13, 14, 15].map((i) => argPureBytes(amount, 0, i))).toEqual([3n, 4n, 5n].map(u64));
 
 		const costTx = new Transaction();
 		costTx.add(
@@ -612,7 +635,7 @@ describe('queued Predict wrappers', () => {
 			}),
 		);
 		expect(targets(costTx)).toEqual([`${SESSIONS_PKG}::sessions::enqueue_exact_cost`]);
-		expect([11, 12].map((i) => argPureBytes(costTx, 0, i))).toEqual([7n, 8n].map(u64));
+		expect([13, 14].map((i) => argPureBytes(costTx, 0, i))).toEqual([7n, 8n].map(u64));
 	});
 
 	test('enqueueRedeemOpen takes the record ID, the quantity and both floors', () => {
@@ -628,7 +651,7 @@ describe('queued Predict wrappers', () => {
 		);
 		expect(targets(tx)).toEqual([`${SESSIONS_PKG}::sessions::enqueue_redeem_open`]);
 		expectLeadingObjects(tx);
-		expect([9, 10, 11, 12].map((i) => argPureBytes(tx, 0, i))).toEqual(
+		expect([11, 12, 13, 14].map((i) => argPureBytes(tx, 0, i))).toEqual(
 			[42n, 2_000_000n, 300_000_000n, 500_000n].map(u64),
 		);
 	});

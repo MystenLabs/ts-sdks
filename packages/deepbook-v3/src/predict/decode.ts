@@ -7,6 +7,7 @@ import * as builderCodeEvents from '../contracts/deepbook_predict/builder_code_e
 import * as configEvents from '../contracts/deepbook_predict/config_events.js';
 import * as orderEvents from '../contracts/deepbook_predict/order_events.js';
 import * as vaultEvents from '../contracts/deepbook_predict/vault_events.js';
+import * as queueEvents from '../contracts/deepbook_predict_orders/queue_events.js';
 import { PredictInputError } from './errors.js';
 import {
 	isMintKind,
@@ -32,7 +33,7 @@ import { fromRaw } from './units.js';
 // Decoding uses each event's BCS bytes, not its `json`: the client typings
 // warn the JSON rendering varies across transports (JSON-RPC/gRPC/GraphQL),
 // while BCS is canonical. Layouts come from the GENERATED event MoveStructs
-// (src/contracts/{deepbook_predict,account}/*_events.ts), whose field order
+// (src/contracts/{deepbook_predict,deepbook_predict_orders,account}/*_events.ts), whose field order
 // mirrors the deployed Move — regenerate the bindings if the package changes.
 // ============================================================================
 
@@ -63,8 +64,9 @@ function eventBytes(e: DecodableEvent): Uint8Array | null {
 
 // Match by defining package + module + struct name. Events are typed by the
 // package version that introduced their struct, not the latest Move-call target.
-// The pre-queue events were introduced in v1 (`predictV1`); the delayed-execution
-// events in the package `predictDelayedExecution` names.
+// The pre-queue events were introduced in v1 (`predictV1`); the Predict events the
+// delayed-execution upgrade added in `predictDelayedExecution`; and the queue events
+// in the order-flow companion's original ID (`predictOrdersV1 ?? predictOrders`).
 function matches(e: DecodableEvent, pkg: string, module: string, name: string): boolean {
 	const tag = e.eventType ?? e.type;
 	if (tag) {
@@ -487,10 +489,19 @@ export function decodeBuilderCodeSets(
 }
 
 // --- delayed execution (DBU-885) ---------------------------------------------
+//
+// Delayed execution spans two packages. The queue events and the desk's
+// `DelayedExecutionPolicyUpdated` belong to the order-flow companion,
+// `deepbook_predict_orders` (`queue_events`), typed by its ORIGINAL ID. A fill also emits
+// Predict's `OrderMinted` or `LiveOrderRedeemed` (v1 layouts, `decodeMints`/`decodeRedeems`),
+// so match events by type, never by the package a transaction called. The Predict events the
+// delayed-execution upgrade added (`ExpiryPnlRealized`, `FlushOperatorUpdated`,
+// `OrderFlowUpdated`) are typed by `packages.predictDelayedExecution`.
 
 /**
- * The defining package of the delayed-execution events. Throws rather than guessing: matching
- * against the latest package would silently decode nothing once the package is upgraded again.
+ * The defining package of the Predict types and events the delayed-execution upgrade added.
+ * Throws rather than guessing: matching against the latest package would silently decode nothing
+ * once the package is upgraded again.
  */
 export function delayedExecutionOrigin(cfg: PredictConfig): string {
 	const pkg = cfg.packages.predictDelayedExecution;
@@ -503,7 +514,20 @@ export function delayedExecutionOrigin(cfg: PredictConfig): string {
 	return pkg;
 }
 
-const ZERO_ADDRESS = normalizeSuiAddress('0x0');
+/**
+ * The original ID of the order-flow companion (`deepbook_predict_orders`), which types the queue
+ * events. Throws while the config doesn't record the companion.
+ */
+export function predictOrdersOrigin(cfg: PredictConfig): string {
+	const pkg = cfg.packages.predictOrdersV1 ?? cfg.packages.predictOrders;
+	if (!pkg) {
+		throw new PredictInputError(
+			`the order-flow package isn't recorded for ${cfg.network} in this SDK version: pass a ` +
+				'`config` whose `packages.predictOrders` names `deepbook_predict_orders`',
+		);
+	}
+	return pkg;
+}
 
 function side(kind: number): 'mint' | 'sell' | 'unknown' {
 	return isMintKind(kind) ? 'mint' : isSellKind(kind) ? 'sell' : 'unknown';
@@ -565,9 +589,11 @@ export interface EnqueueReceipt {
 	budget: number;
 	orderFee: number;
 	cash: QueueCashFigures;
+	/** `onchain_timestamp_ms`: the placement transaction's clock. */
+	timestampMs: bigint;
 	raw: { budget: bigint; orderFee: bigint; cashNeed: bigint; subsidyBound: bigint };
-	/** The volatility snapshot resolve prices with, as the generated layout parses it. */
-	vol: (typeof orderEvents.OrderEnqueued)['$inferType']['vol'];
+	/** The volatility snapshot the fill prices with, as the generated layout parses it. */
+	vol: (typeof queueEvents.OrderEnqueued)['$inferType']['vol'];
 }
 
 /** `CohortCommitted`: a price attached to the records `firstRecordId..=lastRecordId`. Drives "Priced". */
@@ -575,17 +601,16 @@ export interface CohortCommitReceipt {
 	type: 'cohort-committed';
 	marketId: string;
 	tauMs: bigint;
-	/** The update's envelope: τ, or a later backup tick. */
+	/** The update's envelope: τ, or the backup tick one channel tick later. */
 	tickMs: bigint;
 	firstRecordId: bigint;
 	/** Inclusive. */
 	lastRecordId: bigint;
-	/** The Pyth price as a float: `magnitude · 10^exponent`, signed. */
+	/** The committed price of the cohort's first order as a float: `spotRaw / 1e9`. */
 	price: number;
-	priceMagnitude: bigint;
-	priceIsNegative: boolean;
-	exponent: number;
-	/** The feed's own update time, in µs. */
+	/** The committed price, normalized to 1e9. */
+	spotRaw: bigint;
+	/** That price's own update time, in µs. */
 	generationUs: bigint;
 	pythSourceId: number;
 	pythChannel: number;
@@ -634,7 +659,11 @@ export interface QueuedFillReceipt {
 	};
 }
 
-/** `QueuedOrderRefunded`. */
+/**
+ * `QueuedOrderRefunded`, from whichever path refunded the order: resolve, a deadline refund, an
+ * admin refund, or the settlement drain (`settle_step`, reason 5). `sender` is always the
+ * transaction's sender.
+ */
 export interface QueuedRefundReceipt {
 	type: 'refunded';
 	marketId: string;
@@ -646,10 +675,8 @@ export interface QueuedRefundReceipt {
 	escrowReturned: number;
 	orderFeeReturned: number;
 	subsidyReturned: number;
-	/** True when a sell's position went back to its Open record. */
+	/** True when a sell's record went back to Open holding its position. */
 	positionReturned: boolean;
-	/** `try_settle` refunded it at expiry: the event's `sender` is 0x0. */
-	bySettlement: boolean;
 	sender: string;
 	timestampMs: bigint;
 	cash: QueueCashFigures;
@@ -678,22 +705,35 @@ export interface MarketPayoutsCompletedReceipt {
 }
 
 /** Queue housekeeping events, for ops and alerts. */
-export type QueueOpsReceipt =
+export type QueueOpsReceipt = {
+	type: 'queued-orders-cleaned';
+	marketId: string;
+	recordIds: bigint[];
+	timestampMs: bigint;
+};
+
+/** Delayed-execution admin events, for the multisig scripts and monitors. */
+export type PolicyUpdateReceipt =
 	| {
-			type: 'escrow-shortfall';
-			marketId: string;
-			recordId: bigint;
-			owedRaw: bigint;
-			paidRaw: bigint;
+			/**
+			 * The companion desk's `DelayedExecutionPolicyUpdated`, from every policy setter with the
+			 * full post-state. The desk's `init` at publish emits none: the launch policy is only the
+			 * desk's state.
+			 */
+			type: 'policy-updated';
+			deskId: string;
+			policy: DelayedExecutionPolicy;
 			timestampMs: bigint;
 	  }
-	| { type: 'queued-orders-cleaned'; marketId: string; recordIds: bigint[]; timestampMs: bigint }
-	| { type: 'queue-escrow-swept'; marketId: string; amountRaw: bigint; timestampMs: bigint };
-
-/** Delayed-execution admin events (`config_events`), for the multisig scripts. */
-export type PolicyUpdateReceipt =
-	| { type: 'policy-updated'; policy: DelayedExecutionPolicy; timestampMs: bigint }
-	| { type: 'flush-operator-updated'; operator: string; added: boolean; timestampMs: bigint };
+	| { type: 'flush-operator-updated'; operator: string; added: boolean; timestampMs: bigint }
+	| {
+			/** Predict's `OrderFlowUpdated`: an order-flow witness allowlisted or removed. */
+			type: 'order-flow-updated';
+			/** The witness type, as Move's `type_name` renders it (no `0x` prefix). */
+			orderFlow: string;
+			enabled: boolean;
+			timestampMs: bigint;
+	  };
 
 /** Every delayed-execution order event, tagged, in chain order. Feed it to `queue.reduceOrderEvents`. */
 export type QueueEvent =
@@ -711,7 +751,7 @@ const cashOf = (e: { market_cash: bigint; required_cash: bigint; waiting_cash_ne
 	waitingCashNeed: e.waiting_cash_need,
 });
 
-function enqueueReceipt(e: (typeof orderEvents.OrderEnqueued)['$inferType']): EnqueueReceipt {
+function enqueueReceipt(e: (typeof queueEvents.OrderEnqueued)['$inferType']): EnqueueReceipt {
 	return {
 		type: 'enqueued',
 		marketId: normalizeSuiAddress(e.expiry_market_id),
@@ -746,6 +786,7 @@ function enqueueReceipt(e: (typeof orderEvents.OrderEnqueued)['$inferType']): En
 		budget: fromRaw(e.budget, 6),
 		orderFee: fromRaw(e.order_fee, 6),
 		cash: cashOf(e),
+		timestampMs: e.onchain_timestamp_ms,
 		raw: {
 			budget: e.budget,
 			orderFee: e.order_fee,
@@ -757,10 +798,8 @@ function enqueueReceipt(e: (typeof orderEvents.OrderEnqueued)['$inferType']): En
 }
 
 function cohortCommitReceipt(
-	e: (typeof orderEvents.CohortCommitted)['$inferType'],
+	e: (typeof queueEvents.CohortCommitted)['$inferType'],
 ): CohortCommitReceipt {
-	const exponent = e.exponent_is_negative ? -e.exponent_magnitude : e.exponent_magnitude;
-	const magnitude = Number(e.price_magnitude) * 10 ** exponent;
 	return {
 		type: 'cohort-committed',
 		marketId: normalizeSuiAddress(e.expiry_market_id),
@@ -768,10 +807,8 @@ function cohortCommitReceipt(
 		tickMs: e.tick_ms,
 		firstRecordId: e.first_record_id,
 		lastRecordId: e.last_record_id,
-		price: e.price_is_negative ? -magnitude : magnitude,
-		priceMagnitude: e.price_magnitude,
-		priceIsNegative: e.price_is_negative,
-		exponent,
+		price: fromRaw(e.spot, 9),
+		spotRaw: e.spot,
 		generationUs: e.generation_us,
 		pythSourceId: e.pyth_source_id,
 		pythChannel: e.pyth_channel,
@@ -780,7 +817,7 @@ function cohortCommitReceipt(
 	};
 }
 
-function fillReceipt(e: (typeof orderEvents.QueuedOrderFilled)['$inferType']): QueuedFillReceipt {
+function fillReceipt(e: (typeof queueEvents.QueuedOrderFilled)['$inferType']): QueuedFillReceipt {
 	return {
 		type: 'filled',
 		marketId: normalizeSuiAddress(e.expiry_market_id),
@@ -818,9 +855,8 @@ function fillReceipt(e: (typeof orderEvents.QueuedOrderFilled)['$inferType']): Q
 }
 
 function refundReceipt(
-	e: (typeof orderEvents.QueuedOrderRefunded)['$inferType'],
+	e: (typeof queueEvents.QueuedOrderRefunded)['$inferType'],
 ): QueuedRefundReceipt {
-	const sender = normalizeSuiAddress(e.sender);
 	return {
 		type: 'refunded',
 		marketId: normalizeSuiAddress(e.expiry_market_id),
@@ -833,8 +869,7 @@ function refundReceipt(
 		orderFeeReturned: fromRaw(e.order_fee_returned, 6),
 		subsidyReturned: fromRaw(e.subsidy_returned, 6),
 		positionReturned: e.position_returned,
-		bySettlement: sender === ZERO_ADDRESS,
-		sender,
+		sender: normalizeSuiAddress(e.sender),
 		timestampMs: e.onchain_timestamp_ms,
 		cash: cashOf(e),
 		raw: {
@@ -847,7 +882,7 @@ function refundReceipt(
 
 function payoutReceipt(
 	skipped: boolean,
-): (e: (typeof orderEvents.OpenRecordSettled)['$inferType']) => OpenRecordPayoutReceipt {
+): (e: (typeof queueEvents.OpenRecordSettled)['$inferType']) => OpenRecordPayoutReceipt {
 	return (e) => ({
 		type: skipped ? 'open-record-payout-skipped' : 'open-record-settled',
 		marketId: normalizeSuiAddress(e.expiry_market_id),
@@ -868,79 +903,62 @@ const QUEUE_EVENT_DECODERS: readonly {
 	layout: { parse(bytes: Uint8Array): unknown };
 	map: (e: never) => QueueEvent;
 }[] = [
-	{ name: 'OrderEnqueued', layout: orderEvents.OrderEnqueued, map: enqueueReceipt },
-	{ name: 'CohortCommitted', layout: orderEvents.CohortCommitted, map: cohortCommitReceipt },
-	{ name: 'QueuedOrderFilled', layout: orderEvents.QueuedOrderFilled, map: fillReceipt },
-	{ name: 'QueuedOrderRefunded', layout: orderEvents.QueuedOrderRefunded, map: refundReceipt },
-	{ name: 'OpenRecordSettled', layout: orderEvents.OpenRecordSettled, map: payoutReceipt(false) },
+	{ name: 'OrderEnqueued', layout: queueEvents.OrderEnqueued, map: enqueueReceipt },
+	{ name: 'CohortCommitted', layout: queueEvents.CohortCommitted, map: cohortCommitReceipt },
+	{ name: 'QueuedOrderFilled', layout: queueEvents.QueuedOrderFilled, map: fillReceipt },
+	{ name: 'QueuedOrderRefunded', layout: queueEvents.QueuedOrderRefunded, map: refundReceipt },
+	{ name: 'OpenRecordSettled', layout: queueEvents.OpenRecordSettled, map: payoutReceipt(false) },
 	{
 		name: 'OpenRecordPayoutSkipped',
-		layout: orderEvents.OpenRecordPayoutSkipped,
+		layout: queueEvents.OpenRecordPayoutSkipped,
 		map: payoutReceipt(true),
 	},
 	{
 		name: 'MarketPayoutsCompleted',
-		layout: orderEvents.MarketPayoutsCompleted,
-		map: (e: (typeof orderEvents.MarketPayoutsCompleted)['$inferType']) => ({
+		layout: queueEvents.MarketPayoutsCompleted,
+		map: (e: (typeof queueEvents.MarketPayoutsCompleted)['$inferType']) => ({
 			type: 'market-payouts-completed',
 			marketId: normalizeSuiAddress(e.expiry_market_id),
 			timestampMs: e.onchain_timestamp_ms,
 		}),
 	},
 	{
-		name: 'EscrowShortfall',
-		layout: orderEvents.EscrowShortfall,
-		map: (e: (typeof orderEvents.EscrowShortfall)['$inferType']) => ({
-			type: 'escrow-shortfall',
-			marketId: normalizeSuiAddress(e.expiry_market_id),
-			recordId: e.record_id,
-			owedRaw: e.owed,
-			paidRaw: e.paid,
-			timestampMs: e.onchain_timestamp_ms,
-		}),
-	},
-	{
 		name: 'QueuedOrdersCleaned',
-		layout: orderEvents.QueuedOrdersCleaned,
-		map: (e: (typeof orderEvents.QueuedOrdersCleaned)['$inferType']) => ({
+		layout: queueEvents.QueuedOrdersCleaned,
+		map: (e: (typeof queueEvents.QueuedOrdersCleaned)['$inferType']) => ({
 			type: 'queued-orders-cleaned',
 			marketId: normalizeSuiAddress(e.expiry_market_id),
 			recordIds: [...e.record_ids],
 			timestampMs: e.onchain_timestamp_ms,
 		}),
 	},
-	{
-		name: 'QueueEscrowSwept',
-		layout: orderEvents.QueueEscrowSwept,
-		map: (e: (typeof orderEvents.QueueEscrowSwept)['$inferType']) => ({
-			type: 'queue-escrow-swept',
-			marketId: normalizeSuiAddress(e.expiry_market_id),
-			amountRaw: e.amount,
-			timestampMs: e.onchain_timestamp_ms,
-		}),
-	},
 ];
 
+function eventPayload(e: DecodableEvent, module: string, name: string): Uint8Array {
+	const bytes = eventBytes(e);
+	if (!bytes) {
+		throw new PredictInputError(
+			`${module}::${name} event has no BCS payload — execute/simulate with events included`,
+		);
+	}
+	return bytes;
+}
+
 /**
- * Every delayed-execution order event in a result, tagged with `type`, in event order. The
- * app's single entry point for the queue: pass the list to `queue.reduceOrderEvents`.
+ * Every delayed-execution order event in a result, tagged with `type`, in event order: the
+ * companion's `queue_events`, matched against its original ID. The app's single entry point for
+ * the queue: pass the list to `queue.reduceOrderEvents`.
  */
 export function decodeQueueEvents(
 	cfg: PredictConfig,
 	result: DecodableTransactionResult,
 ): QueueEvent[] {
-	const pkg = delayedExecutionOrigin(cfg);
+	const pkg = predictOrdersOrigin(cfg);
 	const out: QueueEvent[] = [];
 	for (const e of result.events ?? []) {
 		for (const d of QUEUE_EVENT_DECODERS) {
-			if (!matches(e, pkg, 'order_events', d.name)) continue;
-			const bytes = eventBytes(e);
-			if (!bytes) {
-				throw new PredictInputError(
-					`order_events::${d.name} event has no BCS payload — execute/simulate with events included`,
-				);
-			}
-			out.push(d.map(d.layout.parse(bytes) as never));
+			if (!matches(e, pkg, 'queue_events', d.name)) continue;
+			out.push(d.map(d.layout.parse(eventPayload(e, 'queue_events', d.name)) as never));
 			break;
 		}
 	}
@@ -970,39 +988,51 @@ export const decodeOpenRecordPayouts = (cfg: PredictConfig, r: DecodableTransact
 export const decodeMarketPayoutsCompleted = (cfg: PredictConfig, r: DecodableTransactionResult) =>
 	ofType(cfg, r, 'market-payouts-completed');
 export const decodeQueueOps = (cfg: PredictConfig, r: DecodableTransactionResult) =>
-	ofType(cfg, r, 'escrow-shortfall', 'queued-orders-cleaned', 'queue-escrow-swept');
+	ofType(cfg, r, 'queued-orders-cleaned');
 
-/** `DelayedExecutionPolicyUpdated` and `FlushOperatorUpdated`, in event order. */
+/**
+ * The delayed-execution admin events, in event order: the companion desk's
+ * `DelayedExecutionPolicyUpdated` (matched against the companion's original ID) and Predict's
+ * `FlushOperatorUpdated` and `OrderFlowUpdated` (matched against `predictDelayedExecution`).
+ * Throws while the config records neither package.
+ */
 export function decodePolicyUpdates(
 	cfg: PredictConfig,
 	result: DecodableTransactionResult,
 ): PolicyUpdateReceipt[] {
-	const pkg = delayedExecutionOrigin(cfg);
+	const orders = predictOrdersOrigin(cfg);
+	const predict = delayedExecutionOrigin(cfg);
 	const out: PolicyUpdateReceipt[] = [];
 	for (const e of result.events ?? []) {
-		const isPolicy = matches(e, pkg, 'config_events', 'DelayedExecutionPolicyUpdated');
-		const isOperator = !isPolicy && matches(e, pkg, 'config_events', 'FlushOperatorUpdated');
-		if (!isPolicy && !isOperator) continue;
-		const bytes = eventBytes(e);
-		if (!bytes) {
-			throw new PredictInputError(
-				'config_events event has no BCS payload — execute/simulate with events included',
+		if (matches(e, orders, 'queue_events', 'DelayedExecutionPolicyUpdated')) {
+			const p = queueEvents.DelayedExecutionPolicyUpdated.parse(
+				eventPayload(e, 'queue_events', 'DelayedExecutionPolicyUpdated'),
 			);
-		}
-		if (isPolicy) {
-			const p = configEvents.DelayedExecutionPolicyUpdated.parse(bytes);
 			out.push({
 				type: 'policy-updated',
+				deskId: normalizeSuiAddress(p.desk_id),
 				policy: policyFromBcs(p.policy),
 				timestampMs: p.onchain_timestamp_ms,
 			});
-		} else {
-			const f = configEvents.FlushOperatorUpdated.parse(bytes);
+		} else if (matches(e, predict, 'config_events', 'FlushOperatorUpdated')) {
+			const f = configEvents.FlushOperatorUpdated.parse(
+				eventPayload(e, 'config_events', 'FlushOperatorUpdated'),
+			);
 			out.push({
 				type: 'flush-operator-updated',
 				operator: normalizeSuiAddress(f.operator),
 				added: f.added,
 				timestampMs: f.onchain_timestamp_ms,
+			});
+		} else if (matches(e, predict, 'config_events', 'OrderFlowUpdated')) {
+			const o = configEvents.OrderFlowUpdated.parse(
+				eventPayload(e, 'config_events', 'OrderFlowUpdated'),
+			);
+			out.push({
+				type: 'order-flow-updated',
+				orderFlow: o.order_flow.name,
+				enabled: o.enabled,
+				timestampMs: o.onchain_timestamp_ms,
 			});
 		}
 	}

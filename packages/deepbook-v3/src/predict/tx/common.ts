@@ -48,12 +48,14 @@ type NamedArguments<Options extends AuthCallOptions> = Extract<
 /**
  * The options {@link withAuth} leaves to the caller: the generated ones, minus the `auth`
  * argument it supplies itself, with the projected config required (it is what mints the auth).
+ * The config must also carry every key the wrapped call resolves, so a call into the order-flow
+ * companion can't be handed a slice without its desk.
  */
 export type WithAuthOptions<Options extends AuthCallOptions> = Omit<
 	Options,
 	'arguments' | 'config'
 > & {
-	config: GeneratedConfig;
+	config: GeneratedConfig & NonNullable<Options['config']>;
 	arguments: Omit<NamedArguments<Options>, 'auth'>;
 };
 
@@ -100,7 +102,7 @@ const AccountKey = bcs.struct('AccountKey', { pos0: bcs.Address });
 /**
  * The owner's canonical ACCOUNT id (`Account.account_id`), a different derived object from the
  * wrapper: `derive_address(registry, AccountKey(owner))`. Queue records and events name accounts
- * by it, and `expiry_market::waiting_orders` takes it.
+ * by it, and `queue::waiting_orders` takes it.
  */
 export function deriveAccountIdFrom(
 	config: Pick<GeneratedConfig, 'accountRegistry' | 'accountPackageId'>,

@@ -14,6 +14,7 @@ export { getDeployment, getUnits, TESTNET_DEPLOYMENT, TESTNET_UNITS } from './de
 export type { DeployedNetwork, NetworkArg } from './deployments/index.js';
 
 import { AccountContract } from './account.js';
+import { deriveQueueId } from './predict/queue-id.js';
 import type { DeepbookSessionsConfig } from './contracts/deepbook_sessions/config-arguments.js';
 import * as sessions from './contracts/deepbook_sessions/sessions.js';
 import { SessionsData } from './contracts/deepbook_sessions/sessions.js';
@@ -81,10 +82,20 @@ export function getSessionsConfig(
 	);
 }
 
-/** The market, account and oracle objects every queued Predict session wrapper names. */
+/** The market, queue, account and oracle objects every queued Predict session wrapper names. */
 export interface SessionsQueuedOrderTarget {
 	expiryMarketId: string;
 	wrapperId: string;
+	/**
+	 * The order-flow companion's shared `OrderDesk` (`deepbook_predict_orders`). Predict's
+	 * `PredictConfig.objects.orderDesk`.
+	 */
+	orderDesk: string;
+	/**
+	 * The market's `MarketQueue`. Defaults to the ID derived from `orderDesk` and the market
+	 * (`deriveQueueId`), which is where `queue::create_and_share` puts it.
+	 */
+	queueId?: string;
 	/** Predict's `ProtocolConfig`. */
 	protocolConfig: string;
 	/** Predict's `OracleRegistry` (the propbook registry). */
@@ -304,8 +315,8 @@ export class SessionsContract {
 	 * effectively unbounded — the chain asserts `value <= cap`, so the max value can never
 	 * trip. Both are required; there is no default.
 	 * @returns A function that takes a Transaction object and returns the new order id (u256)
-	 * @deprecated Retired by delayed execution (DBU-885): aborts `EDelayedExecutionRequired`
-	 * through Predict once the version watermark reaches 4. Use {@link SessionsContract.enqueueExactQuantity}.
+	 * @deprecated Retired by delayed execution (DBU-885): always aborts through Predict v4
+	 * (`EDelayedExecutionRequired`). Use {@link SessionsContract.enqueueExactQuantity}.
 	 */
 	mintExactQuantity(params: {
 		expiryMarketId: string;
@@ -342,8 +353,8 @@ export class SessionsContract {
 	 * @description Mint by spending up to a premium budget, flooring the quantity received.
 	 * The chain requires `maxCost > 0`.
 	 * @returns A function that takes a Transaction object and returns the new order id (u256)
-	 * @deprecated Retired by delayed execution (DBU-885): aborts once the version watermark
-	 * reaches 4. Use {@link SessionsContract.enqueueExactAmount}.
+	 * @deprecated Retired by delayed execution (DBU-885): always aborts through Predict v4.
+	 * Use {@link SessionsContract.enqueueExactAmount}.
 	 */
 	mintExactAmount(params: {
 		expiryMarketId: string;
@@ -379,8 +390,8 @@ export class SessionsContract {
 	/**
 	 * Mint within an all-in budget as a session. Amounts are raw Move units.
 	 * Requires Sessions/Predict v2 or later.
-	 * @deprecated Retired by delayed execution (DBU-885): aborts once the version watermark
-	 * reaches 4. Use {@link SessionsContract.enqueueExactCost}.
+	 * @deprecated Retired by delayed execution (DBU-885): always aborts through Predict v4.
+	 * Use {@link SessionsContract.enqueueExactCost}.
 	 */
 	mintExactCost(params: {
 		expiryMarketId: string;
@@ -419,9 +430,9 @@ export class SessionsContract {
 	 * unless you mean to accept whatever the mark gives you.
 	 * @returns A function that takes a Transaction object and returns `Option<u256>` — the
 	 * replacement order id when a partial close leaves quantity open
-	 * @deprecated Retired by delayed execution (DBU-885): aborts once the version watermark
-	 * reaches 4. Account positions then have no early exit; queued fills are Open records sold
-	 * with {@link SessionsContract.enqueueRedeemOpen}.
+	 * @deprecated Retired by delayed execution (DBU-885): always aborts through Predict v4.
+	 * Account positions then have no early exit; queued fills are Open records sold with
+	 * {@link SessionsContract.enqueueRedeemOpen}.
 	 */
 	redeemLive(params: {
 		expiryMarketId: string;
@@ -481,11 +492,12 @@ export class SessionsContract {
 
 	// === Queued Predict wrappers (delayed execution, DBU-885) ===
 	//
-	// The session form of Predict's `enqueue_*`, in Sessions v3. Placement takes no pricer: it
-	// reads the oracle objects directly, so each wrapper takes the market's three feed ids plus
-	// Predict's `OracleRegistry` (the propbook registry). Amounts are raw Move units. Each returns
-	// the new queue record ID (u64). Predict performs every check; the caps below are only the
-	// ones a session key should never send by accident.
+	// The session form of the order-flow companion's `queue::enqueue_*`, in Sessions v3. Each
+	// wrapper names the market's `MarketQueue` and the companion's `OrderDesk` next to the market.
+	// Placement takes no pricer: it reads the oracle objects directly, so each wrapper takes the
+	// market's three feed ids plus Predict's `OracleRegistry` (the propbook registry). Amounts are
+	// raw Move units. Each returns the new queue record ID (u64). The queue and Predict perform
+	// every check; the caps below are only the ones a session key should never send by accident.
 
 	/**
 	 * @description Queue a mint of an exact payout quantity, as `session`. `maxCost` (all-in cap)
@@ -609,12 +621,16 @@ export class SessionsContract {
 			);
 	}
 
-	// The leading arguments every queued wrapper shares, in the Move order after the market.
+	// The leading arguments every queued wrapper shares, in the Move order: `(queue, market,
+	// account_registry, wrapper, sessions_config, desk, config, propbook_registry, pyth, bs_values,
+	// bs_svi, …)`. `sessions_config` comes from the generated config.
 	#queuedTarget(params: SessionsQueuedOrderTarget) {
 		return {
+			queue: params.queueId ?? deriveQueueId(params.orderDesk, params.expiryMarketId),
 			market: params.expiryMarketId,
 			accountRegistry: this.#config.accountRegistry,
 			wrapper: params.wrapperId,
+			desk: params.orderDesk,
 			config: params.protocolConfig,
 			propbookRegistry: params.oracleRegistry,
 			pyth: params.pythFeed,

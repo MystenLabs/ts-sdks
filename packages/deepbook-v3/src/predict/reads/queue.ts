@@ -1,13 +1,16 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-// Delayed execution (DBU-885): chain reads for the order queue. Every read here calls functions
-// that exist only from the delayed-execution package on, so the facade gates them on
-// `packages.predictDelayedExecution`. A market without an order book reads as an empty queue.
-import { bcs } from '@mysten/sui/bcs';
+// Delayed execution (DBU-885): chain reads for the order queue. A market's queue is a
+// `MarketQueue` in the order-flow companion (`deepbook_predict_orders`), at an ID derived from the
+// companion's `OrderDesk` and the market, so these reads take `OrdersGeneratedConfig` and the
+// facade gates them on the config recording the companion. The market's cash figures stay
+// Predict reads. A market whose queue doesn't exist yet can't be read: the facade checks that
+// first.
 import type { ClientWithCoreApi } from '@mysten/sui/client';
+import { bcs } from '@mysten/sui/bcs';
 import { Transaction, type TransactionResult } from '@mysten/sui/transactions';
 import { normalizeSuiAddress } from '@mysten/sui/utils';
-import type { GeneratedConfig } from '../config/generated.js';
+import type { GeneratedConfig, OrdersGeneratedConfig } from '../config/generated.js';
 import {
 	DELAYED_EXECUTION_VERSION,
 	policyFromBcs,
@@ -16,29 +19,43 @@ import {
 	type QueuedOrder,
 } from '../queue.js';
 import { deriveAccountIdFrom, deriveAccountWrapperIdFrom } from '../tx/common.js';
+import { queueIdOf, type QueueTarget } from '../tx/queue.js';
 import { loadLivePricer, type MarketFeeds } from '../tx/trade.js';
 import { accountMoveCalls as account } from '../../account.js';
-import { DelayedExecutionPolicy as DelayedExecutionPolicyBcs } from '../../contracts/deepbook_predict/delayed_execution_config.js';
 import * as expiryMarket from '../../contracts/deepbook_predict/expiry_market.js';
-import { QueuedOrder as QueuedOrderBcs } from '../../contracts/deepbook_predict/order_queue.js';
 import * as protocolConfig from '../../contracts/deepbook_predict/protocol_config.js';
+import { DelayedExecutionPolicy as DelayedExecutionPolicyBcs } from '../../contracts/deepbook_predict_orders/delayed_execution_config.js';
+import * as desk from '../../contracts/deepbook_predict_orders/desk.js';
+import { OrderView as OrderViewBcs } from '../../contracts/deepbook_predict_orders/order_queue.js';
+import * as queue from '../../contracts/deepbook_predict_orders/queue.js';
 import { inspectReturns, type ReadClient } from './inspect.js';
 import { parseOptionalU64, parseU64LE } from './parse.js';
 
 const parseBool = (bytes: Uint8Array): boolean => (bytes[0] ?? 0) !== 0;
-const OptionalPolicy = bcs.option(DelayedExecutionPolicyBcs);
-const OptionalQueuedOrder = bcs.option(QueuedOrderBcs);
+const OptionalOrderView = bcs.option(OrderViewBcs);
+
+/** The companion's `order_flow::OrderFlow` witness type, which Predict's allowlist names. */
+export function orderFlowWitnessType(
+	config: Pick<OrdersGeneratedConfig, 'predictOrdersPackageIdV1'>,
+) {
+	return `${config.predictOrdersPackageIdV1}::order_flow::OrderFlow`;
+}
 
 /** Everything the queued-order preflight and the app's queue view read, from one simulate. */
 export interface MarketQueueState {
 	marketId: string;
+	/** The market's `MarketQueue`. */
+	queueId: string;
 	expiryMs: bigint;
 	mintPaused: boolean;
 	cashBalance: bigint;
 	requiredCash: bigint;
-	/** Cash above required cash: the largest cash need a new queued mint may have now. */
+	/**
+	 * Cash above required cash, 0 when below: the largest cash need a new queued mint may have
+	 * now (Predict's admission refuses a larger one).
+	 */
 	spareCash: bigint;
-	/** Summed cash need of the unfinished orders; `rebalance_expiry_cash` funds it. */
+	/** Summed cash need of the admitted orders; `rebalance_expiry_cash` funds it. */
 	waitingCashNeed: bigint;
 	/** 1e9-scaled. The mint cash-need formulas take it. */
 	minEntryProbability: bigint;
@@ -57,22 +74,39 @@ export interface MarketQueueState {
 	heads: QueueHeads;
 	/** Unfinished mints and sells, against the policy capacities. */
 	pending: { mints: bigint; sells: bigint };
-	/** The settlement payout walk is done once `cursor === nextId`. */
-	payout: { cursor: bigint; nextId: bigint };
+	/**
+	 * The settlement payout walk (`settle_step`): it resumes at `cursor`, and `completed` is set
+	 * by the call that emits `MarketPayoutsCompleted`.
+	 */
+	payout: { cursor: bigint; nextId: bigint; completed: boolean };
+	/** The companion's `OrderDesk`: the policy every queue runs under, and its version floor. */
+	desk: {
+		id: string;
+		policy: DelayedExecutionPolicy;
+		versionWatermark: bigint;
+	};
 	protocol: {
-		/** `null` until the admin initializes the policy. */
-		policy: DelayedExecutionPolicy | null;
 		noTradeWindowMs: bigint;
 		/** The admin-set mint fee subsidy rate, 1e9-scaled (20% when unset). */
 		feeIncentiveSubsidyRate: bigint;
 		tradingPaused: boolean;
 		frozen: boolean;
+		/** Predict's version floor. Enqueue needs it at `DELAYED_EXECUTION_VERSION`. */
 		versionWatermark: bigint;
+		/**
+		 * Whether Predict allowlists this companion's `OrderFlow` witness
+		 * (`protocol_config::set_order_flow`). Predict's admission, commit and fill refuse it until
+		 * then (`EOrderFlowNotAllowed`).
+		 */
+		orderFlowEnabled: boolean;
 	};
 	/** Present when an owner was given. */
 	account: {
 		accountId: string;
-		/** Unfinished orders the account holds in this market, against `per_account_cap`. */
+		/**
+		 * Unfinished orders the account holds in this market, against `per_account_cap`. Stale
+		 * after expiry: the settlement drain refunds without lowering it.
+		 */
 		waitingOrders: bigint;
 		/** `account::balance<USDC>`, unsettled accumulator funds included. */
 		availableRaw: bigint;
@@ -82,17 +116,23 @@ export interface MarketQueueState {
 }
 
 /**
- * Read a market's queue state in one simulate: the cash figures, the stuck gate, cohorts, heads,
- * counters, the policy and the protocol gates. With `owner`, also the account's waiting-order
- * count and USDC balance (the owner must have an account: loading a missing wrapper aborts the
- * read). With `recordIds`, also those records.
+ * Read a market's queue state in one simulate: Predict's cash figures and gates, the queue's
+ * stuck gate, cohorts, heads and counters, and the desk's policy. With `owner`, also the
+ * account's waiting-order count and USDC balance (the owner must have an account: loading a
+ * missing wrapper aborts the read). With `recordIds`, also those records. The queue must exist.
  */
 export async function marketQueueState(
 	client: ReadClient,
-	config: GeneratedConfig,
+	config: OrdersGeneratedConfig,
 	marketId: string,
-	opts: { owner?: string; quoteCoinType?: string; recordIds?: readonly bigint[] } = {},
+	opts: {
+		owner?: string;
+		quoteCoinType?: string;
+		recordIds?: readonly bigint[];
+		queueId?: string;
+	} = {},
 ): Promise<MarketQueueState> {
+	const queueId = queueIdOf(config, { expiryMarketId: marketId, queueId: opts.queueId });
 	const tx = new Transaction();
 	let next = 0;
 	const results: TransactionResult[] = [];
@@ -101,35 +141,35 @@ export async function marketQueueState(
 		return next++;
 	};
 	const market = { market: marketId };
+	const onQueue = { queue: queueId };
 	const i = {
 		expiry: add(expiryMarket.expiry({ config, arguments: market })),
 		mintPaused: add(expiryMarket.mintPaused({ config, arguments: market })),
 		cashBalance: add(expiryMarket.cashBalance({ config, arguments: market })),
 		requiredCash: add(expiryMarket.requiredCash({ config, arguments: market })),
-		spareCash: add(expiryMarket.spareCash({ config, arguments: market })),
-		waitingCashNeed: add(expiryMarket.waitingCashNeed({ config, arguments: market })),
-		minEntryProbability: add(expiryMarket.minEntryProbability({ config, arguments: market })),
 		backingBufferLambda: add(expiryMarket.backingBufferLambda({ config, arguments: market })),
-		payoutTreeNodeCount: add(expiryMarket.payoutTreeNodeCount({ config, arguments: market })),
-		stuck: add(expiryMarket.queueStuck({ config, arguments: market })),
-		cohorts: add(expiryMarket.waitingCohorts({ config, arguments: market })),
-		heads: add(expiryMarket.queueHeads({ config, arguments: market })),
-		pending: add(expiryMarket.pendingCounts({ config, arguments: market })),
-		payout: add(expiryMarket.payoutProgress({ config, arguments: market })),
-		policy: add(protocolConfig.delayedExecutionPolicy({ config })),
+		orderFlow: add(expiryMarket.orderFlowState({ config, arguments: market })),
+		stuck: add(queue.queueStuck({ config, arguments: onQueue })),
+		cohorts: add(queue.waitingCohorts({ config, arguments: onQueue })),
+		heads: add(queue.queueHeads({ config, arguments: onQueue })),
+		pending: add(queue.pendingCounts({ config, arguments: onQueue })),
+		payout: add(queue.payoutProgress({ config, arguments: onQueue })),
+		policy: add(desk.policy({ config })),
+		deskWatermark: add(desk.versionWatermark({ config })),
 		noTradeWindowMs: add(protocolConfig.noTradeWindowMs({ config })),
 		subsidyRate: add(protocolConfig.feeIncentiveSubsidyRate({ config })),
 		tradingPaused: add(protocolConfig.tradingPaused({ config })),
 		frozen: add(protocolConfig.frozen({ config })),
 		watermark: add(protocolConfig.versionWatermark({ config })),
+		orderFlowEnabled: add(
+			protocolConfig.isOrderFlow({ config, typeArguments: [orderFlowWitnessType(config)] }),
+		),
 	};
 	let accountIdx: { waiting: number; balance: number; accountId: string } | null = null;
 	if (opts.owner) {
 		if (!opts.quoteCoinType) throw new Error('marketQueueState: owner reads need quoteCoinType');
 		const accountId = deriveAccountIdFrom(config, opts.owner);
-		const waiting = add(
-			expiryMarket.waitingOrders({ config, arguments: { ...market, accountId } }),
-		);
+		const waiting = add(queue.waitingOrders({ config, arguments: { ...onQueue, accountId } }));
 		const loaded = add(
 			account.loadAccount({
 				config,
@@ -146,23 +186,25 @@ export async function marketQueueState(
 		accountIdx = { waiting, balance, accountId };
 	}
 	const recordIdx = (opts.recordIds ?? []).map((recordId) =>
-		add(expiryMarket.queuedOrder({ config, arguments: { ...market, recordId } })),
+		add(queue.order({ config, arguments: { ...onQueue, recordId } })),
 	);
 
 	const cmds = await inspectReturns(client, tx);
 	const u64 = (idx: number, value = 0) => parseU64LE(cmds[idx][value]);
-	const policy = OptionalPolicy.parse(cmds[i.policy][0]);
+	const cashBalance = u64(i.cashBalance);
+	const requiredCash = u64(i.requiredCash);
 	return {
 		marketId: normalizeSuiAddress(marketId),
+		queueId: normalizeSuiAddress(queueId),
 		expiryMs: u64(i.expiry),
 		mintPaused: parseBool(cmds[i.mintPaused][0]),
-		cashBalance: u64(i.cashBalance),
-		requiredCash: u64(i.requiredCash),
-		spareCash: u64(i.spareCash),
-		waitingCashNeed: u64(i.waitingCashNeed),
-		minEntryProbability: u64(i.minEntryProbability),
+		cashBalance,
+		requiredCash,
+		spareCash: cashBalance > requiredCash ? cashBalance - requiredCash : 0n,
+		waitingCashNeed: u64(i.orderFlow, 0),
+		payoutTreeNodeCount: u64(i.orderFlow, 1),
+		minEntryProbability: u64(i.orderFlow, 2),
 		backingBufferLambda: u64(i.backingBufferLambda),
-		payoutTreeNodeCount: u64(i.payoutTreeNodeCount),
 		stuck: parseBool(cmds[i.stuck][0]),
 		cohorts: {
 			count: u64(i.cohorts, 0),
@@ -176,14 +218,23 @@ export async function marketQueueState(
 			lastCommittedTauMs: u64(i.heads, 3),
 		},
 		pending: { mints: u64(i.pending, 0), sells: u64(i.pending, 1) },
-		payout: { cursor: u64(i.payout, 0), nextId: u64(i.payout, 1) },
+		payout: {
+			cursor: u64(i.payout, 0),
+			nextId: u64(i.payout, 1),
+			completed: parseBool(cmds[i.payout][2]),
+		},
+		desk: {
+			id: normalizeSuiAddress(config.orderDesk),
+			policy: policyFromBcs(DelayedExecutionPolicyBcs.parse(cmds[i.policy][0])),
+			versionWatermark: u64(i.deskWatermark),
+		},
 		protocol: {
-			policy: policy == null ? null : policyFromBcs(policy),
 			noTradeWindowMs: u64(i.noTradeWindowMs),
 			feeIncentiveSubsidyRate: u64(i.subsidyRate),
 			tradingPaused: parseBool(cmds[i.tradingPaused][0]),
 			frozen: parseBool(cmds[i.frozen][0]),
 			versionWatermark: u64(i.watermark),
+			orderFlowEnabled: parseBool(cmds[i.orderFlowEnabled][0]),
 		},
 		account: accountIdx
 			? {
@@ -192,24 +243,25 @@ export async function marketQueueState(
 					availableRaw: u64(accountIdx.balance),
 				}
 			: null,
-		records: recordIdx.map((idx) => OptionalQueuedOrder.parse(cmds[idx][0]) ?? null),
+		records: recordIdx.map((idx) => OptionalOrderView.parse(cmds[idx][0]) ?? null),
 	};
 }
 
-/** Queue records by record ID, `null` for a missing or cleaned-up one. One simulate. */
+/** Queue records by record ID (`queue::order`), `null` for a missing or cleaned-up one. One simulate. */
 export async function queuedOrders(
 	client: ReadClient,
-	config: GeneratedConfig,
-	marketId: string,
+	config: OrdersGeneratedConfig,
+	target: QueueTarget,
 	recordIds: readonly bigint[],
 ): Promise<(QueuedOrder | null)[]> {
 	if (recordIds.length === 0) return [];
+	const queueId = queueIdOf(config, target);
 	const tx = new Transaction();
 	for (const recordId of recordIds) {
-		tx.add(expiryMarket.queuedOrder({ config, arguments: { market: marketId, recordId } }));
+		tx.add(queue.order({ config, arguments: { queue: queueId, recordId } }));
 	}
 	const cmds = await inspectReturns(client, tx);
-	return cmds.map((rv) => OptionalQueuedOrder.parse(rv[0]) ?? null);
+	return cmds.map((rv) => OptionalOrderView.parse(rv[0]) ?? null);
 }
 
 /**
@@ -231,10 +283,12 @@ export async function versionWatermark(
 
 /**
  * Which trade path a network is on:
- * - `'immediate'`: the watermark isn't raised and this SDK has no delayed-execution record. Use
- *   the immediate `mint*` / `redeem` builders.
- * - `'awaiting-cutover'`: delayed execution is published but the watermark isn't raised. The
- *   immediate builders still work and enqueue aborts `ECutoverNotReached`.
+ * - `'immediate'`: the watermark isn't raised and this SDK has no delayed-execution record, so
+ *   its call target is a pre-v4 Predict package. Use the immediate `mint*` / `redeem` builders.
+ * - `'awaiting-cutover'`: the config records delayed execution but the watermark isn't raised.
+ *   Nothing trades: enqueue aborts `ECutoverNotReached`, and the immediate builders abort in the
+ *   v4 package the config calls (`EDelayedExecutionRequired`). Trading stays paused through the
+ *   cutover.
  * - `'delayed'`: the watermark is raised. Use the `enqueue*` builders; the immediate ones abort
  *   `EDelayedExecutionRequired`.
  * - `'unsupported'`: the watermark is raised but this SDK's config has no delayed-execution
@@ -242,15 +296,22 @@ export async function versionWatermark(
  */
 export type ExecutionMode = 'immediate' | 'awaiting-cutover' | 'delayed' | 'unsupported';
 
-/** The {@link ExecutionMode} for a watermark and whether the config records delayed execution. */
+/**
+ * The {@link ExecutionMode} for a watermark and what the config records.
+ * `recordsDelayedExecution`: the Predict upgrade, the order-flow companion and its desk, which
+ * queued orders need. `recordsPredictUpgrade`: the Predict upgrade alone
+ * (`packages.predictDelayedExecution`), which makes the config's Predict call target the package
+ * that retired the immediate trades. It defaults to `recordsDelayedExecution`.
+ */
 export function executionModeFor(
 	watermark: bigint,
 	recordsDelayedExecution: boolean,
+	recordsPredictUpgrade: boolean = recordsDelayedExecution,
 ): ExecutionMode {
 	if (watermark >= DELAYED_EXECUTION_VERSION) {
 		return recordsDelayedExecution ? 'delayed' : 'unsupported';
 	}
-	return recordsDelayedExecution ? 'awaiting-cutover' : 'immediate';
+	return recordsDelayedExecution || recordsPredictUpgrade ? 'awaiting-cutover' : 'immediate';
 }
 
 /**
@@ -315,27 +376,28 @@ export interface RedeemOpenQuoteRaw {
 }
 
 /**
- * Quote an early sell of an Open record at a fresh live pricer (`load_live_pricer`, then
- * `quote_redeem_open`). `proceeds` is before the order fee, with no congestion penalty. Aborts
- * `ERecordNotOpen` when the record isn't Open. It doesn't check that the wrapper's account owns
- * the record: the wrapper only supplies the builder code.
+ * Quote an early sell of an Open record at a fresh live pricer (`load_live_pricer`, then the
+ * queue's `quote_redeem_open`, which prices through Predict's `quote_close`), and read the desk's
+ * policy for the order fee. `proceeds` is before the order fee, with no congestion penalty.
+ * Aborts `ERecordNotOpen` when the record isn't Open. It doesn't check that the wrapper's account
+ * owns the record: the wrapper only supplies the builder code.
  */
 export async function quoteRedeemOpen(
 	client: ReadClient,
-	config: GeneratedConfig,
-	args: {
-		expiryMarketId: string;
+	config: OrdersGeneratedConfig,
+	args: QueueTarget & {
 		wrapperId: string;
 		recordId: bigint;
 		closeQuantityRaw: bigint;
 	} & MarketFeeds,
-): Promise<{ quote: RedeemOpenQuoteRaw; policy: DelayedExecutionPolicy | null }> {
+): Promise<{ quote: RedeemOpenQuoteRaw; policy: DelayedExecutionPolicy }> {
 	const tx = new Transaction();
 	const pricer = tx.add(loadLivePricer(config, args));
 	tx.add(
-		expiryMarket.quoteRedeemOpen({
+		queue.quoteRedeemOpen({
 			config,
 			arguments: {
+				queue: queueIdOf(config, args),
 				market: args.expiryMarketId,
 				wrapper: args.wrapperId,
 				pricer,
@@ -344,10 +406,9 @@ export async function quoteRedeemOpen(
 			},
 		}),
 	);
-	tx.add(protocolConfig.delayedExecutionPolicy({ config }));
+	tx.add(desk.policy({ config }));
 	const cmds = await inspectReturns(client, tx);
 	const q = expiryMarket.RedeemQuote.parse(cmds[1][0]);
-	const policy = OptionalPolicy.parse(cmds[2][0]);
 	return {
 		quote: {
 			closeQuantity: q.close_quantity,
@@ -357,11 +418,14 @@ export async function quoteRedeemOpen(
 			builderFee: q.builder_fee,
 			inventoryImpactRebate: q.inventory_impact_rebate,
 		},
-		policy: policy == null ? null : policyFromBcs(policy),
+		policy: policyFromBcs(DelayedExecutionPolicyBcs.parse(cmds[2][0])),
 	};
 }
 
-/** `expiry_market::MintQuote` with camelCase keys. `allInCost` includes the congestion penalty. */
+/**
+ * `expiry_market::MintQuote` with camelCase keys. `allInCost` includes `penaltyFee`, which the
+ * delayed-execution package always quotes as 0: its quotes price like a queued fill.
+ */
 export interface MintQuoteRaw {
 	quantity: bigint;
 	entryProbability: bigint;
@@ -381,11 +445,12 @@ export type MintQuoteRequest =
 	| { shape: 'exact-cost'; maxCostRaw: bigint; minQuantityRaw: bigint };
 
 /**
- * Quote a mint for one account without placing it: `quote_mint_for_account` (exact quantity and
- * premium budget) or `quote_mint_exact_cost_for_account` (all-in budget), at a fresh live pricer.
- * Both read the account's builder code and cap a budget at its balance. They abort with
- * `pricing::EPythSpotUnavailable` / `EPythSpotStale` while the on-chain Pyth spot is unusable, so
- * treat those as "no preview" (`isPreviewUnavailable`).
+ * Quote a mint for one account without placing it: Predict's `quote_mint_for_account` (exact
+ * quantity and premium budget) or `quote_mint_exact_cost_for_account` (all-in budget), at a fresh
+ * live pricer. Both read the account's builder code and cap a budget at its balance. From the
+ * delayed-execution package on they price like a queued fill at the clock: no congestion penalty,
+ * and no trade-window or Pyth-staleness abort. They abort `EOrderFailsLimits` when the mint would
+ * be refused at the clock. With `ordersConfig`, also reads the order desk's policy.
  */
 export async function quoteMintForAccount(
 	client: ReadClient,
@@ -396,8 +461,8 @@ export async function quoteMintForAccount(
 		lowerTick: bigint;
 		higherTick: bigint;
 		request: MintQuoteRequest;
-		/** Also read the delayed-execution policy (only on a package that has it). */
-		withPolicy?: boolean;
+		/** Also read the order desk's policy, in the same simulate. */
+		ordersConfig?: OrdersGeneratedConfig;
 	} & MarketFeeds,
 ): Promise<{ quote: MintQuoteRaw; policy: DelayedExecutionPolicy | null }> {
 	const tx = new Transaction();
@@ -433,10 +498,9 @@ export async function quoteMintForAccount(
 			}),
 		);
 	}
-	if (args.withPolicy) tx.add(protocolConfig.delayedExecutionPolicy({ config }));
+	if (args.ordersConfig) tx.add(desk.policy({ config: args.ordersConfig }));
 	const cmds = await inspectReturns(client, tx);
 	const q = expiryMarket.MintQuote.parse(cmds[1][0]);
-	const policy = args.withPolicy ? OptionalPolicy.parse(cmds[2][0]) : null;
 	const quote: MintQuoteRaw = {
 		quantity: q.quantity,
 		entryProbability: q.entry_probability,
@@ -448,30 +512,32 @@ export async function quoteMintForAccount(
 		inventoryImpactCharge: q.inventory_impact_charge,
 		allInCost: q.all_in_cost,
 	};
-	return { quote, policy: policy == null ? null : policyFromBcs(policy) };
+	const policy = args.ordersConfig
+		? policyFromBcs(DelayedExecutionPolicyBcs.parse(cmds[2][0]))
+		: null;
+	return { quote, policy };
 }
 
 /**
- * The delayed-execution policy and an owner's USDC balance, in one simulate. The queued exact-cost
+ * The order desk's policy and an owner's USDC balance, in one simulate. The queued exact-cost
  * quote needs both: enqueue escrows `min(max_cost, available − fee)`, while the chain quote caps
  * at the whole balance.
  */
 export async function orderFeeAndBalance(
 	client: ReadClient,
-	config: GeneratedConfig,
+	config: OrdersGeneratedConfig,
 	owner: string,
 	coinType: string,
-): Promise<{ policy: DelayedExecutionPolicy | null; availableRaw: bigint }> {
+): Promise<{ policy: DelayedExecutionPolicy; availableRaw: bigint }> {
 	const tx = new Transaction();
-	tx.add(protocolConfig.delayedExecutionPolicy({ config }));
+	tx.add(desk.policy({ config }));
 	const loaded = tx.add(
 		account.loadAccount({ config, arguments: { self: deriveAccountWrapperIdFrom(config, owner) } }),
 	);
 	tx.add(account.balance({ config, typeArguments: [coinType], arguments: { self: loaded } }));
 	const cmds = await inspectReturns(client, tx);
-	const policy = OptionalPolicy.parse(cmds[0][0]);
 	return {
-		policy: policy == null ? null : policyFromBcs(policy),
+		policy: policyFromBcs(DelayedExecutionPolicyBcs.parse(cmds[0][0])),
 		availableRaw: parseU64LE(cmds[2][0]),
 	};
 }

@@ -1,11 +1,12 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 // Delayed execution (DBU-885): the queue event decoders. Fixtures serialize with the GENERATED
-// event structs, tagged with the delayed-execution package as their defining package.
+// event structs. The queue events are the order-flow companion's (`queue_events`), tagged with its
+// original ID; the Predict events the upgrade added are tagged with the delayed-execution origin.
 import { describe, expect, test } from 'vitest';
 import * as configEvents from '../../src/contracts/deepbook_predict/config_events.js';
-import * as orderEvents from '../../src/contracts/deepbook_predict/order_events.js';
 import * as vaultEvents from '../../src/contracts/deepbook_predict/vault_events.js';
+import * as queueEvents from '../../src/contracts/deepbook_predict_orders/queue_events.js';
 import { PredictClient } from '../../src/predict/client.js';
 import { TESTNET_CONFIG } from '../../src/predict/config/index.js';
 import {
@@ -21,8 +22,9 @@ import { PredictInputError } from '../../src/predict/errors.js';
 import { reduceOrderEvents } from '../../src/predict/queue.js';
 import {
 	DELAYED_PKG,
+	DESK,
+	ORDERS_PKG,
 	QUEUE_CFG as cfg,
-	ZERO_ADDRESS,
 	policyFields,
 	recordFields,
 } from './queue-fixtures.js';
@@ -37,13 +39,27 @@ function event(pkg: string, module: string, name: string, bytes: Uint8Array): De
 }
 
 const record = recordFields();
+const I64_ZERO = { magnitude: 0n, is_negative: false };
+const VOL = {
+	pyth_source_id: 1,
+	bs_spot: 0n,
+	bs_forward: 0n,
+	svi_a: I64_ZERO,
+	svi_b: 0n,
+	svi_rho: I64_ZERO,
+	svi_m: I64_ZERO,
+	svi_sigma: 0n,
+	bs_spot_source_timestamp_ms: 0n,
+	bs_forward_source_timestamp_ms: 0n,
+	svi_source_timestamp_ms: 0n,
+};
 
 const ENQUEUED = (recordId: bigint, overrides: Record<string, unknown> = {}) =>
 	event(
-		DELAYED_PKG,
-		'order_events',
+		ORDERS_PKG,
+		'queue_events',
 		'OrderEnqueued',
-		orderEvents.OrderEnqueued.serialize({
+		queueEvents.OrderEnqueued.serialize({
 			expiry_market_id: MARKET,
 			record_id: recordId,
 			account_id: ACCOUNT,
@@ -51,7 +67,7 @@ const ENQUEUED = (recordId: bigint, overrides: Record<string, unknown> = {}) =>
 			request: record.request,
 			position: { order_id: 0n, root_id: 0n, opened_at_ms: 0n },
 			timing: record.timing,
-			vol: record.vol,
+			vol: VOL,
 			budget: 6_000_000n,
 			order_fee: 20_000n,
 			cash_need: 9_900_001n,
@@ -60,24 +76,23 @@ const ENQUEUED = (recordId: bigint, overrides: Record<string, unknown> = {}) =>
 			referrer_account_id: null,
 			source_record_id: null,
 			...cash,
+			onchain_timestamp_ms: 1_000_000n,
 			...overrides,
 		}).toBytes(),
 	);
 
 const COMMITTED = event(
-	DELAYED_PKG,
-	'order_events',
+	ORDERS_PKG,
+	'queue_events',
 	'CohortCommitted',
-	orderEvents.CohortCommitted.serialize({
+	queueEvents.CohortCommitted.serialize({
 		expiry_market_id: MARKET,
 		tau_ms: 1_000_800n,
 		tick_ms: 1_000_800n,
 		first_record_id: 0n,
 		last_record_id: 1n,
-		price_magnitude: 6_500_012_345_678n,
-		price_is_negative: false,
-		exponent_magnitude: 8,
-		exponent_is_negative: true,
+		// 65_000.123456789, normalized to 1e9.
+		spot: 65_000_123_456_789n,
 		generation_us: 1_000_799_000n,
 		pyth_source_id: 1,
 		pyth_channel: 3,
@@ -87,10 +102,10 @@ const COMMITTED = event(
 );
 
 const FILLED = event(
-	DELAYED_PKG,
-	'order_events',
+	ORDERS_PKG,
+	'queue_events',
 	'QueuedOrderFilled',
-	orderEvents.QueuedOrderFilled.serialize({
+	queueEvents.QueuedOrderFilled.serialize({
 		...cash,
 		expiry_market_id: MARKET,
 		record_id: 0n,
@@ -114,10 +129,10 @@ const FILLED = event(
 
 const REFUNDED = (sender: string, reason: number) =>
 	event(
-		DELAYED_PKG,
-		'order_events',
+		ORDERS_PKG,
+		'queue_events',
 		'QueuedOrderRefunded',
-		orderEvents.QueuedOrderRefunded.serialize({
+		queueEvents.QueuedOrderRefunded.serialize({
 			...cash,
 			expiry_market_id: MARKET,
 			record_id: 1n,
@@ -135,10 +150,10 @@ const REFUNDED = (sender: string, reason: number) =>
 
 const SETTLED = (name: 'OpenRecordSettled' | 'OpenRecordPayoutSkipped', payout: bigint) =>
 	event(
-		DELAYED_PKG,
-		'order_events',
+		ORDERS_PKG,
+		'queue_events',
 		name,
-		orderEvents.OpenRecordSettled.serialize({
+		queueEvents.OpenRecordSettled.serialize({
 			expiry_market_id: MARKET,
 			record_id: 0n,
 			account_id: ACCOUNT,
@@ -164,6 +179,7 @@ describe('queue event decoders', () => {
 			orderFee: 0.02,
 			timing: { tauMs: 1_000_800n, deadlineMs: 1_005_800n, pythChannel: 3 },
 			cash: { marketCash: 900n, requiredCash: 500n, waitingCashNeed: 120n },
+			timestampMs: 1_000_000n,
 			raw: { cashNeed: 9_900_001n, subsidyBound: 50_000n },
 		});
 	});
@@ -204,8 +220,14 @@ describe('queue event decoders', () => {
 			'open-record-settled',
 		]);
 		const commit = events[1];
-		expect(commit).toMatchObject({ lastRecordId: 1n, exponent: -8, sender: KEEPER });
-		expect(commit.type === 'cohort-committed' && commit.price).toBeCloseTo(65_000.12345678, 6);
+		expect(commit).toMatchObject({
+			lastRecordId: 1n,
+			spotRaw: 65_000_123_456_789n,
+			pythChannel: 3,
+			sender: KEEPER,
+			timestampMs: 1_001_000n,
+		});
+		expect(commit.type === 'cohort-committed' && commit.price).toBeCloseTo(65_000.123456789, 6);
 		expect(events[2]).toMatchObject({
 			quantity: 10,
 			amount: 4.1,
@@ -216,13 +238,14 @@ describe('queue event decoders', () => {
 		expect(events[4]).toMatchObject({ payout: 0, skipped: false });
 	});
 
-	test('a refund from try_settle (sender 0x0) is flagged bySettlement', () => {
-		const [bySettle] = decodeQueuedRefunds(cfg, { events: [REFUNDED(ZERO_ADDRESS, 5)] });
-		expect(bySettle).toMatchObject({ bySettlement: true, positionReturned: true });
-		expect(bySettle.reason.key).toBe('deadline');
-		const [byKeeper] = decodeQueuedRefunds(cfg, { events: [REFUNDED(KEEPER, 8)] });
-		expect(byKeeper).toMatchObject({ bySettlement: false, orderFeeReturned: 0.02 });
-		expect(byKeeper.reason.key).toBe('no-cash');
+	test('a settlement-drain refund carries its real sender and the deadline reason', () => {
+		const [drained] = decodeQueuedRefunds(cfg, { events: [REFUNDED(KEEPER, 5)] });
+		expect(drained).toMatchObject({ sender: KEEPER, positionReturned: true });
+		expect(drained.reason.key).toBe('deadline');
+		expect(drained).not.toHaveProperty('bySettlement');
+		const [noCash] = decodeQueuedRefunds(cfg, { events: [REFUNDED(KEEPER, 8)] });
+		expect(noCash).toMatchObject({ orderFeeReturned: 0.02 });
+		expect(noCash.reason.key).toBe('no-cash');
 	});
 
 	test('an unknown reason code decodes rather than throwing', () => {
@@ -237,18 +260,55 @@ describe('queue event decoders', () => {
 		expect(r).toMatchObject({ type: 'open-record-payout-skipped', skipped: true, payout: 5 });
 	});
 
-	test('events tagged with the v1 origin are not queue events', () => {
-		const v1 = {
-			...ENQUEUED(1n),
-			eventType: `${cfg.packages.predictV1}::order_events::OrderEnqueued`,
+	test('only the companion origin matches: Predict, the single-package layout and the latest ID do not', () => {
+		const tagged = (eventType: string) => ({ ...ENQUEUED(1n), eventType });
+		const others = [
+			`${cfg.packages.predictV1}::order_events::OrderEnqueued`,
+			`${DELAYED_PKG}::order_events::OrderEnqueued`,
+			`${DELAYED_PKG}::queue_events::OrderEnqueued`,
+		];
+		for (const eventType of others) {
+			expect(decodeEnqueues(cfg, { events: [tagged(eventType)] })).toEqual([]);
+		}
+		// After a companion upgrade, events stay typed by its original ID.
+		const upgraded = {
+			...cfg,
+			packages: {
+				...cfg.packages,
+				predictOrders: '0x' + '77'.repeat(32),
+				predictOrdersV1: ORDERS_PKG,
+			},
 		};
-		expect(decodeEnqueues(cfg, { events: [v1] })).toEqual([]);
+		expect(decodeEnqueues(upgraded, { events: [ENQUEUED(1n)] })).toHaveLength(1);
+		expect(
+			decodeEnqueues(upgraded, {
+				events: [tagged(`${'0x' + '77'.repeat(32)}::queue_events::OrderEnqueued`)],
+			}),
+		).toEqual([]);
 	});
 
-	test('without a delayed-execution record the decoders throw instead of guessing', () => {
+	test('a cleanup decodes as a queue op', () => {
+		const cleaned = event(
+			ORDERS_PKG,
+			'queue_events',
+			'QueuedOrdersCleaned',
+			queueEvents.QueuedOrdersCleaned.serialize({
+				expiry_market_id: MARKET,
+				record_ids: [1n, 2n],
+				onchain_timestamp_ms: 3n,
+			}).toBytes(),
+		);
+		expect(decodeQueueEvents(cfg, { events: [cleaned] })).toEqual([
+			{ type: 'queued-orders-cleaned', marketId: MARKET, recordIds: [1n, 2n], timestampMs: 3n },
+		]);
+	});
+
+	test('without the companion recorded the decoders throw instead of guessing', () => {
 		expect(() => decodeQueueEvents(TESTNET_CONFIG, { events: [ENQUEUED(1n)] })).toThrow(
 			PredictInputError,
 		);
+		const noOrders = { ...cfg, packages: { ...cfg.packages, predictOrders: undefined } };
+		expect(() => decodeQueueEvents(noOrders, { events: [ENQUEUED(1n)] })).toThrow(/predictOrders/);
 	});
 
 	test('decoded events fold into order states', () => {
@@ -279,18 +339,22 @@ describe('queue event decoders', () => {
 		});
 	});
 
-	test('policy and flush-operator updates decode for the multisig scripts', () => {
+	test('desk policy, flush-operator and order-flow updates decode for the multisig scripts', () => {
+		const witness = `${ORDERS_PKG.slice(2)}::order_flow::OrderFlow`;
 		const updates = decodePolicyUpdates(cfg, {
 			events: [
 				event(
-					DELAYED_PKG,
-					'config_events',
+					ORDERS_PKG,
+					'queue_events',
 					'DelayedExecutionPolicyUpdated',
-					configEvents.DelayedExecutionPolicyUpdated.serialize({
+					queueEvents.DelayedExecutionPolicyUpdated.serialize({
+						desk_id: DESK,
 						policy: policyFields({ order_fee: 30_000n }),
 						onchain_timestamp_ms: 9n,
 					}).toBytes(),
 				),
+				// The single-package layout, under Predict's origin, is no longer a policy event.
+				event(DELAYED_PKG, 'config_events', 'DelayedExecutionPolicyUpdated', new Uint8Array()),
 				event(
 					DELAYED_PKG,
 					'config_events',
@@ -301,11 +365,27 @@ describe('queue event decoders', () => {
 						onchain_timestamp_ms: 10n,
 					}).toBytes(),
 				),
+				event(
+					DELAYED_PKG,
+					'config_events',
+					'OrderFlowUpdated',
+					configEvents.OrderFlowUpdated.serialize({
+						order_flow: { name: witness },
+						enabled: true,
+						onchain_timestamp_ms: 11n,
+					}).toBytes(),
+				),
 			],
 		});
-		expect(updates).toMatchObject([
-			{ type: 'policy-updated', policy: { orderFee: 30_000n }, timestampMs: 9n },
-			{ type: 'flush-operator-updated', operator: KEEPER, added: true },
+		expect(updates).toEqual([
+			{
+				type: 'policy-updated',
+				deskId: DESK,
+				policy: expect.objectContaining({ orderFee: 30_000n }),
+				timestampMs: 9n,
+			},
+			{ type: 'flush-operator-updated', operator: KEEPER, added: true, timestampMs: 10n },
+			{ type: 'order-flow-updated', orderFlow: witness, enabled: true, timestampMs: 11n },
 		]);
 	});
 

@@ -86,12 +86,24 @@ export function decodeMoveAbort(error: MoveAbortError | null | undefined): Predi
 
 /**
  * Why a queued-order builder refused to add an enqueue. The builder reads the market first and
- * throws this instead of building a transaction the chain would abort, so a refused order never
- * fails the rest of a transaction. Each code mirrors one on-chain refusal.
+ * throws this instead of building a transaction the queue or protocol gates would abort, so a
+ * refused order never fails the rest of a transaction. Each code mirrors one on-chain refusal. The
+ * order's own limits at the current price are checked only on chain (`EOrderFailsLimits`).
  */
 export type PredictPreflightCode =
-	/** Delayed execution isn't live: the watermark isn't raised, or the policy isn't set. */
+	/**
+	 * Delayed execution isn't live: Predict's version watermark isn't raised
+	 * (`ECutoverNotReached`), or Predict doesn't allowlist the order-flow package yet
+	 * (`EOrderFlowNotAllowed`).
+	 */
 	| 'not-live'
+	/** The market has no `MarketQueue` yet: `queue::create_and_share` hasn't run for it. */
+	| 'no-queue'
+	/**
+	 * The order desk's version floor retired the order-flow package version this SDK calls
+	 * (`desk::EPackageVersionDisabled`). Update the SDK.
+	 */
+	| 'retired'
 	/** Trading is paused, the protocol is frozen, or minting is paused on this market. */
 	| 'paused'
 	/** The market's pricing is delayed (`queue_stuck`). Enqueue aborts `EQueueStuck`. */
@@ -131,47 +143,54 @@ export class PredictPreflightError extends Error {
 
 // Readable text for the aborts a trader, an app or a filler meets on the delayed-execution
 // paths, keyed by `module::EName` as the fullnode decodes it from the clever-error code. Only the
-// names matter, so a republish that renumbers codes doesn't stale this table.
+// names matter, so a republish that renumbers codes doesn't stale this table. The queue's own
+// checks are in the order-flow companion's `queue` and `desk` modules; Predict's admission, fill
+// and quote checks stay in `expiry_market` and `protocol_config`; the Lazer decode is in the math
+// library's `lazer_price`.
 const PREDICT_ERROR_TEXT: Readonly<Record<string, string>> = Object.freeze({
-	// Placement (`enqueue_*`).
+	// Placement (`queue::enqueue_*`).
+	'queue::EQueueStuck': 'Pricing is delayed for this market. Try again shortly.',
+	'queue::EQueueFull': "This market's order queue is full. Try again shortly.",
+	'queue::EAccountOrderCap': 'You already have the most waiting orders this market allows.',
+	'queue::EPastCutoff': 'This market no longer takes orders before its expiry.',
+	'queue::EFeeNotCovered': "Your balance doesn't cover the order fee. Top up and retry.",
+	'queue::EBelowMinSell': 'The sell is below the minimum size, or leaves a remainder below it.',
+	'queue::ERecordNotOpen': "That position isn't open in this market anymore.",
+	'queue::ENotRecordOwner': 'That position belongs to another account.',
+	'queue::EMintCostCapRequired': 'Set a maximum cost for the order.',
+	'queue::EWrongDesk': 'That order queue belongs to another order desk.',
+	'queue::EWrongMarket': "That order queue doesn't belong to this market.",
+	'queue::EMarketNotSettled': "The market hasn't settled yet.",
+	'queue::EMarketNotExpired': "The market hasn't expired yet.",
+	'desk::EPackageVersionDisabled':
+		'This order-flow package version is retired. Update to an SDK that calls the current package.',
+	'desk::EProtocolFrozen': 'The protocol is frozen.',
+	// Predict's admission and quotes.
 	'expiry_market::EDelayedExecutionRequired':
 		'Immediate trades are retired on this market. Place a queued order instead.',
-	'expiry_market::EQueueStuck': 'Pricing is delayed for this market. Try again shortly.',
-	'expiry_market::EQueueFull': "This market's order queue is full. Try again shortly.",
-	'expiry_market::EAccountOrderCap': 'You already have the most waiting orders this market allows.',
-	'expiry_market::EPastCutoff': 'This market no longer takes orders before its expiry.',
-	'expiry_market::EFeeNotCovered': "Your balance doesn't cover the order fee. Top up and retry.",
 	'expiry_market::EOrderFailsLimits':
 		'The order already misses its own limits at the current price.',
 	'expiry_market::EInsufficientMarketCash': "This market can't take an order this size right now.",
-	'expiry_market::EBelowMinSell':
-		'The sell is below the minimum size, or leaves a remainder below it.',
-	'expiry_market::ERecordNotOpen': "That position isn't open in this market anymore.",
-	'expiry_market::ENotRecordOwner': 'That position belongs to another account.',
 	'expiry_market::EMintCostCapRequired': 'Set a maximum cost for the order.',
 	'expiry_market::EMintPaused': 'Minting is paused on this market.',
+	'expiry_market::EInvalidOrderTiming': 'This market no longer takes orders before its expiry.',
 	'expiry_market::EMarketNotSettled': "The market hasn't settled yet.",
-	// Filler (`commit`).
-	'expiry_market::EGenerationAfterEnvelope':
+	// Filler (`queue::commit`, decoding the Lazer update).
+	'lazer_price::EGenerationAfterEnvelope':
 		'The Pyth update was generated after its own timestamp envelope.',
-	'expiry_market::EPythFeedMissing': "The Pyth update doesn't carry this market's feed.",
-	'expiry_market::EPythPropertyNotRequested':
+	'lazer_price::EFeedMissing': "The Pyth update doesn't carry this market's feed.",
+	'lazer_price::EPropertyNotRequested':
 		"The Pyth update doesn't carry the price property commit needs.",
-	'expiry_market::EUpdateDoesNotMatchQueue':
-		"The Pyth update's channel or feed doesn't match the waiting cohort.",
 	// Protocol gates.
 	'protocol_config::ECutoverNotReached':
 		"Queued orders aren't live yet: the protocol's version watermark hasn't been raised.",
-	'protocol_config::EPolicyNotInitialized':
-		"Delayed execution isn't configured on this deployment yet.",
+	'protocol_config::EOrderFlowNotAllowed':
+		"Queued orders aren't live yet: the protocol hasn't enabled the order-flow package.",
 	'protocol_config::EPackageVersionDisabled':
 		'This package version is retired. Update to an SDK that calls the current package.',
 	'protocol_config::EProtocolFrozen': 'The protocol is frozen.',
 	'protocol_config::ETradingPaused': 'Trading is paused.',
 	'protocol_config::ESnapshotInProgress': 'A pool valuation is running. Try again in a moment.',
-	// Quotes. Enqueue no longer needs a fresh on-chain Pyth spot, so these mean "no preview".
-	'pricing::EPythSpotUnavailable': 'Price preview unavailable right now. Orders still work.',
-	'pricing::EPythSpotStale': 'Price preview unavailable right now. Orders still work.',
 });
 
 /**
@@ -183,17 +202,4 @@ const PREDICT_ERROR_TEXT: Readonly<Record<string, string>> = Object.freeze({
 export function describePredictError(e: PredictMoveError): string | null {
 	if (!e.abortName) return null;
 	return PREDICT_ERROR_TEXT[`${e.module}::${e.abortName}`] ?? null;
-}
-
-/**
- * Whether a quote failed only because the on-chain Pyth spot is missing or stale. The live
- * quotes refuse the Block Scholes fallback, but enqueue doesn't need a fresh on-chain spot, so
- * show "no preview" and keep the order button enabled.
- */
-export function isPreviewUnavailable(e: unknown): boolean {
-	return (
-		e instanceof PredictMoveError &&
-		e.module === 'pricing' &&
-		(e.abortName === 'EPythSpotUnavailable' || e.abortName === 'EPythSpotStale')
-	);
 }

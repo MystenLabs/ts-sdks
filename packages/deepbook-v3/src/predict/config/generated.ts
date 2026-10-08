@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 import type { AccountConfig } from '../../account.js';
 import type { DeepbookPredictConfig } from '../../contracts/deepbook_predict/config-arguments.js';
+import type { DeepbookPredictMathConfig } from '../../contracts/deepbook_predict_math/config-arguments.js';
+import type { DeepbookPredictOrdersConfig } from '../../contracts/deepbook_predict_orders/config-arguments.js';
+import { PredictInputError } from '../errors.js';
 import type { PredictConfig } from './types.js';
 
 /**
@@ -37,5 +40,49 @@ export function toGeneratedConfig(cfg: PredictConfig): GeneratedConfig {
 		registry: cfg.objects.registry,
 		oracleRegistry: cfg.objects.oracleRegistry,
 		accountRegistry: cfg.objects.accountRegistry,
+	};
+}
+
+/**
+ * {@link GeneratedConfig} plus the order-flow companion (`deepbook_predict_orders`) and the math
+ * library: the slice the queued-order thunks and reads take. A queued order calls the companion,
+ * which calls into Predict, so one object carries both packages' keys. `predictOrdersPackageIdV1`
+ * is the companion's original ID, which types `OrderFlow` and the queue events.
+ */
+export type OrdersGeneratedConfig = GeneratedConfig &
+	DeepbookPredictOrdersConfig &
+	DeepbookPredictMathConfig & {
+		predictOrdersPackageId: string;
+		predictOrdersPackageIdV1: string;
+		orderDesk: string;
+	};
+
+/**
+ * Project a config that records delayed execution onto {@link OrdersGeneratedConfig}. Throws
+ * `PredictInputError` while the config lacks the Predict upgrade, the companion package or its
+ * desk: building a queued order against a guessed package would abort on chain or, worse, address
+ * the wrong one.
+ */
+export function toOrdersConfig(cfg: PredictConfig): OrdersGeneratedConfig {
+	const { predictDelayedExecution, predictOrders, predictOrdersV1, predictMath } = cfg.packages;
+	const orderDesk = cfg.objects.orderDesk;
+	if (!predictDelayedExecution || !predictOrders || !orderDesk) {
+		const missing = [
+			!predictDelayedExecution && '`packages.predictDelayedExecution`',
+			!predictOrders && '`packages.predictOrders`',
+			!orderDesk && '`objects.orderDesk`',
+		].filter(Boolean);
+		throw new PredictInputError(
+			`delayed execution isn't recorded for ${cfg.network} in this SDK version (missing ` +
+				`${missing.join(', ')}): pass a \`config\` that records the Predict upgrade, the ` +
+				'`deepbook_predict_orders` package and its order desk',
+		);
+	}
+	return {
+		...toGeneratedConfig(cfg),
+		predictOrdersPackageId: predictOrders,
+		predictOrdersPackageIdV1: predictOrdersV1 ?? predictOrders,
+		predictMathPackageId: predictMath,
+		orderDesk,
 	};
 }

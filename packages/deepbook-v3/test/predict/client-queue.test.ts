@@ -1,8 +1,10 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 // Delayed execution (DBU-885): the facade's queued-order builders, preflight, reads and quotes,
-// against a mocked chain. Each preflight code is driven from the one chain fact behind it.
+// against a mocked chain. Each preflight code is driven from the one chain fact behind it. Every
+// queued-order call goes to the order-flow companion (`queue::*`) at the market's derived queue.
 import type { Transaction } from '@mysten/sui/transactions';
+import { normalizeSuiAddress } from '@mysten/sui/utils';
 import { describe, expect, test } from 'vitest';
 import { ProtocolConfig } from '../../src/contracts/deepbook_predict/protocol_config.js';
 import { PredictClient, type MarketDescriptor } from '../../src/predict/client.js';
@@ -13,6 +15,10 @@ import { cashNeedBudget, cashNeedExactQuantity } from '../../src/predict/queue.j
 import type { ReadClient } from '../../src/predict/reads/inspect.js';
 import { deriveAccountIdFrom } from '../../src/predict/tx/common.js';
 import {
+	DELAYED_PKG,
+	MARKET,
+	ORDERS_PKG,
+	QUEUE,
 	QUEUE_CFG as cfg,
 	moveCallTargets,
 	policyFields,
@@ -23,8 +29,10 @@ import {
 } from './queue-fixtures.js';
 
 const OWNER = '0x' + 'ab'.repeat(32);
-const MARKET = '0x' + 'cd'.repeat(32);
 const ACCOUNT_ID = deriveAccountIdFrom(toGeneratedConfig(cfg), OWNER);
+
+// The scenario's required cash is 500 USDC, so spare cash is whatever cash sits above it.
+const spare = (raw: bigint): Partial<QueueScenario> => ({ cashBalance: 500_000_000n + raw });
 
 // An order ID carrying `lots` payout lots (the quantity field sits at bit 100).
 const orderIdWithLots = (lots: bigint) => (lots << 100n) | (10_500_000n << 70n) | (1n << 40n) | 1n;
@@ -61,12 +69,51 @@ describe('gating', () => {
 		).rejects.toThrow(PredictInputError);
 		await expect(pc.read.queue(market(s))).rejects.toThrow(PredictInputError);
 		await expect(pc.tx.refund(market(s))).rejects.toThrow(PredictInputError);
+		expect(() => pc.queueIdFor(MARKET)).toThrow(PredictInputError);
+	});
+
+	test('the Predict upgrade alone is not enough: the companion and its desk are needed too', async () => {
+		const s = scenario();
+		const noDesk = new PredictClient({
+			network: 'testnet',
+			client: queueClient(s).client,
+			config: { ...cfg, objects: { ...cfg.objects, orderDesk: undefined } },
+		});
+		await expect(noDesk.read.queue(market(s))).rejects.toThrow(/orderDesk/);
+		expect(() => noDesk.queueIdFor(MARKET)).toThrow(PredictInputError);
+	});
+
+	test('queueIdFor derives the queue from the desk, with no chain read', () => {
+		const { pc, simulated, existenceChecks } = client(scenario());
+		expect(pc.queueIdFor(MARKET)).toBe(QUEUE);
+		expect(simulated).toHaveLength(0);
+		expect(existenceChecks).toHaveLength(0);
+	});
+
+	test('a market without a queue is refused typed, and an existing queue is checked once', async () => {
+		const missing = scenario({ queueExists: false });
+		const m = client(missing);
+		expect(await preflightCode(m.pc.read.queue(market(missing)))).toBe('no-queue');
+		expect(
+			await preflightCode(
+				m.pc.tx.enqueueMintCost(OWNER, market(missing), { spend: 5, minQuantity: 0 }),
+			),
+		).toBe('no-queue');
+		// Only the market lookup simulated: no queue read was attempted.
+		expect(m.simulated.flatMap(moveCallTargets).filter((t) => t.startsWith('queue::'))).toEqual([]);
+
+		const s = scenario();
+		const { pc, existenceChecks } = client(s);
+		await pc.read.queue(market(s));
+		await pc.read.orders(market(s), [1n]);
+		await pc.tx.refund(market(s));
+		expect(existenceChecks).toEqual([QUEUE]);
 	});
 });
 
 describe('queued mints', () => {
 	test('enqueueMintCost builds auth → enqueue and previews the escrow', async () => {
-		const s = scenario({ available: 5_020_000n, spareCash: 10_000_000_000n });
+		const s = scenario({ available: 5_020_000n, ...spare(10_000_000_000n) });
 		const { pc } = client(s);
 		const { transaction, preview } = await pc.tx.enqueueMintCost(OWNER, market(s), {
 			spend: 8,
@@ -74,8 +121,12 @@ describe('queued mints', () => {
 		});
 		expect(moveCallTargets(transaction)).toEqual([
 			'account::generate_auth',
-			'expiry_market::enqueue_exact_cost',
+			'queue::enqueue_exact_cost',
 		]);
+		// The enqueue names the market's derived queue first.
+		const data = transaction.getData();
+		const first = data.commands[1].MoveCall!.arguments[0] as { Input: number };
+		expect(data.inputs[first.Input].UnresolvedObject?.objectId).toBe(QUEUE);
 		// Escrow is min(spend, available − fee) = 5 USDC, plus the 0.02 order fee.
 		expect(preview).toMatchObject({
 			kindName: 'exact-cost',
@@ -98,7 +149,7 @@ describe('queued mints', () => {
 			maxCost: 10,
 			maxProbability: 0.6,
 		});
-		expect(moveCallTargets(transaction)[1]).toBe('expiry_market::enqueue_exact_quantity');
+		expect(moveCallTargets(transaction)[1]).toBe('queue::enqueue_exact_quantity');
 		expect(preview).toMatchObject({
 			budget: 3,
 			cashNeedRaw: cashNeedExactQuantity(3_000_000n, s.minEntryProbability),
@@ -123,7 +174,7 @@ describe('queued mints', () => {
 	});
 
 	test('enqueueMintAmount refuses a spend below the minimum premium before any read', async () => {
-		const s = scenario({ spareCash: 10_000_000_000n });
+		const s = scenario({ ...spare(10_000_000_000n) });
 		const { pc, simulated } = client(s);
 		expect(
 			await preflightCode(
@@ -140,7 +191,8 @@ describe('queued mints', () => {
 
 	test.each([
 		['not-live', { watermark: 3n }],
-		['not-live', { policy: null }],
+		['not-live', { orderFlowEnabled: false }],
+		['retired', { deskWatermark: 2n }],
 		['paused', { frozen: true }],
 		['paused', { tradingPaused: true }],
 		['paused', { mintPaused: true }],
@@ -149,9 +201,9 @@ describe('queued mints', () => {
 		['account-cap', { waitingOrders: 5n }],
 		['fee', { available: 20_000n }],
 		['min-premium', { available: 520_000n }],
-		['market-cash', { spareCash: 1_000n }],
+		['market-cash', spare(1_000n)],
 	] as [string, Partial<QueueScenario>][])('preflight refuses with %s', async (code, overrides) => {
-		const s = scenario({ spareCash: 10_000_000_000n, ...overrides });
+		const s = scenario({ ...spare(10_000_000_000n), ...overrides });
 		const { pc } = client(s);
 		expect(
 			await preflightCode(pc.tx.enqueueMintCost(OWNER, market(s), { spend: 8, minQuantity: 0 })),
@@ -178,7 +230,7 @@ describe('queued mints', () => {
 		const s = scenario({
 			tradingPaused: true,
 			mintPaused: true,
-			spareCash: 0n,
+			...spare(0n),
 			records: new Map([
 				[
 					3n,
@@ -219,11 +271,11 @@ describe('queued sells', () => {
 		});
 
 	test('a short market gets rebalance_expiry_cash AFTER the enqueue', async () => {
-		const s = scenario({ spareCash: 100n, records: new Map([[3n, open()]]) });
+		const s = scenario({ ...spare(100n), records: new Map([[3n, open()]]) });
 		const { transaction, preview } = await sell(s, 2);
 		expect(moveCallTargets(transaction)).toEqual([
 			'account::generate_auth',
-			'expiry_market::enqueue_redeem_open',
+			'queue::enqueue_redeem_open',
 			'plp::rebalance_expiry_cash',
 		]);
 		expect(preview).toMatchObject({
@@ -241,7 +293,7 @@ describe('queued sells', () => {
 		expect(moveCallTargets((await sell(s, 2, { fundMarket: 'always' })).transaction)).toHaveLength(
 			3,
 		);
-		const short = scenario({ spareCash: 0n, records: new Map([[3n, open()]]) });
+		const short = scenario({ ...spare(0n), records: new Map([[3n, open()]]) });
 		const never = await sell(short, 2, { fundMarket: 'never' });
 		expect(moveCallTargets(never.transaction)).toHaveLength(2);
 		expect(never.preview.needsFunding).toBe(true);
@@ -286,13 +338,14 @@ describe('reads', () => {
 			acceptingSells: true,
 			refusal: { mint: null, sell: null },
 		});
-		expect(view.timing!.tickMs).toBe(200n);
-		expect(view.maxMint!.budget).toMatchObject({ limitedBy: 'balance', maxRaw: 10_000_000n });
-		expect(view.maxMint!.exactQuantity.limitedBy).toBe('cash');
-		const unset = scenario({ policy: null });
-		expect(await client(unset).pc.read.queue(market(unset))).toMatchObject({
-			timing: null,
-			maxMint: null,
+		expect(view.queueId).toBe(QUEUE);
+		expect(view.timing.tickMs).toBe(200n);
+		expect(view.maxMint.budget).toMatchObject({ limitedBy: 'balance', maxRaw: 10_000_000n });
+		expect(view.maxMint.exactQuantity.limitedBy).toBe('cash');
+		// Before Predict allowlists the companion, nothing is accepted, but the view still reads.
+		const disabled = scenario({ orderFlowEnabled: false });
+		expect(await client(disabled).pc.read.queue(market(disabled))).toMatchObject({
+			mode: 'delayed',
 			acceptingMints: false,
 			acceptingSells: false,
 			refusal: { mint: 'not-live', sell: 'not-live' },
@@ -308,6 +361,8 @@ describe('reads', () => {
 		['pricing delayed', { stuck: true }, 'stuck', 'stuck'],
 		['frozen', { frozen: true }, 'paused', 'paused'],
 		['watermark not raised', { watermark: 3n }, 'not-live', 'not-live'],
+		['order flow not allowlisted', { orderFlowEnabled: false }, 'not-live', 'not-live'],
+		['the desk floor retired this companion', { deskWatermark: 2n }, 'retired', 'retired'],
 		['the account at its cap', { waitingOrders: 5n }, 'account-cap', 'account-cap'],
 	] as [string, Partial<QueueScenario>, string | null, string | null][])(
 		'read.queue acceptance matches the builder gates: %s',
@@ -401,20 +456,55 @@ describe('reads', () => {
 		expect(await at(3n)).toBe('awaiting-cutover');
 		expect(await at(3n, TESTNET_CONFIG)).toBe('immediate');
 		expect(await at(4n, TESTNET_CONFIG)).toBe('unsupported');
+		// A config that records the Predict upgrade but not the order-flow package can't queue, and
+		// its Predict call target has retired the immediate trades.
+		const noOrders = { ...cfg, packages: { ...cfg.packages, predictOrders: undefined } };
+		expect(await at(4n, noOrders)).toBe('unsupported');
+		expect(await at(3n, noOrders)).toBe('awaiting-cutover');
 	});
 });
 
 describe('quotes', () => {
+	test('a config with the Predict upgrade but no order-flow package refuses rather than quote a retired mint', async () => {
+		const s = scenario();
+		const q = queueClient(s);
+		const partial = new PredictClient({
+			network: 'testnet',
+			client: q.client,
+			config: { ...cfg, packages: { ...cfg.packages, predictOrders: undefined } },
+		});
+		await expect(partial.read.quoteMint(OWNER, market(s), { quantity: 10 })).rejects.toThrow(
+			/predictOrders/,
+		);
+		await expect(
+			partial.read.quoteMintCost(OWNER, market(s), { spend: 8, minQuantity: 0 }),
+		).rejects.toThrow(PredictInputError);
+		expect(q.simulated.flatMap(moveCallTargets)).not.toContain(
+			'expiry_market::mint_exact_quantity',
+		);
+	});
+
 	test('quoteMint previews a queued fill: no penalty in the cost, the order fee apart', async () => {
 		const s = scenario();
 		const { pc, simulated } = client(s);
 		const q = await pc.read.quoteMint(OWNER, market(s), { quantity: 10 });
+		// The quote is Predict's (the upgrade), the fee the companion desk's.
+		const packages = simulated
+			.at(-1)!
+			.getData()
+			.commands.map((c) => `${normalizeSuiAddress(c.MoveCall!.package)}::${c.MoveCall!.module}`);
+		expect(packages).toEqual([
+			`${DELAYED_PKG}::expiry_market`,
+			`${DELAYED_PKG}::expiry_market`,
+			`${ORDERS_PKG}::desk`,
+		]);
 		expect(moveCallTargets(simulated.at(-1)!)).toEqual([
 			'expiry_market::load_live_pricer',
 			'expiry_market::quote_mint_for_account',
-			'protocol_config::delayed_execution_policy',
+			'desk::policy',
 		]);
-		// all_in_cost 4.09 includes a 0.007 penalty a queued fill doesn't pay.
+		// The delayed-execution package quotes no penalty; the fixture's 0.007 shows any penalty
+		// still comes out of the queued cost.
 		expect(q).toMatchObject({ queued: true, cost: 4.083, orderFee: 0.02, fees: { penalty: 0 } });
 		expect(q.raw.cost).toBe(4_083_000n);
 	});
@@ -432,7 +522,13 @@ describe('quotes', () => {
 
 	test('quoteSell nets the order fee off the proceeds', async () => {
 		const s = scenario();
-		const q = await client(s).pc.read.quoteSell(OWNER, market(s), { recordId: 3n, quantity: 2 });
+		const { pc, simulated } = client(s);
+		const q = await pc.read.quoteSell(OWNER, market(s), { recordId: 3n, quantity: 2 });
+		expect(moveCallTargets(simulated.at(-1)!)).toEqual([
+			'expiry_market::load_live_pricer',
+			'queue::quote_redeem_open',
+			'desk::policy',
+		]);
 		expect(q).toMatchObject({
 			proceeds: 0.79,
 			net: 0.77,
@@ -446,7 +542,10 @@ describe('refund and fill builders', () => {
 	test('refund defaults to 100 visited records', async () => {
 		const s = scenario();
 		const tx = await client(s).pc.tx.refund(market(s));
-		expect(moveCallTargets(tx)).toEqual(['expiry_market::refund']);
+		expect(moveCallTargets(tx)).toEqual(['queue::refund']);
+		const maxOrders = tx.getData().commands[0].MoveCall!.arguments[4] as { Input: number };
+		const bytes = tx.getData().inputs[maxOrders.Input].Pure!.bytes;
+		expect(Buffer.from(bytes, 'base64').readBigUInt64LE()).toBe(100n);
 	});
 
 	test('fill reads Lazer State first, then builds verify → commit → resolve', async () => {
@@ -455,6 +554,7 @@ describe('refund and fill builders', () => {
 		const lazerClient = {
 			core: {
 				simulateTransaction: q.client.core.simulateTransaction,
+				getObjects: q.client.core.getObjects,
 				async getObject() {
 					// Minimal State prefix: id, no signers, an upgrade cap pointing at the current package.
 					const bytes = new Uint8Array(32 + 1 + 32 + 32 + 8 + 1);
@@ -467,8 +567,8 @@ describe('refund and fill builders', () => {
 		const tx: Transaction = await pc.tx.fill(market(s), { payloads: [new Uint8Array([1])] });
 		expect(moveCallTargets(tx)).toEqual([
 			'pyth_lazer::parse_and_verify_le_ecdsa_update',
-			'expiry_market::commit',
-			'expiry_market::resolve',
+			'queue::commit',
+			'queue::resolve',
 		]);
 		const noState = new PredictClient({
 			network: 'testnet',
@@ -490,7 +590,26 @@ test('the queued-order surface is on the public /predict entry point', async () 
 	expect(predict.queue.REFUND_REASONS[8].key).toBe('no-cash');
 	expect(typeof predict.queueTx.enqueueRedeemOpen).toBe('function');
 	expect(typeof predict.queueTx.fill).toBe('function');
+	expect(typeof predict.queueTx.settleStep).toBe('function');
+	expect(typeof predict.queueTx.createQueue).toBe('function');
+	expect(predict.queue.SETTLE_PHASE).toEqual({ DRAIN: 0, PAY: 1, DONE: 2 });
 	expect(typeof predict.describePredictError).toBe('function');
+	expect(predict.deriveQueueId(cfg.objects.orderDesk!, MARKET)).toBe(QUEUE);
+	expect(predict.toOrdersConfig(cfg).orderDesk).toBe(cfg.objects.orderDesk);
+	expect(typeof predict.orderFlowWitnessType).toBe('function');
+	// The companion's and the math library's generated bindings.
+	expect(typeof predict.queueMoveCalls.enqueueExactCost).toBe('function');
+	expect(typeof predict.queueMoveCalls.settleStep).toBe('function');
+	expect(typeof predict.deskMoveCalls.setOrderFee).toBe('function');
 	expect(typeof predict.orderQueueMoveCalls.statusOpen).toBe('function');
 	expect(typeof predict.delayedExecutionConfigMoveCalls.orderFee).toBe('function');
+	expect(typeof predict.queueEvents.OrderEnqueued.parse).toBe('function');
+	expect(typeof predict.predictMathMoveCalls.orderTerms).toBe('function');
+	expect(typeof predict.lazerPriceMoveCalls.spot).toBe('function');
+	// Predict no longer has a desk constructor, policy setters or queue entry points.
+	expect('createAndShare' in predict.deskMoveCalls).toBe(false);
+	expect('initDelayedExecutionPolicy' in predict.protocolConfigMoveCalls).toBe(false);
+	expect('setOrderFee' in predict.protocolConfigMoveCalls).toBe(false);
+	expect('enqueueExactCost' in predict.expiryMarketMoveCalls).toBe(false);
+	expect('isPreviewUnavailable' in predict).toBe(false);
 });

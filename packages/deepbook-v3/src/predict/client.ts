@@ -5,7 +5,12 @@ import { Transaction, coinWithBalance, type TransactionResult } from '@mysten/su
 import { isValidSuiObjectId, normalizeSuiAddress } from '@mysten/sui/utils';
 import { TESTNET_PREDICT } from '../deployments/testnet.js';
 import { getConfig, type PredictConfig, type UnderlyingConfig } from './config/index.js';
-import { toGeneratedConfig, type GeneratedConfig } from './config/generated.js';
+import {
+	toGeneratedConfig,
+	toOrdersConfig,
+	type GeneratedConfig,
+	type OrdersGeneratedConfig,
+} from './config/generated.js';
 import { MIN_PREMIUM, decodeOrderRange } from './cost.js';
 import {
 	decodeAccountsCreated,
@@ -32,6 +37,7 @@ import {
 } from './decode.js';
 import { PredictInputError, PredictPreflightError, type PredictPreflightCode } from './errors.js';
 import {
+	ORDER_FLOW_PACKAGE_VERSION,
 	ORDER_KIND,
 	ORDER_STATUS,
 	cashNeedSell,
@@ -49,6 +55,7 @@ import {
 	type QueuedOrder,
 	type TimingPreview,
 } from './queue.js';
+import { deriveQueueId } from './queue-id.js';
 import { simulateWithEvents } from './reads/inspect.js';
 import {
 	executionModeFor,
@@ -417,12 +424,13 @@ export interface QueuedOrderPlan {
 /** `read.queue`: a market's queue state plus the derived figures the app shows. */
 export interface MarketQueueView extends MarketQueueState {
 	mode: ExecutionMode;
-	/** τ, deadline and cutoff for an order placed now; null before the policy exists. */
-	timing: TimingPreview | null;
+	/** τ, deadline and cutoff for an order placed now, from the local clock. */
+	timing: TimingPreview;
 	/**
 	 * Whether a new mint would pass the queue gates now: the same gates `enqueueMint*` checks
-	 * before its fee and cash checks (cutover, policy, pauses, stuck, mint capacity, the cutoff,
-	 * and the account cap when an owner was given). One side can be full while the other is open.
+	 * before its fee and cash checks (the order-flow allowlist, the cutover, pauses, stuck, mint
+	 * capacity, the cutoff, and the account cap when an owner was given). One side can be full
+	 * while the other is open.
 	 */
 	acceptingMints: boolean;
 	/** Whether a new sell would pass the queue gates now (sells skip the mint pauses). */
@@ -432,8 +440,8 @@ export interface MarketQueueView extends MarketQueueState {
 	 * throw for the queue gates.
 	 */
 	refusal: { mint: PredictPreflightCode | null; sell: PredictPreflightCode | null };
-	/** The largest mint the market's spare cash admits now; null before the policy exists. */
-	maxMint: { exactQuantity: MaxMintNow; budget: MaxMintNow } | null;
+	/** The largest mint the market's spare cash admits now. */
+	maxMint: { exactQuantity: MaxMintNow; budget: MaxMintNow };
 }
 
 /** A queue record and its display state. */
@@ -517,6 +525,9 @@ export class PredictClient {
 	// immutable once created, so cache-forever; a missing table (no Predict
 	// data yet) is NOT cached — it appears after the owner's first trade.
 	#positionsCache = new Map<string, PositionsHandle>();
+	// Queue IDs confirmed to exist. A `MarketQueue` is shared and never deleted, so a confirmed
+	// queue is cached forever; a missing one is not cached, since the keeper creates it later.
+	#knownQueues = new Set<string>();
 
 	constructor(opts: {
 		network: 'testnet' | 'mainnet';
@@ -530,6 +541,15 @@ export class PredictClient {
 	/** The deterministic id of an owner's canonical account wrapper — no chain read. */
 	wrapperIdFor(owner: string): string {
 		return deriveAccountWrapperIdFrom(this.#config, owner);
+	}
+
+	/**
+	 * The deterministic id of a market's `MarketQueue` under the config's order desk, whether or
+	 * not it exists yet — no chain read. Throws `PredictInputError` while the config doesn't record
+	 * delayed execution.
+	 */
+	queueIdFor(marketId: string): string {
+		return deriveQueueId(this.#requireDelayedExecution().orderDesk, marketId);
 	}
 
 	// The deployment's wiring for a symbol; throws a typed error on an unknown symbol.
@@ -798,45 +818,76 @@ export class PredictClient {
 
 	// === delayed execution (DBU-885) ===
 
-	// The delayed-execution type origin, or a typed refusal: without it this SDK version has no
-	// record of delayed execution on the network, and the queue calls would address the wrong
-	// package or decode nothing.
-	#requireDelayedExecution(): string {
-		const pkg = this.cfg.packages.predictDelayedExecution;
-		if (!pkg) {
-			throw new PredictInputError(
-				`delayed execution isn't recorded for ${this.cfg.network} in this SDK version, pass \`config\``,
-			);
-		}
-		return pkg;
+	// The config slice the queue calls take, or a typed refusal: without the Predict upgrade, the
+	// order-flow companion and its desk, this SDK version has no record of delayed execution on the
+	// network, and the queue calls would address the wrong package or decode nothing.
+	#requireDelayedExecution(): OrdersGeneratedConfig {
+		return toOrdersConfig(this.cfg);
 	}
 
-	#queueState(
+	// Whether the config records delayed execution, without throwing.
+	#recordsDelayedExecution(): boolean {
+		const { predictDelayedExecution, predictOrders } = this.cfg.packages;
+		return Boolean(predictDelayedExecution && predictOrders && this.cfg.objects.orderDesk);
+	}
+
+	// The market's queue ID, once its `MarketQueue` is known to exist. A missing queue would abort
+	// every read and order with an opaque error, so it is refused here with a typed one.
+	async #existingQueueId(orders: OrdersGeneratedConfig, marketId: string): Promise<string> {
+		const queueId = deriveQueueId(orders.orderDesk, marketId);
+		if (this.#knownQueues.has(queueId)) return queueId;
+		const {
+			objects: [queue],
+		} = await this.#client.core.getObjects({ objectIds: [queueId] });
+		if (queue instanceof Error) {
+			throw new PredictPreflightError(
+				'no-queue',
+				`market ${marketId} has no order queue yet (\`queue::create_and_share\` hasn't run for it)`,
+			);
+		}
+		this.#knownQueues.add(queueId);
+		return queueId;
+	}
+
+	async #queueState(
+		orders: OrdersGeneratedConfig,
 		marketId: string,
 		opts: { owner?: string; recordIds?: bigint[] } = {},
 	): Promise<MarketQueueState> {
-		return marketQueueState(this.#client, this.#config, marketId, {
+		const queueId = await this.#existingQueueId(orders, marketId);
+		return marketQueueState(this.#client, orders, marketId, {
 			owner: opts.owner,
 			quoteCoinType: this.cfg.quoteCoinType,
 			recordIds: opts.recordIds,
+			queueId,
 		});
 	}
 
-	// The queue gates every enqueue passes, in the contract's order (`begin_enqueue`): the cutover,
-	// the policy, the pauses, the stuck gate, capacity, the per-account cap, then the cutoff on the
-	// previewed τ. Throws the matching PredictPreflightError.
+	// The queue gates every enqueue passes: Predict's order-flow allowlist and cutover, the
+	// pauses, then the queue's own (`begin_enqueue`): the stuck gate, capacity, the per-account
+	// cap, and the cutoff on the previewed τ. Throws the matching PredictPreflightError.
 	#assertQueueOpen(
 		state: MarketQueueState,
 		side: 'mint' | 'sell',
 		nowMs: bigint,
 	): { policy: DelayedExecutionPolicy; timing: TimingPreview } {
-		const policy = state.protocol.policy;
-		if (executionModeFor(state.protocol.versionWatermark, true) !== 'delayed' || !policy) {
+		const policy = state.desk.policy;
+		if (!state.protocol.orderFlowEnabled) {
 			throw new PredictPreflightError(
 				'not-live',
-				policy
-					? "queued orders aren't live yet: the protocol's version watermark hasn't been raised"
-					: "delayed execution isn't configured on this deployment yet",
+				"queued orders aren't live yet: the protocol hasn't enabled the order-flow package",
+			);
+		}
+		if (executionModeFor(state.protocol.versionWatermark, true) !== 'delayed') {
+			throw new PredictPreflightError(
+				'not-live',
+				"queued orders aren't live yet: the protocol's version watermark hasn't been raised",
+			);
+		}
+		if (state.desk.versionWatermark > ORDER_FLOW_PACKAGE_VERSION) {
+			throw new PredictPreflightError(
+				'retired',
+				'the order-flow package version this SDK calls is retired: update the SDK',
 			);
 		}
 		if (state.protocol.frozen) throw new PredictPreflightError('paused', 'the protocol is frozen');
@@ -914,6 +965,7 @@ export class PredictClient {
 		m: MarketDescriptor,
 		order: { kind: number; maxCostRaw: bigint; quantityRaw?: bigint; maxPremiumRaw?: bigint },
 		build: (
+			orders: OrdersGeneratedConfig,
 			target: {
 				expiryMarketId: string;
 				wrapperId: string;
@@ -922,18 +974,18 @@ export class PredictClient {
 			} & MarketFeeds,
 		) => (tx: Transaction) => TransactionResult,
 	): Promise<QueuedOrderPlan> {
-		this.#requireDelayedExecution();
+		const orders = this.#requireDelayedExecution();
 		const feeds = this.#feeds(m.underlying);
 		const { id, state: market } = await this.#resolveMarket(m);
 		const { lowerTick, higherTick } = await this.#strikeTicks(m, id, market);
-		const thunk = build({
+		const thunk = build(orders, {
 			expiryMarketId: id,
 			wrapperId: this.wrapperIdFor(owner),
 			lowerTick,
 			higherTick,
 			...feeds,
 		});
-		const state = await this.#queueState(id, { owner });
+		const state = await this.#queueState(orders, id, { owner });
 		const { policy, timing } = this.#assertQueueOpen(state, 'mint', BigInt(Date.now()));
 		const available = state.account?.availableRaw ?? 0n;
 		const budget = mintBudget({
@@ -985,12 +1037,12 @@ export class PredictClient {
 		m: MarketCoordinates,
 		opts: EnqueueSellOptions,
 	): Promise<QueuedOrderPlan> {
-		this.#requireDelayedExecution();
+		const orders = this.#requireDelayedExecution();
 		const feeds = this.#feeds(m.underlying);
 		const { id } = await this.#resolveMarket(m);
 		const closeQuantityRaw = usdcToRaw(opts.quantity);
 		this.#assertLot(closeQuantityRaw);
-		const thunk = enqueueRedeemOpen(this.#config, {
+		const thunk = enqueueRedeemOpen(orders, {
 			expiryMarketId: id,
 			wrapperId: this.wrapperIdFor(owner),
 			recordId: opts.recordId,
@@ -999,7 +1051,7 @@ export class PredictClient {
 			minProceedsRaw: usdcToRaw(opts.minProceeds),
 			...feeds,
 		});
-		const state = await this.#queueState(id, { owner, recordIds: [opts.recordId] });
+		const state = await this.#queueState(orders, id, { owner, recordIds: [opts.recordId] });
 		const { policy, timing } = this.#assertQueueOpen(state, 'sell', BigInt(Date.now()));
 		const record = state.records[0];
 		if (!record || record.status !== ORDER_STATUS.OPEN || record.position.order_id === 0n) {
@@ -1010,8 +1062,7 @@ export class PredictClient {
 		}
 		if (
 			!state.account ||
-			normalizeSuiAddress(record.parties.account_id) !==
-				normalizeSuiAddress(state.account.accountId)
+			normalizeSuiAddress(record.account_id) !== normalizeSuiAddress(state.account.accountId)
 		) {
 			throw new PredictPreflightError(
 				'not-record-owner',
@@ -1185,25 +1236,26 @@ export class PredictClient {
 
 		/**
 		 * Immediate exact-quantity mint (`mint_exact_quantity`).
-		 * @deprecated Retired by delayed execution (DBU-885): aborts `EDelayedExecutionRequired`
-		 * once the version watermark reaches 4. Use {@link PredictClient.tx.enqueueMint}, and
-		 * `read.executionMode()` to know which path a network is on.
+		 * @deprecated Retired by delayed execution (DBU-885): Predict v4 always aborts it
+		 * (`EDelayedExecutionRequired`), so it works only while the config calls a pre-v4 package.
+		 * Use {@link PredictClient.tx.enqueueMint}, and `read.executionMode()` to know which path a
+		 * network is on.
 		 */
 		mint: (owner: string, m: MarketDescriptor, opts: MintOptions): Promise<Transaction> =>
 			this.#buildMint(owner, m, opts),
 
 		/**
 		 * V2 all-in budget mint; use minQuantity to protect the fill against slippage.
-		 * @deprecated Retired by delayed execution (DBU-885): aborts `EDelayedExecutionRequired`
-		 * once the version watermark reaches 4. Use `tx.enqueueMintCost`.
+		 * @deprecated Retired by delayed execution (DBU-885): Predict v4 always aborts it
+		 * (`EDelayedExecutionRequired`). Use `tx.enqueueMintCost`.
 		 */
 		mintCost: (owner: string, m: MarketDescriptor, opts: MintCostOptions): Promise<Transaction> =>
 			this.#buildMintCost(owner, m, opts),
 
 		/**
 		 * Immediate premium-budget mint (`mint_exact_amount`).
-		 * @deprecated Retired by delayed execution (DBU-885): aborts `EDelayedExecutionRequired`
-		 * once the version watermark reaches 4. Use `tx.enqueueMintAmount`.
+		 * @deprecated Retired by delayed execution (DBU-885): Predict v4 always aborts it
+		 * (`EDelayedExecutionRequired`). Use `tx.enqueueMintAmount`.
 		 */
 		mintAmount: async (
 			owner: string,
@@ -1237,18 +1289,18 @@ export class PredictClient {
 
 		/**
 		 * Immediate close of an account position (`redeem_live`).
-		 * @deprecated Retired by delayed execution (DBU-885): aborts `EDelayedExecutionRequired`
-		 * once the version watermark reaches 4. A position held in the account then has no early
-		 * exit and is paid at settlement with `claimSettled`. Queued fills are Open records in the
-		 * market, sold with `tx.enqueueSell`.
+		 * @deprecated Retired by delayed execution (DBU-885): Predict v4 always aborts it
+		 * (`EDelayedExecutionRequired`). A position held in the account then has no early exit and
+		 * is paid at settlement with `claimSettled`. Queued fills are Open records in the market's
+		 * queue, sold with `tx.enqueueSell`.
 		 */
 		redeem: (owner: string, m: MarketDescriptor, opts: CloseOptions): Promise<Transaction> =>
 			this.#buildRedeem(owner, m, opts),
 
 		/**
 		 * Pay a settled position held in the ACCOUNT (`redeem_settled`), in full. Unchanged by delayed
-		 * execution, for positions minted before it. It doesn't pay Open queue records:
-		 * `try_settle` pays those to the account's wrapper address at settlement.
+		 * execution, for positions minted before it. It doesn't pay Open queue records: the queue's
+		 * settlement walk (`settle_step`) pays those to the account's wrapper address.
 		 */
 		claimSettled: async (
 			owner: string,
@@ -1267,8 +1319,9 @@ export class PredictClient {
 
 		// --- delayed execution (DBU-885) ---
 		// Each queued-order builder reads the market once and refuses, with a typed
-		// PredictPreflightError, an order the chain would abort, so a refused order never fails a
-		// larger transaction. It returns the transaction and a display preview. Every builder throws
+		// PredictPreflightError, an order the queue or protocol gates would abort, so a refused order
+		// never fails a larger transaction. The order's own limits at the current price are checked
+		// only on chain. It returns the transaction and a display preview. Every builder throws
 		// PredictInputError while the network's config doesn't record delayed execution.
 
 		/**
@@ -1291,8 +1344,8 @@ export class PredictClient {
 				owner,
 				m,
 				{ kind: ORDER_KIND.EXACT_QUANTITY, maxCostRaw, quantityRaw },
-				(target) =>
-					enqueueExactQuantity(this.#config, {
+				(orders, target) =>
+					enqueueExactQuantity(orders, {
 						...target,
 						quantityRaw,
 						maxCostRaw,
@@ -1325,8 +1378,8 @@ export class PredictClient {
 				owner,
 				m,
 				{ kind: ORDER_KIND.EXACT_AMOUNT, maxCostRaw, maxPremiumRaw },
-				(target) =>
-					enqueueExactAmount(this.#config, {
+				(orders, target) =>
+					enqueueExactAmount(orders, {
 						...target,
 						maxPremiumRaw,
 						minQuantityRaw,
@@ -1346,8 +1399,11 @@ export class PredictClient {
 		): Promise<QueuedOrderPlan> => {
 			const maxCostRaw = usdcToRaw(opts.spend);
 			const minQuantityRaw = usdcToRaw(opts.minQuantity);
-			return this.#planMint(owner, m, { kind: ORDER_KIND.EXACT_COST, maxCostRaw }, (target) =>
-				enqueueExactCost(this.#config, { ...target, maxCostRaw, minQuantityRaw }),
+			return this.#planMint(
+				owner,
+				m,
+				{ kind: ORDER_KIND.EXACT_COST, maxCostRaw },
+				(orders, target) => enqueueExactCost(orders, { ...target, maxCostRaw, minQuantityRaw }),
 			);
 		},
 
@@ -1375,10 +1431,15 @@ export class PredictClient {
 			m: MarketCoordinates,
 			opts: { maxOrders?: number } = {},
 		): Promise<Transaction> => {
-			this.#requireDelayedExecution();
+			const orders = this.#requireDelayedExecution();
 			const { id } = await this.#resolveMarket(m);
+			const queueId = await this.#existingQueueId(orders, id);
 			return txOf(
-				refund(this.#config, { expiryMarketId: id, maxOrders: BigInt(opts.maxOrders ?? 100) }),
+				refund(orders, {
+					expiryMarketId: id,
+					queueId,
+					maxOrders: BigInt(opts.maxOrders ?? 100),
+				}),
 			);
 		},
 
@@ -1396,16 +1457,18 @@ export class PredictClient {
 				lazerStateId?: string;
 			},
 		): Promise<Transaction> => {
-			this.#requireDelayedExecution();
+			const orders = this.#requireDelayedExecution();
 			const stateId = opts.lazerStateId ?? this.cfg.oracle?.pythLazerState;
 			if (!stateId) {
 				throw new PredictInputError('fill needs the Pyth Lazer State: pass `lazerStateId`');
 			}
 			const { id } = await this.#resolveMarket(m);
+			const queueId = await this.#existingQueueId(orders, id);
 			const lazer = await lazerPackages(this.#client, stateId);
 			return txOf(
-				fill(this.#config, {
+				fill(orders, {
 					expiryMarketId: id,
+					queueId,
 					payloads: opts.payloads,
 					lazer,
 					maxOrders: BigInt(opts.maxOrders ?? 15),
@@ -1579,12 +1642,13 @@ export class PredictClient {
 		/**
 		 * Exact pre-trade quote for an exact-quantity mint. Requires a funded account.
 		 *
-		 * Where the config records delayed execution, this reads the chain's own
-		 * `quote_mint_for_account` (the immediate mint aborts after the cutover) and previews a
-		 * QUEUED fill: `queued: true`, no congestion penalty in `cost`, and the order fee in
-		 * `orderFee`. It throws `pricing::EPythSpotUnavailable` / `EPythSpotStale` while the
-		 * on-chain Pyth spot is unusable: show "no preview" (`isPreviewUnavailable`), enqueue still
-		 * works. Elsewhere it dry-runs the immediate mint and decodes its receipt, as before.
+		 * Where the config records the delayed-execution upgrade (`packages.predictDelayedExecution`),
+		 * this reads Predict's own `quote_mint_for_account` (the immediate mint is retired there) and
+		 * the order desk's fee, and previews a QUEUED fill at the clock: `queued: true`, no
+		 * congestion penalty in `cost`, and the order fee in `orderFee`. The fill itself prices at
+		 * its committed Pyth tick. It throws `PredictInputError` when that config lacks the
+		 * order-flow package or its desk. Elsewhere it dry-runs the immediate mint and decodes its
+		 * receipt, as before.
 		 */
 		quoteMint: async (
 			owner: string,
@@ -1592,6 +1656,7 @@ export class PredictClient {
 			opts: Pick<MintOptions, 'quantity'>,
 		): Promise<MintQuote> => {
 			if (this.cfg.packages.predictDelayedExecution) {
+				const orders = this.#requireDelayedExecution();
 				const feeds = this.#feeds(m.underlying);
 				const { id, state } = await this.#resolveMarket(m);
 				const quantityRaw = usdcToRaw(opts.quantity);
@@ -1603,7 +1668,7 @@ export class PredictClient {
 					lowerTick,
 					higherTick,
 					request: { shape: 'exact-quantity', quantityRaw },
-					withPolicy: true,
+					ordersConfig: orders,
 					...feeds,
 				});
 				return PredictClient.#queuedMintQuote(quote, policy);
@@ -1614,10 +1679,10 @@ export class PredictClient {
 
 		/**
 		 * Quote the all-in budget mint against current account and market state. Where the config
-		 * records delayed execution, it reads `quote_mint_exact_cost_for_account` at
+		 * records the delayed-execution upgrade, it reads `quote_mint_exact_cost_for_account` at
 		 * `min(spend, available − fee)`, the budget enqueue escrows, and previews a queued fill as
-		 * `quoteMint` does. The chain sizes that quote with the congestion penalty, so a queued fill
-		 * can buy slightly more. Elsewhere it simulates the immediate v2 mint.
+		 * `quoteMint` does (and throws as it does on a partial config). Elsewhere it simulates the
+		 * immediate v2 mint.
 		 */
 		quoteMintCost: async (
 			owner: string,
@@ -1625,16 +1690,17 @@ export class PredictClient {
 			opts: MintCostOptions,
 		): Promise<MintQuote> => {
 			if (this.cfg.packages.predictDelayedExecution) {
+				const orders = this.#requireDelayedExecution();
 				const feeds = this.#feeds(m.underlying);
 				const { id, state } = await this.#resolveMarket(m);
 				const { lowerTick, higherTick } = await this.#strikeTicks(m, id, state);
 				const { policy, availableRaw } = await orderFeeAndBalance(
 					this.#client,
-					this.#config,
+					orders,
 					owner,
 					this.cfg.quoteCoinType,
 				);
-				const fee = policy?.orderFee ?? 0n;
+				const fee = policy.orderFee;
 				const spendRaw = usdcToRaw(opts.spend);
 				const escrowable = availableRaw > fee ? availableRaw - fee : 0n;
 				const { quote } = await quoteMintForAccount(this.#client, this.#config, {
@@ -1655,28 +1721,30 @@ export class PredictClient {
 		},
 
 		/**
-		 * Quote an early sell of an Open record (`quote_redeem_open`) at a fresh live pricer.
-		 * `proceeds` is before the order fee, with no congestion penalty, and `net` takes the fee
-		 * off. Throws `ERecordNotOpen` when the record isn't Open.
+		 * Quote an early sell of an Open record (the queue's `quote_redeem_open`) at a fresh live
+		 * pricer. `proceeds` is before the order fee, with no congestion penalty, and `net` takes the
+		 * fee off. Throws `ERecordNotOpen` when the record isn't Open.
 		 */
 		quoteSell: async (
 			owner: string,
 			m: MarketCoordinates,
 			opts: { recordId: bigint; quantity: number },
 		): Promise<SellQuote> => {
-			this.#requireDelayedExecution();
+			const orders = this.#requireDelayedExecution();
 			const feeds = this.#feeds(m.underlying);
 			const { id } = await this.#resolveMarket(m);
 			const closeQuantityRaw = usdcToRaw(opts.quantity);
 			this.#assertLot(closeQuantityRaw);
-			const { quote, policy } = await quoteRedeemOpen(this.#client, this.#config, {
+			const queueId = await this.#existingQueueId(orders, id);
+			const { quote, policy } = await quoteRedeemOpen(this.#client, orders, {
 				expiryMarketId: id,
+				queueId,
 				wrapperId: this.wrapperIdFor(owner),
 				recordId: opts.recordId,
 				closeQuantityRaw,
 				...feeds,
 			});
-			const orderFee = policy?.orderFee ?? 0n;
+			const orderFee = policy.orderFee;
 			return {
 				probability: rawToProbability(quote.probability),
 				proceeds: rawToUsdc(quote.proceeds),
@@ -1699,37 +1767,38 @@ export class PredictClient {
 
 		/**
 		 * Which trade path the network is on, from `ProtocolConfig.version_watermark` and whether
-		 * this config records delayed execution. Flip the app between `mint*` and `enqueue*` on it,
-		 * without a redeploy at the watermark bump.
+		 * this config records delayed execution (the Predict upgrade, the order-flow companion and
+		 * its desk). Flip the app between `mint*` and `enqueue*` on it, without a redeploy at the
+		 * watermark bump.
 		 */
 		executionMode: async (): Promise<ExecutionMode> =>
 			executionModeFor(
 				await versionWatermark(this.#client, this.cfg.objects.protocolConfig),
+				this.#recordsDelayedExecution(),
 				this.cfg.packages.predictDelayedExecution != null,
 			),
 
 		/**
 		 * A market's queue in one read: cash, the stuck gate ("pricing delayed"), cohorts, counters
-		 * against capacity, the policy, a τ/deadline/cutoff preview, and the largest mint spare cash
-		 * admits now. With `owner` (who must have an account), also the account's waiting orders and
-		 * balance.
+		 * against capacity, the desk's policy, a τ/deadline/cutoff preview, and the largest mint
+		 * spare cash admits now. With `owner` (who must have an account), also the account's
+		 * waiting orders and balance. Throws `PredictPreflightError` `'no-queue'` while the market
+		 * has no `MarketQueue`.
 		 */
 		queue: async (m: MarketCoordinates, owner?: string): Promise<MarketQueueView> => {
-			this.#requireDelayedExecution();
+			const orders = this.#requireDelayedExecution();
 			const { id } = await this.#resolveMarket(m);
-			const state = await this.#queueState(id, { owner });
+			const state = await this.#queueState(orders, id, { owner });
 			const nowMs = BigInt(Date.now());
-			const policy = state.protocol.policy;
+			const policy = state.desk.policy;
 			const mode = executionModeFor(state.protocol.versionWatermark, true);
-			const timing = policy
-				? previewTiming({
-						nowMs,
-						policy,
-						heads: state.heads,
-						expiryMs: state.expiryMs,
-						noTradeWindowMs: state.protocol.noTradeWindowMs,
-					})
-				: null;
+			const timing = previewTiming({
+				nowMs,
+				policy,
+				heads: state.heads,
+				expiryMs: state.expiryMs,
+				noTradeWindowMs: state.protocol.noTradeWindowMs,
+			});
 			// The builders' own gate, so the flags can never disagree with their preflight.
 			const refusalFor = (side: 'mint' | 'sell'): PredictPreflightCode | null => {
 				try {
@@ -1748,25 +1817,23 @@ export class PredictClient {
 				acceptingMints: refusal.mint == null,
 				acceptingSells: refusal.sell == null,
 				refusal,
-				maxMint: policy
-					? {
-							exactQuantity: maxMintNow({
-								shape: 'exact-quantity',
-								spareCashRaw: state.spareCash,
-								minEntryProbability: state.minEntryProbability,
-								lotSize: BigInt(this.cfg.units.positionLotSize),
-								asOfMs: nowMs,
-							}),
-							budget: maxMintNow({
-								shape: 'budget',
-								spareCashRaw: state.spareCash,
-								minEntryProbability: state.minEntryProbability,
-								availableRaw: state.account?.availableRaw,
-								orderFeeRaw: policy.orderFee,
-								asOfMs: nowMs,
-							}),
-						}
-					: null,
+				maxMint: {
+					exactQuantity: maxMintNow({
+						shape: 'exact-quantity',
+						spareCashRaw: state.spareCash,
+						minEntryProbability: state.minEntryProbability,
+						lotSize: BigInt(this.cfg.units.positionLotSize),
+						asOfMs: nowMs,
+					}),
+					budget: maxMintNow({
+						shape: 'budget',
+						spareCashRaw: state.spareCash,
+						minEntryProbability: state.minEntryProbability,
+						availableRaw: state.account?.availableRaw,
+						orderFeeRaw: policy.orderFee,
+						asOfMs: nowMs,
+					}),
+				},
 			};
 		},
 
@@ -1782,9 +1849,15 @@ export class PredictClient {
 			m: MarketCoordinates,
 			recordIds: readonly bigint[],
 		): Promise<(QueuedOrderView | null)[]> => {
-			this.#requireDelayedExecution();
+			const orders = this.#requireDelayedExecution();
 			const { id } = await this.#resolveMarket(m);
-			const records = await queuedOrders(this.#client, this.#config, id, recordIds);
+			const queueId = await this.#existingQueueId(orders, id);
+			const records = await queuedOrders(
+				this.#client,
+				orders,
+				{ expiryMarketId: id, queueId },
+				recordIds,
+			);
 			const nowMs = BigInt(Date.now());
 			return records.map((record, i) =>
 				record ? { recordId: recordIds[i], record, view: orderView(record, nowMs) } : null,
@@ -1817,7 +1890,8 @@ export class PredictClient {
 
 		/**
 		 * USDC sent to the owner's account wrapper that the account hasn't settled yet: refunds,
-		 * sell proceeds and settled payouts. Already counted in `read.balance`; for display.
+		 * sell proceeds and settled payouts of Open records. Already counted in `read.balance`; for
+		 * display.
 		 */
 		pendingFunds: async (owner: string): Promise<number> =>
 			rawToUsdc(await pendingFunds(this.#client, this.wrapperIdFor(owner), this.cfg.quoteCoinType)),
@@ -1832,8 +1906,8 @@ export class PredictClient {
 		/**
 		 * Exact pre-close quote for an ACCOUNT position: dry-runs the immediate redeem and decodes
 		 * the receipt.
-		 * @deprecated `redeem_live` is retired by delayed execution (DBU-885) and aborts once the
-		 * watermark reaches 4. Queued fills are Open records: quote them with `read.quoteSell`.
+		 * @deprecated `redeem_live` is retired by delayed execution (DBU-885): Predict v4 always
+		 * aborts it. Queued fills are Open records: quote them with `read.quoteSell`.
 		 */
 		quoteRedeem: async (
 			owner: string,
@@ -1928,8 +2002,10 @@ export class PredictClient {
 		builderCode: (r: DecodableTransactionResult) =>
 			exactlyOne(decodeBuilderCodeSets(this.cfg, r), 'BuilderCodeSet'),
 
-		// --- delayed execution (DBU-885) --- matched against `packages.predictDelayedExecution`;
-		// each throws PredictInputError while the config doesn't record it.
+		// --- delayed execution (DBU-885) --- the queue events are matched against the order-flow
+		// companion's original ID (`packages.predictOrdersV1 ?? predictOrders`), the Predict events
+		// the upgrade added against `packages.predictDelayedExecution`. Each throws
+		// PredictInputError while the config doesn't record the package it needs.
 
 		/** The trader's `OrderEnqueued` receipt: the record ID, τ, deadline, escrow and fee. */
 		enqueue: (r: DecodableTransactionResult) =>

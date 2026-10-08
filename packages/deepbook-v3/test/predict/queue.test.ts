@@ -1,8 +1,9 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
-// Delayed execution (DBU-885): the pure queue helpers. The cash-need vectors are copied from the
-// Move unit tests (`packages/predict/tests/order_queue/cash_need_tests.move`), so a rounding
-// drift from the contract fails here.
+// Delayed execution (DBU-885): the pure queue helpers. The cash-need vectors were copied from the
+// delayed-execution Move unit tests (`cash_need_tests.move`) when the formulas lived in
+// `order_queue`. The split moved them unchanged to `deepbook_predict_math::math::need_qty`,
+// `need_budget` and `need_sell`, so the vectors still pin the contract's rounding.
 import { describe, expect, test } from 'vitest';
 import { PredictInputError } from '../../src/predict/errors.js';
 import * as queue from '../../src/predict/queue.js';
@@ -466,7 +467,6 @@ describe('reduceOrderEvents', () => {
 				recordId: 1n,
 				kind: 0,
 				reason: queue.refundReason(1),
-				bySettlement: false,
 			},
 		] as unknown as QueueEvent[];
 		const states = queue.reduceOrderEvents(events);
@@ -513,7 +513,6 @@ describe('reduceOrderEvents', () => {
 					recordId: 1n,
 					kind: 4,
 					reason: queue.refundReason(8),
-					bySettlement: false,
 					positionReturned: true,
 				},
 			] as unknown as QueueEvent[],
@@ -547,7 +546,6 @@ describe('reduceOrderEvents', () => {
 				recordId: 5n,
 				kind: 0,
 				reason: queue.refundReason(5),
-				bySettlement: false,
 				positionReturned: false,
 			},
 		] as unknown as QueueEvent[]);
@@ -558,19 +556,35 @@ describe('reduceOrderEvents', () => {
 		const events = [
 			{ type: 'open-record-settled', marketId: market, recordId: 2n, raw: { payout: 0n } },
 			{ type: 'open-record-payout-skipped', marketId: market, recordId: 3n },
+			// The settlement drain refunds a waiting order with reason 5, like a deadline refund.
 			{
 				type: 'refunded',
 				marketId: market,
 				recordId: 4n,
 				kind: 1,
 				reason: queue.refundReason(5),
-				bySettlement: true,
+				positionReturned: false,
 			},
 		] as unknown as QueueEvent[];
 		const states = queue.reduceOrderEvents(events);
 		expect(states.get(`${market}:2`)).toMatchObject({ state: 'settled', payoutRaw: 0n });
 		expect(states.get(`${market}:3`)).toMatchObject({ payoutSkipped: true });
-		expect(states.get(`${market}:4`)).toMatchObject({ state: 'refunded', bySettlement: true });
+		expect(states.get(`${market}:4`)).toMatchObject({ state: 'refunded', position: null });
+		expect(states.get(`${market}:4`)!.reason!.key).toBe('deadline');
+		expect(states.get(`${market}:4`)).not.toHaveProperty('bySettlement');
+	});
+
+	test('a skipped payout stays unpaid after the walk completes', () => {
+		const states = queue.reduceOrderEvents([
+			{ type: 'open-record-payout-skipped', marketId: market, recordId: 3n },
+			{ type: 'market-payouts-completed', marketId: market },
+		] as unknown as QueueEvent[]);
+		expect(states.get(`${market}:3`)).toMatchObject({
+			payoutSkipped: true,
+			payoutRaw: null,
+		});
+		expect(states.get(`${market}:3`)!.state).not.toBe('settled');
+		expect(queue.SETTLE_PHASE.DONE).toBe(2);
 	});
 });
 

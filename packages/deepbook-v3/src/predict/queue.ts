@@ -7,13 +7,16 @@
 // A queued order is placed now and priced later at Pyth's signed price for its τ, a channel
 // tick shortly after placement. A keeper (or anyone, see `fill` in `tx/queue.ts`) commits the
 // price and resolves the order: a fill, or a refund with a reason code. A filled mint stays in
-// the market as an Open record until `enqueue_redeem_open` sells it or `try_settle` pays it.
+// its market's queue as an Open record until `enqueue_redeem_open` sells it or the queue's
+// settlement walk (`settle_step`) pays it.
 //
-// Every formula here is a 1:1 port of `deepbook_predict::order_queue` (rounding included), and
-// the code values mirror its public getters. Probabilities and λ are 1e9-scaled.
+// The queue lives in the order-flow companion, `deepbook_predict_orders`. The code values mirror
+// its `order_queue` getters, and the cash-need formulas are 1:1 ports (rounding included) of
+// `deepbook_predict_math::math::need_*`, which Predict's admission charges. Probabilities and λ
+// are 1e9-scaled.
 
-import type { DelayedExecutionPolicy as DelayedExecutionPolicyBcs } from '../contracts/deepbook_predict/delayed_execution_config.js';
-import type { QueuedOrder as QueuedOrderBcs } from '../contracts/deepbook_predict/order_queue.js';
+import type { DelayedExecutionPolicy as DelayedExecutionPolicyBcs } from '../contracts/deepbook_predict_orders/delayed_execution_config.js';
+import type { OrderView as OrderViewBcs } from '../contracts/deepbook_predict_orders/order_queue.js';
 import { FLOAT_SCALING, MAX_QUANTITY_LOTS, POSITION_LOT_SIZE } from './cost.js';
 import type { QueueEvent } from './decode.js';
 import { PredictInputError } from './errors.js';
@@ -22,12 +25,34 @@ import { U64_MAX } from './units.js';
 // === Codes ===
 
 /**
- * `constants::current_version` of the first package with delayed execution. Enqueue works once
- * `ProtocolConfig.version_watermark` reaches it, and the retired immediate trades
- * (`mint_exact_*`, `redeem_live`) abort from then on. The same on both networks: it is the
- * code's version constant, not the on-chain package version (Mainnet v4, Testnet v5).
+ * Predict's `constants::current_version` from the upgrade that added delayed execution. Enqueue
+ * works once `ProtocolConfig.version_watermark` reaches it (Predict's admission aborts
+ * `ECutoverNotReached` until then). The retired immediate trades (`mint_exact_*`, `redeem_live`)
+ * always abort in that package, and the older packages they still run in are retired by the same
+ * bump. The same on both networks: it is the code's version constant, not the on-chain package
+ * version (Mainnet v4, Testnet v5).
  */
 export const DELAYED_EXECUTION_VERSION = 4n;
+
+/**
+ * `desk::current_version` of the order-flow package these bindings were generated from. The desk's
+ * version floor retires older companion code, so a floor above it means the package this SDK calls
+ * aborts `EPackageVersionDisabled`. Bump it with the companion when regenerating.
+ */
+export const ORDER_FLOW_PACKAGE_VERSION = 1n;
+
+/** `queue::phase_*`: what `settle_step` returns, the phase the next call runs. */
+export const SETTLE_PHASE = Object.freeze({
+	/** Refunding the waiting orders (reason 5). */
+	DRAIN: 0,
+	/** Paying the Open records, once Predict has settled the market. */
+	PAY: 1,
+	/**
+	 * The payout walk reached the last record and `MarketPayoutsCompleted` was emitted. A record
+	 * the market couldn't pay (`OpenRecordPayoutSkipped`) stays Open and unpaid.
+	 */
+	DONE: 2,
+} as const);
 
 /** `order_queue::status_*`. Never renumbered on chain; unknown codes still decode. */
 export const ORDER_STATUS = Object.freeze({
@@ -67,7 +92,7 @@ export const PYTH_CHANNEL = Object.freeze({
 	FIXED_RATE_200MS: 3,
 } as const);
 
-/** `order_queue::deadline_expiry_margin_ms`: every deadline is at least this long before expiry. */
+/** Predict's `constants::deadline_expiry_margin_ms`: every deadline is at least this long before expiry. */
 export const DEADLINE_EXPIRY_MARGIN_MS = 5_000n;
 
 /**
@@ -212,7 +237,10 @@ export function refundReason(code: number): RefundReasonInfo {
 
 // === Policy ===
 
-/** `delayed_execution_config::DelayedExecutionPolicy` with camelCase keys. Times in ms, USDC raw. */
+/**
+ * `delayed_execution_config::DelayedExecutionPolicy` with camelCase keys, as the companion's
+ * `OrderDesk` holds it (`desk::policy`). Times in ms, USDC raw.
+ */
 export interface DelayedExecutionPolicy {
 	delayMs: bigint;
 	stallTimeoutMs: bigint;
@@ -261,7 +289,7 @@ export function channelTickMs(channel: number): bigint {
 	throw new PredictInputError(`unsupported Pyth Lazer channel ${channel}`);
 }
 
-// === Cash need (`order_queue::cash_need_*`) ===
+// === Cash need (`deepbook_predict_math::math::need_*`) ===
 
 function assertUint(value: bigint, name: string, max: bigint = U64_MAX): void {
 	if (typeof value !== 'bigint' || value < 0n || value > max) {
@@ -394,9 +422,9 @@ export function sellCashCheck(
 export interface MaxMintInputs {
 	/** `'exact-quantity'` sizes a quantity; `'budget'` sizes an exact-cost or exact-amount spend. */
 	shape: 'exact-quantity' | 'budget';
-	/** `expiry_market::spare_cash`. */
+	/** Market cash above required cash (`MarketQueueState.spareCash`). */
 	spareCashRaw: bigint;
-	/** `expiry_market::min_entry_probability`, 1e9-scaled. */
+	/** The minimum entry probability from `expiry_market::order_flow_state`, 1e9-scaled. */
 	minEntryProbability: bigint;
 	/** `account::balance<USDC>`. Bounds a budget spend at `available − fee`. */
 	availableRaw?: bigint;
@@ -425,8 +453,8 @@ export interface MaxMintNow {
 }
 
 /**
- * The largest queued mint a market's spare cash admits now ("Max right now"). Enqueue refuses a
- * mint whose cash need is above spare cash (`EInsufficientMarketCash`). For exact quantity this
+ * The largest queued mint a market's spare cash admits now ("Max right now"). Predict's admission
+ * refuses a mint whose cash need is above spare cash (`EInsufficientMarketCash`). For exact quantity this
  * is the largest lot multiple `q` with `cashNeedExactQuantity(q) ≤ S`; for a budget it is the
  * largest `b` with `cashNeedBudget(b) ≤ S`, where `S` is spare cash less the headroom.
  *
@@ -490,7 +518,7 @@ export function maxMintNow(inputs: MaxMintInputs): MaxMintNow {
 
 // === Timing ===
 
-/** `(resolve_head, next_id, last_tau_ms, last_committed_tau_ms)` from `expiry_market::queue_heads`. */
+/** `(resolve_head, next_id, last_tau_ms, last_committed_tau_ms)` from `queue::queue_heads`. */
 export interface QueueHeads {
 	resolveHead: bigint;
 	nextId: bigint;
@@ -661,8 +689,11 @@ function inverseNormalCdf(p: number): number {
 
 // === Order state ===
 
-/** A queue record as the generated `order_queue::QueuedOrder` layout parses it. */
-export type QueuedOrder = (typeof QueuedOrderBcs)['$inferType'];
+/**
+ * A queue record as `queue::order` returns it: the generated `order_queue::OrderView` layout, a
+ * copy of the record without Predict's receipt and the escrow balance (`funds` is its value).
+ */
+export type QueuedOrder = (typeof OrderViewBcs)['$inferType'];
 
 /** The position a record holds: a filled mint's, a sell's, or a partial sell's remainder. */
 export interface HeldPosition {
@@ -874,13 +905,14 @@ export interface OrderEventState {
 	kind: number | null;
 	tauMs: bigint | null;
 	deadlineMs: bigint | null;
-	/** Set once priced: the committed Pyth price (float) and its tick. */
+	/** Set once priced: the committed Pyth price as a float (`spot / 1e9`) and its tick. */
 	price: number | null;
 	tickMs: bigint | null;
-	/** Set on a refund. */
+	/**
+	 * Set on a refund. The settlement drain (`settle_step`) refunds the orders still waiting at
+	 * expiry with reason 5 (deadline), like a keeper's deadline refund.
+	 */
 	reason: RefundReasonInfo | null;
-	/** True when `try_settle` refunded it at expiry (`sender` 0x0). */
-	bySettlement: boolean;
 	/**
 	 * The position the record holds now, or null. A sell's record takes its source's position at
 	 * enqueue and keeps it through a refund, a fill leaves a mint's new position or a partial
@@ -889,7 +921,7 @@ export interface OrderEventState {
 	position: HeldPosition | null;
 	/** For a sell: the record its position came from. */
 	sourceRecordId: bigint | null;
-	/** Set when `try_settle` paid the record (0 for a loser). */
+	/** Set when the settlement walk (`settle_step`) paid the record (0 for a loser). */
 	payoutRaw: bigint | null;
 	/** True after `OpenRecordPayoutSkipped`: the record stays Open, unpaid for now. */
 	payoutSkipped: boolean;
@@ -919,7 +951,6 @@ export function reduceOrderEvents(
 				price: null,
 				tickMs: null,
 				reason: null,
-				bySettlement: false,
 				position: null,
 				sourceRecordId: null,
 				payoutRaw: null,
@@ -974,7 +1005,6 @@ export function reduceOrderEvents(
 				s.state = 'refunded';
 				s.kind = e.kind;
 				s.reason = e.reason;
-				s.bySettlement = e.bySettlement;
 				// A refunded sell keeps its position, Open and sellable again from this record.
 				if (!e.positionReturned) s.position = null;
 				break;
