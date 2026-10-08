@@ -6,13 +6,9 @@ import { bytesToHex } from '@noble/hashes/utils.js';
 
 import { SIGNATURE_SCHEME_TO_FLAG } from '../cryptography/signature-scheme.js';
 import { normalizeSuiAddress, SUI_ADDRESS_LENGTH } from '../utils/index.js';
+import { genAddressSeed } from './address-seed.js';
 import { decodeJwt } from './jwt-utils.js';
-import {
-	genAddressSeed,
-	normalizeZkLoginIssuer,
-	toBigEndianBytes,
-	toPaddedBigEndianBytes,
-} from './utils.js';
+import { normalizeZkLoginIssuer, toBigEndianBytes, toPaddedBigEndianBytes } from './utils.js';
 
 export function computeZkLoginAddressFromSeed(
 	addressSeed: bigint,
