@@ -2,7 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 import { Transaction } from '@mysten/sui/transactions';
 import { describe, expect, test } from 'vitest';
-import { PredictInputError, PredictMoveError, decodeMoveAbort } from '../../src/predict/errors.js';
+import {
+	PredictInputError,
+	PredictMoveError,
+	PredictPreflightError,
+	decodeMoveAbort,
+	describePredictError,
+	isPreviewUnavailable,
+} from '../../src/predict/errors.js';
 import type { MoveAbortError } from '../../src/predict/errors.js';
 import type { ReadClient } from '../../src/predict/reads/inspect.js';
 import { inspectReturns } from '../../src/predict/reads/inspect.js';
@@ -133,5 +140,59 @@ describe('inspectReturns decodes aborts on FailedTransaction', () => {
 		expect(err).toBeInstanceOf(Error);
 		expect(err).not.toBeInstanceOf(PredictMoveError);
 		expect(err.message).toContain('InsufficientGas');
+	});
+});
+
+// Delayed execution (DBU-885): readable text by `module::EName`, tolerant of unknown names.
+describe('describePredictError', () => {
+	test('names the placement, cutover and quote errors', () => {
+		expect(
+			describePredictError(new PredictMoveError('expiry_market', 20n, 'EInsufficientMarketCash')),
+		).toBe("This market can't take an order this size right now.");
+		expect(
+			describePredictError(new PredictMoveError('protocol_config', 17n, 'ECutoverNotReached')),
+		).toMatch(/watermark/);
+		expect(
+			describePredictError(new PredictMoveError('protocol_config', 3n, 'EPackageVersionDisabled')),
+		).toMatch(/retired/);
+		for (const name of [
+			'ERecordNotOpen',
+			'ENotRecordOwner',
+			'EQueueStuck',
+			'EDelayedExecutionRequired',
+		]) {
+			expect(describePredictError(new PredictMoveError('expiry_market', 0n, name))).not.toBeNull();
+		}
+	});
+
+	test('returns null for an unknown name, a nameless abort, or the wrong module', () => {
+		expect(
+			describePredictError(new PredictMoveError('expiry_market', 99n, 'ESomethingNew')),
+		).toBeNull();
+		expect(describePredictError(new PredictMoveError('expiry_market', 20n, null))).toBeNull();
+		expect(
+			describePredictError(new PredictMoveError('plp', 20n, 'EInsufficientMarketCash')),
+		).toBeNull();
+	});
+
+	test('a stale or missing on-chain Pyth spot means no preview, not an error', () => {
+		expect(isPreviewUnavailable(new PredictMoveError('pricing', 17n, 'EPythSpotUnavailable'))).toBe(
+			true,
+		);
+		expect(isPreviewUnavailable(new PredictMoveError('pricing', 18n, 'EPythSpotStale'))).toBe(true);
+		expect(
+			isPreviewUnavailable(new PredictMoveError('pricing', 4n, 'EBlockScholesPriceStale')),
+		).toBe(false);
+		expect(isPreviewUnavailable(new Error('x'))).toBe(false);
+	});
+
+	test('PredictPreflightError carries its code', () => {
+		const e = new PredictPreflightError('market-cash', 'too big');
+		expect(e).toBeInstanceOf(Error);
+		expect(e).toMatchObject({
+			name: 'PredictPreflightError',
+			code: 'market-cash',
+			message: 'too big',
+		});
 	});
 });

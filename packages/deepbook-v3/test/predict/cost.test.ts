@@ -146,6 +146,23 @@ describe('builder fee and sponsor subsidy', () => {
 		expect(starved.raw.subsidy).toBe(1n);
 		expect(mint().raw.subsidy).toBe(0n); // no sponsorship by default
 	});
+
+	// From delayed execution (DBU-885) the rate is admin-set and read from the chain.
+	test('the subsidy follows the admin-set rate, 20% by default', () => {
+		const half = mint({
+			feeIncentiveBalance: 1_000_000_000n,
+			feeIncentiveSubsidyRate: 500_000_000n,
+		});
+		expect(half.raw.subsidy).toBe(half.raw.tradingFee / 2n);
+		const off = mint({ feeIncentiveBalance: 1_000_000_000n, feeIncentiveSubsidyRate: 0n });
+		expect(off.raw.subsidy).toBe(0n);
+		expect(off.raw.cost).toBe(off.raw.premium + off.raw.tradingFee);
+		expect(cost.feeIncentiveSubsidy(1_000n, 10_000n)).toBe(200n);
+		expect(cost.feeIncentiveSubsidy(1_000n, 10_000n, 300_000_000n)).toBe(300n);
+		expect(() => cost.feeIncentiveSubsidy(1_000n, 10_000n, 1_000_000_001n)).toThrow(
+			PredictInputError,
+		);
+	});
 });
 
 describe('congestion surcharge', () => {

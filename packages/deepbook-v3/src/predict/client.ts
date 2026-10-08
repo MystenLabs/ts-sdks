@@ -2,25 +2,67 @@
 // SPDX-License-Identifier: Apache-2.0
 import type { ClientWithCoreApi, SuiClientRegistration } from '@mysten/sui/client';
 import { Transaction, coinWithBalance, type TransactionResult } from '@mysten/sui/transactions';
-import { isValidSuiObjectId } from '@mysten/sui/utils';
+import { isValidSuiObjectId, normalizeSuiAddress } from '@mysten/sui/utils';
 import { TESTNET_PREDICT } from '../deployments/testnet.js';
 import { getConfig, type PredictConfig, type UnderlyingConfig } from './config/index.js';
 import { toGeneratedConfig, type GeneratedConfig } from './config/generated.js';
+import { MIN_PREMIUM, decodeOrderRange } from './cost.js';
 import {
 	decodeAccountsCreated,
 	decodeBuilderCodeSets,
 	decodeClaims,
+	decodeCohortCommits,
 	decodeDeposits,
+	decodeEnqueues,
+	decodeMarketPayoutsCompleted,
 	decodeMints,
+	decodeOpenRecordPayouts,
 	decodePlpCancels,
 	decodePlpRequests,
+	decodePolicyUpdates,
+	decodeQueueEvents,
+	decodeQueueOps,
+	decodeQueuedFills,
+	decodeQueuedRefunds,
 	decodeRedeems,
 	decodeWithdrawals,
 	exactlyOne,
 	type DecodableTransactionResult,
 } from './decode.js';
-import { PredictInputError } from './errors.js';
+import { PredictInputError, PredictPreflightError } from './errors.js';
+import {
+	ORDER_KIND,
+	ORDER_STATUS,
+	cashNeedSell,
+	feeCovered,
+	maxMintNow,
+	mintBudget,
+	mintCashNeed,
+	orderKindName,
+	orderView,
+	previewTiming,
+	type DelayedExecutionPolicy,
+	type MaxMintNow,
+	type OrderKindName,
+	type OrderView,
+	type QueuedOrder,
+	type TimingPreview,
+} from './queue.js';
 import { simulateWithEvents } from './reads/inspect.js';
+import {
+	executionModeFor,
+	lazerPackages,
+	marketQueueState,
+	orderFeeAndBalance,
+	pendingFunds,
+	queuedOrders,
+	quoteMintForAccount,
+	quoteRedeemOpen,
+	versionWatermark,
+	type ExecutionMode,
+	type MarketQueueState,
+	type MintQuoteRaw,
+} from './reads/queue.js';
 import {
 	positionsFromTable,
 	resolvePositionsTable,
@@ -54,6 +96,16 @@ import {
 } from './tx/authed.js';
 
 import { accountContract, deriveAccountWrapperIdFrom } from './tx/common.js';
+import {
+	enqueueExactAmount,
+	enqueueExactCost,
+	enqueueExactQuantity,
+	enqueueRedeemOpen,
+	fill,
+	rebalanceExpiryCash,
+	refund,
+	type LazerPackages,
+} from './tx/queue.js';
 import type { MarketFeeds } from './tx/trade.js';
 import {
 	mintExactAmount,
@@ -248,6 +300,17 @@ export interface MintQuote {
 	raw: { premium: bigint; cost: bigint; quantity: bigint; entryProbability: bigint };
 	/** True: computed by the real mint code path against real account state. */
 	feesExact: true;
+	/**
+	 * True when this previews a queued (delayed-execution) fill: read from the chain's
+	 * `quote_*` functions with the congestion penalty removed, since a queued fill pays none.
+	 * Set when the network's config records delayed execution.
+	 */
+	queued?: boolean;
+	/**
+	 * Queued previews only: the flat order fee, charged once at enqueue on top of `cost`. Show
+	 * it once per order, not per contract.
+	 */
+	orderFee?: number;
 }
 
 /** Exact pre-close quote: the dry-run receipt of the redeem you are about to send. */
@@ -268,6 +331,124 @@ export interface RedeemQuote {
 interface ResolvedMarket {
 	id: string;
 	state: MarketState;
+}
+
+/** A market by its underlying and expiry, optionally pinned to an exact object. */
+export type MarketCoordinates = Pick<MarketDescriptor, 'underlying' | 'expiryMs' | 'marketId'>;
+
+/** Options for `enqueueMint`: a queued mint of an exact payout quantity. */
+export interface EnqueueMintOptions {
+	quantity: number;
+	/** All-in USDC cap (premium + fees). Required: a queued mint has no "unlimited" cap. */
+	maxCost: number;
+	/** Entry-probability cap at τ, in (0, 1]. Required. See `queue.slippageBand`. */
+	maxProbability: number;
+}
+
+/** Options for `enqueueMintAmount`: a queued premium-budget mint. */
+export interface EnqueueMintAmountOptions {
+	/** Premium budget in USDC. */
+	spend: number;
+	/** Floor on the payout received. */
+	minQuantity: number;
+	/** All-in USDC cap (premium + fees). Required. */
+	maxCost: number;
+}
+
+/** Options for `enqueueMintCost`: a queued all-in-budget mint. */
+export interface EnqueueMintCostOptions {
+	/** All-in USDC budget, fees included. Escrowed at enqueue, less what the fill doesn't use. */
+	spend: number;
+	/** Floor on the payout received. Zero disables this slippage floor. */
+	minQuantity: number;
+}
+
+/** Options for `enqueueSell`: a queued early sell of an Open record. */
+export interface EnqueueSellOptions {
+	/** The Open record to sell from: its queue record ID, not the position's order ID. */
+	recordId: bigint;
+	/** Payout quantity to close. A partial sell must leave at least the policy minimum. */
+	quantity: number;
+	/** Close-side probability floor at τ, in [0, 1]. Pass 0 on purpose to disable it. */
+	minProbability: number;
+	/** Floor on the proceeds before the order fee, in USDC. Pass 0 on purpose to disable it. */
+	minProceeds: number;
+	/**
+	 * Add `rebalance_expiry_cash` after the enqueue so the market is funded for this sell at once.
+	 * `'auto'` (default) adds it only when the sell's cash need is above spare cash, `'always'`
+	 * always, `'never'` never. It takes the hot `PoolVault`, so keep it conditional.
+	 */
+	fundMarket?: 'auto' | 'always' | 'never';
+}
+
+/** What a queued order builder previews alongside the transaction. Display only. */
+export interface QueuedOrderPreview {
+	marketId: string;
+	kind: number;
+	kindName: OrderKindName;
+	/** τ, deadline and cutoff for an order placed now, from the local clock. */
+	timing: TimingPreview;
+	/** The flat order fee, charged once at enqueue. */
+	orderFee: number;
+	/** USDC escrowed for the premium and fees; 0 for a sell. Unused budget returns at the fill. */
+	budget: number;
+	/** What enqueue debits: budget + order fee. */
+	totalDebit: number;
+	/** The order's worst-case cash need against the market's spare cash. */
+	cashNeedRaw: bigint;
+	spareCashRaw: bigint;
+	/**
+	 * Sells only: the cash need is above spare cash, so the sell may be refunded in full
+	 * (reason 8) unless the market is funded before the fill.
+	 */
+	needsFunding: boolean;
+	/** Whether the builder added `rebalance_expiry_cash` after the enqueue. */
+	fundedInTransaction: boolean;
+	raw: { orderFee: bigint; budget: bigint; totalDebit: bigint };
+}
+
+/** A queued order's transaction and its preview. */
+export interface QueuedOrderPlan {
+	transaction: Transaction;
+	preview: QueuedOrderPreview;
+}
+
+/** `read.queue`: a market's queue state plus the derived figures the app shows. */
+export interface MarketQueueView extends MarketQueueState {
+	mode: ExecutionMode;
+	/** τ, deadline and cutoff for an order placed now; null before the policy exists. */
+	timing: TimingPreview | null;
+	/** Whether a new order would pass the queue gates (not the account or cash checks). */
+	acceptingOrders: boolean;
+	/** The largest mint the market's spare cash admits now; null before the policy exists. */
+	maxMint: { exactQuantity: MaxMintNow; budget: MaxMintNow } | null;
+}
+
+/** A queue record and its display state. */
+export interface QueuedOrderView {
+	recordId: bigint;
+	record: QueuedOrder;
+	view: OrderView;
+}
+
+/** How `read.waitForOutcome` ended. */
+export interface QueuedOrderOutcome {
+	/** `'gone'`: the record is missing (cleaned up, or not landed). `'timeout'`: still waiting. */
+	outcome: 'filled' | 'refunded' | 'closed' | 'gone' | 'timeout';
+	order: QueuedOrderView | null;
+}
+
+/** A quote for selling an Open record early (`quote_redeem_open`). */
+export interface SellQuote {
+	/** The live per-contract probability. */
+	probability: number;
+	/** Proceeds before the order fee, with no congestion penalty. */
+	proceeds: number;
+	/** `proceeds − orderFee`: what the account nets. Floored at 0. */
+	net: number;
+	fees: { trading: number; builder: number; inventoryImpactRebate: number; order: number };
+	quantityClosed: number;
+	raw: { probability: bigint; proceeds: bigint; orderFee: bigint; quantityClosed: bigint };
 }
 
 // The strike-bearing (binary) arm of MarketDescriptor, for read.price and its
@@ -603,6 +784,306 @@ export class PredictClient {
 		return tick * state.tickSizeRaw;
 	}
 
+	// === delayed execution (DBU-885) ===
+
+	// The delayed-execution type origin, or a typed refusal: without it this SDK version has no
+	// record of delayed execution on the network, and the queue calls would address the wrong
+	// package or decode nothing.
+	#requireDelayedExecution(): string {
+		const pkg = this.cfg.packages.predictDelayedExecution;
+		if (!pkg) {
+			throw new PredictInputError(
+				`delayed execution isn't recorded for ${this.cfg.network} in this SDK version, pass \`config\``,
+			);
+		}
+		return pkg;
+	}
+
+	#queueState(
+		marketId: string,
+		opts: { owner?: string; recordIds?: bigint[] } = {},
+	): Promise<MarketQueueState> {
+		return marketQueueState(this.#client, this.#config, marketId, {
+			owner: opts.owner,
+			quoteCoinType: this.cfg.quoteCoinType,
+			recordIds: opts.recordIds,
+		});
+	}
+
+	// The queue gates every enqueue passes, in the contract's order (`begin_enqueue`): the cutover,
+	// the policy, the pauses, the stuck gate, capacity, the per-account cap, then the cutoff on the
+	// previewed τ. Throws the matching PredictPreflightError.
+	#assertQueueOpen(
+		state: MarketQueueState,
+		side: 'mint' | 'sell',
+		nowMs: bigint,
+	): { policy: DelayedExecutionPolicy; timing: TimingPreview } {
+		const policy = state.protocol.policy;
+		if (executionModeFor(state.protocol.versionWatermark, true) !== 'delayed' || !policy) {
+			throw new PredictPreflightError(
+				'not-live',
+				policy
+					? "queued orders aren't live yet: the protocol's version watermark hasn't been raised"
+					: "delayed execution isn't configured on this deployment yet",
+			);
+		}
+		if (state.protocol.frozen) throw new PredictPreflightError('paused', 'the protocol is frozen');
+		if (side === 'mint' && (state.protocol.tradingPaused || state.mintPaused)) {
+			throw new PredictPreflightError('paused', 'minting is paused on this market');
+		}
+		if (state.stuck) {
+			throw new PredictPreflightError(
+				'stuck',
+				'pricing is delayed for this market, try again shortly',
+			);
+		}
+		const [pending, capacity] =
+			side === 'mint'
+				? [state.pending.mints, policy.mintCapacity]
+				: [state.pending.sells, policy.sellCapacity];
+		if (pending >= capacity) {
+			throw new PredictPreflightError(
+				'queue-full',
+				`the market has ${pending} waiting ${side}s, its maximum`,
+			);
+		}
+		if (state.account && state.account.waitingOrders >= policy.perAccountCap) {
+			throw new PredictPreflightError(
+				'account-cap',
+				`the account already has ${state.account.waitingOrders} waiting orders in this market, its maximum`,
+			);
+		}
+		const timing = previewTiming({
+			nowMs,
+			policy,
+			heads: state.heads,
+			expiryMs: state.expiryMs,
+			noTradeWindowMs: state.protocol.noTradeWindowMs,
+		});
+		if (!timing.beforeCutoff) {
+			throw new PredictPreflightError(
+				'past-cutoff',
+				'this market no longer takes orders before its expiry',
+			);
+		}
+		return { policy, timing };
+	}
+
+	#preview(
+		marketId: string,
+		kind: number,
+		timing: TimingPreview,
+		policy: DelayedExecutionPolicy,
+		budget: bigint,
+		cashNeedRaw: bigint,
+		spareCashRaw: bigint,
+		funding: { needsFunding: boolean; fundedInTransaction: boolean },
+	): QueuedOrderPreview {
+		const totalDebit = budget + policy.orderFee;
+		return {
+			marketId,
+			kind,
+			kindName: orderKindName(kind),
+			timing,
+			orderFee: rawToUsdc(policy.orderFee),
+			budget: rawToUsdc(budget),
+			totalDebit: rawToUsdc(totalDebit),
+			cashNeedRaw,
+			spareCashRaw,
+			...funding,
+			raw: { orderFee: policy.orderFee, budget, totalDebit },
+		};
+	}
+
+	// Shared by the three queued mints: resolve the market and ticks, build the enqueue (its static
+	// checks run first), then one read for the preflight: queue gates, fee, budget, cash need.
+	async #planMint(
+		owner: string,
+		m: MarketDescriptor,
+		order: { kind: number; maxCostRaw: bigint; quantityRaw?: bigint; maxPremiumRaw?: bigint },
+		build: (
+			target: {
+				expiryMarketId: string;
+				wrapperId: string;
+				lowerTick: bigint;
+				higherTick: bigint;
+			} & MarketFeeds,
+		) => (tx: Transaction) => TransactionResult,
+	): Promise<QueuedOrderPlan> {
+		this.#requireDelayedExecution();
+		const feeds = this.#feeds(m.underlying);
+		const { id, state: market } = await this.#resolveMarket(m);
+		const { lowerTick, higherTick } = await this.#strikeTicks(m, id, market);
+		const thunk = build({
+			expiryMarketId: id,
+			wrapperId: this.wrapperIdFor(owner),
+			lowerTick,
+			higherTick,
+			...feeds,
+		});
+		const state = await this.#queueState(id, { owner });
+		const { policy, timing } = this.#assertQueueOpen(state, 'mint', BigInt(Date.now()));
+		const available = state.account?.availableRaw ?? 0n;
+		const budget = mintBudget({
+			kind: order.kind,
+			maxCostRaw: order.maxCostRaw,
+			availableRaw: available,
+			orderFeeRaw: policy.orderFee,
+			quantityRaw: order.quantityRaw,
+		});
+		if (budget == null) {
+			throw new PredictPreflightError(
+				'fee',
+				`the balance (${rawToUsdc(available)}) doesn't cover the ${rawToUsdc(policy.orderFee)} order fee`,
+			);
+		}
+		if (budget < MIN_PREMIUM) {
+			throw new PredictPreflightError(
+				'min-premium',
+				`the escrowed budget ${rawToUsdc(budget)} is below the ${rawToUsdc(MIN_PREMIUM)} minimum premium`,
+			);
+		}
+		if (order.kind !== ORDER_KIND.EXACT_QUANTITY && state.minEntryProbability === 0n) {
+			throw new PredictPreflightError('market-cash', 'this market takes no budget mints');
+		}
+		const cashNeed = mintCashNeed({
+			kind: order.kind,
+			budgetRaw: budget,
+			minEntryProbability: state.minEntryProbability,
+			quantityRaw: order.quantityRaw,
+			maxPremiumRaw: order.maxPremiumRaw,
+		});
+		if (cashNeed > state.spareCash) {
+			throw new PredictPreflightError(
+				'market-cash',
+				"this market can't take an order this size right now",
+			);
+		}
+		return {
+			transaction: txOf(thunk),
+			preview: this.#preview(id, order.kind, timing, policy, budget, cashNeed, state.spareCash, {
+				needsFunding: false,
+				fundedInTransaction: false,
+			}),
+		};
+	}
+
+	async #planSell(
+		owner: string,
+		m: MarketCoordinates,
+		opts: EnqueueSellOptions,
+	): Promise<QueuedOrderPlan> {
+		this.#requireDelayedExecution();
+		const feeds = this.#feeds(m.underlying);
+		const { id } = await this.#resolveMarket(m);
+		const closeQuantityRaw = usdcToRaw(opts.quantity);
+		this.#assertLot(closeQuantityRaw);
+		const thunk = enqueueRedeemOpen(this.#config, {
+			expiryMarketId: id,
+			wrapperId: this.wrapperIdFor(owner),
+			recordId: opts.recordId,
+			closeQuantityRaw,
+			minProbabilityRaw: probabilityToRaw(opts.minProbability),
+			minProceedsRaw: usdcToRaw(opts.minProceeds),
+			...feeds,
+		});
+		const state = await this.#queueState(id, { owner, recordIds: [opts.recordId] });
+		const { policy, timing } = this.#assertQueueOpen(state, 'sell', BigInt(Date.now()));
+		const record = state.records[0];
+		if (!record || record.status !== ORDER_STATUS.OPEN || record.position.order_id === 0n) {
+			throw new PredictPreflightError(
+				'record-not-open',
+				`record ${opts.recordId} isn't an Open position`,
+			);
+		}
+		if (
+			!state.account ||
+			normalizeSuiAddress(record.parties.account_id) !==
+				normalizeSuiAddress(state.account.accountId)
+		) {
+			throw new PredictPreflightError(
+				'not-record-owner',
+				`record ${opts.recordId} belongs to another account`,
+			);
+		}
+		if (!feeCovered('sell', state.account.availableRaw, policy.orderFee)) {
+			throw new PredictPreflightError(
+				'fee',
+				`the balance doesn't cover the ${rawToUsdc(policy.orderFee)} order fee`,
+			);
+		}
+		const held = decodeOrderRange(
+			record.position.order_id,
+			BigInt(this.cfg.units.positionLotSize),
+		).quantity;
+		if (closeQuantityRaw > held) {
+			throw new PredictInputError(
+				`quantity ${rawToUsdc(closeQuantityRaw)} is above the record's ${rawToUsdc(held)}`,
+			);
+		}
+		const min = policy.minSellQuantity;
+		if (closeQuantityRaw < min || (closeQuantityRaw < held && held - closeQuantityRaw < min)) {
+			throw new PredictPreflightError(
+				'below-min-sell',
+				`a sell must close at least ${rawToUsdc(min)} and leave either nothing or at least that much`,
+			);
+		}
+		const cashNeed = cashNeedSell(closeQuantityRaw, state.backingBufferLambda);
+		const needsFunding = cashNeed > state.spareCash;
+		const fund = opts.fundMarket ?? 'auto';
+		const funded = fund === 'always' || (fund === 'auto' && needsFunding);
+		const tx = new Transaction();
+		tx.add(thunk);
+		// After the enqueue: its cash need is then in `waiting_cash_need`, which the rebalance funds.
+		if (funded) tx.add(rebalanceExpiryCash(this.#config, { expiryMarketId: id }));
+		return {
+			transaction: tx,
+			preview: this.#preview(
+				id,
+				ORDER_KIND.REDEEM_OPEN,
+				timing,
+				policy,
+				0n,
+				cashNeed,
+				state.spareCash,
+				{
+					needsFunding,
+					fundedInTransaction: funded,
+				},
+			),
+		};
+	}
+
+	// A chain mint quote as a queued-fill preview: the congestion penalty comes out of the cost
+	// (a queued fill pays none) and the order fee is reported separately.
+	static #queuedMintQuote(q: MintQuoteRaw, policy: DelayedExecutionPolicy | null): MintQuote {
+		const costRaw = q.allInCost - q.penaltyFee;
+		return {
+			entryProbability: rawToProbability(q.entryProbability),
+			premium: rawToUsdc(q.premium),
+			fees: {
+				trading: rawToUsdc(q.tradingFee),
+				subsidy: rawToUsdc(q.feeIncentiveSubsidy),
+				builder: rawToUsdc(q.builderFee),
+				penalty: 0,
+				// The chain quote doesn't split it out. It is part of `trading`, never extra.
+				referral: 0,
+				inventoryImpact: rawToUsdc(q.inventoryImpactCharge),
+			},
+			cost: rawToUsdc(costRaw),
+			quantity: rawToUsdc(q.quantity),
+			raw: {
+				premium: q.premium,
+				cost: costRaw,
+				quantity: q.quantity,
+				entryProbability: q.entryProbability,
+			},
+			feesExact: true,
+			queued: true,
+			orderFee: policy ? rawToUsdc(policy.orderFee) : undefined,
+		};
+	}
+
 	// === tx builders ===
 	// Each returns a ready-to-sign Transaction. Market-resolving builders are async.
 	readonly tx = {
@@ -690,13 +1171,28 @@ export class PredictClient {
 			return tx;
 		},
 
+		/**
+		 * Immediate exact-quantity mint (`mint_exact_quantity`).
+		 * @deprecated Retired by delayed execution (DBU-885): aborts `EDelayedExecutionRequired`
+		 * once the version watermark reaches 4. Use {@link PredictClient.tx.enqueueMint}, and
+		 * `read.executionMode()` to know which path a network is on.
+		 */
 		mint: (owner: string, m: MarketDescriptor, opts: MintOptions): Promise<Transaction> =>
 			this.#buildMint(owner, m, opts),
 
-		/** V2 all-in budget mint; use minQuantity to protect the fill against slippage. */
+		/**
+		 * V2 all-in budget mint; use minQuantity to protect the fill against slippage.
+		 * @deprecated Retired by delayed execution (DBU-885): aborts `EDelayedExecutionRequired`
+		 * once the version watermark reaches 4. Use `tx.enqueueMintCost`.
+		 */
 		mintCost: (owner: string, m: MarketDescriptor, opts: MintCostOptions): Promise<Transaction> =>
 			this.#buildMintCost(owner, m, opts),
 
+		/**
+		 * Immediate premium-budget mint (`mint_exact_amount`).
+		 * @deprecated Retired by delayed execution (DBU-885): aborts `EDelayedExecutionRequired`
+		 * once the version watermark reaches 4. Use `tx.enqueueMintAmount`.
+		 */
 		mintAmount: async (
 			owner: string,
 			m: MarketDescriptor,
@@ -727,9 +1223,21 @@ export class PredictClient {
 			);
 		},
 
+		/**
+		 * Immediate close of an account position (`redeem_live`).
+		 * @deprecated Retired by delayed execution (DBU-885): aborts `EDelayedExecutionRequired`
+		 * once the version watermark reaches 4. A position held in the account then has no early
+		 * exit and is paid at settlement with `claimSettled`. Queued fills are Open records in the
+		 * market, sold with `tx.enqueueSell`.
+		 */
 		redeem: (owner: string, m: MarketDescriptor, opts: CloseOptions): Promise<Transaction> =>
 			this.#buildRedeem(owner, m, opts),
 
+		/**
+		 * Pay a settled position held in the ACCOUNT (`redeem_settled`), in full. Unchanged by delayed
+		 * execution, for positions minted before it. It doesn't pay Open queue records:
+		 * `try_settle` pays those to the account's wrapper address at settlement.
+		 */
 		claimSettled: async (
 			owner: string,
 			m: Pick<MarketDescriptor, 'underlying' | 'expiryMs' | 'marketId'>,
@@ -741,6 +1249,147 @@ export class PredictClient {
 					expiryMarketId: id,
 					wrapperId: this.wrapperIdFor(owner),
 					orderId: opts.orderId,
+				}),
+			);
+		},
+
+		// --- delayed execution (DBU-885) ---
+		// Each queued-order builder reads the market once and refuses, with a typed
+		// PredictPreflightError, an order the chain would abort, so a refused order never fails a
+		// larger transaction. It returns the transaction and a display preview. Every builder throws
+		// PredictInputError while the network's config doesn't record delayed execution.
+
+		/**
+		 * Queue a mint of an exact payout quantity, filled at Pyth's price for its τ. Escrows
+		 * `min(maxCost, quantity, available − fee)` plus the order fee. `maxCost` and
+		 * `maxProbability` are required caps (see `queue.slippageBand`). Size against
+		 * `read.queue(...).maxMint`. The record ID is in the enqueue's `OrderEnqueued`
+		 * (`decode.enqueue`).
+		 */
+		enqueueMint: async (
+			owner: string,
+			m: MarketDescriptor,
+			opts: EnqueueMintOptions,
+		): Promise<QueuedOrderPlan> => {
+			const quantityRaw = usdcToRaw(opts.quantity);
+			this.#assertLot(quantityRaw);
+			const maxCostRaw = usdcToRaw(opts.maxCost);
+			const maxProbabilityRaw = probabilityToRaw(opts.maxProbability);
+			return this.#planMint(
+				owner,
+				m,
+				{ kind: ORDER_KIND.EXACT_QUANTITY, maxCostRaw, quantityRaw },
+				(target) =>
+					enqueueExactQuantity(this.#config, {
+						...target,
+						quantityRaw,
+						maxCostRaw,
+						maxProbabilityRaw,
+					}),
+			);
+		},
+
+		/**
+		 * Queue a premium-budget mint: sized at τ under `spend`, at least `minQuantity`, with the
+		 * all-in debit capped by the required `maxCost`.
+		 */
+		enqueueMintAmount: async (
+			owner: string,
+			m: MarketDescriptor,
+			opts: EnqueueMintAmountOptions,
+		): Promise<QueuedOrderPlan> => {
+			const maxPremiumRaw = usdcToRaw(opts.spend);
+			const minQuantityRaw = usdcToRaw(opts.minQuantity);
+			const maxCostRaw = usdcToRaw(opts.maxCost);
+			return this.#planMint(
+				owner,
+				m,
+				{ kind: ORDER_KIND.EXACT_AMOUNT, maxCostRaw, maxPremiumRaw },
+				(target) =>
+					enqueueExactAmount(this.#config, {
+						...target,
+						maxPremiumRaw,
+						minQuantityRaw,
+						maxCostRaw,
+					}),
+			);
+		},
+
+		/**
+		 * Queue an all-in-budget mint (the default mint): sized at τ so the all-in cost fits
+		 * `spend`, at least `minQuantity`. Escrows `min(spend, available − fee)` plus the order fee.
+		 */
+		enqueueMintCost: async (
+			owner: string,
+			m: MarketDescriptor,
+			opts: EnqueueMintCostOptions,
+		): Promise<QueuedOrderPlan> => {
+			const maxCostRaw = usdcToRaw(opts.spend);
+			const minQuantityRaw = usdcToRaw(opts.minQuantity);
+			return this.#planMint(owner, m, { kind: ORDER_KIND.EXACT_COST, maxCostRaw }, (target) =>
+				enqueueExactCost(this.#config, { ...target, maxCostRaw, minQuantityRaw }),
+			);
+		},
+
+		/**
+		 * Queue an early sell of an Open record (`enqueue_redeem_open`), the only early sell in v4.
+		 * The record must be Open and the owner's. Sells are never refused for market cash: when the
+		 * sell's cash need is above spare cash the preview sets `needsFunding`, and by default the
+		 * builder adds `rebalance_expiry_cash` after the enqueue (see `fundMarket`). A sell the market
+		 * still can't cover at the fill is refunded in full (reason 8) and the position returns to an
+		 * Open record.
+		 */
+		enqueueSell: (
+			owner: string,
+			m: MarketCoordinates,
+			opts: EnqueueSellOptions,
+		): Promise<QueuedOrderPlan> => this.#planSell(owner, m, opts),
+
+		/**
+		 * Refund this market's orders past their deadline. For the app's "Refund my order" button
+		 * only (`OrderView.canRequestRefund`), never prepended to other transactions: keepers
+		 * refund on their own. Needs no account, session or Pyth key, and works during a freeze.
+		 * `maxOrders` (default 100) bounds the records visited.
+		 */
+		refund: async (
+			m: MarketCoordinates,
+			opts: { maxOrders?: number } = {},
+		): Promise<Transaction> => {
+			this.#requireDelayedExecution();
+			const { id } = await this.#resolveMarket(m);
+			return txOf(
+				refund(this.#config, { expiryMarketId: id, maxOrders: BigInt(opts.maxOrders ?? 100) }),
+			);
+		},
+
+		/**
+		 * The open filler: verify signed Pyth Lazer payloads, commit them to the market's waiting
+		 * cohorts, then resolve up to `maxOrders` (default 15) records. Reads the current Lazer
+		 * package from Lazer's `State` first (`lazerStateId`, or `config.oracle.pythLazerState`).
+		 */
+		fill: async (
+			m: MarketCoordinates,
+			opts: {
+				payloads: readonly Uint8Array[];
+				maxOrders?: number;
+				refundOverdue?: boolean;
+				lazerStateId?: string;
+			},
+		): Promise<Transaction> => {
+			this.#requireDelayedExecution();
+			const stateId = opts.lazerStateId ?? this.cfg.oracle?.pythLazerState;
+			if (!stateId) {
+				throw new PredictInputError('fill needs the Pyth Lazer State: pass `lazerStateId`');
+			}
+			const { id } = await this.#resolveMarket(m);
+			const lazer = await lazerPackages(this.#client, stateId);
+			return txOf(
+				fill(this.#config, {
+					expiryMarketId: id,
+					payloads: opts.payloads,
+					lazer,
+					maxOrders: BigInt(opts.maxOrders ?? 15),
+					refundOverdue: opts.refundOverdue,
 				}),
 			);
 		},
@@ -907,28 +1556,257 @@ export class PredictClient {
 			return { ...boardPricer(snap), asOf: snap.sources };
 		},
 
-		// Exact pre-trade quote: dry-runs the caller's own mint (same tx as
-		// tx.mint) and decodes the receipt. Requires a funded account; throws
-		// the same typed errors the real trade would — quote doubles as preflight.
+		/**
+		 * Exact pre-trade quote for an exact-quantity mint. Requires a funded account.
+		 *
+		 * Where the config records delayed execution, this reads the chain's own
+		 * `quote_mint_for_account` (the immediate mint aborts after the cutover) and previews a
+		 * QUEUED fill: `queued: true`, no congestion penalty in `cost`, and the order fee in
+		 * `orderFee`. It throws `pricing::EPythSpotUnavailable` / `EPythSpotStale` while the
+		 * on-chain Pyth spot is unusable: show "no preview" (`isPreviewUnavailable`), enqueue still
+		 * works. Elsewhere it dry-runs the immediate mint and decodes its receipt, as before.
+		 */
 		quoteMint: async (
 			owner: string,
 			m: MarketDescriptor,
 			opts: Pick<MintOptions, 'quantity'>,
 		): Promise<MintQuote> => {
+			if (this.cfg.packages.predictDelayedExecution) {
+				const feeds = this.#feeds(m.underlying);
+				const { id, state } = await this.#resolveMarket(m);
+				const quantityRaw = usdcToRaw(opts.quantity);
+				this.#assertLot(quantityRaw);
+				const { lowerTick, higherTick } = await this.#strikeTicks(m, id, state);
+				const { quote, policy } = await quoteMintForAccount(this.#client, this.#config, {
+					expiryMarketId: id,
+					wrapperId: this.wrapperIdFor(owner),
+					lowerTick,
+					higherTick,
+					request: { shape: 'exact-quantity', quantityRaw },
+					withPolicy: true,
+					...feeds,
+				});
+				return PredictClient.#queuedMintQuote(quote, policy);
+			}
 			const tx = await this.#buildMint(owner, m, opts);
 			return this.#quoteMintTransaction(owner, tx);
 		},
 
-		/** Simulate the v2 all-in budget mint against current account and market state. */
+		/**
+		 * Quote the all-in budget mint against current account and market state. Where the config
+		 * records delayed execution, it reads `quote_mint_exact_cost_for_account` at
+		 * `min(spend, available − fee)`, the budget enqueue escrows, and previews a queued fill as
+		 * `quoteMint` does. The chain sizes that quote with the congestion penalty, so a queued fill
+		 * can buy slightly more. Elsewhere it simulates the immediate v2 mint.
+		 */
 		quoteMintCost: async (
 			owner: string,
 			m: MarketDescriptor,
 			opts: MintCostOptions,
-		): Promise<MintQuote> =>
-			this.#quoteMintTransaction(owner, await this.#buildMintCost(owner, m, opts)),
+		): Promise<MintQuote> => {
+			if (this.cfg.packages.predictDelayedExecution) {
+				const feeds = this.#feeds(m.underlying);
+				const { id, state } = await this.#resolveMarket(m);
+				const { lowerTick, higherTick } = await this.#strikeTicks(m, id, state);
+				const { policy, availableRaw } = await orderFeeAndBalance(
+					this.#client,
+					this.#config,
+					owner,
+					this.cfg.quoteCoinType,
+				);
+				const fee = policy?.orderFee ?? 0n;
+				const spendRaw = usdcToRaw(opts.spend);
+				const escrowable = availableRaw > fee ? availableRaw - fee : 0n;
+				const { quote } = await quoteMintForAccount(this.#client, this.#config, {
+					expiryMarketId: id,
+					wrapperId: this.wrapperIdFor(owner),
+					lowerTick,
+					higherTick,
+					request: {
+						shape: 'exact-cost',
+						maxCostRaw: spendRaw < escrowable ? spendRaw : escrowable,
+						minQuantityRaw: usdcToRaw(opts.minQuantity),
+					},
+					...feeds,
+				});
+				return PredictClient.#queuedMintQuote(quote, policy);
+			}
+			return this.#quoteMintTransaction(owner, await this.#buildMintCost(owner, m, opts));
+		},
 
-		// Exact pre-close quote: dry-runs the caller's own redeem and decodes
-		// the receipt — the informed close against the floor-less deployed redeem.
+		/**
+		 * Quote an early sell of an Open record (`quote_redeem_open`) at a fresh live pricer.
+		 * `proceeds` is before the order fee, with no congestion penalty, and `net` takes the fee
+		 * off. Throws `ERecordNotOpen` when the record isn't Open.
+		 */
+		quoteSell: async (
+			owner: string,
+			m: MarketCoordinates,
+			opts: { recordId: bigint; quantity: number },
+		): Promise<SellQuote> => {
+			this.#requireDelayedExecution();
+			const feeds = this.#feeds(m.underlying);
+			const { id } = await this.#resolveMarket(m);
+			const closeQuantityRaw = usdcToRaw(opts.quantity);
+			this.#assertLot(closeQuantityRaw);
+			const { quote, policy } = await quoteRedeemOpen(this.#client, this.#config, {
+				expiryMarketId: id,
+				wrapperId: this.wrapperIdFor(owner),
+				recordId: opts.recordId,
+				closeQuantityRaw,
+				...feeds,
+			});
+			const orderFee = policy?.orderFee ?? 0n;
+			return {
+				probability: rawToProbability(quote.probability),
+				proceeds: rawToUsdc(quote.proceeds),
+				net: rawToUsdc(quote.proceeds > orderFee ? quote.proceeds - orderFee : 0n),
+				fees: {
+					trading: rawToUsdc(quote.tradingFee),
+					builder: rawToUsdc(quote.builderFee),
+					inventoryImpactRebate: rawToUsdc(quote.inventoryImpactRebate),
+					order: rawToUsdc(orderFee),
+				},
+				quantityClosed: rawToUsdc(quote.closeQuantity),
+				raw: {
+					probability: quote.probability,
+					proceeds: quote.proceeds,
+					orderFee,
+					quantityClosed: quote.closeQuantity,
+				},
+			};
+		},
+
+		/**
+		 * Which trade path the network is on, from `ProtocolConfig.version_watermark` and whether
+		 * this config records delayed execution. Flip the app between `mint*` and `enqueue*` on it,
+		 * without a redeploy at the watermark bump.
+		 */
+		executionMode: async (): Promise<ExecutionMode> =>
+			executionModeFor(
+				await versionWatermark(this.#client, this.cfg.objects.protocolConfig),
+				this.cfg.packages.predictDelayedExecution != null,
+			),
+
+		/**
+		 * A market's queue in one read: cash, the stuck gate ("pricing delayed"), cohorts, counters
+		 * against capacity, the policy, a τ/deadline/cutoff preview, and the largest mint spare cash
+		 * admits now. With `owner` (who must have an account), also the account's waiting orders and
+		 * balance.
+		 */
+		queue: async (m: MarketCoordinates, owner?: string): Promise<MarketQueueView> => {
+			this.#requireDelayedExecution();
+			const { id } = await this.#resolveMarket(m);
+			const state = await this.#queueState(id, { owner });
+			const nowMs = BigInt(Date.now());
+			const policy = state.protocol.policy;
+			const mode = executionModeFor(state.protocol.versionWatermark, true);
+			const timing = policy
+				? previewTiming({
+						nowMs,
+						policy,
+						heads: state.heads,
+						expiryMs: state.expiryMs,
+						noTradeWindowMs: state.protocol.noTradeWindowMs,
+					})
+				: null;
+			return {
+				...state,
+				mode,
+				timing,
+				acceptingOrders:
+					mode === 'delayed' &&
+					timing != null &&
+					timing.beforeCutoff &&
+					!state.stuck &&
+					!state.protocol.frozen,
+				maxMint: policy
+					? {
+							exactQuantity: maxMintNow({
+								shape: 'exact-quantity',
+								spareCashRaw: state.spareCash,
+								minEntryProbability: state.minEntryProbability,
+								lotSize: BigInt(this.cfg.units.positionLotSize),
+								asOfMs: nowMs,
+							}),
+							budget: maxMintNow({
+								shape: 'budget',
+								spareCashRaw: state.spareCash,
+								minEntryProbability: state.minEntryProbability,
+								availableRaw: state.account?.availableRaw,
+								orderFeeRaw: policy.orderFee,
+								asOfMs: nowMs,
+							}),
+						}
+					: null,
+			};
+		},
+
+		/** One queue record and its display state, or null when missing or cleaned up. */
+		order: async (m: MarketCoordinates, recordId: bigint): Promise<QueuedOrderView | null> =>
+			(await this.read.orders(m, [recordId]))[0],
+
+		/**
+		 * Queue records by record ID, with their display states. The SDK has no indexer: the app
+		 * supplies record IDs from its enqueue receipts or its indexer.
+		 */
+		orders: async (
+			m: MarketCoordinates,
+			recordIds: readonly bigint[],
+		): Promise<(QueuedOrderView | null)[]> => {
+			this.#requireDelayedExecution();
+			const { id } = await this.#resolveMarket(m);
+			const records = await queuedOrders(this.#client, this.#config, id, recordIds);
+			const nowMs = BigInt(Date.now());
+			return records.map((record, i) =>
+				record ? { recordId: recordIds[i], record, view: orderView(record, nowMs) } : null,
+			);
+		},
+
+		/**
+		 * Poll a record until it is filled, refunded or closed (`pollMs`, default 250), or until
+		 * `timeoutMs` (default 30 s). A missing record ends as `'gone'`. The record's result is
+		 * enough for the UI; the fee breakdown is in the `QueuedOrderFilled` event.
+		 */
+		waitForOutcome: async (
+			m: MarketCoordinates,
+			recordId: bigint,
+			opts: { pollMs?: number; timeoutMs?: number; signal?: AbortSignal } = {},
+		): Promise<QueuedOrderOutcome> => {
+			const pollMs = opts.pollMs ?? 250;
+			const deadline = Date.now() + (opts.timeoutMs ?? 30_000);
+			for (;;) {
+				const order = await this.read.order(m, recordId);
+				if (!order) return { outcome: 'gone', order: null };
+				const state = order.view.state;
+				if (state === 'filled' || state === 'refunded' || state === 'closed') {
+					return { outcome: state, order };
+				}
+				if (Date.now() + pollMs > deadline) return { outcome: 'timeout', order };
+				await sleep(pollMs, opts.signal);
+			}
+		},
+
+		/**
+		 * USDC sent to the owner's account wrapper that the account hasn't settled yet: refunds,
+		 * sell proceeds and settled payouts. Already counted in `read.balance`; for display.
+		 */
+		pendingFunds: async (owner: string): Promise<number> =>
+			rawToUsdc(await pendingFunds(this.#client, this.wrapperIdFor(owner), this.cfg.quoteCoinType)),
+
+		/** The current Pyth Lazer package, for a filler. Read it per batch and never cache it. */
+		lazerPackages: (stateId?: string): Promise<LazerPackages> => {
+			const id = stateId ?? this.cfg.oracle?.pythLazerState;
+			if (!id) throw new PredictInputError('pass the Pyth Lazer State id');
+			return lazerPackages(this.#client, id);
+		},
+
+		/**
+		 * Exact pre-close quote for an ACCOUNT position: dry-runs the immediate redeem and decodes
+		 * the receipt.
+		 * @deprecated `redeem_live` is retired by delayed execution (DBU-885) and aborts once the
+		 * watermark reaches 4. Queued fills are Open records: quote them with `read.quoteSell`.
+		 */
 		quoteRedeem: async (
 			owner: string,
 			m: MarketDescriptor,
@@ -1021,5 +1899,42 @@ export class PredictClient {
 			exactlyOne(decodePlpCancels(this.cfg, r), 'RequestCancelled'),
 		builderCode: (r: DecodableTransactionResult) =>
 			exactlyOne(decodeBuilderCodeSets(this.cfg, r), 'BuilderCodeSet'),
+
+		// --- delayed execution (DBU-885) --- matched against `packages.predictDelayedExecution`;
+		// each throws PredictInputError while the config doesn't record it.
+
+		/** The trader's `OrderEnqueued` receipt: the record ID, τ, deadline, escrow and fee. */
+		enqueue: (r: DecodableTransactionResult) =>
+			exactlyOne(decodeEnqueues(this.cfg, r), 'OrderEnqueued'),
+		enqueues: (r: DecodableTransactionResult) => decodeEnqueues(this.cfg, r),
+		/** Every queue event, tagged, in chain order: feed it to `queue.reduceOrderEvents`. */
+		queueEvents: (r: DecodableTransactionResult) => decodeQueueEvents(this.cfg, r),
+		cohortCommits: (r: DecodableTransactionResult) => decodeCohortCommits(this.cfg, r),
+		queuedFills: (r: DecodableTransactionResult) => decodeQueuedFills(this.cfg, r),
+		queuedRefunds: (r: DecodableTransactionResult) => decodeQueuedRefunds(this.cfg, r),
+		openRecordPayouts: (r: DecodableTransactionResult) => decodeOpenRecordPayouts(this.cfg, r),
+		marketPayoutsCompleted: (r: DecodableTransactionResult) =>
+			decodeMarketPayoutsCompleted(this.cfg, r),
+		queueOps: (r: DecodableTransactionResult) => decodeQueueOps(this.cfg, r),
+		policyUpdates: (r: DecodableTransactionResult) => decodePolicyUpdates(this.cfg, r),
 	};
+}
+
+// Resolve after `ms`, or reject with the signal's reason once it aborts.
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+	return new Promise((resolve, reject) => {
+		if (signal?.aborted) {
+			reject(signal.reason);
+			return;
+		}
+		const onAbort = () => {
+			clearTimeout(timer);
+			reject(signal?.reason);
+		};
+		const timer = setTimeout(() => {
+			signal?.removeEventListener('abort', onAbort);
+			resolve();
+		}, ms);
+		signal?.addEventListener('abort', onAbort, { once: true });
+	});
 }

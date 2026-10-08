@@ -26,8 +26,9 @@ export interface MarketFeeds {
 }
 
 // Load a fresh `Pricer` from the live oracle feeds. Every live-flow trade call
-// (`mint_*`, `redeem_live`) borrows this `&Pricer` and it must be loaded first in the
-// PTB. Deployed sig `load_live_pricer` (expiry_market.move): market, config,
+// (`mint_*`, `redeem_live`) and every live quote (`quote_mint*`, `quote_redeem_open`) borrows
+// this `&Pricer` and it must be loaded first in the PTB. Queued orders (`enqueue_*`) don't take
+// one: they read the oracle objects directly. Deployed sig `load_live_pricer` (expiry_market.move): market, config,
 // propbook_registry (&OracleRegistry), pyth, bs_values, bs_svi, clock (auto-injected).
 // `config` and `propbook_registry` are supplied by the config slice, not named here.
 export function loadLivePricer(
@@ -66,6 +67,11 @@ function liveTrade(
 // returning the new order id (u256). Command order is pricer → auth → mint (auth is a
 // hot potato consumed by this call). `maxCostRaw`/`maxProbabilityRaw` default to
 // `U64_MAX` (no slippage cap). Deployed sig `mint_exact_quantity`.
+/**
+ * @deprecated Retired by delayed execution (DBU-885): `mint_exact_quantity` aborts
+ * `EDelayedExecutionRequired` once the version watermark reaches 4. Use `enqueueExactQuantity`
+ * from `tx/queue.ts`.
+ */
 export function mintExactQuantity(
 	config: GeneratedConfig,
 	args: {
@@ -99,6 +105,10 @@ export function mintExactQuantity(
 // floor on the position received and a `maxCostRaw` all-in ceiling, returning the new
 // order id (u256). Command order is pricer → auth → mint. Deployed sig
 // `mint_exact_amount`: …, max_premium, min_quantity, max_cost, root.
+/**
+ * @deprecated Retired by delayed execution (DBU-885): aborts `EDelayedExecutionRequired` once the
+ * version watermark reaches 4. Use `enqueueExactAmount`.
+ */
 export function mintExactAmount(
 	config: GeneratedConfig,
 	args: {
@@ -128,7 +138,11 @@ export function mintExactAmount(
 	);
 }
 
-/** Mint within an all-in budget, including fees, using the v2 entrypoint. */
+/**
+ * Mint within an all-in budget, including fees, using the v2 entrypoint.
+ * @deprecated Retired by delayed execution (DBU-885): aborts `EDelayedExecutionRequired` once the
+ * version watermark reaches 4. Use `enqueueExactCost`.
+ */
 export function mintExactCost(
 	config: GeneratedConfig,
 	args: {
@@ -161,6 +175,11 @@ export function mintExactCost(
 // (`minProbabilityRaw`/`minProceedsRaw`, default 0 = uncapped). Returns `Option<u256>`:
 // the replacement order id when a partial close leaves quantity open, else none. Command
 // order is pricer → auth → redeem. Deployed sig `redeem_live`.
+/**
+ * @deprecated Retired by delayed execution (DBU-885): aborts `EDelayedExecutionRequired` once the
+ * version watermark reaches 4. Account positions then have no early exit; queued fills are Open
+ * records sold with `enqueueRedeemOpen`.
+ */
 export function redeemLive(
 	config: GeneratedConfig,
 	args: {
@@ -188,6 +207,9 @@ export function redeemLive(
 	);
 }
 
+// Unchanged by delayed execution: still pays settled positions held in the account. It doesn't
+// pay Open queue records, which `try_settle` pays at settlement.
+//
 // Owner-authorized redeem of a settled position: closes `orderId` IN FULL against the
 // recorded settlement price (the deployed entrypoint takes no quantity — a settled claim
 // is all-or-nothing). No live pricer (settlement price is fixed); auth is consumed by the

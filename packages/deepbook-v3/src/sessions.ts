@@ -81,6 +81,34 @@ export function getSessionsConfig(
 	);
 }
 
+/** The market, account and oracle objects every queued Predict session wrapper names. */
+export interface SessionsQueuedOrderTarget {
+	expiryMarketId: string;
+	wrapperId: string;
+	/** Predict's `ProtocolConfig`. */
+	protocolConfig: string;
+	/** Predict's `OracleRegistry` (the propbook registry). */
+	oracleRegistry: string;
+	/** The market's `PythFeed`. */
+	pythFeed: string;
+	/** The market's `BlockScholesValueStore`. */
+	blockScholesValueStore: string;
+	/** The market's `BlockScholesSVIStore`. */
+	blockScholesSviStore: string;
+}
+
+const U64_MAX = (1n << 64n) - 1n;
+
+// The chain refuses a zero or "unlimited" cap on every queued mint (`EMintCostCapRequired`).
+function assertQueuedMaxCost(maxCost: number | bigint): void {
+	const value = BigInt(maxCost);
+	if (value <= 0n || value >= U64_MAX) {
+		throw new Error(
+			`maxCost must be above 0 and below u64::MAX on a queued mint (EMintCostCapRequired), got ${value}`,
+		);
+	}
+}
+
 /** The maximum session duration the contract accepts: 30 days, in milliseconds. */
 export const MAX_SESSION_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -276,6 +304,8 @@ export class SessionsContract {
 	 * effectively unbounded — the chain asserts `value <= cap`, so the max value can never
 	 * trip. Both are required; there is no default.
 	 * @returns A function that takes a Transaction object and returns the new order id (u256)
+	 * @deprecated Retired by delayed execution (DBU-885): aborts `EDelayedExecutionRequired`
+	 * through Predict once the version watermark reaches 4. Use {@link SessionsContract.enqueueExactQuantity}.
 	 */
 	mintExactQuantity(params: {
 		expiryMarketId: string;
@@ -312,6 +342,8 @@ export class SessionsContract {
 	 * @description Mint by spending up to a premium budget, flooring the quantity received.
 	 * The chain requires `maxCost > 0`.
 	 * @returns A function that takes a Transaction object and returns the new order id (u256)
+	 * @deprecated Retired by delayed execution (DBU-885): aborts once the version watermark
+	 * reaches 4. Use {@link SessionsContract.enqueueExactAmount}.
 	 */
 	mintExactAmount(params: {
 		expiryMarketId: string;
@@ -347,6 +379,8 @@ export class SessionsContract {
 	/**
 	 * Mint within an all-in budget as a session. Amounts are raw Move units.
 	 * Requires Sessions/Predict v2 or later.
+	 * @deprecated Retired by delayed execution (DBU-885): aborts once the version watermark
+	 * reaches 4. Use {@link SessionsContract.enqueueExactCost}.
 	 */
 	mintExactCost(params: {
 		expiryMarketId: string;
@@ -385,6 +419,9 @@ export class SessionsContract {
 	 * unless you mean to accept whatever the mark gives you.
 	 * @returns A function that takes a Transaction object and returns `Option<u256>` — the
 	 * replacement order id when a partial close leaves quantity open
+	 * @deprecated Retired by delayed execution (DBU-885): aborts once the version watermark
+	 * reaches 4. Account positions then have no early exit; queued fills are Open records sold
+	 * with {@link SessionsContract.enqueueRedeemOpen}.
 	 */
 	redeemLive(params: {
 		expiryMarketId: string;
@@ -439,6 +476,150 @@ export class SessionsContract {
 					},
 				}),
 			);
+		};
+	}
+
+	// === Queued Predict wrappers (delayed execution, DBU-885) ===
+	//
+	// The session form of Predict's `enqueue_*`, in Sessions v3. Placement takes no pricer: it
+	// reads the oracle objects directly, so each wrapper takes the market's three feed ids plus
+	// Predict's `OracleRegistry` (the propbook registry). Amounts are raw Move units. Each returns
+	// the new queue record ID (u64). Predict performs every check; the caps below are only the
+	// ones a session key should never send by accident.
+
+	/**
+	 * @description Queue a mint of an exact payout quantity, as `session`. `maxCost` (all-in cap)
+	 * and `maxProbability` (at most 1e9) are required, and the chain refuses an "unlimited"
+	 * `maxCost`.
+	 * @returns A function that takes a Transaction object and returns the record id (u64)
+	 */
+	enqueueExactQuantity(
+		params: SessionsQueuedOrderTarget & {
+			lowerTick: number | bigint;
+			higherTick: number | bigint;
+			quantity: number | bigint;
+			maxCost: number | bigint;
+			maxProbability: number | bigint;
+		},
+	) {
+		assertQueuedMaxCost(params.maxCost);
+		return (tx: Transaction): TransactionResult =>
+			tx.add(
+				sessions.enqueueExactQuantity({
+					config: this.#generatedConfig,
+					arguments: {
+						...this.#queuedTarget(params),
+						lowerTick: params.lowerTick,
+						higherTick: params.higherTick,
+						quantity: params.quantity,
+						maxCost: params.maxCost,
+						maxProbability: params.maxProbability,
+					},
+				}),
+			);
+	}
+
+	/**
+	 * @description Queue a premium-budget mint, as `session`: sized at τ under `maxPremium`, at
+	 * least `minQuantity`, with the all-in debit capped by the required `maxCost`.
+	 * @returns A function that takes a Transaction object and returns the record id (u64)
+	 */
+	enqueueExactAmount(
+		params: SessionsQueuedOrderTarget & {
+			lowerTick: number | bigint;
+			higherTick: number | bigint;
+			maxPremium: number | bigint;
+			minQuantity: number | bigint;
+			maxCost: number | bigint;
+		},
+	) {
+		assertQueuedMaxCost(params.maxCost);
+		return (tx: Transaction): TransactionResult =>
+			tx.add(
+				sessions.enqueueExactAmount({
+					config: this.#generatedConfig,
+					arguments: {
+						...this.#queuedTarget(params),
+						lowerTick: params.lowerTick,
+						higherTick: params.higherTick,
+						maxPremium: params.maxPremium,
+						minQuantity: params.minQuantity,
+						maxCost: params.maxCost,
+					},
+				}),
+			);
+	}
+
+	/**
+	 * @description Queue an all-in-budget mint, as `session`: sized at τ so the all-in cost fits
+	 * `maxCost`, at least `minQuantity`.
+	 * @returns A function that takes a Transaction object and returns the record id (u64)
+	 */
+	enqueueExactCost(
+		params: SessionsQueuedOrderTarget & {
+			lowerTick: number | bigint;
+			higherTick: number | bigint;
+			maxCost: number | bigint;
+			minQuantity: number | bigint;
+		},
+	) {
+		assertQueuedMaxCost(params.maxCost);
+		return (tx: Transaction): TransactionResult =>
+			tx.add(
+				sessions.enqueueExactCost({
+					config: this.#generatedConfig,
+					arguments: {
+						...this.#queuedTarget(params),
+						lowerTick: params.lowerTick,
+						higherTick: params.higherTick,
+						maxCost: params.maxCost,
+						minQuantity: params.minQuantity,
+					},
+				}),
+			);
+	}
+
+	/**
+	 * @description Queue an early sell of the Open record `recordId` (its queue record ID, not
+	 * the position's order ID), as `session`. `minProbability` and `minProceeds` are the close
+	 * floors at τ and are required: on a delegated key, `0` closes at any price, so pass it only
+	 * on purpose.
+	 * @returns A function that takes a Transaction object and returns the new record id (u64)
+	 */
+	enqueueRedeemOpen(
+		params: SessionsQueuedOrderTarget & {
+			recordId: number | bigint;
+			closeQuantity: number | bigint;
+			minProbability: number | bigint;
+			minProceeds: number | bigint;
+		},
+	) {
+		return (tx: Transaction): TransactionResult =>
+			tx.add(
+				sessions.enqueueRedeemOpen({
+					config: this.#generatedConfig,
+					arguments: {
+						...this.#queuedTarget(params),
+						recordId: params.recordId,
+						closeQuantity: params.closeQuantity,
+						minProbability: params.minProbability,
+						minProceeds: params.minProceeds,
+					},
+				}),
+			);
+	}
+
+	// The leading arguments every queued wrapper shares, in the Move order after the market.
+	#queuedTarget(params: SessionsQueuedOrderTarget) {
+		return {
+			market: params.expiryMarketId,
+			accountRegistry: this.#config.accountRegistry,
+			wrapper: params.wrapperId,
+			config: params.protocolConfig,
+			propbookRegistry: params.oracleRegistry,
+			pyth: params.pythFeed,
+			bsValues: params.blockScholesValueStore,
+			bsSvi: params.blockScholesSviStore,
 		};
 	}
 

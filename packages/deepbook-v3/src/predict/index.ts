@@ -11,7 +11,13 @@ export type { PredictCompatibleClient } from './client.js';
 export type {
 	ActiveMarket,
 	CloseOptions,
+	EnqueueMintAmountOptions,
+	EnqueueMintCostOptions,
+	EnqueueMintOptions,
+	EnqueueSellOptions,
+	MarketCoordinates,
 	MarketDescriptor,
+	MarketQueueView,
 	MarketSummary,
 	MintAmountOptions,
 	MintCostOptions,
@@ -20,7 +26,12 @@ export type {
 	PlpSupplyOptions,
 	PlpWithdrawOptions,
 	PoolSummary,
+	QueuedOrderOutcome,
+	QueuedOrderPlan,
+	QueuedOrderPreview,
+	QueuedOrderView,
 	RedeemQuote,
+	SellQuote,
 } from './client.js';
 
 // === Composition with foreign packages === auth + deterministic account addressing
@@ -103,9 +114,29 @@ export type { PricerSnapshot } from './reads/pricing.js';
 // `cost.SHIPPED_FEE_POLICY` as the shipped template.
 export * as cost from './cost.js';
 
+// === Delayed execution === the queued-order codes, cash-need math, timing previews and
+// order-state views as pure functions over raw bigints: `queue.ORDER_STATUS`,
+// `queue.REFUND_REASONS`, `queue.cashNeedExactQuantity`, `queue.maxMintNow`,
+// `queue.previewTiming`, `queue.orderView`, `queue.reduceOrderEvents`, `queue.slippageBand`. The
+// facade's `tx.enqueue*` / `read.queue` / `decode.queueEvents` drive them.
+export * as queue from './queue.js';
+// The queued-order thunks, for composing an enqueue, a refund or the filler into a PTB you are
+// building: `queueTx.enqueueExactCost(toGeneratedConfig(cfg), …)`. They run the static checks
+// (a real `max_cost` cap, explicit sell floors) but not the facade's chain preflight. `fill`
+// composes Pyth Lazer's verifier, a package this SDK doesn't generate.
+export * as queueTx from './tx/queue.js';
+export type { ExecutionMode, MarketQueueState } from './reads/queue.js';
+
 // === Errors ===
-export { PredictInputError, PredictMoveError, decodeMoveAbort } from './errors.js';
-export type { MoveAbortError } from './errors.js';
+export {
+	PredictInputError,
+	PredictMoveError,
+	PredictPreflightError,
+	decodeMoveAbort,
+	describePredictError,
+	isPreviewUnavailable,
+} from './errors.js';
+export type { MoveAbortError, PredictPreflightCode } from './errors.js';
 
 // === Client seam + position type used in public read signatures ===
 export type { ReadClient } from './reads/inspect.js';
@@ -124,6 +155,17 @@ export type {
 	PlpCancelReceipt,
 	PlpRequestReceipt,
 	RedeemReceipt,
+	// Delayed execution.
+	CohortCommitReceipt,
+	EnqueueReceipt,
+	MarketPayoutsCompletedReceipt,
+	OpenRecordPayoutReceipt,
+	PolicyUpdateReceipt,
+	QueueCashFigures,
+	QueueEvent,
+	QueueOpsReceipt,
+	QueuedFillReceipt,
+	QueuedRefundReceipt,
 } from './decode.js';
 
 // The `/sessions` Predict wrappers take `pricer` as a PTB result of this call, so it has to

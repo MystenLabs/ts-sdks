@@ -6,6 +6,19 @@ export interface PredictPackages {
 	predict: string;
 	/** Original ID for v1 structs/events. Omit only for an unupgraded custom deployment. */
 	predictV1?: string;
+	/**
+	 * The package version that introduced delayed execution (DBU-885): the defining ID of the
+	 * `order_queue` and `delayed_execution_config` types and of the queued-order events
+	 * (`OrderEnqueued`, `QueuedOrderFilled`, …). Mainnet v4 and Testnet v5. A later upgrade
+	 * does not move it, so it is pinned once per network rather than read from the latest
+	 * publication.
+	 *
+	 * Unset means this SDK version has no record of delayed execution on the network: the
+	 * queued-order builders, reads and decoders throw `PredictInputError` instead of
+	 * addressing the wrong package. Pass a custom `config` (a localnet publish) to use them
+	 * before a network record exists.
+	 */
+	predictDelayedExecution?: string;
 	account: string;
 	propbook: string;
 }
@@ -58,4 +71,12 @@ export interface PredictConfig {
 		positionQuantityDecimals: number;
 	};
 	underlyings: Record<string, UnderlyingConfig>; // keyed by symbol, e.g. "BTC"
+	/**
+	 * Oracle objects only the delayed-execution filler needs. Optional: traders never pass
+	 * them, and a filler can name the Lazer `State` per call instead.
+	 */
+	oracle?: {
+		/** Pyth Lazer's shared `State`, which carries the current Lazer package ID. */
+		pythLazerState?: string;
+	};
 }
