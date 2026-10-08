@@ -239,13 +239,31 @@ pnpm --filter @mysten/deepbook-v3 sync-deployment
 
 ### Predict delayed execution (`src/predict/{queue,tx/queue,reads/queue}.ts`)
 
-- The v4 types and events are defined by `packages.predictDelayedExecution`, not `predictV1` or the
-  latest package. Decoders match against it and the queue facade throws `PredictInputError` while it
-  is unset (the network records stay unset until each publication is synced).
-- `queue.ts` ports `order_queue`'s cash-need formulas 1:1, and `test/predict/queue.test.ts` pins
-  them with the Move unit-test vectors. Re-copy the vectors when the Move rounding changes.
+- Delayed execution spans three packages: the Predict upgrade (v4), the order-flow companion
+  `deepbook_predict_orders` and the math library `deepbook_predict_math` (both fresh publishes).
+  Every queued-order call and queue read targets the companion (`queue::*`, `desk::*`), with the
+  slice from `toOrdersConfig(cfg)`. It throws `PredictInputError` unless the config records
+  `packages.predictDelayedExecution`, `packages.predictOrders` and `objects.orderDesk` (the network
+  records stay unset until each publication is synced).
+- A market's `MarketQueue` sits at `derived_object::derive_address(desk_id, market_id)`:
+  `src/predict/queue-id.ts` (a leaf module, so `/sessions` can import it), pinned against Move
+  vectors in `test/predict/queue-id.test.ts`. The facade checks the queue exists once per client
+  (`getObjects`) and refuses a missing one with `PredictPreflightError` `'no-queue'`.
+- Event origins: the queue events are the companion's `queue_events`, typed by its original ID
+  (`packages.predictOrdersV1 ?? predictOrders`). The Predict events v4 added (`ExpiryPnlRealized`,
+  `FlushOperatorUpdated`, `OrderFlowUpdated`) are typed by `packages.predictDelayedExecution`. Fills
+  still emit Predict's v1 `OrderMinted` / `LiveOrderRedeemed`.
+- `queue.ts` ports the cash-need formulas (`deepbook_predict_math::math::need_*`) 1:1, and
+  `test/predict/queue.test.ts` pins them with the Move unit-test vectors. Re-copy the vectors when
+  the Move rounding changes.
+- The retired Predict entry points (`mint_exact_*`, `redeem_live`) keep their signatures, but their
+  source parameters are underscore-prefixed, so codegen renders capitalized argument keys (`_market`
+  → `Market`). `tx/trade.ts` mints the auth itself for them instead of using `withAuth`.
 - `read.executionMode()` reads `ProtocolConfig.version_watermark` from the object's BCS, because the
   getter only exists from v4.
+- `queue.ORDER_FLOW_PACKAGE_VERSION` mirrors `desk::current_version` of the generated companion
+  source. The preflight refuses with `'retired'` when the desk floor is above it, so bump it with
+  the companion whenever the bindings are regenerated.
 
 ## Formatting
 
@@ -459,3 +477,5 @@ Track significant updates to this file:
 - **2026-07**: Added codegen gotchas (build workspace deps + re-install before `pnpm codegen`;
   broken pyth config entry; `package_summaries/` cleanup)
 - **2026-10**: `DEEPBOOKV3_ROOT` codegen override and Predict delayed-execution notes (DBU-885)
+- **2026-10**: Delayed execution split across Predict, `deepbook_predict_orders` and
+  `deepbook_predict_math` (DBU-885)

@@ -88,7 +88,8 @@ const pool = await client.predict.read.pool();
 ```
 
 > **Immediate trades retire with delayed execution.** `mint`, `mintAmount`, `mintCost` and `redeem`
-> work until the protocol's version watermark reaches 4, then abort `EDelayedExecutionRequired`.
+> work only while the config calls a pre-v4 Predict package. Predict v4 always aborts them
+> (`EDelayedExecutionRequired`), and the version watermark bump to 4 retires the older packages.
 > From then on orders are queued: see [Queued orders](#queued-orders-delayed-execution). Branch on
 > `read.executionMode()` rather than a release date.
 
@@ -97,13 +98,22 @@ const pool = await client.predict.read.pool();
 With delayed execution (Predict v4, DBU-885) an order is placed now and filled later, at Pyth's
 signed price for its τ: the Pyth Lazer channel tick at or before placement + the policy delay (800
 ms on the 200 ms channel at launch). A keeper, or anyone running the open filler, commits the price
-and resolves the order: a fill, or a refund with a reason code. A filled mint stays in the market as
-an **Open record**, not in the account. Sell it early with `enqueueSell`, or let `try_settle` pay it
-at settlement.
+and resolves the order: a fill, or a refund with a reason code. A filled mint stays in the market's
+queue as an **Open record**, not in the account. Sell it early with `enqueueSell`, or let the
+queue's settlement walk pay it at settlement.
+
+Delayed execution spans three packages. Predict (upgraded to v4) keeps the markets, pricing, cash
+and settlement. The order-flow package `deepbook_predict_orders` holds the queue: each market has
+one `MarketQueue`, at an ID derived from the package's single `OrderDesk` and the market
+(`client.predict.queueIdFor(marketId)`, or `deriveQueueId(desk, market)`), and the desk holds the
+policy (delay, order fee, capacities). The math library `deepbook_predict_math` holds the pure
+pricing math. Every queued-order call goes to `deepbook_predict_orders`, while a fill still emits
+Predict's `OrderMinted` or `LiveOrderRedeemed`.
 
 > The Testnet and Mainnet configs don't record delayed execution until those publications are
 > synced. Until then the queued surface throws `PredictInputError` on them. Pass a `config` with
-> `packages.predictDelayedExecution` set (a localnet publish) to use it earlier.
+> `packages.predictDelayedExecution`, `packages.predictOrders` and `objects.orderDesk` set (a
+> localnet publish) to use it earlier.
 
 ```ts
 // Which path is live? 'immediate' | 'awaiting-cutover' | 'delayed' | 'unsupported'.
@@ -115,7 +125,7 @@ const queue = await client.predict.read.queue(desc, myAddress);
 queue.stuck; // show "pricing delayed" and stop offering orders
 queue.acceptingMints; // and queue.acceptingSells: one side can be full while the other is open
 queue.refusal.mint; // the preflight code a mint would get now, or null
-queue.maxMint?.budget.maxRaw; // "Max right now" for a budget mint, raw USDC
+queue.maxMint.budget.maxRaw; // "Max right now" for a budget mint, raw USDC
 
 // Quote, then queue. The quote previews a queued fill: no congestion penalty, and the flat order
 // fee reported apart, once per order.
@@ -144,12 +154,15 @@ const sell = await client.predict.tx.enqueueSell(myAddress, desc, {
 ```
 
 - **Preflight, typed.** Each `enqueue*` builder reads the market once and refuses, with a
-  `PredictPreflightError` and a `code`, an order the chain would abort: `not-live`, `paused`,
-  `stuck`, `past-cutoff`, `queue-full`, `account-cap`, `fee` (prompt a top-up: a mint needs a
-  balance above the order fee, a sell at least the fee), `market-cash`, `min-premium`,
-  `below-min-sell`, `record-not-open`, `not-record-owner`. A refused order never fails the rest of a
-  transaction. The preview runs on the local clock, so near the cutoff the chain can still refuse:
-  decode that with `describePredictError`.
+  `PredictPreflightError` and a `code`, an order the queue or protocol gates would abort: `not-live`
+  (the watermark isn't raised, or Predict doesn't allowlist the order-flow package yet), `no-queue`
+  (the market's `MarketQueue` isn't created yet), `retired` (the desk's version floor retired the
+  order-flow package this SDK calls), `paused`, `stuck`, `past-cutoff`, `queue-full`, `account-cap`,
+  `fee` (prompt a top-up: a mint needs a balance above the order fee, a sell at least the fee),
+  `market-cash`, `min-premium`, `below-min-sell`, `record-not-open`, `not-record-owner`. A refused
+  order never fails the rest of a transaction. The order's own price limits are checked only on
+  chain, at placement (`EOrderFailsLimits`), and the preview runs on the local clock, so near the
+  cutoff the chain can still refuse: decode that with `describePredictError`.
 - **Order states.** `read.order(s)` returns each record with `queue.orderView`: `placed` (with
   `awaitingPrice` once τ passes), `priced` (the committed price and a countdown to the deadline),
   then `filled` or `refunded`. Report "Filled" only from the record or the `QueuedOrderFilled`
@@ -171,11 +184,18 @@ const sell = await client.predict.tx.enqueueSell(myAddress, desc, {
 - **The open filler.** `tx.fill(m, { payloads })` verifies signed Lazer payloads with the current
   Lazer package (read from Lazer's `State` per call), commits them and resolves up to `maxOrders`
   records. Anyone with Lazer access can run one.
-- **Pure helpers** in the `queue` namespace: the cash-need formulas (ported 1:1 from `order_queue`),
-  `maxMintNow`, `previewTiming`, `orderCutoffMs`, and `slippageBand`, a heuristic
-  `Δp ≈ k · φ(Φ⁻¹(p)) · √(h / T)` for sizing `maxProbability` / `minProbability` that still needs
-  product sign-off. `queueTx` has the thunks for composing an enqueue into your own PTB, and
-  `SessionsContract` has the `enqueue*` session wrappers.
+- **Settlement.** After Predict's `try_settle`, the queue's `settle_step` refunds the orders still
+  waiting (reason 5, with the keeper as sender) and then pays each Open record its settled payout to
+  the account's wrapper address (`OpenRecordSettled`, 0 for a loser). One call per transaction until
+  it returns `queue.SETTLE_PHASE.DONE`. DONE means the walk reached the last record: a record the
+  market couldn't pay stays Open with `OpenRecordPayoutSkipped`.
+- **Pure helpers** in the `queue` namespace: the cash-need formulas (ported 1:1 from
+  `deepbook_predict_math::math`), `maxMintNow`, `previewTiming`, `orderCutoffMs`, and
+  `slippageBand`, a heuristic `Δp ≈ k · φ(Φ⁻¹(p)) · √(h / T)` for sizing `maxProbability` /
+  `minProbability` that still needs product sign-off. `queueTx` has the thunks for composing an
+  enqueue into your own PTB (`queueTx.enqueueExactCost(toOrdersConfig(cfg), …)`), plus the keeper's
+  `createQueue`, `commit`, `resolve`, `refund`, `adminRefund`, `settleStep` and `cleanup`.
+  `SessionsContract` has the `enqueue*` session wrappers, which take the `orderDesk`.
 
 ## ⚠ Slippage defaults are UNCAPPED
 
@@ -305,21 +325,28 @@ const tx = await client.predict.tx.mint(
   plural). Execute transactions with events included and pass the result; receipts come back in SDK
   units with raw bigints alongside. Decoding uses the events' canonical BCS bytes, so it is
   transport-independent. The queue decoders (`enqueue`, `queueEvents`, `cohortCommits`,
-  `queuedFills`, `queuedRefunds`, `openRecordPayouts`, `marketPayoutsCompleted`, `queueOps`,
-  `policyUpdates`) and `expiryPnlRealized` match the events against
-  `packages.predictDelayedExecution`, the package that introduced them. `realizedPnlRaw` sums
-  `expiryPnlRealized` receipts into the pool's gross realized P&L.
+  `queuedFills`, `queuedRefunds`, `openRecordPayouts`, `marketPayoutsCompleted`, `queueOps`) match
+  the order-flow package's `queue_events` against its original ID
+  (`packages.predictOrdersV1 ?? predictOrders`). `expiryPnlRealized` matches against
+  `packages.predictDelayedExecution`, the Predict version that introduced it, and `policyUpdates`
+  decodes the desk's `DelayedExecutionPolicyUpdated` and Predict's `FlushOperatorUpdated` and
+  `OrderFlowUpdated`. `realizedPnlRaw` sums `expiryPnlRealized` receipts into the pool's gross
+  realized P&L.
 - **PTB composition** — each `client.predict.tx.*` builder returns a finished `Transaction`, so to
   put a Predict call into a PTB you are building, use the generated move-call bindings `/predict`
   exports: one namespace of transaction thunks per Predict module (`plpMoveCalls`,
   `expiryMarketMoveCalls`, `predictAccountMoveCalls`, `protocolConfigMoveCalls`,
   `registryMoveCalls`, `builderCodeMoveCalls`, `marketManagerMoveCalls`, `pricingMoveCalls`,
   `rangeCodecMoveCalls`, `adminMoveCalls` and the cap modules) plus the event layouts
-  (`vaultEvents`, `orderEvents`, `configEvents`, `builderCodeEvents`). Pass
-  `config: toGeneratedConfig(cfg)` — the flat config slice the bindings resolve the shared objects
-  against — and give owner-authorized calls `auth: tx.add(generateAuth(cfg))`, the hot-potato `Auth`
-  the account calls consume. The account itself (create, deposit, share) is
-  `@mysten/deepbook-v3/account`'s `accountRegistryMoveCalls` / `accountMoveCalls`. Also exported:
+  (`vaultEvents`, `orderEvents`, `configEvents`, `builderCodeEvents`). The order-flow package's
+  bindings are `queueMoveCalls`, `deskMoveCalls`, `orderQueueMoveCalls`,
+  `delayedExecutionConfigMoveCalls` and `queueEvents`, and the math library's are
+  `predictMathMoveCalls` and `lazerPriceMoveCalls`. Pass `config: toGeneratedConfig(cfg)` — the flat
+  config slice the bindings resolve the shared objects against, or `toOrdersConfig(cfg)` for the
+  order-flow package, which adds it and its desk — and give owner-authorized calls
+  `auth: tx.add(generateAuth(cfg))`, the hot-potato `Auth` the account calls consume. The account
+  itself (create, deposit, share) is `@mysten/deepbook-v3/account`'s `accountRegistryMoveCalls` /
+  `accountMoveCalls`. Also exported:
   `loadLivePricer(toGeneratedConfig(cfg), { expiryMarketId, ...cfg.underlyings[sym] })` — the
   `pricer` every live trade call borrows, which the `/sessions` Predict wrappers take as a PTB
   result — and `deriveAccountWrapperId(cfg, owner)`.

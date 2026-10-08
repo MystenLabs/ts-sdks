@@ -2,14 +2,15 @@
 '@mysten/deepbook-v3': minor
 ---
 
-Add the Predict delayed-execution order flow (DBU-885). Queued mints and early sells fill at Pyth's signed price for a tick shortly after placement.
+Add the Predict delayed-execution order flow (DBU-885). Queued mints and early sells fill at Pyth's signed price for a tick shortly after placement. Delayed execution spans three packages: the Predict upgrade, the order-flow package `deepbook_predict_orders` (each market's `MarketQueue`, the shared `OrderDesk`, every queued-order entry point and the queue events) and the math library `deepbook_predict_math`.
 
-- `PredictClient.tx` gains `enqueueMint`, `enqueueMintAmount`, `enqueueMintCost`, `enqueueSell`, `refund` and `fill`. Each enqueue builder reads the market first and refuses an order the chain would abort with a typed `PredictPreflightError`, and returns the transaction with a preview of τ, the deadline, the escrow and the order fee. A sell whose cash need is above spare cash gets `rebalance_expiry_cash` after the enqueue by default.
-- `PredictClient.read` gains `queue`, `order`, `orders`, `waitForOutcome`, `quoteSell`, `executionMode`, `pendingFunds` and `lazerPackages`. Where the config records delayed execution, `quoteMint` and `quoteMintCost` read the chain's quote functions and preview a queued fill.
-- `PredictClient.decode` gains the queue event decoders and `expiryPnlRealized`, matched against the new optional `packages.predictDelayedExecution` type origin. `realizedPnlRaw` sums the realized P&L changes.
-- New `queue` namespace (order codes, refund reasons, cash-need math, `maxMintNow`, timing previews, `orderView`, `reduceOrderEvents`, `slippageBand`), `queueTx` thunks, `describePredictError` and `isPreviewUnavailable`.
-- `SessionsContract` gains `enqueueExactQuantity`, `enqueueExactAmount`, `enqueueExactCost` and `enqueueRedeemOpen`.
+- `PredictClient.tx` gains `enqueueMint`, `enqueueMintAmount`, `enqueueMintCost`, `enqueueSell`, `refund` and `fill`. Each enqueue builder reads the market first and refuses an order the queue or protocol gates would abort with a typed `PredictPreflightError`, and returns the transaction with a preview of τ, the deadline, the escrow and the order fee. A sell whose cash need is above spare cash gets `rebalance_expiry_cash` after the enqueue by default.
+- `PredictClient.read` gains `queue`, `order`, `orders`, `waitForOutcome`, `quoteSell`, `executionMode`, `pendingFunds` and `lazerPackages`, and `PredictClient` gains `queueIdFor`. Where the config records delayed execution, `quoteMint` and `quoteMintCost` read the chain's quote functions and preview a queued fill.
+- `PredictClient.decode` gains the queue event decoders (matched against the order-flow package's original ID), `policyUpdates` and `expiryPnlRealized`. `realizedPnlRaw` sums the realized P&L changes.
+- New config: `packages.predictDelayedExecution`, `packages.predictOrders`, `packages.predictOrdersV1`, `packages.predictMath` and `objects.orderDesk`, all optional.
+- New `queue` namespace (order codes, refund reasons, settlement phases, cash-need math, `maxMintNow`, timing previews, `orderView`, `reduceOrderEvents`, `slippageBand`), `queueTx` thunks (the enqueues, `createQueue`, `commit`, `resolve`, `refund`, `adminRefund`, `settleStep`, `cleanup`, `fill`), `toOrdersConfig`, `deriveQueueId`, `orderFlowWitnessType` and `describePredictError`, plus the generated bindings of both new packages.
+- `SessionsContract` gains `enqueueExactQuantity`, `enqueueExactAmount`, `enqueueExactCost` and `enqueueRedeemOpen`, which take the order desk.
 - The cost previews take the admin-set `feeIncentiveSubsidyRate`.
-- Deprecated: the immediate `mint`, `mintAmount`, `mintCost` and `redeem` builders, their thunks and Sessions wrappers, `read.quoteRedeem` and `FEE_INCENTIVE_SUBSIDY_RATE`. The immediate trades abort once the version watermark reaches 4.
+- Deprecated: the immediate `mint`, `mintAmount`, `mintCost` and `redeem` builders, their thunks and Sessions wrappers, `read.quoteRedeem` and `FEE_INCENTIVE_SUBSIDY_RATE`. Predict v4 always aborts the immediate trades.
 
 The Testnet and Mainnet configs don't record delayed execution yet, so the queued surface needs a custom `config` until those publications are synced.
