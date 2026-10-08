@@ -113,7 +113,8 @@ const mode = await client.predict.read.executionMode();
 // and the largest mint the market's spare cash takes now.
 const queue = await client.predict.read.queue(desc, myAddress);
 queue.stuck; // show "pricing delayed" and stop offering orders
-queue.acceptingOrders;
+queue.acceptingMints; // and queue.acceptingSells: one side can be full while the other is open
+queue.refusal.mint; // the preflight code a mint would get now, or null
 queue.maxMint?.budget.maxRaw; // "Max right now" for a budget mint, raw USDC
 
 // Quote, then queue. The quote previews a queued fill: no congestion penalty, and the flat order
@@ -305,8 +306,9 @@ const tx = await client.predict.tx.mint(
   units with raw bigints alongside. Decoding uses the events' canonical BCS bytes, so it is
   transport-independent. The queue decoders (`enqueue`, `queueEvents`, `cohortCommits`,
   `queuedFills`, `queuedRefunds`, `openRecordPayouts`, `marketPayoutsCompleted`, `queueOps`,
-  `policyUpdates`) match the events against `packages.predictDelayedExecution`, the package that
-  introduced them.
+  `policyUpdates`) and `expiryPnlRealized` match the events against
+  `packages.predictDelayedExecution`, the package that introduced them. `realizedPnlRaw` sums
+  `expiryPnlRealized` receipts into the pool's gross realized P&L.
 - **PTB composition** — each `client.predict.tx.*` builder returns a finished `Transaction`, so to
   put a Predict call into a PTB you are building, use the generated move-call bindings `/predict`
   exports: one namespace of transaction thunks per Predict module (`plpMoveCalls`,
