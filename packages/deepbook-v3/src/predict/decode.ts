@@ -1009,4 +1009,63 @@ export function decodePolicyUpdates(
 	return out;
 }
 
+/**
+ * `vault_events::ExpiryPnlRealized`: the change in the pool's gross realized result on one expiry
+ * since that expiry's previous emission, emitted with every `ExpiryPnl`. An expiry's first
+ * emission (its first settled sweep) carries the lifetime result, which can be a loss. A later
+ * one carries the extra cash a later sweep returned, always a profit. Gross: before the
+ * protocol/LP split, and including the sponsor fee subsidies mints moved into expiry cash.
+ */
+export interface ExpiryPnlRealizedReceipt {
+	vaultId: string;
+	marketId: string;
+	propbookUnderlyingId: number;
+	expiryMs: bigint;
+	/** The settlement price, 1e9-scaled. */
+	settlementPriceRaw: bigint;
+	/** False only for a loss, which only an expiry's first emission reports. */
+	inProfit: boolean;
+	/** The change's magnitude, in USDC. */
+	amount: number;
+	/** The change with its sign: `+amount` for a profit, `−amount` for a loss. */
+	signedAmountRaw: bigint;
+	raw: { amount: bigint };
+}
+
+/** Every `ExpiryPnlRealized` in a result, in event order. Introduced with delayed execution. */
+export function decodeExpiryPnlRealized(
+	cfg: PredictConfig,
+	result: DecodableTransactionResult,
+): ExpiryPnlRealizedReceipt[] {
+	return decodeAll(
+		result,
+		delayedExecutionOrigin(cfg),
+		'vault_events',
+		'ExpiryPnlRealized',
+		vaultEvents.ExpiryPnlRealized,
+	).map((e) => ({
+		vaultId: normalizeSuiAddress(e.pool_vault_id),
+		marketId: normalizeSuiAddress(e.expiry_market_id),
+		propbookUnderlyingId: e.propbook_underlying_id,
+		expiryMs: e.expiry,
+		settlementPriceRaw: e.settlement_price,
+		inProfit: e.in_profit,
+		amount: fromRaw(e.amount, 6),
+		signedAmountRaw: e.in_profit ? e.amount : -e.amount,
+		raw: { amount: e.amount },
+	}));
+}
+
+/**
+ * The pool's gross realized P&L in raw USDC: the signed sum of `ExpiryPnlRealized` changes. Over
+ * every emission of every expiry it equals the sum of each expiry's latest `ExpiryPnl`, with no
+ * per-expiry dedup. Subtract the `OrderMinted.fee_incentive_subsidy` totals to isolate the
+ * trading result.
+ */
+export function realizedPnlRaw(
+	receipts: readonly Pick<ExpiryPnlRealizedReceipt, 'signedAmountRaw'>[],
+): bigint {
+	return receipts.reduce((sum, r) => sum + r.signedAmountRaw, 0n);
+}
+
 export { exactlyOne };

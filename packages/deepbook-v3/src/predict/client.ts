@@ -14,6 +14,7 @@ import {
 	decodeCohortCommits,
 	decodeDeposits,
 	decodeEnqueues,
+	decodeExpiryPnlRealized,
 	decodeMarketPayoutsCompleted,
 	decodeMints,
 	decodeOpenRecordPayouts,
@@ -1917,6 +1918,11 @@ export class PredictClient {
 			decodeMarketPayoutsCompleted(this.cfg, r),
 		queueOps: (r: DecodableTransactionResult) => decodeQueueOps(this.cfg, r),
 		policyUpdates: (r: DecodableTransactionResult) => decodePolicyUpdates(this.cfg, r),
+		/**
+		 * `ExpiryPnlRealized` changes in the pool's gross realized result, for P&L reporting. Sum
+		 * them with `realizedPnlRaw`.
+		 */
+		expiryPnlRealized: (r: DecodableTransactionResult) => decodeExpiryPnlRealized(this.cfg, r),
 	};
 }
 

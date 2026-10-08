@@ -5,13 +5,16 @@
 import { describe, expect, test } from 'vitest';
 import * as configEvents from '../../src/contracts/deepbook_predict/config_events.js';
 import * as orderEvents from '../../src/contracts/deepbook_predict/order_events.js';
+import * as vaultEvents from '../../src/contracts/deepbook_predict/vault_events.js';
 import { PredictClient } from '../../src/predict/client.js';
 import { TESTNET_CONFIG } from '../../src/predict/config/index.js';
 import {
 	decodeEnqueues,
+	decodeExpiryPnlRealized,
 	decodePolicyUpdates,
 	decodeQueueEvents,
 	decodeQueuedRefunds,
+	realizedPnlRaw,
 	type DecodableEvent,
 } from '../../src/predict/decode.js';
 import { PredictInputError } from '../../src/predict/errors.js';
@@ -292,5 +295,60 @@ describe('queue event decoders', () => {
 		expect(() => pc.decode.enqueue({ events: [] })).toThrow(PredictInputError);
 		expect(pc.decode.queuedFills({ events: [FILLED] })).toHaveLength(1);
 		expect(pc.decode.cohortCommits({ events: [COMMITTED] })).toHaveLength(1);
+	});
+});
+
+describe('ExpiryPnlRealized', () => {
+	const VAULT = '0x' + '44'.repeat(32);
+	const realized = (market: string, inProfit: boolean, amount: bigint, pkg = DELAYED_PKG) =>
+		event(
+			pkg,
+			'vault_events',
+			'ExpiryPnlRealized',
+			vaultEvents.ExpiryPnlRealized.serialize({
+				pool_vault_id: VAULT,
+				expiry_market_id: market,
+				propbook_underlying_id: 1,
+				expiry: 1_800_000_000_000n,
+				settlement_price: 65_000_000_000_000n,
+				in_profit: inProfit,
+				amount,
+			}).toBytes(),
+		);
+
+	test('decodes the signed change, matched against the delayed-execution origin', () => {
+		const [loss] = decodeExpiryPnlRealized(cfg, { events: [realized(MARKET, false, 3_500_000n)] });
+		expect(loss).toMatchObject({
+			vaultId: VAULT,
+			marketId: MARKET,
+			propbookUnderlyingId: 1,
+			expiryMs: 1_800_000_000_000n,
+			settlementPriceRaw: 65_000_000_000_000n,
+			inProfit: false,
+			amount: 3.5,
+			signedAmountRaw: -3_500_000n,
+		});
+		const v1 = realized(MARKET, true, 1n, cfg.packages.predictV1!);
+		expect(decodeExpiryPnlRealized(cfg, { events: [v1] })).toEqual([]);
+		expect(() => decodeExpiryPnlRealized(TESTNET_CONFIG, { events: [v1] })).toThrow(
+			PredictInputError,
+		);
+	});
+
+	test('the signed sum over every emission is the gross realized P&L', () => {
+		const other = '0x' + '12'.repeat(32);
+		// Market A: lifetime loss of 3.5 at its first sweep, then 1.0 returned by a later sweep.
+		// Market B: lifetime profit of 2.0. Gross realized: −3.5 + 1.0 + 2.0 = −0.5.
+		const receipts = decodeExpiryPnlRealized(cfg, {
+			events: [
+				realized(MARKET, false, 3_500_000n),
+				realized(MARKET, true, 1_000_000n),
+				realized(other, true, 2_000_000n),
+			],
+		});
+		expect(realizedPnlRaw(receipts)).toBe(-500_000n);
+		expect(realizedPnlRaw([])).toBe(0n);
+		const pc = new PredictClient({ network: 'testnet', client: {} as never, config: cfg });
+		expect(pc.decode.expiryPnlRealized({ events: [realized(MARKET, true, 7n)] })).toHaveLength(1);
 	});
 });

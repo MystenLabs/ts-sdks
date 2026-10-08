@@ -166,7 +166,10 @@ export type {
 	QueueOpsReceipt,
 	QueuedFillReceipt,
 	QueuedRefundReceipt,
+	ExpiryPnlRealizedReceipt,
 } from './decode.js';
+// The signed sum of `decode.expiryPnlRealized` receipts: the pool's gross realized P&L, raw.
+export { realizedPnlRaw } from './decode.js';
 
 // The `/sessions` Predict wrappers take `pricer` as a PTB result of this call, so it has to
 // be reachable from the published surface for those builders to be composable at all.
