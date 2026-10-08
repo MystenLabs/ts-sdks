@@ -12,11 +12,7 @@ import { normalizeSuiAddress, SUI_ADDRESS_LENGTH } from '../utils/sui-types.js';
 import type { ZkLoginSignatureInputs } from './bcs.js';
 import { extractClaimValue } from './jwt-utils.js';
 import { parseZkLoginSignature } from './signature.js';
-import {
-	normalizeZkLoginIssuer,
-	toBigEndianBytes,
-	toPaddedBigEndianBytes,
-} from './publickey-utils.js';
+import { normalizeZkLoginIssuer, toBigEndianBytes, toPaddedBigEndianBytes } from './utils.js';
 import type { ClientWithCoreApi } from '../client/core.js';
 
 /**
