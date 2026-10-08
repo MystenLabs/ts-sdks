@@ -429,7 +429,15 @@ describe('reduceOrderEvents', () => {
 		pythChannel: 3,
 	};
 	const enqueued = (recordId: bigint) =>
-		({ type: 'enqueued', marketId: market, recordId, kind: 0, timing }) as unknown as QueueEvent;
+		({
+			type: 'enqueued',
+			marketId: market,
+			recordId,
+			kind: 0,
+			timing,
+			position: null,
+			sourceRecordId: null,
+		}) as unknown as QueueEvent;
 
 	test('placed → priced at the cohort commit → filled or refunded', () => {
 		const events = [
@@ -469,6 +477,81 @@ describe('reduceOrderEvents', () => {
 		});
 		expect(states.get(`${market}:1`)).toMatchObject({ state: 'refunded', price: 65_000.5 });
 		expect(states.get(`${market}:5`)).toMatchObject({ state: 'placed', price: null, tauMs: 800n });
+	});
+
+	test('ownership follows the position: mint → sell → refund → retry', () => {
+		const P = { orderId: 77n, rootId: 77n, openedAtMs: 900n };
+		const sellEnqueued = (recordId: bigint, sourceRecordId: bigint) =>
+			({
+				type: 'enqueued',
+				marketId: market,
+				recordId,
+				kind: 4,
+				timing,
+				position: P,
+				sourceRecordId,
+			}) as unknown as QueueEvent;
+		const states = queue.reduceOrderEvents([
+			enqueued(0n),
+			{ type: 'filled', marketId: market, recordId: 0n, kind: 0, tickMs: 800n, position: P },
+			sellEnqueued(1n, 0n),
+		] as unknown as QueueEvent[]);
+		// The sell closed the mint record and took its position.
+		expect(states.get(`${market}:0`)).toMatchObject({ state: 'closed', position: null });
+		expect(states.get(`${market}:1`)).toMatchObject({
+			state: 'placed',
+			position: P,
+			sourceRecordId: 0n,
+		});
+
+		// A refunded sell keeps the position on its own record, sellable again from there.
+		queue.reduceOrderEvents(
+			[
+				{
+					type: 'refunded',
+					marketId: market,
+					recordId: 1n,
+					kind: 4,
+					reason: queue.refundReason(8),
+					bySettlement: false,
+					positionReturned: true,
+				},
+			] as unknown as QueueEvent[],
+			states,
+		);
+		expect(states.get(`${market}:0`)).toMatchObject({ state: 'closed', position: null });
+		expect(states.get(`${market}:1`)).toMatchObject({ state: 'refunded', position: P });
+
+		// The retry sells from the refunded sell's record, then fills in full.
+		queue.reduceOrderEvents(
+			[
+				sellEnqueued(2n, 1n),
+				{ type: 'filled', marketId: market, recordId: 2n, kind: 4, tickMs: 1_000n, position: null },
+			] as unknown as QueueEvent[],
+			states,
+		);
+		expect(states.get(`${market}:1`)).toMatchObject({ state: 'closed', position: null });
+		expect(states.get(`${market}:2`)).toMatchObject({
+			state: 'filled',
+			position: null,
+			sourceRecordId: 1n,
+		});
+	});
+
+	test('a refunded mint holds nothing', () => {
+		const states = queue.reduceOrderEvents([
+			enqueued(5n),
+			{
+				type: 'refunded',
+				marketId: market,
+				recordId: 5n,
+				kind: 0,
+				reason: queue.refundReason(5),
+				bySettlement: false,
+				positionReturned: false,
+			},
+		] as unknown as QueueEvent[]);
+		expect(states.get(`${market}:5`)).toMatchObject({ state: 'refunded', position: null });
 	});
 
 	test('settlement events: paid records settle, skipped ones stay unpaid', () => {

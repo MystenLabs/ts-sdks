@@ -259,6 +259,26 @@ describe('queue event decoders', () => {
 		expect(states.get(`${MARKET}:1`)).toMatchObject({ state: 'priced' });
 	});
 
+	test('decoded sell events move ownership from the source record to the sell record', () => {
+		const P = { order_id: 77n, root_id: 77n, opened_at_ms: 1_001_200n };
+		const states = reduceOrderEvents(
+			decodeQueueEvents(cfg, {
+				events: [
+					ENQUEUED(0n),
+					FILLED,
+					ENQUEUED(1n, { kind: 4, source_record_id: 0n, position: P }),
+					REFUNDED(KEEPER, 8),
+				],
+			}),
+		);
+		expect(states.get(`${MARKET}:0`)).toMatchObject({ state: 'closed', position: null });
+		expect(states.get(`${MARKET}:1`)).toMatchObject({
+			state: 'refunded',
+			position: { orderId: 77n },
+			sourceRecordId: 0n,
+		});
+	});
+
 	test('policy and flush-operator updates decode for the multisig scripts', () => {
 		const updates = decodePolicyUpdates(cfg, {
 			events: [

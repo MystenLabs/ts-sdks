@@ -866,7 +866,11 @@ export function orderView(
 export interface OrderEventState {
 	marketId: string;
 	recordId: bigint;
-	state: 'placed' | 'priced' | 'filled' | 'refunded' | 'settled';
+	/**
+	 * `closed`: the record's position moved into a later sell's record (`enqueue_redeem_open` closes
+	 * the source record), so this record holds nothing any more.
+	 */
+	state: 'placed' | 'priced' | 'filled' | 'refunded' | 'settled' | 'closed';
 	kind: number | null;
 	tauMs: bigint | null;
 	deadlineMs: bigint | null;
@@ -877,8 +881,14 @@ export interface OrderEventState {
 	reason: RefundReasonInfo | null;
 	/** True when `try_settle` refunded it at expiry (`sender` 0x0). */
 	bySettlement: boolean;
-	/** Set on a fill or settlement: the record's position afterwards, or null. */
+	/**
+	 * The position the record holds now, or null. A sell's record takes its source's position at
+	 * enqueue and keeps it through a refund, a fill leaves a mint's new position or a partial
+	 * sell's remainder, and a later sell, a full close or settlement clears it.
+	 */
 	position: HeldPosition | null;
+	/** For a sell: the record its position came from. */
+	sourceRecordId: bigint | null;
 	/** Set when `try_settle` paid the record (0 for a loser). */
 	payoutRaw: bigint | null;
 	/** True after `OpenRecordPayoutSkipped`: the record stays Open, unpaid for now. */
@@ -911,6 +921,7 @@ export function reduceOrderEvents(
 				reason: null,
 				bySettlement: false,
 				position: null,
+				sourceRecordId: null,
 				payoutRaw: null,
 				payoutSkipped: false,
 			};
@@ -925,6 +936,15 @@ export function reduceOrderEvents(
 				s.kind = e.kind;
 				s.tauMs = e.timing.tauMs;
 				s.deadlineMs = e.timing.deadlineMs;
+				// A sell moves the whole position out of its source record, which the chain marks
+				// Closed, and into the new record, which holds it until the sell fills or refunds.
+				s.position = e.position;
+				s.sourceRecordId = e.sourceRecordId;
+				if (e.sourceRecordId != null) {
+					const source = entry(e.marketId, e.sourceRecordId);
+					source.state = 'closed';
+					source.position = null;
+				}
 				break;
 			}
 			case 'cohort-committed':
@@ -955,6 +975,8 @@ export function reduceOrderEvents(
 				s.kind = e.kind;
 				s.reason = e.reason;
 				s.bySettlement = e.bySettlement;
+				// A refunded sell keeps its position, Open and sellable again from this record.
+				if (!e.positionReturned) s.position = null;
 				break;
 			}
 			case 'open-record-settled': {
