@@ -6,7 +6,11 @@ import { describe, expect, test } from 'vitest';
 import { PredictClient, type MarketDescriptor } from '../../src/predict/client.js';
 import { toGeneratedConfig } from '../../src/predict/config/generated.js';
 import { SHIPPED_FEE_POLICY } from '../../src/predict/cost.js';
-import { PredictInputError, PredictPreflightError } from '../../src/predict/errors.js';
+import {
+	PredictInputError,
+	PredictMoveError,
+	PredictPreflightError,
+} from '../../src/predict/errors.js';
 import { snapStrike } from '../../src/predict/ticks.js';
 import {
 	budgetMintLimits,
@@ -680,7 +684,7 @@ describe('a plan the chain refuses to quote gets a typed refusal', () => {
 		expect(err.code).toBe('min-premium');
 	});
 
-	test('an account budget the chain refuses falls back to the account-free search', async () => {
+	test('an account budget the chain refuses is diagnosed by the account-free search', async () => {
 		// Just above 1 USDC after the order fee: the account's budget quote is refused, and the
 		// search finds no fill whose premium clears the minimum.
 		const s = scenario({ refuseAccountBudgetQuote: true });
@@ -692,6 +696,20 @@ describe('a plan the chain refuses to quote gets a typed refusal', () => {
 		expect(err).toBeInstanceOf(PredictPreflightError);
 		expect(err.code).toBe('min-premium');
 		expect(err.message).toMatch(/at least 1 USDC/);
+	});
+
+	test('an account budget only account-free pricing can size is never planned', async () => {
+		// The account's own pricing (a builder fee, say) refuses the budget, while the account-free
+		// search would size it. The plan keeps the chain's refusal instead of an accepting plan
+		// admission would abort.
+		const s = scenario({ refuseAccountBudgetQuote: true });
+		const { pc } = client(s);
+		withPrices(pc, 0.4);
+		const err = await pc.read
+			.planMint(OWNER, market(s), { amount: 5, slippageCents: 10 })
+			.catch((e) => e);
+		expect(err).toBeInstanceOf(PredictMoveError);
+		expect(err.abortName).toBe('EOrderFailsLimits');
 	});
 
 	test('an amount the order fee takes whole is refused as min-premium', async () => {

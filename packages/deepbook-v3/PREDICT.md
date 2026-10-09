@@ -162,7 +162,9 @@ typed without `ReturnType`.
 #### A purchase form
 
 `read.planMint(owner, market, opts)` returns everything a purchase form shows, for a visitor without
-an account too (the quote then comes from the account-free `quote_mint`). `amount` plans an all-in
+an account too (the quote then comes from the account-free `quote_mint`, which leaves out an
+account's builder fee). An account whose balance covers the order is quoted at its own pricing, and
+a budget that pricing refuses is never planned from the account-free quote. `amount` plans an all-in
 spend and is the whole debit by default, order fee included (`orderFee: 'exclusive'` charges the fee
 on top). `quantity` plans an exact payout instead.
 

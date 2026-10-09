@@ -2471,11 +2471,14 @@ export class PredictClient {
 						});
 					} catch (error) {
 						if (!isOrderFailsLimits(error)) throw await this.#quoteRefusal(error);
-						// The chain refused the whole budget. Outside the entry band, say so. Otherwise
-						// the account-free search sizes it, and refuses one too small for the minimum
-						// premium with a typed error.
-						quoteForAccount = false;
-						quote = await search();
+						// The chain refused the whole budget at the account's own pricing, its builder
+						// fee included, so no smaller fill clears it either. The account-free search
+						// only diagnoses the refusal: a strike outside the entry band, or a budget too
+						// small for the minimum premium, throws its typed refusal. It leaves the builder
+						// fee out, so a budget only it can size is never planned, and keeps the chain's
+						// own error.
+						await search();
+						throw error;
 					}
 				} else {
 					quote = await search();
