@@ -29,6 +29,41 @@ Available options:
   `'node_modules/**', '**/.*'`)
 - `--force`: Force overwrite the existing MVR file (useful in CI) (defaults to `false`)
 
+### How names and types are detected
+
+`mvr-static` scans the text of every file matched by `--include`; it does not parse or evaluate
+JavaScript or TypeScript. The package portion must be a valid MVR name, such as `@org/app`,
+`@org/app/1`, or `org.sui/app`.
+
+For every valid package immediately followed by `::`, the scanner adds the package name to the
+`packages` cache. A complete `package::module::member` match is also sent to MVR for type resolution
+and, when it resolves to a type, added to the `types` cache. For example, `@org/app::coin::Coin`
+detects both `@org/app` and `@org/app::coin::Coin`.
+
+References can appear anywhere in a matched file. String literals and template literals without
+interpolation work, and types nested in a literal generic type are detected individually:
+
+```ts
+const type = '@org/app::coin::Coin';
+const otherType = `@org/app::coin::TreasuryCap`;
+const genericType = '@org/app::box::Box<@org/coin::coin::COIN>';
+```
+
+#### Limitations
+
+The complete reference must appear literally in a matched file. The scanner does not resolve values
+constructed with interpolation, concatenation, variables, imports, or helper functions:
+
+```ts
+const pkg = '@org/app';
+const interpolated = `${pkg}::coin::Coin`; // Type is not detected.
+const concatenated = pkg + '::coin::Coin'; // Type is not detected.
+```
+
+A bare package string such as `@org/app` is not detected unless it is followed by `::`. Because this
+is a text scan, matching references in comments are detected too. Files excluded by `--exclude`,
+outside `--depth`, or not matched by `--include` are not scanned.
+
 ### Use the static file in your project
 
 Once you have your static file, you can use it in your project by importing it and passing it to the
