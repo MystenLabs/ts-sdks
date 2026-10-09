@@ -51,35 +51,25 @@ const markets = await client.predict.read.markets();
 const tradeable = markets.filter((m) => Number(m.expiryMs) > Date.now() + 30_000 && !m.mintPaused);
 const expiryMs = tradeable[0].expiryMs;
 
-// Describe the position once and reuse it — quoting and minting take the same descriptor.
+// Describe the position once and reuse it: pricing, planning and ordering take the same descriptor.
 const desc = { underlying: 'BTC', expiryMs, strike: 'reference', side: 'up' } as const;
 
-// Quote before you trade: dry-runs your exact mint, real fees, real account.
-const q = await client.predict.read.quoteMint(myAddress, desc, { quantity: 50 });
-q.entryProbability; // your fill (0..1 per $1 payout)
-q.cost; // exact all-in debit
+// Anonymous board price (no account needed): both sides of any strike.
+const { up, down } = await client.predict.read.price(desc);
 
-// Trade. `maxCost` is your ceiling on the all-in debit — pass the quote plus a buffer,
-// rounded to 6 decimals, since raw amounts are integers at that scale.
-const mintTx = await client.predict.tx.mint(myAddress, desc, {
-	quantity: 50,
-	maxCost: Math.ceil(q.cost * 1.01 * 1e6) / 1e6,
-});
+// Trade. Orders are queued: placed now and filled about a second later at Pyth's price, within
+// the plan's slippage, or refunded. `planMint` quotes the order at the current price and turns
+// the slippage (cents per contract, never a percentage) into the limits the enqueue carries.
+// Once the price moves, the reference strike can leave the market's entry band, and `planMint`
+// then throws `entry-band`: see Queued orders for picking a strike near the money.
+const plan = await client.predict.read.planMint(myAddress, desc, { amount: 10, slippageCents: 10 });
+plan.accepting; // false, with plan.refusal, when the enqueue would be refused now
+const { transaction } = await client.predict.tx.enqueuePlan(myAddress, desc, plan);
 // -> sign & execute any of these with your wallet / dapp-kit / signer
 
-// Anonymous board price (no account needed): both sides of any strike.
-const { up, down } = await client.predict.read.price({
-	underlying: 'BTC',
-	expiryMs,
-	strike: 'reference',
-});
-
-// Decode the receipt from the execution result (execute with events included):
-const receipt = client.predict.decode.mint(mintResult);
-receipt.orderId; // PERSIST THIS — needed to redeem/claim later
-receipt.entryProbability; // your fill price (0..1 per $1 payout)
-receipt.premium; // exact cost breakdown
-receipt.fees;
+// Decode the enqueue from the execution result (execute with events included).
+const { recordId } = client.predict.decode.enqueue(result); // PERSIST THIS: sell or follow the order
+const outcome = await client.predict.read.waitForOutcome(desc, recordId); // 'filled' or 'refunded'
 
 // Read: one market's live state (+ NAV) and the pool.
 const market = await client.predict.read.market({ underlying: 'BTC', expiryMs });
@@ -87,11 +77,14 @@ console.log(market?.nav, market?.tickSize, market?.mintPaused);
 const pool = await client.predict.read.pool();
 ```
 
-> **Immediate trades retire with delayed execution.** `mint`, `mintAmount`, `mintCost` and `redeem`
-> work only while the config calls a pre-v4 Predict package. Predict v4 always aborts them
-> (`EDelayedExecutionRequired`), and the version watermark bump to 4 retires the older packages.
-> From then on orders are queued: see [Queued orders](#queued-orders-delayed-execution). Branch on
-> `read.executionMode()` rather than a release date.
+> **Immediate trades retire with delayed execution.** Until a network's cutover,
+> `read.executionMode()` is `'immediate'` and orders fill in the transaction: quote with
+> `read.quoteMint`, trade with `tx.mint` (`quantity` and a `maxCost` ceiling), and decode with
+> `decode.mint`, whose `orderId` redeems or claims the position. `mint`, `mintAmount`, `mintCost`
+> and `redeem` work only while the config calls a pre-v4 Predict package. Predict v4 always aborts
+> them (`EDelayedExecutionRequired`), and the version watermark bump to 4 retires the older
+> packages. From then on orders are queued: see [Queued orders](#queued-orders-delayed-execution).
+> Branch on `read.executionMode()` rather than a release date.
 
 ## Queued orders (delayed execution)
 
@@ -239,6 +232,18 @@ the room from the model.
   clear once the oracles write again, usually within seconds, and `describePredictError` gives each
   a "try again" text. The plan's quote can pass and the enqueue still abort, so a submitted order
   can fail this way too: offer a retry rather than an error page.
+- **Plans are snapshots.** A plan's quote, limits, fee and gates are read once, when it is made, and
+  the SDK never expires a plan. `tx.enqueuePlan` reads the gates and the balance again and refuses a
+  refused plan, a smaller escrow, a fee rise, another target or a moved reference strike, but it
+  keeps the plan's limits. An old plan still places at the old price's limits, which then fill or
+  refund at τ, so plan again when the price has moved or the user has waited. The timing preview
+  (`tauMs`, `deadlineMs`, `beforeCutoff`) runs on the device clock, and the chain's clock decides,
+  so a skewed device clock shows the wrong countdown and can let an order past the cutoff preflight.
+  The market's oracle objects (the Pyth feed and the Block Scholes stores) come from the config,
+  which pins them per deployment: a feed re-bound on chain aborts `EWrongPythFeed` or
+  `EWrongBlockScholesValueStore` until the SDK, or a `config` override, records the new one. A
+  session key's raw `SessionsContract` call skips the facade's preflight and plan binding, so check
+  the plan's `accepting` and send the plan's own strike and limits.
 - **Order states.** `read.order(s)` returns each record with `queue.orderView`: `placed` (with
   `awaitingPrice` once τ passes), `priced` (the committed price and a countdown to the deadline),
   then `filled` or `refunded`. A filler that commits a price and resolves the order in one
