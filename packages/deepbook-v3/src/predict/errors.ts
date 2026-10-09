@@ -219,15 +219,25 @@ export type PredictPreflightCode =
 	| 'queue-full'
 	/** The account has its maximum unfinished orders in this market (`EAccountOrderCap`). */
 	| 'account-cap'
-	/** The account balance doesn't cover the order fee (`EFeeNotCovered`). Prompt a top-up. */
+	/**
+	 * The account balance doesn't cover the order fee (`EFeeNotCovered`). A `read.planMint` plan
+	 * also reports it when the balance doesn't cover the plan's `totalDebit`, since its limits assume
+	 * the whole budget, or when the owner has no account yet. Prompt a top-up.
+	 */
 	| 'fee'
 	/** A mint's cash need is above the market's spare cash (`EInsufficientMarketCash`). */
 	| 'market-cash'
 	/**
 	 * The escrowed budget, or an exact-amount mint's premium cap, can't buy the minimum premium,
-	 * so the order fails its limits.
+	 * so the order fails its limits. A budget `read.planMint` plan also reports it when what the
+	 * budget buys without the fee subsidy, as admission prices it, has a premium below the minimum.
 	 */
 	| 'min-premium'
+	/**
+	 * The order's all-in cost without the fee subsidy is above its payout, so admission refuses it
+	 * at any slippage (`EOrderFailsLimits`). Only `read.planMint` reports it, near a certain outcome.
+	 */
+	| 'cost-above-payout'
 	/** A sell is below the policy minimum, or leaves a remainder below it (`EBelowMinSell`). */
 	| 'below-min-sell'
 	/** The record to sell is missing or not Open (`ERecordNotOpen`). */

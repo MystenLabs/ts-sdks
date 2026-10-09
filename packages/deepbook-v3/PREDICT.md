@@ -184,10 +184,14 @@ visitor's budget quote needs a premium of at least 1 USDC, so a smaller budget i
   (the market's `MarketQueue` isn't created yet), `retired` (the desk's version floor retired the
   order-flow package this SDK calls), `paused`, `stuck`, `past-cutoff`, `queue-full`, `account-cap`,
   `fee` (prompt a top-up: a mint needs a balance above the order fee, a sell at least the fee),
-  `market-cash`, `min-premium`, `below-min-sell`, `record-not-open`, `not-record-owner`. A refused
-  order never fails the rest of a transaction. The order's own price limits are checked only on
-  chain, at placement (`EOrderFailsLimits`), and the preview runs on the local clock, so near the
-  cutoff the chain can still refuse: decode that with `describePredictError`.
+  `market-cash`, `min-premium`, `below-min-sell`, `record-not-open`, `not-record-owner`. A plan's
+  `accepting` and `refusal` run the same preflight on the plan's order, so the form's button never
+  enables an order its enqueue refuses. A mint plan also refuses `fee` when the balance doesn't
+  cover `totalDebit`, `min-premium` when a budget buys less than the minimum premium without the fee
+  subsidy, and `cost-above-payout` when the unsubsidized cost is above the payout. A refused order
+  never fails the rest of a transaction. The order's own price limits are checked only on chain, at
+  placement (`EOrderFailsLimits`), and the preview runs on the local clock, so near the cutoff the
+  chain can still refuse: decode that with `describePredictError`.
 - **Order states.** `read.order(s)` returns each record with `queue.orderView`: `placed` (with
   `awaitingPrice` once τ passes), `priced` (the committed price and a countdown to the deadline),
   then `filled` or `refunded`. Report "Filled" only from the record or the `QueuedOrderFilled`

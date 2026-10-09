@@ -533,9 +533,17 @@ export interface MintPlan {
 	maxNow: number | null;
 	/** τ, deadline and cutoff for an order placed now, from the local clock. */
 	timing: TimingPreview;
-	/** Whether a mint would pass the queue gates now. */
+	/**
+	 * Whether `tx.enqueuePlan` would build the order now and admission would take it at the current
+	 * price: the builder's preflight (the queue gates, the order fee, the minimum premium and the
+	 * market's cash), the balance against `totalDebit`, the payout bound and, for a budget, the
+	 * premium it buys without the fee subsidy.
+	 */
 	accepting: boolean;
-	/** The `PredictPreflightError` code a mint would get now, or null. */
+	/**
+	 * The `PredictPreflightError` code the order would get now, or null. `'fee'` also covers a
+	 * missing account or a balance below `totalDebit`.
+	 */
 	refusal: PredictPreflightCode | null;
 	/** Pass `order.options` to `tx[order.builder]`. */
 	order:
@@ -577,8 +585,12 @@ export interface SellPlan {
 	minNet: number;
 	orderFee: number;
 	timing: TimingPreview;
-	/** Whether a sell would pass the queue gates now. */
+	/**
+	 * Whether `tx.enqueuePlan` would build the sell now: the builder's preflight, which checks the
+	 * queue gates, that the record is Open and the owner's, the order fee and the minimum sell.
+	 */
 	accepting: boolean;
+	/** The `PredictPreflightError` code the sell would get now, or null. */
 	refusal: PredictPreflightCode | null;
 	/** Pass `order.options` to `tx.enqueueSell`. */
 	order: { builder: 'enqueueSell'; options: EnqueueSellOptions };
@@ -948,14 +960,10 @@ export class PredictClient {
 		return best;
 	}
 
-	// The queue-gate refusal a side would get now, or null.
-	#refusalNow(
-		state: MarketQueueState,
-		side: 'mint' | 'sell',
-		nowMs: bigint,
-	): PredictPreflightCode | null {
+	// The PredictPreflightError code a check throws, or null when it passes.
+	static #refusal(check: () => void): PredictPreflightCode | null {
 		try {
-			this.#assertQueueOpen(state, side, nowMs);
+			check();
 			return null;
 		} catch (e) {
 			if (e instanceof PredictPreflightError) return e.code;
@@ -1249,6 +1257,23 @@ export class PredictClient {
 		});
 		const state = await this.#queueState(orders, id, { owner });
 		const { policy, timing } = this.#assertQueueOpen(state, 'mint', BigInt(Date.now()));
+		const { budget, cashNeed } = PredictClient.#assertMintOrder(state, policy, order);
+		return {
+			transaction: txOf(thunk),
+			preview: this.#preview(id, order.kind, timing, policy, budget, cashNeed, state.spareCash, {
+				needsFunding: false,
+				fundedInTransaction: false,
+			}),
+		};
+	}
+
+	// A mint's own checks after the queue gates, shared by the mint builders and `read.planMint`:
+	// the order fee, the escrowed budget against the minimum premium, and the market's cash.
+	static #assertMintOrder(
+		state: MarketQueueState,
+		policy: DelayedExecutionPolicy,
+		order: { kind: number; maxCostRaw: bigint; quantityRaw?: bigint; maxPremiumRaw?: bigint },
+	): { budget: bigint; cashNeed: bigint } {
 		const available = state.account?.availableRaw ?? 0n;
 		const budget = mintBudget({
 			kind: order.kind,
@@ -1285,41 +1310,23 @@ export class PredictClient {
 				"this market can't take an order this size right now",
 			);
 		}
-		return {
-			transaction: txOf(thunk),
-			preview: this.#preview(id, order.kind, timing, policy, budget, cashNeed, state.spareCash, {
-				needsFunding: false,
-				fundedInTransaction: false,
-			}),
-		};
+		return { budget, cashNeed };
 	}
 
-	async #planSell(
-		owner: string,
-		m: MarketCoordinates,
-		opts: EnqueueSellOptions,
-	): Promise<QueuedOrderPlan> {
-		const orders = this.#requireDelayedExecution();
-		const feeds = this.#feeds(m.underlying);
-		const { id } = await this.#resolveMarket(m);
-		const closeQuantityRaw = usdcToRaw(opts.quantity);
-		this.#assertLot(closeQuantityRaw);
-		const thunk = enqueueRedeemOpen(orders, {
-			expiryMarketId: id,
-			wrapperId: this.wrapperIdFor(owner),
-			recordId: opts.recordId,
-			closeQuantityRaw,
-			minProbabilityRaw: probabilityToRaw(opts.minProbability),
-			minProceedsRaw: usdcToRaw(opts.minProceeds),
-			...feeds,
-		});
-		const state = await this.#queueState(orders, id, { owner, recordIds: [opts.recordId] });
-		const { policy, timing } = this.#assertQueueOpen(state, 'sell', BigInt(Date.now()));
+	// A sell's own checks after the queue gates, shared by `tx.enqueueSell` and `read.planSell`: the
+	// record is Open and the owner's, the order fee, the record's quantity and the minimum sell. A
+	// sell is never refused for market cash.
+	#assertSellOrder(
+		state: MarketQueueState,
+		policy: DelayedExecutionPolicy,
+		recordId: bigint,
+		closeQuantityRaw: bigint,
+	): void {
 		const record = state.records[0];
 		if (!record || record.status !== ORDER_STATUS.OPEN || record.position.order_id === 0n) {
 			throw new PredictPreflightError(
 				'record-not-open',
-				`record ${opts.recordId} isn't an Open position`,
+				`record ${recordId} isn't an Open position`,
 			);
 		}
 		if (
@@ -1328,7 +1335,7 @@ export class PredictClient {
 		) {
 			throw new PredictPreflightError(
 				'not-record-owner',
-				`record ${opts.recordId} belongs to another account`,
+				`record ${recordId} belongs to another account`,
 			);
 		}
 		if (!feeCovered('sell', state.account.availableRaw, policy.orderFee)) {
@@ -1353,6 +1360,30 @@ export class PredictClient {
 				`a sell must close at least ${rawToUsdc(min)} and leave either nothing or at least that much`,
 			);
 		}
+	}
+
+	async #planSell(
+		owner: string,
+		m: MarketCoordinates,
+		opts: EnqueueSellOptions,
+	): Promise<QueuedOrderPlan> {
+		const orders = this.#requireDelayedExecution();
+		const feeds = this.#feeds(m.underlying);
+		const { id } = await this.#resolveMarket(m);
+		const closeQuantityRaw = usdcToRaw(opts.quantity);
+		this.#assertLot(closeQuantityRaw);
+		const thunk = enqueueRedeemOpen(orders, {
+			expiryMarketId: id,
+			wrapperId: this.wrapperIdFor(owner),
+			recordId: opts.recordId,
+			closeQuantityRaw,
+			minProbabilityRaw: probabilityToRaw(opts.minProbability),
+			minProceedsRaw: usdcToRaw(opts.minProceeds),
+			...feeds,
+		});
+		const state = await this.#queueState(orders, id, { owner, recordIds: [opts.recordId] });
+		const { policy, timing } = this.#assertQueueOpen(state, 'sell', BigInt(Date.now()));
+		this.#assertSellOrder(state, policy, opts.recordId, closeQuantityRaw);
 		const cashNeed = cashNeedSell(closeQuantityRaw, state.backingBufferLambda);
 		const needsFunding = cashNeed > state.spareCash;
 		const fund = opts.fundMarket ?? 'auto';
@@ -2273,7 +2304,49 @@ export class PredictClient {
 			const totalDebitRaw = budgetRaw + fee;
 			const expectedDebitRaw = costRaw + fee;
 			const inclusive = 'amount' in opts && (opts.orderFee ?? 'inclusive') === 'inclusive';
-			const refusal = this.#refusalNow(state, 'mint', nowMs);
+			// The builder's own preflight on the plan's order, plus what only the quote shows: the
+			// balance against the whole debit the limits assume, the payout bound, and the premium a
+			// budget buys at admission, which prices without the fee subsidy.
+			const refusal = PredictClient.#refusal(() => {
+				this.#assertQueueOpen(state, 'mint', nowMs);
+				if (availableRaw == null || availableRaw < totalDebitRaw) {
+					throw new PredictPreflightError(
+						'fee',
+						`the balance doesn't cover the plan's ${rawToUsdc(totalDebitRaw)} debit`,
+					);
+				}
+				PredictClient.#assertMintOrder(
+					state,
+					policy,
+					budgetRequested != null
+						? { kind: ORDER_KIND.EXACT_COST, maxCostRaw: budgetRaw }
+						: {
+								kind: ORDER_KIND.EXACT_QUANTITY,
+								maxCostRaw: maxCostRaw ?? budgetRaw,
+								quantityRaw: quote.quantity,
+							},
+				);
+				if (costRaw + quote.feeIncentiveSubsidy > quote.quantity) {
+					throw new PredictPreflightError(
+						'cost-above-payout',
+						'the all-in cost without the fee subsidy is above the payout',
+					);
+				}
+				if (budgetRequested != null) {
+					const admitted = budgetMintLimits({
+						...limitsIn,
+						slippageRaw: 0n,
+						budgetRaw,
+					}).minQuantityRaw;
+					// Premium is quantity × entry probability, 1e9-scaled.
+					if ((admitted * quote.entryProbability) / 1_000_000_000n < MIN_PREMIUM) {
+						throw new PredictPreflightError(
+							'min-premium',
+							`without the fee subsidy, ${rawToUsdc(budgetRaw)} buys a premium below the ${rawToUsdc(MIN_PREMIUM)} minimum`,
+						);
+					}
+				}
+			});
 			const max = maxMintNow(
 				budgetRequested != null
 					? {
@@ -2339,8 +2412,8 @@ export class PredictClient {
 
 		/**
 		 * Plan a queued early sell of an Open record: the quote at the current price, net of the
-		 * order fee, the floors at the worst price the slippage allows, the timing and the queue
-		 * gates, plus the `enqueueSell` options that carry the floors.
+		 * order fee, the floors at the worst price the slippage allows, the timing and the
+		 * builder's preflight, plus the `enqueueSell` options that carry the floors.
 		 */
 		planSell: async (
 			owner: string,
@@ -2353,7 +2426,7 @@ export class PredictClient {
 				quantity: opts.quantity,
 			});
 			const { id } = await this.#resolveMarket(m);
-			const state = await this.#queueState(orders, id);
+			const state = await this.#queueState(orders, id, { owner, recordIds: [opts.recordId] });
 			const nowMs = BigInt(Date.now());
 			const slippage = PredictClient.#appliedSlippage(opts, quote.raw.probability, state, nowMs);
 			const limits = sellLimits({
@@ -2363,7 +2436,11 @@ export class PredictClient {
 				slippageRaw: slippage.raw,
 			});
 			const fee = quote.raw.orderFee;
-			const refusal = this.#refusalNow(state, 'sell', nowMs);
+			// The builder's own preflight on the sell.
+			const refusal = PredictClient.#refusal(() => {
+				const { policy } = this.#assertQueueOpen(state, 'sell', nowMs);
+				this.#assertSellOrder(state, policy, opts.recordId, usdcToRaw(opts.quantity));
+			});
 			return {
 				quote,
 				slippage: slippage.applied,

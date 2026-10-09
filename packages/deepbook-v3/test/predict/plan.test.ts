@@ -4,7 +4,8 @@
 // behind it. Slippage is cents per contract, an absolute price move, never a percentage.
 import { describe, expect, test } from 'vitest';
 import { PredictClient, type MarketDescriptor } from '../../src/predict/client.js';
-import { PredictInputError } from '../../src/predict/errors.js';
+import { toGeneratedConfig } from '../../src/predict/config/generated.js';
+import { PredictInputError, PredictPreflightError } from '../../src/predict/errors.js';
 import { snapStrike } from '../../src/predict/ticks.js';
 import {
 	budgetMintLimits,
@@ -12,6 +13,7 @@ import {
 	maxMintNow,
 	sellLimits,
 } from '../../src/predict/queue.js';
+import { deriveAccountIdFrom } from '../../src/predict/tx/common.js';
 import {
 	MARKET,
 	QUEUE_CFG as cfg,
@@ -23,7 +25,18 @@ import {
 } from './queue-fixtures.js';
 
 const OWNER = '0x' + 'ab'.repeat(32);
+const ACCOUNT_ID = deriveAccountIdFrom(toGeneratedConfig(cfg), OWNER);
 const CENT = 10_000_000n; // 1¢ in the 1e9-scaled price per contract
+// A position order ID holding `lots` 0.01 lots.
+const orderIdWithLots = (lots: bigint) => (lots << 100n) | (10_500_000n << 70n) | (1n << 40n) | 1n;
+// An Open record of OWNER's account holding 5 USDC of payout.
+const openRecord = (overrides: Parameters<typeof recordFields>[0] = {}) =>
+	recordFields({
+		status: 2,
+		accountId: ACCOUNT_ID,
+		position: { order_id: orderIdWithLots(500n) },
+		...overrides,
+	});
 
 function client(s: QueueScenario) {
 	const q = queueClient(s);
@@ -224,6 +237,9 @@ describe('read.planMint', () => {
 		const plan = await pc.read.planMint(OWNER, market(s), { amount: 5, slippageCents: 10 });
 		expect(plan.quoteForAccount).toBe(false);
 		expect(plan.balance).toEqual({ hasAccount: false, available: null, covers: null });
+		// A visitor can't place it yet: the form prompts a deposit.
+		expect(plan.accepting).toBe(false);
+		expect(plan.refusal).toBe('fee');
 		// At 42¢ a contract, 4.98 buys 11.85 contracts on the lot grid.
 		expect(plan.potentialPayout).toBe(11.85);
 		expect(plan.quote.cost).toBeLessThanOrEqual(4.98);
@@ -294,6 +310,7 @@ describe('read.planMint', () => {
 		});
 		expect(plan.quoteForAccount).toBe(false);
 		expect(plan.balance).toEqual({ hasAccount: true, available: 1, covers: false });
+		expect(plan.refusal).toBe('fee');
 	});
 
 	test("'auto' slippage comes from the model band, in cents", async () => {
@@ -330,6 +347,70 @@ describe('read.planMint', () => {
 		expect(plan.refusal).toBe('paused');
 	});
 
+	test('a budget whose unsubsidized fill is below the minimum premium is refused', async () => {
+		const base = scenario();
+		// 10 contracts at 10¢: a 1.00 premium, a 0.05 trading fee and a 0.01 subsidy, 1.04 all-in.
+		const s = scenario({
+			mintQuote: {
+				...base.mintQuote,
+				quantity: 10_000_000n,
+				entry_probability: 100_000_000n,
+				premium: 1_000_000n,
+				trading_fee: 50_000n,
+				fee_incentive_subsidy: 10_000n,
+				penalty_fee: 0n,
+				inventory_impact_charge: 0n,
+				all_in_cost: 1_040_000n,
+			},
+		});
+		// Admission prices without the subsidy, so 1.04 buys 9.90 contracts, a 0.99 premium.
+		for (const slippageCents of [0, 1]) {
+			const plan = await client(s).pc.read.planMint(OWNER, market(s), {
+				amount: 1.06,
+				slippageCents,
+			});
+			expect(plan.budget).toBe(1.04);
+			expect(plan.accepting).toBe(false);
+			expect(plan.refusal).toBe('min-premium');
+		}
+	});
+
+	test('an exact plan whose unsubsidized cost is above its payout is refused', async () => {
+		const base = scenario();
+		// 10 contracts at 99¢ cost 9.99 with a 0.02 subsidy, 10.01 without it.
+		const s = scenario({
+			mintQuote: {
+				...base.mintQuote,
+				quantity: 10_000_000n,
+				entry_probability: 990_000_000n,
+				premium: 9_900_000n,
+				trading_fee: 110_000n,
+				fee_incentive_subsidy: 20_000n,
+				penalty_fee: 0n,
+				inventory_impact_charge: 0n,
+				all_in_cost: 9_990_000n,
+			},
+		});
+		const plan = await client(s).pc.read.planMint(OWNER, market(s), {
+			quantity: 10,
+			slippageCents: 0,
+		});
+		expect(plan.raw.maxCost).toBe(10_000_000n);
+		expect(plan.accepting).toBe(false);
+		expect(plan.refusal).toBe('cost-above-payout');
+	});
+
+	test('a plan reports the refusal its enqueue would get for market cash', async () => {
+		const s = scenario({ cashBalance: 500_000_000n });
+		const { pc } = client(s);
+		const plan = await pc.read.planMint(OWNER, market(s), { amount: 5, slippageCents: 10 });
+		expect(plan.accepting).toBe(false);
+		expect(plan.refusal).toBe('market-cash');
+		const err = await pc.tx.enqueuePlan(OWNER, market(s), plan).catch((e) => e);
+		expect(err).toBeInstanceOf(PredictPreflightError);
+		expect(err.code).toBe('market-cash');
+	});
+
 	test("the plan's options build the enqueue they describe", async () => {
 		const s = scenario();
 		const { pc } = client(s);
@@ -348,7 +429,7 @@ describe('read.planMint', () => {
 
 describe('read.planSell', () => {
 	test('floors proceeds and probability at the worst price, net of the order fee', async () => {
-		const s = scenario({ records: new Map([[7n, recordFields({ status: 4 })]]) });
+		const s = scenario({ records: new Map([[7n, openRecord()]]) });
 		const plan = await client(s).pc.read.planSell(OWNER, market(s), {
 			recordId: 7n,
 			quantity: 2,
@@ -364,6 +445,31 @@ describe('read.planSell', () => {
 			builder: 'enqueueSell',
 			options: { recordId: 7n, quantity: 2, minProbability: 0.3, minProceeds: 0.59 },
 		});
+	});
+});
+
+describe('read.planSell refusals', () => {
+	test.each([
+		['account-cap', { waitingOrders: 5n, records: new Map([[7n, openRecord()]]) }],
+		[
+			'not-record-owner',
+			{ records: new Map([[7n, openRecord({ accountId: '0x' + '22'.repeat(32) })]]) },
+		],
+		['record-not-open', { records: new Map([[7n, openRecord({ status: 4 })]]) }],
+		['fee', { available: 10_000n, records: new Map([[7n, openRecord()]]) }],
+	] as const)('reports %s, as the enqueue would', async (code, overrides) => {
+		const s = scenario(overrides as Partial<QueueScenario>);
+		const { pc } = client(s);
+		const plan = await pc.read.planSell(OWNER, market(s), {
+			recordId: 7n,
+			quantity: 2,
+			slippageCents: 10,
+		});
+		expect(plan.accepting).toBe(false);
+		expect(plan.refusal).toBe(code);
+		const err = await pc.tx.enqueuePlan(OWNER, market(s), plan).catch((e) => e);
+		expect(err).toBeInstanceOf(PredictPreflightError);
+		expect(err.code).toBe(code);
 	});
 });
 
