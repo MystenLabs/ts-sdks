@@ -210,16 +210,19 @@ options.
   `min-premium` when a budget buys less than the minimum premium without the fee subsidy, and
   `cost-above-payout` when the unsubsidized cost is above the payout, or for a budget, about the
   payout. `tx.enqueuePlan` throws a refused plan's code, and `fee` when the balance now escrows less
-  than the plan's budget. `planSell` throws `record-not-open` for a record that isn't Open, since
-  the chain can't quote it. Two admission conditions are checked only on chain, at placement: the
-  market's SVI age under the order desk's `svi_max_age_ms`, and room in the payout tree for a new
-  strike's boundary nodes. A refused order never fails the rest of a transaction. The order's own
-  price limits are checked only on chain, at placement (`EOrderFailsLimits`), and the preview runs
-  on the local clock, so near the cutoff the chain can still refuse: decode that with
-  `describePredictError`. `EOrderFailsLimits` also covers admission: an entry price outside the
-  market's band, or a premium below the minimum. `planMint` throws it as a `PredictMoveError` when
-  the strike's price is outside the band, before any plan exists, so pick a strike with
-  `pricer.strikeAtProbability` and `snapStrike` rather than offering one far from the money.
+  than the plan's budget. It also throws a `PredictInputError` when called with another owner,
+  market, strike, side or record than the plan's `target`, since the plan's limits fit only that
+  order. A plan made with `strike: 'reference'` is refused once the reference strike moves.
+  `planSell` throws `record-not-open` for a record that isn't Open, since the chain can't quote it.
+  Two admission conditions are checked only on chain, at placement: the market's SVI age under the
+  order desk's `svi_max_age_ms`, and room in the payout tree for a new strike's boundary nodes. A
+  refused order never fails the rest of a transaction. The order's own price limits are checked only
+  on chain, at placement (`EOrderFailsLimits`), and the preview runs on the local clock, so near the
+  cutoff the chain can still refuse: decode that with `describePredictError`. `EOrderFailsLimits`
+  also covers admission: an entry price outside the market's band, or a premium below the minimum.
+  `planMint` throws it as a `PredictMoveError` when the strike's price is outside the band, before
+  any plan exists, so pick a strike with `pricer.strikeAtProbability` and `snapStrike` rather than
+  offering one far from the money.
 - **Pricing aborts.** Every quote, plan and enqueue loads the market's live pricer, which aborts in
   Predict's `pricing` module while an oracle input is missing or stale
   (`EBlockScholesPriceUnavailable`, `EBlockScholesPriceStale`, and the SVI and Pyth forms). These

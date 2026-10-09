@@ -486,6 +486,8 @@ export interface AppliedSlippage {
  */
 export interface MintPlan {
 	shape: 'budget' | 'exact-quantity';
+	/** The owner, market and strike range the plan was quoted for. */
+	target: PlanTarget;
 	/** The quote at the current price. */
 	quote: MintQuote;
 	/**
@@ -565,6 +567,20 @@ export interface MintPlan {
 	};
 }
 
+/**
+ * What a plan was quoted for. Its limits are sized for that one order, so `tx.enqueuePlan` refuses
+ * the plan for any other owner, market, strike or record.
+ */
+export interface PlanTarget {
+	owner: string;
+	expiryMarketId: string;
+	/** A mint's strike range, as the market's admission ticks. */
+	lowerTick?: bigint;
+	higherTick?: bigint;
+	/** A sell's Open record. Record IDs restart in every market. */
+	recordId?: bigint;
+}
+
 /** Options for `read.planSell`. */
 export type PlanSellOptions = SlippageOptions & {
 	/** The Open record to sell from. */
@@ -575,6 +591,8 @@ export type PlanSellOptions = SlippageOptions & {
 
 /** `read.planSell`: what an early sell shows, and the enqueue options that carry its slippage. */
 export interface SellPlan {
+	/** The owner, market and record the plan was quoted for. */
+	target: PlanTarget;
 	/** The quote at the current price. */
 	quote: SellQuote;
 	slippage: AppliedSlippage;
@@ -1794,7 +1812,33 @@ export class PredictClient {
 			if (plan.refusal != null) {
 				throw new PredictPreflightError(plan.refusal, `the plan was refused (${plan.refusal})`);
 			}
+			// A plan's limits fit one order. Queued for another owner, market, strike or record, they
+			// would buy or sell a different contract, so plan that order instead.
+			const target = plan.target;
+			const { id, state: marketState } = await this.#resolveMarket(m);
+			if (normalizeSuiAddress(owner) !== normalizeSuiAddress(target.owner)) {
+				throw new PredictInputError(`the plan was made for owner ${target.owner}, not ${owner}`);
+			}
+			if (normalizeSuiAddress(id) !== normalizeSuiAddress(target.expiryMarketId)) {
+				throw new PredictInputError(
+					`the plan was made for market ${target.expiryMarketId}, not ${id}`,
+				);
+			}
 			const order = plan.order;
+			if (order.builder === 'enqueueSell') {
+				if (order.options.recordId !== target.recordId) {
+					throw new PredictInputError(
+						`the plan was made for record ${target.recordId}, not ${order.options.recordId}`,
+					);
+				}
+			} else {
+				const { lowerTick, higherTick } = await this.#strikeTicks(m, id, marketState);
+				if (lowerTick !== target.lowerTick || higherTick !== target.higherTick) {
+					throw new PredictInputError(
+						'the market descriptor names a different strike or side than the plan, or its reference strike moved: plan again',
+					);
+				}
+			}
 			if (order.builder === 'enqueueSell') return this.tx.enqueueSell(owner, m, order.options);
 			const placed =
 				order.builder === 'enqueueMintCost'
@@ -2471,6 +2515,7 @@ export class PredictClient {
 			).maxRaw;
 			return {
 				shape: budgetRequested != null ? 'budget' : 'exact-quantity',
+				target: { owner: normalizeSuiAddress(owner), expiryMarketId: id, lowerTick, higherTick },
 				quote: PredictClient.#queuedMintQuote(quote, policy),
 				quoteForAccount,
 				slippage: slippage.applied,
@@ -2549,6 +2594,7 @@ export class PredictClient {
 				this.#assertSellOrder(state, policy, opts.recordId, usdcToRaw(opts.quantity));
 			});
 			return {
+				target: { owner: normalizeSuiAddress(owner), expiryMarketId: id, recordId: opts.recordId },
 				quote,
 				slippage: slippage.applied,
 				proceeds: quote.proceeds,

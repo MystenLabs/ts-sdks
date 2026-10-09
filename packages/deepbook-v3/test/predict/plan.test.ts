@@ -625,6 +625,43 @@ describe('read.planSell refusals', () => {
 	});
 });
 
+describe('plans are bound to what they were quoted for', () => {
+	test('a mint plan is refused for the other side or another owner', async () => {
+		const s = scenario();
+		const { pc } = client(s);
+		const plan = await pc.read.planMint(OWNER, market(s), { amount: 5, slippageCents: 10 });
+		expect(plan.target).toMatchObject({ expiryMarketId: MARKET });
+		await expect(pc.tx.enqueuePlan(OWNER, { ...market(s), side: 'down' }, plan)).rejects.toThrow(
+			PredictInputError,
+		);
+		await expect(pc.tx.enqueuePlan('0x' + 'cd'.repeat(32), market(s), plan)).rejects.toThrow(
+			PredictInputError,
+		);
+		// The descriptor it was made for still builds.
+		const placed = await pc.tx.enqueuePlan(OWNER, market(s), plan);
+		expect(placed.preview.totalDebit).toBe(plan.totalDebit);
+	});
+
+	test('a sell plan is refused for another owner or record', async () => {
+		const s = scenario({ records: new Map([[7n, openRecord()]]) });
+		const { pc } = client(s);
+		const plan = await pc.read.planSell(OWNER, market(s), {
+			recordId: 7n,
+			quantity: 2,
+			slippageCents: 10,
+		});
+		expect(plan.target).toMatchObject({ expiryMarketId: MARKET, recordId: 7n });
+		await expect(pc.tx.enqueuePlan('0x' + 'cd'.repeat(32), market(s), plan)).rejects.toThrow(
+			PredictInputError,
+		);
+		const tampered = {
+			...plan,
+			order: { ...plan.order, options: { ...plan.order.options, recordId: 8n } },
+		};
+		await expect(pc.tx.enqueuePlan(OWNER, market(s), tampered)).rejects.toThrow(PredictInputError);
+	});
+});
+
 describe('refusal parity', () => {
 	test('a record that is not Open has no quote, so planSell throws the refusal', async () => {
 		const s = scenario({ records: new Map([[7n, openRecord({ status: 4 })]]) });
