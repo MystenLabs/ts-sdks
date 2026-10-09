@@ -45,10 +45,14 @@ const withdrawTx = client.predict.tx.withdraw(myAddress, 100); // $100
 // Pick a market. `read.markets()` lists ACTIVE markets — live and not yet settled — which
 // includes a market past its expiry that nobody has settled yet; quoting against one aborts.
 // Expiries are absolute timestamps, so never hardcode one: filter on `expiryMs`, leaving
-// room to quote, sign and land (and clear the pre-expiry no-trade window).
+// room to quote, sign and land (and clear the pre-expiry no-trade window). A window's reference
+// price is set only once the window opens, so a market listed ahead of its window has
+// `referencePrice: null`, and `strike: 'reference'` throws for it until then.
 const markets = await client.predict.read.markets();
 // -> [{ id, expiryMs, tickSize, admissionTickSize, mintPaused, referencePrice }, ...]
-const tradeable = markets.filter((m) => Number(m.expiryMs) > Date.now() + 30_000 && !m.mintPaused);
+const tradeable = markets.filter(
+	(m) => Number(m.expiryMs) > Date.now() + 30_000 && !m.mintPaused && m.referencePrice != null,
+);
 const expiryMs = tradeable[0].expiryMs;
 
 // Describe the position once and reuse it: pricing, planning and ordering take the same descriptor.
