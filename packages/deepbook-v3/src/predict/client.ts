@@ -1039,7 +1039,12 @@ export class PredictClient {
 					quantity = minPremiumQuantity;
 					continue;
 				}
-				return { refusal: quantity < minPremiumQuantity ? 'min-premium' : 'cost-above-payout' };
+				// The raise sized the minimum-premium quantity from the budget quote's entry
+				// probability. When the raised probe still fails, the probability moved down between
+				// the two quotes and the premium is still short, so the minimum premium refused it.
+				return {
+					refusal: raised || quantity < minPremiumQuantity ? 'min-premium' : 'cost-above-payout',
+				};
 			}
 			const unsubsidized = quote.allInCost - quote.penaltyFee + quote.feeIncentiveSubsidy;
 			if (unsubsidized <= budgetRaw) {

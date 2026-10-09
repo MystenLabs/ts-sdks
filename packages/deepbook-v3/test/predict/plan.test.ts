@@ -421,6 +421,49 @@ describe('read.planMint', () => {
 		}
 	});
 
+	test('a raised probe the minimum premium still refuses reports min-premium', async () => {
+		const base = scenario();
+		// The budget quote prices at 50.25¢, so the minimum premium needs 2.00 contracts. By the
+		// exact probes the price moved to 49.9¢: 1.96 and the raised 2.00 both miss the 1 USDC
+		// premium, and the chain refuses both with EOrderFailsLimits, as it did on Testnet.
+		const accountQuoteAt = (quantity: bigint) => {
+			const premium = (quantity * 499_000_000n) / 1_000_000_000n;
+			const trading = (quantity * 8n) / 100n;
+			return {
+				...base.mintQuote,
+				quantity,
+				entry_probability: 499_000_000n,
+				premium,
+				trading_fee: trading,
+				fee_incentive_subsidy: 30_000n,
+				penalty_fee: 0n,
+				inventory_impact_charge: 0n,
+				all_in_cost: premium + trading - 30_000n,
+			};
+		};
+		const s = scenario({
+			mintQuote: {
+				...base.mintQuote,
+				quantity: 1_960_000n,
+				entry_probability: 502_500_000n,
+				premium: 984_900n,
+				trading_fee: 160_000n,
+				fee_incentive_subsidy: 30_000n,
+				penalty_fee: 0n,
+				inventory_impact_charge: 0n,
+				all_in_cost: 1_114_900n,
+			},
+			accountQuoteAt,
+		});
+		const plan = await client(s).pc.read.planMint(OWNER, market(s), {
+			amount: 1.2,
+			slippageCents: 10,
+		});
+		expect(plan.budget).toBe(1.18);
+		expect(plan.accepting).toBe(false);
+		expect(plan.refusal).toBe('min-premium');
+	});
+
 	test('a budget floor is checked with exact quotes, so convex impact never overshoots it', async () => {
 		const base = scenario();
 		// 50¢ contracts, a 5% trading fee half subsidized, and an impact charge that grows with
