@@ -18,6 +18,35 @@ test('all shared object IDs are well-formed', () => {
 	}
 });
 
+test('Testnet records delayed execution, and Mainnet does not yet', () => {
+	// Testnet's v5 rollout (DBU-887). The Predict call target and the delayed-execution type
+	// origin are the same package until Predict is upgraded again.
+	expect(TESTNET_CONFIG.packages.predictDelayedExecution).toBe(
+		'0x0654ecbed7c0f2645d9de7cb6cf08e65c2ee05cdbb39a415f17a6bd1cd92e267',
+	);
+	expect(TESTNET_CONFIG.packages.predictOrders).toBe(
+		'0xd723ddef890bff70bd492cd384c913b5e7daeb6e8900cb3a5606546ac4f3907f',
+	);
+	expect(TESTNET_CONFIG.packages.predictOrdersV1).toBeUndefined();
+	expect(TESTNET_CONFIG.packages.predictMath).toBe(
+		'0x471592f682a9560b7046ca1bbf240e608bf5b2071ff1a9bd129b8011166a43c5',
+	);
+	expect(TESTNET_CONFIG.objects.orderDesk).toBe(
+		'0x160fc026c4143f3dec36acfc6556379d54661d37fe28ad837b6a85e42aeddfea',
+	);
+	expect(TESTNET_CONFIG.objects.queueRegistry).toBe(
+		'0xe9d75ed05b089d52a660a94b94963cdc89aeb7f3c75b57f76771454c81faae1f',
+	);
+	expect(TESTNET_CONFIG.oracle?.pythLazerState).toMatch(ID_RE);
+	expect(Object.isFrozen(TESTNET_CONFIG.packages)).toBe(true);
+	expect(Object.isFrozen(TESTNET_CONFIG.objects)).toBe(true);
+
+	expect(MAINNET_CONFIG.packages.predictDelayedExecution).toBeUndefined();
+	expect(MAINNET_CONFIG.packages.predictOrders).toBeUndefined();
+	expect(MAINNET_CONFIG.objects.orderDesk).toBeUndefined();
+	expect(MAINNET_CONFIG.oracle).toBeUndefined();
+});
+
 test('quoteCoinType is the renamed USDC collateral', () => {
 	// The module path is the assertion: the collateral rename means every deployment from
 	// here on serves `usdc::usdc::USDC`. The package id is deliberately not pinned — that is

@@ -22,6 +22,7 @@ import {
 import { PredictInputError } from '../../src/predict/errors.js';
 import { reduceOrderEvents } from '../../src/predict/queue.js';
 import {
+	LEGACY_CFG,
 	DELAYED_PKG,
 	DESK,
 	ORDERS_PKG,
@@ -305,7 +306,7 @@ describe('queue event decoders', () => {
 	});
 
 	test('without the companion recorded the decoders throw instead of guessing', () => {
-		expect(() => decodeQueueEvents(TESTNET_CONFIG, { events: [ENQUEUED(1n)] })).toThrow(
+		expect(() => decodeQueueEvents(LEGACY_CFG, { events: [ENQUEUED(1n)] })).toThrow(
 			PredictInputError,
 		);
 		const noOrders = { ...cfg, packages: { ...cfg.packages, predictOrders: undefined } };
@@ -493,9 +494,7 @@ describe('ExpiryPnlRealized', () => {
 		});
 		const v1 = realized(MARKET, true, 1n, cfg.packages.predictV1!);
 		expect(decodeExpiryPnlRealized(cfg, { events: [v1] })).toEqual([]);
-		expect(() => decodeExpiryPnlRealized(TESTNET_CONFIG, { events: [v1] })).toThrow(
-			PredictInputError,
-		);
+		expect(() => decodeExpiryPnlRealized(LEGACY_CFG, { events: [v1] })).toThrow(PredictInputError);
 	});
 
 	test('the signed sum over every emission is the gross realized P&L', () => {

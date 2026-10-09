@@ -13,4 +13,4 @@ Add the Predict delayed-execution order flow (DBU-885). Queued mints and early s
 - The cost previews take the admin-set `feeIncentiveSubsidyRate`.
 - Deprecated: the immediate `mint`, `mintAmount`, `mintCost` and `redeem` builders, their thunks and Sessions wrappers, `read.quoteRedeem` and `FEE_INCENTIVE_SUBSIDY_RATE`. Predict v4 always aborts the immediate trades.
 
-The Testnet and Mainnet configs don't record delayed execution yet, so the queued surface needs a custom `config` until those publications are synced.
+The Testnet config records the Testnet rollout: Predict v5, Sessions v3, `deepbook_predict_orders`, `deepbook_predict_math`, the order desk, the queue registry and the Pyth Lazer state. The Mainnet config doesn't record delayed execution yet, so the queued surface needs a custom `config` there until the Mainnet rollout is synced. `sync-deployment` now reads the two new packages' `Published.toml` records.

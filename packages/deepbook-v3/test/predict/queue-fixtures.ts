@@ -27,7 +27,29 @@ export const DESK = '0x' + 'd6'.repeat(32);
  */
 export const REGISTRY = '0x' + 'd5'.repeat(32);
 
-/** Testnet's ids with delayed execution recorded, as a localnet `config` would carry it. */
+/**
+ * A deployment without delayed execution recorded: Testnet's ids with every delayed-execution
+ * field removed, as Testnet stood before its v5 rollout and Mainnet stands until its own.
+ */
+export const LEGACY_CFG: PredictConfig = {
+	...TESTNET_CONFIG,
+	packages: {
+		predict: TESTNET_CONFIG.packages.predict,
+		predictV1: TESTNET_CONFIG.packages.predictV1,
+		account: TESTNET_CONFIG.packages.account,
+		propbook: TESTNET_CONFIG.packages.propbook,
+	},
+	objects: {
+		registry: TESTNET_CONFIG.objects.registry,
+		protocolConfig: TESTNET_CONFIG.objects.protocolConfig,
+		poolVault: TESTNET_CONFIG.objects.poolVault,
+		oracleRegistry: TESTNET_CONFIG.objects.oracleRegistry,
+		accountRegistry: TESTNET_CONFIG.objects.accountRegistry,
+	},
+	oracle: undefined,
+};
+
+/** Testnet's ids with stand-in delayed-execution ids, as a localnet `config` would carry it. */
 export const QUEUE_CFG: PredictConfig = {
 	...TESTNET_CONFIG,
 	packages: {

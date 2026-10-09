@@ -13,6 +13,7 @@ import { POS_INF_TICK } from '../../src/predict/ticks.js';
 import { toGeneratedConfig } from '../../src/predict/config/generated.js';
 import { accountMoveCalls as account } from '../../src/account.js';
 import { deriveAccountWrapperIdFrom, generateAuth } from '../../src/predict/tx/common.js';
+import { LEGACY_CFG } from './queue-fixtures.js';
 
 const OWNER = '0x' + 'ab'.repeat(32);
 const MARKET_ID = '0x' + 'cd'.repeat(32);
@@ -574,7 +575,8 @@ describe('tx.mint (market resolution + unit conversion)', () => {
 
 	test('read.quoteMint dry-runs the mint and computes the all-in cost', async () => {
 		const { client, counts } = mockClient();
-		const pc = new PredictClient({ network: 'testnet', client });
+		// The immediate quote, which a deployment without delayed execution recorded still uses.
+		const pc = new PredictClient({ network: 'testnet', client, config: LEGACY_CFG });
 		const q = await pc.read.quoteMint(
 			OWNER,
 			{ underlying: 'BTC', expiryMs: EXPIRY, strike: 105_000, side: 'up' },
@@ -746,7 +748,7 @@ describe('v2 all-in budget mint', () => {
 	});
 	test('quote simulates the budget mint and decodes v1 events with all fees', async () => {
 		const { client, counts } = mockClient();
-		const pc = new PredictClient({ network: 'testnet', client });
+		const pc = new PredictClient({ network: 'testnet', client, config: LEGACY_CFG });
 		const quote = await pc.read.quoteMintCost(OWNER, market, { spend: 20, minQuantity: 0 });
 		expect(counts.quote_mint_sim).toBe(1);
 		expect(quote.raw.cost).toBe(17_155_000n);
@@ -767,7 +769,7 @@ describe('v2 all-in budget mint', () => {
 
 test('custom latest call target and original event ID remain independent through the facade', async () => {
 	const latest = '0x' + 'ec'.repeat(32);
-	const config = { ...cfg, packages: { ...cfg.packages, predict: latest } };
+	const config = { ...LEGACY_CFG, packages: { ...LEGACY_CFG.packages, predict: latest } };
 	const pc = new PredictClient({ network: 'testnet', client: mockClient().client, config });
 	const market = { underlying: 'BTC', expiryMs: EXPIRY, strike: 105_000, side: 'up' } as const;
 	const tx = await pc.tx.mintCost(OWNER, market, { spend: 20, minQuantity: 0 });

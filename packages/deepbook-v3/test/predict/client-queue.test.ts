@@ -15,6 +15,7 @@ import { cashNeedBudget, cashNeedExactQuantity } from '../../src/predict/queue.j
 import type { ReadClient } from '../../src/predict/reads/inspect.js';
 import { deriveAccountIdFrom } from '../../src/predict/tx/common.js';
 import {
+	LEGACY_CFG,
 	DELAYED_PKG,
 	MARKET,
 	ORDERS_PKG,
@@ -62,7 +63,7 @@ describe('gating', () => {
 		const pc = new PredictClient({
 			network: 'testnet',
 			client: queueClient(s).client,
-			config: TESTNET_CONFIG,
+			config: LEGACY_CFG,
 		});
 		await expect(
 			pc.tx.enqueueMintCost(OWNER, market(s), { spend: 5, minQuantity: 0 }),
@@ -460,8 +461,11 @@ describe('reads', () => {
 			}).read.executionMode();
 		expect(await at(4n)).toBe('delayed');
 		expect(await at(3n)).toBe('awaiting-cutover');
-		expect(await at(3n, TESTNET_CONFIG)).toBe('immediate');
-		expect(await at(4n, TESTNET_CONFIG)).toBe('unsupported');
+		expect(await at(3n, LEGACY_CFG)).toBe('immediate');
+		expect(await at(4n, LEGACY_CFG)).toBe('unsupported');
+		// Testnet records its v5 rollout, so it queues once the cutover lands.
+		expect(await at(3n, TESTNET_CONFIG)).toBe('awaiting-cutover');
+		expect(await at(4n, TESTNET_CONFIG)).toBe('delayed');
 		// A config that records the Predict upgrade but not the order-flow package can't queue, and
 		// its Predict call target has retired the immediate trades.
 		const noOrders = { ...cfg, packages: { ...cfg.packages, predictOrders: undefined } };
