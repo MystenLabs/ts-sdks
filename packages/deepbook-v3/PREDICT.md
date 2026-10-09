@@ -185,17 +185,19 @@ const sell = await client.predict.tx.enqueueSell(myAddress, desc, {
   Lazer package (read from Lazer's `State` per call), commits them and resolves up to `maxOrders`
   records. Anyone with Lazer access can run one.
 - **Settlement.** After Predict's `try_settle`, the queue's `settle_step` refunds the orders still
-  waiting (reason 5, with the keeper as sender) and then pays each Open record its settled payout to
-  the account's wrapper address (`OpenRecordSettled`, 0 for a loser). One call per transaction until
-  it returns `queue.SETTLE_PHASE.DONE`. DONE means the walk reached the last record: a record the
-  market couldn't pay stays Open with `OpenRecordPayoutSkipped`.
+  waiting (reason 5) and then pays each Open record its settled payout to the account's wrapper
+  address (`OpenRecordSettled`, 0 for a loser). One call per transaction until it returns
+  `queue.SETTLE_PHASE.DONE`. DONE means the walk reached the last record: a record the market
+  couldn't pay stays Open with `OpenRecordPayoutSkipped`. `settle_step` is permissionless, so its
+  refund events carry whoever sent the transaction as `sender`.
 - **Pure helpers** in the `queue` namespace: the cash-need formulas (ported 1:1 from
   `deepbook_predict_math::math`), `maxMintNow`, `previewTiming`, `orderCutoffMs`, and
   `slippageBand`, a heuristic `Δp ≈ k · φ(Φ⁻¹(p)) · √(h / T)` for sizing `maxProbability` /
   `minProbability` that still needs product sign-off. `queueTx` has the thunks for composing an
   enqueue into your own PTB (`queueTx.enqueueExactCost(toOrdersConfig(cfg), …)`), plus the keeper's
   `createQueue`, `commit`, `resolve`, `refund`, `adminRefund`, `settleStep` and `cleanup`.
-  `SessionsContract` has the `enqueue*` session wrappers, which take the `orderDesk`.
+  `SessionsContract` has the `enqueue*` session wrappers, which take the `orderDesk` and need
+  Sessions v3 (`getSessionsConfig` still records v2 until that publication is synced).
 
 ## ⚠ Slippage defaults are UNCAPPED
 
