@@ -342,6 +342,24 @@ describe('orderView', () => {
 			deadline,
 		);
 		expect(filled).toMatchObject({ state: 'filled', parkedRaw: 0n });
+		// A partial sell's record reports the closed quantity, and its position the remainder
+		// decoded from the order id (quantity in lots at bit 100): 1.55 sold, 1.56 left Open.
+		const remainderId = (156n << 100n) | 7n;
+		const partialSell = queue.orderView(
+			recordFields({
+				status: 2,
+				kind: 4,
+				position: { order_id: remainderId },
+				result: { quantity: 1_550_000n, amount: 605_000n },
+				funds: 0n,
+			}),
+			deadline,
+		);
+		expect(partialSell).toMatchObject({
+			state: 'filled',
+			quantityRaw: 1_550_000n,
+			position: { orderId: remainderId, quantityRaw: 1_560_000n },
+		});
 		const closed = queue.orderView(recordFields({ status: 4, funds: 15n }), deadline);
 		expect(closed).toMatchObject({ state: 'closed', parkedRaw: 15n });
 		// A refunded sell is back to Open holding its position, with its returned fee parked.

@@ -20,6 +20,7 @@ import {
 	type OrderKindName,
 	type RefundReasonInfo,
 } from './queue.js';
+import { decodeOrderRange } from './cost.js';
 import { fromRaw } from './units.js';
 
 // ============================================================================
@@ -540,7 +541,12 @@ function heldPosition(p: {
 }): HeldPosition | null {
 	return p.order_id === 0n
 		? null
-		: { orderId: p.order_id, rootId: p.root_id, openedAtMs: p.opened_at_ms };
+		: {
+				orderId: p.order_id,
+				rootId: p.root_id,
+				openedAtMs: p.opened_at_ms,
+				quantityRaw: decodeOrderRange(p.order_id).quantity,
+			};
 }
 
 /** The market's cash figures after the call, as the queue events report them. */

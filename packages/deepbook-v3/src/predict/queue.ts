@@ -17,7 +17,7 @@
 
 import type { DelayedExecutionPolicy as DelayedExecutionPolicyBcs } from '../contracts/deepbook_predict_orders/delayed_execution_config.js';
 import type { OrderView as OrderViewBcs } from '../contracts/deepbook_predict_orders/order_queue.js';
-import { FLOAT_SCALING, MAX_QUANTITY_LOTS, POSITION_LOT_SIZE } from './cost.js';
+import { FLOAT_SCALING, MAX_QUANTITY_LOTS, POSITION_LOT_SIZE, decodeOrderRange } from './cost.js';
 import type { QueueEvent } from './decode.js';
 import { PredictInputError } from './errors.js';
 import { U64_MAX } from './units.js';
@@ -832,6 +832,11 @@ export interface HeldPosition {
 	orderId: bigint;
 	rootId: bigint;
 	openedAtMs: bigint;
+	/**
+	 * The position's payout quantity, decoded from `orderId` at the Move lot size: a filled
+	 * mint's quantity, or what a partial sell left Open.
+	 */
+	quantityRaw: bigint;
 }
 
 interface OrderViewBase {
@@ -878,7 +883,10 @@ export type OrderView = OrderViewBase &
 		  }
 		| {
 				state: 'filled';
-				/** Filled quantity (mint) or closed quantity (sell). */
+				/**
+				 * Filled quantity (mint) or closed quantity (sell). A partial sell's remainder is
+				 * `position.quantityRaw`.
+				 */
 				quantityRaw: bigint;
 				/** Cost paid (mint) or proceeds before the order fee (sell). */
 				amountRaw: bigint;
@@ -924,7 +932,12 @@ export type ParkedFunds = bigint;
 function heldPosition(p: QueuedOrder['position']): HeldPosition | null {
 	return p.order_id === 0n
 		? null
-		: { orderId: p.order_id, rootId: p.root_id, openedAtMs: p.opened_at_ms };
+		: {
+				orderId: p.order_id,
+				rootId: p.root_id,
+				openedAtMs: p.opened_at_ms,
+				quantityRaw: decodeOrderRange(p.order_id).quantity,
+			};
 }
 
 /**
