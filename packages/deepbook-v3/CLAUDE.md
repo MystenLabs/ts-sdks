@@ -243,12 +243,15 @@ pnpm --filter @mysten/deepbook-v3 sync-deployment
   `deepbook_predict_orders` and the math library `deepbook_predict_math` (both fresh publishes).
   Every queued-order call and queue read targets the companion (`queue::*`, `desk::*`), with the
   slice from `toOrdersConfig(cfg)`. It throws `PredictInputError` unless the config records
-  `packages.predictDelayedExecution`, `packages.predictOrders` and `objects.orderDesk` (the network
-  records stay unset until each publication is synced).
-- A market's `MarketQueue` sits at `derived_object::derive_address(desk_id, market_id)`:
-  `src/predict/queue-id.ts` (a leaf module, so `/sessions` can import it), pinned against Move
-  vectors in `test/predict/queue-id.test.ts`. The facade checks the queue exists once per client
-  (`getObjects`) and refuses a missing one with `PredictPreflightError` `'no-queue'`.
+  `packages.predictDelayedExecution`, `packages.predictOrders`, `objects.orderDesk` and
+  `objects.queueRegistry` (the network records stay unset until each publication is synced).
+- A market's `MarketQueue` sits at `derived_object::derive_address(registry_id, market_id)`, the
+  companion's `QueueRegistry`, not its `OrderDesk`: `src/predict/queue-id.ts` (a leaf module, so
+  `/sessions` can import it), pinned against Move vectors in `test/predict/queue-id.test.ts`. The
+  facade checks the queue exists once per client (`getObjects`) and refuses a missing one with
+  `PredictPreflightError` `'no-queue'`.
+- The queue calls that can send USDC take Sui's `DenyList` (`0x403`). The generated bindings inject
+  it like the clock, as a read-only shared input, so the thunks never name it.
 - Event origins: the queue events are the companion's `queue_events`, typed by its original ID
   (`packages.predictOrdersV1 ?? predictOrders`). The Predict events v4 added (`ExpiryPnlRealized`,
   `FlushOperatorUpdated`, `OrderFlowUpdated`) are typed by `packages.predictDelayedExecution`. Fills

@@ -104,16 +104,16 @@ queue's settlement walk pay it at settlement.
 
 Delayed execution spans three packages. Predict (upgraded to v4) keeps the markets, pricing, cash
 and settlement. The order-flow package `deepbook_predict_orders` holds the queue: each market has
-one `MarketQueue`, at an ID derived from the package's single `OrderDesk` and the market
-(`client.predict.queueIdFor(marketId)`, or `deriveQueueId(desk, market)`), and the desk holds the
-policy (delay, order fee, capacities). The math library `deepbook_predict_math` holds the pure
-pricing math. Every queued-order call goes to `deepbook_predict_orders`, while a fill still emits
-Predict's `OrderMinted` or `LiveOrderRedeemed`.
+one `MarketQueue`, at an ID derived from the package's single `QueueRegistry` and the market
+(`client.predict.queueIdFor(marketId)`, or `deriveQueueId(registry, market)`), and its single
+`OrderDesk` holds the policy (delay, order fee, capacities). The math library
+`deepbook_predict_math` holds the pure pricing math. Every queued-order call goes to
+`deepbook_predict_orders`, while a fill still emits Predict's `OrderMinted` or `LiveOrderRedeemed`.
 
 > The Testnet and Mainnet configs don't record delayed execution until those publications are
 > synced. Until then the queued surface throws `PredictInputError` on them. Pass a `config` with
-> `packages.predictDelayedExecution`, `packages.predictOrders` and `objects.orderDesk` set (a
-> localnet publish) to use it earlier.
+> `packages.predictDelayedExecution`, `packages.predictOrders`, `objects.orderDesk` and
+> `objects.queueRegistry` set (a localnet publish) to use it earlier.
 
 ```ts
 // Which path is live? 'immediate' | 'awaiting-cutover' | 'delayed' | 'unsupported'.
@@ -172,7 +172,15 @@ const sell = await client.predict.tx.enqueueSell(myAddress, desc, {
   (`tx.refund(m)`) only when `view.canRequestRefund` is true, 5 s past the deadline. It needs no
   account or Pyth key and works during a freeze. Never prepend it to other transactions.
   `queue.REFUND_REASONS` maps each reason to its text and fee treatment: reasons 1 and 2 keep the
-  order fee, the rest return it, and 8 means the market couldn't pay at the fill.
+  order fee, the rest return it, 8 means the market couldn't pay at the fill, and 9 means the
+  account's receive address couldn't take USDC (it is on USDC's deny list, or USDC is paused).
+- **Parked funds.** Nothing sends USDC to a denied address. A fill for a denied receive address is
+  refused (reason 9), and a refund or change the address can't take stays in its record
+  (`RecordFundsParked`, `view.parkedRaw`). Once the address is clear, `tx.claimParked(m, recordId)`
+  sends it there. A settled Open record whose payout was skipped (short of cash, or a denied
+  address) is paid with `tx.payOpen(m, recordId)`. Both are permissionless: anyone can send them,
+  and the USDC goes only to the record's own receive address. Each queue call that can send USDC
+  reads Sui's shared `DenyList` (`0x403`) read-only, which the builders add on their own.
 - **Big sells.** A sell's cash need above spare cash sets `preview.needsFunding`. By default the
   builder adds `rebalance_expiry_cash` after the enqueue so the market is funded at once
   (`fundMarket: 'auto' | 'always' | 'never'`). A sell still uncovered at the fill is refunded in
@@ -188,16 +196,17 @@ const sell = await client.predict.tx.enqueueSell(myAddress, desc, {
   waiting (reason 5) and then pays each Open record its settled payout to the account's wrapper
   address (`OpenRecordSettled`, 0 for a loser). One call per transaction until it returns
   `queue.SETTLE_PHASE.DONE`. DONE means the walk reached the last record: a record the market
-  couldn't pay stays Open with `OpenRecordPayoutSkipped`. `settle_step` is permissionless, so its
-  refund events carry whoever sent the transaction as `sender`.
+  couldn't pay stays Open with `OpenRecordPayoutSkipped`, for a later `pay_open`. `settle_step` is
+  permissionless, so its refund events carry whoever sent the transaction as `sender`.
 - **Pure helpers** in the `queue` namespace: the cash-need formulas (ported 1:1 from
   `deepbook_predict_math::math`), `maxMintNow`, `previewTiming`, `orderCutoffMs`, and
   `slippageBand`, a heuristic `Δp ≈ k · φ(Φ⁻¹(p)) · √(h / T)` for sizing `maxProbability` /
   `minProbability` that still needs product sign-off. `queueTx` has the thunks for composing an
   enqueue into your own PTB (`queueTx.enqueueExactCost(toOrdersConfig(cfg), …)`), plus the keeper's
-  `createQueue`, `commit`, `resolve`, `refund`, `adminRefund`, `settleStep` and `cleanup`.
-  `SessionsContract` has the `enqueue*` session wrappers, which take the `orderDesk` and need
-  Sessions v3 (`getSessionsConfig` still records v2 until that publication is synced).
+  `createQueue` (registry, desk and market), `commit`, `resolve`, `refund`, `adminRefund`,
+  `settleStep`, `payOpen`, `claimParked` and `cleanup`. `SessionsContract` has the `enqueue*`
+  session wrappers, which take the `orderDesk` and the `queueRegistry` and need Sessions v3
+  (`getSessionsConfig` still records v2 until that publication is synced).
 
 ## ⚠ Slippage defaults are UNCAPPED
 
