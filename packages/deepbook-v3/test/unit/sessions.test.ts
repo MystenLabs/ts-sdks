@@ -541,12 +541,15 @@ describe('queued Predict wrappers', () => {
 	const PYTH = '0x' + '91'.repeat(32);
 	const BS_VALUES = '0x' + '92'.repeat(32);
 	const BS_SVI = '0x' + '93'.repeat(32);
-	const DESK = '0x' + 'd5'.repeat(32);
-	const QUEUE = deriveQueueId(DESK, MARKET);
+	const DESK = '0x' + 'd6'.repeat(32);
+	const REGISTRY = '0x' + 'd5'.repeat(32);
+	// The queue derives from the registry, never the desk.
+	const QUEUE = deriveQueueId(REGISTRY, MARKET);
 	const target = {
 		expiryMarketId: MARKET,
 		wrapperId: WRAPPER,
 		orderDesk: DESK,
+		queueRegistry: REGISTRY,
 		protocolConfig: PROTOCOL_CONFIG,
 		oracleRegistry: ORACLE_REGISTRY,
 		pythFeed: PYTH,

@@ -20,7 +20,12 @@ export const ORDERS_PKG = '0x' + '0d'.repeat(32);
 /** A stand-in for the math library, `deepbook_predict_math`. */
 export const MATH_PKG = '0x' + '3a'.repeat(32);
 /** A stand-in for the companion's shared `OrderDesk`. */
-export const DESK = '0x' + 'd5'.repeat(32);
+export const DESK = '0x' + 'd6'.repeat(32);
+/**
+ * A stand-in for the companion's shared `QueueRegistry`, which queue IDs derive from. Distinct from
+ * {@link DESK}, so a derivation from the wrong parent fails.
+ */
+export const REGISTRY = '0x' + 'd5'.repeat(32);
 
 /** Testnet's ids with delayed execution recorded, as a localnet `config` would carry it. */
 export const QUEUE_CFG: PredictConfig = {
@@ -33,13 +38,13 @@ export const QUEUE_CFG: PredictConfig = {
 		predictOrders: ORDERS_PKG,
 		predictMath: MATH_PKG,
 	},
-	objects: { ...TESTNET_CONFIG.objects, orderDesk: DESK },
+	objects: { ...TESTNET_CONFIG.objects, orderDesk: DESK, queueRegistry: REGISTRY },
 	oracle: { pythLazerState: '0x' + '1a'.repeat(32) },
 };
 
-/** The market the queue fixtures address, and its queue under {@link DESK}. */
+/** The market the queue fixtures address, and its queue under {@link REGISTRY}. */
 export const MARKET = '0x' + 'cd'.repeat(32);
-export const QUEUE = deriveQueueId(DESK, MARKET);
+export const QUEUE = deriveQueueId(REGISTRY, MARKET);
 
 export type PolicyFields = (typeof DelayedExecutionPolicy)['$inferType'];
 export type RecordFields = (typeof OrderView)['$inferType'];

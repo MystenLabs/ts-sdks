@@ -6,7 +6,8 @@
  * Delayed execution (DBU-885) ships as three packages: the Predict upgrade, the order-flow
  * companion `deepbook_predict_orders` (a fresh publish), and the math library
  * `deepbook_predict_math` (a fresh publish). The queued-order builders, reads and decoders need
- * `predictDelayedExecution`, `predictOrders` and `objects.orderDesk` all recorded, and throw
+ * `predictDelayedExecution`, `predictOrders`, `objects.orderDesk` and `objects.queueRegistry` all
+ * recorded, and throw
  * `PredictInputError` otherwise rather than address the wrong package. Pass a custom `config`
  * (a localnet publish) to use them before a network record exists.
  */
@@ -68,10 +69,15 @@ export interface PredictConfig {
 		accountRegistry: string;
 		/**
 		 * The order-flow companion's shared `OrderDesk`: the delayed-execution policy and the
-		 * companion's version floor. Created once, by the package's `init` at publish. Each
-		 * market's `MarketQueue` sits at an ID derived from it and the market (`deriveQueueId`).
+		 * companion's version floor. Created once, by the package's `init` at publish.
 		 */
 		orderDesk?: string;
+		/**
+		 * The order-flow companion's shared `QueueRegistry`, created next to the desk by the same
+		 * `init`. Each market's `MarketQueue` sits at an ID derived from it and the market
+		 * (`deriveQueueId`), and `queue::create_and_share` writes it.
+		 */
+		queueRegistry?: string;
 	};
 	/**
 	 * The deployment's settlement coin type. Always read this rather than assuming a type:

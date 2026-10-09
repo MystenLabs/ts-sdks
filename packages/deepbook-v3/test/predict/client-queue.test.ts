@@ -81,9 +81,15 @@ describe('gating', () => {
 		});
 		await expect(noDesk.read.queue(market(s))).rejects.toThrow(/orderDesk/);
 		expect(() => noDesk.queueIdFor(MARKET)).toThrow(PredictInputError);
+		const noRegistry = new PredictClient({
+			network: 'testnet',
+			client: queueClient(s).client,
+			config: { ...cfg, objects: { ...cfg.objects, queueRegistry: undefined } },
+		});
+		await expect(noRegistry.tx.claimParked(market(s), 1n)).rejects.toThrow(/queueRegistry/);
 	});
 
-	test('queueIdFor derives the queue from the desk, with no chain read', () => {
+	test('queueIdFor derives the queue from the registry, with no chain read', () => {
 		const { pc, simulated, existenceChecks } = client(scenario());
 		expect(pc.queueIdFor(MARKET)).toBe(QUEUE);
 		expect(simulated).toHaveLength(0);
@@ -539,6 +545,24 @@ describe('quotes', () => {
 });
 
 describe('refund and fill builders', () => {
+	test('claimParked and payOpen address the existing queue and the record', async () => {
+		const s = scenario();
+		const { pc } = client(s);
+		const claim = await pc.tx.claimParked(market(s), 4n);
+		expect(moveCallTargets(claim)).toEqual(['queue::claim_parked']);
+		const pay = await pc.tx.payOpen(market(s), 4n);
+		expect(moveCallTargets(pay)).toEqual(['queue::pay_open']);
+		for (const tx of [claim, pay]) {
+			const data = tx.getData();
+			const first = data.commands[0].MoveCall!.arguments[0] as { Input: number };
+			expect(data.inputs[first.Input].UnresolvedObject?.objectId).toBe(QUEUE);
+		}
+		const missing = scenario({ queueExists: false });
+		expect(await preflightCode(client(missing).pc.tx.claimParked(market(missing), 4n))).toBe(
+			'no-queue',
+		);
+	});
+
 	test('refund defaults to 100 visited records', async () => {
 		const s = scenario();
 		const tx = await client(s).pc.tx.refund(market(s));
@@ -594,7 +618,10 @@ test('the queued-order surface is on the public /predict entry point', async () 
 	expect(typeof predict.queueTx.createQueue).toBe('function');
 	expect(predict.queue.SETTLE_PHASE).toEqual({ DRAIN: 0, PAY: 1, DONE: 2 });
 	expect(typeof predict.describePredictError).toBe('function');
-	expect(predict.deriveQueueId(cfg.objects.orderDesk!, MARKET)).toBe(QUEUE);
+	expect(predict.deriveQueueId(cfg.objects.queueRegistry!, MARKET)).toBe(QUEUE);
+	expect(predict.queue.REFUND_REASONS[9].key).toBe('recipient-denied');
+	expect(typeof predict.queueTx.payOpen).toBe('function');
+	expect(typeof predict.queueTx.claimParked).toBe('function');
 	expect(predict.toOrdersConfig(cfg).orderDesk).toBe(cfg.objects.orderDesk);
 	expect(typeof predict.orderFlowWitnessType).toBe('function');
 	// The companion's and the math library's generated bindings.

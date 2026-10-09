@@ -84,6 +84,7 @@ export const REFUND_REASON = Object.freeze({
 	FREEZE: 6,
 	ADMIN: 7,
 	NO_CASH: 8,
+	RECIPIENT_DENIED: 9,
 } as const);
 
 /** The Pyth Lazer channels the queue prices on (`delayed_execution_config`). */
@@ -159,6 +160,7 @@ export interface RefundReasonInfo {
 		| 'freeze'
 		| 'admin'
 		| 'no-cash'
+		| 'recipient-denied'
 		| 'unknown';
 	/** Display text for the refund. */
 	text: string;
@@ -217,6 +219,13 @@ export const REFUND_REASONS: Readonly<Record<number, RefundReasonInfo>> = Object
 		code: 8,
 		key: 'no-cash',
 		text: "The market couldn't pay right now. Refunded in full.",
+		feeKept: false,
+		live: true,
+	},
+	9: {
+		code: 9,
+		key: 'recipient-denied',
+		text: "The account's receive address can't take USDC right now (it is on USDC's deny list, or USDC is paused). Refunded in full, and the refund waits in the order until it can be claimed.",
 		feeKept: false,
 		live: true,
 	},
@@ -755,6 +764,8 @@ export type OrderView = OrderViewBase &
 				position: HeldPosition | null;
 				/** Whether `enqueue_redeem_open` can sell this record now. */
 				sellable: boolean;
+				/** See {@link ParkedFunds}. */
+				parkedRaw: bigint;
 		  }
 		| {
 				state: 'refunded';
@@ -764,6 +775,8 @@ export type OrderView = OrderViewBase &
 				positionBackAsOpenRecord: boolean;
 				position: HeldPosition | null;
 				sellable: boolean;
+				/** See {@link ParkedFunds}. */
+				parkedRaw: bigint;
 		  }
 		| {
 				/** A filled mint's record whose position was later sold or settled. */
@@ -771,9 +784,19 @@ export type OrderView = OrderViewBase &
 				quantityRaw: bigint;
 				amountRaw: bigint;
 				finishedAtMs: bigint;
+				/** See {@link ParkedFunds}. */
+				parkedRaw: bigint;
 		  }
 		| { state: 'unknown' }
 	);
+
+/**
+ * `parkedRaw` on a finished record: USDC the record kept because its receive address couldn't take
+ * it (on USDC's deny list, or USDC paused) when its change or refund was sent. It is the
+ * record's `funds`, which holds only parked USDC once the order finishes. Anyone can send it with
+ * `claim_parked` once the address is clear. `0n` when nothing is parked.
+ */
+export type ParkedFunds = bigint;
 
 function heldPosition(p: QueuedOrder['position']): HeldPosition | null {
 	return p.order_id === 0n
@@ -805,6 +828,8 @@ export function orderView(
 	const cutoffMs = opts.cutoffMs ?? record.timing.cutoff_ms;
 	const sellable = position != null && nowMs < cutoffMs;
 	const result = record.result;
+	// Only read on the finished statuses below, where `funds` holds parked USDC, not escrow.
+	const parkedRaw = record.funds;
 	switch (record.status) {
 		case ORDER_STATUS.PENDING:
 			return {
@@ -846,6 +871,7 @@ export function orderView(
 					positionBackAsOpenRecord: true,
 					position,
 					sellable,
+					parkedRaw,
 				};
 			}
 			return {
@@ -856,6 +882,7 @@ export function orderView(
 				finishedAtMs: result.finished_at_ms,
 				position,
 				sellable,
+				parkedRaw,
 			};
 		case ORDER_STATUS.REFUNDED:
 			return {
@@ -866,6 +893,7 @@ export function orderView(
 				positionBackAsOpenRecord: false,
 				position: null,
 				sellable: false,
+				parkedRaw,
 			};
 		case ORDER_STATUS.CLOSED:
 			// A sell record that filled stays `filled` after its remainder moves on; a mint record
@@ -879,6 +907,7 @@ export function orderView(
 					finishedAtMs: result.finished_at_ms,
 					position: null,
 					sellable: false,
+					parkedRaw,
 				};
 			}
 			return {
@@ -887,6 +916,7 @@ export function orderView(
 				quantityRaw: result.quantity,
 				amountRaw: result.amount,
 				finishedAtMs: result.finished_at_ms,
+				parkedRaw,
 			};
 		default:
 			return { ...base, state: 'unknown' };
@@ -921,10 +951,15 @@ export interface OrderEventState {
 	position: HeldPosition | null;
 	/** For a sell: the record its position came from. */
 	sourceRecordId: bigint | null;
-	/** Set when the settlement walk (`settle_step`) paid the record (0 for a loser). */
+	/** Set when `settle_step` or `pay_open` paid the record (0 for a loser). */
 	payoutRaw: bigint | null;
 	/** True after `OpenRecordPayoutSkipped`: the record stays Open, unpaid for now. */
 	payoutSkipped: boolean;
+	/**
+	 * USDC the record holds parked (`RecordFundsParked`, summed) until `RecordFundsClaimed`. See
+	 * {@link ParkedFunds}.
+	 */
+	parkedRaw: bigint;
 }
 
 /**
@@ -955,6 +990,7 @@ export function reduceOrderEvents(
 				sourceRecordId: null,
 				payoutRaw: null,
 				payoutSkipped: false,
+				parkedRaw: 0n,
 			};
 			into.set(key, s);
 		}
@@ -1020,6 +1056,17 @@ export function reduceOrderEvents(
 			case 'open-record-payout-skipped': {
 				const s = entry(e.marketId, e.recordId);
 				s.payoutSkipped = true;
+				break;
+			}
+			case 'record-funds-parked': {
+				const s = entry(e.marketId, e.recordId);
+				s.parkedRaw += e.raw.amount;
+				break;
+			}
+			case 'record-funds-claimed': {
+				// `claim_parked` sends everything the record had parked.
+				const s = entry(e.marketId, e.recordId);
+				s.parkedRaw = 0n;
 				break;
 			}
 			default:

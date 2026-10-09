@@ -15,6 +15,7 @@ import {
 	decodePolicyUpdates,
 	decodeQueueEvents,
 	decodeQueuedRefunds,
+	decodeRecordFunds,
 	realizedPnlRaw,
 	type DecodableEvent,
 } from '../../src/predict/decode.js';
@@ -309,6 +310,68 @@ describe('queue event decoders', () => {
 		);
 		const noOrders = { ...cfg, packages: { ...cfg.packages, predictOrders: undefined } };
 		expect(() => decodeQueueEvents(noOrders, { events: [ENQUEUED(1n)] })).toThrow(/predictOrders/);
+	});
+
+	test('parked and claimed funds decode with the receive address', () => {
+		const RECEIVE = '0x' + '44'.repeat(32);
+		const fundsEvent = (name: 'RecordFundsParked' | 'RecordFundsClaimed', amount: bigint) =>
+			event(
+				ORDERS_PKG,
+				'queue_events',
+				name,
+				queueEvents.RecordFundsParked.serialize({
+					expiry_market_id: MARKET,
+					record_id: 1n,
+					account_id: ACCOUNT,
+					receive_address: RECEIVE,
+					amount,
+					onchain_timestamp_ms: 5n,
+				}).toBytes(),
+			);
+		// A refund parks its funds before it emits `QueuedOrderRefunded`.
+		const events = decodeQueueEvents(cfg, {
+			events: [
+				fundsEvent('RecordFundsParked', 20_000n),
+				REFUNDED(KEEPER, 9),
+				fundsEvent('RecordFundsClaimed', 20_000n),
+			],
+		});
+		expect(events.map((e) => e.type)).toEqual([
+			'record-funds-parked',
+			'refunded',
+			'record-funds-claimed',
+		]);
+		expect(events[1]).toMatchObject({ reason: { key: 'recipient-denied' } });
+		expect(events[0]).toEqual({
+			type: 'record-funds-parked',
+			marketId: MARKET,
+			recordId: 1n,
+			accountId: ACCOUNT,
+			receiveAddress: RECEIVE,
+			amount: 0.02,
+			timestampMs: 5n,
+			raw: { amount: 20_000n },
+		});
+		expect(decodeRecordFunds(cfg, { events: [fundsEvent('RecordFundsClaimed', 1n)] })).toHaveLength(
+			1,
+		);
+		const pc = new PredictClient({ network: 'testnet', client: {} as never, config: cfg });
+		expect(pc.decode.recordFunds({ events: [fundsEvent('RecordFundsParked', 1n)] })).toHaveLength(
+			1,
+		);
+		// Their layouts are the same struct shape: claimed decodes with its own generated layout too.
+		expect(
+			queueEvents.RecordFundsClaimed.parse(
+				queueEvents.RecordFundsParked.serialize({
+					expiry_market_id: MARKET,
+					record_id: 2n,
+					account_id: ACCOUNT,
+					receive_address: RECEIVE,
+					amount: 3n,
+					onchain_timestamp_ms: 4n,
+				}).toBytes(),
+			),
+		).toMatchObject({ record_id: 2n, amount: 3n });
 	});
 
 	test('decoded events fold into order states', () => {

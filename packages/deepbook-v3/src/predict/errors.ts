@@ -65,7 +65,7 @@ export interface MoveAbortError {
 /**
  * The error constants of the Predict modules the SDK's flows abort in, by module, as an array
  * indexed by the plain `u64` abort code (each module numbers its constants from 0 with no gaps).
- * Generated from the Move sources at deepbookv3 af9f7c37. A published code never changes meaning:
+ * Generated from the Move sources at deepbookv3 d8fa6aa8. A published code never changes meaning:
  * new codes only append, so an older package version's codes are a prefix of its module's list.
  * Keyed by module name only, as the abort location reports it, so a same-named module in an
  * unrelated package would be named from this table too.

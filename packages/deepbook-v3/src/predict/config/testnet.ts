@@ -19,8 +19,8 @@ export const TESTNET_CONFIG: PredictConfig = Object.freeze({
 	// this file is the testnet config by construction.
 	network: 'testnet',
 	// TODO(DBU-887): delayed execution is not recorded here yet. `packages.predictDelayedExecution`
-	// (Testnet v5), `packages.predictOrders`, `packages.predictMath`, `objects.orderDesk` and
-	// `oracle.pythLazerState` stay unset until the Predict upgrade and the two fresh publishes
+	// (Testnet v5), `packages.predictOrders`, `packages.predictMath`, `objects.orderDesk`,
+	// `objects.queueRegistry` and `oracle.pythLazerState` stay unset until the Predict upgrade and the two fresh publishes
 	// (`deepbook_predict_orders`, `deepbook_predict_math`) are recorded and synced. Until then the
 	// queued-order surface (DBU-885) throws on this network, and only a custom `config` reaches it.
 	packages: TESTNET_PREDICT.packages,

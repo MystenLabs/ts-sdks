@@ -6,10 +6,16 @@
 //
 // Every queued-order entry point lives in the order-flow companion, `deepbook_predict_orders`
 // (`queue::*`), and runs against one market's `MarketQueue` plus the companion's shared
-// `OrderDesk`. The queue's ID is derived from the desk and the market, so each thunk takes it
-// as an optional `queueId` and derives it otherwise. The thunks take `OrdersGeneratedConfig`
-// (`toOrdersConfig(cfg)`), which supplies the companion package, the desk and Predict's shared
-// objects.
+// `OrderDesk`. The queue's ID is derived from the companion's `QueueRegistry` and the market, so
+// each thunk takes it as an optional `queueId` and derives it otherwise. The thunks take
+// `OrdersGeneratedConfig` (`toOrdersConfig(cfg)`), which supplies the companion package, the desk,
+// the registry and Predict's shared objects.
+//
+// Every call that can send USDC (`resolve`, `refund`, `admin_refund`, `settle_step`, `pay_open`,
+// `claim_parked`) also reads Sui's shared `DenyList` (0x403), which the generated bindings inject
+// as a read-only shared input. Nothing sends USDC to an address on USDC's deny list, or while USDC
+// is globally paused: a fill for such a receive address is refused (reason 9), a refund or change
+// is parked in its record (`RecordFundsParked`), and a payout is skipped until `pay_open`.
 //
 // Queued orders read the oracle objects directly for their volatility snapshot, so unlike the
 // retired immediate trades there is no `load_live_pricer` command before them.
@@ -38,15 +44,19 @@ const authed = {
 export interface QueueTarget {
 	expiryMarketId: string;
 	/**
-	 * The market's `MarketQueue`. Defaults to `deriveQueueId(config.orderDesk, expiryMarketId)`,
-	 * the ID `queue::create_and_share` gives it, so pass it only to address another desk's queue.
+	 * The market's `MarketQueue`. Defaults to `deriveQueueId(config.queueRegistry, expiryMarketId)`,
+	 * the ID `queue::create_and_share` gives it, so pass it only to address another registry's
+	 * queue.
 	 */
 	queueId?: string;
 }
 
-/** The queue ID a thunk addresses: the given one, or the one derived from the config's desk. */
-export function queueIdOf(config: Pick<OrdersGeneratedConfig, 'orderDesk'>, args: QueueTarget) {
-	return args.queueId ?? deriveQueueId(config.orderDesk, args.expiryMarketId);
+/** The queue ID a thunk addresses: the given one, or the one derived from the config's registry. */
+export function queueIdOf(
+	config: Pick<OrdersGeneratedConfig, 'queueRegistry'>,
+	args: QueueTarget,
+): string {
+	return args.queueId ?? deriveQueueId(config.queueRegistry, args.expiryMarketId);
 }
 
 /** The market, queue and account every queued order names. */
@@ -244,10 +254,11 @@ export function rebalanceExpiryCash(
 }
 
 /**
- * Create and share a market's `MarketQueue` (`queue::create_and_share`), at the ID
- * `deriveQueueId(config.orderDesk, expiryMarketId)`. Permissionless and once per market (a second
- * call aborts, since the ID is taken); the caller pays its storage. The market-creation keeper
- * sends it after each new `ExpiryMarket`. Returns the queue ID.
+ * Create and share a market's `MarketQueue` (`queue::create_and_share(registry, desk, market)`),
+ * at the ID `deriveQueueId(config.queueRegistry, expiryMarketId)`. Takes the registry mutably and
+ * the desk read-only, so it never contends with trading. Permissionless and once per market (a
+ * second call aborts, since the ID is taken); the caller pays its storage. The market-creation
+ * keeper sends it after each new `ExpiryMarket`. Returns the queue ID.
  */
 export function createQueue(
 	config: OrdersGeneratedConfig,
@@ -301,7 +312,8 @@ export function adminRefund(
 /**
  * Delete Refunded and Closed records of a settled market (`queue::cleanup`). Permissionless; the
  * storage rebate goes to the sender. Missing IDs, other statuses and records still holding a
- * receipt or escrow are skipped. Aborts `EMarketNotSettled` before settlement.
+ * receipt or funds (parked funds included, until `claimParked`) are skipped. Aborts
+ * `EMarketNotSettled` before settlement.
  */
 export function cleanup(
 	config: OrdersGeneratedConfig,
@@ -333,6 +345,47 @@ export function settleStep(
 	return queue.settleStep({
 		config,
 		arguments: { queue: queueIdOf(config, args), market: args.expiryMarketId },
+	});
+}
+
+/**
+ * Pay one Open record of a settled market its settled payout (`queue::pay_open`), at any time
+ * after settlement, before or after `settle_step` completes: a record the payout walk skipped
+ * because the market was short of cash or its receive address was denied. Permissionless: the
+ * payout goes only to the record's own receive address. Emits `OpenRecordSettled`, or
+ * `OpenRecordPayoutSkipped` again while the cause persists. A missing or non-Open record is left
+ * alone. Aborts `EMarketNotSettled` before Predict settles the market.
+ */
+export function payOpen(
+	config: OrdersGeneratedConfig,
+	args: QueueTarget & { recordId: bigint },
+): (tx: Transaction) => TransactionResult {
+	assertU64(args.recordId, 'recordId');
+	return queue.payOpen({
+		config,
+		arguments: {
+			queue: queueIdOf(config, args),
+			market: args.expiryMarketId,
+			recordId: args.recordId,
+		},
+	});
+}
+
+/**
+ * Send a finished record's parked funds (`queue::claim_parked`): change or a refund its receive
+ * address couldn't take while it was on USDC's deny list or USDC was paused. Permissionless: the
+ * funds go only to the record's own receive address. Returns the amount sent (u64), or `0` and
+ * changes nothing for a missing or unfinished record, one with nothing parked, or an address still
+ * denied. Emits `RecordFundsClaimed`. Takes no market: `expiryMarketId` only derives the queue.
+ */
+export function claimParked(
+	config: OrdersGeneratedConfig,
+	args: QueueTarget & { recordId: bigint },
+): (tx: Transaction) => TransactionResult {
+	assertU64(args.recordId, 'recordId');
+	return queue.claimParked({
+		config,
+		arguments: { queue: queueIdOf(config, args), recordId: args.recordId },
 	});
 }
 

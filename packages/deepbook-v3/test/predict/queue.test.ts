@@ -285,7 +285,15 @@ describe('codes tolerate unknown values', () => {
 			feeKept: false,
 			text: "The market couldn't pay right now. Refunded in full.",
 		});
-		for (const code of [4, 5, 7, 8]) expect(queue.refundReason(code).feeKept).toBe(false);
+		for (const code of [4, 5, 7, 8, 9]) expect(queue.refundReason(code).feeKept).toBe(false);
+		// Reason 9: the receive address is on USDC's deny list, or USDC is paused.
+		expect(queue.REFUND_REASON.RECIPIENT_DENIED).toBe(9);
+		expect(queue.refundReason(9)).toMatchObject({
+			code: 9,
+			key: 'recipient-denied',
+			feeKept: false,
+			live: true,
+		});
 		expect(queue.refundReason(42)).toEqual({
 			code: 42,
 			key: 'unknown',
@@ -318,6 +326,46 @@ describe('codes tolerate unknown values', () => {
 describe('orderView', () => {
 	const tau = 1_000_800n;
 	const deadline = 1_005_800n;
+
+	test('a finished record reports its funds as parked; an unfinished one does not', () => {
+		const refunded = queue.orderView(
+			recordFields({ status: 3, result: { reason: 9 }, funds: 6_020_000n }),
+			deadline,
+		);
+		expect(refunded).toMatchObject({
+			state: 'refunded',
+			parkedRaw: 6_020_000n,
+			reason: { key: 'recipient-denied' },
+		});
+		const filled = queue.orderView(
+			recordFields({ status: 2, position: { order_id: 9n }, funds: 0n }),
+			deadline,
+		);
+		expect(filled).toMatchObject({ state: 'filled', parkedRaw: 0n });
+		const closed = queue.orderView(recordFields({ status: 4, funds: 15n }), deadline);
+		expect(closed).toMatchObject({ state: 'closed', parkedRaw: 15n });
+		// A refunded sell is back to Open holding its position, with its returned fee parked.
+		const refundedSell = queue.orderView(
+			recordFields({
+				status: 2,
+				kind: 4,
+				result: { reason: 9 },
+				position: { order_id: 9n },
+				funds: 20_000n,
+			}),
+			deadline,
+		);
+		expect(refundedSell).toMatchObject({
+			state: 'refunded',
+			positionBackAsOpenRecord: true,
+			parkedRaw: 20_000n,
+			reason: { key: 'recipient-denied' },
+		});
+		// While the order waits, `funds` is its escrow, not parked USDC.
+		expect(queue.orderView(recordFields({ status: 0, funds: 6_020_000n }), tau)).not.toHaveProperty(
+			'parkedRaw',
+		);
+	});
 
 	test('Pending: placed, awaiting the price once τ has passed', () => {
 		const before = queue.orderView(recordFields({ status: 0 }), tau - 1n);
@@ -572,6 +620,64 @@ describe('reduceOrderEvents', () => {
 		expect(states.get(`${market}:4`)).toMatchObject({ state: 'refunded', position: null });
 		expect(states.get(`${market}:4`)!.reason!.key).toBe('deadline');
 		expect(states.get(`${market}:4`)).not.toHaveProperty('bySettlement');
+	});
+
+	test('parked funds add up per record until they are claimed', () => {
+		const funds = (type: string, amount: bigint) => ({
+			type,
+			marketId: market,
+			recordId: 4n,
+			raw: { amount },
+		});
+		const states = queue.reduceOrderEvents([
+			funds('record-funds-parked', 20_000n),
+			funds('record-funds-parked', 5_000n),
+		] as unknown as QueueEvent[]);
+		expect(states.get(`${market}:4`)!.parkedRaw).toBe(25_000n);
+		queue.reduceOrderEvents(
+			[funds('record-funds-claimed', 25_000n)] as unknown as QueueEvent[],
+			states,
+		);
+		expect(states.get(`${market}:4`)!.parkedRaw).toBe(0n);
+	});
+
+	test('parked funds survive the record finishing, selling and settling until claimed', () => {
+		const P = { orderId: 77n, rootId: 77n, openedAtMs: 900n };
+		const states = queue.reduceOrderEvents([
+			// A fill's change is parked, then the Open record's position is sold from a new record.
+			{ type: 'record-funds-parked', marketId: market, recordId: 0n, raw: { amount: 3_000n } },
+			{ type: 'filled', marketId: market, recordId: 0n, kind: 0, tickMs: 800n, position: P },
+			{
+				type: 'enqueued',
+				marketId: market,
+				recordId: 1n,
+				kind: 4,
+				timing: { tauMs: 1n, deadlineMs: 2n },
+				position: P,
+				sourceRecordId: 0n,
+			},
+			// The sell is refused for a denied address: its fee is parked before the refund event.
+			{ type: 'record-funds-parked', marketId: market, recordId: 1n, raw: { amount: 20_000n } },
+			{
+				type: 'refunded',
+				marketId: market,
+				recordId: 1n,
+				kind: 4,
+				reason: queue.refundReason(9),
+				positionReturned: true,
+			},
+			{ type: 'open-record-settled', marketId: market, recordId: 1n, raw: { payout: 5n } },
+		] as unknown as QueueEvent[]);
+		expect(states.get(`${market}:0`)).toMatchObject({ state: 'closed', parkedRaw: 3_000n });
+		expect(states.get(`${market}:1`)).toMatchObject({ state: 'settled', parkedRaw: 20_000n });
+		queue.reduceOrderEvents(
+			[
+				{ type: 'record-funds-claimed', marketId: market, recordId: 1n, raw: { amount: 20_000n } },
+			] as unknown as QueueEvent[],
+			states,
+		);
+		expect(states.get(`${market}:1`)!.parkedRaw).toBe(0n);
+		expect(states.get(`${market}:0`)!.parkedRaw).toBe(3_000n);
 	});
 
 	test('a skipped payout stays unpaid after the walk completes', () => {

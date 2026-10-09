@@ -30,6 +30,7 @@ import {
 	decodeQueueOps,
 	decodeQueuedFills,
 	decodeQueuedRefunds,
+	decodeRecordFunds,
 	decodeRedeems,
 	decodeWithdrawals,
 	exactlyOne,
@@ -105,11 +106,13 @@ import {
 
 import { accountContract, deriveAccountWrapperIdFrom } from './tx/common.js';
 import {
+	claimParked,
 	enqueueExactAmount,
 	enqueueExactCost,
 	enqueueExactQuantity,
 	enqueueRedeemOpen,
 	fill,
+	payOpen,
 	rebalanceExpiryCash,
 	refund,
 	type LazerPackages,
@@ -544,12 +547,12 @@ export class PredictClient {
 	}
 
 	/**
-	 * The deterministic id of a market's `MarketQueue` under the config's order desk, whether or
-	 * not it exists yet — no chain read. Throws `PredictInputError` while the config doesn't record
-	 * delayed execution.
+	 * The deterministic id of a market's `MarketQueue` under the config's queue registry, whether
+	 * or not it exists yet — no chain read. Throws `PredictInputError` while the config doesn't
+	 * record delayed execution.
 	 */
 	queueIdFor(marketId: string): string {
-		return deriveQueueId(this.#requireDelayedExecution().orderDesk, marketId);
+		return deriveQueueId(this.#requireDelayedExecution().queueRegistry, marketId);
 	}
 
 	// The deployment's wiring for a symbol; throws a typed error on an unknown symbol.
@@ -828,13 +831,14 @@ export class PredictClient {
 	// Whether the config records delayed execution, without throwing.
 	#recordsDelayedExecution(): boolean {
 		const { predictDelayedExecution, predictOrders } = this.cfg.packages;
-		return Boolean(predictDelayedExecution && predictOrders && this.cfg.objects.orderDesk);
+		const { orderDesk, queueRegistry } = this.cfg.objects;
+		return Boolean(predictDelayedExecution && predictOrders && orderDesk && queueRegistry);
 	}
 
 	// The market's queue ID, once its `MarketQueue` is known to exist. A missing queue would abort
 	// every read and order with an opaque error, so it is refused here with a typed one.
 	async #existingQueueId(orders: OrdersGeneratedConfig, marketId: string): Promise<string> {
-		const queueId = deriveQueueId(orders.orderDesk, marketId);
+		const queueId = deriveQueueId(orders.queueRegistry, marketId);
 		if (this.#knownQueues.has(queueId)) return queueId;
 		const {
 			objects: [queue],
@@ -1444,6 +1448,32 @@ export class PredictClient {
 		},
 
 		/**
+		 * Send a finished record's parked funds to its receive address (`queue::claim_parked`): a
+		 * refund or change the address couldn't take while it was on USDC's deny list or USDC was
+		 * paused (`OrderView` `parkedRaw`). A skipped settlement payout isn't parked: pay it with
+		 * `payOpen`. Permissionless, and a no-op returning 0 while
+		 * the address is still denied. Needs no account, session or Pyth key.
+		 */
+		claimParked: async (m: MarketCoordinates, recordId: bigint): Promise<Transaction> => {
+			const orders = this.#requireDelayedExecution();
+			const { id } = await this.#resolveMarket(m);
+			const queueId = await this.#existingQueueId(orders, id);
+			return txOf(claimParked(orders, { expiryMarketId: id, queueId, recordId }));
+		},
+
+		/**
+		 * Pay a settled market's Open record that the payout walk skipped (`queue::pay_open`), for
+		 * example while its receive address was denied. Permissionless: the payout goes only to the
+		 * record's own receive address. Aborts `EMarketNotSettled` before settlement.
+		 */
+		payOpen: async (m: MarketCoordinates, recordId: bigint): Promise<Transaction> => {
+			const orders = this.#requireDelayedExecution();
+			const { id } = await this.#resolveMarket(m);
+			const queueId = await this.#existingQueueId(orders, id);
+			return txOf(payOpen(orders, { expiryMarketId: id, queueId, recordId }));
+		},
+
+		/**
 		 * The open filler: verify signed Pyth Lazer payloads, commit them to the market's waiting
 		 * cohorts, then resolve up to `maxOrders` (default 15) records. Reads the current Lazer
 		 * package from Lazer's `State` first (`lazerStateId`, or `config.oracle.pythLazerState`).
@@ -2020,6 +2050,8 @@ export class PredictClient {
 		marketPayoutsCompleted: (r: DecodableTransactionResult) =>
 			decodeMarketPayoutsCompleted(this.cfg, r),
 		queueOps: (r: DecodableTransactionResult) => decodeQueueOps(this.cfg, r),
+		/** `RecordFundsParked` and `RecordFundsClaimed`: USDC a record keeps until it can be sent. */
+		recordFunds: (r: DecodableTransactionResult) => decodeRecordFunds(this.cfg, r),
 		policyUpdates: (r: DecodableTransactionResult) => decodePolicyUpdates(this.cfg, r),
 		/**
 		 * `ExpiryPnlRealized` changes in the pool's gross realized result, for P&L reporting. Sum

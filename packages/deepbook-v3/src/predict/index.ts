@@ -136,7 +136,7 @@ export * as cost from './cost.js';
 export * as queue from './queue.js';
 // The queued-order thunks, for composing an enqueue, a refund, the filler or the keeper's
 // settlement steps into a PTB you are building: `queueTx.enqueueExactCost(toOrdersConfig(cfg),
-// …)`. Each addresses the market's queue at `deriveQueueId(desk, market)` unless given a
+// …)`. Each addresses the market's queue at `deriveQueueId(registry, market)` unless given a
 // `queueId`. They run the static checks (a real `max_cost` cap, explicit sell floors) but not
 // the facade's chain preflight. `commit` and `fill` compose Pyth Lazer's verifier, a package
 // this SDK doesn't generate.
@@ -184,6 +184,7 @@ export type {
 	QueueEvent,
 	QueueOpsReceipt,
 	QueuedFillReceipt,
+	RecordFundsReceipt,
 	QueuedRefundReceipt,
 	ExpiryPnlRealizedReceipt,
 } from './decode.js';

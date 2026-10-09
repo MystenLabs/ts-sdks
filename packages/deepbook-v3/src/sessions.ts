@@ -92,7 +92,12 @@ export interface SessionsQueuedOrderTarget {
 	 */
 	orderDesk: string;
 	/**
-	 * The market's `MarketQueue`. Defaults to the ID derived from `orderDesk` and the market
+	 * The order-flow companion's shared `QueueRegistry`, which every market's queue ID derives
+	 * from. Predict's `PredictConfig.objects.queueRegistry`.
+	 */
+	queueRegistry: string;
+	/**
+	 * The market's `MarketQueue`. Defaults to the ID derived from `queueRegistry` and the market
 	 * (`deriveQueueId`), which is where `queue::create_and_share` puts it.
 	 */
 	queueId?: string;
@@ -629,7 +634,7 @@ export class SessionsContract {
 	// bs_svi, …)`. `sessions_config` comes from the generated config.
 	#queuedTarget(params: SessionsQueuedOrderTarget) {
 		return {
-			queue: params.queueId ?? deriveQueueId(params.orderDesk, params.expiryMarketId),
+			queue: params.queueId ?? deriveQueueId(params.queueRegistry, params.expiryMarketId),
 			market: params.expiryMarketId,
 			accountRegistry: this.#config.accountRegistry,
 			wrapper: params.wrapperId,

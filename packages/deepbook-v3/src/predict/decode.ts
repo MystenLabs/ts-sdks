@@ -683,7 +683,10 @@ export interface QueuedRefundReceipt {
 	raw: { escrowReturned: bigint; orderFeeReturned: bigint; subsidyReturned: bigint };
 }
 
-/** `OpenRecordSettled` (paid, 0 for a loser) or `OpenRecordPayoutSkipped` (stays Open). */
+/**
+ * `OpenRecordSettled` (paid, 0 for a loser) or `OpenRecordPayoutSkipped` (stays Open, for a later
+ * `pay_open`), from `settle_step`'s payout walk or `pay_open`.
+ */
 export interface OpenRecordPayoutReceipt {
 	type: 'open-record-settled' | 'open-record-payout-skipped';
 	marketId: string;
@@ -702,6 +705,22 @@ export interface MarketPayoutsCompletedReceipt {
 	type: 'market-payouts-completed';
 	marketId: string;
 	timestampMs: bigint;
+}
+
+/**
+ * `RecordFundsParked`: a record kept USDC it couldn't send to its receive address (on USDC's deny
+ * list, or USDC paused). `RecordFundsClaimed`: `claim_parked` sent a record's parked funds.
+ */
+export interface RecordFundsReceipt {
+	type: 'record-funds-parked' | 'record-funds-claimed';
+	marketId: string;
+	recordId: bigint;
+	accountId: string;
+	receiveAddress: string;
+	/** Parked: this call's parked change or refund. Claimed: everything the record had parked. */
+	amount: number;
+	timestampMs: bigint;
+	raw: { amount: bigint };
 }
 
 /** Queue housekeeping events, for ops and alerts. */
@@ -743,6 +762,7 @@ export type QueueEvent =
 	| QueuedRefundReceipt
 	| OpenRecordPayoutReceipt
 	| MarketPayoutsCompletedReceipt
+	| RecordFundsReceipt
 	| QueueOpsReceipt;
 
 const cashOf = (e: { market_cash: bigint; required_cash: bigint; waiting_cash_need: bigint }) => ({
@@ -896,6 +916,21 @@ function payoutReceipt(
 	});
 }
 
+function recordFundsReceipt(
+	type: RecordFundsReceipt['type'],
+): (e: (typeof queueEvents.RecordFundsParked)['$inferType']) => RecordFundsReceipt {
+	return (e) => ({
+		type,
+		marketId: normalizeSuiAddress(e.expiry_market_id),
+		recordId: e.record_id,
+		accountId: normalizeSuiAddress(e.account_id),
+		receiveAddress: normalizeSuiAddress(e.receive_address),
+		amount: fromRaw(e.amount, 6),
+		timestampMs: e.onchain_timestamp_ms,
+		raw: { amount: e.amount },
+	});
+}
+
 // Each order event the queue emits: its struct name, generated layout and receipt mapping.
 // One table drives both the per-type decoders and `decodeQueueEvents`, so they can't disagree.
 const QUEUE_EVENT_DECODERS: readonly {
@@ -921,6 +956,16 @@ const QUEUE_EVENT_DECODERS: readonly {
 			marketId: normalizeSuiAddress(e.expiry_market_id),
 			timestampMs: e.onchain_timestamp_ms,
 		}),
+	},
+	{
+		name: 'RecordFundsParked',
+		layout: queueEvents.RecordFundsParked,
+		map: recordFundsReceipt('record-funds-parked'),
+	},
+	{
+		name: 'RecordFundsClaimed',
+		layout: queueEvents.RecordFundsClaimed,
+		map: recordFundsReceipt('record-funds-claimed'),
 	},
 	{
 		name: 'QueuedOrdersCleaned',
@@ -987,6 +1032,8 @@ export const decodeOpenRecordPayouts = (cfg: PredictConfig, r: DecodableTransact
 	ofType(cfg, r, 'open-record-settled', 'open-record-payout-skipped');
 export const decodeMarketPayoutsCompleted = (cfg: PredictConfig, r: DecodableTransactionResult) =>
 	ofType(cfg, r, 'market-payouts-completed');
+export const decodeRecordFunds = (cfg: PredictConfig, r: DecodableTransactionResult) =>
+	ofType(cfg, r, 'record-funds-parked', 'record-funds-claimed');
 export const decodeQueueOps = (cfg: PredictConfig, r: DecodableTransactionResult) =>
 	ofType(cfg, r, 'queued-orders-cleaned');
 

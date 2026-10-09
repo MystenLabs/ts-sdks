@@ -6,12 +6,17 @@ import { bcs } from '@mysten/sui/bcs';
 import { deriveObjectID } from '@mysten/sui/utils';
 
 /**
- * The ID of `expiryMarketId`'s `MarketQueue` under the order desk `deskId`, whether or not the
- * queue exists yet: Sui's `derived_object::derive_address(desk_id, expiry_market_id)`, as
- * `queue::queue_id` computes it on chain. The key is the market's `0x2::object::ID`, whose BCS is
- * the bare 32-byte address. Each market has exactly one queue under a desk, created once by the
- * permissionless `queue::create_and_share`.
+ * The ID of `expiryMarketId`'s `MarketQueue` under the queue registry `registryId`, whether or not
+ * the queue exists yet: Sui's `derived_object::derive_address(registry_id, expiry_market_id)`, as
+ * `queue::queue_id` computes it on chain. The parent is the order-flow package's `QueueRegistry`,
+ * not its `OrderDesk`. The key is the market's `0x2::object::ID`, whose BCS is the bare 32-byte
+ * address. Each market has exactly one queue, created once by the permissionless
+ * `queue::create_and_share`.
  */
-export function deriveQueueId(deskId: string, expiryMarketId: string): string {
-	return deriveObjectID(deskId, '0x2::object::ID', bcs.Address.serialize(expiryMarketId).toBytes());
+export function deriveQueueId(registryId: string, expiryMarketId: string): string {
+	return deriveObjectID(
+		registryId,
+		'0x2::object::ID',
+		bcs.Address.serialize(expiryMarketId).toBytes(),
+	);
 }

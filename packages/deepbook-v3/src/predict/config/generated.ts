@@ -55,27 +55,29 @@ export type OrdersGeneratedConfig = GeneratedConfig &
 		predictOrdersPackageId: string;
 		predictOrdersPackageIdV1: string;
 		orderDesk: string;
+		queueRegistry: string;
 	};
 
 /**
  * Project a config that records delayed execution onto {@link OrdersGeneratedConfig}. Throws
- * `PredictInputError` while the config lacks the Predict upgrade, the companion package or its
- * desk: building a queued order against a guessed package would abort on chain or, worse, address
- * the wrong one.
+ * `PredictInputError` while the config lacks the Predict upgrade, the companion package, its desk
+ * or its queue registry: building a queued order against a guessed package would abort on chain
+ * or, worse, address the wrong one.
  */
 export function toOrdersConfig(cfg: PredictConfig): OrdersGeneratedConfig {
 	const { predictDelayedExecution, predictOrders, predictOrdersV1, predictMath } = cfg.packages;
-	const orderDesk = cfg.objects.orderDesk;
-	if (!predictDelayedExecution || !predictOrders || !orderDesk) {
+	const { orderDesk, queueRegistry } = cfg.objects;
+	if (!predictDelayedExecution || !predictOrders || !orderDesk || !queueRegistry) {
 		const missing = [
 			!predictDelayedExecution && '`packages.predictDelayedExecution`',
 			!predictOrders && '`packages.predictOrders`',
 			!orderDesk && '`objects.orderDesk`',
+			!queueRegistry && '`objects.queueRegistry`',
 		].filter(Boolean);
 		throw new PredictInputError(
 			`delayed execution isn't recorded for ${cfg.network} in this SDK version (missing ` +
 				`${missing.join(', ')}): pass a \`config\` that records the Predict upgrade, the ` +
-				'`deepbook_predict_orders` package and its order desk',
+				'`deepbook_predict_orders` package, its order desk and its queue registry',
 		);
 	}
 	return {
@@ -84,5 +86,6 @@ export function toOrdersConfig(cfg: PredictConfig): OrdersGeneratedConfig {
 		predictOrdersPackageIdV1: predictOrdersV1 ?? predictOrders,
 		predictMathPackageId: predictMath,
 		orderDesk,
+		queueRegistry,
 	};
 }

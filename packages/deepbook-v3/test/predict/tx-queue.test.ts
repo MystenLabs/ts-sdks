@@ -11,6 +11,7 @@ import { toGeneratedConfig, toOrdersConfig } from '../../src/predict/config/gene
 import { PredictInputError } from '../../src/predict/errors.js';
 import {
 	adminRefund,
+	claimParked,
 	cleanup,
 	commit,
 	createQueue,
@@ -19,6 +20,7 @@ import {
 	enqueueExactQuantity,
 	enqueueRedeemOpen,
 	fill,
+	payOpen,
 	rebalanceExpiryCash,
 	refund,
 	resolve,
@@ -31,6 +33,7 @@ import {
 	ORDERS_PKG,
 	QUEUE,
 	QUEUE_CFG as cfg,
+	REGISTRY,
 	moveCallTargets,
 } from './queue-fixtures.js';
 
@@ -75,12 +78,14 @@ function build(thunk: (tx: Transaction) => unknown): Transaction {
 }
 
 const id = normalizeSuiObjectId;
+const DENY_LIST = '0x403';
 
 describe('the orders config', () => {
 	test('carries the companion package, its original ID, the math library and the desk', () => {
 		expect(config.predictOrdersPackageId).toBe(ORDERS_PKG);
 		expect(config.predictOrdersPackageIdV1).toBe(ORDERS_PKG);
 		expect(config.orderDesk).toBe(DESK);
+		expect(config.queueRegistry).toBe(REGISTRY);
 		expect(config.predictMathPackageId).toBe(cfg.packages.predictMath);
 		// Predict's own keys are still there, for the calls the companion makes into it.
 		expect(config.predictPackageId).toBe(cfg.packages.predict);
@@ -112,6 +117,9 @@ describe('the orders config', () => {
 		expect(() =>
 			toOrdersConfig({ ...cfg, packages: { ...cfg.packages, predictOrders: undefined } }),
 		).toThrow(/packages\.predictOrders/);
+		expect(() =>
+			toOrdersConfig({ ...cfg, objects: { ...cfg.objects, queueRegistry: undefined } }),
+		).toThrow(/objects\.queueRegistry/);
 		expect(() =>
 			toOrdersConfig({ ...cfg, packages: { ...cfg.packages, predictDelayedExecution: undefined } }),
 		).toThrow(PredictInputError);
@@ -304,7 +312,7 @@ describe('queued sells', () => {
 });
 
 describe('refunds, rebalance and the keeper steps', () => {
-	test('refund needs no auth: queue, market, desk, config, max_orders, clock', () => {
+	test('refund needs no auth: queue, market, desk, config, max_orders, deny list, clock', () => {
 		const tx = build(refund(config, { expiryMarketId: MARKET, maxOrders: 100n }));
 		expect(moveCallTargets(tx)).toEqual(['queue::refund']);
 		expect(id(call(tx, 0).package)).toBe(id(ORDERS_PKG));
@@ -313,7 +321,15 @@ describe('refunds, rebalance and the keeper steps', () => {
 		expect(objectId(tx, 0, 2)).toBe(id(DESK));
 		expect(objectId(tx, 0, 3)).toBe(id(cfg.objects.protocolConfig));
 		expect(pure(tx, 0, 4)).toBe(b64(100n));
-		expect(objectId(tx, 0, 5)).toBe(id('0x6'));
+		expect(objectId(tx, 0, 5)).toBe(id(DENY_LIST));
+		expect(objectId(tx, 0, 6)).toBe(id('0x6'));
+		expect(call(tx, 0).arguments).toHaveLength(7);
+	});
+
+	test('the builders never mark the deny list mutable (resolution reads `&DenyList`)', () => {
+		const tx = build(refund(config, { expiryMarketId: MARKET, maxOrders: 1n }));
+		const input = arg(tx, 0, 5)!;
+		expect(input.UnresolvedObject?.mutable).not.toBe(true);
 	});
 
 	test('adminRefund takes the AdminCap after the market, then the record IDs', () => {
@@ -330,6 +346,8 @@ describe('refunds, rebalance and the keeper steps', () => {
 		expect(pure(tx, 0, 5)).toBe(
 			Buffer.from(bcs.vector(bcs.u64()).serialize([3n, 5n]).toBytes()).toString('base64'),
 		);
+		expect(objectId(tx, 0, 6)).toBe(id(DENY_LIST));
+		expect(objectId(tx, 0, 7)).toBe(id('0x6'));
 	});
 
 	test('cleanup and settleStep address the derived queue', () => {
@@ -341,17 +359,45 @@ describe('refunds, rebalance and the keeper steps', () => {
 		expect(call(clean, 0).arguments).toHaveLength(5);
 		const step = build(settleStep(config, { expiryMarketId: MARKET }));
 		expect(moveCallTargets(step)).toEqual(['queue::settle_step']);
-		expect([0, 1, 2, 3].map((i) => objectId(step, 0, i))).toEqual(
-			[QUEUE, MARKET, DESK, cfg.objects.protocolConfig].map((v) => id(v)),
+		// queue, market, desk, config, deny_list, clock.
+		expect([0, 1, 2, 3, 4, 5].map((i) => objectId(step, 0, i))).toEqual(
+			[QUEUE, MARKET, DESK, cfg.objects.protocolConfig, DENY_LIST, '0x6'].map((v) => id(v)),
 		);
 	});
 
-	test('createQueue takes the desk mutably and the market, and no queue', () => {
+	test('createQueue takes the registry, the desk and the market, and no queue', () => {
 		const tx = build(createQueue(config, { expiryMarketId: MARKET }));
 		expect(moveCallTargets(tx)).toEqual(['queue::create_and_share']);
-		expect(objectId(tx, 0, 0)).toBe(id(DESK));
-		expect(objectId(tx, 0, 1)).toBe(id(MARKET));
-		expect(call(tx, 0).arguments).toHaveLength(2);
+		expect(objectId(tx, 0, 0)).toBe(id(REGISTRY));
+		expect(objectId(tx, 0, 1)).toBe(id(DESK));
+		expect(objectId(tx, 0, 2)).toBe(id(MARKET));
+		expect(call(tx, 0).arguments).toHaveLength(3);
+	});
+
+	test('payOpen: queue, market, desk, config, record_id, deny list, clock', () => {
+		const tx = build(payOpen(config, { expiryMarketId: MARKET, recordId: 7n }));
+		expect(moveCallTargets(tx)).toEqual(['queue::pay_open']);
+		expect([0, 1, 2, 3].map((i) => objectId(tx, 0, i))).toEqual(
+			[QUEUE, MARKET, DESK, cfg.objects.protocolConfig].map((v) => id(v)),
+		);
+		expect(pure(tx, 0, 4)).toBe(b64(7n));
+		expect(objectId(tx, 0, 5)).toBe(id(DENY_LIST));
+		expect(objectId(tx, 0, 6)).toBe(id('0x6'));
+		expect(call(tx, 0).arguments).toHaveLength(7);
+	});
+
+	test('claimParked takes no market: queue, desk, record_id, deny list, clock', () => {
+		const tx = build(claimParked(config, { expiryMarketId: MARKET, recordId: 9n }));
+		expect(moveCallTargets(tx)).toEqual(['queue::claim_parked']);
+		expect(objectId(tx, 0, 0)).toBe(id(QUEUE));
+		expect(objectId(tx, 0, 1)).toBe(id(DESK));
+		expect(pure(tx, 0, 2)).toBe(b64(9n));
+		expect(objectId(tx, 0, 3)).toBe(id(DENY_LIST));
+		expect(objectId(tx, 0, 4)).toBe(id('0x6'));
+		expect(call(tx, 0).arguments).toHaveLength(5);
+		expect(() => claimParked(config, { expiryMarketId: MARKET, recordId: -1n })).toThrow(
+			PredictInputError,
+		);
 	});
 
 	test('rebalanceExpiryCash stays a Predict call: the vault from config and no target', () => {
@@ -404,8 +450,9 @@ describe('refunds, rebalance and the keeper steps', () => {
 			[QUEUE, MARKET, DESK, cfg.objects.protocolConfig].map((v) => id(v)),
 		);
 		expect(call(tx, 3).arguments[4]).toEqual({ $kind: 'Result', Result: 2 });
-		// resolve: queue, market, desk, config, max_orders, clock.
+		// resolve: queue, market, desk, config, max_orders, deny_list, clock.
 		expect(pure(tx, 4, 4)).toBe(b64(12n));
+		expect(objectId(tx, 4, 5)).toBe(id(DENY_LIST));
 	});
 
 	test('commit and resolve compose on their own', () => {
