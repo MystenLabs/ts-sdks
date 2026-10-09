@@ -10,6 +10,7 @@ export { POSITION_LOT_SIZE, PredictClient, predict } from './client.js';
 export type { PredictCompatibleClient } from './client.js';
 export type {
 	ActiveMarket,
+	AppliedSlippage,
 	CloseOptions,
 	EnqueueMintAmountOptions,
 	EnqueueMintCostOptions,
@@ -22,7 +23,10 @@ export type {
 	MintAmountOptions,
 	MintCostOptions,
 	MintOptions,
+	MintPlan,
 	MintQuote,
+	PlanMintOptions,
+	PlanSellOptions,
 	PlpSupplyOptions,
 	PlpWithdrawOptions,
 	PoolSummary,
@@ -31,7 +35,9 @@ export type {
 	QueuedOrderPreview,
 	QueuedOrderView,
 	RedeemQuote,
+	SellPlan,
 	SellQuote,
+	SlippageOptions,
 } from './client.js';
 
 // === Composition with foreign packages === auth + deterministic account addressing
