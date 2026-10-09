@@ -439,6 +439,77 @@ describe('read.planMint', () => {
 		expect(unsubsidized(plan.raw.minQuantity)).toBeLessThanOrEqual(5_250_000n);
 	});
 
+	test('a minimum-sized budget is probed without the rounding allowance', async () => {
+		const base = scenario();
+		// Two contracts at 50¢: a 1.00 premium and a 0.025 trading fee, exactly a 1.025 budget.
+		const s = scenario({
+			mintQuote: {
+				...base.mintQuote,
+				quantity: 2_000_000n,
+				entry_probability: 500_000_000n,
+				premium: 1_000_000n,
+				trading_fee: 25_000n,
+				fee_incentive_subsidy: 0n,
+				penalty_fee: 0n,
+				inventory_impact_charge: 0n,
+				all_in_cost: 1_025_000n,
+			},
+		});
+		for (const slippageCents of [0, 1]) {
+			const plan = await client(s).pc.read.planMint(OWNER, market(s), {
+				amount: 1.045,
+				slippageCents,
+			});
+			// Admission buys exactly 2, so the plan is accepted. 1.99 would be below the minimum.
+			expect(plan.budget).toBe(1.025);
+			expect(plan.refusal).toBeNull();
+		}
+	});
+
+	test('a budget whose fill costs about its payout is refused', async () => {
+		const base = scenario();
+		// 96.9¢ contracts with a 3.09% trading fee, a fifth subsidized: about $1 a contract
+		// without the subsidy, where admission's payout-bound search can't be previewed.
+		const accountQuoteAt = (quantity: bigint) => {
+			const premium = (quantity * 969_071_706n + 999_999_999n) / 1_000_000_000n;
+			const trading = (premium * 30_928_390n + 999_999_999n) / 1_000_000_000n;
+			const subsidy = trading / 5n;
+			return {
+				...base.mintQuote,
+				quantity,
+				entry_probability: 969_071_706n,
+				premium,
+				trading_fee: trading,
+				fee_incentive_subsidy: subsidy,
+				builder_fee: 0n,
+				penalty_fee: 0n,
+				inventory_impact_charge: 0n,
+				all_in_cost: premium + trading - subsidy,
+			};
+		};
+		const s = scenario({
+			cashBalance: 5_000_000_000n,
+			// The budget's quote: 14.36 contracts whose unsubsidized cost equals their payout.
+			mintQuote: {
+				...accountQuoteAt(14_360_000n),
+				all_in_cost: 14_360_000n - accountQuoteAt(14_360_000n).fee_incentive_subsidy,
+			},
+			accountQuoteAt,
+		});
+		const { pc } = client(s);
+		for (const slippageCents of [0, 0.01]) {
+			const plan = await pc.read.planMint(OWNER, market(s), {
+				amount: 14.292636,
+				slippageCents,
+			});
+			expect(plan.budget).toBe(14.272636);
+			expect(plan.refusal).toBe('cost-above-payout');
+			const err = await pc.tx.enqueuePlan(OWNER, market(s), plan).catch((e) => e);
+			expect(err).toBeInstanceOf(PredictPreflightError);
+			expect(err.code).toBe('cost-above-payout');
+		}
+	});
+
 	test('an exact plan whose unsubsidized cost is above its payout is refused', async () => {
 		const base = scenario();
 		// 10 contracts at 99¢ cost 9.99 with a 0.02 subsidy, 10.01 without it.

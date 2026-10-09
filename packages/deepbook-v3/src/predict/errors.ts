@@ -235,7 +235,8 @@ export type PredictPreflightCode =
 	| 'min-premium'
 	/**
 	 * The order's all-in cost without the fee subsidy is above its payout, so admission refuses it
-	 * at any slippage (`EOrderFailsLimits`). Only `read.planMint` reports it, near a certain outcome.
+	 * at any slippage (`EOrderFailsLimits`), or for a budget, the fill costs about its payout, where
+	 * admission's sizing can't be previewed. Only `read.planMint` reports it, near a certain outcome.
 	 */
 	| 'cost-above-payout'
 	/** A sell is below the policy minimum, or leaves a remainder below it (`EBelowMinSell`). */
