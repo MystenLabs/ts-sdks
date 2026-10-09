@@ -116,6 +116,8 @@ one `MarketQueue`, at an ID derived from the package's single `QueueRegistry` an
 > `objects.queueRegistry` set (a localnet publish) to use it on a network without a record.
 
 ```ts
+import { snapStrike } from '@mysten/deepbook-v3/predict';
+
 // Which path is live? 'immediate' | 'awaiting-cutover' | 'delayed' | 'unsupported'.
 const mode = await client.predict.read.executionMode();
 
@@ -127,17 +129,28 @@ queue.acceptingMints; // and queue.acceptingSells: one side can be full while th
 queue.refusal.mint; // the preflight code a mint would get now, or null
 queue.maxMint.budget.maxRaw; // "Max right now" for a budget mint, raw USDC
 
+// A strike near the money. Admission refuses an entry price outside the market's band (0.25–0.75
+// on both recorded deployments), and once the price moves away from a window's reference, the
+// reference strike can sit outside it.
+const pricer = await client.predict.read.pricer(desc);
+const atm = snapStrike(pricer.strikeAtProbability(0.5)!, tradeable[0].admissionTickSize);
+const atmDesc = { ...desc, strike: atm };
+
 // Plan, then queue. `planMint` quotes the order at the current price and turns the slippage into
 // the limits the enqueue carries. Slippage is cents per contract, never a percentage: a contract
 // pays $1, so 10¢ lets a 42¢ contract fill at up to 52¢, fees included.
-const plan = await client.predict.read.planMint(myAddress, desc, { amount: 10, slippageCents: 10 });
-const { transaction, preview } = await client.predict.tx.enqueuePlan(myAddress, desc, plan);
+const plan = await client.predict.read.planMint(myAddress, atmDesc, {
+	amount: 10,
+	slippageCents: 10,
+});
+const { transaction, preview } = await client.predict.tx.enqueuePlan(myAddress, atmDesc, plan);
 preview.timing.tauMs; // when it prices
 preview.totalDebit; // budget + order fee, debited at enqueue. Unused budget comes back at the fill
 
-// After execution: the record ID is the handle for everything else. Persist it.
+// After execution (with events included): the record ID is the handle for everything else.
+// Persist it. `waitForOutcome` keeps polling a record the fullnode doesn't show yet.
 const { recordId } = client.predict.decode.enqueue(result);
-const outcome = await client.predict.read.waitForOutcome(desc, recordId);
+const outcome = await client.predict.read.waitForOutcome(atmDesc, recordId);
 outcome.order?.view; // 'filled' (an Open record holding the position) or 'refunded' (with a reason)
 
 // Sell an Open record early: plan it, then queue the sell with the plan's floors.
@@ -148,6 +161,10 @@ const sellPlan = await client.predict.read.planSell(myAddress, desc, {
 });
 const sell = await client.predict.tx.enqueuePlan(myAddress, desc, sellPlan);
 ```
+
+The plan and preview types are exported (`MintPlan`, `SellPlan`, `PlanMintOptions`,
+`PlanSellOptions`, `SlippageOptions`, `QueuedOrderPlan`, `QueuedOrderPreview`), so form state can be
+typed without `ReturnType`.
 
 #### A purchase form
 
@@ -198,12 +215,22 @@ options.
   tree for a new strike's boundary nodes. A refused order never fails the rest of a transaction. The
   order's own price limits are checked only on chain, at placement (`EOrderFailsLimits`), and the
   preview runs on the local clock, so near the cutoff the chain can still refuse: decode that with
-  `describePredictError`.
+  `describePredictError`. `EOrderFailsLimits` also covers admission: an entry price outside the
+  market's band, or a premium below the minimum. `planMint` throws it as a `PredictMoveError` when
+  the strike's price is outside the band, before any plan exists, so pick a strike with
+  `pricer.strikeAtProbability` and `snapStrike` rather than offering one far from the money.
+- **Pricing aborts.** Every quote, plan and enqueue loads the market's live pricer, which aborts in
+  Predict's `pricing` module while an oracle input is missing or stale
+  (`EBlockScholesPriceUnavailable`, `EBlockScholesPriceStale`, and the SVI and Pyth forms). These
+  clear once the oracles write again, usually within seconds, and `describePredictError` gives each
+  a "try again" text. The plan's quote can pass and the enqueue still abort, so a submitted order
+  can fail this way too: offer a retry rather than an error page.
 - **Order states.** `read.order(s)` returns each record with `queue.orderView`: `placed` (with
   `awaitingPrice` once τ passes), `priced` (the committed price and a countdown to the deadline),
-  then `filled` or `refunded`. Report "Filled" only from the record or the `QueuedOrderFilled`
-  event. For an indexer or event feed, `decode.queueEvents` + `queue.reduceOrderEvents` build the
-  same states.
+  then `filled` or `refunded`. A filler that commits a price and resolves the order in one
+  transaction moves it from `placed` straight to `filled`, so a UI can't count on seeing `priced`.
+  Report "Filled" only from the record or the `QueuedOrderFilled` event. For an indexer or event
+  feed, `decode.queueEvents` + `queue.reduceOrderEvents` build the same states.
 - **Refunds.** Keepers refund an unfinished order at its deadline (τ + 5 s). Offer "Refund my order"
   (`tx.refund(m)`) only when `view.canRequestRefund` is true, 5 s past the deadline. It needs no
   account or Pyth key and works during a freeze. Never prepend it to other transactions.
@@ -221,10 +248,12 @@ options.
   builder adds `rebalance_expiry_cash` after the enqueue so the market is funded at once
   (`fundMarket: 'auto' | 'always' | 'never'`). A sell still uncovered at the fill is refunded in
   full and its position returns to an Open record.
-- **Positions.** The SDK has no indexer client, so the app supplies record IDs from its enqueue
-  receipts or its indexer. `claimSettled` still pays positions minted into the account before
-  delayed execution. Pending refunds and proceeds sent to the account show in
-  `read.pendingFunds(owner)` (already counted in `read.balance`).
+- **Positions.** A filled mint is an Open record in the market's queue, not a position in the
+  account, so `read.positions(owner)` doesn't list it. The SDK has no indexer client, so the app
+  supplies record IDs from its enqueue receipts or its indexer, and reads them with `read.orders`.
+  `claimSettled` still pays positions minted into the account before delayed execution. Pending
+  refunds and proceeds sent to the account show in `read.pendingFunds(owner)` (already counted in
+  `read.balance`).
 - **The open filler.** `tx.fill(m, { payloads })` verifies signed Lazer payloads with the current
   Lazer package (read from Lazer's `State` per call), commits them and resolves up to `maxOrders`
   records. Anyone with Lazer access can run one.
@@ -346,11 +375,12 @@ const tx = await client.predict.tx.mint(
 
 - **`client.predict.tx`** — `createManager`, `deposit`, `withdraw`, `mint`, `mintAmount`,
   `mintCost`, `redeem`, `claimSettled`, `supplyPlp`, `withdrawPlp`, `cancelSupplyPlp`,
-  `cancelWithdrawPlp`, `setBuilderCode`, `unsetBuilderCode`, and for queued orders `enqueueMint`,
-  `enqueueMintAmount`, `enqueueMintCost`, `enqueueSell`, `refund`, `fill` (see
-  [Queued orders](#queued-orders-delayed-execution)). Market-resolving builders
-  (`mint`/`mintAmount`/`mintCost`/`redeem`/`claimSettled`) are async: they resolve the market object
-  from `{ underlying, expiryMs, strike, side }` via the on-chain registry (cached per client).
+  `cancelWithdrawPlp`, `setBuilderCode`, `unsetBuilderCode`, and for queued orders `enqueuePlan`,
+  `enqueueMint`, `enqueueMintAmount`, `enqueueMintCost`, `enqueueSell`, `refund`, `claimParked`,
+  `payOpen`, `fill` (see [Queued orders](#queued-orders-delayed-execution)). Market-resolving
+  builders (`mint`/`mintAmount`/`mintCost`/`redeem`/`claimSettled`) are async: they resolve the
+  market object from `{ underlying, expiryMs, strike, side }` via the on-chain registry (cached per
+  client).
 - **`client.predict.read`** — `markets()` (summaries of the pool's **active** markets — live and not
   yet settled, so a market past expiry that nobody has settled is still listed and quoting against
   it aborts; filter on `expiryMs` and `mintPaused` before trading: id, expiry, tick size, admission
@@ -362,9 +392,9 @@ const tx = await client.predict.tx.mint(
   the real trade would, so a quote doubles as preflight), `balance(owner)`, `plpBalance(owner)`,
   `pool()`, `positions(owner)` (chain-only enumeration of open positions),
   `hasPosition(owner, marketId, orderId)`, and for queued orders `executionMode()`, `queue(m)`,
-  `order(m, id)`, `orders(m, ids)`, `waitForOutcome(m, id)`, `quoteSell(owner, m, opts)`,
-  `pendingFunds(owner)`, `lazerPackages()`. All reads run over the client's `simulateTransaction`;
-  no indexer required.
+  `planMint(owner, m, opts)`, `planSell(owner, m, opts)`, `order(m, id)`, `orders(m, ids)`,
+  `waitForOutcome(m, id)`, `quoteSell(owner, m, opts)`, `pendingFunds(owner)`, `lazerPackages()`.
+  All reads run over the client's `simulateTransaction`; no indexer required.
 - **`client.predict.decode`** — pure execution-result decoders (no network): `mint`, `redeem`,
   `claim`, `createManager`, `deposit`, `withdraw`, `plpRequest`, `plpCancel`, `builderCode`. Each
   singular form throws unless exactly one matching event is present; `mints`, `redeems` and `claims`
@@ -649,8 +679,10 @@ clock (and `mintPaused`) before quoting rather than assuming the list is tradeab
 
 ## Notes
 
-- **Positions are enumerable on-chain**: `read.positions(owner)` lists every open position (market +
-  order id) straight from the account's position table — one round trip warm, no indexer. Persisting
+- **Account positions are enumerable on-chain**: `read.positions(owner)` lists every open position
+  (market + order id) straight from the account's position table — one round trip warm, no indexer.
+  With delayed execution a filled order is an Open record in the market's queue instead, which this
+  list doesn't include (see [Queued orders](#queued-orders-delayed-execution)). Persisting
   `decode.mint(result).orderId` and applying `decode.redeem(result).replacementOrderId` is still the
   fastest hot path, with `read.positions` as the fresh-start/recovery source and `read.hasPosition`
   as the cheap validator.
