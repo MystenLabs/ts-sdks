@@ -202,6 +202,15 @@ describe('queue event decoders', () => {
 			sourceRecordId: 3n,
 			position: { orderId: 77n, rootId: 70n },
 		});
+		// A held quantity decodes with the config's lot (quantity in lots at bit 100).
+		const held = { order_id: 156n << 100n, root_id: 70n, opened_at_ms: 5n };
+		const decode = (positionLotSize: number) =>
+			decodeEnqueues(
+				{ ...cfg, units: { ...cfg.units, positionLotSize } },
+				{ events: [ENQUEUED(8n, { kind: 4, source_record_id: 3n, position: held })] },
+			)[0].position?.quantityRaw;
+		expect(decode(10_000)).toBe(1_560_000n);
+		expect(decode(1_000)).toBe(156_000n);
 	});
 
 	test('every queue event decodes in chain order, tagged', () => {

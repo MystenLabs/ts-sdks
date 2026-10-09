@@ -360,6 +360,11 @@ describe('orderView', () => {
 			quantityRaw: 1_550_000n,
 			position: { orderId: remainderId, quantityRaw: 1_560_000n },
 		});
+		// The quantity decodes with the config's lot when one is passed.
+		const record = recordFields({ status: 2, kind: 4, position: { order_id: remainderId } });
+		expect(queue.orderView(record, deadline, { lotSize: 1_000n })).toMatchObject({
+			position: { quantityRaw: 156_000n },
+		});
 		const closed = queue.orderView(recordFields({ status: 4, funds: 15n }), deadline);
 		expect(closed).toMatchObject({ state: 'closed', parkedRaw: 15n });
 		// A refunded sell is back to Open holding its position, with its returned fee parked.

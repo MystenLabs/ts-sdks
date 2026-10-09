@@ -2808,7 +2808,15 @@ export class PredictClient {
 			);
 			const nowMs = BigInt(Date.now());
 			return records.map((record, i) =>
-				record ? { recordId: recordIds[i], record, view: orderView(record, nowMs) } : null,
+				record
+					? {
+							recordId: recordIds[i],
+							record,
+							view: orderView(record, nowMs, {
+								lotSize: BigInt(this.cfg.units.positionLotSize),
+							}),
+						}
+					: null,
 			);
 		},
 

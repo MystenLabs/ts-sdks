@@ -937,14 +937,14 @@ export type OrderView = OrderViewBase &
  */
 export type ParkedFunds = bigint;
 
-function heldPosition(p: QueuedOrder['position']): HeldPosition | null {
+function heldPosition(p: QueuedOrder['position'], lotSize?: bigint): HeldPosition | null {
 	return p.order_id === 0n
 		? null
 		: {
 				orderId: p.order_id,
 				rootId: p.root_id,
 				openedAtMs: p.opened_at_ms,
-				quantityRaw: decodeOrderRange(p.order_id).quantity,
+				quantityRaw: decodeOrderRange(p.order_id, lotSize).quantity,
 			};
 }
 
@@ -952,11 +952,13 @@ function heldPosition(p: QueuedOrder['position']): HeldPosition | null {
  * Map a queue record to its display state. `nowMs` drives the refund flags. A record is sellable
  * while it is Open, holds a position, and `nowMs` is before the cutoff (`opts.cutoffMs`, or the
  * record's own placement cutoff when omitted). Unknown status or kind codes map to `unknown`.
+ * `opts.lotSize` is the config's position lot (default 10,000, Predict's), which decodes a held
+ * position's quantity.
  */
 export function orderView(
 	record: QueuedOrder,
 	nowMs: bigint,
-	opts: { cutoffMs?: bigint } = {},
+	opts: { cutoffMs?: bigint; lotSize?: bigint } = {},
 ): OrderView {
 	const kind = record.kind;
 	const base: OrderViewBase = {
@@ -968,7 +970,7 @@ export function orderView(
 	if (base.side === 'unknown') return { ...base, state: 'unknown' };
 	const { tau_ms: tauMs, deadline_ms: deadlineMs } = record.timing;
 	const canRequestRefund = nowMs >= deadlineMs + REFUND_REQUEST_GRACE_MS;
-	const position = heldPosition(record.position);
+	const position = heldPosition(record.position, opts.lotSize);
 	const cutoffMs = opts.cutoffMs ?? record.timing.cutoff_ms;
 	const sellable = position != null && nowMs < cutoffMs;
 	const result = record.result;

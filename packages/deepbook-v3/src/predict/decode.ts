@@ -534,18 +534,21 @@ function side(kind: number): 'mint' | 'sell' | 'unknown' {
 	return isMintKind(kind) ? 'mint' : isSellKind(kind) ? 'sell' : 'unknown';
 }
 
-function heldPosition(p: {
-	order_id: bigint;
-	root_id: bigint;
-	opened_at_ms: bigint;
-}): HeldPosition | null {
+function heldPosition(
+	p: {
+		order_id: bigint;
+		root_id: bigint;
+		opened_at_ms: bigint;
+	},
+	lotSize: bigint,
+): HeldPosition | null {
 	return p.order_id === 0n
 		? null
 		: {
 				orderId: p.order_id,
 				rootId: p.root_id,
 				openedAtMs: p.opened_at_ms,
-				quantityRaw: decodeOrderRange(p.order_id).quantity,
+				quantityRaw: decodeOrderRange(p.order_id, lotSize).quantity,
 			};
 }
 
@@ -777,7 +780,10 @@ const cashOf = (e: { market_cash: bigint; required_cash: bigint; waiting_cash_ne
 	waitingCashNeed: e.waiting_cash_need,
 });
 
-function enqueueReceipt(e: (typeof queueEvents.OrderEnqueued)['$inferType']): EnqueueReceipt {
+function enqueueReceipt(
+	e: (typeof queueEvents.OrderEnqueued)['$inferType'],
+	lotSize: bigint,
+): EnqueueReceipt {
 	return {
 		type: 'enqueued',
 		marketId: normalizeSuiAddress(e.expiry_market_id),
@@ -797,7 +803,7 @@ function enqueueReceipt(e: (typeof queueEvents.OrderEnqueued)['$inferType']): En
 			minProbability: e.request.min_probability,
 			minProceeds: e.request.min_proceeds,
 		},
-		position: heldPosition(e.position),
+		position: heldPosition(e.position, lotSize),
 		timing: {
 			placedAtMs: e.timing.placed_at_ms,
 			earliestPriceMs: e.timing.earliest_price_ms,
@@ -843,7 +849,10 @@ function cohortCommitReceipt(
 	};
 }
 
-function fillReceipt(e: (typeof queueEvents.QueuedOrderFilled)['$inferType']): QueuedFillReceipt {
+function fillReceipt(
+	e: (typeof queueEvents.QueuedOrderFilled)['$inferType'],
+	lotSize: bigint,
+): QueuedFillReceipt {
 	return {
 		type: 'filled',
 		marketId: normalizeSuiAddress(e.expiry_market_id),
@@ -863,7 +872,7 @@ function fillReceipt(e: (typeof queueEvents.QueuedOrderFilled)['$inferType']): Q
 		},
 		tauMs: e.tau_ms,
 		tickMs: e.tick_ms,
-		position: heldPosition(e.position),
+		position: heldPosition(e.position, lotSize),
 		sender: normalizeSuiAddress(e.sender),
 		timestampMs: e.onchain_timestamp_ms,
 		cash: cashOf(e),
@@ -942,7 +951,8 @@ function recordFundsReceipt(
 const QUEUE_EVENT_DECODERS: readonly {
 	name: string;
 	layout: { parse(bytes: Uint8Array): unknown };
-	map: (e: never) => QueueEvent;
+	// `lotSize` is the config's position lot, which decodes a held position's quantity.
+	map: (e: never, lotSize: bigint) => QueueEvent;
 }[] = [
 	{ name: 'OrderEnqueued', layout: queueEvents.OrderEnqueued, map: enqueueReceipt },
 	{ name: 'CohortCommitted', layout: queueEvents.CohortCommitted, map: cohortCommitReceipt },
@@ -1005,11 +1015,12 @@ export function decodeQueueEvents(
 	result: DecodableTransactionResult,
 ): QueueEvent[] {
 	const pkg = predictOrdersOrigin(cfg);
+	const lotSize = BigInt(cfg.units.positionLotSize);
 	const out: QueueEvent[] = [];
 	for (const e of result.events ?? []) {
 		for (const d of QUEUE_EVENT_DECODERS) {
 			if (!matches(e, pkg, 'queue_events', d.name)) continue;
-			out.push(d.map(d.layout.parse(eventPayload(e, 'queue_events', d.name)) as never));
+			out.push(d.map(d.layout.parse(eventPayload(e, 'queue_events', d.name)) as never, lotSize));
 			break;
 		}
 	}
