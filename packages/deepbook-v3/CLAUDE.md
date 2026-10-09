@@ -259,9 +259,13 @@ pnpm --filter @mysten/deepbook-v3 sync-deployment
 - `queue.ts` ports the cash-need formulas (`deepbook_predict_math::math::need_*`) 1:1, and
   `test/predict/queue.test.ts` pins them with the Move unit-test vectors. Re-copy the vectors when
   the Move rounding changes.
-- The retired Predict entry points (`mint_exact_*`, `redeem_live`) keep their signatures, but their
-  source parameters are underscore-prefixed, so codegen renders capitalized argument keys (`_market`
-  → `Market`). `tx/trade.ts` mints the auth itself for them instead of using `withAuth`.
+- The retired Predict entry points (`mint_exact_*`, `redeem_live`, and the `set_ewma_*` setters)
+  keep their signatures, but their source parameters are underscore-prefixed, so codegen renders
+  capitalized argument keys (`_market` → `Market`). `tx/trade.ts` mints the auth itself for them
+  instead of using `withAuth`. The public `expiryMarketMoveCalls` and `protocolConfigMoveCalls` come
+  from `src/predict/bindings/`, which wraps those functions to keep the keys they shipped with. If a
+  regeneration capitalizes another exported function's keys, wrap it there too, and add it to the
+  `wrapped` list in `test/predict/move-calls.test.ts`.
 - `read.executionMode()` reads `ProtocolConfig.version_watermark` from the object's BCS, because the
   getter only exists from v4.
 - Predict's error constants are plain `u64` codes, so the fullnode surfaces no clever-error name.

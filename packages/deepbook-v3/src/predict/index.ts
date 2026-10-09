@@ -56,7 +56,7 @@ export { deriveAccountWrapperId, generateAuth } from './tx/common.js';
 // structs; the `*Events` namespaces are event layouts only.
 export * as adminMoveCalls from '../contracts/deepbook_predict/admin.js';
 export * as builderCodeMoveCalls from '../contracts/deepbook_predict/builder_code.js';
-export * as expiryMarketMoveCalls from '../contracts/deepbook_predict/expiry_market.js';
+export * as expiryMarketMoveCalls from './bindings/expiry-market.js';
 export * as marketLifecycleCapMoveCalls from '../contracts/deepbook_predict/market_lifecycle_cap.js';
 export * as marketManagerMoveCalls from '../contracts/deepbook_predict/market_manager.js';
 export * as pauseCapMoveCalls from '../contracts/deepbook_predict/pause_cap.js';
@@ -64,7 +64,7 @@ export * as plpMoveCalls from '../contracts/deepbook_predict/plp.js';
 export * as poolValuationCapMoveCalls from '../contracts/deepbook_predict/pool_valuation_cap.js';
 export * as predictAccountMoveCalls from '../contracts/deepbook_predict/predict_account.js';
 export * as pricingMoveCalls from '../contracts/deepbook_predict/pricing.js';
-export * as protocolConfigMoveCalls from '../contracts/deepbook_predict/protocol_config.js';
+export * as protocolConfigMoveCalls from './bindings/protocol-config.js';
 export * as rangeCodecMoveCalls from '../contracts/deepbook_predict/range_codec.js';
 export * as registryMoveCalls from '../contracts/deepbook_predict/registry.js';
 export * as builderCodeEvents from '../contracts/deepbook_predict/builder_code_events.js';
