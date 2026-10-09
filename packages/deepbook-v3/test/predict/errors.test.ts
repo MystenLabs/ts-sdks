@@ -99,7 +99,7 @@ describe('decodeMoveAbort', () => {
 
 // Predict's error constants are plain u64 codes, so the fullnode surfaces no clever-error name and
 // the SDK names them from ABORT_NAMES. The expected names are the Move constants at deepbookv3
-// af9f7c37 (`const EName: u64 = code;`).
+// 29117434 (`const EName: u64 = code;`).
 describe('plain abort codes decode to their constant names', () => {
 	const plain = (module: string, code: number) =>
 		decodeMoveAbort({ MoveAbort: { abortCode: String(code), location: { module } } });
@@ -130,6 +130,12 @@ describe('plain abort codes decode to their constant names', () => {
 		['sessions', 1, 'ESessionNotAuthorized'],
 		['session_config', 0, 'EPackageVersionDisabled'],
 		['account_registry', 1, 'EAppNotAuthorized'],
+		['strike_payout_tree', 1, 'EMaxPayoutTreeNodes'],
+		['strike_exposure_config', 3, 'EPremiumBelowMinimum'],
+		['strike_exposure', 5, 'EMintQuantityBelowMin'],
+		['expiry_cash', 0, 'EInsufficientCash'],
+		['plp', 14, 'EInsufficientFeeIncentiveReserve'],
+		['lp_book', 1, 'EBelowMinSupplyRequest'],
 	] as [string, number, string][])('%s code %i is %s', (module, code, name) => {
 		expect(plain(module, code)?.abortName).toBe(name);
 		expect(abortNameFor(module, BigInt(code))).toBe(name);
@@ -147,6 +153,11 @@ describe('plain abort codes decode to their constant names', () => {
 		expect(ABORT_NAMES.sessions).toHaveLength(3);
 		expect(ABORT_NAMES.session_config).toHaveLength(2);
 		expect(ABORT_NAMES.account_registry).toHaveLength(3);
+		expect(ABORT_NAMES.strike_payout_tree).toHaveLength(6);
+		expect(ABORT_NAMES.plp).toHaveLength(15);
+		// DeepBook core has `order` and `registry` modules too, so those stay unnamed.
+		expect(ABORT_NAMES).not.toHaveProperty('order');
+		expect(ABORT_NAMES).not.toHaveProperty('registry');
 	});
 
 	test('an unknown module or a code past the table stays unnamed', () => {

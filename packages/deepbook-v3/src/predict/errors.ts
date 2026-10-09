@@ -65,7 +65,7 @@ export interface MoveAbortError {
 /**
  * The error constants of the Predict modules the SDK's flows abort in, by module, as an array
  * indexed by the plain `u64` abort code (each module numbers its constants from 0 with no gaps).
- * Generated from the Move sources at deepbookv3 d8fa6aa8. A published code never changes meaning:
+ * Generated from the Move sources at deepbookv3 29117434. A published code never changes meaning:
  * new codes only append, so an older package version's codes are a prefix of its module's list.
  * Keyed by module name only, as the abort location reports it, so a same-named module in an
  * unrelated package would be named from this table too.
@@ -137,6 +137,63 @@ export const ABORT_NAMES: Readonly<Record<string, readonly string[]>> = Object.f
 		'EPythSpotUnavailable',
 		'EPythSpotStale',
 		'EPythForwardRequired',
+	],
+	// Admission, positions and the LP pool. `order` and `registry` are left out: DeepBook's core
+	// package has modules of the same names, which this table would misname.
+	strike_exposure: [
+		'EInvalidCloseQuantity',
+		'EInvalidAdmissionTick',
+		'EInvalidReferenceTick',
+		'EReferenceTickAlreadySet',
+		'ETermsExposureMismatch',
+		'EMintQuantityBelowMin',
+		'EInvalidInventoryImpactScale',
+	],
+	strike_exposure_config: [
+		'EEntryProbabilityOutOfBounds',
+		'EInvalidEntryProbabilityBound',
+		'EInvalidFeeProbability',
+		'EPremiumBelowMinimum',
+	],
+	strike_payout_tree: [
+		'EInsufficientPayoutQuantity',
+		'EMaxPayoutTreeNodes',
+		'ENonMonotonePrice',
+		'EStaleValuationSnapshot',
+		'ESnapshotSeqNotIncreasing',
+		'ENodeMissing',
+	],
+	expiry_cash: ['EInsufficientCash', 'EInventoryImpactRebateExceedsReserve'],
+	predict_account: ['EPositionAlreadyExists', 'EPositionNotFound'],
+	builder_code: ['ENotOwner'],
+	plp: [
+		'EMissingExpiryValuation',
+		'ENotBootstrapped',
+		'EAlreadyBootstrapped',
+		'EBelowMinBootstrapLiquidity',
+		'EBelowMinFeeIncentiveSponsorship',
+		'EMaxLiveExpiryMarketsExceeded',
+		'EValuationSnapshotNotSealed',
+		'EExpiryPricerAlreadySnapshotted',
+		'EIncompleteValuationSnapshot',
+		'EExpiredMarketNotSettled',
+		'EValuationWindowExpired',
+		'ESnapshotStageOpen',
+		'EBelowMinUsdcContribution',
+		'EContributionExceedsPriceCeiling',
+		'EInsufficientFeeIncentiveReserve',
+	],
+	lp_book: [
+		'ERequestNotFound',
+		'EBelowMinSupplyRequest',
+		'EBelowMinWithdrawRequest',
+		'ENotRequestOwner',
+	],
+	pool_accounting: [
+		'EUnknownRegisteredExpiry',
+		'ERegisteredExpiryAlreadyExists',
+		'EMaxExpiryFundingExceeded',
+		'ETerminalAccountingStarted',
 	],
 	// The order-flow package (`deepbook_predict_orders`).
 	queue: [
@@ -330,6 +387,18 @@ const PREDICT_ERROR_TEXT: Readonly<Record<string, string>> = Object.freeze({
 	'expiry_market::EMintPaused': 'Minting is paused on this market.',
 	'expiry_market::EInvalidOrderTiming': 'This market no longer takes orders before its expiry.',
 	'expiry_market::EMarketNotSettled': "The market hasn't settled yet.",
+	'strike_exposure_config::EEntryProbabilityOutOfBounds':
+		"This strike's price is outside the market's entry range. Pick a strike nearer the money.",
+	'strike_exposure_config::EPremiumBelowMinimum':
+		"The order's premium is below the 1 USDC minimum.",
+	'strike_exposure::EMintQuantityBelowMin':
+		'The price moved, so the budget buys fewer contracts than the order asks for.',
+	'strike_payout_tree::EMaxPayoutTreeNodes':
+		'This market has no room for a new strike right now. Pick a strike that already has positions.',
+	'expiry_cash::EInsufficientCash': "This market can't take an order this size right now.",
+	// The LP pool.
+	'lp_book::EBelowMinSupplyRequest': 'The deposit is below the minimum supply request.',
+	'lp_book::EBelowMinWithdrawRequest': 'The withdrawal is below the minimum withdraw request.',
 	// Live pricing. The unavailable and stale aborts clear once the oracles write again.
 	'pricing::EBlockScholesPriceUnavailable':
 		'Pricing is briefly unavailable for this market. Try again in a moment.',
