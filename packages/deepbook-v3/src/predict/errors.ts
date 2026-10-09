@@ -176,6 +176,11 @@ export const ABORT_NAMES: Readonly<Record<string, readonly string[]>> = Object.f
 	],
 	// The math library (`deepbook_predict_math`).
 	lazer_price: ['EPropertyNotRequested', 'EGenerationAfterEnvelope', 'EFeedMissing'],
+	// Sessions (`deepbook_sessions`), which the `/sessions` Predict wrappers abort in.
+	sessions: ['EInvalidSessionDuration', 'ESessionNotAuthorized', 'ESessionLimitExceeded'],
+	session_config: ['EPackageVersionDisabled', 'EVersionWatermarkNotAdvanced'],
+	// The shared account (`deepbook_account`).
+	account_registry: ['EAppAlreadyAuthorized', 'EAppNotAuthorized', 'EAccountAlreadyExists'],
 });
 
 /**
@@ -329,6 +334,17 @@ const PREDICT_ERROR_TEXT: Readonly<Record<string, string>> = Object.freeze({
 	'lazer_price::EFeedMissing': "The Pyth update doesn't carry this market's feed.",
 	'lazer_price::EPropertyNotRequested':
 		"The Pyth update doesn't carry the price property commit needs.",
+	// Sessions and the shared account.
+	'sessions::ESessionNotAuthorized':
+		"This session key isn't authorized for the account, or its grant has expired.",
+	'sessions::ESessionLimitExceeded':
+		'The account holds the most session keys it can. Revoke expired ones, then grant again.',
+	'sessions::EInvalidSessionDuration': 'A session must last more than 0 ms and at most 30 days.',
+	'session_config::EPackageVersionDisabled':
+		'This sessions package version is retired. Update to an SDK that calls the current package.',
+	'account_registry::EAppNotAuthorized':
+		"Trading through this app (such as Sessions) isn't enabled for accounts yet.",
+	'account_registry::EAccountAlreadyExists': 'This address already has an account.',
 	// Protocol gates.
 	'protocol_config::ECutoverNotReached':
 		"Queued orders aren't live yet: the protocol's version watermark hasn't been raised.",

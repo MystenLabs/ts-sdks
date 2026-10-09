@@ -127,6 +127,9 @@ describe('plain abort codes decode to their constant names', () => {
 		['pricing', 12, 'EBlockScholesPriceUnavailable'],
 		['pricing', 16, 'EBlockScholesInputTooWide'],
 		['pricing', 19, 'EPythForwardRequired'],
+		['sessions', 1, 'ESessionNotAuthorized'],
+		['session_config', 0, 'EPackageVersionDisabled'],
+		['account_registry', 1, 'EAppNotAuthorized'],
 	] as [string, number, string][])('%s code %i is %s', (module, code, name) => {
 		expect(plain(module, code)?.abortName).toBe(name);
 		expect(abortNameFor(module, BigInt(code))).toBe(name);
@@ -141,6 +144,9 @@ describe('plain abort codes decode to their constant names', () => {
 		expect(ABORT_NAMES.expiry_market).toHaveLength(23);
 		expect(ABORT_NAMES.protocol_config).toHaveLength(16);
 		expect(ABORT_NAMES.pricing).toHaveLength(20);
+		expect(ABORT_NAMES.sessions).toHaveLength(3);
+		expect(ABORT_NAMES.session_config).toHaveLength(2);
+		expect(ABORT_NAMES.account_registry).toHaveLength(3);
 	});
 
 	test('an unknown module or a code past the table stays unnamed', () => {
@@ -175,6 +181,8 @@ describe('plain abort codes decode to their constant names', () => {
 			['protocol_config', 15],
 			['pricing', 12],
 			['pricing', 4],
+			['sessions', 1],
+			['account_registry', 1],
 		] as [string, number][]) {
 			expect(describePredictError(plain(module, code)!)).not.toBeNull();
 		}
