@@ -498,6 +498,9 @@ export class SessionsContract {
 	// market's three feed ids plus Predict's `OracleRegistry` (the propbook registry). Amounts are
 	// raw Move units. Each returns the new queue record ID (u64). The queue and Predict perform
 	// every check; the caps below are only the ones a session key should never send by accident.
+	//
+	// TODO(DBU-887): `getSessionsConfig` still records Sessions v2, which has none of these
+	// wrappers. They need a config whose `sessionsPackageId` is the Sessions v3 publication.
 
 	/**
 	 * @description Queue a mint of an exact payout quantity, as `session`. `maxCost` (all-in cap)

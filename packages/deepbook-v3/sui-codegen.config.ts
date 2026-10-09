@@ -10,7 +10,7 @@ import type { SuiCodegenConfig } from '@mysten/codegen';
 // `DEEPBOOKV3_ROOT=/path/to/worktree pnpm codegen`.
 //
 // The Predict, Sessions, order-flow companion (`deepbook_predict_orders`) and math library
-// (`deepbook_predict_math`) bindings were generated from deepbookv3 f840a28d (DBU-885,
+// (`deepbook_predict_math`) bindings were generated from deepbookv3 af9f7c37 (DBU-885,
 // MystenLabs/deepbookv3#1351): delayed execution split across Predict Mainnet v4 / Testnet v5,
 // the two fresh packages, and Sessions v3. That commit is not published yet, so re-run codegen
 // from the published commit before the Testnet and Mainnet syncs and diff the result. Use the
