@@ -424,8 +424,14 @@ describe('reads', () => {
 		const outcome = await pc.read.waitForOutcome(market(s), 1n, { pollMs: 1 });
 		expect(outcome.outcome).toBe('filled');
 		expect(simulated.length).toBeGreaterThanOrEqual(3);
+		// A record never seen is polled until the timeout, since the fullnode can trail execution.
 		const gone = scenario();
-		expect((await client(gone).pc.read.waitForOutcome(market(gone), 7n)).outcome).toBe('gone');
+		const goneClient = client(gone);
+		expect(
+			(await goneClient.pc.read.waitForOutcome(market(gone), 7n, { pollMs: 1, timeoutMs: 20 }))
+				.outcome,
+		).toBe('gone');
+		expect(goneClient.simulated.length).toBeGreaterThan(1);
 		const pending = scenario({ records: new Map([[1n, recordFields({ status: 0 })]]) });
 		expect(
 			(
@@ -435,6 +441,53 @@ describe('reads', () => {
 				})
 			).outcome,
 		).toBe('timeout');
+	});
+
+	test('waitForOutcome waits for a record the fullnode shows late, and ends once a seen one goes', async () => {
+		// Missing on the first two reads (the fullnode trails the enqueue), filled on the third.
+		const late = scenario();
+		let reads = 0;
+		late.records = new Proxy(new Map(), {
+			get(target, prop) {
+				if (prop === 'get') {
+					return () => {
+						reads += 1;
+						return reads >= 3
+							? recordFields({
+									status: 2,
+									position: { order_id: 9n },
+									result: { quantity: 1n, amount: 1n },
+								})
+							: undefined;
+					};
+				}
+				return Reflect.get(target, prop, target);
+			},
+		}) as typeof late.records;
+		expect(
+			(await client(late).pc.read.waitForOutcome(market(late), 1n, { pollMs: 1 })).outcome,
+		).toBe('filled');
+		// Seen waiting, then missing (cleaned up): 'gone' at once, not at the timeout.
+		const cleaned = scenario();
+		let seen = 0;
+		cleaned.records = new Proxy(new Map(), {
+			get(target, prop) {
+				if (prop === 'get') {
+					return () => (++seen === 1 ? recordFields({ status: 0 }) : undefined);
+				}
+				return Reflect.get(target, prop, target);
+			},
+		}) as typeof cleaned.records;
+		const started = Date.now();
+		expect(
+			(
+				await client(cleaned).pc.read.waitForOutcome(market(cleaned), 1n, {
+					pollMs: 1,
+					timeoutMs: 10_000,
+				})
+			).outcome,
+		).toBe('gone');
+		expect(Date.now() - started).toBeLessThan(5_000);
 	});
 
 	test('read.executionMode reads the watermark from ProtocolConfig', async () => {

@@ -2597,8 +2597,11 @@ export class PredictClient {
 
 		/**
 		 * Poll a record until it is filled, refunded or closed (`pollMs`, default 250), or until
-		 * `timeoutMs` (default 30 s). A missing record ends as `'gone'`. The record's result is
-		 * enough for the UI; the fee breakdown is in the `QueuedOrderFilled` event.
+		 * `timeoutMs` (default 30 s). The fullnode a client reads can trail the enqueue's
+		 * execution, so a record not seen yet is polled again until the timeout, and ends as
+		 * `'gone'` only then. A record that disappears after it was seen ends as `'gone'` at once.
+		 * The record's result is enough for the UI; the fee breakdown is in the
+		 * `QueuedOrderFilled` event.
 		 */
 		waitForOutcome: async (
 			m: MarketCoordinates,
@@ -2607,14 +2610,20 @@ export class PredictClient {
 		): Promise<QueuedOrderOutcome> => {
 			const pollMs = opts.pollMs ?? 250;
 			const deadline = Date.now() + (opts.timeoutMs ?? 30_000);
+			let seen = false;
 			for (;;) {
 				const order = await this.read.order(m, recordId);
-				if (!order) return { outcome: 'gone', order: null };
-				const state = order.view.state;
-				if (state === 'filled' || state === 'refunded' || state === 'closed') {
-					return { outcome: state, order };
+				const timedOut = Date.now() + pollMs > deadline;
+				if (!order) {
+					if (seen || timedOut) return { outcome: 'gone', order: null };
+				} else {
+					seen = true;
+					const state = order.view.state;
+					if (state === 'filled' || state === 'refunded' || state === 'closed') {
+						return { outcome: state, order };
+					}
+					if (timedOut) return { outcome: 'timeout', order };
 				}
-				if (Date.now() + pollMs > deadline) return { outcome: 'timeout', order };
 				await sleep(pollMs, opts.signal);
 			}
 		},
