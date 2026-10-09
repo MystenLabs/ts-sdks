@@ -2297,6 +2297,13 @@ export class PredictClient {
 						`${opts.amount} doesn't cover the ${rawToUsdc(fee)} order fee`,
 					);
 				}
+				// No budget below the minimum premium can be admitted, and the account's quote
+				// aborts `EOrderFailsLimits` on one, so refuse it as a visitor's search does.
+				if (budgetRequested < MIN_PREMIUM) {
+					throw new PredictInputError(
+						`a budget of ${rawToUsdc(budgetRequested)} is below the minimum premium (a mint's premium must be at least ${rawToUsdc(MIN_PREMIUM)} USDC)`,
+					);
+				}
 				// The account's own quote caps the budget at its balance, so it only previews an
 				// order the balance covers.
 				quoteForAccount =

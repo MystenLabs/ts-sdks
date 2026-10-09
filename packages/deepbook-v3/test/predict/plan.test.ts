@@ -303,6 +303,24 @@ describe('read.planMint', () => {
 		}
 	});
 
+	test("an account's budget below the minimum premium is refused before any quote", async () => {
+		const s = scenario();
+		const { pc, simulated } = client(s);
+		const before = simulated.length;
+		const err = await pc.read
+			.planMint(OWNER, market(s), { amount: 0.5, slippageCents: 10 })
+			.catch((e) => e);
+		expect(err).toBeInstanceOf(PredictInputError);
+		expect(err.message).toMatch(/at least 1 USDC/);
+		// The account's quote would abort EOrderFailsLimits, so the plan never sends it.
+		expect(
+			simulated
+				.slice(before)
+				.flatMap(moveCallTargets)
+				.filter((t) => t.includes('quote_mint')),
+		).toEqual([]);
+	});
+
 	test('subsidized limits pass the unsubsidized admission at zero and small slippage', async () => {
 		const s = scenario();
 		const { pc } = client(s);
