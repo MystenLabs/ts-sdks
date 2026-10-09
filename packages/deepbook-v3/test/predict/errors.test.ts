@@ -123,6 +123,10 @@ describe('plain abort codes decode to their constant names', () => {
 		['protocol_config', 13, 'ECutoverNotReached'],
 		['protocol_config', 15, 'EOrderFlowNotAllowed'],
 		['lazer_price', 2, 'EFeedMissing'],
+		['pricing', 0, 'EZeroForward'],
+		['pricing', 12, 'EBlockScholesPriceUnavailable'],
+		['pricing', 16, 'EBlockScholesInputTooWide'],
+		['pricing', 19, 'EPythForwardRequired'],
 	] as [string, number, string][])('%s code %i is %s', (module, code, name) => {
 		expect(plain(module, code)?.abortName).toBe(name);
 		expect(abortNameFor(module, BigInt(code))).toBe(name);
@@ -136,10 +140,11 @@ describe('plain abort codes decode to their constant names', () => {
 		expect(ABORT_NAMES.desk).toHaveLength(3);
 		expect(ABORT_NAMES.expiry_market).toHaveLength(23);
 		expect(ABORT_NAMES.protocol_config).toHaveLength(16);
+		expect(ABORT_NAMES.pricing).toHaveLength(20);
 	});
 
 	test('an unknown module or a code past the table stays unnamed', () => {
-		expect(plain('pricing', 6)?.abortName).toBeNull();
+		expect(plain('oracle', 6)?.abortName).toBeNull();
 		expect(plain('queue', 13)?.abortName).toBeNull();
 		expect(abortNameFor('queue', -1n)).toBeNull();
 		for (const inherited of ['__proto__', 'constructor', 'hasOwnProperty', 'toString']) {
@@ -168,6 +173,8 @@ describe('plain abort codes decode to their constant names', () => {
 			['expiry_market', 14],
 			['lazer_price', 2],
 			['protocol_config', 15],
+			['pricing', 12],
+			['pricing', 4],
 		] as [string, number][]) {
 			expect(describePredictError(plain(module, code)!)).not.toBeNull();
 		}
@@ -242,6 +249,13 @@ describe('describePredictError', () => {
 		expect(
 			describePredictError(new PredictMoveError('expiry_market', 13n, 'EDelayedExecutionRequired')),
 		).toMatch(/queued order/);
+		// A refused order names every cause admission checks, not only the order's own limits.
+		expect(
+			describePredictError(new PredictMoveError('expiry_market', 14n, 'EOrderFailsLimits')),
+		).toMatch(/entry range.*minimum/);
+		expect(
+			describePredictError(new PredictMoveError('pricing', 12n, 'EBlockScholesPriceUnavailable')),
+		).toMatch(/Try again/);
 	});
 
 	test("the queue's own checks are named by the companion's queue module", () => {

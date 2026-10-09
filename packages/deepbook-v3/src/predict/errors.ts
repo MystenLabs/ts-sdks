@@ -115,6 +115,29 @@ export const ABORT_NAMES: Readonly<Record<string, readonly string[]>> = Object.f
 		'EEwmaRetired',
 		'EOrderFlowNotAllowed',
 	],
+	// Predict's live pricer, which every quote, plan and enqueue loads.
+	pricing: [
+		'EZeroForward',
+		'ECannotBeNegative',
+		'ENonPositiveVariance',
+		'EInvalidRange',
+		'EBlockScholesPriceStale',
+		'EBlockScholesInputsInvalid',
+		'EPythSpotInvalid',
+		'EWrongPythFeed',
+		'EWrongBlockScholesValueStore',
+		'ELivePricingExpired',
+		'EBlockScholesSVIStale',
+		'EWrongBlockScholesSVIStore',
+		'EBlockScholesPriceUnavailable',
+		'EBlockScholesSVIUnavailable',
+		'EBlockScholesMinVarianceInvalid',
+		'EOracleWrittenInThisTransaction',
+		'EBlockScholesInputTooWide',
+		'EPythSpotUnavailable',
+		'EPythSpotStale',
+		'EPythForwardRequired',
+	],
 	// The order-flow package (`deepbook_predict_orders`).
 	queue: [
 		'EWrongDesk',
@@ -284,12 +307,22 @@ const PREDICT_ERROR_TEXT: Readonly<Record<string, string>> = Object.freeze({
 	'expiry_market::EDelayedExecutionRequired':
 		'Immediate trades are retired on this market. Place a queued order instead.',
 	'expiry_market::EOrderFailsLimits':
-		'The order already misses its own limits at the current price.',
+		"The market can't take this order at the current price: it misses its price limits, its price is outside the market's entry range, or its premium is below the minimum.",
 	'expiry_market::EInsufficientMarketCash': "This market can't take an order this size right now.",
 	'expiry_market::EMintCostCapRequired': 'Set a maximum cost for the order.',
 	'expiry_market::EMintPaused': 'Minting is paused on this market.',
 	'expiry_market::EInvalidOrderTiming': 'This market no longer takes orders before its expiry.',
 	'expiry_market::EMarketNotSettled': "The market hasn't settled yet.",
+	// Live pricing. The unavailable and stale aborts clear once the oracles write again.
+	'pricing::EBlockScholesPriceUnavailable':
+		'Pricing is briefly unavailable for this market. Try again in a moment.',
+	'pricing::EBlockScholesSVIUnavailable':
+		'Pricing is briefly unavailable for this market. Try again in a moment.',
+	'pricing::EBlockScholesPriceStale': "This market's price feed is behind. Try again shortly.",
+	'pricing::EBlockScholesSVIStale': "This market's price feed is behind. Try again shortly.",
+	'pricing::EPythSpotUnavailable': "This market's live price is unavailable. Try again shortly.",
+	'pricing::EPythSpotStale': "This market's live price is behind. Try again shortly.",
+	'pricing::ELivePricingExpired': 'This market has reached its expiry.',
 	// Filler (`queue::commit`, decoding the Lazer update).
 	'lazer_price::EGenerationAfterEnvelope':
 		'The Pyth update was generated after its own timestamp envelope.',

@@ -266,9 +266,10 @@ pnpm --filter @mysten/deepbook-v3 sync-deployment
   getter only exists from v4.
 - Predict's error constants are plain `u64` codes, so the fullnode surfaces no clever-error name.
   `errors.ts` `ABORT_NAMES` maps `(module, code)` to the constant name for `expiry_market`,
-  `protocol_config`, the companion's modules and `lazer_price`, generated from the Move sources
-  (each module's codes run from 0 with no gaps, and only append). Extend it when a module gains
-  codes, or `describePredictError` and checks such as `abortName === 'EMarketNotSettled'` miss them.
+  `protocol_config`, `pricing`, the companion's modules and `lazer_price`, generated from the Move
+  sources (each module's codes run from 0 with no gaps, and only append). Extend it when a module
+  gains codes, or `describePredictError` and checks such as `abortName === 'EMarketNotSettled'` miss
+  them.
 - `queue.ORDER_FLOW_PACKAGE_VERSION` mirrors `desk::current_version` of the generated companion
   source. The preflight refuses with `'retired'` when the desk floor is above it, so bump it with
   the companion whenever the bindings are regenerated.
