@@ -272,7 +272,8 @@ describe('execution mode and the watermark', () => {
 		expect(executionModeFor(3n, false)).toBe('immediate');
 		expect(executionModeFor(3n, true)).toBe('awaiting-cutover');
 		expect(executionModeFor(4n, true)).toBe('delayed');
-		expect(executionModeFor(5n, true)).toBe('delayed');
+		// A watermark above the Predict code this SDK calls retires it.
+		expect(executionModeFor(5n, true)).toBe('retired');
 		expect(executionModeFor(4n, false)).toBe('unsupported');
 		// The Predict upgrade recorded without the order-flow package.
 		expect(executionModeFor(3n, false, true)).toBe('awaiting-cutover');

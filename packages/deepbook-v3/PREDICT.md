@@ -118,7 +118,7 @@ one `MarketQueue`, at an ID derived from the package's single `QueueRegistry` an
 ```ts
 import { snapStrike } from '@mysten/deepbook-v3/predict';
 
-// Which path is live? 'immediate' | 'awaiting-cutover' | 'delayed' | 'unsupported'.
+// Which path is live? 'immediate' | 'awaiting-cutover' | 'delayed' | 'unsupported' | 'retired'.
 const mode = await client.predict.read.executionMode();
 
 // The market's queue: the "pricing delayed" gate, τ / deadline / cutoff preview, the order fee,
@@ -200,21 +200,22 @@ options.
 - **Preflight, typed.** Each `enqueue*` builder reads the market once and refuses, with a
   `PredictPreflightError` and a `code`, an order the queue or protocol gates would abort: `not-live`
   (the watermark isn't raised, or Predict doesn't allowlist the order-flow package yet), `no-queue`
-  (the market's `MarketQueue` isn't created yet), `retired` (the desk's version floor retired the
-  order-flow package this SDK calls), `paused`, `stuck`, `past-cutoff`, `queue-full`, `account-cap`,
-  `fee` (prompt a top-up: a mint needs a balance above the order fee, a sell at least the fee),
-  `market-cash`, `min-premium`, `below-min-sell`, `record-not-open`, `not-record-owner`. A plan's
-  `accepting` and `refusal` run the same preflight on the plan's order, so the form's button never
-  enables an order its enqueue refuses. A mint plan also refuses `fee` when the balance doesn't
-  cover `totalDebit`, `min-premium` when a budget buys less than the minimum premium without the fee
-  subsidy, and `cost-above-payout` when the unsubsidized cost is above the payout, or for a budget,
-  about the payout. `tx.enqueuePlan` throws a refused plan's code, and `fee` when the balance now
-  escrows less than the plan's budget. `planSell` throws `record-not-open` for a record that isn't
-  Open, since the chain can't quote it. Two admission conditions are checked only on chain, at
-  placement: the market's SVI age under the order desk's `svi_max_age_ms`, and room in the payout
-  tree for a new strike's boundary nodes. A refused order never fails the rest of a transaction. The
-  order's own price limits are checked only on chain, at placement (`EOrderFailsLimits`), and the
-  preview runs on the local clock, so near the cutoff the chain can still refuse: decode that with
+  (the market's `MarketQueue` isn't created yet), `retired` (a Predict upgrade raised the watermark
+  above the Predict code this SDK calls, or the desk's version floor retired the order-flow package
+  it calls), `paused`, `stuck`, `past-cutoff`, `queue-full`, `account-cap`, `fee` (prompt a top-up:
+  a mint needs a balance above the order fee, a sell at least the fee), `market-cash`,
+  `min-premium`, `below-min-sell`, `record-not-open`, `not-record-owner`. A plan's `accepting` and
+  `refusal` run the same preflight on the plan's order, so the form's button never enables an order
+  its enqueue refuses. A mint plan also refuses `fee` when the balance doesn't cover `totalDebit`,
+  `min-premium` when a budget buys less than the minimum premium without the fee subsidy, and
+  `cost-above-payout` when the unsubsidized cost is above the payout, or for a budget, about the
+  payout. `tx.enqueuePlan` throws a refused plan's code, and `fee` when the balance now escrows less
+  than the plan's budget. `planSell` throws `record-not-open` for a record that isn't Open, since
+  the chain can't quote it. Two admission conditions are checked only on chain, at placement: the
+  market's SVI age under the order desk's `svi_max_age_ms`, and room in the payout tree for a new
+  strike's boundary nodes. A refused order never fails the rest of a transaction. The order's own
+  price limits are checked only on chain, at placement (`EOrderFailsLimits`), and the preview runs
+  on the local clock, so near the cutoff the chain can still refuse: decode that with
   `describePredictError`. `EOrderFailsLimits` also covers admission: an entry price outside the
   market's band, or a premium below the minimum. `planMint` throws it as a `PredictMoveError` when
   the strike's price is outside the band, before any plan exists, so pick a strike with

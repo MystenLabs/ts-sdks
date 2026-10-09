@@ -13,6 +13,7 @@ import { normalizeSuiAddress } from '@mysten/sui/utils';
 import type { GeneratedConfig, OrdersGeneratedConfig } from '../config/generated.js';
 import {
 	DELAYED_EXECUTION_VERSION,
+	PREDICT_PACKAGE_VERSION,
 	policyFromBcs,
 	type DelayedExecutionPolicy,
 	type QueueHeads,
@@ -293,8 +294,12 @@ export async function versionWatermark(
  *   `EDelayedExecutionRequired`.
  * - `'unsupported'`: the watermark is raised but this SDK's config has no delayed-execution
  *   record for the network. Upgrade the SDK, or pass a config that records it.
+ * - `'retired'`: the watermark is above the Predict code version this SDK calls
+ *   (`PREDICT_PACKAGE_VERSION`), so every version-gated call aborts `EPackageVersionDisabled`.
+ *   Upgrade the SDK.
  */
-export type ExecutionMode = 'immediate' | 'awaiting-cutover' | 'delayed' | 'unsupported';
+export type ExecutionMode =
+	'immediate' | 'awaiting-cutover' | 'delayed' | 'unsupported' | 'retired';
 
 /**
  * The {@link ExecutionMode} for a watermark and what the config records.
@@ -309,7 +314,8 @@ export function executionModeFor(
 	recordsPredictUpgrade: boolean = recordsDelayedExecution,
 ): ExecutionMode {
 	if (watermark >= DELAYED_EXECUTION_VERSION) {
-		return recordsDelayedExecution ? 'delayed' : 'unsupported';
+		if (!recordsDelayedExecution) return 'unsupported';
+		return watermark > PREDICT_PACKAGE_VERSION ? 'retired' : 'delayed';
 	}
 	return recordsDelayedExecution || recordsPredictUpgrade ? 'awaiting-cutover' : 'immediate';
 }

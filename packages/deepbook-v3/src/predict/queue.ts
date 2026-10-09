@@ -35,6 +35,14 @@ import { U64_MAX } from './units.js';
 export const DELAYED_EXECUTION_VERSION = 4n;
 
 /**
+ * Predict's `constants::current_version` of the package these bindings were generated from. Every
+ * version-gated Predict call checks `chk_version`, which aborts `EPackageVersionDisabled` once
+ * `ProtocolConfig.version_watermark` is above it, so a higher watermark retires the Predict code
+ * this SDK calls. Bump it with Predict when regenerating.
+ */
+export const PREDICT_PACKAGE_VERSION = 4n;
+
+/**
  * `desk::current_version` of the order-flow package these bindings were generated from. The desk's
  * version floor retires older companion code, so a floor above it means the package this SDK calls
  * aborts `EPackageVersionDisabled`. Bump it with the companion when regenerating.

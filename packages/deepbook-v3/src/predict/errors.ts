@@ -233,8 +233,9 @@ export type PredictPreflightCode =
 	/** The market has no `MarketQueue` yet: `queue::create_and_share` hasn't run for it. */
 	| 'no-queue'
 	/**
-	 * The order desk's version floor retired the order-flow package version this SDK calls
-	 * (`desk::EPackageVersionDisabled`). Update the SDK.
+	 * A version floor retired code this SDK calls: Predict's watermark is above the Predict
+	 * version it was built for (`protocol_config::EPackageVersionDisabled`), or the order desk's
+	 * floor is above its order-flow package (`desk::EPackageVersionDisabled`). Update the SDK.
 	 */
 	| 'retired'
 	/** Trading is paused, the protocol is frozen, or minting is paused on this market. */

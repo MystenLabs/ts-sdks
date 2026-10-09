@@ -200,6 +200,7 @@ describe('queued mints', () => {
 		['not-live', { watermark: 3n }],
 		['not-live', { orderFlowEnabled: false }],
 		['retired', { deskWatermark: 2n }],
+		['retired', { watermark: 5n }],
 		['paused', { frozen: true }],
 		['paused', { tradingPaused: true }],
 		['paused', { mintPaused: true }],
@@ -370,6 +371,7 @@ describe('reads', () => {
 		['watermark not raised', { watermark: 3n }, 'not-live', 'not-live'],
 		['order flow not allowlisted', { orderFlowEnabled: false }, 'not-live', 'not-live'],
 		['the desk floor retired this companion', { deskWatermark: 2n }, 'retired', 'retired'],
+		['a Predict upgrade retired the code this SDK calls', { watermark: 5n }, 'retired', 'retired'],
 		['the account at its cap', { waitingOrders: 5n }, 'account-cap', 'account-cap'],
 	] as [string, Partial<QueueScenario>, string | null, string | null][])(
 		'read.queue acceptance matches the builder gates: %s',

@@ -1199,7 +1199,14 @@ export class PredictClient {
 				"queued orders aren't live yet: the protocol hasn't enabled the order-flow package",
 			);
 		}
-		if (executionModeFor(state.protocol.versionWatermark, true) !== 'delayed') {
+		const mode = executionModeFor(state.protocol.versionWatermark, true);
+		if (mode === 'retired') {
+			throw new PredictPreflightError(
+				'retired',
+				'the Predict package version this SDK calls is retired: update the SDK',
+			);
+		}
+		if (mode !== 'delayed') {
 			throw new PredictPreflightError(
 				'not-live',
 				"queued orders aren't live yet: the protocol's version watermark hasn't been raised",
