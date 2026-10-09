@@ -531,7 +531,7 @@ describe('quotes', () => {
 	});
 
 	test('quoteSell nets the order fee off the proceeds', async () => {
-		const s = scenario();
+		const s = scenario({ records: new Map([[3n, recordFields({ status: 2 })]]) });
 		const { pc, simulated } = client(s);
 		const q = await pc.read.quoteSell(OWNER, market(s), { recordId: 3n, quantity: 2 });
 		expect(moveCallTargets(simulated.at(-1)!)).toEqual([

@@ -188,10 +188,12 @@ visitor's budget quote needs a premium of at least 1 USDC, so a smaller budget i
   `accepting` and `refusal` run the same preflight on the plan's order, so the form's button never
   enables an order its enqueue refuses. A mint plan also refuses `fee` when the balance doesn't
   cover `totalDebit`, `min-premium` when a budget buys less than the minimum premium without the fee
-  subsidy, and `cost-above-payout` when the unsubsidized cost is above the payout. A refused order
-  never fails the rest of a transaction. The order's own price limits are checked only on chain, at
-  placement (`EOrderFailsLimits`), and the preview runs on the local clock, so near the cutoff the
-  chain can still refuse: decode that with `describePredictError`.
+  subsidy, and `cost-above-payout` when the unsubsidized cost is above the payout. `tx.enqueuePlan`
+  throws a refused plan's code, and `fee` when the balance now escrows less than the plan's budget.
+  `planSell` throws `record-not-open` for a record that isn't Open, since the chain can't quote it.
+  A refused order never fails the rest of a transaction. The order's own price limits are checked
+  only on chain, at placement (`EOrderFailsLimits`), and the preview runs on the local clock, so
+  near the cutoff the chain can still refuse: decode that with `describePredictError`.
 - **Order states.** `read.order(s)` returns each record with `queue.orderView`: `placed` (with
   `awaitingPrice` once τ passes), `priced` (the committed price and a countdown to the deadline),
   then `filled` or `refunded`. Report "Filled" only from the record or the `QueuedOrderFilled`

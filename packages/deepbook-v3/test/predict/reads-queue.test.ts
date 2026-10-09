@@ -178,7 +178,9 @@ describe('records and quotes', () => {
 	});
 
 	test('quoteRedeemOpen loads a live pricer, quotes the record on the queue and reads the desk', async () => {
-		const { client, simulated } = queueClient(scenario());
+		const { client, simulated } = queueClient(
+			scenario({ records: new Map([[3n, recordFields({ status: 2 })]]) }),
+		);
 		const { quote, policy } = await quoteRedeemOpen(client, config, {
 			expiryMarketId: MARKET,
 			wrapperId: '0x' + 'ef'.repeat(32),

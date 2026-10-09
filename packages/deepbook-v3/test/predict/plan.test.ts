@@ -84,6 +84,8 @@ describe('limit helpers', () => {
 		expect(limits.pricePerContract).toEqual({ nowRaw: 408_300_000n, worstRaw: 508_300_000n });
 		// 4.98 / 0.5083 = 9.7973… contracts, floored to the 0.01 lot.
 		expect(limits.minQuantityRaw).toBe(9_790_000n);
+		// At no slippage and a budget of exactly the quote's cost, the floor leaves the fill's
+		// per-component rounding a few raw units, one lot below the quote.
 		expect(
 			budgetMintLimits({
 				...QUOTE,
@@ -91,7 +93,7 @@ describe('limit helpers', () => {
 				slippageRaw: 0n,
 				budgetRaw: 4_083_000n,
 			}).minQuantityRaw,
-		).toBe(10_000_000n);
+		).toBe(9_990_000n);
 	});
 
 	test('an exact mint caps probability and cost at the worst price, and cost at the quantity', () => {
@@ -143,6 +145,20 @@ describe('limit helpers', () => {
 			expect(exact.maxCostRaw).toBeGreaterThanOrEqual(admissionCost(QUOTE.quoteQuantityRaw));
 			expect(exact.maxProbabilityRaw).toBe(400_000_000n + slippageRaw);
 		}
+	});
+
+	test("the floor leaves room for the fill's per-component rounding", () => {
+		// The chain prices 34.73 contracts at 11.705354 without the subsidy, a raw unit above this
+		// budget, so admission buys 34.72. Dividing by the average price alone gives 34.73.
+		const limits = budgetMintLimits({
+			quoteCostRaw: 11_704_493n,
+			quoteQuantityRaw: 35_690_000n,
+			entryProbabilityRaw: 291_589_290n,
+			slippageRaw: 0n,
+			feeIncentiveSubsidyRaw: 324_417n,
+			budgetRaw: 11_705_353n,
+		});
+		expect(limits.minQuantityRaw).toBe(34_720_000n);
 	});
 
 	test('a quote that buys nothing sizes no limits', () => {
@@ -455,7 +471,6 @@ describe('read.planSell refusals', () => {
 			'not-record-owner',
 			{ records: new Map([[7n, openRecord({ accountId: '0x' + '22'.repeat(32) })]]) },
 		],
-		['record-not-open', { records: new Map([[7n, openRecord({ status: 4 })]]) }],
 		['fee', { available: 10_000n, records: new Map([[7n, openRecord()]]) }],
 	] as const)('reports %s, as the enqueue would', async (code, overrides) => {
 		const s = scenario(overrides as Partial<QueueScenario>);
@@ -470,6 +485,84 @@ describe('read.planSell refusals', () => {
 		const err = await pc.tx.enqueuePlan(OWNER, market(s), plan).catch((e) => e);
 		expect(err).toBeInstanceOf(PredictPreflightError);
 		expect(err.code).toBe(code);
+	});
+});
+
+describe('refusal parity', () => {
+	test('a record that is not Open has no quote, so planSell throws the refusal', async () => {
+		const s = scenario({ records: new Map([[7n, openRecord({ status: 4 })]]) });
+		const { pc } = client(s);
+		const opts = { recordId: 7n, quantity: 2 };
+		const planned = await pc.read
+			.planSell(OWNER, market(s), { ...opts, slippageCents: 10 })
+			.catch((e) => e);
+		const enqueued = await pc.tx
+			.enqueueSell(OWNER, market(s), { ...opts, minProbability: 0.3, minProceeds: 0.5 })
+			.catch((e) => e);
+		for (const err of [planned, enqueued]) {
+			expect(err).toBeInstanceOf(PredictPreflightError);
+			expect(err.code).toBe('record-not-open');
+		}
+	});
+
+	test('enqueuePlan refuses a refused plan with its code', async () => {
+		const base = scenario();
+		const cases: [Partial<QueueScenario>, { amount: number } | { quantity: number }, string][] = [
+			[
+				{
+					mintQuote: {
+						...base.mintQuote,
+						entry_probability: 100_000_000n,
+						premium: 1_000_000n,
+						trading_fee: 50_000n,
+						fee_incentive_subsidy: 10_000n,
+						penalty_fee: 0n,
+						inventory_impact_charge: 0n,
+						all_in_cost: 1_040_000n,
+					},
+				},
+				{ amount: 1.06 },
+				'min-premium',
+			],
+			[
+				{
+					mintQuote: {
+						...base.mintQuote,
+						entry_probability: 990_000_000n,
+						premium: 9_900_000n,
+						trading_fee: 110_000n,
+						fee_incentive_subsidy: 20_000n,
+						penalty_fee: 0n,
+						inventory_impact_charge: 0n,
+						all_in_cost: 9_990_000n,
+					},
+				},
+				{ quantity: 10 },
+				'cost-above-payout',
+			],
+			[{ available: 3_000_000n }, { amount: 5 }, 'fee'],
+		];
+		for (const [overrides, size, code] of cases) {
+			const s = scenario(overrides);
+			const { pc } = client(s);
+			const plan = await pc.read.planMint(OWNER, market(s), { ...size, slippageCents: 0 });
+			expect(plan.refusal).toBe(code);
+			const err = await pc.tx.enqueuePlan(OWNER, market(s), plan).catch((e) => e);
+			expect(err).toBeInstanceOf(PredictPreflightError);
+			expect(err.code).toBe(code);
+		}
+	});
+
+	test('enqueuePlan refuses when the balance fell below the plan since it was made', async () => {
+		const s = scenario();
+		const { pc } = client(s);
+		const plan = await pc.read.planMint(OWNER, market(s), { amount: 5, slippageCents: 10 });
+		expect(plan.accepting).toBe(true);
+		// The builder would escrow 2.98 of the planned 4.98, below what the limits assume.
+		s.available = 3_000_000n;
+		const err = await pc.tx.enqueuePlan(OWNER, market(s), plan).catch((e) => e);
+		expect(err).toBeInstanceOf(PredictPreflightError);
+		expect(err.code).toBe('fee');
 	});
 });
 

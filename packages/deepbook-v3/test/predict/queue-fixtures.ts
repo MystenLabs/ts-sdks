@@ -259,6 +259,8 @@ function pureBool(tx: Transaction, cmdIdx: number, argIdx: number): boolean {
 const MIN_PREMIUM = 1_000_000n;
 /** `expiry_market::EOrderFailsLimits`. */
 const E_ORDER_FAILS_LIMITS = 14n;
+/** `queue::ERecordNotOpen`. */
+const E_RECORD_NOT_OPEN = 9n;
 
 // A Move abort a canned return raises. The mock simulate turns it into a `FailedTransaction`.
 class MockAbort extends Error {
@@ -358,8 +360,13 @@ function returnsFor(fn: string, s: QueueScenario, tx: Transaction, cmdIdx: numbe
 				}).toBytes(),
 			];
 		}
-		case 'quote_redeem_open':
+		case 'quote_redeem_open': {
+			// Arguments: queue, market, wrapper, pricer, record_id, close_quantity, clock. Like the
+			// chain, a record that isn't Open aborts `queue::ERecordNotOpen`.
+			const record = s.records.get(pureU64(tx, cmdIdx, 4));
+			if (!record || record.status !== 2) throw new MockAbort('queue', E_RECORD_NOT_OPEN);
 			return [expiryMarket.RedeemQuote.serialize(s.redeemQuote).toBytes()];
+		}
 		case 'tick_size':
 			return [u64(s.tickSizeRaw)];
 		case 'admission_tick_size':

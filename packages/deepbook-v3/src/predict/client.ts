@@ -1313,6 +1313,18 @@ export class PredictClient {
 		return { budget, cashNeed };
 	}
 
+	// The record a sell names is Open. The chain can't even quote one that isn't (`ERecordNotOpen`).
+	static #assertRecordOpen(state: MarketQueueState, recordId: bigint): QueuedOrder {
+		const record = state.records[0];
+		if (!record || record.status !== ORDER_STATUS.OPEN || record.position.order_id === 0n) {
+			throw new PredictPreflightError(
+				'record-not-open',
+				`record ${recordId} isn't an Open position`,
+			);
+		}
+		return record;
+	}
+
 	// A sell's own checks after the queue gates, shared by `tx.enqueueSell` and `read.planSell`: the
 	// record is Open and the owner's, the order fee, the record's quantity and the minimum sell. A
 	// sell is never refused for market cash.
@@ -1322,13 +1334,7 @@ export class PredictClient {
 		recordId: bigint,
 		closeQuantityRaw: bigint,
 	): void {
-		const record = state.records[0];
-		if (!record || record.status !== ORDER_STATUS.OPEN || record.position.order_id === 0n) {
-			throw new PredictPreflightError(
-				'record-not-open',
-				`record ${recordId} isn't an Open position`,
-			);
-		}
+		const record = PredictClient.#assertRecordOpen(state, recordId);
 		if (
 			!state.account ||
 			normalizeSuiAddress(record.account_id) !== normalizeSuiAddress(state.account.accountId)
@@ -1717,22 +1723,35 @@ export class PredictClient {
 		/**
 		 * Queue the order a `read.planMint` or `read.planSell` plan describes, with its limits:
 		 * `enqueueMintCost`, `enqueueMint` or `enqueueSell`, by `plan.order.builder`. Pass the
-		 * market the plan was made for.
+		 * market the plan was made for. Throws the plan's `refusal` as a `PredictPreflightError`,
+		 * and `'fee'` when the balance now escrows less than the plan's budget.
 		 */
-		enqueuePlan: (
+		enqueuePlan: async (
 			owner: string,
 			m: MarketDescriptor,
 			plan: MintPlan | SellPlan,
 		): Promise<QueuedOrderPlan> => {
-			const order = plan.order;
-			switch (order.builder) {
-				case 'enqueueMintCost':
-					return this.tx.enqueueMintCost(owner, m, order.options);
-				case 'enqueueMint':
-					return this.tx.enqueueMint(owner, m, order.options);
-				case 'enqueueSell':
-					return this.tx.enqueueSell(owner, m, order.options);
+			// A plan that reported a refusal is refused the same way, so the two never disagree.
+			// Plan again once the reason clears.
+			if (plan.refusal != null) {
+				throw new PredictPreflightError(plan.refusal, `the plan was refused (${plan.refusal})`);
 			}
+			const order = plan.order;
+			if (order.builder === 'enqueueSell') return this.tx.enqueueSell(owner, m, order.options);
+			const placed =
+				order.builder === 'enqueueMintCost'
+					? await this.tx.enqueueMintCost(owner, m, order.options)
+					: await this.tx.enqueueMint(owner, m, order.options);
+			// The limits assume the plan's whole budget. The builders escrow less when the balance
+			// fell since the plan, so refuse that instead.
+			const planned = (plan as MintPlan).raw.budget;
+			if (placed.preview.raw.budget < planned) {
+				throw new PredictPreflightError(
+					'fee',
+					`the balance now escrows ${placed.preview.budget}, below the plan's ${rawToUsdc(planned)}`,
+				);
+			}
+			return placed;
 		},
 
 		/**
@@ -2413,7 +2432,8 @@ export class PredictClient {
 		/**
 		 * Plan a queued early sell of an Open record: the quote at the current price, net of the
 		 * order fee, the floors at the worst price the slippage allows, the timing and the
-		 * builder's preflight, plus the `enqueueSell` options that carry the floors.
+		 * builder's preflight, plus the `enqueueSell` options that carry the floors. A record that
+		 * isn't Open has no quote, so it throws `PredictPreflightError` `'record-not-open'` instead.
 		 */
 		planSell: async (
 			owner: string,
@@ -2421,12 +2441,14 @@ export class PredictClient {
 			opts: PlanSellOptions,
 		): Promise<SellPlan> => {
 			const orders = this.#requireDelayedExecution();
+			const { id } = await this.#resolveMarket(m);
+			const state = await this.#queueState(orders, id, { owner, recordIds: [opts.recordId] });
+			// No quote exists for a record that isn't Open, so that refusal throws.
+			PredictClient.#assertRecordOpen(state, opts.recordId);
 			const quote = await this.read.quoteSell(owner, m, {
 				recordId: opts.recordId,
 				quantity: opts.quantity,
 			});
-			const { id } = await this.#resolveMarket(m);
-			const state = await this.#queueState(orders, id, { owner, recordIds: [opts.recordId] });
 			const nowMs = BigInt(Date.now());
 			const slippage = PredictClient.#appliedSlippage(opts, quote.raw.probability, state, nowMs);
 			const limits = sellLimits({

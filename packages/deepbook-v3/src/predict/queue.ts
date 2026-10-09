@@ -681,6 +681,10 @@ export interface MintLimitsInputs {
 	lotSize?: bigint;
 }
 
+// Raw USDC a budget floor leaves for the per-component rounding of the fill's cost: the premium,
+// the trading, builder and referral fees and the inventory impact each round on their own.
+const COST_ROUNDING_SLACK = 10n;
+
 /** All-in price per $1 of payout, 1e9-scaled and rounded up. */
 export interface PricePerContract {
 	/** The quote's price, after its fee subsidy. */
@@ -720,7 +724,11 @@ export function budgetMintLimits(inputs: MintLimitsInputs & { budgetRaw: bigint 
 	assertUint(inputs.budgetRaw, 'budgetRaw');
 	const price = pricePerContract(inputs);
 	const lot = inputs.lotSize ?? POSITION_LOT_SIZE;
-	const quantity = (inputs.budgetRaw * FLOAT_SCALING) / price.worstRaw;
+	// The fill rounds the premium and each fee on its own, so a quantity's cost can sit a few raw
+	// units above `quantity × price`. The floor leaves that much of the budget unspent.
+	const spendable =
+		inputs.budgetRaw > COST_ROUNDING_SLACK ? inputs.budgetRaw - COST_ROUNDING_SLACK : 0n;
+	const quantity = (spendable * FLOAT_SCALING) / price.worstRaw;
 	return { minQuantityRaw: (quantity / lot) * lot, pricePerContract: price };
 }
 
