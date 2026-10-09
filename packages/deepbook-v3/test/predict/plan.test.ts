@@ -5,6 +5,7 @@
 import { describe, expect, test } from 'vitest';
 import { PredictClient, type MarketDescriptor } from '../../src/predict/client.js';
 import { toGeneratedConfig } from '../../src/predict/config/generated.js';
+import { SHIPPED_FEE_POLICY } from '../../src/predict/cost.js';
 import { PredictInputError, PredictPreflightError } from '../../src/predict/errors.js';
 import { snapStrike } from '../../src/predict/ticks.js';
 import {
@@ -643,6 +644,51 @@ describe('sell previews keep their sign', () => {
 		});
 		expect(plan.net).toBeCloseTo(-0.01551, 9);
 		expect(plan.minNet).toBeCloseTo(-0.02, 9);
+	});
+});
+
+describe('a plan the chain refuses to quote gets a typed refusal', () => {
+	const band = { minEntryProbability: 250_000_000n, maxEntryProbability: 750_000_000n };
+	function withPrices(pc: PredictClient, up: number) {
+		pc.read.price = async () => ({ up, down: 1 - up });
+		pc.read.feePolicy = async () => ({ ...SHIPPED_FEE_POLICY, ...band });
+	}
+
+	test('a strike outside the entry band is refused as entry-band, for both shapes', async () => {
+		const s = scenario({ refuseQuotes: true });
+		const { pc } = client(s);
+		withPrices(pc, 0.88);
+		for (const size of [{ amount: 5 }, { quantity: 10 }]) {
+			const err = await pc.read
+				.planMint(OWNER, market(s), { ...size, slippageCents: 10 })
+				.catch((e) => e);
+			expect(err).toBeInstanceOf(PredictPreflightError);
+			expect(err.code).toBe('entry-band');
+		}
+	});
+
+	test('an exact quantity whose premium is below the minimum is refused as min-premium', async () => {
+		const s = scenario({ refuseQuotes: true });
+		const { pc } = client(s);
+		withPrices(pc, 0.5);
+		const err = await pc.read
+			.planMint(OWNER, market(s), { quantity: 1, slippageCents: 10 })
+			.catch((e) => e);
+		expect(err).toBeInstanceOf(PredictPreflightError);
+		expect(err.code).toBe('min-premium');
+	});
+
+	test('an account budget the chain refuses falls back to the account-free search', async () => {
+		// Just above 1 USDC after the order fee: the account's budget quote is refused, and the
+		// search finds no fill whose premium clears the minimum.
+		const s = scenario({ refuseAccountBudgetQuote: true });
+		const { pc } = client(s);
+		withPrices(pc, 0.4);
+		const err = await pc.read
+			.planMint(OWNER, market(s), { amount: 1.05, slippageCents: 10 })
+			.catch((e) => e);
+		expect(err).toBeInstanceOf(PredictInputError);
+		expect(err.message).toMatch(/at least 1 USDC/);
 	});
 });
 

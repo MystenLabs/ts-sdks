@@ -188,6 +188,10 @@ export interface QueueScenario {
 	anonymousPricePerContract: bigint;
 	/** Prices an exact-quantity `quote_mint_for_account` itself, instead of scaling `mintQuote`. */
 	accountQuoteAt?: (quantity: bigint) => MintQuoteFields;
+	/** The chain refuses the account's all-in budget quote (`EOrderFailsLimits`). */
+	refuseAccountBudgetQuote?: boolean;
+	/** The chain refuses every mint quote (`EOrderFailsLimits`), as for a strike outside the band. */
+	refuseQuotes?: boolean;
 }
 
 export function scenario(overrides: Partial<QueueScenario> = {}): QueueScenario {
@@ -359,6 +363,7 @@ function returnsFor(fn: string, s: QueueScenario, tx: Transaction, cmdIdx: numbe
 			return [bcs.option(OrderView).serialize(record).toBytes()];
 		}
 		case 'quote_mint_for_account': {
+			if (s.refuseQuotes) throw new MockAbort('expiry_market', E_ORDER_FAILS_LIMITS);
 			// Arguments: market, wrapper, config, pricer, lower, higher, max_premium, min_quantity,
 			// exact. An exact quantity is priced at that quantity: by the scenario's own pricer, or
 			// the scenario quote scaled per component. Like the chain, a premium below the minimum
@@ -374,8 +379,12 @@ function returnsFor(fn: string, s: QueueScenario, tx: Transaction, cmdIdx: numbe
 			return [expiryMarket.MintQuote.serialize(quote).toBytes()];
 		}
 		case 'quote_mint_exact_cost_for_account':
+			if (s.refuseQuotes || s.refuseAccountBudgetQuote) {
+				throw new MockAbort('expiry_market', E_ORDER_FAILS_LIMITS);
+			}
 			return [expiryMarket.MintQuote.serialize(s.mintQuote).toBytes()];
 		case 'quote_mint': {
+			if (s.refuseQuotes) throw new MockAbort('expiry_market', E_ORDER_FAILS_LIMITS);
 			// Arguments: market, config, pricer, lower, higher, max_premium, min_quantity, exact.
 			// Premium-budget mode buys the largest lot multiple whose premium fits max_premium. Like
 			// the chain, a premium below the 1 USDC minimum aborts `EOrderFailsLimits`.

@@ -714,6 +714,11 @@ export function predict<Name extends string = 'predict'>({
  * returns a finished `Transaction`; callers composing their own PTBs use the generated
  * move-call bindings this subpath exports (`plpMoveCalls`, `expiryMarketMoveCalls`, …).
  */
+// The chain refused a quote or order on its own limits at the current price.
+function isOrderFailsLimits(error: unknown): boolean {
+	return error instanceof PredictMoveError && error.abortName === 'EOrderFailsLimits';
+}
+
 export class PredictClient {
 	readonly cfg: PredictConfig;
 	// The flat slice every generated call resolves `options.config` against.
@@ -947,6 +952,35 @@ export class PredictClient {
 		return { raw, applied: { cents: Number(raw) / 1e7, source: 'auto', band } };
 	}
 
+	// Why the chain refused to quote a mint at the current price (`EOrderFailsLimits`), as a typed
+	// refusal: a binary strike outside the market's entry band, or an exact quantity whose premium
+	// is below the minimum. Null when neither explains it, or the diagnosis can't be read, so the
+	// caller rethrows the chain's error.
+	async #entryBandRefusal(
+		m: MarketDescriptor,
+		quantityRaw?: bigint,
+	): Promise<PredictPreflightError | null> {
+		if (m.side === 'range') return null;
+		// Best effort: a failed diagnosis read leaves the chain's own error to the caller.
+		const read = await Promise.all([this.read.price(m), this.read.feePolicy(m)]).catch(() => null);
+		if (read == null) return null;
+		const [prices, policy] = read;
+		const probability = probabilityToRaw(m.side === 'up' ? prices.up : prices.down);
+		if (probability < policy.minEntryProbability || probability > policy.maxEntryProbability) {
+			return new PredictPreflightError(
+				'entry-band',
+				`the ${m.side} probability ${rawToProbability(probability)} is outside the market's entry band [${rawToProbability(policy.minEntryProbability)}, ${rawToProbability(policy.maxEntryProbability)}]: pick a strike nearer the money`,
+			);
+		}
+		if (quantityRaw != null && (quantityRaw * probability) / 1_000_000_000n < MIN_PREMIUM) {
+			return new PredictPreflightError(
+				'min-premium',
+				`${rawToUsdc(quantityRaw)} contracts cost a premium below the ${rawToUsdc(MIN_PREMIUM)} USDC minimum`,
+			);
+		}
+		return null;
+	}
+
 	// A payout floor admission buys at least, for an all-in budget: the largest lot multiple up to
 	// `startRaw` whose cost without the fee subsidy, by an exact chain quote, fits the budget.
 	// Admission (`cost_qty_at`, no subsidy) first finds the largest quantity whose cost fits, and
@@ -973,7 +1007,7 @@ export class PredictClient {
 			try {
 				quote = await quoteAt(quantity);
 			} catch (e) {
-				if (!(e instanceof PredictMoveError && e.abortName === 'EOrderFailsLimits')) throw e;
+				if (!isOrderFailsLimits(e)) throw e;
 				if (!raised && quantity < minPremiumQuantity) {
 					raised = true;
 					quantity = minPremiumQuantity;
@@ -1009,7 +1043,7 @@ export class PredictClient {
 			try {
 				return (await quoteMintAnonymous(this.#client, this.#config, { ...ticks, request })).quote;
 			} catch (e) {
-				if (e instanceof PredictMoveError && e.abortName === 'EOrderFailsLimits') return null;
+				if (isOrderFailsLimits(e)) return null;
 				throw e;
 			}
 		};
@@ -2366,25 +2400,46 @@ export class PredictClient {
 				// order the balance covers.
 				quoteForAccount =
 					availableRaw != null && availableRaw > fee && availableRaw - fee >= budgetRequested;
-				quote = quoteForAccount
-					? await forAccount({
+				const budget = budgetRequested;
+				const search = () =>
+					this.#searchBudgetQuote(ticks, budget, lot).catch(async (error: unknown) => {
+						throw (await this.#entryBandRefusal(m)) ?? error;
+					});
+				if (quoteForAccount) {
+					try {
+						quote = await forAccount({
 							shape: 'exact-cost',
-							maxCostRaw: budgetRequested,
+							maxCostRaw: budget,
 							minQuantityRaw: 0n,
-						})
-					: await this.#searchBudgetQuote(ticks, budgetRequested, lot);
+						});
+					} catch (error) {
+						if (!isOrderFailsLimits(error)) throw error;
+						// The chain refused the whole budget. Outside the entry band, say so. Otherwise
+						// the account-free search sizes it, and refuses one too small for the minimum
+						// premium with a typed error.
+						quoteForAccount = false;
+						quote = await search();
+					}
+				} else {
+					quote = await search();
+				}
 			} else {
 				const quantityRaw = usdcToRaw(opts.quantity);
 				this.#assertLot(quantityRaw);
 				quoteForAccount = hasAccount;
-				quote = hasAccount
-					? await forAccount({ shape: 'exact-quantity', quantityRaw })
-					: (
-							await quoteMintAnonymous(this.#client, this.#config, {
-								...ticks,
-								request: { shape: 'exact-quantity', quantityRaw },
-							})
-						).quote;
+				try {
+					quote = hasAccount
+						? await forAccount({ shape: 'exact-quantity', quantityRaw })
+						: (
+								await quoteMintAnonymous(this.#client, this.#config, {
+									...ticks,
+									request: { shape: 'exact-quantity', quantityRaw },
+								})
+							).quote;
+				} catch (error) {
+					if (!isOrderFailsLimits(error)) throw error;
+					throw (await this.#entryBandRefusal(m, quantityRaw)) ?? error;
+				}
 			}
 
 			// The expected cost, after the fee subsidy. The limits add the subsidy back, because

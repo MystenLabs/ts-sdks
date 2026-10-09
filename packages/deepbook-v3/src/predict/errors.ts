@@ -263,6 +263,12 @@ export type PredictPreflightCode =
 	 */
 	| 'min-premium'
 	/**
+	 * The strike's entry probability is outside the market's entry band, so the chain refuses to
+	 * quote or admit it (`EOrderFailsLimits`). Pick a strike nearer the money. Only `read.planMint`
+	 * reports it, and the probability can still leave the band between plan and placement.
+	 */
+	| 'entry-band'
+	/**
 	 * The order's all-in cost without the fee subsidy is above its payout, so admission refuses it
 	 * at any slippage (`EOrderFailsLimits`), or for a budget, the fill costs about its payout, where
 	 * admission's sizing can't be previewed. Only `read.planMint` reports it, near a certain outcome.
