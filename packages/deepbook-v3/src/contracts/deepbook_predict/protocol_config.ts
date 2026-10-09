@@ -8,14 +8,14 @@
  * This shared object owns the admin-tunable config structs, the fee-incentive
  * subsidy, live-target, and lifetime-cap rates, the trading pause gate, the
  * protocol-wide emergency freeze, the version watermark (reaching
- * `current_version!()` is also the delayed-execution cutover), the allowlists of
- * keepers that may redeem settled orders without owner auth, of operators that may
- * finish an LP flush, and of the order-flow companion witness types that may drive
- * the order-flow primitives, and the full-pool valuation in-flight state (flag +
- * flush ordinal, held across the transactions a flush spans; keeper/config flows
- * gate on it, trading flows read it only to discard stale stamps lazily). Flow
- * modules decide which gates apply before they mutate expiry, oracle, pool, or
- * account state.
+ * `constants::cutover_version!()` is also the delayed-execution cutover), the
+ * allowlists of keepers that may redeem settled orders without owner auth, of
+ * operators that may finish an LP flush, and of the order-flow companion witness
+ * types that may drive the order-flow primitives, and the full-pool valuation
+ * in-flight state (flag + flush ordinal, held across the transactions a flush
+ * spans; keeper/config flows gate on it, trading flows read it only to discard
+ * stale stamps lazily). Flow modules decide which gates apply before they mutate
+ * expiry, oracle, pool, or account state.
  */
 
 import {
@@ -564,7 +564,8 @@ export interface VersionWatermarkOptions {
 }
 /**
  * Return the runtime version floor. For SDK, keeper, and devInspect reads: the
- * delayed-execution cutover is reached once it equals `current_version!()`.
+ * delayed-execution cutover is reached once it is at least 4
+ * (`constants::cutover_version!()`).
  */
 export function versionWatermark(options: VersionWatermarkOptions) {
 	const packageAddress =

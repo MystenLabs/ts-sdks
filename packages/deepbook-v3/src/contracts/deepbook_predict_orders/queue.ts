@@ -18,7 +18,21 @@
  * exactly that record's escrow.
  *
  * A queued fill never enters the account: it stays an Open record until
- * `enqueue_redeem_open` sells it or the settlement payout walk pays it.
+ * `enqueue_redeem_open` sells it or the settlement payout walk or `pay_open` pays
+ * it.
+ *
+ * Mainnet USDC is a regulated coin: Sui aborts a transaction that sends it to an
+ * address on its deny list for the current epoch, or to anyone while it is
+ * globally paused. Every walker restarts at the same head record, so one such send
+ * would block the market's fills, refunds, and payouts for good. So nothing here,
+ * and nothing in Predict's primitives, sends to a denied address. Predict refuses
+ * a fill for a denied receive address (reason 9), keeps a denied builder's or
+ * referrer's fee in market cash, and skips a denied winner's payout. The queue
+ * parks change and refunds it cannot send in the record, which finishes as usual
+ * with the funds kept (`RecordFundsParked`). `claim_parked` sends them, and
+ * `pay_open` pays a skipped Open record, once the address is clear. While USDC is
+ * globally paused every address counts as denied: fills refuse, refunds park, and
+ * payouts skip until the pause lifts.
  */
 
 import {
@@ -100,21 +114,21 @@ export function phaseDone(options: PhaseDoneOptions = {}) {
 		});
 }
 export interface QueueIdArguments {
-	deskId: RawTransactionArgument<string>;
+	registryId: RawTransactionArgument<string>;
 	expiryMarketId: RawTransactionArgument<string>;
 }
 export interface QueueIdOptions {
 	package?: string;
 	arguments:
 		| QueueIdArguments
-		| [deskId: RawTransactionArgument<string>, expiryMarketId: RawTransactionArgument<string>];
+		| [registryId: RawTransactionArgument<string>, expiryMarketId: RawTransactionArgument<string>];
 	config?: {
 		predictOrdersPackageId?: string;
 	};
 }
 /**
- * Return the ID of `expiry_market_id`'s queue under `desk_id`, whether or not it
- * exists yet. For PTB construction.
+ * Return the ID of `expiry_market_id`'s queue under the queue registry
+ * `registry_id`, whether or not it exists yet. For PTB construction.
  */
 export function queueId(options: QueueIdOptions) {
 	const packageAddress =
@@ -122,7 +136,7 @@ export function queueId(options: QueueIdOptions) {
 		options.config?.predictOrdersPackageId ??
 		'@local-pkg/deepbook_predict_orders';
 	const argumentsTypes = ['0x2::object::ID', '0x2::object::ID'] satisfies (string | null)[];
-	const parameterNames = ['deskId', 'expiryMarketId'];
+	const parameterNames = ['registryId', 'expiryMarketId'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -502,6 +516,7 @@ export function quoteRedeemOpen(options: QuoteRedeemOpenOptions) {
 		});
 }
 export interface CreateAndShareArguments {
+	registry?: RawTransactionArgument<string>;
 	desk?: RawTransactionArgument<string>;
 	market: RawTransactionArgument<string>;
 }
@@ -509,22 +524,25 @@ export interface CreateAndShareOptions {
 	package?: string;
 	arguments: CreateAndShareArguments;
 	config?: {
+		queueRegistry: ConfigValue;
 		orderDesk: ConfigValue;
 		predictOrdersPackageId?: string;
 	};
 }
 /**
  * Create and share `market`'s queue under `desk`. Permissionless; the caller pays
- * its storage. The queue's ID is derived from the desk and the market, so a second
- * call for the same market aborts.
+ * its storage. The queue's ID is derived from the desk's registry and the market,
+ * so a second call for the same market aborts. Writes only the registry, which no
+ * trading call reads, so creation never contends with trading on the desk. Aborts
+ * `EWrongDesk` for another desk's registry.
  */
 export function createAndShare(options: CreateAndShareOptions) {
 	const packageAddress =
 		options.package ??
 		options.config?.predictOrdersPackageId ??
 		'@local-pkg/deepbook_predict_orders';
-	const argumentsTypes = [null, null] satisfies (string | null)[];
-	const parameterNames = ['desk', 'market'];
+	const argumentsTypes = [null, null, null] satisfies (string | null)[];
+	const parameterNames = ['registry', 'desk', 'market'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -533,6 +551,7 @@ export function createAndShare(options: CreateAndShareOptions) {
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,
+					registry: options.arguments?.registry ?? options.config?.queueRegistry,
 					desk: options.arguments?.desk ?? options.config?.orderDesk,
 				},
 				argumentsTypes,
@@ -1003,21 +1022,29 @@ export interface ResolveOptions {
  *
  * Walks the cohorts in τ order and loads only committed or overdue ones; a cohort
  * still waiting for its price is skipped without loading a record. Every record
- * visited counts against `max_orders`, finished or missing ones included, so one
- * call stays inside Sui's per-transaction object limit. An order at or past its
- * deadline is refunded (reason 5), never filled. A committed order goes to
- * Predict's `try_fill`, which fills it or returns the refund reason (1, 2, 4, or
- * 8); the queue returns the escrow Predict hands back to the trader. Returns 0 on
- * a settled market, whose waiting orders the settlement drain refunds.
+ * visited counts against `max_orders`, finished or missing ones included. The 450
+ * cap bounds events, not loaded objects (`MAX_ORDERS_PER_CALL`), so the caller
+ * sizes `max_orders` to stay inside Sui's per-transaction object limit. An order
+ * at or past its deadline is refunded (reason 5), never filled. A committed order
+ * goes to Predict's `try_fill`, which fills it or returns the refund reason (1, 2,
+ * 4, 8, or 9); the queue returns the escrow Predict hands back to the trader, or
+ * parks it in the record when the receive address is denied. Returns 0 on a
+ * settled market, whose waiting orders the settlement drain refunds.
  */
 export function resolve(options: ResolveOptions) {
 	const packageAddress =
 		options.package ??
 		options.config?.predictOrdersPackageId ??
 		'@local-pkg/deepbook_predict_orders';
-	const argumentsTypes = [null, null, null, null, 'u64', '0x2::clock::Clock'] satisfies (
-		string | null
-	)[];
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'0x2::deny_list::DenyList',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
 	const parameterNames = ['queue', 'market', 'desk', 'config', 'maxOrders'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -1057,17 +1084,24 @@ export interface RefundOptions {
  * does. It walks the cohorts in τ order and stops at the first one not yet due,
  * since deadlines never decrease along the queue. Permissionless, and available
  * while Predict is frozen or this companion's witness is disabled: Predict's
- * `release` checks only its version floor. Returns how many orders it refunded:
- * `0`, without aborting, when none is due.
+ * `release` checks only its version floor. A refund the receive address cannot
+ * take is parked in its record. Returns how many orders it refunded: `0`, without
+ * aborting, when none is due.
  */
 export function refund(options: RefundOptions) {
 	const packageAddress =
 		options.package ??
 		options.config?.predictOrdersPackageId ??
 		'@local-pkg/deepbook_predict_orders';
-	const argumentsTypes = [null, null, null, null, 'u64', '0x2::clock::Clock'] satisfies (
-		string | null
-	)[];
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'0x2::deny_list::DenyList',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
 	const parameterNames = ['queue', 'market', 'desk', 'config', 'maxOrders'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -1105,7 +1139,8 @@ export interface AdminRefundOptions {
 /**
  * Refund the listed waiting orders at once (reason 7), wherever they sit in the
  * queue. Predict's `AdminCap` only, and available while Predict is frozen. Missing
- * and finished IDs are skipped.
+ * and finished IDs are skipped, and a refund the receive address cannot take is
+ * parked in its record.
  */
 export function adminRefund(options: AdminRefundOptions) {
 	const packageAddress =
@@ -1119,6 +1154,7 @@ export function adminRefund(options: AdminRefundOptions) {
 		null,
 		null,
 		'vector<u64>',
+		'0x2::deny_list::DenyList',
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
 	const parameterNames = ['queue', 'market', 'AdminCap', 'desk', 'config', 'recordIds'];
@@ -1155,8 +1191,9 @@ export interface CleanupOptions {
 /**
  * Delete Refunded and Closed records of a settled market. Permissionless; the
  * storage rebate goes to the caller. Missing IDs, other statuses, and records
- * still holding a receipt or escrow are skipped; `QueuedOrdersCleaned` is emitted
- * only when a record was deleted. Takes `&Clock` only to stamp the event.
+ * still holding a receipt or funds (parked funds included, until `claim_parked`)
+ * are skipped; `QueuedOrdersCleaned` is emitted only when a record was deleted.
+ * Takes `&Clock` only to stamp the event.
  */
 export function cleanup(options: CleanupOptions) {
 	const packageAddress =
@@ -1204,16 +1241,19 @@ export interface SettleStepOptions {
  *
  * - DRAIN, while unfinished orders remain: refund them in τ order with reason 5,
  *   visiting at most the policy's `settle_refund_batch` records, refunded or not.
- *   No pruning and no account rows, so each refund loads one record. Runs before
+ *   No pruning and no account rows, so each refund loads its record alone. A
+ *   refund the receive address cannot take is parked in its record. Runs before
  *   and after Predict settles, and while Predict is frozen.
  * - PAY, once nothing is unfinished and Predict has settled the market: from the
  *   payout cursor, visit at most `settle_payout_batch` records. Each Open record
  *   is paid its settled payout through `try_pay_settled` (zero for a loser),
  *   marked Closed, and reported with `OpenRecordSettled`. A record the market
- *   cannot pay stays Open with `OpenRecordPayoutSkipped`. Before Predict settles,
- *   a PAY call changes nothing.
+ *   cannot pay, or whose receive address is denied, stays Open with
+ *   `OpenRecordPayoutSkipped`, and `pay_open` pays it later. Before Predict
+ *   settles, a PAY call changes nothing.
  * - DONE: the call whose walk reaches the last record emits
- *   `MarketPayoutsCompleted`; later calls change nothing.
+ *   `MarketPayoutsCompleted`; later calls change nothing. Skipped records are
+ *   still paid through `pay_open`.
  *
  * The keeper sends one call per transaction until it returns `phase_done()`.
  */
@@ -1222,7 +1262,14 @@ export function settleStep(options: SettleStepOptions) {
 		options.package ??
 		options.config?.predictOrdersPackageId ??
 		'@local-pkg/deepbook_predict_orders';
-	const argumentsTypes = [null, null, null, null, '0x2::clock::Clock'] satisfies (string | null)[];
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		'0x2::deny_list::DenyList',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
 	const parameterNames = ['queue', 'market', 'desk', 'config'];
 	return (tx: Transaction) =>
 		tx.moveCall({
@@ -1234,6 +1281,111 @@ export function settleStep(options: SettleStepOptions) {
 					...options.arguments,
 					desk: options.arguments?.desk ?? options.config?.orderDesk,
 					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface PayOpenArguments {
+	queue: RawTransactionArgument<string>;
+	market: RawTransactionArgument<string>;
+	desk?: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
+	recordId: RawTransactionArgument<number | bigint>;
+}
+export interface PayOpenOptions {
+	package?: string;
+	arguments: PayOpenArguments;
+	config?: {
+		orderDesk: ConfigValue;
+		protocolConfig: ConfigValue;
+		predictOrdersPackageId?: string;
+	};
+}
+/**
+ * Pay one Open record of a settled market its settled payout through Predict's
+ * `try_pay_settled`, at any time after settlement, before or after `settle_step`
+ * completes: the record the payout walk skipped because the market was short of
+ * cash or its receive address was denied. Permissionless. Emits
+ * `OpenRecordSettled` and closes the record, or emits `OpenRecordPayoutSkipped`
+ * and leaves it Open if the cause persists. A missing or non-Open record is left
+ * alone. Aborts `EMarketNotSettled` before Predict settles the market.
+ */
+export function payOpen(options: PayOpenOptions) {
+	const packageAddress =
+		options.package ??
+		options.config?.predictOrdersPackageId ??
+		'@local-pkg/deepbook_predict_orders';
+	const argumentsTypes = [
+		null,
+		null,
+		null,
+		null,
+		'u64',
+		'0x2::deny_list::DenyList',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = ['queue', 'market', 'desk', 'config', 'recordId'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'queue',
+			function: 'pay_open',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					desk: options.arguments?.desk ?? options.config?.orderDesk,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface ClaimParkedArguments {
+	queue: RawTransactionArgument<string>;
+	desk?: RawTransactionArgument<string>;
+	recordId: RawTransactionArgument<number | bigint>;
+}
+export interface ClaimParkedOptions {
+	package?: string;
+	arguments: ClaimParkedArguments;
+	config?: {
+		orderDesk: ConfigValue;
+		predictOrdersPackageId?: string;
+	};
+}
+/**
+ * Send a finished record's parked funds, change or a refund its receive address
+ * could not take, to that address once a send would go through (`denied` is
+ * false). Permissionless: the funds go only to the record's own receive address.
+ * Emits `RecordFundsClaimed` and returns the amount sent, or returns `0` and
+ * changes nothing for a missing or unfinished record, one with nothing parked, or
+ * an address still denied.
+ */
+export function claimParked(options: ClaimParkedOptions) {
+	const packageAddress =
+		options.package ??
+		options.config?.predictOrdersPackageId ??
+		'@local-pkg/deepbook_predict_orders';
+	const argumentsTypes = [
+		null,
+		null,
+		'u64',
+		'0x2::deny_list::DenyList',
+		'0x2::clock::Clock',
+	] satisfies (string | null)[];
+	const parameterNames = ['queue', 'desk', 'recordId'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'queue',
+			function: 'claim_parked',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					desk: options.arguments?.desk ?? options.config?.orderDesk,
 				},
 				argumentsTypes,
 				parameterNames,

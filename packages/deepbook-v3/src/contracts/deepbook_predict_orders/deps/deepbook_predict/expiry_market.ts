@@ -22,6 +22,13 @@
  * Admission, commit, and fill need an allowlisted companion witness; release and
  * the settled payout need only the receipt. The queue itself, its escrow, its
  * policy, and its events live in the companion.
+ *
+ * Mainnet USDC is a regulated coin: Sui aborts a transaction that sends it to an
+ * address on its deny list, or to anyone while it is globally paused. So the fill,
+ * the fee routing, and the settled payout read `sui::deny_list` first and never
+ * send to such an address. A fill for a denied receive address is refused, a
+ * denied builder or referrer's fee stays in market cash, and a denied winner's
+ * payout is skipped for a later `try_pay_settled`.
  */
 
 import { MoveStruct } from '../../../utils/index.js';

@@ -10,7 +10,7 @@ import type { SuiCodegenConfig } from '@mysten/codegen';
 // `DEEPBOOKV3_ROOT=/path/to/worktree pnpm codegen`.
 //
 // The Predict, Sessions, order-flow companion (`deepbook_predict_orders`) and math library
-// (`deepbook_predict_math`) bindings were generated from deepbookv3 af9f7c37 (DBU-885,
+// (`deepbook_predict_math`) bindings were generated from deepbookv3 d8fa6aa8 (DBU-885,
 // MystenLabs/deepbookv3#1351): delayed execution split across Predict Mainnet v4 / Testnet v5,
 // the two fresh packages, and Sessions v3. That commit is not published yet, so re-run codegen
 // from the published commit before the Testnet and Mainnet syncs and diff the result. Use the
@@ -79,16 +79,17 @@ const config: SuiCodegenConfig = {
 		},
 		{
 			// Predict's order-flow companion: the per-market `MarketQueue`, the shared `OrderDesk`
-			// (the delayed-execution policy and the companion's version floor), every queued-order
-			// entry point, the queue reads and the queue events. It calls into Predict, so the
-			// Predict singletons it takes come from the same config object. The per-market queue is
-			// NOT a config argument: its ID is derived from the desk and the market
-			// (`queue::queue_id`), so each call names it.
+			// (the delayed-execution policy and the companion's version floor) and its
+			// `QueueRegistry`, every queued-order entry point, the queue reads and the queue events.
+			// It calls into Predict, so the Predict singletons it takes come from the same config
+			// object. The per-market queue is NOT a config argument: its ID is derived from the
+			// registry and the market (`queue::queue_id`), so each call names it.
 			package: '@local-pkg/deepbook_predict_orders',
 			path: `${DEEPBOOKV3}/packages/predict_orders`,
 			configArguments: {
 				predictOrdersPackageId: { package: '@local-pkg/deepbook_predict_orders' },
 				orderDesk: { type: 'desk::OrderDesk' },
+				queueRegistry: { type: 'desk::QueueRegistry' },
 				protocolConfig: { type: '@local-pkg/deepbook_predict::protocol_config::ProtocolConfig' },
 				oracleRegistry: { type: '@local-pkg/propbook::registry::OracleRegistry' },
 			},

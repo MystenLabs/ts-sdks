@@ -150,6 +150,28 @@ export const OpenRecordPayoutSkipped = new MoveStruct({
 		onchain_timestamp_ms: U64,
 	},
 });
+export const RecordFundsParked = new MoveStruct({
+	name: `${$moduleName}::RecordFundsParked`,
+	fields: {
+		expiry_market_id: bcs.Address,
+		record_id: U64,
+		account_id: bcs.Address,
+		receive_address: bcs.Address,
+		amount: U64,
+		onchain_timestamp_ms: U64,
+	},
+});
+export const RecordFundsClaimed = new MoveStruct({
+	name: `${$moduleName}::RecordFundsClaimed`,
+	fields: {
+		expiry_market_id: bcs.Address,
+		record_id: U64,
+		account_id: bcs.Address,
+		receive_address: bcs.Address,
+		amount: U64,
+		onchain_timestamp_ms: U64,
+	},
+});
 export const MarketPayoutsCompleted = new MoveStruct({
 	name: `${$moduleName}::MarketPayoutsCompleted`,
 	fields: {

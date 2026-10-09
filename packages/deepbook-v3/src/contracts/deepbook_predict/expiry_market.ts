@@ -22,6 +22,13 @@
  * Admission, commit, and fill need an allowlisted companion witness; release and
  * the settled payout need only the receipt. The queue itself, its escrow, its
  * policy, and its events live in the companion.
+ *
+ * Mainnet USDC is a regulated coin: Sui aborts a transaction that sends it to an
+ * address on its deny list, or to anyone while it is globally paused. So the fill,
+ * the fee routing, and the settled payout read `sui::deny_list` first and never
+ * send to such an address. A fill for a denied receive address is refused, a
+ * denied builder or referrer's fee stays in market cash, and a denied winner's
+ * payout is skipped for a later `try_pay_settled`.
  */
 
 import {
@@ -2399,10 +2406,13 @@ export interface TryFillOptions<W extends BcsType<any>> {
  * receipt not admitted or without a price (`EWrongStage`), or `escrow` below
  * `budget + order_fee + subsidy_reserved` (`EEscrowMismatch`). Every market
  * condition returns a refund reason instead, `0` for a fill: 5 at or past the
- * deadline, which also covers expiry and settlement; 2 when no `Pricer` exists at
- * the tick; then the fill's own 1 (the order's limits), 2 (admission), 4 (a pinned
- * node is missing, a backstop), and 8 (the market's cash after the fill would not
- * cover its required cash).
+ * deadline, which also covers expiry and settlement; 9 when USDC sent to the
+ * receipt's receive address would abort the transaction (`denied`: the address is
+ * on USDC's deny list for the current epoch, or USDC is globally paused), so
+ * nothing is sent there; 2 when no `Pricer` exists at the tick; then the fill's
+ * own 1 (the order's limits), 2 (admission), 4 (a pinned node is missing, a
+ * backstop), and 8 (the market's cash after the fill would not cover its required
+ * cash).
  *
  * A mint fill pays the premium, the trading fee net of the referral share, the
  * used subsidy, the order fee, and the inventory-impact charge into market cash,
@@ -2412,11 +2422,12 @@ export interface TryFillOptions<W extends BcsType<any>> {
  * less the trading and builder fees) to the receipt's receive address, keeps the
  * trading and order fees in market cash, emits `LiveOrderRedeemed`, and returns
  * the receipt open with the replacement position of a partial close, or consumes
- * it on a full close. A refund keeps the order fee in market cash for reasons 1
- * and 2, returns the reserved subsidy to the incentive balance, prunes a mint's
- * emptied unpinned nodes, returns the rest of the escrow, and returns a sell's
- * receipt open or consumes a mint's. Every outcome takes the order out of the
- * ledger.
+ * it on a full close. A builder or referral fee whose recipient is denied stays in
+ * market cash instead, and the events still report it as charged. A refund keeps
+ * the order fee in market cash for reasons 1 and 2, returns the reserved subsidy
+ * to the incentive balance, prunes a mint's emptied unpinned nodes, returns the
+ * rest of the escrow, and returns a sell's receipt open or consumes a mint's.
+ * Every outcome takes the order out of the ledger.
  */
 export function tryFill<W extends BcsType<any>>(options: TryFillOptions<W>) {
 	const packageAddress =
@@ -2427,6 +2438,7 @@ export function tryFill<W extends BcsType<any>>(options: TryFillOptions<W>) {
 		null,
 		null,
 		null,
+		'0x2::deny_list::DenyList',
 		'0x2::clock::Clock',
 	] satisfies (string | null)[];
 	const parameterNames = ['W', 'market', 'config', 'receipt', 'escrow'];
@@ -2517,16 +2529,18 @@ export interface TryPaySettledOptions {
 /**
  * Pay an open receipt's settled payout, zero for a loser, to its receive address
  * and consume the receipt. Returns the payout and `none`. When the payout is above
- * market cash or above the settled liability left, changes nothing and returns
- * that payout with the receipt, so the companion's payout walk moves on and a
- * later upgrade can pay it. Needs no allowlisting and checks only the version
- * floor. Aborts on another market's receipt (`EWrongMarket`), a receipt that is
- * not open (`EWrongStage`), or an unsettled market (`EMarketNotSettled`).
+ * market cash or above the settled liability left, or a nonzero payout's receive
+ * address is denied (`try_fill`'s reason 9: on USDC's deny list for the current
+ * epoch, or USDC globally paused), changes nothing and returns that payout with
+ * the receipt, so the companion's payout walk moves on and a later call pays it
+ * once the cause clears. Needs no allowlisting and checks only the version floor.
+ * Aborts on another market's receipt (`EWrongMarket`), a receipt that is not open
+ * (`EWrongStage`), or an unsettled market (`EMarketNotSettled`).
  */
 export function tryPaySettled(options: TryPaySettledOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
-	const argumentsTypes = [null, null, null] satisfies (string | null)[];
+	const argumentsTypes = [null, null, null, '0x2::deny_list::DenyList'] satisfies (string | null)[];
 	const parameterNames = ['market', 'config', 'receipt'];
 	return (tx: Transaction) =>
 		tx.moveCall({

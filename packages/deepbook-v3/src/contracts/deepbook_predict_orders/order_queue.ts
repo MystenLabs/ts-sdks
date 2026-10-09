@@ -209,8 +209,9 @@ export const QueuedOrder = new MoveStruct({
 		 */
 		receipt: bcs.option(expiry_market.OrderReceipt),
 		/**
-		 * The order's escrow: its budget, order fee, and reserved subsidy while it waits,
-		 * zero once it finishes.
+		 * The order's escrow: its budget, order fee, and reserved subsidy while it waits.
+		 * Once it finishes, only what the record could not send to its receive address
+		 * (parked funds), until `queue::claim_parked` sends it.
 		 */
 		funds: balance.Balance,
 	},
@@ -233,7 +234,7 @@ export const OrderView = new MoveStruct({
 		 * holds none.
 		 */
 		receipt_stage: bcs.u8(),
-		/** USDC the record escrows now. */
+		/** USDC the record holds now: escrow while unfinished, parked funds after. */
 		funds: U64,
 	},
 });
@@ -596,6 +597,25 @@ export function reasonNoCash(options: ReasonNoCashOptions = {}) {
 			package: packageAddress,
 			module: 'order_queue',
 			function: 'reason_no_cash',
+		});
+}
+export interface ReasonRecipientDeniedOptions {
+	package?: string;
+	arguments?: [];
+	config?: {
+		predictOrdersPackageId?: string;
+	};
+}
+export function reasonRecipientDenied(options: ReasonRecipientDeniedOptions = {}) {
+	const packageAddress =
+		options.package ??
+		options.config?.predictOrdersPackageId ??
+		'@local-pkg/deepbook_predict_orders';
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'order_queue',
+			function: 'reason_recipient_denied',
 		});
 }
 export interface StatusArguments {

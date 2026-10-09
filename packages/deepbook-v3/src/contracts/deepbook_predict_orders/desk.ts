@@ -4,21 +4,25 @@
 
 /**
  * The order-flow companion's shared `OrderDesk`: the delayed-execution policy
- * every market queue runs under, and the companion's version floor.
+ * every market queue runs under, and the companion's version floor. Also the
+ * desk's `QueueRegistry`, the parent every market's queue ID derives from.
  *
- * One desk per deployment: `init` creates and shares it when the package is
- * published, and nothing else builds one. Each market's `MarketQueue` sits at an
- * ID derived from the desk and the market (`queue::create_and_share`), so a single
- * desk gives each market exactly one queue, and with it one per-account cap, stuck
- * gate, policy, and version floor. The desk exists before Predict allowlists this
- * package's witness; until `protocol_config::set_order_flow` does, Predict's
- * admission, commit, and fill primitives refuse the companion.
+ * One desk and one registry per deployment: `init` creates and shares both when
+ * the package is published, and nothing else builds one. Each market's
+ * `MarketQueue` sits at an ID derived from the registry and the market
+ * (`queue::create_and_share`), so a deployment gives each market exactly one
+ * queue, and with it one per-account cap, stuck gate, policy, and version floor.
+ * The desk exists before Predict allowlists this package's witness; until
+ * `protocol_config::set_order_flow` does, Predict's admission, commit, and fill
+ * primitives refuse the companion.
  *
  * Predict's `AdminCap` administers the desk. Its setters check the desk floor and
  * refuse while Predict is frozen, through the public `protocol_config::frozen`;
  * the policy cannot move funds, and every Predict invariant holds inside Predict's
- * primitives whatever it says. Only queue creation takes the desk mutably, so
- * trading never serializes on it.
+ * primitives whatever it says. Every trading call reads the desk, and only those
+ * admin setters write it. Queue creation, which anyone may call, writes the
+ * registry instead, which no trading call reads, so creation cannot contend with
+ * trading.
  */
 
 import {
@@ -42,6 +46,13 @@ export const OrderDesk = new MoveStruct({
 		 * advances it to the running `current_version!()`, retiring older companion code.
 		 */
 		version_watermark: U64,
+	},
+});
+export const QueueRegistry = new MoveStruct({
+	name: `${$moduleName}::QueueRegistry`,
+	fields: {
+		id: bcs.Address,
+		desk_id: bcs.Address,
 	},
 });
 export interface IdArguments {
@@ -140,6 +151,43 @@ export function versionWatermark(options: VersionWatermarkOptions) {
 				{
 					...options.arguments,
 					desk: options.arguments?.desk ?? options.config?.orderDesk,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface RegistryIdArguments {
+	registry?: RawTransactionArgument<string>;
+}
+export interface RegistryIdOptions {
+	package?: string;
+	arguments?: RegistryIdArguments;
+	config?: {
+		queueRegistry: ConfigValue;
+		predictOrdersPackageId?: string;
+	};
+}
+/**
+ * Return the queue registry's object ID, for discovery and for deriving each
+ * market's queue ID (`queue::queue_id`) in PTB construction.
+ */
+export function registryId(options: RegistryIdOptions) {
+	const packageAddress =
+		options.package ??
+		options.config?.predictOrdersPackageId ??
+		'@local-pkg/deepbook_predict_orders';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['registry'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'desk',
+			function: 'registry_id',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					registry: options.arguments?.registry ?? options.config?.queueRegistry,
 				},
 				argumentsTypes,
 				parameterNames,
