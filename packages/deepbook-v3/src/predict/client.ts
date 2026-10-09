@@ -537,7 +537,9 @@ export interface MintPlan {
 	 * Whether `tx.enqueuePlan` would build the order now and admission would take it at the current
 	 * price: the builder's preflight (the queue gates, the order fee, the minimum premium and the
 	 * market's cash), the balance against `totalDebit`, the payout bound and, for a budget, the
-	 * premium it buys without the fee subsidy.
+	 * floor admission buys without the fee subsidy. Two admission conditions are checked only on
+	 * chain, at placement: the market's SVI age under the order desk's `svi_max_age_ms`, and room in
+	 * the payout tree for a new strike's boundary nodes.
 	 */
 	accepting: boolean;
 	/**
@@ -587,7 +589,9 @@ export interface SellPlan {
 	timing: TimingPreview;
 	/**
 	 * Whether `tx.enqueuePlan` would build the sell now: the builder's preflight, which checks the
-	 * queue gates, that the record is Open and the owner's, the order fee and the minimum sell.
+	 * queue gates, that the record is Open and the owner's, the order fee and the minimum sell. The
+	 * market's SVI age under the order desk's `svi_max_age_ms` is checked only on chain, at
+	 * placement.
 	 */
 	accepting: boolean;
 	/** The `PredictPreflightError` code the sell would get now, or null. */

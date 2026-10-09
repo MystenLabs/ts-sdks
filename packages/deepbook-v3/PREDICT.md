@@ -193,7 +193,9 @@ options.
   subsidy, and `cost-above-payout` when the unsubsidized cost is above the payout, or for a budget,
   about the payout. `tx.enqueuePlan` throws a refused plan's code, and `fee` when the balance now
   escrows less than the plan's budget. `planSell` throws `record-not-open` for a record that isn't
-  Open, since the chain can't quote it. A refused order never fails the rest of a transaction. The
+  Open, since the chain can't quote it. Two admission conditions are checked only on chain, at
+  placement: the market's SVI age under the order desk's `svi_max_age_ms`, and room in the payout
+  tree for a new strike's boundary nodes. A refused order never fails the rest of a transaction. The
   order's own price limits are checked only on chain, at placement (`EOrderFailsLimits`), and the
   preview runs on the local clock, so near the cutoff the chain can still refuse: decode that with
   `describePredictError`.
