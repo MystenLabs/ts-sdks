@@ -11,7 +11,7 @@ import {
 	type GeneratedConfig,
 	type OrdersGeneratedConfig,
 } from './config/generated.js';
-import { MIN_PREMIUM, decodeOrderRange } from './cost.js';
+import { MIN_PREMIUM, decodeOrderRange, type FeePolicy } from './cost.js';
 import {
 	decodeAccountsCreated,
 	decodeBuilderCodeSets,
@@ -96,6 +96,7 @@ import {
 	activeMarketIds,
 	currentNav,
 	expiryMarketId,
+	marketFeePolicy,
 	marketState,
 	marketStates,
 	rangePrices,
@@ -2702,6 +2703,15 @@ export class PredictClient {
 				referencePrice: PredictClient.#referencePriceOf(state),
 			};
 		},
+
+		/**
+		 * The fee and exposure policy the market snapshotted at creation, ready to pass to the
+		 * `cost` functions as `fees`. A market keeps it for its whole life, so it can differ from
+		 * the protocol's current template, and neither recorded deployment's template matches
+		 * `cost.SHIPPED_FEE_POLICY` any more. One object read.
+		 */
+		feePolicy: async (m: MarketCoordinates): Promise<FeePolicy> =>
+			marketFeePolicy(this.#client, (await this.#resolveMarket(m)).id),
 
 		balance: async (owner: string): Promise<number> =>
 			rawToUsdc(await accountBalance(this.#client, this.#config, owner, this.cfg.quoteCoinType)),

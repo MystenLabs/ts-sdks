@@ -3,6 +3,7 @@
 import { Transaction } from '@mysten/sui/transactions';
 import { type GeneratedConfig } from '../config/generated.js';
 import { type UnderlyingConfig } from '../config/index.js';
+import { type FeePolicy } from '../cost.js';
 import { PredictMoveError } from '../errors.js';
 import { POS_INF_TICK } from '../ticks.js';
 import { loadLivePricer, type MarketFeeds } from '../tx/trade.js';
@@ -232,4 +233,33 @@ export async function currentNav(
 	const cmds = await inspectReturns(client, tx);
 	// current_nav is the last command; load_live_pricer precedes it.
 	return parseU64LE(cmds[cmds.length - 1][0]);
+}
+
+/**
+ * The fee and exposure policy a market snapshotted at creation, from its `ExpiryMarket` object:
+ * `strike_exposure.config` and `strike_exposure.inventory_impact_scale`. It is the policy the
+ * market charges for its whole life, whatever the protocol template says now, and the `cost`
+ * functions take it as `fees`. One object read, no simulate. The struct layout is fixed across
+ * package upgrades, so the v1 binding decodes every version's markets.
+ */
+export async function marketFeePolicy(client: ReadClient, marketId: string): Promise<FeePolicy> {
+	const { object } = await client.core.getObject({
+		objectId: marketId,
+		include: { content: true },
+	});
+	if (!object.content) throw new Error(`ExpiryMarket ${marketId} returned no content`);
+	const { config, inventory_impact_scale } = expiryMarket.ExpiryMarket.parse(
+		object.content,
+	).strike_exposure;
+	return {
+		baseFee: BigInt(config.base_fee),
+		minFee: BigInt(config.min_fee),
+		expiryFeeWindowMs: BigInt(config.expiry_fee_window_ms),
+		expiryFeeMaxMultiplier: BigInt(config.expiry_fee_max_multiplier),
+		minEntryProbability: BigInt(config.min_entry_probability),
+		maxEntryProbability: BigInt(config.max_entry_probability),
+		inventoryImpactMaxRate: BigInt(config.inventory_impact_max_rate),
+		inventoryImpactScale: BigInt(inventory_impact_scale),
+		backingBufferLambda: BigInt(config.backing_buffer_lambda),
+	};
 }

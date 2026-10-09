@@ -31,9 +31,9 @@
 // against current account and market state, including the execution gates these previews
 // do not check (ownership, pauses, trade window, oracle freshness and cash backing).
 //
-// The fee POLICY is a per-market snapshot taken at creation (`StrikeExposureConfig`), and the
-// chain exposes no getter for `base_fee`/`min_fee` — take it from the market's `MarketCreated`
-// event (an indexer, or `decode`), or use {@link SHIPPED_FEE_POLICY} for the shipped template.
+// The fee POLICY is a per-market snapshot taken at creation (`StrikeExposureConfig`). The
+// chain exposes no getter for `base_fee`/`min_fee`, so `read.feePolicy(market)` decodes it from
+// the `ExpiryMarket` object. The market's `MarketCreated` event carries it too.
 
 import { PredictInputError } from './errors.js';
 import type { PricerInputs } from './pricing.js';
@@ -137,8 +137,8 @@ export function sqrtDown(x: bigint): bigint {
 /**
  * One market's fee policy: the `StrikeExposureConfig` it snapshotted at creation, in raw 1e9
  * rates. Snapshotted means later admin changes do NOT reprice a market already trading, so
- * read it per market (the `MarketCreated` event carries every field) rather than assuming the
- * template. The last three are the inventory-impact parameters, inert while
+ * read it per market with `read.feePolicy(market)` (the `MarketCreated` event carries every field
+ * too) rather than assuming the template. The last three are the inventory-impact parameters, inert while
  * `inventoryImpactMaxRate` is `0n` (the shipped value).
  */
 export interface FeePolicy {
@@ -165,9 +165,11 @@ export interface FeePolicy {
 /**
  * The shipped template (`config_constants` defaults): 10% Bernoulli fee, a 2.2% per-leg floor,
  * a one-day ramp window that is inert at a 1.0 multiplier, a 1%–99% entry band, and inventory
- * impact disabled. A market that was created under these values charges exactly this; one
- * created after an admin change does not, which is why the per-market snapshot is the real
- * answer. Verify against the deployment's `MarketCreated` before pricing money on it.
+ * impact disabled. Neither recorded deployment's template matches it any more: both charge a
+ * 20.4% Bernoulli fee, ramp it to 3× over the last 60 s and admit entries in 25%–75% (checked
+ * 2026-10-09), so a live market's costs from this policy come out low. Pass
+ * `read.feePolicy(market)` instead. This stays for tests and for a deployment still on the
+ * defaults.
  */
 export const SHIPPED_FEE_POLICY: FeePolicy = Object.freeze({
 	baseFee: 100_000_000n,
