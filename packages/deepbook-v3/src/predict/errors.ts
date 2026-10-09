@@ -5,11 +5,10 @@
 // Two failure kinds cross the SDK boundary:
 //   - PredictInputError — a caller gave us something we rejected before touching
 //     the chain (unknown underlying, malformed argument, …).
-//   - PredictMoveError — a Move `abort` surfaced by a read/simulate. The deployed
-//     Predict packages are compiled with CLEVER ERRORS, so the fullnode decodes the
-//     `E…` error-constant name out of the abort code's high bits and returns it on
-//     the structured execution error. We read that name straight from chain instead
-//     of maintaining a module→code→name table that goes stale on every redeploy.
+//   - PredictMoveError — a Move `abort` surfaced by a read/simulate. Predict's error
+//     constants are plain `u64` codes, not clever errors, so the fullnode can't name
+//     them: `decodeMoveAbort` maps `(module, code)` to the constant name with
+//     ABORT_NAMES below. A clever-error name the fullnode does decode takes precedence.
 
 /** A caller-supplied argument the SDK rejected before building/sending a tx. */
 export class PredictInputError extends Error {
@@ -25,9 +24,9 @@ export class PredictMoveError extends Error {
 	/** Exact u64 abort code — bigint because clever-error encodings pack data
 	 * into the high bits, which Number would silently truncate. */
 	readonly code: bigint;
-	/** The `E…` constant name, decoded from the clever-error abort code by the
-	 * fullnode, or null when the transport surfaced no name (a non-clever abort,
-	 * or a JSON-RPC failure that carries only a line number). */
+	/** The `E…` constant name: the fullnode's clever-error name when it decodes
+	 * one, else the name {@link ABORT_NAMES} gives the module's plain code, or null
+	 * when neither knows the abort. */
 	readonly abortName: string | null;
 
 	constructor(module: string, code: bigint, abortName: string | null) {
@@ -52,9 +51,9 @@ export class PredictMoveError extends Error {
 //   - `MoveAbort.location.module`          → the aborting module's short name.
 //   - `MoveAbort.cleverError.constantName` → the `E…` error constant, decoded by the
 //     fullnode from the clever-error bits of the abort code and surfaced by the gRPC
-//     (`grpc/core.ts` parseMoveAbort) and GraphQL transports. This is the on-chain
-//     name that replaces the old hand-maintained ABORT_TABLES. JSON-RPC surfaces only
-//     a line number, so `constantName` (and thus `abortName`) is absent there.
+//     (`grpc/core.ts` parseMoveAbort) and GraphQL transports. Only a clever-error abort
+//     carries one, and Predict's plain `u64` constants never do, so ABORT_NAMES names
+//     those. JSON-RPC surfaces no `constantName` at all.
 export interface MoveAbortError {
 	MoveAbort?: {
 		abortCode?: string | number | bigint;
@@ -64,12 +63,118 @@ export interface MoveAbortError {
 }
 
 /**
+ * The error constants of the Predict modules the SDK's flows abort in, by module, as an array
+ * indexed by the plain `u64` abort code (each module numbers its constants from 0 with no gaps).
+ * Generated from the Move sources at deepbookv3 af9f7c37. A published code never changes meaning:
+ * new codes only append, so an older package version's codes are a prefix of its module's list.
+ * Keyed by module name only, as the abort location reports it, so a same-named module in an
+ * unrelated package would be named from this table too.
+ */
+export const ABORT_NAMES: Readonly<Record<string, readonly string[]>> = Object.freeze({
+	// Predict (`deepbook_predict`). Append-only since v1, so older package versions use a prefix.
+	expiry_market: [
+		'EMintPaused',
+		'EMarketNotSettled',
+		'EMintCostAboveMax',
+		'EMintProbabilityAboveMax',
+		'EWrongPricer',
+		'EReferenceTickObservationMissing',
+		'EMintRedeemSameTimestamp',
+		'ERedeemProbabilityBelowMin',
+		'ERedeemProceedsBelowMin',
+		'EMintCostCapRequired',
+		'EMarketNotPendingValuation',
+		'EMintCostAboveMaxPayout',
+		'ENotSettledRedeemKeeper',
+		'EDelayedExecutionRequired',
+		'EOrderFailsLimits',
+		'EInsufficientMarketCash',
+		'EInvalidOrderTiming',
+		'EInvalidOrderTerms',
+		'EWrongMarket',
+		'EWrongStage',
+		'ENotRecordOwner',
+		'EEscrowMismatch',
+		'EWrongPrice',
+	],
+	protocol_config: [
+		'ETradingPaused',
+		'EValuationInProgress',
+		'EValuationNotInProgress',
+		'EPackageVersionDisabled',
+		'EVersionWatermarkNotAdvanced',
+		'EProtocolFrozen',
+		'ESnapshotInProgress',
+		'ETradeWindowClosed',
+		'ESettledRedeemKeeperAlreadyAdded',
+		'ESettledRedeemKeeperNotFound',
+		'EFlushOperatorAlreadyAdded',
+		'EFlushOperatorNotFound',
+		'ENotFlushOperator',
+		'ECutoverNotReached',
+		'EEwmaRetired',
+		'EOrderFlowNotAllowed',
+	],
+	// The order-flow package (`deepbook_predict_orders`).
+	queue: [
+		'EWrongDesk',
+		'EWrongMarket',
+		'EQueueStuck',
+		'EQueueFull',
+		'EAccountOrderCap',
+		'EPastCutoff',
+		'EMintCostCapRequired',
+		'EFeeNotCovered',
+		'EBelowMinSell',
+		'ERecordNotOpen',
+		'ENotRecordOwner',
+		'EMarketNotSettled',
+		'EMarketNotExpired',
+	],
+	desk: ['EPackageVersionDisabled', 'EVersionWatermarkNotAdvanced', 'EProtocolFrozen'],
+	order_queue: ['ERecordNotOpen'],
+	delayed_execution_config: [
+		'EInvalidDelayMs',
+		'EInvalidStallTimeoutMs',
+		'EInvalidStuckThresholdMs',
+		'EInvalidGapWaitMs',
+		'EInvalidPythPriceBufferMs',
+		'EInvalidSviMaxAgeMs',
+		'EInvalidMintCapacity',
+		'EInvalidSellCapacity',
+		'EInvalidPerAccountCap',
+		'EInvalidMinSellQuantity',
+		'EInvalidOrderFee',
+		'EInvalidSettleRefundBatch',
+		'EInvalidSettlePayoutBatch',
+		'EUnsupportedPythChannel',
+		'EInvalidTiming',
+		'EInvalidLimits',
+	],
+	// The math library (`deepbook_predict_math`).
+	lazer_price: ['EPropertyNotRequested', 'EGenerationAfterEnvelope', 'EFeedMissing'],
+});
+
+/**
+ * The constant name of a plain `u64` abort `code` in `module`, from {@link ABORT_NAMES}, or null
+ * when the module or the code is unknown.
+ */
+export function abortNameFor(module: string, code: bigint): string | null {
+	// Own keys only: a module named like an `Object.prototype` member is simply unknown.
+	if (!Object.hasOwn(ABORT_NAMES, module)) return null;
+	const names = ABORT_NAMES[module];
+	if (code < 0n || code >= BigInt(names.length)) return null;
+	return names[Number(code)];
+}
+
+/**
  * Decode a `@mysten/sui` MoveAbort execution error into a {@link PredictMoveError}.
  * Returns null when `error` carries no MoveAbort (InsufficientGas, a size error, any
  * non-abort failure), so callers can fall back to a plain Error.
  *
- * `abortName` is taken straight from the chain-decoded clever-error constant; it is
- * null when the abort predates clever errors or the transport didn't surface a name.
+ * `abortName` is the chain-decoded clever-error constant when the fullnode surfaces one, and
+ * otherwise the name {@link ABORT_NAMES} gives the module's plain code (Predict's constants are
+ * plain codes, so this is the usual path). It is null when neither knows the abort.
  * `code` stays a bigint — a clever-error abort code packs the module, line, and
  * constant index into the high bits of the u64 and would lose precision as a Number.
  */
@@ -78,7 +183,7 @@ export function decodeMoveAbort(error: MoveAbortError | null | undefined): Predi
 	if (!abort) return null;
 	const module = abort.location?.module ?? '';
 	const code = abort.abortCode != null ? BigInt(abort.abortCode) : 0n;
-	const abortName = abort.cleverError?.constantName ?? null;
+	const abortName = abort.cleverError?.constantName ?? abortNameFor(module, code);
 	return new PredictMoveError(module, code, abortName);
 }
 
@@ -142,8 +247,7 @@ export class PredictPreflightError extends Error {
 }
 
 // Readable text for the aborts a trader, an app or a filler meets on the delayed-execution
-// paths, keyed by `module::EName` as the fullnode decodes it from the clever-error code. Only the
-// names matter, so a republish that renumbers codes doesn't stale this table. The queue's own
+// paths, keyed by `module::EName` as `decodeMoveAbort` names it. The queue's own
 // checks are in the order-flow companion's `queue` and `desk` modules; Predict's admission, fill
 // and quote checks stay in `expiry_market` and `protocol_config`; the Lazer decode is in the math
 // library's `lazer_price`.
@@ -195,7 +299,7 @@ const PREDICT_ERROR_TEXT: Readonly<Record<string, string>> = Object.freeze({
 
 /**
  * Readable text for a decoded Move abort on the Predict paths, or `null` when the abort isn't
- * one this SDK describes (an unknown name, or a transport that surfaced no name). Callers
+ * one this SDK describes (an unknown name, or an abort `decodeMoveAbort` couldn't name). Callers
  * fall back to `e.message` on `null`, so new contract errors degrade to the raw abort rather
  * than to a wrong message.
  */

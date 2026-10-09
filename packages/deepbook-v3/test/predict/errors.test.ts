@@ -3,9 +3,11 @@
 import { Transaction } from '@mysten/sui/transactions';
 import { describe, expect, test } from 'vitest';
 import {
+	ABORT_NAMES,
 	PredictInputError,
 	PredictMoveError,
 	PredictPreflightError,
+	abortNameFor,
 	decodeMoveAbort,
 	describePredictError,
 } from '../../src/predict/errors.js';
@@ -35,7 +37,7 @@ describe('decodeMoveAbort', () => {
 		});
 	});
 
-	test('no cleverError → abortName null (non-clever / JSON-RPC abort)', () => {
+	test('no cleverError and a code outside the table → abortName null', () => {
 		const e = decodeMoveAbort({
 			MoveAbort: { abortCode: '99', location: { module: 'expiry_market' } },
 		});
@@ -92,6 +94,83 @@ describe('decodeMoveAbort', () => {
 		})!.message;
 		expect(msg).toContain('expiry_market');
 		expect(msg).toContain('99');
+	});
+});
+
+// Predict's error constants are plain u64 codes, so the fullnode surfaces no clever-error name and
+// the SDK names them from ABORT_NAMES. The expected names are the Move constants at deepbookv3
+// af9f7c37 (`const EName: u64 = code;`).
+describe('plain abort codes decode to their constant names', () => {
+	const plain = (module: string, code: number) =>
+		decodeMoveAbort({ MoveAbort: { abortCode: String(code), location: { module } } });
+
+	test.each([
+		['queue', 0, 'EWrongDesk'],
+		['queue', 3, 'EQueueFull'],
+		['queue', 9, 'ERecordNotOpen'],
+		['queue', 12, 'EMarketNotExpired'],
+		['desk', 0, 'EPackageVersionDisabled'],
+		['desk', 2, 'EProtocolFrozen'],
+		['order_queue', 0, 'ERecordNotOpen'],
+		['delayed_execution_config', 10, 'EInvalidOrderFee'],
+		['delayed_execution_config', 15, 'EInvalidLimits'],
+		['expiry_market', 1, 'EMarketNotSettled'],
+		['expiry_market', 13, 'EDelayedExecutionRequired'],
+		['expiry_market', 14, 'EOrderFailsLimits'],
+		['expiry_market', 15, 'EInsufficientMarketCash'],
+		['expiry_market', 22, 'EWrongPrice'],
+		['protocol_config', 3, 'EPackageVersionDisabled'],
+		['protocol_config', 13, 'ECutoverNotReached'],
+		['protocol_config', 15, 'EOrderFlowNotAllowed'],
+		['lazer_price', 2, 'EFeedMissing'],
+	] as [string, number, string][])('%s code %i is %s', (module, code, name) => {
+		expect(plain(module, code)?.abortName).toBe(name);
+		expect(abortNameFor(module, BigInt(code))).toBe(name);
+	});
+
+	test('each module lists distinct names, so an index is a code', () => {
+		for (const names of Object.values(ABORT_NAMES)) {
+			expect(new Set(names).size).toBe(names.length);
+		}
+		expect(ABORT_NAMES.queue).toHaveLength(13);
+		expect(ABORT_NAMES.desk).toHaveLength(3);
+		expect(ABORT_NAMES.expiry_market).toHaveLength(23);
+		expect(ABORT_NAMES.protocol_config).toHaveLength(16);
+	});
+
+	test('an unknown module or a code past the table stays unnamed', () => {
+		expect(plain('pricing', 6)?.abortName).toBeNull();
+		expect(plain('queue', 13)?.abortName).toBeNull();
+		expect(abortNameFor('queue', -1n)).toBeNull();
+		for (const inherited of ['__proto__', 'constructor', 'hasOwnProperty', 'toString']) {
+			expect(abortNameFor(inherited, 0n)).toBeNull();
+			expect(plain(inherited, 0)?.abortName).toBeNull();
+		}
+		// A clever-error code packs bits far above any table index.
+		expect(abortNameFor('queue', 9223372036854775814n)).toBeNull();
+	});
+
+	test('a clever-error name from the fullnode takes precedence over the table', () => {
+		const e = decodeMoveAbort({
+			MoveAbort: {
+				abortCode: '3',
+				location: { module: 'queue' },
+				cleverError: { constantName: 'ESomethingElse' },
+			},
+		});
+		expect(e?.abortName).toBe('ESomethingElse');
+	});
+
+	test('a decoded plain abort gets its readable text', () => {
+		for (const [module, code] of [
+			['queue', 3],
+			['desk', 0],
+			['expiry_market', 14],
+			['lazer_price', 2],
+			['protocol_config', 15],
+		] as [string, number][]) {
+			expect(describePredictError(plain(module, code)!)).not.toBeNull();
+		}
 	});
 });
 
