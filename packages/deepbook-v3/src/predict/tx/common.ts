@@ -1,6 +1,8 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
+import { bcs } from '@mysten/sui/bcs';
 import type { Transaction, TransactionArgument, TransactionResult } from '@mysten/sui/transactions';
+import { deriveObjectID } from '@mysten/sui/utils';
 import { toGeneratedConfig, type GeneratedConfig } from '../config/generated.js';
 import type { PredictConfig } from '../config/index.js';
 import { AccountContract, accountMoveCalls as account } from '../../account.js';
@@ -46,12 +48,14 @@ type NamedArguments<Options extends AuthCallOptions> = Extract<
 /**
  * The options {@link withAuth} leaves to the caller: the generated ones, minus the `auth`
  * argument it supplies itself, with the projected config required (it is what mints the auth).
+ * The config must also carry every key the wrapped call resolves, so a call into the order-flow
+ * companion can't be handed a slice without its desk.
  */
 export type WithAuthOptions<Options extends AuthCallOptions> = Omit<
 	Options,
 	'arguments' | 'config'
 > & {
-	config: GeneratedConfig;
+	config: GeneratedConfig & NonNullable<Options['config']>;
 	arguments: Omit<NamedArguments<Options>, 'auth'>;
 };
 
@@ -89,4 +93,24 @@ export function deriveAccountWrapperIdFrom(
 /** The deterministic id of an owner's canonical account wrapper — no chain read needed. */
 export function deriveAccountWrapperId(cfg: PredictConfig, owner: string): string {
 	return deriveAccountWrapperIdFrom(toGeneratedConfig(cfg), owner);
+}
+
+// `account_registry::AccountKey(owner)`: a one-field positional struct, so its BCS is the bare
+// 32-byte address.
+const AccountKey = bcs.struct('AccountKey', { pos0: bcs.Address });
+
+/**
+ * The owner's canonical ACCOUNT id (`Account.account_id`), a different derived object from the
+ * wrapper: `derive_address(registry, AccountKey(owner))`. Queue records and events name accounts
+ * by it, and `queue::waiting_orders` takes it.
+ */
+export function deriveAccountIdFrom(
+	config: Pick<GeneratedConfig, 'accountRegistry' | 'accountPackageId'>,
+	owner: string,
+): string {
+	return deriveObjectID(
+		config.accountRegistry,
+		`${config.accountPackageId}::account_registry::AccountKey`,
+		AccountKey.serialize({ pos0: owner }).toBytes(),
+	);
 }

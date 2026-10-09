@@ -171,8 +171,9 @@ describe('sessions deployment ids', () => {
 	// package was told apart from the version retired by DBU-746.
 	test('the sessions slice matches the deployment the SDK is pinned to', () => {
 		const cfg = getSessionsConfig('testnet');
+		// Sessions v3, the Testnet delayed-execution rollout (DBU-887).
 		expect(cfg.sessionsPackageId).toBe(
-			'0xe9daa1e3f98659f45f0e589c0367c7c13877af9a6a1bf1eda40e33e944816b40',
+			'0x25cfc04f97ef75c530872e630c1b3e21845e615a5a68d185291372e196cbd3de',
 		);
 		expect(cfg.sessionsPackageIdV1).toBe(
 			'0x1908eee49d7a08d74a537d7f23766b363a145517fe0d3e0d85635d1682831ffd',

@@ -24,7 +24,9 @@ export const PricingConfig = new MoveStruct({
 		use_pyth_spot_for_forward: bcs.bool(),
 		/**
 		 * Fixed wall-clock maximum age for Pyth spot; it does not vary with time to
-		 * expiry.
+		 * expiry. Past it, while `use_pyth_spot_for_forward` is set, a live load falls
+		 * back to the Block Scholes forward, which valuation prices on and every live
+		 * trade (mint, mint quote, live redeem) refuses.
 		 */
 		pyth_spot_freshness_ms: U64,
 		/**

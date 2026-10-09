@@ -5,6 +5,7 @@ import { Transaction } from '@mysten/sui/transactions';
 import { deriveDynamicFieldID, deriveObjectID, normalizeSuiAddress } from '@mysten/sui/utils';
 import { describe, expect, test } from 'vitest';
 
+import { deriveQueueId } from '../../src/predict/queue-id.js';
 import {
 	MAX_SESSION_DURATION_MS,
 	MAX_SESSIONS_PER_ACCOUNT,
@@ -530,4 +531,156 @@ test('upgraded sessions keep the v1 grant field and call the v2 budget mint', ()
 	);
 	expect(argObjectId(tx, 0, 10)).toBe(normalizeSuiAddress('0xacc'));
 	expect(argObjectId(tx, 0, 11)).toBe(normalizeSuiAddress('0x6'));
+});
+
+// Delayed execution (DBU-885): the queued Predict wrappers (Sessions v3). No Auth, no pricer:
+// placement reads the oracle objects directly, after the propbook registry. Each wrapper names the
+// market's `MarketQueue` first and the order-flow companion's `OrderDesk` after the sessions config.
+describe('queued Predict wrappers', () => {
+	const ORACLE_REGISTRY = '0x' + '88'.repeat(32);
+	const PYTH = '0x' + '91'.repeat(32);
+	const BS_VALUES = '0x' + '92'.repeat(32);
+	const BS_SVI = '0x' + '93'.repeat(32);
+	const DESK = '0x' + 'd6'.repeat(32);
+	const REGISTRY = '0x' + 'd5'.repeat(32);
+	// The queue derives from the registry, never the desk.
+	const QUEUE = deriveQueueId(REGISTRY, MARKET);
+	const target = {
+		expiryMarketId: MARKET,
+		wrapperId: WRAPPER,
+		orderDesk: DESK,
+		queueRegistry: REGISTRY,
+		protocolConfig: PROTOCOL_CONFIG,
+		oracleRegistry: ORACLE_REGISTRY,
+		pythFeed: PYTH,
+		blockScholesValueStore: BS_VALUES,
+		blockScholesSviStore: BS_SVI,
+	};
+	const u64 = (v: bigint) => Buffer.from(bcs.u64().serialize(v).toBytes()).toString('base64');
+
+	function expectLeadingObjects(tx: Transaction, queue = QUEUE) {
+		expect([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => argObjectId(tx, 0, i))).toEqual(
+			[
+				queue,
+				MARKET,
+				ACCOUNT_REGISTRY,
+				WRAPPER,
+				SESSIONS_CONFIG,
+				DESK,
+				PROTOCOL_CONFIG,
+				ORACLE_REGISTRY,
+				PYTH,
+				BS_VALUES,
+				BS_SVI,
+			].map((id) => normalizeSuiAddress(id)),
+		);
+	}
+
+	test('enqueueExactQuantity: objects in Move order, then ticks, quantity and both caps', () => {
+		const tx = new Transaction();
+		tx.add(
+			contract.enqueueExactQuantity({
+				...target,
+				lowerTick: 10n,
+				higherTick: 20n,
+				quantity: 1_000_000n,
+				maxCost: 600_000n,
+				maxProbability: 600_000_000n,
+			}),
+		);
+		expect(targets(tx)).toEqual([`${SESSIONS_PKG}::sessions::enqueue_exact_quantity`]);
+		expectLeadingObjects(tx);
+		expect([11, 12, 13, 14, 15].map((i) => argPureBytes(tx, 0, i))).toEqual(
+			[10n, 20n, 1_000_000n, 600_000n, 600_000_000n].map(u64),
+		);
+	});
+
+	test('an explicit queueId overrides the queue derived from the desk', () => {
+		const other = '0x' + '99'.repeat(32);
+		const tx = new Transaction();
+		tx.add(
+			contract.enqueueExactCost({
+				...target,
+				queueId: other,
+				lowerTick: 1n,
+				higherTick: 2n,
+				maxCost: 7n,
+				minQuantity: 8n,
+			}),
+		);
+		expectLeadingObjects(tx, other);
+	});
+
+	test('enqueueExactAmount and enqueueExactCost keep their limits in Move order', () => {
+		const amount = new Transaction();
+		amount.add(
+			contract.enqueueExactAmount({
+				...target,
+				lowerTick: 1n,
+				higherTick: 2n,
+				maxPremium: 3n,
+				minQuantity: 4n,
+				maxCost: 5n,
+			}),
+		);
+		expect(targets(amount)).toEqual([`${SESSIONS_PKG}::sessions::enqueue_exact_amount`]);
+		expectLeadingObjects(amount);
+		expect([13, 14, 15].map((i) => argPureBytes(amount, 0, i))).toEqual([3n, 4n, 5n].map(u64));
+
+		const costTx = new Transaction();
+		costTx.add(
+			contract.enqueueExactCost({
+				...target,
+				lowerTick: 1n,
+				higherTick: 2n,
+				maxCost: 7n,
+				minQuantity: 8n,
+			}),
+		);
+		expect(targets(costTx)).toEqual([`${SESSIONS_PKG}::sessions::enqueue_exact_cost`]);
+		expect([13, 14].map((i) => argPureBytes(costTx, 0, i))).toEqual([7n, 8n].map(u64));
+	});
+
+	test('enqueueRedeemOpen takes the record ID, the quantity and both floors', () => {
+		const tx = new Transaction();
+		tx.add(
+			contract.enqueueRedeemOpen({
+				...target,
+				recordId: 42n,
+				closeQuantity: 2_000_000n,
+				minProbability: 300_000_000n,
+				minProceeds: 500_000n,
+			}),
+		);
+		expect(targets(tx)).toEqual([`${SESSIONS_PKG}::sessions::enqueue_redeem_open`]);
+		expectLeadingObjects(tx);
+		expect([11, 12, 13, 14].map((i) => argPureBytes(tx, 0, i))).toEqual(
+			[42n, 2_000_000n, 300_000_000n, 500_000n].map(u64),
+		);
+	});
+
+	test('a zero or unlimited maxCost is refused on every queued mint', () => {
+		const U64_MAX = (1n << 64n) - 1n;
+		for (const maxCost of [0n, U64_MAX]) {
+			expect(() =>
+				contract.enqueueExactCost({
+					...target,
+					lowerTick: 1n,
+					higherTick: 2n,
+					maxCost,
+					minQuantity: 0n,
+				}),
+			).toThrow(/maxCost/);
+			expect(() =>
+				contract.enqueueExactQuantity({
+					...target,
+					lowerTick: 1n,
+					higherTick: 2n,
+					quantity: 1n,
+					maxCost,
+					maxProbability: 1n,
+				}),
+			).toThrow(/maxCost/);
+		}
+	});
 });

@@ -7,6 +7,7 @@
 import { MoveStruct } from '../utils/index.js';
 import { U64 } from '../../bcs/integers.js';
 import { bcs } from '@mysten/sui/bcs';
+import * as type_name from './deps/std/type_name.js';
 const $moduleName = '@local-pkg/deepbook_predict::config_events';
 export const StrikeExposureTemplateConfigUpdated = new MoveStruct({
 	name: `${$moduleName}::StrikeExposureTemplateConfigUpdated`,
@@ -57,6 +58,21 @@ export const NoTradeWindowUpdated = new MoveStruct({
 		onchain_timestamp_ms: U64,
 	},
 });
+export const FeeIncentiveSubsidyRateUpdated = new MoveStruct({
+	name: `${$moduleName}::FeeIncentiveSubsidyRateUpdated`,
+	fields: {
+		fee_incentive_subsidy_rate: U64,
+		onchain_timestamp_ms: U64,
+	},
+});
+export const FeeIncentiveAllocationRatesUpdated = new MoveStruct({
+	name: `${$moduleName}::FeeIncentiveAllocationRatesUpdated`,
+	fields: {
+		fee_incentive_live_target_rate: U64,
+		fee_incentive_lifetime_cap_rate: U64,
+		onchain_timestamp_ms: U64,
+	},
+});
 export const TradingPausedUpdated = new MoveStruct({
 	name: `${$moduleName}::TradingPausedUpdated`,
 	fields: {
@@ -69,6 +85,29 @@ export const ProtocolFrozenUpdated = new MoveStruct({
 	fields: {
 		protocol_config_id: bcs.Address,
 		frozen: bcs.bool(),
+	},
+});
+export const SettledRedeemKeeperUpdated = new MoveStruct({
+	name: `${$moduleName}::SettledRedeemKeeperUpdated`,
+	fields: {
+		keeper: bcs.Address,
+		allowed: bcs.bool(),
+	},
+});
+export const FlushOperatorUpdated = new MoveStruct({
+	name: `${$moduleName}::FlushOperatorUpdated`,
+	fields: {
+		operator: bcs.Address,
+		added: bcs.bool(),
+		onchain_timestamp_ms: U64,
+	},
+});
+export const OrderFlowUpdated = new MoveStruct({
+	name: `${$moduleName}::OrderFlowUpdated`,
+	fields: {
+		order_flow: type_name.TypeName,
+		enabled: bcs.bool(),
+		onchain_timestamp_ms: U64,
 	},
 });
 export const MarketCreated = new MoveStruct({

@@ -5,16 +5,22 @@
 /**
  * Protocol-wide configuration and flow gates for Predict.
  *
- * This shared object owns the admin-tunable config structs, the trading pause
- * gate, the protocol-wide emergency freeze, and the full-pool valuation in-flight
- * state (flag + flush ordinal, held across the transactions a flush spans;
- * keeper/config flows gate on it, trading flows read it only to discard stale
- * stamps lazily). Flow modules decide which gates apply before they mutate expiry,
- * oracle, pool, or account state.
+ * This shared object owns the admin-tunable config structs, the fee-incentive
+ * subsidy, live-target, and lifetime-cap rates, the trading pause gate, the
+ * protocol-wide emergency freeze, the version watermark (reaching
+ * `constants::cutover_version!()` is also the delayed-execution cutover), the
+ * allowlists of keepers that may redeem settled orders without owner auth, of
+ * operators that may finish an LP flush, and of the order-flow companion witness
+ * types that may drive the order-flow primitives, and the full-pool valuation
+ * in-flight state (flag + flush ordinal, held across the transactions a flush
+ * spans; keeper/config flows gate on it, trading flows read it only to discard
+ * stale stamps lazily). Flow modules decide which gates apply before they mutate
+ * expiry, oracle, pool, or account state.
  */
 
 import {
 	MoveStruct,
+	MoveTuple,
 	normalizeMoveArguments,
 	type RawTransactionArgument,
 	type ConfigValue,
@@ -89,14 +95,14 @@ export const ProtocolConfig = new MoveStruct({
 		 * Minimum package version permitted to run version-gated flows. Monotonic;
 		 * `bump_version_watermark` advances it to the running `current_version!()`,
 		 * retiring older versions. A running version below this floor is dead
-		 * (`assert_version`). `current_version!()` stays the upgrade-required code
-		 * constant; this is the runtime floor.
+		 * (`chk_version`). `current_version!()` stays the upgrade-required code constant;
+		 * this is the runtime floor.
 		 */
 		version_watermark: U64,
 		/** Blocks new risk creation while true. */
 		trading_paused: bcs.bool(),
 		/**
-		 * Emergency hard stop. While true, `assert_version` aborts, halting every
+		 * Emergency hard stop. While true, `chk_version` aborts, halting every
 		 * version-gated flow (mint, redeem, settlement, valuation, LP supply/withdraw,
 		 * admin config) — the same blast radius as a version-disable, but reversible
 		 * without a package upgrade. Force-on via `PauseCap`; cleared by `AdminCap`.
@@ -113,7 +119,7 @@ export const ProtocolConfig = new MoveStruct({
 		 */
 		valuation_in_progress: bcs.bool(),
 		/**
-		 * True ONLY while the atomic snapshot stage is open — set by `begin_snapshot` at
+		 * True ONLY while the atomic snapshot stage is open — set by `open_snap` at
 		 * `start_pool_valuation` and cleared by `end_snapshot` at
 		 * `seal_valuation_snapshot`. Both live in one PTB (the `SnapshotStage` hot potato
 		 * forces it), so this can never be observed across transactions: it blocks only a
@@ -123,13 +129,37 @@ export const ProtocolConfig = new MoveStruct({
 		 */
 		snapshot_in_progress: bcs.bool(),
 		/**
-		 * Monotonic flush ordinal, bumped by `begin_valuation`. A market's valuation stamp
-		 * names the flush that made it; a stamp whose ordinal is not the current one — or
-		 * held while no valuation is in flight — is stale and is lazily discarded by the
-		 * next trade, so aborting a flush never has to visit its stamped markets.
+		 * Monotonic flush ordinal, bumped by `begin_val`. A market's valuation stamp names
+		 * the flush that made it; a stamp whose ordinal is not the current one — or held
+		 * while no valuation is in flight — is stale and is lazily discarded by the next
+		 * trade, so aborting a flush never has to visit its stamped markets.
 		 */
 		flush_seq: U64,
 	},
+});
+export const SettledRedeemKeepersKey = new MoveTuple({
+	name: `${$moduleName}::SettledRedeemKeepersKey`,
+	fields: [bcs.bool()],
+});
+export const FeeIncentiveSubsidyRateKey = new MoveTuple({
+	name: `${$moduleName}::FeeIncentiveSubsidyRateKey`,
+	fields: [bcs.bool()],
+});
+export const FeeIncentiveLiveTargetRateKey = new MoveTuple({
+	name: `${$moduleName}::FeeIncentiveLiveTargetRateKey`,
+	fields: [bcs.bool()],
+});
+export const FeeIncentiveLifetimeCapRateKey = new MoveTuple({
+	name: `${$moduleName}::FeeIncentiveLifetimeCapRateKey`,
+	fields: [bcs.bool()],
+});
+export const FlushOperatorsKey = new MoveTuple({
+	name: `${$moduleName}::FlushOperatorsKey`,
+	fields: [bcs.bool()],
+});
+export const OrderFlowKey = new MoveTuple({
+	name: `${$moduleName}::OrderFlowKey<phantom W>`,
+	fields: [bcs.bool()],
 });
 export interface IdArguments {
 	config?: RawTransactionArgument<string>;
@@ -299,6 +329,117 @@ export function referralFeeRate(options: ReferralFeeRateOptions) {
 			),
 		});
 }
+export interface FeeIncentiveSubsidyRateArguments {
+	config?: RawTransactionArgument<string>;
+}
+export interface FeeIncentiveSubsidyRateOptions {
+	package?: string;
+	arguments?: FeeIncentiveSubsidyRateArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/**
+ * Return the live fee-incentive subsidy rate: the fraction of each mint's trading
+ * fee paid from the market's sponsor-funded fee-incentive balance, in
+ * FLOAT_SCALING. `public` for SDK and devInspect reads: the quote already reports
+ * the subsidy it applied, but a client needs the rate to explain it.
+ */
+export function feeIncentiveSubsidyRate(options: FeeIncentiveSubsidyRateOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['config'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'protocol_config',
+			function: 'fee_incentive_subsidy_rate',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface FeeIncentiveLiveTargetRateArguments {
+	config?: RawTransactionArgument<string>;
+}
+export interface FeeIncentiveLiveTargetRateOptions {
+	package?: string;
+	arguments?: FeeIncentiveLiveTargetRateArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/**
+ * Return the live fee-incentive target rate: the share of an expiry's allocation
+ * cap each live rebalance tops its sponsor-funded balance up to, in FLOAT_SCALING.
+ * `public` for SDK and devInspect reads, so a client can tell how much a market
+ * can hold before reading its balance.
+ */
+export function feeIncentiveLiveTargetRate(options: FeeIncentiveLiveTargetRateOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['config'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'protocol_config',
+			function: 'fee_incentive_live_target_rate',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface FeeIncentiveLifetimeCapRateArguments {
+	config?: RawTransactionArgument<string>;
+}
+export interface FeeIncentiveLifetimeCapRateOptions {
+	package?: string;
+	arguments?: FeeIncentiveLifetimeCapRateArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/**
+ * Return the fee-incentive lifetime cap rate that newly created expiry markets
+ * snapshot: the share of an expiry's allocation cap it may receive in
+ * sponsor-funded incentives over its life, in FLOAT_SCALING. `public` for SDK and
+ * devInspect reads.
+ */
+export function feeIncentiveLifetimeCapRate(options: FeeIncentiveLifetimeCapRateOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['config'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'protocol_config',
+			function: 'fee_incentive_lifetime_cap_rate',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
 export interface NoTradeWindowMsArguments {
 	config?: RawTransactionArgument<string>;
 }
@@ -326,6 +467,116 @@ export function noTradeWindowMs(options: NoTradeWindowMsOptions) {
 			package: packageAddress,
 			module: 'protocol_config',
 			function: 'no_trade_window_ms',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface IsFlushOperatorArguments {
+	config?: RawTransactionArgument<string>;
+	operator: RawTransactionArgument<string>;
+}
+export interface IsFlushOperatorOptions {
+	package?: string;
+	arguments: IsFlushOperatorArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/**
+ * Whether `operator` may call `plp::finish_flush`. For SDK, keeper, and devInspect
+ * reads; `finish_flush` gates through `chk_operator`.
+ */
+export function isFlushOperator(options: IsFlushOperatorOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null, 'address'] satisfies (string | null)[];
+	const parameterNames = ['config', 'operator'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'protocol_config',
+			function: 'is_flush_operator',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface IsOrderFlowArguments {
+	config?: RawTransactionArgument<string>;
+}
+export interface IsOrderFlowOptions {
+	package?: string;
+	arguments?: IsOrderFlowArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+	typeArguments: [string];
+}
+/**
+ * Whether the witness type `W` may drive Predict's order-flow primitives
+ * (admission, commit, and fill). For SDK, keeper, and devInspect reads and the
+ * companion's setup checks; the primitives gate through `chk_flow`.
+ */
+export function isOrderFlow(options: IsOrderFlowOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['config'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'protocol_config',
+			function: 'is_order_flow',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+			typeArguments: options.typeArguments,
+		});
+}
+export interface VersionWatermarkArguments {
+	config?: RawTransactionArgument<string>;
+}
+export interface VersionWatermarkOptions {
+	package?: string;
+	arguments?: VersionWatermarkArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/**
+ * Return the runtime version floor. For SDK, keeper, and devInspect reads: the
+ * delayed-execution cutover is reached once it is at least 4
+ * (`constants::cutover_version!()`).
+ */
+export function versionWatermark(options: VersionWatermarkOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null] satisfies (string | null)[];
+	const parameterNames = ['config'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'protocol_config',
+			function: 'version_watermark',
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,
@@ -638,7 +889,9 @@ export interface SetUsePythSpotForForwardOptions {
  * Select which source the live forward is built from: `true` carries the Block
  * Scholes basis on a fresh Pyth spot, `false` uses the Block Scholes forward
  * directly. Locked during valuation so one flush marks every market on one
- * formula.
+ * formula. Clearing it also lifts the live-trade Pyth freshness requirement
+ * (`pricing::assert_pyth_spot_fresh`), which is the way to keep mints and live
+ * redeems open through a Pyth outage once no valuation is in flight.
  */
 export function setUsePythSpotForForward(options: SetUsePythSpotForForwardOptions) {
 	const packageAddress =
@@ -673,7 +926,15 @@ export interface SetPythSpotFreshnessMsOptions {
 		predictPackageId?: string;
 	};
 }
-/** Set the live Pyth spot freshness threshold. */
+/**
+ * Set the live Pyth spot freshness threshold. While `use_pyth_spot_for_forward` is
+ * set, a Pyth spot older than this makes valuation price off the Block Scholes
+ * forward and makes every mint, mint quote, and live redeem abort
+ * `pricing::EPythSpotStale`, so tightening it rejects more live trades and
+ * widening it admits older Pyth spots. A window shorter than the time a Pyth
+ * update takes to land halts live trading. Locked during valuation, like the
+ * source selector.
+ */
 export function setPythSpotFreshnessMs(options: SetPythSpotFreshnessMsOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
@@ -883,11 +1144,11 @@ export function setMaxLpPoolValue(options: SetMaxLpPoolValueOptions) {
 		});
 }
 export interface SetEwmaParamsArguments {
-	config?: RawTransactionArgument<string>;
+	Config?: RawTransactionArgument<string>;
 	AdminCap: RawTransactionArgument<string>;
-	alpha: RawTransactionArgument<number | bigint>;
-	zScoreThreshold: RawTransactionArgument<number | bigint>;
-	penaltyRate: RawTransactionArgument<number | bigint>;
+	Alpha: RawTransactionArgument<number | bigint>;
+	ZScoreThreshold: RawTransactionArgument<number | bigint>;
+	PenaltyRate: RawTransactionArgument<number | bigint>;
 }
 export interface SetEwmaParamsOptions {
 	package?: string;
@@ -897,14 +1158,17 @@ export interface SetEwmaParamsOptions {
 		predictPackageId?: string;
 	};
 }
-/** Set the EWMA gas-price penalty parameters. */
+/**
+ * Retired with instant trading: the congestion penalty only priced instant trades,
+ * and queued fills charge none. Always aborts `EEwmaRetired`.
+ */
 export function setEwmaParams(options: SetEwmaParamsOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, null, 'u64', 'u64', 'u64', '0x2::clock::Clock'] satisfies (
 		string | null
 	)[];
-	const parameterNames = ['config', 'AdminCap', 'alpha', 'zScoreThreshold', 'penaltyRate'];
+	const parameterNames = ['Config', 'AdminCap', 'Alpha', 'ZScoreThreshold', 'PenaltyRate'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -913,7 +1177,7 @@ export function setEwmaParams(options: SetEwmaParamsOptions) {
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,
-					config: options.arguments?.config ?? options.config?.protocolConfig,
+					Config: options.arguments?.Config ?? options.config?.protocolConfig,
 				},
 				argumentsTypes,
 				parameterNames,
@@ -921,9 +1185,9 @@ export function setEwmaParams(options: SetEwmaParamsOptions) {
 		});
 }
 export interface SetEwmaEnabledArguments {
-	config?: RawTransactionArgument<string>;
+	Config?: RawTransactionArgument<string>;
 	AdminCap: RawTransactionArgument<string>;
-	enabled: RawTransactionArgument<boolean>;
+	Enabled: RawTransactionArgument<boolean>;
 }
 export interface SetEwmaEnabledOptions {
 	package?: string;
@@ -933,12 +1197,15 @@ export interface SetEwmaEnabledOptions {
 		predictPackageId?: string;
 	};
 }
-/** Enable or disable the EWMA gas-price penalty. */
+/**
+ * Retired with instant trading: the congestion penalty only priced instant trades,
+ * and queued fills charge none. Always aborts `EEwmaRetired`.
+ */
 export function setEwmaEnabled(options: SetEwmaEnabledOptions) {
 	const packageAddress =
 		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
 	const argumentsTypes = [null, null, 'bool', '0x2::clock::Clock'] satisfies (string | null)[];
-	const parameterNames = ['config', 'AdminCap', 'enabled'];
+	const parameterNames = ['Config', 'AdminCap', 'Enabled'];
 	return (tx: Transaction) =>
 		tx.moveCall({
 			package: packageAddress,
@@ -947,7 +1214,7 @@ export function setEwmaEnabled(options: SetEwmaEnabledOptions) {
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,
-					config: options.arguments?.config ?? options.config?.protocolConfig,
+					Config: options.arguments?.Config ?? options.config?.protocolConfig,
 				},
 				argumentsTypes,
 				parameterNames,
@@ -972,10 +1239,9 @@ export interface SetNoTradeWindowMsOptions {
  * abort. `0` disables the block. Read live at trade time, so a change applies to
  * markets already trading and stays available as an incident control.
  *
- * Deliberately not gated on `assert_not_valuation_in_progress`, matching
- * `set_trading_paused`: a stalled flush must not be able to trap a safety control.
- * Nothing in the flush reads this value, so a mid-valuation change cannot skew a
- * frozen mark.
+ * Deliberately not gated on `chk_no_val`, matching `set_trading_paused`: a stalled
+ * flush must not be able to trap a safety control. Nothing in the flush reads this
+ * value, so a mid-valuation change cannot skew a frozen mark.
  */
 export function setNoTradeWindowMs(options: SetNoTradeWindowMsOptions) {
 	const packageAddress =
@@ -1048,7 +1314,7 @@ export interface SetFrozenOptions {
  * Set the protocol-wide emergency freeze.
  *
  * Intentionally NOT version-gated, unlike every other admin setter: the freeze
- * gate lives inside `assert_version`, so routing this through it would make an
+ * gate lives inside `chk_version`, so routing this through it would make an
  * engaged freeze unclearable without a package upgrade — defeating the point.
  */
 export function setFrozen(options: SetFrozenOptions) {
@@ -1069,6 +1335,204 @@ export function setFrozen(options: SetFrozenOptions) {
 				argumentsTypes,
 				parameterNames,
 			),
+		});
+}
+export interface AddSettledRedeemKeeperArguments {
+	config?: RawTransactionArgument<string>;
+	AdminCap: RawTransactionArgument<string>;
+	keeper: RawTransactionArgument<string>;
+}
+export interface AddSettledRedeemKeeperOptions {
+	package?: string;
+	arguments: AddSettledRedeemKeeperArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/**
+ * Allow `keeper` to call `expiry_market::redeem_settled_permissionless`.
+ * Admin-only and version-gated. Aborts if `keeper` is already allowed.
+ */
+export function addSettledRedeemKeeper(options: AddSettledRedeemKeeperOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null, null, 'address'] satisfies (string | null)[];
+	const parameterNames = ['config', 'AdminCap', 'keeper'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'protocol_config',
+			function: 'add_settled_redeem_keeper',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface RemoveSettledRedeemKeeperArguments {
+	config?: RawTransactionArgument<string>;
+	AdminCap: RawTransactionArgument<string>;
+	keeper: RawTransactionArgument<string>;
+}
+export interface RemoveSettledRedeemKeeperOptions {
+	package?: string;
+	arguments: RemoveSettledRedeemKeeperArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/**
+ * Revoke `keeper`'s access to `expiry_market::redeem_settled_permissionless`.
+ * Admin-only. Bypasses the version gate, like the registry's cap revocations, so
+ * revocation stays available under the emergency freeze and from a package version
+ * below the runtime floor. Aborts if `keeper` is not allowed.
+ */
+export function removeSettledRedeemKeeper(options: RemoveSettledRedeemKeeperOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null, null, 'address'] satisfies (string | null)[];
+	const parameterNames = ['config', 'AdminCap', 'keeper'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'protocol_config',
+			function: 'remove_settled_redeem_keeper',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface AddFlushOperatorArguments {
+	config?: RawTransactionArgument<string>;
+	AdminCap: RawTransactionArgument<string>;
+	operator: RawTransactionArgument<string>;
+}
+export interface AddFlushOperatorOptions {
+	package?: string;
+	arguments: AddFlushOperatorArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/**
+ * Allow `operator` to call `plp::finish_flush`. Admin-only and version-gated;
+ * aborts if `operator` is already allowed. Not gated on an open LP valuation, so
+ * an admin can always add an operator to finish a stuck flush.
+ */
+export function addFlushOperator(options: AddFlushOperatorOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null, null, 'address', '0x2::clock::Clock'] satisfies (string | null)[];
+	const parameterNames = ['config', 'AdminCap', 'operator'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'protocol_config',
+			function: 'add_flush_operator',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface RemoveFlushOperatorArguments {
+	config?: RawTransactionArgument<string>;
+	AdminCap: RawTransactionArgument<string>;
+	operator: RawTransactionArgument<string>;
+}
+export interface RemoveFlushOperatorOptions {
+	package?: string;
+	arguments: RemoveFlushOperatorArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/**
+ * Revoke `operator`'s access to `plp::finish_flush`. Admin-only. Bypasses the
+ * version gate, like `remove_settled_redeem_keeper`, so revocation stays available
+ * under the emergency freeze and from a package version below the runtime floor.
+ * Aborts if `operator` is not allowed.
+ */
+export function removeFlushOperator(options: RemoveFlushOperatorOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null, null, 'address', '0x2::clock::Clock'] satisfies (string | null)[];
+	const parameterNames = ['config', 'AdminCap', 'operator'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'protocol_config',
+			function: 'remove_flush_operator',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface SetOrderFlowArguments {
+	config?: RawTransactionArgument<string>;
+	AdminCap: RawTransactionArgument<string>;
+	enabled: RawTransactionArgument<boolean>;
+}
+export interface SetOrderFlowOptions {
+	package?: string;
+	arguments: SetOrderFlowArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+	typeArguments: [string];
+}
+/**
+ * Allowlist (`enabled = true`) or remove the witness type `W` of an order-flow
+ * companion for Predict's order-flow primitives. Removing it stops admissions,
+ * commits, and fills only: `release` and `try_pay_settled` need a receipt, not the
+ * allowlist, so waiting orders still drain and queue-held positions are still
+ * paid. Admin-only. Enabling is version-gated, since it grants authority; removing
+ * is ungated, like `remove_flush_operator`, so it works under the emergency freeze
+ * and from a package version below the runtime floor. Setting the state `W`
+ * already has changes nothing but still emits `OrderFlowUpdated`.
+ */
+export function setOrderFlow(options: SetOrderFlowOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null, null, 'bool', '0x2::clock::Clock'] satisfies (string | null)[];
+	const parameterNames = ['config', 'AdminCap', 'enabled'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'protocol_config',
+			function: 'set_order_flow',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+			typeArguments: options.typeArguments,
 		});
 }
 export interface BumpVersionWatermarkArguments {
@@ -1174,6 +1638,157 @@ export function setReferralFeeRate(options: SetReferralFeeRateOptions) {
 			package: packageAddress,
 			module: 'protocol_config',
 			function: 'set_referral_fee_rate',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface SetFeeIncentiveSubsidyRateArguments {
+	config?: RawTransactionArgument<string>;
+	AdminCap: RawTransactionArgument<string>;
+	rate: RawTransactionArgument<number | bigint>;
+}
+export interface SetFeeIncentiveSubsidyRateOptions {
+	package?: string;
+	arguments: SetFeeIncentiveSubsidyRateArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/**
+ * Set the fraction of each mint's trading fee paid from the market's
+ * sponsor-funded fee-incentive balance. Read live at mint time, so the new rate
+ * applies to the next mint on every market, including markets already trading; `0`
+ * stops incentives from being spent without moving them. The subsidy never changes
+ * the trading fee charged, only how much of it the trader pays; on a referred mint
+ * the referral is computed on the trader-paid part, so a higher rate also shrinks
+ * the referral.
+ *
+ * Binds every mint only once the version watermark has retired package versions
+ * older than 4: those compiled in a fixed 20% and never read this rate, so until
+ * then a mint routed through one still draws 20% from the market's balance. A zero
+ * rate does not stop `rebalance_expiry_cash` allocating the pool reserve into
+ * markets; to wind incentives down, also withdraw the reserve
+ * (`plp::withdraw_fee_incentives`), or, once the watermark has retired versions
+ * older than 4, set the live target rate to zero, which keeps the reserve in the
+ * pool.
+ *
+ * Not gated on the valuation flag, matching `set_referral_fee_rate`: nothing in
+ * the flush reads this rate, and a mint that consumes a subsidy mid-flush lands
+ * after the snapshot captured that market's cash, so it cannot reach the frozen
+ * mark.
+ */
+export function setFeeIncentiveSubsidyRate(options: SetFeeIncentiveSubsidyRateOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null, null, 'u64', '0x2::clock::Clock'] satisfies (string | null)[];
+	const parameterNames = ['config', 'AdminCap', 'rate'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'protocol_config',
+			function: 'set_fee_incentive_subsidy_rate',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface SetFeeIncentiveLiveTargetRateArguments {
+	config?: RawTransactionArgument<string>;
+	AdminCap: RawTransactionArgument<string>;
+	rate: RawTransactionArgument<number | bigint>;
+}
+export interface SetFeeIncentiveLiveTargetRateOptions {
+	package?: string;
+	arguments: SetFeeIncentiveLiveTargetRateArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/**
+ * Set the share of an expiry's allocation cap each live rebalance tops its
+ * sponsor-funded fee-incentive balance up to. Read at every rebalance, so it
+ * applies to markets already trading. Lowering it never claws back a balance
+ * already allocated: a market above the new target receives nothing more until it
+ * spends below it. `0` stops the pool reserve being allocated to markets, so it
+ * stays in the pool and withdrawable. It may exceed a market's lifetime cap: the
+ * cap still bounds what the market receives, so the target is not checked against
+ * the lifetime cap rate.
+ *
+ * Binds every rebalance only once the version watermark has retired package
+ * versions older than 4: `rebalance_expiry_cash` is permissionless, and those
+ * versions top a market up to a fixed 2% whatever this is set to. Not gated on the
+ * valuation flag: the flush never reads it, and the reserve and market incentive
+ * balances it moves between are outside PLP NAV.
+ */
+export function setFeeIncentiveLiveTargetRate(options: SetFeeIncentiveLiveTargetRateOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null, null, 'u64', '0x2::clock::Clock'] satisfies (string | null)[];
+	const parameterNames = ['config', 'AdminCap', 'rate'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'protocol_config',
+			function: 'set_fee_incentive_live_target_rate',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface SetTemplateFeeIncentiveLifetimeCapRateArguments {
+	config?: RawTransactionArgument<string>;
+	AdminCap: RawTransactionArgument<string>;
+	rate: RawTransactionArgument<number | bigint>;
+}
+export interface SetTemplateFeeIncentiveLifetimeCapRateOptions {
+	package?: string;
+	arguments: SetTemplateFeeIncentiveLifetimeCapRateArguments;
+	config?: {
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/**
+ * Set the share of an expiry's allocation cap it may receive in sponsor-funded fee
+ * incentives over its life. Snapshotted into each expiry's pool accounting row
+ * when the market is created, so markets already created keep the cap they were
+ * created with, and `vault_events::FeeIncentiveLifetimeCapSnapshotted` reports
+ * each market's cap.
+ *
+ * Binds market creation only once the version watermark has retired package
+ * versions older than 4, which snapshot a fixed 10% whatever this is set to. Not
+ * gated on the valuation flag, for the same reason as the live target rate.
+ */
+export function setTemplateFeeIncentiveLifetimeCapRate(
+	options: SetTemplateFeeIncentiveLifetimeCapRateOptions,
+) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null, null, 'u64', '0x2::clock::Clock'] satisfies (string | null)[];
+	const parameterNames = ['config', 'AdminCap', 'rate'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'protocol_config',
+			function: 'set_template_fee_incentive_lifetime_cap_rate',
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,

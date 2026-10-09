@@ -229,6 +229,55 @@ pnpm --filter @mysten/deepbook-v3 sync-deployment
    (~5k lines instead of ~300).
 3. **Codegen writes `package_summaries/` into the deepbookv3 checkout.** It is untracked there —
    delete it when done so the sibling repo is left clean.
+4. **`DEEPBOOKV3_ROOT` points codegen at another checkout.** Use it to generate from an unpublished
+   commit without moving the sibling:
+   `git -C ../deepbookv3 worktree add --detach <scratch>/dbv3 <commit>`, then
+   `DEEPBOOKV3_ROOT=<scratch>/dbv3 pnpm --filter @mysten/deepbook-v3 codegen`, revert
+   `src/contracts/{deepbook,deepbook_margin,margin_liquidation}` (and `pyth` if it changed), run
+   `pnpm lint:fix`, and `git worktree remove` the scratch tree. Never pass a positional path to
+   `sui-ts-codegen generate`: that route drops `configArguments` and `bcsOverrides`.
+
+### Predict delayed execution (`src/predict/{queue,tx/queue,reads/queue}.ts`)
+
+- Delayed execution spans three packages: the Predict upgrade (v4), the order-flow companion
+  `deepbook_predict_orders` and the math library `deepbook_predict_math` (both fresh publishes).
+  Every queued-order call and queue read targets the companion (`queue::*`, `desk::*`), with the
+  slice from `toOrdersConfig(cfg)`. It throws `PredictInputError` unless the config records
+  `packages.predictDelayedExecution`, `packages.predictOrders`, `objects.orderDesk` and
+  `objects.queueRegistry` (the network records stay unset until each publication is synced).
+- A market's `MarketQueue` sits at `derived_object::derive_address(registry_id, market_id)`, the
+  companion's `QueueRegistry`, not its `OrderDesk`: `src/predict/queue-id.ts` (a leaf module, so
+  `/sessions` can import it), pinned against Move vectors in `test/predict/queue-id.test.ts`. The
+  facade checks the queue exists once per client (`getObjects`) and refuses a missing one with
+  `PredictPreflightError` `'no-queue'`.
+- The queue calls that can send USDC take Sui's `DenyList` (`0x403`). The generated bindings inject
+  it like the clock, as a read-only shared input, so the thunks never name it.
+- Event origins: the queue events are the companion's `queue_events`, typed by its original ID
+  (`packages.predictOrdersV1 ?? predictOrders`). The Predict events v4 added (`ExpiryPnlRealized`,
+  `FlushOperatorUpdated`, `OrderFlowUpdated`) are typed by `packages.predictDelayedExecution`. Fills
+  still emit Predict's v1 `OrderMinted` / `LiveOrderRedeemed`.
+- `queue.ts` ports the cash-need formulas (`deepbook_predict_math::math::need_*`) 1:1, and
+  `test/predict/queue.test.ts` pins them with the Move unit-test vectors. Re-copy the vectors when
+  the Move rounding changes.
+- The retired Predict entry points (`mint_exact_*`, `redeem_live`, and the `set_ewma_*` setters)
+  keep their signatures, but their source parameters are underscore-prefixed, so codegen renders
+  capitalized argument keys (`_market` → `Market`). `tx/trade.ts` mints the auth itself for them
+  instead of using `withAuth`. The public `expiryMarketMoveCalls` and `protocolConfigMoveCalls` come
+  from `src/predict/bindings/`, which wraps those functions to keep the keys they shipped with. If a
+  regeneration capitalizes another exported function's keys, wrap it there too, and add it to the
+  `wrapped` list in `test/predict/move-calls.test.ts`.
+- `read.executionMode()` reads `ProtocolConfig.version_watermark` from the object's BCS, because the
+  getter only exists from v4.
+- Predict's error constants are plain `u64` codes, so the fullnode surfaces no clever-error name.
+  `errors.ts` `ABORT_NAMES` maps `(module, code)` to the constant name for `expiry_market`,
+  `protocol_config`, `pricing`, the admission, position and LP modules, the companion's modules and
+  `lazer_price`, generated from the Move sources (each module's codes run from 0 with no gaps, and
+  only append). Extend it when a module gains codes, or `describePredictError` and checks such as
+  `abortName === 'EMarketNotSettled'` miss them. The table is keyed by module name only, so
+  Predict's `order` and `registry` stay out: DeepBook core has modules of the same names.
+- `queue.ORDER_FLOW_PACKAGE_VERSION` mirrors `desk::current_version` of the generated companion
+  source. The preflight refuses with `'retired'` when the desk floor is above it, so bump it with
+  the companion whenever the bindings are regenerated.
 
 ## Formatting
 
@@ -441,3 +490,6 @@ Track significant updates to this file:
 - **2026-03**: Documented query module pattern, conversion helpers, and named return types
 - **2026-07**: Added codegen gotchas (build workspace deps + re-install before `pnpm codegen`;
   broken pyth config entry; `package_summaries/` cleanup)
+- **2026-10**: `DEEPBOOKV3_ROOT` codegen override and Predict delayed-execution notes (DBU-885)
+- **2026-10**: Delayed execution split across Predict, `deepbook_predict_orders` and
+  `deepbook_predict_math` (DBU-885)

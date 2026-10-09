@@ -7,7 +7,9 @@
  *
  * Events carry transition identities and deltas rather than account or market
  * balances. Partial closes link an old order ID to its replacement; the position
- * root remains constant across that chain.
+ * root remains constant across that chain. Queued fills emit `OrderMinted` and
+ * `LiveOrderRedeemed` from inside Predict's order-flow fills; the queue's own
+ * events belong to the order-flow companion package.
  */
 
 import { MoveStruct } from '../utils/index.js';
