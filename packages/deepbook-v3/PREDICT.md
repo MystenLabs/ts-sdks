@@ -208,22 +208,23 @@ the room from the model.
   enables an order its enqueue refuses. A mint plan also refuses `fee` when the balance doesn't
   cover `totalDebit`, `min-premium` when a budget buys less than the minimum premium without the fee
   subsidy, and `cost-above-payout` when the unsubsidized cost is above the payout, or for a budget,
-  about the payout. `tx.enqueuePlan` throws a refused plan's code, and `fee` when the balance now
-  escrows less than the plan's budget. It also throws a `PredictInputError` when called with another
-  owner, market, strike, side or record than the plan's `target`, since the plan's limits fit only
-  that order, and when the order fee rose since the plan, since the plan's debit and a sell's net
-  assume its fee. A plan made with `strike: 'reference'` is refused once the reference strike moves.
-  When the chain refuses to quote a plan, `planMint` throws a typed refusal where it can tell why:
-  `entry-band` for a strike outside the market's entry band, `min-premium` for an order whose
-  premium is below 1 USDC. The probability can still leave the band between plan and placement,
-  which the chain refuses with `EOrderFailsLimits`. A plan on a market past its expiry throws
-  `past-cutoff`, since the chain has no live price to quote. `planSell` throws `record-not-open` for
-  a record that isn't Open, and a `PredictInputError` for more than the record holds, since the
-  chain can't quote either. Two admission conditions are checked only on chain, at placement: the
-  market's SVI age under the order desk's `svi_max_age_ms`, and room in the payout tree for a new
-  strike's boundary nodes. A refused order never fails the rest of a transaction. The order's own
-  price limits are checked only on chain, at placement (`EOrderFailsLimits`), and the preview runs
-  on the local clock, so near the cutoff the chain can still refuse: decode that with
+  about the payout. `tx.enqueuePlan` takes the descriptor a mint plan was planned with, or the
+  coordinates `planSell` took for a sell plan. It throws a refused plan's code, and `fee` when the
+  balance now escrows less than the plan's budget. It also throws a `PredictInputError` when called
+  with another owner, market, strike, side or record than the plan's `target`, since the plan's
+  limits fit only that order, and when the order fee rose since the plan, since the plan's debit and
+  a sell's net assume its fee. A plan made with `strike: 'reference'` is refused once the reference
+  strike moves. When the chain refuses to quote a plan, `planMint` throws a typed refusal where it
+  can tell why: `entry-band` for a strike outside the market's entry band, `min-premium` for an
+  order whose premium is below 1 USDC. The probability can still leave the band between plan and
+  placement, which the chain refuses with `EOrderFailsLimits`. A plan on a market past its expiry
+  throws `past-cutoff`, since the chain has no live price to quote. `planSell` throws
+  `record-not-open` for a record that isn't Open, and a `PredictInputError` for more than the record
+  holds, since the chain can't quote either. Two admission conditions are checked only on chain, at
+  placement: the market's SVI age under the order desk's `svi_max_age_ms`, and room in the payout
+  tree for a new strike's boundary nodes. A refused order never fails the rest of a transaction. The
+  order's own price limits are checked only on chain, at placement (`EOrderFailsLimits`), and the
+  preview runs on the local clock, so near the cutoff the chain can still refuse: decode that with
   `describePredictError`. `EOrderFailsLimits` also covers admission: an entry price outside the
   market's band, or a premium below the minimum. `planMint` throws `entry-band` when the strike's
   price is outside the band, before any plan exists, so pick a strike with

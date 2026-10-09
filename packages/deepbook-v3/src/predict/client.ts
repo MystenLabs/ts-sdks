@@ -1058,19 +1058,30 @@ export class PredictClient {
 	// is its premium-budget mode with the whole budget as the premium, whose premium clears the
 	// 1 USDC minimum whenever the purchase can. Each next probe divides the budget by the last price
 	// per contract. The price barely moves with size, so a few quotes settle it. A probe the chain
-	// refuses (`EOrderFailsLimits`) ends the search with the best fit so far.
+	// refuses (`EOrderFailsLimits`) ends the search with the best fit so far. With no fit, the
+	// refusal is `min-premium`, unless the chain priced no probe and the budget is at least the
+	// minimum premium plus a lot: the first probe's premium is above `budget − lot` (a lot costs
+	// under $1), so the minimum premium didn't refuse it, and the chain's own refusal stands.
 	async #searchBudgetQuote(
 		ticks: { expiryMarketId: string; lowerTick: bigint; higherTick: bigint } & MarketFeeds,
 		budgetRaw: bigint,
 		lot: bigint,
 	): Promise<MintQuoteRaw> {
 		const floorLot = (x: bigint) => (x / lot) * lot;
+		let refusal: unknown = null;
+		let priced = false;
 		const probeQuote = async (request: AnonymousMintQuoteRequest) => {
 			try {
-				return (await quoteMintAnonymous(this.#client, this.#config, { ...ticks, request })).quote;
+				const { quote } = await quoteMintAnonymous(this.#client, this.#config, {
+					...ticks,
+					request,
+				});
+				priced = true;
+				return quote;
 			} catch (e) {
-				if (isOrderFailsLimits(e)) return null;
-				throw e;
+				if (!isOrderFailsLimits(e)) throw e;
+				refusal ??= e;
+				return null;
 			}
 		};
 		let best: MintQuoteRaw | null = null;
@@ -1088,6 +1099,7 @@ export class PredictClient {
 			quote = await probeQuote({ shape: 'exact-quantity', quantityRaw: next });
 		}
 		if (best == null) {
+			if (!priced && refusal != null && budgetRaw >= MIN_PREMIUM + lot) throw refusal;
 			throw new PredictPreflightError(
 				'min-premium',
 				`a budget of ${rawToUsdc(budgetRaw)} buys no payout at the current price (a mint's premium must be at least ${rawToUsdc(MIN_PREMIUM)} USDC)`,
@@ -1878,13 +1890,15 @@ export class PredictClient {
 		/**
 		 * Queue the order a `read.planMint` or `read.planSell` plan describes, with its limits:
 		 * `enqueueMintCost`, `enqueueMint` or `enqueueSell`, by `plan.order.builder`. Pass the
-		 * market the plan was made for. Throws the plan's `refusal` as a `PredictPreflightError`,
-		 * and `'fee'` when the balance now escrows less than the plan's budget.
+		 * market the plan was made for: the descriptor a mint plan was planned with, or the
+		 * coordinates `read.planSell` took for a sell plan. Throws the plan's `refusal` as a
+		 * `PredictPreflightError`, and `'fee'` when the balance now escrows less than the plan's
+		 * budget.
 		 */
-		enqueuePlan: async (
+		enqueuePlan: async <P extends MintPlan | SellPlan>(
 			owner: string,
-			m: MarketDescriptor,
-			plan: MintPlan | SellPlan,
+			m: P extends SellPlan ? MarketCoordinates : MarketDescriptor,
+			plan: P,
 		): Promise<QueuedOrderPlan> => {
 			// A plan that reported a refusal is refused the same way, so the two never disagree.
 			// Plan again once the reason clears.
@@ -1904,26 +1918,34 @@ export class PredictClient {
 				);
 			}
 			const order = plan.order;
+			// A mint needs the descriptor's strike and side. A plan typed only as
+			// `MintPlan | SellPlan` can pass bare coordinates, so check.
+			const descriptor = 'side' in m ? (m as MarketDescriptor) : null;
+			let placed: QueuedOrderPlan;
 			if (order.builder === 'enqueueSell') {
 				if (order.options.recordId !== target.recordId) {
 					throw new PredictInputError(
 						`the plan was made for record ${target.recordId}, not ${order.options.recordId}`,
 					);
 				}
+				placed = await this.tx.enqueueSell(owner, m, order.options);
 			} else {
-				const { lowerTick, higherTick } = await this.#strikeTicks(m, id, marketState);
+				if (descriptor == null) {
+					throw new PredictInputError(
+						'a mint plan needs the market descriptor it was planned with (its strike and side)',
+					);
+				}
+				const { lowerTick, higherTick } = await this.#strikeTicks(descriptor, id, marketState);
 				if (lowerTick !== target.lowerTick || higherTick !== target.higherTick) {
 					throw new PredictInputError(
 						'the market descriptor names a different strike or side than the plan, or its reference strike moved: plan again',
 					);
 				}
+				placed =
+					order.builder === 'enqueueMintCost'
+						? await this.tx.enqueueMintCost(owner, descriptor, order.options)
+						: await this.tx.enqueueMint(owner, descriptor, order.options);
 			}
-			const placed =
-				order.builder === 'enqueueSell'
-					? await this.tx.enqueueSell(owner, m, order.options)
-					: order.builder === 'enqueueMintCost'
-						? await this.tx.enqueueMintCost(owner, m, order.options)
-						: await this.tx.enqueueMint(owner, m, order.options);
 			// The plan's debit, and a sell's net, assume the order fee it was quoted with. The builders
 			// read the desk's fee again, and no order argument bounds it on chain, so refuse a fee
 			// that rose since the plan.
@@ -2471,12 +2493,13 @@ export class PredictClient {
 						});
 					} catch (error) {
 						if (!isOrderFailsLimits(error)) throw await this.#quoteRefusal(error);
-						// The chain refused the whole budget at the account's own pricing, its builder
-						// fee included, so no smaller fill clears it either. The account-free search
-						// only diagnoses the refusal: a strike outside the entry band, or a budget too
-						// small for the minimum premium, throws its typed refusal. It leaves the builder
-						// fee out, so a budget only it can size is never planned, and keeps the chain's
-						// own error.
+						// The chain refused the budget at the account's own pricing, its builder fee
+						// included. The account-free search only diagnoses the refusal: a strike outside
+						// the entry band, or a budget too small for the minimum premium, throws its typed
+						// refusal. It leaves the builder fee out, so a budget only it can size is never
+						// planned, and keeps the chain's own error. (Near $1 a contract, admission's
+						// payout-bound step-down isn't monotone, so a slightly smaller budget can pass
+						// where this one is refused. That is a false refusal, never a bad order.)
 						await search();
 						throw error;
 					}

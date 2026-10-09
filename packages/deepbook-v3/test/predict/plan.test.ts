@@ -3,7 +3,12 @@
 // Order planning for a purchase form (`read.planMint`, `read.planSell`) and the pure limit helpers
 // behind it. Slippage is cents per contract, an absolute price move, never a percentage.
 import { describe, expect, test } from 'vitest';
-import { PredictClient, type MarketDescriptor } from '../../src/predict/client.js';
+import {
+	PredictClient,
+	type MarketDescriptor,
+	type MintPlan,
+	type SellPlan,
+} from '../../src/predict/client.js';
 import { toGeneratedConfig } from '../../src/predict/config/generated.js';
 import { SHIPPED_FEE_POLICY } from '../../src/predict/cost.js';
 import {
@@ -712,6 +717,28 @@ describe('a plan the chain refuses to quote gets a typed refusal', () => {
 		expect(err.abortName).toBe('EOrderFailsLimits');
 	});
 
+	test('a budget no probe could price keeps the chain refusal, not min-premium', async () => {
+		// Every quote is refused at an in-band price. A 5 USDC budget's first probe buys a premium
+		// near 5, so the minimum premium didn't refuse it: cost above the payout, or a range the
+		// pricer can't price, did. For a visitor and for an account.
+		const visitor = scenario({ refuseQuotes: true });
+		const { pc: visitorClient } = client(visitor);
+		visitor.missingObjects.add(visitorClient.wrapperIdFor(OWNER));
+		const account = scenario({ refuseQuotes: true });
+		const { pc: accountClient } = client(account);
+		for (const [pc, s] of [
+			[visitorClient, visitor],
+			[accountClient, account],
+		] as const) {
+			withPrices(pc, 0.5);
+			const err = await pc.read
+				.planMint(OWNER, market(s), { amount: 5, slippageCents: 10 })
+				.catch((e) => e);
+			expect(err).toBeInstanceOf(PredictMoveError);
+			expect(err.abortName).toBe('EOrderFailsLimits');
+		}
+	});
+
 	test('an amount the order fee takes whole is refused as min-premium', async () => {
 		const s = scenario();
 		const { pc } = client(s);
@@ -797,6 +824,23 @@ describe('a plan holds the fee and balance it was quoted with', () => {
 });
 
 describe('plans are bound to what they were quoted for', () => {
+	test('a sell plan places with the coordinates planSell took, a mint plan needs its descriptor', async () => {
+		const s = scenario({ records: new Map([[7n, openRecord()]]) });
+		const { pc } = client(s);
+		const coordinates = { underlying: 'BTC', expiryMs: s.expiryMs, marketId: MARKET };
+		const sell = await pc.read.planSell(OWNER, coordinates, {
+			recordId: 7n,
+			quantity: 2,
+			slippageCents: 10,
+		});
+		await expect(pc.tx.enqueuePlan(OWNER, coordinates, sell)).resolves.toBeDefined();
+		const mint = await pc.read.planMint(OWNER, market(s), { amount: 5, slippageCents: 10 });
+		const untyped = mint as MintPlan | SellPlan;
+		const err = await pc.tx.enqueuePlan(OWNER, coordinates, untyped).catch((e) => e);
+		expect(err).toBeInstanceOf(PredictInputError);
+		expect(err.message).toMatch(/needs the market descriptor/);
+	});
+
 	test('a mint plan is refused for the other side or another owner', async () => {
 		const s = scenario();
 		const { pc } = client(s);
