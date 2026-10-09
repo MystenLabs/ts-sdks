@@ -235,15 +235,18 @@ the room from the model.
 - **Plans are snapshots.** A plan's quote, limits, fee and gates are read once, when it is made, and
   the SDK never expires a plan. `tx.enqueuePlan` reads the gates and the balance again and refuses a
   refused plan, a smaller escrow, a fee rise, another target or a moved reference strike, but it
-  keeps the plan's limits. An old plan still places at the old price's limits, which then fill or
-  refund at τ, so plan again when the price has moved or the user has waited. The timing preview
-  (`tauMs`, `deadlineMs`, `beforeCutoff`) runs on the device clock, and the chain's clock decides,
-  so a skewed device clock shows the wrong countdown and can let an order past the cutoff preflight.
-  The market's oracle objects (the Pyth feed and the Block Scholes stores) come from the config,
-  which pins them per deployment: a feed re-bound on chain aborts `EWrongPythFeed` or
-  `EWrongBlockScholesValueStore` until the SDK, or a `config` override, records the new one. A
-  session key's raw `SessionsContract` call skips the facade's preflight and plan binding, so check
-  the plan's `accepting` and send the plan's own strike and limits.
+  keeps the plan's limits. Every enqueue the facade builds starts with
+  `queueTx.assertOrderFeeAtMost`, which aborts the transaction (`option::EOPTION_NOT_SET`, described
+  by `describePredictError`) when the desk's fee rose between building and execution, since the
+  enqueue charges the fee at execution and takes no fee bound. An old plan still places at the old
+  price's limits, which then fill or refund at τ, so plan again when the price has moved or the user
+  has waited. The timing preview (`tauMs`, `deadlineMs`, `beforeCutoff`) runs on the device clock,
+  and the chain's clock decides, so a skewed device clock shows the wrong countdown and can let an
+  order past the cutoff preflight. The market's oracle objects (the Pyth feed and the Block Scholes
+  stores) come from the config, which pins them per deployment: a feed re-bound on chain aborts
+  `EWrongPythFeed` or `EWrongBlockScholesValueStore` until the SDK, or a `config` override, records
+  the new one. A session key's raw `SessionsContract` call skips the facade's preflight and plan
+  binding, so check the plan's `accepting` and send the plan's own strike and limits.
 - **Order states.** `read.order(s)` returns each record with `queue.orderView`: `placed` (with
   `awaitingPrice` once τ passes), `priced` (the committed price and a countdown to the deadline),
   then `filled` or `refunded`. A filler that commits a price and resolves the order in one

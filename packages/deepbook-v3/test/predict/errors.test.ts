@@ -136,6 +136,8 @@ describe('plain abort codes decode to their constant names', () => {
 		['expiry_cash', 0, 'EInsufficientCash'],
 		['plp', 14, 'EInsufficientFeeIncentiveReserve'],
 		['lp_book', 1, 'EBelowMinSupplyRequest'],
+		// The order-fee guard's abort in the standard library.
+		['option', 0x40001, 'EOPTION_NOT_SET'],
 	] as [string, number, string][])('%s code %i is %s', (module, code, name) => {
 		expect(plain(module, code)?.abortName).toBe(name);
 		expect(abortNameFor(module, BigInt(code))).toBe(name);

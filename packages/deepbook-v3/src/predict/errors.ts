@@ -240,11 +240,17 @@ export const ABORT_NAMES: Readonly<Record<string, readonly string[]>> = Object.f
 	account_registry: ['EAppAlreadyAuthorized', 'EAppNotAuthorized', 'EAccountAlreadyExists'],
 });
 
+/** `std::option::EOPTION_NOT_SET`. */
+const OPTION_NOT_SET = 0x40001n;
+
 /**
  * The constant name of a plain `u64` abort `code` in `module`, from {@link ABORT_NAMES}, or null
  * when the module or the code is unknown.
  */
 export function abortNameFor(module: string, code: bigint): string | null {
+	// The order-fee guard (`queueTx.assertOrderFeeAtMost`) aborts in the standard library's
+	// `option`, whose constant isn't an index.
+	if (module === 'option' && code === OPTION_NOT_SET) return 'EOPTION_NOT_SET';
 	// Own keys only: a module named like an `Object.prototype` member is simply unknown.
 	if (!Object.hasOwn(ABORT_NAMES, module)) return null;
 	const names = ABORT_NAMES[module];
@@ -377,6 +383,10 @@ const PREDICT_ERROR_TEXT: Readonly<Record<string, string>> = Object.freeze({
 	'desk::EPackageVersionDisabled':
 		'This order-flow package version is retired. Update to an SDK that calls the current package.',
 	'desk::EProtocolFrozen': 'The protocol is frozen.',
+	// The order-fee guard every SDK enqueue starts with. Predict's own `option` unwraps can abort the
+	// same way, so the text hedges.
+	'option::EOPTION_NOT_SET':
+		"This order wasn't placed: most likely the order fee rose after it was built. Build it again.",
 	// Predict's admission and quotes.
 	'expiry_market::EDelayedExecutionRequired':
 		'Immediate trades are retired on this market. Place a queued order instead.',

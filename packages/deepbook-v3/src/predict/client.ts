@@ -120,6 +120,7 @@ import {
 
 import { accountContract, deriveAccountWrapperIdFrom } from './tx/common.js';
 import {
+	assertOrderFeeAtMost,
 	claimParked,
 	enqueueExactAmount,
 	enqueueExactCost,
@@ -1400,8 +1401,12 @@ export class PredictClient {
 		const state = await this.#queueState(orders, id, { owner });
 		const { policy, timing } = this.#assertQueueOpen(state, 'mint', BigInt(Date.now()));
 		const { budget, cashNeed } = PredictClient.#assertMintOrder(state, policy, order);
+		// The enqueue charges the desk's fee at execution, so hold it to the previewed one.
+		const tx = new Transaction();
+		tx.add(assertOrderFeeAtMost(orders, policy.orderFee));
+		tx.add(thunk);
 		return {
-			transaction: txOf(thunk),
+			transaction: tx,
 			preview: this.#preview(id, order.kind, timing, policy, budget, cashNeed, state.spareCash, {
 				needsFunding: false,
 				fundedInTransaction: false,
@@ -1543,6 +1548,8 @@ export class PredictClient {
 		const fund = opts.fundMarket ?? 'auto';
 		const funded = fund === 'always' || (fund === 'auto' && needsFunding);
 		const tx = new Transaction();
+		// The enqueue charges the desk's fee at execution, so hold it to the previewed one.
+		tx.add(assertOrderFeeAtMost(orders, policy.orderFee));
 		tx.add(thunk);
 		// After the enqueue: its cash need is then in `waiting_cash_need`, which the rebalance funds.
 		if (funded) tx.add(rebalanceExpiryCash(this.#config, { expiryMarketId: id }));

@@ -26,6 +26,8 @@ import { PredictInputError } from '../errors.js';
 import { deriveQueueId } from '../queue-id.js';
 import { U64_MAX } from '../units.js';
 import * as plp from '../../contracts/deepbook_predict/plp.js';
+import * as delayedExecutionConfig from '../../contracts/deepbook_predict_orders/delayed_execution_config.js';
+import * as desk from '../../contracts/deepbook_predict_orders/desk.js';
 import * as queue from '../../contracts/deepbook_predict_orders/queue.js';
 import { withAuth } from './common.js';
 import type { MarketFeeds } from './trade.js';
@@ -237,6 +239,34 @@ export function enqueueRedeemOpen(
 			minProceeds: args.minProceedsRaw,
 		},
 	});
+}
+
+/**
+ * Abort the transaction unless the order desk's fee is at most `maxOrderFeeRaw` when it executes.
+ * The enqueues charge the desk's fee at execution and take no fee bound, so add this BEFORE an
+ * enqueue to hold it to the fee its preview showed. It reads the desk's policy, and
+ * `0x1::u64::checked_sub(max, fee)` is none once the fee is above the bound, so
+ * `0x1::option::destroy_some` aborts (`option::EOPTION_NOT_SET`, code 0x40001) before the
+ * enqueue debits anything. Read-only on the desk.
+ */
+export function assertOrderFeeAtMost(
+	config: OrdersGeneratedConfig,
+	maxOrderFeeRaw: bigint,
+): (tx: Transaction) => void {
+	assertU64(maxOrderFeeRaw, 'maxOrderFeeRaw');
+	return (tx) => {
+		const policy = tx.add(desk.policy({ config }));
+		const fee = tx.add(delayedExecutionConfig.orderFee({ config, arguments: { policy } }));
+		const headroom = tx.moveCall({
+			target: '0x1::u64::checked_sub',
+			arguments: [tx.pure.u64(maxOrderFeeRaw), fee],
+		});
+		tx.moveCall({
+			target: '0x1::option::destroy_some',
+			typeArguments: ['u64'],
+			arguments: [headroom],
+		});
+	};
 }
 
 /**

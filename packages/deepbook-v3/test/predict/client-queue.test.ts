@@ -3,6 +3,7 @@
 // Delayed execution (DBU-885): the facade's queued-order builders, preflight, reads and quotes,
 // against a mocked chain. Each preflight code is driven from the one chain fact behind it. Every
 // queued-order call goes to the order-flow companion (`queue::*`) at the market's derived queue.
+import { bcs } from '@mysten/sui/bcs';
 import type { Transaction } from '@mysten/sui/transactions';
 import { normalizeSuiAddress } from '@mysten/sui/utils';
 import { describe, expect, test } from 'vitest';
@@ -30,6 +31,14 @@ import {
 } from './queue-fixtures.js';
 
 const OWNER = '0x' + 'ab'.repeat(32);
+// The commands every facade enqueue starts with: they hold the desk's fee at execution to the
+// previewed one.
+const FEE_GUARD = [
+	'desk::policy',
+	'delayed_execution_config::order_fee',
+	'u64::checked_sub',
+	'option::destroy_some',
+];
 const ACCOUNT_ID = deriveAccountIdFrom(toGeneratedConfig(cfg), OWNER);
 
 // The scenario's required cash is 500 USDC, so spare cash is whatever cash sits above it.
@@ -119,7 +128,7 @@ describe('gating', () => {
 });
 
 describe('queued mints', () => {
-	test('enqueueMintCost builds auth → enqueue and previews the escrow', async () => {
+	test('enqueueMintCost builds fee guard → auth → enqueue and previews the escrow', async () => {
 		const s = scenario({ available: 5_020_000n, ...spare(10_000_000_000n) });
 		const { pc } = client(s);
 		const { transaction, preview } = await pc.tx.enqueueMintCost(OWNER, market(s), {
@@ -127,12 +136,18 @@ describe('queued mints', () => {
 			minQuantity: 1,
 		});
 		expect(moveCallTargets(transaction)).toEqual([
+			...FEE_GUARD,
 			'account::generate_auth',
 			'queue::enqueue_exact_cost',
 		]);
-		// The enqueue names the market's derived queue first.
 		const data = transaction.getData();
-		const first = data.commands[1].MoveCall!.arguments[0] as { Input: number };
+		// The guard holds the fee charged at execution to the previewed 0.02.
+		const bound = data.commands[2].MoveCall!.arguments[0] as { Input: number };
+		expect(bcs.u64().parse(Buffer.from(data.inputs[bound.Input].Pure!.bytes, 'base64'))).toBe(
+			'20000',
+		);
+		// The enqueue names the market's derived queue first.
+		const first = data.commands[5].MoveCall!.arguments[0] as { Input: number };
 		expect(data.inputs[first.Input].UnresolvedObject?.objectId).toBe(QUEUE);
 		// Escrow is min(spend, available − fee) = 5 USDC, plus the 0.02 order fee.
 		expect(preview).toMatchObject({
@@ -156,7 +171,7 @@ describe('queued mints', () => {
 			maxCost: 10,
 			maxProbability: 0.6,
 		});
-		expect(moveCallTargets(transaction)[1]).toBe('queue::enqueue_exact_quantity');
+		expect(moveCallTargets(transaction)[5]).toBe('queue::enqueue_exact_quantity');
 		expect(preview).toMatchObject({
 			budget: 3,
 			cashNeedRaw: cashNeedExactQuantity(3_000_000n, s.minEntryProbability),
@@ -282,6 +297,7 @@ describe('queued sells', () => {
 		const s = scenario({ ...spare(100n), records: new Map([[3n, open()]]) });
 		const { transaction, preview } = await sell(s, 2);
 		expect(moveCallTargets(transaction)).toEqual([
+			...FEE_GUARD,
 			'account::generate_auth',
 			'queue::enqueue_redeem_open',
 			'plp::rebalance_expiry_cash',
@@ -297,13 +313,13 @@ describe('queued sells', () => {
 
 	test('a covered sell adds no rebalance unless asked; never means never', async () => {
 		const s = scenario({ records: new Map([[3n, open()]]) });
-		expect(moveCallTargets((await sell(s, 2)).transaction)).toHaveLength(2);
+		expect(moveCallTargets((await sell(s, 2)).transaction)).toHaveLength(6);
 		expect(moveCallTargets((await sell(s, 2, { fundMarket: 'always' })).transaction)).toHaveLength(
-			3,
+			7,
 		);
 		const short = scenario({ ...spare(0n), records: new Map([[3n, open()]]) });
 		const never = await sell(short, 2, { fundMarket: 'never' });
-		expect(moveCallTargets(never.transaction)).toHaveLength(2);
+		expect(moveCallTargets(never.transaction)).toHaveLength(6);
 		expect(never.preview.needsFunding).toBe(true);
 	});
 
