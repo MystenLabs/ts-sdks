@@ -918,6 +918,33 @@ export class PredictClient {
 		return { raw, applied: { cents: Number(raw) / 1e7, source: 'auto', band } };
 	}
 
+	// The largest lot multiple up to `startRaw` whose all-in cost without the fee subsidy, by an exact
+	// chain quote, fits the budget. Admission sizes a budget fill as the most the budget buys
+	// without the subsidy, and that cost rises with quantity, so it buys at least this. Null when a
+	// probe is refused (`EOrderFailsLimits`, as below the minimum premium) or none fits in 4.
+	async #admittedFloor(
+		quoteAt: (quantityRaw: bigint) => Promise<MintQuoteRaw>,
+		budgetRaw: bigint,
+		startRaw: bigint,
+		lot: bigint,
+	): Promise<bigint | null> {
+		let quantity = startRaw;
+		for (let probe = 0; probe < 4 && quantity > 0n; probe++) {
+			let quote: MintQuoteRaw;
+			try {
+				quote = await quoteAt(quantity);
+			} catch (e) {
+				if (e instanceof PredictMoveError && e.abortName === 'EOrderFailsLimits') return null;
+				throw e;
+			}
+			const unsubsidized = quote.allInCost - quote.penaltyFee + quote.feeIncentiveSubsidy;
+			if (unsubsidized <= budgetRaw) return quantity;
+			const next = ((quantity * budgetRaw) / unsubsidized / lot) * lot;
+			quantity = next < quantity ? next : quantity - lot;
+		}
+		return null;
+	}
+
 	// A budget mint's quote for no particular account. `quote_mint` has no all-in budget mode, so
 	// this searches for the largest lot multiple whose all-in cost fits the budget. The first probe
 	// is its premium-budget mode with the whole budget as the premium, whose premium clears the
@@ -2286,6 +2313,8 @@ export class PredictClient {
 			};
 			let budgetRaw: bigint;
 			let minQuantityRaw: bigint;
+			// What admission buys at least, for a budget plan. Null when no exact probe fits.
+			let admittedRaw: bigint | null = null;
 			let maxCostRaw: bigint | null = null;
 			let maxProbabilityRaw: bigint | null = null;
 			let price: { nowRaw: bigint; worstRaw: bigint };
@@ -2293,10 +2322,25 @@ export class PredictClient {
 			if (budgetRequested != null) {
 				const limits = budgetMintLimits({ ...limitsIn, budgetRaw: budgetRequested });
 				budgetRaw = budgetRequested;
-				// The quote is for this budget, so the floor never asks for more than it buys. A
-				// searched quote can leave part of the budget unspent.
-				minQuantityRaw =
-					limits.minQuantityRaw < quote.quantity ? limits.minQuantityRaw : quote.quantity;
+				// Admission sizes the fill without the subsidy by Move's exact arithmetic, whose
+				// per-component rounding (inventory impact included) an average price can't bound.
+				// So the floor's ceiling is checked with exact quotes. It also never exceeds the
+				// quote's own quantity, since a searched quote can leave part of the budget unspent.
+				const start = budgetMintLimits({ ...limitsIn, slippageRaw: 0n, budgetRaw }).minQuantityRaw;
+				admittedRaw = await this.#admittedFloor(
+					(quantityRaw) =>
+						quoteForAccount
+							? forAccount({ shape: 'exact-quantity', quantityRaw })
+							: quoteMintAnonymous(this.#client, this.#config, {
+									...ticks,
+									request: { shape: 'exact-quantity', quantityRaw },
+								}).then((r) => r.quote),
+					budgetRaw,
+					start < quote.quantity ? start : quote.quantity,
+					lot,
+				);
+				const ceiling = admittedRaw ?? 0n;
+				minQuantityRaw = limits.minQuantityRaw < ceiling ? limits.minQuantityRaw : ceiling;
 				price = limits.pricePerContract;
 				order = {
 					builder: 'enqueueMintCost',
@@ -2351,19 +2395,13 @@ export class PredictClient {
 						'the all-in cost without the fee subsidy is above the payout',
 					);
 				}
-				if (budgetRequested != null) {
-					const admitted = budgetMintLimits({
-						...limitsIn,
-						slippageRaw: 0n,
-						budgetRaw,
-					}).minQuantityRaw;
-					// Premium is quantity × entry probability, 1e9-scaled.
-					if ((admitted * quote.entryProbability) / 1_000_000_000n < MIN_PREMIUM) {
-						throw new PredictPreflightError(
-							'min-premium',
-							`without the fee subsidy, ${rawToUsdc(budgetRaw)} buys a premium below the ${rawToUsdc(MIN_PREMIUM)} minimum`,
-						);
-					}
+				// The exact probes refuse a quantity below the minimum premium, so a budget with no
+				// admitted floor can't buy a fill admission takes.
+				if (budgetRequested != null && admittedRaw == null) {
+					throw new PredictPreflightError(
+						'min-premium',
+						`without the fee subsidy, ${rawToUsdc(budgetRaw)} buys no fill admission takes, below the ${rawToUsdc(MIN_PREMIUM)} minimum premium`,
+					);
 				}
 			});
 			const max = maxMintNow(

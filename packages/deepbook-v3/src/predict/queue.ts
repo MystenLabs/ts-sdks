@@ -724,8 +724,9 @@ export function budgetMintLimits(inputs: MintLimitsInputs & { budgetRaw: bigint 
 	assertUint(inputs.budgetRaw, 'budgetRaw');
 	const price = pricePerContract(inputs);
 	const lot = inputs.lotSize ?? POSITION_LOT_SIZE;
-	// The fill rounds the premium and each fee on its own, so a quantity's cost can sit a few raw
-	// units above `quantity × price`. The floor leaves that much of the budget unspent.
+	// The fill rounds the premium and each fee on its own, so a quantity's cost can sit above
+	// `quantity × price`. The floor leaves a few raw units of the budget for that. Inventory impact
+	// can round by more, so `read.planMint` also checks the floor with exact quotes.
 	const spendable =
 		inputs.budgetRaw > COST_ROUNDING_SLACK ? inputs.budgetRaw - COST_ROUNDING_SLACK : 0n;
 	const quantity = (spendable * FLOAT_SCALING) / price.worstRaw;

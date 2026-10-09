@@ -391,6 +391,54 @@ describe('read.planMint', () => {
 		}
 	});
 
+	test('a budget floor is checked with exact quotes, so convex impact never overshoots it', async () => {
+		const base = scenario();
+		// 50¢ contracts, a 5% trading fee half subsidized, and an impact charge that grows with
+		// the square of the quantity, rounded per component like the chain.
+		const accountQuoteAt = (quantity: bigint) => {
+			const premium = quantity / 2n;
+			const trading = (premium * 5n + 99n) / 100n;
+			const subsidy = trading / 2n;
+			const impact = (quantity * quantity) / 10_000_000_000n;
+			return {
+				...base.mintQuote,
+				quantity,
+				entry_probability: 500_000_000n,
+				premium,
+				trading_fee: trading,
+				fee_incentive_subsidy: subsidy,
+				builder_fee: 0n,
+				penalty_fee: 0n,
+				inventory_impact_charge: impact,
+				all_in_cost: premium + trading - subsidy + impact,
+			};
+		};
+		const unsubsidized = (quantity: bigint) => {
+			const q = accountQuoteAt(quantity);
+			return q.all_in_cost + q.fee_incentive_subsidy;
+		};
+		const s = scenario({
+			cashBalance: 2_000_000_000n,
+			// The budget's own quote shows no impact, so its average price is 52.5¢.
+			mintQuote: {
+				...accountQuoteAt(10_000_000n),
+				inventory_impact_charge: 0n,
+				all_in_cost: 5_125_000n,
+			},
+			accountQuoteAt,
+		});
+		const plan = await client(s).pc.read.planMint(OWNER, market(s), {
+			amount: 5.27,
+			slippageCents: 0,
+		});
+		expect(plan.budget).toBe(5.25);
+		expect(plan.accepting).toBe(true);
+		// The average price puts the floor at 9.99, which admission prices above the budget.
+		expect(unsubsidized(9_990_000n)).toBeGreaterThan(5_250_000n);
+		expect(plan.raw.minQuantity).toBe(9_980_000n);
+		expect(unsubsidized(plan.raw.minQuantity)).toBeLessThanOrEqual(5_250_000n);
+	});
+
 	test('an exact plan whose unsubsidized cost is above its payout is refused', async () => {
 		const base = scenario();
 		// 10 contracts at 99¢ cost 9.99 with a 0.02 subsidy, 10.01 without it.

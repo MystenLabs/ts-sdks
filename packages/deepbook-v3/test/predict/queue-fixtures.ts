@@ -186,6 +186,8 @@ export interface QueueScenario {
 	 * requested quantity at this flat price, at the scenario quote's probability.
 	 */
 	anonymousPricePerContract: bigint;
+	/** Prices an exact-quantity `quote_mint_for_account` itself, instead of scaling `mintQuote`. */
+	accountQuoteAt?: (quantity: bigint) => MintQuoteFields;
 }
 
 export function scenario(overrides: Partial<QueueScenario> = {}): QueueScenario {
@@ -245,6 +247,31 @@ function pureU64(tx: Transaction, cmdIdx: number, argIdx: number): bigint {
 	const arg = call.arguments[argIdx] as { $kind: string; Input: number };
 	const pure = tx.getData().inputs[arg.Input].Pure!.bytes;
 	return BigInt(bcs.u64().parse(Buffer.from(pure, 'base64')));
+}
+
+type MintQuoteFields = (typeof expiryMarket.MintQuote)['$inferType'];
+
+// A quote at another quantity: each charge scaled and rounded up, the all-in cost summed from them.
+function scaleQuote(q: MintQuoteFields, quantity: bigint): MintQuoteFields {
+	if (quantity === q.quantity) return q;
+	const at = (x: bigint) => (x * quantity + q.quantity - 1n) / q.quantity;
+	const premium = at(q.premium);
+	const trading = at(q.trading_fee);
+	const subsidy = at(q.fee_incentive_subsidy);
+	const builder = at(q.builder_fee);
+	const penalty = at(q.penalty_fee);
+	const impact = at(q.inventory_impact_charge);
+	return {
+		...q,
+		quantity,
+		premium,
+		trading_fee: trading,
+		fee_incentive_subsidy: subsidy,
+		builder_fee: builder,
+		penalty_fee: penalty,
+		inventory_impact_charge: impact,
+		all_in_cost: premium + trading - subsidy + builder + penalty + impact,
+	};
 }
 
 // A pure bool argument of one move call.
@@ -331,7 +358,21 @@ function returnsFor(fn: string, s: QueueScenario, tx: Transaction, cmdIdx: numbe
 			const record = s.records.get(recordId) ?? null;
 			return [bcs.option(OrderView).serialize(record).toBytes()];
 		}
-		case 'quote_mint_for_account':
+		case 'quote_mint_for_account': {
+			// Arguments: market, wrapper, config, pricer, lower, higher, max_premium, min_quantity,
+			// exact. An exact quantity is priced at that quantity: by the scenario's own pricer, or
+			// the scenario quote scaled per component. Like the chain, a premium below the minimum
+			// aborts `EOrderFailsLimits`.
+			if (!pureBool(tx, cmdIdx, 8)) {
+				return [expiryMarket.MintQuote.serialize(s.mintQuote).toBytes()];
+			}
+			const quantity = pureU64(tx, cmdIdx, 7);
+			const quote = s.accountQuoteAt?.(quantity) ?? scaleQuote(s.mintQuote, quantity);
+			if (quote.premium < MIN_PREMIUM) {
+				throw new MockAbort('expiry_market', E_ORDER_FAILS_LIMITS);
+			}
+			return [expiryMarket.MintQuote.serialize(quote).toBytes()];
+		}
 		case 'quote_mint_exact_cost_for_account':
 			return [expiryMarket.MintQuote.serialize(s.mintQuote).toBytes()];
 		case 'quote_mint': {
