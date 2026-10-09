@@ -110,10 +110,10 @@ one `MarketQueue`, at an ID derived from the package's single `QueueRegistry` an
 `deepbook_predict_math` holds the pure pricing math. Every queued-order call goes to
 `deepbook_predict_orders`, while a fill still emits Predict's `OrderMinted` or `LiveOrderRedeemed`.
 
-> The Testnet config records delayed execution. The Mainnet config doesn't until the Mainnet
-> rollout is synced, and until then the queued surface throws `PredictInputError` there. Pass a
-> `config` with `packages.predictDelayedExecution`, `packages.predictOrders`, `objects.orderDesk`
-> and `objects.queueRegistry` set (a localnet publish) to use it on a network without a record.
+> The Testnet config records delayed execution. The Mainnet config doesn't until the Mainnet rollout
+> is synced, and until then the queued surface throws `PredictInputError` there. Pass a `config`
+> with `packages.predictDelayedExecution`, `packages.predictOrders`, `objects.orderDesk` and
+> `objects.queueRegistry` set (a localnet publish) to use it on a network without a record.
 
 ```ts
 // Which path is live? 'immediate' | 'awaiting-cutover' | 'delayed' | 'unsupported'.
