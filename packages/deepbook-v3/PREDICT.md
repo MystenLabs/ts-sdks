@@ -437,11 +437,12 @@ const tx = await client.predict.tx.mint(
   `quoteMint(owner, m, opts)` / `quoteMintCost(owner, m, opts)` / `quoteRedeem(owner, m, opts)`
   (exact dry-run quotes: real fees from the real code path — and they throw the same typed errors
   the real trade would, so a quote doubles as preflight), `balance(owner)`, `plpBalance(owner)`,
-  `pool()`, `positions(owner)` (chain-only enumeration of open positions),
-  `hasPosition(owner, marketId, orderId)`, and for queued orders `executionMode()`, `queue(m)`,
-  `planMint(owner, m, opts)`, `planSell(owner, m, opts)`, `order(m, id)`, `orders(m, ids)`,
-  `waitForOutcome(m, id)`, `quoteSell(owner, m, opts)`, `pendingFunds(owner)`, `lazerPackages()`.
-  All reads run over the client's `simulateTransaction`; no indexer required.
+  `pool()`, `feePolicy(m)` (the market's fee snapshot, for `cost`), `positions(owner)` (chain-only
+  enumeration of open positions), `hasPosition(owner, marketId, orderId)`, and for queued orders
+  `executionMode()`, `queue(m)`, `planMint(owner, m, opts)`, `planSell(owner, m, opts)`,
+  `order(m, id)`, `orders(m, ids)`, `waitForOutcome(m, id)`, `quoteSell(owner, m, opts)`,
+  `pendingFunds(owner)`, `lazerPackages()`. All reads run over the client's `simulateTransaction`;
+  no indexer required.
 - **`client.predict.decode`** — pure execution-result decoders (no network): `mint`, `redeem`,
   `claim`, `createManager`, `deposit`, `withdraw`, `plpRequest`, `plpCancel`, `builderCode`. Each
   singular form throws unless exactly one matching event is present; `mints`, `redeems` and `claims`
@@ -557,7 +558,7 @@ import { cost } from '@mysten/deepbook-v3/predict';
 
 const pricer = await client.predict.read.pricer({ underlying: 'BTC', expiryMs });
 const shape = {
-	fees: cost.SHIPPED_FEE_POLICY, // or the market's own MarketCreated snapshot
+	fees: await client.predict.read.feePolicy({ underlying: 'BTC', expiryMs }), // the market's own
 	expiryMs,
 	probabilities: { pricer, lower: 105_000, upper: null }, // an UP order at $105k
 };
@@ -638,8 +639,10 @@ a zero charge or rebate. The congestion rate defaults to zero (disabled in the s
 when enabled, supply `penaltyRate`, calculated by `cost.congestionPenaltyRate` from the market's
 gas-price EWMA and the transaction's gas price. Supply `builderCode`, `feeIncentiveBalance` and, for
 account-capped budget sizing, `accountBalance` to reflect the account being quoted. The fee
-**policy** is a per-market snapshot taken at creation — use the market's `MarketCreated` event, or
-`cost.SHIPPED_FEE_POLICY` only for a market created under that template.
+**policy** is a per-market snapshot taken at creation: read it with `read.feePolicy(market)`, one
+object read. Don't use `cost.SHIPPED_FEE_POLICY` for a live market. It is the code default, and
+neither recorded deployment's template matches it: both charge about twice its trading fee, ramp the
+fee to 3× over the last 60 s and admit entries in 25%–75%.
 
 Invalid raw domains (including negative amounts/rates, probabilities outside `[0, 1e9]`, and invalid
 lot sizes) throw `PredictInputError` before arithmetic. Supplied book totals must also be
