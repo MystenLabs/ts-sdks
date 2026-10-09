@@ -192,6 +192,8 @@ export interface QueueScenario {
 	refuseAccountBudgetQuote?: boolean;
 	/** The chain refuses every mint quote (`EOrderFailsLimits`), as for a strike outside the band. */
 	refuseQuotes?: boolean;
+	/** The market reached its expiry: every quote aborts `pricing::ELivePricingExpired`. */
+	pastExpiry?: boolean;
 }
 
 export function scenario(overrides: Partial<QueueScenario> = {}): QueueScenario {
@@ -292,6 +294,8 @@ const MIN_PREMIUM = 1_000_000n;
 const E_ORDER_FAILS_LIMITS = 14n;
 /** `queue::ERecordNotOpen`. */
 const E_RECORD_NOT_OPEN = 9n;
+/** `pricing::ELivePricingExpired`. */
+const E_LIVE_PRICING_EXPIRED = 9n;
 
 // A Move abort a canned return raises. The mock simulate turns it into a `FailedTransaction`.
 class MockAbort extends Error {
@@ -363,6 +367,7 @@ function returnsFor(fn: string, s: QueueScenario, tx: Transaction, cmdIdx: numbe
 			return [bcs.option(OrderView).serialize(record).toBytes()];
 		}
 		case 'quote_mint_for_account': {
+			if (s.pastExpiry) throw new MockAbort('pricing', E_LIVE_PRICING_EXPIRED);
 			if (s.refuseQuotes) throw new MockAbort('expiry_market', E_ORDER_FAILS_LIMITS);
 			// Arguments: market, wrapper, config, pricer, lower, higher, max_premium, min_quantity,
 			// exact. An exact quantity is priced at that quantity: by the scenario's own pricer, or
@@ -379,11 +384,13 @@ function returnsFor(fn: string, s: QueueScenario, tx: Transaction, cmdIdx: numbe
 			return [expiryMarket.MintQuote.serialize(quote).toBytes()];
 		}
 		case 'quote_mint_exact_cost_for_account':
+			if (s.pastExpiry) throw new MockAbort('pricing', E_LIVE_PRICING_EXPIRED);
 			if (s.refuseQuotes || s.refuseAccountBudgetQuote) {
 				throw new MockAbort('expiry_market', E_ORDER_FAILS_LIMITS);
 			}
 			return [expiryMarket.MintQuote.serialize(s.mintQuote).toBytes()];
 		case 'quote_mint': {
+			if (s.pastExpiry) throw new MockAbort('pricing', E_LIVE_PRICING_EXPIRED);
 			if (s.refuseQuotes) throw new MockAbort('expiry_market', E_ORDER_FAILS_LIMITS);
 			// Arguments: market, config, pricer, lower, higher, max_premium, min_quantity, exact.
 			// Premium-budget mode buys the largest lot multiple whose premium fits max_premium. Like
@@ -415,6 +422,7 @@ function returnsFor(fn: string, s: QueueScenario, tx: Transaction, cmdIdx: numbe
 			// chain, a record that isn't Open aborts `queue::ERecordNotOpen`.
 			const record = s.records.get(pureU64(tx, cmdIdx, 4));
 			if (!record || record.status !== 2) throw new MockAbort('queue', E_RECORD_NOT_OPEN);
+			if (s.pastExpiry) throw new MockAbort('pricing', E_LIVE_PRICING_EXPIRED);
 			return [expiryMarket.RedeemQuote.serialize(s.redeemQuote).toBytes()];
 		}
 		case 'tick_size':

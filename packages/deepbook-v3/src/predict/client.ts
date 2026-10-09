@@ -719,6 +719,11 @@ function isOrderFailsLimits(error: unknown): boolean {
 	return error instanceof PredictMoveError && error.abortName === 'EOrderFailsLimits';
 }
 
+// The chain refused to price a live trade because the market reached its expiry.
+function isPastExpiry(error: unknown): boolean {
+	return error instanceof PredictMoveError && error.abortName === 'ELivePricingExpired';
+}
+
 export class PredictClient {
 	readonly cfg: PredictConfig;
 	// The flat slice every generated call resolves `options.config` against.
@@ -952,6 +957,25 @@ export class PredictClient {
 		return { raw, applied: { cents: Number(raw) / 1e7, source: 'auto', band } };
 	}
 
+	// Why the chain refused a plan's quote, as a typed refusal, or the chain's own error when it
+	// can't tell. A market past its expiry has no live price (`ELivePricingExpired`). A mint the
+	// chain refuses at the current price (`EOrderFailsLimits`) is diagnosed by `#entryBandRefusal`.
+	async #quoteRefusal(
+		error: unknown,
+		mint?: { m: MarketDescriptor; quantityRaw?: bigint },
+	): Promise<unknown> {
+		if (isPastExpiry(error)) {
+			return new PredictPreflightError(
+				'past-cutoff',
+				'the market reached its expiry, so it has no live price and takes no orders',
+			);
+		}
+		if (mint != null && isOrderFailsLimits(error)) {
+			return (await this.#entryBandRefusal(mint.m, mint.quantityRaw)) ?? error;
+		}
+		return error;
+	}
+
 	// Why the chain refused to quote a mint at the current price (`EOrderFailsLimits`), as a typed
 	// refusal: a binary strike outside the market's entry band, or an exact quantity whose premium
 	// is below the minimum. Null when neither explains it, or the diagnosis can't be read, so the
@@ -1062,7 +1086,8 @@ export class PredictClient {
 			quote = await probeQuote({ shape: 'exact-quantity', quantityRaw: next });
 		}
 		if (best == null) {
-			throw new PredictInputError(
+			throw new PredictPreflightError(
+				'min-premium',
 				`a budget of ${rawToUsdc(budgetRaw)} buys no payout at the current price (a mint's premium must be at least ${rawToUsdc(MIN_PREMIUM)} USDC)`,
 			);
 		}
@@ -1441,6 +1466,20 @@ export class PredictClient {
 		return record;
 	}
 
+	// The quantity an Open record holds, refusing a sell of more than that.
+	#assertSellQuantity(record: QueuedOrder, closeQuantityRaw: bigint): bigint {
+		const held = decodeOrderRange(
+			record.position.order_id,
+			BigInt(this.cfg.units.positionLotSize),
+		).quantity;
+		if (closeQuantityRaw > held) {
+			throw new PredictInputError(
+				`quantity ${rawToUsdc(closeQuantityRaw)} is above the record's ${rawToUsdc(held)}`,
+			);
+		}
+		return held;
+	}
+
 	// A sell's own checks after the queue gates, shared by `tx.enqueueSell` and `read.planSell`: the
 	// record is Open and the owner's, the order fee, the record's quantity and the minimum sell. A
 	// sell is never refused for market cash.
@@ -1466,15 +1505,7 @@ export class PredictClient {
 				`the balance doesn't cover the ${rawToUsdc(policy.orderFee)} order fee`,
 			);
 		}
-		const held = decodeOrderRange(
-			record.position.order_id,
-			BigInt(this.cfg.units.positionLotSize),
-		).quantity;
-		if (closeQuantityRaw > held) {
-			throw new PredictInputError(
-				`quantity ${rawToUsdc(closeQuantityRaw)} is above the record's ${rawToUsdc(held)}`,
-			);
-		}
+		const held = this.#assertSellQuantity(record, closeQuantityRaw);
 		const min = policy.minSellQuantity;
 		if (closeQuantityRaw < min || (closeQuantityRaw < held && held - closeQuantityRaw < min)) {
 			throw new PredictPreflightError(
@@ -2384,15 +2415,18 @@ export class PredictClient {
 							? amountRaw - fee
 							: 0n
 						: amountRaw;
+				// No budget below the minimum premium can be admitted, and the account's quote
+				// aborts `EOrderFailsLimits` on one, so refuse it as a visitor's search does. An
+				// amount the order fee takes whole buys nothing either.
 				if (budgetRequested === 0n) {
-					throw new PredictInputError(
-						`${opts.amount} doesn't cover the ${rawToUsdc(fee)} order fee`,
+					throw new PredictPreflightError(
+						'min-premium',
+						`${opts.amount} doesn't cover the ${rawToUsdc(fee)} order fee, so it buys no premium`,
 					);
 				}
-				// No budget below the minimum premium can be admitted, and the account's quote
-				// aborts `EOrderFailsLimits` on one, so refuse it as a visitor's search does.
 				if (budgetRequested < MIN_PREMIUM) {
-					throw new PredictInputError(
+					throw new PredictPreflightError(
+						'min-premium',
 						`a budget of ${rawToUsdc(budgetRequested)} is below the minimum premium (a mint's premium must be at least ${rawToUsdc(MIN_PREMIUM)} USDC)`,
 					);
 				}
@@ -2403,7 +2437,12 @@ export class PredictClient {
 				const budget = budgetRequested;
 				const search = () =>
 					this.#searchBudgetQuote(ticks, budget, lot).catch(async (error: unknown) => {
-						throw (await this.#entryBandRefusal(m)) ?? error;
+						// Every probe refused ends the search in 'min-premium', which a strike outside
+						// the entry band also explains.
+						if (error instanceof PredictPreflightError && error.code === 'min-premium') {
+							throw (await this.#entryBandRefusal(m)) ?? error;
+						}
+						throw await this.#quoteRefusal(error, { m });
 					});
 				if (quoteForAccount) {
 					try {
@@ -2413,7 +2452,7 @@ export class PredictClient {
 							minQuantityRaw: 0n,
 						});
 					} catch (error) {
-						if (!isOrderFailsLimits(error)) throw error;
+						if (!isOrderFailsLimits(error)) throw await this.#quoteRefusal(error);
 						// The chain refused the whole budget. Outside the entry band, say so. Otherwise
 						// the account-free search sizes it, and refuses one too small for the minimum
 						// premium with a typed error.
@@ -2437,8 +2476,7 @@ export class PredictClient {
 								})
 							).quote;
 				} catch (error) {
-					if (!isOrderFailsLimits(error)) throw error;
-					throw (await this.#entryBandRefusal(m, quantityRaw)) ?? error;
+					throw await this.#quoteRefusal(error, { m, quantityRaw });
 				}
 			}
 
@@ -2634,12 +2672,15 @@ export class PredictClient {
 			const orders = this.#requireDelayedExecution();
 			const { id } = await this.#resolveMarket(m);
 			const state = await this.#queueState(orders, id, { owner, recordIds: [opts.recordId] });
-			// No quote exists for a record that isn't Open, so that refusal throws.
-			PredictClient.#assertRecordOpen(state, opts.recordId);
-			const quote = await this.read.quoteSell(owner, m, {
-				recordId: opts.recordId,
-				quantity: opts.quantity,
-			});
+			// No quote exists for a record that isn't Open, or for more than it holds, so those
+			// refusals throw.
+			const record = PredictClient.#assertRecordOpen(state, opts.recordId);
+			this.#assertSellQuantity(record, usdcToRaw(opts.quantity));
+			const quote = await this.read
+				.quoteSell(owner, m, { recordId: opts.recordId, quantity: opts.quantity })
+				.catch(async (error: unknown) => {
+					throw await this.#quoteRefusal(error);
+				});
 			const nowMs = BigInt(Date.now());
 			const slippage = PredictClient.#appliedSlippage(opts, quote.raw.probability, state, nowMs);
 			const limits = sellLimits({

@@ -192,10 +192,14 @@ cost passes its cap. The limits are sized from the price without the fee subsidy
 admission checks the order without it and the subsidy can run out before the fill. A budget plan's
 payout floor is also checked with an exact quote at that quantity, so it never asks for more than
 admission buys. The quote, the payout multiple and `pricePerContract` show the subsidized price the
-fill is expected to charge. A visitor's budget quote needs a premium of at least 1 USDC, so a
-smaller budget is refused with a `PredictInputError`. `planSell` returns the sell side: `proceeds`,
-`net` (after the order fee, negative when the fee is above the proceeds), `minProceeds` and `minNet`
-at the worst price, and the `enqueueSell` options.
+fill is expected to charge. A budget plan needs a premium of at least 1 USDC, so a smaller budget,
+or an amount the order fee takes whole, is refused with `min-premium`. `planSell` returns the sell
+side: `proceeds`, `net` (after the order fee, negative when the fee is above the proceeds),
+`minProceeds` and `minNet` at the worst price, and the `enqueueSell` options. A `slippageCents` of
+0, or a few cents, is accepted but leaves the price little room to move between the quote and τ.
+Such an order is often refused at placement (`EOrderFailsLimits`, by the build's dry run or on
+chain, where gas is spent) or refunded at the fill, and a refund keeps the order fee. `'auto'` sizes
+the room from the model.
 
 - **Preflight, typed.** Each `enqueue*` builder reads the market once and refuses, with a
   `PredictPreflightError` and a `code`, an order the queue or protocol gates would abort: `not-live`
@@ -216,17 +220,18 @@ at the worst price, and the `enqueueSell` options.
   When the chain refuses to quote a plan, `planMint` throws a typed refusal where it can tell why:
   `entry-band` for a strike outside the market's entry band, `min-premium` for an order whose
   premium is below 1 USDC. The probability can still leave the band between plan and placement,
-  which the chain refuses with `EOrderFailsLimits`. `planSell` throws `record-not-open` for a record
-  that isn't Open, since the chain can't quote it. Two admission conditions are checked only on
-  chain, at placement: the market's SVI age under the order desk's `svi_max_age_ms`, and room in the
-  payout tree for a new strike's boundary nodes. A refused order never fails the rest of a
-  transaction. The order's own price limits are checked only on chain, at placement
-  (`EOrderFailsLimits`), and the preview runs on the local clock, so near the cutoff the chain can
-  still refuse: decode that with `describePredictError`. `EOrderFailsLimits` also covers admission:
-  an entry price outside the market's band, or a premium below the minimum. `planMint` throws it as
-  a `PredictMoveError` when the strike's price is outside the band, before any plan exists, so pick
-  a strike with `pricer.strikeAtProbability` and `snapStrike` rather than offering one far from the
-  money.
+  which the chain refuses with `EOrderFailsLimits`. A plan on a market past its expiry throws
+  `past-cutoff`, since the chain has no live price to quote. `planSell` throws `record-not-open` for
+  a record that isn't Open, and a `PredictInputError` for more than the record holds, since the
+  chain can't quote either. Two admission conditions are checked only on chain, at placement: the
+  market's SVI age under the order desk's `svi_max_age_ms`, and room in the payout tree for a new
+  strike's boundary nodes. A refused order never fails the rest of a transaction. The order's own
+  price limits are checked only on chain, at placement (`EOrderFailsLimits`), and the preview runs
+  on the local clock, so near the cutoff the chain can still refuse: decode that with
+  `describePredictError`. `EOrderFailsLimits` also covers admission: an entry price outside the
+  market's band, or a premium below the minimum. `planMint` throws `entry-band` when the strike's
+  price is outside the band, before any plan exists, so pick a strike with
+  `pricer.strikeAtProbability` and `snapStrike` rather than offering one far from the money.
 - **Pricing aborts.** Every quote, plan and enqueue loads the market's live pricer, which aborts in
   Predict's `pricing` module while an oracle input is missing or stale
   (`EBlockScholesPriceUnavailable`, `EBlockScholesPriceStale`, and the SVI and Pyth forms). These

@@ -299,7 +299,8 @@ describe('read.planMint', () => {
 			const err = await pc.read
 				.planMint(OWNER, market(s), { amount, slippageCents: 10 })
 				.catch((e) => e);
-			expect(err).toBeInstanceOf(PredictInputError);
+			expect(err).toBeInstanceOf(PredictPreflightError);
+			expect(err.code).toBe('min-premium');
 			expect(err.message).toMatch(/at least 1 USDC/);
 		}
 	});
@@ -311,7 +312,8 @@ describe('read.planMint', () => {
 		const err = await pc.read
 			.planMint(OWNER, market(s), { amount: 0.5, slippageCents: 10 })
 			.catch((e) => e);
-		expect(err).toBeInstanceOf(PredictInputError);
+		expect(err).toBeInstanceOf(PredictPreflightError);
+		expect(err.code).toBe('min-premium');
 		expect(err.message).toMatch(/at least 1 USDC/);
 		// The account's quote would abort EOrderFailsLimits, so the plan never sends it.
 		expect(
@@ -687,8 +689,49 @@ describe('a plan the chain refuses to quote gets a typed refusal', () => {
 		const err = await pc.read
 			.planMint(OWNER, market(s), { amount: 1.05, slippageCents: 10 })
 			.catch((e) => e);
-		expect(err).toBeInstanceOf(PredictInputError);
+		expect(err).toBeInstanceOf(PredictPreflightError);
+		expect(err.code).toBe('min-premium');
 		expect(err.message).toMatch(/at least 1 USDC/);
+	});
+
+	test('an amount the order fee takes whole is refused as min-premium', async () => {
+		const s = scenario();
+		const { pc } = client(s);
+		const err = await pc.read
+			.planMint(OWNER, market(s), { amount: 0.02, slippageCents: 10 })
+			.catch((e) => e);
+		expect(err).toBeInstanceOf(PredictPreflightError);
+		expect(err.code).toBe('min-premium');
+	});
+
+	test('a market past its expiry is refused as past-cutoff, for mints and sells', async () => {
+		const s = scenario({ pastExpiry: true, records: new Map([[7n, openRecord()]]) });
+		const { pc } = client(s);
+		for (const size of [{ amount: 5 }, { quantity: 10 }]) {
+			const err = await pc.read
+				.planMint(OWNER, market(s), { ...size, slippageCents: 10 })
+				.catch((e) => e);
+			expect(err).toBeInstanceOf(PredictPreflightError);
+			expect(err.code).toBe('past-cutoff');
+		}
+		const err = await pc.read
+			.planSell(OWNER, market(s), { recordId: 7n, quantity: 2, slippageCents: 10 })
+			.catch((e) => e);
+		expect(err).toBeInstanceOf(PredictPreflightError);
+		expect(err.code).toBe('past-cutoff');
+	});
+
+	test('a sell above what the record holds is refused before any quote', async () => {
+		const s = scenario({ records: new Map([[7n, openRecord()]]) });
+		const { pc, simulated } = client(s);
+		const err = await pc.read
+			.planSell(OWNER, market(s), { recordId: 7n, quantity: 6, slippageCents: 10 })
+			.catch((e) => e);
+		expect(err).toBeInstanceOf(PredictInputError);
+		expect(err.message).toMatch(/above the record's 5/);
+		expect(
+			simulated.flatMap(moveCallTargets).filter((t) => t.includes('quote_redeem_open')),
+		).toEqual([]);
 	});
 });
 

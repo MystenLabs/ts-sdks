@@ -242,7 +242,11 @@ export type PredictPreflightCode =
 	| 'paused'
 	/** The market's pricing is delayed (`queue_stuck`). Enqueue aborts `EQueueStuck`. */
 	| 'stuck'
-	/** The order's τ would land at or after the market's order cutoff (`EPastCutoff`). */
+	/**
+	 * The order's τ would land at or after the market's order cutoff (`EPastCutoff`). A
+	 * `read.planMint` or `read.planSell` plan on a market past its expiry throws it too, since the
+	 * chain has no live price to quote (`ELivePricingExpired`).
+	 */
 	| 'past-cutoff'
 	/** The market has its maximum unfinished mints or sells (`EQueueFull`). */
 	| 'queue-full'
@@ -259,7 +263,8 @@ export type PredictPreflightCode =
 	/**
 	 * The escrowed budget, or an exact-amount mint's premium cap, can't buy the minimum premium,
 	 * so the order fails its limits. A budget `read.planMint` plan also reports it when what the
-	 * budget buys without the fee subsidy, as admission prices it, has a premium below the minimum.
+	 * budget buys without the fee subsidy, as admission prices it, has a premium below the minimum,
+	 * and throws it for a budget below the minimum premium or one no fill clears it with.
 	 */
 	| 'min-premium'
 	/**
