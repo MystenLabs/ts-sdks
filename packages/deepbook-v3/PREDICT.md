@@ -194,8 +194,8 @@ payout floor is also checked with an exact quote at that quantity, so it never a
 admission buys. The quote, the payout multiple and `pricePerContract` show the subsidized price the
 fill is expected to charge. A visitor's budget quote needs a premium of at least 1 USDC, so a
 smaller budget is refused with a `PredictInputError`. `planSell` returns the sell side: `proceeds`,
-`net` (after the order fee), `minProceeds` and `minNet` at the worst price, and the `enqueueSell`
-options.
+`net` (after the order fee, negative when the fee is above the proceeds), `minProceeds` and `minNet`
+at the worst price, and the `enqueueSell` options.
 
 - **Preflight, typed.** Each `enqueue*` builder reads the market once and refuses, with a
   `PredictPreflightError` and a `code`, an order the queue or protocol gates would abort: `not-live`

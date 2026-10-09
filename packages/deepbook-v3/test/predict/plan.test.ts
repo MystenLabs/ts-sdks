@@ -625,6 +625,27 @@ describe('read.planSell refusals', () => {
 	});
 });
 
+describe('sell previews keep their sign', () => {
+	test('a sell whose proceeds are below the order fee nets a loss', async () => {
+		const base = scenario();
+		const s = scenario({
+			records: new Map([[7n, openRecord()]]),
+			redeemQuote: { ...base.redeemQuote, proceeds: 4_490n },
+		});
+		const { pc } = client(s);
+		const quote = await pc.read.quoteSell(OWNER, market(s), { recordId: 7n, quantity: 2 });
+		// 0.00449 of proceeds less the 0.02 order fee, which is charged at enqueue regardless.
+		expect(quote.net).toBeCloseTo(-0.01551, 9);
+		const plan = await pc.read.planSell(OWNER, market(s), {
+			recordId: 7n,
+			quantity: 2,
+			slippageCents: 10,
+		});
+		expect(plan.net).toBeCloseTo(-0.01551, 9);
+		expect(plan.minNet).toBeCloseTo(-0.02, 9);
+	});
+});
+
 describe('plans are bound to what they were quoted for', () => {
 	test('a mint plan is refused for the other side or another owner', async () => {
 		const s = scenario();

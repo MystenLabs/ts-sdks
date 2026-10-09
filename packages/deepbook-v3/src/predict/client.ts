@@ -602,7 +602,10 @@ export interface SellPlan {
 	net: number;
 	/** The proceeds floor the order carries, before the order fee. A smaller fill is refunded. */
 	minProceeds: number;
-	/** `minProceeds − orderFee`, floored at 0. */
+	/**
+	 * `minProceeds − orderFee`: the worst the sell nets if it fills. Negative when the order fee is
+	 * above the proceeds floor.
+	 */
 	minNet: number;
 	orderFee: number;
 	timing: TimingPreview;
@@ -663,7 +666,10 @@ export interface SellQuote {
 	probability: number;
 	/** Proceeds before the order fee, with no congestion penalty. */
 	proceeds: number;
-	/** `proceeds − orderFee`: what the account nets. Floored at 0. */
+	/**
+	 * `proceeds − orderFee`: what the account nets. Negative when the order fee is above the
+	 * proceeds, since the fee is charged at enqueue whatever the sell returns.
+	 */
 	net: number;
 	fees: { trading: number; builder: number; inventoryImpactRebate: number; order: number };
 	quantityClosed: number;
@@ -2209,7 +2215,7 @@ export class PredictClient {
 			return {
 				probability: rawToProbability(quote.probability),
 				proceeds: rawToUsdc(quote.proceeds),
-				net: rawToUsdc(quote.proceeds > orderFee ? quote.proceeds - orderFee : 0n),
+				net: rawToUsdc(quote.proceeds - orderFee),
 				fees: {
 					trading: rawToUsdc(quote.tradingFee),
 					builder: rawToUsdc(quote.builderFee),
@@ -2600,7 +2606,7 @@ export class PredictClient {
 				proceeds: quote.proceeds,
 				net: quote.net,
 				minProceeds: rawToUsdc(limits.minProceedsRaw),
-				minNet: rawToUsdc(limits.minProceedsRaw > fee ? limits.minProceedsRaw - fee : 0n),
+				minNet: rawToUsdc(limits.minProceedsRaw - fee),
 				orderFee: rawToUsdc(fee),
 				timing: previewTiming({
 					nowMs,
