@@ -531,7 +531,8 @@ export interface MintPlan {
 	};
 	/**
 	 * The largest `amount` (budget plans) or `quantity` (exact plans) the market's spare cash and,
-	 * with an account, the balance allow now. Null when neither binds.
+	 * with an account, the balance allow now. An exact plan's balance bound prices each contract
+	 * at the plan's `worstPricePerContract`. Null when neither binds.
 	 */
 	maxNow: number | null;
 	/** τ, deadline and cutoff for an order placed now, from the local clock. */
@@ -1910,11 +1911,21 @@ export class PredictClient {
 					);
 				}
 			}
-			if (order.builder === 'enqueueSell') return this.tx.enqueueSell(owner, m, order.options);
 			const placed =
-				order.builder === 'enqueueMintCost'
-					? await this.tx.enqueueMintCost(owner, m, order.options)
-					: await this.tx.enqueueMint(owner, m, order.options);
+				order.builder === 'enqueueSell'
+					? await this.tx.enqueueSell(owner, m, order.options)
+					: order.builder === 'enqueueMintCost'
+						? await this.tx.enqueueMintCost(owner, m, order.options)
+						: await this.tx.enqueueMint(owner, m, order.options);
+			// The plan's debit, and a sell's net, assume the order fee it was quoted with. The builders
+			// read the desk's fee again, and no order argument bounds it on chain, so refuse a fee
+			// that rose since the plan.
+			if (placed.preview.raw.orderFee > plan.raw.orderFee) {
+				throw new PredictInputError(
+					`the order fee rose from ${rawToUsdc(plan.raw.orderFee)} to ${placed.preview.orderFee} since the plan: plan again`,
+				);
+			}
+			if (order.builder === 'enqueueSell') return placed;
 			// The limits assume the plan's whole budget. The builders escrow less when the balance
 			// fell since the plan, so refuse that instead.
 			const planned = (plan as MintPlan).raw.budget;
@@ -2594,7 +2605,7 @@ export class PredictClient {
 					);
 				}
 			});
-			const max = maxMintNow(
+			const cashOrBudgetMax = maxMintNow(
 				budgetRequested != null
 					? {
 							shape: 'budget',
@@ -2612,6 +2623,16 @@ export class PredictClient {
 							asOfMs: nowMs,
 						},
 			).maxRaw;
+			// `maxMintNow` bounds an exact quantity by spare cash only. Enqueue escrows the quantity
+			// at the plan's worst price per contract, capped at the $1 payout, so the balance bounds
+			// it too.
+			let max = cashOrBudgetMax;
+			if (budgetRequested == null && availableRaw != null && price.worstRaw > 0n) {
+				const spendable = availableRaw > fee ? availableRaw - fee : 0n;
+				const perContract = price.worstRaw < 1_000_000_000n ? price.worstRaw : 1_000_000_000n;
+				const byBalance = ((spendable * 1_000_000_000n) / perContract / lot) * lot;
+				if (max == null || byBalance < max) max = byBalance;
+			}
 			return {
 				shape: budgetRequested != null ? 'budget' : 'exact-quantity',
 				target: { owner: normalizeSuiAddress(owner), expiryMarketId: id, lowerTick, higherTick },

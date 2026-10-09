@@ -735,6 +735,49 @@ describe('a plan the chain refuses to quote gets a typed refusal', () => {
 	});
 });
 
+describe('a plan holds the fee and balance it was quoted with', () => {
+	test('enqueuePlan refuses a mint or sell plan once the order fee rose', async () => {
+		const s = scenario({ records: new Map([[7n, openRecord()]]) });
+		const { pc } = client(s);
+		const mint = await pc.read.planMint(OWNER, market(s), { amount: 5, slippageCents: 10 });
+		const sell = await pc.read.planSell(OWNER, market(s), {
+			recordId: 7n,
+			quantity: 2,
+			slippageCents: 10,
+		});
+		expect([mint.refusal, sell.refusal]).toEqual([null, null]);
+		s.policy = { ...s.policy, order_fee: 50_000n };
+		for (const plan of [mint, sell]) {
+			const err = await pc.tx.enqueuePlan(OWNER, market(s), plan).catch((e) => e);
+			expect(err).toBeInstanceOf(PredictInputError);
+			expect(err.message).toMatch(/order fee rose from 0.02 to 0.05/);
+		}
+		// A fee that fell only debits less, so the plan still places.
+		s.policy = { ...s.policy, order_fee: 10_000n };
+		await expect(pc.tx.enqueuePlan(OWNER, market(s), mint)).resolves.toBeDefined();
+	});
+
+	test("an exact plan's maxNow is bounded by the balance at the worst price", async () => {
+		const s = scenario({ available: 2_000_000n });
+		const { pc } = client(s);
+		const plan = await pc.read.planMint(OWNER, market(s), { quantity: 10, slippageCents: 10 });
+		const lot = BigInt(cfg.units.positionLotSize);
+		const byBalance =
+			(((2_000_000n - 20_000n) * 1_000_000_000n) / plan.raw.worstPricePerContract / lot) * lot;
+		expect(plan.maxNow).toBe(Number(byBalance) / 1e6);
+		// The escrow of that quantity at the worst price fits what the balance spends.
+		expect(
+			(byBalance * plan.raw.worstPricePerContract + 999_999_999n) / 1_000_000_000n,
+		).toBeLessThanOrEqual(2_000_000n - 20_000n);
+		const empty = scenario({ available: 0n });
+		const none = await client(empty).pc.read.planMint(OWNER, market(empty), {
+			quantity: 10,
+			slippageCents: 10,
+		});
+		expect(none.maxNow).toBe(0);
+	});
+});
+
 describe('plans are bound to what they were quoted for', () => {
 	test('a mint plan is refused for the other side or another owner', async () => {
 		const s = scenario();

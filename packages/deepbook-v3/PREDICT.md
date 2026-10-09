@@ -216,7 +216,8 @@ the room from the model.
   about the payout. `tx.enqueuePlan` throws a refused plan's code, and `fee` when the balance now
   escrows less than the plan's budget. It also throws a `PredictInputError` when called with another
   owner, market, strike, side or record than the plan's `target`, since the plan's limits fit only
-  that order. A plan made with `strike: 'reference'` is refused once the reference strike moves.
+  that order, and when the order fee rose since the plan, since the plan's debit and a sell's net
+  assume its fee. A plan made with `strike: 'reference'` is refused once the reference strike moves.
   When the chain refuses to quote a plan, `planMint` throws a typed refusal where it can tell why:
   `entry-band` for a strike outside the market's entry band, `min-premium` for an order whose
   premium is below 1 USDC. The probability can still leave the band between plan and placement,
