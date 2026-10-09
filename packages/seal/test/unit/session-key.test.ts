@@ -4,9 +4,9 @@
 import { describe, expect, it } from 'vitest';
 import { SessionKey } from '../../src/session-key.js';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
-import { UserError } from '../../src/error.js';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+import { verifyPersonalMessageSignature } from '@mysten/sui/verify';
 
 describe('Session key tests', () => {
 	const TESTNET_PACKAGE_ID = '0x9709d4ee371488c2bc09f508e98e881bd1d5335e0805d7e6a99edd54a7027954';
@@ -33,21 +33,35 @@ describe('Session key tests', () => {
 		expect(restoredSessionKey.export().sessionKey).toBe(sessionKey.export().sessionKey);
 		expect(restoredSessionKey.getPersonalMessage()).toEqual(sessionKey.getPersonalMessage());
 
-		// invalid signer
+		// A signer may differ from the canonical address when it is an address alias.
 		const kp2 = Ed25519Keypair.generate();
-		expect(() =>
-			SessionKey.import(
-				{
-					address: kp.getPublicKey().toSuiAddress(),
-					packageId: TESTNET_PACKAGE_ID,
-					ttlMin: 1,
-					sessionKey: sessionKey.export().sessionKey,
-					creationTimeMs: sessionKey.export().creationTimeMs,
-					personalMessageSignature: sig.signature,
-				},
-				suiClient,
-				kp2,
-			),
-		).toThrow(UserError);
+		const restoredWithAliasSigner = SessionKey.import(
+			{
+				address: kp.getPublicKey().toSuiAddress(),
+				packageId: TESTNET_PACKAGE_ID,
+				ttlMin: 1,
+				sessionKey: sessionKey.export().sessionKey,
+				creationTimeMs: sessionKey.export().creationTimeMs,
+				personalMessageSignature: sig.signature,
+			},
+			suiClient,
+			kp2,
+		);
+		expect(restoredWithAliasSigner.getAddress()).toBe(kp.getPublicKey().toSuiAddress());
+
+		const sessionWithAliasSigner = await SessionKey.create({
+			address: kp.getPublicKey().toSuiAddress(),
+			packageId: TESTNET_PACKAGE_ID,
+			ttlMin: 1,
+			signer: kp2,
+			suiClient,
+		});
+		const certificate = await sessionWithAliasSigner.getCertificate();
+		expect(certificate.user).toBe(kp.getPublicKey().toSuiAddress());
+		const certificateSigner = await verifyPersonalMessageSignature(
+			sessionWithAliasSigner.getPersonalMessage(),
+			certificate.signature,
+		);
+		expect(certificateSigner.toSuiAddress()).toBe(kp2.getPublicKey().toSuiAddress());
 	});
 });
