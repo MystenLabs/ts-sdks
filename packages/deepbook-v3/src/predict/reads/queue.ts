@@ -518,11 +518,15 @@ export async function quoteMintForAccount(
 	return { quote, policy };
 }
 
+/** What `quote_mint` quotes: an exact quantity, or the largest quantity a premium budget buys. */
+export type AnonymousMintQuoteRequest = Exclude<MintQuoteRequest, { shape: 'exact-cost' }>;
+
 /**
- * Quote an exact-quantity mint for no particular account: Predict's `quote_mint`, at a fresh live
- * pricer. It prices like a queued fill at the clock with no builder fee, so it previews a mint for
- * a visitor without an account or a funded balance. With `ordersConfig`, also reads the order
- * desk's policy.
+ * Quote a mint for no particular account: Predict's `quote_mint`, at a fresh live pricer. It
+ * prices like a queued fill at the clock with no builder fee, so it previews a mint for a visitor
+ * without an account or a funded balance. It has no all-in budget mode. It aborts
+ * `EOrderFailsLimits` when the mint would be refused at the clock, for example below the 1 USDC
+ * minimum premium. With `ordersConfig`, also reads the order desk's policy.
  */
 export async function quoteMintAnonymous(
 	client: ReadClient,
@@ -531,12 +535,13 @@ export async function quoteMintAnonymous(
 		expiryMarketId: string;
 		lowerTick: bigint;
 		higherTick: bigint;
-		quantityRaw: bigint;
+		request: AnonymousMintQuoteRequest;
 		ordersConfig?: OrdersGeneratedConfig;
 	} & MarketFeeds,
 ): Promise<{ quote: MintQuoteRaw; policy: DelayedExecutionPolicy | null }> {
 	const tx = new Transaction();
 	const pricer = tx.add(loadLivePricer(config, args));
+	const r = args.request;
 	tx.add(
 		expiryMarket.quoteMint({
 			config,
@@ -545,9 +550,9 @@ export async function quoteMintAnonymous(
 				pricer,
 				lowerTick: args.lowerTick,
 				higherTick: args.higherTick,
-				maxPremium: 0n,
-				minQuantity: args.quantityRaw,
-				exactQuantity: true,
+				...(r.shape === 'exact-quantity'
+					? { maxPremium: 0n, minQuantity: r.quantityRaw, exactQuantity: true }
+					: { maxPremium: r.maxPremiumRaw, minQuantity: r.minQuantityRaw, exactQuantity: false }),
 			},
 		}),
 	);

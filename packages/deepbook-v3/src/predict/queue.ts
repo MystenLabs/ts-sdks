@@ -663,7 +663,7 @@ export function slippageBand(inputs: SlippageBandInputs): {
 
 /** The quote a set of mint limits is sized from: the chain quote at the current price. */
 export interface MintLimitsInputs {
-	/** The quote's all-in cost, order fee excluded. */
+	/** The quote's all-in cost after its fee subsidy, order fee excluded. */
 	quoteCostRaw: bigint;
 	/** The quote's payout quantity. */
 	quoteQuantityRaw: bigint;
@@ -671,25 +671,40 @@ export interface MintLimitsInputs {
 	entryProbabilityRaw: bigint;
 	/** The price move to allow per contract, 1e9-scaled: 10¢ is `100_000_000n`. */
 	slippageRaw: bigint;
+	/**
+	 * The quote's fee subsidy (`fee_incentive_subsidy`). Defaults to `0n`. Enqueue admission checks
+	 * the order's limits without the subsidy, and the subsidy can run out before the fill, so the
+	 * limits add it back: they are sized from the unsubsidized cost.
+	 */
+	feeIncentiveSubsidyRaw?: bigint;
 	/** The deployment's `position_lot_size`. Defaults to `10_000n`. */
 	lotSize?: bigint;
 }
 
-/** All-in price per $1 of payout, 1e9-scaled and rounded up, before and after slippage. */
+/** All-in price per $1 of payout, 1e9-scaled and rounded up. */
 export interface PricePerContract {
+	/** The quote's price, after its fee subsidy. */
 	nowRaw: bigint;
+	/** The worst price the limits admit: the price without the fee subsidy, plus the slippage. */
 	worstRaw: bigint;
 }
 
 function pricePerContract(inputs: MintLimitsInputs): PricePerContract {
+	const subsidy = inputs.feeIncentiveSubsidyRaw ?? 0n;
 	assertUint(inputs.quoteCostRaw, 'quoteCostRaw');
 	assertUint(inputs.quoteQuantityRaw, 'quoteQuantityRaw');
 	assertUint(inputs.slippageRaw, 'slippageRaw', FLOAT_SCALING);
+	assertUint(subsidy, 'feeIncentiveSubsidyRaw');
 	if (inputs.quoteQuantityRaw === 0n) {
 		throw new PredictInputError('the quote buys no payout, so it sizes no limits');
 	}
 	const nowRaw = mulDivUp(inputs.quoteCostRaw, FLOAT_SCALING, inputs.quoteQuantityRaw);
-	return { nowRaw, worstRaw: nowRaw + inputs.slippageRaw };
+	const unsubsidizedRaw = mulDivUp(
+		inputs.quoteCostRaw + subsidy,
+		FLOAT_SCALING,
+		inputs.quoteQuantityRaw,
+	);
+	return { nowRaw, worstRaw: unsubsidizedRaw + inputs.slippageRaw };
 }
 
 /**

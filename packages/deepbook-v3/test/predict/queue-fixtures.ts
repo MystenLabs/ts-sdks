@@ -247,6 +247,29 @@ function pureU64(tx: Transaction, cmdIdx: number, argIdx: number): bigint {
 	return BigInt(bcs.u64().parse(Buffer.from(pure, 'base64')));
 }
 
+// A pure bool argument of one move call.
+function pureBool(tx: Transaction, cmdIdx: number, argIdx: number): boolean {
+	const call = tx.getData().commands[cmdIdx].MoveCall!;
+	const arg = call.arguments[argIdx] as { $kind: string; Input: number };
+	const pure = tx.getData().inputs[arg.Input].Pure!.bytes;
+	return bcs.bool().parse(Buffer.from(pure, 'base64'));
+}
+
+/** `constants::min_premium`: `quote_mint` aborts `EOrderFailsLimits` below it. */
+const MIN_PREMIUM = 1_000_000n;
+/** `expiry_market::EOrderFailsLimits`. */
+const E_ORDER_FAILS_LIMITS = 14n;
+
+// A Move abort a canned return raises. The mock simulate turns it into a `FailedTransaction`.
+class MockAbort extends Error {
+	constructor(
+		readonly module: string,
+		readonly code: bigint,
+	) {
+		super(`${module} aborted ${code}`);
+	}
+}
+
 function moduleOf(tx: Transaction, cmdIdx: number): string {
 	return tx.getData().commands[cmdIdx].MoveCall!.module;
 }
@@ -311,13 +334,24 @@ function returnsFor(fn: string, s: QueueScenario, tx: Transaction, cmdIdx: numbe
 			return [expiryMarket.MintQuote.serialize(s.mintQuote).toBytes()];
 		case 'quote_mint': {
 			// Arguments: market, config, pricer, lower, higher, max_premium, min_quantity, exact.
-			const quantity = pureU64(tx, cmdIdx, 6);
+			// Premium-budget mode buys the largest lot multiple whose premium fits max_premium. Like
+			// the chain, a premium below the 1 USDC minimum aborts `EOrderFailsLimits`.
+			const p = s.mintQuote.entry_probability;
+			const minQuantity = pureU64(tx, cmdIdx, 6);
+			const lot = BigInt(QUEUE_CFG.units.positionLotSize);
+			const quantity = pureBool(tx, cmdIdx, 7)
+				? minQuantity
+				: ((pureU64(tx, cmdIdx, 5) * 1_000_000_000n) / p / lot) * lot;
+			const premium = (quantity * p) / 1_000_000_000n;
+			if (quantity < minQuantity || premium < MIN_PREMIUM) {
+				throw new MockAbort('expiry_market', E_ORDER_FAILS_LIMITS);
+			}
 			const cost = (quantity * s.anonymousPricePerContract) / 1_000_000_000n;
 			return [
 				expiryMarket.MintQuote.serialize({
 					...s.mintQuote,
 					quantity,
-					premium: (quantity * s.mintQuote.entry_probability) / 1_000_000_000n,
+					premium,
 					builder_fee: 0n,
 					penalty_fee: 0n,
 					all_in_cost: cost,
@@ -356,16 +390,27 @@ export function queueClient(s: QueueScenario) {
 			async simulateTransaction(opts: { transaction: Transaction }) {
 				simulated.push(opts.transaction);
 				const cmds = opts.transaction.getData().commands;
-				return {
-					$kind: 'Transaction',
-					Transaction: {},
-					commandResults: cmds.map((c, i) => ({
-						returnValues: returnsFor(c.MoveCall!.function, s, opts.transaction, i).map((b) => ({
-							bcs: b,
+				try {
+					return {
+						$kind: 'Transaction',
+						Transaction: {},
+						commandResults: cmds.map((c, i) => ({
+							returnValues: returnsFor(c.MoveCall!.function, s, opts.transaction, i).map((b) => ({
+								bcs: b,
+							})),
+							mutatedReferences: [],
 						})),
-						mutatedReferences: [],
-					})),
-				};
+					};
+				} catch (e) {
+					if (!(e instanceof MockAbort)) throw e;
+					const error = {
+						MoveAbort: { abortCode: String(e.code), location: { module: e.module } },
+					};
+					return {
+						$kind: 'FailedTransaction',
+						FailedTransaction: { status: { success: false, error } },
+					};
+				}
 			},
 			async getObject() {
 				throw new Error('queueClient: getObject not mocked');

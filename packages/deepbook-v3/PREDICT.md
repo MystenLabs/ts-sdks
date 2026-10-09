@@ -163,7 +163,7 @@ on top). `quantity` plans an exact payout instead.
 | Purchase presets, "Max"        | `maxNow`: the most the market's spare cash and the balance take now           |
 | Payout multiple                | `payoutMultiple` (at the current price, order fee included)                   |
 | Potential payout               | `potentialPayout`, and `minPayout` at the worst price                         |
-| Price per contract             | `pricePerContract`, and `worstPricePerContract` (plus the slippage)           |
+| Price per contract             | `pricePerContract`, and `worstPricePerContract` (unsubsidized, plus slippage) |
 | Max slippage                   | `slippageCents` in, `slippage.cents` out (`'auto'` sizes it from the model)   |
 | Order fee                      | `orderFee`, read from the order desk every time                               |
 | "Pricing in about a second"    | `timing.tauMs`, `timing.deadlineMs`                                           |
@@ -171,7 +171,11 @@ on top). `quantity` plans an exact payout instead.
 
 A budget plan's fill buys what the budget buys at τ and is refunded with the order fee returned when
 that is below `minPayout`. An exact plan's fill is refunded when the entry probability or the all-in
-cost passes its cap. `planSell` returns the sell side: `proceeds`, `net` (after the order fee),
+cost passes its cap. The limits are sized from the price without the fee subsidy, because enqueue
+admission checks the order without it and the subsidy can run out before the fill. The quote, the
+payout multiple and `pricePerContract` show the subsidized price the fill is expected to charge. A
+visitor's budget quote needs a premium of at least 1 USDC, so a smaller budget is refused with a
+`PredictInputError`. `planSell` returns the sell side: `proceeds`, `net` (after the order fee),
 `minProceeds` and `minNet` at the worst price, and the `enqueueSell` options.
 
 - **Preflight, typed.** Each `enqueue*` builder reads the market once and refuses, with a

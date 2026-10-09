@@ -36,7 +36,12 @@ import {
 	exactlyOne,
 	type DecodableTransactionResult,
 } from './decode.js';
-import { PredictInputError, PredictPreflightError, type PredictPreflightCode } from './errors.js';
+import {
+	PredictInputError,
+	PredictMoveError,
+	PredictPreflightError,
+	type PredictPreflightCode,
+} from './errors.js';
 import {
 	ORDER_FLOW_PACKAGE_VERSION,
 	ORDER_KIND,
@@ -74,6 +79,7 @@ import {
 	quoteMintForAccount,
 	quoteRedeemOpen,
 	versionWatermark,
+	type AnonymousMintQuoteRequest,
 	type ExecutionMode,
 	type MarketQueueState,
 	type MintQuoteRaw,
@@ -496,9 +502,13 @@ export interface MintPlan {
 	payoutMultiple: number;
 	/** `minPayout / totalDebit`: the multiple at the worst price. */
 	minPayoutMultiple: number;
-	/** All-in price per contract now in USDC (0.42 is 42¢), order fee excluded. */
+	/** All-in price per contract now in USDC (0.42 is 42¢), after the fee subsidy, order fee excluded. */
 	pricePerContract: number;
-	/** The same at the worst price the limits admit: `pricePerContract` plus the slippage. */
+	/**
+	 * The worst price the limits admit: the price per contract without the fee subsidy, plus the
+	 * slippage. Enqueue admission checks the order without the subsidy, and the subsidy can run out
+	 * before the fill, so the limits never count on it.
+	 */
 	worstPricePerContract: number;
 	/** The flat order fee, read from the order desk, charged once per order. */
 	orderFee: number;
@@ -896,32 +906,43 @@ export class PredictClient {
 		return { raw, applied: { cents: Number(raw) / 1e7, source: 'auto', band } };
 	}
 
-	// A budget mint's quote for no particular account. `quote_mint` prices exact quantities, so this
-	// searches for the largest lot multiple whose all-in cost fits the budget. A contract costs at
-	// most $1, so the budget's own size is the first probe, and each next probe divides the budget
-	// by the last price per contract. The price barely moves with size, so a few quotes settle it.
+	// A budget mint's quote for no particular account. `quote_mint` has no all-in budget mode, so
+	// this searches for the largest lot multiple whose all-in cost fits the budget. The first probe
+	// is its premium-budget mode with the whole budget as the premium, whose premium clears the
+	// 1 USDC minimum whenever the purchase can. Each next probe divides the budget by the last price
+	// per contract. The price barely moves with size, so a few quotes settle it. A probe the chain
+	// refuses (`EOrderFailsLimits`) ends the search with the best fit so far.
 	async #searchBudgetQuote(
 		ticks: { expiryMarketId: string; lowerTick: bigint; higherTick: bigint } & MarketFeeds,
 		budgetRaw: bigint,
 		lot: bigint,
 	): Promise<MintQuoteRaw> {
 		const floorLot = (x: bigint) => (x / lot) * lot;
+		const probeQuote = async (request: AnonymousMintQuoteRequest) => {
+			try {
+				return (await quoteMintAnonymous(this.#client, this.#config, { ...ticks, request })).quote;
+			} catch (e) {
+				if (e instanceof PredictMoveError && e.abortName === 'EOrderFailsLimits') return null;
+				throw e;
+			}
+		};
 		let best: MintQuoteRaw | null = null;
-		let quantity = floorLot(budgetRaw);
-		for (let probe = 0; probe < 4 && quantity > 0n; probe++) {
-			const { quote } = await quoteMintAnonymous(this.#client, this.#config, {
-				...ticks,
-				quantityRaw: quantity,
-			});
+		let quote = await probeQuote({
+			shape: 'exact-amount',
+			maxPremiumRaw: budgetRaw,
+			minQuantityRaw: lot,
+		});
+		for (let probe = 1; quote != null; probe++) {
 			const cost = quote.allInCost - quote.penaltyFee;
 			if (cost <= budgetRaw && (best == null || quote.quantity > best.quantity)) best = quote;
-			const next = cost === 0n ? quantity : floorLot((budgetRaw * quote.quantity) / cost);
-			if (next === quantity) break;
-			quantity = next;
+			if (probe === 4) break;
+			const next = cost === 0n ? quote.quantity : floorLot((budgetRaw * quote.quantity) / cost);
+			if (next === 0n || next === quote.quantity) break;
+			quote = await probeQuote({ shape: 'exact-quantity', quantityRaw: next });
 		}
 		if (best == null) {
 			throw new PredictInputError(
-				`a budget of ${rawToUsdc(budgetRaw)} buys no payout at the current price`,
+				`a budget of ${rawToUsdc(budgetRaw)} buys no payout at the current price (a mint's premium must be at least ${rawToUsdc(MIN_PREMIUM)} USDC)`,
 			);
 		}
 		return best;
@@ -2134,7 +2155,7 @@ export class PredictClient {
 		 * Works for a visitor without an account: the quote then comes from `quote_mint`.
 		 *
 		 * `slippageCents` is cents per contract, never a percentage: a 10¢ limit fills while the
-		 * all-in price per contract stays within 10¢ of the quote.
+		 * all-in price per contract stays within 10¢ of the quote's price without its fee subsidy.
 		 */
 		planMint: async (
 			owner: string,
@@ -2193,9 +2214,16 @@ export class PredictClient {
 				quoteForAccount = hasAccount;
 				quote = hasAccount
 					? await forAccount({ shape: 'exact-quantity', quantityRaw })
-					: (await quoteMintAnonymous(this.#client, this.#config, { ...ticks, quantityRaw })).quote;
+					: (
+							await quoteMintAnonymous(this.#client, this.#config, {
+								...ticks,
+								request: { shape: 'exact-quantity', quantityRaw },
+							})
+						).quote;
 			}
 
+			// The expected cost, after the fee subsidy. The limits add the subsidy back, because
+			// admission checks the order without it (`EOrderFailsLimits`).
 			const costRaw = quote.allInCost - quote.penaltyFee;
 			const slippage = PredictClient.#appliedSlippage(opts, quote.entryProbability, state, nowMs);
 			const limitsIn = {
@@ -2203,6 +2231,7 @@ export class PredictClient {
 				quoteQuantityRaw: quote.quantity,
 				entryProbabilityRaw: quote.entryProbability,
 				slippageRaw: slippage.raw,
+				feeIncentiveSubsidyRaw: quote.feeIncentiveSubsidy,
 				lotSize: lot,
 			};
 			let budgetRaw: bigint;
@@ -2214,7 +2243,10 @@ export class PredictClient {
 			if (budgetRequested != null) {
 				const limits = budgetMintLimits({ ...limitsIn, budgetRaw: budgetRequested });
 				budgetRaw = budgetRequested;
-				minQuantityRaw = limits.minQuantityRaw;
+				// The quote is for this budget, so the floor never asks for more than it buys. A
+				// searched quote can leave part of the budget unspent.
+				minQuantityRaw =
+					limits.minQuantityRaw < quote.quantity ? limits.minQuantityRaw : quote.quantity;
 				price = limits.pricePerContract;
 				order = {
 					builder: 'enqueueMintCost',

@@ -35,8 +35,14 @@ function market(s: QueueScenario): MarketDescriptor {
 }
 
 // The scenario's account quote: 10 contracts for 4.083 USDC all-in once its 0.007 penalty is
-// removed, 40.83¢ a contract.
+// removed, 40.83¢ a contract. Its 0.02 fee subsidy makes it 4.103 USDC, 41.03¢ a contract, without
+// the subsidy, which is what enqueue admission checks.
 const QUOTE = { quoteCostRaw: 4_083_000n, quoteQuantityRaw: 10_000_000n };
+const SUBSIDY = 20_000n;
+const UNSUBSIDIZED_PRICE = 410_300_000n;
+// What admission charges for a quantity at the quote's unsubsidized price.
+const admissionCost = (quantityRaw: bigint) =>
+	(quantityRaw * UNSUBSIDIZED_PRICE + 999_999_999n) / 1_000_000_000n;
 
 describe('limit helpers', () => {
 	test('slippage is cents per contract, added to the price, never a percentage', () => {
@@ -100,6 +106,32 @@ describe('limit helpers', () => {
 		});
 	});
 
+	test('the limits add the fee subsidy back, so they pass the unsubsidized admission', () => {
+		const budget = budgetMintLimits({
+			...QUOTE,
+			entryProbabilityRaw: 400_000_000n,
+			slippageRaw: 0n,
+			feeIncentiveSubsidyRaw: SUBSIDY,
+			budgetRaw: QUOTE.quoteCostRaw,
+		});
+		expect(budget.pricePerContract).toEqual({ nowRaw: 408_300_000n, worstRaw: UNSUBSIDIZED_PRICE });
+		// The subsidized price would floor at 10 contracts, which admission can't buy for 4.083.
+		expect(budget.minQuantityRaw).toBe(9_950_000n);
+		expect(admissionCost(budget.minQuantityRaw)).toBeLessThanOrEqual(QUOTE.quoteCostRaw);
+
+		for (const slippageRaw of [0n, CENT]) {
+			const exact = exactMintLimits({
+				...QUOTE,
+				entryProbabilityRaw: 400_000_000n,
+				slippageRaw,
+				feeIncentiveSubsidyRaw: SUBSIDY,
+			});
+			expect(exact.maxCostRaw).toBe(4_103_000n + slippageRaw / 100n);
+			expect(exact.maxCostRaw).toBeGreaterThanOrEqual(admissionCost(QUOTE.quoteQuantityRaw));
+			expect(exact.maxProbabilityRaw).toBe(400_000_000n + slippageRaw);
+		}
+	});
+
 	test('a quote that buys nothing sizes no limits', () => {
 		expect(() =>
 			budgetMintLimits({
@@ -126,11 +158,12 @@ describe('read.planMint', () => {
 		expect(plan.totalDebit).toBe(5);
 		expect(plan.expectedDebit).toBeCloseTo(4.103, 9);
 		expect(plan.potentialPayout).toBe(10);
-		expect(plan.minPayout).toBe(9.79);
+		// 4.98 at the unsubsidized 41.03¢ plus 10¢: 9.7589… contracts, floored to the 0.01 lot.
+		expect(plan.minPayout).toBe(9.75);
 		expect(plan.payoutMultiple).toBeCloseTo(10 / 4.103, 9);
-		expect(plan.minPayoutMultiple).toBeCloseTo(9.79 / 5, 9);
+		expect(plan.minPayoutMultiple).toBeCloseTo(9.75 / 5, 9);
 		expect(plan.pricePerContract).toBe(0.4083);
-		expect(plan.worstPricePerContract).toBe(0.5083);
+		expect(plan.worstPricePerContract).toBe(0.5103);
 		expect(plan.balance).toEqual({ hasAccount: true, available: 100, covers: true });
 		const max = maxMintNow({
 			shape: 'budget',
@@ -145,7 +178,7 @@ describe('read.planMint', () => {
 		expect(plan.timing.beforeCutoff).toBe(true);
 		expect(plan.order).toEqual({
 			builder: 'enqueueMintCost',
-			options: { spend: 4.98, minQuantity: 9.79 },
+			options: { spend: 4.98, minQuantity: 9.75 },
 		});
 	});
 
@@ -176,10 +209,10 @@ describe('read.planMint', () => {
 		expect(plan.shape).toBe('exact-quantity');
 		expect(plan.order).toEqual({
 			builder: 'enqueueMint',
-			options: { quantity: 10, maxCost: 5.083, maxProbability: 0.5 },
+			options: { quantity: 10, maxCost: 5.103, maxProbability: 0.5 },
 		});
-		expect(plan.budget).toBe(5.083);
-		expect(plan.totalDebit).toBe(5.103);
+		expect(plan.budget).toBe(5.103);
+		expect(plan.totalDebit).toBe(5.123);
 		expect(plan.minPayout).toBe(10);
 	});
 
@@ -200,6 +233,59 @@ describe('read.planMint', () => {
 		expect(targets).not.toContain('account::load_account');
 	});
 
+	test("a visitor's 5 USDC purchase at 10% seeds the search above the 1 USDC minimum premium", async () => {
+		const base = scenario();
+		const s = scenario({
+			mintQuote: { ...base.mintQuote, entry_probability: 100_000_000n },
+			anonymousPricePerContract: 105_000_000n,
+		});
+		const q = queueClient(s);
+		const pc = new PredictClient({ network: 'testnet', client: q.client, config: cfg });
+		s.missingObjects.add(pc.wrapperIdFor(OWNER));
+		const plan = await pc.read.planMint(OWNER, market(s), { amount: 5, slippageCents: 10 });
+		// Quantity as the first probe, 4.98 contracts, is a 0.498 premium, which the chain refuses.
+		// The premium-budget seed buys 49.8, then 4.98 / 10.5¢ settles on 47.42.
+		expect(plan.quoteForAccount).toBe(false);
+		expect(plan.potentialPayout).toBe(47.42);
+		expect(plan.quote.cost).toBeLessThanOrEqual(4.98);
+		expect(plan.order.builder).toBe('enqueueMintCost');
+	});
+
+	test('a visitor budget below the 1 USDC minimum premium is refused', async () => {
+		const base = scenario();
+		const s = scenario({
+			mintQuote: { ...base.mintQuote, entry_probability: 100_000_000n },
+			anonymousPricePerContract: 105_000_000n,
+		});
+		const q = queueClient(s);
+		const pc = new PredictClient({ network: 'testnet', client: q.client, config: cfg });
+		s.missingObjects.add(pc.wrapperIdFor(OWNER));
+		// 1.00 after the fee seeds at a 1.00 premium, but the next probe, 9.52 contracts, is a
+		// 0.952 premium. 0.48 fails at the seed.
+		for (const amount of [1.02, 0.5]) {
+			const err = await pc.read
+				.planMint(OWNER, market(s), { amount, slippageCents: 10 })
+				.catch((e) => e);
+			expect(err).toBeInstanceOf(PredictInputError);
+			expect(err.message).toMatch(/at least 1 USDC/);
+		}
+	});
+
+	test('subsidized limits pass the unsubsidized admission at zero and small slippage', async () => {
+		const s = scenario();
+		const { pc } = client(s);
+		for (const slippageCents of [0, 1]) {
+			const exact = await pc.read.planMint(OWNER, market(s), { quantity: 10, slippageCents });
+			expect(exact.raw.maxCost).toBeGreaterThanOrEqual(admissionCost(10_000_000n));
+			expect(exact.raw.maxProbability).toBeGreaterThanOrEqual(400_000_000n);
+			// 4.103 inclusive is a 4.083 budget, exactly the subsidized cost of 10 contracts.
+			const budget = await pc.read.planMint(OWNER, market(s), { amount: 4.103, slippageCents });
+			expect(budget.budget).toBe(4.083);
+			expect(budget.raw.minQuantity).toBeLessThan(10_000_000n);
+			expect(admissionCost(budget.raw.minQuantity)).toBeLessThanOrEqual(4_083_000n);
+		}
+	});
+
 	test('a balance below the order also falls back to the account-free quote', async () => {
 		const s = scenario({ available: 1_000_000n });
 		const plan = await client(s).pc.read.planMint(OWNER, market(s), {
@@ -217,8 +303,9 @@ describe('read.planMint', () => {
 		expect(plan.slippage.band).not.toBeNull();
 		expect(plan.slippage.cents).toBe(Math.ceil(plan.slippage.band!.deltaProbability * 1e9) / 1e7);
 		expect(plan.slippage.cents).toBeGreaterThan(0);
+		// The worst price is the unsubsidized one, 0.2¢ above the quote, plus the slippage.
 		expect(plan.worstPricePerContract - plan.pricePerContract).toBeCloseTo(
-			plan.slippage.cents / 100,
+			plan.slippage.cents / 100 + 0.002,
 			9,
 		);
 	});
