@@ -468,6 +468,28 @@ describe('order IDs', () => {
 		});
 	});
 
+	test('settledPayout pays a range holding the settlement price, rounded up to the tick', () => {
+		const tick = 10_000_000n; // $0.01 at 1e9 price scaling
+		const usd120 = 120_000_000_000n;
+		const up = pack(12_000n, cost.POS_INF_TICK, 10_000n, 0n); // above $120
+		const down = pack(0n, 12_000n, 10_000n, 0n); // at or below $120
+		const range = pack(12_000n, 12_010n, 10_000n, 0n); // ($120, $120.10]
+		// Exactly on the strike: down pays, up doesn't.
+		expect(cost.settledPayout(up, usd120, tick)).toBe(0n);
+		expect(cost.settledPayout(down, usd120, tick)).toBe(TEN_THOUSAND_LOTS);
+		// Any amount above the strike rounds up to the next tick: up pays, down doesn't.
+		expect(cost.settledPayout(up, usd120 + 1n, tick)).toBe(TEN_THOUSAND_LOTS);
+		expect(cost.settledPayout(down, usd120 + 1n, tick)).toBe(0n);
+		// A finite range includes its higher edge and excludes its lower one.
+		expect(cost.settledPayout(range, usd120 + 100_000_000n, tick)).toBe(TEN_THOUSAND_LOTS);
+		expect(cost.settledPayout(range, usd120 + 100_000_001n, tick)).toBe(0n);
+		expect(cost.settledPayout(range, usd120, tick)).toBe(0n);
+	});
+
+	test('settledPayout refuses a zero tick size', () => {
+		expect(() => cost.settledPayout(pack(0n, 12_000n, 1n, 0n), 1n, 0n)).toThrow(/tickSizeRaw/);
+	});
+
 	test('maps sentinel ticks to the infinite sides a quote takes', () => {
 		const tickSize = 10_000_000n; // $0.01 at 1e9 price scaling
 		const up = cost.orderStrikes(

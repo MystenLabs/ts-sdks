@@ -1035,6 +1035,27 @@ export function decodeOrderRange(orderId: bigint, lotSize: bigint = POSITION_LOT
 	};
 }
 
+/**
+ * What an order pays at settlement, raw USDC: its full quantity when the settlement price lies
+ * in `(lower, higher]`, else 0. The mirror of `strike_exposure::settled_order_payout`, which
+ * rounds the settlement price up to the market's tick grid (`range_codec::limit_tick`) before
+ * comparing it with the order's ticks, so a price inside a tick counts as that tick's upper edge.
+ * Pass `read.settlement`'s `settlementPriceRaw` and `tickSizeRaw`, and the config's
+ * `units.positionLotSize` when it isn't the default.
+ */
+export function settledPayout(
+	orderId: bigint,
+	settlementPriceRaw: bigint,
+	tickSizeRaw: bigint,
+	lotSize: bigint = POSITION_LOT_SIZE,
+): bigint {
+	if (tickSizeRaw <= 0n) throw new PredictInputError('tickSizeRaw must be positive');
+	const { lowerTick, higherTick, quantity } = decodeOrderRange(orderId, lotSize);
+	const limit = (settlementPriceRaw + tickSizeRaw - 1n) / tickSizeRaw;
+	const inRange = lowerTick < limit && (higherTick === POS_INF_TICK || limit <= higherTick);
+	return inRange ? quantity : 0n;
+}
+
 /** The strikes an {@link OrderRange} prices against, in USD, with `null` for each infinite
  * side — the shape {@link boundaryProbabilities} takes. `tickSize` is the market's raw tick
  * size (`ActiveMarket.tickSize` in USD, or the raw value from the deployment). */

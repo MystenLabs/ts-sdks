@@ -19,6 +19,7 @@ export type {
 	MarketCoordinates,
 	MarketDescriptor,
 	MarketQueueView,
+	MarketSettlement,
 	MarketSummary,
 	MintAmountOptions,
 	MintCostOptions,

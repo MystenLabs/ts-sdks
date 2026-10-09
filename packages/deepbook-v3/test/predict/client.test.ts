@@ -7,7 +7,7 @@ import { PredictClient } from '../../src/predict/client.js';
 import { TESTNET_CONFIG as cfg } from '../../src/predict/config/index.js';
 import { accountEvents } from '../../src/account.js';
 import * as orderEvents from '../../src/contracts/deepbook_predict/order_events.js';
-import { PredictInputError } from '../../src/predict/errors.js';
+import { PredictInputError, PredictMoveError } from '../../src/predict/errors.js';
 import type { ReadClient } from '../../src/predict/reads/inspect.js';
 import { POS_INF_TICK } from '../../src/predict/ticks.js';
 import { toGeneratedConfig } from '../../src/predict/config/generated.js';
@@ -101,7 +101,9 @@ const REDEEMED_EVENT = {
 
 // A mock ReadClient that dispatches canned return values by the first command's
 // move-call function, and counts how many times each function was simulated.
-function mockClient(overrides: { admissionTickSizeRaw?: bigint } = {}) {
+function mockClient(
+	overrides: { admissionTickSizeRaw?: bigint; settlementPriceRaw?: bigint | null } = {},
+) {
 	const counts: Record<string, number> = {};
 	const client = {
 		core: {
@@ -149,6 +151,19 @@ function mockClient(overrides: { admissionTickSizeRaw?: bigint } = {}) {
 						],
 						[bcs.bool().serialize(false).toBytes()],
 						[bcs.option(bcs.u64()).serialize(10_500_000n).toBytes()],
+					];
+				} else if (fn === 'settlement_price') {
+					// An unsettled market's getter aborts in std::option, which the read maps to null.
+					if (overrides.settlementPriceRaw === null) {
+						throw new PredictMoveError('option', 262145n, null);
+					}
+					results = [
+						[
+							bcs
+								.u64()
+								.serialize(overrides.settlementPriceRaw ?? 105_000_005_000_000n)
+								.toBytes(),
+						],
 					];
 				} else if (fn === 'reference_tick') {
 					// mint-at-reference fresh read: tick 10_500_000 (= $105,000 @ $0.01)
@@ -410,6 +425,30 @@ describe('tx.mint (market resolution + unit conversion)', () => {
 		await expect(
 			pc.tx.claimSettled(OWNER, { underlying: 'DOGE', expiryMs: EXPIRY }, { orderId: 1n }),
 		).rejects.toBeInstanceOf(PredictInputError);
+	});
+
+	test('read.settlement: a settled market returns its price and tick size', async () => {
+		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
+		const s = await pc.read.settlement({ underlying: 'BTC', expiryMs: EXPIRY });
+		expect(s).toEqual({
+			marketId: MARKET_ID,
+			expiryMs: BigInt(EXPIRY),
+			settled: true,
+			settlementPrice: 105_000.005,
+			settlementPriceRaw: 105_000_005_000_000n,
+			tickSizeRaw: 10_000_000n,
+		});
+	});
+
+	test('read.settlement: an unsettled market has no price', async () => {
+		const pc = new PredictClient({
+			network: 'testnet',
+			client: mockClient({ settlementPriceRaw: null }).client,
+		});
+		const s = await pc.read.settlement({ underlying: 'BTC', expiryMs: EXPIRY });
+		expect(s.settled).toBe(false);
+		expect(s.settlementPrice).toBeNull();
+		expect(s.settlementPriceRaw).toBeNull();
 	});
 
 	test('read.market: unknown underlying → PredictInputError', async () => {

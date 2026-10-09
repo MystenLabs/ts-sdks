@@ -101,6 +101,7 @@ import {
 	marketStates,
 	rangePrices,
 	referenceTick,
+	settlementPrice,
 	type MarketState,
 } from './reads/markets.js';
 import { poolStats } from './reads/pool.js';
@@ -282,6 +283,23 @@ export interface MarketSummary {
 	nav: number;
 	/** The window's anchor strike in USD, or null until the keeper seeds it. */
 	referencePrice: number | null;
+}
+
+/**
+ * A market's settlement, from `read.settlement`. Pass `settlementPriceRaw` and `tickSizeRaw` to
+ * `cost.settledPayout` to show what a position paid.
+ */
+export interface MarketSettlement {
+	marketId: string;
+	expiryMs: bigint;
+	/** Whether Predict has recorded the settlement price. */
+	settled: boolean;
+	/** The settlement price in USD, or null until the market settles. */
+	settlementPrice: number | null;
+	/** The settlement price at the 1e9 price scale, or null until the market settles. */
+	settlementPriceRaw: bigint | null;
+	/** The market's raw tick size, which `cost.settledPayout` rounds the price against. */
+	tickSizeRaw: bigint;
 }
 
 /** Aggregate pool figures. Balances in human units (shares raw); the pending fields
@@ -2923,6 +2941,27 @@ export class PredictClient {
 				mintPaused: state.mintPaused,
 				nav: rawToUsdc(navRaw),
 				referencePrice: PredictClient.#referencePriceOf(state),
+			};
+		},
+
+		/**
+		 * The market's settlement price, or `null` until a keeper settles it. Unlike `market`,
+		 * `price` and the quotes, which abort `ELivePricingExpired` once the market expires, it
+		 * keeps working after expiry, when an app shows results. With delayed execution the
+		 * keeper settles a market, pays its Open records and cleans them up within about a second
+		 * of expiry, so `read.order` returns `null` by then. Keep each filled record's
+		 * `position.orderId` and pass it to `cost.settledPayout` with this price.
+		 */
+		settlement: async (m: MarketCoordinates): Promise<MarketSettlement> => {
+			const { id, state } = await this.#resolveMarket(m);
+			const raw = await settlementPrice(this.#client, this.#config, id);
+			return {
+				marketId: id,
+				expiryMs: state.expiryMs,
+				settled: raw != null,
+				settlementPrice: raw == null ? null : fromRaw(raw, 9),
+				settlementPriceRaw: raw,
+				tickSizeRaw: state.tickSizeRaw,
 			};
 		},
 

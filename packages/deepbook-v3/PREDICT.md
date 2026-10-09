@@ -163,6 +163,32 @@ The plan and preview types are exported (`MintPlan`, `SellPlan`, `PlanMintOption
 `PlanSellOptions`, `SlippageOptions`, `QueuedOrderPlan`, `QueuedOrderPreview`), so form state can be
 typed without `ReturnType`.
 
+#### After expiry: showing the result
+
+At expiry a keeper settles the market, pays every Open record its settled payout (the full quantity
+in range, 0 out of range) into the owner's account, and cleans the records up. On Testnet all of
+that lands within about a second of expiry. So by the time an app looks:
+
+- `read.order` returns `null` and `waitForOutcome` ends `'gone'` for a filled record. After expiry
+  that means the market paid it out, not that the order was lost.
+- `read.market`, `read.price` and the quotes abort `ELivePricingExpired`.
+- `read.settlement` still works. Keep each filled record's `position.orderId` (from
+  `waitForOutcome`, `read.order` or `decode.queuedFills`) and pass it to `cost.settledPayout`.
+
+```ts
+import { cost } from '@mysten/deepbook-v3/predict';
+
+const s = await client.predict.read.settlement(desc);
+if (s.settled) {
+	const payoutRaw = cost.settledPayout(orderId, s.settlementPriceRaw!, s.tickSizeRaw);
+	const won = payoutRaw > 0n; // payoutRaw is raw USDC, already in the account's balance
+}
+```
+
+The payout also arrives as an `OpenRecordSettled` event (`decode.openRecordPayouts`) in the keeper's
+transaction, which an indexer serves. If the payout walk skipped a record
+(`OpenRecordPayoutSkipped`), the record stays Open until `tx.payOpen` pays it.
+
 #### A purchase form
 
 `read.planMint(owner, market, opts)` returns everything a purchase form shows, for a visitor without
@@ -466,12 +492,13 @@ const tx = await client.predict.tx.mint(
   `quoteMint(owner, m, opts)` / `quoteMintCost(owner, m, opts)` / `quoteRedeem(owner, m, opts)`
   (exact dry-run quotes: real fees from the real code path — and they throw the same typed errors
   the real trade would, so a quote doubles as preflight), `balance(owner)`, `plpBalance(owner)`,
-  `pool()`, `feePolicy(m)` (the market's fee snapshot, for `cost`), `positions(owner)` (chain-only
-  enumeration of open positions), `hasPosition(owner, marketId, orderId)`, and for queued orders
-  `executionMode()`, `queue(m)`, `planMint(owner, m, opts)`, `planSell(owner, m, opts)`,
-  `order(m, id)`, `orders(m, ids)`, `waitForOutcome(m, id)`, `quoteSell(owner, m, opts)`,
-  `pendingFunds(owner)`, `lazerPackages()`. All reads run over the client's `simulateTransaction`;
-  no indexer required.
+  `pool()`, `feePolicy(m)` (the market's fee snapshot, for `cost`), `settlement(m)` (the settlement
+  price, which still reads after expiry, when `market` and the quotes abort), `positions(owner)`
+  (chain-only enumeration of open positions), `hasPosition(owner, marketId, orderId)`, and for
+  queued orders `executionMode()`, `queue(m)`, `planMint(owner, m, opts)`,
+  `planSell(owner, m, opts)`, `order(m, id)`, `orders(m, ids)`, `waitForOutcome(m, id)`,
+  `quoteSell(owner, m, opts)`, `pendingFunds(owner)`, `lazerPackages()`. All reads run over the
+  client's `simulateTransaction`; no indexer required.
 - **`client.predict.decode`** — pure execution-result decoders (no network): `mint`, `redeem`,
   `claim`, `createManager`, `deposit`, `withdraw`, `plpRequest`, `plpCancel`, `builderCode`. Each
   singular form throws unless exactly one matching event is present; `mints`, `redeems` and `claims`
@@ -527,8 +554,8 @@ const tx = await client.predict.tx.mint(
 
 - **`cost`** — the deployed FEE math as an exact integer port, so an all-in quote costs no chain
   call: `mintCost` (what a mint debits), `mintCostForBudget` (the `mint_exact_cost` budget search),
-  `redeemLiveProceeds` (what a live close credits), plus the components they are built from. See
-  below.
+  `redeemLiveProceeds` (what a live close credits), `settledPayout` (what an order pays at a
+  settlement price), plus the components they are built from. See below.
 
 - **Typed errors** — invalid inputs throw `PredictInputError` before the chain sees them; failed
   simulations throw `PredictMoveError` with the decoded Move abort (`module`, `code`, `abortName`).
