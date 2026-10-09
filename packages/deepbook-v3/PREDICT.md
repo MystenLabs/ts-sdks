@@ -270,8 +270,55 @@ options.
   enqueue into your own PTB (`queueTx.enqueueExactCost(toOrdersConfig(cfg), …)`), plus the keeper's
   `createQueue` (registry, desk and market), `commit`, `resolve`, `refund`, `adminRefund`,
   `settleStep`, `payOpen`, `claimParked` and `cleanup`. `SessionsContract` has the `enqueue*`
-  session wrappers, which take the `orderDesk` and the `queueRegistry` and need Sessions v3
-  (`getSessionsConfig` still records v2 until that publication is synced).
+  session wrappers, which take the `orderDesk` and the `queueRegistry` and need Sessions v3. The
+  Testnet `getSessionsConfig` records v3, and the Mainnet one doesn't until its rollout is synced.
+
+#### Queued orders from a session key
+
+A session key trades the owner's account, so plan against the owner and send the plan's raw limits
+through the `SessionsContract` wrapper. The session key signs, sends and pays its own gas, and
+`decode.enqueue` and `waitForOutcome` work as they do for an owner's enqueue.
+
+```ts
+import { Transaction } from '@mysten/sui/transactions';
+import { binaryRangeTicks, priceToRaw } from '@mysten/deepbook-v3/predict';
+import { SessionsContract, getSessionsConfig } from '@mysten/deepbook-v3/sessions';
+
+const sessions = new SessionsContract(getSessionsConfig('testnet'));
+const { objects, underlyings } = client.predict.cfg;
+const target = {
+	expiryMarketId: tradeable[0].id,
+	wrapperId: sessions.deriveAccountWrapperId(owner),
+	orderDesk: objects.orderDesk!,
+	queueRegistry: objects.queueRegistry!,
+	protocolConfig: objects.protocolConfig,
+	oracleRegistry: objects.oracleRegistry,
+	pythFeed: underlyings.BTC.pythFeed,
+	blockScholesValueStore: underlyings.BTC.blockScholesValueStore,
+	blockScholesSviStore: underlyings.BTC.blockScholesSviStore,
+};
+const plan = await client.predict.read.planMint(owner, atmDesc, { amount: 10, slippageCents: 10 });
+const { lowerTick, higherTick } = binaryRangeTicks(
+	priceToRaw(atm),
+	'up',
+	priceToRaw(tradeable[0].tickSize),
+);
+const tx = new Transaction();
+tx.add(
+	sessions.enqueueExactCost({
+		...target,
+		lowerTick,
+		higherTick,
+		maxCost: plan.raw.budget,
+		minQuantity: plan.raw.minQuantity,
+	}),
+);
+// Sell an Open record the same way: `enqueueRedeemOpen` with the record's quantity and
+// `planSell(owner, …).raw.minProbability` / `.raw.minProceeds`.
+```
+
+A revoked or expired key aborts `sessions::ESessionNotAuthorized`, which `describePredictError`
+explains along with the other Sessions and account aborts.
 
 ## ⚠ Slippage defaults are UNCAPPED
 
