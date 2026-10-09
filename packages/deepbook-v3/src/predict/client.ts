@@ -41,7 +41,10 @@ import {
 	ORDER_FLOW_PACKAGE_VERSION,
 	ORDER_KIND,
 	ORDER_STATUS,
+	budgetMintLimits,
 	cashNeedSell,
+	channelTickMs,
+	exactMintLimits,
 	feeCovered,
 	maxMintNow,
 	mintBudget,
@@ -49,6 +52,8 @@ import {
 	orderKindName,
 	orderView,
 	previewTiming,
+	sellLimits,
+	slippageBand,
 	type DelayedExecutionPolicy,
 	type MaxMintNow,
 	type OrderKindName,
@@ -65,12 +70,14 @@ import {
 	orderFeeAndBalance,
 	pendingFunds,
 	queuedOrders,
+	quoteMintAnonymous,
 	quoteMintForAccount,
 	quoteRedeemOpen,
 	versionWatermark,
 	type ExecutionMode,
 	type MarketQueueState,
 	type MintQuoteRaw,
+	type MintQuoteRequest,
 } from './reads/queue.js';
 import {
 	positionsFromTable,
@@ -424,6 +431,150 @@ export interface QueuedOrderPlan {
 	preview: QueuedOrderPreview;
 }
 
+/**
+ * How much the price may move against a queued order between its quote and its fill, in cents per
+ * contract. A contract pays $1, so its price in cents is its probability: 10¢ of slippage lets
+ * a 42¢ contract fill at up to 52¢, fees included. It is never a percentage.
+ */
+export interface SlippageOptions {
+	/**
+	 * Cents per contract: `10` is 10¢. `'auto'` (the default) sizes it with `queue.slippageBand`
+	 * from the time to expiry and the policy's delay.
+	 */
+	slippageCents?: number | 'auto';
+	/** Standard deviations of movement for `'auto'`. Default 2. */
+	k?: number;
+}
+
+/**
+ * Options for `read.planMint`. `amount` plans a purchase form's spend (an all-in budget mint),
+ * and `quantity` plans an exact payout.
+ */
+export type PlanMintOptions = SlippageOptions &
+	(
+		| {
+				/** The purchase amount in USDC. */
+				amount: number;
+				/**
+				 * Whether `amount` is the whole debit, order fee included (`'inclusive'`, the default),
+				 * or the order fee is charged on top (`'exclusive'`).
+				 */
+				orderFee?: 'inclusive' | 'exclusive';
+		  }
+		| { quantity: number }
+	);
+
+/** The slippage a plan applied. */
+export interface AppliedSlippage {
+	/** Cents per contract. */
+	cents: number;
+	source: 'input' | 'auto';
+	/** The model band when `source` is `'auto'`. */
+	band: ReturnType<typeof slippageBand> | null;
+}
+
+/**
+ * `read.planMint`: everything a purchase form shows, and the enqueue options that carry its
+ * slippage. Display only: the fill prices at τ, within the limits in `order`.
+ */
+export interface MintPlan {
+	shape: 'budget' | 'exact-quantity';
+	/** The quote at the current price. */
+	quote: MintQuote;
+	/**
+	 * Whether the quote is the account's own (`quote_mint_*_for_account`, with its builder fee). A
+	 * visitor without an account, or a balance below the order, gets `quote_mint`'s quote instead,
+	 * with a budget's quantity found by a short search.
+	 */
+	quoteForAccount: boolean;
+	slippage: AppliedSlippage;
+	/** The payout if it wins, at the current price ("Potential payout"). */
+	potentialPayout: number;
+	/** The smallest payout the order accepts, at the worst price. A smaller fill is refunded. */
+	minPayout: number;
+	/** `potentialPayout / expectedDebit` ("Payout multiple"), order fee included. */
+	payoutMultiple: number;
+	/** `minPayout / totalDebit`: the multiple at the worst price. */
+	minPayoutMultiple: number;
+	/** All-in price per contract now in USDC (0.42 is 42¢), order fee excluded. */
+	pricePerContract: number;
+	/** The same at the worst price the limits admit: `pricePerContract` plus the slippage. */
+	worstPricePerContract: number;
+	/** The flat order fee, read from the order desk, charged once per order. */
+	orderFee: number;
+	/** USDC escrowed for the premium and fees. Unused budget comes back at the fill. */
+	budget: number;
+	/** `budget + orderFee`: what enqueue debits. */
+	totalDebit: number;
+	/** `quote.cost + orderFee`: what the order costs if it fills at the current price. */
+	expectedDebit: number;
+	balance: {
+		/** Whether the owner has a Predict account yet. */
+		hasAccount: boolean;
+		/** The account's USDC, or null without an account. */
+		available: number | null;
+		/** Whether the balance covers `totalDebit`, or null without an account. */
+		covers: boolean | null;
+	};
+	/**
+	 * The largest `amount` (budget plans) or `quantity` (exact plans) the market's spare cash and,
+	 * with an account, the balance allow now. Null when neither binds.
+	 */
+	maxNow: number | null;
+	/** τ, deadline and cutoff for an order placed now, from the local clock. */
+	timing: TimingPreview;
+	/** Whether a mint would pass the queue gates now. */
+	accepting: boolean;
+	/** The `PredictPreflightError` code a mint would get now, or null. */
+	refusal: PredictPreflightCode | null;
+	/** Pass `order.options` to `tx[order.builder]`. */
+	order:
+		| { builder: 'enqueueMintCost'; options: EnqueueMintCostOptions }
+		| { builder: 'enqueueMint'; options: EnqueueMintOptions };
+	raw: {
+		budget: bigint;
+		orderFee: bigint;
+		totalDebit: bigint;
+		slippage: bigint;
+		minQuantity: bigint;
+		maxCost: bigint | null;
+		maxProbability: bigint | null;
+		pricePerContract: bigint;
+		worstPricePerContract: bigint;
+	};
+}
+
+/** Options for `read.planSell`. */
+export type PlanSellOptions = SlippageOptions & {
+	/** The Open record to sell from. */
+	recordId: bigint;
+	/** Payout quantity to close. */
+	quantity: number;
+};
+
+/** `read.planSell`: what an early sell shows, and the enqueue options that carry its slippage. */
+export interface SellPlan {
+	/** The quote at the current price. */
+	quote: SellQuote;
+	slippage: AppliedSlippage;
+	/** Proceeds at the current price, before the order fee. */
+	proceeds: number;
+	/** `proceeds − orderFee`. */
+	net: number;
+	/** The proceeds floor the order carries, before the order fee. A smaller fill is refunded. */
+	minProceeds: number;
+	/** `minProceeds − orderFee`, floored at 0. */
+	minNet: number;
+	orderFee: number;
+	timing: TimingPreview;
+	/** Whether a sell would pass the queue gates now. */
+	accepting: boolean;
+	refusal: PredictPreflightCode | null;
+	/** Pass `order.options` to `tx.enqueueSell`. */
+	order: { builder: 'enqueueSell'; options: EnqueueSellOptions };
+	raw: { slippage: bigint; minProceeds: bigint; minProbability: bigint; orderFee: bigint };
+}
+
 /** `read.queue`: a market's queue state plus the derived figures the app shows. */
 export interface MarketQueueView extends MarketQueueState {
 	mode: ExecutionMode;
@@ -702,6 +853,92 @@ export class PredictClient {
 			throw new PredictInputError(
 				`quantity ${quantityRaw} raw is not a whole ${lot}-unit lot (position_lot_size)`,
 			);
+		}
+	}
+
+	// Whether the owner's account wrapper exists. A visitor without an account still gets a plan.
+	async #hasAccount(owner: string): Promise<boolean> {
+		const {
+			objects: [wrapper],
+		} = await this.#client.core.getObjects({ objectIds: [this.wrapperIdFor(owner)] });
+		return !(wrapper instanceof Error);
+	}
+
+	// The slippage a plan applies, per $1 of payout, 1e9-scaled: the caller's, or the model band at
+	// the quote's probability.
+	static #appliedSlippage(
+		opts: SlippageOptions,
+		probabilityRaw: bigint,
+		state: MarketQueueState,
+		nowMs: bigint,
+	): { raw: bigint; applied: AppliedSlippage } {
+		const cents = opts.slippageCents ?? 'auto';
+		if (cents !== 'auto') {
+			if (!(Number.isFinite(cents) && cents >= 0 && cents <= 100)) {
+				throw new PredictInputError(
+					`slippageCents must be in [0, 100] cents per contract, got ${cents}`,
+				);
+			}
+			// A cent is 1e7 in the 1e9-scaled price per $1 of payout.
+			const raw = BigInt(Math.round(cents * 1e7));
+			return { raw, applied: { cents: Number(raw) / 1e7, source: 'input', band: null } };
+		}
+		const policy = state.desk.policy;
+		const band = slippageBand({
+			// The band is undefined at the certain ends, where a queued mint is refused anyway.
+			probability: Math.min(Math.max(rawToProbability(probabilityRaw), 1e-6), 1 - 1e-6),
+			timeToExpiryMs: Number(state.expiryMs > nowMs ? state.expiryMs - nowMs : 0n),
+			delayMs: Number(policy.delayMs),
+			tickMs: Number(channelTickMs(policy.pythChannel)),
+			k: opts.k,
+		});
+		const raw = BigInt(Math.ceil(band.deltaProbability * 1e9));
+		return { raw, applied: { cents: Number(raw) / 1e7, source: 'auto', band } };
+	}
+
+	// A budget mint's quote for no particular account. `quote_mint` prices exact quantities, so this
+	// searches for the largest lot multiple whose all-in cost fits the budget. A contract costs at
+	// most $1, so the budget's own size is the first probe, and each next probe divides the budget
+	// by the last price per contract. The price barely moves with size, so a few quotes settle it.
+	async #searchBudgetQuote(
+		ticks: { expiryMarketId: string; lowerTick: bigint; higherTick: bigint } & MarketFeeds,
+		budgetRaw: bigint,
+		lot: bigint,
+	): Promise<MintQuoteRaw> {
+		const floorLot = (x: bigint) => (x / lot) * lot;
+		let best: MintQuoteRaw | null = null;
+		let quantity = floorLot(budgetRaw);
+		for (let probe = 0; probe < 4 && quantity > 0n; probe++) {
+			const { quote } = await quoteMintAnonymous(this.#client, this.#config, {
+				...ticks,
+				quantityRaw: quantity,
+			});
+			const cost = quote.allInCost - quote.penaltyFee;
+			if (cost <= budgetRaw && (best == null || quote.quantity > best.quantity)) best = quote;
+			const next = cost === 0n ? quantity : floorLot((budgetRaw * quote.quantity) / cost);
+			if (next === quantity) break;
+			quantity = next;
+		}
+		if (best == null) {
+			throw new PredictInputError(
+				`a budget of ${rawToUsdc(budgetRaw)} buys no payout at the current price`,
+			);
+		}
+		return best;
+	}
+
+	// The queue-gate refusal a side would get now, or null.
+	#refusalNow(
+		state: MarketQueueState,
+		side: 'mint' | 'sell',
+		nowMs: bigint,
+	): PredictPreflightCode | null {
+		try {
+			this.#assertQueueOpen(state, side, nowMs);
+			return null;
+		} catch (e) {
+			if (e instanceof PredictPreflightError) return e.code;
+			throw e;
 		}
 	}
 
@@ -1426,6 +1663,27 @@ export class PredictClient {
 		): Promise<QueuedOrderPlan> => this.#planSell(owner, m, opts),
 
 		/**
+		 * Queue the order a `read.planMint` or `read.planSell` plan describes, with its limits:
+		 * `enqueueMintCost`, `enqueueMint` or `enqueueSell`, by `plan.order.builder`. Pass the
+		 * market the plan was made for.
+		 */
+		enqueuePlan: (
+			owner: string,
+			m: MarketDescriptor,
+			plan: MintPlan | SellPlan,
+		): Promise<QueuedOrderPlan> => {
+			const order = plan.order;
+			switch (order.builder) {
+				case 'enqueueMintCost':
+					return this.tx.enqueueMintCost(owner, m, order.options);
+				case 'enqueueMint':
+					return this.tx.enqueueMint(owner, m, order.options);
+				case 'enqueueSell':
+					return this.tx.enqueueSell(owner, m, order.options);
+			}
+		},
+
+		/**
 		 * Refund this market's orders past their deadline. For the app's "Refund my order" button
 		 * only (`OrderView.canRequestRefund`), never prepended to other transactions: keepers
 		 * refund on their own. Needs no account, session or Pyth key, and works during a freeze.
@@ -1863,6 +2121,248 @@ export class PredictClient {
 						orderFeeRaw: policy.orderFee,
 						asOfMs: nowMs,
 					}),
+				},
+			};
+		},
+
+		/**
+		 * Plan a queued mint for a purchase form: the quote at the current price, the payout and
+		 * multiple, the order fee read from the desk, the escrow and debit, the balance, the most
+		 * the market takes now, the timing and the queue gates, plus the enqueue options that carry
+		 * the slippage. `amount` plans an all-in spend (`enqueueMintCost`, refunded below the payout
+		 * floor), and `quantity` an exact payout (`enqueueMint`, capped by probability and cost).
+		 * Works for a visitor without an account: the quote then comes from `quote_mint`.
+		 *
+		 * `slippageCents` is cents per contract, never a percentage: a 10¢ limit fills while the
+		 * all-in price per contract stays within 10¢ of the quote.
+		 */
+		planMint: async (
+			owner: string,
+			m: MarketDescriptor,
+			opts: PlanMintOptions,
+		): Promise<MintPlan> => {
+			const orders = this.#requireDelayedExecution();
+			const feeds = this.#feeds(m.underlying);
+			const { id, state: market } = await this.#resolveMarket(m);
+			const { lowerTick, higherTick } = await this.#strikeTicks(m, id, market);
+			const hasAccount = await this.#hasAccount(owner);
+			const state = await this.#queueState(orders, id, hasAccount ? { owner } : {});
+			const nowMs = BigInt(Date.now());
+			const policy = state.desk.policy;
+			const fee = policy.orderFee;
+			const availableRaw = state.account?.availableRaw ?? null;
+			const lot = BigInt(this.cfg.units.positionLotSize);
+			const ticks = { expiryMarketId: id, lowerTick, higherTick, ...feeds };
+			const forAccount = (request: MintQuoteRequest) =>
+				quoteMintForAccount(this.#client, this.#config, {
+					...ticks,
+					wrapperId: this.wrapperIdFor(owner),
+					request,
+				}).then((r) => r.quote);
+
+			let quote: MintQuoteRaw;
+			let quoteForAccount: boolean;
+			let budgetRequested: bigint | null = null;
+			if ('amount' in opts) {
+				const amountRaw = usdcToRaw(opts.amount);
+				budgetRequested =
+					(opts.orderFee ?? 'inclusive') === 'inclusive'
+						? amountRaw > fee
+							? amountRaw - fee
+							: 0n
+						: amountRaw;
+				if (budgetRequested === 0n) {
+					throw new PredictInputError(
+						`${opts.amount} doesn't cover the ${rawToUsdc(fee)} order fee`,
+					);
+				}
+				// The account's own quote caps the budget at its balance, so it only previews an
+				// order the balance covers.
+				quoteForAccount =
+					availableRaw != null && availableRaw > fee && availableRaw - fee >= budgetRequested;
+				quote = quoteForAccount
+					? await forAccount({
+							shape: 'exact-cost',
+							maxCostRaw: budgetRequested,
+							minQuantityRaw: 0n,
+						})
+					: await this.#searchBudgetQuote(ticks, budgetRequested, lot);
+			} else {
+				const quantityRaw = usdcToRaw(opts.quantity);
+				this.#assertLot(quantityRaw);
+				quoteForAccount = hasAccount;
+				quote = hasAccount
+					? await forAccount({ shape: 'exact-quantity', quantityRaw })
+					: (await quoteMintAnonymous(this.#client, this.#config, { ...ticks, quantityRaw })).quote;
+			}
+
+			const costRaw = quote.allInCost - quote.penaltyFee;
+			const slippage = PredictClient.#appliedSlippage(opts, quote.entryProbability, state, nowMs);
+			const limitsIn = {
+				quoteCostRaw: costRaw,
+				quoteQuantityRaw: quote.quantity,
+				entryProbabilityRaw: quote.entryProbability,
+				slippageRaw: slippage.raw,
+				lotSize: lot,
+			};
+			let budgetRaw: bigint;
+			let minQuantityRaw: bigint;
+			let maxCostRaw: bigint | null = null;
+			let maxProbabilityRaw: bigint | null = null;
+			let price: { nowRaw: bigint; worstRaw: bigint };
+			let order: MintPlan['order'];
+			if (budgetRequested != null) {
+				const limits = budgetMintLimits({ ...limitsIn, budgetRaw: budgetRequested });
+				budgetRaw = budgetRequested;
+				minQuantityRaw = limits.minQuantityRaw;
+				price = limits.pricePerContract;
+				order = {
+					builder: 'enqueueMintCost',
+					options: { spend: rawToUsdc(budgetRaw), minQuantity: rawToUsdc(minQuantityRaw) },
+				};
+			} else {
+				const limits = exactMintLimits(limitsIn);
+				maxCostRaw = limits.maxCostRaw;
+				maxProbabilityRaw = limits.maxProbabilityRaw;
+				// Enqueue escrows `min(max_cost, quantity, available − fee)`.
+				budgetRaw = maxCostRaw < quote.quantity ? maxCostRaw : quote.quantity;
+				minQuantityRaw = quote.quantity;
+				price = limits.pricePerContract;
+				order = {
+					builder: 'enqueueMint',
+					options: {
+						quantity: rawToUsdc(quote.quantity),
+						maxCost: rawToUsdc(maxCostRaw),
+						maxProbability: rawToProbability(maxProbabilityRaw),
+					},
+				};
+			}
+
+			const totalDebitRaw = budgetRaw + fee;
+			const expectedDebitRaw = costRaw + fee;
+			const inclusive = 'amount' in opts && (opts.orderFee ?? 'inclusive') === 'inclusive';
+			const refusal = this.#refusalNow(state, 'mint', nowMs);
+			const max = maxMintNow(
+				budgetRequested != null
+					? {
+							shape: 'budget',
+							spareCashRaw: state.spareCash,
+							minEntryProbability: state.minEntryProbability,
+							availableRaw: availableRaw ?? undefined,
+							orderFeeRaw: fee,
+							asOfMs: nowMs,
+						}
+					: {
+							shape: 'exact-quantity',
+							spareCashRaw: state.spareCash,
+							minEntryProbability: state.minEntryProbability,
+							lotSize: lot,
+							asOfMs: nowMs,
+						},
+			).maxRaw;
+			return {
+				shape: budgetRequested != null ? 'budget' : 'exact-quantity',
+				quote: PredictClient.#queuedMintQuote(quote, policy),
+				quoteForAccount,
+				slippage: slippage.applied,
+				potentialPayout: rawToUsdc(quote.quantity),
+				minPayout: rawToUsdc(minQuantityRaw),
+				payoutMultiple: Number(quote.quantity) / Number(expectedDebitRaw),
+				minPayoutMultiple: Number(minQuantityRaw) / Number(totalDebitRaw),
+				pricePerContract: rawToProbability(price.nowRaw),
+				worstPricePerContract: rawToProbability(price.worstRaw),
+				orderFee: rawToUsdc(fee),
+				budget: rawToUsdc(budgetRaw),
+				totalDebit: rawToUsdc(totalDebitRaw),
+				expectedDebit: rawToUsdc(expectedDebitRaw),
+				balance: {
+					hasAccount,
+					available: availableRaw == null ? null : rawToUsdc(availableRaw),
+					covers: availableRaw == null ? null : availableRaw >= totalDebitRaw,
+				},
+				maxNow: max == null ? null : rawToUsdc(inclusive ? max + fee : max),
+				timing: previewTiming({
+					nowMs,
+					policy,
+					heads: state.heads,
+					expiryMs: state.expiryMs,
+					noTradeWindowMs: state.protocol.noTradeWindowMs,
+				}),
+				accepting: refusal == null,
+				refusal,
+				order,
+				raw: {
+					budget: budgetRaw,
+					orderFee: fee,
+					totalDebit: totalDebitRaw,
+					slippage: slippage.raw,
+					minQuantity: minQuantityRaw,
+					maxCost: maxCostRaw,
+					maxProbability: maxProbabilityRaw,
+					pricePerContract: price.nowRaw,
+					worstPricePerContract: price.worstRaw,
+				},
+			};
+		},
+
+		/**
+		 * Plan a queued early sell of an Open record: the quote at the current price, net of the
+		 * order fee, the floors at the worst price the slippage allows, the timing and the queue
+		 * gates, plus the `enqueueSell` options that carry the floors.
+		 */
+		planSell: async (
+			owner: string,
+			m: MarketCoordinates,
+			opts: PlanSellOptions,
+		): Promise<SellPlan> => {
+			const orders = this.#requireDelayedExecution();
+			const quote = await this.read.quoteSell(owner, m, {
+				recordId: opts.recordId,
+				quantity: opts.quantity,
+			});
+			const { id } = await this.#resolveMarket(m);
+			const state = await this.#queueState(orders, id);
+			const nowMs = BigInt(Date.now());
+			const slippage = PredictClient.#appliedSlippage(opts, quote.raw.probability, state, nowMs);
+			const limits = sellLimits({
+				proceedsRaw: quote.raw.proceeds,
+				closeQuantityRaw: quote.raw.quantityClosed,
+				probabilityRaw: quote.raw.probability,
+				slippageRaw: slippage.raw,
+			});
+			const fee = quote.raw.orderFee;
+			const refusal = this.#refusalNow(state, 'sell', nowMs);
+			return {
+				quote,
+				slippage: slippage.applied,
+				proceeds: quote.proceeds,
+				net: quote.net,
+				minProceeds: rawToUsdc(limits.minProceedsRaw),
+				minNet: rawToUsdc(limits.minProceedsRaw > fee ? limits.minProceedsRaw - fee : 0n),
+				orderFee: rawToUsdc(fee),
+				timing: previewTiming({
+					nowMs,
+					policy: state.desk.policy,
+					heads: state.heads,
+					expiryMs: state.expiryMs,
+					noTradeWindowMs: state.protocol.noTradeWindowMs,
+				}),
+				accepting: refusal == null,
+				refusal,
+				order: {
+					builder: 'enqueueSell',
+					options: {
+						recordId: opts.recordId,
+						quantity: opts.quantity,
+						minProbability: rawToProbability(limits.minProbabilityRaw),
+						minProceeds: rawToUsdc(limits.minProceedsRaw),
+					},
+				},
+				raw: {
+					slippage: slippage.raw,
+					minProceeds: limits.minProceedsRaw,
+					minProbability: limits.minProbabilityRaw,
+					orderFee: fee,
 				},
 			};
 		},

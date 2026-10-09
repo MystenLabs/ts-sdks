@@ -654,6 +654,105 @@ export function slippageBand(inputs: SlippageBandInputs): {
 	};
 }
 
+// === Order limits from a quote ===
+//
+// A queued order prices at its τ, after the quote. Its limits bound how far the price may move
+// against it in the meantime. `slippageRaw` is that move in price per contract, an absolute amount
+// and never a percentage: a contract pays $1, so 10¢ is `100_000_000n` (1e9-scaled). Each helper
+// turns a quote at the current price into the limits the enqueue takes.
+
+/** The quote a set of mint limits is sized from: the chain quote at the current price. */
+export interface MintLimitsInputs {
+	/** The quote's all-in cost, order fee excluded. */
+	quoteCostRaw: bigint;
+	/** The quote's payout quantity. */
+	quoteQuantityRaw: bigint;
+	/** The quote's entry probability, 1e9-scaled. */
+	entryProbabilityRaw: bigint;
+	/** The price move to allow per contract, 1e9-scaled: 10¢ is `100_000_000n`. */
+	slippageRaw: bigint;
+	/** The deployment's `position_lot_size`. Defaults to `10_000n`. */
+	lotSize?: bigint;
+}
+
+/** All-in price per $1 of payout, 1e9-scaled and rounded up, before and after slippage. */
+export interface PricePerContract {
+	nowRaw: bigint;
+	worstRaw: bigint;
+}
+
+function pricePerContract(inputs: MintLimitsInputs): PricePerContract {
+	assertUint(inputs.quoteCostRaw, 'quoteCostRaw');
+	assertUint(inputs.quoteQuantityRaw, 'quoteQuantityRaw');
+	assertUint(inputs.slippageRaw, 'slippageRaw', FLOAT_SCALING);
+	if (inputs.quoteQuantityRaw === 0n) {
+		throw new PredictInputError('the quote buys no payout, so it sizes no limits');
+	}
+	const nowRaw = mulDivUp(inputs.quoteCostRaw, FLOAT_SCALING, inputs.quoteQuantityRaw);
+	return { nowRaw, worstRaw: nowRaw + inputs.slippageRaw };
+}
+
+/**
+ * Limits for a queued all-in budget mint (`enqueueMintCost`): the payout floor at the worst price.
+ * The fill buys what `budgetRaw` buys at τ and refunds the order when that is below
+ * `minQuantityRaw`, so the order fills while the all-in price per $1 of payout stays within
+ * `slippageRaw` of the quote.
+ */
+export function budgetMintLimits(inputs: MintLimitsInputs & { budgetRaw: bigint }): {
+	minQuantityRaw: bigint;
+	pricePerContract: PricePerContract;
+} {
+	assertUint(inputs.budgetRaw, 'budgetRaw');
+	const price = pricePerContract(inputs);
+	const lot = inputs.lotSize ?? POSITION_LOT_SIZE;
+	const quantity = (inputs.budgetRaw * FLOAT_SCALING) / price.worstRaw;
+	return { minQuantityRaw: (quantity / lot) * lot, pricePerContract: price };
+}
+
+/**
+ * Limits for a queued exact-quantity mint (`enqueueMint`): the entry-probability cap and the
+ * all-in cost cap at the worst price. The cost cap never exceeds the quantity, since a contract
+ * never costs more than it pays.
+ */
+export function exactMintLimits(inputs: MintLimitsInputs): {
+	maxCostRaw: bigint;
+	maxProbabilityRaw: bigint;
+	pricePerContract: PricePerContract;
+} {
+	assertUint(inputs.entryProbabilityRaw, 'entryProbabilityRaw', FLOAT_SCALING);
+	const price = pricePerContract(inputs);
+	const maxCostRaw = mulDivUp(inputs.quoteQuantityRaw, price.worstRaw, FLOAT_SCALING);
+	const maxProbabilityRaw = inputs.entryProbabilityRaw + inputs.slippageRaw;
+	return {
+		maxCostRaw: min(maxCostRaw, inputs.quoteQuantityRaw),
+		maxProbabilityRaw: min(maxProbabilityRaw, FLOAT_SCALING),
+		pricePerContract: price,
+	};
+}
+
+/**
+ * Limits for a queued early sell (`enqueueSell`): the close-probability floor and the proceeds
+ * floor at the worst price. `proceedsRaw` is the quote's proceeds before the order fee, as
+ * `minProceeds` is.
+ */
+export function sellLimits(inputs: {
+	proceedsRaw: bigint;
+	closeQuantityRaw: bigint;
+	probabilityRaw: bigint;
+	slippageRaw: bigint;
+}): { minProceedsRaw: bigint; minProbabilityRaw: bigint } {
+	assertUint(inputs.proceedsRaw, 'proceedsRaw');
+	assertUint(inputs.closeQuantityRaw, 'closeQuantityRaw');
+	assertUint(inputs.probabilityRaw, 'probabilityRaw', FLOAT_SCALING);
+	assertUint(inputs.slippageRaw, 'slippageRaw', FLOAT_SCALING);
+	const give = mulDivUp(inputs.closeQuantityRaw, inputs.slippageRaw, FLOAT_SCALING);
+	return {
+		minProceedsRaw: inputs.proceedsRaw > give ? inputs.proceedsRaw - give : 0n,
+		minProbabilityRaw:
+			inputs.probabilityRaw > inputs.slippageRaw ? inputs.probabilityRaw - inputs.slippageRaw : 0n,
+	};
+}
+
 function normalPdf(x: number): number {
 	return Math.exp(-0.5 * x * x) / Math.sqrt(2 * Math.PI);
 }

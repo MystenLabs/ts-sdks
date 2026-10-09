@@ -109,7 +109,7 @@ export {
 } from './units.js';
 
 // === Ticks ===
-export { POS_INF_TICK, binaryRangeTicks } from './ticks.js';
+export { POS_INF_TICK, binaryRangeTicks, snapStrike } from './ticks.js';
 export type { Side } from './ticks.js';
 
 // === Client-side pricing === the deployed SVI digital math (skew-corrected, signed

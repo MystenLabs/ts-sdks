@@ -519,6 +519,58 @@ export async function quoteMintForAccount(
 }
 
 /**
+ * Quote an exact-quantity mint for no particular account: Predict's `quote_mint`, at a fresh live
+ * pricer. It prices like a queued fill at the clock with no builder fee, so it previews a mint for
+ * a visitor without an account or a funded balance. With `ordersConfig`, also reads the order
+ * desk's policy.
+ */
+export async function quoteMintAnonymous(
+	client: ReadClient,
+	config: GeneratedConfig,
+	args: {
+		expiryMarketId: string;
+		lowerTick: bigint;
+		higherTick: bigint;
+		quantityRaw: bigint;
+		ordersConfig?: OrdersGeneratedConfig;
+	} & MarketFeeds,
+): Promise<{ quote: MintQuoteRaw; policy: DelayedExecutionPolicy | null }> {
+	const tx = new Transaction();
+	const pricer = tx.add(loadLivePricer(config, args));
+	tx.add(
+		expiryMarket.quoteMint({
+			config,
+			arguments: {
+				market: args.expiryMarketId,
+				pricer,
+				lowerTick: args.lowerTick,
+				higherTick: args.higherTick,
+				maxPremium: 0n,
+				minQuantity: args.quantityRaw,
+				exactQuantity: true,
+			},
+		}),
+	);
+	if (args.ordersConfig) tx.add(desk.policy({ config: args.ordersConfig }));
+	const cmds = await inspectReturns(client, tx);
+	const q = expiryMarket.MintQuote.parse(cmds[1][0]);
+	return {
+		quote: {
+			quantity: q.quantity,
+			entryProbability: q.entry_probability,
+			premium: q.premium,
+			tradingFee: q.trading_fee,
+			feeIncentiveSubsidy: q.fee_incentive_subsidy,
+			builderFee: q.builder_fee,
+			penaltyFee: q.penalty_fee,
+			inventoryImpactCharge: q.inventory_impact_charge,
+			allInCost: q.all_in_cost,
+		},
+		policy: args.ordersConfig ? policyFromBcs(DelayedExecutionPolicyBcs.parse(cmds[2][0])) : null,
+	};
+}
+
+/**
  * The order desk's policy and an owner's USDC balance, in one simulate. The queued exact-cost
  * quote needs both: enqueue escrows `min(max_cost, available − fee)`, while the chain quote caps
  * at the whole balance.

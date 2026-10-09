@@ -127,14 +127,11 @@ queue.acceptingMints; // and queue.acceptingSells: one side can be full while th
 queue.refusal.mint; // the preflight code a mint would get now, or null
 queue.maxMint.budget.maxRaw; // "Max right now" for a budget mint, raw USDC
 
-// Quote, then queue. The quote previews a queued fill: no congestion penalty, and the flat order
-// fee reported apart, once per order.
-const q = await client.predict.read.quoteMint(myAddress, desc, { quantity: 50 });
-const { transaction, preview } = await client.predict.tx.enqueueMint(myAddress, desc, {
-	quantity: 50,
-	maxCost: Math.ceil(q.cost * 1.02 * 1e6) / 1e6, // required: there is no "unlimited" cap
-	maxProbability: Math.min(1, Math.round((q.entryProbability + 0.02) * 1e9) / 1e9), // required
-});
+// Plan, then queue. `planMint` quotes the order at the current price and turns the slippage into
+// the limits the enqueue carries. Slippage is cents per contract, never a percentage: a contract
+// pays $1, so 10¢ lets a 42¢ contract fill at up to 52¢, fees included.
+const plan = await client.predict.read.planMint(myAddress, desc, { amount: 10, slippageCents: 10 });
+const { transaction, preview } = await client.predict.tx.enqueuePlan(myAddress, desc, plan);
 preview.timing.tauMs; // when it prices
 preview.totalDebit; // budget + order fee, debited at enqueue. Unused budget comes back at the fill
 
@@ -143,15 +140,39 @@ const { recordId } = client.predict.decode.enqueue(result);
 const outcome = await client.predict.read.waitForOutcome(desc, recordId);
 outcome.order?.view; // 'filled' (an Open record holding the position) or 'refunded' (with a reason)
 
-// Sell an Open record early: quote it, then queue the sell. Floors are required, pass 0 on purpose.
-const sq = await client.predict.read.quoteSell(myAddress, desc, { recordId, quantity: 50 });
-const sell = await client.predict.tx.enqueueSell(myAddress, desc, {
+// Sell an Open record early: plan it, then queue the sell with the plan's floors.
+const sellPlan = await client.predict.read.planSell(myAddress, desc, {
 	recordId,
 	quantity: 50,
-	minProbability: Math.floor(sq.probability * 0.97 * 1e9) / 1e9,
-	minProceeds: Math.floor(sq.proceeds * 0.97 * 1e6) / 1e6,
+	slippageCents: 10,
 });
+const sell = await client.predict.tx.enqueuePlan(myAddress, desc, sellPlan);
 ```
+
+#### A purchase form
+
+`read.planMint(owner, market, opts)` returns everything a purchase form shows, for a visitor without
+an account too (the quote then comes from the account-free `quote_mint`). `amount` plans an all-in
+spend and is the whole debit by default, order fee included (`orderFee: 'exclusive'` charges the fee
+on top). `quantity` plans an exact payout instead.
+
+| Form field                     | Plan field                                                                    |
+| ------------------------------ | ----------------------------------------------------------------------------- |
+| Lower / upper bound            | `snapStrike(price, market.admissionTickSize, 'down' \| 'up')` before planning |
+| Trade balance                  | `balance.available` (null without an account), `balance.covers`               |
+| Purchase presets, "Max"        | `maxNow`: the most the market's spare cash and the balance take now           |
+| Payout multiple                | `payoutMultiple` (at the current price, order fee included)                   |
+| Potential payout               | `potentialPayout`, and `minPayout` at the worst price                         |
+| Price per contract             | `pricePerContract`, and `worstPricePerContract` (plus the slippage)           |
+| Max slippage                   | `slippageCents` in, `slippage.cents` out (`'auto'` sizes it from the model)   |
+| Order fee                      | `orderFee`, read from the order desk every time                               |
+| "Pricing in about a second"    | `timing.tauMs`, `timing.deadlineMs`                                           |
+| Disabled button and its reason | `accepting`, `refusal` (the preflight code a mint would get now)              |
+
+A budget plan's fill buys what the budget buys at τ and is refunded with the order fee returned when
+that is below `minPayout`. An exact plan's fill is refunded when the entry probability or the all-in
+cost passes its cap. `planSell` returns the sell side: `proceeds`, `net` (after the order fee),
+`minProceeds` and `minNet` at the worst price, and the `enqueueSell` options.
 
 - **Preflight, typed.** Each `enqueue*` builder reads the market once and refuses, with a
   `PredictPreflightError` and a `code`, an order the queue or protocol gates would abort: `not-live`

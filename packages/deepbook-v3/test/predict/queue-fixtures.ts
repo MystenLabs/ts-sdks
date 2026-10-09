@@ -179,6 +179,13 @@ export interface QueueScenario {
 	mintQuote: (typeof expiryMarket.MintQuote)['$inferType'];
 	redeemQuote: (typeof expiryMarket.RedeemQuote)['$inferType'];
 	tickSizeRaw: bigint;
+	/** Object IDs `getObjects` reports missing, such as an owner's account wrapper. */
+	missingObjects: Set<string>;
+	/**
+	 * `quote_mint`'s all-in price per contract, 1e9-scaled: the account-free quote prices its
+	 * requested quantity at this flat price, at the scenario quote's probability.
+	 */
+	anonymousPricePerContract: bigint;
 }
 
 export function scenario(overrides: Partial<QueueScenario> = {}): QueueScenario {
@@ -226,8 +233,18 @@ export function scenario(overrides: Partial<QueueScenario> = {}): QueueScenario 
 			inventory_impact_rebate: 0n,
 		},
 		tickSizeRaw: 10_000_000n,
+		missingObjects: new Set(),
+		anonymousPricePerContract: 420_000_000n,
 		...overrides,
 	};
+}
+
+// A pure u64 argument of one move call.
+function pureU64(tx: Transaction, cmdIdx: number, argIdx: number): bigint {
+	const call = tx.getData().commands[cmdIdx].MoveCall!;
+	const arg = call.arguments[argIdx] as { $kind: string; Input: number };
+	const pure = tx.getData().inputs[arg.Input].Pure!.bytes;
+	return BigInt(bcs.u64().parse(Buffer.from(pure, 'base64')));
 }
 
 function moduleOf(tx: Transaction, cmdIdx: number): string {
@@ -292,6 +309,21 @@ function returnsFor(fn: string, s: QueueScenario, tx: Transaction, cmdIdx: numbe
 		case 'quote_mint_for_account':
 		case 'quote_mint_exact_cost_for_account':
 			return [expiryMarket.MintQuote.serialize(s.mintQuote).toBytes()];
+		case 'quote_mint': {
+			// Arguments: market, config, pricer, lower, higher, max_premium, min_quantity, exact.
+			const quantity = pureU64(tx, cmdIdx, 6);
+			const cost = (quantity * s.anonymousPricePerContract) / 1_000_000_000n;
+			return [
+				expiryMarket.MintQuote.serialize({
+					...s.mintQuote,
+					quantity,
+					premium: (quantity * s.mintQuote.entry_probability) / 1_000_000_000n,
+					builder_fee: 0n,
+					penalty_fee: 0n,
+					all_in_cost: cost,
+				}).toBytes(),
+			];
+		}
 		case 'quote_redeem_open':
 			return [expiryMarket.RedeemQuote.serialize(s.redeemQuote).toBytes()];
 		case 'tick_size':
@@ -338,12 +370,14 @@ export function queueClient(s: QueueScenario) {
 			async getObject() {
 				throw new Error('queueClient: getObject not mocked');
 			},
-			// Only the facade's queue-existence check reads objects.
+			// The facade's queue and account existence checks read objects.
 			async getObjects(opts: { objectIds: string[] }) {
 				existenceChecks.push(...opts.objectIds);
 				return {
 					objects: opts.objectIds.map((objectId) =>
-						s.queueExists ? { objectId } : new Error(`object ${objectId} not found`),
+						s.missingObjects.has(objectId) || !s.queueExists
+							? new Error(`object ${objectId} not found`)
+							: { objectId },
 					),
 				};
 			},
