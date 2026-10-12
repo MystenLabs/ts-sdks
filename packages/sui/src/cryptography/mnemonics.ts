@@ -6,10 +6,13 @@ import { mnemonicToSeedSync as bip39MnemonicToSeedSync } from '@scure/bip39';
 /**
  * Parse and validate a path that is compliant to SLIP-0010 in form m/44'/784'/{account_index}'/{change_index}'/{address_index}'.
  *
+ * The purpose node distinguishes signature schemes: 44 for Ed25519 (the default) and 94 for ML-DSA-65.
+ *
  * @param path path string (e.g. `m/44'/784'/0'/0'/0'`).
+ * @param purpose purpose node of the scheme, defaults to 44.
  */
-export function isValidHardenedPath(path: string): boolean {
-	if (!new RegExp("^m\\/44'\\/784'\\/[0-9]+'\\/[0-9]+'\\/[0-9]+'+$").test(path)) {
+export function isValidHardenedPath(path: string, purpose = 44): boolean {
+	if (!new RegExp(`^m\\/${purpose}'\\/784'\\/[0-9]+'\\/[0-9]+'\\/[0-9]+'+$`).test(path)) {
 		return false;
 	}
 	return true;
