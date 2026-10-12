@@ -1,5 +1,5 @@
 ---
-'@mysten/seal': patch
+'@mysten/seal': minor
 ---
 
-[seal] support address alias
+Support address alias for seal, instead of rejecting session-key signatures if the signer mismatches the canonical account address.
