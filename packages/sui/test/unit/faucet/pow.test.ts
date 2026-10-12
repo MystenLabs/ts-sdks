@@ -109,10 +109,16 @@ describe('faucet PoW version 1', () => {
 	it.each(['missing process', 'missing getBuiltinModule', 'missing argon2'])(
 		'falls back to Noble with %s',
 		async (runtime) => {
+			const testProcess = globalThis.process;
 			if (runtime === 'missing process') vi.stubGlobal('process', undefined);
 			if (runtime === 'missing getBuiltinModule') vi.stubGlobal('process', {});
 			if (runtime === 'missing argon2') getBuiltinModule.mockReturnValue({});
-			const hash = await hashFaucetProof(challenge, 0n);
+			// hashFaucetProof picks its backend synchronously, so restore `process` before awaiting.
+			// Vitest's RPC layer writes to `globalThis.process.nextTick` from a deferred callback and
+			// throws an unhandled error if `process` is still stubbed out when that callback runs.
+			const proof = hashFaucetProof(challenge, 0n);
+			vi.stubGlobal('process', testProcess);
+			const hash = await proof;
 			expect(toHex(hash)).toBe(vectors.cases[0].hash);
 			expect(argon2.argon2dAsync).toHaveBeenCalledOnce();
 		},
