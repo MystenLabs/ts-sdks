@@ -1472,6 +1472,7 @@ export function parseTransactionEffects({
 			outputDigest: change.outputDigest ?? null,
 			outputOwner: mapOwner(change.outputOwner),
 			idOperation: mapIdOperation(change.idOperation)!,
+			objectType: change.objectType ?? null,
 		};
 	});
 
@@ -1509,6 +1510,13 @@ export function parseTransactionEffects({
 					outputDigest: effects.gasObject.outputDigest ?? null,
 					outputOwner: mapOwner(effects.gasObject.outputOwner),
 					idOperation: mapIdOperation(effects.gasObject.idOperation)!,
+					// The node does not render the type on gas_object, so take it from the matching
+					// changed object
+					objectType:
+						effects.gasObject.objectType ??
+						changedObjects.find((change) => change.objectId === effects.gasObject!.objectId)
+							?.objectType ??
+						null,
 				}
 			: null,
 		eventsDigest: effects.eventsDigest ?? null,

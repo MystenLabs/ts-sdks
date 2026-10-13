@@ -9,9 +9,15 @@ import {
 	getRandomAddresses,
 } from '../../utils/setup.js';
 import { Transaction } from '../../../../src/transactions/index.js';
-import { MOCKED_GAS_OBJECT_ID, SUI_TYPE_ARG } from '../../../../src/utils/index.js';
+import {
+	MOCKED_GAS_OBJECT_ID,
+	normalizeStructTag,
+	SUI_TYPE_ARG,
+} from '../../../../src/utils/index.js';
 import { Ed25519Keypair } from '../../../../src/keypairs/ed25519/keypair.js';
 import { TransactionError } from '../../../../src/client/index.js';
+
+const SUI_COIN_TYPE = normalizeStructTag(`0x2::coin::Coin<${SUI_TYPE_ARG}>`);
 
 describe('Core API - Transactions', () => {
 	let toolbox: TestToolbox;
@@ -60,6 +66,68 @@ describe('Core API - Transactions', () => {
 				}),
 			);
 		});
+
+		it('all clients return the same object types on changed objects', async () => {
+			const tx = new Transaction();
+			tx.moveCall({
+				target: `${packageId}::boars::create_boar`,
+				arguments: [tx.pure.address(testAddress)],
+			});
+			tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
+
+			const executed = await toolbox.signAndExecuteTransaction({
+				transaction: tx,
+				signer: toolbox.keypair,
+			});
+			const digest = executed.Transaction!.digest;
+
+			await toolbox.expectAllClientsReturnSameData(async (client) => {
+				const result = await client.core.getTransaction({
+					digest,
+					include: { effects: true, objectTypes: true },
+				});
+				const { effects, objectTypes } = result.Transaction!;
+
+				expect(effects.changedObjects.length).toBeGreaterThan(0);
+				for (const change of effects.changedObjects) {
+					expect(change.objectType).not.toBeNull();
+					expect(change.objectType).toBe(objectTypes[change.objectId]);
+				}
+				expect(effects.gasObject?.objectType).toBe(SUI_COIN_TYPE);
+
+				const createdTypes = effects.changedObjects
+					.filter((change) => change.idOperation === 'Created')
+					.map((change) => change.objectType);
+				expect(createdTypes).toContain(`${packageId}::boars::Boar`);
+				expect(createdTypes).toContain(SUI_COIN_TYPE);
+
+				return result;
+			});
+		});
+
+		testWithAllClients(
+			'should include object types on changed objects without objectTypes include',
+			async (client) => {
+				const { keypair, address } = await toolbox.getSigner({ coins: [1_000_000_000n] });
+				const tx = new Transaction();
+				tx.moveCall({
+					target: `${packageId}::boars::create_boar`,
+					arguments: [tx.pure.address(address)],
+				});
+
+				const result = await client.core.signAndExecuteTransaction({
+					transaction: tx,
+					signer: keypair,
+					include: { effects: true },
+				});
+				const effects = result.Transaction!.effects;
+
+				expect(
+					effects.changedObjects.find((change) => change.idOperation === 'Created')?.objectType,
+				).toBe(`${packageId}::boars::Boar`);
+				expect(effects.gasObject?.objectType).toBe(SUI_COIN_TYPE);
+			},
+		);
 
 		testWithAllClients('should get transaction by digest', async (client) => {
 			const result = await client.core.getTransaction({
