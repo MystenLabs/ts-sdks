@@ -10,6 +10,7 @@ keywords:
   - dynamic fields
   - listTransactions
   - listEvents
+  - listCheckpoints
   - pagination
   - affectedAddress
   - affectedObject
@@ -448,6 +449,24 @@ event-based and package-write predicates on transactions), use the
 [raw gRPC list RPCs](/sui/clients/grpc#using-service-clients). To follow new activity as it happens,
 see [gRPC subscriptions](/sui/clients/grpc#subscriptions).
 
+### `listCheckpoints`
+
+Page through checkpoint summaries. Each `Checkpoint` carries its `sequenceNumber`, `digest`, and
+`epoch` as strings, and `timestampMs` (milliseconds since the Unix epoch) as a number. It takes no
+filter, but shares the `limit`, `order`, cursors, and checkpoint range of the other history methods:
+
+```typescript
+// The 10 most recent checkpoints
+const latest = await client.listCheckpoints({ order: 'descending', limit: 10 });
+
+for (const checkpoint of latest.checkpoints) {
+	console.log(checkpoint.sequenceNumber, checkpoint.epoch, new Date(checkpoint.timestampMs));
+}
+
+// Checkpoints 1000 through 1009
+const range = await client.listCheckpoints({ startCheckpoint: 1000, endCheckpoint: 1010 });
+```
+
 ## Pagination
 
 Collection reads and history queries paginate differently, and both report `hasNextPage`.
@@ -486,12 +505,12 @@ while (true) {
 
 ### History cursors
 
-`listTransactions` and `listEvents` read an ordered ledger instead of a collection, so they take
-`after` and `before`, which are exclusive ledger-position bounds. Both bounds work with either
-`order`, and they can be combined to read a window. Without an explicit `order`, a query bounded
-only by `before` reads descending, and every other query reads ascending. Each page reports the
-position of its first and last item as `startCursor` and `endCursor`, so a feed can page in both
-directions from any point:
+`listTransactions`, `listEvents`, and `listCheckpoints` read an ordered ledger instead of a
+collection, so they take `after` and `before`, which are exclusive ledger-position bounds. Both
+bounds work with either `order`, and they can be combined to read a window. Without an explicit
+`order`, a query bounded only by `before` reads descending, and every other query reads ascending.
+Each page reports the position of its first and last item as `startCursor` and `endCursor`, so a
+feed can page in both directions from any point:
 
 ```typescript
 // The most recent transactions
@@ -545,7 +564,7 @@ checkpoint range.
 
 ### Checkpoint ranges
 
-`startCheckpoint` (inclusive) and `endCheckpoint` (exclusive) limit either method to a range of
+`startCheckpoint` (inclusive) and `endCheckpoint` (exclusive) limit any history method to a range of
 checkpoints, and combine with filters and cursors. Both accept a string, number, or bigint:
 
 ```typescript
