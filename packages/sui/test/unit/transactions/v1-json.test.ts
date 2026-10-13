@@ -4,12 +4,7 @@
 import { toBase58 } from '@mysten/bcs';
 import { describe, expect, it } from 'vitest';
 
-import { serializeV1TransactionData } from '../../../src/transactions/data/v1.js';
 import { Inputs, Transaction } from '../../../src/transactions/index.js';
-
-function toV1JSON(tx: Transaction) {
-	return JSON.stringify(serializeV1TransactionData(tx.getData()));
-}
 
 describe('V1 JSON serialization', () => {
 	const validity = {
@@ -26,8 +21,8 @@ describe('V1 JSON serialization', () => {
 		const tx = new Transaction();
 		tx.setExpiration({ Validity: validity });
 
-		expect(JSON.parse(toV1JSON(tx)).expiration).toEqual({ Validity: validity });
-		expect(Transaction.from(toV1JSON(tx)).getData().expiration).toEqual(tx.getData().expiration);
+		expect(JSON.parse(tx.serialize()).expiration).toEqual({ Validity: validity });
+		expect(Transaction.from(tx.serialize()).getData().expiration).toEqual(tx.getData().expiration);
 
 		const restored = Transaction.from(await tx.toJSON());
 		expect(restored.getData().expiration).toEqual(tx.getData().expiration);
@@ -38,12 +33,12 @@ describe('V1 JSON serialization', () => {
 		const { allowedProposers, ...validDuring } = validity;
 		tx.setExpiration({ ValidDuring: validDuring });
 
-		expect(JSON.parse(toV1JSON(tx)).expiration).toEqual({ ValidDuring: validDuring });
-		expect(Transaction.from(toV1JSON(tx)).getData().expiration).toEqual(tx.getData().expiration);
+		expect(JSON.parse(tx.serialize()).expiration).toEqual({ ValidDuring: validDuring });
+		expect(Transaction.from(tx.serialize()).getData().expiration).toEqual(tx.getData().expiration);
 	});
 
 	it('refuses to silently drop an expiration it does not understand', () => {
-		const json = JSON.parse(toV1JSON(new Transaction()));
+		const json = JSON.parse(new Transaction().serialize());
 		json.expiration = { SomeFutureVariant: { maxEpoch: '43' } };
 
 		expect(() => Transaction.from(JSON.stringify(json))).toThrow(/Unknown transaction expiration/);
@@ -55,7 +50,7 @@ describe('V1 JSON serialization', () => {
 			const tx = new Transaction();
 			if (expiration) tx.setExpiration(expiration as never);
 
-			expect(JSON.parse(toV1JSON(tx)).expiration).toEqual(expiration ?? null);
+			expect(JSON.parse(tx.serialize()).expiration).toEqual(expiration ?? null);
 		},
 	);
 
@@ -92,7 +87,7 @@ describe('V1 JSON serialization', () => {
 		});
 
 		const jsonv2 = await tx.toJSON();
-		const jsonv1 = JSON.parse(toV1JSON(tx));
+		const jsonv1 = JSON.parse(tx.serialize());
 
 		expect(jsonv1).toMatchInlineSnapshot(`
 			{
