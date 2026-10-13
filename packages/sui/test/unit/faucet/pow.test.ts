@@ -112,7 +112,10 @@ describe('faucet PoW version 1', () => {
 			if (runtime === 'missing process') vi.stubGlobal('process', undefined);
 			if (runtime === 'missing getBuiltinModule') vi.stubGlobal('process', {});
 			if (runtime === 'missing argon2') getBuiltinModule.mockReturnValue({});
-			const hash = await hashFaucetProof(challenge, 0n);
+			const hashPromise = hashFaucetProof(challenge, 0n);
+			// Vitest uses process internally, so restore it before yielding.
+			vi.unstubAllGlobals();
+			const hash = await hashPromise;
 			expect(toHex(hash)).toBe(vectors.cases[0].hash);
 			expect(argon2.argon2dAsync).toHaveBeenCalledOnce();
 		},
