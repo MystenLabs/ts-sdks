@@ -12,6 +12,7 @@ import {
 import type { ClientKind } from '../../utils/setup.js';
 import { Transaction } from '../../../../src/transactions/index.js';
 import type { SuiClientTypes } from '../../../../src/client/index.js';
+import { Ed25519Keypair } from '../../../../src/keypairs/ed25519/index.js';
 
 const EXCLUDE: ClientKind[] = [];
 
@@ -32,10 +33,6 @@ describe('Core API - Queries', () => {
 			startCursor: result.startCursor === null ? null : '<cursor>',
 			endCursor: result.endCursor === null ? null : '<cursor>',
 		};
-	}
-
-	function normalizeEvents(result: SuiClientTypes.ListEventsResponse) {
-		return stripCursors(result);
 	}
 
 	beforeAll(async () => {
@@ -254,36 +251,29 @@ describe('Core API - Queries', () => {
 			}
 		});
 
-		testWithAllClients('should reject conflicting pagination bounds', async (client) => {
-			await expect(client.core.listTransactions({ after: 'A', before: 'B' })).rejects.toThrow(
-				'Only one of `after` or `before` may be provided',
+		testWithAllClients('should reject invalid checkpoint ranges', async (client) => {
+			await expect(
+				client.core.listTransactions({ startCheckpoint: 5, endCheckpoint: 4 }),
+			).rejects.toThrow('`endCheckpoint` must be greater than or equal to `startCheckpoint`');
+			await expect(
+				client.core.listEvents({ startCheckpoint: 5, endCheckpoint: 4 }),
+			).rejects.toThrow('`endCheckpoint` must be greater than or equal to `startCheckpoint`');
+			await expect(client.core.listTransactions({ startCheckpoint: -1 })).rejects.toThrow(
+				'Invalid startCheckpoint "-1": expected a non-negative integer',
 			);
-			await expect(
-				client.core.listTransactions({ after: 'A', order: 'descending' }),
-			).rejects.toThrow('`after` can not be combined with descending queries');
-			await expect(
-				client.core.listTransactions({ before: 'B', order: 'ascending' }),
-			).rejects.toThrow('`before` can not be combined with ascending queries');
 		});
 
-		testWithAllClients('should reject filters with multiple predicates', async (client) => {
+		testWithAllClients('should reject conflicting filter predicates', async (client) => {
 			await expect(
 				client.core.listTransactions({
-					filter: { sender: senderAddress, function: `${packageId}::test_objects` } as never,
+					filter: {
+						function: `${packageId}::test_objects`,
+						affectedAddress: senderAddress,
+					} as never,
 				}),
-			).rejects.toThrow('exactly one of sender, function');
-		});
-
-		testWithAllClients('should reject paginated partial function filters', async (client) => {
-			await expect(
-				client.core.listTransactions({ filter: { function: packageId }, after: 'A' }),
-			).rejects.toThrow('requires a fully qualified');
-			await expect(
-				client.core.listTransactions({
-					filter: { function: `${packageId}::test_objects` },
-					before: 'B',
-				}),
-			).rejects.toThrow('requires a fully qualified');
+			).rejects.toThrow(
+				'A transaction filter may specify at most one of affectedAddress, affectedObject, function',
+			);
 		});
 
 		testWithAllClients('should reject invalid function filters', async (client) => {
@@ -319,7 +309,7 @@ describe('Core API - Queries', () => {
 		it('all clients return same data: no filter', async () => {
 			await toolbox.expectAllClientsReturnSameData(
 				(client) => client.core.listEvents({ limit: 5 }),
-				normalizeEvents,
+				stripCursors,
 				{ exclude: EXCLUDE },
 			);
 		});
@@ -335,7 +325,7 @@ describe('Core API - Queries', () => {
 			for (const filter of filters) {
 				await toolbox.expectAllClientsReturnSameData(
 					(client) => client.core.listEvents({ filter, limit: 10 }),
-					normalizeEvents,
+					stripCursors,
 					{ exclude: EXCLUDE },
 				);
 			}
@@ -355,8 +345,8 @@ describe('Core API - Queries', () => {
 						before: firstPage.endCursor,
 					});
 					return {
-						firstPage: normalizeEvents(firstPage),
-						secondPage: normalizeEvents(secondPage),
+						firstPage: stripCursors(firstPage),
+						secondPage: stripCursors(secondPage),
 					};
 				},
 				undefined,
@@ -376,6 +366,18 @@ describe('Core API - Queries', () => {
 				undefined,
 				{ exclude: EXCLUDE },
 			);
+
+			// Every event reports the checkpoint of the transaction that emitted it
+			const { events } = await toolbox.grpcClient.core.listEvents({
+				filter: { sender: senderAddress },
+			});
+			expect(events.length).toBeGreaterThan(0);
+			for (const event of events) {
+				const { Transaction } = await toolbox.grpcClient.core.getTransaction({
+					digest: event.transactionDigest,
+				});
+				expect(event.checkpoint).toBe(Transaction?.checkpoint);
+			}
 		});
 
 		testWithAllClients(
@@ -504,12 +506,829 @@ describe('Core API - Queries', () => {
 			{ skip: EXCLUDE },
 		);
 
-		testWithAllClients('should reject module-less event filters', async (client) => {
-			await expect(client.core.listEvents({ filter: { emitModule: packageId } })).rejects.toThrow(
+		testWithAllClients('should reject malformed event filters', async (client) => {
+			await expect(client.core.listEvents({ filter: { emitModule: '0x2::' } })).rejects.toThrow(
 				'Invalid emitModule filter',
 			);
-			await expect(client.core.listEvents({ filter: { eventType: packageId } })).rejects.toThrow(
+			await expect(client.core.listEvents({ filter: { eventType: '0x2::' } })).rejects.toThrow(
 				'Invalid eventType filter',
+			);
+			await expect(
+				client.core.listEvents({
+					filter: { emitModule: packageId, eventType: packageId } as never,
+				}),
+			).rejects.toThrow('An event filter may specify at most one of emitModule, eventType');
+		});
+	});
+
+	// Runs last: these transactions call the same package as the setup transactions above, so
+	// creating them earlier would change the results the package-scoped tests expect.
+	describe('filters, checkpoint ranges, and windows', () => {
+		type ClientWithCore = Parameters<
+			Parameters<TestToolbox['expectAllClientsReturnSameData']>[0]
+		>[0];
+
+		let actorKeypair: Ed25519Keypair;
+		let actorAddress: string;
+		let recipientAddress: string;
+		let objectId: string;
+		/** Every transaction sent by the actor, in execution order. */
+		let actorDigests: string[];
+		let objectDigests: string[];
+		let transferDigest: string;
+		let genericDigests: string[];
+		let abortedDigest: string;
+		const checkpoints = new Map<string, bigint>();
+
+		/**
+		 * Strips cursors, and the aborting function's index from Move aborts: the GraphQL
+		 * transport does not report it (a pre-existing gap that applies to every transaction
+		 * method, not just queries).
+		 */
+		function normalizeTransactions(result: SuiClientTypes.ListTransactionsResponse) {
+			const normalized = structuredClone(stripCursors(result));
+			for (const tx of normalized.transactions) {
+				const error = tx.FailedTransaction?.status.error;
+				if (error?.$kind === 'MoveAbort') {
+					delete error.MoveAbort.location?.function;
+				}
+			}
+			return normalized;
+		}
+
+		function digestsOf(result: SuiClientTypes.ListTransactionsResponse) {
+			return result.transactions.map(
+				(tx) => (tx.Transaction ?? tx.FailedTransaction)?.digest ?? null,
+			);
+		}
+
+		async function recordCheckpoint(digest: string) {
+			await toolbox.waitForTransaction({ digest });
+			const result = await toolbox.grpcClient.core.getTransaction({ digest });
+			const checkpoint = (result.Transaction ?? result.FailedTransaction)?.checkpoint;
+			if (checkpoint == null) {
+				throw new Error(`Transaction ${digest} has no checkpoint`);
+			}
+			checkpoints.set(digest, BigInt(checkpoint));
+		}
+
+		async function run(tx: Transaction) {
+			const result = await toolbox.signAndExecuteTransaction({
+				transaction: tx,
+				signer: actorKeypair,
+				include: { effects: true, objectTypes: true },
+			});
+
+			if (result.$kind !== 'Transaction') {
+				throw new Error(
+					`Setup tx failed: ${result.FailedTransaction.status.error?.message ?? 'unknown error'}`,
+				);
+			}
+
+			actorDigests.push(result.Transaction.digest);
+			await recordCheckpoint(result.Transaction.digest);
+			return result.Transaction;
+		}
+
+		/** Builds a transaction with explicit gas so it can be executed without a dry run. */
+		async function buildWithoutSimulation(
+			tx: Transaction,
+			sender: string,
+			gasOwner: { address: string },
+		) {
+			const coins = await toolbox.grpcClient.core.listCoins({ owner: gasOwner.address });
+			tx.setSender(sender);
+			tx.setGasOwner(gasOwner.address);
+			tx.setGasBudget(50_000_000);
+			tx.setGasPrice(
+				await toolbox.grpcClient.core.getReferenceGasPrice().then((r) => r.referenceGasPrice),
+			);
+			tx.setGasPayment([
+				{
+					objectId: coins.objects[0].objectId,
+					version: coins.objects[0].version,
+					digest: coins.objects[0].digest,
+				},
+			]);
+			return tx.build({});
+		}
+
+		/** Pages through a query to the end, returning every item's transaction digest. */
+		async function collectTransactions(
+			client: ClientWithCore,
+			options: SuiClientTypes.ListTransactionsOptions,
+		) {
+			const order =
+				options.order ??
+				(options.before != null && options.after == null ? 'descending' : 'ascending');
+			let after = options.after;
+			let before = options.before;
+			const digests: (string | null)[] = [];
+			for (;;) {
+				const page = await client.core.listTransactions({ ...options, after, before, order });
+				digests.push(...digestsOf(page));
+				if (!page.hasNextPage) return digests;
+				// Keep the fixed bound and move the other one
+				if (order === 'ascending') after = page.endCursor;
+				else before = page.endCursor;
+			}
+		}
+
+		async function collectEvents(
+			client: ClientWithCore,
+			options: SuiClientTypes.ListEventsOptions,
+		) {
+			const order =
+				options.order ??
+				(options.before != null && options.after == null ? 'descending' : 'ascending');
+			let after = options.after;
+			let before = options.before;
+			const events: { transactionDigest: string; eventIndex: number; eventType: string }[] = [];
+			for (;;) {
+				const page = await client.core.listEvents({ ...options, after, before, order });
+				events.push(
+					...page.events.map(({ transactionDigest, eventIndex, eventType }) => ({
+						transactionDigest,
+						eventIndex,
+						eventType,
+					})),
+				);
+				if (!page.hasNextPage) return events;
+				if (order === 'ascending') after = page.endCursor;
+				else before = page.endCursor;
+			}
+		}
+
+		/** The startCursor of every item of the actor's transactions, collected one item per page. */
+		async function actorCursors(client: ClientWithCore) {
+			const cursors: string[] = [];
+			let after: string | null = null;
+			for (;;) {
+				const page: SuiClientTypes.ListTransactionsResponse = await client.core.listTransactions({
+					filter: { sender: actorAddress },
+					limit: 1,
+					after,
+				});
+				if (page.transactions.length) cursors.push(page.startCursor!);
+				if (!page.hasNextPage) return cursors;
+				after = page.endCursor;
+			}
+		}
+
+		beforeAll(async () => {
+			({ keypair: actorKeypair, address: actorAddress } = await toolbox.getSigner({
+				coins: [1_000_000_000n],
+			}));
+			[recipientAddress] = getRandomAddresses(1);
+			actorDigests = [];
+
+			// Create, update, and delete an object, so it is affected by exactly three transactions
+			const create = new Transaction();
+			create.transferObjects(
+				[
+					create.moveCall({
+						target: `${packageId}::test_objects::create_simple_object`,
+						arguments: [create.pure.u64(1)],
+					}),
+				],
+				actorAddress,
+			);
+			const created = await run(create);
+			objectId = created.effects.changedObjects.find(
+				(change) =>
+					change.idOperation === 'Created' &&
+					created.objectTypes[change.objectId]?.endsWith('::test_objects::SimpleObject'),
+			)!.objectId;
+
+			const update = new Transaction();
+			update.moveCall({
+				target: `${packageId}::test_objects::update_value`,
+				arguments: [update.object(objectId), update.pure.u64(2)],
+			});
+			await run(update);
+
+			const remove = new Transaction();
+			remove.moveCall({
+				target: `${packageId}::test_objects::delete_simple_object`,
+				arguments: [remove.object(objectId)],
+			});
+			await run(remove);
+			objectDigests = [...actorDigests];
+
+			// Emit two instantiations of the same generic event
+			genericDigests = [];
+			for (const typeArgument of ['u8', 'u64']) {
+				const tx = new Transaction();
+				tx.moveCall({
+					target: `${packageId}::test_objects::emit_generic`,
+					typeArguments: [typeArgument],
+					arguments: [tx.pure.u64(7)],
+				});
+				genericDigests.push((await run(tx)).digest);
+			}
+
+			// Send funds to an address that has never been used
+			const transfer = new Transaction();
+			transfer.transferObjects([transfer.splitCoins(transfer.gas, [1])], recipientAddress);
+			transferDigest = (await run(transfer)).digest;
+
+			// Execute an aborting call directly, skipping the dry run that would reject it
+			const aborting = new Transaction();
+			aborting.moveCall({ target: `${packageId}::test_objects::abort_always` });
+			const bytes = await buildWithoutSimulation(aborting, actorAddress, {
+				address: actorAddress,
+			});
+			const { signature } = await actorKeypair.signTransaction(bytes);
+			const aborted = await toolbox.grpcClient.core.executeTransaction({
+				transaction: bytes,
+				signatures: [signature],
+			});
+			if (aborted.$kind !== 'FailedTransaction') {
+				throw new Error('Expected abort_always to fail');
+			}
+			abortedDigest = aborted.FailedTransaction.digest;
+			actorDigests.push(abortedDigest);
+			await recordCheckpoint(abortedDigest);
+		});
+
+		describe('affectedAddress and affectedObject', () => {
+			it('all clients return same data: affectedAddress', async () => {
+				for (const affectedAddress of [recipientAddress, actorAddress]) {
+					await toolbox.expectAllClientsReturnSameData(
+						(client) => client.core.listTransactions({ filter: { affectedAddress } }),
+						normalizeTransactions,
+						{ exclude: EXCLUDE, attempts: 3 },
+					);
+				}
+			});
+
+			testWithAllClients(
+				'should list transactions affecting an address',
+				async (client) => {
+					const recipient = await client.core.listTransactions({
+						filter: { affectedAddress: recipientAddress },
+					});
+					expect(digestsOf(recipient)).toEqual([transferDigest]);
+
+					const actor = await collectTransactions(client, {
+						filter: { affectedAddress: actorAddress },
+					});
+					expect(actor).toEqual(expect.arrayContaining(actorDigests));
+				},
+				{ skip: EXCLUDE },
+			);
+
+			it('affectedAddress: only GraphQL matches the sender of a sponsored transaction', async () => {
+				const sponsor = await toolbox.getSigner({ coins: [1_000_000_000n] });
+				const sender = new Ed25519Keypair();
+				const senderAddress = sender.toSuiAddress();
+
+				// The sender owns nothing the transaction touches: the sponsor pays for gas
+				const tx = new Transaction();
+				tx.moveCall({ target: '0x2::tx_context::sender' });
+				const bytes = await buildWithoutSimulation(tx, senderAddress, sponsor);
+				const result = await toolbox.grpcClient.core.executeTransaction({
+					transaction: bytes,
+					signatures: [
+						(await sender.signTransaction(bytes)).signature,
+						(await sponsor.keypair.signTransaction(bytes)).signature,
+					],
+				});
+				if (result.$kind !== 'Transaction') {
+					throw new Error('Sponsored transaction failed');
+				}
+				const digest = result.Transaction.digest;
+				await toolbox.waitForTransaction({ digest });
+
+				for (const client of [toolbox.grpcClient, toolbox.graphqlClient]) {
+					// Every transport matches the sponsor, whose gas coin the transaction changed
+					expect(
+						digestsOf(
+							await client.core.listTransactions({
+								filter: { affectedAddress: sponsor.address },
+								order: 'descending',
+								limit: 1,
+							}),
+						),
+					).toEqual([digest]);
+				}
+
+				// gRPC indexes the owners of changed objects and address balances, while GraphQL
+				// also indexes every sender and sponsor
+				expect(
+					digestsOf(
+						await toolbox.grpcClient.core.listTransactions({
+							filter: { affectedAddress: senderAddress },
+						}),
+					),
+				).toEqual([]);
+				expect(
+					digestsOf(
+						await toolbox.graphqlClient.core.listTransactions({
+							filter: { affectedAddress: senderAddress },
+						}),
+					),
+				).toEqual([digest]);
+			});
+
+			it('all clients return same data: affectedObject', async () => {
+				await toolbox.expectAllClientsReturnSameData(
+					(client) => client.core.listTransactions({ filter: { affectedObject: objectId } }),
+					stripCursors,
+					{ exclude: EXCLUDE, attempts: 3 },
+				);
+			});
+
+			testWithAllClients(
+				'should list transactions affecting an object',
+				async (client) => {
+					const result = await client.core.listTransactions({
+						filter: { affectedObject: objectId },
+					});
+					expect(digestsOf(result)).toEqual(objectDigests);
+					expect(result.hasNextPage).toBe(false);
+				},
+				{ skip: EXCLUDE },
+			);
+		});
+
+		describe('combined predicates', () => {
+			it('all clients return same data: ANDed transaction predicates', async () => {
+				const [stranger] = getRandomAddresses(1);
+				const filters: SuiClientTypes.TransactionFilter[] = [
+					{ sender: actorAddress, function: packageId },
+					{ sender: stranger, function: packageId },
+					{ sender: actorAddress, affectedObject: objectId },
+					{ sender: actorAddress, affectedAddress: recipientAddress },
+				];
+
+				for (const filter of filters) {
+					await toolbox.expectAllClientsReturnSameData(
+						(client) => client.core.listTransactions({ filter }),
+						normalizeTransactions,
+						{ exclude: EXCLUDE, attempts: 3 },
+					);
+				}
+			});
+
+			testWithAllClients(
+				'should AND transaction predicates',
+				async (client) => {
+					const [stranger] = getRandomAddresses(1);
+
+					expect(
+						digestsOf(
+							await client.core.listTransactions({
+								filter: { sender: actorAddress, function: `${packageId}::test_objects` },
+							}),
+						),
+					).toEqual(actorDigests.filter((digest) => digest !== transferDigest));
+					expect(
+						digestsOf(
+							await client.core.listTransactions({
+								filter: { sender: stranger, function: packageId },
+							}),
+						),
+					).toEqual([]);
+					expect(
+						digestsOf(
+							await client.core.listTransactions({
+								filter: { sender: actorAddress, affectedAddress: recipientAddress },
+							}),
+						),
+					).toEqual([transferDigest]);
+				},
+				{ skip: EXCLUDE },
+			);
+
+			it('all clients return same data: ANDed event predicates', async () => {
+				const filters: SuiClientTypes.EventFilter[] = [
+					{ sender: actorAddress, eventType: `${packageId}::test_objects::GenericEvent` },
+					{ sender: actorAddress, emitModule: packageId },
+					{ sender: senderAddress, eventType: `${packageId}::test_objects::GenericEvent` },
+				];
+
+				for (const filter of filters) {
+					await toolbox.expectAllClientsReturnSameData(
+						(client) => client.core.listEvents({ filter }),
+						stripCursors,
+						{ exclude: EXCLUDE, attempts: 3 },
+					);
+				}
+			});
+		});
+
+		describe('package-only prefixes and generic event types', () => {
+			it('all clients return same data: package and generic event filters', async () => {
+				const filters: SuiClientTypes.EventFilter[] = [
+					{ emitModule: packageId },
+					{ eventType: packageId },
+					{ eventType: `${packageId}::test_objects::GenericEvent` },
+					{ eventType: `${packageId}::test_objects::GenericEvent<u8>` },
+				];
+
+				for (const filter of filters) {
+					await toolbox.expectAllClientsReturnSameData(
+						(client) => client.core.listEvents({ filter }),
+						stripCursors,
+						{ exclude: EXCLUDE, attempts: 3 },
+					);
+				}
+			});
+
+			testWithAllClients(
+				'should match generic event types by name or exact instantiation',
+				async (client) => {
+					const any = await client.core.listEvents({
+						filter: { eventType: `${packageId}::test_objects::GenericEvent` },
+					});
+					expect(any.events.map((event) => event.eventType)).toEqual([
+						`${packageId}::test_objects::GenericEvent<u8>`,
+						`${packageId}::test_objects::GenericEvent<u64>`,
+					]);
+					expect(any.events.map((event) => event.transactionDigest)).toEqual(genericDigests);
+
+					const exact = await client.core.listEvents({
+						filter: { eventType: `${packageId}::test_objects::GenericEvent<u8>` },
+					});
+					expect(exact.events.map((event) => event.transactionDigest)).toEqual([genericDigests[0]]);
+				},
+				{ skip: EXCLUDE },
+			);
+
+			testWithAllClients(
+				'should match package-only event prefixes',
+				async (client) => {
+					const byModule = await collectEvents(client, { filter: { emitModule: packageId } });
+					const byType = await collectEvents(client, { filter: { eventType: packageId } });
+
+					// Every event whose type is defined in the package, ending with this suite's object
+					// and generic events
+					const typeDigests = byType.map((event) => event.transactionDigest);
+					expect(typeDigests).toEqual(expect.arrayContaining(digests));
+					expect(typeDigests.slice(-4)).toEqual([...objectDigests.slice(0, 2), ...genericDigests]);
+					expect(byType.every((event) => event.eventType.startsWith(`${packageId}::`))).toBe(true);
+
+					// Emitting modules also cover events of other packages' types, such as the
+					// `0x2::display` events emitted by the package's initializers on publish
+					expect(byModule).toEqual(expect.arrayContaining(byType));
+					expect(
+						byModule.some((event) =>
+							event.eventType.startsWith(
+								'0x0000000000000000000000000000000000000000000000000000000000000002::display::',
+							),
+						),
+					).toBe(true);
+				},
+				{ skip: EXCLUDE },
+			);
+		});
+
+		describe('partial function filters', () => {
+			it('all clients return same data: paginating partial function filters', async () => {
+				for (const fn of [packageId, `${packageId}::test_objects`]) {
+					for (const order of ['ascending', 'descending'] as const) {
+						await toolbox.expectAllClientsReturnSameData(
+							(client) =>
+								collectTransactions(client, { filter: { function: fn }, order, limit: 1 }),
+							undefined,
+							{ exclude: EXCLUDE, attempts: 3 },
+						);
+					}
+				}
+			});
+
+			testWithAllClients(
+				'should paginate partial function filters one item at a time',
+				async (client) => {
+					const all = digestsOf(
+						await client.core.listTransactions({ filter: { function: packageId } }),
+					);
+					expect(
+						await collectTransactions(client, { filter: { function: packageId }, limit: 1 }),
+					).toEqual(all);
+					expect(
+						await collectTransactions(client, {
+							filter: { function: `${packageId}::test_objects` },
+							limit: 1,
+							order: 'descending',
+						}),
+					).toEqual([...all].reverse());
+				},
+				{ skip: EXCLUDE },
+			);
+		});
+
+		describe('aborted transactions', () => {
+			it('all clients return same data: function filters match aborted calls', async () => {
+				await toolbox.expectAllClientsReturnSameData(
+					(client) =>
+						client.core.listTransactions({
+							filter: { function: `${packageId}::test_objects::abort_always` },
+						}),
+					normalizeTransactions,
+					{ exclude: EXCLUDE, attempts: 3 },
+				);
+			});
+
+			testWithAllClients(
+				'should match aborted transactions by function',
+				async (client) => {
+					const result = await client.core.listTransactions({
+						filter: { function: `${packageId}::test_objects::abort_always` },
+					});
+					expect(result.transactions.map((tx) => tx.$kind)).toEqual(['FailedTransaction']);
+					expect(digestsOf(result)).toEqual([abortedDigest]);
+				},
+				{ skip: EXCLUDE },
+			);
+		});
+
+		describe('checkpoint ranges', () => {
+			function checkpointOf(digest: string) {
+				return checkpoints.get(digest)!;
+			}
+
+			it('all clients return same data: transaction and event checkpoint ranges', async () => {
+				const first = checkpointOf(actorDigests[0]);
+				const last = checkpointOf(actorDigests[actorDigests.length - 1]);
+				const middle = checkpointOf(actorDigests[1]);
+
+				const ranges: Pick<
+					SuiClientTypes.ListTransactionsOptions,
+					'startCheckpoint' | 'endCheckpoint' | 'order'
+				>[] = [
+					{ startCheckpoint: first, endCheckpoint: last + 1n },
+					{ startCheckpoint: middle, endCheckpoint: middle + 1n },
+					{ startCheckpoint: first, endCheckpoint: last + 1n, order: 'descending' },
+					{ startCheckpoint: middle },
+					{ endCheckpoint: middle },
+					{ startCheckpoint: middle, endCheckpoint: middle },
+					{ startCheckpoint: 0, endCheckpoint: last + 1000n },
+				];
+
+				for (const range of ranges) {
+					await toolbox.expectAllClientsReturnSameData(
+						(client) =>
+							client.core.listTransactions({ filter: { sender: actorAddress }, ...range }),
+						normalizeTransactions,
+						{ exclude: EXCLUDE, attempts: 3 },
+					);
+					await toolbox.expectAllClientsReturnSameData(
+						(client) => client.core.listEvents({ filter: { sender: actorAddress }, ...range }),
+						stripCursors,
+						{ exclude: EXCLUDE, attempts: 3 },
+					);
+				}
+			});
+
+			testWithAllClients(
+				'should bound transactions and events by checkpoint',
+				async (client) => {
+					const first = checkpointOf(actorDigests[0]);
+					const last = checkpointOf(actorDigests[actorDigests.length - 1]);
+					const middle = checkpointOf(actorDigests[1]);
+					const filter = { sender: actorAddress };
+
+					const all = await client.core.listTransactions({
+						filter,
+						startCheckpoint: first,
+						endCheckpoint: last + 1n,
+					});
+					expect(digestsOf(all)).toEqual(actorDigests);
+					expect(all.hasNextPage).toBe(false);
+
+					const single = await client.core.listTransactions({
+						filter,
+						startCheckpoint: middle.toString(),
+						endCheckpoint: Number(middle + 1n),
+					});
+					expect(digestsOf(single)).toEqual(
+						actorDigests.filter((digest) => checkpointOf(digest) === middle),
+					);
+
+					const descending = await client.core.listTransactions({
+						filter,
+						startCheckpoint: first,
+						endCheckpoint: last + 1n,
+						order: 'descending',
+					});
+					expect(digestsOf(descending)).toEqual([...actorDigests].reverse());
+
+					expect(
+						await client.core.listTransactions({
+							filter,
+							startCheckpoint: middle,
+							endCheckpoint: middle,
+						}),
+					).toEqual({ transactions: [], hasNextPage: false, startCursor: null, endCursor: null });
+
+					// Bounds past the ledger tip still end the query
+					const pastTip = await client.core.listTransactions({
+						filter,
+						endCheckpoint: last + 1000n,
+					});
+					expect(digestsOf(pastTip)).toEqual(actorDigests);
+					expect(pastTip.hasNextPage).toBe(false);
+
+					// Events report checkpoints inside the requested range
+					const events = await client.core.listEvents({
+						filter,
+						startCheckpoint: middle,
+						endCheckpoint: middle + 1n,
+					});
+					for (const event of events.events) {
+						expect(event.checkpoint).toBe(middle.toString());
+						expect(event.checkpoint).toBe(checkpointOf(event.transactionDigest).toString());
+					}
+				},
+				{ skip: EXCLUDE },
+			);
+
+			it('all clients return same data: paging within a checkpoint range', async () => {
+				const range = {
+					startCheckpoint: checkpointOf(actorDigests[1]),
+					endCheckpoint: checkpointOf(actorDigests[actorDigests.length - 2]) + 1n,
+				};
+
+				for (const order of ['ascending', 'descending'] as const) {
+					await toolbox.expectAllClientsReturnSameData(
+						async (client) => ({
+							transactions: await collectTransactions(client, {
+								filter: { sender: actorAddress },
+								...range,
+								order,
+								limit: 1,
+							}),
+							events: await collectEvents(client, {
+								filter: { sender: actorAddress },
+								...range,
+								order,
+								limit: 1,
+							}),
+						}),
+						undefined,
+						{ exclude: EXCLUDE, attempts: 3 },
+					);
+				}
+			});
+
+			testWithAllClients(
+				'should page within a checkpoint range',
+				async (client) => {
+					const expected = actorDigests.slice(1, -1);
+					const range = {
+						startCheckpoint: checkpointOf(expected[0]),
+						endCheckpoint: checkpointOf(expected[expected.length - 1]) + 1n,
+					};
+
+					expect(
+						await collectTransactions(client, {
+							filter: { sender: actorAddress },
+							...range,
+							limit: 1,
+						}),
+					).toEqual(expected);
+					expect(
+						await collectTransactions(client, {
+							filter: { sender: actorAddress },
+							...range,
+							order: 'descending',
+							limit: 2,
+						}),
+					).toEqual([...expected].reverse());
+				},
+				{ skip: EXCLUDE },
+			);
+		});
+
+		describe('pagination windows', () => {
+			it('all clients return same data: windows and reversed bounds', async () => {
+				await toolbox.expectAllClientsReturnSameData(
+					async (client) => {
+						const cursors = await actorCursors(client);
+						const filter = { sender: actorAddress };
+						const queries: SuiClientTypes.ListTransactionsOptions[] = [
+							{ filter, after: cursors[0], before: cursors[3] },
+							{ filter, after: cursors[0], before: cursors[3], order: 'descending' },
+							{ filter, after: cursors[1], order: 'descending' },
+							{ filter, before: cursors[4], order: 'ascending' },
+							{ filter, after: cursors[3], before: cursors[1] },
+							{ filter, after: cursors[2], before: cursors[2] },
+						];
+
+						return {
+							count: cursors.length,
+							pages: await Promise.all(
+								queries.map(async (query) =>
+									normalizeTransactions(await client.core.listTransactions(query)),
+								),
+							),
+							windowed: await collectTransactions(client, {
+								filter,
+								after: cursors[0],
+								before: cursors[cursors.length - 1],
+								order: 'descending',
+								limit: 1,
+							}),
+						};
+					},
+					undefined,
+					{ exclude: EXCLUDE, attempts: 3 },
+				);
+			});
+
+			testWithAllClients(
+				'should read windows between two cursors in either order',
+				async (client) => {
+					const cursors = await actorCursors(client);
+					const filter = { sender: actorAddress };
+					expect(cursors).toHaveLength(actorDigests.length);
+
+					const window = await client.core.listTransactions({
+						filter,
+						after: cursors[0],
+						before: cursors[3],
+					});
+					expect(digestsOf(window)).toEqual(actorDigests.slice(1, 3));
+					expect(window.hasNextPage).toBe(false);
+
+					const reversed = await client.core.listTransactions({
+						filter,
+						after: cursors[0],
+						before: cursors[3],
+						order: 'descending',
+					});
+					expect(digestsOf(reversed)).toEqual(actorDigests.slice(1, 3).reverse());
+
+					// A lone `after` can be read newest first, and a lone `before` oldest first
+					expect(
+						digestsOf(
+							await client.core.listTransactions({
+								filter,
+								after: cursors[1],
+								order: 'descending',
+							}),
+						),
+					).toEqual(actorDigests.slice(2).reverse());
+					expect(
+						digestsOf(
+							await client.core.listTransactions({
+								filter,
+								before: cursors[4],
+								order: 'ascending',
+							}),
+						),
+					).toEqual(actorDigests.slice(0, 4));
+
+					// Paging a window keeps the fixed bound and moves the other one
+					expect(
+						await collectTransactions(client, {
+							filter,
+							after: cursors[0],
+							before: cursors[cursors.length - 1],
+							order: 'descending',
+							limit: 1,
+						}),
+					).toEqual(actorDigests.slice(1, -1).reverse());
+
+					// Inverted and equal bounds select nothing
+					for (const [after, before] of [
+						[cursors[3], cursors[1]],
+						[cursors[2], cursors[2]],
+					]) {
+						expect(await client.core.listTransactions({ filter, after, before })).toEqual({
+							transactions: [],
+							hasNextPage: false,
+							startCursor: null,
+							endCursor: null,
+						});
+					}
+				},
+				{ skip: EXCLUDE },
+			);
+
+			testWithAllClients(
+				'should read event windows between two cursors',
+				async (client) => {
+					const filter = { sender: actorAddress };
+					const all = await client.core.listEvents({ filter });
+					expect(all.events.length).toBeGreaterThanOrEqual(4);
+
+					const first = await client.core.listEvents({ filter, limit: 1 });
+					const last = await client.core.listEvents({ filter, limit: 1, order: 'descending' });
+
+					const window = await collectEvents(client, {
+						filter,
+						after: first.endCursor,
+						before: last.endCursor,
+						limit: 1,
+					});
+					expect(window.map((event) => event.transactionDigest)).toEqual(
+						all.events.slice(1, -1).map((event) => event.transactionDigest),
+					);
+				},
+				{ skip: EXCLUDE },
 			);
 		});
 	});
