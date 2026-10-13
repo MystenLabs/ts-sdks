@@ -56,3 +56,11 @@ export * from './suiSignAndExecuteTransactionBlock.js';
 export * from './suiSignAndExecuteTransaction.js';
 export * from './suiSignPersonalMessage.js';
 export * from './suiGetCapabilities.js';
+
+/**
+ * The legacy JSON-RPC response types that the deprecated `sui:signAndExecuteTransactionBlock`
+ * feature returns, such as `SuiJsonRpcTypes.SuiTransactionBlockResponse`. Several of their names
+ * (`ObjectOwner`, `BalanceChange`, `TransactionEffects`, ...) also exist in `@mysten/sui` with a
+ * different shape. Every member is deprecated; use `sui:signAndExecuteTransaction` instead.
+ */
+export type * as SuiJsonRpcTypes from './suiSignAndExecuteTransactionBlockTypes.js';
