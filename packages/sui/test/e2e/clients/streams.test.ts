@@ -219,13 +219,8 @@ describe('resumable ledger streams', () => {
 				const body =
 					tx.transaction.kind.ProgrammableTransaction ??
 					tx.transaction.kind.ProgrammableSystemTransaction;
-				if (body) {
-					expect(tx.transaction.inputs).toEqual(body.inputs);
-					expect(tx.transaction.commands).toEqual(body.commands);
-				} else {
+				if (!body) {
 					expect(tx.transaction.kind).toEqual(bcs.TransactionData.parse(tx.bcs).V1.kind);
-					expect(tx.transaction.inputs).toEqual([]);
-					expect(tx.transaction.commands).toEqual([]);
 				}
 			}
 			const descending = await collect(

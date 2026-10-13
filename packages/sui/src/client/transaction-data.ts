@@ -5,19 +5,21 @@ import { bcs } from '../bcs/index.js';
 import { TransactionDataBuilder } from '../transactions/TransactionData.js';
 import type { SuiClientTypes } from './types.js';
 
-/** Decode ledger data and normalize programmable inputs and commands. */
+/** Decode ledger transaction data, normalizing the inputs and commands of programmable kinds. */
 export function parseTransactionDataBcs(bytes: Uint8Array): SuiClientTypes.TransactionData {
 	const data = bcs.TransactionData.parse(bytes).V1;
 	const programmable = data.kind.ProgrammableTransaction ?? data.kind.ProgrammableSystemTransaction;
-	const normalized = TransactionDataBuilder.restore({
-		version: 2,
-		sender: data.sender,
-		gasData: data.gasData,
-		expiration: data.expiration,
-		inputs: programmable?.inputs ?? [],
-		commands: programmable?.commands ?? [],
-	}).snapshot();
-	const body = { inputs: normalized.inputs, commands: normalized.commands };
+	const { version, sender, gasData, expiration, inputs, commands } = TransactionDataBuilder.restore(
+		{
+			version: 2,
+			sender: data.sender,
+			gasData: data.gasData,
+			expiration: data.expiration,
+			inputs: programmable?.inputs ?? [],
+			commands: programmable?.commands ?? [],
+		},
+	).snapshot();
+	const body = { inputs, commands };
 	const kind: SuiClientTypes.TransactionKind =
 		data.kind.$kind === 'ProgrammableTransaction'
 			? { $kind: 'ProgrammableTransaction', ProgrammableTransaction: body }
@@ -25,5 +27,5 @@ export function parseTransactionDataBcs(bytes: Uint8Array): SuiClientTypes.Trans
 				? { $kind: 'ProgrammableSystemTransaction', ProgrammableSystemTransaction: body }
 				: data.kind;
 
-	return { ...normalized, kind };
+	return { version, sender, gasData, expiration, kind };
 }

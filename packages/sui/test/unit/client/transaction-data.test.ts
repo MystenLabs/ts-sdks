@@ -138,17 +138,17 @@ describe('ledger transaction data', () => {
 			) {
 				const body =
 					result.kind.ProgrammableTransaction ?? result.kind.ProgrammableSystemTransaction;
-				expect(result.inputs).toBe(body.inputs);
-				expect(result.commands).toBe(body.commands);
-				const { kind: _, ...snapshot } = result;
-				expect(snapshot).toEqual(
-					Transaction.from(serialize(kinds.ProgrammableTransaction)).getData(),
-				);
+				const { inputs, commands, ...header } = Transaction.from(
+					serialize(kinds.ProgrammableTransaction),
+				).getData();
+				expect(body).toEqual({ inputs, commands });
+				const { kind: _, ...rest } = result;
+				expect(rest).toEqual(header);
 			} else {
-				expect(result.inputs).toEqual([]);
-				expect(result.commands).toEqual([]);
 				expect(result.kind).toEqual(bcs.TransactionData.parse(bytes).V1.kind);
 			}
+			expect(result).not.toHaveProperty('inputs');
+			expect(result).not.toHaveProperty('commands');
 		},
 	);
 
@@ -205,14 +205,13 @@ describe('ledger transaction data', () => {
 						: { ProgrammableSystemTransaction: body },
 				),
 			);
-			const { kind, ...snapshot } = result;
-			expect(snapshot).toEqual(expected);
-			expect(kind.ProgrammableTransaction ?? kind.ProgrammableSystemTransaction).toEqual({
-				inputs: expected.inputs,
-				commands: expected.commands,
-			});
-			expect(result.commands[1]).toMatchObject({ MakeMoveVec: { type: null } });
-			expect(result.commands[2]).toMatchObject({ Publish: { modules: ['AQID'] } });
+			const { kind, ...rest } = result;
+			const { inputs, commands, ...header } = expected;
+			expect(rest).toEqual(header);
+			const parsed = kind.ProgrammableTransaction ?? kind.ProgrammableSystemTransaction;
+			expect(parsed).toEqual({ inputs, commands });
+			expect(parsed?.commands[1]).toMatchObject({ MakeMoveVec: { type: null } });
+			expect(parsed?.commands[2]).toMatchObject({ Publish: { modules: ['AQID'] } });
 		},
 	);
 

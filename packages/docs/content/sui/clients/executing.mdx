@@ -122,8 +122,7 @@ const created = result.Transaction?.effects.changedObjects.filter(
 ### Transaction data
 
 `include: { transaction: true }` returns transaction data with `sender`, `gasData`, `expiration`,
-`inputs`, `commands`, and `kind`. Use `kind.$kind` to identify the transaction type and access its
-payload:
+and `kind`. Use `kind.$kind` to identify the transaction type and access its payload:
 
 ```typescript
 const result = await client.getTransaction({
@@ -147,9 +146,6 @@ switch (data.kind.$kind) {
 
 `ProgrammableTransaction` and `ProgrammableSystemTransaction` contain `inputs` and `commands`. Other
 kinds, such as `Genesis`, `ChangeEpoch`, and `RandomnessStateUpdate`, have their own payloads.
-
-The deprecated top-level `inputs` and `commands` mirror the programmable payload and are empty for
-non-programmable transactions. Use the fields under `kind` in new code.
 
 ## `waitForTransaction`
 

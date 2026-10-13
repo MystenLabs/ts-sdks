@@ -571,23 +571,14 @@ export namespace SuiClientTypes {
 	}
 
 	/**
-	 * Ledger transaction data, including programmable and system kinds.
-	 * `inputs` and `commands` mirror the programmable kind's body, and are empty for
-	 * non-programmable kinds. Inspect `kind` for the complete transaction payload.
+	 * Ledger transaction data, including programmable and system kinds. Narrow `kind.$kind` to
+	 * read the transaction's payload, such as the inputs and commands of a programmable
+	 * transaction.
 	 */
-	export interface TransactionData extends SerializedTransactionDataV2 {
-		/**
-		 * @deprecated Narrow `kind.$kind` and read `kind.ProgrammableTransaction.inputs` or
-		 * `kind.ProgrammableSystemTransaction.inputs` instead. This compatibility field is
-		 * empty for non-programmable transactions; use `kind` to inspect their actual payload.
-		 */
-		inputs: SerializedTransactionDataV2['inputs'];
-		/**
-		 * @deprecated Narrow `kind.$kind` and read `kind.ProgrammableTransaction.commands` or
-		 * `kind.ProgrammableSystemTransaction.commands` instead. This compatibility field is
-		 * empty for non-programmable transactions; use `kind` to inspect their actual payload.
-		 */
-		commands: SerializedTransactionDataV2['commands'];
+	export interface TransactionData extends Omit<
+		SerializedTransactionDataV2,
+		'inputs' | 'commands' | 'digest'
+	> {
 		kind: TransactionKind;
 	}
 
