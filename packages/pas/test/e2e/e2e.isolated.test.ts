@@ -389,10 +389,12 @@ describe.concurrent(
 				}),
 			);
 
-			// Object funds sufficiency is checked during execution, so the withdrawal aborts with
-			// `funds_accumulator::EObjectFundsInsufficient` (abort code 5).
+			// With `check_object_funds_withdraw_in_execution` (protocol v137, sui#27524) the
+			// withdrawal aborts inside the VM with `funds_accumulator::EObjectFundsInsufficient`
+			// (abort code 5); older protocol versions reject it before execution with
+			// `InsufficientFundsForWithdraw`.
 			await expect(executeTransaction(toolbox, transaction)).rejects.toThrowError(
-				/abort code: 5, in '0x0+2::funds_accumulator::reserve_object_funds_for_withdrawal'/,
+				/abort code: 5, in '0x0+2::funds_accumulator::reserve_object_funds_for_withdrawal'|InsufficientFundsForWithdraw/,
 			);
 		});
 
