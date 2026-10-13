@@ -1,12 +1,12 @@
 # Core API follow-ups gated on the JSON-RPC sunset
 
-The core query APIs (`listTransactions`, `listEvents`) were restricted to what gRPC, GraphQL and
-JSON-RPC could all support with identical behavior. With JSON-RPC removed, this branch promotes the
-`affectedAddress`/`affectedObject` filters, combined `sender` predicates, checkpoint ranges and
-windows, verified by the parity tests in `test/e2e/clients/core/queries.test.ts`. The items below
-remain.
+The core APIs, notably the query APIs (`listTransactions`, `listEvents`), are intentionally
+restricted to what all three transports (gRPC, GraphQL, JSON-RPC) can support with identical
+behavior, verified by the parity tests in `test/e2e/clients/core/queries.test.ts`. Several
+capabilities were left out of the core API only because JSON-RPC cannot express them. Once JSON-RPC
+is fully deprecated and removed, they can be promoted into the core API.
 
-Advanced filtering beyond the core types is available through the raw gRPC ledger service
+Until then, advanced filtering is available through the raw gRPC ledger service
 (`client.ledgerService.listTransactions` and friends take full DNF filters), and through raw GraphQL
 queries where the schema supports it. Promoting a capability means extending the core filter types
 in `src/client/types.ts` and the shared resolution helpers in `src/client/query-filters.ts`,
@@ -27,17 +27,6 @@ implementing the gRPC/GraphQL mappings, and extending the parity tests.
   checkpoint the server doesn't return. Seen once in e2e runs (an unfiltered read of the first
   events on a fresh localnet); retrying the page returned it.
 
-## Blocked only by JSON-RPC
-
-- **A `listCheckpoints` core method** — a summaries-only version (sequence number, digest, epoch,
-  timestamp) was prototyped and dropped from the initial release because listing checkpoints is
-  mostly useful for getting the transactions they contain, which is better served by
-  `listTransactions` with checkpoint ranges. Including per-checkpoint transaction digests has exact
-  parity on gRPC and JSON-RPC, but GraphQL exposes them as a nested connection capped at the server
-  page size, which would silently truncate busy checkpoints. If a core method is added, checkpoint
-  ranges are implementable exactly on every transport (JSON-RPC's sequence-number cursor emulates
-  them).
-
 ## Blocked by GraphQL as well
 
 - **OR of filters, negated predicates, and repeated predicate values** — the gRPC DNF filter model
@@ -46,4 +35,7 @@ implementing the gRPC/GraphQL mappings, and extending the parity tests.
   present on the GraphQL `TransactionFilter` input.
 - **Transaction filters on `listCheckpoints`** — the GraphQL `checkpoints` query only supports
   checkpoint/epoch bounds, not transaction predicates.
+- **Transaction digests on `listCheckpoints`** — gRPC returns each checkpoint's full contents, but
+  GraphQL exposes them as a nested connection capped at the server page size, which would silently
+  truncate busy checkpoints. Use `listTransactions` with a checkpoint range instead.
 - **`eventStreamHead` event predicate** — not present on the GraphQL `EventFilter` input.
