@@ -419,7 +419,7 @@ export class GraphQLCoreClient extends CoreClient {
 		return parseTransaction(result.effects?.transaction!, options.include);
 	}
 	async simulateTransaction<Include extends SuiClientTypes.SimulateTransactionInclude = {}>(
-		options: SuiClientTypes.SimulateTransactionOptions<Include> & { doGasSelection?: boolean },
+		options: SuiClientTypes.SimulateTransactionOptions<Include>,
 	): Promise<SuiClientTypes.SimulateTransactionResult<Include>> {
 		if (!(options.transaction instanceof Uint8Array)) {
 			await options.transaction.prepareForSerialization({ client: this });
