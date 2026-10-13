@@ -156,13 +156,29 @@ jobs:
           fi
 
           OBJ=$(jq -r .hashi_object_id "$LOCALNET_DATA_DIR/state.json")
+          # Throwaway client config + empty keystore, pointed at the localnet.
+          SUI_CLIENT_DIR="$RUNNER_TEMP/sui-client"
+          mkdir -p "$SUI_CLIENT_DIR"
+          echo '[]' > "$SUI_CLIENT_DIR/sui.keystore"
+          cat > "$SUI_CLIENT_DIR/client.yaml" <<EOF
+          ---
+          keystore:
+            File: $SUI_CLIENT_DIR/sui.keystore
+          envs:
+            - alias: localnet
+              rpc: 'http://127.0.0.1:9000'
+              ws: ~
+          active_env: localnet
+          active_address: '0x0000000000000000000000000000000000000000000000000000000000000000'
+          EOF
           echo "Phase 2/3: polling Hashi object $OBJ for non-empty MPC key (cap 3 min)…"
           MPC_OK=0
           for i in $(seq 1 36); do
-            LEN=$(curl -s -X POST http://127.0.0.1:9000 \
-              -H content-type:application/json \
-              -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"sui_getObject\",\"params\":[\"$OBJ\",{\"showContent\":true}]}" \
-              | jq -r '.result.data.content.fields.committee_set.fields.mpc_public_key | length' 2>/dev/null || echo 0)
+            # CLI JSON flattens Move structs (no `.fields` wrappers) and
+            # renders vector<u8> as a base64 string, so `length` is 0 while
+            # the key is empty.
+            LEN=$(sui client --client.config "$SUI_CLIENT_DIR/client.yaml" object "$OBJ" --json 2>/dev/null \
+              | jq -r '.content.committee_set.mpc_public_key | length' 2>/dev/null || echo 0)
             if [[ "$LEN" -gt 0 ]]; then
               echo "MPC key on chain (length=$LEN) after ~$((i * 5)) s — DKG settled."
               MPC_OK=1
