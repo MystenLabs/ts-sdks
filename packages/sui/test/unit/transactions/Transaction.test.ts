@@ -14,32 +14,34 @@ import type {
 import { TransactionDataBuilder } from '../../../src/transactions/TransactionData.js';
 import { normalizeSuiAddress } from '../../../src/utils/index.js';
 
-it('can construct and serialize an empty tranaction', async () => {
+it('can construct and serialize an empty tranaction', () => {
 	const tx = new Transaction();
-	await expect(tx.toJSON()).resolves.toBeTypeOf('string');
+	expect(() => tx.serialize()).not.toThrow();
 });
 
-it('can construct a receiving transaction argument', async () => {
+it('can construct a receiving transaction argument', () => {
 	const tx = new Transaction();
 	tx.object(Inputs.ReceivingRef(ref()));
-	await expect(tx.toJSON()).resolves.toBeTypeOf('string');
+	expect(() => tx.serialize()).not.toThrow();
 });
 
-it('receiving transaction argument different from object argument', async () => {
+it('receiving transaction argument different from object argument', () => {
 	const oref = ref();
 	const rtx = new Transaction();
 	rtx.object(Inputs.ReceivingRef(oref));
 	const otx = new Transaction();
 	otx.object(Inputs.ObjectRef(oref));
-	expect(await otx.toJSON()).not.toEqual(await rtx.toJSON());
+	expect(() => rtx.serialize()).not.toThrow();
+	expect(() => otx.serialize()).not.toThrow();
+	expect(otx.serialize()).not.toEqual(rtx.serialize());
 });
 
-it('can be serialized and deserialized to the same values', async () => {
+it('can be serialized and deserialized to the same values', () => {
 	const tx = new Transaction();
 	tx.add(TransactionCommands.SplitCoins(tx.gas, [tx.pure.u64(100)]));
-	const serialized = await tx.toJSON();
+	const serialized = tx.serialize();
 	const tx2 = Transaction.from(serialized);
-	expect(serialized).toEqual(await tx2.toJSON());
+	expect(serialized).toEqual(tx2.serialize());
 });
 
 it('allows transfer with the result of split Commands', () => {

@@ -18,10 +18,6 @@ Removed:
 - `normalizedTypeToMoveTypeSignature` from `@mysten/sui/transactions`, which converted JSON-RPC
   normalized Move types to `SuiClientTypes.OpenSignature`. The core API's `getMoveFunction` already
   returns `OpenSignature`s.
-- The deprecated `Transaction.serialize()`. Use `await tx.toJSON()` to serialize a transaction, or
-  `tx.getData()` for a synchronous snapshot.
 
-`SuiJsonRpcClient` was the only built-in client that resolved transactions on the client. The gRPC
-and GraphQL clients resolve and simulate on the server, so a transaction restored from v1 JSON that
-still contains raw (untyped) pure values can no longer be built with them; serialize those values
-with `tx.pure.<type>(...)` or BCS before building.
+Raw (untyped) pure values, such as those in a transaction restored from v1 JSON, are now resolved
+on every client before server-side resolution, so the gRPC and GraphQL clients can build them.

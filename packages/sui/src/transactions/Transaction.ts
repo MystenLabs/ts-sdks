@@ -17,6 +17,7 @@ import {
 	ObjectRefSchema,
 	TransactionExpiration,
 } from './data/internal.js';
+import { serializeV1TransactionData } from './data/v1.js';
 import { SerializedTransactionDataV2Schema } from './data/v2.js';
 import { Inputs } from './Inputs.js';
 import { needsTransactionResolution, resolveTransactionPlugin } from './resolve.js';
@@ -723,6 +724,14 @@ export class Transaction {
 		};
 
 		return this.#addInput('object', input);
+	}
+
+	/**
+	 * @deprecated Use toJSON instead.
+	 * For synchronous serialization, you can use `getData()`
+	 * */
+	serialize() {
+		return JSON.stringify(serializeV1TransactionData(this.#data.snapshot()));
 	}
 
 	async toJSON(options: SerializeTransactionOptions = {}): Promise<string> {
