@@ -140,10 +140,7 @@ export class GrpcCoreClient extends CoreClient {
 						if (object.result.oneofKind === 'error') {
 							const error = object.result.error;
 							if (error.code === GrpcStatusCode.NOT_FOUND) {
-								// Special case for backwards compatibility: missing objects reuse
-								// the long-standing JSON-RPC `notExists` code instead of the gRPC
-								// status name, so handlers written against earlier releases keep
-								// working.
+								// Missing objects use the `notExists` code rather than the gRPC status name.
 								return new ObjectError('notExists', error.message, {
 									cause: error,
 									reason: 'notFound',
@@ -1081,7 +1078,6 @@ function transactionReadMaskPaths(
 		paths.push('events');
 	}
 	if (include?.objectTypes) {
-		// Use effects.changed_objects to match JSON-RPC behavior (which uses objectChanges)
 		paths.push('effects.changed_objects.object_type');
 		paths.push('effects.changed_objects.object_id');
 	}

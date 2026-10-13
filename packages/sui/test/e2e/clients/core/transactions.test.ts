@@ -114,10 +114,9 @@ describe('Core API - Transactions', () => {
 		});
 
 		// The first transaction on the chain is the genesis transaction, a system
-		// transaction that has no gas object. Fetched over JSON-RPC because the
-		// localnet image does not serve the gRPC ListTransactions RPC yet.
+		// transaction that has no gas object.
 		async function getGenesisDigest() {
-			const { transactions } = await toolbox.jsonRpcClient.core.listTransactions({
+			const { transactions } = await toolbox.grpcClient.core.listTransactions({
 				limit: 1,
 				order: 'ascending',
 			});
@@ -208,7 +207,7 @@ describe('Core API - Transactions', () => {
 			tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
 
 			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
+			const bytes = await tx.build({ client: toolbox.grpcClient });
 
 			// Use wrong keypair to sign
 			const wrongKeypair = Ed25519Keypair.generate();
@@ -230,8 +229,20 @@ describe('Core API - Transactions', () => {
 			tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(address));
 
 			tx.setSender(address);
-			// Use jsonRpcClient for building to avoid gRPC/GraphQL gas selection rejecting during build
-			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
+			// Set an explicit gas payment and build with the client-side resolver so the oversized
+			// budget is not rejected by simulation before execution
+			const { objects: gasCoins } = await toolbox.grpcClient.core.listCoins({
+				owner: address,
+				coinType: SUI_TYPE_ARG,
+			});
+			tx.setGasPayment([
+				{
+					objectId: gasCoins[0].objectId,
+					version: gasCoins[0].version,
+					digest: gasCoins[0].digest,
+				},
+			]);
+			const bytes = await tx.build({ client: toolbox.clientResolverGrpcClient });
 			const signature = await keypair.signTransaction(bytes);
 
 			await expect(
@@ -249,7 +260,7 @@ describe('Core API - Transactions', () => {
 			tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
 
 			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
+			const bytes = await tx.build({ client: toolbox.grpcClient });
 
 			const result = await client.core.simulateTransaction({
 				transaction: bytes,
@@ -272,7 +283,7 @@ describe('Core API - Transactions', () => {
 			tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
 
 			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
+			const bytes = await tx.build({ client: toolbox.grpcClient });
 
 			const result = await client.core.simulateTransaction({
 				transaction: bytes,
@@ -323,7 +334,7 @@ describe('Core API - Transactions', () => {
 			);
 
 			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
+			const bytes = await tx.build({ client: toolbox.grpcClient });
 
 			await client.core.simulateTransaction({
 				transaction: bytes,
@@ -392,18 +403,20 @@ describe('Core API - Transactions', () => {
 				});
 				createTx.transferObjects([obj], createTx.pure.address(testAddress));
 
-				const createResult = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+				const createResult = await toolbox.signAndExecuteTransaction({
 					transaction: createTx,
 					signer: toolbox.keypair,
-					options: { showObjectChanges: true },
+					include: { effects: true, objectTypes: true },
 				});
-				await toolbox.waitForTransaction({ digest: createResult.digest });
 
-				const createdObject = createResult.objectChanges?.find(
-					(change) => change.type === 'created' && change.objectType.includes('SimpleObject'),
+				const objectTypes = createResult.Transaction?.objectTypes ?? {};
+				const createdObject = createResult.Transaction?.effects?.changedObjects.find(
+					(change) =>
+						change.idOperation === 'Created' &&
+						objectTypes[change.objectId]?.includes('SimpleObject'),
 				);
 				expect(createdObject).toBeDefined();
-				const createdObjectId = (createdObject as { objectId: string }).objectId;
+				const createdObjectId = createdObject!.objectId;
 
 				// Now simulate a transaction that references this object via tx.object() (UnresolvedObject)
 				const tx = new Transaction();
@@ -434,18 +447,20 @@ describe('Core API - Transactions', () => {
 				});
 				createTx.transferObjects([obj], createTx.pure.address(testAddress));
 
-				const createResult = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+				const createResult = await toolbox.signAndExecuteTransaction({
 					transaction: createTx,
 					signer: toolbox.keypair,
-					options: { showObjectChanges: true },
+					include: { effects: true, objectTypes: true },
 				});
-				await toolbox.waitForTransaction({ digest: createResult.digest });
 
-				const createdObject = createResult.objectChanges?.find(
-					(change) => change.type === 'created' && change.objectType.includes('SimpleObject'),
+				const objectTypes = createResult.Transaction?.objectTypes ?? {};
+				const createdObject = createResult.Transaction?.effects?.changedObjects.find(
+					(change) =>
+						change.idOperation === 'Created' &&
+						objectTypes[change.objectId]?.includes('SimpleObject'),
 				);
 				expect(createdObject).toBeDefined();
-				const createdObjectId = (createdObject as { objectId: string }).objectId;
+				const createdObjectId = createdObject!.objectId;
 
 				// Simulate a non-public function with unresolved object reference
 				const tx = new Transaction();
@@ -482,7 +497,7 @@ describe('Core API - Transactions', () => {
 				});
 
 				// Build and simulate with bytes
-				const bytes = await tx.build({ client: toolbox.jsonRpcClient });
+				const bytes = await tx.build({ client: toolbox.grpcClient });
 				const serializedResult = await client.core.simulateTransaction({
 					transaction: bytes,
 					include: { effects: true },
@@ -527,7 +542,7 @@ describe('Core API - Transactions', () => {
 				const tx = new Transaction();
 				tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
 				tx.setSender(testAddress);
-				const bytes = await tx.build({ client: toolbox.jsonRpcClient });
+				const bytes = await tx.build({ client: toolbox.grpcClient });
 
 				const result = await client.core.simulateTransaction({
 					transaction: bytes,
@@ -543,7 +558,7 @@ describe('Core API - Transactions', () => {
 
 		testWithAllClients(
 			'should report a real gas payment when gas is selected from address balance',
-			async (client, kind) => {
+			async (client) => {
 				const { address } = await toolbox.getSigner({ addressBalance: 200_000_000n });
 				const tx = new Transaction();
 				const [obj] = tx.moveCall({
@@ -562,15 +577,8 @@ describe('Core API - Transactions', () => {
 				});
 				expect(result.$kind).toBe('Transaction');
 
-				if (kind === 'jsonrpc') {
-					// JSON-RPC dry runs never select gas, so an empty gas payment is still simulated
-					// with the mocked gas coin
-					expect(result.gasPaymentMocked).toBe(true);
-					expect(result.Transaction?.effects?.gasObject?.objectId).toBe(MOCKED_GAS_OBJECT_ID);
-				} else {
-					expect(result.gasPaymentMocked).toBe(false);
-					expect(result.Transaction?.effects?.gasObject).toBeNull();
-				}
+				expect(result.gasPaymentMocked).toBe(false);
+				expect(result.Transaction?.effects?.gasObject).toBeNull();
 			},
 		);
 
@@ -798,7 +806,7 @@ describe('Core API - Transactions', () => {
 			});
 
 			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
+			const bytes = await tx.build({ client: toolbox.grpcClient });
 
 			const result = await client.core.simulateTransaction({
 				transaction: bytes,
@@ -1109,7 +1117,7 @@ describe('Core API - Transactions', () => {
 			tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
 
 			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
+			const bytes = await tx.build({ client: toolbox.grpcClient });
 
 			const result = await client.core.simulateTransaction({
 				transaction: bytes,
@@ -1135,7 +1143,7 @@ describe('Core API - Transactions', () => {
 				tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
 
 				tx.setSender(testAddress);
-				const bytes = await tx.build({ client: toolbox.jsonRpcClient });
+				const bytes = await tx.build({ client: toolbox.grpcClient });
 
 				const result = await client.core.simulateTransaction({
 					transaction: bytes,
@@ -1153,7 +1161,7 @@ describe('Core API - Transactions', () => {
 			tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
 
 			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
+			const bytes = await tx.build({ client: toolbox.grpcClient });
 
 			const result = await client.core.simulateTransaction({
 				transaction: bytes,
@@ -1171,7 +1179,7 @@ describe('Core API - Transactions', () => {
 			tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
 
 			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
+			const bytes = await tx.build({ client: toolbox.grpcClient });
 
 			const result = await client.core.simulateTransaction({
 				transaction: bytes,
@@ -1198,7 +1206,7 @@ describe('Core API - Transactions', () => {
 			tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
 
 			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
+			const bytes = await tx.build({ client: toolbox.grpcClient });
 
 			const result = await client.core.simulateTransaction({
 				transaction: bytes,
@@ -1222,7 +1230,7 @@ describe('Core API - Transactions', () => {
 			tx.transferObjects([obj], tx.pure.address(testAddress));
 
 			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
+			const bytes = await tx.build({ client: toolbox.grpcClient });
 
 			const result = await client.core.simulateTransaction({
 				transaction: bytes,
@@ -1254,7 +1262,7 @@ describe('Core API - Transactions', () => {
 			tx.transferObjects([obj], tx.pure.address(testAddress));
 
 			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
+			const bytes = await tx.build({ client: toolbox.grpcClient });
 
 			const result = await client.core.simulateTransaction({
 				transaction: bytes,
@@ -1287,7 +1295,7 @@ describe('Core API - Transactions', () => {
 			tx.transferObjects([obj1, obj2, coin], tx.pure.address(testAddress));
 
 			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
+			const bytes = await tx.build({ client: toolbox.grpcClient });
 
 			const result = await client.core.simulateTransaction({
 				transaction: bytes,
@@ -1316,7 +1324,7 @@ describe('Core API - Transactions', () => {
 				tx.transferObjects([coin], tx.pure.address(testAddress));
 
 				tx.setSender(testAddress);
-				const bytes = await tx.build({ client: toolbox.jsonRpcClient });
+				const bytes = await tx.build({ client: toolbox.grpcClient });
 
 				const result = await client.core.simulateTransaction({
 					transaction: bytes,
@@ -1345,7 +1353,7 @@ describe('Core API - Transactions', () => {
 			tx.transferObjects([obj], tx.pure.address(testAddress));
 
 			tx.setSender(testAddress);
-			const bytes = await tx.build({ client: toolbox.jsonRpcClient });
+			const bytes = await tx.build({ client: toolbox.grpcClient });
 
 			const result = await client.core.simulateTransaction({
 				transaction: bytes,
@@ -1379,15 +1387,15 @@ describe('Core API - Transactions', () => {
 				tx.setGasBudget(50_000_000);
 				tx.setGasPrice(1000);
 
-				const coins = await toolbox.jsonRpcClient.getCoins({
+				const coins = await toolbox.grpcClient.core.listCoins({
 					owner: testAddress,
 					coinType: SUI_TYPE_ARG,
 				});
 				tx.setGasPayment([
 					{
-						objectId: coins.data[0].coinObjectId,
-						version: coins.data[0].version,
-						digest: coins.data[0].digest,
+						objectId: coins.objects[0].objectId,
+						version: coins.objects[0].version,
+						digest: coins.objects[0].digest,
 					},
 				]);
 
@@ -1405,7 +1413,6 @@ describe('Core API - Transactions', () => {
 				// Command results should still be available (though the command failed)
 				expect(result.commandResults).toBeDefined();
 			},
-			{ skip: ['jsonrpc'] }, // JSON-RPC devInspect fails for aborting transactions
 		);
 	});
 
@@ -1414,15 +1421,15 @@ describe('Core API - Transactions', () => {
 		let validTxBytes: Uint8Array;
 
 		beforeAll(async () => {
-			const coins = await toolbox.jsonRpcClient.getCoins({
+			const coins = await toolbox.grpcClient.core.listCoins({
 				owner: testAddress,
 				coinType: SUI_TYPE_ARG,
 			});
 			const gasPayment = [
 				{
-					objectId: coins.data[0].coinObjectId,
-					version: coins.data[0].version,
-					digest: coins.data[0].digest,
+					objectId: coins.objects[0].objectId,
+					version: coins.objects[0].version,
+					digest: coins.objects[0].digest,
 				},
 			];
 
@@ -1638,7 +1645,6 @@ describe('Core API - Transactions', () => {
 				expect(result.Transaction.effects?.status.success).toBe(true);
 				expect(result.Transaction.transaction?.gasData.payment).toEqual([]);
 			},
-			{ skip: ['jsonrpc'] },
 		);
 
 		testWithAllClients(
@@ -1712,7 +1718,6 @@ describe('Core API - Transactions', () => {
 
 				expect(result.Transaction.effects?.status.success).toBe(true);
 			},
-			{ skip: ['jsonrpc'] },
 		);
 
 		testWithAllClients(
@@ -1747,7 +1752,6 @@ describe('Core API - Transactions', () => {
 
 				expect(result.Transaction.effects?.status.success).toBe(true);
 			},
-			{ skip: ['jsonrpc'] },
 		);
 
 		// An unfunded sender simulates successfully with the default mocked gas coin, but
@@ -1802,18 +1806,20 @@ describe('Core API - Transactions', () => {
 				});
 				createTx.transferObjects([obj], createTx.pure.address(testAddress));
 
-				const createResult = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+				const createResult = await toolbox.signAndExecuteTransaction({
 					transaction: createTx,
 					signer: toolbox.keypair,
-					options: { showObjectChanges: true },
+					include: { effects: true, objectTypes: true },
 				});
-				await toolbox.waitForTransaction({ digest: createResult.digest });
 
-				const createdObject = createResult.objectChanges?.find(
-					(change) => change.type === 'created' && change.objectType.includes('SimpleObject'),
+				const objectTypes = createResult.Transaction?.objectTypes ?? {};
+				const createdObject = createResult.Transaction?.effects?.changedObjects.find(
+					(change) =>
+						change.idOperation === 'Created' &&
+						objectTypes[change.objectId]?.includes('SimpleObject'),
 				);
 				expect(createdObject).toBeDefined();
-				const createdObjectId = (createdObject as { objectId: string }).objectId;
+				const createdObjectId = createdObject!.objectId;
 
 				// Build with onlyTransactionKind — should resolve objects without gas estimation
 				// This works even with non-public functions because onlyTransactionKind skips
@@ -1841,18 +1847,20 @@ describe('Core API - Transactions', () => {
 				});
 				createTx.transferObjects([obj], createTx.pure.address(testAddress));
 
-				const createResult = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+				const createResult = await toolbox.signAndExecuteTransaction({
 					transaction: createTx,
 					signer: toolbox.keypair,
-					options: { showObjectChanges: true },
+					include: { effects: true, objectTypes: true },
 				});
-				await toolbox.waitForTransaction({ digest: createResult.digest });
 
-				const createdObject = createResult.objectChanges?.find(
-					(change) => change.type === 'created' && change.objectType.includes('SimpleObject'),
+				const objectTypes = createResult.Transaction?.objectTypes ?? {};
+				const createdObject = createResult.Transaction?.effects?.changedObjects.find(
+					(change) =>
+						change.idOperation === 'Created' &&
+						objectTypes[change.objectId]?.includes('SimpleObject'),
 				);
 				expect(createdObject).toBeDefined();
-				const createdObjectId = (createdObject as { objectId: string }).objectId;
+				const createdObjectId = createdObject!.objectId;
 
 				const tx = new Transaction();
 				tx.moveCall({
@@ -1961,7 +1969,7 @@ describe('Core API - Transactions', () => {
 				tx.transferObjects([bear], tx.pure.address(testAddress));
 
 				tx.setSender(testAddress);
-				const bytes = await tx.build({ client: toolbox.jsonRpcClient });
+				const bytes = await tx.build({ client: toolbox.grpcClient });
 
 				const result = await client.core.simulateTransaction({
 					transaction: bytes,
@@ -2065,8 +2073,9 @@ describe('Core API - Transactions', () => {
 				tx.setGasBudget(50_000_000);
 				tx.setGasPrice(1000);
 
-				// Use jsonRpcClient for building to avoid gRPC/GraphQL simulation catching the abort
-				const bytes = await tx.build({ client: toolbox.jsonRpcClient });
+				// The client-side resolver skips simulation once a gas budget is set, so the abort
+				// is only observed on execution
+				const bytes = await tx.build({ client: toolbox.clientResolverGrpcClient });
 				const signature = await keypair.signTransaction(bytes);
 
 				const result = await client.core.executeTransaction({
@@ -2104,15 +2113,15 @@ describe('Core API - Transactions', () => {
 				tx.setGasPrice(1000);
 
 				// Get a coin for gas
-				const coins = await toolbox.jsonRpcClient.getCoins({
+				const coins = await toolbox.grpcClient.core.listCoins({
 					owner: testAddress,
 					coinType: SUI_TYPE_ARG,
 				});
 				tx.setGasPayment([
 					{
-						objectId: coins.data[0].coinObjectId,
-						version: coins.data[0].version,
-						digest: coins.data[0].digest,
+						objectId: coins.objects[0].objectId,
+						version: coins.objects[0].version,
+						digest: coins.objects[0].digest,
 					},
 				]);
 
@@ -2138,7 +2147,7 @@ describe('Core API - Transactions', () => {
 				tx.transferObjects([tx.splitCoins(tx.gas, [1000])], tx.pure.address(testAddress));
 
 				tx.setSender(testAddress);
-				const bytes = await tx.build({ client: toolbox.jsonRpcClient });
+				const bytes = await tx.build({ client: toolbox.grpcClient });
 
 				const result = await client.core.simulateTransaction({
 					transaction: bytes,

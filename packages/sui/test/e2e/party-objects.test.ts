@@ -31,10 +31,10 @@ describe('Party Objects', () => {
 
 		const result = await toolbox.keypair.signAndExecuteTransaction({
 			transaction: createPartyTxn,
-			client: toolbox.jsonRpcClient,
+			client: toolbox.grpcClient,
 		});
 
-		const waitResult = await toolbox.jsonRpcClient.core.waitForTransaction({
+		const waitResult = await toolbox.grpcClient.core.waitForTransaction({
 			result,
 			include: {
 				effects: true,
@@ -56,15 +56,15 @@ describe('Party Objects', () => {
 		});
 
 		await returnTx.build({
-			client: toolbox.jsonRpcClient,
+			client: toolbox.grpcClient,
 		});
 
 		const returnResult = await toolbox.keypair.signAndExecuteTransaction({
 			transaction: returnTx,
-			client: toolbox.jsonRpcClient,
+			client: toolbox.grpcClient,
 		});
 
-		const returnWaitResult = await toolbox.jsonRpcClient.core.waitForTransaction({
+		const returnWaitResult = await toolbox.grpcClient.core.waitForTransaction({
 			result: returnResult,
 			include: {
 				effects: true,
@@ -95,10 +95,10 @@ describe('Party Objects', () => {
 
 		const result = await toolbox.keypair.signAndExecuteTransaction({
 			transaction: createPartyTxn,
-			client: toolbox.jsonRpcClient,
+			client: toolbox.grpcClient,
 		});
 
-		const waitResult = await toolbox.jsonRpcClient.core.waitForTransaction({
+		const waitResult = await toolbox.grpcClient.core.waitForTransaction({
 			result,
 			include: {
 				effects: true,
@@ -125,12 +125,24 @@ describe('Party Objects', () => {
 			toolbox.keypair.getPublicKey().toSuiAddress(),
 		);
 
+		// Server-side simulation rejects a party object passed by value (`InvalidObjectByValue`)
+		// even though execution accepts it, so resolve client-side. The client-side resolver's
+		// gas selection would also consider the party coin, so pin an address-owned gas coin.
+		const { objects: gasCoins } = await toolbox.grpcClient.core.listCoins({
+			owner: toolbox.address(),
+		});
+		const gasCoin = gasCoins.find(
+			(coin) => coin.owner.$kind === 'AddressOwner' && coin.objectId !== partyCoin.objectId,
+		)!;
+		returnTx.setGasPayment([
+			{ objectId: gasCoin.objectId, version: gasCoin.version, digest: gasCoin.digest },
+		]);
 		const returnResult = await toolbox.keypair.signAndExecuteTransaction({
 			transaction: returnTx,
-			client: toolbox.jsonRpcClient,
+			client: toolbox.clientResolverGrpcClient,
 		});
 
-		const returnWaitResult = await toolbox.jsonRpcClient.core.waitForTransaction({
+		const returnWaitResult = await toolbox.grpcClient.core.waitForTransaction({
 			result: returnResult,
 			include: {
 				effects: true,

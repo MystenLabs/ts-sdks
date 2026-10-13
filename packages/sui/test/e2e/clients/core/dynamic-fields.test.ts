@@ -27,27 +27,22 @@ describe('Core API - Dynamic Fields', () => {
 			arguments: [tx1.pure.vector('u8', Array.from(new TextEncoder().encode('test_df_object')))],
 		});
 
-		const result1 = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+		const result1 = await toolbox.signAndExecuteTransaction({
 			transaction: tx1,
 			signer: toolbox.keypair,
-			options: {
-				showEffects: true,
-				showObjectChanges: true,
-			},
+			include: { effects: true, objectTypes: true },
 		});
 
-		expect(result1.effects?.status.status).toBe('success');
-		await toolbox.waitForTransaction({ digest: result1.digest });
-
-		const dfObj = result1.objectChanges?.find(
+		expect(result1.$kind).toBe('Transaction');
+		const dfObj = result1.Transaction?.effects.changedObjects.find(
 			(change) =>
-				change.type === 'created' &&
-				change.objectType?.includes('test_objects::ObjectWithDynamicFields'),
+				change.idOperation === 'Created' &&
+				result1.Transaction?.objectTypes[change.objectId]?.includes(
+					'test_objects::ObjectWithDynamicFields',
+				),
 		);
 		expect(dfObj).toBeDefined();
-		if (dfObj && dfObj.type === 'created') {
-			objectWithDynamicFieldsId = dfObj.objectId;
-		}
+		objectWithDynamicFieldsId = dfObj!.objectId;
 
 		// Create an object with mixed dynamic fields (regular + DOF)
 		const tx2 = new Transaction();
@@ -55,27 +50,22 @@ describe('Core API - Dynamic Fields', () => {
 			target: `${testPackageId}::test_objects::create_object_with_mixed_dynamic_fields`,
 		});
 
-		const result2 = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+		const result2 = await toolbox.signAndExecuteTransaction({
 			transaction: tx2,
 			signer: toolbox.keypair,
-			options: {
-				showEffects: true,
-				showObjectChanges: true,
-			},
+			include: { effects: true, objectTypes: true },
 		});
 
-		expect(result2.effects?.status.status).toBe('success');
-		await toolbox.waitForTransaction({ digest: result2.digest });
-
-		const mixedObj = result2.objectChanges?.find(
+		expect(result2.$kind).toBe('Transaction');
+		const mixedObj = result2.Transaction?.effects.changedObjects.find(
 			(change) =>
-				change.type === 'created' &&
-				change.objectType?.includes('test_objects::ObjectWithDynamicFields'),
+				change.idOperation === 'Created' &&
+				result2.Transaction?.objectTypes[change.objectId]?.includes(
+					'test_objects::ObjectWithDynamicFields',
+				),
 		);
 		expect(mixedObj).toBeDefined();
-		if (mixedObj && mixedObj.type === 'created') {
-			objectWithMixedFieldsId = mixedObj.objectId;
-		}
+		objectWithMixedFieldsId = mixedObj!.objectId;
 
 		expect(objectWithDynamicFieldsId).toBeDefined();
 		expect(objectWithMixedFieldsId).toBeDefined();
