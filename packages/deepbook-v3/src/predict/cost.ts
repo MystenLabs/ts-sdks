@@ -31,9 +31,9 @@
 // against current account and market state, including the execution gates these previews
 // do not check (ownership, pauses, trade window, oracle freshness and cash backing).
 //
-// The fee POLICY is a per-market snapshot taken at creation (`StrikeExposureConfig`), and the
-// chain exposes no getter for `base_fee`/`min_fee` — take it from the market's `MarketCreated`
-// event (an indexer, or `decode`), or use {@link SHIPPED_FEE_POLICY} for the shipped template.
+// The fee POLICY is a per-market snapshot taken at creation (`StrikeExposureConfig`). The
+// chain exposes no getter for `base_fee`/`min_fee`, so `read.feePolicy(market)` decodes it from
+// the `ExpiryMarket` object. The market's `MarketCreated` event carries it too.
 
 import { PredictInputError } from './errors.js';
 import type { PricerInputs } from './pricing.js';
@@ -53,7 +53,14 @@ export const MIN_PREMIUM = 1_000_000n;
 export const BUILDER_FEE_MULTIPLIER = 100_000_000n;
 /** `constants::max_builder_fee_rate` — cap on the builder fee as a share of quantity (0.5%). */
 export const MAX_BUILDER_FEE_RATE = 5_000_000n;
-/** `constants::fee_incentive_subsidy_rate` — sponsor share of a trader's mint fee (20%). */
+/**
+ * The default sponsor share of a trader's mint fee (20%), and the rate the chain reads while the
+ * admin hasn't set one.
+ * @deprecated From delayed execution (DBU-885) the rate is admin-set: read it with
+ * `protocol_config::fee_incentive_subsidy_rate` (`read.queue(...).protocol.feeIncentiveSubsidyRate`)
+ * and pass it as `feeIncentiveSubsidyRate`. A hardcoded 20% underquotes every mint once the rate
+ * moves.
+ */
 export const FEE_INCENTIVE_SUBSIDY_RATE = 200_000_000n;
 /** `order::max_quantity_lots` — the order ID's 32-bit lot field. */
 export const MAX_QUANTITY_LOTS = (1n << 32n) - 1n;
@@ -130,8 +137,8 @@ export function sqrtDown(x: bigint): bigint {
 /**
  * One market's fee policy: the `StrikeExposureConfig` it snapshotted at creation, in raw 1e9
  * rates. Snapshotted means later admin changes do NOT reprice a market already trading, so
- * read it per market (the `MarketCreated` event carries every field) rather than assuming the
- * template. The last three are the inventory-impact parameters, inert while
+ * read it per market with `read.feePolicy(market)` (the `MarketCreated` event carries every field
+ * too) rather than assuming the template. The last three are the inventory-impact parameters, inert while
  * `inventoryImpactMaxRate` is `0n` (the shipped value).
  */
 export interface FeePolicy {
@@ -158,9 +165,11 @@ export interface FeePolicy {
 /**
  * The shipped template (`config_constants` defaults): 10% Bernoulli fee, a 2.2% per-leg floor,
  * a one-day ramp window that is inert at a 1.0 multiplier, a 1%–99% entry band, and inventory
- * impact disabled. A market that was created under these values charges exactly this; one
- * created after an admin change does not, which is why the per-market snapshot is the real
- * answer. Verify against the deployment's `MarketCreated` before pricing money on it.
+ * impact disabled. Neither recorded deployment's template matches it any more: both charge a
+ * 20.4% Bernoulli fee, ramp it to 3× over the last 60 s and admit entries in 25%–75% (checked
+ * 2026-10-09), so a live market's costs from this policy come out low. Pass
+ * `read.feePolicy(market)` instead. This stays for tests and for a deployment still on the
+ * defaults.
  */
 export const SHIPPED_FEE_POLICY: FeePolicy = Object.freeze({
 	baseFee: 100_000_000n,
@@ -347,11 +356,17 @@ export function builderFee(fee: bigint, quantity: bigint, hasBuilderCode: boolea
 }
 
 /** `expiry_market::fee_incentive_subsidy_amount` — a sponsor pays part of the trader's MINT
- * fee, bounded by the expiry's remaining sponsored balance. Mints only; redeems pay in full. */
-export function feeIncentiveSubsidy(fee: bigint, feeIncentiveBalance: bigint): bigint {
+ * fee, bounded by the expiry's remaining sponsored balance. Mints only; redeems pay in full.
+ * `rate` is the protocol's `fee_incentive_subsidy_rate` (1e9-scaled), 20% when omitted. */
+export function feeIncentiveSubsidy(
+	fee: bigint,
+	feeIncentiveBalance: bigint,
+	rate: bigint = FEE_INCENTIVE_SUBSIDY_RATE,
+): bigint {
 	assertUint(fee, 'fee');
 	assertUint(feeIncentiveBalance, 'feeIncentiveBalance');
-	return min(mulDown(fee, FEE_INCENTIVE_SUBSIDY_RATE), feeIncentiveBalance);
+	assertUint(rate, 'feeIncentiveSubsidyRate', FLOAT_SCALING);
+	return min(mulDown(fee, rate), feeIncentiveBalance);
 }
 
 /**
@@ -534,7 +549,15 @@ interface MintInputsBase {
 	builderCode?: boolean;
 	/** The expiry's remaining sponsored fee balance (`fee_incentive_balance`). Default `0n`. */
 	feeIncentiveBalance?: number | bigint;
-	/** Per-unit congestion surcharge rate — see {@link congestionPenaltyRate}. Default `0n`. */
+	/**
+	 * The protocol's admin-set mint fee subsidy rate (`protocol_config::fee_incentive_subsidy_rate`),
+	 * 1e9-scaled. Defaults to the 20% the chain reads while unset.
+	 */
+	feeIncentiveSubsidyRate?: bigint;
+	/**
+	 * Per-unit congestion surcharge rate — see {@link congestionPenaltyRate}. Default `0n`. A
+	 * queued (delayed-execution) fill pays no congestion penalty, so queued previews keep it 0.
+	 */
 	penaltyRate?: bigint;
 	/** Pre-trade payout-tree terms. Required when inventory impact is enabled. */
 	book?: MintBookTerms;
@@ -663,7 +686,11 @@ function mintQuoteAt(
 } {
 	const premium = mulDown(rangeProbability(boundaries), quantity);
 	const fee = tradingFee(inputs.fees, boundaries, quantity, timeToExpiryMs);
-	const subsidy = feeIncentiveSubsidy(fee, rawAmount(inputs.feeIncentiveBalance ?? 0n));
+	const subsidy = feeIncentiveSubsidy(
+		fee,
+		rawAmount(inputs.feeIncentiveBalance ?? 0n),
+		inputs.feeIncentiveSubsidyRate,
+	);
 	const builder = builderFee(fee, quantity, inputs.builderCode ?? false);
 	const penalty = mulDown(inputs.penaltyRate ?? 0n, quantity);
 	const impact = inputs.book ? mintInventoryImpact(inputs.fees, inputs.book, quantity) : 0n;
@@ -1006,6 +1033,27 @@ export function decodeOrderRange(orderId: bigint, lotSize: bigint = POSITION_LOT
 		higherTick: (orderId >> HIGHER_TICK_OFFSET) & TICK_MASK,
 		quantity: ((orderId >> QUANTITY_LOTS_OFFSET) & U32_MASK) * lotSize,
 	};
+}
+
+/**
+ * What an order pays at settlement, raw USDC: its full quantity when the settlement price lies
+ * in `(lower, higher]`, else 0. The mirror of `strike_exposure::settled_order_payout`, which
+ * rounds the settlement price up to the market's tick grid (`range_codec::limit_tick`) before
+ * comparing it with the order's ticks, so a price inside a tick counts as that tick's upper edge.
+ * Pass `read.settlement`'s `settlementPriceRaw` and `tickSizeRaw`, and the config's
+ * `units.positionLotSize` when it isn't the default.
+ */
+export function settledPayout(
+	orderId: bigint,
+	settlementPriceRaw: bigint,
+	tickSizeRaw: bigint,
+	lotSize: bigint = POSITION_LOT_SIZE,
+): bigint {
+	if (tickSizeRaw <= 0n) throw new PredictInputError('tickSizeRaw must be positive');
+	const { lowerTick, higherTick, quantity } = decodeOrderRange(orderId, lotSize);
+	const limit = (settlementPriceRaw + tickSizeRaw - 1n) / tickSizeRaw;
+	const inRange = lowerTick < limit && (higherTick === POS_INF_TICK || limit <= higherTick);
+	return inRange ? quantity : 0n;
 }
 
 /** The strikes an {@link OrderRange} prices against, in USD, with `null` for each infinite

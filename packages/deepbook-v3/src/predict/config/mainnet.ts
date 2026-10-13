@@ -18,6 +18,11 @@ export const MAINNET_CONFIG: PredictConfig = Object.freeze({
 	// The record widens `network` to `string` so the published types don't pin a literal;
 	// this file is the mainnet config by construction.
 	network: 'mainnet',
+	// TODO(DBU-887): delayed execution is not recorded on Mainnet yet. Once the Mainnet rollout is
+	// recorded, `pnpm sync-deployment` fills `packages.predictOrders`, `packages.predictMath` and
+	// `oracle.pythLazerState`, and this file pins `packages.predictDelayedExecution` (Mainnet v4),
+	// `objects.orderDesk` and `objects.queueRegistry`, as the Testnet config does. Until then the
+	// queued-order surface (DBU-885) throws on this network, and only a custom `config` reaches it.
 	packages: MAINNET_PREDICT.packages,
 	objects: MAINNET_PREDICT.objects,
 	quoteCoinType: MAINNET_PREDICT.quoteCoinType,

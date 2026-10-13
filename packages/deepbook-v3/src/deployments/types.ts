@@ -68,7 +68,18 @@ export interface UnderlyingIds {
 /** Ids for DeepBook Predict. */
 export interface PredictIds {
 	network: string;
-	packages: { predict: string; predictV1: string; account: string; propbook: string };
+	packages: {
+		predict: string;
+		predictV1: string;
+		account: string;
+		propbook: string;
+		/** Latest `deepbook_predict_orders`, once the network records delayed execution. */
+		predictOrders?: string;
+		/** Its original ID, only once it differs from `predictOrders`. */
+		predictOrdersV1?: string;
+		/** `deepbook_predict_math`, once the network records delayed execution. */
+		predictMath?: string;
+	};
 	objects: {
 		registry: string;
 		protocolConfig: string;
@@ -80,4 +91,6 @@ export interface PredictIds {
 	coinTypes: { plp: string; deep: string };
 	units: DeploymentUnits;
 	underlyings: Record<string, UnderlyingIds>;
+	/** Pyth Lazer's shared `State`, recorded with delayed execution. */
+	oracle?: { pythLazerState: string };
 }

@@ -2,7 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 import { Transaction } from '@mysten/sui/transactions';
 import { describe, expect, test } from 'vitest';
-import { PredictInputError, PredictMoveError, decodeMoveAbort } from '../../src/predict/errors.js';
+import {
+	ABORT_NAMES,
+	PredictInputError,
+	PredictMoveError,
+	PredictPreflightError,
+	abortNameFor,
+	decodeMoveAbort,
+	describePredictError,
+} from '../../src/predict/errors.js';
 import type { MoveAbortError } from '../../src/predict/errors.js';
 import type { ReadClient } from '../../src/predict/reads/inspect.js';
 import { inspectReturns } from '../../src/predict/reads/inspect.js';
@@ -29,7 +37,7 @@ describe('decodeMoveAbort', () => {
 		});
 	});
 
-	test('no cleverError → abortName null (non-clever / JSON-RPC abort)', () => {
+	test('no cleverError and a code outside the table → abortName null', () => {
 		const e = decodeMoveAbort({
 			MoveAbort: { abortCode: '99', location: { module: 'expiry_market' } },
 		});
@@ -89,6 +97,111 @@ describe('decodeMoveAbort', () => {
 	});
 });
 
+// Predict's error constants are plain u64 codes, so the fullnode surfaces no clever-error name and
+// the SDK names them from ABORT_NAMES. The expected names are the Move constants at deepbookv3
+// 29117434 (`const EName: u64 = code;`).
+describe('plain abort codes decode to their constant names', () => {
+	const plain = (module: string, code: number) =>
+		decodeMoveAbort({ MoveAbort: { abortCode: String(code), location: { module } } });
+
+	test.each([
+		['queue', 0, 'EWrongDesk'],
+		['queue', 3, 'EQueueFull'],
+		['queue', 9, 'ERecordNotOpen'],
+		['queue', 12, 'EMarketNotExpired'],
+		['desk', 0, 'EPackageVersionDisabled'],
+		['desk', 2, 'EProtocolFrozen'],
+		['order_queue', 0, 'ERecordNotOpen'],
+		['delayed_execution_config', 10, 'EInvalidOrderFee'],
+		['delayed_execution_config', 15, 'EInvalidLimits'],
+		['expiry_market', 1, 'EMarketNotSettled'],
+		['expiry_market', 13, 'EDelayedExecutionRequired'],
+		['expiry_market', 14, 'EOrderFailsLimits'],
+		['expiry_market', 15, 'EInsufficientMarketCash'],
+		['expiry_market', 22, 'EWrongPrice'],
+		['protocol_config', 3, 'EPackageVersionDisabled'],
+		['protocol_config', 13, 'ECutoverNotReached'],
+		['protocol_config', 15, 'EOrderFlowNotAllowed'],
+		['lazer_price', 2, 'EFeedMissing'],
+		['pricing', 0, 'EZeroForward'],
+		['pricing', 12, 'EBlockScholesPriceUnavailable'],
+		['pricing', 16, 'EBlockScholesInputTooWide'],
+		['pricing', 19, 'EPythForwardRequired'],
+		['sessions', 1, 'ESessionNotAuthorized'],
+		['session_config', 0, 'EPackageVersionDisabled'],
+		['account_registry', 1, 'EAppNotAuthorized'],
+		['strike_payout_tree', 1, 'EMaxPayoutTreeNodes'],
+		['strike_exposure_config', 3, 'EPremiumBelowMinimum'],
+		['strike_exposure', 5, 'EMintQuantityBelowMin'],
+		['expiry_cash', 0, 'EInsufficientCash'],
+		['plp', 14, 'EInsufficientFeeIncentiveReserve'],
+		['lp_book', 1, 'EBelowMinSupplyRequest'],
+		// The order-fee guard's abort in the standard library.
+		['option', 0x40001, 'EOPTION_NOT_SET'],
+	] as [string, number, string][])('%s code %i is %s', (module, code, name) => {
+		expect(plain(module, code)?.abortName).toBe(name);
+		expect(abortNameFor(module, BigInt(code))).toBe(name);
+	});
+
+	test('each module lists distinct names, so an index is a code', () => {
+		for (const names of Object.values(ABORT_NAMES)) {
+			expect(new Set(names).size).toBe(names.length);
+		}
+		expect(ABORT_NAMES.queue).toHaveLength(13);
+		expect(ABORT_NAMES.desk).toHaveLength(3);
+		expect(ABORT_NAMES.expiry_market).toHaveLength(23);
+		expect(ABORT_NAMES.protocol_config).toHaveLength(16);
+		expect(ABORT_NAMES.pricing).toHaveLength(20);
+		expect(ABORT_NAMES.sessions).toHaveLength(3);
+		expect(ABORT_NAMES.session_config).toHaveLength(2);
+		expect(ABORT_NAMES.account_registry).toHaveLength(3);
+		expect(ABORT_NAMES.strike_payout_tree).toHaveLength(6);
+		expect(ABORT_NAMES.plp).toHaveLength(15);
+		// DeepBook core has `order` and `registry` modules too, so those stay unnamed.
+		expect(ABORT_NAMES).not.toHaveProperty('order');
+		expect(ABORT_NAMES).not.toHaveProperty('registry');
+	});
+
+	test('an unknown module or a code past the table stays unnamed', () => {
+		expect(plain('oracle', 6)?.abortName).toBeNull();
+		expect(plain('queue', 13)?.abortName).toBeNull();
+		expect(abortNameFor('queue', -1n)).toBeNull();
+		for (const inherited of ['__proto__', 'constructor', 'hasOwnProperty', 'toString']) {
+			expect(abortNameFor(inherited, 0n)).toBeNull();
+			expect(plain(inherited, 0)?.abortName).toBeNull();
+		}
+		// A clever-error code packs bits far above any table index.
+		expect(abortNameFor('queue', 9223372036854775814n)).toBeNull();
+	});
+
+	test('a clever-error name from the fullnode takes precedence over the table', () => {
+		const e = decodeMoveAbort({
+			MoveAbort: {
+				abortCode: '3',
+				location: { module: 'queue' },
+				cleverError: { constantName: 'ESomethingElse' },
+			},
+		});
+		expect(e?.abortName).toBe('ESomethingElse');
+	});
+
+	test('a decoded plain abort gets its readable text', () => {
+		for (const [module, code] of [
+			['queue', 3],
+			['desk', 0],
+			['expiry_market', 14],
+			['lazer_price', 2],
+			['protocol_config', 15],
+			['pricing', 12],
+			['pricing', 4],
+			['sessions', 1],
+			['account_registry', 1],
+		] as [string, number][]) {
+			expect(describePredictError(plain(module, code)!)).not.toBeNull();
+		}
+	});
+});
+
 describe('PredictInputError', () => {
 	test('is an Error subclass carrying its message', () => {
 		const e = new PredictInputError('bad input');
@@ -133,5 +246,82 @@ describe('inspectReturns decodes aborts on FailedTransaction', () => {
 		expect(err).toBeInstanceOf(Error);
 		expect(err).not.toBeInstanceOf(PredictMoveError);
 		expect(err.message).toContain('InsufficientGas');
+	});
+});
+
+// Delayed execution (DBU-885): readable text by `module::EName`, tolerant of unknown names.
+describe('describePredictError', () => {
+	test('names the placement, cutover and quote errors', () => {
+		expect(
+			describePredictError(new PredictMoveError('expiry_market', 20n, 'EInsufficientMarketCash')),
+		).toBe("This market can't take an order this size right now.");
+		expect(
+			describePredictError(new PredictMoveError('protocol_config', 17n, 'ECutoverNotReached')),
+		).toMatch(/watermark/);
+		expect(
+			describePredictError(new PredictMoveError('protocol_config', 15n, 'EOrderFlowNotAllowed')),
+		).toMatch(/order-flow/);
+		expect(
+			describePredictError(new PredictMoveError('protocol_config', 3n, 'EPackageVersionDisabled')),
+		).toMatch(/retired/);
+		expect(
+			describePredictError(new PredictMoveError('desk', 0n, 'EPackageVersionDisabled')),
+		).toMatch(/order-flow package version is retired/);
+		expect(
+			describePredictError(new PredictMoveError('expiry_market', 13n, 'EDelayedExecutionRequired')),
+		).toMatch(/queued order/);
+		// A refused order names every cause admission checks, not only the order's own limits.
+		expect(
+			describePredictError(new PredictMoveError('expiry_market', 14n, 'EOrderFailsLimits')),
+		).toMatch(/entry range.*minimum/);
+		expect(
+			describePredictError(new PredictMoveError('pricing', 12n, 'EBlockScholesPriceUnavailable')),
+		).toMatch(/Try again/);
+	});
+
+	test("the queue's own checks are named by the companion's queue module", () => {
+		for (const name of [
+			'ERecordNotOpen',
+			'ENotRecordOwner',
+			'EQueueStuck',
+			'EQueueFull',
+			'EAccountOrderCap',
+			'EPastCutoff',
+			'EFeeNotCovered',
+			'EBelowMinSell',
+			'EMintCostCapRequired',
+			'EWrongDesk',
+			'EWrongMarket',
+			'EMarketNotExpired',
+		]) {
+			expect(describePredictError(new PredictMoveError('queue', 0n, name))).not.toBeNull();
+		}
+		// They no longer abort from Predict's expiry_market.
+		for (const name of ['EQueueStuck', 'ERecordNotOpen', 'EPastCutoff']) {
+			expect(describePredictError(new PredictMoveError('expiry_market', 0n, name))).toBeNull();
+		}
+		for (const name of ['EFeedMissing', 'EPropertyNotRequested', 'EGenerationAfterEnvelope']) {
+			expect(describePredictError(new PredictMoveError('lazer_price', 0n, name))).not.toBeNull();
+		}
+	});
+
+	test('returns null for an unknown name, a nameless abort, or the wrong module', () => {
+		expect(
+			describePredictError(new PredictMoveError('expiry_market', 99n, 'ESomethingNew')),
+		).toBeNull();
+		expect(describePredictError(new PredictMoveError('expiry_market', 20n, null))).toBeNull();
+		expect(
+			describePredictError(new PredictMoveError('plp', 20n, 'EInsufficientMarketCash')),
+		).toBeNull();
+	});
+
+	test('PredictPreflightError carries its code', () => {
+		const e = new PredictPreflightError('market-cash', 'too big');
+		expect(e).toBeInstanceOf(Error);
+		expect(e).toMatchObject({
+			name: 'PredictPreflightError',
+			code: 'market-cash',
+			message: 'too big',
+		});
 	});
 });

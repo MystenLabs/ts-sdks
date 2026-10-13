@@ -40,3 +40,38 @@ export function binaryRangeTicks(
 		higherTick: isUp ? POS_INF_TICK : tick,
 	};
 }
+
+/**
+ * Snap a strike in USD to a market's admission grid (`MarketSummary.admissionTickSize`), the step
+ * every new mint boundary must be a whole multiple of. Use it on a form's bound inputs: `'down'`
+ * for a lower bound and `'up'` for an upper bound keep a range from shrinking past what was typed,
+ * and `'nearest'` (the default) suits a single strike. Exact: it rounds in the 1e9-scaled integers
+ * the chain uses, not in floating point.
+ */
+export function snapStrike(
+	price: number,
+	admissionTickSize: number,
+	mode: 'down' | 'up' | 'nearest' = 'nearest',
+): number {
+	if (!(Number.isFinite(price) && price > 0)) {
+		throw new PredictInputError(`strike must be a positive number, got ${price}`);
+	}
+	if (!(Number.isFinite(admissionTickSize) && admissionTickSize > 0)) {
+		throw new PredictInputError(`admissionTickSize must be positive, got ${admissionTickSize}`);
+	}
+	const step = BigInt(Math.round(admissionTickSize * 1e9));
+	const raw = BigInt(Math.round(price * 1e9));
+	const below = (raw / step) * step;
+	const snapped =
+		mode === 'down' || raw === below
+			? below
+			: mode === 'up'
+				? below + step
+				: raw - below < below + step - raw
+					? below
+					: below + step;
+	if (snapped === 0n) {
+		throw new PredictInputError(`strike ${price} snaps below the first ${admissionTickSize} step`);
+	}
+	return Number(snapped) / 1e9;
+}

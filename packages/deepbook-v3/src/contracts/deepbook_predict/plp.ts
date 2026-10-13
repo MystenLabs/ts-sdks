@@ -77,10 +77,8 @@ export const PoolValuation = new MoveStruct({
 		started_at_ms: U64,
 		/**
 		 * Drain budgets committed at start (the cap owner's choice), bounding how many
-		 * requests each queue processes at finish. Committing them here — not at finish —
-		 * is what lets `finish_flush` run permissionless: a stranger may complete a flush
-		 * but only ever drains at these budgets, so completion can help LPs, never starve
-		 * them by finishing with a zero budget.
+		 * requests each queue processes at finish. `finish_flush` takes no budget, so the
+		 * flush operator who completes it drains at exactly these.
 		 */
 		supply_budget: bcs.option(U64),
 		withdraw_budget: bcs.option(U64),
@@ -114,7 +112,10 @@ export const PoolVault = new MoveStruct({
 		 * withdraws this balance.
 		 */
 		protocol_reserve_balance: balance.Balance,
-		/** Sponsor-funded USDC reserved for taker fee sponsorship, excluded from PLP NAV. */
+		/**
+		 * Sponsor-funded USDC reserved for taker fee sponsorship, excluded from PLP NAV.
+		 * Admin may reclaim it through `withdraw_fee_incentives`.
+		 */
 		fee_incentive_reserve: balance.Balance,
 		/** PLP share issuance plus queued supply/withdraw escrow. */
 		lp: lp_book.LpBook,
@@ -595,8 +596,8 @@ export interface SnapshotExpiryPricerOptions {
  * a payout tree — so all markets fit one PTB regardless of book size.
  *
  * The oracle feeding this stage must have been written in an EARLIER transaction:
- * `pricing::resolve_live_pricer` refuses a read stamped with the current
- * transaction digest (RP-24), so a keeper cannot refresh and snapshot in one PTB.
+ * `pricing::resolve_live` refuses a read stamped with the current transaction
+ * digest (RP-24), so a keeper cannot refresh and snapshot in one PTB.
  *
  * A market already settled at snapshot time is recorded with no pricer, gets no
  * stamp (settled flows never touch live NAV), and contributes 0. An
@@ -786,6 +787,11 @@ export interface FinishFlushOptions {
  * Because queueing is permissionless and a refunded request returns its escrow in
  * the same transaction, an operator should bound both budgets in production rather
  * than rely on queue length staying small — see RP-12.
+ *
+ * Only an allowlisted flush operator may call it
+ * (`protocol_config::ENotFlushOperator`). Fills move idle cash, so restricting who
+ * completes a flush keeps idle predictable for the keeper that funds markets for
+ * queued orders.
  */
 export function finishFlush(options: FinishFlushOptions) {
 	const packageAddress =
@@ -828,7 +834,10 @@ export interface RebalanceExpiryCashOptions {
  * Permissionless and standalone: anyone may call it at any cadence. Handles all
  * three per-market cases — initial funding of a freshly registered (unfunded)
  * market, ongoing live rebalance/surplus-sweep toward target, and the
- * settled-market sweep (deactivate, return all free cash, materialize profit).
+ * settled-market sweep (deactivate, return all free cash, materialize profit). The
+ * live target covers the market's queued orders' cash need (the waiting cash need
+ * in `expiry_market::order_flow_state`), so the keeper calls this after each
+ * enqueue to fund those orders' fills, and a sweep never takes that cash back.
  * Call `expiry_market::try_settle` first in the same PTB when settlement may be
  * due. An expired unsettled market is a no-op until that transition succeeds. Mint
  * asserts backing but never pulls pool cash, so this is what makes a market
@@ -878,7 +887,9 @@ export interface SponsorFeeIncentivesOptions {
 /**
  * Sponsor taker fee incentives with USDC. Anyone may contribute; the payment joins
  * a pool-level reserve that is excluded from PLP NAV and later allocated to expiry
- * markets by the normal rebalance flow.
+ * markets by the normal rebalance flow. A contribution is not earmarked to its
+ * sponsor: admin can withdraw any of the reserve through
+ * `withdraw_fee_incentives`.
  */
 export function sponsorFeeIncentives(options: SponsorFeeIncentivesOptions) {
 	const packageAddress =
@@ -890,6 +901,58 @@ export function sponsorFeeIncentives(options: SponsorFeeIncentivesOptions) {
 			package: packageAddress,
 			module: 'plp',
 			function: 'sponsor_fee_incentives',
+			arguments: normalizeMoveArguments(
+				{
+					...options.arguments,
+					vault: options.arguments?.vault ?? options.config?.poolVault,
+					config: options.arguments?.config ?? options.config?.protocolConfig,
+				},
+				argumentsTypes,
+				parameterNames,
+			),
+		});
+}
+export interface WithdrawFeeIncentivesArguments {
+	vault?: RawTransactionArgument<string>;
+	AdminCap: RawTransactionArgument<string>;
+	config?: RawTransactionArgument<string>;
+	amount: RawTransactionArgument<number | bigint>;
+}
+export interface WithdrawFeeIncentivesOptions {
+	package?: string;
+	arguments: WithdrawFeeIncentivesArguments;
+	config?: {
+		poolVault: ConfigValue;
+		protocolConfig: ConfigValue;
+		predictPackageId?: string;
+	};
+}
+/**
+ * Withdraw `amount` USDC of sponsor-funded fee incentives from the pool-level
+ * reserve, for sponsorship the protocol no longer wants to spend. Admin-only.
+ *
+ * Reaches the reserve only. Incentives already allocated to a live market stay in
+ * that market's `fee_incentive_balance` and return to the reserve when its
+ * settled-market sweep runs, after which they can be withdrawn here; setting
+ * `protocol_config::set_fee_incentive_subsidy_rate` to zero stops them being spent
+ * in the meantime. The per-expiry lifetime allocation counters are not credited
+ * back: they bound what a market may ever receive, and a withdrawal does not
+ * change what a market already received.
+ *
+ * Not gated on the valuation flag, in either stage of a flush: the reserve is
+ * excluded from PLP NAV and no flush figure, frozen or live, reads it, so a
+ * withdrawal cannot reach the mark.
+ */
+export function withdrawFeeIncentives(options: WithdrawFeeIncentivesOptions) {
+	const packageAddress =
+		options.package ?? options.config?.predictPackageId ?? '@local-pkg/deepbook_predict';
+	const argumentsTypes = [null, null, null, 'u64'] satisfies (string | null)[];
+	const parameterNames = ['vault', 'AdminCap', 'config', 'amount'];
+	return (tx: Transaction) =>
+		tx.moveCall({
+			package: packageAddress,
+			module: 'plp',
+			function: 'withdraw_fee_incentives',
 			arguments: normalizeMoveArguments(
 				{
 					...options.arguments,
@@ -925,7 +988,7 @@ export interface AddUsdcToPlpOptions {
  * `total_supply`, which raises NAV per PLP for every current holder. It
  * deliberately does not touch the profit basis — the basis tracks cash sent to and
  * returned from expiries, so an outside contribution is neither a debit nor a
- * credit, and the protocol reserve therefore takes no cut of it (`lp_pool_value`
+ * credit, and the protocol reserve therefore takes no cut of it (`pool_value`
  * leaves `exclusion` unchanged while `gross_pool_value` grows). Sending the same
  * USDC through `request_supply` instead mints shares against it, so only the
  * supply fee would reach existing holders — zero as shipped.

@@ -146,6 +146,23 @@ describe('builder fee and sponsor subsidy', () => {
 		expect(starved.raw.subsidy).toBe(1n);
 		expect(mint().raw.subsidy).toBe(0n); // no sponsorship by default
 	});
+
+	// From delayed execution (DBU-885) the rate is admin-set and read from the chain.
+	test('the subsidy follows the admin-set rate, 20% by default', () => {
+		const half = mint({
+			feeIncentiveBalance: 1_000_000_000n,
+			feeIncentiveSubsidyRate: 500_000_000n,
+		});
+		expect(half.raw.subsidy).toBe(half.raw.tradingFee / 2n);
+		const off = mint({ feeIncentiveBalance: 1_000_000_000n, feeIncentiveSubsidyRate: 0n });
+		expect(off.raw.subsidy).toBe(0n);
+		expect(off.raw.cost).toBe(off.raw.premium + off.raw.tradingFee);
+		expect(cost.feeIncentiveSubsidy(1_000n, 10_000n)).toBe(200n);
+		expect(cost.feeIncentiveSubsidy(1_000n, 10_000n, 300_000_000n)).toBe(300n);
+		expect(() => cost.feeIncentiveSubsidy(1_000n, 10_000n, 1_000_000_001n)).toThrow(
+			PredictInputError,
+		);
+	});
 });
 
 describe('congestion surcharge', () => {
@@ -449,6 +466,28 @@ describe('order IDs', () => {
 			higherTick: cost.POS_INF_TICK,
 			quantity: TEN_THOUSAND_LOTS,
 		});
+	});
+
+	test('settledPayout pays a range holding the settlement price, rounded up to the tick', () => {
+		const tick = 10_000_000n; // $0.01 at 1e9 price scaling
+		const usd120 = 120_000_000_000n;
+		const up = pack(12_000n, cost.POS_INF_TICK, 10_000n, 0n); // above $120
+		const down = pack(0n, 12_000n, 10_000n, 0n); // at or below $120
+		const range = pack(12_000n, 12_010n, 10_000n, 0n); // ($120, $120.10]
+		// Exactly on the strike: down pays, up doesn't.
+		expect(cost.settledPayout(up, usd120, tick)).toBe(0n);
+		expect(cost.settledPayout(down, usd120, tick)).toBe(TEN_THOUSAND_LOTS);
+		// Any amount above the strike rounds up to the next tick: up pays, down doesn't.
+		expect(cost.settledPayout(up, usd120 + 1n, tick)).toBe(TEN_THOUSAND_LOTS);
+		expect(cost.settledPayout(down, usd120 + 1n, tick)).toBe(0n);
+		// A finite range includes its higher edge and excludes its lower one.
+		expect(cost.settledPayout(range, usd120 + 100_000_000n, tick)).toBe(TEN_THOUSAND_LOTS);
+		expect(cost.settledPayout(range, usd120 + 100_000_001n, tick)).toBe(0n);
+		expect(cost.settledPayout(range, usd120, tick)).toBe(0n);
+	});
+
+	test('settledPayout refuses a zero tick size', () => {
+		expect(() => cost.settledPayout(pack(0n, 12_000n, 1n, 0n), 1n, 0n)).toThrow(/tickSizeRaw/);
 	});
 
 	test('maps sentinel ticks to the infinite sides a quote takes', () => {

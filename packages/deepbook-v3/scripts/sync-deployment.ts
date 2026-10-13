@@ -24,7 +24,7 @@
  *   pnpm --filter @mysten/deepbook-v3 sync-deployment:format
  */
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { parse } from '@iarna/toml';
 
@@ -38,7 +38,8 @@ const DEFAULT_MANIFEST = '../../../deepbookv3/packages/predict/deployment/deploy
 // those only the `coinTypes` key is read here. v8 -> v9 adds and removes no keys at all: the two
 // manifests' key sets are identical, and their `initialConfiguration.units` agree field for
 // field. This script reads only `packages`, `objects`, `coinTypes`, `underlyings`,
-// `initialConfiguration.units` and `sourceCommit`, all present in both.
+// `initialConfiguration.units` and `sourceCommit`, all present in both, plus
+// `oracleDependencies.pythLazerState` once the network records delayed execution.
 const SUPPORTED_SCHEMA = [8, 9];
 
 interface Manifest {
@@ -52,6 +53,7 @@ interface Manifest {
 	objects: Record<string, string>;
 	underlyings: Record<string, Record<string, unknown>>;
 	initialConfiguration: { units: Record<string, number> };
+	oracleDependencies?: Record<string, string>;
 }
 
 function arg(name: string): string | undefined {
@@ -206,6 +208,51 @@ function publication(name: 'predict' | 'sessions'): { latest: string; original: 
 }
 const predict = publication('predict');
 const sessions = publication('sessions');
+
+// Delayed execution's two fresh packages. The deployment manifest predates them (the Predict
+// upgrade publishes them), so their only record is Published.toml, and a network that hasn't
+// rolled out delayed execution has none.
+function freshPublication(
+	name: 'predict_orders' | 'predict_math',
+): { latest: string; original: string } | null {
+	const path = resolve(publishedRoot, 'packages', name, 'Published.toml');
+	if (!existsSync(path)) return null;
+	const records = parse(readFileSync(path, 'utf8')).published as
+		Record<string, Record<string, unknown>> | undefined;
+	const record = records?.[manifest.network];
+	if (!record) return null;
+	const where = `${path}:published.${manifest.network}`;
+	if (record['chain-id'] !== manifest.chainId) {
+		throw new Error(`${where} chain-id does not match the deployment manifest`);
+	}
+	return {
+		latest: reqId(record, 'published-at', where),
+		original: reqId(record, 'original-id', where),
+	};
+}
+const predictOrders = freshPublication('predict_orders');
+const predictMath = freshPublication('predict_math');
+if (Boolean(predictOrders) !== Boolean(predictMath)) {
+	throw new Error(
+		'predict_orders and predict_math must both be recorded for this network, or neither',
+	);
+}
+const delayedPackages = predictOrders
+	? `
+		predictOrders: ${lit(predictOrders.latest)},${
+			predictOrders.original === predictOrders.latest
+				? ''
+				: `
+		predictOrdersV1: ${lit(predictOrders.original)},`
+		}
+		predictMath: ${lit(predictMath!.latest)},`
+	: '';
+const delayedOracle = predictOrders
+	? `
+	oracle: Object.freeze({
+		pythLazerState: ${lit(reqId((manifest.oracleDependencies ?? {}) as Record<string, unknown>, 'pythLazerState', 'oracleDependencies'))},
+	}),`
+	: '';
 if (reqType(c, 'plp', 'coinTypes') !== `${predict.original}::plp::PLP`) {
 	throw new Error('coinTypes.plp must use the original Predict package ID');
 }
@@ -310,7 +357,7 @@ export const ${manifest.network.toUpperCase()}_PREDICT: PredictIds = Object.free
 		predict: ${lit(predict.latest)},
 		predictV1: ${lit(predict.original)},
 		account: ${lit(reqId(p, 'account', 'packages'))},
-		propbook: ${lit(reqId(p, 'propbook', 'packages'))},
+		propbook: ${lit(reqId(p, 'propbook', 'packages'))},${delayedPackages}
 	}),
 	objects: Object.freeze({
 		registry: ${lit(reqId(o, 'registry', 'objects'))},
@@ -332,7 +379,7 @@ export const ${manifest.network.toUpperCase()}_PREDICT: PredictIds = Object.free
 	units: ${manifest.network.toUpperCase()}_UNITS,
 	underlyings: Object.freeze({
 ${underlyings}
-	}),
+	}),${delayedOracle}
 });
 `;
 

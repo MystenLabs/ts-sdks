@@ -119,10 +119,19 @@ test('every generated Predict module with a function or event layout is exported
 			ns && typeof ns === 'object' ? Object.values(ns) : [],
 		),
 	);
+	// The retired entry points are exported through wrappers that keep their shipped argument keys
+	// (`bindings-compat.test.ts`), not as the generated functions.
+	const wrapped: Record<string, string[]> = {
+		'expiry_market.ts': ['mintExactQuantity', 'mintExactAmount', 'mintExactCost', 'redeemLive'],
+		'protocol_config.ts': ['setEwmaParams', 'setEwmaEnabled'],
+	};
 	const files = readdirSync(new URL('../../src/contracts/deepbook_predict/', import.meta.url));
 	const missing: string[] = [];
 	for (const file of files.filter((f) => f.endsWith('.ts'))) {
-		const members = Object.values(await import(`../../src/contracts/deepbook_predict/${file}`));
+		const module = await import(`../../src/contracts/deepbook_predict/${file}`);
+		const members = Object.entries(module)
+			.filter(([name]) => !wrapped[file]?.includes(name))
+			.map(([, member]) => member);
 		const surfaced = file.endsWith('_events.ts') || members.some((m) => typeof m === 'function');
 		if (surfaced && !members.every((m) => exported.has(m))) missing.push(file);
 	}

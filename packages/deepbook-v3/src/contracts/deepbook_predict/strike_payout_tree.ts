@@ -15,28 +15,33 @@
  * anything the caller supplies: rotations are driven by measured subtree height,
  * which bounds depth at `O(log n)` for _every_ tick set rather than in expectation
  * over a random one. Depth is the cost model that matters — each node is a
- * dynamic-field child, and `apply_at` and `settlement_prefix_payout` touch one per
- * level against a per-transaction cached-object ceiling.
+ * dynamic-field child, and `apply_at` and `prefix_pay` touch one per level against
+ * a per-transaction cached-object ceiling.
  *
  * It tracks each order's quantity, which is also its settled payout: a winning
  * order pays its full quantity. Live cash backing is the max-point payout plus a
  * buffer over the disjoint-book gap; the tree's max-point term is the floor anchor
  * of that enforced reserve.
  *
- * Shape carries no value for a consistent index: `combine_summaries` is
- * associative over the in-order sequence, so any arrangement of the same
- * boundaries yields identical summaries, settlement prefixes, and linear-walk
- * totals. That holds only while every prefix is non-negative, which a consistent
- * book guarantees. Under a caller/index desync the settlement walk's underflow
- * abort depends on which prefixes a given shape happens to visit, so it is not a
- * desync detector — the per-boundary underflow in `apply_net_delta` is the
- * authority.
+ * Shape carries no value for a consistent index: `combine` is associative over the
+ * in-order sequence, so any arrangement of the same boundaries yields identical
+ * summaries, settlement prefixes, and linear-walk totals. That holds only while
+ * every prefix is non-negative, which a consistent book guarantees. Under a
+ * caller/index desync the settlement walk's underflow abort depends on which
+ * prefixes a given shape happens to visit, so it is not a desync detector — the
+ * per-boundary underflow in `apply_net` is the authority.
  *
  * The module also owns the valuation snapshot for the resumable flush: while a
  * flush generation is active, each node lazily captures its boundary quantities
  * immediately before its first mutation under that generation (an untouched node
- * is its own snapshot), and `walk_linear_frozen` prices the tree exactly as it
- * stood at the snapshot instant through the same walk the live read uses.
+ * is its own snapshot), and `walk_frozen` prices the tree exactly as it stood at
+ * the snapshot instant through the same walk the live read uses.
+ *
+ * Delayed execution adds pins: a waiting order's boundary ticks, passed in as
+ * `pins` (tick -> count of waiting orders; a key is present only while its count
+ * is positive). Enqueue creates the nodes up front (`ensure_node`), no deletion
+ * path removes a pinned node, and a resolve fill inserts over existing nodes only
+ * (`insert_exist`), so the keeper never creates a node.
  */
 
 import { MoveStruct } from '../utils/index.js';
@@ -61,9 +66,9 @@ export const StrikePayoutTree = new MoveStruct({
 		 */
 		snapshot_seq: U64,
 		/**
-		 * True from `activate_snapshot` until `release_snapshot`/`deactivate_snapshot`.
-		 * While set, mutations capture shadows and emptied nodes with shadow quantities
-		 * are retained for the frozen walk instead of removed.
+		 * True from `snap_on` until `snap_done`/`snap_off`. While set, mutations capture
+		 * shadows and emptied nodes with shadow quantities are retained for the frozen
+		 * walk instead of removed.
 		 */
 		snapshot_active: bcs.bool(),
 		/** `base` as of the snapshot instant, captured eagerly at activation. */
@@ -76,12 +81,11 @@ export const PayoutSummary = new MoveStruct({
 		start: U64,
 		end: U64,
 		/**
-		 * Never exceeds `start`, by construction in `boundary_summary` and
-		 * `combine_summaries`. That bound is what makes `combine_summaries` associative at
-		 * u64 scale — and therefore what makes the tree's shape irrelevant to every value
-		 * it reports. A summary term that could outgrow `start` would break
-		 * shape-independence with no test to catch it, and would also abort
-		 * `strike_exposure`'s plain `total - max` subtraction.
+		 * Never exceeds `start`, by construction in `bound_sum` and `combine`. That bound
+		 * is what makes `combine` associative at u64 scale — and therefore what makes the
+		 * tree's shape irrelevant to every value it reports. A summary term that could
+		 * outgrow `start` would break shape-independence with no test to catch it, and
+		 * would also abort `strike_exposure`'s plain `total - max` subtraction.
 		 */
 		max_payout_prefix_gain: U64,
 	},

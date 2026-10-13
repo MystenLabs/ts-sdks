@@ -7,12 +7,13 @@ import { PredictClient } from '../../src/predict/client.js';
 import { TESTNET_CONFIG as cfg } from '../../src/predict/config/index.js';
 import { accountEvents } from '../../src/account.js';
 import * as orderEvents from '../../src/contracts/deepbook_predict/order_events.js';
-import { PredictInputError } from '../../src/predict/errors.js';
+import { PredictInputError, PredictMoveError } from '../../src/predict/errors.js';
 import type { ReadClient } from '../../src/predict/reads/inspect.js';
 import { POS_INF_TICK } from '../../src/predict/ticks.js';
 import { toGeneratedConfig } from '../../src/predict/config/generated.js';
 import { accountMoveCalls as account } from '../../src/account.js';
 import { deriveAccountWrapperIdFrom, generateAuth } from '../../src/predict/tx/common.js';
+import { LEGACY_CFG } from './queue-fixtures.js';
 
 const OWNER = '0x' + 'ab'.repeat(32);
 const MARKET_ID = '0x' + 'cd'.repeat(32);
@@ -100,7 +101,9 @@ const REDEEMED_EVENT = {
 
 // A mock ReadClient that dispatches canned return values by the first command's
 // move-call function, and counts how many times each function was simulated.
-function mockClient(overrides: { admissionTickSizeRaw?: bigint } = {}) {
+function mockClient(
+	overrides: { admissionTickSizeRaw?: bigint; settlementPriceRaw?: bigint | null } = {},
+) {
 	const counts: Record<string, number> = {};
 	const client = {
 		core: {
@@ -148,6 +151,19 @@ function mockClient(overrides: { admissionTickSizeRaw?: bigint } = {}) {
 						],
 						[bcs.bool().serialize(false).toBytes()],
 						[bcs.option(bcs.u64()).serialize(10_500_000n).toBytes()],
+					];
+				} else if (fn === 'settlement_price') {
+					// An unsettled market's getter aborts in std::option, which the read maps to null.
+					if (overrides.settlementPriceRaw === null) {
+						throw new PredictMoveError('option', 262145n, null);
+					}
+					results = [
+						[
+							bcs
+								.u64()
+								.serialize(overrides.settlementPriceRaw ?? 105_000_005_000_000n)
+								.toBytes(),
+						],
 					];
 				} else if (fn === 'reference_tick') {
 					// mint-at-reference fresh read: tick 10_500_000 (= $105,000 @ $0.01)
@@ -411,6 +427,30 @@ describe('tx.mint (market resolution + unit conversion)', () => {
 		).rejects.toBeInstanceOf(PredictInputError);
 	});
 
+	test('read.settlement: a settled market returns its price and tick size', async () => {
+		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
+		const s = await pc.read.settlement({ underlying: 'BTC', expiryMs: EXPIRY });
+		expect(s).toEqual({
+			marketId: MARKET_ID,
+			expiryMs: BigInt(EXPIRY),
+			settled: true,
+			settlementPrice: 105_000.005,
+			settlementPriceRaw: 105_000_005_000_000n,
+			tickSizeRaw: 10_000_000n,
+		});
+	});
+
+	test('read.settlement: an unsettled market has no price', async () => {
+		const pc = new PredictClient({
+			network: 'testnet',
+			client: mockClient({ settlementPriceRaw: null }).client,
+		});
+		const s = await pc.read.settlement({ underlying: 'BTC', expiryMs: EXPIRY });
+		expect(s.settled).toBe(false);
+		expect(s.settlementPrice).toBeNull();
+		expect(s.settlementPriceRaw).toBeNull();
+	});
+
 	test('read.market: unknown underlying → PredictInputError', async () => {
 		const pc = new PredictClient({ network: 'testnet', client: mockClient().client });
 		await expect(pc.read.market({ underlying: 'DOGE', expiryMs: EXPIRY })).rejects.toThrow(/DOGE/);
@@ -574,7 +614,8 @@ describe('tx.mint (market resolution + unit conversion)', () => {
 
 	test('read.quoteMint dry-runs the mint and computes the all-in cost', async () => {
 		const { client, counts } = mockClient();
-		const pc = new PredictClient({ network: 'testnet', client });
+		// The immediate quote, which a deployment without delayed execution recorded still uses.
+		const pc = new PredictClient({ network: 'testnet', client, config: LEGACY_CFG });
 		const q = await pc.read.quoteMint(
 			OWNER,
 			{ underlying: 'BTC', expiryMs: EXPIRY, strike: 105_000, side: 'up' },
@@ -746,7 +787,7 @@ describe('v2 all-in budget mint', () => {
 	});
 	test('quote simulates the budget mint and decodes v1 events with all fees', async () => {
 		const { client, counts } = mockClient();
-		const pc = new PredictClient({ network: 'testnet', client });
+		const pc = new PredictClient({ network: 'testnet', client, config: LEGACY_CFG });
 		const quote = await pc.read.quoteMintCost(OWNER, market, { spend: 20, minQuantity: 0 });
 		expect(counts.quote_mint_sim).toBe(1);
 		expect(quote.raw.cost).toBe(17_155_000n);
@@ -767,7 +808,7 @@ describe('v2 all-in budget mint', () => {
 
 test('custom latest call target and original event ID remain independent through the facade', async () => {
 	const latest = '0x' + 'ec'.repeat(32);
-	const config = { ...cfg, packages: { ...cfg.packages, predict: latest } };
+	const config = { ...LEGACY_CFG, packages: { ...LEGACY_CFG.packages, predict: latest } };
 	const pc = new PredictClient({ network: 'testnet', client: mockClient().client, config });
 	const market = { underlying: 'BTC', expiryMs: EXPIRY, strike: 105_000, side: 'up' } as const;
 	const tx = await pc.tx.mintCost(OWNER, market, { spend: 20, minQuantity: 0 });
