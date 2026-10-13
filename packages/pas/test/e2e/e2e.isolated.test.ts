@@ -389,8 +389,10 @@ describe.concurrent(
 				}),
 			);
 
+			// Object funds sufficiency is checked during execution, so the withdrawal aborts with
+			// `funds_accumulator::EObjectFundsInsufficient` (abort code 5).
 			await expect(executeTransaction(toolbox, transaction)).rejects.toThrowError(
-				'InsufficientFundsForWithdraw',
+				/abort code: 5, in '0x0+2::funds_accumulator::reserve_object_funds_for_withdrawal'/,
 			);
 		});
 
