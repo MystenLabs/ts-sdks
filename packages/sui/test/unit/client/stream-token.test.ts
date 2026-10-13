@@ -165,4 +165,13 @@ describe('stream resume token codec', () => {
 			),
 		).toThrow();
 	});
+
+	it('rejects tokens with trailing bytes', () => {
+		const bytes = fromBase64(encodeToken(token).slice('sui-stream:'.length));
+		const padded = new Uint8Array(bytes.length + 1);
+		padded.set(bytes);
+		expect(() => decodeToken(`sui-stream:${toBase64(padded)}`)).toThrow(
+			'Invalid or unsupported stream resume token',
+		);
+	});
 });

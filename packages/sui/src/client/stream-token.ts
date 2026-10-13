@@ -44,10 +44,22 @@ const GrpcCursor = bcs
 		},
 	});
 
+// Coverage of -1 means no checkpoint is covered yet, which is distinct from unknown coverage.
+const GrpcCoverage = bcs
+	.enum('GrpcStreamCoverage', {
+		BeforeGenesis: null,
+		Checkpoint: bcs.u64(),
+	})
+	.transform({
+		input: (value: string) => (value === '-1' ? { BeforeGenesis: true } : { Checkpoint: value }),
+		output: (value) => (value.$kind === 'BeforeGenesis' ? '-1' : value.Checkpoint),
+	});
+
 export const GrpcPosition = bcs.struct('GrpcStreamPosition', {
 	cursor: GrpcCursor,
 	checkpoint: bcs.option(bcs.u64()),
-	coveredCheckpoint: bcs.option(bcs.u64()),
+	/** Last fully covered checkpoint, or -1 before any checkpoint is covered. */
+	coveredCheckpoint: bcs.option(GrpcCoverage),
 	/** Boundary immediately before this checkpoint, proven by a terminal scan. */
 	checkpointBoundary: bcs.option(Boundary),
 	transactionIndex: bcs.option(bcs.u64()),
@@ -103,7 +115,13 @@ export function encodeToken(token: InferBcsInput<typeof Token>): string {
 export function decodeToken(value: string): StreamToken {
 	try {
 		if (!value.startsWith(TOKEN_PREFIX)) throw new Error();
-		return Token.parse(fromBase64(value.slice(TOKEN_PREFIX.length)));
+		const bytes = fromBase64(value.slice(TOKEN_PREFIX.length));
+		const token = Token.parse(bytes);
+		const canonical = Token.serialize(token as InferBcsInput<typeof Token>).toBytes();
+		if (canonical.length !== bytes.length || !canonical.every((byte, i) => byte === bytes[i])) {
+			throw new Error();
+		}
+		return token;
 	} catch {
 		throw new Error('Invalid or unsupported stream resume token');
 	}

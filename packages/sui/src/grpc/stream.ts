@@ -105,13 +105,21 @@ function comparePositions(a: StreamPosition, b: StreamPosition): number | undefi
  * Last checkpoint known to be fully covered at an ascending position. Item
  * metadata bounds coverage when the response omitted its watermark checkpoint:
  * a checkpoint item covers its own checkpoint, and a transaction or event item
- * covers every earlier checkpoint. Returns -1 when nothing is covered.
+ * covers every earlier checkpoint. Returns -1 when nothing is covered yet, which
+ * is a known floor; undefined means the coverage is unknown.
  */
 function coverageFloor(p: StreamPosition, family: Family): bigint | undefined {
 	if (p.coveredCheckpoint != null) return BigInt(p.coveredCheckpoint);
 	if (p.cursor === 'genesis') return -1n;
 	if (p.checkpoint == null) return undefined;
 	return BigInt(p.checkpoint) - (family === 'checkpoints' ? 0n : 1n);
+}
+
+/** Coverage reported to callers; nothing covered yet (-1) is reported as absent. */
+function publicCoverage(p: StreamPosition): string | undefined {
+	return p.coveredCheckpoint != null && BigInt(p.coveredCheckpoint) >= 0n
+		? p.coveredCheckpoint
+		: undefined;
 }
 
 function position(frame: RawFrame, family: Family, live: boolean): StreamPosition {
@@ -264,7 +272,7 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 				position: p,
 				frame: {
 					...mapItem(frame, include),
-					...(include?.progress ? { coveredCheckpoint: p.coveredCheckpoint ?? undefined } : {}),
+					...(include?.progress ? { coveredCheckpoint: publicCoverage(p) } : {}),
 				},
 			};
 		}
@@ -272,7 +280,7 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 			$kind: 'progress',
 			position: p,
 			frame: include?.progress
-				? { $kind: 'Progress', coveredCheckpoint: p.coveredCheckpoint ?? undefined }
+				? { $kind: 'Progress', coveredCheckpoint: publicCoverage(p) }
 				: undefined,
 		};
 	}
@@ -309,6 +317,16 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 			request.start.position.coveredCheckpoint != null
 				? BigInt(request.start.position.coveredCheckpoint)
 				: undefined;
+		// Ascending coverage implied by the start bound and delivered items. Progress frames that
+		// report neither an item checkpoint nor watermark coverage carry it forward, so every
+		// published position keeps a coverage floor that a later subscription can recover from,
+		// including a floor of -1 before any checkpoint is covered.
+		let floor =
+			request.order !== 'ascending' || !request.start
+				? undefined
+				: 'checkpoint' in request.start
+					? BigInt(request.start.checkpoint) - 1n
+					: coverageFloor(request.start.position, family);
 		let previousPosition: StreamPosition | undefined;
 		while (true) {
 			const rpc = open({ ...range, filter, readMask }, request.signal, false);
@@ -349,6 +367,12 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 						)
 							throw protocol('Ledger watermark regressed');
 						covered = cp;
+					}
+					if (request.order === 'ascending') {
+						const implied = coverageFloor(final, family);
+						if (implied !== undefined && (floor === undefined || implied > floor)) floor = implied;
+						if (final.coveredCheckpoint == null && final.checkpoint == null && floor !== undefined)
+							final.coveredCheckpoint = floor.toString();
 					}
 					if (frame.end) {
 						end = frame.end;
@@ -581,9 +605,15 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 					replayCoverage !== undefined &&
 					(p.coveredCheckpoint == null || BigInt(p.coveredCheckpoint) <= BigInt(replayCoverage));
 				if (!overlaps && !progressBehindReplay) {
+					// Progress without checkpoint information keeps the committed coverage floor.
+					const carried = safe && coverageFloor(safe, family);
 					const committed = {
 						...p,
-						coveredCheckpoint: p.coveredCheckpoint ?? safe?.coveredCheckpoint ?? null,
+						coveredCheckpoint:
+							p.coveredCheckpoint ??
+							(p.checkpoint == null && carried !== undefined
+								? carried.toString()
+								: (safe?.coveredCheckpoint ?? null)),
 					};
 					yield event(current.frame, true, committed)!;
 					safe = committed;

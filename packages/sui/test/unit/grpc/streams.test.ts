@@ -1036,3 +1036,121 @@ it('resumes after a delivered item whose watermark omitted checkpoint coverage',
 	expect(requests[1].options?.after).toEqual(cursor(100));
 	expect(requests[1].options?.before).toEqual(cursor(101));
 });
+
+it(
+	'resumes after progress that followed an item whose watermark omitted checkpoint coverage',
+	{
+		timeout: 5000,
+	},
+	async () => {
+		const c = client();
+		const partial = item(100);
+		partial.watermark!.checkpoint = undefined;
+		const progress = new Uint8Array([255, 7, 1]);
+		const requests: GrpcTypes.ListEventsRequest[] = [];
+		c.ledgerService.listEvents = ((request: GrpcTypes.ListEventsRequest, options: RpcOptions) => {
+			requests.push(request);
+			return requests.length === 1
+				? script(
+						[partial, { watermark: { cursor: progress } }],
+						options.abort,
+						new RpcError('lost', 'UNAVAILABLE'),
+					)
+				: script([{ watermark: {}, end: { reason: End.CURSOR_BOUND } }], options.abort);
+		}) as never;
+		let connections = 0;
+		c.subscriptionService.subscribeEvents = ((_request: object, options: RpcOptions) => {
+			connections++;
+			return script([item(101)], options.abort, undefined, true);
+		}) as never;
+		const frames: { $kind: string; checkpoint?: string; coveredCheckpoint?: string }[] = [];
+		for await (const frame of c.streamEvents({
+			start: { checkpoint: '100' },
+			include: { progress: true },
+			retry: { initialDelay: 0, jitter: 0 },
+		})) {
+			frames.push(
+				frame.$kind === 'Event'
+					? { $kind: 'Event', checkpoint: frame.event.checkpoint! }
+					: { $kind: frame.$kind, coveredCheckpoint: frame.coveredCheckpoint },
+			);
+			if (frame.$kind === 'Event' && frame.event.checkpoint === '101') break;
+		}
+		expect(frames).toEqual([
+			{ $kind: 'Event', checkpoint: '100' },
+			{ $kind: 'Progress', coveredCheckpoint: '99' },
+			{ $kind: 'Event', checkpoint: '101' },
+		]);
+		expect(connections).toBe(2);
+		expect(requests).toHaveLength(2);
+		expect(requests[1].options?.after).toEqual(progress);
+		expect(requests[1].options?.before).toEqual(cursor(101));
+	},
+);
+
+it(
+	'resumes after progress that followed a genesis item whose watermark omitted checkpoint coverage',
+	{
+		timeout: 5000,
+	},
+	async () => {
+		const c = client();
+		const genesis = item(0);
+		genesis.watermark!.checkpoint = undefined;
+		const progress = new Uint8Array([255, 7, 0]);
+		const requests: GrpcTypes.ListEventsRequest[] = [];
+		c.ledgerService.listEvents = ((request: GrpcTypes.ListEventsRequest, options: RpcOptions) => {
+			requests.push(request);
+			return requests.length === 1
+				? script(
+						[genesis, { watermark: { cursor: progress } }],
+						options.abort,
+						new RpcError('lost', 'UNAVAILABLE'),
+					)
+				: script([{ watermark: {}, end: { reason: End.CURSOR_BOUND } }], options.abort);
+		}) as never;
+		let connections = 0;
+		c.subscriptionService.subscribeEvents = ((_request: object, options: RpcOptions) => {
+			connections++;
+			return script([item(1)], options.abort, undefined, true);
+		}) as never;
+		const frames: { $kind: string; checkpoint?: string; coveredCheckpoint?: string }[] = [];
+		const tokens: string[] = [];
+		for await (const frame of c.streamEvents({
+			start: { checkpoint: '0' },
+			include: { progress: true },
+			retry: { initialDelay: 0, jitter: 0 },
+		})) {
+			tokens.push(frame.resumeToken);
+			frames.push(
+				frame.$kind === 'Event'
+					? { $kind: 'Event', checkpoint: frame.event.checkpoint! }
+					: { $kind: frame.$kind, coveredCheckpoint: frame.coveredCheckpoint },
+			);
+			if (frame.$kind === 'Event' && frame.event.checkpoint === '1') break;
+		}
+		expect(frames).toEqual([
+			{ $kind: 'Event', checkpoint: '0' },
+			{ $kind: 'Progress', coveredCheckpoint: undefined },
+			{ $kind: 'Event', checkpoint: '1' },
+		]);
+		expect(connections).toBe(2);
+		expect(requests).toHaveLength(2);
+		expect(requests[1].options?.after).toEqual(progress);
+		expect(requests[1].options?.before).toEqual(cursor(1));
+
+		// The progress token keeps its before-genesis coverage and recovers the same way.
+		const resumedRequests: GrpcTypes.ListEventsRequest[] = [];
+		c.ledgerService.listEvents = ((request: GrpcTypes.ListEventsRequest, options: RpcOptions) => {
+			resumedRequests.push(request);
+			return script([{ watermark: {}, end: { reason: End.CURSOR_BOUND } }], options.abort);
+		}) as never;
+		for await (const frame of c.streamEvents({ start: { resumeToken: tokens[1] } })) {
+			expect(frame.$kind === 'Event' && frame.event.checkpoint).toBe('1');
+			break;
+		}
+		expect(resumedRequests).toHaveLength(1);
+		expect(resumedRequests[0].options?.after).toEqual(progress);
+		expect(resumedRequests[0].options?.before).toEqual(cursor(1));
+	},
+);
