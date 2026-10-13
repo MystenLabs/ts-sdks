@@ -4,7 +4,6 @@
 import path from 'path';
 import type { SuiClientTypes } from '@mysten/sui/client';
 import { FaucetRateLimitError, getFaucetHost, requestSuiFromFaucetV2 } from '@mysten/sui/faucet';
-import { SuiGraphQLClient } from '@mysten/sui/graphql';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { Transaction } from '@mysten/sui/transactions';
@@ -18,7 +17,6 @@ import { KioskTransaction } from '../../src/index.js';
 
 const DEFAULT_FAUCET_URL = process.env.FAUCET_URL ?? getFaucetHost('localnet');
 const DEFAULT_FULLNODE_URL = process.env.FULLNODE_URL ?? 'http://127.0.0.1:9000';
-const DEFAULT_GRAPHQL_URL = process.env.GRAPHQL_URL ?? 'http://127.0.0.1:9125/graphql';
 
 export class TestToolbox {
 	keypair: Ed25519Keypair;
@@ -36,20 +34,11 @@ export class TestToolbox {
 	}
 }
 
-const graphqlClient = new SuiGraphQLClient({
-	network: 'localnet',
-	url: DEFAULT_GRAPHQL_URL,
-});
-
 export function getClient(): SuiGrpcClient {
-	const client = new SuiGrpcClient({
+	return new SuiGrpcClient({
 		network: 'localnet',
 		baseUrl: DEFAULT_FULLNODE_URL,
 	});
-	// Kiosk finds transfer policies through `listEvents`, which the pinned localnet image's gRPC
-	// server does not implement yet. Serve it from the localnet GraphQL endpoint until it does.
-	client.core.listEvents = (options) => graphqlClient.core.listEvents(options);
-	return client;
 }
 
 // TODO: expose these testing utils from @mysten/sui
@@ -217,10 +206,7 @@ export async function executeTransaction(
 			`Transaction failed: ${result.FailedTransaction.status.error?.message ?? 'unknown error'}`,
 		);
 	}
-	await Promise.all([
-		toolbox.client.core.waitForTransaction({ result }),
-		graphqlClient.core.waitForTransaction({ result }),
-	]);
+	await toolbox.client.core.waitForTransaction({ result });
 	return result.Transaction;
 }
 
