@@ -33,6 +33,11 @@ goal:
       label: Needs answer summary for AI citation
 ---
 
+<Callout type="info">
+	`SuiJsonRpcClient` was removed in `@mysten/sui` 3.0. This guide still applies when moving JSON-RPC
+	code to gRPC or GraphQL; see [Migrate to 3.0](/sui/migrations/sui-3.0) for the other 3.0 changes.
+</Callout>
+
 JSON-RPC APIs are deprecated in the Sui TypeScript SDK. For most application code, migrate from
 `SuiJsonRpcClient` to [`SuiGrpcClient`](/sui/clients/grpc) and call the gRPC client's top-level
 methods. Use [`SuiGraphQLClient`](/sui/clients/graphql) when the code needs custom indexed queries,
@@ -462,11 +467,13 @@ SDK code should call the same method through `client.core`.
 
 Common transaction filter mappings:
 
-| JSON-RPC Filter                                                   | gRPC/GraphQL Top-Level Filter                         |
-| ----------------------------------------------------------------- | ----------------------------------------------------- |
-| `FromAddress`                                                     | `sender`                                              |
-| `MoveFunction`                                                    | `function`                                            |
-| `ToAddress`, `FromOrToAddress`, `ChangedObject`, `AffectedObject` | Use raw gRPC ledger filters or a custom GraphQL query |
+| JSON-RPC Filter                   | gRPC/GraphQL Top-Level Filter                                                                                                                                                                                                     |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `FromAddress`                     | `sender`                                                                                                                                                                                                                          |
+| `MoveFunction`                    | `function`                                                                                                                                                                                                                        |
+| `ToAddress`, `FromOrToAddress`    | `affectedAddress` (3.0+): every transaction that changed the address's objects or balance, which includes ordinary outgoing transactions; GraphQL additionally matches sent or sponsored transactions that caused no state change |
+| `ChangedObject`, `AffectedObject` | `affectedObject` (3.0+)                                                                                                                                                                                                           |
+| `Checkpoint`                      | `startCheckpoint` / `endCheckpoint` (3.0+). `endCheckpoint` is exclusive, so `{ Checkpoint: n }` becomes `startCheckpoint: n, endCheckpoint: n + 1`                                                                               |
 
 The response contains normalized transaction results plus ledger-position cursors:
 
