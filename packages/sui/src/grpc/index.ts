@@ -23,8 +23,18 @@ export type {
 } from './client.js';
 export type { GrpcCoreClientOptions } from './core.js';
 
-// Subclasses `@protobuf-ts/grpcweb-transport`'s transport to fix its error handling.
-export { GrpcWebFetchTransport } from './transport.js';
+// Subclasses `@protobuf-ts/grpcweb-transport`'s transport to fix its error handling and to read
+// server streams on demand.
+export {
+	GrpcWebFetchTransport,
+	grpcStatusFromAbortReason,
+	hasDecodedStatusMessage,
+	markGrpcStatusMessageDecoded,
+	normalizeGrpcError,
+} from './transport.js';
+export type { GrpcWebFetchTransportOptions } from './transport.js';
+export { isNonRetryable, markNonRetryable, supportsServerStreamingIterable } from './pull.js';
+export type { PullServerStreamingTransport, ServerStreamingIterableCall } from './pull.js';
 
 // Re-exported so users can configure a transport, and narrow and code the errors it produces,
 // without adding @protobuf-ts/* as a dependency.

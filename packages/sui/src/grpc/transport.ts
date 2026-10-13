@@ -17,6 +17,10 @@ import {
 	CLIENT_PROTOCOL_VERSION_HEADER,
 	MAX_PROTOCOL_VERSION,
 } from '../client/protocol-version.js';
+import { grpcWebServerStreamingIterable } from './grpc-web-pull.js';
+import type { GrpcWebPullOptions } from './grpc-web-pull.js';
+import { supportsServerStreamingIterable } from './pull.js';
+import type { PullServerStreamingTransport, ServerStreamingIterableCall } from './pull.js';
 
 // A failed call rejects four promises with the same error, so it is only decoded once. Registered
 // globally so another installed copy of this package sees the same marker.
@@ -34,7 +38,11 @@ function decodeGrpcStatusMessage(message: string): string {
 	}
 }
 
-function markStatusMessageRead(error: RpcError): boolean {
+/**
+ * Marks `error.message` as already percent-decoded, so `normalizeGrpcError` leaves it unchanged.
+ * Returns `false` when it was already marked.
+ */
+export function markGrpcStatusMessageDecoded(error: RpcError): boolean {
 	if (MESSAGE_DECODED in error) return false;
 	Object.defineProperty(error, MESSAGE_DECODED, { value: true, configurable: true });
 
@@ -42,10 +50,10 @@ function markStatusMessageRead(error: RpcError): boolean {
 }
 
 function decodeStatusMessageOnce(error: RpcError): void {
-	if (markStatusMessageRead(error)) error.message = decodeGrpcStatusMessage(error.message);
+	if (markGrpcStatusMessageDecoded(error)) error.message = decodeGrpcStatusMessage(error.message);
 }
 
-/** Whether this package's transport decoded the error's status text. */
+/** Whether the error's status text was already percent-decoded. */
 export function hasDecodedStatusMessage(error: object): boolean {
 	return MESSAGE_DECODED in error;
 }
@@ -62,9 +70,12 @@ function readProperty(value: unknown, key: 'code' | 'name' | 'message'): unknown
 	}
 }
 
-// The reason is read by shape, since another copy of runtime-rpc or another realm fails
-// `instanceof`. `AbortSignal.timeout` aborts with a `TimeoutError`.
-function abortStatus(reason: unknown): string {
+/**
+ * The status code name for a call aborted with `reason`: the reason's own `code` when it is a
+ * status name, `DEADLINE_EXCEEDED` for a `TimeoutError` (as from `AbortSignal.timeout`), and
+ * `CANCELLED` otherwise. The reason is read by shape, so it works across realms and package copies.
+ */
+export function grpcStatusFromAbortReason(reason: unknown): string {
 	const code = readProperty(reason, 'code');
 
 	// A status name maps to a number; `in` would also match the enum's reverse mapping.
@@ -91,9 +102,12 @@ function isAbortReasonText(message: string, reason: unknown): boolean {
 	return typeof reasonMessage === 'string' && message === reasonMessage;
 }
 
-// Rewritten in place, so every promise a call rejects surfaces the same error. Only the two codes
-// upstream uses for an abort are re-coded; a failure that raced the abort is relabelled with it.
-function normalizeGrpcError(error: unknown, signal: AbortSignal | undefined): void {
+/**
+ * Rewrites an `RpcError` in place as `SuiGrpcClient` reports it: the percent-encoded status text is
+ * decoded once, and an `INTERNAL` or `CANCELLED` error of a call whose `signal` was aborted is
+ * re-coded with `grpcStatusFromAbortReason`. Other values are ignored, and it never throws.
+ */
+export function normalizeGrpcError(error: unknown, signal: AbortSignal | undefined): void {
 	try {
 		normalize(error, signal);
 	} catch {
@@ -110,12 +124,13 @@ function normalize(error: unknown, signal: AbortSignal | undefined): void {
 		(error.code === GrpcStatusCode[GrpcStatusCode.INTERNAL] ||
 			error.code === GrpcStatusCode[GrpcStatusCode.CANCELLED])
 	) {
-		error.code = abortStatus(signal.reason);
+		error.code = grpcStatusFromAbortReason(signal.reason);
 
-		// Text the abort reason supplied is local and holds nothing to decode; anything else came off
-		// the wire, even though the abort is what the caller sees. Settled here for the other promises
-		// the call rejects, which no longer match the codes above.
-		if (isAbortReasonText(error.message, signal.reason)) markStatusMessageRead(error);
+		// A failure that raced the abort is relabelled with it. Text the abort reason supplied is
+		// local and holds nothing to decode; anything else came off the wire, even though the abort is
+		// what the caller sees. Settled here for the other promises the call rejects, which no longer
+		// match the codes above.
+		if (isAbortReasonText(error.message, signal.reason)) markGrpcStatusMessageDecoded(error);
 		else decodeStatusMessageOnce(error);
 
 		return;
@@ -173,16 +188,28 @@ function streamFetch(fetch: typeof globalThis.fetch): typeof globalThis.fetch {
 	};
 }
 
+export interface GrpcWebFetchTransportOptions extends GrpcWebOptions {
+	/**
+	 * Largest response message `serverStreamingIterable` accepts, in bytes. Checked against the
+	 * declared frame length before the frame is buffered. Defaults to 64 MiB.
+	 */
+	maxResponseMessageBytes?: number;
+}
+
 /**
  * `GrpcWebFetchTransport` from `@protobuf-ts/grpcweb-transport`, subclassed to decode status
- * messages, to code an aborted call from its reason rather than as `INTERNAL`, and to send the
- * `x-sui-client-protocol-version` header.
+ * messages, to code an aborted call from its reason rather than as `INTERNAL`, to send the
+ * `x-sui-client-protocol-version` header, and to read server streams on demand with
+ * `serverStreamingIterable`.
  *
  * `SuiGrpcClient` builds one by default. A transport imported from `@protobuf-ts/grpcweb-transport`
  * keeps that package's behaviour.
  */
-export class GrpcWebFetchTransport extends UpstreamGrpcWebFetchTransport {
-	constructor(options: GrpcWebOptions) {
+export class GrpcWebFetchTransport
+	extends UpstreamGrpcWebFetchTransport
+	implements PullServerStreamingTransport
+{
+	constructor(options: GrpcWebFetchTransportOptions) {
 		// Lets the server avoid sending types this SDK cannot decode. Caller-supplied `meta` wins.
 		super({
 			...options,
@@ -221,6 +248,26 @@ export class GrpcWebFetchTransport extends UpstreamGrpcWebFetchTransport {
 
 		return call;
 	}
+
+	/**
+	 * A server-streaming call whose response body is read, and messages decoded, only while the
+	 * consumer waits on `responses.next()`. Interceptors are not applied.
+	 */
+	serverStreamingIterable<I extends object, O extends object>(
+		method: MethodInfo<I, O>,
+		input: I,
+		options: RpcOptions,
+	): ServerStreamingIterableCall<I, O> {
+		const opt = options as GrpcWebPullOptions;
+
+		return grpcWebServerStreamingIterable(
+			method,
+			input,
+			this.makeUrl(method, opt),
+			opt,
+			normalizeGrpcError,
+		);
+	}
 }
 
 /** Adds SDK metadata without mutating the caller's transport or its default options. */
@@ -240,5 +287,8 @@ export function withClientProtocolVersion(transport: RpcTransport): RpcTransport
 		serverStreaming: transport.serverStreaming.bind(transport),
 		clientStreaming: transport.clientStreaming.bind(transport),
 		duplex: transport.duplex.bind(transport),
+		...(supportsServerStreamingIterable(transport) && {
+			serverStreamingIterable: transport.serverStreamingIterable.bind(transport),
+		}),
 	};
 }
