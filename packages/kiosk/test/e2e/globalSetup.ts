@@ -8,7 +8,6 @@ import type { TestProject } from 'vitest/node';
 declare module 'vitest' {
 	export interface ProvidedContext {
 		localnetPort: number;
-		graphqlPort: number;
 		faucetPort: number;
 		suiToolsContainerId: string;
 	}
@@ -17,8 +16,8 @@ declare module 'vitest' {
 const SUI_TOOLS_TAG =
 	process.env.SUI_TOOLS_TAG ||
 	(process.arch === 'arm64'
-		? 'e04cf9aa915cb6c069092733bebc3648755998e2-arm64'
-		: 'e04cf9aa915cb6c069092733bebc3648755998e2');
+		? '987123842623d6cb0e772dc665789cfd69bdec9f-arm64'
+		: '987123842623d6cb0e772dc665789cfd69bdec9f');
 
 export default async function setup(project: TestProject) {
 	console.log('Starting test containers');
@@ -42,14 +41,13 @@ export default async function setup(project: TestProject) {
 			'start',
 			'--with-faucet',
 			'--force-regenesis',
-			'--with-graphql',
 			`--with-indexer=postgres://postgres:postgrespw@${pg.getIpAddress(network.getName())}:5432/sui_indexer_v2`,
 		])
 		.withCopyDirectoriesToContainer([
 			{ source: resolve(__dirname, './data'), target: '/test-data' },
 		])
 		.withNetwork(network)
-		.withExposedPorts(9000, 9123, 9124, 9125)
+		.withExposedPorts(9000, 9123)
 		.withLogConsumer((stream) => {
 			stream.on('data', (data) => {
 				console.log(data.toString());
@@ -59,6 +57,5 @@ export default async function setup(project: TestProject) {
 
 	project.provide('faucetPort', localnet.getMappedPort(9123));
 	project.provide('localnetPort', localnet.getMappedPort(9000));
-	project.provide('graphqlPort', localnet.getMappedPort(9125));
 	project.provide('suiToolsContainerId', localnet.getId());
 }
