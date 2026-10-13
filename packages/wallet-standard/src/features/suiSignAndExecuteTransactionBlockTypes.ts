@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Response types for the deprecated `sui:signAndExecuteTransactionBlock` feature.
- *
- * These describe the JSON-RPC transaction response that wallets return from this feature. Use
- * `sui:signAndExecuteTransaction` instead.
+ * The JSON-RPC transaction response types used by the deprecated
+ * `sui:signAndExecuteTransactionBlock` feature, exported from this package as the `SuiJsonRpcTypes`
+ * namespace. Every type here is deprecated; use `sui:signAndExecuteTransaction` instead.
  */
 
 /** @deprecated Part of the deprecated `sui:signAndExecuteTransactionBlock` feature. */
@@ -436,7 +435,8 @@ export type SuiTransaction =
 	  };
 
 /** @deprecated Part of the deprecated `sui:signAndExecuteTransactionBlock` feature. */
-export type SuiWithdrawFrom = 'sender' | 'sponsor';
+export type SuiWithdrawFrom =
+	'sender' | 'sponsor' | { senderAllowance: { funder: string; allowance: string } };
 
 /** @deprecated Part of the deprecated `sui:signAndExecuteTransactionBlock` feature. */
 export type SuiWithdrawalTypeArg = {
