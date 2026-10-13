@@ -196,34 +196,18 @@ describe('coinWithBalance', () => {
 			version: 2,
 		});
 
-		const { digest } = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+		const result = await toolbox.signAndExecuteTransaction({
 			transaction: tx,
 			signer: keypair,
+			include: { effects: true, balanceChanges: true },
 		});
 
-		const [result] = await Promise.all([
-			toolbox.jsonRpcClient.waitForTransaction({
-				digest,
-				options: { showEffects: true, showBalanceChanges: true },
-			}),
-			toolbox.waitForTransaction({ digest }),
-		]);
-
-		expect(result.effects?.status.status).toBe('success');
-		expect(
-			result.balanceChanges?.find(
-				(change) =>
-					typeof change.owner === 'object' &&
-					'AddressOwner' in change.owner &&
-					change.owner.AddressOwner === receiver.toSuiAddress(),
-			),
-		).toEqual({
-			amount: '12345',
-			coinType: '0x2::sui::SUI',
-			owner: {
-				AddressOwner: receiver.toSuiAddress(),
-			},
-		});
+		expect(result.Transaction?.status.success).toBe(true);
+		const receiverChange = result.Transaction!.balanceChanges.find(
+			(change) => change.address === receiver.toSuiAddress(),
+		);
+		expect(receiverChange?.amount).toBe('12345');
+		expect(normalizeStructTag(receiverChange!.coinType)).toBe(normalizeStructTag('0x2::sui::SUI'));
 	});
 
 	testWithAllClients('works with custom coin', async (client) => {
@@ -891,7 +875,7 @@ describe('coinWithBalance', () => {
 
 	describe('with address balance', () => {
 		it('builds and executes offline with assumed address balances', async () => {
-			const client = toolbox.jsonRpcClient;
+			const client = toolbox.grpcClient;
 			const { keypair, address } = await toolbox.getSigner({
 				coins: [1_000_000_000n, 1_000_000_000n],
 			});
@@ -951,7 +935,7 @@ describe('coinWithBalance', () => {
 		});
 
 		it('uses an explicit gas coin when building offline with a gas reference', async () => {
-			const client = toolbox.jsonRpcClient;
+			const client = toolbox.grpcClient;
 			const { keypair, address } = await toolbox.getSigner({
 				coins: [1_000_000_000n, 1_000_000_000n],
 			});
@@ -2014,7 +1998,9 @@ describe('coinWithBalance', () => {
 		);
 	});
 
-	describe('coin reservation (JSON-RPC only)', () => {
+	// These use client-side resolution so gas selection goes through createCoinReservationRef
+	// in core-resolver.ts instead of being delegated to server-side simulation.
+	describe('coin reservation', () => {
 		/** Build a transaction and extract gas payment from the BCS output. */
 		async function buildAndGetPayment(tx: Transaction, client: ClientWithCoreApi) {
 			const bytes = await tx.build({ client });
@@ -2023,7 +2009,7 @@ describe('coinWithBalance', () => {
 		}
 
 		it('tx.coin with gas type uses coin reservation ref when AB is insufficient', async () => {
-			const client = toolbox.jsonRpcClient;
+			const client = toolbox.clientResolverGrpcClient;
 
 			// Create a fresh signer with coins + address balance
 			const signer = new Ed25519Keypair();
@@ -2098,7 +2084,7 @@ describe('coinWithBalance', () => {
 		});
 
 		it('tx.coin with gas type combines coins + address balance when neither alone is sufficient', async () => {
-			const client = toolbox.jsonRpcClient;
+			const client = toolbox.clientResolverGrpcClient;
 
 			const signer = new Ed25519Keypair();
 
@@ -2168,7 +2154,7 @@ describe('coinWithBalance', () => {
 		});
 
 		it('tx.balance with gas type executes via address balance withdrawal', async () => {
-			const client = toolbox.jsonRpcClient;
+			const client = toolbox.clientResolverGrpcClient;
 
 			const signer = new Ed25519Keypair();
 			const depositAmount = 500_000_000n;
@@ -2225,7 +2211,7 @@ describe('coinWithBalance', () => {
 		});
 
 		it('reservation ref encodes correct balance and epoch', async () => {
-			const client = toolbox.jsonRpcClient;
+			const client = toolbox.clientResolverGrpcClient;
 
 			const signer = new Ed25519Keypair();
 			const depositAmount = 200_000_000n;

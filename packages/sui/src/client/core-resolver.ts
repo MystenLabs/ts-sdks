@@ -171,7 +171,7 @@ async function setGasBudget(
 		include: { effects: true },
 		// The empty payment above is a placeholder for budget estimation, not a real address
 		// balance payment, so the server must simulate with a mocked gas coin rather than
-		// selecting gas. gRPC and GraphQL support this option, and JSON-RPC always mocks gas.
+		// selecting gas.
 		doGasSelection: false,
 	} as SuiClientTypes.SimulateTransactionOptions<{ effects: true }> & { doGasSelection: boolean });
 
