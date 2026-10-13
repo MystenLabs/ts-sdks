@@ -39,7 +39,7 @@ export async function queryTransferPolicy(
 
 	return objects
 		.filter((obj) => !(obj instanceof Error) && obj.content)
-		.map((obj) => {
+		.map((obj): TransferPolicy => {
 			if (obj instanceof Error) {
 				throw obj;
 			}
@@ -56,7 +56,7 @@ export async function queryTransferPolicy(
 				owner: obj.owner,
 				rules: parsed.rules.contents.map((rule) => rule.name),
 				balance: parsed.balance.value.toString(),
-			} as TransferPolicy;
+			};
 		});
 }
 

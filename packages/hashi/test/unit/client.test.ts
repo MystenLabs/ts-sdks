@@ -982,11 +982,11 @@ describe('HashiClient', () => {
 		const SPENT_POOL_ID = '0x' + 'a2'.repeat(32);
 		const TABLE_ID = '0x' + 'a3'.repeat(32);
 
-		/** JSON-RPC `ObjectError` not-found shape: `.code === "notExists"`. */
-		const jsonRpcNotFoundError = () => Object.assign(new Error('not found'), { code: 'notExists' });
+		/** Legacy `ObjectError` not-found shape without `reason`: `.code === "notExists"`. */
+		const notExistsError = () => Object.assign(new Error('not found'), { code: 'notExists' });
 		/** gRPC not-found shape: plain `Error` with `Object <id> not found` message. */
 		const grpcNotFoundError = (id = '0x' + '00'.repeat(32)) => new Error(`Object ${id} not found`);
-		const notFoundError = jsonRpcNotFoundError;
+		const notFoundError = notExistsError;
 
 		/** BCS-encoded BitcoinState with known Bag/Table IDs. */
 		function mockBitcoinStateContent() {
