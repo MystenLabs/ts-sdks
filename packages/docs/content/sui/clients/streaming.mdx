@@ -273,4 +273,42 @@ reached, the SDK closes the live request and recovers through historical reads f
 delivered frame. The default of 1,024 items holds about 15 seconds of an unfiltered transaction
 stream; raise it to keep a longer replay on one subscription.
 
+### Backpressure
+
+With the default gRPC-web transport, a stream reads the response body and decodes messages only
+while your loop waits for the next frame. Pausing the loop stops decoding, and decoded messages do
+not accumulate in JavaScript memory. Leaving the loop cancels the request.
+
+How far the server gets ahead during a pause depends on the runtime's network stack. Node stops
+reading after about 1–2 MB per stream, and the server waits. Chromium buffers up to about 60 MB
+outside the JavaScript heap before the server waits. Firefox and WebKit can buffer the whole
+response in native memory. A server may close a live subscription that falls too far behind; the
+stream then reconnects and resumes like after any other disconnect.
+
+The bounded `maxBufferedItems` queue still applies in these cases:
+
+- During replay, the live subscription is read ahead while history is scanned.
+- A custom `transport` without `serverStreamingIterable` reads `serverStreaming` into the queue.
+- Configured `interceptors` receive push-based calls, so their streams use the queue.
+
+`maxResponseMessageBytes` (default 64 MiB) limits the size of one response message read through
+`serverStreamingIterable`. A larger message fails the stream with `RESOURCE_EXHAUSTED` before its
+payload is buffered, and the stream does not retry it. The limit does not apply to unary calls or to
+streams read through `serverStreaming` (a custom transport without `serverStreamingIterable`, or
+configured `interceptors`):
+
+```typescript
+import { SuiGrpcClient } from '@mysten/sui/grpc';
+
+const client = new SuiGrpcClient({
+	network: 'mainnet',
+	baseUrl: 'https://fullnode.mainnet.sui.io:443',
+	maxResponseMessageBytes: 16 * 1024 * 1024,
+});
+```
+
+A custom transport can implement `serverStreamingIterable` (the `PullServerStreamingTransport`
+interface from `@mysten/sui/grpc`) to read on demand. Use `normalizeGrpcError` and
+`grpcStatusFromAbortReason` so its errors are retried like the default transport's.
+
 For arbitrary GraphQL selection sets, use [native subscriptions](./graphql.mdx#subscriptions).
