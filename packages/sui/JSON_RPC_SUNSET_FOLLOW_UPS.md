@@ -27,12 +27,14 @@ implementing the gRPC/GraphQL mappings, and extending the parity tests.
   (from the effects status) but left undefined by GraphQL, whose `ExecutionError` only exposes the
   function's name. The query parity tests strip it when comparing aborted transactions.
 - **GraphQL can briefly omit an event's checkpoint** — `listEvents` reads the checkpoint from
-  `transaction.effects.checkpoint`, which the server resolves to `null` when the transaction
-  contents it loaded carry no checkpoint. `EventEntry.checkpoint` is non-nullable, so the GraphQL
-  transport throws `listEvents response is missing expected event fields` in that case. It was
-  observed once in e2e runs (an unfiltered read of the first events on a fresh localnet) and not
-  reproduced; if it recurs, retry the page or have the server resolve the checkpoint from the event
-  index instead.
+  `transaction.effects.checkpoint`, which the server resolves to `null` when it serves a very recent
+  transaction before it is assigned to a checkpoint (observed once in e2e runs, on an unfiltered
+  read of the first events on a fresh localnet). The GraphQL transport now looks those checkpoints
+  up by transaction digest (`multiGetTransactionEffects`), retrying up to 3 times 250ms apart, and
+  only throws (`listEvents response is missing the checkpoint for transaction <digest>`) if the lag
+  outlasts that. Pages where every event has a checkpoint cost no extra requests. gRPC `ListEvents`
+  only scans checkpointed ledger data, so it always populates the field. A server-side fix
+  (resolving the checkpoint from the event index) would remove the follow-up lookup.
 
 ## Blocked only by JSON-RPC
 

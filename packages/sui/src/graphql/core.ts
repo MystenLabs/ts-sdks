@@ -30,6 +30,7 @@ import {
 	GetReferenceGasPriceDocument,
 	GetTransactionBlockDocument,
 	ListEventsDocument,
+	GetTransactionCheckpointsDocument,
 	ListTransactionsDocument,
 	MultiGetObjectsDocument,
 	ResolveNameServiceAddressDocument,
@@ -70,6 +71,9 @@ import { toGraphQLEventFilter, toGraphQLTransactionFilter } from './filters.js';
 import { hasNextPageWithinBounds } from './pagination.js';
 
 const GRAPHQL_OBJECT_BATCH_SIZE = 40;
+// Retry schedule for events served before their transaction is assigned to a checkpoint
+const EVENT_CHECKPOINT_RETRY_ATTEMPTS = 3;
+const EVENT_CHECKPOINT_RETRY_DELAY_MS = 250;
 
 export class GraphQLCoreClient extends CoreClient {
 	#graphqlClient: SuiGraphQLClient;
@@ -735,38 +739,48 @@ export class GraphQLCoreClient extends CoreClient {
 		// Backwards pagination returns nodes in ascending order, so reverse them for descending reads
 		const nodes = descending ? [...events.nodes].reverse() : events.nodes;
 
+		const mapped = nodes.map((event) => {
+			const packageId = event.transactionModule?.package?.address;
+			const module = event.transactionModule?.name;
+			const sender = event.sender?.address;
+			const eventType = event.contents?.type?.repr;
+			const transactionDigest = event.transaction?.digest;
+			const checkpoint = event.transaction?.effects?.checkpoint?.sequenceNumber;
+
+			if (!packageId || !module || !sender || !eventType || !transactionDigest) {
+				throw new Error('listEvents response is missing expected event fields');
+			}
+
+			return {
+				packageId: normalizeSuiAddress(packageId),
+				module,
+				sender: normalizeSuiAddress(sender),
+				eventType: normalizeStructTag(eventType),
+				bcs: event.contents?.bcs ? fromBase64(event.contents.bcs) : new Uint8Array(),
+				json: (event.contents?.json as Record<string, unknown>) ?? null,
+				checkpoint: checkpoint == null ? null : String(checkpoint),
+				transactionDigest,
+				eventIndex: event.sequenceNumber,
+			};
+		});
+
+		// The server can serve a very recent transaction before it is assigned to a checkpoint, leaving
+		// `effects.checkpoint` null. Resolve those by digest (only when needed) instead of failing the page.
+		const missingDigests = [
+			...new Set(
+				mapped.flatMap((event) => (event.checkpoint == null ? [event.transactionDigest] : [])),
+			),
+		];
+		const resolvedCheckpoints =
+			missingDigests.length > 0
+				? await this.#resolveTransactionCheckpoints(missingDigests, options.signal)
+				: new Map<string, string>();
+
 		return {
-			events: nodes.map((event): SuiClientTypes.EventEntry => {
-				const packageId = event.transactionModule?.package?.address;
-				const module = event.transactionModule?.name;
-				const sender = event.sender?.address;
-				const eventType = event.contents?.type?.repr;
-				const transactionDigest = event.transaction?.digest;
-				const checkpoint = event.transaction?.effects?.checkpoint?.sequenceNumber;
-
-				if (
-					!packageId ||
-					!module ||
-					!sender ||
-					!eventType ||
-					!transactionDigest ||
-					checkpoint == null
-				) {
-					throw new Error('listEvents response is missing expected event fields');
-				}
-
-				return {
-					packageId: normalizeSuiAddress(packageId),
-					module,
-					sender: normalizeSuiAddress(sender),
-					eventType: normalizeStructTag(eventType),
-					bcs: event.contents?.bcs ? fromBase64(event.contents.bcs) : new Uint8Array(),
-					json: (event.contents?.json as Record<string, unknown>) ?? null,
-					checkpoint: String(checkpoint),
-					transactionDigest,
-					eventIndex: event.sequenceNumber,
-				};
-			}),
+			events: mapped.map((event): SuiClientTypes.EventEntry => ({
+				...event,
+				checkpoint: event.checkpoint ?? resolvedCheckpoints.get(event.transactionDigest)!,
+			})),
 			hasNextPage: await hasNextPageWithinBounds(events.pageInfo, pagination, (page) =>
 				this.#graphqlQuery(
 					{
@@ -780,6 +794,51 @@ export class GraphQLCoreClient extends CoreClient {
 			startCursor: (descending ? events.pageInfo.endCursor : events.pageInfo.startCursor) ?? null,
 			endCursor: (descending ? events.pageInfo.startCursor : events.pageInfo.endCursor) ?? null,
 		};
+	}
+
+	/**
+	 * Looks up the checkpoints of transactions whose events were returned without one. This is
+	 * indexer lag, so it retries a bounded number of times before giving up.
+	 */
+	async #resolveTransactionCheckpoints(
+		digests: string[],
+		signal?: AbortSignal,
+	): Promise<Map<string, string>> {
+		const resolved = new Map<string, string>();
+		let pending = digests;
+
+		for (let attempt = 0; attempt < EVENT_CHECKPOINT_RETRY_ATTEMPTS; attempt++) {
+			if (attempt > 0) {
+				await raceSignal(
+					new Promise((resolve) => setTimeout(resolve, EVENT_CHECKPOINT_RETRY_DELAY_MS)),
+					signal,
+				);
+			}
+
+			const effects = await this.#graphqlQuery(
+				{
+					query: GetTransactionCheckpointsDocument,
+					signal,
+					variables: { digests: pending },
+				},
+				(result) => result.multiGetTransactionEffects,
+			);
+
+			pending = pending.filter((digest, i) => {
+				const checkpoint = effects[i]?.checkpoint?.sequenceNumber;
+				if (checkpoint == null) {
+					return true;
+				}
+				resolved.set(digest, String(checkpoint));
+				return false;
+			});
+
+			if (pending.length === 0) {
+				return resolved;
+			}
+		}
+
+		throw new Error(`listEvents response is missing the checkpoint for transaction ${pending[0]}`);
 	}
 
 	async verifyZkLoginSignature(

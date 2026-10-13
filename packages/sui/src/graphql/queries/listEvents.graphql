@@ -38,3 +38,11 @@ query listEvents($filter: EventFilter, $first: Int, $after: String, $last: Int, 
 		}
 	}
 }
+
+query getTransactionCheckpoints($digests: [String!]!) {
+	multiGetTransactionEffects(keys: $digests) {
+		checkpoint {
+			sequenceNumber
+		}
+	}
+}

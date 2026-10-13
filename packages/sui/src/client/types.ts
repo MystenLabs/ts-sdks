@@ -667,7 +667,11 @@ export namespace SuiClientTypes {
 
 	/** An event returned from a query, along with its position in the ledger. */
 	export interface EventEntry extends Event {
-		/** The sequence number of the checkpoint containing the emitting transaction. */
+		/**
+		 * The sequence number of the checkpoint containing the emitting transaction. Always present:
+		 * the GraphQL transport looks it up by transaction digest when the server returns an event
+		 * before its transaction is assigned to a checkpoint.
+		 */
 		checkpoint: string;
 		/** The digest of the transaction that emitted this event. */
 		transactionDigest: string;
