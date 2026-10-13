@@ -1,5 +1,12 @@
 # @mysten/enoki
 
+## 1.3.0
+
+### Minor Changes
+
+- 7a9b3e5: Add `@mysten/enoki/client` to import the Enoki API client and its types without loading
+  wallet helpers or local zkLogin cryptography.
+
 ## 1.2.31
 
 ## 1.2.30
