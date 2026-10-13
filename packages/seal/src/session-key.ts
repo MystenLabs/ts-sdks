@@ -76,10 +76,6 @@ export class SessionKey {
 		if (ttlMin > 30 || ttlMin < 1) {
 			throw new UserError(`Invalid TTL ${ttlMin}, must be between 1 and 30`);
 		}
-		if (signer && signer.getPublicKey().toSuiAddress() !== address) {
-			throw new UserError('Signer address does not match session key address');
-		}
-
 		this.#address = address;
 		this.#packageId = packageId;
 		this.#mvrName = mvrName;
@@ -160,7 +156,6 @@ export class SessionKey {
 		if (!this.#personalMessageSignature) {
 			try {
 				await verifyPersonalMessageSignature(this.getPersonalMessage(), personalMessageSignature, {
-					address: this.#address,
 					client: this.#suiClient,
 				});
 				this.#personalMessageSignature = personalMessageSignature;

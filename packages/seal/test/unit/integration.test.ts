@@ -602,7 +602,7 @@ describe('Integration test', () => {
 
 		const encryptedObject = EncryptedObject.parse(encryptedBytes);
 
-		// Session key with mismatched sui address and personal msg signature fails.
+		// Address is checked against the signature on server side.
 		const wrongSuiAddress = Ed25519Keypair.generate().getPublicKey().toSuiAddress();
 		const sessionKey = await SessionKey.create({
 			address: wrongSuiAddress,
@@ -611,9 +611,7 @@ describe('Integration test', () => {
 			suiClient,
 		});
 		const sig = await keypair.signPersonalMessage(sessionKey.getPersonalMessage());
-		await expect(sessionKey.setPersonalMessageSignature(sig.signature)).rejects.toThrow(
-			InvalidPersonalMessageSignatureError,
-		);
+		await sessionKey.setPersonalMessageSignature(sig.signature);
 
 		// Wrong txBytes fails to verify.
 		const sessionKey2 = await SessionKey.create({
