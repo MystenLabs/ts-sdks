@@ -380,6 +380,7 @@ export type SimulateTransactionQueryVariables = Exact<{
   includeEvents?: boolean | null | undefined;
   includeBalanceChanges?: boolean | null | undefined;
   includeObjectTypes?: boolean | null | undefined;
+  includeEffectsJson?: boolean | null | undefined;
   includeCommandResults?: boolean | null | undefined;
   includeBcs?: boolean | null | undefined;
   doGasSelection?: boolean | null | undefined;
@@ -397,6 +398,7 @@ export type ExecuteTransactionMutationVariables = Exact<{
   includeEvents?: boolean | null | undefined;
   includeBalanceChanges?: boolean | null | undefined;
   includeObjectTypes?: boolean | null | undefined;
+  includeEffectsJson?: boolean | null | undefined;
   includeBcs?: boolean | null | undefined;
 }>;
 
@@ -410,6 +412,7 @@ export type GetTransactionBlockQueryVariables = Exact<{
   includeEvents?: boolean | null | undefined;
   includeBalanceChanges?: boolean | null | undefined;
   includeObjectTypes?: boolean | null | undefined;
+  includeEffectsJson?: boolean | null | undefined;
   includeBcs?: boolean | null | undefined;
 }>;
 
@@ -427,6 +430,7 @@ export type ListTransactionsQueryVariables = Exact<{
   includeEvents?: boolean | null | undefined;
   includeBalanceChanges?: boolean | null | undefined;
   includeObjectTypes?: boolean | null | undefined;
+  includeEffectsJson?: boolean | null | undefined;
   includeBcs?: boolean | null | undefined;
 }>;
 
@@ -628,7 +632,7 @@ export const Transaction_FieldsFragmentDoc = new TypedDocumentString(`
       epochId
     }
     effectsBcs @include(if: $includeEffects)
-    effectsJson @include(if: $includeObjectTypes)
+    effectsJson @include(if: $includeEffectsJson)
     objectChanges(first: 50) @include(if: $includeObjectTypes) {
       nodes {
         address
@@ -1054,7 +1058,7 @@ fragment OBJECT_OWNER_FIELDS on Owner {
   }
 }`) as unknown as TypedDocumentString<MultiGetObjectsQuery, MultiGetObjectsQueryVariables>;
 export const SimulateTransactionDocument = new TypedDocumentString(`
-    query simulateTransaction($transaction: JSON!, $includeTransaction: Boolean = false, $includeEffects: Boolean = false, $includeEvents: Boolean = false, $includeBalanceChanges: Boolean = false, $includeObjectTypes: Boolean = false, $includeCommandResults: Boolean = false, $includeBcs: Boolean = false, $doGasSelection: Boolean = false, $checksEnabled: Boolean = true) {
+    query simulateTransaction($transaction: JSON!, $includeTransaction: Boolean = false, $includeEffects: Boolean = false, $includeEvents: Boolean = false, $includeBalanceChanges: Boolean = false, $includeObjectTypes: Boolean = false, $includeEffectsJson: Boolean = false, $includeCommandResults: Boolean = false, $includeBcs: Boolean = false, $doGasSelection: Boolean = false, $checksEnabled: Boolean = true) {
   simulateTransaction(
     transaction: $transaction
     doGasSelection: $doGasSelection
@@ -1120,7 +1124,7 @@ export const SimulateTransactionDocument = new TypedDocumentString(`
       epochId
     }
     effectsBcs @include(if: $includeEffects)
-    effectsJson @include(if: $includeObjectTypes)
+    effectsJson @include(if: $includeEffectsJson)
     objectChanges(first: 50) @include(if: $includeObjectTypes) {
       nodes {
         address
@@ -1162,7 +1166,7 @@ export const SimulateTransactionDocument = new TypedDocumentString(`
   }
 }`) as unknown as TypedDocumentString<SimulateTransactionQuery, SimulateTransactionQueryVariables>;
 export const ExecuteTransactionDocument = new TypedDocumentString(`
-    mutation executeTransaction($transactionDataBcs: Base64!, $signatures: [Base64!]!, $includeTransaction: Boolean = false, $includeEffects: Boolean = false, $includeEvents: Boolean = false, $includeBalanceChanges: Boolean = false, $includeObjectTypes: Boolean = false, $includeBcs: Boolean = false) {
+    mutation executeTransaction($transactionDataBcs: Base64!, $signatures: [Base64!]!, $includeTransaction: Boolean = false, $includeEffects: Boolean = false, $includeEvents: Boolean = false, $includeBalanceChanges: Boolean = false, $includeObjectTypes: Boolean = false, $includeEffectsJson: Boolean = false, $includeBcs: Boolean = false) {
   executeTransaction(
     transactionDataBcs: $transactionDataBcs
     signatures: $signatures
@@ -1208,7 +1212,7 @@ export const ExecuteTransactionDocument = new TypedDocumentString(`
       epochId
     }
     effectsBcs @include(if: $includeEffects)
-    effectsJson @include(if: $includeObjectTypes)
+    effectsJson @include(if: $includeEffectsJson)
     objectChanges(first: 50) @include(if: $includeObjectTypes) {
       nodes {
         address
@@ -1250,7 +1254,7 @@ export const ExecuteTransactionDocument = new TypedDocumentString(`
   }
 }`) as unknown as TypedDocumentString<ExecuteTransactionMutation, ExecuteTransactionMutationVariables>;
 export const GetTransactionBlockDocument = new TypedDocumentString(`
-    query getTransactionBlock($digest: String!, $includeTransaction: Boolean = false, $includeEffects: Boolean = false, $includeEvents: Boolean = false, $includeBalanceChanges: Boolean = false, $includeObjectTypes: Boolean = false, $includeBcs: Boolean = false) {
+    query getTransactionBlock($digest: String!, $includeTransaction: Boolean = false, $includeEffects: Boolean = false, $includeEvents: Boolean = false, $includeBalanceChanges: Boolean = false, $includeObjectTypes: Boolean = false, $includeEffectsJson: Boolean = false, $includeBcs: Boolean = false) {
   transaction(digest: $digest) {
     ...TRANSACTION_FIELDS
   }
@@ -1289,7 +1293,7 @@ export const GetTransactionBlockDocument = new TypedDocumentString(`
       epochId
     }
     effectsBcs @include(if: $includeEffects)
-    effectsJson @include(if: $includeObjectTypes)
+    effectsJson @include(if: $includeEffectsJson)
     objectChanges(first: 50) @include(if: $includeObjectTypes) {
       nodes {
         address
@@ -1331,7 +1335,7 @@ export const GetTransactionBlockDocument = new TypedDocumentString(`
   }
 }`) as unknown as TypedDocumentString<GetTransactionBlockQuery, GetTransactionBlockQueryVariables>;
 export const ListTransactionsDocument = new TypedDocumentString(`
-    query listTransactions($filter: TransactionFilter, $first: Int, $after: String, $last: Int, $before: String, $includeTransaction: Boolean = false, $includeEffects: Boolean = false, $includeEvents: Boolean = false, $includeBalanceChanges: Boolean = false, $includeObjectTypes: Boolean = false, $includeBcs: Boolean = false) {
+    query listTransactions($filter: TransactionFilter, $first: Int, $after: String, $last: Int, $before: String, $includeTransaction: Boolean = false, $includeEffects: Boolean = false, $includeEvents: Boolean = false, $includeBalanceChanges: Boolean = false, $includeObjectTypes: Boolean = false, $includeEffectsJson: Boolean = false, $includeBcs: Boolean = false) {
   transactions(
     filter: $filter
     first: $first
@@ -1384,7 +1388,7 @@ export const ListTransactionsDocument = new TypedDocumentString(`
       epochId
     }
     effectsBcs @include(if: $includeEffects)
-    effectsJson @include(if: $includeObjectTypes)
+    effectsJson @include(if: $includeEffectsJson)
     objectChanges(first: 50) @include(if: $includeObjectTypes) {
       nodes {
         address

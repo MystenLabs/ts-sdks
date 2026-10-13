@@ -1129,6 +1129,14 @@ export namespace SuiClientTypes {
 		outputDigest: string | null;
 		outputOwner: ObjectOwner | null;
 		idOperation: 'Unknown' | 'None' | 'Created' | 'Deleted';
+		/**
+		 * The Move type of the object, or `package` for packages. Addresses in the type are
+		 * normalized to their long form (e.g.
+		 * `0x0000000000000000000000000000000000000000000000000000000000000002::coin::Coin<0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI>`).
+		 * `null` when the type is not known, such as when effects are decoded from BCS
+		 * with `parseTransactionEffectsBcs`, or for accumulator writes.
+		 */
+		objectType: string | null;
 		// TODO: add accumulatorWrite field once its widely available
 	}
 

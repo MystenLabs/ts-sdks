@@ -12,6 +12,8 @@ import {
 } from '../../../src/grpc/proto/sui/rpc/v2/effects.js';
 
 const GAS_OBJECT_ID = '0x00000000000000000000000000000000000000000000000000000000000000c0';
+const OTHER_OBJECT_ID = '0x00000000000000000000000000000000000000000000000000000000000000c1';
+const SUI_COIN_TYPE = '0x2::coin::Coin<0x2::sui::SUI>';
 
 describe('gRPC parseTransactionEffects gasObject', () => {
 	function grpcEffects(
@@ -53,6 +55,7 @@ describe('gRPC parseTransactionEffects gasObject', () => {
 				outputVersion: 5n,
 				outputDigest: 'output-digest',
 				idOperation: ChangedObject_IdOperation.NONE,
+				objectType: SUI_COIN_TYPE,
 			}),
 		});
 
@@ -67,6 +70,52 @@ describe('gRPC parseTransactionEffects gasObject', () => {
 			outputDigest: 'output-digest',
 			outputOwner: null,
 			idOperation: 'None',
+			objectType: SUI_COIN_TYPE,
 		});
+	});
+
+	it('maps object types for changed objects and defaults missing types to null', () => {
+		const effects = parseTransactionEffects({
+			effects: {
+				...grpcEffects(undefined),
+				changedObjects: [
+					{
+						objectId: GAS_OBJECT_ID,
+						inputState: ChangedObject_InputObjectState.EXISTS,
+						outputState: ChangedObject_OutputObjectState.OBJECT_WRITE,
+						idOperation: ChangedObject_IdOperation.NONE,
+						objectType: SUI_COIN_TYPE,
+					},
+					{
+						objectId: OTHER_OBJECT_ID,
+						inputState: ChangedObject_InputObjectState.DOES_NOT_EXIST,
+						outputState: ChangedObject_OutputObjectState.OBJECT_WRITE,
+						idOperation: ChangedObject_IdOperation.CREATED,
+					},
+				],
+			} as unknown as GrpcTransactionEffects,
+		});
+
+		expect(effects?.changedObjects.map((change) => change.objectType)).toEqual([
+			SUI_COIN_TYPE,
+			null,
+		]);
+	});
+
+	it('takes the gas object type from the matching changed object when the node omits it', () => {
+		const base = grpcEffects({
+			objectId: GAS_OBJECT_ID,
+			inputState: ChangedObject_InputObjectState.EXISTS,
+			outputState: ChangedObject_OutputObjectState.OBJECT_WRITE,
+			idOperation: ChangedObject_IdOperation.NONE,
+		});
+		const effects = parseTransactionEffects({
+			effects: {
+				...base,
+				changedObjects: [{ ...base.gasObject!, objectType: SUI_COIN_TYPE }],
+			} as GrpcTransactionEffects,
+		});
+
+		expect(effects?.gasObject?.objectType).toBe(SUI_COIN_TYPE);
 	});
 });
