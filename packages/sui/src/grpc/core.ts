@@ -49,6 +49,7 @@ import {
 	transactionToGrpcTransaction,
 	grpcTransactionToTransactionData,
 } from '../client/transaction-resolver.js';
+import { resolveUnresolvedPureInputs } from '../client/resolve-pure-inputs.js';
 import { setAddressBalanceTransactionExpirationFromSimulatedEpoch } from '../client/address-balance-transaction-expiration.js';
 import { isMockedGasObjectId, transactionBytesHaveEmptyGasPayment } from '../client/utils.js';
 import { Value } from './proto/google/protobuf/struct.js';
@@ -958,11 +959,16 @@ export class GrpcCoreClient extends CoreClient {
 
 	resolveTransactionPlugin() {
 		const client = this.#client;
+		const core = this.core;
 		return async function resolveTransactionData(
 			transactionData: TransactionDataBuilder,
 			options: BuildTransactionOptions,
 			next: () => Promise<void>,
 		) {
+			// Raw pure values need the target function signatures to be serialized, which the
+			// server-side resolver cannot do, so resolve them here first.
+			await resolveUnresolvedPureInputs(transactionData, { core });
+
 			const snapshot = transactionData.snapshot();
 			// If sender is not set, use a dummy address for resolution purposes
 			// The resolved transaction will not include the sender if it wasn't set originally
