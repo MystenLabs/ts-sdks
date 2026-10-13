@@ -181,16 +181,45 @@ export function normalizeStructTag(type: string | StructTag): string {
  * 2. Prepend `0x` if the string does not start with `0x`.
  * 3. Add more zeros if the length of the address(excluding `0x`) is less than `SUI_ADDRESS_LENGTH`
  *
+ * Throws if the value (after removing an optional `0x` prefix) is empty, contains non-hex
+ * characters, or is longer than `SUI_ADDRESS_LENGTH` bytes.
+ *
+ * To validate input without throwing, note that `isValidSuiAddress` only accepts the full
+ * 64-hex-character form, so it rejects short addresses such as `0x2` that this function accepts.
+ * To pre-check everything this function accepts, test the value against
+ * `/^(0x)?[0-9a-f]{1,64}$/i` (or catch the error).
+ *
  * WARNING: if the address value itself starts with `0x`, e.g., `0x0x`, the default behavior
  * is to treat the first `0x` not as part of the address. The default behavior can be overridden by
  * setting `forceAdd0x` to true
  *
  */
 export function normalizeSuiAddress(value: string, forceAdd0x: boolean = false): string {
+	const normalized = tryNormalizeSuiAddress(value, forceAdd0x);
+
+	if (normalized === null) {
+		throw new Error(`Invalid Sui address: ${value}`);
+	}
+
+	return normalized;
+}
+
+/**
+ * Like `normalizeSuiAddress`, but returns `null` instead of throwing when the value is not a
+ * (possibly short) hex address.
+ *
+ * @internal
+ */
+export function tryNormalizeSuiAddress(value: string, forceAdd0x: boolean = false): string | null {
 	let address = value.toLowerCase();
 	if (!forceAdd0x && address.startsWith('0x')) {
 		address = address.slice(2);
 	}
+
+	if (!/^[0-9a-f]+$/.test(address) || address.length > SUI_ADDRESS_LENGTH * 2) {
+		return null;
+	}
+
 	return `0x${address.padStart(SUI_ADDRESS_LENGTH * 2, '0')}`;
 }
 

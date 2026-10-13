@@ -7,8 +7,8 @@ import type { StructTag } from '../utils/sui-types.js';
 import {
 	isValidSuiAddress,
 	normalizeStructTag,
-	normalizeSuiAddress,
 	parseStructTag,
+	tryNormalizeSuiAddress,
 } from '../utils/sui-types.js';
 import type { ClientCache } from './cache.js';
 import type { TransactionDataBuilder } from '../transactions/TransactionData.js';
@@ -311,7 +311,7 @@ function validateOverrides(overrides?: {
 			if (!isValidNamedPackage(pkg)) {
 				throw new Error(`Invalid package name: ${pkg}`);
 			}
-			if (!isValidSuiAddress(normalizeSuiAddress(id))) {
+			if (tryNormalizeSuiAddress(id) === null) {
 				throw new Error(`Invalid package ID: ${id}`);
 			}
 		}

@@ -2367,6 +2367,23 @@ describe('HashiClient', () => {
 				expect(commands[0].MoveCall.package).toBe(V2);
 			});
 
+			it('leaves unresolved MVR package names alone when retargeting', async () => {
+				mockVersioning({ package: V2, version: '2' }, ['2']);
+				const tx = new Transaction();
+				tx.add(hashiClient.call.cancelWithdrawal({ requestId: REQUEST_ID }));
+				tx.moveCall({ target: '@org/pkg::mod::fn' });
+				const MVR_PACKAGE = normalizeSuiAddress('0xf3');
+				const resolve = vi
+					.spyOn(client.core.mvr, 'resolve')
+					.mockResolvedValue({ packages: { '@org/pkg': { package: MVR_PACKAGE } }, types: {} });
+
+				// The retarget plugin runs before MVR resolution and must not reject the name.
+				const { commands } = JSON.parse(await tx.toJSON({ client }));
+				expect(resolve).toHaveBeenCalledWith(expect.objectContaining({ packages: ['@org/pkg'] }));
+				expect(commands[0].MoveCall.package).toBe(V2);
+				expect(commands[1].MoveCall.package).toBe(MVR_PACKAGE);
+			});
+
 			it('rejects serialization when the Hashi object cannot be read', async () => {
 				vi.spyOn(Hashi, 'get').mockRejectedValueOnce(new Error('fullnode unavailable'));
 				const tx = hashiClient.tx.cancelWithdrawal({

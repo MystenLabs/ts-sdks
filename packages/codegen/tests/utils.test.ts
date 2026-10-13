@@ -13,6 +13,7 @@ let normalizeMoveArguments: (
 	argTypes: readonly (string | null)[],
 	parameterNames?: string[],
 ) => any;
+let getPureBcsSchema: (typeTag: string) => unknown;
 
 beforeAll(async () => {
 	await mkdir(join(GENERATED_DIR, 'utils'), { recursive: true });
@@ -20,6 +21,7 @@ beforeAll(async () => {
 	const modPath = join(GENERATED_DIR, 'utils', 'index.js');
 	const mod = await import(modPath);
 	normalizeMoveArguments = mod.normalizeMoveArguments;
+	getPureBcsSchema = mod.getPureBcsSchema;
 });
 
 afterAll(async () => {
@@ -27,6 +29,37 @@ afterAll(async () => {
 });
 
 const CLOCK_TYPE_ARG = '0x2::clock::Clock';
+
+describe('getPureBcsSchema', () => {
+	it('treats MVR-named struct types as non-pure instead of throwing', () => {
+		expect(getPureBcsSchema('@org/pkg::module::Thing')).toBeNull();
+		expect(getPureBcsSchema('vector<@org/pkg::module::Thing>')).toBeNull();
+	});
+
+	it('still recognizes short and long std/framework addresses', () => {
+		expect(getPureBcsSchema('0x1::string::String')).not.toBeNull();
+		expect(getPureBcsSchema('0x2::object::ID')).not.toBeNull();
+		expect(
+			getPureBcsSchema(
+				'0x0000000000000000000000000000000000000000000000000000000000000001::ascii::String',
+			),
+		).not.toBeNull();
+	});
+
+	it('accepts an uppercase 0X address prefix', async () => {
+		expect(getPureBcsSchema('0X1::string::String')).not.toBeNull();
+		expect(getPureBcsSchema('0X2::object::ID')).not.toBeNull();
+		expect(getPureBcsSchema(`0X${'0'.repeat(63)}1::ascii::String`)).not.toBeNull();
+
+		const tx = new Transaction();
+		tx.moveCall({
+			target: '0x0::test::test',
+			arguments: normalizeMoveArguments(['hello'], ['0X1::string::String']),
+		});
+		const json = JSON.parse(await tx.toJSON());
+		expect(json.inputs).toEqual([{ Pure: { bytes: 'BWhlbGxv' } }]);
+	});
+});
 
 describe('normalizeMoveArguments', () => {
 	it('should handle resolved sui objects for `object` args', async () => {

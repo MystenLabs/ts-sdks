@@ -50,7 +50,10 @@ export function getPureBcsSchema(typeTag: string | TypeTag): BcsType<any> | null
 		return type ? bcs.vector(type) : null;
 	} else if ('struct' in parsedTag) {
 		const structTag = parsedTag.struct;
-		const pkg = normalizeSuiAddress(structTag.address);
+		// Named (MVR) packages such as `@org/pkg` are not hex addresses and are never pure types.
+		const pkg = /^(0x)?[0-9a-f]{1,64}$/i.test(structTag.address)
+			? normalizeSuiAddress(structTag.address)
+			: structTag.address;
 
 		if (pkg === MOVE_STDLIB_ADDRESS) {
 			if (

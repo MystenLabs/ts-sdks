@@ -88,7 +88,10 @@ export function validSender(): Validator {
 				if (!data.sender) {
 					return reject({ code: 'SENDER_UNSET', message: 'Transaction must have a sender set.' });
 				}
-				if (normalizeSuiAddress(data.sender) === normalizeSuiAddress(data.gasData.owner ?? '')) {
+				if (
+					data.gasData.owner &&
+					normalizeSuiAddress(data.sender) === normalizeSuiAddress(data.gasData.owner)
+				) {
 					return reject({ code: 'SENDER_IS_SPONSOR', message: 'Sender cannot be the sponsor.' });
 				}
 				return pass;

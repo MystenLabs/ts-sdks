@@ -25,7 +25,7 @@ import {
 	variant,
 } from 'valibot';
 
-import { isValidSuiAddress, normalizeSuiAddress } from '../../utils/sui-types.js';
+import { normalizeSuiAddress, tryNormalizeSuiAddress } from '../../utils/sui-types.js';
 import type { Simplify } from '@mysten/utils';
 import type { SuiClientTypes } from '../../client/types.js';
 
@@ -110,8 +110,11 @@ function withKind<K extends string, TEntries extends ObjectEntries>(
 
 export const SuiAddress = pipe(
 	string(),
+	check(
+		(value) => tryNormalizeSuiAddress(value) !== null,
+		(issue) => `Invalid Sui address: ${issue.input}`,
+	),
 	transform((value) => normalizeSuiAddress(value)),
-	check(isValidSuiAddress),
 );
 export const ObjectID = SuiAddress;
 export const BCSBytes = string();

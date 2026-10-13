@@ -74,6 +74,9 @@ import { lookupVout, lookupAllVouts, getTxConfirmations } from './btc-rpc.js';
 import { projectCapacity, estimateWaitSecs, fetchGuardianInfo } from './guardian.js';
 import { assertHex32, configBytes, entry, reverseTxidBytes, type ConfigEntry } from './util.js';
 
+/** A (possibly short) hex package address, as opposed to an unresolved MVR name. */
+const HEX_ADDRESS_REGEX = /^(0x)?[0-9a-f]{1,64}$/i;
+
 /** ObjectBag dynamic field name type (Wrapper<address> for dynamic_object_field lookups). */
 const OBJECT_BAG_ADDRESS_TYPE =
 	'0x0000000000000000000000000000000000000000000000000000000000000002::dynamic_object_field::Wrapper<address>';
@@ -650,8 +653,12 @@ export class HashiClient {
 	#addRetargetPlugin = (tx: Transaction) => {
 		tx.addSerializationPlugin(async (data, _options, next) => {
 			const packageId = normalizeSuiAddress(this.#packageId);
+			// Plugins run before MVR resolution, so skip calls whose package is still an
+			// unresolved `@org/pkg` name rather than normalizing it.
 			const calls = data.commands.flatMap((command) =>
-				command.MoveCall && normalizeSuiAddress(command.MoveCall.package) === packageId
+				command.MoveCall &&
+				HEX_ADDRESS_REGEX.test(command.MoveCall.package) &&
+				normalizeSuiAddress(command.MoveCall.package) === packageId
 					? [command.MoveCall]
 					: [],
 			);
