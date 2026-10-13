@@ -25,11 +25,6 @@ public struct ValueChanged has copy, drop {
     new_value: u64,
 }
 
-/// Generic event for testing event type filters that match any instantiation
-public struct GenericEvent<phantom T> has copy, drop {
-    value: u64,
-}
-
 /// Object with dynamic fields for testing dynamic field queries
 public struct ObjectWithDynamicFields has key {
     id: UID,
@@ -62,11 +57,6 @@ public fun create_simple_object(value: u64, ctx: &mut TxContext): SimpleObject {
 entry fun create_object_with_event(value: u64, ctx: &mut TxContext) {
     let obj = create_simple_object(value, ctx);
     transfer::transfer(obj, ctx.sender());
-}
-
-/// Emit a `GenericEvent` instantiated with the given type argument
-entry fun emit_generic<T>(value: u64) {
-    event::emit(GenericEvent<T> { value });
 }
 
 /// Update the value of a simple object and emit event
@@ -171,4 +161,16 @@ const ETestCleverError: vector<u8> = b"Test clever error message";
 /// Used for testing clever error parsing in the SDK
 public fun abort_with_clever_error() {
     abort ETestCleverError
+}
+
+// Appended last so the line numbers asserted by the clever error tests stay stable
+
+/// Generic event for testing event type filters that match any instantiation
+public struct GenericEvent<phantom T> has copy, drop {
+    value: u64,
+}
+
+/// Emit a `GenericEvent` instantiated with the given type argument
+entry fun emit_generic<T>(value: u64) {
+    event::emit(GenericEvent<T> { value });
 }
