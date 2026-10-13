@@ -44,6 +44,8 @@ export namespace SuiClientTypes {
 		signal?: AbortSignal;
 	}
 
+	export type Order = 'ascending' | 'descending';
+
 	/** Object methods */
 	export interface TransportMethods {
 		getObjects: <Include extends ObjectInclude = {}>(
@@ -501,14 +503,33 @@ export namespace SuiClientTypes {
 	}
 
 	/**
-	 * A filter matching transactions. Exactly one predicate must be specified.
+	 * A filter matching transactions. Every specified predicate must match (predicates are
+	 * ANDed), and an empty filter matches every transaction.
 	 *
-	 * All predicates are supported identically by every transport.
+	 * At most one of `affectedAddress`, `affectedObject`, or `function` may be specified;
+	 * `sender` can be combined with any of them.
 	 */
-	export type TransactionFilter =
+	export type TransactionFilter = {
+		/** Match transactions sent by this address. */
+		sender?: string;
+	} & (
 		| {
-				/** Match transactions sent by this address. */
-				sender: string;
+				/**
+				 * Match transactions that changed state owned by this address: objects it owned
+				 * before or owns after the transaction, or its address balance.
+				 *
+				 * GraphQL also matches every transaction the address sent or sponsored, so a
+				 * sponsored transaction that changes none of its sender's state matches the sender
+				 * on GraphQL but not on gRPC.
+				 */
+				affectedAddress: string;
+				affectedObject?: never;
+				function?: never;
+		  }
+		| {
+				/** Match transactions whose effects include a change to this object. */
+				affectedObject: string;
+				affectedAddress?: never;
 				function?: never;
 		  }
 		| {
@@ -518,45 +539,58 @@ export namespace SuiClientTypes {
 				 * `package::module::function`.
 				 */
 				function: string;
-				sender?: never;
-		  };
-
-	/**
-	 * A filter matching events. Exactly one predicate must be specified.
-	 *
-	 * All predicates are supported by every transport.
-	 */
-	export type EventFilter =
-		| {
-				/** Match events emitted by transactions sent by this address. */
-				sender: string;
-				emitModule?: never;
-				eventType?: never;
+				affectedAddress?: never;
+				affectedObject?: never;
 		  }
 		| {
-				/** Match events emitted by a module, specified as `package::module`. */
+				affectedAddress?: never;
+				affectedObject?: never;
+				function?: never;
+		  }
+	);
+
+	/**
+	 * A filter matching events. Every specified predicate must match (predicates are ANDed),
+	 * and an empty filter matches every event.
+	 *
+	 * `emitModule` and `eventType` cannot be combined; `sender` can be combined with either.
+	 */
+	export type EventFilter = {
+		/** Match events emitted by transactions sent by this address. */
+		sender?: string;
+	} & (
+		| {
+				/**
+				 * Match events emitted by a module, specified as `package` (any module in the
+				 * package) or `package::module`.
+				 */
 				emitModule: string;
-				sender?: never;
 				eventType?: never;
 		  }
 		| {
 				/**
-				 * Match events by type: either every event whose type is defined in a
-				 * module (`package::module`), or events with a fully qualified type
-				 * name (`package::module::Name` or `package::module::Name<T1, T2>`).
+				 * Match events by type: every event whose type is defined in a package (`package`)
+				 * or module (`package::module`), or events with a fully qualified type name
+				 * (`package::module::Name` or `package::module::Name<T1, T2>`).
 				 *
 				 * A bare generic name (`package::module::Name` without type arguments) matches
-				 * any instantiation.
+				 * any instantiation, while a name with type arguments only matches that exact
+				 * instantiation.
 				 */
 				eventType: string;
-				sender?: never;
 				emitModule?: never;
-		  };
+		  }
+		| {
+				emitModule?: never;
+				eventType?: never;
+		  }
+	);
 
-	export interface ListTransactionsOptions<
-		Include extends TransactionInclude = {},
-	> extends CoreClientMethodOptions {
-		filter?: TransactionFilter;
+	/** A checkpoint sequence number. */
+	export type CheckpointNumber = string | number | bigint;
+
+	/** Pagination and range options shared by the ledger query methods. */
+	export interface LedgerQueryOptions extends CoreClientMethodOptions {
 		/**
 		 * Maximum number of items to return. Defaults to 50.
 		 *
@@ -566,19 +600,41 @@ export namespace SuiClientTypes {
 		 */
 		limit?: number;
 		/**
-		 * Return items strictly after this cursor in ledger order (usually the `endCursor` of
-		 * an ascending page, or the `startCursor` of a descending page to poll for new items).
-		 * Implies `order: 'ascending'`, and cannot be combined with `before`.
+		 * Return items strictly after this cursor in ledger order, regardless of `order`.
+		 * Usually the `endCursor` of an ascending page, or the `startCursor` of a descending
+		 * page to poll for new items. Can be combined with `before` to read a window.
+		 *
+		 * Cursors are only valid for the query that produced them: pass them back with the same
+		 * filter and checkpoint range.
 		 */
 		after?: string | null;
 		/**
-		 * Return items strictly before this cursor in ledger order (usually the `endCursor` of
-		 * a descending page). Implies `order: 'descending'`, and cannot be combined with
-		 * `after`.
+		 * Return items strictly before this cursor in ledger order, regardless of `order`.
+		 * Usually the `endCursor` of a descending page. Can be combined with `after` to read a
+		 * window.
 		 */
 		before?: string | null;
-		/** Order of returned results. Defaults to `ascending` (oldest first). */
-		order?: 'ascending' | 'descending';
+		/**
+		 * Order of returned results. Defaults to `descending` when only `before` is provided,
+		 * and `ascending` (oldest first) otherwise.
+		 */
+		order?: Order;
+		/**
+		 * Only return items from checkpoints at or after this sequence number (inclusive).
+		 * Intersects with `after`/`before`.
+		 */
+		startCheckpoint?: CheckpointNumber;
+		/**
+		 * Only return items from checkpoints before this sequence number (exclusive). Must not
+		 * be less than `startCheckpoint`. Intersects with `after`/`before`.
+		 */
+		endCheckpoint?: CheckpointNumber;
+	}
+
+	export interface ListTransactionsOptions<
+		Include extends TransactionInclude = {},
+	> extends LedgerQueryOptions {
+		filter?: TransactionFilter;
 		include?: Include & TransactionInclude;
 	}
 
@@ -599,46 +655,20 @@ export namespace SuiClientTypes {
 		startCursor: string | null;
 		/**
 		 * Cursor at the last returned item. Continue the query by passing it as `after`
-		 * (ascending) or `before` (descending).
+		 * (ascending) or `before` (descending). When paging a window (`after` + `before`),
+		 * keep the fixed bound and replace the moving one with `endCursor`.
 		 */
 		endCursor: string | null;
 	}
 
-	export interface ListEventsOptions extends CoreClientMethodOptions {
+	export interface ListEventsOptions extends LedgerQueryOptions {
 		filter?: EventFilter;
-		/**
-		 * Maximum number of items to return. Defaults to 50.
-		 *
-		 * Servers cap page sizes (50 by default): values above the server's cap cause the
-		 * GraphQL transport to throw, while gRPC servers silently truncate the page to their
-		 * configured maximum.
-		 */
-		limit?: number;
-		/**
-		 * Return items strictly after this cursor in ledger order (usually the `endCursor` of
-		 * an ascending page, or the `startCursor` of a descending page to poll for new items).
-		 * Implies `order: 'ascending'`, and cannot be combined with `before`.
-		 */
-		after?: string | null;
-		/**
-		 * Return items strictly before this cursor in ledger order (usually the `endCursor` of
-		 * a descending page). Implies `order: 'descending'`, and cannot be combined with
-		 * `after`.
-		 */
-		before?: string | null;
-		/** Order of returned results. Defaults to `ascending` (oldest first). */
-		order?: 'ascending' | 'descending';
 	}
 
 	/** An event returned from a query, along with its position in the ledger. */
 	export interface EventEntry extends Event {
-		/**
-		 * The sequence number of the checkpoint containing the emitting transaction.
-		 *
-		 * `null` when the transport does not expose checkpoint information for queried
-		 * events.
-		 */
-		checkpoint: string | null;
+		/** The sequence number of the checkpoint containing the emitting transaction. */
+		checkpoint: string;
 		/** The digest of the transaction that emitted this event. */
 		transactionDigest: string;
 		/** The index of this event within its transaction's event list. */
@@ -662,7 +692,8 @@ export namespace SuiClientTypes {
 		startCursor: string | null;
 		/**
 		 * Cursor at the last returned item. Continue the query by passing it as `after`
-		 * (ascending) or `before` (descending).
+		 * (ascending) or `before` (descending). When paging a window (`after` + `before`),
+		 * keep the fixed bound and replace the moving one with `endCursor`.
 		 */
 		endCursor: string | null;
 	}
