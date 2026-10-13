@@ -4,6 +4,7 @@
 import { bcs } from '@mysten/bcs';
 import { beforeAll, describe, expect, it } from 'vitest';
 
+import { serializeV1TransactionData } from '../../src/transactions/data/v1.js';
 import { Transaction } from '../../src/transactions/index.js';
 import { TransactionDataBuilder } from '../../src/transactions/TransactionData.js';
 import { SUI_SYSTEM_STATE_OBJECT_ID } from '../../src/utils/index.js';
@@ -23,7 +24,7 @@ describe('Transaction bcs Serialization and deserialization', () => {
 	async function serializeAndDeserialize(tx: Transaction, mutable: boolean[]) {
 		tx.setSender(toolbox.address());
 		const transactionBytes = await tx.build({
-			client: toolbox.jsonRpcClient,
+			client: toolbox.grpcClient,
 		});
 		const deserializedTxnBuilder = TransactionDataBuilder.fromBytes(transactionBytes);
 		expect(
@@ -38,15 +39,15 @@ describe('Transaction bcs Serialization and deserialization', () => {
 	it('Move Shared Object Call with mutable reference', async () => {
 		const coins = await toolbox.getGasObjectsOwnedByAddress();
 
-		const [{ suiAddress: validatorAddress }] = await toolbox.getActiveValidators();
+		const [{ address: validatorAddress }] = await toolbox.getActiveValidators();
 
 		const tx = new Transaction();
-		const coin = coins.data[2];
+		const coin = coins[2];
 		tx.moveCall({
 			target: '0x3::sui_system::request_add_stake',
 			arguments: [
 				tx.object(SUI_SYSTEM_STATE_OBJECT_ID),
-				tx.object(coin.coinObjectId),
+				tx.object(coin.objectId),
 				tx.pure.address(validatorAddress),
 			],
 		});
@@ -107,15 +108,15 @@ describe('TXB v2 JSON serialization', () => {
 	it('Move Shared Object Call with mutable reference', async () => {
 		const coins = await toolbox.getGasObjectsOwnedByAddress();
 
-		const [{ suiAddress: validatorAddress }] = await toolbox.getActiveValidators();
+		const [{ address: validatorAddress }] = await toolbox.getActiveValidators();
 
 		const tx = new Transaction();
-		const coin = coins.data[2];
+		const coin = coins[2];
 		tx.moveCall({
 			target: '0x3::sui_system::request_add_stake',
 			arguments: [
 				tx.object(SUI_SYSTEM_STATE_OBJECT_ID),
-				tx.object(coin.coinObjectId),
+				tx.object(coin.objectId),
 				tx.pure.address(validatorAddress),
 			],
 		});
@@ -123,7 +124,7 @@ describe('TXB v2 JSON serialization', () => {
 	});
 
 	it('serialized pure inputs', async () => {
-		const [{ suiAddress: validatorAddress }] = await toolbox.getActiveValidators();
+		const [{ address: validatorAddress }] = await toolbox.getActiveValidators();
 
 		const tx = new Transaction();
 
@@ -177,14 +178,15 @@ describe('TXB v1 JSON serialization', () => {
 		tx.setGasOwner(toolbox.address());
 		tx.setExpiration({ None: true });
 		tx.setSender(toolbox.address());
-		const transactionJson = json ?? (await tx.serialize());
+		const transactionJson = json ?? JSON.stringify(serializeV1TransactionData(tx.getData()));
 		const deserializedTxnBuilder = Transaction.from(transactionJson);
+		// Raw (untyped) pure values in v1 JSON are only resolved by the client-side resolver
 		const reserializedTxnBytes = await deserializedTxnBuilder.build({
-			client: toolbox.jsonRpcClient,
+			client: toolbox.clientResolverGrpcClient,
 		});
 		expect(reserializedTxnBytes).toEqual(
 			await tx.build({
-				client: toolbox.jsonRpcClient,
+				client: toolbox.clientResolverGrpcClient,
 			}),
 		);
 
@@ -206,15 +208,15 @@ describe('TXB v1 JSON serialization', () => {
 	it('Move Shared Object Call with mutable reference', async () => {
 		const coins = await toolbox.getGasObjectsOwnedByAddress();
 
-		const [{ suiAddress: validatorAddress }] = await toolbox.getActiveValidators();
+		const [{ address: validatorAddress }] = await toolbox.getActiveValidators();
 
 		const tx = new Transaction();
-		const coin = coins.data[2];
+		const coin = coins[2];
 		tx.moveCall({
 			target: '0x3::sui_system::request_add_stake',
 			arguments: [
 				tx.object(SUI_SYSTEM_STATE_OBJECT_ID),
-				tx.object(coin.coinObjectId),
+				tx.object(coin.objectId),
 				tx.pure.address(validatorAddress),
 			],
 		});
@@ -222,7 +224,7 @@ describe('TXB v1 JSON serialization', () => {
 	});
 
 	it('serializes pure inputs', async () => {
-		const [{ suiAddress: validatorAddress }] = await toolbox.getActiveValidators();
+		const [{ address: validatorAddress }] = await toolbox.getActiveValidators();
 
 		const tx = new Transaction();
 

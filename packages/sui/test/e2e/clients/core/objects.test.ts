@@ -39,23 +39,19 @@ describe('Core API - Objects', () => {
 			tx.transferObjects([obj], tx.pure.address(testAddress));
 		}
 
-		const result = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+		const result = await toolbox.signAndExecuteTransaction({
 			transaction: tx,
 			signer: toolbox.keypair,
-			options: {
-				showEffects: true,
-				showObjectChanges: true,
-			},
+			include: { effects: true, objectTypes: true },
 		});
 
-		// Wait for the transaction to be indexed on all clients
-		await toolbox.waitForTransaction({ digest: result.digest });
-
 		// Get the first created object ID for individual object tests
-		const createdObject = result.objectChanges?.find(
-			(change) => change.type === 'created' && change.objectType.includes('SimpleObject'),
+		const createdObject = result.Transaction?.effects.changedObjects.find(
+			(change) =>
+				change.idOperation === 'Created' &&
+				result.Transaction?.objectTypes[change.objectId]?.includes('SimpleObject'),
 		);
-		if (createdObject && createdObject.type === 'created') {
+		if (createdObject) {
 			testObjectId = createdObject.objectId;
 		}
 
@@ -126,15 +122,15 @@ describe('Core API - Objects', () => {
 	describe('getObjects', () => {
 		testWithAllClients('should get multiple objects', async (client) => {
 			// Get multiple gas coins from the test address
-			const coins = await toolbox.jsonRpcClient.getCoins({
+			const coins = await toolbox.grpcClient.core.listCoins({
 				owner: testAddress,
 				coinType: SUI_TYPE_ARG,
 				limit: 3,
 			});
 
-			expect(coins.data.length).toBeGreaterThan(0);
+			expect(coins.objects.length).toBeGreaterThan(0);
 
-			const coinIds = coins.data.map((coin) => coin.coinObjectId);
+			const coinIds = coins.objects.map((coin) => coin.objectId);
 			const { objects } = await client.core.getObjects({ objectIds: coinIds });
 
 			expect(objects.length).toBe(coinIds.length);

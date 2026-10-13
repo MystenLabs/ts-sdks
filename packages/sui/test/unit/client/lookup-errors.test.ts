@@ -8,11 +8,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { ObjectError, SuiClientError, TransactionError } from '../../../src/client/index.js';
 import { SuiGraphQLClient } from '../../../src/graphql/index.js';
 import { SuiGrpcClient } from '../../../src/grpc/index.js';
-import {
-	JsonRpcError,
-	SuiJsonRpcClient,
-	type JsonRpcTransport,
-} from '../../../src/jsonRpc/index.js';
+
 const digest = '11111111111111111111111111111111';
 
 async function captureError(promise: Promise<unknown>): Promise<Error> {
@@ -61,8 +57,7 @@ describe('client lookup errors', () => {
 
 describe('getObjects', () => {
 	it.each([
-		// Missing objects reuse the JSON-RPC `notExists` code so handlers written
-		// against earlier releases keep working on every transport.
+		// Missing objects use `notExists` rather than the gRPC status name.
 		[GrpcStatusCode.NOT_FOUND, 'notExists', 'notFound'],
 		// Other statuses use stable gRPC status names, never the raw status number.
 		[GrpcStatusCode.INTERNAL, 'INTERNAL', 'unknown'],
@@ -105,30 +100,6 @@ describe('getObjects', () => {
 			objectId: '0x123',
 		});
 	});
-
-	it.each([
-		[{ code: 'notExists', object_id: '0x999' }, 'notExists', 'notFound'],
-		[
-			{ code: 'deleted', object_id: '0x999', digest: 'deleted', version: '1' },
-			'deleted',
-			'deleted',
-		],
-		[{ code: 'unknown' }, 'unknown', 'unknown'],
-		// Codes the SDK doesn't know about yet still map to an ObjectError entry.
-		[{ code: 'futureCode' }, 'futureCode', 'unknown'],
-	] as const)('preserves JSON-RPC code %s and adds reason %s', async (wireError, code, reason) => {
-		const transport: JsonRpcTransport = {
-			request: vi.fn().mockResolvedValue([{ error: wireError }]),
-		};
-		const client = new SuiJsonRpcClient({ network: 'testnet', transport });
-
-		const { objects } = await client.core.getObjects({ objectIds: ['0x123'] });
-		const error = objects[0];
-
-		expect(error).toBeInstanceOf(ObjectError);
-		expect(error).toMatchObject({ code, reason, objectId: '0x123' });
-		expect((error as ObjectError).cause).toBe(wireError);
-	});
 });
 
 describe('getTransaction', () => {
@@ -169,32 +140,5 @@ describe('getTransaction', () => {
 
 		expect(error).toBeInstanceOf(TransactionError);
 		expect(error).toMatchObject({ reason: 'notFound', digest });
-	});
-
-	it.each([
-		`Invalid Params: Transaction ${digest} not found`,
-		`Could not find the referenced transaction [TransactionDigest(${digest})].`,
-	])('maps a known JSON-RPC missing-transaction response', async (message) => {
-		const wireError = new JsonRpcError(message, -32602);
-		const transport: JsonRpcTransport = {
-			request: vi.fn().mockRejectedValue(wireError),
-		};
-		const client = new SuiJsonRpcClient({ network: 'testnet', transport });
-
-		const error = await captureError(client.core.getTransaction({ digest }));
-
-		expect(error).toBeInstanceOf(TransactionError);
-		expect(error).toMatchObject({ reason: 'notFound', digest });
-		expect(error.cause).toBe(wireError);
-	});
-
-	it('preserves unrelated JSON-RPC invalid-parameter errors', async () => {
-		const wireError = new JsonRpcError('Invalid Params: another validation failure', -32602);
-		const transport: JsonRpcTransport = {
-			request: vi.fn().mockRejectedValue(wireError),
-		};
-		const client = new SuiJsonRpcClient({ network: 'testnet', transport });
-
-		await expect(client.core.getTransaction({ digest })).rejects.toBe(wireError);
 	});
 });
