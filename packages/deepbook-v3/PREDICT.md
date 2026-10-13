@@ -126,8 +126,9 @@ queue.acceptingMints; // and queue.acceptingSells: one side can be full while th
 queue.refusal.mint; // the preflight code a mint would get now, or null
 queue.maxMint.budget.maxRaw; // "Max right now" for a budget mint, raw USDC
 
-// A strike near the money. Admission refuses an entry price outside the market's band (0.25–0.75
-// on both recorded deployments), and once the price moves away from a window's reference, the
+// A strike near the money. Admission refuses an entry price outside the market's band, which each
+// market snapshots at creation (`read.feePolicy`): 0.25–0.75 on Mainnet, and 0.15–0.85 on Testnet
+// markets created since 2026-10-13. Once the price moves away from a window's reference, the
 // reference strike can sit outside it.
 const pricer = await client.predict.read.pricer(desc);
 const atm = snapStrike(pricer.strikeAtProbability(0.5)!, tradeable[0].admissionTickSize);
