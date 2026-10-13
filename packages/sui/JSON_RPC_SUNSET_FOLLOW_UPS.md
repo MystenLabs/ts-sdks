@@ -26,6 +26,13 @@ implementing the gRPC/GraphQL mappings, and extending the parity tests.
 - **GraphQL omits the aborting function's index** — `MoveAbort.location.function` is set by gRPC
   (from the effects status) but left undefined by GraphQL, whose `ExecutionError` only exposes the
   function's name. The query parity tests strip it when comparing aborted transactions.
+- **GraphQL can briefly omit an event's checkpoint** — `listEvents` reads the checkpoint from
+  `transaction.effects.checkpoint`, which the server resolves to `null` when the transaction
+  contents it loaded carry no checkpoint. `EventEntry.checkpoint` is non-nullable, so the GraphQL
+  transport throws `listEvents response is missing expected event fields` in that case. It was
+  observed once in e2e runs (an unfiltered read of the first events on a fresh localnet) and not
+  reproduced; if it recurs, retry the page or have the server resolve the checkpoint from the event
+  index instead.
 
 ## Blocked only by JSON-RPC
 
