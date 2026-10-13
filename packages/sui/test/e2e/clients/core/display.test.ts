@@ -38,19 +38,18 @@ describe('Core API - Display', () => {
 		});
 		tx.transferObjects([simple], tx.pure.address(testAddress));
 
-		const result = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+		const result = await toolbox.signAndExecuteTransaction({
 			transaction: tx,
 			signer: toolbox.keypair,
-			options: { showEffects: true, showObjectChanges: true },
+			include: { effects: true, objectTypes: true },
 		});
 
-		await toolbox.waitForTransaction({ digest: result.digest });
-
-		for (const change of result.objectChanges ?? []) {
-			if (change.type !== 'created') continue;
-			if (change.objectType.includes('DemoBear')) {
+		for (const change of result.Transaction?.effects.changedObjects ?? []) {
+			if (change.idOperation !== 'Created') continue;
+			const objectType = result.Transaction?.objectTypes[change.objectId] ?? '';
+			if (objectType.includes('DemoBear')) {
 				demoBearId = change.objectId;
-			} else if (change.objectType.includes('SimpleObject')) {
+			} else if (objectType.includes('SimpleObject')) {
 				simpleObjectId = change.objectId;
 			}
 		}
@@ -202,18 +201,16 @@ describe('Core API - Display', () => {
 			});
 			tx.transferObjects([bear], tx.pure.address(testAddress));
 
-			const result = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+			// Executes over gRPC and waits for all clients to index the new object
+			const result = await toolbox.signAndExecuteTransaction({
 				transaction: tx,
 				signer: toolbox.keypair,
-				options: { showEffects: true, showObjectChanges: true },
+				include: { effects: true, objectTypes: true },
 			});
 
-			// Wait for all clients to index the new object
-			await toolbox.waitForTransaction({ digest: result.digest });
-
-			for (const change of result.objectChanges ?? []) {
-				if (change.type !== 'created') continue;
-				if (change.objectType.includes('MigrationBear')) {
+			for (const change of result.Transaction?.effects.changedObjects ?? []) {
+				if (change.idOperation !== 'Created') continue;
+				if (result.Transaction?.objectTypes[change.objectId]?.includes('MigrationBear')) {
 					migrationBearId = change.objectId;
 				}
 			}
@@ -226,12 +223,12 @@ describe('Core API - Display', () => {
 			});
 			expect(grpcBefore.display).toBeNull();
 
-			// Before migration: JSON-RPC and GraphQL return display from v1
-			const { object: jsonRpcBefore } = await toolbox.jsonRpcClient.core.getObject({
+			// Before migration: GraphQL returns display from v1
+			const { object: graphqlBefore } = await toolbox.graphqlClient.core.getObject({
 				objectId: migrationBearId,
 				include: { display: true },
 			});
-			v1Display = jsonRpcBefore.display;
+			v1Display = graphqlBefore.display;
 			expect(v1Display).not.toBeNull();
 			expect(v1Display!.output!['name']).toBe(BEAR_NAME);
 			expect(v1Display!.output!['description']).toBe('A bear for migration testing');
@@ -282,14 +279,12 @@ describe('Core API - Display', () => {
 				setupTx.pure.address(publisherKeypair!.getPublicKey().toSuiAddress()),
 			);
 
-			const setupResult = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+			// Executes over gRPC and waits for all clients to index the v2 migration
+			const setupResult = await toolbox.signAndExecuteTransaction({
 				transaction: setupTx,
 				signer: publisherKeypair!,
-				options: { showEffects: true },
 			});
-
-			// Wait for all clients to index the v2 migration
-			await toolbox.waitForTransaction({ digest: setupResult.digest });
+			expect(setupResult.$kind).toBe('Transaction');
 		});
 
 		it('all clients agree after v2 migration', async () => {
@@ -298,7 +293,7 @@ describe('Core API - Display', () => {
 			);
 		});
 
-		it('gRPC v2 display matches JSON-RPC v1 display', async () => {
+		it('gRPC v2 display matches the pre-migration v1 display', async () => {
 			const { object } = await toolbox.grpcClient.core.getObject({
 				objectId: migrationBearId,
 				include: { display: true },
