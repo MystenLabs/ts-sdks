@@ -8,6 +8,7 @@ query simulateTransaction(
 	$includeEvents: Boolean = false
 	$includeBalanceChanges: Boolean = false
 	$includeObjectTypes: Boolean = false
+	$includeEffectsJson: Boolean = false
 	$includeCommandResults: Boolean = false
 	$includeBcs: Boolean = false
 	$doGasSelection: Boolean = false
@@ -53,6 +54,7 @@ mutation executeTransaction(
 	$includeEvents: Boolean = false
 	$includeBalanceChanges: Boolean = false
 	$includeObjectTypes: Boolean = false
+	$includeEffectsJson: Boolean = false
 	$includeBcs: Boolean = false
 ) {
 	executeTransaction(transactionDataBcs: $transactionDataBcs, signatures: $signatures) {
@@ -71,6 +73,7 @@ query getTransactionBlock(
 	$includeEvents: Boolean = false
 	$includeBalanceChanges: Boolean = false
 	$includeObjectTypes: Boolean = false
+	$includeEffectsJson: Boolean = false
 	$includeBcs: Boolean = false
 ) {
 	transaction(digest: $digest) {
@@ -89,6 +92,7 @@ query listTransactions(
 	$includeEvents: Boolean = false
 	$includeBalanceChanges: Boolean = false
 	$includeObjectTypes: Boolean = false
+	$includeEffectsJson: Boolean = false
 	$includeBcs: Boolean = false
 ) {
 	transactions(filter: $filter, first: $first, after: $after, last: $last, before: $before) {
@@ -138,7 +142,7 @@ fragment TRANSACTION_FIELDS on Transaction {
 			epochId
 		}
 		effectsBcs @include(if: $includeEffects)
-		effectsJson @include(if: $includeObjectTypes)
+		effectsJson @include(if: $includeEffectsJson)
 		objectChanges(first: 50) @include(if: $includeObjectTypes) {
 			nodes {
 				address
