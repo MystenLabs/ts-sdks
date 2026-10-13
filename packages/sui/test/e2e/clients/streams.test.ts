@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, inject, it } from 'vitest';
 
 import type { SuiClientTypes } from '../../../src/client/types.js';
 import { bcs } from '../../../src/bcs/index.js';
@@ -37,6 +37,22 @@ async function take<T>(stream: AsyncIterable<T>, count: number): Promise<T[]> {
 	return frames;
 }
 
+// The pinned localnet GraphQL service answers queries but does not serve subscriptions.
+const graphqlSubscriptions = inject('graphqlSubscriptions');
+
+type Delivery = NonNullable<SuiClientTypes.StreamOptions['delivery']>;
+
+/** Live delivery modes per client; GraphQL also follows by polling. */
+const LIVE_DELIVERIES: [string, Delivery][] = [
+	['gRPC', 'subscribe'],
+	['GraphQL', 'subscribe'],
+	['GraphQL', 'poll'],
+];
+
+function requiresMissingSubscriptions(kind: string, delivery: Delivery) {
+	return kind === 'GraphQL' && delivery === 'subscribe' && !graphqlSubscriptions;
+}
+
 const includes = {
 	transaction: true,
 	effects: true,
@@ -54,6 +70,7 @@ describe('resumable ledger streams', () => {
 	let firstCheckpoint: string;
 	let lastCheckpoint: string;
 	const controllers: AbortController[] = [];
+	let liveValue = 100;
 
 	function signal() {
 		const controller = new AbortController();
@@ -251,34 +268,39 @@ describe('resumable ledger streams', () => {
 		expect(histories[0]).toEqual(histories[1]);
 	});
 
-	it('continues unfiltered transaction-data delivery from history into live system transactions', async () => {
-		for (const [, client] of clients()) {
-			const {
-				checkpoints: [{ sequenceNumber: checkpoint }],
-			} = await toolbox.grpcClient.core.listCheckpoints({ order: 'descending', limit: 1 });
-			let sawHistory = false;
-			let sawLiveSystem = false;
-			for await (const frame of client.streamTransactions({
-				start: { checkpoint },
-				include: { transaction: true },
-				signal: signal(),
-			})) {
-				const tx = frame.transaction.Transaction ?? frame.transaction.FailedTransaction;
-				expect(tx.transaction.kind.$kind).toBeTypeOf('string');
-				expect(tx.bcs).toBeUndefined();
-				if (tx.checkpoint === checkpoint) sawHistory = true;
-				if (
-					BigInt(tx.checkpoint!) > BigInt(checkpoint) &&
-					tx.transaction.kind.$kind !== 'ProgrammableTransaction'
-				) {
-					sawLiveSystem = true;
-					break;
+	for (const [kind, delivery] of LIVE_DELIVERIES) {
+		it.skipIf(requiresMissingSubscriptions(kind, delivery))(
+			`continues unfiltered transaction-data delivery from history into live system transactions (${kind}, ${delivery})`,
+			async () => {
+				const client = clients().find(([name]) => name === kind)![1];
+				const {
+					checkpoints: [{ sequenceNumber: checkpoint }],
+				} = await toolbox.grpcClient.core.listCheckpoints({ order: 'descending', limit: 1 });
+				let sawHistory = false;
+				let sawLiveSystem = false;
+				for await (const frame of client.streamTransactions({
+					start: { checkpoint },
+					include: { transaction: true },
+					delivery,
+					signal: signal(),
+				})) {
+					const tx = frame.transaction.Transaction ?? frame.transaction.FailedTransaction;
+					expect(tx.transaction.kind.$kind).toBeTypeOf('string');
+					expect(tx.bcs).toBeUndefined();
+					if (tx.checkpoint === checkpoint) sawHistory = true;
+					if (
+						BigInt(tx.checkpoint!) > BigInt(checkpoint) &&
+						tx.transaction.kind.$kind !== 'ProgrammableTransaction'
+					) {
+						sawLiveSystem = true;
+						break;
+					}
 				}
-			}
-			expect(sawHistory).toBe(true);
-			expect(sawLiveSystem).toBe(true);
-		}
-	});
+				expect(sawHistory).toBe(true);
+				expect(sawLiveSystem).toBe(true);
+			},
+		);
+	}
 
 	it('returns identical events and preserves event order within each transaction', async () => {
 		const ascending = await Promise.all(
@@ -400,113 +422,129 @@ describe('resumable ledger streams', () => {
 				});
 			});
 
-			it('catches up through history and continues with a newly submitted event', async () => {
-				const stream = client().streamEvents({
-					start: { checkpoint: firstCheckpoint },
-					filter: { sender: signer.address },
-					signal: signal(),
-				});
-				try {
-					// Earlier tests may have submitted additional transactions, so anchor on
-					// this test's unique value while still checking the original replay order.
-					for (let i = 0; i < 9; i++) {
-						const next = await stream.next();
-						expect(next.done).toBe(false);
-						if (!next.done)
-							expect(next.value.event.transactionDigest).toBe(digests[Math.floor(i / 3)]);
-					}
-					const nextItem = stream.next();
-					// Attach rejection handling before transaction execution so cancellation
-					// remains observable even if submission fails.
-					const pending = nextItem.then(
-						(value) => ({ value }),
-						(error: unknown) => ({ error }),
-					);
-					const liveDigest = await emitEvents(1, kind === 'gRPC' ? 100 : 200);
-					let next = await pending;
-					if ('error' in next) throw next.error;
-					while (!next.value.done && next.value.value.event.transactionDigest !== liveDigest) {
-						next = { value: await stream.next() };
-					}
-					expect(next.value.done).toBe(false);
-					if (!next.value.done) expect(next.value.value.event.transactionDigest).toBe(liveDigest);
-				} finally {
-					await stream.return?.(undefined);
-				}
-			});
+			for (const [, delivery] of LIVE_DELIVERIES.filter(([name]) => name === kind)) {
+				it.skipIf(requiresMissingSubscriptions(kind, delivery))(
+					`catches up through history and continues with a newly submitted event (${delivery})`,
+					async () => {
+						const stream = client().streamEvents({
+							start: { checkpoint: firstCheckpoint },
+							filter: { sender: signer.address },
+							delivery,
+							signal: signal(),
+						});
+						try {
+							// Earlier tests may have submitted additional transactions, so anchor on
+							// this test's unique value while still checking the original replay order.
+							for (let i = 0; i < 9; i++) {
+								const next = await stream.next();
+								expect(next.done).toBe(false);
+								if (!next.done)
+									expect(next.value.event.transactionDigest).toBe(digests[Math.floor(i / 3)]);
+							}
+							const nextItem = stream.next();
+							// Attach rejection handling before transaction execution so cancellation
+							// remains observable even if submission fails.
+							const pending = nextItem.then(
+								(value) => ({ value }),
+								(error: unknown) => ({ error }),
+							);
+							const liveDigest = await emitEvents(1, liveValue++);
+							let next = await pending;
+							if ('error' in next) throw next.error;
+							while (!next.value.done && next.value.value.event.transactionDigest !== liveDigest) {
+								next = { value: await stream.next() };
+							}
+							expect(next.value.done).toBe(false);
+							if (!next.value.done)
+								expect(next.value.value.event.transactionDigest).toBe(liveDigest);
+						} finally {
+							await stream.return?.(undefined);
+						}
+					},
+				);
 
-			it('cancels a quiet filter while its next item is pending', async () => {
-				const controller = new AbortController();
-				const stream = client().streamEvents({
-					filter: { sender: '0x0' },
-					signal: controller.signal,
-				});
-				const pending = stream.next();
-				const rejection = expect(pending).rejects.toThrow('stream cancelled');
-				controller.abort(new Error('stream cancelled'));
-				await rejection;
-				await stream.return?.(undefined);
-			});
+				it.skipIf(requiresMissingSubscriptions(kind, delivery))(
+					`cancels a quiet filter while its next item is pending (${delivery})`,
+					async () => {
+						const controller = new AbortController();
+						const stream = client().streamEvents({
+							filter: { sender: '0x0' },
+							delivery,
+							signal: controller.signal,
+						});
+						const pending = stream.next();
+						const rejection = expect(pending).rejects.toThrow('stream cancelled');
+						controller.abort(new Error('stream cancelled'));
+						await rejection;
+						await stream.return?.(undefined);
+					},
+				);
+			}
 		});
 	}
 
-	it('exposes native GraphQL edge cursors and resumes the operation with after', async () => {
-		type Result = {
-			events: { cursor: string; node: { sequenceNumber: number; transaction: { digest: string } } };
-		};
-		const query = `subscription NativeEvents($after: String, $filter: EventFilter) {
-			events(after: $after, filter: $filter) { cursor node { sequenceNumber transaction { digest } } }
-		}`;
-		const firstStream = toolbox.graphqlClient.subscribe<Result>({
-			query,
-			variables: {
-				filter: { sender: signer.address, afterCheckpoint: Number(firstCheckpoint) - 1 },
-			},
-			signal: signal(),
-		});
-		const [first] = await take(firstStream, 1);
-		expect(first.errors).toBeUndefined();
-		expect(first.data?.events.node).toEqual({
-			sequenceNumber: 0,
-			transaction: { digest: digests[0] },
-		});
-		expect(first.data?.events.cursor).toBeTypeOf('string');
-		const resumed = toolbox.graphqlClient.subscribe<Result>({
-			query,
-			variables: { after: first.data!.events.cursor, filter: { sender: signer.address } },
-			signal: signal(),
-		});
-		const [second] = await take(resumed, 1);
-		expect(second.errors).toBeUndefined();
-		expect(second.data?.events.node).toEqual({
-			sequenceNumber: 1,
-			transaction: { digest: digests[0] },
-		});
-	});
-
-	it('finishes a raw GraphQL operation when Sui closes the SSE response', async () => {
-		const results = await collect(
-			toolbox.graphqlClient.subscribe<{ chainIdentifier: string }>({
-				query: 'query { chainIdentifier }',
+	describe.skipIf(!graphqlSubscriptions)('GraphQL subscriptions', () => {
+		it('exposes native GraphQL edge cursors and resumes the operation with after', async () => {
+			type Result = {
+				events: {
+					cursor: string;
+					node: { sequenceNumber: number; transaction: { digest: string } };
+				};
+			};
+			const query = `subscription NativeEvents($after: String, $filter: EventFilter) {
+				events(after: $after, filter: $filter) { cursor node { sequenceNumber transaction { digest } } }
+			}`;
+			const firstStream = toolbox.graphqlClient.subscribe<Result>({
+				query,
+				variables: {
+					filter: { sender: signer.address, afterCheckpoint: Number(firstCheckpoint) - 1 },
+				},
 				signal: signal(),
-			}),
-		);
-		expect(results).toHaveLength(1);
-		expect(results[0].errors).toBeUndefined();
-		expect(results[0].data?.chainIdentifier).toBeTypeOf('string');
-	});
-
-	it('cancels native GraphQL while waiting for a matching event', async () => {
-		const controller = new AbortController();
-		const stream = toolbox.graphqlClient.subscribe({
-			query: 'subscription { events(filter: { sender: "0x0" }) { cursor } }',
-			variables: {},
-			signal: controller.signal,
+			});
+			const [first] = await take(firstStream, 1);
+			expect(first.errors).toBeUndefined();
+			expect(first.data?.events.node).toEqual({
+				sequenceNumber: 0,
+				transaction: { digest: digests[0] },
+			});
+			expect(first.data?.events.cursor).toBeTypeOf('string');
+			const resumed = toolbox.graphqlClient.subscribe<Result>({
+				query,
+				variables: { after: first.data!.events.cursor, filter: { sender: signer.address } },
+				signal: signal(),
+			});
+			const [second] = await take(resumed, 1);
+			expect(second.errors).toBeUndefined();
+			expect(second.data?.events.node).toEqual({
+				sequenceNumber: 1,
+				transaction: { digest: digests[0] },
+			});
 		});
-		const pending = stream.next();
-		const rejection = expect(pending).rejects.toThrow('native cancelled');
-		controller.abort(new Error('native cancelled'));
-		await rejection;
-		await stream.return(undefined);
+
+		it('finishes a raw GraphQL operation when Sui closes the SSE response', async () => {
+			const results = await collect(
+				toolbox.graphqlClient.subscribe<{ chainIdentifier: string }>({
+					query: 'query { chainIdentifier }',
+					signal: signal(),
+				}),
+			);
+			expect(results).toHaveLength(1);
+			expect(results[0].errors).toBeUndefined();
+			expect(results[0].data?.chainIdentifier).toBeTypeOf('string');
+		});
+
+		it('cancels native GraphQL while waiting for a matching event', async () => {
+			const controller = new AbortController();
+			const stream = toolbox.graphqlClient.subscribe({
+				query: 'subscription { events(filter: { sender: "0x0" }) { cursor } }',
+				variables: {},
+				signal: controller.signal,
+			});
+			const pending = stream.next();
+			const rejection = expect(pending).rejects.toThrow('native cancelled');
+			controller.abort(new Error('native cancelled'));
+			await rejection;
+			await stream.return(undefined);
+		});
 	});
 });

@@ -20,6 +20,7 @@ declare module 'vitest' {
 	export interface ProvidedContext {
 		localnetPort: number;
 		graphqlPort: number;
+		graphqlSubscriptions: boolean;
 		faucetPort: number;
 		suiToolsContainerId: string;
 		prePublishedPackages: Record<string, PrePublishedPackage>;
@@ -32,11 +33,11 @@ const SUI_TOOLS_TAG =
 		? '987123842623d6cb0e772dc665789cfd69bdec9f-arm64'
 		: '987123842623d6cb0e772dc665789cfd69bdec9f');
 
-// The preview build includes GraphQL subscriptions; `sui start --with-graphql` does not
-// configure the checkpoint stream required by subscriptions.
-const GRAPHQL_IMAGE =
-	process.env.SUI_GRAPHQL_IMAGE ||
-	'mysten/sui-indexer-alt-graphql-preview:102843cdc9b87afebefbf90541f8a4aacb990a04';
+// `sui start --with-graphql` does not configure the checkpoint stream that GraphQL subscriptions
+// require. Either variable starts a separate GraphQL service with subscriptions enabled.
+const GRAPHQL_IMAGE = process.env.SUI_GRAPHQL_IMAGE;
+const GRAPHQL_BINARY = process.env.SUI_GRAPHQL_BINARY;
+const SEPARATE_GRAPHQL = !!(GRAPHQL_IMAGE || GRAPHQL_BINARY);
 
 export default async function setup(project: TestProject) {
 	console.log('Starting test containers');
@@ -61,14 +62,14 @@ export default async function setup(project: TestProject) {
 			'start',
 			'--with-faucet',
 			'--force-regenesis',
-			'--with-consistent-store',
+			SEPARATE_GRAPHQL ? '--with-consistent-store' : '--with-graphql',
 			`--with-indexer=postgres://postgres:postgrespw@${pg.getIpAddress(network.getName())}:5432/sui_indexer_v2`,
 		])
 		.withCopyDirectoriesToContainer([
 			{ source: resolve(__dirname, '../data'), target: '/test-data' },
 		])
 		.withNetwork(network)
-		.withExposedPorts(9000, 9123, 9124)
+		.withExposedPorts(9000, 9123, 9124, ...(SEPARATE_GRAPHQL ? [] : [9125]))
 		.withStartupTimeout(180_000)
 		.withLogConsumer((stream) => {
 			stream.on('data', (data) => {
@@ -82,11 +83,11 @@ export default async function setup(project: TestProject) {
 	const fullnodeUrl = `http://${localnet.getIpAddress(network.getName())}:9000`;
 	let graphqlPort: number;
 	let stopGraphQL: (() => void) | undefined;
-	if (process.env.SUI_GRAPHQL_BINARY) {
+	if (GRAPHQL_BINARY) {
 		// Native staging builds avoid amd64 emulation on ARM developer machines.
 		graphqlPort = await unusedPort();
 		const graphqlProcess = spawn(
-			resolve(process.env.SUI_GRAPHQL_BINARY),
+			resolve(GRAPHQL_BINARY),
 			[
 				'rpc',
 				`--database-url=postgres://postgres:postgrespw@127.0.0.1:${pg.getMappedPort(5432)}/sui_indexer_v2`,
@@ -133,7 +134,7 @@ export default async function setup(project: TestProject) {
 			stopGraphQL();
 			throw error;
 		}
-	} else {
+	} else if (GRAPHQL_IMAGE) {
 		const graphql = await new GenericContainer(GRAPHQL_IMAGE)
 			// The published preview image is amd64, including on ARM developer machines.
 			.withPlatform(process.env.SUI_GRAPHQL_PLATFORM || 'linux/amd64')
@@ -162,6 +163,14 @@ export default async function setup(project: TestProject) {
 			.withLogConsumer((stream) => stream.on('data', (data) => console.log(data.toString())))
 			.start();
 		graphqlPort = graphql.getMappedPort(9125);
+	} else {
+		graphqlPort = localnet.getMappedPort(9125);
+	}
+	const graphqlSubscriptions = await supportsGraphQLSubscriptions(graphqlPort);
+	if (!graphqlSubscriptions) {
+		console.warn(
+			'GraphQL subscription tests will be skipped: the localnet GraphQL service does not serve subscriptions. Set SUI_GRAPHQL_IMAGE or SUI_GRAPHQL_BINARY to run them (see test/e2e/README.md).',
+		);
 	}
 	const containerId = localnet.getId();
 
@@ -179,6 +188,7 @@ export default async function setup(project: TestProject) {
 	project.provide('faucetPort', faucetPort);
 	project.provide('localnetPort', localnetPort);
 	project.provide('graphqlPort', graphqlPort);
+	project.provide('graphqlSubscriptions', graphqlSubscriptions);
 	project.provide('suiToolsContainerId', containerId);
 
 	// Pre-publish shared packages
@@ -208,4 +218,23 @@ async function unusedPort(): Promise<number> {
 		server.close((error) => (error ? reject(error) : resolve())),
 	);
 	return address.port;
+}
+
+async function supportsGraphQLSubscriptions(port: number): Promise<boolean> {
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), 10_000);
+	try {
+		const response = await fetch(`http://127.0.0.1:${port}/graphql/subscriptions`, {
+			method: 'POST',
+			headers: { 'content-type': 'application/json', accept: 'text/event-stream' },
+			body: JSON.stringify({ query: 'subscription { checkpoints { cursor } }' }),
+			signal: controller.signal,
+		});
+		return response.ok && !!response.headers.get('content-type')?.startsWith('text/event-stream');
+	} catch {
+		return false;
+	} finally {
+		clearTimeout(timeout);
+		controller.abort();
+	}
 }

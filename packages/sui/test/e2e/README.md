@@ -1,15 +1,25 @@
 # Local client tests
 
-The harness starts a fullnode, indexer, consistent store, faucet, and a separate GraphQL preview
-service with subscriptions enabled. Docker is required.
+The harness starts a fullnode, indexer, consistent store, faucet, and GraphQL service from the
+pinned `mysten/sui-tools` image. Docker is required.
 
 ```sh
 pnpm --filter @mysten/sui test:e2e
 ```
 
-`SUI_TOOLS_TAG` and `SUI_GRAPHQL_IMAGE` override the pinned images. The published GraphQL preview
-image is amd64. On ARM machines where emulation stalls historical reads, build the staging binary
-from the sibling Sui checkout and use it directly:
+`SUI_TOOLS_TAG` overrides the pinned image.
+
+The GraphQL service started by `sui start --with-graphql` answers queries but does not serve
+subscriptions, so the GraphQL subscription tests are skipped (the harness logs a warning) while
+GraphQL ledger streams are tested with polling. To run the subscription tests, start a separate
+GraphQL service with subscriptions enabled, either from an image:
+
+```sh
+SUI_GRAPHQL_IMAGE=mysten/sui-indexer-alt-graphql-preview:102843cdc9b87afebefbf90541f8a4aacb990a04 \
+  pnpm --filter @mysten/sui test:e2e
+```
+
+or from a native build of the sibling Sui checkout, which avoids amd64 emulation on ARM machines:
 
 ```sh
 cd ../sui
@@ -19,5 +29,6 @@ SUI_GRAPHQL_BINARY="$PWD/../sui/target/release/sui-indexer-alt-graphql" \
   pnpm --filter @mysten/sui test:e2e
 ```
 
-The native service uses the same Docker fullnode and database. The harness starts and stops it
-automatically. The sibling checkout must support the schema and startup flags used by the harness.
+The published preview image is amd64; `SUI_GRAPHQL_PLATFORM` overrides the platform it runs on. Both
+use the same Docker fullnode and database, and the harness starts and stops them automatically. The
+GraphQL build must support the schema and startup flags used by the harness.
