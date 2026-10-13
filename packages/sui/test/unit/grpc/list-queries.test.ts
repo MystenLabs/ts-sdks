@@ -49,6 +49,7 @@ function eventFrame(n: number, end?: GrpcTypes.QueryEndReason): GrpcTypes.ListEv
 			module: 'test',
 			sender: '0x1',
 			eventType: '0x2::test::Event',
+			checkpoint: BigInt(100 + n),
 			transactionDigest: `digest-${n}`,
 			eventIndex: n,
 		},
@@ -188,6 +189,7 @@ describe('gRPC listEvents pagination', () => {
 		expect(getRequest().options?.limit).toBe(3);
 		expect(result.events).toHaveLength(2);
 		expect(result.events.map((event) => event.transactionDigest)).toEqual(['digest-1', 'digest-2']);
+		expect(result.events.map((event) => event.checkpoint)).toEqual(['101', '102']);
 		expect(result.hasNextPage).toBe(true);
 		expect(result.endCursor).toBe(cursorB64(2));
 	});
@@ -223,5 +225,113 @@ describe('gRPC listEvents pagination', () => {
 		expect(result.events).toHaveLength(1);
 		expect(result.hasNextPage).toBe(true);
 		expect(result.endCursor).toBe(cursorB64(6));
+	});
+});
+
+describe('gRPC list query requests', () => {
+	it('forwards checkpoint ranges, both cursor bounds, and the requested order', async () => {
+		const client = makeClient();
+		const getRequest = mockListTransactions(client, [txEndFrame(9, QueryEndReason.LEDGER_TIP)]);
+
+		await client.core.listTransactions({
+			after: cursorB64(1),
+			before: cursorB64(5),
+			order: 'descending',
+			startCheckpoint: '10',
+			endCheckpoint: 20,
+		});
+
+		const request = getRequest();
+		expect(request.startCheckpoint).toBe(10n);
+		expect(request.endCheckpoint).toBe(20n);
+		expect(request.options?.after).toEqual(cursor(1));
+		expect(request.options?.before).toEqual(cursor(5));
+		expect(request.options?.ordering).toBe(GrpcTypes.Ordering.DESCENDING);
+	});
+
+	it('defaults to ascending when both cursor bounds are given', async () => {
+		const client = makeClient();
+		const getRequest = mockListEvents(client, [eventEndFrame(9, QueryEndReason.LEDGER_TIP)]);
+
+		await client.core.listEvents({
+			after: cursorB64(1),
+			before: cursorB64(5),
+			startCheckpoint: 3n,
+		});
+
+		const request = getRequest();
+		expect(request.startCheckpoint).toBe(3n);
+		expect(request.endCheckpoint).toBeUndefined();
+		expect(request.options?.ordering).toBe(GrpcTypes.Ordering.ASCENDING);
+	});
+
+	it('omits the filter for empty filters and ANDs predicates in a single term', async () => {
+		const client = makeClient();
+		const getRequest = mockListTransactions(client, [txEndFrame(9, QueryEndReason.LEDGER_TIP)]);
+
+		await client.core.listTransactions({ filter: {} });
+		expect(getRequest().filter).toBeUndefined();
+
+		await client.core.listTransactions({ filter: { sender: '0x1', affectedObject: '0x2' } });
+		expect(getRequest().filter?.terms).toHaveLength(1);
+		expect(
+			getRequest().filter?.terms[0].literals.map((literal) => literal.predicate.oneofKind),
+		).toEqual(['sender', 'affectedObject']);
+	});
+
+	it('rejects invalid checkpoint ranges before sending a request', async () => {
+		const client = makeClient();
+		const getRequest = mockListTransactions(client, []);
+
+		await expect(
+			client.core.listTransactions({ startCheckpoint: 5, endCheckpoint: 4 }),
+		).rejects.toThrow('`endCheckpoint` must be greater than or equal to `startCheckpoint`');
+		await expect(client.core.listEvents({ startCheckpoint: -1 })).rejects.toThrow(
+			'Invalid startCheckpoint "-1"',
+		);
+		expect(getRequest()).toBeUndefined();
+	});
+
+	it.each([QueryEndReason.CHECKPOINT_BOUND, QueryEndReason.CURSOR_BOUND])(
+		'treats end reason %s as terminal',
+		async (reason) => {
+			const client = makeClient();
+			mockListTransactions(client, [txFrame(1), txFrame(2), txEndFrame(4, reason)]);
+
+			const result = await client.core.listTransactions({ limit: 5 });
+
+			expect(result.transactions).toHaveLength(2);
+			expect(result.hasNextPage).toBe(false);
+			expect(result.startCursor).toBe(cursorB64(1));
+			expect(result.endCursor).toBe(cursorB64(2));
+
+			const events = makeClient();
+			mockListEvents(events, [eventFrame(1), eventEndFrame(4, reason)]);
+			const eventResult = await events.core.listEvents({ limit: 5 });
+			expect(eventResult.hasNextPage).toBe(false);
+			expect(eventResult.endCursor).toBe(cursorB64(1));
+		},
+	);
+
+	it('throws when an event is missing its checkpoint', async () => {
+		const client = makeClient();
+		mockListEvents(client, [
+			GrpcTypes.ListEventsResponse.create({
+				watermark: { cursor: cursor(1) },
+				event: {
+					packageId: '0x2',
+					module: 'test',
+					sender: '0x1',
+					eventType: '0x2::test::Event',
+					transactionDigest: 'digest-1',
+					eventIndex: 0,
+				},
+				end: { reason: QueryEndReason.LEDGER_TIP },
+			}),
+		]);
+
+		await expect(client.core.listEvents({})).rejects.toThrow(
+			'listEvents response is missing expected event fields',
+		);
 	});
 });
