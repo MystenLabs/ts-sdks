@@ -291,14 +291,14 @@ function pureBool(tx: Transaction, cmdIdx: number, argIdx: number): boolean {
 /** `constants::min_premium`: `quote_mint` aborts `EOrderFailsLimits` below it. */
 const MIN_PREMIUM = 1_000_000n;
 /** `expiry_market::EOrderFailsLimits`. */
-const E_ORDER_FAILS_LIMITS = 14n;
+export const E_ORDER_FAILS_LIMITS = 14n;
 /** `queue::ERecordNotOpen`. */
 const E_RECORD_NOT_OPEN = 9n;
 /** `pricing::ELivePricingExpired`. */
 const E_LIVE_PRICING_EXPIRED = 9n;
 
 // A Move abort a canned return raises. The mock simulate turns it into a `FailedTransaction`.
-class MockAbort extends Error {
+export class MockAbort extends Error {
 	constructor(
 		readonly module: string,
 		readonly code: bigint,

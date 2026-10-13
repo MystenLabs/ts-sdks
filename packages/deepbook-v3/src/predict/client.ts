@@ -158,6 +158,10 @@ import {
  */
 export const POSITION_LOT_SIZE = BigInt(TESTNET_PREDICT.units.positionLotSize);
 
+// An unsubsidized price per contract (1e9 = $1) below which a budget fill's cost can't be above
+// its payout, so an admission refusal there is the entry band, not the payout bound.
+const NEAR_DOLLAR_PER_CONTRACT = 950_000_000n;
+
 // Most `tx.*` builders are one builder's worth of commands in a fresh PTB.
 function txOf(command: (tx: Transaction) => TransactionResult | void): Transaction {
 	const tx = new Transaction();
@@ -1038,7 +1042,10 @@ export class PredictClient {
 		startRaw: bigint,
 		lot: bigint,
 		entryProbabilityRaw: bigint,
-	): Promise<{ quantity: bigint } | { refusal: 'min-premium' | 'cost-above-payout' }> {
+		unsubsidizedPricePerContractRaw: bigint,
+	): Promise<
+		{ quantity: bigint } | { refusal: 'min-premium' | 'cost-above-payout' | 'entry-band' }
+	> {
 		const ceilLot = (x: bigint) => ((x + lot - 1n) / lot) * lot;
 		const minPremiumQuantity =
 			entryProbabilityRaw === 0n
@@ -1060,8 +1067,15 @@ export class PredictClient {
 				// The raise sized the minimum-premium quantity from the budget quote's entry
 				// probability. When the raised probe still fails, the probability moved down between
 				// the two quotes and the premium is still short, so the minimum premium refused it.
+				if (raised || quantity < minPremiumQuantity) return { refusal: 'min-premium' };
+				// At or above the minimum premium, admission refuses a cost above the payout or an entry
+				// probability outside the band. Well below $1 a contract the cost can't reach the payout,
+				// so the probability left the band between the budget quote and this probe.
 				return {
-					refusal: raised || quantity < minPremiumQuantity ? 'min-premium' : 'cost-above-payout',
+					refusal:
+						unsubsidizedPricePerContractRaw < NEAR_DOLLAR_PER_CONTRACT
+							? 'entry-band'
+							: 'cost-above-payout',
 				};
 			}
 			const unsubsidized = quote.allInCost - quote.penaltyFee + quote.feeIncentiveSubsidy;
@@ -2563,8 +2577,10 @@ export class PredictClient {
 			let minQuantityRaw: bigint;
 			// What admission buys at least, for a budget plan, or why it buys nothing the plan can
 			// preview.
-			let admitted: { quantity: bigint } | { refusal: 'min-premium' | 'cost-above-payout' } | null =
-				null;
+			let admitted:
+				| { quantity: bigint }
+				| { refusal: 'min-premium' | 'cost-above-payout' | 'entry-band' }
+				| null = null;
 			let maxCostRaw: bigint | null = null;
 			let maxProbabilityRaw: bigint | null = null;
 			let price: { nowRaw: bigint; worstRaw: bigint };
@@ -2595,6 +2611,7 @@ export class PredictClient {
 					start < quote.quantity ? start : quote.quantity,
 					lot,
 					quote.entryProbability,
+					quote.quantity === 0n ? 0n : (unsubsidizedCost * 1_000_000_000n) / quote.quantity,
 				);
 				const ceiling = 'quantity' in admitted ? admitted.quantity : 0n;
 				minQuantityRaw = limits.minQuantityRaw < ceiling ? limits.minQuantityRaw : ceiling;
@@ -2657,7 +2674,9 @@ export class PredictClient {
 						admitted.refusal,
 						admitted.refusal === 'min-premium'
 							? `without the fee subsidy, ${rawToUsdc(budgetRaw)} buys no fill that clears the ${rawToUsdc(MIN_PREMIUM)} minimum premium`
-							: `without the fee subsidy, ${rawToUsdc(budgetRaw)} buys a fill near $1 a contract, whose admission sizing can't be previewed`,
+							: admitted.refusal === 'entry-band'
+								? "the entry probability left the market's entry band while the order was sized: plan again, or pick a strike nearer the money"
+								: `without the fee subsidy, ${rawToUsdc(budgetRaw)} buys a fill near $1 a contract, whose admission sizing can't be previewed`,
 					);
 				}
 			});

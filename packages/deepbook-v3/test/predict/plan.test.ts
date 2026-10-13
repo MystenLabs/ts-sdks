@@ -25,7 +25,9 @@ import {
 } from '../../src/predict/queue.js';
 import { deriveAccountIdFrom } from '../../src/predict/tx/common.js';
 import {
+	E_ORDER_FAILS_LIMITS,
 	MARKET,
+	MockAbort,
 	QUEUE_CFG as cfg,
 	moveCallTargets,
 	queueClient,
@@ -419,6 +421,36 @@ describe('read.planMint', () => {
 			expect(plan.accepting).toBe(false);
 			expect(plan.refusal).toBe('min-premium');
 		}
+	});
+
+	test('a probe the entry band refuses reports entry-band, not cost-above-payout', async () => {
+		const base = scenario();
+		// A low-edge budget at 17.14¢: the budget quote buys 21.38 contracts at about 25¢ a contract
+		// unsubsidized. By the exact probes the probability slipped below the band, so the chain
+		// refuses every probe with EOrderFailsLimits, as it did on Testnet with 78 s left.
+		const s = scenario({
+			mintQuote: {
+				...base.mintQuote,
+				quantity: 21_380_000n,
+				entry_probability: 171_400_000n,
+				premium: 3_664_532n,
+				trading_fee: 1_640_000n,
+				fee_incentive_subsidy: 310_000n,
+				penalty_fee: 0n,
+				inventory_impact_charge: 0n,
+				all_in_cost: 4_970_000n,
+			},
+			accountQuoteAt: () => {
+				throw new MockAbort('expiry_market', E_ORDER_FAILS_LIMITS);
+			},
+		});
+		const { pc } = client(s);
+		const plan = await pc.read.planMint(OWNER, market(s), { amount: 5, slippageCents: 10 });
+		expect(plan.accepting).toBe(false);
+		expect(plan.refusal).toBe('entry-band');
+		const err = await pc.tx.enqueuePlan(OWNER, market(s), plan).catch((e) => e);
+		expect(err).toBeInstanceOf(PredictPreflightError);
+		expect(err.code).toBe('entry-band');
 	});
 
 	test('a raised probe the minimum premium still refuses reports min-premium', async () => {
