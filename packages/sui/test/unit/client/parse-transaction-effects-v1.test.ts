@@ -146,6 +146,8 @@ describe('parseTransactionEffectsBcs V1', () => {
 			{ outputVersion: null, outputDigest: null },
 		]);
 		expect(effects.gasObject).toBe(effects.changedObjects[1]);
+		// BCS effects carry no object types
+		expect(effects.changedObjects.map((change) => change.objectType)).toEqual(Array(7).fill(null));
 		expect(effects.lamportVersion).toBe('71');
 		expect(effects.unchangedConsensusObjects).toEqual([
 			{
