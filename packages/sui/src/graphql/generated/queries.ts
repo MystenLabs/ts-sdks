@@ -8,6 +8,17 @@ type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
 export type Incremental<T> = T | { [P in keyof T]?: P extends ' $fragmentName' | '__typename' ? T[P] : never };
 import { OpenMoveTypeSignature } from '../types.js';
 import { DocumentTypeDecoration } from '@graphql-typed-document-node/core';
+export type CheckpointFilter = {
+  /** Limit query results to checkpoints that occured strictly after the given checkpoint. */
+  afterCheckpoint?: number | null | undefined;
+  /** Limit query results to checkpoints that occured at the given checkpoint. */
+  atCheckpoint?: number | null | undefined;
+  /** Limit query results to checkpoints at this epoch. */
+  atEpoch?: number | null | undefined;
+  /** Limit query results to checkpoints that occured strictly before the given checkpoint. */
+  beforeCheckpoint?: number | null | undefined;
+};
+
 export type EventFilter = {
   /** Limit to events that occured strictly after the given checkpoint. */
   afterCheckpoint?: number | null | undefined;
@@ -185,6 +196,17 @@ export enum ZkLoginIntentScope {
   /** Indicates that the bytes are to be parsed as transaction data bytes. */
   TransactionData = 'TRANSACTION_DATA'
 }
+
+export type ListCheckpointsQueryVariables = Exact<{
+  filter?: CheckpointFilter | null | undefined;
+  first?: number | null | undefined;
+  after?: string | null | undefined;
+  last?: number | null | undefined;
+  before?: string | null | undefined;
+}>;
+
+
+export type ListCheckpointsQuery = { checkpoints: { pageInfo: { hasNextPage: boolean, hasPreviousPage: boolean, startCursor: string | null, endCursor: string | null }, nodes: Array<{ sequenceNumber: number, digest: string | null, timestamp: string | null, epoch: { epochId: number } | null }> } | null };
 
 export type GetAllBalancesQueryVariables = Exact<{
   owner: string;
@@ -674,6 +696,32 @@ export const Transaction_FieldsFragmentDoc = new TypedDocumentString(`
   }
 }
     `, {"fragmentName":"TRANSACTION_FIELDS"}) as unknown as TypedDocumentString<Transaction_FieldsFragment, unknown>;
+export const ListCheckpointsDocument = new TypedDocumentString(`
+    query listCheckpoints($filter: CheckpointFilter, $first: Int, $after: String, $last: Int, $before: String) {
+  checkpoints(
+    filter: $filter
+    first: $first
+    after: $after
+    last: $last
+    before: $before
+  ) {
+    pageInfo {
+      hasNextPage
+      hasPreviousPage
+      startCursor
+      endCursor
+    }
+    nodes {
+      sequenceNumber
+      digest
+      timestamp
+      epoch {
+        epochId
+      }
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<ListCheckpointsQuery, ListCheckpointsQueryVariables>;
 export const GetAllBalancesDocument = new TypedDocumentString(`
     query getAllBalances($owner: SuiAddress!, $limit: Int, $cursor: String) {
   address(address: $owner) {

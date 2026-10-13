@@ -29,6 +29,7 @@ import {
 	GetOwnedObjectsDocument,
 	GetReferenceGasPriceDocument,
 	GetTransactionBlockDocument,
+	ListCheckpointsDocument,
 	ListEventsDocument,
 	GetTransactionCheckpointsDocument,
 	ListTransactionsDocument,
@@ -67,7 +68,11 @@ import {
 	resolvePagination,
 	resolveTransactionFilter,
 } from '../client/query-filters.js';
-import { toGraphQLEventFilter, toGraphQLTransactionFilter } from './filters.js';
+import {
+	toGraphQLCheckpointBounds,
+	toGraphQLEventFilter,
+	toGraphQLTransactionFilter,
+} from './filters.js';
 import { hasNextPageWithinBounds } from './pagination.js';
 
 const GRAPHQL_OBJECT_BATCH_SIZE = 40;
@@ -843,6 +848,64 @@ export class GraphQLCoreClient extends CoreClient {
 		}
 
 		throw new Error(`listEvents response is missing the checkpoint for transaction ${pending[0]}`);
+	}
+
+	async listCheckpoints(
+		options: SuiClientTypes.ListCheckpointsOptions,
+	): Promise<SuiClientTypes.ListCheckpointsResponse> {
+		const pagination = resolvePagination(options);
+		const { descending, after, before, limit } = pagination;
+		const filter = toGraphQLCheckpointBounds(resolveCheckpointRange(options));
+
+		const checkpoints = await this.#graphqlQuery(
+			{
+				query: ListCheckpointsDocument,
+				signal: options.signal,
+				variables: {
+					filter,
+					first: descending ? undefined : limit,
+					after,
+					last: descending ? limit : undefined,
+					before,
+				},
+			},
+			(result) => result.checkpoints,
+		);
+
+		// Backwards pagination returns nodes in ascending order, so reverse them for descending reads
+		const nodes = descending ? [...checkpoints.nodes].reverse() : checkpoints.nodes;
+
+		return {
+			checkpoints: nodes.map((checkpoint): SuiClientTypes.Checkpoint => {
+				const timestampMs = checkpoint.timestamp ? Date.parse(checkpoint.timestamp) : NaN;
+				const epoch = checkpoint.epoch?.epochId;
+
+				if (!checkpoint.digest || Number.isNaN(timestampMs) || epoch == null) {
+					throw new Error('listCheckpoints response is missing expected checkpoint fields');
+				}
+
+				return {
+					sequenceNumber: String(checkpoint.sequenceNumber),
+					digest: checkpoint.digest,
+					epoch: String(epoch),
+					timestampMs,
+				};
+			}),
+			hasNextPage: await hasNextPageWithinBounds(checkpoints.pageInfo, pagination, (page) =>
+				this.#graphqlQuery(
+					{
+						query: ListCheckpointsDocument,
+						signal: options.signal,
+						variables: { filter, ...page },
+					},
+					(result) => result.checkpoints,
+				),
+			),
+			startCursor:
+				(descending ? checkpoints.pageInfo.endCursor : checkpoints.pageInfo.startCursor) ?? null,
+			endCursor:
+				(descending ? checkpoints.pageInfo.startCursor : checkpoints.pageInfo.endCursor) ?? null,
+		};
 	}
 
 	async verifyZkLoginSignature(
