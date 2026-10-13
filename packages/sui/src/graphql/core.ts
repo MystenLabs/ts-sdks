@@ -29,6 +29,7 @@ import {
 	GetOwnedObjectsDocument,
 	GetReferenceGasPriceDocument,
 	GetTransactionBlockDocument,
+	ListCheckpointsDocument,
 	ListEventsDocument,
 	ListTransactionsDocument,
 	MultiGetObjectsDocument,
@@ -66,7 +67,11 @@ import {
 	resolvePagination,
 	resolveTransactionFilter,
 } from '../client/query-filters.js';
-import { toGraphQLEventFilter, toGraphQLTransactionFilter } from './filters.js';
+import {
+	toGraphQLCheckpointBounds,
+	toGraphQLEventFilter,
+	toGraphQLTransactionFilter,
+} from './filters.js';
 
 const GRAPHQL_OBJECT_BATCH_SIZE = 40;
 
@@ -765,6 +770,57 @@ export class GraphQLCoreClient extends CoreClient {
 				};
 			}),
 			// A page without a cursor to continue from cannot have a next page
+			hasNextPage:
+				endCursor !== null && (descending ? pageInfo.hasPreviousPage : pageInfo.hasNextPage),
+			startCursor: (descending ? pageInfo.endCursor : pageInfo.startCursor) ?? null,
+			endCursor,
+		};
+	}
+
+	async listCheckpoints(
+		options: SuiClientTypes.ListCheckpointsOptions,
+	): Promise<SuiClientTypes.ListCheckpointsResponse> {
+		const pagination = resolvePagination(options);
+		const { descending, after, before, limit } = pagination;
+		const filter = toGraphQLCheckpointBounds(resolveCheckpointRange(options));
+
+		const checkpoints = await this.#graphqlQuery(
+			{
+				query: ListCheckpointsDocument,
+				signal: options.signal,
+				variables: {
+					filter,
+					first: descending ? undefined : limit,
+					after,
+					last: descending ? limit : undefined,
+					before,
+				},
+			},
+			(result) => result.checkpoints,
+		);
+
+		// Backwards pagination returns nodes in ascending order, so reverse them for descending reads
+		const nodes = descending ? [...checkpoints.nodes].reverse() : checkpoints.nodes;
+
+		const pageInfo = checkpoints.pageInfo;
+		const endCursor = (descending ? pageInfo.startCursor : pageInfo.endCursor) ?? null;
+
+		return {
+			checkpoints: nodes.map((checkpoint): SuiClientTypes.Checkpoint => {
+				const timestampMs = checkpoint.timestamp ? Date.parse(checkpoint.timestamp) : NaN;
+				const epoch = checkpoint.epoch?.epochId;
+
+				if (!checkpoint.digest || Number.isNaN(timestampMs) || epoch == null) {
+					throw new Error('listCheckpoints response is missing expected checkpoint fields');
+				}
+
+				return {
+					sequenceNumber: String(checkpoint.sequenceNumber),
+					digest: checkpoint.digest,
+					epoch: String(epoch),
+					timestampMs,
+				};
+			}),
 			hasNextPage:
 				endCursor !== null && (descending ? pageInfo.hasPreviousPage : pageInfo.hasNextPage),
 			startCursor: (descending ? pageInfo.endCursor : pageInfo.startCursor) ?? null,
