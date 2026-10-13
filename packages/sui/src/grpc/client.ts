@@ -153,6 +153,9 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 	nameService: NameServiceClient;
 	forkingService: ForkingServiceClient;
 
+	// The transport the service clients were built with, which ledger streams call directly.
+	#transport: RpcTransport;
+
 	get [SUI_CLIENT_BRAND]() {
 		return true;
 	}
@@ -172,6 +175,7 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 		const transport = withClientProtocolVersion(
 			providedTransport ?? new GrpcWebFetchTransport(transportOptions),
 		);
+		this.#transport = transport;
 		this.transactionExecutionService = new TransactionExecutionServiceClient(transport);
 		this.ledgerService = new LedgerServiceClient(transport);
 		this.stateService = new StateServiceClient(transport);
@@ -367,7 +371,7 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 	streamCheckpoints(
 		options: GrpcStreamCheckpointsOptions<GrpcStreamInclude> = {},
 	): AsyncIterableIterator<unknown> {
-		return grpcLedgerStream(this, 'checkpoints', options);
+		return grpcLedgerStream(this, this.#transport, 'checkpoints', options);
 	}
 
 	streamTransactions<Include extends GrpcStreamTransactionInclude = {}>(
@@ -379,7 +383,7 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 	streamTransactions(
 		options: GrpcStreamTransactionsOptions<GrpcStreamTransactionInclude> = {},
 	): AsyncIterableIterator<unknown> {
-		return grpcLedgerStream(this, 'transactions', options);
+		return grpcLedgerStream(this, this.#transport, 'transactions', options);
 	}
 
 	streamEvents<Include extends GrpcStreamInclude = {}>(
@@ -391,7 +395,7 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 	streamEvents(
 		options: GrpcStreamEventsOptions<GrpcStreamInclude> = {},
 	): AsyncIterableIterator<unknown> {
-		return grpcLedgerStream(this, 'events', options);
+		return grpcLedgerStream(this, this.#transport, 'events', options);
 	}
 
 	getMoveFunction(

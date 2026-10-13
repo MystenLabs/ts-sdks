@@ -484,6 +484,64 @@ describe('resumable ledger streams', () => {
 		});
 	}
 
+	describe('gRPC slow consumer', () => {
+		const pause = () => new Promise((resolve) => setTimeout(resolve, 1000));
+
+		it('pauses a history scan without reconnecting and resumes in order', async () => {
+			const statuses: SuiClientTypes.StreamStatus[] = [];
+			const stream = toolbox.grpcClient.streamCheckpoints({
+				start: { checkpoint: '0' },
+				end: { checkpoint: (BigInt(lastCheckpoint) + 1n).toString() },
+				pageSize: 5,
+				onStatus: (status) => statuses.push(status),
+				signal: signal(),
+			});
+			const sequence: bigint[] = [];
+			for await (const frame of stream) {
+				sequence.push(BigInt(frame.checkpoint.sequenceNumber));
+				if (sequence.length === 3) await pause();
+			}
+			expect(sequence).toEqual(
+				Array.from({ length: Number(lastCheckpoint) + 1 }, (_, i) => BigInt(i)),
+			);
+			expect(statuses.filter(({ $kind }) => $kind === 'Retrying' || $kind === 'Error')).toEqual([]);
+		});
+
+		it('pauses a live subscription without overflowing and ends promptly on return', async () => {
+			const statuses: SuiClientTypes.StreamStatus[] = [];
+			const stream = toolbox.grpcClient.streamCheckpoints({
+				start: { checkpoint: lastCheckpoint },
+				delivery: 'subscribe',
+				onStatus: (status) => statuses.push(status),
+				signal: signal(),
+			});
+			const sequence: bigint[] = [];
+			const next = async () => {
+				const result = await stream.next();
+				expect(result.done).toBe(false);
+				if (!result.done) sequence.push(BigInt(result.value.checkpoint.sequenceNumber));
+			};
+			await next();
+			await pause();
+			// Past the checkpoints produced before and during the pause, so live delivery resumed.
+			const {
+				checkpoints: [{ sequenceNumber: tip }],
+			} = await toolbox.grpcClient.core.listCheckpoints({ order: 'descending', limit: 1 });
+			while (sequence.at(-1)! < BigInt(tip) + 2n) await next();
+			const pending = stream.next();
+			const started = Date.now();
+			await stream.return?.(undefined);
+			await pending.catch(() => {});
+			expect(Date.now() - started).toBeLessThan(1000);
+			await expect(stream.next()).resolves.toMatchObject({ done: true });
+
+			expect(sequence[0]).toBe(BigInt(lastCheckpoint));
+			sequence.forEach((checkpoint, i) => expect(checkpoint).toBe(sequence[0] + BigInt(i)));
+			expect(statuses.filter(({ $kind }) => $kind === 'Retrying' || $kind === 'Error')).toEqual([]);
+			expect(statuses.filter(({ $kind }) => $kind === 'Connecting')).toHaveLength(1);
+		});
+	});
+
 	describe.skipIf(!graphqlSubscriptions)('GraphQL subscriptions', () => {
 		it('exposes native GraphQL edge cursors and resumes the operation with after', async () => {
 			type Result = {

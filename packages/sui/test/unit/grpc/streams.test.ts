@@ -1,10 +1,12 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { GrpcWebFetchTransport as UpstreamGrpcWebFetchTransport } from '@protobuf-ts/grpcweb-transport';
 import { RpcError, RpcOutputStreamController } from '@protobuf-ts/runtime-rpc';
 import type { RpcOptions } from '@protobuf-ts/runtime-rpc';
 import { expect, expectTypeOf, it } from 'vitest';
 import { SuiGrpcClient, GrpcTypes } from '../../../src/grpc/index.js';
+import type { PullServerStreamingTransport } from '../../../src/grpc/index.js';
 import type { SuiClientTypes } from '../../../src/client/types.js';
 import { bufferedGrpcCall } from '../../../src/grpc/stream-buffer.js';
 
@@ -36,8 +38,48 @@ function item(
 function end(cp: number, reason = End.CHECKPOINT_BOUND): GrpcTypes.ListEventsResponse {
 	return { watermark: { cursor: cursor(cp, 0, 2), checkpoint: BigInt(cp - 1) }, end: { reason } };
 }
+// A transport without `serverStreamingIterable`, so the replaced service methods below are called.
 function client() {
-	const result = new SuiGrpcClient({ baseUrl: 'http://localhost', network: 'testnet' });
+	const result = new SuiGrpcClient({
+		network: 'testnet',
+		transport: new UpstreamGrpcWebFetchTransport({ baseUrl: 'http://localhost' }),
+	});
+	result.getChainIdentifier = async () => ({ chainIdentifier: 'chain' });
+	return result;
+}
+// A transport with `serverStreamingIterable`, reading the replaced service methods on demand.
+function pullClient() {
+	const upstream = new UpstreamGrpcWebFetchTransport({ baseUrl: 'http://localhost' });
+	const pulls: string[] = [];
+	const transport: PullServerStreamingTransport = {
+		mergeOptions: (options) => upstream.mergeOptions(options),
+		unary: upstream.unary.bind(upstream),
+		serverStreaming: upstream.serverStreaming.bind(upstream),
+		clientStreaming: upstream.clientStreaming.bind(upstream),
+		duplex: upstream.duplex.bind(upstream),
+		serverStreamingIterable(method, input, options) {
+			pulls.push(method.localName);
+			const service = method.service.typeName.endsWith('SubscriptionService')
+				? result.subscriptionService
+				: result.ledgerService;
+			const call = (
+				service as unknown as Record<
+					string,
+					(input: object, options: RpcOptions) => ReturnType<typeof script>
+				>
+			)[method.localName](input, options);
+			return {
+				method,
+				requestHeaders: {},
+				request: input,
+				responses: call.responses[Symbol.asyncIterator]() as never,
+				headers: call.headers,
+				status: call.status as never,
+				trailers: call.trailers,
+			};
+		},
+	};
+	const result = Object.assign(new SuiGrpcClient({ network: 'testnet', transport }), { pulls });
 	result.getChainIdentifier = async () => ({ chainIdentifier: 'chain' });
 	return result;
 }
@@ -426,66 +468,79 @@ it('preserves completion and shared method types', () => {
 	expect(transactions).toBe(c.streamTransactions);
 });
 
-it('reconnects after a sparse initial watermark without losing the first matching item', async () => {
-	const c = client();
-	lists(c, [[item(3), end(4)]]);
-	let connections = 0;
-	c.subscriptionService.subscribeEvents = ((_request: object, options: RpcOptions) => {
-		connections++;
-		return connections === 1
-			? script(
-					[{ watermark: { cursor: cursor(3, 0, 2), checkpoint: 2n } }],
-					options.abort,
-					new RpcError('lost', 'UNAVAILABLE'),
-				)
-			: script(
-					[{ watermark: { cursor: cursor(4, 0, 2), checkpoint: 3n } }, item(4)],
-					options.abort,
-					undefined,
-					true,
-				);
-	}) as never;
-	const items: string[] = [];
-	for await (const frame of c.streamEvents({ retry: { initialDelay: 0, jitter: 0 } })) {
-		items.push(frame.event.checkpoint!);
-		if (items.length === 2) break;
-	}
-	expect(items).toEqual(['3', '4']);
-	expect(connections).toBe(2);
-});
+it.each([
+	['push', client],
+	['pull', pullClient],
+])(
+	'reconnects after a sparse initial watermark without losing the first matching item (%s)',
+	async (_, create) => {
+		const c = create();
+		lists(c, [[item(3), end(4)]]);
+		let connections = 0;
+		c.subscriptionService.subscribeEvents = ((_request: object, options: RpcOptions) => {
+			connections++;
+			return connections === 1
+				? script(
+						[{ watermark: { cursor: cursor(3, 0, 2), checkpoint: 2n } }],
+						options.abort,
+						new RpcError('lost', 'UNAVAILABLE'),
+					)
+				: script(
+						[{ watermark: { cursor: cursor(4, 0, 2), checkpoint: 3n } }, item(4)],
+						options.abort,
+						undefined,
+						true,
+					);
+		}) as never;
+		const items: string[] = [];
+		for await (const frame of c.streamEvents({ retry: { initialDelay: 0, jitter: 0 } })) {
+			items.push(frame.event.checkpoint!);
+			if (items.length === 2) break;
+		}
+		expect(items).toEqual(['3', '4']);
+		expect(connections).toBe(2);
+	},
+);
 
-it('cancels an overflowing live feed, finishes repair, and reconnects without gaps', async () => {
-	const c = client();
-	lists(c, [
-		[item(1), item(2), end(3)],
-		[item(5), item(6), item(7), end(8)],
-	]);
-	let connections = 0;
-	c.subscriptionService.subscribeEvents = ((_request: object, options: RpcOptions) => {
-		connections++;
-		return script(
-			connections === 1 ? [item(2), item(3), item(4), item(5), item(6)] : [item(7)],
-			options.abort,
-			undefined,
-			true,
-		);
-	}) as never;
-	const items: string[] = [];
-	const statuses: string[] = [];
-	for await (const frame of c.streamEvents({
-		start: { checkpoint: '1' },
-		maxBufferedItems: 3,
-		retry: { maxAttempts: 0 },
-		onStatus: (status) => statuses.push(status.$kind),
-	})) {
-		items.push(frame.event.checkpoint!);
-		if (items.length === 7) break;
-	}
-	expect(items).toEqual(['1', '2', '3', '4', '5', '6', '7']);
-	expect(connections).toBe(2);
-	expect(statuses).not.toContain('Retrying');
-	expect(statuses).toContain('Live');
-});
+it.each([
+	['push', client],
+	['pull', pullClient],
+])(
+	'cancels an overflowing live feed, finishes repair, and reconnects without gaps (%s)',
+	async (_, create) => {
+		const c = create();
+		lists(c, [
+			[item(1), item(2), end(3)],
+			[item(5), item(6), item(7), end(8)],
+		]);
+		let connections = 0;
+		c.subscriptionService.subscribeEvents = ((_request: object, options: RpcOptions) => {
+			connections++;
+			return script(
+				connections === 1 ? [item(2), item(3), item(4), item(5), item(6)] : [item(7)],
+				options.abort,
+				undefined,
+				true,
+			);
+		}) as never;
+		const items: string[] = [];
+		const statuses: string[] = [];
+		for await (const frame of c.streamEvents({
+			start: { checkpoint: '1' },
+			maxBufferedItems: 3,
+			retry: { maxAttempts: 0 },
+			onStatus: (status) => statuses.push(status.$kind),
+		})) {
+			items.push(frame.event.checkpoint!);
+			if (items.length === 7) break;
+		}
+		expect(items).toEqual(['1', '2', '3', '4', '5', '6', '7']);
+		expect(connections).toBe(2);
+		expect(statuses).not.toContain('Retrying');
+		expect(statuses).toContain('Live');
+		if ('pulls' in c) expect(c.pulls).toContain('subscribeEvents');
+	},
+);
 
 it('polls safely across empty scans without opening a subscription', async () => {
 	const c = client();

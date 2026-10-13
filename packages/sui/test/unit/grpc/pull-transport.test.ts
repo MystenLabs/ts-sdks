@@ -7,7 +7,10 @@ import { setFlagsFromString } from 'node:v8';
 import { runInNewContext } from 'node:vm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { GrpcWebFetchTransport, SuiGrpcClient } from '../../../src/grpc/index.js';
+import { GrpcWebFetchTransport } from '../../../src/grpc/index.js';
+import { SubscriptionServiceClient } from '../../../src/grpc/proto/sui/rpc/v2/subscription_service.client.js';
+import { withClientProtocolVersion } from '../../../src/grpc/transport.js';
+import type { GrpcWebFetchTransportOptions } from '../../../src/grpc/transport.js';
 import {
 	SubscribeCheckpointsRequest,
 	SubscribeCheckpointsResponse,
@@ -723,17 +726,27 @@ describe('error paths', () => {
 
 const ledgerOptions = { limit: 16, isItem: () => true };
 
+/** The transport and subscription service client, built as `SuiGrpcClient` builds them. */
+function ledgerClient({
+	transport: provided,
+	...options
+}: { transport?: RpcTransport } & Partial<GrpcWebFetchTransportOptions>) {
+	const transport = withClientProtocolVersion(
+		provided ?? new GrpcWebFetchTransport({ baseUrl: 'http://localhost', ...options }),
+	);
+	return { transport, subscriptionService: new SubscriptionServiceClient(transport) };
+}
+
 describe('ledger calls', () => {
 	it('reach the pull path through the protocol-version wrapper with the client metadata', async () => {
 		const b = body([...frames(3), trailerFrame()]);
 		const s = server(() => grpcWeb(b));
-		const client = new SuiGrpcClient({
-			baseUrl: 'http://localhost',
-			network: 'testnet',
+		const client = ledgerClient({
 			fetch: s.fetch,
 			meta: { 'x-api-key': 'k', 'x-bin-bin': 'AAEC' },
 		});
 		const call = openLedgerCall<SubscribeCheckpointsResponse>(
+			client.transport,
 			client.subscriptionService,
 			'subscribeCheckpoints',
 			{},
@@ -752,13 +765,12 @@ describe('ledger calls', () => {
 
 	it('read ahead only while prefetching, and fail past the buffer limit', async () => {
 		const b = body([...frames(10), trailerFrame()]);
-		const client = new SuiGrpcClient({
-			baseUrl: 'http://localhost',
-			network: 'testnet',
+		const client = ledgerClient({
 			fetch: server(() => grpcWeb(b)).fetch,
 		});
 		const controller = new AbortController();
 		const call = openLedgerCall<SubscribeCheckpointsResponse>(
+			client.transport,
 			client.subscriptionService,
 			'subscribeCheckpoints',
 			{},
@@ -778,12 +790,11 @@ describe('ledger calls', () => {
 
 	it('stop reading ahead when prefetching is disabled', async () => {
 		const b = body([...frames(10), trailerFrame()], { hangAfter: 3 });
-		const client = new SuiGrpcClient({
-			baseUrl: 'http://localhost',
-			network: 'testnet',
+		const client = ledgerClient({
 			fetch: server(() => grpcWeb(b)).fetch,
 		});
 		const call = openLedgerCall<SubscribeCheckpointsResponse>(
+			client.transport,
 			client.subscriptionService,
 			'subscribeCheckpoints',
 			{},
@@ -810,8 +821,9 @@ describe('ledger calls', () => {
 			clientStreaming: inner.clientStreaming.bind(inner),
 			duplex: inner.duplex.bind(inner),
 		};
-		const client = new SuiGrpcClient({ network: 'testnet', transport: custom });
+		const client = ledgerClient({ transport: custom });
 		const call = openLedgerCall<SubscribeCheckpointsResponse>(
+			client.transport,
 			client.subscriptionService,
 			'subscribeCheckpoints',
 			{},
@@ -828,9 +840,7 @@ describe('ledger calls', () => {
 	it('fall back to serverStreaming when interceptors are configured, so they run', async () => {
 		const s = server(() => grpcWeb(body([...frames(1), trailerFrame()])));
 		let intercepted = 0;
-		const client = new SuiGrpcClient({
-			baseUrl: 'http://localhost',
-			network: 'testnet',
+		const client = ledgerClient({
 			fetch: s.fetch,
 			interceptors: [
 				{
@@ -842,6 +852,7 @@ describe('ledger calls', () => {
 			],
 		});
 		const call = openLedgerCall<SubscribeCheckpointsResponse>(
+			client.transport,
 			client.subscriptionService,
 			'subscribeCheckpoints',
 			{},
