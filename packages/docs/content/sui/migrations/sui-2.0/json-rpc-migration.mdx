@@ -524,8 +524,10 @@ Common event filter mappings:
 | `MoveEventModule` | `eventType: 'package::module'`        |
 | `MoveEventType`   | `eventType: 'package::module::Event'` |
 
-The top-level query methods handle pagination and cursor normalization. For richer filters, such as
-combined predicates, affected addresses, affected objects, or checkpoint ranges, use the raw
+The top-level query methods handle pagination and cursor normalization. Since `@mysten/sui` 3.0 they
+also accept combined predicates, `affectedAddress` and `affectedObject` filters, and
+`startCheckpoint`/`endCheckpoint` ranges (see [Querying](/sui/clients/querying)). For filters beyond
+that, such as OR or negated predicates, use the raw
 [`ledgerService`](/sui/clients/grpc#using-service-clients) on `SuiGrpcClient` or a custom GraphQL
 query.
 
@@ -537,19 +539,19 @@ continue a descending query. `startCursor` identifies the first item in a page a
 
 Some JSON-RPC methods map to gRPC service clients rather than top-level methods:
 
-| JSON-RPC Method                     | gRPC Replacement                                                |
-| ----------------------------------- | --------------------------------------------------------------- |
-| `getCheckpoint`                     | `ledgerService.getCheckpoint`                                   |
-| `getCheckpoints`                    | `ledgerService.listCheckpoints`                                 |
-| `getLatestCheckpointSequenceNumber` | `ledgerService.getServiceInfo` and read `checkpointHeight`      |
-| `getCurrentEpoch`                   | `ledgerService.getEpoch` with no `epoch` argument               |
-| `getCommitteeInfo`                  | `ledgerService.getEpoch` with `committee` in the read mask      |
-| `getLatestSuiSystemState`           | `client.core.getCurrentSystemState` or `ledgerService.getEpoch` |
-| `getProtocolConfig`                 | `client.core.getProtocolConfig` or `ledgerService.getEpoch`     |
-| `getTotalSupply`                    | `stateService.getCoinInfo` and read `treasury.totalSupply`      |
-| `getNormalizedMoveModule`           | `movePackageService.getPackage`                                 |
-| `getNormalizedMoveModulesByPackage` | `movePackageService.getPackage`                                 |
-| `getNormalizedMoveStruct`           | `movePackageService.getDatatype`                                |
+| JSON-RPC Method                     | gRPC Replacement                                                                                                 |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `getCheckpoint`                     | `ledgerService.getCheckpoint`                                                                                    |
+| `getCheckpoints`                    | `client.core.listCheckpoints` for summaries (3.0+); `ledgerService.listCheckpoints` for full checkpoint contents |
+| `getLatestCheckpointSequenceNumber` | `ledgerService.getServiceInfo` and read `checkpointHeight`                                                       |
+| `getCurrentEpoch`                   | `ledgerService.getEpoch` with no `epoch` argument                                                                |
+| `getCommitteeInfo`                  | `ledgerService.getEpoch` with `committee` in the read mask                                                       |
+| `getLatestSuiSystemState`           | `client.core.getCurrentSystemState` or `ledgerService.getEpoch`                                                  |
+| `getProtocolConfig`                 | `client.core.getProtocolConfig` or `ledgerService.getEpoch`                                                      |
+| `getTotalSupply`                    | `stateService.getCoinInfo` and read `treasury.totalSupply`                                                       |
+| `getNormalizedMoveModule`           | `movePackageService.getPackage`                                                                                  |
+| `getNormalizedMoveModulesByPackage` | `movePackageService.getPackage`                                                                                  |
+| `getNormalizedMoveStruct`           | `movePackageService.getDatatype`                                                                                 |
 
 ```typescript
 import { SuiGrpcClient } from '@mysten/sui/grpc';
