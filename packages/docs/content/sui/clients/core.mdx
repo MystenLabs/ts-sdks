@@ -190,18 +190,20 @@ Option types follow a predictable naming scheme (`GetObjectOptions`, `ListCoinsO
 All transports produce the same shapes, but they read from different backends, and a few differences
 are visible to callers. Library code that runs against any client should account for them.
 
-| Behavior                    | What differs                                                                                                                            |
-| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `include: { json: true }`   | Field shapes vary between implementations. Use `content` and parse BCS when the result must be stable                                   |
-| `include: { events: true }` | GraphQL returns at most the first 50 events of a transaction; gRPC and JSON-RPC return all of them                                      |
-| JSON-RPC query gaps         | `EventEntry.checkpoint` is `null`, and a bare generic `eventType` filter matches nothing where gRPC and GraphQL match any instantiation |
-| Page-size caps              | Over-large `limit` values are silently truncated on gRPC and rejected with an error on GraphQL and JSON-RPC                             |
-| Short pages                 | gRPC bounds how much ledger a filtered query scans, so a page can be short or empty with `hasNextPage: true`                            |
-| Read-after-write            | GraphQL reads an index that trails execution. Use `waitForTransaction` before reading your own writes                                   |
+| Behavior                    | What differs                                                                                                                                                                  |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `include: { json: true }`   | Field shapes vary between implementations. Use `content` and parse BCS when the result must be stable                                                                         |
+| `include: { events: true }` | GraphQL returns at most the first 50 events of a transaction; gRPC and JSON-RPC return all of them                                                                            |
+| Page-size caps              | Over-large `limit` values are silently truncated on gRPC and rejected with an error on GraphQL and JSON-RPC                                                                   |
+| Short pages                 | gRPC bounds how much ledger a filtered query scans, so a page can be short or empty with `hasNextPage: true`                                                                  |
+| `affectedAddress`           | GraphQL also matches every transaction an address sent or sponsored; gRPC matches only transactions that changed the address's objects or address balance                     |
+| Reused history cursors      | Cursors are only valid with the filter and checkpoint range that produced them. Reused elsewhere, gRPC treats them as ledger positions while GraphQL can return an empty page |
+| Read-after-write            | GraphQL reads an index that trails execution. Use `waitForTransaction` before reading your own writes                                                                         |
 
-Two constraints are enforced by the client itself, so they fail the same way everywhere: a query
-takes at most one of `after` or `before`, and paginating transactions filtered by `function`
-requires a fully qualified `package::module::function`.
+A few rules are enforced by the client itself, so they fail the same way everywhere: a transaction
+filter takes at most one of `affectedAddress`, `affectedObject`, or `function` (each combinable with
+`sender`), an event filter cannot combine `emitModule` with `eventType`, and `endCheckpoint` must
+not be less than `startCheckpoint`.
 
 ## Client services
 
