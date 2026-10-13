@@ -95,34 +95,34 @@ pnpm changeset-version
 
 ### Sui Client Architecture (`packages/sui`)
 
-The `@mysten/sui` package has a multi-transport client architecture. Understanding its layered design is critical before making changes.
+The `@mysten/sui` package has a two-transport (gRPC and GraphQL) client architecture. Understanding its layered design is critical before making changes.
 
 #### Layered Client Design
 
 The client system has three layers:
 
-1. **Public client** (`SuiGrpcClient`, `SuiGraphQLClient`, `SuiJsonRpcClient`) — what users instantiate. Provides transport-specific "Native API" access (e.g., raw gRPC service clients, raw GraphQL queries) plus the unified `client.core` property. Supports extension via `$extend`.
+1. **Public client** (`SuiGrpcClient`, `SuiGraphQLClient`) — what users instantiate. Provides transport-specific "Native API" access (e.g., raw gRPC service clients, raw GraphQL queries) plus the unified `client.core` property. Supports extension via `$extend`.
 
-2. **Core implementation** (`GrpcCoreClient`, `GraphQLCoreClient`, `JSONRpcCoreClient`) — each extends the abstract `CoreClient` and maps protocol-specific wire data (protobuf, GraphQL fragments, JSON) into unified `SuiClientTypes`. This is where most business logic lives.
+2. **Core implementation** (`GrpcCoreClient`, `GraphQLCoreClient`) — each extends the abstract `CoreClient` and maps protocol-specific wire data (protobuf, GraphQL fragments) into unified `SuiClientTypes`. This is where most business logic lives.
 
 3. **Abstract contract** (`CoreClient` in `src/client/core.ts`) — defines the "Core API" that all transports implement. Also provides transport-agnostic composed methods (e.g., `getObject` delegates to `getObjects`, `getDynamicField` uses `getObjects` + BCS parsing).
 
 Key files:
 
-| Layer             | gRPC                  | GraphQL                 | JSON-RPC                |
-| ----------------- | --------------------- | ----------------------- | ----------------------- |
-| Public client     | `src/grpc/client.ts`  | `src/graphql/client.ts` | `src/jsonRpc/client.ts` |
-| Core impl         | `src/grpc/core.ts`    | `src/graphql/core.ts`   | `src/jsonRpc/core.ts`   |
-| Abstract contract | `src/client/core.ts`  | ←                       | ←                       |
-| Shared types      | `src/client/types.ts` | ←                       | ←                       |
+| Layer             | gRPC                  | GraphQL                 |
+| ----------------- | --------------------- | ----------------------- |
+| Public client     | `src/grpc/client.ts`  | `src/graphql/client.ts` |
+| Core impl         | `src/grpc/core.ts`    | `src/graphql/core.ts`   |
+| Abstract contract | `src/client/core.ts`  | ←                       |
+| Shared types      | `src/client/types.ts` | ←                       |
 
 #### Cross-Client Consistency
 
-All three transports must produce identical results for the same Core API call. This is the most important architectural invariant. When making changes:
+Both transports must produce identical results for the same Core API call. This is the most important architectural invariant. When making changes:
 
-- **Always read all three implementations** of the affected method before changing any of them.
-- A bug in one transport very often exists (in a different form) in the others.
-- Each transport has different protocol-level concerns (gRPC read masks, GraphQL query fields, JSON-RPC response shapes) but they must all produce the same unified output.
+- **Always read both implementations** of the affected method before changing either.
+- A bug in one transport very often exists (in a different form) in the other.
+- Each transport has different protocol-level concerns (gRPC read masks, GraphQL query fields) but they must produce the same unified output.
 
 #### Unified Type System (`src/client/types.ts`)
 
@@ -137,7 +137,7 @@ All Core API methods return types from the `SuiClientTypes` namespace. Key desig
   	| { $kind: 'Shared'; Shared: { initialSharedVersion: string } }
   	| { $kind: 'Immutable'; Immutable: true };
   ```
-- **`Include` generics**: Methods like `getObjects` use an `Include` type parameter to make optional data (content, BCS, owner, etc.) available only when requested. This maps to transport-specific field selection (gRPC read masks, GraphQL fragments, JSON-RPC options).
+- **`Include` generics**: Methods like `getObjects` use an `Include` type parameter to make optional data (content, BCS, owner, etc.) available only when requested. This maps to transport-specific field selection (gRPC read masks, GraphQL fragments).
 - **Named types for array items**: When a response contains an array of structured items, extract a named type (e.g., `Coin`, `DynamicFieldEntry`) rather than using inline anonymous objects.
 
 #### Transport-Specific Mapping Details
@@ -146,14 +146,13 @@ Each implementation has its own way of retrieving and transforming data:
 
 - **gRPC**: Uses `readMask.paths` arrays to request specific fields from the server. Proto-generated types live in `src/grpc/proto/`. Missing paths in the read mask mean the server won't return those fields.
 - **GraphQL**: Queries are defined in `.graphql` files in `src/graphql/queries/`, then codegen produces typed document nodes in `src/graphql/generated/queries.ts`. If you need new fields, edit the `.graphql` file and run `pnpm --filter @mysten/sui codegen:graphql`.
-- **JSON-RPC**: Legacy transport with the most complex mapping logic. Response shapes often differ significantly from the unified types, requiring manual BCS serialization, ID derivation, or type wrapping.
 
 #### E2E Testing for Parity
 
 The e2e tests in `test/e2e/clients/core/` enforce the cross-client consistency invariant:
 
-- **`testWithAllClients(name, fn)`**: Runs a single test case against all three transports automatically.
-- **`expectAllClientsReturnSameData(queryFn, normalizeFn?)`**: Executes the same query on all three clients and asserts deep equality (with optional normalization for transport-specific differences like cursor encoding).
+- **`testWithAllClients(name, fn)`**: Runs a single test case against both transports automatically.
+- **`expectAllClientsReturnSameData(queryFn, normalizeFn?)`**: Executes the same query on both clients and asserts deep equality (with optional normalization for transport-specific differences like cursor encoding).
 
 When changing Core API behavior, use both of these to verify parity. Move test contracts live in `test/e2e/data/shared/test_data/sources/`.
 
@@ -186,7 +185,7 @@ Several packages depend on external repositories and remote schemas. These are u
 
 | Path                 | Description                        | Used By                                                     |
 | -------------------- | ---------------------------------- | ----------------------------------------------------------- |
-| `../sui`             | Main Sui blockchain implementation | Reference for gRPC, GraphQL, and JSON-RPC implementations   |
+| `../sui`             | Main Sui blockchain implementation | Reference for gRPC and GraphQL implementations              |
 | `../sui-apis`        | Protocol buffer definitions        | `@mysten/sui` gRPC codegen (`packages/sui/src/grpc/proto/`) |
 | `../suins-contracts` | SuiNS Move contracts               | `@mysten/suins` codegen                                     |
 | `../sui-payment-kit` | Payment kit Move contracts         | `@mysten/payment-kit` codegen                               |
@@ -197,11 +196,10 @@ Several packages depend on external repositories and remote schemas. These are u
 
 ### Remote Resources (fetched from GitHub)
 
-| URL                                                         | Description           | Used By                                |
-| ----------------------------------------------------------- | --------------------- | -------------------------------------- |
-| `MystenLabs/sui/.../sui-indexer-alt-graphql/schema.graphql` | GraphQL schema        | `@mysten/sui` GraphQL codegen          |
-| `MystenLabs/sui/.../sui-open-rpc/spec/openrpc.json`         | JSON-RPC OpenRPC spec | `@mysten/sui` JSON-RPC type generation |
-| `MystenLabs/sui/Cargo.toml`                                 | Sui version info      | `@mysten/sui` version generation       |
+| URL                                                         | Description      | Used By                          |
+| ----------------------------------------------------------- | ---------------- | -------------------------------- |
+| `MystenLabs/sui/.../sui-indexer-alt-graphql/schema.graphql` | GraphQL schema   | `@mysten/sui` GraphQL codegen    |
+| `MystenLabs/sui/Cargo.toml`                                 | Sui version info | `@mysten/sui` version generation |
 
 ### On-chain Resources
 
