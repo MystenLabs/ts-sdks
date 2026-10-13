@@ -113,7 +113,10 @@ describe('GraphQL subscribe', () => {
 		);
 		const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
 		expect(url).toBe('https://stream.invalid/custom');
-		expect(init.headers).toMatchObject({ Authorization: 'test', Accept: 'text/event-stream' });
+		const headers = new Headers(init.headers);
+		expect(headers.get('Authorization')).toBe('test');
+		expect(headers.get('Accept')).toBe('text/event-stream');
+		expect(headers.get('x-sui-client-protocol-version')).not.toBeNull();
 		expect(JSON.parse(String(init.body))).toMatchObject({
 			variables: { after: 'cursor' },
 			operationName: 'Checkpoints',

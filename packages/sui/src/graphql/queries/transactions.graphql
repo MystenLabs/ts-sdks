@@ -139,6 +139,10 @@ fragment TRANSACTION_FIELDS on Transaction {
 		effectsBcs @include(if: $includeEffects)
 		effectsJson @include(if: $includeEffectsJson)
 		objectChanges(first: 50) @include(if: $includeObjectTypes) {
+			pageInfo {
+				hasNextPage
+				endCursor
+			}
 			nodes {
 				address
 				outputState {
@@ -156,6 +160,7 @@ fragment TRANSACTION_FIELDS on Transaction {
 		events(first: 50) @include(if: $includeEvents) {
 			pageInfo {
 				hasNextPage
+				endCursor
 			}
 			nodes {
 				transactionModule {

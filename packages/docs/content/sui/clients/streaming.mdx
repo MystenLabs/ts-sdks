@@ -34,6 +34,10 @@ historical pagination and recovery after transient disconnects.
 Call these methods directly on the gRPC or GraphQL client. Their shared options and results are in
 `SuiClientTypes` from `@mysten/sui/client`.
 
+`filter` takes the same `TransactionFilter` and `EventFilter` as `listTransactions` and
+`listEvents`: every predicate you set must match. Checkpoint positions accept a string, number, or
+bigint.
+
 `include: { transaction: true }` returns the full ledger transaction data, including system
 transactions such as genesis and consensus updates. Inspect `frame.transaction.Transaction` or
 `frame.transaction.FailedTransaction`, then narrow `transaction.kind.$kind` to access that kind's
@@ -112,6 +116,19 @@ client.streamTransactions({
 Descending reads start at the indexed tip by default and move toward genesis. Provide a start or end
 to narrow the traversal. Descending reads are finite; `follow: true` is only valid for ascending
 reads without an end.
+
+### Mapping to list query bounds
+
+Stream checkpoint bounds follow the traversal direction, while the `startCheckpoint` (inclusive) and
+`endCheckpoint` (exclusive) options of `listTransactions`, `listEvents`, and `listCheckpoints`
+always count upward:
+
+| Stream                                                                  | Equivalent list query bounds                                          |
+| ----------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `start: { checkpoint: N }, end: { checkpoint: M }`                      | `startCheckpoint: N, endCheckpoint: M`                                |
+| `order: 'descending', start: { checkpoint: N }, end: { checkpoint: M }` | `startCheckpoint: M + 1, endCheckpoint: N + 1`, `order: 'descending'` |
+
+A descending stream from `N` to `M` reads checkpoint `N` first and stops after checkpoint `M + 1`.
 
 ### Exact cursor bounds
 

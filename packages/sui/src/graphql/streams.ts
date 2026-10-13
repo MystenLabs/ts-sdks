@@ -1,7 +1,6 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { fromBase64 } from '@mysten/utils';
 import type { SuiClientTypes } from '../client/types.js';
 import {
 	createLedgerStream,
@@ -9,28 +8,35 @@ import {
 	type StreamBound,
 } from '../client/stream.js';
 import type { GraphQLStreamPosition as StreamPosition } from '../client/stream-token.js';
-import { resolveEventFilter, resolveTransactionFilter } from '../client/query-filters.js';
-import { normalizeStructTag, normalizeSuiAddress } from '../utils/sui-types.js';
+import {
+	resolveEventFilter,
+	resolveTransactionFilter,
+	type ResolvedCheckpointRange,
+	type ResolvedEventFilter,
+	type ResolvedTransactionFilter,
+} from '../client/query-filters.js';
 import type { GraphQLDocument, GraphQLQueryResult, SuiGraphQLClient } from './client.js';
 import { SuiGraphQLSubscriptionError } from './subscribe.js';
 import { SuiGraphQLRequestError } from './client.js';
-import { parseTransaction } from './core.js';
+import { parseGraphQLCheckpoint, parseGraphQLEvent, parseTransaction } from './core.js';
+import {
+	toGraphQLCheckpointBounds,
+	toGraphQLEventFilter,
+	toGraphQLTransactionFilter,
+} from './filters.js';
 import {
 	LedgerStreamStateDocument,
-	StreamTransactionCheckpointDocument,
 	ScanCheckpointsDocument,
 	ScanEventsDocument,
 	ScanTransactionsDocument,
 	SubscribeCheckpointsDocument,
 	SubscribeEventsDocument,
 	SubscribeTransactionsDocument,
+	StreamTransactionCheckpointsDocument,
 	StreamTransactionDetailsDocument,
-	type Stream_CheckpointFragment,
-	type Stream_EventFragment,
-	type Stream_TransactionFragment,
-	type EventFilter,
-	type TransactionFilter,
-	type CheckpointFilter,
+	type Checkpoint_FieldsFragment,
+	type Event_FieldsFragment,
+	type Transaction_FieldsFragment,
 } from './generated/queries.js';
 
 const MAX_CHECKPOINT = BigInt(Number.MAX_SAFE_INTEGER);
@@ -39,7 +45,7 @@ type Frame =
 	| SuiClientTypes.StreamCheckpointFrame
 	| SuiClientTypes.StreamEventFrame
 	| SuiClientTypes.StreamTransactionFrame<SuiClientTypes.StreamTransactionInclude>;
-type Node = Stream_CheckpointFragment | Stream_EventFragment | Stream_TransactionFragment;
+type Node = Checkpoint_FieldsFragment | Event_FieldsFragment | Transaction_FieldsFragment;
 interface Edge {
 	cursor: string;
 	node: Node;
@@ -57,13 +63,6 @@ type Options =
 	| SuiClientTypes.StreamCheckpointsOptions<SuiClientTypes.StreamInclude>
 	| SuiClientTypes.StreamEventsOptions<SuiClientTypes.StreamInclude>
 	| SuiClientTypes.StreamTransactionsOptions<SuiClientTypes.StreamTransactionInclude>;
-
-function scalar(value: string): number {
-	const number = BigInt(value);
-	if (number < 0n || number > MAX_CHECKPOINT)
-		throw new Error('GraphQL stream checkpoints must be within the UInt53 range');
-	return Number(number);
-}
 
 export class SuiGraphQLStreamError extends Error {
 	readonly retryable: boolean;
@@ -95,13 +94,20 @@ function unwrap<Result>(result: GraphQLQueryResult<Result>): Result {
 }
 
 export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, options: Options) {
-	let filter: TransactionFilter | EventFilter | CheckpointFilter = {};
+	let resolvedFilter: ResolvedTransactionFilter | ResolvedEventFilter | undefined;
+	const graphQLFilter = (range: ResolvedCheckpointRange) =>
+		family === 'transactions'
+			? toGraphQLTransactionFilter(resolvedFilter as ResolvedTransactionFilter | undefined, range)
+			: family === 'events'
+				? toGraphQLEventFilter(resolvedFilter as ResolvedEventFilter | undefined, range)
+				: toGraphQLCheckpointBounds(range);
 	const include = options.include as SuiClientTypes.StreamTransactionInclude | undefined;
 	const selections = {
 		includeEffects: include?.effects ?? false,
 		includeEvents: include?.events ?? false,
 		includeBalanceChanges: include?.balanceChanges ?? false,
 		includeObjectTypes: include?.objectTypes ?? false,
+		includeEffectsJson: !!(include?.effects || include?.objectTypes),
 		includeBcs: !!(include?.transaction || include?.bcs),
 	};
 	const state = async (signal: AbortSignal) => {
@@ -131,40 +137,20 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 		family,
 		async initialize(signal) {
 			const input = 'filter' in options ? options.filter : undefined;
-			let resolved: unknown;
 			if (family === 'transactions' && input) {
-				const value = await resolveTransactionFilter(
+				resolvedFilter = await resolveTransactionFilter(
 					client.core.mvr,
 					input as SuiClientTypes.TransactionFilter,
 					signal,
 				);
-				resolved = value;
-				filter =
-					value.$kind === 'sender'
-						? { sentAddress: value.sender }
-						: {
-								function: [value.package, value.module, value.function].filter(Boolean).join('::'),
-							};
 			} else if (family === 'events' && input) {
-				const value = await resolveEventFilter(
+				resolvedFilter = await resolveEventFilter(
 					client.core.mvr,
 					input as SuiClientTypes.EventFilter,
 					signal,
 				);
-				resolved = value;
-				filter =
-					value.$kind === 'sender'
-						? { sender: value.sender }
-						: value.$kind === 'emitModule'
-							? { module: `${value.package}::${value.module}` }
-							: {
-									type:
-										value.$kind === 'eventTypeModule'
-											? `${value.package}::${value.module}`
-											: value.eventType,
-								};
 			}
-			return { chain: (await state(signal)).chain, filter: resolved };
+			return { chain: (await state(signal)).chain, filter: resolvedFilter };
 		},
 		async getIndexedTip(signal) {
 			return (await state(signal)).tip;
@@ -258,11 +244,10 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 				yield { $kind: 'end', complete: target == null || tip >= target };
 				return;
 			}
-			const boundedFilter = {
-				...filter,
-				afterCheckpoint: lower > 0n ? scalar((lower - 1n).toString()) : undefined,
-				beforeCheckpoint: upper <= MAX_CHECKPOINT ? scalar(upper.toString()) : undefined,
-			};
+			const boundedFilter = graphQLFilter({
+				start: lower,
+				end: upper <= MAX_CHECKPOINT ? upper : undefined,
+			});
 			const document =
 				family === 'checkpoints'
 					? ScanCheckpointsDocument
@@ -290,9 +275,13 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 				const connection = data[family];
 				if (!connection) throw new SuiGraphQLStreamError('GraphQL ledger connection is missing');
 				const edges = descending ? [...connection.edges].reverse() : connection.edges;
-				for (const edge of edges) {
+				const checkpoints = await nodeCheckpoints(
+					edges.map((edge) => edge.node),
+					request.signal,
+				);
+				for (const [i, edge] of edges.entries()) {
 					lastItemCursor = edge.cursor;
-					const checkpoint = await nodeCheckpoint(edge.node, request.signal);
+					const checkpoint = checkpoints[i];
 					const position: StreamPosition = {
 						cursor: edge.cursor,
 						checkpoint,
@@ -398,19 +387,19 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 		},
 		async *live(request) {
 			let after: string | undefined;
-			let afterCheckpoint: number | undefined;
+			let start: bigint | undefined;
 			if (request.start && 'position' in request.start) {
 				after = request.start.position.cursor;
 			} else if (request.start) {
-				const cp = BigInt(request.start.checkpoint);
-				if (cp === 0n) {
+				start = BigInt(request.start.checkpoint);
+				if (start === 0n) {
 					// GraphQL has no afterCheckpoint=-1. Read genesis explicitly, then let the
 					// server backfill after checkpoint zero before joining its live stream.
 					for await (const event of adapter.scan({ ...request, end: { checkpoint: '1' } })) {
 						if (event.$kind !== 'end') yield event;
 					}
-					afterCheckpoint = 0;
-				} else afterCheckpoint = scalar((cp - 1n).toString());
+					start = 1n;
+				}
 			}
 			const document =
 				family === 'checkpoints'
@@ -423,8 +412,8 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 				query: document as GraphQLDocument<Record<Family, Edge>>,
 				variables: {
 					after,
-					afterCheckpoint,
-					filter: { ...filter, afterCheckpoint },
+					afterCheckpoint: toGraphQLCheckpointBounds({ start }).afterCheckpoint,
+					filter: graphQLFilter({ start }),
 					...selections,
 				},
 				signal: request.signal,
@@ -435,7 +424,7 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 				}
 				const edge = unwrap(result)[family];
 				if (!edge) throw new SuiGraphQLStreamError('GraphQL ledger subscription edge is missing');
-				const checkpoint = await nodeCheckpoint(edge.node, request.signal);
+				const [checkpoint] = await nodeCheckpoints([edge.node], request.signal);
 				const position: StreamPosition = {
 					cursor: edge.cursor,
 					checkpoint,
@@ -456,91 +445,79 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 	};
 	function nodeIdentity(node: Node): string {
 		if (family === 'checkpoints')
-			return (node as Stream_CheckpointFragment).sequenceNumber.toString();
+			return (node as Checkpoint_FieldsFragment).sequenceNumber.toString();
 		if (family === 'events') {
-			const event = node as Stream_EventFragment;
+			const event = node as Event_FieldsFragment;
 			if (!event.transaction?.digest)
 				throw new Error('GraphQL event is missing its transaction digest');
 			return `${event.transaction.digest}:${event.sequenceNumber}`;
 		}
-		const digest = (node as Stream_TransactionFragment).digest;
+		const digest = (node as Transaction_FieldsFragment).digest;
 		if (!digest) throw new Error('GraphQL transaction is missing its digest');
 		return digest;
 	}
-	async function nodeCheckpoint(node: Node, signal: AbortSignal): Promise<string> {
+	async function nodeCheckpoints(nodes: Node[], signal: AbortSignal): Promise<string[]> {
 		if (family === 'checkpoints')
-			return (node as Stream_CheckpointFragment).sequenceNumber.toString();
-		const transaction =
-			family === 'events'
-				? (node as Stream_EventFragment).transaction
-				: (node as Stream_TransactionFragment);
-		const checkpoint = transaction?.effects?.checkpoint?.sequenceNumber;
-		if (checkpoint != null) return checkpoint.toString();
-		if (!transaction?.digest) throw new Error('GraphQL transaction is missing its digest');
-		const indexed = unwrap(
-			await client.query({
-				query: StreamTransactionCheckpointDocument,
-				variables: { digest: transaction.digest },
-				signal,
-			}),
-		).transaction?.effects?.checkpoint?.sequenceNumber;
-		if (indexed == null)
+			return nodes.map((node) => (node as Checkpoint_FieldsFragment).sequenceNumber.toString());
+		const entries = nodes.map((node): { checkpoint: string } | { digest: string } => {
+			const transaction =
+				family === 'events'
+					? (node as Event_FieldsFragment).transaction
+					: (node as Transaction_FieldsFragment);
+			const checkpoint = transaction?.effects?.checkpoint?.sequenceNumber;
+			if (checkpoint != null) return { checkpoint: String(checkpoint) };
+			if (!transaction?.digest) throw new Error('GraphQL transaction is missing its digest');
+			return { digest: transaction.digest };
+		});
+		// Live subscription nodes can arrive before the index assigns their checkpoint, so only
+		// those are looked up by digest, in one request per batch.
+		const missing = [
+			...new Set(entries.flatMap((entry) => ('digest' in entry ? [entry.digest] : []))),
+		];
+		const resolved = new Map<string, string>();
+		if (missing.length > 0) {
+			const { multiGetTransactionEffects: effects } = unwrap(
+				await client.query({
+					query: StreamTransactionCheckpointsDocument,
+					variables: { digests: missing },
+					signal,
+				}),
+			);
+			missing.forEach((digest, i) => {
+				const checkpoint = effects[i]?.checkpoint?.sequenceNumber;
+				if (checkpoint != null) resolved.set(digest, String(checkpoint));
+			});
+		}
+		return entries.map((entry) => {
+			const checkpoint = 'digest' in entry ? resolved.get(entry.digest) : entry.checkpoint;
+			if (checkpoint != null) return checkpoint;
 			throw new SuiGraphQLStreamError('Transaction checkpoint has not reached the GraphQL index', {
 				retryable: true,
 			});
-		return indexed.toString();
+		});
 	}
 	async function mapNode(node: Node, checkpoint: string, signal: AbortSignal): Promise<Frame> {
 		if (family === 'checkpoints') {
-			const value = node as Stream_CheckpointFragment;
-			const timestampMs = value.timestamp == null ? NaN : Date.parse(value.timestamp);
-			if (!value.digest || value.epoch?.epochId == null || !Number.isFinite(timestampMs))
-				throw new Error('GraphQL checkpoint is missing required header fields');
 			return {
 				$kind: 'Checkpoint',
-				checkpoint: {
-					sequenceNumber: value.sequenceNumber.toString(),
-					digest: value.digest,
-					epoch: value.epoch.epochId.toString(),
-					timestamp: timestampMs.toString(),
-				},
+				checkpoint: parseGraphQLCheckpoint(node as Checkpoint_FieldsFragment, 'Checkpoint stream'),
 				resumeToken: '',
 			};
 		}
 		if (family === 'events') {
-			const value = node as Stream_EventFragment;
-			if (
-				!value.transactionModule?.package?.address ||
-				!value.transactionModule.name ||
-				!value.sender?.address ||
-				!value.contents?.type?.repr ||
-				!value.transaction?.digest
-			)
-				throw new Error('GraphQL event is missing required fields');
 			return {
 				$kind: 'Event',
-				event: {
-					packageId: normalizeSuiAddress(value.transactionModule.package.address),
-					module: value.transactionModule.name,
-					sender: normalizeSuiAddress(value.sender.address),
-					eventType: normalizeStructTag(value.contents.type.repr),
-					bcs: value.contents.bcs ? fromBase64(value.contents.bcs) : new Uint8Array(),
-					json: (value.contents.json as Record<string, unknown>) ?? null,
-					checkpoint:
-						value.transaction.effects?.checkpoint?.sequenceNumber?.toString() ?? checkpoint,
-					transactionDigest: value.transaction.digest,
-					eventIndex: value.sequenceNumber,
-				},
+				event: parseGraphQLEvent(node as Event_FieldsFragment, checkpoint, 'Event stream'),
 				resumeToken: '',
 			};
 		}
-		const source = node as Stream_TransactionFragment;
+		const source = node as Transaction_FieldsFragment;
 		// Subscription nodes may need a separate indexed lookup for their checkpoint.
 		const value = {
 			...source,
 			effects: source.effects && {
 				...source.effects,
-				checkpoint: source.effects.checkpoint ?? { sequenceNumber: scalar(checkpoint) },
+				checkpoint: source.effects.checkpoint ?? { sequenceNumber: Number(checkpoint) },
 			},
 		};
 		if (!value.digest || !value.effects?.status || value.effects.checkpoint?.sequenceNumber == null)

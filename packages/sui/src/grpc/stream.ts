@@ -14,9 +14,15 @@ import type {
 } from '../client/stream.js';
 import type { GrpcStreamPosition as StreamPosition } from '../client/stream-token.js';
 import { resolveEventFilter, resolveTransactionFilter } from '../client/query-filters.js';
-import { normalizeStructTag, normalizeSuiAddress } from '../utils/sui-types.js';
 import type { SuiGrpcClient } from './client.js';
-import { parseGrpcTransactionResponse, transactionReadMaskPaths } from './core.js';
+import {
+	CHECKPOINT_READ_MASK_PATHS,
+	EVENT_READ_MASK_PATHS,
+	parseGrpcCheckpoint,
+	parseGrpcEvent,
+	parseGrpcTransactionResponse,
+	transactionReadMaskPaths,
+} from './core.js';
 import { toGrpcEventFilter, toGrpcTransactionFilter } from './filters.js';
 import { linkedAbortController } from '../utils/abort.js';
 import { bufferedGrpcCall } from './stream-buffer.js';
@@ -27,7 +33,6 @@ import type { ExecutedTransaction } from './proto/sui/rpc/v2/executed_transactio
 import type { EventFilter, TransactionFilter } from './proto/sui/rpc/v2/filter.js';
 import { Ordering, QueryEndReason } from './proto/sui/rpc/v2/query_options.js';
 import type { QueryEnd, Watermark, QueryOptions } from './proto/sui/rpc/v2/query_options.js';
-import { Value } from './proto/google/protobuf/struct.js';
 
 type Family = 'checkpoints' | 'transactions' | 'events';
 type Frame = Record<string, unknown>;
@@ -135,65 +140,24 @@ function position(frame: RawFrame, family: Family, live: boolean): StreamPositio
 }
 
 function mapItem(frame: RawFrame, include: Options['include']): Frame {
-	let result: Frame;
 	if (frame.checkpoint) {
-		const checkpoint = frame.checkpoint;
-		const summary = checkpoint.summary;
-		if (
-			checkpoint.sequenceNumber === undefined ||
-			!checkpoint.digest ||
-			summary?.epoch === undefined ||
-			!summary.timestamp
-		) {
-			throw protocol('Checkpoint header is incomplete');
-		}
-		result = {
+		return {
 			$kind: 'Checkpoint',
-			checkpoint: {
-				sequenceNumber: checkpoint.sequenceNumber.toString(),
-				digest: checkpoint.digest,
-				epoch: summary.epoch.toString(),
-				timestamp: (
-					summary.timestamp.seconds * 1000n +
-					BigInt(Math.floor(summary.timestamp.nanos / 1_000_000))
-				).toString(),
-			} satisfies SuiClientTypes.Checkpoint,
+			checkpoint: parseGrpcCheckpoint(frame.checkpoint, 'Checkpoint stream'),
 		};
-	} else if (frame.transaction) {
+	}
+	if (frame.transaction) {
 		if (!frame.transaction.digest || !frame.transaction.effects?.status)
 			throw protocol('Transaction response is incomplete');
-		result = {
+		return {
 			$kind: 'Transaction',
 			transaction: parseGrpcTransactionResponse(frame.transaction, { include }),
 		};
-	} else if (frame.event) {
-		const event = frame.event;
-		if (
-			!event.packageId ||
-			!event.module ||
-			!event.sender ||
-			!event.eventType ||
-			!event.transactionDigest ||
-			event.eventIndex === undefined
-		) {
-			throw protocol('Event response is incomplete');
-		}
-		result = {
-			$kind: 'Event',
-			event: {
-				packageId: normalizeSuiAddress(event.packageId),
-				module: event.module,
-				sender: normalizeSuiAddress(event.sender),
-				eventType: normalizeStructTag(event.eventType),
-				bcs: event.contents?.value ?? new Uint8Array(),
-				json: event.json ? (Value.toJson(event.json) as Record<string, unknown>) : null,
-				checkpoint: event.checkpoint?.toString() ?? null,
-				transactionDigest: event.transactionDigest,
-				eventIndex: event.eventIndex,
-			} satisfies SuiClientTypes.EventEntry,
-		};
-	} else throw protocol('Expected a ledger item');
-	return result;
+	}
+	if (frame.event) {
+		return { $kind: 'Event', event: parseGrpcEvent(frame.event, 'Event stream') };
+	}
+	throw protocol('Expected a ledger item');
 }
 
 export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: Options) {
@@ -216,21 +180,10 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 	}
 	const paths =
 		family === 'checkpoints'
-			? ['sequence_number', 'digest', 'summary.epoch', 'summary.timestamp']
+			? CHECKPOINT_READ_MASK_PATHS
 			: family === 'transactions'
 				? [...transactionReadMaskPaths(include), 'transaction_index']
-				: [
-						'package_id',
-						'module',
-						'sender',
-						'event_type',
-						'contents',
-						'json',
-						'checkpoint',
-						'transaction_digest',
-						'transaction_index',
-						'event_index',
-					];
+				: [...EVENT_READ_MASK_PATHS, 'transaction_index'];
 	const readMask = { paths };
 	const limit = input.maxBufferedItems ?? 1024;
 	const pageSize = input.pageSize ?? 1000;

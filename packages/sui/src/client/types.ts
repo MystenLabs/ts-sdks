@@ -51,12 +51,20 @@ export namespace SuiClientTypes {
 	/** A serializable, transport-specific continuation. Treat its contents as opaque. */
 	export type StreamResumeToken = string;
 
-	/** Checkpoint bounds are inclusive at the start and exclusive at the end. */
+	/**
+	 * A stream position: a checkpoint sequence number or a resume token. Checkpoint bounds are
+	 * inclusive at the start and exclusive at the end, in traversal order.
+	 */
 	export type StreamStart =
-		| { checkpoint: string; resumeToken?: never }
+		| { checkpoint: CheckpointNumber; resumeToken?: never }
 		| { resumeToken: StreamResumeToken; checkpoint?: never };
 
 	export type StreamEnd = StreamStart;
+
+	/** A stream position reported by a completion, with checkpoints as decimal strings. */
+	export type StreamBound =
+		| { checkpoint: string; resumeToken?: never }
+		| { resumeToken: StreamResumeToken; checkpoint?: never };
 
 	export interface StreamRetryOptions {
 		/** Initial retry delay in milliseconds. Defaults to 250. */
@@ -118,14 +126,6 @@ export namespace SuiClientTypes {
 		include?: Include & StreamInclude;
 	}
 
-	/** The immutable checkpoint header, with ledger numbers represented as decimal strings. */
-	export interface Checkpoint {
-		sequenceNumber: string;
-		digest: string;
-		epoch: string;
-		timestamp: string;
-	}
-
 	export interface StreamCheckpointFrame {
 		$kind: 'Checkpoint';
 		checkpoint: Checkpoint;
@@ -146,8 +146,8 @@ export namespace SuiClientTypes {
 
 	export interface StreamRange {
 		/** Start of this invocation, including when resuming an earlier stream. */
-		start?: StreamStart;
-		end?: StreamEnd;
+		start?: StreamBound;
+		end?: StreamBound;
 		/** Indexed checkpoint captured once when establishing a finite range. */
 		capturedCheckpoint?: string;
 	}

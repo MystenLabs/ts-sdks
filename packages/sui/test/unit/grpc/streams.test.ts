@@ -511,7 +511,7 @@ it('maps checkpoint headers and resumes after the numeric live checkpoint', asyn
 		sequenceNumber: '5',
 		digest: 'digest',
 		epoch: '2',
-		timestamp: '123456',
+		timestampMs: 123456,
 	});
 	await stream.return?.();
 	let request: GrpcTypes.ListCheckpointsRequest | undefined;

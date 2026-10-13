@@ -406,7 +406,7 @@ describe('ledger stream range and tokens', () => {
 			}),
 		});
 		const frames = await collect(
-			createLedgerStream({ start: { checkpoint: max }, follow: false }, source),
+			createLedgerStream({ start: { checkpoint: '0' }, follow: false }, source),
 		);
 		const saved = (frames[0] as Frame).resumeToken;
 		const resumed = adapter({ getIndexedTip: vi.fn() });
@@ -428,6 +428,9 @@ describe('ledger stream range and tokens', () => {
 		{ follow: true, end: { checkpoint: '5' } },
 		{ follow: false },
 		{ start: { resumeToken: 'broken' } },
+		{ start: { checkpoint: -1 }, follow: false },
+		{ start: { checkpoint: '1.5' }, follow: false },
+		{ start: { checkpoint: 0 }, end: { checkpoint: '9007199254740992' } },
 	] as SuiClientTypes.StreamOptions[])(
 		'rejects invalid options %j before network work',
 		async (options) => {

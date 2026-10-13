@@ -8,6 +8,8 @@ import { parseTransactionDataBcs } from '../client/transaction-data.js';
 import { SUI_TYPE_ARG } from '../utils/constants.js';
 import type { GraphQLQueryOptions, SuiGraphQLClient } from './client.js';
 import type {
+	Checkpoint_FieldsFragment,
+	Event_FieldsFragment,
 	Object_Owner_FieldsFragment,
 	Transaction_FieldsFragment,
 } from './generated/queries.js';
@@ -734,36 +736,12 @@ export class GraphQLCoreClient extends CoreClient {
 		const endCursor = (descending ? pageInfo.startCursor : pageInfo.endCursor) ?? null;
 
 		return {
-			events: nodes.map((event): SuiClientTypes.EventEntry => {
-				const packageId = event.transactionModule?.package?.address;
-				const module = event.transactionModule?.name;
-				const sender = event.sender?.address;
-				const eventType = event.contents?.type?.repr;
-				const transactionDigest = event.transaction?.digest;
+			events: nodes.map((event) => {
 				const checkpoint = event.transaction?.effects?.checkpoint?.sequenceNumber;
-
-				if (
-					!packageId ||
-					!module ||
-					!sender ||
-					!eventType ||
-					!transactionDigest ||
-					checkpoint == null
-				) {
+				if (checkpoint == null) {
 					throw new Error('listEvents response is missing expected event fields');
 				}
-
-				return {
-					packageId: normalizeSuiAddress(packageId),
-					module,
-					sender: normalizeSuiAddress(sender),
-					eventType: normalizeStructTag(eventType),
-					bcs: event.contents?.bcs ? fromBase64(event.contents.bcs) : new Uint8Array(),
-					json: (event.contents?.json as Record<string, unknown>) ?? null,
-					checkpoint: String(checkpoint),
-					transactionDigest,
-					eventIndex: event.sequenceNumber,
-				};
+				return parseGraphQLEvent(event, String(checkpoint), 'listEvents');
 			}),
 			// A page without a cursor to continue from cannot have a next page
 			hasNextPage:
@@ -802,21 +780,7 @@ export class GraphQLCoreClient extends CoreClient {
 		const endCursor = (descending ? pageInfo.startCursor : pageInfo.endCursor) ?? null;
 
 		return {
-			checkpoints: nodes.map((checkpoint): SuiClientTypes.Checkpoint => {
-				const timestampMs = checkpoint.timestamp ? Date.parse(checkpoint.timestamp) : NaN;
-				const epoch = checkpoint.epoch?.epochId;
-
-				if (!checkpoint.digest || Number.isNaN(timestampMs) || epoch == null) {
-					throw new Error('listCheckpoints response is missing expected checkpoint fields');
-				}
-
-				return {
-					sequenceNumber: String(checkpoint.sequenceNumber),
-					digest: checkpoint.digest,
-					epoch: String(epoch),
-					timestampMs,
-				};
-			}),
+			checkpoints: nodes.map((checkpoint) => parseGraphQLCheckpoint(checkpoint, 'listCheckpoints')),
 			hasNextPage:
 				endCursor !== null && (descending ? pageInfo.hasPreviousPage : pageInfo.hasNextPage),
 			startCursor: (descending ? pageInfo.endCursor : pageInfo.startCursor) ?? null,
@@ -1111,6 +1075,55 @@ function mapOwner(owner: Object_Owner_FieldsFragment): SuiClientTypes.ObjectOwne
 				Shared: { initialSharedVersion: String(owner.initialSharedVersion) },
 			};
 	}
+}
+
+/** `source` names the response in the error thrown when required fields are missing. */
+export function parseGraphQLCheckpoint(
+	checkpoint: Checkpoint_FieldsFragment,
+	source: string,
+): SuiClientTypes.Checkpoint {
+	const timestampMs = checkpoint.timestamp ? Date.parse(checkpoint.timestamp) : NaN;
+	const epoch = checkpoint.epoch?.epochId;
+
+	if (!checkpoint.digest || Number.isNaN(timestampMs) || epoch == null) {
+		throw new Error(`${source} response is missing expected checkpoint fields`);
+	}
+
+	return {
+		sequenceNumber: String(checkpoint.sequenceNumber),
+		digest: checkpoint.digest,
+		epoch: String(epoch),
+		timestampMs,
+	};
+}
+
+/** `source` names the response in the error thrown when required fields are missing. */
+export function parseGraphQLEvent(
+	event: Event_FieldsFragment,
+	checkpoint: string,
+	source: string,
+): SuiClientTypes.EventEntry {
+	const packageId = event.transactionModule?.package?.address;
+	const module = event.transactionModule?.name;
+	const sender = event.sender?.address;
+	const eventType = event.contents?.type?.repr;
+	const transactionDigest = event.transaction?.digest;
+
+	if (!packageId || !module || !sender || !eventType || !transactionDigest) {
+		throw new Error(`${source} response is missing expected event fields`);
+	}
+
+	return {
+		packageId: normalizeSuiAddress(packageId),
+		module,
+		sender: normalizeSuiAddress(sender),
+		eventType: normalizeStructTag(eventType),
+		bcs: event.contents?.bcs ? fromBase64(event.contents.bcs) : new Uint8Array(),
+		json: (event.contents?.json as Record<string, unknown>) ?? null,
+		checkpoint,
+		transactionDigest,
+		eventIndex: event.sequenceNumber,
+	};
 }
 
 function withObjectTypes(

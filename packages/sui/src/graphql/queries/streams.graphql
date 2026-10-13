@@ -14,120 +14,6 @@ query ledgerStreamState($field: String!) {
 		}
 	}
 }
-fragment STREAM_CHECKPOINT on Checkpoint {
-	sequenceNumber
-	digest
-	epoch {
-		epochId
-	}
-	timestamp
-}
-fragment STREAM_EVENT on Event {
-	sequenceNumber
-	transaction {
-		digest
-		effects {
-			checkpoint {
-				sequenceNumber
-			}
-		}
-	}
-	transactionModule {
-		package {
-			address
-		}
-		name
-	}
-	sender {
-		address
-	}
-	contents {
-		type {
-			repr
-		}
-		bcs
-		json
-	}
-}
-fragment STREAM_TRANSACTION on Transaction {
-	digest
-	transactionBcs @include(if: $includeBcs)
-	signatures {
-		signatureBytes
-	}
-	effects {
-		status
-		timestamp
-		checkpoint {
-			sequenceNumber
-		}
-		executionError {
-			message
-			abortCode
-			identifier
-			constant
-			sourceLineNumber
-			instructionOffset
-			module {
-				name
-				package {
-					address
-				}
-			}
-			function {
-				name
-			}
-		}
-		epoch {
-			epochId
-		}
-		effectsBcs @include(if: $includeEffects)
-		effectsJson @include(if: $includeObjectTypes)
-		objectChanges(first: 50) @include(if: $includeObjectTypes) {
-			pageInfo {
-				hasNextPage
-				endCursor
-			}
-			nodes {
-				address
-				outputState {
-					asMoveObject {
-						contents {
-							type {
-								repr
-							}
-						}
-					}
-				}
-			}
-		}
-		balanceChangesJson @include(if: $includeBalanceChanges)
-		events(first: 50) @include(if: $includeEvents) {
-			pageInfo {
-				hasNextPage
-				endCursor
-			}
-			nodes {
-				transactionModule {
-					package {
-						address
-					}
-					name
-				}
-				sender {
-					address
-				}
-				contents {
-					type {
-						repr
-					}
-					bcs
-					json
-				}
-			}
-		}
-	}
-}
 
 query scanCheckpoints(
 	$filter: CheckpointFilter
@@ -146,7 +32,7 @@ query scanCheckpoints(
 		edges {
 			cursor
 			node {
-				...STREAM_CHECKPOINT
+				...CHECKPOINT_FIELDS
 			}
 		}
 	}
@@ -155,7 +41,7 @@ subscription subscribeCheckpoints($after: String, $afterCheckpoint: UInt53) {
 	checkpoints(after: $after, afterCheckpoint: $afterCheckpoint) {
 		cursor
 		node {
-			...STREAM_CHECKPOINT
+			...CHECKPOINT_FIELDS
 		}
 	}
 }
@@ -170,7 +56,7 @@ query scanEvents($filter: EventFilter, $first: Int, $after: String, $last: Int, 
 		edges {
 			cursor
 			node {
-				...STREAM_EVENT
+				...EVENT_FIELDS
 			}
 		}
 	}
@@ -179,7 +65,7 @@ subscription subscribeEvents($after: String, $filter: EventFilter) {
 	events(after: $after, filter: $filter) {
 		cursor
 		node {
-			...STREAM_EVENT
+			...EVENT_FIELDS
 		}
 	}
 }
@@ -193,6 +79,7 @@ query scanTransactions(
 	$includeEvents: Boolean = false
 	$includeBalanceChanges: Boolean = false
 	$includeObjectTypes: Boolean = false
+	$includeEffectsJson: Boolean = false
 	$includeBcs: Boolean = false
 ) {
 	transactions(filter: $filter, first: $first, after: $after, last: $last, before: $before) {
@@ -205,7 +92,7 @@ query scanTransactions(
 		edges {
 			cursor
 			node {
-				...STREAM_TRANSACTION
+				...TRANSACTION_FIELDS
 			}
 		}
 	}
@@ -217,12 +104,13 @@ subscription subscribeTransactions(
 	$includeEvents: Boolean = false
 	$includeBalanceChanges: Boolean = false
 	$includeObjectTypes: Boolean = false
+	$includeEffectsJson: Boolean = false
 	$includeBcs: Boolean = false
 ) {
 	transactions(after: $after, filter: $filter) {
 		cursor
 		node {
-			...STREAM_TRANSACTION
+			...TRANSACTION_FIELDS
 		}
 	}
 }
@@ -280,13 +168,10 @@ query streamTransactionDetails(
 		}
 	}
 }
-
-query streamTransactionCheckpoint($digest: String!) {
-	transaction(digest: $digest) {
-		effects {
-			checkpoint {
-				sequenceNumber
-			}
+query streamTransactionCheckpoints($digests: [String!]!) {
+	multiGetTransactionEffects(keys: $digests) {
+		checkpoint {
+			sequenceNumber
 		}
 	}
 }

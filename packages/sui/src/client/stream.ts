@@ -6,6 +6,7 @@ import { blake2b } from '@noble/hashes/blake2.js';
 
 import { abortableAsyncGenerator } from '../utils/abort.js';
 
+import { parseCheckpointNumber } from './query-filters.js';
 import type { SuiClientTypes } from './types.js';
 import {
 	type tokenPayload,
@@ -229,6 +230,14 @@ export function createLedgerStream<Frame extends object, Position extends Stream
 				throw new Error('Cannot expand a finite resume token range');
 			if (!follow && order === 'ascending' && !options.start)
 				throw new Error('Ascending finite streams require an explicit start');
+			const startCheckpoint =
+				options.start?.checkpoint != null
+					? parseCheckpointNumber(options.start.checkpoint, 'start').toString()
+					: undefined;
+			const endCheckpoint =
+				options.end?.checkpoint != null
+					? parseCheckpointNumber(options.end.checkpoint, 'end').toString()
+					: undefined;
 
 			const retryOperation = async <T>(operation: () => Promise<T>): Promise<T> => {
 				while (true) {
@@ -275,13 +284,13 @@ export function createLedgerStream<Frame extends object, Position extends Stream
 			}
 			const inputStart: StreamBound<Position> | undefined = startToken
 				? { position: startToken.position as Position }
-				: options.start?.checkpoint != null
-					? { checkpoint: options.start.checkpoint }
+				: startCheckpoint != null
+					? { checkpoint: startCheckpoint }
 					: undefined;
 			const inputEnd: StreamBound<Position> | undefined = endToken
 				? { position: endToken.position as Position }
-				: options.end?.checkpoint != null
-					? { checkpoint: options.end.checkpoint }
+				: endCheckpoint != null
+					? { checkpoint: endCheckpoint }
 					: undefined;
 			if (
 				startToken &&
@@ -348,7 +357,7 @@ export function createLedgerStream<Frame extends object, Position extends Stream
 				} as Parameters<typeof encodeToken>[0]);
 			};
 			const resumeToken = () => (lastToken ??= lastPosition && tokenFor(lastPosition));
-			const publicBound = (bound: StreamBound<Position>): SuiClientTypes.StreamStart =>
+			const publicBound = (bound: StreamBound<Position>): SuiClientTypes.StreamBound =>
 				'checkpoint' in bound ? bound : { resumeToken: tokenFor(bound.position) };
 			const complete = (): SuiClientTypes.StreamCompletionFrame => ({
 				$kind: 'Complete',

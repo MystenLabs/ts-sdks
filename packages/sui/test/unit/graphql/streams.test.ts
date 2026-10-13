@@ -325,9 +325,9 @@ describe('GraphQL ledger streams', () => {
 			effects: { status: 'SUCCESS', checkpoint: null },
 		};
 		const { client } = mockClient((request) =>
-			request.query.includes('query streamTransactionCheckpoint')
+			request.query.includes('query streamTransactionCheckpoints')
 				? Response.json({
-						data: { transaction: { effects: { checkpoint: { sequenceNumber: 1 } } } },
+						data: { multiGetTransactionEffects: [{ checkpoint: { sequenceNumber: 1 } }] },
 					})
 				: subscription('transactions', [{ cursor: cursor('transactions', 1), node }]),
 		);
@@ -344,11 +344,12 @@ describe('GraphQL ledger streams', () => {
 		};
 		let lookups = 0;
 		const { client, requests } = mockClient((request) =>
-			request.query.includes('query streamTransactionCheckpoint')
+			request.query.includes('query streamTransactionCheckpoints')
 				? Response.json({
 						data: {
-							transaction:
-								lookups++ === 0 ? null : { effects: { checkpoint: { sequenceNumber: 1 } } },
+							multiGetTransactionEffects: [
+								lookups++ === 0 ? null : { checkpoint: { sequenceNumber: 1 } },
+							],
 						},
 					})
 				: subscription('transactions', [{ cursor: 'a-new-opaque-format', node }]),
