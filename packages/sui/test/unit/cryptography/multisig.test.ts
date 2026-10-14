@@ -3,9 +3,10 @@
 
 import { fromBase64, toBase58, toBase64 } from '@mysten/bcs';
 import { p256 as secp256r1 } from '@noble/curves/nist.js';
-import { beforeAll, describe, expect, it, test } from 'vitest';
+import { beforeAll, describe, expect, it, test, vi } from 'vitest';
 
 import { bcs } from '../../../src/bcs/index.js';
+import type { ClientWithCoreApi } from '../../../src/client/core.js';
 import {
 	parseSerializedSignature,
 	SIGNATURE_SCHEME_TO_FLAG,
@@ -23,6 +24,7 @@ import {
 } from '../../../src/multisig/index.js';
 import { Transaction } from '../../../src/transactions/index.js';
 import {
+	publicKeyFromSuiBytes,
 	verifyPersonalMessageSignature,
 	verifyTransactionSignature,
 } from '../../../src/verify/index.js';
@@ -479,6 +481,110 @@ describe('Multisig address creation:', () => {
 				weight: 1,
 			},
 		]);
+	});
+
+	describe('verifying multisig signatures with a zkLogin member', () => {
+		const txBytes = fromBase64(
+			'AAABACACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgEBAQABAAC5wHgKOUPN4TokCb8abwauYLDf8rLzcyYM9ieqT0OliAGbB4FfBEl+LgXSLKw6oGFBCyCGjMYZFUxCocYb6ZAnFwEAAAAAAAAAIJZw7UpW1XHubORIOaY8d2+WyBNwoJ+FEAxlsa7h7JHrucB4CjlDzeE6JAm/Gm8GrmCw3/Ky83MmDPYnqk9DpYgBAAAAAAAAABAnAAAAAAAAAA==',
+		);
+		const zkLoginSig =
+			'BQNNMTczMTgwODkxMjU5NTI0MjE3MzYzNDIyNjM3MTc5MzI3MTk0Mzc3MTc4NDQyODI0MTAxODc5NTc5ODQ3NTE5Mzk5NDI4OTgyNTEyNTBNMTEzNzM5NjY2NDU0NjkxMjI1ODIwNzQwODIyOTU5ODUzODgyNTg4NDA2ODE2MTgyNjg1OTM5NzY2OTczMjU4OTIyODA5MTU2ODEyMDcBMQMCTDU5Mzk4NzExNDczNDg4MzQ5OTczNjE3MjAxMjIyMzg5ODAxNzcxNTIzMDMyNzQzMTEwNDcyNDk5MDU5NDIzODQ5MTU3Njg2OTA4OTVMNDUzMzU2ODI3MTEzNDc4NTI3ODczMTIzNDU3MDM2MTQ4MjY1MTk5Njc0MDc5MTg4ODI4NTg2NDk2Njg4NDAzMjcxNzA0OTgxMTcwOAJNMTA1NjQzODcyODUwNzE1NTU0Njk3NTM5OTA2NjE0MTA4NDAxMTg2MzU5MjU0NjY1OTcwMzcwMTgwNTg3NzAwNDEzNDc1MTg0NjEzNjhNMTI1OTczMjM1NDcyNzc1NzkxNDQ2OTg0OTYzNzIyNDI2MTUzNjgwODU4MDEzMTMzNDMxNTU3MzU1MTEzMzAwMDM4ODQ3Njc5NTc4NTQCATEBMANNMTU3OTE1ODk0NzI1NTY4MjYyNjMyMzE2NDQ3Mjg4NzMzMzc2MjkwMTUyNjk5ODQ2OTk0MDQwNzM2MjM2MDMzNTI1Mzc2Nzg4MTMxNzFMNDU0Nzg2NjQ5OTI0ODg4MTQ0OTY3NjE2MTE1ODAyNDc0ODA2MDQ4NTM3MzI1MDAyOTQyMzkwNDExMzAxNzQyMjUzOTAzNzE2MjUyNwExMXdpYVhOeklqb2lhSFIwY0hNNkx5OXBaQzUwZDJsMFkyZ3VkSFl2YjJGMWRHZ3lJaXcCMmV5SmhiR2NpT2lKU1V6STFOaUlzSW5SNWNDSTZJa3BYVkNJc0ltdHBaQ0k2SWpFaWZRTTIwNzk0Nzg4NTU5NjIwNjY5NTk2MjA2NDU3MDIyOTY2MTc2OTg2Njg4NzI3ODc2MTI4MjIzNjI4MTEzOTE2MzgwOTI3NTAyNzM3OTExCgAAAAAAAABhABHpkQ5JvxqbqCKtqh9M0U5c3o3l62B6ALVOxMq6nsc0y3JlY8Gf1ZoPA976dom6y3JGBUTsry6axfqHcVrtRAy5xu4WMO8+cRFEpkjbBruyKE9ydM++5T/87lA8waSSAA==';
+
+		function mockClient() {
+			const verifyZkLoginSignature = vi.fn().mockResolvedValue({ success: true, errors: [] });
+			const client = { core: { verifyZkLoginSignature } } as unknown as ClientWithCoreApi;
+			return { client, verifyZkLoginSignature };
+		}
+
+		function multisigPublicKey(options: { client?: ClientWithCoreApi } = {}) {
+			return MultiSigPublicKey.fromPublicKeys({
+				publicKeys: [
+					{ publicKey: pk6, weight: 1 },
+					{ publicKey: pk4, weight: 1 },
+				],
+				threshold: 2,
+				...options,
+			});
+		}
+
+		it('passes the client through verifyTransactionSignature', async () => {
+			const { client, verifyZkLoginSignature } = mockClient();
+			const publicKey = multisigPublicKey();
+			const sig1 = await k6.signTransaction(txBytes);
+			const multisig = publicKey.combinePartialSignatures([sig1.signature, zkLoginSig]);
+
+			const verified = await verifyTransactionSignature(txBytes, multisig, {
+				client,
+				address: publicKey.toSuiAddress(),
+			});
+
+			expect(verified.toSuiAddress()).toEqual(publicKey.toSuiAddress());
+			expect(verifyZkLoginSignature).toHaveBeenCalledWith({
+				bytes: toBase64(txBytes),
+				signature: zkLoginSig,
+				intentScope: 'TransactionData',
+				address: pk4.toSuiAddress(),
+			});
+		});
+
+		it('passes the client through verifyPersonalMessageSignature', async () => {
+			const { client, verifyZkLoginSignature } = mockClient();
+			const publicKey = multisigPublicKey();
+			const message = new TextEncoder().encode('hello world');
+			const sig1 = await k6.signPersonalMessage(message);
+			const multisig = publicKey.combinePartialSignatures([sig1.signature, zkLoginSig]);
+
+			const verified = await verifyPersonalMessageSignature(message, multisig, { client });
+
+			expect(verified.toSuiAddress()).toEqual(publicKey.toSuiAddress());
+			expect(verifyZkLoginSignature).toHaveBeenCalledWith({
+				bytes: toBase64(message),
+				signature: zkLoginSig,
+				intentScope: 'PersonalMessage',
+				address: pk4.toSuiAddress(),
+			});
+		});
+
+		it('still fails when the ed25519 member signature is invalid', async () => {
+			const { client } = mockClient();
+			const publicKey = multisigPublicKey();
+			const sig1 = await k6.signTransaction(new Uint8Array([1, 2, 3]));
+			const multisig = publicKey.combinePartialSignatures([sig1.signature, zkLoginSig]);
+
+			await expect(verifyTransactionSignature(txBytes, multisig, { client })).rejects.toThrow(
+				'Signature is not valid for the provided Transaction',
+			);
+		});
+
+		it('requires a client to verify the zkLogin member', async () => {
+			const publicKey = multisigPublicKey();
+			const sig1 = await k6.signTransaction(txBytes);
+			const multisig = publicKey.combinePartialSignatures([sig1.signature, zkLoginSig]);
+
+			await expect(verifyTransactionSignature(txBytes, multisig)).rejects.toThrow(
+				'A Sui Client (GRPC, GraphQL, or JSON RPC) is required to verify zkLogin signatures',
+			);
+		});
+
+		it('uses the client given to MultiSigPublicKey.fromPublicKeys', async () => {
+			const { client, verifyZkLoginSignature } = mockClient();
+			const publicKey = multisigPublicKey({ client });
+			const sig1 = await k6.signTransaction(txBytes);
+			const multisig = publicKey.combinePartialSignatures([sig1.signature, zkLoginSig]);
+
+			expect(await publicKey.verifyTransaction(txBytes, multisig)).toBe(true);
+			expect(verifyZkLoginSignature).toHaveBeenCalledOnce();
+		});
+
+		it('uses the client given to publicKeyFromSuiBytes', async () => {
+			const { client, verifyZkLoginSignature } = mockClient();
+			const sig1 = await k6.signTransaction(txBytes);
+			const multisig = multisigPublicKey().combinePartialSignatures([sig1.signature, zkLoginSig]);
+			const publicKey = publicKeyFromSuiBytes(multisigPublicKey().toSuiPublicKey(), { client });
+
+			expect(await publicKey.verifyTransaction(txBytes, multisig)).toBe(true);
+			expect(verifyZkLoginSignature).toHaveBeenCalledOnce();
+		});
 	});
 
 	it('with unreachable threshold', async () => {
