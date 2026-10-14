@@ -85,12 +85,15 @@ export class BcsReader {
 	 * @returns
 	 */
 	read64(): string {
-		const value1 = this.read32();
-		const value2 = this.read32();
+		const low = this.read32();
+		const high = this.read32();
 
-		const result = value2.toString(16) + value1.toString(16).padStart(8, '0');
+		// Values below 2^53 are exact as numbers
+		if (high < 0x200000) {
+			return String(high * 0x100000000 + low);
+		}
 
-		return BigInt('0x' + result).toString(10);
+		return ((BigInt(high) << 32n) | BigInt(low)).toString(10);
 	}
 	/**
 	 * Read U128 value from the buffer and shift cursor by 16.
@@ -131,13 +134,28 @@ export class BcsReader {
 	 * @returns {Number} The ULEB value.
 	 */
 	readULEB(): number {
-		const start = this.bytePosition + this.dataView.byteOffset;
-		const buffer = new Uint8Array(this.dataView.buffer, start);
-		const { value, length } = ulebDecode(buffer);
+		// Values of up to 4 bytes (28 bits) are decoded inline; longer ones use ulebDecode
+		const start = this.bytePosition;
+		const limit = Math.min(start + 4, this.dataView.byteLength);
+		let value = 0;
+		for (let i = start; i < limit; i++) {
+			const byte = this.dataView.getUint8(i);
+			value |= (byte & 0x7f) << (7 * (i - start));
+			if ((byte & 0x80) === 0) {
+				if (byte === 0 && i > start) {
+					throw new Error('ULEB decode error: non-canonical encoding');
+				}
+				this.bytePosition = i + 1;
+				return value;
+			}
+		}
+
+		const buffer = new Uint8Array(this.dataView.buffer, start + this.dataView.byteOffset);
+		const { value: decoded, length } = ulebDecode(buffer);
 
 		this.shift(length);
 
-		return value;
+		return decoded;
 	}
 	/**
 	 * Read a BCS vector: read a length and then apply function `cb` X times
