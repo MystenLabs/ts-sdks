@@ -408,10 +408,11 @@ describe('resumable ledger streams', () => {
 			});
 
 			it('completes empty filtered ranges without manufacturing an event', async () => {
+				// System transactions emit events from the zero address, so match an unused address.
 				const frames = await collect(
 					client().streamEvents({
 						...range(),
-						filter: { sender: '0x0' },
+						filter: { sender: `0x${'ab'.repeat(32)}` },
 						include: { completion: true },
 					}),
 				);

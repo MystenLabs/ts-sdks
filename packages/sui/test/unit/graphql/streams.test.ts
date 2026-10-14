@@ -792,4 +792,13 @@ describe('GraphQL ledger streams', () => {
 		expect(seen).toEqual(['9:false', '10:true', '11:true']);
 		expect(statuses.filter((status) => status === 'Live')).toHaveLength(1);
 	});
+
+	it('maps system transaction events without a sender to the zero address', async () => {
+		const system = event(2);
+		(system.node as { sender: unknown }).sender = null;
+		const { client } = mockClient(() => subscription('events', [system]));
+		const stream = client.streamEvents({ start: { checkpoint: '2' } });
+		expect((await stream.next()).value?.event.sender).toBe(`0x${'0'.repeat(64)}`);
+		await stream.return?.(undefined);
+	});
 });

@@ -1105,11 +1105,12 @@ export function parseGraphQLEvent(
 ): SuiClientTypes.EventEntry {
 	const packageId = event.transactionModule?.package?.address;
 	const module = event.transactionModule?.name;
-	const sender = event.sender?.address;
+	// System transactions have no sender; gRPC reports the zero address for their events.
+	const sender = event.sender?.address ?? '0x0';
 	const eventType = event.contents?.type?.repr;
 	const transactionDigest = event.transaction?.digest;
 
-	if (!packageId || !module || !sender || !eventType || !transactionDigest) {
+	if (!packageId || !module || !eventType || !transactionDigest) {
 		throw new Error(`${source} response is missing expected event fields`);
 	}
 
