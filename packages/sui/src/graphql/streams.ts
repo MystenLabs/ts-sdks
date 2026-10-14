@@ -244,8 +244,10 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 				yield { $kind: 'end', complete: target == null || tip >= target };
 				return;
 			}
+			// The server returns an empty page when a checkpoint cursor is combined with an
+			// afterCheckpoint bound naming the same checkpoint, so the bound stays one behind.
 			const boundedFilter = graphQLFilter({
-				start: lower,
+				start: family === 'checkpoints' && after ? lower - 1n : lower,
 				end: upper <= MAX_CHECKPOINT ? upper : undefined,
 			});
 			const document =
@@ -388,8 +390,12 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 		async *live(request) {
 			let after: string | undefined;
 			let start: bigint | undefined;
+			let last: string | null | undefined;
+			let lastPosition: StreamPosition | undefined;
 			if (request.start && 'position' in request.start) {
 				after = request.start.position.cursor;
+				lastPosition = request.start.position;
+				last = request.start.position.checkpoint;
 			} else if (request.start) {
 				start = BigInt(request.start.checkpoint);
 				if (start === 0n) {
@@ -425,12 +431,33 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 				const edge = unwrap(result)[family];
 				if (!edge) throw new SuiGraphQLStreamError('GraphQL ledger subscription edge is missing');
 				const [checkpoint] = await nodeCheckpoints([edge.node], request.signal);
+				if (family === 'checkpoints' && checkpoint != null) {
+					// The subscription can skip checkpoints at its backfill-to-live handoff; read them.
+					const expected = last != null ? BigInt(last) + 1n : start;
+					if (expected != null && BigInt(checkpoint) > expected) {
+						for await (const event of adapter.scan({
+							...request,
+							start:
+								last != null && lastPosition
+									? { position: lastPosition }
+									: { checkpoint: expected.toString() },
+							end: { checkpoint },
+						})) {
+							if (event.$kind === 'item' || event.$kind === 'progress') {
+								if (event.$kind === 'item') lastPosition = event.position;
+								yield event;
+							}
+						}
+					}
+					last = checkpoint;
+				}
 				const position: StreamPosition = {
 					cursor: edge.cursor,
 					checkpoint,
 					itemId: nodeIdentity(edge.node),
 					indexedCheckpoint: null,
 				};
+				lastPosition = position;
 				yield {
 					$kind: 'item',
 					frame: await mapNode(edge.node, checkpoint, request.signal),

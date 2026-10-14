@@ -239,7 +239,7 @@ describe('GraphQL ledger streams', () => {
 			}),
 		);
 		expect(frames.map((frame) => frame.checkpoint.sequenceNumber)).toEqual(['12', '11']);
-		expect(retained.requests.at(-1)?.variables.filter.afterCheckpoint).toBe(10);
+		expect(retained.requests.at(-1)?.variables.filter.afterCheckpoint).toBe(9);
 	});
 
 	it('resumes after an excluded checkpoint anchor that has since been pruned', async () => {
@@ -259,6 +259,10 @@ describe('GraphQL ledger streams', () => {
 			}),
 		);
 		expect(frames.map((frame) => frame.checkpoint.sequenceNumber)).toEqual(['11']);
+		expect(
+			retained.requests.find((request) => request.query.includes('query scanCheckpoints'))
+				?.variables,
+		).toMatchObject({ after: cursor('checkpoints', 10), filter: { afterCheckpoint: 9 } });
 	});
 
 	it('persists finite cutoff when resuming while the indexed tip grows', async () => {
@@ -707,5 +711,67 @@ describe('GraphQL ledger streams', () => {
 		expect(details).toBe(1);
 		expect(items[0].transaction.Transaction?.events).toHaveLength(2);
 		expect(items[0].transaction.Transaction?.objectTypes).toEqual({ '0x3': '0x2::test::Object' });
+	});
+
+	it('drops the resume checkpoint when a subscription repeats it and fills skipped checkpoints', async () => {
+		const { client, requests } = mockClient(
+			(request) =>
+				request.query.includes('query scanCheckpoints')
+					? Response.json({ data: { checkpoints: connection([checkpoint(11)]) } })
+					: subscription('checkpoints', [checkpoint(10), checkpoint(12), checkpoint(13)]),
+			() => 13,
+		);
+		const source = client.streamCheckpoints({ start: { checkpoint: '10' } });
+		const anchor = (await source.next()).value!;
+		await source.return?.(undefined);
+		const stream = client.streamCheckpoints({ start: { resumeToken: anchor.resumeToken } });
+		const seen: string[] = [];
+		for await (const frame of stream) {
+			seen.push(frame.checkpoint.sequenceNumber);
+			if (seen.length === 3) break;
+		}
+		expect(seen).toEqual(['11', '12', '13']);
+		const scan = requests.find((request) => request.query.includes('query scanCheckpoints'));
+		expect(scan?.variables).toMatchObject({
+			after: cursor('checkpoints', 10),
+			filter: { afterCheckpoint: 9, beforeCheckpoint: 12 },
+		});
+	});
+
+	it('rejects an empty resume token instead of following from the tip', async () => {
+		const { client } = mockClient(() => subscription('checkpoints', [checkpoint(10)]));
+		await expect(client.streamCheckpoints({ start: { resumeToken: '' } }).next()).rejects.toThrow(
+			'Invalid or unsupported stream resume token',
+		);
+	});
+
+	it('reconnects immediately after a connection that delivered data', async () => {
+		let calls = 0;
+		const { client } = mockClient(() =>
+			++calls === 1
+				? subscription('checkpoints', [checkpoint(10)])
+				: calls === 2
+					? new Response(
+							new ReadableStream({
+								start(controller) {
+									controller.error(new TypeError('socket closed'));
+								},
+							}),
+							{ headers: { 'content-type': 'text/event-stream' } },
+						)
+					: subscription('checkpoints', [checkpoint(11)]),
+		);
+		const delays: number[] = [];
+		const stream = client.streamCheckpoints({
+			start: { checkpoint: '10' },
+			retry: { initialDelay: 1, jitter: 0 },
+			onStatus(status) {
+				if (status.$kind === 'Retrying') delays.push(status.delay);
+			},
+		});
+		expect((await stream.next()).value?.checkpoint.sequenceNumber).toBe('10');
+		expect((await stream.next()).value?.checkpoint.sequenceNumber).toBe('11');
+		await stream.return?.(undefined);
+		expect(delays).toEqual([0, 2]);
 	});
 });
