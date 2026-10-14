@@ -3,7 +3,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { fromBase64, fromHex, toBase64, toHex } from '../src/index.js';
+import { fromBase58, fromBase64, fromHex, toBase58, toBase64, toHex } from '../src/index.js';
 
 function prng(seed: number) {
 	return () => {
@@ -153,6 +153,76 @@ describe('base64', () => {
 				expect(base64).toBe(Buffer.from(bytes).toString('base64'));
 				expect(sameBytes(fromBase64(base64), bytes)).toBe(true);
 			}
+		}
+	});
+});
+
+const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+
+// Straightforward BigInt reference implementation
+function referenceToBase58(bytes: Uint8Array) {
+	let zeros = 0;
+	while (zeros < bytes.length && bytes[zeros] === 0) zeros++;
+	let value = 0n;
+	for (const byte of bytes) value = value * 256n + BigInt(byte);
+	let result = '';
+	while (value > 0n) {
+		result = BASE58_ALPHABET[Number(value % 58n)] + result;
+		value /= 58n;
+	}
+	return '1'.repeat(zeros) + result;
+}
+
+describe('base58', () => {
+	it('encodes known vectors', () => {
+		expect(toBase58(new Uint8Array())).toBe('');
+		expect(toBase58(new Uint8Array([0]))).toBe('1');
+		expect(toBase58(new Uint8Array([0, 0, 1]))).toBe('112');
+		expect(toBase58(new TextEncoder().encode('Hello World!'))).toBe('2NEpo7TZRRrLZSi2U');
+		expect(toBase58(new Uint8Array(32))).toBe('1'.repeat(32));
+		expect(toBase58(new Uint8Array(32).fill(0xff))).toBe(
+			'JEKNVnkbo3jma5nREBBJCDoXFVeKkD56V3xKrvRmWxFG',
+		);
+	});
+
+	it('matches a reference implementation and round-trips for every length up to 100', () => {
+		const random = prng(11);
+		for (let length = 0; length <= 100; length++) {
+			for (const bytes of [
+				randomBytes(random, length),
+				new Uint8Array(length).fill(0xff),
+				Uint8Array.from({ length }, (_, i) => (i < length / 2 ? 0 : Math.floor(random() * 256))),
+			]) {
+				const encoded = toBase58(bytes);
+				expect(encoded).toBe(referenceToBase58(bytes));
+				expect(fromBase58(encoded)).toEqual(bytes);
+			}
+		}
+	});
+
+	it('round-trips random 32-byte digests', () => {
+		const random = prng(12);
+		for (let i = 0; i < 2000; i++) {
+			const bytes = randomBytes(random, 32);
+			expect(fromBase58(toBase58(bytes))).toEqual(bytes);
+		}
+	});
+
+	it('encodes inputs whose output spans several string chunks', () => {
+		const bytes = randomBytes(prng(13), 20_000);
+		expect(toBase58(bytes)).toBe(referenceToBase58(bytes));
+		expect(fromBase58(toBase58(bytes))).toEqual(bytes);
+	});
+
+	it('rejects non-Uint8Array input', () => {
+		for (const value of ['12', [1, 2], 5, null]) {
+			expect(() => toBase58(value as never), JSON.stringify(value)).toThrow(TypeError);
+		}
+	});
+
+	it('rejects characters outside the alphabet', () => {
+		for (const value of ['0', 'O', 'I', 'l', '1 2', 'abc+', '2NEpo7TZRRrLZSi2U\n', 'é']) {
+			expect(() => fromBase58(value), JSON.stringify(value)).toThrow();
 		}
 	});
 });

@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { toBase58 } from '@mysten/bcs';
+import { BcsWriter, fromHex, toBase58 } from '@mysten/bcs';
 import { expect, it } from 'vitest';
 
 import { bcs } from '../../../src/bcs/index.js';
@@ -269,4 +269,70 @@ it('can serialize transaction data with a programmable transaction', () => {
 	const bytes = bcs.TransactionData.serialize(txData).toBytes();
 	const result = bcs.TransactionData.parse(bytes);
 	expect(result).toMatchObject(txData);
+});
+
+it('serializes every accepted address string form like normalizeSuiAddress', () => {
+	const full = 'ab'.repeat(32);
+	const accepted = [
+		'0x',
+		'0x2',
+		'2',
+		'0x02',
+		'0X2',
+		'0xAbCd',
+		'ABCD',
+		`0x${full}`,
+		full,
+		full.toUpperCase(),
+	];
+	for (const value of accepted) {
+		const expected = normalizeSuiAddress(value);
+		const bytes = bcs.Address.serialize(value).toBytes();
+		expect(bcs.Address.parse(bytes), value).toBe(expected);
+		expect(bytes, value).toEqual(fromHex(expected));
+	}
+	expect(bcs.Address.parse(new Uint8Array(32))).toBe(normalizeSuiAddress('0x0'));
+});
+
+it('rejects invalid address strings', () => {
+	const rejected = [
+		'',
+		'0x0x1',
+		' 0x1',
+		'0x1 ',
+		'0xg',
+		'0x-1',
+		`0x${'1'.repeat(65)}`,
+		'1'.repeat(65),
+	];
+	for (const value of rejected) {
+		expect(() => bcs.Address.serialize(value), JSON.stringify(value)).toThrow(
+			'Invalid Sui address',
+		);
+	}
+});
+
+it('validates object digests by decoded length', () => {
+	const digest = toBase58(new Uint8Array(32).fill(7));
+	expect(bcs.ObjectDigest.parse(bcs.ObjectDigest.serialize(digest).toBytes())).toBe(digest);
+	expect(() => bcs.ObjectDigest.serialize(toBase58(new Uint8Array(31)))).toThrow(
+		'ObjectDigest must be 32 bytes',
+	);
+	expect(() => bcs.ObjectDigest.validate(toBase58(new Uint8Array(33)))).toThrow(
+		'ObjectDigest must be 32 bytes',
+	);
+	expect(() => bcs.ObjectDigest.serialize('0OIl')).toThrow();
+});
+
+it('does not share decoded address bytes between writes', () => {
+	const address = `0x${'11'.repeat(32)}`;
+	class ZeroingWriter extends BcsWriter {
+		override writeBytes(bytes: Uint8Array) {
+			const result = super.writeBytes(bytes);
+			bytes.fill(0);
+			return result;
+		}
+	}
+	bcs.Address.write(address, new ZeroingWriter());
+	expect(bcs.Address.serialize(address).toHex()).toBe('11'.repeat(32));
 });

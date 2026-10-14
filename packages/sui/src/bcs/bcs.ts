@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { BcsType, BcsTypeOptions } from '@mysten/bcs';
-import { bcs, fromBase58, fromBase64, fromHex, toBase58, toBase64, toHex } from '@mysten/bcs';
+import { bcs, fromBase58, fromBase64, toBase58, toBase64, toHex } from '@mysten/bcs';
 
 import { isValidSuiAddress, normalizeSuiAddress, SUI_ADDRESS_LENGTH } from '../utils/sui-types.js';
 import { TypeTagSerializer } from './type-tag-serializer.js';
@@ -27,27 +27,100 @@ function optionEnum<T extends BcsType<any, any>>(type: T) {
 	});
 }
 
+const HEX_NIBBLES = new Int8Array(128).fill(-1);
+for (let i = 0; i < 16; i++) {
+	HEX_NIBBLES['0123456789abcdef'.charCodeAt(i)] = i;
+	HEX_NIBBLES['0123456789ABCDEF'.charCodeAt(i)] = i;
+}
+function hexNibble(code: number): number {
+	return code < 128 ? HEX_NIBBLES[code] : -1;
+}
+
+// Same bytes as fromHex(normalizeSuiAddress(value)) for valid addresses, or null for invalid ones
+function decodeAddress(value: string): Uint8Array<ArrayBuffer> | null {
+	if (!value) {
+		return null;
+	}
+	const start =
+		value.length >= 2 && value[0] === '0' && (value[1] === 'x' || value[1] === 'X') ? 2 : 0;
+	const digits = value.length - start;
+	if (digits > SUI_ADDRESS_LENGTH * 2) {
+		return null;
+	}
+
+	const bytes = new Uint8Array(SUI_ADDRESS_LENGTH);
+	// Right-align the digits, as normalizeSuiAddress left-pads with zeros
+	let byteIndex = SUI_ADDRESS_LENGTH - 1;
+	let i = value.length - 1;
+	for (; i >= start + 1; i -= 2) {
+		const low = hexNibble(value.charCodeAt(i));
+		const high = hexNibble(value.charCodeAt(i - 1));
+		if (low < 0 || high < 0) {
+			return null;
+		}
+		bytes[byteIndex--] = (high << 4) | low;
+	}
+	if (i === start) {
+		const low = hexNibble(value.charCodeAt(i));
+		if (low < 0) {
+			return null;
+		}
+		bytes[byteIndex] = low;
+	}
+
+	return bytes;
+}
+
+const HEX_CODES = Array.from('0123456789abcdef', (char) => char.charCodeAt(0));
+const addressCharCodes: number[] = new Array(2 + SUI_ADDRESS_LENGTH * 2).fill(48);
+addressCharCodes[1] = 120; // 'x'
+
+// Same result as normalizeSuiAddress(toHex(bytes)) for 32 bytes, but builds the string in one
+// String.fromCharCode call instead of 32 concatenations
+function encodeAddress(bytes: Uint8Array): string {
+	if (bytes.length !== SUI_ADDRESS_LENGTH) {
+		return normalizeSuiAddress(toHex(bytes));
+	}
+	for (let i = 0; i < SUI_ADDRESS_LENGTH; i++) {
+		const byte = bytes[i];
+		addressCharCodes[2 + i * 2] = HEX_CODES[byte >> 4];
+		addressCharCodes[3 + i * 2] = HEX_CODES[byte & 15];
+	}
+	return String.fromCharCode.apply(null, addressCharCodes);
+}
+
 export const Address = bcs.bytes(SUI_ADDRESS_LENGTH).transform({
-	validate: (val) => {
-		const address = typeof val === 'string' ? val : toHex(val);
+	// Validation lives in input so string addresses are only decoded once per write; transform's
+	// validate runs input, so validate() still rejects invalid addresses.
+	input: (val: string | Uint8Array) => {
+		if (typeof val === 'string') {
+			const bytes = decodeAddress(val);
+			if (!bytes) {
+				throw new Error(`Invalid Sui address ${val}`);
+			}
+			return bytes;
+		}
+		const address = toHex(val);
 		if (!address || !isValidSuiAddress(normalizeSuiAddress(address))) {
 			throw new Error(`Invalid Sui address ${address}`);
 		}
+		return val;
 	},
-	input: (val: string | Uint8Array) =>
-		typeof val === 'string' ? fromHex(normalizeSuiAddress(val)) : val,
-	output: (val) => normalizeSuiAddress(toHex(val)),
+	output: encodeAddress,
 });
 
 export const ObjectDigest = bcs.byteVector().transform({
 	name: 'ObjectDigest',
-	input: (value: string) => fromBase58(value),
-	output: (value) => toBase58(new Uint8Array(value)),
-	validate: (value) => {
-		if (fromBase58(value).length !== 32) {
+	// The length check lives in input so the digest is only base58-decoded once per write;
+	// transform's validate runs input, so validate() still rejects digests of the wrong length.
+	input: (value: string) => {
+		const bytes = fromBase58(value);
+		if (bytes.length !== 32) {
 			throw new Error('ObjectDigest must be 32 bytes');
 		}
+		return bytes;
 	},
+	output: (value) => toBase58(value),
 });
 
 export const SuiObjectRef = bcs.struct('SuiObjectRef', {
@@ -113,7 +186,7 @@ export const CallArg = bcs.enum('CallArg', {
 	Pure: bcs.struct('Pure', {
 		bytes: bcs.byteVector().transform({
 			input: (val: string | Uint8Array) => (typeof val === 'string' ? fromBase64(val) : val),
-			output: (val) => toBase64(new Uint8Array(val)),
+			output: (val) => toBase64(val),
 		}),
 	}),
 	Object: ObjectArg,
@@ -190,7 +263,7 @@ export const Command = bcs.enum('Command', {
 		modules: bcs.vector(
 			bcs.byteVector().transform({
 				input: (val: string | Uint8Array) => (typeof val === 'string' ? fromBase64(val) : val),
-				output: (val) => toBase64(new Uint8Array(val)),
+				output: (val) => toBase64(val),
 			}),
 		),
 		dependencies: bcs.vector(Address),
@@ -218,7 +291,7 @@ export const Command = bcs.enum('Command', {
 		modules: bcs.vector(
 			bcs.byteVector().transform({
 				input: (val: string | Uint8Array) => (typeof val === 'string' ? fromBase64(val) : val),
-				output: (val) => toBase64(new Uint8Array(val)),
+				output: (val) => toBase64(val),
 			}),
 		),
 		dependencies: bcs.vector(Address),
@@ -373,7 +446,7 @@ export const MultiSig = bcs.struct('MultiSig', {
 
 export const base64String = bcs.byteVector().transform({
 	input: (val: string | Uint8Array) => (typeof val === 'string' ? fromBase64(val) : val),
-	output: (val) => toBase64(new Uint8Array(val)),
+	output: (val) => toBase64(val),
 });
 
 export const PasskeyAuthenticator = bcs.struct('PasskeyAuthenticator', {

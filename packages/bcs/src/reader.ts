@@ -35,6 +35,7 @@ import { ulebDecode } from './uleb.js';
  */
 export class BcsReader {
 	private dataView: DataView;
+	private bytes: Uint8Array;
 	private bytePosition: number = 0;
 
 	/**
@@ -42,6 +43,7 @@ export class BcsReader {
 	 */
 	constructor(data: Uint8Array) {
 		this.dataView = new DataView(data.buffer, data.byteOffset, data.byteLength);
+		this.bytes = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
 	}
 	/**
 	 * Shift current cursor position by `bytes`.
@@ -58,9 +60,12 @@ export class BcsReader {
 	 * @returns
 	 */
 	read8(): number {
-		const value = this.dataView.getUint8(this.bytePosition);
-		this.shift(1);
-		return value;
+		const position = this.bytePosition;
+		if (position >= this.bytes.length) {
+			throw new RangeError('Offset is outside the bounds of the DataView');
+		}
+		this.bytePosition = position + 1;
+		return this.bytes[position];
 	}
 	/**
 	 * Read U16 value from the buffer and shift cursor by 2.
@@ -121,6 +126,10 @@ export class BcsReader {
 	 * @param num Number of bytes to read.
 	 */
 	readBytes(num: number): Uint8Array {
+		// The underlying buffer may extend past this view, so check against the view's own length
+		if (this.bytePosition + num > this.bytes.length) {
+			throw new RangeError('Offset is outside the bounds of the DataView');
+		}
 		const start = this.bytePosition + this.dataView.byteOffset;
 		const value = new Uint8Array(this.dataView.buffer, start, num);
 
@@ -136,10 +145,11 @@ export class BcsReader {
 	readULEB(): number {
 		// Values of up to 4 bytes (28 bits) are decoded inline; longer ones use ulebDecode
 		const start = this.bytePosition;
-		const limit = Math.min(start + 4, this.dataView.byteLength);
+		const bytes = this.bytes;
+		const limit = Math.min(start + 4, bytes.length);
 		let value = 0;
 		for (let i = start; i < limit; i++) {
-			const byte = this.dataView.getUint8(i);
+			const byte = bytes[i];
 			value |= (byte & 0x7f) << (7 * (i - start));
 			if ((byte & 0x80) === 0) {
 				if (byte === 0 && i > start) {

@@ -179,4 +179,14 @@ describe('BcsReader', () => {
 			expect(reader.read8()).toBe(7);
 		});
 	});
+
+	describe('readBytes', () => {
+		it('does not read past the end of a view into the rest of the buffer', () => {
+			const buffer = new Uint8Array([5, 1, 2, 3, 9, 9]);
+			const view = buffer.subarray(0, 4);
+			expect(() => bcs.byteVector().parse(view)).toThrow(RangeError);
+			expect(() => new BcsReader(view.subarray(1)).readBytes(4)).toThrow(RangeError);
+			expect(new BcsReader(view.subarray(1)).readBytes(3)).toEqual(new Uint8Array([1, 2, 3]));
+		});
+	});
 });

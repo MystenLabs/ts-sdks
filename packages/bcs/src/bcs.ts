@@ -82,27 +82,34 @@ function option<T, Input, Name extends string = string>(
 function option<T extends BcsType<any>>(
 	type: T,
 ): BcsType<InferBcsType<T> | null, InferBcsInput<T> | null | undefined, `Option<${T['name']}>`> {
-	return bcs
-		.enum(`Option<${type.name}>`, {
-			None: null,
-			Some: type,
-		})
-		.transform({
-			input: (value: InferBcsInput<T> | null | undefined) => {
-				if (value == null) {
-					return { None: true };
-				}
-
-				return { Some: value };
-			},
-			output: (value) => {
-				if (value.$kind === 'Some') {
-					return value.Some as InferBcsType<T>;
-				}
-
+	// Encoded like enum Option { None, Some(T) }, but read and written directly rather than
+	// through an intermediate { None } / { Some } enum object
+	const name = `Option<${type.name}>` as const;
+	return new BcsType<
+		InferBcsType<T> | null,
+		InferBcsInput<T> | null | undefined,
+		`Option<${T['name']}>`
+	>({
+		name,
+		read: (reader) => {
+			const index = reader.readULEB();
+			if (index === 0) {
 				return null;
-			},
-		});
+			}
+			if (index === 1) {
+				return type.read(reader);
+			}
+			throw new TypeError(`Unknown value ${index} for enum ${name}`);
+		},
+		write: (value, writer) => {
+			if (value == null) {
+				writer.write8(0);
+				return;
+			}
+			writer.write8(1);
+			type.write(value, writer);
+		},
+	});
 }
 
 function vector<T extends BcsType<any>, Name extends string = `vector<${T['name']}>`>(
@@ -209,6 +216,28 @@ function map<K extends BcsType<any>, V extends BcsType<any>>(
 			}
 		},
 	});
+}
+
+const utf8Encoder = new TextEncoder();
+const utf8Decoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
+
+// Most strings in Sui data (module, function and type names) are short ASCII. Decoding those
+// directly avoids the fixed cost of a TextDecoder call; anything else goes through the decoder.
+const ASCII_FAST_PATH_MAX_LENGTH = 64;
+function decodeUtf8(bytes: Uint8Array): string {
+	if (bytes.length <= ASCII_FAST_PATH_MAX_LENGTH) {
+		let result = '';
+		for (let i = 0; i < bytes.length; i++) {
+			const byte = bytes[i];
+			if (byte >= 0x80) {
+				return utf8Decoder.decode(bytes);
+			}
+			result += String.fromCharCode(byte);
+		}
+		return result;
+	}
+
+	return utf8Decoder.decode(bytes);
 }
 
 export const bcs = {
@@ -362,7 +391,7 @@ export const bcs = {
 			size,
 			read: (reader) => reader.readBytes(size),
 			write: (value, writer) => {
-				writer.writeBytes(new Uint8Array(value));
+				writer.writeBytes(value instanceof Uint8Array ? value : new Uint8Array(value));
 			},
 			...options,
 			name: (options?.name ?? `bytes[${size}]`) as `bytes[${T}]`,
@@ -392,7 +421,7 @@ export const bcs = {
 				return reader.readBytes(length);
 			},
 			write: (value, writer) => {
-				const array = new Uint8Array(value);
+				const array = value instanceof Uint8Array ? value : new Uint8Array(value);
 				writer.writeULEB(array.length);
 				writer.writeBytes(array);
 			},
@@ -418,9 +447,8 @@ export const bcs = {
 	 */
 	string(options?: BcsTypeOptions<string>) {
 		return stringLikeBcsType({
-			toBytes: (value) => new TextEncoder().encode(value),
-			fromBytes: (bytes) =>
-				new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes),
+			toBytes: (value) => utf8Encoder.encode(value),
+			fromBytes: decodeUtf8,
 			...options,
 			name: (options?.name ?? 'string') as 'string',
 		});
