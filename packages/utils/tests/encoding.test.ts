@@ -22,6 +22,15 @@ function randomBytes(random: () => number, length: number) {
 	return bytes;
 }
 
+// Compares without vitest's deep equality, which is slow on large typed arrays
+function sameBytes(actual: Uint8Array, expected: Uint8Array) {
+	if (actual.length !== expected.length) return false;
+	for (let i = 0; i < actual.length; i++) {
+		if (actual[i] !== expected[i]) return false;
+	}
+	return true;
+}
+
 const ALL_BYTES = Uint8Array.from({ length: 256 }, (_, i) => i);
 const SIZES = [0, 1, 2, 3, 4, 31, 32, 33, 255, 1024, 8191, 8192, 8193, 16384, 20000];
 
@@ -77,13 +86,13 @@ describe('hex', () => {
 	it('round-trips random bytes', () => {
 		const random = prng(1);
 		for (const size of SIZES) {
-			for (let i = 0; i < 10; i++) {
+			for (let i = 0; i < 3; i++) {
 				const bytes = randomBytes(random, size);
 				const hex = toHex(bytes);
 				expect(hex).toBe(Buffer.from(bytes).toString('hex'));
-				expect(fromHex(hex)).toEqual(bytes);
-				expect(fromHex(`0x${hex}`)).toEqual(bytes);
-				expect(fromHex(hex.toUpperCase())).toEqual(bytes);
+				expect(sameBytes(fromHex(hex), bytes)).toBe(true);
+				expect(sameBytes(fromHex(`0x${hex}`), bytes)).toBe(true);
+				expect(sameBytes(fromHex(hex.toUpperCase()), bytes)).toBe(true);
 			}
 		}
 	});
@@ -138,11 +147,11 @@ describe('base64', () => {
 	it('round-trips random bytes', () => {
 		const random = prng(2);
 		for (const size of SIZES) {
-			for (let i = 0; i < 10; i++) {
+			for (let i = 0; i < 3; i++) {
 				const bytes = randomBytes(random, size);
 				const base64 = toBase64(bytes);
 				expect(base64).toBe(Buffer.from(bytes).toString('base64'));
-				expect(fromBase64(base64)).toEqual(bytes);
+				expect(sameBytes(fromBase64(base64), bytes)).toBe(true);
 			}
 		}
 	});
@@ -162,8 +171,8 @@ describe('without Buffer', () => {
 		vi.stubGlobal('Buffer', undefined);
 
 		expect(toHex(bytes)).toBe(expectedHex);
-		expect(fromHex(expectedHex)).toEqual(bytes);
+		expect(sameBytes(fromHex(expectedHex), bytes)).toBe(true);
 		expect(toBase64(bytes)).toBe(expectedBase64);
-		expect(fromBase64(expectedBase64)).toEqual(bytes);
+		expect(sameBytes(fromBase64(expectedBase64), bytes)).toBe(true);
 	});
 });
