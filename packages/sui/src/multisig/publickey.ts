@@ -225,7 +225,7 @@ export class MultiSigPublicKey extends PublicKey {
 	}
 
 	/**
-	 * Verifies that the signature is valid for for the provided message
+	 * Verifies that the signature is valid for the provided message
 	 */
 	async verify(message: Uint8Array, multisigSignature: string): Promise<boolean> {
 		return this.#verifyMembers(multisigSignature, (publicKey, signature) =>
@@ -234,7 +234,7 @@ export class MultiSigPublicKey extends PublicKey {
 	}
 
 	/**
-	 * Verifies that the signature is valid for for the provided PersonalMessage
+	 * Verifies that the signature is valid for the provided PersonalMessage
 	 */
 	override verifyPersonalMessage(message: Uint8Array, multisigSignature: string): Promise<boolean> {
 		// Each member verifies with its own intent-aware method, so members that cannot verify a
@@ -245,7 +245,7 @@ export class MultiSigPublicKey extends PublicKey {
 	}
 
 	/**
-	 * Verifies that the signature is valid for for the provided Transaction
+	 * Verifies that the signature is valid for the provided Transaction
 	 */
 	override verifyTransaction(transaction: Uint8Array, multisigSignature: string): Promise<boolean> {
 		return this.#verifyMembers(multisigSignature, (publicKey, signature) =>
