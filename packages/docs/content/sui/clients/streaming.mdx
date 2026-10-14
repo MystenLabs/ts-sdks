@@ -193,8 +193,17 @@ client.streamEvents({
 ```
 
 Durations are milliseconds. Transient failures retry by default with exponential backoff and jitter;
-`maxAttempts: 0` disables retries. Invalid options, incompatible tokens, and cancellation are not
-retried. Polling may trail live subscriptions. Finite reads always use historical queries.
+`maxAttempts: 0` disables retries. A connection that delivered frames reconnects immediately, and
+backoff starts with the next consecutive failure. Invalid options, incompatible tokens, and
+cancellation are not retried. Polling may trail live subscriptions. Finite reads always use
+historical queries.
+
+Servers end long-lived streams on their own schedule. Public Sui fullnodes end each gRPC stream
+after about 30 seconds; the stream reconnects from its last position without gaps or duplicates and
+reports the reconnect through `onStatus`.
+
+GraphQL historical reads use the server's maximum page size of 50 items, so a GraphQL replay makes
+about 20 times as many requests as a gRPC replay of the same range.
 
 `onStatus` is synchronous diagnostic reporting. Its result is not awaited; throwing terminates the
 stream. Store resume tokens from processed frames, not from status notifications.

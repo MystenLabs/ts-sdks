@@ -203,14 +203,17 @@ export function createLedgerStream<Frame extends object, Position extends Stream
 		signal: AbortSignal,
 	): AsyncGenerator<Frame | SuiClientTypes.StreamCompletionFrame> {
 		let attempts = 0;
+		let delivered = false;
 		try {
 			const retry = streamRetryOptions(options);
-			const startEnvelope = options.start?.resumeToken
-				? decodeToken(options.start.resumeToken).V1
-				: undefined;
-			const endEnvelope = options.end?.resumeToken
-				? decodeToken(options.end.resumeToken).V1
-				: undefined;
+			const startEnvelope =
+				options.start?.resumeToken !== undefined
+					? decodeToken(options.start.resumeToken).V1
+					: undefined;
+			const endEnvelope =
+				options.end?.resumeToken !== undefined
+					? decodeToken(options.end.resumeToken).V1
+					: undefined;
 			const startToken = startEnvelope?.[startEnvelope.$kind];
 			const endToken = endEnvelope?.[endEnvelope.$kind];
 			const order = options.order ?? (startToken ? rangeOrder(startToken.range) : 'ascending');
@@ -253,9 +256,11 @@ export function createLedgerStream<Frame extends object, Position extends Stream
 				signal.throwIfAborted();
 				if (callbackFailed || !adapter.isRetryable(error) || attempts >= retry.maxAttempts)
 					throw error;
-				const delay =
-					Math.min(retry.maxDelay, retry.initialDelay * 2 ** Math.min(attempts, 52)) +
-					Math.random() * retry.jitter;
+				const delay = delivered
+					? 0
+					: Math.min(retry.maxDelay, retry.initialDelay * 2 ** Math.min(attempts, 52)) +
+						Math.random() * retry.jitter;
+				delivered = false;
 				attempts++;
 				onStatus({ $kind: 'Retrying', attempt: attempts, delay, error });
 				await waitForStream(delay, signal);
@@ -409,6 +414,14 @@ export function createLedgerStream<Frame extends object, Position extends Stream
 						switch (event.$kind) {
 							case 'item':
 							case 'progress': {
+								if (
+									event.$kind === 'item' &&
+									start &&
+									'position' in start &&
+									event.position.cursor === start.position.cursor
+								)
+									break;
+								delivered = true;
 								if (
 									attempts > 0 &&
 									(!start ||
