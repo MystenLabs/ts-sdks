@@ -258,6 +258,7 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 						: ScanTransactionsDocument;
 			let lastItemCursor =
 				request.start && 'position' in request.start ? request.start.position.cursor : undefined;
+			let connected = false;
 			while (true) {
 				const data = unwrap(
 					await client.query({
@@ -273,7 +274,10 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 						signal: request.signal,
 					}),
 				);
-				request.onStatus({ $kind: 'Connected' });
+				if (!connected) {
+					request.onStatus({ $kind: 'Connected' });
+					connected = true;
+				}
 				const connection = data[family];
 				if (!connection) throw new SuiGraphQLStreamError('GraphQL ledger connection is missing');
 				const edges = descending ? [...connection.edges].reverse() : connection.edges;
@@ -414,6 +418,8 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 						? SubscribeEventsDocument
 						: SubscribeTransactionsDocument;
 			let connected = false;
+			let live = !request.start;
+			const indexedTip = live ? undefined : BigInt(await adapter.getIndexedTip(request.signal));
 			for await (const result of client.subscribe({
 				query: document as GraphQLDocument<Record<Family, Edge>>,
 				variables: {
@@ -426,11 +432,16 @@ export function graphQLLedgerStream(client: SuiGraphQLClient, family: Family, op
 			})) {
 				if (!connected) {
 					request.onStatus({ $kind: 'Connected' });
+					if (live) request.onStatus({ $kind: 'Live' });
 					connected = true;
 				}
 				const edge = unwrap(result)[family];
 				if (!edge) throw new SuiGraphQLStreamError('GraphQL ledger subscription edge is missing');
 				const [checkpoint] = await nodeCheckpoints([edge.node], request.signal);
+				if (!live && checkpoint != null && BigInt(checkpoint) >= indexedTip!) {
+					live = true;
+					request.onStatus({ $kind: 'Live' });
+				}
 				if (family === 'checkpoints' && checkpoint != null) {
 					// The subscription can skip checkpoints at its backfill-to-live handoff; read them.
 					const expected = last != null ? BigInt(last) + 1n : start;

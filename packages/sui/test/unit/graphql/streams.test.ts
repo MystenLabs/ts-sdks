@@ -774,4 +774,22 @@ describe('GraphQL ledger streams', () => {
 		await stream.return?.(undefined);
 		expect(delays).toEqual([0, 2]);
 	});
+
+	it('reports Live once the subscription reaches the indexed tip', async () => {
+		const { client } = mockClient(
+			() => subscription('checkpoints', [checkpoint(9), checkpoint(10), checkpoint(11)]),
+			() => 10,
+		);
+		const statuses: string[] = [];
+		const seen: string[] = [];
+		for await (const frame of client.streamCheckpoints({
+			start: { checkpoint: '9' },
+			onStatus: (status) => statuses.push(status.$kind),
+		})) {
+			seen.push(`${frame.checkpoint.sequenceNumber}:${statuses.includes('Live')}`);
+			if (seen.length === 3) break;
+		}
+		expect(seen).toEqual(['9:false', '10:true', '11:true']);
+		expect(statuses.filter((status) => status === 'Live')).toHaveLength(1);
+	});
 });

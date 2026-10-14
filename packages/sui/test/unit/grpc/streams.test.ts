@@ -471,16 +471,20 @@ it('cancels an overflowing live feed, finishes repair, and reconnects without ga
 		);
 	}) as never;
 	const items: string[] = [];
+	const statuses: string[] = [];
 	for await (const frame of c.streamEvents({
 		start: { checkpoint: '1' },
 		maxBufferedItems: 3,
-		retry: { initialDelay: 0, jitter: 0 },
+		retry: { maxAttempts: 0 },
+		onStatus: (status) => statuses.push(status.$kind),
 	})) {
 		items.push(frame.event.checkpoint!);
 		if (items.length === 7) break;
 	}
 	expect(items).toEqual(['1', '2', '3', '4', '5', '6', '7']);
 	expect(connections).toBe(2);
+	expect(statuses).not.toContain('Retrying');
+	expect(statuses).toContain('Live');
 });
 
 it('polls safely across empty scans without opening a subscription', async () => {

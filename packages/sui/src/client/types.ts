@@ -82,6 +82,7 @@ export namespace SuiClientTypes {
 		| { $kind: 'Connecting'; attempt: number }
 		| { $kind: 'Connected' }
 		| { $kind: 'Recovering' }
+		| { $kind: 'Live' }
 		| { $kind: 'Retrying'; attempt: number; delay: number; error: unknown }
 		| { $kind: 'Error'; error: unknown };
 

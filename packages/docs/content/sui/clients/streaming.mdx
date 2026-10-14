@@ -206,7 +206,15 @@ GraphQL historical reads use the server's maximum page size of 50 items, so a Gr
 about 20 times as many requests as a gRPC replay of the same range.
 
 `onStatus` is synchronous diagnostic reporting. Its result is not awaited; throwing terminates the
-stream. Store resume tokens from processed frames, not from status notifications.
+stream. Store resume tokens from processed frames, not from status notifications. The statuses are
+`Connecting` (a request is about to start), `Connected` (once per historical read or subscription),
+`Recovering` (history is being read before live frames), `Live` (the stream has reached the indexed
+tip and every following frame is live), `Retrying`, and `Error`. Use `Live` to tell a backlog from
+current data, for example to switch an indexer from bulk writes to per-item commits.
+
+On gRPC, a live buffer that reaches `maxBufferedItems` during replay ends the subscription, and the
+stream resumes from its last delivered frame through history and a new subscription. This is not a
+retry: it does not count toward `maxAttempts` and reports `Recovering` and `Live` again.
 
 GraphQL subscriptions can remain open without yielding data while waiting for matches or historical
 recovery. `retry.maxAttempts` only limits failed requests. Set a deadline to bound the total wait:
@@ -261,6 +269,8 @@ and scan limits end one request while pagination continues. Persist resume token
 frames; callback watermarks are for diagnostics.
 
 `maxBufferedItems` bounds queued live items during replay, not their byte size. When the limit is
-reached, the SDK closes the live request and recovers through historical reads.
+reached, the SDK closes the live request and recovers through historical reads from the last
+delivered frame. The default of 1,024 items holds about 15 seconds of an unfiltered transaction
+stream; raise it to keep a longer replay on one subscription.
 
 For arbitrary GraphQL selection sets, use [native subscriptions](./graphql.mdx#subscriptions).

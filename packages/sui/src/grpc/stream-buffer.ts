@@ -5,6 +5,13 @@ import { RpcError } from '@protobuf-ts/runtime-rpc';
 import type { ServerStreamingCall } from '@protobuf-ts/runtime-rpc';
 
 /** A bounded queue at the protobuf response boundary, including its otherwise unbounded queue. */
+const OVERFLOWS = new WeakSet<RpcError>();
+
+/** True for the error a buffered call fails with when its item limit is reached. */
+export function isBufferOverflow(error: unknown): boolean {
+	return error instanceof RpcError && OVERFLOWS.has(error);
+}
+
 export function bufferedGrpcCall<T extends object>(
 	call: ServerStreamingCall<object, T>,
 	controller: AbortController,
@@ -36,6 +43,7 @@ export function bufferedGrpcCall<T extends object>(
 			) {
 				ended = true;
 				failure = new RpcError('Ledger stream buffer limit reached', 'RESOURCE_EXHAUSTED');
+				OVERFLOWS.add(failure as RpcError);
 				controller.abort(failure);
 			} else {
 				if (

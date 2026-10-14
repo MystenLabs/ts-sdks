@@ -25,7 +25,7 @@ import {
 } from './core.js';
 import { toGrpcEventFilter, toGrpcTransactionFilter } from './filters.js';
 import { linkedAbortController } from '../utils/abort.js';
-import { bufferedGrpcCall } from './stream-buffer.js';
+import { bufferedGrpcCall, isBufferOverflow } from './stream-buffer.js';
 import type { GrpcStreamInclude, GrpcStreamStage, GrpcStreamQueryEnd } from './stream-types.js';
 import type { Checkpoint } from './proto/sui/rpc/v2/checkpoint.js';
 import type { Event } from './proto/sui/rpc/v2/event.js';
@@ -328,11 +328,11 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 					? BigInt(request.start.checkpoint) - 1n
 					: coverageFloor(request.start.position, family);
 		let previousPosition: StreamPosition | undefined;
+		let connected = false;
 		while (true) {
 			const rpc = open({ ...range, filter, readMask }, request.signal, false);
 			let end: QueryEnd | undefined;
 			let final: StreamPosition | undefined;
-			let connected = false;
 			try {
 				for await (const frame of rpc.buffer) {
 					if (!connected) {
@@ -442,6 +442,26 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 	}
 
 	async function* live(
+		request: LedgerStreamRequest<StreamPosition>,
+	): AsyncGenerator<LedgerStreamEvent<Frame, StreamPosition>> {
+		let start = request.start;
+		while (true) {
+			let last: StreamPosition | undefined;
+			try {
+				for await (const event of liveOnce({ ...request, start })) {
+					if (event.$kind === 'item' || event.$kind === 'progress') last = event.position;
+					yield event;
+				}
+				return;
+			} catch (error) {
+				// A full live buffer ends the subscription; resume from the last delivered position.
+				if (!isBufferOverflow(error) || !last) throw error;
+				start = { position: last };
+			}
+		}
+	}
+
+	async function* liveOnce(
 		request: LedgerStreamRequest<StreamPosition>,
 	): AsyncGenerator<LedgerStreamEvent<Frame, StreamPosition>> {
 		const rpc = open({ filter, readMask }, request.signal, true);
@@ -585,6 +605,7 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 						: undefined,
 				};
 			}
+			request.onStatus({ $kind: 'Live' });
 			while (true) {
 				const p = current.position;
 				const item = hasItem(current.frame);
