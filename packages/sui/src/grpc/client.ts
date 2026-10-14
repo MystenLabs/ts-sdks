@@ -173,7 +173,7 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 
 		// Add the protocol-version default for every transport, including native gRPC.
 		const transport = withClientProtocolVersion(
-			providedTransport ?? new GrpcWebFetchTransport(transportOptions),
+			providedTransport ?? new GrpcWebFetchTransport({ format: 'binary', ...transportOptions }),
 		);
 		this.#transport = transport;
 		this.transactionExecutionService = new TransactionExecutionServiceClient(transport);
