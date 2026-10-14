@@ -241,7 +241,6 @@ for await (const frame of client.streamEvents({
 	onQueryEnd({ queryEnd, watermark, stage }) {
 		console.log(queryEnd, watermark, stage);
 	},
-	pageSize: 50,
 	maxBufferedItems: 1024,
 	signal: controller.signal,
 })) {
@@ -267,6 +266,13 @@ Use `grpcFilter` instead of `filter` for generated gRPC filter expressions.
 Its result is not awaited; throwing terminates the stream without retrying the callback error. Item
 and scan limits end one request while pagination continues. Persist resume tokens from processed
 frames; callback watermarks are for diagnostics.
+
+`pageSize` is the item limit of each historical List request and defaults to 1000. The server caps a
+page at 50 checkpoints, 500 transactions, or 1,000 events, and each page costs a round trip, so
+smaller pages only slow a replay down. Sui fullnodes serve a cold range at roughly three times the
+chain's own rate for an unfiltered transaction stream with every include; run disjoint checkpoint
+ranges concurrently to replay faster, since throughput scales almost linearly to at least eight
+streams.
 
 `maxBufferedItems` bounds queued live items during replay, not their byte size. When the limit is
 reached, the SDK closes the live request and recovers through historical reads from the last

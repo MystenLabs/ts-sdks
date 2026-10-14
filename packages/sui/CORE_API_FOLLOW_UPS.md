@@ -78,3 +78,13 @@ Findings from the 2026-10-14 indexer prototypes against public mainnet and testn
 - **`effects`/`events` includes request both structured fields and BCS** — gRPC read masks in
   `src/grpc/core.ts` ask for `effects` and `effects.bcs` (and `events`, `events.bcs`, JSON), which
   is about 35% more effects bytes and about 1.8x the event bytes on the wire with no CPU benefit.
+- **Pages are requested one at a time** — the gRPC scan in `src/grpc/stream.ts` waits for each List
+  page before requesting the next, so every page boundary costs a round trip (about 105 ms per
+  50-checkpoint page on mainnet). Requesting the next page while the current one drains would raise
+  single-stream replay rates, especially for checkpoint summaries.
+- **A pathological transaction could exceed `maxResponseMessageBytes`** — one transaction's events
+  can hold up to 62.5 MiB of BCS (`max_event_emit_size_total`), and the `events` include also
+  requests their JSON form, so a single List frame could pass the 64 MiB default and stop the stream
+  with a non-retryable error. Not observed on mainnet (largest frame seen: 465 KB).
+- **`streamCheckpoints` returns summary fields only** — no `network_total_transactions`, contents,
+  or digests, so production-rate or completeness checks need `GetCheckpoint`.
