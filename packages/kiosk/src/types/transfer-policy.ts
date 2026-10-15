@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { ObjectOwner } from '@mysten/sui/jsonRpc';
+import type { SuiClientTypes } from '@mysten/sui/client';
 import type { Transaction, TransactionObjectArgument } from '@mysten/sui/transactions';
 
 import type { KioskClient } from '../client/kiosk-client.js';
@@ -42,7 +42,7 @@ export type TransferPolicy = {
 	type: string;
 	balance: string;
 	rules: string[];
-	owner: ObjectOwner;
+	owner: SuiClientTypes.ObjectOwner;
 };
 
 /** Event emitted when a TransferPolicy is created. */

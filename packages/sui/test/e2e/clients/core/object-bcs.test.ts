@@ -9,7 +9,6 @@ import { Transaction } from '../../../../src/transactions/index.js';
 describe('Core API - Object BCS Serialization', () => {
 	let toolbox: TestToolbox;
 	let testObjectId: string;
-	let setupTxDigest: string;
 
 	const testWithAllClients = createTestWithAllClients(() => toolbox);
 
@@ -20,21 +19,19 @@ describe('Core API - Object BCS Serialization', () => {
 		const [coin] = tx.splitCoins(tx.gas, [1000]);
 		tx.transferObjects([coin], toolbox.address());
 
-		const result = await toolbox.jsonRpcClient.signAndExecuteTransaction({
+		const result = await toolbox.signAndExecuteTransaction({
 			transaction: tx,
 			signer: toolbox.keypair,
-			options: { showObjectChanges: true },
+			include: { effects: true, objectTypes: true },
 		});
 
-		setupTxDigest = result.digest;
-
-		const createdCoin = result.objectChanges?.find(
-			(change) => change.type === 'created' && change.objectType.includes('Coin'),
+		const createdCoin = result.Transaction!.effects.changedObjects.find(
+			(change) =>
+				change.idOperation === 'Created' &&
+				result.Transaction!.objectTypes[change.objectId]?.includes('Coin'),
 		);
 		expect(createdCoin).toBeDefined();
-		testObjectId = (createdCoin as { objectId: string }).objectId;
-
-		await toolbox.waitForTransaction({ digest: setupTxDigest });
+		testObjectId = createdCoin!.objectId;
 	});
 
 	describe('Cross-client consistency', () => {

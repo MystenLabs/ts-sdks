@@ -5,7 +5,7 @@ import type {
 	ExecuteTransactionRequestType,
 	SuiTransactionBlockResponse,
 	SuiTransactionBlockResponseOptions,
-} from '@mysten/sui/jsonRpc';
+} from './suiSignAndExecuteTransactionBlockTypes.js';
 
 import type { SuiSignTransactionBlockInput } from './suiSignTransactionBlock.js';
 
@@ -40,7 +40,7 @@ export type SuiSignAndExecuteTransactionBlockMethod = (
 /** Input for signing and sending transactions. */
 export interface SuiSignAndExecuteTransactionBlockInput extends SuiSignTransactionBlockInput {
 	/**
-	 * @deprecated requestType will be ignored by JSON RPC in the future
+	 * @deprecated requestType is a legacy execution option that wallets may ignore.
 	 */
 	requestType?: ExecuteTransactionRequestType;
 	/** specify which fields to return (e.g., transaction, effects, events, etc). By default, only the transaction digest will be returned. */
