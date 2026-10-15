@@ -4,9 +4,12 @@
 import { CoreClient } from '../client/core.js';
 import { raceSignal } from '../client/mvr.js';
 import type { SuiClientTypes } from '../client/types.js';
+import { parseTransactionDataBcs } from '../client/transaction-data.js';
 import { SUI_TYPE_ARG } from '../utils/constants.js';
 import type { GraphQLQueryOptions, SuiGraphQLClient } from './client.js';
 import type {
+	Checkpoint_FieldsFragment,
+	Event_FieldsFragment,
 	Object_Owner_FieldsFragment,
 	Transaction_FieldsFragment,
 } from './generated/queries.js';
@@ -52,7 +55,6 @@ import type { OpenMoveTypeSignatureBody, OpenMoveTypeSignature } from './types.j
 import {
 	transactionDataToGrpcTransaction,
 	transactionToGrpcJson,
-	grpcTransactionToTransactionData,
 } from '../client/transaction-resolver.js';
 import { resolveUnresolvedPureInputs } from '../client/resolve-pure-inputs.js';
 import { setAddressBalanceTransactionExpirationFromSimulatedEpoch } from '../client/address-balance-transaction-expiration.js';
@@ -386,13 +388,12 @@ export class GraphQLCoreClient extends CoreClient {
 				signal: options.signal,
 				variables: {
 					digest: options.digest,
-					includeTransaction: options.include?.transaction ?? false,
 					includeEffects: options.include?.effects ?? false,
 					includeEvents: options.include?.events ?? false,
 					includeBalanceChanges: options.include?.balanceChanges ?? false,
 					includeObjectTypes: options.include?.objectTypes ?? false,
 					includeEffectsJson: !!(options.include?.effects || options.include?.objectTypes),
-					includeBcs: options.include?.bcs ?? false,
+					includeBcs: !!(options.include?.transaction || options.include?.bcs),
 				},
 			},
 			(result) => result.transaction,
@@ -411,13 +412,12 @@ export class GraphQLCoreClient extends CoreClient {
 				variables: {
 					transactionDataBcs: toBase64(options.transaction),
 					signatures: options.signatures,
-					includeTransaction: options.include?.transaction ?? false,
 					includeEffects: options.include?.effects ?? false,
 					includeEvents: options.include?.events ?? false,
 					includeBalanceChanges: options.include?.balanceChanges ?? false,
 					includeObjectTypes: options.include?.objectTypes ?? false,
 					includeEffectsJson: !!(options.include?.effects || options.include?.objectTypes),
-					includeBcs: options.include?.bcs ?? false,
+					includeBcs: !!(options.include?.transaction || options.include?.bcs),
 				},
 			},
 			(result) => result.executeTransaction,
@@ -454,14 +454,13 @@ export class GraphQLCoreClient extends CoreClient {
 									},
 								}
 							: transactionToGrpcJson(options.transaction),
-					includeTransaction: options.include?.transaction ?? false,
 					includeEffects: options.include?.effects ?? false,
 					includeEvents: options.include?.events ?? false,
 					includeBalanceChanges: options.include?.balanceChanges ?? false,
 					includeObjectTypes: options.include?.objectTypes ?? false,
 					includeEffectsJson: !!(options.include?.effects || options.include?.objectTypes),
 					includeCommandResults: options.include?.commandResults ?? false,
-					includeBcs: options.include?.bcs ?? false,
+					includeBcs: !!(options.include?.transaction || options.include?.bcs),
 					doGasSelection,
 					checksEnabled: options.checksEnabled ?? true,
 				},
@@ -679,13 +678,12 @@ export class GraphQLCoreClient extends CoreClient {
 					after,
 					last: descending ? limit : undefined,
 					before,
-					includeTransaction: options.include?.transaction ?? false,
 					includeEffects: options.include?.effects ?? false,
 					includeEvents: options.include?.events ?? false,
 					includeBalanceChanges: options.include?.balanceChanges ?? false,
 					includeObjectTypes: options.include?.objectTypes ?? false,
 					includeEffectsJson: !!(options.include?.effects || options.include?.objectTypes),
-					includeBcs: options.include?.bcs ?? false,
+					includeBcs: !!(options.include?.transaction || options.include?.bcs),
 				},
 			},
 			(result) => result.transactions,
@@ -738,36 +736,12 @@ export class GraphQLCoreClient extends CoreClient {
 		const endCursor = (descending ? pageInfo.startCursor : pageInfo.endCursor) ?? null;
 
 		return {
-			events: nodes.map((event): SuiClientTypes.EventEntry => {
-				const packageId = event.transactionModule?.package?.address;
-				const module = event.transactionModule?.name;
-				const sender = event.sender?.address;
-				const eventType = event.contents?.type?.repr;
-				const transactionDigest = event.transaction?.digest;
+			events: nodes.map((event) => {
 				const checkpoint = event.transaction?.effects?.checkpoint?.sequenceNumber;
-
-				if (
-					!packageId ||
-					!module ||
-					!sender ||
-					!eventType ||
-					!transactionDigest ||
-					checkpoint == null
-				) {
+				if (checkpoint == null) {
 					throw new Error('listEvents response is missing expected event fields');
 				}
-
-				return {
-					packageId: normalizeSuiAddress(packageId),
-					module,
-					sender: normalizeSuiAddress(sender),
-					eventType: normalizeStructTag(eventType),
-					bcs: event.contents?.bcs ? fromBase64(event.contents.bcs) : new Uint8Array(),
-					json: (event.contents?.json as Record<string, unknown>) ?? null,
-					checkpoint: String(checkpoint),
-					transactionDigest,
-					eventIndex: event.sequenceNumber,
-				};
+				return parseGraphQLEvent(event, String(checkpoint), 'listEvents');
 			}),
 			// A page without a cursor to continue from cannot have a next page
 			hasNextPage:
@@ -806,21 +780,7 @@ export class GraphQLCoreClient extends CoreClient {
 		const endCursor = (descending ? pageInfo.startCursor : pageInfo.endCursor) ?? null;
 
 		return {
-			checkpoints: nodes.map((checkpoint): SuiClientTypes.Checkpoint => {
-				const timestampMs = checkpoint.timestamp ? Date.parse(checkpoint.timestamp) : NaN;
-				const epoch = checkpoint.epoch?.epochId;
-
-				if (!checkpoint.digest || Number.isNaN(timestampMs) || epoch == null) {
-					throw new Error('listCheckpoints response is missing expected checkpoint fields');
-				}
-
-				return {
-					sequenceNumber: String(checkpoint.sequenceNumber),
-					digest: checkpoint.digest,
-					epoch: String(epoch),
-					timestampMs,
-				};
-			}),
+			checkpoints: nodes.map((checkpoint) => parseGraphQLCheckpoint(checkpoint, 'listCheckpoints')),
 			hasNextPage:
 				endCursor !== null && (descending ? pageInfo.hasPreviousPage : pageInfo.hasNextPage),
 			startCursor: (descending ? pageInfo.endCursor : pageInfo.startCursor) ?? null,
@@ -1117,6 +1077,56 @@ function mapOwner(owner: Object_Owner_FieldsFragment): SuiClientTypes.ObjectOwne
 	}
 }
 
+/** `source` names the response in the error thrown when required fields are missing. */
+export function parseGraphQLCheckpoint(
+	checkpoint: Checkpoint_FieldsFragment,
+	source: string,
+): SuiClientTypes.Checkpoint {
+	const timestampMs = checkpoint.timestamp ? Date.parse(checkpoint.timestamp) : NaN;
+	const epoch = checkpoint.epoch?.epochId;
+
+	if (!checkpoint.digest || Number.isNaN(timestampMs) || epoch == null) {
+		throw new Error(`${source} response is missing expected checkpoint fields`);
+	}
+
+	return {
+		sequenceNumber: String(checkpoint.sequenceNumber),
+		digest: checkpoint.digest,
+		epoch: String(epoch),
+		timestampMs,
+	};
+}
+
+/** `source` names the response in the error thrown when required fields are missing. */
+export function parseGraphQLEvent(
+	event: Event_FieldsFragment,
+	checkpoint: string,
+	source: string,
+): SuiClientTypes.EventEntry {
+	const packageId = event.transactionModule?.package?.address;
+	const module = event.transactionModule?.name;
+	// System transactions have no sender; gRPC reports the zero address for their events.
+	const sender = event.sender?.address ?? '0x0';
+	const eventType = event.contents?.type?.repr;
+	const transactionDigest = event.transaction?.digest;
+
+	if (!packageId || !module || !eventType || !transactionDigest) {
+		throw new Error(`${source} response is missing expected event fields`);
+	}
+
+	return {
+		packageId: normalizeSuiAddress(packageId),
+		module,
+		sender: normalizeSuiAddress(sender),
+		eventType: normalizeStructTag(eventType),
+		bcs: event.contents?.bcs ? fromBase64(event.contents.bcs) : new Uint8Array(),
+		json: (event.contents?.json as Record<string, unknown>) ?? null,
+		checkpoint,
+		transactionDigest,
+		eventIndex: event.sequenceNumber,
+	};
+}
+
 function withObjectTypes(
 	effects: SuiClientTypes.TransactionEffects,
 	objectTypes: Record<string, string>,
@@ -1133,7 +1143,7 @@ function withObjectTypes(
 	};
 }
 
-function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
+export function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 	transaction: Transaction_FieldsFragment,
 	include?: Include,
 ): SuiClientTypes.TransactionResult<Include> {
@@ -1203,20 +1213,11 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}
 				};
 
 	let transactionData: SuiClientTypes.TransactionData | undefined;
-	if (include?.transaction && transaction.transactionJson) {
-		const grpcTx = GrpcTransactionType.fromJson(
-			transaction.transactionJson as Parameters<typeof GrpcTransactionType.fromJson>[0],
-			{ ignoreUnknownFields: true },
-		);
-		const resolved = grpcTransactionToTransactionData(grpcTx);
-		transactionData = {
-			gasData: resolved.gasData,
-			sender: resolved.sender,
-			expiration: resolved.expiration,
-			commands: resolved.commands,
-			inputs: resolved.inputs,
-			version: resolved.version,
-		};
+	if (include?.transaction) {
+		if (!transaction.transactionBcs) {
+			throw new Error('Transaction BCS is required but missing from GraphQL response');
+		}
+		transactionData = parseTransactionDataBcs(fromBase64(transaction.transactionBcs));
 	}
 
 	const bcsBytes =
@@ -1242,7 +1243,11 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}
 			: undefined) as SuiClientTypes.Transaction<Include>['objectTypes'],
 		transaction: transactionData as SuiClientTypes.Transaction<Include>['transaction'],
 		bcs: bcsBytes as SuiClientTypes.Transaction<Include>['bcs'],
-		signatures: transaction.signatures.map((sig) => sig.signatureBytes!),
+		// Genesis has no sender signatures; the ledger may return a synthetic placeholder.
+		signatures:
+			transaction.effects?.checkpoint?.sequenceNumber === 0
+				? []
+				: transaction.signatures.map((sig) => sig.signatureBytes!),
 		balanceChanges: balanceChanges as SuiClientTypes.Transaction<Include>['balanceChanges'],
 		events: (include?.events
 			? (transaction.effects?.events?.nodes.map((event) => {

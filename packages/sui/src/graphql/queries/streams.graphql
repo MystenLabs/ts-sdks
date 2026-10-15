@@ -1,0 +1,177 @@
+# Copyright (c) Mysten Labs, Inc.
+# SPDX-License-Identifier: Apache-2.0
+
+query ledgerStreamState($field: String!) {
+	chainIdentifier
+	serviceConfig {
+		availableRange(type: "Query", field: $field) {
+			first {
+				sequenceNumber
+			}
+			last {
+				sequenceNumber
+			}
+		}
+	}
+}
+
+query scanCheckpoints(
+	$filter: CheckpointFilter
+	$first: Int
+	$after: String
+	$last: Int
+	$before: String
+) {
+	checkpoints(filter: $filter, first: $first, after: $after, last: $last, before: $before) {
+		pageInfo {
+			hasNextPage
+			hasPreviousPage
+			startCursor
+			endCursor
+		}
+		edges {
+			cursor
+			node {
+				...CHECKPOINT_FIELDS
+			}
+		}
+	}
+}
+subscription subscribeCheckpoints($after: String, $afterCheckpoint: UInt53) {
+	checkpoints(after: $after, afterCheckpoint: $afterCheckpoint) {
+		cursor
+		node {
+			...CHECKPOINT_FIELDS
+		}
+	}
+}
+query scanEvents($filter: EventFilter, $first: Int, $after: String, $last: Int, $before: String) {
+	events(filter: $filter, first: $first, after: $after, last: $last, before: $before) {
+		pageInfo {
+			hasNextPage
+			hasPreviousPage
+			startCursor
+			endCursor
+		}
+		edges {
+			cursor
+			node {
+				...EVENT_FIELDS
+			}
+		}
+	}
+}
+subscription subscribeEvents($after: String, $filter: EventFilter) {
+	events(after: $after, filter: $filter) {
+		cursor
+		node {
+			...EVENT_FIELDS
+		}
+	}
+}
+query scanTransactions(
+	$filter: TransactionFilter
+	$first: Int
+	$after: String
+	$last: Int
+	$before: String
+	$includeEffects: Boolean = false
+	$includeEvents: Boolean = false
+	$includeBalanceChanges: Boolean = false
+	$includeObjectTypes: Boolean = false
+	$includeEffectsJson: Boolean = false
+	$includeBcs: Boolean = false
+) {
+	transactions(filter: $filter, first: $first, after: $after, last: $last, before: $before) {
+		pageInfo {
+			hasNextPage
+			hasPreviousPage
+			startCursor
+			endCursor
+		}
+		edges {
+			cursor
+			node {
+				...TRANSACTION_FIELDS
+			}
+		}
+	}
+}
+subscription subscribeTransactions(
+	$after: String
+	$filter: TransactionFilter
+	$includeEffects: Boolean = false
+	$includeEvents: Boolean = false
+	$includeBalanceChanges: Boolean = false
+	$includeObjectTypes: Boolean = false
+	$includeEffectsJson: Boolean = false
+	$includeBcs: Boolean = false
+) {
+	transactions(after: $after, filter: $filter) {
+		cursor
+		node {
+			...TRANSACTION_FIELDS
+		}
+	}
+}
+query streamTransactionDetails(
+	$digest: String!
+	$eventsAfter: String
+	$objectsAfter: String
+	$events: Boolean!
+	$objects: Boolean!
+) {
+	transaction(digest: $digest) {
+		effects {
+			events(first: 50, after: $eventsAfter) @include(if: $events) {
+				pageInfo {
+					hasNextPage
+					endCursor
+				}
+				nodes {
+					transactionModule {
+						package {
+							address
+						}
+						name
+					}
+					sender {
+						address
+					}
+					contents {
+						type {
+							repr
+						}
+						bcs
+						json
+					}
+				}
+			}
+			objectChanges(first: 50, after: $objectsAfter) @include(if: $objects) {
+				pageInfo {
+					hasNextPage
+					endCursor
+				}
+				nodes {
+					address
+					outputState {
+						asMoveObject {
+							contents {
+								type {
+									repr
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+query streamTransactionCheckpoints($digests: [String!]!) {
+	multiGetTransactionEffects(keys: $digests) {
+		checkpoint {
+			sequenceNumber
+		}
+	}
+}

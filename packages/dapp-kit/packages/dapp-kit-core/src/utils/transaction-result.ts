@@ -3,7 +3,7 @@
 
 import {
 	extractStatusFromEffectsBcs,
-	parseTransactionBcs,
+	parseTransactionDataBcs,
 	parseTransactionEffectsBcs,
 	type SuiClientTypes,
 } from '@mysten/sui/client';
@@ -39,7 +39,7 @@ export function buildTransactionResult(
 		checkpoint: null,
 		status,
 		effects: effects as SuiClientTypes.TransactionEffects,
-		transaction: parseTransactionBcs(transactionBytes),
+		transaction: parseTransactionDataBcs(transactionBytes),
 		balanceChanges: undefined,
 		events: undefined,
 		objectTypes: undefined,

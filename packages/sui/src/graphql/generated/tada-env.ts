@@ -25,12 +25,17 @@
 const introspection = {
   "__schema": {
     "queryType": {
+      "kind": "OBJECT",
       "name": "Query"
     },
     "mutationType": {
+      "kind": "OBJECT",
       "name": "Mutation"
     },
-    "subscriptionType": null,
+    "subscriptionType": {
+      "kind": "OBJECT",
+      "name": "Subscription"
+    },
     "types": [
       {
         "kind": "OBJECT",
@@ -338,6 +343,47 @@ const introspection = {
             "isDeprecated": false
           },
           {
+            "name": "derivedObject",
+            "type": {
+              "kind": "OBJECT",
+              "name": "MoveObject"
+            },
+            "args": [
+              {
+                "name": "atCheckpoint",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "UInt53"
+                }
+              },
+              {
+                "name": "name",
+                "type": {
+                  "kind": "NON_NULL",
+                  "ofType": {
+                    "kind": "INPUT_OBJECT",
+                    "name": "DynamicFieldName"
+                  }
+                }
+              },
+              {
+                "name": "rootVersion",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "UInt53"
+                }
+              },
+              {
+                "name": "version",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "UInt53"
+                }
+              }
+            ],
+            "isDeprecated": false
+          },
+          {
             "name": "dynamicField",
             "type": {
               "kind": "OBJECT",
@@ -451,6 +497,38 @@ const introspection = {
                       "ofType": {
                         "kind": "SCALAR",
                         "name": "String"
+                      }
+                    }
+                  }
+                }
+              }
+            ],
+            "isDeprecated": false
+          },
+          {
+            "name": "multiGetDerivedObjects",
+            "type": {
+              "kind": "NON_NULL",
+              "ofType": {
+                "kind": "LIST",
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "MoveObject"
+                }
+              }
+            },
+            "args": [
+              {
+                "name": "keys",
+                "type": {
+                  "kind": "NON_NULL",
+                  "ofType": {
+                    "kind": "LIST",
+                    "ofType": {
+                      "kind": "NON_NULL",
+                      "ofType": {
+                        "kind": "INPUT_OBJECT",
+                        "name": "DerivedObjectKey"
                       }
                     }
                   }
@@ -869,6 +947,15 @@ const introspection = {
             "type": {
               "kind": "SCALAR",
               "name": "BigInt"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "coinMetadata",
+            "type": {
+              "kind": "OBJECT",
+              "name": "CoinMetadata"
             },
             "args": [],
             "isDeprecated": false
@@ -1913,6 +2000,47 @@ const introspection = {
             "isDeprecated": false
           },
           {
+            "name": "derivedObject",
+            "type": {
+              "kind": "OBJECT",
+              "name": "MoveObject"
+            },
+            "args": [
+              {
+                "name": "atCheckpoint",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "UInt53"
+                }
+              },
+              {
+                "name": "name",
+                "type": {
+                  "kind": "NON_NULL",
+                  "ofType": {
+                    "kind": "INPUT_OBJECT",
+                    "name": "DynamicFieldName"
+                  }
+                }
+              },
+              {
+                "name": "rootVersion",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "UInt53"
+                }
+              },
+              {
+                "name": "version",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "UInt53"
+                }
+              }
+            ],
+            "isDeprecated": false
+          },
+          {
             "name": "description",
             "type": {
               "kind": "SCALAR",
@@ -2059,6 +2187,38 @@ const introspection = {
                       "ofType": {
                         "kind": "SCALAR",
                         "name": "String"
+                      }
+                    }
+                  }
+                }
+              }
+            ],
+            "isDeprecated": false
+          },
+          {
+            "name": "multiGetDerivedObjects",
+            "type": {
+              "kind": "NON_NULL",
+              "ofType": {
+                "kind": "LIST",
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "MoveObject"
+                }
+              }
+            },
+            "args": [
+              {
+                "name": "keys",
+                "type": {
+                  "kind": "NON_NULL",
+                  "ofType": {
+                    "kind": "LIST",
+                    "ofType": {
+                      "kind": "NON_NULL",
+                      "ofType": {
+                        "kind": "INPUT_OBJECT",
+                        "name": "DerivedObjectKey"
                       }
                     }
                   }
@@ -2804,6 +2964,44 @@ const introspection = {
         "name": "DateTime"
       },
       {
+        "kind": "INPUT_OBJECT",
+        "name": "DerivedObjectKey",
+        "inputFields": [
+          {
+            "name": "atCheckpoint",
+            "type": {
+              "kind": "SCALAR",
+              "name": "UInt53"
+            }
+          },
+          {
+            "name": "name",
+            "type": {
+              "kind": "NON_NULL",
+              "ofType": {
+                "kind": "INPUT_OBJECT",
+                "name": "DynamicFieldName"
+              }
+            }
+          },
+          {
+            "name": "rootVersion",
+            "type": {
+              "kind": "SCALAR",
+              "name": "UInt53"
+            }
+          },
+          {
+            "name": "version",
+            "type": {
+              "kind": "SCALAR",
+              "name": "UInt53"
+            }
+          }
+        ],
+        "isOneOf": false
+      },
+      {
         "kind": "OBJECT",
         "name": "Display",
         "fields": [
@@ -2978,6 +3176,47 @@ const introspection = {
             "isDeprecated": false
           },
           {
+            "name": "derivedObject",
+            "type": {
+              "kind": "OBJECT",
+              "name": "MoveObject"
+            },
+            "args": [
+              {
+                "name": "atCheckpoint",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "UInt53"
+                }
+              },
+              {
+                "name": "name",
+                "type": {
+                  "kind": "NON_NULL",
+                  "ofType": {
+                    "kind": "INPUT_OBJECT",
+                    "name": "DynamicFieldName"
+                  }
+                }
+              },
+              {
+                "name": "rootVersion",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "UInt53"
+                }
+              },
+              {
+                "name": "version",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "UInt53"
+                }
+              }
+            ],
+            "isDeprecated": false
+          },
+          {
             "name": "digest",
             "type": {
               "kind": "SCALAR",
@@ -3118,6 +3357,38 @@ const introspection = {
                       "ofType": {
                         "kind": "SCALAR",
                         "name": "String"
+                      }
+                    }
+                  }
+                }
+              }
+            ],
+            "isDeprecated": false
+          },
+          {
+            "name": "multiGetDerivedObjects",
+            "type": {
+              "kind": "NON_NULL",
+              "ofType": {
+                "kind": "LIST",
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "MoveObject"
+                }
+              }
+            },
+            "args": [
+              {
+                "name": "keys",
+                "type": {
+                  "kind": "NON_NULL",
+                  "ofType": {
+                    "kind": "LIST",
+                    "ofType": {
+                      "kind": "NON_NULL",
+                      "ofType": {
+                        "kind": "INPUT_OBJECT",
+                        "name": "DerivedObjectKey"
                       }
                     }
                   }
@@ -4942,6 +5213,47 @@ const introspection = {
             "isDeprecated": false
           },
           {
+            "name": "derivedObject",
+            "type": {
+              "kind": "OBJECT",
+              "name": "MoveObject"
+            },
+            "args": [
+              {
+                "name": "atCheckpoint",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "UInt53"
+                }
+              },
+              {
+                "name": "name",
+                "type": {
+                  "kind": "NON_NULL",
+                  "ofType": {
+                    "kind": "INPUT_OBJECT",
+                    "name": "DynamicFieldName"
+                  }
+                }
+              },
+              {
+                "name": "rootVersion",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "UInt53"
+                }
+              },
+              {
+                "name": "version",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "UInt53"
+                }
+              }
+            ],
+            "isDeprecated": false
+          },
+          {
             "name": "multiGetBalances",
             "type": {
               "kind": "LIST",
@@ -4965,6 +5277,38 @@ const introspection = {
                       "ofType": {
                         "kind": "SCALAR",
                         "name": "String"
+                      }
+                    }
+                  }
+                }
+              }
+            ],
+            "isDeprecated": false
+          },
+          {
+            "name": "multiGetDerivedObjects",
+            "type": {
+              "kind": "NON_NULL",
+              "ofType": {
+                "kind": "LIST",
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "MoveObject"
+                }
+              }
+            },
+            "args": [
+              {
+                "name": "keys",
+                "type": {
+                  "kind": "NON_NULL",
+                  "ofType": {
+                    "kind": "LIST",
+                    "ofType": {
+                      "kind": "NON_NULL",
+                      "ofType": {
+                        "kind": "INPUT_OBJECT",
+                        "name": "DerivedObjectKey"
                       }
                     }
                   }
@@ -5723,6 +6067,47 @@ const introspection = {
                   }
                 }
               }
+            },
+            "args": [],
+            "isDeprecated": false
+          }
+        ],
+        "interfaces": []
+      },
+      {
+        "kind": "OBJECT",
+        "name": "MlDsa65PublicKey",
+        "fields": [
+          {
+            "name": "bytes",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Base64"
+            },
+            "args": [],
+            "isDeprecated": false
+          }
+        ],
+        "interfaces": []
+      },
+      {
+        "kind": "OBJECT",
+        "name": "MlDsa65Signature",
+        "fields": [
+          {
+            "name": "publicKey",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Base64"
+            },
+            "args": [],
+            "isDeprecated": false
+          },
+          {
+            "name": "signature",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Base64"
             },
             "args": [],
             "isDeprecated": false
@@ -7035,6 +7420,47 @@ const introspection = {
             "isDeprecated": false
           },
           {
+            "name": "derivedObject",
+            "type": {
+              "kind": "OBJECT",
+              "name": "MoveObject"
+            },
+            "args": [
+              {
+                "name": "atCheckpoint",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "UInt53"
+                }
+              },
+              {
+                "name": "name",
+                "type": {
+                  "kind": "NON_NULL",
+                  "ofType": {
+                    "kind": "INPUT_OBJECT",
+                    "name": "DynamicFieldName"
+                  }
+                }
+              },
+              {
+                "name": "rootVersion",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "UInt53"
+                }
+              },
+              {
+                "name": "version",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "UInt53"
+                }
+              }
+            ],
+            "isDeprecated": false
+          },
+          {
             "name": "digest",
             "type": {
               "kind": "SCALAR",
@@ -7175,6 +7601,38 @@ const introspection = {
                       "ofType": {
                         "kind": "SCALAR",
                         "name": "String"
+                      }
+                    }
+                  }
+                }
+              }
+            ],
+            "isDeprecated": false
+          },
+          {
+            "name": "multiGetDerivedObjects",
+            "type": {
+              "kind": "NON_NULL",
+              "ofType": {
+                "kind": "LIST",
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "MoveObject"
+                }
+              }
+            },
+            "args": [
+              {
+                "name": "keys",
+                "type": {
+                  "kind": "NON_NULL",
+                  "ofType": {
+                    "kind": "LIST",
+                    "ofType": {
+                      "kind": "NON_NULL",
+                      "ofType": {
+                        "kind": "INPUT_OBJECT",
+                        "name": "DerivedObjectKey"
                       }
                     }
                   }
@@ -7734,6 +8192,47 @@ const introspection = {
             "isDeprecated": false
           },
           {
+            "name": "derivedObject",
+            "type": {
+              "kind": "OBJECT",
+              "name": "MoveObject"
+            },
+            "args": [
+              {
+                "name": "atCheckpoint",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "UInt53"
+                }
+              },
+              {
+                "name": "name",
+                "type": {
+                  "kind": "NON_NULL",
+                  "ofType": {
+                    "kind": "INPUT_OBJECT",
+                    "name": "DynamicFieldName"
+                  }
+                }
+              },
+              {
+                "name": "rootVersion",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "UInt53"
+                }
+              },
+              {
+                "name": "version",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "UInt53"
+                }
+              }
+            ],
+            "isDeprecated": false
+          },
+          {
             "name": "digest",
             "type": {
               "kind": "SCALAR",
@@ -7860,6 +8359,38 @@ const introspection = {
                       "ofType": {
                         "kind": "SCALAR",
                         "name": "String"
+                      }
+                    }
+                  }
+                }
+              }
+            ],
+            "isDeprecated": false
+          },
+          {
+            "name": "multiGetDerivedObjects",
+            "type": {
+              "kind": "NON_NULL",
+              "ofType": {
+                "kind": "LIST",
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "MoveObject"
+                }
+              }
+            },
+            "args": [
+              {
+                "name": "keys",
+                "type": {
+                  "kind": "NON_NULL",
+                  "ofType": {
+                    "kind": "LIST",
+                    "ofType": {
+                      "kind": "NON_NULL",
+                      "ofType": {
+                        "kind": "INPUT_OBJECT",
+                        "name": "DerivedObjectKey"
                       }
                     }
                   }
@@ -8906,6 +9437,10 @@ const introspection = {
           },
           {
             "kind": "OBJECT",
+            "name": "MlDsa65PublicKey"
+          },
+          {
+            "kind": "OBJECT",
             "name": "PasskeyPublicKey"
           },
           {
@@ -9032,6 +9567,54 @@ const introspection = {
           }
         ],
         "interfaces": []
+      },
+      {
+        "kind": "INPUT_OBJECT",
+        "name": "NameKey",
+        "inputFields": [
+          {
+            "name": "atCheckpoint",
+            "type": {
+              "kind": "SCALAR",
+              "name": "UInt53"
+            }
+          },
+          {
+            "name": "name",
+            "type": {
+              "kind": "NON_NULL",
+              "ofType": {
+                "kind": "INPUT_OBJECT",
+                "name": "DynamicFieldName"
+              }
+            }
+          },
+          {
+            "name": "parent",
+            "type": {
+              "kind": "NON_NULL",
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "SuiAddress"
+              }
+            }
+          },
+          {
+            "name": "rootVersion",
+            "type": {
+              "kind": "SCALAR",
+              "name": "UInt53"
+            }
+          },
+          {
+            "name": "version",
+            "type": {
+              "kind": "SCALAR",
+              "name": "UInt53"
+            }
+          }
+        ],
+        "isOneOf": false
       },
       {
         "kind": "OBJECT",
@@ -9293,6 +9876,47 @@ const introspection = {
             "isDeprecated": false
           },
           {
+            "name": "derivedObject",
+            "type": {
+              "kind": "OBJECT",
+              "name": "MoveObject"
+            },
+            "args": [
+              {
+                "name": "atCheckpoint",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "UInt53"
+                }
+              },
+              {
+                "name": "name",
+                "type": {
+                  "kind": "NON_NULL",
+                  "ofType": {
+                    "kind": "INPUT_OBJECT",
+                    "name": "DynamicFieldName"
+                  }
+                }
+              },
+              {
+                "name": "rootVersion",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "UInt53"
+                }
+              },
+              {
+                "name": "version",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "UInt53"
+                }
+              }
+            ],
+            "isDeprecated": false
+          },
+          {
             "name": "digest",
             "type": {
               "kind": "SCALAR",
@@ -9415,6 +10039,38 @@ const introspection = {
                       "ofType": {
                         "kind": "SCALAR",
                         "name": "String"
+                      }
+                    }
+                  }
+                }
+              }
+            ],
+            "isDeprecated": false
+          },
+          {
+            "name": "multiGetDerivedObjects",
+            "type": {
+              "kind": "NON_NULL",
+              "ofType": {
+                "kind": "LIST",
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "MoveObject"
+                }
+              }
+            },
+            "args": [
+              {
+                "name": "keys",
+                "type": {
+                  "kind": "NON_NULL",
+                  "ofType": {
+                    "kind": "LIST",
+                    "ofType": {
+                      "kind": "NON_NULL",
+                      "ofType": {
+                        "kind": "INPUT_OBJECT",
+                        "name": "DerivedObjectKey"
                       }
                     }
                   }
@@ -11035,6 +11691,102 @@ const introspection = {
             "isDeprecated": false
           },
           {
+            "name": "multiGetDerivedObjects",
+            "type": {
+              "kind": "NON_NULL",
+              "ofType": {
+                "kind": "LIST",
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "MoveObject"
+                }
+              }
+            },
+            "args": [
+              {
+                "name": "keys",
+                "type": {
+                  "kind": "NON_NULL",
+                  "ofType": {
+                    "kind": "LIST",
+                    "ofType": {
+                      "kind": "NON_NULL",
+                      "ofType": {
+                        "kind": "INPUT_OBJECT",
+                        "name": "NameKey"
+                      }
+                    }
+                  }
+                }
+              }
+            ],
+            "isDeprecated": false
+          },
+          {
+            "name": "multiGetDynamicFields",
+            "type": {
+              "kind": "NON_NULL",
+              "ofType": {
+                "kind": "LIST",
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "DynamicField"
+                }
+              }
+            },
+            "args": [
+              {
+                "name": "keys",
+                "type": {
+                  "kind": "NON_NULL",
+                  "ofType": {
+                    "kind": "LIST",
+                    "ofType": {
+                      "kind": "NON_NULL",
+                      "ofType": {
+                        "kind": "INPUT_OBJECT",
+                        "name": "NameKey"
+                      }
+                    }
+                  }
+                }
+              }
+            ],
+            "isDeprecated": false
+          },
+          {
+            "name": "multiGetDynamicObjectFields",
+            "type": {
+              "kind": "NON_NULL",
+              "ofType": {
+                "kind": "LIST",
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "DynamicField"
+                }
+              }
+            },
+            "args": [
+              {
+                "name": "keys",
+                "type": {
+                  "kind": "NON_NULL",
+                  "ofType": {
+                    "kind": "LIST",
+                    "ofType": {
+                      "kind": "NON_NULL",
+                      "ofType": {
+                        "kind": "INPUT_OBJECT",
+                        "name": "NameKey"
+                      }
+                    }
+                  }
+                }
+              }
+            ],
+            "isDeprecated": false
+          },
+          {
             "name": "multiGetEpochs",
             "type": {
               "kind": "NON_NULL",
@@ -12355,6 +13107,10 @@ const introspection = {
           },
           {
             "kind": "OBJECT",
+            "name": "MlDsa65Signature"
+          },
+          {
+            "kind": "OBJECT",
             "name": "MultisigSignature"
           },
           {
@@ -12475,6 +13231,94 @@ const introspection = {
       {
         "kind": "SCALAR",
         "name": "String"
+      },
+      {
+        "kind": "OBJECT",
+        "name": "Subscription",
+        "fields": [
+          {
+            "name": "checkpoints",
+            "type": {
+              "kind": "NON_NULL",
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "CheckpointEdge"
+              }
+            },
+            "args": [
+              {
+                "name": "after",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String"
+                }
+              },
+              {
+                "name": "afterCheckpoint",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "UInt53"
+                }
+              }
+            ],
+            "isDeprecated": false
+          },
+          {
+            "name": "events",
+            "type": {
+              "kind": "NON_NULL",
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "EventEdge"
+              }
+            },
+            "args": [
+              {
+                "name": "after",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String"
+                }
+              },
+              {
+                "name": "filter",
+                "type": {
+                  "kind": "INPUT_OBJECT",
+                  "name": "EventFilter"
+                }
+              }
+            ],
+            "isDeprecated": false
+          },
+          {
+            "name": "transactions",
+            "type": {
+              "kind": "NON_NULL",
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "TransactionEdge"
+              }
+            },
+            "args": [
+              {
+                "name": "after",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String"
+                }
+              },
+              {
+                "name": "filter",
+                "type": {
+                  "kind": "INPUT_OBJECT",
+                  "name": "TransactionFilter"
+                }
+              }
+            ],
+            "isDeprecated": false
+          }
+        ],
+        "interfaces": []
       },
       {
         "kind": "SCALAR",
