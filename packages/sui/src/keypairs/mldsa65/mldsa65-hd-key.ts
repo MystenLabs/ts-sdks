@@ -16,7 +16,8 @@ type Keys = {
 export const MLDSA65_SLIP10_MASTER_KEY = 'ML-DSA-65 seed';
 const HARDENED_OFFSET = 0x80000000;
 
-const pathRegex = new RegExp("^m(\\/[0-9]+')+$");
+// Canonical decimal indices only; the range is checked in `derivePath`.
+const pathRegex = new RegExp("^m(\\/(0|[1-9][0-9]*)')+$");
 
 const getMasterKeyFromSeed = (seed: Uint8Array): Keys => {
 	const I = hmac(sha512, new TextEncoder().encode(MLDSA65_SLIP10_MASTER_KEY), seed);
@@ -58,6 +59,10 @@ export const derivePath = (path: string, seed: Uint8Array): Keys => {
 		.split('/')
 		.slice(1)
 		.map((el) => parseInt(el.slice(0, -1), 10));
+	// An index of 2^31 or more would collide with a hardened index after the OR below.
+	if (segments.some((segment) => segment >= HARDENED_OFFSET)) {
+		throw new Error('Invalid derivation path');
+	}
 
 	let node = getMasterKeyFromSeed(seed);
 	for (const segment of segments) {

@@ -167,6 +167,11 @@ describe('mldsa65-keypair', () => {
 			'Invalid derivation path',
 		);
 		expect(() => MLDSA65Keypair.deriveKeypair('aaa')).toThrow('Invalid mnemonic');
+		for (const index of ["2147483653'", "4294967301'", "05'"]) {
+			expect(() => MLDSA65Keypair.deriveKeypair(mnemonic, `m/94'/784'/${index}/0'/0'`)).toThrow(
+				'Invalid derivation path',
+			);
+		}
 
 		// Sibling accounts differ.
 		expect(

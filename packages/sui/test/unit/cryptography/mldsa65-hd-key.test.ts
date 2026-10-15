@@ -58,4 +58,17 @@ describe('mldsa65-hd-key', () => {
 		expect(() => derivePath('m', seed)).toThrow('Invalid derivation path');
 		expect(() => derivePath("44'/784'/0'/0'/0'", seed)).toThrow('Invalid derivation path');
 	});
+
+	it('rejects indices that would alias another account', () => {
+		const seed = fromHex(SEED_1);
+		// 2^31 + 5 and 2^32 + 5 would both land on hardened index 5.
+		expect(() => derivePath("m/94'/784'/2147483653'/0'/0'", seed)).toThrow(
+			'Invalid derivation path',
+		);
+		expect(() => derivePath("m/94'/784'/4294967301'/0'/0'", seed)).toThrow(
+			'Invalid derivation path',
+		);
+		expect(() => derivePath("m/94'/784'/05'/0'/0'", seed)).toThrow('Invalid derivation path');
+		expect(() => derivePath("m/94'/784'/2147483647'/0'/0'", seed)).not.toThrow();
+	});
 });
