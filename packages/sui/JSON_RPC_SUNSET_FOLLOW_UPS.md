@@ -29,17 +29,6 @@ implementing the gRPC/GraphQL mappings, and extending the parity tests.
 - **GraphQL event checkpoints** — GraphQL is expected to always report an event's checkpoint;
   `listEvents` throws `listEvents response is missing expected event fields` if it does not.
 
-## Blocked only by JSON-RPC
-
-- **A `listCheckpoints` core method** — a summaries-only version (sequence number, digest, epoch,
-  timestamp) was prototyped and dropped from the initial release because listing checkpoints is
-  mostly useful for getting the transactions they contain, which is better served by
-  `listTransactions` with checkpoint ranges once those are promoted. Including per-checkpoint
-  transaction digests has exact parity on gRPC and JSON-RPC, but GraphQL exposes them as a nested
-  connection capped at the server page size, which would silently truncate busy checkpoints. If a
-  core method is added, checkpoint ranges are implementable exactly on every transport (JSON-RPC's
-  sequence-number cursor emulates them).
-
 ## Blocked by GraphQL as well
 
 - **OR of filters, negated predicates, and repeated predicate values** — the gRPC DNF filter model
@@ -48,4 +37,7 @@ implementing the gRPC/GraphQL mappings, and extending the parity tests.
   present on the GraphQL `TransactionFilter` input.
 - **Transaction filters on `listCheckpoints`** — the GraphQL `checkpoints` query only supports
   checkpoint/epoch bounds, not transaction predicates.
+- **Transaction digests on `listCheckpoints`** — gRPC returns each checkpoint's full contents, but
+  GraphQL exposes them as a nested connection capped at the server page size, which would silently
+  truncate busy checkpoints. Use `listTransactions` with a checkpoint range instead.
 - **`eventStreamHead` event predicate** — not present on the GraphQL `EventFilter` input.
