@@ -1,6 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { runInNewContext } from 'node:vm';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { fromBase58, fromBase64, fromHex, toBase58, toBase64, toHex } from '../src/index.js';
@@ -215,6 +216,12 @@ describe('base58', () => {
 		expect(encoded.length).toBeGreaterThan(8192);
 		expect(encoded).toBe(referenceToBase58(bytes));
 		expect(toHex(fromBase58(encoded))).toBe(toHex(bytes));
+	});
+
+	it('accepts Uint8Arrays from another realm', () => {
+		const foreign = runInNewContext('new Uint8Array([0, 1, 2, 3])');
+		expect(foreign instanceof Uint8Array).toBe(false);
+		expect(toBase58(foreign)).toBe('1Ldp');
 	});
 
 	it('rejects non-Uint8Array input', () => {

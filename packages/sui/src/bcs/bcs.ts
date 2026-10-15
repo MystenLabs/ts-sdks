@@ -71,24 +71,6 @@ function decodeAddress(value: string): Uint8Array<ArrayBuffer> | null {
 	return bytes;
 }
 
-const HEX_CODES = Array.from('0123456789abcdef', (char) => char.charCodeAt(0));
-const addressCharCodes: number[] = new Array(2 + SUI_ADDRESS_LENGTH * 2).fill(48);
-addressCharCodes[1] = 120; // 'x'
-
-// Same result as normalizeSuiAddress(toHex(bytes)) for 32 bytes, but builds the string in one
-// String.fromCharCode call instead of 32 concatenations
-function encodeAddress(bytes: Uint8Array): string {
-	if (bytes.length !== SUI_ADDRESS_LENGTH) {
-		return normalizeSuiAddress(toHex(bytes));
-	}
-	for (let i = 0; i < SUI_ADDRESS_LENGTH; i++) {
-		const byte = bytes[i];
-		addressCharCodes[2 + i * 2] = HEX_CODES[byte >> 4];
-		addressCharCodes[3 + i * 2] = HEX_CODES[byte & 15];
-	}
-	return String.fromCharCode.apply(null, addressCharCodes);
-}
-
 export const Address = bcs.bytes(SUI_ADDRESS_LENGTH).transform({
 	// Validation lives in input so string addresses are only decoded once per write; transform's
 	// validate runs input, so validate() still rejects invalid addresses.
@@ -106,7 +88,7 @@ export const Address = bcs.bytes(SUI_ADDRESS_LENGTH).transform({
 		}
 		return val;
 	},
-	output: encodeAddress,
+	output: (val) => `0x${toHex(val)}`,
 });
 
 export const ObjectDigest = bcs.byteVector().transform({

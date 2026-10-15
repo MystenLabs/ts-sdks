@@ -218,8 +218,12 @@ function map<K extends BcsType<any>, V extends BcsType<any>>(
 	});
 }
 
-const utf8Encoder = new TextEncoder();
-const utf8Decoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
+// Created on first use, so importing the package doesn't require TextEncoder/TextDecoder
+let utf8Encoder: TextEncoder | undefined;
+let utf8Decoder: TextDecoder | undefined;
+function decoder() {
+	return (utf8Decoder ??= new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }));
+}
 
 // Most strings in Sui data (module, function and type names) are short ASCII. Decoding those
 // directly avoids the fixed cost of a TextDecoder call; anything else goes through the decoder.
@@ -230,14 +234,14 @@ function decodeUtf8(bytes: Uint8Array): string {
 		for (let i = 0; i < bytes.length; i++) {
 			const byte = bytes[i];
 			if (byte >= 0x80) {
-				return utf8Decoder.decode(bytes);
+				return decoder().decode(bytes);
 			}
 			result += String.fromCharCode(byte);
 		}
 		return result;
 	}
 
-	return utf8Decoder.decode(bytes);
+	return decoder().decode(bytes);
 }
 
 export const bcs = {
@@ -447,7 +451,7 @@ export const bcs = {
 	 */
 	string(options?: BcsTypeOptions<string>) {
 		return stringLikeBcsType({
-			toBytes: (value) => utf8Encoder.encode(value),
+			toBytes: (value) => (utf8Encoder ??= new TextEncoder()).encode(value),
 			fromBytes: decodeUtf8,
 			...options,
 			name: (options?.name ?? 'string') as 'string',

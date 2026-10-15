@@ -13,8 +13,18 @@ for (let i = 0; i < ALPHABET.length; i++) {
 // decoding accumulates base-2^16 limbs from 5-character chunks (< 2^46).
 const B58_5 = 58 ** 5;
 
+// Same check as @scure/base, which also accepts Uint8Arrays from other realms (iframes, vm)
+function isBytes(value: unknown): value is Uint8Array {
+	return (
+		value instanceof Uint8Array ||
+		(ArrayBuffer.isView(value) &&
+			value.constructor.name === 'Uint8Array' &&
+			(value as Uint8Array).BYTES_PER_ELEMENT === 1)
+	);
+}
+
 export function toBase58(buffer: Uint8Array): string {
-	if (!(buffer instanceof Uint8Array)) {
+	if (!isBytes(buffer)) {
 		throw new TypeError('toBase58 expects a Uint8Array');
 	}
 

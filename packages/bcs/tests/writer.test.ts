@@ -178,6 +178,15 @@ describe('enum', () => {
 		expect(() => type.serialize({ D: 1 } as never)).toThrow('Expected object with one key');
 	});
 
+	it('reads a variant named __proto__ as an own property', () => {
+		const fields = JSON.parse('{"__proto__": null, "B": null}');
+		fields.__proto__ = bcs.u8();
+		const parsed = bcs.enum('P', fields).parse(new Uint8Array([0, 7]));
+		expect(Object.getPrototypeOf(parsed)).toBe(Object.prototype);
+		expect(Object.getOwnPropertyDescriptor(parsed, '__proto__')?.value).toBe(7);
+		expect(parsed.$kind).toBe('__proto__');
+	});
+
 	it('reads the variant key before $kind', () => {
 		expect(Object.keys(type.parse(new Uint8Array([1, 5, 0])))).toEqual(['B', '$kind']);
 	});

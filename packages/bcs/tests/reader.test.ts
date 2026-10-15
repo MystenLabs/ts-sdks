@@ -182,6 +182,13 @@ describe('BcsReader', () => {
 		});
 	});
 
+	describe('reading from a view', () => {
+		it('does not read a ULEB past the end of the view into the rest of the buffer', () => {
+			const view = new Uint8Array([0x80, 0x01]).subarray(0, 1);
+			expect(() => new BcsReader(view).readULEB()).toThrow('buffer overflow');
+		});
+	});
+
 	describe('readBytes', () => {
 		it('does not read past the end of a view into the rest of the buffer', () => {
 			const buffer = new Uint8Array([5, 1, 2, 3, 9, 9]);

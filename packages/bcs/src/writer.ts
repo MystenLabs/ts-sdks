@@ -132,24 +132,7 @@ export class BcsWriter {
 	 * @returns {this}
 	 */
 	write64(value: number | bigint): this {
-		if (typeof value === 'number' && value >= 0 && Number.isSafeInteger(value)) {
-			this.ensureSizeOrGrow(8);
-			this.dataView.setUint32(this.bytePosition, value % 0x100000000, true);
-			this.dataView.setUint32(this.bytePosition + 4, Math.floor(value / 0x100000000), true);
-			return this.shift(8);
-		}
-
-		let bigint = BigInt(value);
-		// Matches the previous byte-by-byte encoding: negative values encode as zero and
-		// values above u64::MAX keep their low 64 bits
-		if (bigint < 0n) {
-			bigint = 0n;
-		}
-		this.ensureSizeOrGrow(8);
-		this.dataView.setUint32(this.bytePosition, Number(bigint & 0xffffffffn), true);
-		this.dataView.setUint32(this.bytePosition + 4, Number((bigint >> 32n) & 0xffffffffn), true);
-
-		return this.shift(8);
+		return this.writeBigLittleEndian(BigInt(value), 8);
 	}
 	/**
 	 * Write a U128 value into a buffer and shift cursor position by 16.
@@ -170,12 +153,13 @@ export class BcsWriter {
 		return this.writeBigLittleEndian(BigInt(value), 32);
 	}
 
+	// Negative values encode as zero and values that overflow `size` keep their low bytes
 	private writeBigLittleEndian(value: bigint, size: number): this {
 		this.ensureSizeOrGrow(size);
 		let remaining = value > 0n ? value : 0n;
-		for (let offset = 0; offset < size; offset += 4) {
-			this.dataView.setUint32(this.bytePosition + offset, Number(remaining & 0xffffffffn), true);
-			remaining >>= 32n;
+		for (let offset = 0; offset < size; offset += 8) {
+			this.dataView.setBigUint64(this.bytePosition + offset, BigInt.asUintN(64, remaining), true);
+			remaining >>= 64n;
 		}
 
 		return this.shift(size);
@@ -187,18 +171,13 @@ export class BcsWriter {
 	 * @returns {this}
 	 */
 	writeULEB(value: number): this {
-		// Values that fit in 32 bits are encoded inline; larger ones go through ulebEncode
-		if (value >= 0 && value <= 0xffffffff && Number.isInteger(value)) {
-			this.ensureSizeOrGrow(
-				value < 0x80 ? 1 : value < 0x4000 ? 2 : value < 0x200000 ? 3 : value < 0x10000000 ? 4 : 5,
-			);
+		if (value >= 0 && Number.isSafeInteger(value)) {
 			let remaining = value;
 			while (remaining >= 0x80) {
-				this.bytes[this.bytePosition++] = (remaining & 0x7f) | 0x80;
-				remaining = Math.floor(remaining / 128);
+				this.write8((remaining % 0x80) | 0x80);
+				remaining = Math.floor(remaining / 0x80);
 			}
-			this.bytes[this.bytePosition++] = remaining;
-			return this;
+			return this.write8(remaining);
 		}
 
 		ulebEncode(value).forEach((el) => this.write8(el));

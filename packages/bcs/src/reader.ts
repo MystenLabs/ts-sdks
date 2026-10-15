@@ -1,8 +1,6 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import { ulebDecode } from './uleb.js';
-
 /**
  * Class used for reading BCS data chunk by chunk. Meant to be used
  * by some wrapper, which will make sure that data is valid and is
@@ -90,15 +88,9 @@ export class BcsReader {
 	 * @returns
 	 */
 	read64(): string {
-		const low = this.read32();
-		const high = this.read32();
-
-		// Values below 2^53 are exact as numbers
-		if (high < 0x200000) {
-			return String(high * 0x100000000 + low);
-		}
-
-		return ((BigInt(high) << 32n) | BigInt(low)).toString(10);
+		const value = this.dataView.getBigUint64(this.bytePosition, true);
+		this.shift(8);
+		return value.toString(10);
 	}
 	/**
 	 * Read U128 value from the buffer and shift cursor by 16.
@@ -143,29 +135,32 @@ export class BcsReader {
 	 * @returns {Number} The ULEB value.
 	 */
 	readULEB(): number {
-		// Values of up to 4 bytes (28 bits) are decoded inline; longer ones use ulebDecode
-		const start = this.bytePosition;
 		const bytes = this.bytes;
-		const limit = Math.min(start + 4, bytes.length);
+		let position = this.bytePosition;
 		let value = 0;
-		for (let i = start; i < limit; i++) {
-			const byte = bytes[i];
-			value |= (byte & 0x7f) << (7 * (i - start));
+		let multiplier = 1;
+		while (true) {
+			if (position >= bytes.length) {
+				throw new Error('ULEB decode error: buffer overflow');
+			}
+			const byte = bytes[position++];
+			value += (byte & 0x7f) * multiplier;
 			if ((byte & 0x80) === 0) {
-				if (byte === 0 && i > start) {
+				// A trailing zero group adds no value, so the encoding is not minimal
+				if (byte === 0 && position - this.bytePosition > 1) {
 					throw new Error('ULEB decode error: non-canonical encoding');
 				}
-				this.bytePosition = i + 1;
-				return value;
+				break;
 			}
+			multiplier *= 128;
 		}
 
-		const buffer = new Uint8Array(this.dataView.buffer, start + this.dataView.byteOffset);
-		const { value: decoded, length } = ulebDecode(buffer);
-
-		this.shift(length);
-
-		return decoded;
+		// Also rejects NaN, from very long encodings where multiplier overflows to Infinity
+		if (!(value <= Number.MAX_SAFE_INTEGER)) {
+			throw new Error('ULEB decode error: value exceeds MAX_SAFE_INTEGER');
+		}
+		this.bytePosition = position;
+		return value;
 	}
 	/**
 	 * Read a BCS vector: read a length and then apply function `cb` X times

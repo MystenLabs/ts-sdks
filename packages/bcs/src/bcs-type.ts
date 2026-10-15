@@ -117,7 +117,9 @@ export class BcsType<T, Input = T, const Name extends string = string> {
 		type.#transformValidate = type.validate;
 		type.#validatedWrite = (value, writer) => {
 			validate?.(value);
-			this.write(input ? input(value) : (value as never), writer);
+			const converted = input ? input(value) : (value as never);
+			this.validate(converted);
+			this.#write(converted, writer);
 		};
 		type.#validatedSerialize = (value, options) => {
 			validate?.(value);
@@ -226,13 +228,8 @@ export function bigUIntBcsType<const Name extends string = string>({
 	return fixedSizeBcsType<string, string | number | bigint, Name>({
 		...options,
 		read: (reader) => reader[readMethod](),
-		write: (value, writer) => writer[writeMethod](toSafeInteger(value) ?? BigInt(value)),
+		write: (value, writer) => writer[writeMethod](BigInt(value)),
 		validate: (val) => {
-			// Every big uint type can hold any safe integer, so those skip BigInt parsing
-			if (toSafeInteger(val) !== null) {
-				options.validate?.(BigInt(val));
-				return;
-			}
 			const value = BigInt(val);
 			if (value < 0 || value > options.maxValue) {
 				throw new TypeError(
@@ -242,28 +239,6 @@ export function bigUIntBcsType<const Name extends string = string>({
 			options.validate?.(value);
 		},
 	});
-}
-
-/**
- * Returns the value as a number when it is a non-negative safe integer, or a decimal string
- * short enough to always be one, and null otherwise (callers fall back to BigInt).
- */
-function toSafeInteger(value: string | number | bigint): number | null {
-	if (typeof value === 'number') {
-		return value >= 0 && Number.isSafeInteger(value) ? value : null;
-	}
-	if (typeof value === 'string' && value.length > 0 && value.length <= 15) {
-		let result = 0;
-		for (let i = 0; i < value.length; i++) {
-			const digit = value.charCodeAt(i) - 48;
-			if (digit < 0 || digit > 9) {
-				return null;
-			}
-			result = result * 10 + digit;
-		}
-		return result;
-	}
-	return null;
 }
 
 export function dynamicSizeBcsType<T, Input = T, const Name extends string = string>({
@@ -466,9 +441,15 @@ export class BcsEnum<
 
 				const [kind, type] = enumEntry;
 
+				const value = type?.read(reader) ?? true;
+				// Assigning to __proto__ would set the prototype rather than add a property
+				if (kind === '__proto__') {
+					return { [kind]: value, $kind: kind } as never;
+				}
+
 				// Avoid a computed-key object literal, which V8 builds through a slow runtime path
 				const result: Record<string, unknown> = {};
-				result[kind] = type?.read(reader) ?? true;
+				result[kind] = value;
 				result.$kind = kind;
 
 				return result as never;
