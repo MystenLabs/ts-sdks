@@ -29,7 +29,7 @@ export const REGISTRY = '0x' + 'd5'.repeat(32);
 
 /**
  * A deployment without delayed execution recorded: Testnet's ids with every delayed-execution
- * field removed, as Testnet stood before its v5 rollout and Mainnet stands until its own.
+ * field removed, as Testnet stood before its v5 rollout and Mainnet before its v4 rollout.
  */
 export const LEGACY_CFG: PredictConfig = {
 	...TESTNET_CONFIG,

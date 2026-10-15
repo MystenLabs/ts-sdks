@@ -18,15 +18,24 @@ export const MAINNET_CONFIG: PredictConfig = Object.freeze({
 	// The record widens `network` to `string` so the published types don't pin a literal;
 	// this file is the mainnet config by construction.
 	network: 'mainnet',
-	// TODO(DBU-887): delayed execution is not recorded on Mainnet yet. Once the Mainnet rollout is
-	// recorded, `pnpm sync-deployment` fills `packages.predictOrders`, `packages.predictMath` and
-	// `oracle.pythLazerState`, and this file pins `packages.predictDelayedExecution` (Mainnet v4),
-	// `objects.orderDesk` and `objects.queueRegistry`, as the Testnet config does. Until then the
-	// queued-order surface (DBU-885) throws on this network, and only a custom `config` reaches it.
-	packages: MAINNET_PREDICT.packages,
-	objects: MAINNET_PREDICT.objects,
+	// Delayed execution (DBU-885) is recorded on Mainnet. The generated record carries the package
+	// IDs that move with upgrades (Predict, `deepbook_predict_orders`, `deepbook_predict_math`) and
+	// the Lazer `State`. The three IDs pinned below are in no publication record and never move:
+	// the Predict version that introduced delayed execution (Mainnet v4), which defines its new
+	// types and events, and the `OrderDesk` and `QueueRegistry` that `deepbook_predict_orders`'s
+	// `init` shared at publish.
+	packages: Object.freeze({
+		...MAINNET_PREDICT.packages,
+		predictDelayedExecution: '0x98235c5842831c9b5f51dc637cf34c91db2aca5510802eb6ebfec63f5b71a7bb',
+	}),
+	objects: Object.freeze({
+		...MAINNET_PREDICT.objects,
+		orderDesk: '0x87b0a87262aacf58eaff567eed2fb7cb0f9cbc1f5ce33ef79216cd26d13a1b5b',
+		queueRegistry: '0x8d4f0c671862f065ac7f2c2cb24abc47cf75ed8fc8e5e52c1d4bdfa53eee164f',
+	}),
 	quoteCoinType: MAINNET_PREDICT.quoteCoinType,
 	coinTypes: MAINNET_PREDICT.coinTypes,
 	units: MAINNET_PREDICT.units,
 	underlyings: MAINNET_PREDICT.underlyings,
+	oracle: MAINNET_PREDICT.oracle,
 });
