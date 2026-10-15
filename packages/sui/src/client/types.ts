@@ -492,6 +492,22 @@ export namespace SuiClientTypes {
 		 * Defaults to `true` (checks enabled).
 		 */
 		checksEnabled?: boolean;
+		/**
+		 * Overrides whether the server selects gas payment during simulation.
+		 *
+		 * When enabled, the server pays gas from the sender's address balance or selects coin
+		 * objects owned by the sender, so the result reflects what the sender would actually
+		 * spend. When disabled, the server simulates the gas payment as given: a transaction
+		 * without gas coins pays from the sender's address balance if it would do so when executed
+		 * (it is replay protected, does not use the gas coin, and the address balance covers the
+		 * budget), and is otherwise simulated with a mocked gas coin, which is reported as
+		 * `gasPaymentMocked` on the result.
+		 *
+		 * Defaults to `true` when the transaction's gas payment is explicitly set to an empty list
+		 * (`[]`), and `false` otherwise. Transactions with gas coins set are simulated as-is.
+		 * Ignored when `checksEnabled` is `false`.
+		 */
+		doGasSelection?: boolean;
 	}
 
 	/** Query methods */

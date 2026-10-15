@@ -448,7 +448,7 @@ export class GrpcCoreClient extends CoreClient {
 		);
 	}
 	async simulateTransaction<Include extends SuiClientTypes.SimulateTransactionInclude = {}>(
-		options: SuiClientTypes.SimulateTransactionOptions<Include> & { doGasSelection?: boolean },
+		options: SuiClientTypes.SimulateTransactionOptions<Include>,
 	): Promise<SuiClientTypes.SimulateTransactionResult<Include>> {
 		// The simulated transaction is nested one level deeper in the response
 		const paths = transactionReadMaskPaths(options.include, 'transaction.');
