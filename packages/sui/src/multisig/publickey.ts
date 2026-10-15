@@ -71,6 +71,7 @@ export class MultiSigPublicKey extends PublicKey {
 		weight: number;
 		publicKey: PublicKey;
 	}[];
+	#options: { client?: ClientWithCoreApi };
 	/**
 	 * Create a new MultiSigPublicKey object
 	 */
@@ -82,6 +83,8 @@ export class MultiSigPublicKey extends PublicKey {
 		options: { client?: ClientWithCoreApi } = {},
 	) {
 		super();
+
+		this.#options = options;
 
 		if (typeof value === 'string') {
 			this.rawBytes = fromBase64(value);
@@ -143,21 +146,27 @@ export class MultiSigPublicKey extends PublicKey {
 	static fromPublicKeys({
 		threshold,
 		publicKeys,
+		client,
 	}: {
 		threshold: number;
 		publicKeys: { publicKey: PublicKey; weight: number }[];
+		/** Client used to verify zkLogin member signatures */
+		client?: ClientWithCoreApi;
 	}) {
-		return new MultiSigPublicKey({
-			pk_map: publicKeys.map(({ publicKey, weight }) => {
-				const scheme = SIGNATURE_FLAG_TO_SCHEME[publicKey.flag() as SignatureFlag];
+		return new MultiSigPublicKey(
+			{
+				pk_map: publicKeys.map(({ publicKey, weight }) => {
+					const scheme = SIGNATURE_FLAG_TO_SCHEME[publicKey.flag() as SignatureFlag];
 
-				return {
-					pubKey: { [scheme]: publicKey.toRawBytes() } as PublicKeyEnum,
-					weight,
-				};
-			}),
-			threshold,
-		});
+					return {
+						pubKey: { [scheme]: publicKey.toRawBytes() } as PublicKeyEnum,
+						weight,
+					};
+				}),
+				threshold,
+			},
+			{ client },
+		);
 	}
 
 	/**
@@ -216,9 +225,38 @@ export class MultiSigPublicKey extends PublicKey {
 	}
 
 	/**
-	 * Verifies that the signature is valid for for the provided message
+	 * Verifies that the signature is valid for the provided message
 	 */
 	async verify(message: Uint8Array, multisigSignature: string): Promise<boolean> {
+		return this.#verifyMembers(multisigSignature, (publicKey, signature) =>
+			publicKey.verify(message, signature),
+		);
+	}
+
+	/**
+	 * Verifies that the signature is valid for the provided PersonalMessage
+	 */
+	override verifyPersonalMessage(message: Uint8Array, multisigSignature: string): Promise<boolean> {
+		// Each member verifies with its own intent-aware method, so members that cannot verify a
+		// raw digest (zkLogin, which is verified through the client) still work.
+		return this.#verifyMembers(multisigSignature, (publicKey, signature) =>
+			publicKey.verifyPersonalMessage(message, signature),
+		);
+	}
+
+	/**
+	 * Verifies that the signature is valid for the provided Transaction
+	 */
+	override verifyTransaction(transaction: Uint8Array, multisigSignature: string): Promise<boolean> {
+		return this.#verifyMembers(multisigSignature, (publicKey, signature) =>
+			publicKey.verifyTransaction(transaction, signature),
+		);
+	}
+
+	async #verifyMembers(
+		multisigSignature: string,
+		verifyMember: (publicKey: PublicKey, signature: Uint8Array) => Promise<boolean>,
+	): Promise<boolean> {
 		// Multisig verification only supports serialized signature
 		const parsed = parseSerializedSignature(multisigSignature);
 
@@ -239,8 +277,11 @@ export class MultiSigPublicKey extends PublicKey {
 			return false;
 		}
 
-		for (const { publicKey, weight, signature } of parsePartialSignatures(multisig)) {
-			if (!(await publicKey.verify(message, signature))) {
+		for (const { publicKey, weight, signature } of parsePartialSignatures(
+			multisig,
+			this.#options,
+		)) {
+			if (!(await verifyMember(publicKey, signature))) {
 				return false;
 			}
 

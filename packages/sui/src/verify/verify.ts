@@ -111,7 +111,9 @@ function parseSignature(signature: string, options: { client?: ClientWithCoreApi
 	if (parsedSignature.signatureScheme === 'MultiSig') {
 		return {
 			...parsedSignature,
-			publicKey: new MultiSigPublicKey(parsedSignature.multisig.multisig_pk),
+			publicKey: new MultiSigPublicKey(parsedSignature.multisig.multisig_pk, {
+				client: options.client,
+			}),
 		};
 	}
 
@@ -152,7 +154,7 @@ export function publicKeyFromRawBytes(
 			publicKey = new Secp256r1PublicKey(bytes);
 			break;
 		case 'MultiSig':
-			publicKey = new MultiSigPublicKey(bytes);
+			publicKey = new MultiSigPublicKey(bytes, { client: options.client });
 			break;
 		case 'ZkLogin':
 			publicKey = ZkLoginPublicIdentifier.fromBytes(bytes, options);
