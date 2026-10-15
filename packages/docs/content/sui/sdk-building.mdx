@@ -35,8 +35,7 @@ goal:
 This guide covers recommended patterns for building TypeScript SDKs that integrate with the Sui SDK.
 Following these patterns ensures your SDK integrates seamlessly with the ecosystem, works with
 `SuiGrpcClient` and `SuiGraphQLClient` through the shared Core API, and composes well with other
-SDKs. Legacy JSON-RPC clients can also be supported during migration because they implement the same
-Core API contract.
+SDKs.
 
 All SDKs should depend on [`ClientWithCoreApi`](./clients/core), which is the transport-agnostic
 interface implemented by Sui clients. This lets application code choose one concrete client and use
