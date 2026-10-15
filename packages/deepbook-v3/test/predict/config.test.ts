@@ -18,7 +18,7 @@ test('all shared object IDs are well-formed', () => {
 	}
 });
 
-test('Testnet records delayed execution, and Mainnet does not yet', () => {
+test('Testnet records delayed execution', () => {
 	// Testnet's v5 rollout (DBU-887). The Predict call target and the delayed-execution type
 	// origin are the same package until Predict is upgraded again.
 	expect(TESTNET_CONFIG.packages.predictDelayedExecution).toBe(
@@ -40,11 +40,42 @@ test('Testnet records delayed execution, and Mainnet does not yet', () => {
 	expect(TESTNET_CONFIG.oracle?.pythLazerState).toMatch(ID_RE);
 	expect(Object.isFrozen(TESTNET_CONFIG.packages)).toBe(true);
 	expect(Object.isFrozen(TESTNET_CONFIG.objects)).toBe(true);
+});
 
-	expect(MAINNET_CONFIG.packages.predictDelayedExecution).toBeUndefined();
-	expect(MAINNET_CONFIG.packages.predictOrders).toBeUndefined();
-	expect(MAINNET_CONFIG.objects.orderDesk).toBeUndefined();
-	expect(MAINNET_CONFIG.oracle).toBeUndefined();
+test('Mainnet records delayed execution', () => {
+	// Mainnet's v4 rollout (DBU-899). The Predict call target and the delayed-execution type
+	// origin are the same package until Predict is upgraded again, and `predictV1` keeps the
+	// original ID for the v1 types.
+	expect(MAINNET_CONFIG.packages.predict).toBe(
+		'0x98235c5842831c9b5f51dc637cf34c91db2aca5510802eb6ebfec63f5b71a7bb',
+	);
+	expect(MAINNET_CONFIG.packages.predictV1).toBe(
+		'0x89aea622e7bb3bdd598bde87dde40ee31c9eed4971b9546e23ec83de3c48bbba',
+	);
+	expect(MAINNET_CONFIG.packages.predictDelayedExecution).toBe(
+		'0x98235c5842831c9b5f51dc637cf34c91db2aca5510802eb6ebfec63f5b71a7bb',
+	);
+	expect(MAINNET_CONFIG.packages.predictOrders).toBe(
+		'0x7cd41de311f8f3efb2c239b38773a4010fce3bef0120cd55f479843077c98903',
+	);
+	expect(MAINNET_CONFIG.packages.predictOrdersV1).toBeUndefined();
+	expect(MAINNET_CONFIG.packages.predictMath).toBe(
+		'0x19262d18a3ce9f1c304defbacc89f36585152acde73e626231200d10617fb9a7',
+	);
+	expect(MAINNET_CONFIG.objects.orderDesk).toBe(
+		'0x87b0a87262aacf58eaff567eed2fb7cb0f9cbc1f5ce33ef79216cd26d13a1b5b',
+	);
+	expect(MAINNET_CONFIG.objects.queueRegistry).toBe(
+		'0x8d4f0c671862f065ac7f2c2cb24abc47cf75ed8fc8e5e52c1d4bdfa53eee164f',
+	);
+	expect(MAINNET_CONFIG.oracle?.pythLazerState).toBe(
+		'0xd0db9c1e9212a98120384bf78d8b8c985d87b9ee6921dffcf9d1394062911573',
+	);
+	expect(Object.isFrozen(MAINNET_CONFIG.packages)).toBe(true);
+	expect(Object.isFrozen(MAINNET_CONFIG.objects)).toBe(true);
+	// The two networks' order-flow deployments are distinct publications.
+	expect(MAINNET_CONFIG.packages.predictOrders).not.toBe(TESTNET_CONFIG.packages.predictOrders);
+	expect(MAINNET_CONFIG.objects.orderDesk).not.toBe(TESTNET_CONFIG.objects.orderDesk);
 });
 
 test('quoteCoinType is the renamed USDC collateral', () => {

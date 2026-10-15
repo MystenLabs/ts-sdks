@@ -505,7 +505,9 @@ export class SessionsContract {
 	// every check; the caps below are only the ones a session key should never send by accident.
 	//
 	// They need a config whose `sessionsPackageId` is a Sessions v3 publication. Testnet records
-	// Sessions v3. TODO(DBU-887): Mainnet still records Sessions v2, which has none of them.
+	// Sessions v3. TODO(DBU-899): Mainnet still records Sessions v2, which has none of them. The
+	// Mainnet Sessions v3 upgrade is pending. Once it executes and its `Published.toml` record
+	// lands in deepbookv3, `pnpm sync-deployment` moves `MAINNET_SESSIONS.sessionsPackageId` to it.
 
 	/**
 	 * @description Queue a mint of an exact payout quantity, as `session`. `maxCost` (all-in cap)
