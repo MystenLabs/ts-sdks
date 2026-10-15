@@ -23,19 +23,14 @@ implementing the gRPC/GraphQL mappings, and extending the parity tests.
   JSON-RPC return the full list (documented on `TransactionInclude.events`). Fixing this means
   following `pageInfo.hasNextPage` with per-transaction follow-up queries in `parseTransaction`,
   which applies to every transaction method on the GraphQL transport, not just the query APIs.
+- **GraphQL omits the aborting function's index** — `MoveAbort.location.function` is set by gRPC
+  (from the effects status) but left undefined by GraphQL, whose `ExecutionError` only exposes the
+  function's name. The query parity tests strip it when comparing aborted transactions.
+- **GraphQL event checkpoints** — GraphQL is expected to always report an event's checkpoint;
+  `listEvents` throws `listEvents response is missing expected event fields` if it does not.
 
 ## Blocked only by JSON-RPC
 
-- **`affectedAddress` transaction predicate** — no JSON-RPC equivalent: `FromOrToAddress` is
-  rejected server-side ("CURRENTLY NOT SUPPORTED"), and emulating it with `FromAddress` +
-  `ToAddress` queries silently misses sponsored transactions and address-balance deposits, and
-  cannot reproduce exact intra-checkpoint ordering.
-- **`affectedObject` transaction predicate** — the JSON-RPC `AffectedObject` filter is feature-gated
-  server-side and rejected by default (`Feature is not supported`), and the older `ChangedObject`
-  filter has narrower semantics (misses deleted/wrapped/read objects).
-- **`startCheckpoint`/`endCheckpoint` on `listTransactions` and `listEvents`** — JSON-RPC has no
-  checkpoint range support, and its single-checkpoint `Checkpoint` filter cannot be combined with
-  other filters.
 - **A `listCheckpoints` core method** — a summaries-only version (sequence number, digest, epoch,
   timestamp) was prototyped and dropped from the initial release because listing checkpoints is
   mostly useful for getting the transactions they contain, which is better served by
@@ -44,25 +39,6 @@ implementing the gRPC/GraphQL mappings, and extending the parity tests.
   connection capped at the server page size, which would silently truncate busy checkpoints. If a
   core method is added, checkpoint ranges are implementable exactly on every transport (JSON-RPC's
   sequence-number cursor emulates them).
-- **Combining `after` and `before` bounds, and mixing bounds with either order** — JSON-RPC cursors
-  are direction-relative, so a query currently accepts at most one bound and the bound must match
-  the traversal direction (`after` implies ascending, `before` descending). gRPC treats both as
-  order-independent canonical position bounds and GraphQL accepts both Relay bounds together, so
-  windowed queries (`after` + `before`) and reversed reads within a bound can be enabled by relaxing
-  `resolvePagination` once JSON-RPC is gone.
-- **Combining multiple predicates in one filter (AND)** — JSON-RPC accepts exactly one filter per
-  query. GraphQL supports one instance of each predicate ANDed together, so this can be promoted to
-  that level once JSON-RPC is gone.
-- **Pagination bounds with partial function filters** — JSON-RPC rejects cursors on package- or
-  module-level `MoveFunction` filters ("Cannot supply cursor without supplying module and
-  function"), so `validateTransactionQuery` requires a fully qualified `package::module::function`
-  when `after`/`before` is provided. gRPC and GraphQL paginate partial function filters without
-  restriction.
-- **Package-only prefixes for event predicates** — core `emitModule` requires `package::module` and
-  `eventType` requires at least a module because JSON-RPC's `MoveModule`/`MoveEventModule` filters
-  require a module name. GraphQL and gRPC both support package-only prefixes.
-- **Non-nullable `EventEntry.checkpoint`** — JSON-RPC `queryEvents` responses carry no checkpoint
-  information, so the field is `string | null` and `null` on JSON-RPC.
 - **`doGasSelection` on `simulateTransaction`** — the JSON-RPC dry run has no gas-selection option
   and always substitutes a mocked gas coin when the gas payment is empty, so it can neither select
   coins server-side nor pay from an address balance. The option lives on
@@ -83,13 +59,3 @@ implementing the gRPC/GraphQL mappings, and extending the parity tests.
 - **Transaction filters on `listCheckpoints`** — the GraphQL `checkpoints` query only supports
   checkpoint/epoch bounds, not transaction predicates.
 - **`eventStreamHead` event predicate** — not present on the GraphQL `EventFilter` input.
-
-## Other tracked items
-
-- `MoveEventType` matching semantics for generic types differ between JSON-RPC (exact struct tag
-  match) and gRPC/GraphQL (a bare `pkg::mod::Name` matches any instantiation). The parity tests only
-  cover non-generic event types; revisit when promoting package-only prefixes.
-- The JSON-RPC `MoveFunction` filter matches aborted transactions, while the GraphQL `function`
-  filter only matches successful ones (gRPC behavior has not been verified). The parity tests avoid
-  this by querying a freshly published package whose calls all succeed; revisit once JSON-RPC is
-  gone.
