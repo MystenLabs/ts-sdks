@@ -13,10 +13,15 @@ Record the Mainnet Predict v4 rollout (delayed execution) in the Mainnet config:
 - `deepbook_predict_math`: `0x19262d18a3ce9f1c304defbacc89f36585152acde73e626231200d10617fb9a7`
   (v1)
 - Pyth Lazer `State`: `0xd0db9c1e9212a98120384bf78d8b8c985d87b9ee6921dffcf9d1394062911573`
-- Sessions: TODO(DBU-899) PLACEHOLDER. The Mainnet Sessions v3 upgrade has not executed yet, so
-  this still records v2 (`0xec678aee…0a1a`). Regenerate from its `Published.toml` record and fill
-  in the v3 ID here before release.
+- Sessions: TODO(DBU-899) PLACEHOLDER, fill in before release. `0xec678aee…0a1a` (v2) → the
+  Mainnet Sessions v3 ID, once its upgrade executes and its `Published.toml` record lands.
 
 `getConfig('mainnet')` now turns on the queued-order surface. `read.executionMode()` reads
 `'awaiting-cutover'` until Mainnet's version watermark reaches 4, and Predict's admission refuses
 enqueues until then. `predictV1` keeps the original ID.
+
+Sessions v3 becomes the Mainnet call target for every `SessionsContract` wrapper, the spot ones
+included. It's a compatible upgrade, so the spot wrappers are unchanged. Queued Predict orders
+through a session key need it, because the `enqueue*` wrappers exist only in v3. Sessions v2 keeps
+working for now, since its version watermark wasn't bumped. A later Sessions upgrade will retire
+it, so move session-key integrations to this release.
