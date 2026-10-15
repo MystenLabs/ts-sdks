@@ -2,14 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { bcs, fromBase64, toBase64 } from '@mysten/bcs';
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 
+import type { ClientWithCoreApi } from '../../../src/client/core.js';
 import type { IntentScope } from '../../../src/cryptography/intent.js';
 import type { SignatureWithBytes } from '../../../src/cryptography/keypair.js';
 import { Signer } from '../../../src/cryptography/keypair.js';
 import { Ed25519Keypair } from '../../../src/keypairs/ed25519/index.js';
-import { parseZkLoginSignature, toZkLoginPublicIdentifier } from '../../../src/zklogin/index.js';
+import { verifyTransactionSignature } from '../../../src/verify/index.js';
+import {
+	parseZkLoginSignature,
+	toZkLoginPublicIdentifier,
+	ZkLoginPublicIdentifier,
+} from '../../../src/zklogin/index.js';
 import { extractClaimValue } from '../../../src/zklogin/jwt-utils.js';
+import { parseSerializedZkLoginSignature } from '../../../src/zklogin/publickey.js';
 import { ZkLoginSigner } from '../../../src/zklogin/signer.js';
 
 // A real proof fixture: signing `anEphemeralSignature` with these inputs / maxEpoch produces `aSignature`.
@@ -242,5 +249,97 @@ describe('ZkLoginSigner', () => {
 
 	test('sign() throws — a raw signature is not a valid zkLogin signature', () => {
 		expect(() => makeSigner().sign(new Uint8Array([1, 2, 3]))).toThrow(/does not support signing/);
+	});
+});
+
+describe('ZkLoginPublicIdentifier verification', () => {
+	// Mirrors the node: succeeds only when `address` is one of the signature's own zkLogin addresses
+	// (current or legacy derivation).
+	function nodeLikeClient() {
+		const verifyZkLoginSignature = vi.fn(
+			async ({ signature, address }: { signature: string; address: string }) => {
+				const signer = new ZkLoginPublicIdentifier(
+					parseSerializedZkLoginSignature(signature).publicKey,
+				);
+				return signer.verifyAddress(address)
+					? { success: true, errors: [] }
+					: { success: false, errors: ['address mismatch'] };
+			},
+		);
+		const client = { core: { verifyZkLoginSignature } } as unknown as ClientWithCoreApi;
+		return { client, verifyZkLoginSignature };
+	}
+
+	const tx = new Uint8Array([1, 2, 3]);
+
+	test('standalone verification uses the signature identity address', async () => {
+		const { client, verifyZkLoginSignature } = nodeLikeClient();
+		const signer = makeSigner();
+		const { signature } = await signer.signTransaction(tx);
+
+		const publicKey = await verifyTransactionSignature(tx, signature, {
+			client,
+			address: signer.toSuiAddress(),
+		});
+
+		expect(publicKey.toSuiAddress()).toBe(signer.toSuiAddress());
+		expect(verifyZkLoginSignature).toHaveBeenCalledWith(
+			expect.objectContaining({ address: signer.toSuiAddress() }),
+		);
+	});
+
+	test('standalone verification still accepts a legacy address', async () => {
+		const { client, verifyZkLoginSignature } = nodeLikeClient();
+		// A short seed, so the legacy and current addresses differ.
+		const inputs = { ...aSignatureInputs, addressSeed: '12345' };
+		const signer = new ZkLoginSigner({
+			ephemeralSigner: new FixedEphemeralSigner(),
+			maxEpoch,
+			inputs,
+			legacyAddress: true,
+		});
+		const legacyAddress = signer.toSuiAddress();
+		const iss = extractClaimValue<string>(inputs.issBase64Details, 'iss');
+		const currentAddress = toZkLoginPublicIdentifier(BigInt(inputs.addressSeed), iss, {
+			legacyAddress: false,
+		}).toSuiAddress();
+		expect(legacyAddress).not.toBe(currentAddress);
+		const { signature } = await signer.signTransaction(tx);
+
+		const publicKey = await verifyTransactionSignature(tx, signature, {
+			client,
+			address: legacyAddress,
+		});
+
+		expect(publicKey.toSuiAddress()).toBe(legacyAddress);
+		// The signature is parsed into a current-derivation identifier, as before.
+		expect(verifyZkLoginSignature).toHaveBeenLastCalledWith(
+			expect.objectContaining({ address: currentAddress }),
+		);
+
+		// A legacy identifier verifies against its own (legacy) address, which the node also accepts.
+		const legacyIdentifier = toZkLoginPublicIdentifier(BigInt(inputs.addressSeed), iss, {
+			client,
+			legacyAddress: true,
+		});
+		expect(await legacyIdentifier.verifyTransaction(tx, signature)).toBe(true);
+		expect(verifyZkLoginSignature).toHaveBeenLastCalledWith(
+			expect.objectContaining({ address: legacyAddress }),
+		);
+	});
+
+	test('rejects a signature from a different zkLogin identity', async () => {
+		const { client, verifyZkLoginSignature } = nodeLikeClient();
+		const { signature } = await makeSigner().signTransaction(tx);
+		const other = toZkLoginPublicIdentifier(12345n, 'https://accounts.google.com', {
+			client,
+			legacyAddress: false,
+		});
+
+		expect(await other.verifyTransaction(tx, signature)).toBe(false);
+		expect(await other.verifyPersonalMessage(tx, signature)).toBe(false);
+		expect(verifyZkLoginSignature).toHaveBeenCalledWith(
+			expect.objectContaining({ address: other.toSuiAddress() }),
+		);
 	});
 });

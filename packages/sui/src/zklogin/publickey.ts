@@ -168,10 +168,11 @@ export class ZkLoginPublicIdentifier extends PublicKey {
 	 */
 	verifyPersonalMessage(message: Uint8Array, signature: Uint8Array | string): Promise<boolean> {
 		const parsedSignature = parseSerializedZkLoginSignature(signature);
-		const address = new ZkLoginPublicIdentifier(parsedSignature.publicKey).toSuiAddress();
 
 		return graphqlVerifyZkLoginSignature({
-			address: address,
+			// Verify against this identifier's address, not one derived from the signature, so a
+			// signature from a different zkLogin identity is rejected (as the chain does for multisig).
+			address: this.toSuiAddress(),
 			bytes: toBase64(message),
 			signature: parsedSignature.serializedSignature,
 			intentScope: 'PersonalMessage',
@@ -184,9 +185,8 @@ export class ZkLoginPublicIdentifier extends PublicKey {
 	 */
 	verifyTransaction(transaction: Uint8Array, signature: Uint8Array | string): Promise<boolean> {
 		const parsedSignature = parseSerializedZkLoginSignature(signature);
-		const address = new ZkLoginPublicIdentifier(parsedSignature.publicKey).toSuiAddress();
 		return graphqlVerifyZkLoginSignature({
-			address: address,
+			address: this.toSuiAddress(),
 			bytes: toBase64(transaction),
 			signature: parsedSignature.serializedSignature,
 			intentScope: 'TransactionData',

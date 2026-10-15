@@ -24,11 +24,16 @@ import {
 } from '../../../src/multisig/index.js';
 import { Transaction } from '../../../src/transactions/index.js';
 import {
+	isValidTransactionSignature,
 	publicKeyFromSuiBytes,
 	verifyPersonalMessageSignature,
 	verifyTransactionSignature,
 } from '../../../src/verify/index.js';
-import { toZkLoginPublicIdentifier } from '../../../src/zklogin/publickey.js';
+import {
+	parseSerializedZkLoginSignature,
+	toZkLoginPublicIdentifier,
+	ZkLoginPublicIdentifier,
+} from '../../../src/zklogin/publickey.js';
 import { MockPasskeySigner } from './test-utils.js';
 
 describe('Multisig scenarios', () => {
@@ -574,6 +579,83 @@ describe('Multisig address creation:', () => {
 
 			expect(await publicKey.verifyTransaction(txBytes, multisig)).toBe(true);
 			expect(verifyZkLoginSignature).toHaveBeenCalledOnce();
+		});
+
+		describe('with a signature from a different zkLogin identity in the member slot', () => {
+			// A well-formed zkLogin signature from a different (google) identity than pk4 (twitch).
+			const attackerSig =
+				'BQNNMTE3MDE4NjY4MTI3MDQ1MTcyMTM5MTQ2MTI3OTg2NzQ3NDg2NTc3NTU1NjY1ODY1OTc0MzQ4MTA5NDEyNDA0ODMzNDY3NjkzNjkyNjdNMTQxMjA0Mzg5OTgwNjM2OTIyOTczODYyNDk3NTQyMzA5NzI3MTUxNTM4NzY1Mzc1MzAxNjg4ODM5ODE1MTM1ODQ1ODYxNzIxOTU4NDEBMQMCTDE4Njc0NTQ1MDE2MDI1ODM4NDg4NTI3ODc3ODI3NjE5OTY1NjAxNzAxMTgyNDkyOTk1MDcwMTQ5OTkyMzA4ODY4NTI1NTY5OTgyNzNNMTQ0NjY0MTk2OTg2NzkxMTYzMTM0NzUyMTA2NTQ1NjI5NDkxMjgzNDk1OTcxMDE3NjkyNTY5NTkwMTAwMDMxODg4ODYwOTEwODAzMTACTTExMDcyOTU0NTYyOTI0NTg4NDk2MTQ4NjMyNDc0MDc4NDMyNDA2NjMzMjg4OTQ4MjU2NzE4ODA5NzE0ODYxOTg2MTE5MzAzNTI5NzYwTTE5NzkwNTE2MDEwNzg0OTM1MTAwMTUwNjE0OTg5MDk3OTA4MjMzODk5NzE4NjQ1NTM2MTMwNzI3NzczNzEzNDA3NjExMTYxMzY4MDQ2AgExATADTTEwNDIzMjg5MDUxODUzMDMzOTE1MzgwODEwNTE2MTMwMjA1NzQ3MTgyODY3NTk2NDU3MTM5OTk5MTc2NzE0NDc2NDE1MTQ4Mzc2MzUwTTIxNzg1NzE5Njk1ODQ4MDEzOTA4MDYxNDkyOTg5NzY1Nzc3Nzg4MTQyMjU1ODk3OTg2MzAwMjQxNTYxMjgwMTk2NzQ1MTc0OTM0NDU3ATExeUpwYzNNaU9pSm9kSFJ3Y3pvdkwyRmpZMjkxYm5SekxtZHZiMmRzWlM1amIyMGlMQwFmZXlKaGJHY2lPaUpTVXpJMU5pSXNJbXRwWkNJNkltSTVZV00yTURGa01UTXhabVEwWm1aa05UVTJabVl3TXpKaFlXSXhPRGc0T0RCalpHVXpZamtpTENKMGVYQWlPaUpLVjFRaWZRTTEzMzIyODk3OTMwMTYzMjE4NTMyMjY2NDMwNDA5NTEwMzk0MzE2OTg1Mjc0NzY5MTI1NjY3MjkwNjAwMzIxNTY0MjU5NDY2NTExNzExrgAAAAAAAABhAEp+O5GEAF/5tKNDdWBObNf/1uIrbOJmE+xpnlBD2Vikqhbd0zLrQ2NJyquYXp4KrvWUOl7Hso+OK0eiV97ffwucM8VdtG2hjf/RUGNO5JNUH+D/gHtE9sHe6ZEnxwZL7g==';
+			const attackerAddress = new ZkLoginPublicIdentifier(
+				parseSerializedZkLoginSignature(attackerSig).publicKey,
+			).toSuiAddress();
+
+			// Mirrors the node: succeeds only when `address` is one of the signature's own zkLogin
+			// addresses, so it accepts the attacker's signature for the attacker's address.
+			function nodeLikeClient() {
+				const verifyZkLoginSignature = vi.fn(
+					async ({ signature, address }: { signature: string; address: string }) => {
+						const signer = new ZkLoginPublicIdentifier(
+							parseSerializedZkLoginSignature(signature).publicKey,
+						);
+						return signer.verifyAddress(address)
+							? { success: true, errors: [] }
+							: { success: false, errors: ['address mismatch'] };
+					},
+				);
+				const client = { core: { verifyZkLoginSignature } } as unknown as ClientWithCoreApi;
+				return { client, verifyZkLoginSignature };
+			}
+
+			// A valid pk6 signature plus `attackerSig` in pk4's slot (bitmap bit 1).
+			async function forgeMultisig(sign: (k: Ed25519Keypair) => Promise<{ signature: string }>) {
+				const sig1 = await sign(k6);
+				const multisig = multisigPublicKey().combinePartialSignatures([sig1.signature, zkLoginSig]);
+				const parsed = bcs.MultiSig.parse(fromBase64(multisig).slice(1));
+				const bytes = bcs.MultiSig.serialize({
+					...parsed,
+					sigs: [
+						parsed.sigs[0],
+						{ ZkLogin: parseSerializedZkLoginSignature(attackerSig).signature },
+					],
+				}).toBytes();
+				return toBase64(new Uint8Array([SIGNATURE_SCHEME_TO_FLAG.MultiSig, ...bytes]));
+			}
+
+			it('rejects the transaction signature', async () => {
+				const { client, verifyZkLoginSignature } = nodeLikeClient();
+				const address = multisigPublicKey().toSuiAddress();
+				const multisig = await forgeMultisig((k) => k.signTransaction(txBytes));
+
+				await expect(
+					verifyTransactionSignature(txBytes, multisig, { client, address }),
+				).rejects.toThrow('Signature is not valid for the provided Transaction');
+				expect(await isValidTransactionSignature(txBytes, multisig, { client, address })).toBe(
+					false,
+				);
+
+				expect(verifyZkLoginSignature).toHaveBeenCalledWith({
+					bytes: toBase64(txBytes),
+					signature: attackerSig,
+					intentScope: 'TransactionData',
+					address: pk4.toSuiAddress(),
+				});
+				expect(verifyZkLoginSignature).not.toHaveBeenCalledWith(
+					expect.objectContaining({ address: attackerAddress }),
+				);
+			});
+
+			it('rejects the personal message signature', async () => {
+				const { client, verifyZkLoginSignature } = nodeLikeClient();
+				const message = new TextEncoder().encode('hello world');
+				const multisig = await forgeMultisig((k) => k.signPersonalMessage(message));
+
+				await expect(verifyPersonalMessageSignature(message, multisig, { client })).rejects.toThrow(
+					'Signature is not valid for the provided message',
+				);
+				expect(verifyZkLoginSignature).toHaveBeenCalledWith(
+					expect.objectContaining({ address: pk4.toSuiAddress() }),
+				);
+			});
 		});
 
 		it('uses the client given to publicKeyFromSuiBytes', async () => {
