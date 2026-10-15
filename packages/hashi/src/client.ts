@@ -7,7 +7,7 @@ import type { VariablesOf } from '@mysten/sui/graphql/schema';
 import { graphql } from '@mysten/sui/graphql/schema';
 import type { Signer } from '@mysten/sui/cryptography';
 import { bcs, TypeTagSerializer } from '@mysten/sui/bcs';
-import { fromHex, deriveDynamicFieldID, normalizeSuiAddress } from '@mysten/sui/utils';
+import { fromBase64, fromHex, deriveDynamicFieldID, normalizeSuiAddress } from '@mysten/sui/utils';
 import { base58 } from '@scure/base';
 import type { TransactionArgument } from '@mysten/sui/transactions';
 import { Transaction } from '@mysten/sui/transactions';
@@ -1021,7 +1021,9 @@ export class HashiClient {
 			const parsed = withdrawEvent.json as {
 				request_id: string;
 				btc_amount: string;
-				bitcoin_address: number[];
+				// Event JSON is rendered by the node: gRPC and GraphQL encode
+				// `vector<u8>` as a base64 string, JSON-RPC as a number array.
+				bitcoin_address: number[] | string;
 				timestamp_ms: string;
 				requester_address: string;
 			};
@@ -1060,7 +1062,10 @@ export class HashiClient {
 			return {
 				requestId: parsed.request_id,
 				btcAmountSats: BigInt(parsed.btc_amount),
-				bitcoinAddress: new Uint8Array(parsed.bitcoin_address),
+				bitcoinAddress:
+					typeof parsed.bitcoin_address === 'string'
+						? fromBase64(parsed.bitcoin_address)
+						: new Uint8Array(parsed.bitcoin_address),
 				sender: parsed.requester_address,
 				timestampMs: BigInt(parsed.timestamp_ms),
 				status,

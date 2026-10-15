@@ -31,7 +31,7 @@ import { Transaction } from '@mysten/sui/transactions';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { bech32, bech32m } from '@scure/base';
-import { fromHex, normalizeSuiAddress } from '@mysten/sui/utils';
+import { fromHex, normalizeSuiAddress, toBase64 } from '@mysten/sui/utils';
 
 const HASHI_OBJECT_ID = '0x0000000000000000000000000000000000000000000000000000000000000001';
 const PACKAGE_ID = '0x0000000000000000000000000000000000000000000000000000000000000002';
@@ -1908,6 +1908,32 @@ describe('HashiClient', () => {
 			expect(result!.status).toBe('Requested');
 			expect(result!.btcTxid).toBeNull();
 			expect(result!.btcAmountSats).toBe(30_000n);
+		});
+
+		it('decodes bitcoinAddress from the base64 string gRPC and GraphQL render for vector<u8>', async () => {
+			const program = new Uint8Array(20).fill(0xab);
+			vi.spyOn(client.core, 'getTransaction').mockResolvedValueOnce({
+				Transaction: {
+					events: [
+						{
+							eventType: `${PACKAGE_ID}::withdrawal_queue::WithdrawalRequested`,
+							json: {
+								request_id: REQUEST_ID,
+								btc_amount: '30000',
+								bitcoin_address: toBase64(program),
+								timestamp_ms: '2000',
+								requester_address: TEST_SUI_ADDRESS,
+							},
+						},
+					],
+				},
+			} as never);
+			vi.spyOn(WithdrawalRequest, 'get').mockResolvedValueOnce({
+				json: { approval_cert: null, withdrawal_txn_id: null },
+			} as never);
+
+			const result = await client.hashi.view.withdrawalStatus('test-digest');
+			expect(result!.bitcoinAddress).toEqual(program);
 		});
 
 		it('returns Approved status once the request carries an approval cert', async () => {
