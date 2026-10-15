@@ -1,8 +1,9 @@
 ---
-'@mysten/deepbook-v3': patch
+'@mysten/deepbook-v3': minor
 ---
 
-Record the Mainnet Predict v4 rollout (delayed execution) in the Mainnet config:
+Record the Mainnet Predict v4 rollout (delayed execution) in the Mainnet config. Mainnet Predict
+trading moves to queued orders, as Testnet did in 2.7.0.
 
 - Predict: `0x08fa3ef1…ee53` (v3) →
   `0x98235c5842831c9b5f51dc637cf34c91db2aca5510802eb6ebfec63f5b71a7bb` (v4), which is also
@@ -16,9 +17,21 @@ Record the Mainnet Predict v4 rollout (delayed execution) in the Mainnet config:
 - Sessions: TODO(DBU-899) PLACEHOLDER, fill in before release. `0xec678aee…0a1a` (v2) → the
   Mainnet Sessions v3 ID, once its upgrade executes and its `Published.toml` record lands.
 
-`getConfig('mainnet')` now turns on the queued-order surface. `read.executionMode()` reads
-`'awaiting-cutover'` until Mainnet's version watermark reaches 4, and Predict's admission refuses
-enqueues until then. `predictV1` keeps the original ID.
+`predictV1` keeps the original ID.
+
+**Migrate off the immediate trades.** The Mainnet call target is now Predict v4, which always aborts
+them with `EDelayedExecutionRequired`. On Mainnet, `tx.mint`, `tx.mintAmount`, `tx.mintCost`,
+`tx.redeem` and `read.quoteRedeem` stop working, and so do the `SessionsContract` wrappers
+`mintExactQuantity`, `mintExactAmount`, `mintExactCost` and `redeemLive`. Place orders with
+`tx.enqueueMint`, `tx.enqueueMintAmount`, `tx.enqueueMintCost` and `tx.enqueueSell`, or with
+`read.planMint` / `read.planSell` and `tx.enqueuePlan`. Follow each order with `read.order` or
+`read.waitForOutcome`. Session keys use the `SessionsContract` `enqueue*` wrappers. `tx.claimSettled`
+is unchanged. Staying on an older release doesn't keep the immediate trades: the cutover raises
+Predict's version watermark to 4, which retires the v3 package those releases call.
+
+`getConfig('mainnet')` now turns on the queued-order surface. Until the cutover, neither path trades
+on Mainnet. Trading is paused, `read.executionMode()` reads `'awaiting-cutover'` until Mainnet's
+version watermark reaches 4, and Predict's admission refuses enqueues until then.
 
 Sessions v3 becomes the Mainnet call target for every `SessionsContract` wrapper, the spot ones
 included. It's a compatible upgrade, so the spot wrappers are unchanged. Queued Predict orders
