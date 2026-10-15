@@ -386,6 +386,7 @@ export class GraphQLCoreClient extends CoreClient {
 					includeEvents: options.include?.events ?? false,
 					includeBalanceChanges: options.include?.balanceChanges ?? false,
 					includeObjectTypes: options.include?.objectTypes ?? false,
+					includeEffectsJson: !!(options.include?.effects || options.include?.objectTypes),
 					includeBcs: options.include?.bcs ?? false,
 				},
 			},
@@ -410,6 +411,7 @@ export class GraphQLCoreClient extends CoreClient {
 					includeEvents: options.include?.events ?? false,
 					includeBalanceChanges: options.include?.balanceChanges ?? false,
 					includeObjectTypes: options.include?.objectTypes ?? false,
+					includeEffectsJson: !!(options.include?.effects || options.include?.objectTypes),
 					includeBcs: options.include?.bcs ?? false,
 				},
 			},
@@ -452,6 +454,7 @@ export class GraphQLCoreClient extends CoreClient {
 					includeEvents: options.include?.events ?? false,
 					includeBalanceChanges: options.include?.balanceChanges ?? false,
 					includeObjectTypes: options.include?.objectTypes ?? false,
+					includeEffectsJson: !!(options.include?.effects || options.include?.objectTypes),
 					includeCommandResults: options.include?.commandResults ?? false,
 					includeBcs: options.include?.bcs ?? false,
 					doGasSelection,
@@ -676,6 +679,7 @@ export class GraphQLCoreClient extends CoreClient {
 					includeEvents: options.include?.events ?? false,
 					includeBalanceChanges: options.include?.balanceChanges ?? false,
 					includeObjectTypes: options.include?.objectTypes ?? false,
+					includeEffectsJson: !!(options.include?.effects || options.include?.objectTypes),
 					includeBcs: options.include?.bcs ?? false,
 				},
 			},
@@ -1057,25 +1061,51 @@ function mapOwner(owner: Object_Owner_FieldsFragment): SuiClientTypes.ObjectOwne
 	}
 }
 
+function withObjectTypes(
+	effects: SuiClientTypes.TransactionEffects,
+	objectTypes: Record<string, string>,
+): SuiClientTypes.TransactionEffects {
+	const addType = (change: SuiClientTypes.ChangedObject): SuiClientTypes.ChangedObject => ({
+		...change,
+		objectType: objectTypes[change.objectId] ?? null,
+	});
+
+	return {
+		...effects,
+		gasObject: effects.gasObject ? addType(effects.gasObject) : null,
+		changedObjects: effects.changedObjects.map(addType),
+	};
+}
+
 function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}>(
 	transaction: Transaction_FieldsFragment,
 	include?: Include,
 ): SuiClientTypes.TransactionResult<Include> {
-	const objectTypes: Record<string, string> = {};
-
-	if (include?.objectTypes) {
-		const effectsJson = transaction.effects?.effectsJson;
-		if (effectsJson) {
+	// effectsJson is fetched whenever effects or objectTypes are requested. Its changed objects
+	// carry the object types that the BCS effects lack, from the same source gRPC uses
+	// (`effects.changed_objects.object_type`).
+	const effectsObjectTypes: Record<string, string> = {};
+	const effectsJson = transaction.effects?.effectsJson;
+	if (effectsJson) {
+		// Object types are best effort: if effectsJson can't be parsed, leave them null rather than
+		// failing the whole call.
+		try {
 			const effects = TransactionEffectsType.fromJson(
 				effectsJson as Parameters<typeof TransactionEffectsType.fromJson>[0],
+				{ ignoreUnknownFields: true },
 			);
 			effects.changedObjects?.forEach((change) => {
 				if (change.objectId && change.objectType) {
-					objectTypes[change.objectId] = change.objectType;
+					effectsObjectTypes[change.objectId] = change.objectType;
 				}
 			});
-		}
+		} catch {}
+	}
 
+	// The returned objectTypes map overlays the types from objectChanges on top of those from
+	// effectsJson; the effects themselves only use effectsJson.
+	const objectTypes: Record<string, string> = { ...effectsObjectTypes };
+	if (include?.objectTypes) {
 		const objectChanges = transaction.effects?.objectChanges?.nodes;
 		if (objectChanges) {
 			for (const change of objectChanges) {
@@ -1094,6 +1124,7 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}
 			balanceChanges = balanceChangesJson.map((json) => {
 				const change = BalanceChangeType.fromJson(
 					json as Parameters<typeof BalanceChangeType.fromJson>[0],
+					{ ignoreUnknownFields: true },
 				);
 				return {
 					coinType: change.coinType!,
@@ -1119,6 +1150,7 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}
 	if (include?.transaction && transaction.transactionJson) {
 		const grpcTx = GrpcTransactionType.fromJson(
 			transaction.transactionJson as Parameters<typeof GrpcTransactionType.fromJson>[0],
+			{ ignoreUnknownFields: true },
 		);
 		const resolved = grpcTransactionToTransactionData(grpcTx);
 		transactionData = {
@@ -1141,7 +1173,10 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}
 		digest: transaction.digest!,
 		status,
 		effects: (include?.effects
-			? parseTransactionEffectsBcs(fromBase64(transaction.effects?.effectsBcs!))
+			? withObjectTypes(
+					parseTransactionEffectsBcs(fromBase64(transaction.effects?.effectsBcs!)),
+					effectsObjectTypes,
+				)
 			: undefined) as SuiClientTypes.Transaction<Include>['effects'],
 		epoch: transaction.effects?.epoch?.epochId?.toString() ?? null,
 		timestampMs: timestampMs !== null && !Number.isNaN(timestampMs) ? timestampMs : null,
