@@ -1,7 +1,6 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-import type { GrpcWebOptions } from '@protobuf-ts/grpcweb-transport';
 import { TransactionExecutionServiceClient } from './proto/sui/rpc/v2/transaction_execution_service.client.js';
 import { LedgerServiceClient } from './proto/sui/rpc/v2/ledger_service.client.js';
 import { MovePackageServiceClient } from './proto/sui/rpc/v2/move_package_service.client.js';
@@ -19,6 +18,7 @@ import { NameServiceClient } from './proto/sui/rpc/v2/name_service.client.js';
 import { ForkingServiceClient } from './proto/sui/forking/v1alpha/forking_service.client.js';
 import type { TransactionPlugin } from '../transactions/index.js';
 import { GrpcWebFetchTransport, withClientProtocolVersion } from './transport.js';
+import type { GrpcWebFetchTransportOptions } from './transport.js';
 import { grpcLedgerStream } from './stream.js';
 import type {
 	GrpcStreamInclude,
@@ -31,7 +31,7 @@ import type {
 	GrpcStreamEventResult,
 } from './stream-types.js';
 
-interface SuiGrpcTransportOptions extends GrpcWebOptions {
+interface SuiGrpcTransportOptions extends GrpcWebFetchTransportOptions {
 	transport?: never;
 }
 
@@ -153,6 +153,9 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 	nameService: NameServiceClient;
 	forkingService: ForkingServiceClient;
 
+	// The transport the service clients were built with, which ledger streams call directly.
+	#transport: RpcTransport;
+
 	get [SUI_CLIENT_BRAND]() {
 		return true;
 	}
@@ -170,8 +173,9 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 
 		// Add the protocol-version default for every transport, including native gRPC.
 		const transport = withClientProtocolVersion(
-			providedTransport ?? new GrpcWebFetchTransport(transportOptions),
+			providedTransport ?? new GrpcWebFetchTransport({ format: 'binary', ...transportOptions }),
 		);
+		this.#transport = transport;
 		this.transactionExecutionService = new TransactionExecutionServiceClient(transport);
 		this.ledgerService = new LedgerServiceClient(transport);
 		this.stateService = new StateServiceClient(transport);
@@ -367,7 +371,7 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 	streamCheckpoints(
 		options: GrpcStreamCheckpointsOptions<GrpcStreamInclude> = {},
 	): AsyncIterableIterator<unknown> {
-		return grpcLedgerStream(this, 'checkpoints', options);
+		return grpcLedgerStream(this, this.#transport, 'checkpoints', options);
 	}
 
 	streamTransactions<Include extends GrpcStreamTransactionInclude = {}>(
@@ -379,7 +383,7 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 	streamTransactions(
 		options: GrpcStreamTransactionsOptions<GrpcStreamTransactionInclude> = {},
 	): AsyncIterableIterator<unknown> {
-		return grpcLedgerStream(this, 'transactions', options);
+		return grpcLedgerStream(this, this.#transport, 'transactions', options);
 	}
 
 	streamEvents<Include extends GrpcStreamInclude = {}>(
@@ -391,7 +395,7 @@ export class SuiGrpcClient extends BaseClient implements SuiClientTypes.Transpor
 	streamEvents(
 		options: GrpcStreamEventsOptions<GrpcStreamInclude> = {},
 	): AsyncIterableIterator<unknown> {
-		return grpcLedgerStream(this, 'events', options);
+		return grpcLedgerStream(this, this.#transport, 'events', options);
 	}
 
 	getMoveFunction(

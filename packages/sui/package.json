@@ -175,6 +175,7 @@
 		"tmp": "^0.2.7",
 		"ts-retry-promise": "^0.8.1",
 		"typescript": "^7.0.2",
+		"undici": "^8.10.2",
 		"vite": "^8.2.1",
 		"vite-tsconfig-paths": "^6.0.4",
 		"vitest": "^4.1.11",

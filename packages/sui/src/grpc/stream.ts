@@ -3,7 +3,7 @@
 
 import { fromBase64, toBase64 } from '@mysten/utils';
 import { RpcError } from '@protobuf-ts/runtime-rpc';
-import type { ServerStreamingCall } from '@protobuf-ts/runtime-rpc';
+import type { RpcTransport } from '@protobuf-ts/runtime-rpc';
 import type { SuiClientTypes } from '../client/types.js';
 import { createLedgerStream, waitForStream } from '../client/stream.js';
 import type {
@@ -25,7 +25,8 @@ import {
 } from './core.js';
 import { toGrpcEventFilter, toGrpcTransactionFilter } from './filters.js';
 import { linkedAbortController } from '../utils/abort.js';
-import { bufferedGrpcCall, isBufferOverflow } from './stream-buffer.js';
+import { isNonRetryable } from './pull.js';
+import { isBufferOverflow, openLedgerCall } from './stream-buffer.js';
 import type { GrpcStreamInclude, GrpcStreamStage, GrpcStreamQueryEnd } from './stream-types.js';
 import type { Checkpoint } from './proto/sui/rpc/v2/checkpoint.js';
 import type { Event } from './proto/sui/rpc/v2/event.js';
@@ -168,7 +169,12 @@ function mapItem(frame: RawFrame, include: Options['include']): Frame {
 	throw protocol('Expected a ledger item');
 }
 
-export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: Options) {
+export function grpcLedgerStream(
+	client: SuiGrpcClient,
+	transport: RpcTransport,
+	family: Family,
+	input: Options,
+) {
 	let filter: TransactionFilter | EventFilter | undefined;
 	const include = input.include;
 	let callbackFailed = false;
@@ -198,20 +204,14 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 
 	function open(request: object, signal: AbortSignal, live: boolean, streamFamily = family) {
 		const linked = linkedAbortController(signal);
-		const service = live ? client.subscriptionService : client.ledgerService;
-		const method =
-			`${live ? 'subscribe' : 'list'}${streamFamily[0].toUpperCase()}${streamFamily.slice(1)}` as 'listEvents';
-		const call = (
-			service as unknown as Record<
-				string,
-				(request: object, options: object) => ServerStreamingCall<object, RawFrame>
-			>
-		)[method](request, { abort: linked.controller.signal });
-		const buffer = bufferedGrpcCall(call, linked.controller, {
-			limit,
-			isItem: hasItem,
-			coalesceProgress: live,
-		});
+		const buffer = openLedgerCall<RawFrame>(
+			transport,
+			live ? client.subscriptionService : client.ledgerService,
+			`${live ? 'subscribe' : 'list'}${streamFamily[0].toUpperCase()}${streamFamily.slice(1)}`,
+			request,
+			linked.controller,
+			{ limit, isItem: hasItem, coalesceProgress: live },
+		);
 		return {
 			buffer,
 			close: async () => {
@@ -561,6 +561,9 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 			}
 			if (end) {
 				request.onStatus({ $kind: 'Recovering' });
+				// The subscription keeps being read while history is scanned, so the server does not
+				// drop it as a slow consumer; the buffer limit bounds what recovery can hold.
+				rpc.buffer.prefetch(true);
 				let start = request.start;
 				while (true) {
 					let complete = false;
@@ -583,6 +586,7 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 					if (complete) break;
 					await waitForStream(input.pollInterval ?? 1000, request.signal);
 				}
+				rpc.buffer.prefetch(false);
 			} else if (!request.start && hasItem(current.frame)) {
 				const cp = current.position.checkpoint!;
 				const baseline: StreamPosition =
@@ -752,6 +756,7 @@ export function grpcLedgerStream(client: SuiGrpcClient, family: Family, input: O
 			return (
 				!callbackFailed &&
 				error instanceof RpcError &&
+				!isNonRetryable(error) &&
 				[
 					'UNAVAILABLE',
 					'DEADLINE_EXCEEDED',
