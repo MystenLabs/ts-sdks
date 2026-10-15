@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { bcs, BcsReader, BcsWriter } from '../src/index.js';
+import { bcs, BcsReader, BcsWriter, toHex } from '../src/index.js';
 import { ulebEncode } from '../src/uleb.js';
 
 function prng(seed: number) {
@@ -114,7 +114,9 @@ describe('BcsReader', () => {
 				const value = Math.floor(random() * 2 ** Math.floor(random() * 54));
 				const writer = new BcsWriter();
 				writer.writeULEB(value).write8(0x42);
-				expect(readULEB(Array.from(writer.toBytes()))).toEqual({ value, next: 0x42 });
+				const reader = new BcsReader(writer.toBytes());
+				expect(reader.readULEB()).toBe(value);
+				expect(reader.read8()).toBe(0x42);
 			}
 		});
 	});
@@ -165,7 +167,7 @@ describe('BcsReader', () => {
 					const value = randomBigInt(random, Math.ceil(random() * bits));
 					const bytes = type.serialize(value).toBytes();
 					expect(type.parse(bytes)).toBe(value.toString());
-					expect(type.serialize(type.parse(bytes)).toBytes()).toEqual(bytes);
+					expect(type.serialize(type.parse(bytes)).toHex()).toBe(toHex(bytes));
 				}
 			}
 		});

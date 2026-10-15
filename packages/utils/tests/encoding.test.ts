@@ -195,7 +195,7 @@ describe('base58', () => {
 			]) {
 				const encoded = toBase58(bytes);
 				expect(encoded).toBe(referenceToBase58(bytes));
-				expect(fromBase58(encoded)).toEqual(bytes);
+				expect(toHex(fromBase58(encoded))).toBe(toHex(bytes));
 			}
 		}
 	});
@@ -204,14 +204,17 @@ describe('base58', () => {
 		const random = prng(12);
 		for (let i = 0; i < 2000; i++) {
 			const bytes = randomBytes(random, 32);
-			expect(fromBase58(toBase58(bytes))).toEqual(bytes);
+			expect(toHex(fromBase58(toBase58(bytes)))).toBe(toHex(bytes));
 		}
 	});
 
 	it('encodes inputs whose output spans several string chunks', () => {
-		const bytes = randomBytes(prng(13), 20_000);
-		expect(toBase58(bytes)).toBe(referenceToBase58(bytes));
-		expect(fromBase58(toBase58(bytes))).toEqual(bytes);
+		// 6,100 bytes encode to about 8,330 digits, just past one 8,192-digit chunk
+		const bytes = randomBytes(prng(13), 6_100);
+		const encoded = toBase58(bytes);
+		expect(encoded.length).toBeGreaterThan(8192);
+		expect(encoded).toBe(referenceToBase58(bytes));
+		expect(toHex(fromBase58(encoded))).toBe(toHex(bytes));
 	});
 
 	it('rejects non-Uint8Array input', () => {
