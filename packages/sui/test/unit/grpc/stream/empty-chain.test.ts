@@ -6,15 +6,8 @@ import { RpcOutputStreamController, ServerStreamingCall } from '@protobuf-ts/run
 import { describe, expect, it } from 'vitest';
 
 import { GrpcTypes, SuiGrpcClient } from '../../../../src/grpc/index.js';
-import {
-	checkpointFrame,
-	collect,
-	ended,
-	FakeLedger,
-	mark,
-	noDelay,
-	statusLog,
-} from './fake-grpc.js';
+import { collect, noDelay, statusLog } from '../../client/stream/fake-ledger.js';
+import { checkpointFrame, ended, FakeLedger, mark } from './fake-grpc.js';
 
 /**
  * A ledger that has not indexed its first checkpoint for `emptyReads` indexed-tip reads, like a
