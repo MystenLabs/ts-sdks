@@ -358,24 +358,6 @@ export function checkpointMessage(checkpoint: number): GrpcTypes.Checkpoint {
 	};
 }
 
-/** Reads `count` frames, then closes the stream. */
-export async function take<T>(stream: AsyncGenerator<T>, count: number): Promise<T[]> {
-	const frames: T[] = [];
-	while (frames.length < count) {
-		const next = await stream.next();
-		if (next.done) break;
-		frames.push(next.value);
-	}
-	await stream.return(undefined);
-	return frames;
-}
-
-export async function collect<T>(stream: AsyncIterable<T>): Promise<T[]> {
-	const frames: T[] = [];
-	for await (const frame of stream) frames.push(frame);
-	return frames;
-}
-
 /** `checkpoint:eventIndex` of every event frame. */
 export function eventIds(frames: object[]): string[] {
 	return frames.flatMap((frame) => {
@@ -383,26 +365,4 @@ export function eventIds(frames: object[]): string[] {
 		const { event } = frame as { event: { checkpoint: string; eventIndex: number } };
 		return [`${event.checkpoint}:${event.eventIndex}`];
 	});
-}
-
-export const noDelay = { initialDelay: 0, maxDelay: 0, jitter: 0 };
-
-/** Statuses as compact strings, e.g. `Page(history,limit)`. */
-export function statusLog() {
-	const log: string[] = [];
-	const onStatus = (
-		status: import('../../../../src/client/types.js').SuiClientTypes.StreamStatus,
-	) => {
-		switch (status.$kind) {
-			case 'Connecting':
-				return log.push(`Connecting(${status.attempt})`);
-			case 'Page':
-				return log.push(`Page(${status.stage},${status.end})`);
-			case 'Retrying':
-				return log.push(`Retrying(${status.attempt},${status.delay})`);
-			default:
-				return log.push(status.$kind);
-		}
-	};
-	return { log, onStatus };
 }

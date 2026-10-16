@@ -9,21 +9,18 @@ import type { SuiClientTypes } from '../../../../src/client/types.js';
 import { GrpcTypes } from '../../../../src/grpc/index.js';
 import { markNonRetryable } from '../../../../src/grpc/pull-call.js';
 import { GrpcLedgerStreamAdapter } from '../../../../src/grpc/stream/index.js';
+import { collect, noDelay, statusLog, take } from '../../client/stream/fake-ledger.js';
 import {
 	at,
 	checkpointFrame,
 	checkpointMessage,
-	collect,
 	DELIVERIES,
 	ended,
 	event,
 	eventIds,
 	FakeLedger,
 	mark,
-	noDelay,
 	progress,
-	statusLog,
-	take,
 	type Delivery,
 } from './fake-grpc.js';
 
