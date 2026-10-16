@@ -1,6 +1,8 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+import { SuiClientError } from '../errors.js';
+
 export type SuiStreamErrorCode =
 	/** An option combination or bound value was rejected before any request. */
 	| 'InvalidOptions'
@@ -16,7 +18,7 @@ export type SuiStreamErrorCode =
 	| 'Disconnected';
 
 /** A ledger stream failure that is not a transport error. */
-export class SuiStreamError extends Error {
+export class SuiStreamError extends SuiClientError {
 	readonly code: SuiStreamErrorCode;
 
 	constructor(code: SuiStreamErrorCode, message: string, options?: { cause?: unknown }) {

@@ -3,7 +3,8 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { assertAdvanced } from '../../../../src/client/stream/errors.js';
+import { SuiClientError } from '../../../../src/client/errors.js';
+import { assertAdvanced, SuiStreamError } from '../../../../src/client/stream/errors.js';
 import type { SuiClientTypes } from '../../../../src/client/types.js';
 import {
 	collect,
@@ -90,6 +91,23 @@ describe('cancellation', () => {
 		await rejected;
 	});
 
+	it('delivers no buffered item after the caller aborts', async () => {
+		const controller = new AbortController();
+		const reason = new Error('cancelled');
+		// One page holds every item, so the rest are already buffered when the caller aborts.
+		const adapter = fakeAdapter(ledgerOf(5), { pageSize: 10 });
+		const frames = stream(adapter, {
+			start: { checkpoint: 0 },
+			follow: false,
+			signal: controller.signal,
+			frames: { progress: true, completion: true },
+		});
+		expect(await frames.next()).toMatchObject({ value: { id: '0:0' } });
+		controller.abort(reason);
+		await expect(frames.next()).rejects.toBe(reason);
+		expect(await frames.next()).toEqual({ done: true, value: undefined });
+	});
+
 	it('cancels a retry wait, never completes, and reports no Error', async () => {
 		const controller = new AbortController();
 		const { log, onStatus } = statusLog();
@@ -151,6 +169,15 @@ describe('errors', () => {
 			expect(adapter.calls.scans.length).toBeLessThanOrEqual(1);
 		},
 	);
+
+	it('raises stream errors as SuiClientErrors', async () => {
+		const error = await stream(fakeAdapter(ledgerOf(3)), { pollInterval: 0 })
+			.next()
+			.catch((error: unknown) => error);
+		expect(error).toBeInstanceOf(SuiStreamError);
+		expect(error).toBeInstanceOf(SuiClientError);
+		expect(error).toMatchObject({ name: 'SuiStreamError', code: 'InvalidOptions' });
+	});
 
 	it('gives adapters a protocol error for pagination that does not advance', () => {
 		expect(() => assertAdvanced(undefined, 'a')).not.toThrow();

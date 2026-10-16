@@ -133,7 +133,12 @@ export namespace SuiClientTypes {
 		start?: StreamStart;
 		end?: StreamEnd;
 		order?: Order;
-		/** Defaults to true for ascending streams without an end. */
+		/**
+		 * Whether to keep following new checkpoints after the history. Defaults to `false` with an
+		 * explicit `end`. Otherwise a `start.resumeToken` keeps the range kind it was created with (a
+		 * token from a finite read stays finite), and a new stream defaults to `true` for ascending
+		 * order.
+		 */
 		follow?: boolean;
 		/**
 		 * Live delivery: `subscribe` (the default) follows a live feed; `poll` repeats historical

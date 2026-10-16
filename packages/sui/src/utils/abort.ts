@@ -53,18 +53,33 @@ export function abortableAsyncGenerator<T>(
 	return iterator;
 }
 
-/** Resolves after `delay` ms or rejects with the abort reason. Removes its timer and listener. */
+/** The longest delay `setTimeout` supports; larger values fire after 1 ms. */
+const MAX_TIMEOUT = 2 ** 31 - 1;
+
+/**
+ * Resolves after `delay` ms or rejects with the abort reason. Removes its timer and listener.
+ * Delays longer than `setTimeout` supports are waited out in chained timers; `Infinity` waits
+ * until the signal aborts.
+ */
 export function sleep(delay: number, signal: AbortSignal): Promise<void> {
 	return new Promise((resolve, reject) => {
 		if (signal.aborted) return reject(signal.reason);
+		let remaining = delay;
+		let timer: ReturnType<typeof setTimeout>;
 		const onAbort = () => {
 			clearTimeout(timer);
 			reject(signal.reason);
 		};
-		const timer = setTimeout(() => {
-			signal.removeEventListener('abort', onAbort);
-			resolve();
-		}, delay);
+		const wait = () => {
+			const step = Math.min(remaining, MAX_TIMEOUT);
+			remaining -= step;
+			timer = setTimeout(() => {
+				if (remaining > 0) return wait();
+				signal.removeEventListener('abort', onAbort);
+				resolve();
+			}, step);
+		};
+		wait();
 		signal.addEventListener('abort', onAbort, { once: true });
 	});
 }

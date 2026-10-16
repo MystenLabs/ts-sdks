@@ -228,6 +228,9 @@ export class StreamSession<P, Item, Frame extends { resumeToken: string }> imple
 	}
 
 	async *#commit(event: PositionEvent<P, Item>): AsyncGenerator<CoreFrame<Frame>, void> {
+		// Cancellation is immediate: an event the adapter already buffered is neither committed nor
+		// delivered once the caller aborts.
+		this.signal.throwIfAborted();
 		this.#committed = event.position;
 		this.#committedBytes = this.#bytes(event.position);
 		if (event.$kind === 'Item') this.#lastItem = event.position;
