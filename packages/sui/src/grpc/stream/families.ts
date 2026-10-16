@@ -76,8 +76,11 @@ export interface GrpcFamily {
 	readonly subscribe: MethodInfo<SubscribeRequest, LiveFrame>;
 	readMask(include: SuiClientTypes.TransactionInclude | undefined): string[];
 	item(frame: ListFrame | LiveFrame): GrpcItem | undefined;
-	/** The position a subscription frame reports. */
-	livePosition(frame: LiveFrame, item: GrpcItem | undefined): StreamPosition;
+	/** The position of a List item, or of any subscription frame. */
+	position(
+		frame: { watermark?: Watermark; cursor?: bigint },
+		item: GrpcItem | undefined,
+	): StreamPosition;
 }
 
 export const GRPC_FAMILIES: Record<StreamFamily, GrpcFamily> = {
@@ -87,11 +90,13 @@ export const GRPC_FAMILIES: Record<StreamFamily, GrpcFamily> = {
 		subscribe: streamingMethod(SubscriptionService, 'SubscribeCheckpoints'),
 		readMask: () => CHECKPOINT_READ_MASK_PATHS,
 		item: (frame) => frame.checkpoint && { $kind: 'Checkpoint', checkpoint: frame.checkpoint },
-		livePosition(frame, item) {
+		// A checkpoint is positioned by its sequence number alone; streams resume after it by number.
+		position(frame, item) {
+			if (item) return itemPosition(sequenceNumber(item));
 			if (frame.cursor === undefined) {
 				throw new SuiStreamError('Protocol', 'Checkpoint subscription frame is missing its cursor');
 			}
-			return checkpointCursorPosition(frame.cursor, item !== undefined);
+			return boundaryPosition(frame.cursor + 1n);
 		},
 	},
 	transactions: {
@@ -101,7 +106,7 @@ export const GRPC_FAMILIES: Record<StreamFamily, GrpcFamily> = {
 		// `transaction_index` orders transactions within a checkpoint.
 		readMask: (include) => [...transactionReadMaskPaths(include), 'transaction_index'],
 		item: (frame) => frame.transaction && { $kind: 'Transaction', transaction: frame.transaction },
-		livePosition: framePosition,
+		position: framePosition,
 	},
 	events: {
 		name: 'events',
@@ -109,7 +114,7 @@ export const GRPC_FAMILIES: Record<StreamFamily, GrpcFamily> = {
 		subscribe: streamingMethod(SubscriptionService, 'SubscribeEvents'),
 		readMask: () => [...EVENT_READ_MASK_PATHS, 'transaction_index'],
 		item: (frame) => frame.event && { $kind: 'Event', event: frame.event },
-		livePosition: framePosition,
+		position: framePosition,
 	},
 };
 
@@ -146,13 +151,12 @@ export function framePosition(
 	return itemPosition(checkpoint, { ...fields, ...indexes });
 }
 
-/**
- * A checkpoint subscription frame: its cursor is the checkpoint it has fully covered, and the
- * stream resumes by checkpoint after it.
- */
-function checkpointCursorPosition(cursor: bigint, hasItem: boolean): StreamPosition {
-	const coverage = { $kind: 'Through', checkpoint: cursor } as const;
-	return hasItem ? itemPosition(cursor, { coverage }) : boundaryPosition(cursor + 1n, { coverage });
+function sequenceNumber(item: GrpcItem): bigint {
+	const checkpoint = item.$kind === 'Checkpoint' ? item.checkpoint.sequenceNumber : undefined;
+	if (checkpoint === undefined) {
+		throw new SuiStreamError('Protocol', 'Checkpoint is missing its sequence number');
+	}
+	return checkpoint;
 }
 
 /** Where an item sits in the ledger. Transactions and events must report their indexes. */
@@ -161,11 +165,8 @@ function itemCoordinates(item: GrpcItem) {
 	const missing = (field: string) =>
 		new SuiStreamError('Protocol', `Ledger item is missing its ${field}`);
 	switch (item.$kind) {
-		case 'Checkpoint': {
-			const checkpoint = item.checkpoint.sequenceNumber;
-			if (checkpoint === undefined) throw missing('sequence number');
-			return { ...none, checkpoint };
-		}
+		case 'Checkpoint':
+			throw new SuiStreamError('Protocol', 'A checkpoint is positioned by its sequence number');
 		case 'Transaction': {
 			const { checkpoint, transactionIndex } = item.transaction;
 			if (checkpoint === undefined) throw missing('checkpoint');

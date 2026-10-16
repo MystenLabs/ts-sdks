@@ -31,15 +31,13 @@ describe('gRPC frames as stream positions', () => {
 		expect(framePosition({ watermark: { cursor } }, undefined)).toEqual(progressPosition(cursor));
 	});
 
-	it('maps checkpoint subscription cursors to positions that resume by checkpoint', () => {
-		const { livePosition } = GRPC_FAMILIES.checkpoints;
+	it('positions checkpoints by sequence number alone', () => {
+		const { position } = GRPC_FAMILIES.checkpoints;
 		const checkpoint = { $kind: 'Checkpoint', checkpoint: { sequenceNumber: 9n } } as GrpcItem;
-		expect(livePosition({ cursor: 9n }, checkpoint)).toEqual(
-			itemPosition(9n, { coverage: through(9n) }),
+		expect(position({ watermark: { cursor, checkpoint: 9n } }, checkpoint)).toEqual(
+			itemPosition(9n),
 		);
-		expect(livePosition({ cursor: 9n }, undefined)).toEqual(
-			boundaryPosition(10n, { coverage: through(9n) }),
-		);
+		expect(position({ cursor: 9n }, undefined)).toEqual(boundaryPosition(10n));
 	});
 
 	it('rejects a transaction without its index', () => {
