@@ -6,6 +6,15 @@ import { isRetryableStatus, SuiGraphQLRequestError } from './errors.js';
 import { ServerSentEventParser } from './sse-parser.js';
 
 /**
+ * Release a response body that will not be read. Cleanup is best effort and never awaited: a
+ * body that has already failed must not hide the caller's error, and a cloned or teed body only
+ * settles its cancel once every branch is cancelled, which may be never.
+ */
+function cancelBody(response: Response) {
+	void response.body?.cancel().catch(() => {});
+}
+
+/**
  * Read a GraphQL-over-SSE response body.
  * @yields GraphQL responses, preserving partial data and errors.
  */
@@ -15,8 +24,7 @@ export async function* readGraphQLSSE<Result>(
 	maxMessageSize: number,
 ): AsyncGenerator<GraphQLQueryResult<Result>> {
 	if (!response.ok) {
-		// Best effort: a body that has already failed must not hide the error below.
-		await response.body?.cancel().catch(() => {});
+		cancelBody(response);
 		throw new SuiGraphQLRequestError(
 			`GraphQL subscription failed: ${response.statusText} (${response.status})`,
 			{ status: response.status, retryable: isRetryableStatus(response.status) },
@@ -27,7 +35,7 @@ export async function* readGraphQLSSE<Result>(
 			'text/event-stream' ||
 		!response.body
 	) {
-		await response.body?.cancel().catch(() => {});
+		cancelBody(response);
 		throw new SuiGraphQLRequestError('GraphQL subscription requires a text/event-stream response');
 	}
 	const reader = response.body.getReader();
@@ -74,7 +82,9 @@ export async function* readGraphQLSSE<Result>(
 		}
 	} finally {
 		signal.removeEventListener('abort', abort);
-		await reader.cancel().catch(() => {});
+		// Not awaited, for the reason given on `cancelBody`. Cancelling closes the stream at once,
+		// so the lock can be released while the underlying source finishes cancelling.
+		void reader.cancel().catch(() => {});
 		reader.releaseLock();
 	}
 }
