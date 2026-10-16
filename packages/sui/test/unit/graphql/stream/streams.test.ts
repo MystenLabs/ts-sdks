@@ -5,7 +5,6 @@ import { describe, expect, it } from 'vitest';
 
 import { SuiStreamError, type SuiClientTypes } from '../../../../src/client/index.js';
 import { SuiGraphQLRequestError, type SuiGraphQLClient } from '../../../../src/graphql/index.js';
-import { PROGRESS_INTERVAL } from '../../../../src/graphql/stream/families.js';
 import {
 	Transaction as GrpcTransaction,
 	TransactionExpiration_TransactionExpirationKind as ExpirationKind,
@@ -76,9 +75,9 @@ function token(frame: Frame | undefined): string {
 	return frame.resumeToken;
 }
 
-/** Resume tokens of a follow stream over `edges` (read from history; nothing goes live). */
+/** Resume tokens of a follow stream whose subscription delivers `edges`. */
 async function followTokens(family: Family, edges: Edge[]): Promise<string[]> {
-	const seed = fakeGraphQL({ tip: 10 }).on(scanOperation(family), page(family, edges));
+	const seed = fakeGraphQL({ tip: 10 }).on(subscribeOperation(family), live(family, edges));
 	const frames = await take(
 		stream(seed.client, family, { start: { checkpoint: 0 } }),
 		edges.length,
@@ -86,8 +85,8 @@ async function followTokens(family: Family, edges: Edge[]): Promise<string[]> {
 	return frames.map(token);
 }
 
-function scanOperation(family: Family) {
-	return `scan${family[0].toUpperCase()}${family.slice(1)}`;
+function subscribeOperation(family: Family) {
+	return `subscribe${family[0].toUpperCase()}${family.slice(1)}`;
 }
 
 async function rejection(promise: Promise<unknown>): Promise<unknown> {
@@ -142,7 +141,7 @@ describe('historical scan', () => {
 		expect(server.sent('scanCheckpoints')[0].filter.afterCheckpoint).toBe(10);
 	});
 
-	it('resumes after a checkpoint that has since been pruned, bounded by the cursor checkpoint', async () => {
+	it('resumes after a checkpoint that has since been pruned, by its sequence number', async () => {
 		const [anchor] = await followTokens('checkpoints', [checkpoint(10)]);
 		const server = fakeGraphQL({ tip: 20, first: 11 }).on(
 			'scanCheckpoints',
@@ -155,10 +154,10 @@ describe('historical scan', () => {
 			}),
 		);
 		expect(frames.map(label)).toEqual(['11']);
-		expect(server.sent('scanCheckpoints')[0]).toMatchObject({
-			after: checkpoint(10).cursor,
-			filter: { afterCheckpoint: 10, beforeCheckpoint: 12 },
-		});
+		// A checkpoint resumes by its sequence number alone.
+		const [request] = server.sent('scanCheckpoints');
+		expect(request).toMatchObject({ filter: { afterCheckpoint: 10, beforeCheckpoint: 12 } });
+		expect(request.after).toBeUndefined();
 	});
 
 	it('keeps a finite cutoff when resuming after the indexed tip grew', async () => {
@@ -275,7 +274,7 @@ describe('historical scan', () => {
 		]);
 	});
 
-	it('advances through empty scan-limited pages and keeps the opposite cursor bound', async () => {
+	it('advances through empty scan-limited pages within the end checkpoint', async () => {
 		const [older, newer] = await followTokens('events', [event(1), event(5)]);
 		const frontier = 'history:frontier:3';
 		const server = fakeGraphQL().on(
@@ -290,10 +289,11 @@ describe('historical scan', () => {
 				frames: { progress: true },
 			}),
 		);
-		expect(frames.map(label)).toEqual(['Progress', '3:0']);
+		// Then the boundary before the end item's checkpoint.
+		expect(frames.map(label)).toEqual(['Progress', '3:0', 'Progress']);
 		expect(server.sent('scanEvents')[1]).toMatchObject({
 			after: frontier,
-			before: event(5).cursor,
+			filter: { beforeCheckpoint: 6 },
 		});
 
 		// Resuming from the progress token continues from the frontier without rereading.
@@ -306,7 +306,7 @@ describe('historical scan', () => {
 		);
 		expect(again.map(label)).toEqual(['3:0']);
 		expect(resumed.sent('scanEvents')).toEqual([
-			expect.objectContaining({ after: frontier, before: event(5).cursor }),
+			expect.objectContaining({ after: frontier, filter: { beforeCheckpoint: 6 } }),
 		]);
 	});
 
@@ -323,7 +323,7 @@ describe('historical scan', () => {
 		);
 		expect(error).toMatchObject({
 			code: 'Protocol',
-			message: expect.stringContaining('did not advance'),
+			message: expect.stringContaining('no cursor'),
 		});
 		expect(server.sent('scanEvents')).toHaveLength(1);
 	});
@@ -481,7 +481,9 @@ describe('resumable empty passes', () => {
 		);
 		expect(frames.map(label)).toEqual(Array.from({ length: 11 }, (_, i) => String(100 - i)));
 		// The retry continued below the last delivered checkpoint.
-		expect(server.sent('scanCheckpoints')[2].before).toBe(checkpoint(96).cursor);
+		const retry = server.sent('scanCheckpoints')[2];
+		expect(retry).toMatchObject({ filter: { beforeCheckpoint: 96 } });
+		expect(retry.before).toBeUndefined();
 	});
 
 	it('includes everything through a progress token used as an end', async () => {
@@ -519,16 +521,16 @@ describe('resumable empty passes', () => {
 		expect(baseline).toMatchObject({ $kind: 'Progress', coveredCheckpoint: '10' });
 		expect(quiet.sent('scanEvents')).toHaveLength(0);
 
-		// A restart after the tip moved on still reads what matched in between.
+		// A restart after the tip moved on subscribes after the anchor; the server backfills.
 		const later = fakeGraphQL({ tip: 20 });
-		later.on('scanEvents', page('events', [event(12)]));
-		later.on('subscribeEvents', live('events', []));
+		later.on('subscribeEvents', live('events', [event(12)]));
 		const [frame] = await take(
 			stream(later.client, 'events', { start: { resumeToken: token(baseline) } }),
 			1,
 		);
 		expect(label(frame)).toBe('12:0');
-		expect(later.sent('scanEvents')[0]).toMatchObject({ filter: { afterCheckpoint: 10 } });
+		expect(later.sent('subscribeEvents')).toEqual([{ filter: { afterCheckpoint: 10 } }]);
+		expect(later.sent('scanEvents')).toHaveLength(0);
 	});
 
 	it('resumes a finite scan that waits for a future end from where its empty pass stopped', async () => {
@@ -653,20 +655,20 @@ describe('polling', () => {
 				end: { checkpoint: 4 },
 			}),
 		);
-		// Each poll reads one page and discards it while the start is past the tip.
-		await expect.poll(() => server.sent('scanCheckpoints').length).toBeGreaterThanOrEqual(3);
+		// Each poll reads the tip, and no page, while the start is past it.
+		await expect.poll(() => server.sent('ledgerStreamState').length).toBeGreaterThanOrEqual(3);
+		expect(server.sent('scanCheckpoints')).toHaveLength(0);
 		server.tip = 5;
 		expect((await source).map(label)).toEqual(['5']);
 	});
 });
 
-describe('exclusive end probe', () => {
-	it('follows a distinct frontier until the server confirms the interval is complete', async () => {
+describe('end tokens', () => {
+	it('bounds a read by the end checkpoint and stops at the end item, with no extra request', async () => {
 		const [older, newer] = await followTokens('events', [event(1, 0), event(1, 2)]);
 		const server = fakeGraphQL().on(
 			'scanEvents',
-			page('events', [event(1, 1)], { more: true, cursor: 'future-cursor-format' }),
-			page('events', []),
+			page('events', [event(1, 1), event(1, 2), event(1, 3)], { more: true }),
 		);
 		const frames = await collect(
 			stream(server.client, 'events', {
@@ -677,44 +679,11 @@ describe('exclusive end probe', () => {
 		);
 		expect(frames.map(label)).toEqual(['1:1', 'Complete']);
 		expect(frames[1]).toMatchObject({ completion: { resumeToken: token(frames[0]) } });
-		expect(server.sent('scanEvents')).toHaveLength(2);
+		const [request] = server.sent('scanEvents');
+		expect(server.sent('scanEvents')).toHaveLength(1);
+		expect(request).toMatchObject({ after: event(1, 0).cursor, filter: { beforeCheckpoint: 2 } });
+		expect(request.before).toBeUndefined();
 	});
-
-	it.each(['ascending', 'descending'] as const)(
-		'probes for the excluded item at a stalled %s frontier',
-		async (order) => {
-			const descending = order === 'descending';
-			const seed = fakeGraphQL().on('scanEvents', page('events', [event(1, 0), event(1, 2)]));
-			const [, endItem] = await take(
-				stream(seed.client, 'events', { start: { checkpoint: 1 }, order, follow: false }),
-				2,
-			);
-			const stalled = 'opaque-unrecognized-boundary';
-			const server = fakeGraphQL().on(
-				'scanEvents',
-				page('events', [event(1, 1)], { more: true, cursor: stalled }),
-				page('events', [], { more: true, cursor: stalled }),
-				page('events', [descending ? event(1, 0) : event(1, 2)]),
-			);
-			const frames = await collect(
-				stream(server.client, 'events', {
-					start: { checkpoint: 1 },
-					end: { resumeToken: token(endItem) },
-					order,
-					frames: { completion: true },
-				}),
-			);
-			expect(frames.map(label)).toEqual(['1:1', 'Complete']);
-			const [, , probe] = server.sent('scanEvents');
-			// The probe reads one item on from the last delivered item, without the end bound.
-			expect(probe).toMatchObject(
-				descending
-					? { last: 1, before: event(1, 1).cursor }
-					: { first: 1, after: event(1, 1).cursor },
-			);
-			expect(probe[descending ? 'after' : 'before']).toBeUndefined();
-		},
-	);
 
 	it.each(['ascending', 'descending'] as const)(
 		'stops %s at the end item by its coordinates, whatever its cursor',
@@ -764,46 +733,24 @@ describe('exclusive end probe', () => {
 		expect(frames.map(label)).toEqual(['1:1', 'Complete']);
 		expect(server.sent('scanEvents')).toHaveLength(1);
 	});
-
-	it('does not complete when the probe finds another transaction with the same event index', async () => {
-		const [endItem] = await followTokens('events', [event(1, 2)]);
-		const stalled = 'opaque-stalled-frontier';
-		const server = fakeGraphQL().on(
-			'scanEvents',
-			page('events', [], { more: true, cursor: stalled }),
-			page('events', [], { more: true, cursor: stalled }),
-			page('events', [event(2, 2)]),
-		);
-		const error = await rejection(
-			collect(
-				stream(server.client, 'events', {
-					start: { checkpoint: 1 },
-					end: { resumeToken: endItem },
-				}),
-			),
-		);
-		expect(error).toMatchObject({
-			code: 'Protocol',
-			message: expect.stringContaining('did not advance'),
-		});
-	});
 });
 
 describe('live handoff', () => {
-	it('reads history from a start checkpoint, then subscribes after it', async () => {
+	it('subscribes after a start checkpoint, and the server backfills history', async () => {
 		const server = fakeGraphQL({ tip: 10 });
-		server.on('scanEvents', page('events', [event(5), event(9)]));
-		server.on('subscribeEvents', live('events', [event(11, 0, { source: 'live' })]));
+		server.on(
+			'subscribeEvents',
+			live('events', [event(5), event(9), event(11, 0, { source: 'live' })]),
+		);
 		const log = statusLog();
 		const frames = await take(
 			stream(server.client, 'events', { start: { checkpoint: 5 }, onStatus: log.onStatus }),
 			3,
 		);
 		expect(frames.map(label)).toEqual(['5:0', '9:0', '11:0']);
-		expect(server.sent('subscribeEvents')).toEqual([
-			{ filter: { afterCheckpoint: 10 }, progressInterval: PROGRESS_INTERVAL },
-		]);
-		expect(log.log).toEqual(['Connecting(0)', 'Connected', 'Page(history,indexedTip)', 'Live']);
+		expect(server.sent('subscribeEvents')).toEqual([{ filter: { afterCheckpoint: 4 } }]);
+		expect(server.sent('scanEvents')).toHaveLength(0);
+		expect(log.log).toEqual(['Connecting(0)', 'Connected', 'Live']);
 	});
 
 	it('reports Connected when a quiet subscription opens, and Live with its first item', async () => {
@@ -830,7 +777,6 @@ describe('live handoff', () => {
 		expect(server.sent('subscribeEvents')[1]).toEqual({
 			filter: {},
 			after: event(3, 0, { source: 'live' }).cursor,
-			progressInterval: PROGRESS_INTERVAL,
 		});
 	});
 
@@ -845,8 +791,8 @@ describe('live handoff', () => {
 		const [frame] = await take(stream(server.client, 'events', { retry: noDelay }), 1);
 		expect(label(frame)).toBe('11:0');
 		expect(server.sent('subscribeEvents')).toEqual([
-			{ filter: { afterCheckpoint: 10 }, progressInterval: PROGRESS_INTERVAL },
-			{ filter: { afterCheckpoint: 10 }, progressInterval: PROGRESS_INTERVAL },
+			{ filter: { afterCheckpoint: 10 } },
+			{ filter: { afterCheckpoint: 10 } },
 		]);
 	});
 
@@ -866,7 +812,6 @@ describe('live handoff', () => {
 		expect(server.sent('subscribeTransactions')).toEqual([
 			{
 				filter: { sentAddress: sender, afterCheckpoint: 1 },
-				progressInterval: PROGRESS_INTERVAL,
 				includeTransaction: false,
 				includeEffects: false,
 				includeEvents: true,
@@ -900,8 +845,8 @@ describe('subscription progress', () => {
 		expect(frames.map(label)).toEqual(['Progress', 'Progress', 'Progress']);
 		expect(new Set(frames.map(token)).size).toBe(3);
 		expect(log.log).toEqual(['Connecting(0)', 'Connected', 'Live']);
-		// Progress carries no checkpoint, so it claims no coverage.
-		expect(frames[2]).not.toHaveProperty('coveredCheckpoint');
+		// Progress edges carry no checkpoint, so coverage stays at the tip anchor.
+		expect(frames[2]).toMatchObject({ coveredCheckpoint: '10' });
 	});
 
 	it('resumes from a progress token without re-reading anything before it', async () => {
@@ -913,15 +858,15 @@ describe('subscription progress', () => {
 		);
 
 		const server = fakeGraphQL({ tip: 12 });
-		server.on('scanEvents', page('events', [event(12)]));
-		server.on('subscribeEvents', live('events', []));
+		server.on('subscribeEvents', live('events', [event(12)]));
 		const [frame] = await take(
 			stream(server.client, 'events', { start: { resumeToken: token(progress) } }),
 			1,
 		);
 		expect(label(frame)).toBe('12:0');
-		// History continues after the progress cursor itself.
-		expect(server.sent('scanEvents')[0].after).toBe('live:progress:a');
+		// The subscription resumes after the progress cursor itself.
+		expect(server.sent('subscribeEvents')[0].after).toBe('live:progress:a');
+		expect(server.sent('scanEvents')).toHaveLength(0);
 	});
 });
 
@@ -1063,9 +1008,10 @@ describe('request counts', () => {
 	});
 
 	it('fails a start below the retention limit with HistoryUnavailable after one request', async () => {
+		const pruned = { message: 'pruned', extensions: { code: 'OUT_OF_RANGE' } };
 		const server = fakeGraphQL({ tip: 12, first: 9 }).on(
-			'scanCheckpoints',
-			page('checkpoints', [checkpoint(9)]),
+			'subscribeCheckpoints',
+			liveMessages([{ errors: [pruned] }]),
 		);
 		await expect(
 			collect(
@@ -1075,7 +1021,7 @@ describe('request counts', () => {
 				}),
 			),
 		).rejects.toMatchObject({ code: 'HistoryUnavailable' });
-		expect(operations(server)).toEqual(['ledgerStreamState', 'scanCheckpoints']);
+		expect(operations(server)).toEqual(['ledgerStreamState', 'subscribeCheckpoints']);
 	});
 
 	it('makes one request per poll tick', async () => {

@@ -26,6 +26,16 @@ export function notIndexedYet(message: string) {
 
 export function unwrap<Result>(result: GraphQLQueryResult<Result>): Result {
 	const errors = result.errors ?? [];
+	// Pruned history cannot come back by retrying.
+	if (errors.some((error) => error.extensions?.code === 'OUT_OF_RANGE')) {
+		throw new SuiStreamError(
+			'HistoryUnavailable',
+			errors.map((error) => error.message).join('\n'),
+			{
+				cause: errors,
+			},
+		);
+	}
 	if (errors.length > 0) {
 		throw new SuiGraphQLRequestError(errors.map((error) => error.message).join('\n'), {
 			retryable: errors.every((error) => TRANSIENT_ERROR_CODES.has(String(error.extensions?.code))),
