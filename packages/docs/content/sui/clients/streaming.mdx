@@ -25,8 +25,20 @@ for await (const frame of client.streamCheckpoints({ signal: controller.signal }
 }
 ```
 
-Leave the loop with `break` to close the stream. To stop while waiting for the next frame, call
-`controller.abort()`.
+Leave the loop with `break` to close the stream; the loop then ends normally. To stop while waiting
+for the next frame, call `controller.abort()`. Unlike `break`, aborting rejects the pending
+iteration with the signal's reason (an `AbortError`, or a `TimeoutError` from
+`AbortSignal.timeout()`), so catch it:
+
+```typescript
+try {
+	for await (const frame of client.streamCheckpoints({ signal: controller.signal })) {
+		console.log(frame.checkpoint.sequenceNumber);
+	}
+} catch (error) {
+	if (!controller.signal.aborted) throw error;
+}
+```
 
 Without a `start`, a stream follows from the current tip. `start: { checkpoint: 1000 }` replays from
 checkpoint 1000, including it, and then follows live data. The SDK pages through history, hands over
@@ -91,7 +103,8 @@ before the switch are delivered again.
 
 ## Read a finite range
 
-Pass an `end` to stop once a range is covered:
+Pass an `end` to stop once a range is covered. Ascending finite reads need a `start`: an `end` or
+`follow: false` without one throws `SuiStreamError` with code `InvalidOptions`.
 
 ```typescript
 for await (const frame of client.streamEvents({
@@ -201,10 +214,12 @@ client.streamEvents({
 });
 ```
 
-A following stream reads history up to the indexed tip and opens the live feed. Once the feed is
-open, it replays history up to the newly indexed tip, and further up to the feed's first item if
-that lies beyond, and then delivers live frames. The `Live` status marks that switch: every frame
-after it is live. With polling, `Live` follows the first read that reaches the indexed tip.
+A following stream reads history up to the indexed tip, opens the live feed, and replays the history
+the feed starts after before it delivers live frames. On gRPC, that replay runs up to the feed's
+first frame. On GraphQL, it runs up to the index's tip once the feed is open, and further up to the
+feed's first item if that lies beyond. The `Live` status marks the switch: the frames after it are
+live until the next `Connecting` or `Recovering` status, since a reconnect or a repaired gap reads
+history again. With polling, `Live` follows the first read that reaches the indexed tip.
 
 GraphQL live delivery uses [subscriptions](./graphql.mdx#subscriptions), and the provider must serve
 them. GraphQL subscriptions report nothing while no item matches, so:
@@ -230,7 +245,7 @@ the stream with that error. Store tokens from frames, never from statuses.
 | `Connected`  | The first server response of this attempt.                                      |
 | `Page`       | A history page ended: `stage`, `end` (`limit`, `bound`, `indexedTip`).          |
 | `Recovering` | Reading history to close a gap before live delivery resumes.                    |
-| `Live`       | Every following frame is live.                                                  |
+| `Live`       | Following frames are live, until the next `Connecting` or `Recovering`.         |
 | `Retrying`   | Waiting `delay` ms before reconnecting after `error`.                           |
 | `Error`      | The stream is about to throw `error`.                                           |
 
@@ -295,12 +310,10 @@ try {
 
 ## Replay throughput
 
-Each history page is one request. Servers cap page sizes: gRPC fullnodes return at most 50
-checkpoints, 500 transactions, or 1,000 events per page, and GraphQL returns 50 items per page, so a
-GraphQL replay makes many more requests than a gRPC replay of the same range. Fullnodes serve a cold
-range at roughly three times the chain's own rate for an unfiltered transaction stream with every
-include. To replay faster, run disjoint checkpoint ranges concurrently; throughput scales almost
-linearly to at least eight streams.
+Each history page is one request. GraphQL streams read 50 items per page, and servers cap gRPC page
+sizes (public mainnet fullnodes return at most 50 checkpoints, 500 transactions, or 1,000 events per
+page), so a GraphQL replay usually makes more requests than a gRPC replay of the same range. To
+replay a long range faster, run streams over disjoint checkpoint ranges concurrently.
 
 ## gRPC options
 

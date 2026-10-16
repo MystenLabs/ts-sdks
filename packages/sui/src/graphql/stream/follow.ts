@@ -7,7 +7,7 @@ import type {
 	ItemFrame,
 	LiveEvent,
 } from '../../client/stream/adapter.js';
-import { sleep } from '../../utils/abort.js';
+import { linkedAbortController, sleep } from '../../utils/abort.js';
 import type { SuiGraphQLClient } from '../client.js';
 import { lookupCheckpoints, type LedgerFamily, type LedgerItem } from './families.js';
 import { itemPosition, requiredCheckpoint, type GraphQLPosition } from './position.js';
@@ -29,6 +29,11 @@ export interface FollowState {
 	 * later live item arrives to trigger a gap replay.
 	 */
 	unplaced?: string;
+	/**
+	 * A checkpoint a live feed reached that its handoff replay had not covered when the attempt
+	 * failed. The next handoff replays through it: its quiet replacement feed may never show it.
+	 */
+	reached?: bigint;
 }
 
 /**
@@ -42,9 +47,9 @@ export async function* followLedger<Node>(
 	session: Session<Node>,
 	options: FollowOptions,
 ): AsyncGenerator<CoreFrame<ItemFrame>, void> {
-	const { signal } = session;
+	const { state } = options;
 	// Left by an earlier attempt; this attempt's feed may record its own while the gap replays.
-	const unplaced = options.state.unplaced;
+	const { unplaced, reached } = state;
 	// Phase 1: history. The core anchors a fresh follow at the indexed tip, so there is always a
 	// start. No subscription is open yet.
 	yield* session.replay('tip', 'history');
@@ -57,10 +62,19 @@ export async function* followLedger<Node>(
 	// TODO: once fixed servers ship, gate these workarounds on the `x-sui-rpc-version` header.
 	let opened!: () => void;
 	const open = new Promise<void>((resolve) => (opened = resolve));
-	const feed = session.openFeed(liveEvents(client, family, signal, opened, options));
+	// Closing must not wait for a quiet feed's pending read: abort it first.
+	const attempt = linkedAbortController(session.signal);
+	const feed = session.openFeed(
+		liveEvents(client, family, attempt.controller.signal, opened, options),
+	);
 	try {
 		const first = feed.first();
-		first.catch(() => {}); // Awaited below; this only keeps an early failure from going unhandled.
+		// Remembered as soon as it is known, in case this attempt fails before covering it. The
+		// rejection is awaited below; this only keeps an early failure from going unhandled.
+		first.then(
+			(event) => reach(state, event.position.checkpoint!),
+			() => {},
+		);
 		await Promise.race([open, first]);
 
 		// Phase 3: the gap, in two steps. First, now that the feed is open, replay through a fresh
@@ -68,9 +82,15 @@ export async function* followLedger<Node>(
 		// come. Cursors from different connections cannot be ordered within a checkpoint, so whole
 		// checkpoints are replayed; the core then drops live items in checkpoints the replay
 		// covered.
-		const through = await handoffCheckpoint(client, family, session, unplaced, options);
+		const through = await handoffCheckpoint(
+			client,
+			family,
+			session,
+			{ unplaced, reached },
+			options,
+		);
 		yield* session.replay({ checkpoint: through + 1n }, 'gap');
-		if (options.state.unplaced === unplaced) options.state.unplaced = undefined;
+		if (state.unplaced === unplaced) state.unplaced = undefined;
 
 		// Second, the feed starts at the server's live tip, which can be ahead of its index (S1).
 		// A first live item past the replay shows where it started: replay through its checkpoint
@@ -78,32 +98,43 @@ export async function* followLedger<Node>(
 		// once a later live item arrives: filtered subscriptions report no progress (P1).
 		const live = (await first).position.checkpoint!; // live events are items
 		if (live > through + 1n) yield* session.replay({ checkpoint: live + 1n }, 'gap');
+		// Covered by a replay, or delivered first below.
+		state.reached = undefined;
 
 		// Phase 4: live. Only the unfiltered checkpoint feed can tell that it skipped one.
 		yield* session.deliver(feed, { contiguousCheckpoints: family.onePerCheckpoint });
 	} finally {
+		attempt.controller.abort();
 		await feed.close();
+		attempt.dispose();
 	}
+}
+
+function reach(state: FollowState, checkpoint: bigint) {
+	if (state.reached === undefined || checkpoint > state.reached) state.reached = checkpoint;
 }
 
 /**
  * The last checkpoint the handoff replays first: a fresh indexed tip, or the committed
  * position's checkpoint if a new feed starts behind it (so no checkpoint is delivered partly from
- * two connections), or the checkpoint of a live item a failed lookup left undelivered.
+ * two connections), or what an earlier attempt's feed reached but never delivered: the checkpoint
+ * of a live item a failed lookup left unplaced, or a first live checkpoint its replay never
+ * covered.
  */
 async function handoffCheckpoint<Node>(
 	client: SuiGraphQLClient,
 	family: LedgerFamily<Node>,
 	session: Session<Node>,
-	unplaced: string | undefined,
+	{ unplaced, reached }: Pick<FollowState, 'unplaced' | 'reached'>,
 	{ pollInterval }: FollowOptions,
 ): Promise<bigint> {
-	const { tip } = await readIndexState(client, family.name, session.signal);
+	const { tip } = await readIndexState(client, family.name, family.filterFields(), session.signal);
 	let through = tip;
 	// A frontier carries the indexed checkpoint it was read at instead: the history before it
 	// may have delivered items up to there.
 	const resumed = session.committed ? requiredCheckpoint(session.committed) : null;
 	if (resumed !== null && resumed > through) through = resumed;
+	if (reached !== undefined && reached > through) through = reached;
 	if (unplaced) {
 		const checkpoint = await placeTransaction(client, unplaced, session.signal, pollInterval);
 		if (checkpoint > through) through = checkpoint;

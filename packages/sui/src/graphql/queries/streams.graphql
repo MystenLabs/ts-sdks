@@ -5,10 +5,12 @@
 # streamed item maps exactly like the same item from `listCheckpoints`, `listTransactions` or
 # `listEvents`. Subscriptions never take `after`: streams replay history themselves.
 
-query ledgerStreamState($field: String!) {
+# `filters` names the filter fields the stream's page query sets, so the retention range is the one
+# of the indexes that query reads.
+query ledgerStreamState($field: String!, $filters: [String!]!) {
 	chainIdentifier
 	serviceConfig {
-		availableRange(type: "Query", field: $field) {
+		availableRange(type: "Query", field: $field, filters: $filters) {
 			first {
 				sequenceNumber
 			}

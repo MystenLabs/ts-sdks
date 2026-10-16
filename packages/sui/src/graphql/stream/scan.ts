@@ -35,6 +35,11 @@ export interface ScanWindow {
 	before?: string;
 	/** An ascending scan is complete only once the indexed tip reaches this checkpoint. */
 	target?: bigint;
+	/**
+	 * A descending read to genesis on a server that pruned its oldest checkpoints: `lower` is the
+	 * oldest retained one, and the read fails with `HistoryUnavailable` once it gets there.
+	 */
+	pruned?: true;
 }
 
 type Request = Pick<ScanRequest<GraphQLPosition>, 'start' | 'end' | 'order'>;
@@ -86,8 +91,16 @@ export function resolveScanWindow(
 				: (requiredCheckpoint(request.end.position) ?? undefined);
 	}
 
+	// Unbounded below (newest first to genesis): read what is retained, then fail there.
+	if (!low) {
+		if (indexed.first !== null && indexed.first > 0n) {
+			window.lower = indexed.first;
+			window.pruned = true;
+		}
+		return window;
+	}
 	// A frontier has no checkpoint, so only a checkpoint-anchored low side can be checked.
-	const lowIsFrontier = low && 'position' in low && low.position.checkpoint === null;
+	const lowIsFrontier = 'position' in low && low.position.checkpoint === null;
 	if (!lowIsFrontier && indexed.first !== null && window.lower < indexed.first) {
 		throw new SuiStreamError(
 			'HistoryUnavailable',
@@ -122,6 +135,7 @@ export async function* scanLedger<Node>(
 	const window = resolveScanWindow(request, indexed, family.onePerCheckpoint);
 	const complete = window.target === undefined || indexed.tip >= window.target;
 	if (window.lower >= window.upper) {
+		assertNotPruned(window);
 		yield { $kind: 'End', complete };
 		return;
 	}
@@ -166,6 +180,7 @@ export async function* scanLedger<Node>(
 			// for a future end) starts there instead of rereading the window.
 			const progress = cursor && edges.length === 0 && exhaustedProgress(cursor, window, request);
 			if (progress) yield progress;
+			assertNotPruned(window);
 			yield {
 				$kind: 'Page',
 				end: end && complete ? 'bound' : 'indexedTip',
@@ -268,6 +283,16 @@ function frontierProgress(
 	window: ScanWindow,
 ): Extract<ScanEvent<GraphQLPosition, never>, { $kind: 'Progress' }> {
 	return { $kind: 'Progress', position: frontierPosition(cursor, window.upper - 1n) };
+}
+
+/** A descending read to genesis that reached the oldest retained checkpoint above genesis. */
+function assertNotPruned(window: ScanWindow) {
+	if (window.pruned) {
+		throw new SuiStreamError(
+			'HistoryUnavailable',
+			`Checkpoints before ${window.lower} have been pruned`,
+		);
+	}
 }
 
 function pageCursors(
