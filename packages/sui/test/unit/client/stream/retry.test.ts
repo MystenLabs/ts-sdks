@@ -16,7 +16,7 @@ import {
 	statusLog,
 	stream,
 	take,
-	positionOf,
+	cursorOf,
 } from './fake-ledger.js';
 
 describe('retry budget', () => {
@@ -81,13 +81,13 @@ describe('retries in a stream', () => {
 
 	it('restarts a finite read after the last delivered item and keeps the original end', async () => {
 		const adapter = fakeAdapter(sixCheckpoints(), {
-			scanFaults: [{ failAfterItems: 2, error: new NetworkError() }],
+			pageFaults: [undefined, { error: new NetworkError() }],
 		});
 		const frames = await collect(stream(adapter, { start: { checkpoint: 0 }, follow: false }));
 		expect(ids(frames)).toEqual(['0:0', '1:0', '2:0', '3:0', '4:0', '5:0']);
-		expect(adapter.calls.scans[1]).toMatchObject({
-			start: { position: positionOf({ checkpoint: 1n, index: 0 }) },
-			end: { checkpoint: 6n },
+		expect(adapter.calls.pages[2]).toMatchObject({
+			range: { start: 1n, end: 6n },
+			after: cursorOf({ checkpoint: 1n, index: 0 }),
 		});
 		expect(adapter.calls.indexedTip).toBe(1);
 	});
@@ -124,7 +124,7 @@ describe('retries in a stream', () => {
 		const { log, onStatus } = statusLog();
 		const adapter = fakeAdapter(ledger, {
 			anchorsAtLiveTip: true,
-			afterScan: () => (ledger.indexedTip += 1n),
+			afterRead: () => (ledger.indexedTip += 1n),
 			live: [
 				{ events: [ledger.item(6)], end: new Overflow() },
 				{ events: [ledger.item(7)], end: 'eof' },
@@ -168,7 +168,7 @@ describe('retries in a stream', () => {
 	it('reconnects immediately, but counted, after a transient failure that followed progress', async () => {
 		const { log, onStatus } = statusLog();
 		const adapter = fakeAdapter(sixCheckpoints(), {
-			scanFaults: [{ failAfterItems: 1, error: new NetworkError() }],
+			pageFaults: [undefined, { error: new NetworkError() }],
 		});
 		await collect(
 			stream(adapter, {
@@ -196,11 +196,11 @@ describe('retries in a stream', () => {
 
 	it('does not retry fatal errors', async () => {
 		const adapter = fakeAdapter(sixCheckpoints(), {
-			scanFaults: [{ failAfterItems: 0, error: new TypeError('malformed response') }],
+			pageFaults: [{ error: new TypeError('malformed response') }],
 		});
 		await expect(
 			collect(stream(adapter, { start: { checkpoint: 0 }, follow: false })),
 		).rejects.toThrow('malformed response');
-		expect(adapter.calls.scans).toHaveLength(1);
+		expect(adapter.calls.pages).toHaveLength(1);
 	});
 });

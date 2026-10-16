@@ -19,7 +19,7 @@ import {
 	take,
 	tokenOf,
 	type FakeOptions,
-	positionOf,
+	cursorOf,
 } from './fake-ledger.js';
 
 type Options = SuiClientTypes.StreamOptions<SuiClientTypes.StreamFrameOptions>;
@@ -117,7 +117,7 @@ describe('option errors', () => {
 		const { error } = await failure({ start: { resumeToken: token } }, adapter);
 		expect(error.code).toBe('IncompatibleToken');
 		expect(adapter.calls.initialize).toBe(initialized);
-		expect(adapter.calls.scans).toHaveLength(0);
+		expect(adapter.calls.pages).toHaveLength(0);
 	});
 
 	describe('rejects input that needs no network before the first request', () => {
@@ -175,7 +175,7 @@ describe('option errors', () => {
 		const adapter = fakeAdapter(tenCheckpoints());
 		const { error } = await failure({ ...options, onStatus }, adapter);
 		expect(error).toMatchObject({ name: 'SuiStreamError', code: 'InvalidOptions' });
-		expect(adapter.calls).toMatchObject({ initialize: 1, indexedTip: 1, scans: [] });
+		expect(adapter.calls).toMatchObject({ initialize: 1, indexedTip: 1, pages: [] });
 		expect(log.filter((status) => status.startsWith('Retrying'))).toEqual([]);
 	});
 
@@ -200,7 +200,7 @@ describe('option errors', () => {
 					: { start: { checkpoint: 3 }, end: { resumeToken: token } };
 			const { error } = await failure(options, adapter);
 			expect(error.code).toBe('InvalidToken');
-			expect(adapter.calls.scans).toHaveLength(0);
+			expect(adapter.calls.pages).toHaveLength(0);
 		},
 	);
 });
@@ -220,7 +220,7 @@ describe('range planning', () => {
 		expect(ids(frames)).toEqual(['8:0']);
 		expect(adapter.calls.indexedTip).toBe(1);
 		// At the tip it subscribes at once; the reconnect, never live, reads history first.
-		expect(adapter.calls.scans.map((scan) => scan.start)).toEqual([{ checkpoint: 8n }]);
+		expect(adapter.calls.pages.map((page) => page.range)).toEqual([{ start: 8n }]);
 	});
 
 	it('uses the indexed tip that initialize returned instead of reading it again', async () => {
@@ -239,7 +239,7 @@ describe('range planning', () => {
 		expect(adapter.calls.indexedTip).toBe(0);
 	});
 
-	it('lets an adapter that anchors at the live tip follow without a tip read or scan', async () => {
+	it('lets an adapter that anchors at the live tip follow without a tip read or page', async () => {
 		const ledger = tenCheckpoints();
 		const adapter = fakeAdapter(ledger, {
 			anchorsAtLiveTip: true,
@@ -248,7 +248,7 @@ describe('range planning', () => {
 		const frames = await take(stream(adapter, { frames: { progress: true } }), 3);
 		expect(frames.map((frame) => frame.$kind)).toEqual(['Progress', 'Item', 'Item']);
 		expect(adapter.calls.indexedTip).toBe(0);
-		expect(adapter.calls.scans).toHaveLength(0);
+		expect(adapter.calls.pages).toHaveLength(0);
 	});
 
 	it('captures the indexed tip once as the end of a finite ascending read', async () => {
@@ -258,14 +258,15 @@ describe('range planning', () => {
 		);
 		expect(ids(frames)).toEqual(['8:0', '9:0', '10:0']);
 		expect(adapter.calls.indexedTip).toBe(1);
-		expect(adapter.calls.scans[0]).toMatchObject({ end: { checkpoint: 11n }, capturedTip: 10n });
+		expect(adapter.calls.pages[0]).toMatchObject({ range: { start: 8n, end: 11n } });
 		expect(frames.at(-1)).toMatchObject({
 			$kind: 'Complete',
 			completion: {
 				reason: 'indexedTip',
 				order: 'ascending',
 				range: { start: { checkpoint: '8' }, end: { checkpoint: '11' }, capturedCheckpoint: '10' },
-				resumeToken: tokenOf(frames[2]),
+				// The boundary after the range: resuming it reads nothing.
+				resumeToken: expect.stringMatching(/^sui-stream:/),
 			},
 		});
 	});
@@ -276,7 +277,11 @@ describe('range planning', () => {
 		const adapter = fakeAdapter(ledger);
 		const frames = await collect(stream(adapter, { start: { resumeToken: token } }));
 		expect(adapter.calls.indexedTip).toBe(0);
-		expect(adapter.calls.scans[0]).toMatchObject({ order: 'descending', capturedTip: 10n });
+		expect(adapter.calls.pages[0]).toMatchObject({
+			order: 'descending',
+			range: { end: 11n },
+			before: cursorOf({ checkpoint: 10n, index: 0 }),
+		});
 		expect(ids(frames)).toEqual([
 			'9:0',
 			'8:0',
@@ -314,7 +319,8 @@ describe('range planning', () => {
 		const { resumeToken } = (completion as SuiClientTypes.StreamCompletionFrame).completion;
 		await collect(stream(resumed, { start: { resumeToken: resumeToken! } }));
 		expect(resumed.calls.indexedTip).toBe(0);
-		expect(resumed.calls.scans[0]).toMatchObject({ end: { checkpoint: 3n } });
+		// It sits at the range's end, so the resumed range is already complete.
+		expect(resumed.calls.pages).toHaveLength(0);
 	});
 
 	it('reports the invocation start, not the original start, when resuming', async () => {
@@ -359,10 +365,9 @@ describe('range planning', () => {
 		const frames = await collect(
 			stream(adapter, { start: { resumeToken: start }, end: { resumeToken: end } }),
 		);
-		expect(adapter.calls.scans[0]).toMatchObject({
-			order: 'ascending',
-			end: { position: positionOf({ checkpoint: 6n, index: 0 }) },
-		});
+		// The end's checkpoint bounds the read, and its coordinates stop it.
+		expect(adapter.calls.pages[0]).toMatchObject({ order: 'ascending', range: { end: 7n } });
+		expect(adapter.calls.pages[0].before).toBeUndefined();
 		expect(ids(frames)).toEqual(['3:0', '4:0', '5:0']);
 	});
 
@@ -375,7 +380,7 @@ describe('range planning', () => {
 	});
 
 	it.each(['ascending', 'descending'] as const)(
-		'completes equal %s bounds without a scan',
+		'completes equal %s bounds without a request',
 		async (order) => {
 			const adapter = fakeAdapter(tenCheckpoints());
 			const frames = await collect(
@@ -386,7 +391,7 @@ describe('range planning', () => {
 					frames: { completion: true },
 				}),
 			);
-			expect(adapter.calls.scans).toHaveLength(0);
+			expect(adapter.calls.pages).toHaveLength(0);
 			expect(frames).toMatchObject([
 				{ $kind: 'Complete', completion: { reason: 'checkpointBound' } },
 			]);
@@ -414,14 +419,11 @@ describe('range planning', () => {
 		const token = tokenOf(
 			(await take(stream(first, { start: { checkpoint: 0 }, follow: false }), 1))[0],
 		);
-		expect(first.calls.scans[0]).toMatchObject({ end: { checkpoint: max + 1n }, capturedTip: max });
+		expect(first.calls.pages[0]).toMatchObject({ range: { end: max + 1n } });
 		const resumed = fakeAdapter(ledger);
 		await collect(stream(resumed, { start: { resumeToken: token } }));
 		expect(resumed.calls.indexedTip).toBe(0);
-		expect(resumed.calls.scans[0]).toMatchObject({
-			end: { checkpoint: max + 1n },
-			capturedTip: max,
-		});
+		expect(resumed.calls.pages[0]).toMatchObject({ range: { end: max + 1n } });
 	});
 
 	it('starts a descending read without a start at the indexed tip and ends at genesis', async () => {
@@ -430,7 +432,7 @@ describe('range planning', () => {
 			stream(adapter, { order: 'descending', frames: { completion: true } }),
 		);
 		expect(ids(frames)).toEqual(['2:0', '1:0', '0:0']);
-		expect(adapter.calls.scans[0]).toMatchObject({ start: { checkpoint: 2n }, capturedTip: 2n });
+		expect(adapter.calls.pages[0]).toMatchObject({ range: { end: 3n } });
 		expect(frames.at(-1)).toMatchObject({
 			completion: {
 				reason: 'genesis',

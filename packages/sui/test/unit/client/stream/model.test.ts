@@ -27,7 +27,7 @@ import {
 	type FakeOutput,
 	type FakePosition,
 	type LiveScript,
-	type ScanFault,
+	type PageFault,
 } from './fake-ledger.js';
 
 const SEEDS = 200;
@@ -85,13 +85,13 @@ function scenario(seed: number): Scenario {
 
 	const faults = (ledger: Ledger, rng: Random): FakeOptions => ({
 		pageSize,
-		scanProgress: rng.chance(0.5),
-		afterScan: (l) => {
+		watermarks: rng.chance(0.5),
+		afterRead: (l) => {
 			if (rng.chance(0.6) && l.indexedTip < BigInt(last)) l.indexedTip += 1n;
 		},
-		scanFaults: Array.from({ length: 20 }, (): ScanFault | undefined => {
-			if (rng.chance(0.15)) return { failAfterItems: rng.int(0, 3), error: new NetworkError() };
-			if (rng.chance(0.15)) return { repeatStartCursor: true };
+		pageFaults: Array.from({ length: 40 }, (): PageFault | undefined => {
+			if (rng.chance(0.1)) return { error: new NetworkError() };
+			if (rng.chance(0.1)) return { repeatCursor: true };
 			return undefined;
 		}),
 		live: (connection, after) =>
