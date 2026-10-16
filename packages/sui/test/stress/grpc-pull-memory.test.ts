@@ -83,3 +83,77 @@ it.skipIf(!gc)('releases consumed chunks while the stream stays open', async () 
 	expect(live).toBeLessThanOrEqual(2);
 	await call.responses.return!();
 });
+
+/** Serves `chunks` one per pull, then never answers again. Keeps no reference to a served chunk. */
+function hangingFetch(chunks: (() => Uint8Array)[]): typeof fetch {
+	let index = 0;
+	const stream = new ReadableStream<Uint8Array>(
+		{
+			pull(controller): Promise<void> | void {
+				if (index >= chunks.length) return new Promise(() => {});
+				controller.enqueue(chunks[index++]());
+			},
+		},
+		{ highWaterMark: 0 },
+	);
+	return (async () =>
+		new Response(stream, {
+			status: 200,
+			headers: { 'content-type': 'application/grpc-web+proto' },
+		})) as unknown as typeof fetch;
+}
+
+async function collected(ref: WeakRef<object>): Promise<boolean> {
+	for (let i = 0; i < 3; i++) {
+		await settle();
+		gc!();
+	}
+	return ref.deref() === undefined;
+}
+
+it.skipIf(!gc)('releases a buffered partial frame when the call is cancelled', async () => {
+	let ref: WeakRef<Uint8Array> | undefined;
+	const fetch = hangingFetch([
+		() => dataFrame(SubscribeCheckpointsResponse.toBinary({ cursor: 0n })),
+		() => {
+			// The first 4 MiB of an 8 MiB frame.
+			const frame = dataFrame(largeMessage(1, 8 * 1024 * 1024)).slice(0, 4 * 1024 * 1024);
+			ref = new WeakRef(frame);
+			return frame;
+		},
+	]);
+	const transport = new GrpcWebFetchTransport({ baseUrl: 'http://localhost', fetch });
+	const call = pullServerStreaming(transport)!(method, {});
+	expect((await call.responses.next()).value?.cursor).toBe(0n);
+	const pending = call.responses.next();
+	await settle();
+	expect(ref?.deref()).toBeDefined();
+	await call.responses.return!();
+	await expect(pending).resolves.toEqual({ done: true, value: undefined });
+	// The cancelled call is still referenced; the bytes it buffered are not.
+	expect(await collected(ref!)).toBe(true);
+	expect(call).toBeDefined();
+});
+
+it.skipIf(!gc)('releases the rest of a coalesced chunk when the consumer breaks', async () => {
+	let ref: WeakRef<Uint8Array> | undefined;
+	const fetch = hangingFetch([
+		() => {
+			const first = dataFrame(SubscribeCheckpointsResponse.toBinary({ cursor: 0n }));
+			const second = dataFrame(largeMessage(1, 4 * 1024 * 1024));
+			const chunk = new Uint8Array(first.length + second.length);
+			chunk.set(first);
+			chunk.set(second, first.length);
+			ref = new WeakRef(chunk);
+			return chunk;
+		},
+	]);
+	const transport = new GrpcWebFetchTransport({ baseUrl: 'http://localhost', fetch });
+	const call = pullServerStreaming(transport)!(method, {});
+	for await (const message of call.responses) {
+		expect(message.cursor).toBe(0n);
+		break;
+	}
+	expect(await collected(ref!)).toBe(true);
+	expect(call).toBeDefined();
+});
