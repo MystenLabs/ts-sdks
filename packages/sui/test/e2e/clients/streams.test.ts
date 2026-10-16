@@ -21,6 +21,7 @@ type Signer = { keypair: Ed25519Keypair; address: string };
 
 const graphqlSubscriptions = inject('graphqlSubscriptions');
 const graphqlSubscriptionProgress = inject('graphqlSubscriptionProgress');
+const streamServerFixes = inject('streamServerFixes');
 
 const LIVE: [ClientKind, Delivery][] = [
 	['grpc', 'subscribe'],
@@ -43,6 +44,18 @@ function listening(kind: ClientKind, delivery: Delivery): Status['$kind'] {
 function missingSubscriptions(kind: ClientKind, delivery: Delivery, family = 'events') {
 	if (kind !== 'graphql' || delivery !== 'subscribe') return false;
 	return !graphqlSubscriptions || (family !== 'checkpoints' && !graphqlSubscriptionProgress);
+}
+
+const MISSING_SERVER_FIXES = 'needs a fullnode and GraphQL service with the stream fixes';
+
+/**
+ * Cases that rely on gRPC subscriptions filling object types and event JSON, or on GraphQL paging
+ * checkpoints after a cursor below the `afterCheckpoint` bound.
+ */
+function missingServerFixes(kind: ClientKind, family: string, delivery: Delivery = 'poll') {
+	if (streamServerFixes) return false;
+	if (kind === 'graphql') return family === 'checkpoints';
+	return delivery === 'subscribe' && family === 'transactions';
 }
 
 /** More events than GraphQL returns for a transaction's nested event list (50). */
@@ -697,7 +710,8 @@ describe('ledger streams', () => {
 		});
 
 		describe.each(KINDS)('%s', (kind) => {
-			it('resumes from event and checkpoint tokens to exactly the remaining items', async () => {
+			it('resumes from event and checkpoint tokens to exactly the remaining items', async (context) => {
+				context.skip(missingServerFixes(kind, 'checkpoints'), MISSING_SERVER_FIXES);
 				const filter = { sender: manySigner.address };
 				const frames = await collect(client(kind).core.streamEvents({ ...range(), filter }));
 				expect(frames).toHaveLength(MANY_EVENTS);
@@ -951,6 +965,7 @@ describe('ledger streams', () => {
 			'delivers %s exactly once from history into live while transactions are submitted, across a resume',
 			async (family, context) => {
 				if (missingSubscriptions(kind, delivery, family)) context.skip();
+				context.skip(missingServerFixes(kind, family, delivery), MISSING_SERVER_FIXES);
 				const { statuses } = await followWhileSubmitting({
 					client: client(kind),
 					kind,
@@ -1129,7 +1144,8 @@ describe('ledger streams', () => {
 
 	describe.each(KINDS)('live items match the list methods (%s)', (kind) => {
 		for (const family of ['transactions', 'events'] as const) {
-			it.skipIf(missingSubscriptions(kind, 'subscribe'))(family, async () => {
+			it.skipIf(missingSubscriptions(kind, 'subscribe'))(family, async (context) => {
+				context.skip(missingServerFixes(kind, family, 'subscribe'), MISSING_SERVER_FIXES);
 				const from = await newSigner();
 				const filter = { sender: from.address };
 				const include = {
