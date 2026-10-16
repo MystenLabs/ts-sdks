@@ -102,6 +102,57 @@ describe('ServerSentEventParser', () => {
 	});
 
 	describe('maxMessageSize', () => {
+		/** The messages yielded before the parser threw, then `'throws'` if it did. */
+		function outcome(chunks: string[], maxMessageSize: number) {
+			const parser = new ServerSentEventParser(maxMessageSize);
+			const results: (ServerSentEvent | 'throws')[] = [];
+			try {
+				for (const chunk of chunks) for (const event of parser.feed(chunk)) results.push(event);
+			} catch (error) {
+				if (!(error instanceof SuiGraphQLRequestError)) throw error;
+				results.push('throws');
+			}
+			return results;
+		}
+
+		it('counts every non-comment line and its terminator', () => {
+			// `event: next\n` is 12 and `data: {"data":1}\n` is 17.
+			const text = 'event: next\ndata: {"data":1}\n: keepalive\n\n';
+			for (const chunks of splits(text)) {
+				expect(outcome(chunks, 29)).toEqual([{ event: 'next', data: '{"data":1}' }]);
+				expect(outcome(chunks, 28)).toEqual(['throws']);
+			}
+		});
+
+		it.each([
+			['LF', '\n'],
+			['CRLF', '\r\n'],
+			['CR', '\r'],
+		])('enforces the limit the same way at every chunk boundary (%s)', (_, eol) => {
+			const text = [
+				'data: {"data":1}',
+				'',
+				': ping',
+				'event: next',
+				'data: a',
+				'data: bc',
+				'',
+				'data: unterminated',
+			].join(eol);
+			for (let max = 0; max <= text.length; max++) {
+				const expected = outcome([text], max);
+				for (const chunks of splits(text)) expect(outcome(chunks, max)).toEqual(expected);
+			}
+		});
+
+		it('does not buffer or count comments', () => {
+			const parser = new ServerSentEventParser(10);
+			expect([...parser.feed(`:${'x'.repeat(100)}`)]).toEqual([]);
+			expect([...parser.feed(`${'x'.repeat(100)}\ndata: 1\n\n`)]).toEqual([
+				{ event: '', data: '1' },
+			]);
+		});
+
 		it('bounds an unterminated line across chunks', () => {
 			const parser = new ServerSentEventParser(10);
 			expect([...parser.feed('data: 12')]).toEqual([]);
@@ -113,7 +164,7 @@ describe('ServerSentEventParser', () => {
 		});
 
 		it('resets the bound for each message', () => {
-			expect(parse(['data: 12345\n\n'.repeat(3)], 10)).toHaveLength(3);
+			expect(parse(['data: 12345\n\n'.repeat(3)], 12)).toHaveLength(3);
 		});
 
 		it('yields earlier messages before reporting an oversized one', () => {

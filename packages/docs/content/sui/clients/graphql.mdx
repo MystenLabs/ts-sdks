@@ -228,9 +228,23 @@ and `retryable` set as for queries. Iteration ends when the server closes the re
 SSE completion event.
 
 Requests begin when iteration starts. Use `break` to leave the `for await...of` loop and close the
-subscription, or call `controller.abort()` to stop while waiting for the next result. `subscribe`
-does not reconnect automatically.
+subscription; the loop then ends normally. Call `controller.abort()` to stop while waiting for the
+next result; unlike `break`, aborting rejects the pending iteration with the signal's reason
+(normally an `AbortError`), so catch it:
 
-Each buffered SSE message is limited to 16 Mi characters by default. Set `maxMessageSize` on
-`subscribe()` to change this limit for larger selections. Exceeding the limit ends the subscription
-with a `SuiGraphQLRequestError`.
+```typescript
+try {
+	for await (const result of client.subscribe({ query: checkpoints, signal: controller.signal })) {
+		console.log(result.data?.checkpoints);
+	}
+} catch (error) {
+	if (!controller.signal.aborted) throw error;
+}
+```
+
+`subscribe` does not reconnect automatically.
+
+Each SSE message is limited to 16 Mi characters by default, counting every line of the message
+except comments, including field names such as `data:` and one character per line break. Set
+`maxMessageSize` on `subscribe()` to change this limit for larger selections. Exceeding the limit
+ends the subscription with a `SuiGraphQLRequestError`.
