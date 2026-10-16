@@ -20,6 +20,7 @@ type Status = SuiClientTypes.StreamStatus;
 type Signer = { keypair: Ed25519Keypair; address: string };
 
 const graphqlSubscriptions = inject('graphqlSubscriptions');
+const graphqlSubscriptionProgress = inject('graphqlSubscriptionProgress');
 
 const LIVE: [ClientKind, Delivery][] = [
 	['grpc', 'subscribe'],
@@ -35,8 +36,13 @@ function listening(kind: ClientKind, delivery: Delivery): Status['$kind'] {
 	return kind === 'graphql' && delivery === 'subscribe' ? 'Connected' : 'Live';
 }
 
-function missingSubscriptions(kind: ClientKind, delivery: Delivery) {
-	return kind === 'graphql' && delivery === 'subscribe' && !graphqlSubscriptions;
+/**
+ * GraphQL streams of transactions and events subscribe with `progressInterval`, which a local
+ * service only has once it ships subscription progress edges.
+ */
+function missingSubscriptions(kind: ClientKind, delivery: Delivery, family = 'events') {
+	if (kind !== 'graphql' || delivery !== 'subscribe') return false;
+	return !graphqlSubscriptions || (family !== 'checkpoints' && !graphqlSubscriptionProgress);
 }
 
 /** More events than GraphQL returns for a transaction's nested event list (50). */
@@ -941,9 +947,10 @@ describe('ledger streams', () => {
 	describe.each(LIVE)('live delivery (%s, %s)', (kind, delivery) => {
 		const skip = missingSubscriptions(kind, delivery);
 
-		it.skipIf(skip).each(['checkpoints', 'transactions', 'events'] as const)(
+		it.for(['checkpoints', 'transactions', 'events'] as const)(
 			'delivers %s exactly once from history into live while transactions are submitted, across a resume',
-			async (family) => {
+			async (family, context) => {
+				if (missingSubscriptions(kind, delivery, family)) context.skip();
 				const { statuses } = await followWhileSubmitting({
 					client: client(kind),
 					kind,
@@ -1170,11 +1177,10 @@ describe('ledger streams', () => {
 	});
 
 	describe.each(KINDS)('forced reconnects (%s)', (kind) => {
-		const skip = missingSubscriptions(kind, 'subscribe');
-
-		it.skipIf(skip).each(['checkpoints', 'events'] as const)(
+		it.for(['checkpoints', 'events'] as const)(
 			'delivers %s exactly once when the live connection resets every 2 s',
-			async (family) => {
+			async (family, context) => {
+				if (missingSubscriptions(kind, 'subscribe', family)) context.skip();
 				const { client: resetting, resets } = resettingClient(kind, 2_000);
 				const { statuses } = await followWhileSubmitting({
 					client: resetting,
