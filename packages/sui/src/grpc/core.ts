@@ -34,7 +34,7 @@ import {
 import type { BuildTransactionOptions } from '../transactions/index.js';
 import { TransactionDataBuilder } from '../transactions/index.js';
 import { bcs } from '../bcs/index.js';
-import { parseTransactionDataBcs } from '../client/transaction-data.js';
+import { grpcTransactionToLedgerTransactionData } from '../client/transaction-data.js';
 import { normalizeStructTag, normalizeSuiAddress } from '../utils/sui-types.js';
 import { SUI_TYPE_ARG } from '../utils/constants.js';
 import type { OpenSignature, OpenSignatureBody } from './proto/sui/rpc/v2/move_package.js';
@@ -1120,7 +1120,15 @@ function transactionReadMaskPaths(
 		'checkpoint',
 	];
 
-	if (include?.transaction || include?.bcs) {
+	if (include?.transaction) {
+		paths.push(
+			'transaction.sender',
+			'transaction.gas_payment',
+			'transaction.expiration',
+			'transaction.kind',
+		);
+	}
+	if (include?.bcs) {
 		paths.push('transaction.bcs');
 	}
 	if (include?.balanceChanges) {
@@ -1591,11 +1599,11 @@ export function parseGrpcTransactionResponse<
 
 	let transactionData: SuiClientTypes.TransactionData | undefined;
 	if (include?.transaction) {
-		const bytes = transaction.transaction?.bcs?.value;
-		if (!bytes) {
-			throw new Error('Transaction BCS is required but missing from gRPC response');
+		const tx = transaction.transaction;
+		if (!tx) {
+			throw new Error('Transaction data is required but missing from gRPC response');
 		}
-		transactionData = parseTransactionDataBcs(bytes);
+		transactionData = grpcTransactionToLedgerTransactionData(tx);
 	}
 
 	const bcsBytes = include?.bcs ? transaction.transaction?.bcs?.value : undefined;

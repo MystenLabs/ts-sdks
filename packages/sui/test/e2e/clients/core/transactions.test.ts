@@ -9,6 +9,7 @@ import {
 	getRandomAddresses,
 } from '../../utils/setup.js';
 import { bcs } from '../../../../src/bcs/index.js';
+import { parseTransactionDataBcs } from '../../../../src/client/transaction-data.js';
 import { Transaction } from '../../../../src/transactions/index.js';
 import {
 	MOCKED_GAS_OBJECT_ID,
@@ -223,7 +224,8 @@ describe('Core API - Transactions', () => {
 						tx.transaction.kind.ProgrammableTransaction ??
 						tx.transaction.kind.ProgrammableSystemTransaction;
 					if (!body) {
-						expect(tx.transaction.kind).toEqual(bcs.TransactionData.parse(tx.bcs).V1.kind);
+						// System kinds map from structured data; check them against the strict BCS decoder.
+						expect(tx.transaction.kind).toEqual(parseTransactionDataBcs(tx.bcs).kind);
 					}
 					expect(tx.transaction.version).toBe(2);
 					kinds.push(tx.transaction.kind.$kind);

@@ -21,7 +21,11 @@ import {
 } from '../grpc/proto/sui/rpc/v2/transaction.js';
 import type { ObjectReference } from '../grpc/proto/sui/rpc/v2/object_reference.js';
 import type { FundsWithdrawal, Input } from '../grpc/proto/sui/rpc/v2/input.js';
-import { FundsWithdrawal_Source, Input_InputKind } from '../grpc/proto/sui/rpc/v2/input.js';
+import {
+	FundsWithdrawal_Source,
+	Input_InputKind,
+	Input_Mutability,
+} from '../grpc/proto/sui/rpc/v2/input.js';
 import type { Command } from '../grpc/proto/sui/rpc/v2/transaction.js';
 import type { Argument } from '../grpc/proto/sui/rpc/v2/argument.js';
 import { Argument_ArgumentKind } from '../grpc/proto/sui/rpc/v2/argument.js';
@@ -35,7 +39,7 @@ function millisecondsToGrpcTimestamp(value: string | number) {
 	};
 }
 
-function grpcTimestampToMilliseconds(timestamp: { seconds: bigint; nanos: number }) {
+export function grpcTimestampToMilliseconds(timestamp: { seconds: bigint; nanos: number }) {
 	return (timestamp.seconds * 1000n + BigInt(Math.floor(timestamp.nanos / 1_000_000))).toString();
 }
 
@@ -65,6 +69,9 @@ function callArgToGrpcInput(arg: CallArg): Input {
 					objectId: arg.Object.SharedObject.objectId,
 					version: BigInt(arg.Object.SharedObject.initialSharedVersion),
 					mutable: arg.Object.SharedObject.mutable,
+					...(arg.Object.SharedObject.mutability === 'NonExclusiveWrite'
+						? { mutability: Input_Mutability.NON_EXCLUSIVE_WRITE }
+						: {}),
 				};
 			} else if (arg.Object.$kind === 'Receiving') {
 				return {
@@ -407,7 +414,26 @@ export function transactionToGrpcJson(transaction: Transaction): unknown {
 	return GrpcTransactionType.toJson(grpcTransaction);
 }
 
-function grpcInputToCallArg(input: Input): CallArg {
+function grpcSharedObjectAccess(input: Input): {
+	mutable: boolean;
+	mutability?: 'NonExclusiveWrite';
+} {
+	switch (input.mutability) {
+		case undefined:
+		case Input_Mutability.MUTABILITY_UNKNOWN:
+			return { mutable: input.mutable ?? false };
+		case Input_Mutability.IMMUTABLE:
+			return { mutable: false };
+		case Input_Mutability.MUTABLE:
+			return { mutable: true };
+		case Input_Mutability.NON_EXCLUSIVE_WRITE:
+			return { mutable: false, mutability: 'NonExclusiveWrite' };
+		default:
+			throw new Error(`Unknown shared object mutability: ${input.mutability}`);
+	}
+}
+
+export function grpcInputToCallArg(input: Input): CallArg {
 	switch (input.kind) {
 		case Input_InputKind.PURE:
 			return {
@@ -436,7 +462,7 @@ function grpcInputToCallArg(input: Input): CallArg {
 					SharedObject: {
 						objectId: input.objectId!,
 						initialSharedVersion: input.version!.toString(),
-						mutable: input.mutable ?? false,
+						...grpcSharedObjectAccess(input),
 					},
 				},
 			};
@@ -497,7 +523,7 @@ function grpcArgumentToTsArgument(
 	}
 }
 
-function grpcCommandToTsCommand(cmd: Command): BcsCommand {
+export function grpcCommandToTsCommand(cmd: Command): BcsCommand {
 	const command = cmd.command;
 	if (!command) {
 		throw new Error('Command is missing');
@@ -583,70 +609,25 @@ export function grpcTransactionToTransactionData(grpcTx: GrpcTransaction): Trans
 		throw new Error('Only programmable transactions are supported');
 	}
 
-	const inputs = programmableTx.programmableTransaction.inputs.map(grpcInputToCallArg);
-	const commands = programmableTx.programmableTransaction.commands.map(grpcCommandToTsCommand);
+	return {
+		...grpcTransactionHeader(grpcTx, { strict: true }),
+		inputs: programmableTx.programmableTransaction.inputs.map(grpcInputToCallArg),
+		commands: programmableTx.programmableTransaction.commands.map(grpcCommandToTsCommand),
+	};
+}
 
-	let expiration: TransactionData['expiration'] = null;
-	if (grpcTx.expiration) {
-		switch (grpcTx.expiration.kind) {
-			case TransactionExpiration_TransactionExpirationKind.NONE:
-				expiration = { $kind: 'None', None: true };
-				break;
-			case TransactionExpiration_TransactionExpirationKind.EPOCH:
-				expiration = { $kind: 'Epoch', Epoch: grpcTx.expiration.epoch!.toString() };
-				break;
-			case TransactionExpiration_TransactionExpirationKind.VALID_DURING:
-				expiration = {
-					$kind: 'ValidDuring',
-					ValidDuring: {
-						minEpoch: grpcTx.expiration.minEpoch?.toString() ?? null,
-						maxEpoch: grpcTx.expiration.epoch?.toString() ?? null,
-						minTimestamp: grpcTx.expiration.minTimestamp
-							? grpcTimestampToMilliseconds(grpcTx.expiration.minTimestamp)
-							: null,
-						maxTimestamp: grpcTx.expiration.maxTimestamp
-							? grpcTimestampToMilliseconds(grpcTx.expiration.maxTimestamp)
-							: null,
-						chain: grpcTx.expiration.chain ?? '',
-						nonce: grpcTx.expiration.nonce ?? 0,
-					},
-				};
-				break;
-			case TransactionExpiration_TransactionExpirationKind.VALIDITY:
-				expiration = {
-					$kind: 'Validity',
-					Validity: {
-						minEpoch: grpcTx.expiration.minEpoch?.toString() ?? null,
-						maxEpoch: grpcTx.expiration.epoch?.toString() ?? null,
-						minTimestamp: grpcTx.expiration.minTimestamp
-							? grpcTimestampToMilliseconds(grpcTx.expiration.minTimestamp)
-							: null,
-						maxTimestamp: grpcTx.expiration.maxTimestamp
-							? grpcTimestampToMilliseconds(grpcTx.expiration.maxTimestamp)
-							: null,
-						chain: grpcTx.expiration.chain ?? '',
-						nonce: grpcTx.expiration.nonce ?? 0,
-						allowedProposers: grpcTx.expiration.allowedProposers
-							? {
-									epoch: grpcTx.expiration.allowedProposers.epoch?.toString() ?? '0',
-									proposers: assertAllowedProposersNotEmpty(
-										grpcTx.expiration.allowedProposers.proposers,
-									),
-								}
-							: null,
-					},
-				};
-				break;
-			default:
-				// Leaving `expiration` null here would drop a restriction the server did send.
-				throw new Error(`Unknown transaction expiration kind: ${grpcTx.expiration.kind}`);
-		}
-	}
-
+/**
+ * Maps the sender, gas data and expiration of a gRPC transaction. With `strict: false`, an
+ * expiration kind this SDK does not recognize maps to `null` instead of throwing.
+ */
+export function grpcTransactionHeader(
+	grpcTx: GrpcTransaction,
+	{ strict }: { strict: boolean },
+): Omit<TransactionData, 'inputs' | 'commands'> {
 	return {
 		version: 2 as const,
 		sender: grpcTx.sender ?? null,
-		expiration,
+		expiration: grpcExpirationToTransactionExpiration(grpcTx.expiration, strict),
 		gasData: {
 			budget: grpcTx.gasPayment?.budget?.toString() ?? null,
 			owner: grpcTx.gasPayment?.owner ?? null,
@@ -658,7 +639,68 @@ export function grpcTransactionToTransactionData(grpcTx: GrpcTransaction): Trans
 				})) ?? null,
 			price: grpcTx.gasPayment?.price?.toString() ?? null,
 		},
-		inputs,
-		commands,
 	};
+}
+
+function grpcExpirationToTransactionExpiration(
+	grpcExpiration: GrpcTransaction['expiration'],
+	strict: boolean,
+): TransactionData['expiration'] {
+	if (!grpcExpiration) {
+		return null;
+	}
+
+	switch (grpcExpiration.kind) {
+		case TransactionExpiration_TransactionExpirationKind.NONE:
+			return { $kind: 'None', None: true };
+		case TransactionExpiration_TransactionExpirationKind.EPOCH:
+			return { $kind: 'Epoch', Epoch: grpcExpiration.epoch!.toString() };
+		case TransactionExpiration_TransactionExpirationKind.VALID_DURING:
+			return {
+				$kind: 'ValidDuring',
+				ValidDuring: {
+					minEpoch: grpcExpiration.minEpoch?.toString() ?? null,
+					maxEpoch: grpcExpiration.epoch?.toString() ?? null,
+					minTimestamp: grpcExpiration.minTimestamp
+						? grpcTimestampToMilliseconds(grpcExpiration.minTimestamp)
+						: null,
+					maxTimestamp: grpcExpiration.maxTimestamp
+						? grpcTimestampToMilliseconds(grpcExpiration.maxTimestamp)
+						: null,
+					chain: grpcExpiration.chain ?? '',
+					nonce: grpcExpiration.nonce ?? 0,
+				},
+			};
+		case TransactionExpiration_TransactionExpirationKind.VALIDITY:
+			return {
+				$kind: 'Validity',
+				Validity: {
+					minEpoch: grpcExpiration.minEpoch?.toString() ?? null,
+					maxEpoch: grpcExpiration.epoch?.toString() ?? null,
+					minTimestamp: grpcExpiration.minTimestamp
+						? grpcTimestampToMilliseconds(grpcExpiration.minTimestamp)
+						: null,
+					maxTimestamp: grpcExpiration.maxTimestamp
+						? grpcTimestampToMilliseconds(grpcExpiration.maxTimestamp)
+						: null,
+					chain: grpcExpiration.chain ?? '',
+					nonce: grpcExpiration.nonce ?? 0,
+					allowedProposers: grpcExpiration.allowedProposers
+						? {
+								epoch: grpcExpiration.allowedProposers.epoch?.toString() ?? '0',
+								proposers: assertAllowedProposersNotEmpty(
+									grpcExpiration.allowedProposers.proposers,
+								),
+							}
+						: null,
+				},
+			};
+		default:
+			// Leaving `expiration` null here would drop a restriction the server did send, so only
+			// reads (which never send the transaction back) tolerate kinds this SDK does not know.
+			if (!strict) {
+				return null;
+			}
+			throw new Error(`Unknown transaction expiration kind: ${grpcExpiration.kind}`);
+	}
 }

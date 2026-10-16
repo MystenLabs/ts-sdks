@@ -65,7 +65,8 @@ together with `@mysten/sui`.
 - **Transaction data (`include: { transaction: true }`) has a `kind` instead of top-level `inputs`
   and `commands`.** Read programmable transactions from `kind.ProgrammableTransaction.inputs` and
   `kind.ProgrammableTransaction.commands`. System transactions such as genesis and consensus commits
-  decode into their own `kind` variants. See
+  map to their own `kind` variants, and kinds the SDK does not recognize map to
+  `{ $kind: 'Unknown', Unknown: true }`; handle `Unknown` wherever you switch on `kind.$kind`. See
   [transaction data](/sui/clients/executing#transaction-data).
 - **`listTransactions` and `listEvents` filters changed.** Predicates are combined with AND, `after`
   and `before` can be used together, and the validation errors have new messages. Update code that

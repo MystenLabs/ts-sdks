@@ -4,7 +4,7 @@
 import { CoreClient } from '../client/core.js';
 import { raceSignal } from '../client/mvr.js';
 import type { SuiClientTypes } from '../client/types.js';
-import { parseTransactionDataBcs } from '../client/transaction-data.js';
+import { grpcTransactionToLedgerTransactionData } from '../client/transaction-data.js';
 import { SUI_TYPE_ARG } from '../utils/constants.js';
 import type { GraphQLQueryOptions, SuiGraphQLClient } from './client.js';
 import type {
@@ -386,12 +386,13 @@ export class GraphQLCoreClient extends CoreClient {
 				signal: options.signal,
 				variables: {
 					digest: options.digest,
+					includeTransaction: options.include?.transaction ?? false,
 					includeEffects: options.include?.effects ?? false,
 					includeEvents: options.include?.events ?? false,
 					includeBalanceChanges: options.include?.balanceChanges ?? false,
 					includeObjectTypes: options.include?.objectTypes ?? false,
 					includeEffectsJson: !!(options.include?.effects || options.include?.objectTypes),
-					includeBcs: !!(options.include?.transaction || options.include?.bcs),
+					includeBcs: options.include?.bcs ?? false,
 				},
 			},
 			(result) => result.transaction,
@@ -410,12 +411,13 @@ export class GraphQLCoreClient extends CoreClient {
 				variables: {
 					transactionDataBcs: toBase64(options.transaction),
 					signatures: options.signatures,
+					includeTransaction: options.include?.transaction ?? false,
 					includeEffects: options.include?.effects ?? false,
 					includeEvents: options.include?.events ?? false,
 					includeBalanceChanges: options.include?.balanceChanges ?? false,
 					includeObjectTypes: options.include?.objectTypes ?? false,
 					includeEffectsJson: !!(options.include?.effects || options.include?.objectTypes),
-					includeBcs: !!(options.include?.transaction || options.include?.bcs),
+					includeBcs: options.include?.bcs ?? false,
 				},
 			},
 			(result) => result.executeTransaction,
@@ -452,13 +454,14 @@ export class GraphQLCoreClient extends CoreClient {
 									},
 								}
 							: transactionToGrpcJson(options.transaction),
+					includeTransaction: options.include?.transaction ?? false,
 					includeEffects: options.include?.effects ?? false,
 					includeEvents: options.include?.events ?? false,
 					includeBalanceChanges: options.include?.balanceChanges ?? false,
 					includeObjectTypes: options.include?.objectTypes ?? false,
 					includeEffectsJson: !!(options.include?.effects || options.include?.objectTypes),
 					includeCommandResults: options.include?.commandResults ?? false,
-					includeBcs: !!(options.include?.transaction || options.include?.bcs),
+					includeBcs: options.include?.bcs ?? false,
 					doGasSelection,
 					checksEnabled: options.checksEnabled ?? true,
 				},
@@ -676,12 +679,13 @@ export class GraphQLCoreClient extends CoreClient {
 					after,
 					last: descending ? limit : undefined,
 					before,
+					includeTransaction: options.include?.transaction ?? false,
 					includeEffects: options.include?.effects ?? false,
 					includeEvents: options.include?.events ?? false,
 					includeBalanceChanges: options.include?.balanceChanges ?? false,
 					includeObjectTypes: options.include?.objectTypes ?? false,
 					includeEffectsJson: !!(options.include?.effects || options.include?.objectTypes),
-					includeBcs: !!(options.include?.transaction || options.include?.bcs),
+					includeBcs: options.include?.bcs ?? false,
 				},
 			},
 			(result) => result.transactions,
@@ -1199,10 +1203,17 @@ function parseTransaction<Include extends SuiClientTypes.TransactionInclude = {}
 
 	let transactionData: SuiClientTypes.TransactionData | undefined;
 	if (include?.transaction) {
-		if (!transaction.transactionBcs) {
-			throw new Error('Transaction BCS is required but missing from GraphQL response');
+		if (!transaction.transactionJson) {
+			throw new Error('Transaction data is required but missing from GraphQL response');
 		}
-		transactionData = parseTransactionDataBcs(fromBase64(transaction.transactionBcs));
+		// `transactionJson` is the gRPC JSON encoding. Unknown fields and enum values, from kinds
+		// newer than this SDK, are dropped so they map to `Unknown` like they do over gRPC.
+		transactionData = grpcTransactionToLedgerTransactionData(
+			GrpcTransactionType.fromJson(
+				transaction.transactionJson as Parameters<typeof GrpcTransactionType.fromJson>[0],
+				{ ignoreUnknownFields: true },
+			),
+		);
 	}
 
 	const bcsBytes =

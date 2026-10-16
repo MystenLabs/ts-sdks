@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { EnumOutputShape } from '@mysten/bcs';
-import type { bcs } from '../bcs/index.js';
+import type {
+	EndOfEpochTransactionKind as BcsEndOfEpochTransactionKindSchema,
+	TransactionKind as BcsTransactionKindSchema,
+} from '../bcs/transactions.js';
 import type {
 	TransactionPlugin,
 	SerializedTransactionDataV2,
@@ -23,6 +26,9 @@ export type SuiClientRegistration<
 };
 
 export type ClientWithExtensions<T, Base extends BaseClient = BaseClient> = Base & T;
+
+type BcsTransactionKind = typeof BcsTransactionKindSchema.$inferType;
+type BcsEndOfEpochTransactionKind = typeof BcsEndOfEpochTransactionKindSchema.$inferType;
 
 export namespace SuiClientTypes {
 	export type Network = 'mainnet' | 'testnet' | 'devnet' | 'localnet' | (string & {});
@@ -445,12 +451,19 @@ export namespace SuiClientTypes {
 
 	export type TransactionGasData = TransactionData['gasData'];
 	export type TransactionExpiration = TransactionData['expiration'];
-	/** Discriminate ledger transaction kinds using `kind.$kind`. */
+	/**
+	 * Discriminate ledger transaction kinds using `kind.$kind`. Kinds this SDK version does not
+	 * recognize, or whose contents it cannot map, are returned as `Unknown` rather than failing
+	 * the request.
+	 */
 	export type TransactionKind = EnumOutputShape<{
-		[Kind in (typeof bcs.TransactionKind.$inferType)['$kind']]: Kind extends
-			'ProgrammableTransaction' | 'ProgrammableSystemTransaction'
-			? ProgrammableTransaction
-			: NonNullable<(typeof bcs.TransactionKind.$inferType)[Kind]>;
+		[Kind in BcsTransactionKind['$kind'] | 'Unknown']: Kind extends 'Unknown'
+			? true
+			: Kind extends 'ProgrammableTransaction' | 'ProgrammableSystemTransaction'
+				? ProgrammableTransaction
+				: Kind extends 'EndOfEpochTransaction'
+					? EndOfEpochTransactionKind[]
+					: NonNullable<BcsTransactionKind[Exclude<Kind, 'Unknown'>]>;
 	}>;
 	export type ProgrammableTransaction = Pick<SerializedTransactionDataV2, 'inputs' | 'commands'>;
 	export type TransactionInput = ProgrammableTransaction['inputs'][number];
@@ -466,8 +479,25 @@ export namespace SuiClientTypes {
 	export type AuthenticatorStateUpdate = NonNullable<TransactionKind['AuthenticatorStateUpdate']>;
 	export type ActiveJwk = AuthenticatorStateUpdate['newActiveJwks'][number];
 	export type RandomnessStateUpdate = NonNullable<TransactionKind['RandomnessStateUpdate']>;
-	export type EndOfEpochTransaction = NonNullable<TransactionKind['EndOfEpochTransaction']>;
-	export type EndOfEpochTransactionKind = EndOfEpochTransaction[number];
+	export type EndOfEpochTransaction = EndOfEpochTransactionKind[];
+	/**
+	 * An operation run by an end-of-epoch transaction. Operations this SDK version does not
+	 * recognize are returned as `Unknown`.
+	 */
+	export type EndOfEpochTransactionKind = EnumOutputShape<{
+		[Kind in BcsEndOfEpochTransactionKind['$kind'] | 'Unknown']: Kind extends 'Unknown'
+			? true
+			: Kind extends 'BridgeStateCreate'
+				? BridgeStateCreate
+				: NonNullable<BcsEndOfEpochTransactionKind[Exclude<Kind, 'Unknown'>]>;
+	}>;
+	export interface BridgeStateCreate {
+		/**
+		 * The chain identifier the bridge was created for: the first 4 bytes of the genesis
+		 * checkpoint digest, hex encoded.
+		 */
+		chainId: string;
+	}
 
 	export interface GetTransactionOptions<
 		Include extends TransactionInclude = {},
