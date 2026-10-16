@@ -17,6 +17,7 @@ import {
 	CLIENT_PROTOCOL_VERSION_HEADER,
 	MAX_PROTOCOL_VERSION,
 } from '../client/protocol-version.js';
+import { toNetworkRpcError } from './network-error.js';
 
 // A failed call rejects four promises with the same error, so it is only decoded once. Registered
 // globally so another installed copy of this package sees the same marker.
@@ -131,6 +132,40 @@ function normalizeRejections(promises: Promise<unknown>[], signal: AbortSignal |
 	}
 }
 
+// Upstream erases fetch and body-read failures into INTERNAL. Wrap the fetch used for server
+// streams so those failures surface as UNAVAILABLE (see `toNetworkRpcError`).
+function streamFetch(fetch: typeof globalThis.fetch): typeof globalThis.fetch {
+	return async (input, init) => {
+		let response: Response;
+		try {
+			response = await fetch(input, init);
+		} catch (error) {
+			throw toNetworkRpcError(error, init?.signal);
+		}
+		if (!response.body) return response;
+		const reader = response.body.getReader();
+		const body = new ReadableStream<Uint8Array>({
+			async pull(controller) {
+				try {
+					const next = await reader.read();
+					if (next.done) controller.close();
+					else controller.enqueue(next.value);
+				} catch (error) {
+					controller.error(toNetworkRpcError(error, init?.signal));
+				}
+			},
+			cancel(reason) {
+				return reader.cancel(reason);
+			},
+		});
+		return new Response(body, {
+			status: response.status,
+			statusText: response.statusText,
+			headers: response.headers,
+		});
+	};
+}
+
 /**
  * `GrpcWebFetchTransport` from `@protobuf-ts/grpcweb-transport`, subclassed to decode status
  * messages, to code an aborted call from its reason rather than as `INTERNAL`, to send the
@@ -170,7 +205,10 @@ export class GrpcWebFetchTransport extends UpstreamGrpcWebFetchTransport {
 		input: I,
 		options: RpcOptions,
 	): ServerStreamingCall<I, O> {
-		const call = super.serverStreaming(method, input, options);
+		const call = super.serverStreaming(method, input, {
+			...options,
+			fetch: streamFetch((options as GrpcWebOptions).fetch ?? globalThis.fetch),
+		} as GrpcWebOptions);
 
 		// A finite stream is often read through `responses` without awaiting `status`.
 		call.responses.onError((error) => normalizeGrpcError(error, options.abort));
