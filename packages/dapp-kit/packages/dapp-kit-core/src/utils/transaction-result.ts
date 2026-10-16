@@ -34,18 +34,11 @@ export function buildTransactionResult(
 	let transaction: SuiClientTypes.TransactionData;
 	try {
 		transaction = parseTransactionDataBcs(transactionBytes);
-	} catch {
-		console.warn(
-			'Parsing transaction data failed, you may need to update the SDK to pickup the latest bcs types',
+	} catch (error) {
+		throw new Error(
+			'Failed to parse the transaction data returned by the wallet, you may need to update the SDK to pick up the latest bcs types',
+			{ cause: error },
 		);
-		// BCS cannot be partially decoded, so nothing past an unrecognized variant is available.
-		transaction = {
-			version: 2,
-			sender: null,
-			gasData: { budget: null, owner: null, payment: null, price: null },
-			expiration: null,
-			kind: { $kind: 'Unknown', Unknown: true },
-		};
 	}
 
 	const txResult: SuiClientTypes.Transaction<{ effects: true; transaction: true; bcs: true }> = {
