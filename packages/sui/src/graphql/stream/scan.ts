@@ -59,26 +59,26 @@ export function resolveScanWindow(
 	const high = ascending ? request.end : request.start;
 	const window: ScanWindow = { lower: 0n, upper: indexed.tip + 1n };
 
-	if (low && 'position' in low) {
-		// A boundary made without a page has no cursor; its checkpoint bounds the window alone.
-		if (low.position.cursor) window.after = low.position.cursor;
+	if (low && 'position' in low && isBoundary(low.position)) {
+		// A boundary is a checkpoint bound: everything through its checkpoint lies before it.
+		window.lower = low.position.checkpoint! + 1n;
+	} else if (low && 'position' in low) {
+		window.after = low.position.cursor;
 		const checkpoint = low.position.checkpoint;
-		// A checkpoint or a boundary excludes its whole checkpoint; a transaction or event shares
-		// it with the items after it.
-		const closesCheckpoint = onePerCheckpoint || isBoundary(low.position);
-		if (checkpoint !== null) window.lower = closesCheckpoint ? checkpoint + 1n : checkpoint;
+		// A checkpoint excludes its whole checkpoint; a transaction or event shares it with the
+		// items after it.
+		if (checkpoint !== null) window.lower = onePerCheckpoint ? checkpoint + 1n : checkpoint;
 	} else if (low) {
 		// An ascending start is inclusive; a descending end is exclusive.
 		window.lower = checkpointBound(low) + (ascending ? 0n : 1n);
 	}
 
-	if (high && 'position' in high) {
+	if (high && 'position' in high && isBoundary(high.position)) {
+		// The same checkpoint bound on the high side: an exclusive end after its checkpoint.
+		const upper = high.position.checkpoint! + 1n;
+		if (upper < window.upper) window.upper = upper;
+	} else if (high && 'position' in high) {
 		window.before = high.position.cursor;
-		const checkpoint = high.position.checkpoint;
-		// Nothing after a boundary's checkpoint lies before it.
-		if (checkpoint !== null && isBoundary(high.position) && checkpoint < window.upper) {
-			window.upper = checkpoint + 1n;
-		}
 	} else if (high) {
 		// An ascending end is exclusive; a descending start is inclusive.
 		const upper = checkpointBound(high) + (ascending ? 0n : 1n);
@@ -141,14 +141,15 @@ export async function* scanLedger<Node>(
 		// Nothing to read yet. An ascending checkpoint start still gets a resumable position, so a
 		// quiet stream (such as a fresh follow anchored at the tip) has a token before any match.
 		if (!descending && start && 'checkpoint' in start && window.lower > 0n) {
-			yield { $kind: 'Progress', position: boundaryPosition('', window.lower - 1n) };
+			yield { $kind: 'Progress', position: boundaryPosition(window.lower - 1n) };
 		}
 		yield { $kind: 'End', complete };
 		return;
 	}
 
 	const range = checkpointRange(window, family.onePerCheckpoint);
-	const endItem = end && 'position' in end ? end.position : undefined;
+	// An item or frontier end is excluded by its cursor; a boundary end is a checkpoint bound.
+	const endItem = end && 'position' in end && !isBoundary(end.position) ? end.position : undefined;
 	let { after, before } = window;
 	let last = start && 'position' in start ? start.position : undefined;
 	// The last checkpoint the pages read so far could have returned, which a lagging replica
@@ -167,9 +168,19 @@ export async function* scanLedger<Node>(
 			signal,
 		});
 		if (page.viewedAt !== null) {
-			// A replica behind the start would silently miss the newest items: read again later.
+			// A replica behind where this page reads from would silently miss items: read again
+			// later, from the last delivered position. A descending page reads down from the last
+			// delivered item (or the start); an ascending one only from a position start, since later
+			// ascending pages from a lagging replica just end early, and `seen` records that.
 			const first = after === window.after && before === window.before;
-			if (first && resumesFromIndex && startBeyondTip(start, page.viewedAt, positionCheckpoint)) {
+			const from = descending
+				? last
+					? requiredCheckpoint(last)
+					: window.upper - 1n
+				: first && start && 'position' in start
+					? requiredCheckpoint(start.position)
+					: null;
+			if (from !== null && page.viewedAt < from) {
 				yield { $kind: 'End', complete: false };
 				return;
 			}
@@ -294,7 +305,7 @@ function exhaustedProgress(
 	{ order, end }: Pick<ScanRequest<GraphQLPosition>, 'order' | 'end'>,
 ): Extract<ScanEvent<GraphQLPosition, never>, { $kind: 'Progress' }> | undefined {
 	if (order === 'ascending' && !window.before) {
-		return { $kind: 'Progress', position: boundaryPosition(cursor ?? '', seen) };
+		return { $kind: 'Progress', position: boundaryPosition(seen) };
 	}
 	if (hadItems || !cursor) return undefined;
 	return !end || order === 'ascending' ? frontierProgress(cursor, seen) : undefined;

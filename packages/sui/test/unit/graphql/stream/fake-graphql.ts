@@ -25,6 +25,8 @@ export interface SentRequest {
 	operation: string;
 	variables: Variables;
 	signal: AbortSignal;
+	/** The server answering, as it is when the request arrives. */
+	server: FakeServer;
 }
 
 /** One response. A function may change server state (for example, advance the tip). */
@@ -67,7 +69,7 @@ export function fakeGraphQL(options: { tip?: number; first?: number } = {}): Fak
 	const fetch = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
 		const body = JSON.parse(String(init?.body));
 		const operation = /(?:query|subscription)\s+(\w+)/.exec(body.query)![1];
-		const request = { operation, variables: body.variables ?? {}, signal: init!.signal! };
+		const request = { operation, variables: body.variables ?? {}, signal: init!.signal!, server };
 		server.requests.push(request);
 		if (operation === 'ledgerStreamState') return stateResponse(server, request.variables.filters);
 		const script = scripts.get(operation);
@@ -128,11 +130,15 @@ export const httpStatus =
 	() =>
 		new Response('unavailable', { status });
 
-/** Runs `effect` (such as advancing the tip), then answers. */
+/**
+ * Answers, then runs `effect` (such as advancing the tip): the response reflects the state before
+ * it, and every later request sees the state after it.
+ */
 export function after(effect: () => void, answer: Answer): Answer {
 	return (request) => {
+		const response = answer(request);
 		effect();
-		return answer(request);
+		return response;
 	};
 }
 
@@ -143,28 +149,32 @@ export interface Edge {
 
 /**
  * One history page. `cursor` overrides both page cursors (an opaque frontier). `viewedAt` is the
- * checkpoint the answering replica had indexed, when it is behind the reported tip.
+ * checkpoint the answering replica had indexed: the server's tip unless a test sets a lagging one,
+ * or `null` for a server that does not report it.
  */
 export function page(
 	family: Family,
 	edges: Edge[],
-	options: { more?: boolean; cursor?: string; viewedAt?: number } = {},
+	options: { more?: boolean; cursor?: string; viewedAt?: number | null } = {},
 ): Answer {
 	const more = options.more ?? false;
-	return reply({
-		data: {
-			...(options.viewedAt !== undefined && { viewedAt: { sequenceNumber: options.viewedAt } }),
-			[family]: {
-				edges,
-				pageInfo: {
-					hasNextPage: more,
-					hasPreviousPage: more,
-					startCursor: options.cursor ?? edges[0]?.cursor ?? null,
-					endCursor: options.cursor ?? edges.at(-1)?.cursor ?? null,
+	return (request) =>
+		Response.json({
+			data: {
+				...(options.viewedAt !== null && {
+					viewedAt: { sequenceNumber: options.viewedAt ?? request.server.tip },
+				}),
+				[family]: {
+					edges,
+					pageInfo: {
+						hasNextPage: more,
+						hasPreviousPage: more,
+						startCursor: options.cursor ?? edges[0]?.cursor ?? null,
+						endCursor: options.cursor ?? edges.at(-1)?.cursor ?? null,
+					},
 				},
 			},
-		},
-	});
+		});
 }
 
 /**
