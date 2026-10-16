@@ -24,13 +24,8 @@ import type {
 type SuiMoveAbort = SuiJsonRpcTypes.SuiMoveAbort;
 
 /**
- * The `include` sections each `options` field is mapped out of. Three of the
- * mappers read a section they are not named after — legacy effects take input
- * versions and the gas payer from the transaction, object changes take both of
- * those and `objectTypes`, events take the effects' digest — but no mapper
- * reads all five, so a response showing one section need not pay for the rest.
- *
- * `showRawInput` is rebuilt from the submitted bytes alone.
+ * The `include` sections each `options` field is mapped from. Some mappers read sections they
+ * are not named after, such as effects needing the transaction's input versions.
  */
 const SECTION_DEPENDENCIES = {
 	showBalanceChanges: ['balanceChanges'],
@@ -62,12 +57,8 @@ type PossibleOption<Options> = [NonNullable<Options>] extends [never]
 		}[ResponseOption];
 
 /**
- * The `include` {@link mappableIncludeFor} returns for `Options`. Effects are
- * always requested. A section is `true` only when an option that reads it is
- * known to be `true` at compile time; a section that depends on a runtime
- * value is an optional `boolean`, so the Core API types it as absent and a
- * caller has to narrow before reading it. A union of options maps to the union
- * of each member's include.
+ * The `include` {@link mappableIncludeFor} returns for `Options`. Sections that depend on runtime
+ * option values are typed as optional.
  */
 export type MappableIncludeFor<Options> = Options extends unknown
 	? MappableIncludeForMember<Options>
@@ -86,17 +77,9 @@ type MappableIncludeForMember<Options> = { effects: true } & {
 
 /**
  * The `include` to execute (or fetch) a transaction with, so that
- * {@link transactionBlockResponseFromExecution} can build a response for these
- * `options` from the result: the union of the sections each requested option
- * is mapped from, above a floor of the effects. Several mappers read a section
- * they are not named after (legacy effects take input versions and the gas
- * payer from the transaction, object changes also need `objectTypes`, events
- * take the effects' digest), so pass this rather than a hand-built include.
- *
- * The return type only promises the sections it can see the options request:
- * for options known only at runtime (a dApp's request), every section but the
- * effects is optional. Build the response from the *same* `options`; a section
- * those options never fetched is left out of the response.
+ * {@link transactionBlockResponseFromExecution} can build a response for the same `options`. Use
+ * this rather than a hand-built include, since some response fields need sections they are not
+ * named after.
  */
 export function mappableIncludeFor<
 	const Options extends SuiTransactionBlockResponseOptions | null | undefined = undefined,
@@ -180,42 +163,23 @@ export interface TransactionBlockExecutionContext {
  * });
  * ```
  *
- * Accepts a transaction parsed with any `include`. Parse it with at least
- * {@link mappableIncludeFor} of these same `options` — several mappers read a
- * section they are not named after, and a requested field whose sections are
- * missing is left out of the response. `options` prunes the **output**,
- * exactly as the JSON-RPC node did.
+ * Execute with {@link mappableIncludeFor} of the same `options`; a requested field whose
+ * sections are missing is left out of the response. A section that cannot be mapped is also left
+ * out, while the rest of the response is still returned.
  *
- * Known fidelity limits, unchanged from what JSON-RPC itself returned on
- * execute unless noted:
+ * Known differences from a JSON-RPC execution response:
  *
- * - `timestampMs` and `checkpoint` are null: they belong to the read API, not
- *   the execution API.
- * - `errors` is always empty. A failed execution reports through
- *   `effects.status`; the node's execute path built the response with an empty
- *   `errors` unconditionally and only ever filled the field in the read API.
- * - `confirmedLocalExecution` is synthesised — true only when the dApp asked
- *   for `WaitForLocalExecution` and the wallet's own wait resolved. An omitted
- *   `requestType` means `WaitForEffectsCert`, the node's default.
- * - `rawEffects` is omitted, not empty, when the execution came back without
- *   its effects BCS, as the node did. Consumers parse whatever is there as
- *   effects, so an empty array would be worse than an absent field.
- * - `published` object changes carry the module names of every `Publish` and
- *   `Upgrade` command in the transaction. Effects do not say which command
- *   wrote which package, so a transaction touching more than one package gets
- *   the union on each change.
- * - `effects.accumulatorEvents` is omitted; the legacy shape has no field for
- *   it.
- * - A `fundsWithdrawal` input drawn from an allowance has `withdrawFrom` set to
- *   `{ senderAllowance: { funder, allowance } }`; consumers that only compare it against the
- *   two string values see neither.
- * - Error-string wording, event `parsedJson` shape, `balanceChanges.owner`
- *   (always `AddressOwner`) and pure-input decoding are best-effort.
- *
- * Each optional section is mapped independently: if one throws, that section is
- * omitted and the rest of the response still returns. `digest`,
- * `rawTransaction` and `rawEffects`, the fields dApps depend on most, do not
- * depend on any other section, so a failure elsewhere cannot cost them.
+ * - `timestampMs` and `checkpoint` are null and `errors` is empty, as JSON-RPC returned on
+ *   execute.
+ * - `confirmedLocalExecution` is `true` only when `requestType` is `WaitForLocalExecution` and
+ *   `waited` is `true`.
+ * - In a transaction that publishes or upgrades several packages, each `published` change lists
+ *   the modules of all of them.
+ * - `effects.accumulatorEvents` is omitted.
+ * - An allowance-funded `fundsWithdrawal` input has `withdrawFrom` set to
+ *   `{ senderAllowance: { funder, allowance } }`.
+ * - Error strings, event `parsedJson`, `balanceChanges.owner` and decoded pure inputs are
+ *   best-effort.
  */
 export function transactionBlockResponseFromExecution(
 	executed: SuiClientTypes.Transaction<SuiClientTypes.TransactionInclude>,
@@ -241,10 +205,8 @@ export function transactionBlockResponseFromExecution(
 		}
 	}
 
-	// `effects.bcs` is the same BCS blob the node returned as a byte array. The
-	// node skipped `raw_effects` when it was empty, so an execution that came
-	// back without the blob has to leave the field off rather than hand a
-	// consumer zero bytes to parse as effects.
+	// Leave the field off rather than empty, as the node did: consumers parse whatever is
+	// there as effects.
 	if (options?.showRawEffects && transaction.effects?.bcs?.byteLength) {
 		response.rawEffects = Array.from(transaction.effects.bcs);
 	}
@@ -264,9 +226,8 @@ export function transactionBlockResponseFromExecution(
 				withSections(transaction, SECTION_DEPENDENCIES.showEffects),
 			);
 			const abortError = moveAbortFromExecutionError(transaction.status.error);
-			// Only the execute path carries this. Adding it inside
-			// `mapTransactionEffects` would change the dry-run shape for failed
-			// dry runs, which JSON-RPC never reported an abort in.
+			// Added here rather than in `mapTransactionEffects` because JSON-RPC dry runs never
+			// reported an abort error.
 			return abortError ? { ...effects, abortError } : effects;
 		});
 	}
@@ -295,10 +256,8 @@ export function transactionBlockResponseFromExecution(
 }
 
 /**
- * The legacy `effects.abortError`, for a transaction that failed on a Move
- * abort. Core reports the abort as one arm of `status.error`; the legacy shape
- * is a flatter, snake_cased struct, and `line` has no exact counterpart — the
- * clever-error line number is the closest the node gives us.
+ * The legacy `effects.abortError` for a Move abort. `line` uses the clever-error line number, the
+ * closest available counterpart.
  */
 function moveAbortFromExecutionError(
 	error: SuiClientTypes.ExecutionError | null | undefined,
@@ -319,11 +278,7 @@ function moveAbortFromExecutionError(
 	};
 }
 
-/**
- * Runs one section's mapper, yielding `undefined` rather than failing the whole
- * response. A dApp that asked for `showObjectChanges` and hits an unmappable
- * change still gets its digest and raw bytes.
- */
+/** Runs one section's mapper, yielding `undefined` rather than failing the whole response. */
 function section<T>(map: () => T): T | undefined {
 	try {
 		return map();

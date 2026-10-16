@@ -29,12 +29,8 @@ const OBJECT_DIGEST_DELETED = toBase58(Uint8Array.from({ length: 32 }, () => 99)
 const OBJECT_DIGEST_WRAPPED = toBase58(Uint8Array.from({ length: 32 }, () => 88));
 
 /**
- * Every `include` section the legacy mappers read. `dryRunFromSimulation`
- * requires all five: it maps each one unconditionally, and they cross-reference
- * — effects needs the transaction's input versions, object changes need
- * `objectTypes`. `transactionBlockResponseFromExecution` maps only the sections
- * its `options` ask for, so an execution can be parsed with the narrower
- * include {@link mappableIncludeFor} returns.
+ * Every `include` section the legacy mappers read. `dryRunFromSimulation` requires all of them;
+ * for executions, {@link mappableIncludeFor} returns the subset a response's `options` need.
  */
 export const MAPPABLE_TRANSACTION_INCLUDE = {
 	balanceChanges: true,
@@ -51,32 +47,22 @@ export type MappableTransaction = SuiClientTypes.Transaction<typeof MAPPABLE_TRA
  * Builds the JSON-RPC `DryRunTransactionBlockResponse` from a transaction returned by the Core
  * API's `simulateTransaction`, for consumers that read the JSON-RPC dry-run shape. Not for new code.
  *
- * The transaction must be parsed with every section in {@link MAPPABLE_TRANSACTION_INCLUDE}: each
- * one is mapped unconditionally, and they cross-reference (effects need the transaction's input
- * versions, object changes need `objectTypes`).
+ * The transaction must be parsed with every section in {@link MAPPABLE_TRANSACTION_INCLUDE}.
  *
- * The shape is reconstructed rather than read, so a few fields are best-effort:
+ * Known differences from a JSON-RPC dry run:
  *
- * - `suggestedGasPrice` is always null.
- * - `published` object changes carry the module names of every `Publish` and `Upgrade` command in
- *   the transaction. Effects do not say which command wrote which package, so a transaction that
- *   touches more than one package gets the union on each change.
- * - `effects.accumulatorEvents` is omitted, and accumulator writes are left out of the effects.
- * - When gas is paid from an address balance there is no gas coin, so `effects.gasObject` carries
- *   an empty reference owned by the gas payer.
- * - Error-string wording, event `parsedJson` shape, `balanceChanges.owner` (always
- *   `AddressOwner`) and pure-input decoding are best-effort. Pure inputs are decoded using the
- *   type implied by the command that uses them, falling back to a guess from their length and
- *   then to raw bytes.
- * - Some effect reference versions are numbers at runtime, as the JSON-RPC node returned them,
- *   even though the type says string.
- * - A `fundsWithdrawal` input drawn from an allowance has `withdrawFrom` set to
- *   `{ senderAllowance: { funder, allowance } }`; consumers that only compare it against the two
- *   string values see neither.
+ * - `suggestedGasPrice` is always null, and `effects.accumulatorEvents` is omitted.
+ * - In a transaction that publishes or upgrades several packages, each `published` change lists
+ *   the modules of all of them.
+ * - When gas is paid from an address balance, `effects.gasObject` is an empty reference owned by
+ *   the gas payer.
+ * - An allowance-funded `fundsWithdrawal` input has `withdrawFrom` set to
+ *   `{ senderAllowance: { funder, allowance } }`.
+ * - Error strings, event `parsedJson`, `balanceChanges.owner` and decoded pure inputs are
+ *   best-effort.
  *
  * Throws if any section cannot be mapped; use {@link tryDryRunFromSimulation} to get `undefined`
  * instead.
-
  */
 export function dryRunFromSimulation(
 	transaction: MappableTransaction,
@@ -95,7 +81,6 @@ export function dryRunFromSimulation(
 /**
  * Like {@link dryRunFromSimulation}, but returns `undefined` instead of throwing when the
  * transaction is missing or cannot be mapped.
-
  */
 export function tryDryRunFromSimulation(
 	transaction: MappableTransaction | null | undefined,
@@ -419,15 +404,9 @@ function toJsonRpcObjectChangeVersion(version: string | number | null | undefine
 }
 
 /**
- * Gas paid from an address balance settles against the accumulator instead of a
- * gas coin, so the node reports no gas object and every field of
- * `effects.gasObject` comes back null. The Core client still materialises the
- * object, so it cannot be recognised by a truthiness check — the output
- * reference is what tells the two cases apart.
- *
- * The payer is still known from the transaction's gas data, and only the owner
- * is rendered (the gas summary reads it), so an empty reference costs nothing
- * where discarding the dry run would empty the whole approval preview.
+ * Gas paid from an address balance has no gas coin, but the Core client still returns a
+ * `gasObject` with null fields, so check the output reference. In that case return an empty
+ * reference owned by the payer, which is all the gas summary reads.
  */
 function mapGasObject(
 	transaction: Pick<MappableTransaction, 'effects' | 'transaction'>,
@@ -493,12 +472,8 @@ function wrappedObjectRef(
 }
 
 /**
- * An existing object written back under a different owner. An object moved
- * under another object (`transfer::transfer` to an object id, `public_receive`
- * patterns) is not one of these: it still exists as its own object, and the
- * node reported it as `mutated` with an `ObjectOwner` owner. Only an object
- * that stops existing as its own object (`outputState: 'DoesNotExist'` without
- * a delete) was ever `wrapped`.
+ * An existing object written back under a different owner. JSON-RPC reported an object
+ * transferred to another object as `mutated`, not `wrapped`.
  */
 function isJsonRpcTransferredWrite(change: SuiClientTypes.ChangedObject): boolean {
 	if (
@@ -898,11 +873,7 @@ function mapArgument(arg: unknown): SuiArgument {
 	throw new Error(`Unsupported transaction argument ${JSON.stringify(arg)}`);
 }
 
-/**
- * The module names the node put on a `published` object change. An upgrade
- * writes a new package object, so it reaches that branch too, carrying the
- * whole module set the upgrade resubmitted.
- */
+/** The module names of every `Publish` and `Upgrade` command, for `published` object changes. */
 function getPublishedModuleNames(transaction: SuiClientTypes.TransactionData): string[] {
 	return transaction.commands.flatMap((command) => {
 		const modules = hasKey(command, 'Publish')
