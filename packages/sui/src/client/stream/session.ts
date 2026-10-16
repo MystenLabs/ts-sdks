@@ -7,14 +7,12 @@ import type {
 	Bound,
 	CoreFrame,
 	Coverage,
-	FollowSession,
 	LedgerStreamAdapter,
 	LiveEvent,
-	LiveFeed,
 	PositionEvent,
-	ScanEvent,
 } from './adapter.js';
-import { StreamDisconnected, SuiStreamError } from './errors.js';
+import { StreamDisconnected } from './errors.js';
+import { readPages } from './pager.js';
 import { rangeEndBound, type StreamPlan } from './plan.js';
 import type { StatusReporter } from './status.js';
 import {
@@ -23,7 +21,6 @@ import {
 	coverageBefore,
 	maxCoverage,
 	nextUncovered,
-	locatePosition,
 	positionBytes,
 	positionCoverage,
 	type StreamPosition,
@@ -37,15 +34,19 @@ const COMPLETION_REASON = {
 	Genesis: 'genesis',
 } as const;
 
+/** A live feed opened through `StreamSession.openFeed`. */
+export interface LiveFeed<Item> extends AsyncIterable<PositionEvent<Item>> {
+	/** Reads the first Item or Progress. `deliver()` sees it again as the feed's first event. */
+	first(): Promise<PositionEvent<Item>>;
+	close(): Promise<void>;
+}
+
 /**
  * The committed state of one stream, shared by every attempt. Tokens and reconnects use the
  * committed position. Every event goes through `#isStale` then `#commit`, which keeps delivery
  * exactly-once across reconnects, overlapping gap scans and repeating live feeds.
  */
-export class StreamSession<Item, Frame extends { resumeToken: string }> implements FollowSession<
-	Item,
-	Frame
-> {
+export class StreamSession<Item, Frame extends { resumeToken: string }> {
 	readonly signal: AbortSignal;
 	readonly #plan: StreamPlan;
 	readonly #adapter: LedgerStreamAdapter<Item, Frame>;
@@ -93,6 +94,7 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> implemen
 		this.#nearLiveTip = plan.anchored;
 	}
 
+	/** Resume point: the last committed position, else the planned start bound. */
 	get start(): Bound | undefined {
 		return this.#committed !== undefined ? { position: this.#committed } : this.#plan.start;
 	}
@@ -112,6 +114,10 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> implemen
 		this.#nearLiveTip = this.#delivering && this.advancedThisAttempt();
 	}
 
+	/**
+	 * Whether to page history before subscribing at the live tip. False when the stream is near the
+	 * live tip: anchored at it, or after an attempt that failed during live delivery with progress.
+	 */
 	catchesUpFirst(): boolean {
 		return this.start !== undefined && !this.#nearLiveTip;
 	}
@@ -130,6 +136,10 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> implemen
 		this.#status.live();
 	}
 
+	/**
+	 * Pages until a pass reports complete, polling while the index lags. `'tip'` has no end bound.
+	 * Stage `gap` reports `Recovering`.
+	 */
 	async *replay(
 		to: Bound | 'tip',
 		stage: 'history' | 'gap',
@@ -145,14 +155,17 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> implemen
 		}
 	}
 
+	/** Commits a synthetic position (a fresh follow) so a token exists before the first match. */
 	async *baseline(position: StreamPosition): AsyncGenerator<CoreFrame<Frame>, void> {
 		yield* this.#commit({ $kind: 'Progress', position });
 	}
 
+	/** Wraps live events; `Connected` events are reported by the core and not passed on. */
 	openFeed(events: AsyncIterable<LiveEvent<Item>>): LiveFeed<Item> {
 		return new FeedReader(events, () => this.#status.connected());
 	}
 
+	/** Reports `Live`, then delivers the feed: drops events at or before committed state. */
 	async *deliver(feed: LiveFeed<Item>): AsyncGenerator<CoreFrame<Frame>, never> {
 		this.#delivering = true;
 		this.#status.live();
@@ -183,41 +196,43 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> implemen
 		};
 	}
 
-	// One scan pass. Returns whether the scan reached its end.
+	// One pager pass. Returns whether it reached its end.
 	async *#scanOnce(
 		end: Bound | undefined,
 		stage: 'history' | 'gap',
 	): AsyncGenerator<CoreFrame<Frame>, boolean> {
 		const { order, capturedTip } = this.#plan;
-		const events = this.#adapter.scan({
+		const pass = readPages(this.#adapter, {
 			start: this.start,
 			end,
 			order,
 			capturedTip,
 			signal: this.signal,
 		});
-		let complete: boolean | undefined;
-		for await (const event of events as AsyncIterable<ScanEvent<Item>>) {
-			if (complete !== undefined) throw new SuiStreamError('Protocol', 'Scan continued after End');
-			switch (event.$kind) {
-				case 'Connected':
-					this.#status.connected();
-					break;
-				case 'Page':
-					this.#status.page(stage, event.end, event.coverage);
-					break;
-				case 'Item':
-				case 'Progress':
-					if (!this.#isStale(event)) yield* this.#commit(event);
-					break;
-				case 'End':
-					complete = event.complete;
-					this.#retentionLimit ||= !!event.retentionLimit;
-					break;
+		try {
+			while (true) {
+				const next = await pass.next();
+				if (next.done) {
+					this.#retentionLimit ||= next.value.retentionLimit;
+					return next.value.complete;
+				}
+				const event = next.value;
+				switch (event.$kind) {
+					case 'Connected':
+						this.#status.connected();
+						break;
+					case 'Page':
+						this.#status.page(stage, event.end, event.coverage);
+						break;
+					case 'Item':
+					case 'Progress':
+						if (!this.#isStale(event)) yield* this.#commit(event);
+						break;
+				}
 			}
+		} finally {
+			await pass.return({ complete: false, retentionLimit: false });
 		}
-		if (complete === undefined) throw new SuiStreamError('Protocol', 'Scan ended without End');
-		return complete;
 	}
 
 	/** Whether everything at `event`'s position was already delivered. */
@@ -261,7 +276,7 @@ export class StreamSession<Item, Frame extends { resumeToken: string }> implemen
 	#isCovered(position: StreamPosition): boolean {
 		const next = nextUncovered(this.#covered);
 		if (this.#plan.order !== 'ascending' || next === undefined) return false;
-		const checkpoint = locatePosition(position).checkpoint;
+		const checkpoint = position.checkpoint;
 		return checkpoint !== null && checkpoint < next;
 	}
 

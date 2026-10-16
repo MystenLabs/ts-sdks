@@ -165,6 +165,20 @@ export function comparePositions(a: StreamPosition, b: StreamPosition): -1 | 0 |
 	return 0;
 }
 
+/**
+ * Whether `position` is at or past an exclusive `end` in traversal `order`, from coordinates
+ * alone. False where coordinates don't decide it.
+ */
+export function reachesEnd(
+	position: StreamPosition,
+	end: StreamPosition,
+	order: 'ascending' | 'descending',
+): boolean {
+	const comparison = comparePositions(position, end);
+	if (comparison === undefined) return false;
+	return (order === 'ascending' ? comparison : -comparison) >= 0;
+}
+
 function order(a: bigint, b: bigint): -1 | 0 | 1 {
 	return a === b ? 0 : a < b ? -1 : 1;
 }
@@ -209,14 +223,6 @@ export function validatePosition(position: StreamPosition): void {
 	if (coverage.$kind !== 'Through' || checkpoint === null) return;
 	const limit = kind === 'Item' ? checkpoint : checkpoint - 1n;
 	if (coverage.checkpoint > limit) throw invalid('coverage beyond the position');
-}
-
-/** The checkpoint a position sits in. A boundary lies before every item of its checkpoint. */
-export function locatePosition(position: StreamPosition): {
-	checkpoint: bigint | null;
-	boundary: boolean;
-} {
-	return { checkpoint: position.checkpoint, boundary: position.kind === 'Boundary' };
 }
 
 /** The newest checkpoint a server must have indexed before it can resume from `position`. */

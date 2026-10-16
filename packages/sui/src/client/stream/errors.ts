@@ -49,10 +49,3 @@ export function markCallbackError(error: unknown) {
 export function isCallbackError(error: unknown): boolean {
 	return typeof error === 'object' && error !== null && callbackErrors.has(error);
 }
-
-/** Adapters call this once per page: a page cursor that did not move would loop forever. */
-export function assertAdvanced(previous: string | undefined, next: string, what = 'cursor') {
-	if (previous !== undefined && previous === next) {
-		throw new SuiStreamError('Protocol', `Pagination did not advance: repeated ${what}`);
-	}
-}

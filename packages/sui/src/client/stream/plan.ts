@@ -8,7 +8,6 @@ import { SuiStreamError } from './errors.js';
 import {
 	boundaryPosition,
 	comparePositions,
-	indexedThrough,
 	positionBytes,
 	type StreamPosition,
 } from './position.js';
@@ -343,16 +342,9 @@ export function compareBounds(
  * Checkpoint bounds as ledger boundaries: ascending `c` is the boundary before `c`; descending
  * `c` (inclusive start or exclusive end) is the boundary after `c`, i.e. before `c + 1`.
  */
-function boundPosition(bound: Bound, order: SuiClientTypes.Order): StreamPosition {
+export function boundPosition(bound: Bound, order: SuiClientTypes.Order): StreamPosition {
 	if ('position' in bound) return bound.position;
 	return boundaryPosition(bound.checkpoint + (order === 'descending' ? 1n : 0n));
-}
-
-/** For adapters: a descending scan cannot start above the indexed tip until it is indexed. */
-export function startBeyondTip(start: Bound | undefined, tip: bigint): boolean {
-	if (!start) return false;
-	const checkpoint = 'checkpoint' in start ? start.checkpoint : indexedThrough(start.position);
-	return checkpoint !== null && checkpoint > tip;
 }
 
 function checkpointOption(

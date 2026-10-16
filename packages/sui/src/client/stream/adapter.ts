@@ -3,8 +3,9 @@
 
 /**
  * Internal contract between the ledger stream core and a transport. The core owns tokens,
- * planning, retries, deduplication and statuses so they match across transports; the adapter
- * supplies scans and a live feed, and builds positions from what its server reports.
+ * planning, paging, the live handoff, retries, deduplication and statuses so they match across
+ * transports. An adapter fetches one page at a time, opens subscriptions, and builds positions
+ * from what its server reports.
  */
 
 import type { SuiClientTypes } from '../types.js';
@@ -25,26 +26,32 @@ export type Coverage =
 /** A checkpoint bound, or a transport position. Inclusive at the start, exclusive at the end. */
 export type Bound = { checkpoint: bigint } | { position: StreamPosition };
 
-export interface ScanRequest {
-	start?: Bound;
-	end?: Bound;
+/** One page of a range: checkpoints `[range.start, range.end)`, then strictly between cursors. */
+export interface PageRequest {
+	range: { start?: bigint; end?: bigint };
+	after?: Uint8Array;
+	before?: Uint8Array;
 	order: SuiClientTypes.Order;
-	/** Indexed tip captured when a finite range was planned; fixed for the stream's lifetime. */
-	capturedTip?: bigint;
 	signal: AbortSignal;
 }
 
-/** Exactly one `End` is the last event of every scan pass. */
-export type ScanEvent<Item> =
-	| { $kind: 'Connected' }
-	| { $kind: 'Item'; position: StreamPosition; item: Item }
-	| { $kind: 'Progress'; position: StreamPosition }
-	| { $kind: 'Page'; end: SuiClientTypes.StreamPageEnd; coverage: Coverage }
-	/**
-	 * `complete: false`: the index has not reached the requested bound yet. `retentionLimit`: a read
-	 * toward genesis stopped at the oldest retained checkpoint.
-	 */
-	| { $kind: 'End'; complete: boolean; retentionLimit?: boolean };
+export interface PageItem<Item> {
+	position: StreamPosition;
+	item: Item;
+}
+
+export interface Page<Item> {
+	/** In traversal order. */
+	items: PageItem<Item>[];
+	/** `cursor` continues the scan where the page stopped: `after` ascending, `before` descending. */
+	next: { more: boolean; cursor?: Uint8Array };
+	/** Ascending: every match through this checkpoint is in this page or an earlier one. */
+	covered?: bigint;
+	/** The indexed tip of the server that answered. */
+	viewedAt?: bigint;
+	/** The oldest checkpoint the server retains for this read. */
+	retainedFrom?: bigint;
+}
 
 export type LiveEvent<Item> =
 	| { $kind: 'Connected' }
@@ -53,12 +60,12 @@ export type LiveEvent<Item> =
 
 export type PositionEvent<Item> = Extract<LiveEvent<Item>, { position: StreamPosition }>;
 
-/** A live feed opened through `FollowSession.openFeed`. */
-export interface LiveFeed<Item> extends AsyncIterable<PositionEvent<Item>> {
-	/** Reads the first Item or Progress. `deliver()` sees it again as the feed's first event. */
-	first(): Promise<PositionEvent<Item>>;
-	/** Closes the underlying feed. */
-	close(): Promise<void>;
+export interface LiveSubscription<Item> extends AsyncIterable<LiveEvent<Item>> {
+	/**
+	 * While enabled, events are buffered ahead of the consumer, so a server that drops slow
+	 * subscribers keeps the subscription open while the core replays the gap before it.
+	 */
+	readAhead?(enabled: boolean): void;
 }
 
 /**
@@ -84,9 +91,14 @@ export interface LedgerStreamAdapter<Item, Frame extends { resumeToken: string }
 	readonly family: StreamFamily;
 	/**
 	 * true: a follow without a start subscribes at once and commits a baseline from the first live
-	 * frame (gRPC). false: the core first anchors it at `{ checkpoint: indexedTip + 1 }` (GraphQL).
+	 * event. false: the core first anchors it at `{ checkpoint: indexedTip + 1 }`.
 	 */
 	readonly anchorsAtLiveTip: boolean;
+	/**
+	 * true: `subscribe(from)` backfills after `from` and then goes live. false: subscriptions start
+	 * at the live tip, so the core pages history first and replays the gap before the first event.
+	 */
+	readonly resumesSubscriptions: boolean;
 
 	/**
 	 * Resolves names in the filter. The returned filter is hashed into every token. An adapter that
@@ -94,20 +106,12 @@ export interface LedgerStreamAdapter<Item, Frame extends { resumeToken: string }
 	 * calling `indexedTip`.
 	 */
 	initialize(signal: AbortSignal): Promise<{ chain: string; filter: unknown; indexedTip?: bigint }>;
-	/** The highest checkpoint that historical scans can read. */
+	/** The highest checkpoint that pages can read. */
 	indexedTip(signal: AbortSignal): Promise<bigint>;
-
-	/**
-	 * One pass: page from `start` toward `end` (or the indexed tip, or genesis when descending),
-	 * then `End`. No polling and no retries; the core does both.
-	 */
-	scan(request: ScanRequest): AsyncIterable<ScanEvent<Item>>;
-	/**
-	 * The live handoff for subscribe delivery: whatever catch-up the transport needs, then
-	 * `session.deliver()`. Yields only frames produced by `session` helpers. Ends only by throwing,
-	 * as `session.deliver()` does.
-	 */
-	follow(session: FollowSession<Item, Frame>): AsyncGenerator<CoreFrame<Frame>, void>;
+	/** One request. No retries; the core retries. */
+	fetchPage(request: PageRequest): Promise<Page<Item>>;
+	/** A live subscription after `from` (ignored unless `resumesSubscriptions`). */
+	subscribe(from: Bound | undefined, signal: AbortSignal): LiveSubscription<Item>;
 
 	mapItem(item: Item): Omit<Frame, 'resumeToken'>;
 	classify(error: unknown): ErrorClass;
@@ -115,28 +119,3 @@ export interface LedgerStreamAdapter<Item, Frame extends { resumeToken: string }
 
 /** An adapter whose item type is known only to itself. */
 export type AnyLedgerStreamAdapter = LedgerStreamAdapter<any, any>;
-
-/** The only surface an adapter's `follow()` gets. Adapters never report statuses themselves. */
-export interface FollowSession<Item, Frame> {
-	readonly signal: AbortSignal;
-	/** Resume point: the last committed position, else the planned start bound. */
-	readonly start: Bound | undefined;
-	readonly committed: StreamPosition | undefined;
-	/**
-	 * Whether to replay history before subscribing: a long replay could overflow a subscription, and
-	 * reading pages detects pruned history. False when the stream is near the live tip: anchored at
-	 * it, or after an attempt that failed during live delivery with progress.
-	 */
-	catchesUpFirst(): boolean;
-	/**
-	 * Scans until the scan reports complete, polling while the index lags. `'tip'` has no end
-	 * bound. Stage `gap` reports `Recovering`.
-	 */
-	replay(to: Bound | 'tip', stage: 'history' | 'gap'): AsyncGenerator<CoreFrame<Frame>, void>;
-	/** Commits a synthetic position (a fresh follow) so a token exists before the first match. */
-	baseline(position: StreamPosition): AsyncGenerator<CoreFrame<Frame>, void>;
-	/** Wraps live events; `Connected` events are reported by the core and not passed on. */
-	openFeed(events: AsyncIterable<LiveEvent<Item>>): LiveFeed<Item>;
-	/** Reports `Live`, then delivers the feed: drops events at or before committed state, and throws on EOF. */
-	deliver(feed: LiveFeed<Item>): AsyncGenerator<CoreFrame<Frame>, never>;
-}

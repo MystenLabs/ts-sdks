@@ -4,10 +4,10 @@
 /**
  * A model ledger and adapter for testing the stream core.
  *
- * Positions are core `StreamPosition`s: an item carries its checkpoint and index (or only an
- * `itemId`, to model a transport that cannot order items within a checkpoint), and a boundary sits
- * before a checkpoint. Scans page through the indexed part of the ledger; live connections replay
- * a script. `follow()` has the same phases as the real transports.
+ * Positions are core `StreamPosition`s: an item carries its checkpoint, a cursor and its index (or
+ * only an `itemId`, to model a transport that cannot order items within a checkpoint), and a
+ * boundary sits before a checkpoint. Pages read the indexed part of the ledger; live connections
+ * replay a script.
  */
 
 import type {
@@ -15,15 +15,13 @@ import type {
 	ErrorClass,
 	LedgerStreamAdapter,
 	LiveEvent,
-	ScanEvent,
-	ScanRequest,
+	Page,
+	PageRequest,
 } from '../../../../src/client/stream/adapter.js';
 import { createLedgerStream } from '../../../../src/client/stream/run.js';
 import {
 	boundaryPosition,
-	coverageBefore,
 	itemPosition,
-	startBeyondTip,
 	SuiStreamError,
 	type StreamPosition,
 } from '../../../../src/client/stream/index.js';
@@ -55,12 +53,19 @@ export class Overflow extends Error {
 export const boundary = (checkpoint: bigint | number): FakePosition =>
 	boundaryPosition(BigInt(checkpoint));
 export const itemId = (item: FakeItem) => `${item.checkpoint}:${item.index}`;
+/** The fake's cursor: the item id as bytes. */
+export const cursorOf = (item: FakeItem) => new TextEncoder().encode(itemId(item));
 /** `opaque`: the item has no reported place within its checkpoint, only an id. */
 export const positionOf = (item: FakeItem, opaque = false): FakePosition =>
-	itemPosition(
-		item.checkpoint,
-		opaque ? { itemId: itemId(item) } : { transactionIndex: BigInt(item.index) },
-	);
+	itemPosition(item.checkpoint, {
+		cursor: cursorOf(item),
+		...(opaque ? { itemId: itemId(item) } : { transactionIndex: BigInt(item.index) }),
+	});
+
+function itemAt(cursor: Uint8Array): FakeItem {
+	const [checkpoint, index] = new TextDecoder().decode(cursor).split(':');
+	return { checkpoint: BigInt(checkpoint), index: Number(index) };
+}
 
 /** The fake's own total order: boundaries before every item of their checkpoint. */
 function slot(position: FakePosition): [bigint, number] {
@@ -95,14 +100,6 @@ export class Ledger {
 		return this.items.at(-1)!.checkpoint;
 	}
 
-	/** Items strictly between two positions, in ledger order. */
-	between(after: FakePosition, before: FakePosition): FakeItem[] {
-		return this.items.filter(
-			(item) =>
-				ledgerOrder(positionOf(item), after) > 0 && ledgerOrder(positionOf(item), before) < 0,
-		);
-	}
-
 	/** `opaque`: positions report no place within the checkpoint. */
 	opaque = false;
 
@@ -130,9 +127,8 @@ export interface LiveScript {
 	end?: 'eof' | 'hang' | Error;
 }
 
-/** Per scan pass. */
-export type ScanFault =
-	{ failAfterItems: number; error: Error } | { omitEnd: true } | { repeatStartCursor: true };
+/** Per page request: fail it, or repeat the item at the cursor it resumes after. */
+export type PageFault = { error: Error } | { repeatCursor: true };
 
 export interface FakeOptions {
 	pageSize?: number;
@@ -148,17 +144,20 @@ export interface FakeOptions {
 	handoff?: 'cursor' | 'resume';
 	/** The oldest retained checkpoint; older history is pruned. */
 	retainedFrom?: bigint;
-	/** Report scan frontiers as Progress events (gRPC watermarks). */
-	scanProgress?: boolean;
+	/**
+	 * Pages report what they covered instead of the indexed tip, and pruned reads fail (gRPC).
+	 * Otherwise pages report the tip and the retention (GraphQL).
+	 */
+	watermarks?: boolean;
 	/** Items report no place within their checkpoint, so they are unordered within it. */
 	opaqueOrder?: boolean;
 	/** `initialize` also returns the indexed tip, as GraphQL does. */
 	initializeReadsTip?: boolean;
 	initializeFaults?: Error[];
 	tipFaults?: Error[];
-	scanFaults?: (ScanFault | undefined)[];
-	/** Called after each scan pass (e.g. to advance the index). */
-	afterScan?: (ledger: Ledger) => void;
+	pageFaults?: (PageFault | undefined)[];
+	/** Called after each page or tip read (e.g. to advance the index). */
+	afterRead?: (ledger: Ledger) => void;
 	/** `after` is where a `resume` subscription starts. */
 	live?: LiveScript[] | ((connection: number, after: FakePosition | undefined) => LiveScript);
 }
@@ -167,7 +166,7 @@ export interface FakeAdapter extends LedgerStreamAdapter<FakeItem, FakeFrame> {
 	calls: {
 		initialize: number;
 		indexedTip: number;
-		scans: ScanRequest[];
+		pages: PageRequest[];
 		subscriptions: number;
 	};
 }
@@ -176,8 +175,9 @@ export function fakeAdapter(ledger: Ledger, options: FakeOptions = {}): FakeAdap
 	const pageSize = options.pageSize ?? 2;
 	const initializeFaults = [...(options.initializeFaults ?? [])];
 	const tipFaults = [...(options.tipFaults ?? [])];
-	const scanFaults = [...(options.scanFaults ?? [])];
-	const calls: FakeAdapter['calls'] = { initialize: 0, indexedTip: 0, scans: [], subscriptions: 0 };
+	const pageFaults = [...(options.pageFaults ?? [])];
+	const calls: FakeAdapter['calls'] = { initialize: 0, indexedTip: 0, pages: [], subscriptions: 0 };
+	const floor = options.retainedFrom ?? 0n;
 	ledger.opaque = options.opaqueOrder ?? false;
 
 	function liveScript(connection: number, after: FakePosition | undefined): LiveScript {
@@ -202,88 +202,55 @@ export function fakeAdapter(ledger: Ledger, options: FakeOptions = {}): FakeAdap
 		});
 	}
 
-	async function* scan(request: ScanRequest): AsyncGenerator<ScanEvent<FakeItem>> {
-		calls.scans.push(request);
-		const fault = scanFaults.shift();
-		try {
-			yield { $kind: 'Connected' };
-			yield* request.order === 'ascending'
-				? scanAscending(request, fault)
-				: scanDescending(request, fault);
-		} finally {
-			options.afterScan?.(ledger);
+	async function fetchPage(request: PageRequest): Promise<Page<FakeItem>> {
+		calls.pages.push(request);
+		const fault = pageFaults.shift();
+		if (fault && 'error' in fault) throw fault.error;
+		const { range, order } = request;
+		const tip = ledger.indexedTip;
+		if (options.watermarks && range.start !== undefined && range.start < floor) {
+			throw new SuiStreamError('HistoryUnavailable', `Checkpoint ${range.start} is pruned`);
 		}
-	}
-
-	async function* scanAscending(
-		request: ScanRequest,
-		fault: ScanFault | undefined,
-	): AsyncGenerator<ScanEvent<FakeItem>> {
-		const after = toPosition(request.start, 'ascending') ?? boundary(0);
-		const limit = boundary(ledger.indexedTip + 1n);
-		const end = toPosition(request.end, 'ascending');
-		const reachable = !end || ledgerOrder(end, limit) <= 0;
-		const stop = end && reachable ? end : limit;
-		const items = ledger.between(after, stop);
-		if (fault && 'repeatStartCursor' in fault && request.start && 'position' in request.start) {
-			const repeated = ledger.items.find((item) => ledgerOrder(positionOf(item), after) === 0);
-			if (repeated) items.unshift(repeated);
-		}
-		yield* pages(items, fault);
-		if (fault && 'omitEnd' in fault) return;
-		// Frontier progress: everything up to a boundary end was delivered.
-		if (options.scanProgress && stop.kind === 'Boundary' && ledgerOrder(stop, after) > 0) {
-			yield { $kind: 'Progress', position: stop };
-		}
-		yield {
-			$kind: 'Page',
-			end: !reachable || !end ? 'indexedTip' : 'bound',
-			coverage: coverageBefore(slot(stop)[0]),
+		const after = request.after && positionOf(itemAt(request.after));
+		const before = request.before && positionOf(itemAt(request.before));
+		const matches = ledger.items.filter((item) => {
+			const position = positionOf(item);
+			return (
+				item.checkpoint >= floor &&
+				item.checkpoint <= tip &&
+				(range.start === undefined || item.checkpoint >= range.start) &&
+				(range.end === undefined || item.checkpoint < range.end) &&
+				(!after || ledgerOrder(position, after) > 0) &&
+				(!before || ledgerOrder(position, before) < 0)
+			);
+		});
+		if (order === 'descending') matches.reverse();
+		const items = matches.slice(0, pageSize);
+		const more = matches.length > items.length;
+		const resumed = order === 'ascending' ? request.after : request.before;
+		if (fault && 'repeatCursor' in fault && resumed) items.unshift(itemAt(resumed));
+		options.afterRead?.(ledger);
+		const last = items.at(-1);
+		const page: Page<FakeItem> = {
+			items: items.map((item) => ({ position: positionOf(item, ledger.opaque), item })),
+			next: { more, cursor: last && cursorOf(last) },
 		};
-		yield { $kind: 'End', complete: reachable };
-	}
-
-	async function* scanDescending(
-		request: ScanRequest,
-		fault: ScanFault | undefined,
-	): AsyncGenerator<ScanEvent<FakeItem>> {
-		if (startBeyondTip(request.start, ledger.indexedTip)) {
-			yield { $kind: 'Page', end: 'indexedTip', coverage: { $kind: 'Unknown' } };
-			yield { $kind: 'End', complete: false };
-			return;
+		if (!options.watermarks) return { ...page, viewedAt: tip, retainedFrom: floor };
+		if (order === 'ascending' && !more) {
+			const end = range.end === undefined ? tip : range.end - 1n;
+			return { ...page, covered: end < tip ? end : tip };
 		}
-		const before = toPosition(request.start, 'descending') ?? boundary(ledger.indexedTip + 1n);
-		const after = toPosition(request.end, 'descending');
-		const floor = options.retainedFrom ?? 0n;
-		if (after && after.checkpoint! < floor) {
-			throw new SuiStreamError('HistoryUnavailable', `Checkpoint ${after.checkpoint} is pruned`);
+		if (order === 'descending' && !more && range.start === undefined) {
+			return { ...page, retainedFrom: floor };
 		}
-		const items = ledger.between(after ?? boundary(floor), before).reverse();
-		yield* pages(items, fault);
-		if (fault && 'omitEnd' in fault) return;
-		yield { $kind: 'Page', end: after ? 'bound' : 'indexedTip', coverage: { $kind: 'Unknown' } };
-		yield { $kind: 'End', complete: true, retentionLimit: !after && floor > 0n };
-	}
-
-	async function* pages(
-		items: FakeItem[],
-		fault: ScanFault | undefined,
-	): AsyncGenerator<ScanEvent<FakeItem>> {
-		for (const [n, item] of items.entries()) {
-			if (fault && 'failAfterItems' in fault && n === fault.failAfterItems) throw fault.error;
-			yield { $kind: 'Item', position: positionOf(item, ledger.opaque), item };
-			if ((n + 1) % pageSize === 0 && n + 1 < items.length) {
-				yield { $kind: 'Page', end: 'limit', coverage: { $kind: 'Unknown' } };
-			}
-		}
-		if (fault && 'failAfterItems' in fault && fault.failAfterItems >= items.length)
-			throw fault.error;
+		return page;
 	}
 
 	return {
 		transport: options.transport ?? 'graphql',
 		family: options.family ?? 'events',
 		anchorsAtLiveTip: options.anchorsAtLiveTip ?? false,
+		resumesSubscriptions: options.handoff === 'resume',
 		calls,
 
 		async initialize() {
@@ -300,38 +267,13 @@ export function fakeAdapter(ledger: Ledger, options: FakeOptions = {}): FakeAdap
 			calls.indexedTip++;
 			const fault = tipFaults.shift();
 			if (fault) throw fault;
-			return ledger.indexedTip;
+			const tip = ledger.indexedTip;
+			options.afterRead?.(ledger);
+			return tip;
 		},
-		scan,
-		async *follow(session) {
-			if (options.handoff === 'resume') {
-				const after = toPosition(session.start, 'ascending');
-				// A checkpoint start: commit it, so a token exists before the first match.
-				if (!session.committed && after) yield* session.baseline(after);
-				const feed = session.openFeed(subscribe(session.signal, after));
-				try {
-					yield* session.deliver(feed);
-				} finally {
-					await feed.close();
-				}
-			}
-			if (session.catchesUpFirst()) yield* session.replay('tip', 'history');
-			const feed = session.openFeed(subscribe(session.signal));
-			try {
-				const first = await feed.first();
-				// The gap between the resume point and the first live event.
-				if (!session.start) {
-					if (first.$kind === 'Item') {
-						yield* session.baseline(boundary(first.position.checkpoint!));
-					}
-				} else {
-					yield* session.replay({ position: first.position }, 'gap');
-				}
-				yield* session.deliver(feed);
-			} finally {
-				await feed.close();
-			}
-		},
+		fetchPage,
+		subscribe: (from, signal) =>
+			subscribe(signal, options.handoff === 'resume' ? toPosition(from) : undefined),
 		mapItem: (item) => ({ $kind: 'Item', id: itemId(item) }),
 		classify(error): ErrorClass {
 			if (error instanceof NetworkError) return 'retry';
@@ -341,14 +283,10 @@ export function fakeAdapter(ledger: Ledger, options: FakeOptions = {}): FakeAdap
 	};
 }
 
-/** Bounds as positions: ascending start/end are boundaries before `c`; descending after `c`. */
-function toPosition(
-	bound: Bound | undefined,
-	order: SuiClientTypes.Order,
-): FakePosition | undefined {
+/** A subscription start as a position: a checkpoint is the boundary before it. */
+function toPosition(bound: Bound | undefined): FakePosition | undefined {
 	if (!bound) return undefined;
-	if ('position' in bound) return bound.position;
-	return boundary(order === 'ascending' ? bound.checkpoint : bound.checkpoint + 1n);
+	return 'position' in bound ? bound.position : boundary(bound.checkpoint);
 }
 
 /** Collects the stream until it ends. */

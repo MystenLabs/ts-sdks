@@ -12,10 +12,10 @@ import {
 	CoverageTracker,
 	indexedThrough,
 	itemPosition,
-	locatePosition,
 	positionCoverage,
 	positionSchema,
 	progressPosition,
+	reachesEnd,
 	validatePosition,
 } from '../../../../src/client/stream/position.js';
 
@@ -74,16 +74,10 @@ describe('stream positions', () => {
 	});
 
 	it.each([
-		['an item', item(5n), { checkpoint: 5n, boundary: false }, 5n],
-		['a boundary', boundaryPosition(6n), { checkpoint: 6n, boundary: true }, 5n],
-		[
-			'progress',
-			progressPosition(cursor('p'), { indexedCheckpoint: 9n }),
-			{ checkpoint: null, boundary: false },
-			9n,
-		],
-	] as const)('locates %s', (_, value, location, indexed) => {
-		expect(locatePosition(value)).toEqual(location);
+		['an item', item(5n), 5n],
+		['a boundary', boundaryPosition(6n), 5n],
+		['progress', progressPosition(cursor('p'), { indexedCheckpoint: 9n }), 9n],
+	] as const)('finds the checkpoint a server must index to resume from %s', (_, value, indexed) => {
 		expect(indexedThrough(value)).toBe(indexed);
 	});
 
@@ -114,6 +108,17 @@ describe('stream positions', () => {
 
 	it('accepts arbitrary cursor bytes', () => {
 		expect(() => validatePosition(progressPosition(new Uint8Array([255, 0])))).not.toThrow();
+	});
+
+	it.each([
+		['the end item through another cursor', { ...item(2n, 1n), cursor: cursor('x') }, true, true],
+		['an item before the end', item(2n, 0n), false, true],
+		['an item after the end', item(3n), true, false],
+		['an unordered item of the end checkpoint', unordered(2n, 'b'), false, false],
+		['progress', progress(), false, false],
+	] as const)('decides whether %s reaches an end', (_, value, ascending, descending) => {
+		expect(reachesEnd(value, item(2n, 1n), 'ascending')).toBe(ascending);
+		expect(reachesEnd(value, item(2n, 1n), 'descending')).toBe(descending);
 	});
 
 	it('rejects positions that move backwards within one call', () => {
