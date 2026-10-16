@@ -7,6 +7,7 @@ import type { SuiClientTypes } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
 import { beforeAll, describe, expect, expectTypeOf, test } from 'vitest';
 
+import { programmableTransactionData } from './transaction-data.js';
 import {
 	MAPPABLE_TRANSACTION_INCLUDE,
 	type MappableIncludeFor,
@@ -51,9 +52,9 @@ async function freshTransaction() {
 	tx.transferObjects([coin], RECIPIENT);
 
 	const bytes = await tx.build();
-	// `getData()` after a build is the same shape the core client parses an
-	// executed transaction into.
-	return { bytes, data: tx.getData() };
+	// With its inputs and commands moved under `kind`, `getData()` after a build
+	// is the shape the core client parses an executed transaction into.
+	return { bytes, data: programmableTransactionData(tx.getData()) };
 }
 
 /** The core `Transaction` a gRPC execution of that PTB parses to. */
@@ -489,7 +490,7 @@ describe('published object changes', () => {
 
 		return {
 			...transaction,
-			transaction: tx.getData(),
+			transaction: programmableTransactionData(tx.getData()),
 			objectTypes: {},
 			effects: {
 				...transaction.effects,
