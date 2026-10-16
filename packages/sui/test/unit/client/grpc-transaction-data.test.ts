@@ -460,6 +460,8 @@ describe('ledger transaction data from gRPC', () => {
 						modules: [...pkg.moduleMap].map(([name, contents]) => ({
 							name,
 							contents: new Uint8Array(contents),
+							datatypes: [],
+							functions: [],
 						})),
 						typeOrigins: pkg.typeOriginTable.map((origin) => ({
 							moduleName: origin.moduleName,
@@ -653,7 +655,7 @@ function moveObjectTypeString(type: typeof bcs.MoveObjectType.$inferType): strin
 		case 'StakedSui':
 			return normalizeStructTag('0x3::staking_pool::StakedSui');
 		case 'Coin':
-			return normalizeStructTag(`0x2::coin::Coin<${TypeTagSerializer.tagToString(type.Coin)}>`);
+			return normalizeStructTag(`0x2::coin::Coin<${type.Coin}>`);
 		case 'Other':
 			return normalizeStructTag(TypeTagSerializer.tagToString({ struct: type.Other }));
 		default:
