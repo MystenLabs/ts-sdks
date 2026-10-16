@@ -384,10 +384,14 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 					{ frames: [event(2, 0)], end: new RpcError('lost', 'UNAVAILABLE') },
 					[event(2, 2), event(3)],
 				)
-				.list('ListEvents', [event(2, 1), event(2, 2), ended('LEDGER_TIP', 2)]);
+				.list('ListEvents', [event(2, 1), cursorBound]);
 			const frames = await take(l.client().streamEvents({ retry: noDelay }), 4);
 			expect(eventIds(frames)).toEqual(['2:0', '2:1', '2:2', '3:0']);
-			expect(l.requestsTo('ListEvents')[0].options?.after).toEqual(at(2, 0));
+			// After live progress the reconnect subscribes at once and replays only the gap.
+			const [gap] = l.requestsTo('ListEvents');
+			expect(l.requestsTo('ListEvents')).toHaveLength(1);
+			expect(gap.options?.after).toEqual(at(2, 0));
+			expect(gap.options?.before).toEqual(at(2, 2));
 		});
 
 		it('reconnects after a sparse initial watermark without losing the first match', async () => {
@@ -402,9 +406,11 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 			const retry = { initialDelay: 60_000, jitter: 0 };
 			const frames = await take(l.client().streamEvents({ retry, onStatus }), 2);
 			expect(eventIds(frames)).toEqual(['3:0', '4:0']);
-			const [history, gap] = l.requestsTo('ListEvents');
-			expect(history.options?.after).toEqual(mark('a'));
+			// The gap replay polls until the index reaches the first live position.
+			const [gap, poll] = l.requestsTo('ListEvents');
+			expect(gap.options?.after).toEqual(mark('a'));
 			expect(gap.options?.before).toEqual(mark('b'));
+			expect(poll.options?.before).toEqual(mark('b'));
 			// Progress was committed, so the reconnect is immediate despite the long backoff.
 			expect(log).toContain('Retrying(1,0)');
 		});
@@ -809,6 +815,66 @@ describe.each(DELIVERIES)('gRPC ledger streams over %s', (_, delivery: Delivery)
 			expect(eventIds(frames)).toEqual(range(1, 1101).map((n) => `${n}:0`));
 			expect(l.requestsTo('SubscribeEvents')).toHaveLength(2);
 			expect(log.filter((status) => status.startsWith('Retrying'))).toEqual(['Retrying(0,0)']);
+		});
+	});
+
+	describe('request counts', () => {
+		it('starts a fresh follow with the chain identity and one subscription', async () => {
+			const l = ledger().subscribe('SubscribeEvents', [event(4)]);
+			await take(l.client().streamEvents(), 1);
+			expect(l.calls).toEqual(['GetServiceInfo', 'SubscribeEvents']);
+		});
+
+		it('makes exactly one request per history page', async () => {
+			const l = ledger().list(
+				'ListEvents',
+				[event(1, 0, { end: 'ITEM_LIMIT' })],
+				[event(2, 0, { end: 'ITEM_LIMIT' })],
+				[event(3), ended('CHECKPOINT_BOUND', 9)],
+			);
+			await collect(l.client().streamEvents({ start: { checkpoint: 1 }, end: { checkpoint: 10 } }));
+			expect(l.calls).toEqual(['GetServiceInfo', 'ListEvents', 'ListEvents', 'ListEvents']);
+		});
+
+		it('makes no request per live item', async () => {
+			const l = ledger().subscribe(
+				'SubscribeEvents',
+				range(4, 13).map((n) => event(n)),
+			);
+			await take(l.client().streamEvents(), 10);
+			expect(l.calls).toEqual(['GetServiceInfo', 'SubscribeEvents']);
+		});
+
+		it('reconnects after live progress with a subscription and one gap page', async () => {
+			const l = ledger()
+				.subscribe(
+					'SubscribeEvents',
+					{ frames: [event(5)], end: new RpcError('reset', 'UNAVAILABLE') },
+					[event(7), event(8)],
+				)
+				.list('ListEvents', [event(6), cursorBound]);
+			const frames = await take(l.client().streamEvents({ retry: noDelay }), 4);
+			expect(eventIds(frames)).toEqual(['5:0', '6:0', '7:0', '8:0']);
+			expect(l.calls).toEqual([
+				'GetServiceInfo',
+				'SubscribeEvents',
+				'SubscribeEvents',
+				'ListEvents',
+			]);
+		});
+
+		it('makes one request per poll tick', async () => {
+			const l = ledger().list(
+				'ListEvents',
+				[event(1), ended('LEDGER_TIP', 1)],
+				[event(2), ended('LEDGER_TIP', 2)],
+				[event(3), ended('LEDGER_TIP', 3)],
+			);
+			await take(
+				l.client().streamEvents({ start: { checkpoint: 1 }, delivery: 'poll', pollInterval: 1 }),
+				3,
+			);
+			expect(l.calls).toEqual(['GetServiceInfo', 'ListEvents', 'ListEvents', 'ListEvents']);
 		});
 	});
 

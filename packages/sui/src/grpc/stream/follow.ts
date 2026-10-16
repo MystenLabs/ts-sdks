@@ -35,8 +35,8 @@ export async function* followLedger(
 	calls: GrpcStreamCalls,
 	session: FollowSession<GrpcPosition, GrpcItem, ItemFrame>,
 ): AsyncGenerator<CoreFrame<ItemFrame>, void> {
-	// History first: with no subscription open yet, a long replay cannot overflow it.
-	if (session.start) yield* session.replay('tip', 'history');
+	// A subscription starts at the live tip, so history comes first.
+	if (session.catchesUpFirst()) yield* session.replay('tip', 'history');
 
 	const call = calls.subscribe(session.signal);
 	const feed = session.openFeed(liveEvents(call, calls.family, session.committed));
