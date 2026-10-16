@@ -103,6 +103,8 @@ function hangingFetch(chunks: (() => Uint8Array)[]): typeof fetch {
 		})) as unknown as typeof fetch;
 }
 
+// The tests below track a chunk's `ArrayBuffer`, not the chunk: a subarray of the chunk (a frame,
+// or a message's unknown field) keeps only the buffer alive.
 async function collected(ref: WeakRef<object>): Promise<boolean> {
 	for (let i = 0; i < 3; i++) {
 		await settle();
@@ -112,13 +114,13 @@ async function collected(ref: WeakRef<object>): Promise<boolean> {
 }
 
 it.skipIf(!gc)('releases a buffered partial frame when the call is cancelled', async () => {
-	let ref: WeakRef<Uint8Array> | undefined;
+	let ref: WeakRef<ArrayBufferLike> | undefined;
 	const fetch = hangingFetch([
 		() => dataFrame(SubscribeCheckpointsResponse.toBinary({ cursor: 0n })),
 		() => {
 			// The first 4 MiB of an 8 MiB frame.
 			const frame = dataFrame(largeMessage(1, 8 * 1024 * 1024)).slice(0, 4 * 1024 * 1024);
-			ref = new WeakRef(frame);
+			ref = new WeakRef(frame.buffer);
 			return frame;
 		},
 	]);
@@ -136,7 +138,7 @@ it.skipIf(!gc)('releases a buffered partial frame when the call is cancelled', a
 });
 
 it.skipIf(!gc)('releases the rest of a coalesced chunk when the consumer breaks', async () => {
-	let ref: WeakRef<Uint8Array> | undefined;
+	let ref: WeakRef<ArrayBufferLike> | undefined;
 	const fetch = hangingFetch([
 		() => {
 			const first = dataFrame(SubscribeCheckpointsResponse.toBinary({ cursor: 0n }));
@@ -144,7 +146,7 @@ it.skipIf(!gc)('releases the rest of a coalesced chunk when the consumer breaks'
 			const chunk = new Uint8Array(first.length + second.length);
 			chunk.set(first);
 			chunk.set(second, first.length);
-			ref = new WeakRef(chunk);
+			ref = new WeakRef(chunk.buffer);
 			return chunk;
 		},
 	]);
@@ -154,6 +156,24 @@ it.skipIf(!gc)('releases the rest of a coalesced chunk when the consumer breaks'
 		expect(message.cursor).toBe(0n);
 		break;
 	}
+	expect(await collected(ref!)).toBe(true);
+	expect(call).toBeDefined();
+});
+
+it.skipIf(!gc)('does not keep the last returned message after the call is cancelled', async () => {
+	let ref: WeakRef<ArrayBufferLike> | undefined;
+	const fetch = hangingFetch([
+		() => {
+			// The message's unknown field is a view into this chunk.
+			const chunk = dataFrame(largeMessage(0, 4 * 1024 * 1024));
+			ref = new WeakRef(chunk.buffer);
+			return chunk;
+		},
+	]);
+	const transport = new GrpcWebFetchTransport({ baseUrl: 'http://localhost', fetch });
+	const call = pullServerStreaming(transport)!(method, {});
+	expect((await call.responses.next()).value?.cursor).toBe(0n);
+	await call.responses.return!();
 	expect(await collected(ref!)).toBe(true);
 	expect(call).toBeDefined();
 });
