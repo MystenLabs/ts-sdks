@@ -434,7 +434,6 @@ export type ScanEventsQuery = { serviceConfig: { availableRange: { first: { sequ
 export type SubscribeEventsSubscriptionVariables = Exact<{
   filter?: EventFilter | null | undefined;
   after?: string | null | undefined;
-  progressInterval?: number | null | undefined;
 }>;
 
 
@@ -462,7 +461,6 @@ export type ScanTransactionsQuery = { serviceConfig: { availableRange: { first: 
 export type SubscribeTransactionsSubscriptionVariables = Exact<{
   filter?: TransactionFilter | null | undefined;
   after?: string | null | undefined;
-  progressInterval?: number | null | undefined;
   includeTransaction?: boolean | null | undefined;
   includeEffects?: boolean | null | undefined;
   includeEvents?: boolean | null | undefined;
@@ -1366,8 +1364,8 @@ fragment STREAM_PAGE_INFO on PageInfo {
   endCursor
 }`) as unknown as TypedDocumentString<ScanEventsQuery, ScanEventsQueryVariables>;
 export const SubscribeEventsDocument = new TypedDocumentString(`
-    subscription subscribeEvents($filter: EventFilter, $after: String, $progressInterval: Int) {
-  events(filter: $filter, after: $after, progressInterval: $progressInterval) {
+    subscription subscribeEvents($filter: EventFilter, $after: String) {
+  events(filter: $filter, after: $after) {
     cursor
     node {
       ...EVENT_FIELDS
@@ -1513,12 +1511,8 @@ fragment TRANSACTION_FIELDS on Transaction {
   }
 }`) as unknown as TypedDocumentString<ScanTransactionsQuery, ScanTransactionsQueryVariables>;
 export const SubscribeTransactionsDocument = new TypedDocumentString(`
-    subscription subscribeTransactions($filter: TransactionFilter, $after: String, $progressInterval: Int, $includeTransaction: Boolean = false, $includeEffects: Boolean = false, $includeEvents: Boolean = false, $includeBalanceChanges: Boolean = false, $includeObjectTypes: Boolean = false, $includeEffectsJson: Boolean = false, $includeBcs: Boolean = false) {
-  transactions(
-    filter: $filter
-    after: $after
-    progressInterval: $progressInterval
-  ) {
+    subscription subscribeTransactions($filter: TransactionFilter, $after: String, $includeTransaction: Boolean = false, $includeEffects: Boolean = false, $includeEvents: Boolean = false, $includeBalanceChanges: Boolean = false, $includeObjectTypes: Boolean = false, $includeEffectsJson: Boolean = false, $includeBcs: Boolean = false) {
+  transactions(filter: $filter, after: $after) {
     cursor
     node {
       ...TRANSACTION_FIELDS
