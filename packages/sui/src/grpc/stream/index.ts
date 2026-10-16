@@ -7,21 +7,29 @@ import type { RpcTransport } from '@protobuf-ts/runtime-rpc';
 import type { LedgerStreamRequest } from '../../client/core.js';
 import { resolveEventFilter, resolveTransactionFilter } from '../../client/query-filters.js';
 import type {
+	Bound,
 	ErrorClass,
-	FollowSession,
 	ItemFrame,
 	LedgerStreamAdapter,
-	ScanRequest,
+	PageRequest,
 	StreamFamily,
 } from '../../client/stream/index.js';
 import { SuiStreamError } from '../../client/stream/index.js';
 import type { SuiClientTypes } from '../../client/types.js';
 import { toGrpcEventFilter, toGrpcTransactionFilter } from '../filters.js';
 import { isNonRetryable } from '../pull-call.js';
-import { isBufferOverflow, openLedgerCall } from './call.js';
-import { followLedger } from './follow.js';
-import { GRPC_FAMILIES, mapGrpcItem, type GrpcItem, type NativeFilter } from './families.js';
-import { readIndexedTip, scanLedger, type GrpcStreamCalls } from './scan.js';
+import { isBufferOverflow, openLedgerCall, type LedgerCall } from './call.js';
+import {
+	GRPC_FAMILIES,
+	mapGrpcItem,
+	type GrpcFamily,
+	type GrpcItem,
+	type ListFrame,
+	type LiveFrame,
+	type NativeFilter,
+} from './families.js';
+import { liveSubscription } from './live.js';
+import { fetchListPage, readIndexedTip, type ListQuery } from './page.js';
 
 /** What the adapter needs from `GrpcCoreClient`. */
 export interface GrpcStreamContext {
@@ -44,12 +52,21 @@ const RETRYABLE_CODES = new Set([
 	'CANCELLED',
 ]);
 
-/** A ledger stream over gRPC: List calls for history, Subscribe calls for live delivery. */
+/** This stream's calls, with its resolved filter and read mask fixed. */
+interface GrpcStreamCalls {
+	readonly family: GrpcFamily;
+	list(query: ListQuery, signal: AbortSignal): LedgerCall<ListFrame>;
+	subscribe(signal: AbortSignal): LedgerCall<LiveFrame>;
+}
+
+/** A ledger stream over gRPC: List calls for pages, Subscribe calls for live delivery. */
 export class GrpcLedgerStreamAdapter implements LedgerStreamAdapter<GrpcItem, ItemFrame> {
 	readonly transport = 'grpc' as const;
 	readonly family: StreamFamily;
 	/** A subscription starts at the live tip, so a fresh follow needs no indexed tip. */
 	readonly anchorsAtLiveTip = true;
+	/** Subscriptions take no start: the core pages history and replays the gap itself. */
+	readonly resumesSubscriptions = false;
 	readonly #context: GrpcStreamContext;
 	readonly #request: GrpcLedgerStreamRequest;
 	#calls: GrpcStreamCalls | undefined;
@@ -74,12 +91,14 @@ export class GrpcLedgerStreamAdapter implements LedgerStreamAdapter<GrpcItem, It
 		return readIndexedTip(this.#context.transport, signal);
 	}
 
-	scan(request: ScanRequest) {
-		return scanLedger(this.#initializedCalls(), request);
+	fetchPage(request: PageRequest) {
+		const { family, list } = this.#initializedCalls();
+		return fetchListPage(family, list, request);
 	}
 
-	follow(session: FollowSession<GrpcItem, ItemFrame>) {
-		return followLedger(this.#initializedCalls(), session);
+	subscribe(_from: Bound | undefined, signal: AbortSignal) {
+		const { family, subscribe } = this.#initializedCalls();
+		return liveSubscription(subscribe(signal), family);
 	}
 
 	mapItem(item: GrpcItem) {
@@ -130,7 +149,6 @@ export class GrpcLedgerStreamAdapter implements LedgerStreamAdapter<GrpcItem, It
 					{ readMask, filter },
 					{ signal, isItem, coalesceProgress: true },
 				),
-			indexedTip: (signal) => readIndexedTip(transport, signal),
 		};
 	}
 
