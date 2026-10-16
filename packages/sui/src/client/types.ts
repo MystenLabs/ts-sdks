@@ -445,6 +445,10 @@ export namespace SuiClientTypes {
 		sender: string | null;
 		gasData: TransactionGasData;
 		expiration: TransactionExpiration | null;
+		/** The inputs of a `ProgrammableTransaction` kind; empty for every other kind. */
+		inputs: TransactionInput[];
+		/** The commands of a `ProgrammableTransaction` kind; empty for every other kind. */
+		commands: TransactionCommand[];
 		kind: TransactionKind;
 	}
 

@@ -176,6 +176,24 @@ describe('ledger transaction data across transports', () => {
 	it('maps programmable transactions identically, including shared object mutability', async () => {
 		const [fromGrpc, fromGraphQL] = await readBoth(programmable);
 		expect(fromGraphQL).toEqual(fromGrpc);
+		const body = {
+			inputs: [
+				{ $kind: 'Pure', Pure: { bytes: 'AQ==' } },
+				{
+					$kind: 'Object',
+					Object: {
+						$kind: 'SharedObject',
+						SharedObject: {
+							objectId: `0x${'0'.repeat(61)}acc`,
+							initialSharedVersion: '1',
+							mutable: false,
+							mutability: 'NonExclusiveWrite',
+						},
+					},
+				},
+			],
+			commands: [],
+		};
 		expect(fromGrpc).toEqual({
 			version: 2,
 			sender: address,
@@ -186,27 +204,8 @@ describe('ledger transaction data across transports', () => {
 				budget: '5000',
 			},
 			expiration: { $kind: 'Epoch', Epoch: '7' },
-			kind: {
-				$kind: 'ProgrammableTransaction',
-				ProgrammableTransaction: {
-					inputs: [
-						{ $kind: 'Pure', Pure: { bytes: 'AQ==' } },
-						{
-							$kind: 'Object',
-							Object: {
-								$kind: 'SharedObject',
-								SharedObject: {
-									objectId: `0x${'0'.repeat(61)}acc`,
-									initialSharedVersion: '1',
-									mutable: false,
-									mutability: 'NonExclusiveWrite',
-								},
-							},
-						},
-					],
-					commands: [],
-				},
-			},
+			...body,
+			kind: { $kind: 'ProgrammableTransaction', ProgrammableTransaction: body },
 		});
 	});
 
@@ -220,12 +219,16 @@ describe('ledger transaction data across transports', () => {
 				{ $kind: 'BridgeStateCreate', BridgeStateCreate: { chainId: '4c78adac' } },
 			],
 		});
+		expect(fromGrpc.inputs).toEqual([]);
+		expect(fromGrpc.commands).toEqual([]);
 	});
 
 	it('returns Unknown for a newer transaction kind on both transports', async () => {
 		const [fromGrpc, fromGraphQL] = await readBoth(newerKind.grpc, newerKind.json);
 		expect(fromGraphQL).toEqual(fromGrpc);
 		expect(fromGrpc.kind).toEqual({ $kind: 'Unknown', Unknown: true });
+		expect(fromGrpc.inputs).toEqual([]);
+		expect(fromGrpc.commands).toEqual([]);
 		expect(fromGrpc.sender).toBe(address);
 		expect(fromGrpc.expiration).toEqual({ $kind: 'Epoch', Epoch: '7' });
 	});

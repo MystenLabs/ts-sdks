@@ -36,7 +36,7 @@ import type { SuiClientTypes } from './types.js';
 
 type TransactionKind = SuiClientTypes.TransactionKind;
 type EndOfEpochTransactionKind = SuiClientTypes.EndOfEpochTransactionKind;
-type TransactionHeader = Omit<SuiClientTypes.TransactionData, 'kind'>;
+type TransactionHeader = Omit<SuiClientTypes.TransactionData, 'kind' | 'inputs' | 'commands'>;
 /** A header as the builder types it, before `normalizeProgrammable` settles `null`s. */
 type HeaderInput = Omit<BuilderTransactionData, 'inputs' | 'commands' | 'digest'>;
 
@@ -83,7 +83,7 @@ export function parseTransactionDataBcs(bytes: Uint8Array): SuiClientTypes.Trans
 			kind = data.kind;
 	}
 
-	return { ...header, kind };
+	return ledgerTransactionData(header, kind);
 }
 
 /**
@@ -102,7 +102,20 @@ export function grpcTransactionToLedgerTransactionData(
 		kind = UNKNOWN_KIND;
 	}
 
-	return { ...header, kind };
+	return ledgerTransactionData(header, kind);
+}
+
+function ledgerTransactionData(
+	header: TransactionHeader,
+	kind: TransactionKind,
+): SuiClientTypes.TransactionData {
+	const programmable = kind.ProgrammableTransaction;
+	return {
+		...header,
+		inputs: programmable?.inputs ?? [],
+		commands: programmable?.commands ?? [],
+		kind,
+	};
 }
 
 function normalizeHeader(header: HeaderInput): TransactionHeader {
