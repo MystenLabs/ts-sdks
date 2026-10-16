@@ -50,7 +50,8 @@ export class StreamSession<P, Item, Frame extends { resumeToken: string }> imple
 	#attemptStartBytes: Uint8Array | undefined;
 	#delivering = false;
 	/** The committed state is within one reconnect of the live tip. */
-	#nearLiveTip = false;
+	#nearLiveTip: boolean;
+	#retentionLimit = false;
 
 	constructor(options: {
 		plan: StreamPlan<P>;
@@ -79,6 +80,7 @@ export class StreamSession<P, Item, Frame extends { resumeToken: string }> imple
 			this.#committedBytes = this.#bytes(plan.start.position);
 		}
 		this.#covered = this.#initialCoverage();
+		this.#nearLiveTip = plan.anchored;
 	}
 
 	get start(): Bound<P> | undefined {
@@ -160,7 +162,7 @@ export class StreamSession<P, Item, Frame extends { resumeToken: string }> imple
 			$kind: 'Complete',
 			completion: {
 				order,
-				reason: COMPLETION_REASON[range.end.$kind],
+				reason: this.#retentionLimit ? 'retentionLimit' : COMPLETION_REASON[range.end.$kind],
 				resumeToken: this.#committed === undefined ? undefined : this.#committedToken(),
 				range: {
 					start: start && this.#publicBound(start),
@@ -200,6 +202,7 @@ export class StreamSession<P, Item, Frame extends { resumeToken: string }> imple
 					break;
 				case 'End':
 					complete = event.complete;
+					this.#retentionLimit ||= !!event.retentionLimit;
 					break;
 			}
 		}

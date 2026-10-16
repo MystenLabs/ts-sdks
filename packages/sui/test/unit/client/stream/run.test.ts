@@ -54,6 +54,29 @@ describe('frames', () => {
 		]);
 	});
 
+	it('completes a descending read toward genesis at the retention limit', async () => {
+		const adapter = fakeAdapter(ledgerOf(5), { retainedFrom: 3n });
+		const frames = await collect(
+			stream(adapter, { order: 'descending', frames: { completion: true } }),
+		);
+		expect(frames.map((frame) => (frame.$kind === 'Item' ? frame.id : frame.$kind))).toEqual([
+			'5:0',
+			'4:0',
+			'3:0',
+			'Complete',
+		]);
+		expect(frames.at(-1)).toMatchObject({ completion: { reason: 'retentionLimit' } });
+		expect(adapter.calls.scans).toHaveLength(1);
+	});
+
+	it('fails an end below the retention limit with HistoryUnavailable, without retrying', async () => {
+		const adapter = fakeAdapter(ledgerOf(5), { retainedFrom: 3n });
+		await expect(
+			collect(stream(adapter, { order: 'descending', end: { checkpoint: 1 } })),
+		).rejects.toMatchObject({ code: 'HistoryUnavailable' });
+		expect(adapter.calls.scans).toHaveLength(1);
+	});
+
 	it('advances tokens only through the item the consumer received', async () => {
 		const ledger = ledgerOf(5);
 		const adapter = fakeAdapter(ledger);
