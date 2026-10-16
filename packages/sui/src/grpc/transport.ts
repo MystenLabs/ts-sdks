@@ -145,10 +145,9 @@ function streamFetch(fetch: typeof globalThis.fetch): typeof globalThis.fetch {
 		const chunks = bodyChunks(response.body);
 		if (!chunks) return response;
 		const signal = init?.signal;
-		// Upstream reads only this metadata and the body, and reads a body without `getReader()`
-		// through async iteration. Returning that shape needs no global `Response` or
-		// `ReadableStream`, which some runtimes with a custom fetch lack. The getters stay lazy:
-		// Cloudflare Workers throw on `type`, which upstream catches.
+		// Upstream reads only this metadata and iterates the body, so this shape avoids needing a
+		// global `Response` or `ReadableStream`, which some runtimes lack. The getters stay lazy
+		// because Cloudflare Workers throw on `type`, which upstream catches.
 		return {
 			get ok() {
 				return response.ok;

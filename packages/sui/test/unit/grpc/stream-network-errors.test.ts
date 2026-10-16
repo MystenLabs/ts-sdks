@@ -14,7 +14,7 @@ async function read(fetch: typeof globalThis.fetch) {
 	}
 }
 
-it('preserves transport failure evidence when dispatching a stream', async () => {
+it('codes a failed stream fetch as UNAVAILABLE', async () => {
 	await expect(
 		read(async () => {
 			throw new TypeError('fetch failed');
@@ -22,7 +22,7 @@ it('preserves transport failure evidence when dispatching a stream', async () =>
 	).rejects.toMatchObject({ code: 'UNAVAILABLE', message: 'fetch failed' });
 });
 
-it('preserves response-body network failures for reconnect classification', async () => {
+it('codes a failed response body read as UNAVAILABLE', async () => {
 	const fetch = async () =>
 		new Response(
 			new ReadableStream({
@@ -121,7 +121,7 @@ it('keeps an AbortError from a signal other than the call signal as CANCELLED', 
 	).rejects.toMatchObject({ code: 'CANCELLED' });
 });
 
-it('keeps server INTERNAL statuses terminal', async () => {
+it('keeps a server INTERNAL status as INTERNAL', async () => {
 	await expect(
 		read(
 			async () =>
@@ -136,7 +136,7 @@ it('keeps server INTERNAL statuses terminal', async () => {
 	).rejects.toMatchObject({ code: 'INTERNAL', message: 'server failure' });
 });
 
-it('keeps protobuf decoding errors separate from transport failures', async () => {
+it('codes protobuf decode errors as INTERNAL', async () => {
 	await expect(
 		read(
 			async () =>
