@@ -4,6 +4,11 @@
 import { fromBase58, toHex } from '@mysten/bcs';
 
 import { bcs } from '../bcs/index.js';
+import { TypeTagSerializer } from '../bcs/type-tag-serializer.js';
+import type { StructTag, TypeTag } from '../bcs/types.js';
+import type { Object as GrpcObject } from '../grpc/proto/sui/rpc/v2/object.js';
+import type { Owner as GrpcOwner } from '../grpc/proto/sui/rpc/v2/owner.js';
+import { Owner_OwnerKind } from '../grpc/proto/sui/rpc/v2/owner.js';
 import type {
 	ConsensusCommitPrologue as GrpcConsensusCommitPrologue,
 	ChangeEpoch as GrpcChangeEpoch,
@@ -152,11 +157,7 @@ function grpcKindToTransactionKind(
 			return {
 				$kind: 'Genesis',
 				Genesis: {
-					objects: data.genesis.objects.map((object) => {
-						// Genesis objects arrive as full objects; their BCS carries the exact data and owner.
-						const { data, owner } = bcs.Object.parse(required(object.bcs?.value, 'object bcs'));
-						return { $kind: 'RawObject', RawObject: { data, owner } };
-					}),
+					objects: data.genesis.objects.map(grpcGenesisObject),
 				},
 			};
 		case TransactionKind_Kind.CONSENSUS_COMMIT_PROLOGUE_V1:
@@ -218,6 +219,155 @@ function grpcKindToTransactionKind(
 		default:
 			return UNKNOWN_KIND;
 	}
+}
+
+const SUI_FRAMEWORK = normalizeSuiAddress('0x2');
+const SUI_SYSTEM = normalizeSuiAddress('0x3');
+
+/**
+ * Genesis objects are not sent with their BCS: the RPC fills the owner, ID, version, type,
+ * public-transfer flag and contents of Move objects, or the modules, type origins and linkage of
+ * packages. Rebuild the raw object from those fields, then round-trip it through BCS so it has the
+ * same shape as the BCS decoder's output.
+ */
+function grpcGenesisObject(object: GrpcObject): SuiClientTypes.GenesisObject {
+	const version = u64(object.version, 'object version');
+	let data: typeof bcs.Data.$inferInput;
+	if (object.package) {
+		data = {
+			Package: {
+				id: normalizeSuiAddress(required(object.objectId, 'object id')),
+				version,
+				moduleMap: new Map(
+					object.package.modules.map((module) => [
+						required(module.name, 'module name'),
+						required(module.contents, 'module contents'),
+					]),
+				),
+				typeOriginTable: object.package.typeOrigins.map((origin) => ({
+					moduleName: required(origin.moduleName, 'type origin module name'),
+					datatypeName: required(origin.datatypeName, 'type origin datatype name'),
+					package: normalizeSuiAddress(required(origin.packageId, 'type origin package id')),
+				})),
+				linkageTable: new Map(
+					object.package.linkage.map((linkage) => [
+						normalizeSuiAddress(required(linkage.originalId, 'linkage original id')),
+						{
+							upgradedId: normalizeSuiAddress(required(linkage.upgradedId, 'linkage upgraded id')),
+							upgradedVersion: u64(linkage.upgradedVersion, 'linkage upgraded version'),
+						},
+					]),
+				),
+			},
+		};
+	} else {
+		data = {
+			Move: {
+				type: moveObjectType(required(object.objectType, 'object type')),
+				hasPublicTransfer: required(object.hasPublicTransfer, 'has public transfer'),
+				version,
+				contents: required(object.contents?.value, 'object contents'),
+			},
+		};
+	}
+
+	const owner = grpcOwner(required(object.owner, 'object owner'));
+	return {
+		$kind: 'RawObject',
+		RawObject: {
+			data: bcs.Data.parse(bcs.Data.serialize(data).toBytes()),
+			owner: bcs.Owner.parse(bcs.Owner.serialize(owner).toBytes()),
+		},
+	};
+}
+
+function grpcOwner(owner: GrpcOwner): typeof bcs.Owner.$inferInput {
+	switch (owner.kind) {
+		case Owner_OwnerKind.ADDRESS:
+			return { AddressOwner: required(owner.address, 'owner address') };
+		case Owner_OwnerKind.OBJECT:
+			return { ObjectOwner: required(owner.address, 'owner address') };
+		case Owner_OwnerKind.SHARED:
+			return { Shared: { initialSharedVersion: u64(owner.version, 'initial shared version') } };
+		case Owner_OwnerKind.IMMUTABLE:
+			return { Immutable: true };
+		case Owner_OwnerKind.CONSENSUS_ADDRESS:
+			return {
+				ConsensusAddressOwner: {
+					startVersion: u64(owner.version, 'start version'),
+					owner: required(owner.address, 'owner address'),
+				},
+			};
+		default:
+			throw new Error(`Unknown owner kind: ${owner.kind}`);
+	}
+}
+
+// Mirrors `MoveObjectType::from(StructTag)` in sui-types, which stores common types compactly.
+function moveObjectType(objectType: string): typeof bcs.MoveObjectType.$inferInput {
+	const tag = structTag(TypeTagSerializer.parseFromStr(objectType, true));
+
+	if (isStruct(tag, SUI_FRAMEWORK, 'coin', 'Coin') && tag.typeParams.length === 1) {
+		const [inner] = tag.typeParams;
+		return isGas(inner) ? { GasCoin: true } : { Coin: inner };
+	}
+	if (isStruct(tag, SUI_SYSTEM, 'staking_pool', 'StakedSui') && tag.typeParams.length === 0) {
+		return { StakedSui: true };
+	}
+	const balanceType = accumulatorBalanceType(tag);
+	if (balanceType) {
+		return isGas(balanceType)
+			? { SuiBalanceAccumulatorField: true }
+			: { BalanceAccumulatorField: balanceType };
+	}
+	return { Other: tag };
+}
+
+// `0x2::dynamic_field::Field<0x2::accumulator::Key<0x2::balance::Balance<T>>, 0x2::accumulator::U128>`
+function accumulatorBalanceType(tag: StructTag): TypeTag | null {
+	if (!isStruct(tag, SUI_FRAMEWORK, 'dynamic_field', 'Field') || tag.typeParams.length !== 2) {
+		return null;
+	}
+	const [key, value] = tag.typeParams;
+	const keyTag = 'struct' in key ? key.struct : null;
+	if (
+		!keyTag ||
+		!isStruct(keyTag, SUI_FRAMEWORK, 'accumulator', 'Key') ||
+		keyTag.typeParams.length !== 1 ||
+		!('struct' in value) ||
+		!isStruct(value.struct, SUI_FRAMEWORK, 'accumulator', 'U128') ||
+		value.struct.typeParams.length !== 0
+	) {
+		return null;
+	}
+	const [balance] = keyTag.typeParams;
+	if (
+		!('struct' in balance) ||
+		!isStruct(balance.struct, SUI_FRAMEWORK, 'balance', 'Balance') ||
+		balance.struct.typeParams.length !== 1
+	) {
+		return null;
+	}
+	return balance.struct.typeParams[0];
+}
+
+function structTag(tag: TypeTag): StructTag {
+	if (!('struct' in tag)) {
+		throw new Error('Object type is not a struct');
+	}
+	return tag.struct;
+}
+
+function isStruct(tag: StructTag, address: string, module: string, name: string) {
+	return tag.address === address && tag.module === module && tag.name === name;
+}
+
+function isGas(tag: TypeTag) {
+	return (
+		'struct' in tag &&
+		isStruct(tag.struct, SUI_FRAMEWORK, 'sui', 'SUI') &&
+		tag.struct.typeParams.length === 0
+	);
 }
 
 function grpcEndOfEpochTransactionKind(

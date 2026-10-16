@@ -3,10 +3,11 @@
 
 import { gunzipSync } from 'node:zlib';
 
-import { fromBase64 } from '@mysten/bcs';
+import { fromBase64, toHex } from '@mysten/bcs';
 import { describe, expect, it } from 'vitest';
 
 import { bcs } from '../../../src/bcs/index.js';
+import { TypeTagSerializer } from '../../../src/bcs/type-tag-serializer.js';
 import {
 	grpcTransactionToLedgerTransactionData,
 	parseTransactionDataBcs,
@@ -15,6 +16,7 @@ import { grpcTransactionToTransactionData } from '../../../src/client/transactio
 import type { SuiClientTypes } from '../../../src/client/types.js';
 import { Argument_ArgumentKind } from '../../../src/grpc/proto/sui/rpc/v2/argument.js';
 import { Input_InputKind, Input_Mutability } from '../../../src/grpc/proto/sui/rpc/v2/input.js';
+import { Owner_OwnerKind as OwnerKind } from '../../../src/grpc/proto/sui/rpc/v2/owner.js';
 import type { PartialMessage } from '@protobuf-ts/runtime';
 import {
 	EndOfEpochTransactionKind_Kind as EndOfEpochKind,
@@ -23,6 +25,7 @@ import {
 	TransactionExpiration_TransactionExpirationKind as ExpirationKind,
 	TransactionKind_Kind as Kind,
 } from '../../../src/grpc/proto/sui/rpc/v2/transaction.js';
+import { normalizeStructTag, normalizeSuiAddress } from '../../../src/utils/sui-types.js';
 import { GENESIS_TRANSACTION_GZIP_BASE64 } from '../bcs/fixtures/genesis-transaction.js';
 
 type GrpcKind = NonNullable<PartialMessage<GrpcTransaction>['kind']>;
@@ -438,20 +441,50 @@ describe('ledger transaction data from gRPC', () => {
 		expect(mapped).toEqual(parseTransactionDataBcs(bcsTransaction(kind)));
 	});
 
-	it('maps genesis objects from their BCS', () => {
+	it('maps genesis objects from their structured fields', () => {
 		const genesisBytes = gunzipSync(fromBase64(GENESIS_TRANSACTION_GZIP_BASE64));
 		const decoded = parseTransactionDataBcs(genesisBytes);
 		if (decoded.kind.$kind !== 'Genesis') throw new Error('Expected genesis');
-		const objects = decoded.kind.Genesis.objects.map(({ RawObject: { data, owner } }) => ({
-			bcs: {
-				value: bcs.Object.serialize({
-					data,
-					owner,
-					previousTransaction: digest,
-					storageRebate: '0',
-				}).toBytes(),
-			},
-		}));
+		const kinds = new Set<string>();
+		// The RPC sends genesis objects without BCS, filling only the fields `Object` gets from
+		// `MoveObject`/`MovePackage` and the owner.
+		const objects = decoded.kind.Genesis.objects.map(({ RawObject: { data, owner } }) => {
+			if (data.$kind === 'Package') {
+				const pkg = data.Package;
+				return {
+					objectId: pkg.id,
+					version: BigInt(pkg.version),
+					owner: grpcOwner(owner),
+					objectType: 'package',
+					package: {
+						modules: [...pkg.moduleMap].map(([name, contents]) => ({
+							name,
+							contents: new Uint8Array(contents),
+						})),
+						typeOrigins: pkg.typeOriginTable.map((origin) => ({
+							moduleName: origin.moduleName,
+							datatypeName: origin.datatypeName,
+							packageId: origin.package,
+						})),
+						linkage: [...pkg.linkageTable].map(([originalId, info]) => ({
+							originalId,
+							upgradedId: info.upgradedId,
+							upgradedVersion: BigInt(info.upgradedVersion),
+						})),
+					},
+				};
+			}
+			kinds.add(data.Move.type.$kind);
+			return {
+				objectId: normalizeSuiAddress(toHex(new Uint8Array(data.Move.contents).slice(0, 32))),
+				version: BigInt(data.Move.version),
+				owner: grpcOwner(owner),
+				objectType: moveObjectTypeString(data.Move.type),
+				hasPublicTransfer: data.Move.hasPublicTransfer,
+				contents: { value: new Uint8Array(data.Move.contents) },
+			};
+		});
+		expect(kinds).toEqual(new Set(['GasCoin', 'StakedSui', 'Other']));
 		const mapped = grpcTransactionToLedgerTransactionData(
 			GrpcTransaction.create({
 				sender: decoded.sender!,
@@ -594,3 +627,36 @@ describe('ledger transaction data from gRPC', () => {
 		]);
 	});
 });
+
+function grpcOwner(owner: typeof bcs.Owner.$inferType) {
+	switch (owner.$kind) {
+		case 'AddressOwner':
+			return { kind: OwnerKind.ADDRESS, address: owner.AddressOwner };
+		case 'ObjectOwner':
+			return { kind: OwnerKind.OBJECT, address: owner.ObjectOwner };
+		case 'Shared':
+			return {
+				kind: OwnerKind.SHARED,
+				version: BigInt(owner.Shared.initialSharedVersion),
+			};
+		case 'Immutable':
+			return { kind: OwnerKind.IMMUTABLE };
+		default:
+			throw new Error(`Unexpected genesis owner ${owner.$kind}`);
+	}
+}
+
+function moveObjectTypeString(type: typeof bcs.MoveObjectType.$inferType): string {
+	switch (type.$kind) {
+		case 'GasCoin':
+			return normalizeStructTag('0x2::coin::Coin<0x2::sui::SUI>');
+		case 'StakedSui':
+			return normalizeStructTag('0x3::staking_pool::StakedSui');
+		case 'Coin':
+			return normalizeStructTag(`0x2::coin::Coin<${TypeTagSerializer.tagToString(type.Coin)}>`);
+		case 'Other':
+			return normalizeStructTag(TypeTagSerializer.tagToString({ struct: type.Other }));
+		default:
+			throw new Error(`Unexpected genesis object type ${type.$kind}`);
+	}
+}
