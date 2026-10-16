@@ -73,7 +73,7 @@ describe('resolveScanWindow', () => {
 		[
 			'a descending read to genesis stops at the oldest retained checkpoint',
 			{ start: at(10), descending: true },
-			{ lower: 5n, upper: 11n, pruned: true },
+			{ lower: 5n, upper: 11n, retentionLimit: true },
 		],
 		[
 			'descending item end bounds by cursor from its checkpoint',

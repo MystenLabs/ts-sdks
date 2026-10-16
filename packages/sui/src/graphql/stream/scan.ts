@@ -42,8 +42,8 @@ export interface ScanWindow {
 	before?: string;
 	/** An ascending scan is complete only once the indexed tip reaches this checkpoint. */
 	target?: bigint;
-	/** A descending read to genesis that fails with `HistoryUnavailable` at `lower`. */
-	pruned?: true;
+	/** A descending read to genesis that stops at `lower`, the oldest retained checkpoint. */
+	retentionLimit?: true;
 }
 
 type Request = Pick<ScanRequest<GraphQLPosition>, 'start' | 'end' | 'order'>;
@@ -90,7 +90,7 @@ export function resolveScanWindow(
 	if (!low) {
 		if (indexed.first !== null && indexed.first > 0n) {
 			window.lower = indexed.first;
-			window.pruned = true;
+			window.retentionLimit = true;
 		}
 		return window;
 	}
@@ -134,13 +134,13 @@ export async function* scanLedger<Node>(
 	const window = resolveScanWindow(request, indexed, family.onePerCheckpoint);
 	const reaches = (tip: bigint) => window.target === undefined || tip >= window.target;
 	let complete = reaches(indexed.tip);
+	const { retentionLimit } = window;
 	if (window.lower >= window.upper) {
-		assertNotPruned(window);
 		// A quiet stream still needs a token before its first match.
 		if (!descending && start && 'checkpoint' in start && window.lower > 0n) {
 			yield { $kind: 'Progress', position: boundaryPosition(window.lower - 1n) };
 		}
-		yield { $kind: 'End', complete };
+		yield { $kind: 'End', complete, retentionLimit };
 		return;
 	}
 
@@ -193,13 +193,12 @@ export async function* scanLedger<Node>(
 			// So the next pass starts here instead of rereading the window.
 			const progress = exhaustedProgress(cursor, edges.length > 0, window, seen, request);
 			if (progress) yield progress;
-			assertNotPruned(window);
 			yield {
 				$kind: 'Page',
 				end: end && complete ? 'bound' : 'indexedTip',
 				coverage: coverage(true),
 			};
-			yield { $kind: 'End', complete };
+			yield { $kind: 'End', complete, retentionLimit };
 			return;
 		}
 
@@ -285,15 +284,6 @@ function frontierProgress(
 	seen: bigint,
 ): Extract<ScanEvent<GraphQLPosition, never>, { $kind: 'Progress' }> {
 	return { $kind: 'Progress', position: frontierPosition(cursor, seen) };
-}
-
-function assertNotPruned(window: ScanWindow) {
-	if (window.pruned) {
-		throw new SuiStreamError(
-			'HistoryUnavailable',
-			`Checkpoints before ${window.lower} have been pruned`,
-		);
-	}
 }
 
 function pageCursors(
