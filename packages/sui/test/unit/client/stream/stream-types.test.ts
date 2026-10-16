@@ -30,6 +30,18 @@ describe('stream types', () => {
 		>();
 	});
 
+	it('adds control frames that any member of a union of frame options enables', () => {
+		expectTypeOf<T.StreamEventResult<{ completion: true } | { progress: true }>>().toEqualTypeOf<
+			T.StreamEventFrame | T.StreamCompletionFrame | T.StreamProgressFrame
+		>();
+		expectTypeOf<T.StreamCheckpointResult<{} | { completion: true }>>().toEqualTypeOf<
+			T.StreamCheckpointFrame | T.StreamCompletionFrame
+		>();
+		expectTypeOf<
+			T.StreamEventResult<{} | { completion: false } | { progress: false }>
+		>().toEqualTypeOf<T.StreamEventFrame>();
+	});
+
 	it('keeps include for data fields only', () => {
 		expectTypeOf<T.StreamTransactionsOptions<{ effects: true }>['include']>().toEqualTypeOf<
 			{ effects: true } | undefined
