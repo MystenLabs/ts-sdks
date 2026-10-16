@@ -217,20 +217,15 @@ for await (const result of client.subscribe({ query: checkpoints, signal: contro
 }
 ```
 
-Subscriptions use streaming HTTP POST with server-sent events (SSE). The client sends configured
-headers and uses the constructor's custom `fetch` implementation. Set `subscriptionUrl` when a
-provider serves subscriptions at a different URL. `operationName`, `variables`, and `extensions` are
-supported as for queries.
+Subscriptions stream server-sent events over HTTP POST, using the client's `headers` and `fetch`.
+Set `subscriptionUrl` if your provider serves subscriptions at a different URL.
 
-GraphQL errors remain in each response, including responses with partial data. HTTP failures,
-malformed responses, and connection read failures throw a `SuiGraphQLRequestError`, with `status`
-and `retryable` set as for queries. Iteration ends when the server closes the response or sends an
-SSE completion event.
+Each result keeps its GraphQL `errors` alongside any partial data. HTTP, network and malformed
+response failures throw `SuiGraphQLRequestError`. The loop ends when the server closes the
+subscription, and `subscribe` does not reconnect.
 
-Requests begin when iteration starts. Use `break` to leave the `for await...of` loop and close the
-subscription; the loop then ends normally. Call `controller.abort()` to stop while waiting for the
-next result; unlike `break`, aborting rejects the pending iteration with the signal's reason
-(normally an `AbortError`), so catch it:
+The request starts when iteration starts. `break` out of the loop to close the subscription.
+Aborting the signal also closes it, but rejects the pending iteration with the abort reason:
 
 ```typescript
 try {
@@ -242,9 +237,8 @@ try {
 }
 ```
 
-`subscribe` does not reconnect automatically.
+`subscribe` accepts the same options as `query`, plus:
 
-Each SSE message is limited to 16 Mi characters by default, counting every line of the message
-except comments, including field names such as `data:` and one character per line break. Set
-`maxMessageSize` on `subscribe()` to change this limit for larger selections. Exceeding the limit
-ends the subscription with a `SuiGraphQLRequestError`.
+| Option           | Default            | Description                                                 |
+| ---------------- | ------------------ | ----------------------------------------------------------- |
+| `maxMessageSize` | `16 * 1024 * 1024` | Largest event, in characters, before the subscription fails |

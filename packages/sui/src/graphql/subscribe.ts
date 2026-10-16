@@ -5,11 +5,7 @@ import type { GraphQLQueryResult } from './client.js';
 import { isRetryableStatus, SuiGraphQLRequestError } from './errors.js';
 import { ServerSentEventParser } from './sse-parser.js';
 
-/**
- * Release a response body that will not be read. Cleanup is best effort and never awaited: a
- * body that has already failed must not hide the caller's error, and a cloned or teed body only
- * settles its cancel once every branch is cancelled, which may be never.
- */
+/** Never awaited: a teed body's cancel may never settle, and cleanup must not hide the caller's error. */
 function cancelBody(response: Response) {
 	void response.body?.cancel().catch(() => {});
 }
@@ -76,14 +72,12 @@ export async function* readGraphQLSSE<Result>(
 				}
 				yield result;
 			}
-			// Sui closes a finished subscription without sending a `complete` event. A message
-			// without its terminating blank line is incomplete and dropped, as `EventSource` does.
+			// Sui closes a finished subscription without a `complete` event.
 			if (chunk.done) return;
 		}
 	} finally {
 		signal.removeEventListener('abort', abort);
-		// Not awaited, for the reason given on `cancelBody`. Cancelling closes the stream at once,
-		// so the lock can be released while the underlying source finishes cancelling.
+		// Not awaited, as in `cancelBody`.
 		void reader.cancel().catch(() => {});
 		reader.releaseLock();
 	}
