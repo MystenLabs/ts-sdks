@@ -1,0 +1,133 @@
+# Copyright (c) Mysten Labs, Inc.
+# SPDX-License-Identifier: Apache-2.0
+
+# Ledger streams (`src/graphql/stream/`). Nodes use the same fragments as the list methods, so a
+# streamed item maps exactly like the same item from `listCheckpoints`, `listTransactions` or
+# `listEvents`. Subscriptions never take `after`: streams replay history themselves.
+
+query ledgerStreamState($field: String!) {
+	chainIdentifier
+	serviceConfig {
+		availableRange(type: "Query", field: $field) {
+			first {
+				sequenceNumber
+			}
+			last {
+				sequenceNumber
+			}
+		}
+	}
+}
+
+fragment STREAM_PAGE_INFO on PageInfo {
+	hasNextPage
+	hasPreviousPage
+	startCursor
+	endCursor
+}
+
+query scanCheckpoints(
+	$filter: CheckpointFilter
+	$first: Int
+	$after: String
+	$last: Int
+	$before: String
+) {
+	checkpoints(filter: $filter, first: $first, after: $after, last: $last, before: $before) {
+		pageInfo {
+			...STREAM_PAGE_INFO
+		}
+		edges {
+			cursor
+			node {
+				...CHECKPOINT_FIELDS
+			}
+		}
+	}
+}
+
+subscription subscribeCheckpoints {
+	checkpoints {
+		cursor
+		node {
+			...CHECKPOINT_FIELDS
+		}
+	}
+}
+
+query scanEvents($filter: EventFilter, $first: Int, $after: String, $last: Int, $before: String) {
+	events(filter: $filter, first: $first, after: $after, last: $last, before: $before) {
+		pageInfo {
+			...STREAM_PAGE_INFO
+		}
+		edges {
+			cursor
+			node {
+				...EVENT_FIELDS
+			}
+		}
+	}
+}
+
+subscription subscribeEvents($filter: EventFilter) {
+	events(filter: $filter) {
+		cursor
+		node {
+			...EVENT_FIELDS
+		}
+	}
+}
+
+query scanTransactions(
+	$filter: TransactionFilter
+	$first: Int
+	$after: String
+	$last: Int
+	$before: String
+	$includeTransaction: Boolean = false
+	$includeEffects: Boolean = false
+	$includeEvents: Boolean = false
+	$includeBalanceChanges: Boolean = false
+	$includeObjectTypes: Boolean = false
+	$includeEffectsJson: Boolean = false
+	$includeBcs: Boolean = false
+) {
+	transactions(filter: $filter, first: $first, after: $after, last: $last, before: $before) {
+		pageInfo {
+			...STREAM_PAGE_INFO
+		}
+		edges {
+			cursor
+			node {
+				...TRANSACTION_FIELDS
+			}
+		}
+	}
+}
+
+subscription subscribeTransactions(
+	$filter: TransactionFilter
+	$includeTransaction: Boolean = false
+	$includeEffects: Boolean = false
+	$includeEvents: Boolean = false
+	$includeBalanceChanges: Boolean = false
+	$includeObjectTypes: Boolean = false
+	$includeEffectsJson: Boolean = false
+	$includeBcs: Boolean = false
+) {
+	transactions(filter: $filter) {
+		cursor
+		node {
+			...TRANSACTION_FIELDS
+		}
+	}
+}
+
+# Live nodes can arrive before the index assigns their checkpoint.
+query streamTransactionCheckpoints($digests: [String!]!) {
+	multiGetTransactionEffects(keys: $digests) {
+		checkpoint {
+			sequenceNumber
+		}
+	}
+}

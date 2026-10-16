@@ -470,6 +470,27 @@ export class SuiGraphQLClient<Queries extends Record<string, GraphQLDocument> = 
 		return this.core.listCheckpoints(input);
 	}
 
+	streamCheckpoints<Frames extends SuiClientTypes.StreamFrameOptions = {}>(
+		input?: SuiClientTypes.StreamCheckpointsOptions<Frames>,
+	): AsyncGenerator<SuiClientTypes.StreamCheckpointResult<Frames>> {
+		return this.core.streamCheckpoints(input);
+	}
+
+	streamTransactions<
+		Include extends SuiClientTypes.TransactionInclude = {},
+		Frames extends SuiClientTypes.StreamFrameOptions = {},
+	>(
+		input?: SuiClientTypes.StreamTransactionsOptions<Include, Frames>,
+	): AsyncGenerator<SuiClientTypes.StreamTransactionResult<Include, Frames>> {
+		return this.core.streamTransactions(input);
+	}
+
+	streamEvents<Frames extends SuiClientTypes.StreamFrameOptions = {}>(
+		input?: SuiClientTypes.StreamEventsOptions<Frames>,
+	): AsyncGenerator<SuiClientTypes.StreamEventResult<Frames>> {
+		return this.core.streamEvents(input);
+	}
+
 	getMoveFunction(
 		input: SuiClientTypes.GetMoveFunctionOptions,
 	): Promise<SuiClientTypes.GetMoveFunctionResponse> {
