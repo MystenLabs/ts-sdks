@@ -140,6 +140,17 @@ describe.each(['pull', 'push'] satisfies Delivery[])('ledger calls (%s)', (deliv
 		},
 	);
 
+	it('fails with the abort reason when the stream signal aborts after an overflow', async () => {
+		const frames = Array.from({ length: 10 }, (_, n) => event(n + 1));
+		const ledger = new FakeLedger(delivery).subscribe('SubscribeEvents', frames);
+		const { call, controller } = open(ledger, { maxItems: 2 });
+		call.readAhead(true);
+		await settle();
+		controller.abort(new Error('stop'));
+		expect(await rejection(call.next())).toMatchObject({ message: 'stop' });
+		await call.return();
+	});
+
 	it('cancels a pending read on return()', async () => {
 		const ledger = new FakeLedger(delivery).subscribe('SubscribeEvents', []);
 		const { call } = open(ledger);
